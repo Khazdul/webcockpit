@@ -41,6 +41,8 @@ import {
   COMM_FILTER_KEY_MAX,
   type CommSettings,
   CURSOR_STYLES,
+  type ColorSetting,
+  GROUP_AWAY_MODES,
   GROUP_NPC_MODES,
   type GroupSettings,
   FONT_IDS,
@@ -64,8 +66,18 @@ import {
   SPOTLIGHT_PERIODS,
   type Settings,
   type SpotlightSettings,
+  TIMER_COLOR_HEX,
   TIMER_COLOR_ORDER,
+  TIMER_COLS_MAX,
   TIMER_COLS_MIN,
+  TIMER_GROUP_LAYOUTS,
+  TIMER_LAYOUTS,
+  TIMER_LEGACY_DEFAULT_COLOR,
+  TIMER_SIGNALS,
+  TIMER_STYLES,
+  TIMER_WARN_CHOICES,
+  type TimerColor,
+  type TimerCols,
   type TimersSettings,
   WEATHER_CATEGORIES,
   type WeatherSettings,
@@ -73,12 +85,12 @@ import {
   type WindowRect,
   type WindowSettings,
   defaultSettings,
+  defaultGroupSettings,
   defaultTimersSettings,
-  timerColsMax,
   LEGACY_APPEARANCE,
   LEGACY_MAPPER,
 } from './types';
-import { TIMER_GROUPS } from '../timers/entry';
+import { TIMER_GROUPS, type TimerGroup } from '../timers/entry';
 
 /** Largest dock size / desired value kept, in cells (a sanity bound only). */
 export const MAX_CELLS = 1000;
@@ -270,11 +282,23 @@ export function migrateLayout(raw: unknown, drop: ReadonlySet<PaneId> = NONE): L
   return out;
 }
 
-/** Group pane options from anything. */
+/** A colour setting from anything (ADR 0122): `auto`, or a hex normalised; else `auto`. */
+export function colorSetting(v: unknown): ColorSetting {
+  if (v === 'auto') return 'auto';
+  return normalizeHex(v) ?? 'auto';
+}
+
+/** Group pane options from anything (ADR 0122 fields are additive). */
 export function migrateGroup(raw: unknown): GroupSettings {
-  const d = defaultSettings().group;
+  const d = defaultGroupSettings();
   const g = isObj(raw) ? raw : {};
-  return { showPlayers: bool(g.showPlayers, d.showPlayers), npcMode: oneOf(g.npcMode, GROUP_NPC_MODES, d.npcMode) };
+  const c = isObj(g.colors) ? g.colors : {};
+  return {
+    showPlayers: bool(g.showPlayers, d.showPlayers),
+    npcMode: oneOf(g.npcMode, GROUP_NPC_MODES, d.npcMode),
+    away: oneOf(g.away, GROUP_AWAY_MODES, d.away),
+    colors: { hp: colorSetting(c.hp), mana: colorSetting(c.mana), mp: colorSetting(c.mp) },
+  };
 }
 
 /**
@@ -297,8 +321,29 @@ export function migrateComm(raw: unknown): CommSettings {
 }
 
 /**
- * Timers options from anything: every key falls back to its own default
- * (Inv §2.6.3), `cols` is clamped (1–6, Charmies 1–2).
+ * A timer group's colour from anything (ADR 0122): a swatch name of the
+ * old settings becomes `auto` when it was that group's default swatch,
+ * else its hex; `auto` and a hex are kept; anything else is `auto`.
+ */
+function timerColor(group: TimerGroup, v: unknown): ColorSetting {
+  if (TIMER_COLOR_ORDER.includes(v as TimerColor)) {
+    const name = v as TimerColor;
+    return group !== 'sanct' && TIMER_LEGACY_DEFAULT_COLOR[group] === name ? 'auto' : TIMER_COLOR_HEX[name];
+  }
+  return colorSetting(v);
+}
+
+/** Grid columns from anything: `auto`, or a whole number clamped 1–6. */
+function timerCols(v: unknown, d: TimerCols): TimerCols {
+  if (v === 'auto') return 'auto';
+  return typeof v === 'number' && Number.isFinite(v) ? int(v, TIMER_COLS_MIN, TIMER_COLS_MAX, 1) : d;
+}
+
+/**
+ * Timers options from anything (ADR 0122): every key falls back to its
+ * default; the old per-group `cols`, `clock`, `bar` and the global
+ * `compact` are dropped; a stored swatch name migrates by value
+ * (`timerColor`), so it works from any version and in old VIEW records.
  */
 export function migrateTimers(raw: unknown): TimersSettings {
   const d = defaultTimersSettings();
@@ -309,13 +354,21 @@ export function migrateTimers(raw: unknown): TimersSettings {
     const dg = d.groups[id];
     d.groups[id] = {
       enabled: bool(x.enabled, dg.enabled),
-      color: oneOf(x.color, TIMER_COLOR_ORDER, dg.color),
-      cols: int(x.cols, TIMER_COLS_MIN, timerColsMax(id), dg.cols),
-      clock: bool(x.clock, dg.clock),
-      bar: bool(x.bar, dg.bar),
+      color: timerColor(id, x.color),
+      layout: oneOf(x.layout, TIMER_GROUP_LAYOUTS, dg.layout),
     };
   }
-  return { groups: d.groups, headers: bool(t.headers, d.headers), compact: bool(t.compact, d.compact) };
+  return {
+    groups: d.groups,
+    style: oneOf(t.style, TIMER_STYLES, d.style),
+    layout: oneOf(t.layout, TIMER_LAYOUTS, d.layout),
+    cols: timerCols(t.cols, d.cols),
+    headers: bool(t.headers, d.headers),
+    timeText: bool(t.timeText, d.timeText),
+    signal: oneOf(t.signal, TIMER_SIGNALS, d.signal),
+    warnAt: oneOf(t.warnAt, TIMER_WARN_CHOICES, d.warnAt),
+    soonestFirst: bool(t.soonestFirst, d.soonestFirst),
+  };
 }
 
 /**

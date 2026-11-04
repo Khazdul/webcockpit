@@ -25,6 +25,7 @@ export type StateTag = 'SPELL' | 'BUFF' | 'DEBUFF' | 'STORE' | 'BLIND' | 'CHARM'
 
 /** The `◆` tag of a group's lines. */
 export const GROUP_TAG: Readonly<Record<TimerGroup, StateTag>> = {
+  sanct: 'SPELL',
   spell: 'SPELL',
   buff: 'BUFF',
   debuff: 'DEBUFF',

@@ -19,12 +19,15 @@ import {
   timersLayout,
 } from '../../src/panes/timers';
 import { INDICATOR_FG } from '../../src/panes/grid';
-import { TIMER_COLOR_HEX, defaultTimersSettings } from '../../src/settings/types';
+import { TIMER_COLOR_HEX, type TimersSettings, defaultTimersSettings } from '../../src/settings/types';
+import { DARK_COLORS } from '../../src/panes/palette';
 import { type TimerCell, type TimerGroup, emptyView } from '../../src/timers/entry';
 import { lightShift } from '../../src/theme/color';
 
 const NOW = 1_000_000_000_000;
 const BLUE = TIMER_COLOR_HEX.blue;
+/** The interim cell-grid pane's settings (stage 39a): no time text unless a test turns it on. */
+const base = (): TimersSettings => ({ ...defaultTimersSettings(), timeText: false });
 
 function cell(name: string, group: TimerGroup, o: Partial<TimerCell> = {}): TimerCell {
   return { id: `${group}:${name}`, name, group, startedAt: NOW, expiresAt: NOW + 60_000, expected: 60_000, tracked: true, ...o };
@@ -35,7 +38,7 @@ function input(cells: TimerCell[], o: Partial<TimersLayoutInput> = {}): TimersLa
   for (const c of cells) view.cells[c.group].push(c);
   return {
     view,
-    settings: defaultTimersSettings(),
+    settings: base(),
     now: NOW,
     w: 40,
     h: 10,
@@ -91,19 +94,17 @@ describe('timersLayout', () => {
     expect(l.timed).toBe(true);
     expect(l.lines[0]!.fg[39]).toBe(CORNER_FG);
     expect(l.zones).toEqual([{ row: 0, x0: 39, x1: 40, hit: { kind: 'corner' } }]);
-    // Headers off, compact off: a blank row between groups, none on top.
-    const s = defaultTimersSettings();
+    // Headers off: the groups follow each other (no blank rows).
+    const s = base();
     s.headers = false;
-    s.compact = false;
     expect(texts(input([cell('armour', 'spell'), cell('2.orc', 'blind')], { settings: s }))).toEqual([
       'ARMOUR                                 +',
-      '',
       '2.ORC                                  ▌',
     ]);
   });
 
   it('drains bars (round half up) and draws the separator only when full', () => {
-    const s = defaultTimersSettings();
+    const s = base();
     s.headers = false;
     // 10-cell cells: 45 % → 4.5 → 5 filled; full → separator.
     const half = cell('armour', 'spell', { expiresAt: NOW + 27_000, expected: 60_000 });
@@ -127,7 +128,7 @@ describe('timersLayout', () => {
   });
 
   it('draws untracked affects dark and untracked stored spells full grey', () => {
-    const s = defaultTimersSettings();
+    const s = base();
     s.headers = false;
     const l = timersLayout(
       input(
@@ -149,20 +150,9 @@ describe('timersLayout', () => {
     expect(l.timed).toBe(false);
   });
 
-  it('paints barless groups in the group colour, darkened on a light pane', () => {
-    const s = defaultTimersSettings();
+  it('keeps the bar on a light pane; the drained name is dark ink', () => {
+    const s = base();
     s.headers = false;
-    s.groups.spell.bar = false;
-    const dark = timersLayout(input([cell('armour', 'spell', { expiresAt: NOW + 60_000 })], { settings: s, w: 12 }));
-    expect(dark.lines[0]!.text()).toBe('ARMOUR     +');
-    expect(dark.lines[0]!.fg[0]).toBe(BLUE);
-    expect(dark.lines[0]!.bg[0]).toBe('');
-    const light = timersLayout(
-      input([cell('armour', 'spell')], { settings: s, w: 12, light: true, bg: '#f4ecd8', dim: '#8a8070' }),
-    );
-    expect(light.lines[0]!.fg[0]).toBe(lightShift(BLUE));
-    // The bar path is unchanged on a light pane; the drained name is dark ink.
-    s.groups.spell.bar = true;
     const bar = timersLayout(
       input([cell('armour', 'spell')], { settings: s, w: 12, light: true, bg: '#f4ecd8', dim: '#8a8070' }),
     );
@@ -171,10 +161,9 @@ describe('timersLayout', () => {
   });
 
   it('overlays countdowns with the edge and corner rules', () => {
-    const s = defaultTimersSettings();
+    const s = base();
     s.headers = false;
-    s.groups.spell.clock = true;
-    s.groups.spell.cols = 2;
+    s.timeText = true;
     const cells = [
       cell('armour', 'spell', { expiresAt: NOW + 600_000, expected: 600_000 }), // 10m
       cell('bless', 'spell', { expiresAt: NOW + 45_000, expected: 600_000 }), // 45s
@@ -182,44 +171,43 @@ describe('timersLayout', () => {
       cell('sanctuary', 'spell', { expiresAt: null, expected: null }), // no clock
       cell('strength', 'spell', { expiresAt: NOW + 91_000, expected: 600_000 }), // 2m
     ];
-    const l = texts(input(cells, { settings: s, w: 24 }));
+    const l = texts(input(cells, { settings: s, w: 48 }));
     expect(l).toEqual([
-      'ARMOUR  10m▌BLESS   45s+', // the top rightmost clock cell keeps a blank under +
-      'SHIELD  12s SANCTUARY  ▌', // drained: no separator; indefinite: no clock
+      // Drained: no separator; indefinite: no clock; the top rightmost cell keeps the corner.
+      'ARMOUR  10m▌BLESS   45s SHIELD  12s SANCTUARY  +',
       'STRENGTH 2m', // 91 s → 2m
     ]);
   });
 
   it('keeps a rightmost-column clock at the edge below the top row', () => {
-    const s = defaultTimersSettings();
+    const s = base();
     s.headers = false;
-    s.groups.spell.clock = true;
-    s.groups.spell.cols = 2;
+    s.timeText = true;
     const cells = [
       cell('a', 'spell', { expiresAt: NOW + 30_000, expected: 30_000 }),
       cell('b', 'spell', { expiresAt: NOW + 30_000, expected: 30_000 }),
       cell('c', 'spell', { expiresAt: NOW + 30_000, expected: 30_000 }),
       cell('d', 'spell', { expiresAt: NOW + 30_000, expected: 30_000 }),
-      cell('e', 'spell', { expiresAt: NOW + 30_000, expected: 30_000 }),
+      ...['e', 'f', 'g', 'h', 'i'].map((n) => cell(n, 'spell', { expiresAt: NOW + 30_000, expected: 30_000 })),
     ];
-    const l = timersLayout(input(cells, { settings: s, w: 12 }));
+    const l = timersLayout(input(cells, { settings: s, w: 24 }));
     expect(l.lines.map((x) => x.text())).toEqual([
-      'A 30s▌B 30s+', // top row: corner reserve, a blank under the +
-      'C 30s▌D  30s', // rightmost column: no separator, digits at the edge
-      'E 30s▌      ', // a lone last cell keeps its separator
+      'A 30s▌B 30s▌C 30s▌D 30s+', // top row: corner reserve under the +
+      'E 30s▌F 30s▌G 30s▌H  30s', // rightmost column: no separator, digits at the edge
+      'I 30s▌                  ', // a lone last cell keeps its separator
     ]);
-    expect(l.lines[1]!.bg.slice(6, 12).every((b) => b === BLUE)).toBe(true);
+    expect(l.lines[1]!.bg.slice(18, 24).every((b) => b === BLUE)).toBe(true);
   });
 
   it('draws charm rows, counts up, and yields the corner to a top charm row', () => {
-    const s = defaultTimersSettings();
+    const s = base();
     s.headers = false;
     const troll = cell('huge stone troll', 'charm', { id: 'c1', startedAt: NOW - 21 * 60_000 - 5_000, expiresAt: NOW + 3_600_000 });
     const shadow = cell('enslaved shadow', 'charm', { id: 'c2', startedAt: null, expiresAt: null, expected: null });
     const l = timersLayout(input([troll, shadow], { settings: s, w: 24, hover: 'charm:c2' }));
     expect(l.lines.map((x) => x.text())).toEqual(['Huge stone troll   21m ×', 'Enslaved shadow        ×']);
     expect(l.corner).toBe(null);
-    expect(l.lines[0]!.fg[0]).toBe(TIMER_COLOR_HEX.violet);
+    expect(l.lines[0]!.fg[0]).toBe(DARK_COLORS.charm);
     expect(l.lines[0]!.fg[19]).toBe(DEPLETED_FG);
     expect(l.lines[0]!.fg[23]).toBe(CHARM_X_FG);
     expect(l.lines[1]!.fg[23]).toBe(CHARM_X_HOVER);
@@ -230,16 +218,13 @@ describe('timersLayout', () => {
     // Narrow: the name truncates from the right; minutes cap at 99.
     const old = cell('pack horse', 'charm', { id: 'c3', startedAt: NOW - 500 * 60_000, expiresAt: NOW + 1 });
     expect(texts(input([old], { settings: s, w: 9 }))).toEqual(['Pac 99m ×']);
-    // Two-up at cap 2.
-    s.groups.charm.cols = 2;
-    expect(texts(input([troll, shadow], { settings: s, w: 24 }))).toEqual(['Huge s 21m ×Enslaved s ×']);
     // With headers the charm header is on top: the corner shows.
     s.headers = true;
     expect(timersLayout(input([troll], { settings: s, w: 24 })).corner).toBe('+');
   });
 
   it('read-only (a log player): no corner + and no charm ×', () => {
-    const s = defaultTimersSettings();
+    const s = base();
     const spells = ['sanctuary', 'shield', 'armour', 'bless'].map((n) => cell(n, 'spell'));
     const ro = timersLayout(input(spells, { settings: s, readOnly: true }));
     expect(ro.corner).toBe(null);
@@ -253,14 +238,12 @@ describe('timersLayout', () => {
   });
 
   it('lays out every row; the indicator row follows the scroll position', () => {
-    const s = defaultTimersSettings();
-    s.groups.spell.cols = 1;
-    const cells = Array.from({ length: 8 }, (_, i) => cell(`spell${i}`, 'spell'));
-    // 9 rows (header + 8) in 5: all 9 laid out, the scroller takes 4 rows.
+    const s = base();
+    // 32 spells four to a row (the interim cap): 9 rows (header + 8) in 5,
+    // all 9 laid out, the scroller takes 4 rows.
+    const cells = Array.from({ length: 32 }, (_, i) => cell(`spell${i}`, 'spell'));
     const l = timersLayout(input(cells, { settings: s, w: 20, h: 5 }));
-    expect(l.lines.map((x) => x.text().trimEnd())).toEqual([
-      'Spells:            +', ...cells.map((_, i) => `SPELL${i}             ▌`),
-    ]);
+    expect(l.lines.map((x) => x.text().trimEnd())).toEqual(['Spells:            +', ...Array(8).fill('SPEL▌SPEL▌SPEL▌SPEL▌')]);
     expect(l.total).toBe(9);
     expect(l.listH).toBe(4);
     expect(l.zones.map((z) => z.hit.kind)).toEqual(['corner']);
@@ -275,7 +258,7 @@ describe('timersLayout', () => {
     expect(timersIndicator(20, 4, 5, 0)!.line.text().trimEnd()).toBe('↓ 2 more rows');
     // Content that fits: no indicator, the scroller takes every row.
     const fit = timersLayout(input(cells.slice(0, 2), { settings: s, w: 20, h: 5 }));
-    expect(fit.lines).toHaveLength(3);
+    expect(fit.lines).toHaveLength(2);
     expect(fit.listH).toBe(5);
   });
 
@@ -298,7 +281,7 @@ describe('timersLayout', () => {
     // An empty catalogue: the × alone on a blank row.
     expect(texts({ ...input([]), mode: 'add', w: 5 })).toEqual(['    ×']);
     // Hidden groups draw nothing, but the corner still shows.
-    const s = defaultTimersSettings();
+    const s = base();
     s.groups.spell.enabled = false;
     expect(texts(input([cell('armour', 'spell')], { settings: s, w: 5 }))).toEqual(['    +']);
   });

@@ -10,12 +10,13 @@
 //   sortCells         the order within a group (Inv §2.6.1 "Sort order")
 
 /** The pane's groups, top to bottom (Inv §2.6.1). */
-export type TimerGroup = 'spell' | 'buff' | 'debuff' | 'stored' | 'blind' | 'charm';
+export type TimerGroup = 'sanct' | 'spell' | 'buff' | 'debuff' | 'stored' | 'blind' | 'charm';
 
-export const TIMER_GROUPS: readonly TimerGroup[] = ['spell', 'buff', 'debuff', 'stored', 'blind', 'charm'];
+export const TIMER_GROUPS: readonly TimerGroup[] = ['sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm'];
 
 /** Group labels (Options, the `Group:` header rows). */
 export const TIMER_GROUP_LABELS: Readonly<Record<TimerGroup, string>> = {
+  sanct: 'Sanctuary',
   spell: 'Spells',
   buff: 'Buffs',
   debuff: 'Debuffs',
@@ -39,6 +40,13 @@ export interface TimerCell {
   expected: number | null;
   /** False: seen in `stat`/`info` only (affect), or after a blast (stored spell). */
   tracked: boolean;
+  /**
+   * Sanctuary group (ADR 0122): whose sanctuary it is, a group member's
+   * name; absent for your own.
+   */
+  target?: string;
+  /** The duration is an estimate (another's sanctuary timed from your cast): the pane says "about". */
+  estimated?: boolean;
 }
 
 /** What the pane reads from the hub (ADR 0017). */
@@ -52,7 +60,7 @@ export interface TimersView {
 /** An empty view (no trackers, before any line). */
 export function emptyView(): TimersView {
   return {
-    cells: { spell: [], buff: [], debuff: [], stored: [], blind: [], charm: [] },
+    cells: { sanct: [], spell: [], buff: [], debuff: [], stored: [], blind: [], charm: [] },
     herbs: [],
   };
 }
@@ -88,14 +96,17 @@ export function barFill(pct: number, width: number): number {
 }
 
 /**
- * Countdown text from remaining seconds (Inv §2.6.1 "Clock"): ≤ 90 s →
- * `Ns`, else minutes rounded half up (`91s` → `2m`); `1m` never appears;
+ * Countdown text from remaining seconds (Inv §2.6.1 "Clock", ADR 0122):
+ * ≤ 90 s → `Ns`, else minutes rounded half up (`91s` → `2m`; `1m` never
+ * appears), and from 60 minutes `1h52` (hours and two-digit minutes);
  * negative clamps to `0s`. Fractions are truncated first.
  */
 export function countdownText(remainingSec: number): string {
   const secs = Number.isFinite(remainingSec) ? Math.max(0, Math.floor(remainingSec)) : 0;
   if (secs <= 90) return `${secs}s`;
-  return `${Math.floor((secs + 30) / 60)}m`;
+  const mins = Math.floor((secs + 30) / 60);
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}`;
 }
 
 /**
@@ -154,9 +165,24 @@ export function sortCharmCells(cells: TimerCell[]): TimerCell[] {
   );
 }
 
+/** Sanctuary: yours first, then timed by most remaining, then untimed by name. */
+export function sortSanctCells(cells: TimerCell[]): TimerCell[] {
+  return cells.sort((a, b) => {
+    const sa = a.target === undefined;
+    const sb = b.target === undefined;
+    if (sa !== sb) return sa ? -1 : 1;
+    const ta = isTimed(a);
+    const tb = isTimed(b);
+    if (ta !== tb) return ta ? -1 : 1;
+    return ta ? byExpiryDesc(a, b) : byName(a, b);
+  });
+}
+
 /** Sorts `cells` in place in the order of `group`; returns the array. */
 export function sortCells(group: TimerGroup, cells: TimerCell[]): TimerCell[] {
   switch (group) {
+    case 'sanct':
+      return sortSanctCells(cells);
     case 'spell':
     case 'buff':
     case 'debuff':

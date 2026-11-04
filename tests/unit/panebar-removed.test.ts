@@ -29,9 +29,9 @@ function storedV2(): Record<string, unknown> {
 }
 
 describe('settings: the pane bar is dropped from settings stored before version 3', () => {
-  it('is listed as retired at version 3, the current version', () => {
+  it('is listed as retired at version 3 (the current version is newer)', () => {
     expect(RETIRED_PANES).toEqual([{ id: BAR, version: 3 }]);
-    expect(SETTINGS_VERSION).toBe(3);
+    expect(SETTINGS_VERSION).toBeGreaterThanOrEqual(3);
   });
 
   it('drops the bar from the right dock and from the toggles; everything else stays', () => {

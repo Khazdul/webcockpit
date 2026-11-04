@@ -232,6 +232,7 @@ describe('panes on the context', () => {
     t.game.timers.debugAdd({ ...cell('2.orc', 'blind') });
     t.game.timers.debugAdd({ ...cell('troll', 'charm') });
     t.game.timers.debugHerbs([{ key: 'healing', name: 'Healing' }]);
+    t.settings.update({ timers: { timeText: false } });
     t.flush();
     const rows = () => [...p.content.querySelectorAll('.wc-prow')].map((r) => r.textContent!.trimEnd());
     expect(rows()).toEqual(['Spells:            +', 'ARMOUR             ▌', 'Blinds:', '2.ORC              ▌', 'Charmies:', 'Troll           0m ×']);

@@ -57,7 +57,7 @@ describe('timers trackers in the app', () => {
     b.login();
     await b.game.timers.idle();
     const v = b.game.timers.view();
-    expect(v.cells.spell.map((c) => c.name)).toEqual(['sanctuary']);
+    expect(v.cells.sanct.map((c) => c.name)).toEqual(['sanctuary']);
     expect(v.cells.debuff).toEqual([]); // hunger is not saved
     expect(v.cells.blind.map((c) => c.name)).toEqual(['2.orc']);
     expect(v.cells.charm.map((c) => c.name)).toEqual(['enslaved shadow']);

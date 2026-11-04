@@ -168,10 +168,8 @@ test('Timers and Group controls write the settings live', async ({ page }) => {
   await pop.locator('[aria-label="Spells colour"]').click();
   await pop.locator('.wc-ck-opt[data-value="off"]').click();
   expect((await settings(page)).timers.groups.spell.enabled).toBe(false);
-  await pop.locator('[aria-label="Spells columns"] [data-step="dec"]').click();
-  const cols = (await settings(page)).timers.groups.spell.cols;
-  await expect(pop.locator('[aria-label="Spells columns"]')).toHaveAttribute('aria-valuenow', String(cols));
-  await expect(pop.locator('[aria-label="Charmies clock"]')).toHaveCount(0);
+  await pop.locator('[aria-label="Time text"]').click();
+  expect((await settings(page)).timers.timeText).toBe(false);
   await clickGear(page, 'group');
   const g = gearPop(page, 'group');
   await g.locator('[aria-label="NPC visibility"] [data-value="all"]').click();

@@ -38,7 +38,8 @@
 // title-row grip, and the indicator row below it.
 
 import { TIMER_GROUPS, TIMER_GROUP_LABELS, type TimerCell, type TimerGroup, type TimersView, barFill, barPct, cellCountdown, charmMinutes } from '../timers/entry';
-import { TIMER_COLOR_HEX, type TimersSettings } from '../settings/types';
+import type { TimersSettings } from '../settings/types';
+import { resolveColor } from './palette';
 import { darkInk, lightShift } from '../theme/color';
 import { forwardWheel } from './anchored-list';
 import { CellLine, INDICATOR_FG, RowList } from './grid';
@@ -150,17 +151,17 @@ type RowSpec =
   | { kind: 'charms'; cells: TimerCell[]; widths: number[] }
   | { kind: 'herb'; herb: { key: string; name: string; active: boolean } };
 
+/** Column caps until stage 39c draws the ADR 0122 layouts (the old defaults). */
+const INTERIM_COLS: Readonly<Record<TimerGroup, number>> = { sanct: 4, spell: 4, buff: 4, debuff: 4, stored: 4, blind: 2, charm: 1 };
+
 function gridRows(view: TimersView, s: TimersSettings, w: number): RowSpec[] {
   const rows: RowSpec[] = [];
-  let rendered = 0;
   for (const g of TIMER_GROUPS) {
     const gs = s.groups[g];
     const cells = view.cells[g];
     if (!gs.enabled || cells.length === 0) continue;
-    if (!s.compact && rendered > 0) rows.push({ kind: 'blank' });
-    rendered++;
     if (s.headers) rows.push({ kind: 'header', group: g });
-    const n = effectiveCols(gs.cols, cells.length);
+    const n = effectiveCols(INTERIM_COLS[g], cells.length);
     const widths = cellWidths(w, n);
     for (let i = 0; i < cells.length; i += n) {
       const chunk = cells.slice(i, i + n);
@@ -211,7 +212,7 @@ export function timersLayout(inp: TimersLayoutInput): TimersLayout {
         return;
       }
       case 'charms': {
-        const color = fgOn(TIMER_COLOR_HEX[s.groups.charm.color]);
+        const color = fgOn(resolveColor(s.groups.charm.color, 'charm', false));
         let x = 0;
         spec.cells.forEach((c, j) => {
           const cw = spec.widths[j]!;
@@ -225,15 +226,15 @@ export function timersLayout(inp: TimersLayoutInput): TimersLayout {
       }
       case 'cells': {
         const gs = s.groups[spec.group];
-        const color = TIMER_COLOR_HEX[gs.color];
+        const color = resolveColor(gs.color, spec.group, false);
         const n = spec.widths.length;
         let x = 0;
         spec.cells.forEach((c, j) => {
           const cw = spec.widths[j]!;
           const opts: CellOpts = {
             color,
-            bar: gs.bar,
-            clock: gs.clock,
+            bar: true,
+            clock: s.timeText,
             last: j === n - 1,
             corner: row === 0 && corner === '+' && j === n - 1,
             depleted,

@@ -243,7 +243,7 @@ describe('migrateSettings', () => {
   it('adds the group and comm options with defaults (older stored data)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
-    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled' });
+    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
     expect(s.comm).toEqual({ filters: {}, showHeader: true });
     expect(s.profile).toBe('pvp');
   });
@@ -256,9 +256,9 @@ describe('migrateSettings', () => {
         showHeader: false,
       },
     });
-    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled' });
+    expect(s.group).toMatchObject({ showPlayers: true, npcMode: 'labeled' });
     expect(s.comm).toEqual({ filters: { tells: false, yells: false }, showHeader: false });
-    expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toEqual({ showPlayers: false, npcMode: 'all' });
+    expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toMatchObject({ showPlayers: false, npcMode: 'all' });
     expect(migrateComm({ filters: [false] }).filters).toEqual({});
     const many = Object.fromEntries(Array.from({ length: 150 }, (_, i) => [`c${i}`, false]));
     expect(Object.keys(migrateComm({ filters: many }).filters)).toHaveLength(100);
@@ -271,42 +271,73 @@ describe('migrateSettings', () => {
     store.update({ comm: { filters: { tells: true } } });
     expect(store.get().comm.filters).toEqual({ says: false });
     store.update({ group: { npcMode: 'all' } });
-    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all' });
+    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
   });
 
-  it('adds the timers options with defaults (Inv §2.6.3)', () => {
+  it('adds the timers options with defaults (ADR 0122)', () => {
     const s = migrateSettings({ appearance: {}, profile: 'pvp' });
     expect(s.timers).toEqual(defaultTimersSettings());
-    expect(s.timers.groups.blind).toEqual({ enabled: true, color: 'cyan', cols: 2, clock: false, bar: true });
-    expect(s.timers.groups.charm).toMatchObject({ color: 'violet', cols: 1 });
-    expect(Object.values(s.timers.groups).map((g) => g.cols)).toEqual([4, 4, 4, 4, 2, 1]);
-    expect(s.timers.headers).toBe(true);
-    expect(s.timers.compact).toBe(true);
+    expect(Object.keys(s.timers.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
+    expect(s.timers.groups.blind).toEqual({ enabled: true, color: 'auto', layout: 'default' });
+    expect(s.timers).toMatchObject({
+      style: 'bars',
+      layout: 'flow',
+      cols: 'auto',
+      headers: true,
+      timeText: true,
+      signal: 'text',
+      warnAt: 20,
+      soonestFirst: true,
+    });
     expect(TIMER_COLOR_HEX.violet).toBe('#b388ff');
   });
 
-  it('checks timers values per key and clamps the column caps', () => {
+  it('migrates the old timers options: swatch names by value, old keys dropped, values checked', () => {
     const t = migrateTimers({
       groups: {
         spell: { enabled: false, color: 'orange', cols: 9, clock: true, bar: false },
-        buff: { enabled: 'no', color: 'yellow', cols: 0, clock: 1 },
-        charm: { cols: 5 },
+        buff: { enabled: 'no', color: 'green', cols: 0, clock: 1 },
+        debuff: { color: '#ABC', layout: 'grid' },
+        blind: { color: 'cyan', layout: 'columns' },
+        charm: { color: 'violet' },
         stored: 'junk',
         bogus: { cols: 3 },
       },
       headers: false,
       compact: 'x',
     });
-    expect(t.groups.spell).toEqual({ enabled: false, color: 'orange', cols: 6, clock: true, bar: false });
-    expect(t.groups.buff).toEqual({ enabled: true, color: 'green', cols: 1, clock: false, bar: true });
-    expect(t.groups.charm.cols).toBe(2);
+    expect(t.groups.spell).toEqual({ enabled: false, color: '#ff9933', layout: 'default' });
+    expect(t.groups.buff).toEqual({ enabled: true, color: 'auto', layout: 'default' }); // its old default swatch
+    expect(t.groups.debuff).toEqual({ enabled: true, color: '#aabbcc', layout: 'grid' });
+    expect(t.groups.blind).toEqual({ enabled: true, color: 'auto', layout: 'default' });
+    expect(t.groups.charm.color).toBe('auto');
     expect(t.groups.stored).toEqual(defaultTimersSettings().groups.stored);
-    expect(Object.keys(t.groups)).toEqual(['spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
+    expect(t.groups.sanct).toEqual({ enabled: true, color: 'auto', layout: 'default' });
+    expect(Object.keys(t.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
     expect(t.headers).toBe(false);
-    expect(t.compact).toBe(true);
+    expect('compact' in t).toBe(false);
+    expect('cols' in t.groups.spell).toBe(false);
+    const bad = migrateTimers({ style: 'pie', layout: 'grid', cols: 9.4, timeText: 0, signal: 'blink', warnAt: 15, soonestFirst: false });
+    expect(bad).toMatchObject({ style: 'bars', layout: 'grid', cols: 6, timeText: true, signal: 'text', warnAt: 20, soonestFirst: false });
+    expect(migrateTimers({ cols: 0 }).cols).toBe(1);
+    expect(migrateTimers({ cols: 'auto', warnAt: 60, style: 'circles', signal: 'pulse' })).toMatchObject({ cols: 'auto', warnAt: 60, style: 'circles', signal: 'pulse' });
     const store = new SettingsStore({ factory: null, storage: null, win: null });
-    store.update({ timers: { groups: { debuff: { cols: 3 } } } });
-    expect(store.get().timers.groups.debuff).toMatchObject({ cols: 3, color: 'red' });
+    store.update({ timers: { groups: { debuff: { color: '#123456' } } } });
+    expect(store.get().timers.groups.debuff).toEqual({ enabled: true, color: '#123456', layout: 'default' });
+  });
+
+  it('adds the group options (ADR 0122): away and vital colours, checked', () => {
+    expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toEqual({
+      showPlayers: false,
+      npcMode: 'all',
+      away: 'room',
+      colors: { hp: 'auto', mana: 'auto', mp: 'auto' },
+    });
+    expect(migrateGroup({ away: 'dim', colors: { hp: '#FF0000', mana: 'blue', mp: 'auto' } })).toMatchObject({
+      away: 'dim',
+      colors: { hp: '#ff0000', mana: 'auto', mp: 'auto' },
+    });
+    expect(migrateGroup({ away: 'far' }).away).toBe('room');
   });
 
   it('adds the window places (ADR 0103): none placed, whole cells, garbage dropped', () => {

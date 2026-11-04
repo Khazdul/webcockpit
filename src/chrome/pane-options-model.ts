@@ -8,18 +8,19 @@
 //   sparse filter toggle (missing = on, `false` = off). The Comm pane
 //   cancels its solo by itself when the filters change from outside it.
 // - Timers: a group's colour choice (0 or 1 swatch: off hides the group
-//   and remembers its colour), its column cap within the group's range.
+//   and remembers its colour).
 // - Group: the NPC visibility labels.
 
 import { COMM_CHANNEL_ORDER, DEFAULT_CAPTIONS, channelColor, channelEnabled, channelLabel } from '../gmcp/comm';
 import {
+  type ColorSetting,
   GROUP_NPC_MODES,
   type GroupNpcMode,
   type SettingsStore,
-  TIMER_COLS_MIN,
+  TIMER_COLOR_HEX,
+  TIMER_LEGACY_DEFAULT_COLOR,
   type TimerColor,
   type TimerGroupSettings,
-  timerColsMax,
 } from '../settings';
 import type { TimerGroup } from '../timers/entry';
 
@@ -58,24 +59,32 @@ export function toggleCommChannel(settings: SettingsStore, name: string): void {
 
 // ---------------------------------------------------------------- timers
 
-/** A group's next look after clicking colour `color` (0 or 1 checked): the checked one unchecks (off, colour kept). */
-export function colorToggle(g: TimerGroupSettings, color: TimerColor): Pick<TimerGroupSettings, 'enabled' | 'color'> {
-  if (g.enabled && g.color === color) return { enabled: false, color };
-  return { enabled: true, color };
+// Until stage 39c replaces these pages, the colour choice offers the old
+// seven swatches over the ADR 0122 colour setting: a group's own old
+// default swatch is stored as `auto`, any other as its hex.
+
+/** The swatch a group's colour setting shows as, or null (a custom colour; Sanctuary on Auto). */
+export function swatchOf(group: TimerGroup, color: ColorSetting): TimerColor | null {
+  if (color === 'auto') return group === 'sanct' ? null : TIMER_LEGACY_DEFAULT_COLOR[group];
+  for (const [name, hex] of Object.entries(TIMER_COLOR_HEX) as [TimerColor, string][]) if (hex === color) return name;
+  return null;
 }
 
-/** A group's look for a colour choice: a colour shows it in that colour; null (Off) hides it and keeps its colour. */
-export function colorChoice(g: TimerGroupSettings, color: TimerColor | null): Pick<TimerGroupSettings, 'enabled' | 'color'> {
-  return color === null ? { enabled: false, color: g.color } : { enabled: true, color };
+/** The colour setting of swatch `c` for `group`: its old default swatch is `auto`. */
+export function swatchSetting(group: TimerGroup, c: TimerColor): ColorSetting {
+  return group !== 'sanct' && TIMER_LEGACY_DEFAULT_COLOR[group] === c ? 'auto' : TIMER_COLOR_HEX[c];
 }
 
-/** `cols` stepped by `d`, clamped to the group's range. */
-export function stepCols(group: TimerGroup, cols: number, d: number): number {
-  return Math.max(TIMER_COLS_MIN, Math.min(timerColsMax(group), cols + d));
+/** A group's next look after clicking swatch `color` (0 or 1 checked): the checked one unchecks (off, colour kept). */
+export function colorToggle(group: TimerGroup, g: TimerGroupSettings, color: TimerColor): Pick<TimerGroupSettings, 'enabled' | 'color'> {
+  if (g.enabled && swatchOf(group, g.color) === color) return { enabled: false, color: g.color };
+  return { enabled: true, color: swatchSetting(group, color) };
 }
 
-/** True when the group has Clock and Bar flags (Charmies have neither). */
-export const timerFlags = (group: TimerGroup): boolean => group !== 'charm';
+/** A group's look for a colour choice: a swatch shows it in that colour; null (Off) hides it and keeps its colour. */
+export function colorChoice(group: TimerGroup, g: TimerGroupSettings, color: TimerColor | null): Pick<TimerGroupSettings, 'enabled' | 'color'> {
+  return color === null ? { enabled: false, color: g.color } : { enabled: true, color: swatchSetting(group, color) };
+}
 
 /** Writes `patch` into timer group `g`. */
 export function patchTimerGroup(settings: SettingsStore, g: TimerGroup, patch: Partial<TimerGroupSettings>): void {

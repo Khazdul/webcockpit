@@ -127,12 +127,32 @@ export function paneSettingsOf(panes: Readonly<PaneSettingsMap>, id: PaneId): Pa
 export type GroupNpcMode = 'off' | 'labeled' | 'all';
 export const GROUP_NPC_MODES: readonly GroupNpcMode[] = ['off', 'labeled', 'all'];
 
-/** Options → Panes → Group. */
+/** How the Group pane shows a member who is not in your room (ADR 0122). */
+export type GroupAwayMode = 'room' | 'dim';
+export const GROUP_AWAY_MODES: readonly GroupAwayMode[] = ['room', 'dim'];
+
+/**
+ * A colour setting (ADR 0122): `auto` follows the background (the dark or
+ * the light default, src/panes/palette.ts), else a `#rrggbb` used as is.
+ */
+export type ColorSetting = 'auto' | string;
+
+/** The Group pane's vital bar colours (ADR 0122). */
+export interface GroupVitalColors {
+  hp: ColorSetting;
+  mana: ColorSetting;
+  mp: ColorSetting;
+}
+
+/** Options → Panes → Group (ADR 0122). */
 export interface GroupSettings {
-  /** Show player allies. */
+  /** Show player members (ally, neutral and enemy race). */
   showPlayers: boolean;
   /** `off`: no NPCs; `labeled`: labeled NPCs only; `all`: unlabeled ones too. */
   npcMode: GroupNpcMode;
+  /** A member not in your room: the room name after the name, or only dimmed. */
+  away: GroupAwayMode;
+  colors: GroupVitalColors;
 }
 
 /** Longest channel name kept in `CommSettings.filters`. */
@@ -153,10 +173,13 @@ export interface CommSettings {
   showHeader: boolean;
 }
 
-/** The seven Timers swatches (Inv §2.6.3), in the Options column order. */
+/**
+ * The seven swatches of the Timers settings before ADR 0122. Kept only to
+ * migrate stored settings (a stored swatch name becomes `auto` or its hex).
+ */
 export type TimerColor = 'blue' | 'green' | 'red' | 'magenta' | 'cyan' | 'violet' | 'orange';
 export const TIMER_COLOR_ORDER: readonly TimerColor[] = ['blue', 'green', 'red', 'magenta', 'cyan', 'violet', 'orange'];
-/** Swatch colours (bar fill; charm name colour). */
+/** The old swatch colours (migration only). */
 export const TIMER_COLOR_HEX: Readonly<Record<TimerColor, string>> = {
   blue: '#66b2ff',
   green: '#00d900',
@@ -166,7 +189,7 @@ export const TIMER_COLOR_HEX: Readonly<Record<TimerColor, string>> = {
   violet: '#b388ff',
   orange: '#ff9933',
 };
-/** Swatch labels (the Options header row). */
+/** The old swatch labels (the interim Options page until stage 39c). */
 export const TIMER_COLOR_LABELS: Readonly<Record<TimerColor, string>> = {
   blue: 'Blue',
   green: 'Green',
@@ -176,36 +199,61 @@ export const TIMER_COLOR_LABELS: Readonly<Record<TimerColor, string>> = {
   violet: 'Violet',
   orange: 'Orange',
 };
-/** Column caps: 1–6, Charmies 1–2 (Inv §2.6.3). */
+/** The swatch each group had by default before ADR 0122 (it migrates to `auto`). */
+export const TIMER_LEGACY_DEFAULT_COLOR: Readonly<Record<Exclude<TimerGroup, 'sanct'>, TimerColor>> = {
+  spell: 'blue',
+  buff: 'green',
+  debuff: 'red',
+  stored: 'magenta',
+  blind: 'cyan',
+  charm: 'violet',
+};
+
+/** How a timer is drawn (ADR 0122): a pill whose fill drains, or a ring. */
+export type TimerStyle = 'bars' | 'circles';
+export const TIMER_STYLES: readonly TimerStyle[] = ['bars', 'circles'];
+/** How a group's timers are laid out: wrapped by width, or in columns. */
+export type TimerLayout = 'flow' | 'grid';
+export const TIMER_LAYOUTS: readonly TimerLayout[] = ['flow', 'grid'];
+/** A group's layout: the global one, or its own. */
+export type TimerGroupLayout = 'default' | TimerLayout;
+export const TIMER_GROUP_LAYOUTS: readonly TimerGroupLayout[] = ['default', 'flow', 'grid'];
+/** Grid columns: as many as fit, or a cap. */
+export type TimerCols = 'auto' | number;
+/** Grid column cap range. */
 export const TIMER_COLS_MIN = 1;
 export const TIMER_COLS_MAX = 6;
-export const TIMER_CHARM_COLS_MAX = 2;
+/** How a timer that ends soon is shown (it keeps its colour). */
+export type TimerSignal = 'text' | 'pulse' | 'none';
+export const TIMER_SIGNALS: readonly TimerSignal[] = ['text', 'pulse', 'none'];
+/** The ending-soon thresholds offered, seconds. */
+export type TimerWarnAt = 10 | 20 | 30 | 60;
+export const TIMER_WARN_CHOICES: readonly TimerWarnAt[] = [10, 20, 30, 60];
 
-/** The column cap limit of a group. */
-export function timerColsMax(g: TimerGroup): number {
-  return g === 'charm' ? TIMER_CHARM_COLS_MAX : TIMER_COLS_MAX;
-}
-
-/** One Timers group's look (Options → Panes → Timers). */
+/** One Timers group (Options → Panes → Timers, ADR 0122). */
 export interface TimerGroupSettings {
-  /** Shown (a swatch is checked); the colour is remembered while off. */
+  /** Shown. */
   enabled: boolean;
-  color: TimerColor;
-  /** Column cap, a ceiling (1–6, Charmies 1–2). */
-  cols: number;
-  /** Countdown over the bar (never on Charmies). */
-  clock: boolean;
-  /** Drain bar; off paints the name in the group colour (Charmies never have one). */
-  bar: boolean;
+  color: ColorSetting;
+  layout: TimerGroupLayout;
 }
 
-/** Options → Panes → Timers (Inv §2.6.3, ADR 0017), global. */
+/** Options → Panes → Timers (ADR 0122), global. */
 export interface TimersSettings {
   groups: Record<TimerGroup, TimerGroupSettings>;
-  /** A dim `Group:` header row above each group. */
+  style: TimerStyle;
+  layout: TimerLayout;
+  /** Grid columns (the global layout and every `grid` group). */
+  cols: TimerCols;
+  /** A small header (icon, name, count) above each group. */
   headers: boolean;
-  /** No blank row between groups. */
-  compact: boolean;
+  /** The countdown text (off: bars and rings only). */
+  timeText: boolean;
+  signal: TimerSignal;
+  /** Seconds left at which a timer ends soon. */
+  warnAt: TimerWarnAt;
+  /** Each group sorted by time left. */
+  soonestFirst: boolean;
 }
 
 /** How far back the Spotlights reel and Credits reach (ADR 0110): a rolling window back from now. */
@@ -394,7 +442,10 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 // 2: the hover default became Full (ADR 0080); a stored v1 'minimal' moves to 'full'.
 // 3: the bundled pane bar script was removed (ADR 0111); a stored v2 or older
 //    drops its pane `panebar/bar` from `panes` and the layout.
-export const SETTINGS_VERSION = 3;
+// 4: Group and Timers redesign (ADR 0122): timer colours became `auto` or a
+//    hex (an old swatch name migrates by value, any version), the per-group
+//    cols/clock/bar and `compact` went.
+export const SETTINGS_VERSION = 4;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu
@@ -454,7 +505,7 @@ export function defaultSettings(): Settings {
     },
     layout: defaultLayout(),
     profile: 'default',
-    group: { showPlayers: true, npcMode: 'labeled' },
+    group: defaultGroupSettings(),
     comm: { filters: {}, showHeader: true },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
@@ -484,26 +535,24 @@ export function phoneDefaultSettings(): Settings {
   return s;
 }
 
-/** Timers defaults (Inv §2.6.3): all on, cols 4/4/4/4/2/1, no clock, bars on. */
+/** Group defaults (ADR 0122): players, labeled NPCs, the room name when away, Auto colours. */
+export function defaultGroupSettings(): GroupSettings {
+  return { showPlayers: true, npcMode: 'labeled', away: 'room', colors: { hp: 'auto', mana: 'auto', mp: 'auto' } };
+}
+
+/** Timers defaults (ADR 0122): every group on in Auto colour, bars, flow, headers, time text. */
 export function defaultTimersSettings(): TimersSettings {
-  const g = (color: TimerColor, cols: number): TimerGroupSettings => ({
-    enabled: true,
-    color,
-    cols,
-    clock: false,
-    bar: true,
-  });
+  const g = (): TimerGroupSettings => ({ enabled: true, color: 'auto', layout: 'default' });
   return {
-    groups: {
-      spell: g('blue', 4),
-      buff: g('green', 4),
-      debuff: g('red', 4),
-      stored: g('magenta', 4),
-      blind: g('cyan', 2),
-      charm: g('violet', 1),
-    },
+    groups: { sanct: g(), spell: g(), buff: g(), debuff: g(), stored: g(), blind: g(), charm: g() },
+    style: 'bars',
+    layout: 'flow',
+    cols: 'auto',
     headers: true,
-    compact: true,
+    timeText: true,
+    signal: 'text',
+    warnAt: 20,
+    soonestFirst: true,
   };
 }
 

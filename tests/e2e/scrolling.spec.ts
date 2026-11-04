@@ -313,10 +313,10 @@ test('UI pane: the wheel scrolls by pixels; new lines follow only at the bottom'
 test('Timers pane: the wheel scrolls by pixels; the indicator follows and returns to the top', async ({ page }) => {
   await demoDone(page);
   await page.evaluate(() => {
-    window.__wc!.settings.update((d) => void (d.timers.groups.spell.cols = 1));
     const t = window.__wc!.app.game.timers;
     const now = Date.now();
-    for (let i = 0; i < 30; i++) {
+    // Four to a row in the interim cell-grid pane (stage 39a).
+    for (let i = 0; i < 120; i++) {
       t.debugAdd({ id: `s${i}`, name: `spell${i}`, group: 'spell', startedAt: now, expiresAt: now + 600_000, expected: 600_000, tracked: true } as never);
     }
   });

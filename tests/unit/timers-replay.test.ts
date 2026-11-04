@@ -84,7 +84,8 @@ describe('the timers demo fixture', () => {
       '◆ DEBUFF: winded up.',
     ]);
     const by = (g: Parameters<typeof b.names>[0]) => b.names(g).sort();
-    expect(by('spell')).toEqual(['armour', 'bless', 'detect magic', 'sanctuary', 'shield']);
+    expect(by('sanct')).toEqual(['sanctuary']);
+    expect(by('spell')).toEqual(['armour', 'bless', 'detect magic', 'shield']);
     expect(b.cell('detect magic')!.tracked).toBe(false);
     expect(by('buff')).toEqual([]);
     expect(by('debuff')).toEqual(['tiredness', 'winded']);

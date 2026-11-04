@@ -22,7 +22,7 @@
 //   (Charmies 1–2); Charmies have no Clock or Bar.
 
 import { Fragment, type VNode } from 'preact';
-import { TIMER_COLOR_HEX, TIMER_COLOR_LABELS, TIMER_COLOR_ORDER, TIMER_COLS_MIN, type TimerColor, timerColsMax } from '../../settings';
+import { TIMER_COLOR_HEX, TIMER_COLOR_LABELS, TIMER_COLOR_ORDER, type TimerColor } from '../../settings';
 import { TIMER_GROUPS, TIMER_GROUP_LABELS } from '../../timers/entry';
 import { useServices, useSettings } from '../kit/hooks';
 import {
@@ -31,9 +31,9 @@ import {
   commChannelRows,
   patchTimerGroup,
   setCommChannel,
-  timerFlags,
+  swatchOf,
 } from '../pane-options-model';
-import { type DropdownOption, Dropdown, Row, Segmented, Stepper, Toggle } from './controls';
+import { type DropdownOption, Dropdown, Row, Segmented, Toggle } from './controls';
 
 /** A channel's swatch while it is off. */
 const OFF_SWATCH = 'var(--sf-off)';
@@ -73,12 +73,17 @@ export function CommSettings(): VNode {
   );
 }
 
-type ColorValue = TimerColor | 'off';
+type ColorValue = TimerColor | 'off' | 'custom';
 
-/** The colour list: Off, then the seven colours with their swatches. */
+/**
+ * The colour list (interim until stage 39c): Off, then the seven old
+ * swatches; a colour that is none of them (Sanctuary on Auto, a custom
+ * hex) shows as Custom.
+ */
 export const TIMER_COLOR_CHOICES: readonly DropdownOption<ColorValue>[] = [
   { value: 'off', label: 'Off', swatch: 'transparent' },
   ...TIMER_COLOR_ORDER.map((c) => ({ value: c, label: TIMER_COLOR_LABELS[c], swatch: TIMER_COLOR_HEX[c] })),
+  { value: 'custom', label: 'Custom', swatch: 'transparent' },
 ];
 
 export function TimersSettings(): VNode {
@@ -90,9 +95,6 @@ export function TimersSettings(): VNode {
       <div class="wc-sp-tgrid" role="group" aria-label="Timer groups">
         <span />
         <span class="wc-ck-sub">Colour</span>
-        <span class="wc-ck-sub">Cols</span>
-        <span class="wc-ck-sub">Clock</span>
-        <span class="wc-ck-sub">Bar</span>
         {TIMER_GROUPS.map((g) => {
           const gs = t.groups[g];
           const name = TIMER_GROUP_LABELS[g];
@@ -107,35 +109,14 @@ export function TimersSettings(): VNode {
                 <Dropdown
                   label={`${name} colour`}
                   class="wc-sp-tcolor"
-                  value={off ? 'off' : gs.color}
+                  value={off ? 'off' : (swatchOf(g, gs.color) ?? 'custom')}
                   options={TIMER_COLOR_CHOICES}
-                  onChange={(v) => patchTimerGroup(settings, g, colorChoice(settings.get().timers.groups[g], v === 'off' ? null : v))}
+                  onChange={(v) => {
+                    if (v === 'custom') return;
+                    patchTimerGroup(settings, g, colorChoice(g, settings.get().timers.groups[g], v === 'off' ? null : v));
+                  }}
                 />
               </span>
-              <span class={`wc-sp-tg-c${dim}`}>
-                <Stepper
-                  label={`${name} columns`}
-                  value={gs.cols}
-                  min={TIMER_COLS_MIN}
-                  max={timerColsMax(g)}
-                  onChange={(cols) => patchTimerGroup(settings, g, { cols })}
-                />
-              </span>
-              {timerFlags(g) ? (
-                <>
-                  <span class={`wc-sp-tg-c${dim}`}>
-                    <Toggle label={`${name} clock`} on={gs.clock} onChange={(clock) => patchTimerGroup(settings, g, { clock })} />
-                  </span>
-                  <span class={`wc-sp-tg-c${dim}`}>
-                    <Toggle label={`${name} bar`} on={gs.bar} onChange={(bar) => patchTimerGroup(settings, g, { bar })} />
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span />
-                  <span />
-                </>
-              )}
             </Fragment>
           );
         })}
@@ -144,8 +125,8 @@ export function TimersSettings(): VNode {
       <Row label="Display headers">
         <Toggle label="Display headers" on={t.headers} onChange={(headers) => settings.update({ timers: { headers } })} />
       </Row>
-      <Row label="Compact layout">
-        <Toggle label="Compact layout" on={t.compact} onChange={(compact) => settings.update({ timers: { compact } })} />
+      <Row label="Time text">
+        <Toggle label="Time text" on={t.timeText} onChange={(timeText) => settings.update({ timers: { timeText } })} />
       </Row>
     </div>
   );

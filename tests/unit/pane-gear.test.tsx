@@ -301,9 +301,9 @@ describe('gear popup contents', () => {
     expect(t.s().comm.showHeader).toBe(!was);
   });
 
-  it('Timers: colour with Off (colour kept), columns in range, Clock and Bar but not for Charmies; headers, compact', () => {
+  it('Timers: colour with Off (colour kept), the old default swatch as Auto; headers, time text', () => {
     const t = mountWith(<TimersSettings />);
-    expect(TIMER_COLOR_CHOICES.map((c) => c.value)).toEqual(['off', 'blue', 'green', 'red', 'magenta', 'cyan', 'violet', 'orange']);
+    expect(TIMER_COLOR_CHOICES.map((c) => c.value)).toEqual(['off', 'blue', 'green', 'red', 'magenta', 'cyan', 'violet', 'orange', 'custom']);
     const spellColour = t.host.querySelector<HTMLElement>('[aria-label="Spells colour"]')!;
     const before = t.s().timers.groups.spell.color;
     click(spellColour);
@@ -313,40 +313,17 @@ describe('gear popup contents', () => {
     expect(t.host.querySelector('[data-group="spell"]')!.classList.contains('is-dim')).toBe(true);
     click(spellColour);
     click(t.host.querySelector('.wc-ck-opt[data-value="orange"]'));
-    expect(t.s().timers.groups.spell).toMatchObject({ enabled: true, color: 'orange' });
-    // Columns: the stepper's buttons and keys, inside 1–6 (Charmies 1–2).
-    const cols = t.host.querySelector<HTMLElement>('[aria-label="Spells columns"]')!;
-    expect(cols.getAttribute('role')).toBe('spinbutton');
-    key(cols, 'End');
-    expect(t.s().timers.groups.spell.cols).toBe(6);
-    click(cols.querySelector('[data-step="inc"]'));
-    expect(t.s().timers.groups.spell.cols).toBe(6);
-    click(cols.querySelector('[data-step="dec"]'));
-    expect(t.s().timers.groups.spell.cols).toBe(5);
-    key(cols, 'Home');
-    expect(t.s().timers.groups.spell.cols).toBe(1);
-    const charm = t.host.querySelector<HTMLElement>('[aria-label="Charmies columns"]')!;
-    expect(charm.getAttribute('aria-valuemax')).toBe('2');
-    key(charm, 'ArrowRight');
-    key(charm, 'ArrowRight');
-    expect(t.s().timers.groups.charm.cols).toBe(2);
-    // Clock and Bar.
-    const clock = t.host.querySelector<HTMLElement>('[aria-label="Buffs clock"]')!;
-    const c0 = t.s().timers.groups.buff.clock;
-    click(clock);
-    expect(t.s().timers.groups.buff.clock).toBe(!c0);
-    const bar = t.host.querySelector<HTMLElement>('[aria-label="Buffs bar"]')!;
-    const b0 = t.s().timers.groups.buff.bar;
-    click(bar);
-    expect(t.s().timers.groups.buff.bar).toBe(!b0);
-    expect(t.host.querySelector('[aria-label="Charmies clock"]')).toBeNull();
-    expect(t.host.querySelector('[aria-label="Charmies bar"]')).toBeNull();
+    expect(t.s().timers.groups.spell).toMatchObject({ enabled: true, color: '#ff9933' });
+    click(spellColour);
+    click(t.host.querySelector('.wc-ck-opt[data-value="blue"]'));
+    expect(t.s().timers.groups.spell).toMatchObject({ enabled: true, color: 'auto' });
+    expect(t.host.querySelector('[data-group="sanct"]')).not.toBeNull();
     const h0 = t.s().timers.headers;
     click(t.host.querySelector('[aria-label="Display headers"]'));
     expect(t.s().timers.headers).toBe(!h0);
-    const k0 = t.s().timers.compact;
-    click(t.host.querySelector('[aria-label="Compact layout"]'));
-    expect(t.s().timers.compact).toBe(!k0);
+    const k0 = t.s().timers.timeText;
+    click(t.host.querySelector('[aria-label="Time text"]'));
+    expect(t.s().timers.timeText).toBe(!k0);
   });
 
   it('Group: Show players and NPC visibility', () => {
@@ -375,9 +352,9 @@ describe('pane options model (shared with the TUI pages)', () => {
     expect(rows).toHaveLength(10);
     expect(rows.find((r) => r.name === 'tells')!.on).toBe(false);
     expect(rows.every((r) => r.color.startsWith('#'))).toBe(true);
-    const g = { enabled: true, color: 'blue' as const, cols: 4, clock: false, bar: true };
-    expect(colorToggle(g, 'blue')).toEqual({ enabled: false, color: 'blue' });
-    expect(colorChoice(g, null)).toEqual({ enabled: false, color: 'blue' });
-    expect(colorChoice({ ...g, enabled: false }, 'red')).toEqual({ enabled: true, color: 'red' });
+    const g = { enabled: true, color: 'auto', layout: 'default' as const };
+    expect(colorToggle('spell', g, 'blue')).toEqual({ enabled: false, color: 'auto' });
+    expect(colorChoice('spell', g, null)).toEqual({ enabled: false, color: 'auto' });
+    expect(colorChoice('spell', { ...g, enabled: false }, 'red')).toEqual({ enabled: true, color: '#d90000' });
   });
 });

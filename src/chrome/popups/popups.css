@@ -850,7 +850,7 @@
 /* Timers: a grid of the groups, a column for each control under its heading. */
 .wc-sp-tgrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.77em;
   row-gap: 0.31em;

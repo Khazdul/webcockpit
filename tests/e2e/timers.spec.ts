@@ -31,6 +31,8 @@ async function demoDone(page: Page): Promise<void> {
   await expect(rows(page).filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
   await expect(page.locator('.wc-pane[data-pane="timers"]')).toHaveAttribute('data-active', '');
   await cockpitHeights(page); // the Timers pane at eight rows
+  // The interim cell-grid pane (stage 39a): no time text, as these rows were written.
+  await page.evaluate(() => window.__wc!.settings.update((d) => void (d.timers.timeText = false)));
 }
 
 /** Puts debug cells in: a full spell, a half-drained buff, a blind and a charm. */
@@ -100,7 +102,7 @@ test('the corner + opens the herblore add-view; [+] Healing starts it', async ({
   await expect.poll(async () => (await texts(page))[0]).toMatch(/^Spells:\s+\+$/);
 });
 
-test('the Timers gear changes colours and column caps live (ADR 0107)', async ({ page }) => {
+test('the Timers gear changes colours and headers live (ADR 0107)', async ({ page }) => {
   await demoDone(page);
   await populate(page);
   await expect.poll(() => texts(page)).toHaveLength(8);
@@ -122,21 +124,14 @@ test('the Timers gear changes colours and column caps live (ADR 0107)', async ({
   await pick('green');
   await expect.poll(() => texts(page)).toHaveLength(8);
   await expect(prows(page).nth(1).locator('span').first()).toHaveCSS('background-color', 'rgb(0, 217, 0)');
-  // Spells cap 4 → 1 with the stepper: one spell per row.
-  const cols = pop.locator('[aria-label="Spells columns"]');
-  for (let i = 0; i < 3; i++) await cols.locator('[data-step="dec"]').click();
-  await expect(cols).toHaveAttribute('aria-valuenow', '1');
-  // Nine rows in eight: the indicator takes the last one.
-  await expect.poll(async () => (await texts(page)).at(-1)).toBe('↓ 2 more rows');
-  expect((await texts(page)).slice(1, 3).map((r) => r.replace(/\s+▌?$/, ''))).toEqual(['ARMOUR', 'SANCTUARY']);
   // Display headers off.
   const headers = pop.locator('.wc-ck-tg[aria-label="Display headers"]');
   await expect(headers).toHaveAttribute('aria-checked', 'true');
   await headers.click();
   await expect(headers).toHaveAttribute('aria-checked', 'false');
-  await expect.poll(() => texts(page)).toHaveLength(5);
+  await expect.poll(() => texts(page)).toHaveLength(4);
   const s = await page.evaluate(() => window.__wc!.settings.get().timers);
-  expect(s.groups.spell).toEqual({ enabled: true, color: 'green', cols: 1, clock: false, bar: true });
+  expect(s.groups.spell).toEqual({ enabled: true, color: '#00d900', layout: 'default' });
   expect(s.headers).toBe(false);
   await page.evaluate(() => window.__wc!.settings.reset());
 });
@@ -148,18 +143,16 @@ test('Options → Panes → Timers works in the phone\'s ESC menu', async ({ pag
   await menuFrame(page).locator('.wc-mrow[data-key="timers"] .wc-label').click();
   const frame = menuFrame(page);
   await expect(frame.locator('.wc-title-row')).toHaveText('─── Timers ───');
-  // Blinds → Clock (click), Charmies' Clock is an inert blank.
-  const blinds = frame.locator('.wc-grid-row').nth(4);
-  await blinds.locator('.wc-check[title="Blinds: clock"]').click();
-  await expect(blinds.locator('.wc-check[title="Blinds: clock"] .wc-check-box')).toHaveText('[X]');
-  await expect(frame.locator('.wc-grid-row').nth(5).locator('.wc-check[title="Charmies: clock"]')).toHaveCount(0);
-  // Charmies cap stops at 2.
-  const inc = frame.locator('.wc-grid-row').nth(5).locator('[data-step="inc"]');
-  await inc.click();
-  await inc.click();
-  await expect(frame.locator('[data-cols="charm"]')).toHaveText(' 2 ');
-  const s = await page.evaluate(() => window.__wc!.settings.get().timers.groups);
-  expect(s.blind.clock).toBe(true);
-  expect(s.charm.cols).toBe(2);
+  // Blinds → Red (click); its default swatch Cyan → Auto.
+  const blinds = frame.locator('.wc-grid-row').nth(5);
+  await blinds.locator('.wc-check[title="Blinds: Red"]').click();
+  await expect(blinds.locator('.wc-check[title="Blinds: Red"] .wc-check-box')).toHaveText('[X]');
+  expect(await page.evaluate(() => window.__wc!.settings.get().timers.groups.blind.color)).toBe('#d90000');
+  await blinds.locator('.wc-check[title="Blinds: Cyan"]').click();
+  expect(await page.evaluate(() => window.__wc!.settings.get().timers.groups.blind.color)).toBe('auto');
+  // Time text.
+  const was = await page.evaluate(() => window.__wc!.settings.get().timers.timeText);
+  await frame.locator('.wc-mrow[data-key="timetext"] .wc-label').click();
+  expect(await page.evaluate(() => window.__wc!.settings.get().timers.timeText)).toBe(!was);
   await page.evaluate(() => window.__wc!.settings.reset());
 });

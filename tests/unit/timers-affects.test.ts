@@ -22,7 +22,7 @@ describe('affects tracker', () => {
     const b = bench();
     b.line('You start glowing.');
     expect(b.take()).toEqual(['◆ SPELL: sanctuary up.']);
-    expect(b.cell('sanctuary')).toMatchObject({ group: 'spell', startedAt: T0, expiresAt: T0 + 270_000, expected: 270_000, tracked: true });
+    expect(b.cell('sanctuary')).toMatchObject({ group: 'sanct', startedAt: T0, expiresAt: T0 + 270_000, expected: 270_000, tracked: true });
     b.advance(100);
     b.line('Your aura glows more intensely.');
     expect(b.take()).toEqual(['◆ SPELL: sanctuary refreshed.']);

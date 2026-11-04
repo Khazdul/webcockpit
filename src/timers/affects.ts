@@ -49,6 +49,9 @@ interface Saved {
 
 const TAG: Record<AffectDef['type'], StateTag> = { spell: 'SPELL', buff: 'BUFF', debuff: 'DEBUFF' };
 
+/** The affect shown in the Sanctuary group (ADR 0122). */
+export const SANCTUARY = 'sanctuary';
+
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 export class AffectsTracker implements Tracker {
@@ -212,7 +215,8 @@ export class AffectsTracker implements Tracker {
       out.push({
         id: `affect:${e.name}`,
         name: e.name,
-        group: def.type,
+        // Your sanctuary has a group of its own (ADR 0122).
+        group: e.name === SANCTUARY ? 'sanct' : def.type,
         startedAt: e.startedAt,
         expiresAt: e.expiresAt,
         expected: e.expected,
