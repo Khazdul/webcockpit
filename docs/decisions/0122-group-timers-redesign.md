@@ -201,3 +201,34 @@ time). Timers never change colour.
 - **Countdown over an hour** reads `1h52` (`countdownText`).
 - **Picker colours**: the twelve swatches of mockup 3c
   (`PICKER_COLORS` in src/panes/palette.ts).
+
+## Addendum (stage 39b, 2026-11-04)
+
+- **Pane tooltips** (`src/panes/pane-tooltip.ts`): one tooltip per
+  document, delegated hover on any element with `data-tip` (text) and
+  `data-tip-title` (bold first line), shown after 250 ms, below the element
+  (above when there is no room). A pane that rebuilds rows calls
+  `refresh()` after rendering: an anchor that left the document is
+  replaced by the element with the same `data-tip-key`, so a ticking
+  sanctuary tooltip stays up. Timers uses the same helper.
+- **Group rows on the cell grid**: a two-line member is 2 cells high, a
+  one-line member 1, the fight zone 3 plus a 1-cell `GROUP ── n` divider
+  (`FIGHT_ROWS` = 4), the one-line fight strip 1. Two lines only when every
+  shown member (and the zone) fits that way (`groupLayout`). A one-line row
+  has no room name: the room is in the name's tooltip.
+- **Fixed colours** of markers, statuses and positions per side
+  (`GROUP_DARK` / `GROUP_LIGHT` in `src/panes/group.ts`, the values of
+  mockup 3c). Text and lines come from the pane's shade ramp (names
+  `vtext`, secondary `label`, lines `dim`, tracks `track`), so a tinted
+  pane keeps its tint. The sanctuary icon and ring use the Timers
+  Sanctuary group's colour setting.
+- **The tank** in the fight zone is the member the buffer names; when it
+  names you, your own `Char.Vitals` hp and `maxhp`; otherwise the name
+  only. The opponent's bar is its band word's midpoint (or a group NPC's
+  own HP), in the opponent colour, filling from the right.
+- **The TUI page** (Options → Panes → Group) steps a vital colour through
+  Auto and the twelve picker colours; a free colour picked in the gear
+  stays in the cycle while it is chosen.
+- The mockup's "Hunger and thirst icons" and "Sanctuary time" switches were
+  not taken (not in the decision above): every flag is shown, and a
+  sanctuary you cast always shows its ring.
