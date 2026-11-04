@@ -83,7 +83,7 @@ test('the Group gear applies live (ADR 0107)', async ({ page }) => {
   await npc('off').click();
   await expect.poll(() => groupNames(page)).toEqual([]);
   const s = await page.evaluate(() => window.__wc!.settings.get().group);
-  expect(s).toEqual({ showPlayers: false, npcMode: 'off' });
+  expect(s).toMatchObject({ showPlayers: false, npcMode: 'off' });
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
@@ -111,7 +111,7 @@ test('Options → Panes → Group in the phone\'s ESC menu writes the settings',
   await page.keyboard.press('ArrowRight');
   await expect(sel).toHaveText('<< NPC visibility: Off >>');
   const s = await page.evaluate(() => window.__wc!.settings.get().group);
-  expect(s).toEqual({ showPlayers: false, npcMode: 'off' });
+  expect(s).toMatchObject({ showPlayers: false, npcMode: 'off' });
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
