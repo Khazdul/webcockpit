@@ -1,0 +1,39 @@
+/* Pane tooltips (src/panes/pane-tooltip.ts, ADR 0122): a small card in the
+ * menu surface colours (ADR 0116), a bold first line and the text. Fixed,
+ * above the panes and the menu bar's popups' layer below it. */
+
+.wc-ptip {
+  position: fixed;
+  z-index: 275;
+  box-sizing: border-box;
+  max-width: 260px;
+  padding: 5px 9px 6px;
+  border: 1px solid var(--sf-border, #2c2c2c);
+  border-radius: 5px;
+  background: var(--sf-bg, #0a0a0a);
+  box-shadow: var(--sf-shadow, 0 10px 26px rgba(0, 0, 0, 0.75));
+  color: var(--sf-fg, #c4c4c4);
+  font-family: var(--font-mono);
+  font-size: calc(var(--font-size, 15px) * 0.78);
+  font-weight: normal;
+  line-height: 1.35;
+  letter-spacing: normal;
+  white-space: pre-line;
+  text-align: left;
+  pointer-events: none;
+}
+
+.wc-ptip[hidden] {
+  display: none;
+}
+
+.wc-ptip > b {
+  display: block;
+  margin-bottom: 1px;
+  color: var(--sf-hot, #ebebeb);
+  font-weight: bold;
+}
+
+.wc-ptip > b[hidden] {
+  display: none;
+}
