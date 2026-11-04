@@ -1,7 +1,7 @@
-// Find in the manuals and from LITE (ADR 0070): Ctrl+F in the Script
+// Find in the manuals (ADR 0070): Ctrl+F in the Script
 // Manual and in the profile editor's HELP view opens the find panel under
-// the manual; Ctrl+F / Ctrl+H in LITE flip to EDITOR with the buffer's
-// search panel open. Nothing reaches the real server.
+// the manual. LITE has no find: Ctrl+F / Ctrl+H do nothing there (ADR
+// 0119). Nothing reaches the real server.
 import { type Page, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -182,38 +182,46 @@ test('profile HELP: Ctrl+F finds in the manual; ESC closes the panel, then saves
   expect(errors).toEqual([]);
 });
 
-test('LITE: Ctrl+F flips to EDITOR with Find open at the entry; Ctrl+H opens Replace and replaces', async ({ page }) => {
+test('LITE: Ctrl+F and Ctrl+H do nothing (ADR 0119); EDITOR keeps both', async ({ page }) => {
   const errors = watchErrors(page);
   await openProfile(page, '#alias {k} {kill orc}\n#action {An orc arrives.} {kill orc}\n');
-  await expect(ped(page).locator('.wc-ped-footer')).toContainText('Ctrl+F Find');
+  await expect(ped(page).locator('.wc-ped-footer')).not.toContainText('Ctrl+F');
+  await expect(ped(page).locator('.wc-ped-footer')).not.toContainText('Ctrl+H');
 
-  // Select the action and press Ctrl+F: EDITOR, Find focused, the cursor on that entry's line.
-  await ped(page).locator('[data-kind="action"]').first().click();
-  await page.keyboard.press('ArrowDown');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'list');
-  await page.keyboard.press('Control+f');
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
+  // On the kind row and in the list: LITE stays, no search panel, the zone is kept.
   const panel = ped(page).locator('.wc-search');
-  await expect(panel.getByRole('textbox', { name: 'Find' })).toBeFocused();
-  await page.keyboard.type('orc');
-  // Typing searches from the cursor (the action's line): its first orc is match 2 of 3.
-  await expect(panel.locator('.wc-search-count')).toHaveText(/2 of 3/);
-  await page.keyboard.press('Escape');
+  await ped(page).locator('[data-kind="action"]').first().click();
+  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
+  for (const zone of ['kind', 'list']) {
+    if (zone === 'list') await page.keyboard.press('ArrowDown');
+    await expect(ped(page)).toHaveAttribute('data-zone', zone);
+    for (const key of ['Control+f', 'Control+h']) {
+      await page.keyboard.press(key);
+      await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+      await expect(ped(page)).toHaveAttribute('data-zone', zone);
+      await expect(panel).toHaveCount(0);
+    }
+  }
+  // In the Pattern field too; the text is untouched.
+  await page.keyboard.press('ArrowRight');
+  const pattern = ped(page).locator('input[data-field="pattern"]');
+  await expect(pattern).toBeFocused();
+  await page.keyboard.press('Control+f');
+  await page.keyboard.press('Control+h');
+  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(pattern).toBeFocused();
+  await expect(pattern).toHaveValue('An orc arrives.');
   await expect(panel).toHaveCount(0);
 
-  // Back to LITE; Ctrl+H: EDITOR with Replace focused.
-  await ped(page).locator('[data-btn="LITE"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
-  await page.keyboard.press('Control+h');
+  // EDITOR: Ctrl+H opens Replace, Ctrl+F Find.
+  await ped(page).locator('[data-btn="EDITOR"]').click();
   await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
+  await ped(page).locator('.cm-content').click();
+  await page.keyboard.press('Control+h');
   await expect(panel.getByRole('textbox', { name: 'Replace' })).toBeFocused();
-  await page.keyboard.type('troll');
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('Control+f');
   await expect(panel.getByRole('textbox', { name: 'Find' })).toBeFocused();
   await page.keyboard.type('orc');
-  await panel.locator('[data-btn="ALL"]').click();
-  await expect
-    .poll(() => ped(page).locator('.cm-content').evaluate((el) => [...el.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n')))
-    .toBe('#alias {k} {kill troll}\n#action {An troll arrives.} {kill troll}\n');
+  await expect(panel.locator('.wc-search-count')).toHaveText(/of 3/);
   expect(errors).toEqual([]);
 });

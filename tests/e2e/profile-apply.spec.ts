@@ -98,6 +98,31 @@ test('a LITE edit applies when the game is clicked; the alias works with the win
   expect(errors).toEqual([]);
 });
 
+test('the Profile window: n on the kind row adds an alias that applies; Ctrl+F stays in LITE (ADR 0119)', async ({ page }) => {
+  const errors = watchErrors(page);
+  const sent = await enterMume(page, '#alias {a} {b}\n');
+  await icon(page, 'profile').click();
+  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await ped(page).locator('[data-kind="alias"]').first().click();
+  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
+  await expect(footer(page)).toHaveText('n New · Tab Cycle · ESC Back');
+  await page.keyboard.press('Control+f');
+  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(ped(page).locator('.wc-search')).toHaveCount(0);
+  await page.keyboard.press('Delete');
+  await expect(listRows(page)).toHaveText([/^a\s+b/, /\+ New entry/]);
+  await page.keyboard.press('n');
+  await expect(ped(page).locator('input[data-field="pattern"]')).toBeFocused();
+  await page.keyboard.type('gg');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('say hello');
+  await clickGame(page);
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {gg} {say hello}\n');
+  await typeInGame(page, 'gg');
+  await expect.poll(sent).toContain('say hello\r\n');
+  expect(errors).toEqual([]);
+});
+
 test('EDITOR applies on Ctrl+S, marked Modified until then', async ({ page }) => {
   const sent = await enterMume(page, '#alias {a} {b}\n');
   await icon(page, 'profile').click();
