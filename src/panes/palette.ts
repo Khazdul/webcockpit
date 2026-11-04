@@ -64,21 +64,21 @@ export function resolveColor(setting: ColorSetting, key: ColorKey, light: boolea
 }
 
 /**
- * The picker's twelve colours (ADR 0122): mid tones that keep enough
- * contrast on black and on paper, the default hues among them. In the
- * picker's order (by hue, then the neutrals).
+ * The picker's twelve colours (ADR 0122; the swatches of mockup 3c): mid
+ * tones that keep enough contrast on black and on paper, in the picker's
+ * order (by hue, then a neutral).
  */
 export const PICKER_COLORS: readonly { hex: string; label: string }[] = [
-  { hex: '#d9483b', label: 'Red' },
-  { hex: '#e07a2e', label: 'Orange' },
-  { hex: '#c9a227', label: 'Gold' },
-  { hex: '#4caf50', label: 'Green' },
-  { hex: '#2aa198', label: 'Teal' },
-  { hex: '#26a6c9', label: 'Cyan' },
-  { hex: '#4a7fe0', label: 'Blue' },
-  { hex: '#7b68ee', label: 'Indigo' },
-  { hex: '#a65fd1', label: 'Violet' },
-  { hex: '#d4589e', label: 'Pink' },
-  { hex: '#c98bd6', label: 'Lilac' },
-  { hex: '#8a8f98', label: 'Grey' },
+  { hex: '#e0566a', label: 'Rose' },
+  { hex: '#e8794a', label: 'Coral' },
+  { hex: '#d9a53f', label: 'Amber' },
+  { hex: '#9aa83a', label: 'Olive' },
+  { hex: '#3fae6a', label: 'Green' },
+  { hex: '#2fa8a0', label: 'Teal' },
+  { hex: '#4aa3df', label: 'Sky' },
+  { hex: '#4f72d9', label: 'Blue' },
+  { hex: '#8a6fe0', label: 'Violet' },
+  { hex: '#c46fd2', label: 'Orchid' },
+  { hex: '#e07aa8', label: 'Pink' },
+  { hex: '#8c95a3', label: 'Slate' },
 ];
