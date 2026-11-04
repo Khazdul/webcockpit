@@ -232,8 +232,8 @@ Mapped to Inv §2.1 and §10.
 | Pane | Inventory | Notes |
 |---|---|---|
 | Character | Inv §2.2 | Vitals, XP/TP gains, toggles, gauges. |
-| Timers | Inv §2.6 | Grid view plus the trackers for affects, stored spells, cast queue, blinds, charm and herblore. Needs the game-data tables, rewritten in our own format. |
-| Group | Inv §2.3 | Membership (NPCs room-scoped, players not; ADR 0120), value freshness, NPC label promotion. |
+| Timers | Inv §2.6 | The trackers for affects, stored spells, cast queue, blinds, charm and herblore, plus a Sanctuary group (yours and your group's). Needs the game-data tables, rewritten in our own format. Look and options: ADR 0122 (stage 39). |
+| Group | Inv §2.3 | Membership (NPCs room-scoped, players not; ADR 0120), value freshness, NPC label promotion. Look, fight zone, statuses and options: ADR 0122 (stage 39). |
 | Communication | Inv §2.7 | Channel filters (global, as in Cockpit), right-click solo, per-channel colours, history kept across reloads. |
 | UI messages | Inv §2.4 | Structured messages from the system and scripts. |
 | Clock | Inv §2.5 | On desktop and tablet at the left end of the menu bar: a sun or moon in a ring of the period left, `~` after it while synced to the hour only, the countdown in its tooltip (stage 31a, ADR 0099). On the phone the input clock strip with the countdown text. Syncs from MSSP and game text. |
