@@ -42,7 +42,16 @@ import { normalizeKey } from '../script/keys';
 import { setDeclaredScriptKeys } from '../script/script-keys';
 import type { ScriptBackup } from './backup';
 import { BUNDLED_SCRIPTS, type BundledScript, RETIRED_BUNDLED_SCRIPTS } from './bundled';
-import { type ParsedHeader, type ScriptHeader, type SettingValue, apiProblem, convertSetting, parseHeader, withHeaderName } from './header';
+import {
+  type ParsedHeader,
+  type ScriptHeader,
+  type SettingValue,
+  apiProblem,
+  parseHeader,
+  settingValue,
+  storedSetting,
+  withHeaderName,
+} from './header';
 
 export const SCRIPT_NAME_MAX = 32;
 const SCRIPT_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
@@ -279,10 +288,7 @@ export class ScriptLibrary {
     if (!e) return {};
     const set = this.data.get(name)?.settings ?? {};
     const out: Record<string, SettingValue> = {};
-    for (const d of e.parsed.header.settings) {
-      const v = set[d.name];
-      out[d.name] = v !== undefined && typeof v === typeof d.default ? v : d.default;
-    }
+    for (const d of e.parsed.header.settings) out[d.name] = storedSetting(d, set[d.name]);
     return out;
   }
 
@@ -544,8 +550,10 @@ export class ScriptLibrary {
   }
 
   /**
-   * Sets a declared setting from text (`#script set`): converted to the
-   * declared type. Returns the stored value, or why it was refused.
+   * Sets a declared setting from text (`#script set`, the Scripts page):
+   * converted to the declared type and checked against its range or
+   * options (header.ts `settingValue`). Returns the stored value, or why
+   * it was refused.
    */
   setSetting(name: string, setting: string, text: string): Promise<{ ok: true; value: SettingValue } | { ok: false; reason: string }> {
     return this.serial(() => this.setSettingNow(name, setting, text));
@@ -560,12 +568,32 @@ export class ScriptLibrary {
       const known = e.parsed.header.settings.map((s) => s.name);
       return { ok: false, reason: `${name} has no setting ${setting}${known.length ? ` (settings: ${known.join(', ')})` : ''}.` };
     }
-    const value = convertSetting(decl.type, text);
-    if (value === null) return { ok: false, reason: `${setting} must be a ${decl.type}${decl.type === 'boolean' ? ' (true or false)' : ''}.` };
+    const r = settingValue(decl, text);
+    if (!r.ok) return r;
     const d = this.dataOf(name);
-    await this.putData({ ...d, settings: { ...d.settings, [setting]: value } });
+    await this.putData({ ...d, settings: { ...d.settings, [setting]: r.value } });
     this.changed();
-    return { ok: true, value };
+    return r;
+  }
+
+  /**
+   * RESET ALL on the Scripts page (ADR 0121): removes the stored value of
+   * every setting of `name`, so each one has its default (also a later
+   * default). Returns the settings whose value changed; the host gives the
+   * script `sysSettingChanged` for each of them on its next sync.
+   */
+  resetSettings(name: string): Promise<string[]> {
+    return this.serial(async () => {
+      await this.init();
+      if (!this.entries.has(name)) throw new ScriptError(`No script ${name}.`);
+      const before = this.settingsOf(name);
+      const d = this.dataOf(name);
+      if (Object.keys(d.settings).length === 0) return [];
+      await this.putData({ ...d, settings: {} });
+      const after = this.settingsOf(name);
+      this.changed();
+      return Object.keys(after).filter((k) => after[k] !== before[k]);
+    });
   }
 
   /** The host reports a script's last error (`null` clears it). Kept in memory only. */

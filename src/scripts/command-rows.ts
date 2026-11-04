@@ -1,10 +1,12 @@
 // `#script list` and `#script help <name>` as game output rows (spec
 // §2.10). No DOM; the classes are the `#help` ones (ui.css). The help is
 // what the Scripts page shows: name and summary, aliases and keys, the
-// `@help` text, and each setting with its value and the `#script set`
-// command that changes it.
+// `@help` text typeset as on the page (help-text.ts, ADR 0121), and each
+// setting with its value and the `#script set` command that changes it.
 
 import type { StyledRow } from '../ui/output-pane';
+import { type SettingDecl, formatNumber } from './header';
+import { type HelpRole, typesetHelp } from './help-text';
 import type { ScriptInfo } from './library';
 
 const row = (kind: string, text: string): StyledRow => ({ cls: `wc-help wc-help-${kind}`, segs: [{ text }] });
@@ -16,8 +18,26 @@ function cut(s: string, w: number): string {
 
 /** The value of a setting as `#script set` takes it. */
 export function settingText(v: string | number | boolean): string {
+  if (typeof v === 'number') return formatNumber(v);
   return typeof v === 'string' ? (v === '' || /\s|[{}]/.test(v) ? `{${v}}` : v) : String(v);
 }
+
+/** What a setting takes, for `#script set`: `number 0..10`, `10|20`, `boolean`. */
+export function settingKind(d: SettingDecl): string {
+  if (d.type === 'choice') return (d.options ?? []).map(String).join('|');
+  if (d.type === 'number' && d.min !== undefined && d.max !== undefined) return `number ${formatNumber(d.min)}..${formatNumber(d.max)}`;
+  return d.type;
+}
+
+/** The `#help` class of each help role. */
+const HELP_CLS: Record<HelpRole, string> = {
+  heading: 'wc-help-group',
+  text: 'wc-help-text',
+  bullet: 'wc-help-syntax',
+  term: 'wc-help-syntax',
+  desc: 'wc-help-text',
+  pre: 'wc-help-code',
+};
 
 /** The state word of a script on its row. */
 export function stateWord(s: ScriptInfo, running: boolean): string {
@@ -63,32 +83,21 @@ export function helpRows(s: ScriptInfo, running: boolean, width = 80): StyledRow
   }
   if (h.help.length > 0) {
     out.push(row('group', 'Help'));
-    for (const l of h.help) for (const part of wrap(l, width - 2)) out.push(row('text', `  ${part}`));
+    for (const l of typesetHelp(h.help, width - 2)) {
+      out.push({
+        cls: 'wc-help wc-help-text',
+        segs: [{ text: '  ' }, ...l.map((s) => (s.role ? { text: s.text, cls: HELP_CLS[s.role] } : { text: s.text }))],
+      });
+    }
   }
   if (h.settings.length > 0) {
     out.push(row('group', 'Settings'));
     for (const d of h.settings) {
       const v = s.settings[d.name] ?? d.default;
-      out.push(row('code', cut(`  ${d.name} = ${settingText(v)}${d.label ? `  ${d.label}` : ''}`, width)));
-      out.push(row('note', cut(`    #script set ${s.name} ${d.name} <${d.type}>`, width)));
+      const unit = d.unit ? ` ${d.unit}` : '';
+      out.push(row('code', cut(`  ${d.name} = ${settingText(v)}${unit}${d.label ? `  ${d.label}` : ''}`, width)));
+      out.push(row('note', cut(`    #script set ${s.name} ${d.name} <${settingKind(d)}>`, width)));
     }
   }
   return out;
-}
-
-/** Word-wraps `s` to `w` cells (a word longer than `w` is cut). */
-function wrap(s: string, w: number): string[] {
-  if (s.length <= w || w < 10) return [s];
-  const out: string[] = [];
-  let line = '';
-  for (const word of s.split(/\s+/)) {
-    if (line === '') line = word;
-    else if (line.length + 1 + word.length <= w) line += ' ' + word;
-    else {
-      out.push(line);
-      line = word;
-    }
-  }
-  if (line) out.push(line);
-  return out.map((l) => cut(l, w));
 }

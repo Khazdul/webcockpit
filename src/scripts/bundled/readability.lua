@@ -11,31 +11,43 @@
 -- @help     your background (Settings → Appearance), so they read on black,
 -- @help     on the dark themes and on paper.
 -- @help
--- @help     Mobs: about 450 known mobs get a short name, and the rest of
--- @help     the line is dimmed. Dangerous and named mobs are gold, roots
+-- @help     ## Mobs
+-- @help     About 450 known mobs get a short name, and the rest of the
+-- @help     line is dimmed. Dangerous and named mobs are gold, roots
 -- @help     and snares pink, the others keep the normal text colour.
+-- @help
 -- @help       A huge, black bear is here, proud heir to the great and
 -- @help         ancient mountain bears.
 -- @help       becomes: The huge, black bear is here.   (name in gold)
 -- @help       Some roots lie here waiting to ensnare weary travellers.
 -- @help       becomes: A clump of roots is here.       (name in pink)
+-- @help
 -- @help     Other mobs that are standing, sleeping, lying or fighting keep
 -- @help     their text; only "is standing here ..." is dimmed.
 -- @help
--- @help     Movement: the mover keeps its colour, "leaves" is dimmed and the
+-- @help     ## Movement
+-- @help     The mover keeps its colour, "leaves" is dimmed and the
 -- @help     direction is teal with an arrow.
+-- @help
 -- @help       A young troll leaves north.   becomes: A young troll leaves north ▲
 -- @help       Frodo leaves west.            becomes: Frodo leaves ◄ west
 -- @help       A guard has arrived from above.  (from above in teal)
 -- @help
--- @help     Exits: each direction is teal; commas, doors and marks are dim.
+-- @help     ## Exits and flags
+-- @help     Each direction on the Exits line is teal; commas, doors and
+-- @help     marks are dim.
+-- @help
 -- @help       Exits: (north), =east=, south, /up\.
 -- @help
--- @help     Flags: (glowing) is lilac and (hidden) dim, on any line.
+-- @help     (glowing) is lilac and (hidden) dim, on any line.
 -- @help
--- @help     Turn a part off, for example:
+-- @help     ## Turning a part off
+-- @help     Each part has its setting. Turn one off on the Scripts page, or
+-- @help     with #script set, for example:
+-- @help
 -- @help       #script set readability shortnames off
 -- @help       #script set readability arrows off
+-- @help
 -- @help     With shortnames off a known mob keeps MUME's text, but its name
 -- @help     still has its colour and the rest is dimmed.
 -- @help

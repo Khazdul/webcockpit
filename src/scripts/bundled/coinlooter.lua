@@ -3,12 +3,12 @@
 -- @api      1
 -- @alias    cl  Turn auto-looting on or off (also: cl on, cl off, cl now)
 -- @setting  auto   boolean true  "Loot automatically after kills"
--- @setting  delay  number  0     "Seconds to wait before looting"
+-- @setting  delay  number  0  0..10 step 0.5 unit s  "Seconds to wait before looting"
 -- @setting  others boolean false "Also loot after kills that give you no experience"
 -- @setting  quiet  boolean true  "Hide 'You can't find any coins' after an auto-loot"
--- @help     When you or your group kill a monster, this script picks up its coins.
--- @help     A corpse: it sends "get coins all.corpse".
--- @help     An undead that disappears into nothing drops its coins on the
+-- @help     When you or your group kill a monster, this script picks up its coins:
+-- @help     - a corpse: it sends "get coins all.corpse";
+-- @help     - an undead that disappears into nothing drops its coins on the
 -- @help     floor: it sends "get all.coins".
 -- @help
 -- @help     It only loots after kills that give you experience ("You receive
@@ -16,8 +16,8 @@
 -- @help     kill in your room. Player corpses (*Name*) are never looted.
 -- @help     It sends at most one of each command per second.
 -- @help
--- @help     cl on and cl off are remembered. The settings below say
--- @help     how to change the rest.
+-- @help     cl on and cl off are remembered (they change the setting auto).
+-- @help     Change the rest in the settings.
 
 --[[
 How it works

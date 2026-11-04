@@ -9,7 +9,7 @@ import { scriptCommandArgs } from '../../src/script/commands';
 import { matchPattern } from '../../src/script/engine';
 import { mudletColor, parseCecho, parseScriptColor } from '../../src/scripts/colors';
 import { HANG_KEY, HangGuard } from '../../src/scripts/guard';
-import { apiProblem, convertSetting, parseHeader, withHeaderName } from '../../src/scripts/header';
+import { apiProblem, convertSetting, parseHeader, settingValue, withHeaderName } from '../../src/scripts/header';
 import { regexLiteral, regexPattern, substringPattern } from '../../src/scripts/patterns';
 
 describe('header', () => {
@@ -53,11 +53,82 @@ local x = 1
     expect(header.settings.map((s) => s.name)).toEqual(['ok']);
     expect(problems).toEqual([
       'line 1: @setting x: the default abc is not a number.',
-      'line 2: @setting y: the type must be number, string or boolean.',
+      'line 2: @setting y: the type must be number, string, boolean or choice.',
       'line 3: @setting 9z: the name may hold letters, digits and _ only.',
       'line 4: @setting needs a name, a type and a default.',
       'line 6: @setting ok is declared twice.',
     ]);
+  });
+
+  it('reads @setting options: range, step, unit, choice (ADR 0121)', () => {
+    const { header, problems } = parseHeader(
+      [
+        '-- @setting delay   number 0.5 0..10 step 0.5 unit s "Seconds before looting"',
+        '-- @setting warn    number 5 unit min 0..30 Warn this early',
+        '-- @setting cost    choice 10 10|20 unit silver "Per payment"',
+        '-- @setting mode    choice low low|mid|high',
+        '-- @setting plain   number 3 "No options"',
+        '-- @setting text    string a step by step',
+      ].join('\n'),
+    );
+    expect(problems).toEqual([]);
+    expect(header.settings).toEqual([
+      { name: 'delay', type: 'number', default: 0.5, label: 'Seconds before looting', min: 0, max: 10, step: 0.5, unit: 's' },
+      { name: 'warn', type: 'number', default: 5, label: 'Warn this early', min: 0, max: 30, unit: 'min' },
+      { name: 'cost', type: 'choice', default: 10, label: 'Per payment', options: [10, 20], unit: 'silver' },
+      { name: 'mode', type: 'choice', default: 'low', label: '', options: ['low', 'mid', 'high'] },
+      { name: 'plain', type: 'number', default: 3, label: 'No options' },
+      // "step" without a number starts the label, as before options existed.
+      { name: 'text', type: 'string', default: 'a', label: 'step by step' },
+    ]);
+  });
+
+  it('reports bad @setting options', () => {
+    const lines = [
+      '-- @setting a number 11 0..10',
+      '-- @setting b number 1 5..2',
+      '-- @setting c number 1 step 0',
+      '-- @setting d number 1 1|2',
+      '-- @setting e boolean true unit x',
+      '-- @setting f string x 1..2',
+      '-- @setting g choice 30 10|20',
+      '-- @setting h choice 10',
+      '-- @setting i choice 10 10|20 0..5',
+      '-- @setting j choice a a|a',
+    ];
+    const { header, problems } = parseHeader(lines.join('\n'));
+    expect(header.settings).toEqual([]);
+    expect(problems).toEqual([
+      'line 1: @setting a: the default 11 is outside 0..10.',
+      'line 2: @setting b: the range 5..2 is empty.',
+      'line 3: @setting c: the step must be above 0.',
+      'line 4: @setting d: options (a|b) are for a choice setting.',
+      'line 5: @setting e: unit is not an option of a boolean setting.',
+      'line 6: @setting f: a range is not an option of a string setting.',
+      'line 7: @setting g: the default 30 is not one of 10, 20.',
+      'line 8: @setting h: a choice needs its options, as 10|20 or low|high.',
+      'line 9: @setting i: a range is not an option of a choice setting.',
+      'line 10: @setting j: an option is listed twice.',
+    ]);
+  });
+
+  it('checks values against the range and the options', () => {
+    const d = parseHeader('-- @setting n number 1 0..5').header.settings[0]!;
+    expect(settingValue(d, '6')).toEqual({ ok: false, reason: 'n must be between 0 and 5.' });
+    expect(settingValue(d, 'x')).toEqual({ ok: false, reason: 'n must be a number.' });
+    expect(settingValue(d, '2.5')).toEqual({ ok: true, value: 2.5 });
+    const c = parseHeader('-- @setting c choice b a|b').header.settings[0]!;
+    expect(settingValue(c, 'a')).toEqual({ ok: true, value: 'a' });
+    expect(settingValue(c, 'A')).toEqual({ ok: false, reason: 'c must be one of a, b.' });
+  });
+
+  it('keeps @help indentation relative to the least-indented line', () => {
+    const { header } = parseHeader(
+      ['-- @help     Text.', '-- @help', '-- @help       term  desc', '-- @help         more', '-- @help \tTabbed', '-- @help     ## Head'].join('\n'),
+    );
+    // A tab counts as four spaces.
+    expect(header.help).toEqual(['Text.', '', '  term  desc', '    more', 'Tabbed', '## Head']);
+    expect(parseHeader('--@help a\n--   @help    b').header.help).toEqual(['a', '   b']);
   });
 
   it('checks @api', () => {

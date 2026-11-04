@@ -116,6 +116,47 @@ describe('library', () => {
     expect(lib.settingsOf('looter')).toEqual({ delay: 1.5 });
   });
 
+  it('checks ranges and choices (ADR 0121)', async () => {
+    const { lib } = make();
+    await lib.create(
+      's',
+      '-- @api 1\n-- @setting n number 5 0..10 step 0.5 unit s\n-- @setting c choice 10 10|20 unit silver\n-- @setting w choice low low|high',
+    );
+    expect(await lib.setSetting('s', 'n', '11')).toEqual({ ok: false, reason: 'n must be between 0 and 10.' });
+    expect(await lib.setSetting('s', 'n', '-1')).toEqual({ ok: false, reason: 'n must be between 0 and 10.' });
+    expect(await lib.setSetting('s', 'n', '10')).toEqual({ ok: true, value: 10 });
+    expect(await lib.setSetting('s', 'c', '15')).toEqual({ ok: false, reason: 'c must be one of 10, 20.' });
+    expect(await lib.setSetting('s', 'c', ' 20 ')).toEqual({ ok: true, value: 20 });
+    expect(await lib.setSetting('s', 'w', 'medium')).toEqual({ ok: false, reason: 'w must be one of low, high.' });
+    expect(await lib.setSetting('s', 'w', 'high')).toEqual({ ok: true, value: 'high' });
+    expect(lib.settingsOf('s')).toEqual({ n: 10, c: 20, w: 'high' });
+    // A header that changed since: a stored number is clamped, a choice that is gone falls back.
+    await lib.save('s', '-- @api 1\n-- @setting n number 5 0..8\n-- @setting c choice 10 10|30\n-- @setting w choice low low|high');
+    expect(lib.settingsOf('s')).toEqual({ n: 8, c: 10, w: 'high' });
+  });
+
+  it('resets every setting to its default and says which changed', async () => {
+    const { lib } = make();
+    await lib.create('s', '-- @api 1\n-- @setting a number 1\n-- @setting b boolean true\n-- @setting c string x');
+    lib.storeSet('s', 'kept', 1);
+    await lib.setSetting('s', 'a', '2');
+    await lib.setSetting('s', 'b', 'true');
+    let events = 0;
+    lib.subscribe(() => events++);
+    expect(await lib.resetSettings('s')).toEqual(['a']);
+    expect(events).toBe(1);
+    expect(lib.settingsOf('s')).toEqual({ a: 1, b: true, c: 'x' });
+    expect(lib.get('s')!.settings).toEqual({ a: 1, b: true, c: 'x' });
+    expect(lib.storeGet('s', 'kept')).toBe(1);
+    // Nothing stored: nothing to do.
+    expect(await lib.resetSettings('s')).toEqual([]);
+    expect(events).toBe(1);
+    // Bundled scripts' settings reset too; an unknown script is an error.
+    await lib.setSetting('looter', 'delay', '3');
+    expect(await lib.resetSettings('looter')).toEqual(['delay']);
+    await expect(lib.resetSettings('nope')).rejects.toThrow('No script nope.');
+  });
+
   it('parallel changes do not lose each other', async () => {
     const { lib } = make();
     await lib.create('s', '-- @api 1\n-- @setting a number 1\n-- @setting b number 1');

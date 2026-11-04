@@ -2,14 +2,15 @@
 -- @summary  MUME's seasons, moon and time-bound events in a pane, with a planner
 -- @api      1
 -- @alias    almanac  Show or hide the Almanac pane (also: almanac now, plan, lore, add, edit, remove, remind, list, export, import)
--- @setting  remind  number  2  "Game hours before an event that a reminder comes (a game hour is a real minute)"
+-- @setting  remind  number  2  0..24 unit h  "Game hours before an event that a reminder comes (a game hour is a real minute)"
 -- @help     The Almanac pane follows MUME's clock: the game date and hour,
 -- @help     the moon, day and night, the seasons, and the things in Arda
 -- @help     that only happen at certain times (the Dead Knight's slab at
 -- @help     moonrise, the Ingrove wargs at a winter full moon, the Spirit
 -- @help     Knight's door after midnight …). Times are MUME time: "in 5h"
--- @help     is five game hours (five real minutes). Three tabs:
+-- @help     is five game hours (five real minutes).
 -- @help
+-- @help     ## Three tabs
 -- @help       NOW   the moon, the hour, the daylight band, the year band
 -- @help             and COMING UP: each event with a countdown, or "now".
 -- @help             Click an event to get a reminder (a line in the game
@@ -21,7 +22,8 @@
 -- @help       LORE  every event with its condition and place; point at a
 -- @help             name for the note and the source.
 -- @help
--- @help     Your own events: [+ add] on LORE (or almanac add) opens the
+-- @help     ## Your own events
+-- @help     [+ add] on LORE (or almanac add) opens the
 -- @help     event editor. Type a name, a place and a note, then click what
 -- @help     must hold: seasons, months, the time of day, hours, the moon's
 -- @help     phase, the moon up or down, or one moment such as moonrise.
@@ -32,6 +34,7 @@
 -- @help     The clock must know the hour: type time in the game, or wait
 -- @help     for the next sunrise or sunset.
 -- @help
+-- @help     ## Commands
 -- @help       almanac             show or hide the pane
 -- @help       almanac now|plan|lore   show the pane on that tab
 -- @help       almanac add         the event editor
