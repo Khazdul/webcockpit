@@ -7,8 +7,8 @@
 // - Comm: the ten fixed channels with their label and colour, and the
 //   sparse filter toggle (missing = on, `false` = off). The Comm pane
 //   cancels its solo by itself when the filters change from outside it.
-// - Timers: a group's colour choice (0 or 1 swatch: off hides the group
-//   and remembers its colour).
+// - Timers (ADR 0122): the choices of the look and ending-soon settings
+//   and the per-group patch.
 // - Group: the NPC visibility labels.
 
 import { COMM_CHANNEL_ORDER, DEFAULT_CAPTIONS, channelColor, channelEnabled, channelLabel } from '../gmcp/comm';
@@ -19,10 +19,21 @@ import {
   type GroupAwayMode,
   type GroupNpcMode,
   type SettingsStore,
-  TIMER_COLOR_HEX,
-  TIMER_LEGACY_DEFAULT_COLOR,
-  type TimerColor,
+  TIMER_COLS_MAX,
+  TIMER_COLS_MIN,
+  TIMER_GROUP_LAYOUTS,
+  TIMER_LAYOUTS,
+  TIMER_SIGNALS,
+  TIMER_STYLES,
+  TIMER_WARN_CHOICES,
+  type TimerCols,
+  type TimerGroupLayout,
   type TimerGroupSettings,
+  type TimerLayout,
+  type TimerSignal,
+  type TimerStyle,
+  type TimerWarnAt,
+  type TimersSettings,
 } from '../settings';
 import type { TimerGroup } from '../timers/entry';
 
@@ -61,32 +72,38 @@ export function toggleCommChannel(settings: SettingsStore, name: string): void {
 
 // ---------------------------------------------------------------- timers
 
-// Until stage 39c replaces these pages, the colour choice offers the old
-// seven swatches over the ADR 0122 colour setting: a group's own old
-// default swatch is stored as `auto`, any other as its hex.
+export const TIMER_STYLE_LABEL: Readonly<Record<TimerStyle, string>> = { bars: 'Bars', circles: 'Circles' };
+export const TIMER_LAYOUT_LABEL: Readonly<Record<TimerLayout, string>> = { flow: 'Flow', grid: 'Grid' };
+export const TIMER_GROUP_LAYOUT_LABEL: Readonly<Record<TimerGroupLayout, string>> = { default: 'Default', flow: 'Flow', grid: 'Grid' };
+export const TIMER_SIGNAL_LABEL: Readonly<Record<TimerSignal, string>> = { text: 'Time text', pulse: 'Pulse', none: 'None' };
 
-/** The swatch a group's colour setting shows as, or null (a custom colour; Sanctuary on Auto). */
-export function swatchOf(group: TimerGroup, color: ColorSetting): TimerColor | null {
-  if (color === 'auto') return group === 'sanct' ? null : TIMER_LEGACY_DEFAULT_COLOR[group];
-  for (const [name, hex] of Object.entries(TIMER_COLOR_HEX) as [TimerColor, string][]) if (hex === color) return name;
-  return null;
+const choices = <T extends string>(xs: readonly T[], label: Readonly<Record<T, string>>): readonly { value: T; label: string }[] =>
+  xs.map((value) => ({ value, label: label[value] }));
+
+export const TIMER_STYLE_CHOICES = choices(TIMER_STYLES, TIMER_STYLE_LABEL);
+export const TIMER_LAYOUT_CHOICES = choices(TIMER_LAYOUTS, TIMER_LAYOUT_LABEL);
+export const TIMER_GROUP_LAYOUT_CHOICES = choices(TIMER_GROUP_LAYOUTS, TIMER_GROUP_LAYOUT_LABEL);
+export const TIMER_SIGNAL_CHOICES = choices(TIMER_SIGNALS, TIMER_SIGNAL_LABEL);
+
+/** Warn at, as strings (a segmented control's values). */
+export const TIMER_WARN_OPTIONS: readonly { value: string; label: string }[] = TIMER_WARN_CHOICES.map((n) => ({ value: String(n), label: `${n}s` }));
+
+/** The grid column choices: Auto, then 1–6. */
+export const TIMER_COLS_CHOICES: readonly TimerCols[] = [
+  'auto',
+  ...Array.from({ length: TIMER_COLS_MAX - TIMER_COLS_MIN + 1 }, (_, i) => TIMER_COLS_MIN + i),
+];
+
+/** A column choice's label. */
+export const colsLabel = (c: TimerCols): string => (c === 'auto' ? 'Auto' : String(c));
+
+/** Writes `patch` into the Timers settings (not the groups). */
+export function setTimers(settings: SettingsStore, patch: Partial<Omit<TimersSettings, 'groups'>>): void {
+  settings.update({ timers: patch });
 }
 
-/** The colour setting of swatch `c` for `group`: its old default swatch is `auto`. */
-export function swatchSetting(group: TimerGroup, c: TimerColor): ColorSetting {
-  return group !== 'sanct' && TIMER_LEGACY_DEFAULT_COLOR[group] === c ? 'auto' : TIMER_COLOR_HEX[c];
-}
-
-/** A group's next look after clicking swatch `color` (0 or 1 checked): the checked one unchecks (off, colour kept). */
-export function colorToggle(group: TimerGroup, g: TimerGroupSettings, color: TimerColor): Pick<TimerGroupSettings, 'enabled' | 'color'> {
-  if (g.enabled && swatchOf(group, g.color) === color) return { enabled: false, color: g.color };
-  return { enabled: true, color: swatchSetting(group, color) };
-}
-
-/** A group's look for a colour choice: a swatch shows it in that colour; null (Off) hides it and keeps its colour. */
-export function colorChoice(group: TimerGroup, g: TimerGroupSettings, color: TimerColor | null): Pick<TimerGroupSettings, 'enabled' | 'color'> {
-  return color === null ? { enabled: false, color: g.color } : { enabled: true, color: swatchSetting(group, color) };
-}
+/** Warn at from a segmented value. */
+export const warnAtOf = (v: string): TimerWarnAt => (TIMER_WARN_CHOICES.find((n) => String(n) === v) ?? 20);
 
 /** Writes `patch` into timer group `g`. */
 export function patchTimerGroup(settings: SettingsStore, g: TimerGroup, patch: Partial<TimerGroupSettings>): void {

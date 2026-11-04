@@ -41,7 +41,7 @@
 }
 
 .wc-sp-gear-timers {
-  width: 29.5em;
+  width: 34em;
 }
 
 /* The reel's Spotlights settings (ADR 0110). */
@@ -850,7 +850,7 @@
 /* Timers: a grid of the groups, a column for each control under its heading. */
 .wc-sp-tgrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   column-gap: 0.77em;
   row-gap: 0.31em;
@@ -878,13 +878,22 @@
   color: var(--sf-off);
 }
 
-/* An Off group dims (its controls still work); its colour list says Off. */
-.wc-sp-tg-c.is-dim > :not(.wc-ck-ddw) {
+/* A hidden group dims its colour and layout (they still work). */
+.wc-sp-tg-c.is-dim > * {
   opacity: 0.55;
 }
 
-.wc-pop .wc-sp-tcolor > .wc-ck-dd {
-  width: 9.2em;
+.wc-pop .wc-sp-tcols > .wc-ck-dd {
+  width: 6.2em;
+}
+
+.wc-sp-tgrid > .wc-ck-sub:first-child {
+  text-align: left;
+}
+
+/* The group rows' layout control: a compact segmented control. */
+.wc-sp-tgrid .wc-ck-seg {
+  font-size: 0.92em;
 }
 
 /* ------------------------------------------------------------ checkbox */

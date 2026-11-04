@@ -6,7 +6,6 @@ import type { AppStatusState, AppStatusView } from '../../src/app/status';
 import { aboutLines } from '../../src/chrome/frames/about';
 import { headerParts, linkClass } from '../../src/chrome/frames/esc-main';
 import { colorChoices, gridToggle, parseHex } from '../../src/chrome/frames/options';
-import { TIMERS_GRID_W, colorToggle, timersHeader } from '../../src/chrome/frames/options-timers';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
 import { START_MENU_ROWS } from '../../src/chrome/start-layout';
 import { ProfileStore } from '../../src/profiles';
@@ -37,17 +36,6 @@ describe('options helpers', () => {
     // A clear pane stays clear (ADR 0095).
     expect(gridToggle({ ...p, glass: false }, 3)).toEqual({ on: true, color: 'blue', border: true, glass: false });
     expect(gridToggle({ ...p, glass: false }, 7)).toEqual({ on: true, color: 'red', border: false, glass: false });
-  });
-
-  it('toggles the timers grid: 0 or 1 swatch; the old default swatch is Auto', () => {
-    const g = { enabled: true, color: 'auto', layout: 'default' as const };
-    expect(colorToggle('spell', g, 'blue')).toEqual({ enabled: false, color: 'auto' }); // colour remembered
-    expect(colorToggle('spell', g, 'red')).toEqual({ enabled: true, color: '#d90000' });
-    expect(colorToggle('spell', { ...g, enabled: false }, 'blue')).toEqual({ enabled: true, color: 'auto' });
-    expect(colorToggle('sanct', g, 'violet')).toEqual({ enabled: true, color: '#b388ff' });
-    const h = timersHeader();
-    expect(h).toHaveLength(TIMERS_GRID_W);
-    expect(h).toMatch(/^ {10}Blue {3}Green {2}Red {4}Magent Cyan {3}Violet Orange $/);
   });
 
   it('parses hex colours', () => {

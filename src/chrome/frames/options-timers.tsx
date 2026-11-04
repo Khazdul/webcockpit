@@ -1,155 +1,96 @@
-// Options → Panes → Timers (Inv §2.6.3, ADR 0122; interim until stage
-// 39c gives it the new settings):
+// Options → Panes → Timers (Inv §2.6.3, ADR 0122): the Timers gear popup's
+// settings on the TUI page.
 //
 //   ─── Timers ───
-//             Blue   Green  Red    Magent Cyan   Violet Orange
-//   Sanctuary [ ]███ [ ]███ …
-//   Spells    [X]███ [ ]███ [ ]███ [ ]███ [ ]███ [ ]███ [ ]███
-//   …
-//
-//      << [X] Display headers >>
+//      << Style: Bars >>
+//      << Layout: Flow >>
+//      << Grid columns: Auto >>
+//         [X] Group headers
 //         [X] Time text
+//      << Ending soon: Time text >>
+//      << Warn at: 20s >>
+//         [X] Soonest first
+//
+//         [X] Sanctuary  colour: Auto
+//      << Sanctuary layout: Default >>
+//         …  (one pair per group)
 //
 //      << Back >>
+//          ↑↓ Move · ←→ Adjust · Enter Toggle · ESC Back
 //
-// Per row 0 or 1 swatch checked: 0 hides the group (row dim, colour
-// remembered). ↑↓ rows, ←→ columns on the grid rows, Enter/click toggles,
-// hover moves the cursor. Every change goes to the settings store at once,
-// so the pane follows live on both surfaces. The semantics (`colorToggle`,
-// `swatchOf`) are shared with the Timers gear popup (../pane-options-model.ts).
+// A group's first row shows or hides it (Enter) and steps its colour (←→)
+// through Auto and the twelve picker colours (`colorCycle`, shared with the
+// Group page); the second steps its layout. Every change goes to the
+// settings store at once, so the pane follows live on both surfaces. The
+// choices and labels are shared with the Timers gear popup
+// (../pane-options-model.ts).
 
 import type { VNode } from 'preact';
-import { useState } from 'preact/hooks';
-import { TIMER_COLOR_HEX, TIMER_COLOR_LABELS, TIMER_COLOR_ORDER, type TimerGroupSettings } from '../../settings';
-import { TIMER_GROUPS, TIMER_GROUP_LABELS, type TimerGroup } from '../../timers/entry';
-import { useGrid, useServices, useSettings } from '../kit/hooks';
-import { centreLeft } from '../kit/nav';
+import { TIMER_GROUP_LAYOUTS, TIMER_LAYOUTS, TIMER_SIGNALS, TIMER_STYLES, TIMER_WARN_CHOICES } from '../../settings';
+import { TIMER_GROUPS, TIMER_GROUP_LABELS } from '../../timers/entry';
+import { useServices, useSettings } from '../kit/hooks';
+import { cycle } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
-import { Blank, CheckCell, Line, type MenuItem, MenuRows, Page } from '../kit/widgets';
-import { colorToggle, swatchOf } from '../pane-options-model';
-
-export { colorToggle } from '../pane-options-model';
-
-const LABEL_W = 10;
-/** `[X]███` plus one space. */
-const CELL_W = 7;
-const N_COLORS = TIMER_COLOR_ORDER.length;
-const GRID_COLS = N_COLORS;
-/** The grid's width in cells (centred as a block). */
-export const TIMERS_GRID_W = LABEL_W + N_COLORS * CELL_W;
-
-/** The dim header row over the grid. */
-export function timersHeader(): string {
-  return ' '.repeat(LABEL_W) + TIMER_COLOR_ORDER.map((c) => TIMER_COLOR_LABELS[c].slice(0, 6).padEnd(CELL_W)).join('');
-}
+import { type MenuItem, MenuRows, Page, menuKey, useMenuCursor } from '../kit/widgets';
+import {
+  TIMER_COLS_CHOICES,
+  TIMER_GROUP_LAYOUT_LABEL,
+  TIMER_LAYOUT_LABEL,
+  TIMER_SIGNAL_LABEL,
+  TIMER_STYLE_LABEL,
+  colsLabel,
+  patchTimerGroup,
+  setTimers,
+} from '../pane-options-model';
+import { colorCycle, colorName } from './options-group';
 
 export function TimersOptionsFrame(): VNode {
   const { settings } = useServices();
-  const s = useSettings();
+  const t = useSettings().timers;
   const nav = useNav();
-  const { cols } = useGrid();
-  const n = TIMER_GROUPS.length;
-  // Rows 0..n-1: groups; n: headers; n+1: time text; n+2: Back.
-  const ROWS = n + 3;
-  const [row, setRow] = useState(0);
-  const [col, setCol] = useState(0);
-  const t = s.timers;
-
-  const patch = (g: TimerGroup, p: Partial<TimerGroupSettings>): void =>
-    settings.update({ timers: { groups: { [g]: p } } });
-  const activateCell = (r: number, c: number): void => {
-    const g = TIMER_GROUPS[r]!;
-    const cur = settings.get().timers.groups[g];
-    if (c < N_COLORS) patch(g, colorToggle(g, cur, TIMER_COLOR_ORDER[c]!));
-  };
-  const toggleHeaders = (): void => settings.update((d) => void (d.timers.headers = !d.timers.headers));
-  const toggleTimeText = (): void => settings.update((d) => void (d.timers.timeText = !d.timers.timeText));
-  const tail: MenuItem[] = [
-    { key: 'headers', glyph: t.headers ? '[X]' : '[ ]', label: 'Display headers', activate: toggleHeaders },
-    { key: 'timetext', glyph: t.timeText ? '[X]' : '[ ]', label: 'Time text', activate: toggleTimeText },
+  const flip = (k: 'headers' | 'timeText' | 'soonestFirst') => (): void => setTimers(settings, { [k]: !settings.get().timers[k] });
+  const items: MenuItem[] = [
+    { key: 'style', label: `Style: ${TIMER_STYLE_LABEL[t.style]}`, adjust: (d) => setTimers(settings, { style: cycle(TIMER_STYLES, t.style, d) }) },
+    { key: 'layout', label: `Layout: ${TIMER_LAYOUT_LABEL[t.layout]}`, adjust: (d) => setTimers(settings, { layout: cycle(TIMER_LAYOUTS, t.layout, d) }) },
+    { key: 'cols', label: `Grid columns: ${colsLabel(t.cols)}`, adjust: (d) => setTimers(settings, { cols: cycle(TIMER_COLS_CHOICES, t.cols, d) }) },
+    { key: 'headers', glyph: t.headers ? '[X]' : '[ ]', label: 'Group headers', activate: flip('headers'), adjust: flip('headers') },
+    { key: 'timetext', glyph: t.timeText ? '[X]' : '[ ]', label: 'Time text', activate: flip('timeText'), adjust: flip('timeText') },
+    { key: 'signal', label: `Ending soon: ${TIMER_SIGNAL_LABEL[t.signal]}`, adjust: (d) => setTimers(settings, { signal: cycle(TIMER_SIGNALS, t.signal, d) }) },
+    { key: 'warn', label: `Warn at: ${t.warnAt}s`, adjust: (d) => setTimers(settings, { warnAt: cycle(TIMER_WARN_CHOICES, t.warnAt, d) }) },
+    { key: 'soonest', glyph: t.soonestFirst ? '[X]' : '[ ]', label: 'Soonest first', activate: flip('soonestFirst'), adjust: flip('soonestFirst') },
+    { key: 'sp1', spacer: true },
+    ...TIMER_GROUPS.flatMap((g): MenuItem[] => {
+      const gs = t.groups[g];
+      const name = TIMER_GROUP_LABELS[g];
+      const show = (): void => patchTimerGroup(settings, g, { enabled: !settings.get().timers.groups[g].enabled });
+      return [
+        {
+          key: `g-${g}`,
+          glyph: gs.enabled ? '[X]' : '[ ]',
+          label: `${name.padEnd(9)} colour: ${colorName(gs.color)}`,
+          activate: show,
+          adjust: (d) => {
+            const list = colorCycle(gs.color);
+            const at = list.findIndex((c) => c.toLowerCase() === gs.color.toLowerCase());
+            patchTimerGroup(settings, g, { color: list[(at + d + list.length) % list.length]! });
+          },
+        },
+        {
+          key: `l-${g}`,
+          label: `${name} layout: ${TIMER_GROUP_LAYOUT_LABEL[gs.layout]}`,
+          dim: !gs.enabled,
+          adjust: (d) => patchTimerGroup(settings, g, { layout: cycle(TIMER_GROUP_LAYOUTS, gs.layout, d) }),
+        },
+      ];
+    }),
+    { key: 'sp2', spacer: true },
+    { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];
-  const back: MenuItem[] = [{ key: 'back', label: 'Back', activate: () => nav.pop() }];
-
-  useKeys((_e, nk) => {
-    switch (nk) {
-      case 'up':
-        setRow(Math.max(0, row - 1));
-        return true;
-      case 'down':
-        setRow(Math.min(ROWS - 1, row + 1));
-        return true;
-      case 'tab':
-        setRow((row + 1) % ROWS);
-        return true;
-      case 'backtab':
-        setRow((row + ROWS - 1) % ROWS);
-        return true;
-      case 'home':
-        setRow(0);
-        return true;
-      case 'end':
-        setRow(ROWS - 1);
-        return true;
-      case 'left':
-      case 'right':
-        if (row < n) setCol(Math.max(0, Math.min(GRID_COLS - 1, col + (nk === 'left' ? -1 : 1))));
-        return true;
-      case 'activate':
-        if (row < n) activateCell(row, col);
-        else if (row === n) toggleHeaders();
-        else if (row === n + 1) toggleTimeText();
-        else nav.pop();
-        return true;
-    }
-    return false;
-  });
-
-  const at = centreLeft(cols, TIMERS_GRID_W);
-  const cursorStyle = { color: 'var(--c-cursor)', fontWeight: 'bold' } as const;
+  const [cursor, setCursor] = useMenuCursor(items);
+  useKeys((_e, nk) => menuKey(items, cursor, setCursor, nk));
   return (
-    <Page title="Timers" footer={['↑↓←→ Move', 'Enter Toggle', 'ESC Back']}>
-      <Line at={at} class="wc-c-hint">
-        {timersHeader()}
-      </Line>
-      {TIMER_GROUPS.map((g, r) => {
-        const gs = t.groups[g];
-        const off = !gs.enabled;
-        const cur = (c: number): boolean => row === r && col === c;
-        const cell = (c: number) => ({
-          onHover: () => {
-            setRow(r);
-            setCol(c);
-          },
-          onClick: () => {
-            setRow(r);
-            setCol(c);
-            activateCell(r, c);
-          },
-        });
-        return (
-          <Line at={at} class="wc-grid-row">
-            <span class={off ? 'wc-c-off' : 'wc-c-item'} data-group={g}>
-              {TIMER_GROUP_LABELS[g].padEnd(LABEL_W)}
-            </span>
-            {TIMER_COLOR_ORDER.map((c, ci) => (
-              <>
-                <CheckCell
-                  checked={gs.enabled && swatchOf(g, gs.color) === c}
-                  cursor={cur(ci)}
-                  swatch={TIMER_COLOR_HEX[c]}
-                  off={off}
-                  title={`${TIMER_GROUP_LABELS[g]}: ${TIMER_COLOR_LABELS[c]}`}
-                  {...cell(ci)}
-                />{' '}
-              </>
-            ))}
-          </Line>
-        );
-      })}
-      <Blank />
-      <MenuRows items={tail} cursor={row - n} setCursor={(i) => setRow(n + i)} hoverMoves />
-      <Blank />
-      <MenuRows items={back} cursor={row === n + 2 ? 0 : -1} setCursor={() => setRow(n + 2)} hoverMoves />
+    <Page title="Timers" footer={['↑↓ Move', '←→ Adjust', 'Enter Toggle', 'ESC Back']}>
+      <MenuRows items={items} cursor={cursor} setCursor={setCursor} hoverMoves />
     </Page>
   );
 }

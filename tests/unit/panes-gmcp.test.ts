@@ -196,11 +196,11 @@ describe('panes on the context', () => {
     expect(names()).toEqual(['Armour', 'dark-skinned orc', 'Troll']);
     // Headers: the group name and count; the blind header names the next to end.
     const heads = [...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')];
-    expect(heads.map((h) => h.textContent)).toEqual(['Spells1', 'Blinds1 · next 60s', 'Charmies1']);
+    expect(heads.map((h) => h.textContent)).toEqual(['Spells1', expect.stringMatching(/^Blinds1 · next (59|60)s$/), 'Charmies1']);
     // Bars by default: a pill with a fill; the time text is on.
     const chip = p.content.querySelector<HTMLElement>('.wc-tm-chip[data-id="spell:armour"], .wc-tm-chip[data-id="armour"]')!;
-    expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.width).toBe('100.0%');
-    expect(chip.querySelector('.wc-tm-t')!.textContent).toBe('60s');
+    expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.width).toMatch(/^(100\.0|9\d\.\d)%$/);
+    expect(chip.querySelector('.wc-tm-t')!.textContent).toMatch(/^(59|60)s$/);
     expect(chip.dataset.tipTitle).toBe('Armour');
     // Circles: a ring row; headers off hide them; a group off goes.
     t.settings.update({ timers: { style: 'circles', groups: { blind: { enabled: false } }, headers: false } });

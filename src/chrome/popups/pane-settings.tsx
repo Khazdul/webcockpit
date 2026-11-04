@@ -4,28 +4,27 @@
 // pages (../pane-options-model.ts); every change goes to the settings
 // store at once and the pane follows live (ADR 0010).
 //
-//   Comm                         Timers                                  Group
-//   CHANNELS                              COLOUR     COLS  CLOCK  BAR    Show players     [toggle]
-//   ■ Narrates         [toggle]  Spells   [■ Blue ▾] ‹ 4 › [tg]  [tg]   NPC visibility   Off|Labeled|All
-//   …  (ten channels)            …
-//   ───────────────              Charmies [■ Cyan ▾] ‹ 1 ›
-//   Show channel header [toggle] ───────────────
-//                                Display headers  [toggle]
-//                                Compact layout   [toggle]
+//   Comm                         Timers                                   Group
+//   CHANNELS                     LOOK                                     Show players     [toggle]
+//   ■ Narrates         [toggle]  Style         Bars|Circles               NPC visibility   Off|Labeled|All
+//   …  (ten channels)            Layout        Flow|Grid  · Grid columns  …
+//   ───────────────              Group headers, Time text
+//   Show channel header [toggle] ENDING SOON   Signal, Warn at, Soonest first
+//                                GROUPS        Shown  Colour  Layout (Default|Flow|Grid)
 //
 // - Comm: a channel row (its swatch in the channel colour, grey when off)
 //   toggles on a click anywhere in it. A change cancels the pane's solo
 //   (the pane does that when the filters change from outside it).
-// - Timers: the colour list has Off first; Off hides the group (its row
-//   dims; its controls still work) and keeps its colour, as unchecking a
-//   swatch on the TUI grid. Columns step within the group's range
-//   (Charmies 1–2); Charmies have no Clock or Bar.
+// - Timers (ADR 0122): the look (style, layout, grid columns, headers,
+//   time text), ending soon (signal, warn at, soonest first) and a row per
+//   group: shown, colour (ColorPicker; Auto shows the Timers pane's own
+//   side) and its layout (Default follows the global one). No style switch
+//   in the pane itself.
 // - Group (ADR 0122): Show players (allies and other races), NPC
 //   visibility, Away members (room name or dim only) and a colour per vital
 //   bar (ColorPicker; Auto shows the Group pane's own side, dark or light).
 
 import { Fragment, type VNode } from 'preact';
-import { TIMER_COLOR_HEX, TIMER_COLOR_LABELS, TIMER_COLOR_ORDER, type TimerColor } from '../../settings';
 import { TIMER_GROUPS, TIMER_GROUP_LABELS } from '../../timers/entry';
 import { useServices, useSettings } from '../kit/hooks';
 import { autoColor } from '../../panes/palette';
@@ -33,16 +32,23 @@ import { paneShade } from '../../panes/shade';
 import {
   AWAY_MODE_CHOICES,
   NPC_MODE_CHOICES,
+  TIMER_COLS_CHOICES,
+  TIMER_GROUP_LAYOUT_CHOICES,
+  TIMER_LAYOUT_CHOICES,
+  TIMER_SIGNAL_CHOICES,
+  TIMER_STYLE_CHOICES,
+  TIMER_WARN_OPTIONS,
   VITAL_COLOR_ROWS,
-  colorChoice,
+  colsLabel,
   commChannelRows,
   patchTimerGroup,
   setCommChannel,
+  setTimers,
   setVitalColor,
-  swatchOf,
+  warnAtOf,
 } from '../pane-options-model';
 import { ColorPicker } from './color-picker';
-import { type DropdownOption, Dropdown, Row, Segmented, Toggle } from './controls';
+import { Dropdown, Row, Segmented, Toggle } from './controls';
 
 /** A channel's swatch while it is off. */
 const OFF_SWATCH = 'var(--sf-off)';
@@ -82,61 +88,86 @@ export function CommSettings(): VNode {
   );
 }
 
-type ColorValue = TimerColor | 'off' | 'custom';
-
-/**
- * The colour list (interim until stage 39c): Off, then the seven old
- * swatches; a colour that is none of them (Sanctuary on Auto, a custom
- * hex) shows as Custom.
- */
-export const TIMER_COLOR_CHOICES: readonly DropdownOption<ColorValue>[] = [
-  { value: 'off', label: 'Off', swatch: 'transparent' },
-  ...TIMER_COLOR_ORDER.map((c) => ({ value: c, label: TIMER_COLOR_LABELS[c], swatch: TIMER_COLOR_HEX[c] })),
-  { value: 'custom', label: 'Custom', swatch: 'transparent' },
-];
-
 export function TimersSettings(): VNode {
   const { settings } = useServices();
   const s = useSettings();
   const t = s.timers;
+  // Auto stands for the Timers pane's own side (dark or light).
+  const light = paneShade(s, 'timers').light;
+  const grid = t.layout === 'grid' || TIMER_GROUPS.some((g) => t.groups[g].layout === 'grid');
   return (
     <div class="wc-sp-timers">
+      <div class="wc-ck-sub">Look</div>
+      <Row label="Style">
+        <Segmented label="Style" value={t.style} options={TIMER_STYLE_CHOICES} onChange={(style) => setTimers(settings, { style })} />
+      </Row>
+      <Row label="Layout" help="Flow wraps by width; Grid lines up columns">
+        <Segmented label="Layout" value={t.layout} options={TIMER_LAYOUT_CHOICES} onChange={(layout) => setTimers(settings, { layout })} />
+      </Row>
+      <Row label="Grid columns" dim={!grid}>
+        <Dropdown
+          label="Grid columns"
+          class="wc-sp-tcols"
+          value={t.cols}
+          options={TIMER_COLS_CHOICES.map((c) => ({ value: c, label: colsLabel(c) }))}
+          onChange={(cols) => setTimers(settings, { cols })}
+        />
+      </Row>
+      <Row label="Group headers">
+        <Toggle label="Group headers" on={t.headers} onChange={(headers) => setTimers(settings, { headers })} />
+      </Row>
+      <Row label="Time text" help="Off: bars and rings only">
+        <Toggle label="Time text" on={t.timeText} onChange={(timeText) => setTimers(settings, { timeText })} />
+      </Row>
+      <div class="wc-ck-sep" />
+      <div class="wc-ck-sub">Ending soon</div>
+      <Row label="Signal" help="The timer keeps its colour">
+        <Segmented label="Signal" value={t.signal} options={TIMER_SIGNAL_CHOICES} onChange={(signal) => setTimers(settings, { signal })} />
+      </Row>
+      <Row label="Warn at">
+        <Segmented label="Warn at" value={String(t.warnAt)} options={TIMER_WARN_OPTIONS} onChange={(v) => setTimers(settings, { warnAt: warnAtOf(v) })} />
+      </Row>
+      <Row label="Soonest first">
+        <Toggle label="Soonest first" on={t.soonestFirst} onChange={(soonestFirst) => setTimers(settings, { soonestFirst })} />
+      </Row>
+      <div class="wc-ck-sep" />
       <div class="wc-sp-tgrid" role="group" aria-label="Timer groups">
-        <span />
+        <span class="wc-ck-sub">Groups</span>
+        <span class="wc-ck-sub">Shown</span>
         <span class="wc-ck-sub">Colour</span>
+        <span class="wc-ck-sub">Layout</span>
         {TIMER_GROUPS.map((g) => {
           const gs = t.groups[g];
           const name = TIMER_GROUP_LABELS[g];
-          const off = !gs.enabled;
-          const dim = off ? ' is-dim' : '';
+          const dim = gs.enabled ? '' : ' is-dim';
           return (
             <Fragment key={g}>
               <span class={`wc-sp-tg-l${dim}`} data-group={g}>
                 {name}
               </span>
+              <span class="wc-sp-tg-c">
+                <Toggle label={`Show ${name}`} on={gs.enabled} onChange={(enabled) => patchTimerGroup(settings, g, { enabled })} />
+              </span>
               <span class={`wc-sp-tg-c${dim}`}>
-                <Dropdown
+                <ColorPicker
                   label={`${name} colour`}
-                  class="wc-sp-tcolor"
-                  value={off ? 'off' : (swatchOf(g, gs.color) ?? 'custom')}
-                  options={TIMER_COLOR_CHOICES}
-                  onChange={(v) => {
-                    if (v === 'custom') return;
-                    patchTimerGroup(settings, g, colorChoice(g, settings.get().timers.groups[g], v === 'off' ? null : v));
-                  }}
+                  value={gs.color}
+                  auto={autoColor(g, light)}
+                  onChange={(color) => patchTimerGroup(settings, g, { color })}
+                />
+              </span>
+              <span class={`wc-sp-tg-c${dim}`}>
+                <Segmented
+                  label={`${name} layout`}
+                  value={gs.layout}
+                  options={TIMER_GROUP_LAYOUT_CHOICES}
+                  onChange={(layout) => patchTimerGroup(settings, g, { layout })}
                 />
               </span>
             </Fragment>
           );
         })}
       </div>
-      <div class="wc-ck-sep" />
-      <Row label="Display headers">
-        <Toggle label="Display headers" on={t.headers} onChange={(headers) => settings.update({ timers: { headers } })} />
-      </Row>
-      <Row label="Time text">
-        <Toggle label="Time text" on={t.timeText} onChange={(timeText) => settings.update({ timers: { timeText } })} />
-      </Row>
     </div>
   );
 }
