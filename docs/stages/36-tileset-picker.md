@@ -1,6 +1,6 @@
 # Stage 36 — Tileset picker
 
-Status: **In progress** (2026-11-04).
+Status: **Done** (2026-11-04). Released in 0.2.3.
 
 ## Goal
 
@@ -87,3 +87,6 @@ card read as "follows the seasons"? Anything about the order?
 new-player default is Shimrod (alternating). Done: the card and the
 choice's name (Options → Mapper too) are "MMapper"; the id stays
 `default`.
+
+2026-11-04, round 2: "Ser bra ut. Låt oss publicera." Approved and
+released in 0.2.3.
