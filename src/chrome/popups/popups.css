@@ -972,3 +972,140 @@
 .wc-sp-nochars {
   padding: 0.3em 1.3em 0.4em;
 }
+
+/* ------------------------------------------------------ colour picker */
+
+/* The colour picker (color-picker.tsx, ADR 0122): a swatch button and a
+ * fixed popover with the twelve picker colours, Auto and a free input. */
+.wc-pop .wc-cp-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.46em;
+  width: 7.4em;
+  height: 1.846em;
+  padding: 0 0.54em;
+  box-sizing: border-box;
+  border: 1px solid var(--sf-border);
+  border-radius: 3px;
+  background: var(--sf-field);
+  color: var(--sf-fg);
+}
+
+.wc-pop .wc-cp-btn:hover,
+.wc-pop .wc-cp-btn.is-open {
+  border-color: var(--sf-border-hot);
+}
+
+.wc-cp-v {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-cp-pop {
+  position: fixed;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.54em;
+  box-sizing: border-box;
+  padding: 0.62em;
+  border: 1px solid color-mix(in srgb, var(--sf-border) 70%, var(--sf-border-hot));
+  border-radius: 4px;
+  background: var(--sf-bg);
+  box-shadow: var(--sf-shadow);
+  color: var(--sf-fg);
+  color-scheme: var(--sf-scheme);
+}
+
+.wc-cp-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1.54em);
+  gap: 0.38em;
+}
+
+.wc-pop .wc-cp-sw {
+  box-sizing: border-box;
+  width: 1.54em;
+  height: 1.54em;
+  border: 1px solid color-mix(in srgb, var(--sf-hot) 14%, transparent);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.wc-pop .wc-cp-sw:hover {
+  border-color: var(--sf-hot);
+}
+
+.wc-pop .wc-cp-sw.is-sel {
+  border-color: var(--sf-hot);
+  box-shadow: 0 0 0 1px var(--sf-bg), 0 0 0 2px var(--sf-dim);
+}
+
+.wc-cp-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  padding-top: 0.46em;
+  border-top: 1px solid var(--sf-line);
+}
+
+.wc-pop .wc-cp-auto,
+.wc-cp-free {
+  display: flex;
+  align-items: center;
+  gap: 0.54em;
+  min-height: 1.77em;
+  padding: 0 0.38em;
+  border-radius: 3px;
+  color: var(--sf-fg);
+  cursor: pointer;
+}
+
+.wc-pop .wc-cp-auto:hover,
+.wc-cp-free:hover {
+  background: var(--sf-hover);
+  color: var(--sf-hot);
+}
+
+.wc-pop .wc-cp-auto.is-sel,
+.wc-cp-free.is-sel {
+  color: var(--sf-hot);
+}
+
+.wc-cp-note {
+  color: var(--sf-faint);
+}
+
+/* The free colour input: the browser's own swatch, as small as a swatch. */
+.wc-cp-input {
+  box-sizing: border-box;
+  width: 0.923em;
+  height: 0.923em;
+  margin: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--sf-hot) 18%, transparent);
+  border-radius: 2px;
+  background: none;
+  cursor: pointer;
+}
+
+.wc-cp-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.wc-cp-input::-webkit-color-swatch {
+  border: 0;
+  border-radius: 1px;
+}
+
+.wc-cp-input::-moz-color-swatch {
+  border: 0;
+  border-radius: 1px;
+}
+
+.wc-cp-input:focus-visible {
+  outline: 1px solid var(--sf-focus);
+  outline-offset: 1px;
+}
