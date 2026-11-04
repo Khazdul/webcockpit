@@ -4,22 +4,22 @@ import { Bus } from '../../src/core/bus';
 import { GroupModel } from '../../src/gmcp/group';
 import { GameState } from '../../src/gmcp/state';
 import { createPaneContext } from '../../src/panes/context';
+import { GroupPane } from '../../src/panes/group';
 import {
   FIGHT_ROWS,
-  GROUP_DARK,
-  GROUP_LIGHT,
-  GroupPane,
   type MemberEnv,
   barView,
+  fightSig,
   fightView,
   groupLayout,
+  memberSig,
   memberView,
   positionView,
   sanctView,
-  shortTime,
   vitalColor,
-} from '../../src/panes/group';
-import { DARK_COLORS, DARK_SIGNALS, LIGHT_SIGNALS } from '../../src/panes/palette';
+} from '../../src/panes/group-model';
+import { DARK_COLORS, DARK_SIGNALS, GROUP_DARK, GROUP_LIGHT, LIGHT_SIGNALS } from '../../src/panes/palette';
+import { countdownText } from '../../src/timers/entry';
 import { SettingsStore } from '../../src/settings';
 
 const VITALS = { hp: DARK_COLORS.hp, mana: DARK_COLORS.mana, mp: DARK_COLORS.mp };
@@ -118,14 +118,32 @@ describe('sanctuary and position', () => {
     const cell = { id: 'sanct:2', name: 'Gibur', group: 'sanct' as const, startedAt: 0, expiresAt: 192_000, expected: 270_000, tracked: true, estimated: true };
     const v = sanctView(cell, '#f0b6e4', 0);
     expect(v.ring!.frac).toBeCloseTo(192 / 270);
-    expect(v.time).toBe('4m');
+    // The Timers pane's short time, `~` for an estimate: both panes read the same.
+    expect(v.time).toBe('~3m');
     expect(v.tip).toBe('Cast by you: about 3:12 left.');
     const untimed = sanctView(undefined, '#f0b6e4', 0);
     expect(untimed.ring).toEqual({ frac: null });
     expect(untimed.time).toBeUndefined();
-    expect(shortTime(90)).toBe('90s');
-    expect(shortTime(91)).toBe('2m');
-    expect(shortTime(6720)).toBe('1h52');
+    expect(countdownText(90)).toBe('90s');
+    expect(countdownText(91)).toBe('2m');
+    expect(countdownText(6720)).toBe('1h52');
+  });
+
+  it('signatures leave a timed sanctuary out, but not what else is drawn', () => {
+    const g = model();
+    const m = g.get(2)!;
+    m.flags.sanctuary = true;
+    const cell = (left: number) => ({ id: 'sanct:2', name: 'x', group: 'sanct' as const, startedAt: 0, expiresAt: left, expected: 270_000, tracked: true });
+    const at = (left: number) => memberView(m, env({ sanctCell: () => cell(left) }));
+    expect(memberSig(at(192_000), 2, '#fff')).toBe(memberSig(at(191_000), 2, '#fff'));
+    expect(memberSig(at(192_000), 2, '#fff')).not.toBe(memberSig(at(192_000), 1, '#fff'));
+    expect(memberSig(at(192_000), 2, '#fff')).not.toBe(memberSig(memberView(m, env()), 2, '#fff'));
+    const before = memberSig(at(192_000), 2, '#fff');
+    m.hp = { value: 1, max: 160, word: null };
+    expect(memberSig(at(192_000), 2, '#fff')).not.toBe(before);
+    const f = { opponent: 'an orc', opponentWord: 'hurt', opponentMember: null, tank: null, tankId: null };
+    const fv = fightView(f, null, null, env())!;
+    expect(fightSig(fv, 2, false)).not.toBe(fightSig(fightView({ ...f, opponentWord: 'bad' }, null, null, env())!, 2, false));
   });
 
   it('position icons and titles', () => {
@@ -139,13 +157,13 @@ describe('sanctuary and position', () => {
 describe('fightView', () => {
   it('none without an opponent', () => {
     const f = { opponent: null, opponentWord: null, opponentMember: null, tank: null, tankId: null };
-    expect(fightView(f, null, { name: null, hp: null, maxhp: null }, env())).toBeNull();
+    expect(fightView(f, null, null, env())).toBeNull();
   });
 
   it('a member tanks; the opponent by its band word', () => {
     const g = model();
     const f = { opponent: 'a black-robed orc', opponentWord: 'badly wounded', opponentMember: null, tank: 'Gibur', tankId: 2 };
-    const v = fightView(f, g.get(2)!, { name: 'Rasta', hp: 50, maxhp: 100 }, env())!;
+    const v = fightView(f, g.get(2)!, 'Rasta', env())!;
     expect(v.tank).toMatchObject({ name: 'Gibur', numbers: '132/160' });
     expect(v.foe).toMatchObject({ name: 'a black-robed orc', word: 'badly wounded' });
     expect(v.foe.bar.color).toBe(GROUP_DARK.foe);
@@ -154,15 +172,15 @@ describe('fightView', () => {
 
   it('you tank (your own name, or no buffer): the opponent alone', () => {
     const f = { opponent: 'an orc', opponentWord: 'hurt', opponentMember: null, tank: 'rasta', tankId: null };
-    const v = fightView(f, null, { name: 'Rasta', hp: 50, maxhp: 100 }, env())!;
+    const v = fightView(f, null, 'Rasta', env())!;
     expect(v.tank).toBeNull();
     expect(v.foe.bar.pct).toBe(58);
-    expect(fightView({ ...f, tank: null }, null, { name: 'Rasta', hp: 50, maxhp: 100 }, env())!.tank).toBeNull();
+    expect(fightView({ ...f, tank: null }, null, 'Rasta', env())!.tank).toBeNull();
   });
 
   it('another buffer outside the group: its name only', () => {
     const f = { opponent: 'an orc', opponentWord: 'hurt', opponentMember: null, tank: 'Legolas', tankId: null };
-    expect(fightView(f, null, { name: 'Rasta', hp: 50, maxhp: 100 }, env())!.tank).toEqual({ name: 'Legolas', bar: null, numbers: '' });
+    expect(fightView(f, null, 'Rasta', env())!.tank).toEqual({ name: 'Legolas', bar: null, numbers: '' });
   });
 });
 

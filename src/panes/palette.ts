@@ -2,8 +2,10 @@
 // `auto` or a `#rrggbb`; `auto` resolves to the default of the pane's side
 // (dark or light, `paneShade(...).light`), a hex is used as stored on both
 // sides. The picker offers `PICKER_COLORS` (twelve colours that read on
-// black and on paper alike), a free colour input and Auto.
+// black and on paper alike), a free colour input and Auto. The Group
+// pane's fixed colours (markers, statuses, positions) are here too.
 
+import type { StatusFlag } from '../gmcp/group';
 import type { ColorSetting } from '../settings/types';
 import type { TimerGroup } from '../timers/entry';
 
@@ -84,3 +86,69 @@ export const PICKER_COLORS: readonly { hex: string; label: string }[] = [
   { hex: '#e07aa8', label: 'Pink' },
   { hex: '#8c95a3', label: 'Slate' },
 ];
+
+/** The Group pane's fixed colours by side (mockup 3c). */
+export interface GroupColors {
+  ally: string;
+  neutral: string;
+  enemy: string;
+  npc: string;
+  gold: string;
+  foe: string;
+  posN: string;
+  fight: string;
+  sleep: string;
+  ride: string;
+  status: Record<Exclude<StatusFlag, 'sanctuary'>, string>;
+}
+
+export const GROUP_DARK: Readonly<GroupColors> = {
+  ally: '#7fb2ff',
+  neutral: '#e6b450',
+  enemy: '#ff7b72',
+  npc: '#9a9a9a',
+  gold: '#e8c35a',
+  foe: '#ff7b72',
+  posN: '#8a8a8a',
+  fight: '#ff7a6b',
+  sleep: '#8a9bd6',
+  ride: '#c9a66b',
+  status: {
+    poison: '#9be15d',
+    slept: '#a99bff',
+    blind: '#7fd3e6',
+    bashed: '#ffa04d',
+    snared: '#5fd4b0',
+    wound: '#e0524f',
+    hungry: '#d9b25f',
+    thirsty: '#6fb3ff',
+    waiting: '#9a9a9a',
+  },
+};
+
+export const GROUP_LIGHT: Readonly<GroupColors> = {
+  ally: '#2a56c8',
+  neutral: '#846400',
+  enemy: '#c42020',
+  npc: '#6e6858',
+  gold: '#8f6a00',
+  foe: '#a01c1c',
+  posN: '#6e6858',
+  fight: '#c42020',
+  sleep: '#4a5aa0',
+  ride: '#7a5c00',
+  status: {
+    poison: '#557a00',
+    slept: '#5b45b8',
+    blind: '#00737e',
+    bashed: '#b85400',
+    snared: '#1f7a5a',
+    wound: '#a8302b',
+    hungry: '#846400',
+    thirsty: '#2a56c8',
+    waiting: '#6e6858',
+  },
+};
+
+/** The Group pane's fixed colours of a side. */
+export const groupColors = (light: boolean): Readonly<GroupColors> => (light ? GROUP_LIGHT : GROUP_DARK);

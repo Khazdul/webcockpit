@@ -155,28 +155,9 @@
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.wc-gp-ring-bg,
-.wc-gp-ring-arc {
-  fill: none;
-  stroke-width: 2.2;
-}
-
-.wc-gp-ring-bg {
-  stroke: var(--gp-track);
-}
-
-.wc-gp-ring-arc {
-  stroke: currentColor;
-  stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: 12px 12px;
-}
-
-.wc-gp-ring-arc.is-unknown {
-  opacity: 0.6;
-  stroke-dasharray: 2.4 3.2 !important;
+  /* The shared ring (icons.css): the pane's track, a dimmer unknown arc. */
+  --ring-track: var(--gp-track);
+  --ring-unknown-opacity: 0.6;
 }
 
 .wc-gp-stime {

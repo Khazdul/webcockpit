@@ -50,16 +50,25 @@ describe('PaneTooltip', () => {
     expect(tip.el.hidden).toBe(true);
   });
 
-  it('refresh follows a rebuilt anchor by its key, else hides', () => {
+  it('refresh follows a rebuilt anchor by its key in the same pane, else hides', () => {
     const tip = installPaneTooltip(document);
+    const pane = document.createElement('div');
+    const other = document.createElement('div');
+    tip.attach(pane);
+    tip.attach(other);
+    document.body.append(pane, other);
     const a = document.createElement('span');
     setTip(a, '3:12 left', 'Sanctuary', 'm2:sanct');
-    document.body.append(a);
+    pane.append(a);
     tip.show(a);
     a.remove();
+    // The same key in another pane is not it.
+    const elsewhere = document.createElement('span');
+    setTip(elsewhere, 'other', 'Other', 'm2:sanct');
+    other.append(elsewhere);
     const b = document.createElement('span');
     setTip(b, '3:11 left', 'Sanctuary', 'm2:sanct');
-    document.body.append(b);
+    pane.append(b);
     tip.refresh();
     expect(tip.target).toBe(b);
     expect(tip.el.textContent).toContain('3:11 left');
@@ -111,6 +120,16 @@ describe('PaneTooltip', () => {
     document.body.append(root);
     tip.show(a);
     expect(tip.el.textContent).toBe('HP 132/160 · 83%');
+  });
+
+  it('setTip writes only what changed', () => {
+    const a = document.createElement('span');
+    setTip(a, 'x', 'T', 'k');
+    const seen: string[] = [];
+    new MutationObserver((ms) => seen.push(...ms.map((m) => m.attributeName!))).observe(a, { attributes: true });
+    setTip(a, 'x', 'T', 'k');
+    setTip(a, 'y', 'T', 'k');
+    return Promise.resolve().then(() => expect(seen).toEqual(['data-tip']));
   });
 
   it('setTip(null) clears the data', () => {

@@ -14,11 +14,13 @@
 //   hides on leave, pointer down, wheel and a scroll of what holds the anchor. Its element is on
 //   `doc.body` and the document listeners (down, scroll, wheel) are there
 //   only while it is shown, so nothing is left behind when the panes go.
-// - Panes that rebuild their DOM while a tooltip is shown (a countdown, a
-//   new vital) call `refresh()` after rendering: the text is read again; an
-//   anchor that left the document is replaced by the element with the same
-//   `data-tip-key`, if any, else the tooltip hides. So a ticking tooltip
-//   stays up while the row under it is rebuilt.
+// - Panes that rebuild a row while a tooltip is shown (a new vital) call
+//   `refresh()` after rendering: the text is read again; an anchor that
+//   left the document is replaced by the element with the same
+//   `data-tip-key` in the same attached root (the pane), if any, else the
+//   tooltip hides. The same holds for an element rebuilt during the hover
+//   delay. Elements kept across renders just have their data updated
+//   (`setTip` writes only what changed).
 // - Pure DOM, no timers while nothing is hovered. Also used in the replay
 //   bundle (the CSS is imported here).
 
@@ -52,6 +54,9 @@ export class PaneTooltip {
   private readonly doc: Document;
   private anchor: HTMLElement | null = null;
   private key: string | null = null;
+  /** The attached root the anchor (or the pending element) is in: where a rebuilt one is looked for. */
+  private root: HTMLElement | null = null;
+  private readonly roots = new Set<HTMLElement>();
   private pending: HTMLElement | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -68,9 +73,11 @@ export class PaneTooltip {
 
   /** Shows tooltips for the `[data-tip]` elements inside `root`. Returns the detach function. */
   attach(root: HTMLElement): () => void {
+    this.roots.add(root);
     root.addEventListener('pointerover', this.onOver);
     root.addEventListener('pointerout', this.onOut);
     return () => {
+      this.roots.delete(root);
       root.removeEventListener('pointerover', this.onOver);
       root.removeEventListener('pointerout', this.onOut);
       const inside = (n: Node | null): boolean => n !== null && root.contains(n);
@@ -89,6 +96,7 @@ export class PaneTooltip {
     if (!el.isConnected || !el.dataset.tip) return;
     this.anchor = el;
     this.key = el.dataset.tipKey ?? null;
+    this.root = this.rootOf(el);
     if (!this.el.isConnected) {
       this.doc.body.append(this.el);
       this.doc.addEventListener('pointerdown', this.onDown, true);
@@ -104,6 +112,7 @@ export class PaneTooltip {
     this.cancel();
     this.anchor = null;
     this.key = null;
+    this.root = null;
     this.el.hidden = true;
     if (this.el.isConnected) {
       this.el.remove();
@@ -118,7 +127,7 @@ export class PaneTooltip {
     let a = this.anchor;
     if (!a) return;
     if (!a.isConnected) {
-      a = this.key !== null ? this.find(this.key) : null;
+      a = this.find(this.root, this.key);
       if (!a) {
         this.hide();
         return;
@@ -137,10 +146,17 @@ export class PaneTooltip {
     this.hide();
   }
 
-  private find(key: string): HTMLElement | null {
-    for (const el of this.doc.querySelectorAll<HTMLElement>('[data-tip-key]')) {
+  /** The element with tip key `key` in `root`, or null. */
+  private find(root: HTMLElement | null, key: string | null): HTMLElement | null {
+    if (!root || key === null || !root.isConnected) return null;
+    for (const el of root.querySelectorAll<HTMLElement>('[data-tip-key]')) {
       if (el.dataset.tipKey === key) return el;
     }
+    return null;
+  }
+
+  private rootOf(el: HTMLElement): HTMLElement | null {
+    for (const r of this.roots) if (r.contains(el)) return r;
     return null;
   }
 
@@ -179,13 +195,14 @@ export class PaneTooltip {
     }
     this.pending = el;
     const key = el.dataset.tipKey ?? null;
+    const root = e.currentTarget as HTMLElement | null;
     this.timer = setTimeout(() => {
       this.timer = null;
       let p = this.pending;
       this.pending = null;
-      // The pane rebuilt the element under the pointer during the delay
-      // (a row's 1 Hz update): follow it by its key, as `refresh` does.
-      if (p && !p.isConnected && key !== null) p = this.find(key);
+      // The pane rebuilt the element under the pointer during the delay:
+      // follow it by its key, as `refresh` does.
+      if (p && !p.isConnected) p = this.find(root, key);
       if (p) this.show(p);
     }, PANE_TIP_DELAY_MS);
   };
@@ -225,17 +242,20 @@ export function installPaneTooltip(doc: Document): PaneTooltip {
   return t;
 }
 
-/** Sets (or clears, with null) the tooltip data of `el`. */
+/** Sets `data-<k>` to `v`, or removes it for an empty value; only on a change. */
+function setData(el: HTMLElement, k: 'tip' | 'tipTitle' | 'tipKey', v: string | null | undefined): void {
+  if (v) {
+    if (el.dataset[k] !== v) el.dataset[k] = v;
+  } else if (k in el.dataset) delete el.dataset[k];
+}
+
+/**
+ * Sets (or clears, with null) the tooltip data of `el`, writing only what
+ * changed (a 1 Hz tick must not touch an unchanged element).
+ */
 export function setTip(el: HTMLElement, text: string | null, title?: string | null, key?: string | null): void {
-  if (text === null || text === '') {
-    delete el.dataset.tip;
-    delete el.dataset.tipTitle;
-    delete el.dataset.tipKey;
-    return;
-  }
-  el.dataset.tip = text;
-  if (title) el.dataset.tipTitle = title;
-  else delete el.dataset.tipTitle;
-  if (key) el.dataset.tipKey = key;
-  else delete el.dataset.tipKey;
+  const on = text !== null && text !== '';
+  setData(el, 'tip', on ? text : null);
+  setData(el, 'tipTitle', on ? title : null);
+  setData(el, 'tipKey', on ? key : null);
 }
