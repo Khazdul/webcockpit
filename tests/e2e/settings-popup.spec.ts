@@ -176,6 +176,41 @@ test('switching tabs does not move or resize it', async ({ page }) => {
   expect(await pop(page).boundingBox()).toEqual(boxes[0]);
 });
 
+/** Each page's content height (px): its padding and children, not the grid cell's stretch. */
+async function contentHeights(page: Page): Promise<Record<string, number>> {
+  return page.locator('.wc-sp-page').evaluateAll((pages) =>
+    Object.fromEntries(
+      pages.map((p) => {
+        const top = p.getBoundingClientRect().top;
+        const bottom = Math.max(...[...p.children].map((c) => c.getBoundingClientRect().bottom));
+        return [(p as HTMLElement).dataset.page!, Math.round((bottom - top + parseFloat(getComputedStyle(p).paddingBottom)) * 10) / 10];
+      }),
+    ),
+  );
+}
+
+test('the Mapper page with its tileset picker is no taller than Appearance (ADR 0118)', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 1000 });
+  await offline(page);
+  await icon(page, 'settings').click();
+  await tab(page, 'mapper').click();
+  await expect(page_(page, 'mapper').locator('.wc-ck-card')).toHaveCount(9);
+  const h = await contentHeights(page);
+  console.log(`settings page content heights: ${JSON.stringify(h)}, popup ${(await pop(page).boundingBox())!.height} px`);
+  expect(h.mapper).toBeLessThanOrEqual(h.appearance!);
+  // The picker is last on the page, five cards a row, two rows.
+  const cards = await page_(page, 'mapper').locator('.wc-ck-card').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()));
+  const rows = [...new Set(cards.map((c) => Math.round(c.top)))];
+  expect(rows.length).toBe(2);
+  expect(cards.filter((c) => Math.round(c.top) === rows[0]).length).toBe(5);
+  // Every name whole.
+  const cut = await page_(page, 'mapper').locator('.wc-ck-card-l').evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent));
+  expect(cut).toEqual([]);
+  // The body does not scroll at this size.
+  const body = page.locator('.wc-sp-settings .wc-sp-body');
+  expect(await body.evaluate((b) => b.scrollHeight <= b.clientHeight)).toBe(true);
+});
+
 test('changes go to the settings store at once', async ({ page }) => {
   const errors = watchErrors(page);
   // The browser's colour picker is a native window that takes the keys; count its openings instead.

@@ -7,22 +7,29 @@
 //   Room notes               [toggle]     mapper.notes (ADR 0077)
 //   Room info on hover       Off|Minimal|Full       mapper.hover (ADR 0080)
 //   Hover text size          Small|Medium|Large     mapper.hoverSize
-//   Tileset                  [dropdown]   mapper.tileset (ADR 0082, 0088)
-//     credit · now Autumn                (the set's credit, its season now)
 //   Background colour        [dropdown]   mapper.background (ADR 0085)
 //   Map file                 [Import map file…] [Use bundled map]
 //     arda.mm2 (bundled)  or  my.mm2 · 30 074 rooms · 5.8 MB · imported <date>
 //     Checking my.mm2…                   (the result of the last action)
+//   Tileset            credit · now Autumn   mapper.tileset (ADR 0082, 0088)
+//   [Shimrod][Spring][Summer][Autumn][Winter]   the picker (ADR 0118):
+//   [Default][Desert][Gefe & Rik][Gray's Map]   a preview card a choice
 //
 // Every change goes straight to the settings store (ADR 0010). A tileset
 // drawn for a light map switches the background to its own and leaving it
 // restores the user's (`chooseTileset`).
+//
+// The picker is last, so the page's height stays under the Appearance
+// tab's (ADR 0118). Each card shows the set's pre-rendered preview
+// (public/map/tilesets/previews/); Shimrod (alternating) shows its four
+// seasons' previews in quadrants, the year clockwise from spring in the
+// north-west, the season it draws now at full strength.
 
 import type { VNode } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { MAP_BACKGROUNDS, MAP_BG_TRANSPARENT } from '../../map/backgrounds';
-import type { CurrentMap } from '../../map/store';
-import { TILESET_CHOICES, chooseTileset, tilesetChoice } from '../../map/tilesets';
+import { type CurrentMap, mapAssetBase } from '../../map/store';
+import { TILESET_CARDS, type TilesetFamily, chooseTileset, tilesetChoice, tilesetPreviewPath } from '../../map/tilesets';
 import type { MapHoverMode, MapHoverSize } from '../../settings';
 import { useServices, useSettings } from '../kit/hooks';
 import {
@@ -34,10 +41,11 @@ import {
   fmtDate,
   importMapFile,
   mapBgChoice,
+  seasonNow,
   tilesetCreditNow,
   useBundledMap,
 } from '../mapper-model';
-import { type Choice, Dropdown, GhostButton, Row, Segmented, Toggle } from './controls';
+import { type CardOption, CardGrid, type Choice, Dropdown, GhostButton, Row, Segmented, Toggle } from './controls';
 
 export const HOVER_CHOICES: readonly Choice<MapHoverMode>[] = [
   { value: 'off', label: 'Off' },
@@ -59,6 +67,41 @@ export function mapFileLine(m: CurrentMap | null): string {
   if (!m) return '…';
   if (m.kind === 'bundled') return `${m.name} (bundled)`;
   return [m.name, ...(m.rooms !== undefined ? [`${fmtCount(m.rooms)} rooms`] : []), fmtBytes(m.size), `imported ${fmtDate(m.date)}`].join(' · ');
+}
+
+/** The picker's cards a row (ADR 0118). */
+export const TILESET_COLS = 5;
+
+/** The year clockwise from the north-west quadrant (ADR 0118). */
+const QUADRANTS = ['spring', 'summer', 'autumn', 'winter'] as const;
+
+/** A set's preview image (decorative: the card names it). */
+function previewImg(id: string, cls = 'wc-sp-tpv'): VNode {
+  return <img class={cls} src={mapAssetBase() + tilesetPreviewPath(id)} alt="" draggable={false} />;
+}
+
+/** A family's preview: its seasons in quadrants, the one drawn now lit. */
+function familyPreview(f: TilesetFamily): VNode {
+  const now = seasonNow();
+  return (
+    <>
+      {QUADRANTS.map((s) => previewImg(f.seasons[s], `wc-sp-tpv wc-sp-tq wc-sp-tq-${s}${s === now ? ' is-now' : ''}`))}
+      <span class="wc-sp-tseam" />
+    </>
+  );
+}
+
+/** The picker's cards, in `TILESET_CARDS` order. */
+export function tilesetCards(): CardOption<string>[] {
+  return TILESET_CARDS.map((c) => {
+    const choice = tilesetChoice(c.id);
+    return {
+      value: c.id,
+      label: c.label,
+      name: choice.name,
+      preview: choice.family ? familyPreview(choice.family) : previewImg(c.id),
+    };
+  });
 }
 
 /** The current map, following the store (the bundled one without a store). */
@@ -107,6 +150,7 @@ export function MapperSettings(): VNode {
       await importMapFile(maps, file, flash);
     });
 
+  const tilesetLabel = `wc-sp-tl-${useId()}`;
   const tileset = tilesetChoice(m.tileset);
   const bg = mapBgChoice(m.background);
   return (
@@ -126,14 +170,6 @@ export function MapperSettings(): VNode {
           value={m.hoverSize}
           options={HOVER_SIZE_CHOICES}
           onChange={(hoverSize) => settings.update({ mapper: { hoverSize } })}
-        />
-      </Row>
-      <Row label="Tileset" top help={tilesetCreditNow(m.tileset)} class="wc-sp-tileset">
-        <Dropdown
-          label="Tileset"
-          value={tileset.id}
-          options={TILESET_CHOICES.map((c) => ({ value: c.id, label: c.name }))}
-          onChange={(id) => settings.update({ mapper: chooseTileset(settings.get().mapper, id) })}
         />
       </Row>
       <Row label="Background colour">
@@ -168,6 +204,22 @@ export function MapperSettings(): VNode {
         {note?.text ?? ''}
       </div>
       <input ref={fileRef} type="file" accept=".mm2" hidden class="wc-sp-mapfile-input" onChange={() => void onFile()} />
+      <div class="wc-sp-tileset">
+        <div class="wc-sp-thead">
+          <span class="wc-ck-l" id={tilesetLabel}>
+            Tileset
+          </span>
+          <small class="wc-ck-help">{tilesetCreditNow(m.tileset)}</small>
+        </div>
+        <CardGrid
+          class="wc-sp-tcards"
+          labelledBy={tilesetLabel}
+          value={tileset.id}
+          options={tilesetCards()}
+          cols={TILESET_COLS}
+          onChange={(id) => settings.update({ mapper: chooseTileset(settings.get().mapper, id) })}
+        />
+      </div>
     </div>
   );
 }

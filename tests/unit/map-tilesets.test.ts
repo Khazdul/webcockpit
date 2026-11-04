@@ -1,7 +1,7 @@
 // Map tilesets (ADR 0082): the catalogue against the bundled folders,
 // per-file fallback, alternating by MUME month, the asset resolver, the
 // worker's live swap, array sizes and the setting.
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CLOCK_KEY, momentSeconds, SEED_EPOCH } from '../../src/gmcp/clock';
 import { type AssetResolver, assetResolver } from '../../src/map/assets';
@@ -17,12 +17,14 @@ import {
   overlayPath,
   resolveTileset,
   storedClockEpoch,
+  TILESET_CARDS,
   TILESET_CHOICES,
   TILESET_FAMILIES,
   TILESET_IDS,
   TILESETS,
   tilesetChoice,
   tilesetOverlay,
+  tilesetPreviewPath,
 } from '../../src/map/tilesets';
 import { MapWorkerCore } from '../../src/map/worker/core';
 import { tilesetCredit } from '../../src/chrome/frames/options-mapper';
@@ -40,7 +42,7 @@ function storage(key: string, value: string): Storage {
 describe('tileset catalogue', () => {
   it('lists the choices in Options → Mapper order', () => {
     expect(TILESET_CHOICES.map((c) => [c.id, c.name])).toEqual([
-      ['default', 'Default (MMapper)'],
+      ['default', 'MMapper'],
       ['shimrod', 'Shimrod (alternating)'],
       ['shimrod-spring', 'Shimrod Spring'],
       ['shimrod-summer', 'Shimrod Summer'],
@@ -72,8 +74,35 @@ describe('tileset catalogue', () => {
       // A recommended background is one of the named map backgrounds.
       if (t.background) expect(isNamedMapBg(t.background), `${t.dir} background`).toBe(true);
     }
-    // No folder without an entry.
-    expect(readdirSync(new URL('tilesets/', PUBLIC)).sort()).toEqual(TILESETS.map((t) => t.dir).sort());
+    // No folder without an entry (the previews' folder aside).
+    expect(readdirSync(new URL('tilesets/', PUBLIC)).filter((d) => d !== 'previews').sort()).toEqual(TILESETS.map((t) => t.dir).sort());
+  });
+
+  it('has a 144 × 144 preview for the default and every set, and nothing else (ADR 0118)', () => {
+    const ids = [DEFAULT_TILESET, ...TILESETS.map((t) => t.id)];
+    for (const id of ids) {
+      const file = new URL(tilesetPreviewPath(id), PUBLIC);
+      expect(existsSync(file), `${id}: run scripts/build-tileset-previews.py`).toBe(true);
+      const png = readFileSync(file);
+      // The IHDR chunk: width and height, big-endian, at bytes 16 and 20.
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)], id).toEqual([144, 144]);
+    }
+    expect(readdirSync(new URL('tilesets/previews/', PUBLIC)).sort()).toEqual(ids.map((id) => `${id}.png`).sort());
+  });
+
+  it('the picker has a card for every choice, once, five a row from Shimrod (ADR 0118)', () => {
+    expect(TILESET_CARDS.map((c) => c.id).sort()).toEqual([...TILESET_IDS].sort());
+    expect(TILESET_CARDS.map((c) => c.label)).toEqual([
+      'Shimrod',
+      'Spring',
+      'Summer',
+      'Autumn',
+      'Winter',
+      'MMapper',
+      'Desert',
+      'Gefe & Rik',
+      "Gray's Map",
+    ]);
   });
 
   it('family members are sets', () => {

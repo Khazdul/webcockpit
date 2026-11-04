@@ -247,3 +247,8 @@ phone `#settings` opens the ESC menu at Options as before; an App with
 the bar but no `toggleSettings` (unit tests) says `#settings is not
 available here.` Options → Panes → Appearance stays phone only, on the
 start page and in the phone's ESC menu.
+
+## Addendum: the Tileset dropdown became a picker (2026-11-04, stage 36)
+
+The Mapper component's Tileset dropdown is now a grid of preview cards,
+last on the page after Background colour and Map file (ADR 0118).

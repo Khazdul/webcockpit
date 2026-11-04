@@ -141,6 +141,13 @@ Flow marks in tilesets/gefe-rik/ and tilesets/grays-map/
   covered by WebCockpit's licence (GPL-2.0-or-later), not the sets' MIT
   terms.
 
+Previews in tilesets/previews/
+  One small picture per set (default.png, desert.png, ...), shown in the
+  tileset picker of Settings -> Mapper: a 6 x 6 scene drawn with that
+  set's own tiles, scaled down, by scripts/build-tileset-previews.py.
+  Each is made from its set's tiles and keeps that set's terms and
+  credits above (default.png: MMapper's, GPL-2.0-or-later).
+
 Credits for the 3D assets Shimrod used in creating the tilesets (from
 the set's README; "Not all of the assets from the list were used, but
 giving the credit since they were considered at some point during the

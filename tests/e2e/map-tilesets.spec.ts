@@ -1,4 +1,5 @@
-// Stage 22 (ADR 0082) and 26 (ADR 0088): map tilesets. Settings → Mapper picks a set; the
+// Stage 22 (ADR 0082) and 26 (ADR 0088): map tilesets. Settings → Mapper picks a set
+// from its preview cards (ADR 0118); the
 // Map pane fetches that set's files (the default pixmaps only for files
 // the set lacks), swaps the tiles live, and an alternating set follows a
 // mocked game clock's season. An HTML replay embeds the default tiles.
@@ -22,12 +23,15 @@ const inflate = async (z: Uint8Array): Promise<Uint8Array> => new Uint8Array(inf
 /** "Orc Sleeping Warrens" (the rent room) in arda.mm2: mob and load icons, trails, walls. */
 const RENT_ROOM = 7636;
 
-/** Map tile requests, as paths under `/map/` (`pixmaps/x.png`, `tilesets/desert/x.png`). */
+/**
+ * Map tile requests, as paths under `/map/` (`pixmaps/x.png`, `tilesets/desert/x.png`);
+ * not the picker's previews (`tilesets/previews/`, ADR 0118).
+ */
 function trackTiles(page: Page): string[] {
   const seen: string[] = [];
   const on = (r: Request) => {
     const m = /\/map\/((?:pixmaps|tilesets)\/[^?]+)$/.exec(r.url());
-    if (m) seen.push(decodeURIComponent(m[1]!));
+    if (m && !m[1]!.startsWith('tilesets/previews/')) seen.push(decodeURIComponent(m[1]!));
   };
   page.context().on('request', on);
   return seen;
@@ -56,19 +60,27 @@ async function mockClock(page: Page, month: number): Promise<void> {
   }, momentSeconds(3000, month, 15, 12, 0));
 }
 
-/** Settings → Mapper (ADR 0107): its Tileset and Background colour dropdowns, the credit line. */
+/**
+ * Settings → Mapper (ADR 0107): its tileset picker (ADR 0118), the
+ * Background colour dropdown, the credit line.
+ */
 async function openMapperSettings(page: Page) {
   await page.locator('.wc-mb[data-mb="settings"]').click();
   await page.locator('.wc-ck-tab[data-tab="mapper"]').click();
   const pop = page.locator('.wc-sp-settings');
-  const tileset = pop.locator('.wc-ck-dd[aria-label="Tileset"]');
+  /** The checked card. */
+  const tileset = pop.locator('.wc-sp-tileset .wc-ck-card[aria-checked="true"]');
   const background = pop.locator('.wc-ck-dd[aria-label="Background colour"]');
   const credit = pop.locator('.wc-sp-tileset .wc-ck-help');
   const pickTileset = async (id: string) => {
-    await tileset.click();
-    await page.locator(`.wc-ck-list .wc-ck-opt[data-value="${id}"]`).click();
+    await pop.locator(`.wc-sp-tileset .wc-ck-card[data-value="${id}"]`).click();
   };
-  return { tileset, background, credit, pickTileset };
+  /** The card checked is `id` (one at a time). */
+  const chosen = async (id: string) => {
+    await expect(tileset).toHaveCount(1);
+    await expect(tileset).toHaveAttribute('data-value', id);
+  };
+  return { tileset, background, credit, pickTileset, chosen };
 }
 
 async function scene(page: Page, zoom: number): Promise<void> {
@@ -176,14 +188,21 @@ test('Settings → Mapper: a tileset is fetched (only its files), drawn and swap
 
   // Settings → Mapper → Tileset: Gray's Map, Gefe & Rik (ADR 0088), then Desert.
   const m = await openMapperSettings(page);
-  await expect(m.tileset).toContainText('Default (MMapper)');
+  await m.chosen('default');
   await expect(m.credit).toHaveText("MMapper's default tiles");
+  // Every preview has loaded (8 sets, Shimrod's card from its four seasons);
+  // Shimrod's card lights the season of the mocked clock.
+  const picker = page.locator('.wc-sp-settings .wc-sp-tileset');
+  await expect
+    .poll(() => picker.locator('img').evaluateAll((imgs) => imgs.map((i) => (i as HTMLImageElement).naturalWidth)))
+    .toEqual(Array(12).fill(144));
+  await expect(picker.locator('.wc-ck-card[data-value="shimrod"] img.is-now')).toHaveClass(/wc-sp-tq-summer/);
   await m.pickTileset('grays-map');
-  await expect(m.tileset).toContainText("Gray's Map");
+  await m.chosen('grays-map');
   await m.pickTileset('gefe-rik');
-  await expect(m.tileset).toContainText('Gefe & Rik');
+  await m.chosen('gefe-rik');
   await m.pickTileset('desert');
-  await expect(m.tileset).toContainText('Desert');
+  await m.chosen('desert');
   await expect(m.credit).toHaveText("By Khazdul, from Shimrod's tiles");
   await expect(content).toHaveAttribute('data-map-tileset', 'desert');
   // Exactly the renderer's files: Desert's own, the default pixmaps for what it lacks
@@ -284,13 +303,13 @@ test('community tilesets: last in the list, a white background while chosen, res
   const mapper = () => page.evaluate(() => window.__wc!.settings.get().mapper);
 
   const m = await openMapperSettings(page);
-  await expect(m.tileset).toContainText('Default (MMapper)');
+  await m.chosen('default');
   await expect(m.background).toContainText('Navy');
 
   // Gray's Map, the last in the list. Rapids come from its water file.
   tiles.length = 0;
   await m.pickTileset('grays-map');
-  await expect(m.tileset).toContainText("Gray's Map");
+  await m.chosen('grays-map');
   await expect(m.credit).toHaveText("Tiles by Sunnyl75, after Gray's Mapeditor");
   await expect(m.background).toContainText('White');
   await expect(content).toHaveAttribute('data-map-tileset', 'grays-map');
@@ -303,7 +322,7 @@ test('community tilesets: last in the list, a white background while chosen, res
   // Gefe & Rik, before it; still white, the Navy remembered.
   tiles.length = 0;
   await m.pickTileset('gefe-rik');
-  await expect(m.tileset).toContainText('Gefe & Rik');
+  await m.chosen('gefe-rik');
   await expect(m.credit).toHaveText("Tiles by Octavia, after Gefe & Rik's maps");
   await expect(m.background).toContainText('White');
   await expect(content).toHaveAttribute('data-map-tileset', 'gefe-rik');
@@ -330,12 +349,61 @@ test('community tilesets: last in the list, a white background while chosen, res
 
   // Gray's Map, then back to Default: the Navy comes back.
   await m.pickTileset('grays-map');
-  await expect(m.tileset).toContainText("Gray's Map");
+  await m.chosen('grays-map');
   await m.pickTileset('default');
-  await expect(m.tileset).toContainText('Default (MMapper)');
+  await m.chosen('default');
   await expect(m.background).toContainText('Navy');
   await expect(content).toHaveAttribute('data-map-tileset', 'default');
   await expect(content).toHaveAttribute('data-map-bg', '#101c3c');
+  expect(await mapper()).toMatchObject({ tileset: 'default', background: '#101c3c', backgroundBefore: '' });
+  expect(errors).toEqual([]);
+});
+
+test("the picker from the keys, and the same picker in the map pane's gear popup (ADR 0118)", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await mockClock(page, 9); // Winterfilth: autumn
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-cockpit')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } }, mapper: { tileset: 'desert', background: '#101c3c' } }));
+  const mapper = () => page.evaluate(() => window.__wc!.settings.get().mapper);
+  const m = await openMapperSettings(page);
+  await m.chosen('desert');
+  // One tab stop, the chosen card; the arrows move and choose.
+  await m.tileset.focus();
+  await page.keyboard.press('ArrowRight');
+  await m.chosen('gefe-rik');
+  await expect(m.tileset).toBeFocused();
+  expect(await mapper()).toMatchObject({ tileset: 'gefe-rik', background: '#ffffff', backgroundBefore: '#101c3c' });
+  await page.keyboard.press('ArrowUp');
+  await m.chosen('shimrod-summer');
+  expect(await mapper()).toMatchObject({ tileset: 'shimrod-summer', background: '#101c3c' });
+  await page.keyboard.press('Home');
+  await m.chosen('shimrod');
+  await expect(m.credit).toHaveText('Tiles by Shimrod (v0.92) · now Autumn');
+  await page.keyboard.press('End');
+  await m.chosen('grays-map');
+  await expect(m.background).toContainText('White');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
+
+  // The gear popup: the same picker, five a row.
+  const pane = page.locator('.wc-pane-map');
+  const b = (await pane.boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.locator('.wc-pane-map > .wc-pane-btn-gear').click();
+  const gear = page.locator('.wc-sp-gear-map');
+  await expect(gear).toBeVisible();
+  const cards = gear.locator('.wc-sp-tileset .wc-ck-card');
+  await expect(cards).toHaveCount(9);
+  await expect(gear.locator('.wc-ck-card[aria-checked="true"]')).toHaveAttribute('data-value', 'grays-map');
+  await expect(gear.locator('.wc-ck-card[data-value="shimrod"] img.is-now')).toHaveClass(/wc-sp-tq-autumn/);
+  const tops = await cards.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+  expect(tops.filter((t) => t === tops[0]).length).toBe(5);
+  // Every name whole, in the narrower popup too.
+  expect(await cards.locator('.wc-ck-card-l').evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent))).toEqual([]);
+  await gear.locator('.wc-ck-card[data-value="default"]').click();
   expect(await mapper()).toMatchObject({ tileset: 'default', background: '#101c3c', backgroundBefore: '' });
   expect(errors).toEqual([]);
 });
