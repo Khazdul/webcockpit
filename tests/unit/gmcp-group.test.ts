@@ -271,3 +271,66 @@ describe('GroupModel selfBashed', () => {
     expect(g.selfBashed).toBe(false);
   });
 });
+
+describe('GroupModel: positions, flags, away and the fight (ADR 0122)', () => {
+  it('keeps position, ride, room, mapid and the flags; Update merges only what it carries', () => {
+    const g = new GroupModel();
+    g.apply('Group.Add', ally(2, 'Gibur', { position: 'standing', ride: true, room: 'The Old Forest Road', mapid: 100, sanctuary: true, poison: false }));
+    const m = g.get(2)!;
+    expect(m).toMatchObject({ position: 'standing', ride: true, room: 'The Old Forest Road', mapid: 100 });
+    expect(m.flags).toMatchObject({ sanctuary: true, poison: false, slept: false, thirsty: false });
+    expect(g.apply('Group.Update', { id: 2, poison: true })).toBe(true);
+    expect(g.get(2)!.flags).toMatchObject({ sanctuary: true, poison: true });
+    expect(g.get(2)!.ride).toBe(true); // untouched
+    expect(g.apply('Group.Update', { id: 2, poison: true })).toBe(false); // no change
+    g.apply('Group.Update', { id: 2, position: 'resting', ride: false, room: '' });
+    expect(g.get(2)).toMatchObject({ position: 'resting', ride: false, room: null });
+    // A new Add resets what it does not carry.
+    g.apply('Group.Add', ally(2, 'Gibur'));
+    expect(g.get(2)).toMatchObject({ position: null, ride: false, room: null, mapid: null });
+    expect(Object.values(g.get(2)!.flags).every((f) => f === false)).toBe(true);
+  });
+
+  it('a player is away when its mapid is known and not your Room.Info id; NPCs never', () => {
+    const g = new GroupModel();
+    g.apply('Group.Set', [ally(2, 'Gibur', { mapid: 100 }), ally(3, 'Dori'), npc(4, 'a citizen mercenary', 'MERC', { mapid: 200 })]);
+    expect(g.isAway(g.get(2)!)).toBe(false); // your room unknown
+    expect(g.apply('Room.Info', { id: 200, name: 'Bree' })).toBe(true);
+    expect(g.selfRoom).toBe(200);
+    expect(g.isAway(g.get(2)!)).toBe(true);
+    expect(g.isAway(g.get(3)!)).toBe(false); // mapid unknown
+    expect(g.isAway(g.get(4)!)).toBe(false);
+    expect(g.apply('Room.Info', { id: 200 })).toBe(false);
+    g.apply('Room.Info', { id: 100 });
+    expect(g.isAway(g.get(2)!)).toBe(false);
+  });
+
+  it('Show players covers ally, neutral and enemy', () => {
+    const g = new GroupModel();
+    g.apply('Group.Set', [ally(2, 'Gibur'), { ...ally(3, 'Morwen'), type: 'neutral' }, { ...ally(5, 'Ugluk'), type: 'enemy' }, npc(4, 'a citizen mercenary', 'MERC')]);
+    expect(g.displayed({ showPlayers: true, npcMode: 'off' }).map((m) => m.id)).toEqual([2, 3, 5]);
+    expect(g.displayed({ showPlayers: false, npcMode: 'labeled' }).map((m) => m.id)).toEqual([4]);
+  });
+
+  it('the fight: opponent and its word, the tank and the member it names', () => {
+    const g = new GroupModel();
+    g.apply('Group.Set', [ally(2, 'Gibur'), npc(4, 'a citizen mercenary', 'MERC')]);
+    expect(g.fight()).toEqual({ opponent: null, opponentWord: null, opponentMember: null, tank: null, tankId: null });
+    expect(g.apply('Char.Vitals', { buffer: 'Gibur', opponent: 'a black-robed orc', 'buffer-hits': 'fine', 'opponent-hits': 'hurt' })).toBe(true);
+    expect(g.fight()).toMatchObject({ opponent: 'a black-robed orc', opponentWord: 'hurt', opponentMember: null, tank: 'Gibur', tankId: 2 });
+    expect(g.apply('Char.Vitals', { 'opponent-hits': 'badly wounded' })).toBe(true);
+    expect(g.fight().opponentWord).toBe('badly wounded');
+    expect(g.apply('Char.Vitals', { 'opponent-hits': 'badly wounded' })).toBe(false);
+    // You tank: the tank is named, no member.
+    g.apply('Char.Vitals', { buffer: 'Rasta' });
+    expect(g.fight()).toMatchObject({ tank: 'Rasta', tankId: null });
+    // Fighting your own group's NPC: the member is named.
+    g.apply('Char.Vitals', { opponent: 'a citizen mercenary (MERC)' });
+    expect(g.fight().opponentMember?.id).toBe(4);
+    // The fight ends.
+    expect(g.apply('Char.Vitals', { opponent: null })).toBe(true);
+    expect(g.fight()).toEqual({ opponent: null, opponentWord: null, opponentMember: null, tank: null, tankId: null });
+    g.reset();
+    expect(g.selfRoom).toBe(null);
+  });
+});

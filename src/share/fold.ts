@@ -41,7 +41,8 @@
 //                          generator) see the same structure; then one
 //                          Group.Update per table entry with its final
 //                          name, label and mapid, and for a GroupModel
-//                          member its type and vitals (`{id, label: 0}`
+//                          member its type, vitals, position, ride, room
+//                          and status flags (ADR 0122) (`{id, label: 0}`
 //                          after it when the model has no label but the
 //                          table keeps a string one)
 //   Event.Moved            the one just before the last Room.Info
@@ -74,7 +75,7 @@
 import { RECORD, formatRecord, formatTs } from '../capture/format';
 import { CharModel } from '../gmcp/char';
 import { parseChannelList } from '../gmcp/comm';
-import { GroupModel, normLabel } from '../gmcp/group';
+import { GroupModel, STATUS_FLAGS, normLabel } from '../gmcp/group';
 import { GroupTable } from '../map/group';
 import { PAIR_MS } from '../map/notes';
 import { parseMoveCommand } from '../map/path';
@@ -186,7 +187,7 @@ class Models {
   key(): string {
     const c = this.char;
     const sorted = (m: Map<string, unknown>): Array<[string, unknown]> => [...m].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-    const g = this.group as unknown as { buffer: string | null; opponent: string | null };
+    const g = this.group as unknown as { buffer: string | null; opponent: string | null; opponentWord: string | null };
     return JSON.stringify([
       c.name,
       c.fullname,
@@ -198,6 +199,7 @@ class Models {
       this.group.unlabeled(),
       g.buffer,
       g.opponent,
+      g.opponentWord,
       this.table.entries(),
       this.table.colorState(),
     ]);
@@ -488,9 +490,16 @@ function buildBlock(seg: readonly SegEntry[], models: Models, start: Models): st
           u[`${k}-string`] = m[k].word;
           u[`max${k}`] = m[k].max;
         }
+        u.position = m.position;
+        u.ride = m.ride;
+        u.room = m.room;
+        for (const f of STATUS_FLAGS) u[f] = m.flags[f];
       }
       out.push(`Group.Update ${JSON.stringify(u)}`);
       if (m && m.label === null && normLabel(e.label) !== null) out.push(`Group.Update ${JSON.stringify({ id: e.id, label: 0 })}`);
+      // The table keeps an old mapid that a later Add without one cleared in
+      // GroupModel: `mapid: null` sets the model only (the table ignores it).
+      if (m && m.mapid === null && e.mapid !== null) out.push(`Group.Update ${JSON.stringify({ id: e.id, mapid: null })}`);
     }
   }
   // Room.Info and Event.Moved.

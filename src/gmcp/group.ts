@@ -6,8 +6,18 @@
 //   meeting again = `Group.Add`), but player members wherever they are.
 //   The model keeps what MUME sends, ordered by id. Stable identity is
 //   `label` (NPC) or `name` (player), used to match the fight fields below.
-//   Players are `ally`, `enemy` or `neutral`; only `ally` is tested below
-//   (Show players), a known gap left for the Group pane review.
+//   Players are `ally`, `enemy` or `neutral`; "Show players" covers all
+//   three (ADR 0122).
+// - Every member keeps the GMCP fields the Group pane draws (ADR 0122):
+//   `position`, `ride`, `room`, `mapid` and the status flags
+//   (`STATUS_FLAGS`). Set/Add take them whole (absent: null / false),
+//   Update only what it carries.
+// - Your room: `Room.Info` `id` (`selfRoom`). A player member is `away`
+//   when its `mapid` and your room are both known and differ (NPCs are
+//   only reported in your room, ADR 0120).
+// - The fight (`fight()`): the opponent identity and its last band word,
+//   and the tank (the buffer identity, and the member it names, if any),
+//   from `Char.Vitals`. An `opponent` of null or "" ends the fight.
 // - `type: "you"` is never kept as a member (the Character pane covers it);
 //   only its id and its `bashed` flag (`selfBashed`, for the weather
 //   effects' stun, owner item 116) are.
@@ -42,6 +52,22 @@ export interface Vital {
   word: string | null;
 }
 
+/** The GMCP status flags of a member (ADR 0122), in the pane's icon order. */
+export const STATUS_FLAGS = [
+  'sanctuary',
+  'poison',
+  'slept',
+  'blind',
+  'bashed',
+  'snared',
+  'wound',
+  'hungry',
+  'thirsty',
+  'waiting',
+] as const;
+export type StatusFlag = (typeof STATUS_FLAGS)[number];
+export type MemberFlags = Record<StatusFlag, boolean>;
+
 export interface Member {
   id: number;
   type: MemberType;
@@ -51,7 +77,32 @@ export interface Member {
   hp: Vital;
   mana: Vital;
   mp: Vital;
+  /** GMCP `position` (`standing`, `fighting`, `resting`, `sleeping` …), or null. */
+  position: string | null;
+  /** Mounted (`ride`). */
+  ride: boolean;
+  /** The room's name, or null. */
+  room: string | null;
+  /** MUME's room id, or null. */
+  mapid: number | null;
+  flags: MemberFlags;
 }
+
+/** The fight from `Char.Vitals` (ADR 0122): null fields when unknown. */
+export interface GroupFight {
+  /** Whom you fight (the identity string), or null: no fight. */
+  opponent: string | null;
+  /** The opponent's last HP band word (`opponent-hits`), or null. */
+  opponentWord: string | null;
+  /** The member the opponent identity names (a group NPC you fight), or null. */
+  opponentMember: Member | null;
+  /** Who tanks (the buffer identity, possibly you), or null. */
+  tank: string | null;
+  /** The member the buffer identity names, or null (you, or not in the group). */
+  tankId: number | null;
+}
+
+const noFlags = (): MemberFlags => Object.fromEntries(STATUS_FLAGS.map((f) => [f, false])) as MemberFlags;
 
 /** Bar fill for one vital: fraction 0–1 or null, and whether it was exact. */
 export interface VitalPct {
@@ -105,6 +156,41 @@ export function identityTokens(s: string): string[] {
 }
 
 const emptyVital = (): Vital => ({ value: null, max: null, word: null });
+
+const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+
+/**
+ * Merges the non-vital fields (ADR 0122). `full` (Set/Add): absent fields
+ * reset (null / false). Returns true on a change.
+ */
+function mergeFields(m: Member, o: Obj, full: boolean): boolean {
+  let changed = false;
+  const take = <K extends 'position' | 'room' | 'mapid'>(k: K, v: Member[K]): void => {
+    if (m[k] !== v) {
+      m[k] = v;
+      changed = true;
+    }
+  };
+  if (full || has(o, 'position')) take('position', str(o.position));
+  if (full || has(o, 'room')) take('room', str(o.room));
+  if (full || has(o, 'mapid')) take('mapid', num(o.mapid));
+  if (full || has(o, 'ride')) {
+    const r = o.ride === true;
+    if (m.ride !== r) {
+      m.ride = r;
+      changed = true;
+    }
+  }
+  for (const f of STATUS_FLAGS) {
+    if (!full && !has(o, f)) continue;
+    const v = o[f] === true;
+    if (m.flags[f] !== v) {
+      m.flags[f] = v;
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 /** Fill of one vital (Inv §2.3): value / max, else band midpoint, else null. */
 export function vitalPct(kind: VitalKind, v: Vital): VitalPct {
@@ -160,6 +246,10 @@ export class GroupModel {
   /** Cached fight identities from `Char.Vitals`. */
   private buffer: string | null = null;
   private opponent: string | null = null;
+  /** The last `opponent-hits` band word (shown only while there is an opponent). */
+  private opponentWord: string | null = null;
+  /** Your room (`Room.Info` `id`), or null. */
+  private room: number | null = null;
   /** Your own entry's id (`type: "you"`), and whether you are bashed. */
   private selfId: number | null = null;
   private bashed = false;
@@ -183,16 +273,38 @@ export class GroupModel {
 
   /** The rows to draw under the display options (display-only filter). */
   displayed(d: GroupDisplay): Member[] {
-    const out = this.list().filter((m) => {
-      if (m.type === 'ally') return d.showPlayers;
-      if (m.type === 'npc') return d.npcMode !== 'off';
-      return true;
-    });
+    const out = this.list().filter((m) => (m.type === 'npc' ? d.npcMode !== 'off' : d.showPlayers));
     if (d.npcMode === 'all') {
       out.push(...this.side.values());
       out.sort((a, b) => a.id - b.id);
     }
     return out;
+  }
+
+  /** Your room id (`Room.Info` `id`), or null. */
+  get selfRoom(): number | null {
+    return this.room;
+  }
+
+  /**
+   * True when `m` is a player whose room is known and is not yours (ADR
+   * 0122). NPCs are only reported in your room (ADR 0120): never away.
+   */
+  isAway(m: Member): boolean {
+    return m.type !== 'npc' && m.mapid !== null && this.room !== null && m.mapid !== this.room;
+  }
+
+  /** The fight as `Char.Vitals` last told it (ADR 0122). */
+  fight(): GroupFight {
+    const opponentMember = this.opponent === null ? null : this.match(this.opponent);
+    const tankMember = this.buffer === null ? null : this.match(this.buffer);
+    return {
+      opponent: this.opponent,
+      opponentWord: this.opponent === null ? null : this.opponentWord,
+      opponentMember,
+      tank: this.opponent === null ? null : this.buffer,
+      tankId: this.opponent === null ? null : (tankMember?.id ?? null),
+    };
   }
 
   /** The member (or unlabeled NPC) with `id`. */
@@ -206,6 +318,8 @@ export class GroupModel {
     this.side.clear();
     this.buffer = null;
     this.opponent = null;
+    this.opponentWord = null;
+    this.room = null;
     this.selfId = null;
     this.bashed = false;
     this.version++;
@@ -231,7 +345,10 @@ export class GroupModel {
         changed = this.remove(data);
         break;
       case 'char.vitals':
-        changed = this.fight(data);
+        changed = this.applyFight(data);
+        break;
+      case 'room.info':
+        changed = this.applyRoom(data);
         break;
       default:
         return false;
@@ -272,8 +389,14 @@ export class GroupModel {
       hp: emptyVital(),
       mana: emptyVital(),
       mp: emptyVital(),
+      position: null,
+      ride: false,
+      room: null,
+      mapid: null,
+      flags: noFlags(),
     };
     for (const k of VITAL_KINDS) mergeVital(k, m[k], data, true);
+    mergeFields(m, data, true);
     this.place(m);
     return true;
   }
@@ -322,8 +445,11 @@ export class GroupModel {
         changed = true;
       }
     }
+    let placed = changed;
     for (const k of VITAL_KINDS) if (mergeVital(k, m[k], data, false)) changed = true;
-    if (changed) {
+    if (mergeFields(m, data, false)) changed = true;
+    placed ||= changed;
+    if (placed) {
       // Promote / demote on a label change (or a type change).
       this.members.delete(id);
       this.side.delete(id);
@@ -348,12 +474,29 @@ export class GroupModel {
     return a || b;
   }
 
-  /** `Char.Vitals` fight fields → the matched member's HP word. */
-  private fight(data: unknown): boolean {
+  /** `Room.Info` → your room id. */
+  private applyRoom(data: unknown): boolean {
     if (!isObj(data)) return false;
+    const id = num(data.id);
+    if (id === this.room) return false;
+    this.room = id;
+    return true;
+  }
+
+  /**
+   * `Char.Vitals` fight fields → the fight state and the matched member's
+   * HP word. A change of the identities or the opponent's word counts.
+   */
+  private applyFight(data: unknown): boolean {
+    if (!isObj(data)) return false;
+    const before = `${this.buffer}|${this.opponent}|${this.opponentWord}`;
     if (has(data, 'buffer')) this.buffer = typeof data.buffer === 'string' && data.buffer ? data.buffer : null;
     if (has(data, 'opponent')) this.opponent = typeof data.opponent === 'string' && data.opponent ? data.opponent : null;
-    let changed = false;
+    // The last band word, as Char.Vitals keeps it (MUME sends the identity
+    // and the first word together at fight start).
+    const ow = data['opponent-hits'];
+    if (typeof ow === 'string' && ow) this.opponentWord = ow;
+    let changed = before !== `${this.buffer}|${this.opponent}|${this.opponentWord}`;
     for (const [who, key] of [
       [this.buffer, 'buffer-hits'],
       [this.opponent, 'opponent-hits'],

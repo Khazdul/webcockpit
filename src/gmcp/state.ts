@@ -133,7 +133,7 @@ export class GameState {
     if (p.startsWith('char.')) {
       if (this.char.apply(pkg, data)) this.emit('char');
       if (p === 'char.vitals' && this.group.apply(pkg, data)) this.emit('group');
-    } else if (p.startsWith('group.')) {
+    } else if (p.startsWith('group.') || p === 'room.info') {
       if (this.group.apply(pkg, data)) this.emit('group');
     } else if (p === 'event.sun') {
       const what = (data as { what?: unknown } | undefined)?.what;
