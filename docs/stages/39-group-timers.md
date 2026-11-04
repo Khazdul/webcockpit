@@ -1,6 +1,6 @@
 # Stage 39 — Group and Timers panes: modern look
 
-Status: **In progress** (started 2026-11-04).
+Status: **Owner testing** (built 2026-11-04).
 
 ## Goal
 
@@ -62,14 +62,61 @@ https://claude.ai/artifact/KQz9apKUpo9YMW5xhTscxf.
       add-view, charm ×, scrolling and indicator, log player read-only
 - [x] 39c: Timers gear popup and Options → Panes → Timers: the new
       settings and the per-group table (shown, colour, layout)
-- [ ] 39d: e2e for both panes (fight zone, away modes, tooltips, style,
+- [x] 39d: e2e for both panes (fight zone, away modes, tooltips, style,
       layout, headers, time text, colours, sanctuary on others), the
       script manual's `state.group` fields, Inv §2.3/§2.6 pointers to ADR
       0122, test guide, progress.md
 
 ## Test guide
 
-(Written at the end of the stage.)
+Dev server (`npm run dev`, http://localhost:5173/) on the branch
+`stage-39-group-timers`. Play in MUME with a group if you can; the offline
+demo (`/?fixture=gmcp-demo.log&speed=0`) shows the panes with little data.
+Make the Group and Timers panes large enough to see everything (drag them
+taller, or float them) and also try them small.
+
+1. **Group, members:** players have a person icon (ally blue, other race
+   amber or a red horned helm), NPCs a grey diamond and their label as a
+   tag. Two lines per member when there is room, one line when it is
+   crowded. Hover a bar (`HP 37/158 · 23%`), an icon (poison, sanctuary,
+   blind …), the position icon and a name: each has its own tooltip.
+2. **Group, fight:** start a fight. The zone on top shows the tank (shield,
+   HP, numbers) against your opponent (axe, its HP word, a red bar from
+   the right); the tank also has a shield in the list. The zone goes away
+   when the fight ends.
+3. **Group, away:** a group mate in another room shows the room name and
+   is dimmed. Gear → Away members → Dim only: just dimmed (the room is in
+   the name's tooltip).
+4. **Sanctuary:** cast sanctuary on a group mate. Timers → Sanctuary shows
+   them with `~4m` (an estimate, the tooltip says "about"), and the Group
+   pane rings their sanctuary icon. Someone else's sanctuary shows as `?`.
+   Your own sanctuary is in Sanctuary now, not in Spells.
+5. **Timers, look:** gear → Style Bars / Circles, Layout Flow / Grid
+   (Columns Auto or 1–6), Group headers off (groups stack tightly), Time
+   text off (bars and rings only). In the group table, give a group its
+   own layout and its own colour (palette, free colour, Auto).
+6. **Ending soon:** a timer keeps its colour to the end; with Signal Text
+   its time turns red and bold under the threshold (Warn at), with Pulse
+   the fill pulses. Soonest first puts it on top of its group.
+7. **Blinds:** blind several mobs with long names. Names lose `a/an/the`
+   and are shortened in the middle only when they do not fit; the full
+   name is in the tooltip.
+8. **Paper:** Options → Appearance → background Paper. Both panes and
+   their tooltips and gears follow the light side.
+9. **Kept:** the gold `+` (herblore add-view), the charmie `×`, and the
+   Options → Panes → Group and Timers pages.
+
+Feedback wanted: how does it feel in a real fight and with many blinds?
+Is the one-line Group mode (small pane) readable, and is the fight row
+without names enough there? Are the default colours right on black and on
+Paper? Is "Auto" grid in circles mode too eager to use two columns with
+short names? Anything you miss from the old panes?
+
+Known: in the smallest default pane sizes the one-line Group fight row
+shows only bars and icons (names in the tooltips); a Timers pane two rows
+high can hide its first item under the indicator when headers are on;
+recasting sanctuary on someone who is already glowing does not restart
+the estimate (their flag never turns off).
 
 ## Owner feedback
 
