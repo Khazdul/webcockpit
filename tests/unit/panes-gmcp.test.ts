@@ -197,7 +197,7 @@ describe('panes on the context', () => {
     expect(names()).toEqual(['Armour', 'dark-skinned orc', 'Troll']);
     // Headers: the group name only (no count); Herblore's has its +.
     const heads = [...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')];
-    expect(heads.map((h) => h.textContent)).toEqual(['Herblore+', 'Spells', 'Blinds', 'Charmies']);
+    expect(heads.map((h) => h.textContent)).toEqual(['Herblores+', 'Spells', 'Blinds', 'Charmies']);
     // Bars by default: a pill with a fill; the time text is on.
     const chip = p.content.querySelector<HTMLElement>('.wc-tm-chip[data-id="spell:armour"], .wc-tm-chip[data-id="armour"]')!;
     expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.width).toMatch(/^(100\.0|9\d\.\d)%$/);
@@ -211,7 +211,7 @@ describe('panes on the context', () => {
     expect(p.content.querySelectorAll('.wc-tm-chip')).toHaveLength(0);
     // Headers off: all hidden but Herblore's.
     const shown = [...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')].filter((h) => !h.hidden);
-    expect(shown.map((h) => h.textContent)).toEqual(['Herblore+']);
+    expect(shown.map((h) => h.textContent)).toEqual(['Herblores+']);
     // × forgets the charmie.
     p.content.querySelector('.wc-tm-x')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();

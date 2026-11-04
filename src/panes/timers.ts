@@ -6,7 +6,7 @@
 //   (You        4m) (Gibur      ~3m)           <- bars: pills whose fill drains right → left
 //   ✧ SPELLS ─────────────────────────────
 //   (Breath of briskness 8s) (Shield 52s) …
-//   ❦ HERBLORE + ─────────────────────────     <- always shown while enabled; + opens the menu
+//   ❦ HERBLORES + ─────────────────────────     <- always shown while enabled; + opens the menu
 //   (Haste (recovery)  17m)                    <- hover: × stops the herblore
 //   ◉ BLINDS ─────────────────────────────
 //   ◔ huge black…warg  4s   ◔ warg  11s        <- circles: an 18 px ring, name and time beside
@@ -312,7 +312,7 @@ export class HerbMenu {
     this.el = doc.createElement('div');
     this.el.className = 'wc-tm-menu';
     this.el.setAttribute('role', 'menu');
-    this.el.setAttribute('aria-label', 'Herblore');
+    this.el.setAttribute('aria-label', 'Herblores');
     this.el.hidden = true;
     this.el.addEventListener('mousedown', this.onMenuDown);
   }

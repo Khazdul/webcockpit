@@ -326,10 +326,10 @@ describe('gear popup contents', () => {
     }
     // A group row: shown, colour (picker), layout.
     expect([...t.host.querySelectorAll('.wc-sp-tg-l')].map((e) => e.textContent)).toEqual([
-      'Herblore', 'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Stored', 'Blinds', 'Charmies',
+      'Herblores', 'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Stored', 'Blinds', 'Charmies',
     ]);
     // Herblore turns on and off like any group (its `+` lives in its header).
-    click(t.host.querySelector('[aria-label="Show Herblore"]'));
+    click(t.host.querySelector('[aria-label="Show Herblores"]'));
     expect(t.s().timers.groups.herb.enabled).toBe(false);
     click(t.host.querySelector('[aria-label="Show Spells"]'));
     expect(t.s().timers.groups.spell.enabled).toBe(false);

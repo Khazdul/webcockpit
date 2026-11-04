@@ -275,7 +275,7 @@ time). Timers never change colour.
 After the owner's first test of the build:
 
 - **Herblore group.** Herblores leave Buffs and Debuffs for a timer group
-  of their own, `herb` ("Herblore", first, above Sanctuary: owner, 2026-11-04), with the
+  of their own, `herb` ("Herblores", first, above Sanctuary: owner, 2026-11-04), with the
   leaf icon and its own Auto colour, a herb green unlike Buffs (`#a6c95a`
   dark, `#5c7a12` light). A cell keeps its phase's kind (`phase: buff |
   debuff`; a debuff phase such as `Haste (recovery)` shows the down arrow)
@@ -306,3 +306,11 @@ After the owner's first test of the build:
 - **Solid bars**: band-word estimates are no longer hatched; the tooltip
   still says "About NN% (the band word)".
 
+
+### Addendum (owner, 2026-11-04): one-line rows align
+
+- A one-line member row is marker, name, icons (up to three and `+n`),
+  then the three mini bars in a fixed column at the right edge, so the
+  bars line up in every row whatever icons a member has (a tank shield
+  used to push one row's bars left).
+- The herb group's label is "Herblores".

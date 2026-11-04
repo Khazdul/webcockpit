@@ -194,7 +194,7 @@ describe('timersModel', () => {
   it('Herblore (owner round 1): shown while enabled, also empty; its header pinned with the +; items carry the × and the phase icon', () => {
     // Empty, headers off: still there, header pinned, the + offered.
     const [empty] = timersModel(input([], { headers: false }, {}, true));
-    expect(empty).toMatchObject({ group: 'herb', label: 'Herblore', icon: 'herb', pinnedHeader: true, addHerb: true, items: [] });
+    expect(empty).toMatchObject({ group: 'herb', label: 'Herblores', icon: 'herb', pinnedHeader: true, addHerb: true, items: [] });
     // Off: gone.
     expect(timersModel(input([]))).toEqual([]);
     // Its own Auto colour, unlike Buffs on both sides.

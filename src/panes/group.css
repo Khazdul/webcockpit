@@ -235,7 +235,7 @@
 /* One line: marker, name, three mini bars, icons. */
 .wc-gp-m1 {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(4em, 30%) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(4em, 30%);
   align-items: center;
   gap: calc(var(--cell-w, 9px) * 0.7);
   height: var(--gp-row);

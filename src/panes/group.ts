@@ -18,7 +18,7 @@
 //   `group.fight` setting turns the card off (the tank's shield in the
 //   list stays).
 // - Rows are whole cells: a two-line member is 2 rows, a one-line member
-//   (name, three mini bars, up to three icons and `+n`) 1 row; the fight
+//   (name, up to three icons and `+n`, three mini bars at the right edge) 1 row; the fight
 //   card 3 rows and half a row of gap, counted as 4 (a 1-row strip in
 //   one-line mode). No divider between the card and the members. Two lines when every
 //   shown member fits that way, else one line; still too many: the first
@@ -526,7 +526,9 @@ export function memberRow1(doc: Document, v: MemberView, tankColor: string): HTM
     setTip(more, icons.slice(COMPACT_ICONS).map((s) => s.title).join(', '), 'Also', `${v.key}:more`);
     sts.append(more);
   }
-  row.append(markerEl(doc, v), n, mini, sts);
+  // Icons left of the bars: the bars keep one column at the right edge in
+  // every row, whatever icons a member has (owner, 2026-11-04).
+  row.append(markerEl(doc, v), n, sts, mini);
   return row;
 }
 

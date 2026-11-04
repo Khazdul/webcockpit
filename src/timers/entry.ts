@@ -20,7 +20,7 @@ export const TIMER_GROUP_LABELS: Readonly<Record<TimerGroup, string>> = {
   spell: 'Spells',
   buff: 'Buffs',
   debuff: 'Debuffs',
-  herb: 'Herblore',
+  herb: 'Herblores',
   stored: 'Stored',
   blind: 'Blinds',
   charm: 'Charmies',

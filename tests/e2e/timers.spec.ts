@@ -110,7 +110,7 @@ test('Herblore: + opens the menu, a pick starts the herb; × on hover stops it; 
   await expect(pane(page).locator('.wc-tm-corner, .wc-tm-herbs')).toHaveCount(0);
   // The + beside the header's name opens the catalogue.
   const add = herb.locator('.wc-tm-add');
-  await expect(herb.locator('.wc-tm-h')).toContainText('Herblore');
+  await expect(herb.locator('.wc-tm-h')).toContainText('Herblores');
   await add.click();
   const menu = page.locator('.wc-tm-menu');
   await expect(menu).toBeVisible();
