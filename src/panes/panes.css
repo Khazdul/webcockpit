@@ -262,6 +262,14 @@
   text-overflow: ellipsis;
 }
 
+/* Sideways only, so an underscore under the baseline is not cut (as .wc-prow). */
+@supports (overflow: clip) {
+  .wc-tm-n {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
 .wc-tm-t {
   position: relative;
   flex: none;
@@ -441,6 +449,16 @@
 
 .wc-tm[data-light] .wc-tm-herb.is-on .wc-tm-hs {
   color: #c42020;
+}
+
+/* Measures the items' character width (the room for blind names). */
+.wc-tm-probe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 0.85em;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .wc-tm-more {

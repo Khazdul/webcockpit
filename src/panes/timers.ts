@@ -28,7 +28,8 @@
 //   and no charm `×`.
 // - The list scrolls natively by pixels (wheel, touchpad; ADR 0052). When it
 //   overflows, the last pane row is an indicator: `↑ N timers above` once
-//   scrolled (click → top), else `↓ N more timers`.
+//   scrolled at all (timers partly above count; click → top), else
+//   `↓ N more timers`.
 // - Redraw at 1 Hz on wall-clock seconds while something counts; blank
 //   while inactive; a disconnect resets the view.
 
@@ -277,6 +278,8 @@ export class TimersPane extends PaneShell {
   private readonly herbsEl: HTMLDivElement;
   private readonly moreEl: HTMLDivElement;
   private readonly corner: HTMLButtonElement;
+  /** Ten characters in the items' font: the measured character width. */
+  private readonly probe: HTMLSpanElement;
   private readonly groups = new Map<string, GroupEl>();
   private readonly tip: PaneTooltip;
   private herbsKey = '';
@@ -305,7 +308,11 @@ export class TimersPane extends PaneShell {
     this.corner.tabIndex = -1;
     this.corner.className = 'wc-tm-corner';
     this.corner.dataset.act = 'corner';
-    this.root.append(this.scroller, this.moreEl, this.corner);
+    this.probe = doc.createElement('span');
+    this.probe.className = 'wc-tm-probe';
+    this.probe.setAttribute('aria-hidden', 'true');
+    this.probe.textContent = '0000000000';
+    this.root.append(this.scroller, this.moreEl, this.corner, this.probe);
     this.own(ctx.game.subscribe((part) => part === 'timers' && this.markDirty()));
     this.own(
       ctx.settings.subscribe(
@@ -378,13 +385,19 @@ export class TimersPane extends PaneShell {
     } else {
       setHidden(this.listEl, false);
       setHidden(this.herbsEl, true);
+      // The room for names: the list's measured width and character width
+      // (estimated from the cell metrics where nothing is laid out).
+      const cellW = cells.w || 8;
+      const charW = this.probe.getBoundingClientRect().width / 10 || cellW * 0.85;
+      const inner = this.listEl.clientWidth;
+      const pad = cellW * 0.6;
       const groups = timersModel({
         view,
         settings: s.timers,
         now,
         light: shade.light,
-        width: Math.max(0, this.cols * (cells.w || 8) - 8),
-        charW: (cells.w || 8) * 0.85,
+        width: Math.max(0, (inner > 0 ? inner : this.cols * cellW) - pad),
+        charW,
       });
       timed = timersTimed(groups);
       this.renderGroups(groups, s.timers, ro);
@@ -459,10 +472,11 @@ export class TimersPane extends PaneShell {
       let above = 0;
       let below = 0;
       for (const el of els) {
-        if (el.offsetTop < top - 1) above++;
+        if (el.offsetTop < top) above++;
         else if (el.offsetTop + el.offsetHeight > bottom + 1) below++;
       }
-      ind = timersIndicator(above, below);
+      // Once scrolled at all, the indicator points up (rows partly above count).
+      ind = timersIndicator(top > 0 ? Math.max(1, above) : 0, below);
     }
     setHidden(this.moreEl, ind === null);
     setText(this.moreEl, ind?.text ?? '');
