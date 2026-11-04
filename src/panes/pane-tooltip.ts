@@ -11,7 +11,7 @@
 //   removes them (and hides a tooltip shown for something inside it).
 // - The tooltip shows after `PANE_TIP_DELAY_MS` of hover, below the
 //   element (above when there is no room), kept inside the viewport. It
-//   hides on leave, pointer down, scroll and wheel. Its element is on
+//   hides on leave, pointer down, wheel and a scroll of what holds the anchor. Its element is on
 //   `doc.body` and the document listeners (down, scroll, wheel) are there
 //   only while it is shown, so nothing is left behind when the panes go.
 // - Panes that rebuild their DOM while a tooltip is shown (a countdown, a
@@ -92,7 +92,7 @@ export class PaneTooltip {
     if (!this.el.isConnected) {
       this.doc.body.append(this.el);
       this.doc.addEventListener('pointerdown', this.onDown, true);
-      this.doc.addEventListener('scroll', this.onDown, true);
+      this.doc.addEventListener('scroll', this.onScroll, true);
       this.doc.addEventListener('wheel', this.onDown, { capture: true, passive: true });
     }
     this.el.hidden = false;
@@ -108,7 +108,7 @@ export class PaneTooltip {
     if (this.el.isConnected) {
       this.el.remove();
       this.doc.removeEventListener('pointerdown', this.onDown, true);
-      this.doc.removeEventListener('scroll', this.onDown, true);
+      this.doc.removeEventListener('scroll', this.onScroll, true);
       this.doc.removeEventListener('wheel', this.onDown, true);
     }
   }
@@ -178,10 +178,14 @@ export class PaneTooltip {
       return;
     }
     this.pending = el;
+    const key = el.dataset.tipKey ?? null;
     this.timer = setTimeout(() => {
       this.timer = null;
-      const p = this.pending;
+      let p = this.pending;
       this.pending = null;
+      // The pane rebuilt the element under the pointer during the delay
+      // (a row's 1 Hz update): follow it by its key, as `refresh` does.
+      if (p && !p.isConnected && key !== null) p = this.find(key);
       if (p) this.show(p);
     }, PANE_TIP_DELAY_MS);
   };
@@ -198,6 +202,14 @@ export class PaneTooltip {
 
   private readonly onDown = (): void => {
     if (this.anchor || this.pending) this.hide();
+  };
+
+  /** Only a scroll that moves the anchor hides it: the game output scrolls all the time. */
+  private readonly onScroll = (e: Event): void => {
+    const t = e.target;
+    const a = this.anchor ?? this.pending;
+    if (!a) return;
+    if (t === this.doc || (t instanceof Node && t.contains(a))) this.hide();
   };
 }
 

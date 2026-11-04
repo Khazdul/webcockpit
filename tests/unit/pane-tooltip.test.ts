@@ -68,6 +68,39 @@ describe('PaneTooltip', () => {
     expect(tip.el.hidden).toBe(true);
   });
 
+  it('a hovered element rebuilt during the delay still gets its tooltip, by its key', async () => {
+    const tip = installPaneTooltip(document);
+    const root = document.createElement('div');
+    tip.attach(root);
+    document.body.append(root);
+    const a = document.createElement('span');
+    setTip(a, 'Loses HP over time.', 'Poisoned', 'm3:poison');
+    root.append(a);
+    a.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+    a.remove();
+    const b = document.createElement('span');
+    setTip(b, 'Loses HP over time.', 'Poisoned', 'm3:poison');
+    root.append(b);
+    await new Promise((r) => setTimeout(r, PANE_TIP_DELAY_MS + 30));
+    expect(tip.target).toBe(b);
+    expect(tip.el.hidden).toBe(false);
+  });
+
+  it('a scroll elsewhere (the game output) keeps it; a scroll of its container hides it', () => {
+    const tip = installPaneTooltip(document);
+    const pane = document.createElement('div');
+    const out = document.createElement('div');
+    const a = document.createElement('span');
+    setTip(a, 'Loses HP over time.', 'Poisoned');
+    pane.append(a);
+    document.body.append(pane, out);
+    tip.show(a);
+    out.dispatchEvent(new Event('scroll'));
+    expect(tip.el.hidden).toBe(false);
+    pane.dispatchEvent(new Event('scroll'));
+    expect(tip.el.hidden).toBe(true);
+  });
+
   it('leaves out a body that only repeats the title', () => {
     const tip = installPaneTooltip(document);
     const root = document.createElement('div');
