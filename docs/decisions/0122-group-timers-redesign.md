@@ -206,8 +206,11 @@ time). Timers never change colour.
 
 - **Pane tooltips** (`src/panes/pane-tooltip.ts`): one tooltip per
   document, delegated hover on any element with `data-tip` (text) and
-  `data-tip-title` (bold first line), shown after 250 ms, below the element
-  (above when there is no room). A pane that rebuilds rows calls
+  `data-tip-title` (bold first line) inside a pane's content (each pane
+  `attach`es its content and detaches on dispose; the tooltip element and
+  its document listeners exist only while it is shown, so nothing is left
+  behind), shown after 250 ms, below the element (above when there is no
+  room). A pane that rebuilds rows calls
   `refresh()` after rendering: an anchor that left the document is
   replaced by the element with the same `data-tip-key`, so a ticking
   sanctuary tooltip stays up. Timers uses the same helper.
