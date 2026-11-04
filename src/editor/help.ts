@@ -282,7 +282,7 @@ const BASICS: readonly HelpSection[] = [
     heading: 'Scripts',
     topics: ['scripts'],
     text: [
-      'Scripts are small Lua programs kept beside the profile, not in it. The Scripts window (the menu bar\'s Scripts button, or #scripts; Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
+      'Scripts are small Lua programs kept beside the profile, not in it. The Scripts window (the menu bar\'s Scripts button, or #scripts; Scripts on the start page) lists them: turn one on or off, change its settings, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
       'MANUAL on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
       '#script controls the scripts from the input line, and #lua calls a function a script exported. Both are under Commands below.',
     ],
@@ -731,8 +731,8 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     text: [
       'Controls the scripts beside the profile, see Scripts:',
       '- list shows every script, whether it is on and what it does.',
-      '- help {name} shows the help of a script in the game window: its aliases, keys and settings, the same text as on the Scripts page.',
-      '- set {name} {setting} {value} changes a setting and saves it. The rest of the line is the value. The script sees the new value at once.',
+      '- help {name} shows the help of a script in the game window: its aliases, keys, help text and settings, typeset as on the Scripts page.',
+      '- set {name} {setting} {value} changes a setting and saves it, as the Scripts page does. The rest of the line is the value. A number must be inside its range and a choice one of its options. The script sees the new value at once.',
       '- enable {name} and disable {name} turn a script on and off, as the toggle on the Scripts page does. On and off are the same for every profile.',
       '- reload {name} stops a script that is on and runs it again from its saved code. A script that failed to load is tried again. A script that is off needs #script enable instead.',
       'A script that errors too often is turned off; #script enable turns it on again.',

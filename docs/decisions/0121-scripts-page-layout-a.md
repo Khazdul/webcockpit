@@ -170,3 +170,60 @@ Additions only; every header that parses today parses the same way.
 - The script manual and the API reference document the new `@setting`
   options, `## ` headings, list items and how help is typeset; the
   "Scripts page" section loses the `#script set` line description.
+
+## Build notes
+
+Decided while building stage 38, where the decision above is silent.
+
+- **Header options.** An option is taken only when it is well formed:
+  `step` followed by a number, `unit` followed by a word, `<a>..<b>` with
+  two numbers, a `|` list. Anything else starts the label, so an
+  unquoted label such as `step by step` parses as before. A tab in an
+  `@help` line counts as four spaces.
+- **Stored values against a changed header.** `settingsOf` clamps a
+  stored number to the current range and falls back to the default for
+  a choice that is no longer an option (or a value of another type).
+- **Help tables.** A term that ends with `.`, `!` or `?` is not a table
+  entry (readability's "A young troll leaves north.   becomes: …" lines
+  stay preformatted). A table also stacks when its description column
+  would be under 12 cells. Blank `@help` lines are kept (runs of them
+  collapse to one); a heading gets a blank line above it. Tables and
+  preformatted runs are indented two cells.
+- **Bundled ranges.** almanac `remind` 0..24 h; coinlooter `delay`
+  0..10 step 0.5 s; keymanager `hours` 0.5..24 h, `tvclose` 0..120
+  step 5 s; mercenaries `cost` choice 10|20 silver, `minutes` 5..60
+  step 5 min, `warn` 0..30 min. keymanager's and mercenaries' command
+  lists were realigned so every entry has two spaces before its
+  description; coinlooter's help uses `- ` items.
+- **Keys in the detail.** The rows ↑↓ visit are the button row, RESET
+  ALL (when the script has settings), each setting and the help fold.
+  → from the list lands on the first setting (the button row when there
+  is none). Enter on a number starts typing with the value selected; a
+  digit, `-` or `.` starts typing with that character. Enter or Space on
+  a choice picks the next option (wrapping); ← → stop at the ends.
+  Coming back from the editor after EDIT, the keys are still on the
+  button row, so Esc goes to the list first.
+- **Number steps** go to the next multiple of the step that way (from
+  0), then into the range: 27 → 30 with step 5, 0.5 → 1 with step 1.
+- **Mouse.** A click on ON or OFF sets that value, on a bracket flips
+  it; a click on a number's value types over it; a click on a string's
+  field edits it; a click on a setting row puts the cursor there.
+- **Flash.** A typed value and RESET ALL say what was saved ("delay = 5
+  s", "Reset cost to the default."); a step or a flip does not, the
+  control shows it.
+- **The tab.** The frame's left edge is a blank (with the panel fill)
+  at the selected row, `┘` on the row above and `┐` on the row below;
+  the top or bottom corner becomes `─` when the selected row is next to
+  it. The frame's lines use the section colour (not bold), the help
+  box's the hint colour.
+- **Narrow frame.** When the name (cut to at least 8 cells) and the four
+  buttons do not fit the top border, the buttons go on a row of their
+  own at the top of the frame (the in-game window at its least width).
+- **No frame.** Without room for it (a phone) the list is alone and
+  the button row holds every button: `NEW IMPORT EDIT EXPORT RENAME
+  DELETE MANUAL`. The phone has no settings controls, as before.
+- **Panel fill** `--c-panel`: the background mixed 9 % (dark) or 7 %
+  (light) toward the terminal foreground; toward white or black when
+  the foreground is too close to the background (contrast under 3).
+- **`#script help`** shows each setting with its unit and what it
+  takes (`#script set mercenaries cost <10|20>`, `<number 0..30>`).

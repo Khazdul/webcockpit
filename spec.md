@@ -381,18 +381,22 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   (stage 32). In play it
   is the menu bar's Scripts window (ADR 0103), and on the phone the ESC
   menu's Options → Scripts.
-- **Scripts page:**
-  - **List on the left:** every script by name, with an enable toggle, an
-    *Edit* button, and a lock mark on bundled scripts. *New*, *Import*
-    and *Export* sit above the list.
-  - **Right side:** the selected script's help, built from its header:
-    - name and summary;
+- **Scripts page** (layout A, ADR 0121):
+  - **List on the left:** every script by name, with an enable toggle, a
+    lock mark on bundled scripts and a running dot. *New*, *Import* and
+    *Manual* sit above the list.
+  - **Right side:** a framed detail that the selected list row runs into
+    (a tab with the panel fill). Its top border has the script's name and
+    its buttons *Edit*, *Export*, *Rename*, *Delete*. Inside:
+    - summary, status and problems;
+    - its settings as controls (a switch, a number with ◂ ▸, a choice, a
+      text field), saved at once, and *Reset all*;
     - its aliases and keys;
-    - the `@help` text;
-    - its settings, each with the current value and the
-      `#script set …` command that changes it.
+    - the `@help` text, typeset (paragraphs, lists, tables, headings) in
+      a box of its own that scrolls.
 
-    There are no settings forms.
+    Without room for the frame (a phone) the list is alone and every
+    button sits above it.
   - **Edit** opens a full-screen editor like the profile's EDITOR view:
     - CodeMirror with Lua mode;
     - completion and hover help for the script API;
@@ -408,9 +412,12 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   -- @summary  Loots coins from corpses
   -- @api      1
   -- @alias    cl  toggle on/off
-  -- @setting  delay number 0.5 "Seconds before looting"
+  -- @setting  delay number 0.5 0..10 step 0.5 unit s "Seconds before looting"
   -- @help     Free text, one line per tag.
   ```
+
+  `@setting` types are `number`, `string`, `boolean` and `choice`
+  (`a|b|c`); a number takes a range, a step and a unit (ADR 0121).
 - **In-game commands:**
   - `#script list`
   - `#script help <name>`: prints the same help in the game output

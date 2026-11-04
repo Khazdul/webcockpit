@@ -35,30 +35,30 @@ and small window).
 
 ## Tasks
 
-- [ ] Header: keep `@help` indentation (relative to the least-indented
+- [x] Header: keep `@help` indentation (relative to the least-indented
       line); `@setting` options `min..max`, `step`, `unit`; type `choice`
       with `|` options; header problems for bad options; unit tests
-- [ ] `convertSetting` / `setSetting`: range and option checks with clear
+- [x] `convertSetting` / `setSetting`: range and option checks with clear
       reasons; `ScriptLibrary.resetSettings(name)` with
       `sysSettingChanged` for changed values; unit tests
-- [ ] Help typesetting (paragraphs, `- ` items, tables, preformatted runs,
+- [x] Help typesetting (paragraphs, `- ` items, tables, preformatted runs,
       `## ` headings), width-aware, shared by the page and `#script help`;
       unit tests against every bundled script's help
-- [ ] Page layout: buttons `NEW IMPORT MANUAL`; list without EDIT; the
+- [x] Page layout: buttons `NEW IMPORT MANUAL`; list without EDIT; the
       selected row joined to the framed detail; the frame's top border with
       `┤ name ├` and `EDIT EXPORT RENAME DELETE`; status and problems;
       Settings, Commands, Help (fold, own box and scrollbar); narrow layout;
       new derived panel fill role (dark, light, paper)
-- [ ] Settings controls (boolean, number, choice, string) with mouse and
+- [x] Settings controls (boolean, number, choice, string) with mouse and
       keys; changed `*`; RESET ALL; flashes; saved at once
-- [ ] Keys: zones buttons / list / detail, Tab cycle, Esc from detail to
+- [x] Keys: zones buttons / list / detail, Tab cycle, Esc from detail to
       list, PgUp/PgDn and wheel for the help; footer hints per zone
-- [ ] Bundled scripts: mercenaries `cost` as choice; ranges and units on
+- [x] Bundled scripts: mercenaries `cost` as choice; ranges and units on
       the numbers; `##` headings in the long helps
-- [ ] Docs: script manual and API reference (`@setting` options, help
+- [x] Docs: script manual and API reference (`@setting` options, help
       markup and typesetting, the Scripts page), page header comment;
       Inv/spec references if any point at the old page
-- [ ] e2e: selection and frame, edit each control type by keys and mouse
+- [x] e2e: selection and frame, edit each control type by keys and mouse
       (value saved, running script sees it), RESET ALL, help scroll with
       PgUp/PgDn, narrow window, phone width still usable
 - [ ] Owner test guide (below), progress.md
