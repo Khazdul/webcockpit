@@ -1,6 +1,6 @@
 # 0070 — Find in the manuals, and Ctrl+F / Ctrl+H from LITE
 
-- Status: Accepted
+- Status: Accepted; the LITE part (Ctrl+F / Ctrl+H flip to EDITOR) superseded by ADR 0119
 - Date: 2026-10-03
 - Extends: ADR 0037 (HELP view), the buffer search of stage 10 (`search.ts`)
 

@@ -42,6 +42,7 @@ Released 0.2.3 (stage 36: tileset picker with previews in Settings → Mapper, A
 | 34 | Menu surfaces | Done | `docs/stages/34-menu-surfaces.md` |
 | 35 | Split scrollback | Done | `docs/stages/35-split-scrollback.md` |
 | 36 | Tileset picker | Done | `docs/stages/36-tileset-picker.md` |
+| 37 | Profile editor LITE keys | Owner testing | `docs/stages/37-profile-lite-keys.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
