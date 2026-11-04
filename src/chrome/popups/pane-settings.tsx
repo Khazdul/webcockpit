@@ -20,19 +20,28 @@
 //   dims; its controls still work) and keeps its colour, as unchecking a
 //   swatch on the TUI grid. Columns step within the group's range
 //   (Charmies 1–2); Charmies have no Clock or Bar.
+// - Group (ADR 0122): Show players (allies and other races), NPC
+//   visibility, Away members (room name or dim only) and a colour per vital
+//   bar (ColorPicker; Auto shows the Group pane's own side, dark or light).
 
 import { Fragment, type VNode } from 'preact';
 import { TIMER_COLOR_HEX, TIMER_COLOR_LABELS, TIMER_COLOR_ORDER, type TimerColor } from '../../settings';
 import { TIMER_GROUPS, TIMER_GROUP_LABELS } from '../../timers/entry';
 import { useServices, useSettings } from '../kit/hooks';
+import { autoColor } from '../../panes/palette';
+import { paneShade } from '../../panes/shade';
 import {
+  AWAY_MODE_CHOICES,
   NPC_MODE_CHOICES,
+  VITAL_COLOR_ROWS,
   colorChoice,
   commChannelRows,
   patchTimerGroup,
   setCommChannel,
+  setVitalColor,
   swatchOf,
 } from '../pane-options-model';
+import { ColorPicker } from './color-picker';
 import { type DropdownOption, Dropdown, Row, Segmented, Toggle } from './controls';
 
 /** A channel's swatch while it is off. */
@@ -134,15 +143,33 @@ export function TimersSettings(): VNode {
 
 export function GroupSettings(): VNode {
   const { settings } = useServices();
-  const g = useSettings().group;
+  const s = useSettings();
+  const g = s.group;
+  // Auto stands for the Group pane's own side (dark or light).
+  const light = paneShade(s, 'group').light;
   return (
     <div class="wc-sp-group">
-      <Row label="Show players">
+      <Row label="Show players" help="Allies, and players of other races in your group">
         <Toggle label="Show players" on={g.showPlayers} onChange={(showPlayers) => settings.update({ group: { showPlayers } })} />
       </Row>
       <Row label="NPC visibility">
         <Segmented label="NPC visibility" value={g.npcMode} options={NPC_MODE_CHOICES} onChange={(npcMode) => settings.update({ group: { npcMode } })} />
       </Row>
+      <Row label="Away members" help="Players not in your room">
+        <Segmented label="Away members" value={g.away} options={AWAY_MODE_CHOICES} onChange={(away) => settings.update({ group: { away } })} />
+      </Row>
+      <div class="wc-ck-sep" />
+      <div class="wc-ck-sub">Bar colours</div>
+      {VITAL_COLOR_ROWS.map((r) => (
+        <Row key={r.key} label={r.label}>
+          <ColorPicker
+            label={`${r.label} colour`}
+            value={g.colors[r.key]}
+            auto={autoColor(r.key, light)}
+            onChange={(c) => setVitalColor(settings, r.key, c)}
+          />
+        </Row>
+      ))}
     </div>
   );
 }

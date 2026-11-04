@@ -14,7 +14,9 @@
 import { COMM_CHANNEL_ORDER, DEFAULT_CAPTIONS, channelColor, channelEnabled, channelLabel } from '../gmcp/comm';
 import {
   type ColorSetting,
+  GROUP_AWAY_MODES,
   GROUP_NPC_MODES,
+  type GroupAwayMode,
   type GroupNpcMode,
   type SettingsStore,
   TIMER_COLOR_HEX,
@@ -104,3 +106,27 @@ export const NPC_MODE_CHOICES: readonly { value: GroupNpcMode; label: string }[]
   value,
   label: NPC_MODE_LABEL[value],
 }));
+
+/** The Away members labels (ADR 0122). */
+export const AWAY_MODE_LABEL: Readonly<Record<GroupAwayMode, string>> = {
+  room: 'Room name',
+  dim: 'Dim only',
+};
+
+/** The Away members choices in order. */
+export const AWAY_MODE_CHOICES: readonly { value: GroupAwayMode; label: string }[] = GROUP_AWAY_MODES.map((value) => ({
+  value,
+  label: AWAY_MODE_LABEL[value],
+}));
+
+/** The vital bars with a colour setting, in the pane's order. */
+export const VITAL_COLOR_ROWS: readonly { key: 'hp' | 'mana' | 'mp'; label: string }[] = [
+  { key: 'hp', label: 'HP' },
+  { key: 'mana', label: 'Mana' },
+  { key: 'mp', label: 'Moves' },
+];
+
+/** Writes one vital's colour setting. */
+export function setVitalColor(settings: SettingsStore, key: 'hp' | 'mana' | 'mp', color: ColorSetting): void {
+  settings.update({ group: { colors: { [key]: color } } });
+}
