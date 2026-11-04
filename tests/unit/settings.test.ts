@@ -277,7 +277,7 @@ describe('migrateSettings', () => {
   it('adds the timers options with defaults (ADR 0122)', () => {
     const s = migrateSettings({ appearance: {}, profile: 'pvp' });
     expect(s.timers).toEqual(defaultTimersSettings());
-    expect(Object.keys(s.timers.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'herb', 'stored', 'blind', 'charm']);
+    expect(Object.keys(s.timers.groups)).toEqual(['herb', 'sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
     expect(s.timers.groups.blind).toEqual({ enabled: true, color: 'auto', layout: 'default' });
     expect(s.timers).toMatchObject({
       style: 'bars',
@@ -314,7 +314,7 @@ describe('migrateSettings', () => {
     expect(t.groups.stored).toEqual(defaultTimersSettings().groups.stored);
     expect(t.groups.sanct).toEqual({ enabled: true, color: 'auto', layout: 'default' });
     expect(t.groups.herb).toEqual({ enabled: true, color: 'auto', layout: 'default' });
-    expect(Object.keys(t.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'herb', 'stored', 'blind', 'charm']);
+    expect(Object.keys(t.groups)).toEqual(['herb', 'sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
     expect(t.headers).toBe(false);
     expect('compact' in t).toBe(false);
     expect('cols' in t.groups.spell).toBe(false);

@@ -193,11 +193,11 @@ describe('panes on the context', () => {
     const groups = () => [...p.content.querySelectorAll<HTMLElement>('.wc-tm-g')].map((g) => g.dataset.group);
     const names = () => [...p.content.querySelectorAll('.wc-tm-list .wc-tm-n')].map((n) => n.textContent);
     // Herblore is there while enabled, even empty (its header holds the +).
-    expect(groups()).toEqual(['spell', 'herb', 'blind', 'charm']);
+    expect(groups()).toEqual(['herb', 'spell', 'blind', 'charm']);
     expect(names()).toEqual(['Armour', 'dark-skinned orc', 'Troll']);
     // Headers: the group name only (no count); Herblore's has its +.
     const heads = [...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')];
-    expect(heads.map((h) => h.textContent)).toEqual(['Spells', 'Herblore+', 'Blinds', 'Charmies']);
+    expect(heads.map((h) => h.textContent)).toEqual(['Herblore+', 'Spells', 'Blinds', 'Charmies']);
     // Bars by default: a pill with a fill; the time text is on.
     const chip = p.content.querySelector<HTMLElement>('.wc-tm-chip[data-id="spell:armour"], .wc-tm-chip[data-id="armour"]')!;
     expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.width).toMatch(/^(100\.0|9\d\.\d)%$/);
@@ -206,7 +206,7 @@ describe('panes on the context', () => {
     // Circles: a ring row; headers off hide them; a group off goes.
     t.settings.update({ timers: { style: 'circles', groups: { blind: { enabled: false } }, headers: false } });
     t.flush();
-    expect(groups()).toEqual(['spell', 'herb', 'charm']);
+    expect(groups()).toEqual(['herb', 'spell', 'charm']);
     expect(p.content.querySelectorAll('.wc-tm-rc')).toHaveLength(2);
     expect(p.content.querySelectorAll('.wc-tm-chip')).toHaveLength(0);
     // Headers off: all hidden but Herblore's.
@@ -215,7 +215,7 @@ describe('panes on the context', () => {
     // × forgets the charmie.
     p.content.querySelector('.wc-tm-x')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
-    expect(groups()).toEqual(['spell', 'herb']);
+    expect(groups()).toEqual(['herb', 'spell']);
     // Herblore's + opens the menu; a pick starts the herb and closes it.
     const add = p.content.querySelector<HTMLElement>('.wc-tm-add')!;
     expect(add.hidden).toBe(false);
@@ -227,7 +227,7 @@ describe('panes on the context', () => {
     row().dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
     expect(p.herbMenuOpen).toBe(false);
-    expect(names()).toEqual(['Armour', 'Healing']);
+    expect(names()).toEqual(['Healing', 'Armour']);
     // Running: checked in the menu, not pickable; Esc closes the menu.
     add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();

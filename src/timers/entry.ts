@@ -12,7 +12,7 @@
 /** The pane's groups, top to bottom (Inv §2.6.1). */
 export type TimerGroup = 'sanct' | 'spell' | 'buff' | 'debuff' | 'herb' | 'stored' | 'blind' | 'charm';
 
-export const TIMER_GROUPS: readonly TimerGroup[] = ['sanct', 'spell', 'buff', 'debuff', 'herb', 'stored', 'blind', 'charm'];
+export const TIMER_GROUPS: readonly TimerGroup[] = ['herb', 'sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm'];
 
 /** Group labels (Options, the `Group:` header rows). */
 export const TIMER_GROUP_LABELS: Readonly<Record<TimerGroup, string>> = {

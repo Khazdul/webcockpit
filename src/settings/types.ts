@@ -546,7 +546,7 @@ export function defaultGroupSettings(): GroupSettings {
 export function defaultTimersSettings(): TimersSettings {
   const g = (): TimerGroupSettings => ({ enabled: true, color: 'auto', layout: 'default' });
   return {
-    groups: { sanct: g(), spell: g(), buff: g(), debuff: g(), herb: g(), stored: g(), blind: g(), charm: g() },
+    groups: { herb: g(), sanct: g(), spell: g(), buff: g(), debuff: g(), stored: g(), blind: g(), charm: g() },
     style: 'bars',
     layout: 'flow',
     cols: 'auto',

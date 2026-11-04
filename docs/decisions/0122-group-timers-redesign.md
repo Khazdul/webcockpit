@@ -105,7 +105,7 @@ time). Timers never change colour.
 
 ### Timers pane
 
-- **Groups**, top to bottom: Sanctuary, Spells, Buffs, Debuffs, Stored,
+- **Groups**, top to bottom: Herblore (addendum), Sanctuary, Spells, Buffs, Debuffs, Stored,
   Blinds, Charmies. Your own sanctuary moves from Spells to Sanctuary.
 - **Style** (global, gear only, no switch in the pane): `bars` (a pill
   whose fill drains right to left under the name and time) or `circles`
@@ -275,7 +275,7 @@ time). Timers never change colour.
 After the owner's first test of the build:
 
 - **Herblore group.** Herblores leave Buffs and Debuffs for a timer group
-  of their own, `herb` ("Herblore", between Debuffs and Stored), with the
+  of their own, `herb` ("Herblore", first, above Sanctuary: owner, 2026-11-04), with the
   leaf icon and its own Auto colour, a herb green unlike Buffs (`#a6c95a`
   dark, `#5c7a12` light). A cell keeps its phase's kind (`phase: buff |
   debuff`; a debuff phase such as `Haste (recovery)` shows the down arrow)

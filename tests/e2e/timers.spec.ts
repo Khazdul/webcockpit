@@ -66,7 +66,7 @@ test('the Timers pane draws groups of bars, soonest first; ending soon in red; Ã
   await demoDone(page);
   await populate(page);
   // Herblore is there while enabled, even empty (its header holds the +).
-  await expect.poll(() => groupIds(page)).toEqual(['spell', 'buff', 'herb', 'blind', 'charm']);
+  await expect.poll(() => groupIds(page)).toEqual(['herb', 'spell', 'buff', 'blind', 'charm']);
   // Headers: the name only, no count.
   await expect(group(page, 'spell').locator('.wc-tm-h')).toHaveText('Spells');
   await expect(group(page, 'blind').locator('.wc-tm-h')).toHaveText('Blinds');
@@ -96,7 +96,7 @@ test('the Timers pane draws groups of bars, soonest first; ending soon in red; Ã
   await expect(tip).toContainText('left');
   // The charm Ã— forgets the charmie.
   await pane(page).locator('.wc-tm-x').click();
-  await expect.poll(() => groupIds(page)).toEqual(['spell', 'buff', 'herb', 'blind']);
+  await expect.poll(() => groupIds(page)).toEqual(['herb', 'spell', 'buff', 'blind']);
   expect(await page.evaluate(() => window.__wc!.app.game.timers.view().cells.charm.length)).toBe(0);
   expect(errors).toEqual([]);
 });
