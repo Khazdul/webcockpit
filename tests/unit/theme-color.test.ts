@@ -7,6 +7,8 @@ import {
   isLight,
   lighten,
   lineHighlight,
+  luminance,
+  panelFill,
   lightShift,
   normalizeHex,
   paneBorder,
@@ -150,6 +152,20 @@ describe('light transforms (Inv §10.5)', () => {
   it('line highlight lifts 12 % toward white on dark, black on light', () => {
     expect(lineHighlight('#000000')).toBe('#1f1f1f');
     expect(lineHighlight('#f4ecd8')).toBe('#d7d0be');
+  });
+
+  it('the panel fill is the background a little toward the foreground (ADR 0121)', () => {
+    const dark = panelFill('#000000', '#bcbcbc');
+    expect(dark).not.toBe('#000000');
+    expect(luminance(dark)).toBeGreaterThan(luminance('#000000'));
+    expect(luminance(dark)).toBeLessThan(luminance(lineHighlight('#000000')));
+    // Paper: darker than the paper, toward its dark ink.
+    const paper = panelFill('#f4ecd8', '#3a362e');
+    expect(luminance(paper)).toBeLessThan(luminance('#f4ecd8'));
+    expect(luminance(paper)).toBeGreaterThan(luminance(lineHighlight('#f4ecd8')));
+    // A blue background stays blue; a foreground too close to the background mixes toward white.
+    expect(panelFill('#00005f', '#c0c0c0')).toMatch(/^#[0-9a-f]{6}$/);
+    expect(luminance(panelFill('#101010', '#141414'))).toBeGreaterThan(luminance('#141414'));
   });
 
   it('pane hover outline follows the main background (ADR 0084 addendum)', () => {

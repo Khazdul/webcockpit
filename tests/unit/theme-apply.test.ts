@@ -29,6 +29,7 @@ describe('root tokens', () => {
     expect(t['--c-accent']).toBe('#ffaf00');
     expect(t['--c-sel-bg']).toBe('#bcbcbc');
     expect(t['--c-line-hl']).toBe('#1f1f1f');
+    expect(t['--c-panel']).toMatch(/^#[0-9a-f]{6}$/);
     expect(t['--star-bright']).toBe('#74e8e8');
     expect(t['--ui-warn']).toBe('#ffb300');
     expect(t['--pane-bg-red']).toBe('#1a0e0e');
