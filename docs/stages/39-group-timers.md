@@ -145,3 +145,37 @@ the estimate (their flag never turns off).
 - The Group bars have small black stripes: make them solid.
 
 Done in the round-1 commits (ADR 0122 addendum "Owner round 1").
+
+2026-11-04/05, later rounds: Herblores first in Timers and named
+"Herblores"; one-line Group rows keep the bars in one column at the right
+edge (icons left of them); no "(the band word)" in the bar tooltips; the
+Pulse signal also pulses the timer's icon; the Fight card is off by
+default. Then: "I övrigt känns det tillräckligt bra för att vi ska köra
+på detta" — approved, with a code review and a performance check first.
+
+## Review and performance (before the merge)
+
+- **Code review** (a fresh reviewer, read-only): three must-fix items on
+  the Group side (two time formats for one sanctuary, a full Group render
+  on every Char change, every row re-inserted on a change), leftovers from
+  the 39a stopgaps, duplicated SVG/ring/tick/colour helpers, a 761-line
+  group.ts. All fixed (3e1d56e..f7a14b5): one short and one exact time
+  format, Group split into group-model.ts and group.ts with keyed rows and
+  the sanctuary ring ticking in place, shared icon/ring/tick helpers,
+  timers.css of its own, no layout reads on the Timers tick.
+- **Performance** (`bench/browser-bench.ts --only budgets,play,keys,soak`,
+  main vs branch interleaved, Firefox and Chromium at the owner's
+  geometry; plus a micro-benchmark of 500 fight and Group updates and a
+  20 s Timers tick):
+  - Unchanged: key → send, input delay under load, text frames, burst
+    (Firefox misses its burst budget on main too), soak.
+  - Group renders per second while playing: main 1.9, branch before the
+    cleanup 3.5, after 2.3.
+  - Per pane update the richer DOM still costs more: Firefox frame after
+    an update 1.1 ms on main, 2.1 ms now (3.7 ms before the cleanup);
+    Chromium 2.3 → 3.8 ms (5.4 before); the Timers tick's pane script
+    about 1.0 → 2.5 ms once a second. No long tasks; the worst frame
+    measured 8–9 ms, under the 16.7 ms frame.
+- **Tests:** unit 3165 passed; e2e 726/728 in the full run, the two
+  Firefox failures (layout drag cursor, Scripts import) pass 78/78 on a
+  re-run and are outside this stage.

@@ -63,9 +63,16 @@ Statuses: Next, In progress, Owner testing, Done.
   zone, statuses, away modes, tooltips, gear); 39c Timers pane (bars or
   circles, flow or grid, headers, time text, ending-soon signal, colour
   picker, gear); 39d `state.group` fields, docs, e2e, test guide.
-- **Tests:** unit 3154 passed; e2e 717/726 in the full run, the failures
-  re-run green except the script editor Ctrl+F test (fails on main too).
-- **Next:** owner test (stage file test guide), then feedback rounds.
+- **Tests:** unit 3165 passed; e2e 726/728, the two Firefox failures pass
+  on re-run (outside this stage).
+- **Owner rounds (2026-11-04/05):** Herblores group first with a + menu,
+  claw foe icon, no divider, opponent alone when you tank, Fight card
+  setting (off by default), solid bars, aligned one-line rows, icon pulse.
+  Approved ("tillräckligt bra för att vi ska köra på detta").
+- **Review and performance:** code review fixed (Group split into model and
+  DOM, keyed rows, shared helpers); play speed unchanged vs main, pane
+  updates cost ~1–1.5 ms more per frame (details in the stage file).
+- **Next:** merge to main and release 0.2.5 (with stage 38).
 - **Open:** recasting sanctuary on a glowing member keeps the old
   estimate; one-line Group fight row has no names; tiny Timers panes.
 - **Commits:** 11c50a2..HEAD on `stage-39-group-timers`, not merged.
