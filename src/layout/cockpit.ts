@@ -650,9 +650,11 @@ export class Cockpit {
     if (!btns) return;
     const p = paneSettingsOf(s.panes, id);
     const framed = shell.el.hasAttribute('data-framed');
-    // Clear of the nameplate on a frame; a borderless pane has nothing to keep clear (ADR 0095 round 3: no name tag).
+    // Clear of the hood on a frame; a borderless pane has nothing to keep clear (ADR 0095 round 3: no name tag).
     const freeFrom = shell.titleEnd;
-    const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS, btns.length);
+    // No extra gap beside the hood: its padding and outline, and the air in each button's two cells,
+    // keep them apart (ADR 0123; the centred hood leaves less room than the old nameplate did).
+    const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS, btns.length, 0);
     btns.forEach(({ what, el: b }, i) => {
       // Dropped from the left: the first `n - fit` go (the Gear first).
       b.toggleAttribute('data-drop', i < btns.length - fit);
