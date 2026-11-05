@@ -4,6 +4,8 @@
   owner made it a permanent feature, see the addendum at the end)
 - Date: 2026-10-16
 - Changes: ADR 0010 (pane frame glyphs) for the trial
+- Superseded in part by ADR 0123 (stage 40): the frame's look (the glass
+  rim and nameplate in "Frames" and its addendum) is now the lantern frame
 
 ## Context
 
@@ -54,6 +56,12 @@ layout and Options; the frame change in `src/panes/frame.ts` and CSS.
 Dropping the trial = revert the branch.
 
 ### Frames
+
+> Superseded in part by ADR 0123 (stage 40, the lantern frame): the band
+> is opaque iron (no rim blur, no `.wc-pane-blur` strips), the nameplate
+> is a hood centred at the top, the title Cinzel. The cell ring, the
+> insets, the whole-device-pixel rules and the worker's rim and plate
+> model (`border`, `plate`) still hold as written here.
 
 Thin equal-thickness bevelled frames drawn in the middle of the outer
 frame cells, keeping the cell grid and pane sizes.
@@ -199,6 +207,9 @@ unchanged.
   the frame width) and `drawRaysBack`'s shadow cut from the whole frame box.
 
 **Addendum (2026-10-17, owner item 35): glass rim and nameplate.**
+
+> Superseded by ADR 0123 (stage 40): the look below (glass, bevel, plate
+> and fillets, the rim's blur strips) is replaced by the lantern frame.
 
 The owner picked mockup board 14 "Light hanging plate"
 (`notes/research/frame-mockup/V14.dc.html`) with two fixes: the title sat a

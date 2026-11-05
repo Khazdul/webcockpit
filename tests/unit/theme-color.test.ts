@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PANE_COLORS } from '../../src/layout/types';
 import {
+  BORDER_L_LIGHT,
+  contrast,
   darkInk,
+  lightTintFill,
   hexToHsl,
   hslToHex,
   isLight,
@@ -79,9 +82,43 @@ describe('pane tints and borders (Inv §10.4)', () => {
     expect(x.l).toBeCloseTo(80, 0);
     expect(x.h).toBeCloseTo(bg.h, 0);
     expect(paneIsLight('black', '#f4ecd8')).toBe(true);
-    // A named tint stays dark on a light terminal (its fill is dark).
-    expect(paneIsLight('red', '#f4ecd8')).toBe(false);
-    expect(paneBorder('red', '#f4ecd8')).toBe('#2e2222');
+    // A named tint is a pale wash on a light page (ADR 0123 "Paper"): a light pane, its border at L80 in its hue.
+    expect(paneIsLight('red', '#f4ecd8')).toBe(true);
+    expect(paneBorder('red', '#f4ecd8')).toBe(hslToHex(2, 60, BORDER_L_LIGHT));
+  });
+
+  it('a tint on a light page is a pale wash of its hue, as light as the page (ADR 0123 "Paper")', () => {
+    const light = TERMINAL_BG_PRESETS.filter((p) => isLight(p.hex)).map((p) => p.hex);
+    expect(light).toContain('#f4ecd8');
+    for (const page of [...light, '#ffffff', '#e8e8e8', '#dfe8f0']) {
+      for (const c of PANE_COLORS) {
+        const tint = PANE_TINTS[c];
+        const fill = paneEffectiveBg(c, page);
+        if (!tint.hs) {
+          expect(fill).toBe(page);
+          continue;
+        }
+        expect(fill).toBe(lightTintFill(tint.hs, page));
+        expect(isLight(fill)).toBe(true);
+        // As light as the page: within 1 % of its luminance, so every colour fitted to the page keeps its contrast.
+        expect(Math.abs(luminance(fill) - luminance(page)) / luminance(page)).toBeLessThan(0.01);
+        expect(paneIsLight(c, page)).toBe(true);
+      }
+    }
+    // The hue shows: on paper a red wash leans red, a blue one blue; on a neutral grey page the wash takes the tint's hue.
+    const page = hexToHsl('#f4ecd8').h;
+    expect(hexToHsl(paneEffectiveBg('red', '#f4ecd8')).h).toBeLessThan(page - 10);
+    expect(hexToHsl(paneEffectiveBg('blue', '#f4ecd8')).h).toBeGreaterThan(150);
+    const rh = hexToHsl(paneEffectiveBg('red', '#e0e0e0')).h;
+    expect(rh < 10 || rh > 355).toBe(true);
+    expect(Math.abs(hexToHsl(paneEffectiveBg('blue', '#e0e0e0')).h - 210)).toBeLessThan(5);
+    expect(Math.abs(hexToHsl(paneEffectiveBg('green', '#e0e0e0')).h - 130)).toBeLessThan(5);
+    // A white page leaves no room for a hue: the wash is white (it may not be lighter than the page).
+    expect(contrast(paneEffectiveBg('red', '#ffffff'), '#ffffff')).toBeLessThan(1.02);
+    // A dark page keeps the dark fills.
+    for (const c of PANE_COLORS) {
+      if (PANE_TINTS[c].fill) expect(paneEffectiveBg(c, '#000000')).toBe(PANE_TINTS[c].fill);
+    }
   });
 
   it('effective bg is the fill, or the terminal bg for None', () => {

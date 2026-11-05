@@ -14,7 +14,7 @@ import {
   shadeVar,
 } from '../../src/theme/apply';
 import { CellMetrics, cellHeight, nominalCell } from '../../src/theme/cells';
-import { hslToHex, paneShades } from '../../src/theme/color';
+import { hslToHex, paneBorder, paneEffectiveBg, paneShades } from '../../src/theme/color';
 import { FONTS, fontPx } from '../../src/theme/fonts';
 import { INPUT_COLOR_IDS, PAPER_PALETTE, TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
 
@@ -162,7 +162,8 @@ describe('pane tokens', () => {
     const t = paneTokens(s, 'timers');
     expect(t['--pane-bg']).toBe('#1a0e0e');
     expect(t['--pane-border']).toBe('#2e2222');
-    expect(Object.keys(t)).toHaveLength(9);
+    expect(t['--pane-fill']).toBe('#1a0e0e');
+    expect(Object.keys(t)).toHaveLength(10);
     expect(t['--pane-shade-pane-bg']).toBe(paneShades('red', '#000000').paneBg);
     expect(t['--pane-shade-dim']).toBe(hslToHex(2, 60, 27));
     expect(shadeVar('paneBg')).toBe('--pane-shade-pane-bg');
@@ -175,10 +176,13 @@ describe('pane tokens', () => {
     applyPaneTheme(el, paper, 'character');
     expect(el.hasAttribute('data-light')).toBe(true);
     expect(el.style.getPropertyValue('--pane-bg')).toBe('#f4ecd8');
+    // A tint on paper is a pale wash of its hue, a light pane too (ADR 0123 "Paper").
     paper.panes.timers.color = 'red';
     applyPaneTheme(el, paper, 'timers');
-    expect(el.hasAttribute('data-light')).toBe(false);
-    for (const id of PANE_IDS) expect(Object.keys(paneTokens(s, id))).toHaveLength(9);
+    expect(el.hasAttribute('data-light')).toBe(true);
+    expect(el.style.getPropertyValue('--pane-bg')).toBe(paneEffectiveBg('red', '#f4ecd8'));
+    expect(el.style.getPropertyValue('--pane-bg')).not.toBe('#f4ecd8');
+    for (const id of PANE_IDS) expect(Object.keys(paneTokens(s, id))).toHaveLength(10);
   });
 
   it('a clear pane (ADR 0095): the page as its background, its tint kept for the rim, data-clear set', () => {
@@ -187,17 +191,27 @@ describe('pane tokens', () => {
     paper.panes.timers.glass = false;
     const t = paneTokens(paper, 'timers');
     expect(t['--pane-bg']).toBe('#f4ecd8');
-    expect(t['--pane-border']).toBe('#2e2222');
+    expect(t['--pane-border']).toBe(paneBorder('red', '#f4ecd8'));
+    // Its tint's fill stays known: a clear pane's cards lie on it (ADR 0123 `--card-back`); on paper the pale wash.
+    expect(t['--pane-fill']).toBe(paneEffectiveBg('red', '#f4ecd8'));
     expect(t['--pane-shade-pane-bg']).toBe(paneShades('red', '#f4ecd8', false).paneBg);
     const el = document.createElement('div');
     applyPaneTheme(el, paper, 'timers');
-    // Its text sits on the light page, not on the dark red fill.
+    // Its text sits on the light page.
     expect(el.hasAttribute('data-light')).toBe(true);
     expect(el.hasAttribute('data-clear')).toBe(true);
     paper.panes.timers.glass = true;
     applyPaneTheme(el, paper, 'timers');
-    expect(el.hasAttribute('data-light')).toBe(false);
+    // Glass on paper: the pale red wash, light as well.
+    expect(el.hasAttribute('data-light')).toBe(true);
     expect(el.hasAttribute('data-clear')).toBe(false);
+    // On a dark page a clear tinted pane's content follows the page, its glass the dark fill.
+    const dark = migrateSettings({ appearance: { bg: '#000000' } });
+    dark.panes.timers.color = 'red';
+    dark.panes.timers.glass = false;
+    expect(paneTokens(dark, 'timers')['--pane-fill']).toBe('#1a0e0e');
+    applyPaneTheme(el, dark, 'timers');
+    expect(el.hasAttribute('data-light')).toBe(false);
   });
 });
 

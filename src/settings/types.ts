@@ -98,12 +98,13 @@ export interface PaneSettings {
   /** Shown. Allocation never changes this (ADR 0010). */
   on: boolean;
   color: PaneColor;
-  /** Draw the half-block frame. */
+  /** Draw the frame (the lantern frame, ADR 0123). */
   border: boolean;
   /**
    * Glass background (ADR 0095): the pane's fill inside the frame, over a
    * blur with weather on. Off, the pane is clear: no fill and no blur, so
-   * what lies behind it shows sharp (a frame keeps its glass rim).
+   * what lies behind it shows sharp (a frame keeps its iron band and hood,
+   * ADR 0123).
    */
   glass: boolean;
 }

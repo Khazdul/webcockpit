@@ -33,56 +33,67 @@
   display: none;
 }
 
-/* The frame (owner item 35, design 14 "Light hanging plate"; ADR 0091
- * "Frames", addendum: glass rim and nameplate): a frosted glass rim of equal
- * thickness in the outer frame cells, tinted by the pane colour, with a
- * nameplate of the same glass hanging from the top rim, joined to it by
- * concave fillets, holding the title.
+/* The lantern frame (ADR 0123 "Lantern pane frame"; geometry ADR 0091
+ * "Frames"): a thin band of dark iron with a faint hue of the pane colour,
+ * riveted L-shaped corner brackets, a small iron hood centred on the top
+ * band holding the title (lit from behind), and a window lit from within
+ * by the lamp: a hot spot under the hood falling off to a dark vignette.
  *
- * `.wc-pane-rim` is the glass: a box over the frame box (`--frame-l/r/top/b`
- * from pane.ts, whole device pixels of the page), clipped (pane.ts,
- * frame.ts `frameRimPath`) to the ring and the plate, so rim and plate are
- * one piece with one tint, one sheen and, with weather on, one backdrop blur
- * (weather.css). It comes before the fill in the pane, so its backdrop is
- * what lies behind the pane. `::before` is the outer bevel (a thin dark
- * edge, a specular line inside it on top and left, a softer one bottom and
- * right); `svg.wc-pane-seam` the inner seam along the hole's edge (dark
- * where the thick glass meets the pane top/left and round the plate, light
- * bottom/right), stroked twice the seam width on the edge: the clip keeps
- * the half in the glass, so it is `--frame-hair` (one device px or more)
- * wide and sharp.
- *
- * Colour rule (every pane, the same formula; Plain's chroma 0 stays neutral
- * grey; capped so every shade stays inside sRGB for all presets, else the
- * specular line shows a yellow fringe in Chromium):
- *   glass     = oklch(from --pane-border L .59, C min(c × 10, .105), h)
- *   highlight = oklch(from --pane-border L .95, C min(c × 1.2, .018), h)
- *   title ink = oklch(from --pane-border L .28, C min(c × 4, .03), h)
- * (owner items 39, 44, 47: the glass was L .66 and looked too light; the
- * ink was L .17, near black, then .19, and the lip under the letters 70 %
- * of the highlight, then 60 %: no visible difference, so now clearly
- * softer both ways, ink L .28 and the lip 42 %, still engraved.)
- * The bevel's light strokes are the highlight mixed in: the specular line
- * 58 % and the light seam 32 % (owner item 51: at 85 % and 40 % the
- * specular line, ~215 grey beside a ~80 grey rim over black, stung the eye;
- * the dark edge eased to 56 % with it, so the rim keeps its depth). The
- * title's lip (42 %) stays the dimmest light, under the seam and the line.
- * The rim and plate are the glass over what is behind, with a white sheen
- * from the top: at 52 % with weather on (weather.css; the sky behind tints
- * it), at 64 % over the flat page with weather off (at 52 % over black it
- * looked dull and the dark title lost contrast), at 60 % on a light page
- * either way (see below). */
-.wc-pane[data-framed] {
-  background: transparent;
-  --glass: oklch(from var(--pane-border) 0.59 min(calc(c * 10), 0.105) h);
-  --glass-hi: oklch(from var(--pane-border) 0.95 min(calc(c * 1.2), 0.018) h);
-  --ink: oklch(from var(--pane-border) 0.28 min(calc(c * 4), 0.03) h);
-  --glass-mix: 64%;
-  --glass-edge: rgb(0 0 0 / 0.56);
-  --glass-seam: rgb(0 0 0 / 0.45);
+ * Tokens, on every pane (derived from `--pane-border`, `--pane-bg` and
+ * `--pane-fill`, src/theme/apply.ts `paneTokens`; one formula for every
+ * tint; Plain and Grey have chroma 0, so their lamp is candle light):
+ *   --lamp        candle light, coloured by the tint: in oklab at L .78, the
+ *                 candle (C .085 at h 70) plus the border's hue at C .06,
+ *                 both weighted by `--lamp-w` (the border's chroma × 60, at
+ *                 most 1): a grey border (Plain, Grey) gives the candle
+ *                 alone; a tint its own hue over 40 % of the candle, so the
+ *                 light is coloured but restrained (and a hue opposite the
+ *                 candle, blue, is not cancelled to grey). Mixed in oklab
+ *                 (a + b), so no hue wraps. Every value stays inside sRGB.
+ *   --iron        L .25, C min(c × 3, .03) in the hue: the band and hood
+ *   --iron-hi     L .42, C min(c × 3, .035): lit edges, brackets
+ *   --iron-lo     L .14, C min(c × 3, .02): shadowed edges, rivets
+ *   --frost2      the lamp at 5 %, --frost-edge at 24 %: the rims of the
+ *                 frosted cards in the window (Group, Timers; a card itself
+ *                 is the lamp at 8 % in one flat colour, group.css)
+ *   --card-back   what a card lies on: transparent, or on a clear pane its
+ *                 tint's fill at 62 % so text stays readable over the sky
+ *   --window-base the window's fill under the lamp, and --window-blur its
+ *                 backdrop filter (weather.css: glass)
+ *   --vignette    the window's inset shadow
+ * A light pane (Paper) redefines the iron as light metal and adds its own
+ * tokens: see "Paper" below.
+ * Nothing here animates and no backdrop filter is added (ADR 0123 "Cost"):
+ * it is all static paint, repainted only when a pane is placed or its
+ * theme changes. */
+.wc-pane {
+  --lamp-w: min(hypot(a, b) * 60, 1);
+  --lamp: oklab(
+    from var(--pane-border) 0.78
+      calc(a / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0291 * (1 - 0.6 * var(--lamp-w)))
+      calc(b / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0799 * (1 - 0.6 * var(--lamp-w)))
+  );
+  --iron: oklch(from var(--pane-border) 0.25 min(calc(c * 3), 0.03) h);
+  --iron-hi: oklch(from var(--pane-border) 0.42 min(calc(c * 3), 0.035) h);
+  --iron-lo: oklch(from var(--pane-border) 0.14 min(calc(c * 3), 0.02) h);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --card-back: transparent;
+  --window-base: var(--pane-bg, var(--term-bg));
+  --vignette: rgb(0 0 0 / 0.55);
 }
 
-.wc-pane-blur,
+.wc-pane[data-clear] {
+  --card-back: color-mix(in srgb, var(--pane-fill, var(--pane-bg)) 62%, transparent);
+}
+
+.wc-pane[data-framed] {
+  background: transparent;
+}
+
+/* `.wc-pane-rim` (the iron) and `.wc-pane-frame` (the window and the glow)
+ * cover the frame box (`--frame-l/r/top/b` from pane.ts, whole device
+ * pixels of the page). */
 .wc-pane-rim,
 .wc-pane-frame {
   position: absolute;
@@ -94,23 +105,57 @@
   user-select: none;
 }
 
+/* The iron: clipped (pane.ts, frame.ts `frameRimPath`) to the band and the
+ * hood. Its layers, top first: the four corner rivets (lit by the lamp,
+ * centred in the band), the four corner brackets (brighter iron squares
+ * `--frame-arm` wide, a dark hairline where they end; the clip leaves the
+ * L in the band), a sheen from the top, and the iron. Opaque, so no backdrop blur (the old glass rim's four
+ * blur strips are gone, ADR 0123 "Iron, not glass"). */
 .wc-pane-rim {
+  --rivet: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--lamp) 70%, #fff) 0 30%,
+    var(--iron-lo) 52% 74%,
+    transparent 96%
+  );
+  --rivet-at: var(--frame-t, 5px) var(--frame-t, 5px) no-repeat;
+  --arm: var(--frame-arm, 13px) var(--frame-arm, 13px) no-repeat;
+  --arm-in: calc(var(--frame-arm, 13px) - var(--frame-hair, 1px)) calc(var(--frame-arm, 13px) - var(--frame-hair, 1px)) no-repeat;
+  --bracket: var(--iron-hi), color-mix(in srgb, var(--iron-hi) 65%, var(--iron));
+  --bracket-end: linear-gradient(rgb(0 0 0 / 0.75), rgb(0 0 0 / 0.75));
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 40%),
-    color-mix(in srgb, var(--glass) var(--glass-mix), transparent);
+    var(--rivet) left top / var(--rivet-at),
+    var(--rivet) right top / var(--rivet-at),
+    var(--rivet) left bottom / var(--rivet-at),
+    var(--rivet) right bottom / var(--rivet-at),
+    linear-gradient(135deg, var(--bracket)) left top / var(--arm-in),
+    linear-gradient(225deg, var(--bracket)) right top / var(--arm-in),
+    linear-gradient(45deg, var(--bracket)) left bottom / var(--arm-in),
+    linear-gradient(315deg, var(--bracket)) right bottom / var(--arm-in),
+    var(--bracket-end) left top / var(--arm),
+    var(--bracket-end) right top / var(--arm),
+    var(--bracket-end) left bottom / var(--arm),
+    var(--bracket-end) right bottom / var(--arm),
+    linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 30%, rgb(0 0 0 / 0.18)),
+    var(--iron);
 }
 
+/* The band's outer edge: a dark hairline, a lit hairline inside it top and
+ * left, a shadowed one bottom and right. */
 .wc-pane-rim::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 4px;
-  border: var(--frame-hair, 1px) solid var(--glass-edge);
+  border-radius: 3px;
+  border: var(--frame-hair, 1px) solid rgb(0 0 0 / 0.9);
   box-shadow:
-    inset var(--frame-hair, 1px) var(--frame-hair, 1px) 0 color-mix(in srgb, var(--glass-hi) 58%, transparent),
-    inset calc(-1 * var(--frame-hair, 1px)) calc(-1 * var(--frame-hair, 1px)) 0 color-mix(in srgb, var(--glass) 45%, transparent);
+    inset var(--frame-hair, 1px) var(--frame-hair, 1px) 0 color-mix(in srgb, var(--iron-hi) 80%, transparent),
+    inset calc(-1 * var(--frame-hair, 1px)) calc(-1 * var(--frame-hair, 1px)) 0 var(--iron-lo);
 }
 
+/* The inner edge: a dark hairline round the hole (frame.ts `frameSeams`),
+ * stroked twice the seam width on the edge: the clip keeps the half in the
+ * iron, so it is `--frame-hair` (one device px or more) wide and sharp. */
 .wc-pane-seam {
   position: absolute;
   inset: 0;
@@ -127,42 +172,71 @@
 }
 
 .wc-pane-seam > .wc-seam-dark {
-  stroke: var(--glass-seam);
+  stroke: rgb(0 0 0 / 0.9);
 }
 
 .wc-pane-seam > .wc-seam-light {
-  stroke: color-mix(in srgb, var(--glass-hi) 32%, transparent);
+  stroke: color-mix(in srgb, var(--iron-lo) 50%, #000);
 }
 
-/* The fill: the inside of the rim less the plate (`--frame-hole`), so the
- * plate, like the rim, is glass over what is behind the pane. Weather off,
- * the pane colour, opaque (behind a pane there is only the page, and a
- * floating pane keeps its ring in the terminal background over the game
- * text); weather on, light glass (weather.css). */
+/* The glow: a lamp-coloured shadow round the frame box. The pane's box
+ * clips it (`overflow: hidden`, `contain: strict`), so it lies only in the
+ * inset ring between the band and the pane's edge, never on a neighbour. */
+.wc-pane[data-framed] > .wc-pane-frame {
+  border-radius: 3px;
+  box-shadow: 0 0 4px 1px color-mix(in srgb, var(--lamp) 26%, transparent);
+}
+
+/* The window: the hole's bounds (inside the band), clipped round the hood
+ * (`--frame-window`, pane.ts). The pane's fill (`--window-base`) with the
+ * lamp over it: a hot spot under the hood and a wide fall-off from the
+ * upper middle; a lamp hairline on its edge and the vignette inside. The
+ * light is the same in every pane, by the cell height, not the pane's
+ * size. */
 .wc-pane-frame::before {
   content: '';
   position: absolute;
+  inset: var(--frame-t, 5px);
+  clip-path: var(--frame-window, none);
+  background:
+    radial-gradient(38% calc(2.6 * var(--cell-h, 19px)) at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%),
+    var(--window-base);
+  box-shadow:
+    inset 0 0 0 var(--frame-hair, 1px) color-mix(in srgb, var(--lamp) 10%, transparent),
+    inset 0 0 calc(1.3 * var(--cell-h, 19px)) var(--vignette);
+  -webkit-backdrop-filter: var(--window-blur, none);
+  backdrop-filter: var(--window-blur, none);
+}
+
+/* Borderless (ADR 0095): no iron, hood, brackets or glow; the window light
+ * and a softer vignette stay, on the pane's own background (the pane's
+ * fill, or with weather on its glass: weather.css), so the content still
+ * reads as a lantern. A clear borderless pane has neither. */
+.wc-pane:not([data-framed]) > .wc-pane-rim {
+  display: none;
+}
+
+.wc-pane:not([data-framed]) > .wc-pane-frame {
   inset: 0;
-  background: var(--pane-bg, var(--term-bg));
-  clip-path: var(--frame-hole, none);
 }
 
-/* The rim's backdrop blur (weather.css): four strips under the rim, each
- * clipped to the glass in it (pane.ts, frame.ts `frameStrips`). Weather off
- * there is nothing to blur. */
-.wc-pane-blur {
+.wc-pane:not([data-framed]) > .wc-pane-frame::before {
+  inset: 0;
+  clip-path: none;
+  background:
+    radial-gradient(38% calc(2.6 * var(--cell-h, 19px)) at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%);
+  box-shadow: inset 0 0 calc(var(--cell-h, 19px)) color-mix(in srgb, var(--vignette) 82%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.wc-pane[data-clear]:not([data-framed]) > .wc-pane-frame {
   display: none;
 }
 
-.wc-pane-blur > i {
-  position: absolute;
-}
-
-.wc-pane:not([data-framed]) > :is(.wc-pane-frame, .wc-pane-rim, .wc-pane-blur) {
-  display: none;
-}
-
-/* A floating pane keeps the ring outside the rim opaque in the terminal
+/* A floating pane keeps the ring outside the band opaque in the terminal
  * background, so the game text does not peek around it. */
 .wc-pane[data-framed][data-floating] {
   background: var(--term-bg);
@@ -171,41 +245,48 @@
 /* A clear pane (`data-clear`, the glass background off, ADR 0095): no
  * fill inside and no blur, weather on or off, so what lies behind shows
  * sharp: the page, the weather, and under a float the game text and the
- * panes it covers (weather/index.ts `floatHoles` cuts no holes for it). A
- * frame keeps its rim and plate, the tint's glass without blur (weather.css);
- * a borderless pane has no background at all. The content's colours follow
- * the page then (theme/apply.ts `paneTokens`: `--pane-bg` is the page's). */
+ * panes it covers (weather/index.ts `floatHoles` cuts no holes for it). The
+ * lamp shows as a glow round the window's inner edge and a stronger halo
+ * outside; the iron stays. A borderless clear pane has no background at
+ * all. The content's colours follow the page (theme/apply.ts `paneTokens`:
+ * `--pane-bg` is the page's). */
 .wc-pane[data-clear],
 .wc-pane[data-clear][data-framed][data-floating] {
   background: transparent;
 }
 
 .wc-pane[data-clear] > .wc-pane-frame::before {
-  display: none;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    inset 0 0 0 var(--frame-hair, 1px) color-mix(in srgb, var(--lamp) 22%, transparent),
+    inset 0 0 calc(var(--cell-h, 19px)) color-mix(in srgb, var(--lamp) 24%, transparent);
 }
 
-/* A light page (Paper): the fixed-lightness glass over it would be paler
- * than the page around a light pane, so it is mixed denser, and the dark
- * edges are softer (a black hairline on a light page looked drawn on). */
-:root[data-light] .wc-pane[data-framed] {
-  --glass-mix: 60%;
-  --glass-edge: rgb(0 0 0 / 0.42);
-  --glass-seam: rgb(0 0 0 / 0.3);
+.wc-pane[data-clear][data-framed] > .wc-pane-frame {
+  box-shadow: 0 0 5px 1px color-mix(in srgb, var(--lamp) 36%, transparent);
 }
 
-/* The title on the plate: a little smaller than the text, bold, engraved
- * (dark ink with a light lip under each stroke). Its box runs from the
- * rim's outer edge to the plate's bottom (pane.ts, frame.ts `framePlate`)
- * and the label's box is trimmed to the capitals (`text-box`), so the
- * capitals sit in the middle of the plate as seen, rim included, in any
- * font (item 35: in the mockup they sat a little low; item 40: the plate
- * ends a px higher, the letters stay where they were).
- * The plate's shadow on the pane is `::after`'s, shown only below the
- * plate's bottom edge: as the box's own shadow its blur fell on the rim as
- * a thin dark vertical line either side of the plate (owner item 46; a
- * clip at the box's sides still left a device-px line at 2×). Above the
- * content, so a pane that fills its frame (the map) does not hide it. */
+/* The hood and its title (ADR 0123 "Title"): iron like the band, from the
+ * frame's top edge to `--plate-y1` (pane.ts, frame.ts `framePlate`),
+ * centred, its lower corners rounded, outlined by a dark hairline and
+ * casting a soft shadow on the band and the window; a recessed rivet each
+ * side of the label. The label is Cinzel Bold (bundled, src/theme/fonts.ts
+ * `TITLE_FACE`) in the lamp's colour with a soft glow, as if lit from
+ * behind through the hood; its size is the cell height's (`--title-px`,
+ * frame.ts `titlePx`, the width pane.ts measures). Its box is trimmed to
+ * the capitals (`text-box`), so they sit in the hood's middle in any font.
+ * Above the content, so a pane that fills its frame (the map) does not
+ * hide it. */
 .wc-pane-title {
+  --hood-rivet: radial-gradient(
+    circle closest-side,
+    var(--iron-lo) 0 52%,
+    color-mix(in srgb, var(--iron-hi) 85%, transparent) 70%,
+    transparent 96%
+  );
+  --hood-rivet-d: max(3px, calc(0.34 * var(--cell-w, 10px)));
   position: absolute;
   left: var(--plate-x0, 0px);
   top: 0;
@@ -215,29 +296,41 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0 0 var(--plate-r, 4px) var(--plate-r, 4px);
-  font-size: 0.68em;
+  border-radius: 0 0 var(--plate-r, 6px) var(--plate-r, 6px);
+  background:
+    var(--hood-rivet) left calc(0.62 * var(--cell-w, 10px) - var(--hood-rivet-d) / 2) top calc(50% + var(--frame-t, 5px) / 4) / var(--hood-rivet-d) var(--hood-rivet-d) no-repeat,
+    var(--hood-rivet) right calc(0.62 * var(--cell-w, 10px) - var(--hood-rivet-d) / 2) top calc(50% + var(--frame-t, 5px) / 4) / var(--hood-rivet-d) var(--hood-rivet-d) no-repeat,
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(0 0 0 / 0.15)),
+    var(--iron);
+  /* The band's outer edge and lit line run on over the hood's top (the
+   * clip below cuts the outline there), so the band reads unbroken. */
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 0 var(--hood-edge, rgb(0 0 0 / 0.9)),
+    inset 0 calc(2 * var(--frame-hair, 1px)) 0 var(--hood-edge-lit, color-mix(in srgb, var(--iron-hi) 80%, transparent)),
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 var(--iron-hi),
+    0 0 0 var(--frame-hair, 1px) rgb(0 0 0 / 0.9),
+    0 2px 5px rgb(0 0 0 / 0.5);
+  /* Nothing above the frame's top edge (the outline and shadow there would
+   * fall in the gap). */
+  clip-path: inset(0 -8px -8px -8px);
+  font-family: "Cinzel", Georgia, "Times New Roman", serif;
+  font-size: var(--title-px, 11.75px);
   font-weight: 700;
-  letter-spacing: 0.02em;
+  font-variant-ligatures: none;
+  letter-spacing: 0.08em;
   line-height: 1;
   white-space: pre;
-  color: var(--ink);
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--glass-hi) 42%, transparent);
+  color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow:
+    0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent),
+    0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent);
   z-index: 2;
 }
 
-.wc-pane-title::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 1px 1.5px -0.5px rgb(0 0 0 / 0.42);
-  clip-path: inset(100% -3px -4px -3px);
-  pointer-events: none;
-}
-
+/* The tracking after the last letter would push the label left of centre. */
 .wc-pane-title > span {
   text-box: trim-both cap alphabetic;
+  margin-right: -0.08em;
 }
 
 .wc-pane-title:empty {
@@ -303,13 +396,13 @@
   --icon: 0.66em;
 }
 
-/* On a frame: no box behind it (owner feedback 12), just under the rim in
- * the top-right corner, light with a dark shadow on the glass pane (on a
- * light pane: the border colour toward the text colour); the box stays
- * three cells wide to click. */
+/* On a frame: no box behind it (owner feedback 12), just under the band in
+ * the top-right corner, right of the hood (`titleEnd`), light with a dark
+ * shadow on the lamp-lit window (on a light pane: the border colour toward
+ * the text colour); the box stays three cells wide to click. */
 .wc-pane[data-framed] > :is(.wc-pane-close, .wc-pane-btn) {
-  top: calc(var(--frame-top, 2px) + var(--frame-t, 6px) + 1px);
-  height: calc(var(--cell-h) - var(--frame-top, 2px) - var(--frame-t, 6px) - 1px);
+  top: calc(var(--frame-top, 2px) + var(--frame-t, 5px) + 1px);
+  height: calc(var(--cell-h) - var(--frame-top, 2px) - var(--frame-t, 5px) - 1px);
   background: transparent;
   font-size: 0.82em;
   line-height: 1;
@@ -327,15 +420,6 @@
 .wc-pane[data-framed] > .wc-pane-btn > * {
   filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.6));
   transform: translateY(0.14em);
-}
-
-.wc-pane[data-framed][data-light] > :is(.wc-pane-close, .wc-pane-btn) {
-  color: color-mix(in srgb, var(--pane-border) 40%, var(--term-fg));
-  text-shadow: none;
-}
-
-.wc-pane[data-framed][data-light] > .wc-pane-btn > * {
-  filter: none;
 }
 
 .wc-pane:hover > .wc-pane-close {
@@ -376,14 +460,257 @@
   color: var(--c-accent);
 }
 
-/* A pane too narrow for every button beside its title drops some, Colour
- * first (cockpit.ts `syncLook`); the cross always stays. */
+/* A pane too narrow for every button drops some, the Gear first
+ * (cockpit.ts `syncLook`, pane-buttons.ts `hoverFit`); the cross always
+ * stays. */
 .wc-pane > .wc-pane-btn[data-drop] {
   display: none;
 }
 
-.wc-cockpit:has(> .wc-drag-shield:not([hidden])) :is(.wc-pane-close, .wc-pane-btn) {
+.wc-cockpit[data-shield] :is(.wc-pane-close, .wc-pane-btn) {
   display: none;
+}
+
+/* The hover set over the hood (ADR 0123 "Hood position and hover
+ * buttons"): on a pane where the hood, moved left as far as it goes, still
+ * reaches under the buttons (`data-hood-cover`, pane.ts `coverHood`), a
+ * hover slides an iron shelf out of the hood from where the set begins
+ * (`--cover-x`, frame px) to the corner bracket: the hood's iron, depth,
+ * lit lip and shadow, no seam where it joins the hood, so the hood reads
+ * as grown to hold them. The hood's label fades out over the cell and a
+ * half before it, so no letter is cut. The buttons and
+ * the cross sit on the shelf, centred on its depth like the title. At rest
+ * the hood and its label show whole. */
+.wc-pane[data-framed][data-hood-cover] > .wc-pane-frame::after,
+.wc-pane[data-framed][data-hood-cover] > .wc-pane-frame > .wc-pane-title::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.wc-pane[data-framed][data-hood-cover] > .wc-pane-frame::after {
+  left: var(--cover-x, 0px);
+  right: calc(var(--frame-arm, 13px) + var(--frame-hair, 1px));
+  height: var(--plate-y1, 0px);
+  border-radius: 0 0 var(--plate-r, 6px) 0;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(0 0 0 / 0.15)),
+    var(--iron);
+  /* The hood's lip, outline (not on the left: it joins the hood) and shadow. */
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 0 var(--hood-edge, rgb(0 0 0 / 0.9)),
+    inset 0 calc(2 * var(--frame-hair, 1px)) 0 var(--hood-edge-lit, color-mix(in srgb, var(--iron-hi) 80%, transparent)),
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 var(--iron-hi),
+    0 var(--frame-hair, 1px) 0 0 rgb(0 0 0 / 0.9),
+    var(--frame-hair, 1px) 0 0 0 rgb(0 0 0 / 0.9),
+    0 2px 5px rgb(0 0 0 / 0.5);
+  clip-path: inset(0 -8px -8px 0);
+  z-index: 2;
+}
+
+/* The fade: the hood's own iron over the label, from transparent to whole
+ * across a cell and a half before the shelf (title px: `--cover-x` less the hood's
+ * left edge). */
+.wc-pane[data-framed][data-hood-cover] > .wc-pane-frame > .wc-pane-title::after {
+  left: max(0px, calc(var(--cover-x, 0px) - var(--plate-x0, 0px) - 1.5 * var(--cell-w, 10px)));
+  right: 0;
+  bottom: 0;
+  border-radius: 0 0 var(--plate-r, 6px) 0;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(0 0 0 / 0.15)),
+    var(--iron);
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 0 var(--hood-edge, rgb(0 0 0 / 0.9)),
+    inset 0 calc(2 * var(--frame-hair, 1px)) 0 var(--hood-edge-lit, color-mix(in srgb, var(--iron-hi) 80%, transparent)),
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 var(--iron-hi);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 calc(1.5 * var(--cell-w, 10px)));
+  mask-image: linear-gradient(90deg, transparent, #000 calc(1.5 * var(--cell-w, 10px)));
+}
+
+.wc-cockpit:not([data-shield]) > .wc-pane[data-framed][data-hood-cover]:hover > .wc-pane-frame::after,
+.wc-cockpit:not([data-shield]) > .wc-pane[data-framed][data-hood-cover]:hover > .wc-pane-frame > .wc-pane-title::after {
+  display: block;
+}
+
+/* Too little of the label would be left to read (pane.ts `coverHood`):
+ * it fades out whole, and the hood's left end holds only its rivet. */
+.wc-cockpit:not([data-shield]) > .wc-pane[data-framed][data-hood-cover='all']:hover > .wc-pane-frame > .wc-pane-title > span {
+  opacity: 0;
+}
+
+.wc-pane[data-framed][data-hood-cover] > :is(.wc-pane-close, .wc-pane-btn) {
+  top: var(--frame-top, 2px);
+  height: var(--plate-y1, 15px);
+}
+
+/* The cross's line box centred on the shelf, and the icons with it (no
+ * nudge down to the cross's ink, which now sits in the middle). */
+.wc-pane[data-framed][data-hood-cover] > .wc-pane-close {
+  line-height: var(--plate-y1, 15px);
+}
+
+.wc-pane[data-framed][data-hood-cover] > .wc-pane-btn > * {
+  transform: none;
+}
+
+/* ======================================================================
+ * Paper: pewter and brass ("Tenn och mässing", ADR 0123 "Paper", stage
+ * 40c). A light pane (`data-light`: any pane on a light page, Plain or a
+ * tint, which is a pale wash of its hue there, theme/color.ts
+ * `lightTintFill`; or a clear pane on a light page) has the same elements
+ * as the lantern, restyled: the iron becomes light metal in the tint's hue
+ * (warm brass for Plain on Paper, Orange and Red; pewter for the cool tints
+ * and Grey: one formula, the hue and chroma of `--pane-border`), with dark
+ * engraved lines and dark rivets; the hood is engraved (the title in dark
+ * ink over a light lip); the window is parchment, lighter under the hood
+ * and darkening toward its edges; no lamp glow (on paper it reads as a
+ * smudge): the frame casts a small warm shadow into the gap instead.
+ * Cards (group.css, timers.css) are raised paper.
+ *
+ * Tokens (on the pane, from `--pane-border`):
+ *   --iron      the metal, L .66 C min(c × 1.15, .07)
+ *   --iron-hi   its lit side, L .88 C min(c × .8, .05): brackets, rivet
+ *               centres, the vs coin
+ *   --iron-lo   its shadow, L .36 C min(c × .6, .04): rivet rings, card rims
+ *   --engrave   the cut lines, L .24 C min(c × .5, .035) at 85 %
+ *   --ink       the title's and headers' dark ink, L .3 C min(c × .9, .06)
+ *   --shade     the window's edge: the hue at L .48 mixed half with an
+ *               umber, at 20 %
+ * Static paint only, as the dark lantern: nothing here changes per tick. */
+.wc-pane[data-light] {
+  --iron: oklch(from var(--pane-border) 0.66 min(calc(c * 1.15), 0.07) h);
+  --iron-hi: oklch(from var(--pane-border) 0.88 min(calc(c * 0.8), 0.05) h);
+  --iron-lo: oklch(from var(--pane-border) 0.36 min(calc(c * 0.6), 0.04) h);
+  --engrave: oklch(from var(--pane-border) 0.24 min(calc(c * 0.5), 0.035) h / 0.85);
+  --ink: oklch(from var(--pane-border) 0.3 min(calc(c * 0.9), 0.06) h);
+  --shade: color-mix(in srgb, color-mix(in oklab, oklch(from var(--pane-border) 0.48 min(calc(c * 1.2), 0.07) h), #7a5a2a) 20%, transparent);
+  /* The metal's sheen, shared by the hood, the shelf and the fade: bright
+   * at the top, a little shade at the bottom. */
+  --metal: linear-gradient(180deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.05) 55%, rgb(0 0 0 / 0.08)), var(--iron);
+  --metal-drop: 0 1px 3px rgb(50 35 10 / 0.3);
+  /* The band's engraved outer edge and its white lit line, run on over the
+   * top of the hood and the shelf. */
+  --hood-edge: var(--engrave);
+  --hood-edge-lit: rgb(255 255 255 / 0.75);
+  --frost2: rgb(0 0 0 / 0.06);
+  --frost-edge: color-mix(in srgb, var(--iron-lo) 45%, transparent);
+}
+
+/* The band: dark rivets with a lit centre, brackets in the lit metal, the
+ * cut where a bracket ends engraved. */
+.wc-pane[data-light] > .wc-pane-rim {
+  --rivet: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--iron-hi) 70%, transparent) 0 18%,
+    var(--iron-lo) 30% 58%,
+    color-mix(in srgb, var(--iron-lo) 40%, transparent) 72%,
+    transparent 92%
+  );
+  --bracket: var(--iron-hi), color-mix(in srgb, var(--iron-hi) 55%, var(--iron));
+  --bracket-end: linear-gradient(var(--engrave), var(--engrave));
+}
+
+/* Its outer edge engraved, a white lit line inside it top and left. */
+.wc-pane[data-light] > .wc-pane-rim::before {
+  border-color: var(--engrave);
+  box-shadow:
+    inset var(--frame-hair, 1px) var(--frame-hair, 1px) 0 rgb(255 255 255 / 0.75),
+    inset calc(-1 * var(--frame-hair, 1px)) calc(-1 * var(--frame-hair, 1px)) 0 color-mix(in srgb, var(--iron-lo) 45%, transparent);
+}
+
+.wc-pane[data-light] > .wc-pane-rim > .wc-pane-seam > :is(.wc-seam-dark, .wc-seam-light) {
+  stroke: var(--engrave);
+}
+
+/* No glow: a small warm shadow in the gap (clear or not). */
+.wc-pane[data-light][data-framed] > .wc-pane-frame {
+  box-shadow: var(--metal-drop);
+}
+
+/* The hood: engraved metal, the title cut in dark ink with a light lip. */
+.wc-pane[data-light] > .wc-pane-frame > .wc-pane-title {
+  background:
+    var(--hood-rivet) left calc(0.62 * var(--cell-w, 10px) - var(--hood-rivet-d) / 2) top calc(50% + var(--frame-t, 5px) / 4) / var(--hood-rivet-d) var(--hood-rivet-d) no-repeat,
+    var(--hood-rivet) right calc(0.62 * var(--cell-w, 10px) - var(--hood-rivet-d) / 2) top calc(50% + var(--frame-t, 5px) / 4) / var(--hood-rivet-d) var(--hood-rivet-d) no-repeat,
+    var(--metal);
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 0 var(--hood-edge, rgb(0 0 0 / 0.9)),
+    inset 0 calc(2 * var(--frame-hair, 1px)) 0 var(--hood-edge-lit, color-mix(in srgb, var(--iron-hi) 80%, transparent)),
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 rgb(255 255 255 / 0.7),
+    0 0 0 var(--frame-hair, 1px) var(--engrave),
+    var(--metal-drop);
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.7);
+}
+
+/* The window: parchment, a pale light under the hood and over the middle,
+ * an engraved shadow under the top band and the umber shade at its edges. */
+.wc-pane[data-light] > .wc-pane-frame::before {
+  background:
+    radial-gradient(42% calc(3 * var(--cell-h, 19px)) at 50% 0, rgb(255 255 255 / 0.45), transparent),
+    radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / 0.42), rgb(255 253 245 / 0.26) 60%, rgb(255 253 245 / 0.2)),
+    var(--window-base);
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 1px color-mix(in srgb, var(--iron-lo) 35%, transparent),
+    inset 0 0 calc(1.2 * var(--cell-h, 19px)) var(--shade);
+}
+
+/* Borderless: the parchment light and a softer edge shade on the pane's
+ * own background. */
+.wc-pane[data-light]:not([data-framed]) > .wc-pane-frame::before {
+  background: radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / 0.4), rgb(255 253 245 / 0.24) 60%, rgb(255 253 245 / 0.18));
+  box-shadow: inset 0 0 calc(1.2 * var(--cell-h, 19px)) color-mix(in srgb, var(--shade) 80%, transparent);
+}
+
+/* Clear: no fill, the shade alone round the inner edge. */
+.wc-pane[data-light][data-clear] > .wc-pane-frame::before {
+  background: none;
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 1px color-mix(in srgb, var(--iron-lo) 35%, transparent),
+    inset 0 0 calc(0.8 * var(--cell-h, 19px)) color-mix(in srgb, var(--shade) 70%, transparent);
+}
+
+/* The hover set: dark ink with a light lip (on the parchment under the band,
+ * or on the shelf); the accent on hover as on a dark pane. */
+.wc-pane[data-framed][data-light] > :is(.wc-pane-close, .wc-pane-btn) {
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
+}
+
+.wc-pane[data-framed][data-light] > .wc-pane-btn > * {
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.6));
+}
+
+.wc-pane[data-framed][data-light] > :is(.wc-pane-close, .wc-pane-btn):hover {
+  color: var(--c-accent);
+}
+
+/* On the shelf the ink is whole: the metal is darker than the parchment. */
+.wc-pane[data-framed][data-light][data-hood-cover] > :is(.wc-pane-close, .wc-pane-btn):not(:hover, [data-open]) {
+  color: var(--ink);
+}
+
+/* The shelf and the fade over the label: the hood's metal, lip, engraved
+ * outline (not on the shelf's left: it joins the hood) and shadow. */
+.wc-pane[data-framed][data-light][data-hood-cover] > .wc-pane-frame::after {
+  background: var(--metal);
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 0 var(--hood-edge, rgb(0 0 0 / 0.9)),
+    inset 0 calc(2 * var(--frame-hair, 1px)) 0 var(--hood-edge-lit, color-mix(in srgb, var(--iron-hi) 80%, transparent)),
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 rgb(255 255 255 / 0.7),
+    0 var(--frame-hair, 1px) 0 0 var(--engrave),
+    var(--frame-hair, 1px) 0 0 0 var(--engrave),
+    var(--metal-drop);
+}
+
+.wc-pane[data-framed][data-light][data-hood-cover] > .wc-pane-frame > .wc-pane-title::after {
+  background: var(--metal);
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 0 var(--hood-edge, rgb(0 0 0 / 0.9)),
+    inset 0 calc(2 * var(--frame-hair, 1px)) 0 var(--hood-edge-lit, color-mix(in srgb, var(--iron-hi) 80%, transparent)),
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 rgb(255 255 255 / 0.7);
 }
 
 /* The Gear whose settings popup is open (ADR 0107, `Cockpit.markGear`):
@@ -485,7 +812,7 @@
     z-index: 4;
   }
 
-  .wc-cockpit:has(> .wc-drag-shield:not([hidden])) > .wc-pane:hover::after {
+  .wc-cockpit[data-shield] > .wc-pane:hover::after {
     content: none;
   }
 }

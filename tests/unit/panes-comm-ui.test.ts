@@ -11,6 +11,7 @@ import { CommPane } from '../../src/panes/comm';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
 import { UI_STORAGE_KEY, UiPane, uiPlain } from '../../src/panes/ui';
 import { SettingsStore } from '../../src/settings';
+import { contrast, paneEffectiveBg } from '../../src/theme/color';
 
 const CELL_H = 16;
 
@@ -432,6 +433,22 @@ describe('CommPane', () => {
     c.pane.toggle('says');
     c.flush();
     expect(c.header().find((e) => e.dataset.channel === 'says')!.style.color).toBe('#3a3a3a');
+  });
+
+  it('holds every channel colour to 4.5:1 on a light pane, plain or tinted (ADR 0123 "Paper")', () => {
+    for (const color of ['black', 'red', 'green', 'blue', 'grey', 'orange', 'purple'] as const) {
+      const c = comm({ cols: 200 });
+      c.settings.update({ appearance: { bg: '#f4ecd8' }, panes: { comm: { color } } });
+      c.pane.applyTheme(c.settings.get());
+      c.flush();
+      const bg = paneEffectiveBg(color, '#f4ecd8');
+      const on = c.header().filter((e) => e.style.color !== '#3a3a3a');
+      expect(on.length).toBeGreaterThan(5);
+      for (const e of on) {
+        expect(e.style.color).toMatch(/^#[0-9a-f]{6}$/);
+        expect(contrast(e.style.color, bg)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 
   it('seeds from the archive on a live Char.Name and appends live messages', async () => {

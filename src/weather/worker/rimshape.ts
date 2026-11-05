@@ -1,16 +1,16 @@
-// Lit shapes on the glass rim and the nameplate (owner items 45, 49; ADR
-// 0091 addendum: glass rim and nameplate). Whatever lights a frame line on
-// the front layer (glints, the sun's faint lift, the lightning bands) keeps
-// to the glass: the rim's rounded outer corners and the plate's fillets and
-// rounded lower corners are followed in columns (rows on the sides) one
-// device px wide, so no square corner shows outside the rounded rim. Only
+// Lit shapes on the iron band and the hood (owner items 45, 49; ADR 0091
+// addendum: glass rim and nameplate; ADR 0123: the band and hood are iron).
+// Whatever lights a frame line on the front layer (glints, the sun's faint
+// lift, the lightning bands) keeps to the band: its rounded outer corners
+// and the hood's rounded lower corners are followed in columns (rows on the
+// sides) one device px wide, so no square corner shows outside the band. Only
 // rects: no paths or clips on the GPU canvas (ADR 0091); the columns meet on
 // whole device px, so an additive fill leaves no seam between them.
 
 import { RIM_R } from '../../panes/frame';
 import type { PanePlate } from '../protocol';
 
-/** A frame box (env.panes): the rim's outer edge, its thickness, the nameplate. */
+/** A frame box (env.panes): the band's outer edge, its thickness, the hood. */
 export interface RimBox {
   x: number;
   y: number;
@@ -72,10 +72,10 @@ export function rimRects(out: number[], p: RimBox, side: RimSide, a0: number, a1
 }
 
 /**
- * Pushes rects onto `out` covering the nameplate's glass below the rim
- * within `[a0, a1]` (x): the concave fillets either side, the body, its
- * rounded lower corners (the shape of frame.ts `frameHolePath`), so a light
- * on the top rim lights the plate as part of it (owner item 49).
+ * Pushes rects onto `out` covering the hood below the band within `[a0,
+ * a1]` (x): its body and rounded lower corners (the shape of frame.ts
+ * `frameHolePath`; no fillets, ADR 0123), so a light on the top band lights
+ * the hood as part of it (owner item 49).
  */
 export function plateRects(out: number[], p: RimBox, a0: number, a1: number, dpr: number): void {
   const g = p.plate;
@@ -84,8 +84,8 @@ export function plateRects(out: number[], p: RimBox, a0: number, a1: number, dpr
   const yt = p.y + p.border, H = g.y1 - yt;
   if (H <= 0) return;
   const X0 = Math.round(g.x * d) / d, X1 = Math.round((g.x + g.w) * d) / d;
-  const r = g.r, br = Math.max(0, Math.min(r, (X1 - X0) / 2, H - r));
-  // columns one device px wide over [from, to], each `hgt(mid)` px down from the rim
+  const br = Math.max(0, Math.min(g.r, (X1 - X0) / 2, H));
+  // columns one device px wide over [from, to], each `hgt(mid)` px down from the band
   const cols = (from: number, to: number, hgt: (x: number) => number): void => {
     const m = Math.ceil((to - from) * d - 1e-6);
     for (let i = 0; i < m; i++) {
@@ -96,12 +96,9 @@ export function plateRects(out: number[], p: RimBox, a0: number, a1: number, dpr
       if (h > 0) out.push(x0, yt, x1 - x0, h);
     }
   };
-  const fillet = (u: number): number => r - Math.sqrt(Math.max(0, r * r - u * u));
   const lower = (u: number): number => H - br + Math.sqrt(Math.max(0, br * br - (br - u) * (br - u)));
-  cols(X0 - r, X0, (x) => fillet(x - (X0 - r)));
   cols(X0, X0 + br, (x) => lower(x - X0));
   const m0 = Math.max(a0, X0 + br), m1 = Math.min(a1, X1 - br);
   if (m1 - m0 > 1e-6) out.push(m0, yt, m1 - m0, H);
   cols(X1 - br, X1, (x) => lower(X1 - x));
-  cols(X1, X1 + r, (x) => fillet(X1 + r - x));
 }

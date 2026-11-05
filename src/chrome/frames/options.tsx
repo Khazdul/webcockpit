@@ -40,6 +40,7 @@ import {
   SCROLLBACK_CHOICES,
 } from '../../settings';
 import { device } from '../../core/device';
+import { isLight } from '../../theme/color';
 import { FONTS, effectiveFont, fontChoices } from '../../theme/fonts';
 import {
   ANSI_NAMES,
@@ -169,6 +170,9 @@ function useScriptPanes(list: ScriptPaneList | undefined): ScriptPaneInfo[] {
 export function PanesFrame(): VNode {
   const { settings, scriptPanes } = useServices();
   const s = useSettings();
+  // A tint's swatch: its fill, or on a light page (where the fill is a pale wash as light as the page, ADR 0123
+  // "Paper") its frame colour, so the tints stay told apart.
+  const swatchOf = (c: PaneColor): string => (isLight(s.appearance.bg) ? `var(--pane-border-${c})` : `var(--pane-bg-${c})`);
   const nav = useNav();
   const { cols } = useGrid();
   const [row, setRow] = useState(0);
@@ -259,7 +263,7 @@ export function PanesFrame(): VNode {
                 <CheckCell
                   checked={p.on && p.color === c}
                   cursor={row === r && col === ci}
-                  swatch={c === 'black' ? '' : `var(--pane-bg-${c})`}
+                  swatch={c === 'black' ? '' : swatchOf(c)}
                   off={off}
                   title={`${tip}: ${PANE_TINT_LABEL[c]}`}
                   onHover={() => {

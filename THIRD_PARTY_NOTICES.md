@@ -115,6 +115,13 @@ conversion, metrics and SHA-256 sums: `public/fonts/README.md`.
   Copyright 2026 The WebCockpit Authors. SIL Open Font License 1.1.
   `LICENSE-WebCockpitFill.txt`.
 
+The pane titles use one more font (ADR 0123):
+
+- **Cinzel** 2.000 (bold only, Latin subset as Google Fonts serves it,
+  from npm `@fontsource/cinzel` 5.3.0). Copyright 2020 The Cinzel Project
+  Authors (https://github.com/NDISCOVER/Cinzel). SIL Open Font License
+  1.1. `LICENSE-Cinzel.txt`.
+
 **Lucida Console** is not distributed with WebCockpit and is never
 embedded in an exported file. It is offered only when it is installed on
 the user's device, and then used through the browser's `local()` font

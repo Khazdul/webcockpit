@@ -13,7 +13,8 @@
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
 //     .wc-drop-ghost    outline where a pane dragged over the game will float (or the box a span drop gives)
 //     .wc-too-small     "Window too small" (below 60 × 18 cells)
-//     .wc-drag-shield   transparent cover with the drag cursor while a drag runs
+//     .wc-drag-shield   transparent cover with the drag cursor while a drag runs (the cockpit
+//                       has `data-shield` meanwhile: layout.css hides the hover set by it)
 //     .wc-phone-tabs    phone only: the tab strip (ADR 0075 §3)
 //
 // Relayout is one atomic pass per animation frame after a size change of
@@ -70,8 +71,11 @@
 //   ADR 0095, src/layout/pane-buttons.ts): Colour steps the tint, Border
 //   flips the frame, Background flips glass and clear. Like the cross they
 //   take no focus and start no drag; none on a temporary pane (no
-//   settings) or where the cross is hidden. A pane too narrow for them
-//   beside its title drops them from the left (`syncLook`).
+//   settings) or where the cross is hidden. On a narrow pane the hood moves
+//   left to make room for them (`PaneShell.hoverCells`); where it still
+//   reaches under them they show over its right part on an iron shelf, and
+//   only those that would cover its left end drop, from the left
+//   (`syncLook`, ADR 0123 "Hood position and hover buttons").
 // - With `onGear` (the App's settings popups, ADR 0107), the Map, Comm,
 //   Timers and Group panes have a Gear left of them (`GEAR_PANES`): its
 //   click calls `onGear(id)`, which toggles the pane's settings popup; the
@@ -110,6 +114,7 @@
 // stay. Temporary script panes show over the GAME view only. While the
 // on-screen keyboard is up the too-small guard is off.
 
+import { onTitleFont } from '../panes/title-font';
 import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
 import { PANE_FACTORIES } from '../panes/factories';
@@ -166,10 +171,12 @@ import {
   CROSS_CELLS_BORDERLESS,
   CROSS_CELLS_FRAMED,
   GEAR_ICON,
+  LOOK_BUTTON_CELLS,
   LOOK_ICONS,
   type PaneButton,
   gearLabel,
   hasGear,
+  hoverFit,
   lookButtonsFit,
   lookLabel,
   lookOn,
@@ -554,6 +561,8 @@ export class Cockpit {
       this.settings.subscribe(() => this.scheduleRelayout()),
       onTempPlacesForgotten(this.onPlacesForgotten),
       this.cells.subscribe(() => this.scheduleRelayout()),
+      // The title face loaded: the hoods take the measured label widths (ADR 0123).
+      onTitleFont(() => this.scheduleRelayout()),
     );
     if (typeof ResizeObserver !== 'undefined') {
       this.ro = new ResizeObserver(() => this.scheduleRelayout());
@@ -614,6 +623,8 @@ export class Cockpit {
       });
       this.lookers.set(id, btns);
     }
+    // The cells the hover set covers at the top right, so the hood keeps left of them where it can (ADR 0123).
+    shell.hoverCells = CROSS_CELLS_FRAMED + LOOK_BUTTON_CELLS * (this.lookers.get(id)?.length ?? 0);
     const close = div('wc-pane-close');
     close.textContent = ' × ';
     close.setAttribute('role', 'button');
@@ -637,19 +648,27 @@ export class Cockpit {
   }
 
   /**
-   * Brings pane `id`'s look buttons (ADR 0095) up to date after it was
-   * placed `paneW` px wide: each one's label and state, and which of them
-   * fit right of the nameplate (or a borderless pane's name tag; the rest
-   * are dropped, Colour first). Attribute writes only on a change.
+   * Brings pane `id`'s hover set (ADR 0095) up to date after it was placed
+   * `paneW` px wide: each look button's label and state, which of them show
+   * (`hoverFit`: over the hood's right part if need be; the rest are
+   * dropped, the Gear first) and whether the set covers the hood
+   * (`PaneShell.coverHood`). Attribute writes only on a change.
    */
   private syncLook(id: PaneId, shell: PaneShell, s: Readonly<Settings>, paneW: number, cellW: number): void {
-    const btns = this.lookers.get(id);
-    if (!btns) return;
-    const p = paneSettingsOf(s.panes, id);
+    if (this.phone) return;
+    const btns = this.lookers.get(id) ?? [];
     const framed = shell.el.hasAttribute('data-framed');
-    // Clear of the nameplate on a frame; a borderless pane has nothing to keep clear (ADR 0095 round 3: no name tag).
-    const freeFrom = shell.titleEnd;
-    const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS, btns.length);
+    // Framed: the hood was moved left for them where it could; what still does not fit lies over the
+    // hood's right part (an iron shelf under it on hover), and only buttons that would cover its left
+    // end drop (ADR 0123 "Hood position and hover buttons"). A borderless pane has nothing to keep
+    // clear (ADR 0095 round 3: no name tag).
+    const { fit, cover } = framed
+      ? hoverFit(paneW, cellW, btns.length, shell.titleEnd, shell.titleKeep)
+      : { fit: lookButtonsFit(paneW, cellW, 0, CROSS_CELLS_BORDERLESS, btns.length, 0), cover: null };
+    // A script pane made without a cross shows no hover set (ADR 0084 addendum).
+    shell.coverHood(shell.el.hasAttribute('data-no-cross') ? null : cover);
+    if (!btns.length) return;
+    const p = paneSettingsOf(s.panes, id);
     btns.forEach(({ what, el: b }, i) => {
       // Dropped from the left: the first `n - fit` go (the Gear first).
       b.toggleAttribute('data-drop', i < btns.length - fit);
@@ -1664,6 +1683,7 @@ export class Cockpit {
     this.ghostEl.hidden = true;
     this.shieldEl.hidden = true;
     delete this.shieldEl.dataset.drag;
+    this.el.removeAttribute('data-shield');
     for (const s of this.shells.values()) s.el.removeAttribute('data-dragging');
     this.scheduleRelayout();
   }
@@ -1677,6 +1697,9 @@ export class Cockpit {
   private showShield(kind: string): void {
     this.shieldEl.dataset.drag = kind;
     this.shieldEl.hidden = false;
+    // An attribute, not `:has(> .wc-drag-shield…)` in layout.css: Chromium paid ≈ 1.7 ms of style
+    // work per output flush for a `:not(:has())` guard on the hover rules (stage 40d).
+    this.el.setAttribute('data-shield', '');
   }
 
   private setPreview(m: LayoutModel): void {

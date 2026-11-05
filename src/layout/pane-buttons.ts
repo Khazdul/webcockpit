@@ -83,7 +83,8 @@ export function lookOn(what: PaneLook, p: Readonly<PaneSettings>): boolean {
 /**
  * How many of `count` buttons (3, or 4 with the Gear) fit in a pane `paneW`
  * px wide (cells `cellW` px) when everything left of `freeFrom` px (the
- * nameplate) must stay uncovered, with half a cell between. `crossCells`:
+ * title) must stay uncovered, with `gap` px between (default half a cell;
+ * the lantern hood, ADR 0123, has room of its own: 0). `crossCells`:
  * from the right edge to the cross's left edge. The buttons go from the
  * left (the Gear, then Colour), so the ones that stay keep their places
  * beside the cross; the cross always stays.
@@ -94,11 +95,36 @@ export function lookButtonsFit(
   freeFrom: number,
   crossCells = CROSS_CELLS_FRAMED,
   count = PANE_LOOKS.length,
+  gap = cellW / 2,
 ): number {
-  const gap = freeFrom > 0 ? cellW / 2 : 0;
+  if (!(freeFrom > 0)) gap = 0;
   let n = 0;
   while (n < count && paneW - (crossCells + LOOK_BUTTON_CELLS * (n + 1)) * cellW >= freeFrom + gap) n++;
   return n;
+}
+
+/**
+ * The hover set beside the lantern hood (ADR 0123 "Hood position and hover
+ * buttons"): how many of `count` buttons show on a pane `paneW` px wide,
+ * and where the set (the buttons that show and the cross) begins when it
+ * lies over the hood (`cover`, px from the pane's left edge; null when it
+ * is clear of the hood, which ends at `hoodEnd`, 0 without one). The
+ * buttons may cover the hood's right part up to `keep` (the hood's left end
+ * and rivet stay clear); only those that would reach past it drop, from the
+ * left (`lookButtonsFit`). The cockpit has already moved the hood left to
+ * make room where it could (frame.ts `framePlate`).
+ */
+export function hoverFit(
+  paneW: number,
+  cellW: number,
+  count: number,
+  hoodEnd: number,
+  keep: number,
+  crossCells = CROSS_CELLS_FRAMED,
+): { fit: number; cover: number | null } {
+  const fit = lookButtonsFit(paneW, cellW, keep, crossCells, count, 0);
+  const x = paneW - (crossCells + LOOK_BUTTON_CELLS * fit) * cellW;
+  return { fit, cover: hoodEnd > 0 && x < hoodEnd - 1e-6 ? x : null };
 }
 
 /** The slot from the cross (0: next to it) of button `what`, for its CSS place; the Gear's is 3. */

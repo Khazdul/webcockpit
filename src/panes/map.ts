@@ -270,9 +270,8 @@ export class MapPane extends PaneShell {
    * Framed, the map fills the frame up to its rim on every side (owner
    * feedback 17, ADR 0091 "Frames"), not only the content cells: the frame
    * ring is wider than the rim. Every edge is on a whole device pixel (the
-   * rim's inner edge). It is clipped around the nameplate, which hangs into
-   * it: the plate is the rim's glass and shows what is behind the pane
-   * (addendum: glass rim and nameplate). Unframed: the content cells, as
+   * band's inner edge). It is clipped around the hood, which hangs into it
+   * and holds the title (ADR 0123). Unframed: the content cells, as
    * PaneShell placed them.
    */
   private fitFrame(): void {

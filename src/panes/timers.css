@@ -2,7 +2,14 @@
  * sizes in em of it. `--c` is a group's colour; `--tm-*` the pane shade
  * ramp's text and line colours and the side's ending-soon red (set by the
  * pane). The list scrolls natively by pixels above the indicator row
- * (ADR 0052). */
+ * (ADR 0052).
+ *
+ * The lantern look (ADR 0123, stage 40b): a pill is a chip of frosted glass
+ * catching the pane's lamp (`--lamp` at 8 %, layout.css) on `--card-back` (a
+ * clear pane's backing), with an inner edge in its group's colour and a
+ * lit top edge; a header is the name in bold over a rule that fades out in
+ * the lamp's colour. The chip's paint is static: the tick changes only its
+ * fill's `--p` and its time's text. */
 .wc-tm {
   position: absolute;
   inset: 0;
@@ -13,13 +20,32 @@
   flex-direction: column;
   white-space: nowrap;
   color: var(--tm-fg);
-  --tm-tint: 30%;
-  --tm-edge: 55%;
+  --tm-tint: 28%;
+  --tm-edge: 45%;
+  /* One flat colour (a gradient here cost about half a millisecond a
+   * frame in Firefox with two dozen chips): the lamp's frost on the card
+   * backing. */
+  --tm-card: color-mix(in srgb, var(--lamp) 8%, var(--card-back, transparent));
+  --tm-lit: inset 0 1px 0 color-mix(in srgb, var(--lamp) 22%, transparent);
+  --tm-drop: 0 1px 2px rgb(0 0 0 / 0.4);
+  --tm-head: color-mix(in srgb, var(--lamp) 30%, var(--tm-fg));
+  --tm-rule: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 38%, transparent), transparent 85%);
 }
 
+/* A light pane (Paper, ADR 0123 "Paper"): a chip is raised paper (a warm
+ * near-white, no lit edge, a soft warm shadow), the header in the pane's
+ * dark ink (layout.css `--ink`) over a rule in the metal's shadow. */
 .wc-tm[data-light] {
-  --tm-tint: 20%;
+  --tm-tint: 22%;
   --tm-edge: 50%;
+  --tm-card: color-mix(in srgb, #fffdf8 92%, var(--card-back, transparent));
+  --tm-lit: 0 0 transparent;
+  --tm-drop: 0 1px 2px rgb(60 40 10 / 0.22);
+  --tm-head: var(--ink, var(--tm-fg));
+  --tm-rule: linear-gradient(90deg, color-mix(in srgb, var(--iron-lo) 45%, transparent), transparent 85%);
+  /* The time halfway from the label shade to the text: the label shade
+   * alone read 3.6:1 over a chip's tinted fill. */
+  --tm-time: color-mix(in srgb, var(--tm-dim) 50%, var(--tm-fg));
 }
 
 .wc-tm-scroll {
@@ -51,15 +77,18 @@
   margin-top: 0.35em;
 }
 
+/* The header in the pane's own (mono) font, bold, at the items' size; its
+ * box is as high as before (1.08 of the pane's em), so the list scrolls
+ * the same. */
 .wc-tm-h {
   display: flex;
   align-items: center;
-  gap: 0.5em;
-  height: 1.5em;
-  font-size: 0.72em;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--tm-dim);
+  gap: 0.45em;
+  height: 1.27em;
+  font-size: 0.85em;
+  font-weight: bold;
+  letter-spacing: 0.03em;
+  color: var(--tm-head);
 }
 
 .wc-tm-h[hidden] {
@@ -68,15 +97,22 @@
 
 .wc-tm-hi {
   flex: none;
-  width: 1.25em;
-  height: 1.25em;
+  width: 1.06em;
+  height: 1.06em;
   color: var(--c);
+  /* Headers do not change on the tick: a soft glow in the group's colour. */
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--c) 70%, transparent));
+}
+
+.wc-tm[data-light] .wc-tm-hi {
+  filter: none;
 }
 
 .wc-tm-hln {
   flex: 1 1 auto;
   height: 1px;
-  background: var(--tm-line);
+  margin-left: 0.2em;
+  background: var(--tm-rule);
 }
 
 /* Herblore's + (ADR 0122 addendum): beside the name, opens the herb menu. */
@@ -90,7 +126,7 @@
   margin-left: -0.2em;
   border-radius: 0.3em;
   color: var(--c);
-  font-size: 1.25em;
+  font-size: 1.06em;
   font-weight: bold;
   letter-spacing: 0;
   line-height: 1;
@@ -131,7 +167,8 @@
   gap: 0.1em 0.8em;
 }
 
-/* Bars: a pill whose own fill drains right to left under the name and time. */
+/* Bars: a chip whose own fill drains right to left under the name and
+ * time: frosted glass, an edge in the group's colour, lit from above. */
 .wc-tm-chip {
   position: relative;
   box-sizing: border-box;
@@ -140,17 +177,20 @@
   gap: 0.45em;
   min-width: 0;
   height: 1.7em;
-  padding: 0 0.7em 0 0.6em;
+  padding: 0 0.6em 0 0.5em;
   border: 1px solid color-mix(in srgb, var(--c) var(--tm-edge), transparent);
-  border-radius: 0.85em;
-  background: color-mix(in srgb, var(--tm-line) 55%, transparent);
+  border-radius: 0.3em;
+  background: var(--tm-card);
+  box-shadow: var(--tm-lit), var(--tm-drop);
 }
 
 /* The fill: a childless element over the chip's padding box with its
- * rounding, a gradient in the group's tint up to `--p` (0–100) and clear
- * after it. A new value restyles and repaints this element only (no
- * layout, no clip; `--p` here has no descendants to inherit it); the
- * pulse fades it. */
+ * rounding, the group's tint up to `--p` (0–100) and clear after it. A new
+ * value restyles and repaints this element only (no layout, no clip; `--p`
+ * here has no descendants to inherit it); the pulse fades it. One flat
+ * tint with a hard stop: a ramp (faint to strong, as in the mockup) made
+ * Firefox redraw a real gradient for every chip on every tick, about
+ * 1.5 ms a tick with two dozen chips (ADR 0123 "Built (stage 40b)"). */
 .wc-tm-fill {
   position: absolute;
   inset: 0;
@@ -186,7 +226,7 @@
 .wc-tm-t {
   position: relative;
   flex: none;
-  color: var(--tm-dim);
+  color: var(--tm-time, var(--tm-dim));
   font-variant-numeric: tabular-nums;
 }
 
@@ -196,8 +236,9 @@
 
 .wc-tm-chip.is-untimed {
   border-style: dashed;
-  border-color: var(--tm-dim);
-  background: transparent;
+  border-color: color-mix(in srgb, var(--tm-dim) 80%, transparent);
+  background: var(--card-back, transparent);
+  box-shadow: none;
 }
 
 .wc-tm-chip.is-untimed .wc-tm-n,
@@ -206,7 +247,7 @@
 }
 
 .wc-tm-chip.is-charm {
-  background: transparent;
+  background: color-mix(in srgb, var(--lamp) 4%, var(--card-back, transparent));
 }
 
 /* Circles: an 18 px ring (its arc drains), the icon inside, name and time beside. */
@@ -231,8 +272,8 @@
 .wc-tm-ring {
   width: 100%;
   height: 100%;
-  /* The shared ring (icons.css) in the group's colour. */
-  --ring-track: var(--tm-line);
+  /* The shared ring (icons.css) in the group's colour, on a dark track. */
+  --ring-track: rgb(0 0 0 / 0.5);
   --ring-color: var(--c);
   --ring-w: 2.6;
   --ring-unknown: var(--tm-dim);
@@ -248,10 +289,16 @@
   stroke-width: 2.6;
 }
 
-/* Ending soon: the colour stays; the time turns red and bold, or the fill pulses. */
+/* Ending soon: the colour stays; the time turns red and bold with a soft
+ * glow (only these few seconds of a few items), or the fill pulses. */
 .is-text > .wc-tm-t {
   color: var(--tm-ending);
   font-weight: bold;
+  text-shadow: 0 0 5px color-mix(in srgb, var(--tm-ending) 45%, transparent);
+}
+
+.wc-tm[data-light] .is-text > .wc-tm-t {
+  text-shadow: none;
 }
 
 @keyframes wc-tm-pulse {
@@ -429,4 +476,8 @@
 
 .wc-tm-scroll::-webkit-scrollbar {
   display: none;
+}
+
+.wc-tm[data-light] .wc-tm-ring {
+  --ring-track: var(--tm-line);
 }

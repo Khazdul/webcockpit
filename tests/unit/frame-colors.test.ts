@@ -1,7 +1,8 @@
-// The frame's glass shades (layout.css, ADR 0091 "Frames", addendum: glass
-// rim and nameplate) stay inside sRGB for every pane colour on every page
-// colour: Chromium clips an out-of-gamut oklch per channel, and the
-// mockup's light specular line showed a yellow fringe from it.
+// The frame's shades derived from the pane border (layout.css: the lamp,
+// the iron, the hover buttons; ADR 0123, ADR 0091 "Frames") stay inside
+// sRGB for every pane colour on every page colour: Chromium clips an
+// out-of-gamut oklch per channel, and the old glass rim's light specular
+// line showed a yellow fringe from it.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PANE_COLORS } from '../../src/layout/types';
@@ -56,5 +57,51 @@ describe('frame colours', () => {
 
   it('keeps Plain neutral: no chroma on a grey border', () => {
     expect(oklch(paneBorder('black', '#000000'))[1]).toBeLessThan(1e-3);
+  });
+
+  // --lamp: oklab(from var(--pane-border) L calc(a / … * K * w + CA * (1 - KEEP * w)) calc(b / … + CB * …)),
+  // w = min(hypot(a, b) * W, 1) (`--lamp-w`).
+  const num = (re: RegExp): number => Number(CSS.match(re)![1]);
+  const LAMP = {
+    w: num(/--lamp-w: min\(hypot\(a, b\) \* ([\d.]+), 1\)/),
+    l: num(/from var\(--pane-border\) ([\d.]+)\s+calc\(a \//),
+    k: num(/calc\(a \/ max\(hypot\(a, b\), [\d.]+\) \* ([\d.]+) \* var\(--lamp-w\)/),
+    ca: num(/calc\(a \/ [^\n]*var\(--lamp-w\) \+ ([\d.]+) \*/),
+    cb: num(/calc\(b \/ [^\n]*var\(--lamp-w\) \+ ([\d.]+) \*/),
+    keep: num(/calc\(a \/ [^\n]*\(1 - ([\d.]+) \* var\(--lamp-w\)\)\)/),
+  };
+  /** The lamp's (L, a, b) on a border, as layout.css computes it. */
+  function lamp(border: string): [number, number, number] {
+    const [, C, h] = oklch(border);
+    const a = C * Math.cos(h), b = C * Math.sin(h);
+    const w = Math.min(C * LAMP.w, 1);
+    const d = Math.max(C, 0.0001);
+    return [LAMP.l, (a / d) * LAMP.k * w + LAMP.ca * (1 - LAMP.keep * w), (b / d) * LAMP.k * w + LAMP.cb * (1 - LAMP.keep * w)];
+  }
+
+  it('keeps the lamp inside sRGB for every pane colour on every preset', () => {
+    expect(Object.values(LAMP).every((v) => v > 0)).toBe(true);
+    const out: string[] = [];
+    for (const bg of TERMINAL_BG_PRESETS)
+      for (const c of PANE_COLORS) {
+        const [L, a, b] = lamp(paneBorder(c, bg.hex));
+        const rgb = srgb(L, Math.hypot(a, b), Math.atan2(b, a));
+        if (rgb.some((v) => v < -0.001 || v > 1.001)) out.push(`${bg.name}/${c}`);
+      }
+    expect(out).toEqual([]);
+  });
+
+  it('gives Plain and Grey warm candle light; a tint colours it', () => {
+    const hue = (l: [number, number, number]) => ((Math.atan2(l[2], l[1]) * 180) / Math.PI + 360) % 360;
+    const chroma = (l: [number, number, number]) => Math.hypot(l[1], l[2]);
+    for (const c of ['black', 'grey'] as const) {
+      const l = lamp(paneBorder(c, '#000000'));
+      expect(hue(l)).toBeGreaterThan(55);
+      expect(hue(l)).toBeLessThan(85);
+      expect(chroma(l)).toBeGreaterThan(0.06);
+    }
+    // Blue is opposite the candle: its light stays blue, not grey.
+    expect(hue(lamp(paneBorder('blue', '#000000')))).toBeGreaterThan(220);
+    expect(hue(lamp(paneBorder('blue', '#000000')))).toBeLessThan(290);
   });
 });

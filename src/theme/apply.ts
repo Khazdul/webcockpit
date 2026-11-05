@@ -29,7 +29,7 @@
 //
 // Per pane (`applyPaneTheme`, on the pane element; package B calls it on
 // every settings change):
-//   --pane-bg --pane-border
+//   --pane-bg --pane-border --pane-fill
 //   --pane-shade-{track,dim,mid,pane-bg,vtext,label,glow}
 //   data-light (present when the pane's effective bg is light)
 //
@@ -256,6 +256,8 @@ export function paneTokens(s: Readonly<Settings>, paneId: PaneId): Record<string
   const t: Record<string, string> = {
     '--pane-bg': paneContentBg(color, bg, glass),
     '--pane-border': paneBorder(color, bg),
+    // The tint's own fill, glass or clear: a clear pane's cards lie on it (ADR 0123 `--card-back`).
+    '--pane-fill': paneEffectiveBg(color, bg),
   };
   const shades = paneShades(color, bg, glass);
   for (const role of SHADE_ROLES) t[shadeVar(role)] = shades[role];

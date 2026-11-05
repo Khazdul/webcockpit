@@ -86,7 +86,7 @@ test('hovering a pane shows Colour, Border and Background left of the cross; cli
   expect(errors).toEqual([]);
 });
 
-test('the look buttons hide while a pane is dragged, and a narrow pane drops them from the left', async ({ page }) => {
+test('the look buttons hide while a pane is dragged; a narrow pane lays them over the hood, a narrower drops them from the left', async ({ page }) => {
   const { cw, ch } = await open(page);
   // Drag Timers by its title row: the buttons go with the cross.
   const t = await box(page, '.wc-pane-timers');
@@ -94,14 +94,122 @@ test('the look buttons hide while a pane is dragged, and a narrow pane drops the
   await page.mouse.down();
   await page.mouse.move(t.x + 2 * cw - 80, t.y + ch / 2 + 40, { steps: 4 });
   await expect(page.locator('.wc-drag-shield')).toBeVisible();
+  // The cockpit carries the drag as an attribute, which the hover rules read (no :has(), stage 40d).
+  await expect(page.locator('.wc-cockpit')).toHaveAttribute('data-shield', '');
   await expect(page.locator('.wc-pane > .wc-pane-btn:visible')).toHaveCount(0);
   // Back where it started: the drop is no move.
   await page.mouse.move(t.x + 2 * cw, t.y + ch / 2, { steps: 4 });
   await page.mouse.up();
   await expect(page.locator('.wc-drag-shield')).toBeHidden();
+  await expect(page.locator('.wc-cockpit')).not.toHaveAttribute('data-shield');
 
-  // A narrow lane of its own: Colour goes first, the cross stays.
+  // A narrow lane of its own (ADR 0123 "Hood position and hover buttons"): the hood, moved left as far as it
+  // goes (its left edge at the fourth cell), still reaches under the set: every button shows, over the
+  // hood's right part, on an iron shelf, the label faded before it. At rest the hood and label are whole.
+  const lane = (size: number) =>
+    page.evaluate((n) =>
+      window.__wc!.settings.update((d) => {
+        const R = d.layout.docks.right;
+        const all = [...R.head, ...R.lanes.flatMap((l) => l.panes), ...R.tail];
+        R.head = [];
+        R.tail = [];
+        R.lanes = [
+          { size: 30, panes: all.filter((p) => p.id !== 'timers') },
+          { size: n, panes: all.filter((p) => p.id === 'timers') },
+        ];
+      }),
+    size);
+  const after = (sel: string) => page.locator(sel).evaluate((el) => getComputedStyle(el, '::after').display);
+  await lane(17);
+  await page.mouse.move(2, 2);
+  const pane = page.locator('.wc-pane-timers');
+  await expect(pane).toHaveAttribute('data-hood-cover', /^(all)?$/);
+  const p17 = await box(page, '.wc-pane-timers');
+  const hood = await box(page, '.wc-pane-timers .wc-pane-title');
+  expect(hood.x - p17.x).toBeCloseTo(3 * cw, 0);
+  expect(await after('.wc-pane-timers > .wc-pane-frame')).toBe('none');
+  await expect(page.locator('.wc-pane-timers .wc-pane-title > span')).toHaveCSS('opacity', '1');
+  await hover(page, 'timers');
+  const all = page.locator('.wc-pane-timers > .wc-pane-btn');
+  for (const b of await all.all()) await expect(b).toBeVisible();
+  expect(await after('.wc-pane-timers > .wc-pane-frame')).toBe('block');
+  expect(await after('.wc-pane-timers .wc-pane-title')).toBe('block');
+  // The shelf from where the set begins; the set centred on the hood's depth, never past its rivet.
+  const shelf = await pane.evaluate((el) => {
+    const f = el.querySelector('.wc-pane-frame')!;
+    const r = f.getBoundingClientRect();
+    const cs = getComputedStyle(f, '::after');
+    return { x: r.left + parseFloat(cs.left), w: parseFloat(cs.width), h: parseFloat(cs.height) };
+  });
+  const first = await box(page, '.wc-pane-timers > .wc-pane-btn-gear');
+  expect(shelf.x).toBeCloseTo(first.x, 1);
+  expect(shelf.h).toBeCloseTo(hood.height, 1);
+  expect(first.x).toBeGreaterThan(hood.x + cw);
+  const x17 = await box(page, '.wc-pane-timers > .wc-pane-close');
+  expect(x17.y).toBeCloseTo(hood.y, 1);
+  expect(x17.height).toBeCloseTo(hood.height, 1);
+  // Narrower: the buttons that would cover the hood's left end drop, the Gear first; the cross stays.
+  await lane(14);
+  await page.mouse.move(2, 2);
+  await hover(page, 'timers');
+  await expect(page.locator('.wc-pane-timers > .wc-pane-close')).toBeVisible();
+  await expect(page.locator('.wc-pane-timers > .wc-pane-btn-gear')).toBeHidden();
+  // What stays is the buttons next to the cross.
+  const drops = await page.locator('.wc-pane-timers > .wc-pane-btn').evaluateAll((els) => els.map((e) => e.hasAttribute('data-drop')));
+  expect(drops[0]).toBe(true);
+  expect(drops).toEqual([...drops].sort().reverse());
+  // Never over the hood's left end and rivet.
+  const plate = await box(page, '.wc-pane-timers .wc-pane-title');
+  const shown = page.locator('.wc-pane-timers > .wc-pane-btn:visible');
+  for (const b of await shown.all()) expect((await b.boundingBox())!.x).toBeGreaterThanOrEqual(plate.x + 1.4 * cw - 0.5);
+});
+
+/** Relative luminance (0–1) of a computed colour of `sel` (any CSS colour syntax: painted on a canvas to read it). */
+async function lum(page: Page, sel: string, prop: string, pseudo: string | null = null): Promise<number> {
+  return page.locator(sel).first().evaluate(
+    (el, [prop, pseudo]) => {
+      const css = getComputedStyle(el, pseudo).getPropertyValue(prop);
+      const c = new OffscreenCanvas(1, 1).getContext('2d')!;
+      c.fillStyle = '#ff00ff';
+      c.fillStyle = css;
+      c.fillRect(0, 0, 1, 1);
+      const [r, g, b] = [...c.getImageData(0, 0, 1, 1).data].map((v) => {
+        const x = v / 255;
+        return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    },
+    [prop, pseudo] as const,
+  );
+}
+
+test('Paper: light metal with a dark engraved title, a tint is a pale wash, the shelf and the hover set match (ADR 0123 "Paper")', async ({ page }) => {
+  await open(page);
+  // Dark: iron and a lit title.
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-rim', 'background-color')).toBeLessThan(0.05);
+  expect(await lum(page, '.wc-pane-timers .wc-pane-title', 'color')).toBeGreaterThan(0.4);
   await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.appearance.bg = '#f4ecd8';
+      d.panes.timers.color = 'black';
+      d.panes.group.color = 'red';
+    }),
+  );
+  for (const id of ['timers', 'group']) {
+    const pane = page.locator(`.wc-pane-${id}`);
+    await expect(pane).toHaveAttribute('data-light', '');
+    // The metal light, the title in dark ink on it.
+    expect(await lum(page, `.wc-pane-${id} > .wc-pane-rim`, 'background-color')).toBeGreaterThan(0.25);
+    expect(await lum(page, `.wc-pane-${id} .wc-pane-title`, 'background-color')).toBeGreaterThan(0.25);
+    expect(await lum(page, `.wc-pane-${id} .wc-pane-title`, 'color')).toBeLessThan(0.06);
+    // The window as light as the page: a red pane on Paper is a pale red wash, not the dark red fill.
+    expect(await lum(page, `.wc-pane-${id}`, '--pane-bg')).toBeGreaterThan(0.75);
+  }
+  const red = await page.locator('.wc-pane-group').evaluate((el) => el.style.getPropertyValue('--pane-bg'));
+  expect(red).not.toBe('#f4ecd8');
+  expect(red).not.toBe('#1a0e0e');
+  // A narrow lane: the shelf and the fade in the same light metal, the set in dark ink on it.
+  await page.evaluate((n) =>
     window.__wc!.settings.update((d) => {
       const R = d.layout.docks.right;
       const all = [...R.head, ...R.lanes.flatMap((l) => l.panes), ...R.tail];
@@ -109,22 +217,18 @@ test('the look buttons hide while a pane is dragged, and a narrow pane drops the
       R.tail = [];
       R.lanes = [
         { size: 30, panes: all.filter((p) => p.id !== 'timers') },
-        { size: 17, panes: all.filter((p) => p.id === 'timers') },
+        { size: n, panes: all.filter((p) => p.id === 'timers') },
       ];
     }),
-  );
+  17);
   await page.mouse.move(2, 2);
+  await expect(page.locator('.wc-pane-timers')).toHaveAttribute('data-hood-cover', /^(all)?$/);
   await hover(page, 'timers');
   await expect(page.locator('.wc-pane-timers > .wc-pane-close')).toBeVisible();
-  await expect(page.locator('.wc-pane-timers > .wc-pane-btn-color')).toBeHidden();
-  // What stays is the buttons next to the cross.
-  const drops = await page.locator('.wc-pane-timers > .wc-pane-btn').evaluateAll((els) => els.map((e) => e.hasAttribute('data-drop')));
-  expect(drops[0]).toBe(true);
-  expect(drops).toEqual([...drops].sort().reverse());
-  // Never over the nameplate.
-  const plate = await box(page, '.wc-pane-timers .wc-pane-title');
-  const shown = page.locator('.wc-pane-timers > .wc-pane-btn:visible');
-  for (const b of await shown.all()) expect((await b.boundingBox())!.x).toBeGreaterThanOrEqual(plate.x + plate.width);
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-frame', 'background-color', '::after')).toBeGreaterThan(0.25);
+  expect(await lum(page, '.wc-pane-timers .wc-pane-title', 'background-color', '::after')).toBeGreaterThan(0.25);
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-close', 'color')).toBeLessThan(0.06);
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-btn-gear', 'color')).toBeLessThan(0.06);
 });
 
 test('a script pane made without a cross has no look buttons; the built-in panes have them', async ({ page }) => {
@@ -174,8 +278,9 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float hi
       const fill = getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before');
       return {
         own: cs.backgroundColor,
-        fill: fill.display === 'none' ? 'none' : fill.backgroundColor,
-        blur: getComputedStyle(el.querySelector('.wc-pane-blur')!).display,
+        // A clear window has no fill (only the lamp's edge glow, ADR 0123).
+        fill: fill.display === 'none' || fill.backgroundColor === 'rgba(0, 0, 0, 0)' ? 'none' : fill.backgroundColor,
+        blur: fill.backdropFilter,
         rim: getComputedStyle(el.querySelector('.wc-pane-rim')!).display,
       };
     });
@@ -194,8 +299,6 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float hi
   await expect(page.locator('.wc-pane-group')).toHaveAttribute('data-weather-see', '');
   expect(await look('comm')).toMatchObject({ own: 'rgba(0, 0, 0, 0)', fill: 'none', blur: 'none', rim: 'block' });
   expect(await look('group')).toMatchObject({ own: 'rgba(0, 0, 0, 0)', fill: 'none', blur: 'none' });
-  // The rim keeps the unblurred glass mix.
-  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el).getPropertyValue('--glass-mix').trim())).toBe('60%');
   // The clear float hides the game text under it (a hole in the game pane at its box), weather on …
   const g = await box(page, '.wc-pane-group');
   const game = await box(page, '.wc-game');

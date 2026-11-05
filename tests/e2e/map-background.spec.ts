@@ -193,7 +193,18 @@ test('Transparent: the map leaves its empty space clear, tiles opaque, and follo
   const { clear, total } = await seeThrough(page);
   expect(total - clear).toBeGreaterThan(1000);
   expect(clear).toBeLessThan(slate * 1.2);
-  // Without anything behind, it looks as before: the pane's fill (the terminal background) where the slate was.
+  // Without anything behind, it looks as before: the pane's fill (the terminal background) where the slate was,
+  // under the lamp's light (ADR 0123), which is put out here so the fill's own colour can be counted (on Paper the
+  // parchment's light and shade too).
+  await page.evaluate(() =>
+    document.head.append(
+      Object.assign(document.createElement('style'), {
+        id: 'no-lamp',
+        textContent:
+          '.wc-pane-map { --lamp: transparent !important; } .wc-pane-map[data-light] > .wc-pane-frame::before { background: var(--window-base) !important; box-shadow: none !important; }',
+      }),
+    ),
+  );
   const termBg = await page.evaluate(() => window.__wc!.settings.get().appearance.bg.toLowerCase());
   await expect(content).toHaveAttribute('data-map-bg', termBg);
   const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as unknown as [number, number, number];
@@ -202,9 +213,15 @@ test('Transparent: the map leaves its empty space clear, tiles opaque, and follo
   // The colour the map fades lower layers into and picks its lines by follows the pane: a paper theme, then a tint.
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8' } }));
   await expect(content).toHaveAttribute('data-map-bg', '#f4ecd8');
+  // On a light page a tint is a pale wash of its hue (ADR 0123 "Paper"): Blue on Paper.
   await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { color: 'blue' } } }));
+  await expect(content).toHaveAttribute('data-map-bg', '#eaedee');
+  await expect.poll(() => countColour(page, [0xea, 0xed, 0xee]), { timeout: 10_000 }).toBeGreaterThan(slate * 0.9);
+  // On a dark page the tint's dark fill.
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#000000' } }));
   await expect(content).toHaveAttribute('data-map-bg', '#0e141c');
   await expect.poll(() => countColour(page, [0x0e, 0x14, 0x1c]), { timeout: 10_000 }).toBeGreaterThan(slate * 0.9);
+  await page.evaluate(() => document.getElementById('no-lamp')?.remove());
   // Back to a colour: opaque again.
   await page.evaluate(() => window.__wc!.settings.update({ mapper: { background: '#2e1214' } }));
   await expect(content).not.toHaveAttribute('data-map-transparent');

@@ -13,14 +13,15 @@
 // the visited rooms and its tiles (src/replay/map-embed.ts).
 //
 // Fonts: the exporter's family plus any family a recorded VIEW switches to
-// (regular and bold woff2, and the family's glyph faces: ADR 0043, 0049).
+// (regular and bold woff2, and the family's glyph faces: ADR 0043, 0049),
+// and the pane title's face (Cinzel Bold, ADR 0123).
 // URLs are relative to the page, so a subpath deploy works. A local-only
 // family (Lucida Console) is never embedded: the file uses DejaVu Sans Mono
 // in its place (ADR 0049), as the replay page never looks for installed
 // fonts. The notice names the fonts actually embedded. The bundle is only ever read here as text: the app never
 // runs it, and this module does not import the replay runtime.
 
-import { FONTS, bundledFont, familyFaces, fontFaceRule } from '../theme/fonts';
+import { FONTS, TITLE_FACE, bundledFont, familyFaces, fontFaceRule } from '../theme/fonts';
 import type { FontId } from '../settings/types';
 import { captureEntries } from '../share/capture';
 import type { ReplayPayload } from '../share/payload';
@@ -221,8 +222,8 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
   }
   const ids = replayFonts(payload);
   const seen = new Set<string>();
-  const files = ids
-    .flatMap((id) => familyFaces(id))
+  // The pane title's face too: the replay shows the panes (ADR 0123).
+  const files = [TITLE_FACE, ...ids.flatMap((id) => familyFaces(id))]
     .filter((x) => {
       const key = `${x.family}|${x.weight}`;
       if (!x.file || seen.has(key)) return false;
@@ -258,7 +259,7 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
     payload: encoded,
     script,
     fonts,
-    fontNotices: fontNotices(ids),
+    fontNotices: [...fontNotices(ids), TITLE_FACE.notice],
     bg: a.bg,
     fg: a.fg,
     version: typeof __WC_VERSION__ === 'string' ? __WC_VERSION__ : '0.0.0-dev',

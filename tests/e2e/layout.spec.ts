@@ -99,9 +99,11 @@ test('default layout (wide case, ADR 0102): game left, the input row under it as
   expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 2 * ORDER.length);
   expect(Math.max(...heights.slice(1)) - Math.min(...heights.slice(1))).toBeLessThanOrEqual(1);
 
-  // A glass rim the same inset from every edge of the outer cells, a nameplate hanging from it with
-  // the label from about the fourth cell (ADR 0091 "Frames", addendum: glass rim and nameplate).
-  await expect(page.locator('.wc-pane-character .wc-pane-frame')).toHaveText(' Character ');
+  // An iron band the same inset from every edge of the outer cells, a hood centred on it holding
+  // the title (ADR 0091 "Frames", ADR 0123).
+  await expect(page.locator('.wc-pane-character .wc-pane-frame')).toHaveText('Character');
+  // The title face loads when the first hood shows; the hoods are re-placed then.
+  await expect.poll(() => page.evaluate(() => document.fonts.check('700 12px Cinzel'))).toBe(true);
   const geo = await page.locator('.wc-pane-character').evaluate((el) => {
     const p = el.getBoundingClientRect();
     const f = el.querySelector('.wc-pane-frame')!;
@@ -113,6 +115,7 @@ test('default layout (wide case, ADR 0102): game left, the input row under it as
     const st = (el as HTMLElement).style;
     const d = devicePixelRatio;
     const v = (k: string): number => parseFloat(st.getPropertyValue(k));
+    const win = getComputedStyle(f, '::before');
     return {
       inset: [r.left - p.left, r.top - p.top, p.right - r.right, p.bottom - r.bottom],
       rim: [rr.left - r.left, rr.top - r.top, rr.right - r.right, rr.bottom - r.bottom],
@@ -120,49 +123,54 @@ test('default layout (wide case, ADR 0102): game left, the input row under it as
       edges: [r.left, r.top, r.right, r.bottom].map((x) => Math.abs(x * d - Math.round(x * d))),
       t: v('--frame-t'),
       plate: [v('--plate-x0'), v('--plate-x1'), v('--plate-y0'), v('--plate-y1'), v('--plate-r')],
+      fw: r.width,
       rimClip: rim.style.clipPath,
+      blur: el.querySelectorAll('.wc-pane-blur').length,
       seams: el.querySelectorAll('.wc-pane-seam > path').length,
-      fill: getComputedStyle(f, '::before').backgroundColor,
-      fillClip: getComputedStyle(f, '::before').clipPath,
+      fill: win.backgroundColor,
+      fillClip: win.clipPath,
+      fillInset: [win.top, win.left].map(parseFloat),
+      glow: getComputedStyle(f).boxShadow,
       title: [t.left - r.left, t.top - r.top, t.right - r.left, t.bottom - r.top],
       titleZ: getComputedStyle(title).zIndex,
-      titleSize: parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(el).fontSize),
-      titleColor: getComputedStyle(title).color,
+      titleFont: getComputedStyle(title).fontFamily,
+      titlePx: parseFloat(getComputedStyle(title).fontSize),
     };
   });
   const lw = geo.t;
-  expect(lw).toBeGreaterThanOrEqual(5);
-  expect(lw).toBeLessThan(ch / 2.5);
+  // About 5 px at the default cell (ADR 0123): the cell height over 3.6, in whole device px.
+  expect(lw).toBeGreaterThanOrEqual(3);
+  expect(Math.abs(lw - ch / 3.6)).toBeLessThanOrEqual(0.5);
   for (const e of geo.edges) expect(e).toBeLessThan(0.05);
-  // The rim box is the frame box, clipped to the ring and the plate (even-odd), with a seam path each side.
+  // The rim box is the frame box, clipped to the band and the hood (even-odd), opaque iron (no blur
+  // strips any more), with a seam path each side.
   expect(geo.rim).toEqual([0, 0, 0, 0]);
   expect(geo.rimClip).toMatch(/^path\(evenodd,/);
+  expect(geo.blur).toBe(0);
   expect(geo.seams).toBe(2);
   // The same inset on all four sides (owner feedback 15): equal gaps beside and above; 1 px clear of the text.
   for (const i of geo.inset) expect(Math.abs(i - geo.inset[0]!)).toBeLessThanOrEqual(1);
   expect(geo.inset[0]! + lw).toBeLessThanOrEqual(cw - 1 + 0.01);
-  // The plate: from about the fourth cell, under the rim's lip, hanging below the rim, clear of the first text row.
+  // The hood: centred on the frame, from its top edge, hanging below the band, clear of the first text row.
   const [x0, x1, y0, y1, pr] = geo.plate as [number, number, number, number, number];
-  expect(Math.abs(x0 + geo.inset[0]! - 3 * cw)).toBeLessThanOrEqual(3);
-  expect(x1 - x0).toBeGreaterThan(9 * cw * 0.68);
-  expect(y0).toBeGreaterThan(0);
-  expect(y0).toBeLessThan(lw);
+  expect(Math.abs(x0 - (geo.fw - x1))).toBeLessThan(0.05);
+  expect(x1 - x0).toBeGreaterThan(9 * geo.titlePx * 0.5);
+  expect(y0).toBe(0);
   expect(y1).toBeGreaterThan(lw + pr);
   expect(geo.inset[1]! + y1).toBeLessThan(ch);
-  // The fill (opaque, weather off) clipped to the hole: the inside of the rim less the plate.
+  // The window (opaque, weather off) inside the band, clipped round the hood; the lamp's glow round the frame.
   expect(geo.fill).toBe('rgb(0, 0, 0)');
   expect(geo.fillClip).toMatch(/^path\("M/);
-  // The title box is the plate, from the rim's outer edge down, above the content; 0.68 em.
+  expect(geo.fillInset).toEqual([lw, lw]);
+  expect(geo.glow).not.toBe('none');
+  // The title box is the hood, from the frame's top edge down, above the content; in Cinzel.
   expect(geo.title[0]).toBeCloseTo(x0, 1);
   expect(geo.title[2]).toBeCloseTo(x1, 1);
   expect(geo.title[1]).toBeCloseTo(0, 1);
   expect(geo.title[3]).toBeCloseTo(y1, 1);
-  expect(geo.titleSize).toBeCloseTo(0.68, 2);
   expect(geo.titleZ).toBe('2');
-  // Dark ink (Plain: neutral grey, oklch L 0.28, no chroma; owner item 47).
-  const ink = /^oklch\(0\.28 ([\d.e-]+) /.exec(geo.titleColor);
-  expect(ink, geo.titleColor).not.toBeNull();
-  expect(parseFloat(ink![1]!)).toBeLessThan(1e-3);
+  expect(geo.titleFont).toMatch(/^"?Cinzel"?,/);
+  expect(geo.titlePx).toBeCloseTo(Math.round(ch * 0.62 * 4) / 4, 2);
   const colors = await page.locator('.wc-pane-timers').evaluate((el) => ({
     ring: getComputedStyle(el).backgroundColor,
     bg: getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before').backgroundColor,
@@ -181,10 +189,12 @@ test('toggles, colours and borders apply live; a borderless pane has no frame', 
   expect((await box(page, '.wc-pane-comm')).y).toBe((11 + 10) * ch);
   await set({ panes: { group: { on: true, color: 'purple', border: false } } });
   await expect(page.locator('.wc-pane-group')).toBeVisible();
-  await expect(page.locator('.wc-pane-group .wc-pane-frame')).toBeHidden();
+  // No iron and no hood; the window light stays (ADR 0123).
+  await expect(page.locator('.wc-pane-group .wc-pane-rim')).toBeHidden();
+  await expect(page.locator('.wc-pane-group .wc-pane-title')).toBeEmpty();
   expect((await box(page, '.wc-pane-group')).height).toBe(6 * ch);
   expect(await page.locator('.wc-pane-group').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(22, 16, 28)');
-  await expect(page.locator('.wc-pane-ui .wc-pane-frame')).toHaveText(' UI ');
+  await expect(page.locator('.wc-pane-ui .wc-pane-frame')).toHaveText('UI');
 });
 
 test('drag a pane by its title row to the left dock', async ({ page }) => {
@@ -403,7 +413,9 @@ test('docked framed panes resize from the drawn border line itself', async ({ pa
   expect(await cursorAt(o.x + c.x + 5 * cw, o.y + c.y + c.height - ch / 2)).toBe('row-resize');
   // A borderless pane in the same dock leaves the framed ones' borders wide.
   await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { border: false } } }));
-  await expect(page.locator('.wc-pane-group .wc-pane-frame')).toBeHidden();
+  // No iron and no hood; the window light stays (ADR 0123).
+  await expect(page.locator('.wc-pane-group .wc-pane-rim')).toBeHidden();
+  await expect(page.locator('.wc-pane-group .wc-pane-title')).toBeEmpty();
   expect(await cursorAt(o.x + c.x + cw / 2, o.y + c.y + 3 * ch)).toBe('col-resize');
   const g = await box(page, '.wc-pane-group');
   expect(await cursorAt(o.x + g.x + cw / 2, o.y + g.y + 3 * ch)).not.toBe('col-resize');

@@ -74,9 +74,10 @@ test('you tank (buffer Nobody): the opponent fills the card; the Fight card togg
   await expect(card.locator('.wc-gp-vs')).toHaveCount(0);
   // No "Group" divider under the card.
   await expect(pane(page).locator('.wc-gp-sep')).toHaveCount(0);
-  // Solid bars: no stripes on a band-word bar.
+  // Solid bars: no stripes on a band-word bar (only the tube's gloss, ADR 0123).
   const fill = card.locator('.wc-gp-fill').first();
-  await expect(fill).toHaveCSS('background-image', 'none');
+  await expect(fill).toHaveCSS('background-image', /^linear-gradient\(/);
+  expect(await fill.evaluate((e) => getComputedStyle(e).backgroundImage)).not.toContain('repeating');
   // The gear's Fight card toggle.
   await page.locator('.wc-pane-group').hover();
   await page.locator('.wc-pane-group > .wc-pane-btn-gear').click();

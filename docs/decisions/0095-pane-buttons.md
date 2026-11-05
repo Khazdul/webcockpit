@@ -4,6 +4,11 @@
 - Date: 2026-10-22
 - Extends: ADR 0084 (script pane cross and hover outline), ADR 0087 (pane
   name tag), ADR 0091 (weather effects, "Frames"), ADR 0053 (script panes)
+- Superseded in part by ADR 0123 (stage 40): framed panes have the
+  lantern's iron band and hood instead of the glass rim and nameplate;
+  the hood's place and the buttons over it on a narrow pane are ADR 0123
+  "Hood position and hover buttons" (they replace the drop rule below
+  for framed panes)
 
 ## Context
 

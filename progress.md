@@ -45,11 +45,31 @@ Released 0.2.5 (stage 39: Group and Timers panes in a modern look, ADR 0122: fig
 | 37 | Profile editor LITE keys | Done | `docs/stages/37-profile-lite-keys.md` |
 | 38 | Scripts page | Done | `docs/stages/38-scripts-page.md` |
 | 39 | Group and Timers panes | Done | `docs/stages/39-group-timers.md` |
-| 40 | Lantern pane look | Next | (to write: `docs/stages/40-lantern-panes.md`) |
+| 40 | Lantern pane look | Done | `docs/stages/40-lantern-panes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-05/06 — Stage 40: Lantern pane look ("Lykta")
+
+- **Done (subagents, branch `stage-40-lantern-panes`, unmerged):** ADR 0123.
+  40a frame: iron band, riveted brackets, centred hood with Cinzel title
+  (bundled, also in the HTML replay), lamp-lit window, glow in the gap;
+  rim blur strips removed. 40a+ (owner): hood moves left on narrow panes,
+  hover buttons on an iron shelf over it. 40b Group/Timers frosted cards
+  and tube bars. 40c Paper: three proposals, owner chose P2 pewter and
+  brass, and pale tint washes on a light page (Comm 4.5:1). 40d perf,
+  docs, test guide.
+- **Tests:** unit 3175 passed; e2e 727/730, three load flakes pass alone.
+- **Perf:** Chromium same or better (a `:has()` drag guard cost 1.7 ms per
+  flush, fixed with `data-shield`); Firefox painted frames 1–3 ms dearer
+  (the band's gradient layers), all far under a frame.
+- **Next:** owner test (guide in the stage file); then merge and release.
+- **Open:** Firefox band paint cost (cheaper band = changed look, or the
+  rim as a cached image); README screenshots still show the old frame
+  (regenerate at release); Character dim labels on Paper (pre-existing).
+- **Commits:** 7de9a55..HEAD on `stage-40-lantern-panes`.
 
 ### 2026-11-05 — Pane look research ("Lykta")
 

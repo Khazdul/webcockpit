@@ -476,6 +476,13 @@ Developer    (whole row dim = off)                                     (blank)
 
 #### Pane frame (ADR 0136, docs/pane-frame.md)
 
+> WebCockpit: the glyph frame below became a CSS frame in stage 28 (ADR
+> 0091 "Frames" and its glass rim and nameplate) and since stage 40 is the
+> lantern frame of ADR 0123: an iron band with riveted corner brackets,
+> the title (Cinzel) on a hood centred at the top or moved left on a
+> narrow pane, a lamp-lit window; pewter and brass on a light page. The
+> border colour rules and the per-pane Border toggle below still hold.
+
 - Drawn **inside** the pane: top row `▛▀▀ <Label> ▀▀…▀▜`, left edge `▌`, right edge
   `▐`, bottom row `▙▄▄…▄▟`. Label left-aligned on the top border.
   Labels: `Character`, `Timers`, `Group`, `Comm`, `UI`. Dev is never framed.
@@ -3411,6 +3418,11 @@ as "None"):
 | grey | `#161616` | `#2a2a2a` | (0, 0) |
 | orange | `#1C140A` | `#30281e` | (28, 62) |
 | purple | `#16101C` | `#2a2430` | (278, 46) |
+
+> WebCockpit: on a light page a named tint is a pale wash of its hue, as
+> light as the page, instead of the fills below (ADR 0123 "Paper", stage
+> 40c); dark pages keep them. The frame below is ADR 0123's lantern frame
+> in WebCockpit (see §2.1 "Pane frame").
 
 **In-pane frame** (ADR 0136, per-pane toggle, default on):
 
