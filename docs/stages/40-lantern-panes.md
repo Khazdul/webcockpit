@@ -156,3 +156,13 @@ show or how they lay out.
   left, at most to about where today's plate sat (from the fourth cell);
   if the buttons still do not fit, they show over the hood's right part on
   hover instead of being dropped, and must look tidy there.
+- **2026-11-05, Paper** (three proposals built in the real app, shots
+  `docs/stages/img/40c-p1|p2|p3-*.png`): the owner chose **P2 "Tenn och
+  mässing"** (pewter and brass: light metal in the tint's hue, brass for
+  Plain and warm tints, pewter for cool ones, dark engraved lines and
+  rivets, engraved title; parchment window shading toward the edges;
+  cards as raised paper with a soft shadow). Also chosen: **on a light
+  page a tint becomes a pale wash of its hue**, as light as the page,
+  instead of today's dark fill (keeps the text contrast; Comm lifts
+  yellow and cyan to 4.5:1).
+
