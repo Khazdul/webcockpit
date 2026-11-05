@@ -1,0 +1,107 @@
+/* 15 Halvpixel — the least retro: today's smooth glass rim, finished a notch further, with pixel character only as seasoning.
+   Concept: smooth tinted glass everywhere (rim, cards, chips, tracks share one material and one fine grain); the pixel
+   accents are few and deliberate — the title tab's stepped shoulders, 2-px stepped corners on chips, pixel end caps on
+   the bars and a tiny stepped diamond marker before each timer header.
+   Cell-ring mapping: left/right/bottom band = 7 px (inside one 9-px cell); top band = 17 px (one cell row) holding the
+   title tab, which rises from the hole's edge. Rim painted by .pane::before, masked to the ring (never under content).
+   Tint: rim = --glass with gloss; cards/chips/tracks are translucent mixes of --glass so they follow the tint and stay
+   readable when clear. Frame off: rim/tab hidden by base; cards keep the glass material. Clear: hole is transparent,
+   cards become slightly denser dark glass so text reads over the sky. */
+.v15 {
+  --hp-rim: var(--glass);
+  --hp-hi: oklch(from var(--glass) calc(l + .2) calc(c * .9) h);
+  --hp-lo: oklch(from var(--glass) calc(l - .22) c h);
+  --hp-card: oklch(from var(--glass) .2 calc(c * .7) h / .55);
+  --hp-cardhi: oklch(from var(--glass) .5 c h / .28);
+  --hp-well: oklch(from var(--glass) .1 calc(c * .5) h / .85);
+  --hp-ink: oklch(from var(--glass) .9 calc(c * .25) h);
+  --hp-ink2: oklch(from var(--glass) .72 calc(c * .35) h);
+  --hp-step2: polygon(0 2px, 1px 2px, 1px 1px, 2px 1px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 2px, 100% 2px,
+    100% calc(100% - 2px), calc(100% - 1px) calc(100% - 2px), calc(100% - 1px) calc(100% - 1px), calc(100% - 2px) calc(100% - 1px), calc(100% - 2px) 100%,
+    2px 100%, 2px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 2px), 0 calc(100% - 2px));
+  --hp-step1: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px),
+    calc(100% - 1px) 100%, 1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px));
+}
+.v15[data-clear] { --hp-card: oklch(from var(--glass) .16 calc(c * .7) h / .72); --hp-well: oklch(from var(--glass) .08 calc(c * .5) h / .9); }
+
+/* ---------- frame: smooth glass rim with a fine shared grain */
+.v15 .pane { padding: 17px 7px 7px; border-radius: 6px; }
+.v15 .pane::before { padding: 17px 7px 7px; border-radius: 6px; border: 1px solid rgba(0,0,0,.8);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.17), rgba(255,255,255,.03) 9px, rgba(255,255,255,0) 17px, rgba(0,0,0,.12)),
+    var(--stone-noise) 0 0 / 160px 160px,
+    var(--hp-rim);
+  background-blend-mode: normal, soft-light, normal;
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--hp-hi) 70%, transparent), inset -1px -1px 0 rgba(0,0,0,.3), 0 2px 6px -2px rgba(0,0,0,.7); }
+.v15 .hole { overflow: visible; padding: 6px 7px 7px; border-radius: 2px;
+  border-color: rgba(0,0,0,.85) color-mix(in srgb, var(--hp-hi) 45%, transparent) color-mix(in srgb, var(--hp-hi) 45%, transparent) rgba(0,0,0,.85);
+  box-shadow: inset 0 2px 4px -1px rgba(0,0,0,.55); }
+.v15 .gp, .v15 .tm { position: relative; }
+
+/* title tab: smooth glass, two 2-px steps for shoulders; engraved ink as today */
+.v15 .plate { top: -15px; left: 11px; height: 15px; padding: 0 13px; border-radius: 0; box-shadow: none; background: none;
+  filter: drop-shadow(0 -1px 0 rgba(0,0,0,.55)) drop-shadow(1px 0 0 rgba(0,0,0,.35));
+  color: var(--plateink); font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .08em; text-shadow: 0 1px 0 rgba(239,239,239,.35); }
+.v15 .plate::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hp-hi) 85%, transparent) 0 1px, rgba(255,255,255,.2) 1px, rgba(255,255,255,.06) 60%, rgba(255,255,255,0)),
+    var(--stone-noise) 0 0 / 160px 160px, color-mix(in oklab, var(--hp-rim), #fff 10%);
+  background-blend-mode: normal, soft-light, normal;
+  clip-path: polygon(0 100%, 0 8px, 2px 8px, 2px 6px, 4px 6px, 4px 4px, 6px 4px, 6px 2px, 8px 2px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 2px,
+    calc(100% - 6px) 2px, calc(100% - 6px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 6px, calc(100% - 2px) 6px, calc(100% - 2px) 8px, 100% 8px, 100% 100%); }
+.v15 .pt { line-height: 15px; padding-top: 2px; color: oklch(from var(--glass) .2 calc(c * .8) h); }
+
+/* ---------- group */
+.v15 .fz { margin: 0 0 6px; padding: 6px 8px 8px; border-radius: 5px;
+  background: linear-gradient(90deg, rgba(232,195,90,.08), transparent 42% 58%, rgba(255,77,77,.09)), var(--hp-card);
+  box-shadow: inset 0 1px 0 var(--hp-cardhi), inset 0 -1px 0 rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.35); }
+.v15 .fz .trk { height: 8px; }
+.v15 .vs { width: 22px; height: 22px; font-family: var(--body); font-weight: 700; font-size: 10.5px; letter-spacing: .06em; color: var(--hp-ink2);
+  background: radial-gradient(circle at 50% 30%, var(--hp-cardhi), transparent 70%), var(--hp-well);
+  box-shadow: inset 0 1px 0 var(--hp-cardhi), 0 0 0 1px rgba(0,0,0,.6); }
+.v15 .m2 { margin-bottom: 3px; padding: 1px 6px 2px 2px; border-radius: 4px; background: var(--hp-card);
+  box-shadow: inset 0 1px 0 var(--hp-cardhi), inset 0 -1px 0 rgba(0,0,0,.35); }
+.v15 .m2:last-child { margin-bottom: 0; }
+.v15 .name { color: var(--hp-ink2); }
+.v15 .name.pl, .v15 .fn { color: var(--hp-ink); }
+.v15 .fn.f { color: #ff9b8f; }
+.v15 .name, .v15 .fn, .v15 .chip .n { text-shadow: 0 1px 1px rgba(0,0,0,.7); }
+.v15 .tag { border: 0; border-radius: 3px; background: var(--hp-well); color: var(--hp-ink2); box-shadow: inset 0 0 0 1px var(--hp-cardhi); }
+.v15 .vr { background: var(--hp-cardhi); }
+.v15 .rg .bg { stroke: var(--hp-well); }
+
+/* bars: smooth glass channels, pixel end caps (stepped 1-px corners + a bright 1-px leading edge) */
+.v15 .trk { height: 5px; background: var(--hp-well); clip-path: var(--hp-step1); box-shadow: inset 0 1px 0 rgba(0,0,0,.6); }
+.v15 .fz .trk { clip-path: var(--hp-step2); }
+.v15 .bars .trk { margin: 0 1px; }
+.v15 .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 30%), var(--c) 45%, color-mix(in srgb, var(--c), #000 22%));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c), #fff 55%), inset -2px 0 0 color-mix(in srgb, var(--c), #000 35%); }
+.v15 .foe .fill { box-shadow: inset 1px 0 0 color-mix(in srgb, var(--c), #fff 55%), inset 2px 0 0 color-mix(in srgb, var(--c), #000 35%); }
+
+/* ---------- timers */
+.v15 .tm { gap: 6px; }
+.v15 .th { gap: 6px; font-family: var(--body); font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: none; color: var(--hp-ink2); text-shadow: 0 1px 1px rgba(0,0,0,.7); }
+.v15 .th .cnt { font-family: var(--mono); font-size: 10px; font-weight: 400; color: color-mix(in srgb, var(--hp-ink2) 60%, transparent); }
+/* header marker: a stepped 5x5 pixel diamond in the group colour */
+.v15 .hl { display: block; flex: none; width: 5px; height: 5px; margin-right: -1px; background: var(--c);
+  clip-path: polygon(2px 0, 3px 0, 3px 1px, 4px 1px, 4px 2px, 5px 2px, 5px 3px, 4px 3px, 4px 4px, 3px 4px, 3px 5px, 2px 5px, 2px 4px, 1px 4px, 1px 3px, 0 3px, 0 2px, 1px 2px, 1px 1px, 2px 1px); }
+.v15 .hln { height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 35%, transparent), var(--hp-cardhi) 30%, transparent); }
+
+/* chips: smooth glass bodies, 2-px stepped corners; the border is real (stays above the fill), the inner corner pixel is patched by ::after */
+.v15 .items.flow, .v15 .items.grid { gap: 4px; }
+.v15 .chip { --bc: color-mix(in srgb, var(--c) 50%, oklch(from var(--glass) .3 c h)); height: 20px; padding: 0 7px 0 6px; border: 1px solid var(--bc);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), transparent 55%), var(--hp-card); clip-path: var(--hp-step2); }
+.v15 .chip::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(var(--bc), var(--bc)) 0 0 / 1px 1px no-repeat, linear-gradient(var(--bc), var(--bc)) 100% 0 / 1px 1px no-repeat,
+    linear-gradient(var(--bc), var(--bc)) 0 100% / 1px 1px no-repeat, linear-gradient(var(--bc), var(--bc)) 100% 100% / 1px 1px no-repeat; }
+.v15 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent), color-mix(in srgb, var(--c) 24%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 70%, transparent); }
+.v15 .chip .n { color: var(--hp-ink); }
+.v15 .chip .t { color: var(--hp-ink2); }
+.v15 .chip.soon .t { color: #ff4a42; }
+.v15 .chip.untimed { --bc: color-mix(in srgb, var(--hp-ink2) 35%, transparent); border-style: dashed; background: color-mix(in srgb, var(--hp-card) 50%, transparent); }
+.v15 .chip.untimed::after { display: none; }
+.v15 .chip.untimed .n { color: var(--hp-ink2); }
+.v15 .chip.charm { background: var(--hp-card); }
+
+/* ---------- frame off: no rim, no tab; the glass cards alone carry the look */
+.v15[data-frame="off"] .hole { box-shadow: none; border-radius: 0; }

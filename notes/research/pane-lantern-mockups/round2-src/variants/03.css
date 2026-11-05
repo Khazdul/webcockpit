@@ -1,0 +1,101 @@
+/* 03 Huggen tavla — the pane is ONE carved stone slab.
+   Frame = the raised, un-carved edge of the slab (no separate rim, no plate):
+   left/right/bottom band 6 px (inside the outer cell ring), top band 17 px = one cell row
+   that carries the title, carved straight into the stone in Pixelify Sans.
+   The content area is a recess cut into the same stone (same noise texture, darker,
+   sloped lip: dark top/left, lit bottom/right). Cards, the fight zone and chips are shallow
+   raised pads of the same stone left standing in the recess; untimed chips are cut
+   deeper instead. Corner .fx hooks = small drilled/carved marks in the slab corners. */
+.v03 {
+  --s-hi: #655d50; --s-mid: #4f483e; --s-lo: #3d3830;      /* slab face */
+  --s-pit: #14120f; --s-pit2: #1b1915;                      /* recess floor */
+  --s-pad: #3b362f; --s-pad2: #2f2b26;                      /* raised pads */
+  --ink-cut: #15130f;                                       /* carved letter floor */
+}
+.v03 .pane { padding: 17px 6px 6px; border: 0; border-radius: 0;
+  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
+  background: var(--stone-noise), var(--stone-dark), linear-gradient(180deg, var(--s-hi), var(--s-mid) 30%, var(--s-lo));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 1px 0 0 rgba(255,255,255,.14), inset 0 2px 0 rgba(255,255,255,.06), inset 0 -2px 0 rgba(0,0,0,.5), inset -2px 0 0 rgba(0,0,0,.25); }
+
+/* the carved recess */
+.v03 .hole { border: 0; overflow: visible; padding: 10px 8px 8px; color: #d2ccbf;
+  background: var(--stone-noise), linear-gradient(180deg, var(--s-pit), var(--s-pit2));
+  box-shadow: inset 0 2px 0 rgba(0,0,0,.7), inset 2px 0 0 rgba(0,0,0,.5), inset 0 6px 8px -2px rgba(0,0,0,.7), inset 5px 0 6px -3px rgba(0,0,0,.5),
+    inset 0 -1px 0 rgba(255,255,255,.13), inset -1px 0 0 rgba(255,255,255,.08),
+    0 1px 0 rgba(255,255,255,.14), 1px 0 0 rgba(255,255,255,.06), 0 -1px 0 rgba(0,0,0,.35), -1px 0 0 rgba(0,0,0,.25); }
+.v03 .gp, .v03 .tm { overflow: clip; overflow-clip-margin: 4px; }
+
+/* title carved into the top band of the slab */
+.v03 .plate { top: -17px; left: 6px; height: 17px; padding: 0 4px; gap: 6px; border-radius: 0; background: none; box-shadow: none; }
+.v03 .pt { font-family: var(--pixel); font-weight: 600; font-size: 13px; letter-spacing: .1em; color: var(--ink-cut);
+  text-shadow: 0 1px 0 rgba(255,255,255,.3), 0 -1px 0 rgba(0,0,0,.45); }
+/* little carved pixel diamonds flanking the title */
+.v03 .plate::before, .v03 .plate::after { content: ""; width: 7px; height: 7px; flex: none; background: var(--ink-cut);
+  clip-path: polygon(4px 0, 4px 1px, 5px 1px, 5px 2px, 6px 2px, 6px 3px, 7px 3px, 7px 4px, 6px 4px, 6px 5px, 5px 5px, 5px 6px, 4px 6px, 4px 7px, 3px 7px, 3px 6px, 2px 6px, 2px 5px, 1px 5px, 1px 4px, 0 4px, 0 3px, 1px 3px, 1px 2px, 2px 2px, 2px 1px, 3px 1px, 3px 0);
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.26)); }
+
+/* drilled marks in the slab corners (top ones sit in the 17 px row) */
+.v03 .fx { display: block; width: 3px; height: 3px; background: #1a1814; box-shadow: 1px 1px 0 rgba(255,255,255,.2), inset 1px 1px 0 #000; }
+.v03 .f1 { left: 7px; top: 7px; display: none; }
+.v03 .f2 { right: 17px; top: 7px; box-shadow: 1px 1px 0 rgba(255,255,255,.2), inset 1px 1px 0 #000, 5px 0 0 #1a1814, 6px 1px 0 rgba(255,255,255,.2), -5px 0 0 #1a1814, -4px 1px 0 rgba(255,255,255,.2); }
+.v03 .f3 { left: 2px; bottom: 2px; display: none; }
+.v03 .f4 { right: 2px; bottom: 2px; display: none; }
+
+/* ---- raised pads: same stone, standing proud of the recess floor ---- */
+.v03 .m2, .v03 .fz, .v03 .chip { position: relative; border-radius: 2px;
+  background: var(--stone-noise), linear-gradient(180deg, var(--s-pad), var(--s-pad2));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.15), inset 1px 0 0 rgba(255,255,255,.05), inset 0 -1px 0 rgba(0,0,0,.55), inset -1px 0 0 rgba(0,0,0,.3),
+    0 1px 0 #000, 0 2px 3px rgba(0,0,0,.55); }
+.v03 .m2 { margin-bottom: 5px; padding: 2px 8px 4px 3px; }
+.v03 .name, .v03 .fn, .v03 .chip .n { text-shadow: 0 -1px 0 rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.07); }
+.v03 .name { color: #b8b1a2; }
+.v03 .name.pl { color: #eee7d8; }
+.v03 .tag { border: 0; border-radius: 1px; background: #191714; color: #a69e8b; box-shadow: inset 0 1px 1px #000, 0 1px 0 rgba(255,255,255,.12); }
+.v03 .where { color: #948c7c; }
+.v03 .vr { width: 2px; height: 12px; background: #161512; box-shadow: 1px 0 0 rgba(255,255,255,.11); }
+.v03 .ic > svg.i, .v03 .mk svg, .v03 .ft svg { filter: drop-shadow(0 1px 0 rgba(0,0,0,.95)); }
+.v03 .rg .bg { stroke: #191714; }
+/* bars = channels cut into the pad, colour poured in */
+.v03 .trk { height: 6px; border-radius: 1px; background: #11100e; box-shadow: inset 0 1px 1px #000, 0 1px 0 rgba(255,255,255,.13); }
+.v03 .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #000 30%), var(--c) 45%, color-mix(in srgb, var(--c), #fff 12%) 80%, var(--c)); box-shadow: inset 0 1px 1px rgba(0,0,0,.5); }
+
+/* fight zone: a bigger, higher pad */
+.v03 .fz { margin: 0 0 9px; padding: 7px 10px 10px;
+  background: var(--stone-noise), radial-gradient(80% 160% at 50% 0%, #3d3a34, #2b2925);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 -2px 0 rgba(0,0,0,.55), inset 1px 0 0 rgba(255,255,255,.06), inset -1px 0 0 rgba(0,0,0,.35),
+    0 1px 0 #000, 0 3px 4px rgba(0,0,0,.6); }
+.v03 .fz .trk { height: 8px; }
+.v03 .fv { color: #9a927f; }
+.v03 .vs { width: 26px; height: 26px; font-family: var(--pixel); font-weight: 600; font-size: 11px; color: #cdb98d;
+  background: var(--stone-noise), radial-gradient(circle at 50% 40%, #1b1916, #0e0d0b);
+  box-shadow: inset 0 2px 2px #000, 0 1px 0 rgba(255,255,255,.16), 0 -1px 0 rgba(0,0,0,.5); text-shadow: 0 -1px 0 #000; }
+
+/* ---- timers ---- */
+.v03 .tm { gap: 7px; }
+.v03 .th { gap: 6px; font-family: var(--pixel); font-weight: 600; font-size: 11.5px; letter-spacing: .08em; text-transform: none; color: #ada592;
+  text-shadow: 0 -1px 0 #000, 0 1px 0 rgba(255,255,255,.06); }
+.v03 .th svg { width: 12px; height: 12px; filter: drop-shadow(0 1px 0 #000); }
+.v03 .th .cnt { font-family: var(--mono); font-size: 10px; color: #6e6757; }
+/* header rule: a carved dotted groove ending in a little diamond */
+.v03 .hln { height: 6px; background:
+  linear-gradient(#0c0b0a, #0c0b0a) right 2px top 0 / 2px 6px no-repeat,
+  linear-gradient(#0c0b0a, #0c0b0a) right 0 top 2px / 6px 2px no-repeat,
+  repeating-linear-gradient(90deg, #0c0b0a 0 2px, transparent 2px 5px) left 0 top 2px / calc(100% - 9px) 2px no-repeat,
+  repeating-linear-gradient(90deg, rgba(255,255,255,.1) 0 2px, transparent 2px 5px) left 0 top 4px / calc(100% - 9px) 1px no-repeat; }
+.v03 .items.flow, .v03 .items.grid { gap: 5px; padding: 0 1px 2px; }
+.v03 .chip { height: 20px; padding: 0 8px 0 7px; overflow: hidden; }
+.v03 .chip .fill { left: 2px; top: 2px; bottom: 3px; width: calc((100% - 4px) * var(--p) / 100); border-radius: 1px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 26%, transparent), color-mix(in srgb, var(--c) 48%, transparent));
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.55), inset 0 -1px 0 color-mix(in srgb, var(--c) 70%, transparent); }
+.v03 .chip svg.ci { filter: drop-shadow(0 1px 0 #000); }
+.v03 .chip .n { color: #e6dfd0; }
+.v03 .chip .t { color: #a39b89; text-shadow: 0 -1px 0 #000; }
+.v03 .chip.soon .t { color: #ff4a3d; }
+.v03 .chip .x { color: #9a927f; }
+/* untimed: cut into the floor instead of raised */
+.v03 .chip.untimed { background: rgba(0,0,0,.35); box-shadow: inset 0 2px 2px rgba(0,0,0,.8), inset 0 -1px 0 rgba(255,255,255,.08), inset 1px 0 0 rgba(0,0,0,.5); }
+.v03 .chip.untimed .n { color: #8f887a; }
+.v03 .chip.charm .fill { display: none; }
+
+/* narrow widths: keep the nowrap rows and the fr grid from reporting their full text width as min width */
+.v03 .fz, .v03 .m2 { contain: inline-size; }

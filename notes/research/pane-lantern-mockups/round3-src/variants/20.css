@@ -1,0 +1,101 @@
+/* 20 Ithildin — moon-silver inlay in dark stone, after the lines on the Doors of Durin.
+   Concept: the rim is a band of dark, tint-coloured stone; a single fine silver line is inlaid in it and glows faintly,
+   with a small four-pointed star where it turns each corner. The title is set in Cinzel in the same silver, breaking the
+   line between two tiny stars. Inside, the same silver draws hairline rules over each member, rings the fight zone and
+   the "vs" medallion, and edges the inset bar channels — so frame and content are one piece of inlaid work.
+   Cell-ring mapping: left/right/bottom band = 8 px (silver line at 4 px from the edge), top band = 17 px (one cell row;
+   line at 8 px = the title's centre). Stone painted by .pane::before, masked to the ring; the line is .pane::after
+   (border only, no fill); corner stars are the .fx hooks (9x9 masks) inside the ring. Everything repeats/scales.
+   Tint: stone, silver and card glass are all derived from --glass via oklch(from …), so the silver picks up a breath of
+   the pane colour. Frame off: line, stars, title gone; members keep their silver rules and glass. Clear: the hole shows
+   what is behind; cards get denser dark glass and the silver glow reads well over the sky. */
+.v20 {
+  --it-stone: oklch(from var(--glass) .25 calc(c * .85) h);
+  --it-silver: color-mix(in oklab, oklch(from var(--glass) .9 calc(c * .55) h) 88%, #d6e4ff);
+  --it-glow: color-mix(in srgb, var(--it-silver) 45%, transparent);
+  --it-faint: color-mix(in srgb, var(--it-silver) 20%, transparent);
+  --it-card: oklch(from var(--glass) .15 calc(c * .7) h / .5);
+  --it-well: oklch(from var(--glass) .08 calc(c * .5) h / .9);
+  --it-ink: oklch(from var(--glass) .92 calc(c * .2) h);
+  --it-ink2: oklch(from var(--glass) .74 calc(c * .3) h);
+  --it-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M9 0L10.6 7.4L18 9L10.6 10.6L9 18L7.4 10.6L0 9L7.4 7.4Z'/%3E%3C/svg%3E");
+}
+.v20[data-clear] { --it-card: oklch(from var(--glass) .12 calc(c * .7) h / .7); }
+
+/* ---------- frame: stone band + glowing silver inlay */
+.v20 .pane { padding: 17px 8px 8px; border-radius: 4px; }
+.v20 .pane::before { padding: 17px 8px 8px; border-radius: 4px; border: 1px solid rgba(0,0,0,.85);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 40%),
+    var(--stone-dark) 0 0 / 160px 160px,
+    var(--stone-noise) 0 0 / 160px 160px,
+    var(--it-stone);
+  background-blend-mode: normal, normal, soft-light, normal;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.12), inset -1px -1px 0 rgba(0,0,0,.4), 0 2px 8px -3px rgba(0,0,0,.8); }
+.v20 .pane::after { content: ""; position: absolute; top: 8px; left: 4px; right: 4px; bottom: 4px; pointer-events: none; z-index: 2;
+  border: 1px solid var(--it-silver); border-radius: 2px; opacity: .7;
+  box-shadow: 0 0 3px var(--it-glow), inset 0 0 2px var(--it-glow); }
+.v20 .fx { display: block; width: 9px; height: 9px; z-index: 4; background: var(--it-silver);
+  -webkit-mask: var(--it-star) center / contain no-repeat; mask: var(--it-star) center / contain no-repeat;
+  filter: drop-shadow(0 0 2px var(--it-glow)); }
+.v20 .f1 { left: 0; top: 4px; } .v20 .f2 { right: 0; top: 4px; } .v20 .f3 { left: 0; bottom: 0; } .v20 .f4 { right: 0; bottom: 0; }
+.v20 .hole { overflow: visible; padding: 6px 7px 7px; border-radius: 2px; border-color: rgba(0,0,0,.9) var(--it-faint) var(--it-faint) rgba(0,0,0,.9);
+  box-shadow: inset 0 2px 5px -2px rgba(0,0,0,.7); }
+.v20 .gp, .v20 .tm { position: relative; }
+
+/* title: silver Cinzel breaking the line, between two small stars */
+.v20 .plate { top: -18px; left: 12px; height: 17px; padding: 0 5px; gap: 6px; border-radius: 0; box-shadow: none; z-index: 5;
+  --it-band: color-mix(in oklab, var(--it-stone), #fff 6%);
+  background: linear-gradient(90deg, transparent, var(--it-band) 4px calc(100% - 4px), transparent) 0 5px / 100% 7px no-repeat;
+  color: var(--it-silver); font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+  text-shadow: 0 0 5px var(--it-glow), 0 1px 0 rgba(0,0,0,.8); }
+.v20 .plate::before, .v20 .plate::after { content: ""; width: 7px; height: 7px; flex: none; background: var(--it-silver);
+  -webkit-mask: var(--it-star) center / contain no-repeat; mask: var(--it-star) center / contain no-repeat; filter: drop-shadow(0 0 2px var(--it-glow)); }
+.v20 .pt { line-height: 17px; padding-top: 1px; }
+
+/* ---------- group */
+.v20 .fz { margin: 0 0 7px; padding: 6px 8px 8px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--it-silver) 30%, transparent);
+  background: linear-gradient(90deg, rgba(232,195,90,.07), transparent 42% 58%, rgba(255,77,77,.08)), var(--it-card);
+  box-shadow: 0 0 4px -1px var(--it-glow), inset 0 0 6px -2px rgba(0,0,0,.8); }
+.v20 .fz .trk { height: 7px; }
+.v20 .vs { width: 22px; height: 22px; font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .04em; color: var(--it-silver);
+  background: var(--it-well); box-shadow: 0 0 0 1px color-mix(in srgb, var(--it-silver) 45%, transparent), 0 0 5px -1px var(--it-glow);
+  text-shadow: 0 0 4px var(--it-glow); }
+.v20 .m2 { margin-bottom: 2px; padding: 2px 6px 2px 2px; border-radius: 3px;
+  background: linear-gradient(90deg, transparent, var(--it-faint) 12%, color-mix(in srgb, var(--it-silver) 8%, transparent) 70%, transparent) 0 0 / 100% 1px no-repeat, var(--it-card); }
+.v20 .m2:last-child { margin-bottom: 0; }
+.v20 .name { color: var(--it-ink2); }
+.v20 .name.pl, .v20 .fn { color: var(--it-ink); }
+.v20 .fn.f { color: #ff9b8f; }
+.v20 .name, .v20 .fn, .v20 .chip .n, .v20 .th { text-shadow: 0 1px 1px rgba(0,0,0,.75); }
+.v20 .tag { border-color: var(--it-faint); border-radius: 2px; background: var(--it-well); color: var(--it-ink2); }
+.v20 .vr { background: linear-gradient(180deg, transparent, var(--it-faint), transparent); }
+.v20 .rg .bg { stroke: var(--it-well); }
+
+/* bars: inset channels edged with faint silver; the fill is lit from within */
+.v20 .trk { height: 5px; border-radius: 3px; background: var(--it-well); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--it-silver) 14%, transparent), inset 0 1px 1px rgba(0,0,0,.8); }
+.v20 .bars .trk { margin: 0 1px; }
+.v20 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 35%), var(--c) 50%, color-mix(in srgb, var(--c), #000 20%));
+  box-shadow: 0 0 4px color-mix(in srgb, var(--c) 70%, transparent); }
+
+/* ---------- timers */
+.v20 .tm { gap: 6px; }
+.v20 .th { gap: 6px; font-family: var(--display); font-weight: 700; font-size: 10.5px; letter-spacing: .12em; color: var(--it-ink2); }
+.v20 .th .cnt { font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: 0; color: color-mix(in srgb, var(--it-ink2) 55%, transparent); }
+.v20 .hl { display: block; flex: none; width: 7px; height: 7px; margin-right: -1px; background: var(--c);
+  -webkit-mask: var(--it-star) center / contain no-repeat; mask: var(--it-star) center / contain no-repeat; filter: drop-shadow(0 0 2px var(--c)); }
+.v20 .hln { height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 40%, transparent), var(--it-faint) 25%, transparent 92%); }
+.v20 .items.flow, .v20 .items.grid { gap: 4px; }
+.v20 .chip { height: 20px; padding: 0 7px 0 6px; border-radius: 3px; border: 1px solid color-mix(in srgb, var(--c) 42%, color-mix(in srgb, var(--it-silver) 20%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--it-silver) 7%, transparent), transparent 60%), var(--it-card); }
+.v20 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 38%, transparent), color-mix(in srgb, var(--c) 22%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 65%, transparent); }
+.v20 .chip .n { color: var(--it-ink); }
+.v20 .chip .t { color: var(--it-ink2); }
+.v20 .chip.soon .t { color: #ff4a42; text-shadow: 0 0 4px rgba(255,60,50,.4); }
+.v20 .chip.untimed { border-style: dashed; border-color: var(--it-faint); background: transparent; }
+.v20 .chip.untimed .n { color: var(--it-ink2); }
+
+/* ---------- frame off: no stone, no inlay line, no stars or title */
+.v20[data-frame="off"] .pane::after { display: none; }
+.v20[data-frame="off"] .hole { box-shadow: none; border-radius: 0; }

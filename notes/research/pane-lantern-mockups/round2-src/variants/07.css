@@ -1,0 +1,114 @@
+/* 07 Obsidian — polished volcanic glass with pixel gem studs.
+   Frame: the pane itself is the obsidian band (8px left/right/bottom, 17px top = one cell row).
+   The nameplate is a raised obsidian cartouche that lives entirely in that 17px top band, flanked
+   by two tiny garnets; four garnet studs sit in the corners of the ring (.fx hooks). Corners are
+   pixel-stepped (clip-path), gloss is drawn with hard-stop gradients and diagonal glint streaks,
+   so it repeats at any pane size. Content: obsidian slabs with a glossy upper half, bars and timer
+   chips as faceted gem inlays in their own --c colour. */
+.v07 {
+  --o-st2: polygon(2px 0, calc(100% - 2px) 0, calc(100% - 2px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 1px) calc(100% - 2px), calc(100% - 1px) calc(100% - 1px), calc(100% - 2px) calc(100% - 1px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 2px), 0 calc(100% - 2px), 0 2px, 1px 2px, 1px 1px, 2px 1px);
+  --o-st4: polygon(4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px), 0 4px, 2px 4px, 2px 2px, 4px 2px);
+  --o-gem: polygon(2px 0, 5px 0, 5px 1px, 6px 1px, 6px 2px, 7px 2px, 7px 5px, 6px 5px, 6px 6px, 5px 6px, 5px 7px, 2px 7px, 2px 6px, 1px 6px, 1px 5px, 0 5px, 0 2px, 1px 2px, 1px 1px, 2px 1px);
+  --o-hi: rgba(206, 188, 255, .26);
+  --garnet: linear-gradient(#fff, #fff) 2px 1px / 2px 1px no-repeat, linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.55)) 1px 2px / 1px 2px no-repeat,
+    linear-gradient(135deg, #ff8a5c 0 34%, #e0301e 34% 62%, #8e1416 62% 82%, #4a0710 82%);
+}
+/* ---- frame */
+.v07 .pane { padding: 17px 8px 8px; border: 0; border-radius: 0; clip-path: var(--o-st4);
+  background:
+    repeating-linear-gradient(118deg, transparent 0 46px, rgba(224,206,255,.13) 46px 49px, transparent 49px 53px, rgba(224,206,255,.08) 53px 54px, transparent 54px 97px),
+    linear-gradient(90deg, rgba(120,90,200,.10), transparent 30% 70%, rgba(60,140,160,.08)),
+    linear-gradient(180deg, #43385a 0 1px, #2e2640 1px 3px, #211a2d 3px 7px, #17121f 7px 12px, #100c15 12px 60%, #17121d 60%);
+  box-shadow: inset 0 0 0 1px #000, inset 2px 2px 0 0 #5a4d78, inset -2px -2px 0 0 #050307, inset 3px 3px 0 0 rgba(120,104,160,.25); }
+.v07 .hole { overflow: visible; border: 0; padding: 9px 8px 8px; color: #c9c4d4;
+  background: linear-gradient(180deg, #0b0910, #060508 40%, #08070b);
+  box-shadow: 0 0 0 1px #000, 1px 1px 0 1px rgba(196,176,255,.20), inset 0 2px 0 0 #000, inset 0 -1px 0 0 rgba(160,140,220,.10); }
+.v07 .plate { top: -16px; left: 17px; height: 15px; padding: 0 19px; border-radius: 0; clip-path: var(--o-st2);
+  background: linear-gradient(180deg, rgba(255,255,255,.10) 0 6px, transparent 6px), linear-gradient(180deg, #3a3049, #221b2c);
+  box-shadow: inset 0 1px 0 0 rgba(226,212,255,.35), inset 0 -1px 0 0 #000, inset 1px 0 0 0 rgba(226,212,255,.12), inset -1px 0 0 0 #000; }
+.v07 .plate::before, .v07 .plate::after { content: ""; position: absolute; top: 4px; width: 7px; height: 7px; clip-path: var(--o-gem); background: var(--garnet); }
+.v07 .plate::before { left: 6px; }
+.v07 .plate::after { right: 6px; }
+.v07 .pt { font-family: var(--pixel); font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #e6defa; text-shadow: 1px 1px 0 #000; }
+/* corner studs: a black socket with a faceted garnet */
+.v07 .fx { display: block; width: 11px; height: 11px; background: #050307; clip-path: var(--o-st2); z-index: 4; }
+.v07 .fx::before { content: ""; position: absolute; left: 2px; top: 2px; width: 7px; height: 7px; clip-path: var(--o-gem); background: var(--garnet); }
+.v07 .f1, .v07 .f2 { width: 13px; height: 13px; top: 2px; }
+.v07 .f1::before, .v07 .f2::before { left: 2px; top: 2px; width: 9px; height: 9px;
+  clip-path: polygon(3px 0, 6px 0, 6px 1px, 7px 1px, 7px 2px, 8px 2px, 8px 3px, 9px 3px, 9px 6px, 8px 6px, 8px 7px, 7px 7px, 7px 8px, 6px 8px, 6px 9px, 3px 9px, 3px 8px, 2px 8px, 2px 7px, 1px 7px, 1px 6px, 0 6px, 0 3px, 1px 3px, 1px 2px, 2px 2px, 2px 1px, 3px 1px);
+  background: linear-gradient(#fff, #fff) 3px 2px / 2px 1px no-repeat, linear-gradient(rgba(255,255,255,.6), rgba(255,255,255,.6)) 2px 3px / 1px 2px no-repeat,
+    linear-gradient(135deg, #ff9a6c 0 32%, #e0301e 32% 60%, #8e1416 60% 80%, #4a0710 80%); }
+.v07 .f1 { left: 2px; }
+.v07 .f2 { right: 2px; }
+.v07 .f3, .v07 .f4 { width: 9px; height: 9px; bottom: 0; }
+.v07 .f3::before, .v07 .f4::before { left: 1px; top: 1px; }
+.v07 .f3 { left: 0; }
+.v07 .f4 { right: 0; }
+
+/* ---- shared content: obsidian slabs */
+.v07 .m2, .v07 .fz { position: relative; isolation: isolate; }
+.v07 .m2::before, .v07 .fz::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; clip-path: var(--o-st4);
+  background: linear-gradient(180deg, rgba(255,255,255,.055) 0 45%, transparent 45%),
+    repeating-linear-gradient(118deg, transparent 0 70px, rgba(214,196,255,.05) 70px 72px, transparent 72px 140px),
+    linear-gradient(180deg, #211b2b, #120e17);
+  box-shadow: inset 0 1px 0 0 var(--o-hi), inset 0 -2px 0 0 #000, inset 1px 0 0 0 rgba(206,188,255,.08), inset -1px 0 0 0 #000; }
+.v07 .m2 { margin-bottom: 5px; padding: 3px 9px 4px 4px; }
+.v07 .m2:last-child { margin-bottom: 0; }
+.v07 .name, .v07 .fn, .v07 .chip .n { text-shadow: 1px 1px 0 #000; }
+.v07 .name { color: #b7b0c4; }
+.v07 .name.pl { color: #f1ecfb; }
+.v07 .tag { border-radius: 0; border: 0; background: #0a080d; color: #b1a8c6; box-shadow: inset 0 1px 0 #000, 0 1px 0 rgba(206,188,255,.18); }
+.v07 .where { color: #8f88a0; }
+.v07 .ic > svg.i { stroke-linecap: square; stroke-linejoin: miter; filter: drop-shadow(1px 1px 0 #000); }
+.v07 .glow > svg.i { filter: drop-shadow(1px 1px 0 #000) drop-shadow(0 0 2px var(--c)); }
+.v07 .rg .bg { stroke: #0a080d; }
+.v07 .vr { width: 2px; background: #07050a; box-shadow: 1px 0 0 rgba(206,188,255,.14); }
+
+/* gem inlay bars */
+.v07 .trk { height: 7px; background: #030205; box-shadow: inset 0 1px 0 #000, 0 1px 0 0 rgba(196,176,255,.20); }
+.v07 .fill { background:
+    repeating-linear-gradient(90deg, transparent 0 9px, rgba(0,0,0,.38) 9px 10px),
+    linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 62%) 0 1px, color-mix(in srgb, var(--c), #fff 22%) 1px 3px, var(--c) 3px 5px, color-mix(in srgb, var(--c), #000 42%) 5px); }
+.v07 .band .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 62%) 0 1px, color-mix(in srgb, var(--c), #fff 22%) 1px 3px, var(--c) 3px 5px, color-mix(in srgb, var(--c), #000 42%) 5px); }
+.v07 .fill::before { content: ""; position: absolute; left: 1px; top: 1px; width: 3px; height: 1px; background: #fff; opacity: .85; }
+
+/* fight dais */
+.v07 .fz { padding: 7px 10px 10px; margin-bottom: 7px; }
+.v07 .fz::before { clip-path: var(--o-st4);
+  background: linear-gradient(180deg, rgba(255,255,255,.07) 0 45%, transparent 45%), radial-gradient(60% 120% at 50% 100%, rgba(224,48,30,.16), transparent 70%), linear-gradient(180deg, #2a2236, #120e17); }
+.v07 .ft { font-family: var(--pixel); font-size: 13px; }
+.v07 .fn { font-weight: 600; }
+.v07 .fz .trk { height: 9px; }
+.v07 .fz .fill { background:
+    repeating-linear-gradient(90deg, transparent 0 11px, rgba(0,0,0,.38) 11px 12px),
+    linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 62%) 0 1px, color-mix(in srgb, var(--c), #fff 22%) 1px 4px, var(--c) 4px 6px, color-mix(in srgb, var(--c), #000 42%) 6px); }
+.v07 .foe .fill::before { left: auto; right: 1px; }
+.v07 .vs { width: 24px; height: 22px; border-radius: 0; clip-path: polygon(6px 0, 18px 0, 18px 2px, 21px 2px, 21px 4px, 24px 4px, 24px 18px, 21px 18px, 21px 20px, 18px 20px, 18px 22px, 6px 22px, 6px 20px, 3px 20px, 3px 18px, 0 18px, 0 4px, 3px 4px, 3px 2px, 6px 2px);
+  background: linear-gradient(#fff, #fff) 6px 3px / 4px 1px no-repeat, linear-gradient(135deg, #ff8a5c 0 30%, #d42a1a 30% 60%, #7e1014 60%);
+  font-family: var(--pixel); font-weight: 600; font-size: 11px; color: #fff3ea; text-shadow: 1px 1px 0 #3a0508; margin-bottom: -2px; }
+
+/* ---- timers */
+.v07 .tm { gap: 7px; }
+.v07 .th { gap: 6px; font-family: var(--pixel); font-weight: 600; font-size: 11.5px; letter-spacing: .06em; color: #d3cbe6; text-shadow: 1px 1px 0 #000; }
+.v07 .th svg { stroke-linecap: square; filter: drop-shadow(1px 1px 0 #000); }
+.v07 .th .cnt { font-family: var(--mono); font-weight: 400; color: #6e6782; text-shadow: none; }
+.v07 .hln { position: relative; height: 2px; margin-right: 4px; background: linear-gradient(180deg, #000 0 1px, rgba(196,176,255,.16) 1px); }
+.v07 .hln::after { content: ""; position: absolute; right: -4px; top: -3px; width: 7px; height: 7px; clip-path: var(--o-gem);
+  background: linear-gradient(#fff, #fff) 2px 1px / 2px 1px no-repeat,
+    linear-gradient(135deg, color-mix(in srgb, var(--c), #fff 45%) 0 34%, var(--c) 34% 62%, color-mix(in srgb, var(--c), #000 50%) 62%); }
+.v07 .items.flow, .v07 .items.grid { gap: 4px; }
+.v07 .chip { height: 20px; padding: 0 8px 0 7px; clip-path: var(--o-st2); color: #ece6f6;
+  background: linear-gradient(180deg, rgba(255,255,255,.05) 0 9px, transparent 9px), linear-gradient(180deg, #1d1826, #100d15);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, #000), inset 0 2px 0 0 rgba(255,255,255,.08); }
+.v07 .chip .fill { width: calc(var(--p) * 1%); background:
+    linear-gradient(180deg, color-mix(in srgb, var(--c) 70%, transparent) 0 1px, color-mix(in srgb, var(--c) 42%, transparent) 1px 9px, color-mix(in srgb, var(--c) 27%, transparent) 9px 18px, color-mix(in srgb, var(--c) 55%, transparent) 18px); }
+.v07 .chip .fill::before { display: none; }
+.v07 .chip .fill::after { content: ""; position: absolute; right: 0; top: 1px; bottom: 1px; width: 1px; background: color-mix(in srgb, var(--c), #fff 30%); opacity: .7; }
+.v07 .chip svg.ci { stroke-linecap: square; filter: drop-shadow(1px 1px 0 #000); }
+.v07 .chip .t { color: #a49cb8; }
+.v07 .chip.soon .t { color: #ff4a3a; text-shadow: 1px 1px 0 #000; }
+.v07 .chip.untimed { background: repeating-conic-gradient(#0c0a10 0 25%, #14111a 0 50%) 0 0 / 4px 4px;
+  box-shadow: inset 0 0 0 1px #3a3347; }
+.v07 .chip.untimed .n { color: #8a83a0; }
+.v07 .chip.charm .fill { display: none; }
+.v07 .chip.charm { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 70%, #000), inset 0 2px 0 0 rgba(255,255,255,.08); }

@@ -1,0 +1,64 @@
+/* 09 Stilla pixel — the calm one.
+   Concept: a quiet slate-stone window with a thin stepped pixel border; nothing shouts, colour coding carries the information.
+   Cell-ring mapping: left/right/bottom band = 7 px (1 px black outline + 1 px light bevel + stone + 1 px dark bevel), i.e. inside one 9 px cell.
+   Top band = 17 px (one cell row): the notched title tab lives entirely in it and stands on the hole's sunken edge.
+   Corners are 3-px pixel steps (clip-path), so the frame scales to any size; the .fx hooks are unused. */
+.v09 { --s-out: #050505; --s-stone: #3b3c39; --s-hi: #676861; --s-lo: #23231f; --s-hole: #121311; --s-card: #1a1b19;
+  --s-cardhi: #292a27; --s-rule: #34352f; --s-ink: #b9b5a6; --s-ink2: #8d8a7f;
+  --step3: polygon(0 3px, 1px 3px, 1px 1px, 3px 1px, 3px 0, calc(100% - 3px) 0, calc(100% - 3px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 3px, 100% 3px,
+    100% calc(100% - 3px), calc(100% - 1px) calc(100% - 3px), calc(100% - 1px) calc(100% - 1px), calc(100% - 3px) calc(100% - 1px), calc(100% - 3px) 100%,
+    3px 100%, 3px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 3px), 0 calc(100% - 3px));
+  --step1: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px),
+    calc(100% - 1px) 100%, 1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px)); }
+
+/* ---------- frame */
+.v09 .pane { padding: 17px 7px 7px; border: 0; border-radius: 0; background: var(--s-out); box-shadow: none; clip-path: var(--step3); isolation: isolate; }
+.v09 .pane::before { content: ""; position: absolute; inset: 1px; z-index: -1; clip-path: var(--step3);
+  background: var(--stone-noise) 0 0 / 160px 160px, linear-gradient(180deg, #3f403c, #363733);
+  box-shadow: inset 1px 1px 0 var(--s-hi), inset -1px -1px 0 var(--s-lo); }
+.v09 .pane::after { content: ""; position: absolute; inset: 1px; z-index: -1; background: rgba(28, 30, 28, .55); clip-path: var(--step3); pointer-events: none; }
+.v09 .hole { background: var(--s-hole); border: 1px solid; border-color: #0a0a09 #50514b #50514b #0a0a09; padding: 6px 6px 6px; overflow: visible; }
+.v09 .gp, .v09 .tm { overflow: hidden; padding: 1px; margin: -1px; }
+
+/* notched title tab: stepped shoulders, sits on the hole's top edge */
+.v09 .plate { top: -17px; left: 9px; height: 16px; padding: 0 12px; border-radius: 0; box-shadow: none; gap: 6px;
+  background: linear-gradient(180deg, #5b5c56 0 1px, #474843 1px 100%);
+  clip-path: polygon(0 100%, 0 12px, 2px 12px, 2px 8px, 4px 8px, 4px 4px, 6px 4px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 4px, calc(100% - 4px) 4px,
+    calc(100% - 4px) 8px, calc(100% - 2px) 8px, calc(100% - 2px) 12px, 100% 12px, 100% 100%);
+  color: #dcd8c9; font-family: var(--pixel); font-weight: 600; font-size: 11.5px; letter-spacing: .07em; text-shadow: 1px 1px 0 #1c1c1a; }
+.v09 .plate::before, .v09 .plate::after { content: ""; width: 2px; height: 2px; background: #8d8b80; box-shadow: 1px 1px 0 #1c1c1a; flex: none; }
+.v09 .pt { line-height: 16px; padding-top: 1px; }
+
+/* ---------- group */
+.v09 .fz { margin: 0 0 6px; padding: 6px 8px 7px; background: #1d1e1b; clip-path: var(--step3);
+  box-shadow: inset 0 0 0 1px #3a3b36, inset 0 2px 0 #2a2b27; }
+.v09 .fz .trk { height: 7px; }
+.v09 .vs { border-radius: 0; font-family: var(--pixel); font-weight: 600; font-size: 11px; color: var(--s-ink2); text-shadow: 1px 1px 0 #000; }
+.v09 .m2 { margin-bottom: 3px; padding: 1px 6px 2px 2px; background: var(--s-card); clip-path: var(--step1);
+  box-shadow: inset 0 1px 0 var(--s-cardhi), inset 0 -1px 0 #0d0d0c; }
+.v09 .m2:last-child { margin-bottom: 0; }
+.v09 .name { color: #a6a397; }
+.v09 .name.pl { color: #e4e1d6; }
+.v09 .tag { border-radius: 0; border-color: #3d3e38; background: #222320; color: var(--s-ink2); }
+.v09 .vr { background: var(--s-rule); }
+.v09 .ic > svg.i { stroke-linecap: square; stroke-linejoin: miter; }
+.v09 .trk { height: 5px; background: #090a09; box-shadow: 0 0 0 1px #2c2d29; }
+.v09 .bars .trk { margin: 0 1px; }
+.v09 .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 32%) 0 1px, var(--c) 1px calc(100% - 1px), color-mix(in srgb, var(--c), #000 30%) calc(100% - 1px)); }
+
+/* ---------- timers */
+.v09 .tm { gap: 5px; }
+.v09 .th { text-transform: none; font-family: var(--pixel); font-weight: 600; font-size: 12px; letter-spacing: .07em; color: var(--s-ink); text-shadow: 1px 1px 0 #000; }
+.v09 .th .cnt { font-family: var(--mono); font-size: 10px; color: #66645b; text-shadow: none; }
+.v09 .th svg { stroke-linecap: square; }
+.v09 .hln { height: 1px; background: repeating-linear-gradient(90deg, #44453f 0 1px, transparent 1px 3px); }
+.v09 .items.flow, .v09 .items.grid { gap: 4px; }
+.v09 .chip { height: 19px; padding: 0 7px 0 6px; background: var(--s-card); clip-path: var(--step1);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 38%, #2a2b27); }
+.v09 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 42%, transparent) 0 1px, color-mix(in srgb, var(--c) 20%, transparent) 1px); }
+.v09 .chip .n { color: #dedbd0; text-shadow: 1px 1px 0 #000; }
+.v09 .chip .t { color: #9a978c; }
+.v09 .chip.soon .t { color: #ff4a42; }
+.v09 .chip svg.ci { stroke-linecap: square; }
+.v09 .chip.untimed { background: transparent; box-shadow: inset 0 0 0 1px #2c2d29; }
+.v09 .chip.untimed .n { color: #8d8a7f; }

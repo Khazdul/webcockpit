@@ -1,0 +1,102 @@
+/* 12 Stilla glas — round-2 "09 Stilla pixel" meets today's glass rim.
+   Concept: today's calm tinted glass rim and engraved nameplate, finished a little finer. Pixel character
+   survives only as seasoning: each outer corner is cut in two 2-px steps, and the nameplate grows out of the
+   rim with stepped shoulders (inverse 2-px steps where it meets the rim, 2-px steps at its lower corners).
+   Cell ring: 6 px band left/right/bottom (inside one 9 px cell column / the bottom cell row); the top band is
+   the same 6 px rim plus the nameplate hanging 11 px into the hole = 17 px (one cell row). Corner steps are
+   clip-path polygons on the ring layers, so the frame scales to any pane size; the .fx hooks are unused.
+   Layers: ::before = 1 px dark outline, ::after = glass (tinted from --glass), both masked to the ring so a
+   clear pane really is clear under the content. The content uses quiet "glass cards" mixed from --glass and
+   --pane-fill. Tint: everything derives from --glass / --pane-fill / --pane-h. Frame off: the ring layers and
+   plate vanish (base), the cards keep their glass so the content still reads as the same family. Clear: the
+   hole's inner shadow is dropped and cards gain a little --pane-fill backing so text stays readable on the sky. */
+.v12 {
+  --g12: var(--glass);
+  --g12-hi: oklch(from var(--glass) calc(l + .2) c h);
+  --g12-lo: oklch(from var(--glass) calc(l - .2) c h);
+  --g12-ink: oklch(from var(--glass) .2 calc(c * .8) h);
+  --g12-card: color-mix(in oklch, var(--glass) 17%, var(--pane-fill));
+  --g12-card2: color-mix(in oklch, var(--glass) 12%, var(--pane-fill));
+  --g12-rule: color-mix(in oklch, var(--glass) 42%, var(--pane-fill));
+  --g12-trk: color-mix(in oklch, var(--glass) 14%, #000);
+  --st12: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px,
+    100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%,
+    4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+  --st12s: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px),
+    calc(100% - 1px) 100%, 1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px));
+}
+.v12[data-clear] {
+  --g12-card: color-mix(in oklch, color-mix(in oklch, var(--glass) 22%, var(--pane-fill)) 72%, transparent);
+  --g12-card2: color-mix(in oklch, color-mix(in oklch, var(--glass) 12%, var(--pane-fill)) 55%, transparent);
+  --g12-rule: color-mix(in oklch, var(--glass) 70%, transparent);
+}
+
+/* ---------- frame */
+.v12 .pane { padding: 6px; border-radius: 0; isolation: isolate; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
+.v12 .pane::before, .v12 .pane::after { content: ""; position: absolute; pointer-events: none; border: 0; border-radius: 0; box-sizing: border-box;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+/* outline */
+.v12 .pane::before { inset: 0; padding: 6px; z-index: 0; clip-path: var(--st12); background: rgba(0,0,0,.85); box-shadow: none; }
+/* glass */
+.v12 .pane::after { inset: 1px; padding: 5px; z-index: 0; clip-path: var(--st12);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.17), rgba(255,255,255,.03) 45%, rgba(0,0,0,.08)),
+    var(--stone-noise) 0 0 / 160px 160px,
+    var(--g12);
+  background-blend-mode: normal, soft-light, normal;
+  box-shadow: inset 1px 1px 0 color-mix(in oklch, var(--g12-hi) 75%, transparent), inset -1px -1px 0 color-mix(in oklch, var(--g12-lo) 70%, transparent); }
+.v12 .hole { z-index: 1; border-color: rgba(0,0,0,.8) color-mix(in oklch, var(--g12-hi) 45%, transparent) color-mix(in oklch, var(--g12-hi) 45%, transparent) rgba(0,0,0,.8);
+  padding: 16px 7px 7px; overflow: visible; box-shadow: inset 0 2px 5px rgba(0,0,0,.55); }
+.v12 .gp, .v12 .tm { overflow: hidden; padding: 1px; margin: -1px; }
+.v12[data-clear] .hole { box-shadow: none; }
+
+/* nameplate: grows out of the top rim (covers it), hangs 11 px into the hole, stepped shoulders */
+.v12 .plate { top: -6px; left: 14px; height: 16px; padding: 0 12px; border-radius: 0; box-shadow: none; overflow: visible;
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.05) 45%, rgba(0,0,0,.06)), var(--g12);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, calc(100% + 4px) 5px, calc(100% + 4px) 7px, calc(100% + 2px) 7px, calc(100% + 2px) 9px, 100% 9px,
+    100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%,
+    4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px), 0 9px, -2px 9px, -2px 7px, -4px 7px, -4px 5px, 0 5px);
+  color: var(--g12-ink); text-shadow: 0 1px 0 color-mix(in oklch, var(--g12-hi) 55%, transparent); }
+/* shoulder fillets: inverse 2-px steps where the plate leaves the rim */
+.v12 .plate::before, .v12 .plate::after { content: ""; position: absolute; top: 5px; width: 4px; height: 4px; background: var(--g12);
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.25); }
+.v12 .plate::before { left: -4px; }
+.v12 .plate::after { right: -4px; }
+.v12 .pt { position: relative; top: 1px; font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .07em; line-height: 13px; }
+
+/* ---------- group */
+.v12 .gp { gap: 3px; }
+.v12 .fz { margin: 0 0 4px; padding: 5px 8px 8px; background: var(--g12-card); clip-path: var(--st12);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--g12-hi) 28%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--glass) 55%, transparent);
+  background-image: linear-gradient(90deg, rgba(232,195,90,.06), transparent 40% 60%, rgba(255,77,77,.07)); }
+.v12 .vs { background: var(--g12-card2); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--g12-hi) 35%, transparent), 0 0 0 1px rgba(0,0,0,.6); color: var(--dim); }
+.v12 .m2 { padding: 0 6px 1px 3px; background: var(--g12-card2); clip-path: var(--st12s);
+  box-shadow: inset 1px 1px 0 color-mix(in oklch, var(--g12-hi) 9%, transparent), inset -1px -1px 0 rgba(0,0,0,.35); }
+.v12 .tag { border-radius: 2px; border-color: var(--g12-rule); background: var(--g12-card); }
+.v12 .vr { background: var(--g12-rule); }
+.v12 .trk { background: var(--g12-trk); border-radius: 2px; box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 color-mix(in oklch, var(--g12-hi) 18%, transparent); }
+.v12 .fill { border-radius: 2px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 30%) 0 1px, var(--c) 1px calc(100% - 1px), color-mix(in srgb, var(--c), #000 25%) calc(100% - 1px)); }
+.v12 .fz .trk { height: 7px; }
+.v12 .rg .bg { stroke: var(--g12-trk); }
+
+/* ---------- timers */
+.v12 .tm { gap: 5px; }
+.v12 .th { text-transform: none; font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .06em; color: #b9b9b4; }
+.v12 .th .cnt { font-family: var(--mono); font-size: 10px; color: var(--dim); }
+/* header rule engraved into the glass: a dark line with a faint lip below */
+.v12 .hln { height: 2px; background: linear-gradient(180deg, rgba(0,0,0,.85) 0 1px, color-mix(in oklch, var(--g12-hi) 22%, transparent) 1px);
+  -webkit-mask: linear-gradient(90deg, #000 70%, transparent); mask: linear-gradient(90deg, #000 70%, transparent); }
+.v12 .chip { height: 20px; border-radius: 3px; background: var(--g12-card2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 48%, var(--g12-rule)), inset 0 2px 0 -1px color-mix(in oklch, var(--g12-hi) 22%, transparent); }
+.v12 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent) 0 1px, color-mix(in srgb, var(--c) 24%, transparent) 1px); }
+.v12 .chip .n { color: #dcdcd8; }
+.v12 .chip .t { color: #9c9c98; }
+.v12 .chip.soon .t { color: #ff3b3b; }
+.v12 .chip.untimed { background: transparent; box-shadow: none; outline: 1px dashed color-mix(in oklch, var(--dim) 80%, transparent); outline-offset: -1px; }
+.v12 .chip.untimed .n { color: var(--dim); }
+.v12 .chip.charm { background: transparent; }
+
+/* ---------- frame off: no ring, no plate; content keeps its glass cards */
+.v12[data-frame="off"] .pane { filter: none; }
+.v12[data-frame="off"] .pane::after { display: none; }
+.v12[data-frame="off"] .hole { box-shadow: none; }

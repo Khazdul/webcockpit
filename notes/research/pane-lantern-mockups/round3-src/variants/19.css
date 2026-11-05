@@ -1,0 +1,83 @@
+/* 19 Mjukt djup — no rim, just soft depth.
+   Concept: the pane is a soft raised slab (rounded, lit faintly from above, a wide soft shadow under it) with a soft
+   inner well where the content sits. No lines, no bevel, no ornaments: depth comes only from light and shadow.
+   The title is a small debossed label pressed into the slab's top edge. Cards, chips and the vs-badge are softly
+   raised pebbles; bars are rounded wells.
+   Cell-ring mapping: slab band 7 px left/right/bottom, 17 px on top (the label lives entirely in that row);
+   the 10 px corner radius sits inside the ring cells; everything is gradients and shadows, so it scales freely.
+   Tint: the slab colour is derived from --pane-border in oklch (lightness fixed, chroma capped), the well from
+   --pane-bg mixed with a little slab, cards/chips from the slab, so all surfaces follow the tint; Plain is a soft graphite.
+   Frame off: the slab and label vanish (base), but the well keeps its rounded soft inner shadow, so it reads almost
+   the same. Clear: the slab ring stays (masked to the ring, never under content), the well is transparent with only
+   the soft edge shadow; cards and chips turn into smoked slab colour so text stays readable over the sky. */
+.v19 { --s19-slab: oklch(from var(--pane-border) .255 min(calc(c * 5), .045) h);
+  --s19-slab-hi: oklch(from var(--s19-slab) calc(l + .05) c h);
+  --s19-well: color-mix(in oklab, var(--s19-slab) 22%, var(--pane-fill));
+  --s19-card: color-mix(in oklab, var(--s19-slab) 42%, var(--pane-fill));
+  --s19-ink: oklch(from var(--s19-slab) .80 calc(c * .6) h);
+  --s19-ink2: oklch(from var(--s19-slab) .62 calc(c * .6) h); }
+.v19[data-clear] { --s19-card: color-mix(in oklab, color-mix(in oklab, var(--s19-slab) 55%, #000) 72%, transparent); }
+
+/* ---------- frame: the slab (painted only in the ring) */
+.v19 .pane { padding: 17px 7px 7px; border-radius: 10px;
+  box-shadow: 0 14px 28px -10px rgba(0, 0, 0, .9), 0 3px 8px -2px rgba(0, 0, 0, .6); }
+.v19 .pane::before { padding: 17px 7px 7px; border: 0; border-radius: inherit;
+  background: radial-gradient(120% 60px at 50% 0, rgba(255, 255, 255, .07), transparent 70%),
+    linear-gradient(180deg, var(--s19-slab-hi), var(--s19-slab) 30px, color-mix(in oklab, var(--s19-slab), #000 18%));
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .10), inset 0 -2px 3px rgba(0, 0, 0, .35); }
+.v19 .hole { border: 0; border-radius: 7px; padding: 7px 7px 7px; overflow: visible;
+  background: var(--s19-well);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, .8), inset 0 0 3px rgba(0, 0, 0, .55), 0 1px 0 rgba(255, 255, 255, .05); }
+.v19[data-clear] .hole { background: transparent; box-shadow: inset 0 3px 7px rgba(0, 0, 0, .55), inset 0 0 2px rgba(0, 0, 0, .5), 0 1px 0 rgba(255, 255, 255, .06); }
+.v19 .hole > .gp, .v19 .hole > .tm { position: relative; overflow: hidden; padding: 0 0 3px; margin: 0 0 -3px; border-radius: 4px; }
+/* the label: a small debossed pill pressed into the top band */
+.v19 .plate { top: -16px; left: 9px; height: 13px; padding: 0 9px; border-radius: 7px; box-shadow: none;
+  background: color-mix(in oklab, var(--s19-slab), #000 30%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .09); }
+.v19 .pt { font-family: var(--body); font-weight: 700; font-size: 11px; letter-spacing: .07em; line-height: 13px;
+  color: var(--s19-ink2); text-shadow: 0 -1px 0 rgba(0, 0, 0, .6); }
+/* frame off: the well alone, same soft edge */
+.v19[data-frame="off"] .hole { border-radius: 8px; padding: 6px; }
+
+/* ---------- group */
+.v19 .fz { margin-bottom: 8px; padding: 6px 9px 9px; border-radius: 8px;
+  background: radial-gradient(70% 120% at 0 0, rgba(232, 195, 90, .07), transparent 60%), radial-gradient(70% 120% at 100% 0, rgba(255, 77, 77, .08), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, .04), transparent 60%), var(--s19-card);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .07); }
+.v19 .vs { background: linear-gradient(180deg, var(--s19-slab-hi), var(--s19-slab)); color: var(--s19-ink); font-family: var(--body); font-weight: 700; font-size: 10.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .12); }
+.v19 .m2 { padding: 0 4px 1px 2px; border-radius: 6px; margin-bottom: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .025), transparent), color-mix(in oklab, var(--s19-card) 55%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04); }
+.v19[data-clear] .m2 { background: var(--s19-card); }
+.v19 .m2:last-child { margin-bottom: 0; }
+.v19 .name { color: #b0aeaa; }
+.v19 .name.pl { color: #e6e4df; }
+.v19 .tag { border: 0; border-radius: 6px; background: color-mix(in oklab, var(--s19-slab), #000 25%); color: var(--s19-ink2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .6); }
+.v19 .vr { background: rgba(255, 255, 255, .09); border-radius: 1px; }
+.v19 .rg .bg { stroke: rgba(0, 0, 0, .55); }
+.v19 .trk { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .5); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .75); }
+.v19 .fs .trk { height: 8px; border-radius: 4px; }
+.v19 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 28%), var(--c) 60%);
+  box-shadow: inset 0 -1px 1px color-mix(in srgb, var(--c), #000 30%); }
+
+/* ---------- timers */
+.v19 .tm { gap: 7px; }
+.v19 .th { font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .05em; text-transform: none; color: var(--s19-ink); }
+.v19 .th .cnt { font-family: var(--mono); font-size: 9.5px; line-height: 13px; padding: 0 5px; border-radius: 7px; color: var(--s19-ink2);
+  background: color-mix(in oklab, var(--s19-slab), #000 25%); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .6); }
+.v19 .hln { height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, .10), transparent); }
+.v19[data-clear] .th { text-shadow: 0 1px 2px #000, 0 0 4px rgba(0, 0, 0, .7); }
+.v19[data-clear] .hln { background: linear-gradient(90deg, rgba(255, 255, 255, .22), transparent); }
+.v19 .items.flow, .v19 .items.grid { gap: 5px; }
+.v19 .chip { height: 21px; border-radius: 11px; background: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 70%), var(--s19-card);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 0 0 1px color-mix(in srgb, var(--c) 20%, transparent); }
+.v19 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent), color-mix(in srgb, var(--c) 24%, transparent)); }
+.v19 .chip .n { color: #e6e4df; }
+.v19 .chip .t { color: #a8a6a0; }
+.v19 .chip.soon .t { color: #ff4a42; }
+/* untimed: a soft dent instead of a raised pebble */
+.v19 .chip.untimed { background: rgba(0, 0, 0, .3); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8), inset 0 0 0 1px rgba(255, 255, 255, .07), 0 1px 0 rgba(255, 255, 255, .05); }
+.v19 .chip.untimed .n { color: var(--s19-ink2); }
+.v19[data-clear] .chip.untimed { background: rgba(0, 0, 0, .42); }

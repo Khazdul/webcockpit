@@ -1,0 +1,105 @@
+/* 02 · Murverk
+   Concept: a dungeon-crawler wall. The frame band is masonry of tiny pixel bricks (8x4 px, repeating SVG tile,
+   1-px mortar), dressed quoin stones sit in the corners, a stepped keystone/lintel carries the title, and the
+   content cards are smooth stone slabs mortared into the dark recess.
+   Cell-ring mapping: left/right/bottom band = 8 px (exactly one brick wide / two courses high); top band = 16 px
+   (four courses) holding the keystone, which overhangs 3 px into the recess like a real lintel. Quoins (.fx) are
+   corner pieces inside the band; the brick tile repeats, so the frame scales to any pane size. */
+.v02 {
+  --mw-brick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='8' shape-rendering='crispEdges'%3E%3Crect width='16' height='8' fill='%23110f0d'/%3E%3Crect x='0' y='0' width='7' height='3' fill='%234d4840'/%3E%3Crect x='8' y='0' width='7' height='3' fill='%23423e37'/%3E%3Crect x='0' y='4' width='3' height='3' fill='%23383530'/%3E%3Crect x='4' y='4' width='7' height='3' fill='%23484339'/%3E%3Crect x='12' y='4' width='4' height='3' fill='%23383530'/%3E%3Cg fill='%23fff' fill-opacity='.13'%3E%3Crect x='0' y='0' width='7' height='1'/%3E%3Crect x='8' y='0' width='7' height='1'/%3E%3Crect x='0' y='4' width='3' height='1'/%3E%3Crect x='4' y='4' width='7' height='1'/%3E%3Crect x='12' y='4' width='4' height='1'/%3E%3C/g%3E%3Cg fill='%23000' fill-opacity='.25'%3E%3Crect x='6' y='1' width='1' height='2'/%3E%3Crect x='14' y='1' width='1' height='2'/%3E%3Crect x='10' y='5' width='1' height='2'/%3E%3Crect x='2' y='5' width='1' height='2'/%3E%3C/g%3E%3C/svg%3E");
+  /* 32x16 tint so neighbouring bricks differ (breaks the obvious repeat) */
+  --mw-tint: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='24' shape-rendering='crispEdges'%3E%3Cg fill='%23000' fill-opacity='.22'%3E%3Crect x='8' y='0' width='7' height='3'/%3E%3Crect x='36' y='4' width='7' height='3'/%3E%3Crect x='16' y='8' width='7' height='3'/%3E%3Crect x='4' y='20' width='7' height='3'/%3E%3Crect x='40' y='16' width='7' height='3'/%3E%3C/g%3E%3Cg fill='%23d8b98a' fill-opacity='.10'%3E%3Crect x='24' y='0' width='7' height='3'/%3E%3Crect x='20' y='12' width='7' height='3'/%3E%3Crect x='0' y='8' width='7' height='3'/%3E%3Crect x='28' y='20' width='7' height='3'/%3E%3C/g%3E%3C/svg%3E");
+  --mw-slab: #2b2926;
+}
+
+/* ---------- frame: brick masonry ---------- */
+.v02 .pane { padding: 16px 8px 8px; border: 0; border-radius: 0;
+  background: linear-gradient(180deg, rgba(255,214,150,.07), transparent 40%, rgba(0,0,0,.22)), var(--mw-tint) 0 0 / 48px 24px, var(--mw-brick) 0 0 / 16px 8px;
+  box-shadow: 0 0 0 1px #000; }
+/* the recess: mortared edge, deep hard-stepped shadow under the top courses */
+.v02 .hole { overflow: visible; border: 0; padding: 9px 6px 6px;
+  background: var(--stone-dark), linear-gradient(180deg, #070707, #0e0d0c);
+  box-shadow: 0 0 0 1px #000, inset 0 2px 0 #000, inset 0 4px 0 rgba(0,0,0,.6), inset 0 6px 0 rgba(0,0,0,.3), inset 2px 0 0 rgba(0,0,0,.6), inset -1px 0 0 rgba(255,225,180,.08), inset 0 -1px 0 rgba(255,225,180,.10); }
+
+/* keystone / lintel nameplate, centred */
+.v02 .plate { top: -16px; left: 50%; transform: translateX(-50%); height: 19px; padding: 0 18px 1px; border-radius: 0; background: none; box-shadow: none;
+  isolation: isolate; filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 2px 0 rgba(0,0,0,.85)); }
+.v02 .plate::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  clip-path: polygon(0 0, 100% 0, 100% 5px, calc(100% - 2px) 5px, calc(100% - 2px) 10px, calc(100% - 4px) 10px, calc(100% - 4px) 15px, calc(100% - 6px) 15px, calc(100% - 6px) 100%, 6px 100%, 6px 15px, 4px 15px, 4px 10px, 2px 10px, 2px 5px, 0 5px);
+  background: var(--stone-noise), linear-gradient(180deg, #9d9581, #7c7565 55%, #625c50);
+  box-shadow: inset 0 2px 0 rgba(255,246,226,.45), inset 0 -3px 0 rgba(0,0,0,.45); }
+.v02 .plate::after { content: ""; position: absolute; left: 50%; top: 0; width: 2px; height: 2px; margin-left: -1px; background: transparent; }
+.v02 .pt { font-family: var(--pixel); font-weight: 600; font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: #201d18;
+  text-shadow: 0 1px 0 rgba(255,246,226,.42); }
+
+/* quoins: dressed corner stones */
+.v02 .fx { display: block; z-index: 2; width: 16px;
+  background: linear-gradient(#000, #000) 0 7px / 100% 1px no-repeat,
+    linear-gradient(rgba(255,246,226,.32), rgba(255,246,226,.32)) 0 0 / 100% 1px no-repeat,
+    linear-gradient(rgba(255,246,226,.32), rgba(255,246,226,.32)) 0 8px / 100% 1px no-repeat,
+    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)) 0 5px / 100% 2px no-repeat,
+    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)) 0 14px / 100% 2px no-repeat,
+    var(--stone-noise), linear-gradient(180deg, #8e8676, #6a6457); }
+/* alternating long/short quoins at the top (L-shaped: 16-px stone over an 11-px stone), single long stone at the bottom */
+.v02 .f1 { left: 0; top: 0; height: 16px; clip-path: polygon(0 0, 100% 0, 100% 8px, 11px 8px, 11px 100%, 0 100%); }
+.v02 .f2 { right: 0; top: 0; height: 16px; clip-path: polygon(0 0, 100% 0, 100% 100%, 5px 100%, 5px 8px, 0 8px); }
+.v02 .f3, .v02 .f4 { bottom: 0; height: 8px; background-position: 0 -8px, 0 0, 0 0, 0 5px, 0 0, 0 0, 0 0; }
+.v02 .f3 { left: 0; }
+.v02 .f4 { right: 0; }
+
+/* ---------- Group content: stone slabs set into the wall ---------- */
+.v02 .m2 { position: relative; margin: 0 1px 5px; padding: 2px 6px 3px 3px;
+  background: var(--stone-noise), linear-gradient(180deg, #33302b, var(--mw-slab) 30%, #23211e);
+  box-shadow: 0 0 0 1px #000, 0 2px 0 1px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,236,205,.16), inset 1px 0 0 rgba(255,236,205,.06), inset 0 -2px 0 rgba(0,0,0,.4), inset -1px 0 0 rgba(0,0,0,.3); }
+.v02 .m2:last-child { margin-bottom: 1px; }
+.v02 .name, .v02 .fn, .v02 .chip .n, .v02 .fv, .v02 .where, .v02 .tag { text-shadow: 1px 1px 0 #000; }
+.v02 .name { color: #b5afa3; }
+.v02 .name.pl { color: #ece6da; }
+.v02 .tag { border: 0; border-radius: 0; background: #1a1916; color: #b3aa96; box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,236,205,.12); }
+.v02 .where { color: #9c9584; }
+.v02 .vr { width: 1px; height: 13px; background: #000; box-shadow: 1px 0 0 rgba(255,236,205,.14); margin: 0 4px; }
+.v02 .ic > svg.i { filter: drop-shadow(1px 1px 0 #000); }
+.v02 .glow > svg.i { filter: drop-shadow(1px 1px 0 #000) drop-shadow(0 0 2px var(--c)); }
+.v02 .rg .bg { stroke: #0b0a09; }
+/* bars: chiselled grooves */
+.v02 .trk { height: 6px; background: #050505; box-shadow: inset 0 2px 0 #000, 0 1px 0 rgba(255,236,205,.13); }
+.v02 .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #000 30%) 0 1px, color-mix(in srgb, var(--c), #fff 30%) 1px 2px, var(--c) 2px 5px, color-mix(in srgb, var(--c), #000 35%) 5px); }
+
+/* fight zone: a larger slab with a stone 'vs' block */
+.v02 .fz { margin: 0 1px 7px; padding: 7px 10px 10px;
+  background: var(--stone-noise), linear-gradient(180deg, #3d3933, #2c2925 60%, #25221f);
+  box-shadow: 0 0 0 1px #000, 0 2px 0 1px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,236,205,.18), inset 0 -2px 0 rgba(0,0,0,.45), inset 2px 0 0 rgba(255,236,205,.06), inset -2px 0 0 rgba(0,0,0,.25); }
+.v02 .fz .fn { font-family: var(--pixel); font-weight: 600; font-size: 13.5px; }
+.v02 .fn.f { color: #ff9b8f; }
+.v02 .fv { color: #a69f8d; }
+.v02 .fz .trk { height: 8px; }
+.v02 .fz .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #000 30%) 0 1px, color-mix(in srgb, var(--c), #fff 35%) 1px 3px, var(--c) 3px 6px, color-mix(in srgb, var(--c), #000 35%) 6px); }
+.v02 .vs { width: 26px; height: 22px; margin-bottom: -3px; border-radius: 0; font-family: var(--pixel); font-weight: 600; font-size: 12px; color: #f0cf6e;
+  text-shadow: 1px 1px 0 #000; background: var(--stone-noise), linear-gradient(180deg, #57524a, #403c35);
+  box-shadow: 0 0 0 1px #000, 0 2px 0 1px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,236,205,.25), inset 0 -2px 0 rgba(0,0,0,.4); }
+
+/* ---------- Timers content ---------- */
+.v02 .tm { gap: 7px; }
+.v02 .th { gap: 6px; font-family: var(--pixel); font-weight: 600; font-size: 12px; letter-spacing: .08em; color: #d0c6b0; text-shadow: 1px 1px 0 #000; }
+.v02 .th svg { filter: drop-shadow(1px 1px 0 #000); }
+.v02 .th .cnt { color: #877e6c; }
+/* header rule = a single course of tiny bricks, the group colour as a mortar glint at the start */
+.v02 .hl { display: block; flex: none; width: 4px; height: 8px; background: var(--c); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.35), inset 0 -2px 0 rgba(0,0,0,.35); }
+.v02 .hln { height: 4px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' shape-rendering='crispEdges'%3E%3Crect width='8' height='4' fill='%23000'/%3E%3Crect x='0' y='0' width='7' height='3' fill='%233f3b34'/%3E%3Crect x='0' y='0' width='7' height='1' fill='%235a554b'/%3E%3C/svg%3E") left top / 8px 4px repeat-x;
+  -webkit-mask: linear-gradient(90deg, #000 55%, transparent); mask: linear-gradient(90deg, #000 55%, transparent); }
+.v02 .items.flow, .v02 .items.grid { gap: 5px; padding: 1px; }
+/* chips: small mortared blocks; the group colour is a pixel inlay on the left edge plus the time fill */
+.v02 .chip { overflow: hidden; height: 19px; padding: 0 8px 0 8px;
+  background: var(--stone-noise), linear-gradient(180deg, #2e2b27, #201e1b);
+  box-shadow: 0 0 0 1px #000, inset 2px 0 0 var(--c), inset 3px 0 0 #000, inset 0 1px 0 rgba(255,236,205,.14), inset 0 -2px 0 rgba(0,0,0,.4); }
+.v02 .chip .fill { left: 3px; width: calc((100% - 3px) * var(--p) / 100);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 50%, transparent) 0 1px, color-mix(in srgb, var(--c) 30%, transparent) 1px 15px, color-mix(in srgb, var(--c) 14%, transparent) 15px); }
+.v02 .chip svg.ci { filter: drop-shadow(1px 1px 0 #000); }
+.v02 .chip .n { color: #e8e1d3; }
+.v02 .chip .t { color: #aca390; text-shadow: 1px 1px 0 #000; }
+.v02 .chip.soon .t { color: #ff4a3d; }
+.v02 .chip.untimed { background: repeating-conic-gradient(#121110 0 25%, #1c1a17 0 50%) 0 0 / 4px 4px;
+  box-shadow: 0 0 0 1px #000, inset 2px 0 0 color-mix(in srgb, var(--c) 45%, #000), inset 0 0 0 1px #2f2b25; }
+.v02 .chip.untimed .n { color: #8e8775; }
+.v02 .chip.charm .fill { display: none; }
+.v02 .chip .x { color: #a39a86; }

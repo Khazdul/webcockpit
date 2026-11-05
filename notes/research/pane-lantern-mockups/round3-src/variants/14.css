@@ -1,0 +1,82 @@
+/* 14 Glas på sten — today's glass rim, set into a slab of stone.
+   Concept: the rim is today's glass almost unchanged (same 6 px ring, bevel and hanging nameplate) but it now carries a
+   fine stone grain, and the hole is the same stone a few steps darker with the same grain. Cards, bars and chips are
+   soft carved hollows (shadow under the top edge, faint lit lip at the bottom); headers and the title are engraved.
+   Rim and content share grain and tint, so the pane reads as one object.
+   Cell-ring mapping: unchanged from today: 6 px rim left/right/bottom, nameplate 17 px tall hanging from the top rim;
+   corners are the rim's 5 px radius. Nothing fixed-size spans the frame; the grain is a repeating 160 px tile.
+   Tint: rim = --glass (+grain), stone = --glass mixed into --pane-fill, hollows = darker mixes of the stone, so every
+   surface follows the tint. Frame off: base drops rim and plate; the stone surface and hollows remain.
+   Clear: the hole loses its stone and grain (fully transparent), the rim stays; hollows become smoked
+   (semi-opaque dark) so text stays readable over the sky. */
+.v14 { --s14-stone: color-mix(in oklab, var(--glass) 24%, var(--pane-fill));
+  --s14-deep: color-mix(in oklab, var(--glass) 6%, color-mix(in oklab, var(--pane-fill), #000 55%));
+  --s14-hollow: color-mix(in oklab, var(--s14-deep) 78%, transparent);
+  --s14-lip: rgba(235, 235, 230, .07);
+  --s14-ink: color-mix(in oklab, var(--glass), #e6e3dc 45%);
+  --s14-grain: var(--stone-noise) 0 0 / 160px 160px; }
+/* Plain's fill is pure black: lift the stone a little more so the hollows can be read */
+.v14[data-tint="black"] { --s14-stone: color-mix(in oklab, var(--glass) 31%, var(--pane-fill)); }
+.v14[data-clear] { --s14-hollow: rgba(0, 0, 0, .48); --s14-lip: rgba(235, 235, 230, .09); }
+
+/* ---------- frame: today's glass, with grain */
+.v14 .pane::before { background: var(--s14-grain), linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 40%), var(--glass);
+  background-blend-mode: overlay, normal, normal; }
+.v14 .pane { box-shadow: 0 2px 6px -2px rgba(0, 0, 0, .7); }
+.v14 .hole { isolation: isolate; border-color: rgba(0,0,0,.85) rgba(239,239,239,.16) rgba(239,239,239,.16) rgba(0,0,0,.85);
+  background: linear-gradient(180deg, rgba(255,255,255,.035), transparent 35%), var(--s14-stone);
+  box-shadow: inset 0 3px 5px -2px rgba(0, 0, 0, .75), inset 2px 0 4px -2px rgba(0, 0, 0, .5); }
+/* shared grain, very faint, only on the stone (not when clear) */
+.v14 .hole::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--s14-grain); opacity: .4; mix-blend-mode: soft-light; }
+.v14[data-clear] .hole { background: none; }
+.v14[data-clear] .hole::before { display: none; }
+/* nameplate: same glass, grained, title engraved */
+.v14 .plate { background: var(--s14-grain), linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0)), var(--glass);
+  background-blend-mode: soft-light, normal, normal; font-family: var(--display); font-size: 11px; letter-spacing: .08em; }
+.v14 .pt { color: color-mix(in oklab, var(--glass), #000 62%); text-shadow: 0 1px 0 rgba(239, 239, 239, .28), 0 -1px 0 rgba(0, 0, 0, .25); }
+/* frame off: stone keeps soft rounded edges so it still looks finished */
+.v14[data-frame="off"] .hole { border-radius: 4px; box-shadow: inset 0 2px 4px -2px rgba(0, 0, 0, .7); padding: 6px; }
+.v14[data-frame="off"][data-clear] .hole { box-shadow: none; padding: 4px; }
+
+/* ---------- carved hollows */
+.v14 .fz { margin-bottom: 7px; border-radius: 6px; padding: 6px 9px 9px;
+  background: linear-gradient(90deg, rgba(232,195,90,.06), transparent 40%, transparent 60%, rgba(255,77,77,.07)), var(--s14-hollow);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .65), inset 0 -1px 0 var(--s14-lip), 0 1px 0 var(--s14-lip); }
+.v14 .vs { background: var(--s14-stone); color: var(--s14-ink); font-family: var(--display); font-size: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .1); text-shadow: 0 1px 0 #000; }
+.v14[data-clear] .vs { background: color-mix(in oklab, var(--glass) 60%, #000); }
+.v14 .m2 { padding: 0 4px 1px 2px; border-radius: 4px; margin-bottom: 2px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, .12));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .55), 0 1px 0 var(--s14-lip); }
+.v14[data-clear] .m2 { background: var(--s14-hollow); }
+.v14 .m2:last-child { margin-bottom: 0; }
+.v14 .name { color: #b3b0aa; text-shadow: 0 1px 1px rgba(0, 0, 0, .8); }
+.v14 .name.pl { color: #e2dfd8; }
+.v14 .tag { border: 0; background: var(--s14-hollow); color: var(--s14-ink); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .7), 0 1px 0 var(--s14-lip); }
+.v14 .vr { width: 2px; background: linear-gradient(90deg, rgba(0, 0, 0, .7) 50%, rgba(255, 255, 255, .08) 50%); }
+.v14 .rg .bg { stroke: rgba(0, 0, 0, .6); }
+/* bars: carved grooves with a soft rounded fill */
+.v14 .trk { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .62);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .9), 0 1px 0 var(--s14-lip); }
+.v14 .fs .trk { height: 8px; border-radius: 4px; }
+.v14 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 22%), var(--c) 55%, color-mix(in srgb, var(--c), #000 22%)); }
+
+/* ---------- timers */
+.v14 .th { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .12em; color: var(--s14-ink);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, .85), 0 1px 0 rgba(255, 255, 255, .07); }
+.v14 .th svg { filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .8)); }
+.v14 .th .cnt { font-family: var(--mono); color: color-mix(in oklab, var(--s14-ink), transparent 40%); }
+.v14 .hln { height: 2px; background: linear-gradient(180deg, rgba(0, 0, 0, .7) 50%, rgba(255, 255, 255, .07) 50%); }
+.v14 .chip { border-radius: 10px; background: var(--s14-hollow);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .7), inset 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent), 0 1px 0 var(--s14-lip); }
+.v14 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 34%, transparent)); }
+.v14 .chip .n { color: #e2dfd8; text-shadow: 0 1px 1px rgba(0, 0, 0, .85); }
+.v14 .chip .t { color: #a5a29b; text-shadow: 0 1px 1px rgba(0, 0, 0, .85); }
+.v14 .chip.soon .t { color: #ff4a42; }
+.v14 .chip.untimed { background: transparent; box-shadow: none; border: 1px dashed color-mix(in oklab, var(--s14-ink), transparent 35%); }
+.v14 .chip.untimed .n { color: var(--s14-ink); }
+.v14 .chip.charm { background: var(--s14-hollow); }
+/* clear: engraving needs a stronger halo over the sky */
+.v14[data-clear] .th { color: #d9d5cd; text-shadow: 0 1px 2px #000, 0 0 3px rgba(0, 0, 0, .8); }
+.v14[data-clear] .th .cnt { color: #a9a59d; }
+.v14[data-clear] .hln { background: linear-gradient(180deg, rgba(0, 0, 0, .75) 50%, rgba(255, 255, 255, .14) 50%); }

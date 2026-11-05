@@ -1,0 +1,371 @@
+<title>Panelstil, runda 3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;700&family=Pixelify+Sans:wght@500;600&display=swap">
+<style>
+/* Layout: one column of variants; each shows the Group and Timers panes side by side in the real glass frame. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b0c;
+  --ink: #d6d3cc;
+  --muted: #8d8a83;
+  --rule: #24262a;
+  --accent: #c9a96a;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "DejaVu Sans Mono", "JetBrains Mono", ui-monospace, monospace;
+  --pixel: "Pixelify Sans", "DejaVu Sans Mono", monospace;
+  /* Pane (Black preset, as in the app). */
+  --rim: #4b4e51;
+  --rimhi: rgba(239, 239, 239, .42);
+  --edge: rgba(0, 0, 0, .75);
+  --hole: #000;
+  --plateink: #2b2d30;
+  --fg: #c4c4c4;
+  --hot: #ececec;
+  --dim: #898989;
+  --line: #1c1c1c;
+  --trk: #1b1b1b;
+  --stone-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .55 0 0 0 -.24'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --stone-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.06 .5' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .7 0 0 0 -.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+body { background: var(--page); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1000px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+header.intro { display: grid; gap: 10px; margin-bottom: 28px; max-width: 68ch; }
+header.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: .04em; color: var(--hot); text-wrap: balance; }
+header.intro p { margin: 0; color: var(--muted); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 34px; padding: 10px 0; border-block: 1px solid var(--rule); font-size: 14px; }
+nav.toc a { color: var(--ink); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+nav.toc b { font-family: var(--display); color: var(--accent); margin-right: 5px; }
+section.v { display: grid; gap: 14px; padding: 30px 0 38px; border-top: 1px solid var(--rule); scroll-margin-top: 10px; }
+.vhead { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; }
+.vnum { font-family: var(--display); font-size: 28px; color: var(--accent); line-height: 1; }
+.vhead h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .05em; color: var(--hot); }
+.vhead p { grid-column: 2; margin: 0; color: var(--muted); max-width: 66ch; }
+.ideas { margin: 0; padding: 0 0 0 18px; color: var(--ink); font-size: 15px; display: grid; gap: 3px; max-width: 75ch; }
+.ideas li::marker { color: var(--accent); }
+.pair { padding: 14px; border-radius: 6px; background: #000; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 22px; align-items: start; }
+.cap { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 10px 0; margin: -20px 0 10px; background: var(--page); border-bottom: 1px solid var(--rule); font-size: 14px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--page); }
+.cg { display: flex; align-items: center; gap: 8px; }
+.cl { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 6px; background: #151618; border: 1px solid var(--rule); }
+.seg button { all: unset; cursor: pointer; padding: 2px 9px; border-radius: 4px; color: var(--muted); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: #2a2b2e; color: var(--hot); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg i { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #555; }
+section.v.ref .vnum { color: var(--muted); }
+
+/* ===================================================== default frame (today's glass rim; variants override) */
+/* Pane tokens, set per .pair by the controls (the app's pane tints, src/theme/presets.ts PANE_TINTS):
+   --pane-fill  the tint's fill (Plain: the terminal bg #000)      --pane-border the tint's border colour
+   --pane-h / --pane-s  hue and saturation of the tint (Plain/Grey: s 0)
+   --pane-bg    what the content sits on: --pane-fill, or transparent when the pane is clear
+   --glass      today's rim colour derived from the tint
+   States on .pair:  [data-frame="off"] no frame (no rim, no title),  [data-clear] no background (glass off),
+   [data-behind="weather"] a sky behind the panes instead of the black page. */
+.pair { --pane-fill: #000; --pane-border: #1e1e1e; --pane-h: 0; --pane-s: 0%; --pane-bg: var(--pane-fill);
+  --glass: oklch(from var(--pane-border) .42 min(calc(c * 8), .07) h); }
+.pair[data-clear] { --pane-bg: transparent; }
+.pane { position: relative; box-sizing: border-box; padding: 6px; border-radius: 5px; font-family: var(--mono); font-size: 13px; line-height: 17px; }
+/* The rim is painted only in the ring (masked), never under the content, so a clear pane really is clear. */
+.pane::before { content: ""; position: absolute; inset: 0; padding: 6px; border-radius: inherit; border: 1px solid var(--edge); pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 40%), var(--glass);
+  box-shadow: inset 1px 1px 0 var(--rimhi), inset -1px -1px 0 rgba(0,0,0,.25);
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.hole { position: relative; background: var(--pane-bg); border: 1px solid; border-color: var(--edge) rgba(239,239,239,.22) rgba(239,239,239,.22) var(--edge);
+  padding: 22px 8px 8px; box-sizing: border-box; color: var(--fg); overflow: hidden; }
+.plate { position: absolute; top: -1px; left: 16px; height: 17px; padding: 0 11px; display: flex; align-items: center; border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0)), var(--glass); color: var(--plateink); font-size: 11.5px; font-weight: 700;
+  text-shadow: 0 1px 0 rgba(239,239,239,.3); box-shadow: 0 1px 1.5px -.5px rgba(0,0,0,.6); z-index: 3; }
+/* Frame off: the content fills the pane's cells; no rim, no title. */
+.pair[data-frame="off"] .pane { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.pair[data-frame="off"] .pane::before { display: none; }
+.pair[data-frame="off"] .hole { border: 0; padding: 4px 4px; }
+.pair[data-frame="off"] .plate, .pair[data-frame="off"] .fx { display: none !important; }
+.fx { display: none; position: absolute; pointer-events: none; }
+/* ===================================================== shared structure */
+svg { display: block; }
+.i { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.gp { display: flex; flex-direction: column; white-space: nowrap; }
+.m2 { display: flex; flex-direction: column; min-width: 0; }
+.l1 { display: flex; align-items: center; gap: 6px; height: 17px; min-width: 0; }
+.mk { flex: none; width: 15px; display: flex; justify-content: center; }
+.mk svg { width: 14px; height: 14px; }
+.name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #a9a9a9; }
+.name.pl { color: var(--fg); font-weight: 700; }
+.tag { flex: none; font-size: 9.5px; line-height: 13px; letter-spacing: .06em; padding: 0 4px; border-radius: 3px; border: 1px solid #2c2c2c; color: var(--dim); }
+.where { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--dim); overflow: hidden; }
+.where svg { width: 11px; height: 11px; flex: none; }
+.sts { flex: none; display: flex; align-items: center; gap: 1px; }
+.ic { position: relative; flex: none; width: 17px; height: 17px; display: flex; align-items: center; justify-content: center; color: var(--c); }
+.ic > svg.i { width: 13px; height: 13px; }
+.ic.ring > svg.i { width: 9px; height: 9px; }
+.ic .rg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rg circle { fill: none; stroke-width: 2.4; }
+.rg .bg { stroke: #262626; }
+.rg .arc { stroke: var(--c); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.stime { font-size: 10px; color: var(--c); margin: 0 2px 0 0; font-variant-numeric: tabular-nums; }
+.glow > svg.i { filter: drop-shadow(0 0 2px var(--c)); }
+.dimmed { opacity: .55; }
+.vr { flex: none; width: 1px; height: 11px; background: #2c2c2c; margin: 0 3px; }
+.bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; height: 17px; align-items: center; padding-left: 21px; }
+.bar { min-width: 0; }
+.bar.none { visibility: hidden; }
+.trk { position: relative; display: flex; width: 100%; height: 5px; overflow: hidden; }
+.fill { position: relative; flex: none; width: calc(var(--p) * 1%); height: 100%; background: var(--c); }
+.band .fill::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: repeating-linear-gradient(135deg, rgba(0,0,0,.42) 0 2px, transparent 2px 5px); }
+.away .name, .away .bars, .away .mk { opacity: .5; }
+
+.fz { display: grid; grid-template-columns: minmax(0,1fr) 34px minmax(0,1fr); align-items: end; padding: 6px 8px 8px; margin-bottom: 8px; position: relative; }
+.ft { display: flex; align-items: center; gap: 5px; height: 17px; min-width: 0; }
+.foe .ft { justify-content: flex-end; }
+.ft svg { width: 14px; height: 14px; flex: none; }
+.fn { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--fg); }
+.fn.f { color: #ff9b8f; }
+.fv { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.fs .trk { height: 8px; margin-top: 4px; }
+.foe .trk { flex-direction: row-reverse; }
+.vs { justify-self: center; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9.5px; letter-spacing: .04em; color: var(--dim); margin-bottom: -4px; }
+
+.tm { display: flex; flex-direction: column; gap: 6px; white-space: nowrap; }
+.th { display: flex; align-items: center; gap: 6px; height: 17px; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.th svg { width: 12px; height: 12px; color: var(--c); flex: none; }
+.th .cnt { color: #5f5f5f; letter-spacing: 0; }
+.hl { display: none; }
+.hln { flex: 1 1 auto; height: 1px; background: var(--line); }
+.items { font-size: 11px; }
+.items.flow { display: flex; flex-wrap: wrap; gap: 4px; }
+.items.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.chip { position: relative; box-sizing: border-box; display: flex; align-items: center; gap: 5px; min-width: 0; height: 20px; padding: 0 8px 0 7px; overflow: hidden; }
+.chip .fill { position: absolute; left: 0; top: 0; bottom: 0; height: auto; pointer-events: none; }
+.chip svg.ci { position: relative; width: 11px; height: 11px; flex: none; color: var(--c); }
+.chip .n { position: relative; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chip .t { position: relative; flex: none; color: var(--dim); font-variant-numeric: tabular-nums; }
+.chip.soon .t { color: #ff3b3b; font-weight: 700; }
+.chip.untimed .n { color: var(--dim); }
+.chip .x { position: relative; flex: none; width: 13px; height: 13px; margin-right: -4px; color: var(--dim); display: flex; align-items: center; justify-content: center; }
+.chip .x svg { width: 8px; height: 8px; }
+
+@media (prefers-reduced-motion: reduce) { .fill, .pane *, .pane { animation: none !important; } }
+/* Narrow panes: rows must not size the pane from their nowrap text. */
+.fz, .m2 { contain: inline-size; }
+.pair[data-behind="weather"] { background:
+  radial-gradient(1px 1px at 12% 18%, #fff8 50%, transparent), radial-gradient(1px 1px at 37% 9%, #fff6 50%, transparent),
+  radial-gradient(1px 1px at 61% 22%, #fff7 50%, transparent), radial-gradient(1.5px 1.5px at 83% 12%, #fff9 50%, transparent),
+  radial-gradient(1px 1px at 72% 41%, #fff5 50%, transparent), radial-gradient(1px 1px at 22% 47%, #fff5 50%, transparent),
+  radial-gradient(60% 40% at 70% 100%, #6a3f2a 0%, transparent 70%),
+  linear-gradient(180deg, #0b1230 0%, #23305a 45%, #5a4a6e 75%, #8a5a4a 100%); }
+/* ===================================================== 00 · Nu (today, reference) */
+.v00 .m2 { padding: 0 3px; border-radius: 3px; }
+.v00 .trk { background: var(--trk); border-radius: 3px; }
+.v00 .fill { border-radius: 3px; }
+.v00 .fz { border: 1px solid var(--line); border-radius: 5px; background: linear-gradient(90deg, rgba(232,195,90,.07), transparent 45%, transparent 55%, rgba(255,77,77,.08)); }
+.v00 .vs { border: 1px solid #2c2c2c; background: #0a0a0a; }
+.v00 .chip { border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--line) 55%, transparent); }
+.v00 .chip .fill { background: color-mix(in srgb, var(--c) 30%, transparent); }
+.v00 .chip.untimed { border-style: dashed; border-color: var(--dim); background: transparent; }
+.v00 .chip.charm { background: transparent; }
+
+/*VARIANT_CSS*/
+@media (max-width: 520px) { .vhead p { grid-column: 1 / -1; } header.intro h1 { font-size: 24px; } }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Panelstil, runda 3</h1>
+    <p>Tio förslag mellan dagens stil och förra rundans 7 Obsidian, 9 Stilla pixel och 10 Fackelsken, med mindre retro. 11–15 ligger närmast det, 16–20 provar nya riktningar. Överst ligger dagens stil som jämförelse. Med reglaget nedan kan du byta panelfärg, stänga av ramen, göra bakgrunden transparent och lägga en himmel bakom panelerna. Det gäller alla förslag på en gång.</p>
+  </header>
+  <nav class="toc" aria-label="Förslag" id="toc"></nav>
+  <div class="ctl" id="ctl">
+    <div class="cg" role="group" aria-label="Panelfärg"><span class="cl">Färg</span><span class="seg" id="c-tint"></span></div>
+    <div class="cg" role="group" aria-label="Ram"><span class="cl">Ram</span><span class="seg" id="c-frame"></span></div>
+    <div class="cg" role="group" aria-label="Bakgrund"><span class="cl">Bakgrund</span><span class="seg" id="c-clear"></span></div>
+    <div class="cg" role="group" aria-label="Bakom panelerna"><span class="cl">Bakom</span><span class="seg" id="c-behind"></span></div>
+  </div>
+  <main id="variants"></main>
+</div>
+
+<script>
+// Pane frame. Variants style .pane/.hole/.plate/.pt and may use the four .fx hooks (hidden by default) and pseudo-elements.
+function frame(title, inner) {
+  return `<div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="hole"><div class="plate"><span class="pt">${title}</span></div>${inner}</div></div>`;
+}
+const IC = {
+  sanct: 'M12 7.2a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4 M7.5 20.5c0-3.2 2-5.3 4.5-5.3s4.5 2.1 4.5 5.3 M12 1.8v2.4 M5.4 4.4l1.6 1.7 M18.6 4.4L17 6.1 M2.4 10.8h2.4 M19.2 10.8h2.4',
+  stored: 'M12 7l1.5 3.5L17 12l-3.5 1.5L12 17l-1.5-3.5L7 12l3.5-1.5z M6.5 4.5a9 9 0 0 0 0 15 M17.5 4.5a9 9 0 0 1 0 15',
+  poison: 'M9.5 3h5 M10.5 3v5.5L6 17a2.4 2.4 0 0 0 2.1 3.5h7.8A2.4 2.4 0 0 0 18 17l-4.5-8.5V3 M7.6 14h8.8 M11 17.2h.01 M13.5 16h.01',
+  thirsty: 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z M9.8 14.2a2.2 2.2 0 0 0 2.2 2.2',
+  slept: 'M4 6h6l-6 7h6 M13 12h6l-6 7h6',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  bashed: 'M12 2l1.8 5.5L19 5l-2.5 5.2L22 12l-5.5 1.8L19 19l-5.2-2.5L12 22l-1.8-5.5L5 19l2.5-5.2L2 12l5.5-1.8L5 5l5.2 2.5z',
+  snared: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  wound: 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M9 9l6 6',
+  hungry: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 3c-2 0-3 3-3 6s1 3 3 3 M17 3v18',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  resting: 'M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16',
+  sleeping: 'M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4',
+  riding: 'M6 21v-5l3-4-1.5-4L11 4l2 3h3l4 5-2 2-3-1-2 3v5',
+  tank: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z',
+  foe: 'M14.5 3.5C11.5 7 8.8 10.8 5.5 15.5 M18.5 5.5C15.5 9.2 12.8 13 9.5 17.5 M20.5 10.5C18.4 13.5 16.4 16.3 14 19.5',
+  charm: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+  spell: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  buff: 'M12 19V5 M6 11l6-6 6 6',
+  debuff: 'M12 5v14 M6 13l6 6 6-6',
+  herb: 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14z M5 19l8-8',
+  pin: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4',
+  player: 'M12 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7 M5 20c0-3.5 3-6 7-6s7 2.5 7 6',
+  npc: 'M12 3l8 9-8 9-8-9z',
+  close: 'M5 5l14 14 M19 5L5 19',
+};
+const K = { hp: '#2fa84f', mana: '#3d7eff', mp: '#c08a3e', orange: '#ff8c2a', red: '#ff4d4d', gold: '#e8c35a', foe: '#ff7b72',
+  ally: '#7fb2ff', neutral: '#e6b450', npc: '#9a9a9a', sanct: '#f0b6e4', poison: '#9be15d', thirsty: '#6fb3ff', slept: '#a99bff',
+  blindS: '#7fd3e6', bashed: '#ffa04d', snared: '#5fd4b0', wound: '#e0524f', hungry: '#d9b25f', charm: '#9d86ff',
+  posN: '#8a8a8a', fight: '#ff7a6b', sleep: '#8a9bd6', ride: '#c9a66b',
+  spell: '#66b2ff', buff: '#4cc96a', debuff: '#c8504f', stored: '#d6407e', blind: '#3fd0d0', herb: '#9bc45a' };
+const svg = (d, cls = 'i', extra = '') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"${extra}><path d="${d}"/></svg>`;
+const C10 = 2 * Math.PI * 10;
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const MEMBERS = [
+  { name: 'Gibur', kind: 'ally', pos: 'riding', v: { hp: [132, 160], mana: [40, 100], mp: [72, 110] }, sts: ['tank', 'sanctT'] },
+  { name: 'Taube', kind: 'ally', pos: 'fighting', v: { hp: [37, 158], mana: [88, 95], mp: [31, 100] }, sts: ['sanctU', 'poison'] },
+  { name: 'Kvällulv', kind: 'ally', pos: 'sleeping', room: 'Prancing Pony', v: { hp: [140, 140], mana: [70, 120], mp: [120, 120] }, sts: ['hungry', 'thirsty'] },
+  { name: 'Morwen', kind: 'neutral', pos: 'resting', v: { hp: [120, 120], mana: [60, 100], mp: [80, 100] }, sts: ['blind'] },
+  { name: 'a citizen mercenary', kind: 'npc', tag: 'MERC', pos: 'standing', v: { hp: ['wounded', .55], mana: null, mp: ['steadfast', .9] }, sts: ['bashed', 'wound'] },
+  { name: 'a huge stone troll', kind: 'npc', tag: 'TROLL', pos: 'standing', v: { hp: ['fine', .95], mana: null, mp: ['unwearied', .7] }, sts: ['charm', 'snared', 'slept'] },
+];
+const POS = { riding: ['riding', K.ride], fighting: ['fighting', K.fight], sleeping: ['sleeping', K.sleep], resting: ['resting', K.posN], standing: ['standing', K.posN] };
+const STS = { poison: K.poison, thirsty: K.thirsty, slept: K.slept, blind: K.blindS, bashed: K.bashed, snared: K.snared, wound: K.wound, hungry: K.hungry, charm: K.charm };
+
+function vitalColor(key, pct) { if (pct <= 25) return K.red; if (pct <= 45) return K.orange; return K[key]; }
+function bar(key, v) {
+  if (!v) return '<div class="bar none"><div class="trk"></div></div>';
+  if (typeof v[0] === 'string') return `<div class="bar band"><div class="trk"><div class="fill" style="--p:${Math.round(v[1] * 100)};--c:${K[key]}"></div></div></div>`;
+  const p = Math.round(v[0] / v[1] * 100);
+  return `<div class="bar"><div class="trk"><div class="fill" style="--p:${p};--c:${vitalColor(key, p)}"></div></div></div>`;
+}
+function status(s) {
+  if (s === 'tank') return `<span class="ic" style="--c:${K.gold}">${svg(IC.tank)}</span>`;
+  if (s === 'sanctT') {
+    const f = 192 / 270;
+    return `<span class="ic ring glow" style="--c:${K.sanct}"><svg class="rg" viewBox="0 0 24 24" aria-hidden="true"><circle class="bg" cx="12" cy="12" r="10"/><circle class="arc" cx="12" cy="12" r="10" stroke-dasharray="${(f * C10).toFixed(2)} ${C10.toFixed(2)}"/></svg>${svg(IC.sanct)}</span><span class="stime" style="--c:${K.sanct}">4m</span>`;
+  }
+  if (s === 'sanctU') return `<span class="ic glow dimmed" style="--c:${K.sanct}">${svg(IC.sanct)}</span>`;
+  return `<span class="ic" style="--c:${STS[s]}">${svg(IC[s])}</span>`;
+}
+function member(m) {
+  const mk = m.kind === 'npc' ? [IC.npc, K.npc] : [IC.player, K[m.kind]];
+  const [pi, pc] = POS[m.pos];
+  return `<div class="m2${m.room ? ' away' : ''}">
+    <div class="l1"><span class="mk" style="color:${mk[1]}">${svg(mk[0])}</span><span class="name${m.kind !== 'npc' ? ' pl' : ''}">${esc(m.name)}</span>${m.tag ? `<span class="tag">${m.tag}</span>` : ''}${m.room ? `<span class="where">${svg(IC.pin)}${m.room}</span>` : ''}<span class="sts">${m.sts.map(status).join('')}</span><span class="vr"></span><span class="ic" style="--c:${pc}">${svg(IC[pi])}</span></div>
+    <div class="bars">${bar('hp', m.v.hp)}${bar('mana', m.v.mana)}${bar('mp', m.v.mp)}</div>
+  </div>`;
+}
+function groupPane() {
+  const fz = `<div class="fz">
+    <div class="fs tank"><div class="ft"><span style="color:${K.gold}">${svg(IC.tank)}</span><span class="fn">Gibur</span><span class="fv">132/160</span></div><div class="trk"><div class="fill" style="--p:83;--c:${K.hp}"></div></div></div>
+    <div class="vs">vs</div>
+    <div class="fs foe"><div class="ft"><span class="fv">wounded</span><span class="fn f">black-scaled warg</span><span style="color:${K.foe}">${svg(IC.foe)}</span></div><div class="trk"><div class="fill" style="--p:52;--c:${K.red}"></div></div></div>
+  </div>`;
+  return frame('Group', `<div class="gp">${fz}${MEMBERS.map(member).join('')}</div>`);
+}
+
+function fmtT(s) { if (s >= 3600) return Math.floor(s / 3600) + 'h' + String(Math.floor(s % 3600 / 60)).padStart(2, '0'); if (s > 90) return Math.ceil(s / 60) + 'm'; return s + 's'; }
+function shortName(full, cap = 13) {
+  const s = full.replace(/^(a|an|the)\s+/i, '');
+  if (s.length <= cap) return s;
+  const w = s.split(' '), last = w[w.length - 1];
+  let head = s.slice(0, cap - last.length - 1);
+  const b = head.lastIndexOf(' ');
+  if (b > 3) head = head.slice(0, b);
+  return head.replace(/[\s,-]+$/, '') + '…' + last;
+}
+const T = (name, left, dur, icon) => ({ name, left, dur, icon });
+const U = (name, icon) => ({ name, icon, untimed: true });
+const BLINDS = [['a dark-skinned orc', 8], ['a huge black-scaled warg', 22], ['the captain of the guard of Fornost', 47], ['an orc', 63], ['a cave troll', 15],
+  ['a filthy goblin archer', 71], ['a warg', 29], ['a grim-faced Dunlending raider', 84], ['a snarling wolf', 55], ['a goblin', 4],
+  ['the half-orc tracker from Bree', 38], ['a large hill troll', 77]];
+const GROUPS = [
+  { key: 'herb', label: 'Herblore', icon: 'herb', items: [T('Travelling', 6720, 7200, 'herb'), T('Haste', 14, 360, 'herb')] },
+  { key: 'sanct', label: 'Sanctuary', icon: 'sanct', items: [T('You', 161, 270, 'sanct'), T('Gibur', 192, 270, 'sanct'), U('Taube', 'sanct')] },
+  { key: 'spell', label: 'Spells', icon: 'spell', items: [T('Shield', 250, 600, 'spell'), T('Armour', 1100, 1440, 'spell'), T('Bless', 65, 360, 'spell'), T('Strength', 372, 600, 'spell'), T('Breath of briskness', 26, 180, 'spell')] },
+  { key: 'buff', label: 'Buffs', icon: 'buff', items: [T('Miruvor', 510, 600, 'buff')] },
+  { key: 'debuff', label: 'Debuffs', icon: 'debuff', items: [T('Winded', 40, 60, 'debuff'), U('Hunger', 'debuff')] },
+  { key: 'stored', label: 'Stored', icon: 'stored', items: [T('Fireball', 760, 1800, 'stored'), T('Teleport', 1500, 1800, 'stored')] },
+  { key: 'blind', label: 'Blinds', icon: 'blind', grid: true, noIcon: true, items: BLINDS.map(([n, s]) => T(n, s, 90, 'blind')) },
+  { key: 'charm', label: 'Charmies', icon: 'charm', items: [{ name: 'Huge stone troll', charm: true, time: '21m', icon: 'charm' }] },
+];
+function chip(g, t) {
+  const c = K[g.key];
+  const cls = ['chip'];
+  if (t.untimed) cls.push('untimed');
+  if (t.charm) cls.push('charm');
+  if (!t.untimed && !t.charm && t.left <= 30) cls.push('soon');
+  const p = t.untimed || t.charm ? 0 : Math.round(t.left / t.dur * 100);
+  const name = g.grid ? shortName(t.name) : t.name;
+  const time = t.charm ? t.time : t.untimed ? '' : fmtT(t.left);
+  return `<div class="${cls.join(' ')}" style="--c:${c};--p:${p}"><i class="fill"></i>${g.noIcon ? '' : svg(IC[t.icon], 'i ci')}<span class="n">${esc(name)}</span>${time ? `<span class="t">${time}</span>` : ''}${t.charm ? `<span class="x">${svg(IC.close)}</span>` : ''}</div>`;
+}
+function timersPane() {
+  const gs = GROUPS.map((g) => {
+    const items = g.items.slice().sort((a, b) => (a.untimed || a.charm ? 1e9 : a.left) - (b.untimed || b.charm ? 1e9 : b.left));
+    return `<div class="tg" style="--c:${K[g.key]}"><div class="th"><span class="hl"></span>${svg(IC[g.icon])}<span>${g.label}</span><span class="cnt">${g.items.length}</span><span class="hln"></span></div><div class="items ${g.grid ? 'grid' : 'flow'}">${items.map((t) => chip(g, t)).join('')}</div></div>`;
+  }).join('');
+  return frame('Timers', `<div class="tm">${gs}</div>`);
+}
+const VARIANTS = /*VARIANT_META*/[];
+VARIANTS.push({ id: 'nu', n: 0, cls: 'v00', name: 'Nu', lede: 'Dagens stil, som jämförelse. Ramen har djup men innehållet ligger platt.', ideas: [] });
+VARIANTS.sort((a, b) => a.n - b.n);
+document.getElementById('toc').innerHTML = VARIANTS.map((v) => `<a href="#${v.id}"><b>${v.n}</b>${v.name}</a>`).join('');
+document.getElementById('variants').innerHTML = VARIANTS.map((v) => `
+  <section class="v" id="${v.id}" aria-labelledby="h-${v.id}">
+    <div class="vhead"><span class="vnum">${v.n}</span><h2 id="h-${v.id}">${v.name}</h2><p>${v.lede}</p></div>
+    ${v.ideas.length ? `<ul class="ideas">${v.ideas.map((i) => `<li>${i}</li>`).join('')}</ul>` : ''}
+    <div class="pair ${v.cls}">
+      <div><div class="cap">Group</div>${groupPane()}</div>
+      <div><div class="cap">Timers</div>${timersPane()}</div>
+    </div>
+  </section>`).join('');
+
+// Pane tints as in the app (PANE_TINTS, dark side).
+const TINTS = {
+  black: { label: 'Plain', fill: '#000000', border: '#1e1e1e', h: 0, s: 0 },
+  red: { label: 'Red', fill: '#1a0e0e', border: '#2e2222', h: 2, s: 60 },
+  green: { label: 'Green', fill: '#0e1a0e', border: '#222e22', h: 130, s: 42 },
+  blue: { label: 'Blue', fill: '#0e141c', border: '#222830', h: 210, s: 58 },
+  grey: { label: 'Grey', fill: '#161616', border: '#2a2a2a', h: 0, s: 0 },
+  orange: { label: 'Orange', fill: '#1c140a', border: '#30281e', h: 28, s: 62 },
+  purple: { label: 'Purple', fill: '#16101c', border: '#2a2430', h: 278, s: 46 },
+};
+const STATE = { tint: 'black', frame: 'on', clear: 'off', behind: 'black' };
+const OPTS = {
+  tint: Object.entries(TINTS).map(([k, t]) => [k, t.label, t.fill === '#000000' ? '#000' : t.border]),
+  frame: [['on', 'På'], ['off', 'Av']],
+  clear: [['off', 'Glas'], ['on', 'Transparent']],
+  behind: [['black', 'Svart'], ['weather', 'Väder']],
+};
+function apply() {
+  const t = TINTS[STATE.tint];
+  for (const p of document.querySelectorAll('.pair')) {
+    p.dataset.tint = STATE.tint;
+    p.style.setProperty('--pane-fill', t.fill); p.style.setProperty('--pane-border', t.border);
+    p.style.setProperty('--pane-h', t.h); p.style.setProperty('--pane-s', t.s + '%');
+    p.dataset.frame = STATE.frame;
+    p.toggleAttribute('data-clear', STATE.clear === 'on');
+    p.dataset.behind = STATE.behind;
+  }
+  for (const [k, list] of Object.entries(OPTS)) for (const b of document.querySelectorAll(`#c-${k} button`)) b.setAttribute('aria-pressed', String(b.dataset.v === STATE[k]));
+}
+for (const [k, list] of Object.entries(OPTS)) {
+  document.getElementById('c-' + k).innerHTML = list.map(([v, label, sw]) => `<button type="button" id="b-${k}-${v}" data-v="${v}">${sw ? `<i style="background:${sw}"></i>` : ''}${label}</button>`).join('');
+  document.getElementById('c-' + k).addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; STATE[k] = b.dataset.v; apply(); });
+}
+// ?tint=red&frame=off&clear=on&behind=weather (for screenshots)
+for (const [k, v] of new URLSearchParams(location.search)) if (k in STATE) STATE[k] = v;
+apply();
+</script>

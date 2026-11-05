@@ -1,0 +1,127 @@
+/* 16 Emalj — cloisonné.
+   Concept: the pane is a piece of enamel jewellery. The frame is a rounded metal bezel (light-dark-light bands
+   like a polished rolled edge) with a fine raised wire running round its inner edge; the content cells are
+   glossy enamel separated by the same thin raised metal wire. The metal is tinted by the pane colour
+   (Plain = silver, red = rose copper, orange = gold-bronze, blue/green = cool steel), the enamel ground is a
+   deep tone of the same tint, and the status/group colours are the coloured enamels.
+   Cell ring: bezel = 7 px left/right/bottom (inside one 9 px cell); the title cartouche (a small metal tab
+   holding an enamel field with the title in metal letters) hangs from the top bezel and stays inside the
+   top 17 px. The inner wire is the hole's own outer box-shadow, so it sits on the ring, never under content.
+   Four tiny enamel cabochons in the tint sit in the bezel corners (.fx hooks). Smooth radii, no pixel steps.
+   Tint: all metal/enamel tones come from --pane-border via oklch(from …). Frame off: bezel, wire ring,
+   cartouche and cabochons vanish; the enamel cells keep their wires, so it is still clearly the same piece.
+   Clear: plique-à-jour — the enamel cells turn translucent (no backing), light from behind shows through,
+   wires stay opaque, text keeps a soft shadow for legibility over the sky. */
+.v16 {
+  --mhi: oklch(from var(--pane-border) .93 min(calc(c * 2.2), .045) h);
+  --mt: oklch(from var(--pane-border) .7 min(calc(c * 4), .075) h);
+  --mlo: oklch(from var(--pane-border) .4 min(calc(c * 3.5), .06) h);
+  --mdk: oklch(from var(--pane-border) .24 min(calc(c * 3), .05) h);
+  --en: oklch(from var(--pane-border) .2 min(calc(c * 4.5), .075) h);
+  --en2: oklch(from var(--pane-border) .14 min(calc(c * 4), .06) h);
+  --ena: var(--en);
+  --en2a: var(--en2);
+  --cab: oklch(from var(--pane-border) .6 min(calc(c * 8), .15) h);
+  --ink16: oklch(from var(--pane-border) .92 min(calc(c * 1.5), .025) h);
+  /* the raised wire: bright top/left, shaded bottom/right */
+  --wire: 0 0 0 1px var(--mt), inset 0 1px 0 color-mix(in oklab, var(--mhi) 25%, transparent);
+}
+.v16[data-clear] { --ena: color-mix(in oklab, var(--en) 55%, transparent); --en2a: color-mix(in oklab, var(--en2) 45%, transparent); }
+
+/* ---- frame: a polished metal bezel with an inner wire */
+.v16 .pane { padding: 7px; border-radius: 7px; }
+.v16 .pane::before { padding: 7px; border: 1px solid rgba(0,0,0,.85);
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.07), transparent 20% 80%, rgba(0,0,0,.15)),
+    linear-gradient(180deg, var(--mhi), var(--mt) 6px, var(--mlo) 50%, var(--mt) calc(100% - 4px), var(--mlo));
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.45), inset -1px -1px 0 rgba(0,0,0,.35), inset 0 0 0 2px color-mix(in oklab, var(--mdk) 25%, transparent); }
+/* inner wire: dark seat, bright wire, dark seat — drawn on the ring by the hole's outer shadow */
+.v16 .hole { border: 0; border-radius: 3px; color: #d2d0d6; overflow: visible; padding: 20px 8px 8px;
+  background: radial-gradient(120% 70% at 30% 0%, color-mix(in oklab, var(--en) 45%, transparent), transparent 70%), var(--pane-bg);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.7), 0 0 0 2px var(--mhi), 0 0 0 3px var(--mlo), inset 0 1px 3px rgba(0,0,0,.7); }
+.v16[data-clear] .hole { background: transparent; }
+.v16 .gp, .v16 .tm { overflow: hidden; padding: 1px; margin: -1px; }
+
+/* title cartouche: metal tab, enamel field, metal letters */
+.v16 .plate { top: -3px; left: 14px; height: 15px; padding: 2px 3px; box-sizing: border-box; border-radius: 0 0 7px 7px;
+  background: linear-gradient(180deg, var(--mt), var(--mlo) 70%, var(--mt));
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.3), inset -1px 0 0 rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.3), 0 1px 2px rgba(0,0,0,.7); }
+.v16 .pt { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 9px; border-radius: 0 0 5px 5px;
+  background: radial-gradient(90% 120% at 35% 0%, rgba(255,255,255,.22), transparent 55%), linear-gradient(180deg, var(--en), var(--en2));
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.6);
+  color: var(--mhi); font-family: var(--display); font-weight: 700; font-size: 10px; line-height: 11px; letter-spacing: .1em; text-shadow: 0 1px 0 rgba(0,0,0,.8); }
+.v16 .pt::before, .v16 .pt::after { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--mhi); box-shadow: 0 1px 0 rgba(0,0,0,.6); }
+
+/* corner cabochons */
+.v16 .fx { display: block; width: 5px; height: 5px; border-radius: 50%; z-index: 4;
+  background: radial-gradient(circle at 35% 30%, #fff 0 14%, var(--cab) 42%, color-mix(in oklab, var(--cab), #000 55%));
+  box-shadow: 0 0 0 1px var(--mhi), 0 0 0 2px rgba(0,0,0,.45); }
+.v16 .f1 { top: 2px; left: 2px; }
+.v16 .f2 { top: 2px; right: 2px; }
+.v16 .f3 { bottom: 2px; left: 2px; }
+.v16 .f4 { bottom: 2px; right: 2px; }
+
+/* ---- content: enamel cells divided by raised wires */
+.v16 .name, .v16 .fn, .v16 .chip .n, .v16 .th span, .v16 .fv { text-shadow: 0 1px 1px rgba(0,0,0,.85); }
+.v16 .name { color: #bdbac4; }
+.v16 .name.pl { color: #f3f1f6; }
+/* member rows: one enamel plate, cells share their wires */
+.v16 .m2 { position: relative; padding: 2px 6px 3px 3px; margin-top: -1px;
+  background: radial-gradient(70% 140% at 22% 0%, rgba(255,255,255,.075), transparent 60%), linear-gradient(180deg, var(--ena), var(--en2a));
+  box-shadow: var(--wire); }
+.v16 .fz + .m2 { border-radius: 5px 5px 0 0; margin-top: 1px; }
+.v16 .m2:last-child { border-radius: 0 0 5px 5px; }
+.v16 .tag { border: 0; border-radius: 3px; color: var(--ink16); background: color-mix(in oklab, var(--mlo) 70%, transparent); box-shadow: 0 0 0 1px var(--mt); }
+.v16 .where { color: #9a97a3; }
+.v16 .ic > svg.i { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)); }
+.v16 .glow > svg.i { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)) drop-shadow(0 0 2px var(--c)); }
+.v16 .rg .bg { stroke: color-mix(in oklab, var(--mlo) 70%, #000); }
+.v16 .vr { width: 1px; background: var(--mt); box-shadow: 1px 0 0 rgba(0,0,0,.5); }
+
+/* bars: each a tiny cloison — wire rim, dark enamel ground, glossy coloured enamel fill */
+.v16 .trk { height: 5px; border-radius: 3px; background: color-mix(in oklab, var(--en2) 70%, #000); box-shadow: 0 0 0 1px var(--mt), 0 1px 0 1px rgba(0,0,0,.4); }
+.v16 .fill { border-radius: 3px; background:
+    radial-gradient(60% 90% at 30% 10%, rgba(255,255,255,.45), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 25%), var(--c) 55%, color-mix(in srgb, var(--c), #000 30%)); }
+.v16 .band .fill::after { border-radius: 3px; }
+
+/* fight zone: a larger cloison, the two sides in faint gold and red enamel, a metal boss for "vs" */
+.v16 .fz { padding: 6px 9px 9px; margin: 1px 0 7px; border-radius: 6px;
+  background: radial-gradient(70% 120% at 30% 0%, rgba(255,255,255,.08), transparent 60%),
+    linear-gradient(90deg, rgba(232,195,90,.10), transparent 42% 58%, rgba(255,77,77,.11)), linear-gradient(180deg, var(--ena), var(--en2a));
+  box-shadow: var(--wire), 0 0 0 2px rgba(0,0,0,.35); }
+.v16 .fz .trk { height: 7px; border-radius: 4px; }
+.v16 .fz .fill { border-radius: 4px; }
+.v16 .vs { width: 22px; height: 22px; color: var(--mdk); font-family: var(--display); font-weight: 700; font-size: 9.5px; text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  background: radial-gradient(circle at 38% 30%, var(--mhi) 0 20%, var(--mt) 55%, var(--mlo));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.6); }
+
+/* ---- timers */
+.v16 .tm { gap: 7px; }
+.v16 .th { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .1em; color: var(--ink16); }
+.v16 .th svg { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)); }
+.v16 .th .cnt { font-family: var(--mono); font-weight: 400; color: color-mix(in oklab, var(--mt) 70%, #555); }
+/* header rule: a raised wire ending in a round enamel drop of the group colour, set in metal */
+.v16 .hln { position: relative; height: 1px; margin-right: 7px; background: var(--mt); box-shadow: 0 1px 0 rgba(0,0,0,.6), 0 -1px 0 color-mix(in oklab, var(--mhi) 20%, transparent); }
+.v16 .hln::after { content: ""; position: absolute; right: -7px; top: -3px; width: 7px; height: 7px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0 14%, var(--c) 45%, color-mix(in srgb, var(--c), #000 45%));
+  box-shadow: 0 0 0 1px var(--mt), 0 1px 1px 1px rgba(0,0,0,.5); }
+.v16 .items.flow, .v16 .items.grid { gap: 5px; padding: 1px; }
+.v16 .chip { height: 19px; border-radius: 5px; color: #f0eef4;
+  background: radial-gradient(60% 120% at 25% 0%, rgba(255,255,255,.09), transparent 60%), linear-gradient(180deg, var(--ena), var(--en2a));
+  box-shadow: var(--wire), 0 1px 1px 1px rgba(0,0,0,.45); }
+.v16 .chip .fill { background: radial-gradient(80% 100% at 30% 0%, rgba(255,255,255,.22), transparent 65%),
+    linear-gradient(180deg, color-mix(in srgb, var(--c) 52%, transparent), color-mix(in srgb, var(--c) 34%, transparent));
+  border-radius: 5px 0 0 5px; }
+.v16 .chip .fill::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--mt) 45%, transparent)); }
+.v16 .chip svg.ci { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)); }
+.v16 .chip .t { color: #b5b2bd; }
+.v16 .chip.soon .t { color: #ff4a3a; text-shadow: 0 1px 1px rgba(0,0,0,.9); }
+.v16 .chip.untimed { background: transparent; box-shadow: 0 0 0 1px color-mix(in oklab, var(--mt) 55%, transparent); border: 1px dashed color-mix(in oklab, var(--mlo) 80%, transparent); }
+.v16 .chip.untimed .n { color: #9a97a3; }
+.v16 .chip.charm { box-shadow: var(--wire), inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), 0 1px 1px 1px rgba(0,0,0,.45); }
+
+/* ---- frame off: no bezel, no wire ring, no cartouche; the cloisons remain */
+.v16[data-frame="off"] .pane { border-radius: 0; }
+.v16[data-frame="off"] .hole { border-radius: 0; box-shadow: none; background: var(--pane-bg); padding: 4px; overflow: hidden; }
+.v16[data-frame="off"][data-clear] .hole { background: transparent; }

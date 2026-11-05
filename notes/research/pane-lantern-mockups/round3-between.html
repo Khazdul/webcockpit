@@ -1,0 +1,1434 @@
+<title>Panelstil, runda 3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;700&family=Pixelify+Sans:wght@500;600&display=swap">
+<style>
+/* Layout: one column of variants; each shows the Group and Timers panes side by side in the real glass frame. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b0c;
+  --ink: #d6d3cc;
+  --muted: #8d8a83;
+  --rule: #24262a;
+  --accent: #c9a96a;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "DejaVu Sans Mono", "JetBrains Mono", ui-monospace, monospace;
+  --pixel: "Pixelify Sans", "DejaVu Sans Mono", monospace;
+  /* Pane (Black preset, as in the app). */
+  --rim: #4b4e51;
+  --rimhi: rgba(239, 239, 239, .42);
+  --edge: rgba(0, 0, 0, .75);
+  --hole: #000;
+  --plateink: #2b2d30;
+  --fg: #c4c4c4;
+  --hot: #ececec;
+  --dim: #898989;
+  --line: #1c1c1c;
+  --trk: #1b1b1b;
+  --stone-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .55 0 0 0 -.24'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --stone-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.06 .5' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .7 0 0 0 -.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+body { background: var(--page); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1000px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+header.intro { display: grid; gap: 10px; margin-bottom: 28px; max-width: 68ch; }
+header.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: .04em; color: var(--hot); text-wrap: balance; }
+header.intro p { margin: 0; color: var(--muted); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 34px; padding: 10px 0; border-block: 1px solid var(--rule); font-size: 14px; }
+nav.toc a { color: var(--ink); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+nav.toc b { font-family: var(--display); color: var(--accent); margin-right: 5px; }
+section.v { display: grid; gap: 14px; padding: 30px 0 38px; border-top: 1px solid var(--rule); scroll-margin-top: 10px; }
+.vhead { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; }
+.vnum { font-family: var(--display); font-size: 28px; color: var(--accent); line-height: 1; }
+.vhead h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .05em; color: var(--hot); }
+.vhead p { grid-column: 2; margin: 0; color: var(--muted); max-width: 66ch; }
+.ideas { margin: 0; padding: 0 0 0 18px; color: var(--ink); font-size: 15px; display: grid; gap: 3px; max-width: 75ch; }
+.ideas li::marker { color: var(--accent); }
+.pair { padding: 14px; border-radius: 6px; background: #000; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 22px; align-items: start; }
+.cap { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 10px 0; margin: -20px 0 10px; background: var(--page); border-bottom: 1px solid var(--rule); font-size: 14px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--page); }
+.cg { display: flex; align-items: center; gap: 8px; }
+.cl { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 6px; background: #151618; border: 1px solid var(--rule); }
+.seg button { all: unset; cursor: pointer; padding: 2px 9px; border-radius: 4px; color: var(--muted); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: #2a2b2e; color: var(--hot); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg i { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #555; }
+section.v.ref .vnum { color: var(--muted); }
+
+/* ===================================================== default frame (today's glass rim; variants override) */
+/* Pane tokens, set per .pair by the controls (the app's pane tints, src/theme/presets.ts PANE_TINTS):
+   --pane-fill  the tint's fill (Plain: the terminal bg #000)      --pane-border the tint's border colour
+   --pane-h / --pane-s  hue and saturation of the tint (Plain/Grey: s 0)
+   --pane-bg    what the content sits on: --pane-fill, or transparent when the pane is clear
+   --glass      today's rim colour derived from the tint
+   States on .pair:  [data-frame="off"] no frame (no rim, no title),  [data-clear] no background (glass off),
+   [data-behind="weather"] a sky behind the panes instead of the black page. */
+.pair { --pane-fill: #000; --pane-border: #1e1e1e; --pane-h: 0; --pane-s: 0%; --pane-bg: var(--pane-fill);
+  --glass: oklch(from var(--pane-border) .42 min(calc(c * 8), .07) h); }
+.pair[data-clear] { --pane-bg: transparent; }
+.pane { position: relative; box-sizing: border-box; padding: 6px; border-radius: 5px; font-family: var(--mono); font-size: 13px; line-height: 17px; }
+/* The rim is painted only in the ring (masked), never under the content, so a clear pane really is clear. */
+.pane::before { content: ""; position: absolute; inset: 0; padding: 6px; border-radius: inherit; border: 1px solid var(--edge); pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 40%), var(--glass);
+  box-shadow: inset 1px 1px 0 var(--rimhi), inset -1px -1px 0 rgba(0,0,0,.25);
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.hole { position: relative; background: var(--pane-bg); border: 1px solid; border-color: var(--edge) rgba(239,239,239,.22) rgba(239,239,239,.22) var(--edge);
+  padding: 22px 8px 8px; box-sizing: border-box; color: var(--fg); overflow: hidden; }
+.plate { position: absolute; top: -1px; left: 16px; height: 17px; padding: 0 11px; display: flex; align-items: center; border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0)), var(--glass); color: var(--plateink); font-size: 11.5px; font-weight: 700;
+  text-shadow: 0 1px 0 rgba(239,239,239,.3); box-shadow: 0 1px 1.5px -.5px rgba(0,0,0,.6); z-index: 3; }
+/* Frame off: the content fills the pane's cells; no rim, no title. */
+.pair[data-frame="off"] .pane { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.pair[data-frame="off"] .pane::before { display: none; }
+.pair[data-frame="off"] .hole { border: 0; padding: 4px 4px; }
+.pair[data-frame="off"] .plate, .pair[data-frame="off"] .fx { display: none !important; }
+.fx { display: none; position: absolute; pointer-events: none; }
+/* ===================================================== shared structure */
+svg { display: block; }
+.i { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.gp { display: flex; flex-direction: column; white-space: nowrap; }
+.m2 { display: flex; flex-direction: column; min-width: 0; }
+.l1 { display: flex; align-items: center; gap: 6px; height: 17px; min-width: 0; }
+.mk { flex: none; width: 15px; display: flex; justify-content: center; }
+.mk svg { width: 14px; height: 14px; }
+.name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #a9a9a9; }
+.name.pl { color: var(--fg); font-weight: 700; }
+.tag { flex: none; font-size: 9.5px; line-height: 13px; letter-spacing: .06em; padding: 0 4px; border-radius: 3px; border: 1px solid #2c2c2c; color: var(--dim); }
+.where { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--dim); overflow: hidden; }
+.where svg { width: 11px; height: 11px; flex: none; }
+.sts { flex: none; display: flex; align-items: center; gap: 1px; }
+.ic { position: relative; flex: none; width: 17px; height: 17px; display: flex; align-items: center; justify-content: center; color: var(--c); }
+.ic > svg.i { width: 13px; height: 13px; }
+.ic.ring > svg.i { width: 9px; height: 9px; }
+.ic .rg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rg circle { fill: none; stroke-width: 2.4; }
+.rg .bg { stroke: #262626; }
+.rg .arc { stroke: var(--c); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 12px 12px; }
+.stime { font-size: 10px; color: var(--c); margin: 0 2px 0 0; font-variant-numeric: tabular-nums; }
+.glow > svg.i { filter: drop-shadow(0 0 2px var(--c)); }
+.dimmed { opacity: .55; }
+.vr { flex: none; width: 1px; height: 11px; background: #2c2c2c; margin: 0 3px; }
+.bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; height: 17px; align-items: center; padding-left: 21px; }
+.bar { min-width: 0; }
+.bar.none { visibility: hidden; }
+.trk { position: relative; display: flex; width: 100%; height: 5px; overflow: hidden; }
+.fill { position: relative; flex: none; width: calc(var(--p) * 1%); height: 100%; background: var(--c); }
+.band .fill::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: repeating-linear-gradient(135deg, rgba(0,0,0,.42) 0 2px, transparent 2px 5px); }
+.away .name, .away .bars, .away .mk { opacity: .5; }
+
+.fz { display: grid; grid-template-columns: minmax(0,1fr) 34px minmax(0,1fr); align-items: end; padding: 6px 8px 8px; margin-bottom: 8px; position: relative; }
+.ft { display: flex; align-items: center; gap: 5px; height: 17px; min-width: 0; }
+.foe .ft { justify-content: flex-end; }
+.ft svg { width: 14px; height: 14px; flex: none; }
+.fn { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--fg); }
+.fn.f { color: #ff9b8f; }
+.fv { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.fs .trk { height: 8px; margin-top: 4px; }
+.foe .trk { flex-direction: row-reverse; }
+.vs { justify-self: center; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9.5px; letter-spacing: .04em; color: var(--dim); margin-bottom: -4px; }
+
+.tm { display: flex; flex-direction: column; gap: 6px; white-space: nowrap; }
+.th { display: flex; align-items: center; gap: 6px; height: 17px; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.th svg { width: 12px; height: 12px; color: var(--c); flex: none; }
+.th .cnt { color: #5f5f5f; letter-spacing: 0; }
+.hl { display: none; }
+.hln { flex: 1 1 auto; height: 1px; background: var(--line); }
+.items { font-size: 11px; }
+.items.flow { display: flex; flex-wrap: wrap; gap: 4px; }
+.items.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.chip { position: relative; box-sizing: border-box; display: flex; align-items: center; gap: 5px; min-width: 0; height: 20px; padding: 0 8px 0 7px; overflow: hidden; }
+.chip .fill { position: absolute; left: 0; top: 0; bottom: 0; height: auto; pointer-events: none; }
+.chip svg.ci { position: relative; width: 11px; height: 11px; flex: none; color: var(--c); }
+.chip .n { position: relative; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chip .t { position: relative; flex: none; color: var(--dim); font-variant-numeric: tabular-nums; }
+.chip.soon .t { color: #ff3b3b; font-weight: 700; }
+.chip.untimed .n { color: var(--dim); }
+.chip .x { position: relative; flex: none; width: 13px; height: 13px; margin-right: -4px; color: var(--dim); display: flex; align-items: center; justify-content: center; }
+.chip .x svg { width: 8px; height: 8px; }
+
+@media (prefers-reduced-motion: reduce) { .fill, .pane *, .pane { animation: none !important; } }
+/* Narrow panes: rows must not size the pane from their nowrap text. */
+.fz, .m2 { contain: inline-size; }
+.pair[data-behind="weather"] { background:
+  radial-gradient(1px 1px at 12% 18%, #fff8 50%, transparent), radial-gradient(1px 1px at 37% 9%, #fff6 50%, transparent),
+  radial-gradient(1px 1px at 61% 22%, #fff7 50%, transparent), radial-gradient(1.5px 1.5px at 83% 12%, #fff9 50%, transparent),
+  radial-gradient(1px 1px at 72% 41%, #fff5 50%, transparent), radial-gradient(1px 1px at 22% 47%, #fff5 50%, transparent),
+  radial-gradient(60% 40% at 70% 100%, #6a3f2a 0%, transparent 70%),
+  linear-gradient(180deg, #0b1230 0%, #23305a 45%, #5a4a6e 75%, #8a5a4a 100%); }
+/* ===================================================== 00 · Nu (today, reference) */
+.v00 .m2 { padding: 0 3px; border-radius: 3px; }
+.v00 .trk { background: var(--trk); border-radius: 3px; }
+.v00 .fill { border-radius: 3px; }
+.v00 .fz { border: 1px solid var(--line); border-radius: 5px; background: linear-gradient(90deg, rgba(232,195,90,.07), transparent 45%, transparent 55%, rgba(255,77,77,.08)); }
+.v00 .vs { border: 1px solid #2c2c2c; background: #0a0a0a; }
+.v00 .chip { border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--line) 55%, transparent); }
+.v00 .chip .fill { background: color-mix(in srgb, var(--c) 30%, transparent); }
+.v00 .chip.untimed { border-style: dashed; border-color: var(--dim); background: transparent; }
+.v00 .chip.charm { background: transparent; }
+
+
+/* ===================================================== 11 */
+/* 11 Dämpad obsidian — round-2 07 toned down onto today's geometry.
+   Concept: the rim is polished dark volcanic glass in the pane tint (soft top sheen, one faint diagonal
+   gloss streak repeating every ~140 px, smooth 5 px radius — no pixel steps). Four small tinted gem studs sit
+   in the corners of the ring (.fx hooks) and two tiny gems flank the title on the hanging nameplate.
+   Cell ring: rim = 7 px left/right/bottom (inside one 9 px cell); the nameplate hangs 16 px from the top rim
+   edge, so the top band incl. title stays ≤ 17 px. The rim is painted only in the ring (base mask) so a clear
+   pane really is clear.
+   Content: the same glass in smaller pieces — a glass dais for the fight, faint glass slabs per member,
+   gem-inlay bars (dark sunken channel, glossy faceted fill, no segments), glass chips, and each timer header
+   groove ends in a tiny gem in the group colour.
+   Tint: every glass/gem colour is derived from --pane-border with oklch(from …), so Plain is neutral smoky
+   glass, red/orange warm, blue/green cool. Frame off: rim/plate/studs vanish (base + .fx hidden), the slabs,
+   chips and bars keep the glass so it still reads as the same object. Clear: the hole shows through; slabs
+   and chips become semi-transparent glass with a text shadow so they stay readable over the sky. */
+.v11 {
+  --ob0: oklch(from var(--pane-border) .13 min(calc(c * 2.2), .035) h);
+  --ob1: oklch(from var(--pane-border) .29 min(calc(c * 3), .05) h);
+  --ob2: oklch(from var(--pane-border) .41 min(calc(c * 3.4), .06) h);
+  --obhi: oklch(from var(--pane-border) .66 min(calc(c * 3), .06) h);
+  --gem: oklch(from var(--pane-border) .62 min(calc(c * 7.5), .14) h);
+  --gemhi: oklch(from var(--pane-border) .9 min(calc(c * 3), .06) h);
+  --gemlo: oklch(from var(--pane-border) .3 min(calc(c * 6), .1) h);
+  --gl: oklch(from var(--pane-border) .17 min(calc(c * 2.6), .04) h);
+  --gla: var(--gl);
+  --ink11: oklch(from var(--pane-border) .9 min(calc(c * 1.2), .02) h);
+}
+.v11[data-clear] { --gla: color-mix(in oklab, var(--gl) 58%, transparent); }
+
+/* ---- frame: polished glass rim */
+.v11 .pane { padding: 7px; border-radius: 6px; }
+.v11 .pane::before { padding: 7px; border: 1px solid #000;
+  background:
+    repeating-linear-gradient(116deg, transparent 0 64px, rgba(255,255,255,.11) 64px 66px, transparent 66px 70px, rgba(255,255,255,.06) 70px 71px, transparent 71px 140px),
+    linear-gradient(90deg, rgba(255,255,255,.07), transparent 4px calc(100% - 4px), rgba(255,255,255,.04)),
+    linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 30%, transparent 60%),
+    linear-gradient(180deg, var(--ob2), var(--ob1) 45%, var(--ob0));
+  box-shadow: inset 1px 1px 0 color-mix(in oklab, var(--obhi) 75%, transparent), inset -1px -1px 0 rgba(0,0,0,.5), inset 0 0 0 3px rgba(255,255,255,.05); }
+.v11 .hole { border: 1px solid; border-color: #000 color-mix(in oklab, var(--obhi) 30%, transparent) color-mix(in oklab, var(--obhi) 30%, transparent) #000;
+  border-radius: 2px; color: #cfccd4; overflow: visible; padding-top: 19px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.3), inset 0 2px 3px -1px rgba(0,0,0,.75); }
+.v11 .gp, .v11 .tm { overflow: hidden; }
+
+/* nameplate: a glass cartouche hanging from the top rim, title in silver with tiny gems on each side */
+.v11 .plate { top: -1px; left: 14px; height: 15px; padding: 0 16px; gap: 0; border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,0) 60%), linear-gradient(180deg, var(--ob2), var(--ob1));
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.08), inset -1px 0 0 rgba(0,0,0,.5), inset 0 -1px 0 rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.7);
+  color: var(--ink11); font-family: var(--display); font-weight: 700; font-size: 10.5px; letter-spacing: .1em; text-shadow: 0 1px 0 #000; }
+.v11 .plate::before, .v11 .plate::after { content: ""; position: absolute; top: 5px; width: 4px; height: 4px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--gemhi) 0 18%, var(--gem) 45%, var(--gemlo)); box-shadow: 0 0 0 1px rgba(0,0,0,.65); }
+.v11 .plate::before { left: 6px; }
+.v11 .plate::after { right: 6px; }
+.v11 .pt { line-height: 15px; }
+
+/* corner studs: small tinted cabochons in the ring corners */
+.v11 .fx { display: block; width: 5px; height: 5px; border-radius: 50%; z-index: 4;
+  background: radial-gradient(circle at 35% 30%, var(--gemhi) 0 16%, var(--gem) 45%, var(--gemlo));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.7), 0 1px 0 1px rgba(255,255,255,.08); }
+.v11 .f1 { top: 2px; left: 2px; }
+.v11 .f2 { top: 2px; right: 2px; }
+.v11 .f3 { bottom: 2px; left: 2px; }
+.v11 .f4 { bottom: 2px; right: 2px; }
+
+/* ---- content: smaller pieces of the same glass */
+.v11 .name, .v11 .fn, .v11 .chip .n, .v11 .th { text-shadow: 0 1px 1px #000; }
+.v11 .name { color: #b4b1ba; }
+.v11 .name.pl { color: #eeebf2; }
+.v11 .m2 { position: relative; padding: 1px 5px 2px 3px; margin-bottom: 3px; border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255,255,255,.045), transparent 50%), var(--gla);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.03); }
+.v11 .m2:last-child { margin-bottom: 0; }
+.v11 .tag { border: 0; border-radius: 3px; background: color-mix(in oklab, var(--ob0) 90%, #000); color: #aaa6b4; box-shadow: inset 0 1px 1px #000, 0 1px 0 rgba(255,255,255,.08); }
+.v11 .where { color: #8f8c98; }
+.v11 .ic > svg.i { filter: drop-shadow(0 1px 0 #000); }
+.v11 .glow > svg.i { filter: drop-shadow(0 1px 0 #000) drop-shadow(0 0 2px var(--c)); }
+.v11 .rg .bg { stroke: #0a090c; }
+.v11 .vr { background: rgba(0,0,0,.8); box-shadow: 1px 0 0 rgba(255,255,255,.1); }
+
+/* gem-inlay bars: sunken black channel, glossy faceted fill, a tiny specular glint */
+.v11 .trk { height: 6px; border-radius: 3px; background: #050407; box-shadow: inset 0 1px 1px #000, 0 1px 0 rgba(255,255,255,.09); }
+.v11 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 55%) 0 1px, color-mix(in srgb, var(--c), #fff 15%) 1px 40%, var(--c) 40% 65%, color-mix(in srgb, var(--c), #000 40%)); }
+.v11 .fill::before { content: ""; position: absolute; left: 2px; top: 1px; width: 4px; height: 1px; border-radius: 1px; background: #fff; opacity: .75; }
+.v11 .band .fill::after { border-radius: 3px; }
+
+/* fight dais */
+.v11 .fz { padding: 6px 9px 9px; margin-bottom: 6px; border-radius: 5px;
+  background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 45%),
+    linear-gradient(90deg, rgba(232,195,90,.08), transparent 40% 60%, rgba(255,77,77,.09)), var(--gla);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), inset 0 -1px 0 rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.55); }
+.v11 .fz .trk { height: 8px; border-radius: 4px; }
+.v11 .fz .fill { border-radius: 4px; }
+.v11 .foe .fill::before { left: auto; right: 2px; }
+.v11 .vs { width: 22px; height: 22px; color: var(--ink11); font-family: var(--display); font-weight: 700; font-size: 9.5px; text-shadow: 0 1px 0 #000;
+  background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.28), transparent 45%), radial-gradient(circle, var(--ob2), var(--ob0));
+  box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.18), 0 0 6px rgba(255,77,77,.18); }
+
+/* ---- timers */
+.v11 .tm { gap: 7px; }
+.v11 .th { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .1em; color: #c9c5d1; }
+.v11 .th svg { filter: drop-shadow(0 1px 0 #000); }
+.v11 .th .cnt { font-family: var(--mono); font-weight: 400; color: #6f6c78; }
+/* an engraved groove ending in a small gem in the group colour */
+.v11 .hln { position: relative; height: 2px; margin-right: 6px; border-radius: 1px; background: linear-gradient(180deg, rgba(0,0,0,.9) 0 1px, rgba(255,255,255,.1) 1px); }
+.v11 .hln::after { content: ""; position: absolute; right: -6px; top: -2px; width: 6px; height: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c), #fff 70%) 0 15%, var(--c) 45%, color-mix(in srgb, var(--c), #000 55%));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.75); }
+.v11 .chip { height: 20px; border-radius: 4px; color: #ece9f1;
+  background: linear-gradient(180deg, rgba(255,255,255,.06) 0 45%, transparent 45%), var(--gla);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, #000), inset 0 1px 0 1px rgba(255,255,255,.04), 0 1px 1px rgba(0,0,0,.6); }
+.v11 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 46%, transparent), color-mix(in srgb, var(--c) 26%, transparent) 55%, color-mix(in srgb, var(--c) 38%, transparent)); border-radius: 4px 0 0 4px; }
+.v11 .chip .fill::before { display: none; }
+.v11 .chip .fill::after { content: ""; position: absolute; right: 0; top: 3px; bottom: 3px; width: 1px; background: color-mix(in srgb, var(--c), #fff 35%); opacity: .3; }
+.v11 .chip svg.ci { filter: drop-shadow(0 1px 0 #000); }
+.v11 .chip .t { color: #a7a3b0; }
+.v11 .chip.soon .t { color: #ff4a3a; text-shadow: 0 1px 1px #000; }
+.v11 .chip.untimed { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, #444); }
+.v11[data-clear] .chip.untimed { background: color-mix(in oklab, var(--gl) 35%, transparent); }
+.v11 .chip.untimed .n { color: #8e8a98; }
+.v11 .chip.charm { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 72%, #000), 0 1px 1px rgba(0,0,0,.6); }
+
+/* ---- frame off: no rim, no plate, no studs; the glass pieces carry the look alone */
+.v11[data-frame="off"] .pane { border-radius: 0; }
+.v11[data-frame="off"] .hole { border: 0; border-radius: 0; box-shadow: none; overflow: hidden; }
+
+/* ===================================================== 12 */
+/* 12 Stilla glas — round-2 "09 Stilla pixel" meets today's glass rim.
+   Concept: today's calm tinted glass rim and engraved nameplate, finished a little finer. Pixel character
+   survives only as seasoning: each outer corner is cut in two 2-px steps, and the nameplate grows out of the
+   rim with stepped shoulders (inverse 2-px steps where it meets the rim, 2-px steps at its lower corners).
+   Cell ring: 6 px band left/right/bottom (inside one 9 px cell column / the bottom cell row); the top band is
+   the same 6 px rim plus the nameplate hanging 11 px into the hole = 17 px (one cell row). Corner steps are
+   clip-path polygons on the ring layers, so the frame scales to any pane size; the .fx hooks are unused.
+   Layers: ::before = 1 px dark outline, ::after = glass (tinted from --glass), both masked to the ring so a
+   clear pane really is clear under the content. The content uses quiet "glass cards" mixed from --glass and
+   --pane-fill. Tint: everything derives from --glass / --pane-fill / --pane-h. Frame off: the ring layers and
+   plate vanish (base), the cards keep their glass so the content still reads as the same family. Clear: the
+   hole's inner shadow is dropped and cards gain a little --pane-fill backing so text stays readable on the sky. */
+.v12 {
+  --g12: var(--glass);
+  --g12-hi: oklch(from var(--glass) calc(l + .2) c h);
+  --g12-lo: oklch(from var(--glass) calc(l - .2) c h);
+  --g12-ink: oklch(from var(--glass) .2 calc(c * .8) h);
+  --g12-card: color-mix(in oklch, var(--glass) 17%, var(--pane-fill));
+  --g12-card2: color-mix(in oklch, var(--glass) 12%, var(--pane-fill));
+  --g12-rule: color-mix(in oklch, var(--glass) 42%, var(--pane-fill));
+  --g12-trk: color-mix(in oklch, var(--glass) 14%, #000);
+  --st12: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px,
+    100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%,
+    4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+  --st12s: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px),
+    calc(100% - 1px) 100%, 1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px));
+}
+.v12[data-clear] {
+  --g12-card: color-mix(in oklch, color-mix(in oklch, var(--glass) 22%, var(--pane-fill)) 72%, transparent);
+  --g12-card2: color-mix(in oklch, color-mix(in oklch, var(--glass) 12%, var(--pane-fill)) 55%, transparent);
+  --g12-rule: color-mix(in oklch, var(--glass) 70%, transparent);
+}
+
+/* ---------- frame */
+.v12 .pane { padding: 6px; border-radius: 0; isolation: isolate; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
+.v12 .pane::before, .v12 .pane::after { content: ""; position: absolute; pointer-events: none; border: 0; border-radius: 0; box-sizing: border-box;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+/* outline */
+.v12 .pane::before { inset: 0; padding: 6px; z-index: 0; clip-path: var(--st12); background: rgba(0,0,0,.85); box-shadow: none; }
+/* glass */
+.v12 .pane::after { inset: 1px; padding: 5px; z-index: 0; clip-path: var(--st12);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.17), rgba(255,255,255,.03) 45%, rgba(0,0,0,.08)),
+    var(--stone-noise) 0 0 / 160px 160px,
+    var(--g12);
+  background-blend-mode: normal, soft-light, normal;
+  box-shadow: inset 1px 1px 0 color-mix(in oklch, var(--g12-hi) 75%, transparent), inset -1px -1px 0 color-mix(in oklch, var(--g12-lo) 70%, transparent); }
+.v12 .hole { z-index: 1; border-color: rgba(0,0,0,.8) color-mix(in oklch, var(--g12-hi) 45%, transparent) color-mix(in oklch, var(--g12-hi) 45%, transparent) rgba(0,0,0,.8);
+  padding: 16px 7px 7px; overflow: visible; box-shadow: inset 0 2px 5px rgba(0,0,0,.55); }
+.v12 .gp, .v12 .tm { overflow: hidden; padding: 1px; margin: -1px; }
+.v12[data-clear] .hole { box-shadow: none; }
+
+/* nameplate: grows out of the top rim (covers it), hangs 11 px into the hole, stepped shoulders */
+.v12 .plate { top: -6px; left: 14px; height: 16px; padding: 0 12px; border-radius: 0; box-shadow: none; overflow: visible;
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.05) 45%, rgba(0,0,0,.06)), var(--g12);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, calc(100% + 4px) 5px, calc(100% + 4px) 7px, calc(100% + 2px) 7px, calc(100% + 2px) 9px, 100% 9px,
+    100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%,
+    4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px), 0 9px, -2px 9px, -2px 7px, -4px 7px, -4px 5px, 0 5px);
+  color: var(--g12-ink); text-shadow: 0 1px 0 color-mix(in oklch, var(--g12-hi) 55%, transparent); }
+/* shoulder fillets: inverse 2-px steps where the plate leaves the rim */
+.v12 .plate::before, .v12 .plate::after { content: ""; position: absolute; top: 5px; width: 4px; height: 4px; background: var(--g12);
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.25); }
+.v12 .plate::before { left: -4px; }
+.v12 .plate::after { right: -4px; }
+.v12 .pt { position: relative; top: 1px; font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .07em; line-height: 13px; }
+
+/* ---------- group */
+.v12 .gp { gap: 3px; }
+.v12 .fz { margin: 0 0 4px; padding: 5px 8px 8px; background: var(--g12-card); clip-path: var(--st12);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--g12-hi) 28%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--glass) 55%, transparent);
+  background-image: linear-gradient(90deg, rgba(232,195,90,.06), transparent 40% 60%, rgba(255,77,77,.07)); }
+.v12 .vs { background: var(--g12-card2); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--g12-hi) 35%, transparent), 0 0 0 1px rgba(0,0,0,.6); color: var(--dim); }
+.v12 .m2 { padding: 0 6px 1px 3px; background: var(--g12-card2); clip-path: var(--st12s);
+  box-shadow: inset 1px 1px 0 color-mix(in oklch, var(--g12-hi) 9%, transparent), inset -1px -1px 0 rgba(0,0,0,.35); }
+.v12 .tag { border-radius: 2px; border-color: var(--g12-rule); background: var(--g12-card); }
+.v12 .vr { background: var(--g12-rule); }
+.v12 .trk { background: var(--g12-trk); border-radius: 2px; box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 color-mix(in oklch, var(--g12-hi) 18%, transparent); }
+.v12 .fill { border-radius: 2px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 30%) 0 1px, var(--c) 1px calc(100% - 1px), color-mix(in srgb, var(--c), #000 25%) calc(100% - 1px)); }
+.v12 .fz .trk { height: 7px; }
+.v12 .rg .bg { stroke: var(--g12-trk); }
+
+/* ---------- timers */
+.v12 .tm { gap: 5px; }
+.v12 .th { text-transform: none; font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .06em; color: #b9b9b4; }
+.v12 .th .cnt { font-family: var(--mono); font-size: 10px; color: var(--dim); }
+/* header rule engraved into the glass: a dark line with a faint lip below */
+.v12 .hln { height: 2px; background: linear-gradient(180deg, rgba(0,0,0,.85) 0 1px, color-mix(in oklch, var(--g12-hi) 22%, transparent) 1px);
+  -webkit-mask: linear-gradient(90deg, #000 70%, transparent); mask: linear-gradient(90deg, #000 70%, transparent); }
+.v12 .chip { height: 20px; border-radius: 3px; background: var(--g12-card2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 48%, var(--g12-rule)), inset 0 2px 0 -1px color-mix(in oklch, var(--g12-hi) 22%, transparent); }
+.v12 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent) 0 1px, color-mix(in srgb, var(--c) 24%, transparent) 1px); }
+.v12 .chip .n { color: #dcdcd8; }
+.v12 .chip .t { color: #9c9c98; }
+.v12 .chip.soon .t { color: #ff3b3b; }
+.v12 .chip.untimed { background: transparent; box-shadow: none; outline: 1px dashed color-mix(in oklch, var(--dim) 80%, transparent); outline-offset: -1px; }
+.v12 .chip.untimed .n { color: var(--dim); }
+.v12 .chip.charm { background: transparent; }
+
+/* ---------- frame off: no ring, no plate; content keeps its glass cards */
+.v12[data-frame="off"] .pane { filter: none; }
+.v12[data-frame="off"] .pane::after { display: none; }
+.v12[data-frame="off"] .hole { box-shadow: none; }
+
+/* ===================================================== 13 */
+/* 13 Milt fackelsken — round-2 "10 Fackelsken" with the retro dialled back.
+   Concept: the pane is one block of tinted stone (smooth, fine grain, no dither tiles) lit by a soft warm light
+   from the top edge. The title is carved into the lit top strip, flanked by two tiny glowing embers instead of
+   pixel torches; their light spills as a faint pool into the hole. Cards, chips, bars and the fight zone are soft
+   carved hollows (shadow under the top lip, a lit bottom lip). A very fine 1-px dither appears only in the
+   deepest shadow, right under the top lip of the fight-zone hollow. Corners: a single 2-px step, the only pixel touch.
+   Cell ring: left/right/bottom band 7 px, top band 15 px holding the carved title (plate sits in the band, the
+   hole is overflow-visible). Everything is gradients + one noise tile, so it scales to any pane size.
+   Tint: stone = oklch from --glass; ember light = amber mixed with the tint's hue (hsl --pane-h/--pane-s).
+   The hole is the tint fill lifted slightly toward the stone, so it reads as the same block.
+   Frame off: rim, title and embers vanish; the hollows keep the material.  Clear: the hole is transparent except a
+   very faint light wash; hollows are translucent dark so text stays readable over the sky. */
+.v13 {
+  --m: oklch(from var(--glass) .38 calc(c * .9) h);
+  --m-hi: oklch(from var(--glass) .58 calc(c * 1.1) h);
+  --m-lo: oklch(from var(--glass) .17 calc(c * .8) h);
+  --ember: color-mix(in srgb, #ffaf5a 74%, hsl(var(--pane-h) var(--pane-s) 62%));
+  --ember-hot: color-mix(in srgb, #ffe2a6 80%, var(--ember));
+  --hollow: rgba(0, 0, 0, .36);
+  --lip: color-mix(in srgb, var(--m-hi) 34%, transparent);
+  --ink: color-mix(in srgb, var(--ember) 14%, #d8d3cb);
+  --st2: polygon(0 2px, 1px 2px, 1px 1px, 2px 1px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 2px, 100% 2px,
+    100% calc(100% - 2px), calc(100% - 1px) calc(100% - 2px), calc(100% - 1px) calc(100% - 1px), calc(100% - 2px) calc(100% - 1px), calc(100% - 2px) 100%,
+    2px 100%, 2px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 2px), 0 calc(100% - 2px));
+}
+
+/* ---------- frame: one block of stone, light from the top */
+.v13 .pane { padding: 15px 7px 7px; border-radius: 0; clip-path: var(--st2); }
+.v13 .pane::before { padding: 15px 7px 7px; border-radius: 0; border: 0;
+  background:
+    radial-gradient(130px 30px at 46px 0, color-mix(in srgb, var(--ember-hot) 34%, transparent), transparent 80%),
+    linear-gradient(180deg, color-mix(in srgb, var(--ember) 24%, transparent) 1px, color-mix(in srgb, var(--ember) 8%, transparent) 15px, transparent 60px),
+    linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, .28)),
+    var(--stone-noise),
+    var(--m);
+  background-size: auto, auto, auto, 160px 160px, auto;
+  background-blend-mode: normal, normal, normal, soft-light, normal;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .85), inset 0 2px 0 -1px color-mix(in srgb, var(--ember-hot) 30%, var(--m-hi)),
+    inset 1px 0 0 1px color-mix(in srgb, var(--m-hi) 30%, transparent), inset 0 -2px 0 rgba(0, 0, 0, .35); }
+.v13 .hole { overflow: visible; border: 0; border-radius: 2px; padding: 7px 7px 7px; color: var(--fg);
+  background:
+    radial-gradient(220px 70px at 46px 0, color-mix(in srgb, var(--ember) 10%, transparent), transparent 80%),
+    color-mix(in srgb, var(--pane-bg) 84%, var(--m));
+  box-shadow: inset 0 3px 4px -2px rgba(0, 0, 0, .85), inset 0 0 0 1px rgba(0, 0, 0, .7), 0 1px 0 0 var(--lip); }
+
+/* carved title in the lit strip, an ember either side */
+.v13 .plate { top: -15px; left: 12px; height: 15px; padding: 0 14px; border-radius: 0; background: none; box-shadow: none;
+  font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: .14em;
+  color: color-mix(in srgb, var(--m-lo) 70%, #000); text-shadow: 0 1px 0 color-mix(in srgb, var(--ember-hot) 55%, transparent), 0 -1px 0 rgba(0, 0, 0, .3); }
+.v13 .pt { position: relative; top: .5px; }
+.v13 .plate::before, .v13 .plate::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 1px; transform: rotate(45deg);
+  background: radial-gradient(circle at 40% 40%, #fff3d0, var(--ember-hot) 45%, var(--ember));
+  box-shadow: 0 0 3px 1px color-mix(in srgb, var(--ember) 80%, transparent), 0 0 8px 3px color-mix(in srgb, var(--ember) 30%, transparent);
+  animation: v13-glow 3.6s ease-in-out infinite; }
+.v13 .plate::before { left: 3px; }
+.v13 .plate::after { right: 3px; animation-delay: -1.7s; animation-duration: 4.3s; }
+@keyframes v13-glow { 0%, 100% { opacity: 1; } 45% { opacity: .78; } 60% { opacity: .92; } }
+
+/* ---------- carved hollows (shared) */
+.v13 .m2, .v13 .fz, .v13 .chip { background: var(--hollow);
+  box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, .85), inset 0 -1px 0 var(--lip), inset 1px 0 0 rgba(0, 0, 0, .35); }
+
+/* ---------- group */
+.v13 .fz { margin: 0 0 6px; padding: 7px 9px 9px; border-radius: 5px;
+  background:
+    repeating-conic-gradient(rgba(0, 0, 0, .55) 0 25%, transparent 0 50%) 0 0 / 2px 2px no-repeat,
+    linear-gradient(90deg, rgba(232, 195, 90, .07), transparent 45% 55%, rgba(255, 77, 77, .08)),
+    var(--hollow);
+  background-size: 100% 2px, auto, auto; background-position: 0 2px, 0 0, 0 0; }
+.v13 .fz .fn { color: var(--hot); }
+.v13 .fz .fn.f { color: #ff9b8f; }
+.v13 .fz .trk { height: 8px; }
+.v13 .vs { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .02em; color: var(--ember-hot);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ember) 16%, transparent), rgba(0, 0, 0, .55) 70%);
+  box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, .9), inset 0 -1px 0 var(--lip);
+  text-shadow: 0 0 5px color-mix(in srgb, var(--ember) 55%, transparent); }
+.v13 .m2 { margin-bottom: 3px; padding: 1px 5px 1px 2px; border-radius: 4px; }
+.v13 .m2:last-child { margin-bottom: 0; }
+.v13 .name { color: #b3aea6; }
+.v13 .name.pl { color: var(--ink); }
+.v13 .tag { border: 0; border-radius: 3px; color: #e2dccf; background: linear-gradient(180deg, var(--m-hi), var(--m));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 1px 1px rgba(0, 0, 0, .6); text-shadow: 0 -1px 0 rgba(0, 0, 0, .5); }
+.v13 .vr { width: 2px; background: linear-gradient(90deg, rgba(0, 0, 0, .8) 0 1px, var(--lip) 1px); }
+.v13 .rg .bg { stroke: rgba(0, 0, 0, .6); }
+.v13 .trk { height: 5px; border-radius: 3px; background: rgba(0, 0, 0, .62); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .9), 0 1px 0 var(--lip); }
+.v13 .fill { border-radius: 3px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 32%) 0 1px, var(--c) 1px calc(100% - 1px), color-mix(in srgb, var(--c), #000 30%) calc(100% - 1px));
+  box-shadow: 0 0 4px -1px var(--c); }
+.v13 .fz .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 32%) 0 1px, var(--c) 1px calc(100% - 2px), color-mix(in srgb, var(--c), #000 30%) calc(100% - 2px)); }
+
+/* ---------- timers */
+.v13 .tm { gap: 5px; }
+.v13 .th { font-family: var(--body); font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: none;
+  color: color-mix(in srgb, var(--ember) 30%, #cfc9be); text-shadow: 0 -1px 0 rgba(0, 0, 0, .85), 0 1px 0 color-mix(in srgb, var(--ember) 12%, transparent); }
+.v13 .th .cnt { font-family: var(--mono); font-size: 10px; color: #7d776d; text-shadow: none; }
+.v13 .hln { height: 2px; background: linear-gradient(180deg, rgba(0, 0, 0, .75) 0 1px, var(--lip) 1px);
+  -webkit-mask: linear-gradient(90deg, #000 60%, transparent); mask: linear-gradient(90deg, #000 60%, transparent); }
+.v13 .chip { height: 20px; border-radius: 4px; padding: 0 8px 0 7px; }
+.v13 .chip .fill { border-radius: 4px 2px 2px 4px; top: 1px; bottom: 1px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent), color-mix(in srgb, var(--c) 24%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 75%, transparent); }
+.v13 .chip .n { color: var(--ink); text-shadow: 0 1px 1px rgba(0, 0, 0, .7); }
+.v13 .chip .t { color: #a9a39a; text-shadow: 0 1px 1px rgba(0, 0, 0, .7); }
+.v13 .chip.soon .t { color: #ff4a3d; }
+.v13 .chip.untimed { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--m-hi) 40%, transparent); }
+.v13 .chip.untimed .n { color: var(--dim); }
+.v13 .chip.charm { box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, .85), inset 0 -1px 0 var(--lip), inset 2px 0 0 var(--c); }
+
+/* ---------- states */
+.v13[data-clear] .hole { background: radial-gradient(220px 70px at 46px 0, color-mix(in srgb, var(--ember) 8%, transparent), transparent 80%); }
+.v13[data-clear] { --hollow: rgba(0, 0, 0, .48); }
+.v13[data-clear] .th { text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.v13[data-frame="off"] .pane { clip-path: none; }
+.v13[data-frame="off"] .hole { box-shadow: none; padding: 4px; border-radius: 0; background: color-mix(in srgb, var(--pane-bg) 84%, var(--m)); }
+.v13[data-frame="off"][data-clear] .hole { background: transparent; }
+.v13[data-frame="off"] .plate::before, .v13[data-frame="off"] .plate::after { display: none; }
+
+/* ===================================================== 14 */
+/* 14 Glas på sten — today's glass rim, set into a slab of stone.
+   Concept: the rim is today's glass almost unchanged (same 6 px ring, bevel and hanging nameplate) but it now carries a
+   fine stone grain, and the hole is the same stone a few steps darker with the same grain. Cards, bars and chips are
+   soft carved hollows (shadow under the top edge, faint lit lip at the bottom); headers and the title are engraved.
+   Rim and content share grain and tint, so the pane reads as one object.
+   Cell-ring mapping: unchanged from today: 6 px rim left/right/bottom, nameplate 17 px tall hanging from the top rim;
+   corners are the rim's 5 px radius. Nothing fixed-size spans the frame; the grain is a repeating 160 px tile.
+   Tint: rim = --glass (+grain), stone = --glass mixed into --pane-fill, hollows = darker mixes of the stone, so every
+   surface follows the tint. Frame off: base drops rim and plate; the stone surface and hollows remain.
+   Clear: the hole loses its stone and grain (fully transparent), the rim stays; hollows become smoked
+   (semi-opaque dark) so text stays readable over the sky. */
+.v14 { --s14-stone: color-mix(in oklab, var(--glass) 24%, var(--pane-fill));
+  --s14-deep: color-mix(in oklab, var(--glass) 6%, color-mix(in oklab, var(--pane-fill), #000 55%));
+  --s14-hollow: color-mix(in oklab, var(--s14-deep) 78%, transparent);
+  --s14-lip: rgba(235, 235, 230, .07);
+  --s14-ink: color-mix(in oklab, var(--glass), #e6e3dc 45%);
+  --s14-grain: var(--stone-noise) 0 0 / 160px 160px; }
+/* Plain's fill is pure black: lift the stone a little more so the hollows can be read */
+.v14[data-tint="black"] { --s14-stone: color-mix(in oklab, var(--glass) 31%, var(--pane-fill)); }
+.v14[data-clear] { --s14-hollow: rgba(0, 0, 0, .48); --s14-lip: rgba(235, 235, 230, .09); }
+
+/* ---------- frame: today's glass, with grain */
+.v14 .pane::before { background: var(--s14-grain), linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 40%), var(--glass);
+  background-blend-mode: overlay, normal, normal; }
+.v14 .pane { box-shadow: 0 2px 6px -2px rgba(0, 0, 0, .7); }
+.v14 .hole { isolation: isolate; border-color: rgba(0,0,0,.85) rgba(239,239,239,.16) rgba(239,239,239,.16) rgba(0,0,0,.85);
+  background: linear-gradient(180deg, rgba(255,255,255,.035), transparent 35%), var(--s14-stone);
+  box-shadow: inset 0 3px 5px -2px rgba(0, 0, 0, .75), inset 2px 0 4px -2px rgba(0, 0, 0, .5); }
+/* shared grain, very faint, only on the stone (not when clear) */
+.v14 .hole::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--s14-grain); opacity: .4; mix-blend-mode: soft-light; }
+.v14[data-clear] .hole { background: none; }
+.v14[data-clear] .hole::before { display: none; }
+/* nameplate: same glass, grained, title engraved */
+.v14 .plate { background: var(--s14-grain), linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0)), var(--glass);
+  background-blend-mode: soft-light, normal, normal; font-family: var(--display); font-size: 11px; letter-spacing: .08em; }
+.v14 .pt { color: color-mix(in oklab, var(--glass), #000 62%); text-shadow: 0 1px 0 rgba(239, 239, 239, .28), 0 -1px 0 rgba(0, 0, 0, .25); }
+/* frame off: stone keeps soft rounded edges so it still looks finished */
+.v14[data-frame="off"] .hole { border-radius: 4px; box-shadow: inset 0 2px 4px -2px rgba(0, 0, 0, .7); padding: 6px; }
+.v14[data-frame="off"][data-clear] .hole { box-shadow: none; padding: 4px; }
+
+/* ---------- carved hollows */
+.v14 .fz { margin-bottom: 7px; border-radius: 6px; padding: 6px 9px 9px;
+  background: linear-gradient(90deg, rgba(232,195,90,.06), transparent 40%, transparent 60%, rgba(255,77,77,.07)), var(--s14-hollow);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .65), inset 0 -1px 0 var(--s14-lip), 0 1px 0 var(--s14-lip); }
+.v14 .vs { background: var(--s14-stone); color: var(--s14-ink); font-family: var(--display); font-size: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .1); text-shadow: 0 1px 0 #000; }
+.v14[data-clear] .vs { background: color-mix(in oklab, var(--glass) 60%, #000); }
+.v14 .m2 { padding: 0 4px 1px 2px; border-radius: 4px; margin-bottom: 2px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, .12));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .55), 0 1px 0 var(--s14-lip); }
+.v14[data-clear] .m2 { background: var(--s14-hollow); }
+.v14 .m2:last-child { margin-bottom: 0; }
+.v14 .name { color: #b3b0aa; text-shadow: 0 1px 1px rgba(0, 0, 0, .8); }
+.v14 .name.pl { color: #e2dfd8; }
+.v14 .tag { border: 0; background: var(--s14-hollow); color: var(--s14-ink); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .7), 0 1px 0 var(--s14-lip); }
+.v14 .vr { width: 2px; background: linear-gradient(90deg, rgba(0, 0, 0, .7) 50%, rgba(255, 255, 255, .08) 50%); }
+.v14 .rg .bg { stroke: rgba(0, 0, 0, .6); }
+/* bars: carved grooves with a soft rounded fill */
+.v14 .trk { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .62);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .9), 0 1px 0 var(--s14-lip); }
+.v14 .fs .trk { height: 8px; border-radius: 4px; }
+.v14 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 22%), var(--c) 55%, color-mix(in srgb, var(--c), #000 22%)); }
+
+/* ---------- timers */
+.v14 .th { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .12em; color: var(--s14-ink);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, .85), 0 1px 0 rgba(255, 255, 255, .07); }
+.v14 .th svg { filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .8)); }
+.v14 .th .cnt { font-family: var(--mono); color: color-mix(in oklab, var(--s14-ink), transparent 40%); }
+.v14 .hln { height: 2px; background: linear-gradient(180deg, rgba(0, 0, 0, .7) 50%, rgba(255, 255, 255, .07) 50%); }
+.v14 .chip { border-radius: 10px; background: var(--s14-hollow);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .7), inset 0 0 0 1px color-mix(in srgb, var(--c) 34%, transparent), 0 1px 0 var(--s14-lip); }
+.v14 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 34%, transparent)); }
+.v14 .chip .n { color: #e2dfd8; text-shadow: 0 1px 1px rgba(0, 0, 0, .85); }
+.v14 .chip .t { color: #a5a29b; text-shadow: 0 1px 1px rgba(0, 0, 0, .85); }
+.v14 .chip.soon .t { color: #ff4a42; }
+.v14 .chip.untimed { background: transparent; box-shadow: none; border: 1px dashed color-mix(in oklab, var(--s14-ink), transparent 35%); }
+.v14 .chip.untimed .n { color: var(--s14-ink); }
+.v14 .chip.charm { background: var(--s14-hollow); }
+/* clear: engraving needs a stronger halo over the sky */
+.v14[data-clear] .th { color: #d9d5cd; text-shadow: 0 1px 2px #000, 0 0 3px rgba(0, 0, 0, .8); }
+.v14[data-clear] .th .cnt { color: #a9a59d; }
+.v14[data-clear] .hln { background: linear-gradient(180deg, rgba(0, 0, 0, .75) 50%, rgba(255, 255, 255, .14) 50%); }
+
+/* ===================================================== 15 */
+/* 15 Halvpixel — the least retro: today's smooth glass rim, finished a notch further, with pixel character only as seasoning.
+   Concept: smooth tinted glass everywhere (rim, cards, chips, tracks share one material and one fine grain); the pixel
+   accents are few and deliberate — the title tab's stepped shoulders, 2-px stepped corners on chips, pixel end caps on
+   the bars and a tiny stepped diamond marker before each timer header.
+   Cell-ring mapping: left/right/bottom band = 7 px (inside one 9-px cell); top band = 17 px (one cell row) holding the
+   title tab, which rises from the hole's edge. Rim painted by .pane::before, masked to the ring (never under content).
+   Tint: rim = --glass with gloss; cards/chips/tracks are translucent mixes of --glass so they follow the tint and stay
+   readable when clear. Frame off: rim/tab hidden by base; cards keep the glass material. Clear: hole is transparent,
+   cards become slightly denser dark glass so text reads over the sky. */
+.v15 {
+  --hp-rim: var(--glass);
+  --hp-hi: oklch(from var(--glass) calc(l + .2) calc(c * .9) h);
+  --hp-lo: oklch(from var(--glass) calc(l - .22) c h);
+  --hp-card: oklch(from var(--glass) .2 calc(c * .7) h / .55);
+  --hp-cardhi: oklch(from var(--glass) .5 c h / .28);
+  --hp-well: oklch(from var(--glass) .1 calc(c * .5) h / .85);
+  --hp-ink: oklch(from var(--glass) .9 calc(c * .25) h);
+  --hp-ink2: oklch(from var(--glass) .72 calc(c * .35) h);
+  --hp-step2: polygon(0 2px, 1px 2px, 1px 1px, 2px 1px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 2px, 100% 2px,
+    100% calc(100% - 2px), calc(100% - 1px) calc(100% - 2px), calc(100% - 1px) calc(100% - 1px), calc(100% - 2px) calc(100% - 1px), calc(100% - 2px) 100%,
+    2px 100%, 2px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 2px), 0 calc(100% - 2px));
+  --hp-step1: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px),
+    calc(100% - 1px) 100%, 1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px));
+}
+.v15[data-clear] { --hp-card: oklch(from var(--glass) .16 calc(c * .7) h / .72); --hp-well: oklch(from var(--glass) .08 calc(c * .5) h / .9); }
+
+/* ---------- frame: smooth glass rim with a fine shared grain */
+.v15 .pane { padding: 17px 7px 7px; border-radius: 6px; }
+.v15 .pane::before { padding: 17px 7px 7px; border-radius: 6px; border: 1px solid rgba(0,0,0,.8);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.17), rgba(255,255,255,.03) 9px, rgba(255,255,255,0) 17px, rgba(0,0,0,.12)),
+    var(--stone-noise) 0 0 / 160px 160px,
+    var(--hp-rim);
+  background-blend-mode: normal, soft-light, normal;
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--hp-hi) 70%, transparent), inset -1px -1px 0 rgba(0,0,0,.3), 0 2px 6px -2px rgba(0,0,0,.7); }
+.v15 .hole { overflow: visible; padding: 6px 7px 7px; border-radius: 2px;
+  border-color: rgba(0,0,0,.85) color-mix(in srgb, var(--hp-hi) 45%, transparent) color-mix(in srgb, var(--hp-hi) 45%, transparent) rgba(0,0,0,.85);
+  box-shadow: inset 0 2px 4px -1px rgba(0,0,0,.55); }
+.v15 .gp, .v15 .tm { position: relative; }
+
+/* title tab: smooth glass, two 2-px steps for shoulders; engraved ink as today */
+.v15 .plate { top: -15px; left: 11px; height: 15px; padding: 0 13px; border-radius: 0; box-shadow: none; background: none;
+  filter: drop-shadow(0 -1px 0 rgba(0,0,0,.55)) drop-shadow(1px 0 0 rgba(0,0,0,.35));
+  color: var(--plateink); font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .08em; text-shadow: 0 1px 0 rgba(239,239,239,.35); }
+.v15 .plate::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hp-hi) 85%, transparent) 0 1px, rgba(255,255,255,.2) 1px, rgba(255,255,255,.06) 60%, rgba(255,255,255,0)),
+    var(--stone-noise) 0 0 / 160px 160px, color-mix(in oklab, var(--hp-rim), #fff 10%);
+  background-blend-mode: normal, soft-light, normal;
+  clip-path: polygon(0 100%, 0 8px, 2px 8px, 2px 6px, 4px 6px, 4px 4px, 6px 4px, 6px 2px, 8px 2px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 2px,
+    calc(100% - 6px) 2px, calc(100% - 6px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 6px, calc(100% - 2px) 6px, calc(100% - 2px) 8px, 100% 8px, 100% 100%); }
+.v15 .pt { line-height: 15px; padding-top: 2px; color: oklch(from var(--glass) .2 calc(c * .8) h); }
+
+/* ---------- group */
+.v15 .fz { margin: 0 0 6px; padding: 6px 8px 8px; border-radius: 5px;
+  background: linear-gradient(90deg, rgba(232,195,90,.08), transparent 42% 58%, rgba(255,77,77,.09)), var(--hp-card);
+  box-shadow: inset 0 1px 0 var(--hp-cardhi), inset 0 -1px 0 rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.35); }
+.v15 .fz .trk { height: 8px; }
+.v15 .vs { width: 22px; height: 22px; font-family: var(--body); font-weight: 700; font-size: 10.5px; letter-spacing: .06em; color: var(--hp-ink2);
+  background: radial-gradient(circle at 50% 30%, var(--hp-cardhi), transparent 70%), var(--hp-well);
+  box-shadow: inset 0 1px 0 var(--hp-cardhi), 0 0 0 1px rgba(0,0,0,.6); }
+.v15 .m2 { margin-bottom: 3px; padding: 1px 6px 2px 2px; border-radius: 4px; background: var(--hp-card);
+  box-shadow: inset 0 1px 0 var(--hp-cardhi), inset 0 -1px 0 rgba(0,0,0,.35); }
+.v15 .m2:last-child { margin-bottom: 0; }
+.v15 .name { color: var(--hp-ink2); }
+.v15 .name.pl, .v15 .fn { color: var(--hp-ink); }
+.v15 .fn.f { color: #ff9b8f; }
+.v15 .name, .v15 .fn, .v15 .chip .n { text-shadow: 0 1px 1px rgba(0,0,0,.7); }
+.v15 .tag { border: 0; border-radius: 3px; background: var(--hp-well); color: var(--hp-ink2); box-shadow: inset 0 0 0 1px var(--hp-cardhi); }
+.v15 .vr { background: var(--hp-cardhi); }
+.v15 .rg .bg { stroke: var(--hp-well); }
+
+/* bars: smooth glass channels, pixel end caps (stepped 1-px corners + a bright 1-px leading edge) */
+.v15 .trk { height: 5px; background: var(--hp-well); clip-path: var(--hp-step1); box-shadow: inset 0 1px 0 rgba(0,0,0,.6); }
+.v15 .fz .trk { clip-path: var(--hp-step2); }
+.v15 .bars .trk { margin: 0 1px; }
+.v15 .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 30%), var(--c) 45%, color-mix(in srgb, var(--c), #000 22%));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c), #fff 55%), inset -2px 0 0 color-mix(in srgb, var(--c), #000 35%); }
+.v15 .foe .fill { box-shadow: inset 1px 0 0 color-mix(in srgb, var(--c), #fff 55%), inset 2px 0 0 color-mix(in srgb, var(--c), #000 35%); }
+
+/* ---------- timers */
+.v15 .tm { gap: 6px; }
+.v15 .th { gap: 6px; font-family: var(--body); font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: none; color: var(--hp-ink2); text-shadow: 0 1px 1px rgba(0,0,0,.7); }
+.v15 .th .cnt { font-family: var(--mono); font-size: 10px; font-weight: 400; color: color-mix(in srgb, var(--hp-ink2) 60%, transparent); }
+/* header marker: a stepped 5x5 pixel diamond in the group colour */
+.v15 .hl { display: block; flex: none; width: 5px; height: 5px; margin-right: -1px; background: var(--c);
+  clip-path: polygon(2px 0, 3px 0, 3px 1px, 4px 1px, 4px 2px, 5px 2px, 5px 3px, 4px 3px, 4px 4px, 3px 4px, 3px 5px, 2px 5px, 2px 4px, 1px 4px, 1px 3px, 0 3px, 0 2px, 1px 2px, 1px 1px, 2px 1px); }
+.v15 .hln { height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 35%, transparent), var(--hp-cardhi) 30%, transparent); }
+
+/* chips: smooth glass bodies, 2-px stepped corners; the border is real (stays above the fill), the inner corner pixel is patched by ::after */
+.v15 .items.flow, .v15 .items.grid { gap: 4px; }
+.v15 .chip { --bc: color-mix(in srgb, var(--c) 50%, oklch(from var(--glass) .3 c h)); height: 20px; padding: 0 7px 0 6px; border: 1px solid var(--bc);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), transparent 55%), var(--hp-card); clip-path: var(--hp-step2); }
+.v15 .chip::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(var(--bc), var(--bc)) 0 0 / 1px 1px no-repeat, linear-gradient(var(--bc), var(--bc)) 100% 0 / 1px 1px no-repeat,
+    linear-gradient(var(--bc), var(--bc)) 0 100% / 1px 1px no-repeat, linear-gradient(var(--bc), var(--bc)) 100% 100% / 1px 1px no-repeat; }
+.v15 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent), color-mix(in srgb, var(--c) 24%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 70%, transparent); }
+.v15 .chip .n { color: var(--hp-ink); }
+.v15 .chip .t { color: var(--hp-ink2); }
+.v15 .chip.soon .t { color: #ff4a42; }
+.v15 .chip.untimed { --bc: color-mix(in srgb, var(--hp-ink2) 35%, transparent); border-style: dashed; background: color-mix(in srgb, var(--hp-card) 50%, transparent); }
+.v15 .chip.untimed::after { display: none; }
+.v15 .chip.untimed .n { color: var(--hp-ink2); }
+.v15 .chip.charm { background: var(--hp-card); }
+
+/* ---------- frame off: no rim, no tab; the glass cards alone carry the look */
+.v15[data-frame="off"] .hole { box-shadow: none; border-radius: 0; }
+
+/* ===================================================== 16 */
+/* 16 Emalj — cloisonné.
+   Concept: the pane is a piece of enamel jewellery. The frame is a rounded metal bezel (light-dark-light bands
+   like a polished rolled edge) with a fine raised wire running round its inner edge; the content cells are
+   glossy enamel separated by the same thin raised metal wire. The metal is tinted by the pane colour
+   (Plain = silver, red = rose copper, orange = gold-bronze, blue/green = cool steel), the enamel ground is a
+   deep tone of the same tint, and the status/group colours are the coloured enamels.
+   Cell ring: bezel = 7 px left/right/bottom (inside one 9 px cell); the title cartouche (a small metal tab
+   holding an enamel field with the title in metal letters) hangs from the top bezel and stays inside the
+   top 17 px. The inner wire is the hole's own outer box-shadow, so it sits on the ring, never under content.
+   Four tiny enamel cabochons in the tint sit in the bezel corners (.fx hooks). Smooth radii, no pixel steps.
+   Tint: all metal/enamel tones come from --pane-border via oklch(from …). Frame off: bezel, wire ring,
+   cartouche and cabochons vanish; the enamel cells keep their wires, so it is still clearly the same piece.
+   Clear: plique-à-jour — the enamel cells turn translucent (no backing), light from behind shows through,
+   wires stay opaque, text keeps a soft shadow for legibility over the sky. */
+.v16 {
+  --mhi: oklch(from var(--pane-border) .93 min(calc(c * 2.2), .045) h);
+  --mt: oklch(from var(--pane-border) .7 min(calc(c * 4), .075) h);
+  --mlo: oklch(from var(--pane-border) .4 min(calc(c * 3.5), .06) h);
+  --mdk: oklch(from var(--pane-border) .24 min(calc(c * 3), .05) h);
+  --en: oklch(from var(--pane-border) .2 min(calc(c * 4.5), .075) h);
+  --en2: oklch(from var(--pane-border) .14 min(calc(c * 4), .06) h);
+  --ena: var(--en);
+  --en2a: var(--en2);
+  --cab: oklch(from var(--pane-border) .6 min(calc(c * 8), .15) h);
+  --ink16: oklch(from var(--pane-border) .92 min(calc(c * 1.5), .025) h);
+  /* the raised wire: bright top/left, shaded bottom/right */
+  --wire: 0 0 0 1px var(--mt), inset 0 1px 0 color-mix(in oklab, var(--mhi) 25%, transparent);
+}
+.v16[data-clear] { --ena: color-mix(in oklab, var(--en) 55%, transparent); --en2a: color-mix(in oklab, var(--en2) 45%, transparent); }
+
+/* ---- frame: a polished metal bezel with an inner wire */
+.v16 .pane { padding: 7px; border-radius: 7px; }
+.v16 .pane::before { padding: 7px; border: 1px solid rgba(0,0,0,.85);
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.07), transparent 20% 80%, rgba(0,0,0,.15)),
+    linear-gradient(180deg, var(--mhi), var(--mt) 6px, var(--mlo) 50%, var(--mt) calc(100% - 4px), var(--mlo));
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.45), inset -1px -1px 0 rgba(0,0,0,.35), inset 0 0 0 2px color-mix(in oklab, var(--mdk) 25%, transparent); }
+/* inner wire: dark seat, bright wire, dark seat — drawn on the ring by the hole's outer shadow */
+.v16 .hole { border: 0; border-radius: 3px; color: #d2d0d6; overflow: visible; padding: 20px 8px 8px;
+  background: radial-gradient(120% 70% at 30% 0%, color-mix(in oklab, var(--en) 45%, transparent), transparent 70%), var(--pane-bg);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.7), 0 0 0 2px var(--mhi), 0 0 0 3px var(--mlo), inset 0 1px 3px rgba(0,0,0,.7); }
+.v16[data-clear] .hole { background: transparent; }
+.v16 .gp, .v16 .tm { overflow: hidden; padding: 1px; margin: -1px; }
+
+/* title cartouche: metal tab, enamel field, metal letters */
+.v16 .plate { top: -3px; left: 14px; height: 15px; padding: 2px 3px; box-sizing: border-box; border-radius: 0 0 7px 7px;
+  background: linear-gradient(180deg, var(--mt), var(--mlo) 70%, var(--mt));
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.3), inset -1px 0 0 rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.3), 0 1px 2px rgba(0,0,0,.7); }
+.v16 .pt { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 9px; border-radius: 0 0 5px 5px;
+  background: radial-gradient(90% 120% at 35% 0%, rgba(255,255,255,.22), transparent 55%), linear-gradient(180deg, var(--en), var(--en2));
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.6);
+  color: var(--mhi); font-family: var(--display); font-weight: 700; font-size: 10px; line-height: 11px; letter-spacing: .1em; text-shadow: 0 1px 0 rgba(0,0,0,.8); }
+.v16 .pt::before, .v16 .pt::after { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--mhi); box-shadow: 0 1px 0 rgba(0,0,0,.6); }
+
+/* corner cabochons */
+.v16 .fx { display: block; width: 5px; height: 5px; border-radius: 50%; z-index: 4;
+  background: radial-gradient(circle at 35% 30%, #fff 0 14%, var(--cab) 42%, color-mix(in oklab, var(--cab), #000 55%));
+  box-shadow: 0 0 0 1px var(--mhi), 0 0 0 2px rgba(0,0,0,.45); }
+.v16 .f1 { top: 2px; left: 2px; }
+.v16 .f2 { top: 2px; right: 2px; }
+.v16 .f3 { bottom: 2px; left: 2px; }
+.v16 .f4 { bottom: 2px; right: 2px; }
+
+/* ---- content: enamel cells divided by raised wires */
+.v16 .name, .v16 .fn, .v16 .chip .n, .v16 .th span, .v16 .fv { text-shadow: 0 1px 1px rgba(0,0,0,.85); }
+.v16 .name { color: #bdbac4; }
+.v16 .name.pl { color: #f3f1f6; }
+/* member rows: one enamel plate, cells share their wires */
+.v16 .m2 { position: relative; padding: 2px 6px 3px 3px; margin-top: -1px;
+  background: radial-gradient(70% 140% at 22% 0%, rgba(255,255,255,.075), transparent 60%), linear-gradient(180deg, var(--ena), var(--en2a));
+  box-shadow: var(--wire); }
+.v16 .fz + .m2 { border-radius: 5px 5px 0 0; margin-top: 1px; }
+.v16 .m2:last-child { border-radius: 0 0 5px 5px; }
+.v16 .tag { border: 0; border-radius: 3px; color: var(--ink16); background: color-mix(in oklab, var(--mlo) 70%, transparent); box-shadow: 0 0 0 1px var(--mt); }
+.v16 .where { color: #9a97a3; }
+.v16 .ic > svg.i { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)); }
+.v16 .glow > svg.i { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)) drop-shadow(0 0 2px var(--c)); }
+.v16 .rg .bg { stroke: color-mix(in oklab, var(--mlo) 70%, #000); }
+.v16 .vr { width: 1px; background: var(--mt); box-shadow: 1px 0 0 rgba(0,0,0,.5); }
+
+/* bars: each a tiny cloison — wire rim, dark enamel ground, glossy coloured enamel fill */
+.v16 .trk { height: 5px; border-radius: 3px; background: color-mix(in oklab, var(--en2) 70%, #000); box-shadow: 0 0 0 1px var(--mt), 0 1px 0 1px rgba(0,0,0,.4); }
+.v16 .fill { border-radius: 3px; background:
+    radial-gradient(60% 90% at 30% 10%, rgba(255,255,255,.45), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 25%), var(--c) 55%, color-mix(in srgb, var(--c), #000 30%)); }
+.v16 .band .fill::after { border-radius: 3px; }
+
+/* fight zone: a larger cloison, the two sides in faint gold and red enamel, a metal boss for "vs" */
+.v16 .fz { padding: 6px 9px 9px; margin: 1px 0 7px; border-radius: 6px;
+  background: radial-gradient(70% 120% at 30% 0%, rgba(255,255,255,.08), transparent 60%),
+    linear-gradient(90deg, rgba(232,195,90,.10), transparent 42% 58%, rgba(255,77,77,.11)), linear-gradient(180deg, var(--ena), var(--en2a));
+  box-shadow: var(--wire), 0 0 0 2px rgba(0,0,0,.35); }
+.v16 .fz .trk { height: 7px; border-radius: 4px; }
+.v16 .fz .fill { border-radius: 4px; }
+.v16 .vs { width: 22px; height: 22px; color: var(--mdk); font-family: var(--display); font-weight: 700; font-size: 9.5px; text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  background: radial-gradient(circle at 38% 30%, var(--mhi) 0 20%, var(--mt) 55%, var(--mlo));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.6); }
+
+/* ---- timers */
+.v16 .tm { gap: 7px; }
+.v16 .th { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .1em; color: var(--ink16); }
+.v16 .th svg { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)); }
+.v16 .th .cnt { font-family: var(--mono); font-weight: 400; color: color-mix(in oklab, var(--mt) 70%, #555); }
+/* header rule: a raised wire ending in a round enamel drop of the group colour, set in metal */
+.v16 .hln { position: relative; height: 1px; margin-right: 7px; background: var(--mt); box-shadow: 0 1px 0 rgba(0,0,0,.6), 0 -1px 0 color-mix(in oklab, var(--mhi) 20%, transparent); }
+.v16 .hln::after { content: ""; position: absolute; right: -7px; top: -3px; width: 7px; height: 7px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0 14%, var(--c) 45%, color-mix(in srgb, var(--c), #000 45%));
+  box-shadow: 0 0 0 1px var(--mt), 0 1px 1px 1px rgba(0,0,0,.5); }
+.v16 .items.flow, .v16 .items.grid { gap: 5px; padding: 1px; }
+.v16 .chip { height: 19px; border-radius: 5px; color: #f0eef4;
+  background: radial-gradient(60% 120% at 25% 0%, rgba(255,255,255,.09), transparent 60%), linear-gradient(180deg, var(--ena), var(--en2a));
+  box-shadow: var(--wire), 0 1px 1px 1px rgba(0,0,0,.45); }
+.v16 .chip .fill { background: radial-gradient(80% 100% at 30% 0%, rgba(255,255,255,.22), transparent 65%),
+    linear-gradient(180deg, color-mix(in srgb, var(--c) 52%, transparent), color-mix(in srgb, var(--c) 34%, transparent));
+  border-radius: 5px 0 0 5px; }
+.v16 .chip .fill::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--mt) 45%, transparent)); }
+.v16 .chip svg.ci { filter: drop-shadow(0 1px 0 rgba(0,0,0,.8)); }
+.v16 .chip .t { color: #b5b2bd; }
+.v16 .chip.soon .t { color: #ff4a3a; text-shadow: 0 1px 1px rgba(0,0,0,.9); }
+.v16 .chip.untimed { background: transparent; box-shadow: 0 0 0 1px color-mix(in oklab, var(--mt) 55%, transparent); border: 1px dashed color-mix(in oklab, var(--mlo) 80%, transparent); }
+.v16 .chip.untimed .n { color: #9a97a3; }
+.v16 .chip.charm { box-shadow: var(--wire), inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), 0 1px 1px 1px rgba(0,0,0,.45); }
+
+/* ---- frame off: no bezel, no wire ring, no cartouche; the cloisons remain */
+.v16[data-frame="off"] .pane { border-radius: 0; }
+.v16[data-frame="off"] .hole { border-radius: 0; box-shadow: none; background: var(--pane-bg); padding: 4px; overflow: hidden; }
+.v16[data-frame="off"][data-clear] .hole { background: transparent; }
+
+/* ===================================================== 17 */
+/* 17 Lykta — the pane as a lantern.
+   Concept: a thin frame of dark, slightly tinted iron holds a window that is lit from within: a soft light in
+   the pane colour (--lamp) glows from the upper middle and falls off toward the edges. Rows, the fight zone and
+   timer chips are panes of frosted glass catching that light. The title is cut through a small iron hood at the
+   top so its letters shine with the lamp, and four riveted corner brackets hold the frame together.
+   Cell ring: 5 px iron band on all sides (inside one 9 px cell column / the bottom cell row); the title hood
+   covers the top band and hangs 11 px into the hole = 16 px (one 17 px cell row). Corner brackets (.fx f1–f4)
+   are 13 px L-pieces lying entirely in the 5 px band, so the frame scales to any size.
+   Tint: --lamp mixes the tint hue (--pane-h/--pane-s) with a warm candle white, so Plain and Grey give a warm
+   neutral candle light and chromatic tints colour the light; the iron takes a faint hue from --pane-border.
+   Frame off: iron, hood and brackets vanish (base + .fx), the window keeps its inner light and frosted cards.
+   Clear: the hole has no fill; the lamp is drawn only as a soft glow at the window's edges and a halo outside
+   the frame, and the frosted cards get a little --pane-fill backing so text stays readable on the sky. */
+.v17 {
+  --lamp: color-mix(in srgb, hsl(var(--pane-h) var(--pane-s) 62%) 62%, #ffd79a);
+  --iron: oklch(from var(--pane-border) .25 min(calc(c * 3), .03) h);
+  --iron-hi: oklch(from var(--pane-border) .42 min(calc(c * 3), .035) h);
+  --iron-lo: oklch(from var(--pane-border) .14 min(calc(c * 3), .02) h);
+  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --back: transparent;
+}
+.v17[data-clear] { --back: color-mix(in srgb, var(--pane-fill) 62%, transparent); }
+
+/* ---------- frame: iron band */
+.v17 .pane { padding: 5px; border-radius: 3px; box-shadow: 0 0 22px -4px color-mix(in srgb, var(--lamp) 22%, transparent); }
+.v17 .pane::before { padding: 5px; border-radius: 3px; border: 1px solid #000;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo); }
+.v17[data-clear] .pane { box-shadow: 0 0 26px -2px color-mix(in srgb, var(--lamp) 30%, transparent); }
+
+/* corner brackets: brighter iron L-pieces with a lit rivet */
+.v17 .fx { display: block; z-index: 4; width: 13px; height: 13px;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--iron-hi), var(--iron) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.18); }
+.v17 .f1 { top: 0; left: 0; }
+.v17 .f2 { top: 0; right: 0; transform: scaleX(-1); }
+.v17 .f3 { bottom: 0; left: 0; transform: scaleY(-1); }
+.v17 .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+
+/* the window */
+.v17 .hole { overflow: visible; padding: 16px 7px 7px; border: 1px solid #000; border-radius: 1px;
+  background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 24px rgba(0,0,0,.55); }
+.v17[data-clear] .hole { background: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 22%, transparent), inset 0 0 18px color-mix(in srgb, var(--lamp) 24%, transparent); }
+.v17 .gp, .v17 .tm { overflow: hidden; padding: 1px; margin: -1px; }
+
+/* title hood: iron, letters lit from behind */
+.v17 .plate { top: -6px; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 5;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5); color: var(--lamp); text-shadow: none; }
+.v17 .plate::before, .v17 .plate::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.v17 .plate::before { left: 5px; }
+.v17 .plate::after { right: 5px; }
+.v17 .pt { font-family: var(--display); font-weight: 700; font-size: 11.5px; letter-spacing: .1em; line-height: 13px; padding-top: 2px;
+  color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+
+/* ---------- frosted glass surfaces */
+.v17 .fz, .v17 .m2, .v17 .chip { border-radius: 4px;
+  background: linear-gradient(180deg, var(--frost), var(--frost2)), var(--back);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+
+/* ---------- group */
+.v17 .gp { gap: 3px; }
+.v17 .fz { margin: 0 0 5px; padding: 5px 8px 8px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent), inset 0 0 0 1px var(--frost-edge), 0 1px 3px rgba(0,0,0,.5); }
+.v17 .vs { background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lamp) 30%, transparent), transparent 70%), rgba(0,0,0,.4);
+  box-shadow: inset 0 0 0 1px var(--frost-edge); color: color-mix(in srgb, var(--lamp) 60%, #ddd); font-family: var(--display); font-weight: 700; font-size: 10px; }
+.v17 .m2 { padding: 0 6px 1px 3px; }
+.v17 .tag { border-radius: 3px; border-color: var(--frost-edge); background: rgba(0,0,0,.3); }
+.v17 .vr { background: var(--frost-edge); }
+.v17 .trk { background: rgba(0,0,0,.55); border-radius: 3px; box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); }
+.v17 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.v17 .fz .trk { height: 7px; }
+.v17 .rg .bg { stroke: rgba(0,0,0,.55); }
+.v17 .glow > svg.i { filter: drop-shadow(0 0 3px var(--c)); }
+
+/* ---------- timers */
+.v17 .tm { gap: 5px; }
+.v17 .th { text-transform: none; font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .05em; color: color-mix(in srgb, var(--lamp) 30%, #c8c8c8); }
+.v17 .th svg { filter: drop-shadow(0 0 2.5px color-mix(in srgb, var(--c) 70%, transparent)); }
+.v17 .th .cnt { font-family: var(--mono); font-size: 10px; color: var(--dim); }
+.v17 .hln { height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 38%, transparent), transparent 85%); }
+.v17 .chip { height: 20px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 22%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--c) 42%, transparent), 0 1px 2px rgba(0,0,0,.4); }
+.v17 .chip .fill { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 16%, transparent), color-mix(in srgb, var(--c) 34%, transparent));
+  border-radius: 3px 0 0 3px; }
+.v17 .chip .n { color: #e2e0da; }
+.v17 .chip .t { color: #a5a39c; }
+.v17 .chip.soon .t { color: #ff3b3b; text-shadow: 0 0 6px rgba(255,59,59,.45); }
+.v17 .chip.untimed { background: var(--back); box-shadow: none; outline: 1px dashed color-mix(in srgb, var(--dim) 80%, transparent); outline-offset: -1px; }
+.v17 .chip.untimed .n { color: var(--dim); }
+.v17 .chip.charm { background: linear-gradient(180deg, var(--frost2), transparent), var(--back); }
+
+/* ---------- frame off: no iron, no hood, no brackets; the window light and frosted cards remain */
+.v17[data-frame="off"] .pane { box-shadow: none; }
+.v17[data-frame="off"] .hole { border-radius: 4px; box-shadow: inset 0 0 18px rgba(0,0,0,.45); }
+.v17[data-frame="off"][data-clear] .hole { box-shadow: none; }
+
+/* ===================================================== 18 */
+/* 18 Läder och söm — the pane bound like a book.
+   Concept: the rim is a soft leather band (pebbled grain from feTurbulence, a gentle top-left sheen, a rolled edge)
+   with a saddle-stitched seam (dashed thread) running all the way round. The title is a sewn-on leather label
+   hanging from the top band, with its own little stitch and gilt-tooled lettering. Content: cards and chips are
+   softly embossed leather patches, bars are pressed-in channels, header rules are stitch lines, and the "vs" is a
+   brass button. No pixel steps at all.
+   Cell ring: band 7 px on every side; the stitch sits 3 px in. The label overlaps the top band (pane y 1..18,
+   within the top cell row) and the hole's first row; the hole is overflow-visible. All textures repeat, so it
+   scales to any pane size.
+   Tint: leather and thread are hsl(--pane-h, reduced --pane-s), so Plain is black leather with pale thread, red is
+   oxblood, orange is tan, blue is navy. Frame off: no band/seam/label, but the cards keep their leather and the
+   header stitches remain. Clear: the hole is fully transparent; leather patches get a little more opaque so text
+   stays readable over the sky. */
+.v18 {
+  --lh: hsl(var(--pane-h) calc(var(--pane-s) * .42) 23%);
+  --lh-hi: hsl(var(--pane-h) calc(var(--pane-s) * .42) 34%);
+  --lh-lo: hsl(var(--pane-h) calc(var(--pane-s) * .5) 9%);
+  --thread: color-mix(in srgb, #e6d6b4 62%, hsl(var(--pane-h) calc(var(--pane-s) * .6) 74%));
+  --gilt: color-mix(in srgb, #e2bf72 85%, hsl(var(--pane-h) var(--pane-s) 70%));
+  --patch: 46%;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.62' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.25 0 0 0 -.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='2' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .5 0 0 0 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --leather: var(--grain) 0 0 / 120px 120px, var(--mottle) 0 0 / 200px 200px;
+}
+
+/* ---------- frame: leather band with a seam */
+.v18 .pane { padding: 7px; border-radius: 8px; }
+.v18 .pane::before { padding: 7px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, .9);
+  background: radial-gradient(140% 90% at 15% 0, rgba(255, 255, 255, .10), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 30%, rgba(0, 0, 0, .25)),
+    var(--leather), var(--lh);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 3px 1px rgba(0, 0, 0, .45); }
+.v18 .pane::after { content: ""; position: absolute; inset: 3px; border-radius: 5px; pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--thread) 72%, transparent);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .75)); }
+.v18 .hole { overflow: visible; border: 0; border-radius: 3px; padding: 15px 7px 7px; color: var(--fg); background: var(--pane-bg);
+  box-shadow: inset 0 2px 4px -1px rgba(0, 0, 0, .9), inset 0 0 0 1px rgba(0, 0, 0, .7), 0 0 0 1px color-mix(in srgb, var(--lh-hi) 45%, transparent); }
+
+/* sewn-on label with gilt lettering */
+.v18 .plate { top: -6px; left: 14px; height: 17px; padding: 0 12px; border-radius: 3px 3px 7px 7px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .09), transparent 70%), var(--leather), color-mix(in srgb, var(--lh) 82%, #000);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .8), 0 2px 3px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .12);
+  font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: .12em;
+  color: var(--gilt); text-shadow: 0 -1px 0 rgba(0, 0, 0, .7), 0 1px 0 color-mix(in srgb, var(--gilt) 18%, transparent); }
+.v18 .plate::before { content: ""; position: absolute; inset: 2px 3px 2px 3px; border-radius: 2px 2px 5px 5px; pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--thread) 55%, transparent); border-top: 0; }
+.v18 .pt { position: relative; top: .5px; }
+
+/* ---------- embossed leather patches (shared) */
+.v18 .m2, .v18 .fz, .v18 .chip {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 60%), var(--grain) 0 0 / 120px 120px,
+    color-mix(in srgb, var(--lh) var(--patch), transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 -1px 0 rgba(0, 0, 0, .45), 0 1px 2px rgba(0, 0, 0, .7); }
+
+/* ---------- group */
+.v18 .fz { margin: 0 0 7px; padding: 8px 10px 9px; border-radius: 6px;
+  background: linear-gradient(90deg, rgba(232, 195, 90, .07), transparent 45% 55%, rgba(255, 77, 77, .08)), linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 60%),
+    var(--grain) 0 0 / 120px 120px, color-mix(in srgb, var(--lh) var(--patch), transparent); }
+.v18 .fz::before { content: ""; position: absolute; inset: 3px; border-radius: 4px; pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--thread) 32%, transparent); }
+.v18 .fz .fn { color: var(--hot); }
+.v18 .fz .fn.f { color: #ff9b8f; }
+.v18 .fz .trk { height: 8px; }
+.v18 .vs { position: relative; font-family: var(--display); font-weight: 700; font-size: 9.5px; color: #3a2a12; letter-spacing: 0;
+  background: radial-gradient(circle at 38% 30%, #fff1c4, var(--gilt) 38%, color-mix(in srgb, var(--gilt), #000 45%) 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .8), inset 0 -1px 1px rgba(0, 0, 0, .35); text-shadow: 0 1px 0 rgba(255, 240, 200, .5); }
+.v18 .m2 { margin-bottom: 4px; padding: 1px 5px 2px 2px; border-radius: 5px; }
+.v18 .m2:last-child { margin-bottom: 0; }
+.v18 .name { color: #b5afa6; }
+.v18 .name.pl { color: #e0dad0; }
+.v18 .name, .v18 .fn, .v18 .chip .n { text-shadow: 0 1px 1px rgba(0, 0, 0, .7); }
+.v18 .tag { border: 1px dashed color-mix(in srgb, var(--thread) 40%, transparent); border-radius: 3px; color: var(--thread); background: rgba(0, 0, 0, .3); }
+.v18 .vr { width: 0; height: 12px; background: none; border-left: 1px dashed color-mix(in srgb, var(--thread) 35%, transparent); }
+.v18 .rg .bg { stroke: rgba(0, 0, 0, .55); }
+.v18 .trk { height: 5px; border-radius: 3px; background: rgba(0, 0, 0, .58);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .9), 0 1px 0 rgba(255, 255, 255, .07); }
+.v18 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 25%), var(--c) 45%, color-mix(in srgb, var(--c), #000 22%)); }
+
+/* ---------- timers */
+.v18 .tm { gap: 5px; }
+.v18 .th { font-family: var(--body); font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: none;
+  color: color-mix(in srgb, var(--gilt) 55%, #cfc8bc); text-shadow: 0 1px 1px rgba(0, 0, 0, .8); }
+.v18 .th .cnt { font-family: var(--mono); font-size: 10px; color: #7f786d; }
+.v18 .hln { height: 0; background: none; border-top: 1px dashed color-mix(in srgb, var(--thread) 30%, transparent); }
+.v18 .chip { height: 20px; border-radius: 5px; padding: 0 8px 0 7px; }
+.v18 .chip .fill { border-radius: 5px 2px 2px 5px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 44%, transparent), color-mix(in srgb, var(--c) 26%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 70%, transparent); }
+.v18 .chip .n { color: #e0dad0; }
+.v18 .chip .t { color: #aca69c; }
+.v18 .chip.soon .t { color: #ff4a3d; }
+.v18 .chip.untimed { background: rgba(0, 0, 0, .22); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7); outline: 1px dashed color-mix(in srgb, var(--thread) 34%, transparent); outline-offset: -3px; }
+.v18 .chip.untimed .n { color: var(--dim); }
+.v18 .chip.charm { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 -1px 0 rgba(0, 0, 0, .45), 0 1px 2px rgba(0, 0, 0, .7), inset 2px 0 0 var(--c); }
+
+/* ---------- states */
+.v18[data-clear] { --patch: 66%; }
+.v18[data-clear] .th { text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.v18[data-frame="off"] .pane::after, .v18[data-frame="off"] .plate::before { display: none; }
+.v18[data-frame="off"] .hole { box-shadow: none; border-radius: 0; padding: 4px; }
+
+/* ===================================================== 19 */
+/* 19 Mjukt djup — no rim, just soft depth.
+   Concept: the pane is a soft raised slab (rounded, lit faintly from above, a wide soft shadow under it) with a soft
+   inner well where the content sits. No lines, no bevel, no ornaments: depth comes only from light and shadow.
+   The title is a small debossed label pressed into the slab's top edge. Cards, chips and the vs-badge are softly
+   raised pebbles; bars are rounded wells.
+   Cell-ring mapping: slab band 7 px left/right/bottom, 17 px on top (the label lives entirely in that row);
+   the 10 px corner radius sits inside the ring cells; everything is gradients and shadows, so it scales freely.
+   Tint: the slab colour is derived from --pane-border in oklch (lightness fixed, chroma capped), the well from
+   --pane-bg mixed with a little slab, cards/chips from the slab, so all surfaces follow the tint; Plain is a soft graphite.
+   Frame off: the slab and label vanish (base), but the well keeps its rounded soft inner shadow, so it reads almost
+   the same. Clear: the slab ring stays (masked to the ring, never under content), the well is transparent with only
+   the soft edge shadow; cards and chips turn into smoked slab colour so text stays readable over the sky. */
+.v19 { --s19-slab: oklch(from var(--pane-border) .255 min(calc(c * 5), .045) h);
+  --s19-slab-hi: oklch(from var(--s19-slab) calc(l + .05) c h);
+  --s19-well: color-mix(in oklab, var(--s19-slab) 22%, var(--pane-fill));
+  --s19-card: color-mix(in oklab, var(--s19-slab) 42%, var(--pane-fill));
+  --s19-ink: oklch(from var(--s19-slab) .80 calc(c * .6) h);
+  --s19-ink2: oklch(from var(--s19-slab) .62 calc(c * .6) h); }
+.v19[data-clear] { --s19-card: color-mix(in oklab, color-mix(in oklab, var(--s19-slab) 55%, #000) 72%, transparent); }
+
+/* ---------- frame: the slab (painted only in the ring) */
+.v19 .pane { padding: 17px 7px 7px; border-radius: 10px;
+  box-shadow: 0 14px 28px -10px rgba(0, 0, 0, .9), 0 3px 8px -2px rgba(0, 0, 0, .6); }
+.v19 .pane::before { padding: 17px 7px 7px; border: 0; border-radius: inherit;
+  background: radial-gradient(120% 60px at 50% 0, rgba(255, 255, 255, .07), transparent 70%),
+    linear-gradient(180deg, var(--s19-slab-hi), var(--s19-slab) 30px, color-mix(in oklab, var(--s19-slab), #000 18%));
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .10), inset 0 -2px 3px rgba(0, 0, 0, .35); }
+.v19 .hole { border: 0; border-radius: 7px; padding: 7px 7px 7px; overflow: visible;
+  background: var(--s19-well);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, .8), inset 0 0 3px rgba(0, 0, 0, .55), 0 1px 0 rgba(255, 255, 255, .05); }
+.v19[data-clear] .hole { background: transparent; box-shadow: inset 0 3px 7px rgba(0, 0, 0, .55), inset 0 0 2px rgba(0, 0, 0, .5), 0 1px 0 rgba(255, 255, 255, .06); }
+.v19 .hole > .gp, .v19 .hole > .tm { position: relative; overflow: hidden; padding: 0 0 3px; margin: 0 0 -3px; border-radius: 4px; }
+/* the label: a small debossed pill pressed into the top band */
+.v19 .plate { top: -16px; left: 9px; height: 13px; padding: 0 9px; border-radius: 7px; box-shadow: none;
+  background: color-mix(in oklab, var(--s19-slab), #000 30%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .09); }
+.v19 .pt { font-family: var(--body); font-weight: 700; font-size: 11px; letter-spacing: .07em; line-height: 13px;
+  color: var(--s19-ink2); text-shadow: 0 -1px 0 rgba(0, 0, 0, .6); }
+/* frame off: the well alone, same soft edge */
+.v19[data-frame="off"] .hole { border-radius: 8px; padding: 6px; }
+
+/* ---------- group */
+.v19 .fz { margin-bottom: 8px; padding: 6px 9px 9px; border-radius: 8px;
+  background: radial-gradient(70% 120% at 0 0, rgba(232, 195, 90, .07), transparent 60%), radial-gradient(70% 120% at 100% 0, rgba(255, 77, 77, .08), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, .04), transparent 60%), var(--s19-card);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .07); }
+.v19 .vs { background: linear-gradient(180deg, var(--s19-slab-hi), var(--s19-slab)); color: var(--s19-ink); font-family: var(--body); font-weight: 700; font-size: 10.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .12); }
+.v19 .m2 { padding: 0 4px 1px 2px; border-radius: 6px; margin-bottom: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .025), transparent), color-mix(in oklab, var(--s19-card) 55%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04); }
+.v19[data-clear] .m2 { background: var(--s19-card); }
+.v19 .m2:last-child { margin-bottom: 0; }
+.v19 .name { color: #b0aeaa; }
+.v19 .name.pl { color: #e6e4df; }
+.v19 .tag { border: 0; border-radius: 6px; background: color-mix(in oklab, var(--s19-slab), #000 25%); color: var(--s19-ink2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .6); }
+.v19 .vr { background: rgba(255, 255, 255, .09); border-radius: 1px; }
+.v19 .rg .bg { stroke: rgba(0, 0, 0, .55); }
+.v19 .trk { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .5); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .75); }
+.v19 .fs .trk { height: 8px; border-radius: 4px; }
+.v19 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 28%), var(--c) 60%);
+  box-shadow: inset 0 -1px 1px color-mix(in srgb, var(--c), #000 30%); }
+
+/* ---------- timers */
+.v19 .tm { gap: 7px; }
+.v19 .th { font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .05em; text-transform: none; color: var(--s19-ink); }
+.v19 .th .cnt { font-family: var(--mono); font-size: 9.5px; line-height: 13px; padding: 0 5px; border-radius: 7px; color: var(--s19-ink2);
+  background: color-mix(in oklab, var(--s19-slab), #000 25%); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .6); }
+.v19 .hln { height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, .10), transparent); }
+.v19[data-clear] .th { text-shadow: 0 1px 2px #000, 0 0 4px rgba(0, 0, 0, .7); }
+.v19[data-clear] .hln { background: linear-gradient(90deg, rgba(255, 255, 255, .22), transparent); }
+.v19 .items.flow, .v19 .items.grid { gap: 5px; }
+.v19 .chip { height: 21px; border-radius: 11px; background: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 70%), var(--s19-card);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 0 0 1px color-mix(in srgb, var(--c) 20%, transparent); }
+.v19 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent), color-mix(in srgb, var(--c) 24%, transparent)); }
+.v19 .chip .n { color: #e6e4df; }
+.v19 .chip .t { color: #a8a6a0; }
+.v19 .chip.soon .t { color: #ff4a42; }
+/* untimed: a soft dent instead of a raised pebble */
+.v19 .chip.untimed { background: rgba(0, 0, 0, .3); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8), inset 0 0 0 1px rgba(255, 255, 255, .07), 0 1px 0 rgba(255, 255, 255, .05); }
+.v19 .chip.untimed .n { color: var(--s19-ink2); }
+.v19[data-clear] .chip.untimed { background: rgba(0, 0, 0, .42); }
+
+/* ===================================================== 20 */
+/* 20 Ithildin — moon-silver inlay in dark stone, after the lines on the Doors of Durin.
+   Concept: the rim is a band of dark, tint-coloured stone; a single fine silver line is inlaid in it and glows faintly,
+   with a small four-pointed star where it turns each corner. The title is set in Cinzel in the same silver, breaking the
+   line between two tiny stars. Inside, the same silver draws hairline rules over each member, rings the fight zone and
+   the "vs" medallion, and edges the inset bar channels — so frame and content are one piece of inlaid work.
+   Cell-ring mapping: left/right/bottom band = 8 px (silver line at 4 px from the edge), top band = 17 px (one cell row;
+   line at 8 px = the title's centre). Stone painted by .pane::before, masked to the ring; the line is .pane::after
+   (border only, no fill); corner stars are the .fx hooks (9x9 masks) inside the ring. Everything repeats/scales.
+   Tint: stone, silver and card glass are all derived from --glass via oklch(from …), so the silver picks up a breath of
+   the pane colour. Frame off: line, stars, title gone; members keep their silver rules and glass. Clear: the hole shows
+   what is behind; cards get denser dark glass and the silver glow reads well over the sky. */
+.v20 {
+  --it-stone: oklch(from var(--glass) .25 calc(c * .85) h);
+  --it-silver: color-mix(in oklab, oklch(from var(--glass) .9 calc(c * .55) h) 88%, #d6e4ff);
+  --it-glow: color-mix(in srgb, var(--it-silver) 45%, transparent);
+  --it-faint: color-mix(in srgb, var(--it-silver) 20%, transparent);
+  --it-card: oklch(from var(--glass) .15 calc(c * .7) h / .5);
+  --it-well: oklch(from var(--glass) .08 calc(c * .5) h / .9);
+  --it-ink: oklch(from var(--glass) .92 calc(c * .2) h);
+  --it-ink2: oklch(from var(--glass) .74 calc(c * .3) h);
+  --it-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M9 0L10.6 7.4L18 9L10.6 10.6L9 18L7.4 10.6L0 9L7.4 7.4Z'/%3E%3C/svg%3E");
+}
+.v20[data-clear] { --it-card: oklch(from var(--glass) .12 calc(c * .7) h / .7); }
+
+/* ---------- frame: stone band + glowing silver inlay */
+.v20 .pane { padding: 17px 8px 8px; border-radius: 4px; }
+.v20 .pane::before { padding: 17px 8px 8px; border-radius: 4px; border: 1px solid rgba(0,0,0,.85);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 40%),
+    var(--stone-dark) 0 0 / 160px 160px,
+    var(--stone-noise) 0 0 / 160px 160px,
+    var(--it-stone);
+  background-blend-mode: normal, normal, soft-light, normal;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.12), inset -1px -1px 0 rgba(0,0,0,.4), 0 2px 8px -3px rgba(0,0,0,.8); }
+.v20 .pane::after { content: ""; position: absolute; top: 8px; left: 4px; right: 4px; bottom: 4px; pointer-events: none; z-index: 2;
+  border: 1px solid var(--it-silver); border-radius: 2px; opacity: .7;
+  box-shadow: 0 0 3px var(--it-glow), inset 0 0 2px var(--it-glow); }
+.v20 .fx { display: block; width: 9px; height: 9px; z-index: 4; background: var(--it-silver);
+  -webkit-mask: var(--it-star) center / contain no-repeat; mask: var(--it-star) center / contain no-repeat;
+  filter: drop-shadow(0 0 2px var(--it-glow)); }
+.v20 .f1 { left: 0; top: 4px; } .v20 .f2 { right: 0; top: 4px; } .v20 .f3 { left: 0; bottom: 0; } .v20 .f4 { right: 0; bottom: 0; }
+.v20 .hole { overflow: visible; padding: 6px 7px 7px; border-radius: 2px; border-color: rgba(0,0,0,.9) var(--it-faint) var(--it-faint) rgba(0,0,0,.9);
+  box-shadow: inset 0 2px 5px -2px rgba(0,0,0,.7); }
+.v20 .gp, .v20 .tm { position: relative; }
+
+/* title: silver Cinzel breaking the line, between two small stars */
+.v20 .plate { top: -18px; left: 12px; height: 17px; padding: 0 5px; gap: 6px; border-radius: 0; box-shadow: none; z-index: 5;
+  --it-band: color-mix(in oklab, var(--it-stone), #fff 6%);
+  background: linear-gradient(90deg, transparent, var(--it-band) 4px calc(100% - 4px), transparent) 0 5px / 100% 7px no-repeat;
+  color: var(--it-silver); font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+  text-shadow: 0 0 5px var(--it-glow), 0 1px 0 rgba(0,0,0,.8); }
+.v20 .plate::before, .v20 .plate::after { content: ""; width: 7px; height: 7px; flex: none; background: var(--it-silver);
+  -webkit-mask: var(--it-star) center / contain no-repeat; mask: var(--it-star) center / contain no-repeat; filter: drop-shadow(0 0 2px var(--it-glow)); }
+.v20 .pt { line-height: 17px; padding-top: 1px; }
+
+/* ---------- group */
+.v20 .fz { margin: 0 0 7px; padding: 6px 8px 8px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--it-silver) 30%, transparent);
+  background: linear-gradient(90deg, rgba(232,195,90,.07), transparent 42% 58%, rgba(255,77,77,.08)), var(--it-card);
+  box-shadow: 0 0 4px -1px var(--it-glow), inset 0 0 6px -2px rgba(0,0,0,.8); }
+.v20 .fz .trk { height: 7px; }
+.v20 .vs { width: 22px; height: 22px; font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .04em; color: var(--it-silver);
+  background: var(--it-well); box-shadow: 0 0 0 1px color-mix(in srgb, var(--it-silver) 45%, transparent), 0 0 5px -1px var(--it-glow);
+  text-shadow: 0 0 4px var(--it-glow); }
+.v20 .m2 { margin-bottom: 2px; padding: 2px 6px 2px 2px; border-radius: 3px;
+  background: linear-gradient(90deg, transparent, var(--it-faint) 12%, color-mix(in srgb, var(--it-silver) 8%, transparent) 70%, transparent) 0 0 / 100% 1px no-repeat, var(--it-card); }
+.v20 .m2:last-child { margin-bottom: 0; }
+.v20 .name { color: var(--it-ink2); }
+.v20 .name.pl, .v20 .fn { color: var(--it-ink); }
+.v20 .fn.f { color: #ff9b8f; }
+.v20 .name, .v20 .fn, .v20 .chip .n, .v20 .th { text-shadow: 0 1px 1px rgba(0,0,0,.75); }
+.v20 .tag { border-color: var(--it-faint); border-radius: 2px; background: var(--it-well); color: var(--it-ink2); }
+.v20 .vr { background: linear-gradient(180deg, transparent, var(--it-faint), transparent); }
+.v20 .rg .bg { stroke: var(--it-well); }
+
+/* bars: inset channels edged with faint silver; the fill is lit from within */
+.v20 .trk { height: 5px; border-radius: 3px; background: var(--it-well); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--it-silver) 14%, transparent), inset 0 1px 1px rgba(0,0,0,.8); }
+.v20 .bars .trk { margin: 0 1px; }
+.v20 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 35%), var(--c) 50%, color-mix(in srgb, var(--c), #000 20%));
+  box-shadow: 0 0 4px color-mix(in srgb, var(--c) 70%, transparent); }
+
+/* ---------- timers */
+.v20 .tm { gap: 6px; }
+.v20 .th { gap: 6px; font-family: var(--display); font-weight: 700; font-size: 10.5px; letter-spacing: .12em; color: var(--it-ink2); }
+.v20 .th .cnt { font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: 0; color: color-mix(in srgb, var(--it-ink2) 55%, transparent); }
+.v20 .hl { display: block; flex: none; width: 7px; height: 7px; margin-right: -1px; background: var(--c);
+  -webkit-mask: var(--it-star) center / contain no-repeat; mask: var(--it-star) center / contain no-repeat; filter: drop-shadow(0 0 2px var(--c)); }
+.v20 .hln { height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 40%, transparent), var(--it-faint) 25%, transparent 92%); }
+.v20 .items.flow, .v20 .items.grid { gap: 4px; }
+.v20 .chip { height: 20px; padding: 0 7px 0 6px; border-radius: 3px; border: 1px solid color-mix(in srgb, var(--c) 42%, color-mix(in srgb, var(--it-silver) 20%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--it-silver) 7%, transparent), transparent 60%), var(--it-card); }
+.v20 .chip .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 38%, transparent), color-mix(in srgb, var(--c) 22%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 65%, transparent); }
+.v20 .chip .n { color: var(--it-ink); }
+.v20 .chip .t { color: var(--it-ink2); }
+.v20 .chip.soon .t { color: #ff4a42; text-shadow: 0 0 4px rgba(255,60,50,.4); }
+.v20 .chip.untimed { border-style: dashed; border-color: var(--it-faint); background: transparent; }
+.v20 .chip.untimed .n { color: var(--it-ink2); }
+
+/* ---------- frame off: no stone, no inlay line, no stars or title */
+.v20[data-frame="off"] .pane::after { display: none; }
+.v20[data-frame="off"] .hole { box-shadow: none; border-radius: 0; }
+
+@media (max-width: 520px) { .vhead p { grid-column: 1 / -1; } header.intro h1 { font-size: 24px; } }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Panelstil, runda 3</h1>
+    <p>Tio förslag mellan dagens stil och förra rundans 7 Obsidian, 9 Stilla pixel och 10 Fackelsken, med mindre retro. 11–15 ligger närmast det, 16–20 provar nya riktningar. Överst ligger dagens stil som jämförelse. Med reglaget nedan kan du byta panelfärg, stänga av ramen, göra bakgrunden transparent och lägga en himmel bakom panelerna. Det gäller alla förslag på en gång.</p>
+  </header>
+  <nav class="toc" aria-label="Förslag" id="toc"></nav>
+  <div class="ctl" id="ctl">
+    <div class="cg" role="group" aria-label="Panelfärg"><span class="cl">Färg</span><span class="seg" id="c-tint"></span></div>
+    <div class="cg" role="group" aria-label="Ram"><span class="cl">Ram</span><span class="seg" id="c-frame"></span></div>
+    <div class="cg" role="group" aria-label="Bakgrund"><span class="cl">Bakgrund</span><span class="seg" id="c-clear"></span></div>
+    <div class="cg" role="group" aria-label="Bakom panelerna"><span class="cl">Bakom</span><span class="seg" id="c-behind"></span></div>
+  </div>
+  <main id="variants"></main>
+</div>
+
+<script>
+// Pane frame. Variants style .pane/.hole/.plate/.pt and may use the four .fx hooks (hidden by default) and pseudo-elements.
+function frame(title, inner) {
+  return `<div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="hole"><div class="plate"><span class="pt">${title}</span></div>${inner}</div></div>`;
+}
+const IC = {
+  sanct: 'M12 7.2a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4 M7.5 20.5c0-3.2 2-5.3 4.5-5.3s4.5 2.1 4.5 5.3 M12 1.8v2.4 M5.4 4.4l1.6 1.7 M18.6 4.4L17 6.1 M2.4 10.8h2.4 M19.2 10.8h2.4',
+  stored: 'M12 7l1.5 3.5L17 12l-3.5 1.5L12 17l-1.5-3.5L7 12l3.5-1.5z M6.5 4.5a9 9 0 0 0 0 15 M17.5 4.5a9 9 0 0 1 0 15',
+  poison: 'M9.5 3h5 M10.5 3v5.5L6 17a2.4 2.4 0 0 0 2.1 3.5h7.8A2.4 2.4 0 0 0 18 17l-4.5-8.5V3 M7.6 14h8.8 M11 17.2h.01 M13.5 16h.01',
+  thirsty: 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z M9.8 14.2a2.2 2.2 0 0 0 2.2 2.2',
+  slept: 'M4 6h6l-6 7h6 M13 12h6l-6 7h6',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  bashed: 'M12 2l1.8 5.5L19 5l-2.5 5.2L22 12l-5.5 1.8L19 19l-5.2-2.5L12 22l-1.8-5.5L5 19l2.5-5.2L2 12l5.5-1.8L5 5l5.2 2.5z',
+  snared: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  wound: 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M9 9l6 6',
+  hungry: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 3c-2 0-3 3-3 6s1 3 3 3 M17 3v18',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  resting: 'M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16',
+  sleeping: 'M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4',
+  riding: 'M6 21v-5l3-4-1.5-4L11 4l2 3h3l4 5-2 2-3-1-2 3v5',
+  tank: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z',
+  foe: 'M14.5 3.5C11.5 7 8.8 10.8 5.5 15.5 M18.5 5.5C15.5 9.2 12.8 13 9.5 17.5 M20.5 10.5C18.4 13.5 16.4 16.3 14 19.5',
+  charm: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+  spell: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  buff: 'M12 19V5 M6 11l6-6 6 6',
+  debuff: 'M12 5v14 M6 13l6 6 6-6',
+  herb: 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14z M5 19l8-8',
+  pin: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4',
+  player: 'M12 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7 M5 20c0-3.5 3-6 7-6s7 2.5 7 6',
+  npc: 'M12 3l8 9-8 9-8-9z',
+  close: 'M5 5l14 14 M19 5L5 19',
+};
+const K = { hp: '#2fa84f', mana: '#3d7eff', mp: '#c08a3e', orange: '#ff8c2a', red: '#ff4d4d', gold: '#e8c35a', foe: '#ff7b72',
+  ally: '#7fb2ff', neutral: '#e6b450', npc: '#9a9a9a', sanct: '#f0b6e4', poison: '#9be15d', thirsty: '#6fb3ff', slept: '#a99bff',
+  blindS: '#7fd3e6', bashed: '#ffa04d', snared: '#5fd4b0', wound: '#e0524f', hungry: '#d9b25f', charm: '#9d86ff',
+  posN: '#8a8a8a', fight: '#ff7a6b', sleep: '#8a9bd6', ride: '#c9a66b',
+  spell: '#66b2ff', buff: '#4cc96a', debuff: '#c8504f', stored: '#d6407e', blind: '#3fd0d0', herb: '#9bc45a' };
+const svg = (d, cls = 'i', extra = '') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"${extra}><path d="${d}"/></svg>`;
+const C10 = 2 * Math.PI * 10;
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const MEMBERS = [
+  { name: 'Gibur', kind: 'ally', pos: 'riding', v: { hp: [132, 160], mana: [40, 100], mp: [72, 110] }, sts: ['tank', 'sanctT'] },
+  { name: 'Taube', kind: 'ally', pos: 'fighting', v: { hp: [37, 158], mana: [88, 95], mp: [31, 100] }, sts: ['sanctU', 'poison'] },
+  { name: 'Kvällulv', kind: 'ally', pos: 'sleeping', room: 'Prancing Pony', v: { hp: [140, 140], mana: [70, 120], mp: [120, 120] }, sts: ['hungry', 'thirsty'] },
+  { name: 'Morwen', kind: 'neutral', pos: 'resting', v: { hp: [120, 120], mana: [60, 100], mp: [80, 100] }, sts: ['blind'] },
+  { name: 'a citizen mercenary', kind: 'npc', tag: 'MERC', pos: 'standing', v: { hp: ['wounded', .55], mana: null, mp: ['steadfast', .9] }, sts: ['bashed', 'wound'] },
+  { name: 'a huge stone troll', kind: 'npc', tag: 'TROLL', pos: 'standing', v: { hp: ['fine', .95], mana: null, mp: ['unwearied', .7] }, sts: ['charm', 'snared', 'slept'] },
+];
+const POS = { riding: ['riding', K.ride], fighting: ['fighting', K.fight], sleeping: ['sleeping', K.sleep], resting: ['resting', K.posN], standing: ['standing', K.posN] };
+const STS = { poison: K.poison, thirsty: K.thirsty, slept: K.slept, blind: K.blindS, bashed: K.bashed, snared: K.snared, wound: K.wound, hungry: K.hungry, charm: K.charm };
+
+function vitalColor(key, pct) { if (pct <= 25) return K.red; if (pct <= 45) return K.orange; return K[key]; }
+function bar(key, v) {
+  if (!v) return '<div class="bar none"><div class="trk"></div></div>';
+  if (typeof v[0] === 'string') return `<div class="bar band"><div class="trk"><div class="fill" style="--p:${Math.round(v[1] * 100)};--c:${K[key]}"></div></div></div>`;
+  const p = Math.round(v[0] / v[1] * 100);
+  return `<div class="bar"><div class="trk"><div class="fill" style="--p:${p};--c:${vitalColor(key, p)}"></div></div></div>`;
+}
+function status(s) {
+  if (s === 'tank') return `<span class="ic" style="--c:${K.gold}">${svg(IC.tank)}</span>`;
+  if (s === 'sanctT') {
+    const f = 192 / 270;
+    return `<span class="ic ring glow" style="--c:${K.sanct}"><svg class="rg" viewBox="0 0 24 24" aria-hidden="true"><circle class="bg" cx="12" cy="12" r="10"/><circle class="arc" cx="12" cy="12" r="10" stroke-dasharray="${(f * C10).toFixed(2)} ${C10.toFixed(2)}"/></svg>${svg(IC.sanct)}</span><span class="stime" style="--c:${K.sanct}">4m</span>`;
+  }
+  if (s === 'sanctU') return `<span class="ic glow dimmed" style="--c:${K.sanct}">${svg(IC.sanct)}</span>`;
+  return `<span class="ic" style="--c:${STS[s]}">${svg(IC[s])}</span>`;
+}
+function member(m) {
+  const mk = m.kind === 'npc' ? [IC.npc, K.npc] : [IC.player, K[m.kind]];
+  const [pi, pc] = POS[m.pos];
+  return `<div class="m2${m.room ? ' away' : ''}">
+    <div class="l1"><span class="mk" style="color:${mk[1]}">${svg(mk[0])}</span><span class="name${m.kind !== 'npc' ? ' pl' : ''}">${esc(m.name)}</span>${m.tag ? `<span class="tag">${m.tag}</span>` : ''}${m.room ? `<span class="where">${svg(IC.pin)}${m.room}</span>` : ''}<span class="sts">${m.sts.map(status).join('')}</span><span class="vr"></span><span class="ic" style="--c:${pc}">${svg(IC[pi])}</span></div>
+    <div class="bars">${bar('hp', m.v.hp)}${bar('mana', m.v.mana)}${bar('mp', m.v.mp)}</div>
+  </div>`;
+}
+function groupPane() {
+  const fz = `<div class="fz">
+    <div class="fs tank"><div class="ft"><span style="color:${K.gold}">${svg(IC.tank)}</span><span class="fn">Gibur</span><span class="fv">132/160</span></div><div class="trk"><div class="fill" style="--p:83;--c:${K.hp}"></div></div></div>
+    <div class="vs">vs</div>
+    <div class="fs foe"><div class="ft"><span class="fv">wounded</span><span class="fn f">black-scaled warg</span><span style="color:${K.foe}">${svg(IC.foe)}</span></div><div class="trk"><div class="fill" style="--p:52;--c:${K.red}"></div></div></div>
+  </div>`;
+  return frame('Group', `<div class="gp">${fz}${MEMBERS.map(member).join('')}</div>`);
+}
+
+function fmtT(s) { if (s >= 3600) return Math.floor(s / 3600) + 'h' + String(Math.floor(s % 3600 / 60)).padStart(2, '0'); if (s > 90) return Math.ceil(s / 60) + 'm'; return s + 's'; }
+function shortName(full, cap = 13) {
+  const s = full.replace(/^(a|an|the)\s+/i, '');
+  if (s.length <= cap) return s;
+  const w = s.split(' '), last = w[w.length - 1];
+  let head = s.slice(0, cap - last.length - 1);
+  const b = head.lastIndexOf(' ');
+  if (b > 3) head = head.slice(0, b);
+  return head.replace(/[\s,-]+$/, '') + '…' + last;
+}
+const T = (name, left, dur, icon) => ({ name, left, dur, icon });
+const U = (name, icon) => ({ name, icon, untimed: true });
+const BLINDS = [['a dark-skinned orc', 8], ['a huge black-scaled warg', 22], ['the captain of the guard of Fornost', 47], ['an orc', 63], ['a cave troll', 15],
+  ['a filthy goblin archer', 71], ['a warg', 29], ['a grim-faced Dunlending raider', 84], ['a snarling wolf', 55], ['a goblin', 4],
+  ['the half-orc tracker from Bree', 38], ['a large hill troll', 77]];
+const GROUPS = [
+  { key: 'herb', label: 'Herblore', icon: 'herb', items: [T('Travelling', 6720, 7200, 'herb'), T('Haste', 14, 360, 'herb')] },
+  { key: 'sanct', label: 'Sanctuary', icon: 'sanct', items: [T('You', 161, 270, 'sanct'), T('Gibur', 192, 270, 'sanct'), U('Taube', 'sanct')] },
+  { key: 'spell', label: 'Spells', icon: 'spell', items: [T('Shield', 250, 600, 'spell'), T('Armour', 1100, 1440, 'spell'), T('Bless', 65, 360, 'spell'), T('Strength', 372, 600, 'spell'), T('Breath of briskness', 26, 180, 'spell')] },
+  { key: 'buff', label: 'Buffs', icon: 'buff', items: [T('Miruvor', 510, 600, 'buff')] },
+  { key: 'debuff', label: 'Debuffs', icon: 'debuff', items: [T('Winded', 40, 60, 'debuff'), U('Hunger', 'debuff')] },
+  { key: 'stored', label: 'Stored', icon: 'stored', items: [T('Fireball', 760, 1800, 'stored'), T('Teleport', 1500, 1800, 'stored')] },
+  { key: 'blind', label: 'Blinds', icon: 'blind', grid: true, noIcon: true, items: BLINDS.map(([n, s]) => T(n, s, 90, 'blind')) },
+  { key: 'charm', label: 'Charmies', icon: 'charm', items: [{ name: 'Huge stone troll', charm: true, time: '21m', icon: 'charm' }] },
+];
+function chip(g, t) {
+  const c = K[g.key];
+  const cls = ['chip'];
+  if (t.untimed) cls.push('untimed');
+  if (t.charm) cls.push('charm');
+  if (!t.untimed && !t.charm && t.left <= 30) cls.push('soon');
+  const p = t.untimed || t.charm ? 0 : Math.round(t.left / t.dur * 100);
+  const name = g.grid ? shortName(t.name) : t.name;
+  const time = t.charm ? t.time : t.untimed ? '' : fmtT(t.left);
+  return `<div class="${cls.join(' ')}" style="--c:${c};--p:${p}"><i class="fill"></i>${g.noIcon ? '' : svg(IC[t.icon], 'i ci')}<span class="n">${esc(name)}</span>${time ? `<span class="t">${time}</span>` : ''}${t.charm ? `<span class="x">${svg(IC.close)}</span>` : ''}</div>`;
+}
+function timersPane() {
+  const gs = GROUPS.map((g) => {
+    const items = g.items.slice().sort((a, b) => (a.untimed || a.charm ? 1e9 : a.left) - (b.untimed || b.charm ? 1e9 : b.left));
+    return `<div class="tg" style="--c:${K[g.key]}"><div class="th"><span class="hl"></span>${svg(IC[g.icon])}<span>${g.label}</span><span class="cnt">${g.items.length}</span><span class="hln"></span></div><div class="items ${g.grid ? 'grid' : 'flow'}">${items.map((t) => chip(g, t)).join('')}</div></div>`;
+  }).join('');
+  return frame('Timers', `<div class="tm">${gs}</div>`);
+}
+const VARIANTS = [{"id":"s11","n":11,"cls":"v11","name":"Dämpad obsidian","lede":"Obsidianen från förra rundan, nedtonad till dagens form: en polerad mörk glasram i panelens färg med små ädelstenar i hörnen.","ideas":["Ramen är dagens ram men i mörkt polerat glas, med ett mjukt ljus överst och en svag glansstrimma.","Små runda stenar i panelfärgen i hörnen och på var sida om titeln, inga röda granater och inga pixeltrappor.","Mätarna är infattade ädelstenar: en nedsänkt svart ränna med en blank fyllning och en liten glimt.","Varje rad, stridsfältet och timerbrickorna är små bitar av samma glas, så ram och innehåll blir ett föremål.","Rubrikerna slutar i en liten sten i gruppens färg.","Utan ram bär glasbitarna stilen själva. Med transparent bakgrund blir glaset halvgenomskinligt och texten får skugga."]},{"id":"s12","n":12,"cls":"v12","name":"Stilla glas","lede":"Dagens lugna glasram, lite finare slipad. Pixelkänslan finns bara kvar som små trappsteg i hörnen och vid namnskylten.","ideas":["Glasramen följer panelfärgen och har en mycket fin kornighet, så den känns som ett material.","Hörnen är kapade i två små trappsteg, och namnskylten växer ur ramen med trappade axlar.","Raderna och timerbrickorna ligger på tysta glaskort i samma färg som ramen.","Staplarna är tunna glasrör med en ljus kant upptill.","Utan ram blir glaskorten kvar, så innehållet ser fortfarande färdigt ut.","Med transparent bakgrund får korten lite mörk bakgrund, så texten syns mot himlen."]},{"id":"s13","n":13,"cls":"v13","name":"Milt fackelsken","lede":"Panelen är ett enda stenblock i panelens färg, med ett mjukt varmt ljus från överkanten. Titeln är huggen i den ljusa remsan mellan två små glödande glöd, och allt innehåll ligger i mjukt urhuggna gropar.","ideas":["Ramen är slät sten med fin ådring, utan dither-rutor; bara hörnen har ett litet trappsteg","Två små glöd vid titeln ersätter facklorna, och deras sken faller svagt ner i panelen","Kort, chips och mätare är urhuggna gropar: skugga under överkanten, ljus läpp nedtill","Stenen och glödens ljus följer panelfärgen, så rött blir varmare och blått svalare","Utan ram bär groparna själva materialet; transparent visar bara ett svagt ljussken och mörka gropar som håller texten läsbar"]},{"id":"s14","n":14,"cls":"v14","name":"Glas på sten","lede":"Dagens glasram nästan orörd, men innehållet ligger nu i sten: mjuka urholkningar och inristad text, med samma fina korn i ram och botten så att allt blir ett föremål.","ideas":["Ramen är dagens glas, nu med ett fint stenkorn i panelens färg","Botten är samma sten några steg mörkare, med samma korn","Kort, staplar och etiketter är mjuka urgröpningar med en ljus kant nertill","Rubriker och titel är inristade","Utan ram ligger stenen kvar med mjuka hörn; transparent tar bort stenen men behåller rökiga urgröpningar så texten syns mot himlen"]},{"id":"s15","n":15,"cls":"v15","name":"Halvpixel","lede":"Dagens släta glasram, lite mer polerad, och samma glas i korten. Pixelkänslan finns bara kvar som krydda i några små detaljer.","ideas":["Ramen är dagens glas i panelens färg, med fint korn och mjuk glans upptill","Titelfliken reser sig ur ramen med två små pixeltrappor som axlar","Kort, chips och mätare är av samma tonade glas som ramen","Pixeldetaljer bara i accenter: trappade hörn på chips, pixelkanter på mätarna och en liten pixelruta före varje timerrubrik","Utan ram bär glaskorten utseendet ensamma; transparent gör korten lite tätare så texten syns mot himlen"]},{"id":"s16","n":16,"cls":"v16","name":"Emalj","lede":"Panelen som ett smycke i cloisonné: blank emalj i små fält åtskilda av tunna upphöjda metalltrådar, inom en infattning av metall i panelens färg.","ideas":["Ramen är en polerad metallinfattning med en fin tråd runt insidan. Metallen följer panelfärgen: silver, roskoppar, guld eller kallt stål.","Titeln sitter i en liten metallflik med ett emaljfält och bokstäver i metall. Små emaljstenar i hörnen.","Medlemsraderna är emaljfält som delar tråd med varandra, så hela listan blir en enda emaljplatta.","Mätare och timerbrickor är små fält med trådkant och blank färgad emalj.","Utan ram finns trådarna och emaljen kvar, så det är samma föremål utan infattning.","Med transparent bakgrund blir emaljen genomskinlig som fönsteremalj (plique-à-jour), och himlen lyser igenom mellan trådarna."]},{"id":"s17","n":17,"cls":"v17","name":"Lykta","lede":"Panelen som en lykta: en tunn ram av mörkt järn och ett fönster som lyser inifrån. Raderna och timerbrickorna är skivor av frostat glas som fångar ljuset.","ideas":["Ljuset inne i panelen har panelens färg och mattas av mot kanterna. Plain och Grey ger ett varmt levande ljus.","Ramen är smal och av mörkt järn, med nitade hörnbeslag och en liten huv överst där titeln lyser igenom.","Kort, timerbrickor och stridsrutan är frostat glas med en ljus kant upptill. Staplarna är små glödande rör.","Utan ram blir ljuset och glaskorten kvar, så innehållet ser fortfarande ut som en lykta.","Med transparent bakgrund lyser lyktan i kanterna och runt ramen, och korten får lite mörk bakgrund så texten syns."]},{"id":"s18","n":18,"cls":"v18","name":"Läder och söm","lede":"Panelen är inbunden som en bok: en mjuk läderkant med en sydd söm runt om och en fastsydd etikett med förgylld titel. Korten är lätt präglat läder och mätarna intryckta spår.","ideas":["Ramen är narvigt läder med en mjuk glans och en streckad söm tre pixlar in","Titeln sitter på en fastsydd läderetikett med förgyllda bokstäver","Kort och chips är lätt upphöjda läderlappar; stridsrutan har en egen söm och ett mässingsknappsliknande ”vs”","Rubrikernas linjer är sömmar, och tidlösa chips har en sydd kant i stället för streckad ram","Lädret och tråden följer panelfärgen (svart, oxblod, läderbrunt, marinblått); utan ram bär korten lädret, och transparent gör lapparna lite tätare så texten syns mot himlen"]},{"id":"s19","n":19,"cls":"v19","name":"Mjukt djup","lede":"Ingen synlig ram alls: panelen är en mjukt upphöjd platta med en stor mjuk skugga och en sänkt brunn för innehållet. Titeln är en liten intryckt etikett.","ideas":["Plattan i panelens färg ger djup bara med ljus och skugga, inga linjer eller ornament","Innehållet ligger i en mjuk brunn med rundade kanter","Kort, etiketter och vs-märket är mjukt upphöjda, staplarna rundade brunnar","Tidlösa etiketter är intryckta i stället för upphöjda","Utan ram finns brunnen kvar, så det ser nästan likadant ut; transparent behåller plattan runt om och gör korten rökiga"]},{"id":"s20","n":20,"cls":"v20","name":"Ithildin","lede":"Månsilver inlagt i mörk sten, som linjerna på Durins dörrar. En enda fin silverlinje som lyser svagt binder ihop ram och innehåll.","ideas":["Ramen är mörk sten i panelens färg med en tunn, svagt lysande silverlinje inlagd runt om","I varje hörn bildar linjen en liten fyruddig stjärna; titeln i Cinzel bryter linjen mellan två stjärnor","Samma silver drar fina linjer över varje gruppmedlem, ramar in stridsfältet och vs-medaljongen","Mätarna ligger i nedsänkta kanaler och lyser inifrån; varje timerrubrik börjar med en stjärna i gruppens färg","Silvret tar upp en aning av panelfärgen; utan ram finns silverlinjerna kvar i innehållet, och transparent lyser fint mot himlen"]}];
+VARIANTS.push({ id: 'nu', n: 0, cls: 'v00', name: 'Nu', lede: 'Dagens stil, som jämförelse. Ramen har djup men innehållet ligger platt.', ideas: [] });
+VARIANTS.sort((a, b) => a.n - b.n);
+document.getElementById('toc').innerHTML = VARIANTS.map((v) => `<a href="#${v.id}"><b>${v.n}</b>${v.name}</a>`).join('');
+document.getElementById('variants').innerHTML = VARIANTS.map((v) => `
+  <section class="v" id="${v.id}" aria-labelledby="h-${v.id}">
+    <div class="vhead"><span class="vnum">${v.n}</span><h2 id="h-${v.id}">${v.name}</h2><p>${v.lede}</p></div>
+    ${v.ideas.length ? `<ul class="ideas">${v.ideas.map((i) => `<li>${i}</li>`).join('')}</ul>` : ''}
+    <div class="pair ${v.cls}">
+      <div><div class="cap">Group</div>${groupPane()}</div>
+      <div><div class="cap">Timers</div>${timersPane()}</div>
+    </div>
+  </section>`).join('');
+
+// Pane tints as in the app (PANE_TINTS, dark side).
+const TINTS = {
+  black: { label: 'Plain', fill: '#000000', border: '#1e1e1e', h: 0, s: 0 },
+  red: { label: 'Red', fill: '#1a0e0e', border: '#2e2222', h: 2, s: 60 },
+  green: { label: 'Green', fill: '#0e1a0e', border: '#222e22', h: 130, s: 42 },
+  blue: { label: 'Blue', fill: '#0e141c', border: '#222830', h: 210, s: 58 },
+  grey: { label: 'Grey', fill: '#161616', border: '#2a2a2a', h: 0, s: 0 },
+  orange: { label: 'Orange', fill: '#1c140a', border: '#30281e', h: 28, s: 62 },
+  purple: { label: 'Purple', fill: '#16101c', border: '#2a2430', h: 278, s: 46 },
+};
+const STATE = { tint: 'black', frame: 'on', clear: 'off', behind: 'black' };
+const OPTS = {
+  tint: Object.entries(TINTS).map(([k, t]) => [k, t.label, t.fill === '#000000' ? '#000' : t.border]),
+  frame: [['on', 'På'], ['off', 'Av']],
+  clear: [['off', 'Glas'], ['on', 'Transparent']],
+  behind: [['black', 'Svart'], ['weather', 'Väder']],
+};
+function apply() {
+  const t = TINTS[STATE.tint];
+  for (const p of document.querySelectorAll('.pair')) {
+    p.dataset.tint = STATE.tint;
+    p.style.setProperty('--pane-fill', t.fill); p.style.setProperty('--pane-border', t.border);
+    p.style.setProperty('--pane-h', t.h); p.style.setProperty('--pane-s', t.s + '%');
+    p.dataset.frame = STATE.frame;
+    p.toggleAttribute('data-clear', STATE.clear === 'on');
+    p.dataset.behind = STATE.behind;
+  }
+  for (const [k, list] of Object.entries(OPTS)) for (const b of document.querySelectorAll(`#c-${k} button`)) b.setAttribute('aria-pressed', String(b.dataset.v === STATE[k]));
+}
+for (const [k, list] of Object.entries(OPTS)) {
+  document.getElementById('c-' + k).innerHTML = list.map(([v, label, sw]) => `<button type="button" id="b-${k}-${v}" data-v="${v}">${sw ? `<i style="background:${sw}"></i>` : ''}${label}</button>`).join('');
+  document.getElementById('c-' + k).addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; STATE[k] = b.dataset.v; apply(); });
+}
+// ?tint=red&frame=off&clear=on&behind=weather (for screenshots)
+for (const [k, v] of new URLSearchParams(location.search)) if (k in STATE) STATE[k] = v;
+apply();
+</script>

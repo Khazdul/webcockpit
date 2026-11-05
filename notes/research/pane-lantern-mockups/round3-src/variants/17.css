@@ -1,0 +1,103 @@
+/* 17 Lykta — the pane as a lantern.
+   Concept: a thin frame of dark, slightly tinted iron holds a window that is lit from within: a soft light in
+   the pane colour (--lamp) glows from the upper middle and falls off toward the edges. Rows, the fight zone and
+   timer chips are panes of frosted glass catching that light. The title is cut through a small iron hood at the
+   top so its letters shine with the lamp, and four riveted corner brackets hold the frame together.
+   Cell ring: 5 px iron band on all sides (inside one 9 px cell column / the bottom cell row); the title hood
+   covers the top band and hangs 11 px into the hole = 16 px (one 17 px cell row). Corner brackets (.fx f1–f4)
+   are 13 px L-pieces lying entirely in the 5 px band, so the frame scales to any size.
+   Tint: --lamp mixes the tint hue (--pane-h/--pane-s) with a warm candle white, so Plain and Grey give a warm
+   neutral candle light and chromatic tints colour the light; the iron takes a faint hue from --pane-border.
+   Frame off: iron, hood and brackets vanish (base + .fx), the window keeps its inner light and frosted cards.
+   Clear: the hole has no fill; the lamp is drawn only as a soft glow at the window's edges and a halo outside
+   the frame, and the frosted cards get a little --pane-fill backing so text stays readable on the sky. */
+.v17 {
+  --lamp: color-mix(in srgb, hsl(var(--pane-h) var(--pane-s) 62%) 62%, #ffd79a);
+  --iron: oklch(from var(--pane-border) .25 min(calc(c * 3), .03) h);
+  --iron-hi: oklch(from var(--pane-border) .42 min(calc(c * 3), .035) h);
+  --iron-lo: oklch(from var(--pane-border) .14 min(calc(c * 3), .02) h);
+  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --back: transparent;
+}
+.v17[data-clear] { --back: color-mix(in srgb, var(--pane-fill) 62%, transparent); }
+
+/* ---------- frame: iron band */
+.v17 .pane { padding: 5px; border-radius: 3px; box-shadow: 0 0 22px -4px color-mix(in srgb, var(--lamp) 22%, transparent); }
+.v17 .pane::before { padding: 5px; border-radius: 3px; border: 1px solid #000;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo); }
+.v17[data-clear] .pane { box-shadow: 0 0 26px -2px color-mix(in srgb, var(--lamp) 30%, transparent); }
+
+/* corner brackets: brighter iron L-pieces with a lit rivet */
+.v17 .fx { display: block; z-index: 4; width: 13px; height: 13px;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--iron-hi), var(--iron) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.18); }
+.v17 .f1 { top: 0; left: 0; }
+.v17 .f2 { top: 0; right: 0; transform: scaleX(-1); }
+.v17 .f3 { bottom: 0; left: 0; transform: scaleY(-1); }
+.v17 .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+
+/* the window */
+.v17 .hole { overflow: visible; padding: 16px 7px 7px; border: 1px solid #000; border-radius: 1px;
+  background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 24px rgba(0,0,0,.55); }
+.v17[data-clear] .hole { background: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 22%, transparent), inset 0 0 18px color-mix(in srgb, var(--lamp) 24%, transparent); }
+.v17 .gp, .v17 .tm { overflow: hidden; padding: 1px; margin: -1px; }
+
+/* title hood: iron, letters lit from behind */
+.v17 .plate { top: -6px; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 5;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5); color: var(--lamp); text-shadow: none; }
+.v17 .plate::before, .v17 .plate::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.v17 .plate::before { left: 5px; }
+.v17 .plate::after { right: 5px; }
+.v17 .pt { font-family: var(--display); font-weight: 700; font-size: 11.5px; letter-spacing: .1em; line-height: 13px; padding-top: 2px;
+  color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+
+/* ---------- frosted glass surfaces */
+.v17 .fz, .v17 .m2, .v17 .chip { border-radius: 4px;
+  background: linear-gradient(180deg, var(--frost), var(--frost2)), var(--back);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+
+/* ---------- group */
+.v17 .gp { gap: 3px; }
+.v17 .fz { margin: 0 0 5px; padding: 5px 8px 8px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent), inset 0 0 0 1px var(--frost-edge), 0 1px 3px rgba(0,0,0,.5); }
+.v17 .vs { background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lamp) 30%, transparent), transparent 70%), rgba(0,0,0,.4);
+  box-shadow: inset 0 0 0 1px var(--frost-edge); color: color-mix(in srgb, var(--lamp) 60%, #ddd); font-family: var(--display); font-weight: 700; font-size: 10px; }
+.v17 .m2 { padding: 0 6px 1px 3px; }
+.v17 .tag { border-radius: 3px; border-color: var(--frost-edge); background: rgba(0,0,0,.3); }
+.v17 .vr { background: var(--frost-edge); }
+.v17 .trk { background: rgba(0,0,0,.55); border-radius: 3px; box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); }
+.v17 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+.v17 .fz .trk { height: 7px; }
+.v17 .rg .bg { stroke: rgba(0,0,0,.55); }
+.v17 .glow > svg.i { filter: drop-shadow(0 0 3px var(--c)); }
+
+/* ---------- timers */
+.v17 .tm { gap: 5px; }
+.v17 .th { text-transform: none; font-family: var(--body); font-weight: 700; font-size: 12.5px; letter-spacing: .05em; color: color-mix(in srgb, var(--lamp) 30%, #c8c8c8); }
+.v17 .th svg { filter: drop-shadow(0 0 2.5px color-mix(in srgb, var(--c) 70%, transparent)); }
+.v17 .th .cnt { font-family: var(--mono); font-size: 10px; color: var(--dim); }
+.v17 .hln { height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 38%, transparent), transparent 85%); }
+.v17 .chip { height: 20px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 22%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--c) 42%, transparent), 0 1px 2px rgba(0,0,0,.4); }
+.v17 .chip .fill { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 16%, transparent), color-mix(in srgb, var(--c) 34%, transparent));
+  border-radius: 3px 0 0 3px; }
+.v17 .chip .n { color: #e2e0da; }
+.v17 .chip .t { color: #a5a39c; }
+.v17 .chip.soon .t { color: #ff3b3b; text-shadow: 0 0 6px rgba(255,59,59,.45); }
+.v17 .chip.untimed { background: var(--back); box-shadow: none; outline: 1px dashed color-mix(in srgb, var(--dim) 80%, transparent); outline-offset: -1px; }
+.v17 .chip.untimed .n { color: var(--dim); }
+.v17 .chip.charm { background: linear-gradient(180deg, var(--frost2), transparent), var(--back); }
+
+/* ---------- frame off: no iron, no hood, no brackets; the window light and frosted cards remain */
+.v17[data-frame="off"] .pane { box-shadow: none; }
+.v17[data-frame="off"] .hole { border-radius: 4px; box-shadow: inset 0 0 18px rgba(0,0,0,.45); }
+.v17[data-frame="off"][data-clear] .hole { box-shadow: none; }

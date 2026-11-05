@@ -1,0 +1,100 @@
+/* 18 Läder och söm — the pane bound like a book.
+   Concept: the rim is a soft leather band (pebbled grain from feTurbulence, a gentle top-left sheen, a rolled edge)
+   with a saddle-stitched seam (dashed thread) running all the way round. The title is a sewn-on leather label
+   hanging from the top band, with its own little stitch and gilt-tooled lettering. Content: cards and chips are
+   softly embossed leather patches, bars are pressed-in channels, header rules are stitch lines, and the "vs" is a
+   brass button. No pixel steps at all.
+   Cell ring: band 7 px on every side; the stitch sits 3 px in. The label overlaps the top band (pane y 1..18,
+   within the top cell row) and the hole's first row; the hole is overflow-visible. All textures repeat, so it
+   scales to any pane size.
+   Tint: leather and thread are hsl(--pane-h, reduced --pane-s), so Plain is black leather with pale thread, red is
+   oxblood, orange is tan, blue is navy. Frame off: no band/seam/label, but the cards keep their leather and the
+   header stitches remain. Clear: the hole is fully transparent; leather patches get a little more opaque so text
+   stays readable over the sky. */
+.v18 {
+  --lh: hsl(var(--pane-h) calc(var(--pane-s) * .42) 23%);
+  --lh-hi: hsl(var(--pane-h) calc(var(--pane-s) * .42) 34%);
+  --lh-lo: hsl(var(--pane-h) calc(var(--pane-s) * .5) 9%);
+  --thread: color-mix(in srgb, #e6d6b4 62%, hsl(var(--pane-h) calc(var(--pane-s) * .6) 74%));
+  --gilt: color-mix(in srgb, #e2bf72 85%, hsl(var(--pane-h) var(--pane-s) 70%));
+  --patch: 46%;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.62' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.25 0 0 0 -.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='2' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .5 0 0 0 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --leather: var(--grain) 0 0 / 120px 120px, var(--mottle) 0 0 / 200px 200px;
+}
+
+/* ---------- frame: leather band with a seam */
+.v18 .pane { padding: 7px; border-radius: 8px; }
+.v18 .pane::before { padding: 7px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, .9);
+  background: radial-gradient(140% 90% at 15% 0, rgba(255, 255, 255, .10), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 30%, rgba(0, 0, 0, .25)),
+    var(--leather), var(--lh);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 3px 1px rgba(0, 0, 0, .45); }
+.v18 .pane::after { content: ""; position: absolute; inset: 3px; border-radius: 5px; pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--thread) 72%, transparent);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .75)); }
+.v18 .hole { overflow: visible; border: 0; border-radius: 3px; padding: 15px 7px 7px; color: var(--fg); background: var(--pane-bg);
+  box-shadow: inset 0 2px 4px -1px rgba(0, 0, 0, .9), inset 0 0 0 1px rgba(0, 0, 0, .7), 0 0 0 1px color-mix(in srgb, var(--lh-hi) 45%, transparent); }
+
+/* sewn-on label with gilt lettering */
+.v18 .plate { top: -6px; left: 14px; height: 17px; padding: 0 12px; border-radius: 3px 3px 7px 7px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .09), transparent 70%), var(--leather), color-mix(in srgb, var(--lh) 82%, #000);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .8), 0 2px 3px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .12);
+  font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: .12em;
+  color: var(--gilt); text-shadow: 0 -1px 0 rgba(0, 0, 0, .7), 0 1px 0 color-mix(in srgb, var(--gilt) 18%, transparent); }
+.v18 .plate::before { content: ""; position: absolute; inset: 2px 3px 2px 3px; border-radius: 2px 2px 5px 5px; pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--thread) 55%, transparent); border-top: 0; }
+.v18 .pt { position: relative; top: .5px; }
+
+/* ---------- embossed leather patches (shared) */
+.v18 .m2, .v18 .fz, .v18 .chip {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 60%), var(--grain) 0 0 / 120px 120px,
+    color-mix(in srgb, var(--lh) var(--patch), transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 -1px 0 rgba(0, 0, 0, .45), 0 1px 2px rgba(0, 0, 0, .7); }
+
+/* ---------- group */
+.v18 .fz { margin: 0 0 7px; padding: 8px 10px 9px; border-radius: 6px;
+  background: linear-gradient(90deg, rgba(232, 195, 90, .07), transparent 45% 55%, rgba(255, 77, 77, .08)), linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 60%),
+    var(--grain) 0 0 / 120px 120px, color-mix(in srgb, var(--lh) var(--patch), transparent); }
+.v18 .fz::before { content: ""; position: absolute; inset: 3px; border-radius: 4px; pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--thread) 32%, transparent); }
+.v18 .fz .fn { color: var(--hot); }
+.v18 .fz .fn.f { color: #ff9b8f; }
+.v18 .fz .trk { height: 8px; }
+.v18 .vs { position: relative; font-family: var(--display); font-weight: 700; font-size: 9.5px; color: #3a2a12; letter-spacing: 0;
+  background: radial-gradient(circle at 38% 30%, #fff1c4, var(--gilt) 38%, color-mix(in srgb, var(--gilt), #000 45%) 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .8), inset 0 -1px 1px rgba(0, 0, 0, .35); text-shadow: 0 1px 0 rgba(255, 240, 200, .5); }
+.v18 .m2 { margin-bottom: 4px; padding: 1px 5px 2px 2px; border-radius: 5px; }
+.v18 .m2:last-child { margin-bottom: 0; }
+.v18 .name { color: #b5afa6; }
+.v18 .name.pl { color: #e0dad0; }
+.v18 .name, .v18 .fn, .v18 .chip .n { text-shadow: 0 1px 1px rgba(0, 0, 0, .7); }
+.v18 .tag { border: 1px dashed color-mix(in srgb, var(--thread) 40%, transparent); border-radius: 3px; color: var(--thread); background: rgba(0, 0, 0, .3); }
+.v18 .vr { width: 0; height: 12px; background: none; border-left: 1px dashed color-mix(in srgb, var(--thread) 35%, transparent); }
+.v18 .rg .bg { stroke: rgba(0, 0, 0, .55); }
+.v18 .trk { height: 5px; border-radius: 3px; background: rgba(0, 0, 0, .58);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .9), 0 1px 0 rgba(255, 255, 255, .07); }
+.v18 .fill { border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 25%), var(--c) 45%, color-mix(in srgb, var(--c), #000 22%)); }
+
+/* ---------- timers */
+.v18 .tm { gap: 5px; }
+.v18 .th { font-family: var(--body); font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: none;
+  color: color-mix(in srgb, var(--gilt) 55%, #cfc8bc); text-shadow: 0 1px 1px rgba(0, 0, 0, .8); }
+.v18 .th .cnt { font-family: var(--mono); font-size: 10px; color: #7f786d; }
+.v18 .hln { height: 0; background: none; border-top: 1px dashed color-mix(in srgb, var(--thread) 30%, transparent); }
+.v18 .chip { height: 20px; border-radius: 5px; padding: 0 8px 0 7px; }
+.v18 .chip .fill { border-radius: 5px 2px 2px 5px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 44%, transparent), color-mix(in srgb, var(--c) 26%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 70%, transparent); }
+.v18 .chip .n { color: #e0dad0; }
+.v18 .chip .t { color: #aca69c; }
+.v18 .chip.soon .t { color: #ff4a3d; }
+.v18 .chip.untimed { background: rgba(0, 0, 0, .22); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7); outline: 1px dashed color-mix(in srgb, var(--thread) 34%, transparent); outline-offset: -3px; }
+.v18 .chip.untimed .n { color: var(--dim); }
+.v18 .chip.charm { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 -1px 0 rgba(0, 0, 0, .45), 0 1px 2px rgba(0, 0, 0, .7), inset 2px 0 0 var(--c); }
+
+/* ---------- states */
+.v18[data-clear] { --patch: 66%; }
+.v18[data-clear] .th { text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.v18[data-frame="off"] .pane::after, .v18[data-frame="off"] .plate::before { display: none; }
+.v18[data-frame="off"] .hole { box-shadow: none; border-radius: 0; padding: 4px; }

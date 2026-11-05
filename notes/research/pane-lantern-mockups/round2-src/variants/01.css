@@ -1,0 +1,100 @@
+/* 01 · Pixelsten
+   Concept: warm granite cut in pixel steps. Every stone surface (frame, nameplate, cards, chips) shares one
+   pixel-grain texture and the same 2-px stepped corner; the frame is raised stone, the hole a sunken well of
+   the same stone, the cards raised slabs inside it.
+   Cell-ring mapping: left/right/bottom band = 7 px (one 9-px cell column minus the 2-px gap share);
+   top band = 17 px (one cell row) holding the stepped stone tab, which dips 2 px into the well so frame and
+   content interlock. Corner studs (.fx) sit inside the 7-px band corners. Everything is whole-px, scales
+   to any size (only repeating tiles and corner pieces). */
+.v01 {
+  --s1-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' shape-rendering='crispEdges'%3E%3Cg fill='%23fff' fill-opacity='.07'%3E%3Crect x='2' y='2' width='2' height='2'/%3E%3Crect x='14' y='6' width='4' height='2'/%3E%3Crect x='8' y='16' width='2' height='2'/%3E%3Crect x='18' y='18' width='2' height='2'/%3E%3Crect x='4' y='11' width='2' height='2'/%3E%3Crect x='21' y='1' width='2' height='2'/%3E%3C/g%3E%3Cg fill='%23000' fill-opacity='.22'%3E%3Crect x='10' y='4' width='2' height='2'/%3E%3Crect x='20' y='10' width='2' height='2'/%3E%3Crect x='2' y='20' width='4' height='2'/%3E%3Crect x='12' y='12' width='2' height='2'/%3E%3Crect x='16' y='22' width='2' height='2'/%3E%3Crect x='6' y='6' width='2' height='2'/%3E%3C/g%3E%3C/svg%3E");
+  --s1-step2: polygon(2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px), 0 2px, 2px 2px);
+  --s1-step4: polygon(4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px), 0 4px, 2px 4px, 2px 2px, 4px 2px);
+  --s1-hi: rgba(255, 240, 210, .30);
+  --s1-lo: rgba(0, 0, 0, .55);
+}
+
+/* ---------- frame: raised stone band with 2-px pixel bevel ---------- */
+.v01 .pane { padding: 17px 7px 7px; border: 0; border-radius: 0; clip-path: var(--s1-step4);
+  background: var(--s1-grain), var(--stone-noise), linear-gradient(180deg, #5a554b, #48443c 30%, #3b3832);
+  box-shadow: inset 0 0 0 1px #0d0c0a, inset 3px 3px 0 var(--s1-hi), inset -3px -3px 0 var(--s1-lo); }
+.v01 .hole { overflow: visible; isolation: isolate; border: 0; background: none; padding: 8px 6px 6px; }
+.v01 .hole::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; clip-path: var(--s1-step2);
+  background: var(--stone-dark), linear-gradient(180deg, #0a0908, #13110f);
+  box-shadow: inset 2px 2px 0 #000, inset 3px 3px 0 rgba(0,0,0,.45), inset -2px -2px 0 rgba(255,240,210,.13); }
+
+/* nameplate: stepped stone tab, title carved in pixel font */
+.v01 .plate { top: -15px; left: 10px; height: 17px; padding: 0 10px; border-radius: 0; gap: 6px; box-shadow: none;
+  clip-path: var(--s1-step2); color: #221f1a;
+  background: var(--s1-grain), var(--stone-noise), linear-gradient(180deg, #a69c86, #8a8170 50%, #6f685b);
+  box-shadow: inset 0 0 0 1px #12100d, inset 0 3px 0 rgba(255,246,226,.45), inset 3px 0 0 rgba(255,246,226,.2), inset 0 -3px 0 rgba(0,0,0,.45), inset -3px 0 0 rgba(0,0,0,.3); }
+.v01 .plate::before, .v01 .plate::after { content: ""; width: 4px; height: 4px; flex: none; background: #2a261f;
+  clip-path: polygon(1px 0, 3px 0, 3px 1px, 4px 1px, 4px 3px, 3px 3px, 3px 4px, 1px 4px, 1px 3px, 0 3px, 0 1px, 1px 1px);
+  box-shadow: inset -1px -1px 0 rgba(255,244,220,.35); }
+.v01 .pt { font-family: var(--pixel); font-weight: 600; font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: #24201a;
+  text-shadow: 0 1px 0 rgba(255,244,220,.38); }
+
+/* corner studs in the band */
+.v01 .fx { display: block; width: 4px; height: 4px; z-index: 4;
+  clip-path: polygon(1px 0, 3px 0, 3px 1px, 4px 1px, 4px 3px, 3px 3px, 3px 4px, 1px 4px, 1px 3px, 0 3px, 0 1px, 1px 1px);
+  background: linear-gradient(135deg, #d8ccb0 0 37%, #8f8572 37% 63%, #1e1b16 63%); }
+.v01 .f1 { left: 4px; top: 5px; }
+.v01 .f2 { right: 4px; top: 5px; }
+.v01 .f3 { left: 2px; bottom: 2px; }
+.v01 .f4 { right: 2px; bottom: 2px; }
+.v01 .f1, .v01 .f2 { top: 7px; }
+
+/* ---------- Group content: raised stone slabs in the well ---------- */
+.v01 .m2 { position: relative; margin-bottom: 4px; padding: 2px 6px 3px 3px; clip-path: var(--s1-step2);
+  background: var(--s1-grain), var(--stone-noise), linear-gradient(180deg, #2f2c27, #23211d);
+  box-shadow: inset 0 2px 0 rgba(255,240,210,.10), inset 2px 0 0 rgba(255,240,210,.05), inset 0 -2px 0 rgba(0,0,0,.5), inset -2px 0 0 rgba(0,0,0,.3); }
+.v01 .m2:last-child { margin-bottom: 0; }
+.v01 .name, .v01 .fn, .v01 .chip .n, .v01 .fv, .v01 .where { text-shadow: 1px 1px 0 #000; }
+.v01 .name { color: #b8b09f; }
+.v01 .name.pl { color: #eee7d8; }
+.v01 .tag { border: 0; border-radius: 0; background: #15130f; color: #b0a68f; box-shadow: inset 0 1px 0 #000, 0 1px 0 rgba(255,240,210,.12); }
+.v01 .where { color: #9a927f; }
+.v01 .vr { width: 2px; background: #110f0d; box-shadow: 1px 0 0 rgba(255,240,210,.12); }
+.v01 .ic > svg.i { filter: drop-shadow(1px 1px 0 #000); }
+.v01 .glow > svg.i { filter: drop-shadow(1px 1px 0 #000) drop-shadow(0 0 2px var(--c)); }
+.v01 .rg .bg { stroke: #0d0c0a; }
+.v01 .trk { height: 6px; background: #080706; box-shadow: inset 0 1px 0 #000, 0 1px 0 rgba(255,240,210,.12); }
+.v01 .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 40%) 0 1px, var(--c) 1px 4px, color-mix(in srgb, var(--c), #000 35%) 4px); }
+
+.v01 .fz { margin-bottom: 6px; padding: 7px 10px 10px; clip-path: var(--s1-step4);
+  background: var(--s1-grain), var(--stone-noise), radial-gradient(70% 140% at 50% 30%, #3e3a33, #2a2723);
+  box-shadow: inset 0 2px 0 rgba(255,240,210,.16), inset 2px 0 0 rgba(255,240,210,.08), inset 0 -2px 0 rgba(0,0,0,.55), inset -2px 0 0 rgba(0,0,0,.35); }
+.v01 .fz .fn { font-family: var(--pixel); font-weight: 600; font-size: 13.5px; }
+.v01 .fn.f { color: #ff9b8f; }
+.v01 .fv { color: #a8a08c; }
+.v01 .fz .trk { height: 8px; }
+.v01 .fz .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 40%) 0 2px, var(--c) 2px 6px, color-mix(in srgb, var(--c), #000 35%) 6px); }
+.v01 .vs { width: 26px; height: 26px; border-radius: 0; font-family: var(--pixel); font-weight: 600; font-size: 12px; color: #f0cf6e;
+  text-shadow: 1px 1px 0 #000; clip-path: polygon(8px 0, 18px 0, 18px 2px, 22px 2px, 22px 4px, 24px 4px, 24px 8px, 26px 8px, 26px 18px, 24px 18px, 24px 22px, 22px 22px, 22px 24px, 18px 24px, 18px 26px, 8px 26px, 8px 24px, 4px 24px, 4px 22px, 2px 22px, 2px 18px, 0 18px, 0 8px, 2px 8px, 2px 4px, 4px 4px, 4px 2px, 8px 2px);
+  background: radial-gradient(circle at 50% 45%, #1d1a16, #0c0b09); box-shadow: inset 0 3px 0 rgba(0,0,0,.7), inset 0 -2px 0 rgba(255,240,210,.18); }
+
+/* ---------- Timers content ---------- */
+.v01 .tm { gap: 7px; }
+.v01 .th { gap: 6px; font-family: var(--pixel); font-weight: 600; font-size: 12px; letter-spacing: .08em; color: #cfc4ab; text-shadow: 1px 1px 0 #000; }
+.v01 .th svg { filter: drop-shadow(1px 1px 0 #000); }
+.v01 .th .cnt { color: #857c69; }
+.v01 .hl { display: block; flex: none; width: 8px; height: 8px;
+  clip-path: polygon(3px 0, 5px 0, 5px 1px, 6px 1px, 6px 2px, 7px 2px, 7px 3px, 8px 3px, 8px 5px, 7px 5px, 7px 6px, 6px 6px, 6px 7px, 5px 7px, 5px 8px, 3px 8px, 3px 7px, 2px 7px, 2px 6px, 1px 6px, 1px 5px, 0 5px, 0 3px, 1px 3px, 1px 2px, 2px 2px, 2px 1px, 3px 1px);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c), #fff 45%) 0 35%, var(--c) 35% 65%, color-mix(in srgb, var(--c), #000 45%) 65%); }
+.v01 .hln { height: 6px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' shape-rendering='crispEdges'%3E%3Cg fill='%23000'%3E%3Crect x='2' y='3' width='2' height='2'/%3E%3Crect x='8' y='2' width='2' height='4'/%3E%3Crect x='7' y='3' width='4' height='2'/%3E%3C/g%3E%3Cg fill='%235b5446'%3E%3Crect x='1' y='2' width='2' height='2'/%3E%3Crect x='7' y='1' width='2' height='4'/%3E%3Crect x='6' y='2' width='4' height='2'/%3E%3C/g%3E%3C/svg%3E") left center / 12px 6px repeat-x;
+  -webkit-mask: linear-gradient(90deg, #000 60%, transparent); mask: linear-gradient(90deg, #000 60%, transparent); }
+.v01 .items.flow, .v01 .items.grid { gap: 4px; }
+.v01 .chip { overflow: hidden; height: 19px; padding: 0 8px 0 6px; clip-path: var(--s1-step2);
+  background: var(--s1-grain), linear-gradient(180deg, #2c2925, #201e1a);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, #000), inset 0 2px 0 rgba(255,240,210,.10), inset 0 -2px 0 rgba(0,0,0,.45); }
+.v01 .chip .fill { width: calc(var(--p) * 1%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 55%, transparent) 0 2px, color-mix(in srgb, var(--c) 30%, transparent) 2px 15px, color-mix(in srgb, var(--c) 16%, transparent) 15px); }
+.v01 .chip svg.ci { filter: drop-shadow(1px 1px 0 #000); }
+.v01 .chip .n { color: #e6dfd0; }
+.v01 .chip .t { color: #aaa18c; text-shadow: 1px 1px 0 #000; }
+.v01 .chip.soon .t { color: #ff4a3d; }
+.v01 .chip.untimed { background: repeating-conic-gradient(#14120f 0 25%, #1f1c18 0 50%) 0 0 / 4px 4px;
+  box-shadow: inset 0 0 0 1px #3d382f; }
+.v01 .chip.untimed .n { color: #8f8775; }
+.v01 .chip.charm .fill { display: none; }
+.v01 .chip .x { color: #a39a86; }

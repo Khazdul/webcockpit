@@ -1,0 +1,102 @@
+/* 04 Hörnstenar — a slim 16-bit JRPG window held by four chunky stone corner blocks.
+   Frame band = 6 px on every side (inside the outer cell ring): 1 px black, 2 px bone-white
+   line, 1 px black, then 2 px of the window's own slate. The window colour is the pane
+   background, so frame and content are one panel; the hole is transparent.
+   The four .fx hooks are 11x11 stone blocks (pixel bevel, stepped corners) sitting on the
+   corners of the ring; top ones fit the 17 px title row, bottom ones overlap the hole's padding.
+   The nameplate is a stepped stone tablet laid over the top border (top band = 6 px ring +
+   11 px of the hole padding = 17 px). Content: pixel-RPG cards echoing the stone (stone-block
+   bullets, stone-grey bar rims, mini corner studs on the fight panel). */
+.v04 {
+  --w-top: #1d2131; --w-bot: #12141e;          /* window slate */
+  --w-card: #1a1e2d; --w-card-hi: #2a3048; --w-card-lo: #0d0f17;
+  --bone: #d4cdbb; --bone-lo: #a39b88;
+  --st-hi: #b9b19f; --st: #8b8476; --st-lo: #4f4a41;
+  --st-face: linear-gradient(160deg, #9d9585, #7a7366 60%, #6a6458);
+}
+.v04 .pane { padding: 6px; border: 0; border-radius: 0;
+  background: linear-gradient(180deg, var(--w-top), var(--w-bot));
+  box-shadow: inset 0 0 0 1px #000, inset 1px 1px 0 1px var(--bone), inset -1px -1px 0 1px var(--bone-lo), inset 0 0 0 3px var(--bone),
+    inset 0 0 0 4px #000, inset 0 0 0 6px rgba(0,0,0,.25), 0 2px 0 rgba(0,0,0,.6); }
+.v04 .hole { border: 0; overflow: visible; background: none; padding: 13px 7px 7px; color: #d8dbe6; }
+.v04 .gp, .v04 .tm { overflow: clip; overflow-clip-margin: 4px; }
+
+/* corner stones */
+.v04 .fx { display: block; width: 14px; height: 14px; z-index: 4;
+  clip-path: polygon(1px 0, calc(100% - 1px) 0, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) 100%, 1px 100%, 0 calc(100% - 1px), 0 1px);
+  background: linear-gradient(#2e2a24, #2e2a24) 4px 4px / 1px 1px no-repeat, linear-gradient(#2e2a24, #2e2a24) 5px 5px / 1px 1px no-repeat, linear-gradient(#2e2a24, #2e2a24) 6px 5px / 1px 1px no-repeat, linear-gradient(#2e2a24, #2e2a24) 7px 6px / 1px 1px no-repeat, linear-gradient(#2e2a24, #2e2a24) 8px 7px / 1px 1px no-repeat, linear-gradient(#2e2a24, #2e2a24) 8px 8px / 1px 1px no-repeat, linear-gradient(#2e2a24, #2e2a24) 9px 9px / 1px 1px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) 4px 5px / 1px 1px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) 5px 6px / 1px 1px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) 6px 6px / 1px 1px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) 7px 7px / 1px 1px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) 8px 8px / 1px 1px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) 8px 9px / 1px 1px no-repeat, linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)) 9px 10px / 1px 1px no-repeat,
+    var(--stone-noise), var(--st-face);
+  box-shadow: inset 0 0 0 1px #000, inset 3px 3px 0 0 var(--st-hi), inset -3px -3px 0 0 var(--st-lo), 0 1px 0 rgba(0,0,0,.6); }
+.v04 .f1 { left: 0; top: 0; }
+.v04 .f2 { right: 0; top: 0; }
+.v04 .f3 { left: 0; bottom: 0; }
+.v04 .f4 { right: 0; bottom: 0; }
+
+/* stone nameplate: stepped tablet laid over the top border */
+.v04 .plate { top: -6px; left: 16px; height: 17px; padding: 0 10px; border-radius: 0; background: none; isolation: isolate;
+  box-shadow: none; filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000) drop-shadow(0 2px 0 rgba(0,0,0,.55)); }
+.v04 .plate::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  clip-path: polygon(2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px), 0 2px, 2px 2px);
+  background: var(--stone-noise), var(--st-face);
+  box-shadow: inset 0 2px 0 var(--st-hi), inset 2px 0 0 rgba(255,255,255,.18), inset 0 -2px 0 var(--st-lo), inset -2px 0 0 rgba(0,0,0,.25); }
+.v04 .pt { font-family: var(--pixel); font-weight: 600; font-size: 12.5px; letter-spacing: .08em; color: #1e1b17;
+  text-shadow: 0 1px 0 rgba(255,255,255,.4); }
+
+/* ---- content: pixel windows with stone accents ---- */
+.v04 .m2 { margin: 2px 2px 7px; padding: 2px 7px 3px 3px; background: var(--w-card);
+  box-shadow: 0 -2px 0 0 #000, 0 2px 0 0 #000, -2px 0 0 0 #000, 2px 0 0 0 #000, inset 2px 2px 0 0 var(--w-card-hi), inset -2px -2px 0 0 var(--w-card-lo); }
+.v04 .name, .v04 .fn, .v04 .chip .n { text-shadow: 1px 1px 0 #000; }
+.v04 .name { color: #aeb2c2; }
+.v04 .name.pl { color: #f1eee6; }
+.v04 .tag { border: 0; border-radius: 0; background: var(--st-lo); color: #e3dccb; box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.18); }
+.v04 .where { color: #8d92a6; }
+.v04 .ic > svg.i, .v04 .mk svg, .v04 .ft svg, .v04 .th svg, .v04 .chip svg.ci { stroke-linecap: square; stroke-linejoin: miter; filter: drop-shadow(1px 1px 0 #000); }
+.v04 .rg .bg { stroke: #0a0b10; }
+.v04 .vr { width: 2px; background: var(--st-lo); box-shadow: 1px 0 0 #000; }
+/* bars: pixel tracks rimmed in stone grey */
+.v04 .trk { height: 8px; margin: 0 1px; overflow: visible; background: #05060a;
+  box-shadow: 0 -1px 0 0 var(--st), 0 1px 0 0 var(--st-lo), -1px 0 0 0 var(--st), 1px 0 0 0 var(--st-lo); }
+.v04 .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 45%) 0 2px, var(--c) 2px 6px, color-mix(in srgb, var(--c), #000 35%) 6px); }
+
+/* fight zone: a framed sub-window with four tiny stone studs */
+.v04 .fz { margin: 3px 3px 11px; padding: 7px 11px 10px;
+  background:
+    linear-gradient(180deg, #262b40, #151827);
+  box-shadow: 0 -2px 0 0 #000, 0 2px 0 0 #000, -2px 0 0 0 #000, 2px 0 0 0 #000, inset 0 0 0 1px #000, inset 0 0 0 2px var(--bone-lo), inset 0 0 0 3px #000; }
+.v04 .fz .ft { font-family: var(--pixel); font-size: 13px; }
+.v04 .fz .fn { font-weight: 600; }
+.v04 .fv { color: #9097ad; }
+.v04 .fz .trk { height: 10px; }
+.v04 .fz .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 45%) 0 2px, var(--c) 2px 7px, color-mix(in srgb, var(--c), #000 35%) 7px); }
+.v04 .vs { width: 24px; height: 20px; margin-bottom: -2px; border-radius: 0; font-family: var(--pixel); font-weight: 600; font-size: 11px; color: #ffe08a;
+  text-shadow: 1px 1px 0 #000; background: var(--stone-noise), linear-gradient(180deg, #5a554b, #3c3832);
+  box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.25), inset 0 -2px 0 rgba(0,0,0,.4); }
+
+.v04 .fz::before { content: ""; position: absolute; inset: -1px; pointer-events: none; background:
+    linear-gradient(var(--st-hi), var(--st-hi)) 1px 1px / 2px 2px no-repeat, linear-gradient(var(--st-hi), var(--st-hi)) calc(100% - 3px) 1px / 2px 2px no-repeat,
+    linear-gradient(var(--st), var(--st)) 0 0 / 6px 6px no-repeat, linear-gradient(var(--st), var(--st)) 100% 0 / 6px 6px no-repeat,
+    linear-gradient(var(--st-lo), var(--st-lo)) 0 100% / 6px 6px no-repeat, linear-gradient(var(--st-lo), var(--st-lo)) 100% 100% / 6px 6px no-repeat;
+  filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000); }
+
+/* timers */
+.v04 .tm { gap: 6px; }
+.v04 .th { gap: 6px; font-family: var(--pixel); font-weight: 600; font-size: 11.5px; letter-spacing: .06em; text-transform: none; color: #cfd2e0; text-shadow: 1px 1px 0 #000; }
+/* stone-block bullet */
+.v04 .th::before { content: ""; width: 6px; height: 6px; flex: none; background: var(--st);
+  box-shadow: 0 0 0 1px #000, inset 1px 1px 0 var(--st-hi), inset -1px -1px 0 var(--st-lo); margin: 0 1px; }
+.v04 .th .cnt { color: #6d7394; }
+.v04 .hln { height: 2px; background: repeating-linear-gradient(90deg, #3a3f58 0 2px, transparent 2px 4px); }
+.v04 .items.flow, .v04 .items.grid { gap: 7px; padding: 2px; }
+.v04 .chip { overflow: visible; height: 18px; padding: 0 7px 0 6px; background: var(--w-card);
+  box-shadow: 0 -2px 0 0 #000, 0 2px 0 0 #000, -2px 0 0 0 #000, 2px 0 0 0 #000, inset 0 0 0 1px color-mix(in srgb, var(--c) 70%, #000); }
+.v04 .chip .fill { width: calc(var(--p) * 1%); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 55%, transparent) 0 2px, color-mix(in srgb, var(--c) 32%, transparent) 2px 14px, color-mix(in srgb, var(--c) 18%, transparent) 14px); }
+.v04 .chip .t { color: #9aa0b6; }
+.v04 .chip.soon .t { color: #ff4a3d; text-shadow: 1px 1px 0 #000; }
+.v04 .chip .x { color: #9aa0b6; }
+.v04 .chip.untimed { background: repeating-conic-gradient(#0f1220 0 25%, #181c2b 0 50%) 0 0 / 4px 4px;
+  box-shadow: 0 -2px 0 0 #000, 0 2px 0 0 #000, -2px 0 0 0 #000, 2px 0 0 0 #000, inset 0 0 0 1px #3a405c; }
+.v04 .chip.untimed .n { color: #8d92a6; }
+.v04 .chip.charm .fill { display: none; }
+
+/* narrow widths: keep the nowrap rows and the fr grid from reporting their full text width as min width */
+.v04 .fz, .v04 .m2 { contain: inline-size; }

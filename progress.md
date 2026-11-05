@@ -45,10 +45,28 @@ Released 0.2.5 (stage 39: Group and Timers panes in a modern look, ADR 0122: fig
 | 37 | Profile editor LITE keys | Done | `docs/stages/37-profile-lite-keys.md` |
 | 38 | Scripts page | Done | `docs/stages/38-scripts-page.md` |
 | 39 | Group and Timers panes | Done | `docs/stages/39-group-timers.md` |
+| 40 | Lantern pane look | Next | (to write: `docs/stages/40-lantern-panes.md`) |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-05 — Pane look research ("Lykta")
+
+- **Owner brief:** give the pane content depth and a softer, playful look
+  matching the frame; then: frame and content must feel like one object.
+- **Done:** three mockup rounds (5, 10 and 10 designs; subagents built
+  rounds 2 and 3). The owner chose round 3 variant **17 "Lykta"** (lantern)
+  as the new look for all panes. Mockups, sources and decisions in
+  `notes/research/pane-lantern-mockups/` (README first).
+- **Owner decisions:** all panes; title centred; outer glow kept but within
+  the gap between panes; light (Paper) in the same stage; build carefully
+  in a new session.
+- **Next:** stage 40. Write `docs/stages/40-lantern-panes.md` (spec §5 has
+  no entry: plan from the README), read `src/panes/frame.ts`,
+  `src/layout/layout.css`, `src/weather/weather.css`, ADRs 0091, 0095,
+  0122, then an ADR for the new frame before building. No code changed.
+- **Commits:** this one.
 
 ### 2026-11-04 — Stage 39: Group and Timers panes, modern look
 

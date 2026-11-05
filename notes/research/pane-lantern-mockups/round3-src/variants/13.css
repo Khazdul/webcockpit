@@ -1,0 +1,116 @@
+/* 13 Milt fackelsken — round-2 "10 Fackelsken" with the retro dialled back.
+   Concept: the pane is one block of tinted stone (smooth, fine grain, no dither tiles) lit by a soft warm light
+   from the top edge. The title is carved into the lit top strip, flanked by two tiny glowing embers instead of
+   pixel torches; their light spills as a faint pool into the hole. Cards, chips, bars and the fight zone are soft
+   carved hollows (shadow under the top lip, a lit bottom lip). A very fine 1-px dither appears only in the
+   deepest shadow, right under the top lip of the fight-zone hollow. Corners: a single 2-px step, the only pixel touch.
+   Cell ring: left/right/bottom band 7 px, top band 15 px holding the carved title (plate sits in the band, the
+   hole is overflow-visible). Everything is gradients + one noise tile, so it scales to any pane size.
+   Tint: stone = oklch from --glass; ember light = amber mixed with the tint's hue (hsl --pane-h/--pane-s).
+   The hole is the tint fill lifted slightly toward the stone, so it reads as the same block.
+   Frame off: rim, title and embers vanish; the hollows keep the material.  Clear: the hole is transparent except a
+   very faint light wash; hollows are translucent dark so text stays readable over the sky. */
+.v13 {
+  --m: oklch(from var(--glass) .38 calc(c * .9) h);
+  --m-hi: oklch(from var(--glass) .58 calc(c * 1.1) h);
+  --m-lo: oklch(from var(--glass) .17 calc(c * .8) h);
+  --ember: color-mix(in srgb, #ffaf5a 74%, hsl(var(--pane-h) var(--pane-s) 62%));
+  --ember-hot: color-mix(in srgb, #ffe2a6 80%, var(--ember));
+  --hollow: rgba(0, 0, 0, .36);
+  --lip: color-mix(in srgb, var(--m-hi) 34%, transparent);
+  --ink: color-mix(in srgb, var(--ember) 14%, #d8d3cb);
+  --st2: polygon(0 2px, 1px 2px, 1px 1px, 2px 1px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 2px, 100% 2px,
+    100% calc(100% - 2px), calc(100% - 1px) calc(100% - 2px), calc(100% - 1px) calc(100% - 1px), calc(100% - 2px) calc(100% - 1px), calc(100% - 2px) 100%,
+    2px 100%, 2px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 2px), 0 calc(100% - 2px));
+}
+
+/* ---------- frame: one block of stone, light from the top */
+.v13 .pane { padding: 15px 7px 7px; border-radius: 0; clip-path: var(--st2); }
+.v13 .pane::before { padding: 15px 7px 7px; border-radius: 0; border: 0;
+  background:
+    radial-gradient(130px 30px at 46px 0, color-mix(in srgb, var(--ember-hot) 34%, transparent), transparent 80%),
+    linear-gradient(180deg, color-mix(in srgb, var(--ember) 24%, transparent) 1px, color-mix(in srgb, var(--ember) 8%, transparent) 15px, transparent 60px),
+    linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, .28)),
+    var(--stone-noise),
+    var(--m);
+  background-size: auto, auto, auto, 160px 160px, auto;
+  background-blend-mode: normal, normal, normal, soft-light, normal;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .85), inset 0 2px 0 -1px color-mix(in srgb, var(--ember-hot) 30%, var(--m-hi)),
+    inset 1px 0 0 1px color-mix(in srgb, var(--m-hi) 30%, transparent), inset 0 -2px 0 rgba(0, 0, 0, .35); }
+.v13 .hole { overflow: visible; border: 0; border-radius: 2px; padding: 7px 7px 7px; color: var(--fg);
+  background:
+    radial-gradient(220px 70px at 46px 0, color-mix(in srgb, var(--ember) 10%, transparent), transparent 80%),
+    color-mix(in srgb, var(--pane-bg) 84%, var(--m));
+  box-shadow: inset 0 3px 4px -2px rgba(0, 0, 0, .85), inset 0 0 0 1px rgba(0, 0, 0, .7), 0 1px 0 0 var(--lip); }
+
+/* carved title in the lit strip, an ember either side */
+.v13 .plate { top: -15px; left: 12px; height: 15px; padding: 0 14px; border-radius: 0; background: none; box-shadow: none;
+  font-family: var(--display); font-weight: 700; font-size: 11px; letter-spacing: .14em;
+  color: color-mix(in srgb, var(--m-lo) 70%, #000); text-shadow: 0 1px 0 color-mix(in srgb, var(--ember-hot) 55%, transparent), 0 -1px 0 rgba(0, 0, 0, .3); }
+.v13 .pt { position: relative; top: .5px; }
+.v13 .plate::before, .v13 .plate::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 1px; transform: rotate(45deg);
+  background: radial-gradient(circle at 40% 40%, #fff3d0, var(--ember-hot) 45%, var(--ember));
+  box-shadow: 0 0 3px 1px color-mix(in srgb, var(--ember) 80%, transparent), 0 0 8px 3px color-mix(in srgb, var(--ember) 30%, transparent);
+  animation: v13-glow 3.6s ease-in-out infinite; }
+.v13 .plate::before { left: 3px; }
+.v13 .plate::after { right: 3px; animation-delay: -1.7s; animation-duration: 4.3s; }
+@keyframes v13-glow { 0%, 100% { opacity: 1; } 45% { opacity: .78; } 60% { opacity: .92; } }
+
+/* ---------- carved hollows (shared) */
+.v13 .m2, .v13 .fz, .v13 .chip { background: var(--hollow);
+  box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, .85), inset 0 -1px 0 var(--lip), inset 1px 0 0 rgba(0, 0, 0, .35); }
+
+/* ---------- group */
+.v13 .fz { margin: 0 0 6px; padding: 7px 9px 9px; border-radius: 5px;
+  background:
+    repeating-conic-gradient(rgba(0, 0, 0, .55) 0 25%, transparent 0 50%) 0 0 / 2px 2px no-repeat,
+    linear-gradient(90deg, rgba(232, 195, 90, .07), transparent 45% 55%, rgba(255, 77, 77, .08)),
+    var(--hollow);
+  background-size: 100% 2px, auto, auto; background-position: 0 2px, 0 0, 0 0; }
+.v13 .fz .fn { color: var(--hot); }
+.v13 .fz .fn.f { color: #ff9b8f; }
+.v13 .fz .trk { height: 8px; }
+.v13 .vs { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .02em; color: var(--ember-hot);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ember) 16%, transparent), rgba(0, 0, 0, .55) 70%);
+  box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, .9), inset 0 -1px 0 var(--lip);
+  text-shadow: 0 0 5px color-mix(in srgb, var(--ember) 55%, transparent); }
+.v13 .m2 { margin-bottom: 3px; padding: 1px 5px 1px 2px; border-radius: 4px; }
+.v13 .m2:last-child { margin-bottom: 0; }
+.v13 .name { color: #b3aea6; }
+.v13 .name.pl { color: var(--ink); }
+.v13 .tag { border: 0; border-radius: 3px; color: #e2dccf; background: linear-gradient(180deg, var(--m-hi), var(--m));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 1px 1px rgba(0, 0, 0, .6); text-shadow: 0 -1px 0 rgba(0, 0, 0, .5); }
+.v13 .vr { width: 2px; background: linear-gradient(90deg, rgba(0, 0, 0, .8) 0 1px, var(--lip) 1px); }
+.v13 .rg .bg { stroke: rgba(0, 0, 0, .6); }
+.v13 .trk { height: 5px; border-radius: 3px; background: rgba(0, 0, 0, .62); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .9), 0 1px 0 var(--lip); }
+.v13 .fill { border-radius: 3px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 32%) 0 1px, var(--c) 1px calc(100% - 1px), color-mix(in srgb, var(--c), #000 30%) calc(100% - 1px));
+  box-shadow: 0 0 4px -1px var(--c); }
+.v13 .fz .fill { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 32%) 0 1px, var(--c) 1px calc(100% - 2px), color-mix(in srgb, var(--c), #000 30%) calc(100% - 2px)); }
+
+/* ---------- timers */
+.v13 .tm { gap: 5px; }
+.v13 .th { font-family: var(--body); font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: none;
+  color: color-mix(in srgb, var(--ember) 30%, #cfc9be); text-shadow: 0 -1px 0 rgba(0, 0, 0, .85), 0 1px 0 color-mix(in srgb, var(--ember) 12%, transparent); }
+.v13 .th .cnt { font-family: var(--mono); font-size: 10px; color: #7d776d; text-shadow: none; }
+.v13 .hln { height: 2px; background: linear-gradient(180deg, rgba(0, 0, 0, .75) 0 1px, var(--lip) 1px);
+  -webkit-mask: linear-gradient(90deg, #000 60%, transparent); mask: linear-gradient(90deg, #000 60%, transparent); }
+.v13 .chip { height: 20px; border-radius: 4px; padding: 0 8px 0 7px; }
+.v13 .chip .fill { border-radius: 4px 2px 2px 4px; top: 1px; bottom: 1px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, transparent), color-mix(in srgb, var(--c) 24%, transparent));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--c) 75%, transparent); }
+.v13 .chip .n { color: var(--ink); text-shadow: 0 1px 1px rgba(0, 0, 0, .7); }
+.v13 .chip .t { color: #a9a39a; text-shadow: 0 1px 1px rgba(0, 0, 0, .7); }
+.v13 .chip.soon .t { color: #ff4a3d; }
+.v13 .chip.untimed { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--m-hi) 40%, transparent); }
+.v13 .chip.untimed .n { color: var(--dim); }
+.v13 .chip.charm { box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, .85), inset 0 -1px 0 var(--lip), inset 2px 0 0 var(--c); }
+
+/* ---------- states */
+.v13[data-clear] .hole { background: radial-gradient(220px 70px at 46px 0, color-mix(in srgb, var(--ember) 8%, transparent), transparent 80%); }
+.v13[data-clear] { --hollow: rgba(0, 0, 0, .48); }
+.v13[data-clear] .th { text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.v13[data-frame="off"] .pane { clip-path: none; }
+.v13[data-frame="off"] .hole { box-shadow: none; padding: 4px; border-radius: 0; background: color-mix(in srgb, var(--pane-bg) 84%, var(--m)); }
+.v13[data-frame="off"][data-clear] .hole { background: transparent; }
+.v13[data-frame="off"] .plate::before, .v13[data-frame="off"] .plate::after { display: none; }
