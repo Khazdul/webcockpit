@@ -110,6 +110,7 @@
 // stay. Temporary script panes show over the GAME view only. While the
 // on-screen keyboard is up the too-small guard is off.
 
+import { onTitleFont } from '../panes/title-font';
 import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
 import { PANE_FACTORIES } from '../panes/factories';
@@ -554,6 +555,8 @@ export class Cockpit {
       this.settings.subscribe(() => this.scheduleRelayout()),
       onTempPlacesForgotten(this.onPlacesForgotten),
       this.cells.subscribe(() => this.scheduleRelayout()),
+      // The title face loaded: the hoods take the measured label widths (ADR 0123).
+      onTitleFont(() => this.scheduleRelayout()),
     );
     if (typeof ResizeObserver !== 'undefined') {
       this.ro = new ResizeObserver(() => this.scheduleRelayout());

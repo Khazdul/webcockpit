@@ -183,9 +183,10 @@ describe('the Gear on the panes', () => {
   it('a narrow pane drops the Gear first, then Colour …; the cross stays', () => {
     const t = cockpit();
     const drops = () => t.btns('timers').map((b) => b.hasAttribute('data-drop'));
-    expect(drops()).toEqual([false, false, false, false]);
+    // The default 33-cell lane: the centred hood (ADR 0123) leaves room for the look buttons at least.
+    expect(drops().slice(1)).toEqual([false, false, false]);
     const seen = new Set<number>();
-    for (let w = 30; w >= 8; w--) {
+    for (let w = 40; w >= 8; w--) {
       t.settings.update((d) => {
         d.layout = moveToNewLane(legacySettings().layout, 'timers', 'right', 1, w);
       });

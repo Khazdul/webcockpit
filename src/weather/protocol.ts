@@ -140,13 +140,13 @@ export interface Rect {
 }
 
 /**
- * A pane's nameplate (ADR 0091 "Frames", addendum: glass rim and nameplate),
- * screen px: its body `[x, x + w]` from the rim's inner edge down to `y1`,
- * joined to the rim by fillets of radius `r` either side, its lower corners
- * rounded. The title lies on it and reaches up over the rim to `lip` px
- * below the frame box's top. It is the rim's glass: what lights the top rim
- * (glints, the sun's lift, lightning) lights the whole plate in its shape
- * (worker rimshape.ts; owner items 42, 49), only no sparkle over the title.
+ * A pane's hood (ADR 0123 "Geometry"; it was the nameplate of ADR 0091),
+ * screen px: `[x, x + w]` from the band down to `y1`, centred on the frame,
+ * its lower corners rounded by `r`, no fillets. It covers the top band too,
+ * from `lip` px below the frame box's top (0: the frame's top edge). It is
+ * the band's iron: what lights the top band (glints, the sun's lift,
+ * lightning) lights the whole hood in its shape (worker rimshape.ts; owner
+ * items 42, 49), only no sparkle over the title.
  */
 export interface PanePlate {
   x: number;

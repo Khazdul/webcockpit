@@ -489,18 +489,18 @@ describe('frame glints', () => {
   const boxes = (args: unknown[][]) => args.filter((a) => a[0] !== g.spark).map((a) => [a[5], (a[5] as number) + (a[7] as number), a[6], (a[6] as number) + (a[8] as number)] as number[]);
   const covers = (bs: number[][], x: number, y: number) => bs.some(([x0, x1, y0, y1]) => x >= x0! && x <= x1! && y >= y0! && y <= y1!);
 
-  it('light the whole nameplate with the top rim, no sparkle over the title (owner item 49, ADR 0091 addendum)', () => {
+  it('light the whole hood with the top band, no sparkle over the title (owner item 49, ADR 0123)', () => {
     const f = new FakeCanvas(800, 600).ctx as unknown as Ctx & { args: unknown[][] };
     g.dpr = 1;
     g.line(f, p, 't', 160, 200, 1, 1);
     const top = f.args.splice(0);
     expect(top.every((a) => a[0] !== g.spark)).toBe(true);
     const bs = boxes(top);
-    // the plate's body down to its bottom, the fillets' glass, the rim beside it
+    // the hood's body down to its bottom, the band beside it
     expect(covers(bs, 160, 65.5)).toBe(true);
-    expect(covers(bs, 133.2, 57.5)).toBe(true);
     expect(covers(bs, 120, 55)).toBe(true);
-    // not the pane beside the plate, not below the plate's rounded corners
+    // not the window beside the hood (no fillets, ADR 0123), not below its rounded corners
+    expect(covers(bs, 133.2, 57.5)).toBe(false);
     expect(covers(bs, 125, 60)).toBe(false);
     expect(covers(bs, 134.4, 65.8)).toBe(false);
     // the copies never overlap (an additive glint would show seams)

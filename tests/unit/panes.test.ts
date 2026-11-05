@@ -2,7 +2,8 @@
 import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { Cockpit } from '../../src/layout/cockpit';
-import { PLATE_PAD, TITLE_SCALE, frameGeometry, frameHolePath, frameInset, frameLabel, framePlate, frameRimPath, frameSeams, frameThickness } from '../../src/panes/frame';
+import { BRACKET, HOOD_PAD, HOOD_R, TITLE_TRACK, fitTitle, frameArm, frameGeometry, frameHolePath, frameInset, framePlate, frameRimPath, frameSeams, frameThickness, hoodRoom, titlePx } from '../../src/panes/frame';
+import { estimateTitleWidth, titleWidth } from '../../src/panes/title-font';
 import { Bus } from '../../src/core/bus';
 import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
@@ -12,27 +13,24 @@ import { barCells } from '../../src/menubar/menubar';
 import { movePane, moveToNewLane, setLaneSize } from '../../src/layout/model';
 
 describe('frame', () => {
-  it('puts the label from the fourth cell, chopped before the top-right corner', () => {
-    expect(frameLabel(20, 'Timers')).toBe(' Timers ');
-    expect(frameLabel(7, 'Timers')).toBe(' Ti');
-    expect(frameLabel(5, 'UI')).toBe(' ');
-    expect(frameLabel(4, 'UI')).toBe('');
-    expect(frameLabel(20, '')).toBe('');
-  });
-
-  it('puts an equal-thickness rim the same inset from every edge, a third of the cell height thick', () => {
-    expect(frameGeometry({ x: 0, y: 0, w: 90, h: 85 }, 9, 17)).toEqual({ t: 6, l: 2, r: 2, top: 2, b: 2 });
-    expect(frameGeometry({ x: 0, y: 0, w: 140, h: 280 }, 14, 28)).toEqual({ t: 9, l: 3, r: 3, top: 3, b: 3 });
-    expect(frameGeometry({ x: 0, y: 0, w: 70, h: 120 }, 7, 12, 2)).toEqual({ t: 4, l: 1.5, r: 1.5, top: 1.5, b: 1.5 });
-    // The default cell (Hack 17: 10 × 19): a 6 px rim, 2 px in from the edges (4 px between two frames, as in the mockup).
-    expect(frameThickness(19)).toBe(6);
+  it('puts an equal-thickness band the same inset from every edge, the cell height over BAND_DIV thick', () => {
+    expect(frameGeometry({ x: 0, y: 0, w: 90, h: 85 }, 9, 17)).toEqual({ t: 5, l: 2, r: 2, top: 2, b: 2 });
+    expect(frameGeometry({ x: 0, y: 0, w: 140, h: 280 }, 14, 28)).toEqual({ t: 8, l: 3, r: 3, top: 3, b: 3 });
+    expect(frameGeometry({ x: 0, y: 0, w: 70, h: 120 }, 7, 12, 2)).toEqual({ t: 3.5, l: 1.5, r: 1.5, top: 1.5, b: 1.5 });
+    // The default cell (Hack 17: 10 × 19): a 5 px band (ADR 0123), 2 px in from the edges (4 px between two frames).
+    expect(frameThickness(19)).toBe(5);
+    expect(frameThickness(19, 2)).toBe(11);
     expect(frameInset(10, 19)).toBeCloseTo(2.22, 2);
-    expect(frameGeometry({ x: 400, y: 209, w: 200, h: 209 }, 10, 19)).toEqual({ t: 6, l: 2, r: 2, top: 2, b: 2 });
-    // At least 1 px between the rim and the content cells.
+    expect(frameGeometry({ x: 400, y: 209, w: 200, h: 209 }, 10, 19)).toEqual({ t: 5, l: 2, r: 2, top: 2, b: 2 });
+    // At least 1 px between the band and the content cells.
     for (const [w, h] of [[9, 17], [10, 19], [7.2, 14], [6, 10], [12, 24]] as const) expect(frameInset(w, h) + frameThickness(h) / 1).toBeLessThanOrEqual(w - 1 + 1e-9);
+    // The corner brackets' arms: BRACKET bands, whole device px.
+    expect(frameArm({ t: 5, l: 2, r: 2, top: 2, b: 2 })).toBe(13);
+    expect(frameArm({ t: 5.5, l: 2, r: 2, top: 2, b: 2 }, 2)).toBe(14.5);
+    expect(frameArm({ t: 4.8, l: 2, r: 2, top: 2, b: 2 }, 1.25) * 1.25 % 1).toBe(0);
   });
 
-  it('snaps every edge of the rim to a whole device pixel of the page, at any position and ratio', () => {
+  it('snaps every edge of the band to a whole device pixel of the page, at any position and ratio', () => {
     for (const dpr of [1, 1.25, 1.5, 1.75, 2, 3]) {
       for (const [cw, chh] of [
         [9.03125, 17],
@@ -70,60 +68,91 @@ describe('frame', () => {
   });
 });
 
-describe('frame nameplate', () => {
-  it('hangs the plate from the rim round the title from the fourth cell, every edge on a device pixel', () => {
+describe('frame hood', () => {
+  it('centres the hood on the frame, the label plus HOOD_PAD cells either side, every edge on a device pixel', () => {
     for (const dpr of [1, 1.25, 1.5, 2]) {
       for (const [cw, chh] of [
         [10, 19],
         [9.03125, 17],
         [7.2, 14],
       ] as const) {
-        const box = { x: 3 + 40 * cw, y: 0.6 + 7 * chh, w: 33 * cw, h: 12 * chh };
-        const g = frameGeometry(box, cw, chh, dpr);
-        const p = framePlate(box, g, cw, chh, ' Character '.length, dpr)!;
-        expect(p).not.toBeNull();
-        const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
-        whole(box.x + g.l + p.x0);
-        whole(box.x + g.l + p.x1);
-        whole(box.y + g.top + p.y0);
-        whole(box.y + g.top + p.y1);
-        whole(p.r);
-        // its sides PLATE_PAD title advances outside the label's spaces, the same either side
-        const s = cw * TITLE_SCALE, xt = box.x + 3 * cw;
-        const left = xt - (box.x + g.l + p.x0), right = box.x + g.l + p.x1 - (xt + 11 * s);
-        expect(Math.abs(left - PLATE_PAD * s)).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
-        expect(Math.abs(right - PLATE_PAD * s)).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
-        // under the rim's lip at the top, hanging below the rim, clear of the first content row
-        expect(p.y0).toBeGreaterThan(0);
-        expect(p.y0).toBeLessThan(g.t);
-        expect(p.y1).toBeGreaterThan(g.t + p.r);
-        expect(g.top + p.y1).toBeLessThan(chh);
+        for (const col of [40, 41, 7]) {
+          for (const textW of [61.37, 40, 23.5]) {
+            const box = { x: 3 + col * cw, y: 0.6 + 7 * chh, w: 33 * cw, h: 12 * chh };
+            const g = frameGeometry(box, cw, chh, dpr);
+            const p = framePlate(box, g, cw, chh, textW, dpr)!;
+            expect(p).not.toBeNull();
+            const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
+            const fx = box.x + g.l, fy = box.y + g.top, fw = box.w - g.l - g.r;
+            whole(fx + p.x0);
+            whole(fx + p.x1);
+            whole(fy + p.y0);
+            whole(fy + p.y1);
+            whole(p.r);
+            // Centred: the same space either side, to the device px.
+            expect(Math.abs(p.x0 - (fw - p.x1))).toBeLessThan(1e-3);
+            // As wide as the label and its padding, at most two device px more (rounding up, then even).
+            const want = textW + 2 * HOOD_PAD * cw;
+            expect(p.x1 - p.x0).toBeGreaterThanOrEqual(want - 1e-6);
+            expect(p.x1 - p.x0).toBeLessThan(want + 2 / dpr + 1e-6);
+            // From the frame's top edge, hanging below the band, clear of the first content row.
+            expect(p.y0).toBe(0);
+            expect(p.y1).toBeGreaterThan(g.t + p.r);
+            expect(g.top + p.y1).toBeLessThan(chh);
+            // Its lower corners rounded, the straight sides at least a device px below the band.
+            expect(p.r).toBeGreaterThan(0);
+            expect(p.r).toBeLessThanOrEqual(HOOD_R + 0.5 / dpr);
+            // Clear of the corner brackets.
+            expect(p.x0).toBeGreaterThan(BRACKET * g.t);
+          }
+        }
       }
     }
   });
 
-  it('has no plate without a title or room for one; it stays clear of the corners', () => {
-    const box = { x: 0, y: 0, w: 90, h: 85 };
-    const g = frameGeometry(box, 9, 17);
-    expect(framePlate(box, g, 9, 17, 0)).toBeNull();
-    expect(framePlate(box, g, 9, 17, 1)).toBeNull();
-    // a long title clamps clear of the right corner: the fillet and a px of rim before it
-    const narrow = { x: 0, y: 0, w: 63, h: 85 };
-    const gn = frameGeometry(narrow, 9, 17);
-    const pn = framePlate(narrow, gn, 9, 17, 12)!;
-    expect(63 - 2 - 2 - 6 - pn.x1).toBe(pn.r + 1);
+  it('has no hood without a label or room for one; the label is shortened to fit', () => {
+    const box = { x: 0, y: 0, w: 300, h: 85 };
+    const g = frameGeometry(box, 10, 19);
+    expect(framePlate(box, g, 10, 19, 0)).toBeNull();
+    const room = hoodRoom(box, g, 10);
+    // 296 px of frame less two brackets (13) and a cell each, and the hood's padding.
+    expect(room).toBeCloseTo(296 - 2 * (13 + 10) - 2 * HOOD_PAD * 10, 6);
+    expect(framePlate(box, g, 10, 19, room)).not.toBeNull();
+    expect(framePlate(box, g, 10, 19, room + 0.5)).toBeNull();
+    // A narrow pane has no room: no hood.
+    const narrow = { x: 0, y: 0, w: 70, h: 85 };
+    expect(hoodRoom(narrow, frameGeometry(narrow, 10, 19), 10)).toBe(0);
+    // fitTitle: whole when it fits, else shortened with an ellipsis, never under two letters.
+    const m = (s: string): number => [...s].length * 10;
+    expect(fitTitle(' Character ', 100, m)).toBe('Character');
+    expect(fitTitle('Character', 60, m)).toBe('Chara…');
+    expect(fitTitle('Character', 30, m)).toBe('Ch…');
+    expect(fitTitle('Character', 29, m)).toBe('');
+    expect(fitTitle('', 100, m)).toBe('');
+    expect(fitTitle('UI', 0, m)).toBe('');
   });
 
-  it('cuts the plate and its fillets out of the hole; the rim is the outer edge and the hole', () => {
-    const p = { x0: 24, x1: 63, y0: 2, y1: 15, r: 4 };
-    expect(frameHolePath(86, 81, 6, null)).toBe('M6 6H80V75H6Z');
-    expect(frameHolePath(86, 81, 6, p)).toBe('M6 6H20A4 4 0 0 1 24 10V11A4 4 0 0 0 28 15H59A4 4 0 0 0 63 11V10A4 4 0 0 1 67 6H80V75H6Z');
-    expect(frameHolePath(86, 81, 6, null, -6, -6)).toBe('M0 0H74V69H0Z');
-    expect(frameRimPath(86, 81, 6, null)).toBe('M4 0H82A4 4 0 0 1 86 4V77A4 4 0 0 1 82 81H4A4 4 0 0 1 0 77V4A4 4 0 0 1 4 0ZM6 6H80V75H6Z');
-    // The seam: dark left, top and all round the plate (its bottom too, item 54); light right and bottom.
-    const s = frameSeams(86, 81, 6, p);
-    expect(s.dark).toBe('M6 75V6H20A4 4 0 0 1 24 10V11A4 4 0 0 0 28 15H59A4 4 0 0 0 63 11V10A4 4 0 0 1 67 6H80');
-    expect(s.light).toBe('M80 6V75H6');
+  it('cuts the hood out of the hole; the band is the outer edge and the hole', () => {
+    const p = { x0: 24, x1: 63, y0: 0, y1: 15, r: 6 };
+    expect(frameHolePath(86, 81, 5, null)).toBe('M5 5H81V76H5Z');
+    expect(frameHolePath(86, 81, 5, p)).toBe('M5 5H24V9A6 6 0 0 0 30 15H57A6 6 0 0 0 63 9V5H81V76H5Z');
+    expect(frameHolePath(86, 81, 5, null, -5, -5)).toBe('M0 0H76V71H0Z');
+    expect(frameRimPath(86, 81, 5, null)).toBe('M3 0H83A3 3 0 0 1 86 3V78A3 3 0 0 1 83 81H3A3 3 0 0 1 0 78V3A3 3 0 0 1 3 0ZM5 5H81V76H5Z');
+    // A hood shallower than its radius: the corners take what there is.
+    expect(frameHolePath(86, 81, 5, { ...p, y1: 9 })).toBe('M5 5H24V5A4 4 0 0 0 28 9H59A4 4 0 0 0 63 5V5H81V76H5Z');
+    // The seam: dark left, top and all round the hood; light right and bottom.
+    const s = frameSeams(86, 81, 5, p);
+    expect(s.dark).toBe('M5 76V5H24V9A6 6 0 0 0 30 15H57A6 6 0 0 0 63 9V5H81');
+    expect(s.light).toBe('M81 5V76H5');
+  });
+
+  it('measures the title in its own font (an estimate until the face loads)', () => {
+    expect(titlePx(19)).toBe(11.75);
+    expect(titlePx(17)).toBe(10.5);
+    expect(estimateTitleWidth('', 12)).toBe(0);
+    expect(estimateTitleWidth('Comm', 10)).toBeCloseTo(10 * (4 * 0.66 + 3 * TITLE_TRACK), 6);
+    // happy-dom loads no face: the estimate.
+    expect(titleWidth(document, 'Comm', 10)).toBeCloseTo(estimateTitleWidth('Comm', 10), 6);
   });
 });
 
@@ -132,34 +161,45 @@ describe('PaneShell', () => {
     const p = new PaneShell(createPaneContext({ doc: document }), 'comm');
     const sizes: [number, number][] = [];
     p.onResize((c, r) => sizes.push([c, r]));
-    const rect = { x: 2, y: 3, w: 10, h: 5 };
-    p.place({ rect, content: { x: 3, y: 4, w: 8, h: 3 }, framed: true }, { w: 9, h: 17 });
+    const rect = { x: 2, y: 3, w: 20, h: 5 };
+    p.place({ rect, content: { x: 3, y: 4, w: 18, h: 3 }, framed: true }, { w: 9, h: 17 });
     expect(p.el.hidden).toBe(false);
     expect(p.el.style.left).toBe('18px');
     expect(p.el.style.top).toBe('51px');
-    expect(p.el.style.width).toBe('90px');
+    expect(p.el.style.width).toBe('180px');
     expect(p.content.style.left).toBe('9px');
     expect(p.content.style.height).toBe('51px');
-    expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe(' Comm ');
+    expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('Comm');
     expect(p.el.hasAttribute('data-framed')).toBe(true);
-    expect(p.el.style.getPropertyValue('--frame-t')).toBe('6px');
+    expect(p.el.querySelector('.wc-pane-blur')).toBeNull();
+    expect(p.el.style.getPropertyValue('--frame-t')).toBe('5px');
+    expect(p.el.style.getPropertyValue('--frame-arm')).toBe('13px');
+    expect(p.el.style.getPropertyValue('--title-px')).toBe('10.5px');
     expect(['l', 'r', 'top', 'b'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual(['2px', '2px', '2px', '2px']);
-    // The nameplate for ' Comm ' (frame-box px), the fill's clip round it and the rim's clip.
-    expect(['x0', 'x1', 'y0', 'y1', 'r'].map((k) => p.el.style.getPropertyValue(`--plate-${k}`))).toEqual(['24px', '63px', '2px', '12px', '3px']);
-    const hole = 'M6 6H21A3 3 0 0 1 24 9V9A3 3 0 0 0 27 12H60A3 3 0 0 0 63 9V9A3 3 0 0 1 66 6H80V75H6Z';
+    // The hood for 'Comm' (the estimate: 30.24 px) centred on the 176 px frame (frame-box px), the window's clip round it and the band's.
+    expect(['x0', 'x1', 'y0', 'y1', 'r'].map((k) => p.el.style.getPropertyValue(`--plate-${k}`))).toEqual(['60px', '116px', '0px', '12px', '6px']);
+    expect(p.titleEnd).toBe(118);
+    const hole = 'M5 5H60V6A6 6 0 0 0 66 12H110A6 6 0 0 0 116 6V5H171V76H5Z';
     expect(p.el.style.getPropertyValue('--frame-hole')).toBe(`path("${hole}")`);
+    expect(p.el.style.getPropertyValue('--frame-window')).toBe('path("M0 0H55V1A6 6 0 0 0 61 7H105A6 6 0 0 0 111 1V0H166V71H0Z")');
     const rim = p.el.querySelector<HTMLElement>('.wc-pane-rim')!;
     expect(rim.style.clipPath).toContain(hole);
-    expect(rim.querySelector('.wc-seam-light')!.getAttribute('d')).toBe('M80 6V75H6');
-    expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
+    expect(rim.querySelector('.wc-seam-light')!.getAttribute('d')).toBe('M171 5V76H5');
+    expect([p.cols, p.rows, p.visible]).toEqual([18, 3, true]);
+    // Too narrow for a hood: no title.
+    p.place({ rect: { ...rect, w: 8 }, content: { x: 3, y: 4, w: 6, h: 3 }, framed: true }, { w: 9, h: 17 });
+    expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');
+    expect(p.el.style.getPropertyValue('--plate-x0')).toBe('');
+    expect(p.titleEnd).toBe(0);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');
     expect(p.el.hasAttribute('data-framed')).toBe(false);
     p.place(null, { w: 9, h: 17 });
     expect(p.el.hidden).toBe(true);
     expect(sizes).toEqual([
-      [8, 3],
-      [10, 5],
+      [18, 3],
+      [6, 3],
+      [20, 5],
       [0, 0],
     ]);
   });
