@@ -296,7 +296,11 @@ text that is hard to read; anything that feels slower than before.
 Known open items: Character's dim labels on a light pane are faint
 (1.8–3.8:1; the light shade ramp, from before this stage); a clear
 Character pane over a bright day sky has low-contrast dim labels (the
-clear background's trait, ADR 0095).
+clear background's trait, ADR 0095). In Firefox a frame that paints costs
+1–3 ms more than before (the iron band's layers; "Performance (40d)"):
+say if Firefox feels any slower. The full e2e run had three load flakes
+(Firefox `layout` dock structure, Chromium `script-editor` Ctrl+F, phone
+About scrollbar drag), all passing alone.
 
 ## Owner feedback
 
