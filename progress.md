@@ -45,7 +45,7 @@ Released 0.2.5 (stage 39: Group and Timers panes in a modern look, ADR 0122: fig
 | 37 | Profile editor LITE keys | Done | `docs/stages/37-profile-lite-keys.md` |
 | 38 | Scripts page | Done | `docs/stages/38-scripts-page.md` |
 | 39 | Group and Timers panes | Done | `docs/stages/39-group-timers.md` |
-| 40 | Lantern pane look | Owner testing | `docs/stages/40-lantern-panes.md` |
+| 40 | Lantern pane look | Done | `docs/stages/40-lantern-panes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

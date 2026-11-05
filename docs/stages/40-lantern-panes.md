@@ -1,6 +1,6 @@
 # Stage 40 — Lantern pane look ("Lykta")
 
-Status: **Owner testing** (built 2026-11-05/06).
+Status: **Done** (2026-11-06). Released in 0.2.6.
 
 ## Goal
 
@@ -321,4 +321,9 @@ About scrollbar drag), all passing alone.
   page a tint becomes a pale wash of its hue**, as light as the page,
   instead of today's dark fill (keeps the text contrast; Comm lifts
   yellow and cyan to 4.5:1).
+- **2026-11-06, owner test:** "Jag har testat snabbt och är mycket nöjd."
+  One fix asked for on Paper: the band's dark outer edge must run on over
+  the top of the hood (it stopped at the hood). Fixed (2e56bfa) for the
+  hood, the hover shelf and the label fade, dark and Paper. Further polish
+  later; the Firefox paint cost of the band is accepted for now.
 
