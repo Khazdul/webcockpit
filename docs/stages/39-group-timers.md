@@ -1,6 +1,6 @@
 # Stage 39 — Group and Timers panes: modern look
 
-Status: **Owner testing** (built 2026-11-04).
+Status: **Done** (2026-11-05). Released in 0.2.5.
 
 ## Goal
 

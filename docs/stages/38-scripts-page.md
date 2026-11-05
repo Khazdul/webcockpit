@@ -1,6 +1,6 @@
 # Stage 38 — Scripts page: framed detail, editable settings, readable help
 
-Status: **Done** (2026-11-04). Merged to main, not released yet.
+Status: **Done** (2026-11-04). Released in 0.2.5.
 
 ## Goal
 
