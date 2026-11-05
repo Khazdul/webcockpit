@@ -412,3 +412,19 @@ track colours) and decides the "Paper" state above.
   the shelf and set; `map-background`: Transparent follows the wash).
 - Screenshots: `docs/stages/img/40c-*.png` (the p1–p3 proposal shots are
   kept: they record the choice).
+
+## Performance (stage 40d, 2026-11-06)
+
+Measured against main in Chromium and Firefox at ratio 1 and 2, weather
+off, rain and snow, Group/Timers updates and the GMCP play and burst
+benches (table: `docs/stages/40-lantern-panes.md` "Performance (40d)").
+Chromium is at main's level or better (software compositing 23 → 56 fps
+with rain, the blur strips gone). One regression fixed: the hood-cover
+rules' `:not(:has(> .wc-drag-shield…))` guard cost Chromium ≈ 1.7 ms per
+output flush; the cockpit now carries `data-shield` during a drag and
+every drag rule in layout.css reads it instead of `:has()`. Open: in
+headless (software) Firefox a frame that paints costs ≈ 1–3 ms more
+(Group update + 0.9, Timers tick + 2–3, text frames + 1), mostly the
+band's fourteen background layers (diagonal bracket gradients, the
+full-height sheen) and the window's lamp gradients; all well inside a
+frame, and not changed without changing the look.
