@@ -2,7 +2,15 @@
  * cell grid: a one-line row is one cell high, a two-line member and each
  * line of the fight zone too. Colours: the pane's shade ramp (`--gp-*`,
  * set per render from paneShade) for text and lines; the icons and bars
- * carry their own colour inline. */
+ * carry their own colour inline.
+ *
+ * The lantern look (ADR 0123, stage 40b): the fight card and every member
+ * row are frosted glass catching the pane's lamp (`--frost*`, layout.css),
+ * on `--card-back` (a clear pane's backing); the bars are glossy tubes in a
+ * dark recessed track. All of it is static paint on elements that do not
+ * change on a tick: a value moves only a fill (a transform) or sets a text.
+ * A member card is the row's `::before`, inset from the row's cell box, so
+ * the cards have air between them and the rows keep their cell grid. */
 
 .wc-gp {
   /* The pane content has a fixed size and clips (layout.css): a change in
@@ -10,6 +18,19 @@
   contain: strict;
   --gp-row: var(--cell-h, 17px);
   --gp-hover: color-mix(in srgb, var(--gp-text, #ccc) 7%, transparent);
+  /* Frosted glass: the lamp from above, a lit top edge, a faint rim and a
+   * small shadow under it. */
+  --gp-card: linear-gradient(180deg, var(--frost), var(--frost2)), var(--card-back, transparent);
+  --gp-card-hover: linear-gradient(180deg, color-mix(in srgb, var(--lamp) 16%, transparent), color-mix(in srgb, var(--lamp) 8%, transparent)), var(--card-back, transparent);
+  --gp-card-edge:
+    inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent),
+    inset 0 0 0 1px var(--frost2),
+    0 1px 2px rgb(0 0 0 / 0.45);
+  /* The tube's track: dark and recessed, a lamp-lit lip under it. */
+  --gp-trk: rgb(0 0 0 / 0.55);
+  --gp-trk-edge: inset 0 1px 1px rgb(0 0 0 / 0.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent);
+  /* The fill's gloss over its own colour: a highlight on top, a shade below. */
+  --gp-gloss: linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.15));
   display: flex;
   flex-direction: column;
   white-space: nowrap;
@@ -45,9 +66,43 @@
   height: calc(var(--gp-row) * 2);
 }
 
-.wc-gp-m2:hover,
-.wc-gp-m1:hover {
-  background: var(--gp-hover);
+/* The member's card: behind the row's content (the row is its own
+ * stacking context), a pixel in from the top and two from the bottom of
+ * the row's cells. */
+.wc-gp-m2,
+.wc-gp-m1 {
+  position: relative;
+  isolation: isolate;
+}
+
+.wc-gp-m2::before,
+.wc-gp-m1::before {
+  content: '';
+  position: absolute;
+  inset: 1px 0 2px;
+  z-index: -1;
+  border-radius: 4px;
+  background: var(--gp-card);
+  box-shadow: var(--gp-card-edge);
+  pointer-events: none;
+}
+
+/* A one-line row's card is a cell high: a pixel of air each side. */
+.wc-gp-m1::before {
+  inset: 1px 0;
+  border-radius: 3px;
+}
+
+/* The name line sits a pixel lower, clear of the card's lit top edge (no
+ * layout: a relative offset). */
+.wc-gp-m2 > .wc-gp-l1 {
+  position: relative;
+  top: 1px;
+}
+
+.wc-gp-m2:hover::before,
+.wc-gp-m1:hover::before {
+  background: var(--gp-card-hover);
 }
 
 .wc-gp-l1 {
@@ -88,8 +143,9 @@
 .wc-gp-tag {
   flex: none;
   padding: 0 0.4em;
-  border: 1px solid var(--gp-line);
+  border: 1px solid var(--frost-edge, var(--gp-line));
   border-radius: 3px;
+  background: rgb(0 0 0 / 0.3);
   color: var(--gp-label);
   font-size: 0.72em;
   line-height: 1.35;
@@ -125,7 +181,7 @@
   width: 1px;
   height: calc(var(--gp-row) * 0.65);
   margin: 0 3px;
-  background: var(--gp-line);
+  background: var(--frost-edge, var(--gp-line));
 }
 
 .wc-gp-ic {
@@ -158,8 +214,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  /* The shared ring (icons.css): the pane's track, a dimmer unknown arc. */
-  --ring-track: var(--gp-track);
+  /* The shared ring (icons.css): a dark recessed track, a dimmer unknown arc. */
+  --ring-track: var(--gp-trk);
   --ring-unknown-opacity: 0.6;
 }
 
@@ -200,7 +256,8 @@
   height: max(4px, calc(var(--gp-row) * 0.3));
   overflow: hidden;
   border-radius: 3px;
-  background: var(--gp-track);
+  background: var(--gp-trk);
+  box-shadow: var(--gp-trk-edge);
 }
 
 /* The fill is as wide as its track and slides left by what is missing
@@ -211,6 +268,8 @@
   width: 100%;
   height: 100%;
   border-radius: 3px;
+  /* Over the bar's colour (set inline as background-color). */
+  background-image: var(--gp-gloss);
   transform: translateX(calc((var(--p, 0) - 100) * 1%));
   transition: transform 0.4s;
 }
@@ -270,13 +329,19 @@
   height: calc(var(--gp-row) * 3);
   /* Half a row of gap to the members (no divider; owner round 1). */
   margin-bottom: calc(var(--gp-row) * 0.5);
-  border: 1px solid var(--gp-line);
+  /* A brighter card: the side tints (the tank gold, the opponent red) over
+   * the frost, its rim lit. */
+  --gp-sides: linear-gradient(90deg, rgb(232 195 90 / 0.07), transparent 45%, transparent 55%, rgb(255 77 77 / 0.08));
+  border: 1px solid var(--frost-edge, var(--gp-line));
   border-radius: 5px;
-  background: linear-gradient(90deg, rgb(232 195 90 / 0.07), transparent 45%, transparent 55%, rgb(255 77 77 / 0.08));
+  background: var(--gp-sides), var(--gp-card);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent),
+    0 1px 3px rgb(0 0 0 / 0.5);
 }
 
 .wc-gp[data-light] .wc-gp-fight {
-  background: linear-gradient(90deg, rgb(143 106 0 / 0.08), transparent 45%, transparent 55%, rgb(196 32 32 / 0.07));
+  --gp-sides: linear-gradient(90deg, rgb(143 106 0 / 0.08), transparent 45%, transparent 55%, rgb(196 32 32 / 0.07));
 }
 
 .wc-gp-fs {
@@ -317,20 +382,24 @@
   height: var(--gp-row);
 }
 
+.wc-gp-fbar .wc-gp-trk,
+.wc-gp-fbar .wc-gp-fill {
+  border-radius: 4px;
+}
+
 .wc-gp-fbar .wc-gp-trk {
   height: max(6px, calc(var(--gp-row) * 0.45));
-  border-radius: 4px;
 }
 
 /* You tank: the opponent alone fills the card (its bar from the left). */
 .wc-gp-fight.is-solo {
   grid-template-columns: minmax(0, 1fr);
   padding: 0 0.3em;
-  background: linear-gradient(90deg, rgb(255 77 77 / 0.08), transparent 70%);
+  --gp-sides: linear-gradient(90deg, rgb(255 77 77 / 0.08), transparent 70%);
 }
 
 .wc-gp[data-light] .wc-gp-fight.is-solo {
-  background: linear-gradient(90deg, rgb(196 32 32 / 0.07), transparent 70%);
+  --gp-sides: linear-gradient(90deg, rgb(196 32 32 / 0.07), transparent 70%);
 }
 
 .wc-gp-fs.is-solo .wc-gp-ft {
@@ -354,7 +423,8 @@
   width: 100%;
   height: max(4px, calc(var(--gp-row) * 0.3));
   border-radius: 3px;
-  background: var(--gp-track);
+  background: var(--gp-trk);
+  box-shadow: var(--gp-trk-edge);
 }
 
 .wc-gp-fsub {
@@ -386,14 +456,21 @@
   justify-content: center;
   width: calc(var(--gp-row) * 1.5);
   height: calc(var(--gp-row) * 1.5);
-  border: 1px solid var(--gp-line);
+  box-sizing: border-box;
+  border: 1px solid var(--frost-edge, var(--gp-line));
   border-radius: 50%;
-  color: var(--gp-label);
-  font-size: 0.7em;
+  /* A small medallion: dark glass lit from above, its letters in the lamp. */
+  background:
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lamp) 30%, transparent), transparent 70%),
+    rgb(0 0 0 / 0.4);
+  color: color-mix(in srgb, var(--lamp) 60%, #ddd);
+  font-family: "Cinzel", Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  font-size: 0.68em;
   letter-spacing: 0.04em;
 }
 
-/* The one-line fight strip. */
+/* The one-line fight strip: a card like the fight zone's, a cell high. */
 .wc-gp-fstrip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
@@ -401,25 +478,53 @@
   gap: 0.4em;
   height: var(--gp-row);
   /* No divider (owner round 1): a faint tint tells it from the members. */
+  --gp-sides: linear-gradient(90deg, rgb(232 195 90 / 0.07), transparent 45%, transparent 55%, rgb(255 77 77 / 0.08));
   border-radius: 3px;
-  background: linear-gradient(90deg, rgb(232 195 90 / 0.07), transparent 45%, transparent 55%, rgb(255 77 77 / 0.08));
+  background: var(--gp-sides), var(--gp-card);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent),
+    inset 0 0 0 1px var(--frost-edge),
+    0 1px 2px rgb(0 0 0 / 0.45);
 }
 
 .wc-gp[data-light] .wc-gp-fstrip {
-  background: linear-gradient(90deg, rgb(143 106 0 / 0.08), transparent 45%, transparent 55%, rgb(196 32 32 / 0.07));
+  --gp-sides: linear-gradient(90deg, rgb(143 106 0 / 0.08), transparent 45%, transparent 55%, rgb(196 32 32 / 0.07));
 }
 
 /* You tank: the foe icon, its name, a full-width bar. */
 .wc-gp-fstrip.is-solo {
   grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr);
-  background: linear-gradient(90deg, rgb(255 77 77 / 0.08), transparent 70%);
+  --gp-sides: linear-gradient(90deg, rgb(255 77 77 / 0.08), transparent 70%);
 }
 
 .wc-gp[data-light] .wc-gp-fstrip.is-solo {
-  background: linear-gradient(90deg, rgb(196 32 32 / 0.07), transparent 70%);
+  --gp-sides: linear-gradient(90deg, rgb(196 32 32 / 0.07), transparent 70%);
 }
 
 .wc-gp-svs {
   color: var(--gp-mid);
   font-size: 0.7em;
+}
+
+/* A light pane (Paper, stage 40c designs it): the tracks keep the pane's
+ * own track colour and no recess, so they do not turn into black slots. */
+.wc-gp[data-light] {
+  --gp-trk: var(--gp-track);
+  --gp-trk-edge: none;
+  --gp-gloss: linear-gradient(180deg, rgb(255 255 255 / 0.3), rgb(255 255 255 / 0) 55%);
+  --gp-card-edge:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    inset 0 0 0 1px color-mix(in srgb, var(--gp-line) 60%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.wc-gp[data-light] .wc-gp-tag {
+  border-color: var(--gp-line);
+  background: transparent;
+}
+
+.wc-gp[data-light] .wc-gp-vsm {
+  border-color: var(--gp-line);
+  background: rgb(255 255 255 / 0.35);
+  color: var(--gp-label);
 }
