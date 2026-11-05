@@ -42,8 +42,14 @@
  * Tokens, on every pane (derived from `--pane-border`, `--pane-bg` and
  * `--pane-fill`, src/theme/apply.ts `paneTokens`; one formula for every
  * tint; Plain and Grey have chroma 0, so their lamp is candle light):
- *   --lamp        the tint's hue at L .72, C min(c × 8, .12), mixed 62 % with
- *                 a warm candle white (#ffd79a). Every value stays inside sRGB.
+ *   --lamp        candle light, coloured by the tint: in oklab at L .78, the
+ *                 candle (C .085 at h 70) plus the border's hue at C .06,
+ *                 both weighted by `--lamp-w` (the border's chroma × 60, at
+ *                 most 1): a grey border (Plain, Grey) gives the candle
+ *                 alone; a tint its own hue over 40 % of the candle, so the
+ *                 light is coloured but restrained (and a hue opposite the
+ *                 candle, blue, is not cancelled to grey). Mixed in oklab
+ *                 (a + b), so no hue wraps. Every value stays inside sRGB.
  *   --iron        L .25, C min(c × 3, .03) in the hue: the band and hood
  *   --iron-hi     L .42, C min(c × 3, .035): lit edges, brackets
  *   --iron-lo     L .14, C min(c × 3, .02): shadowed edges, rivets
@@ -58,7 +64,12 @@
  * it is all static paint, repainted only when a pane is placed or its
  * theme changes. */
 .wc-pane {
-  --lamp: color-mix(in srgb, oklch(from var(--pane-border) 0.72 min(calc(c * 8), 0.12) h) 62%, #ffd79a);
+  --lamp-w: min(hypot(a, b) * 60, 1);
+  --lamp: oklab(
+    from var(--pane-border) 0.78
+      calc(a / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0291 * (1 - 0.6 * var(--lamp-w)))
+      calc(b / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0799 * (1 - 0.6 * var(--lamp-w)))
+  );
   --iron: oklch(from var(--pane-border) 0.25 min(calc(c * 3), 0.03) h);
   --iron-hi: oklch(from var(--pane-border) 0.42 min(calc(c * 3), 0.035) h);
   --iron-lo: oklch(from var(--pane-border) 0.14 min(calc(c * 3), 0.02) h);
