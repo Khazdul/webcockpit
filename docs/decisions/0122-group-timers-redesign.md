@@ -322,3 +322,28 @@ After the owner's first test of the build:
   its own colour, the fill's rhythm), in bars and circles: a long timer's
   remaining fill is a sliver. Every timed item crosses `warnAt` the same
   way; untimed items and charmies never pulse.
+
+### Addendum (2026-11-05): performance
+
+The owner asked for the pane cost to come as close to main as possible
+before the release. Kept, measured against main's cell-grid panes:
+
+- **Group rows keep their structure.** `memberSig` / `fightSig` cover
+  only what is built; a row's values (bar fills and tooltips, a timed
+  sanctuary's ring and time, the fight card's numbers and word) are set in
+  place by the row's setters on every render. A new vital no longer
+  rebuilds the row.
+- **Fills need no layout.** Group bars are a full-width fill slid by
+  `translateX` from `--p` (their 0.4 s transition is a transform, run by
+  the compositor; it was a `width` transition that laid out every frame).
+  A Timers pill's fill is one childless element painted from its `--p`
+  (no clip element), in half-percent steps, so a long timer's fill changes
+  every few seconds rather than every tick.
+- **Live tooltips.** A countdown's tooltip text is read when shown and on
+  `refresh` (`setLiveTip`), so the 1 Hz tick writes no attributes.
+- **Containment.** The Group content and the Timers root are
+  `contain: strict` (both have a fixed size and clip).
+- Tried and dropped: a `clip-path` or `width` fill, a `will-change`
+  layer, and a fixed-size time text (no gain, or a loss); dropping the
+  Group bar transition (saves about 0.4 ms per update in Firefox, but the
+  transition is part of the approved look).

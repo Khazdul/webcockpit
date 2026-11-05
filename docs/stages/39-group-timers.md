@@ -176,6 +176,31 @@ på detta" — approved, with a code review and a performance check first.
     Chromium 2.3 → 3.8 ms (5.4 before); the Timers tick's pane script
     about 1.0 → 2.5 ms once a second. No long tasks; the worst frame
     measured 8–9 ms, under the 16.7 ms frame.
-- **Tests:** unit 3165 passed; e2e 726/728 in the full run, the two
-  Firefox failures (layout drag cursor, Scripts import) pass 78/78 on a
-  re-run and are outside this stage.
+- **Optimised further** (owner: "Optimera mer först"; ADR 0122 addendum
+  "performance"): Group rows set their values in place (a new vital no
+  longer rebuilds the row), bar fills slide by a transform (the 0.4 s
+  transition no longer lays out every frame), Timers pill fills are one
+  painted element in half-percent steps, countdown tooltips are live (the
+  tick writes no attributes), both panes are `contain: strict`. Medians,
+  main / before / after (ms):
+
+  | Measure | Firefox | Chromium |
+  |---|---|---|
+  | Frame after a fight update | 1.1 / 2.0 / 1.8 | 2.3 / 3.6 / 2.4 |
+  | Frame after a Group.Update | 1.0 / 2.1 / 1.9 | 2.4 / 3.9 / 2.3 |
+  | Main-thread time per update (Chromium trace) | – | 3.4 / 4.7–5.2 / 3.5–3.9 |
+  | Timers tick, forced 250 ticks: frame after | 0.34 / 1.52 / 1.42 | 1.4 / 2.1 / 1.5–2.1 |
+  | Timers tick: main-thread time per tick | – | 2.9 / 4.0 / 3.4–3.8 |
+  | Play with GMCP: text frames with a pane render, median / p95 | 3.1–3.5 / 6.4–6.6 → 3.4–4.5 / 8.7–9.1 → 2.3 / 5.2 | 2.9–3.8 / 6.0–6.1 → 4.8 / 7.6–8.8 → 4.8 / 6.4 |
+  | Keys under load, input delay p95 | unchanged | unchanged |
+
+  Group updates in Chromium are now at main's level; Firefox and the
+  Timers tick still cost a little more (more DOM to restyle and paint: a
+  fill or a ring that moves each second), well under a frame. No long
+  tasks.
+- **Tests:** unit 3168 passed; e2e 726/728 in the full run before the
+  optimisation (the two Firefox failures, layout drag cursor and Scripts
+  import, pass 78/78 on a re-run and are outside this stage); after it the
+  pane specs (timers, timers-trackers, group-pane, gmcp-panes, pane-gear,
+  underscores, scrolling, viewer, replay) pass 104/104 in Chromium and
+  Firefox.
