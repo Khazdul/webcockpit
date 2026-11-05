@@ -86,7 +86,7 @@ test('hovering a pane shows Colour, Border and Background left of the cross; cli
   expect(errors).toEqual([]);
 });
 
-test('the look buttons hide while a pane is dragged, and a narrow pane drops them from the left', async ({ page }) => {
+test('the look buttons hide while a pane is dragged; a narrow pane lays them over the hood, a narrower drops them from the left', async ({ page }) => {
   const { cw, ch } = await open(page);
   // Drag Timers by its title row: the buttons go with the cross.
   const t = await box(page, '.wc-pane-timers');
@@ -100,31 +100,65 @@ test('the look buttons hide while a pane is dragged, and a narrow pane drops the
   await page.mouse.up();
   await expect(page.locator('.wc-drag-shield')).toBeHidden();
 
-  // A narrow lane of its own: Colour goes first, the cross stays.
-  await page.evaluate(() =>
-    window.__wc!.settings.update((d) => {
-      const R = d.layout.docks.right;
-      const all = [...R.head, ...R.lanes.flatMap((l) => l.panes), ...R.tail];
-      R.head = [];
-      R.tail = [];
-      R.lanes = [
-        { size: 30, panes: all.filter((p) => p.id !== 'timers') },
-        { size: 17, panes: all.filter((p) => p.id === 'timers') },
-      ];
-    }),
-  );
+  // A narrow lane of its own (ADR 0123 "Hood position and hover buttons"): the hood, moved left as far as it
+  // goes (its left edge at the fourth cell), still reaches under the set: every button shows, over the
+  // hood's right part, on an iron shelf, the label faded before it. At rest the hood and label are whole.
+  const lane = (size: number) =>
+    page.evaluate((n) =>
+      window.__wc!.settings.update((d) => {
+        const R = d.layout.docks.right;
+        const all = [...R.head, ...R.lanes.flatMap((l) => l.panes), ...R.tail];
+        R.head = [];
+        R.tail = [];
+        R.lanes = [
+          { size: 30, panes: all.filter((p) => p.id !== 'timers') },
+          { size: n, panes: all.filter((p) => p.id === 'timers') },
+        ];
+      }),
+    size);
+  const after = (sel: string) => page.locator(sel).evaluate((el) => getComputedStyle(el, '::after').display);
+  await lane(17);
+  await page.mouse.move(2, 2);
+  const pane = page.locator('.wc-pane-timers');
+  await expect(pane).toHaveAttribute('data-hood-cover', /^(all)?$/);
+  const p17 = await box(page, '.wc-pane-timers');
+  const hood = await box(page, '.wc-pane-timers .wc-pane-title');
+  expect(hood.x - p17.x).toBeCloseTo(3 * cw, 0);
+  expect(await after('.wc-pane-timers > .wc-pane-frame')).toBe('none');
+  await expect(page.locator('.wc-pane-timers .wc-pane-title > span')).toHaveCSS('opacity', '1');
+  await hover(page, 'timers');
+  const all = page.locator('.wc-pane-timers > .wc-pane-btn');
+  for (const b of await all.all()) await expect(b).toBeVisible();
+  expect(await after('.wc-pane-timers > .wc-pane-frame')).toBe('block');
+  expect(await after('.wc-pane-timers .wc-pane-title')).toBe('block');
+  // The shelf from where the set begins; the set centred on the hood's depth, never past its rivet.
+  const shelf = await pane.evaluate((el) => {
+    const f = el.querySelector('.wc-pane-frame')!;
+    const r = f.getBoundingClientRect();
+    const cs = getComputedStyle(f, '::after');
+    return { x: r.left + parseFloat(cs.left), w: parseFloat(cs.width), h: parseFloat(cs.height) };
+  });
+  const first = await box(page, '.wc-pane-timers > .wc-pane-btn-gear');
+  expect(shelf.x).toBeCloseTo(first.x, 1);
+  expect(shelf.h).toBeCloseTo(hood.height, 1);
+  expect(first.x).toBeGreaterThan(hood.x + cw);
+  const x17 = await box(page, '.wc-pane-timers > .wc-pane-close');
+  expect(x17.y).toBeCloseTo(hood.y, 1);
+  expect(x17.height).toBeCloseTo(hood.height, 1);
+  // Narrower: the buttons that would cover the hood's left end drop, the Gear first; the cross stays.
+  await lane(14);
   await page.mouse.move(2, 2);
   await hover(page, 'timers');
   await expect(page.locator('.wc-pane-timers > .wc-pane-close')).toBeVisible();
-  await expect(page.locator('.wc-pane-timers > .wc-pane-btn-color')).toBeHidden();
+  await expect(page.locator('.wc-pane-timers > .wc-pane-btn-gear')).toBeHidden();
   // What stays is the buttons next to the cross.
   const drops = await page.locator('.wc-pane-timers > .wc-pane-btn').evaluateAll((els) => els.map((e) => e.hasAttribute('data-drop')));
   expect(drops[0]).toBe(true);
   expect(drops).toEqual([...drops].sort().reverse());
-  // Never over the nameplate.
+  // Never over the hood's left end and rivet.
   const plate = await box(page, '.wc-pane-timers .wc-pane-title');
   const shown = page.locator('.wc-pane-timers > .wc-pane-btn:visible');
-  for (const b of await shown.all()) expect((await b.boundingBox())!.x).toBeGreaterThanOrEqual(plate.x + plate.width);
+  for (const b of await shown.all()) expect((await b.boundingBox())!.x).toBeGreaterThanOrEqual(plate.x + 1.4 * cw - 0.5);
 });
 
 test('a script pane made without a cross has no look buttons; the built-in panes have them', async ({ page }) => {
