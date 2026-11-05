@@ -32,15 +32,20 @@
   --tm-rule: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 38%, transparent), transparent 85%);
 }
 
-/* A light pane (Paper; stage 40c designs it): the old tints, a softer
- * shadow, the header in the text colour over the pane's line. */
+/* A light pane (Paper, ADR 0123 "Paper"): a chip is raised paper (a warm
+ * near-white, no lit edge, a soft warm shadow), the header in the pane's
+ * dark ink (layout.css `--ink`) over a rule in the metal's shadow. */
 .wc-tm[data-light] {
-  --tm-tint: 20%;
+  --tm-tint: 22%;
   --tm-edge: 50%;
-  --tm-lit: inset 0 1px 0 rgb(255 255 255 / 0.5);
-  --tm-drop: 0 1px 2px rgb(0 0 0 / 0.12);
-  --tm-head: var(--tm-fg);
-  --tm-rule: var(--tm-line);
+  --tm-card: color-mix(in srgb, #fffdf8 92%, var(--card-back, transparent));
+  --tm-lit: 0 0 transparent;
+  --tm-drop: 0 1px 2px rgb(60 40 10 / 0.22);
+  --tm-head: var(--ink, var(--tm-fg));
+  --tm-rule: linear-gradient(90deg, color-mix(in srgb, var(--iron-lo) 45%, transparent), transparent 85%);
+  /* The time halfway from the label shade to the text: the label shade
+   * alone read 3.6:1 over a chip's tinted fill. */
+  --tm-time: color-mix(in srgb, var(--tm-dim) 50%, var(--tm-fg));
 }
 
 .wc-tm-scroll {
@@ -221,7 +226,7 @@
 .wc-tm-t {
   position: relative;
   flex: none;
-  color: var(--tm-dim);
+  color: var(--tm-time, var(--tm-dim));
   font-variant-numeric: tabular-nums;
 }
 

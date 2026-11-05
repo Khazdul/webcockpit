@@ -61,6 +61,8 @@
  *   --window-base the window's fill under the lamp, and --window-blur its
  *                 backdrop filter (weather.css: glass)
  *   --vignette    the window's inset shadow
+ * A light pane (Paper) redefines the iron as light metal and adds its own
+ * tokens: see "Paper" below.
  * Nothing here animates and no backdrop filter is added (ADR 0123 "Cost"):
  * it is all static paint, repainted only when a pane is placed or its
  * theme changes. */
@@ -83,12 +85,6 @@
 
 .wc-pane[data-clear] {
   --card-back: color-mix(in srgb, var(--pane-fill, var(--pane-bg)) 62%, transparent);
-}
-
-/* A light pane (Paper; its own design comes in stage 40c): a softer
- * vignette, so the window's edges do not turn grey. */
-.wc-pane[data-light] {
-  --vignette: rgb(0 0 0 / 0.12);
 }
 
 .wc-pane[data-framed] {
@@ -422,15 +418,6 @@
   transform: translateY(0.14em);
 }
 
-.wc-pane[data-framed][data-light] > :is(.wc-pane-close, .wc-pane-btn) {
-  color: color-mix(in srgb, var(--pane-border) 40%, var(--term-fg));
-  text-shadow: none;
-}
-
-.wc-pane[data-framed][data-light] > .wc-pane-btn > * {
-  filter: none;
-}
-
 .wc-pane:hover > .wc-pane-close {
   display: block;
 }
@@ -557,6 +544,153 @@
 
 .wc-pane[data-framed][data-hood-cover] > .wc-pane-btn > * {
   transform: none;
+}
+
+/* ======================================================================
+ * Paper: pewter and brass ("Tenn och mässing", ADR 0123 "Paper", stage
+ * 40c). A light pane (`data-light`: any pane on a light page, Plain or a
+ * tint, which is a pale wash of its hue there, theme/color.ts
+ * `lightTintFill`; or a clear pane on a light page) has the same elements
+ * as the lantern, restyled: the iron becomes light metal in the tint's hue
+ * (warm brass for Plain on Paper, Orange and Red; pewter for the cool tints
+ * and Grey: one formula, the hue and chroma of `--pane-border`), with dark
+ * engraved lines and dark rivets; the hood is engraved (the title in dark
+ * ink over a light lip); the window is parchment, lighter under the hood
+ * and darkening toward its edges; no lamp glow (on paper it reads as a
+ * smudge): the frame casts a small warm shadow into the gap instead.
+ * Cards (group.css, timers.css) are raised paper.
+ *
+ * Tokens (on the pane, from `--pane-border`):
+ *   --iron      the metal, L .66 C min(c × 1.15, .07)
+ *   --iron-hi   its lit side, L .88 C min(c × .8, .05): brackets, rivet
+ *               centres, the vs coin
+ *   --iron-lo   its shadow, L .36 C min(c × .6, .04): rivet rings, card rims
+ *   --engrave   the cut lines, L .24 C min(c × .5, .035) at 85 %
+ *   --ink       the title's and headers' dark ink, L .3 C min(c × .9, .06)
+ *   --shade     the window's edge: the hue at L .48 mixed half with an
+ *               umber, at 20 %
+ * Static paint only, as the dark lantern: nothing here changes per tick. */
+.wc-pane[data-light] {
+  --iron: oklch(from var(--pane-border) 0.66 min(calc(c * 1.15), 0.07) h);
+  --iron-hi: oklch(from var(--pane-border) 0.88 min(calc(c * 0.8), 0.05) h);
+  --iron-lo: oklch(from var(--pane-border) 0.36 min(calc(c * 0.6), 0.04) h);
+  --engrave: oklch(from var(--pane-border) 0.24 min(calc(c * 0.5), 0.035) h / 0.85);
+  --ink: oklch(from var(--pane-border) 0.3 min(calc(c * 0.9), 0.06) h);
+  --shade: color-mix(in srgb, color-mix(in oklab, oklch(from var(--pane-border) 0.48 min(calc(c * 1.2), 0.07) h), #7a5a2a) 20%, transparent);
+  /* The metal's sheen, shared by the hood, the shelf and the fade: bright
+   * at the top, a little shade at the bottom. */
+  --metal: linear-gradient(180deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.05) 55%, rgb(0 0 0 / 0.08)), var(--iron);
+  --metal-drop: 0 1px 3px rgb(50 35 10 / 0.3);
+  --frost2: rgb(0 0 0 / 0.06);
+  --frost-edge: color-mix(in srgb, var(--iron-lo) 45%, transparent);
+}
+
+/* The band: dark rivets with a lit centre, brackets in the lit metal, the
+ * cut where a bracket ends engraved. */
+.wc-pane[data-light] > .wc-pane-rim {
+  --rivet: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--iron-hi) 70%, transparent) 0 18%,
+    var(--iron-lo) 30% 58%,
+    color-mix(in srgb, var(--iron-lo) 40%, transparent) 72%,
+    transparent 92%
+  );
+  --bracket: var(--iron-hi), color-mix(in srgb, var(--iron-hi) 55%, var(--iron));
+  --bracket-end: linear-gradient(var(--engrave), var(--engrave));
+}
+
+/* Its outer edge engraved, a white lit line inside it top and left. */
+.wc-pane[data-light] > .wc-pane-rim::before {
+  border-color: var(--engrave);
+  box-shadow:
+    inset var(--frame-hair, 1px) var(--frame-hair, 1px) 0 rgb(255 255 255 / 0.75),
+    inset calc(-1 * var(--frame-hair, 1px)) calc(-1 * var(--frame-hair, 1px)) 0 color-mix(in srgb, var(--iron-lo) 45%, transparent);
+}
+
+.wc-pane[data-light] > .wc-pane-rim > .wc-pane-seam > :is(.wc-seam-dark, .wc-seam-light) {
+  stroke: var(--engrave);
+}
+
+/* No glow: a small warm shadow in the gap (clear or not). */
+.wc-pane[data-light][data-framed] > .wc-pane-frame {
+  box-shadow: var(--metal-drop);
+}
+
+/* The hood: engraved metal, the title cut in dark ink with a light lip. */
+.wc-pane[data-light] > .wc-pane-frame > .wc-pane-title {
+  background:
+    var(--hood-rivet) left calc(0.62 * var(--cell-w, 10px) - var(--hood-rivet-d) / 2) top calc(50% + var(--frame-t, 5px) / 4) / var(--hood-rivet-d) var(--hood-rivet-d) no-repeat,
+    var(--hood-rivet) right calc(0.62 * var(--cell-w, 10px) - var(--hood-rivet-d) / 2) top calc(50% + var(--frame-t, 5px) / 4) / var(--hood-rivet-d) var(--hood-rivet-d) no-repeat,
+    var(--metal);
+  box-shadow:
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 rgb(255 255 255 / 0.7),
+    0 0 0 var(--frame-hair, 1px) var(--engrave),
+    var(--metal-drop);
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.7);
+}
+
+/* The window: parchment, a pale light under the hood and over the middle,
+ * an engraved shadow under the top band and the umber shade at its edges. */
+.wc-pane[data-light] > .wc-pane-frame::before {
+  background:
+    radial-gradient(42% calc(3 * var(--cell-h, 19px)) at 50% 0, rgb(255 255 255 / 0.45), transparent),
+    radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / 0.42), rgb(255 253 245 / 0.26) 60%, rgb(255 253 245 / 0.2)),
+    var(--window-base);
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 1px color-mix(in srgb, var(--iron-lo) 35%, transparent),
+    inset 0 0 calc(1.2 * var(--cell-h, 19px)) var(--shade);
+}
+
+/* Borderless: the parchment light and a softer edge shade on the pane's
+ * own background. */
+.wc-pane[data-light]:not([data-framed]) > .wc-pane-frame::before {
+  background: radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / 0.4), rgb(255 253 245 / 0.24) 60%, rgb(255 253 245 / 0.18));
+  box-shadow: inset 0 0 calc(1.2 * var(--cell-h, 19px)) color-mix(in srgb, var(--shade) 80%, transparent);
+}
+
+/* Clear: no fill, the shade alone round the inner edge. */
+.wc-pane[data-light][data-clear] > .wc-pane-frame::before {
+  background: none;
+  box-shadow:
+    inset 0 var(--frame-hair, 1px) 1px color-mix(in srgb, var(--iron-lo) 35%, transparent),
+    inset 0 0 calc(0.8 * var(--cell-h, 19px)) color-mix(in srgb, var(--shade) 70%, transparent);
+}
+
+/* The hover set: dark ink with a light lip (on the parchment under the band,
+ * or on the shelf); the accent on hover as on a dark pane. */
+.wc-pane[data-framed][data-light] > :is(.wc-pane-close, .wc-pane-btn) {
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
+}
+
+.wc-pane[data-framed][data-light] > .wc-pane-btn > * {
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.6));
+}
+
+.wc-pane[data-framed][data-light] > :is(.wc-pane-close, .wc-pane-btn):hover {
+  color: var(--c-accent);
+}
+
+/* On the shelf the ink is whole: the metal is darker than the parchment. */
+.wc-pane[data-framed][data-light][data-hood-cover] > :is(.wc-pane-close, .wc-pane-btn):not(:hover, [data-open]) {
+  color: var(--ink);
+}
+
+/* The shelf and the fade over the label: the hood's metal, lip, engraved
+ * outline (not on the shelf's left: it joins the hood) and shadow. */
+.wc-pane[data-framed][data-light][data-hood-cover] > .wc-pane-frame::after {
+  background: var(--metal);
+  box-shadow:
+    inset 0 calc(-1 * var(--frame-hair, 1px)) 0 rgb(255 255 255 / 0.7),
+    0 var(--frame-hair, 1px) 0 0 var(--engrave),
+    var(--frame-hair, 1px) 0 0 0 var(--engrave),
+    var(--metal-drop);
+}
+
+.wc-pane[data-framed][data-light][data-hood-cover] > .wc-pane-frame > .wc-pane-title::after {
+  background: var(--metal);
+  box-shadow: inset 0 calc(-1 * var(--frame-hair, 1px)) 0 rgb(255 255 255 / 0.7);
 }
 
 /* The Gear whose settings popup is open (ADR 0107, `Cockpit.markGear`):

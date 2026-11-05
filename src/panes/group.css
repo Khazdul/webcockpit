@@ -10,7 +10,9 @@
  * dark recessed track. All of it is static paint on elements that do not
  * change on a tick: a value moves only a fill (a transform) or sets a text.
  * A member card is the row's `::before`, inset from the row's cell box, so
- * the cards have air between them and the rows keep their cell grid. */
+ * the cards have air between them and the rows keep their cell grid.
+ * On a light pane (Paper) the cards are raised paper instead (the end of
+ * this file). */
 
 .wc-gp {
   /* The pane content has a fixed size and clips (layout.css): a change in
@@ -507,25 +509,44 @@
   font-size: 0.7em;
 }
 
-/* A light pane (Paper, stage 40c designs it): the tracks keep the pane's
- * own track colour and no recess, so they do not turn into black slots. */
+/* A light pane (Paper, ADR 0123 "Paper"): the cards are raised paper (a
+ * warm near-white, a faint rim and a soft warm shadow), the tracks the
+ * pane's track darkened toward the metal's shadow, recessed with a white
+ * lip, the fill's gloss softer. Static, as on a dark pane. */
 .wc-gp[data-light] {
-  --gp-trk: var(--gp-track);
-  --gp-trk-edge: none;
-  --gp-gloss: linear-gradient(180deg, rgb(255 255 255 / 0.3), rgb(255 255 255 / 0) 55%);
+  --gp-card: color-mix(in srgb, #fffdf8 92%, var(--card-back, transparent));
+  --gp-card-hover: color-mix(in srgb, #fff 100%, var(--card-back, transparent));
   --gp-card-edge:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    inset 0 0 0 1px color-mix(in srgb, var(--gp-line) 60%, transparent),
-    0 1px 2px rgb(0 0 0 / 0.12);
+    inset 0 0 0 1px rgb(60 40 10 / 0.05),
+    0 1px 2px rgb(60 40 10 / 0.22),
+    0 2px 5px rgb(60 40 10 / 0.08);
+  --gp-trk: color-mix(in srgb, var(--gp-track) 75%, var(--iron-lo));
+  --gp-trk-edge: inset 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 0 rgb(255 255 255 / 0.9);
+  --gp-gloss: linear-gradient(180deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.1));
 }
 
+.wc-gp[data-light] :is(.wc-gp-fight, .wc-gp-fstrip) {
+  border-color: rgb(60 40 10 / 0.1);
+  box-shadow:
+    0 1px 2px rgb(60 40 10 / 0.25),
+    0 3px 8px rgb(60 40 10 / 0.1);
+}
+
+/* The NPC tag: a small plate of the lit metal, its letters in the ink
+ * (the label shade read 3.9:1 on the brass). */
 .wc-gp[data-light] .wc-gp-tag {
-  border-color: var(--gp-line);
-  background: transparent;
+  border-color: color-mix(in srgb, var(--iron-lo) 45%, transparent);
+  background: var(--iron-hi);
+  color: var(--ink, var(--gp-label));
 }
 
+/* The vs medallion: a small brass (pewter) coin, engraved. */
 .wc-gp[data-light] .wc-gp-vsm {
-  border-color: var(--gp-line);
-  background: rgb(255 255 255 / 0.35);
-  color: var(--gp-label);
+  border-color: var(--engrave);
+  background:
+    radial-gradient(circle at 50% 30%, var(--iron-hi), transparent 75%),
+    var(--iron);
+  box-shadow: 0 1px 2px rgb(50 35 10 / 0.35);
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
 }
