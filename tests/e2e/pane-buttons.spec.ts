@@ -174,8 +174,9 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float hi
       const fill = getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before');
       return {
         own: cs.backgroundColor,
-        fill: fill.display === 'none' ? 'none' : fill.backgroundColor,
-        blur: getComputedStyle(el.querySelector('.wc-pane-blur')!).display,
+        // A clear window has no fill (only the lamp's edge glow, ADR 0123).
+        fill: fill.display === 'none' || fill.backgroundColor === 'rgba(0, 0, 0, 0)' ? 'none' : fill.backgroundColor,
+        blur: fill.backdropFilter,
         rim: getComputedStyle(el.querySelector('.wc-pane-rim')!).display,
       };
     });
@@ -194,8 +195,6 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float hi
   await expect(page.locator('.wc-pane-group')).toHaveAttribute('data-weather-see', '');
   expect(await look('comm')).toMatchObject({ own: 'rgba(0, 0, 0, 0)', fill: 'none', blur: 'none', rim: 'block' });
   expect(await look('group')).toMatchObject({ own: 'rgba(0, 0, 0, 0)', fill: 'none', blur: 'none' });
-  // The rim keeps the unblurred glass mix.
-  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el).getPropertyValue('--glass-mix').trim())).toBe('60%');
   // The clear float hides the game text under it (a hole in the game pane at its box), weather on …
   const g = await box(page, '.wc-pane-group');
   const game = await box(page, '.wc-game');

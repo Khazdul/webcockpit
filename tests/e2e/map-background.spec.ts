@@ -193,7 +193,11 @@ test('Transparent: the map leaves its empty space clear, tiles opaque, and follo
   const { clear, total } = await seeThrough(page);
   expect(total - clear).toBeGreaterThan(1000);
   expect(clear).toBeLessThan(slate * 1.2);
-  // Without anything behind, it looks as before: the pane's fill (the terminal background) where the slate was.
+  // Without anything behind, it looks as before: the pane's fill (the terminal background) where the slate was,
+  // under the lamp's light (ADR 0123), which is put out here so the fill's own colour can be counted.
+  await page.evaluate(() =>
+    document.head.append(Object.assign(document.createElement('style'), { id: 'no-lamp', textContent: '.wc-pane-map { --lamp: transparent !important; }' })),
+  );
   const termBg = await page.evaluate(() => window.__wc!.settings.get().appearance.bg.toLowerCase());
   await expect(content).toHaveAttribute('data-map-bg', termBg);
   const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as unknown as [number, number, number];
@@ -205,6 +209,7 @@ test('Transparent: the map leaves its empty space clear, tiles opaque, and follo
   await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { color: 'blue' } } }));
   await expect(content).toHaveAttribute('data-map-bg', '#0e141c');
   await expect.poll(() => countColour(page, [0x0e, 0x14, 0x1c]), { timeout: 10_000 }).toBeGreaterThan(slate * 0.9);
+  await page.evaluate(() => document.getElementById('no-lamp')?.remove());
   // Back to a colour: opaque again.
   await page.evaluate(() => window.__wc!.settings.update({ mapper: { background: '#2e1214' } }));
   await expect(content).not.toHaveAttribute('data-map-transparent');

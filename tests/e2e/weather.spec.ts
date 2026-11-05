@@ -96,28 +96,25 @@ test('panes are see-through with weather on: docked at once, a float at once and
 
   await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
-  // Docked panes turn to light glass with the first frame: the pane colour at 55 % over a light blur,
-  // the rim's blur in four strips (ADR 0091 "Frames", addendum: glass rim and nameplate); the float
-  // gets the same glass (item 50) over a hole in the game text (item 57).
+  // Docked panes turn to light glass with the first frame: the pane colour at 55 % over a light blur
+  // under the lamp's light (ADR 0091 "Frames", ADR 0123 "Window"); the band is opaque iron, no blur
+  // there; the float gets the same glass (item 50) over a hole in the game text (item 57).
   // Firefox (`data-weather-flat`): no blur, a denser tint (64 %, a float too).
   const glass = await page.locator('.wc-pane-character').evaluate((el) => {
     const f = getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before');
-    const strips = [...el.querySelectorAll('.wc-pane-blur > i')].map((s) => getComputedStyle(s).backdropFilter);
-    const shown = getComputedStyle(el.querySelector('.wc-pane-blur')!).display !== 'none';
-    return { bg: f.backgroundColor, blur: f.backdropFilter, strips, shown, flat: el.parentElement!.hasAttribute('data-weather-flat') };
+    const rim = getComputedStyle(el.querySelector('.wc-pane-rim')!);
+    return { bg: f.backgroundColor, blur: f.backdropFilter, rimBlur: rim.backdropFilter, strips: el.querySelectorAll('.wc-pane-blur').length, flat: el.parentElement!.hasAttribute('data-weather-flat') };
   });
   const alpha = (a: string) => new RegExp(`^(rgba\\(0, 0, 0, ${a}\\)|color\\(srgb 0 0 0 \\/ ${a}\\))$`);
   expect(glass.flat).toBe(test.info().project.name === 'firefox');
-  expect(glass.strips).toHaveLength(4);
+  expect(glass.strips).toBe(0);
+  expect(glass.rimBlur).toBe('none');
   if (glass.flat) {
     expect(glass.bg).toMatch(alpha('0\\.64'));
     expect(glass.blur).toBe('none');
-    expect(glass.shown).toBe(false);
   } else {
     expect(glass.bg).toMatch(alpha('0\\.55'));
     expect(glass.blur).toContain('blur(2.5px)');
-    expect(glass.shown).toBe(true);
-    for (const s of glass.strips) expect(s).toContain('blur(9px)');
   }
   await expect(group).toHaveAttribute('data-weather-see', '');
   expect(await fill()).toMatch(alpha(glass.flat ? '0\\.64' : '0\\.55'));
