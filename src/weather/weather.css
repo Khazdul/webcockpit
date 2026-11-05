@@ -35,32 +35,22 @@
   background: transparent;
 }
 
-/* Glass (item 35, ADR 0091 "Frames", addendum: glass rim and nameplate):
- * the rim and plate blur what is behind them hard and brighten it (four
- * strips under the rim, `.wc-pane-blur`: one box round the whole rim cost
- * as much as blurring the whole pane); the pane
- * inside is light glass, its colour at 55 % over a 2.5 px blur, so rain and
- * clouds still read as shapes behind the text. A floating pane gets the same
- * glass (item 50: a denser 72 % made the floating map's empty space read
- * darker than the docked panes). Weather
- * off there is nothing behind a pane but the flat page, so no blur at all
- * (layout.css: an opaque fill, the same rim colours). */
-:root:not([data-light]) .wc-cockpit[data-weather] > .wc-pane[data-framed] {
-  --glass-mix: 52%;
+/* The window's glass (ADR 0091 "Frames"; ADR 0123 "Window"): inside the
+ * band the pane is light glass, its colour at 55 % over a 2.5 px blur, so
+ * rain and clouds still read as shapes behind the text; the lamp's light
+ * lies over it (layout.css `--window-base` under the lamp gradients). A
+ * floating pane gets the same glass (item 50: a denser 72 % made the
+ * floating map's empty space read darker than the docked panes). The band
+ * and hood are opaque iron: nothing to blur there. Weather off there is
+ * nothing behind a pane but the flat page, so no blur at all (layout.css:
+ * an opaque fill). A clear pane has no fill and no blur (layout.css). */
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] {
+  --window-base: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 55%, transparent);
 }
 
-.wc-cockpit[data-weather] > .wc-pane[data-framed] > .wc-pane-blur {
-  display: block;
-}
-
-.wc-cockpit[data-weather] > .wc-pane[data-framed] > .wc-pane-blur > i {
-  -webkit-backdrop-filter: blur(9px) saturate(1.35) brightness(1.06);
-  backdrop-filter: blur(9px) saturate(1.35) brightness(1.06);
-}
-
-.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
-.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
-  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 55%, transparent);
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]):not([data-clear]) > .wc-pane-frame::before,
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see]:not([data-clear]) > .wc-pane-frame::before {
   -webkit-backdrop-filter: blur(2.5px) saturate(1.25);
   backdrop-filter: blur(2.5px) saturate(1.25);
 }
@@ -72,33 +62,16 @@
  * pane a float lies over (`data-weather-under`, index.ts `floatHoles`): its
  * hole is a clip-path, which makes the pane a backdrop root, so its blur
  * would see nothing behind it (owner item 57). */
-:root .wc-cockpit[data-weather][data-weather-flat] > .wc-pane[data-framed],
-:root .wc-cockpit[data-weather] > .wc-pane[data-framed][data-weather-under] {
-  --glass-mix: 60%;
+.wc-cockpit[data-weather-flat] > .wc-pane:not([data-floating]),
+.wc-cockpit[data-weather-flat] > .wc-pane[data-floating][data-weather-see],
+.wc-cockpit[data-weather] > .wc-pane.wc-pane[data-weather-under] {
+  --window-base: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
 }
 
-.wc-cockpit[data-weather-flat] > .wc-pane[data-framed] > .wc-pane-blur,
-.wc-cockpit[data-weather] > .wc-pane[data-framed][data-weather-under] > .wc-pane-blur {
-  display: none;
-}
-
-.wc-cockpit[data-weather-flat] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
-.wc-cockpit[data-weather-flat] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before,
+.wc-cockpit[data-weather-flat] > .wc-pane > .wc-pane-frame::before,
 .wc-cockpit[data-weather] > .wc-pane.wc-pane[data-weather-under] > .wc-pane-frame::before {
-  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-}
-
-/* A clear pane (ADR 0095, layout.css `data-clear`): no fill and no blur
- * inside, and its rim and plate without blur either, at the denser mix the
- * unblurred glass has (as in Firefox above). */
-:root .wc-cockpit[data-weather] > .wc-pane[data-framed][data-clear] {
-  --glass-mix: 60%;
-}
-
-.wc-cockpit[data-weather] > .wc-pane[data-framed][data-clear] > .wc-pane-blur {
-  display: none;
 }
 
 /* A borderless glass pane (ADR 0095 round 1) gets the glass a frame has

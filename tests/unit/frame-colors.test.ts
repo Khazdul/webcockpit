@@ -1,7 +1,8 @@
-// The frame's glass shades (layout.css, ADR 0091 "Frames", addendum: glass
-// rim and nameplate) stay inside sRGB for every pane colour on every page
-// colour: Chromium clips an out-of-gamut oklch per channel, and the
-// mockup's light specular line showed a yellow fringe from it.
+// The frame's shades derived from the pane border (layout.css: the lamp,
+// the iron, the hover buttons; ADR 0123, ADR 0091 "Frames") stay inside
+// sRGB for every pane colour on every page colour: Chromium clips an
+// out-of-gamut oklch per channel, and the old glass rim's light specular
+// line showed a yellow fringe from it.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PANE_COLORS } from '../../src/layout/types';

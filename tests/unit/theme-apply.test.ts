@@ -162,7 +162,8 @@ describe('pane tokens', () => {
     const t = paneTokens(s, 'timers');
     expect(t['--pane-bg']).toBe('#1a0e0e');
     expect(t['--pane-border']).toBe('#2e2222');
-    expect(Object.keys(t)).toHaveLength(9);
+    expect(t['--pane-fill']).toBe('#1a0e0e');
+    expect(Object.keys(t)).toHaveLength(10);
     expect(t['--pane-shade-pane-bg']).toBe(paneShades('red', '#000000').paneBg);
     expect(t['--pane-shade-dim']).toBe(hslToHex(2, 60, 27));
     expect(shadeVar('paneBg')).toBe('--pane-shade-pane-bg');
@@ -178,7 +179,7 @@ describe('pane tokens', () => {
     paper.panes.timers.color = 'red';
     applyPaneTheme(el, paper, 'timers');
     expect(el.hasAttribute('data-light')).toBe(false);
-    for (const id of PANE_IDS) expect(Object.keys(paneTokens(s, id))).toHaveLength(9);
+    for (const id of PANE_IDS) expect(Object.keys(paneTokens(s, id))).toHaveLength(10);
   });
 
   it('a clear pane (ADR 0095): the page as its background, its tint kept for the rim, data-clear set', () => {
@@ -188,6 +189,8 @@ describe('pane tokens', () => {
     const t = paneTokens(paper, 'timers');
     expect(t['--pane-bg']).toBe('#f4ecd8');
     expect(t['--pane-border']).toBe('#2e2222');
+    // Its tint's fill stays known: a clear pane's cards lie on it (ADR 0123 `--card-back`).
+    expect(t['--pane-fill']).toBe('#1a0e0e');
     expect(t['--pane-shade-pane-bg']).toBe(paneShades('red', '#f4ecd8', false).paneBg);
     const el = document.createElement('div');
     applyPaneTheme(el, paper, 'timers');
