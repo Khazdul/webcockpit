@@ -245,3 +245,58 @@ values set in place, no layout reads on a tick) hold.
   2.86 → 2.86, fight 3.43 → 3.25, tick 3.0 → 3.0. Noise between runs
   ≈ ±0.3 ms.
 
+
+## Hood position and hover buttons (stage 40a+, 2026-11-05)
+
+Owner feedback after 40a: the centred hood cost narrow panes (the
+new-player layout's 25-cell Timers and Group) the Gear and Colour on
+hover. The owner: the title may move left, about to where the old plate
+sat; if the buttons still land on the title they may lie over it, tidily.
+This replaces the 40a rule "the buttons drop as today" for framed panes.
+
+- **Position** (`framePlate(…, clearFrom)`, decided at layout time, never
+  on hover): the cockpit gives each shell the cells its hover set covers
+  from the right edge (`PaneShell.hoverCells`: the corner cell and the
+  cross, 4, plus two per button; 0 on a phone, and none on a script pane
+  made with `cross = false`). The hood is centred when its right edge then
+  lies at or left of where the set begins; otherwise it moves left just
+  enough (its right edge on the device px at or before the set), but its
+  left edge no further left than the start of the pane's fourth cell
+  (`HOOD_MIN_COL` 3, the old plate's place; also at least a bracket arm and
+  a cell from the frame's edge) and never right of centre. Whole device
+  px as before; width, depth and corners unchanged, so `--plate-*`, the
+  hole, the seams and the weather worker follow without change. At the
+  default cell, with the Gear: "Timers" is centred from 32 cells, moved
+  left from 31 down to 23 (the new-player 25-cell Timers and Group keep
+  all four buttons clear of it), and lies under the set below that. The
+  legacy 33-cell lane stays centred.
+- **Over the hood** (`hoverFit`, pane-buttons.ts): where the moved hood
+  still reaches under the set, every button shows, over the hood's right
+  part. Buttons drop (from the left, the Gear first) only where they
+  would cover the hood's left end and rivet (`PaneShell.titleKeep`: its
+  left edge plus `HOOD_PAD` cells, where the label starts): with the Gear
+  at 16 cells and less. A pane too narrow for a hood has nothing to keep
+  clear, as before. Borderless panes are unchanged.
+- **Look** (layout.css `data-hood-cover`, `--cover-x` from
+  `PaneShell.coverHood`; on hover only, hidden during a drag): an iron
+  shelf (`.wc-pane-frame::after`) slides out of the hood from where the
+  set begins to the right corner bracket, the hood's iron, depth, lit lip,
+  outline and shadow, with no seam on its left, so the hood reads as grown
+  to hold the buttons. The label fades out over 1.5 cells before it (the
+  hood's own iron over the label through a mask, `.wc-pane-title::after`),
+  so no letter is cut; when under two cells of label would stay clear of
+  the fade (`data-hood-cover="all"`), the label fades out whole and the
+  hood's left end shows only its rivet. The buttons and the cross centre
+  on the shelf's depth, in line with the title (the icons lose their
+  0.14 em nudge, the cross's line box is the shelf's height). At rest the
+  hood and its label show whole.
+- **Tests**: unit (frame.ts placement centred / moved / at the minimum /
+  never right of centre at ratio 1, 1.25, 2 and two cell sizes; `hoverFit`;
+  the cockpit's drop and cover marks over a range of lane widths); e2e
+  `pane-buttons` (a 17-cell lane: hood at the fourth cell, all buttons on
+  the shelf, centred on the hood; 14 cells: the Gear drops, the rest clear
+  of the label's start).
+- Screenshots: `docs/stages/img/40a2-*.png`.
+- Not covered: the weather worker knows nothing of the shelf (hover only;
+  glints and snow lie on the band under it); Paper (40c) restyling the
+  hood must restyle the shelf and fade the same way.

@@ -65,7 +65,7 @@ every framed pane. Border on/off, Colour and Background glass/clear
       circles, flow and grid
 - [x] 40b: Character, Comm, UI, Statistics, map, script panes checked in
       the lit window; adjustments where text loses contrast
-- [ ] 40a+: hood moves left on narrow panes, buttons over the hood when
+- [x] 40a+: hood moves left on narrow panes, buttons over the hood when
       they still do not fit (owner feedback 2026-11-05)
 - [ ] 40c: Paper design (lamp, iron, cards on a light page), built; every
       tint, border on/off, clear
@@ -93,6 +93,24 @@ Built 2026-11-05; the numbers are in ADR 0123 "Built (stage 40a)".
   Paper (light) panes are only kept legible (dark iron on the page, a
   softer vignette) until 40c; the frosted card tokens are defined but not
   used yet (40b).
+
+## Notes (40a+)
+
+Built 2026-11-05 after the owner's feedback on the hover buttons; the rule
+and numbers are in ADR 0123 "Hood position and hover buttons".
+
+- The hood is centred when the hover set fits right of it, else moved
+  left just enough, down to the fourth cell; the new-player layout's
+  25-cell Timers and Group now keep all four buttons. Where the set still
+  reaches the hood, it shows on an iron shelf grown out of the hood, the
+  label fading before it (or whole); buttons drop only where they would
+  cover the hood's left end (16 cells and less with the Gear).
+- Screenshots (`img/`): `40a2-wide-chromium-2x.png` (legacy 33-cell
+  lane: centred, all four), `40a2-shifted-chromium-2x.png` (new-player
+  layout at 1280 px: hood moved left), `40a2-cover-chromium-2x.png`
+  (1000 px, Group in 20 cells: the shelf over the hood, label fading),
+  `40a2-cover-all-chromium-1x.png` (Timers in 17 cells at ratio 1: the
+  label fades out whole).
 
 ## Notes (40b)
 
