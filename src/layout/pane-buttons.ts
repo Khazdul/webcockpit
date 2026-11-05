@@ -83,8 +83,8 @@ export function lookOn(what: PaneLook, p: Readonly<PaneSettings>): boolean {
 /**
  * How many of `count` buttons (3, or 4 with the Gear) fit in a pane `paneW`
  * px wide (cells `cellW` px) when everything left of `freeFrom` px (the
- * nameplate) must stay uncovered, with `gap` px between (default half a
- * cell; the lantern hood, ADR 0123, has room of its own: 0). `crossCells`:
+ * title) must stay uncovered, with `gap` px between (default half a cell;
+ * the lantern hood, ADR 0123, has room of its own: 0). `crossCells`:
  * from the right edge to the cross's left edge. The buttons go from the
  * left (the Gear, then Colour), so the ones that stay keep their places
  * beside the cross; the cross always stays.
