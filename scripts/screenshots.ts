@@ -595,7 +595,9 @@ const SHOTS: Record<string, Shot> = {
     }, KILL_COUNTER);
     await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
     const f = page.locator('.wc-start .wc-frame:not([hidden])');
-    await f.locator('.wc-scr-row[data-script="killcounter"] [data-btn="EDIT"]').click();
+    // Select it in the list, then EDIT in its detail frame (the Scripts page, ADR 0121).
+    await f.locator('.wc-scr-row[data-script="killcounter"] .wc-scr-name').click();
+    await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
     const ed = page.locator('.wc-frame:not([hidden]) > .wc-sed');
     await ed.locator('.cm-content').waitFor();
     // A new line after the trigger, a call being typed (high enough for the help panel to fit).
