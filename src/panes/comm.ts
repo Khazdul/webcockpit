@@ -50,12 +50,15 @@ import {
   toggleChannel,
 } from '../gmcp/comm';
 import { paneLight } from '../theme/apply';
-import { lightShift } from '../theme/color';
+import { fitContrast, lightShift, mix, paneContentBg } from '../theme/color';
 import { colorToCss } from '../ui/palette';
 import { type StyleRun, gmcpKey } from '../core/types';
 import { AnchoredList, type ListMetrics, forwardWheel } from './anchored-list';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
+
+/** How much darker than the pane the light-pane text colours are fitted against (the window's edge shade). */
+const COMM_EDGE_SHADE = 0.06;
 
 /** Messages kept in memory (Inv §2.7.7). */
 export const COMM_HISTORY_MAX = 1000;
@@ -274,13 +277,19 @@ export class CommPane extends PaneShell {
     if (this.root.parentNode !== this.content) this.content.replaceChildren(this.root);
     const s = this.ctx.settings.get();
     const light = paneLight(s, 'comm');
-    const col = (c: string): string => (light ? lightShift(c) : c);
+    // On a light pane every channel colour is held to 4.5:1 (ADR 0041, as
+    // the UI pane; `lightShift` alone left yellow and cyan near 2:1 on
+    // Paper), against the pane a shade darker: the window shades toward
+    // its edges (ADR 0123 "Paper").
+    const { color, glass } = s.panes.comm;
+    const bg = mix(paneContentBg(color, s.appearance.bg, glass), '#000000', COMM_EDGE_SHADE);
+    const col = (c: string): string => (light ? fitContrast(lightShift(c), bg, 4.5, '#000000') : c);
     const filters = s.comm.filters;
 
     // Header.
     const chans = this.headerChannels();
     this.header.hidden = !s.comm.showHeader;
-    const key = `${this.cols}|${light}|${JSON.stringify(filters)}|${chans.map((c) => c.name + ':' + c.label).join(',')}`;
+    const key = `${this.cols}|${light}|${bg}|${JSON.stringify(filters)}|${chans.map((c) => c.name + ':' + c.label).join(',')}`;
     if (s.comm.showHeader && key !== this.headerKey) {
       this.headerKey = key;
       this.renderHeader(chans, filters, col);
@@ -294,7 +303,7 @@ export class CommPane extends PaneShell {
     this.list.render(
       shown,
       (m) => this.buildRow(m, withTime, now, col),
-      `${light}|${JSON.stringify(filters)}`,
+      `${light}|${bg}|${JSON.stringify(filters)}`,
       (n) => `↓ ${n} newer message${n === 1 ? '' : 's'}`,
     );
     if (withTime !== this.timeShown) {

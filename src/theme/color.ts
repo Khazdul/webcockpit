@@ -138,9 +138,43 @@ export function hoverLift(hex: string, amount = HOVER_LIFT): string {
 
 // ------------------------------------------------------------------ panes
 
-/** The pane's own effective background: its fill, or the terminal bg for None. */
+/** Saturation share of a tint's wash on a light page (ADR 0123 "Paper"). */
+export const LIGHT_TINT_S = 0.6;
+/** How much of the page's own colour stays in the wash. */
+export const LIGHT_TINT_PAGE = 0.2;
+
+/**
+ * A named tint on a light page (ADR 0123 "Paper", stage 40c): a pale wash
+ * of its hue (HSL S × `LIGHT_TINT_S`, mixed `LIGHT_TINT_PAGE` with the
+ * page), its lightness searched so its relative luminance matches the
+ * page's (to within 1 %), so every colour fitted to the page (UI roles,
+ * palette, ADR 0041) keeps its contrast in a tinted pane.
+ */
+export function lightTintFill(hs: readonly [number, number], page: string): string {
+  const target = luminance(page);
+  let lo = 50;
+  let hi = 100;
+  let out = page;
+  for (let i = 0; i < 14; i++) {
+    const l = (lo + hi) / 2;
+    out = mix(hslToHex(hs[0], hs[1] * LIGHT_TINT_S, l), page, LIGHT_TINT_PAGE);
+    if (luminance(out) < target) lo = l;
+    else hi = l;
+  }
+  return out;
+}
+
+/**
+ * The pane's own effective background: the terminal bg for None (Plain);
+ * a named tint's dark fill on a dark page, its pale wash on a light one
+ * (`lightTintFill`, ADR 0123 "Paper"), so a tinted pane on Paper is a
+ * light pane like Plain.
+ */
 export function paneEffectiveBg(color: PaneColor, termBg: string): string {
-  return PANE_TINTS[color]?.fill ?? normalizeHex(termBg) ?? '#000000';
+  const tint = PANE_TINTS[color];
+  const page = normalizeHex(termBg) ?? '#000000';
+  if (!tint?.fill || !tint.hs) return page;
+  return isLight(page) ? lightTintFill(tint.hs, page) : tint.fill;
 }
 
 /**
