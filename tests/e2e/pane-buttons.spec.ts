@@ -161,6 +161,73 @@ test('the look buttons hide while a pane is dragged; a narrow pane lays them ove
   for (const b of await shown.all()) expect((await b.boundingBox())!.x).toBeGreaterThanOrEqual(plate.x + 1.4 * cw - 0.5);
 });
 
+/** Relative luminance (0–1) of a computed colour of `sel` (any CSS colour syntax: painted on a canvas to read it). */
+async function lum(page: Page, sel: string, prop: string, pseudo: string | null = null): Promise<number> {
+  return page.locator(sel).first().evaluate(
+    (el, [prop, pseudo]) => {
+      const css = getComputedStyle(el, pseudo).getPropertyValue(prop);
+      const c = new OffscreenCanvas(1, 1).getContext('2d')!;
+      c.fillStyle = '#ff00ff';
+      c.fillStyle = css;
+      c.fillRect(0, 0, 1, 1);
+      const [r, g, b] = [...c.getImageData(0, 0, 1, 1).data].map((v) => {
+        const x = v / 255;
+        return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    },
+    [prop, pseudo] as const,
+  );
+}
+
+test('Paper: light metal with a dark engraved title, a tint is a pale wash, the shelf and the hover set match (ADR 0123 "Paper")', async ({ page }) => {
+  await open(page);
+  // Dark: iron and a lit title.
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-rim', 'background-color')).toBeLessThan(0.05);
+  expect(await lum(page, '.wc-pane-timers .wc-pane-title', 'color')).toBeGreaterThan(0.4);
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.appearance.bg = '#f4ecd8';
+      d.panes.timers.color = 'black';
+      d.panes.group.color = 'red';
+    }),
+  );
+  for (const id of ['timers', 'group']) {
+    const pane = page.locator(`.wc-pane-${id}`);
+    await expect(pane).toHaveAttribute('data-light', '');
+    // The metal light, the title in dark ink on it.
+    expect(await lum(page, `.wc-pane-${id} > .wc-pane-rim`, 'background-color')).toBeGreaterThan(0.25);
+    expect(await lum(page, `.wc-pane-${id} .wc-pane-title`, 'background-color')).toBeGreaterThan(0.25);
+    expect(await lum(page, `.wc-pane-${id} .wc-pane-title`, 'color')).toBeLessThan(0.06);
+    // The window as light as the page: a red pane on Paper is a pale red wash, not the dark red fill.
+    expect(await lum(page, `.wc-pane-${id}`, '--pane-bg')).toBeGreaterThan(0.75);
+  }
+  const red = await page.locator('.wc-pane-group').evaluate((el) => el.style.getPropertyValue('--pane-bg'));
+  expect(red).not.toBe('#f4ecd8');
+  expect(red).not.toBe('#1a0e0e');
+  // A narrow lane: the shelf and the fade in the same light metal, the set in dark ink on it.
+  await page.evaluate((n) =>
+    window.__wc!.settings.update((d) => {
+      const R = d.layout.docks.right;
+      const all = [...R.head, ...R.lanes.flatMap((l) => l.panes), ...R.tail];
+      R.head = [];
+      R.tail = [];
+      R.lanes = [
+        { size: 30, panes: all.filter((p) => p.id !== 'timers') },
+        { size: n, panes: all.filter((p) => p.id === 'timers') },
+      ];
+    }),
+  17);
+  await page.mouse.move(2, 2);
+  await expect(page.locator('.wc-pane-timers')).toHaveAttribute('data-hood-cover', /^(all)?$/);
+  await hover(page, 'timers');
+  await expect(page.locator('.wc-pane-timers > .wc-pane-close')).toBeVisible();
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-frame', 'background-color', '::after')).toBeGreaterThan(0.25);
+  expect(await lum(page, '.wc-pane-timers .wc-pane-title', 'background-color', '::after')).toBeGreaterThan(0.25);
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-close', 'color')).toBeLessThan(0.06);
+  expect(await lum(page, '.wc-pane-timers > .wc-pane-btn-gear', 'color')).toBeLessThan(0.06);
+});
+
 test('a script pane made without a cross has no look buttons; the built-in panes have them', async ({ page }) => {
   await open(page);
   // A borderless one-row bar made with `cross = false`: none shown.
