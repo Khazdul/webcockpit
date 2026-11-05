@@ -129,7 +129,7 @@ describe('sanctuary and position', () => {
     expect(countdownText(6720)).toBe('1h52');
   });
 
-  it('signatures leave a timed sanctuary out, but not what else is drawn', () => {
+  it('signatures leave the values out (a timed sanctuary, the bars), but not the structure', () => {
     const g = model();
     const m = g.get(2)!;
     m.flags.sanctuary = true;
@@ -138,12 +138,17 @@ describe('sanctuary and position', () => {
     expect(memberSig(at(192_000), 2, '#fff')).toBe(memberSig(at(191_000), 2, '#fff'));
     expect(memberSig(at(192_000), 2, '#fff')).not.toBe(memberSig(at(192_000), 1, '#fff'));
     expect(memberSig(at(192_000), 2, '#fff')).not.toBe(memberSig(memberView(m, env()), 2, '#fff'));
+    // A vital is a value: set in place, the row stays.
     const before = memberSig(at(192_000), 2, '#fff');
     m.hp = { value: 1, max: 160, word: null };
+    expect(memberSig(at(192_000), 2, '#fff')).toBe(before);
+    m.flags.poison = true;
     expect(memberSig(at(192_000), 2, '#fff')).not.toBe(before);
+    // The opponent's word is a value; another opponent is structure.
     const f = { opponent: 'an orc', opponentWord: 'hurt', opponentMember: null, tank: null, tankId: null };
     const fv = fightView(f, null, null, env())!;
-    expect(fightSig(fv, 2, false)).not.toBe(fightSig(fightView({ ...f, opponentWord: 'bad' }, null, null, env())!, 2, false));
+    expect(fightSig(fv, 2, false)).toBe(fightSig(fightView({ ...f, opponentWord: 'bad' }, null, null, env())!, 2, false));
+    expect(fightSig(fv, 2, false)).not.toBe(fightSig(fightView({ ...f, opponent: 'a troll' }, null, null, env())!, 2, false));
   });
 
   it('position icons and titles', () => {

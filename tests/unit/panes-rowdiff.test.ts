@@ -129,7 +129,7 @@ describe('panes patch their rows', () => {
     p.dispose();
   });
 
-  it('Group: one member’s change replaces only that row', () => {
+  it('Group: one member’s new vital touches only that row’s bar, in place', () => {
     const t = setup();
     const p = new GroupPane(t.ctx);
     place(p, 31, 6);
@@ -152,7 +152,12 @@ describe('panes patch their rows', () => {
     t.flush();
     const after = gpRows();
     expect(after[0]).toBe(before[0]);
-    expect(after[1]).not.toBe(before[1]);
+    expect(after[1]).toBe(before[1]);
+    // Only Mora's HP bar (its fill and tooltip) changed.
+    const hp = before[1]!.querySelector('.wc-gp-bar[data-kind="hp"]')!;
+    const muts = w.take();
+    expect(muts.length).toBeGreaterThan(0);
+    expect(muts.every((m) => hp.contains(m.target))).toBe(true);
     w.stop();
     p.dispose();
   });

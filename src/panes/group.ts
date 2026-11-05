@@ -15,10 +15,12 @@
 //
 // - What is drawn is group-model.ts (pure); this file builds the DOM and
 //   keeps it. One element per row (the fight card, each member, the
-//   overflow row), keyed: a row is rebuilt only when its signature
+//   overflow row), keyed: a row is rebuilt only when its structure
 //   (`memberSig`, `fightSig`) changed, and moved or inserted only where
-//   the order changed. A timed sanctuary's ring, time and tooltip are set
-//   in place on the 1 Hz tick.
+//   the order changed. Its values are set in place by the row's setters
+//   (`Upd`) on every render: bar fills (a transform, no layout) and their
+//   tooltips, a timed sanctuary's ring, time and tooltip (the 1 Hz tick),
+//   the fight card's numbers and word. Each setter writes only a change.
 // - One-line rows are marker, name, up to three icons and `+n`, then the
 //   three mini bars at the right edge, so the bars line up in every row.
 // - The `group.fight` setting turns the fight card off (the tank's shield
@@ -35,7 +37,7 @@ import './group.css';
 import type { GroupDisplay } from '../gmcp/group';
 import type { TimerCell } from '../timers/entry';
 import type { PaneContext } from './context';
-import { SecondTick, el, setText } from './dom';
+import { SecondTick, el, setAttr, setProp, setText } from './dom';
 import {
   COMPACT_ICONS,
   type BarView,
@@ -59,17 +61,38 @@ import { paneShade } from './shade';
 
 // ------------------------------------------------------------------ DOM
 
-/** The parts of a built row a tick updates in place: a timed sanctuary. */
-interface SanctParts {
-  box: HTMLElement;
-  arc: SVGCircleElement;
-  time: HTMLElement | null;
+/**
+ * The value setters of a built row: what a render sets in place on a row
+ * whose structure did not change (bar fills and tooltips, a timed
+ * sanctuary's ring and time, the fight card's numbers and word). They run
+ * once after the row is built and on every render after that; each writes
+ * only what changed.
+ */
+type Upd<V> = Array<(v: V) => void>;
+
+/** A bar: its track and fill (`--p`, transform: no layout), its tooltip set by `upd`. */
+function barEl<V>(doc: Document, cls: string, key: string, kind: string, upd: Upd<V>, get: (v: V) => BarView | null): HTMLElement {
+  const w = el(doc, 'span', cls);
+  const trk = el(doc, 'span', 'wc-gp-trk');
+  const fill = el(doc, 'span', 'wc-gp-fill');
+  trk.append(fill);
+  w.append(trk);
+  w.dataset.kind = kind;
+  upd.push((v) => {
+    const b = get(v);
+    if (!b) return;
+    setProp(fill, '--p', String(b.pct));
+    setProp(fill, 'background-color', b.color);
+    setTip(w, b.tip, b.title, key);
+  });
+  return w;
 }
 
-/** Collects the timed sanctuary's parts while a row is built. */
-type SanctSink = (p: SanctParts) => void;
-
-function iconEl(doc: Document, v: IconView, key: string, sink?: SanctSink, timeEl?: HTMLElement | null): HTMLElement {
+/**
+ * A status or position icon. A timed sanctuary (a ring with a fraction)
+ * gets a setter for its ring, time (`timeEl`) and tooltip.
+ */
+function iconEl(doc: Document, v: IconView, key: string, upd?: Upd<MemberView>, timeEl?: HTMLElement | null): HTMLElement {
   const box = el(doc, 'span', 'wc-gp-ic');
   box.style.color = v.color;
   if (v.ring) {
@@ -78,24 +101,19 @@ function iconEl(doc: Document, v: IconView, key: string, sink?: SanctSink, timeE
     arc.setAttribute('stroke-dasharray', ringDash(v.ring.frac ?? 1));
     box.append(svg);
     box.classList.add('has-ring');
-    if (v.ring.frac !== null) sink?.({ box, arc, time: timeEl ?? null });
+    if (v.ring.frac !== null && upd) {
+      upd.push((mv) => {
+        const s = mv.statuses.find((st) => st.icon === v.icon && st.ring?.frac != null);
+        if (!s) return;
+        setAttr(arc, 'stroke-dasharray', ringDash(s.ring!.frac!));
+        if (timeEl && s.time !== undefined) setText(timeEl, s.time);
+        setTip(box, s.tip, s.title, key);
+      });
+    }
   }
   box.append(iconSvg(doc, v.icon, 'wc-gp-i'));
   setTip(box, v.tip, v.title, key);
   return box;
-}
-
-function barEl(doc: Document, b: BarView, key: string, cls = 'wc-gp-bar'): HTMLElement {
-  const w = el(doc, 'span', cls);
-  const trk = el(doc, 'span', 'wc-gp-trk');
-  const fill = el(doc, 'span', 'wc-gp-fill');
-  fill.style.width = `${b.pct}%`;
-  if (b.color) fill.style.backgroundColor = b.color;
-  trk.append(fill);
-  w.append(trk);
-  setTip(w, b.tip, b.title, key);
-  w.dataset.kind = b.kind;
-  return w;
 }
 
 function markerEl(doc: Document, v: MemberView): HTMLElement {
@@ -120,8 +138,16 @@ function rowEl(doc: Document, v: MemberView, cls: string): HTMLElement {
   return row;
 }
 
+/** A member's three bars (into `box`), their values set by `upd`. */
+function memberBars(doc: Document, box: HTMLElement, v: MemberView, upd: Upd<MemberView>): void {
+  for (const b of v.bars) {
+    const kind = b.kind;
+    box.append(barEl(doc, 'wc-gp-bar', `${v.key}:${kind}`, kind, upd, (mv) => mv.bars.find((x) => x.kind === kind) ?? null));
+  }
+}
+
 /** A two-line member row. */
-export function memberRow2(doc: Document, v: MemberView, gold: string, sink?: SanctSink): HTMLElement {
+export function memberRow2(doc: Document, v: MemberView, gold: string, upd: Upd<MemberView>): HTMLElement {
   const row = rowEl(doc, v, 'wc-gp-m2');
   const l1 = el(doc, 'div', 'wc-gp-l1');
   l1.append(markerEl(doc, v), nameEl(doc, v));
@@ -137,7 +163,7 @@ export function memberRow2(doc: Document, v: MemberView, gold: string, sink?: Sa
   for (const s of v.statuses) {
     const t = s.time !== undefined ? el(doc, 'span', 'wc-gp-stime', s.time) : null;
     if (t) t.style.color = s.color;
-    sts.append(iconEl(doc, s, `${v.key}:${s.icon}`, sink, t));
+    sts.append(iconEl(doc, s, `${v.key}:${s.icon}`, upd, t));
     if (t) sts.append(t);
   }
   if (v.position) {
@@ -146,19 +172,19 @@ export function memberRow2(doc: Document, v: MemberView, gold: string, sink?: Sa
   }
   l1.append(sts);
   const bars = el(doc, 'div', 'wc-gp-bars');
-  for (const b of v.bars) bars.append(barEl(doc, b, `${v.key}:${b.kind}`));
+  memberBars(doc, bars, v, upd);
   row.append(l1, bars);
   return row;
 }
 
 /** A one-line member row: icons left of the bars, which keep one column at the right edge. */
-export function memberRow1(doc: Document, v: MemberView, gold: string, sink?: SanctSink): HTMLElement {
+export function memberRow1(doc: Document, v: MemberView, gold: string, upd: Upd<MemberView>): HTMLElement {
   const row = rowEl(doc, v, 'wc-gp-m1');
   const mini = el(doc, 'span', 'wc-gp-mini');
-  for (const b of v.bars) mini.append(barEl(doc, b, `${v.key}:${b.kind}`));
+  memberBars(doc, mini, v, upd);
   const sts = el(doc, 'span', 'wc-gp-sts');
   const icons: IconView[] = v.tank ? [tankIcon(gold, false), ...v.statuses] : v.statuses;
-  for (const s of icons.slice(0, COMPACT_ICONS)) sts.append(iconEl(doc, s, `${v.key}:${s.icon}`, sink));
+  for (const s of icons.slice(0, COMPACT_ICONS)) sts.append(iconEl(doc, s, `${v.key}:${s.icon}`, upd));
   if (icons.length > COMPACT_ICONS) {
     const more = el(doc, 'span', 'wc-gp-more', `+${icons.length - COMPACT_ICONS}`);
     setTip(more, icons.slice(COMPACT_ICONS).map((s) => s.title).join(', '), 'Also', `${v.key}:more`);
@@ -184,7 +210,10 @@ function tankShield(doc: Document, c: Readonly<GroupColors>, tip: string, title:
   return shield;
 }
 
-function fightZone(doc: Document, f: FightView, c: Readonly<GroupColors>): HTMLElement {
+const foeBar = (f: FightView): BarView => f.foe.bar;
+const tankBar = (f: FightView): BarView | null => f.tank?.bar ?? null;
+
+function fightZone(doc: Document, f: FightView, c: Readonly<GroupColors>, upd: Upd<FightView>): HTMLElement {
   const zone = el(doc, 'div', 'wc-gp-row wc-gp-fight');
   zone.dataset.key = 'fight';
   // The opponent's side.
@@ -195,9 +224,12 @@ function fightZone(doc: Document, f: FightView, c: Readonly<GroupColors>): HTMLE
   const foe = foeIcon(doc, c, 'Whom you fight.', 'Your opponent', 'fight:foeic');
   if (f.tank) bt.append(fn, foe);
   else bt.append(foe, fn);
-  b.append(bt, barEl(doc, f.foe.bar, 'fight:foehp', f.tank ? 'wc-gp-fbar is-foe' : 'wc-gp-fbar'));
-  const word = el(doc, 'span', 'wc-gp-fsub is-foe', f.foe.word ?? '');
-  if (f.foe.word) setTip(word, f.foe.bar.tip, f.foe.bar.title, 'fight:word');
+  b.append(bt, barEl(doc, f.tank ? 'wc-gp-fbar is-foe' : 'wc-gp-fbar', 'fight:foehp', 'hp', upd, foeBar));
+  const word = el(doc, 'span', 'wc-gp-fsub is-foe');
+  upd.push((v) => {
+    setText(word, v.foe.word ?? '');
+    setTip(word, v.foe.word ? v.foe.bar.tip : null, v.foe.bar.title, 'fight:word');
+  });
   b.append(word);
   if (!f.tank) {
     zone.classList.add('is-solo');
@@ -211,31 +243,36 @@ function fightZone(doc: Document, f: FightView, c: Readonly<GroupColors>): HTMLE
   setTip(tn, 'Tanking (Char.Vitals buffer).', f.tank.name, 'fight:tank');
   at.append(tankShield(doc, c, 'Takes the hits: your fight buffer.', 'Tanking'), tn);
   a.append(at);
-  if (f.tank.bar) a.append(barEl(doc, f.tank.bar, 'fight:tankhp', 'wc-gp-fbar'));
+  if (f.tank.bar) a.append(barEl(doc, 'wc-gp-fbar', 'fight:tankhp', 'hp', upd, tankBar));
   else a.append(el(doc, 'span', 'wc-gp-fbar is-empty'));
-  a.append(el(doc, 'span', 'wc-gp-fsub', f.tank.numbers));
+  const numbers = el(doc, 'span', 'wc-gp-fsub');
+  upd.push((v) => setText(numbers, v.tank?.numbers ?? ''));
+  a.append(numbers);
   const vs = el(doc, 'div', 'wc-gp-vs');
   vs.append(el(doc, 'span', 'wc-gp-vsm', 'vs'));
   zone.append(a, vs, b);
   return zone;
 }
 
-function fightStrip(doc: Document, f: FightView, c: Readonly<GroupColors>): HTMLElement {
+function fightStrip(doc: Document, f: FightView, c: Readonly<GroupColors>, upd: Upd<FightView>): HTMLElement {
   const row = el(doc, 'div', 'wc-gp-row wc-gp-fstrip');
   row.dataset.key = 'fight';
   if (!f.tank) {
     // You tank: the opponent alone, its name and a full-width bar.
     row.classList.add('is-solo');
     const name = el(doc, 'span', 'wc-gp-fn is-foe', f.foe.name);
-    setTip(name, f.foe.word ?? 'Your opponent.', f.foe.name, 'fight:foe');
-    row.append(foeIcon(doc, c, 'Whom you fight.', 'Your opponent', 'fight:foeic'), name, barEl(doc, f.foe.bar, 'fight:foehp', 'wc-gp-sbar'));
+    upd.push((v) => setTip(name, v.foe.word ?? 'Your opponent.', v.foe.name, 'fight:foe'));
+    row.append(foeIcon(doc, c, 'Whom you fight.', 'Your opponent', 'fight:foeic'), name, barEl(doc, 'wc-gp-sbar', 'fight:foehp', 'hp', upd, foeBar));
     return row;
   }
-  const shield = tankShield(doc, c, f.tank.bar?.title ?? 'Your fight buffer.', `${f.tank.name} tanks`);
-  const tb = f.tank.bar ? barEl(doc, f.tank.bar, 'fight:tankhp', 'wc-gp-sbar') : el(doc, 'span', 'wc-gp-sbar is-empty');
+  const shield = tankShield(doc, c, 'Your fight buffer.', `${f.tank.name} tanks`);
+  upd.push((v) => setTip(shield, v.tank?.bar?.title ?? 'Your fight buffer.', `${f.tank!.name} tanks`, 'fight:tankic'));
+  const tb = f.tank.bar ? barEl(doc, 'wc-gp-sbar', 'fight:tankhp', 'hp', upd, tankBar) : el(doc, 'span', 'wc-gp-sbar is-empty');
   const vs = el(doc, 'span', 'wc-gp-svs', 'vs');
-  const fb = barEl(doc, f.foe.bar, 'fight:foehp', 'wc-gp-sbar is-foe');
-  row.append(shield, tb, vs, fb, foeIcon(doc, c, f.foe.word ?? 'Your opponent.', f.foe.name, 'fight:foe'));
+  const fb = barEl(doc, 'wc-gp-sbar is-foe', 'fight:foehp', 'hp', upd, foeBar);
+  const foe = foeIcon(doc, c, 'Your opponent.', f.foe.name, 'fight:foe');
+  upd.push((v) => setTip(foe, v.foe.word ?? 'Your opponent.', v.foe.name, 'fight:foe'));
+  row.append(shield, tb, vs, fb, foe);
   return row;
 }
 
@@ -247,19 +284,39 @@ function overflowRow(doc: Document, more: number): HTMLElement {
 
 // ------------------------------------------------------------------ pane
 
-/** A built row: the signature it was built from and its timed sanctuary, if any. */
+/** A built row: the signature it was built from, and its value setters. */
 interface BuiltRow {
   sig: string;
   el: HTMLElement;
-  sanct: SanctParts | null;
+  patch: (view: unknown) => void;
 }
 
-/** A row the render wants: its key, signature, builder, and its timed sanctuary view. */
+/** A row the render wants: its key, signature and view, and how to build it. */
 interface WantRow {
   key: string;
   sig: string;
-  build: (sink: SanctSink) => HTMLElement;
-  sanct: IconView | null;
+  view: unknown;
+  build: () => BuiltRow;
+}
+
+/** A wanted row of view type `V` (each key keeps its view type). */
+function want<V>(key: string, sig: string, view: V, build: (upd: Upd<V>) => HTMLElement): WantRow {
+  return {
+    key,
+    sig,
+    view,
+    build: () => {
+      const upd: Upd<V> = [];
+      const e = build(upd);
+      return {
+        sig,
+        el: e,
+        patch: (x) => {
+          for (const f of upd) f(x as V);
+        },
+      };
+    },
+  };
 }
 
 export class GroupPane extends PaneShell {
@@ -324,18 +381,17 @@ export class GroupPane extends PaneShell {
     const layout = groupLayout(members.length, fv !== null, this.rows);
     const views = members.slice(0, layout.shown).map((m) => memberView(m, env));
 
-    const want: WantRow[] = [];
-    if (fv && layout.fightRows > 1) want.push({ key: 'fight', sig: fightSig(fv, 2, light), build: () => fightZone(doc, fv, colors), sanct: null });
-    else if (fv && layout.fightRows === 1) want.push({ key: 'fight', sig: fightSig(fv, 1, light), build: () => fightStrip(doc, fv, colors), sanct: null });
+    const rows: WantRow[] = [];
+    if (fv && layout.fightRows > 1) rows.push(want('fight', fightSig(fv, 2, light), fv, (upd) => fightZone(doc, fv, colors, upd)));
+    else if (fv && layout.fightRows === 1) rows.push(want('fight', fightSig(fv, 1, light), fv, (upd) => fightStrip(doc, fv, colors, upd)));
     let ticking = false;
     for (const v of views) {
       const build = layout.lines === 2 ? memberRow2 : memberRow1;
-      const sanct = v.statuses.find((st) => st.ring !== undefined && st.ring.frac !== null) ?? null;
-      if (sanct) ticking = true;
-      want.push({ key: v.key, sig: memberSig(v, layout.lines, colors.gold), build: (sink) => build(doc, v, colors.gold, sink), sanct });
+      if (v.statuses.some((st) => st.ring !== undefined && st.ring.frac !== null)) ticking = true;
+      rows.push(want(v.key, memberSig(v, layout.lines, colors.gold), v, (upd) => build(doc, v, colors.gold, upd)));
     }
-    if (layout.more > 0) want.push({ key: 'more', sig: String(layout.more), build: () => overflowRow(doc, layout.more), sanct: null });
-    this.reconcile(want);
+    if (layout.more > 0) rows.push(want('more', String(layout.more), null, () => overflowRow(doc, layout.more)));
+    this.reconcile(rows);
     this.tip.refresh();
     // A timed sanctuary counts down: once a second while one is shown.
     if (ticking) this.tick.arm(now);
@@ -363,31 +419,24 @@ export class GroupPane extends PaneShell {
     this.content.toggleAttribute('data-light', light);
   }
 
-  /** Keeps unchanged rows, rebuilds changed ones, moves only what is out of place. */
+  /**
+   * Keeps rows whose structure did not change and sets their values in
+   * place; rebuilds the others; moves only what is out of place.
+   */
   private reconcile(want: readonly WantRow[]): void {
     const next = new Map<string, BuiltRow>();
     want.forEach((w, i) => {
       let row = this.built.get(w.key);
       if (!row || row.sig !== w.sig) {
-        let sanct: SanctParts | null = null;
-        const built = w.build((p) => (sanct = p));
-        if (row) row.el.replaceWith(built);
-        row = { sig: w.sig, el: built, sanct };
-      } else if (row.sanct && w.sanct) {
-        patchSanct(row.sanct, w.sanct);
+        const built = w.build();
+        if (row) row.el.replaceWith(built.el);
+        row = built;
       }
+      row.patch(w.view);
       next.set(w.key, row);
       if (this.content.children[i] !== row.el) this.content.insertBefore(row.el, this.content.children[i] ?? null);
     });
     for (const [k, row] of this.built) if (!next.has(k)) row.el.remove();
     this.built = next;
   }
-}
-
-/** A timed sanctuary's ring, time and tooltip, set in place (the 1 Hz tick). */
-function patchSanct(p: SanctParts, v: IconView): void {
-  const dash = ringDash(v.ring?.frac ?? 1);
-  if (p.arc.getAttribute('stroke-dasharray') !== dash) p.arc.setAttribute('stroke-dasharray', dash);
-  if (p.time && v.time !== undefined) setText(p.time, v.time);
-  setTip(p.box, v.tip, v.title, p.box.dataset.tipKey ?? null);
 }

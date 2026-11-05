@@ -22,9 +22,10 @@
 // - The fight card: the tank (a group member or another named buffer) and
 //   the opponent; you tank (MUME's buffer `Nobody`, your own name, or
 //   none): the opponent alone.
-// - `memberSig` / `fightSig`: what a row's look depends on, so the pane
-//   rebuilds only the rows that changed. A timed sanctuary's time and ring
-//   are left out: the pane updates them in place every second.
+// - `memberSig` / `fightSig`: what a row's structure depends on, so the
+//   pane rebuilds only the rows whose structure changed. Values are left
+//   out (bar fills, colours and tooltips, a timed sanctuary's time and
+//   ring, the fight card's numbers and word): the pane sets them in place.
 
 import { type VitalKind, VITAL_KINDS } from '../gmcp/bands';
 import { capitalise } from '../gmcp/char';
@@ -310,12 +311,11 @@ const iconSig = (v: IconView): string =>
   // A timed sanctuary's time, ring and tip tick: the pane sets them in place.
   v.ring && v.ring.frac !== null ? `${v.icon}:${v.color}:timed` : `${v.icon}:${v.color}:${v.title}:${v.tip}:${v.ring ? 'u' : ''}`;
 
-const barSig = (b: BarView): string => `${b.pct}:${b.color}:${b.title}:${b.tip}`;
-
 /**
- * What a member row's look depends on (lines, everything drawn and every
- * tooltip) except a timed sanctuary's time and ring: equal signatures, the
- * built row stays.
+ * What a member row's structure depends on (lines, the elements drawn and
+ * their fixed texts and tooltips). The bars and a timed sanctuary's time
+ * and ring are values the pane sets in place: equal signatures, the built
+ * row stays.
  */
 export function memberSig(v: MemberView, lines: 1 | 2, gold: string): string {
   return [
@@ -332,12 +332,15 @@ export function memberSig(v: MemberView, lines: 1 | 2, gold: string): string {
     v.tank ? 't' : '',
     v.statuses.map(iconSig).join(','),
     v.position ? iconSig(v.position) : '',
-    v.bars.map(barSig).join(','),
   ].join('|');
 }
 
-/** What the fight card's look depends on, in card (2) or strip (1) form. */
+/**
+ * What the fight card's structure depends on, in card (2) or strip (1)
+ * form. The bars, the tank's numbers and the opponent's word are values
+ * the pane sets in place.
+ */
 export function fightSig(f: FightView, form: 1 | 2, light: boolean): string {
-  const t = f.tank ? `${f.tank.name}|${f.tank.numbers}|${f.tank.bar ? barSig(f.tank.bar) : ''}` : '-';
-  return [form, light ? 'l' : 'd', t, f.foe.name, f.foe.word ?? '', barSig(f.foe.bar)].join('|');
+  const t = f.tank ? `${f.tank.name}|${f.tank.bar ? 'b' : ''}` : '-';
+  return [form, light ? 'l' : 'd', t, f.foe.name].join('|');
 }

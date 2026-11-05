@@ -177,6 +177,27 @@ describe('panes on the context', () => {
     p.dispose();
   });
 
+  it('Group: a new vital keeps the row and sets the bar in place; a new status rebuilds it', () => {
+    const t = setup();
+    const p = new GroupPane(t.ctx);
+    place(p, 40, 8);
+    t.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 2, type: 'ally', name: 'Gibur', hp: 100, maxhp: 200 }] });
+    t.flush();
+    const row = () => p.content.querySelector<HTMLElement>('[data-key="m2"]')!;
+    const hp = () => row().querySelector<HTMLElement>('.wc-gp-bar[data-kind="hp"]')!;
+    const first = row();
+    expect(hp().querySelector<HTMLElement>('.wc-gp-fill')!.style.getPropertyValue('--p')).toBe('50');
+    t.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 2, hp: 150 } });
+    t.flush();
+    expect(row()).toBe(first);
+    expect(hp().querySelector<HTMLElement>('.wc-gp-fill')!.style.getPropertyValue('--p')).toBe('75');
+    expect(hp().dataset.tipTitle).toBe('HP 150/200 · 75%');
+    t.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 2, poison: true } });
+    t.flush();
+    expect(row()).not.toBe(first);
+    p.dispose();
+  });
+
   it('Timers: Pulse lands on a long spell under warnAt (the item, so its icon pulses too)', () => {
     const t = setup();
     const p = PANE_FACTORIES.timers(t.ctx) as TimersPane;
