@@ -210,7 +210,10 @@ Mapped to Inv §2.1 and §10.
   in ADR 0012, ADR 0101 and ADR 0102.
 - **Visual system.**
   - Inv §10: palette tokens, pane frame, 7-step shade ramp and
-    light-background variant.
+    light-background variant. The pane frame's look is ADR 0123 (stage
+    40, the lantern frame; it replaces ADR 0091's glass rim and
+    nameplate), and on a light page a tint is a pale wash of its hue
+    (ADR 0123 "Paper").
   - Minimum size screen of 60×18 cells.
 - **Appearance settings** (intent Goal 6):
   - font family, from bundled web fonts (Inv §12.1 #9);
