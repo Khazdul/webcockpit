@@ -65,6 +65,8 @@ every framed pane. Border on/off, Colour and Background glass/clear
       circles, flow and grid
 - [ ] 40b: Character, Comm, UI, Statistics, map, script panes checked in
       the lit window; adjustments where text loses contrast
+- [ ] 40a+: hood moves left on narrow panes, buttons over the hood when
+      they still do not fit (owner feedback 2026-11-05)
 - [ ] 40c: Paper design (lamp, iron, cards on a light page), built; every
       tint, border on/off, clear
 - [ ] 40d: performance: many panes, weather on, floats; frame times vs
@@ -98,4 +100,11 @@ Built 2026-11-05; the numbers are in ADR 0123 "Built (stage 40a)".
 
 ## Owner feedback
 
-(None yet.)
+- **2026-11-05, title vs hover buttons** (after 40a: centred hood left too
+  little room, narrow panes dropped Colour and the Gear): "Titeln får
+  flyttas vänsterut snarlikt hur den sitter idag. Skulle knapparna ibland
+  ändå hamna över titeln så får de hamna ovanpå titeln. Försök lös det
+  snyggt." So: centred when there is room; on a narrow pane the hood moves
+  left, at most to about where today's plate sat (from the fourth cell);
+  if the buttons still do not fit, they show over the hood's right part on
+  hover instead of being dropped, and must look tidy there.
