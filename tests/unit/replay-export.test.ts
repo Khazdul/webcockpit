@@ -166,6 +166,8 @@ describe('buildReplayHtml', () => {
     const blob = await buildReplayHtml(p, { fetch, base: 'https://example.org/sub/index.html?x=1' });
     expect(blob.type).toBe('text/html;charset=utf-8');
     expect(urls.sort()).toEqual([
+      // The pane title's face (ADR 0123): the replay shows the panes.
+      'https://example.org/sub/fonts/Cinzel-Bold-latin.woff2',
       'https://example.org/sub/fonts/DejaVuSansMono-Bold.woff2',
       'https://example.org/sub/fonts/DejaVuSansMono.woff2',
       'https://example.org/sub/fonts/WebCockpitUnderscore-Bold.woff2',
@@ -178,8 +180,9 @@ describe('buildReplayHtml', () => {
     expect(await decodePayload(s[0]!.body)).toEqual(p);
     expect(s[1]!.body).toBe('console.log("\\x3C/script>")');
     expect(html).toContain('<title>A fight</title>');
-    // DejaVu regular and bold, and the underscore face (ADR 0043) with its unicode-range.
-    expect(html.match(/@font-face/g)).toHaveLength(4);
+    // DejaVu regular and bold, the underscore face (ADR 0043) with its unicode-range, and the title's Cinzel Bold.
+    expect(html.match(/@font-face/g)).toHaveLength(5);
+    expect(html).toContain('@font-face{font-family:"Cinzel";src:url(data:font/woff2;base64,');
     expect(html.match(/unicode-range:U\+5F}/g)).toHaveLength(2);
     const notice = html.slice(html.indexOf('<!--') + 4, html.indexOf('-->'));
     expect(notice.replace(/\s+/g, ' ')).toContain(
@@ -205,7 +208,7 @@ describe('buildReplayHtml', () => {
     const notice = html.slice(html.indexOf('<!--') + 4, html.indexOf('-->'));
     expect(notice).not.toContain('--');
     expect(notice.replace(/\s+/g, ' ')).toContain('Embedded fonts: DejaVu Sans Mono');
-    expect(notice.replace(/\s+/g, ' ')).toContain('Agave (SIL Open Font License 1.1).');
+    expect(notice.replace(/\s+/g, ' ')).toContain('Agave (SIL Open Font License 1.1); Cinzel Bold, Latin subset (pane titles; SIL Open Font License 1.1).');
     for (const line of notice.split('\n')) expect(line.length).toBeLessThanOrEqual(76);
   });
 

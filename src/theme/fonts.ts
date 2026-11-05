@@ -148,6 +148,20 @@ export const AGAVE_REGULAR_FACE: GlyphFace = {
   text: '█',
 };
 
+/**
+ * The pane title's face (ADR 0123 "Title", src/panes/title-font.ts):
+ * Cinzel Bold, Latin subset, bold only. Not a terminal font: no cell
+ * metrics. In every page with panes (the app, the in-app log player, the
+ * exported replay); it downloads only when a framed pane shows a title.
+ */
+export const TITLE_FACE: FontFaceFile & { file: string; notice: string } = {
+  family: 'Cinzel',
+  weight: 'bold',
+  file: 'Cinzel-Bold-latin.woff2',
+  text: 'Ag',
+  notice: 'Cinzel Bold, Latin subset (pane titles; SIL Open Font License 1.1)',
+};
+
 /** The code points of Agave-Bold.woff2 (its cmap; tests/unit/font-glyphs.test.ts). */
 export const AGAVE_BOLD_RANGE =
   'U+20-7E, U+A0-2AF, U+2B9-2BF, U+2C2-2C3, U+2C6-2C7, U+2D8-2DD, U+2EE, U+300-304, U+306-30C, ' +
@@ -386,7 +400,7 @@ export function fontFiles(id: FontId): FontFaceFile[] {
 /** The @font-face rules of every family, each (family, weight) once. */
 export function allFontFaces(): FontFaceFile[] {
   const seen = new Set<string>();
-  const out: FontFaceFile[] = [];
+  const out: FontFaceFile[] = [TITLE_FACE];
   for (const id of FONT_IDS) {
     for (const f of familyFaces(id)) {
       const key = `${f.family}|${f.weight}`;
@@ -415,9 +429,10 @@ function faceSrc(f: FontFaceFile): string {
 }
 
 /**
- * The @font-face rules of every family. font-display: block — text waits
- * for the font instead of swapping, so the cell grid is measured once with
- * the real font and never reflows (ADR 0010).
+ * The @font-face rules of every family and the pane title's face
+ * (`TITLE_FACE`). font-display: block — text waits for the font instead of
+ * swapping, so the cell grid is measured once with the real font and never
+ * reflows (ADR 0010); the title's hood is re-placed when its face loads.
  */
 export function fontFaceCss(): string {
   return allFontFaces()

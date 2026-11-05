@@ -1,7 +1,8 @@
-# Terminal fonts
+# Fonts
 
 Self-hosted web fonts for WebCockpit's terminal grid (ADR 0010 "Fonts and
-cell grid", ADR 0011, ADR 0043, ADR 0049). Regular and bold only; no
+cell grid", ADR 0011, ADR 0043, ADR 0049) and the pane titles (Cinzel,
+ADR 0123; see "Title font" below). Terminal fonts: regular and bold only; no
 italics (MUME output does not need them; italic runs are synthesised by
 the browser). The @font-face rules are generated from
 `src/theme/fonts.ts` (`fontFaceCss`); a browser downloads a family only
@@ -53,6 +54,22 @@ Notes:
   it when it is installed, through `local("Lucida Console")`, and never
   embeds it in an exported replay. Its metrics in `src/theme/fonts.ts`
   and its fill face were measured from Lucida Console 5.01 (`lucon.ttf`).
+
+## Title font
+
+The pane frame's title (ADR 0123 "Title") is not in the terminal font:
+
+| File | Family, version | Source | Licence (file here) |
+|---|---|---|---|
+| `Cinzel-Bold-latin.woff2` | Cinzel 2.000, Bold, Latin subset | `files/cinzel-latin-700-normal.woff2` from npm `@fontsource/cinzel@5.3.0` (Google Fonts' Latin subset, used as is; not an npm dependency) | SIL OFL 1.1, © 2020 The Cinzel Project Authors, no Reserved Font Name (`LICENSE-Cinzel.txt`, the package's `LICENSE`) |
+
+Its @font-face rule (`src/theme/fonts.ts` `TITLE_FACE`) is generated with
+the terminal fonts', `font-display: block`; it downloads when a framed
+pane first shows a title (`src/panes/title-font.ts` asks for it and
+re-places the hoods when it has loaded). The exported HTML replay embeds
+it (its panes show titles too). The subset covers Basic Latin and
+Latin-1, general punctuation (`…`) and a few symbols; anything else in a
+script pane's title falls back to Georgia or the browser's serif.
 
 ## Conversion
 
@@ -201,6 +218,7 @@ fe09e040c8d9246f9e4f71e4345d3d9230573d51e8abaea565718c4bd0e28e51  Agave-Bold.wof
 5c0a8ecc05629c2a574e995942ed2dbc4b684223fda33aa1c898db11ee6f1721  Agave-Regular.woff2
 ffefff0dece1c2edcfe90d7348869aa1d2f9e34a4a2454fd31acd82715bab964  AnonymousPro-Bold.woff2
 ebe57882f58621f8317650f7f49556cd7a385c75f036afaf1b5c73ed8fdbae8d  AnonymousPro-Regular.woff2
+8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263  Cinzel-Bold-latin.woff2
 d84776a2893f382b96c8bfe085d438dc07f2fdd98210fa9f2d3ac62d82a7aef4  CascadiaMono-Bold.woff2
 abbf67cceb200508c9590ac9b75b37dd2211f58ea56279f1fa6ec87265f9d713  CascadiaMono-Regular.woff2
 989f3749f990060bc0f303d3d966fd2b2e45780023bd19a29c7376b58489d2f1  DejaVuSansMono-Bold.woff2
