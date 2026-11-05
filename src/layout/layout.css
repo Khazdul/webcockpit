@@ -53,8 +53,9 @@
  *   --iron        L .25, C min(c × 3, .03) in the hue: the band and hood
  *   --iron-hi     L .42, C min(c × 3, .035): lit edges, brackets
  *   --iron-lo     L .14, C min(c × 3, .02): shadowed edges, rivets
- *   --frost       the lamp at 11 %, --frost2 at 5 %, --frost-edge at 24 %:
- *                 frosted cards in the window (stage 40b: Group, Timers)
+ *   --frost2      the lamp at 5 %, --frost-edge at 24 %: the rims of the
+ *                 frosted cards in the window (Group, Timers; a card itself
+ *                 is the lamp at 8 % in one flat colour, group.css)
  *   --card-back   what a card lies on: transparent, or on a clear pane its
  *                 tint's fill at 62 % so text stays readable over the sky
  *   --window-base the window's fill under the lamp, and --window-blur its
@@ -73,7 +74,6 @@
   --iron: oklch(from var(--pane-border) 0.25 min(calc(c * 3), 0.03) h);
   --iron-hi: oklch(from var(--pane-border) 0.42 min(calc(c * 3), 0.035) h);
   --iron-lo: oklch(from var(--pane-border) 0.14 min(calc(c * 3), 0.02) h);
-  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
   --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
   --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
   --card-back: transparent;

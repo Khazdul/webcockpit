@@ -5,7 +5,7 @@
  * carry their own colour inline.
  *
  * The lantern look (ADR 0123, stage 40b): the fight card and every member
- * row are frosted glass catching the pane's lamp (`--frost*`, layout.css),
+ * row are frosted glass catching the pane's lamp (`--lamp`, layout.css),
  * on `--card-back` (a clear pane's backing); the bars are glossy tubes in a
  * dark recessed track. All of it is static paint on elements that do not
  * change on a tick: a value moves only a fill (a transform) or sets a text.
@@ -18,10 +18,11 @@
   contain: strict;
   --gp-row: var(--cell-h, 17px);
   --gp-hover: color-mix(in srgb, var(--gp-text, #ccc) 7%, transparent);
-  /* Frosted glass: the lamp from above, a lit top edge, a faint rim and a
-   * small shadow under it. */
-  --gp-card: linear-gradient(180deg, var(--frost), var(--frost2)), var(--card-back, transparent);
-  --gp-card-hover: linear-gradient(180deg, color-mix(in srgb, var(--lamp) 16%, transparent), color-mix(in srgb, var(--lamp) 8%, transparent)), var(--card-back, transparent);
+  /* Frosted glass: the lamp's frost on the card backing, a lit top edge, a
+   * faint rim and a small shadow under it. One flat colour (the mockup's
+   * frost gradient cost Firefox about 0.3 ms a Group update). */
+  --gp-card: color-mix(in srgb, var(--lamp) 8%, var(--card-back, transparent));
+  --gp-card-hover: color-mix(in srgb, var(--lamp) 13%, var(--card-back, transparent));
   --gp-card-edge:
     inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent),
     inset 0 0 0 1px var(--frost2),

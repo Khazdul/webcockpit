@@ -5,7 +5,7 @@
  * (ADR 0052).
  *
  * The lantern look (ADR 0123, stage 40b): a pill is a chip of frosted glass
- * catching the pane's lamp (`--frost*`, layout.css) on `--card-back` (a
+ * catching the pane's lamp (`--lamp` at 8 %, layout.css) on `--card-back` (a
  * clear pane's backing), with an inner edge in its group's colour and a
  * lit top edge; a header is the name in bold over a rule that fades out in
  * the lamp's colour. The chip's paint is static: the tick changes only its
@@ -20,11 +20,12 @@
   flex-direction: column;
   white-space: nowrap;
   color: var(--tm-fg);
-  /* The fill's gradient, faint at the start and stronger at its end. */
-  --tm-tint-lo: 16%;
-  --tm-tint: 34%;
+  --tm-tint: 28%;
   --tm-edge: 45%;
-  --tm-card: linear-gradient(180deg, var(--frost), var(--frost2)), var(--card-back, transparent);
+  /* One flat colour (a gradient here cost about half a millisecond a
+   * frame in Firefox with two dozen chips): the lamp's frost on the card
+   * backing. */
+  --tm-card: color-mix(in srgb, var(--lamp) 8%, var(--card-back, transparent));
   --tm-lit: inset 0 1px 0 color-mix(in srgb, var(--lamp) 22%, transparent);
   --tm-drop: 0 1px 2px rgb(0 0 0 / 0.4);
   --tm-head: color-mix(in srgb, var(--lamp) 30%, var(--tm-fg));
@@ -34,8 +35,7 @@
 /* A light pane (Paper; stage 40c designs it): the old tints, a softer
  * shadow, the header in the text colour over the pane's line. */
 .wc-tm[data-light] {
-  --tm-tint-lo: 12%;
-  --tm-tint: 22%;
+  --tm-tint: 20%;
   --tm-edge: 50%;
   --tm-lit: inset 0 1px 0 rgb(255 255 255 / 0.5);
   --tm-drop: 0 1px 2px rgb(0 0 0 / 0.12);
@@ -180,20 +180,17 @@
 }
 
 /* The fill: a childless element over the chip's padding box with its
- * rounding, a gradient in the group's tint, faint at the left and stronger
- * at `--p` (0–100), clear after it. A new value restyles and repaints this
- * element only (no layout, no clip; `--p` here has no descendants to
- * inherit it); the pulse fades it. */
+ * rounding, the group's tint up to `--p` (0–100) and clear after it. A new
+ * value restyles and repaints this element only (no layout, no clip; `--p`
+ * here has no descendants to inherit it); the pulse fades it. One flat
+ * tint with a hard stop: a ramp (faint to strong, as in the mockup) made
+ * Firefox redraw a real gradient for every chip on every tick, about
+ * 1.5 ms a tick with two dozen chips (ADR 0123 "Built (stage 40b)"). */
 .wc-tm-fill {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--c) var(--tm-tint-lo), transparent),
-    color-mix(in srgb, var(--c) var(--tm-tint), transparent) calc(var(--p, 0) * 1%),
-    transparent 0
-  );
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) var(--tm-tint), transparent) calc(var(--p, 0) * 1%), transparent 0);
   pointer-events: none;
 }
 
@@ -245,7 +242,7 @@
 }
 
 .wc-tm-chip.is-charm {
-  background: linear-gradient(180deg, var(--frost2), transparent), var(--card-back, transparent);
+  background: color-mix(in srgb, var(--lamp) 4%, var(--card-back, transparent));
 }
 
 /* Circles: an 18 px ring (its arc drains), the icon inside, name and time beside. */
