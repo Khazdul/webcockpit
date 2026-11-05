@@ -100,6 +100,29 @@ async function pickFile(host: HTMLElement, name: string, bytes: Uint8Array): Pro
   await settle();
 }
 
+describe('Panes grid swatches', () => {
+  it('show a tint by its fill on a dark page, by its frame colour on a light one (ADR 0123 "Paper")', async () => {
+    const svc = services(new MapStore({ openDb: lazyDb(new IDBFactory()), validate: async () => ({}) as never }));
+    const host = document.createElement('div');
+    document.body.append(host);
+    const status: AppStatusView = {
+      get: () => ({ conn: 'playing', replay: false, character: '', linkMs: 0, linkSuspect: false, capture: '', xml: true }),
+      subscribe: () => () => {},
+    };
+    const menu = mountEscMenu(host, svc, { status, close: () => {}, reconnect: () => {}, exit: () => {} });
+    cleanup.push(() => menu.dispose());
+    await act(() => menu.open({ target: 'panes' }));
+    const swatches = () =>
+      [...frame(host).querySelector('[data-pane-row="timers"]')!.closest('.wc-grid-row')!.querySelectorAll<HTMLElement>('.wc-swatch')].map(
+        (e) => e.style.color,
+      );
+    expect(swatches()).toContain('var(--pane-bg-red)');
+    await act(() => svc.settings.update({ appearance: { bg: '#f4ecd8' } }));
+    expect(swatches()).toContain('var(--pane-border-red)');
+    expect(swatches().some((c) => c.includes('--pane-bg-'))).toBe(false);
+  });
+});
+
 describe('Options → Mapper', () => {
   it('shows the map, toggles the pane, imports a map and goes back to the bundled one', async () => {
     const factory = new IDBFactory();
