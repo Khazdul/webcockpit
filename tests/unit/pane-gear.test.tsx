@@ -185,7 +185,9 @@ describe('the Gear on the panes', () => {
     const drops = () => t.btns('timers').map((b) => b.hasAttribute('data-drop'));
     expect(drops()).toEqual([false, false, false, false]);
     const seen = new Set<number>();
-    // From the default 33 cells (the centred hood, ADR 0123, needs the room the left-hand plate did not).
+    // From the default 33 cells: the hood moves left for them, then they lie over its right part and drop
+    // only where they would cover its left end (ADR 0123 "Hood position and hover buttons"); under ten
+    // cells there is no hood, so the cross and a button still fit.
     for (let w = 33; w >= 8; w--) {
       t.settings.update((d) => {
         d.layout = moveToNewLane(legacySettings().layout, 'timers', 'right', 1, w);
@@ -196,7 +198,7 @@ describe('the Gear on the panes', () => {
       seen.add(kept);
       expect(d).toEqual([...Array(4 - kept).fill(true), ...Array(kept).fill(false)]);
     }
-    expect([...seen].sort()).toEqual([0, 1, 2, 3, 4]);
+    expect([...seen].sort()).toEqual([1, 2, 3, 4]);
   });
 
   it('isShown follows the settings', () => {

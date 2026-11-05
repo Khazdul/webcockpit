@@ -42,7 +42,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
 import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
-import { type FrameGeometry, type FramePlate, fitTitle, frameArm, frameGeometry, frameHolePath, framePlate, frameRimPath, frameSeams, hoodRoom, titlePx } from './frame';
+import { type FrameGeometry, type FramePlate, HOOD_PAD, fitTitle, frameArm, frameGeometry, frameHolePath, framePlate, frameRimPath, frameSeams, hoodRoom, titlePx } from './frame';
 import { titleWidth } from './title-font';
 
 export type { PaneContext } from './context';
@@ -88,6 +88,11 @@ export interface PanePlacement {
   floating?: number;
 }
 
+/** The label's fade before the hover set over the hood, in cells (layout.css `data-hood-cover`). */
+const COVER_FADE = 1.5;
+/** Less of the label than this many cells clear of the fade: it fades out whole on hover. */
+const COVER_KEEP = 2;
+
 export interface PaneShellOptions {
   /** Override `BLANK_WHEN_INACTIVE[id]` (script panes: false). */
   blankWhenInactive?: boolean;
@@ -114,6 +119,17 @@ export class PaneShell {
   private _plate: FramePlate | null = null;
   /** The label as the hood shows it (`fitTitle`; empty without a hood). */
   private _title = '';
+  /**
+   * Cells from the pane's right edge that the hover set (the close cross and
+   * the buttons left of it, ADR 0095) covers; the cockpit sets it when it
+   * adds them (0: none, as on a phone). The hood keeps left of them where it
+   * can (`framePlate`, ADR 0123 "Hood position and hover buttons").
+   */
+  hoverCells = 0;
+  /** Where the hover set covers the hood (`coverHood`), frame px; null: it does not. */
+  private coverX: number | null = null;
+  /** `data-hood-cover`: '' (the label fades before the set), 'all' (it fades whole), null (no cover). */
+  private coverMode: string | null = null;
   /** The inner seam's dark and light paths. */
   private readonly seamPaths: SVGPathElement[];
   private readonly listeners = new Set<PaneResizeListener>();
@@ -367,7 +383,10 @@ export class PaneShell {
     const size = titlePx(cell.h);
     const measure = (s: string): number => titleWidth(doc, s, size);
     const title = fitTitle(this._label, hoodRoom(box, g, cell.w), measure);
-    const pl = title ? framePlate(box, g, cell.w, cell.h, measure(title), dpr) : null;
+    // A script pane made without a cross shows no hover set (ADR 0084 addendum).
+    const hover = this.el.hasAttribute('data-no-cross') ? 0 : this.hoverCells;
+    const clear = hover > 0 ? box.w - hover * cell.w : Infinity;
+    const pl = title ? framePlate(box, g, cell.w, cell.h, measure(title), dpr, clear) : null;
     this._frameLine = g;
     this._plate = pl;
     this._title = pl ? title : '';
@@ -412,6 +431,40 @@ export class PaneShell {
     const pl = this._plate;
     const g = this._frameLine;
     return this.placed?.framed && pl && g ? g.l + pl.x1 : 0;
+  }
+
+  /**
+   * How far the hover set may cover the hood, in CSS px from the pane's left
+   * edge: the hood's left end and its rivet stay clear, the label may be
+   * covered (ADR 0123 "Hood position and hover buttons"). 0 with no hood or
+   * no frame.
+   */
+  get titleKeep(): number {
+    const pl = this._plate;
+    const g = this._frameLine;
+    const c = this.placedCell;
+    return this.placed?.framed && pl && g && c ? g.l + pl.x0 + HOOD_PAD * c.w : 0;
+  }
+
+  /**
+   * Marks that the hover set, from `x` CSS px from the pane's left edge,
+   * lies over the hood's right part (null: it does not): on hover the hood
+   * gets an iron shelf from there under the buttons and its label fades out
+   * before it (layout.css `data-hood-cover`). The cockpit calls it after each
+   * placement (`syncLook`). Writes only on a change.
+   */
+  coverHood(x: number | null): void {
+    const g = this._frameLine, pl = this._plate, c = this.placedCell;
+    const v = x !== null && g && pl && c ? Math.round((x - g.l) * 1e4) / 1e4 : null;
+    // What is left of the label before its fade (`COVER_FADE` cells); under `COVER_KEEP` cells it fades out whole.
+    const mode = v === null || !pl || !c ? null : v - COVER_FADE * c.w - (pl.x0 + HOOD_PAD * c.w) < COVER_KEEP * c.w ? 'all' : '';
+    if (v === this.coverX && mode === this.coverMode) return;
+    this.coverX = v;
+    this.coverMode = mode;
+    if (mode === null) this.el.removeAttribute('data-hood-cover');
+    else this.el.setAttribute('data-hood-cover', mode);
+    if (v === null) this.el.style.removeProperty('--cover-x');
+    else this.el.style.setProperty('--cover-x', `${v}px`);
   }
 
   /** The frame rim as last placed (CSS px from the pane's edges), null while unframed. */

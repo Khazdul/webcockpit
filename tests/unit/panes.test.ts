@@ -2,7 +2,7 @@
 import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { Cockpit } from '../../src/layout/cockpit';
-import { BRACKET, HOOD_PAD, HOOD_R, TITLE_TRACK, fitTitle, frameArm, frameGeometry, frameHolePath, frameInset, framePlate, frameRimPath, frameSeams, frameThickness, hoodRoom, titlePx } from '../../src/panes/frame';
+import { BRACKET, HOOD_MIN_COL, HOOD_PAD, HOOD_R, TITLE_TRACK, fitTitle, frameArm, frameGeometry, frameHolePath, frameInset, framePlate, frameRimPath, frameSeams, frameThickness, hoodRoom, titlePx } from '../../src/panes/frame';
 import { estimateTitleWidth, titleWidth } from '../../src/panes/title-font';
 import { Bus } from '../../src/core/bus';
 import type { ConnState } from '../../src/core/types';
@@ -104,6 +104,67 @@ describe('frame hood', () => {
             expect(p.r).toBeLessThanOrEqual(HOOD_R + 0.5 / dpr);
             // Clear of the corner brackets.
             expect(p.x0).toBeGreaterThan(BRACKET * g.t);
+          }
+        }
+      }
+    }
+  });
+
+  it('moves the hood left of the hover buttons when they would reach it, down to the fourth cell (ADR 0123 "Hood position")', () => {
+    for (const dpr of [1, 1.25, 2]) {
+      for (const [cw, chh] of [
+        [10, 19],
+        [9.03125, 17],
+      ] as const) {
+        for (const col of [40, 41, 7]) {
+          const textW = 50.3;
+          const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
+          const at = (cells: number, clear: number, wide = false) => {
+            const box = { x: 3 + col * cw, y: 0.6 + 7 * chh, w: cells * cw, h: 12 * chh };
+            const g = frameGeometry(box, cw, chh, dpr);
+            const tw = wide ? hoodRoom(box, g, cw) : textW;
+            const c = framePlate(box, g, cw, chh, tw, dpr)!;
+            const p = framePlate(box, g, cw, chh, tw, dpr, clear)!;
+            expect(c).not.toBeNull();
+            expect(p).not.toBeNull();
+            const fx = box.x + g.l, fw = box.w - g.l - g.r;
+            for (const v of [p.x0, p.x1]) whole(fx + v);
+            // The same hood, only moved: width, depth and corners.
+            expect(p.x1 - p.x0).toBeCloseTo(c.x1 - c.x0, 3);
+            expect([p.y0, p.y1, p.r]).toEqual([c.y0, c.y1, c.r]);
+            // Never right of centre.
+            expect(p.x0).toBeLessThanOrEqual(c.x0 + 1e-6);
+            return { box, g, c, p, fw };
+          };
+          // Room enough: centred, as without buttons.
+          {
+            const { c, p, fw } = at(40, 40 * cw - 12 * cw);
+            expect(p).toEqual(c);
+            expect(Math.abs(p.x0 - (fw - p.x1))).toBeLessThan(1e-3);
+          }
+          // 25 cells, the four buttons and the cross in the last twelve: moved left just enough, its right
+          // edge on the device px at or before where they begin.
+          {
+            const clear = 25 * cw - 12 * cw;
+            const { g, c, p } = at(25, clear);
+            expect(p.x0).toBeLessThan(c.x0);
+            expect(g.l + p.x1).toBeLessThanOrEqual(clear + 1e-6);
+            expect(g.l + p.x1).toBeGreaterThan(clear - 1 / dpr - 1e-6);
+            expect(g.l + p.x0).toBeGreaterThan(HOOD_MIN_COL * cw);
+          }
+          // 18 cells: they would reach it even at its leftmost; it stops at the fourth cell, clear of the bracket.
+          {
+            const clear = 18 * cw - 12 * cw;
+            const { g, p } = at(18, clear);
+            expect(g.l + p.x1).toBeGreaterThan(clear);
+            expect(Math.abs(g.l + p.x0 - HOOD_MIN_COL * cw)).toBeLessThanOrEqual(0.5 / dpr + 1e-6);
+            expect(p.x0).toBeGreaterThan(BRACKET * g.t + cw - 1e-6);
+          }
+          // A hood so wide on its pane that, centred, it begins left of the fourth cell: it stays centred.
+          {
+            const { g, c, p } = at(14, 0, true);
+            expect(g.l + c.x0).toBeLessThan(HOOD_MIN_COL * cw);
+            expect(p).toEqual(c);
           }
         }
       }
@@ -414,12 +475,13 @@ describe('Cockpit', () => {
     expect(c.dragging).toBe(false);
   });
 
-  it('a pane too narrow for the buttons beside its title drops them, Colour first (ADR 0095)', () => {
+  it('a narrow pane moves the hood left, then lays the buttons over it, and drops them, Colour first, only past its left end (ADR 0095, ADR 0123)', () => {
     const { c, settings, flush } = make(1200, 1000);
     const drops = () => [...c.pane('timers').el.querySelectorAll<HTMLElement>('.wc-pane-btn')].map((b) => b.hasAttribute('data-drop'));
     expect(drops()).toEqual([false, false, false]);
     // Two lanes: Timers in a narrower and narrower one.
     const seen = new Set<number>();
+    const covered = new Set<string | null>();
     for (let w = 30; w >= 8; w--) {
       settings.update((d) => {
         d.layout = moveToNewLane(legacySettings().layout, 'timers', 'right', 1, w);
@@ -432,12 +494,21 @@ describe('Cockpit', () => {
       seen.add(kept);
       // From the left: dropped ones first, then the kept ones.
       expect(d).toEqual([...Array(3 - kept).fill(true), ...Array(kept).fill(false)]);
-      // The leftmost kept button (two cells each, left of the cross's four) clears the nameplate.
-      if (kept) expect(paneW - (4 + 2 * kept) * 10).toBeGreaterThanOrEqual(shell.titleEnd);
-      // One more would not have.
-      if (kept < 3) expect(paneW - (4 + 2 * (kept + 1)) * 10).toBeLessThan(shell.titleEnd + 5);
+      // The leftmost kept button (two cells each, left of the cross's four) clears the hood's left end and
+      // rivet (the label may be covered); one more would not have.
+      const left = paneW - (4 + 2 * kept) * 10;
+      if (kept) expect(left).toBeGreaterThanOrEqual(shell.titleKeep);
+      if (kept < 3) expect(paneW - (4 + 2 * (kept + 1)) * 10).toBeLessThan(shell.titleKeep);
+      // Over the hood: marked, the shelf from where the set begins (frame px).
+      const cover = shell.el.getAttribute('data-hood-cover');
+      covered.add(cover);
+      if (shell.titleEnd > left) expect(parseFloat(shell.el.style.getPropertyValue('--cover-x'))).toBeCloseTo(left - parseFloat(shell.el.style.getPropertyValue('--frame-l')), 3);
+      else expect(cover).toBeNull();
     }
-    expect([...seen].sort()).toEqual([0, 1, 2, 3]);
+    // (Under ten cells there is no hood, so nothing to keep clear: the cross and a button still fit.)
+    expect([...seen].sort()).toEqual([1, 2, 3]);
+    // Clear of the hood, over it with part of the label left, and over all of it.
+    expect([...covered].sort()).toEqual(['', 'all', null].sort());
   });
 
   it('borderless (round 3): no name tag, nothing to keep clear: every button shows even in a narrow lane', () => {

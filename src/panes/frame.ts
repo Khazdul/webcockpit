@@ -18,7 +18,9 @@
 //   An SVG inside it strokes the hole's edge (the inner seam, `frameSeams`).
 // - `.wc-pane-frame::before`: the window (the pane's fill and the lamp
 //   light), clipped to the hole (the inside of the band less the hood).
-// - `.wc-pane-title`: the hood's face and its label, centred on the frame.
+// - `.wc-pane-title`: the hood's face and its label, centred on the frame;
+//   on a pane too narrow for that and the hover buttons beside it, moved
+//   left (down to the fourth cell, `framePlate`).
 //
 // The inset is the same horizontally and vertically, so the gap between two
 // neighbouring frames is the same beside and above (owner feedback 15).
@@ -171,16 +173,36 @@ export function fitTitle(label: string, room: number, measure: (s: string) => nu
 }
 
 /**
- * The hood for a label `textW` CSS px wide (measured in the title font):
- * centred on the frame box, `HOOD_PAD` cells wider than the label either
- * side, from the frame's top edge to one CSS px above 8/9 of the top cell
- * row (the old plate's bottom, owner item 40: clear of the first content
- * row), its lower corners rounded. Every edge on a whole device pixel of
- * the page, and the space either side equal to the device px. Null
- * without a label, or when it does not fit (`hoodRoom`) or the top row
- * leaves no depth for it.
+ * The hood's leftmost place, in cells from the pane's left edge: its left
+ * edge at the start of the fourth cell, where the old nameplate sat (owner
+ * feedback 2026-11-05), well clear of the corner bracket.
  */
-export function framePlate(box: PxRect, g: FrameGeometry, w: number, h: number, textW: number, dpr = 1): FramePlate | null {
+export const HOOD_MIN_COL = 3;
+
+/**
+ * The hood for a label `textW` CSS px wide (measured in the title font):
+ * `HOOD_PAD` cells wider than the label either side, from the frame's top
+ * edge to one CSS px above 8/9 of the top cell row (the old plate's bottom,
+ * owner item 40: clear of the first content row), its lower corners
+ * rounded. Centred on the frame box when its right edge is then at or left
+ * of `clearFrom` (CSS px from the pane's left edge: where the hover buttons
+ * begin, ADR 0123 "Hood position and hover buttons"); otherwise moved left
+ * just enough, but its left edge no further left than `HOOD_MIN_COL` cells
+ * from the pane's edge (nor nearer the corner bracket than a cell), and
+ * never right of centre. Every edge on a whole device pixel of the page;
+ * centred, the space either side equal to the device px. Null without a
+ * label, or when it does not fit (`hoodRoom`) or the top row leaves no
+ * depth for it.
+ */
+export function framePlate(
+  box: PxRect,
+  g: FrameGeometry,
+  w: number,
+  h: number,
+  textW: number,
+  dpr = 1,
+  clearFrom = Infinity,
+): FramePlate | null {
   if (!(textW > 0) || textW > hoodRoom(box, g, w) + 1e-6) return null;
   const d = dpr > 0 ? dpr : 1;
   const tD = Math.round(g.t * d);
@@ -195,7 +217,14 @@ export function framePlate(box: PxRect, g: FrameGeometry, w: number, h: number, 
   // Centred to the device px: the same space either side.
   if ((X1 - X0 - hw) % 2) hw += 1;
   if (hw > X1 - X0) return null;
-  const xa = X0 + (X1 - X0 - hw) / 2, xb = xa + hw;
+  let xa = X0 + (X1 - X0 - hw) / 2;
+  // Left of the hover buttons where it can be: moved left just enough, down to the fourth cell.
+  const lim = Math.floor((box.x + clearFrom) * d + 1e-6);
+  if (xa + hw > lim) {
+    const lo = Math.max(Math.round((box.x + HOOD_MIN_COL * w) * d), X0 + Math.ceil((BRACKET * g.t + w) * d - 1e-6));
+    xa = Math.min(xa, Math.max(lo, lim - hw));
+  }
+  const xb = xa + hw;
   const rD = Math.max(1, Math.min(Math.round(HOOD_R * d), yb - yt - one, Math.floor(hw / 2)));
   return { x0: px(xa / d - fx), x1: px(xb / d - fx), y0: 0, y1: px(yb / d - fy), r: px(rD / d) };
 }

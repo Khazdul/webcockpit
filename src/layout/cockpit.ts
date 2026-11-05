@@ -70,8 +70,11 @@
 //   ADR 0095, src/layout/pane-buttons.ts): Colour steps the tint, Border
 //   flips the frame, Background flips glass and clear. Like the cross they
 //   take no focus and start no drag; none on a temporary pane (no
-//   settings) or where the cross is hidden. A pane too narrow for them
-//   beside its title drops them from the left (`syncLook`).
+//   settings) or where the cross is hidden. On a narrow pane the hood moves
+//   left to make room for them (`PaneShell.hoverCells`); where it still
+//   reaches under them they show over its right part on an iron shelf, and
+//   only those that would cover its left end drop, from the left
+//   (`syncLook`, ADR 0123 "Hood position and hover buttons").
 // - With `onGear` (the App's settings popups, ADR 0107), the Map, Comm,
 //   Timers and Group panes have a Gear left of them (`GEAR_PANES`): its
 //   click calls `onGear(id)`, which toggles the pane's settings popup; the
@@ -167,10 +170,12 @@ import {
   CROSS_CELLS_BORDERLESS,
   CROSS_CELLS_FRAMED,
   GEAR_ICON,
+  LOOK_BUTTON_CELLS,
   LOOK_ICONS,
   type PaneButton,
   gearLabel,
   hasGear,
+  hoverFit,
   lookButtonsFit,
   lookLabel,
   lookOn,
@@ -617,6 +622,8 @@ export class Cockpit {
       });
       this.lookers.set(id, btns);
     }
+    // The cells the hover set covers at the top right, so the hood keeps left of them where it can (ADR 0123).
+    shell.hoverCells = CROSS_CELLS_FRAMED + LOOK_BUTTON_CELLS * (this.lookers.get(id)?.length ?? 0);
     const close = div('wc-pane-close');
     close.textContent = ' × ';
     close.setAttribute('role', 'button');
@@ -640,21 +647,27 @@ export class Cockpit {
   }
 
   /**
-   * Brings pane `id`'s look buttons (ADR 0095) up to date after it was
-   * placed `paneW` px wide: each one's label and state, and which of them
-   * fit right of the nameplate (or a borderless pane's name tag; the rest
-   * are dropped, Colour first). Attribute writes only on a change.
+   * Brings pane `id`'s hover set (ADR 0095) up to date after it was placed
+   * `paneW` px wide: each look button's label and state, which of them show
+   * (`hoverFit`: over the hood's right part if need be; the rest are
+   * dropped, the Gear first) and whether the set covers the hood
+   * (`PaneShell.coverHood`). Attribute writes only on a change.
    */
   private syncLook(id: PaneId, shell: PaneShell, s: Readonly<Settings>, paneW: number, cellW: number): void {
-    const btns = this.lookers.get(id);
-    if (!btns) return;
-    const p = paneSettingsOf(s.panes, id);
+    if (this.phone) return;
+    const btns = this.lookers.get(id) ?? [];
     const framed = shell.el.hasAttribute('data-framed');
-    // Clear of the hood on a frame; a borderless pane has nothing to keep clear (ADR 0095 round 3: no name tag).
-    const freeFrom = shell.titleEnd;
-    // No extra gap beside the hood: its padding and outline, and the air in each button's two cells,
-    // keep them apart (ADR 0123; the centred hood leaves less room than the old nameplate did).
-    const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS, btns.length, 0);
+    // Framed: the hood was moved left for them where it could; what still does not fit lies over the
+    // hood's right part (an iron shelf under it on hover), and only buttons that would cover its left
+    // end drop (ADR 0123 "Hood position and hover buttons"). A borderless pane has nothing to keep
+    // clear (ADR 0095 round 3: no name tag).
+    const { fit, cover } = framed
+      ? hoverFit(paneW, cellW, btns.length, shell.titleEnd, shell.titleKeep)
+      : { fit: lookButtonsFit(paneW, cellW, 0, CROSS_CELLS_BORDERLESS, btns.length, 0), cover: null };
+    // A script pane made without a cross shows no hover set (ADR 0084 addendum).
+    shell.coverHood(shell.el.hasAttribute('data-no-cross') ? null : cover);
+    if (!btns.length) return;
+    const p = paneSettingsOf(s.panes, id);
     btns.forEach(({ what, el: b }, i) => {
       // Dropped from the left: the first `n - fit` go (the Gear first).
       b.toggleAttribute('data-drop', i < btns.length - fit);

@@ -1,6 +1,6 @@
 // Pane hover buttons (ADR 0095): labels, states and what fits.
 import { describe, expect, it } from 'vitest';
-import { CROSS_CELLS_BORDERLESS, CROSS_CELLS_FRAMED, LOOK_ICONS, PANE_LOOKS, lookButtonsFit, lookLabel, lookOn, lookSlot } from '../../src/layout/pane-buttons';
+import { CROSS_CELLS_BORDERLESS, CROSS_CELLS_FRAMED, LOOK_ICONS, PANE_LOOKS, hoverFit, lookButtonsFit, lookLabel, lookOn, lookSlot } from '../../src/layout/pane-buttons';
 
 const P = { on: true, color: 'black' as const, border: true, glass: true };
 
@@ -36,6 +36,23 @@ describe('pane look buttons', () => {
     expect(lookButtonsFit(300, 10, 205, CROSS_CELLS_BORDERLESS)).toBe(3);
     expect(lookButtonsFit(300, 10, 206, CROSS_CELLS_BORDERLESS)).toBe(2);
     expect(CROSS_CELLS_FRAMED).toBe(4);
+  });
+
+  it('beside the lantern hood: clear of it when they fit, over its right part when not, dropped only past its left end', () => {
+    // 25 cells of 10 px, the Gear and three look buttons: the set from 130 (twelve cells from the right).
+    expect(hoverFit(250, 10, 4, 128, 42)).toEqual({ fit: 4, cover: null });
+    expect(hoverFit(250, 10, 4, 130, 42)).toEqual({ fit: 4, cover: null });
+    // The hood (moved left as far as it goes) ends at 104: the set lies over its right part.
+    expect(hoverFit(200, 10, 4, 104, 42)).toEqual({ fit: 4, cover: 80 });
+    expect(hoverFit(170, 10, 4, 104, 42)).toEqual({ fit: 4, cover: 50 });
+    // The label's start (the hood's left end and rivet) stays clear: the Gear drops first, then Colour.
+    expect(hoverFit(160, 10, 4, 104, 42)).toEqual({ fit: 3, cover: 60 });
+    expect(hoverFit(140, 10, 4, 100, 42)).toEqual({ fit: 2, cover: 60 });
+    expect(hoverFit(100, 10, 4, 80, 42)).toEqual({ fit: 0, cover: 60 });
+    // Three buttons (no Gear).
+    expect(hoverFit(170, 10, 3, 104, 42)).toEqual({ fit: 3, cover: 70 });
+    // No hood: nothing to cover or keep clear.
+    expect(hoverFit(100, 10, 4, 0, 0)).toEqual({ fit: 3, cover: null });
   });
 
   it('icons are inline SVG or CSS, without ids (they repeat in every pane)', () => {
