@@ -84,7 +84,8 @@ Built 2026-11-05; the numbers are in ADR 0123 "Built (stage 40a)".
   `40a-clear-weather-chromium-2x.png` (snow at night; Timers red, Group
   blue), `40a-float-chromium-2x.png`, `40a-map-chromium-2x.png`,
   `40a-weather-firefox-2x.png` (Firefox flat glass),
-  `40a-hover-buttons-chromium-2x.png`.
+  `40a-hover-buttons-chromium-2x.png` (≈ 24-cell panes: Border, Background
+  and the cross), `40a-hover-map-chromium-2x.png` (the 30-cell Map: all four).
 - Cost: no backdrop filter on the band any more; rough numbers in the ADR.
 - Open: the hover buttons drop sooner with the title centred (ADR);
   Paper (light) panes are only kept legible (dark iron on the page, a
