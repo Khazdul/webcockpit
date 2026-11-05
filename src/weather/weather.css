@@ -43,16 +43,12 @@
  * floating map's empty space read darker than the docked panes). The band
  * and hood are opaque iron: nothing to blur there. Weather off there is
  * nothing behind a pane but the flat page, so no blur at all (layout.css:
- * an opaque fill). A clear pane has no fill and no blur (layout.css). */
+ * an opaque fill). A clear pane has no fill and no blur (layout.css).
+ * `--window-blur` is the window's backdrop filter (layout.css). */
 .wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
 .wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] {
   --window-base: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 55%, transparent);
-}
-
-.wc-cockpit[data-weather] > .wc-pane:not([data-floating]):not([data-clear]) > .wc-pane-frame::before,
-.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see]:not([data-clear]) > .wc-pane-frame::before {
-  -webkit-backdrop-filter: blur(2.5px) saturate(1.25);
-  backdrop-filter: blur(2.5px) saturate(1.25);
+  --window-blur: blur(2.5px) saturate(1.25);
 }
 
 /* Without the blur (Firefox, `data-weather-flat`, support.ts
@@ -62,16 +58,11 @@
  * pane a float lies over (`data-weather-under`, index.ts `floatHoles`): its
  * hole is a clip-path, which makes the pane a backdrop root, so its blur
  * would see nothing behind it (owner item 57). */
-.wc-cockpit[data-weather-flat] > .wc-pane:not([data-floating]),
-.wc-cockpit[data-weather-flat] > .wc-pane[data-floating][data-weather-see],
+.wc-cockpit[data-weather][data-weather-flat] > .wc-pane:not([data-floating]),
+.wc-cockpit[data-weather][data-weather-flat] > .wc-pane[data-floating][data-weather-see],
 .wc-cockpit[data-weather] > .wc-pane.wc-pane[data-weather-under] {
   --window-base: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
-}
-
-.wc-cockpit[data-weather-flat] > .wc-pane > .wc-pane-frame::before,
-.wc-cockpit[data-weather] > .wc-pane.wc-pane[data-weather-under] > .wc-pane-frame::before {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+  --window-blur: none;
 }
 
 /* A borderless glass pane (ADR 0095 round 1) gets the glass a frame has
