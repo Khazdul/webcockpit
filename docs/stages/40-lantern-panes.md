@@ -58,12 +58,12 @@ every framed pane. Border on/off, Colour and Background glass/clear
       fill), floating (opaque ring), weather on/off and Firefox flat, map
       pane, script panes; the weather worker's glints and snow on the new
       band and hood
-- [ ] 40b: Group: fight zone, member rows as frosted cards; tube bars;
+- [x] 40b: Group: fight zone, member rows as frosted cards; tube bars;
       the NPC hatched bars, away dimming, statuses unchanged in function
-- [ ] 40b: Timers: chips as frosted glass with the group colour edge,
+- [x] 40b: Timers: chips as frosted glass with the group colour edge,
       header lines, ending-soon red time, untimed dashed, charm; bars and
       circles, flow and grid
-- [ ] 40b: Character, Comm, UI, Statistics, map, script panes checked in
+- [x] 40b: Character, Comm, UI, Statistics, map, script panes checked in
       the lit window; adjustments where text loses contrast
 - [ ] 40a+: hood moves left on narrow panes, buttons over the hood when
       they still do not fit (owner feedback 2026-11-05)
@@ -93,6 +93,36 @@ Built 2026-11-05; the numbers are in ADR 0123 "Built (stage 40a)".
   Paper (light) panes are only kept legible (dark iron on the page, a
   softer vignette) until 40c; the frosted card tokens are defined but not
   used yet (40b).
+
+## Notes (40b)
+
+Built 2026-11-05; the numbers are in ADR 0123 "Built (stage 40b)". CSS
+only (layout.css, group.css, timers.css); no change to what the panes
+show or how they lay out.
+
+- Lamp: Plain and Grey now give warm candle light; a tint colours the
+  light but over 40 % of the candle, so a Green or Blue text pane stays
+  near neutral (oklab mix, unit-tested inside sRGB).
+- Group: frosted member and fight cards, glossy tube bars in a recessed
+  track, the vs medallion; Timers: frosted chips with the group colour
+  edge, bold mono headers over a lamp-coloured rule, a soft glow on the
+  ending-soon time. Cards keep a backing on clear panes and look finished
+  with the border off.
+- Cost: the mockup's frost gradient and the chip fill's ramp were made
+  flat after a Firefox measurement (they cost ≈ 0.3 ms per Group update
+  and ≈ 2 ms per Timers tick); now within noise of 40a in both browsers.
+- Screenshots (`img/`): `40b-plain-chromium-2x.png`,
+  `40b-plain-chromium-1x.png`, `40b-blue-red-green-chromium-2x.png`
+  (Timers blue, Group red, Comm green), `40b-border-off-chromium-2x.png`
+  (blue), `40b-clear-weather-chromium-2x.png` (red, clear, day sky),
+  `40b-circles-grid-chromium-2x.png` (green, circles in grid),
+  `40b-oneline-chromium-2x.png` (one-line Group rows and fight strip),
+  `40b-orange-firefox-2x.png`, `40b-other-panes-chromium-1x.png`
+  (Character, Map, Statistics, the key manager, Comm, UI).
+- Other panes: no change needed. Open: a clear Character pane over a
+  bright day sky has low-contrast dim labels (the clear background's
+  trait, ADR 0095); the mockup's faint-to-strong chip fill ramp is
+  dropped for cost (a flat tint instead).
 
 ## Test guide
 

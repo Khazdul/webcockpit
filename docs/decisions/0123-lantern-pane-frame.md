@@ -127,10 +127,13 @@ Dark backgrounds; Paper is 40c. The numbers as built:
   tracking (the built-in labels measure 0.53–0.82, average ≈ 0.65); when
   it loads, the cockpit relayouts (`onTitleFont`).
 - **Tokens** (layout.css, every pane):
-  `--lamp` = `color-mix(in srgb, oklch(from --pane-border .72 min(c × 8,
-  .12) h) 62 %, #ffd79a)`; `--iron` L .25 C min(c × 3, .03),
+  `--lamp` (as changed in 40b, below; 40a had `color-mix(in srgb,
+  oklch(from --pane-border .72 min(c × 8, .12) h) 62 %, #ffd79a)`, which
+  read cool grey on Plain and flooded a Green text pane);
+  `--iron` L .25 C min(c × 3, .03),
   `--iron-hi` L .42 C min(c × 3, .035), `--iron-lo` L .14 C min(c × 3,
-  .02); `--frost` 11 %, `--frost2` 5 %, `--frost-edge` 24 % of the lamp;
+  .02); `--frost2` 5 %, `--frost-edge` 24 % of the lamp (40a also had
+  `--frost` 11 %, unused since 40b);
   `--card-back` transparent, on a clear pane `--pane-fill` at 62 %.
   `--pane-fill` is a new pane token (src/theme/apply.ts): the tint's own
   fill, glass or clear. All oklch shades stay inside sRGB for every tint
@@ -179,3 +182,66 @@ Dark backgrounds; Paper is 40c. The numbers as built:
   four backdrop-blur strips per framed pane being gone; main-thread task
   time ≈ 1 % of the time either way. Firefox (no blur there before
   either): 60 fps on both. Stage 40d measures properly.
+
+## Built (stage 40b, 2026-11-05)
+
+Content in the lit window, dark backgrounds (Paper is 40c). CSS only:
+group.ts and timers.ts are unchanged, so Group/Timers function, layout
+logic and the stage 39 performance rules (fills by transform or `--p`,
+values set in place, no layout reads on a tick) hold.
+
+- **Lamp** (layout.css): mixed in oklab from the border, `--lamp-w` =
+  min(hypot(a, b) × 60, 1); L .78, a/b = the border's hue direction × .06
+  × w + the candle (C .085 at h 70: a .0291, b .0799) × (1 − .6 w). A grey
+  border (Plain, Grey) gives the candle alone, warm amber
+  (≈ rgb 219 174 123); a tint gives its own hue over 40 % of the candle,
+  so the light is coloured but restrained (Green ≈ 177 191 135, Blue
+  ≈ 175 184 201, Red ≈ 232 164 145), and blue, opposite the candle, is not
+  cancelled to grey. No hue wraps (Cartesian mix). Unit tests: inside
+  sRGB on every preset and tint; Plain/Grey hue 55–85°, Blue 220–290°.
+  Chromium and Firefox compute the same oklab (checked).
+- **Cards**: one flat colour, the lamp at 8 % over `--card-back` (hover
+  13 %), a lit top edge (`inset 0 1px 0` lamp 26 %), a `--frost2` rim and
+  `0 1px 2px` shadow at 45 %. The mockup's frost gradient was dropped:
+  with it Firefox paid ≈ 0.3 ms per Group update and ≈ 0.5 ms per Timers
+  tick (headless, ratio 2). A member card is the row's `::before`, inset
+  1 px top and 2 px bottom of its cells (1 px each side on a one-line
+  row), behind the content (`isolation: isolate`, z-index −1), so the
+  rows keep the cell grid and the cards have 3 px of air; the name line
+  sits 1 px lower (`top: 1px`, no layout).
+- **Group**: the fight card and the one-line strip keep their side tints
+  over the card, rim `--frost-edge`, lit edge 30 %; the vs mark is a
+  medallion (dark glass, a lamp spot, Cinzel Bold 0.68 em in the lamp);
+  the NPC tag and the divider take `--frost-edge`, the tag a dark backing.
+  Bars: a dark recessed track (`rgb(0 0 0 / .55)`, `inset 0 1px 1px` at
+  .7, a lamp lip under it) and a glossy fill (white .38 → 0 at 55 % →
+  black .15 over the bar's own colour, a static `background-image`, so the
+  e2e now checks "no stripes" instead of no image); the sanctuary ring's
+  track is the same dark. Band-word bars stay solid (ADR 0122).
+- **Timers**: chips are rounded rectangles (0.3 em) on the card colour,
+  border the group colour at 45 %, lit top edge 22 %, `0 1px 2px` shadow;
+  the fill is the group colour at 28 % with a hard stop at `--p` (the
+  mockup's faint-to-strong ramp made Firefox redraw a real gradient per
+  chip on every tick, ≈ 1.5 ms with two dozen chips). Headers: the pane's
+  mono font, bold, 0.85 em, colour lamp 30 % over the text colour, box
+  height kept (1.27 em = the old 1.08 pane em, so scrolling is the same),
+  icon with a 2 px drop-shadow glow in the group colour (static), rule
+  lamp 38 % fading out by 85 %. Ending soon: the red bold time gets a
+  `0 0 5px` glow at 45 % (only those few seconds). Untimed: dashed rim
+  (label colour 80 %) on `--card-back`, no shadow; charm: the lamp at
+  4 %. Circles keep their look; their ring track is dark.
+- **Light pane** (`data-light`, until 40c): the old track colour, no
+  recess, a soft gloss and shadow, header in the text colour over the
+  pane's line, no glows; tag and vs on light backings.
+- **Other panes** (Character, Comm, UI, Statistics, Map, the key manager)
+  checked on Plain, red, blue, green, border off, clear (and weather day):
+  no change needed. Map content covers the window. A clear Character pane
+  over a bright day sky has low-contrast dim labels; that is the clear
+  background's (ADR 0095), not the lamp's.
+- **Cost** (headless, ratio 2, Group with fight card and six members,
+  Timers with 18 chips; the main-thread time of the frame after an update,
+  median of 150; 40a → 40b): Firefox Group update 2.50 → 2.76 ms, fight
+  update 3.86 → 3.70, the Timers tick's frame 6.9 → 7.1; Chromium Group
+  2.86 → 2.86, fight 3.43 → 3.25, tick 3.0 → 3.0. Noise between runs
+  ≈ ±0.3 ms.
+
