@@ -89,3 +89,93 @@ backdrop filter is added. Stage 40d measures frame times against main.
   change with it.
 - The weather worker's rim lights, glints and snow land on iron instead
   of glass; they are checked on screenshots and tuned if they look wrong.
+
+## Built (stage 40a, 2026-11-05)
+
+Dark backgrounds; Paper is 40c. The numbers as built:
+
+- **Band**: `frameThickness` = cell height / 3.6 (`BAND_DIV`) in whole
+  device px, at least 3: 5 px at the default 19 px cell (and at 17),
+  4 at 14, 8 at 28; 11 device px (5.5 px) at 19 and ratio 2. The inset
+  (`frameInset`, ≈ 2 px) and the snapping are unchanged. Outer corner
+  radius `RIM_R` 3 (was 4; the worker follows it).
+- **Brackets**: `--frame-arm` = 2.6 bands (`BRACKET`), whole device px
+  (13 px at a 5 px band): a square of `--iron-hi` → 65 % iron-hi in each
+  corner of the rim's background with a dark hairline where it ends; the
+  rim's clip leaves the L in the band. A rivet (lamp-lit centre, iron-lo
+  ring) one band across in each corner.
+- **Hood** (`framePlate`, contract kept, `y0` now 0): centred on the frame
+  box to the device px (the width made even), from the frame's top edge
+  to the old plate bottom (8/9 of the top row less 1 px); width = the
+  label's measured width + 1.4 cells (`HOOD_PAD`) each side, rounded up
+  to whole device px; lower corners `HOOD_R` 6 px (at most its depth
+  below the band less a device px); no fillets (`frameHolePath`,
+  `frameSeams` and the worker's `plateRects` lost theirs). Room
+  (`hoodRoom`): the frame width less a bracket arm and a cell each side
+  and the padding; a longer label is shortened with `…` (`fitTitle`, at
+  least two letters), else no hood (and no title). Two recessed rivets
+  (`max(3 px, 0.34 cell)`) 0.62 cells in from its sides; a dark hairline
+  outline, a lit bottom lip, a soft drop shadow (`0 2px 5px` at 50 %),
+  clipped at the frame's top edge.
+- **Title**: Cinzel Bold (bundled, `Cinzel-Bold-latin.woff2`, OFL;
+  `TITLE_FACE` in `src/theme/fonts.ts`, also embedded in the HTML replay),
+  `--title-px` = cell height × 0.62 to the quarter px (11.75 px at 19),
+  letter spacing 0.08 em, colour `--lamp` 75 % + white, glow `0 0 4px`
+  lamp 85 % and `0 0 10px` lamp 45 %. Measured with a canvas
+  `measureText` per (size, label), cached (`src/panes/title-font.ts`);
+  until the face has loaded an estimate of 0.66 em per letter plus the
+  tracking (the built-in labels measure 0.53–0.82, average ≈ 0.65); when
+  it loads, the cockpit relayouts (`onTitleFont`).
+- **Tokens** (layout.css, every pane):
+  `--lamp` = `color-mix(in srgb, oklch(from --pane-border .72 min(c × 8,
+  .12) h) 62 %, #ffd79a)`; `--iron` L .25 C min(c × 3, .03),
+  `--iron-hi` L .42 C min(c × 3, .035), `--iron-lo` L .14 C min(c × 3,
+  .02); `--frost` 11 %, `--frost2` 5 %, `--frost-edge` 24 % of the lamp;
+  `--card-back` transparent, on a clear pane `--pane-fill` at 62 %.
+  `--pane-fill` is a new pane token (src/theme/apply.ts): the tint's own
+  fill, glass or clear. All oklch shades stay inside sRGB for every tint
+  on every preset (tests/unit/frame-colors.test.ts).
+- **Window** (`.wc-pane-frame::before`, now the hole's own box, inset by
+  the band, clipped by `--frame-window`): a hot spot `radial-gradient(38 %
+  × 2.6 cells at the top centre)` of the lamp at 16 %; a fall-off
+  `radial-gradient(120 % 80 % at 50 % 28 %)` 19 % → 6 % at 55 % → 0 at
+  88 %; over `--window-base` (the pane colour; with weather the old glass,
+  55 % with `--window-blur: blur(2.5px) saturate(1.25)`, 64 % and no blur
+  in Firefox flat and under a float). A lamp hairline at 10 % on its edge
+  and the vignette `inset 0 0 1.3 cells rgb(0 0 0 / .55)` (`--vignette`;
+  .12 on a light pane until 40c).
+- **Glow**: `.wc-pane-frame` `box-shadow: 0 0 4px 1px` lamp 26 % (clear:
+  `0 0 5px 1px` at 36 %), radius 3 px. The pane's box clips it to the
+  ≈ 2 px inset ring.
+- **Borderless**: rim and hood hidden; the window covers the whole pane
+  with the two lamp gradients (no fill of its own: the pane's background,
+  or its weather glass) and a vignette of one cell at 82 % of
+  `--vignette`; no glow, no blur on the window. Clear and borderless:
+  nothing.
+- **Clear**: the window has no fill and no blur; `inset 0 0 0 hair` lamp
+  22 % and `inset 0 0 1 cell` lamp 24 %.
+- **Removed**: `.wc-pane-blur` and its four strips, `frameStrips`,
+  `frameLabel`, `LABEL_COL`, `PLATE_PAD`, `PLATE_R`, `PLATE_LIP` and the
+  glass tokens (`--glass`, `--glass-hi`, `--ink`, `--glass-mix`,
+  `--glass-edge`, `--glass-seam`).
+- **Weather worker**: no protocol change. The band (`border` = the new
+  thickness) and the hood (`plate`) arrive as before; `plateRects` drops
+  the fillets, so glints, the sun's lift and the lightning light the band
+  and the hood's shape; the snow dusting lies on the top band. Checked on
+  screenshots (snow, a strike).
+- **Hover buttons**: `titleEnd` is the hood's right edge. With the title
+  centred they had less room than beside the left-hand plate, and the
+  half-cell gap `lookButtonsFit` kept from the plate cost the default Map
+  pane (30 cells at a 1280 px window) its Gear by two pixels; the hood
+  has its own padding and outline and each button's two cells their own
+  air, so the cockpit now passes no gap (`lookButtonsFit(…, gap)`). In the
+  legacy 33-cell lane every pane keeps all its buttons; in the new-player
+  layout's half-width Timers and Group (≈ 24 cells) Colour and the Gear
+  drop on hover, Border and Background stay. Narrower panes drop more, as
+  before. A trade-off of the centred title, for the owner to judge.
+- **Cost** (rough, headless at ratio 1, six framed panes with rain at
+  night, one float; 10 s of rAF): Chromium (software compositing) ran at
+  ≈ 14 fps on main and ≈ 30 fps (the weather's cap) on this branch, the
+  four backdrop-blur strips per framed pane being gone; main-thread task
+  time ≈ 1 % of the time either way. Firefox (no blur there before
+  either): 60 fps on both. Stage 40d measures properly.

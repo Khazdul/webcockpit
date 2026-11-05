@@ -46,15 +46,15 @@ every framed pane. Border on/off, Colour and Background glass/clear
 ## Tasks
 
 - [x] 40a: ADR 0123 (frame model, tokens, geometry, cost)
-- [ ] 40a: `frame.ts`: centred hood (`framePlate`), band thickness; unit
+- [x] 40a: `frame.ts`: centred hood (`framePlate`), band thickness; unit
       tests at DPR 1, 1.25, 1.5, 2; the hover buttons keep clear of the
       hood (`titleEnd`)
-- [ ] 40a: bundled Cinzel (bold, Latin subset, OFL; licence in
+- [x] 40a: bundled Cinzel (bold, Latin subset, OFL; licence in
       `public/fonts/`), also in the HTML replay export if panes show there
-- [ ] 40a: iron band, brackets, rivets, hood, lit title; lamp tokens per
+- [x] 40a: iron band, brackets, rivets, hood, lit title; lamp tokens per
       tint (Plain/Grey: candle light); lamp-lit window and vignette; outer
       glow in the gap
-- [ ] 40a: borderless (window light and cards stay), clear (edge glow, no
+- [x] 40a: borderless (window light and cards stay), clear (edge glow, no
       fill), floating (opaque ring), weather on/off and Firefox flat, map
       pane, script panes; the weather worker's glints and snow on the new
       band and hood
@@ -72,6 +72,24 @@ every framed pane. Border on/off, Colour and Background glass/clear
 - [ ] 40d: e2e updated (frame geometry, title centred, states), unit
       tests, docs, Inv §2.1 / §10.4 pointers to ADR 0123, manual
 - [ ] 40d: test guide, progress.md
+
+## Notes (40a)
+
+Built 2026-11-05; the numbers are in ADR 0123 "Built (stage 40a)".
+
+- Screenshots (`img/`): `40a-plain-chromium-1x.png`,
+  `40a-plain-chromium-2x.png`, `40a-red-chromium-2x.png`,
+  `40a-blue-grey-green-chromium-2x.png` (Timers blue, Group grey, Comm
+  green), `40a-border-off-chromium-2x.png` (Timers blue, Group red),
+  `40a-clear-weather-chromium-2x.png` (snow at night; Timers red, Group
+  blue), `40a-float-chromium-2x.png`, `40a-map-chromium-2x.png`,
+  `40a-weather-firefox-2x.png` (Firefox flat glass),
+  `40a-hover-buttons-chromium-2x.png`.
+- Cost: no backdrop filter on the band any more; rough numbers in the ADR.
+- Open: the hover buttons drop sooner with the title centred (ADR);
+  Paper (light) panes are only kept legible (dark iron on the page, a
+  softer vignette) until 40c; the frosted card tokens are defined but not
+  used yet (40b).
 
 ## Test guide
 
