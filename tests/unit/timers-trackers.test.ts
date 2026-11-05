@@ -57,12 +57,12 @@ describe('timers trackers in the app', () => {
     b.login();
     await b.game.timers.idle();
     const v = b.game.timers.view();
-    expect(v.cells.spell.map((c) => c.name)).toEqual(['sanctuary']);
+    expect(v.cells.sanct.map((c) => c.name)).toEqual(['sanctuary']);
     expect(v.cells.debuff).toEqual([]); // hunger is not saved
     expect(v.cells.blind.map((c) => c.name)).toEqual(['2.orc']);
     expect(v.cells.charm.map((c) => c.name)).toEqual(['enslaved shadow']);
     expect(v.cells.stored.map((c) => c.name)).toEqual(['fireball']);
-    expect(v.cells.buff.map((c) => c.name)).toEqual(['Haste']);
+    expect(v.cells.herb.map((c) => c.name)).toEqual(['Haste']);
     expect(v.herbs.find((h) => h.key === 'Haste')?.active).toBe(true);
     expect(b.msgs).toEqual([]);
     // The blind runs out 90 s after it landed.

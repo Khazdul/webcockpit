@@ -1290,7 +1290,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "Read-only view of the character (name, vitals, status), the group members and the room.",
     {
       more: [
-        "state.char has name, fullname, vitals (the Char.Vitals fields) and status (the Char.StatusVars fields). state.group is a list of your group members (players wherever they are, NPCs only in your room), each with id, type, name, label and hp, mana, mp as { value, max, word }. state.room is the last Room.Info.",
+        "state.char has name, fullname, vitals (the Char.Vitals fields) and status (the Char.StatusVars fields). state.group is a list of your group members (players wherever they are, NPCs only in your room), each with id, type, name, label and hp, mana, mp as { value, max, word }, plus position, ride, room, mapid, away (a player not in your room) and flags (sanctuary, poison, slept, blind, bashed, snared, wound, hungry, thirsty, waiting as true or false). state.room is the last Room.Info.",
       ],
       example:
         'for _, m in ipairs(state.group) do\n  echo(m.name .. ": " .. (m.hp.word or "?"))\nend',

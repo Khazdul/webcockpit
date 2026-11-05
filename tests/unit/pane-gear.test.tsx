@@ -8,9 +8,9 @@ import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { legacySettings } from './legacy-defaults';
 import { type ChromeServices, mountSettingsPopups } from '../../src/chrome';
-import { CommSettings, GroupSettings, TIMER_COLOR_CHOICES, TimersSettings } from '../../src/chrome/popups/pane-settings';
+import { CommSettings, GroupSettings, TimersSettings } from '../../src/chrome/popups/pane-settings';
 import { ServicesCtx } from '../../src/chrome/kit/hooks';
-import { colorChoice, colorToggle, commChannelRows, toggleCommChannel } from '../../src/chrome/pane-options-model';
+import { TIMER_COLS_CHOICES, TIMER_WARN_OPTIONS, commChannelRows, toggleCommChannel, warnAtOf } from '../../src/chrome/pane-options-model';
 import { COMM_CHANNEL_ORDER } from '../../src/gmcp/comm';
 import { Cockpit } from '../../src/layout/cockpit';
 import { moveToNewLane } from '../../src/layout/model';
@@ -301,52 +301,54 @@ describe('gear popup contents', () => {
     expect(t.s().comm.showHeader).toBe(!was);
   });
 
-  it('Timers: colour with Off (colour kept), columns in range, Clock and Bar but not for Charmies; headers, compact', () => {
+  it('Timers: look, ending soon and a row per group (shown, colour, layout)', () => {
     const t = mountWith(<TimersSettings />);
-    expect(TIMER_COLOR_CHOICES.map((c) => c.value)).toEqual(['off', 'blue', 'green', 'red', 'magenta', 'cyan', 'violet', 'orange']);
-    const spellColour = t.host.querySelector<HTMLElement>('[aria-label="Spells colour"]')!;
-    const before = t.s().timers.groups.spell.color;
-    click(spellColour);
-    click(t.host.querySelector('.wc-ck-opt[data-value="off"]'));
+    const seg = (label: string, value: string) => click(t.host.querySelector(`[aria-label="${label}"] [data-value="${value}"]`));
+    seg('Style', 'circles');
+    expect(t.s().timers.style).toBe('circles');
+    seg('Layout', 'grid');
+    expect(t.s().timers.layout).toBe('grid');
+    click(t.host.querySelector('[aria-label="Grid columns"]'));
+    click(t.host.querySelector('.wc-ck-opt[data-value="2"]'));
+    expect(t.s().timers.cols).toBe(2);
+    seg('Signal', 'pulse');
+    expect(t.s().timers.signal).toBe('pulse');
+    seg('Warn at', '60');
+    expect(t.s().timers.warnAt).toBe(60);
+    for (const [label, key] of [
+      ['Group headers', 'headers'],
+      ['Time text', 'timeText'],
+      ['Soonest first', 'soonestFirst'],
+    ] as const) {
+      const was = t.s().timers[key];
+      click(t.host.querySelector(`[aria-label="${label}"]`));
+      expect(t.s().timers[key]).toBe(!was);
+    }
+    // A group row: shown, colour (picker), layout.
+    expect([...t.host.querySelectorAll('.wc-sp-tg-l')].map((e) => e.textContent)).toEqual([
+      'Herblores', 'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Stored', 'Blinds', 'Charmies',
+    ]);
+    // Herblore turns on and off like any group (its `+` lives in its header).
+    click(t.host.querySelector('[aria-label="Show Herblores"]'));
+    expect(t.s().timers.groups.herb.enabled).toBe(false);
+    click(t.host.querySelector('[aria-label="Show Spells"]'));
     expect(t.s().timers.groups.spell.enabled).toBe(false);
-    expect(t.s().timers.groups.spell.color).toBe(before);
     expect(t.host.querySelector('[data-group="spell"]')!.classList.contains('is-dim')).toBe(true);
-    click(spellColour);
-    click(t.host.querySelector('.wc-ck-opt[data-value="orange"]'));
-    expect(t.s().timers.groups.spell).toMatchObject({ enabled: true, color: 'orange' });
-    // Columns: the stepper's buttons and keys, inside 1–6 (Charmies 1–2).
-    const cols = t.host.querySelector<HTMLElement>('[aria-label="Spells columns"]')!;
-    expect(cols.getAttribute('role')).toBe('spinbutton');
-    key(cols, 'End');
-    expect(t.s().timers.groups.spell.cols).toBe(6);
-    click(cols.querySelector('[data-step="inc"]'));
-    expect(t.s().timers.groups.spell.cols).toBe(6);
-    click(cols.querySelector('[data-step="dec"]'));
-    expect(t.s().timers.groups.spell.cols).toBe(5);
-    key(cols, 'Home');
-    expect(t.s().timers.groups.spell.cols).toBe(1);
-    const charm = t.host.querySelector<HTMLElement>('[aria-label="Charmies columns"]')!;
-    expect(charm.getAttribute('aria-valuemax')).toBe('2');
-    key(charm, 'ArrowRight');
-    key(charm, 'ArrowRight');
-    expect(t.s().timers.groups.charm.cols).toBe(2);
-    // Clock and Bar.
-    const clock = t.host.querySelector<HTMLElement>('[aria-label="Buffs clock"]')!;
-    const c0 = t.s().timers.groups.buff.clock;
-    click(clock);
-    expect(t.s().timers.groups.buff.clock).toBe(!c0);
-    const bar = t.host.querySelector<HTMLElement>('[aria-label="Buffs bar"]')!;
-    const b0 = t.s().timers.groups.buff.bar;
-    click(bar);
-    expect(t.s().timers.groups.buff.bar).toBe(!b0);
-    expect(t.host.querySelector('[aria-label="Charmies clock"]')).toBeNull();
-    expect(t.host.querySelector('[aria-label="Charmies bar"]')).toBeNull();
-    const h0 = t.s().timers.headers;
-    click(t.host.querySelector('[aria-label="Display headers"]'));
-    expect(t.s().timers.headers).toBe(!h0);
-    const k0 = t.s().timers.compact;
-    click(t.host.querySelector('[aria-label="Compact layout"]'));
-    expect(t.s().timers.compact).toBe(!k0);
+    click(t.host.querySelector('.wc-cp-btn[aria-label^="Blinds colour"]'));
+    click(t.host.querySelectorAll('.wc-cp-sw')[1]!);
+    expect(t.s().timers.groups.blind.color).toMatch(/^#[0-9a-f]{6}$/);
+    click(t.host.querySelector('.wc-cp-btn[aria-label^="Blinds colour"]'));
+    click(t.host.querySelector('.wc-cp-auto'));
+    expect(t.s().timers.groups.blind.color).toBe('auto');
+    seg('Blinds layout', 'grid');
+    expect(t.s().timers.groups.blind.layout).toBe('grid');
+  });
+
+  it('Group: the Fight card toggle', () => {
+    const t = mountWith(<GroupSettings />);
+    expect(t.s().group.fight).toBe(false);
+    click(t.host.querySelector('[aria-label="Fight card"]'));
+    expect(t.s().group.fight).toBe(true);
   });
 
   it('Group: Show players and NPC visibility', () => {
@@ -370,14 +372,14 @@ describe('gear popup contents', () => {
 });
 
 describe('pane options model (shared with the TUI pages)', () => {
-  it('channel rows, colour toggle and colour choice', () => {
+  it('channel rows and the timers choices', () => {
     const rows = commChannelRows({ tells: false });
     expect(rows).toHaveLength(10);
     expect(rows.find((r) => r.name === 'tells')!.on).toBe(false);
     expect(rows.every((r) => r.color.startsWith('#'))).toBe(true);
-    const g = { enabled: true, color: 'blue' as const, cols: 4, clock: false, bar: true };
-    expect(colorToggle(g, 'blue')).toEqual({ enabled: false, color: 'blue' });
-    expect(colorChoice(g, null)).toEqual({ enabled: false, color: 'blue' });
-    expect(colorChoice({ ...g, enabled: false }, 'red')).toEqual({ enabled: true, color: 'red' });
+    expect(TIMER_COLS_CHOICES).toEqual(['auto', 1, 2, 3, 4, 5, 6]);
+    expect(TIMER_WARN_OPTIONS.map((o) => o.label)).toEqual(['10s', '20s', '30s', '60s']);
+    expect(warnAtOf('30')).toBe(30);
+    expect(warnAtOf('x')).toBe(20);
   });
 });

@@ -1,0 +1,432 @@
+/* Timers pane (src/panes/timers.ts, ADR 0122): DOM in the pane's font,
+ * sizes in em of it. `--c` is a group's colour; `--tm-*` the pane shade
+ * ramp's text and line colours and the side's ending-soon red (set by the
+ * pane). The list scrolls natively by pixels above the indicator row
+ * (ADR 0052). */
+.wc-tm {
+  position: absolute;
+  inset: 0;
+  /* Fills the content box, which clips: a change in here never lays out
+   * or repaints anything outside it. */
+  contain: strict;
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+  color: var(--tm-fg);
+  --tm-tint: 30%;
+  --tm-edge: 55%;
+}
+
+.wc-tm[data-light] {
+  --tm-tint: 20%;
+  --tm-edge: 50%;
+}
+
+.wc-tm-scroll {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+
+.wc-tm-list {
+  padding: 0.15em 0.25em 0.3em;
+}
+
+.wc-tm svg {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* A group: header (icon, name, Herblore's +, rule), then its items. */
+.wc-tm-g + .wc-tm-g {
+  margin-top: 0.35em;
+}
+
+.wc-tm-h {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  height: 1.5em;
+  font-size: 0.72em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-dim);
+}
+
+.wc-tm-h[hidden] {
+  display: none;
+}
+
+.wc-tm-hi {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  color: var(--c);
+}
+
+.wc-tm-hln {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--tm-line);
+}
+
+/* Herblore's + (ADR 0122 addendum): beside the name, opens the herb menu. */
+.wc-tm .wc-tm-add {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  margin-left: -0.2em;
+  border-radius: 0.3em;
+  color: var(--c);
+  font-size: 1.25em;
+  font-weight: bold;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.wc-tm .wc-tm-add:hover,
+.wc-tm .wc-tm-add[aria-expanded] {
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+}
+
+.wc-tm .wc-tm-add[hidden] {
+  display: none;
+}
+
+.wc-tm-items {
+  font-size: 0.85em;
+}
+
+.wc-tm-items.is-flow {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.wc-tm-items.is-grid {
+  display: grid;
+}
+
+.wc-tm-items.is-flow > * {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.wc-tm[data-style='bars'] .wc-tm-items {
+  gap: 0.3em;
+}
+
+.wc-tm[data-style='circles'] .wc-tm-items {
+  gap: 0.1em 0.8em;
+}
+
+/* Bars: a pill whose own fill drains right to left under the name and time. */
+.wc-tm-chip {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+  height: 1.7em;
+  padding: 0 0.7em 0 0.6em;
+  border: 1px solid color-mix(in srgb, var(--c) var(--tm-edge), transparent);
+  border-radius: 0.85em;
+  background: color-mix(in srgb, var(--tm-line) 55%, transparent);
+}
+
+/* The fill: a childless element over the chip's padding box with its
+ * rounding, a gradient in the group's tint up to `--p` (0–100) and clear
+ * after it. A new value restyles and repaints this element only (no
+ * layout, no clip; `--p` here has no descendants to inherit it); the
+ * pulse fades it. */
+.wc-tm-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) var(--tm-tint), transparent) calc(var(--p, 0) * 1%), transparent 0);
+  pointer-events: none;
+}
+
+.wc-tm-ic {
+  position: relative;
+  flex: none;
+  width: 0.95em;
+  height: 0.95em;
+  color: var(--c);
+}
+
+.wc-tm-n {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sideways only, so an underscore under the baseline is not cut (as .wc-prow). */
+@supports (overflow: clip) {
+  .wc-tm-n {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
+.wc-tm-t {
+  position: relative;
+  flex: none;
+  color: var(--tm-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-tm-t[hidden] {
+  display: none;
+}
+
+.wc-tm-chip.is-untimed {
+  border-style: dashed;
+  border-color: var(--tm-dim);
+  background: transparent;
+}
+
+.wc-tm-chip.is-untimed .wc-tm-n,
+.wc-tm-rc.is-untimed .wc-tm-n {
+  color: var(--tm-dim);
+}
+
+.wc-tm-chip.is-charm {
+  background: transparent;
+}
+
+/* Circles: an 18 px ring (its arc drains), the icon inside, name and time beside. */
+.wc-tm-rc {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+  height: 1.55em;
+  padding: 0 0.25em;
+  border-radius: 0.3em;
+}
+
+.wc-tm-rw {
+  position: relative;
+  flex: none;
+  width: 1.4em;
+  height: 1.4em;
+}
+
+.wc-tm-ring {
+  width: 100%;
+  height: 100%;
+  /* The shared ring (icons.css) in the group's colour. */
+  --ring-track: var(--tm-line);
+  --ring-color: var(--c);
+  --ring-w: 2.6;
+  --ring-unknown: var(--tm-dim);
+}
+
+.wc-tm .wc-tm-ii {
+  position: absolute;
+  left: 30%;
+  top: 30%;
+  width: 40%;
+  height: 40%;
+  color: var(--c);
+  stroke-width: 2.6;
+}
+
+/* Ending soon: the colour stays; the time turns red and bold, or the fill pulses. */
+.is-text > .wc-tm-t {
+  color: var(--tm-ending);
+  font-weight: bold;
+}
+
+@keyframes wc-tm-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.is-pulse .wc-tm-fill,
+.is-pulse .wc-ring-arc {
+  animation: wc-tm-pulse 1.4s ease-in-out infinite;
+}
+
+/* The icon pulses too, with a soft glow in its own colour: a long timer's
+ * remaining fill is a sliver, the icon is always there (owner). */
+@keyframes wc-tm-pulse-icon {
+  0%,
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 0.18em var(--c));
+  }
+  50% {
+    opacity: 0.35;
+    filter: none;
+  }
+}
+
+.is-pulse .wc-tm-ic,
+.is-pulse .wc-tm-ii {
+  animation: wc-tm-pulse-icon 1.4s ease-in-out infinite;
+}
+
+/* The charm ×, and buttons in the pane (they keep the focus in the input). */
+.wc-tm button {
+  all: unset;
+  cursor: pointer;
+  user-select: none;
+}
+
+.wc-tm .wc-tm-x {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: -0.35em;
+  border-radius: 0.2em;
+  color: var(--tm-dim);
+}
+
+.wc-tm .wc-tm-x:hover {
+  background: color-mix(in srgb, var(--tm-fg) 12%, transparent);
+  color: #e88888;
+}
+
+.wc-tm-x svg {
+  width: 0.7em;
+  height: 0.7em;
+}
+
+/* A herblore's ×: only on hover, in place of its time. */
+.wc-tm-rc.has-herbx {
+  position: relative;
+}
+
+.wc-tm .wc-tm-x.is-herb {
+  position: absolute;
+  top: 50%;
+  right: 0.35em;
+  margin: -0.6em 0 0;
+  visibility: hidden;
+}
+
+.has-herbx:hover > .wc-tm-x.is-herb {
+  visibility: visible;
+}
+
+.has-herbx:hover > .wc-tm-t {
+  visibility: hidden;
+}
+
+/* The Herblore + menu (timers.ts HerbMenu): a small card in the menu
+ * surface colours, fixed under the +, one row per herb. */
+.wc-tm-menu {
+  position: fixed;
+  z-index: 270;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 12em;
+  max-height: min(60vh, 24em);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--sf-border, #2c2c2c);
+  border-radius: 5px;
+  background: var(--sf-bg, #0a0a0a);
+  box-shadow: var(--sf-shadow, 0 10px 26px rgba(0, 0, 0, 0.75));
+  color: var(--sf-fg, #c4c4c4);
+  font-family: var(--font-mono);
+  font-size: calc(var(--font-size, 15px) * 0.82);
+  white-space: nowrap;
+}
+
+.wc-tm-menu[hidden] {
+  display: none;
+}
+
+.wc-tm-menu .wc-tm-mi {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.2em 0.6em 0.2em 0.4em;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.wc-tm-menu .wc-tm-mi:hover {
+  background: var(--sf-hover, #171717);
+  color: var(--sf-hot, #ebebeb);
+}
+
+.wc-tm-menu .wc-tm-mi.is-on {
+  cursor: default;
+  color: var(--sf-faint, #5b5b5b);
+}
+
+.wc-tm-menu .wc-tm-mi.is-on:hover {
+  background: none;
+  color: var(--sf-faint, #5b5b5b);
+}
+
+.wc-tm-mm {
+  width: 1em;
+  text-align: center;
+  font-weight: bold;
+  color: var(--sf-gold, #d4a04e);
+}
+
+/* Measures the items' character width (the room for blind names). */
+.wc-tm-probe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 0.85em;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.wc-tm-more {
+  flex: none;
+  height: var(--cell-h);
+  line-height: var(--cell-h);
+  overflow: hidden;
+  padding: 0 0.25em;
+  color: #d4a04e;
+  font-style: italic;
+}
+
+.wc-tm-more[hidden] {
+  display: none;
+}
+
+.wc-tm-more[data-up] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.wc-tm-scroll::-webkit-scrollbar {
+  display: none;
+}

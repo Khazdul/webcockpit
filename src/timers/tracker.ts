@@ -18,16 +18,19 @@
 
 import type { UiMessage } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
-import { TIMER_GROUPS, type TimerCell, type TimerGroup } from './entry';
+import { type HerbEntry, TIMER_GROUPS, type TimerCell, type TimerGroup } from './entry';
+import type { SanctMember } from './sanct';
 
 /** `◆` tags of the timers (Inv §2.4). */
 export type StateTag = 'SPELL' | 'BUFF' | 'DEBUFF' | 'STORE' | 'BLIND' | 'CHARM' | 'HERB';
 
 /** The `◆` tag of a group's lines. */
 export const GROUP_TAG: Readonly<Record<TimerGroup, StateTag>> = {
+  sanct: 'SPELL',
   spell: 'SPELL',
   buff: 'BUFF',
   debuff: 'DEBUFF',
+  herb: 'HERB',
   stored: 'STORE',
   blind: 'BLIND',
   charm: 'CHARM',
@@ -77,11 +80,13 @@ export interface Tracker {
    */
   onSent?(text: string, now: number): void;
   /** The herblore catalogue with the active flags (the herblore tracker). */
-  herbs?(now: number): Array<{ key: string; name: string; active: boolean }>;
+  herbs?(now: number): HerbEntry[];
   addHerb?(key: string, now: number): void;
   removeHerb?(key: string, now: number): void;
   /** Forgets a charm by its cell id (the `×` on a charm row). */
   dropCharm?(id: string, now: number): void;
+  /** The group members after a Group.* change (GameState → `TimersHub.noteGroup`). */
+  onGroup?(members: readonly SanctMember[], now: number): void;
 }
 
 /** Builds the trackers for a hub (TimersHubOptions.trackers). */
@@ -91,7 +96,8 @@ export type TrackerFactory = (host: TrackerHost) => Tracker[];
  * A tracker whose cells are put in by hand: tests, and the hub's debug
  * hook (`hub.debugAdd`) so the pane can be built without the real
  * trackers. Cells are kept as given; `herbs` is a settable catalogue whose
- * add/remove flip `active`; `dropCharm` removes the cell with that id.
+ * add/remove flip `active` (remove also drops a `herb:<key>` cell a test
+ * put in); `dropCharm` removes the cell with that id.
  * With `persist` it saves and restores its cells (dropping expired ones).
  */
 export class ManualTracker implements Tracker {
@@ -99,7 +105,7 @@ export class ManualTracker implements Tracker {
   private readonly host: TrackerHost | null;
   private readonly persist: boolean;
   private items = new Map<string, TimerCell>();
-  private catalogue: Array<{ key: string; name: string; active: boolean }> = [];
+  private catalogue: HerbEntry[] = [];
 
   constructor(key = 'manual', host: TrackerHost | null = null, opts: { persist?: boolean } = {}) {
     this.key = key;
@@ -153,16 +159,18 @@ export class ManualTracker implements Tracker {
     for (const h of this.catalogue) h.active = false;
   }
 
-  herbs(): Array<{ key: string; name: string; active: boolean }> {
+  herbs(): HerbEntry[] {
     return this.catalogue.map((h) => ({ ...h }));
   }
 
+  /** Marks a catalogue herb running (no cell: a test puts one in itself). */
   addHerb(key: string): void {
     this.flipHerb(key, true);
   }
 
   removeHerb(key: string): void {
     this.flipHerb(key, false);
+    this.remove(`herb:${key}`);
   }
 
   dropCharm(id: string): void {

@@ -2,12 +2,11 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { CharModel } from '../../src/gmcp/char';
-import { GroupModel } from '../../src/gmcp/group';
 import { GameState } from '../../src/gmcp/state';
 import { CHARACTER_ROWS, CharacterPane, characterLines, colWidths, gaugeWidths, toothPositions } from '../../src/panes/character';
 import { createPaneContext } from '../../src/panes/context';
 import { CellLine, centre } from '../../src/panes/grid';
-import { BAR_ORANGE, BAR_RED, GroupPane, barColor, barFill, barWidths, groupLines } from '../../src/panes/group';
+import { GroupPane } from '../../src/panes/group';
 import { paneShade } from '../../src/panes/shade';
 import { PANE_FACTORIES } from '../../src/panes/factories';
 import { TimersPane } from '../../src/panes/timers';
@@ -121,48 +120,6 @@ describe('Character layout', () => {
   });
 });
 
-describe('Group layout', () => {
-  it('bar widths, fill and colours', () => {
-    expect(barWidths(31)).toEqual([11, 10, 10]);
-    expect(barWidths(32)).toEqual([11, 11, 10]);
-    expect(barWidths(2)).toEqual([1, 1, 0]);
-    expect(barFill(0.5, 11)).toBe(6); // 5.5 rounds up
-    expect(barFill(null, 11)).toBe(0);
-    expect(barFill(1.2, 11)).toBe(11);
-    expect(barColor('hp', 0.25, false)).toBe(BAR_RED);
-    expect(barColor('hp', 0.45, true)).toBe(BAR_ORANGE);
-    expect(barColor('hp', 0.46, false)).toBe('#005a18');
-    expect(barColor('hp', null, false)).toBe('#005a18');
-    // Light pane: default fills washed to pastels.
-    expect(barColor('hp', 1, true)).toBe('#90d5a2');
-    expect(barColor('mana', 1, true)).toBe('#9090d5');
-    expect(barColor('mp', 1, true)).toBe('#c4b3a1'); // Cockpit #c4b2a1 (rounding)
-  });
-
-  it('draws rows with the name overlay and overflow', () => {
-    const g = new GroupModel();
-    g.apply('Group.Set', [
-      { id: 2, type: 'ally', name: 'Gibur', hp: 140, maxhp: 140, mana: 20, maxmana: 90, mp: 50, maxmp: 100 },
-      { id: 4, type: 'npc', name: 'a citizen mercenary', label: 'MERC', hp: 200, maxhp: 200, 'mana-string': 'Full', mp: 150, maxmp: 150 },
-      { id: 5, type: 'ally', name: 'Dori', 'hp-string': 'Wounded' },
-    ]);
-    const lines = groupLines(g.list(), 31, 6, '#aaaaaa', false);
-    expect(lines.map((l) => l.text().trimEnd())).toEqual(['Gibur', 'a citizen mercenary (MERC)', 'Dori']);
-    const gibur = lines[0]!;
-    expect(gibur.bg.slice(0, 11).every((b) => b === '#005a18')).toBe(true);
-    // Mana 20/90 = 22 % → red, 2 of 10 cells.
-    expect(gibur.bg.slice(11, 21)).toEqual([BAR_RED, BAR_RED, '', '', '', '', '', '', '', '']);
-    expect(gibur.fg[0]).toBe('#aaaaaa');
-    // Dori: only a word → band midpoint 35.5 % → orange, 4 of 11 cells.
-    expect(lines[2]!.bg.slice(0, 5)).toEqual([BAR_ORANGE, BAR_ORANGE, BAR_ORANGE, BAR_ORANGE, '']);
-    const clipped = groupLines(g.list(), 31, 2, '#aaaaaa', false);
-    expect(clipped.map((l) => l.text().trimEnd())).toEqual(['Gibur', '↓ 2 more members']);
-    expect(groupLines([], 31, 6, '#aaaaaa', false)).toEqual([]);
-    // Truncated to W without an ellipsis.
-    expect(groupLines(g.list(), 8, 6, '#aaaaaa', false)[1]!.text()).toBe('a citize');
-  });
-});
-
 describe('panes on the context', () => {
   function setup(state: 'playing' | 'idle' = 'playing') {
     const bus = new Bus();
@@ -207,7 +164,7 @@ describe('panes on the context', () => {
       ],
     });
     t.flush();
-    const names = () => [...p.content.querySelectorAll('.wc-prow')].map((r) => r.textContent!.trimEnd());
+    const names = () => [...p.content.querySelectorAll<HTMLElement>('.wc-gp-row[data-name]')].map((r) => r.dataset.name);
     expect(names()).toEqual(['Gibur', 'a merc (M)']);
     t.settings.update({ group: { npcMode: 'all' } });
     t.flush();
@@ -220,41 +177,136 @@ describe('panes on the context', () => {
     p.dispose();
   });
 
+  it('Group: a new vital keeps the row and sets the bar in place; a new status rebuilds it', () => {
+    const t = setup();
+    const p = new GroupPane(t.ctx);
+    place(p, 40, 8);
+    t.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 2, type: 'ally', name: 'Gibur', hp: 100, maxhp: 200 }] });
+    t.flush();
+    const row = () => p.content.querySelector<HTMLElement>('[data-key="m2"]')!;
+    const hp = () => row().querySelector<HTMLElement>('.wc-gp-bar[data-kind="hp"]')!;
+    const first = row();
+    expect(hp().querySelector<HTMLElement>('.wc-gp-fill')!.style.getPropertyValue('--p')).toBe('50');
+    t.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 2, hp: 150 } });
+    t.flush();
+    expect(row()).toBe(first);
+    expect(hp().querySelector<HTMLElement>('.wc-gp-fill')!.style.getPropertyValue('--p')).toBe('75');
+    expect(hp().dataset.tipTitle).toBe('HP 150/200 · 75%');
+    t.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 2, poison: true } });
+    t.flush();
+    expect(row()).not.toBe(first);
+    p.dispose();
+  });
+
+  it('Timers: Pulse lands on a long spell under warnAt (the item, so its icon pulses too)', () => {
+    const t = setup();
+    const p = PANE_FACTORIES.timers(t.ctx) as TimersPane;
+    place(p, 40, 8);
+    const now = Date.now();
+    t.settings.update({ timers: { signal: 'pulse', warnAt: 20 } });
+    t.game.timers.debugAdd({ id: 'armour', name: 'armour', group: 'spell', startedAt: now - 585_000, expiresAt: now + 15_000, expected: 600_000, tracked: true });
+    t.game.timers.debugAdd({ id: 'shield', name: 'shield', group: 'spell', startedAt: now, expiresAt: now + 300_000, expected: 600_000, tracked: true });
+    t.flush();
+    const item = (id: string) => p.content.querySelector<HTMLElement>(`.wc-tm-list [data-id="${id}"]:not(button)`)!;
+    expect(item('armour').classList.contains('is-pulse')).toBe(true);
+    expect(item('armour').querySelector('.wc-tm-ic')).not.toBeNull();
+    expect(item('shield').classList.contains('is-pulse')).toBe(false);
+    t.settings.update({ timers: { style: 'circles' } });
+    t.flush();
+    expect(item('armour').classList.contains('is-pulse')).toBe(true);
+    expect(item('armour').querySelector('.wc-tm-ii')).not.toBeNull();
+    p.dispose();
+  });
+
   it('Timers draws game.timers, follows the options and handles clicks', () => {
     const t = setup();
     const p = PANE_FACTORIES.timers(t.ctx) as TimersPane;
     expect(p).toBeInstanceOf(TimersPane);
-    place(p, 20, 6);
+    place(p, 40, 8);
     const now = Date.now();
     const cell = (id: string, group: 'spell' | 'blind' | 'charm') =>
       ({ id, name: id, group, startedAt: now, expiresAt: now + 60_000, expected: 60_000, tracked: true }) as const;
     t.game.timers.debugAdd({ ...cell('armour', 'spell') });
-    t.game.timers.debugAdd({ ...cell('2.orc', 'blind') });
+    t.game.timers.debugAdd({ ...cell('a dark-skinned orc', 'blind') });
     t.game.timers.debugAdd({ ...cell('troll', 'charm') });
     t.game.timers.debugHerbs([{ key: 'healing', name: 'Healing' }]);
     t.flush();
-    const rows = () => [...p.content.querySelectorAll('.wc-prow')].map((r) => r.textContent!.trimEnd());
-    expect(rows()).toEqual(['Spells:            +', 'ARMOUR             ▌', 'Blinds:', '2.ORC              ▌', 'Charmies:', 'Troll           0m ×']);
-    t.settings.update({ timers: { groups: { blind: { enabled: false } }, headers: false } });
+    const groups = () => [...p.content.querySelectorAll<HTMLElement>('.wc-tm-g')].map((g) => g.dataset.group);
+    const names = () => [...p.content.querySelectorAll('.wc-tm-list .wc-tm-n')].map((n) => n.textContent);
+    // Herblore is there while enabled, even empty (its header holds the +).
+    expect(groups()).toEqual(['herb', 'spell', 'blind', 'charm']);
+    expect(names()).toEqual(['Armour', 'dark-skinned orc', 'Troll']);
+    // Headers: the group name only (no count); Herblore's has its +.
+    const heads = [...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')];
+    expect(heads.map((h) => h.textContent)).toEqual(['Herblores+', 'Spells', 'Blinds', 'Charmies']);
+    // Bars by default: a pill with a fill; the time text is on.
+    const chip = p.content.querySelector<HTMLElement>('.wc-tm-chip[data-id="spell:armour"], .wc-tm-chip[data-id="armour"]')!;
+    expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.getPropertyValue('--p')).toMatch(/^(100\.0|9\d\.\d)$/);
+    expect(chip.querySelector('.wc-tm-t')!.textContent).toMatch(/^(59|60)s$/);
+    expect(chip.dataset.tipTitle).toBe('Armour');
+    // Circles: a ring row; headers off hide them; a group off goes.
+    t.settings.update({ timers: { style: 'circles', groups: { blind: { enabled: false } }, headers: false } });
     t.flush();
-    expect(rows()).toEqual(['ARMOUR             +', 'Troll           0m ×']);
-    const hit = (sel: string) => p.content.querySelector<HTMLElement>(`.wc-timers-hit${sel}`)!;
-    hit('[data-hit="charm"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(groups()).toEqual(['herb', 'spell', 'charm']);
+    expect(p.content.querySelectorAll('.wc-tm-rc')).toHaveLength(2);
+    expect(p.content.querySelectorAll('.wc-tm-chip')).toHaveLength(0);
+    // Headers off: all hidden but Herblore's.
+    const shown = [...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')].filter((h) => !h.hidden);
+    expect(shown.map((h) => h.textContent)).toEqual(['Herblores+']);
+    // × forgets the charmie.
+    p.content.querySelector('.wc-tm-x')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
-    expect(rows()).toEqual(['ARMOUR             +']);
-    hit('[data-hit="corner"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(groups()).toEqual(['herb', 'spell']);
+    // Herblore's + opens the menu; a pick starts the herb and closes it.
+    const add = p.content.querySelector<HTMLElement>('.wc-tm-add')!;
+    expect(add.hidden).toBe(false);
+    add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
-    expect(p.viewMode).toBe('add');
-    // The herblore tracker's catalogue (six entries) follows the debug herb.
-    expect(rows()[0]).toBe('[+] Healing        ×');
-    hit('[data-hit="herb"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(p.herbMenuOpen).toBe(true);
+    const row = () => p.herbMenuEl.querySelector<HTMLButtonElement>('.wc-tm-mi')!;
+    expect(row().textContent).toBe('+Healing');
+    row().dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
-    expect(rows()[0]).toBe('[-] Healing        ×');
-    // A disconnect blanks the pane and returns to the grid.
+    expect(p.herbMenuOpen).toBe(false);
+    // The herblore tracker starts the herb (its first phase's cell).
+    expect(names()).toEqual(['Healing', 'Armour']);
+    // Running: checked in the menu, not pickable; Esc closes the menu.
+    add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    t.flush();
+    expect(row().disabled).toBe(true);
+    expect(row().textContent).toBe('✓Healing');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(p.herbMenuOpen).toBe(false);
+    // An outside press closes it too.
+    add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(p.herbMenuOpen).toBe(true);
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(p.herbMenuOpen).toBe(false);
+    // The herb's × stops it.
+    p.content.querySelector<HTMLElement>('.wc-tm-x.is-herb')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    t.flush();
+    expect(names()).toEqual(['Armour']);
+    // Herblore off: no group, no +.
+    t.settings.update({ timers: { groups: { herb: { enabled: false } } } });
+    t.flush();
+    expect(groups()).toEqual(['spell']);
+    // A disconnect blanks the pane.
     t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing' });
     t.flush();
     expect(p.content.textContent).toBe('');
-    expect(p.viewMode).toBe('grid');
+    p.dispose();
+  });
+
+  it('Timers in a log player: no Herblore + and no charm ×', () => {
+    const t = setup();
+    (t.ctx as { player?: boolean }).player = true;
+    const p = new TimersPane(t.ctx);
+    place(p, 40, 8);
+    const now = Date.now();
+    t.game.timers.debugAdd({ id: 'troll', name: 'troll', group: 'charm', startedAt: now, expiresAt: now + 60_000, expected: 60_000, tracked: true });
+    t.flush();
+    expect(p.content.querySelector<HTMLElement>('.wc-tm-add')!.hidden).toBe(true);
+    expect(p.content.querySelector('.wc-tm-x')).toBeNull();
     p.dispose();
   });
 

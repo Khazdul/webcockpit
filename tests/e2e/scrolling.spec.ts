@@ -313,23 +313,24 @@ test('UI pane: the wheel scrolls by pixels; new lines follow only at the bottom'
 test('Timers pane: the wheel scrolls by pixels; the indicator follows and returns to the top', async ({ page }) => {
   await demoDone(page);
   await page.evaluate(() => {
-    window.__wc!.settings.update((d) => void (d.timers.groups.spell.cols = 1));
     const t = window.__wc!.app.game.timers;
     const now = Date.now();
-    for (let i = 0; i < 30; i++) {
+    // A grid of one column: one timer a row.
+    window.__wc!.settings.update({ timers: { layout: 'grid', cols: 1 } });
+    for (let i = 0; i < 120; i++) {
       t.debugAdd({ id: `s${i}`, name: `spell${i}`, group: 'spell', startedAt: now, expiresAt: now + 600_000, expected: 600_000, tracked: true } as never);
     }
   });
-  const box = pane(page, 'timers').locator('.wc-timers-scroll');
-  const more = pane(page, 'timers').locator('.wc-timers-more');
-  await expect(more).toHaveText(/^↓ \d+ more rows\s*$/);
+  const box = pane(page, 'timers').locator('.wc-tm-scroll');
+  const more = pane(page, 'timers').locator('.wc-tm-more');
+  await expect(more).toHaveText(/^↓ \d+ more timers\s*$/);
   await expectPaneWheel(page, box, 5);
-  await expect(more).toHaveText(/^↑ 1 row above\s*$/);
+  await expect(more).toHaveText(/^↑ \d+ timers? above\s*$/);
   await page.mouse.wheel(0, 100);
-  await expect(more).toHaveText(/^↑ \d+ rows above\s*$/);
+  await expect(more).toHaveText(/^↑ \d+ timers above\s*$/);
   // A press on the indicator goes back to the top.
   await more.dispatchEvent('mousedown', { button: 0 });
   await expect.poll(() => scrollTop(box)).toBe(0);
-  await expect(more).toHaveText(/^↓ \d+ more rows\s*$/);
+  await expect(more).toHaveText(/^↓ \d+ more timers\s*$/);
   await page.evaluate(() => window.__wc!.settings.reset());
 });

@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>4 · Density first, blind mosaic</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#050505}
+.board{width:1880px;height:1760px;display:flex;flex-direction:column;gap:40px;background:#050505;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:13px;line-height:17px}
+.half{height:860px;box-sizing:border-box;padding:22px 40px 0;display:flex;flex-direction:column;gap:12px;background:var(--page);color:var(--fg)}
+.half.black{--page:#050505;--hole:#000;--rim:#4b4e51;--rimhi:rgba(239,239,239,.42);--rimlo:rgba(0,0,0,.3);--edge:rgba(0,0,0,.75);--seamA:rgba(0,0,0,.75);--seamB:rgba(239,239,239,.2);--plate:#ececec;--fg:#c4c4c4;--hot:#ececec;--dim:#898989;--faint:#5b5b5b;--line:#1c1c1c;--trk:#1b1b1b;--hover:#101010;--pop:#0a0a0a;--pop-bd:#2c2c2c;--pop-sh:0 10px 26px rgba(0,0,0,.75);--field:#111111;--raised:#2a2a2a;--hov:#171717;--offtrk:#1f1f1f;--offknob:#5b5b5b;--ontrk:#4a4a4a;--onknob:#ebebeb;--tagbg:#161616;--tagbd:#2c2c2c;--glow:drop-shadow(0 0 2.5px rgba(242,236,216,.85));--focus:#585858}
+.half.paper{--page:#f4ecd8;--hole:#f4ecd8;--rim:#a9a49a;--rimhi:rgba(255,255,255,.6);--rimlo:rgba(0,0,0,.18);--edge:rgba(0,0,0,.42);--seamA:rgba(0,0,0,.3);--seamB:rgba(255,255,255,.5);--plate:#1d1c1a;--fg:#3a3833;--hot:#1d1c1a;--dim:#6e6858;--faint:#a39c88;--line:#ddd3bc;--trk:#e3d8c0;--hover:#ece2cb;--pop:#faf6ec;--pop-bd:#d6d0c2;--pop-sh:0 8px 22px rgba(60,50,30,.18);--field:#f1ebdc;--raised:#e1d9c5;--hov:#f1ebdd;--offtrk:#ddd5c3;--offknob:#faf6ec;--ontrk:#3a3833;--onknob:#faf6ec;--tagbg:#ece3cd;--tagbd:#d3c9b1;--glow:drop-shadow(0 0 2.5px rgba(214,160,20,.75));--focus:#8a826e}
+.cap2{display:flex;align-items:baseline;gap:12px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.cap2 b{color:var(--hot);letter-spacing:.14em}
+.cols{display:flex;gap:40px}
+.col{display:flex;flex-direction:column;gap:10px;width:420px;flex:none}
+.cap{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);display:flex;gap:10px;align-items:baseline}
+.cap i{font-style:normal;letter-spacing:0;text-transform:none;color:var(--faint)}
+svg{display:block}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* pane frame */
+.pane{position:relative;box-sizing:border-box;padding:6px;border-radius:5px;border:1px solid var(--edge);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),var(--rim);box-shadow:inset 1px 1px 0 var(--rimhi),inset -1px -1px 0 var(--rimlo)}
+.hole{position:relative;background:var(--hole);border:1px solid;border-color:var(--seamA) var(--seamB) var(--seamB) var(--seamA);padding:26px 8px 8px;box-sizing:border-box}
+.plate{position:absolute;top:-1px;left:16px;height:18px;padding:0 11px;display:flex;align-items:center;border-radius:0 0 5px 5px;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,0)),var(--rim);color:var(--plate);font-size:12px;font-weight:700}
+.tools{position:absolute;top:3px;right:6px;display:flex;align-items:center;gap:8px;color:var(--dim);font-size:10.5px}
+.tools .gear{width:15px;height:15px;color:var(--faint)}
+.seg{display:inline-flex;gap:1px;background:var(--field);border:1px solid var(--pop-bd);border-radius:5px;padding:1px}
+.seg button{all:unset;cursor:pointer;padding:0 7px;line-height:16px;border-radius:3px;color:var(--dim);font-size:11px}
+.seg button:hover{color:var(--hot)}
+.seg button.on{background:var(--raised);color:var(--hot)}
+.seg button:focus-visible,.tg:focus-visible,.x:focus-visible,.lnk:focus-visible,.opt:focus-visible{outline:1px solid var(--focus);outline-offset:1px}
+
+/* tooltips */
+.tw{position:relative}
+.tip{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:50;width:max-content;max-width:240px;background:var(--pop);border:1px solid var(--pop-bd);border-radius:5px;box-shadow:var(--pop-sh);padding:6px 9px;font-size:11.5px;line-height:15px;color:var(--fg);white-space:normal;text-align:left;font-weight:400}
+.tip b{display:block;color:var(--hot);font-weight:700;margin-bottom:1px}
+.tw:hover>.tip{display:block}
+.rail .tip,.foot .rr .tip{left:auto;right:0}
+
+/* group rows: one markup, two grids */
+.row{display:grid;align-items:center;column-gap:6px;border-radius:4px}
+.row:hover{background:var(--hover)}
+.two .row{grid-template-columns:14px minmax(0,1fr) auto;grid-template-areas:"role who rail" "pad bars bars";row-gap:6px;padding:6px 4px 7px}
+.one .row{grid-template-columns:14px minmax(0,1fr) 112px auto;grid-template-areas:"role who bars rail";height:22px;padding:0 4px;font-size:12px}
+.role{grid-area:role;display:flex;align-items:center;justify-content:center;height:18px}
+.role svg{width:12px;height:12px}
+.who{grid-area:who;display:flex;align-items:center;gap:6px;min-width:0;height:18px}
+.mk{flex:none;width:14px;height:14px}
+.nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm.pl{color:var(--hot);font-weight:700}
+.nm.npc{color:var(--dim)}
+.tag{flex:none;font-size:10px;line-height:14px;letter-spacing:.06em;padding:0 5px;border-radius:3px;background:var(--tagbg);color:var(--dim);border:1px solid var(--tagbd)}
+.where{flex:none;display:flex;align-items:center;gap:4px;color:var(--dim);font-size:11px}
+.where svg{width:12px;height:12px}
+.one .where{display:none}
+.one .tag{font-size:9px;padding:0 3px}
+.row.away .nm,.row.away .bars{opacity:.5}
+.rail{grid-area:rail;display:flex;align-items:center;gap:2px}
+.sts{display:flex;align-items:center;gap:2px}
+.railfix .sts{width:112px;justify-content:flex-end}
+.vr{width:1px;height:12px;background:var(--line);margin:0 3px}
+.ic{position:relative;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;cursor:default;flex:none}
+.ic:hover{background:var(--hov)}
+.ic svg.g{width:13px;height:13px}
+.ic.sanc svg.g{width:12px;height:12px;filter:var(--glow)}
+.ic svg.ring{position:absolute;inset:0;width:18px;height:18px}
+.rb{fill:none;stroke:var(--trk);stroke-width:2}
+.ra{fill:none;stroke-width:2;stroke-linecap:round;transform:rotate(-90deg);transform-origin:12px 12px}
+.ra.unk{stroke-dasharray:2.4 3.2 !important}
+.stime{font-size:10.5px;margin:0 2px 0 1px}
+.bars{grid-area:bars;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.one .bars{gap:3px}
+.bar{display:block;padding:3px 0;cursor:default}
+.trk{display:block;height:5px;border-radius:3px;background:var(--trk);overflow:hidden}
+.one .trk{height:4px;border-radius:2px}
+.fill{display:block;height:100%;border-radius:3px;transition:width .4s}
+.fill.est{background-image:repeating-linear-gradient(90deg,transparent 0 5px,rgba(0,0,0,.4) 5px 6px)}
+.over{color:#d9a54a;font-size:11px;padding:4px 4px 0}
+.paper .over{color:#846400}
+
+/* fight footer */
+.foot{margin:8px 2px 0;display:flex;flex-direction:column;gap:5px}
+.vs{display:flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+.vs .ln{flex:1;height:1px;background:var(--line)}
+.frow{display:flex;align-items:center;gap:7px;height:20px;padding:0 4px}
+.fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.word{font-size:11px;cursor:default}
+.foot .bar{padding:2px 4px}
+.foot .trk{height:6px}
+.tk{display:flex;align-items:center;gap:7px;height:20px;padding:0 4px;font-size:12px}
+.tk .by{color:var(--dim)}
+.tk .tn{color:var(--hot);font-weight:700}
+.tk .mb{width:90px}
+.tk .num{color:var(--dim);font-size:11px;margin-left:auto}
+
+/* low pane extras */
+.pin{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px dashed var(--tagbd);border-radius:6px}
+.pin .ex{display:flex;align-items:center;gap:8px;font-size:12px}
+.pin .ex .trk{width:110px}
+.pin .tip{display:block;position:static;margin-left:64px}
+.opts{display:flex;flex-direction:column;gap:2px}
+.opt{all:unset;cursor:pointer;display:grid;grid-template-columns:16px minmax(0,1fr) auto auto;align-items:center;gap:8px;height:24px;padding:0 8px;border-radius:4px;border:1px solid transparent;font-size:12px}
+.opt:hover{background:var(--hover)}
+.opt.on{border-color:var(--tagbd);background:var(--hover)}
+.opt svg{width:13px;height:13px}
+.opt .nm{color:var(--dim)}
+.opt .k{font-size:10.5px;color:var(--faint)}
+.opt.on .k{color:var(--hot)}
+
+/* timers */
+.th{display:flex;align-items:center;gap:7px;margin:10px 2px 5px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase}
+.th:first-of-type{margin-top:2px}
+.th svg{width:12px;height:12px}
+.th .lb{color:var(--dim)}
+.th .ln{flex:1;height:1px;background:var(--line)}
+.th .ct{letter-spacing:0;color:var(--faint)}
+.lnk{all:unset;cursor:pointer;letter-spacing:0;text-transform:none;font-size:11px;color:var(--dim);padding:0 6px;border-radius:3px;border:1px solid var(--tagbd);line-height:15px}
+.lnk:hover{color:var(--hot);border-color:var(--focus)}
+.grid{display:grid;gap:2px 8px}
+.grid.bars{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
+.grid.rings{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
+.tc{display:flex;flex-direction:column;justify-content:center;gap:4px;min-height:28px;padding:2px 5px;border-radius:4px;cursor:default}
+.tc:hover{background:var(--hover)}
+.tl{display:flex;align-items:center;gap:6px;height:16px}
+.tl svg{width:12px;height:12px;flex:none}
+.tl .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.tl .t{flex:none;font-variant-numeric:tabular-nums;color:var(--dim)}
+.tc .trk{height:3px;border-radius:2px}
+.tr{display:flex;align-items:center;gap:7px}
+.rg{position:relative;width:26px;height:26px;flex:none}
+.rg svg.ring{position:absolute;inset:0;width:26px;height:26px}
+.rg svg.g{position:absolute;left:7px;top:7px;width:12px;height:12px}
+.tr .nt{display:flex;flex-direction:column;min-width:0;line-height:14px}
+.tr .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg);font-size:12px}
+.tr .t{font-variant-numeric:tabular-nums;color:var(--dim);font-size:11px}
+.tc.warn .t{color:var(--warn)}
+.tc.crit .t{color:var(--crit);font-weight:700}
+.tc.untr .n,.tc.untr .t{color:var(--faint)}
+.tc.untr .trk{background:repeating-linear-gradient(90deg,var(--trk) 0 3px,transparent 3px 6px)}
+.half.black{--warn:#ff9a3c;--crit:#ff5a52}
+.half.paper{--warn:#b85400;--crit:#c42020}
+.sg svg.g{filter:var(--glow)}
+.mosaic{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:4px 2px;padding:2px 3px}
+.mz{position:relative;width:28px;height:28px;justify-self:center;cursor:default}
+.mz svg.ring{width:28px;height:28px}
+.mzl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;letter-spacing:-.02em;font-weight:700}
+.mz.crit .mzl{text-decoration:underline}
+.msum{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim);padding:3px 5px 0}
+.msum b{font-variant-numeric:tabular-nums}
+.cr{display:grid;grid-template-columns:14px minmax(0,1fr) auto 44px 20px;align-items:center;gap:7px;height:24px;padding:0 5px;border-radius:4px}
+.cr:hover{background:var(--hover)}
+.cr svg{width:12px;height:12px}
+.cr .n{color:var(--hot);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cr .h{color:var(--faint);font-size:11px}
+.cr .t{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+.x{all:unset;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:3px;color:var(--crit);opacity:.7;cursor:pointer}
+.x:hover{opacity:1;background:var(--hov)}
+.x svg{width:10px;height:10px}
+
+/* gear popups */
+.pop{background:var(--pop);border:1px solid var(--pop-bd);border-radius:6px;box-shadow:var(--pop-sh);font-size:12.5px;line-height:16px;color:var(--fg)}
+.ph{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 6px 0 12px;border-bottom:1px solid var(--line)}
+.pt{color:var(--dim);letter-spacing:.1em;text-transform:uppercase;font-size:11px}
+.ph .x{color:var(--dim)}
+.pb{display:flex;flex-direction:column;padding:6px 0 8px}
+.ps{padding:8px 12px 3px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.pr{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px;padding:0 12px}
+.pr:hover{background:var(--hov)}
+.pr .lab{display:flex;flex-direction:column;line-height:15px}
+.pr .lab span{font-size:11px;color:var(--dim)}
+.pr .seg button{padding:1px 8px;line-height:18px;font-size:11.5px}
+.tg{all:unset;cursor:pointer;position:relative;width:30px;height:16px;border-radius:9px;background:var(--offtrk);flex:none;transition:background .15s}
+.tg .kn{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--offknob);transition:left .15s}
+.tg.on{background:var(--ontrk)}
+.tg.on .kn{left:16px;background:var(--onknob)}
+.half.paper .tg .kn{box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+</style>
+</helmet>
+<div class="board">
+<sc-for list="{{halves}}" as="h" hint-placeholder-count="2">
+<div class="{{h.cls}}">
+  <div class="cap2"><b>{{h.title}}</b><span>{{h.sub}}</span></div>
+  <div class="cols">
+
+    <!-- (1) Group, tall pane -->
+    <div class="col">
+      <div class="cap">Group <i>{{h.groupCap}}</i></div>
+      <div class="pane">
+        <div class="hole" style="height:772px">
+          <div class="plate">Group</div>
+          <div class="tools">
+            <span>members</span>
+            <div class="seg">
+              <sc-for list="{{h.ui.sizeSeg}}" as="o" hint-placeholder-count="2"><button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}" aria-label="{{o.aria}}">{{o.label}}</button></sc-for>
+            </div>
+            <svg class="gear i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.gear}}"></path></svg>
+          </div>
+          <div class="{{h.listCls}}">
+            <sc-for list="{{h.members}}" as="m" hint-placeholder-count="6">
+              <div class="{{m.rowCls}}">
+                <span class="role">
+                  <sc-if value="{{m.tankMark}}" hint-placeholder-val="{{false}}"><span class="tw ic" style="color:{{h.c.gold}}"><svg class="g i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.tank}}"></path></svg><span class="tip"><b>Tanking</b>Your fight buffer (Char.Vitals).</span></span></sc-if>
+                </span>
+                <span class="who tw">
+                  <svg class="mk i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{m.mkColor}}"><path d="{{m.mkD}}"></path></svg>
+                  <span class="{{m.nmCls}}">{{m.name}}</span>
+                  <sc-if value="{{m.tag}}" hint-placeholder-val="{{false}}"><span class="tag">{{m.tag}}</span></sc-if>
+                  <sc-if value="{{m.room}}" hint-placeholder-val="{{false}}"><span class="where"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.pin}}"></path></svg>{{m.room}}</span></sc-if>
+                  <span class="tip"><b>{{m.name}}</b>{{m.kindDesc}}</span>
+                </span>
+                <span class="bars">
+                  <sc-for list="{{m.bars}}" as="b" hint-placeholder-count="3">
+                    <span class="tw bar"><span class="trk"><span class="{{b.cls}}" style="width:{{b.w}};background-color:{{b.color}}"></span></span><span class="tip"><b>{{b.label}}</b>{{b.desc}}</span></span>
+                  </sc-for>
+                </span>
+                <span class="{{h.railCls}}">
+                  <span class="sts">
+                    <sc-for list="{{m.sts}}" as="s" hint-placeholder-count="2">
+                      <span class="{{s.cls}}" style="color:{{s.color}}">
+                        <sc-if value="{{s.ring}}" hint-placeholder-val="{{false}}"><svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="rb" cx="12" cy="12" r="10"></circle><circle class="{{s.ringCls}}" cx="12" cy="12" r="10" style="stroke:{{s.color}};stroke-dasharray:{{s.dash}}"></circle></svg></sc-if>
+                        <svg class="g i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{s.d}}"></path></svg>
+                        <span class="tip"><b>{{s.title}}</b>{{s.desc}}</span>
+                      </span>
+                      <sc-if value="{{s.time}}" hint-placeholder-val="{{false}}"><span class="stime" style="color:{{s.color}}">{{s.time}}</span></sc-if>
+                    </sc-for>
+                  </span>
+                  <sc-if value="{{h.ui.showPos}}" hint-placeholder-val="{{true}}">
+                    <span class="vr"></span>
+                    <span class="tw ic" style="color:{{m.pos.color}}"><svg class="g i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.pos.d}}"></path></svg><span class="tip"><b>{{m.pos.title}}</b>{{m.pos.desc}}</span></span>
+                  </sc-if>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{h.ui.fight}}" hint-placeholder-val="{{true}}">
+            <div class="foot">
+              <div class="vs"><span class="ln"></span><span>vs</span><span class="ln"></span></div>
+              <div class="frow">
+                <span class="tw ic" style="color:{{h.c.red}}"><svg class="g i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.foe}}"></path></svg><span class="tip"><b>Your opponent</b>From Char.Vitals: whom you fight.</span></span>
+                <span class="fname" style="color:{{h.c.red}}">a black-robed orc</span>
+                <span class="tw word rr" style="color:{{h.c.red}}">badly wounded<span class="tip"><b>Band word</b>Sent every round (opponent-hits). Roughly 20–40 % HP.</span></span>
+              </div>
+              <span class="tw bar"><span class="trk"><span class="fill est" style="width:28%;background-color:{{h.c.red}}"></span></span><span class="tip"><b>Opponent HP ≈ 28 %</b>Estimated from “badly wounded”.</span></span>
+              <div class="tk">
+                <span class="tw ic" style="color:{{h.c.gold}}"><svg class="g i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.tank}}"></path></svg><span class="tip"><b>The tank</b>Char.Vitals buffer: who takes the hits.</span></span>
+                <span class="by">tanked by</span><span class="tn">Gibur</span>
+                <span class="tw bar mb"><span class="trk"><span class="fill" style="width:{{h.tank.w}};background-color:{{h.tank.color}}"></span></span><span class="tip"><b>Gibur HP 132/160 · 82 %</b>Updated every round.</span></span>
+                <span class="num">132/160</span>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <!-- (2) Group, low pane + examples -->
+    <div class="col">
+      <div class="cap">Group <i>· low pane, always one line</i></div>
+      <div class="pane">
+        <div class="hole" style="padding-bottom:6px">
+          <div class="plate">Group</div>
+          <div class="tools"><svg class="gear i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.gear}}"></path></svg></div>
+          <div class="list one">
+            <sc-for list="{{h.low}}" as="m" hint-placeholder-count="5">
+              <div class="{{m.rowCls}}">
+                <span class="role">
+                  <sc-if value="{{m.tankMark}}" hint-placeholder-val="{{false}}"><span class="tw ic" style="color:{{h.c.gold}}"><svg class="g i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.tank}}"></path></svg><span class="tip"><b>Tanking</b>Your fight buffer.</span></span></sc-if>
+                </span>
+                <span class="who tw">
+                  <svg class="mk i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{m.mkColor}}"><path d="{{m.mkD}}"></path></svg>
+                  <span class="{{m.nmCls}}">{{m.name}}</span>
+                  <sc-if value="{{m.tag}}" hint-placeholder-val="{{false}}"><span class="tag">{{m.tag}}</span></sc-if>
+                  <span class="tip"><b>{{m.name}}</b>{{m.kindDesc}}</span>
+                </span>
+                <span class="bars">
+                  <sc-for list="{{m.bars}}" as="b" hint-placeholder-count="3">
+                    <span class="tw bar"><span class="trk"><span class="{{b.cls}}" style="width:{{b.w}};background-color:{{b.color}}"></span></span><span class="tip"><b>{{b.label}}</b>{{b.desc}}</span></span>
+                  </sc-for>
+                </span>
+                <span class="rail">
+                  <span class="sts">
+                    <sc-for list="{{m.top}}" as="s" hint-placeholder-count="2">
+                      <span class="{{s.cls}}" style="color:{{s.color}}">
+                        <sc-if value="{{s.ring}}" hint-placeholder-val="{{false}}"><svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="rb" cx="12" cy="12" r="10"></circle><circle class="{{s.ringCls}}" cx="12" cy="12" r="10" style="stroke:{{s.color}};stroke-dasharray:{{s.dash}}"></circle></svg></sc-if>
+                        <svg class="g i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{s.d}}"></path></svg>
+                        <span class="tip"><b>{{s.title}}</b>{{s.desc}}</span>
+                      </span>
+                    </sc-for>
+                  </span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+          <div class="over">{{h.lowMore}}</div>
+        </div>
+      </div>
+
+      <div class="cap" style="margin-top:12px">Hover <i>· what you point at, nothing more</i></div>
+      <div class="pin">
+        <div class="ex">
+          <span style="color:{{h.c.ally}};width:14px;height:14px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px"><path d="{{h.icons.player}}"></path></svg></span>
+          <b style="color:var(--hot)">Taube</b>
+          <span class="trk"><span class="fill" style="width:23%;background-color:{{h.c.red}}"></span></span>
+        </div>
+        <span class="tip"><b>HP 37/158 · 23 %</b>Taube is fighting.</span>
+      </div>
+
+      <div class="cap" style="margin-top:12px">NPC marker <i>· pick one (also in the gear)</i></div>
+      <div class="opts">
+        <sc-for list="{{h.ui.npcOpts}}" as="o" hint-placeholder-count="3">
+          <button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}" aria-label="{{o.aria}}">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{h.c.npc}}"><path d="{{o.d}}"></path></svg>
+            <span class="nm">a citizen mercenary</span>
+            <span class="tag">MERC</span>
+            <span class="k">{{o.label}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- (3) Timers -->
+    <div class="col">
+      <div class="cap">Timers <i>· auto-fit columns, blinds fold into a mosaic</i></div>
+      <div class="pane">
+        <div class="hole" style="height:772px">
+          <div class="plate">Timers</div>
+          <div class="tools">
+            <div class="seg">
+              <sc-for list="{{h.ui.modeSeg}}" as="o" hint-placeholder-count="2"><button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}" aria-label="{{o.aria}}">{{o.label}}</button></sc-for>
+            </div>
+            <svg class="gear i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.gear}}"></path></svg>
+          </div>
+
+          <sc-for list="{{h.groups}}" as="g" hint-placeholder-count="6">
+            <div class="th">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{g.color}}"><path d="{{g.d}}"></path></svg>
+              <span class="lb">{{g.label}}</span><span class="ln"></span><span class="ct">{{g.count}}</span>
+              <sc-if value="{{g.toggle}}" hint-placeholder-val="{{false}}"><button class="lnk" onClick="{{g.toggle.fn}}" aria-label="{{g.toggle.aria}}">{{g.toggle.label}}</button></sc-if>
+            </div>
+
+            <sc-if value="{{g.cells}}" hint-placeholder-val="{{true}}">
+              <div class="{{h.gridCls}}">
+                <sc-for list="{{g.items}}" as="t" hint-placeholder-count="3">
+                  <div class="{{t.cls}}">
+                    <sc-if value="{{h.barMode}}" hint-placeholder-val="{{true}}">
+                      <div class="tl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{t.color}}"><path d="{{t.d}}"></path></svg><span class="n">{{t.name}}</span><span class="t">{{t.time}}</span></div>
+                      <span class="trk"><span class="fill" style="width:{{t.w}};background-color:{{t.color}}"></span></span>
+                    </sc-if>
+                    <sc-if value="{{h.ringMode}}" hint-placeholder-val="{{false}}">
+                      <div class="tr">
+                        <span class="rg"><svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="rb" cx="12" cy="12" r="10"></circle><circle class="{{t.ringCls}}" cx="12" cy="12" r="10" style="stroke:{{t.color}};stroke-dasharray:{{t.dash}}"></circle></svg><svg class="g i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{t.color}}"><path d="{{t.d}}"></path></svg></span>
+                        <span class="nt"><span class="n">{{t.name}}</span><span class="t">{{t.time}}</span></span>
+                      </div>
+                    </sc-if>
+                    <span class="tip"><b>{{t.name}}</b>{{t.desc}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{g.mosaic}}" hint-placeholder-val="{{false}}">
+              <div class="mosaic">
+                <sc-for list="{{g.items}}" as="b" hint-placeholder-count="12">
+                  <span class="{{b.mzCls}}">
+                    <svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="rb" cx="12" cy="12" r="10"></circle><circle class="ra" cx="12" cy="12" r="10" style="stroke:{{b.color}};stroke-dasharray:{{b.dash}}"></circle></svg>
+                    <span class="mzl" style="color:{{b.color}}">{{b.short}}</span>
+                    <span class="tip"><b>{{b.name}}</b>Blinded by you · {{b.time}} left</span>
+                  </span>
+                </sc-for>
+              </div>
+              <div class="msum">{{g.summary}} <b style="color:{{g.nextColor}}">{{g.next}}</b></div>
+            </sc-if>
+
+            <sc-if value="{{g.charm}}" hint-placeholder-val="{{false}}">
+              <sc-for list="{{g.items}}" as="c" hint-placeholder-count="1">
+                <div class="cr">
+                  <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{g.color}}"><path d="{{c.d}}"></path></svg>
+                  <span class="n">{{c.name}}</span><span class="h">here</span>
+                  <span class="t">{{c.time}}</span>
+                  <button class="x" aria-label="Forget this charmie"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.close}}"></path></svg></button>
+                </div>
+              </sc-for>
+            </sc-if>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- (4) Gear popups -->
+    <div class="col">
+      <div class="cap">Settings <i>· the gears for this proposal</i></div>
+      <div class="pop">
+        <div class="ph"><span class="pt">Group</span><button class="x" aria-label="Close Group settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.close}}"></path></svg></button></div>
+        <div class="pb">
+          <div class="ps">Layout</div>
+          <div class="pr"><span class="lab">Rows<span>Auto: one line above 7 members</span></span><div class="seg"><sc-for list="{{h.ui.rowsSeg}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}">{{o.label}}</button></sc-for></div></div>
+          <div class="pr"><span class="lab">Status rail<span>Icons line up on the right</span></span><button class="{{h.ui.rail.cls}}" onClick="{{h.ui.rail.flip}}" aria-pressed="{{h.ui.rail.on}}" aria-label="Status rail"><span class="kn"></span></button></div>
+          <div class="pr"><span class="lab">Position icon</span><button class="{{h.ui.pos.cls}}" onClick="{{h.ui.pos.flip}}" aria-pressed="{{h.ui.pos.on}}" aria-label="Position icon"><span class="kn"></span></button></div>
+          <div class="pr"><span class="lab">NPC marker</span><div class="seg"><sc-for list="{{h.ui.npcSeg}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}">{{o.label}}</button></sc-for></div></div>
+          <div class="ps">Fight</div>
+          <div class="pr"><span class="lab">Fight footer<span>Opponent and tank under a “vs” rule</span></span><button class="{{h.ui.fightT.cls}}" onClick="{{h.ui.fightT.flip}}" aria-pressed="{{h.ui.fightT.on}}" aria-label="Fight footer"><span class="kn"></span></button></div>
+          <div class="pr"><span class="lab">Shield on the tank's row</span><button class="{{h.ui.tankT.cls}}" onClick="{{h.ui.tankT.flip}}" aria-pressed="{{h.ui.tankT.on}}" aria-label="Shield on the tank's row"><span class="kn"></span></button></div>
+        </div>
+      </div>
+      <div class="pop" style="margin-top:8px">
+        <div class="ph"><span class="pt">Timers</span><button class="x" aria-label="Close Timers settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icons.close}}"></path></svg></button></div>
+        <div class="pb">
+          <div class="ps">Look</div>
+          <div class="pr"><span class="lab">Style<span>Every group, everywhere</span></span><div class="seg"><sc-for list="{{h.ui.modeSeg}}" as="o" hint-placeholder-count="2"><button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}">{{o.label}}</button></sc-for></div></div>
+          <div class="pr"><span class="lab">Order</span><div class="seg"><sc-for list="{{h.ui.sortSeg}}" as="o" hint-placeholder-count="2"><button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}">{{o.label}}</button></sc-for></div></div>
+          <div class="ps">Blinds</div>
+          <div class="pr"><span class="lab">Layout<span>Auto: a mosaic above 6 blinds</span></span><div class="seg"><sc-for list="{{h.ui.blindSeg}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}">{{o.label}}</button></sc-for></div></div>
+          <div class="ps">Ending soon</div>
+          <div class="pr"><span class="lab">Warn<span>Orange at 30 s, red at 10 s, soonest first</span></span><span style="color:var(--dim);font-size:11.5px">30 s · 10 s</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1880,"height":1760}}'>
+const IC = {
+  gear: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M12 2v3 M12 19v3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M2 12h3 M19 12h3 M4.9 19.1L7 17 M17 7l2.1-2.1',
+  // A figure inside a round shield (roundel); the glow comes from CSS.
+  sanct: 'M12 2.5a9.5 9.5 0 1 0 0 19a9.5 9.5 0 1 0 0-19 M12 6.6a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M8 17.4c0-2.4 1.8-4.2 4-4.2s4 1.8 4 4.2',
+  // A stoppered vial: poison, never a droplet.
+  poison: 'M9.5 3h5 M10.5 3v5.2L5.6 17.6A2.3 2.3 0 0 0 7.6 21h8.8a2.3 2.3 0 0 0 2-3.4L13.5 8.2V3 M7.4 15h9.2',
+  // A plain droplet: thirsty.
+  thirsty: 'M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z',
+  slept: 'M4 6h6l-6 7h6 M13 12h6l-6 7h6',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  bashed: 'M12 2l1.8 5.5L19 5l-2.5 5.2L22 12l-5.5 1.8L19 19l-5.2-2.5L12 22l-1.8-5.5L5 19l2.5-5.2L2 12l5.5-1.8L5 5l5.2 2.5z',
+  snared: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  wound: 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M9 9l6 6',
+  hungry: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 3c-2 0-3 3-3 6s1 3 3 3 M17 3v18',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  resting: 'M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16',
+  sleeping: 'M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4',
+  riding: 'M6 21v-5l3-4-1.5-4L11 4l2 3h3l4 5-2 2-3-1-2 3v5',
+  tank: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z',
+  // A bearded war-axe: the foe you fight.
+  foe: 'M4 20L15 9 M12.5 3.5Q19.5 4.5 20.5 11.5L15 9Z',
+  charm: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+  spell: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  buff: 'M12 19V5 M6 11l6-6 6 6',
+  debuff: 'M12 5v14 M6 13l6 6 6-6',
+  herb: 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14z M5 19l8-8',
+  stored: 'M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z M6 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2 M9 8h6 M9 12h6',
+  pin: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4',
+  player: 'M12 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7 M5 20c0-3.5 3-6 7-6s7 2.5 7 6',
+  // Enemy race: a horned helm.
+  enemy: 'M4 3c0 4 1.6 6.5 4 7 M20 3c0 4-1.6 6.5-4 7 M7 12a5 5 0 0 1 10 0v7H7z M7 15.5h10 M12 15.5V19',
+  npcDiamond: 'M12 3l8 9-8 9-8-9z',
+  npcHex: 'M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z',
+  npcBanner: 'M6 3v18 M6 4h12l-3 4.5L18 13H6',
+  close: 'M5 5l14 14 M19 5L5 19',
+};
+
+const THEMES = [
+  { key: 'black', title: 'Black', sub: 'terminal background #000', c: {
+    hp: '#2fa84f', mana: '#3d7eff', mp: '#c08a3e', red: '#ff4d4d', orange: '#ff8c2a',
+    spell: '#66b2ff', buff: '#4cc96a', debuff: '#ff6b6b', stored: '#ff7ae0', blind: '#3fd0d0', charm: '#b388ff', sanct: '#f2ecd8', gold: '#e8c35a',
+    poison: '#9be15d', slept: '#a99bff', blindS: '#7fd3e6', bashed: '#ffa04d', snared: '#5fd4b0', wound: '#ff6b6b', hungry: '#d9b25f', thirsty: '#4f9dff',
+    ally: '#8fbfff', neutral: '#e6b450', enemy: '#ff7b72', npc: '#a9a9a9', pos: '#8a8a8a', fighting: '#ff7a6b', sleeping: '#8a9bd6', riding: '#c9a66b', unk: '#8f8a7c', untr: '#4a4a4a' } },
+  { key: 'paper', title: 'Paper', sub: 'terminal background #f4ecd8', c: {
+    hp: '#2a6e1a', mana: '#2a56c8', mp: '#846400', red: '#c42020', orange: '#b85400',
+    spell: '#2a56c8', buff: '#2a6e1a', debuff: '#c42020', stored: '#a828a8', blind: '#00737e', charm: '#6a4bc4', sanct: '#a87a00', gold: '#8f6a00',
+    poison: '#4f7a00', slept: '#6a4bc4', blindS: '#00737e', bashed: '#b85400', snared: '#0f7a5f', wound: '#c42020', hungry: '#846400', thirsty: '#1f5fd6',
+    ally: '#2a56c8', neutral: '#846400', enemy: '#c42020', npc: '#6e6858', pos: '#6e6858', fighting: '#c42020', sleeping: '#4a5aa8', riding: '#7a5c00', unk: '#a39c88', untr: '#a39c88' } },
+];
+
+const C10 = 2 * Math.PI * 10;
+function dash(f) { const x = Math.max(0, Math.min(1, f)); return (x * C10).toFixed(2) + ' ' + C10.toFixed(2); }
+function fmt(s) { if (s >= 3600) return Math.floor(s / 3600) + 'h' + String(Math.floor(s % 3600 / 60)).padStart(2, '0'); if (s >= 60) return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); return s + 's'; }
+function left(base, dur, e) { return ((base - e) % dur + dur) % dur; }
+function pctTxt(p) { return Math.round(p * 100) + ' %'; }
+
+// Members. Players: [cur, max]; NPCs: { p, word } band estimates (null = not reported).
+const BASE = [
+  { name: 'Gibur', kind: 'ally', pos: 'riding', tank: true, v: { hp: [132, 160], mana: [40, 100], mp: [72, 110] }, sts: ['sanctT'] },
+  { name: 'Taube', kind: 'ally', pos: 'fighting', v: { hp: [37, 158], mana: [88, 95], mp: [31, 100] }, sts: ['sanctU', 'poison'] },
+  { name: 'Kvällulv', kind: 'ally', pos: 'sleeping', room: 'Prancing Pony', v: { hp: [140, 140], mana: [70, 120], mp: [120, 120] }, sts: ['hungry', 'thirsty'] },
+  { name: 'Morwen', kind: 'neutral', tag: 'neutral', pos: 'resting', v: { hp: [120, 120], mana: [72, 120], mp: [96, 120] }, sts: ['blind'] },
+  { name: 'a citizen mercenary', kind: 'npc', tag: 'MERC', pos: 'standing', v: { hp: { p: 0.55, word: 'wounded' }, mana: null, mp: { p: 0.9, word: 'steadfast' } }, sts: ['bashed', 'wound'] },
+  { name: 'a huge stone troll', kind: 'npc', tag: 'TROLL', pos: 'standing', v: { hp: { p: 0.95, word: 'healthy' }, mana: null, mp: { p: 0.7, word: 'unwearied' } }, sts: ['charm', 'snared', 'slept'] },
+];
+const EXTRA = [
+  { name: 'Durin', kind: 'ally', pos: 'standing', v: { hp: [150, 150], mana: [20, 40], mp: [90, 100] }, sts: [] },
+  { name: 'Elanor', kind: 'ally', pos: 'resting', v: { hp: [88, 130], mana: [120, 150], mp: [50, 90] }, sts: ['thirsty'] },
+  { name: 'Bergil', kind: 'ally', pos: 'standing', v: { hp: [58, 140], mana: [10, 10], mp: [80, 120] }, sts: ['wound'] },
+  { name: 'Hirgon', kind: 'ally', pos: 'riding', v: { hp: [110, 110], mana: [60, 90], mp: [140, 150] }, sts: [] },
+  { name: 'a grim sellsword', kind: 'npc', tag: 'MERC2', pos: 'standing', v: { hp: { p: 0.8, word: 'fine' }, mana: null, mp: { p: 1, word: 'unwearied' } }, sts: [] },
+  { name: 'a sturdy pony', kind: 'npc', tag: 'PONY', pos: 'standing', v: { hp: { p: 1, word: 'healthy' }, mana: null, mp: { p: 0.4, word: 'tired' } }, sts: ['hungry'] },
+];
+const BLINDS = [
+  ['2.orc', 8], ['3.orc', 22], ['4.orc', 41], ['5.orc', 64], ['troll', 15], ['2.troll', 77],
+  ['warg', 29], ['2.warg', 52], ['3.warg', 85], ['goblin', 5], ['2.goblin', 36], ['wolf', 58],
+];
+function shortOf(n) { const m = /^(\d+)\.(.+)$/.exec(n); return m ? m[1] + '·' + m[2].slice(0, 2) : n.slice(0, 2); }
+
+class Component extends DCLogic {
+  componentDidMount() { this.t0 = Date.now(); this.iv = setInterval(() => this.setState({ now: Date.now() }), 1000); }
+  componentWillUnmount() { clearInterval(this.iv); }
+
+  renderVals() {
+    const st = this.state || {};
+    const S = {
+      mode: st.mode || 'bars', big: !!st.big, blindsOpen: !!st.blindsOpen,
+      rows: st.rows || 'auto', rail: st.rail !== false, showPos: st.showPos !== false,
+      fight: st.fight !== false, tankMark: st.tankMark !== false, npc: st.npc || 'diamond',
+      sort: st.sort || 'soon', blinds: st.blinds || 'auto',
+    };
+    const e = this.t0 ? Math.floor((((st.now) || this.t0) - this.t0) / 1000) : 0;
+    const set = (k, v) => () => this.setState({ [k]: v });
+    const seg = (k, cur, opts) => opts.map(([v, label, aria]) => ({ label, aria: aria || label, on: cur === v, cls: cur === v ? 'on' : '', pick: set(k, v) }));
+    const tog = (k, cur) => ({ on: cur, cls: cur ? 'tg on' : 'tg', flip: set(k, !cur) });
+    const npcD = { diamond: IC.npcDiamond, hex: IC.npcHex, banner: IC.npcBanner }[S.npc];
+
+    const ui = {
+      showPos: S.showPos, fight: S.fight,
+      sizeSeg: seg('big', S.big, [[false, '6', 'Show 6 members'], [true, '12', 'Show 12 members']]),
+      modeSeg: seg('mode', S.mode, [['bars', 'Bars', 'Show timers as bars'], ['rings', 'Rings', 'Show timers as rings']]),
+      rowsSeg: seg('rows', S.rows, [['auto', 'Auto'], ['two', 'Two'], ['one', 'One']]),
+      npcSeg: seg('npc', S.npc, [['diamond', 'Diamond'], ['hex', 'Hex'], ['banner', 'Banner']]),
+      sortSeg: seg('sort', S.sort, [['soon', 'Soonest first'], ['start', 'Start order']]),
+      blindSeg: seg('blinds', S.blinds, [['auto', 'Auto'], ['rows', 'Rows'], ['mosaic', 'Mosaic']]),
+      npcOpts: [['diamond', IC.npcDiamond, 'Diamond'], ['hex', IC.npcHex, 'Hex'], ['banner', IC.npcBanner, 'Banner']].map(([v, d, label]) => ({ d, label, aria: 'NPC marker: ' + label, on: S.npc === v, cls: S.npc === v ? 'opt on' : 'opt', pick: set('npc', v) })),
+      rail: tog('rail', S.rail), pos: tog('showPos', S.showPos), fightT: tog('fight', S.fight), tankT: tog('tankMark', S.tankMark),
+    };
+
+    const giburLeft = left(192, 270, e);
+    const all = S.big ? BASE.concat(EXTRA) : BASE;
+    const two = S.rows === 'two' || (S.rows === 'auto' && all.length <= 7);
+
+    const halves = THEMES.map((T) => {
+      const c = T.c;
+      const STS = {
+        poison: { d: IC.poison, color: c.poison, title: 'Poisoned', desc: 'Loses HP over time.' },
+        slept: { d: IC.slept, color: c.slept, title: 'Magically asleep', desc: 'Cannot act until woken.' },
+        blind: { d: IC.blind, color: c.blindS, title: 'Blind', desc: 'Cannot see.' },
+        bashed: { d: IC.bashed, color: c.bashed, title: 'Bashed', desc: 'On the ground for a round.' },
+        snared: { d: IC.snared, color: c.snared, title: 'Snared', desc: 'Cannot leave the room.' },
+        wound: { d: IC.wound, color: c.wound, title: 'Wounded', desc: 'Bleeding.' },
+        hungry: { d: IC.hungry, color: c.hungry, title: 'Hungry', desc: 'Regenerates slower.' },
+        thirsty: { d: IC.thirsty, color: c.thirsty, title: 'Thirsty', desc: 'Regenerates slower.' },
+        charm: { d: IC.charm, color: c.charm, title: 'Your charmie', desc: 'Charmed ' + (21 + Math.floor(e / 60)) + 'm ago (Timers).' },
+      };
+      const POS = {
+        standing: { d: IC.standing, color: c.pos, title: 'Standing', desc: 'GMCP position.' },
+        fighting: { d: IC.fighting, color: c.fighting, title: 'Fighting', desc: 'GMCP position.' },
+        resting: { d: IC.resting, color: c.pos, title: 'Resting', desc: 'GMCP position.' },
+        sleeping: { d: IC.sleeping, color: c.sleeping, title: 'Sleeping', desc: 'GMCP position.' },
+        riding: { d: IC.riding, color: c.riding, title: 'Riding', desc: 'Standing, mounted (GMCP ride).' },
+      };
+      const stIcon = (k) => {
+        if (k === 'sanctT') return { d: IC.sanct, color: c.sanct, cls: 'tw ic sanc', ring: true, ringCls: 'ra', dash: dash(giburLeft / 270), time: fmt(giburLeft), title: 'Sanctuary · ' + fmt(giburLeft) + ' left', desc: 'Cast by you, so the time is known.' };
+        if (k === 'sanctU') return { d: IC.sanct, color: c.sanct, cls: 'tw ic sanc', ring: true, ringCls: 'ra unk', dash: dash(1), time: false, title: 'Sanctuary', desc: 'Glowing (GMCP). Not your cast: time unknown.' };
+        return { ...STS[k], cls: 'tw ic', ring: false, time: false };
+      };
+      const barColor = (k, p) => (p <= 0.25 ? c.red : p <= 0.45 ? c.orange : c[k]);
+      const LBL = { hp: 'HP', mana: 'Mana', mp: 'Moves' };
+      const bars = (v) => ['hp', 'mana', 'mp'].map((k) => {
+        const x = v[k];
+        if (x === null) return { w: '0%', color: c.untr, cls: 'fill', label: LBL[k] + ': not reported', desc: 'MUME sends no ' + LBL[k].toLowerCase() + ' for this NPC.' };
+        if (Array.isArray(x)) { const p = x[0] / x[1]; return { w: Math.round(p * 100) + '%', color: barColor(k, p), cls: 'fill', label: LBL[k] + ' ' + x[0] + '/' + x[1] + ' · ' + pctTxt(p), desc: p <= 0.25 ? 'Low.' : p <= 0.45 ? 'Getting low.' : '' }; }
+        return { w: Math.round(x.p * 100) + '%', color: barColor(k, x.p), cls: 'fill est', label: LBL[k] + ' ≈ ' + pctTxt(x.p), desc: 'Band word “' + x.word + '” (NPCs send words, not numbers).' };
+      });
+      const mkFor = (m) => {
+        if (m.kind === 'npc') return { d: npcD, color: c.npc };
+        if (m.kind === 'enemy') return { d: IC.enemy, color: c.enemy };
+        return { d: IC.player, color: m.kind === 'neutral' ? c.neutral : c.ally };
+      };
+      const descFor = (m) => {
+        const base = m.kind === 'npc' ? 'NPC, labelled ' + m.tag : m.kind === 'neutral' ? 'Player of a neutral race' : m.kind === 'enemy' ? 'Player of an enemy race' : 'Player, your side';
+        return m.room ? base + ' · elsewhere: ' + m.room : base + ' · here';
+      };
+      const member = (m) => {
+        const sts = m.sts.map(stIcon);
+        const mk = mkFor(m);
+        return {
+          name: m.name, tag: m.tag || false, room: m.room || false,
+          rowCls: m.room ? 'row away' : 'row',
+          nmCls: m.kind === 'npc' ? 'nm npc' : 'nm pl',
+          mkD: mk.d, mkColor: mk.color, kindDesc: descFor(m),
+          tankMark: !!m.tank && S.tankMark,
+          sts, top: sts.slice(0, 3).map((s) => ({ ...s, time: false })),
+          pos: POS[m.pos], bars: bars(m.v),
+        };
+      };
+      const members = all.map(member);
+
+      // Timers.
+      const cell = (name, base, dur, color, d, extra) => {
+        const l = left(base, dur, e);
+        const cls = l <= 10 ? 'tc tw crit' : l <= 30 ? 'tc tw warn' : 'tc tw';
+        const col = l <= 10 ? c.red : l <= 30 ? c.orange : color;
+        return { name, time: fmt(l), w: Math.round(l / dur * 100) + '%', dash: dash(l / dur), ringCls: 'ra', color: col, cls, d, r: l, desc: (extra ? extra + ' · ' : '') + fmt(l) + ' of ' + fmt(dur) + ' left', mzCls: l <= 10 ? 'mz tw crit' : 'mz tw', short: shortOf(name) };
+      };
+      const untimed = (name, d, desc) => ({ name, time: '—', w: '0%', dash: dash(1), ringCls: 'ra unk', color: c.unk, cls: 'tc tw untr', d, r: 1e9, desc });
+      const order = (xs) => (S.sort === 'soon' ? xs.slice().sort((a, b) => a.r - b.r) : xs);
+
+      const sanctItems = order([cell('You', 161, 270, c.sanct, IC.sanct, 'Your own'), cell('Gibur', 192, 270, c.sanct, IC.sanct, 'Cast by you'), untimed('Taube', IC.sanct, 'Glowing (GMCP) · not your cast, time unknown')]).map((t) => ({ ...t, cls: t.cls + ' sg' }));
+      const blindItems = order(BLINDS.map(([n, b]) => cell(n, b, 90, c.blind, IC.blind, 'Blinded by you')));
+      const nb = blindItems.length;
+      const mosaic = S.blinds === 'mosaic' ? !S.blindsOpen : S.blinds === 'auto' ? nb > 6 && !S.blindsOpen : false;
+      const soonest = blindItems.slice().sort((a, b) => a.r - b.r)[0];
+      const canFold = S.blinds !== 'rows' && (S.blinds === 'mosaic' || nb > 6);
+      const groups = [
+        { label: 'Sanctuary', d: IC.sanct, color: c.sanct, items: sanctItems },
+        { label: 'Spells', d: IC.spell, color: c.spell, items: order([cell('Shield', 250, 600, c.spell, IC.spell), cell('Armour', 1100, 1440, c.spell, IC.spell), cell('Bless', 65, 360, c.spell, IC.spell), cell('Strength', 372, 600, c.spell, IC.spell), cell('Breath of briskness', 26, 180, c.spell, IC.spell)]) },
+        { label: 'Buffs', d: IC.buff, color: c.buff, items: order([cell('Miruvor', 510, 600, c.buff, IC.buff), cell('Travelling', 6720, 7200, c.buff, IC.herb, 'Herb'), cell('Haste', 14, 360, c.buff, IC.herb, 'Herb')]) },
+        { label: 'Debuffs', d: IC.debuff, color: c.debuff, items: order([cell('Winded', 40, 60, c.debuff, IC.debuff)]).concat([untimed('Hunger', IC.debuff, 'Seen in stat, no timer')]) },
+        { label: 'Stored', d: IC.stored, color: c.stored, items: order([cell('Fireball', 760, 1800, c.stored, IC.stored), cell('Teleport', 1500, 1800, c.stored, IC.stored)]) },
+        { label: 'Blinds', d: IC.blind, color: c.blind, items: blindItems, mosaic, cells: !mosaic,
+          summary: nb + ' blinded · next ends', next: soonest.time, nextColor: soonest.color,
+          toggle: canFold ? { label: mosaic ? 'Show all' : 'Fold', aria: mosaic ? 'Show every blind as a row' : 'Fold the blinds into a mosaic', fn: set('blindsOpen', mosaic) } : false },
+        { label: 'Charmies', d: IC.charm, color: c.charm, charm: true, cells: false, items: [{ name: 'Huge stone troll', d: IC.charm, time: (21 + Math.floor(e / 60)) + 'm' }] },
+      ].map((g) => ({ mosaic: false, charm: false, toggle: false, cells: true, ...g, count: String(g.items.length) }));
+
+      const tp = 132 / 160;
+      return {
+        cls: 'half ' + T.key, title: T.title, sub: T.sub, c, icons: IC, ui,
+        groupCap: two ? '· two lines per member (auto: ≤ 7)' : '· one line per member (auto: > 7)',
+        listCls: two ? 'list two' : 'list one',
+        railCls: S.rail ? 'rail railfix' : 'rail',
+        members, low: members.slice(0, 5), lowMore: '↓ ' + (members.length - 5) + ' more members',
+        tank: { w: Math.round(tp * 100) + '%', color: barColor('hp', tp) },
+        barMode: S.mode === 'bars', ringMode: S.mode === 'rings',
+        gridCls: S.mode === 'bars' ? 'grid bars' : 'grid rings',
+        groups,
+      };
+    });
+    return { halves };
+  }
+}
+</script>
+</body>
+</html>

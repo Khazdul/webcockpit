@@ -18,7 +18,9 @@
 //
 //   timers          → `game.timers` (src/timers/hub.ts, ADR 0017): the
 //                     trackers behind the Timers pane, attached with the
-//                     rest; App installs their rules (`timers.installRules`)
+//                     rest; App installs their rules (`timers.installRules`);
+//                     after a Group.* change the members go to
+//                     `timers.noteGroup` (sanctuary on others, ADR 0122)
 //
 // Listeners (`subscribe`) are told which part changed; panes mark
 // themselves dirty and render in the next frame.
@@ -133,8 +135,11 @@ export class GameState {
     if (p.startsWith('char.')) {
       if (this.char.apply(pkg, data)) this.emit('char');
       if (p === 'char.vitals' && this.group.apply(pkg, data)) this.emit('group');
-    } else if (p.startsWith('group.')) {
-      if (this.group.apply(pkg, data)) this.emit('group');
+    } else if (p.startsWith('group.') || p === 'room.info') {
+      if (this.group.apply(pkg, data)) {
+        if (p !== 'room.info') this.noteGroup();
+        this.emit('group');
+      }
     } else if (p === 'event.sun') {
       const what = (data as { what?: unknown } | undefined)?.what;
       if (this.clock.syncSun(what, this.now())) this.clockSynced();
@@ -146,10 +151,16 @@ export class GameState {
     }
   }
 
+  /** The members to the timers (sanctuary on others, ADR 0122). */
+  private noteGroup(): void {
+    this.timers.noteGroup([...this.group.list(), ...this.group.unlabeled()]);
+  }
+
   /** Character and group forget everything (new connection, live disconnect). */
   resetCharacter(): void {
     this.char.reset();
     this.group.reset();
+    this.noteGroup();
     this.emit('char');
     this.emit('group');
   }

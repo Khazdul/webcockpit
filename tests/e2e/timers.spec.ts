@@ -1,39 +1,34 @@
-// Stage 5 P2: the Timers pane and Options → Panes → Timers. The offline
-// GMCP demo makes the panes active (they keep their picture after the
-// replay); the debug hooks on `game.timers` put the cells in.
+// The Timers pane (stage 39c, ADR 0122) and its settings: the gear popup
+// and Options → Panes → Timers. The offline GMCP demo makes the panes
+// active (they keep their picture after the replay); the debug hooks on
+// `game.timers` put the cells in.
 import { type Page, expect, test } from '@playwright/test';
 import { menuFrame, openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 
-// Tall enough for the Timers pane to show all eight rows of `populate`.
 test.use({ viewport: { width: 1400, height: 1100 } });
 
 const rows = (page: Page) => page.locator('.wc-rows .wc-row');
-const content = (page: Page) => page.locator('.wc-pane[data-pane="timers"] .wc-pane-content');
-const prows = (page: Page) => content(page).locator('.wc-prow');
-const hit = (page: Page, sel: string) => content(page).locator(`.wc-timers-hit${sel}`);
-
-const texts = async (page: Page): Promise<string[]> => (await prows(page).allTextContents()).map((t) => t.trimEnd());
-
-/** Pins the right dock to Cockpit's fixed heights 9/8/6/10/5 (the default shares them out, ADR 0023). */
-async function cockpitHeights(page: Page): Promise<void> {
-  await page.evaluate(() =>
-    window.__wc!.settings.update((d) => {
-      const want: Record<string, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5 };
-      for (const p of d.layout.docks.right.lanes[0]!.panes) p.desired = want[p.id] ?? p.desired;
-    }),
-  );
-}
+const pane = (page: Page) => page.locator('.wc-pane[data-pane="timers"] .wc-pane-content');
+const groups = (page: Page) => pane(page).locator('.wc-tm-g');
+const group = (page: Page, id: string) => pane(page).locator(`.wc-tm-g[data-group="${id}"]`);
+const groupIds = (page: Page) => groups(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.group));
+const item = (page: Page, id: string) => pane(page).locator(`.wc-tm-list [data-id="${id}"]:not(button)`);
 
 async function demoDone(page: Page): Promise<void> {
   await page.goto(DEMO);
   await expect(rows(page).filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
   await expect(page.locator('.wc-pane[data-pane="timers"]')).toHaveAttribute('data-active', '');
-  await cockpitHeights(page); // the Timers pane at eight rows
+  // The Timers pane tall enough for everything below.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      for (const p of d.layout.docks.right.lanes[0]!.panes) if (p.id === 'timers') p.desired = 24;
+    }),
+  );
 }
 
-/** Puts debug cells in: a full spell, a half-drained buff, a blind and a charm. */
+/** Puts debug cells in: a spell ending soon, a full spell, a buff, three blinds and a charm. */
 async function populate(page: Page): Promise<void> {
   await page.evaluate(() => {
     const t = window.__wc!.app.game.timers;
@@ -47,98 +42,183 @@ async function populate(page: Page): Promise<void> {
       expected: total,
       tracked: true,
     });
-    t.debugAdd(c('s1', 'sanctuary', 'spell', 600_000, 600_000) as never);
+    t.debugAdd(c('s1', 'bless', 'spell', 15_000, 360_000) as never);
     t.debugAdd(c('s2', 'armour', 'spell', 600_000, 600_000) as never);
-    t.debugAdd(c('b1', 'bless', 'buff', 300_000, 600_000) as never);
-    t.debugAdd(c('x1', '2.orc', 'blind', 90_000, 90_000) as never);
+    t.debugAdd(c('b1', 'miruvor', 'buff', 300_000, 600_000) as never);
+    t.debugAdd(c('x1', 'the captain of the guard of Fornost', 'blind', 40_000, 90_000) as never);
+    t.debugAdd(c('x2', 'a warg', 'blind', 70_000, 90_000) as never);
+    t.debugAdd(c('x3', 'a huge black-scaled warg', 'blind', 80_000, 90_000) as never);
     t.debugAdd(c('c1', 'huge stone troll', 'charm', 3_000_000, 3_600_000) as never);
   });
 }
 
-test('the Timers pane draws groups, bars and charm rows; × drops a charm', async ({ page }) => {
+async function openGear(page: Page) {
+  await page.locator('.wc-pane-timers').hover();
+  await page.locator('.wc-pane-timers > .wc-pane-btn-gear').click();
+  return page.locator('.wc-sp-gear-timers');
+}
+
+const timersSettings = (page: Page) => page.evaluate(() => window.__wc!.settings.get().timers);
+
+test('the Timers pane draws groups of bars, soonest first; ending soon in red; × drops a charm', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await demoDone(page);
   await populate(page);
-  await expect.poll(() => texts(page)).toHaveLength(8);
-  const t = await texts(page);
-  expect(t[0]).toMatch(/^Spells:\s+\+$/);
-  expect(t[1]).toMatch(/^ARMOUR\s+▌SANCTUARY\s+▌$/);
-  expect(t[2]).toBe('Buffs:');
-  expect(t[3]).toMatch(/^BLESS\s*$/);
-  expect(t[5]).toMatch(/^2\.ORC\s+▌$/);
-  expect(t[7]).toMatch(/^Huge stone troll\s+10m ×$/);
-  // The full spell bar: black on the group blue.
-  const bar = prows(page).nth(1).locator('span').first();
-  await expect(bar).toHaveCSS('background-color', 'rgb(102, 178, 255)');
-  await expect(bar).toHaveCSS('color', 'rgb(0, 0, 0)');
-  // The charm ×: hover brightens, click forgets the charm.
-  const x = hit(page, '[data-hit="charm"]');
-  await expect(x).toHaveCount(1);
-  await x.hover();
-  await expect(prows(page).nth(7).locator('span').last()).toHaveCSS('color', 'rgb(232, 136, 136)');
-  await x.click();
-  await expect.poll(() => texts(page)).toHaveLength(6);
+  // Herblore is there while enabled, even empty (its header holds the +).
+  await expect.poll(() => groupIds(page)).toEqual(['herb', 'spell', 'buff', 'blind', 'charm']);
+  // Headers: the name only, no count.
+  await expect(group(page, 'spell').locator('.wc-tm-h')).toHaveText('Spells');
+  await expect(group(page, 'blind').locator('.wc-tm-h')).toHaveText('Blinds');
+  // Soonest first, and the names as written (blinds without the article).
+  await expect(group(page, 'spell').locator('.wc-tm-n')).toHaveText(['Bless', 'Armour']);
+  // A long blind name is shortened in the middle only as much as the pane needs.
+  await expect(group(page, 'blind').locator('.wc-tm-n')).toHaveText([/^captain of the.*Fornost$/, 'warg', 'huge black-scaled warg']);
+  // A pill in the group colour (Auto on black: #66b2ff), its fill drained.
+  const armour = item(page, 's2');
+  await expect(armour).toHaveClass(/wc-tm-chip/);
+  const colourOf = (g: string) => group(page, g).evaluate((e) => (e as HTMLElement).style.getPropertyValue('--c'));
+  expect(await colourOf('spell')).toBe('#66b2ff');
+  const blessFill = await item(page, 's1').locator('.wc-tm-fill').evaluate((e) => parseFloat((e as HTMLElement).style.getPropertyValue('--p')));
+  expect(blessFill).toBeLessThan(10);
+  // Ending soon (15 s ≤ 20 s): the time in red and bold, the colour kept.
+  const blessTime = item(page, 's1').locator('.wc-tm-t');
+  await expect(blessTime).toHaveText(/^1[0-5]s$/);
+  await expect(blessTime).toHaveCSS('color', 'rgb(255, 59, 59)');
+  await expect(blessTime).toHaveCSS('font-weight', '700');
+  await expect(item(page, 's1')).toHaveClass(/is-text/);
+  expect(await colourOf('spell')).toBe('#66b2ff');
+  // A tooltip on hover: the full name and the exact time.
+  await item(page, 'x1').hover();
+  const tip = page.locator('.wc-ptip');
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText('the captain of the guard of Fornost');
+  await expect(tip).toContainText('left');
+  // The charm × forgets the charmie.
+  await pane(page).locator('.wc-tm-x').click();
+  await expect.poll(() => groupIds(page)).toEqual(['herb', 'spell', 'buff', 'blind']);
   expect(await page.evaluate(() => window.__wc!.app.game.timers.view().cells.charm.length)).toBe(0);
   expect(errors).toEqual([]);
 });
 
-test('the corner + opens the herblore add-view; [+] Healing starts it', async ({ page }) => {
+test('Herblore: + opens the menu, a pick starts the herb; × on hover stops it; the group can be turned off', async ({ page }) => {
   await demoDone(page);
   await populate(page);
-  await expect.poll(() => texts(page)).toHaveLength(8);
-  await hit(page, '[data-hit="corner"]').click();
-  await expect(content(page)).toHaveAttribute('data-mode', 'add');
-  const catalogue = ['[+] Travelling', '[+] Clearthought', '[+] Walking', '[+] Haste', '[+] Dark aura'];
-  await expect.poll(() => texts(page)).toEqual([expect.stringMatching(/^\[\+\] Healing\s+×$/), ...catalogue]);
-  await hit(page, '[data-key="Healing"]').click();
-  await expect.poll(() => texts(page)).toEqual([expect.stringMatching(/^\[-\] Healing\s+×$/), ...catalogue]);
+  await expect.poll(() => groupIds(page)).toHaveLength(5);
+  const herb = group(page, 'herb');
+  // The old corner + and add-view are gone.
+  await expect(pane(page).locator('.wc-tm-corner, .wc-tm-herbs')).toHaveCount(0);
+  // The + beside the header's name opens the catalogue.
+  const add = herb.locator('.wc-tm-add');
+  await expect(herb.locator('.wc-tm-h')).toContainText('Herblores');
+  await add.click();
+  const menu = page.locator('.wc-tm-menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.wc-tm-mi')).toHaveText(['+Healing', '+Travelling', '+Clearthought', '+Walking', '+Haste', '+Dark aura']);
+  await menu.locator('.wc-tm-mi[data-key="Healing"]').click();
+  await expect(menu).toBeHidden();
   expect(await page.evaluate(() => window.__wc!.app.game.timers.view().herbs.find((h) => h.key === 'Healing')?.active)).toBe(true);
-  // The corner × goes back to the grid.
-  await hit(page, '[data-hit="corner"]').click();
-  await expect(content(page)).toHaveAttribute('data-mode', 'grid');
-  await expect.poll(async () => (await texts(page))[0]).toMatch(/^Spells:\s+\+$/);
+  const healing = item(page, 'herb:Healing');
+  await expect(healing).toBeVisible();
+  // Running: checked in the menu; Esc closes it, so does a click outside.
+  await add.click();
+  await expect(menu.locator('.wc-tm-mi[data-key="Healing"]')).toHaveText('✓Healing');
+  await expect(menu.locator('.wc-tm-mi[data-key="Healing"]')).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await add.click();
+  await expect(menu).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(menu).toBeHidden();
+  // The × shows on hover, in place of the time, and stops the herb.
+  const x = healing.locator('.wc-tm-x');
+  await expect(x).toBeHidden();
+  await healing.hover();
+  await expect(x).toBeVisible();
+  await x.click();
+  await expect(healing).toHaveCount(0);
+  expect(await page.evaluate(() => window.__wc!.app.game.timers.view().herbs.find((h) => h.key === 'Healing')?.active)).toBe(false);
+  // Headers off: Herblore keeps its header (and its +).
+  await page.evaluate(() => window.__wc!.settings.update({ timers: { headers: false } }));
+  await expect(pane(page).locator('.wc-tm-h:visible')).toHaveCount(1);
+  await expect(herb.locator('.wc-tm-add')).toBeVisible();
+  // The group off: gone.
+  await page.evaluate(() => window.__wc!.settings.update({ timers: { groups: { herb: { enabled: false } } } }));
+  await expect(herb).toHaveCount(0);
+  await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('the Timers gear changes colours and column caps live (ADR 0107)', async ({ page }) => {
+test('the Timers gear: circles, grid, headers off, time text off, a custom colour, all live', async ({ page }) => {
   await demoDone(page);
   await populate(page);
-  await expect.poll(() => texts(page)).toHaveLength(8);
-  // The pane's buttons show on hover (ADR 0095).
-  await page.locator('.wc-pane-timers').hover();
-  await page.locator('.wc-pane-timers > .wc-pane-btn-gear').click();
-  const pop = page.locator('.wc-sp-gear-timers');
-  const colour = pop.locator('[aria-label="Spells colour"]');
-  await expect(colour).toContainText('Blue');
-  const pick = async (v: string) => {
-    await colour.click();
-    await page.locator(`.wc-ck-list .wc-ck-opt[data-value="${v}"]`).click();
-  };
-  // Spells off → the group hides.
-  await pick('off');
-  await expect.poll(() => texts(page)).toHaveLength(6);
-  expect((await texts(page))[0]).toMatch(/^Buffs:/);
-  // Green: shown again in green.
-  await pick('green');
-  await expect.poll(() => texts(page)).toHaveLength(8);
-  await expect(prows(page).nth(1).locator('span').first()).toHaveCSS('background-color', 'rgb(0, 217, 0)');
-  // Spells cap 4 → 1 with the stepper: one spell per row.
-  const cols = pop.locator('[aria-label="Spells columns"]');
-  for (let i = 0; i < 3; i++) await cols.locator('[data-step="dec"]').click();
-  await expect(cols).toHaveAttribute('aria-valuenow', '1');
-  // Nine rows in eight: the indicator takes the last one.
-  await expect.poll(async () => (await texts(page)).at(-1)).toBe('↓ 2 more rows');
-  expect((await texts(page)).slice(1, 3).map((r) => r.replace(/\s+▌?$/, ''))).toEqual(['ARMOUR', 'SANCTUARY']);
-  // Display headers off.
-  const headers = pop.locator('.wc-ck-tg[aria-label="Display headers"]');
-  await expect(headers).toHaveAttribute('aria-checked', 'true');
-  await headers.click();
-  await expect(headers).toHaveAttribute('aria-checked', 'false');
-  await expect.poll(() => texts(page)).toHaveLength(5);
-  const s = await page.evaluate(() => window.__wc!.settings.get().timers);
-  expect(s.groups.spell).toEqual({ enabled: true, color: 'green', cols: 1, clock: false, bar: true });
-  expect(s.headers).toBe(false);
+  await expect.poll(() => groupIds(page)).toHaveLength(5);
+  const pop = await openGear(page);
+  // No style switch in the pane itself.
+  await expect(pane(page).locator('[aria-label="Style"]')).toHaveCount(0);
+  // Circles: ring rows.
+  await pop.locator('[aria-label="Style"] [data-value="circles"]').click();
+  await expect(pane(page).locator('.wc-tm-rc')).toHaveCount(7);
+  await expect(pane(page).locator('.wc-tm-chip')).toHaveCount(0);
+  await expect(item(page, 's2').locator('.wc-ring-arc')).toHaveCSS('stroke', 'rgb(102, 178, 255)');
+  // Grid: the blinds in columns; flow wraps by width.
+  const blinds = group(page, 'blind').locator('.wc-tm-items');
+  await expect(blinds).toHaveClass(/is-flow/);
+  await pop.locator('[aria-label="Layout"] [data-value="grid"]').click();
+  await expect(blinds).toHaveClass(/is-grid/);
+  await expect(blinds).toHaveCSS('grid-template-columns', /^\S+ \S+/);
+  // A group's own layout overrides the global one.
+  await pop.locator('[aria-label="Blinds layout"] [data-value="flow"]').click();
+  await expect(blinds).toHaveClass(/is-flow/);
+  // Headers off: only Herblore's stays (it holds the +).
+  await pop.locator('[aria-label="Group headers"]').click();
+  await expect(pane(page).locator('.wc-tm-h:visible')).toHaveCount(1);
+  // Time text off: bars and rings only.
+  await pop.locator('[aria-label="Time text"]').click();
+  await expect(pane(page).locator('.wc-tm-t:visible')).toHaveCount(0);
+  // A custom colour for Spells from the picker; Auto brings the default back.
+  await pop.locator('.wc-cp-btn[aria-label^="Spells colour"]').click();
+  await page.locator('.wc-cp-sw[aria-label="Amber"]').click();
+  await expect(item(page, 's2').locator('.wc-ring-arc')).toHaveCSS('stroke', 'rgb(217, 165, 63)');
+  const s = await timersSettings(page);
+  expect(s).toMatchObject({ style: 'circles', layout: 'grid', headers: false, timeText: false });
+  expect(s.groups.spell.color).toBe('#d9a53f');
+  expect(s.groups.blind.layout).toBe('flow');
+  await pop.locator('.wc-cp-btn[aria-label^="Spells colour"]').click();
+  await page.locator('.wc-cp-auto').click();
+  await expect(item(page, 's2').locator('.wc-ring-arc')).toHaveCSS('stroke', 'rgb(102, 178, 255)');
   await page.evaluate(() => window.__wc!.settings.reset());
+});
+
+test('ending soon: a pulse instead of the red time, and nothing with None', async ({ page }) => {
+  await demoDone(page);
+  await populate(page);
+  const bless = item(page, 's1');
+  await expect(bless).toHaveClass(/is-text/);
+  await page.evaluate(() => window.__wc!.settings.update({ timers: { signal: 'pulse' } }));
+  await expect(bless).toHaveClass(/is-pulse/);
+  await expect(bless.locator('.wc-tm-fill')).toHaveCSS('animation-name', 'wc-tm-pulse');
+  await page.evaluate(() => window.__wc!.settings.update({ timers: { signal: 'none' } }));
+  await expect(bless).not.toHaveClass(/is-(text|pulse)/);
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
+test('sanctuary on another group member shows in the Sanctuary group (untimed without your cast)', async ({ page }) => {
+  await demoDone(page);
+  await page.evaluate(() =>
+    window.__wc!.app.bus.emit('gmcp', {
+      pkg: 'Group.Set',
+      data: [{ id: 7, type: 'ally', name: 'Gibur', label: 0, sanctuary: true, hp: 100, maxhp: 100 }],
+    } as never),
+  );
+  const sanct = pane(page).locator('.wc-tm-g[data-group="sanct"]');
+  await expect(sanct).toBeVisible();
+  await expect(sanct.locator('.wc-tm-n')).toContainText(['Gibur']);
+  const gibur = sanct.locator('.wc-tm-chip', { hasText: 'Gibur' });
+  await expect(gibur).toHaveClass(/is-untimed/);
+  await expect(gibur.locator('.wc-tm-t')).toHaveText('?');
+  // The flag off: gone.
+  await page.evaluate(() => window.__wc!.app.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 7, sanctuary: false } } as never));
+  await expect(sanct.locator('.wc-tm-chip', { hasText: 'Gibur' })).toHaveCount(0);
 });
 
 test('Options → Panes → Timers works in the phone\'s ESC menu', async ({ page }) => {
@@ -148,18 +228,20 @@ test('Options → Panes → Timers works in the phone\'s ESC menu', async ({ pag
   await menuFrame(page).locator('.wc-mrow[data-key="timers"] .wc-label').click();
   const frame = menuFrame(page);
   await expect(frame.locator('.wc-title-row')).toHaveText('─── Timers ───');
-  // Blinds → Clock (click), Charmies' Clock is an inert blank.
-  const blinds = frame.locator('.wc-grid-row').nth(4);
-  await blinds.locator('.wc-check[title="Blinds: clock"]').click();
-  await expect(blinds.locator('.wc-check[title="Blinds: clock"] .wc-check-box')).toHaveText('[X]');
-  await expect(frame.locator('.wc-grid-row').nth(5).locator('.wc-check[title="Charmies: clock"]')).toHaveCount(0);
-  // Charmies cap stops at 2.
-  const inc = frame.locator('.wc-grid-row').nth(5).locator('[data-step="inc"]');
-  await inc.click();
-  await inc.click();
-  await expect(frame.locator('[data-cols="charm"]')).toHaveText(' 2 ');
-  const s = await page.evaluate(() => window.__wc!.settings.get().timers.groups);
-  expect(s.blind.clock).toBe(true);
-  expect(s.charm.cols).toBe(2);
+  const s = () => page.evaluate(() => window.__wc!.settings.get().timers);
+  // Style: Bars → Circles with →.
+  await frame.locator('.wc-mrow[data-key="style"] .wc-label').click();
+  await expect(frame.locator('.wc-mrow[data-key="style"]')).toContainText('Style: Circles');
+  expect((await s()).style).toBe('circles');
+  // A group: Enter hides it; → steps its colour from Auto to the first picker colour.
+  await frame.locator('.wc-mrow[data-key="g-blind"] .wc-label').click();
+  expect((await s()).groups.blind.enabled).toBe(false);
+  await page.keyboard.press('ArrowRight');
+  expect((await s()).groups.blind.color).toBe('#e0566a');
+  await expect(frame.locator('.wc-mrow[data-key="g-blind"]')).toContainText('colour: Rose');
+  // Time text.
+  const was = (await s()).timeText;
+  await frame.locator('.wc-mrow[data-key="timetext"] .wc-label').click();
+  expect((await s()).timeText).toBe(!was);
   await page.evaluate(() => window.__wc!.settings.reset());
 });

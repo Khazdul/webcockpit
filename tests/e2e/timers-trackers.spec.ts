@@ -21,7 +21,8 @@ test('the timers demo fills every tracker and announces in the UI pane', async (
     const v = w.__wc.app.game.timers.view();
     return Object.fromEntries(Object.entries(v.cells).map(([g, cs]) => [g, cs.map((c) => c.name).sort()]));
   });
-  expect(view.spell).toEqual(['armour', 'bless', 'detect magic', 'sanctuary', 'shield']);
+  expect(view.sanct).toEqual(['sanctuary']);
+  expect(view.spell).toEqual(['armour', 'bless', 'detect magic', 'shield']);
   expect(view.stored).toEqual(['earthquake', 'earthquake']);
   expect(view.blind).toEqual(['2.orc']);
   expect(view.charm).toEqual(['enslaved shadow', 'huge stone troll']);

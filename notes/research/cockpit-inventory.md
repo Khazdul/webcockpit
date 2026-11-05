@@ -630,6 +630,9 @@ pane colour. Mockup at W=31:
 
 (docs/group-pane.md)
 
+> WebCockpit: the look and the options below are replaced by ADR 0122
+> (stage 39); the data rules still hold.
+
 #### Look
 
 - One row per displayed member: three bars filling the row with no gaps,
@@ -850,6 +853,9 @@ reserved).
   share it; last writer wins is fine since all syncs agree.
 
 ### 2.6 Timers (buffs) pane and its trackers
+
+> WebCockpit: the look and the options (§2.6.1–2.6.3) are replaced by ADR
+> 0122 (stage 39); the trackers below still hold.
 
 Right-column pane directly below Status (order: status → timers → comm → ui → dev).
 Default height 8 content rows (`desired_timers=8`). Frame header label `Timers`.

@@ -1,0 +1,206 @@
+# Stage 39 — Group and Timers panes: modern look
+
+Status: **Done** (2026-11-05). Released in 0.2.5.
+
+## Goal
+
+The Group and Timers panes leave the cell-grid TUI look for the modern
+one the owner chose in mockup 3c: line icons, thin bars or rings,
+contextual tooltips, a fight zone in Group, a Sanctuary group in Timers,
+free colours with Auto per background, flow or grid layouts. They become
+the template for the other built-in panes. ADR 0122.
+
+Mockups: https://claude.ai/artifact/14CWg5ad7j3Ut4rcywkBon (3c is the
+choice; copies in `notes/research/group-timers-mockups/`, the reference is
+`r2-P3c-revised.dc.html`). Round 1:
+https://claude.ai/artifact/KQz9apKUpo9YMW5xhTscxf.
+
+## Owner brief (2026-11-04)
+
+- Improve the built-in panes visually, functionally and in content,
+  starting with Group and Timers; leave the TUI feel, match the menu bar
+  and its popups.
+- Group: nicer HP/mana/moves bars, names that do not collide with the
+  bars, players apart from NPCs, icons with hover info for sanctuary,
+  poison, slept, blind, and for standing, resting, sleeping, riding; a
+  better settings page; more of what GMCP gives.
+- Timers: a modern look, icons per kind, a sign when a timer ends soon,
+  things cast on others (charmies, blinds) told apart, sanctuary as a key
+  spell.
+- Rounds 2–4 decisions are in ADR 0122 "Context". Last words before the
+  build: no bars/circles switch in the pane itself (gear only); "Börja nu
+  bygga detta så ser vi om det blir bra i praktiken."
+
+## Parts
+
+- **39a Foundation** (model, settings, icons, sanctuary on others).
+- **39b Group pane** and its gear and Options page.
+- **39c Timers pane** and its gear and Options page.
+- **39d** e2e, docs, test guide.
+
+## Tasks
+
+- [x] 39a: `GroupModel` keeps the GMCP member fields (position, ride,
+      room, mapid, the status flags, type ally/neutral/enemy) and exposes
+      the fight (opponent name and band word, the tank's member id) and
+      "away" (mapid ≠ your room); `showPlayers` covers neutral and enemy;
+      unit tests
+- [x] 39a: Settings types, defaults and migration per ADR 0122; unit tests
+- [x] 39a: `src/panes/icons.ts` (the 3c icon set) and a colour helper
+      (Auto → dark/light default, custom as is)
+- [x] 39a: Timers group `sanct`: own sanctuary moves there; others from
+      GMCP flags, timed after your cast (cast queue + flag edge, 10 s);
+      unit tests
+- [x] 39b: Group pane DOM rendering: fight zone, member rows (two lines /
+      one line), markers, statuses, position, away modes, overflow row,
+      tooltips, dark and light; unit tests for the pure layout parts
+- [x] 39b: Group gear popup and Options → Panes → Group: players, NPCs,
+      away, vital colours (palette, free input, Auto)
+- [x] 39c: Timers pane DOM rendering: groups and headers, bars and
+      circles, flow and grid (per-group override), time text, ending-soon
+      signal and threshold, soonest first, name shortening (blinds), herb
+      add-view, charm ×, scrolling and indicator, log player read-only
+- [x] 39c: Timers gear popup and Options → Panes → Timers: the new
+      settings and the per-group table (shown, colour, layout)
+- [x] 39d: e2e for both panes (fight zone, away modes, tooltips, style,
+      layout, headers, time text, colours, sanctuary on others), the
+      script manual's `state.group` fields, Inv §2.3/§2.6 pointers to ADR
+      0122, test guide, progress.md
+
+## Test guide
+
+Dev server (`npm run dev`, http://localhost:5173/) on the branch
+`stage-39-group-timers`. Play in MUME with a group if you can; the offline
+demo (`/?fixture=gmcp-demo.log&speed=0`) shows the panes with little data.
+Make the Group and Timers panes large enough to see everything (drag them
+taller, or float them) and also try them small.
+
+1. **Group, members:** players have a person icon (ally blue, other race
+   amber or a red horned helm), NPCs a grey diamond and their label as a
+   tag. Two lines per member when there is room, one line when it is
+   crowded. Hover a bar (`HP 37/158 · 23%`), an icon (poison, sanctuary,
+   blind …), the position icon and a name: each has its own tooltip.
+2. **Group, fight:** the card is off by default: turn on Group gear →
+   Fight card first. Then start a fight. The card on top shows the tank (shield,
+   HP, numbers) against your opponent (claw slashes, its HP word, a red bar
+   from the right); the tank also has a shield in the list. When you tank
+   yourself the card is the opponent alone. No "Group" line under the
+   card. The card goes away when the fight ends; gear → Fight card turns
+   it off again. All bars are solid (no small black stripes).
+3. **Group, away:** a group mate in another room shows the room name and
+   is dimmed. Gear → Away members → Dim only: just dimmed (the room is in
+   the name's tooltip).
+4. **Sanctuary:** cast sanctuary on a group mate. Timers → Sanctuary shows
+   them with `~4m` (an estimate, the tooltip says "about"), and the Group
+   pane rings their sanctuary icon. Someone else's sanctuary shows as `?`.
+   Your own sanctuary is in Sanctuary now, not in Spells.
+5. **Timers, look:** gear → Style Bars / Circles, Layout Flow / Grid
+   (Columns Auto or 1–6), Group headers off (groups stack tightly), Time
+   text off (bars and rings only). In the group table, give a group its
+   own layout and its own colour (palette, free colour, Auto).
+6. **Ending soon:** a timer keeps its colour to the end; with Signal Text
+   its time turns red and bold under the threshold (Warn at), with Pulse
+   the fill pulses. Soonest first puts it on top of its group.
+7. **Blinds:** blind several mobs with long names. Names lose `a/an/the`
+   and are shortened in the middle only when they do not fit; the full
+   name is in the tooltip.
+8. **Paper:** Options → Appearance → background Paper. Both panes and
+   their tooltips and gears follow the light side.
+9. **Herblore:** Timers has a Herblore group (its own green), shown while
+   it is on in the gear, even empty and with headers off. The `+` beside
+   its name opens the herb menu; a pick starts it (Esc or a click outside
+   closes the menu). Hover a running herb: an × in place of its time
+   stops it. Its debuff phases (`Haste (recovery)`) have the down arrow.
+   The group headers no longer show a count.
+10. **Kept:** the charmie `×`, and the Options → Panes → Group and Timers
+    pages.
+
+Feedback wanted: how does it feel in a real fight and with many blinds?
+Is the one-line Group mode (small pane) readable, and is the fight row
+without names enough there? Are the default colours right on black and on
+Paper? Is "Auto" grid in circles mode too eager to use two columns with
+short names? Anything you miss from the old panes?
+
+Known: in the smallest default pane sizes the one-line Group fight row
+shows only bars and icons (names in the tooltips); a Timers pane two rows
+high can hide its first item under the indicator when headers are on;
+recasting sanctuary on someone who is already glowing does not restart
+the estimate (their flag never turns off).
+
+## Owner feedback
+
+2026-11-04, first test of the build (with screenshots):
+
+- Remove the gold corner `+` for herblores. (First as a pane hover button
+  like the gear; then changed: a Herblore group of its own, on or off in
+  the settings, always with its header and a `+` beside the name that
+  opens a herb menu; a running herb has an × on hover; every herblore and
+  its phases go there, not into Buffs or Debuffs.)
+- The count at the right end of the Timers group headers is not needed.
+- The opponent's icon (the axe) is odd: find a better one.
+- No "Group" label and line between the fight card and the members.
+- When you tank yourself the card says "Nobody" as the buffer: let the
+  opponent fill the whole card instead.
+- A Group setting to show the fight card or not.
+- The Group bars have small black stripes: make them solid.
+
+Done in the round-1 commits (ADR 0122 addendum "Owner round 1").
+
+2026-11-04/05, later rounds: Herblores first in Timers and named
+"Herblores"; one-line Group rows keep the bars in one column at the right
+edge (icons left of them); no "(the band word)" in the bar tooltips; the
+Pulse signal also pulses the timer's icon; the Fight card is off by
+default. Then: "I övrigt känns det tillräckligt bra för att vi ska köra
+på detta" — approved, with a code review and a performance check first.
+
+## Review and performance (before the merge)
+
+- **Code review** (a fresh reviewer, read-only): three must-fix items on
+  the Group side (two time formats for one sanctuary, a full Group render
+  on every Char change, every row re-inserted on a change), leftovers from
+  the 39a stopgaps, duplicated SVG/ring/tick/colour helpers, a 761-line
+  group.ts. All fixed (3e1d56e..f7a14b5): one short and one exact time
+  format, Group split into group-model.ts and group.ts with keyed rows and
+  the sanctuary ring ticking in place, shared icon/ring/tick helpers,
+  timers.css of its own, no layout reads on the Timers tick.
+- **Performance** (`bench/browser-bench.ts --only budgets,play,keys,soak`,
+  main vs branch interleaved, Firefox and Chromium at the owner's
+  geometry; plus a micro-benchmark of 500 fight and Group updates and a
+  20 s Timers tick):
+  - Unchanged: key → send, input delay under load, text frames, burst
+    (Firefox misses its burst budget on main too), soak.
+  - Group renders per second while playing: main 1.9, branch before the
+    cleanup 3.5, after 2.3.
+  - Per pane update the richer DOM still costs more: Firefox frame after
+    an update 1.1 ms on main, 2.1 ms now (3.7 ms before the cleanup);
+    Chromium 2.3 → 3.8 ms (5.4 before); the Timers tick's pane script
+    about 1.0 → 2.5 ms once a second. No long tasks; the worst frame
+    measured 8–9 ms, under the 16.7 ms frame.
+- **Optimised further** (owner: "Optimera mer först"; ADR 0122 addendum
+  "performance"): Group rows set their values in place (a new vital no
+  longer rebuilds the row), bar fills slide by a transform (the 0.4 s
+  transition no longer lays out every frame), Timers pill fills are one
+  painted element in half-percent steps, countdown tooltips are live (the
+  tick writes no attributes), both panes are `contain: strict`. Medians,
+  main / before / after (ms):
+
+  | Measure | Firefox | Chromium |
+  |---|---|---|
+  | Frame after a fight update | 1.1 / 2.0 / 1.8 | 2.3 / 3.6 / 2.4 |
+  | Frame after a Group.Update | 1.0 / 2.1 / 1.9 | 2.4 / 3.9 / 2.3 |
+  | Main-thread time per update (Chromium trace) | – | 3.4 / 4.7–5.2 / 3.5–3.9 |
+  | Timers tick, forced 250 ticks: frame after | 0.34 / 1.52 / 1.42 | 1.4 / 2.1 / 1.5–2.1 |
+  | Timers tick: main-thread time per tick | – | 2.9 / 4.0 / 3.4–3.8 |
+  | Play with GMCP: text frames with a pane render, median / p95 | 3.1–3.5 / 6.4–6.6 → 3.4–4.5 / 8.7–9.1 → 2.3 / 5.2 | 2.9–3.8 / 6.0–6.1 → 4.8 / 7.6–8.8 → 4.8 / 6.4 |
+  | Keys under load, input delay p95 | unchanged | unchanged |
+
+  Group updates in Chromium are now at main's level; Firefox and the
+  Timers tick still cost a little more (more DOM to restyle and paint: a
+  fill or a ring that moves each second), well under a frame. No long
+  tasks.
+- **Tests:** unit 3168 passed; e2e 726/728 in the full run before the
+  optimisation (the two Firefox failures, layout drag cursor and Scripts
+  import, pass 78/78 on a re-run and are outside this stage); after it the
+  pane specs (timers, timers-trackers, group-pane, gmcp-panes, pane-gear,
+  underscores, scrolling, viewer, replay) pass 104/104 in Chromium and
+  Firefox.

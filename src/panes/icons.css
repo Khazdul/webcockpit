@@ -1,0 +1,31 @@
+/* The countdown ring of the Group and Timers panes (src/panes/icons.ts
+ * `ringSvg`, ADR 0122): a track and an arc that drains clockwise from the
+ * top. A pane tunes it with custom properties on the ring or above it:
+ *   --ring-track    the track's colour
+ *   --ring-color    the arc's colour (default currentColor)
+ *   --ring-w        the stroke width in view-box units (default 2.2)
+ *   --ring-unknown  an unknown (dashed) arc's colour (default the arc's)
+ *   --ring-unknown-opacity */
+
+.wc-ring-bg,
+.wc-ring-arc {
+  fill: none;
+  stroke-width: var(--ring-w, 2.2);
+}
+
+.wc-ring-bg {
+  stroke: var(--ring-track, currentColor);
+}
+
+.wc-ring-arc {
+  stroke: var(--ring-color, currentColor);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 12px 12px;
+}
+
+.wc-ring-arc.is-unknown {
+  stroke: var(--ring-unknown, var(--ring-color, currentColor));
+  opacity: var(--ring-unknown-opacity, 1);
+  stroke-dasharray: 2.4 3.2 !important;
+}

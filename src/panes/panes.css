@@ -41,8 +41,7 @@
   scrollbar-width: none;
 }
 
-.wc-alist::-webkit-scrollbar,
-.wc-timers-scroll::-webkit-scrollbar {
+.wc-alist::-webkit-scrollbar {
   display: none;
 }
 
@@ -92,44 +91,6 @@
 
 .wc-ui-row {
   font-weight: bold;
-}
-
-/* Timers pane (src/panes/timers.ts): the rows scroll natively by pixels
- * (ADR 0052) above the fixed indicator row; transparent hit boxes over the
- * clickable cells (charm ×, herb labels, corner), raised above the
- * title-row grip like the comm header cells. */
-.wc-timers-scroll {
-  position: relative;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  overflow-anchor: none;
-  scrollbar-width: none;
-}
-
-.wc-timers-rows {
-  position: relative;
-}
-
-.wc-timers-more[data-up] {
-  cursor: pointer;
-  user-select: none;
-}
-
-.wc-timers-hits {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 0;
-  height: 0;
-}
-
-.wc-timers-hit {
-  position: absolute;
-  z-index: 2;
-  height: var(--cell-h);
-  cursor: pointer;
-  user-select: none;
 }
 
 /* Map pane (src/panes/map.ts, ADR 0020): the worker draws into the

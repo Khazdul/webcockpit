@@ -852,6 +852,12 @@ export class ScriptHost {
       hp: vital(m.hp),
       mana: vital(m.mana),
       mp: vital(m.mp),
+      position: m.position ?? undefined,
+      ride: m.ride,
+      room: m.room ?? undefined,
+      mapid: m.mapid ?? undefined,
+      away: g.isAway(m),
+      flags: { ...m.flags },
     }));
   }
 

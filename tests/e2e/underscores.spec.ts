@@ -211,11 +211,17 @@ for (const dpr of [1, 1.5]) {
       await input.click();
       await page.keyboard.type(NAME);
       await expect(input).toHaveValue(NAME);
+      // The Timers items are drawn at 0.85 of the pane font (ADR 0122); at the
+      // full size here, so the probe's cell geometry applies to the name, and
+      // without the group headers (and the Herblore group, whose header stays),
+      // so the charm is in view in the short pane.
+      await page.addStyleTag({ content: '.wc-pane[data-pane="timers"] .wc-tm-items { font-size: 1em !important; }' });
+      await page.evaluate(() => window.__wc!.settings.update({ timers: { headers: false, groups: { herb: { enabled: false } } } }));
       const targets: Array<[string, Locator]> = [
         ['last output row', rows.last()],
         ['output row above a row', rows.nth(-3)],
         ['input line', input],
-        ['Timers pane row', page.locator('.wc-pane[data-pane="timers"] .wc-prow', { hasText: /x_h_two/i })],
+        ['Timers pane name', page.locator('.wc-pane[data-pane="timers"] .wc-tm-n', { hasText: /x_h_two/i })],
         ['UI pane, last message', page.locator('.wc-pane[data-pane="ui"] .wc-ui-row').last()],
       ];
       for (const [font, size] of LOOKS) {

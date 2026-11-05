@@ -129,7 +129,7 @@ describe('panes patch their rows', () => {
     p.dispose();
   });
 
-  it('Group: one member’s change replaces only that row', () => {
+  it('Group: one member’s new vital touches only that row’s bar, in place', () => {
     const t = setup();
     const p = new GroupPane(t.ctx);
     place(p, 31, 6);
@@ -141,7 +141,8 @@ describe('panes patch their rows', () => {
       ],
     });
     t.flush();
-    const before = rowEls(p);
+    const gpRows = (): Element[] => [...p.content.querySelectorAll('.wc-gp-row')];
+    const before = gpRows();
     expect(before).toHaveLength(2);
     const w = watch(p.content);
     p.markDirty();
@@ -149,39 +150,45 @@ describe('panes patch their rows', () => {
     expect(w.take()).toEqual([]);
     t.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 3, hp: 20 } });
     t.flush();
-    const after = rowEls(p);
+    const after = gpRows();
     expect(after[0]).toBe(before[0]);
-    expect(after[1]).not.toBe(before[1]);
+    expect(after[1]).toBe(before[1]);
+    // Only Mora's HP bar (its fill and tooltip) changed.
+    const hp = before[1]!.querySelector('.wc-gp-bar[data-kind="hp"]')!;
+    const muts = w.take();
+    expect(muts.length).toBeGreaterThan(0);
+    expect(muts.every((m) => hp.contains(m.target))).toBe(true);
     w.stop();
     p.dispose();
   });
 
-  it('Timers: a tick that shows the same cells touches no DOM; hit boxes stay', () => {
+  it('Timers: a tick that shows the same times touches no DOM (live tooltips); items keep their elements', () => {
     const t = setup();
     const p = new TimersPane(t.ctx);
-    place(p, 20, 6);
+    place(p, 30, 6);
     const now = t.now();
     const cell = (id: string, group: 'spell' | 'charm', secs: number) =>
       ({ id, name: id, group, startedAt: now, expiresAt: now + secs * 1000, expected: secs * 1000, tracked: true }) as const;
     t.game.timers.debugAdd({ ...cell('armour', 'spell', 3600) });
     t.game.timers.debugAdd({ ...cell('troll', 'charm', 3600) });
     t.flush();
-    const before = rowEls(p);
-    const hits = [...p.content.querySelectorAll('.wc-timers-hit')];
-    expect(hits.length).toBeGreaterThan(0);
+    const items = () => [...p.content.querySelectorAll('[data-id]:not(button)')];
+    const before = items();
+    expect(before).toHaveLength(2);
     const w = watch(p.content);
     t.advance(1000);
     p.markDirty();
     t.flush();
+    // The tooltips' exact time is read when shown: nothing is written.
     expect(w.take()).toEqual([]);
-    expect(rowEls(p)).toEqual(before);
-    expect([...p.content.querySelectorAll('.wc-timers-hit')]).toEqual(hits);
-    // A new cell changes the rows below the spells header and keeps the header.
-    t.game.timers.debugAdd({ ...cell('bless', 'spell', 3600) });
+    expect(items()).toEqual(before);
+    // A new spell joins its group; the others keep their elements.
+    t.game.timers.debugAdd({ ...cell('bless', 'spell', 1800) });
     t.flush();
-    const after = rowEls(p);
-    expect(after[0]).toBe(before[0]);
-    expect(p.content.querySelector('.wc-timers-rows')!.lastElementChild!.className).toBe('wc-timers-hits');
+    const after = items();
+    expect(after).toHaveLength(3);
+    expect(after).toContain(before[0]);
+    expect(after).toContain(before[1]);
     w.stop();
     p.dispose();
   });

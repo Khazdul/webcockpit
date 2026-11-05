@@ -14,6 +14,7 @@
 
 import type { StyleRun } from '../core/types';
 import { rgb } from '../core/types';
+import { capitalise } from './char';
 
 // ------------------------------------------------------------ channels
 
@@ -260,8 +261,6 @@ export interface CommSegment {
 const isYou = (s: string): boolean => s.trim().toLowerCase() === 'you';
 const ARTICLE_RE = /^(a|an|the|some)\s/i;
 
-const capFirst = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-
 /**
  * A talker or destination name for display: `you` → `You`; everything
  * from the first `" the "` dropped, as in Cockpit (owner, stage 4), so
@@ -276,10 +275,10 @@ export function cleanName(name: string): string {
   if (isYou(n)) return 'You';
   const star = /^\*(.+)\*$/.exec(n);
   if (star) return '*' + cleanName(star[1]!) + '*';
-  if (ARTICLE_RE.test(n)) return capFirst(n);
+  if (ARTICLE_RE.test(n)) return capitalise(n);
   const i = n.indexOf(' the ');
-  if (i > 0) return capFirst(n.slice(0, i).replace(/\s+of$/i, ''));
-  return capFirst(n);
+  if (i > 0) return capitalise(n.slice(0, i).replace(/\s+of$/i, ''));
+  return capitalise(n);
 }
 
 // ANSI SGR: ESC [ params m. Other CSI sequences are dropped when parsing.

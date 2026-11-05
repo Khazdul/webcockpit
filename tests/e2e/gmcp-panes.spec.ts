@@ -16,8 +16,10 @@ async function demoDone(page: Page): Promise<void> {
   await expect(rows(page).filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
 }
 
+// The Group pane draws DOM rows (ADR 0122); each member row carries its title.
+const grows = (page: Page) => content(page, 'group').locator('.wc-gp-row[data-name]');
 const groupNames = async (page: Page): Promise<string[]> =>
-  (await prows(page, 'group').allTextContents()).map((t) => t.replace(/\s+$/, ''));
+  grows(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.name ?? ''));
 
 test('the demo fills Character and Group, and they stay after the replay', async ({ page }) => {
   const errors: string[] = [];
@@ -83,7 +85,7 @@ test('the Group gear applies live (ADR 0107)', async ({ page }) => {
   await npc('off').click();
   await expect.poll(() => groupNames(page)).toEqual([]);
   const s = await page.evaluate(() => window.__wc!.settings.get().group);
-  expect(s).toEqual({ showPlayers: false, npcMode: 'off' });
+  expect(s).toMatchObject({ showPlayers: false, npcMode: 'off' });
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
@@ -111,7 +113,7 @@ test('Options → Panes → Group in the phone\'s ESC menu writes the settings',
   await page.keyboard.press('ArrowRight');
   await expect(sel).toHaveText('<< NPC visibility: Off >>');
   const s = await page.evaluate(() => window.__wc!.settings.get().group);
-  expect(s).toEqual({ showPlayers: false, npcMode: 'off' });
+  expect(s).toMatchObject({ showPlayers: false, npcMode: 'off' });
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
@@ -141,5 +143,5 @@ test('a live disconnect blanks Character and Group', async ({ page }) => {
   await server!.close();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
   await expect(prows(page, 'character')).toHaveCount(0);
-  await expect(prows(page, 'group')).toHaveCount(0);
+  await expect(content(page, 'group').locator('.wc-gp-row')).toHaveCount(0);
 });
