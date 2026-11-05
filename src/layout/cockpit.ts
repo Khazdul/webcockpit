@@ -13,7 +13,8 @@
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
 //     .wc-drop-ghost    outline where a pane dragged over the game will float (or the box a span drop gives)
 //     .wc-too-small     "Window too small" (below 60 × 18 cells)
-//     .wc-drag-shield   transparent cover with the drag cursor while a drag runs
+//     .wc-drag-shield   transparent cover with the drag cursor while a drag runs (the cockpit
+//                       has `data-shield` meanwhile: layout.css hides the hover set by it)
 //     .wc-phone-tabs    phone only: the tab strip (ADR 0075 §3)
 //
 // Relayout is one atomic pass per animation frame after a size change of
@@ -1682,6 +1683,7 @@ export class Cockpit {
     this.ghostEl.hidden = true;
     this.shieldEl.hidden = true;
     delete this.shieldEl.dataset.drag;
+    this.el.removeAttribute('data-shield');
     for (const s of this.shells.values()) s.el.removeAttribute('data-dragging');
     this.scheduleRelayout();
   }
@@ -1695,6 +1697,9 @@ export class Cockpit {
   private showShield(kind: string): void {
     this.shieldEl.dataset.drag = kind;
     this.shieldEl.hidden = false;
+    // An attribute, not `:has(> .wc-drag-shield…)` in layout.css: Chromium paid ≈ 1.7 ms of style
+    // work per output flush for a `:not(:has())` guard on the hover rules (stage 40d).
+    this.el.setAttribute('data-shield', '');
   }
 
   private setPreview(m: LayoutModel): void {

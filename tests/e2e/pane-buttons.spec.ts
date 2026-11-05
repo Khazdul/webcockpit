@@ -94,11 +94,14 @@ test('the look buttons hide while a pane is dragged; a narrow pane lays them ove
   await page.mouse.down();
   await page.mouse.move(t.x + 2 * cw - 80, t.y + ch / 2 + 40, { steps: 4 });
   await expect(page.locator('.wc-drag-shield')).toBeVisible();
+  // The cockpit carries the drag as an attribute, which the hover rules read (no :has(), stage 40d).
+  await expect(page.locator('.wc-cockpit')).toHaveAttribute('data-shield', '');
   await expect(page.locator('.wc-pane > .wc-pane-btn:visible')).toHaveCount(0);
   // Back where it started: the drop is no move.
   await page.mouse.move(t.x + 2 * cw, t.y + ch / 2, { steps: 4 });
   await page.mouse.up();
   await expect(page.locator('.wc-drag-shield')).toBeHidden();
+  await expect(page.locator('.wc-cockpit')).not.toHaveAttribute('data-shield');
 
   // A narrow lane of its own (ADR 0123 "Hood position and hover buttons"): the hood, moved left as far as it
   // goes (its left edge at the fourth cell), still reaches under the set: every button shows, over the

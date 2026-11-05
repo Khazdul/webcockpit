@@ -463,7 +463,7 @@
   display: none;
 }
 
-.wc-cockpit:has(> .wc-drag-shield:not([hidden])) :is(.wc-pane-close, .wc-pane-btn) {
+.wc-cockpit[data-shield] :is(.wc-pane-close, .wc-pane-btn) {
   display: none;
 }
 
@@ -520,14 +520,14 @@
   mask-image: linear-gradient(90deg, transparent, #000 calc(1.5 * var(--cell-w, 10px)));
 }
 
-.wc-cockpit:not(:has(> .wc-drag-shield:not([hidden]))) > .wc-pane[data-framed][data-hood-cover]:hover > .wc-pane-frame::after,
-.wc-cockpit:not(:has(> .wc-drag-shield:not([hidden]))) > .wc-pane[data-framed][data-hood-cover]:hover > .wc-pane-frame > .wc-pane-title::after {
+.wc-cockpit:not([data-shield]) > .wc-pane[data-framed][data-hood-cover]:hover > .wc-pane-frame::after,
+.wc-cockpit:not([data-shield]) > .wc-pane[data-framed][data-hood-cover]:hover > .wc-pane-frame > .wc-pane-title::after {
   display: block;
 }
 
 /* Too little of the label would be left to read (pane.ts `coverHood`):
  * it fades out whole, and the hood's left end holds only its rivet. */
-.wc-cockpit:not(:has(> .wc-drag-shield:not([hidden]))) > .wc-pane[data-framed][data-hood-cover='all']:hover > .wc-pane-frame > .wc-pane-title > span {
+.wc-cockpit:not([data-shield]) > .wc-pane[data-framed][data-hood-cover='all']:hover > .wc-pane-frame > .wc-pane-title > span {
   opacity: 0;
 }
 
@@ -792,7 +792,7 @@
     z-index: 4;
   }
 
-  .wc-cockpit:has(> .wc-drag-shield:not([hidden])) > .wc-pane:hover::after {
+  .wc-cockpit[data-shield] > .wc-pane:hover::after {
     content: none;
   }
 }
