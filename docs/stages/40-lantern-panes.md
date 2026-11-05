@@ -1,6 +1,6 @@
 # Stage 40 — Lantern pane look ("Lykta")
 
-Status: **In progress** (started 2026-11-05).
+Status: **Owner testing** (built 2026-11-05/06).
 
 ## Goal
 
@@ -74,7 +74,7 @@ every framed pane. Border on/off, Colour and Background glass/clear
 - [x] 40d: e2e updated (frame geometry, title centred, states), unit
       tests, docs, Inv §2.1 / §10.4 pointers to ADR 0123, manual
 - [x] 40d: test guide
-- [ ] 40d: progress.md (the main session)
+- [x] 40d: progress.md (the main session)
 
 ## Notes (40a)
 
