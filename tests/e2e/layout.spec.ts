@@ -385,9 +385,17 @@ test('a drag shows its cursor on a shield over the cockpit, gone after the drop'
     ['n', 'ns-resize'],
     ['ne', 'nesw-resize'],
   ] as const) {
-    const h = await box(page, `.wc-pane-comm .wc-float-handle[data-edge="${edge}"]`);
-    const hx = o.x + h.x + h.width / 2;
-    const hy = o.y + h.y + h.height / 2;
+    // The drop's relayout may land a frame after the setting: aim once the handle is where it is measured.
+    let hx = 0;
+    let hy = 0;
+    await expect
+      .poll(async () => {
+        const h = await box(page, `.wc-pane-comm .wc-float-handle[data-edge="${edge}"]`);
+        hx = o.x + h.x + h.width / 2;
+        hy = o.y + h.y + h.height / 2;
+        return page.evaluate(([px, py]) => document.elementFromPoint(px!, py!)?.closest<HTMLElement>('.wc-float-handle')?.dataset.edge ?? null, [hx, hy]);
+      }, { message: edge })
+      .toBe(edge);
     await page.mouse.move(hx, hy);
     await page.mouse.down();
     expect(await at(hx, hy), edge).toEqual({ shield: true, cursor });

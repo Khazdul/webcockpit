@@ -73,9 +73,9 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Next:** further lantern polish when the owner asks; the next pane
   redesign on the Group/Timers template.
 - **Open:** Firefox band paint cost (cheaper band changes the look, or a
-  cached rim image); Character dim labels on Paper (pre-existing);
-  `layout.spec` "a drag shows its cursor on a shield" is flaky on main too
-  (2–3 of 12–16 runs).
+  cached rim image); Character dim labels on Paper (pre-existing). The
+  flaky `layout.spec` "a drag shows its cursor on a shield" (also on main)
+  is fixed: it pressed a float handle before the drop's relayout (74/74).
 - **Commits:** 7de9a55..f33581e, merged in 191e841.
 
 ### 2026-11-05 — Pane look research ("Lykta")
