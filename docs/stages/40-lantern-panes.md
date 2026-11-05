@@ -67,8 +67,8 @@ every framed pane. Border on/off, Colour and Background glass/clear
       the lit window; adjustments where text loses contrast
 - [x] 40a+: hood moves left on narrow panes, buttons over the hood when
       they still do not fit (owner feedback 2026-11-05)
-- [ ] 40c: Paper design (lamp, iron, cards on a light page), built; every
-      tint, border on/off, clear
+- [x] 40c: Paper design (lamp, iron, cards on a light page), built; every
+      tint, border on/off, clear (P2 pewter and brass, pale tints)
 - [ ] 40d: performance: many panes, weather on, floats; frame times vs
       main in Chromium and Firefox
 - [ ] 40d: e2e updated (frame geometry, title centred, states), unit
@@ -141,6 +141,39 @@ show or how they lay out.
   bright day sky has low-contrast dim labels (the clear background's
   trait, ADR 0095); the mockup's faint-to-strong chip fill ramp is
   dropped for cost (a flat tint instead).
+
+## Notes (40c)
+
+Built 2026-11-05 after the owner chose P2 "Tenn och mässing" and pale
+tints; the rules and numbers are in ADR 0123 "Paper".
+
+- A tint on a light page is now a pale wash of its hue, as light as the
+  page (`lightTintFill`); the whole theme follows (borders, shade ramps,
+  Options swatches by frame colour, map Transparent, script panes, the
+  replay). Comm holds channel colours to 4.5:1 on light panes.
+- CSS: a "Paper" section in layout.css (band, hood, window, glow → drop
+  shadow, the hover shelf and label fade, the hover set), light blocks in
+  group.css and timers.css (paper cards, coin, tag, chip time). The
+  interim light rules of 40a/40b and the proposals' comparison switches
+  are gone.
+- Dark look: pixel-equal before and after. Cost on Paper within noise of
+  dark (Firefox, ratio 2).
+- Screenshots (`img/`, Chromium ratio 2 unless named):
+  `40c-plain-chromium-2x.png`, `40c-tints-hover-chromium-2x.png`
+  (Character orange, UI purple, Timers blue, Group red with the hover
+  set, Comm green), `40c-off-clear-chromium-2x.png` (Group orange and
+  Comm borderless, Timers blue and Character green clear, UI grey both),
+  `40c-shelf-chromium-2x.png` (1000 px window, 20-cell lanes: the brass
+  shelf over Group's hood), `40c-clear-weather-day-chromium-2x.png`
+  (every pane clear, day sky), `40c-weather-night-chromium-2x.png`
+  (Plain, night), `40c-other-panes-chromium-2x.png` (all Blue: Character,
+  Map, Statistics float, the key manager, Comm, UI),
+  `40c-tints-weather-firefox-2x.png`. The proposal shots
+  `40c-p1|p2|p3-*.png` stay as the record of the choice.
+- Open: Character's dim labels on a light pane read 1.8–3.8:1 (the light
+  shade ramp, from before this stage; not changed). Inv §10.4 still lists
+  only the dark fills: the pointer to ADR 0123 "Paper" goes in with 40d's
+  Inv pointers.
 
 ## Test guide
 

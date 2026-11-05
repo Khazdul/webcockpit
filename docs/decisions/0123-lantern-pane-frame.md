@@ -300,3 +300,115 @@ This replaces the 40a rule "the buttons drop as today" for framed panes.
 - Not covered: the weather worker knows nothing of the shelf (hover only;
   glints and snow lie on the band under it); Paper (40c) restyling the
   hood must restyle the shelf and fade the same way.
+
+## Paper (stage 40c, 2026-11-05)
+
+The owner compared three Paper proposals built in the real app
+(`docs/stages/img/40c-p1|p2|p3-*.png`) and chose **P2 "Tenn och
+mässing"** (pewter and brass), and pale tints on a light page. This
+replaces the 40a/40b interim light rules (a softer vignette, the old
+track colours) and decides the "Paper" state above.
+
+- **Which panes.** A light pane (`data-light`): any pane on a light page.
+  Plain was light already; a **named tint on a light page is now a pale
+  wash of its hue** instead of its dark fill (`theme/color.ts`
+  `lightTintFill`, used by `paneEffectiveBg`): HSL hue kept, S × 0.6
+  (`LIGHT_TINT_S`), mixed 20 % with the page (`LIGHT_TINT_PAGE`), its
+  lightness searched (14 halvings) so its relative luminance equals the
+  page's to within 1 %. Every colour already fitted to the page (UI roles,
+  the palette, ADR 0041) so keeps its contrast in a tinted pane, and the
+  pane's border, shade ramp and `data-light` follow the light rules. On
+  Paper `#f4ecd8`: Red `#f5ebe6`, Green `#e8eee4`, Blue `#eaedee`, Grey
+  `#eeede9`, Orange `#f3ece2`, Purple `#f1eaee`; on white the wash is
+  white (no room for a hue). Dark pages keep the dark fills. Everything
+  reads the fill through `paneEffectiveBg`/`paneContentBg`, so the Options
+  token `--pane-bg-<tint>`, `--pane-fill` (a clear pane's card backing),
+  the shade ramp (Character, Group, Timers, `paneTheme` for script panes),
+  the map's Transparent background (`data-map-bg`), the weather worker's
+  pane fills, the log player and the HTML replay (the same theme code)
+  all follow. The Panes grid swatches (phone Options) show a tint by its
+  frame colour (`--pane-border-<tint>`, L80 in its hue) on a light page,
+  since a swatch in the wash would vanish on the page.
+- **Comm** holds its channel colours to 4.5:1 on a light pane
+  (`fitContrast(lightShift(c))`, as the UI pane), against the pane's
+  background 6 % toward black (`COMM_EDGE_SHADE`, the window's edge
+  shade); `lightShift` alone left yellow and cyan near 2:1. Its header
+  and list keys carry the background, so a tint change re-colours them.
+- **Where the CSS lives.** Next to the dark rules it overrides: a
+  "Paper" section in `layout.css` after the hood-cover rules (frame,
+  hood, window, shelf, fade, hover set), and the light blocks at the end
+  of `group.css` and in `timers.css` (cards). No separate stylesheet, no
+  switch.
+- **Tokens** (`.wc-pane[data-light]`, from `--pane-border`, which on a
+  light pane is the tint's hue at HSL L80, or the page's for Plain, so
+  Plain on Paper, Orange and Red come out brass and Blue, Green, Purple
+  and Grey pewter from one formula): `--iron` oklch L .66 C min(c × 1.15,
+  .07); `--iron-hi` L .88 C min(c × .8, .05); `--iron-lo` L .36 C min(c ×
+  .6, .04); `--engrave` L .24 C min(c × .5, .035) at 85 %; `--ink` L .3
+  C min(c × .9, .06); `--shade` the hue at L .48 C min(c × 1.2, .07) mixed
+  half (oklab) with `#7a5a2a`, at 20 %; `--metal` the hood's sheen
+  (white .4 → .05 at 55 % → black .08) over `--iron`; `--metal-drop`
+  `0 1px 3px rgb(50 35 10 / .3)`; `--frost2` black 6 %, `--frost-edge`
+  `--iron-lo` 45 %.
+- **Band**: rivets with a lit centre (`--iron-hi` 70 %) in a dark ring
+  (`--iron-lo`); brackets `--iron-hi` → 55 % toward `--iron`; the cut
+  where a bracket ends, the outer edge and the seams in `--engrave`; a
+  white lit hairline (75 %) inside the edge top and left.
+- **Glow**: none (it reads as a smudge on paper); the frame box casts
+  `--metal-drop` into the gap instead, clear or not.
+- **Hood**: `--metal`, its rivets, lip `inset 0 -1 hair` white 70 %,
+  outline `--engrave`, `--metal-drop`; the title in `--ink` with a
+  `0 1px 0` white 70 % lip (engraved).
+- **Window**: parchment: a white 45 % spot under the hood (42 % × 3
+  cells), a warm white (`rgb(255 253 245)`) .42 → .26 at 60 % → .2 over
+  the window, over `--window-base`; an engraved shadow under the top
+  edge (`inset 0 hair 1px` `--iron-lo` 35 %) and `inset 0 0 1.2 cells
+  --shade`. Borderless: the warm white .4 → .24 → .18 and the shade at
+  80 %. Clear: no fill, the top shadow and the shade at 70 % over 0.8
+  cells. With weather the glass (`--window-base`, 55 % or 64 %) lies
+  under the same light; on Paper the day or night sky barely shows
+  through it (checked: the window's pixels are within 1 level of the
+  weather-off ones), and through a clear pane it shows as a faint sky.
+- **Hover set**: `--ink` at 80 % with a white `0 1px 0` lip (icons: the
+  same as a drop shadow); the accent on hover (the light rule no longer
+  hides it). Over the hood (`data-hood-cover`) the shelf and the label's
+  fade are `--metal` with the hood's lip, the shelf with the engraved
+  outline (not on its left) and `--metal-drop`; the set in full `--ink`
+  there (an open Gear keeps its accent).
+- **Group** (light): cards are raised paper, `#fffdf8` 92 % over
+  `--card-back` (hover white), a 5 % rim and `0 1px 2px` 22 % + `0 2px
+  5px` 8 % warm shadows; the fight card and strip a 10 % rim and `0 1px
+  2px` 25 % + `0 3px 8px` 10 %; tracks the shade ramp's track 75 % toward
+  `--iron-lo`, recessed (`inset 0 1px 2px` black 30 %, a white lip); the
+  fill's gloss white .35 → 0 → black .1; the vs medallion an engraved
+  coin (`--iron` with an `--iron-hi` spot, `--engrave` rim, `--ink`
+  letters); the NPC tag a plate of `--iron-hi` with `--ink` letters (the
+  label shade read 3.9:1 there).
+- **Timers** (light): chips of the same paper (`#fffdf8` 92 %), no lit
+  edge, `0 1px 2px` 22 % warm shadow; the fill the group colour at 22 %
+  (`--tm-tint`), edge 50 %; headers in `--ink` over a rule in `--iron-lo`
+  45 % fading out by 85 %; the time halfway from the label shade to the
+  text (`--tm-time`: the label shade alone read 3.6:1 over a tinted fill).
+- **Contrast** (measured on screenshots, worst pixel behind each text
+  leaf, Plain / mixed / warm / cool tints and clear): Comm ≥ 4.9, UI ≥
+  4.4 (bold; fitted to 4.5 on the flat colour, the edge shade costs a
+  little), Group ≥ 4.5 (the vs coin's bold letters 4.2), Timers ≥ 4.5
+  (Herblore's bold + 4.2–4.5). Character's dim labels (the light shade
+  ramp's `glow`/`dim`, L 55–60) read 1.8–3.8:1: the light ramp's, from
+  before this stage; not changed here.
+- **Cost**: static paint only, nothing new on an element that changes per
+  tick (chip fills still move by `--p`; card shadows and the shelf are
+  static). Firefox, headless, ratio 2 (`costpanes` method of 40b, median
+  of 150, two runs each): Paper vs dark on this branch, Group update
+  2.6–2.7 vs 2.7–2.8 ms, fight 3.1–3.5 vs 3.3–3.5, the Timers tick's
+  frame 6.1–7.6 vs 8.2–8.8: within noise (no slower than dark).
+- **Dark unchanged**: dark screenshots before and after are pixel-equal
+  (bar the ticking timer times).
+- **Tests**: unit (`lightTintFill`: every tint on every light preset and
+  three more pages is light, within 1 % of the page's luminance, keeps
+  its hue on a grey page; dark pages keep the fills; pane tokens on
+  Paper; Comm's channel colours ≥ 4.5:1 on every tint; the Panes grid
+  swatches), e2e (`pane-buttons`: Paper metal, dark title, pale wash,
+  the shelf and set; `map-background`: Transparent follows the wash).
+- Screenshots: `docs/stages/img/40c-*.png` (the p1–p3 proposal shots are
+  kept: they record the choice).
