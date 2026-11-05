@@ -5,6 +5,9 @@
  * carry their own colour inline. */
 
 .wc-gp {
+  /* The pane content has a fixed size and clips (layout.css): a change in
+   * here never lays out or repaints anything outside it. */
+  contain: strict;
   --gp-row: var(--cell-h, 17px);
   --gp-hover: color-mix(in srgb, var(--gp-text, #ccc) 7%, transparent);
   display: flex;
