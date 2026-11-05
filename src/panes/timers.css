@@ -6,6 +6,9 @@
 .wc-tm {
   position: absolute;
   inset: 0;
+  /* Fills the content box, which clips: a change in here never lays out
+   * or repaints anything outside it. */
+  contain: strict;
   display: flex;
   flex-direction: column;
   white-space: nowrap;
@@ -143,18 +146,17 @@
   background: color-mix(in srgb, var(--tm-line) 55%, transparent);
 }
 
-.wc-tm-clip {
+/* The fill: a childless element over the chip's padding box with its
+ * rounding, a gradient in the group's tint up to `--p` (0–100) and clear
+ * after it. A new value restyles and repaints this element only (no
+ * layout, no clip; `--p` here has no descendants to inherit it); the
+ * pulse fades it. */
+.wc-tm-fill {
   position: absolute;
   inset: 0;
-  overflow: hidden;
   border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) var(--tm-tint), transparent) calc(var(--p, 0) * 1%), transparent 0);
   pointer-events: none;
-}
-
-.wc-tm-fill {
-  display: block;
-  height: 100%;
-  background: color-mix(in srgb, var(--c) var(--tm-tint), transparent);
 }
 
 .wc-tm-ic {

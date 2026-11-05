@@ -20,7 +20,9 @@
 //   `data-tip-key` in the same attached root (the pane), if any, else the
 //   tooltip hides. The same holds for an element rebuilt during the hover
 //   delay. Elements kept across renders just have their data updated
-//   (`setTip` writes only what changed).
+//   (`setTip` writes only what changed). A countdown's tooltip is live
+//   (`setLiveTip`): its text is read when shown and on `refresh`, so a
+//   tick writes nothing to the elements nobody hovers.
 // - Pure DOM, no timers while nothing is hovered. Also used in the replay
 //   bundle (the CSS is imported here).
 
@@ -165,8 +167,8 @@ export class PaneTooltip {
     const title = a.dataset.tipTitle ?? '';
     this.titleEl.textContent = title;
     this.titleEl.hidden = title === '';
-    // A body that only repeats the title is left out.
-    const body = a.dataset.tip ?? '';
+    // A body that only repeats the title is left out. A live text is read now.
+    const body = LIVE.get(a)?.() ?? a.dataset.tip ?? '';
     this.bodyEl.textContent = body === title ? '' : body;
     this.bodyEl.hidden = body === '' || body === title;
     const win = this.doc.defaultView;
@@ -255,7 +257,24 @@ function setData(el: HTMLElement, k: 'tip' | 'tipTitle' | 'tipKey', v: string | 
  */
 export function setTip(el: HTMLElement, text: string | null, title?: string | null, key?: string | null): void {
   const on = text !== null && text !== '';
+  LIVE.delete(el);
   setData(el, 'tip', on ? text : null);
   setData(el, 'tipTitle', on ? title : null);
   setData(el, 'tipKey', on ? key : null);
+}
+
+/** Texts read when shown (`setLiveTip`), by element. */
+const LIVE = new WeakMap<Element, () => string>();
+
+/**
+ * A tooltip whose text changes all the time (a countdown's exact time): the
+ * text is read from `text()` when the tooltip shows and on `refresh`, so a
+ * tick writes nothing to the elements nobody hovers. `data-tip` holds
+ * `live` (it marks the element as tipped).
+ */
+export function setLiveTip(el: HTMLElement, text: () => string, title: string | null, key: string | null): void {
+  LIVE.set(el, text);
+  setData(el, 'tip', 'live');
+  setData(el, 'tipTitle', title);
+  setData(el, 'tipKey', key);
 }

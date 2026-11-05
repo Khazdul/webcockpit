@@ -21,8 +21,9 @@
 //   a pulse keeps running).
 // - Layout reads: the character width and the list's width are measured
 //   only when the pane's size or the font changes; the indicator row
-//   reads the scroll position only when the items or their texts changed,
-//   and on a scroll (once a frame).
+//   reads the scroll position only when the items or the length of a text
+//   changed, and on a scroll (once a frame). A pill's fill is painted from
+//   `--p` in half-percent steps.
 // - Colours: each group's setting on the pane's side (Auto → the dark or
 //   light default, palette.ts); text and lines from the pane shade ramp;
 //   the ending-soon time in the side's signal red.
@@ -52,7 +53,7 @@ import { SecondTick, setAttr, setClass, setHidden, setProp, setText } from './do
 import { iconSvg, ringDash, ringSvg, setIconSvg } from './icons';
 import { signalColors } from './palette';
 import { PaneShell } from './pane';
-import { installPaneTooltip, type PaneTooltip, setTip } from './pane-tooltip';
+import { installPaneTooltip, type PaneTooltip, setLiveTip } from './pane-tooltip';
 import { paneShade } from './shade';
 import { type TimerGroupView, type TimerItem, timersModel, timersTimed } from './timers-model';
 
@@ -62,6 +63,15 @@ export function timersIndicator(above: number, below: number): { text: string; u
   if (below > 0) return { text: `↓ ${below} more ${below === 1 ? 'timer' : 'timers'}`, up: false };
   return null;
 }
+
+/**
+ * A fill fraction in half-percent steps: under a pixel on a pill or ring,
+ * so a long timer's fill changes every few seconds, not on every tick.
+ */
+export const fillStep = (pct: number): number => Math.round(Math.max(0, Math.min(1, pct)) * 200) / 200;
+
+/** `--p` of a pill's fill (0–100) in half-percent steps. */
+export const fillPct = (pct: number): string => (fillStep(pct) * 100).toFixed(1);
 
 /** One timer's element (a pill or a ring row), kept across renders. */
 class ItemEl {
@@ -82,13 +92,11 @@ class ItemEl {
     this.el = doc.createElement('div');
     this.el.dataset.id = id;
     if (style === 'bars') {
-      const clip = doc.createElement('span');
-      clip.className = 'wc-tm-clip';
+      // The fill: a childless element painted from its `--p` (timers.css).
       this.fill = doc.createElement('span');
       this.fill.className = 'wc-tm-fill';
-      clip.append(this.fill);
       this.icon = iconSvg(doc, 'spell', 'wc-tm-ic');
-      this.el.append(clip, this.icon);
+      this.el.append(this.fill, this.icon);
     } else {
       const rw = doc.createElement('span');
       rw.className = 'wc-tm-rw';
@@ -123,18 +131,24 @@ class ItemEl {
     setIconSvg(this.icon, t.icon);
     if (this.fill) {
       setProp(this.icon, 'display', t.chipIcon ? '' : 'none');
-      setProp(this.fill, 'width', `${(t.pct * 100).toFixed(1)}%`);
+      // The fill is painted from `--p` (timers.css): no layout on the tick.
+      setProp(this.fill, '--p', fillPct(t.pct));
     }
     if (this.ring) {
       setAttr(this.ring, 'class', t.kind === 'untimed' ? 'wc-ring-arc is-unknown' : 'wc-ring-arc');
       // Only a countdown drains; still, untimed (dashed) and charm rings are full.
-      setAttr(this.ring, 'stroke-dasharray', ringDash(t.kind === 'timed' ? t.pct : 1));
+      setAttr(this.ring, 'stroke-dasharray', ringDash(t.kind === 'timed' ? fillStep(t.pct) : 1));
     }
     setText(this.nameEl, t.name);
     setText(this.timeEl, t.time ?? '');
     setHidden(this.timeEl, t.time === null);
-    setTip(this.el, t.tip, t.full, `tm:${t.id}`);
+    // The tooltip's exact time changes every second: read when shown.
+    this.tipText = t.tip;
+    setLiveTip(this.el, this.readTip, t.full, `tm:${t.id}`);
   }
+
+  private tipText = '';
+  private readonly readTip = (): string => this.tipText;
 }
 
 /** One group's element: header and items, kept across renders. */
@@ -495,8 +509,10 @@ export class TimersPane extends PaneShell {
     const herbGroup = this.groups.get('herb');
     if (this.menu.open && (ro || !herbGroup?.addButton || herbGroup.addButton.hidden)) this.menu.hide();
     else this.menu.update(view.herbs);
+    // What moves items (a time's length can, its digits cannot): `59s` →
+    // `58s` keeps the key, so the tick reads no layout.
     let moreKey = `${this.cols}x${this.rows}|${s.timers.style}|${s.timers.headers}`;
-    for (const g of groups) moreKey += `|${g.group}:${g.layout}:${g.cols}:${g.items.map((t) => `${t.id}:${t.name}:${t.time ?? ''}`).join(',')}`;
+    for (const g of groups) moreKey += `|${g.group}:${g.layout}:${g.cols}:${g.items.map((t) => `${t.id}:${t.name}:${t.time?.length ?? -1}`).join(',')}`;
     if (this.toTop) {
       this.toTop = false;
       this.scroller.scrollTop = 0;

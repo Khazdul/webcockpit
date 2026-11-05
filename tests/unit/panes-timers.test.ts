@@ -16,7 +16,7 @@ import {
   type TimersModelInput,
 } from '../../src/panes/timers-model';
 import { ringDash } from '../../src/panes/icons';
-import { timersIndicator } from '../../src/panes/timers';
+import { fillPct, fillStep, timersIndicator } from '../../src/panes/timers';
 import { DARK_COLORS, LIGHT_COLORS } from '../../src/panes/palette';
 import { type TimersSettings, defaultTimersSettings } from '../../src/settings/types';
 import { type TimerCell, type TimerGroup, emptyView } from '../../src/timers/entry';
@@ -45,6 +45,18 @@ function input(cells: TimerCell[], s: Partial<TimersSettings> = {}, o: Partial<T
   settings.groups = { ...settings.groups, herb: { ...settings.groups.herb, enabled: herbOn } };
   return { view, settings, now: NOW, light: false, width: 400, charW: 8, ...o };
 }
+
+describe('fill steps', () => {
+  it('half-percent steps: a long timer’s fill changes every few seconds, not every tick', () => {
+    expect(fillPct(0.5)).toBe('50.0');
+    expect(fillPct(0.5012)).toBe('50.0');
+    expect(fillPct(0.503)).toBe('50.5');
+    expect(fillPct(1.2)).toBe('100.0');
+    expect(fillStep(-1)).toBe(0);
+    // A 10-minute timer, one second apart: the same step.
+    expect(fillStep(300 / 600)).toBe(fillStep(299 / 600));
+  });
+});
 
 describe('blind names', () => {
   it('drops a leading article', () => {

@@ -79,7 +79,7 @@ test('the Timers pane draws groups of bars, soonest first; ending soon in red; Ã
   await expect(armour).toHaveClass(/wc-tm-chip/);
   const colourOf = (g: string) => group(page, g).evaluate((e) => (e as HTMLElement).style.getPropertyValue('--c'));
   expect(await colourOf('spell')).toBe('#66b2ff');
-  const blessFill = await item(page, 's1').locator('.wc-tm-fill').evaluate((e) => parseFloat((e as HTMLElement).style.width));
+  const blessFill = await item(page, 's1').locator('.wc-tm-fill').evaluate((e) => parseFloat((e as HTMLElement).style.getPropertyValue('--p')));
   expect(blessFill).toBeLessThan(10);
   // Ending soon (15 s â‰¤ 20 s): the time in red and bold, the colour kept.
   const blessTime = item(page, 's1').locator('.wc-tm-t');

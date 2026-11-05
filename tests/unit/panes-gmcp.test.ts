@@ -241,7 +241,7 @@ describe('panes on the context', () => {
     expect(heads.map((h) => h.textContent)).toEqual(['Herblores+', 'Spells', 'Blinds', 'Charmies']);
     // Bars by default: a pill with a fill; the time text is on.
     const chip = p.content.querySelector<HTMLElement>('.wc-tm-chip[data-id="spell:armour"], .wc-tm-chip[data-id="armour"]')!;
-    expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.width).toMatch(/^(100\.0|9\d\.\d)%$/);
+    expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.getPropertyValue('--p')).toMatch(/^(100\.0|9\d\.\d)$/);
     expect(chip.querySelector('.wc-tm-t')!.textContent).toMatch(/^(59|60)s$/);
     expect(chip.dataset.tipTitle).toBe('Armour');
     // Circles: a ring row; headers off hide them; a group off goes.

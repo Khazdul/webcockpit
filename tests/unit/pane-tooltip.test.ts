@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest';
-import { PANE_TIP_DELAY_MS, installPaneTooltip, setTip, tipPlace } from '../../src/panes/pane-tooltip';
+import { PANE_TIP_DELAY_MS, installPaneTooltip, setLiveTip, setTip, tipPlace } from '../../src/panes/pane-tooltip';
 
 describe('tipPlace', () => {
   it('goes below the anchor, centred, inside the viewport', () => {
@@ -108,6 +108,23 @@ describe('PaneTooltip', () => {
     expect(tip.el.hidden).toBe(false);
     pane.dispatchEvent(new Event('scroll'));
     expect(tip.el.hidden).toBe(true);
+  });
+
+  it('a live tip reads its text when shown and on refresh; setTip makes it static again', () => {
+    const tip = installPaneTooltip(document);
+    const a = document.createElement('span');
+    let left = '1:30 left';
+    setLiveTip(a, () => left, 'Shield', 'tm:shield');
+    expect(a.dataset.tip).toBe('live');
+    document.body.append(a);
+    tip.show(a);
+    expect(tip.el.textContent).toBe('Shield1:30 left');
+    left = '1:29 left';
+    tip.refresh();
+    expect(tip.el.textContent).toBe('Shield1:29 left');
+    setTip(a, 'Fixed.', 'Shield', 'tm:shield');
+    tip.refresh();
+    expect(tip.el.textContent).toBe('ShieldFixed.');
   });
 
   it('leaves out a body that only repeats the title', () => {

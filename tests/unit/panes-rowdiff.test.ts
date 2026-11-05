@@ -162,7 +162,7 @@ describe('panes patch their rows', () => {
     p.dispose();
   });
 
-  it('Timers: a tick that shows the same times touches no DOM but the tooltips; items keep their elements', () => {
+  it('Timers: a tick that shows the same times touches no DOM (live tooltips); items keep their elements', () => {
     const t = setup();
     const p = new TimersPane(t.ctx);
     place(p, 30, 6);
@@ -179,8 +179,8 @@ describe('panes patch their rows', () => {
     t.advance(1000);
     p.markDirty();
     t.flush();
-    // Only the tooltips' exact time changes (an attribute, no rebuild).
-    expect(w.take().filter((r) => r.attributeName !== 'data-tip')).toEqual([]);
+    // The tooltips' exact time is read when shown: nothing is written.
+    expect(w.take()).toEqual([]);
     expect(items()).toEqual(before);
     // A new spell joins its group; the others keep their elements.
     t.game.timers.debugAdd({ ...cell('bless', 'spell', 1800) });
