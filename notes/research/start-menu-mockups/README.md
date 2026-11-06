@@ -47,3 +47,25 @@ Four directions, one file each in `round1/`, shots in `round1/shots/`:
 
 Review page (tabs over the four live mockups): `round1/index.html`.
 Artifact: https://claude.ai/artifact/XfUWn5qX7yLa3SSAhRXD7X
+
+## Owner feedback on round 1 (2026-11-06)
+
+Chose **01 Lyktans väg**. Detailed feedback, turned into rules, in
+`BRIEF-round2.md`: subtler sparks in the wordmark (3–4 logo alternatives);
+menu panel kept but without the big lantern, the server line, the
+choose/go hint and the travelling glow; `SCRIPTS (gibur)` in dim small
+type; no moon text bottom right; sun larger than the moon and never in the
+same place; much calmer weather (winter always snow, rare light rain in
+spring/autumn, never rain in summer); no road, inn or lamp posts; better
+mountains and trees swaying; explore a valley with a distant mountain and
+a subtle, original magic gate into it. Ten scene variants asked for.
+
+## Round 2 (2026-11-06)
+
+- `round2/base.html` — 01 with every common rule applied, modular so the
+  variants only swap the scene, life and selection style.
+- `round2/logo.html` — wordmark alternatives A–D.
+- `round2/NN-*.html` — ten variants on the base, specified in `VARIANTS-round2.md`.
+
+Review page: `round2/index.html`. Artifact: https://claude.ai/artifact/PaG8kZshVVb5z3u1vUXsw8
+Round 2 screenshots (`round2/shots/`, ~110 MB) are kept local, not committed.
