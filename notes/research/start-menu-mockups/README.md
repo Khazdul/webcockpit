@@ -113,3 +113,4 @@ around the quote disliked → three quote treatments `round5/quote-{a,b,c}.html`
 panel, C small sky lettering that assembles word by word and changes every
 3 min). Review page `round5/quotes.html`,
 artifact https://claude.ai/artifact/QuU2VwAmdyMXvYxCK8hLMm
+Owner chose quote style **A · Fri skrift** (2026-11-07).
