@@ -121,3 +121,26 @@ Three lava-free wordmarks on quote style A: `round6/logo-1.html` engraved
 groove (empty channels), `logo-2.html` polished iron with a light-following
 sheen, `logo-3.html` inlaid brass by day / moon-silver by night. Review page
 `round6/index.html`, artifact https://claude.ai/artifact/YB8acR87tdaeJwqH78NcCw
+
+## Baseline (owner, 2026-11-07)
+
+**`round6/logo-1.html` is the agreed starting point for the new start page.**
+Owner: "1 blir perfekt. Nu känns det som vi har grunden."
+
+It is: wordmark 1 (forged iron "MUME", empty engraved channels, no lava,
+no sparks, plain iron rivets on the COCKPIT rules); the sky from round 4
+driven by the offline game clock (sun and moon enter from the left on a
+slow arc, sun larger than the moon, never overlapping; clouds; sparse
+stars; shooting stars; calm weather director: winter always snow, rare
+light rain in spring/autumn, none in summer) continuing below the horizon
+as a plain surface (sky blue by day, near-black at night), no landscape,
+no flying leaves; the Lykta menu panel with a glossy plate without
+lantern, the round-2 07 selection (text and icon brighten only), shortcut
+letters marked inside the labels, `SCRIPTS (gibur)` dim; quote style
+A · Fri skrift (no backing, sky-aware colour); almanac at the bottom right
+(date, time · period · T.A. year, version; no moon text, no lantern);
+sub-pages with glass buttons, a Back button top left, no hint rows, no
+lanterns anywhere in the UI.
+
+Ideas parked for later: a landscape below the horizon.
+Open: a new favicon/small mark (today's is the lantern).
