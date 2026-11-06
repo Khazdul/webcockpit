@@ -98,3 +98,11 @@ entering from the left, near sharp trees only lower left, shoreline rising
 to the right, the cottage on land with a lit window and smoke only at
 night, no lantern anywhere in the UI). Result: `round4/soft-evening.html`.
 Artifact: https://claude.ai/artifact/M1LYUxBAVEUFdcXQdbNqEo
+
+## Round 5 (2026-11-07)
+
+Owner: the sea and forest do not give the right feeling for the game. Keep
+the sky (everything above the horizon) and let it continue all the way
+down as a plain surface (sky blue by day, near-black at night), no
+landscape for now (maybe later), no flying leaves. Result:
+`round5/sky.html` (landscape and LIFE code removed, about twice as fast).
