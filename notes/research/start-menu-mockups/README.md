@@ -114,3 +114,10 @@ panel, C small sky lettering that assembles word by word and changes every
 3 min). Review page `round5/quotes.html`,
 artifact https://claude.ai/artifact/QuU2VwAmdyMXvYxCK8hLMm
 Owner chose quote style **A · Fri skrift** (2026-11-07).
+
+## Round 6 (2026-11-07)
+
+Three lava-free wordmarks on quote style A: `round6/logo-1.html` engraved
+groove (empty channels), `logo-2.html` polished iron with a light-following
+sheen, `logo-3.html` inlaid brass by day / moon-silver by night. Review page
+`round6/index.html`, artifact https://claude.ai/artifact/YB8acR87tdaeJwqH78NcCw
