@@ -87,3 +87,14 @@ hood). Rules in `BRIEF-round3.md`, proposals in `VARIANTS-round3.md`.
 `round3/index.html`. Artifact: https://claude.ai/artifact/YUzcPCBgoDyDbgKq4GgQ6B
 Shots kept local (gitignored). The proposals cache tree tops as sprites and
 reach 60 fps on an Iris Xe GPU (the base gets 15–30).
+
+## Round 4 (2026-11-06/07)
+
+Owner chose round 3 proposal **2 Mjukt kvällsljus**. Refinements in
+`BRIEF-round4.md` (almanac top right without moon text, the night specks
+removed — they were a low-res Milky Way layer, smaller leaves low by the
+forest, conifers only with a blurred glade by the cottage, slow sunrise
+entering from the left, near sharp trees only lower left, shoreline rising
+to the right, the cottage on land with a lit window and smoke only at
+night, no lantern anywhere in the UI). Result: `round4/soft-evening.html`.
+Artifact: https://claude.ai/artifact/M1LYUxBAVEUFdcXQdbNqEo
