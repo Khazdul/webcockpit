@@ -106,3 +106,10 @@ the sky (everything above the horizon) and let it continue all the way
 down as a plain surface (sky blue by day, near-black at night), no
 landscape for now (maybe later), no flying leaves. Result:
 `round5/sky.html` (landscape and LIFE code removed, about twice as fast).
+
+Round 5b (2026-11-07): almanac moved to the bottom right; the dark halo
+around the quote disliked → three quote treatments `round5/quote-{a,b,c}.html`
+(A free type with a sky-aware colour, B an engraved iron plate under the
+panel, C small sky lettering that assembles word by word and changes every
+3 min). Review page `round5/quotes.html`,
+artifact https://claude.ai/artifact/QuU2VwAmdyMXvYxCK8hLMm
