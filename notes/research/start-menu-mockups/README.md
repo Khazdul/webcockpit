@@ -69,3 +69,21 @@ a subtle, original magic gate into it. Ten scene variants asked for.
 
 Review page: `round2/index.html`. Artifact: https://claude.ai/artifact/PaG8kZshVVb5z3u1vUXsw8
 Round 2 screenshots (`round2/shots/`, ~110 MB) are kept local, not committed.
+
+## Owner feedback on round 2 → round 3 (2026-11-06)
+
+Logo A, with subtler lava sunk into the letters. Mountains dropped: they
+looked pixelated by day and clashed with the crisp vector trees. Only
+clumped tree tops, never lone or full-height trees. New scene: a wooded
+hill looking out over the sea, a slow distant elven ship, a simple cottage
+roof with smoke. Glossy hood plate. Menu selection as round-2 07 (text
+brightens only), no shortcut letters at row ends (marked in the label),
+glass buttons, no hint rows, Back on every sub-page, only one lantern (the
+hood). Rules in `BRIEF-round3.md`, proposals in `VARIANTS-round3.md`.
+
+## Round 3 (2026-11-06)
+
+`round3/base.html` plus five proposals `round3/01…05-*.html`. Review page:
+`round3/index.html`. Artifact: https://claude.ai/artifact/YUzcPCBgoDyDbgKq4GgQ6B
+Shots kept local (gitignored). The proposals cache tree tops as sprites and
+reach 60 fps on an Iris Xe GPU (the base gets 15–30).
