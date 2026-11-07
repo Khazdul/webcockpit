@@ -177,6 +177,12 @@ export interface FrameStackProps {
   paused?: boolean;
   /** ESC on the root frame (start page: nothing; ESC menu: close). */
   onRootBack?: () => void;
+  /**
+   * Draws each frame's node inside a wrapper (the start surface puts
+   * old-look frames on the cell grid, ADR 0125). Called on every render;
+   * must give a frame the same wrapper type every time.
+   */
+  wrap?: (node: VNode) => VNode;
   /** Extra content inside the host (e.g. a size notice). */
   children?: ComponentChildren;
 }
@@ -396,7 +402,7 @@ export function FrameStack(props: FrameStackProps): VNode {
             <FrameCtx.Provider
               value={{ entry, nav, isTop: isTop && props.active, topFrame: isTop, flash: isTop ? flash : null, promptClosed }}
             >
-              {entry.node}
+              {props.wrap ? props.wrap(entry.node) : entry.node}
             </FrameCtx.Provider>
           </div>
         );
