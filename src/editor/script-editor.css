@@ -1,0 +1,395 @@
+/* The script editor (script-frame.tsx, lua-cm.ts; stage 44b, ADR 0129):
+ * round 7's editor C "Fokus" in the lantern look. The code well (stage
+ * 42's lantern code theme, look-code.css), the tools in its corner, the
+ * read-only plate, the status line under it, and the pop-ups as small lit
+ * plates (their structure is lua-cm.ts's `luaTheme`, their colours the
+ * `--lk-pop-*` tokens here). Dark by default; Paper under `[data-light]`
+ * (a window on the Paper background); the start page is always dark.
+ *
+ * Inner surfaces only: the code well is opaque and never blurred; the
+ * tools' small pill may blur on the start page, never in a window (game
+ * text scrolls under windows, ADR 0127). In the lazy editor chunk. */
+
+/* The root holds the hooks and the tokens; the box lays itself out. */
+.wc-sed {
+  display: contents;
+  --lk-pop-edge: #000;
+  --lk-pop-bg: rgba(18, 14, 11, 0.97);
+  --lk-pop-lit: linear-gradient(180deg, rgba(255, 236, 206, 0.05), transparent 36px);
+  --lk-pop-sh: inset 0 1px 0 rgba(255, 236, 206, 0.28), inset 0 0 0 1px rgba(255, 207, 143, 0.08), 0 10px 30px -6px rgba(0, 0, 0, 0.8);
+  --lk-pop-text: var(--lk-text, #eadcc3);
+  --lk-pop-item: var(--lk-item, #a69679);
+  --lk-pop-on: var(--lk-on, #fff1d8);
+  --lk-pop-head: var(--lk-head, #d6bf96);
+  --lk-pop-dim: var(--lk-dim, #9a8b76);
+  --lk-pop-faint: var(--lk-faint, #6d6252);
+  --lk-pop-bad: var(--lk-danger, #e6a690);
+  --lk-pop-sel: rgba(255, 214, 160, 0.09);
+  --lk-pop-rule: var(--lk-rule, rgba(255, 200, 130, 0.18));
+  --lk-pop-thumb: var(--lk-scroll-thumb, rgba(255, 214, 160, 0.22));
+  --lk-pop-well: rgba(6, 5, 4, 0.62);
+  --lk-pop-snip: rgba(255, 214, 160, 0.14);
+  --lk-sed-under: #050403;
+  --lk-sed-pill: rgba(10, 8, 6, 0.72);
+  --lk-sed-pill-sh: 0 0 0 1px rgba(255, 214, 160, 0.08), 0 6px 18px rgba(0, 0, 0, 0.5);
+  --lk-sed-pill-blur: blur(6px);
+  --lk-sed-band: rgba(224, 90, 60, 0.08);
+  --lk-sed-stripe: rgba(224, 90, 60, 0.09);
+}
+
+[data-light] .wc-sed {
+  --lk-pop-edge: #6a5a3c;
+  --lk-pop-bg: #fbf6ea;
+  --lk-pop-lit: linear-gradient(180deg, rgba(255, 255, 255, 0.8), transparent 30px);
+  --lk-pop-sh: inset 0 1px 0 #fff, 0 8px 22px -6px rgba(60, 40, 10, 0.4);
+  --lk-pop-sel: rgba(160, 110, 40, 0.13);
+  --lk-pop-well: rgba(120, 90, 40, 0.08);
+  --lk-pop-snip: rgba(160, 110, 40, 0.16);
+  --lk-sed-under: #fffdf6;
+  --lk-sed-pill: rgba(250, 244, 230, 0.9);
+  --lk-sed-pill-sh: 0 0 0 1px rgba(100, 76, 40, 0.2), 0 4px 12px rgba(60, 40, 10, 0.15);
+  --lk-sed-band: rgba(184, 52, 28, 0.08);
+  --lk-sed-stripe: rgba(184, 52, 28, 0.1);
+}
+
+/* In-game windows: no blur at all (the body is opaque, game text scrolls under it). */
+.wc-win-look .wc-sed {
+  --lk-sed-pill-blur: none;
+}
+
+.wc-sed-win {
+  white-space: normal;
+}
+
+.wc-sed-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* ------------------------------------------------------------ the well */
+
+.wc-sed-well {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* CodeMirror fills it, on an opaque ground (the theme's fill is nearly opaque). */
+.wc-sed-buf {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 5px;
+  background: var(--lk-sed-under);
+}
+
+.wc-sed-buf > .cm-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+/* The tools: small glass icons in a frosted pill at the top right. They
+ * dim while you type (one class, one timer), come back on hover or when
+ * the keyboard is on them, and hide while the find row is open. */
+.wc-sed-tools {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 14px;
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--lk-sed-pill);
+  box-shadow: var(--lk-sed-pill-sh);
+  -webkit-backdrop-filter: var(--lk-sed-pill-blur);
+  backdrop-filter: var(--lk-sed-pill-blur);
+  transition: opacity calc(0.3s * var(--lk-ts, 1));
+}
+
+.wc-sed-tools .wc-lk-btn.is-small {
+  height: 30px;
+}
+
+.wc-sed-tools .wc-lk-btn.is-icon.is-small {
+  width: 32px;
+}
+
+.wc-sed-tools .wc-lk-btn.is-icon.is-small .wc-lk-ic {
+  width: 15px;
+  height: 15px;
+}
+
+.wc-sed.is-typing .wc-sed-tools {
+  opacity: 0.35;
+}
+
+.wc-sed.is-typing .wc-sed-tools:hover,
+.wc-sed[data-zone="buttons"] .wc-sed-tools {
+  opacity: 1;
+}
+
+.wc-sed.is-finding .wc-sed-tools {
+  display: none;
+}
+
+/* The read-only plate at the top left, past the gutter. */
+.wc-sed-ro {
+  position: absolute;
+  z-index: 5;
+  top: 10px;
+  left: 72px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 9px;
+  border-radius: 12px;
+  font: italic 500 14.5px/1 var(--lk-serif, Georgia, serif);
+  color: var(--lk-dim);
+  background: var(--lk-sed-pill);
+  box-shadow: 0 0 0 1px var(--lk-rule);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.wc-sed-ro .wc-lk-ic {
+  width: 10px;
+  height: 13px;
+}
+
+/* ------------------------------------------------------------ the status line */
+
+.wc-sed-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 30px;
+  padding: 8px 4px 0;
+  min-width: 0;
+}
+
+.wc-sed-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wc-sed-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  font: italic 500 14.5px/1.2 var(--lk-serif, Georgia, serif);
+  color: var(--lk-dim);
+  white-space: nowrap;
+}
+
+.wc-sed-st.is-on,
+.wc-sed-st.is-wait {
+  color: var(--lk-ok);
+}
+
+.wc-sed-st.is-bad {
+  color: var(--lk-danger);
+}
+
+.wc-sed-dot {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.wc-sed-dot.is-on {
+  background: var(--lk-ok);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.wc-sed-dot.is-wait {
+  box-shadow: inset 0 0 0 1.5px var(--lk-ok);
+}
+
+.wc-sed-dot.is-off {
+  box-shadow: inset 0 0 0 1.5px var(--lk-faint);
+}
+
+.wc-sed-dot.is-bad {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  font: 700 13px/1 var(--lk-display, Georgia, serif);
+  font-style: normal;
+  color: var(--lk-danger);
+}
+
+.wc-sed-dot.is-bad::before {
+  content: "!";
+}
+
+.wc-sed-problem {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 14.5px/1.2 var(--lk-serif, Georgia, serif);
+  color: var(--lk-danger);
+}
+
+.wc-sed-line > .wc-sed-flash {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 14.5px;
+}
+
+.wc-sed-pos {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font: 400 12px/1 var(--lk-mono, monospace);
+  color: var(--lk-dim);
+  white-space: nowrap;
+}
+
+.wc-sed-mod {
+  font: italic 600 15px/1 var(--lk-serif, Georgia, serif);
+  color: var(--lk-accent);
+}
+
+.wc-sed-sep {
+  color: var(--lk-faint);
+}
+
+/* Narrow (a phone, a small window): the status takes a row of its own. */
+@container wc-page (max-width: 600px) {
+  /* The plate goes to the bottom left, clear of the tools. */
+  .wc-sed-ro {
+    top: auto;
+    bottom: 10px;
+    left: 58px;
+  }
+
+  .wc-sed-line {
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    padding-top: 6px;
+  }
+
+  .wc-sed-status {
+    flex: 1 1 100%;
+  }
+}
+
+/* ------------------------------------------------------------ marks in the code */
+
+/* A line with an error: a faint red band (over the current-line band). */
+.wc-sed .cm-scroller .cm-line.wc-diag-line {
+  background-color: var(--lk-sed-band);
+}
+
+/* The saved version's runtime error: its line striped, the range dashed. */
+.wc-sed .cm-scroller .cm-lintRange.wc-diag-runtime {
+  background-image:
+    linear-gradient(90deg, var(--lk-code-bad) 0 3px, transparent 3px 5px),
+    repeating-linear-gradient(90deg, var(--lk-sed-stripe) 0 6px, transparent 6px 10px);
+  background-size: 5px 1px, auto;
+  background-repeat: repeat-x, repeat;
+  background-position: left bottom, 0 0;
+}
+
+/* ------------------------------------------------------------ the pop-ups' content */
+
+/* Hover, completion info and signature help: the signature in the
+ * terminal font, the text in the book face, small-caps labels. */
+.wc-lua-doc,
+.wc-lua-sig {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.wc-lua-doc-sig {
+  margin-bottom: 6px;
+  font: 400 12.5px/1.5 var(--lk-mono, monospace);
+  color: var(--lk-pop-head);
+  white-space: pre-wrap;
+}
+
+.wc-lua-doc-text {
+  color: var(--lk-pop-text);
+}
+
+.wc-lua-sig .wc-lua-doc-sig {
+  margin-bottom: 4px;
+}
+
+.wc-lua-sig .wc-lua-doc-text {
+  color: var(--lk-pop-dim);
+}
+
+.wc-lua-sig-active {
+  color: var(--lk-pop-on);
+  text-decoration: underline;
+  text-decoration-color: var(--lk-sk-on, rgba(255, 214, 160, 0.7));
+  text-underline-offset: 3px;
+}
+
+.wc-lua-doc-label {
+  margin: 9px 0 3px;
+  font: 600 9.5px/1 var(--lk-display, Georgia, serif);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-pop-faint);
+}
+
+.wc-lua-doc-p {
+  margin-top: 4px;
+  color: var(--lk-pop-dim);
+}
+
+.wc-lua-doc-pname {
+  font: 600 12.5px/1 var(--lk-mono, monospace);
+  color: var(--lk-pop-text);
+}
+
+.wc-lua-doc-ptype {
+  font-style: italic;
+}
+
+.wc-lua-doc-example {
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: 3px;
+  font: 400 12px/1.55 var(--lk-mono, monospace);
+  color: var(--lk-code-text, #d8d0c2);
+  background: var(--lk-pop-well);
+  white-space: pre;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* The lint message: a small-caps source over the message. */
+.wc-sed .wc-diag-label {
+  display: block;
+  margin-bottom: 5px;
+  font: 600 9.5px/1 var(--lk-display, Georgia, serif);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lk-pop-faint);
+}
+
+.wc-sed .wc-diag-text {
+  color: var(--lk-pop-bad);
+}

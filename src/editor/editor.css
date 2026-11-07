@@ -278,66 +278,8 @@
   top: 0;
 }
 
-/* Script editor (script-frame.tsx): the profile editor's EDITOR view with
- * Lua colours from the same --c-syn-* roles (light chrome included). */
-.wc-lua-kw { color: var(--c-syn-cmd); }
-.wc-lua-str { color: var(--c-syn-var); }
-.wc-lua-comment { color: var(--c-body); }
-.wc-lua-num { color: var(--c-syn-code); }
-.wc-lua-std { color: var(--c-syn-delim); }
-
-.wc-sed-status {
-  flex: 0 0 auto;
-}
-
-/* Hover and completion docs: signature, then the text. */
-.wc-lua-doc {
-  white-space: normal;
-}
-
-.wc-lua-doc-sig {
-  color: var(--c-active);
-  font-weight: bold;
-  white-space: pre-wrap;
-}
-
-.wc-lua-doc-text {
-  color: var(--c-body);
-}
-
-.wc-lua-doc-example {
-  margin-top: var(--cell-h);
-  color: var(--c-item);
-  white-space: pre;
-}
-
-.wc-lua-doc-params,
-.wc-lua-doc-returns {
-  margin-top: var(--cell-h);
-  color: var(--c-body);
-}
-
-.wc-lua-doc-returns {
-  margin-top: 0;
-}
-
-.wc-lua-doc-pname {
-  color: var(--c-item);
-  font-weight: bold;
-}
-
-/* Signature help (lua-cm.ts): the call, the current parameter marked,
- * and its description. */
-.wc-lua-sig {
-  padding: 0 var(--cell-w);
-  max-width: calc(var(--cell-w) * 64);
-  white-space: normal;
-}
-
-.wc-lua-sig-active {
-  color: var(--c-sel-fg);
-  background-color: var(--c-focus-bg);
-}
+/* The script editor (script-frame.tsx, lua-cm.ts) has its own sheet since
+ * stage 44b: script-editor.css (the lantern look). */
 
 /* Find and replace (search.ts): a rule and one or two grid rows at the
  * bottom of the buffer, kit classes for fields, buttons and check boxes. */
@@ -493,9 +435,4 @@
 
 .wc-diag-text {
   color: var(--c-item);
-}
-
-.wc-lua-doc-example > div {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
