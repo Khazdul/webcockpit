@@ -2,17 +2,25 @@
 // once (white, alpha only), drifting right with the west wind at a speed
 // by their size. Their positions are a function of game time, so a reload
 // shows the same sky. More cloud cover lets more (and larger) sprites in;
-// above 60 % an overcast sheet fills the band. Each frame they are drawn
-// into a small buffer (the cloud canvas itself, upscaled by CSS) and lit
-// in place: a vertical tint (light top, darker base, warm when the sun is
-// low, cool under the moon, dark in a storm, white in a lightning flash)
-// and a soft highlight towards the sun or moon.
+// above 60 % an overcast sheet fills the band.
+//
+// They are lit as in the approved mockup: a vertical tint over the band
+// (light top, darker base, warm when the sun is low, cool under the moon,
+// dark in a storm) and a soft highlight towards the sun or moon, both laid
+// "source-atop" over the clouds. That tint changes slowly, so it is baked
+// into a copy of each puff (and of the sheet) when the engine refreshes
+// the sky (twice a second): a frame only blits sprites into the cloud
+// canvas (small, upscaled by CSS). The tint is linear, so tinting each
+// puff apart equals tinting them together. A lightning flash whitens the
+// lot for its few frames.
 
-import { clamp, hex, mix, mul, rgba, rng, sstep } from './color';
+import { type Rgb, clamp, hex, mix, mul, rgba, rng, sstep } from './color';
 import type { SkyScene } from './look';
 
 interface Puff {
-  c: HTMLCanvasElement;
+  /** The white puff, and its lit copy (same size). */
+  base: HTMLCanvasElement;
+  lit: HTMLCanvasElement;
   /** Size factor, phase along the drift (0..1), height (fraction of the view), speed (px/s at factor 1), cover threshold. */
   sc: number;
   x0: number;
@@ -24,18 +32,32 @@ interface Puff {
 /** The band the clouds live in: the top 62 % of the view. */
 export const CLOUD_BAND = 0.62;
 
+const canvas = (w: number, h: number): HTMLCanvasElement => {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w));
+  c.height = Math.max(1, Math.ceil(h));
+  return c;
+};
+
+interface Tint {
+  top: Rgb;
+  bot: Rgb;
+  /** The highlight: centre and radius (CSS px), colour, alpha; null when there is no light. */
+  light: { x: number; y: number; r: number; c: Rgb; a: number } | null;
+}
+
 export class Clouds {
   private readonly puffs: Puff[] = [];
+  private readonly sheet = canvas(1, 1);
+  private sheetOn = false;
 
   constructor(seed = 55) {
     const R = rng(seed);
     for (let i = 0; i < 17; i++) {
       const sc = 0.55 + R() * 1.1;
-      const cw = Math.ceil(300 * sc);
-      const ch = Math.ceil(110 * sc);
-      const c = document.createElement('canvas');
-      c.width = cw;
-      c.height = ch;
+      const c = canvas(300 * sc, 110 * sc);
+      const cw = c.width;
+      const ch = c.height;
       const x = c.getContext('2d')!;
       for (let k = 0; k < 26; k++) {
         const px = cw * (0.12 + 0.76 * R());
@@ -55,7 +77,7 @@ export class Clouds {
       sh.addColorStop(1, 'rgba(60,60,70,.55)');
       x.fillStyle = sh;
       x.fillRect(0, 0, cw, ch);
-      this.puffs.push({ c, sc, x0: R(), y: 0.03 + 0.4 * R() ** 1.3, v: 4 + 10 * sc, th: R() * 0.85 });
+      this.puffs.push({ base: c, lit: canvas(cw, ch), sc, x0: R(), y: 0.03 + 0.4 * R() ** 1.3, v: 4 + 10 * sc, th: R() * 0.85 });
     }
     this.puffs.sort((a, b) => a.sc - b.sc);
   }
@@ -65,13 +87,120 @@ export class Clouds {
     return s.weather.cloud >= 0.02;
   }
 
+  /** The cloud canvas's opacity (the mockup drew its buffer at this alpha). */
+  static opacity(s: SkyScene): number {
+    return 0.55 + 0.45 * s.weather.cloud;
+  }
+
+  private tint(s: SkyScene): Tint {
+    const wx = s.weather;
+    const p = s.paint;
+    const dl = p.daylight;
+    const lowS = 1 - sstep(0.05, 0.3, Math.abs(s.elevation));
+    let top = mix(hex('#1a1f2c'), hex('#f4f2ee'), dl);
+    let bot = mix(hex('#07090e'), hex('#9ea6b2'), dl);
+    top = mix(top, hex('#ffb37a'), lowS * 0.6 * (1 - wx.cloud * 0.5));
+    bot = mix(bot, hex('#6a3a4a'), lowS * 0.5);
+    top = mix(top, hex('#3c4660'), p.moonI * 0.5 * (1 - dl));
+    const stormK = wx.storm * 0.5 + Math.max(0, wx.cloud - 0.7);
+    top = mul(top, 1 - stormK * 0.45);
+    bot = mul(bot, 1 - stormK * 0.5);
+    const { w: W, h: H } = s.view;
+    const light = s.light.kind !== 'none' && p.lightI > 0.05 ? { x: s.light.x * W, y: s.light.y * H, r: W * 0.5, c: p.light, a: 0.5 * p.lightI } : null;
+    return { top, bot, light };
+  }
+
+  /** Where puff `p` is drawn (CSS px) at drift time `drift`. */
+  private place(p: Puff, s: SkyScene, drift: number): { x: number; y: number; w: number; h: number } {
+    const { w: W, h: H } = s.view;
+    const cover = s.weather.cloud;
+    // wraps just off-screen, so most puffs are in view (as at the mockup's start); the span
+    // must not change with the cover, or every puff would jump
+    const span = W + p.base.width * 1.5 + 120;
+    const raw = p.x0 * span + p.v * 0.7 * drift;
+    return {
+      x: raw - Math.floor(raw / span) * span - p.base.width * 1.5 - 60,
+      y: p.y * H,
+      w: p.base.width * (1 + cover * 0.5),
+      h: p.base.height * (1 + cover * 0.4),
+    };
+  }
+
+  /**
+   * Lays the tint `t` over what `c` holds (after copying `src` into it, if
+   * given), as the mockup's pass over the whole band did: `c` is drawn at
+   * (bx, by, bw, bh) CSS px in a band `band` px high.
+   */
+  private light(c: HTMLCanvasElement, src: HTMLCanvasElement | null, t: Tint, bx: number, by: number, bw: number, bh: number, band: number): void {
+    const x = c.getContext('2d');
+    if (!x) return;
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.globalCompositeOperation = 'source-over';
+    if (src) {
+      x.clearRect(0, 0, c.width, c.height);
+      x.drawImage(src, 0, 0);
+    }
+    // CSS px → canvas px
+    x.setTransform(c.width / bw, 0, 0, c.height / bh, (-bx * c.width) / bw, (-by * c.height) / bh);
+    x.globalCompositeOperation = 'source-atop';
+    const g = x.createLinearGradient(0, 0, 0, band);
+    g.addColorStop(0, rgba(t.top, 0.9));
+    g.addColorStop(1, rgba(t.bot, 0.9));
+    x.fillStyle = g;
+    x.fillRect(bx, by, bw, bh);
+    if (t.light) {
+      const L = t.light;
+      const lg = x.createRadialGradient(L.x, L.y, 0, L.x, L.y, L.r);
+      lg.addColorStop(0, rgba(L.c, L.a));
+      lg.addColorStop(1, rgba(L.c, 0));
+      x.fillStyle = lg;
+      x.fillRect(bx, by, bw, bh);
+    }
+    x.globalCompositeOperation = 'source-over';
+    x.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /** Re-lights the puffs and the overcast sheet for `s` (twice a second, and before a still paint). */
+  refresh(s: SkyScene, drift: number, q: number): void {
+    const wx = s.weather;
+    if (wx.cloud < 0.02) return;
+    const { w: W, h: H } = s.view;
+    const band = H * CLOUD_BAND;
+    const t = this.tint(s);
+    for (const p of this.puffs) {
+      if (wx.cloud <= p.th) continue;
+      const at = this.place(p, s, drift);
+      this.light(p.lit, p.base, t, at.x, at.y, at.w, at.h, band);
+    }
+    this.sheetOn = wx.cloud > 0.6;
+    if (!this.sheetOn) return;
+    // the overcast sheet: white, thicker at the top (soft, so at half the buffer's resolution)
+    const o = (wx.cloud - 0.6) / 0.4;
+    const sw = Math.max(1, Math.ceil(W * q * 0.5));
+    const sh = Math.max(1, Math.ceil(band * q * 0.5));
+    if (this.sheet.width !== sw || this.sheet.height !== sh) {
+      this.sheet.width = sw;
+      this.sheet.height = sh;
+    }
+    const x = this.sheet.getContext('2d');
+    if (!x) return;
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.globalCompositeOperation = 'source-over';
+    x.clearRect(0, 0, sw, sh);
+    const g = x.createLinearGradient(0, 0, 0, sh);
+    g.addColorStop(0, `rgba(255,255,255,${(0.9 * o).toFixed(3)})`);
+    g.addColorStop(1, `rgba(255,255,255,${(0.25 * o).toFixed(3)})`);
+    x.fillStyle = g;
+    x.fillRect(0, 0, sw, sh);
+    this.light(this.sheet, null, t, 0, 0, W, band, band);
+  }
+
   /**
    * Paints the clouds into `x`, a buffer covering the band at `q` buffer
    * px per CSS px. `drift` is the time the drift has run (s), `flash` the
    * lightning flash (0..1).
    */
   draw(x: CanvasRenderingContext2D, s: SkyScene, q: number, drift: number, flash: number): void {
-    const { w: W, h: H } = s.view;
     const bw = x.canvas.width;
     const bh = x.canvas.height;
     const wx = s.weather;
@@ -79,69 +208,26 @@ export class Clouds {
     x.globalCompositeOperation = 'source-over';
     x.clearRect(0, 0, bw, bh);
     if (wx.cloud < 0.02) return;
+    let drawn = 0;
     for (const p of this.puffs) {
       const a = clamp((wx.cloud - p.th) / 0.18);
       if (a <= 0) continue;
-      const cw = p.c.width * (1 + wx.cloud * 0.5);
-      const ch = p.c.height * (1 + wx.cloud * 0.4);
-      // wraps just off-screen, so most puffs are in view (as at the mockup's start); the span
-      // must not change with the cover, or every puff would jump
-      const span = W + p.c.width * 1.5 + 120;
-      const raw = p.x0 * span + p.v * 0.7 * drift;
-      const px = raw - Math.floor(raw / span) * span - p.c.width * 1.5 - 60;
+      const at = this.place(p, s, drift);
+      if (at.x > s.view.w || at.x + at.w < 0) continue;
       x.globalAlpha = a;
-      x.drawImage(p.c, px * q, p.y * H * q, cw * q, ch * q);
+      x.drawImage(p.lit, at.x * q, at.y * q, at.w * q, at.h * q);
+      drawn++;
     }
     x.globalAlpha = 1;
-    if (wx.cloud > 0.6) {
-      const o = (wx.cloud - 0.6) / 0.4;
-      const g = x.createLinearGradient(0, 0, 0, bh);
-      g.addColorStop(0, `rgba(255,255,255,${(0.9 * o).toFixed(3)})`);
-      g.addColorStop(1, `rgba(255,255,255,${(0.25 * o).toFixed(3)})`);
-      x.fillStyle = g;
+    if (this.sheetOn && wx.cloud > 0.6) {
+      x.drawImage(this.sheet, 0, 0, bw, bh);
+      drawn++;
+    }
+    if (flash > 0.02 && drawn) {
+      x.globalCompositeOperation = 'source-atop';
+      x.fillStyle = `rgba(223,230,255,${(flash * 0.7).toFixed(3)})`;
       x.fillRect(0, 0, bw, bh);
+      x.globalCompositeOperation = 'source-over';
     }
-    // light them in place
-    x.globalCompositeOperation = 'source-atop';
-    const p = s.paint;
-    const dl = p.daylight;
-    const lowS = 1 - sstep(0.05, 0.3, Math.abs(s.elevation));
-    let topC = mix(hex('#1a1f2c'), hex('#f4f2ee'), dl);
-    let botC = mix(hex('#07090e'), hex('#9ea6b2'), dl);
-    topC = mix(topC, hex('#ffb37a'), lowS * 0.6 * (1 - wx.cloud * 0.5));
-    botC = mix(botC, hex('#6a3a4a'), lowS * 0.5);
-    topC = mix(topC, hex('#3c4660'), p.moonI * 0.5 * (1 - dl));
-    const stormK = wx.storm * 0.5 + Math.max(0, wx.cloud - 0.7);
-    topC = mul(topC, 1 - stormK * 0.45);
-    botC = mul(botC, 1 - stormK * 0.5);
-    if (flash > 0.02) {
-      topC = mix(topC, hex('#dfe6ff'), flash * 0.8);
-      botC = mix(botC, hex('#8a94c0'), flash * 0.7);
-    }
-    const tg = x.createLinearGradient(0, 0, 0, bh);
-    tg.addColorStop(0, rgba(topC, 0.9));
-    tg.addColorStop(1, rgba(botC, 0.9));
-    x.fillStyle = tg;
-    x.fillRect(0, 0, bw, bh);
-    if (s.light.kind !== 'none' && p.lightI > 0.05) {
-      const lx = s.light.x * W * q;
-      const ly = s.light.y * H * q;
-      const lg = x.createRadialGradient(lx, ly, 0, lx, ly, bw * 0.5);
-      lg.addColorStop(0, rgba(p.light, 0.5 * p.lightI));
-      lg.addColorStop(1, rgba(p.light, 0));
-      x.fillStyle = lg;
-      x.fillRect(0, 0, bw, bh);
-    }
-    x.globalCompositeOperation = 'source-over';
-  }
-
-  /** The cloud canvas's opacity (the mockup drew the buffer at this alpha). */
-  static opacity(s: SkyScene): number {
-    return 0.55 + 0.45 * s.weather.cloud;
-  }
-
-  /** The band's height in CSS px for a view. */
-  static bandHeight(H: number): number {
-    return H * CLOUD_BAND;
   }
 }

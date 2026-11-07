@@ -13,9 +13,12 @@
 // The smooth gradients are CSS so the first paint (ADR 0083) can paint
 // the very same pixels from `skyCss` before this module loads, and so the
 // browser rasterizes them off the main thread; they are rewritten twice a
-// second (the sky changes over game minutes = real seconds). The canvases
-// are cleared and painted per frame only while something moves there
-// (stars twinkle at night; by day the bodies layer repaints at 10 Hz).
+// second (the sky changes over game minutes = real seconds), and with them
+// the sun's and moon's glow sprites and the clouds' lit copies. Per frame
+// the canvases only blit and fill small things, and at most ~30 Hz except
+// rain and snow: the stars while they twinkle, else the bodies at ~10 Hz;
+// the clouds in the frames between (staggered). The frame loop itself runs
+// at the display's rate, so the page around the sky stays at 60 fps.
 //
 // Quality (high, medium, low) is chosen by measured frame times and only
 // ever steps down: device pixel ratio, cloud buffer size, the share of
@@ -45,6 +48,12 @@ export interface StartSkyOptions {
   freeze?: boolean;
   /** A still sky (default: prefers-reduced-motion, or `?skyMotion`). */
   reducedMotion?: boolean;
+  /**
+   * Fade the sun, moon, stars, clouds, rain and snow in over the CSS sky
+   * on mount (default: true unless frozen or reduced motion). The CSS
+   * layers equal what the first paint shows, so the hand-over is seamless.
+   */
+  fadeIn?: boolean;
   /** A frame-time readout in the corner (default: `?skyStats`). */
   stats?: boolean;
   /** URL parameters to read the defaults from (default: the page's). */
@@ -81,8 +90,10 @@ export interface StartSkyHandle {
 interface Tier {
   dpr: number;
   cloudQ: number;
-  /** Cloud buffer repaint every n-th frame. */
-  cloudEvery: number;
+  /** Least ms between repaints: the bodies while stars move, the clouds, rain and snow (0: every frame). */
+  starMs: number;
+  cloudMs: number;
+  precipMs: number;
   starK: number;
   particleK: number;
   /** Minimum ms between frames (0: every vsync). */
@@ -90,10 +101,13 @@ interface Tier {
   grain: boolean;
 }
 
+// Canvases repaint at ~30 Hz at most except rain and snow: measured on Iris Xe (Chromium, 1728 × 1000
+// @2, a real window), any canvas repainted on every frame cost ~6 % dropped frames; at 30 Hz none.
+// Stars, clouds and the sun move a fraction of a pixel per frame, so 30 Hz looks the same.
 const TIERS: Readonly<Record<SkyQuality, Tier>> = {
-  high: { dpr: 1.5, cloudQ: 0.5, cloudEvery: 1, starK: 1, particleK: 1, minFrame: 0, grain: true },
-  medium: { dpr: 1, cloudQ: 0.4, cloudEvery: 2, starK: 0.8, particleK: 0.8, minFrame: 0, grain: true },
-  low: { dpr: 0.75, cloudQ: 0.3, cloudEvery: 2, starK: 0.5, particleK: 0.5, minFrame: 30, grain: false },
+  high: { dpr: 1.5, cloudQ: 0.5, starMs: 32, cloudMs: 32, precipMs: 0, starK: 1, particleK: 1, minFrame: 0, grain: true },
+  medium: { dpr: 1, cloudQ: 0.4, starMs: 32, cloudMs: 48, precipMs: 32, starK: 0.8, particleK: 0.8, minFrame: 0, grain: true },
+  low: { dpr: 0.75, cloudQ: 0.3, starMs: 64, cloudMs: 64, precipMs: 32, starK: 0.5, particleK: 0.5, minFrame: 30, grain: false },
 };
 const NEXT_DOWN: Readonly<Record<SkyQuality, SkyQuality | null>> = { high: 'medium', medium: 'low', low: null };
 
@@ -101,9 +115,13 @@ const NEXT_DOWN: Readonly<Record<SkyQuality, SkyQuality | null>> = { high: 'medi
 const CSS_EVERY = 500;
 /** Looks are pushed at most this often (ms). */
 const LOOK_EVERY = 250;
-/** Quality check: frames to skip after a start or change, frames to measure. */
-const WARMUP = 40;
+/** Stats window (frames). */
 const WINDOW = 120;
+/** Quality check: ms to wait after a start or change, then a window of at least this long and 30 frames. */
+const WARMUP_MS = 700;
+const CHECK_MS = 1500;
+/** After a steady window, look again this much later (night, snow or a busy page may come). */
+const RECHECK_MS = 10_000;
 
 const LAYER = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;';
 
@@ -218,11 +236,14 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
   let lastT = 0;
   let lastPaint = -Infinity;
   let bodiesAt = -Infinity;
+  let cloudsAt = -Infinity;
+  let precipAt = -Infinity;
+  let precipDt = 0;
   let cloudsPainted = false;
   const t0 = performance.now();
   const work: number[] = [];
   const intervals: number[] = [];
-  let measure = { skip: WARMUP, work: [] as number[], gaps: [] as number[] };
+  let measure = { from: performance.now() + WARMUP_MS, work: [] as number[], gaps: [] as number[] };
   const subs = new Set<(look: SkyLook) => void>();
   const par: Parallax = { x: 0, y: 0 };
   const mouse = { x: 0.5, y: 0.5, sx: 0.5, sy: 0.5 };
@@ -254,6 +275,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     grainD.style.display = tier.grain ? '' : 'none';
     cssAt = -Infinity;
     bodiesAt = -Infinity;
+    cloudsAt = -Infinity;
   }
 
   function setQuality(q: SkyQuality): void {
@@ -262,7 +284,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     root.dataset['skyQuality'] = q;
     W = 0; // force a resize of the canvases
     size();
-    measure = { skip: WARMUP, work: [], gaps: [] };
+    measure = { from: performance.now() + WARMUP_MS, work: [], gaps: [] };
   }
 
   /** Paints one frame at real time `t` (s since mount), `dt` since the last. */
@@ -270,7 +292,8 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     const g = now();
     scene = skySceneAt(g, { view: { w: W, h: H }, weather: forcedWeather });
     const ms = performance.now();
-    // the smooth layers
+    const drift = reduced && !freeze ? g * 0.05 : g;
+    // the smooth layers (and what is lit by them: the glow sprites, the clouds' tint)
     if (ms - cssAt >= (fast ? 0 : CSS_EVERY)) {
       cssAt = ms;
       const css = skyCss(scene);
@@ -278,6 +301,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       if (css.air !== lastCss.air) air.style.background = css.air;
       lastCss = css;
       bodies.refresh(scene);
+      clouds.refresh(scene, drift, tier.cloudQ);
       root.dataset['skyWeather'] = scene.weather.state;
       root.dataset['skyPeriod'] = scene.period;
     }
@@ -289,30 +313,41 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       par.x = (mouse.sx - 0.5) * 2 + Math.sin(t * 0.05) * 0.25;
       par.y = (mouse.sy - 0.5) * 2;
     }
-    // bodies: every frame while stars move, else ~10 Hz (the sun creeps 2 px a second)
+    // bodies (~30 Hz while stars move, else ~10 Hz: the sun creeps 2 px a second) and clouds
+    // (~30 Hz), staggered so one frame repaints one of them
     bodies.update(scene, dt, !still);
-    if (still || bodies.busy(scene) || ms - bodiesAt >= 95 || fast) {
+    const cloudy = clouds.visible(scene);
+    const free = still || fast;
+    let bodiesDue = free || ms - bodiesAt >= (bodies.busy(scene) ? tier.starMs : 95) - 4;
+    let cloudsDue = cloudy && (free || ms - cloudsAt >= tier.cloudMs - 4 || precip.flash > 0.02);
+    if (bodiesDue && cloudsDue && !free) {
+      if (ms - bodiesAt > ms - cloudsAt) cloudsDue = ms - cloudsAt > tier.cloudMs * 2;
+      else bodiesDue = ms - bodiesAt > tier.starMs * 2;
+    }
+    if (bodiesDue) {
       bodiesAt = ms;
       bodies.clear(bctx);
       bodies.draw(bctx, scene, still ? null : t, par, tier.starK);
     }
-    // clouds
-    if (clouds.visible(scene)) {
-      if (still || frame % tier.cloudEvery === 0 || precip.flash > 0.02) {
-        const drift = reduced && !freeze ? g * 0.05 : g;
-        clouds.draw(cctx, scene, tier.cloudQ, drift, precip.flash);
-        cloudC.style.opacity = Clouds.opacity(scene).toFixed(3);
-        cloudsPainted = true;
-      }
-    } else if (cloudsPainted) {
+    if (cloudsDue) {
+      cloudsAt = ms;
+      clouds.draw(cctx, scene, tier.cloudQ, drift, precip.flash);
+      const op = Clouds.opacity(scene).toFixed(3);
+      if (cloudC.style.opacity !== op) cloudC.style.opacity = op;
+      cloudsPainted = true;
+    } else if (!cloudy && cloudsPainted) {
       cctx.setTransform(1, 0, 0, 1, 0, 0);
       cctx.clearRect(0, 0, cloudC.width, cloudC.height);
       cloudsPainted = false;
     }
     // rain, snow, lightning
-    if (precip.active(scene) || precip.dirty || (!still && scene.weather.storm > 0.5)) {
-      precip.draw(fctx, scene, t, dt, par, still, tier.particleK);
-      frontC.style.display = precip.dirty ? '' : 'none';
+    precipDt += dt;
+    if ((precip.active(scene) || precip.dirty || (!still && scene.weather.storm > 0.5)) && (free || ms - precipAt >= tier.precipMs - 4)) {
+      precipAt = ms;
+      precip.draw(fctx, scene, t, precipDt, par, still, tier.particleK);
+      precipDt = 0;
+      const show = precip.dirty ? '' : 'none';
+      if (frontC.style.display !== show) frontC.style.display = show;
     }
     // the look
     if (ms - lookAt >= LOOK_EVERY) {
@@ -345,26 +380,22 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     lastPaint = nowMs;
     work.push(used);
     if (work.length > WINDOW) work.shift();
-    adapt(used, gap);
+    adapt(used, gap, nowMs);
     if (statsD && frame % 30 === 0) statsD.textContent = statsText();
   }
 
   /** Steps the quality down when our frames are slow or the page drops frames. */
-  function adapt(used: number, gap: number): void {
-    if (pinned || !NEXT_DOWN[quality]) return;
-    if (measure.skip > 0) {
-      measure.skip--;
-      return;
-    }
+  function adapt(used: number, gap: number, nowMs: number): void {
+    if (pinned || !NEXT_DOWN[quality] || nowMs < measure.from) return;
     measure.work.push(used);
     if (Number.isFinite(gap)) measure.gaps.push(gap);
-    if (measure.work.length < WINDOW) return;
+    const n = measure.work.length;
+    if (n < WINDOW && (n < 30 || nowMs - measure.from < CHECK_MS)) return;
     const slowWork = pctile(measure.work, 0.5) > 6 || pctile(measure.work, 0.9) > 10;
-    // dropped frames: the median frame takes longer than ~45 fps allows (the cap counts as wanted)
+    // dropped frames: the median frame takes longer than ~45 fps allows (the low tier's cap is wanted)
     const slowGaps = pctile(measure.gaps, 0.5) > Math.max(22, tier.minFrame * 1.3);
     if (slowWork || slowGaps) setQuality(NEXT_DOWN[quality]!);
-    // a steady window: look again in ~10 s (night, snow or a busy page may come)
-    else measure = { skip: 600, work: [], gaps: [] };
+    else measure = { from: nowMs + RECHECK_MS, work: [], gaps: [] };
   }
 
   function statsText(): string {
@@ -408,6 +439,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     if (!raf) {
       lastT = (performance.now() - t0) / 1000;
       lastPaint = -Infinity;
+      measure = { from: performance.now() + WARMUP_MS, work: [], gaps: [] };
       raf = requestAnimationFrame(tick);
     }
   }
@@ -449,6 +481,11 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     lastCss = css;
     cssAt = performance.now();
     bodies.refresh(scene);
+    clouds.refresh(scene, reduced && !freeze ? scene.g * 0.05 : scene.g, tier.cloudQ);
+  }
+  if ((opts.fadeIn ?? !still) && typeof bodiesC.animate === 'function') {
+    // to the element's own opacity (the clouds' and the grain's are below 1)
+    for (const el of [bodiesC, cloudC, frontC, grainD]) el.animate([{ opacity: 0 }, {}], { duration: 900, easing: 'ease-out' });
   }
   start();
 

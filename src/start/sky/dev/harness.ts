@@ -9,6 +9,8 @@ declare global {
   interface Window {
     __sky?: StartSkyHandle;
     __skyLook?: typeof look;
+    /** How long mountStartSky took (ms). */
+    __skyMountMs?: number;
   }
 }
 
@@ -21,7 +23,9 @@ if (q.has('firstpaint')) {
   host.style.background = look.skyCss(l).all;
   host.dataset['skyReady'] = '1';
 } else {
+  const t0 = performance.now();
   window.__sky = mountStartSky(host);
+  window.__skyMountMs = performance.now() - t0;
 }
 
 if (q.has('text')) {

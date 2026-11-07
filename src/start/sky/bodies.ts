@@ -15,6 +15,7 @@
 import { clamp, mix, rgba, rng, sstep } from './color';
 import { type SkyScene, skyLayers } from './look';
 import { paintLayers } from './paint-layers';
+import { type Sprite, bitmap, sprite } from './sprite';
 
 /** Glow sprites are this many px per CSS px. */
 const GLOW_Q = 0.5;
@@ -22,6 +23,8 @@ const GLOW_Q = 0.5;
 const MAX_STARS = 1100;
 const STAR_COLORS = ['#ffffff', '#bcd0ff', '#ffe2c0'];
 const DAY = 1440;
+/** Star alphas are drawn in this many steps (per colour). */
+const ALPHA_STEPS = 24;
 
 export interface Parallax {
   x: number;
@@ -39,7 +42,7 @@ interface Shoot {
 }
 
 /** A soft white dot sprite (stars, snow). */
-export function glowSprite(size = 64): HTMLCanvasElement {
+export function glowSprite(size = 64): Sprite {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const x = c.getContext('2d')!;
@@ -51,7 +54,7 @@ export function glowSprite(size = 64): HTMLCanvasElement {
   g.addColorStop(1, 'rgba(255,255,255,0)');
   x.fillStyle = g;
   x.fillRect(0, 0, size, size);
-  return c;
+  return sprite(c);
 }
 
 export class Bodies {
@@ -65,7 +68,18 @@ export class Bodies {
   private readonly moonHalo: HTMLCanvasElement;
   private sunGlowOn = false;
   private moonHaloOn = false;
-  private readonly dot: HTMLCanvasElement;
+  private readonly dot: Sprite;
+  /** The moon sprite as drawn (an ImageBitmap of moonC once ready). */
+  private moonImg: CanvasImageSource | null = null;
+  // per-paint scratch: star rects, their colour/alpha key, the sort
+  private readonly sx = new Float32Array(MAX_STARS);
+  private readonly sy = new Float32Array(MAX_STARS);
+  private readonly sz = new Float32Array(MAX_STARS);
+  private readonly key = new Uint8Array(MAX_STARS);
+  private readonly order = new Uint16Array(MAX_STARS);
+  private readonly count = new Uint16Array(3 * ALPHA_STEPS);
+  private readonly start = new Uint16Array(3 * ALPHA_STEPS);
+  private readonly glows: number[] = [];
   /** What was painted last (CSS px), cleared before the next paint. */
   private dirty: [number, number, number, number] | null = null;
 
@@ -234,28 +248,64 @@ export class Bodies {
       const fadeB = H * 0.72;
       const ox = -par.x * 4;
       const oy = -par.y * 2;
-      for (let cls = 0; cls < 3; cls++) {
-        x.fillStyle = STAR_COLORS[cls]!;
-        for (let i = 0; i < n; i++) {
-          const o = i * 8;
-          if (st[o + 6] !== cls) continue;
-          const a = st[o + 1]! + rot;
-          const r = st[o]! * rmax;
-          const sx = pole.x + Math.cos(a) * r + ox;
-          const sy = pole.y + Math.sin(a) * r + oy;
-          if (sx < -2 || sx > W + 2 || sy < -2 || sy > hy) continue;
-          const tw = t === null ? 1 : 0.65 + 0.35 * Math.sin(t * st[o + 4]! + st[o + 5]!);
-          const al = st[o + 3]! * tw * starV * (1 - sstep(fadeA, fadeB, sy) * 0.7);
-          if (al < 0.02) continue;
-          const sz = st[o + 2]!;
-          x.globalAlpha = Math.min(1, al);
-          x.fillRect(sx - sz / 2, sy - sz / 2, sz, sz);
-          if (sz > 1.6 && al > 0.5) {
-            x.globalAlpha = al * 0.25;
-            x.drawImage(this.dot, sx - 6, sy - 6, 12, 12);
-          }
-        }
+      // positions and alphas first, then one path per colour and alpha step (a few dozen fills, not ~1000)
+      const px = this.sx;
+      const py = this.sy;
+      const pz = this.sz;
+      const order = this.order;
+      const count = this.count;
+      count.fill(0);
+      let m = 0;
+      const key = this.key;
+      for (let i = 0; i < n; i++) {
+        const o = i * 8;
+        const a = st[o + 1]! + rot;
+        const r = st[o]! * rmax;
+        const sx = pole.x + Math.cos(a) * r + ox;
+        const sy = pole.y + Math.sin(a) * r + oy;
+        if (sx < -2 || sx > W + 2 || sy < -2 || sy > hy) continue;
+        const tw = t === null ? 1 : 0.65 + 0.35 * Math.sin(t * st[o + 4]! + st[o + 5]!);
+        const al = Math.min(1, st[o + 3]! * tw * starV * (1 - sstep(fadeA, fadeB, sy) * 0.7));
+        if (al < 0.02) continue;
+        const sz = st[o + 2]!;
+        px[m] = sx - sz / 2;
+        py[m] = sy - sz / 2;
+        pz[m] = sz;
+        const k = st[o + 6]! * ALPHA_STEPS + Math.min(ALPHA_STEPS - 1, Math.round(al * (ALPHA_STEPS - 1)));
+        key[m] = k;
+        count[k]!++;
+        if (sz > 1.6 && al > 0.5) this.glows.push(sx, sy, al);
+        m++;
       }
+      // counting sort by key
+      let acc = 0;
+      for (let k = 0; k < count.length; k++) {
+        const c = count[k]!;
+        count[k] = acc;
+        acc += c;
+      }
+      const start = this.start;
+      start.set(count);
+      for (let j = 0; j < m; j++) order[count[key[j]!]!++] = j;
+      let j = 0;
+      for (let k = 0; k < start.length && j < m; k++) {
+        const end = k + 1 < start.length ? start[k + 1]! : m;
+        if (j >= end) continue;
+        x.fillStyle = STAR_COLORS[Math.floor(k / ALPHA_STEPS)]!;
+        x.globalAlpha = (k % ALPHA_STEPS) / (ALPHA_STEPS - 1);
+        x.beginPath();
+        for (; j < end; j++) {
+          const q = order[j]!;
+          x.rect(px[q]!, py[q]!, pz[q]!, pz[q]!);
+        }
+        x.fill();
+      }
+      const gl = this.glows;
+      for (let i = 0; i < gl.length; i += 3) {
+        x.globalAlpha = gl[i + 2]! * 0.25;
+        x.drawImage(this.dot.src, gl[i]! - 6, gl[i + 1]! - 6, 12, 12);
+      }
+      gl.length = 0;
       x.globalAlpha = 1;
       this.mark(0, 0, W, hy);
       for (const sh of this.shoots) {
@@ -302,12 +352,13 @@ export class Bodies {
     this.mark(sx - r, sy - r, sx + r, sy + r);
   }
 
-  private moonSprite(s: SkyScene): HTMLCanvasElement {
+  private moonSprite(s: SkyScene): CanvasImageSource {
     const m = s.moon;
     const day = s.paint.daylight;
     const key = `${m.level}|${m.waxing}|${Math.round(day * 20)}`;
-    if (key === this.moonKey) return this.moonC;
+    if (key === this.moonKey) return this.moonImg ?? this.moonC;
     this.moonKey = key;
+    this.moonImg = null;
     const c = this.moonC.getContext('2d')!;
     const R0 = 56;
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -339,6 +390,9 @@ export class Bodies {
       c.fill();
     }
     c.restore();
+    bitmap(this.moonC, (b) => {
+      if (this.moonKey === key) this.moonImg = b;
+    });
     return this.moonC;
   }
 

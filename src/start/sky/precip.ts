@@ -7,6 +7,7 @@
 import { type Rgb, hex, lerp, mix, rgba, rng, sstep, vnoise } from './color';
 import type { SkyScene } from './look';
 import type { Parallax } from './bodies';
+import type { Sprite } from './sprite';
 
 const MAX_DROPS = 380;
 const MAX_FLAKES = 420;
@@ -33,7 +34,7 @@ export class Precip {
   private painted = false;
 
   constructor(
-    private readonly dot: HTMLCanvasElement,
+    private readonly dot: Sprite,
     seed = 7,
   ) {
     this.R = rng(seed);
@@ -165,7 +166,7 @@ export class Precip {
         const py = fy - par.y * 4 * z;
         if (z > 0.75) {
           x.globalAlpha = 0.5;
-          x.drawImage(this.dot, px - r * 2.2, py - r * 2.2, r * 4.4, r * 4.4);
+          x.drawImage(this.dot.src, px - r * 2.2, py - r * 2.2, r * 4.4, r * 4.4);
         } else {
           x.globalAlpha = 0.38 + z * 0.5;
           x.fillRect(px - r / 2, py - r / 2, r, r);
