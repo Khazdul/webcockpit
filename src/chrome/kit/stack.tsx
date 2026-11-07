@@ -57,8 +57,6 @@ import { createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { type NavKey, navKey } from './nav';
 import { OWN_KEYS_ATTR } from '../../ui/input-pane';
-// A cycle (look.tsx imports this file); used only at key time, never while the modules load.
-import { isLookFrame } from './look';
 
 /** A frame's key handler: true = consumed (the default action is prevented). */
 export type KeyHandler = (e: KeyboardEvent, nav: NavKey | null) => boolean;
@@ -150,6 +148,18 @@ export function useKeyLayer(handler: KeyHandler, active = true): void {
       if (i >= 0) entry.layers.splice(i, 1);
     };
   }, [active, entry]);
+}
+
+/**
+ * Whether `node` is a look frame (`lookFrame` in look.tsx marks the
+ * component with this key; a unit test keeps the two in step). Read here
+ * by the key, not through look.tsx: importing the kit's barrel would pull
+ * the whole lantern kit into the chunk this file shares with the editors.
+ */
+const LOOK_MARK = '__wcLook';
+function isLookNode(node: VNode): boolean {
+  const t = node.type as unknown;
+  return typeof t === 'function' && (t as unknown as Record<string, unknown>)[LOOK_MARK] === true;
 }
 
 /** The top frame's layers, then its handler: true when one consumed the key. */
@@ -424,7 +434,7 @@ export function FrameStack(props: FrameStackProps): VNode {
       if (nk === 'back') {
         e.preventDefault();
         // The Esc rule (look frames): a text field in the frame lets go of the focus first.
-        if ((top.overlay || isLookFrame(top.node)) && isTextField(e.target)) {
+        if ((top.overlay || isLookNode(top.node)) && isTextField(e.target)) {
           const frame = host?.querySelector(`:scope > [data-frame="${top.id}"]`);
           const field = host?.ownerDocument.activeElement as HTMLElement | null;
           if (frame?.contains(e.target as Node) && field) {

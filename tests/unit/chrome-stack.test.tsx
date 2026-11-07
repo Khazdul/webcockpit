@@ -6,7 +6,7 @@ import { type VNode, render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { lookFrame } from '../../src/chrome/kit/look';
+import { isLookFrame, lookFrame } from '../../src/chrome/kit/look';
 import {
   FrameStack,
   type StackControl,
@@ -410,6 +410,29 @@ describe('FrameStack overlays, the hold, key layers and the Esc rule (stage 42c)
     });
     expect(nav.depth()).toBe(1);
     expect(backs).toBe(0);
+  });
+
+  it('the Esc rule knows look frames by lookFrame’s own mark (the two stay in step)', async () => {
+    let nav!: ReturnType<typeof useNav>;
+    function Root() {
+      nav = useNav();
+      return <div />;
+    }
+    // A component marked by `lookFrame`: the Esc in its field only blurs it.
+    const Marked = lookFrame(function Marked() {
+      return <input class="m" />;
+    });
+    expect(isLookFrame(<Marked />)).toBe(true);
+    await act(async () => {
+      render(<FrameStack root={<Root />} active />, document.body);
+    });
+    await act(async () => nav.push(<Marked />));
+    const m = document.querySelector<HTMLInputElement>('.m')!;
+    m.focus();
+    await act(async () => {
+      keyIn(m, 'Escape');
+    });
+    expect(nav.depth()).toBe(2);
   });
 
   it('replace keeps an overlay an overlay', async () => {
