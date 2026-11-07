@@ -850,7 +850,7 @@ stage's test plan.
       rule decided; `bench/results/look-box.md`
 - [x] 42b: controls, widgets, icons, tokens (dark, Paper, inlay), `Seal`,
       `useKeyboardInset`; gallery section; tests
-- [ ] 42c: stack (overlay, hold, key layers, Esc rule); `Dialog`,
+- [x] 42c: stack (overlay, hold, key layers, Esc rule); `Dialog`,
       `KeyHelp`, `Popover`; cursors, button zone, `letterAction`; tests
 - [x] 42d: the Lykta frame on dark and Paper (no Glass); `useWindowChrome`;
       window and menu look hosts; `ProfileRoot` moved; tests
