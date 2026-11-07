@@ -160,6 +160,22 @@ describe('History dialogs: Rate', () => {
     expect(star(2).getAttribute('aria-checked')).toBe('true');
     await act(() => star(2).click());
     expect(lit()).toBe(0);
+    // A hover outlines the stars, but the words name the rating Save stores
+    // (the pointer resting on a star after a click or a key).
+    await act(() => {
+      star(4).dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
+    });
+    expect(dlg('rate')!.querySelectorAll('.wc-hd-stars > button.is-peek')).toHaveLength(4);
+    expect(words()).toBe('No rating — the session is still saved');
+    await act(() => star(4).click());
+    expect(lit()).toBe(4);
+    expect(words()).toBe('Four stars');
+    await act(() => star(4).click()); // clears, the pointer still on star 4
+    expect(lit()).toBe(0);
+    expect(words()).toBe('No rating — the session is still saved');
+    await key('5');
+    expect(words()).toBe('Five stars');
+    await key('0');
     // ← → never walk the buttons or change History's pill under the box.
     expect(dlg('rate')!.querySelector('.wc-lk-btn.is-sel')).toBeNull();
     await key('Escape');
