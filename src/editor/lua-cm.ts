@@ -8,6 +8,15 @@
 // phase. Completion's keys (↑↓ Enter Escape, Ctrl+Space) are ordinary
 // keymap bindings, so they work that way too.
 //
+// The look (stage 44b, ADR 0129): stage 42's lantern code theme
+// (`lookCodeTheme()`, look-code.ts: the `.wc-code` class, the token
+// colours, the gutter, the lint and match marks) and its lantern find panel
+// at the top of the buffer; this file adds the pop-ups as small lit plates
+// (completion, its info box, hover, signature help, the lint message),
+// their structure here (`luaTheme`), their colours and the doc boxes'
+// typesetting in script-editor.css. The pop-ups stay inside the box or
+// window that holds the editor (`tooltipSpace`).
+//
 // Code-editor keys (stage 10 feedback round 4): Tab accepts an open
 // completion, else moves to the next snippet field, else indents (spaces
 // to the next indent stop at the cursor; the lines of a selection);
@@ -42,11 +51,25 @@ import {
   indentService,
   indentUnit,
   syntaxHighlighting,
+  syntaxTree,
 } from '@codemirror/language';
 import { lua } from '@codemirror/legacy-modes/mode/lua';
-import { EditorSelection, EditorState, type Extension, Prec, StateEffect, StateField, type Text, Transaction } from '@codemirror/state';
+import { searchPanelOpen } from '@codemirror/search';
+import {
+  EditorSelection,
+  EditorState,
+  type Extension,
+  Prec,
+  RangeSetBuilder,
+  StateEffect,
+  StateField,
+  type Text,
+  Transaction,
+} from '@codemirror/state';
 import {
   type Command,
+  Decoration,
+  type DecorationSet,
   EditorView,
   type PluginValue,
   ViewPlugin,
@@ -59,35 +82,37 @@ import {
   keymap,
   lineNumbers,
   showTooltip,
+  tooltips,
 } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import { type SettingDecl, parseHeader } from '../scripts/header';
-import type { BufferStatus, ScrollStatus } from './cm';
-import { theme } from './cm';
+import type { BufferStatus } from './cm';
 import { type ApiDoc, apiDoc, completeLua, nameAt, stillCompletes } from './lua-api';
 import { type Signature, callContext, paramLabel, signatureFor } from './lua-sig';
 import { autoCloseAt } from './lua-blocks';
 import { caseCorrection } from './lua-case';
-import { luaHighlightLine } from './lua-highlight';
+import { type LuaTokenClass, luaHighlightLine } from './lua-highlight';
 import { luaIndent } from './lua-indent';
 import { REOPEN_EVENT, reopensAfter } from './lua-reopen';
 import { type ScriptLintOptions, scriptLint } from './lua-lint';
+import { lookCodeTheme } from './look-code';
 import { searchExtension } from './search';
 
 export interface LuaBufferOptions {
   text: string;
   readOnly: boolean;
   onStatus: (s: BufferStatus) => void;
-  onScroll: (s: ScrollStatus) => void;
   onChange: (text: string) => void;
   onFocus: () => void;
+  /** The find panel opened or closed (the frame hides its tools while it is open). */
+  onSearch?: (open: boolean) => void;
   /** Live error checks (lua-lint.ts). */
   lint?: ScriptLintOptions;
 }
 
 const luaLanguage = StreamLanguage.define(lua);
 
-/** Lua token colours: the editor's `--c-syn-*` roles, so the light chrome works too (editor.css). */
+/** Lua token classes: their colours are the lantern code look's (look-code.css, `.wc-code .wc-lua-*`). */
 const luaHighlight = HighlightStyle.define([
   { tag: tags.keyword, class: 'wc-lua-kw' },
   { tag: tags.string, class: 'wc-lua-str' },
@@ -96,7 +121,62 @@ const luaHighlight = HighlightStyle.define([
   { tag: tags.standard(tags.variableName), class: 'wc-lua-std' },
 ]);
 
+/** True for an API or Lua library name (lua-api.ts). */
+const knownName = (name: string): boolean => apiDoc(name) !== null;
+
+const apiMark = Decoration.mark({ class: 'wc-lua-std' });
+
+/**
+ * The API names in the lines in view (`send`, `tempTimer`, `store.get`):
+ * the stream mode knows only Lua's own builtins, so the editor marks the
+ * rest as the manual's examples do (lua-highlight.ts, the longest known
+ * dotted prefix), never inside a comment or a string (the syntax tree).
+ * Rebuilt on an edit, a scroll or when the parse moves on: a few dozen
+ * short lines, a light scan each.
+ */
+function apiNameMarks(view: EditorView): DecorationSet {
+  const b = new RangeSetBuilder<Decoration>();
+  const { doc } = view.state;
+  const tree = syntaxTree(view.state);
+  for (const { from, to } of view.visibleRanges) {
+    for (let pos = from; pos <= to; ) {
+      const line = doc.lineAt(pos);
+      for (const t of luaHighlightLine(line.text, knownName)) {
+        if (t.cls !== 'delim') continue;
+        const at = line.from + t.from;
+        if (/comment|string/.test(tree.resolveInner(at, 1).name)) continue;
+        b.add(at, line.from + t.to, apiMark);
+      }
+      pos = line.to + 1;
+    }
+  }
+  return b.finish();
+}
+
+const apiNames = ViewPlugin.fromClass(
+  class implements PluginValue {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = apiNameMarks(view);
+    }
+    update(u: ViewUpdate): void {
+      if (u.docChanged || u.viewportChanged || syntaxTree(u.startState) !== syntaxTree(u.state)) this.decorations = apiNameMarks(u.view);
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
 // ------------------------------------------------------------- the docs
+
+/** lua-highlight.ts's roles as the editor's own token classes (the manual's `codeLine` maps them alike). */
+const LUA_CLASS: Readonly<Record<LuaTokenClass, string>> = {
+  cmd: 'wc-lua-kw',
+  var: 'wc-lua-str',
+  code: 'wc-lua-num',
+  delim: 'wc-lua-std',
+  comment: 'wc-lua-comment',
+  brace: '',
+};
 
 /** Lua source as coloured rows (lua-highlight.ts), as in the manual. */
 function codeDom(code: string, cls: string, doc: Document): HTMLElement {
@@ -105,10 +185,10 @@ function codeDom(code: string, cls: string, doc: Document): HTMLElement {
   for (const line of code.split('\n')) {
     const row = doc.createElement('div');
     let at = 0;
-    for (const t of luaHighlightLine(line, (n) => apiDoc(n) !== null)) {
+    for (const t of luaHighlightLine(line, knownName)) {
       if (t.from > at) row.append(line.slice(at, t.from));
       const span = doc.createElement('span');
-      span.className = `wc-syn-${t.cls}`;
+      span.className = LUA_CLASS[t.cls];
       span.textContent = line.slice(t.from, t.to);
       row.append(span);
       at = t.to;
@@ -120,10 +200,32 @@ function codeDom(code: string, cls: string, doc: Document): HTMLElement {
   return ex;
 }
 
+/** `name (type) text`: one parameter, the name in the terminal font, the type in italics. */
+function paramDom(doc: Document, p: { name: string; type: string; doc: string }, cls: string): HTMLElement {
+  const row = doc.createElement('div');
+  row.className = cls;
+  const name = doc.createElement('span');
+  name.className = 'wc-lua-doc-pname';
+  name.textContent = p.name;
+  const type = doc.createElement('i');
+  type.className = 'wc-lua-doc-ptype';
+  type.textContent = `(${p.type})`;
+  row.append(name, ' ', type, ` ${p.doc}`);
+  return row;
+}
+
+/** A small-caps label over a part of a doc box ("Parameters", "Returns"). */
+function labelDom(doc: Document, text: string): HTMLElement {
+  const l = doc.createElement('div');
+  l.className = 'wc-lua-doc-label';
+  l.textContent = text;
+  return l;
+}
+
 /**
  * The hover / completion info box of one entry: signature, description,
- * parameters, return value and example. No F1 hint: the editor's footer
- * says F1 (stage 10 feedback round 5).
+ * parameters, return value and example. No F1 hint: the editor's tools
+ * say F1 in their tooltips (stage 10 feedback round 5; stage 44).
  */
 export function docDom(d: ApiDoc, doc: Document = document): HTMLElement {
   const el = doc.createElement('div');
@@ -141,23 +243,17 @@ export function docDom(d: ApiDoc, doc: Document = document): HTMLElement {
   if (d.params && d.params.length > 0) {
     const ps = doc.createElement('div');
     ps.className = 'wc-lua-doc-params';
-    for (const p of d.params) {
-      const row = doc.createElement('div');
-      const name = doc.createElement('span');
-      name.className = 'wc-lua-doc-pname';
-      name.textContent = p.name;
-      row.append(name, ` (${p.type}) ${p.doc}`);
-      ps.appendChild(row);
-    }
+    ps.appendChild(labelDom(doc, 'Parameters'));
+    for (const p of d.params) ps.appendChild(paramDom(doc, p, 'wc-lua-doc-p'));
     el.appendChild(ps);
   }
   if (d.returns) {
     const r = doc.createElement('div');
     r.className = 'wc-lua-doc-returns';
-    const label = doc.createElement('span');
-    label.className = 'wc-lua-doc-pname';
-    label.textContent = 'Returns';
-    r.append(label, ` ${d.returns}`);
+    const text = doc.createElement('div');
+    text.className = 'wc-lua-doc-p';
+    text.textContent = d.returns;
+    r.append(labelDom(doc, 'Returns'), text);
     el.appendChild(r);
   }
   if (d.example) el.appendChild(codeDom(d.example, 'wc-lua-doc-example', doc));
@@ -362,15 +458,13 @@ export function sigDom(s: Signature, doc: Document = document): HTMLElement {
   line.append(`)${s.returns}`);
   el.appendChild(line);
   const p = s.params[s.active];
-  const text = doc.createElement('div');
-  text.className = 'wc-lua-doc-text';
-  if (p) {
-    const name = doc.createElement('span');
-    name.className = 'wc-lua-doc-pname';
-    name.textContent = p.name;
-    text.append(name, ` (${p.type}) ${p.doc}`);
-  } else text.textContent = s.doc.doc;
-  el.appendChild(text);
+  if (p) el.appendChild(paramDom(doc, p, 'wc-lua-doc-text'));
+  else {
+    const text = doc.createElement('div');
+    text.className = 'wc-lua-doc-text';
+    text.textContent = s.doc.doc;
+    el.appendChild(text);
+  }
   return el;
 }
 
@@ -526,56 +620,102 @@ const caseFix = ViewPlugin.fromClass(
 
 // ---------------------------------------------------------------- state
 
-/** Visible rows of the completion list. */
+/** Visible rows of the completion list, and the px of one. */
 const COMPLETION_ROWS = 10;
+const COMPLETION_ROW_PX = 25;
 
+/**
+ * The pop-ups as small lit plates of the Lykta family (round 7, editor C):
+ * an iron edge, a lit top lip and a dark glass fill (Paper: parchment). The
+ * structure is here; the colours are `--lk-pop-*` (script-editor.css), so
+ * one theme serves the dark and the Paper look. The doc boxes' own parts
+ * (`.wc-lua-doc-*`, `.wc-diag-*`) are typeset there too.
+ */
 function luaTheme(): Extension {
+  const rows = COMPLETION_ROWS * COMPLETION_ROW_PX;
   return EditorView.theme({
     '.cm-tooltip': {
-      backgroundColor: 'var(--term-bg)',
-      color: 'var(--c-item)',
-      border: '1px solid var(--c-section)',
-      fontFamily: 'var(--font-mono)',
-      fontSize: 'var(--font-size)',
-      lineHeight: 'var(--cell-h)',
+      border: '1px solid var(--lk-pop-edge)',
+      borderRadius: '5px',
+      backgroundColor: 'var(--lk-pop-bg)',
+      backgroundImage: 'var(--lk-pop-lit)',
+      boxShadow: 'var(--lk-pop-sh)',
+      color: 'var(--lk-pop-text)',
+      font: '500 15px/1.4 var(--lk-serif, Georgia, serif)',
+      letterSpacing: 'normal',
       whiteSpace: 'normal',
     },
     // Ten rows, the rest scrolled natively (wheel, touchpad, and the
     // selection kept in view by ↑↓ PgUp PgDn).
     '.cm-tooltip.cm-tooltip-autocomplete > ul': {
-      fontFamily: 'var(--font-mono)',
-      maxHeight: `calc(var(--cell-h) * ${COMPLETION_ROWS})`,
+      boxSizing: 'border-box',
+      minWidth: '250px',
+      maxHeight: `${rows + 4}px`,
+      padding: '2px 4px',
+      font: '400 13px/1 var(--lk-mono, var(--font-mono, monospace))',
       overflowY: 'auto',
       overscrollBehavior: 'contain',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'var(--lk-pop-thumb) transparent',
     },
     '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
-      padding: '0 var(--cell-w)',
-      lineHeight: 'var(--cell-h)',
+      display: 'flex',
+      alignItems: 'center',
+      boxSizing: 'border-box',
+      height: `${COMPLETION_ROW_PX}px`,
+      padding: '0 10px',
+      borderRadius: '3px',
+      lineHeight: `${COMPLETION_ROW_PX}px`,
+      color: 'var(--lk-pop-item)',
       whiteSpace: 'pre',
     },
     '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-      color: 'var(--c-sel-fg)',
-      backgroundColor: 'var(--c-focus-bg)',
+      color: 'var(--lk-pop-on)',
+      backgroundColor: 'var(--lk-pop-sel)',
     },
-    '.cm-completionDetail': { color: 'var(--c-hint)', fontStyle: 'normal', marginLeft: 'var(--cell-w)' },
-    '.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail': { color: 'inherit' },
-    '.cm-completionMatchedText': { textDecoration: 'none', fontWeight: 'bold' },
-    // CodeMirror caps the width (inline, 400px or the room beside the
-    // list); the height stays inside the window and scrolls natively.
-    '.cm-completionInfo': {
-      padding: '0 var(--cell-w)',
-      maxWidth: 'calc(var(--cell-w) * 48)',
-      maxHeight: 'min(calc(var(--cell-h) * 20), 50vh)',
+    '.cm-completionLabel': { flex: '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis' },
+    '.cm-completionMatchedText': { textDecoration: 'none', fontWeight: '600', color: 'var(--lk-pop-head)' },
+    '.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionMatchedText': { color: 'inherit' },
+    '.cm-completionDetail': {
+      flex: 'none',
+      marginLeft: 'auto',
+      paddingLeft: '14px',
+      fontSize: '12px',
+      fontStyle: 'normal',
+      color: 'var(--lk-pop-faint)',
+    },
+    '.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail': { color: 'var(--lk-pop-dim)' },
+    // A plate of its own beside the list. CodeMirror caps the width (inline,
+    // the room beside the list); the height stays inside the box or window
+    // and scrolls natively.
+    '.cm-tooltip.cm-completionInfo': {
+      boxSizing: 'border-box',
+      padding: '10px 14px 11px',
+      width: 'max-content',
+      maxWidth: '380px',
+      maxHeight: `min(${rows + 40}px, 50vh)`,
       overflowY: 'auto',
       overscrollBehavior: 'contain',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'var(--lk-pop-thumb) transparent',
     },
-    '.cm-tooltip-hover': { padding: '0 var(--cell-w)', maxWidth: 'calc(var(--cell-w) * 60)' },
-    '.cm-tooltip.cm-tooltip-lint': { padding: '0', maxWidth: 'calc(var(--cell-w) * 60)' },
-    '.cm-tooltip-lint .cm-diagnostic': { padding: '0 var(--cell-w)', margin: '0', borderLeft: 'none' },
-    '.cm-tooltip-section:not(:first-child)': { borderTop: '1px solid var(--c-section)' },
-    '&.cm-focused .cm-matchingBracket': { color: 'var(--c-hover)', backgroundColor: 'var(--c-brace-match-bg)' },
-    '.cm-nonmatchingBracket': { color: 'var(--c-err)' },
+    '.cm-completionInfo.cm-completionInfo-right': { marginLeft: '4px' },
+    '.cm-completionInfo.cm-completionInfo-left': { marginRight: '4px' },
+    '.cm-tooltip.cm-tooltip-hover': { padding: '10px 14px 11px', maxWidth: '420px' },
+    '.cm-tooltip.wc-lua-sig': { padding: '9px 14px 10px', maxWidth: '460px' },
+    '.cm-tooltip.cm-tooltip-lint': { padding: '0', maxWidth: '460px' },
+    '.cm-tooltip-lint .cm-diagnostic': { padding: '8px 14px 9px', margin: '0', border: 'none' },
+    '.cm-tooltip-section:not(:first-child)': { borderTop: '1px solid var(--lk-pop-rule)' },
+    '.cm-snippetField': { backgroundColor: 'var(--lk-pop-snip)', borderRadius: '2px' },
   });
+}
+
+/** The pop-ups' room: the box or window that holds the editor (its lit content box), else the browser window. */
+function tooltipRoom(view: EditorView): DOMRect {
+  const host = view.dom.closest('.wc-lk-win');
+  if (host) return host.getBoundingClientRect();
+  const win = view.dom.ownerDocument.defaultView;
+  return new DOMRect(0, 0, win?.innerWidth ?? 0, win?.innerHeight ?? 0);
 }
 
 /** A fresh editor state over a script's source. */
@@ -587,9 +727,9 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       const line = u.state.doc.lineAt(head);
       opts.onStatus({ line: line.number, col: head - line.from + 1, unclosed: 0, stray: 0, hint: null });
     }
-    if (u.geometryChanged || u.viewportChanged) {
-      const s = u.view.scrollDOM;
-      opts.onScroll({ top: s.scrollTop, height: s.scrollHeight, client: s.clientHeight });
+    if (opts.onSearch) {
+      const open = searchPanelOpen(u.state);
+      if (open !== searchPanelOpen(u.startState)) opts.onSearch(open);
     }
   });
   return EditorState.create({
@@ -606,6 +746,7 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       luaLanguage,
       luaIndentation,
       syntaxHighlighting(luaHighlight),
+      apiNames,
       bracketMatching(),
       indentOnInput(),
       // Every option in the DOM (the longest list, Ctrl+Space on an empty
@@ -613,7 +754,9 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false, maxRenderedOptions: 1000 }), reopenCompletion, caseFix]),
       luaHover,
       sigField,
-      searchExtension({ onFocus: opts.onFocus }),
+      tooltips({ tooltipSpace: tooltipRoom }),
+      // Stage 42's lantern find panel, at the top of the well (it slides down).
+      searchExtension({ onFocus: opts.onFocus, look: 'lantern', top: true }),
       // Tab accepts a completion even inside a snippet (whose own Tab
       // keymap is Prec.highest and appended later, so this one wins).
       Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])),
@@ -641,23 +784,14 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       }),
       EditorView.domEventObservers({ focus: () => opts.onFocus() }),
       status,
-      theme(),
+      lookCodeTheme(),
       luaTheme(),
     ],
   });
 }
 
 export function createLuaBuffer(parent: HTMLElement, opts: LuaBufferOptions): EditorView {
-  const view = new EditorView({ state: createLuaState(opts), parent });
-  view.scrollDOM.addEventListener(
-    'scroll',
-    () => {
-      const s = view.scrollDOM;
-      opts.onScroll({ top: s.scrollTop, height: s.scrollHeight, client: s.clientHeight });
-    },
-    { passive: true },
-  );
-  return view;
+  return new EditorView({ state: createLuaState(opts), parent });
 }
 
 /** True while the completion list is open (ESC and Tab then belong to it). */

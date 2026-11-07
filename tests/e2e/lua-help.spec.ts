@@ -36,6 +36,7 @@ end
 `;
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
+// The editor's root (`display: contents`, the frame's child; stage 44b).
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
 const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
@@ -133,7 +134,7 @@ test('signature help marks the current parameter and follows the commas; ESC clo
   await page.keyboard.press('Escape');
   await expect(sig(page)).toHaveCount(0);
   await expect(editor(page)).toBeVisible();
-  await expect(editor(page).locator('.wc-ped-overlay')).toHaveCount(0);
+  await expect(editor(page).locator('.wc-lk-dialog[data-dlg="unsaved"]')).toHaveCount(0);
 
   // A method call: s:find without its `s`.
   await page.keyboard.press('End');
@@ -198,8 +199,11 @@ test('hover on ipairs shows the Lua docs; F1 opens its Lua reference entry', asy
   const hover = page.locator('.cm-tooltip-hover');
   await expect(hover).toContainText('ipairs(t) → iterator');
   await expect(hover).toContainText('Walks a list in order');
-  // No F1 hint in the pop-ups (round 5): the footer says F1.
+  // No F1 hint in the pop-ups (round 5): the Manual tool's tooltip says F1 (stage 44).
   await expect(hover).not.toContainText('F1');
+  // A small lit plate: the doc box's parts, the signature in the terminal font.
+  await expect(hover.locator('.wc-lua-doc-sig')).toHaveText('ipairs(t) → iterator');
+  await expect(hover).toHaveCSS('border-top-style', 'solid');
 
   // F1 with the cursor on ipairs: its entry in the Lua reference.
   await page.mouse.click(cell!.x, cell!.y);

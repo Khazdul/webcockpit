@@ -36,9 +36,13 @@ tempAlias("^gob$", function() send("kill goblin") end)
 `;
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
+// The editor's root (`display: contents`, the frame's child; stage 44b).
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const panel = (page: Page) => editor(page).locator('.wc-search');
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
+const unsaved = (page: Page) => editor(page).locator('.wc-lk-dialog[data-dlg="unsaved"]');
+const flash = (page: Page) => editor(page).locator('.wc-lk-flash');
+// A row of the Scripts page: the grid page's `data-script`, the lantern page's `data-name` (stage 44a).
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"], .wc-scr-row[data-name="${name}"]`);
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(
     ([fn, args]) => {
@@ -52,6 +56,12 @@ const bufferText = (page: Page) =>
   editor(page)
     .locator('.cm-content')
     .evaluate((el) => [...el.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
+
+/** The Scripts page is the top frame again (the editor gone). */
+async function backOnPage(page: Page): Promise<void> {
+  await expect(editor(page)).toHaveCount(0);
+  await expect(startFrame(page).locator('.wc-scr').first()).toBeVisible();
+}
 
 /** Start page → Scripts; the library holds `source` as a user script first. */
 async function scriptsPage(page: Page, source = SOURCE): Promise<Locator> {
@@ -98,10 +108,14 @@ test('Ctrl+F opens our find panel: find, next, previous, replace, all; ESC close
   });
   const f = await scriptsPage(page);
   await openEditor(page, f);
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Ctrl+F Find');
+  // No key hints (stage 44): the Find tool's tooltip names the keys.
+  await expect(editor(page).locator('.wc-sed-tools [data-btn="FIND"]')).toHaveAttribute('title', 'Find and replace (Ctrl+F, Ctrl+H)');
 
   await page.keyboard.press('Control+f');
   await expect(panel(page)).toBeVisible();
+  // The lantern find row at the top of the well; the tools hide while it is open.
+  await expect(panel(page)).toHaveClass(/wc-lk-search/);
+  await expect(editor(page).locator('.wc-sed-tools')).toBeHidden();
   const find = panel(page).getByRole('textbox', { name: 'Find' });
   await expect(find).toBeFocused();
   // (The listener records on a timer: poll it.)
@@ -124,7 +138,7 @@ test('Ctrl+F opens our find panel: find, next, previous, replace, all; ESC close
   await page.keyboard.type('Goblin');
   await expect(panel(page).locator('.wc-search-count')).toHaveText(/\d of 3/);
   await page.keyboard.press('Alt+c');
-  await expect(panel(page).locator('[data-toggle="caseSensitive"]')).toHaveClass(/is-on/);
+  await expect(panel(page).locator('[data-opt="case"]')).toHaveAttribute('aria-checked', 'true');
   await expect(panel(page).locator('.wc-search-count')).toHaveText(/No matches/);
   await page.keyboard.press('Alt+c');
   await page.keyboard.press('Control+a');
@@ -139,15 +153,16 @@ test('Ctrl+F opens our find panel: find, next, previous, replace, all; ESC close
   await page.keyboard.press('Enter');
   await expect.poll(() => bufferText(page)).toContain('A orc is here.');
   await expect(panel(page).locator('.wc-search-count')).toHaveText(/1 of 2/);
-  await panel(page).locator('[data-btn="ALL"]').click();
+  await panel(page).locator('[data-btn="all"]').click();
   await expect.poll(() => bufferText(page)).not.toContain('goblin');
   expect(await bufferText(page)).toContain('send("kill orc")');
   await expect(panel(page).locator('.wc-search-count')).toHaveText(/No matches/);
 
-  // ESC closes the panel and returns to the text; the editor stays.
+  // ESC closes the panel and returns to the text; the editor stays, the tools are back.
   await page.keyboard.press('Escape');
   await expect(panel(page)).toHaveCount(0);
   await expect(editor(page)).toBeVisible();
+  await expect(editor(page).locator('.wc-sed-tools')).toBeVisible();
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   // Ctrl+F from the text again, ESC from the text closes it too.
   await page.keyboard.press('Control+f');
@@ -159,9 +174,9 @@ test('Ctrl+F opens our find panel: find, next, previous, replace, all; ESC close
   await expect(editor(page)).toBeVisible();
   // The second ESC is the editor's: unsaved changes, so it asks.
   await page.keyboard.press('Escape');
-  await expect(editor(page).locator('.wc-ped-overlay')).toContainText('Save changes to finder?');
+  await expect(unsaved(page)).toContainText('Save changes to finder?');
   await page.keyboard.press('n');
-  await expect(f.locator('.wc-scr')).toBeVisible();
+  await backOnPage(page);
   expect(await lib<{ source: string }>(page, 'get', 'finder').then((s) => s.source)).toBe(SOURCE);
   expect(errors).toEqual([]);
 });
@@ -177,7 +192,7 @@ test('read-only scripts can be searched, not replaced', async ({ page }) => {
   await expect(panel(page).locator('.wc-search-count')).toHaveText(/1 of \d+/);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-scr')).toBeVisible();
+  await backOnPage(page);
   expect(errors).toEqual([]);
 });
 
@@ -254,6 +269,50 @@ test('runtime errors of the saved script are marked on their line, live, until t
   await page.keyboard.type(' ');
   await expect(marker).toHaveCount(0);
   await expect(editor(page).locator('.wc-sed-problem')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('the unsaved prompt: Keep editing stays, Y saves and leaves, N discards; Back asks too', async ({ page }) => {
+  const errors = watchErrors(page);
+  const f = await scriptsPage(page);
+  await openEditor(page, f);
+  const box = startFrame(page).locator('.wc-lk-box');
+  // The hood carries the name, with a dot while there are unsaved changes.
+  await expect(box.locator('.wc-lk-hood-t:not(.is-out)')).toHaveText('finder');
+  await page.keyboard.type('-- one\n');
+  await expect(box.locator('.wc-lk-hood-t:not(.is-out)')).toHaveText('finder •');
+  await expect(editor(page).locator('.wc-sed-pos')).toContainText(/Modified\s*·\s*Ln 2, Col 1/);
+
+  // Esc asks; Esc again keeps editing, the buffer has the keys back.
+  await page.keyboard.press('Escape');
+  await expect(unsaved(page)).toContainText('Unsaved changes');
+  await expect(unsaved(page)).toContainText('Save changes to finder?');
+  await expect(unsaved(page).locator('[data-btn="YES"]')).toHaveClass(/is-primary/);
+  await page.keyboard.press('Escape');
+  await expect(unsaved(page)).toHaveCount(0);
+  await expect(editor(page).locator('.cm-content')).toBeFocused();
+  // Keep editing by its button; the letters never reach the buffer.
+  await page.keyboard.press('Escape');
+  await unsaved(page).locator('[data-btn="KEEP"]').click();
+  await expect(unsaved(page)).toHaveCount(0);
+  await page.keyboard.type('x');
+  expect(await bufferText(page)).toMatch(/^-- one\nx-- @name/);
+
+  // Back (top left) asks too; N discards and leaves.
+  await startFrame(page).locator('.wc-lk-back').first().click();
+  await expect(unsaved(page)).toBeVisible();
+  await page.keyboard.press('n');
+  await backOnPage(page);
+  expect(await lib<{ source: string }>(page, 'get', 'finder').then((s) => s.source)).toBe(SOURCE);
+
+  // Y saves and leaves, with the page's flash.
+  await openEditor(page, f);
+  await page.keyboard.type('-- two\n');
+  await page.keyboard.press('Escape');
+  await expect(unsaved(page)).toBeVisible();
+  await page.keyboard.press('y');
+  await backOnPage(page);
+  await expect.poll(() => lib<{ source: string }>(page, 'get', 'finder').then((s) => s.source)).toBe('-- two\n' + SOURCE);
   expect(errors).toEqual([]);
 });
 
