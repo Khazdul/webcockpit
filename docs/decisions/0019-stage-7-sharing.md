@@ -931,3 +931,15 @@ ids, the channel list); pacing records, which show when there was
 activity at a resolution of about a minute; and for left-out runs the
 VIEW parts and channel list they set. A run with an achievement or bad
 JSON is not left out (its records are folded like any other run's).
+
+## Addendum 2026-11-07 — Spotlights as a gallery (stage 46, ADR 0131)
+
+Start menu → Spotlights no longer plays the reel at once in the full-page
+player. It opens a wall of cards in the large box (one card per spotlight
+in reel order, with a still of the game text at the moment), the
+Spotlights settings as the filter row above it; Enter on a card (or Play
+all) plays the reel in a viewer inside the box from that card on, and Esc
+returns to the wall. What a spotlight is, the rotation, the windows, the
+blank transitions and the labels are unchanged. The reel ends on an end
+card (Play again) instead of parking on the last spotlight. Details: ADR
+0131.

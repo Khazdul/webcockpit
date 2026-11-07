@@ -170,3 +170,12 @@ the rail's time hint read `h:mm:ss` from one hour (`1:34:07`) in the run
 log player; the HTML replay keeps `MM:SS`. `player.css` does not import
 the kit's glass rules: the player opens from the start page, whose chrome
 CSS holds them, and the replay never shows Back. Details: ADR 0127 "42f".
+
+## Addendum 2026-11-07 — the Spotlights card leaves the page (stage 46, ADR 0131)
+
+The Spotlights page no longer shows the card or the full-page reel: its
+viewer (in the page's large box) has its own head, countdown, track and
+always-visible control row around an embedded, bare player view. The
+card, `spotlight.css` and the full-page reel stay only for the shell's
+`openSpotlights` until wave 3 removes them. The run log player's ghost
+look is unchanged.

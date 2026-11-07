@@ -2832,6 +2832,24 @@ in-app player too (owner decision).
 **Spotlights** (main menu, between History and Credits) — cross-character highlight reel
 played in the same `log_view` engine (spotlight mode).
 
+> WebCockpit (stage 46, ADR 0131): the events, windows, rotation,
+> transitions, labels and the ←/→ rules below still hold; the page around
+> them differs. Spotlights opens on a **wall of cards** in the large box
+> (one per spotlight in reel order: kind, a still of the last visible
+> lines before the moment, label, character · level · date), with the
+> settings as a **filter row** above it (kind chips, `All` and character
+> chips, the period; ADR 0110). Enter, a double click or a tap plays a
+> card in a **viewer** inside the box that grows out of the card and plays
+> on through the rest (head with `‹ n / N ›`, countdown, track with kind
+> markers, an always-visible control row, Display; no info box, no
+> auto-hide). The reel ends on an **end card** (Play again) instead of
+> parking. Esc returns to the wall with the current spotlight's card
+> chosen, a second Esc to the menu. Empty states are states of the wall:
+> no data (no filter row) and nothing passing (`No spotlights match your
+> settings.`, the row stays). Letters: F filter row, P Play all / Play
+> again, D Display. ANSI normal red is drawn brighter on the dark wells
+> while the Display colours are Default.
+
 | Aspect | Behaviour |
 |---|---|
 | Events (ADR 0077) | `char_death`, `level_up`, `pkill`, `achievement` from **all characters'** sealed runs that have a `.log`; **one spotlight per event** (no merging) |
