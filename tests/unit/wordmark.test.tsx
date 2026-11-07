@@ -9,9 +9,14 @@ import { PLACE_SETTLE_MS, Wordmark } from '../../src/start/wordmark';
 import { COCKPIT, MUME } from '../../src/start/wordmark-glyphs';
 import {
   type MarkBox,
+  SHEEN_FIRST_MS,
+  SHEEN_GAP_MS,
+  SHEEN_PASS_MS,
   applyWordmarkLight,
   paintWordmark,
   parseColor,
+  sheenDelay,
+  sheenGap,
   wordmarkLight,
   wordmarkMarkup,
 } from '../../src/start/wordmark-svg';
@@ -252,6 +257,120 @@ describe('<Wordmark> measuring', () => {
     expect(reads()).toBe(n + 1);
     vi.advanceTimersByTime(PLACE_SETTLE_MS);
     expect(reads()).toBe(n + 2);
+    act(() => render(null, el));
+  });
+});
+
+describe('the sheen', () => {
+  it('waits SHEEN_FIRST_MS for the first pass, then a random 20-45 s after each', () => {
+    expect(sheenDelay(null)).toBe(SHEEN_FIRST_MS);
+    expect(sheenGap(() => 0)).toBe(SHEEN_GAP_MS[0]);
+    expect(sheenGap(() => 0.999999)).toBe(SHEEN_GAP_MS[1]);
+    expect(SHEEN_GAP_MS[0]).toBeGreaterThanOrEqual(20_000);
+    expect(SHEEN_GAP_MS[1]).toBeLessThanOrEqual(45_000);
+    // shown again soon after a pass: the rest of the gap; long after: soon
+    expect(sheenDelay(SHEEN_PASS_MS, () => 0)).toBe(SHEEN_GAP_MS[0]);
+    expect(sheenDelay(SHEEN_PASS_MS + 18_000, () => 0)).toBe(SHEEN_FIRST_MS);
+    expect(sheenDelay(10 * 60_000, () => 0.5)).toBe(SHEEN_FIRST_MS);
+  });
+
+  interface Pass {
+    cancelled: boolean;
+    finite: boolean;
+  }
+  const proto = HTMLElement.prototype as { animate?: unknown };
+  const hadAnimate = 'animate' in proto;
+
+  /** Fake Web Animations on the band: each pass is recorded; `end()` finishes the last one. */
+  function fakeAnimate(): { passes: Pass[]; end: () => Promise<void> } {
+    if (!('animate' in proto)) proto.animate = () => null;
+    const passes: Pass[] = [];
+    let finish: (() => void) | null = null;
+    vi.spyOn(HTMLElement.prototype, 'animate').mockImplementation((_k, opts) => {
+      const rec = { cancelled: false, finite: typeof opts === 'object' && opts.iterations === undefined };
+      passes.push(rec);
+      let state: AnimationPlayState = 'running';
+      let reject: (e: unknown) => void = () => {};
+      const finished = new Promise<void>((res, rej) => {
+        finish = () => {
+          state = 'finished';
+          res();
+        };
+        reject = rej;
+      });
+      finished.catch(() => {});
+      return {
+        finished,
+        get playState() {
+          return state;
+        },
+        cancel() {
+          rec.cancelled = true;
+          state = 'idle';
+          reject(new Error('cancelled'));
+        },
+      } as unknown as Animation;
+    });
+    return {
+      passes,
+      end: async () => {
+        finish?.();
+        await Promise.resolve();
+        await Promise.resolve();
+      },
+    };
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    if (!hadAnimate) delete proto.animate;
+    document.body.innerHTML = '';
+  });
+
+  it('passes once now and then, runs nothing between passes, and stops when run goes false', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const { passes, end } = fakeAnimate();
+    const el = document.createElement('div');
+    document.body.append(el);
+    act(() => render(<Wordmark look={look()} />, el));
+    expect(passes).toHaveLength(0);
+    vi.advanceTimersByTime(SHEEN_FIRST_MS - 1);
+    expect(passes).toHaveLength(0);
+    vi.advanceTimersByTime(1);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.finite).toBe(true);
+    // the pass ends; nothing until the gap is over
+    vi.advanceTimersByTime(SHEEN_PASS_MS);
+    await end();
+    vi.advanceTimersByTime(SHEEN_GAP_MS[0] - 1);
+    expect(passes).toHaveLength(1);
+    vi.advanceTimersByTime(SHEEN_GAP_MS[1] - SHEEN_GAP_MS[0] + 1);
+    expect(passes).toHaveLength(2);
+    // hidden or leaving: the pass is cancelled and no timer is left
+    act(() => render(<Wordmark look={look()} run={false} />, el));
+    expect(passes[1]!.cancelled).toBe(true);
+    vi.advanceTimersByTime(10 * 60_000);
+    expect(passes).toHaveLength(2);
+    // shown again long after: soon again
+    act(() => render(<Wordmark look={look()} />, el));
+    vi.advanceTimersByTime(SHEEN_FIRST_MS);
+    expect(passes).toHaveLength(3);
+    act(() => render(null, el));
+    expect(passes[2]!.cancelled).toBe(true);
+  });
+
+  it('never passes with reduced motion', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { passes } = fakeAnimate();
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (q: string) => ({ matches: q.includes('reduce'), media: q }) as unknown as MediaQueryList,
+    );
+    const el = document.createElement('div');
+    document.body.append(el);
+    act(() => render(<Wordmark look={look()} />, el));
+    vi.advanceTimersByTime(5 * 60_000);
+    expect(passes).toHaveLength(0);
     act(() => render(null, el));
   });
 });

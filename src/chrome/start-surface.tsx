@@ -312,7 +312,8 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   const lookSmall = size.w > 0 && (size.w < LOOK_MIN.w || size.h < LOOK_MIN.h);
   const gridSmall = g.cols > 0 && tooSmall(g.cols, g.rows);
   const paused = covered ? gridSmall : lookSmall;
-  const run = p.visible && !docHidden && !covered && !reducedMotion();
+  // The wordmark's sheen: not while hidden, covered, leaving (Enter MUME) or with reduced motion.
+  const run = p.visible && !docHidden && !covered && !p.leaving && !reducedMotion();
   const wrap = (node: VNode): VNode => (isLookFrame(node) ? node : <GridFrame>{node}</GridFrame>);
   // An old-look frame's element is the cell grid itself, as before.
   const screen = { left: g.left, top: g.top, width: g.cols * g.cellW, height: g.rows * g.cellH };

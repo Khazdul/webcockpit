@@ -93,6 +93,33 @@ test('the almanac follows the game clock, a minute a second', async ({ page }) =
   await expect.poll(() => time.textContent(), { timeout: 4000 }).not.toBe(t0);
 });
 
+/** The wordmark sheen's animations, as `playState/iterations`. */
+const sheenAnims = (page: Page) =>
+  page.evaluate(() =>
+    document
+      .getAnimations()
+      .filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('[data-wcw="sheen-band"]'))
+      .map((a) => `${a.playState}/${a.effect!.getComputedTiming().iterations}`),
+  );
+
+test('the wordmark sheen passes once in a while and rests in between', async ({ page }) => {
+  await openStart(page);
+  // ADR 0126 addendum: one finite pass a few seconds after the page shows, no running animation otherwise.
+  expect(await sheenAnims(page)).toEqual([]);
+  await expect.poll(() => sheenAnims(page), { timeout: 10_000, intervals: [200] }).toEqual(['running/1']);
+  await expect.poll(() => sheenAnims(page), { timeout: 10_000, intervals: [200] }).toEqual([]);
+  await page.waitForTimeout(1500);
+  expect(await sheenAnims(page)).toEqual([]);
+});
+
+test('a sheen pass running on Enter MUME stops with the leaving page', async ({ page }) => {
+  await openStart(page);
+  await expect.poll(() => sheenAnims(page), { timeout: 10_000, intervals: [200] }).toEqual(['running/1']);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-start.is-leaving')).toHaveCount(1);
+  await expect.poll(() => sheenAnims(page), { timeout: 1000, intervals: [100] }).toEqual([]);
+});
+
 test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await openStart(page);
   await page.keyboard.press('ArrowUp');

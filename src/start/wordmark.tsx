@@ -13,17 +13,33 @@
 // host's size (ResizeObserver: also when it is shown again), the end of a
 // transition on an ancestor (the start page's scenery moves the brand),
 // and a while after `place` changes in case no transition ran.
+//
+// The faint sheen over the iron is not a running animation: while `run`
+// (and motion is not reduced) one pass comes `SHEEN_FIRST_MS` after the
+// mark shows, then one after each random 20-45 s quiet (`sheenDelay`,
+// `sheenGap`). `run` false cancels a pass and the timer: between passes
+// nothing animates and nothing runs per frame (ADR 0126 addendum).
 
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import type { SkyLook } from './sky/look';
-import { type MarkBox, applyWordmarkLight, markBox, setWordmarkMotion, wordmarkLight, wordmarkMarkup } from './wordmark-svg';
+import {
+  type MarkBox,
+  applyWordmarkLight,
+  markBox,
+  sheenDelay,
+  sheenGap,
+  stopSheen,
+  sweepSheen,
+  wordmarkLight,
+  wordmarkMarkup,
+} from './wordmark-svg';
 
 export interface WordmarkProps {
   look: SkyLook;
   /** `full` on the start menu; `small` in a corner when a big page fills the window. */
   size?: 'full' | 'small';
-  /** Animate the glint (false when the start page is hidden or motion is reduced). */
+  /** Let the sheen pass now and then (false while the start page is hidden or leaving; reduced motion stops it too). */
   run?: boolean;
   /** Extra class on the host element (placement by the layout). */
   class?: string;
@@ -93,7 +109,7 @@ export function Wordmark(p: WordmarkProps): VNode {
       view?.removeEventListener('resize', moved);
       doc.removeEventListener('transitionend', onTransition);
       ro?.disconnect();
-      setWordmarkMotion(el, false);
+      stopSheen(el);
     };
   }, [size]);
 
@@ -108,10 +124,32 @@ export function Wordmark(p: WordmarkProps): VNode {
 
   useLayoutEffect(light, [p.look]);
 
+  // The sheen: one pass now and then while `run` (sheenDelay), nothing in between.
   const run = p.run !== false;
+  const lastSheen = useRef<number | null>(null);
   useEffect(() => {
     const el = host.current;
-    if (el) setWordmarkMotion(el, run && !reducedMotion());
+    if (!el || !run || reducedMotion()) return;
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const plan = (ms: number): void => {
+      timer = setTimeout(pass, ms);
+    };
+    const pass = (): void => {
+      const anim = sweepSheen(el);
+      if (!anim) return;
+      lastSheen.current = performance.now();
+      anim.finished.then(
+        () => live && plan(sheenGap()),
+        () => {},
+      );
+    };
+    plan(sheenDelay(lastSheen.current === null ? null : performance.now() - lastSheen.current));
+    return () => {
+      live = false;
+      clearTimeout(timer);
+      stopSheen(el);
+    };
   }, [run, size]);
 
   return <div ref={host} class={`wc-wordmark-host${p.class ? ` ${p.class}` : ''}`} />;

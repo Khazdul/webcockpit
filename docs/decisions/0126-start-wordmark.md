@@ -194,3 +194,31 @@ outline the same family). The in-game window kit's thin cyan border
 (`src/chrome/kit/window.*`, ADR 0103) is not the logo's colour and is
 unchanged for now. Terminal and theme cyan are the game's colours and
 are untouched.
+
+## Addendum 2026-11-07 — the sheen only now and then
+
+The owner asked for the sheen to sweep past only occasionally (it ran
+continuously and seemed to cost a few fps). It is no longer an infinite
+animation: `sweepSheen` runs one pass (`SHEEN_PASS_MS`, 5 s, a soft
+ease-in-out, the same band and keyframes) with no fill, after which the
+band rests off the letters and nothing animates. The `Wordmark`
+schedules the passes while `run` is true and motion is not reduced: the
+first `SHEEN_FIRST_MS` (4 s) after the mark shows, then one after each
+random quiet of 20–45 s (`sheenGap`) counted from the end of the last
+pass. When it shows again (`sheenDelay`) it waits out the rest of the
+gap after the last pass, or 4 s if that gap is already over. `run`
+false cancels a running pass and the timer (`stopSheen`); the start
+surface now passes `run` false while the page is hidden or covered, while
+Enter MUME's transition runs (`leaving`, `.wc-start.is-leaving`) and with
+`prefers-reduced-motion`. The glint and the light model are unchanged.
+
+*Measured* (headless Chromium, 1440×900 at DPR 2, the start page's
+main menu, the sky host hidden with `display: none` so its canvases do
+not drown the numbers; CDP `Performance.getMetrics` deltas and a trace
+over 10 s windows): with the old infinite sheen running the page drew
+60 compositor frames/s (`DrawFrame`) with 6–6.5 ms/s of style recalc
+and 7–8 ms/s of pre-paint; with the sheen cancelled, 4.8 frames/s,
+0.5 ms/s and 2 ms/s. The new code between passes measures the same as
+the cancelled sheen (2.9 frames/s, 0.4–0.8 ms/s style, 2.2–2.4 ms/s
+pre-paint) and `document.getAnimations()` holds no wordmark animation.
+A 100 s timeline showed passes at 4.3 s, 40.7 s and 83.1 s, each 5 s.

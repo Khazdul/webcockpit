@@ -19,8 +19,8 @@
 // dome's lit and shaded edges. `applyWordmarkLight` only sets a few
 // attributes there (no filters in that layer), so an update repaints a
 // small, cheap layer. The only animation, a very faint sheen sweeping
-// over the iron now and then, is a compositor-only transform
-// (`setWordmarkMotion`).
+// over the iron now and then (one pass, then nothing for 20-45 s), is a
+// compositor-only transform (`sweepSheen`; the Wordmark schedules it).
 //
 // Geometry: font units (1000 per em), y down, baseline y = 0 (as the
 // glyph module). The channel is the letter shrunk by `CORE_IN` (a mask: the
@@ -398,27 +398,58 @@ export function markBox(el: Element, view: { innerWidth: number; innerHeight: nu
   return { cx: r.left + r.width / 2, cy: r.top + r.height * 0.6, vw: view.innerWidth, vh: view.innerHeight };
 }
 
-/** The sheen's period (s): it crosses the word once in it, mostly off the letters. */
-const SHEEN_S = 20;
+/** One pass of the sheen across the word (ms). */
+export const SHEEN_PASS_MS = 5000;
+/** The first pass comes this long after the mark starts to show (ms). */
+export const SHEEN_FIRST_MS = 4000;
+/** The quiet between two passes: a random time in this range (ms). */
+export const SHEEN_GAP_MS: readonly [number, number] = [20_000, 45_000];
 
-/** Starts (`run`) or stops the sheen. Stopped: no animation at all (reduced motion, hidden page). */
-export function setWordmarkMotion(root: ParentNode, run: boolean): void {
-  const band = q(root, 'sheen-band') as (HTMLElement & { __wcw?: Animation }) | null;
-  if (!band || typeof band.animate !== 'function') return;
-  if (!run) {
-    band.__wcw?.cancel();
-    band.__wcw = undefined;
-    return;
-  }
-  if (band.__wcw) return;
+/** A random quiet between two passes (`rand` in [0, 1)). */
+export function sheenGap(rand: () => number = Math.random): number {
+  const [lo, hi] = SHEEN_GAP_MS;
+  return Math.round(lo + (hi - lo) * rand());
+}
+
+/**
+ * How long to wait for the next pass when the sheen may run again (the
+ * page shows, motion is allowed). `sinceLast`: ms since the last pass
+ * began, null when there was none. No pass yet: `SHEEN_FIRST_MS`; else
+ * the rest of a random gap after that pass, never less than `SHEEN_FIRST_MS`.
+ */
+export function sheenDelay(sinceLast: number | null, rand: () => number = Math.random): number {
+  if (sinceLast === null) return SHEEN_FIRST_MS;
+  return Math.max(SHEEN_FIRST_MS, SHEEN_PASS_MS + sheenGap(rand) - sinceLast);
+}
+
+type SheenBand = HTMLElement & { __wcw?: Animation };
+
+/**
+ * Runs one pass of the sheen (a compositor-only transform over
+ * `SHEEN_PASS_MS`, no fill: afterwards the band rests off the letters and
+ * nothing animates). A pass already running is returned as is; null when
+ * there is no band or no Web Animations.
+ */
+export function sweepSheen(root: ParentNode): Animation | null {
+  const band = q(root, 'sheen-band') as SheenBand | null;
+  if (!band || typeof band.animate !== 'function') return null;
+  if (band.__wcw?.playState === 'running') return band.__wcw;
   const anim = band.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(560%)' }], {
-    duration: SHEEN_S * 1000,
-    iterations: Infinity,
-    easing: 'linear',
+    duration: SHEEN_PASS_MS,
+    easing: 'cubic-bezier(0.4, 0, 0.6, 1)',
   });
-  // cancel() rejects `finished`; nobody waits on it
+  // cancel() rejects `finished`; a caller may not wait on it
   anim.finished?.catch(() => {});
   band.__wcw = anim;
+  return anim;
+}
+
+/** Cancels a running pass (hidden page, Enter MUME, reduced motion, unmount). */
+export function stopSheen(root: ParentNode): void {
+  const band = q(root, 'sheen-band') as SheenBand | null;
+  if (!band) return;
+  band.__wcw?.cancel();
+  band.__wcw = undefined;
 }
 
 /**
