@@ -237,6 +237,69 @@ measured on the new rows and the lantern buffer.
 
 ### 43b — The editor in the game (window, phone ESC menu)
 
+**One root page for both in-game hosts.** The Profile window's root frame
+(`ProfileRoot`, `src/chrome/frames/profile-window.tsx`) and the frame the
+phone's ESC menu opens at for `#profile` (`ProfileEntry`, `esc-main.tsx`)
+are both look frames over one component, `ProfileHome`: it opens the
+active profile's editor over itself as soon as it mounts, so it is seen
+only while the editor's chunk loads and after the editor left with a
+failure to show. While loading it shows the profile's name and nothing
+else for 300 ms (`OPENING_MS`), then a quiet "Opening default…". After a
+failure (`No profile "x".`, "Could not open the editor: …", a save or
+apply that failed on the way out) the failure stays on the page — the
+stack's flash fades after 3 s, so the page keeps its own copy until the
+next try — with a glass **Edit** (E, Enter); Esc, the window's X or
+Back (in the menu) closes. Leaving the editor cleanly closes the window
+or the menu, as before. In the window the Lykta frame is the box (title
+"Profile", the name as the note, from the window's defaults and the
+editor's `useWindowChrome`); in the ESC menu `Box` draws the full-screen
+box with its hood and Back. Change: `ProfileEntry` used to close the menu
+even when the editor left with a failure; it now keeps the failure, as
+the window always did.
+
+**The live line.** `profileEditOptions` moves next to the root page
+(`esc-main.tsx` re-exports it) and fills the editor's `onLiveChange`: it
+subscribes to the app status and calls back only when `isLive` flips
+(connected ⇄ not), never on a status tick (link samples, capture text),
+so the editor renders once per connection change. With it the head line
+("Connected · changes apply to the game" / "Not connected · changes are
+saved"), Editor's Apply ⇄ Save button and the status's "All applied" ⇄
+"All saved" follow a session that ends with the window open.
+
+**Focus, checked with the real fields.** No new code was needed: the
+window's capture-phase pointerdown takes the focus from a window on a
+press in the game, the field blurs, and the editor's `focusout` (no
+related target inside the editor) is a Lite commit point; the editor's
+focus effect runs only while it is the top frame of an active stack
+(`useIsTop`), so a window without the focus never focuses a field on a
+re-render (a viewport resize re-renders the window's stack); the window
+body carries `OWN_KEYS_ATTR`, so typing in a field never reaches the game
+input. `profile-window.spec.ts` covers all three.
+
+**The minimum window.** At the window's minimum (60 × 18 content cells,
+about 540 × 330 CSS px) the editor is one column; the head, the rail's row
+of tabs, the sheet's bar, the field gaps and the foot are denser in a
+window at ≤ 640 px (`profile.css`, place class `is-window`, a container
+query, not a media query), and the sheet's detail scrolls. A field the
+keyboard moves to is now brought into the detail's view (`revealField` in
+`editor.tsx`): the focus itself still never scrolls (`preventScroll`), so
+the box and the window body never move; only the detail does. Both are
+small edits to 43a's files after 43a was merged (no other package owns
+them in wave 2). The dialogs fit at the minimum size as they are.
+
+**Phone and tablet.** Nothing changes in the hosts: the menu's look host
+(stage 42) gives the editor the place `menu` (full screen, Lykta, dark or
+Paper by the game background), Back and Esc leave it and return to the
+menu (or close the menu for `#profile`); the ESC menu's own pages stay
+old-look. On a tablet (`?touch=1` at desktop size) the window works by
+taps: a kind, a row, a tap on a field brings the soft keyboard, a tap in
+the game applies.
+
+**Test hooks.** The root page: `.wc-pw` (in the frame), `.wc-pw-name`,
+`.wc-pw-opening`, `.wc-pw-flash`, `[data-btn="EDIT"]`. CSS prefix `wc-pw-`
+(`src/chrome/frames/profile-window.css`, in the chrome chunk: the page is
+up before the editor's chunk).
+
 ### 43c — The import page and the receipt (direction C)
 
 **Two frames, one box.** Import on the Profile list pushes `ImportFrame`
@@ -497,6 +560,8 @@ The log renders about two and a half views of rows (about 100 rows at
   helper with own keys (`fieldKeys` here).
 
 ## Addenda to older ADRs
+
+- ADR 0103 (windows): addendum 2026-11-07, the Profile window's content (43b).
 
 - ADR 0115 (the export editor): addendum 2026-11-07 (43d).
 - ADR 0075 (phone): addendum 2026-11-07, export on the phone (43d).
