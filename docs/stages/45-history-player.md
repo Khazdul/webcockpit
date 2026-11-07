@@ -351,7 +351,7 @@ this stage file's checklist.
 ## Tasks
 
 - [ ] Stage 42 merged; read its file and ADR 0127
-- [ ] WP 45-A: History page (table, pills, card, foot, states, phone, keys, width cap)
+- [x] WP 45-A: History page (table, pills, card, foot, states, phone, keys, width cap)
 - [ ] WP 45-B: Statistics in the same box
 - [ ] WP 45-C: Rate, Delete, keys box, run-log error box
 - [ ] WP 45-D: player Back and h:mm:ss verified; player/replay tests
