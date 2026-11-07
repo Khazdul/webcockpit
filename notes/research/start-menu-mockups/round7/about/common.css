@@ -1,0 +1,83 @@
+/* Round 7 · Credits and About · shared mockup styles (throwaway). With ../base/base.css and common.js. */
+
+/* ---- opening a page (PG.boot): the start stage steps back (as the round-7 layout A) */
+#menuPanel.in, #quote.in, #almanac.in { transition: opacity calc(.4s * var(--ts)), transform calc(.6s * var(--ts)) var(--ease), filter calc(.45s * var(--ts)); }
+body.pg #menuPanel { opacity: 0; transform: scale(.95) translateY(16px); filter: blur(6px); pointer-events: none; animation: none; }
+body.pg #quote, body.pg #almanac { opacity: 0; animation: none; }
+body.pg #stage > * { pointer-events: none; }
+body.pg-corner #stage, body.pg-into #stage { z-index: 5; }   /* the flying mark passes over the box */
+body.instant * { transition: none !important; }
+.pgbox { visibility: hidden; opacity: 0; }
+.pgbox.shown { visibility: visible; }
+/* the tiny corner mark (mode 'corner'): left of the hood, resting on the frame; a click goes back */
+:root { --box-top: 46px; }
+#mark { position: fixed; z-index: 6; left: calc(var(--box-m) + 12px); top: 4px; --wm-w: 112px; opacity: 0; pointer-events: none; }
+body.pg.landed #mark { pointer-events: auto; cursor: pointer; }
+#mark .wm-c { filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+
+/* ---- the normal box as a page (mode 'stay'): under the wordmark, down to the bottom at most */
+.box-normal.pgbox { display: flex; max-height: var(--avail, 70vh); }
+.box-normal.pgbox > .win { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---- Credits' empty pages */
+.emptybox { width: min(640px, calc(100vw - 32px)); }
+.emptybox > .win { padding: 44px 30px 26px; }
+.empty-txt { margin: 10px auto 22px; max-width: 34em; text-align: center; font: italic 500 20px/1.45 var(--serif); color: var(--c-text); text-wrap: pretty; cursor: default; }
+.empty-txt.fail { color: #f0b7a2; }
+
+/* ---- the Spotlights settings popup */
+.sp-pop { position: fixed; z-index: 30; width: 300px; }
+.sp-pop > .win { padding: 40px 18px 16px; --win-fill: rgba(16,12,10,.86); }
+.sp-pop .sp-x { position: absolute; top: 9px; right: 9px; width: 26px; height: 26px; padding: 0; }
+.sp-pop .sp-x svg { display: block; width: 12px; height: 12px; }
+.sp-list { display: flex; flex-direction: column; gap: 9px; margin-bottom: 4px; }
+.sp-r { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; }
+.sp-chars { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px 4px; max-height: 190px; overflow: auto; transition: opacity .3s; }
+.sp-chars.dim { opacity: .45; }
+.sp-chars .check { font-size: 16px; }
+.sp-per .select { width: 160px; height: 32px; }
+.sp-pop input:focus-visible, .sp-pop select:focus-visible { outline: 1px solid var(--c-sk-on); outline-offset: 2px; }
+
+/* ---- chronicle text (shared) */
+.cr-date { font-family: var(--sc); font-weight: 600; letter-spacing: .04em; }
+
+/* ---- About text (shared) */
+.ab-p { margin: 0 0 .8em; font: 500 18px/1.55 var(--serif); color: var(--c-text); text-wrap: pretty; hanging-punctuation: first; }
+.ab-a { color: #e9cf9a; text-decoration: none; background: linear-gradient(90deg, rgba(233,207,154,.45), rgba(233,207,154,.45)) 0 100% / 100% 1px no-repeat; padding-bottom: 1px; transition: color .25s, background-size .25s; }
+.ab-a:hover, .ab-a:focus-visible { color: #fff1d8; outline: none; background-image: linear-gradient(90deg, rgba(255,226,180,.85), rgba(255,226,180,.85)); }
+.ab-cmd, .nt-p code, .nt-ul code, .nt-tbl code { font: 400 .8em/1 var(--mono); color: #e2cfae; background: rgba(0,0,0,.28); border: 1px solid rgba(255,214,160,.10); border-radius: 3px; padding: 1px 4px; white-space: nowrap; }
+.ab-kv { margin: .3em 0 1em; display: grid; grid-template-columns: max-content 1fr; gap: 0 22px; }
+.ab-kvr { display: contents; }
+.ab-kv dt { font: 600 11.5px/1 var(--display); letter-spacing: .18em; text-transform: uppercase; color: var(--c-accent); padding-top: .62em; white-space: nowrap; }
+.ab-kv dd { margin: 0 0 .55em; font: 500 17.5px/1.5 var(--serif); color: var(--c-text); text-wrap: pretty; }
+.seal { display: block; width: 44px; height: 44px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+.ver { font: 400 12px/1 var(--mono); color: var(--c-dim); letter-spacing: .02em; }
+
+/* ---- Third-party notices (shared, smaller type) */
+.notices { font-size: 15.5px; }
+.nt-h { margin: 1.6em 0 .6em; font: 600 12px/1.2 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--c-head); }
+.nt-h:first-child { margin-top: .4em; }
+.nt-p { margin: 0 0 .8em; font: 500 16px/1.5 var(--serif); color: var(--c-text); }
+.nt-ul { margin: 0 0 1em; padding-left: 1.1em; font: 500 16px/1.45 var(--serif); color: var(--c-text); }
+.nt-ul li { margin-bottom: .45em; }
+.nt-ul li::marker { color: var(--c-faint); }
+.nt-tblw { overflow-x: auto; margin: 0 0 1em; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+.nt-tbl { border-collapse: collapse; font: 500 14.5px/1.35 var(--serif); color: var(--c-text); width: 100%; min-width: 640px; }
+.nt-tbl td:last-child { min-width: 190px; }
+.nt-tbl th { text-align: left; font: 600 10px/1.2 var(--display); letter-spacing: .18em; text-transform: uppercase; color: var(--c-dim); padding: 0 12px 8px 0; border-bottom: 1px solid var(--c-rule); }
+.nt-tbl td { padding: 7px 12px 7px 0; border-bottom: 1px solid rgba(255,200,130,.08); vertical-align: top; }
+.nt-tbl td:first-child code { white-space: nowrap; }
+.nt-tbl code { white-space: normal; }
+.nt-pre { margin: 0 0 1.2em; padding: 12px 14px; font: 400 11.5px/1.5 var(--mono); color: #cdbb9c; background: var(--well); border: 1px solid var(--well-edge); border-radius: 5px; box-shadow: var(--well-in); white-space: pre-wrap; }
+
+@media (max-width: 600px) {
+  :root { --box-top: 40px; }
+  #mark { --wm-w: 96px; left: 14px; top: 3px; }
+  .emptybox > .win { padding: 40px 16px 18px; }
+  .empty-txt { font-size: 18.5px; }
+  .ab-p { font-size: 17px; }
+  .ab-kv { grid-template-columns: 1fr; }
+  .ab-kv dt { padding-top: .4em; }
+  .ab-kv dd { margin-bottom: .7em; }
+  .sp-pop { width: min(300px, calc(100vw - 16px)); }
+}

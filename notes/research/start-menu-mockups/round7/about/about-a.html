@@ -1,0 +1,108 @@
+<!doctype html>
+<!--
+  Round 7 · About · A "Bladet" (one long leaf).
+  The large box. The wordmark does not go to the corner: it glides down into the head of the page and
+  becomes the title of a single long leaf, the version under it (today's title row: 0.2.6 and the build).
+  The whole real About text follows in one reading column (Cormorant, Cinzel section heads, the key/value
+  rows as a small table with Cinzel keys, links lit and underlined), then the third-party notices (new),
+  and the "M" seal closes the leaf like a printer's mark. A slim contents rail on the left follows the
+  reading (the section you are in brightens) and jumps on a click or its letter.
+  Keys as today: ↑↓ a line, PgUp/PgDn/Space/Enter a page, Home/End, Esc back; new: the letters in the rail.
+  Phone: the rail becomes a strip of section pills above the text. URL: ?page · ?sec=credits
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · About A Bladet</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+:root { --box-top: var(--box-m); }
+#page > .win { padding: 44px 0 0 0; }
+.ab-grid { flex: 1; min-height: 0; display: flex; }
+.toc { flex: none; width: 236px; padding: 66px 0 20px 26px; display: flex; flex-direction: column; gap: 2px; }
+.toc .row { min-height: 34px; padding: 0 12px; border-radius: 4px; background: none; box-shadow: none; font: 600 11.5px/1.2 var(--display); letter-spacing: .16em; text-transform: uppercase; }
+.toc .rule { height: 1px; margin: 8px 12px; background: var(--c-rule); }
+#body { flex: 1; min-width: 0; padding: 0 26px 0 10px; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 26px); mask-image: linear-gradient(180deg, transparent 0, #000 26px); }
+.leaf { max-width: 700px; margin: 0 auto; padding: 30px 0 60px; }
+.leaf-head { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 6px 0 4px; }
+.leaf-head .wm { --wm-w: min(430px, 72vw); opacity: 0; }
+body.landed .leaf-head .wm, body:not(.pg) .leaf-head .wm { opacity: 1; }
+.leaf-head .ver { margin-top: 6px; }
+.leaf .orn-rule { margin: 22px auto 30px; }
+.lead-in { font: italic 500 21px/1.55 var(--serif); color: #ecdcbc; text-align: center; text-wrap: balance; margin: 0 auto 10px; max-width: 32em; }
+.sec { scroll-margin-top: 24px; }
+.sec h2 { margin: 46px 0 16px; font: 700 15px/1.3 var(--display); letter-spacing: .2em; color: var(--c-head); text-shadow: 0 -1px 0 rgba(0,0,0,.9), 0 1px 0 rgba(255,226,180,.18); }
+.sec h2::after { content: ""; display: block; width: 46px; height: 1px; margin-top: 12px; background: linear-gradient(90deg, var(--c-sk-on), transparent); }
+.colophon { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 56px; }
+.colophon .seal { width: 54px; height: 54px; }
+@media (max-width: 900px) { .toc { width: 196px; padding-left: 14px; } }
+@media (max-width: 760px) {
+  .ab-grid { flex-direction: column; }
+  .toc { width: auto; flex-direction: row; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 0 10px 8px; border-bottom: 1px solid var(--c-rule); }
+  .toc .row { flex: none; min-height: 30px; white-space: nowrap; }
+  .toc .rule { display: none; }
+  #body { padding: 0 10px; }
+  .leaf { padding-top: 18px; }
+  .lead-in { font-size: 19px; }
+  .sec h2 { margin-top: 36px; font-size: 13.5px; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-large pgbox" id="page" data-hood="About" data-back aria-label="About">
+  <div class="win">
+    <div class="ab-grid">
+      <nav class="toc rows" id="toc" aria-label="Contents"></nav>
+      <div class="box-body" id="body"><article class="leaf" id="leaf"></article></div>
+    </div>
+  </div>
+</section>
+<script src="about-text.js"></script>
+<script src="notices.js"></script>
+<script src="../base/base.js"></script>
+<script src="common.js"></script>
+<script>
+const toc = document.getElementById('toc'), body = document.getElementById('body'), leaf = document.getElementById('leaf');
+const secs = PG.about(), N = PG.NOTICES_META, all = [...secs, N];
+leaf.innerHTML = `
+  <header class="leaf-head sec" id="s-intro"><div class="wm" id="wmIn" aria-label="MUME Cockpit"></div><div class="ver">WebCockpit ${PG.VERSION} (${PG.COMMIT})</div></header>
+  <span class="orn-rule" aria-hidden="true"></span>
+  <p class="lead-in">${PG.linked(secs[0].blocks[0].p)}</p>
+  ${secs.slice(1).map((s) => `<section class="sec" id="s-${s.id}"><h2>${PG.esc(s.title)}</h2>${PG.blocksHtml(s)}</section>`).join('')}
+  <section class="sec notices" id="s-notices"><h2>${N.title}</h2>${PG.notices()}</section>
+  <footer class="colophon"><span class="orn-rule" aria-hidden="true" style="margin:0 auto 8px"></span><img class="seal" src="${PG.SEAL}" alt="The M mark"></footer>`;
+toc.innerHTML = all.map((s, i) => `${s.id === 'notices' ? '<span class="rule"></span>' : ''}<div class="row" data-id="${s.id}"><span>${PG.sk(s.nav, s.sk)}</span></div>`).join('');
+const rows = [...toc.querySelectorAll('.row')];
+const jump = (id) => { const t = document.getElementById('s-' + id); if (!t) return; body.scrollTo({ top: id === 'intro' ? 0 : t.offsetTop - 18, behavior: WC.RM ? 'auto' : 'smooth' }); };
+toc.addEventListener('click', (e) => { const r = e.target.closest('.row'); if (r) jump(r.dataset.id); });
+// the rail follows the reading: the last section whose head has passed the upper third
+function spy() {
+  const y = body.scrollTop + body.clientHeight * .3;
+  let cur = 'intro';
+  for (const s of all) { const el = document.getElementById('s-' + s.id); if (el && el.offsetTop <= y) cur = s.id; }
+  if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4) cur = 'notices';
+  rows.forEach((r) => r.classList.toggle('on', r.dataset.id === cur));
+  const on = toc.querySelector('.on'); if (on && getComputedStyle(toc).flexDirection === 'row') on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+body.addEventListener('scroll', spy, { passive: true });
+const letters = Object.fromEntries(all.map((s) => [s.sk.toLowerCase(), () => jump(s.id)]));
+const app = PG.boot({
+  key: 'about', box: document.getElementById('page'), mode: 'into', into: document.getElementById('wmIn'),
+  onShown() { spy(); if (PG.qs.get('sec')) jump(PG.qs.get('sec')); },
+  layer: {
+    key(e) {
+      const page = body.clientHeight * .85;
+      const step = { ArrowDown: 40, ArrowUp: -40, PageDown: page, PageUp: -page, ' ': page, Enter: page }[e.key];
+      if (step) { body.scrollBy({ top: step, behavior: WC.RM ? 'auto' : 'smooth' }); return true; }
+      if (e.key === 'Home') { body.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+      if (e.key === 'End') { body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); return true; }
+      return WC.shortcut(e, letters);
+    },
+  },
+});
+spy();
+</script>
+</body>
+</html>

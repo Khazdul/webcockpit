@@ -1,0 +1,106 @@
+<!doctype html>
+<!--
+  Round 7 · Credits · A "Eftertexter" (end credits).
+  The large box (wordmark as the tiny corner mark, the neutral default). The real chronicle rises slowly up
+  the middle of the lit window, as today (about one line a second, fading in at the bottom and out at the
+  top), but typeset: each chapter is a role and a name like film credits ("The Tale of" / GIBUR, engraved
+  Cinzel), the deeds in Cormorant with the date in small caps, an ornament between chapters, "The End."
+  When The End has left the top the page returns to the start menu by itself (as today). Only Esc / Back.
+  Reduced motion: no roll; the chronicle stands still and scrolls with ↑↓ PgUp PgDn Home End.
+  URL: ?page (open at once) · ?at=0.3 (start part-way) · ?speed=4 · ?empty · ?filtered · ?error · ?loading
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Credits A Eftertexter</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+#page { --win-fill-large: rgba(13,10,8,.55); }
+#page > .win { padding: 44px 0 0; }
+.roll { position: relative; flex: 1; min-height: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 30%, #000 70%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 30%, #000 70%, transparent 100%); }
+.roll-col { position: absolute; left: 0; right: 0; top: 0; padding: 0 24px; will-change: transform; text-align: center; }
+.roll-col > * { max-width: 620px; margin-left: auto; margin-right: auto; }
+.cr-open { margin: 0 auto 120px; font: italic 500 23px/1.45 var(--serif); color: #e6d4b4; text-wrap: balance; }
+.cr-ch { margin: 0 auto 30px; }
+.cr-role { display: block; font: 600 13px/1.4 var(--display); letter-spacing: .3em; text-transform: uppercase; color: var(--c-dim); }
+/* the name: engraved into the iron, lit from above (dark upper edge, a lit lower lip) */
+.cr-name { display: block; margin: 8px 0 6px; font: 700 clamp(30px, 3.4vw, 44px)/1.1 var(--display); letter-spacing: .14em; color: #d9c29a;
+  text-shadow: 0 -1px 0 rgba(0,0,0,.95), 0 1px 0 rgba(255,226,180,.32), 0 0 18px rgba(255,190,120,.12); }
+.cr-deeds { margin: 34px auto 0; }
+.cr-deed { margin: 0 auto 26px; font: 500 20px/1.5 var(--serif); color: var(--c-text); text-wrap: balance; }
+.cr-deed .cr-date { display: block; font-size: 15px; letter-spacing: .12em; color: var(--c-head); margin-bottom: 2px; }
+.cr-orn { margin: 70px auto 80px; width: 180px; }
+.cr-end { margin: 60px auto 0; font: 700 28px/1 var(--display); letter-spacing: .24em; color: #e2cba2; text-shadow: 0 -1px 0 #000, 0 1px 0 rgba(255,226,180,.3); }
+/* reduced motion: a still page that scrolls */
+.roll.still { overflow: auto; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%); }
+.roll.still .roll-col { position: static; padding: 80px 24px 120px; }
+@media (max-width: 600px) {
+  .roll-col { padding: 0 16px; }
+  .cr-open { font-size: 20px; margin-bottom: 90px; }
+  .cr-name { font-size: 28px; letter-spacing: .1em; }
+  .cr-role { font-size: 11.5px; letter-spacing: .22em; }
+  .cr-deed { font-size: 18px; margin-bottom: 22px; }
+  .cr-deed .cr-date { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-large pgbox" id="page" data-hood="Credits" data-back aria-label="Credits">
+  <div class="win"><div class="roll" id="view"><div class="roll-col" id="col"></div></div></div>
+</section>
+<script src="../base/base.js"></script>
+<script src="common.js"></script>
+<script>
+const view = document.getElementById('view'), col = document.getElementById('col');
+const SPEED = 30;   // px per second: about one line a second, as today's 1 row/s
+const still = WC.RM;
+let anim = null, rate = +(PG.qs.get('speed') || 1), startedAt = 0;
+
+function render() {
+  const c = PG.chronicle();
+  if (!c || PG.qs.has('loading')) { col.innerHTML = ''; return; }
+  col.innerHTML = `<p class="cr-open">${PG.esc(c.opening)}</p>` + c.chapters.map((ch, i) => `
+    ${i ? '<span class="orn-rule cr-orn" aria-hidden="true"></span>' : ''}
+    <section class="cr-ch" aria-label="${PG.esc(ch.header)}">
+      <h2 style="margin:0">${ch.pre ? `<span class="cr-role">${PG.esc(ch.pre)}</span>` : ''}<span class="cr-name">${PG.esc(ch.name)}${ch.post.startsWith(',') ? ',' : ''}</span>${ch.post ? `<span class="cr-role">${PG.esc(ch.post.replace(/^,\s*/, ''))}</span>` : ''}</h2>
+      <div class="cr-deeds">${ch.deeds.map((d) => `<p class="cr-deed">${PG.deedHtml(d)}</p>`).join('')}</div>
+    </section>`).join('') + `<p class="cr-end">${PG.esc(c.end)}</p>`;
+}
+/** The roll: the first line starts where the lower fade band ends (today: on the bottom row, which
+    leaves the box empty for the first seconds); done when The End has left the top. */
+function roll(keepElapsed) {
+  if (still || !col.firstElementChild) return;
+  const vh = view.clientHeight, ch = col.scrollHeight;
+  const y0 = vh * .68, ms = ((y0 + ch) / SPEED) * 1000;
+  const elapsed = keepElapsed && anim ? Math.min(ms, anim.currentTime || 0) : (+(PG.qs.get('at') || 0)) * ms;
+  if (anim) { anim.onfinish = null; anim.cancel(); }
+  anim = col.animate([{ transform: `translateY(${y0}px)` }, { transform: `translateY(${-ch}px)` }], { duration: ms, easing: 'linear', fill: 'forwards' });
+  anim.currentTime = elapsed; anim.playbackRate = rate;
+  anim.onfinish = () => app.close();
+}
+const app = PG.boot({
+  key: 'credits', box: document.getElementById('page'), mode: 'corner',
+  onOpen() { render(); if (still) { view.classList.add('still'); view.scrollTop = 0; } else col.style.transform = `translateY(${view.clientHeight * .68}px)`; },
+  onShown() { roll(false); },
+  onClose() { if (anim) { anim.onfinish = null; anim.cancel(); anim = null; } col.innerHTML = ''; },
+  layer: {
+    key(e) {
+      if (!still) return !['Escape', 'Backspace'].includes(e.key) && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Enter'].includes(e.key);   // only Esc, as today
+      const step = { ArrowDown: 40, ArrowUp: -40, PageDown: view.clientHeight * .85, PageUp: -view.clientHeight * .85, ' ': view.clientHeight * .85 }[e.key];
+      if (step) { view.scrollBy({ top: step, behavior: 'smooth' }); return true; }
+      if (e.key === 'Home') { view.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+      if (e.key === 'End') { view.scrollTo({ top: view.scrollHeight, behavior: 'smooth' }); return true; }
+      return false;
+    },
+  },
+});
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => app.isOpen && anim && roll(true), 150); });
+// DEMO: roll speed (the app has one speed; this only helps the review)
+const d = WC.demoExtra('<div class="seasons"><span>Roll</span><button data-r="1">×1</button><button data-r="4">×4</button><button data-r="16">×16</button></div>');
+d.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { rate = +b.dataset.r; if (anim) anim.playbackRate = rate; }));
+</script>
+</body>
+</html>
