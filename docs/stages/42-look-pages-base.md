@@ -848,7 +848,7 @@ stage's test plan.
       `useReducedMotion`, `useSkyPause`, `LookWordmark`, `setRate('calm')`
 - [ ] 42a: measurements (morph, large box with and without blur); blur
       rule decided; `bench/results/look-box.md`
-- [ ] 42b: controls, widgets, icons, tokens (dark, Paper, inlay), `Seal`,
+- [x] 42b: controls, widgets, icons, tokens (dark, Paper, inlay), `Seal`,
       `useKeyboardInset`; gallery section; tests
 - [ ] 42c: stack (overlay, hold, key layers, Esc rule); `Dialog`,
       `KeyHelp`, `Popover`; cursors, button zone, `letterAction`; tests
