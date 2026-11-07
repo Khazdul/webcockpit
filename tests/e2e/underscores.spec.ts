@@ -346,16 +346,8 @@ for (const dpr of [1, 1.5]) {
     });
 
     it('accented capitals keep the marks they had before the lift: kit row, input line, output row', async ({ dprPage: page }) => {
-      await openProfiles(page);
+      await page.goto(DEMO);
       await expectDpr(page, dpr);
-      // A kit table row on the cell grid: History's (the Profiles list is new-look since stage 41, ADR 0125).
-      await page.keyboard.press('Escape');
-      await page.keyboard.press('h');
-      const tableRow = page.locator('.wc-start .wc-frame:not([hidden]) .wc-table-rows .wc-tr').nth(1);
-      await expect(tableRow).toBeVisible();
-      // Marked: the tests write the text straight into the element.
-      await tableRow.evaluate((el) => el.setAttribute('data-acc', ''));
-      const kitRow = page.locator('.wc-start .wc-frame:not([hidden]) [data-acc]');
       const setSpan = (loc: Locator) => (t: string) => loc.evaluate((el, t) => void (el.textContent = t + 'xxx'), t);
       const check = async (name: string, loc: Locator, set: (t: string) => Promise<void>, clip: boolean, where: string): Promise<void> => {
         const real = await marksInk(page, loc, set);
@@ -370,14 +362,8 @@ for (const dpr of [1, 1.5]) {
         expect(real.px, `${name}, ${where}: accent pixels ${real.px} vs ${ref.px} (plain one-cell line)`).toBeGreaterThanOrEqual(ref.px - (dpr === 1 ? 0 : 2));
         expect(real.ink, `${name}, ${where}: accent ink ${real.ink} vs ${ref.ink}`).toBeGreaterThanOrEqual(ref.ink * (dpr === 1 ? 0.98 : 0.8));
       };
-      for (const [font, size] of LOOKS) {
-        await look(page, font, size);
-        await check('kit list row', kitRow, setSpan(kitRow), true, `${font} ${size}`);
-      }
 
       // The cockpit: the input line and an output row (rows are not clipped one by one).
-      await page.goto(DEMO);
-      await expectDpr(page, dpr);
       const rows = page.locator('.wc-output .wc-row:not(.wc-partial)');
       await expect(rows.filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
       const input = page.locator('.wc-input-field');
@@ -394,6 +380,25 @@ for (const dpr of [1, 1.5]) {
         await look(page, font, size);
         await check('input line', input, (t) => input.fill(t + 'xxx'), true, `${font} ${size}`);
         await check('output row', out, setSpan(out), false, `${font} ${size}`);
+      }
+
+      // A kit row on the cell grid: the in-game Statistics pane's (the start
+      // page's lists are new-look DOM: Profiles since stage 41, ADR 0125;
+      // History since stage 45, ADR 0130). Last: its float covers the game text.
+      await page.evaluate(() => window.__wc!.settings.update((d) => void (d.panes.statistics.on = true)));
+      const tableRow = page.locator('.wc-pane[data-pane="statistics"] .wc-stats-pane .wc-line').nth(1);
+      await expect(tableRow).toBeVisible();
+      // Marked: the tests write the text straight into the element. A solid
+      // fill of its own, so it and its twin stand on the same colour (the
+      // pane's lantern frame paints a gradient under its rows).
+      await tableRow.evaluate((el) => {
+        el.setAttribute('data-acc', '');
+        (el as HTMLElement).style.background = 'rgb(0, 0, 0)';
+      });
+      const kitRow = page.locator('.wc-pane[data-pane="statistics"] [data-acc]');
+      for (const [font, size] of LOOKS) {
+        await look(page, font, size);
+        await check('kit list row', kitRow, setSpan(kitRow), true, `${font} ${size}`);
       }
     });
   });

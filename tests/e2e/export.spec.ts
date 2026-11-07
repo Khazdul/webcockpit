@@ -8,8 +8,9 @@ import { type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
 
 const frame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-const cur = (page: Page) => frame(page).locator('.wc-tr.is-cur-focus, .wc-tr.is-cur');
-const title = (page: Page) => frame(page).locator('.wc-title-row');
+/** History (stage 45, ADR 0130): its page, its rows, the chosen row. */
+const hist = (page: Page) => frame(page).locator('.wc-hist');
+const cur = (page: Page) => hist(page).locator('.wc-lk-tr.is-on');
 const exp = (page: Page) => frame(page).locator('.wc-exp');
 const counts = (page: Page) => frame(page).locator('.wc-exp-counts');
 const selHead = (page: Page) => frame(page).locator('.wc-exp-selhead');
@@ -32,23 +33,23 @@ async function openHistory(page: Page): Promise<void> {
     await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
   });
   await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
-  await expect(title(page)).toHaveText('─── History ───');
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
 }
 
 /** History → Export on the Rasta session (the History steps: one helper, stage 45 owns them). */
 async function openEditor(page: Page): Promise<void> {
   // History loads its sessions asynchronously; keys before that are lost.
-  await expect(frame(page).locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
+  await expect(hist(page).locator('.wc-lk-tr')).toHaveCount(3);
   await page.keyboard.press('Home');
   await page.keyboard.press('ArrowDown');
   await expect(cur(page)).toContainText('Rasta');
-  await frame(page).locator('[data-btn="EXPORT"]').click();
+  await hist(page).locator('[data-btn="EXPORT"]').click();
   await expect(exp(page)).toBeVisible();
   await expect(rows(page).first()).toBeVisible();
 }
 
 const backToHistory = async (page: Page): Promise<void> => {
-  await expect(title(page)).toHaveText('─── History ───');
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
 };
 
 test('export editor: comment, exclude, title, both formats, persistence', async ({ page }) => {
