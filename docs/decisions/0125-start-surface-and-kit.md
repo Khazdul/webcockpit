@@ -383,3 +383,20 @@ the sky running, reduced motion, going back).
 Total 3.7 s; the sky alone shows from about 0.9 to 2.2 s. Distances are
 measured when the transition starts (a resize during it keeps them). The
 timings live in `src/chrome/enter-transition.ts`.
+
+## Addendum 2026-11-07 (third round) — fade in place, a longer zoom
+
+The upward scroll did not look good: the wordmark, the panel, the quote
+and the notices now fade where they are; the almanac is still pushed
+down, a little faster. A quicker reveal of the sky, a longer zoom and a
+slower fade; a slightly longer transition overall. Replaces the table
+above:
+
+| phase | what | start | length | easing |
+|---|---|---|---|---|
+| leave | the wordmark, panel, quote and notice pills fade in place | 0 | 600 ms | ease-in-out |
+| slide | the almanac moves down past the bottom edge | 0 | 700 ms | ease-in |
+| zoom | the sky host scales to 1.1 about 50 % 45 %, most of it in the first ~2.3 s | 450 ms | 3850 ms | `cubic-bezier(0.35, 0, 0.25, 1)` |
+| fade | the whole surface fades out over the cockpit | 2300 ms | 2000 ms | ease-in-out |
+
+Total 4.3 s; the sky alone shows from about 0.7 to 2.3 s.

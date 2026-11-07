@@ -1,4 +1,4 @@
-// Enter MUME's transition (ADR 0125, addendum): the scenery scrolls away, the
+// Enter MUME's transition (ADR 0125, addendum): the scenery fades away, the
 // sky zooms and it fades out over the cockpit, which is shown, focused and
 // connecting from the first moment. Against a mocked MUME WebSocket.
 import { type Page, expect, test } from '@playwright/test';

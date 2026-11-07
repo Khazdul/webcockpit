@@ -132,8 +132,8 @@ is; re-derive the look in the app's own structure.
       alternatives in `round6/logo-3-cyan.html?tint=a|b|c` and
       `round6/logo-3-cyan-compare.html`); "M" favicon (svg, ico, 180 px)
 - [x] 41c: layout, menu, selection, shortcuts (E P S H L C A), quote A,
-      almanac, phone; Enter MUME scrolls the page away, zooms the sky and
-      fades into the game (3.7 s, `src/chrome/enter-transition.ts`)
+      almanac, phone; Enter MUME fades the page away, zooms the sky and
+      fades into the game (4.3 s, `src/chrome/enter-transition.ts`)
 - [x] Owner feedback 2026-11-07: mithril inlay (subtle tint d), row
       actions in the Profile list, profile name on Profile, the Enter
       MUME transition
@@ -185,8 +185,8 @@ shows fps.
    the old look over an opaque background as before; Back returns to the
    new menu; the log player returns to History.
 8. **Phone** (or a narrow window): the layout fits; taps work.
-9. **Enter MUME.** The wordmark, panel and quote scroll up out of view,
-   the almanac slides down, the sky zooms in (~2 s), then a 1.5 s fade
+9. **Enter MUME.** The wordmark, panel and quote fade where they are,
+   the almanac slides down, the sky zooms in (~2-3 s), then a 2 s fade
    into the game; typing at once goes to the game; reduced motion gives a
    short plain fade.
 10. **Performance feel.** Smooth, no stutter; the fan stays quiet.
@@ -211,7 +211,9 @@ shortcut letters, and the open questions in the session log.
   (replaces the 280 ms fade). After trying it: no folding; the panel
   and the wordmark scroll up out of view, the almanac is pushed down,
   then the sky zooms 1-2 s and the game fades in over 1-2 s (it was too
-  fast).
+  fast). Third round: the scroll up did not look good; the wordmark and
+  the panel fade in place, the almanac slides down a little faster, the
+  sky shows sooner, a longer zoom and a slower fade (4.3 s in all).
 - **The profile name** belongs on Profile, not Scripts: "PROFILE
   (khazdul)".
 - The in-game window kit's thin cyan border stays as it is for now.

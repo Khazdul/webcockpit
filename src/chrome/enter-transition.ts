@@ -1,16 +1,16 @@
 // Enter MUME's transition (ADR 0125, addenda "Enter MUME transition"):
 // the start page leaves over the cockpit in three phases.
 //
-//   leave  the wordmark, the menu panel and the quote scroll up out of
-//          view together; the almanac (bottom right) slides down out of
-//          view; the notices fade. Only the sky is left;
+//   leave  the wordmark, the menu panel, the quote and the notices fade
+//          where they are; the almanac (bottom right) slides down out of
+//          view. Only the sky is left;
 //   zoom   the sky host scales up (a compositor transform: the canvases
 //          are not repainted larger; the engine keeps drawing);
 //   fade   the whole surface fades out over the cockpit, which is already
 //          shown underneath, focused and connecting.
 //
-// The owner asked for an unhurried pace (2026-11-07): the zoom and the
-// fade take 1-2 s each. `prefers-reduced-motion`: a plain short fade of
+// The owner asked for an unhurried pace (2026-11-07): a quick leave, then
+// a long zoom and a slow fade. `prefers-reduced-motion`: a plain short fade of
 // the surface, nothing moves or zooms. Everything is Web Animations with
 // `fill: 'forwards'`, cancelled by `cancel()` (the start page shows
 // again: everything is as it was).
@@ -22,7 +22,7 @@ export interface Phase {
 }
 
 export interface EnterTiming {
-  /** The wordmark, panel and quote scroll up; the almanac slides down. */
+  /** The wordmark, panel and quote fade; the almanac slides down. */
   leave: Phase | null;
   /** The sky zooms in. */
   zoom: Phase | null;
@@ -35,10 +35,12 @@ export interface EnterTiming {
 /** How far the sky zooms in. */
 export const ENTER_ZOOM = 1.1;
 
-const LEAVE: Phase = { delay: 0, duration: 900 };
-/** Most of the zoom happens in its first ~1.8 s; it eases on through the fade. */
-const ZOOM: Phase = { delay: 700, duration: 3000 };
-const FADE: Phase = { delay: 2200, duration: 1500 };
+const LEAVE: Phase = { delay: 0, duration: 600 };
+/** The almanac's slide, a little longer than the fade. */
+const SLIDE: Phase = { delay: 0, duration: 700 };
+/** Most of the zoom happens in its first ~2.3 s; it eases on through the fade. */
+const ZOOM: Phase = { delay: 450, duration: 3850 };
+const FADE: Phase = { delay: 2300, duration: 2000 };
 const STILL_FADE: Phase = { delay: 0, duration: 220 };
 
 const end = (p: Phase): number => p.delay + p.duration;
@@ -57,7 +59,7 @@ export interface EnterRun {
 }
 
 const EASE_IN_OUT = 'cubic-bezier(0.45, 0, 0.55, 1)';
-/** A scroll that gathers speed and leaves. */
+/** A slide that gathers speed and leaves. */
 const EASE_IN = 'cubic-bezier(0.55, 0, 0.8, 0.35)';
 /** The zoom: an even start, most of the travel early, a long soft tail. */
 const ZOOM_EASE = 'cubic-bezier(0.35, 0, 0.25, 1)';
@@ -79,20 +81,15 @@ export function playEnter(surface: HTMLElement, reduced: boolean): EnterRun {
   if (t.leave) {
     const l = t.leave;
     const vh = surface.ownerDocument.defaultView?.innerHeight ?? 0;
-    // Up and away as one block: far enough that the lowest of them (the
-    // quote) clears the top edge.
-    const up = all('.wc-start-brand, .wc-sm-panel, .wc-sm-quote');
-    const bottom = Math.max(0, ...up.map((el) => el.getBoundingClientRect().bottom));
-    const rise = `0 ${-Math.ceil(bottom + 48)}px`;
-    for (const el of up) run(el, [{ translate: '0 0' }, { translate: rise }], l, EASE_IN);
-    // The almanac goes the other way, out under the bottom edge.
+    // The wordmark, the panel, the quote and the notices fade where they are.
+    for (const el of all('.wc-start-brand, .wc-sm-panel, .wc-sm-quote, .wc-start-pills')) {
+      run(el, [{ opacity: 1 }, { opacity: 0 }], l, EASE_IN_OUT);
+    }
+    // The almanac is pushed down, out under the bottom edge.
     for (const el of all('.wc-start-almanac')) {
       const top = el.getBoundingClientRect().top;
       const fall = `0 ${Math.ceil(Math.max(vh, top) - top + 48)}px`;
-      run(el, [{ translate: '0 0' }, { translate: fall }], l, EASE_IN);
-    }
-    for (const el of all('.wc-start-pills')) {
-      run(el, [{ opacity: 1 }, { opacity: 0 }], { delay: l.delay, duration: Math.round(l.duration / 2) }, 'linear');
+      run(el, [{ translate: '0 0' }, { translate: fall }], SLIDE, EASE_IN);
     }
   }
   if (t.zoom) {

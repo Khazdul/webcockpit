@@ -83,7 +83,7 @@ export interface StartPageHandle {
   /**
    * Plays Enter MUME's transition (ADR 0125): the page stays visible and
    * its sky keeps running, its frame stack lets go of the keys and the
-   * focus, its pointer events stop, and its scenery scrolls away, the sky zooms and it fades out.
+   * focus, its pointer events stop, and its scenery fades away, the sky zooms and it fades out.
    * The caller shows the cockpit under it and hides the page once
    * `finished` resolves true. `show()` and `hide()` cancel it and put
    * every element back. Null when the page is not visible or the browser

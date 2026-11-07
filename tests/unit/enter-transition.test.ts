@@ -5,21 +5,21 @@ import { describe, expect, it } from 'vitest';
 import { ENTER_ZOOM, enterTiming, playEnter } from '../../src/chrome/enter-transition';
 
 describe('enterTiming', () => {
-  it('leaves, then zooms, then fades, unhurried (the zoom and the fade 1-2 s each)', () => {
+  it('leaves, then zooms, then fades, unhurried (a quick leave, a long zoom, a slow fade)', () => {
     const t = enterTiming(false);
     expect(t.leave && t.zoom).toBeTruthy();
     const leave = t.leave!;
     const zoom = t.zoom!;
     expect(leave.delay).toBe(0);
-    expect(leave.duration).toBeGreaterThanOrEqual(600);
+    expect(leave.duration).toBeGreaterThanOrEqual(400);
     expect(leave.duration).toBeLessThanOrEqual(1200);
     // The zoom starts as the scenery is nearly gone; the fade after it.
     expect(zoom.delay).toBeLessThanOrEqual(leave.duration);
     expect(zoom.delay).toBeGreaterThanOrEqual(leave.duration / 2);
     expect(t.fade.delay).toBeGreaterThanOrEqual(zoom.delay + 1000);
-    expect(t.fade.delay - zoom.delay).toBeLessThanOrEqual(2000);
+    expect(t.fade.delay - zoom.delay).toBeLessThanOrEqual(2500);
     expect(t.fade.duration).toBeGreaterThanOrEqual(1000);
-    expect(t.fade.duration).toBeLessThanOrEqual(2000);
+    expect(t.fade.duration).toBeLessThanOrEqual(2500);
     expect(t.total).toBe(t.fade.delay + t.fade.duration);
     expect(ENTER_ZOOM).toBeGreaterThan(1);
     expect(ENTER_ZOOM).toBeLessThanOrEqual(1.15);
@@ -82,17 +82,15 @@ function surface(): { el: HTMLElement; played: Played[] } {
 const on = (played: Played[], cls: string): Played[] => played.filter((p) => p.el.classList.contains(cls));
 
 describe('playEnter', () => {
-  it('scrolls the scenery up, the almanac down, zooms the sky and fades the surface last', async () => {
+  it('fades the scenery in place, slides the almanac down, zooms the sky and fades the surface last', async () => {
     const { el, played } = surface();
     const run = playEnter(el, false);
     const t = enterTiming(false);
     for (const c of ['wc-start-brand', 'wc-sm-panel', 'wc-sm-quote']) {
       const [a] = on(played, c);
-      expect(a?.frames.at(-1)?.translate).toMatch(/^0 -\d+px$/);
+      expect(a?.frames.at(-1)).toEqual({ opacity: 0 });
       expect(a?.opts).toMatchObject({ delay: t.leave!.delay, duration: t.leave!.duration, fill: 'forwards' });
     }
-    // One block: the same distance for all three.
-    expect(new Set(['wc-start-brand', 'wc-sm-panel', 'wc-sm-quote'].map((c) => on(played, c)[0]?.frames.at(-1)?.translate)).size).toBe(1);
     const [alm] = on(played, 'wc-start-almanac');
     expect(alm?.frames.at(-1)?.translate).toMatch(/^0 \d+px$/);
     const [zoom] = on(played, 'wc-start-skyhost');
