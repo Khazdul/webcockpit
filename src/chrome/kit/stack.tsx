@@ -48,7 +48,12 @@ export interface Flash {
 export const FLASH_MS = 3000;
 
 export interface Nav {
-  push(node: VNode): void;
+  /**
+   * Pushes a frame. `overlay`: the frame below stays drawn, veiled and
+   * inert (a dialog over the page; stage 42c, ADR 0127). 42-0 stub: the
+   * option is accepted and the push is a normal one.
+   */
+  push(node: VNode, opts?: { overlay?: boolean }): void;
   /** Pops `n` frames (never the root; on the root it calls the stack's `onRootBack`). */
   pop(n?: number): void;
   /** Replaces the top frame. */
@@ -91,6 +96,15 @@ function useFrameCtx(): FrameCtxValue {
 /** Registers the frame's key handler (latest closure wins). */
 export function useKeys(handler: KeyHandler): void {
   useFrameCtx().entry.keys.current = handler;
+}
+
+/**
+ * A key layer over the frame's handler (a popover, an inline dialog): while
+ * `active` (default true) it gets the frame's keys first, the top layer
+ * first; true = consumed. Stage 42c, ADR 0127. 42-0 stub: not routed yet.
+ */
+export function useKeyLayer(_handler: KeyHandler, _active = true): void {
+  useFrameCtx();
 }
 
 export function useNav(): Nav {
@@ -187,6 +201,12 @@ export interface FrameStackProps {
   frameAttrs?: (node: VNode) => { class?: string; style?: JSX.CSSProperties } | null;
   /** Extra content inside the host (e.g. a size notice). */
   children?: ComponentChildren;
+  /**
+   * The hold (stage 42c, ADR 0127): ms the frame below (a push) or the
+   * popped frame (a pop) stays drawn, inert and out of the key path, so
+   * the surface's fades are real. 42-0 stub: accepted, not used yet.
+   */
+  hold?: (from: VNode, to: VNode, dir: 'push' | 'pop') => number;
 }
 
 const isTextField = (t: EventTarget | null): boolean => {
