@@ -152,8 +152,17 @@ test('Profile and Options → Scripts open their frames in the menu, not windows
   await expect(page.locator('.wc-app')).toBeVisible();
   await page.locator('.wc-menu-btn').tap();
   await menu(page).locator('.wc-mrow[data-key="profile"]').tap();
-  await expect(menu(page).locator('.wc-ped-title .wc-c-section')).toContainText('Profile Edit');
+  // The editor in the new look, full screen in the menu (place `menu`, ADR 0127, 0128).
+  const pe = menu(page).locator('.wc-pe');
+  await expect(pe).toHaveAttribute('data-view', 'lite');
+  await expect(pe).toHaveClass(/\bis-menu\b/);
+  await expect(menu(page).locator('.wc-lk-box-full .wc-lk-hood-t')).toHaveText('Profile');
   await expect(page.locator('.wc-win')).toHaveCount(0);
+  // Back (top left) returns to the menu, as Esc does.
+  await menu(page).locator('.wc-lk-back').tap();
+  await expect(menu(page).locator('.wc-mrow[data-key="profile"]')).toBeVisible();
+  await menu(page).locator('.wc-mrow[data-key="profile"]').tap();
+  await expect(pe).toHaveAttribute('data-view', 'lite');
   await page.keyboard.press('Escape');
   await expect(menu(page).locator('.wc-mrow[data-key="options"]')).toBeVisible();
   await menu(page).locator('.wc-mrow[data-key="options"]').tap();

@@ -266,8 +266,11 @@ test('Settings opens its popup (ADR 0107); Scripts and Profile open their window
   await expect(field(page)).toBeFocused();
   await field(page).fill('#profile');
   await page.keyboard.press('Enter');
-  const ped = page.locator('.wc-win[data-win="profile"] .wc-frame:not([hidden]) > .wc-ped');
-  await expect(ped.locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: default ───');
+  // The editor in the window's Lykta frame: "Profile" with the profile's name as the note (ADR 0127, 0128).
+  const profileWin = page.locator('.wc-win[data-win="profile"]');
+  await expect(profileWin.locator('.wc-frame:not([hidden]) .wc-pe')).toHaveAttribute('data-view', 'lite');
+  await expect(profileWin.locator('.wc-win-t')).toHaveText('Profile');
+  await expect(profileWin.locator('.wc-win-n')).toHaveText('default');
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(overlay(page)).toBeHidden();

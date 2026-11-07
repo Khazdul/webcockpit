@@ -177,10 +177,12 @@ test('Profile: a tap on the highlighted profile selects it, a tap on the selecte
   await name.tap();
   await expect.poll(profile).toBe('phoneprof');
   await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
-  await expect(page.locator('.wc-ped')).toHaveCount(0);
+  await expect(page.locator('.wc-pe')).toHaveCount(0);
   await name.tap();
-  // The editor opens (its title is cut to the phone's width).
-  await expect(page.locator('.wc-frame:not([hidden]) > .wc-ped .wc-ped-title .wc-c-section')).toHaveText(/^─── Profile Editor/);
+  // The editor opens in the large box (ADR 0128), one column on the phone.
+  const pe = page.locator('.wc-frame:not([hidden]) .wc-pe');
+  await expect(pe.locator('.wc-pe-name')).toHaveText(/^phoneprof/);
+  await expect(pe).toHaveAttribute('data-layout', 'narrow');
 });
 
 test('the command line is a textarea: Enter sends, no newline; the password prompt is masked', async ({ page }) => {
