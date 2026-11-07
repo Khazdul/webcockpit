@@ -163,3 +163,19 @@ largest whole-cell grid that fits it, centred (at the default cell size
 the same `w - 2 × h - 2` cells as before). The resize bands lie over the
 band's outer edge instead of the margin cells. `ProfileRoot` moved to
 `src/chrome/frames/profile-window.tsx`.
+
+## Addendum (2026-11-07, stage 43b)
+
+The Profile window's content is in the new look (ADR 0128 "43b"): its
+root frame is a look frame (`ProfileHome`, shared with the phone's
+`#profile` in the ESC menu) that opens the profile editor B over itself
+at once; while the editor's chunk loads it shows the profile's name and,
+after 300 ms, "Opening <name>…"; after a failure the failure stays on it
+with Edit (E, Enter), and Esc or X closes. The editor's head line follows
+the connection while the window is open (`profileEditOptions`'
+`onLiveChange`, called only when connected flips). The focus rules above
+are unchanged and hold for the editor's real inputs and textareas: a
+press in the game takes the window's focus and is a Lite commit point, a
+window without the focus never focuses a field (also on a re-render), and
+typing in the editor never reaches the game input. At the minimum size
+the editor is one column (the list, the entry as a sheet, the dialogs).

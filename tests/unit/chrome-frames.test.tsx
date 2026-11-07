@@ -610,14 +610,16 @@ describe('ESC menu', () => {
     const menu = mountEscMenu(host, services(), { status: view(status()), close, reconnect: vi.fn(), exit: vi.fn() });
     cleanup.push(() => menu.dispose());
     await act(() => menu.open({ target: 'profile' }));
-    expect(title(host)).toBe('─── Profile ───');
+    // A look frame (stage 43b): the full-screen box with its hood; the failure stays on the page with Edit.
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-lk-box-full .wc-lk-hood-t')?.textContent).toBe('Profile');
     await vi.waitFor(
       async () => {
         await act(async () => {});
-        expect(host.querySelector('.wc-frame:not([hidden]) .wc-flash')?.textContent).toMatch(/profile|editor/i);
+        expect(host.querySelector('.wc-frame:not([hidden]) .wc-pw-flash')?.textContent).toMatch(/profile|editor/i);
       },
       { timeout: 10_000 },
     );
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-pw [data-btn="EDIT"]')).not.toBeNull();
     await key('Escape');
     expect(close).toHaveBeenCalledTimes(1);
   });

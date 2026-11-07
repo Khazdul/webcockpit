@@ -14,8 +14,8 @@ const overlay = (page: Page) => page.locator('.wc-overlay');
 const popup = (page: Page) => page.locator('.wc-pop');
 /** The visible frame's title inside window `id`. */
 const frameTitle = (page: Page, id: string) => win(page, id).locator('.wc-frame:not([hidden]) .wc-title-row .wc-c-section');
-/** The profile editor's view toggle (it is up once the editor is). */
-const editorToggle = (page: Page) => win(page, 'profile').locator('.wc-frame:not([hidden]) .wc-ped-toggle');
+/** The profile editor's views (they are up once the editor is; ADR 0128). */
+const editorToggle = (page: Page) => win(page, 'profile').locator('.wc-frame:not([hidden]) .wc-pe .wc-pe-views');
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -267,57 +267,74 @@ async function enterMume(page: Page, profile: string): Promise<void> {
   await expect(field(page)).toBeFocused();
 }
 
-const ped = (page: Page) => win(page, 'profile').locator('.wc-frame:not([hidden]) > .wc-ped');
-const modal = (page: Page) => ped(page).locator('.wc-ped-overlay');
+const ped = (page: Page) => win(page, 'profile').locator('.wc-frame:not([hidden]) .wc-pe');
+/** The editor's inline dialogs (stage 42's `Dialog`, drawn inside the window). */
+const modal = (page: Page) => win(page, 'profile').locator('.wc-lk-dialog');
 const stored = (page: Page) => page.evaluate(() => window.__wc!.shell.profiles.get('default').then((r) => r?.text ?? null));
 
 /** Opens the Profile window from the bar and adds an alias `name` (unsaved). */
 async function editAlias(page: Page, name: string): Promise<void> {
   await icon(page, 'profile').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
-  await ped(page).locator('[data-kind="alias"]').first().click();
-  await page.keyboard.press('ArrowDown');
+  await expect(ped(page)).toHaveAttribute('data-view', 'lite');
+  await page.keyboard.press('i');
+  await expect(ped(page)).toHaveAttribute('data-kind', 'alias');
   await expect(ped(page)).toHaveAttribute('data-zone', 'list');
   await page.keyboard.press('n');
   await page.keyboard.type(name);
-  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue(name);
+  await expect(ped(page).locator('[data-field="pattern"] input')).toHaveValue(name);
+}
+
+/** Opens the Profile window from the bar, in Editor, and types `line` at the end (unapplied). */
+async function editText(page: Page, line: string): Promise<void> {
+  await icon(page, 'profile').click();
+  await ped(page).locator('.wc-pe-views [data-opt="editor"]').click();
+  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
+  await expect(ped(page).locator('.cm-content')).toBeFocused();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(line);
+  await expect(ped(page)).toHaveAttribute('data-unapplied', 'true');
 }
 
 test('X with unsaved changes asks Apply / Discard / Keep editing, as Esc does', async ({ page }) => {
   const errors = watchErrors(page);
   await enterMume(page, '#alias {a} {b}\n');
+  // A Lite edit applies where it is finished: X leaves the field, applies it and closes (ADR 0105, 0128).
   await editAlias(page, 'q');
   const x = win(page, 'profile').locator('.wc-win-x');
   await x.click();
-  await expect(modal(page)).toContainText('Apply changes to your profile?');
+  await expect(win(page, 'profile')).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {q} {}\n');
+
+  // An Editor edit waits for Ctrl+S: X asks.
+  await editText(page, '#alias {w} {}');
+  await x.click();
+  const ask = modal(page).and(page.locator('[data-dlg="apply"]'));
+  await expect(ask).toContainText('Apply changes to your profile?');
   await expect(win(page, 'profile')).toHaveAttribute('data-focused', '');
-  // Keep editing: the window stays, and a later Esc out of the editor still asks.
+  // Keep editing: the window stays, and a later X still asks.
   await page.keyboard.press('Escape');
   await expect(modal(page)).toHaveCount(0);
   await expect(win(page, 'profile')).toBeVisible();
+  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
   await x.click();
-  await expect(modal(page)).toContainText('Apply changes to your profile?');
+  await expect(ask).toContainText('Apply changes to your profile?');
   await page.keyboard.press('n'); // discard: the window closes
   await expect(win(page, 'profile')).toHaveCount(0);
   await expect(field(page)).toBeFocused();
-  expect(await stored(page)).toBe('#alias {a} {b}\n');
+  expect(await stored(page)).toBe('#alias {a} {b}\n#alias {q} {}\n');
 
   // Esc in the game input reaches the window: it takes the focus and asks; Y applies and closes.
-  // (A LITE edit applies by itself when the game is clicked, ADR 0105; an EDITOR edit waits.)
-  await icon(page, 'profile').click();
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Control+End');
-  await page.keyboard.type('#alias {r} {}\n');
+  // (A Lite edit applies by itself when the game is clicked, ADR 0105; an Editor edit waits.)
+  await editText(page, '#alias {r} {}\n');
   await page.locator('.wc-game').click({ position: { x: 20, y: 20 } });
   await expect(win(page, 'profile')).not.toHaveAttribute('data-focused', '');
   await page.keyboard.press('Escape');
   await expect(win(page, 'profile')).toHaveAttribute('data-focused', '');
-  await expect(modal(page)).toContainText('Apply changes to your profile?');
+  await expect(ask).toContainText('Apply changes to your profile?');
   await page.keyboard.press('y');
   await expect(win(page, 'profile')).toHaveCount(0);
-  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {r} {}\n');
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {q} {}\n#alias {r} {}\n');
   expect(errors).toEqual([]);
 });
 

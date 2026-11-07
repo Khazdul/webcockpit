@@ -44,6 +44,8 @@ import type { CommitProfile } from '../../profiles';
 import { OptionsHub } from './options';
 import { LiveStatsFrame } from './statistics';
 import { editProfile } from './profile-edit';
+import { ProfileHome, profileEditOptions } from './profile-window';
+import { lookFrame } from '../kit/look';
 
 export interface EscActions {
   status: AppStatusView;
@@ -168,45 +170,19 @@ export function EscMain(p: EscMainProps): VNode {
   );
 }
 
-/** The editor options of the ESC menu's Profile and the Profile window: live apply while connected. */
-export function profileEditOptions(
-  p: Pick<EscActions, 'status' | 'commitProfile' | 'flushWriteBack'>,
-  onSaved: ((name: string) => void) | undefined,
-) {
-  return {
-    isLive: () => isLive(p.status.get()),
-    commit: p.commitProfile,
-    beforeLoad: p.flushWriteBack,
-    onSaved,
-  };
-}
+export { profileEditOptions } from './profile-window';
 
 /**
  * The ESC menu opened straight at the profile editor (the phone's
- * `#profile`, ADR 0099; the menu bar has the Profile window, ADR 0103): the root frame loads the active
+ * `#profile`, ADR 0099; the menu bar has the Profile window, ADR 0103): a
+ * look frame (the full-screen box, place `menu`) that loads the active
  * profile's editor over itself, as ESC → Profile does, and closes the menu
- * once the editor is left. A load failure is flashed here; Esc closes.
+ * once the editor is left. A failure stays on it with Edit (stage 43b,
+ * profile-window.tsx `ProfileHome`); Esc or Back closes.
  */
-export function ProfileEntry(p: EscActions): VNode {
-  const nav = useNav();
-  const isTop = useIsTop();
-  const settings = useSettings();
-  const { profiles, onProfileSaved } = useServices();
-  const left = useRef(false);
-  useEffect(() => {
-    void editProfile(nav, profiles, settings.profile, profileEditOptions(p, onProfileSaved));
-  }, []);
-  useEffect(() => {
-    if (!isTop) left.current = true;
-    else if (left.current) p.close();
-  }, [isTop]);
-  return (
-    <Page title="Profile" footer={['ESC Close']}>
-      <Blank />
-      <FlashRow />
-    </Page>
-  );
-}
+export const ProfileEntry = lookFrame(function ProfileEntry(p: EscActions): VNode {
+  return <ProfileHome host={p} close={p.close} />;
+});
 
 /**
  * True while `runs` has a run in progress. Re-read after every run event
