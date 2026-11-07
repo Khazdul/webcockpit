@@ -721,6 +721,7 @@ input.wc-scr-val {
 
 .wc-scr-codebox {
   flex: 1;
+  text-align: left;
   display: flex;
   min-width: 0;
   max-height: 46vh;
@@ -767,6 +768,11 @@ input.wc-scr-val {
 [data-light] .wc-look .wc-scr-helpcol .wc-scr-help,
 .wc-look[data-light] .wc-scr-helpcol .wc-scr-help {
   background: var(--lk-well);
+}
+
+/* Clear of the box's Back (taller on a phone). */
+html.wc-phone .wc-scr-panel > .wc-lk-btn[data-btn="LIST"] {
+  margin-top: 8px;
 }
 
 html.wc-phone .wc-scr-title {
@@ -833,5 +839,16 @@ html.wc-phone .wc-scr-helptext {
 
   .wc-scr-count {
     display: none;
+  }
+
+  /* The flash gets a line of its own over the buttons. */
+  .wc-scr-foot {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .wc-scr-flash {
+    order: -1;
+    flex-basis: 100%;
   }
 }
