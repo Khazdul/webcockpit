@@ -183,10 +183,12 @@ test('Export editor: the overview strip thumb drags the log; the press that ends
   });
   await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   const f = startFrame(page);
-  await expect(f.locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
+  // History in the new look (stage 45): the Rasta session is the second row.
+  await expect(f.locator('.wc-hist .wc-lk-tr')).toHaveCount(3);
   await page.keyboard.press('Home');
   await page.keyboard.press('ArrowDown');
-  await f.locator('[data-btn="EXPORT"]').click();
+  await expect(f.locator('.wc-hist .wc-lk-tr.is-on .wc-hist-char')).toHaveText('Rasta');
+  await f.locator('.wc-hist [data-btn="EXPORT"]').click();
   await expect(f.locator('.wc-exp')).toBeVisible();
   const log = f.locator('.wc-exp-log');
   const thumb = f.locator('.wc-exp-thumb');

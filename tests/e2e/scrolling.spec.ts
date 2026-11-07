@@ -86,14 +86,15 @@ test('History table scrolls by pixels; the cursor stays in view', async ({ page 
   await page.goto('/');
   await restoreRuns(page, 8);
   await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
-  await expect(startFrame(page).locator('.wc-title-row')).toHaveText('─── History ───');
-  const box = startFrame(page).locator('.wc-table-rows');
-  await expect(box.locator('.wc-tr:not(.is-empty)')).toHaveCount(35);
-  await expectPixelWheel(page, box);
+  // History in the new look (stage 45): the kit table's body scrolls under its heads.
+  const box = startFrame(page).locator('.wc-hist .wc-lk-tbody');
+  await expect(box.locator('.wc-lk-tr')).toHaveCount(35);
+  await expectPixelWheel(page, box, '.wc-lk-tr');
   // End moves the cursor to the last row and pulls the view along.
   await page.keyboard.press('End');
-  await expect(box.locator('.wc-tr.is-cur-focus')).toContainText('Gittan 2026-09-25');
-  await expect(box.locator('.wc-tr.is-cur-focus')).toBeInViewport({ ratio: 0.9 });
+  await expect(box.locator('.wc-lk-tr.is-on .wc-hist-date')).toHaveText('2026-09-25');
+  await expect(box.locator('.wc-lk-tr.is-on .wc-hist-char')).toHaveText('Gittan');
+  await expect(box.locator('.wc-lk-tr.is-on')).toBeInViewport({ ratio: 0.9 });
   await page.keyboard.press('Home');
   await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
 });
@@ -103,16 +104,22 @@ test('Statistics tables scroll by pixels', async ({ page }) => {
   await page.goto('/');
   await restoreRuns(page);
   await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
-  await expect(startFrame(page).locator('.wc-title-row')).toHaveText('─── History ───');
-  await page.keyboard.press('ArrowDown');
-  await expect(startFrame(page).locator('.wc-tr.is-cur-focus')).toContainText('Rasta');
-  await startFrame(page).locator('[data-btn="STATS"]').click();
-  const stats = startFrame(page).locator('.wc-stats');
+  // History and its Statistics in the new look (stage 45).
+  const hist = startFrame(page).locator('.wc-hist');
+  // (No pinned clock: the unsaved demo sessions may have expired; the saved Rasta one stays.)
+  await hist.locator('.wc-lk-tr .wc-hist-char', { hasText: 'Rasta' }).click();
+  await expect(hist.locator('.wc-lk-tr.is-on .wc-hist-char')).toHaveText('Rasta');
+  await hist.locator('[data-btn="STATS"]').click();
+  const stats = startFrame(page).locator('.wc-hs-box');
   await expect(stats).toContainText('*Ibuki the Half-Elf*');
-  const kills = stats.locator('.wc-stat-col[data-table="2"] .wc-scrollbox');
-  await expectPixelWheel(page, kills);
-  // The wheel focused KILLS: its title is gold; ↓ scrolls it by a row.
-  await expect(stats.locator('.wc-c-accent.wc-stat-sort').first()).toHaveText('KILLS');
+  // Allies first: the wheel must move the focus to Kills.
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(stats.locator('.wc-hs-sec.is-focus')).toHaveAttribute('data-sec', 'allies');
+  const kills = stats.locator('[data-tbl="kills"] .wc-lk-tbody');
+  await expectPixelWheel(page, kills, '.wc-lk-tr');
+  // The wheel focused Kills (its head in the accent colour); ↓ scrolls it by a row.
+  await expect(stats.locator('.wc-hs-sec.is-focus')).toHaveAttribute('data-sec', 'kills');
   await page.keyboard.press('Home');
   await expect.poll(() => kills.evaluate((el) => el.scrollTop)).toBe(0);
   await page.keyboard.press('ArrowDown');
@@ -172,10 +179,11 @@ test('Export editor log scrolls by pixels; the rows near the view are rendered',
   await restoreRuns(page);
   await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   const f = startFrame(page);
-  await expect(f.locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
+  // History in the new look (stage 45).
+  await expect(f.locator('.wc-hist .wc-lk-tr')).toHaveCount(3);
   await page.keyboard.press('ArrowDown');
-  await expect(f.locator('.wc-tr.is-cur-focus')).toContainText('Rasta');
-  await f.locator('[data-btn="EXPORT"]').click();
+  await expect(f.locator('.wc-hist .wc-lk-tr.is-on .wc-hist-char')).toHaveText('Rasta');
+  await f.locator('.wc-hist [data-btn="EXPORT"]').click();
   await expect(f.locator('.wc-exp')).toBeVisible();
   const log = f.locator('.wc-exp-log');
   await expect(log.locator('.wc-exp-row').first()).toBeVisible();

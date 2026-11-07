@@ -2,10 +2,8 @@
 // phone. History → Export on the demo backup: the layout fits the screen
 // (the bar wraps, the strip is hidden, the toggle and Export on one row),
 // margin taps select and extend, Exclude by a tap, a comment written in the
-// inline composer, and both formats exported (download events).
-//
-// Until stage 45 removes History's phone gate ("Export: desktop only.") the
-// tests skip themselves; after the merge they run.
+// inline composer, and both formats exported (download events). Stage 45
+// removed History's phone gate ("Export: desktop only.").
 import { type Locator, type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
 
@@ -34,14 +32,13 @@ async function openExport(page: Page): Promise<void> {
     await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
   });
   await frame(page).locator('.wc-sm-item[data-key="history"]').tap();
-  await expect(frame(page).locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
-  // Rasta is the second session; the old History's buttons sit off to the side on a phone.
-  await page.keyboard.press('Home');
-  await page.keyboard.press('ArrowDown');
-  await frame(page).locator('[data-btn="EXPORT"]').dispatchEvent('click');
-  const gate = frame(page).getByText('Export: desktop only.');
-  await expect(exp(page).or(gate)).toBeVisible();
-  test.skip(await gate.isVisible(), 'History still gates Export on the phone (stage 45 removes the gate)');
+  // History (stage 45): Rasta is the second session; a tap chooses it and opens its card under the row.
+  const hist = frame(page).locator('.wc-hist');
+  await expect(hist.locator('.wc-lk-tr')).toHaveCount(3);
+  await hist.locator('.wc-lk-tr').nth(1).tap();
+  await expect(hist.locator('.wc-lk-tr.is-on .wc-hist-char')).toHaveText('Rasta');
+  await hist.locator('.wc-hist-card [data-btn="EXPORT"]').tap();
+  await expect(exp(page)).toBeVisible();
   await expect(row(page, 0)).toBeVisible();
 }
 

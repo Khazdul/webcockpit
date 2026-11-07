@@ -245,34 +245,6 @@ test('the Scripts name dialog: its field has the focus; Enter confirms', async (
   await expect(page.locator('.wc-frame:not([hidden]) .wc-sed')).toHaveAttribute('data-script', 'phonenew');
 });
 
-test('Statistics stack their sides; History swipes sideways to every column', async ({ page }) => {
-  await page.goto('/?phone=1');
-  await page.waitForFunction(() => window.__wc !== undefined);
-  await page.evaluate(async () => {
-    const lib = await window.__wc!.runs();
-    await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
-  });
-  await tapRow(page, 'history');
-  const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── History ───');
-  // The last column is wider than the screen; the body scrolls to it.
-  const body = f.locator('.wc-body');
-  const [sw, cw] = await body.evaluate((b) => [b.scrollWidth, b.clientWidth]);
-  expect(sw).toBeGreaterThan(cw);
-  await body.evaluate((b) => (b.scrollLeft = b.scrollWidth));
-  await inView(page, f.locator('.wc-th', { hasText: 'Rating' }));
-  await body.evaluate((b) => (b.scrollLeft = 0));
-  await f.locator('[data-btn="STATS"]').tap();
-  const stats = f.locator('.wc-stats');
-  await expect(stats).toContainText('KILLS');
-  // KILLS and PvPs one above the other, each inside the screen.
-  const kills = (await stats.locator('[data-sort="name"]').first().boundingBox())!;
-  const pvps = (await stats.locator('[data-sort="name"]').nth(1).boundingBox())!;
-  expect(pvps.y).toBeGreaterThan(kills.y);
-  await inView(page, stats.locator('[data-sort="xpTotal"]'));
-  await expect(stats.locator('.wc-footer')).not.toContainText('…');
-});
-
 for (const [width, dpr] of [
   [412, 3.5],
   [384, 2.625],

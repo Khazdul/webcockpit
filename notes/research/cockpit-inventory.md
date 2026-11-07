@@ -2739,6 +2739,28 @@ subscribe to the in-memory event stream instead of re-reading storage every seco
 Main-menu entry **History** (start page). Lists **sessions** (stitched chains, § 7.2), never
 the active run.
 
+> WebCockpit (2026-11-07, stage 45, WebCockpit ADR 0130): History is in
+> the new look, "Tabell och kort" in the large box of layout B, capped at
+> its content width (1180 px) and centred on a wide window. The pill row
+> (`All` + one per character) scrolls sideways instead of windowing with
+> `‹ ›`; a "?" button and the `?` key show the keys in a small box (no
+> footer). The table (the same six sortable columns, sort rules
+> unchanged, ▾ / ▴ in the heads) sits beside a **card** for the chosen
+> session: name, level, the long date and time, duration and runs, deeds
+> (kills · PvP · deaths summed from the run summaries), kept (Saved and
+> stars, or "Expires in N days" with a draining gauge), and whether text
+> was captured. The card holds the six actions as glass buttons (Run log,
+> Stats, Rate, Save, Export, Delete) with the letters R T A S X D; Backup
+> (B) and Restore (O) sit in the foot with the flash and the storage line.
+> A row click selects; Enter, a double click or R opens the log player
+> (Cockpit: a click opened it). ← / → change the pill; Tab / Shift+Tab
+> move rows ↔ buttons. Stats opens in the same box (`Statistics`, § 7.3);
+> Rate and Delete are small boxes over the veiled page with the same keys
+> (Delete: Y deletes, any other key cancels). A run log that cannot open
+> shows a box with the reason (Cockpit: nothing). Export works on a phone
+> too. On a narrow page (< 680 px of content) the heads give way to a
+> sort list, rows take two lines and the card opens under the chosen row.
+
 ```
                          ─── History ───
               [ All ]  Gittan   Melker   Rasta
@@ -2804,6 +2826,17 @@ parse every run's events).
 
 Opened from History (RUN LOG / row). Replays the chain's `.log` files as one timeline.
 Opens **playing from 00:00** with chrome visible.
+
+> WebCockpit (2026-11-07, stages 42 and 45, WebCockpit ADRs 0127 and
+> 0130): the player keeps its ghost look (ADR 0114) and fills the window.
+> Two additions: a **Back** button at the top left in the kit's look,
+> part of the chrome (it hides 6 s after the last activity while playing
+> and returns on a pointer move, a key or a tap), going back to History
+> exactly as it was, like Esc and the box's Close, which both stay; and
+> times from one hour up read **h:mm:ss** (`12:41 / 3:41:07`) in the
+> clock, the rail's seek hint and its marker tips (Cockpit: unbounded
+> minutes, `221:07`). The exported HTML replay is unchanged: no Back,
+> `MM:SS`.
 
 ```
 Rasta (L73) · Run 1 of 2 · 2026-09-25 22:03                     ESC Back  ░░
