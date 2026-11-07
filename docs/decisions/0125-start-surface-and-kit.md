@@ -309,3 +309,55 @@ the seven-button row described above under "The Profile list".
 The owner moved the selected profile's name from the Scripts row to the
 Profile row ("PROFILE (khazdul)"): it names what the Profile page
 changes. Scripts has no note now.
+
+## Addendum 2026-11-07 — the Enter MUME transition
+
+The owner asked for more than the 280 ms fade: everything folds away
+until only the sky is left, the sky zooms in a little, then a somewhat
+slower fade into the game. It replaces the fade above
+(`src/chrome/enter-transition.ts`, `StartPageHandle.leave`, `Shell.enter`).
+
+- **Phases** (Web Animations, one clock from the Enter key or click, all
+  `fill: 'forwards'`):
+
+  | phase | what | start | length | easing |
+  |---|---|---|---|---|
+  | fold | the menu panel folds up into its hood (`scale(1, 0.06)` at 62 %, then narrows and fades; its rows fade in the first 40 %); the wordmark (lifts 10 px), the quote (sinks 10 px), the almanac and the notice pills fade | 0 | 380 ms (fades 323 ms) | ease-in-out (fades linear) |
+  | zoom | the sky host scales to 1.07 about 50 % 45 % | 220 ms | 1280 ms | ease-in-out |
+  | fade | the whole surface fades out over the cockpit | 660 ms | 840 ms | ease-in-out |
+
+  Total 1.5 s. The sky alone (zooming) shows from about 380 to 660 ms;
+  the fade starts while the zoom is still moving and the zoom eases out
+  under it, so the motion never stops before the game is there. Tuned
+  from stepped frames and a video at 1440×900 and on the Pixel 7.
+- **The cockpit is underneath from the first moment.** `Shell.enter`
+  builds the App, lifts the start page's host out of the flow
+  (`position: fixed` at its own rectangle, `z-index: 500`, no pointer
+  events), shows the cockpit, focuses its input and connects, all in the
+  task of the Enter key; the game's text may arrive under the fade. When
+  the fade is over the page is hidden (the sky disposed, as before) and
+  its host's inline style restored.
+- **Input.** Keys belong to the game input from the first moment: the
+  start page's frame stack is inactive while it leaves (its key listener
+  goes in the render; its focus trap now checks `active` itself, as its
+  passive effect's cleanup only runs after the next paint), and the page
+  takes no pointer events (`.wc-start.is-leaving`). So nothing typed
+  during the transition is lost, nothing reaches the start menu, and a
+  second Enter or click is the cockpit's (an empty line or a click on
+  the output), never a second Enter MUME (`enter()` also returns at once
+  while the cockpit is the view).
+- **The sky keeps running** during the zoom: the transform is the
+  compositor's (the canvases are not repainted larger), and pausing the
+  engine would freeze rain and snow mid-air. Measured in headless
+  Chromium (1440×900, SwiftShader): main-thread work over the 1.6 s was
+  261 ms against 138 ms for the idle page and 196 ms for the reduced
+  fade (the App's first build and layout, the connection), no long
+  task; pausing the engine changed nothing measurable. Headless
+  rendering drops some frames (33 ms) while two full-window layers
+  blend; a real GPU should not; to be judged by the owner.
+- **Back to the start page** (Exit, even during the transition) shows
+  it as it was: `show()` and `hide()` cancel the animations after their
+  render in the same task, and the shell restores the host.
+- **`prefers-reduced-motion`**: a 220 ms ease-out fade of the surface;
+  nothing folds or zooms. (The old 280 ms fade had none; a short fade
+  is not motion.) Without Web Animations the switch is at once.
