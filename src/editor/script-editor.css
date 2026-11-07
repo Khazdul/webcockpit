@@ -57,7 +57,14 @@
   --lk-sed-pill-blur: none;
 }
 
+/* The box's lit window. The code scrolls inside it, so it gets no
+ * backdrop-filter (stage 44 performance notes): a blur here is redrawn
+ * with every frame of the sky and every keystroke (measured on a build:
+ * typing p95 313 ms with it, 25 ms without, headless Chromium). The fill
+ * is the stage 42 fallback's, more opaque; the code well covers most of it. */
 .wc-sed-win {
+  --lk-large-blur: none;
+  --lk-large-fill: rgba(13, 10, 8, 0.86);
   white-space: normal;
 }
 
