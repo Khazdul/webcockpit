@@ -18,7 +18,7 @@ import {
 
 const box: MarkBox = { cx: 500, cy: 200, vw: 1000, vh: 800 };
 
-function look(over: Partial<SkyLook> & { light?: Partial<SkyLook['light']> } = {}): SkyLook {
+function look(over: Omit<Partial<SkyLook>, 'light'> & { light?: Partial<SkyLook['light']> } = {}): SkyLook {
   const base: SkyLook = {
     period: 'day',
     season: 'summer',
