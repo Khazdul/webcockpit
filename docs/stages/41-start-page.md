@@ -132,7 +132,11 @@ is; re-derive the look in the app's own structure.
       alternatives in `round6/logo-3-cyan.html?tint=a|b|c` and
       `round6/logo-3-cyan-compare.html`); "M" favicon (svg, ico, 180 px)
 - [x] 41c: layout, menu, selection, shortcuts (E P S H L C A), quote A,
-      almanac, phone; Enter MUME fades the cockpit in (280 ms)
+      almanac, phone; Enter MUME folds the page away, zooms the sky and
+      fades into the game (1.5 s, `src/chrome/enter-transition.ts`)
+- [x] Owner feedback 2026-11-07: mithril inlay (subtle tint d), row
+      actions in the Profile list, profile name on Profile, the Enter
+      MUME transition
 - [x] 41d: first paint paints the sky and the wordmark where the app
       will; ADR 0083 addendum; e2e hand-over check (no movement)
 - [x] 41e: ADR 0125; lantern kit (`src/chrome/kit/look.tsx`): box, Back,
@@ -160,9 +164,9 @@ shows fps.
    and the wordmark appear at once, in place; a thin cyan line in an empty
    panel shows loading only if it takes a moment; then the menu, quote and
    almanac fade in. Nothing should jump.
-2. **Wordmark.** Forged iron with the cyan inlay. Close enough to the old
-   pixel logo's hue, and still metal (not neon)? The glint leans toward the
-   sun or moon. The three tints side by side:
+2. **Wordmark.** Forged iron with the mithril inlay (subtle tint d). Still
+   metal, not neon, and blends with the iron? The glint leans toward the
+   sun or moon. Tints b and d side by side:
    `notes/research/start-menu-mockups/round6/logo-3-cyan-compare.html`.
 3. **Sky.** Day, dusk, night, dawn; winter snow; a spring rain. Calm, the
    sun larger than the moon, never overlapping, no white specks at night.
@@ -171,14 +175,20 @@ shows fps.
    profile's name in dim italic. No hint rows.
 5. **Quote and almanac.** Legible at every hour? (On bright days the quote
    stays pale with a crisp outline; see the open questions.)
-6. **Profile list** (P). Back top left and Esc; S N E R D I X; Tab and ←/→
-   to the buttons; the new Changed column; Import and Export still work.
+6. **Profile list** (P). Back top left and Esc. The highlighted row shows
+   Select (unless active), Edit, Rename, Delete (S E R D); New, Import,
+   Export (N I X) at the foot; Enter selects (on the active profile it
+   opens the editor); Tab and ←/→ walk the buttons; on the phone the first
+   tap shows the buttons; the Changed column; Import and Export work.
    The editor, prompts and the import report still open in the old look.
 7. **Other pages** (Scripts, History, Credits, About, Spotlights) open in
    the old look over an opaque background as before; Back returns to the
    new menu; the log player returns to History.
 8. **Phone** (or a narrow window): the layout fits; taps work.
-9. **Performance feel.** Smooth, no stutter; the fan stays quiet.
+9. **Enter MUME.** The panel folds into its hood, the rest fades, the sky
+   zooms a little, then a slower fade into the game (1.5 s); typing at
+   once goes to the game; reduced motion gives a short plain fade.
+10. **Performance feel.** Smooth, no stutter; the fan stays quiet.
 
 Feedback wanted: the wordmark tint, the feel of the sky and the panel, the
 shortcut letters, and the open questions in the session log.
