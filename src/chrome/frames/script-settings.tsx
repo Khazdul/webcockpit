@@ -89,7 +89,7 @@ function Control(p: SettingTileProps): VNode {
     case 'boolean':
       return (
         <span class="wc-scr-ctl">
-          <Toggle on={v === true} label={d.name} onChange={(on) => p.onValue(on)} />
+          <Toggle on={v === true} only="state" label={d.name} onChange={(on) => p.onValue(on)} />
         </span>
       );
     case 'number': {

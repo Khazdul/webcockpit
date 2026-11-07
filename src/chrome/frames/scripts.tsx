@@ -950,6 +950,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
                       <span class="wc-scr-tog" onDblClick={(e) => e.stopPropagation()}>
                         <Toggle
                           on={s.enabled}
+                          only="switch"
                           label={s.enabled ? `Turn ${s.name} off` : `Turn ${s.name} on`}
                           onChange={() => {
                             select(s.name);

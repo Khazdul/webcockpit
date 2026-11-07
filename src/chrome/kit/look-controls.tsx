@@ -404,7 +404,18 @@ export function Check(p: { checked: boolean; onChange(on: boolean): void; label:
 }
 
 /** A toggle: a groove with a riveted knob, its state ("On" / "Off") and its label. */
-export function Toggle(p: { on: boolean; onChange(on: boolean): void; label: string; id?: string }): VNode {
+export function Toggle(p: {
+  on: boolean;
+  onChange(on: boolean): void;
+  label: string;
+  id?: string;
+  /**
+   * Draw less where the row already says it (the label stays the switch's
+   * accessible name): `state` the switch and On / Off, `switch` the switch
+   * alone.
+   */
+  only?: 'state' | 'switch';
+}): VNode {
   return (
     <button
       type="button"
@@ -423,12 +434,16 @@ export function Toggle(p: { on: boolean; onChange(on: boolean): void; label: str
       <span class="wc-lk-groove" aria-hidden="true">
         <i class="wc-lk-knob" />
       </span>
-      <span class="wc-lk-tstate" aria-hidden="true">
-        {p.on ? 'On' : 'Off'}
-      </span>
-      <span class="wc-lk-tlabel" aria-hidden="true">
-        {p.label}
-      </span>
+      {p.only !== 'switch' && (
+        <span class="wc-lk-tstate" aria-hidden="true">
+          {p.on ? 'On' : 'Off'}
+        </span>
+      )}
+      {!p.only && (
+        <span class="wc-lk-tlabel" aria-hidden="true">
+          {p.label}
+        </span>
+      )}
     </button>
   );
 }

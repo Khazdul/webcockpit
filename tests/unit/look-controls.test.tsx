@@ -124,6 +124,15 @@ describe('Seg', () => {
     expect(change).toHaveBeenCalledWith('editor');
   });
 
+  it('reports a click on the chosen option with onReclick (wave 3), never as a change', () => {
+    const change = vi.fn();
+    const again = vi.fn();
+    const host = mount(<Seg label="View" options={opts} value="lite" onChange={change} onReclick={again} />);
+    click(host.querySelectorAll<HTMLElement>('.wc-lk-opt')[0]!);
+    expect(again).toHaveBeenCalledWith('lite');
+    expect(change).not.toHaveBeenCalled();
+  });
+
   it('is a group of checkboxes with multi (chips)', () => {
     const change = vi.fn();
     const host = mount(<Seg label="Kinds" multi kind="pills" options={opts.slice(0, 2)} values={['editor']} onChange={change} />);
@@ -246,6 +255,20 @@ describe('Check, Toggle, Select', () => {
     expect(t.querySelector('.wc-lk-groove .wc-lk-knob')).not.toBeNull();
     click(t);
     expect(change).toHaveBeenCalledWith(true);
+  });
+
+  it('Toggle draws less with only (wave 3): the state alone, or the switch alone; the label stays its name', () => {
+    const host = mount(
+      <>
+        <Toggle label="Weather" on onChange={() => {}} only="state" />
+        <Toggle label="Snow" on onChange={() => {}} only="switch" />
+      </>,
+    );
+    const [a, b] = [...host.querySelectorAll<HTMLElement>('.wc-lk-toggle')];
+    expect($(a!, '.wc-lk-tstate').textContent).toBe('On');
+    expect(a!.querySelector('.wc-lk-tlabel')).toBeNull();
+    expect(b!.querySelector('.wc-lk-tstate, .wc-lk-tlabel')).toBeNull();
+    expect(b!.getAttribute('aria-label')).toBe('Snow');
   });
 
   it('Select is a native select with its label', () => {
@@ -425,6 +448,20 @@ describe('text pieces', () => {
     expect(h.getAttribute('aria-expanded')).toBe('true');
     expect(host.querySelector('.wc-lk-fold.is-open .wc-lk-fold-b .inner')).not.toBeNull();
   });
+
+  it('a Fold takes an aside at its head’s right end and an id; a Rule takes a node as its head (wave 3)', () => {
+    const host = mount(
+      <Rule id="help" title={<Fold id="kept" label="Kept" aside={<b class="n">9</b>} open={false} onToggle={() => {}} />} />,
+    );
+    const r = $(host, '.wc-lk-rule');
+    expect(r.getAttribute('data-rule')).toBe('help');
+    expect(r.querySelector('.wc-lk-sec')).toBeNull();
+    const f = $(r, '.wc-lk-fold');
+    expect(f.getAttribute('data-fold')).toBe('kept');
+    expect(f.classList.contains('has-aside')).toBe(true);
+    expect($(f, '.wc-lk-fold-h > .wc-lk-fold-a .n').textContent).toBe('9');
+    expect(r.querySelector(':scope > .wc-lk-hair')).not.toBeNull();
+  });
 });
 
 describe('the flash', () => {
@@ -443,6 +480,22 @@ describe('the flash', () => {
     act(() => show!('Failed.', 'fail', 500));
     expect($(host, '.wc-lk-flash .is-fail').textContent).toBe('Failed.');
     act(() => void vi.advanceTimersByTime(600));
+    expect($(host, '.wc-lk-flash').textContent).toBe('');
+  });
+
+  it('useLocalFlash clears its flash and tells whether one shows (wave 3)', () => {
+    vi.useFakeTimers();
+    let api: ReturnType<typeof useLocalFlash> | null = null;
+    function Page() {
+      api = useLocalFlash();
+      return <LookFlash flash={api[0]} />;
+    }
+    const host = mount(<Page />);
+    expect(api![2].showing()).toBe(false);
+    act(() => api![1]('Applied.'));
+    expect(api![2].showing()).toBe(true);
+    act(() => api![2].clear());
+    expect(api![2].showing()).toBe(false);
     expect($(host, '.wc-lk-flash').textContent).toBe('');
   });
 });
