@@ -1,7 +1,7 @@
 // Boot loader helpers (ADR 0083): the font gate, the faces the start waits for and the
 // no-op loader calls where index.html's loader is absent.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bootDone, bootQuote, bootStep, gate, takeBootBanner } from '../../src/app/boot-progress';
+import { bootDone, bootStep, gate } from '../../src/app/boot-progress';
 import type { FontId } from '../../src/settings/types';
 import { FONTS, fontFiles, renderFaces } from '../../src/theme/fonts';
 
@@ -60,20 +60,5 @@ describe('loader calls', () => {
     expect(step).toHaveBeenCalledWith(40, 'Loading interface');
     expect(() => bootDone()).not.toThrow();
     expect(done).toHaveBeenCalled();
-  });
-});
-
-describe('hand-over from the first paint', () => {
-  it('gives the banner clock once, then null', () => {
-    const banner = { anims: [{ period: 12, phase: 0.5 }], t0: 42 };
-    (globalThis as { __wcBoot?: unknown }).__wcBoot = { step() {}, done() {}, banner, quote: 3 };
-    expect(takeBootBanner()).toBe(banner);
-    expect(takeBootBanner()).toBeNull();
-    expect(bootQuote()).toBe(3);
-  });
-
-  it('is empty without a first paint', () => {
-    expect(takeBootBanner()).toBeNull();
-    expect(bootQuote()).toBeNull();
   });
 });

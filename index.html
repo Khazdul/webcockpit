@@ -10,42 +10,41 @@
     <style>
       html, body { margin: 0; height: 100%; background: var(--term-bg, #000000); color: var(--term-fg, #c0c0c0); }
       #app { height: 100%; }
-      /* First paint (ADR 0083, src/boot/first-paint.ts): the start page banner
-       * and the loading bar, in the box the start page will fill (as
-       * .wc-chrome in src/chrome/kit/kit.css and src/ui/ui.css), above it. */
-      #wc-first {
-        position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none;
-        white-space: pre; font-variant-ligatures: none; letter-spacing: 0; user-select: none;
-      }
+      /* First paint (ADR 0083 and its 2026-11-07 addendum, src/boot/first-paint.ts):
+       * the start page's sky, its wordmark and a loading panel where the menu
+       * will appear, in the box the start page will fill (as .wc-chrome in
+       * src/chrome/kit/kit.css and src/ui/ui.css), above it. The places come
+       * from src/start/geometry.css, which the script inlines. */
+      #wc-first { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; user-select: none; }
       html.wc-phone #wc-first {
+        overflow: visible;
         inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
       }
-      #wc-first.wcf-overlay { position: fixed; inset: 0; z-index: 2147483647; }
-      .wcf-screen { position: absolute; overflow: hidden; }
-      .wcf-banner { position: absolute; left: 0; right: 0; }
-      .wcf-line { height: var(--wcf-h); white-space: pre; overflow: hidden; }
-      @supports (overflow: clip) { .wcf-line { overflow-x: clip; overflow-y: visible; } }
-      .wcf-word { color: var(--banner-word); }
-      .wcf-word-dim { color: var(--banner-word-dim); }
-      .wcf-s0 { color: var(--star-dim); }
-      .wcf-s1 { color: var(--star-mid); }
-      .wcf-s2 { color: var(--star-bright); }
-      .wcf-loader { opacity: 0; }
+      #wc-first.wcf-overlay { position: fixed; inset: 0; z-index: 2147483647; background: var(--term-bg, #000); }
+      .wcf-loader { position: absolute; left: 50%; top: 50%; width: min(280px, calc(100% - 64px)); transform: translate(-50%, -50%); opacity: 0; }
       .wcf-loader.on { opacity: 1; }
-      .wcf-loader .bar { position: absolute; display: flex; }
-      .wcf-loader .f, .wcf-loader .t { display: inline-block; height: var(--wcf-h); overflow: hidden; }
-      .wcf-loader .f { background: var(--wcf-fill, #ffaf00); }
-      .wcf-loader .t { color: var(--wcf-track, #585858); }
-      .wcf-loader .p, .wcf-loader .l { color: var(--wcf-text, #8a8a8a); }
-      .wcf-loader .l { position: absolute; left: 0; right: 0; text-align: center; }
+      .wcf-loader .bar { position: relative; height: 2px; border-radius: 1px; overflow: hidden;
+        background: rgba(207, 246, 247, 0.16); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3); }
+      .wcf-loader .f { position: absolute; inset: 0; transform-origin: 0 50%; transform: scaleX(0);
+        background: linear-gradient(90deg, #1a9496, #5fe0de 70%, #cff6f7); transition: transform 0.22s ease-out; }
+      .wcf-loader .l { margin-top: 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        font: italic 14px/1.2 Georgia, "Times New Roman", serif; letter-spacing: 0.02em; color: rgba(225, 240, 238, 0.78);
+        text-shadow: 0 0 1px rgba(10, 6, 3, 0.95), 0 1px 1px rgba(10, 6, 3, 0.85); font-variant-numeric: tabular-nums; }
+      /* Over the sky: an empty outline in the menu panel's box, the line across its middle. */
+      .wcf-loader.wcf-panel { left: 16px; right: 16px; margin: 0 auto; width: min(var(--wc-panel-w), calc(100% - 32px));
+        height: var(--wc-panel-h); transform: none; box-sizing: border-box; border-radius: 5px;
+        border: 1px solid rgba(191, 240, 238, 0.2); background: rgba(14, 11, 9, 0.28);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 30px 80px -12px rgba(0, 0, 0, 0.45);
+        display: flex; flex-direction: column; justify-content: center; padding: 0 48px; }
+      @media (prefers-reduced-motion: reduce) { .wcf-loader .f { transition: none; } }
     </style>
     <!-- wc:first-paint: src/boot/first-paint.ts, inlined by vite.config.ts (ADR 0083) -->
   </head>
   <body>
     <div id="app"><div id="wc-start-host" class="wc-start-host" style="position: relative; height: 100%"><div id="wc-first"></div></div></div>
     <script>
-      // Draws the banner and the bar into the box above (src/boot/first-paint.ts).
+      // Paints the sky, the wordmark and the loading panel into the box above (src/boot/first-paint.ts).
       try { window.__wcPaint && window.__wcPaint(); } catch (e) {}
     </script>
     <script type="module" src="/src/main.ts"></script>

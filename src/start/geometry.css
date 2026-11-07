@@ -1,0 +1,74 @@
+/* The start page's shared geometry (ADR 0125; ADR 0083, addendum 2026-11-07):
+ * where the sky, the wordmark and the menu panel sit. Used by the start
+ * surface (src/chrome/start-surface.tsx imports it) and by the first paint
+ * (src/boot/first-paint.ts inlines it into index.html), so the hand-over
+ * from one to the other moves nothing. Change it here only.
+ *
+ * #wc-first is the first paint's box, placed as the surface (.wc-start,
+ * a .wc-chrome) is. */
+
+.wc-start,
+#wc-first {
+  /* The wordmark's top, the headroom above its letters (the mockup's
+   * canvas had about 0.15 of the mark's width of sky above MUME; it
+   * shrinks on short windows so the menu and the quote still fit), and
+   * the gap to the menu panel. */
+  --wc-brand-top: clamp(18px, 5.2vh, 70px);
+  --wc-brand-pad: clamp(0px, (100vh - 680px) * 0.4, 0.148 * clamp(250px, 32vw, 520px));
+  --wc-brand-gap: clamp(14px, 2.6vh, 30px);
+}
+
+/* The sky fills the surface. */
+.wc-start-skyhost,
+.wcf-sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* On a phone the sky reaches under the notch and the home indicator (the
+ * surface itself keeps to the safe area, src/ui/ui.css). */
+html.wc-phone .wc-start-skyhost,
+html.wc-phone .wcf-sky {
+  inset:
+    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-top, 0px)))
+    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-right, 0px)))
+    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-bottom, 0px)))
+    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-left, 0px)));
+}
+
+/* The wordmark, centred at the top (src/start/wordmark-svg.ts sizes it). */
+.wc-start-brand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--wc-brand-top);
+  padding-top: var(--wc-brand-pad);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transform-origin: 50% 0;
+}
+
+/* The menu always wins: on a short window the wordmark goes. */
+@media (max-height: 560px) {
+  .wc-start-brand {
+    display: none;
+  }
+}
+
+/* The menu panel (src/chrome/frames/start-main.tsx): under the wordmark
+ * (src/boot/first-paint-data.ts `panelTop`), centred, at most this wide
+ * within 16 px side margins, and on a desktop this tall with its seven
+ * items (the first paint's loading panel takes the same box;
+ * tests/e2e/loading.spec.ts checks the two agree). */
+.wc-start,
+#wc-first {
+  --wc-panel-w: 360px;
+  --wc-panel-h: 399px;
+}
+
+html.wc-phone .wc-start,
+html.wc-phone #wc-first {
+  --wc-panel-h: 357px;
+}

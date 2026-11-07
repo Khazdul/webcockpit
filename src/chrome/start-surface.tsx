@@ -13,9 +13,16 @@
 // wordmark (a sub-page's box), the wordmark in the corner (a large box),
 // or nothing (an old-look frame).
 //
-// The sky is mounted once, behind everything, and paused while the start
-// page is hidden (the game, a player), the document is hidden, or an
-// old-look frame covers it.
+// The sky (ADR 0124) is two things here. Its smooth part, the CSS
+// gradients of the look model for the current game time, is on the sky's
+// host at once (the same pixels the first paint showed, ADR 0083). The
+// engine (sun, moon, stars, clouds, rain and snow) is a chunk of its own,
+// imported when the surface mounts and mounted over that once the page is
+// visible (on the first boot, after the reveal: `skyHold`); it fades its
+// canvases in. It is disposed whenever the start page is hidden (the game,
+// a player: its canvases and frame loop are not kept for an hour of play)
+// and mounted again when it shows; it pauses while the document is hidden
+// or an old-look frame covers it.
 
 import type { ComponentChildren, JSX, VNode } from 'preact';
 import { createContext } from 'preact';
@@ -24,8 +31,11 @@ import { noticeIndicators } from '../app/notices';
 import { CLIENT_VERSION } from '../core/build-info';
 import { gameTimeAt } from '../gmcp/gametime';
 import { startGameMinutes } from '../start/clock';
-import { type StartSkyHandle, mountStartSky } from '../start/sky';
-import { type SkyLook, skyLookAt } from '../start/sky/look';
+import '../start/geometry.css';
+import type { StartSkyHandle } from '../start/sky';
+import { type SkyLook, type SkyView, skyCss } from '../start/sky/look';
+import { pageSkyParams } from '../start/sky/params';
+import { startSkyLook } from '../start/start-look';
 import { Wordmark } from '../start/wordmark';
 import { GridCtx, useElementSize, useHostGrid, useNotices, useServices } from './kit/hooks';
 import { type Scenery, SceneryCtx, isLookFrame, useScenery } from './kit/look';
@@ -42,48 +52,114 @@ export interface SkyStore {
   subscribe(fn: (look: SkyLook) => void): () => void;
 }
 
-const staticSky = (): SkyStore => {
-  const look = skyLookAt(startGameMinutes());
-  return { look: () => look, subscribe: () => () => {} };
-};
+/** The window's size, the view a look is computed for when no host has been measured. */
+const windowView = (): SkyView => ({ w: globalThis.innerWidth || 1440, h: globalThis.innerHeight || 900 });
+
+/**
+ * The surface's sky store: the engine's look while it is mounted (it pushes
+ * changes a few times a second), else a still look of the start clock for
+ * the sky host's size.
+ */
+export class SkyFeed implements SkyStore {
+  private readonly subs = new Set<(look: SkyLook) => void>();
+  private engine: StartSkyHandle | null = null;
+  private off: (() => void) | null = null;
+  private still: SkyLook | null = null;
+
+  look(): SkyLook {
+    return this.engine?.look() ?? (this.still ??= startSkyLook(windowView()));
+  }
+
+  subscribe(fn: (look: SkyLook) => void): () => void {
+    this.subs.add(fn);
+    return () => this.subs.delete(fn);
+  }
+
+  /** The still look (no engine): computed now for `view`. */
+  setStill(view: SkyView): SkyLook {
+    this.still = startSkyLook(view);
+    if (!this.engine) this.emit(this.still);
+    return this.still;
+  }
+
+  attach(engine: StartSkyHandle): void {
+    this.detach();
+    this.engine = engine;
+    this.off = engine.onLook((l) => this.emit(l));
+    this.emit(engine.look());
+  }
+
+  detach(): void {
+    this.off?.();
+    this.off = null;
+    this.engine = null;
+  }
+
+  private emit(look: SkyLook): void {
+    for (const fn of this.subs) fn(look);
+  }
+}
 
 export const SkyCtx = createContext<SkyStore | null>(null);
 
+let fallback: SkyFeed | null = null;
+const store = (): SkyStore => (fallback ??= new SkyFeed());
+
 /** The sky's look, re-rendering on every change the sky pushes (a few times a second at most). */
 export function useSkyLook(): SkyLook {
-  const store = useContext(SkyCtx) ?? FALLBACK_SKY;
-  const [look, set] = useState(store.look());
+  const s = useContext(SkyCtx) ?? store();
+  const [look, set] = useState(() => s.look());
   useEffect(() => {
-    set(store.look());
-    return store.subscribe(set);
-  }, [store]);
+    set(s.look());
+    return s.subscribe(set);
+  }, [s]);
   return look;
 }
 
-let fallback: SkyStore | null = null;
-const FALLBACK_SKY: SkyStore = {
-  look: () => (fallback ??= staticSky()).look(),
-  subscribe: () => () => {},
-};
+/** Where the text over the sky reads its background: the quote (under the menu) or the almanac (bottom right). */
+export type InkSpot = 'quote' | 'almanac';
+
+const backOf = (look: SkyLook, spot: InkSpot): number => (spot === 'quote' ? look.textBackLuminance : look.textBack.almanac);
 
 /**
- * Whether the text over the sky wants dark ink (a bright sky behind it),
- * with hysteresis so a sky near the threshold does not flicker.
+ * Whether the text at `spot` wants dark ink (a bright sky behind it), with
+ * hysteresis so a sky near the threshold does not flicker.
  */
-export function useDarkInk(): boolean {
-  const store = useContext(SkyCtx) ?? FALLBACK_SKY;
-  const [ink, set] = useState(() => inkFor(store.look().textBackLuminance, false));
+export function useDarkInk(spot: InkSpot = 'quote'): boolean {
+  const s = useContext(SkyCtx) ?? store();
+  const [ink, set] = useState(() => inkFor(backOf(s.look(), spot), false));
   useEffect(() => {
-    const upd = (l: SkyLook): void => set((cur) => inkFor(l.textBackLuminance, cur));
-    upd(store.look());
-    return store.subscribe(upd);
-  }, [store]);
+    const upd = (l: SkyLook): void => set((cur) => inkFor(backOf(l, spot), cur));
+    upd(s.look());
+    return s.subscribe(upd);
+  }, [s, spot]);
   return ink;
 }
 
-/** Dark ink above 0.5 luminance, pale again below 0.4 (the round 5 mockup's hysteresis). */
-export function inkFor(luminance: number, cur: boolean): boolean {
-  return cur ? luminance >= 0.4 : luminance > 0.5;
+/**
+ * Whether the sky behind the text at `spot` is bright (luma above 0.42,
+ * below 0.38 again), so pale ink needs a stronger outline: a day sky reads
+ * about 0.48 to 0.51 at the quote, under the dark-ink threshold.
+ */
+export function useBrightBack(spot: InkSpot = 'quote'): boolean {
+  const s = useContext(SkyCtx) ?? store();
+  const at = (l: number, cur: boolean): boolean => (cur ? l >= 0.38 : l > 0.42);
+  const [bright, set] = useState(() => at(backOf(s.look(), spot), false));
+  useEffect(() => {
+    const upd = (l: SkyLook): void => set((cur) => at(backOf(l, spot), cur));
+    upd(s.look());
+    return s.subscribe(upd);
+  }, [s, spot]);
+  return bright;
+}
+
+/**
+ * Dark ink once the sky's luma behind the text is above 0.54, pale again
+ * below 0.46 (ADR 0124: luma, the measure the mockup read from pixels, and
+ * its hysteresis).
+ */
+export function inkFor(luma: number, cur: boolean): boolean {
+  return cur ? luma >= 0.46 : luma > 0.54;
 }
 
 function reducedMotion(): boolean {
@@ -105,6 +181,16 @@ function useDocHidden(): boolean {
   return hidden;
 }
 
+type SkyModule = typeof import('../start/sky');
+
+/** The sky engine's chunk, imported once (it is not needed for the first frame). */
+let skyModule: Promise<SkyModule> | null = null;
+const loadSky = (): Promise<SkyModule> => {
+  skyModule ??= import('../start/sky');
+  skyModule.catch(() => (skyModule = null));
+  return skyModule;
+};
+
 // ------------------------------------------------------------- the surface
 
 /** Smallest window (CSS px) the new-look start page lays out in; below it the size notice shows. */
@@ -115,6 +201,12 @@ export interface StartSurfaceProps {
   /** A new frame stack on every change (show without `keep`). */
   epoch: number;
   root: VNode;
+  /**
+   * The sky engine mounts only once this settles (the first boot: after
+   * the reveal, so its canvases fade in on screen over the first paint's
+   * sky, not while the page is held invisible). Default: at once.
+   */
+  skyHold?: Promise<unknown> | null;
 }
 
 export function StartSurface(p: StartSurfaceProps): VNode {
@@ -125,48 +217,75 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   const g = useHostGrid(ref);
   const [scenery, setScenery] = useState<Scenery>('main');
   const docHidden = useDocHidden();
+  const feed = useMemo(() => new SkyFeed(), []);
 
-  // The sky, once; its look reaches the page through SkyCtx.
-  const sky = useRef<StartSkyHandle | null>(null);
-  const store = useMemo<SkyStore>(() => {
-    const subs = new Set<(l: SkyLook) => void>();
-    let off: (() => void) | null = null;
-    let base: SkyStore | null = null;
-    return {
-      look: () => sky.current?.look() ?? (base ??= staticSky()).look(),
-      subscribe(fn) {
-        subs.add(fn);
-        if (!off && sky.current) off = sky.current.onLook((l) => subs.forEach((s) => s(l)));
-        return () => {
-          subs.delete(fn);
-          if (subs.size === 0 && off) {
-            off();
-            off = null;
-          }
-        };
-      },
+  // The engine's chunk, and the hold before it may mount.
+  const [mod, setMod] = useState<SkyModule | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadSky().then(
+      (m) => live && setMod(m),
+      (e) => console.error('WebCockpit: the start page sky could not load', e),
+    );
+    return () => {
+      live = false;
     };
   }, []);
-  const [skyReady, setSkyReady] = useState(0);
+  const [held, setHeld] = useState(!!p.skyHold);
+  useEffect(() => {
+    if (!p.skyHold) {
+      setHeld(false);
+      return;
+    }
+    let live = true;
+    const go = (): void => {
+      if (live) setHeld(false);
+    };
+    p.skyHold.then(go, go);
+    return () => {
+      live = false;
+    };
+  }, [p.skyHold]);
+
+  // The engine, while the page is visible.
+  const sky = useRef<StartSkyHandle | null>(null);
+  const [skyN, setSkyN] = useState(0);
   useLayoutEffect(() => {
     const host = skyHost.current;
-    if (!host) return;
+    if (!host || !mod || held || !p.visible) return;
+    let s: StartSkyHandle;
     try {
-      sky.current = mountStartSky(host);
+      s = mod.mountStartSky(host);
     } catch (e) {
       console.error('WebCockpit: the start page sky could not start', e);
-      sky.current = null;
+      return;
     }
-    setSkyReady((n) => n + 1);
+    sky.current = s;
+    host.style.background = '';
+    // ?skyStats: the engine's handle for bench/start-page-bench.ts (its stats).
+    if (pageSkyParams().stats) (globalThis as { __wcSky?: StartSkyHandle }).__wcSky = s;
+    feed.attach(s);
+    setSkyN((n) => n + 1);
     return () => {
-      sky.current?.dispose();
+      feed.detach();
+      s.dispose();
       sky.current = null;
+      setSkyN((n) => n + 1);
     };
-  }, []);
+  }, [mod, held, p.visible]);
+
+  // Without the engine: the smooth sky (the CSS gradients) for now and this size.
+  useLayoutEffect(() => {
+    const host = skyHost.current;
+    if (!host || sky.current || !p.visible) return;
+    const look = feed.setStill({ w: host.clientWidth || size.w, h: host.clientHeight || size.h });
+    host.style.background = skyCss(look).all;
+  }, [p.visible, size.w, size.h, skyN]);
+
   const covered = scenery === 'grid';
   useEffect(() => {
-    sky.current?.setPaused(!p.visible || docHidden || covered);
-  }, [p.visible, docHidden, covered, skyReady]);
+    sky.current?.setPaused(docHidden || covered);
+  }, [docHidden, covered, skyN]);
 
   // The wordmark's height, for the frames' layout (`--wc-brand-h`).
   useLayoutEffect(() => {
@@ -203,8 +322,7 @@ export function StartSurface(p: StartSurfaceProps): VNode {
       hidden={!p.visible}
     >
       <div class="wc-start-skyhost" ref={skyHost} aria-hidden="true" />
-      <div class="wc-start-vignette" aria-hidden="true" />
-      <SkyCtx.Provider value={store}>
+      <SkyCtx.Provider value={feed}>
         <div class="wc-start-scenery" hidden={covered}>
           <div class="wc-start-brand" ref={brandRef}>
             <StartWordmark size={scenery === 'large' ? 'small' : 'full'} run={run} />
@@ -394,7 +512,7 @@ function Almanac(p: { run: boolean }): VNode {
     return () => clearInterval(t);
   }, [p.run]);
   const a = almanacLines(gameTimeAt(Math.floor(g)));
-  const ink = useDarkInk();
+  const ink = useDarkInk('almanac');
   return (
     <aside class={'wc-start-almanac' + (ink ? ' is-ink' : '')} aria-label="Game time">
       <div class="wc-alm-d">{a.date}</div>

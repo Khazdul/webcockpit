@@ -4,7 +4,9 @@ import { gameTimeAt } from '../../src/gmcp/gametime';
 import { letterAt, letterOf } from '../../src/chrome/kit/look';
 import { timeAgo } from '../../src/chrome/frames/profiles';
 import { almanacLines, ordinal } from '../../src/chrome/start-layout';
-import { inkFor } from '../../src/chrome/start-surface';
+import { SkyFeed, inkFor } from '../../src/chrome/start-surface';
+import type { StartSkyHandle } from '../../src/start/sky';
+import type { SkyLook } from '../../src/start/sky/look';
 
 describe('almanac', () => {
   it('writes ordinals', () => {
@@ -26,12 +28,42 @@ describe('almanac', () => {
   });
 });
 
-describe('the quote ink', () => {
-  it('turns dark above 0.5 and pale again below 0.4', () => {
-    expect(inkFor(0.45, false)).toBe(false);
+describe('the quote and almanac ink', () => {
+  it('turns dark above 0.54 luma and pale again below 0.46 (ADR 0124)', () => {
+    expect(inkFor(0.5, false)).toBe(false);
+    expect(inkFor(0.54, false)).toBe(false);
     expect(inkFor(0.55, false)).toBe(true);
-    expect(inkFor(0.45, true)).toBe(true);
-    expect(inkFor(0.35, true)).toBe(false);
+    expect(inkFor(0.5, true)).toBe(true);
+    expect(inkFor(0.46, true)).toBe(true);
+    expect(inkFor(0.45, true)).toBe(false);
+  });
+});
+
+describe('the sky feed', () => {
+  it('gives a still look of the start clock until the engine attaches, then the engine\'s', () => {
+    const feed = new SkyFeed();
+    const seen: SkyLook[] = [];
+    const off = feed.subscribe((l) => seen.push(l));
+    const still = feed.setStill({ w: 390, h: 844 });
+    expect(still.view).toEqual({ w: 390, h: 844 });
+    expect(feed.look()).toBe(still);
+    const engineLook = { ...still, dayness: 0.123 } as SkyLook;
+    let push: ((l: SkyLook) => void) | null = null;
+    const engine = {
+      look: () => engineLook,
+      onLook: (cb: (l: SkyLook) => void) => ((push = cb), () => (push = null)),
+    } as unknown as StartSkyHandle;
+    feed.attach(engine);
+    expect(feed.look()).toBe(engineLook);
+    push!({ ...engineLook, dayness: 0.5 } as SkyLook);
+    expect(seen.map((l) => l.dayness)).toEqual([still.dayness, 0.123, 0.5]);
+    // a still look while the engine runs is not pushed
+    feed.setStill({ w: 100, h: 100 });
+    expect(seen).toHaveLength(3);
+    feed.detach();
+    expect(push).toBeNull();
+    expect(feed.look().view).toEqual({ w: 100, h: 100 });
+    off();
   });
 });
 

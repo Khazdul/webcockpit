@@ -27,8 +27,7 @@ import { StartMain } from './frames/start-main';
 import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid } from './kit/hooks';
 import { device } from '../core/device';
 import { FrameStack } from './kit/stack';
-import { QUOTES, randomQuote } from './quotes';
-import { bootQuote } from '../app/boot-progress';
+import { randomQuote } from './quotes';
 import { StartSurface } from './start-surface';
 
 export { StartNotices, type StartNoticeToken, TooSmall, startNoticeTokens } from './start-surface';
@@ -51,6 +50,12 @@ export { type StatsPaneHandle, type StatsPaneOptions, mountStatsPane } from './s
 export interface StartPageOptions {
   /** Enter MUME. */
   onEnter: () => void;
+  /**
+   * The sky engine mounts once this settles (the first boot passes the
+   * reveal, ADR 0083: the engine's canvases then fade in on screen over
+   * the first paint's sky). Default: as soon as its chunk is in.
+   */
+  skyHold?: Promise<unknown>;
 }
 
 export interface StartPageShowOptions {
@@ -73,15 +78,14 @@ export interface StartPageHandle {
 
 /** Mounts the start page into `host` (hidden until `show()`). */
 export function mountStartPage(host: HTMLElement, services: ChromeServices, opts: StartPageOptions): StartPageHandle {
-  // Once per page load (Inv §3.2); the one the first paint laid out for (ADR 0083).
-  const q = bootQuote();
-  const quote = (q !== null ? QUOTES[q] : undefined) ?? randomQuote();
+  // Once per page load (Inv §3.2).
+  const quote = randomQuote();
   let visible = false;
   let epoch = 0;
   const draw = (): void =>
     render(
       <ServicesCtx.Provider value={services}>
-        <StartSurface visible={visible} epoch={epoch} root={<StartMain onEnter={opts.onEnter} quote={quote} />} />
+        <StartSurface visible={visible} epoch={epoch} skyHold={opts.skyHold} root={<StartMain onEnter={opts.onEnter} quote={quote} />} />
       </ServicesCtx.Provider>,
       host,
     );

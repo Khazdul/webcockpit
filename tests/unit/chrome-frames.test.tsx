@@ -7,7 +7,6 @@ import { aboutLines } from '../../src/chrome/frames/about';
 import { headerParts, linkClass } from '../../src/chrome/frames/esc-main';
 import { colorChoices, gridToggle, parseHex } from '../../src/chrome/frames/options';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
-import { START_MENU_ROWS } from '../../src/chrome/start-layout';
 import { Notices } from '../../src/app/notices';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
@@ -151,7 +150,7 @@ describe('start page', () => {
     // Stage 32: no Options; Scripts under Profile, with the profile's name; as long as the first paint's menu.
     const labels = ['Enter MUME', 'Profile', 'Scripts', 'History', 'Spotlights', 'Credits', 'About'];
     expect(menuLabels(host)).toEqual(labels);
-    expect(labels).toHaveLength(START_MENU_ROWS);
+    expect(labels).toHaveLength(7);
     expect(host.querySelector('.wc-sm-item[data-key="options"]')).toBeNull();
     expect(host.querySelector('.wc-sm-item[data-key="scripts"] .wc-sm-note')?.textContent).toBe('(default)');
     // The shortcut letters, marked in the labels.

@@ -1,11 +1,11 @@
-// Stage 24 A (ADR 0083): the first paint in index.html (the banner and the
-// loading bar), the start page font gate, the hand-over and the reveal.
-// `/` never connects until Enter MUME. Since stage 41 (ADR 0125) the start
-// page is free DOM over the sky: the hand-over removes the first paint's
-// layer and the whole surface fades in (the first paint's redesign, 41d,
-// makes the two match again).
+// Stage 24 A (ADR 0083) and stage 41d (its 2026-11-07 addendum): the first
+// paint in index.html (the start page's sky, its wordmark and a loading
+// panel), the start page font gate, the hand-over and the reveal. `/`
+// never connects until Enter MUME. At the hand-over the first paint's sky
+// and wordmark go and the start page's identical ones, at the same place,
+// are under them; the menu, the quote and the almanac fade in.
 import { type Page, type Route, expect, test } from '@playwright/test';
-import { holdChrome } from './first-paint';
+import { checkHandOver, holdChrome } from './first-paint';
 import { NO_STATE } from './legacy-state';
 
 const rows = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-sm-item');
@@ -64,26 +64,16 @@ test('the loader shows the boot steps and is removed once the start page is up',
   await page.goto('/', { waitUntil: 'commit' });
   const loader = page.locator('#wc-boot');
   await expect(loader).toHaveCSS('opacity', '1');
-  await expect(loader.locator('.bar .f, .bar .t')).toHaveCount(2);
-  // Settings are read and the entry script has run: the bar has moved.
+  await expect(loader.locator('.bar .f')).toHaveCount(1);
+  // Settings are read and the entry script has run: the line has moved.
   await expect.poll(async () => Number(await loader.getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(40);
+  await expect(loader.locator('.l')).toContainText('%');
   await revealed(page);
   await expect(rows(page)).toHaveCount(7);
 });
 
-test('the first paint shows before the app loads; at the hand-over its layer goes and the start page takes over', async ({ page }) => {
-  const release = await holdChrome(page);
-  await page.goto('/', { waitUntil: 'commit' });
-  const first = page.locator('#wc-first .wcf-banner .wcf-line');
-  await expect(first).toHaveCount(11);
-  await expect(page.locator('#wc-boot')).toHaveCSS('opacity', '1');
-  // No menu row yet; the bar sits below the banner.
-  await expect(page.locator('.wc-sm-item')).toHaveCount(0);
-  const bannerBottom = await first.last().evaluate((e) => e.getBoundingClientRect().bottom);
-  const barTop = await page.locator('#wc-boot .bar').evaluate((e) => e.getBoundingClientRect().top);
-  expect(barTop).toBeGreaterThan(bannerBottom);
-  release();
-  await revealed(page);
+test('the first paint shows the sky and the wordmark before the app loads; the hand-over moves nothing', async ({ page }) => {
+  await checkHandOver(page, '?skyMonth=4&skyHour=7.3&skyWeather=clear&skyFreeze');
   await expect(page.locator('#wc-first')).toHaveCount(0);
   // The pixel banner is gone from the start page.
   await expect(page.locator('.wc-start .wc-banner')).toHaveCount(0);
@@ -91,22 +81,53 @@ test('the first paint shows before the app loads; at the hand-over its layer goe
   await expect(rows(page)).toHaveCount(7);
 });
 
+test('on a short window the first paint leaves the wordmark out, as the start page does', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 540 });
+  const release = await holdChrome(page);
+  await page.goto('/', { waitUntil: 'commit' });
+  await expect(page.locator('#wc-boot.wcf-panel')).toHaveCSS('opacity', '1');
+  await expect(page.locator('#wc-first .wcf-brand')).toBeHidden();
+  const top = await page.locator('#wc-boot').evaluate((e) => e.getBoundingClientRect().top);
+  release();
+  await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
+  expect(await page.locator('.wc-sm-panel').evaluate((e) => e.getBoundingClientRect().top)).toBeCloseTo(top, 0);
+});
+
+test('the offline modes get the loading line alone, over the terminal background', async ({ page }) => {
+  const release = await holdChrome(page);
+  await page.goto('/?fixture=/fixtures/does-not-exist.txt', { waitUntil: 'commit' });
+  await expect(page.locator('#wc-first.wcf-overlay #wc-boot')).toHaveCount(1);
+  await expect(page.locator('#wc-first .wcf-sky, #wc-first .wcf-brand, #wc-boot.wcf-panel')).toHaveCount(0);
+  release();
+});
+
 test('the start page fades in as one block over about 1.35 s', async ({ page }) => {
   const release = await holdChrome(page);
   await page.goto('/', { waitUntil: 'commit' });
-  await expect(page.locator('#wc-first .wcf-banner')).toHaveCount(1);
+  await expect(page.locator('#wc-first .wcf-sky')).toHaveCount(1);
   release();
   await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
   const fades = await page.evaluate(() =>
     document.getAnimations().map((a) => {
       const t = (a.effect as KeyframeEffect).getComputedTiming();
       const el = (a.effect as KeyframeEffect).target as HTMLElement;
-      return { end: Number(t.endTime), delay: Number(t.delay), main: el.classList.contains('wc-start-main'), loader: el.id === 'wc-boot', inSky: !!el.closest('.wc-start-skyhost, .wc-start-brand') && !el.classList.contains('wc-start-skyhost') };
-    }).filter((f) => !f.loader && !f.inSky),
+      return {
+        end: Number(t.endTime),
+        delay: Number(t.delay),
+        main: el.classList.contains('wc-start-main'),
+        almanac: el.classList.contains('wc-start-almanac'),
+        loader: !!el.closest('#wc-first'),
+        // the sky host or the wordmark's box themselves, not their own animations inside
+        painted: el.matches('.wc-start-skyhost, .wc-start-scenery, .wc-start-brand'),
+        inSky: !!el.closest('.wc-start-skyhost, .wc-start-brand'),
+      };
+    }).filter((f) => !f.loader && (f.painted || !f.inSky)),
   );
-  // The sky, the scenery and the menu together: nothing leads.
+  // The menu and the almanac together: nothing leads. The sky and the
+  // wordmark were on screen already (the first paint's), so they do not fade.
   expect(fades.some((f) => f.main)).toBe(true);
-  expect(fades.length).toBeGreaterThanOrEqual(3);
+  expect(fades.some((f) => f.almanac)).toBe(true);
+  expect(fades.some((f) => f.painted)).toBe(false);
   for (const f of fades) expect(f).toMatchObject({ delay: 0, end: fades[0]!.end });
   expect(fades[0]!.end).toBeGreaterThanOrEqual(1250);
   expect(fades[0]!.end).toBeLessThanOrEqual(1450);
@@ -218,11 +239,15 @@ test('returning to the start page from the game does not fade again', async ({ p
   await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
   await page.goto('/');
   await revealed(page);
+  await expect(page.locator('.wc-start-sky')).toHaveCount(1);
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toBeVisible();
+  // The sky engine is not kept while the game runs (ADR 0125 addendum).
+  await expect(page.locator('.wc-start-sky')).toHaveCount(0);
   // Enter MUME's own short fade of the cockpit.
   await page.waitForFunction(`${PAGE_ANIMS}.length === 0`);
   await page.evaluate(() => window.__wc!.shell.exitSession());
   await expect(rows(page)).toHaveCount(7);
+  await expect(page.locator('.wc-start-sky')).toHaveCount(1);
   expect(await page.evaluate(`${PAGE_ANIMS}.filter((a) => a.playState === 'running').length`)).toBe(0);
 });

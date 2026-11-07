@@ -257,3 +257,92 @@ over about 1.35 s (item 5).
 - A cold start on 3G reveals about 1.5 s later than in round 1 (the
   fallback face's bytes come first), which is when the page was really
   complete before.
+
+## Addendum 2026-11-07 — the first paint for the new start page (stage 41d)
+
+The start page is no longer the cell grid (ADR 0125): a living sky
+(ADR 0124), the inlaid-metal wordmark (ADR 0126), a menu panel and a
+quote. The pixel banner, its WOFF2 subsets and the cell-grid layout that
+items 1 and 2 describe are gone. The new contract:
+
+1. **What the first paint shows** (`src/boot/first-paint.ts`, still one
+   IIFE inlined by `firstPaintPlugin`), in `#wc-first`, the start
+   surface's box:
+   - *the sky*: `skyCss(startSkyLook(view)).all` on one element
+     (`.wcf-sky`) the size of the surface's sky host (on a phone it
+     reaches under the notch and the home indicator, as the host does).
+     `startSkyLook` (`src/start/start-look.ts`) is the look model for the
+     start clock now and the page's `sky*` parameters. The engine paints
+     the same gradients as its back and air layers (ADR 0124 §3: pixel
+     identical), and the start surface puts the same string on its sky
+     host until the engine has mounted. Refreshed every 2 s (one game
+     minute is one real second) with the wordmark's light;
+   - *the wordmark*: `paintWordmark` (`src/start/wordmark-svg.ts`), the
+     same markup and light as the app's `Wordmark`, in a
+     `.wc-start-brand` > `.wc-wordmark-host` like the surface's;
+   - *the loading panel*, after 150 ms as before: an empty outline in the
+     menu panel's box (a thin pale-cyan border on a faint dark fill) with
+     a 2 px cyan-steel line across its middle (`role=progressbar`,
+     `aria-valuenow`, the fill a `scaleX` transform) and a small italic
+     label under it ("Loading interface · 70%"). The progress logic is
+     unchanged (`__wcBootSizes`, the boot steps as floors).
+2. **One geometry for both.** `src/start/geometry.css` holds the places:
+   the sky host, `--wc-brand-top`, the wordmark's headroom
+   `--wc-brand-pad`, `--wc-brand-gap`, the wordmark hidden below 560 px of
+   height, and the menu panel's width and height (`--wc-panel-w`,
+   `--wc-panel-h`; 399 px on a desktop, 357 px on a phone, the panel's
+   measured height with its seven items). The start surface imports it;
+   the first paint inlines it (`?inline`) into a `<style>` in <head>. The
+   panel's top is the start menu's stage padding: the wordmark box's
+   `offsetHeight` (what the surface writes to `--wc-brand-h`) plus top and
+   gap (`panelTop`, `first-paint-data.ts`), 18 px without the wordmark.
+   The e2e helper `checkHandOver` (desktop and phone) checks that the
+   wordmark's box is the same in both within 0.5 px and the panel's
+   within 1 px; measured equal in Chromium and Firefox at 1440×900,
+   1280×720 and 390×844.
+3. **The hand-over** (`revealStart`, `bootDone`). In one task the start
+   page is unhidden and the first paint's sky and wordmark are removed:
+   the start page's identical sky (the still CSS) and wordmark are under
+   them at the same place, so nothing moves or changes. The loading
+   panel fades out (250 ms) while the menu with its quote, the almanac
+   and the notices fade in together (1350 ms, as before); the sky host
+   and the wordmark do not fade. If the first paint did not draw its sky
+   (it failed), they fade in with the rest as before. The sky engine
+   mounts once the fade is over (`skyHold`, `StartPageOptions`) and fades
+   its canvases (sun, moon, stars, clouds, rain, snow) in over 0.9 s on
+   top; its quality measurement then sees the device's frames, not the
+   page's fade. Reduced motion: no fades, the engine at once.
+4. **Offline modes** (`?replay`, `?bench`, `?fixture=`) go straight to the
+   cockpit as before: the line and its label alone, centred, in a fixed
+   overlay on the terminal background; no sky, no wordmark.
+5. **Kept**: the device flags and the phone viewport meta, the appearance
+   mirror (`--term-bg`, `--term-fg`, `--pad` for the page and the
+   cockpit), the selected terminal font's preloads (the gate still waits
+   for it). **New**: the start page's own faces (Cinzel Bold, Cormorant
+   Garamond Medium Italic, Cormorant SC SemiBold) are preloaded too, so
+   they download beside the scripts; `__wcBootSizes` counts them through
+   their preload links. Nothing in the first frame needs them (the
+   wordmark is paths; the label uses Georgia or the system serif).
+6. **Removed**: the banner drawing and twinkle, `src/boot/banner-faces.ts`
+   and `scripts/build-banner-faces.py`, `startLayout` / `START_MENU_ROWS`,
+   the `__wcBoot.banner` and `__wcBoot.quote` hand-overs (`takeBootBanner`,
+   `bootQuote`; the start page picks its quote itself) and the e2e helper
+   `wordmarkClips`. The phone ESC menu's pixel `Banner` keeps working with
+   its own twinkle clock.
+7. **Size.** The inline script is 17.2 KB gzip (39.8 KB minified) without
+   the size table, index.html 20.0 KB gzip; before: 24.0 KB and 26.6 KB
+   (the banner faces were most of it). The look model, the start clock
+   and the wordmark module are most of the new script; accepted, as the
+   price of painting the real page before any module loads.
+8. **The sky engine is a chunk of its own** (`import('../start/sky')`
+   from the start surface: 23.5 KB minified, 9.2 KB gzip; the look
+   model it shares with the page stays in the chrome chunk), not part of the chrome
+   chunk the start page waits for; the look model stays synchronous.
+
+Consequences: a cold start shows the start page's sky and wordmark at
+their final place at the first paint, then the loading panel where the
+menu will be; on a slow line the line moves with the bytes. The reveal
+changes nothing above the panel. `tests/e2e/loading.spec.ts` and
+`phone-loading.spec.ts` check the first paint, the hand-over boxes, the
+short window and the offline overlay; `tests/unit/first-paint.test.ts`
+the mirror and `panelTop`.
