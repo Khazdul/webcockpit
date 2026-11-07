@@ -854,7 +854,7 @@ stage's test plan.
       `KeyHelp`, `Popover`; cursors, button zone, `letterAction`; tests
 - [x] 42d: the Lykta frame on dark and Paper (no Glass); `useWindowChrome`;
       window and menu look hosts; `ProfileRoot` moved; tests
-- [ ] 42e: `lookCodeTheme`, `.wc-code` rules, lantern find panel,
+- [x] 42e: `lookCodeTheme`, `.wc-code` rules, lantern find panel,
       `LookManual`, `ManualContents`, `look-manual-find`; measurements; tests
 - [x] 42f: `fmtClock` hours, `back`, `bare`, `press`, `openPlayer` result,
       `embedPlayer`, `viewerControls`, `setPaletteTweak`; tests
