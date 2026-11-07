@@ -1400,6 +1400,14 @@ exists (ADR 0069). It is a **frame stack**: one frame visible at a time,
 sub-pages pushed/popped; ESC pops one level. In WebCockpit this becomes the
 page you land on when opening the link.
 
+> WebCockpit (2026-11-07, stage 41): the start page no longer copies the
+> TUI look below. It follows WebCockpit ADRs 0124 (a sky driven by the
+> offline game clock), 0125 (the start surface, the menu panel and the
+> sub-page kit) and 0126 (the forged-iron "MUME" wordmark with a cyan
+> metal inlay, and the "M" favicon). The frame stack, ESC = back and the
+> rule that Enter / Space is always a forward action still hold. The
+> Cockpit text is kept as the reference it was.
+
 ### 3.1 Startup
 
 | Cockpit | Browser note |
@@ -1440,6 +1448,19 @@ page you land on when opening the link.
 
           ↑↓ Navigate · Enter/Space Select          <- footer, #585858, last row
 ```
+
+> WebCockpit (2026-11-07, stage 41, WebCockpit ADR 0125): no pixel
+> banner and no starfield rows; the wordmark is drawn over the sky
+> (ADR 0126). The menu (Enter MUME set apart by a rule, Profile, Scripts
+> with the profile's name, History, Spotlights, Credits, About; no
+> Options since stage 32, no Quit) sits in an iron panel; the cursor row
+> brightens its text and icon instead of `<< >>`. Shortcut letters are
+> marked in the labels (E P S H L C A), hover selects, and there is **no
+> key-hint footer**. The quote is set in italic Cormorant with the author
+> in small caps, its colour following the sky; an **almanac** at the
+> bottom right shows the game date, time and the version. The banner
+> table below now describes Cockpit and the phone's ESC menu (Inv §4),
+> which kept the pixel banner when stage 41 began.
 
 **Menu entries** (order, `_rebuild_main_items`):
 
@@ -1492,6 +1513,14 @@ Browser note: animate with `requestAnimationFrame` or a low-rate timer, only whi
 | Mouse | Click selects + activates. Hover lightens (`C_HOVER`). Wheel scrolls lists (without moving cursor on tables). |
 | Footer | Every frame has a `C_HINT` shortcut row anchored to the last row, e.g. `↑↓ Navigate · Tab/←→ Cycle · Enter Select · ESC Back` |
 
+> WebCockpit (2026-11-07, stage 41, WebCockpit ADR 0125): frames in the
+> new look (the start menu, then the Profile list; the other sub-pages
+> follow in their own stages) have no footer row. They open in an iron
+> box with a Back button at the top left (Esc still goes back), use glass
+> buttons, mark each shortcut letter in its label, and show a selection
+> by brightening only (no gold fill, no `<< >>`). Frames not yet moved
+> keep the grammar below.
+
 Shared chrome (ADR 0085): sub-page titles `─── Name ───` centred in `C_SECTION` bold `#008787`, 2 blank rows above in the launcher (1 in the popup), 1 below. Three cell grammars (ADR 0087):
 
 | Grammar | Where | Cursor focused | Selected, zone unfocused | Hover | Other |
@@ -1526,6 +1555,18 @@ Other palette roles: `C_TITLE` bold `#00d7d7`, `C_BODY` `#8a8a8a`, `C_HINT` `#58
 
    ↑↓ Navigate · Tab/←→ Cycle · Enter Select · ESC Back
 ```
+
+> WebCockpit (2026-11-07, stage 41e, WebCockpit ADR 0125): the Profile
+> list is in the new look. The table (Name, sortable, with a "Selected"
+> tag in place of the ✓ column, and a new **Changed** column: when each
+> profile was last changed) sits above a row of glass buttons Select,
+> New, Edit, Rename, Delete, Import, Export with the letters S N E R D I
+> X marked in the labels; they work from either focus zone. Back at the
+> top left replaces BACK, there is no footer, and the "Enter Select /
+> Enter Edit" hint is the cursor row's tooltip. ← / → from the list go to
+> the buttons (now below it). Import is new (goal 7); the sub-frames
+> (name prompt, Blank / Copy, Delete confirm, import report, editor) are
+> unchanged.
 
 - Centred package `[ button column | 2-cell gap | table | scrollbar ]`, recentred on resize. Button column: 7 uppercase buttons, width = longest label + 2, no borders; first button top-aligns with the table header.
 - Table: `Name` (dynamic width, sortable by clicking header, default `▲` asc), `Selected` (width 8, centred ✓ on the active profile, not sortable). Header row always `C_HINT`.
