@@ -4,7 +4,7 @@
 // (lua-api.ts, lua-ref.ts). The Lua reference starts with an index, one
 // line per name by library. Pure; unit tested.
 
-import { type HelpGroup, type HelpLayout, type HelpSection, helpLayout } from './help';
+import type { HelpGroup, HelpSection } from './help';
 import { type ApiDoc, SCRIPT_API, apiDoc } from './lua-api';
 import { LUA_LIBS, LUA_REF, LUA_REMOVED } from './lua-ref';
 import { SCRIPT_GUIDE } from './script-manual';
@@ -82,11 +82,6 @@ export function scriptManualCounts(): Readonly<Record<string, number>> {
   const out: Record<string, number> = {};
   for (const s of scriptManualSections()) out[s.group] = (out[s.group] ?? 0) + 1;
   return out;
-}
-
-/** The manual laid out `width` cells wide, with API and Lua names coloured in the examples. */
-export function scriptManualLayout(width: number): HelpLayout {
-  return helpLayout(width, scriptManualSections(), { luaNames: (n) => apiDoc(n) !== null });
 }
 
 const guideSection = (heading: string): number =>
