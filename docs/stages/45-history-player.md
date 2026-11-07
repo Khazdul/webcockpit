@@ -355,7 +355,7 @@ this stage file's checklist.
 - [x] WP 45-B: Statistics in the same box
 - [x] WP 45-C: Rate, Delete, keys box, run-log error box
 - [x] WP 45-D: player Back and h:mm:ss verified; player/replay tests
-- [ ] WP 45-E: History unit and e2e tests, phone test moved, ADR 0130, Inv notes
+- [x] WP 45-E: History unit and e2e tests, phone test moved, ADR 0130, Inv notes
 - [ ] Typecheck, lint, unit, e2e (Chromium and Firefox) green
 - [ ] Performance check (below)
 - [ ] Screenshots at 1280×720, 1440×900, 2560×1440 and 390×844 reviewed by
