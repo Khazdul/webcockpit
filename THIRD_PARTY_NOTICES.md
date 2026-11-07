@@ -132,10 +132,10 @@ menu, buttons and almanac date line also use (stage 41, ADR 0125):
   of a logo made with the font. Same copyright and licence as above.
 
 The start page uses two more (stage 41, ADR 0125), Cormorant Garamond
-for the quote and the dim italic notes, Cormorant SC for the quote's
-author:
+for the quote, the dim italic notes and the text of its pages (stage 42,
+ADR 0127), Cormorant SC for the quote's author and small capitals:
 
-- **Cormorant Garamond** (Medium Italic, Latin subset as Google Fonts
+- **Cormorant Garamond** (Medium and Medium Italic, Latin subset as Google Fonts
   serves it, v21, from npm `@fontsource/cormorant-garamond` 5.3.0) and
   **Cormorant SC** (SemiBold, Latin subset, v19, from npm
   `@fontsource/cormorant-sc` 5.3.0). Copyright 2015 The Cormorant Project

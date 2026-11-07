@@ -411,26 +411,35 @@ function releaseManifestPlugin(): Plugin {
 /**
  * `LICENSE.txt` at the site root: the repository's GPL-2 `LICENSE`
  * (ADR 0027), linked from About, so every copy of the app carries the
- * licence text (GPL-2 §1). `vite` (dev) serves the same file.
+ * licence text (GPL-2 §1). `THIRD_PARTY_NOTICES.md` beside it (stage 47,
+ * ADR 0132): the third-party notices, also linked from About, so the link
+ * works offline from any copy of the site. `vite` (dev) serves the same
+ * files.
  */
 function licencePlugin(): Plugin {
-  const file = resolve(ROOT, 'LICENSE');
+  const files = [
+    { name: LICENCE_FILE, file: resolve(ROOT, 'LICENSE'), type: 'text/plain; charset=utf-8' },
+    // The type GitHub Pages gives `.md` (as `public/fonts/README.md`).
+    { name: 'THIRD_PARTY_NOTICES.md', file: resolve(ROOT, 'THIRD_PARTY_NOTICES.md'), type: 'text/markdown; charset=utf-8' },
+  ];
   return {
     name: 'webcockpit-licence',
     configureServer(server) {
-      const path = `${server.config.base.replace(/\/?$/, '/')}${LICENCE_FILE}`;
+      const base = server.config.base.replace(/\/?$/, '/');
       server.middlewares.use((req, res, next) => {
-        if ((req.method !== 'GET' && req.method !== 'HEAD') || req.url?.split('?')[0] !== path) return next();
+        const path = req.url?.split('?')[0];
+        const f = files.find((x) => path === `${base}${x.name}`);
+        if ((req.method !== 'GET' && req.method !== 'HEAD') || !f) return next();
         const r = res as ServerResponse;
         r.statusCode = 200;
-        r.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        r.setHeader('Content-Type', f.type);
         r.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-        r.end(req.method === 'HEAD' ? undefined : readFileSync(file));
+        r.end(req.method === 'HEAD' ? undefined : readFileSync(f.file));
       });
     },
     generateBundle() {
       if (this.environment?.config.consumer !== undefined && this.environment.config.consumer !== 'client') return;
-      this.emitFile({ type: 'asset', fileName: LICENCE_FILE, source: readFileSync(file) });
+      for (const f of files) this.emitFile({ type: 'asset', fileName: f.name, source: readFileSync(f.file) });
     },
   };
 }

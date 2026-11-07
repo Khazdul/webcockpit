@@ -1,0 +1,272 @@
+/* About: one long leaf (src/chrome/frames/about.tsx; stage 47, ADR 0132;
+ * round 7's A "Bladet", notes/research/start-menu-mockups/round7/about/
+ * about-a.html). Prefix `wc-about-`.
+ *
+ * The large box's window holds the contents rail at the left and the
+ * reading column (at most 700 px, centred in the scroller) at the right;
+ * when the box is narrow (the `wc-page` container under 720 px, a window
+ * of about 760 px) the rail becomes a strip of pills above the text. No
+ * `backdrop-filter` on the leaf (ADR 0127's rule for inner surfaces). */
+
+/* The window: the hood's room at the top, nothing at the sides (the rail and the text pad themselves). */
+.wc-lk-box.wc-about > .wc-about-win {
+  padding: 44px 0 0;
+}
+
+/* The phone: room under Back (40 px high on a coarse pointer) for the strip of pills. */
+html.wc-phone .wc-lk-box.wc-about > .wc-about-win {
+  padding: 52px 0 0;
+}
+
+.wc-about-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+/* ------------------------------------------------------------ the rail */
+
+.wc-about-rail {
+  flex: none;
+  width: 236px;
+  box-sizing: border-box;
+  padding: 66px 0 20px 26px;
+  overflow: hidden auto;
+  scrollbar-width: none;
+}
+
+.wc-about-rail > .wc-lk-rows {
+  gap: 2px;
+}
+
+.wc-lk-rows > .wc-lk-row.wc-about-row {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 4px;
+  background: none;
+  box-shadow: none;
+  font: 600 11.5px/1.2 var(--lk-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* The strip of pills (narrow boxes only). */
+.wc-about-strip {
+  display: none;
+}
+
+/* ------------------------------------------------------------ the text */
+
+.wc-about-body {
+  position: relative;
+  padding: 0 26px 0 10px;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 26px);
+  mask-image: linear-gradient(180deg, transparent 0, #000 26px);
+}
+
+.wc-about-leaf {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 30px 0 60px;
+  -webkit-user-select: text;
+  user-select: text;
+  white-space: normal;
+  letter-spacing: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wc-about-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 0 4px;
+}
+
+.wc-about-mark {
+  --wc-wordmark-h: 64px;
+}
+
+.wc-about-ver {
+  font: 400 12px/1 var(--lk-mono);
+  color: var(--lk-dim);
+  letter-spacing: 0.02em;
+}
+
+.wc-about-leaf > .wc-lk-orn {
+  margin: 22px auto 30px;
+}
+
+.wc-about-lead {
+  max-width: 32em;
+  margin: 0 auto 10px;
+  font: italic 500 21px/1.55 var(--lk-serif);
+  color: #ecdcbc;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.wc-about-sec {
+  scroll-margin-top: 24px;
+}
+
+.wc-about-h {
+  margin: 46px 0 16px;
+  font: 700 15px/1.3 var(--lk-display);
+  letter-spacing: 0.2em;
+  color: var(--lk-head);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 226, 180, 0.18);
+}
+
+.wc-about-h::after {
+  content: "";
+  display: block;
+  width: 46px;
+  height: 1px;
+  margin-top: 12px;
+  background: linear-gradient(90deg, var(--lk-sk-on), transparent);
+}
+
+.wc-about-p {
+  margin: 0 0 0.8em;
+  font: 500 18px/1.55 var(--lk-serif);
+  color: var(--lk-text);
+  text-wrap: pretty;
+  hanging-punctuation: first;
+}
+
+/* Key/value rows: a small two-column table, the keys in Cinzel. */
+.wc-lk-kv.wc-about-kv {
+  grid-template-columns: max-content 1fr;
+  gap: 0 22px;
+  align-items: start;
+  margin: 0.3em 0 1em;
+}
+
+.wc-about-kvr {
+  display: contents;
+}
+
+.wc-about-kv dt {
+  padding-top: 0.62em;
+  font: 600 11.5px/1 var(--lk-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--lk-accent);
+}
+
+.wc-about-kv dd {
+  margin: 0 0 0.55em;
+  font: 500 17.5px/1.5 var(--lk-serif);
+  color: var(--lk-text);
+  text-wrap: pretty;
+}
+
+/* Links: the kit's lit underline; long addresses may break. */
+.wc-about-a {
+  overflow-wrap: anywhere;
+}
+
+/* Game commands in the terminal font. */
+.wc-about-cmd {
+  padding: 1px 4px;
+  border: 1px solid rgba(255, 214, 160, 0.1);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.28);
+  font: 400 0.8em/1 var(--lk-mono);
+  color: #e2cfae;
+  white-space: nowrap;
+}
+
+/* The colophon: an ornament rule and the "M" seal, as a printer's mark. */
+.wc-about-colophon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 56px;
+}
+
+.wc-about-colophon > .wc-lk-orn {
+  margin: 0 auto 8px;
+}
+
+.wc-about-colophon > .wc-lk-seal {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+}
+
+/* ------------------------------------------------------------ narrower boxes */
+
+@container wc-page (max-width: 860px) {
+  .wc-about-rail {
+    width: 196px;
+    padding-left: 14px;
+  }
+}
+
+/* The phone and narrow windows: the rail becomes a strip of pills above the text. */
+@container wc-page (max-width: 720px) {
+  .wc-about-rail {
+    display: none;
+  }
+
+  .wc-about-strip {
+    display: flex;
+    min-width: 0;
+    padding: 0 10px 8px;
+    border-bottom: 1px solid var(--lk-rule);
+  }
+
+  .wc-about-pills {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .wc-about-pills .wc-lk-opt {
+    font: 600 11px/1.2 var(--lk-display);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .wc-about-body {
+    padding: 0 10px;
+  }
+
+  .wc-about-leaf {
+    padding-top: 18px;
+  }
+
+  .wc-about-mark {
+    --wc-wordmark-h: 50px;
+  }
+
+  .wc-about-lead {
+    font-size: 19px;
+  }
+
+  .wc-about-h {
+    margin-top: 36px;
+    font-size: 13.5px;
+  }
+}
+
+@container wc-page (max-width: 560px) {
+  .wc-about-p {
+    font-size: 17px;
+  }
+
+  .wc-lk-kv.wc-about-kv {
+    grid-template-columns: 1fr;
+  }
+
+  .wc-about-kv dt {
+    padding-top: 0.4em;
+  }
+
+  .wc-about-kv dd {
+    margin-bottom: 0.7em;
+  }
+}
