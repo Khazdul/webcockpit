@@ -131,6 +131,20 @@ const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.m
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
 /**
+ * Brings a field the keyboard moved to into the detail's view (a small
+ * window or a sheet scrolls the detail; stage 43b). Only the detail
+ * scrolls: the focus itself never scrolls (the box, the window body).
+ */
+function revealField(el: HTMLElement): void {
+  const sc = el.closest<HTMLElement>('.wc-pe-detail');
+  if (!sc) return;
+  const r = el.getBoundingClientRect();
+  const b = sc.getBoundingClientRect();
+  if (r.top < b.top) sc.scrollTop -= b.top - r.top;
+  else if (r.bottom > b.bottom) sc.scrollTop += Math.min(r.bottom - b.bottom, r.top - b.top);
+}
+
+/**
  * The editor's own flash (1.5 s; 6 s for a failure), controlled through
  * the kit's `LookFlash`. A local helper: the kit's `useLocalFlash` has no
  * way to clear a flash or read the one showing, which the editor needs (a
@@ -534,7 +548,10 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
       }
     }
     if (target) {
-      if (active !== target) target.focus({ preventScroll: true });
+      if (active !== target) {
+        target.focus({ preventScroll: true });
+        revealField(target);
+      }
       return;
     }
     if (inside && inTextField(active)) {

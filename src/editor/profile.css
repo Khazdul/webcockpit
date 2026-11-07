@@ -801,6 +801,43 @@
   padding-top: 8px;
 }
 
+/* A small window (stage 43b): one column at the minimum size (60 × 18
+ * cells, about 540 × 330 px) still shows the list's rows and the sheet's
+ * two fields. The detail scrolls when they do not fit (the editor brings
+ * the focused field into view). */
+@container pe (max-width: 640px) {
+  .wc-pe.is-window .wc-pe-head {
+    margin-bottom: 6px;
+  }
+
+  .wc-pe.is-window .wc-pe-rail {
+    margin-bottom: 6px;
+    padding-bottom: 0;
+  }
+
+  .wc-pe.is-window .wc-pe-rit {
+    height: 30px;
+  }
+
+  .wc-pe.is-window .wc-pe-sheetbar {
+    margin-bottom: 6px;
+  }
+
+  .wc-pe.is-window .wc-pe-fields {
+    gap: 8px;
+  }
+
+  .wc-pe.is-window .wc-pe-fields > .wc-lk-field.is-area textarea.wc-lk-input {
+    min-height: 4.2em;
+  }
+
+  .wc-pe.is-window .wc-pe-foot {
+    min-height: 0;
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+}
+
 /* ------------------------------------------------------------ the rail as a row (641–940 px) */
 
 @container pe (max-width: 940px) {
