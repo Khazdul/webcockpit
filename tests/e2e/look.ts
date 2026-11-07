@@ -79,3 +79,44 @@ export async function reducedMotion(page: Page, on = true): Promise<void> {
 // ------------------------------------------------------------ 42e (code look, find panel, LookManual)
 
 // ------------------------------------------------------------ 42f (player core)
+
+/** The player's Back (the run log player's; none in the HTML replay). */
+export const playerBack = (page: Page): Locator => page.locator('.wc-player-chrome .wc-pv-back');
+
+/** The player's clock readout (`<b>pos</b> / dur`). */
+export const playerClock = (page: Page): Locator => page.locator('.wc-player-chrome .wc-player-clock');
+
+/**
+ * A capture log of one run: an inbound line every `step` s from 0 to
+ * `secs` (gaps over 10 s would collapse, so the length plays as written),
+ * and the last line at exactly `secs`. `baseUs`: the run's start.
+ */
+export function longLogText(secs: number, step = 5, baseUs = Date.UTC(2026, 8, 27, 20, 0, 0) * 1000): string {
+  const ts = (s: number): string => String(baseUs + Math.round(s * 1e6)).padStart(16, '0');
+  let text = '';
+  let i = 0;
+  for (let s = 0; s < secs; s += step) text += `${ts(s)} Line ${++i}: the road runs on.\n`;
+  return text + `${ts(secs)} The end.\n`;
+}
+
+/**
+ * Opens the run log player (`__wc.shell.openPlayerChain`, as History's Run
+ * log: Back and `h:mm:ss`) on a log `secs` long, from the start page.
+ * Open the start page with `openStart` first: a player opened before its
+ * first show would be covered by it. Resolves to the shell's
+ * `PlayerOpenResult`.
+ */
+export async function openLongPlayer(page: Page, secs: number, character = 'Long'): Promise<{ ok: boolean; error?: string }> {
+  await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
+  const text = longLogText(secs);
+  return page.evaluate(
+    ([text, character]) => {
+      const w = window as unknown as {
+        __wc: { shell: { openPlayerChain(c: unknown[], e: unknown[], i: { character: string }): Promise<{ ok: boolean; error?: string }> } };
+      };
+      const meta = { runId: `${character}/1`, character, startedUs: Number(text.slice(0, 16)), endedUs: null, sealed: true, bytes: text.length, lines: 0 };
+      return w.__wc.shell.openPlayerChain([{ meta, text }], [], { character });
+    },
+    [text, character] as const,
+  );
+}

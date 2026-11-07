@@ -116,7 +116,8 @@
   letter-spacing: normal;
 }
 
-.wc-player-chrome button:not(.wc-pv-back) {
+/* (`:where` keeps the specificity of `.wc-player-chrome button`: the box's own rules win over it.) */
+.wc-player-chrome button:where(:not(.wc-pv-back)) {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
