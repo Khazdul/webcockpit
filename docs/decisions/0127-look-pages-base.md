@@ -914,7 +914,10 @@ values, the manuals' body, the wave-2 pages) drew italic. `LOOK_FACES` in
 notice). It is not preloaded: the start page's first paint shows only the
 italic, and a browser downloads the upright when a look page first shows
 upright serif text. The start page's look is unchanged (its quote, notes
-and pills ask for italic explicitly).
+and pills ask for italic explicitly). About's font line still names Cormorant
+Garamond for "the start page's quote and notes" only; stage 47, which
+rewrites About and owns its facts, extends it (a longer line here moved
+the phone About scrollbar spec out of its tolerance).
 
 **Places checked against 42d.** `Box` in place `window` draws no iron,
 hood or Back and gives the lit window the page padding (12 / 16 px) inside
