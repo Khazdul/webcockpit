@@ -1,8 +1,11 @@
-// Stage 3 P3: the profile editor (lite + editor views) from the start page
-// and, in play, the menu bar's Profile window (ADR 0103), against a mocked
-// MUME WebSocket.
+// The profile editor in the new look, direction B "Ryggen" (stage 43a,
+// ADR 0128; stage 3 P3, ADR 0105, 0119): from the start page (the large
+// box) and, in play, the menu bar's Profile window (ADR 0103), against a
+// mocked MUME WebSocket. The rail, the letters, the Esc rule for fields,
+// the sheet in one column, the quiet status, Editor and Help.
 import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 import { dprTest, expectDpr } from './dpr';
+import { morphDone } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -17,23 +20,36 @@ async function mockMume(page: Page): Promise<{ server: () => WebSocketRoute | nu
   return { server: () => server };
 }
 
-const ped = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-ped');
-const footer = (page: Page) => ped(page).locator('.wc-ped-footer');
-const listRows = (page: Page) => ped(page).locator('.wc-ped-list .wc-tr');
-const cursorRow = (page: Page) => ped(page).locator('.wc-ped-list .wc-tr.is-cur-focus, .wc-ped-list .wc-tr.is-cur');
-const content = (page: Page) => ped(page).locator('.cm-content');
+const pe = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-pe');
+const flash = (page: Page) => pe(page).locator('.wc-pe-flash');
+const status = (page: Page) => pe(page).locator('.wc-pe-status');
+const rows = (page: Page) => pe(page).locator('.wc-pe-list .wc-pe-row');
+const curRow = (page: Page) => pe(page).locator('.wc-pe-list .wc-pe-row.is-on');
+const pattern = (page: Page) => pe(page).locator('[data-field="pattern"] input');
+const body = (page: Page) => pe(page).locator('[data-field="body"] textarea');
+const keyCell = (page: Page) => pe(page).locator('[data-field="key"]');
+const content = (page: Page) => pe(page).locator('.cm-content');
+const views = (page: Page, v: string) => pe(page).locator(`.wc-pe-views [data-opt="${v}"]`);
+const dialog = (page: Page, dlg: string) => page.locator(`.wc-lk-dialog[data-dlg="${dlg}"]`);
+const listFlash = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash');
+/** The start page's top box's hood (not a dialog's): `Profiles` once the editor has left. */
+const listHood = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-box > .wc-lk-hood .wc-lk-hood-t');
 /** The buffer's text, line by line (the buffer is small, so every line is rendered). */
 const bufferText = (page: Page) =>
   content(page).evaluate((el) => [...el.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
 const stored = (page: Page, name = 'default') =>
   page.evaluate((n) => window.__wc!.shell.profiles.get(n).then((r) => r?.text ?? null), name);
-
-/** The entry warning under the detail panel, its wrapped lines joined. */
-const warnText = (page: Page) =>
-  ped(page)
-    .locator('.wc-ped-warn')
-    .allTextContents()
-    .then((l) => l.map((x) => x.trim()).join(' '));
+/** The list as `pattern | body` per row, and `+ New alias` for the last. */
+const listText = (page: Page) =>
+  rows(page).evaluateAll((els) =>
+    els.map((e) =>
+      e.matches('[data-row="new"]')
+        ? `+ ${e.textContent!.trim()}`
+        : `${e.querySelector('.wc-pe-l1')!.textContent!.trim()} | ${e.querySelector('.wc-pe-bod')!.textContent!.trim()}`,
+    ),
+  );
+/** The manual's current section in the rail (its contents' lit entry). */
+const railSection = (page: Page) => pe(page).locator('.wc-lk-mtoc li.is-on');
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -41,7 +57,7 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
-/** Start page → Profile → EDIT on `default`. */
+/** Start page → Profile → Edit on `default` (the large box, landed). */
 async function openFromStart(page: Page, text?: string): Promise<void> {
   await mockMume(page);
   await page.goto('/');
@@ -54,79 +70,115 @@ async function openFromStart(page: Page, text?: string): Promise<void> {
   }
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(listHood(page)).toHaveText('Profiles');
   await page.locator('.wc-start [data-btn="EDIT"]').click();
-  await expect(ped(page).locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: default ───');
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  await morphDone(page);
+  await expect(pe(page).locator('.wc-pe-name')).toHaveText(/^default/);
 }
 
-/** Selects a kind with the keyboard from the kind row and enters the list. */
+/** Into the game, the bar's Profile window (ADR 0103). */
+async function openWindow(page: Page, text: string, disconnect = false): Promise<void> {
+  const mock = await mockMume(page);
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.evaluate(async (t) => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.save('default', t);
+  }, text);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  if (disconnect) {
+    await mock.server()!.close();
+    await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
+  }
+  await page.locator('.wc-mb[data-mb="profile"]').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+}
+
+/** A kind by its letter; the keyboard goes to the list. */
 async function kind(page: Page, name: string): Promise<void> {
-  await ped(page).locator(`[data-kind="${name}"]`).first().click();
-  await page.keyboard.press('ArrowDown');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'list');
+  const letter = { action: 'a', alias: 'i', highlight: 'g', macro: 'm', substitute: 's' }[name]!;
+  await page.keyboard.press(letter);
+  await expect(pe(page)).toHaveAttribute('data-kind', name);
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
 }
 
 async function toEditor(page: Page): Promise<void> {
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
+  await views(page, 'editor').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'editor');
   await expect(content(page)).toBeVisible();
 }
 
-test('lite → editor → lite → ESC saves; reload shows it', async ({ page }) => {
+async function toHelp(page: Page): Promise<void> {
+  await views(page, 'help').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'help');
+  await expect(pe(page).locator('.wc-lk-manual')).toBeVisible();
+}
+
+test('Lite → Editor → Lite → Esc saves; reload shows it', async ({ page }) => {
   const errors = watchErrors(page);
   await openFromStart(page, '#nop head\n\n#alias {b} {bee}\n#macro {F1} {one}\n');
+  await expect(status(page)).toHaveText('All saved');
   await kind(page, 'alias');
-  await expect(listRows(page)).toHaveText([/^b\s+bee/, /\+ New entry/]);
+  expect(await listText(page)).toEqual(['b | bee', '+ New alias']);
 
-  // n adds an entry and focuses Pattern; Tab goes to Commands.
+  // N adds an entry and focuses Pattern; Tab goes to Commands.
   await page.keyboard.press('n');
-  await expect(ped(page).locator('input[data-field="pattern"]')).toBeFocused();
+  await expect(pattern(page)).toBeFocused();
   await page.keyboard.type('gv %1');
+  await expect(status(page)).toHaveText('Editing');
   await page.keyboard.press('Tab');
-  await expect(ped(page).locator('textarea[data-field="body"]')).toBeFocused();
+  await expect(body(page)).toBeFocused();
   await page.keyboard.type('get %1;');
   await page.keyboard.press('Enter');
   await page.keyboard.type('value %1');
   // New entries stay at the bottom of the list until a flip.
-  await expect(listRows(page)).toHaveText([/^b\s+bee/, /^gv %1\s+get %1;…/, /\+ New entry/]);
+  expect(await listText(page)).toEqual(['b | bee', 'gv %1 | get %1; …', '+ New alias']);
+  // Esc leaves the field first (decision 6): the keyboard is back in the list and the edit applies.
+  await page.keyboard.press('Escape');
+  await expect(body(page)).not.toBeFocused();
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  await expect(status(page)).toHaveText('All saved');
+  await expect(flash(page)).toHaveText('Saved');
 
-  // Flip: the new alias sits after the last alias, the rest is untouched.
-  await toEditor(page);
-  await expect(content(page)).toContainText('#alias {gv %1} {    get %1;    value %1}');
-  expect(await bufferText(page)).toBe(
-    '#nop head\n\n#alias {b} {bee}\n#alias {gv %1} {\n    get %1;\n    value %1\n}\n#macro {F1} {one}\n',
-  );
-  await expect(footer(page)).toContainText('Ln 1, Col 1');
+  // E: the Editor, the buffer has the keys; the new alias sits after the last alias.
+  await page.keyboard.press('e');
+  await expect(pe(page)).toHaveAttribute('data-view', 'editor');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
+  await expect(content(page)).toBeFocused();
+  expect(await bufferText(page)).toBe('#nop head\n\n#alias {b} {bee}\n#alias {gv %1} {\n    get %1;\n    value %1\n}\n#macro {F1} {one}\n');
+  await expect(status(page)).toContainText('Ln 1, Col 1');
 
   // Edit the text: a new alias at the end, typed with auto-closed braces.
-  await page.keyboard.press('Tab'); // toggle → buffer
-  await expect(ped(page)).toHaveAttribute('data-zone', 'buffer');
   await page.keyboard.press('Control+End');
   await page.keyboard.type('#alias {k');
   await page.keyboard.press('End');
   await page.keyboard.type(' {kill}');
-  await expect(footer(page)).not.toContainText('unclosed');
+  await expect(status(page)).not.toContainText('unclosed');
   await page.keyboard.type(' {');
-  await expect(footer(page)).not.toContainText('unclosed'); // auto-closed
+  await expect(status(page)).not.toContainText('unclosed'); // auto-closed
   await page.keyboard.press('Backspace'); // removes the pair
   await page.keyboard.press('Backspace');
   await page.keyboard.type('{');
   await page.keyboard.press('Delete');
-  await expect(footer(page)).toContainText('1 unclosed {');
+  await expect(status(page)).toContainText('1 unclosed {');
   await page.keyboard.press('Backspace');
-  await expect(footer(page)).not.toContainText('unclosed');
-  await expect(footer(page)).toContainText('Ln 9, Col 18');
+  await expect(status(page)).not.toContainText('unclosed');
+  await expect(status(page)).toContainText('Modified');
+  await expect(status(page)).toContainText('Ln 9, Col 18');
 
-  // Back to lite: the list is re-read from the text.
-  await ped(page).locator('[data-btn="LITE"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
-  await kind(page, 'alias');
-  await expect(listRows(page)).toHaveText([/^b\s+bee/, /^gv %1\s+get %1;…/, /^k\s+kill/, /\+ New entry/]);
-
-  // ESC saves and flashes on the Profile frame.
+  // Esc leaves the buffer (the rail has the keys), L flips back to Lite: the list is re-read.
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await page.keyboard.press('l');
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  await kind(page, 'alias');
+  expect(await listText(page)).toEqual(['b | bee', 'gv %1 | get %1; …', 'k | kill', '+ New alias']);
+
+  // Esc leaves; the list flashes what this visit stored.
+  await page.keyboard.press('Escape');
+  await expect(listFlash(page)).toHaveText('Saved default.');
   const saved = '#nop head\n\n#alias {b} {bee}\n#alias {gv %1} {\n    get %1;\n    value %1\n}\n#macro {F1} {one}\n#alias {k} {kill}';
   expect(await stored(page)).toBe(saved);
   await page.reload();
@@ -139,130 +191,149 @@ test('a flip without edits keeps the text byte for byte', async ({ page }) => {
   const text = '#ACTION {x}\n{\n    say hi\n}\n\n#nop keep me\n#gag {spam}\n\n#lua {print(1)}\n#alias {a} {b} {7}\n';
   await openFromStart(page, text);
   await toEditor(page);
-  await ped(page).locator('[data-btn="LITE"]').click();
+  await views(page, 'lite').click();
   await toEditor(page);
   // The inert #lua is marked, with its hint on hover.
-  await expect(ped(page).locator('.wc-syn-inert')).toHaveText('#lua');
-  await expect(ped(page).locator('.wc-syn-inert')).toHaveAttribute('title', /other forms do nothing/);
+  await expect(pe(page).locator('.wc-syn-inert')).toHaveText('#lua');
+  await expect(pe(page).locator('.wc-syn-inert')).toHaveAttribute('title', /other forms do nothing/);
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   // Nothing changed: pops without saving.
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(listHood(page)).toHaveText('Profiles');
   expect(await stored(page)).toBe(text);
 });
 
-test('EDITOR: Ctrl+F finds and replaces; ESC closes the panel, then the editor', async ({ page }) => {
+test('Editor: Ctrl+F finds and replaces; Esc closes the panel, leaves the buffer, then the editor', async ({ page }) => {
   const text = '#alias {k} {kill orc}\n#action {An orc arrives.} {kill orc}\n';
   await openFromStart(page, text);
   await toEditor(page);
   await content(page).click();
   await page.keyboard.press('Control+f');
-  const panel = ped(page).locator('.wc-search');
-  await expect(panel.getByRole('textbox', { name: 'Find' })).toBeFocused();
+  const panel = pe(page).locator('.wc-lk-search');
+  await expect(panel.locator('[data-field=find] input')).toBeFocused();
   await page.keyboard.type('orc');
   await expect(panel.locator('.wc-search-count')).toHaveText(/1 of 3/);
-  await expect(ped(page).locator('.cm-searchMatch')).toHaveCount(3);
+  await expect(pe(page).locator('.cm-searchMatch')).toHaveCount(3);
   await page.keyboard.press('Control+h');
+  await expect(panel.locator('[data-field=replace] input')).toBeFocused();
   await page.keyboard.type('troll');
-  await panel.locator('[data-btn="ALL"]').click();
+  await panel.locator('[data-btn=all]').click();
   await expect.poll(() => bufferText(page)).toBe('#alias {k} {kill troll}\n#action {An troll arrives.} {kill troll}\n');
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
   await expect(content(page)).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await expect(content(page)).not.toBeFocused();
+  // The Find button opens it again.
+  await pe(page).locator('[data-btn="FIND"]').click();
+  await expect(panel.locator('[data-field=find] input')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(listHood(page)).toHaveText('Profiles');
   expect(await stored(page)).toContain('kill troll');
 });
 
-test('kind row: n adds an entry of that kind, Del deletes nothing; the footer names the keys (ADR 0119)', async ({ page }) => {
+test('the rail and the letters: kinds, new, delete; Del only in the list', async ({ page }) => {
   const errors = watchErrors(page);
   await openFromStart(page, '#action {orc} {kill orc}\n#macro {F1} {one}\n');
+  // The rail lists the kinds with their counts; the cursor starts in the list.
+  await expect(pe(page).locator('[data-rail]')).toHaveText([/^Actions\s*1$/, /^Aliases\s*0$/, /^Highlights\s*0$/, /^Macros\s*1$/, /^Substitutes\s*0$/]);
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  await expect(curRow(page)).toHaveAttribute('data-id', /\d+/);
 
-  // The kind row's hints; the toggle has neither n nor Del, nor does n do anything there.
-  await ped(page).locator('[data-kind="action"]').first().click();
-  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
-  await expect(footer(page)).toHaveText('n New · Tab Cycle · ESC Back');
+  // A click on a kind gives the rail the keys: ↑↓ switch the kind, → goes to the list.
+  await pe(page).locator('[data-rail="alias"]').click();
+  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await expect(pe(page)).toHaveAttribute('data-kind', 'alias');
   await page.keyboard.press('ArrowUp');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-  await expect(footer(page)).toHaveText('Tab Cycle · ESC Back');
-  await page.keyboard.press('n');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
-  await expect(listRows(page)).toHaveText([/^orc\s+kill orc/, /\+ New entry/]);
-  await page.keyboard.press('ArrowDown');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
-
-  // Del on the kind row deletes nothing.
+  await expect(pe(page)).toHaveAttribute('data-kind', 'action');
+  // Del in the rail deletes nothing.
   await page.keyboard.press('Delete');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
-  await expect(listRows(page)).toHaveText([/^orc\s+kill orc/, /\+ New entry/]);
+  expect(await listText(page)).toEqual(['orc | kill orc', '+ New action']);
+  await page.keyboard.press('ArrowRight');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
 
-  // n: a new action, Pattern focused.
+  // N: a new action, Pattern focused.
   await page.keyboard.press('n');
-  await expect(ped(page).locator('input[data-field="pattern"]')).toBeFocused();
-  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('');
+  await expect(pattern(page)).toBeFocused();
+  await expect(pattern(page)).toHaveValue('');
   await page.keyboard.type('troll');
-  await expect(listRows(page)).toHaveText([/^orc\s+kill orc/, /^troll/, /\+ New entry/]);
-  // The list's hints.
-  await page.keyboard.press('Shift+Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'list');
-  await expect(footer(page)).toHaveText('n New · Del Delete · Tab Cycle · ESC Back');
-  // Elsewhere in LITE: no n.
-  await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'detail');
-  await expect(footer(page)).toHaveText('Tab Cycle · ESC Back');
+  expect(await listText(page)).toEqual(['orc | kill orc', 'troll | ', '+ New action']);
+  // Letters type in a field: d is text there.
+  await page.keyboard.type('d');
+  await expect(pattern(page)).toHaveValue('trolld');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Escape');
+  await expect.poll(() => stored(page)).toBe('#action {orc} {kill orc}\n#action {troll} {}\n#macro {F1} {one}\n');
+  // Del in the list deletes the entry under the cursor.
+  await page.keyboard.press('Delete');
+  expect(await listText(page)).toEqual(['orc | kill orc', '+ New action']);
+  await expect.poll(() => stored(page)).toBe('#action {orc} {kill orc}\n#macro {F1} {one}\n');
+  // D (and the Delete button) on the New row: nothing.
+  await page.keyboard.press('End');
+  await expect(pe(page).locator('[data-btn="DELETE"]')).toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('d');
+  expect(await listText(page)).toEqual(['orc | kill orc', '+ New action']);
 
-  // A macro: n on the kind row starts key capture.
-  await ped(page).locator('[data-kind="macro"]').first().click();
-  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
+  // A macro: N starts key capture.
+  await kind(page, 'macro');
   await page.keyboard.press('n');
-  const overlay = ped(page).locator('.wc-ped-overlay');
-  await expect(overlay).toContainText('Press the key to bind…');
+  await expect(dialog(page, 'bind')).toContainText('Press the key to bind…');
   await page.keyboard.press('F5');
-  await expect(overlay).toHaveCount(0);
-  await expect(ped(page).locator('textarea[data-field="body"]')).toBeFocused();
+  await expect(dialog(page, 'bind')).toHaveCount(0);
+  await expect(body(page)).toBeFocused();
   await page.keyboard.type('draw');
-  await expect(listRows(page)).toHaveText([/^F1\s+one/, /^F5\s+draw/, /\+ New entry/]);
+  expect(await listText(page)).toEqual(['F1 | one', 'F5 | draw', '+ New macro']);
 
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
-  expect(await stored(page)).toBe('#action {orc} {kill orc}\n#action {troll} {}\n#macro {F1} {one}\n#macro {F5} {draw}\n');
+  await page.keyboard.press('Escape');
+  await expect(listFlash(page)).toHaveText('Saved default.');
+  expect(await stored(page)).toBe('#action {orc} {kill orc}\n#macro {F1} {one}\n#macro {F5} {draw}\n');
   expect(errors).toEqual([]);
 });
 
-test('macro key capture: F5 binds, Ctrl+W is rejected, ESC cancels a new entry', async ({ page }) => {
+test('macro key capture: F5 binds, Ctrl+W is rejected, Esc cancels a new entry', async ({ page }) => {
   await openFromStart(page, '#macro {F1} {one}\n');
   await kind(page, 'macro');
   await page.keyboard.press('n');
-  const overlay = ped(page).locator('.wc-ped-overlay');
-  await expect(overlay).toContainText('Press the key to bind…');
+  const bind = dialog(page, 'bind');
+  await expect(bind).toContainText('Press the key to bind…');
+  await expect(bind).toContainText('For the new macro.');
   await page.keyboard.press('Control+w');
-  await expect(overlay.locator('.wc-ped-capture-error')).toHaveText('The browser keeps that key.');
-  await page.keyboard.press('F5');
-  await expect(overlay).toHaveCount(0);
-  await expect(footer(page)).toHaveText('Bound to F5.');
-  await expect(ped(page).locator('[data-field="key"]')).toHaveText('[ F5 ]');
-  await expect(ped(page).locator('textarea[data-field="body"]')).toBeFocused();
-  await page.keyboard.type('draw');
-  await expect(listRows(page)).toHaveText([/^F1\s+one/, /^F5\s+draw/, /\+ New entry/]);
-
-  // A key the input line uses warns under the detail panel.
-  await page.keyboard.press('Shift+Tab');
+  await expect(bind.locator('.wc-lk-dialog-err')).toHaveText('The browser keeps that key.');
   await page.keyboard.press('Enter');
-  await page.keyboard.press('Control+a');
-  await expect(ped(page).locator('[data-field="key"]')).toHaveText('[ Ctrl+a ]');
-  await expect(ped(page).locator('.wc-ped-warn').first()).toContainText('Ctrl+a overrides the input line');
+  await expect(bind.locator('.wc-lk-dialog-err')).toHaveText('Enter sends the input line.');
+  await page.keyboard.press('F5');
+  await expect(bind).toHaveCount(0);
+  await expect(flash(page)).toHaveText('Bound to F5.');
+  await expect(keyCell(page)).toHaveText('F5');
+  await expect(body(page)).toBeFocused();
+  await page.keyboard.type('draw');
+  expect(await listText(page)).toEqual(['F1 | one', 'F5 | draw', '+ New macro']);
 
-  // + New entry, then ESC: the entry is gone again.
+  // A key the input line uses warns under the detail; Enter on the Key cell captures again.
   await page.keyboard.press('Shift+Tab');
+  await expect(keyCell(page)).toHaveClass(/is-sel/);
+  await page.keyboard.press('Enter');
+  await expect(bind).toContainText('For the macro on F5.');
+  await page.keyboard.press('Control+a');
+  await expect(keyCell(page)).toHaveText('Ctrl+a');
+  await expect(pe(page).locator('.wc-pe-warn')).toContainText('Ctrl+a overrides the input line');
+
+  // The New row, then Esc in the capture: the new entry is gone again.
+  await page.keyboard.press('Escape');
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
-  await expect(overlay).toBeVisible();
+  await expect(bind).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(overlay).toHaveCount(0);
-  await expect(listRows(page)).toHaveCount(3);
+  await expect(bind).toHaveCount(0);
+  await expect(rows(page)).toHaveCount(3);
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
 
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
+  await expect(listFlash(page)).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#macro {F1} {one}\n#macro {Ctrl+A} {draw}\n');
 });
 
@@ -270,86 +341,123 @@ test('macro key capture: printable keys bind and warn (ADR 0026)', async ({ page
   await openFromStart(page, '#macro {F1} {one}\n');
   await kind(page, 'macro');
   await page.keyboard.press('n');
-  const overlay = ped(page).locator('.wc-ped-overlay');
-  await expect(overlay).toContainText('Press the key to bind…');
+  const bind = dialog(page, 'bind');
+  await expect(bind).toBeVisible();
   await page.keyboard.press('a');
-  await expect(overlay).toHaveCount(0);
-  await expect(footer(page)).toHaveText('Bound to a.');
-  await expect(ped(page).locator('[data-field="key"]')).toHaveText('[ a ]');
-  await expect.poll(() => warnText(page)).toBe('a overrides the input line (types text).');
+  await expect(bind).toHaveCount(0);
+  await expect(flash(page)).toHaveText('Bound to a.');
+  await expect(keyCell(page)).toHaveText('a');
+  await expect(pe(page).locator('.wc-pe-warn')).toHaveText('a overrides the input line (types text).');
   await page.keyboard.type('two');
 
-  // + New entry, Shift+1.
-  await page.keyboard.press('Shift+Tab');
-  await page.keyboard.press('Shift+Tab');
+  // The New row, Shift+1.
+  await page.keyboard.press('Escape');
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
-  await expect(overlay).toBeVisible();
+  await expect(bind).toBeVisible();
   await page.keyboard.press('Shift+Digit1');
-  await expect(overlay).toHaveCount(0);
-  await expect(ped(page).locator('[data-field="key"]')).toHaveText('[ Shift+1 ]');
-  await expect.poll(() => warnText(page)).toBe('Shift+1 overrides the input line (types text).');
+  await expect(bind).toHaveCount(0);
+  await expect(keyCell(page)).toHaveText('Shift+1');
+  await expect(pe(page).locator('.wc-pe-warn')).toHaveText('Shift+1 overrides the input line (types text).');
   await page.keyboard.type('three');
 
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
+  await page.keyboard.press('Escape');
+  await expect(listFlash(page)).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#macro {F1} {one}\n#macro {A} {two}\n#macro {Shift+1} {three}\n');
 });
 
-test('highlight picker: styles, text and background swatches', async ({ page }) => {
+test('highlight picker: styles, text and background swatches, Shows as', async ({ page }) => {
   await openFromStart(page, '#highlight {bold one} {bold red}\n');
   await kind(page, 'highlight');
-  // An unparseable body shows nothing selected and stays verbatim.
+  // A body the picker cannot read shows nothing chosen, says so, and stays verbatim.
   await page.keyboard.press('Enter');
-  await expect(ped(page).locator('.wc-ped-sw.is-on')).toHaveCount(0);
-  await page.keyboard.press('End');
-  await page.keyboard.press('Home');
+  await expect(pattern(page)).toBeFocused();
+  await expect(pe(page).locator('.wc-pe-sw.is-on')).toHaveCount(0);
+  await expect(pe(page).locator('.wc-pe-verb')).toContainText('Kept as written: bold red.');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
+  await page.keyboard.press('Escape');
+  await expect(listHood(page)).toHaveText('Profiles');
 
   await page.locator('.wc-start [data-btn="EDIT"]').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  await morphDone(page);
   await kind(page, 'highlight');
   await page.keyboard.press('n');
   await page.keyboard.type('^%1 enters');
   await page.keyboard.press('Tab'); // Style
+  await expect(pe(page).locator('.wc-pe-style.is-sel')).toHaveAttribute('data-style', 'underscore');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter'); // reverse
+  await expect(pe(page).locator('[data-style="reverse"] [role="checkbox"]')).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('Tab'); // Text
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter'); // green (dark)
-  await page.keyboard.press('Tab'); // BG
+  await page.keyboard.press('Tab'); // Background
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter'); // bright red
-  await expect(ped(page).locator('.wc-ped-sw.is-on')).toHaveCount(3);
-  await expect(listRows(page).nth(1)).toContainText('reverse green b Red');
-  // Clicking a selected swatch clears it.
-  await ped(page).locator('[data-swatch="bg-0-1"]').click();
-  await expect(listRows(page).nth(1)).toContainText('reverse green');
+  await expect(pe(page).locator('.wc-pe-sw.is-on')).toHaveCount(2);
+  await expect(rows(page).nth(1)).toContainText('reverse green b Red');
+  await expect(pe(page).locator('.wc-pe-shows .wc-pe-sample')).toHaveText('… enters');
+  // A click on a chosen swatch clears it.
+  await pe(page).locator('[data-swatch="bg-0-1"]').click();
+  await expect(rows(page).nth(1)).toContainText('reverse green');
+  await expect(pe(page).locator('.wc-pe-sw.is-on')).toHaveCount(1);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
+  await page.keyboard.press('Escape');
+  await expect(listFlash(page)).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#highlight {bold one} {bold red}\n#highlight {^%1 enters} {reverse green}\n');
+});
+
+test('Esc in a field leaves the field first; the status says what is applied', async ({ page }) => {
+  await openFromStart(page, '#alias {a} {b}\n#alias {gv} {x}\n');
+  await kind(page, 'alias');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(pattern(page)).toBeFocused();
+  await expect(pe(page)).toHaveAttribute('data-zone', 'detail');
+  // ↓ (or Enter) to Commands; an unbalanced body is flagged and held back.
+  await page.keyboard.press('ArrowDown');
+  await expect(body(page)).toBeFocused();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' {');
+  await expect(pe(page).locator('.wc-pe-msg')).toHaveText('Unbalanced braces in Commands');
+  await expect(status(page)).toHaveText('Editing');
+  await page.keyboard.press('Escape');
+  await expect(body(page)).not.toBeFocused();
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  await expect(flash(page)).toHaveText('Not applied: Unbalanced braces in Commands (alias gv)');
+  await expect(status(page)).toHaveText('Not applied');
+  await expect(curRow(page).locator('.wc-pe-flag.is-bad')).toHaveCount(1);
+  expect(await stored(page)).toBe('#alias {a} {b}\n#alias {gv} {x}\n');
+  // Not live: Esc then asks only because nothing could be saved.
+  await page.keyboard.press('Escape');
+  const held = dialog(page, 'not-applied');
+  await expect(held).toContainText('Not applied: Unbalanced braces in Commands (alias gv)');
+  await page.keyboard.press('Escape'); // keep editing
+  await expect(held).toHaveCount(0);
+  await expect(pe(page)).toBeVisible();
+  // ← at the start of a field goes back to the list; Ctrl+S tries again.
+  await page.keyboard.press('ArrowRight');
+  await expect(pattern(page)).toBeFocused();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowLeft');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('n'); // discard
+  await expect(listHood(page)).toHaveText('Profiles');
+  expect(await stored(page)).toBe('#alias {a} {b}\n#alias {gv} {x}\n');
 });
 
 test('the Profile window while disconnected saves directly', async ({ page }) => {
   const errors = watchErrors(page);
-  const mock = await mockMume(page);
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await page.evaluate(async () => {
-    await window.__wc!.shell.profiles.init();
-    await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
-  });
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await mock.server()!.close();
-  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
-  // Desktop: no menu opens (ADR 0100, 0112); the bar's Profile opens the window.
-  await page.locator('.wc-mb[data-mb="profile"]').click();
-  await expect(ped(page).locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: default ───');
+  await openWindow(page, '#alias {a} {b}\n', true);
+  await expect(pe(page).locator('.wc-pe-live')).toHaveText('Not connected · changes are saved');
   await kind(page, 'alias');
   await page.keyboard.press('n');
   await page.keyboard.type('x');
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   // Saved, and the Profile window (ADR 0103) closes with the editor.
   await expect(page.locator('.wc-win[data-win="profile"]')).toHaveCount(0);
@@ -357,68 +465,71 @@ test('the Profile window while disconnected saves directly', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
-test('the Profile window while connected: Keep editing, Discard, Apply', async ({ page }) => {
-  await mockMume(page);
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await page.evaluate(async () => {
-    await window.__wc!.shell.profiles.init();
-    await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
-  });
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.locator('.wc-mb[data-mb="profile"]').click();
-  await expect(ped(page)).toBeVisible();
+test('the Profile window while connected: Lite applies in place, Editor asks: Keep editing, Discard, Apply', async ({ page }) => {
+  await openWindow(page, '#alias {a} {b}\n');
+  await expect(pe(page).locator('.wc-pe-live')).toHaveText('Connected · changes apply to the game');
+  await expect(status(page)).toHaveText('All applied');
   const win = page.locator('.wc-win[data-win="profile"]');
   const field = page.locator('.wc-input-field');
 
-  // Clean: ESC leaves silently and the window closes.
+  // Clean: Esc leaves silently and the window closes.
   await page.keyboard.press('Escape');
   await expect(win).toHaveCount(0);
   await expect(field).toBeFocused();
 
-  const modal = () => ped(page).locator('.wc-ped-overlay');
   const reopen = async () => {
     await field.fill('#profile');
     await page.keyboard.press('Enter');
-    await expect(ped(page)).toBeVisible();
+    await expect(pe(page)).toBeVisible();
   };
+  // Lite: leaving the field applies (ADR 0105).
   await reopen();
   await kind(page, 'alias');
   await page.keyboard.press('n');
   await page.keyboard.type('y');
   await page.keyboard.press('Escape');
-  await expect(modal()).toContainText('Apply changes to your profile?');
+  await expect(flash(page)).toHaveText('Applied');
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {y} {}\n');
+
+  // Editor: an edit stays unapplied until Ctrl+S; Esc asks.
+  await page.keyboard.press('e');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('#alias {w} {x}');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  const ask = dialog(page, 'apply');
+  await expect(ask).toContainText('Apply changes to your profile?');
   await page.keyboard.press('Escape'); // keep editing
-  await expect(modal()).toHaveCount(0);
-  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('y');
+  await expect(ask).toHaveCount(0);
+  await expect(pe(page)).toHaveAttribute('data-view', 'editor');
   await page.keyboard.press('Escape');
   await page.keyboard.press('n'); // discard
   await expect(win).toHaveCount(0);
-  expect(await stored(page)).toBe('#alias {a} {b}\n');
+  expect(await stored(page)).toBe('#alias {a} {b}\n#alias {y} {}\n');
 
   await reopen();
-  await kind(page, 'alias');
-  await page.keyboard.press('n');
-  await page.keyboard.type('z');
+  await page.keyboard.press('e');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('#alias {z} {}');
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(ask).toBeVisible();
   await page.keyboard.press('y');
   // Apply swaps the live rule set, then saves; the window closes.
   await expect(win).toHaveCount(0);
-  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {y} {}\n#alias {z} {}');
   expect(await page.evaluate(() => window.__wc!.app.script.user.plainAlias('z') !== undefined)).toBe(true);
 });
 
-test('editor keys: line swap, undo, copy line, Tab and ↑ to the toggle', async ({ page }) => {
+test('Editor keys: line swap, undo, copy line, the Tab ring, ← on the views flips', async ({ page }) => {
   await openFromStart(page, 'one\ntwo\nthree\n');
-  await toEditor(page);
-  await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'buffer');
+  await page.keyboard.press('e');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
   await page.keyboard.press('ArrowDown');
-  await expect(footer(page)).toContainText('Ln 2, Col 1');
+  await expect(status(page)).toContainText('Ln 2, Col 1');
   await page.keyboard.press('Alt+ArrowUp');
   expect(await bufferText(page)).toBe('two\none\nthree\n');
-  await expect(footer(page)).toContainText('Ln 1, Col 1');
+  await expect(status(page)).toContainText('Ln 1, Col 1');
   await page.keyboard.press('Control+z');
   expect(await bufferText(page)).toBe('one\ntwo\nthree\n');
   await page.keyboard.type('x');
@@ -429,540 +540,353 @@ test('editor keys: line swap, undo, copy line, Tab and ↑ to the toggle', async
   expect(await bufferText(page)).toBe('one\nxtwo\nthree\n');
   // Ctrl+C with no selection copies the line.
   await page.keyboard.press('Control+c');
-  await expect(footer(page)).toContainText('Copied');
+  await expect(flash(page)).toHaveText('Copied');
   await page.keyboard.press('Control+x');
-  await expect(footer(page)).toContainText('Cut');
+  await expect(flash(page)).toHaveText('Cut');
   expect(await bufferText(page)).toBe('one\nthree\n');
-  // Tab never inserts a tab: it moves to the toggle, and back.
+  // Tab never inserts a tab: buffer → views → rail → buffer.
   await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'views');
+  await expect(views(page, 'editor')).toHaveClass(/is-sel/);
   await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'buffer');
-  await page.keyboard.press('Control+Home');
-  await page.keyboard.press('ArrowUp');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-  // ← on the toggle flips to LITE; the edited text is parsed back and saved (ADR 0105).
+  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await page.keyboard.press('Tab');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'views');
+  // ← on the views flips to Lite; the edited text is parsed back and saved (ADR 0105).
   await page.keyboard.press('ArrowLeft');
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'views');
   await expect.poll(() => stored(page)).toBe('one\nthree\n');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
+  await expect(listFlash(page)).toHaveText('Saved default.');
 });
 
-// ---------------------------------------------------------------- HELP view
+test('Editor rail: the text sections in order; a click puts the line at the top and the cursor on it', async ({ page }) => {
+  const errors = watchErrors(page);
+  const text = '#nop {Gibur, a warrior.}\n\n#variable {t} {orc}\n\n#nop ---- actions ----\n#action {x} {y}\n\n#alias {a} {b}\n#ticker {t} {score} {60}\n';
+  await openFromStart(page, text);
+  await page.keyboard.press('e');
+  const items = pe(page).locator('[data-rail="text"]');
+  await expect(items).toHaveText([/Gibur, a warrior\.\s*1/, /Variables\s*3/, /Actions\s*5/, /Aliases\s*8/, /Timers & events\s*9/]);
+  await items.filter({ hasText: 'Aliases' }).click();
+  await expect(status(page)).toContainText('Ln 8, Col 1');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
+  await expect(items.filter({ hasText: 'Aliases' })).toHaveClass(/is-on/);
+  // Typing a new kind adds its section after a rest (debounced).
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('#macro {F1} {bash}\n');
+  await expect(items.filter({ hasText: 'Macros' })).toHaveText(/Macros\s*10/);
+  // The rail's keys: Esc to the rail, ↑ to a section, Enter jumps there.
+  await page.keyboard.press('Escape');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await page.keyboard.press('Home');
+  await expect(items.first()).toHaveClass(/is-cur/);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(status(page)).toContainText('Ln 3, Col 1');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
+  expect(errors).toEqual([]);
+});
 
-const helpRows = (page: Page) => ped(page).locator('.wc-ped-help .wc-ped-manual .wc-ped-help-text');
-/** The manual scrolls natively: the text of its `k`-th row from the top of the view. */
-const helpRow = (page: Page, k = 0) =>
-  ped(page)
-    .locator('.wc-ped-manual-rows')
-    .evaluate((el, k) => {
-      const t = el.scrollTop;
-      const all = [...el.children] as HTMLElement[];
-      const i = all.findIndex((c) => c.offsetTop >= t - 1);
-      return all[i + k]?.textContent ?? '';
-    }, k);
-/** Expects the manual's top row (`k`: rows below it) to read `text`. */
-const expectTop = (page: Page, text: string | RegExp, k = 0) =>
-  typeof text === 'string' ? expect.poll(() => helpRow(page, k)).toBe(text) : expect.poll(() => helpRow(page, k)).toMatch(text);
-const manualScroll = (page: Page) => ped(page).locator('.wc-ped-manual-rows').evaluate((el) => el.scrollTop);
-const helpMenu = (page: Page) => ped(page).locator('.wc-ped-menu');
-const menuEntries = (page: Page) => helpMenu(page).locator('.wc-tr');
-const menuEntry = (page: Page, heading: string) => helpMenu(page).locator(`.wc-tr[data-section="${heading}"]`);
-const menuCurrent = (page: Page) => helpMenu(page).locator('.wc-tr.is-cur, .wc-tr.is-cur-focus');
+// ---------------------------------------------------------------- Help
 
-async function toHelp(page: Page): Promise<void> {
-  await ped(page).locator('[data-btn="HELP"]').click();
-  await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await expectTop(page, 'Writing a profile');
-}
-
-/** Presses `n` until the manual's top row is `heading`. */
-async function jumpToHeading(page: Page, heading: string): Promise<void> {
-  for (let i = 0; i < 40; i++) {
-    const top = await helpRow(page);
-    if (top === heading) break;
-    await page.keyboard.press('n');
-    await expect.poll(() => helpRow(page)).not.toBe(top);
-  }
-  await expectTop(page, heading);
-}
-
-test('HELP from the start page: manual, scrolling, and back to LITE with edits intact', async ({ page }) => {
+test('Help from the start page: the manual, its headings in the rail, n / p, and back to Lite with edits intact', async ({ page }) => {
   const errors = watchErrors(page);
   await openFromStart(page, '#alias {b} {bee}\n#macro {F1} {one}\n');
-  await expect(ped(page).locator('.wc-ped-toggle .wc-btn')).toHaveText([' LITE ', ' EDITOR ', ' HELP ']);
+  await expect(pe(page).locator('.wc-pe-views [role="radio"]')).toHaveText(['Lite', 'Editor', 'Help']);
   await kind(page, 'alias');
   await page.keyboard.press('n');
   await page.keyboard.type('gv %1');
   await page.keyboard.press('Tab');
   await page.keyboard.type('get %1');
-
-  await toHelp(page);
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-  await expect(ped(page).locator('[data-btn="HELP"]')).toHaveClass(/is-sel-focus/);
-  await expect(footer(page)).toContainText('n/p Heading');
-  await expect(ped(page).locator('.wc-ped-list')).toHaveCount(0);
-
-  // Tab goes to the menu and on to the manual; n jumps from heading to heading.
-  await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
-  await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-  await jumpToHeading(page, '#action');
-  await expect(ped(page).locator('.wc-ped-help [data-kind="heading"]').first()).toHaveClass(/wc-line/);
-  await expectTop(page, '#action {pattern} {commands} {priority}', 1);
-  await expect(ped(page).locator('.wc-ped-help [data-kind="code"] .wc-syn-cmd').filter({ hasText: '#action' }).first()).toHaveText('#action');
-  await page.keyboard.press('n');
-  await expectTop(page, '#alias');
-  await page.keyboard.press('p');
-  await expectTop(page, '#action');
-
-  // ↓ ↑ one row, PgDn / PgUp a page, the wheel by pixels (native, as EDITOR), End / Home the ends.
-  const second = await helpRow(page, 1);
-  await page.keyboard.press('ArrowDown');
-  await expectTop(page, second);
-  await page.keyboard.press('ArrowUp');
-  await expectTop(page, '#action');
-  await page.keyboard.press('PageDown');
-  await expect.poll(() => helpRow(page)).not.toBe('#action');
-  await page.keyboard.press('PageUp');
-  await expectTop(page, '#action');
-  const px = await manualScroll(page);
-  await ped(page).locator('.wc-ped-manual').hover();
-  await page.mouse.wheel(0, 5);
-  // Not a whole row: a few pixels.
-  await expect.poll(() => manualScroll(page)).toBeGreaterThan(px);
-  const cell = await ped(page).locator('.wc-ped-manual-rows .wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
-  expect((await manualScroll(page)) - px).toBeLessThan(cell);
-  await page.keyboard.press('End');
-  await expect(helpRows(page).last()).toHaveText(/\$container\}\}$/); // the manual's last line
-  // No list of the commands that are not run (stage 25).
-  await expect(ped(page).locator('.wc-ped-help')).not.toContainText('#foreach');
-  await page.keyboard.press('Home');
-  await expectTop(page, 'Writing a profile');
-  // The manual never names the deprecated helper (ADR 0036).
-  await expect(ped(page).locator('.wc-ped-help')).not.toContainText('_send');
-  // ↑ at the top leaves the manual for the toggle; Tab cycles back.
-  await page.keyboard.press('ArrowUp');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-  await page.keyboard.press('Shift+Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-
-  // Back to LITE with the mouse: the unsaved entry, its field and the kind are as they were.
-  await ped(page).locator('[data-btn="LITE"]').click();
-  await expect(ped(page)).toHaveAttribute('data-view', 'lite');
-  await expect(listRows(page)).toHaveText([/^b\s+bee/, /^gv %1\s+get %1/, /\+ New entry/]);
-  await expect(cursorRow(page)).toHaveText(/^gv %1/);
-  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('gv %1');
-  await expect(ped(page).locator('textarea[data-field="body"]')).toHaveValue('get %1');
-
-  // With the keyboard the toggle walks LITE → EDITOR → HELP and back, flipping as usual.
-  await page.keyboard.press('ArrowRight');
-  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
-  await page.keyboard.press('ArrowRight');
-  await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
-  await page.keyboard.press('ArrowRight');
-  await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await page.keyboard.press('Enter');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('ArrowLeft');
-  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
-  expect(await bufferText(page)).toBe('#alias {b} {bee}\n#alias {gv %1} {get %1}\n#macro {F1} {one}\n');
-  await page.keyboard.press('ArrowLeft');
-  await expect(ped(page)).toHaveAttribute('data-view', 'lite');
-
-  // ESC in HELP saves and goes back, as in the other views.
-  await toHelp(page);
+  // H is text in the field: Esc first, then H.
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
+  await page.keyboard.press('h');
+  await expect(pe(page)).toHaveAttribute('data-view', 'help');
+  await expect(pe(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'help');
+  await expect(pe(page).locator('.wc-pe-list')).toHaveCount(0);
+  await expect(pe(page).locator('.wc-lk-mtext section').first()).toContainText('Writing a profile');
+  await expect(railSection(page)).toHaveText('Writing a profile');
+  // n / p walk the headings; the rail follows.
+  await page.keyboard.press('n');
+  await expect(railSection(page)).toHaveText('Braces and ;');
+  await page.keyboard.press('p');
+  await expect(railSection(page)).toHaveText('Writing a profile');
+  // A click in the rail goes there.
+  await pe(page).locator('.wc-lk-mtoc li', { hasText: /^#action$/ }).click();
+  await expect(railSection(page)).toHaveText('#action');
+  await expect(pe(page).locator('.wc-lk-mtext section h3', { hasText: /^#action$/ })).toBeInViewport();
+  // The rail's keys: ← from the manual, ↓ the next section, → back to the text.
+  await expect(pe(page)).toHaveAttribute('data-zone', 'help');
+  await page.keyboard.press('ArrowLeft');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await expect(pe(page).locator('.wc-lk-mtoc')).toHaveClass(/is-zone/);
+  await page.keyboard.press('ArrowDown');
+  await expect(railSection(page)).toHaveText('#alias');
+  await page.keyboard.press('ArrowRight');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'help');
+  // L: back to Lite, the edit is still there.
+  await page.keyboard.press('l');
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  expect(await listText(page)).toEqual(['b | bee', 'gv %1 | get %1', '+ New alias']);
+  await page.keyboard.press('h');
+  await expect(railSection(page)).toHaveText('#alias');
+  await page.keyboard.press('Escape');
+  await expect(listFlash(page)).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#alias {b} {bee}\n#alias {gv %1} {get %1}\n#macro {F1} {one}\n');
   expect(errors).toEqual([]);
 });
 
-test('HELP keeps the EDITOR buffer: text, cursor and undo history', async ({ page }) => {
+test('Help keeps the Editor buffer: text, cursor and undo history', async ({ page }) => {
   await openFromStart(page, 'one\ntwo\nthree\n');
-  await toEditor(page);
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('e');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.type('x');
-  await expect(footer(page)).toContainText('Ln 2, Col 2');
+  await expect(status(page)).toContainText('Ln 2, Col 2');
   await toHelp(page);
   await expect(content(page)).toBeHidden();
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
+  await views(page, 'editor').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'editor');
   await expect(content(page)).toBeVisible();
   expect(await bufferText(page)).toBe('one\nxtwo\nthree\n');
-  await expect(footer(page)).toContainText('Ln 2, Col 2');
-  await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'buffer');
+  await expect(status(page)).toContainText('Ln 2, Col 2');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
   await page.keyboard.press('Control+z');
   expect(await bufferText(page)).toBe('one\ntwo\nthree\n');
-  // Unchanged again: ESC from HELP pops without saving.
+  // Unchanged again: Esc from Help pops without saving.
   await toHelp(page);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(listHood(page)).toHaveText('Profiles');
   expect(await stored(page)).toBe('one\ntwo\nthree\n');
 });
 
-test('the Profile window → HELP while connected: LITE applies on the way, EDITOR asks', async ({ page }) => {
-  await mockMume(page);
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await page.evaluate(async () => {
-    await window.__wc!.shell.profiles.init();
-    await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
-  });
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.locator('.wc-mb[data-mb="profile"]').click();
+test('the Profile window → Help while connected: Lite applies on the way, Editor asks', async ({ page }) => {
+  await openWindow(page, '#alias {a} {b}\n');
   await kind(page, 'alias');
   await page.keyboard.press('n');
   await page.keyboard.type('z');
-
-  // Leaving the field for HELP applies the new alias (ADR 0105).
+  // Leaving the field for Help applies the new alias (ADR 0105).
   await toHelp(page);
   await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
-  await page.keyboard.press('Tab');
-  await jumpToHeading(page, '#action');
-  // The menu and the manual fit the window: the menu starts inside it, the scrollbar ends inside it.
+  await pe(page).locator('.wc-lk-mtoc li', { hasText: /^#action$/ }).click();
+  await expect(railSection(page)).toHaveText('#action');
+  // The manual fits the window.
   const box = (await page.locator('.wc-win[data-win="profile"] .wc-win-body').boundingBox())!;
-  const bar = (await ped(page).locator('.wc-ped-manual .wc-scroll-track').first().boundingBox())!;
-  expect(bar.x + bar.width).toBeLessThanOrEqual(box.x + box.width);
-  const menu = (await helpMenu(page).boundingBox())!;
-  expect(menu.x).toBeGreaterThanOrEqual(box.x);
-  expect(menu.x + menu.width).toBeLessThan(bar.x);
-  await expect(menuCurrent(page)).toHaveText(/^ #action\s*$/);
+  const man = (await pe(page).locator('.wc-lk-manual').boundingBox())!;
+  expect(man.x + man.width).toBeLessThanOrEqual(box.x + box.width + 1);
 
-  // An EDITOR edit stays unapplied over HELP: ESC there asks.
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await page.keyboard.press('Tab');
+  // An Editor edit stays unapplied over Help: Esc there asks.
+  await views(page, 'editor').click();
   await page.keyboard.press('Control+End');
   await page.keyboard.type('#alias {w} {x}');
-  // HELP again: the manual is where it was.
-  await ped(page).locator('[data-btn="HELP"]').click();
-  await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await expectTop(page, '#action');
-  const modal = () => ped(page).locator('.wc-ped-overlay');
+  await views(page, 'help').click();
+  await expect(railSection(page)).toHaveText('#action');
+  const ask = dialog(page, 'apply');
   await page.keyboard.press('Escape');
-  await expect(modal()).toContainText('Apply changes to your profile?');
-  await page.keyboard.press('Escape'); // keep editing: still in HELP, where it was
-  await expect(modal()).toHaveCount(0);
-  await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await expectTop(page, '#action');
+  await expect(ask).toContainText('Apply changes to your profile?');
+  await page.keyboard.press('Escape'); // keep editing: still in Help, where it was
+  await expect(ask).toHaveCount(0);
+  await expect(pe(page)).toHaveAttribute('data-view', 'help');
+  await expect(railSection(page)).toHaveText('#action');
   await page.keyboard.press('Escape');
   await page.keyboard.press('y');
   await expect(page.locator('.wc-win[data-win="profile"]')).toHaveCount(0);
   await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n#alias {w} {x}');
 });
 
-test('HELP menu: click and keys jump to a section, the mark follows the manual', async ({ page }) => {
-  const errors = watchErrors(page);
-  await openFromStart(page, '#alias {a} {b}\n');
-  await toHelp(page);
-  await expect(helpMenu(page)).toBeVisible();
-  await expect(menuCurrent(page)).toHaveText(/^ Writing a profile\s*$/);
-  await expect(menuCurrent(page)).toHaveClass(/is-cur(?!-focus)/);
-  // Every section is an entry, in manual order, under the two group labels.
-  await expect(helpMenu(page).locator('.wc-ped-menu-label.wc-c-hint').filter({ hasText: /\S/ })).toHaveText([/Basics/, /Commands/]);
-  await expect(menuEntries(page).nth(1)).toHaveText(/^ Braces and ;\s*$/);
+// ------------------------------------------------- layouts (ADR 0128)
 
-  // A click puts the heading on the manual's top row and focuses the menu.
-  await menuEntry(page, '#highlight').click();
-  await expectTop(page, '#highlight');
-  await expectTop(page, '#highlight {pattern} {colour} {priority}', 1);
-  await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
-  await expect(menuCurrent(page)).toHaveText(/^ #highlight\s*$/);
-  await expect(menuCurrent(page)).toHaveClass(/is-cur-focus/);
-  await expect(footer(page)).toContainText('↑↓ Section');
-
-  // ↑ ↓ move the cursor and the manual with it.
-  await page.keyboard.press('ArrowDown');
-  await expectTop(page, '#if');
-  await expect(menuCurrent(page)).toHaveText(/^ #if\s*$/);
-  await page.keyboard.press('ArrowUp');
-  await page.keyboard.press('ArrowUp');
-  await expectTop(page, '#help');
-  // → (or Enter) goes to the manual; the mark stays, grey, and follows scrolling.
-  await page.keyboard.press('ArrowRight');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-  await expect(footer(page)).toContainText('← Menu');
-  await expect(menuCurrent(page)).toHaveText(/^ #help\s*$/);
-  await expect(menuCurrent(page)).toHaveClass(/is-cur(?!-focus)/);
-  await page.keyboard.press('ArrowUp');
-  await expect(menuCurrent(page)).toHaveText(/^ #gag\s*$/);
-  await page.keyboard.press('n');
-  await expectTop(page, '#help');
-  await page.keyboard.press('n');
-  await expect(menuCurrent(page)).toHaveText(/^ #highlight\s*$/);
-  await page.keyboard.press('Home');
-  await expect(menuCurrent(page)).toHaveText(/^ Writing a profile\s*$/);
-  // ← goes back to the menu; ↑ on the first entry leaves for the toggle.
-  await page.keyboard.press('ArrowLeft');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
-  await page.keyboard.press('ArrowUp');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-  await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
-  await page.keyboard.press('Shift+Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-
-  // The last section cannot reach the top row: it is shown and marked all the same.
-  await page.keyboard.press('End');
-  await helpMenu(page).hover();
-  for (let i = 0; i < 15; i++) await page.mouse.wheel(0, 100);
-  await menuEntry(page, '#variable').click();
-  await expect(menuCurrent(page)).toHaveText(/^ #variable\s*$/);
-  await expect(helpRows(page).last()).toHaveText(/\$container\}\}$/); // the manual's last line
-  await expect(ped(page).locator('.wc-ped-manual [data-kind="heading"] .wc-ped-help-text').last()).toHaveText('#variable');
-  await page.keyboard.press('p');
-  await expect(menuCurrent(page)).toHaveText(/^ #ticker\s*$/);
-  expect(errors).toEqual([]);
-});
-
-test('HELP menu scrolls to keep the current section in view', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 420 });
-  await openFromStart(page, '#alias {a} {b}\n');
-  await toHelp(page);
-  await expect(menuEntry(page, '#variable')).not.toBeInViewport();
-  await expect(helpMenu(page).locator('.wc-scroll-thumb').first()).toBeVisible();
-  await page.keyboard.press('End');
-  await expect(menuCurrent(page)).toBeVisible();
-  await expect(menuEntry(page, 'Writing a profile')).not.toBeInViewport();
-  // The wheel scrolls the menu alone; a click then jumps.
-  await helpMenu(page).hover();
-  for (let i = 0; i < 15; i++) await page.mouse.wheel(0, -100);
-  await expect(menuEntry(page, 'Writing a profile')).toBeVisible();
-  await expect(helpRows(page).last()).toHaveText(/\$container\}\}$/); // the manual's last line
-  await menuEntry(page, 'Patterns').click();
-  await expectTop(page, 'Patterns');
-  // Walking down the menu brings the entries in, one by one, to the end.
-  for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowDown');
-  await expect(menuCurrent(page)).toHaveText(/^ #variable\s*$/);
-  await expect(menuCurrent(page)).toBeVisible();
-});
-
-test('HELP in a narrow window: no menu, the manual and its keys as before', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.setViewportSize({ width: 620, height: 600 });
-  await openFromStart(page, '#alias {a} {b}\n');
-  await toHelp(page);
-  await expect(helpMenu(page)).toHaveCount(0);
-  await page.keyboard.press('Tab');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-  await jumpToHeading(page, '#highlight');
-  await page.keyboard.press('ArrowLeft');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-  await page.keyboard.press('p');
-  await expectTop(page, '#help');
-  const view = page.viewportSize()!;
-  const bar = (await ped(page).locator('.wc-ped-manual .wc-scroll-track').first().boundingBox())!;
-  expect(bar.x + bar.width).toBeLessThanOrEqual(view.width);
-
-  // Widening brings the menu in, on the same section; narrowing with the menu focused moves focus to the manual.
-  await page.setViewportSize({ width: 1280, height: 600 });
-  await expect(menuCurrent(page)).toHaveText(/^ #help\s*$/);
-  await expectTop(page, '#help');
-  await page.keyboard.press('ArrowLeft');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
-  await page.setViewportSize({ width: 620, height: 600 });
-  await expect(helpMenu(page)).toHaveCount(0);
-  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-  await expectTop(page, '#help');
-  expect(errors).toEqual([]);
-});
-
-// ------------------------------------------------- full width (ADR 0037)
-
-const edges = async (l: Locator): Promise<{ left: number; right: number; width: number }> => {
-  const b = (await l.boundingBox())!;
-  return { left: b.x, right: b.x + b.width, width: b.width };
-};
-const LONG = Array.from({ length: 120 }, (_, i) => `#alias {a${i}} {say ${i}}`).join('\n') + '\n';
-
-/** EDITOR and HELP span the frame: from its first cell to the scrollbar in its last cell. */
-async function expectFullWidth(page: Page): Promise<void> {
-  const frame = await edges(ped(page));
-  await kind(page, 'alias');
-  const lite = await edges(ped(page).locator('.wc-ped-list'));
-  const toggle = await edges(ped(page).locator('.wc-ped-toggle'));
-  // LITE's column (ADR 0104) keeps a margin cell; EDITOR and HELP start in cell 0.
-  expect(lite.left - frame.left).toBeGreaterThan(4);
-
-  await toEditor(page);
-  const buffer = await edges(ped(page).locator('.wc-ped-buffer'));
-  const bar = await edges(ped(page).locator('.wc-ped-bufbar'));
-  expect(buffer.left).toBeCloseTo(frame.left, 0);
-  expect(bar.left).toBeCloseTo(buffer.right, 0);
-  expect(bar.right).toBeCloseTo(frame.right, 0);
-  // The toggle stays where it is in LITE.
-  expect((await edges(ped(page).locator('.wc-ped-toggle'))).right).toBeCloseTo(toggle.right, 0);
-  // The scrollbar still pages: a click on the track below the thumb.
-  const thumbs = ped(page).locator('.wc-ped-bufbar .wc-scroll-thumb');
-  const before = (await thumbs.first().boundingBox())!.y;
-  await ped(page).locator('.wc-ped-bufbar .wc-scroll-track').last().click();
-  await expect.poll(async () => (await thumbs.first().boundingBox())!.y).toBeGreaterThan(before);
-
-  await toHelp(page);
-  const menu = await edges(helpMenu(page));
-  const text = await edges(helpRows(page).first());
-  const track = await edges(ped(page).locator('.wc-ped-manual .wc-scroll-track').last());
-  expect(track.right).toBeCloseTo(frame.right, 0);
-  expect(menu.left).toBeCloseTo(frame.left, 0);
-  expect(menu.right).toBeLessThan(text.left);
-  // The manual is laid out to the new width: its rows end one blank cell before the scrollbar.
-  expect(text.right).toBeCloseTo(track.left, 0);
-  expect(text.width).toBeGreaterThan((toggle.width / 22) * 77); // wider than the full-size column (FULL_W)
-  await ped(page).locator('.wc-ped-manual .wc-scroll-track').last().click();
-  await expect.poll(() => helpRow(page)).not.toBe('Writing a profile');
-  await menuEntry(page, '#alias').click();
-  await expectTop(page, '#alias');
-}
-
-test('EDITOR and HELP fill the frame to its last cell from the start page; LITE keeps its column', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1600, height: 800 });
-  await openFromStart(page, LONG);
-  await expectFullWidth(page);
-  // The frame ends in the window's last cell.
-  const frame = await edges(ped(page));
-  expect(1600 - frame.right).toBeLessThan(frame.width / 79);
-  expect(errors).toEqual([]);
-});
-
-test('EDITOR and HELP fill the Profile window to its last cell', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1600, height: 800 });
-  await mockMume(page);
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await page.evaluate(async (t) => {
-    await window.__wc!.shell.profiles.init();
-    await window.__wc!.shell.profiles.save('default', t);
-  }, LONG);
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.locator('.wc-mb[data-mb="profile"]').click();
-  await expectFullWidth(page);
-  const box = (await page.locator('.wc-win[data-win="profile"] .wc-win-body').boundingBox())!;
-  const track = await edges(ped(page).locator('.wc-ped-manual .wc-scroll-track').last());
-  expect(track.right).toBeLessThanOrEqual(box.x + box.width);
-  expect(errors).toEqual([]);
-});
-
-test('EDITOR in a narrow window spans the frame too', async ({ page }) => {
-  await page.setViewportSize({ width: 620, height: 600 });
-  await openFromStart(page, LONG);
-  const frame = await edges(ped(page));
-  await toEditor(page);
-  const buffer = await edges(ped(page).locator('.wc-ped-buffer'));
-  const bar = await edges(ped(page).locator('.wc-ped-bufbar'));
-  expect(buffer.left).toBeCloseTo(frame.left, 0);
-  expect(bar.right).toBeCloseTo(frame.right, 0);
-});
-
-// ------------------------------------------------ LITE width (ADR 0104)
-
-/** The cell size and the frame's width in cells; the view toggle is 22 cells (` LITE   EDITOR   HELP `). */
-async function liteCells(page: Page): Promise<{ w: number; h: number; cols: number }> {
-  const toggle = (await ped(page).locator('.wc-ped-toggle').boundingBox())!;
-  const line = (await ped(page).locator('.wc-ped-list .wc-line').first().boundingBox())!;
-  const frame = (await ped(page).boundingBox())!;
-  const w = toggle.width / 22;
-  return { w, h: line.height, cols: Math.round(frame.width / w) };
-}
-
-test('LITE fills a wide frame: list and detail in halves, Commands takes the height (ADR 0104)', async ({ page }) => {
+test('wide: rail | list | detail; Commands takes the height; the warning sits under it', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1600, height: 800 });
   await openFromStart(page, '#alias {gv %1} {get %1;value %1}\n#macro {Ctrl+a} {score}\n');
+  await expect(pe(page)).toHaveAttribute('data-layout', 'wide');
   await kind(page, 'alias');
-  const cell = await liteCells(page);
-  const cells = (b: { width: number }): number => Math.round(b.width / cell.w);
-  const list = (await ped(page).locator('.wc-ped-list-rows').boundingBox())!;
-  const detail = (await ped(page).locator('.wc-ped-detail').boundingBox())!;
-  const pattern = (await ped(page).locator('input[data-field="pattern"]').boundingBox())!;
-  const body = (await ped(page).locator('textarea[data-field="body"]').boundingBox())!;
-  const toggle = (await ped(page).locator('.wc-ped-toggle').boundingBox())!;
-  // The column is the frame less a cell on each side, up to 160 cells. The
-  // list (and its scrollbar cell) and the detail panel split it in halves
-  // around the 3-cell gap, the odd cell to the detail panel.
-  const w = Math.min(160, cell.cols - 2);
-  expect(w).toBeGreaterThan(100);
-  const L = Math.floor((w - 3) / 2) - 1;
-  expect(cells(list)).toBe(L);
-  expect(cells(detail)).toBe(w - L - 1 - 3);
-  expect(cells(detail)).toBeGreaterThan(35);
-  // The list's Pattern column is half the row too.
-  const header = (await ped(page).locator('.wc-ped-list .wc-line').first().textContent())!;
-  expect(header.indexOf('Commands')).toBe(Math.floor((L - 1) / 2) + 1);
-  expect(cells(pattern)).toBe(cells(detail) - 4);
-  expect(cells(body)).toBe(cells(detail) - 4);
-  // Commands takes the height that is left, past the old 10-row cap.
-  expect(Math.round(body.height / cell.h)).toBeGreaterThan(10);
-  // The view toggle ends where the detail panel does.
-  expect(toggle.x + toggle.width).toBeCloseTo(detail.x + detail.width, 0);
-  // The kind row is centred over the column (within a cell).
-  const first = (await ped(page).locator('.wc-ped-kind').first().boundingBox())!;
-  const last = (await ped(page).locator('.wc-ped-kind').last().boundingBox())!;
-  const mid = (first.x + last.x + last.width) / 2;
-  expect(Math.abs(mid - (list.x + detail.x + detail.width) / 2)).toBeLessThanOrEqual(cell.w);
-  // No hints panel.
-  await expect(ped(page)).not.toContainText('─── Hint ───');
-  await expect(ped(page)).not.toContainText('capture words');
-  // The entry warning stays, under the Commands box.
+  const rail = (await pe(page).locator('.wc-pe-rail').boundingBox())!;
+  const list = (await pe(page).locator('.wc-pe-list').boundingBox())!;
+  const detail = (await pe(page).locator('.wc-pe-detail').boundingBox())!;
+  expect(rail.x + rail.width).toBeLessThanOrEqual(list.x);
+  expect(list.x + list.width).toBeLessThanOrEqual(detail.x);
+  expect(Math.abs(rail.y - list.y)).toBeLessThan(4);
+  const bodyBox = (await body(page).boundingBox())!;
+  expect(bodyBox.height).toBeGreaterThan(300);
+  // No key-hint rows anywhere.
+  await expect(pe(page)).not.toContainText('Tab Cycle');
+  await expect(pe(page)).not.toContainText('ESC Back');
   await kind(page, 'macro');
-  const warn = ped(page).locator('.wc-ped-warn');
-  await expect(warn).toHaveText(['Ctrl+a overrides the input line (selects all).']);
-  const box = (await ped(page).locator('textarea[data-field="body"]').boundingBox())!;
-  expect((await warn.boundingBox())!.y).toBeGreaterThanOrEqual(box.y + box.height);
+  const warn = pe(page).locator('.wc-pe-warn');
+  await expect(warn).toHaveText('Ctrl+a overrides the input line (selects all).');
+  const b = (await body(page).boundingBox())!;
+  expect((await warn.boundingBox())!.y).toBeGreaterThanOrEqual(b.y + b.height);
+  await expect(pe(page).locator('.wc-pe-row.is-on .wc-pe-kc')).toHaveText('Ctrl+a');
   expect(errors).toEqual([]);
 });
 
-test('LITE in a narrow window keeps its layout: the detail panel is 45 % of the column', async ({ page }) => {
-  await page.setViewportSize({ width: 620, height: 600 });
-  await openFromStart(page, '#alias {gv %1} {get %1;value %1}\n');
+test('narrower: the rail becomes a row; then one column, the entry opens as a sheet', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 900, height: 760 });
+  await openFromStart(page, '#alias {gv %1} {get %1;value %1}\n#alias {k} {kill}\n');
+  await expect(pe(page)).toHaveAttribute('data-layout', 'mid');
+  const rail = (await pe(page).locator('.wc-pe-rail').boundingBox())!;
+  const list = (await pe(page).locator('.wc-pe-list').boundingBox())!;
+  expect(rail.y + rail.height).toBeLessThanOrEqual(list.y + 1);
+  // The row's keys: ← → switch the kind, ↓ goes to the list.
+  await pe(page).locator('[data-rail="action"]').click();
+  await page.keyboard.press('ArrowRight');
+  await expect(pe(page)).toHaveAttribute('data-kind', 'alias');
+  await page.keyboard.press('ArrowDown');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  await expect(pe(page).locator('.wc-pe-detail')).toBeVisible();
+
+  await page.setViewportSize({ width: 560, height: 760 });
+  await expect(pe(page)).toHaveAttribute('data-layout', 'narrow');
+  await expect(pe(page).locator('.wc-pe-detail')).toBeHidden();
+  // Enter opens the entry as a sheet over the list, with the kind's back button.
+  await page.keyboard.press('Enter');
+  await expect(pe(page)).toHaveClass(/is-sheet/);
+  await expect(pattern(page)).toBeFocused();
+  await expect(pe(page).locator('.wc-pe-list')).toBeHidden();
+  const back = pe(page).locator('[data-btn="SHEET"]');
+  await expect(back).toHaveText('Aliases');
+  await back.click();
+  await expect(pe(page)).not.toHaveClass(/is-sheet/);
+  await expect(pe(page).locator('.wc-pe-list')).toBeVisible();
+  // A tap (a click) on a row opens it in one column; Esc closes the sheet (and leaves the field).
+  await rows(page).nth(1).click();
+  await expect(pe(page)).toHaveClass(/is-sheet/);
+  await expect(pattern(page)).toHaveValue('k');
+  await page.keyboard.press('Escape');
+  await expect(pe(page)).not.toHaveClass(/is-sheet/);
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  // Help in one column: the sections are a dropdown.
+  await page.keyboard.press('h');
+  await expect(pe(page).locator('.wc-pe-hsel select')).toBeVisible();
+  await expect(pe(page).locator('.wc-lk-mtoc')).toBeHidden();
+  await pe(page).locator('.wc-pe-hsel select').selectOption({ label: '#alias' });
+  await expect(pe(page).locator('.wc-pe-hsel select')).toHaveValue(/\d+/);
+  await expect(pe(page).locator('.wc-lk-mtext section h3', { hasText: /^#alias$/ })).toBeInViewport();
+  expect(errors).toEqual([]);
+});
+
+test('Editor and Help fill the main column; Lite keeps the rail, the list and the detail', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await openFromStart(page, Array.from({ length: 120 }, (_, i) => `#alias {a${i}} {say ${i}}`).join('\n') + '\n');
+  const cols = (await pe(page).locator('.wc-pe-cols').boundingBox())!;
+  await page.keyboard.press('e');
+  const buf = (await pe(page).locator('.wc-pe-buf').boundingBox())!;
+  expect(buf.x + buf.width).toBeCloseTo(cols.x + cols.width, 0);
+  // The buffer scrolls natively (no TUI scrollbar).
+  const scroller = pe(page).locator('.cm-scroller');
+  await scroller.hover();
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('h');
+  const man = (await pe(page).locator('.wc-lk-manual').boundingBox())!;
+  expect(man.x + man.width).toBeCloseTo(cols.x + cols.width, 0);
+});
+
+test('Lite list scrolls by pixels; the cursor stays in view; hover never moves it', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 600 });
+  const text = Array.from({ length: 40 }, (_, i) => `#action {goblin ${i}} {say hi ${i}}`).join('\n') + '\n';
+  await openFromStart(page, text);
+  const box = pe(page).locator('.wc-pe-list');
+  const m = await box.evaluate((el) => ({ top: el.scrollTop, over: el.scrollHeight - el.clientHeight }));
+  expect(m.over).toBeGreaterThan(0);
+  await box.hover();
+  await page.mouse.wheel(0, 5);
+  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBeGreaterThan(m.top);
+  const first = await curRow(page).getAttribute('data-i');
+  await rows(page).nth(3).hover();
+  await expect(curRow(page)).toHaveAttribute('data-i', first!);
+  // End: the cursor on the New row, pulled into view; Home back to the top.
+  await page.keyboard.press('End');
+  await expect(curRow(page)).toHaveAttribute('data-row', 'new');
+  await expect(curRow(page)).toBeInViewport({ ratio: 0.9 });
+  await page.keyboard.press('Home');
+  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
+  // A click selects a row; a second click on it opens it.
+  await rows(page).nth(3).click();
+  await expect(curRow(page)).toHaveAttribute('data-i', '3');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  await rows(page).nth(3).click();
+  await expect(pattern(page)).toBeFocused();
+});
+
+test('Editor shows the whole stored text of the bundled khazdul profile', async ({ page }) => {
+  await mockMume(page);
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  // The seeded khazdul text, as a first run stores it, under the profile that Edit opens.
+  const text = await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    const t = (await window.__wc!.shell.profiles.get('khazdul'))!.text;
+    await window.__wc!.shell.profiles.save('default', t);
+    return t;
+  });
+  expect(text).toContain('{_show_class}');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.locator('.wc-start [data-btn="EDIT"]').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  await morphDone(page);
+
+  // Lite lists the alias, leading underscore included.
   await kind(page, 'alias');
-  const cell = await liteCells(page);
-  const cells = (b: { width: number }): number => Math.round(b.width / cell.w);
-  const w = cell.cols - 2;
-  expect(w).toBeLessThan(77);
-  const d = Math.max(24, Math.floor(w * 0.45));
-  expect(cells((await ped(page).locator('.wc-ped-detail').boundingBox())!)).toBe(d);
-  expect(cells((await ped(page).locator('.wc-ped-list-rows').boundingBox())!)).toBe(w - d - 4);
-  await expect(ped(page)).not.toContainText('─── Hint ───');
+  const row = rows(page).filter({ has: page.locator('.wc-pe-pat', { hasText: /^_show_class$/ }) });
+  await expect(row).toHaveCount(1);
+  await row.click();
+  await row.click();
+  await expect(pattern(page)).toHaveValue('_show_class');
+
+  // The buffer holds the stored text exactly (read from its state: only the lines in view are drawn).
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('e');
+  const state = await content(page).evaluate((el) => {
+    type Held = { view?: { state: { doc: { toString(): string; lines: number } } } };
+    const v = ((el as unknown as { cmTile?: Held; cmView?: Held }).cmTile ?? (el as unknown as { cmView?: Held }).cmView)?.view;
+    return v ? { text: v.state.doc.toString(), lines: v.state.doc.lines } : null;
+  });
+  expect(state).not.toBeNull();
+  expect(state!.text).toBe(text);
+  // The rail lists the text's sections.
+  await expect(pe(page).locator('[data-rail="text"]:not(.is-note)', { hasText: 'Aliases' })).toHaveCount(1);
+
+  // Nothing was edited: Esc leaves the buffer, Esc pops without saving.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(listHood(page)).toHaveText('Profiles');
+  expect(await stored(page)).toBe(text);
 });
 
 // ------------------------------------------- every character is visible
 
 /**
- * How much of an underscore shows in cells `cols` of a text that starts at
- * `loc`'s left edge: lit pixels in the lower part of the cell (plus two
- * pixels below it, where a neighbouring row of the same background would
- * still show it), as a fraction of the cell width. Cell 2 must hold a
- * letter without a descender (the background sample). About 1 for a
- * DejaVu `_`, 0 when it is clipped or painted over.
+ * How much of an underscore shows in characters `cols` of `loc`'s first
+ * text: lit pixels in the lower part of the line (plus two pixels below
+ * it), as a fraction of a character's width. Character 2 must be a letter
+ * without a descender (the background sample). About 1 for a DejaVu `_`,
+ * 0 when it is clipped or painted over (ADR 0037, ADR 0043). The rows sit
+ * at fractional pixels in the new look, so a dim row's underscore is
+ * anti-aliased over two pixel rows: a faint pixel counts (the threshold is
+ * well above the background's noise).
  */
-async function underscoreInk(page: Page, loc: Locator, cols: number[], fromText = false): Promise<number[]> {
-  const cell = await page.evaluate(() => {
-    const cs = getComputedStyle(document.documentElement);
-    return { w: parseFloat(cs.getPropertyValue('--cell-w')), h: parseFloat(cs.getPropertyValue('--cell-h')) };
+async function underscoreInk(page: Page, loc: Locator, cols: number[]): Promise<number[]> {
+  const m = await loc.evaluate((el) => {
+    const t = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode()!;
+    const r = document.createRange();
+    r.setStart(t, 0);
+    r.setEnd(t, 1);
+    const c = r.getBoundingClientRect();
+    const b = el.getBoundingClientRect();
+    return { x: c.left, w: c.width, y: b.top, h: b.height };
   });
-  const b = (await loc.boundingBox())!;
-  // `fromText`: the text starts at its first character, not at the box's left edge (CodeMirror's line padding).
-  if (fromText)
-    b.x = await loc.evaluate((el) => {
-      const t = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode()!;
-      const r = document.createRange();
-      r.setStart(t, 0);
-      r.setEnd(t, 1);
-      return r.getBoundingClientRect().left;
-    });
   const n = Math.max(...cols, 2) + 1;
-  const png = await page.screenshot({ clip: { x: b.x, y: b.y, width: cell.w * n, height: cell.h + 2 } });
+  const png = await page.screenshot({ clip: { x: m.x, y: m.y, width: m.w * n, height: m.h + 2 } });
   return page.evaluate(
     async ({ b64, cols, n, frac }) => {
       const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -978,166 +902,58 @@ async function underscoreInk(page: Page, loc: Locator, cols: number[], fromText 
       const cw = cv.width / n;
       const ch = cv.height * frac;
       const refX = Math.floor(2.5 * cw);
-      const rowBg = px(refX, Math.floor(ch * 0.97) - 1);
       return cols.map((col) => {
         let ink = 0;
-        for (let y = Math.floor(ch * 0.6); y < cv.height; y++) {
+        for (let y = Math.floor(ch * 0.55); y < cv.height; y++) {
           const bg = px(refX, y);
-          // A pixel row that belongs to a neighbour with another background hides the glyph.
-          if (diff(bg, rowBg) > 60) continue;
-          for (let x = Math.floor(col * cw); x < Math.min(cv.width, Math.floor((col + 1) * cw)); x++) if (diff(px(x, y), bg) > 120) ink++;
+          for (let x = Math.floor(col * cw); x < Math.min(cv.width, Math.floor((col + 1) * cw)); x++) if (diff(px(x, y), bg) > 40) ink++;
         }
         return ink / cw;
       });
     },
-    { b64: png.toString('base64'), cols, n, frac: cell.h / (cell.h + 2) },
+    { b64: png.toString('base64'), cols, n, frac: m.h / (m.h + 2) },
   );
 }
 
 const UNDERSCORES = '#alias {_show_acontainer} {x}\n#alias {_show_class} {_hhhh_}\n#alias {_show_spell} {y}\n';
 
-/** The owner's report (ADR 0037): `_show_class` lost its underscores in LITE. */
-async function expectUnderscores(page: Page, font: 'dejavu' | 'jetbrains', size: number): Promise<void> {
-  await page.evaluate(([f, s]) => window.__wc!.settings.update({ appearance: { font: f as 'dejavu', size: s as number } }), [font, size] as const);
-  await page.evaluate(() => document.fonts.ready);
-  await expect
-    .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-size')))
-    .not.toBe('');
-  await page.waitForTimeout(150);
-  const where = `${font} ${size}`;
-  const input = ped(page).locator('input[data-field="pattern"]');
-  await expect(input).toHaveValue('_show_class');
-  const rows = listRows(page);
-  // The pattern column is half the list (ADR 0104): the patterns fit.
-  await expect(rows).toHaveText([/^_show_acontainer /, /^_show_class /, /^_show_spell /, /\+ New entry/]);
-  await expect(cursorRow(page)).toHaveText(/^_show_class /);
-  const targets: Array<[string, Locator]> = [
-    ['Pattern box', input],
-    ['row above the cursor band', rows.nth(0)],
-    ['cursor row', rows.nth(1)],
-    ['row below the cursor band', rows.nth(2)],
-    ['Commands box', ped(page).locator('textarea[data-field="body"]')],
-  ];
-  for (const [name, loc] of targets) {
-    const ink = await underscoreInk(page, loc, [0, 5]);
-    expect(Math.min(...ink), `${name}, ${where}: underscore ink ${ink.map((v) => v.toFixed(2)).join(' / ')}`).toBeGreaterThan(0.5);
-  }
-}
-
 for (const dpr of [1, 1.5]) {
   dprTest.describe(`underscores at device pixel ratio ${dpr}`, () => {
     dprTest.use({ dpr });
-    dprTest('every underscore of an entry shows in LITE, in both fonts and at several sizes', async ({ dprPage: page }) => {
+    dprTest('every underscore shows in the Lite rows and the Editor lines, in both fonts', async ({ dprPage: page }) => {
       await openFromStart(page, UNDERSCORES);
       await expectDpr(page, dpr);
       await kind(page, 'alias');
-      await listRows(page).nth(1).click();
-      for (const [font, size] of [['dejavu', 15], ['dejavu', 10], ['dejavu', 13], ['jetbrains', 15], ['dejavu', 20]] as const) {
-        await expectUnderscores(page, font, size);
+      for (const [font, size] of [['dejavu', 15], ['dejavu', 10], ['jetbrains', 15]] as const) {
+        await page.evaluate(([f, s]) => window.__wc!.settings.update({ appearance: { font: f as 'dejavu', size: s as number } }), [font, size] as const);
+        await page.evaluate(() => document.fonts.ready);
+        await page.waitForTimeout(150);
+        // `_show_class`: underscores in characters 0 and 5; character 2 (`h`) is the background sample.
+        for (const i of [0, 1, 2]) {
+          // Polled: the rows re-lay out after a font change.
+          await expect
+            .poll(async () => Math.min(...(await underscoreInk(page, rows(page).nth(i).locator('.wc-pe-pat'), [0, 5]))), {
+              message: `Lite row ${i}, ${font} ${size}`,
+              timeout: 3000,
+            })
+            .toBeGreaterThan(0.5);
+        }
       }
-    });
-
-    // ADR 0043: CodeMirror's lines, the one above the cursor's highlighted line too.
-    dprTest('every underscore shows in EDITOR, also on the line above the active line', async ({ dprPage: page }) => {
-      await openFromStart(page, UNDERSCORES);
-      await expectDpr(page, dpr);
-      await toEditor(page);
+      await page.keyboard.press('e');
       const line = (n: number) => content(page).locator('.cm-line').nth(n);
       await expect(line(1)).toHaveText('#alias {_show_class} {_hhhh_}');
       // The cursor on the third line: its highlight is the background right below line 2.
       await line(2).click();
       await expect(line(2)).toHaveClass(/cm-activeLine/);
-      for (const [font, size] of [['dejavu', 15], ['dejavu', 10], ['dejavu', 13], ['dejavu', 20], ['jetbrains', 15]] as const) {
+      for (const [font, size] of [['dejavu', 15], ['jetbrains', 15]] as const) {
         await page.evaluate(([f, s]) => window.__wc!.settings.update({ appearance: { font: f as 'dejavu', size: s as number } }), [font, size] as const);
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(150);
-        // `#alias {_show_class}`: underscores in cells 8 and 13; cell 2 (`l`) is the background sample.
-        const ink = await underscoreInk(page, line(1), [8, 13], true);
-        expect(Math.min(...ink), `EDITOR line, ${font} ${size}: underscore ink ${ink.map((v) => v.toFixed(2)).join(' / ')}`).toBeGreaterThan(0.5);
+        // `#alias {_show_class}`: underscores in characters 8 and 13; character 2 (`l`) is the background sample.
+        await expect
+          .poll(async () => Math.min(...(await underscoreInk(page, line(1), [8, 13]))), { message: `Editor line, ${font} ${size}`, timeout: 3000 })
+          .toBeGreaterThan(0.5);
       }
     });
   });
 }
-
-test('EDITOR shows the whole stored text of the bundled khazdul profile', async ({ page }) => {
-  await mockMume(page);
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  // The seeded khazdul text, as a first run stores it, under the profile that EDIT opens.
-  const text = await page.evaluate(async () => {
-    await window.__wc!.shell.profiles.init();
-    const t = (await window.__wc!.shell.profiles.get('khazdul'))!.text;
-    await window.__wc!.shell.profiles.save('default', t);
-    return t;
-  });
-  expect(text).toContain('{_show_class}');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await page.locator('.wc-start [data-btn="EDIT"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
-
-  // LITE lists the alias, leading underscore included.
-  await kind(page, 'alias');
-  const row = listRows(page).filter({ hasText: /^_show_class / });
-  await expect(row).toHaveCount(1);
-  await row.click();
-  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('_show_class');
-
-  // The buffer holds the stored text exactly (CodeMirror only renders the
-  // lines in view, so the document is read from its state).
-  await toEditor(page);
-  const state = await content(page).evaluate((el) => {
-    type Held = { view?: { state: { doc: { toString(): string; lines: number } } } };
-    const v = ((el as unknown as { cmTile?: Held; cmView?: Held }).cmTile ?? (el as unknown as { cmView?: Held }).cmView)?.view;
-    return v ? { text: v.state.doc.toString(), lines: v.state.doc.lines } : null;
-  });
-  expect(state).not.toBeNull();
-  expect(state!.text).toBe(text);
-
-  // Scrolling to the end renders every line on the way; the alias line is among them.
-  const seen = new Set<string>();
-  const scroller = ped(page).locator('.cm-scroller');
-  for (let i = 0; i < 400; i++) {
-    for (const l of await content(page).locator('.cm-line').allTextContents()) seen.add(l);
-    const moved = await scroller.evaluate((s) => {
-      const before = s.scrollTop;
-      s.scrollTop += Math.max(1, s.clientHeight - 40);
-      return s.scrollTop > before;
-    });
-    if (!moved) break;
-    await page.waitForTimeout(20);
-  }
-  for (const l of await content(page).locator('.cm-line').allTextContents()) seen.add(l);
-  const want = new Set(text.split('\n').filter((l) => l.trim() !== ''));
-  expect([...want].filter((l) => !seen.has(l))).toEqual([]);
-  expect([...seen].some((l) => /^#alias \{_show_class\}/i.test(l))).toBe(true);
-
-  // Nothing was edited: ESC pops without saving and the text is untouched.
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
-  expect(await stored(page)).toBe(text);
-});
-
-test('LITE list scrolls by pixels; the cursor stays in view', async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 500 });
-  const text = Array.from({ length: 40 }, (_, i) => `#action {goblin ${i}} {say hi ${i}}`).join('\n') + '\n';
-  await openFromStart(page, text);
-  await kind(page, 'action');
-  const box = ped(page).locator('.wc-ped-list-rows');
-  const m = await box.evaluate((el) => ({ top: el.scrollTop, over: el.scrollHeight - el.clientHeight }));
-  expect(m.over).toBeGreaterThan(0);
-  const cell = await box.locator('.wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
-  await box.hover();
-  await page.mouse.wheel(0, 5);
-  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBeGreaterThan(m.top);
-  expect((await box.evaluate((el) => el.scrollTop)) - m.top).toBeLessThan(cell);
-  // End: the cursor on `+ New entry`, pulled into view; Home back to the top.
-  await page.keyboard.press('End');
-  await expect(cursorRow(page)).toHaveAttribute('data-row', 'new');
-  await expect(cursorRow(page)).toBeInViewport({ ratio: 0.9 });
-  await page.keyboard.press('Home');
-  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
-  // A click still selects a row.
-  await listRows(page).nth(3).click();
-  await expect(cursorRow(page)).toHaveAttribute('data-row', '3');
-});

@@ -1,8 +1,10 @@
 // Find in the manuals (ADR 0070): Ctrl+F in the Script
-// Manual and in the profile editor's HELP view opens the find panel under
-// the manual. LITE has no find: Ctrl+F / Ctrl+H do nothing there (ADR
-// 0119). Nothing reaches the real server.
+// Manual opens the find panel under the manual; in the profile editor's
+// Help view (the new look, ADR 0128) it opens LookManual's find bar. Lite
+// has no find: Ctrl+F / Ctrl+H do nothing there (ADR 0119). Nothing
+// reaches the real server.
 import { type Page, expect, test } from '@playwright/test';
+import { morphDone } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -24,7 +26,7 @@ function watchErrors(page: Page): string[] {
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sman');
-const ped = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-ped');
+const ped = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-pe');
 const lib = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(
     ([fn, args]) => {
@@ -78,7 +80,8 @@ async function openProfile(page: Page, text: string): Promise<void> {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.locator('.wc-start [data-btn="EDIT"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(ped(page)).toHaveAttribute('data-view', 'lite');
+  await morphDone(page);
 }
 
 test('Script Manual: Ctrl+F finds and scrolls to the match; ESC closes the panel, then the manual', async ({ page }) => {
@@ -154,74 +157,78 @@ test('Script Manual: Ctrl+F finds and scrolls to the match; ESC closes the panel
   expect(errors).toEqual([]);
 });
 
-test('profile HELP: Ctrl+F finds in the manual; ESC closes the panel, then saves and goes back', async ({ page }) => {
+test('profile Help: Ctrl+F finds in the manual; Esc closes the find, then saves and goes back', async ({ page }) => {
   const errors = watchErrors(page);
   await openProfile(page, '#alias {b} {bee}\n');
-  await ped(page).locator('[data-btn="HELP"]').click();
+  await ped(page).locator('.wc-pe-views [data-opt="help"]').click();
   await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await expect(ped(page).locator('.wc-ped-footer')).toContainText('Ctrl+F Find');
+  await expect(ped(page).locator('[data-btn="FIND"]')).toBeVisible();
   await page.keyboard.press('Control+f');
-  const panel = ped(page).locator('.wc-search');
-  const field = panel.getByRole('textbox', { name: 'Find' });
+  const bar = ped(page).locator('.wc-lk-mfind');
+  const field = bar.locator('input');
   await expect(field).toBeFocused();
   await page.keyboard.type('#highlight');
-  await expect(panel.locator('.wc-search-count')).toHaveText(/1 of \d+/);
+  await expect(bar.locator('.wc-search-count')).toHaveText(/1 of \d+/);
   await page.keyboard.press('F3');
-  await expect(panel.locator('.wc-search-count')).toHaveText(/2 of \d+/);
-  await expect.poll(() => currentInView(page, ped(page))).toBe(true);
-  // The PREV button steps back.
-  await panel.locator('[data-btn="PREV"]').click();
-  await expect(panel.locator('.wc-search-count')).toHaveText(/1 of \d+/);
+  await expect(bar.locator('.wc-search-count')).toHaveText(/2 of \d+/);
+  // The previous button steps back; the field keeps the keys.
+  await bar.locator('[data-btn="prev"]').click();
+  await expect(bar.locator('.wc-search-count')).toHaveText(/1 of \d+/);
   await expect(field).toBeFocused();
 
   await page.keyboard.press('Escape');
-  await expect(panel).toHaveCount(0);
+  await expect(field).toBeHidden();
   await expect(ped(page)).toHaveAttribute('data-view', 'help');
   await expect(ped(page)).toHaveAttribute('data-zone', 'help');
+  // The Find button opens it again, with the last query.
+  await ped(page).locator('[data-btn="FIND"]').click();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('#highlight');
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await expect(ped(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('LITE: Ctrl+F and Ctrl+H do nothing (ADR 0119); EDITOR keeps both', async ({ page }) => {
+test('Lite: Ctrl+F and Ctrl+H do nothing (ADR 0119); Editor keeps both', async ({ page }) => {
   const errors = watchErrors(page);
   await openProfile(page, '#alias {k} {kill orc}\n#action {An orc arrives.} {kill orc}\n');
-  await expect(ped(page).locator('.wc-ped-footer')).not.toContainText('Ctrl+F');
-  await expect(ped(page).locator('.wc-ped-footer')).not.toContainText('Ctrl+H');
+  // Lite's foot has no Find.
+  await expect(ped(page).locator('[data-btn="FIND"]')).toHaveCount(0);
 
-  // On the kind row and in the list: LITE stays, no search panel, the zone is kept.
+  // In the rail and in the list: Lite stays, no search panel, the zone is kept.
   const panel = ped(page).locator('.wc-search');
-  await ped(page).locator('[data-kind="action"]').first().click();
-  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
-  for (const zone of ['kind', 'list']) {
-    if (zone === 'list') await page.keyboard.press('ArrowDown');
+  await ped(page).locator('[data-rail="action"]').click();
+  await expect(ped(page)).toHaveAttribute('data-zone', 'rail');
+  for (const zone of ['rail', 'list']) {
+    if (zone === 'list') await page.keyboard.press('ArrowRight');
     await expect(ped(page)).toHaveAttribute('data-zone', zone);
     for (const key of ['Control+f', 'Control+h']) {
       await page.keyboard.press(key);
-      await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+      await expect(ped(page)).toHaveAttribute('data-view', 'lite');
       await expect(ped(page)).toHaveAttribute('data-zone', zone);
       await expect(panel).toHaveCount(0);
     }
   }
   // In the Pattern field too; the text is untouched.
   await page.keyboard.press('ArrowRight');
-  const pattern = ped(page).locator('input[data-field="pattern"]');
+  const pattern = ped(page).locator('[data-field="pattern"] input');
   await expect(pattern).toBeFocused();
   await page.keyboard.press('Control+f');
   await page.keyboard.press('Control+h');
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(ped(page)).toHaveAttribute('data-view', 'lite');
   await expect(pattern).toBeFocused();
   await expect(pattern).toHaveValue('An orc arrives.');
   await expect(panel).toHaveCount(0);
 
-  // EDITOR: Ctrl+H opens Replace, Ctrl+F Find.
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
+  // Editor: Ctrl+H opens Replace, Ctrl+F Find.
+  await ped(page).locator('.wc-pe-views [data-opt="editor"]').click();
+  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
   await ped(page).locator('.cm-content').click();
   await page.keyboard.press('Control+h');
-  await expect(panel.getByRole('textbox', { name: 'Replace' })).toBeFocused();
+  await expect(panel.locator('[data-field=replace] input')).toBeFocused();
   await page.keyboard.press('Control+f');
-  await expect(panel.getByRole('textbox', { name: 'Find' })).toBeFocused();
+  await expect(panel.locator('[data-field=find] input')).toBeFocused();
   await page.keyboard.type('orc');
   await expect(panel.locator('.wc-search-count')).toHaveText(/of 3/);
   expect(errors).toEqual([]);
