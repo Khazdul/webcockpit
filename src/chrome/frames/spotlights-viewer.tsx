@@ -166,6 +166,14 @@ interface Kept {
 /** The parked host of the open Spotlights page (one at a time: the shell refuses a second player). */
 let kept: Kept | null = null;
 
+/**
+ * The host being made (the embed and the chunk load), settled once it is
+ * `kept` (or failed). A viewer opened meanwhile (the first one left before
+ * its host was ready) waits for it and adopts it instead of asking the
+ * shell for a second player, which it would refuse.
+ */
+let creating: Promise<void> | null = null;
+
 function disposeKept(): void {
   const k = kept;
   kept = null;
@@ -356,6 +364,10 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
       setK(kk);
     };
     void (async () => {
+      while (creating) {
+        await creating;
+        if (dead) return;
+      }
       const well = wellRef.current;
       if (!well) return;
       const { reel, start } = props.current;
@@ -375,6 +387,9 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
       slot.className = 'wc-spv-slot';
       well.append(slot);
       let host: PlayerHost | null = null;
+      let made!: () => void;
+      const making = new Promise<void>((r) => (made = r));
+      creating = making;
       try {
         const [h, mod] = await Promise.all([
           services.embedPlayer ? services.embedPlayer(slot) : Promise.resolve(null),
@@ -403,6 +418,9 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
         if (dead) return;
         nav.flash('The spotlight could not be played.', 'fail');
         props.current.onLeave(start);
+      } finally {
+        if (creating === making) creating = null;
+        made();
       }
     })();
     return () => {
