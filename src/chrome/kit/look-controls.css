@@ -681,9 +681,10 @@ select.wc-lk-input option {
   margin: 18px 0 10px;
 }
 
+/* The title wraps rather than push a control in the rule out of a narrow box. */
 .wc-lk-rule > .wc-lk-sec {
   margin: 0;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .wc-lk-hair {
