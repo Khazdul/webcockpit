@@ -924,8 +924,11 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
                       }}
                       onClick={() => {
                         select(s.name);
-                        if (narrow) enterPanel(s);
-                        else {
+                        if (narrow) {
+                          enterPanel(s);
+                          // A tap opens the panel at its top (its name and buttons); only keys scroll.
+                          reveal.current = null;
+                        } else {
                           setZone('list');
                           setEditing(null);
                         }
