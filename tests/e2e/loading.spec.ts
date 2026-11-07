@@ -239,11 +239,15 @@ test('returning to the start page from the game does not fade again', async ({ p
   await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
   await page.goto('/');
   await revealed(page);
+  await expect(page.locator('.wc-start-sky')).toHaveCount(1);
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toBeVisible();
+  // The sky engine is not kept while the game runs (ADR 0125 addendum).
+  await expect(page.locator('.wc-start-sky')).toHaveCount(0);
   // Enter MUME's own short fade of the cockpit.
   await page.waitForFunction(`${PAGE_ANIMS}.length === 0`);
   await page.evaluate(() => window.__wc!.shell.exitSession());
   await expect(rows(page)).toHaveCount(7);
+  await expect(page.locator('.wc-start-sky')).toHaveCount(1);
   expect(await page.evaluate(`${PAGE_ANIMS}.filter((a) => a.playState === 'running').length`)).toBe(0);
 });

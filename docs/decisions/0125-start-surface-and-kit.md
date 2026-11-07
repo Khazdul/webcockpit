@@ -208,7 +208,7 @@ stubs; put together they changed as follows.
   else the still look.
 - **Lifetime.** The engine is mounted while the start page is visible and
   **disposed when it is hidden** (Enter MUME, the log player): an hour of
-  play should not keep its canvases (about 25 MB at 1728×1000 @2) and
+  play should not keep its canvases (about 20 MB at 1728×1000 @2) and
   listeners; it mounts again on `show()` (with or without `keep`, ADR
   0018), costs 4–9 ms and fades its canvases in over its CSS sky. It is
   paused (`setPaused(true)`) while the document is hidden or an old-look
