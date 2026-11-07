@@ -403,6 +403,10 @@ for (const paper of [false, true]) {
     expect(await inside('.wc-frame:not([hidden]) .wc-scr')).toBe(true);
     // A tap on a row drills into its panel; Edit opens the bundled script read-only.
     await top.locator('.wc-scr-row[data-name="almanac"] .wc-scr-name').click();
+    // The panel opens at its top: the name and the buttons in view (a tap never scrolls it).
+    await expect(top.locator('.wc-scr-panel .wc-scr-title')).toHaveText('almanac');
+    expect(await top.locator('.wc-scr-panel').evaluate((el) => el.scrollTop)).toBe(0);
+    expect(await inside('.wc-frame:not([hidden]) .wc-scr-panel [data-btn="EDIT"]')).toBe(true);
     await top.locator('.wc-scr-panel [data-btn="EDIT"]').click();
     await expect(top.locator('.wc-sed')).toHaveAttribute('data-script', 'almanac');
     await expect(winNote(page, 'scripts')).toHaveText('almanac');
