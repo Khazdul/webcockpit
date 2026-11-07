@@ -1072,3 +1072,134 @@ overlays that wave 2's pages use; the start page's own chunk by 0.27 kB.
 - ADR 0103: the window frame (42d).
 - ADR 0114, ADR 0018: the run log player's Back, h:mm:ss, the `openPlayer`
   result (42f).
+
+## Addendum 2026-11-07 — wave 3: the kit after stages 43–47
+
+Wave 3 fixed what the review, the visual check against the mockups and the
+performance run of the integrated stages 42–47 found in the kit, and the
+kit gaps the wave-2 builders reported. Each rule below replaces the one
+above it where they differ.
+
+**The blur rule: revised, no blur on large boxes.** The performance run
+measured the large box's `backdrop-filter` on the integrated build:
+
+| | GPU (Iris Xe, Chromium and Firefox, 1728×1000 @2, 390×844 @3) | software compositing (headless Chromium, SwiftShader) |
+|---|---|---|
+| a large box idle, blurred (0.68 fill) | 59–60 fps | 22.2 fps (Scripts), 24.5 fps (Credits) |
+| the same, flat (0.84 fill, no blur) | 59–60 fps | 60.0 fps |
+| the menu (small glass pieces blur) | 60 fps | 60.0 fps |
+| profile editor typing, p95 / max | — | 20 ms flat; 130 / 202 ms blurred |
+
+Software compositing is what a user with a blocklisted or missing GPU
+gets, and the sky's quality tier does not see it (it measures its own
+work, not the frame pacing). That fails the stage's rule (within 2 fps of
+the menu), so its decided-in-advance branch applies: the large window and
+the morph proxy's window (`.wc-lk-box-large > .wc-lk-win`, `.wc-lk-mwin`)
+have no `backdrop-filter`; `--lk-large-blur` defaults to `none`. The fill
+is not the plain 0.84 but `rgba(19, 17, 13, 0.84)`, tinted to the blurred
+glass's mean colour over the night sky (screenshots of About at 1440×900,
+mean RGB of three text-free areas: blurred 31.6 / 27.0 / 21.8, plain 0.84
+26.5 / 21.5 / 17.7, the tinted fill 31.3 / 26.3 / ~21.7), so the look
+stays close to the mockups. A runtime gate (glass on a GPU only, by the
+WebGL renderer string or the rAF median of the first second) was not
+built: it needs a WebGL context or a mode switch mid-session, and on a GPU
+the blur bought no speed and little look. The gallery's Box section still
+switches the glass (`blur` / `flat`) for comparison. Small glass pieces
+(the menu panel, glass buttons) keep their blur over the sky (60 fps in
+software too); in windows and the ESC menu the glass buttons and Back have
+none (`--lk-glass-blur: none` on `.wc-win-look` and `.wc-menu-page`: game
+text or an opaque background under them).
+
+**The wordmark in page content has no sheen** (`LookWordmark`, opt in
+with `sheen`). The sweeping masked band was About's idle cost: 7–12 frames
+over 20 ms per pass in Chromium (57.8–58.7 fps, 60.0 without), 56.4–57.4
+fps in Firefox, flat or blurred alike.
+
+**The morph.** A new box waits for its landing transparent and
+pointer-transparent (`opacity: 0`, `pointer-events: none` on the document
+timeline) instead of `visibility: hidden`: what is under `visibility:
+hidden` cannot take the DOM focus, so a field's or an editor's focus at
+mount was lost (in Chromium and Firefox). A leaving frame still hides by
+`visibility`. `morphHold` from a normal or tall box covers the longest
+plan away from it (a pop onto a large box is an `open`: its content fades
+for `open.items`, 200 ms; it held 140 ms, and for ~60 ms no box was
+drawn), and the stage adds 120 ms of slack to every hold: the hold is a
+timer from the frame change, the plan runs on the animation clock, which
+starts a frame or two later, and the old frame hides itself on that clock,
+so the slack keeps it mounted without showing it longer. A test samples
+every frame of tall → large and finds a box or the proxy drawn in each.
+
+Not fixed: the open's first task (the keydown that mounts the page) is
+12–43 ms (cold About 42.7 ms, 26.8 of it layout), so the target "no frame
+over 16 ms during a morph" is still not met. That task falls in the first
+frames of the old content's 200 ms fade, before the proxy moves. Moving
+the flight to compositor transforms or splitting the push (fade first,
+mount in a later task) changes the stack's contract (keys reach the new
+frame at once) and was left for a later stage; the pages' own lever is
+`content-visibility: auto` on their below-the-fold sections (About,
+Scripts).
+
+**Overlays in windows and the ESC menu.** The window's and the menu's
+rules that hide a hidden look frame no longer outrank the overlay rule:
+the page under a dialog (`data-under`) stays drawn, veiled and inert, and
+the dialog centres over its box, as on the start page.
+
+**Paper never follows `<html>`.** The theme puts `data-light` on `<html>`
+whenever the terminal background is light; the kit's Paper selectors
+(`[data-light] .wc-look`, the overlays', the code well's and the manual's)
+matched it, so every start-page look page turned to Paper ink on the dark
+box. They are `:not(html)[data-light] …` now: a Paper host names itself
+(`.wc-windows`, the menu page, the player, the gallery's stages). Page
+stylesheets with the same pattern (scripts.css, profile.css, export.css,
+history-*.css, script-editor.css) belong to their stages.
+
+**Keys.** A focused kit `Select` keeps its own keys: its arrows, Home /
+End, PgUp / PgDn and Space go to the select, unprevented and not to the
+frame; Esc gives the focus back (the Esc rule now counts a select as a
+field, as `letterAction` did); a choice made with the pointer returns the
+focus to the stack at once, so the page's letters work again.
+`usePlayerKeys(on)` (stack.tsx): a frame that shows an embedded player
+gives it the keys (the stack's and the view's window listeners both saw
+every key: Space played and pressed the page, Esc popped and called
+`onEsc`); the gallery's Player section uses it, as the Spotlights viewer's
+own layer does. `Field` and `TextArea` take their autofocus in a layout
+effect (before the first paint and before the stack's focus).
+
+**Touch.** `TableRow` forwards `onPointerDown`, so a list cursor's
+`rowProps` spread on it tells a tap from a click ('tap-selects' works). A
+coarse pointer's box Back is 40 px high from the box's top band (`top:
+3px`) and ends where the 27 px one does, so it never covers a page's first
+line (it overlapped the Scripts pages, the manual and every large page
+that did not pad itself). A sortable table head is drawn as before but
+reaches about 40 px with padding and negative margins. The phone's
+fullscreen button steps aside while a large or tall box is up on the shown
+start page.
+
+**Tables.** A scrolling `Table` measures its rows' scrollbar gutter
+(`--lk-gut`, on resize only) for its heads' padding: 0 with overlay
+scrollbars (Firefox on Linux, phones), where the fixed 8 px pushed the
+heads off their columns. A `Rule` heading that wraps has a line height of
+1.35.
+
+**The manual and the find panel.** The manual's find count keeps its whole
+text on a phone (the field gives way); the find panel's Replace label is
+70 px (the caps needed 66); at a find-panel width of 420 px or less Case /
+Word / Regex and the arrows share one row (three rows instead of four over
+a keyboard-short buffer: 154 px instead of 202 at 390 px).
+
+**The player's Back** is an opaque chip in the header row: the canvas
+colour under the kit's glass edge, no blur (Firefox and Paper showed the
+game text through the glass), `var(--cell-h)` tall at the top, so it hides
+no more of the text than the header does (it covered the start of two
+rows). With a coarse pointer it is 40 px high; on a phone it sits under
+the pane tab strip, which it covered (a tap on CHAR left for History). A
+tap that shows the hidden chrome presses nothing under the finger (a click
+within 400 ms of the press that revealed it is dropped); a later press is
+a press. A phone tab strip of one tab (every pane off) is not shown.
+
+**Not changed** (with the owners or for later): the phone viewer's small
+fitted game text (the player fits the recorded columns; wrapping changes
+the replay; Display → Large is the way round); pinning the shared kit
+chunk with `manualChunks` and the CSS order (the kit's CSS now loads
+before chrome.css; no visual check found a rule it lost); the dead-code
+sweep and folding the wave-2 local helpers into the kit (a later sweep).
