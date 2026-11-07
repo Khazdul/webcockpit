@@ -42,7 +42,6 @@ import {
   useBoxSettled,
   useReducedMotion,
 } from '../kit/look';
-import { wrapText } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { LookWordmark } from '../start-surface';
 
@@ -201,31 +200,6 @@ function Linked(p: { text: string }): VNode {
       )}
     </>
   );
-}
-
-/**
- * The About text as styled, wrapped lines for a width (the old TUI page).
- * Kept only for the `About text` unit test until stage 47-C replaces it;
- * nothing in the app uses it.
- * @deprecated
- */
-export function aboutLines(width: number): { key?: string; text: string; cls: string }[] {
-  const out: { key?: string; text: string; cls: string }[] = [];
-  for (const raw of ABOUT_TEXT.split('\n')) {
-    if (raw === '') out.push({ text: '', cls: '' });
-    else if (HEADING.test(raw)) out.push({ text: raw, cls: 'wc-c-title' });
-    else if (raw.startsWith('  ')) {
-      const m = KV.exec(raw);
-      if (!m) out.push({ text: raw, cls: 'wc-c-body' });
-      else {
-        const keyW = raw.length - m[2]!.length;
-        wrapText(m[2]!, Math.max(10, width - keyW)).forEach((d, i) =>
-          out.push({ key: i === 0 ? raw.slice(0, keyW) : ' '.repeat(keyW), text: d, cls: 'wc-c-body' }),
-        );
-      }
-    } else for (const l of wrapText(raw, width)) out.push({ text: l, cls: 'wc-c-body' });
-  }
-  return out;
 }
 
 // ------------------------------------------------------------ the page

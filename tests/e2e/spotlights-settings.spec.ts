@@ -192,32 +192,3 @@ test('the filtered start page offers Settings…; a change opens the reel; no Op
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
   expect(errors).toEqual([]);
 });
-
-test('Credits follows the filters; its filtered page rolls after a change', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await pinDemoClock(page);
-  await page.goto('/');
-  await restoreDemo(page);
-  const col = frame(page).locator('.wc-credits-col');
-
-  // Gittan only: no Rasta chapter.
-  await setSpot(page, { allCharacters: false, characters: ['Gittan'] });
-  await menuRow(page, 'credits').click();
-  await expect(col).toContainText('Gittan');
-  await expect(col).not.toContainText('Rasta');
-  await page.keyboard.press('Escape');
-
-  // Nothing passes: the filtered page; Settings… → All characters → close: it rolls.
-  await setSpot(page, { characters: [] });
-  await menuRow(page, 'credits').click();
-  await expect(frame(page)).toContainText('No chronicle entries match your settings.');
-  await page.keyboard.press('Enter');
-  await expect(pop(page)).toBeVisible();
-  await toggle(page, 'All characters').click();
-  await expect(col).toHaveCount(0);
-  await page.keyboard.press('Escape');
-  await expect(col).toContainText('Rasta');
-  await expect(col).toContainText('Gittan');
-  expect(errors).toEqual([]);
-});

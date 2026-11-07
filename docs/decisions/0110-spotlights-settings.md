@@ -125,3 +125,10 @@ The reel's gear and its popup are replaced by the Spotlights card's filter
 With nothing to play the card stays with its filter and says so; the empty
 stage's `Settings…` is gone. The settings popups lose the `spotlights`
 target; the start page's "filtered" pages keep their popup.
+
+## Addendum: Credits without Settings… (2026-11-07, ADR 0132)
+
+Credits no longer opens the settings popup: its filtered state is a page
+of the book that points to the filter on the Spotlights page, which sets
+the kinds, characters and period for both. Credits reads the filter when
+it opens, as before.

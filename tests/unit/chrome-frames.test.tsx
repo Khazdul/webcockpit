@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AppStatusState, AppStatusView } from '../../src/app/status';
-import { aboutLines } from '../../src/chrome/frames/about';
+import { ABOUT_NAV, ABOUT_TEXT, aboutSections, aboutTokens } from '../../src/chrome/frames/about';
 import { headerParts, linkClass } from '../../src/chrome/frames/esc-main';
 import { colorChoices, gridToggle, parseHex } from '../../src/chrome/frames/options';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
@@ -67,17 +67,62 @@ describe('ESC header', () => {
 });
 
 describe('About text', () => {
-  it('styles headings, keys and body, wrapped to the width', () => {
-    const lines = aboutLines(60);
-    expect(lines.find((l) => l.text === 'GETTING STARTED')?.cls).toBe('wc-c-title');
-    const tintin = lines.find((l) => l.key?.trim() === 'TinTin++');
-    expect(tintin?.cls).toBe('wc-c-body');
-    expect(lines.some((l) => l.text.includes('tintin.mudhalla.net'))).toBe(true);
-    for (const l of lines) expect((l.key?.length ?? 0) + l.text.length).toBeLessThanOrEqual(60);
-    expect(lines.find((l) => l.text.startsWith('MUME — MULTI-USERS'))?.cls).toBe('wc-c-title');
-    expect(lines.find((l) => l.key?.trim() === 'MMapper')).toBeDefined();
-    expect(lines.some((l) => l.text.includes('github.com/Khazdul/webcockpit'))).toBe(true);
-    expect(lines.some((l) => l.text.includes('LICENSE.txt'))).toBe(true);
+  const secs = aboutSections(ABOUT_TEXT);
+  const kv = (id: string): string[] =>
+    secs.find((x) => x.id === id)!.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
+  const texts = secs.flatMap((x) => [x.title, ...x.blocks.flatMap((b) => ('p' in b ? [b.p] : b.kv.flat()))]);
+
+  it('parses ABOUT_TEXT into the nine sections of the rail, in order', () => {
+    expect(secs.map((x) => x.id)).toEqual(ABOUT_NAV.map((n) => n.id));
+    expect(secs).toHaveLength(9);
+    expect(secs[0]!.title).toBe('');
+    expect(secs[1]!.title).toBe('MUME — MULTI-USERS IN MIDDLE-EARTH');
+    expect(secs.slice(1).every((x) => x.title === x.title.toUpperCase() && x.blocks.length > 0)).toBe(true);
+  });
+
+  it('keeps the key/value rows of What is inside, Credits and Built for PvP as tables', () => {
+    expect(kv('inside')).toEqual(['Panes', 'Map', 'Weather', 'Runs', 'Export', 'Phone']);
+    expect(kv('credits')).toEqual(['MMapper', 'Tilesets', 'Cockpit', 'MUME', 'Fonts', 'Libraries', 'TinTin++']);
+    expect(kv('pvp')).toEqual(['Website', 'Discord']);
+    // Every non-blank line of the text lands in one block, nothing is lost.
+    for (const line of ABOUT_TEXT.split('\n').filter((l) => l.trim() !== ''))
+      expect(texts.some((t) => line.includes(t) && t.length > 0 && line.trim().endsWith(t.trim()))).toBe(true);
+  });
+
+  it('finds every link and game command in the text; the site files under the base path', () => {
+    const tokens = secs.flatMap((x) => x.blocks.flatMap((b) => ('p' in b ? [b.p] : b.kv.map(([, t]) => t)))).flatMap((t) => aboutTokens(t, '/wc/'));
+    const links = tokens.flatMap((t) => ('link' in t ? [t.href] : []));
+    expect(links).toEqual(
+      expect.arrayContaining([
+        'https://mume.org',
+        'https://discord.gg/XkZN55am9a',
+        'https://github.com/MUME/MMapper',
+        'https://tintin.mudhalla.net',
+        'https://github.com/Khazdul/webcockpit',
+        '/wc/LICENSE.txt',
+        '/wc/fonts/README.md',
+        '/wc/THIRD_PARTY_NOTICES.md',
+      ]),
+    );
+    expect(links).toHaveLength(8);
+    expect(tokens.flatMap((t) => ('cmd' in t ? [t.cmd] : []))).toEqual(['#help', '#weather demo', '?safe']);
+    // The tokens give back the text unchanged.
+    const p = 'Licence text: LICENSE.txt. Source code: github.com/Khazdul/webcockpit';
+    expect(aboutTokens(p).map((t) => ('text' in t ? t.text : 'link' in t ? t.link : t.cmd)).join('')).toBe(p);
+  });
+
+  it('gives each section a unique letter, marked in its rail label', () => {
+    const letters = ABOUT_NAV.map((n) => n.letter);
+    expect(letters).toEqual(['w', 'm', 'b', 'g', 'i', 's', 'u', 'c', 'l']);
+    expect(new Set(letters).size).toBe(letters.length);
+    for (const n of ABOUT_NAV) expect(n.nav.toLowerCase()).toContain(n.letter);
+  });
+
+  it('states the facts the new pages changed (stage 47)', () => {
+    expect(ABOUT_TEXT).toContain('The filter row on the Spotlights page picks the kinds, characters and period shown there and in Credits.');
+    expect(ABOUT_TEXT).toContain("Credits tells your characters' deeds as a book");
+    expect(ABOUT_TEXT).toContain('Third-party notices: THIRD_PARTY_NOTICES.md');
+    expect(ABOUT_TEXT).not.toMatch(/Spotlights reel picks/);
   });
 });
 
@@ -195,7 +240,7 @@ describe('start page', () => {
     await key('Escape');
     expect(startSel(host)).toBe('Scripts');
     await key('a');
-    expect(title(host)).toBe('─── About ───');
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-lk-hood-t')?.textContent).toBe('About');
     await key('Escape');
     expect(startSel(host)).toBe('About');
     // Ctrl+letter is not a shortcut.
@@ -226,8 +271,8 @@ describe('start page', () => {
     expect(startSel(host)).toBe('History');
     const about = host.querySelector<HTMLElement>('.wc-sm-item[data-key="about"]')!;
     await act(() => about.click());
-    expect(title(host)).toBe('─── About ───');
-    expect(host.querySelector('.wc-frame:not([hidden]) .wc-title-row')?.textContent).toBe('─── About ─── 9.9.9');
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-lk-hood-t')?.textContent).toBe('About');
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-about-ver')?.textContent).toBe('WebCockpit 9.9.9');
   });
 
   it('Spotlights shows the empty state from the service; any key returns', async () => {
@@ -274,8 +319,12 @@ describe('start page', () => {
       'Update 9.9.10 available: reload',
       'Storage: not saved',
     ]);
-    await key('a');
-    expect(title(host)).toBe('─── About ───');
+    // An old-look frame: the Profile list's name prompt (New).
+    await key('p');
+    await act(async () => new Promise((r) => setTimeout(r, 0)));
+    expect(host.querySelector('.wc-start-pills')).not.toBeNull();
+    await key('n');
+    expect(title(host)).toBe('─── Create New Profile ───');
     expect(host.querySelector('.wc-start-pills')).toBeNull();
     expect(host.querySelector('.wc-start-gridtop .wc-start-notices')?.textContent).toBe(
       'Update 9.9.10 available: reload  Storage: not saved',
