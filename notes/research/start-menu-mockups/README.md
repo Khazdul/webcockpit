@@ -124,11 +124,15 @@ sheen, `logo-3.html` inlaid brass by day / moon-silver by night. Review page
 
 ## Baseline (owner, 2026-11-07)
 
-**`round6/logo-1.html` is the agreed starting point for the new start page.**
-Owner: "1 blir perfekt. Nu känns det som vi har grunden."
+**`round6/logo-3.html` is the agreed starting point for the new start page.**
+Owner: "1 blir perfekt. Nu känns det som vi har grunden." — then changed
+the wordmark to **3 Inlagd metall** (2026-11-07); everything else in
+`logo-1.html` and `logo-3.html` is identical.
 
-It is: wordmark 1 (forged iron "MUME", empty engraved channels, no lava,
-no sparks, plain iron rivets on the COCKPIT rules); the sky from round 4
+It is: wordmark 3 (forged iron "MUME" with a flush metal inlay in the
+channels: brushed antique brass by day, moon-silver by night, blending
+through twilight; reflective, never glowing; rivets switch metal with the
+inlay; no lava, no sparks); the sky from round 4
 driven by the offline game clock (sun and moon enter from the left on a
 slow arc, sun larger than the moon, never overlapping; clouds; sparse
 stars; shooting stars; calm weather director: winter always snow, rare
@@ -143,4 +147,7 @@ sub-pages with glass buttons, a Back button top left, no hint rows, no
 lanterns anywhere in the UI.
 
 Ideas parked for later: a landscape below the horizon.
-Open: a new favicon/small mark (today's is the lantern).
+Inlay and rivets: **bluish/cyan metal** like the early pixel logo, not
+brass (owner, 2026-11-07); to be tuned at the start of the night pass.
+Favicon: an "M" in the wordmark's iron and inlay (owner, 2026-11-07).
+Next session: `NIGHT-PASS.md` and `docs/stages/41-start-page.md`.
