@@ -160,7 +160,9 @@ test('Profile and Options → Scripts open their frames in the menu, not windows
   // Options has no Spotlights row: its settings are in the reel's gear (ADR 0110).
   await expect(menu(page).locator('.wc-mrow[data-key="spotlights"]')).toHaveCount(0);
   await menu(page).locator('.wc-mrow[data-key="scripts"]').tap();
-  await expect(menu(page).locator('.wc-title-row')).toContainText('Scripts');
+  // The lantern Scripts page in the menu place (stage 44): its hood and the page.
+  await expect(menu(page).locator('.wc-lk-hood-t')).toHaveText('Scripts');
+  await expect(menu(page).locator('.wc-scr')).toBeVisible();
   await expect(page.locator('.wc-win')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
