@@ -199,8 +199,8 @@ test('a small Scripts window: the head wraps inside it with Back and Contents', 
   const b = (await back.boundingBox())!;
   const c = (await contents.boundingBox())!;
   expect(b.x + b.width).toBeLessThan(c.x);
-  const body = (await w.locator('.wc-lk-win').boundingBox())!;
-  for (const el of await w.locator('.wc-lk-mhead .wc-lk-btn, .wc-lk-mhead input').all()) {
+  const body = (await w.locator('.wc-sman .wc-lk-win').boundingBox())!;
+  for (const el of await w.locator('.wc-sman .wc-lk-mhead').locator('.wc-lk-btn, input').all()) {
     if (!(await el.isVisible())) continue;
     const r = (await el.boundingBox())!;
     expect(r.x + r.width).toBeLessThanOrEqual(body.x + body.width + 0.5);

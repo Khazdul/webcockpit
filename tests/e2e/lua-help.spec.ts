@@ -38,7 +38,7 @@ end
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
 const list = (page: Page) => page.locator('.cm-tooltip-autocomplete');
 const sig = (page: Page) => page.locator('.cm-tooltip.wc-lua-sig');
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
@@ -78,9 +78,9 @@ async function openEditor(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   await row(f, 'luahelp').locator('.wc-scr-name').click();
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'luahelp');
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');
