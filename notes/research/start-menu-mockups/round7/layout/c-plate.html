@@ -2,7 +2,7 @@
 <!--
   Round 7 · layout · C "Namnplåten" (the name plate).
   The wordmark travels up and shrinks into the box's hood, which becomes a wider plate bolted across the
-  top edge of the frame: the small engraved mark (the same iron with the cyan inlay, still lit by the sky)
+  top edge of the frame: the small engraved mark (the same iron with the mithril inlay, still lit by the sky)
   beside the page's name. The box rises in under it, nearly filling the window (inset 40 px at the top for
   the plate, --box-m elsewhere). The menu panel sinks back, the quote and the almanac fade. Back / Esc: the
   mark lifts off the plate and returns to its place over the menu. Reduced motion: a short cross-fade.
@@ -35,7 +35,7 @@ body.pg #quote, body.pg #almanac { opacity: 0; animation: none; }
   box-shadow: inset 0 1px 0 rgba(255,244,226,.65), inset 0 -1px 0 rgba(255,214,170,.28), inset 1px 0 0 rgba(255,232,206,.18), inset -1px 0 0 rgba(255,232,206,.1),
               0 0 0 1px #000, 0 5px 14px rgba(0,0,0,.6); }
 .plate::before, .plate::after { content: ""; position: absolute; top: 50%; margin-top: -3.5px; width: 7px; height: 7px; border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, var(--rv-hi, #effffe) 0 12%, var(--rv-mid, #4ab6b9) 34%, var(--rv-lo, #0b3a3e) 80%); box-shadow: 0 1px 0 rgba(255,220,180,.2), 0 0 0 .5px #000; }
+  background: radial-gradient(circle at 36% 30%, var(--rv-hi, #eef9fa) 0 12%, var(--rv-mid, #72a7ac) 34%, var(--rv-lo, #1b3335) 80%); box-shadow: 0 1px 0 rgba(255,220,180,.2), 0 0 0 .5px #000; }
 .plate::before { left: 10px; } .plate::after { right: 10px; }
 .plate .wm { --wm-w: 108px; margin-top: 3px; }
 .plate .pdiv { width: 2px; height: 26px; border-radius: 1px; background: linear-gradient(180deg, transparent, rgba(8,5,3,.9) 20%, rgba(8,5,3,.9) 80%, transparent); box-shadow: 1px 0 0 rgba(255,226,190,.22); }

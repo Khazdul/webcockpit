@@ -3,7 +3,8 @@
 Shared CSS/JS for every round-7 page mockup. Built from the agreed baseline
 `round6/logo-3.html` (sky, weather, game clock, wordmark 3, Lykta panel,
 Profile box, glass buttons, quote A, almanac), with the wordmark's inlay
-changed to cyan metal. Throwaway mockup code; copy freely between mockups.
+changed to subtle mithril (round 6 `logo-3-cyan.html` tint d, as built in
+the app). Throwaway mockup code; copy freely between mockups.
 
 Include it by relative path from a sibling folder:
 
@@ -80,7 +81,7 @@ Tokens worth knowing: `--c-text --c-dim --c-faint --c-item --c-on --c-head
 |---|---|
 | `WC.sky.start(opts)` | `{ almanac: true, demo: true }`. Also `WC.sky.env` (light, sky colours, weather…), `WC.sky.onFrame(fn(env,t,dt))`, `setHour(h)`, `setMonth(m)`. |
 | `WC.Wordmark(el)` | A wordmark instance in a `.wm` element (canvas + COCKPIT made if missing). Any number; each follows the sky's light, draws only while visible, rebuilds when its width changes. |
-| `WC.INLAY` | The inlay colours `{ day, night, rivet }` — **the one place to change the cyan tint**. A page can set `window.WC_INLAY = {…}` before loading base.js. |
+| `WC.INLAY` | The inlay colours `{ day, night, rivet, lip, ink }` — **the one place to change the inlay's tint** (ink sets `--wm-ink`, COCKPIT's colour). A page can set `window.WC_INLAY = {…}` before loading base.js. |
 | `WC.startMenu(opts)` | See above. `opts.profile` sets the dim name after Scripts (default `gibur`). |
 | `WC.decorate(root?)` | Builds brackets, hood and Back for `.lp` boxes (idempotent). |
 | `WC.keys.push({ key(e), back() })` | Keyboard layer; returns a pop function. The top layer gets keys; `key()` returns true when handled; unhandled Esc/Backspace call `back()`. In text fields only Esc reaches the stack (it blurs first). Keys are swallowed while `WC.busy` is true (set it during transitions). |

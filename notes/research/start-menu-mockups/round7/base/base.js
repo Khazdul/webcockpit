@@ -2,7 +2,7 @@
    WebCockpit start-menu mockups · round 7 · shared base (JS) → window.WC
    -----------------------------------------------------------------------------------------------------
    Throwaway mockup code. The sky, the weather director, the game clock and the wordmark are round 6's
-   logo-3.html (the agreed baseline) moved into a module; the wordmark's inlay is cyan metal (WC.INLAY,
+   logo-3.html (the agreed baseline) moved into a module; the wordmark's inlay is mithril (WC.INLAY,
    one constant; a page may define window.WC_INLAY before loading this file to try another tint).
    API: README.md in this folder. Summary:
      WC.sky.start()              the sky canvas, vignette, grain, almanac, demo panel; runs the frame loop
@@ -22,16 +22,20 @@ const WC = (window.WC = window.WC || {});
 const BASE_URL = new URL('.', document.currentScript ? document.currentScript.src : location.href).href;
 WC.BASE_URL = BASE_URL;
 
-/** The inlay of the wordmark and its rivets: cold cyan steel / mithril, echoing the old pixel logo
-    (MUME #00d0d0, COCKPIT #0a9a9c). Banded like brushed metal (bright top lip, dark core, a second
-    lit band, dark foot), so it reads as metal, never as neon. Day: brighter cyan steel; night: cooler,
-    more silvery. Swap here (or window.WC_INLAY) to try another tint. */
+/** The inlay of the wordmark and its rivets: subtle mithril (round 6 logo-3-cyan.html tint d, the owner's
+    choice of 2026-11-07, as built in the app: src/start/wordmark-svg.ts). Silver with a faint cool cast that
+    still echoes the old pixel logo's cyan. Banded like brushed metal (bright top lip, dark core, a second
+    lit band, dark foot), so it reads as metal, never as neon. Night: cooler, nearly neutral silver.
+    Swap here (or window.WC_INLAY) to try another tint; lip and ink are the channel's lit lip and COCKPIT. */
 const INLAY = window.WC_INLAY || {
-  day:   [[0, '#b8fbf8'], [.22, '#2fd0d0'], [.48, '#0a5c5e'], [.6, '#1a9496'], [.75, '#5fe0de'], [1, '#063c3e']],
-  night: [[0, '#cff6f7'], [.22, '#6cc0c6'], [.48, '#245a62'], [.6, '#468b92'], [.75, '#93d3d8'], [1, '#1b434a']],
-  rivet: { day: ['#dcfffd', '#22c8c8', '#053a3c'], night: ['#eafeff', '#6cbcc2', '#163a40'] },
+  day:   [[0, '#d4ecee'], [.22, '#7eaeb2'], [.48, '#2c4e51'], [.6, '#4c777b'], [.75, '#a2c4c8'], [1, '#20383a']],
+  night: [[0, '#deedf1'], [.22, '#97b4bc'], [.48, '#435a60'], [.6, '#688187'], [.75, '#aec5ca'], [1, '#324448']],
+  rivet: { day: ['#eef9fa', '#72a7ac', '#1b3335'], night: ['#f5fcfe', '#97b2b9', '#29383d'] },
+  lip: 'rgba(206,232,234,.55)',
+  ink: '#cfe2e4',
 };
 WC.INLAY = INLAY;
+if (INLAY.ink) document.documentElement.style.setProperty('--wm-ink', INLAY.ink);
 /* ======================================================================================= CORE
    Small helpers shared by every module: math, colour, seeded random, noise, canvases. */
 const $ = (s) => document.querySelector(s);
@@ -545,7 +549,7 @@ Object.assign(WC, {
 
 /* ======================================================================================= WORDMARK
    Forged iron MUME (round 5) with a flush, slightly domed metal inlay in the channels (round 6 logo 3),
-   now cyan steel by day and silvery cyan by night (cross-faded through twilight). Reflective, never
+   now subtle mithril: silver with a faint cool cast by day, cooler silver by night (cross-faded through twilight). Reflective, never
    glowing: a bevel lit from the sun or moon and a glint band that drifts with the light; dims when there
    is little light. Any number of instances (full mark, a small corner mark, a plate); each redraws per
    frame while visible. el = a .wm element (the canvas and the COCKPIT line are made if missing). */
@@ -643,7 +647,7 @@ function Wordmark(root) {
     const { fs, d, coreIn, rimW, lip } = WM;
     WM.coreM = mask(coreIn);
     WM.rimC = tint(mask(coreIn - rimW), '#040405');
-    WM.lipC = tint(mask(coreIn - rimW, lip), 'rgba(226,236,236,.55)');
+    WM.lipC = tint(mask(coreIn - rimW, lip), INLAY.lip || 'rgba(206,232,234,.55)');
     WM.innerC = innerShadow('#05080a', fs * .022);
     WM.day = metal(INLAY.day, 7); WM.night = metal(INLAY.night, 7);
     WM.bv = bevel(WM.coreM, Math.max(1, fs * .009 * d));
