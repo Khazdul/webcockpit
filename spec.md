@@ -393,28 +393,44 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   (stage 32). In play it
   is the menu bar's Scripts window (ADR 0103), and on the phone the ESC
   menu's Options → Scripts.
-- **Scripts page** (layout A, ADR 0121):
-  - **List on the left:** every script by name, with an enable toggle, a
-    lock mark on bundled scripts and a running dot. *New*, *Import* and
-    *Manual* sit above the list.
-  - **Right side:** a framed detail that the selected list row runs into
-    (a tab with the panel fill). Its top border has the script's name and
-    its buttons *Edit*, *Export*, *Rename*, *Delete*. Inside:
-    - summary, status and problems;
-    - its settings as controls (a switch, a number with ◂ ▸, a choice, a
-      text field), saved at once, and *Reset all*;
-    - its aliases and keys;
-    - the `@help` text, typeset (paragraphs, lists, tables, headings) in
-      a box of its own that scrolls.
-
-    Without room for the frame (a phone) the list is alone and every
-    button sits above it.
-  - **Edit** opens a full-screen editor like the profile's EDITOR view:
-    - CodeMirror with Lua mode;
-    - completion and hover help for the script API;
-    - save reloads the script at once if it is enabled.
+- **Scripts page** (the lantern look of stage 44, ADR 0129; the behaviour
+  of ADR 0121 is kept, its cell layout is not). The same page, editor and
+  manual run on the start page (layout B's large box, with Back), in the
+  game's Scripts window (one Lykta frame on every page; the title is
+  *Scripts*, the note names the editor's script or *Manual*, and the
+  sub-pages have a small Back) and in the phone's ESC menu (a full-screen
+  box with Back). Three columns, by the width of the page itself:
+  - **Index:** every script by name, with an enable switch, a padlock on
+    bundled scripts, a running or failed mark and the error line under a
+    failed script.
+  - **Panel:** the selected script: its name, summary, status
+    (`on · running`, `on · at login` before the game, `off`, …) and
+    problems; *Edit*, *Export*, *Rename*, *Delete*; its settings as tiles
+    (a switch, a number with ◂ ▸, a choice, a text field), saved at once,
+    and *Reset all*; its aliases and keys.
+  - **Help:** the `@help` text, typeset (paragraphs, lists, tables,
+    headings), as a reading column of its own.
+  - *New*, *Import* and *Manual* are in the foot with the count. Narrower,
+    the help moves under the panel; on a phone or in a small window the
+    index is alone and a tap opens the script's panel (settings work
+    there too). Letters N I M E X R D work the buttons. The dialogs (New,
+    Rename, Delete, Export, Import, Restore) are small boxes over the
+    page.
+  - **Edit** opens the script editor (direction "Fokus"):
+    - CodeMirror with Lua mode, the script's name in the hood (`•` while
+      unsaved);
+    - completion, signature help and hover docs for the script API, and
+      live errors;
+    - Save, Find and Manual as small icons in the code's corner (their
+      tooltips name Ctrl+S, Ctrl+F / Ctrl+H and F1), and a status line
+      under the code;
+    - save reloads the script at once if it is enabled; leaving with
+      unsaved changes asks first.
 
     A bundled script opens read-only, with *Duplicate*.
+  - **Manual** (direction "Boken"): the guide, the API reference and the
+    Lua reference as one text with folding contents and a find in the
+    head; F1 in the editor opens it at the name under the cursor.
   - Errors appear in UI messages and on the script's row as
     `<script>:<line>: <message>`.
 - **Header:**
