@@ -321,6 +321,10 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
   /** The Display theme the stills are drawn in (read from the viewer's host when it is left). */
   const [stillTheme, setStillTheme] = useState<ViewerTheme>(viewerTheme);
   const viewSeq = useRef(0);
+  /** A rebuild is in flight (the latest one). */
+  const loading = useRef(false);
+  /** A card asked to play while it was (`id`; null: Play all), opened when the new wall lands. */
+  const wantOpen = useRef<{ id: string | null } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const periodRef = useRef<HTMLDivElement>(null);
 
@@ -335,8 +339,18 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
     if (!el || typeof getComputedStyle !== 'function') return 1;
     return getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
   };
-  const openViewer = (i: number): void => {
+  /**
+   * Plays card i (`all`: Play all, from the first). While a rebuild is in
+   * flight the cards on screen are the old reel's: the open waits for the
+   * new wall and plays that spotlight there (or the new first one), if it
+   * still passes.
+   */
+  const openViewer = (i: number, all = false): void => {
     if (!reel || i < 0 || i >= count || view) return;
+    if (loading.current) {
+      wantOpen.current = { id: all ? null : (reel.reel.spots[i]?.id ?? null) };
+      return;
+    }
     setZone('wall');
     setView({ start: i, seq: ++viewSeq.current });
   };
@@ -375,29 +389,41 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
     if (filterKey === loadedKey.current) return;
     loadedKey.current = filterKey;
     const my = ++seq.current;
+    loading.current = true;
     keep.current = reel?.reel.spots[grid.i]?.id ?? null;
     p.source.load(filters, now()).then(
       (next) => {
         if (my !== seq.current) return;
+        loading.current = false;
         setState(next);
       },
       (err: unknown) => {
         if (my !== seq.current) return;
+        loading.current = false;
+        wantOpen.current = null;
         console.error('WebCockpit: Spotlights could not be loaded', err);
         nav.flash('Spotlights could not be loaded.', 'fail');
       },
     );
   }, [filterKey]);
 
-  // A rebuilt wall keeps the chosen card when it still passes, else the first.
+  // A rebuilt wall keeps the chosen card when it still passes, else the
+  // first; a card asked to play during the rebuild plays now.
   useLayoutEffect(() => {
+    const want = wantOpen.current;
+    wantOpen.current = null;
     if (!reel) return;
-    const id = keep.current;
+    const id = want ? want.id : keep.current;
     keep.current = null;
-    const j = id === null ? -1 : reel.reel.spots.findIndex((s) => s.id === id);
+    const found = id === null ? -1 : reel.reel.spots.findIndex((s) => s.id === id);
+    const j = want && want.id === null ? 0 : found;
     grid.set(Math.max(0, j));
     if (j > 0) reveal(j);
     else gridRef.current?.closest('.wc-lk-bbody')?.scrollTo?.({ top: 0 });
+    if (want && j >= 0 && j < reel.reel.spots.length) {
+      setZone('wall');
+      setView({ start: j, seq: ++viewSeq.current });
+    }
   }, [state]);
 
   const patch = (f: Partial<SpotlightSettings>): void => {
@@ -450,7 +476,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
     setZone('filter');
     if (fsel > periodStop) setFsel(0);
   };
-  const playAll = (): void => openViewer(0);
+  const playAll = (): void => openViewer(0, true);
   const blurPeriod = (): void => {
     const sel = periodRef.current?.querySelector('select');
     if (sel && sel.ownerDocument.activeElement === sel) sel.blur();

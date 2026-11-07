@@ -358,6 +358,50 @@ describe('states and the viewer', () => {
     window.removeEventListener('keydown', spy, true);
   });
 
+  it('Enter or P while a rebuild is in flight plays on the new wall once it lands', async () => {
+    const pending: Array<{ f: SpotlightSettings; done: (w: WallState) => void }> = [];
+    setup({ load: (f) => new Promise((done) => pending.push({ f, done })) });
+    await flush();
+    threeColumns();
+    // The PvP kill (card 3) chosen, then Deaths off: the wall is rebuilding.
+    await key('ArrowRight');
+    await key('ArrowRight');
+    await click(document.querySelector('.wc-spw-kinds [data-opt="death"]'));
+    await key('Enter');
+    expect(viewer.props).toBeNull();
+    await act(() => pending[0]!.done(wallFor(pending[0]!.f)));
+    await flush();
+    // The new reel (no death): the PvP kill is its second card, and it plays from there.
+    expect(cards().map((c) => c.dataset.kind)).toEqual(['achievement', 'pkill', 'achievement', 'level']);
+    expect((viewer.props!.reel as Reel).spots.map((s) => s.id)).toEqual(['b', 'c', 'd', 'e']);
+    expect(viewer.props!.start).toBe(1);
+    expect(chosen()).toBe(1);
+    await act(() => viewer.props!.onLeave(2));
+    expect(chosen()).toBe(2);
+    viewer.props = null;
+    // P during a rebuild: Play all on the new wall, from its first card.
+    await click(document.querySelector('.wc-spw-kinds [data-opt="death"]'));
+    await key('p');
+    expect(viewer.props).toBeNull();
+    await act(() => pending[1]!.done(wallFor(pending[1]!.f)));
+    await flush();
+    expect((viewer.props!.reel as Reel).spots.map((s) => s.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(viewer.props!.start).toBe(0);
+  });
+
+  it('a card asked to play during a rebuild that drops it does not play', async () => {
+    const pending: Array<{ f: SpotlightSettings; done: (w: WallState) => void }> = [];
+    setup({ load: (f) => new Promise((done) => pending.push({ f, done })) });
+    await flush();
+    // The death (card 1) chosen; Deaths off, Enter at once.
+    await click(document.querySelector('.wc-spw-kinds [data-opt="death"]'));
+    await key('Enter');
+    await act(() => pending[0]!.done(wallFor(pending[0]!.f)));
+    await flush();
+    expect(viewer.props).toBeNull();
+    expect(chosen()).toBe(0);
+  });
+
   it('the stills follow the viewer\'s Display colours: Default with the brighter red, a chosen theme its own', async () => {
     expect(stillPalette('default')['--spw-a1']).toBe('#c43c3c');
     expect(stillPalette('default')['--spw-bg']).toBeUndefined();
