@@ -177,3 +177,78 @@ the TUI list is kept:
   surface itself keeps to the safe area).
 - Each later sub-page stage moves its frame to the kit; nothing else in
   the stack has to change.
+
+## Addendum 2026-11-07 — integration of 41a–41e (and the 41d first paint)
+
+The sky, the wordmark and the layout were built in parallel against
+stubs; put together they changed as follows.
+
+- **Ink.** `SkyLook.textBackLuminance` and `textBack.almanac` are luma
+  (ADR 0124), not the stub's relative luminance: dark ink above 0.54,
+  pale again below 0.46 (`inkFor`); the quote reads `textBackLuminance`,
+  the almanac `textBack.almanac` (`useDarkInk('quote' | 'almanac')`). A
+  day sky reads 0.48–0.51 at the quote and 0.39 at the almanac, inside
+  or under the band, so both stay pale by day (as in the mockup, whose
+  pixels gave the same). For legibility the pale quote gets a heavier
+  outline and a soft shade close round the letters on a bright back
+  (luma above 0.42, below 0.38 again: `useBrightBack`, `.is-lit`); still
+  no backing behind the words.
+- **No page vignette.** The sky's air layer has the mockup's vignette and
+  the engine its grain; `.wc-start-vignette` is gone (it doubled the
+  darkening at the corners).
+- **The real view.** Without the engine the surface's look is
+  `startSkyLook` for the sky host's measured size (the stub used a fixed
+  1440×900), so the wordmark's glint (`look.light` x/y) and the text
+  backs are right before and without the engine; the engine computes its
+  own look for its host's size.
+- **The engine is its own chunk** (`import('../start/sky')`, 9.2 KB
+  gzip), imported when the surface mounts; until it mounts the sky host
+  carries the look model's CSS gradients (the first paint's pixels).
+  `SkyFeed` is the store: the engine's look while mounted (its `onLook`),
+  else the still look.
+- **Lifetime.** The engine is mounted while the start page is visible and
+  **disposed when it is hidden** (Enter MUME, the log player): an hour of
+  play should not keep its canvases (about 25 MB at 1728×1000 @2) and
+  listeners; it mounts again on `show()` (with or without `keep`, ADR
+  0018), costs 4–9 ms and fades its canvases in over its CSS sky. It is
+  paused (`setPaused(true)`) while the document is hidden or an old-look
+  frame covers it. On the first boot it mounts only after the reveal's
+  fade (`skyHold`, ADR 0083 addendum).
+- **Layout against the mockup.** The mockup's wordmark canvas had sky
+  above the letters: about 0.15 of the mark's width (75 px at 1440×900).
+  The wordmark box now has that headroom as padding
+  (`--wc-brand-pad`, `src/start/geometry.css`), shrinking on short
+  windows (`(100vh − 680px) × 0.4`) so the menu and the quote still fit at
+  1280×720 (the mockup pushed the quote off-screen there); as padding it
+  scales with the sub-page's 0.62 wordmark, as in the mockup. The phone's
+  own `--wc-brand-top: 26px` went: the same rule puts MUME where the
+  mockup has it. Screenshots (day, dawn, dusk, night, winter night with
+  snow, spring rain; 1440×900, 1280×720, 390×844; menu and Profile list)
+  match the mockup's positions within a few px; `size="large"` has no
+  user yet.
+- **Shared geometry.** The places of the sky, the wordmark and the menu
+  panel are in `src/start/geometry.css`, which the first paint inlines,
+  so its sky, wordmark and loading panel sit exactly where the surface
+  puts them (ADR 0083 addendum).
+- **Glass over the moving sky: kept.** Measured on the integrated page
+  (production build, `bench/start-page-bench.ts`, real windows on the
+  Iris Xe laptop; `bench/results/start-page-headed.md`), with and without
+  every `backdrop-filter`:
+
+  | browser | geometry | day, fair: glass / flat | winter night, snow: glass / flat |
+  |---|---|---|---|
+  | Chromium | 1728×1000 @2 | 56.1 / 56.3 fps | 57.0 / 56.3 fps |
+  | Chromium | 390×844 @3 | 56.5 / 56.6 fps | 56.5 / 56.5 fps |
+  | Firefox | 1728×1000 @2 | 58.0 / 58.0 fps | 56.2 / 54.5 fps |
+  | Firefox | 390×844 @3 | 56.2 / 57.0 fps | 57.8 / 58.8 fps |
+
+  Every run stayed at the high tier; the sky's own work was 0.3–1.0 ms
+  median, under 5 ms max; no long frame (> 50 ms) in Chromium. The blur
+  costs nothing measurable, so the panel and the buttons keep it. The
+  page as a whole drops a few frames against the sky alone (57–60 fps
+  in its harness). Diagnosis runs pointed at the wordmark's sheen (a
+  transform animation inside a CSS-masked element): without it Chromium
+  reached 60 fps in most runs, but the runs were noisy (other load on
+  the machine) and not conclusive; left as is and noted for the owner.
+  In the dev server Firefox ran at 31–48 fps on the app page (module
+  loading and the dev client); always measure a build.
