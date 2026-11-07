@@ -1682,6 +1682,21 @@ Cockpit spawns a background GitHub-release check, polls `version.cache` mtime to
 - **Credits** — standalone main-menu entry (ADR 0122) opening a scrolling end-credits chronicle built from all characters' events; details in §7.
 - **Quit** — see 3.2 (browser: drop).
 
+> WebCockpit (2026-11-07, stage 47, WebCockpit ADR 0132): **About** is no
+> longer a scrolling TUI text. It is one long leaf in the start page's
+> large box: the small wordmark and `WebCockpit <version> (<commit>)` at
+> its head, the intro as an italic lead-in, each section with a Cinzel
+> heading, key/value lines as a two-column table, the "M" seal at the end.
+> The text is our own (`ABOUT_TEXT`; ALL-CAPS line = heading, indented
+> `key  description` = a table row) in nine sections. A contents rail at
+> the left follows the reading; a click or the section's letter (W M B G
+> I S U C L) jumps; on a phone or a narrow window the rail is a strip of
+> section pills. Keys: ↑↓ 40 px, PgUp / PgDn / Space / Enter 85 % of the
+> view, Home / End, Esc / Back. Links (mume.org, discord.gg, github.com,
+> tintin.mudhalla.net, `LICENSE.txt`, `fonts/README.md`,
+> `THIRD_PARTY_NOTICES.md`, the last two published at the site root) open
+> in a new tab. **Credits** is a book, not a roll (§7.6).
+
 ### 3.12 Other launcher frames (covered in §7)
 
 - **History** (`history`, `history_detail`, `history_rate`, `history_delete_confirm`) — per-session run list, rating, delete. See §7.
@@ -2877,6 +2892,28 @@ to see content here.").
 - Centred column `min(60, max(40, cols − 8))` wide; scroll **1 row/s** bottom-to-top; top and
   bottom 35 % fade linearly between canvas colour and white; `Escape to exit` hint top-right
   `#555555`; auto-returns to menu when `The End.` leaves the top. Only ESC is bound.
+
+> WebCockpit (2026-11-07, stage 47, WebCockpit ADR 0132): **Credits is a
+> book**, not a roll. The large box on the start page holds two pages
+> side by side (one page when the book is under 640 px wide, as on a
+> phone), each with a folio (`— 3 —`). The opening line (*Here the scribes
+> have set down …*) is an epigraph at the top of page 1; each character's
+> chapter (oldest first deed first, the same seven headers and five
+> templates per kind, chosen by the same stable hashes) starts on a new
+> page with a title page: the header's words in small caps around the
+> name in Cinzel. Each deed is a paragraph with its date phrase in small
+> caps, the chapter's first with a drop cap in the wordmark's mithril
+> inlay; *The End.* closes the last chapter. The pills at the top are the
+> characters (no Opening pill); a click jumps to that chapter. Keys: → /
+> PgDn / Space and ← / PgUp turn a spread, ↓ / ↑ go to the next / previous
+> chapter, Home / End, N / P (and the Next / Previous buttons); a sideways
+> swipe over 40 px turns on touch. **No roll and no automatic return**:
+> only Esc / Back leave. Loading, the storage error, no data and the
+> filtered state (*No chronicle entries match your settings.* plus *The
+> filter on the Spotlights page chooses what the chronicle tells.*) are
+> pages of the book. Credits has no Settings…: it follows the Spotlights
+> page's filter (kinds, characters, period; WebCockpit ADR 0110), read when
+> the page opens.
 
 **Options → Spotlights** (`options_spotlights`): four `[X]`/`[ ]` rows — Achievements,
 Deaths, Level-ups, PvP kills (all default on), `Back`; Enter/Space/click toggles; saved
