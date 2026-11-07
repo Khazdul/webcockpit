@@ -96,8 +96,7 @@
   pointer-events: none !important;
 }
 
-/* Glass: the control box, its popups, the marker tip, the time hint (and
- * the Spotlights card, spotlight.css). */
+/* Glass: the control box, its popups, the marker tip, the time hint. */
 .wc-player-box,
 .wc-pc-pop,
 .wc-player-tip,
