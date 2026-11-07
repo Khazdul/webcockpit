@@ -571,7 +571,7 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
       pop-up plates (dark and Paper)
 - [ ] 44b: find row in the well (42's lantern panel, `top`); unsaved
       prompt as an inline `Dialog` with `useUnsaved`; e2e tests
-- [ ] 44c: the script manual hosts stage 42's `LookManual` (contents with
+- [x] 44c: the script manual hosts stage 42's `LookManual` (contents with
       counts, links, highlighted examples, find in the head); checked
       against `manual-a.html`; F1 targets; e2e tests
 - [ ] 44d: Scripts window: one Lykta frame on every page, note per top frame, inline Back, close
