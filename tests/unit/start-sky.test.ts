@@ -268,10 +268,15 @@ describe('start clock overrides and sky params', () => {
     expect(shiftedMinutes(real0 + 10, real0, { hour: 21.5 }) - shiftedMinutes(real0, real0, { hour: 21.5 })).toBeCloseTo(10, 9);
     expect(shiftedMinutes(real0 + 10, real0, { hour: 21.5, freeze: true })).toBe(shiftedMinutes(real0, real0, { hour: 21.5 }));
     expect(shiftedMinutes(real0 + 10, real0, { speed: 600 }) - real0).toBeCloseTo(6000, 6);
+    // all four pinned: the same moment whatever the real time
+    const pin = { year: 3040, month: 2, day: 7, hour: 22 };
+    expect(shiftedMinutes(real0, real0, pin)).toBe(shiftedMinutes(real0 + 9e6, real0 + 9e6, pin));
+    expect(shiftedMinutes(real0, real0, pin)).toBe(at(2, 22, 7, 3040 * YEAR_S));
   });
 
   it('parses the sky parameters and ignores bad values', () => {
     expect(parseSkyParams('?skyHour=21&skyMonth=0&skyWeather=snow&skyFreeze')).toEqual({ hour: 21, month: 0, weather: 'snow', freeze: true });
+    expect(parseSkyParams('?skyYear=3038&skyDay=2')).toEqual({ year: 3038, day: 2 });
     expect(parseSkyParams('?skyMonth=Halimath&skyDay=4&skyFast&skyQuality=low&skyMotion=reduce&skyStats')).toEqual({
       month: 8,
       day: 4,

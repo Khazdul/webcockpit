@@ -197,6 +197,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
   air.style.cssText = LAYER;
   const frontC = doc.createElement('canvas');
   frontC.style.cssText = `${LAYER}display:none;`;
+  frontC.width = frontC.height = 1;
   const grainD = doc.createElement('div');
   grainD.style.cssText = `${LAYER}opacity:.06;mix-blend-mode:overlay;display:none;`;
   root.append(back, bodiesC, cloudC, air, frontC, grainD);
@@ -262,20 +263,29 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     W = w;
     H = h;
     dpr = d;
-    for (const c of [bodiesC, frontC]) {
-      c.width = Math.round(W * dpr);
-      c.height = Math.round(H * dpr);
-    }
+    bodiesC.width = Math.round(W * dpr);
+    bodiesC.height = Math.round(H * dpr);
     bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // the front canvas takes memory only while it is needed (frontSize)
+    if (frontC.width > 1) frontSize();
     cloudC.width = Math.max(1, Math.ceil(W * tier.cloudQ));
     cloudC.height = Math.max(1, Math.ceil(H * CLOUD_BAND * tier.cloudQ));
     precip.layout(W, H);
-    grainD.style.background = tier.grain ? `url(${grain()})` : '';
     grainD.style.display = tier.grain ? '' : 'none';
+    // the grain texture is made after the first frames, not during the mount
+    if (tier.grain && !grainD.style.background) setTimeout(() => !disposed && (grainD.style.background = `url(${grain()})`), 300);
     cssAt = -Infinity;
     bodiesAt = -Infinity;
     cloudsAt = -Infinity;
+  }
+
+  function frontSize(): void {
+    const fw = Math.round(W * dpr);
+    const fh = Math.round(H * dpr);
+    if (frontC.width === fw && frontC.height === fh) return;
+    frontC.width = fw;
+    frontC.height = fh;
+    fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   function setQuality(q: SkyQuality): void {
@@ -329,6 +339,8 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       bodies.clear(bctx);
       bodies.draw(bctx, scene, still ? null : t, par, tier.starK);
     }
+    // build and re-light a few cloud puffs within a small budget (all at once for a still sky)
+    clouds.work(still ? Infinity : 2);
     if (cloudsDue) {
       cloudsAt = ms;
       clouds.draw(cctx, scene, tier.cloudQ, drift, precip.flash);
@@ -344,10 +356,12 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     precipDt += dt;
     if ((precip.active(scene) || precip.dirty || (!still && scene.weather.storm > 0.5)) && (free || ms - precipAt >= tier.precipMs - 4)) {
       precipAt = ms;
+      frontSize();
       precip.draw(fctx, scene, t, precipDt, par, still, tier.particleK);
       precipDt = 0;
       const show = precip.dirty ? '' : 'none';
       if (frontC.style.display !== show) frontC.style.display = show;
+      if (!precip.dirty) frontC.width = frontC.height = 1;
     }
     // the look
     if (ms - lookAt >= LOOK_EVERY) {

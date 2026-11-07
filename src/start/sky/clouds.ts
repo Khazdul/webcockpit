@@ -13,14 +13,23 @@
 // canvas (small, upscaled by CSS). The tint is linear, so tinting each
 // puff apart equals tinting them together. A lightning flash whitens the
 // lot for its few frames.
+//
+// No frame does much: the puffs are drawn (once) and re-lit a few at a
+// time within a small time budget per frame (`work`); a puff not ready
+// yet is simply not drawn (the clouds fade in on mount anyway). A still
+// sky does it all at once.
 
 import { type Rgb, clamp, hex, mix, mul, rgba, rng, sstep } from './color';
 import type { SkyScene } from './look';
 
 interface Puff {
-  /** The white puff, and its lit copy (same size). */
-  base: HTMLCanvasElement;
-  lit: HTMLCanvasElement;
+  /** The white puff (built on first need), and its lit copy (same size; null until lit). */
+  base: HTMLCanvasElement | null;
+  lit: HTMLCanvasElement | null;
+  w: number;
+  h: number;
+  /** The soft blobs it is made of (px, py, radius in its own px). */
+  blobs: Float32Array;
   /** Size factor, phase along the drift (0..1), height (fraction of the view), speed (px/s at factor 1), cover threshold. */
   sc: number;
   x0: number;
@@ -50,36 +59,52 @@ export class Clouds {
   private readonly puffs: Puff[] = [];
   private readonly sheet = canvas(1, 1);
   private sheetOn = false;
+  /** Re-lighting queue (indices into puffs; -1 = the sheet) and what it lights with. */
+  private queue: number[] = [];
+  private job: { s: SkyScene; t: Tint; drift: number; q: number } | null = null;
 
   constructor(seed = 55) {
     const R = rng(seed);
     for (let i = 0; i < 17; i++) {
       const sc = 0.55 + R() * 1.1;
-      const c = canvas(300 * sc, 110 * sc);
-      const cw = c.width;
-      const ch = c.height;
-      const x = c.getContext('2d')!;
+      const w = Math.ceil(300 * sc);
+      const h = Math.ceil(110 * sc);
+      const blobs = new Float32Array(26 * 3);
       for (let k = 0; k < 26; k++) {
-        const px = cw * (0.12 + 0.76 * R());
-        const py = ch * (0.5 + 0.25 * (R() - 0.3)) - Math.sin((px / cw) * Math.PI) * ch * 0.18;
-        const rad = Math.max(1, ch * (0.14 + 0.22 * R()) * Math.sin((px / cw) * Math.PI + 0.3));
-        const g = x.createRadialGradient(px, py, 0, px, py, rad);
-        g.addColorStop(0, 'rgba(255,255,255,.55)');
-        g.addColorStop(0.6, 'rgba(255,255,255,.22)');
-        g.addColorStop(1, 'rgba(255,255,255,0)');
-        x.fillStyle = g;
-        x.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+        const px = w * (0.12 + 0.76 * R());
+        const py = h * (0.5 + 0.25 * (R() - 0.3)) - Math.sin((px / w) * Math.PI) * h * 0.18;
+        const rad = Math.max(1, h * (0.14 + 0.22 * R()) * Math.sin((px / w) * Math.PI + 0.3));
+        blobs.set([px, py, rad], k * 3);
       }
-      // a darker base
-      x.globalCompositeOperation = 'source-atop';
-      const sh = x.createLinearGradient(0, 0, 0, ch);
-      sh.addColorStop(0, 'rgba(255,255,255,0)');
-      sh.addColorStop(1, 'rgba(60,60,70,.55)');
-      x.fillStyle = sh;
-      x.fillRect(0, 0, cw, ch);
-      this.puffs.push({ base: c, lit: canvas(cw, ch), sc, x0: R(), y: 0.03 + 0.4 * R() ** 1.3, v: 4 + 10 * sc, th: R() * 0.85 });
+      this.puffs.push({ base: null, lit: null, w, h, blobs, sc, x0: R(), y: 0.03 + 0.4 * R() ** 1.3, v: 4 + 10 * sc, th: R() * 0.85 });
     }
     this.puffs.sort((a, b) => a.sc - b.sc);
+  }
+
+  /** Draws puff `p`'s white sprite. */
+  private build(p: Puff): HTMLCanvasElement {
+    const c = canvas(p.w, p.h);
+    const x = c.getContext('2d')!;
+    for (let k = 0; k < 26; k++) {
+      const px = p.blobs[k * 3]!;
+      const py = p.blobs[k * 3 + 1]!;
+      const rad = p.blobs[k * 3 + 2]!;
+      const g = x.createRadialGradient(px, py, 0, px, py, rad);
+      g.addColorStop(0, 'rgba(255,255,255,.55)');
+      g.addColorStop(0.6, 'rgba(255,255,255,.22)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g;
+      x.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+    }
+    // a darker base
+    x.globalCompositeOperation = 'source-atop';
+    const sh = x.createLinearGradient(0, 0, 0, p.h);
+    sh.addColorStop(0, 'rgba(255,255,255,0)');
+    sh.addColorStop(1, 'rgba(60,60,70,.55)');
+    x.fillStyle = sh;
+    x.fillRect(0, 0, p.w, p.h);
+    p.base = c;
+    return c;
   }
 
   /** True when there is anything to draw. */
@@ -116,13 +141,13 @@ export class Clouds {
     const cover = s.weather.cloud;
     // wraps just off-screen, so most puffs are in view (as at the mockup's start); the span
     // must not change with the cover, or every puff would jump
-    const span = W + p.base.width * 1.5 + 120;
+    const span = W + p.w * 1.5 + 120;
     const raw = p.x0 * span + p.v * 0.7 * drift;
     return {
-      x: raw - Math.floor(raw / span) * span - p.base.width * 1.5 - 60,
+      x: raw - Math.floor(raw / span) * span - p.w * 1.5 - 60,
       y: p.y * H,
-      w: p.base.width * (1 + cover * 0.5),
-      h: p.base.height * (1 + cover * 0.4),
+      w: p.w * (1 + cover * 0.5),
+      h: p.h * (1 + cover * 0.4),
     };
   }
 
@@ -160,20 +185,47 @@ export class Clouds {
     x.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  /** Re-lights the puffs and the overcast sheet for `s` (twice a second, and before a still paint). */
+  /**
+   * Queues re-lighting the puffs and the overcast sheet for `s` (twice a
+   * second); `work` does it.
+   */
   refresh(s: SkyScene, drift: number, q: number): void {
-    const wx = s.weather;
-    if (wx.cloud < 0.02) return;
-    const { w: W, h: H } = s.view;
-    const band = H * CLOUD_BAND;
-    const t = this.tint(s);
-    for (const p of this.puffs) {
-      if (wx.cloud <= p.th) continue;
-      const at = this.place(p, s, drift);
-      this.light(p.lit, p.base, t, at.x, at.y, at.w, at.h, band);
+    if (s.weather.cloud < 0.02) {
+      this.queue = [];
+      this.job = null;
+      return;
     }
+    this.job = { s, t: this.tint(s), drift, q };
+    this.queue = [-1];
+    for (let i = 0; i < this.puffs.length; i++) if (s.weather.cloud > this.puffs[i]!.th) this.queue.push(i);
+  }
+
+  /** Builds and re-lights queued puffs for up to `budget` ms (at least one; Infinity: all). */
+  work(budget: number): void {
+    const job = this.job;
+    if (!job || !this.queue.length) return;
+    const t0 = performance.now();
+    const band = job.s.view.h * CLOUD_BAND;
+    while (this.queue.length) {
+      const i = this.queue.shift()!;
+      if (i < 0) this.lightSheet(job.s, job.t, job.q);
+      else {
+        const p = this.puffs[i]!;
+        const base = p.base ?? this.build(p);
+        p.lit ??= canvas(p.w, p.h);
+        const at = this.place(p, job.s, job.drift);
+        this.light(p.lit, base, job.t, at.x, at.y, at.w, at.h, band);
+      }
+      if (performance.now() - t0 >= budget) break;
+    }
+  }
+
+  private lightSheet(s: SkyScene, t: Tint, q: number): void {
+    const wx = s.weather;
     this.sheetOn = wx.cloud > 0.6;
     if (!this.sheetOn) return;
+    const { w: W, h: H } = s.view;
+    const band = H * CLOUD_BAND;
     // the overcast sheet: white, thicker at the top (soft, so at half the buffer's resolution)
     const o = (wx.cloud - 0.6) / 0.4;
     const sw = Math.max(1, Math.ceil(W * q * 0.5));
@@ -212,6 +264,7 @@ export class Clouds {
     for (const p of this.puffs) {
       const a = clamp((wx.cloud - p.th) / 0.18);
       if (a <= 0) continue;
+      if (!p.lit) continue;
       const at = this.place(p, s, drift);
       if (at.x > s.view.w || at.x + at.w < 0) continue;
       x.globalAlpha = a;

@@ -6,6 +6,8 @@
 //   skyHour=13.5        start the clock at this hour (0–24, fraction ok)
 //   skyMonth=0          … in this month (0–11 or a Westron/Sindarin name)
 //   skyDay=15           … on this day of the month (1–30: moves the moon)
+//   skyYear=3038        … in this year (with the others: the same sky on every
+//                       load, whatever the real date; for screenshots)
 //   skyFast[=600]       game time runs this many times faster (bare: 600)
 //   skyFreeze           the clock stands still and the sky paints one still frame
 //   skyWeather=snow     pin the weather (clear fair clouds rain storm fog snow; auto)
@@ -23,6 +25,7 @@ export interface SkyParams {
   hour?: number;
   month?: number;
   day?: number;
+  year?: number;
   speed?: number;
   freeze?: boolean;
   weather?: SkyWeatherState;
@@ -51,6 +54,8 @@ export function parseSkyParams(search: string): SkyParams {
   }
   const day = num(q.get('skyDay'), 1, 30);
   if (day !== undefined) out.day = Math.floor(day);
+  const year = num(q.get('skyYear'), 2850, 9999);
+  if (year !== undefined) out.year = Math.floor(year);
   if (q.has('skyFast')) out.speed = num(q.get('skyFast'), 0, 1e6) ?? 600;
   if (q.has('skyFreeze')) out.freeze = true;
   const w = q.get('skyWeather') as SkyWeatherState | null;
