@@ -49,7 +49,7 @@ import { createContext } from 'preact';
 import { useContext, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Icon } from './look-icons';
 import { type BoxKind, MOTION } from './look-motion';
-import { useIsTopFrame, useNav } from './stack';
+import { LOOK_MARK, useIsTopFrame, useNav } from './stack';
 
 export * from './look-keys';
 export * from './look-icons';
@@ -61,18 +61,16 @@ export * from './window-chrome';
 
 // ------------------------------------------------------------ frames
 
-const FREE = '__wcLook';
-
 /** Marks a frame component as a new-look frame (drawn over the sky, not on the grid). */
 export function lookFrame<P>(c: FunctionComponent<P>): FunctionComponent<P> {
-  (c as unknown as Record<string, boolean>)[FREE] = true;
+  (c as unknown as Record<string, boolean>)[LOOK_MARK] = true;
   return c;
 }
 
 /** Whether `node` is a new-look frame (`lookFrame`). */
 export function isLookFrame(node: VNode): boolean {
   const t = node.type as unknown;
-  return typeof t === 'function' && (t as unknown as Record<string, unknown>)[FREE] === true;
+  return typeof t === 'function' && (t as unknown as Record<string, unknown>)[LOOK_MARK] === true;
 }
 
 /**

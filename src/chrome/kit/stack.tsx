@@ -151,12 +151,14 @@ export function useKeyLayer(handler: KeyHandler, active = true): void {
 }
 
 /**
- * Whether `node` is a look frame (`lookFrame` in look.tsx marks the
- * component with this key; a unit test keeps the two in step). Read here
- * by the key, not through look.tsx: importing the kit's barrel would pull
- * the whole lantern kit into the chunk this file shares with the editors.
+ * The key `lookFrame` (look.tsx) sets on a look frame's component. It
+ * lives here, and look.tsx imports it: importing the kit's barrel from
+ * this file would pull the whole lantern kit into the chunk this file
+ * shares with the editors.
  */
-const LOOK_MARK = '__wcLook';
+export const LOOK_MARK = '__wcLook';
+
+/** Whether `node` is a look frame (`lookFrame`). */
 function isLookNode(node: VNode): boolean {
   const t = node.type as unknown;
   return typeof t === 'function' && (t as unknown as Record<string, unknown>)[LOOK_MARK] === true;
