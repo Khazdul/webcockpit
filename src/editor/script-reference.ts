@@ -65,6 +65,25 @@ export function scriptManualSections(): readonly HelpSection[] {
   return (sections ??= [...SCRIPT_GUIDE, ...referenceSections(), ...luaReferenceSections()]);
 }
 
+/**
+ * The script manual's groups and their labels, in order (the lantern
+ * manual's contents and its group rules: Guide, API reference, Lua
+ * reference). The contents show each group's number of sections beside
+ * its label.
+ */
+export const SCRIPT_MANUAL_GROUPS: Readonly<Record<string, string>> = {
+  guide: 'Guide',
+  reference: 'API reference',
+  lua: 'Lua reference',
+};
+
+/** The number of sections in each group of the script manual (the contents' counts). */
+export function scriptManualCounts(): Readonly<Record<string, number>> {
+  const out: Record<string, number> = {};
+  for (const s of scriptManualSections()) out[s.group] = (out[s.group] ?? 0) + 1;
+  return out;
+}
+
 /** The manual laid out `width` cells wide, with API and Lua names coloured in the examples. */
 export function scriptManualLayout(width: number): HelpLayout {
   return helpLayout(width, scriptManualSections(), { luaNames: (n) => apiDoc(n) !== null });
