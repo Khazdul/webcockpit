@@ -3,9 +3,9 @@
 
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SkyLook } from '../../src/start/sky/look';
-import { Wordmark } from '../../src/start/wordmark';
+import { PLACE_SETTLE_MS, Wordmark } from '../../src/start/wordmark';
 import { COCKPIT, MUME } from '../../src/start/wordmark-glyphs';
 import {
   type MarkBox,
@@ -126,6 +126,31 @@ describe('applyWordmarkLight', () => {
     const root = host.querySelector<HTMLElement>('.wc-wordmark')!;
     expect(root.style.getPropertyValue('--wcw-rv-mid')).toBe(w.rivet[1]);
   });
+
+  it('writes only the values that changed', () => {
+    const host = document.createElement('div');
+    paintWordmark(host, look({ dayness: 0, light: { kind: 'moon', strength: 0.3 } }), 'full', 'wq');
+    const attrs = vi.spyOn(Element.prototype, 'setAttribute');
+    const props = vi.spyOn(host.querySelector<HTMLElement>('.wc-wordmark')!.style, 'setProperty');
+    try {
+      const w = wordmarkLight(look(), box);
+      applyWordmarkLight(host, w);
+      expect(attrs).toHaveBeenCalled();
+      expect(props).toHaveBeenCalled();
+      attrs.mockClear();
+      props.mockClear();
+      applyWordmarkLight(host, { ...w });
+      expect(attrs).not.toHaveBeenCalled();
+      expect(props).not.toHaveBeenCalled();
+      // the glint alone moves: its two ends, nothing else
+      applyWordmarkLight(host, { ...w, glintX: w.glintX + 40 });
+      expect(attrs.mock.calls.map((c) => c[0]).sort()).toEqual(['x1', 'x2']);
+      expect(props).not.toHaveBeenCalled();
+    } finally {
+      attrs.mockRestore();
+      props.mockRestore();
+    }
+  });
 });
 
 describe('<Wordmark>', () => {
@@ -143,5 +168,90 @@ describe('<Wordmark>', () => {
     expect(el.querySelector('.wc-wordmark-small')).not.toBeNull();
     act(() => render(null, el));
     el.remove();
+  });
+});
+
+describe('<Wordmark> measuring', () => {
+  let mounted: HTMLElement | null = null;
+  afterEach(() => {
+    if (mounted) act(() => render(null, mounted!));
+    mounted = null;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    document.body.innerHTML = '';
+  });
+
+  function setup(): { el: HTMLDivElement; parent: HTMLDivElement; reads: () => number; resize: () => void } {
+    let observed: (() => void) | null = null;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          observed = cb;
+        }
+        observe(): void {}
+        disconnect(): void {
+          observed = null;
+        }
+      },
+    );
+    const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect');
+    const parent = document.createElement('div');
+    const el = document.createElement('div');
+    parent.append(el);
+    document.body.append(parent);
+    mounted = el;
+    return { el, parent, reads: () => rect.mock.calls.length, resize: () => observed?.() };
+  }
+
+  const moon = look({ dayness: 0, light: { kind: 'moon', strength: 0.3 } });
+
+  it('reads the layout once, not on every look', () => {
+    const { el, reads } = setup();
+    act(() => render(<Wordmark look={look()} run={false} />, el));
+    expect(reads()).toBe(1);
+    for (let i = 0; i < 6; i++)
+      act(() => render(<Wordmark look={look({ dayness: 1 - i / 6, light: { x: i / 6 } })} run={false} />, el));
+    expect(reads()).toBe(1);
+    expect(el.querySelector('[data-wcw="night"]')?.getAttribute('opacity')).not.toBe('0');
+    act(() => render(null, el));
+  });
+
+  it('measures again on a resize of the window or the host, and on a transition above it', () => {
+    const { el, parent, reads, resize } = setup();
+    act(() => render(<Wordmark look={look()} run={false} />, el));
+    const n = reads();
+    window.dispatchEvent(new Event('resize'));
+    expect(reads()).toBe(n + 1);
+    resize();
+    expect(reads()).toBe(n + 2);
+    parent.dispatchEvent(new Event('transitionend', { bubbles: true }));
+    expect(reads()).toBe(n + 3);
+    // a transition elsewhere on the page does not move the mark
+    const other = document.createElement('div');
+    document.body.append(other);
+    other.dispatchEvent(new Event('transitionend', { bubbles: true }));
+    expect(reads()).toBe(n + 3);
+    act(() => render(<Wordmark look={moon} run={false} />, el));
+    expect(reads()).toBe(n + 3);
+    act(() => render(null, el));
+    window.dispatchEvent(new Event('resize'));
+    parent.dispatchEvent(new Event('transitionend', { bubbles: true }));
+    expect(reads()).toBe(n + 3);
+  });
+
+  it('measures again when the place changes and once the move is over', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { el, reads } = setup();
+    act(() => render(<Wordmark look={look()} run={false} place="main" />, el));
+    const n = reads();
+    act(() => render(<Wordmark look={moon} run={false} place="main" />, el));
+    expect(reads()).toBe(n);
+    act(() => render(<Wordmark look={moon} run={false} place="sub" />, el));
+    expect(reads()).toBe(n + 1);
+    vi.advanceTimersByTime(PLACE_SETTLE_MS);
+    expect(reads()).toBe(n + 2);
+    act(() => render(null, el));
   });
 });

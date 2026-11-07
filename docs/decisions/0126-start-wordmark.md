@@ -142,3 +142,20 @@ and lightless skies.
 - Changing the letters means re-running the glyph script with the same
   font file; changing the tint means editing the constants at the top of
   `wordmark-svg.ts` (and re-running the favicon script).
+
+## Addendum 2026-11-07 — no layout read on a look push
+
+Looks arrive inside the sky engine's frame, after its style writes, up to
+4 times a second; measuring the mark there (`markBox`,
+`getBoundingClientRect`) forced a synchronous layout on that path. The
+`Wordmark` now keeps the mark's box and measures it again only when the
+mark may have moved: the markup is (re)made, a window resize, a resize of
+its host (its own ResizeObserver, which also fires when a hidden host is
+shown again), a `transitionend` on an ancestor (the start page's scenery
+moves `.wc-start-brand`), and on a change of the new `place` prop (the
+surface passes its scenery): at once and again `PLACE_SETTLE_MS`
+(850 ms, a little more than the brand's 0.8 s move) later, in case no
+transition ran. `applyWordmarkLight` writes only attributes and rivet
+variables whose values changed, so a typical push touches a few
+attributes. `paintWordmark` (the first paint) is unchanged: it measures
+once.

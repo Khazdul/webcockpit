@@ -337,11 +337,20 @@ export function wordmarkMarkup(size: WordmarkSize, id: string): string {
 }
 
 const q = (root: ParentNode, k: string): Element | null => root.querySelector(`[data-wcw="${k}"]`);
+const RIVET_VARS = ['--wcw-rv-hi', '--wcw-rv-mid', '--wcw-rv-lo'];
+
+/** Sets attribute `k`, unless it already has that value (most light updates move only a few of them). */
 const set = (el: Element | null | undefined, k: string, v: string | number): void => {
-  el?.setAttribute(k, typeof v === 'number' ? String(Math.round(v * 1000) / 1000) : v);
+  if (!el) return;
+  const s = typeof v === 'number' ? String(Math.round(v * 1000) / 1000) : v;
+  if (el.getAttribute(k) !== s) el.setAttribute(k, s);
 };
 
-/** Sets the light on a wordmark made by `wordmarkMarkup` (a few attributes in the inlay layer, the rivet colours). */
+/**
+ * Sets the light on a wordmark made by `wordmarkMarkup` (a few attributes
+ * in the inlay layer, the rivet colours); values that did not change are
+ * not written again.
+ */
 export function applyWordmarkLight(root: ParentNode, w: WordmarkLight): void {
   set(q(root, 'night'), 'opacity', w.night);
   set(q(root, 'dim'), 'opacity', w.dim);
@@ -371,13 +380,18 @@ export function applyWordmarkLight(root: ParentNode, w: WordmarkLight): void {
   const host = (root as Element).classList?.contains('wc-wordmark') ? root : root.querySelector('.wc-wordmark');
   const st = (host as HTMLElement | null)?.style;
   if (st) {
-    st.setProperty('--wcw-rv-hi', w.rivet[0]);
-    st.setProperty('--wcw-rv-mid', w.rivet[1]);
-    st.setProperty('--wcw-rv-lo', w.rivet[2]);
+    w.rivet.forEach((v, i) => {
+      const k = RIVET_VARS[i]!;
+      if (st.getPropertyValue(k) !== v) st.setProperty(k, v);
+    });
   }
 }
 
-/** The mark's light centre in the viewport (60 % down the letters, as the mockup). */
+/**
+ * The mark's light centre in the viewport (60 % down the letters, as the
+ * mockup). A layout read: callers on a hot path keep the result and
+ * measure again only when the mark may have moved.
+ */
 export function markBox(el: Element, view: { innerWidth: number; innerHeight: number }): MarkBox {
   const mark = el.querySelector('[data-wcw="iron"]') ?? el;
   const r = mark.getBoundingClientRect();

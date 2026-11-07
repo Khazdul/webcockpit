@@ -325,7 +325,7 @@ export function StartSurface(p: StartSurfaceProps): VNode {
       <SkyCtx.Provider value={feed}>
         <div class="wc-start-scenery" hidden={covered}>
           <div class="wc-start-brand" ref={brandRef}>
-            <StartWordmark size={scenery === 'large' ? 'small' : 'full'} run={run} />
+            <StartWordmark size={scenery === 'large' ? 'small' : 'full'} run={run} place={scenery} />
           </div>
           {scenery !== 'large' && <Almanac run={p.visible && !covered && !docHidden} />}
         </div>
@@ -355,9 +355,9 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   );
 }
 
-function StartWordmark(p: { size: 'full' | 'small'; run: boolean }): VNode {
+function StartWordmark(p: { size: 'full' | 'small'; run: boolean; place: string }): VNode {
   const look = useSkyLook();
-  return <Wordmark look={look} size={p.size} run={p.run} />;
+  return <Wordmark look={look} size={p.size} run={p.run} place={p.place} />;
 }
 
 // ------------------------------------------------------------- grid frames
