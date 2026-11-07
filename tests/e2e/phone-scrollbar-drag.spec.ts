@@ -9,6 +9,8 @@ test('a touch drag on the About thumb scrolls the text in proportion', async ({ 
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?phone=1');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  // The start page is up and its fonts have loaded (nothing moves any more).
+  await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
   await startFrame(page).locator('.wc-sm-item[data-key="about"]').tap();
   await expect(startFrame(page).locator('.wc-title-row')).toContainText('─── About ───');
   const bar = startFrame(page).locator('.wc-tui-bar');
