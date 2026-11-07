@@ -1,6 +1,9 @@
 // History (Inv §7.4): pure helpers for the frame in history.tsx. Sorting,
-// the cells, the filter pill window and small formatters. No DOM; unit
-// tested.
+// the cells, the filter pill window and small formatters; since stage 45
+// also the new-look page's card (deeds, long date and duration, expiry)
+// and the phone's sort list. The grid-only helpers (`pillWindow`,
+// `PILL_*`, `expiresCell`, `ratingCell`) stay for their tests until wave
+// 3. No DOM; unit tested.
 
 import { RETENTION_DAYS, type Session } from '../../runs/stitch';
 import { cellLen } from '../kit/nav';
