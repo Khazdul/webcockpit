@@ -289,13 +289,16 @@ export const AboutFrame = lookFrame(function AboutFrame(): VNode {
 
   // The cached geometry of the scroller: each section's top, the view's height, the end.
   const geo = useRef<{ tops: number[]; view: number; max: number }>({ tops: [], view: 0, max: 0 });
-  // A jump or a smooth page in flight: where it goes, and the section it lit (kept lit until it ends).
-  const flight = useRef<{ y: number; lit: number | null } | null>(null);
+  // A jump or a smooth page in flight: where it goes.
+  const flight = useRef<{ y: number } | null>(null);
+  // The section a jump lit: it stays lit until the view scrolls after the jump has landed (a
+  // jump near the end lands at the end, where the spy would light the last section).
+  const pinned = useRef<number | null>(null);
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const spy = (): void => {
     const b = bodyRef.current;
-    if (!b || flight.current?.lit != null) return;
+    if (!b || pinned.current !== null) return;
     const g = geo.current;
     const top = b.scrollTop;
     const y = top + g.view * ABOUT_SPY_AT;
@@ -332,11 +335,13 @@ export const AboutFrame = lookFrame(function AboutFrame(): VNode {
     if (!b) return;
     const onScroll = (): void => {
       if (flight.current) armIdle();
+      else pinned.current = null;
       spy();
     };
     // The reader's own wheel or finger ends a jump at once.
     const onUser = (): void => {
-      if (flight.current) land();
+      land();
+      pinned.current = null;
     };
     const opts = { passive: true } as const;
     b.addEventListener('scroll', onScroll, opts);
@@ -368,15 +373,16 @@ export const AboutFrame = lookFrame(function AboutFrame(): VNode {
     if (!b) return;
     const max = Math.max(0, b.scrollHeight - b.clientHeight);
     const to = Math.max(0, Math.min(max, Math.round(y)));
+    pinned.current = lit;
     if (lit !== null) setCur(lit);
     if (instant || reduced || typeof b.scrollTo !== 'function') {
-      land();
-      if (lit !== null) flight.current = { y: to, lit };
+      // The scroll event of an instant jump still belongs to the jump.
+      flight.current = { y: to };
       b.scrollTop = to;
-      if (lit !== null) armIdle();
+      armIdle();
       return;
     }
-    flight.current = { y: to, lit };
+    flight.current = { y: to };
     armIdle();
     b.scrollTo({ top: to, behavior: 'smooth' });
   };
