@@ -153,7 +153,9 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await startRow(page, 'history').hover();
   await expect(startSel(page)).toHaveText('History');
   await startRow(page, 'scripts').click();
-  await expect(startTitle(page)).toHaveText('─── Scripts ───');
+  // Scripts: the large lantern box (stage 44).
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Scripts');
+  await expect(lookBox(page).locator('.wc-scr')).toBeVisible();
 });
 
 test('Enter MUME shows the cockpit and connects; Esc opens the Exit popup, no menu (ADR 0112)', async ({ page }) => {

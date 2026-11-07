@@ -260,7 +260,9 @@ test('Settings opens its popup (ADR 0107); Scripts and Profile open their window
   await icon(page, 'scripts').click();
   await expect(overlay(page)).toBeHidden();
   const scripts = page.locator('.wc-win[data-win="scripts"]');
-  await expect(scripts.locator('.wc-frame:not([hidden]) .wc-title-row .wc-c-section')).toHaveText('─── Scripts ───');
+  // The Scripts page in the window's Lykta frame (stage 44): title Scripts, no note.
+  await expect(scripts.locator('.wc-win-t')).toHaveText('Scripts');
+  await expect(scripts.locator('.wc-frame:not([hidden]) .wc-scr')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(scripts).toHaveCount(0);
   await expect(field(page)).toBeFocused();

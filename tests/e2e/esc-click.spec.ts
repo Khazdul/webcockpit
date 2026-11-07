@@ -1,13 +1,14 @@
 // Desktop (ADR 0075 §2, owner-approved for desktop too): `ESC …` footer
-// tokens are clickable. Since stage 30f (ADR 0112) there is no ESC menu
+// tokens are clickable; the lantern pages (stage 44 on: Scripts) have a
+// Back button that does the same. Since stage 30f (ADR 0112) there is no ESC menu
 // where the menu bar exists: Esc with nothing open opens nothing and `#menu`
 // prints a hint. The tablet (no `☰`): tests/e2e/phone-touch.spec.ts.
 import { type Page, expect, test } from '@playwright/test';
 
 const overlay = (page: Page) => page.locator('.wc-overlay');
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-const startTitle = (page: Page) => startFrame(page).locator('.wc-title-row .wc-c-section');
-const escToken = (page: Page, text: string) => startFrame(page).locator('.wc-footer .wc-esc-btn', { hasText: text });
+/** The top lantern box's Back (stage 42's `.wc-lk-back`). */
+const boxBack = (page: Page) => startFrame(page).locator('.wc-lk-back').first();
 const HINT = 'The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes, #settings, #fullscreen, #exit.';
 
 function watchErrors(page: Page): string[] {
@@ -16,13 +17,13 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
-test('a click on ESC Back goes back (the start page)', async ({ page }) => {
+test('a click on Back goes back (the start page)', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.locator('.wc-start .wc-sm-item[data-key="scripts"]').click();
-  await expect(startTitle(page)).toHaveText('─── Scripts ───');
-  await escToken(page, 'ESC Back').click();
+  await expect(startFrame(page).locator('.wc-lk-box .wc-lk-hood-t')).toHaveText('Scripts');
+  await boxBack(page).click();
   // Back on the main menu, the cursor on Scripts.
   await expect(startFrame(page).locator('.wc-sm-item[data-key="enter"]')).toBeVisible();
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');

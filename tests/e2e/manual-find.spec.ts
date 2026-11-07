@@ -59,7 +59,7 @@ async function openManual(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await f.locator('.wc-scr-row:is([data-script="findme"], [data-name="findme"]) .wc-scr-name').click();
+  await f.locator('.wc-scr-row[data-name="findme"] .wc-scr-name').click();
   await f.locator('[data-btn="EDIT"]').first().click();
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+Home');

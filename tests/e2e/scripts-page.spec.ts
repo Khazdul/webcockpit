@@ -6,6 +6,7 @@
 // `.wc-sed[data-script][data-readonly]`, its text, the CodeMirror classes.
 import { readFile } from 'node:fs/promises';
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { morphDone } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -138,6 +139,9 @@ test('Scripts from the start page: bundled coin looter, help, toggle, read-only 
   await page.keyboard.press('Enter');
   await expect(editor(page)).toHaveAttribute('data-readonly', 'true');
   await expect(editor(page)).toHaveAttribute('data-script', 'coinlooter');
+  // The box's morph first: the buffer is drawn in full, and has the focus again in Firefox.
+  await morphDone(page);
+  await expect(editor(page).locator('.cm-content')).toBeFocused();
   const before = await bufferText(page);
   await page.keyboard.type('xyz');
   expect(await bufferText(page)).toBe(before);
@@ -177,6 +181,8 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   await f.locator('[data-btn="NEW"]').click();
   await expect(dialog(page, 'new')).toBeVisible();
   await expect(page.locator('.wc-win[data-win="scripts"] .wc-frame[data-under] .wc-scr')).toHaveCount(1);
+  // The field takes the focus a moment after the dialog shows (the kit's Field autoFocus).
+  await expect(dialog(page, 'new').locator('input')).toBeFocused();
   await page.keyboard.type('9bad');
   await page.keyboard.press('Enter');
   await expect(dialog(page, 'new').locator('.wc-lk-dialog-err')).toHaveText('The name must start with a letter.');

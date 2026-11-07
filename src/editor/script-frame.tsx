@@ -56,6 +56,7 @@ import {
   InlineBack,
   LookFlash,
   lookFrame,
+  useBoxSettled,
   useLocalFlash,
   useLookPlace,
   useWindowChrome,
@@ -129,6 +130,10 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
   const nav = useNav();
   const isTop = useIsTop();
   const place = useLookPlace();
+  // Firefox drops the focus of an element its box's morph hides (layout B's
+  // `visibility` animation, stage 42); settling re-renders, and the focus
+  // effect below takes the buffer's focus back.
+  useBoxSettled();
   const lib = host.library;
 
   const [name, setName] = useState(host.name);

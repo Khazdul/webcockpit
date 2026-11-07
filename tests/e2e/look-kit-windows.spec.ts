@@ -1,7 +1,7 @@
 // Stage 42d (ADR 0127): the one in-game window frame (Lykta) on dark and
 // Paper, its title and note (defaults and `useWindowChrome`), the opaque
-// body without blur, the focus dimming, old-look frames on a whole-cell
-// grid inside the px body, and the kit gallery's Windows section (a look
+// body without blur, the focus dimming, look frames on the free body
+// (Scripts, stage 44), old-look frames on a whole-cell grid, and the kit gallery's Windows section (a look
 // frame in the place `window` setting the title, a sub-page and back, a
 // resize in whole cells).
 import { type Page, expect, test } from '@playwright/test';
@@ -21,7 +21,7 @@ async function offline(page: Page): Promise<void> {
   await expect(page.locator('.wc-mb-bar')).toBeVisible();
 }
 
-test('the Lykta frame in the game: hood, title and note, opaque body, the old-look grid on whole cells', async ({ page }) => {
+test('the Lykta frame in the game: hood, title and note, opaque body, a look frame on the free body', async ({ page }) => {
   const errors = watchErrors(page);
   await offline(page);
   await openWin(page, 'scripts');
@@ -51,19 +51,22 @@ test('the Lykta frame in the game: hood, title and note, opaque body, the old-lo
   expect(['none', '']).toContain(look.blur);
   expect(look.hoodOff).toBeLessThan(1.5);
   expect(look.titleFont).toContain('Cinzel');
-  // Scripts (old look) sits on a whole-cell grid inside the body.
+  // Scripts is a look frame since stage 44: the free body, filling the content box
+  // (the old-look grid on whole cells is the gallery's `kit-grid` window, below).
   const s = await win(page, 'scripts').evaluate((el) => {
-    const cs = getComputedStyle(document.documentElement);
-    const cw = parseFloat(cs.getPropertyValue('--cell-w'));
-    const ch = parseFloat(cs.getPropertyValue('--cell-h'));
     const f = el.querySelector('.wc-frame:not([hidden])')!.getBoundingClientRect();
     const c = el.querySelector('.wc-win-content')!.getBoundingClientRect();
-    return { cols: f.width / cw, rows: f.height / ch, inside: f.left >= c.left && f.top >= c.top && f.right <= c.right && f.bottom <= c.bottom };
+    return {
+      dw: Math.abs(f.width - c.width),
+      dh: Math.abs(f.height - c.height),
+      inside: f.left >= c.left - 0.5 && f.top >= c.top - 0.5 && f.right <= c.right + 0.5 && f.bottom <= c.bottom + 0.5,
+    };
   });
-  expect(Math.abs(s.cols - Math.round(s.cols))).toBeLessThan(0.01);
-  expect(Math.abs(s.rows - Math.round(s.rows))).toBeLessThan(0.01);
+  expect(s.dw).toBeLessThan(1);
+  expect(s.dh).toBeLessThan(1);
   expect(s.inside).toBe(true);
-  await expect(winTop(page, 'scripts')).toHaveClass(/wc-win-grid/);
+  await expect(winTop(page, 'scripts')).toHaveClass(/wc-win-look/);
+  await expect(winTop(page, 'scripts')).not.toHaveClass(/wc-win-grid/);
   // Without the focus the content goes to 55 %.
   await expect(win(page, 'scripts')).not.toHaveAttribute('data-focused', '');
   await expect

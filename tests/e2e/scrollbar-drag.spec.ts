@@ -90,7 +90,10 @@ async function expectTrackPagesUp(bar: Locator, scroller: Locator): Promise<void
 // bar) are gone with its new look (stage 43a, ADR 0128): the buffer and
 // the fields scroll natively with the lantern kit's thin scrollbars.
 
-test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => {
+// Stage 44b: the script editor's TUI buffer bar is gone too; the buffer
+// (CodeMirror's own scroller) scrolls natively, and the wheel and a drag
+// of the native scrollbar keep the buffer's focus.
+test('script editor: the buffer scrolls natively and keeps its focus', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1280, height: 600 });
   await mockMume(page);
@@ -109,10 +112,15 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
   const content = editor.locator('.cm-content');
   await expect(content).toBeFocused();
-  const bar = editor.locator('.wc-ped-bufbar');
+  await expect(editor.locator('.wc-ped-bufbar, .wc-tui-bar')).toHaveCount(0);
   const scroller = editor.locator('.cm-scroller');
-  await dragThumb(page, bar, scroller);
-  await expectTrackPagesUp(bar, scroller);
+  expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY))).toBe(true);
+  await scroller.hover();
+  await page.mouse.wheel(0, 400);
+  await expect.poll(() => scrollTop(scroller)).toBeGreaterThan(0);
+  // A press on the native scrollbar (the scroller's right edge) leaves the focus in the buffer.
+  const r = (await scroller.boundingBox())!;
+  await page.mouse.click(r.x + r.width - 3, r.y + r.height - 20);
   await expect(content).toBeFocused();
   expect(errors).toEqual([]);
 });

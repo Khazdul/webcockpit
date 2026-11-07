@@ -3,8 +3,12 @@
 // that follows presses (keys back to the game after a click in the output
 // or the input), two windows' z-order, places remembered across reloads,
 // X and Esc through the editor's unsaved prompt, the Esc order in the
-// input, and the Exit popup's warning.
+// input, and the Exit popup's warning. Stage 44 (ADR 0129): the Scripts
+// window keeps its one Lykta frame on every page while the title and note
+// follow the top frame (page, editor, manual), its sub-pages have a small
+// Back, and X with unsaved script changes asks first.
 import { type Page, expect, test } from '@playwright/test';
+import { winNote, winTitle, winTop } from './look';
 
 const field = (page: Page) => page.locator('.wc-input-field');
 const icon = (page: Page, id: string) => page.locator(`.wc-mb[data-mb="${id}"]`);
@@ -12,8 +16,6 @@ const win = (page: Page, id: string) => page.locator(`.wc-win[data-win="${id}"]`
 const bar = (page: Page, id: string) => win(page, id).locator('.wc-win-bar');
 const overlay = (page: Page) => page.locator('.wc-overlay');
 const popup = (page: Page) => page.locator('.wc-pop');
-/** The visible frame's title inside window `id`. */
-const frameTitle = (page: Page, id: string) => win(page, id).locator('.wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 /** The profile editor's views (they are up once the editor is; ADR 0128). */
 const editorToggle = (page: Page) => win(page, 'profile').locator('.wc-frame:not([hidden]) .wc-pe .wc-pe-views');
 
@@ -80,7 +82,8 @@ test('#profile and #scripts toggle: open, raise and focus, then close as X', asy
   await field(page).fill('#scripts');
   await page.keyboard.press('Enter');
   await expect(win(page, 'scripts')).toHaveAttribute('data-focused', '');
-  await expect(frameTitle(page, 'scripts')).toHaveText('─── Scripts ───');
+  await expect(winTitle(page, 'scripts')).toHaveText('Scripts');
+  await expect(winTop(page, 'scripts').locator('.wc-scr')).toBeVisible();
   // A click in the output: the game has the keys again, the window stays, dimmed.
   await page.locator('.wc-game').click({ position: { x: 20, y: 20 } });
   await expect(win(page, 'scripts')).not.toHaveAttribute('data-focused', '');
@@ -202,10 +205,10 @@ test('focus follows presses: input, output, the other window; keys go where the 
   await expect(win(page, 'scripts')).not.toHaveAttribute('data-focused', '');
   await page.keyboard.type('look');
   await expect(field(page)).toHaveValue('look');
-  // A press in the window: its keys again (↓ moves its cursor, the input keeps its text).
+  // A press in the window: its keys again (the input keeps its text; no page letter here).
   await win(page, 'scripts').locator('.wc-win-body').click({ position: { x: 30, y: 60 } });
   await expect(win(page, 'scripts')).toHaveAttribute('data-focused', '');
-  await page.keyboard.type('xyz');
+  await page.keyboard.type('zqz');
   await expect(field(page)).toHaveValue('look');
   // A press in the game, then Esc in the input with a window open: the
   // window's close request (no unsaved changes: it closes).
@@ -245,6 +248,196 @@ test('the Esc order in the input: popup, then window, then the Exit popup', asyn
   await expect(popup(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
 });
+
+// ------------------------------------------------- the Scripts window (stage 44)
+
+const WIN_SRC = `-- @name     wintest
+-- @summary  A window test
+-- @api      1
+-- @setting  loud boolean false "Shout"
+
+tempTrigger("A goblin is here.", function()
+  send("look")
+end)
+`;
+
+/** Adds the user script `wintest` to the library (turned off). */
+async function addScript(page: Page): Promise<void> {
+  await page.evaluate(async (src) => {
+    const l = window.__wc!.shell.scripts as unknown as { init(): Promise<void>; create(n: string, s: string): Promise<unknown> };
+    await l.init();
+    await l.create('wintest', src);
+  }, WIN_SRC);
+}
+
+const sourceOf = (page: Page, name: string) =>
+  page.evaluate((n) => (window.__wc!.shell.scripts as unknown as { get(n: string): { source: string } | null }).get(n)?.source ?? null, name);
+
+test('the Scripts window keeps one Lykta frame on every page; the title and note follow the top frame; X asks about unsaved changes', async ({ page }) => {
+  const errors = watchErrors(page);
+  await offline(page);
+  await addScript(page);
+  await icon(page, 'scripts').click();
+  const w = win(page, 'scripts');
+  await expect(w).toHaveAttribute('data-focused', '');
+  await expect(icon(page, 'scripts')).toHaveClass(/is-open/);
+  const frame = await w.elementHandle();
+  const top = winTop(page, 'scripts');
+  // The page: a look frame on the free body, title Scripts, no note, no Back of its own.
+  await expect(winTitle(page, 'scripts')).toHaveText('Scripts');
+  await expect(winNote(page, 'scripts')).toHaveCount(0);
+  await expect(top).toHaveClass(/wc-win-look/);
+  await expect(top.locator('.wc-lk-back, .wc-lk-iback')).toHaveCount(0);
+  await top.locator('.wc-scr-row[data-name="wintest"] .wc-scr-name').click();
+  await expect(top.locator('.wc-scr-panel .wc-scr-title')).toHaveText('wintest');
+
+  // Edit: the note is the script's name; a small Back; the same frame.
+  await top.locator('.wc-scr-panel [data-btn="EDIT"]').click();
+  const ed = top.locator('.wc-sed');
+  await expect(ed).toHaveAttribute('data-script', 'wintest');
+  await expect(winTitle(page, 'scripts')).toHaveText('Scripts');
+  await expect(winNote(page, 'scripts')).toHaveText('wintest');
+  await expect(top).toHaveClass(/wc-win-look/);
+  await expect(top.locator('.wc-lk-iback')).toBeVisible();
+  await expect(w.locator('.wc-win-hood')).toHaveCount(1);
+  // A click in the buffer keeps the keys in the window (not the game input).
+  await ed.locator('.cm-line', { hasText: 'send("look")' }).click();
+  await expect(ed.locator('.cm-content')).toBeFocused();
+  await expect(w).toHaveAttribute('data-focused', '');
+  await page.keyboard.press('End');
+  await page.keyboard.type(' -- x');
+  await expect(winNote(page, 'scripts')).toHaveText('wintest •');
+
+  // F1 at `send`: the manual, note Manual; Esc back to the editor with its buffer.
+  await page.keyboard.press('Home');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('F1');
+  await expect(top.locator('.wc-sman')).toBeVisible();
+  await expect(winTitle(page, 'scripts')).toHaveText('Scripts');
+  await expect(winNote(page, 'scripts')).toHaveText('Manual');
+  await expect(top).toHaveClass(/wc-win-look/);
+  await page.keyboard.press('Escape');
+  await expect(top.locator('.wc-sman')).toHaveCount(0);
+  await expect(ed).toBeVisible();
+  await expect(winNote(page, 'scripts')).toHaveText('wintest •');
+  await expect(ed.locator('.cm-content')).toContainText('send("look") -- x');
+  expect(await frame!.evaluate((el) => el.isConnected)).toBe(true);
+
+  // Unfocused, the window dims; a press on its bar takes the keys back.
+  await page.locator('.wc-game').click({ position: { x: 20, y: 20 } });
+  await expect(w).not.toHaveAttribute('data-focused', '');
+  await expect(field(page)).toBeFocused();
+  await bar(page, 'scripts').click({ position: { x: 30, y: 10 } });
+  await expect(w).toHaveAttribute('data-focused', '');
+
+  // X with unsaved changes: the prompt; Esc keeps editing, the window stays.
+  const x = w.locator('.wc-win-x');
+  const prompt = w.locator('.wc-lk-dialog[data-dlg="unsaved"]');
+  await x.click();
+  await expect(prompt).toContainText('Save changes to wintest?');
+  await expect(w).toHaveAttribute('data-focused', '');
+  await page.keyboard.press('Escape');
+  await expect(prompt).toHaveCount(0);
+  await expect(ed).toBeVisible();
+  await expect(winNote(page, 'scripts')).toHaveText('wintest •');
+  // X again, N: discarded, the window closes and the keys go to the game.
+  await x.click();
+  await expect(prompt).toBeVisible();
+  await page.keyboard.press('n');
+  await expect(w).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
+  await expect(icon(page, 'scripts')).not.toHaveClass(/is-open/);
+  expect(await sourceOf(page, 'wintest')).toBe(WIN_SRC);
+
+  // Again: the small Back leaves the editor (no changes: no prompt); Esc on the page closes the window.
+  await icon(page, 'scripts').click();
+  await expect(w).toHaveAttribute('data-focused', '');
+  await top.locator('.wc-scr-row[data-name="wintest"] .wc-scr-name').click();
+  await top.locator('.wc-scr-panel [data-btn="EDIT"]').click();
+  await expect(winNote(page, 'scripts')).toHaveText('wintest');
+  await top.locator('.wc-lk-iback').click();
+  await expect(top.locator('.wc-scr')).toBeVisible();
+  await expect(winNote(page, 'scripts')).toHaveCount(0);
+  // Esc: the panel's button row first (Edit was pressed there), then the index, then the window.
+  await page.keyboard.press('Escape');
+  await expect(top.locator('.wc-scr-row.is-cur')).toHaveAttribute('data-name', 'wintest');
+  await page.keyboard.press('Escape');
+  await expect(w).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
+for (const paper of [false, true]) {
+  test(`a small Scripts window${paper ? ' on Paper' : ''}: page, editor and manual stay inside; its place is kept`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await offline(page);
+    await icon(page, 'scripts').click();
+    const w = win(page, 'scripts');
+    await expect(w).toHaveAttribute('data-focused', '');
+    if (paper) {
+      await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
+      await expect(page.locator('.wc-windows')).toHaveAttribute('data-light', '');
+    }
+    // The grip to the minimum.
+    const g = (await w.locator('.wc-win-grip').boundingBox())!;
+    await page.mouse.move(g.x + 5, g.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(5, 5, { steps: 3 });
+    await page.mouse.up();
+    const small = await cells(page, 'scripts');
+    expect(Math.round(small.w)).toBe(62);
+    expect(Math.round(small.h)).toBe(20);
+    const box = (await w.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(360);
+    expect(box.height).toBeGreaterThanOrEqual(260);
+    const top = winTop(page, 'scripts');
+    /** The first visible `sel` lies inside the window's content box (nothing spills past its frame). */
+    const inside = async (sel: string): Promise<boolean> =>
+      w.evaluate((el, s) => {
+        const c = el.querySelector('.wc-win-content')!.getBoundingClientRect();
+        const r = el.querySelector(s)?.getBoundingClientRect();
+        return !!r && r.width > 0 && r.left >= c.left - 0.5 && r.right <= c.right + 0.5 && r.top >= c.top - 0.5 && r.bottom <= c.bottom + 0.5;
+      }, sel);
+    // The page at this width: the index alone (the drill-down), inside the window.
+    await expect(top.locator('.wc-scr')).toHaveAttribute('data-w', 'narrow');
+    expect(await inside('.wc-frame:not([hidden]) .wc-scr')).toBe(true);
+    // A tap on a row drills into its panel; Edit opens the bundled script read-only.
+    await top.locator('.wc-scr-row[data-name="almanac"] .wc-scr-name').click();
+    // The panel opens at its top: the name and the buttons in view (a tap never scrolls it).
+    await expect(top.locator('.wc-scr-panel .wc-scr-title')).toHaveText('almanac');
+    expect(await top.locator('.wc-scr-panel').evaluate((el) => el.scrollTop)).toBe(0);
+    expect(await inside('.wc-frame:not([hidden]) .wc-scr-panel [data-btn="EDIT"]')).toBe(true);
+    await top.locator('.wc-scr-panel [data-btn="EDIT"]').click();
+    await expect(top.locator('.wc-sed')).toHaveAttribute('data-script', 'almanac');
+    await expect(winNote(page, 'scripts')).toHaveText('almanac');
+    expect(await inside('.wc-frame:not([hidden]) .wc-sed-tools')).toBe(true);
+    expect(await inside('.wc-frame:not([hidden]) .wc-sed-status')).toBe(true);
+    await expect(top.locator('.wc-lk-iback')).toBeVisible();
+    // The manual: its head inside, the contents behind their button.
+    await top.locator('.wc-sed-tools [data-btn="MANUAL"]').click();
+    await expect(winNote(page, 'scripts')).toHaveText('Manual');
+    await expect(top.locator('.wc-sman [data-btn="contents"]')).toBeVisible();
+    expect(await inside('.wc-frame:not([hidden]) .wc-sman .wc-lk-mhead')).toBe(true);
+    // The same frame all along; on Paper the bronze one with a dark title.
+    await expect(top).toHaveClass(/wc-win-look/);
+    if (paper) {
+      const luma = await winTitle(page, 'scripts').evaluate((el) => {
+        const [r, g, b] = getComputedStyle(el).color.match(/\d+/g)!.map(Number);
+        return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+      });
+      expect(luma).toBeLessThan(80);
+    }
+    // The place is stored: after a reload the window opens at the same size.
+    await page.reload();
+    await expect(field(page)).toBeFocused();
+    await icon(page, 'scripts').click();
+    await expect(w).toBeVisible();
+    const again = await cells(page, 'scripts');
+    expect(Math.round(again.w)).toBe(62);
+    expect(Math.round(again.h)).toBe(20);
+    expect(errors).toEqual([]);
+  });
+}
 
 // ------------------------------------------------- live: unsaved changes
 

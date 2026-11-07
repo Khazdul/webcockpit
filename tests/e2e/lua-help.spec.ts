@@ -4,6 +4,7 @@
 // names, and the Lua basics and Lua reference in the MANUAL. Nothing
 // reaches the real server.
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { morphDone } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -83,6 +84,9 @@ async function openEditor(page: Page): Promise<void> {
   await row(f, 'luahelp').locator('.wc-scr-name').click();
   await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'luahelp');
+  // The box's morph runs ~0.3 s: Firefox drops the focus of a box hidden by it (the
+  // editor takes it back when it lands), so keys go in after it.
+  await morphDone(page);
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');
 }
