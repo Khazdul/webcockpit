@@ -34,15 +34,17 @@
 // (while it is open ↑ ↓ choose the row, ← → the value, D or Esc close it),
 // P Play again on the end card, Esc closes the popover, then leaves. Every
 // other key is the view's (Shift+← → ±10 s, Home, Space, 1–6, ↑ ↓ PgUp PgDn
-// End). Before the host is ready a key layer on the frame takes Esc.
+// End). The stack's key listener runs first: a key layer on the frame
+// swallows every key there (and takes Esc itself before the host is ready).
 //
 // The host stays alive while the page is open (ADR 0131): on leaving, the
 // slot with the paused host is taken out of the document (the view's keys
 // then pass, its root not shown) and kept here; the next card puts it back
 // and seeks (or opens the wall's new reel), so the player chunk and the
 // host are made once. It is disposed when the page's frame leaves the
-// stack (a MutationObserver on the stack's own children, which change
-// only on a push or a pop), or at once when there is no page frame.
+// document (a MutationObserver on the direct children of its ancestors,
+// which change only on a push, a pop or a page swap), or at once when
+// there is no page frame.
 //
 // The brighter red (ANSI 1 on the dark wells, Default colours only) is the
 // host's palette tweak, set by spotlight-mode.ts. The start sky pauses
@@ -178,18 +180,26 @@ export function keptSpotlightsHost(): PlayerHost | null {
   return kept && !kept.host.isClosed ? kept.host : null;
 }
 
-/** Parks `k` (paused, out of the document) until the page's `frame` leaves its stack. */
+/**
+ * Parks `k` (paused, out of the document) until the page's `frame` leaves
+ * the document: popped from its stack, or the whole start page unmounted.
+ * One MutationObserver watches the direct children of each of the frame's
+ * ancestors (they change only on a push, a pop or a page swap); a check
+ * after the current task covers an unmount that was under way.
+ */
 function park(k: Kept, frame: HTMLElement | null): void {
   const eng = k.host.engine;
   if (eng?.playing) eng.pause();
   k.slot.remove();
-  const stack = frame?.parentElement ?? null;
-  if (!frame || !stack || !frame.isConnected || typeof MutationObserver !== 'function') return disposeKept();
+  if (!frame || !frame.isConnected || typeof MutationObserver !== 'function') return disposeKept();
   k.watch?.disconnect();
-  k.watch = new MutationObserver(() => {
-    if (!frame.isConnected) disposeKept();
-  });
-  k.watch.observe(stack, { childList: true });
+  const check = (): void => {
+    if (kept === k && !k.slot.isConnected && !frame.isConnected) disposeKept();
+  };
+  const watch = new MutationObserver(check);
+  for (let el = frame.parentElement; el; el = el.parentElement) watch.observe(el, { childList: true });
+  k.watch = watch;
+  setTimeout(check, 0);
 }
 
 // ------------------------------------------------------------ the viewer
@@ -201,6 +211,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
   const rootRef = useRef<HTMLDivElement>(null);
   const wellRef = useRef<HTMLDivElement>(null);
   const cdRef = useRef<HTMLElement>(null);
+  const wellBox = useRef<HTMLDivElement>(null);
   const props = useRef(p);
   props.current = p;
   useSkyPause(true);
@@ -208,14 +219,27 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
   const [k, setK] = useState<Kept | null>(null);
   const kRef = useRef<Kept | null>(null);
   kRef.current = k;
-  const [display, setDisplay] = useState<{ row: number | null } | null>(null);
+  const [display, setDisplayState] = useState<{ row: number | null } | null>(null);
   const displayRef = useRef(display);
-  displayRef.current = display;
+  /** The popover's state, current at once for the next key of the same task. */
+  const setDisplay = (d: { row: number | null } | null): void => {
+    displayRef.current = d;
+    setDisplayState(d);
+  };
   const leaving = useRef(false);
+  /** The popover was closed by the frame's Esc (its key layer) in the current task: the view's Esc that follows is the same key. */
+  const escClosed = useRef(false);
   const [, setTick] = useState(0);
   const sig = useRef('');
   const drawRef = useRef<() => void>(() => {});
   const trackDraw = useRef<() => void>(() => {});
+
+  /** The well takes the player's background (the recorded one or Display's theme), so the inset game text sits on one colour. */
+  const syncBg = (): void => {
+    const el = wellBox.current;
+    const bg = kRef.current?.host.el.style.getPropertyValue('--term-bg').trim();
+    if (el && bg && el.style.backgroundColor !== bg) el.style.backgroundColor = bg;
+  };
 
   // ---------------------------------------------------------------- leave
 
@@ -236,7 +260,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
     a.finished.then(done, done);
   };
 
-  const toggleDisplay = (row: number | null): void => setDisplay((d) => (d ? null : { row }));
+  const toggleDisplay = (row: number | null): void => setDisplay(displayRef.current ? null : { row });
 
   const playAgain = (): void => {
     const eng = kRef.current?.host.engine;
@@ -259,6 +283,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
         const i = THEMES.findIndex((t) => t.value === vc.theme());
         vc.setTheme(THEMES[Math.max(0, Math.min(THEMES.length - 1, i + dir))]!.value);
       }
+      syncBg();
       setDisplay({ row });
     };
     switch (e.key) {
@@ -282,6 +307,10 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
   const bind: Bind = {
     keys: (e) => {
       if (leaving.current) return true;
+      if (e.key === 'Escape' && escClosed.current) {
+        escClosed.current = false;
+        return true;
+      }
       if (e.ctrlKey || e.altKey || e.metaKey) return false;
       if (displayRef.current) {
         if (displayKey(e)) return true;
@@ -299,12 +328,13 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
   };
   if (k) k.bind.current = bind;
 
-  // Esc before the host is ready (or when it could not open): the frame's key layer.
+  // The frame's keys while the viewer shows: the stack's listener runs before
+  // the view's, so a layer over the page swallows every key there (the
+  // view handles them); before the host is ready it takes Esc itself.
   useKeyLayer((_e, nk) => {
-    if (nk !== 'back') return true;
-    leave();
+    if (nk === 'back' && !kRef.current) leave();
     return true;
-  }, k === null);
+  });
 
   // ---------------------------------------------------------------- grow
 
@@ -402,6 +432,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
         if (cd.style.left !== pct) cd.style.left = cd.style.right = pct;
       }
       trackDraw.current();
+      syncBg();
       const s = `${k.reel.index()}|${eng.playing}|${eng.speed}|${Math.floor(eng.position / 1000)}|${Math.floor(eng.duration / 1000)}|${eng.atEnd}|${k.reel.reel.spots.length}`;
       if (s !== sig.current) {
         sig.current = s;
@@ -462,7 +493,7 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
       <div class="wc-spv-cd" aria-hidden="true">
         <i ref={cdRef} hidden />
       </div>
-      <div class="wc-spv-well">
+      <div class="wc-spv-well" ref={wellBox}>
         {/* The host's slot goes in here (never rendered into by Preact). */}
         <div class="wc-spv-slots" ref={wellRef} />
         {ended && (
@@ -486,9 +517,14 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
         <Popover
           label="Display"
           anchor={() => rootRef.current?.querySelector<HTMLElement>('.wc-spv-ctl [data-btn="display"]') ?? null}
-          onClose={() => setDisplay(null)}
+          onClose={() => {
+            // The stack's key listener runs before the view's: an Esc that closed it here must not leave too.
+            escClosed.current = true;
+            setTimeout(() => (escClosed.current = false), 0);
+            setDisplay(null);
+          }}
         >
-          <DisplayPanel vc={vc} row={display.row} onRow={(row) => setDisplay({ row })} onClose={() => setDisplay(null)} />
+          <DisplayPanel vc={vc} row={display.row} onChange={syncBg} onClose={() => setDisplay(null)} />
         </Popover>
       )}
     </div>
@@ -755,12 +791,13 @@ function Controls(p: { k: Kept | null; display: boolean; onDisplay: () => void }
 
 // ------------------------------------------------------------ Display
 
-function DisplayPanel(p: { vc: ViewerControls; row: number | null; onRow: (row: number) => void; onClose: () => void }): VNode {
+function DisplayPanel(p: { vc: ViewerControls; row: number | null; onChange: () => void; onClose: () => void }): VNode {
   const [, setN] = useState(0);
   const font = p.vc.font();
   const theme = p.vc.theme();
   const set = (fn: () => void): void => {
     fn();
+    p.onChange();
     setN((x) => x + 1);
   };
   return (

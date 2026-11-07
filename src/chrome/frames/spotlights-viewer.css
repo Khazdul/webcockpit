@@ -18,7 +18,7 @@
   box-sizing: border-box;
   background:
     radial-gradient(55% 70px at 50% 0, rgba(255, 207, 143, 0.1), transparent),
-    rgba(11, 9, 7, 0.97);
+    #0b0907;
   color: var(--lk-text);
   user-select: none;
   -webkit-user-select: none;
@@ -132,10 +132,21 @@
   box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
 }
 
-.wc-spv-slots,
+/* The game text sits inset in the well (the well takes the player's background). */
+.wc-spv-slots {
+  position: absolute;
+  inset: 8px 6px 6px 16px;
+}
+
 .wc-spv-slot {
   position: absolute;
   inset: 0;
+}
+
+/* The phone's pane tab strip holds only GAME here (every pane is off): a
+ * label with nothing to switch to. Its row stays (the player's layout). */
+.wc-spv-slot .wc-phone-tabs {
+  visibility: hidden;
 }
 
 /* The end card: a veil over the game text with a small plate. */
@@ -476,7 +487,7 @@
 /* ------------------------------------------------------------ Display */
 
 .wc-spv .wc-lk-pop {
-  width: 344px;
+  width: 384px;
   max-width: calc(100% - 12px);
   box-sizing: border-box;
 }
@@ -564,7 +575,7 @@
 
 @container wc-page (max-width: 600px) {
   .wc-spv {
-    padding: 42px 8px 6px;
+    padding: 56px 8px 6px;
   }
 
   .wc-spv-head {
@@ -589,6 +600,10 @@
 
   .wc-spv-cd {
     margin: 8px 4px 8px;
+  }
+
+  .wc-spv-slots {
+    inset: 6px 4px 4px 8px;
   }
 
   .wc-spv-ctl {
