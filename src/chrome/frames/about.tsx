@@ -32,20 +32,22 @@ MUME is free to play. No subscription, just connect.
   Discord         discord.gg/XkZN55am9a
 
 GETTING STARTED
-Choose Enter MUME on the start page. In the game, the menu bar along the top holds Panes and Settings, which set up the panes and the look; every change applies at once. On a phone, ☰ opens the menu.
+Choose Enter MUME on the start page. Behind its menu runs MUME's own sky by the game clock: sun, moon, stars and the weather of the season, with the date and time of Middle-earth at the bottom right. Move with the arrow keys or the mouse; Enter, Space or a click opens an entry, and the underlined letter in each one is its shortcut (E for Enter MUME). Esc goes back one page.
 
-Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples. Profile → IMPORT reads profiles from TinTin++, JMC, Powwow and Mudlet.
+In the game, the menu bar at the right end of the input line holds Profile, Scripts, Panes, Settings, Fullscreen and Exit; Panes and Settings set up the panes and the look, and every change applies at once. On a phone, ☰ opens the menu.
+
+Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → Edit. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples. Profile → Import reads profiles from TinTin++, JMC, Powwow and Mudlet.
 
 WHAT IS INSIDE
   Panes           Character, Timers, Group, Communication, UI messages, Map and Statistics. Dock them on any side, in several columns or rows, or let them float.
   Map             Reads MMapper maps and follows you as you move. Settings → Mapper in the game picks the tileset, among them Shimrod's, which follows MUME's season.
   Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Settings → Weather effects in the game turns them off or picks what to show; #weather demo plays them all.
-  Runs            Every login is recorded in this browser. History, Statistics, the log player and Spotlights are on the start page. The card at the top right of the Spotlights reel picks the kinds, characters and period shown there and in Credits.
+  Runs            Every login is recorded in this browser. History (with the run Statistics and the log player) and Spotlights are on the start page. The card at the top right of the Spotlights reel picks the kinds, characters and period shown there and in Credits.
   Export          Cut a run, add comments and save it as text or as an HTML replay anyone can open.
   Phone           Log in and chat from a phone. Real play is for a keyboard.
 
 SETTINGS
-Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
+Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 LUA SCRIPTS
 Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Scripts on the start page or in the game's menu bar, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
@@ -55,7 +57,7 @@ CREDITS
   Tilesets        Shimrod's seasonal tiles; Desert by Khazdul, from Shimrod's tiles; Gefe & Rik by Octavia, after Gefe and Rik's maps; Gray's Map by Sunnyl75, after Gray's maps.
   Cockpit         The terminal client for MUME that WebCockpit is modelled on.
   MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
-  Fonts           Agave, Anonymous Pro, Cascadia Mono, DejaVu Sans Mono, Fantasque Sans Mono, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex Mono, Inconsolata, JetBrains Mono, mononoki and Noto Sans Mono for the text, and Cinzel for the pane titles, each under its own licence (fonts/README.md). Lucida Console is used only when installed and is not part of WebCockpit.
+  Fonts           Agave, Anonymous Pro, Cascadia Mono, DejaVu Sans Mono, Fantasque Sans Mono, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex Mono, Inconsolata, JetBrains Mono, mononoki and Noto Sans Mono for the text; Cinzel for the pane titles, the start page's menu and buttons and the MUME wordmark; Cormorant Garamond for the start page's quote and notes, and Cormorant SC for the quote's author. Each is under its own licence (fonts/README.md). Lucida Console is used only when installed and is not part of WebCockpit.
   Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
   TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
 
