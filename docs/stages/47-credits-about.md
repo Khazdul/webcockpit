@@ -272,7 +272,7 @@ helpers in `tests/e2e/look.ts`):
 ## Tasks
 
 - [ ] Stage 42 merged; read its file and ADR 0127
-- [ ] WP 47-A: `chronicleBook`; the book (pills, pages, epigraph, title pages, drop cap, turns, states, swipe, phone)
+- [x] WP 47-A: `chronicleBook`; the book (pills, pages, epigraph, title pages, drop cap, turns, states, swipe, phone)
 - [ ] WP 47-B: the leaf (rail, scroll spy, letters, small wordmark, version, kv tables, links, notices link, seal, phone); notices file at the site root; About text facts
 - [ ] WP 47-C: tests (new specs, deletions, chrome.spec hunk), ADR 0132, Inv notes
 - [ ] Typecheck, lint, unit, e2e (Chromium and Firefox) green
