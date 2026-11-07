@@ -124,7 +124,7 @@ import { NoticeIndicator } from '../ui/notice-indicator';
 import { device } from '../core/device';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
-import { bootDone, bootStep, revealStart } from './boot-progress';
+import { REVEAL_FADE_MS, bootDone, bootStep, revealStart } from './boot-progress';
 
 type ChromeModule = typeof import('../chrome');
 
@@ -277,7 +277,9 @@ export class Shell {
             progress();
           }),
         ]);
-        // The sky engine mounts after the reveal, over the first paint's sky (ADR 0083).
+        // The sky engine mounts once the reveal's fade is over, on the first paint's
+        // sky (ADR 0083): its canvases fade in on screen, and it judges the
+        // device's frame times without the page's own fade in them (ADR 0124).
         this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter(), skyHold: revealed });
         this.startMount.style.opacity = '0';
         this.showStart();
@@ -286,7 +288,8 @@ export class Shell {
       } finally {
         this.startMount.style.opacity = '';
         bootDone();
-        reveal();
+        const still = this.opts.root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        setTimeout(reveal, still ? 0 : REVEAL_FADE_MS);
       }
     }
     // Well after the first paint and the web font, so it never competes
