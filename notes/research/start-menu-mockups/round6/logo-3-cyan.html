@@ -1,10 +1,11 @@
 <!doctype html>
 <!-- Logo 3 CYAN (night pass 2026-11-07): logo-3.html with the inlay and the rivets re-tinted to a cold cyan metal
      (owner: echo the early pixel logo, MUME #00d0d0 / COCKPIT #0a9a9c; cold cyan steel / mithril, still metal,
-     never glowing). Three tint strengths, chosen with ?tint=a|b|c (default c, the pick); comparison page logo-3-cyan-compare.html.
+     never glowing). Four tint strengths, chosen with ?tint=a|b|c|d (default d, the owner's pick); comparison page logo-3-cyan-compare.html.
        a · "Stål"    steel with a cyan cast (low saturation)
        b · "Mithril" clearly cyan, still metal, silvery at night
-       c · "Turkos"  close to the pixel logo's saturated cyan (the pick: closest hue, still metal)
+       c · "Turkos"  close to the pixel logo's saturated cyan (the night pass's pick, built first, then dropped)
+       d · "Mithril, subtle"  b with less saturation and more silver (owner 2026-11-07: mithril; built in the app)
      Day: brighter cyan-steel; night: cooler, more silvery cyan. COCKPIT loses its warm glow (pale cold steel ink).
      Everything else is logo-3.html unchanged. -->
 <!-- Logo 3 · "Inlagd metall" (inlaid metal): the round-5 forged iron MUME with the lava replaced by a flush metal inlay in the same channels, warm brass by day and moon-silver by night, reflective (a bevel and a glint that follow the light), never glowing; the rivets are the same metal. -->
@@ -1017,8 +1018,13 @@ const WORDMARK = (() => {
     c: { day: [[0, '#b8fbf8'], [.22, '#2fd0d0'], [.48, '#0a5c5e'], [.6, '#1a9496'], [.75, '#5fe0de'], [1, '#063c3e']],
          night: [[0, '#cff6f7'], [.22, '#6cc0c6'], [.48, '#245a62'], [.6, '#468b92'], [.75, '#93d3d8'], [1, '#1b434a']],
          rv: [['#dcfffd', '#22c8c8', '#053a3c'], ['#eafeff', '#6cbcc2', '#163a40']], lip: 'rgba(170,242,240,.55)', ink: '#bff0ee' },
+    // d · "Mithril, subtle" (owner 2026-11-07: the inlay is mithril, subtler so it blends with the warm iron):
+    // b with lower saturation and a little more silver, hue ~185 deg; the one built in the app.
+    d: { day: [[0, '#d4ecee'], [.22, '#7eaeb2'], [.48, '#2c4e51'], [.6, '#4c777b'], [.75, '#a2c4c8'], [1, '#20383a']],
+         night: [[0, '#deedf1'], [.22, '#97b4bc'], [.48, '#435a60'], [.6, '#688187'], [.75, '#aec5ca'], [1, '#324448']],
+         rv: [['#eef9fa', '#72a7ac', '#1b3335'], ['#f5fcfe', '#97b2b9', '#29383d']], lip: 'rgba(206,232,234,.55)', ink: '#cfe2e4' },
   };
-  const TINT = TINTS[qs.get('tint')] || TINTS.c;
+  const TINT = TINTS[qs.get('tint')] || TINTS.d;
   document.documentElement.style.setProperty('--ck-ink', TINT.ink);
   function build() {
     layout();

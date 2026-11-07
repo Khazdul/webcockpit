@@ -1,11 +1,11 @@
 // The start page wordmark as markup (stage 41b, ADR 0126): forged dark
-// iron "MUME" with a flush, slightly domed cyan metal inlay in the
+// iron "MUME" with a flush, slightly domed mithril inlay in the
 // channels of its thick strokes, "COCKPIT" between thin iron rules whose
 // rivets are the inlay's metal. It reflects, never glows: a soft glint
 // band sits where the sun or moon would reflect, the lit edge of the
 // inlay's dome faces the light, and the inlay dims when there is little
 // light. Re-derived from notes/research/start-menu-mockups/round6/
-// logo-3-cyan.html (tint c).
+// logo-3-cyan.html (tint d, "Mithril, subtle").
 //
 // Dependency free (the glyph outlines and a type), so the first paint
 // (src/boot/first-paint.ts, ADR 0083) can draw the same mark without
@@ -67,33 +67,33 @@ export interface WordmarkLight {
 
 type Rgb = [number, number, number];
 
-// ---------------------------------------------------------------- the look (tint c, ADR 0126)
+// ---------------------------------------------------------------- the look (tint d, ADR 0126)
 
-/** Day metal: bright cyan steel, banded top to bottom (offset, colour). */
+/** Day metal: silvery mithril with a faint cool cast, banded top to bottom (offset, colour). */
 const DAY: ReadonlyArray<[number, string]> = [
-  [0, '#b8fbf8'],
-  [0.22, '#2fd0d0'],
-  [0.48, '#0a5c5e'],
-  [0.6, '#1a9496'],
-  [0.75, '#5fe0de'],
-  [1, '#063c3e'],
+  [0, '#d4ecee'],
+  [0.22, '#7eaeb2'],
+  [0.48, '#2c4e51'],
+  [0.6, '#4c777b'],
+  [0.75, '#a2c4c8'],
+  [1, '#20383a'],
 ];
-/** Night metal: cooler, more silvery cyan. */
+/** Night metal: cooler, nearly neutral silver. */
 const NIGHT: ReadonlyArray<[number, string]> = [
-  [0, '#cff6f7'],
-  [0.22, '#6cc0c6'],
-  [0.48, '#245a62'],
-  [0.6, '#468b92'],
-  [0.75, '#93d3d8'],
-  [1, '#1b434a'],
+  [0, '#deedf1'],
+  [0.22, '#97b4bc'],
+  [0.48, '#435a60'],
+  [0.6, '#688187'],
+  [0.75, '#aec5ca'],
+  [1, '#324448'],
 ];
 /** Rivets by day and by night: highlight, body, rim. */
-const RIVET_DAY: [Rgb, Rgb, Rgb] = [hex('#dcfffd'), hex('#22c8c8'), hex('#053a3c')];
-const RIVET_NIGHT: [Rgb, Rgb, Rgb] = [hex('#eafeff'), hex('#6cbcc2'), hex('#163a40')];
+const RIVET_DAY: [Rgb, Rgb, Rgb] = [hex('#eef9fa'), hex('#72a7ac'), hex('#1b3335')];
+const RIVET_NIGHT: [Rgb, Rgb, Rgb] = [hex('#f5fcfe'), hex('#97b2b9'), hex('#29383d')];
 /** The channel's lit lower lip. */
-const LIP = 'rgba(170,242,240,.55)';
+const LIP = 'rgba(206,232,234,.55)';
 /** COCKPIT's ink. */
-const INK = '#bff0ee';
+const INK = '#cfe2e4';
 /** The iron face, top to bottom. */
 const FACE: ReadonlyArray<[number, string]> = [
   [0, '#6a5c4e'],

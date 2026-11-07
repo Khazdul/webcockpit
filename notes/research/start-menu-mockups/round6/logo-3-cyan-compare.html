@@ -1,19 +1,20 @@
 <!doctype html>
-<!-- Night pass 2026-11-07: the three cyan inlay strengths of logo-3-cyan.html side by side (a steel, b mithril,
-     c turquoise = the pick), at the same game hour. Each column is the live mockup with ?tint=. -->
+<!-- Night pass 2026-11-07: the cyan inlay strengths of logo-3-cyan.html side by side, at the same game hour. Each
+     column is the live mockup with ?tint=. The owner then chose mithril (b) and asked for it subtler: d is b with less
+     saturation and more silver, the one built in the app. Default columns b and d; ?all shows a, b, c, d. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cyan inlay strengths</title>
+<title>Mithril inlay strengths</title>
 <style>
 :root { color-scheme: dark; }
 html, body { margin: 0; height: 100%; background: #0d1014; color: #dfe3e8; font: 14px/1.3 system-ui, sans-serif; }
 body { display: flex; flex-direction: column; }
 header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 16px; background: #1b2026; border-bottom: 1px solid #2e353e; }
-h1 { font: 700 15px/1 Georgia, serif; letter-spacing: .1em; margin: 0; color: #7fe0de; }
+h1 { font: 700 15px/1 Georgia, serif; letter-spacing: .1em; margin: 0; color: #a2c4c8; }
 button { font: inherit; color: #8d97a3; background: transparent; border: 1px solid #2e353e; border-radius: 3px; padding: 6px 10px; cursor: pointer; }
-button[aria-pressed="true"] { color: #0d1014; background: #7fe0de; border-color: #7fe0de; }
+button[aria-pressed="true"] { color: #0d1014; background: #a2c4c8; border-color: #a2c4c8; }
 main { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2px; }
 figure { margin: 0; position: relative; min-height: 340px; }
 figcaption { position: absolute; z-index: 1; left: 8px; top: 8px; padding: 3px 8px; background: rgba(0,0,0,.6); border-radius: 3px; }
@@ -22,12 +23,13 @@ iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; bac
 </head>
 <body>
 <header>
-  <h1>Cyan inlay · a / b / c</h1>
+  <h1>Mithril inlay · b / d</h1>
   <span id="hours"></span>
 </header>
 <main id="cols"></main>
 <script>
-const TINTS = [['a', 'a · Stål (steel, cyan cast)'], ['b', 'b · Mithril (cyan, silvery at night)'], ['c', 'c · Turkos (pixel-logo cyan) — chosen']];
+const ALL = [['a', 'a · Stål (steel, cyan cast)'], ['b', 'b · Mithril (cyan, silvery at night)'], ['c', 'c · Turkos (pixel-logo cyan), dropped'], ['d', 'd · Mithril, subtle (b with less saturation) — built']];
+const TINTS = new URLSearchParams(location.search).has('all') ? ALL : ALL.filter(([k]) => k === 'b' || k === 'd');
 const HOURS = [['Day', 13], ['Dusk', 20.5], ['Night', 23.5]];
 const cols = document.getElementById('cols'), hours = document.getElementById('hours');
 const frames = TINTS.map(([k, label]) => {

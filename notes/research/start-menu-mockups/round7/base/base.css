@@ -2,7 +2,7 @@
    WebCockpit start-menu mockups · round 7 · shared base (CSS)
    -----------------------------------------------------------------------------------------------------
    Throwaway mockup code. Built from the agreed baseline round6/logo-3.html (sky, wordmark 3 with the
-   inlay changed to cyan metal, the Lykta menu panel, the Profile sub-page box, glass buttons, Back top
+   inlay changed to mithril, the Lykta menu panel, the Profile sub-page box, glass buttons, Back top
    left, quote A, almanac bottom right) plus the shared pieces every round-7 page mockup needs: the box
    in two sizes, list rows and tables with the restrained selection, inputs, a monospace code surface,
    and the in-game backdrop with two movable/resizable window frames. API: README.md in this folder.
@@ -53,7 +53,7 @@
   --scroll-thumb: rgba(255,214,160,.22); --scroll-thumb-hot: rgba(255,214,160,.38);
 
   /* ---- wordmark inlay (rivets; the inlay's own gradients are WC.INLAY in base.js) — set by base.js */
-  --rv-hi: #eaffff; --rv-mid: #46b4b8; --rv-lo: #0b3a3e;
+  --rv-hi: #eef9fa; --rv-mid: #72a7ac; --rv-lo: #1b3335;
 
   /* ---- geometry */
   --box-m: clamp(12px, 1.9vw, 28px);       /* the large box's margin to the window edge */
@@ -117,7 +117,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #stage > * { pointer-events: auto; }
 
 /* ================================================================ wordmark (WC.Wordmark)
-   .wm            the mark: a canvas (.wm-c, forged iron MUME with the cyan inlay) + the COCKPIT line
+   .wm            the mark: a canvas (.wm-c, forged iron MUME with the mithril inlay) + the COCKPIT line
    --wm-w         its width; the canvas is --wm-w × .34; the COCKPIT line scales with it
    .wm.small      a small mark (corner / plate): --wm-w 120px by default
    .wm.bare       no COCKPIT line (the plate) */
@@ -125,7 +125,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #brand { opacity: 0; animation: wc-appear 1.6s .5s ease-out forwards; }
 .wm-c { display: block; width: var(--wm-w); height: calc(var(--wm-w) * .34); }
 .wm .cockpit { display: flex; align-items: center; gap: .9em; margin-top: calc(var(--wm-w) * -.035);
-  font: 600 max(6.5px, calc(var(--wm-w) * .0245))/1 var(--display); letter-spacing: .95em; padding-left: .95em; color: #e4e2da;
+  font: 600 max(6.5px, calc(var(--wm-w) * .0245))/1 var(--display); letter-spacing: .95em; padding-left: .95em; color: var(--wm-ink, #cfe2e4);
   text-shadow: 0 1px 2px #000, 0 0 18px rgba(0,0,0,.9); white-space: nowrap; }
 .wm .cockpit .rule { width: calc(var(--wm-w) * .165); height: max(1.5px, calc(var(--wm-w) * .0046)); position: relative;
   background: linear-gradient(90deg, transparent, #4a4640 30%, #67615a); border-radius: 2px; box-shadow: 0 1px 0 #000; }

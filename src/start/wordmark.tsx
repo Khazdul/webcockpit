@@ -1,5 +1,5 @@
 // The start page wordmark (stage 41b, ADR 0126): forged iron "MUME" with a
-// cyan metal inlay, "COCKPIT" between iron rules. Its light follows the sky
+// mithril inlay, "COCKPIT" between iron rules. Its light follows the sky
 // (`SkyLook.light`, `dayness`).
 //
 // The drawing lives in wordmark-svg.ts (dependency free, shared with the

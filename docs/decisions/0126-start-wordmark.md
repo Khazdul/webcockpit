@@ -159,3 +159,38 @@ transition ran. `applyWordmarkLight` writes only attributes and rivet
 variables whose values changed, so a typical push touches a few
 attributes. `paintWordmark` (the first paint) is unchanged: it measures
 once.
+
+## Addendum 2026-11-07 — the inlay is mithril, subtle
+
+The owner reviewed stage 41 and changed the inlay from tint c "Turkos"
+to mithril (tint b), and asked for it subtler if it did not blend in.
+Screenshots of the built page (day 13h, dusk 20h, night 23h, desktop and
+phone) showed b still reading as a teal enamel against the warm iron and
+the brass and parchment panel by day; by night it was already a quiet
+silver. So a new tint d, "Mithril, subtle", was made from b: hue about
+185° (a touch cooler than the pixel logo's 180°), day saturation about
+0.6 of b's, night about 0.8, the same lightness bands, so it stays
+banded, brushed and reflective; it reads as silver with a cool cast and
+never glows. d is built; b and d are side by side in
+`round6/logo-3-cyan-compare.html` (`?all` adds a and c), and
+`logo-3-cyan.html?tint=d` is the mockup's default.
+
+| | Day metal (top → bottom bands) | Night metal |
+|---|---|---|
+| **d Mithril, subtle** | `#d4ecee #7eaeb2 #2c4e51 #4c777b #a2c4c8 #20383a` | `#deedf1 #97b4bc #435a60 #688187 #aec5ca #324448` |
+
+Rivets: day `#eef9fa / #72a7ac / #1b3335`, night `#f5fcfe / #97b2b9 /
+#29383d`. The channel's lit lip `rgba(206,232,234,.55)`, COCKPIT's ink
+`#cfe2e4`. Band offsets and the light model are unchanged.
+
+Everything that echoed the old cyan follows: the favicons (inlay stops
+`#eaf5f6 #9ccbd0 #4a7f84 #8cbfc3 #33595c` in `scripts/build-favicons.ts`,
+a little brighter and more saturated than the wordmark so the inlay
+still reads at 16 px; the pale steel outline is unchanged), the round 7
+mockups' shared base (`WC.INLAY`), and the first
+paint's loading panel in `index.html` (ADR 0083's "cyan-steel" line is
+now `#4c777b → #a2c4c8 → #deedf1`, its track, label and the panel's
+outline the same family). The in-game window kit's thin cyan border
+(`src/chrome/kit/window.*`, ADR 0103) is not the logo's colour and is
+unchanged for now. Terminal and theme cyan are the game's colours and
+are untouched.
