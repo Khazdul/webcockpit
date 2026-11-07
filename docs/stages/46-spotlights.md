@@ -295,7 +295,7 @@ Credits part), the checklist.
 ## Tasks
 
 - [ ] Stage 42 merged (with the player core); read its file and ADR 0127
-- [ ] WP 46-A: wall, cards and stills, filter row and chips, states, keys, phone
+- [x] WP 46-A: wall, cards and stills, filter row and chips, states, keys, phone
 - [ ] WP 46-B: viewer in the box, grow/shrink, head, countdown, track, controls, Display, end card, brighter red
 - [ ] WP 46-C: tests, ADR 0131, Inv §7.6 (Spotlights part)
 - [ ] Typecheck, lint, unit, e2e (Chromium and Firefox) green
