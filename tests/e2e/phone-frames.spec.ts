@@ -95,7 +95,7 @@ test('Scripts on a phone: the list alone, EDIT above it opens the selected scrip
   await expect(page.locator('.wc-frame:not([hidden]) > .wc-sed')).toHaveAttribute('data-script', 'phonetest');
 });
 
-test('Profile: a tap on a profile selects it, a tap on the selected profile opens the editor', async ({ page }) => {
+test('Profile: a tap highlights a profile and shows its buttons; they fit and are big enough to tap', async ({ page }) => {
   await page.goto('/?phone=1');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
@@ -107,11 +107,56 @@ test('Profile: a tap on a profile selects it, a tap on the selected profile open
   await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
   const row = f.locator('.wc-pl-row[data-name="phoneprof"]');
   const profile = () => page.evaluate(() => window.__wc!.settings.get().profile);
+  await expect(row.locator('.wc-lk-btn')).toHaveCount(0);
+  // The first tap only highlights.
   await row.tap();
+  await expect(row).toHaveClass(/is-on/);
+  expect(await profile()).toBe('default');
+  const btns = row.locator('.wc-lk-btn');
+  await expect(btns).toHaveText([/Select/, /Edit/, /Rename/, /Delete/]);
+  await expect(f.locator('.wc-pl-acts')).toHaveCount(1);
+  // All four inside the row, on one line, at least 40 px high.
+  const rb = (await row.boundingBox())!;
+  const boxes = await btns.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+  for (const b of boxes) {
+    expect(b.height).toBeGreaterThanOrEqual(40);
+    expect(b.left).toBeGreaterThanOrEqual(rb.x);
+    expect(b.right).toBeLessThanOrEqual(rb.x + rb.width);
+    expect(b.top).toBe(boxes[0]!.top);
+  }
+  // Select, then Rename: the old-look prompt; Esc back with the row still highlighted.
+  await row.locator('[data-btn="SELECT"]').tap();
+  await expect.poll(profile).toBe('phoneprof');
+  await expect(btns).toHaveText([/Edit/, /Rename/, /Delete/]);
+  await row.locator('[data-btn="RENAME"]').tap();
+  await expect(f.locator('.wc-title-row')).toContainText('Rename Profile');
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(row).toHaveClass(/is-on/);
+});
+
+test('Profile: a tap on the highlighted profile selects it, a tap on the selected profile opens the editor', async ({ page }) => {
+  await page.goto('/?phone=1');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.create('phoneprof', '');
+  });
+  await tapRow(page, 'profile');
+  const f = startFrame(page);
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  const row = f.locator('.wc-pl-row[data-name="phoneprof"]');
+  const profile = () => page.evaluate(() => window.__wc!.settings.get().profile);
+  // The first tap highlights, the second selects, the third edits (on the name: the buttons fill the row's lower half).
+  const name = row.locator('.wc-pl-n');
+  await name.tap();
+  await expect(row).toHaveClass(/is-on/);
+  expect(await profile()).toBe('default');
+  await name.tap();
   await expect.poll(profile).toBe('phoneprof');
   await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await expect(page.locator('.wc-ped')).toHaveCount(0);
-  await row.tap();
+  await name.tap();
   // The editor opens (its title is cut to the phone's width).
   await expect(page.locator('.wc-frame:not([hidden]) > .wc-ped .wc-ped-title .wc-c-section')).toHaveText(/^─── Profile Editor/);
 });

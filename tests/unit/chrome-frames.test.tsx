@@ -301,30 +301,91 @@ describe('start page', () => {
     expect(names()).toEqual(['default', 'khazdul', 'scout']);
     expect(f().querySelector('.wc-pl-row.is-on')?.textContent).toContain('default');
     expect(f().querySelector('.wc-pl-row.is-on .wc-pl-tag')?.textContent).toBe('Selected');
-    const btn = (id: string) => f().querySelector(`[data-btn="${id}"]`)!;
-    expect(btn('SELECT').getAttribute('aria-disabled')).toBe('true');
-    expect(btn('DELETE').getAttribute('aria-disabled')).toBe('true');
-    expect(btn('EDIT').getAttribute('aria-disabled')).toBeNull();
+    const btn = (id: string) => f().querySelector(`[data-btn="${id}"]`);
+    const ids = (sel: string) => [...f().querySelectorAll(`${sel} .wc-lk-btn`)].map((b) => b.getAttribute('data-btn'));
+    const keyed = () => f().querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn') ?? null;
+    // Only the highlighted row has buttons; on the selected profile no Select.
+    expect(f().querySelectorAll('.wc-pl-acts')).toHaveLength(1);
+    expect(ids('.wc-pl-row.is-on .wc-pl-acts')).toEqual(['EDIT', 'RENAME', 'DELETE']);
+    expect(ids('.wc-pl-btns')).toEqual(['NEW', 'IMPORT', 'EXPORT']);
+    expect(btn('SELECT')).toBeNull();
+    expect(btn('DELETE')!.getAttribute('aria-disabled')).toBe('true');
+    expect(btn('EDIT')!.getAttribute('aria-disabled')).toBeNull();
     expect([...f().querySelectorAll('.wc-lk-btn u.wc-sk')].map((u) => u.textContent)).toEqual([
-      'S', 'N', 'E', 'R', 'D', 'I', 'x',
+      'E', 'R', 'D', 'N', 'I', 'x',
     ]);
     // The header sorts.
     await act(() => f().querySelector<HTMLElement>('.wc-pl-sort')!.click());
     expect(names()).toEqual(['scout', 'khazdul', 'default']);
     await act(() => f().querySelector<HTMLElement>('.wc-pl-sort')!.click());
-    // End and S select the last profile.
+    // ↓ moves the highlight and its buttons; another profile has Select.
+    await key('ArrowDown');
+    expect(f().querySelector('.wc-pl-row.is-on')?.textContent).toContain('khazdul');
+    expect(ids('.wc-pl-row.is-on .wc-pl-acts')).toEqual(['SELECT', 'EDIT', 'RENAME', 'DELETE']);
+    expect(f().querySelectorAll('.wc-pl-acts')).toHaveLength(1);
+    expect([...f().querySelectorAll('.wc-pl-row.is-on u.wc-sk')].map((u) => u.textContent)).toEqual([
+      'S', 'E', 'R', 'D',
+    ]);
+    // Tab walks the row, its buttons, the page buttons and wraps; Shift+Tab back.
+    const ring: (string | null)[] = [];
+    for (let i = 0; i < 8; i++) {
+      await key('Tab');
+      ring.push(keyed());
+    }
+    expect(ring).toEqual(['SELECT', 'EDIT', 'RENAME', 'DELETE', 'NEW', 'IMPORT', 'EXPORT', null]);
+    await key('Tab', { shiftKey: true });
+    expect(keyed()).toBe('EXPORT');
+    // ←/→ walk the same order and stop at the ends.
+    for (let i = 0; i < 9; i++) await key('ArrowLeft');
+    expect(keyed()).toBeNull();
+    await key('ArrowRight');
+    await key('ArrowRight');
+    expect(keyed()).toBe('EDIT');
+    // ↓ on a row button: the same button on the next row.
     await key('End');
     expect(f().querySelector('.wc-pl-row.is-on')?.textContent).toContain('scout');
-    expect(btn('SELECT').getAttribute('aria-disabled')).toBeNull();
+    expect(keyed()).toBe('EDIT');
+    expect(f().querySelector('.wc-pl-row.is-on [data-btn="EDIT"]')?.classList.contains('is-sel')).toBe(true);
+    // S selects the highlighted profile; its Select goes.
     await key('s');
     expect(svc.settings.get().profile).toBe('scout');
-    // Tab: the buttons have the keys; ←/→ move along them, skipping disabled ones; ↑ returns.
+    expect(btn('SELECT')).toBeNull();
+    expect(f().querySelector('.wc-pl-row.is-on .wc-pl-tag')?.textContent).toBe('Selected');
+    // A page button's keys: ↑ returns to the row.
     await key('Tab');
-    expect(f().querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('NEW');
-    await key('ArrowRight');
-    expect(f().querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('EDIT');
+    await key('Tab');
+    await key('Tab');
+    expect(keyed()).toBe('NEW');
+    expect(f().querySelector('.wc-pl-list')?.classList.contains('is-focus')).toBe(false);
     await key('ArrowUp');
-    expect(f().querySelector('.wc-lk-btn.is-sel')).toBeNull();
+    expect(keyed()).toBeNull();
+    expect(f().querySelector('.wc-pl-row.is-on')?.textContent).toContain('khazdul');
+    // A click on another row highlights it; a click on the highlighted row selects it.
+    const row = (n: string) => f().querySelector<HTMLElement>(`.wc-pl-row[data-name="${n}"]`)!;
+    await act(() => row('default').click());
+    expect(row('default').classList.contains('is-on')).toBe(true);
+    expect(svc.settings.get().profile).toBe('scout');
+    await act(() => row('default').click());
+    expect(svc.settings.get().profile).toBe('default');
+    await act(() => row('scout').click());
+    // The row's Select button.
+    await act(() => {
+      btn('SELECT')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(svc.settings.get().profile).toBe('scout');
+    // The pressed Select went: its keys move on to Edit.
+    expect(keyed()).toBe('EDIT');
+    // D, then y: the highlight goes to the neighbour (above, at the end), the keys to the row.
+    await key('d');
+    await key('y');
+    await vi.waitFor(async () => {
+      await act(async () => new Promise((r) => setTimeout(r, 0)));
+      expect(names()).toEqual(['default', 'khazdul']);
+    });
+    expect(f().querySelector('.wc-pl-row.is-on')?.textContent).toContain('khazdul');
+    expect(keyed()).toBeNull();
+    expect(f().querySelector('.wc-lk-flash')?.textContent).toBe('Deleted "scout".');
+    expect(svc.settings.get().profile).toBe('default');
     // N: the old-look name prompt; Esc back to the list.
     await key('n');
     expect(title(host)).toBe('─── Create New Profile ───');
@@ -334,7 +395,7 @@ describe('start page', () => {
     await act(() => f().querySelector<HTMLElement>('.wc-lk-back')!.click());
     expect(startSel(host)).toBe('Profile');
     // The menu's Scripts row follows the selected profile.
-    expect(host.querySelector('.wc-sm-item[data-key="scripts"] .wc-sm-note')?.textContent).toBe('(scout)');
+    expect(host.querySelector('.wc-sm-item[data-key="scripts"] .wc-sm-note')?.textContent).toBe('(default)');
   });
 });
 

@@ -510,11 +510,16 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
   await expect(plist(page).locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await expect(plCursor(page)).toContainText('default');
   await expect(plCursor(page).locator('.wc-pl-tag')).toHaveText('Selected');
-  await expect(page.locator('.wc-start [data-btn="SELECT"]')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.locator('.wc-start [data-btn="EDIT"]')).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(page.locator('.wc-start [data-btn="DELETE"]')).toHaveAttribute('aria-disabled', 'true');
+  // The highlighted row's buttons (no Select on the selected profile); the page's at the foot.
+  await expect(plist(page).locator('.wc-pl-acts')).toHaveCount(1);
+  await expect(plCursor(page).locator('[data-btn="SELECT"]')).toHaveCount(0);
+  await expect(plCursor(page).locator('[data-btn="EDIT"]')).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(plCursor(page).locator('[data-btn="DELETE"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(plist(page).locator('.wc-pl-btns .wc-lk-btn')).toHaveText([/New/, /Import/, /Export/]);
 
-  // NEW: invalid name, then a good one, then Blank.
+  // NEW: invalid name, then a good one, then Blank. Tab: the row's Edit, then New.
+  await page.keyboard.press('Tab');
+  await expect(plist(page).locator('.wc-lk-btn.is-sel')).toHaveText(/Edit/);
   await page.keyboard.press('Tab');
   await expect(plist(page).locator('.wc-lk-btn.is-sel')).toHaveText(/New/);
   await page.keyboard.press('Enter');
@@ -619,14 +624,27 @@ test('profiles: Enter or a click on the selected profile edits it, on another se
   await page.keyboard.press('Escape');
   await expect(plist(page)).toBeVisible();
 
-  // Mouse: hover moves the cursor; the first click on a row selects it, the second edits it.
+  // Mouse: hover highlights; a click on the highlighted row (its name: the
+  // buttons sit in its middle) selects it, the next edits it.
   await row('default').hover();
   await expect(plCursor(page)).toContainText('default');
-  await row('default').click();
+  await row('default').locator('.wc-pl-n').click();
   await expect.poll(async () => (await settings(page)).profile).toBe('default');
   await expect(plist(page)).toBeVisible();
-  await row('default').click();
+  await row('default').locator('.wc-pl-n').click();
   await expect(editorTitle).toHaveText('─── Profile Editor: default ───');
+  await page.keyboard.press('Escape');
+  await expect(plist(page)).toBeVisible();
+  // The row's own buttons show on the hovered row only: Select there, then it goes.
+  await row('scout').hover();
+  await expect(row('default').locator('.wc-lk-btn')).toHaveCount(0);
+  await row('scout').locator('[data-btn="SELECT"]').click();
+  await expect.poll(async () => (await settings(page)).profile).toBe('scout');
+  await expect(row('scout').locator('[data-btn="SELECT"]')).toHaveCount(0);
+  await expect(row('scout').locator('.wc-pl-tag')).toHaveText('Selected');
+  // Its Edit opens the editor.
+  await row('scout').locator('[data-btn="EDIT"]').click();
+  await expect(editorTitle).toHaveText('─── Profile Editor: scout ───');
   await page.keyboard.press('Escape');
   await expect(plist(page)).toBeVisible();
   // Esc returns to the menu.
