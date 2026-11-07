@@ -68,7 +68,7 @@ Choose Enter MUME on the start page. Behind its menu runs MUME's own sky by the 
 
 In the game, the menu bar at the right end of the input line holds Profile, Scripts, Panes, Settings, Fullscreen and Exit; Panes and Settings set up the panes and the look, and every change applies at once. On a phone, ☰ opens the menu.
 
-Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → Edit. A profile is written in TinTin++ syntax. Help in the profile editor, or #help in the game, explains each command with examples. Profile → Import reads profiles from TinTin++, JMC, Powwow and Mudlet.
+Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → Edit on the start page; in the game, Profile in the menu bar opens the editor. A profile is written in TinTin++ syntax. Help in the profile editor, or #help in the game, explains each command with examples. Profile → Import reads profiles from TinTin++, JMC, Powwow and Mudlet: drop the files on its page or choose them, and a receipt sums up what was translated.
 
 WHAT IS INSIDE
   Panes           Character, Timers, Group, Communication, UI messages, Map and Statistics. Dock them on any side, in several columns or rows, or let them float.
@@ -76,7 +76,7 @@ WHAT IS INSIDE
   Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Settings → Weather effects in the game turns them off or picks what to show; #weather demo plays them all.
   Runs            Every login is recorded in this browser. History on the start page lists them: rate a run, open its Statistics or its log in the player, and back them all up or restore them. Spotlights shows the best moments as a wall of cards, and Credits tells your characters' deeds as a book. The filter row on the Spotlights page picks the kinds, characters and period shown there and in Credits.
   Export          Cut a run, add comments and export it as an HTML replay anyone can open, or as plain text.
-  Phone           Log in and chat from a phone. Real play is for a keyboard.
+  Phone           Log in and chat from a phone; History, Export and the scripts' settings work there too. Real play is for a keyboard.
 
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.

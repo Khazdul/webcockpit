@@ -149,6 +149,11 @@ test('turning the pages: → ← PgDn PgUp Space, P / N and the buttons, ↓ ↑
   await page.keyboard.press('n');
   await page.waitForTimeout(400);
   await expect(book(page)).toHaveAttribute('data-spread', String(spreads - 1));
+  // ↓ in the last chapter has no chapter to go to: it never turns back to the chapter's start.
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(400);
+  await expect(book(page)).toHaveAttribute('data-spread', String(spreads - 1));
+  await expect(lit(page)).toHaveText('Elrond');
   await page.keyboard.press('Home');
   await expect(book(page)).toHaveAttribute('data-spread', '0');
   await expect(btn(page, 'prev')).toHaveAttribute('aria-disabled', 'true');
@@ -218,6 +223,29 @@ test('a resize keeps the chapter; a narrow book shows one page at a time', async
   await page.keyboard.press('ArrowRight');
   await expect(book(page)).toHaveAttribute('data-spread', String(s + 1));
   await expect(book(page).locator('.wc-cred-folio')).toHaveText(`— ${s + 2} —`);
+
+  // A width a fraction under 640 px (zoom, the box's percentage insets): clientWidth would round
+  // it up to two pages while the CSS lays out one; the book follows the CSS.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(book(page)).not.toHaveClass(/is-one/);
+  await book(page).evaluate((el) => {
+    el.style.flex = '0 0 639.5px';
+    el.style.maxWidth = '639.5px';
+  });
+  await expect(book(page)).toHaveClass(/is-one/);
+  await expect(book(page).locator('.wc-cred-folio')).toHaveCount(1);
+  await pill(page, 'Denethor').click();
+  await expect(lit(page)).toHaveText('Denethor');
+  // The chapter's title page is the page shown (its box sits at the page the measure found).
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const b = document.querySelector('.wc-start .wc-frame:not([hidden]) .wc-cred-book')!.getBoundingClientRect();
+        const t = document.querySelector('.wc-start .wc-frame:not([hidden]) .wc-cred-ch[data-ch="Denethor"] .wc-cred-title')!.getBoundingClientRect();
+        return t.left >= b.left - 1 && t.right <= b.right + 1;
+      }),
+    )
+    .toBe(true);
 
   await page.keyboard.press('Escape');
   await expect(menuSel(page)).toHaveText('Credits');

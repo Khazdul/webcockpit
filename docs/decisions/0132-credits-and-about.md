@@ -78,19 +78,26 @@ overflow columns one page pitch (book width / pages per spread) apart,
 placed at `left: calc(var(--wc-cred-p) * (100% + g) / per)`. Pages per
 spread, the gutter and the one-page type sizes come from a container query
 on the book (`wc-cred-book`, max-width 639.98 px), so CSS alone lays the
-book out at every size. The paper and the gutter shading are a separate
+book out at every size. Script never decides pages per spread itself: the
+measure reads the `--wc-cred-per` the query applied (falling back to the
+unrounded width against 640 px where no computed value comes, as in a
+test DOM). A rounded `clientWidth` would read a 639.5 px book as 640 and
+count two pages over a one-page layout (wave 3 fix). The paper and the gutter shading are a separate
 still layer (`.wc-cred-bg`).
 
 **Measure.** One read of layout for the whole book: a chapter's page
 count is the column of an empty inline tail mark at the end of its last
-line, `floor((tail.left − chapter.left + 0.5) / pitch) + 1`. A chapter's
+line, `floor((tail.left − chapter.left + 0.5) / pitch) + 1`, the pitch
+being the book's unrounded width (`getBoundingClientRect`) over pages per
+spread. A chapter's
 page count does not depend on where it is placed, so the first pages
 follow by prefix sum with no second read. The book measures at mount
 (before the first paint, since ADR 0127 lays the box out at its final
 size from its first frame; until then only the first chapter shows, via
 `:not([data-ready])`), again when `useBoxSettled()` turns true, on a
-`ResizeObserver` change (debounced 120 ms, after comparing
-`clientWidth` / `clientHeight`), and on `document.fonts` `loadingdone` /
+`ResizeObserver` change (debounced 120 ms, after comparing the entry's
+unrounded `contentRect`, since a fraction of a pixel can cross the
+query), and on `document.fonts` `loadingdone` /
 `ready`.
 
 **Turning.** The spread offset is pure CSS:
@@ -99,7 +106,10 @@ book width, so a resize needs no script to stay aligned. A turn animates
 the moving layer (`.wc-cred-spread`: pages and folios): a 170 ms ease-in
 fade with a 14 px drift out (`fill: forwards`), then the position lands
 and a 240 ms fade-in runs from a layout effect; the out animation is
-cancelled one frame later. Presses during the fade-out only retarget the
+cancelled one frame later. If `finish` has not come 250 ms after the
+fade-out should have ended (`TURN_LATE`: a stalled or starved timeline,
+as headless Firefox showed), a timer lands the turn instead; whichever
+comes first lands it, once. Presses during the fade-out only retarget the
 landing. With reduced motion, or without Web Animations, a turn is
 instant. Only `transform` and `opacity` animate; no layout during a turn,
 no `backdrop-filter` on the book.
@@ -115,8 +125,11 @@ page inside it; the lit pill changes only when it is no longer on the
 spread shown.
 
 **Keys.** → / PgDn / Space the next spread, ← / PgUp the previous, ↓ / ↑
-the next / previous chapter (from the lit one, clamped), Home / End, N /
-P, Esc / Back. Enter does nothing.
+the next / previous chapter (from the lit one), Home / End, N / P, Esc /
+Back. Enter does nothing. ↓ in the last chapter does nothing: "next
+chapter" never turns back (clamping it sent a reader past the last
+chapter's first page back to that page). ↑ in the first chapter goes to
+the book's first page.
 
 **Touch.** A local `useSwipe` (`addEventListener`, passive): touchstart /
 touchend, and pointerdown / pointerup for pen and touch pointers when no
@@ -223,10 +236,13 @@ End.*, `*Name the Race*`, pills = characters only, no Opening, no
 Settings…, one spread with both buttons disabled, no roll and no return
 after 1.5 s, Enter does nothing, Esc back); turning a synthetic book of
 five long chapters (→ ← PgDn Space PgUp, N / P, the buttons, End / Home
-with the ends disabled, ↓ ↑ with the title page in view, a pill click, the
+with the ends disabled, ↓ in the last chapter staying put, ↓ ↑ with the
+title page in view, a pill click, the
 lit pill kept while turning inside a chapter and a click on it going back
 to the chapter's first page, Back); a resize from 1440 to 600 px keeping
-the chapter, one page and one folio, no sideways scroll; the filter (one
+the chapter, one page and one folio, no sideways scroll, then a book
+639.5 px wide laid out and counted as one page with a chapter's title on
+the page its pill shows; the filter (one
 character; every kind off: the filtered page with its Spotlights line, no
 pills, Back); no runs: the no-data page, Esc. `tests/e2e/about.spec.ts`:
 the small wordmark, the version with the package's number, the lead-in,
@@ -287,13 +303,14 @@ tests are gone (`spotlights.spec.ts`, `spotlights-settings.spec.ts`,
 
 ## Consequences
 
-- The cell-grid About and the Credits roll are gone. Their TUI-only specs
-  no longer apply: the About cases in `scrolling.spec.ts` ("About scrolls
-  by pixels; the keys by rows"), `scrollbar-drag.spec.ts` ("About (start
-  page): the TuiScrollbar drags its thumb…") and the whole of
-  `phone-scrollbar-drag.spec.ts` test `.wc-about-text` and its
-  `TuiScrollbar`. No stage owns them; wave 3 deletes them or moves them to
-  another TUI scroller (`about.spec.ts` covers About's own scrolling).
+- The cell-grid About and the Credits roll are gone, and so are their
+  TUI-only specs (wave 3): `scrolling.spec.ts`'s About case now checks
+  the pixel wheel on the leaf's native scroller (`.wc-about-body`; the
+  keys are `about.spec.ts`'s); `scrollbar-drag.spec.ts`'s About drag
+  moved to the narrow Statistics pane, the last `░█` bar a desktop test
+  reaches without a live game; `phone-scrollbar-drag.spec.ts`, whose only
+  case was About's, is deleted, and ADR 0106's addendum notes that no
+  phone test drags a `░█` thumb any more.
 - `buildChronicle` and the Spotlights page's `EmptyStateFrame`,
   `FilteredFrame` and `CREDITS_EMPTY` may be dead: wave 3's sweep.
 - Kit gaps found here, for the kit later: a swipe helper (`useSwipe`, also
@@ -303,9 +320,12 @@ tests are gone (`spotlights.spec.ts`, `spotlights-settings.spec.ts`,
   pages add their own room for it, as stage 43 did); `LookWordmark` has no
   size between `small` (MUME only) and `full`, if the owner wants COCKPIT
   under the mark in About.
-- A turn lands when its fade-out's `finish` fires. Where the document
-  timeline stalls (a hidden tab) the turn waits for it; nothing else can
-  press a key there, so no timer backs it up.
+- A turn lands when its fade-out's `finish` fires, or by a timer 250 ms
+  late (wave 3), so a stalled timeline never holds a turn.
+- About's text (wave 3): Getting started says Profile in the game's menu
+  bar opens the editor and Import has its own page with a receipt; the
+  Phone row names History, Export and the scripts' settings (stages
+  43–45). The menu bar line was checked and still holds.
 
 ## Open questions (owner, after testing)
 

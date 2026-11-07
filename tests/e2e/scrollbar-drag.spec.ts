@@ -40,12 +40,12 @@ const scrollTop = (scroller: Locator) => scroller.evaluate((el) => el.scrollTop)
  * onto the content's. Then drags far below the bar (and off to the side):
  * the capture keeps the drag going to the end. Returns the bar's cell height.
  */
-async function dragThumb(page: Page, bar: Locator, scroller: Locator, cells = 2): Promise<number> {
-  const thumb = bar.locator('.wc-scroll-thumb').first();
+async function dragThumb(page: Page, bar: Locator, scroller: Locator, cells = 2, cls = { thumb: '.wc-scroll-thumb', track: '.wc-scroll-track' }): Promise<number> {
+  const thumb = bar.locator(cls.thumb).first();
   await expect(thumb).toBeVisible();
   const box = (await thumb.boundingBox())!;
-  const n = await bar.locator('.wc-scroll-thumb, .wc-scroll-track').count();
-  const size = await bar.locator('.wc-scroll-thumb').count();
+  const n = await bar.locator(`${cls.thumb}, ${cls.track}`).count();
+  const size = await bar.locator(cls.thumb).count();
   const m0 = await scroller.evaluate((el) => ({ top: el.scrollTop, max: el.scrollHeight - el.clientHeight }));
   expect(m0.max).toBeGreaterThan(0);
   const x = box.x + box.width / 2;
@@ -72,18 +72,6 @@ async function dragThumb(page: Page, bar: Locator, scroller: Locator, cells = 2)
   await page.waitForTimeout(50);
   expect(await scrollTop(scroller)).toBe(end);
   return box.height;
-}
-
-/** A click on the track above the thumb pages up by about a view. */
-async function expectTrackPagesUp(bar: Locator, scroller: Locator): Promise<void> {
-  const before = await scrollTop(scroller);
-  await bar.locator('.wc-scroll-track').first().click();
-  await expect.poll(() => scrollTop(scroller)).toBeLessThan(before);
-  const client = await scroller.evaluate((el) => el.clientHeight);
-  const after = await scrollTop(scroller);
-  // One page, not a run of them (no auto-repeat on a short click).
-  expect(before - after).toBeLessThanOrEqual(client + 1);
-  expect(before - after).toBeGreaterThan(client / 3);
 }
 
 // The profile editor's TUI scrollbars (EDITOR's buffer bar, LITE's body box
@@ -154,28 +142,30 @@ test('the Scripts window: the help scrolls natively; the game input keeps away',
   expect(errors).toEqual([]);
 });
 
-test('About (start page): the TuiScrollbar drags its thumb; holding the track pages to the pointer', async ({ page }) => {
+// About's TuiScrollbar went with its new look (stage 47, ADR 0132: a native
+// scroller). The Statistics pane, narrow, keeps a `░█` bar (a `jump` bar: a
+// press on the track jumps there): its thumb is the drag case here.
+test('the Statistics pane, narrow: the TuiScrollbar drags its thumb; the game keeps the keys', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1100, height: 500 });
-  await mockMume(page);
-  await page.goto('/');
-  await page.locator('.wc-start .wc-sm-item[data-key="about"]').click();
-  await expect(startFrame(page).locator('.wc-title-row')).toContainText('─── About ───');
-  const bar = startFrame(page).locator('.wc-tui-bar');
-  const scroller = startFrame(page).locator('.wc-about-text');
-  await dragThumb(page, bar, scroller, 1);
-  await expectTrackPagesUp(bar, scroller);
-
-  // Back to the top, then hold the last track cell: the paging repeats until the thumb is there.
-  await page.keyboard.press('Home');
-  await expect.poll(() => scrollTop(scroller)).toBe(0);
-  const last = (await bar.locator('.wc-scroll-track').last().boundingBox())!;
-  await page.mouse.move(last.x + last.width / 2, last.y + last.height / 2);
-  await page.mouse.down();
-  await expect
-    .poll(() => scroller.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop), { timeout: 5000 })
-    .toBeLessThanOrEqual(2);
-  await page.mouse.up();
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('/?fixture=gmcp-demo.log&speed=0');
+  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
+  // The pane on, as a float, then narrow and short: one column that scrolls with the bar.
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await page.locator('.wc-pop-row[data-pane="statistics"]').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.layout.floating = d.layout.floating.map((f) => (f.id === 'statistics' ? { id: 'statistics', x: 4, y: 2, w: 40, h: 14 } : f));
+    }),
+  );
+  const view = page.locator('.wc-pane[data-pane="statistics"] .wc-stats-pane');
+  await expect(view).toHaveAttribute('data-layout', 'narrow');
+  const bar = view.locator('.wc-tui-bar');
+  const scroller = view.locator('.wc-stats-page');
+  await dragThumb(page, bar, scroller, 1, { thumb: '.wc-st-thumb', track: '.wc-st-track' });
+  await expect(page.locator('.wc-input-field')).toBeFocused();
   expect(errors).toEqual([]);
 });
 
