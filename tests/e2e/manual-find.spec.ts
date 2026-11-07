@@ -36,16 +36,6 @@ const lib = (page: Page, fn: string, ...args: unknown[]) =>
     [fn, args] as const,
   );
 
-/** True when the current match is inside the visible part of the manual's text column. */
-const currentInView = (page: Page, root: ReturnType<typeof manual>) =>
-  root.locator('.wc-ped-manual-rows').evaluate((box) => {
-    const cur = box.querySelector('.wc-msearch-cur');
-    if (!cur) return false;
-    const a = box.getBoundingClientRect();
-    const b = cur.getBoundingClientRect();
-    return b.top >= a.top - 1 && b.bottom <= a.bottom + 1;
-  });
-
 /** Start page → Scripts → EDIT on a user script, then F1: the Script Manual (stage 44: the lantern reader). */
 async function openManual(page: Page): Promise<void> {
   await mockMume(page);

@@ -143,7 +143,7 @@
   background: var(--lk-code-sel);
 }
 
-/* The matches: outrank the TUI's `.wc-ped-buffer .cm-editor .cm-scroller` rules. */
+/* The matches: outrank CodeMirror's base theme (`.ͼ1.ͼ2 .cm-searchMatch`). */
 .wc-code.cm-editor .cm-scroller .cm-line .cm-searchMatch {
   outline: none;
   color: inherit;
