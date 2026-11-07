@@ -1,0 +1,59 @@
+<!doctype html>
+<!--
+  Round 7 · Script editor · A "Pulpeten" (the lectern): a head with the script's name, summary and the
+  glass buttons (Save, Find, Manual; Duplicate for a bundled script), the monospace code surface filling
+  the box, and a status line at the foot (state, the first problem, Modified, Ln/Col). The pop-ups
+  (completion with its doc, signature help, hover, a lint message) are small lit plates of the box's family.
+  Keys: Ctrl+S save · Ctrl+F / Ctrl+H find, replace · Ctrl+Space complete · F1 manual at the name under the
+  cursor · Tab indents · Esc closes a pop-up, then the find row, then the editor (asks when unsaved).
+  URL: ?ctx=start|game · ?frame=a|b · ?bg=paper · ?win=small · ?sc=rescue|coinlooter|autoeat · ?demo-state=comp|sig|hover|find|err|unsaved
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Script editor · A Pulpeten</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="editor.css">
+<style>
+.ea-head { align-items: center; gap: 10px 16px; }
+.ea-head .btnrow { gap: 8px; margin-left: auto; }
+.ea-body { flex-direction: column; }
+.ea-foot { gap: 18px; }
+@container sc (max-width: 560px) { .ea-head .btnrow .ibtn span { display: none; } .ea-head .btnrow .ibtn { padding: 0; width: 34px; } .ea-head .btnrow .ibtn svg { display: block; } .se-who .sc-summary { display: none; } .ea-foot .flash.static { display: none; } .ea-foot .flash.static.show { display: block; } }
+@media (max-width: 600px) { .ea-head .btnrow .ibtn span { display: none; } .ea-head .btnrow .ibtn { padding: 0; width: 36px; } .ea-head .btnrow .ibtn svg { display: block; } .sc-ed { font-size: 12.5px; --lh: 20px; } .ea-foot { flex-wrap: wrap; gap: 6px 14px; } .ea-foot .se-status { flex-basis: 100%; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="editor.js"></script>
+<script>
+const { esc, I } = SC;
+let E = null;
+const host = SC.host({
+  title: 'Script Editor', frame: 'a', depth: 1, open: true,
+  canClose: () => (E ? E.canClose() : true),
+  build(root, host) {
+    const s0 = SC.lib.get(SC.qs.get('sc') || 'rescue') || SC.lib.get('rescue');
+    const ro = s0 && s0.readonly && !SC.qs.has('dup');
+    const name = SC.qs.get('sc') || 'rescue';
+    root.innerHTML = `
+      <div class="sc-head ea-head">${SC.inlineBack(host)}
+        <div class="se-who"><h2 class="sc-title">${esc(name)}<i class="se-dot" title="Modified"></i></h2>${ro ? `<span class="se-ro">${I.lock}read-only</span>` : ''}<p class="sc-summary">${esc((s0 && s0.header.summary) || 'What this script does')}</p></div>
+        <div class="btnrow">${ro ? SC.btn('Duplicate', { act: 'duplicate', icon: 'dup', kind: 'primary', title: 'Make your own copy to edit' }) : SC.btn('Save', { act: 'save', icon: 'save', kind: 'primary', title: 'Save (Ctrl+S)' })}${SC.btn('Find', { act: 'find', icon: 'find', title: 'Find and replace (Ctrl+F, Ctrl+H)' })}${SC.btn('Manual', { act: 'manual', icon: 'book', title: 'The script manual, at the name under the cursor (F1)' })}</div>
+      </div>
+      <div class="se-findslot"></div>
+      <div class="sc-body ea-body"><div id="code"></div></div>
+      <div class="sc-foot ea-foot"><div class="se-status"></div><div class="flash static"></div><div class="se-pos"></div></div>`;
+    host.setNote(name); if (host.game) host.setTitle('Scripts');
+    E = SE.mount(root, host, { file: 'a', code: root.querySelector('#code'), status: root.querySelector('.se-status'), pos: root.querySelector('.se-pos'), flash: root.querySelector('.flash'), findSlot: root.querySelector('.se-findslot') });
+    return E.layer;
+  },
+});
+</script>
+</body>
+</html>

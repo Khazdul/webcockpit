@@ -1,0 +1,303 @@
+<!doctype html>
+<!--
+  Round 7 · Spotlights · A "Biografduken" (the cinema screen).
+  The reel plays nearly full-window over the sky. The box is only a thin Lykta frame (hood "Spotlights", Back);
+  its window is clear at the top, so the sky shows through behind a big title card (kind, label, character and
+  date, the countdown as an ornamental rule that drains to a diamond at the moment), and darkens towards the
+  bottom where the game text plays. The chrome (a horizontal track with one kind marker per spotlight, and the
+  control row) hides while it plays, as today; the Filter is a glass drawer, Display a popover. The filtered and
+  no-data cases are a normal box under the full wordmark, with the Spotlights settings inline.
+  States: ?open ?at=N ?pause ?end ?none ?filter ?display ?filtered(&set) ?empty ?error ?loading ?freeze; see spot.js.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Spotlights A · Biografduken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="spot.css">
+<style>
+/* ---- the thin frame: less iron, the window clear at the top (sky), dark where the text plays */
+.cine { --ct-h: clamp(150px, 33vh, 300px); padding: 4px; background: none; border: 0; box-shadow: 0 0 46px -8px rgba(255,170,90,.18), 0 30px 80px -12px rgba(0,0,0,.55); }
+/* the iron is only a ring: the window's glass shows the sky, not iron, behind it */
+.cine::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; padding: 4px; border-radius: 5px; border: 1px solid #000;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.22)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgba(130,116,100,.55), inset -1px -1px 0 var(--iron-lo);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.cine > .win { padding: 38px 18px 8px; border-color: rgba(0,0,0,.8);
+  /* clear sky over the title, then dark from just above the screen down (the text is never over the sky) */
+  background: radial-gradient(62% calc(var(--ct-h) * .78) at 50% calc(38px + var(--ct-h) * .52), rgba(8,6,5,.46), rgba(8,6,5,.2) 55%, transparent 80%),
+              linear-gradient(180deg, rgba(14,11,9,.14) 0, rgba(12,9,7,.22) calc(38px + var(--ct-h) - 120px), rgba(5,4,3,.9) calc(38px + var(--ct-h) - 6px), rgba(3,2,2,.95) 100%);
+  -webkit-backdrop-filter: blur(4px) saturate(1.05); backdrop-filter: blur(4px) saturate(1.05); backdrop-filter: blur(4px) saturate(1.05);
+  box-shadow: inset 0 0 0 1px rgba(255,207,143,.07), inset 0 0 60px rgba(0,0,0,.45); }
+.cine .scr { --scr-native: transparent; }
+
+/* ---- the title card */
+.ct { flex: none; height: var(--ct-h); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 40px; position: relative; }
+.ct-in { display: flex; flex-direction: column; align-items: center; max-width: 900px; }
+.ct-count { font: 600 11px/1 var(--display); letter-spacing: .32em; text-transform: uppercase; color: #cdb894; text-shadow: 0 1px 2px #000, 0 0 10px rgba(0,0,0,.7); }
+.ct-kind { display: flex; align-items: center; gap: 9px; margin-top: 14px; font: 700 13px/1 var(--display); letter-spacing: .24em; text-transform: uppercase; text-shadow: 0 1px 2px #000, 0 0 12px rgba(0,0,0,.8); }
+.ct-kind .kic { width: 19px; height: 19px; filter: drop-shadow(0 1px 2px #000); }
+.ct-label { margin: 10px 0 0; font: 700 clamp(26px, 3.1vw, 44px)/1.12 var(--display); letter-spacing: .05em; color: #f6e8cc; text-wrap: balance;
+  text-shadow: 0 2px 3px rgba(0,0,0,.85), 0 0 22px rgba(0,0,0,.6), 0 0 2px rgba(0,0,0,.9); }
+.ct-meta { margin-top: 10px; font: italic 500 clamp(17px, 1.4vw, 21px)/1.2 var(--serif); color: #e9dcc4; text-shadow: 0 1px 2px #000, 0 0 12px rgba(0,0,0,.85); }
+.ct-meta b { font: 600 .82em/1 var(--display); font-style: normal; letter-spacing: .12em; color: #f3e2c2; }
+/* the countdown: an ornamental rule draining from both sides to the diamond (the moment) */
+.ct-cd { position: relative; width: min(340px, 70vw); height: 11px; margin-top: 16px; }
+.ct-cd i { position: absolute; top: 5px; height: 1px; background: linear-gradient(90deg, rgba(240,210,160,.15), rgba(240,210,160,.85)); box-shadow: 0 1px 1px rgba(0,0,0,.6); }
+.ct-cd i.l { right: calc(50% + 9px); } .ct-cd i.r { left: calc(50% + 9px); background: linear-gradient(270deg, rgba(240,210,160,.15), rgba(240,210,160,.85)); }
+.ct-cd b { position: absolute; left: 50%; top: 1px; width: 8px; height: 8px; margin-left: -4px; transform: rotate(45deg); border: 1px solid rgba(240,210,160,.85); box-shadow: 0 1px 2px rgba(0,0,0,.7); transition: background .3s; }
+.ct-cd.hit b { background: rgba(240,210,160,.85); }
+.ct-cd.hit i { opacity: 0; }
+.ct-end .ibtn { margin-top: 18px; }
+.ct-msg { max-width: 560px; font: italic 500 21px/1.4 var(--serif); color: #efe2c8; text-shadow: 0 1px 2px #000, 0 0 12px rgba(0,0,0,.85); }
+.ct-msg small { display: block; margin-top: 6px; font-size: 16.5px; color: #cdbb9c; }
+
+/* ---- the screen: the text column centred like a page, bottom-anchored */
+.cine-scr { flex: 1; min-height: 0; border-radius: 3px; }
+.cine-scr .scr-in { padding: 6px max(14px, calc((100% - 100ch) / 2)) 8px; }
+
+/* ---- the chrome (hides while playing; a hairline of progress stays) */
+.cine-foot { flex: none; position: relative; padding: 2px 4px 2px; transition: opacity calc(.5s * var(--ts)), transform calc(.5s * var(--ts)) var(--ease); }
+.cine-trk { margin: 0 6px; }
+.cine-ctl { justify-content: center; padding: 2px 0 2px; }
+.cine:not(.chrome) .cine-ctl { opacity: 0; transform: translateY(6px); pointer-events: none; }
+.cine-ctl { transition: opacity calc(.5s * var(--ts)), transform calc(.5s * var(--ts)) var(--ease); }
+.cine:not(.chrome) .cine-trk .trk-marks, .cine:not(.chrome) .cine-trk .trk-head { opacity: 0; }
+.cine:not(.chrome) .cine-trk .trk-line { opacity: .55; }
+.cine-trk .trk-marks, .cine-trk .trk-head, .cine-trk .trk-line { transition: opacity calc(.5s * var(--ts)); }
+.cine:not(.chrome) .backbtn { opacity: .55; }
+.cine .backbtn { transition: opacity .5s, color .25s, background .25s, box-shadow .25s; }
+.cine:not(.chrome) { cursor: none; }
+.cine:not(.chrome) .backbtn, .cine:not(.chrome) .pop { cursor: auto; }
+
+/* ---- filter drawer and Display popover */
+.cine-filter { top: 46px; right: 14px; width: 318px; max-height: calc(100% - 150px); overflow: auto; scrollbar-width: thin; }
+.cine-filter .fp-count { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--c-rule); font: italic 500 15.5px/1.2 var(--serif); color: var(--c-dim); text-align: right; }
+.cine-display { right: 14px; bottom: 102px; width: 344px; }
+
+/* ---- the normal box (no data / filtered) */
+#normBox > .win { padding: 44px 26px 18px; }
+#normBox .orn-rule { margin: 4px auto 16px; }
+
+@media (max-width: 760px) {
+  .ct-label { font-size: 26px; }
+  .ct { padding: 0 16px; }
+  .cine-ctl .clock { display: none; }
+}
+@media (max-width: 600px) {
+  .cine > .win { padding: 38px 6px 4px; }
+  .cine { --ct-h: 168px; }
+  .ct-kind { margin-top: 9px; font-size: 11.5px; }
+  .ct-label { font-size: 22px; margin-top: 7px; }
+  .ct-meta { font-size: 16px; margin-top: 6px; }
+  .ct-cd { margin-top: 10px; }
+  .cine-scr { --scr-fs: 11.5px; }
+  .cine-scr .scr { }
+  .cine-scr .scr-in { padding: 4px 8px 6px; }
+  .cine-ctl { gap: 0; }
+  .cine-ctl .cb { width: 30px; }
+  .cine-ctl .cb.pn { display: none; }
+  .cine-ctl .cb.play { width: 38px; height: 38px; margin: 0 2px; }
+  .cine-ctl .spd { margin-left: 4px; }
+  .cine-ctl .ibtn.small { padding: 0 8px; }
+  .cine-ctl .ibtn.small span { display: none; }
+  .cine-ctl .ibtn.small svg { display: block; }
+  .cine-ctl .cb.fs { display: none; }
+  .cine-filter, .cine-display { left: 6px; right: 6px; width: auto; top: auto; bottom: 96px; max-height: calc(100% - 140px); }
+  #normBox > .win { padding: 40px 12px 14px; }
+  .sp-msg { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-large pg-page cine" id="reelBox" data-hood="Spotlights" data-back aria-label="Spotlights">
+  <div class="win">
+    <div class="ct" aria-live="polite"><div class="ct-in" id="ct"></div></div>
+    <div class="cine-scr" id="scr"></div>
+    <div class="cine-foot">
+      <div class="cine-trk" id="trk"></div>
+      <div class="cine-ctl" id="ctl"></div>
+    </div>
+    <aside class="pop cine-filter" id="filterPop" hidden aria-label="Filter">
+      <div class="pop-t">Filter<button class="pop-x" type="button" data-close aria-label="Close (Esc)"></button></div>
+      <div id="fp"></div>
+      <p class="fp-count" id="fpCount"></p>
+    </aside>
+    <div class="pop cine-display" id="displayPop" hidden aria-label="Display">
+      <div class="pop-t">Display<button class="pop-x" type="button" data-close aria-label="Close (Esc)"></button></div>
+      <div id="dp"></div>
+    </div>
+  </div>
+</section>
+<section class="lp box-normal pg-page" id="normBox" data-hood="Spotlights" data-back aria-label="Spotlights">
+  <div class="win">
+    <span class="orn-rule" aria-hidden="true"></span>
+    <p class="sp-msg" id="normMsg"></p>
+    <div class="sp-acts" id="normActs"><button class="ibtn" type="button" id="setBtn" aria-expanded="false"></button></div>
+    <div class="sp-set" id="normSet" hidden><div class="pop-t">Spotlights settings<button class="pop-x" type="button" data-close aria-label="Close (Esc)"></button></div><div id="normFp"></div></div>
+    <div class="flash static sp-flash" id="normFlash"></div>
+  </div>
+</section>
+<script src="../base/base.js"></script>
+<script src="spot.js"></script>
+<script>
+(() => {
+const { qs } = SPOT;
+WC.sky.start();
+const menu = WC.startMenu({ onActivate(k) { if (k === 'spotlights') { SPOT.launch(menu, () => open()); return true; } } });
+WC.decorate();
+const $ = (s) => document.querySelector(s);
+const box = $('#reelBox'), norm = $('#normBox');
+const X = SPOT.icon('close');
+document.querySelectorAll('.pop-x').forEach((x) => { x.innerHTML = X; });
+
+// ---------------------------------------------------------------- the reel
+const reel = SPOT.newReel();
+const scr = SPOT.screen($('#scr'), reel);
+const touch = () => showChrome();
+SPOT.track($('#trk'), reel, { dir: 'h', onUse: touch, hoverTime: true });
+SPOT.controls($('#ctl'), reel, { prevNext: true, onUse: touch, onToggle: () => (!reel.playing && scr.cursor !== null ? scr.resume() : reel.toggle()),
+  buttons: [{ act: 'filter', icon: 'filter', label: '<u class="sk">F</u>ilter', title: 'Filter: kinds, characters, period' }, { act: 'display', icon: 'display', label: '<u class="sk">D</u>isplay', title: 'Display: font size and colours' }],
+  onAct: (a) => (a === 'filter' ? togglePop('filter') : togglePop('display')) });
+const fp = SPOT.filterPanel($('#fp'));
+SPOT.displayPanel($('#dp'));
+SPOT.applyDisplay();
+
+// the title card follows the reel
+const ct = $('#ct');
+let ctSig = '';
+function title() {
+  const s = reel.spot, i = reel.index, n = reel.spots.length;
+  const sig = !n ? 'none' : reel.atEnd ? 'end' : s.id;
+  if (sig !== ctSig) {
+    ctSig = sig;
+    if (!n) ct.innerHTML = `<div class="ct-count">Nothing to play</div><p class="ct-msg">${SPOT.EMPTY_FILTERED}<small>Change the kinds, characters or period in the filter.</small></p>`;
+    else if (sig === 'end') ct.innerHTML = `<div class="ct-count">End of the reel</div><h2 class="ct-label">${n} spotlight${n > 1 ? 's' : ''}</h2>
+      <div class="ct-meta">${SPOT.fmtClock(reel.total)} of ${[...new Set(reel.spots.map((x) => x.char))].join(', ')}</div>
+      <div class="ct-end"><button class="ibtn primary" type="button" id="again">${SPOT.icon('play')}<span><u class="sk">P</u>lay again</span></button></div>`;
+    else ct.innerHTML = `<div class="ct-count">Spotlight ${i + 1} of ${n}</div>
+      <div class="ct-kind" style="color:${SPOT.KIND[s.kind].color}">${SPOT.kindIcon(s.kind)}${SPOT.KIND[s.kind].name}</div>
+      <h2 class="ct-label">${SPOT.esc(s.label)}</h2>
+      <div class="ct-meta"><b>${s.char}</b> · level ${s.level} · ${SPOT.fmtLong(s.atMs)}</div>
+      <div class="ct-cd" aria-hidden="true"><i class="l"></i><b></b><i class="r"></i></div>`;
+    const a = $('#again'); if (a) a.addEventListener('click', () => { reel.play(); });
+    if (!WC.RM) ct.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+  const cd = ct.querySelector('.ct-cd');
+  if (cd) { const left = reel.countdown; cd.classList.toggle('hit', left <= 0); cd.querySelectorAll('i').forEach((x) => { x.style.width = `calc((50% - 9px) * ${left.toFixed(4)})`; }); }
+}
+reel.on((r, why) => { title(); if (why === 'pause' || why === 'end' || why === 'rebuild') showChrome(); });
+
+// ---------------------------------------------------------------- chrome auto-hide (6 s in play), popovers
+let hideT = null;
+const popOpen = () => !$('#filterPop').hidden || !$('#displayPop').hidden;
+function showChrome() {
+  box.classList.add('chrome'); clearTimeout(hideT);
+  hideT = setTimeout(() => { if (reel.playing && !popOpen()) box.classList.remove('chrome'); }, 6000);
+}
+box.addEventListener('pointermove', showChrome);
+box.addEventListener('pointerdown', showChrome);
+function togglePop(which, focus = false) {
+  const el = which === 'filter' ? $('#filterPop') : $('#displayPop'), other = which === 'filter' ? $('#displayPop') : $('#filterPop');
+  other.hidden = true; el.hidden = !el.hidden;
+  $('#ctl').querySelectorAll('.ibtn').forEach((b) => b.classList.toggle('on', b.dataset.act === which && !el.hidden));
+  if (!el.hidden && focus) { const f = el.querySelector('input, button.seg, .seg button, select'); f && f.focus(); }
+  if (!el.hidden && !WC.RM) el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  showChrome();
+}
+function closePops() { const was = popOpen(); $('#filterPop').hidden = true; $('#displayPop').hidden = true; $('#ctl').querySelectorAll('.ibtn').forEach((b) => b.classList.remove('on')); if (document.activeElement && document.activeElement.closest('.pop')) document.activeElement.blur(); return was; }
+document.querySelectorAll('.pop [data-close]').forEach((x) => x.addEventListener('click', () => { closePops(); }));
+
+// the filter rebuilds the reel at once
+const count = () => { const n = reel.spots.length; $('#fpCount').textContent = n ? `${n} spotlight${n > 1 ? 's' : ''} in the reel` : 'Nothing passes'; };
+SPOT.onFilter(() => {
+  if (page !== 'reel') return;
+  const was = reel.spots.length;
+  reel.rebuild(SPOT.select()); count(); title();
+  if (!reel.spots.length && $('#filterPop').hidden) togglePop('filter');
+  if (!was && reel.spots.length) reel.play();
+});
+
+// ---------------------------------------------------------------- the normal box: no data / filtered (+ the settings)
+let page = null, setSnap = '';
+SPOT.filterPanel($('#normFp'));
+$('#setBtn').innerHTML = `${SPOT.icon('filter')}<span><u class="sk">S</u>ettings…</span>`;
+$('#setBtn').addEventListener('click', () => toggleSettings());
+$('#normSet [data-close]').addEventListener('click', () => toggleSettings(false));
+function toggleSettings(on = $('#normSet').hidden) {
+  const set = $('#normSet');
+  if (on) { setSnap = JSON.stringify(SPOT.F); set.hidden = false; $('#setBtn').setAttribute('aria-expanded', 'true'); set.querySelector('input').focus();
+    if (!WC.RM) set.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260 }); return; }
+  set.hidden = true; $('#setBtn').setAttribute('aria-expanded', 'false'); $('#setBtn').focus({ preventScroll: true });
+  // closed after a change: try again (the reel opens when something passes now)
+  if (JSON.stringify(SPOT.F) !== setSnap) {
+    if (SPOT.select().length) openReel();
+    else WC.flash($('#normFlash'), 'Still nothing passes.', { ms: 2400 });
+  }
+}
+function showNorm(kind, instant) {
+  page = kind;
+  $('#normMsg').textContent = kind === 'no_data' ? SPOT.EMPTY_NO_DATA : SPOT.EMPTY_FILTERED;
+  $('#normActs').hidden = kind === 'no_data';
+  $('#normSet').hidden = true;
+  return sh.show(norm, { instant });
+}
+
+// ---------------------------------------------------------------- open / close
+function openReel(instant) {
+  page = 'reel'; closePops();
+  reel.load(SPOT.select()); reel.pos = 0; reel.playing = true; reel.speed = 1; ctSig = ''; title(); count();
+  box.classList.remove('chrome');
+  reel.emit('rebuild'); box.classList.remove('chrome');
+  return sh.show(box, { instant });
+}
+function open(instant = false) {
+  if (!SPOT.DATA.length) return showNorm('no_data', instant);
+  if (!SPOT.select().length) return showNorm('filtered', instant);
+  return openReel(instant);
+}
+const sh = SPOT.shell({
+  menu,
+  key(e) {
+    if (e.key === 'Escape') return false;
+    if (page === 'no_data') { if (['Shift', 'Control', 'Alt', 'Meta', 'Tab', 'CapsLock'].includes(e.key)) return false; sh.close(); return true; }
+    if (page === 'filtered') {
+      if (e.target.closest && e.target.closest('.sp-set')) return false;
+      return WC.shortcut(e, { s: () => toggleSettings() });
+    }
+    if (e.target.closest && e.target.closest('.pop') && !['F', 'f', 'D', 'd'].includes(e.key)) return false;
+    showChrome();
+    if (WC.shortcut(e, { f: () => togglePop('filter', true), d: () => togglePop('display', true), p: () => { if (reel.atEnd) reel.play(); } })) return true;
+    return SPOT.reelKey(e, reel, scr);
+  },
+  back() {
+    if (page === 'reel' && closePops()) return;
+    if (page === 'filtered' && !$('#normSet').hidden) return toggleSettings(false);
+    sh.close();
+  },
+  onClosed() { reel.pause(); closePops(); page = null; },
+});
+norm.addEventListener('click', (e) => { if (page === 'no_data' && !e.target.closest('.backbtn')) sh.close(); });
+
+// ---------------------------------------------------------------- URL states (screenshots)
+(async () => {
+  if (!['open', 'filtered', 'empty'].some((k) => qs.has(k))) return;
+  await open(true);
+  if (page === 'filtered' && qs.has('set')) toggleSettings(true);
+  if (page !== 'reel') return;
+  if (qs.has('at')) { const i = Math.max(0, Math.min(reel.spots.length - 1, +qs.get('at') - 1)); reel.seek(reel.momentAt(i) + (+qs.get('dt') || 1600)); }
+  if (qs.has('end')) { reel.seek(reel.total); }
+  if (qs.has('pause')) { reel.pause(); scr.moveCursor(-3); }
+  if (qs.has('none')) SPOT.patch({ achievements: false, deaths: false, levelUps: false, pvp: false });
+  if (qs.has('filter')) togglePop('filter');
+  if (qs.has('display')) togglePop('display');
+  if (qs.has('chrome') || qs.has('filter') || qs.has('display')) showChrome();
+  if (!qs.has('pause') && !qs.has('end') && !qs.has('chrome') && !qs.has('filter') && !qs.has('display') && !qs.has('none')) box.classList.remove('chrome');
+})();
+window.MOCK = { reel, scr, sh, open };
+})();
+</script>
+</body>
+</html>

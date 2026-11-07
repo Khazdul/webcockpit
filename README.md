@@ -45,6 +45,17 @@ To serve it under a subpath, build with `WEBCOCKPIT_BASE=/path/ npm run build`
 
 ## What's in the box
 
+**Start page.** The page you land on shows MUME's sky by the game
+clock, even before you connect: the sun and moon cross it, clouds drift,
+stars and shooting stars come out at night, and the season brings its
+weather (snow all winter, now and then rain in spring and autumn). Over
+it sit the forged-iron MUME wordmark with its cyan metal inlay, the
+menu, a Tolkien quote and, at the bottom right, the date and time in
+Middle-earth. The keyboard drives it: ↑↓ and Enter, or the underlined
+letter of each entry (E Enter MUME, P Profile, S Scripts, H History,
+L Spotlights, C Credits, A About); Esc goes back. The mouse and a tap
+work too. The browser tab's icon is the same iron "M".
+
 **Connection.** The browser talks to `wss://mume.org/ws-play/`
 directly, with full GMCP and a keep-alive that shows
 your round-trip time. Nobody in between sees your password.
@@ -83,7 +94,10 @@ variables and tickers in tt++ syntax. The profile editor has a form
 view and a full text view with syntax highlighting, and both edit the
 same profile. Round-trips are lossless. Macros bind any key the browser
 lets through. Profiles can be exported and imported as `.tin` files,
-and import also reads TinTin++, JMC, Powwow and Mudlet profiles.
+and import also reads TinTin++, JMC, Powwow and Mudlet profiles. The
+start page's Profile list shows when each was last changed, and its
+buttons have letters too: Select, New, Edit, Rename, Delete, Import,
+Export (S N E R D I X).
 
 **Lua scripts.** Scripts in Lua 5.4 run beside the profile, in a
 sandbox, with an API for triggers, aliases, keys, timers, GMCP, the map
@@ -121,9 +135,9 @@ drawing runs in a worker, so text and keys are never slowed.
 </div>
 
 **Runs.** Every login starts a run, recorded in the browser. The
-start page offers History, Statistics, a log player that replays the
-whole screen, and Spotlights with your kills, deaths, level-ups and
-achievements. Runs older than 14 days are pruned unless you save them.
+start page offers History (with each run's Statistics and a log player
+that replays the whole screen) and Spotlights with your kills, deaths,
+level-ups and achievements. Runs older than 14 days are pruned unless you save them.
 
 **Export editor.** Cut spans from a run, add `## ` comments to narrate
 it, and export plain text or a self-contained HTML replay that anyone
@@ -163,8 +177,8 @@ Bug reports and feature requests are welcome on
 GPL-2.0-or-later, the same licence as MMapper, so code can move both
 ways. The map renderer and tracking are partly derived from MMapper
 (listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)). See
-[`LICENSE`](LICENSE) and, for bundled fonts,
-libraries and map assets,
+[`LICENSE`](LICENSE) and, for bundled fonts (the terminal fonts,
+Cinzel, Cormorant Garamond and Cormorant SC), libraries and map assets,
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 [cockpit]: https://github.com/Khazdul/mumecockpit

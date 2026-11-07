@@ -1,0 +1,121 @@
+<!doctype html>
+<!--
+  Round 7 · Script editor · B "Med inspektör" (with an inspector): the code on the left, a rail on the right
+  that does the explaining. The rail holds the script (name, state, the buttons as a column), its Problems
+  as a list you can click (each jumps to its line), "At the cursor": the help of the API name or call the
+  cursor is in, its current parameter marked (the signature help lives here instead of in a pop-up), and
+  the Header as the Scripts page will read it (settings, commands). Completion and hover stay at the caret.
+  Narrow (a window, a phone): the rail folds away; Inspector opens it over the code.
+  Keys as A: Ctrl+S · Ctrl+F / Ctrl+H · Ctrl+Space · F1 · Tab · Esc (pop-up → find → editor, asks when unsaved).
+  URL: ?ctx=start|game · ?frame=a|b · ?bg=paper · ?win=small · ?sc=rescue|coinlooter|autoeat · ?demo-state=…
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Script editor · B Med inspektör</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="editor.css">
+<style>
+.eb-main { gap: 20px; }
+.eb-codecol { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.eb-rail { flex: 0 0 310px; min-height: 0; display: flex; flex-direction: column; gap: 0; padding: 0 4px 6px 2px; }
+.eb-card { padding: 14px 16px 14px; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh); }
+.eb-card .sc-title { font-size: 21px; display: flex; align-items: center; gap: 9px; }
+.eb-card .sc-summary { font-size: 15.5px; margin-top: 5px; }
+.eb-card .stl { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.eb-card .btncol { margin-top: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.eb-card .btncol .ibtn:first-child { grid-column: 1 / -1; }
+.eb-rail .sc-rule { margin: 16px 0 8px; }
+.eb-probs { display: flex; flex-direction: column; gap: 4px; }
+.eb-prob { all: unset; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 9px; padding: 7px 10px; border-radius: 4px; font: 500 15px/1.3 var(--serif); color: var(--c-danger);
+  background: color-mix(in srgb, var(--c-danger) 8%, transparent); }
+.eb-prob:hover, .eb-prob:focus-visible { background: color-mix(in srgb, var(--c-danger) 14%, transparent); }
+.eb-prob .ln { font: 600 11.5px/1.5 var(--mono); color: var(--c-danger); white-space: nowrap; }
+.eb-prob .src { grid-column: 2; font: 600 9.5px/1 var(--display); letter-spacing: .18em; text-transform: uppercase; color: var(--c-faint); order: -1; }
+.eb-prob.rt { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--c-danger) 8%, transparent) 0 6px, transparent 6px 9px); }
+.eb-ok { font: italic 500 15.5px/1.3 var(--serif); color: var(--c-ok); }
+.eb-at { padding: 2px 2px 4px; }
+.eb-at .sc-doc { padding: 0; max-width: none; font-size: 15.5px; }
+.eb-at .hint { font: italic 500 15px/1.35 var(--serif); color: var(--c-faint); }
+.eb-hdr { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font: 500 15px/1.35 var(--serif); color: var(--c-dim); align-items: baseline; }
+.eb-hdr .k { font: 400 12.5px/1.4 var(--mono); color: var(--c-text); white-space: nowrap; }
+.eb-hdr .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eb-hdr .t i { color: var(--c-faint); }
+.eb-foot { gap: 16px; }
+.eb-head { display: none; }
+.eb-railbtn { display: none; }
+@container sc (max-width: 860px) {
+  .eb-head { display: flex; }
+  .eb-railbtn { display: inline-flex; }
+  .eb-rail { position: absolute; z-index: 25; right: 0; top: 46px; bottom: 54px; width: min(330px, 92%); padding: 12px; border-radius: 6px; background: rgba(16,12,10,.97); box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,236,206,.2), 0 18px 40px rgba(0,0,0,.7); display: none; }
+  .paper .eb-rail { background: #fbf6ea; box-shadow: 0 0 0 1px #6a5a3c, 0 14px 30px rgba(60,40,10,.3); }
+  .rail-open .eb-rail { display: flex; }
+}
+.eb-head .se-who .sc-title { font-size: 18px; }
+.eb-head .btnrow { margin-left: auto; gap: 6px; }
+.eb-head .btnrow .ibtn { width: 34px; padding: 0; }
+.eb-head .btnrow .ibtn span { display: none; }
+.eb-head .btnrow .ibtn.eb-railbtn { width: auto; padding: 0 12px 0 10px; }
+.eb-head .btnrow .ibtn.eb-railbtn span { display: inline; }
+@media (max-width: 600px) { .eb-head .btnrow .ibtn svg { display: block; } .sc-ed { font-size: 12.5px; --lh: 20px; } .eb-foot { flex-wrap: wrap; gap: 4px 12px; } .eb-foot .se-status { flex-basis: 100%; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="editor.js"></script>
+<script>
+const { esc, h, I } = SC;
+let E = null;
+const host = SC.host({
+  title: 'Script Editor', frame: 'b', depth: 1, open: true,
+  canClose: () => (E ? E.canClose() : true),
+  build(root, host) {
+    const name = SC.qs.get('sc') || 'rescue';
+    const s0 = SC.lib.get(name) || SC.lib.get('rescue');
+    const ro = s0 && s0.readonly && !SC.qs.has('dup');
+    const main = ro ? SC.btn('Duplicate', { act: 'duplicate', icon: 'dup', kind: 'primary', title: 'Make your own copy to edit' }) : SC.btn('Save', { act: 'save', icon: 'save', kind: 'primary', title: 'Save (Ctrl+S)' });
+    const hd = (s0 && s0.header) || { settings: [], aliases: [], keys: [] };
+    const fmtV = (d) => (d.type === 'boolean' ? (d.default ? 'on' : 'off') : `${d.default}${d.unit ? ' ' + d.unit : ''}`);
+    root.innerHTML = `
+      <div class="sc-head eb-head">${SC.inlineBack(host)}<div class="se-who"><h2 class="sc-title">${esc(name)}<i class="se-dot"></i></h2></div><div class="btnrow">${main}${SC.btn('Find', { act: 'find', icon: 'find', title: 'Find (Ctrl+F)' })}${SC.btn('Manual', { act: 'manual', icon: 'book', title: 'Manual (F1)' })}${SC.btn('Inspector', { act: 'rail', icon: 'rail', cls: 'eb-railbtn small' })}</div></div>
+      <div class="sc-body eb-main">
+        <div class="eb-codecol"><div class="se-findslot"></div><div id="code"></div></div>
+        <aside class="eb-rail sc-scroll" aria-label="Inspector">
+          <div class="eb-card">${host.inlineBack && false ? '' : ''}<h2 class="sc-title">${esc(name)}${s0 && s0.bundled ? SC.lockHTML(s0) : ''}<i class="se-dot" title="Modified"></i></h2><p class="sc-summary">${esc((s0 && s0.header.summary) || 'What this script does')}</p><div class="stl" id="stl"></div>
+            <div class="btncol">${main}${SC.btn('Find', { act: 'find', icon: 'find', title: 'Find and replace (Ctrl+F, Ctrl+H)' })}${SC.btn('Manual', { act: 'manual', icon: 'book', title: 'The manual at the name under the cursor (F1)' })}</div></div>
+          <div class="sc-rule"><h3>Problems</h3></div><div class="eb-probs" id="probs"></div>
+          <div class="sc-rule"><h3>At the cursor</h3></div><div class="eb-at" id="at"></div>
+          <div class="sc-rule"><h3>Header</h3></div>
+          <div class="eb-hdr">${hd.settings.map((d) => `<span class="k">${esc(d.name)}</span><span class="t" title="${esc(d.label || '')}">${esc(d.type)} · ${esc(fmtV(d))} <i>${esc(d.label || '')}</i></span>`).join('')}${hd.aliases.map((a) => `<span class="k">${esc(a.name)}</span><span class="t" title="${esc(a.text)}"><i>alias</i> ${esc(a.text)}</span>`).join('')}${hd.keys.map((k) => `<span class="k">${esc(k.key)}</span><span class="t" title="${esc(k.text)}"><i>key</i> ${esc(k.text)}</span>`).join('')}${!hd.settings.length && !hd.aliases.length && !hd.keys.length ? '<span class="hint" style="grid-column:1/-1;font-style:italic;color:var(--c-faint)">No @setting, @alias or @key lines yet.</span>' : ''}</div>
+        </aside>
+      </div>
+      <div class="sc-foot eb-foot"><div class="se-status"></div><div class="flash static"></div><div class="se-pos"></div></div>`;
+    host.setNote(name); if (host.game) host.setTitle('Scripts');
+    const probs = root.querySelector('#probs'), atEl = root.querySelector('#at');
+    let lastAt = null;
+    E = SE.mount(root, host, {
+      file: 'b', sigPopup: false, code: root.querySelector('#code'), status: root.querySelector('.se-status'), pos: root.querySelector('.se-pos'), flash: root.querySelector('.flash'), findSlot: root.querySelector('.se-findslot'),
+      onDiags(ds, ed) {
+        probs.innerHTML = ds.length ? ds.map((d, i) => `<button type="button" class="eb-prob${d.source === 'runtime' ? ' rt' : ''}" data-i="${i}" title="Go to line ${d.line}"><span class="ln">Ln ${d.line}</span><span>${esc(d.message)}</span><span class="src">${d.source === 'runtime' ? 'Runtime error · saved version' : d.source === 'header' ? 'Header' : 'Syntax error'}</span></button>`).join('') : '<p class="eb-ok">No problems.</p>';
+        probs.querySelectorAll('.eb-prob').forEach((b) => b.addEventListener('click', () => { const d = ds[+b.dataset.i]; ed.goto(d.line, (d.from || 0) + 1); root.classList.remove('rail-open'); }));
+      },
+      onPaint({ s, ed }) {
+        const st = SC.state(s); root.querySelector('#stl').innerHTML = SC.stateHTML(s);
+        const c = ed.callAt(), n = c ? c.name : ed.nameAtCursor(), key = c ? `${c.name}:${c.active}` : n || '';
+        if (key === lastAt) return; lastAt = key;
+        atEl.innerHTML = n ? `<div class="sc-doc">${ed.docHTML(n, SD.api[n], c ? c.active : -1)}</div>${c ? '' : ''}` : '<p class="hint">Put the cursor on an API name, or inside a call, to see its help here. F1 opens the manual at it.</p>';
+      },
+    });
+    root.addEventListener('click', (e) => { const b = e.target.closest('[data-act="rail"]'); if (b) root.classList.toggle('rail-open'); });
+    const layer = E.layer;
+    return { key: layer.key, back() { if (root.classList.contains('rail-open')) { root.classList.remove('rail-open'); return true; } return layer.back(); } };
+  },
+});
+</script>
+</body>
+</html>

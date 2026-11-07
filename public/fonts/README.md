@@ -1,8 +1,9 @@
 # Fonts
 
 Self-hosted web fonts for WebCockpit's terminal grid (ADR 0010 "Fonts and
-cell grid", ADR 0011, ADR 0043, ADR 0049) and the pane titles (Cinzel,
-ADR 0123; see "Title font" below). Terminal fonts: regular and bold only; no
+cell grid", ADR 0011, ADR 0043, ADR 0049), the pane titles and the start
+page's labels (Cinzel, ADR 0123, ADR 0125; see "Title font" below) and the
+start page's quote and notes (Cormorant, "Start page book faces"). Terminal fonts: regular and bold only; no
 italics (MUME output does not need them; italic runs are synthesised by
 the browser). The @font-face rules are generated from
 `src/theme/fonts.ts` (`fontFaceCss`); a browser downloads a family only
@@ -57,7 +58,11 @@ Notes:
 
 ## Title font
 
-The pane frame's title (ADR 0123 "Title") is not in the terminal font:
+The pane frame's title (ADR 0123 "Title") is not in the terminal font.
+Since stage 41 the start page's menu, buttons, Back and almanac date line
+use the same face (ADR 0125), and the start page wordmark and the "M"
+favicon are outlines drawn from Cinzel's variable font, which is not
+shipped (`scripts/build-wordmark-glyphs.py`, ADR 0126):
 
 | File | Family, version | Source | Licence (file here) |
 |---|---|---|---|

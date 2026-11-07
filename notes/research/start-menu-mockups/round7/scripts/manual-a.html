@@ -1,0 +1,145 @@
+<!doctype html>
+<!--
+  Round 7 · Script manual · A "Boken" (the book): the contents on the left (Guide, API reference, Lua
+  reference; the two references fold, with their counts), the whole manual as one typeset text on the right
+  (Cinzel headings, Cormorant body, syntax and Lua examples in monospace wells). The current chapter follows
+  the scroll. Find is always in the head (Ctrl+F): matches marked in the text, n of m, Case / Word / Regex.
+  Keys: Tab moves between contents and text · contents ↑↓ chapter, → or Enter into the text · text ↑↓ scroll,
+  ← contents · PgUp/PgDn page · Home/End · n / p next / previous chapter · Ctrl+F find · Esc back.
+  Narrow (a small window, a phone): the text alone, Contents opens the list over it.
+  URL: ?ctx=start|game · ?at=<API or Lua name, or a chapter> · ?from=editor-a|page-a · ?find=<text>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Script manual · A Boken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+.ma-head { gap: 10px 14px; }
+.ma-find { flex: 1 1 420px; display: flex; align-items: center; gap: 8px; min-width: 0; justify-content: flex-end; }
+.ma-find .fwrap { position: relative; flex: 0 1 340px; min-width: 140px; }
+.ma-find .fwrap svg { position: absolute; left: 11px; top: 50%; width: 14px; height: 14px; margin-top: -7px; fill: none; stroke: var(--c-dim); stroke-width: 1.5; pointer-events: none; }
+.ma-find .field { padding-left: 32px; height: 32px; font-size: 16px; }
+.ma-find .cnt { font: italic 500 15px/1 var(--serif); color: var(--c-dim); min-width: 64px; text-align: right; white-space: nowrap; }
+.ma-find .cnt.bad { color: var(--c-danger); }
+.ma-find .seg button { height: 24px; padding: 0 9px; font-size: 10.5px; }
+.ma-find .ibtn.icon { width: 30px; height: 30px; padding: 0; }
+.ma-main { gap: 26px; }
+.ma-toc { flex: 0 0 250px; padding: 2px 8px 10px 2px; }
+.ma-toc .g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 6px 6px; font: 600 10.5px/1 var(--display); letter-spacing: .24em; text-transform: uppercase; color: var(--c-dim); }
+.ma-toc .g:first-child { padding-top: 2px; }
+.ma-toc .g svg { width: 9px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.6; transition: transform calc(.2s * var(--ts)); }
+.ma-toc .g[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.ma-toc .g .n { margin-left: auto; letter-spacing: .05em; font: italic 500 13px/1 var(--serif); text-transform: none; color: var(--c-faint); }
+.ma-toc .g:hover { color: var(--c-text); }
+.ma-toc ul { list-style: none; margin: 0 0 4px; padding: 0; }
+.ma-toc ul[hidden] { display: none; }
+.ma-toc li { padding: 4px 6px 4px 22px; font: 500 16px/1.25 var(--serif); color: var(--c-item); cursor: pointer; border-radius: 3px; transition: color .3s; }
+.ma-toc li.api { font: 400 12.5px/1.45 var(--mono); }
+.ma-toc li:hover { color: var(--c-text); }
+.ma-toc li.on { color: var(--c-on); text-shadow: 0 0 8px var(--c-on-glow); }
+.ma-toc.zone li.on { box-shadow: inset 2px 0 0 var(--c-sk-on); }
+.ma-text { flex: 1; min-width: 0; padding: 0 22px 40vh 6px; }
+.ma-text section { content-visibility: auto; contain-intrinsic-size: auto 600px; }
+.ma-text .grp:first-child { margin-top: 0; }
+.ma-text.zone { outline: none; }
+.ma-tocbtn { display: none; }
+@container sc (max-width: 700px) {
+  .ma-toc { display: none; position: absolute; z-index: 20; left: 0; top: 46px; bottom: 0; width: min(300px, 86%); padding: 10px 12px; border-radius: 5px; background: rgba(16,12,10,.97); box-shadow: 0 0 0 1px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,236,206,.2), 0 18px 40px rgba(0,0,0,.7); }
+  .paper .ma-toc { background: #fbf6ea; box-shadow: 0 0 0 1px #6a5a3c, 0 12px 30px rgba(60,40,10,.3); }
+  .toc-open .ma-toc { display: block; }
+  .ma-tocbtn { display: inline-flex; }
+  .ma-find .seg, .ma-find .cnt:empty { display: none; }
+  .ma-text { padding: 0 10px 40vh 2px; }
+}
+@media (max-width: 600px) { .ma-find .ibtn.icon[data-act="fprev"] { display: none; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+const { esc, h, I } = SC;
+const SECS = SD.manual;
+const from = SC.qs.get('from');
+const host = SC.host({
+  title: 'Script Manual', frame: 'a', depth: from ? 1 : 0, open: !!from,
+  onRootBack: from ? () => host.go(`${from}.html`, SC.qs.get('sc') ? { sc: SC.qs.get('sc') } : {}) : null,
+  build(root, host) {
+    if (host.game) host.setTitle('Scripts'), host.setNote('Manual');
+    const groups = ['guide', 'reference', 'lua'];
+    const linkOf = (n) => SECS.findIndex((x) => x.group === 'lua' && x.heading === n);
+    let text = '', g = null;
+    SECS.forEach((sec, i) => { if (sec.group !== g) { g = sec.group; text += `<div class="grp">${SC.GROUPS[g]}</div>`; } text += SC.manualHTML(sec, i, { linkOf }); });
+    root.innerHTML = `
+      <div class="sc-head ma-head">${SC.inlineBack(host)}${SC.btn('Contents', { act: 'toc', small: true, cls: 'ma-tocbtn', icon: 'book' })}
+        <div class="ma-find" role="search"><div class="fwrap">${I.find}<input class="field" id="fq" placeholder="Find in the manual" spellcheck="false" autocomplete="off" aria-label="Find in the manual"></div><span class="cnt" id="cnt"></span>
+          <span class="seg"><button type="button" data-t="cs" aria-selected="false" title="Case (Alt+C)">Case</button><button type="button" data-t="word" aria-selected="false" title="Whole word (Alt+W)">Word</button><button type="button" data-t="re" aria-selected="false" title="Regex (Alt+R)">Regex</button></span>
+          ${SC.btn('', { act: 'fprev', icon: 'up', small: true, cls: 'icon', title: 'Previous (Shift+Enter)' })}${SC.btn('', { act: 'fnext', icon: 'down', small: true, cls: 'icon', title: 'Next (Enter)' })}</div>
+      </div>
+      <div class="sc-body ma-main">
+        <nav class="ma-toc sc-scroll" aria-label="Contents">${groups.map((gr) => { const items = SECS.map((s, i) => [s, i]).filter(([s]) => s.group === gr); return `<button type="button" class="g" data-g="${gr}" aria-expanded="${gr === 'guide'}">${I.fold}${SC.GROUPS[gr]}<span class="n">${items.length}</span></button><ul data-g="${gr}" ${gr === 'guide' ? '' : 'hidden'}>${items.map(([s, i]) => `<li data-i="${i}" class="${gr === 'guide' ? '' : 'api'}">${esc(s.heading)}</li>`).join('')}</ul>`; }).join('')}</nav>
+        <article class="ma-text sc-scroll sc-man" tabindex="-1">${text}</article>
+      </div>`;
+    const toc = root.querySelector('.ma-toc'), art = root.querySelector('.ma-text'), fq = root.querySelector('#fq'), cnt = root.querySelector('#cnt');
+    const secEls = [...art.querySelectorAll('section')];
+    let cur = 0, zone = 'text', opts = { cs: false, word: false, re: false }, marks = [], mi = -1;
+    const li = (i) => toc.querySelector(`li[data-i="${i}"]`);
+    const expand = (gr, open = true) => { toc.querySelector(`.g[data-g="${gr}"]`).setAttribute('aria-expanded', open); toc.querySelector(`ul[data-g="${gr}"]`).hidden = !open; };
+    function setCur(i, scrollToc = true) {
+      cur = i; toc.querySelectorAll('li.on').forEach((x) => x.classList.remove('on'));
+      const l = li(i); if (!l) return; expand(SECS[i].group); l.classList.add('on'); if (scrollToc) l.scrollIntoView({ block: 'nearest' });
+    }
+    function go(i, smooth) { secEls[i].scrollIntoView({ block: 'start', behavior: smooth && !WC.RM ? 'smooth' : 'auto' }); setCur(i); root.classList.remove('toc-open'); }
+    let lock = 0;
+    art.addEventListener('scroll', () => { if (Date.now() < lock) return; const top = art.getBoundingClientRect().top + 20; let k = 0; for (let j = 0; j < secEls.length; j++) { if (secEls[j].getBoundingClientRect().top <= top) k = j; else break; } if (k !== cur) setCur(k); });
+    toc.addEventListener('click', (e) => { const g2 = e.target.closest('.g'); if (g2) { expand(g2.dataset.g, g2.getAttribute('aria-expanded') !== 'true'); return; } const l = e.target.closest('li'); if (l) { lock = Date.now() + 400; go(+l.dataset.i); } });
+    art.addEventListener('click', (e) => { const a = e.target.closest('[data-go]'); if (a) { e.preventDefault(); lock = Date.now() + 400; go(+a.dataset.go, true); } });
+    // find
+    function find() { const r = SC.markText(art, fq.value, opts); marks = r.marks; mi = -1; cnt.classList.toggle('bad', r.bad); cnt.textContent = r.bad ? 'Bad regex' : fq.value ? (marks.length ? `${marks.length}${marks.length >= 1000 ? '+' : ''} found` : 'No matches') : ''; if (marks.length) step(1); }
+    function step(d) { if (!marks.length) return; if (mi >= 0) marks[mi].classList.remove('now'); mi = (mi + d + marks.length) % marks.length; const m = marks[mi]; m.classList.add('now'); m.scrollIntoView({ block: 'center' }); cnt.textContent = `${mi + 1} of ${marks.length}${marks.length >= 1000 ? '+' : ''}`; const s = m.closest('section'); if (s) setCur(+s.dataset.i); }
+    let ft = null; fq.addEventListener('input', () => { clearTimeout(ft); ft = setTimeout(find, 180); });
+    fq.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); step(e.shiftKey ? -1 : 1); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (fq.value) { fq.value = ''; find(); } fq.blur(); art.focus({ preventScroll: true }); }
+      else if (e.altKey && /^[cwr]$/i.test(e.key)) { e.preventDefault(); root.querySelector(`[data-t="${{ c: 'cs', w: 'word', r: 're' }[e.key.toLowerCase()]}"]`).click(); }
+    });
+    root.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => { const on = b.getAttribute('aria-selected') !== 'true'; b.setAttribute('aria-selected', on); opts[b.dataset.t] = on; find(); }));
+    root.querySelector('.sc-head').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act; if (a === 'fprev' || a === 'fnext') step(a === 'fprev' ? -1 : 1); else if (a === 'toc') root.classList.toggle('toc-open'); else if (a === 'back') host.go(`${from || 'page-a'}.html`, SC.qs.get('sc') ? { sc: SC.qs.get('sc') } : {}); });
+    // the first chapter: F1's name (an API or Lua entry; a keyword → Lua basics; a library → the Lua index), else Getting started
+    const at = SC.qs.get('at');
+    let first = 0;
+    if (at) { first = SECS.findIndex((s) => s.group !== 'guide' && s.heading === at); if (first < 0) first = SECS.findIndex((s) => s.heading.toLowerCase() === at.toLowerCase()); if (first < 0 && /^(local|function|if|for|while|end|then|return)$/.test(at)) first = SECS.findIndex((s) => s.heading === 'Lua basics'); if (first < 0) first = 0; }
+    const paintZone = () => { toc.classList.toggle('zone', zone === 'menu'); };
+    requestAnimationFrame(() => { go(first); if (SC.qs.get('find')) { fq.value = SC.qs.get('find'); find(); } });
+    const page = (d) => art.scrollBy({ top: d * (art.clientHeight - 60), behavior: WC.RM ? 'auto' : 'smooth' });
+    return {
+      key(e) {
+        const k = e.key, mod = e.ctrlKey || e.metaKey;
+        if (mod && /^[fg]$/i.test(k)) { if (k.toLowerCase() === 'g') step(e.shiftKey ? -1 : 1); else { fq.focus(); fq.select(); } return true; }
+        if (k === 'F3') { step(e.shiftKey ? -1 : 1); return true; }
+        if (k === 'Tab') { zone = zone === 'menu' ? 'text' : 'menu'; if (root.clientWidth <= 700) root.classList.toggle('toc-open', zone === 'menu'); paintZone(); return true; }
+        if (k === 'PageDown' || k === 'PageUp') { page(k === 'PageDown' ? 1 : -1); return true; }
+        if (k === 'n' || k === 'p') { go(Math.max(0, Math.min(SECS.length - 1, cur + (k === 'n' ? 1 : -1)))); return true; }
+        if (k === 'Home' || k === 'End') { if (k === 'Home') go(0); else art.scrollTop = art.scrollHeight; return true; }
+        if (zone === 'menu') {
+          if (k === 'ArrowDown' || k === 'ArrowUp') { go(Math.max(0, Math.min(SECS.length - 1, cur + (k === 'ArrowDown' ? 1 : -1)))); return true; }
+          if (k === 'ArrowRight' || k === 'Enter') { zone = 'text'; root.classList.remove('toc-open'); paintZone(); return true; }
+          return k === 'ArrowLeft';
+        }
+        if (k === 'ArrowDown' || k === 'ArrowUp') { art.scrollBy({ top: k === 'ArrowDown' ? 44 : -44 }); return true; }
+        if (k === 'Enter' || k === ' ') { page(e.shiftKey ? -1 : 1); return true; }
+        if (k === 'ArrowLeft') { zone = 'menu'; if (root.clientWidth <= 700) root.classList.add('toc-open'); paintZone(); return true; }
+        return false;
+      },
+      back() { if (root.classList.contains('toc-open')) { root.classList.remove('toc-open'); zone = 'text'; paintZone(); return true; } if (fq.value) { fq.value = ''; find(); return true; } return false; },
+    };
+  },
+});
+</script>
+</body>
+</html>

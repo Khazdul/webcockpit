@@ -256,6 +256,15 @@ Mapped to Inv §3.
   right (stage 30e, ADR 0110; stage 32c, ADR 0114).
 - **Removed:** connection modes and the update flow. Updating means
   reloading the page.
+- **Look** (stage 41, 2026-11-07; ADRs 0124–0126,
+  `docs/stages/41-start-page.md`): the TUI page of Inv §3.2 (pixel
+  banner, `<< >>` menu, key-hint footer) is replaced by a sky driven by
+  the offline game clock, a forged-iron "MUME" wordmark with a cyan metal
+  inlay, a menu panel whose shortcut letters are marked in the labels
+  (E P S H L C A; no key-hint rows), the quote in book type and an
+  almanac at the bottom right. Sub-pages move to the same box, with Back
+  and glass buttons, one stage at a time; the Profile list was first
+  (ADR 0125).
 
 ### 2.6 Menu bar and ESC menu
 

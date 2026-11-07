@@ -1,0 +1,204 @@
+<!doctype html>
+<!--
+  Round 7 · Scripts page · B "Kortväggen" (the card wall): every script as a card on a wall (name, padlock,
+  on/off, its summary, its state, how many settings, its commands, the error line of a failed one), so the
+  library reads at a glance. Opening a card (Enter, double click, a tap) turns the box into that script:
+  its buttons and status on top, Settings and Commands on the left, the Help as a reading column on the
+  right, ‹ › to the neighbouring scripts. Esc (or Back to all) returns to the wall.
+  Keys on the wall: arrows move over the grid, Space toggles, Enter opens, N I M E X R D press the buttons.
+  In a card: ↑↓ over the rows (the button row, Reset all, each setting, the help fold), ←→ change a value,
+  Enter acts, a digit types a number, PgUp/PgDn scroll the help, [ ] the previous / next script.
+  URL: ?ctx=start|game · ?frame=a|b · ?bg=paper · ?win=small · ?open · ?empty · ?sc=<script>&card (opened)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scripts · B Kortväggen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+.pb-count { font: italic 500 15.5px/1 var(--serif); color: var(--c-faint); white-space: nowrap; }
+.pb-wall { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); grid-auto-rows: min-content; gap: 14px; padding: 4px 6px 8px 4px; align-content: start; }
+.pb-card { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 0; min-height: 152px; padding: 15px 16px 13px; border-radius: 6px; cursor: pointer; }
+.pb-card .top { display: flex; align-items: center; gap: 9px; }
+.pb-card .top .sc-name { flex: 1; min-width: 0; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-card .sum { margin: 9px 0 0; font: italic 500 16px/1.32 var(--serif); color: var(--c-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.64em; transition: color .45s; }
+.pb-card .meta { margin-top: auto; padding-top: 10px; display: flex; flex-direction: column; align-items: stretch; gap: 7px; border-top: 1px solid var(--c-rule); }
+.pb-card .meta .l2 { display: flex; align-items: center; gap: 10px; min-height: 20px; }
+.pb-card .meta .sc-st { overflow: hidden; text-overflow: ellipsis; }
+.pb-card .meta .sc-st { font-size: 14.5px; }
+.pb-card .meta .n { font: italic 500 14.5px/1 var(--serif); color: var(--c-faint); }
+.pb-card .chips { display: inline-flex; gap: 5px; margin-left: auto; }
+.pb-card .chip { font: 400 11.5px/1 var(--mono); color: var(--c-dim); padding: 3px 6px; border-radius: 3px; background: var(--well); border: 1px solid var(--well-edge); }
+.pb-card .sc-err { margin-top: 8px; white-space: normal; font-size: 14.5px; }
+.pb-card.off .sc-name { color: var(--c-faint); }
+.pb-card.on .sum { color: var(--c-text); }
+.pb-card.on .sc-name { color: var(--c-on); }
+/* the opened card */
+.pb-sheet { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; min-height: 0; }
+.pb-sheet[hidden] { display: none; }
+.pb-root.open .pb-wallwrap, .pb-root.open .sc-head { visibility: hidden; }
+.pb-sh-head { flex: none; display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--c-rule); }
+.pb-sh-head .who { flex: 1 1 280px; min-width: 0; }
+.pb-sh-head .who .line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pb-sh-head .who .line .tog { margin-left: 6px; }
+.pb-sh-head .stl { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 7px; }
+.pb-nav { display: inline-flex; gap: 6px; }
+.pb-nav .ibtn { width: 32px; padding: 0; }
+.pb-sh-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 0 30px; padding-top: 6px; }
+.pb-col { min-height: 0; padding: 4px 8px 12px 2px; }
+.pb-col.help { border-left: 1px solid var(--c-rule); padding: 4px 6px 12px 28px; }
+.pb-col.help .sc-rule { margin-top: 12px; }
+.pb-col.help .sc-helpbox[hidden] { display: none; }
+.pb-sh-foot { flex: none; display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--c-rule); min-height: 40px; }
+.pb-sh-foot .flash.static { flex: 1; text-align: center; }
+.pb-sh-foot .pos { font: italic 500 15px/1 var(--serif); color: var(--c-faint); }
+.pb-root.zone-card .pb-sh-head .btnrow .ibtn.on { }
+.pb-in { animation: pb-in calc(.32s * var(--ts)) var(--ease); }
+@keyframes pb-in { from { opacity: 0; transform: translateY(8px) scale(.99); } }
+@container sc (max-width: 760px) {
+  .pb-sh-body { grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; align-content: start; overflow: auto; }
+  .pb-col { overflow: visible !important; padding-right: 4px; }
+  .pb-col.help { border-left: 0; padding: 0 4px 12px 2px; }
+  .pb-sh-head .btnrow { width: 100%; }
+}
+@container sc (max-width: 520px) { .pb-card { min-height: 0; } .pb-wall { gap: 9px; } .sc-head .pb-count { display: none; } }
+@media (max-width: 600px) { .sc-head .ibtn svg, .pb-sh-head .btnrow .ibtn svg { display: none; } .pb-sh-head .btnrow .ibtn { padding: 0 9px; } }
+@media (prefers-reduced-motion: reduce) { .pb-in { animation: none; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="page.js"></script>
+<script>
+const { esc, h, I } = SC;
+const lib = SC.lib;
+let say = () => {};
+const host = SC.host({
+  title: 'Scripts', frame: 'b',
+  build(root, host) {
+    root.classList.add('pb-root');
+    root.innerHTML = `
+      <div class="sc-head">${SC.inlineBack(host)}<div class="btnrow" id="pbtns">${SP.pageButtons()}</div><div class="flash static" id="fl"></div><span class="pb-count" id="count"></span></div>
+      <div class="sc-body pb-wallwrap"><div class="pb-wall sc-scroll" id="wall" role="listbox" aria-label="Scripts"></div></div>
+      <div class="pb-sheet" id="sheet" hidden></div>`;
+    const fl = root.querySelector('#fl'), wall = root.querySelector('#wall'), sheet = root.querySelector('#sheet');
+    let flTarget = fl;
+    say = (m, kind) => WC.flash(flTarget, m, { kind, ms: 3600 });
+    let cur = lib.list.find((s) => s.name === SC.qs.get('sc')) || lib.list[0] || null, zone = 'wall', parts = null, dkey = 'buttons', dbtn = 0, pbtn = 0, helpOpen = true;
+    const act = SP.actions({ root, host, lib, say, file: 'b', cur: () => cur, select: (s) => { cur = s; if (!s) closeCard(); else if (zone === 'card') openCard(s); renderWall(); } });
+    root.querySelector('#pbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (b) act[b.dataset.act](); });
+    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    function renderWall() {
+      wall.innerHTML = lib.list.length ? lib.list.map((s) => {
+        const err = SC.problem(s), hd = s.header, cmds = [...hd.aliases.map((a) => a.name), ...hd.keys.map((k) => k.key)];
+        return `<div class="row pb-card${s === cur ? ' on' : ''}${s.enabled ? '' : ' off'}" role="option" data-n="${esc(s.name)}">
+          <div class="top"><span class="sc-name">${esc(s.name)}</span>${SC.lockHTML(s)}${SC.markHTML(s)}<input type="checkbox" class="tog" ${s.enabled ? 'checked' : ''} aria-label="${s.enabled ? 'Turn ' + esc(s.name) + ' off' : 'Turn ' + esc(s.name) + ' on'}"></div>
+          <p class="sum">${esc(hd.summary || '')}</p>
+          ${err ? `<div class="sc-err" title="${esc(err)}">${esc(err)}</div>` : ''}
+          <div class="meta">${SC.stateHTML(s, { noRo: true })}<div class="l2"><span class="n">${hd.settings.length ? plural(hd.settings.length, 'setting') : 'no settings'}</span><span class="chips">${cmds.slice(0, 2).map((c) => `<span class="chip">${esc(c)}</span>`).join('')}${cmds.length > 2 ? `<span class="chip">+${cmds.length - 2}</span>` : ''}</span></div></div>
+        </div>`;
+      }).join('') : '<p class="empty" style="grid-column:1/-1">No scripts yet: <b>New</b> writes one, <b>Import</b> reads one.</p>';
+      const n = lib.list.filter((s) => s.running).length;
+      root.querySelector('#count').textContent = lib.list.length ? `${plural(lib.list.length, 'script')}${host.game ? ` · ${n} running` : ''}` : '';
+      wall.querySelectorAll('.pb-card').forEach((c) => {
+        const s = lib.get(c.dataset.n);
+        c.querySelector('.tog').addEventListener('click', (e) => e.stopPropagation());
+        c.querySelector('.tog').addEventListener('change', () => { cur = s; say(lib.toggle(s)); renderWall(); });
+        c.addEventListener('click', () => { const again = s === cur; cur = s; zone = 'wall'; paintWall(); if (again || matchMedia('(pointer: coarse)').matches) openCard(s); });
+        c.addEventListener('dblclick', () => openCard(s));
+      });
+      paintWall();
+    }
+    function paintWall() {
+      wall.querySelectorAll('.pb-card').forEach((c) => c.classList.toggle('on', c.dataset.n === (cur && cur.name)));
+      const on = wall.querySelector('.pb-card.on'); if (on) on.scrollIntoView({ block: 'nearest' });
+      root.querySelectorAll('#pbtns .ibtn').forEach((b, i) => b.classList.toggle('on', zone === 'buttons' && i === pbtn));
+    }
+    function openCard(s) {
+      cur = s; zone = 'card'; flTarget = null;
+      parts = SP.parts(s, { lib, say, helpOpen, onFold: (o) => { helpOpen = o; }, onFocus: (k) => { dkey = k; paintCard(); } });
+      const i = lib.list.indexOf(s), n = lib.list.length;
+      sheet.innerHTML = `<div class="pb-sh-head pb-in"><div class="who"><div class="line">${host.game || true ? `<button type="button" class="ibtn small" data-act="wall" title="All scripts (Esc)">${I.back}<span>All scripts</span></button>` : ''}<h2 class="sc-title">${esc(s.name)}</h2>${SC.lockHTML(s)}<input type="checkbox" class="tog" ${s.enabled ? 'checked' : ''} aria-label="On or off"></div>${s.header.summary ? `<p class="sc-summary">${esc(s.header.summary)}</p>` : ''}<div class="stl">${SC.stateHTML(s)}</div></div>
+          <div class="btnrow" id="dbtns">${SP.scriptButtons(s, { small: true })}<span class="pb-nav">${SC.btn('', { act: 'prev', icon: 'left', small: true, title: 'The previous script', disabled: i <= 0 })}${SC.btn('', { act: 'next', icon: 'right', small: true, title: 'The next script', disabled: i >= n - 1 })}</span></div></div>
+        <div class="pb-sh-body pb-in"><div class="pb-col sc-scroll left"></div><div class="pb-col sc-scroll help"></div></div>
+        <div class="pb-sh-foot"><div class="flash static" id="fl2"></div><span class="pos">${i + 1} of ${n}</span></div>`;
+      sheet.querySelectorAll('.pb-nav svg').forEach((x) => { x.setAttribute('viewBox', '0 0 10 10'); });
+      flTarget = sheet.querySelector('#fl2');
+      const left = sheet.querySelector('.left'), help = sheet.querySelector('.help');
+      left.append(parts.problems, parts.rule, parts.settings);
+      if (parts.cmds) left.append(parts.cmdRule, parts.cmds);
+      parts.helpRule.classList.add('first'); help.append(parts.helpRule, parts.help);
+      sheet.querySelector('.who .tog').addEventListener('change', () => { say(lib.toggle(s)); sheet.querySelector('.stl').innerHTML = SC.stateHTML(s); renderWall(); });
+      sheet.querySelector('.pb-sh-head').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b || b.disabled) return; const a = b.dataset.act; if (a === 'wall') closeCard(); else if (a === 'prev' || a === 'next') step(a === 'prev' ? -1 : 1); else act[a](); });
+      sheet.hidden = false; root.classList.add('open');
+      if (!parts.keys().includes(dkey)) dkey = 'buttons';
+      if (dkey === 'buttons') dkey = parts.keys().find((k) => k.startsWith('set:')) || 'buttons';
+      paintCard();
+    }
+    function closeCard() { zone = 'wall'; sheet.hidden = true; root.classList.remove('open'); flTarget = fl; renderWall(); }
+    function step(d) { const i = lib.list.indexOf(cur) + d; if (i >= 0 && i < lib.list.length) { const k = dkey; openCard(lib.list[i]); dkey = parts.keys().includes(k) ? k : dkey; paintCard(); } }
+    const dBtns = () => [...sheet.querySelectorAll('#dbtns .ibtn')];
+    function paintCard() {
+      dBtns().forEach((b, i) => b.classList.toggle('on', dkey === 'buttons' && i === dbtn));
+      sheet.querySelectorAll('.cur').forEach((x) => x.classList.remove('cur'));
+      sheet.querySelectorAll('.ibtn.on[data-act="reset"]').forEach((x) => x.classList.remove('on'));
+      if (parts && dkey !== 'buttons') { const el = parts.rowEl(dkey); if (el) { el.classList.add(dkey === 'reset' ? 'on' : 'cur'); el.scrollIntoView({ block: 'nearest' }); } }
+    }
+    const cols = () => { const cs = getComputedStyle(wall).gridTemplateColumns.split(' ').length; return Math.max(1, cs); };
+    const move = (d) => { const L = lib.list; if (!L.length) return; const i = Math.max(0, Math.min(L.length - 1, L.indexOf(cur) + d)); cur = L[i]; paintWall(); };
+    const nextEnabled = (bs, i, d) => { for (let j = i + d; j >= 0 && j < bs.length; j += d) if (!bs[j].disabled) return j; return -1; };
+    renderWall();
+    if (SC.qs.has('card') && cur) openCard(cur);
+    return {
+      key(e) {
+        const k = e.key, plain = !e.ctrlKey && !e.altKey && !e.metaKey;
+        if (zone !== 'card' && plain && SP.LETTERS[k.toLowerCase()]) { const a = SP.LETTERS[k.toLowerCase()]; act[a](); return true; }
+        if (zone === 'buttons') {
+          const bs = [...root.querySelectorAll('#pbtns .ibtn')];
+          if (k === 'ArrowLeft' || k === 'ArrowRight') { pbtn = Math.max(0, Math.min(bs.length - 1, pbtn + (k === 'ArrowLeft' ? -1 : 1))); paintWall(); return true; }
+          if (k === 'ArrowDown' || k === 'Tab') { zone = 'wall'; paintWall(); return true; }
+          if (k === 'Enter' || k === ' ') { act[bs[pbtn].dataset.act](); return true; }
+          return k === 'ArrowUp';
+        }
+        if (zone === 'wall') {
+          const c = cols(), i = lib.list.indexOf(cur);
+          if (k === 'Tab') { zone = 'buttons'; paintWall(); return true; }
+          if (k === 'ArrowRight') return move(1), true;
+          if (k === 'ArrowLeft') return move(-1), true;
+          if (k === 'ArrowDown') return move(c), true;
+          if (k === 'ArrowUp') { if (i < c) { zone = 'buttons'; paintWall(); } else move(-c); return true; }
+          if (k === 'Home' || k === 'End') { cur = lib.list[k === 'Home' ? 0 : lib.list.length - 1]; paintWall(); return true; }
+          if (k === ' ') { if (cur) { say(lib.toggle(cur)); renderWall(); } return true; }
+          if (k === 'Enter') { if (cur) openCard(cur); return true; }
+          return false;
+        }
+        // an opened card
+        if (plain && (k === '[' || k === ']')) { step(k === '[' ? -1 : 1); return true; }
+        if (plain && SP.LETTERS[k.toLowerCase()] && !/^[0-9.-]$/.test(k)) { const a = SP.LETTERS[k.toLowerCase()]; const b = sheet.querySelector(`[data-act="${a}"]`) || root.querySelector(`#pbtns [data-act="${a}"]`); if (b && !b.disabled) act[a](); return true; }
+        if (k === 'PageDown' || k === 'PageUp') { const hb = sheet.querySelector('.pb-col.help'); const sc = hb.scrollHeight > hb.clientHeight ? hb : sheet.querySelector('.pb-sh-body'); sc.scrollBy({ top: (k === 'PageDown' ? 1 : -1) * (sc.clientHeight - 40), behavior: WC.RM ? 'auto' : 'smooth' }); return true; }
+        const keys = parts.keys(), at = keys.indexOf(dkey);
+        if (k === 'ArrowUp' || k === 'ArrowDown' || k === 'Tab') { const d = k === 'ArrowUp' || (k === 'Tab' && e.shiftKey) ? -1 : 1; dkey = keys[(at + d + keys.length) % keys.length]; if (k !== 'Tab') dkey = keys[Math.max(0, Math.min(keys.length - 1, at + d))]; paintCard(); return true; }
+        if (dkey === 'buttons') {
+          const bs = dBtns(); if (bs[dbtn] && bs[dbtn].disabled) dbtn = 0;
+          if (k === 'ArrowLeft' || k === 'ArrowRight') { const j = nextEnabled(bs, dbtn, k === 'ArrowLeft' ? -1 : 1); if (j >= 0) dbtn = j; paintCard(); return true; }
+          if (k === 'Enter' || k === ' ') { bs[dbtn].click(); return true; }
+          return false;
+        }
+        if (k === 'ArrowLeft' || k === 'ArrowRight') { parts.act(dkey, k === 'ArrowLeft' ? -1 : 1); return true; }
+        if (k === 'Enter' || k === ' ') { parts.act(dkey, 0); return true; }
+        if (plain && /^[0-9.-]$/.test(k) && parts.type(dkey, k)) return true;
+        return false;
+      },
+      back() { if (zone === 'card') { closeCard(); return true; } if (zone === 'buttons') { zone = 'wall'; paintWall(); return true; } return false; },
+    };
+  },
+});
+SP.demo((m, k) => say(m, k));
+</script>
+</body>
+</html>
