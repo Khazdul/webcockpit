@@ -63,6 +63,7 @@ import {
 import { type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../chrome/kit/stack';
 import type { ScriptInfo, ScriptLibrary } from '../scripts';
 import { checkScript } from '../scripts/check';
+import { useSkyPause } from '../chrome/start-surface';
 import { type BufferStatus, handleKey, onFirstLine } from './cm';
 import { nameAt } from './lua-api';
 import { completing, createLuaBuffer, dismissPopups, snippetTab } from './lua-cm';
@@ -158,6 +159,10 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
 
   // The window's title and note (in game; a no-op elsewhere).
   useWindowChrome({ title: 'Scripts', note: shown });
+  // The editor's box is opaque (no blur, an opaque code well): the sky
+  // behind it stands still while the editor is on top, so its frames never
+  // compete with typing (a no-op outside the start page).
+  useSkyPause(true);
 
   useEffect(() => {
     if (initialFlash) showFlash(initialFlash);

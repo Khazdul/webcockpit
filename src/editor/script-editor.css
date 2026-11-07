@@ -6,9 +6,10 @@
  * `--lk-pop-*` tokens here). Dark by default; Paper under `[data-light]`
  * (a window on the Paper background); the start page is always dark.
  *
- * Inner surfaces only: the code well is opaque and never blurred; the
- * tools' small pill may blur on the start page, never in a window (game
- * text scrolls under windows, ADR 0127). In the lazy editor chunk. */
+ * Inner surfaces only, and no backdrop-filter anywhere in the editor:
+ * the code well is opaque, the tools' pill a near-opaque fill (a blur
+ * over the code is redrawn on every keystroke; measured, see below). In
+ * the lazy editor chunk. */
 
 /* The root holds the hooks and the tokens; the box lays itself out. */
 .wc-sed {
@@ -30,11 +31,15 @@
   --lk-pop-well: rgba(6, 5, 4, 0.62);
   --lk-pop-snip: rgba(255, 214, 160, 0.14);
   --lk-sed-under: #050403;
-  --lk-sed-pill: rgba(10, 8, 6, 0.72);
+  --lk-sed-pill: rgba(10, 8, 6, 0.86);
   --lk-sed-pill-sh: 0 0 0 1px rgba(255, 214, 160, 0.08), 0 6px 18px rgba(0, 0, 0, 0.5);
-  --lk-sed-pill-blur: blur(6px);
   --lk-sed-band: rgba(224, 90, 60, 0.08);
   --lk-sed-stripe: rgba(224, 90, 60, 0.09);
+  /* The glass buttons here (the tools, Back, the prompt's) sit over code
+   * or an opaque fill: their own blur buys nothing and costs a redraw per
+   * keystroke (Firefox: typing p95 128 ms with it, 17 ms without, in a
+   * window on a production build). */
+  --lk-glass-blur: none;
 }
 
 [data-light] .wc-sed {
@@ -50,11 +55,6 @@
   --lk-sed-pill-sh: 0 0 0 1px rgba(100, 76, 40, 0.2), 0 4px 12px rgba(60, 40, 10, 0.15);
   --lk-sed-band: rgba(184, 52, 28, 0.08);
   --lk-sed-stripe: rgba(184, 52, 28, 0.1);
-}
-
-/* In-game windows: no blur at all (the body is opaque, game text scrolls under it). */
-.wc-win-look .wc-sed {
-  --lk-sed-pill-blur: none;
 }
 
 /* The box's lit window. The code scrolls inside it, so it gets no
@@ -103,7 +103,7 @@
   height: auto;
 }
 
-/* The tools: small glass icons in a frosted pill at the top right. They
+/* The tools: small glass icons in a dark pill at the top right. They
  * dim while you type (one class, one timer), come back on hover or when
  * the keyboard is on them, and hide while the find row is open. */
 .wc-sed-tools {
@@ -117,8 +117,6 @@
   border-radius: 8px;
   background: var(--lk-sed-pill);
   box-shadow: var(--lk-sed-pill-sh);
-  -webkit-backdrop-filter: var(--lk-sed-pill-blur);
-  backdrop-filter: var(--lk-sed-pill-blur);
   transition: opacity calc(0.3s * var(--lk-ts, 1));
 }
 
