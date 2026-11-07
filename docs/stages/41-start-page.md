@@ -185,4 +185,15 @@ shortcut letters, and the open questions in the session log.
 
 ## Owner feedback
 
-(none yet)
+### 2026-11-07 (after the night pass)
+
+- **Wordmark tint: mithril** (tint b), not c "Turkos". Everything made
+  from the old logo cyan follows (inlay, rivets, COCKPIT ink, favicon, the
+  first-paint loading line, accents in the kit and the mockups); make the
+  mithril more subtle if it does not blend in.
+- **Profile list:** choosing a profile and then an action is awkward. Each
+  profile row gets its own Edit, Rename and Delete buttons, plus Select
+  when it is not the active profile; the buttons show only on the
+  highlighted row.
+- Round 7 directions chosen for the later stages: see "Round 7 decisions"
+  in `notes/research/start-menu-mockups/README.md`.

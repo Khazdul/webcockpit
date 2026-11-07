@@ -217,3 +217,31 @@ Round 7 (choose a direction per page; details on each review page):
 - Credits and About: auto-roll or a book; a Settings… button with the
   chronicle; the full third-party notices in About; where the wordmark
   goes in About; normal or large box for text pages.
+
+### Round 7 decisions (owner, 2026-11-07)
+
+- **Wordmark tint: mithril** (`round6/logo-3-cyan.html?tint=b`, possibly a
+  subtler variant). Everything derived from the old logo cyan (rivets,
+  playhead rivets, initials, accents) follows, in the app and in the
+  mockups.
+- **Big pages: B Rummet växer** (`layout/b-room.html`).
+- **Profile list (built in stage 41):** Edit, Rename, Delete on each
+  profile row, plus Select when not active; shown only on the highlighted
+  row.
+- **Profile editor: B Ryggen.**
+- **Import: C Importsidan**, but the receipt after an import has no Edit
+  button.
+- **Export: B Verktygsraden**, changed: a toggle between HTML replay and
+  Plain text, and an explicit EXPORT button (the format buttons no longer
+  export at once).
+- **Scripts page: C Instrumentbrädan. Script editor: C Fokus. Manual: A
+  Boken.** In-game window frame: each direction's own ("Riktningens").
+- **History: A Tabell och kort**, but the box must not grow wider than its
+  content needs on a very wide screen; past that width it stays put and
+  more of the sky shows around it.
+- **Run log player: none of A/B/C.** Keep today's player almost unchanged,
+  filling the whole player window; the only addition is a Back button.
+  The exported HTML replay therefore stays as it is today.
+- **Spotlights: B Galleriet.**
+- **Credits: B Krönikeboken**, without a separate "Opening" tab.
+- **About: A Bladet.**
