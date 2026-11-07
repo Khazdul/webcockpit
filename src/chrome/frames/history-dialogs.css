@@ -1,0 +1,165 @@
+/* History's small boxes (src/chrome/frames/history-dialogs.tsx; stage 45
+ * WP 45-C, ADR 0130): what the Rate, Delete and run-log error boxes add to
+ * the kit's dialog (look-overlay.css), after the round 7 mockup A
+ * (notes/research/start-menu-mockups/round7/history/hist.css "dialogs over
+ * the page"). Hooks: `.wc-lk-dialog[data-dlg="rate" | "delete" |
+ * "runlog-error"]`.
+ *
+ * Performance (ADR 0127): no backdrop-filter; the stars' light changes
+ * with fill / stroke / filter on five small SVGs only, on a key or a click. */
+
+/* The session in one dim italic line (Rate, the error box). */
+.wc-lk-dialog .wc-hd-line {
+  margin: 0 0 18px;
+  font: italic 500 17px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+  text-wrap: balance;
+}
+
+/* ------------------------------------------------------------ rate */
+
+.wc-hd-stars {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wc-hd-stars > button {
+  all: unset;
+  box-sizing: border-box;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-hd-stars svg {
+  width: 36px;
+  height: 36px;
+  fill: rgba(255, 226, 186, 0.04);
+  stroke: #8b7a62;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  transition:
+    fill calc(0.25s * var(--lk-ts, 1)),
+    stroke calc(0.25s * var(--lk-ts, 1)),
+    filter calc(0.25s * var(--lk-ts, 1));
+}
+
+/* Hover peeks (a mouse only: a tap sets at once). */
+.wc-hd-stars > button.is-peek svg {
+  stroke: #d6b678;
+}
+
+.wc-hd-stars > button.is-lit svg {
+  fill: var(--lk-gold, #e9c47c);
+  stroke: #fff0cc;
+  filter: drop-shadow(0 0 6px rgba(255, 190, 90, 0.35));
+}
+
+.wc-lk-dialog .wc-hd-val {
+  min-height: 1.2em;
+  margin: 12px 0 0;
+  font: 500 16px/1.2 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+/* ------------------------------------------------------------ delete */
+
+.wc-lk-dialog .wc-hd-kv {
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto 16px;
+  text-align: left;
+}
+
+.wc-hd-kv > dd {
+  overflow-wrap: anywhere;
+}
+
+.wc-lk-kv.wc-hd-kv > dd.wc-lk-gold {
+  color: var(--lk-gold);
+}
+
+.wc-hd-kstars {
+  letter-spacing: 0.08em;
+}
+
+.wc-lk-dialog .wc-hd-warn {
+  margin: 0;
+  font: italic 500 17px/1.35 var(--lk-serif);
+  color: var(--lk-danger);
+  text-wrap: balance;
+}
+
+/* ------------------------------------------------------------ run-log error */
+
+.wc-lk-dialog .wc-hd-who {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+/* The reason as the code gave it: wrapped anywhere (a long path or id never widens the box). */
+.wc-lk-dialog .wc-hd-reason {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 3px;
+  font: 500 13px/1.45 var(--lk-mono);
+  color: var(--lk-danger);
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: rgba(0, 0, 0, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.08);
+}
+
+/* ------------------------------------------------------------ keys */
+
+/* Two lists side by side: moving about, then the letters. */
+.wc-hd-keys {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 8px 44px;
+  flex-wrap: wrap;
+}
+
+.wc-hd-keys > .wc-lk-keyhelp {
+  margin: 2px 0 4px;
+}
+
+/* ------------------------------------------------------------ Paper (a window or the menu) */
+
+[data-light] .wc-hd-stars svg {
+  fill: rgba(120, 90, 40, 0.06);
+  stroke: #8a7552;
+}
+
+[data-light] .wc-hd-stars > button.is-peek svg {
+  stroke: #6b4f1c;
+}
+
+[data-light] .wc-hd-stars > button.is-lit svg {
+  stroke: #6b4f1c;
+  filter: none;
+}
+
+[data-light] .wc-lk-dialog .wc-hd-reason {
+  background: rgba(120, 90, 40, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(120, 90, 40, 0.18);
+}
+
+/* ------------------------------------------------------------ phone */
+
+@media (max-width: 600px) {
+  .wc-hd-stars {
+    gap: 2px;
+  }
+
+  .wc-hd-stars > button {
+    width: 44px;
+  }
+}
