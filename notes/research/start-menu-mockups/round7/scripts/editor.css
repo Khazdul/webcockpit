@@ -1,0 +1,17 @@
+/* Round 7 · Scripts group · the script editor's shared styles (status line, position, head). */
+.se-status { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.se-status .sc-st { flex: none; }
+.se-prob { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 15.5px/1.2 var(--serif); color: var(--c-danger); }
+.se-pos { flex: none; font: 400 12px/1 var(--mono); color: var(--c-dim); white-space: nowrap; display: inline-flex; gap: 8px; align-items: center; }
+.se-mod { font: italic 600 15px/1 var(--serif); color: var(--c-accent); }
+.se-sep { color: var(--c-faint); }
+.se-who { flex: 1 1 240px; min-width: 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.se-who .sc-title { font-size: 20px; }
+.se-who .sc-summary { margin: 0; font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 200px; }
+.se-ro { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 8px; border-radius: 11px; font: 600 9.5px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--c-dim); border: 1px solid var(--c-rule); }
+.se-ro svg { width: 9px; height: 12px; }
+.se-findslot:empty { display: none; }
+.se-findslot { margin-bottom: 10px; }
+.se-findslot .sc-find[hidden] { display: none; }
+.dirty .se-dot { display: inline-block; }
+.se-dot { display: none; width: 7px; height: 7px; border-radius: 50%; background: var(--c-accent); margin-left: 2px; vertical-align: middle; }

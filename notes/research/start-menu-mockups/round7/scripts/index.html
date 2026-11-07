@@ -1,0 +1,101 @@
+<title>Skript runda 7</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<style>
+/* Round 7 review · Scripts group: tabs over the live mockups (Scripts page A–C, script editor A–C, script
+   manual A–B) in an iframe, with a context switch (the start page box, the in-game window, or both side by
+   side at 1440×900 scaled down), the in-game background (dark / Paper) and window frame (Lykta / Glass).
+   Single dark look on purpose, as the earlier review pages. */
+:root {
+  --night: #0d1014; --iron: #1b2026; --rule: #2e353e; --text: #dfe3e8; --dim: #8d97a3; --lamp: #f0b45c;
+  --display: "Cinzel", Georgia, serif; --body: "Cormorant Garamond", Georgia, serif; --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--night); color: var(--text); font-family: var(--ui); display: flex; flex-direction: column; }
+header { display: flex; flex-direction: column; gap: 8px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--iron); border-bottom: 1px solid var(--rule); }
+.r1, .r2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+h1 { font: 700 15px/1 var(--display); letter-spacing: .12em; margin: 0; color: var(--lamp); white-space: nowrap; }
+nav { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+nav .grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+nav .grp > span { font: 500 11px/1 var(--display); letter-spacing: .14em; color: var(--dim); margin-right: 2px; }
+button { font: 500 14px/1 var(--display); letter-spacing: .06em; color: var(--dim); background: transparent; border: 1px solid var(--rule); border-radius: 3px; padding: 8px 12px; cursor: pointer; }
+button:hover { color: var(--text); }
+button[aria-selected="true"], button[aria-pressed="true"] { color: var(--night); background: var(--lamp); border-color: var(--lamp); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.sw { display: inline-flex; gap: 0; }
+.sw button { border-radius: 0; padding: 6px 10px; font-size: 12.5px; }
+.sw button:first-child { border-radius: 3px 0 0 3px; } .sw button:last-child { border-radius: 0 3px 3px 0; } .sw button + button { border-left: 0; }
+.sw-l { font: 500 11px/1 var(--display); letter-spacing: .14em; color: var(--dim); }
+.note { min-width: 0; max-width: 1500px; font: italic 500 16px/1.3 var(--body); color: var(--dim); margin: 0; }
+.note b { font-style: normal; color: var(--text); font-weight: 500; }
+a.full { font-size: 13px; color: var(--lamp); white-space: nowrap; }
+main { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+iframe { border: 0; background: #000; }
+#one { position: absolute; inset: 0; width: 100%; height: 100%; }
+#two { position: absolute; inset: 0; display: none; }
+#two.on { display: block; }
+#two .pane { position: absolute; top: 0; }
+#two .lbl { position: absolute; left: 0; top: -22px; font: 500 12px/1 var(--display); letter-spacing: .12em; color: var(--dim); }
+#two iframe { width: 1440px; height: 900px; transform-origin: 0 0; position: absolute; left: 0; top: 0; }
+</style>
+
+<header>
+  <div class="r1">
+    <h1>Skript · runda 7</h1>
+    <nav id="tabs" role="tablist"></nav>
+  </div>
+  <div class="r2">
+    <span class="sw-l">Visa</span><span class="sw" id="ctx"><button data-v="start">Startsidan</button><button data-v="game">I spelet</button><button data-v="both">Sida vid sida</button></span>
+    <span class="sw-l">Bakgrund</span><span class="sw" id="bg"><button data-v="dark">Mörk</button><button data-v="paper">Papper</button></span>
+    <span class="sw-l">Ram</span><span class="sw" id="frame"><button data-v="">Riktningens</button><button data-v="a">Lykta</button><button data-v="b">Glas</button></span>
+    <a class="full" id="full" target="_blank" rel="noopener">Öppna i helfönster ↗</a>
+  </div>
+  <p class="note" id="note"></p>
+</header>
+<main id="main"><iframe id="one" title="Mockup"></iframe><div id="two"><div class="pane" id="pa"><span class="lbl">Startsidan</span><iframe id="fa" title="Startsidan"></iframe></div><div class="pane" id="pb"><span class="lbl">I spelet</span><iframe id="fb" title="I spelet"></iframe></div></div></main>
+
+<script>
+const KEYS = ' Tangenter: Tab byter zon, ↑↓ och ←→ inuti, Esc går tillbaka en nivå; DEMO nere till vänster har tillstånd (tomt, fel) och i spelet ram och fönsterstorlek.';
+const DIRS = [
+  { g: 'Skriptsidan', id: 'pa', file: 'page-a.html', name: 'A Liggaren', note: '<b>Skriptsidan A · Liggaren.</b> ADR 0121:s upplägg i den nya stilen: listan som kort till vänster, det valda skriptet i en ljus platta till höger med namnet som rubrik och sina knappar, inställningarna som en kontrollpanel (sparas direkt, Reset all), kommandona och hjälpen i en egen rullruta, så att inställningarna alltid syns. Prova mercenaries: växla autopay, välj 20 på cost, stega minutes, skriv i warn.' },
+  { g: 'Skriptsidan', id: 'pb', file: 'page-b.html', name: 'B Kortväggen', note: '<b>Skriptsidan B · Kortväggen.</b> Alla skript som kort med sammanfattning, läge, antal inställningar och kommandon: biblioteket syns i en blick. Enter eller dubbelklick öppnar kortet, som då fyller lådan: inställningar och kommandon till vänster, hjälpen som lässpalt till höger, ‹ › till grannskripten. Esc tillbaka till väggen.' },
+  { g: 'Skriptsidan', id: 'pc', file: 'page-c.html', name: 'C Instrumentbrädan', note: '<b>Skriptsidan C · Instrumentbrädan.</b> Tre spalter, allt synligt på en gång: ett smalt register till vänster, skriptet som instrumentpanel i mitten (inställningarna som brickor med etiketten under), hjälpen som egen lässpalt till höger. Sidans knappar i foten. I fönstret viks hjälpen in under panelen.' },
+  { g: 'Editorn', id: 'ea', file: 'editor-a.html', name: 'A Pulpeten', note: '<b>Editorn A · Pulpeten.</b> Huvud med skriptets namn, sammanfattning och glasknappar (Save, Find, Manual; Duplicate för medföljande skript), kodytan fyller lådan, statusrad i foten (läge, första felet, Modified, Ln/Col). Popupar som små upplysta plattor. Prova Ctrl+Space, skriv tempTimer(, Ctrl+F, F1, och Esc med osparade ändringar.' },
+  { g: 'Editorn', id: 'eb', file: 'editor-b.html', name: 'B Med inspektör', note: '<b>Editorn B · Med inspektör.</b> Koden till vänster och en skena till höger som förklarar: skriptet och knapparna, Problems som klickbar lista (hoppar till raden), "At the cursor" med hjälpen för namnet eller anropet markören står i (parameterhjälpen bor här i stället för i en popup) och headern som Skriptsidan läser den. Smalt: Inspector öppnar skenan över koden.' },
+  { g: 'Editorn', id: 'ec', file: 'editor-c.html', name: 'C Fokus', note: '<b>Editorn C · Fokus.</b> Minst ram, mest kod: huven bär skriptets namn, kodytan fyller hela lådan, Save/Find/Manual vilar som små glasikoner i kodbrunnens hörn och tonar ner medan du skriver, sökraden glider ner i brunnen, statusen är en stilla rad under. Bäst där platsen är knapp: litet fönster i spelet, laptop, telefon.' },
+  { g: 'Manualen', id: 'ma', file: 'manual-a.html', name: 'A Boken', note: '<b>Manualen A · Boken.</b> Innehållet till vänster (Guide, API reference, Lua reference; referenserna fälls ut, med antal), hela manualen som en sammanhängande typsatt text till höger, aktuellt kapitel följer rullningen. Sök alltid i huvudet (Ctrl+F) med träffar markerade, n av m, Case/Word/Regex. n/p hoppar kapitel.' },
+  { g: 'Manualen', id: 'mb', file: 'manual-b.html', name: 'B Uppslaget', note: '<b>Manualen B · Uppslaget.</b> Sök först: ett brett sökfält med All/Guide/API/Lua, träffarna till vänster (namn först, sedan kapitel där orden står, med antal och raden), ett kapitel eller en post i taget till höger som en sida med ‹ › till grannarna. Skriv t.ex. "hungry", "timer" eller "gmcp".' },
+];
+const qs = new URLSearchParams(location.hash.slice(1));
+const st = { id: qs.get('t') || 'pa', ctx: qs.get('ctx') || 'start', bg: qs.get('bg') || 'dark', frame: qs.get('frame') || '' };
+const tabs = document.getElementById('tabs'), one = document.getElementById('one'), two = document.getElementById('two'), fa = document.getElementById('fa'), fb = document.getElementById('fb'), note = document.getElementById('note'), full = document.getElementById('full');
+const groups = {};
+for (const d of DIRS) {
+  if (!groups[d.g]) { const g = document.createElement('div'); g.className = 'grp'; g.innerHTML = `<span>${d.g}</span>`; tabs.append(g); groups[d.g] = g; }
+  const b = document.createElement('button'); b.role = 'tab'; b.dataset.id = d.id; b.textContent = d.name; b.onclick = () => { st.id = d.id; show(); }; groups[d.g].append(b);
+}
+const url = (d, ctx) => { const p = new URLSearchParams(); if (ctx === 'game') { p.set('ctx', 'game'); if (st.bg === 'paper') p.set('bg', 'paper'); if (st.frame) p.set('frame', st.frame); } else p.set('open', ''); p.set('nointro', ''); return `${d.file}?${p.toString().replace(/=(&|$)/g, '$1')}`; };
+function fit() {
+  const m = document.getElementById('main').getBoundingClientRect(), gap = 18, top = 30;
+  const s = Math.min((m.width - gap * 3) / 2 / 1440, (m.height - top - 12) / 900);
+  const w = 1440 * s, h = 900 * s, x0 = (m.width - (w * 2 + gap)) / 2;
+  [['pa', fa, x0], ['pb', fb, x0 + w + gap]].forEach(([id, f, x]) => { const p = document.getElementById(id); p.style.left = x + 'px'; p.style.top = top + 'px'; p.style.width = w + 'px'; p.style.height = h + 'px'; f.style.transform = `scale(${s})`; });
+}
+function show() {
+  const d = DIRS.find((x) => x.id === st.id) || DIRS[0];
+  for (const b of tabs.querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.id === d.id));
+  for (const [k, el] of [['ctx', 'ctx'], ['bg', 'bg'], ['frame', 'frame']]) for (const b of document.getElementById(el).children) b.setAttribute('aria-pressed', String(b.dataset.v === st[k]));
+  const both = st.ctx === 'both';
+  two.classList.toggle('on', both); one.style.display = both ? 'none' : 'block';
+  if (both) { fa.src = url(d, 'start'); fb.src = url(d, 'game'); fit(); } else one.src = url(d, st.ctx);
+  full.href = url(d, both ? 'game' : st.ctx);
+  const ctxNote = st.ctx === 'start' ? ' Startsidan: lådan med ordmärket litet i hörnet (layout A:s viloläge).' : ' I spelet: samma innehåll i ett flyttbart, skalbart fönster över spelet (dra i titelraden, ändra storlek i kanterna; Scripts-ikonen i menyraden stänger och öppnar). Prova också ett litet fönster i DEMO.';
+  note.innerHTML = d.note + ctxNote + KEYS;
+  history.replaceState(null, '', `#t=${st.id}&ctx=${st.ctx}&bg=${st.bg}${st.frame ? '&frame=' + st.frame : ''}`);
+}
+for (const [k, el] of [['ctx', 'ctx'], ['bg', 'bg'], ['frame', 'frame']]) for (const b of document.getElementById(el).children) b.onclick = () => { st[k] = b.dataset.v; if (k !== 'ctx' && st.ctx === 'start') st.ctx = 'game'; show(); };
+addEventListener('resize', () => { if (st.ctx === 'both') fit(); });
+show();
+</script>

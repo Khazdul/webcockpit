@@ -1,0 +1,168 @@
+<!doctype html>
+<!--
+  Round 7 · Scripts page · A "Liggaren" (the ledger): ADR 0121's structure in the new aesthetic.
+  The list of scripts on the left as lit cards (toggle, name, padlock, running dot, the error line under a
+  failed one); the selected script opens in a detail plate on the right: its name as a heading with its
+  buttons, status and problems, Settings as a control panel (saved at once, Reset all), Commands, and the
+  typeset Help in its own scroll box below, so Settings and Commands are always in view.
+  Keys: Tab cycles buttons / list / detail; list ↑↓ Home End, Space/Enter on/off, → into the detail;
+  detail ↑↓ rows, ←→ change a value, Enter acts, a digit types a number; PgUp/PgDn scroll the help;
+  N I M E X R D press the buttons; Esc goes back a level. Narrow (a small window, a phone): list → detail.
+  URL: ?ctx=start|game · ?frame=a|b · ?bg=paper · ?win=small · ?open · ?empty · ?sc=<script>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scripts · A Liggaren</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+.pa-main { gap: 22px; }
+.pa-list { flex: 0 0 clamp(230px, 27cqi, 300px); display: flex; flex-direction: column; gap: 6px; padding: 2px 6px 2px 2px; }
+.pa-list .row { min-height: 44px; padding: 0 14px; flex: none; }
+.pa-detail { flex: 1; min-width: 0; display: flex; flex-direction: column; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh); padding: 16px 20px 12px; }
+.pa-dh { flex: none; display: flex; align-items: flex-start; gap: 14px 18px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--c-rule); }
+.pa-dh .who { flex: 1 1 260px; min-width: 0; }
+.pa-dh .who .line { display: flex; align-items: center; gap: 10px; }
+.pa-dh .who .stl { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.pa-dh .btnrow { gap: 8px; }
+.pa-dbody { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; padding: 4px 4px 0 2px; margin-right: -6px; }
+.pa-dbody > * { flex: none; }
+.pa-dbody .sc-helpbox { flex: 1 0 150px; min-height: 150px; overflow: auto; padding: 12px 16px 4px; border-radius: 5px; background: var(--well); border: 1px solid var(--well-edge); box-shadow: var(--well-in); }
+.pa-dbody .sc-helpbox[hidden] { display: none; }
+.pa-dbody .sc-help pre { background: rgba(255,214,160,.03); }
+.paper .pa-dbody .sc-help pre { background: rgba(255,255,255,.5); }
+.pa-none { flex: 1; display: flex; align-items: center; justify-content: center; }
+.pa-back { display: none; }
+.pa-count { font: italic 500 15.5px/1 var(--serif); color: var(--c-faint); white-space: nowrap; }
+.sc-head .btnrow { gap: 8px; }
+.zone-detail .pa-detail { box-shadow: var(--row-sh), 0 0 0 1px color-mix(in srgb, var(--c-sk-on) 35%, transparent); }
+/* narrow (a small window, a phone): the list, then one script */
+@container sc (max-width: 640px) {
+  .pa-main { flex-direction: column; }
+  .pa-list { flex: 1; padding-right: 2px; }
+  .pa-detail { display: none; padding: 12px 14px 10px; }
+  .drill .pa-list { display: none; }
+  .drill .pa-detail { display: flex; flex: 1; }
+  .pa-back { display: inline-flex; margin: 0 0 8px; align-self: flex-start; }
+  .pa-dh .btnrow { width: 100%; }
+  .pa-count { display: none; }
+}
+@media (max-width: 600px) { .sc-head .ibtn svg { display: none; } .pa-dh .btnrow .ibtn { padding: 0 9px; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="page.js"></script>
+<script>
+const { esc, h, I } = SC;
+const lib = SC.lib;
+let say = () => {};
+const host = SC.host({
+  title: 'Scripts', frame: 'a',
+  build(root, host) {
+    root.innerHTML = `
+      <div class="sc-head">${SC.inlineBack(host)}<div class="btnrow" id="pbtns">${SP.pageButtons()}</div><div class="flash static" id="fl"></div><span class="pa-count" id="count"></span></div>
+      <div class="sc-body pa-main"><div class="pa-list sc-scroll rows" id="list" role="listbox" aria-label="Scripts"></div><div class="pa-detail" id="detail"></div></div>`;
+    const fl = root.querySelector('#fl'), listEl = root.querySelector('#list'), detEl = root.querySelector('#detail');
+    say = (m, kind) => WC.flash(fl, m, { kind, ms: 3600 });
+    let zone = 'list', cur = lib.list.find((s) => s.name === SC.qs.get('sc')) || lib.list[0] || null, parts = null, dkey = 'buttons', dbtn = 0, pbtn = 0, helpOpen = true;
+    const narrow = () => root.clientWidth <= 640;
+    const act = SP.actions({ root, host, lib, say, file: 'a', cur: () => cur, select: (s) => { cur = s; zone = 'list'; root.classList.remove('drill'); renderList(); renderDetail(); } });
+    root.querySelector('#pbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (b) act[b.dataset.act](); });
+    function renderList() {
+      listEl.innerHTML = lib.list.length ? lib.list.map((s) => {
+        const err = SC.problem(s);
+        return `<div class="row sc-row${s === cur ? ' sel on' : ''}${s.enabled ? '' : ' off'}${err ? ' has-err' : ''}" role="option" data-n="${esc(s.name)}"><input type="checkbox" class="tog" ${s.enabled ? 'checked' : ''} aria-label="${s.enabled ? 'Turn ' + esc(s.name) + ' off' : 'Turn ' + esc(s.name) + ' on'}"><span class="sc-name">${esc(s.name)}</span>${SC.lockHTML(s) || '<span></span>'}${SC.markHTML(s) || '<span></span>'}${err ? `<span class="err sc-err" title="${esc(err)}">${esc(err)}</span>` : ''}</div>`;
+      }).join('') : '<p class="empty">No scripts yet: <b>New</b> writes one.</p>';
+      const n = lib.list.filter((s) => s.running).length;
+      root.querySelector('#count').textContent = lib.list.length ? `${lib.list.length} scripts${host.game ? ` · ${n} running` : ''}` : '';
+      listEl.querySelectorAll('.row').forEach((r) => {
+        const s = lib.get(r.dataset.n);
+        r.querySelector('.tog').addEventListener('change', () => { cur = s; say(lib.toggle(s)); renderList(); renderDetail(); });
+        r.addEventListener('click', (e) => { if (e.target.closest('.tog')) return; const again = s === cur; cur = s; zone = 'list'; renderList(); renderDetail(); if (narrow()) { root.classList.add('drill'); zone = 'detail'; } else if (again && matchMedia('(pointer: coarse)').matches) act.edit(); });
+        r.addEventListener('dblclick', () => act.edit());
+      });
+      const on = listEl.querySelector('.row.sel'); if (on) on.scrollIntoView({ block: 'nearest' });
+      paintZone();
+    }
+    function renderDetail() {
+      if (!cur) { detEl.innerHTML = `<div class="pa-none"><p class="empty">${lib.list.length ? 'No script selected.' : 'Write your first script with <b>New</b>, or <b>Import</b> one.'}</p></div>`; parts = null; return; }
+      const s = cur;
+      parts = SP.parts(s, { lib, say, helpOpen, onFold: (o) => { helpOpen = o; }, onFocus: (k) => { zone = 'detail'; dkey = k; paintZone(); } });
+      detEl.innerHTML = `<button type="button" class="ibtn small pa-back" data-act="list">${I.back}<span>All scripts</span></button>
+        <div class="pa-dh"><div class="who"><div class="line"><h2 class="sc-title">${esc(s.name)}</h2>${SC.lockHTML(s)}</div>${s.header.summary ? `<p class="sc-summary">${esc(s.header.summary)}</p>` : ''}<div class="stl">${SC.stateHTML(s)}</div></div><div class="btnrow" id="dbtns">${SP.scriptButtons(s, { small: true })}</div></div>
+        <div class="pa-dbody"></div>`;
+      const body = detEl.querySelector('.pa-dbody');
+      body.append(parts.problems, parts.rule, parts.settings);
+      if (parts.cmds) body.append(parts.cmdRule, parts.cmds);
+      body.append(parts.helpRule, parts.help);
+      detEl.querySelector('#dbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (b && !b.disabled) act[b.dataset.act](); });
+      detEl.querySelector('.pa-back').addEventListener('click', () => toList());
+      if (!parts.keys().includes(dkey)) dkey = 'buttons';
+      paintZone();
+    }
+    const dBtns = () => [...detEl.querySelectorAll('#dbtns .ibtn')];
+    const pBtns = () => [...root.querySelectorAll('#pbtns .ibtn')];
+    function paintZone() {
+      root.classList.toggle('zone-detail', zone === 'detail');
+      pBtns().forEach((b, i) => b.classList.toggle('on', zone === 'buttons' && i === pbtn));
+      dBtns().forEach((b, i) => b.classList.toggle('on', zone === 'detail' && dkey === 'buttons' && i === dbtn));
+      detEl.querySelectorAll('.cur').forEach((x) => x.classList.remove('cur'));
+      detEl.querySelectorAll('.ibtn.on[data-act="reset"]').forEach((x) => x.classList.remove('on'));
+      if (zone === 'detail' && parts && dkey !== 'buttons') { const el = parts.rowEl(dkey); if (el) { el.classList.add(dkey === 'reset' ? 'on' : 'cur'); el.scrollIntoView({ block: 'nearest' }); } }
+    }
+    function toList() { zone = 'list'; root.classList.remove('drill'); paintZone(); }
+    const move = (d) => { const L = lib.list; if (!L.length) return; const i = Math.max(0, Math.min(L.length - 1, L.indexOf(cur) + d)); if (L[i] !== cur) { cur = L[i]; renderList(); renderDetail(); } };
+    const enterDetail = () => { if (!cur) return; zone = 'detail'; const k = parts.keys(); dkey = k.find((x) => x.startsWith('set:')) || 'buttons'; if (narrow()) root.classList.add('drill'); paintZone(); };
+    const nextEnabled = (bs, i, d) => { for (let j = i + d; j >= 0 && j < bs.length; j += d) if (!bs[j].disabled) return j; return -1; };
+    renderList(); renderDetail();
+    lib.subscribe(() => {});
+    return {
+      key(e) {
+        const k = e.key, plain = !e.ctrlKey && !e.altKey && !e.metaKey;
+        if (k === 'Tab') { const zs = cur ? ['buttons', 'list', 'detail'] : ['buttons', 'list']; let z = zs[(zs.indexOf(zone) + (e.shiftKey ? zs.length - 1 : 1)) % zs.length]; if (z === 'detail') return enterDetail(), true; zone = z; root.classList.remove('drill'); paintZone(); return true; }
+        if (k === 'PageDown' || k === 'PageUp') { const hb = parts && !parts.help.hidden ? parts.help : detEl.querySelector('.pa-dbody'); if (hb) hb.scrollBy({ top: (k === 'PageDown' ? 1 : -1) * (hb.clientHeight - 40), behavior: WC.RM ? 'auto' : 'smooth' }); return true; }
+        if (plain && SP.LETTERS[k.toLowerCase()] && !(zone === 'detail' && /^[0-9.-]$/.test(k))) { const a = SP.LETTERS[k.toLowerCase()]; const b = root.querySelector(`[data-act="${a}"]`); if (b && !b.disabled) act[a](); return true; }
+        if (zone === 'buttons') {
+          const bs = pBtns();
+          if (k === 'ArrowLeft' || k === 'ArrowRight') { pbtn = Math.max(0, Math.min(bs.length - 1, pbtn + (k === 'ArrowLeft' ? -1 : 1))); paintZone(); return true; }
+          if (k === 'ArrowDown') { if (lib.list.length) { zone = 'list'; paintZone(); } return true; }
+          if (k === 'Enter' || k === ' ') { act[bs[pbtn].dataset.act](); return true; }
+          return k === 'ArrowUp';
+        }
+        if (zone === 'list') {
+          if (k === 'ArrowDown') return move(1), true;
+          if (k === 'ArrowUp') { if (!cur || lib.list.indexOf(cur) === 0) { zone = 'buttons'; paintZone(); } else move(-1); return true; }
+          if (k === 'Home' || k === 'End') { cur = k === 'Home' ? lib.list[0] : lib.list[lib.list.length - 1]; renderList(); renderDetail(); return true; }
+          if (k === 'ArrowRight') return enterDetail(), true;
+          if (k === ' ' || k === 'Enter') { if (cur) { say(lib.toggle(cur)); renderList(); renderDetail(); } else { zone = 'buttons'; paintZone(); } return true; }
+          return k === 'ArrowLeft';
+        }
+        // detail
+        const keys = parts.keys(), at = keys.indexOf(dkey);
+        if (k === 'ArrowUp' || k === 'ArrowDown') { dkey = keys[Math.max(0, Math.min(keys.length - 1, at + (k === 'ArrowUp' ? -1 : 1)))]; paintZone(); return true; }
+        if (k === 'Home' || k === 'End') { dkey = k === 'Home' ? keys[0] : keys[keys.length - 1]; paintZone(); return true; }
+        if (dkey === 'buttons') {
+          const bs = dBtns(); if (bs[dbtn] && bs[dbtn].disabled) dbtn = 0;
+          if (k === 'ArrowLeft' || k === 'ArrowRight') { const j = nextEnabled(bs, dbtn, k === 'ArrowLeft' ? -1 : 1); if (j >= 0) dbtn = j; else if (k === 'ArrowLeft') toList(); paintZone(); return true; }
+          if (k === 'Enter' || k === ' ') { act[bs[dbtn].dataset.act](); return true; }
+          return false;
+        }
+        if (k === 'ArrowLeft' || k === 'ArrowRight') { parts.act(dkey, k === 'ArrowLeft' ? -1 : 1); return true; }
+        if (k === 'Enter' || k === ' ') { parts.act(dkey, 0); return true; }
+        if (plain && /^[0-9.-]$/.test(k) && parts.type(dkey, k)) return true;
+        return false;
+      },
+      back() { if (zone === 'detail') { toList(); return true; } return false; },
+    };
+  },
+});
+SP.demo((m, k) => say(m, k));
+</script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!doctype html>
+<!--
+  Round 7 · Scripts page · C "Instrumentbrädan" (the instrument panel): three columns, everything in view
+  at once on a wide screen. A slim index of the scripts on the left (on/off, name, padlock, state); in the
+  middle the selected script as a control panel: its name, state, problems and four buttons, the settings
+  as instrument tiles (a switch, a stepper, a choice, a text well, each with its label under it) and the
+  commands; on the right the Help as its own reading column. The page buttons sit in the foot.
+  Narrower (a window): the Help folds in under the panel; narrow (a small window, a phone): index → panel.
+  Keys as A: Tab cycles buttons / index / panel; index ↑↓, Space on/off, → into the panel; panel ↑↓ ←→
+  Enter, digits; PgUp/PgDn scroll the help; N I M E X R D; Esc back a level.
+  URL: ?ctx=start|game · ?frame=a|b · ?bg=paper · ?win=small · ?open · ?empty · ?sc=<script>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scripts · C Instrumentbrädan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+.pc-main { display: grid; grid-template-columns: 228px minmax(0, 1fr) minmax(0, 1.05fr); gap: 0; }
+.pc-idx { min-height: 0; padding: 0 12px 6px 0; border-right: 1px solid var(--c-rule); }
+.pc-idx .rows.flat > .row { min-height: 40px; padding: 0 8px 0 4px; border-bottom-color: color-mix(in srgb, var(--c-rule) 70%, transparent); }
+.pc-idx .row .tog { transform: scale(.82); transform-origin: left center; margin-right: -6px; }
+.pc-idx .row .sc-name { font-size: 13px; letter-spacing: .06em; }
+.pc-idx .rows.flat > .row.sc-row { column-gap: 8px; }
+.pc-idx .row.has-err { padding-top: 6px; padding-bottom: 6px; }
+.pc-idx .row .sc-err { font-size: 13.5px; }
+.pc-idx .row.on .sc-name { color: var(--c-on); text-shadow: 0 0 8px var(--c-on-glow); }
+.pc-panel { min-height: 0; padding: 0 24px 10px; }
+.pc-panel .sc-title { font-size: 25px; }
+.pc-panel .stl { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.pc-btns { display: grid; grid-template-columns: repeat(4, minmax(0, auto)); justify-content: start; gap: 8px; margin: 14px 0 4px; }
+.pc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 10px; }
+.pc-tiles .sc-set { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; margin: 0; padding: 12px 14px 12px; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh); }
+.pc-tiles .sc-set .k { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--c-dim); }
+.pc-tiles .sc-set .lab { font-size: 15px; line-height: 1.3; }
+.pc-tiles .sc-set.cur { background: linear-gradient(180deg, rgba(255,207,143,.12), rgba(255,207,143,.04)); }
+.paper .pc-tiles .sc-set.cur { background: #fff; }
+.pc-tiles .sc-set .sc-str { width: 100%; }
+.pc-tiles .sc-none { grid-column: 1 / -1; }
+.pc-help { min-height: 0; display: flex; flex-direction: column; padding: 0 0 6px 24px; border-left: 1px solid var(--c-rule); }
+.pc-help .sc-rule { margin-top: 2px; }
+.pc-help .sc-helpbox { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 6px; border-radius: 5px; background: radial-gradient(120% 60% at 50% 0, rgba(255,214,160,.06), transparent), var(--well); border: 1px solid var(--well-edge); box-shadow: var(--well-in); }
+.pc-help .sc-helpbox[hidden] { display: none; }
+.pc-help .sc-help { font-size: 17.5px; }
+.pc-help .sc-help h4 { font-size: 12.5px; display: flex; align-items: center; gap: 10px; }
+.pc-help .sc-help h4::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--c-rule), transparent); }
+.pc-foot .btnrow { gap: 8px; }
+.pc-foot .count { font: italic 500 15.5px/1 var(--serif); color: var(--c-faint); white-space: nowrap; }
+.pc-back { display: none; }
+.zone-detail .pc-panel .sc-title { color: var(--c-on); }
+/* a window: the Help under the panel */
+@container sc (max-width: 1000px) {
+  .pc-main { grid-template-columns: 224px minmax(0, 1fr); }
+  .pc-help { display: none; }
+  .pc-panel .pc-help-in { display: block; }
+}
+.pc-help-in { display: none; margin-top: 4px; }
+.pc-help-in .sc-helpbox { padding: 12px 16px 4px; border-radius: 5px; background: var(--well); border: 1px solid var(--well-edge); box-shadow: var(--well-in); }
+@container sc (max-width: 640px) {
+  .pc-main { grid-template-columns: minmax(0, 1fr); }
+  .pc-panel { display: none; padding: 0 6px 10px 2px; }
+  .drill .pc-idx { display: none; }
+  .drill .pc-panel { display: block; }
+  .pc-idx { border-right: 0; padding-right: 2px; }
+  .pc-back { display: inline-flex; margin-bottom: 10px; }
+  .pc-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pc-foot .count { display: none; }
+}
+@media (max-width: 600px) { .pc-foot .ibtn svg { display: none; } .pc-foot { flex-wrap: wrap; } .pc-foot .flash.static { order: -1; flex-basis: 100%; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="page.js"></script>
+<script>
+const { esc, h, I } = SC;
+const lib = SC.lib;
+let say = () => {};
+const host = SC.host({
+  title: 'Scripts', frame: 'a',
+  build(root, host) {
+    root.innerHTML = `
+      ${host.inlineBack ? `<div class="sc-head">${SC.inlineBack(host)}</div>` : ''}
+      <div class="sc-body pc-main"><nav class="pc-idx sc-scroll" aria-label="Scripts"><div class="rows flat" id="list" role="listbox"></div></nav><div class="pc-panel sc-scroll" id="panel"></div><div class="pc-help" id="help"></div></div>
+      <div class="sc-foot pc-foot"><div class="btnrow" id="pbtns">${SP.pageButtons({ small: true })}</div><div class="flash static" id="fl"></div><span class="count" id="count"></span></div>`;
+    const fl = root.querySelector('#fl'), listEl = root.querySelector('#list'), panel = root.querySelector('#panel'), helpCol = root.querySelector('#help');
+    say = (m, kind) => WC.flash(fl, m, { kind, ms: 3600 });
+    let zone = 'list', cur = lib.list.find((s) => s.name === SC.qs.get('sc')) || lib.list[0] || null, parts = null, dkey = 'buttons', dbtn = 0, pbtn = 0, helpOpen = true;
+    const narrow = () => root.clientWidth <= 640, wide = () => root.clientWidth > 1000;
+    const act = SP.actions({ root, host, lib, say, file: 'c', cur: () => cur, select: (s) => { cur = s; zone = 'list'; root.classList.remove('drill'); renderList(); renderPanel(); } });
+    root.querySelector('#pbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (b) act[b.dataset.act](); });
+    function renderList() {
+      listEl.innerHTML = lib.list.length ? lib.list.map((s) => { const err = SC.problem(s); return `<div class="row sc-row${s === cur ? ' on' : ''}${s.enabled ? '' : ' off'}${err ? ' has-err' : ''}" data-n="${esc(s.name)}" role="option"><input type="checkbox" class="tog" ${s.enabled ? 'checked' : ''} aria-label="On or off"><span class="sc-name">${esc(s.name)}</span>${SC.lockHTML(s) || '<span></span>'}${SC.markHTML(s) || '<span></span>'}${err ? `<span class="err sc-err" title="${esc(err)}">${esc(err)}</span>` : ''}</div>`; }).join('') : '<p class="empty" style="padding:30px 6px;font-size:17px">No scripts yet.</p>';
+      const n = lib.list.filter((s) => s.running).length;
+      root.querySelector('#count').textContent = lib.list.length ? `${lib.list.length} scripts${host.game ? ` · ${n} running` : ''}` : '';
+      listEl.querySelectorAll('.row').forEach((r) => {
+        const s = lib.get(r.dataset.n);
+        r.querySelector('.tog').addEventListener('change', () => { cur = s; say(lib.toggle(s)); renderList(); renderPanel(); });
+        r.addEventListener('click', (e) => { if (e.target.closest('.tog')) return; cur = s; zone = 'list'; renderList(); renderPanel(); if (narrow()) { root.classList.add('drill'); zone = 'detail'; paint(); } });
+        r.addEventListener('dblclick', () => act.edit());
+      });
+      const on = listEl.querySelector('.row.on'); if (on) on.scrollIntoView({ block: 'nearest' });
+      paint();
+    }
+    function renderPanel() {
+      if (!cur) { panel.innerHTML = `<p class="empty">${lib.list.length ? 'No script selected.' : 'Write your first script with <b>New</b>, or <b>Import</b> one.'}</p>`; helpCol.innerHTML = ''; parts = null; return; }
+      const s = cur;
+      parts = SP.parts(s, { lib, say, helpOpen, onFold: (o) => { helpOpen = o; }, onFocus: (k) => { zone = 'detail'; dkey = k; paint(); } });
+      panel.innerHTML = `<button type="button" class="ibtn small pc-back" data-act="list">${I.back}<span>All scripts</span></button>
+        <div style="display:flex;align-items:center;gap:10px"><h2 class="sc-title">${esc(s.name)}</h2>${SC.lockHTML(s)}</div>${s.header.summary ? `<p class="sc-summary">${esc(s.header.summary)}</p>` : ''}<div class="stl">${SC.stateHTML(s)}</div>
+        <div class="pc-btns" id="dbtns">${SP.scriptButtons(s, { small: true })}</div><div class="slot"></div>`;
+      const slot = panel.querySelector('.slot');
+      parts.settings.classList.add('pc-tiles');
+      slot.append(parts.problems, parts.rule, parts.settings);
+      parts.rule.classList.remove('first');
+      if (parts.cmds) slot.append(parts.cmdRule, parts.cmds);
+      // the help: its own column when wide, folded in under the panel otherwise (one DOM, moved)
+      placeHelp();
+      panel.querySelector('#dbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (b && !b.disabled) act[b.dataset.act](); });
+      panel.querySelector('.pc-back').addEventListener('click', () => toList());
+      if (!parts.keys().includes(dkey)) dkey = 'buttons';
+      paint();
+    }
+    function placeHelp() {
+      if (!parts) return;
+      if (wide()) { helpCol.append(parts.helpRule, parts.help); parts.helpRule.classList.add('first'); }
+      else { let w = panel.querySelector('.pc-help-in'); if (!w) { w = h('<div class="pc-help-in"></div>'); panel.append(w); } w.append(parts.helpRule, parts.help); parts.helpRule.classList.remove('first'); }
+    }
+    let lastWide = null;
+    new ResizeObserver(() => { const w = wide(); if (w !== lastWide) { lastWide = w; placeHelp(); } }).observe(root);
+    const dBtns = () => [...panel.querySelectorAll('#dbtns .ibtn')];
+    const pBtns = () => [...root.querySelectorAll('#pbtns .ibtn')];
+    function paint() {
+      root.classList.toggle('zone-detail', zone === 'detail');
+      pBtns().forEach((b, i) => b.classList.toggle('on', zone === 'buttons' && i === pbtn));
+      dBtns().forEach((b, i) => b.classList.toggle('on', zone === 'detail' && dkey === 'buttons' && i === dbtn));
+      root.querySelectorAll('.pc-main .cur').forEach((x) => x.classList.remove('cur'));
+      root.querySelectorAll('.ibtn.on[data-act="reset"]').forEach((x) => x.classList.remove('on'));
+      if (zone === 'detail' && parts && dkey !== 'buttons') { const el = parts.rowEl(dkey); if (el) { el.classList.add(dkey === 'reset' ? 'on' : 'cur'); el.scrollIntoView({ block: 'nearest' }); } }
+    }
+    function toList() { zone = 'list'; root.classList.remove('drill'); paint(); }
+    const move = (d) => { const L = lib.list; if (!L.length) return; const i = Math.max(0, Math.min(L.length - 1, L.indexOf(cur) + d)); if (L[i] !== cur) { cur = L[i]; renderList(); renderPanel(); } };
+    const enterDetail = () => { if (!cur) return; zone = 'detail'; dkey = parts.keys().find((x) => x.startsWith('set:')) || 'buttons'; if (narrow()) root.classList.add('drill'); paint(); };
+    const nextEnabled = (bs, i, d) => { for (let j = i + d; j >= 0 && j < bs.length; j += d) if (!bs[j].disabled) return j; return -1; };
+    renderList(); renderPanel();
+    return {
+      key(e) {
+        const k = e.key, plain = !e.ctrlKey && !e.altKey && !e.metaKey;
+        if (k === 'Tab') { const zs = cur ? ['list', 'detail', 'buttons'] : ['list', 'buttons']; const z = zs[(zs.indexOf(zone) + (e.shiftKey ? zs.length - 1 : 1)) % zs.length]; if (z === 'detail') return enterDetail(), true; zone = z; root.classList.remove('drill'); paint(); return true; }
+        if (k === 'PageDown' || k === 'PageUp') { const hb = parts && !parts.help.hidden && wide() ? parts.help : panel; hb.scrollBy({ top: (k === 'PageDown' ? 1 : -1) * (hb.clientHeight - 40), behavior: WC.RM ? 'auto' : 'smooth' }); return true; }
+        if (plain && SP.LETTERS[k.toLowerCase()] && !(zone === 'detail' && /^[0-9.-]$/.test(k))) { const a = SP.LETTERS[k.toLowerCase()]; const b = root.querySelector(`[data-act="${a}"]`); if (b && !b.disabled) act[a](); return true; }
+        if (zone === 'buttons') {
+          const bs = pBtns();
+          if (k === 'ArrowLeft' || k === 'ArrowRight') { pbtn = Math.max(0, Math.min(bs.length - 1, pbtn + (k === 'ArrowLeft' ? -1 : 1))); paint(); return true; }
+          if (k === 'ArrowUp') { if (lib.list.length) { zone = 'list'; paint(); } return true; }
+          if (k === 'Enter' || k === ' ') { act[bs[pbtn].dataset.act](); return true; }
+          return k === 'ArrowDown';
+        }
+        if (zone === 'list') {
+          if (k === 'ArrowDown') { if (!cur || lib.list.indexOf(cur) === lib.list.length - 1) { zone = 'buttons'; paint(); } else move(1); return true; }
+          if (k === 'ArrowUp') return move(-1), true;
+          if (k === 'Home' || k === 'End') { cur = lib.list[k === 'Home' ? 0 : lib.list.length - 1]; renderList(); renderPanel(); return true; }
+          if (k === 'ArrowRight') return enterDetail(), true;
+          if (k === ' ' || k === 'Enter') { if (cur) { say(lib.toggle(cur)); renderList(); renderPanel(); } return true; }
+          return k === 'ArrowLeft';
+        }
+        const keys = parts.keys(), at = keys.indexOf(dkey);
+        if (k === 'ArrowUp' || k === 'ArrowDown') { dkey = keys[Math.max(0, Math.min(keys.length - 1, at + (k === 'ArrowUp' ? -1 : 1)))]; paint(); return true; }
+        if (k === 'Home' || k === 'End') { dkey = k === 'Home' ? keys[0] : keys[keys.length - 1]; paint(); return true; }
+        if (dkey === 'buttons') {
+          const bs = dBtns(); if (bs[dbtn] && bs[dbtn].disabled) dbtn = 0;
+          if (k === 'ArrowLeft' || k === 'ArrowRight') { const j = nextEnabled(bs, dbtn, k === 'ArrowLeft' ? -1 : 1); if (j >= 0) dbtn = j; else if (k === 'ArrowLeft') toList(); paint(); return true; }
+          if (k === 'Enter' || k === ' ') { act[bs[dbtn].dataset.act](); return true; }
+          return false;
+        }
+        if (k === 'ArrowLeft' || k === 'ArrowRight') { parts.act(dkey, k === 'ArrowLeft' ? -1 : 1); return true; }
+        if (k === 'Enter' || k === ' ') { parts.act(dkey, 0); return true; }
+        if (plain && /^[0-9.-]$/.test(k) && parts.type(dkey, k)) return true;
+        return false;
+      },
+      back() { if (zone === 'detail' || zone === 'buttons') { toList(); return true; } return false; },
+    };
+  },
+});
+SP.demo((m, k) => say(m, k));
+</script>
+</body>
+</html>
