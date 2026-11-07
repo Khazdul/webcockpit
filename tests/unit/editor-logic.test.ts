@@ -23,6 +23,16 @@ import {
   serializeHighlight,
   stepView,
   titleText,
+  KINDS,
+  KIND_LETTERS,
+  VIEW_LABELS,
+  keyLabel,
+  liveText,
+  peLayout,
+  previewLine,
+  showsAs,
+  statusText,
+  textSections,
 } from '../../src/editor/logic';
 import { balanceText, braceMatchAt, scanBraces, tokenizeLine } from '../../src/editor/syntax';
 import {
@@ -82,7 +92,7 @@ describe('entry list', () => {
   });
 
   it('prompts on the + New entry row', () => {
-    expect(sentinelPrompt('alias', 0)).toBe('No aliases yet. Press n to add one.');
+    expect(sentinelPrompt('alias', 0)).toBe('No aliases yet. Press N to add one.');
     expect(sentinelPrompt('macro', 3)).toBe('Press Enter to create a new macro.');
   });
 });
@@ -338,5 +348,85 @@ describe('LITE geometry (ADR 0104)', () => {
     // 76 → 77 cells: the detail panel gains 3 cells, the list gives 2.
     expect(liteGeometry(78, false)).toMatchObject({ w: 76, list: 38, detail: 34 });
     expect(liteGeometry(79, false)).toMatchObject({ w: 77, list: 36, detail: 37 });
+  });
+});
+
+describe('the new look (ADR 0128)', () => {
+  it('previews a row body on one line, with … when more lines follow', () => {
+    expect(previewLine('alias', 'get all')).toBe('get all');
+    expect(previewLine('alias', '\n\n  get all;\n  bury')).toBe('get all; …');
+    expect(previewLine('action', '{one}')).toBe('{one}');
+  });
+
+  it('labels the Key cell and the key chip without brackets', () => {
+    expect(keyLabel('')).toEqual({ text: 'Press to bind…', hint: true, custom: false });
+    expect(keyLabel('F5')).toEqual({ text: 'F5', hint: false, custom: false });
+    expect(keyLabel('\\eOq')).toEqual({ text: 'Numpad 1', hint: false, custom: false });
+    expect(keyLabel('nonsense key')).toEqual({ text: 'Custom: nonsense key', hint: true, custom: true });
+  });
+
+  it('says the quiet status and the live line', () => {
+    expect(statusText('clean', false)).toBe('All saved');
+    expect(statusText('clean', true)).toBe('All applied');
+    expect(statusText('editing', true)).toBe('Editing');
+    expect(statusText('held', false)).toBe('Not applied');
+    expect(liveText(true)).toBe('Connected · changes apply to the game');
+    expect(liveText(false)).toBe('Not connected · changes are saved');
+  });
+
+  it('has a letter for every view and kind, none twice', () => {
+    const letters = [...VIEW_LABELS.map((v) => v.letter), ...KINDS.map((k) => KIND_LETTERS[k]), 'n', 'd'];
+    expect(new Set(letters).size).toBe(letters.length);
+    for (const v of VIEW_LABELS) expect(v.label.toLowerCase()).toContain(v.letter);
+    expect(KINDS.map((k) => KIND_LETTERS[k]).join('')).toBe('aigms');
+  });
+
+  it('lists the text sections for the rail: kinds, timers, classes and #nop headings, in text order', () => {
+    const text = [
+      '#nop {Gibur, a warrior.}',
+      '',
+      '#variable {target} {orc}',
+      '',
+      '#nop ---- actions ----',
+      '#action {x} {',
+      '  y',
+      '}',
+      '#nop not a heading',
+      '#alias {a} {b}',
+      '',
+      '#nop == Fighting ==',
+      '#macro {F1} {bash}',
+      '#ticker {t} {score} {60}',
+      '#class {c} {open}',
+      '#alias {z} {zz}',
+      '',
+    ].join('\n');
+    expect(textSections(parseProfile(text))).toEqual([
+      { label: 'Gibur, a warrior.', line: 1, type: 'note' },
+      { label: 'Variables', line: 3, type: 'kind' },
+      // The heading that only names the kind below it is that kind's entry.
+      { label: 'Actions', line: 5, type: 'kind' },
+      { label: 'Aliases', line: 10, type: 'kind' },
+      { label: 'Fighting', line: 12, type: 'note' },
+      { label: 'Macros', line: 13, type: 'kind' },
+      { label: 'Timers & events', line: 14, type: 'kind' },
+      { label: 'Classes', line: 15, type: 'kind' },
+    ]);
+    expect(textSections(parseProfile(''))).toEqual([]);
+  });
+
+  it('shows a highlight pattern without its anchors, wildcards and arguments', () => {
+    expect(showsAs('*BASH*')).toBe('BASH');
+    expect(showsAs('^%1 enters')).toBe('… enters');
+    expect(showsAs('')).toBe('text');
+  });
+
+  it('lays the editor out by its own width: 940 and 640 px', () => {
+    expect(peLayout(1300)).toBe('wide');
+    expect(peLayout(941)).toBe('wide');
+    expect(peLayout(940)).toBe('mid');
+    expect(peLayout(641)).toBe('mid');
+    expect(peLayout(640)).toBe('narrow');
+    expect(peLayout(320)).toBe('narrow');
   });
 });

@@ -20,6 +20,12 @@ export interface EditOptions {
   beforeLoad?: (() => Promise<void>) | undefined;
   /** Called after an explicit apply (the editor's prompt) saved the profile. */
   onSaved?: ((name: string) => void) | undefined;
+  /**
+   * Calls `fn` whenever `isLive()` may have changed (connected or not: the
+   * editor's head line in the game, ADR 0128); returns the unsubscribe.
+   * The in-game hosts fill it in (43b); without it the line is read at render.
+   */
+  onLiveChange?: ((fn: () => void) => () => void) | undefined;
 }
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -53,6 +59,7 @@ export async function editProfile(nav: Nav, profiles: ProfileStore, name: string
         return r;
       },
       subscribe: (fn) => profiles.subscribe((n, text) => n === name && fn(text)),
+      ...(opts.onLiveChange ? { onLiveChange: opts.onLiveChange } : {}),
     });
   } catch (e) {
     nav.flash(`Could not open the editor: ${errText(e)}`, 'fail');

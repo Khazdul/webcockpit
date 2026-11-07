@@ -23,7 +23,6 @@ function watchErrors(page: Page): string[] {
 }
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-const ped = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-ped');
 const lib = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(
     ([fn, args]) => {
@@ -87,55 +86,9 @@ async function expectTrackPagesUp(bar: Locator, scroller: Locator): Promise<void
   expect(before - after).toBeGreaterThan(client / 3);
 }
 
-/** Start page → Profile → EDIT on `default` holding `text`. */
-async function openProfile(page: Page, text: string): Promise<void> {
-  await mockMume(page);
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await page.evaluate(async (t) => {
-    await window.__wc!.shell.profiles.init();
-    await window.__wc!.shell.profiles.save('default', t);
-  }, text);
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await page.locator('.wc-start [data-btn="EDIT"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
-}
-
-const LONG = Array.from({ length: 120 }, (_, i) => `#alias {a${i}} {say ${i}}`).join('\n') + '\n';
-
-test('profile EDITOR: the buffer scrollbar drags its thumb and the track pages', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1280, height: 700 });
-  await openProfile(page, LONG);
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
-  const content = ped(page).locator('.cm-content');
-  await content.click();
-  await expect(content).toBeFocused();
-  const bar = ped(page).locator('.wc-ped-bufbar');
-  const scroller = ped(page).locator('.cm-scroller');
-  await dragThumb(page, bar, scroller);
-  await expectTrackPagesUp(bar, scroller);
-  // The buffer kept the focus, and the zone is still the buffer.
-  await expect(content).toBeFocused();
-  await expect(ped(page)).toHaveAttribute('data-zone', 'buffer');
-  expect(errors).toEqual([]);
-});
-
-test('profile LITE: the body box scrollbar drags its thumb', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1280, height: 700 });
-  const body = Array.from({ length: 400 }, (_, i) => `say line ${i}`).join(';');
-  await openProfile(page, `#alias {long} {${body}}\n`);
-  await ped(page).locator('[data-kind="alias"]').first().click();
-  await page.keyboard.press('ArrowDown');
-  await expect(ped(page)).toHaveAttribute('data-zone', 'list');
-  const bar = ped(page).locator('.wc-ped-vbar');
-  const scroller = ped(page).locator('.wc-ped-textarea');
-  await dragThumb(page, bar, scroller, 1);
-  expect(errors).toEqual([]);
-});
+// The profile editor's TUI scrollbars (EDITOR's buffer bar, LITE's body box
+// bar) are gone with its new look (stage 43a, ADR 0128): the buffer and
+// the fields scroll natively with the lantern kit's thin scrollbars.
 
 test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => {
   const errors = watchErrors(page);
