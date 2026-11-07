@@ -723,3 +723,16 @@ play/pause, speed `◄ 1× ►`, time, Panes, Display, Close), a 12 px rail with
 kind-icon markers, and the header on dark chips. ← → now go back and
 forward 10 s and Home to the start; the hints gain `← → 10 s`. The strip
 maths here (half-block rows) are replaced by the rail's (ADR 0114).
+
+## Addendum: the run log player's Back, h:mm:ss and the open's result (2026-11-07, ADR 0127)
+
+Stage 42f: `fmtClock(ms, hours)` formats `h:mm:ss` from one hour when
+asked (the run log player); `MM:SS` stays the default (the HTML replay).
+The view gains `back` (the kit's Back in the chrome), `bare` (no chrome,
+for a page's own controls) and `press(act)`; it lets keys pass while its
+root is hidden (a parked embedded host). `openPlayer` /
+`openPlayerChain` resolve to `PlayerOpenResult` (`{ ok: true }` or
+`{ ok: false, error }` with a sentence History can show), and
+`PlayerHost.open` rejects an empty or unstored chain instead of opening an
+empty player. `embedPlayer(slot)` puts a player host in a page's own
+slot. Details: ADR 0127 "42f".

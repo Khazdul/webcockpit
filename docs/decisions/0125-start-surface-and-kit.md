@@ -440,3 +440,18 @@ The start menu's Profile note needs no change: it is set in Cormorant
 Garamond italic with no `text-transform` or small caps, so it already
 shows the real spelling, "(Gibur)" or "(gibur)", always (not only when a
 twin exists).
+
+## Addendum 2026-11-07 — stage 42: the kit in modules, scenery `large` (ADR 0127)
+
+The lantern kit is no longer one `look.tsx`: stage 42-0 split it into
+modules under `src/chrome/kit/` (`look.tsx` the barrel with the box and
+places, `look-controls`, `look-icons`, `look-overlay`, `look-cursor`,
+`look-keys`, `look-motion`, `window-chrome`; CSS in `look.css`,
+`look-tokens.css`, `look-glass.css`, `look-controls.css`,
+`look-overlay.css`). The tokens moved from `.wc-start` to `.wc-look`; the
+start surface carries both. The scenery `large` is layout B "Rummet
+växer": the menu (or a normal box) grows into a box that nearly fills
+the window, the wordmark lifts away and the quote and almanac fade; the
+morph runs on the start surface (`src/chrome/start-morph.tsx`). Upright
+Cormorant Garamond Medium joins the bundled faces (`LOOK_FACES`, not
+preloaded) for the look pages' body text. Details: ADR 0127.
