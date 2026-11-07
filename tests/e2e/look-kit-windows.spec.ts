@@ -75,6 +75,34 @@ test('the Lykta frame in the game: hood, title and note, opaque body, a look fra
   expect(errors).toEqual([]);
 });
 
+test('a dialog in a window lies over its page, drawn and veiled; no glass blur in a window', async ({ page }) => {
+  const errors = watchErrors(page);
+  await offline(page);
+  await openWin(page, 'scripts');
+  const w = win(page, 'scripts');
+  await w.locator('.wc-frame:not([hidden]) [data-btn="NEW"]').click();
+  await expect(w.locator('.wc-lk-dialog[data-dlg="new"]')).toBeVisible();
+  // The page below stays drawn (inert) and the dialog centres over its box.
+  const under = w.locator('.wc-frame[data-under]');
+  await expect(under).toHaveCount(1);
+  await expect(under).not.toHaveCSS('display', 'none');
+  await expect(under.locator('.wc-scr')).toBeVisible();
+  const g = await w.evaluate((el) => {
+    const page = el.querySelector('.wc-frame[data-under]')!.getBoundingClientRect();
+    const dlg = el.querySelector('.wc-lk-dialog')!.getBoundingClientRect();
+    return { dx: Math.abs(dlg.left + dlg.width / 2 - (page.left + page.width / 2)), pw: page.width };
+  });
+  expect(g.pw).toBeGreaterThan(100);
+  expect(g.dx).toBeLessThan(2);
+  // Glass buttons in a window: a plain fill, no backdrop blur (game text scrolls under windows).
+  const blur = await w.locator('.wc-lk-dialog .wc-lk-btn').first().evaluate((el) => getComputedStyle(el).backdropFilter);
+  expect(['none', '']).toContain(blur);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(w.locator('.wc-lk-dialog')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('Paper: a light game background gives the bronze frame and a dark title', async ({ page }) => {
   await offline(page);
   await openWin(page, 'scripts');
