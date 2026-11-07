@@ -217,3 +217,23 @@ test('back from a tall box to the large one: a box is drawn on every frame; the 
   await morphDone(page);
   await expect(startTop(page).locator('.wc-lk-box.wc-kit')).toBeVisible();
 });
+
+test('a box that is still morphing in can take the DOM focus (a field focuses at mount)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openKit(page, 'box');
+  await morphDone(page);
+  await openBoxDemo(page, 'tall');
+  await expect(page.locator('.wc-start')).toHaveAttribute('data-lk-morph', /./);
+  // Mid-morph (before the landing): an element in the new box takes the focus.
+  const took = await page.evaluate(() => {
+    const box = [...document.querySelectorAll('.wc-start .wc-frame:not([hidden]) .wc-lk-box.wc-kb-demo')].pop();
+    const probe = document.createElement('input');
+    box?.querySelector('.wc-lk-win')?.append(probe);
+    probe.focus();
+    const ok = document.activeElement === probe && document.querySelector('.wc-start')!.hasAttribute('data-lk-morph');
+    probe.remove();
+    return ok;
+  });
+  expect(took).toBe(true);
+  await morphDone(page);
+});
