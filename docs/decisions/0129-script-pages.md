@@ -457,3 +457,14 @@ treat them as rough. Wave 3 measured the page's fps headed (below).
 7. API names coloured in the editor's buffer. *Default: on.*
 8. The manual's find query is kept across opens (Esc clears it before it
    leaves, so it survives only a Back with a query typed).
+
+## Wave 3 sweep (2026-11-08)
+
+The kit pieces this ADR asked for are in (ADR 0127, addendum
+2026-11-08): the Help fold is `Rule` with a `Fold` head; the rows' and the
+tiles' switches are `Toggle only="switch"` / `only="state"`; the
+manual's window Back is `LookManual`'s `before` slot in a head that wraps
+(the frame's measuring and margins are gone). Not in: a `DialogButton`
+icon. The script manual's "Getting started" now describes this page (the
+switch, the panel, the tiles, Reset all, the letters) instead of the TUI
+frame; About and README name the tiles and Duplicate.

@@ -344,3 +344,18 @@ tests are gone (`spotlights.spec.ts`, `spotlights-settings.spec.ts`,
   Settings…; the Spotlights page's filter sets both.
 - ADR 0027 (the licence at the site root): addendum 2026-11-07,
   `THIRD_PARTY_NOTICES.md` beside `LICENSE.txt`.
+
+## Wave 3 sweep (2026-11-08)
+
+- Kit: Credits' and About's pills report a click on the lit pill with
+  `Seg`'s `onReclick`; the book's swipe is the kit's `useSwipe`; both
+  pages drop their own room under a coarse Back (ADR 0127, addendum
+  2026-11-08).
+- Dead code removed: `buildChronicle` and its `wrapText` and
+  `ChronicleOptions` (the book's tests now check the sentences against
+  `eventSentence` directly), the Spotlights page's old-look empty frames
+  and `CREDITS_EMPTY` (ADR 0131), the unused `.wc-about-link` rule.
+- About's text adds the profile editor's three views, the Spotlights
+  viewer, and the Scripts tiles and Duplicate. Still open: the
+  real-window measurements (the book's pagination on the Iris Xe, About's
+  scroll and its mask).

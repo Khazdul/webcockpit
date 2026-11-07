@@ -300,3 +300,17 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
    card); mockup B left it enabled (← restarts the first). *Built:
    disabled; the ← key still restarts.*
 4. The end card follows mockup A's title-card style, since B has none.
+
+## Wave 3 sweep (2026-11-08)
+
+Removed with nothing left to call them: the full-page reel with its card
+(`openCardReel`, `ReelOptions`, `ReelHandle`, `REEL_NO_MATCH`,
+spotlight-card.ts, spotlight.css; `countdownLeft` moved to
+spotlight-reel.ts), `Shell.openSpotlights` and `ChromeServices.
+openSpotlights`, the old-look `EmptyStateFrame` / `FilteredFrame` /
+`CREDITS_EMPTY`, and the Spotlights settings popup they opened (with the
+popups' `Check`, which only it used). `openSpotlightReel` is the bare
+reel only. The `spotlight-mode` chunk is 2.07 kB JS (1.07 kB gzip) and
+no CSS (was 4.69 kB JS plus the card's 1.54 kB CSS). The kinds' icons
+are one copy, `spotlights-icons.tsx`. Still open: the headed re-run of
+the wall and the viewer on the owner's machine.

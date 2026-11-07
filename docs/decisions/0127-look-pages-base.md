@@ -1207,3 +1207,49 @@ the replay; Display → Large is the way round); pinning the shared kit
 chunk with `manualChunks` and the CSS order (the kit's CSS now loads
 before chrome.css; no visual check found a rule it lost); the dead-code
 sweep and folding the wave-2 local helpers into the kit (a later sweep).
+
+## Addendum 2026-11-08 — wave 3 sweep: the wave-2 helpers in the kit
+
+The local helpers the wave-2 pages wrote because the kit lacked a piece
+are folded into it where the piece is general, and their pages use it:
+
+- `Fold` takes `aside` (a node at the head's right end; the head then
+  spans the row, `.has-aside`) and `id` (`data-fold`). The import
+  receipt's groups are kit folds with the count as their aside (its own
+  `Group` is gone; hooks `.wc-imp-grp > .wc-lk-fold-h`, `[data-fold]`).
+- `Rule` takes a node as its `title` (drawn as it is; a string is still
+  the small-caps heading), `id` (`data-rule`) and `class`. The Scripts
+  page's Help rule is `Rule` with a `Fold` head.
+- `Seg` (one choice) takes `onReclick(v)`: a click on the chosen option,
+  which `onChange` does not report. Credits' chapter pills and About's
+  section pills use it instead of a capture-phase click.
+- `useSwipe(ref, turn, min = SWIPE_MIN)` (look-cursor.ts): a sideways
+  swipe from touch events, or from pen and touch pointers, by listeners
+  (Preact binds `onTouchStart` only where the element knows it). Credits'
+  book uses it.
+- `Toggle` takes `only`: `state` (the switch and On / Off) or `switch`
+  (the switch alone); the label stays its accessible name. The Scripts
+  rows and setting tiles use it instead of hiding the parts by CSS.
+- `useLocalFlash()` returns a third part, `{ clear(), showing() }`. The
+  profile editor's own flash hook is gone (it keeps its 1.5 s default).
+- `LookManual` takes `before` (drawn first in the head's row, which then
+  always shows), and its head wraps. The script manual's small window
+  Back goes there (its measuring and margins are gone).
+- The coarse-pointer room under Back that the large pages added for
+  themselves (History, Statistics, Export, Credits, About on the phone)
+  is gone: the kit's Back ends where the 27 px one does (above). The
+  import receipt, a normal box (40 px, 38 on the phone, against Back's 42
+  / 43), keeps its own room.
+
+Not folded (page-specific, or a new feature rather than a helper): the
+History rows' delegated pointer handlers (the kit's `TableRow` forwards
+`onPointerDown` now; the delegation also spares a closure per row);
+History's `stackBelow={1e6}` for a page-width decision; the profile
+editor's `CaptureLayer` (a key layer that outranks an inline dialog) and
+windowed `EntryList`; Export's `fieldKeys` and `toStack`; the Spotlights
+wall's `cardDate` and `wallSummary`, the viewer's transport and round
+play buttons and colour swatches; a `DialogButton` icon and a
+`LookWordmark` size between `small` and `full` (wanted by mockups, not
+written by any page); `restoreDemoCopies` (player.spec.ts) as a shared
+e2e helper. The spotlight kinds' icons are one copy
+(`spotlights-icons.tsx`) for the wall and the viewer.

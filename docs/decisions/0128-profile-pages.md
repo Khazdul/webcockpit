@@ -609,3 +609,21 @@ performance run. Each changes a detail above; the rest stands.
   20 ms flat; headed GPU showed no difference.
 - **Specs:** `chrome.spec.ts` (the profile list's Enter / click edits)
   and `typed-settings.spec.ts` drive the new editor's hooks.
+
+## Wave 3 sweep (2026-11-08)
+
+- The receipt's groups are the kit's `Fold` with the count as its aside
+  (ADR 0127, addendum 2026-11-08); hooks `[data-fold]`,
+  `.wc-imp-grp > .wc-lk-fold-h`. The editor's flash is the kit's
+  `useLocalFlash` (its `clear` and `showing`). Export drops its own room
+  under a coarse Back; the receipt keeps its own (a normal box).
+- Dead code removed: the TUI editor's `.wc-ped*` rules (editor.css), its
+  geometry, title row and Key cell helpers in `logic.ts` (`liteGeometry`,
+  `titleText`, `keyCell`, `VIEWS`, `rowText`, …; `stepView` now walks
+  `VIEW_LABELS`), the TUI manual (`manual-view.tsx`, `manual-find.tsx`)
+  and `help.ts`'s menu, step and frame helpers, the export model's
+  unused `entryRows`. `export-input.tsx` was already gone. History's phone
+  gate is gone and `phone-export.spec.ts` runs.
+- Texts: the profile manual's Import paragraph names the page and the
+  receipt; About and README name the three views; spec §2.7, §2.11 and
+  §2.12 and Inv §5.1–5.9 and §7.7 carry stage 43's notes.

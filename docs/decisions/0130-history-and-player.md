@@ -390,3 +390,11 @@ raw TSX for Statistics). Wave 3's build pass records the chrome chunk.
 - ADR 0075 (phone): addendum 2026-11-07, History's Export gate removed.
 - ADR 0109 (the Statistics pane): addendum 2026-11-07, History's
   Statistics is its own page; the pane and the ESC menu keep `statsBody`.
+
+## Wave 3 sweep (2026-11-08)
+
+`SessionStatsFrame` (and its `sessionHeader`) is removed from
+statistics.tsx; the file keeps the ESC menu's live Statistics and the
+pane's `statsBody`. History and Statistics drop their own room under a
+coarse Back (the kit's Back clears them, ADR 0127). Still open: the
+real-window Iris Xe check of the player.
