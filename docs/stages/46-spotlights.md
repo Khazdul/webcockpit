@@ -1,7 +1,10 @@
 # Stage 46 — Spotlights: the gallery
 
-Status: **Next** (planned 2026-11-07; built in wave 2 of the broad pass,
-after stage 42, in parallel with stages 43, 44, 45 and 47).
+Status: **Built**, one check left before owner testing (2026-11-08;
+planned 2026-11-07, built in wave 2 of the broad pass on
+`stage-41-start-page`, wave 3 and its sweep done). Left: a headed re-run
+of the wall and the viewer on the owner's machine (production build,
+Firefox, 390×844@3; ADR 0131 "Performance").
 
 ## Goal
 
@@ -294,16 +297,23 @@ Credits part), the checklist.
 
 ## Tasks
 
-- [ ] Stage 42 merged (with the player core); read its file and ADR 0127
-- [x] WP 46-A: wall, cards and stills, filter row and chips, states, keys, phone
-- [x] WP 46-B: viewer in the box, grow/shrink, head, countdown, track, controls, Display, end card, brighter red
+- [x] Stage 42 merged (with the player core); read its file and ADR 0127
+- [x] WP 46-A: wall, cards and stills, filter row and chips, states, keys,
+      phone
+- [x] WP 46-B: viewer in the box, grow/shrink, head, countdown, track,
+      controls, Display, end card, brighter red
 - [x] WP 46-C: tests, ADR 0131, Inv §7.6 (Spotlights part)
-- [ ] Typecheck, lint, unit, e2e (Chromium and Firefox) green
-- [ ] Performance check (below)
-- [ ] Screenshots at 1280×720, 1440×900 and 390×844 reviewed by the main
+- [x] Typecheck, lint (no lint script), unit, e2e (Chromium and Firefox) green
+- [ ] Performance check (below): headless and the wave-3 run done; left: a
+      headed re-run of the wall and the viewer on the owner's machine
+      (production build, Firefox, 390×844@3; ADR 0131 "Performance")
+- [x] Screenshots at 1280×720, 1440×900 and 390×844 reviewed by the main
       session against `spotlights-b.html` (`?open`, `?at=3`, `?pause`,
       `?end`, `?display`, `?none`, `?empty`)
-- [ ] Test guide for the owner (below) checked
+- [x] Test guide for the owner (below) checked (against the code and specs)
+- [x] Wave 3 sweep: the full-page reel, its card, `Shell.openSpotlights`,
+      the old-look empty pages and the settings popup removed; one copy of
+      the kinds' icons
 
 ## Test plan
 

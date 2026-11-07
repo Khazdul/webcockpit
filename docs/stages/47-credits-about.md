@@ -1,7 +1,10 @@
 # Stage 47 — Credits and About
 
-Status: **Next** (planned 2026-11-07; built in wave 2 of the broad pass,
-after stage 42, in parallel with stages 43, 44, 45 and 46).
+Status: **Built**, one check left before owner testing (2026-11-08;
+planned 2026-11-07, built in wave 2 of the broad pass on
+`stage-41-start-page`, wave 3 and its sweep done). Left: the real-window
+measurements: the book's pagination on the Iris Xe and About's scroll with
+and without its mask (ADR 0132 "Performance").
 
 ## Goal
 
@@ -271,15 +274,25 @@ helpers in `tests/e2e/look.ts`):
 
 ## Tasks
 
-- [ ] Stage 42 merged; read its file and ADR 0127
-- [x] WP 47-A: `chronicleBook`; the book (pills, pages, epigraph, title pages, drop cap, turns, states, swipe, phone)
-- [x] WP 47-B: the leaf (rail, scroll spy, letters, small wordmark, version, kv tables, links, notices link, seal, phone); notices file at the site root; About text facts
-- [x] WP 47-C: tests (new specs, deletions, chrome.spec hunk), ADR 0132, Inv notes
-- [ ] Typecheck, lint, unit, e2e (Chromium and Firefox) green
-- [ ] Performance check (below)
-- [ ] Screenshots at 1280×720, 1440×900, 2560×1440 and 390×844 reviewed by
+- [x] Stage 42 merged; read its file and ADR 0127
+- [x] WP 47-A: `chronicleBook`; the book (pills, pages, epigraph, title
+      pages, drop cap, turns, states, swipe, phone)
+- [x] WP 47-B: the leaf (rail, scroll spy, letters, small wordmark,
+      version, kv tables, links, notices link, seal, phone); notices file
+      at the site root; About text facts
+- [x] WP 47-C: tests (new specs, deletions, chrome.spec hunk), ADR 0132,
+      Inv notes
+- [x] Typecheck, lint (no lint script), unit, e2e (Chromium and Firefox) green
+- [ ] Performance check (below): headless and the wave-3 run done; left:
+      the real-window measurements: the book's pagination on the Iris Xe
+      and About's scroll with and without its mask (ADR 0132
+      "Performance")
+- [x] Screenshots at 1280×720, 1440×900, 2560×1440 and 390×844 reviewed by
       the main session against `credits-b.html` and `about-a.html`
-- [ ] Test guide for the owner (below) checked
+- [x] Test guide for the owner (below) checked (against the code and specs)
+- [x] Wave 3 sweep: `buildChronicle` removed; the pills use `Seg`'s
+      re-click, the book the kit's `useSwipe`; About's text has the stage
+      43–46 facts
 
 ## Test plan
 

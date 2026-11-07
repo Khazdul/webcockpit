@@ -1,8 +1,8 @@
 # Stage 44 — Scripts page, script editor and script manual in the new look
 
-Status: **Next** (planned 2026-11-07; wave 2 of the broad pass, after
-stage 42; branch to be decided by the main session, nothing merged
-until the owner has tested).
+Status: **Owner testing** (2026-11-08; planned 2026-11-07, built in wave 2
+of the broad pass on `stage-41-start-page`, wave 3 and its sweep done;
+nothing merged until the owner has tested).
 
 ## Goal
 
@@ -554,7 +554,7 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
 
 ## Tasks
 
-- [ ] Stage 42 merged; its API in place (see "Uses from stage 42"); gaps noted
+- [x] Stage 42 merged; its API in place (see "Uses from stage 42"); gaps noted
 - [x] 44a: `ScriptsFrame` as a look frame in the large box; three
       breakpoints by container query; index, panel, help column; foot
 - [x] 44a: setting tiles (switch, stepper, choice, text) with keys,
@@ -580,12 +580,16 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
 - [x] 44d: remaining e2e/unit selector updates; ADR 0129; ADR 0121
       addendum; spec §2.10; About facts listed for stage 47, README for
       wave 3
-- [ ] Performance checks (below), numbers in the ADR
-- [ ] `npm run typecheck`, lint, `npm test`, `npm run test:e2e`,
+- [x] Performance checks (below), numbers in the ADR (headed, Iris Xe:
+      ADR 0129 wave 3)
+- [x] `npm run typecheck`, lint (no lint script), `npm test`, `npm run test:e2e`,
       `npm run build` all green
-- [ ] Screenshots: start (1440×900, 1280×720), window (large, small, dark,
+- [x] Screenshots: start (1440×900, 1280×720), window (large, small, dark,
       Paper), phone (390×844) for each page, compared with the mockups
-- [ ] Test guide for the owner (below) checked against the build
+- [x] Test guide for the owner (below) checked against the code and specs
+- [x] Wave 3 sweep: the kit's `Rule` head, `Toggle only` and `LookManual`
+      `before` replace the local helpers; the script manual's text
+      describes the new page
 
 ## Test plan
 

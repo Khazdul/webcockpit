@@ -1,8 +1,7 @@
 # Stage 43 — Profile editor, Import and Export in the new look
 
-Status: **Next** (planned 2026-11-07; built in wave 2 of the broad pass,
-after stage 42, in parallel with the other wave-2 stages; branch decided by
-the main session).
+Status: **Owner testing** (2026-11-08; planned 2026-11-07, built in wave 2
+of the broad pass on `stage-41-start-page`, wave 3 and its sweep done).
 
 ## Goal
 
@@ -557,7 +556,7 @@ Build:
 
 ## Tasks
 
-- [ ] Before launch: stage 42 merged into the branch; its "Uses" items
+- [x] Before launch: stage 42 merged into the branch; its "Uses" items
       checked (below). This stage's ADR is **0128** (assigned by the main
       session; the profile editor B, with the import page and the export
       editor's decisions in it), plus addenda to 0073, 0115, 0075 and 0103
@@ -584,17 +583,18 @@ Build:
       comment and title), virtual log kept; tests; ADR 0115 addendum
 - [x] 43d: phone layout and `phone-export.spec.ts`; ADR 0075 addendum
       (export on the phone)
-- [ ] Wave 3: check that History's EXPORT is no longer gated on the phone
+- [x] Wave 3: check that History's EXPORT is no longer gated on the phone
       (removed by stage 45, WP 45-A); restore the gate only if 43d's phone
       layout did not land
-- [ ] Wave 3: drop the profile editor's leftover `.wc-ped*` rules from
+- [x] Wave 3: drop the profile editor's leftover `.wc-ped*` rules from
       `editor.css` once nothing uses them; remove `export-input.tsx` and the
       old cell layout helpers if unused
-- [ ] Wave 3: Inv §5.1–5.9, §7.7 and spec §2.11 pointers; README, About and
+- [x] Wave 3: Inv §5.1–5.9, §7.7 and spec §2.11 pointers; README, About and
       manual texts that name "TEXT FILE", "IMPORT REPORT", "Export Editor",
       "Profile Editor" or "Export: desktop only" (grep `src`, `README.md`)
-- [ ] Wave 3: performance checks (below); owner test guide checked against
-      the build
+- [x] Wave 3: performance checks (below; ADR 0128 "Wave 3 fixes", ADR 0127
+      wave-3 addendum); owner test guide checked against the code and
+      specs
 - [ ] Owner feedback recorded in this file
 
 ## Test plan

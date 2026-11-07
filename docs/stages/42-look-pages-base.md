@@ -1,8 +1,8 @@
 # Stage 42 — The shared base for the look pages
 
-Status: **Built** (2026-11-07, 42-Z integrated on the branch
-`stage-41-start-page`; owner testing together with stages 43–47, nothing
-merged to main until then).
+Status: **Owner testing** (2026-11-08; built 2026-11-07, 42-Z integrated
+on the branch `stage-41-start-page`, wave 3 and its sweep done; tested
+together with stages 43–47, nothing merged to main until then).
 
 ## Goal
 
@@ -868,6 +868,11 @@ stage's test plan.
       kit findings fixed; the blur rule revised (no blur on large boxes);
       the wave-2 kit gaps that are bugs (ADR 0127 addendum "wave 3");
       `phone-look-kit.spec.ts` added
+- [x] Wave 3 sweep: the wave-2 local helpers folded into the kit (`Fold`
+      aside, `Rule` node head, `Seg` re-click, `useSwipe`, `Toggle` only,
+      `useLocalFlash` clear, `LookManual` before slot; ADR 0127 addendum
+      2026-11-08), dead code removed, README / About / help / Inv / spec
+      texts updated
 - [ ] Owner feedback recorded in this file
 
 ## Test plan

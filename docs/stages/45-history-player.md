@@ -1,7 +1,10 @@
 # Stage 45 — History and the run log player
 
-Status: **Next** (planned 2026-11-07; built in wave 2 of the broad pass,
-after stage 42, in parallel with stages 43, 44, 46 and 47).
+Status: **Built**, one check left before owner testing (2026-11-08;
+planned 2026-11-07, built in wave 2 of the broad pass on
+`stage-41-start-page`, wave 3 and its sweep done). Left: the real-window
+check of the player on the Iris Xe (ADR 0130 "Performance"; needs the
+owner's machine).
 
 ## Goal
 
@@ -350,17 +353,23 @@ this stage file's checklist.
 
 ## Tasks
 
-- [ ] Stage 42 merged; read its file and ADR 0127
-- [x] WP 45-A: History page (table, pills, card, foot, states, phone, keys, width cap)
+- [x] Stage 42 merged; read its file and ADR 0127
+- [x] WP 45-A: History page (table, pills, card, foot, states, phone,
+      keys, width cap)
 - [x] WP 45-B: Statistics in the same box
 - [x] WP 45-C: Rate, Delete, keys box, run-log error box
 - [x] WP 45-D: player Back and h:mm:ss verified; player/replay tests
-- [x] WP 45-E: History unit and e2e tests, phone test moved, ADR 0130, Inv notes
-- [ ] Typecheck, lint, unit, e2e (Chromium and Firefox) green
-- [ ] Performance check (below)
-- [ ] Screenshots at 1280×720, 1440×900, 2560×1440 and 390×844 reviewed by
+- [x] WP 45-E: History unit and e2e tests, phone test moved, ADR 0130, Inv
+      notes
+- [x] Typecheck, lint (no lint script), unit, e2e (Chromium and Firefox) green
+- [ ] Performance check (below): headless and the wave-3 run done; left:
+      the real-window check of the player on the Iris Xe (ADR 0130
+      "Performance"; needs the owner's machine)
+- [x] Screenshots at 1280×720, 1440×900, 2560×1440 and 390×844 reviewed by
       the main session against `history-a.html`
-- [ ] Test guide for the owner (below) checked
+- [x] Test guide for the owner (below) checked (against the code and specs)
+- [x] Wave 3 sweep: `SessionStatsFrame` removed; the pages' own room under
+      a coarse Back gone (the kit's Back clears them)
 
 ## Test plan
 
