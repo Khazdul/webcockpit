@@ -218,7 +218,8 @@ shortcut letters, and the open questions in the session log.
   from the bottom (6.3 s in all).
 - **The profile name** belongs on Profile, not Scripts: "PROFILE
   (khazdul)".
-- The in-game window kit's thin cyan border stays as it is for now.
+- The in-game window kit's thin cyan border stays as it is for now;
+  later the same day: it is replaced by the Lykta frame (stage 42).
 - **Defaults the owner accepted** (proposed 2026-11-07, no objection):
   keep the menu letters E P S H L C A; keep the Changed column; Enter
   MUME's transition as built in four rounds (above); the quote stays pale

@@ -184,9 +184,8 @@ lay themselves out by their own width, never by the device.
   through the same `wrap` / `frameAttrs` props the start surface uses.
 - **No `backdrop-filter` in windows**: the game text scrolls under them all
   the time. The Lykta body is opaque.
-- The old cyan window border goes with this (NIGHT-PASS decision 6, round
-  7 "Riktningens", which for these pages is Lykta); see the open
-  questions.
+- The old cyan window border goes: Lykta replaces it (owner, 2026-11-07:
+  "Vi ersätter cyan ramen").
 
 ### Kit rules (owner's baseline, unchanged)
 
@@ -928,15 +927,10 @@ frame in the game (dark and Paper), and the open questions below.
 
 The build follows the default until the owner answers.
 
-1. **The cyan window border goes.** The Profile and Scripts windows get
-   the lantern frame (Lykta) on every page and sub-page (the frame itself
-   is the owner's decision of 2026-11-07, not a question). *Default: the
-   cyan border goes.* (Stage 41's note "the cyan border stays for now"
-   covered the time before this frame.)
-2. **The code font.** The mockups used JetBrains Mono for code; the build
+1. **The code font.** The mockups used JetBrains Mono for code; the build
    uses your terminal font (as the game and today's editors). *Default:
    the terminal font.*
-3. **The grow motion** takes about 1.3 s before the page's content shows
+2. **The grow motion** takes about 1.3 s before the page's content shows
    (the mockup's timing). *Default: as the mockup; shorten if it feels slow.*
 
 ## ADR
