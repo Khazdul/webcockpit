@@ -621,8 +621,25 @@
     gap: 0;
   }
 
+  /* The transport buttons and the speed arrows take 40 px where the row
+   * has room and give way to 32 px (the touch minimum) where it has not. */
   .wc-spv-cb {
-    width: 32px;
+    flex: 0 1 40px;
+    width: 40px;
+    min-width: 32px;
+  }
+
+  .wc-spv-spd {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .wc-spv-spd .wc-spv-cb {
+    width: 40px;
+  }
+
+  .wc-spv-spd-v {
+    min-width: 32px;
   }
 
   .wc-spv-play {
@@ -637,7 +654,7 @@
 
   /* Display as an icon: its label goes. */
   .wc-spv-ctl .wc-lk-btn[data-btn='display'] {
-    width: 34px;
+    width: 40px;
     padding: 0;
   }
 
@@ -652,27 +669,45 @@
   }
 }
 
-/* Touch: wider targets on the track and the markers. */
+/* A very narrow page: To the start goes (Home and the track still get
+ * there), so every other control keeps its 32 px. */
+@container wc-page (max-width: 300px) {
+  .wc-spv-cb[data-act='start'] {
+    display: none;
+  }
+}
+
+/* Touch: targets of at least 32 px, 40 px tall in the control row: the
+ * track and its markers, the buttons, the speed well and its arrows, the
+ * Display popover's colours. */
 @media (pointer: coarse) {
   .wc-spv-trk {
-    height: 46px;
+    height: 50px;
   }
 
   .wc-spv-trk-marks {
-    height: 28px;
+    height: 32px;
   }
 
   .wc-spv-mk {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
   }
 
   .wc-spv-cb {
     min-height: 40px;
   }
 
+  .wc-spv-spd {
+    height: 40px;
+  }
+
   .wc-spv-spd .wc-spv-cb {
     min-height: 0;
-    height: 30px;
+    height: 38px;
+  }
+
+  .wc-spv-sw {
+    height: 40px;
   }
 }

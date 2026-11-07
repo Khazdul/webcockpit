@@ -27,20 +27,18 @@ async function inView(page: Page, l: Locator): Promise<void> {
 }
 
 /**
- * Every visible button of `row` lies inside it, at least 32 px tall and
- * 30 px wide. The speed well's small ‹ › are 24 × 30 px today (WP 46-B's
- * CSS; reported to the main session as under the stage's 32 px target).
+ * Every visible button of `row` lies inside it and is a touch target of at
+ * least `min` px each way (the stage's 32 px; the speed well's ‹ › too).
  */
-async function buttonsFit(row: Locator): Promise<void> {
+async function buttonsFit(row: Locator, min = 32): Promise<void> {
   const rb = (await row.boundingBox())!;
   for (const b of await row.locator('button').all()) {
     if (!(await b.isVisible())) continue;
     const r = (await b.boundingBox())!;
     expect(r.x).toBeGreaterThanOrEqual(rb.x - 0.5);
     expect(r.x + r.width).toBeLessThanOrEqual(rb.x + rb.width + 0.5);
-    const inWell = await b.evaluate((el) => !!el.closest('.wc-spv-spd'));
-    expect(r.height).toBeGreaterThanOrEqual(inWell ? 30 : 32);
-    expect(r.width).toBeGreaterThanOrEqual(inWell ? 24 : 30);
+    expect(r.height).toBeGreaterThanOrEqual(min - 0.5);
+    expect(r.width).toBeGreaterThanOrEqual(min - 0.5);
   }
 }
 
@@ -142,6 +140,11 @@ for (const width of [390, 360]) {
     const line = (await viewer.locator('.wc-spv-trk-line').boundingBox())!;
     const trk = (await viewer.locator('.wc-spv-trk').boundingBox())!;
     expect(trk.height).toBeGreaterThanOrEqual(32);
+    // Its kind markers: 32 px targets.
+    for (const mk of await viewer.locator('.wc-spv-mk').all()) {
+      const r = (await mk.boundingBox())!;
+      expect(Math.min(r.width, r.height)).toBeGreaterThanOrEqual(31.5);
+    }
     await page.touchscreen.tap(line.x + line.width / 4, line.y + line.height / 2);
     await expect.poll(async () => (await engine(page))?.seeking ?? true).toBe(false);
     const e = (await engine(page))!;
@@ -154,6 +157,8 @@ for (const width of [390, 360]) {
     await inView(page, display);
     await display.locator('[data-opt="large"]').tap();
     await expect(display.locator('[data-opt="large"]')).toHaveAttribute('aria-checked', 'true');
+    // The colours: rows of 40 px.
+    for (const sw of await display.locator('.wc-spv-sw').all()) expect((await sw.boundingBox())!.height).toBeGreaterThanOrEqual(39.5);
     await display.locator('[data-btn="close"]').tap();
     await expect(display).toHaveCount(0);
 
