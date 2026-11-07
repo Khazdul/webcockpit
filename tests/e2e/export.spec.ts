@@ -311,3 +311,41 @@ test('export editor: the page caps its width on a wide window; a narrow window d
   await expect(counts(page)).toContainText('2 excluded');
   await expect(btn(page, 'EXPORT')).toBeVisible();
 });
+
+test('export editor: a height-only resize while scrolled keeps rows in the view', async ({ page }) => {
+  await openHistory(page);
+  await page.setViewportSize({ width: 1400, height: 1000 });
+  await openEditor(page);
+  const log = frame(page).locator('.wc-exp-log');
+  /** Rendered rows that overlap the log's view. */
+  const inView = () =>
+    log.evaluate((l) => {
+      const top = l.scrollTop;
+      const bot = top + l.clientHeight;
+      return [...l.querySelectorAll<HTMLElement>('.wc-exp-row')].filter(
+        (r) => r.offsetTop + r.offsetHeight > top && r.offsetTop < bot,
+      ).length;
+    });
+  await log.evaluate((l) => {
+    l.scrollTop = l.scrollHeight;
+  });
+  await expect.poll(inView).toBeGreaterThan(5);
+  // Only the height changes (a soft keyboard, a window resized in height): no scroll event comes.
+  await page.setViewportSize({ width: 1400, height: 520 });
+  await expect.poll(() => log.evaluate((l) => l.clientHeight)).toBeLessThan(400);
+  await expect.poll(inView).toBeGreaterThan(3);
+});
+
+test('export editor: lines wrap at word boundaries', async ({ page }) => {
+  await openHistory(page);
+  await page.setViewportSize({ width: 440, height: 800 });
+  await openEditor(page);
+  const text = 'Fresh straw and the smell of horses. A path leads south.';
+  expect(Number(await frame(page).locator('.wc-exp-log').getAttribute('data-cols'))).toBeLessThan(text.length);
+  const entry = frame(page).locator('.wc-exp-row', { hasText: 'Fresh straw' }).first();
+  await expect(entry).toBeVisible();
+  const lines = await entry.locator('.wc-exp-ln').allTextContents();
+  // Wrapped (the log is narrower than the line), at spaces: no word is split.
+  expect(lines.length).toBeGreaterThan(1);
+  expect(lines.join(' ')).toBe(text);
+});
