@@ -281,10 +281,27 @@ describe('morphPlan', () => {
     expect(morphHold('normal', 'push')).toBe(200);
     expect(morphHold('large', 'push')).toBe(240);
     expect(morphHold('large', 'pop')).toBe(240);
-    expect(morphHold('normal', 'pop')).toBe(140);
+    // a pop from a normal or tall box onto a large one is an `open`: its content fades for 200 ms
+    expect(morphHold('normal', 'pop')).toBe(200);
+    expect(morphHold('tall', 'pop')).toBe(200);
     expect(morphHold('grid', 'push')).toBe(0);
     expect(morphHold('none', 'pop')).toBe(0);
     expect(morphHold('menu', 'push', true)).toBe(260);
+  });
+
+  it('morphHold covers the old box until its plan no longer needs it (every pair, both motions)', () => {
+    const kinds = ['menu', 'normal', 'tall', 'large'] as const;
+    const rect = (k: string) => (k === 'large' ? LARGE : PANEL);
+    for (const reduced of [false, true])
+      for (const fk of kinds)
+        for (const tk of kinds)
+          for (const dir of ['push', 'pop'] as const) {
+            if (dir === 'pop' && fk === 'menu') continue; // the menu is the root; it is never popped
+            const p = morphPlan(end(fk, rect(fk), { shown: true }), end(tk, rect(tk)), reduced);
+            // the old box is drawn until its fade ends and, without a fade, until the proxy shows
+            const needs = Math.max(p.out, p.flight ? Math.min(p.flight.show, p.flight.at) : 0);
+            expect(morphHold(fk, dir, reduced), `${fk} → ${tk} ${dir}${reduced ? ' reduced' : ''}`).toBeGreaterThanOrEqual(needs);
+          }
   });
 });
 
