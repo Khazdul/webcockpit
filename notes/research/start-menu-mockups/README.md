@@ -245,3 +245,8 @@ Round 7 (choose a direction per page; details on each review page):
 - **Spotlights: B Galleriet.**
 - **Credits: B Krönikeboken**, without a separate "Opening" tab.
 - **About: A Bladet.**
+
+**Accepted defaults** (proposed in chat on 2026-11-07; the owner answered
+only where they wanted something else): the in-game window kit's cyan
+border stays for now; the profile name shows on Profile, not Scripts; the
+other defaults per page are recorded in stages 43–47.

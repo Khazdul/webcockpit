@@ -219,5 +219,11 @@ shortcut letters, and the open questions in the session log.
 - **The profile name** belongs on Profile, not Scripts: "PROFILE
   (khazdul)".
 - The in-game window kit's thin cyan border stays as it is for now.
+- **Defaults the owner accepted** (proposed 2026-11-07, no objection):
+  keep the menu letters E P S H L C A; keep the Changed column; Enter
+  MUME's transition as built in four rounds (above); the quote stays pale
+  with a crisp outline on bright days; the wordmark's sheen sweeps past
+  only now and then; names that differ only in case show their real
+  spelling when a case twin exists.
 - Round 7 directions chosen for the later stages: see "Round 7 decisions"
   in `notes/research/start-menu-mockups/README.md`.
