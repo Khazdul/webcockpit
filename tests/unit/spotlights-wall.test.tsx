@@ -17,21 +17,28 @@ import { SettingsStore, type SpotlightSettings } from '../../src/settings';
 import type { Spotlight, SpotlightKind } from '../../src/share/spotlights';
 import { CellMetrics } from '../../src/theme/cells';
 
-const viewer = vi.hoisted(() => ({ props: null as null | { start: number; reel: unknown; cardRect: (i?: number) => DOMRect | null; onLeave: (i: number) => void }, mounts: 0 }));
+const viewer = vi.hoisted(() => ({
+  props: null as null | { start: number; reel: unknown; cardRect: (i?: number) => DOMRect | null; onLeave: (i: number) => void },
+  mounts: 0,
+  /** The kept host's Display theme (null: no kept host). */
+  theme: null as null | string,
+}));
 vi.mock('../../src/chrome/frames/spotlights-viewer', () => ({
   SpotlightsViewer: (p: NonNullable<typeof viewer.props>) => {
     viewer.props = p;
     return <div class="test-viewer" data-start={p.start} />;
   },
+  keptSpotlightsHost: () => (viewer.theme === null ? null : { viewerControls: () => ({ theme: () => viewer.theme }) }),
 }));
 
-const { SpotlightsWall, cardDate, wallSummary } = await import('../../src/chrome/frames/spotlights-wall');
+const { SpotlightsWall, cardDate, stillPalette, wallSummary } = await import('../../src/chrome/frames/spotlights-wall');
 type WallState = Parameters<typeof SpotlightsWall>[0]['reel'];
 
 afterEach(() => {
   render(null, document.body);
   document.body.innerHTML = '';
   viewer.props = null;
+  viewer.theme = null;
 });
 
 const DAY = 86_400_000_000;
@@ -289,12 +296,12 @@ describe('the filter row', () => {
 });
 
 describe('states and the viewer', () => {
-  it('no data: no filter row, how spotlights are made, no Play all; Esc to the menu', async () => {
+  it('no data: no filter row, how spotlights are made, Play all disabled; Esc to the menu', async () => {
     const t = setup({ reel: { empty: 'no_data' } });
     await flush();
     expect(head()).toBeNull();
     expect(document.querySelector('.wc-spw-empty')!.textContent).toMatch(/^No spotlights yet\. Play a session/);
-    expect(document.querySelector('[data-btn="PLAY"]')).toBeNull();
+    expect(document.querySelector('[data-btn="PLAY"]')!.getAttribute('aria-disabled')).toBe('true');
     await key('f');
     await key('p');
     expect(head()).toBeNull();
@@ -349,5 +356,72 @@ describe('states and the viewer', () => {
     await click(document.querySelector('.wc-lk-back'));
     expect(t.rootBack).toHaveBeenCalledTimes(1);
     window.removeEventListener('keydown', spy, true);
+  });
+
+  it('Enter or P while a rebuild is in flight plays on the new wall once it lands', async () => {
+    const pending: Array<{ f: SpotlightSettings; done: (w: WallState) => void }> = [];
+    setup({ load: (f) => new Promise((done) => pending.push({ f, done })) });
+    await flush();
+    threeColumns();
+    // The PvP kill (card 3) chosen, then Deaths off: the wall is rebuilding.
+    await key('ArrowRight');
+    await key('ArrowRight');
+    await click(document.querySelector('.wc-spw-kinds [data-opt="death"]'));
+    await key('Enter');
+    expect(viewer.props).toBeNull();
+    await act(() => pending[0]!.done(wallFor(pending[0]!.f)));
+    await flush();
+    // The new reel (no death): the PvP kill is its second card, and it plays from there.
+    expect(cards().map((c) => c.dataset.kind)).toEqual(['achievement', 'pkill', 'achievement', 'level']);
+    expect((viewer.props!.reel as Reel).spots.map((s) => s.id)).toEqual(['b', 'c', 'd', 'e']);
+    expect(viewer.props!.start).toBe(1);
+    expect(chosen()).toBe(1);
+    await act(() => viewer.props!.onLeave(2));
+    expect(chosen()).toBe(2);
+    viewer.props = null;
+    // P during a rebuild: Play all on the new wall, from its first card.
+    await click(document.querySelector('.wc-spw-kinds [data-opt="death"]'));
+    await key('p');
+    expect(viewer.props).toBeNull();
+    await act(() => pending[1]!.done(wallFor(pending[1]!.f)));
+    await flush();
+    expect((viewer.props!.reel as Reel).spots.map((s) => s.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(viewer.props!.start).toBe(0);
+  });
+
+  it('a card asked to play during a rebuild that drops it does not play', async () => {
+    const pending: Array<{ f: SpotlightSettings; done: (w: WallState) => void }> = [];
+    setup({ load: (f) => new Promise((done) => pending.push({ f, done })) });
+    await flush();
+    // The death (card 1) chosen; Deaths off, Enter at once.
+    await click(document.querySelector('.wc-spw-kinds [data-opt="death"]'));
+    await key('Enter');
+    await act(() => pending[0]!.done(wallFor(pending[0]!.f)));
+    await flush();
+    expect(viewer.props).toBeNull();
+    expect(chosen()).toBe(0);
+  });
+
+  it('the stills follow the viewer\'s Display colours: Default with the brighter red, a chosen theme its own', async () => {
+    expect(stillPalette('default')['--spw-a1']).toBe('#c43c3c');
+    expect(stillPalette('default')['--spw-bg']).toBeUndefined();
+    expect(stillPalette('dark')).toMatchObject({ '--spw-a1': '#800000', '--spw-bg': '#000000', '--spw-fg': '#c0c0c0' });
+    expect(stillPalette('paper')).toMatchObject({ '--spw-a1': '#800000', '--spw-bg': '#f4ecd8', '--spw-bold': '#000000' });
+    setup();
+    await flush();
+    const wall = () => document.querySelector<HTMLElement>('.wc-spw-wall')!;
+    expect(wall().dataset.stillTheme).toBe('default');
+    expect(wall().style.getPropertyValue('--spw-a1')).toBe('#c43c3c');
+    await key('Enter');
+    viewer.theme = 'teal';
+    await act(() => viewer.props!.onLeave(0));
+    expect(wall().dataset.stillTheme).toBe('teal');
+    expect(wall().style.getPropertyValue('--spw-a1')).toBe('#800000');
+    expect(wall().style.getPropertyValue('--spw-bg')).toBe('#002b36');
+    await key('Enter');
+    viewer.theme = 'default';
+    await act(() => viewer.props!.onLeave(0));
+    expect(wall().style.getPropertyValue('--spw-a1')).toBe('#c43c3c');
+    expect(wall().style.getPropertyValue('--spw-bg')).toBe('');
   });
 });

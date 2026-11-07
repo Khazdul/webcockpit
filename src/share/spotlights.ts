@@ -325,9 +325,17 @@ export function chipsOn(f: SpotlightSettings, names: readonly string[]): string[
 }
 
 /**
- * The Spotlights palette tweak (stage 46): ANSI normal red (`#800000` in
- * the Default palette) is hard to read on the near-black wells, so the
- * card stills and the viewer draw it brighter while the colours are
- * Default (about 3.8:1 on the well; a chosen theme keeps its own red).
+ * ANSI normal red as Spotlights draws it on its dark wells (owner decision,
+ * stage 46): the Default palette's `#800000` is hard to read on near-black
+ * (1.9:1); this reads at about 4:1 on black (3.8:1 on the viewer's
+ * `#0b0907`). Only while the Display colours are Default; a chosen theme
+ * keeps its own red.
  */
-export const SPOTLIGHT_PALETTE_TWEAK: Readonly<Record<number, string>> = { 1: '#c43c3c' };
+export const SPOTLIGHT_RED = '#c43c3c';
+
+/**
+ * The Spotlights palette tweak (stage 46), ANSI index → colour: the card
+ * stills (spotlights-wall.tsx) and the viewer's host (`setPaletteTweak`,
+ * spotlight-mode.ts) both draw from it.
+ */
+export const SPOTLIGHT_PALETTE_TWEAK: Readonly<Record<number, string>> = { 1: SPOTLIGHT_RED };

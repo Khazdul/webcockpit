@@ -113,10 +113,15 @@
 
 .wc-spv-cd i {
   position: absolute;
+  left: 0;
+  right: 0;
   top: -0.5px;
   height: 2px;
   border-radius: 1px;
   background: rgba(240, 210, 160, 0.75);
+  /* Drawn by a scale from the middle (spotlights-viewer.tsx): composited, no layout per frame. */
+  transform: scaleX(0);
+  will-change: transform;
 }
 
 /* ------------------------------------------------------------ the game well */
@@ -227,13 +232,17 @@
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
 }
 
-/* The played part: the mithril inlay's lit band. */
+/* The played part: the mithril inlay's lit band. Its whole width scaled
+ * from the left (spotlights-viewer.tsx): composited, no layout per frame. */
 .wc-spv-trk-done {
   position: absolute;
   left: 0;
   top: 0;
-  width: 0;
+  width: 100%;
   height: 100%;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  will-change: transform;
   border-radius: 2px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--lk-inlay-mid) 55%, transparent), var(--lk-inlay-mid) 80%, var(--lk-inlay-hi));
 }
@@ -246,10 +255,12 @@
   background: rgba(255, 214, 160, 0.35);
 }
 
-/* The playhead: a small rivet in the mithril inlay's tint. */
+/* The playhead: a small rivet in the mithril inlay's tint, moved by a
+ * translate (spotlights-viewer.tsx). */
 .wc-spv-trk-head {
   position: absolute;
   left: 0;
+  will-change: transform;
   bottom: 4.5px;
   width: 12px;
   height: 12px;
@@ -610,8 +621,25 @@
     gap: 0;
   }
 
+  /* The transport buttons and the speed arrows take 40 px where the row
+   * has room and give way to 32 px (the touch minimum) where it has not. */
   .wc-spv-cb {
-    width: 32px;
+    flex: 0 1 40px;
+    width: 40px;
+    min-width: 32px;
+  }
+
+  .wc-spv-spd {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .wc-spv-spd .wc-spv-cb {
+    width: 40px;
+  }
+
+  .wc-spv-spd-v {
+    min-width: 32px;
   }
 
   .wc-spv-play {
@@ -626,7 +654,7 @@
 
   /* Display as an icon: its label goes. */
   .wc-spv-ctl .wc-lk-btn[data-btn='display'] {
-    width: 34px;
+    width: 40px;
     padding: 0;
   }
 
@@ -641,27 +669,45 @@
   }
 }
 
-/* Touch: wider targets on the track and the markers. */
+/* A very narrow page: To the start goes (Home and the track still get
+ * there), so every other control keeps its 32 px. */
+@container wc-page (max-width: 300px) {
+  .wc-spv-cb[data-act='start'] {
+    display: none;
+  }
+}
+
+/* Touch: targets of at least 32 px, 40 px tall in the control row: the
+ * track and its markers, the buttons, the speed well and its arrows, the
+ * Display popover's colours. */
 @media (pointer: coarse) {
   .wc-spv-trk {
-    height: 46px;
+    height: 50px;
   }
 
   .wc-spv-trk-marks {
-    height: 28px;
+    height: 32px;
   }
 
   .wc-spv-mk {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
   }
 
   .wc-spv-cb {
     min-height: 40px;
   }
 
+  .wc-spv-spd {
+    height: 40px;
+  }
+
   .wc-spv-spd .wc-spv-cb {
     min-height: 0;
-    height: 30px;
+    height: 38px;
+  }
+
+  .wc-spv-sw {
+    height: 40px;
   }
 }
