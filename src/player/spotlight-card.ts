@@ -1,7 +1,13 @@
 // The Spotlights card (stage 32c, ADR 0114; Inv §7.6): the reel's info and
 // its filter in one ghost-look card at the top right of the player,
-// always shown (the chrome auto-hides, the card does not). It replaces the
+// always shown (the chrome auto-hides, the card does not). It replaced the
 // TUI info box and the gear popup of ADR 0110.
+//
+// Stage 46 (ADR 0131): the Spotlights page no longer shows the card (its
+// wall has the filter row, its viewer the head and the countdown). It
+// stays only for the full-page reel of the shell's `openSpotlights` (and
+// its dev hook) until wave 3 removes both; `countdownLeft` and
+// `REEL_NO_MATCH` are the pure helpers the bare reel still uses.
 //
 //   ┌──────────────────────────────────┐
 //   │ ‹   SPOTLIGHT 2 / 5   ›          │   arrows disabled at the ends
