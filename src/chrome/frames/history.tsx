@@ -1,115 +1,166 @@
-// History (Inv §7.4, ADR 0018): the recorded sessions, and Rate, Delete.
+// History (Inv §7.4, ADR 0018; stage 45, ADR 0130): the recorded sessions
+// in the new look, round 7 direction A "Tabell och kort" (table and card)
+// in the large box of layout B, capped at its content width.
 //
-//                       ─── History ───
-//            [ All ]  Gittan   Rasta                     filter pills
+//   [Back]                     ( History )
+//            ( All | Gibur | Gittan | Rasta )                       [?]
+//    CHAR    DATE ▾      TIME   DUR.   EXPIRES   RATING  │ ┌ GIBUR ─────────┐
+//    Gibur   2026-11-06  21:12  3h41m  14 days           │ │ LEVEL 41       │
+//    Gibur   2026-11-05  19:40  2h05m  Saved     ★★★★    │ │ Friday, 6 Nov… │
+//    …                                                    │ │ Duration Deeds │
+//                                                         │ │ Kept     Log   │
+//                                                         │ │ [Run log] …    │
+//    [Backup] [Restore]          flash          Storage: 46 MB of 299 GB
 //
-//   RUN LOG   Char    Date ▼      Time   Dur.   Expires   Rating
-//   STATS     Rasta   2026-09-26  21:00  1h10m  Saved     ★★★★
-//   RATE      Gittan  2026-09-25  20:15  35m    12 days
-//   SAVE …
-//   EXPORT · DELETE · BACKUP · RESTORE · BACK
-//                    flash row (Saved., Restored 4 runs …)
-//                    Storage: 1.2 MB of 2.0 GB
+// The table (the kit's `Table`, sortable heads) and the chosen session's
+// card with its six actions (Run log, Stats, Rate, Save, Export, Delete);
+// Backup, Restore, the flash and the storage line in the foot. On a narrow
+// page (< 680 px of content: a phone) the heads go (a sort list instead),
+// rows take two lines and the card opens under the chosen row.
 //
-// Three focus zones: filter → table → buttons (Tab / Shift+Tab). Filter
-// ←/→ move the pill cursor and filter at once (clamped; the row windows by
-// whole pills with ‹ › when it overflows), ↓ / Enter enter the table at
-// row 0. Table ↑ on row 0 goes back to the filter, ← to the buttons;
-// Enter / Space / click on a row with a log opens the log player
-// (`ChromeServices.openPlayer`); EXPORT opens the export editor
-// (export-editor.tsx, stage 7). Buttons: ↑ from the first enabled one goes
-// to the filter, ↓ wraps, → to the table. The wheel scrolls the table.
+// Keys. ↑ ↓ PgUp PgDn (10) Home End move the cursor; ← → change the
+// character pill; Enter (Space) or a double click opens the run log; a
+// click selects (touch: a tap selects, a tap on the chosen row opens).
+// Letters marked in the labels: R Run log, T Stats, A Rate, S Save,
+// X Export, D Delete, B Backup, O Restore; `?` (or the "?" button) shows
+// the keys. Tab / Shift+Tab: rows ↔ buttons (← → ↑ ↓ walk the enabled
+// buttons, Enter presses). Esc or Back returns to the menu.
 //
 // The frame keeps its state (filter, sort, cursor, scroll) while a
-// sub-frame or the log player is shown: the start page is only hidden, and
-// the list is re-read whenever the frame is on top again.
+// sub-frame, a dialog or the log player is shown: the start page is only
+// hidden, and the list is re-read whenever the frame is on top again. The
+// cursor follows its session through sort, save and reload; after a delete
+// it stays at the same index.
 //
-// Pure helpers (sort, cells, pill window): history-model.ts.
+// Pure helpers (sort, cells, the card's words, the phone's sort list):
+// history-model.ts.
 
-import type { VNode } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
-import { device } from '../../core/device';
+import { Component, type Ref, type VNode } from 'preact';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { nowUs } from '../../core/types';
 import { BadBackupError, backupFileName } from '../../runs/library';
 import type { Session } from '../../runs/stitch';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
-import { centreLeft, step } from '../kit/nav';
-import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
-  Blank,
-  Button,
-  Centered,
-  type Column,
-  FlashRow,
-  Line,
-  Page,
-  STARS_W,
-  Stars,
+  Box,
+  BoxBody,
+  BoxFoot,
+  BoxHead,
+  Dialog,
+  GlassButton,
+  type IconName,
+  LookFlash,
+  Seg,
+  Select,
+  Stars as LookStars,
   Table,
-  indent,
-  ratingKey,
-  useBodyRows,
-} from '../kit/widgets';
+  TableRow,
+  inTextField,
+  letterAction,
+  lookFrame,
+  openKeyHelp,
+  useButtonZone,
+  useListCursor,
+} from '../kit/look';
+import { centreLeft } from '../kit/nav';
+import { type Nav, useIsTop, useKeys, useNav } from '../kit/stack';
+import { Blank, Centered, FlashRow, Line, Page, STARS_W, Stars, ratingKey } from '../kit/widgets';
 import {
   DEFAULT_HISTORY_SORT,
   type HistorySort,
   type HistorySortKey,
-  PILL_GAP,
-  PILL_SLOT,
-  expiresCell,
+  deedsParts,
+  expiresInText,
+  expiresText,
+  expiryLeft,
+  expiryTone,
   fmtDate,
   fmtDur,
+  fmtDurLong,
+  fmtLongDate,
   fmtTime,
   nextHistorySort,
-  panPills,
+  parseSortValue,
   pillNames,
-  pillWidth,
-  pillWindow,
-  ratingCell,
-  scrollPills,
+  sessionDeeds,
+  sortOptions,
   sortSessions,
+  sortValue,
   stars,
   storageText,
 } from './history-model';
 import { ExportEditorFrame } from './export-editor';
 import { SessionStatsFrame } from './statistics';
+import './history.css';
 
-const BUTTONS = ['RUN LOG', 'STATS', 'RATE', 'SAVE', 'EXPORT', 'DELETE', 'BACKUP', 'RESTORE', 'BACK'] as const;
-type ButtonId = (typeof BUTTONS)[number];
-const BUTTON_W = Math.max(...BUTTONS.map((b) => b.length)) + 2;
-const GAP = 2;
-const EMPTY = 'No runs recorded yet.';
 export const NO_PLAYER = 'Log player not available.';
+const EMPTY = 'No runs recorded yet.';
+const READ_FAILED = 'The runs could not be read.';
 
-type Zone = 'filter' | 'table' | 'buttons';
+/** The box stops at its content's width (table ≤ 800 + gap 26 + card 290 + padding), centred (owner decision 2). */
+export const HISTORY_MAX_W = 1180;
+/** Below this content width (px) the page takes its narrow form (two-line rows, the card under the row). */
+export const HISTORY_NARROW = 680;
+
+/** The card's actions, in the keyboard's order, then the foot's. */
+const CARD_ACTIONS = ['RUN LOG', 'STATS', 'RATE', 'SAVE', 'EXPORT', 'DELETE'] as const;
+const FOOT_ACTIONS = ['BACKUP', 'RESTORE'] as const;
+type ActionId = (typeof CARD_ACTIONS)[number] | (typeof FOOT_ACTIONS)[number];
+const ZONE: readonly ActionId[] = [...CARD_ACTIONS, ...FOOT_ACTIONS];
+
+const ACTION: Record<ActionId, { label: string; letter: string; icon: IconName }> = {
+  'RUN LOG': { label: 'Run log', letter: 'r', icon: 'play' },
+  STATS: { label: 'Stats', letter: 't', icon: 'stats' },
+  RATE: { label: 'Rate', letter: 'a', icon: 'star' },
+  SAVE: { label: 'Save', letter: 's', icon: 'save' },
+  EXPORT: { label: 'Export', letter: 'x', icon: 'export' },
+  DELETE: { label: 'Delete', letter: 'd', icon: 'trash' },
+  BACKUP: { label: 'Backup', letter: 'b', icon: 'backup' },
+  RESTORE: { label: 'Restore', letter: 'o', icon: 'restore' },
+};
+
+const HEADS: { key: HistorySortKey; label: string }[] = [
+  { key: 'char', label: 'Char' },
+  { key: 'date', label: 'Date' },
+  { key: 'time', label: 'Time' },
+  { key: 'dur', label: 'Dur.' },
+  { key: 'expires', label: 'Expires' },
+  { key: 'rating', label: 'Rating' },
+];
+/** The table's columns (the mockup's; narrower under 1040 px of content, in history.css). */
+const COLS = 'var(--wc-hist-cols)';
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-export function HistoryFrame(): VNode {
+export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
   const { runs, openPlayer } = useServices();
   const nav = useNav();
   const isTop = useIsTop();
-  const { cols } = useGrid();
-  const bodyRows = useBodyRows();
   const [all, setAll] = useState<Session[] | null>(null);
+  const [readFailed, setReadFailed] = useState(false);
   const [storage, setStorage] = useState('');
-  const [pill, setPill] = useState(0);
-  const [pillStart, setPillStart] = useState(0);
+  const [filter, setFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<HistorySort>(DEFAULT_HISTORY_SORT);
   const [cursorId, setCursorId] = useState<string | null>(null);
   const [cursorIdx, setCursorIdx] = useState(0);
-  const [zone, setZone] = useState<Zone>('table');
-  const [btn, setBtn] = useState(0);
+  const [narrow, setNarrow] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const busy = useRef(false);
+  const loaded = useRef(false);
 
   const reload = async (): Promise<void> => {
     try {
       const lib = await runs();
       setAll(await lib.listSessions(nowUs()));
+      loaded.current = true;
+      setReadFailed(false);
       setStorage(storageText(await lib.estimate()));
     } catch (e) {
+      // A failed first read leaves the page empty with its note; a later
+      // one keeps the list it has.
+      if (!loaded.current) setReadFailed(true);
       setAll((cur) => cur ?? []);
       nav.flash(`Could not read the runs: ${errText(e)}`, 'fail');
     }
@@ -118,17 +169,39 @@ export function HistoryFrame(): VNode {
     if (isTop) void reload();
   }, [isTop]);
 
-  // Pills: All + one per character with sessions.
-  const names = pillNames(all ?? []);
-  const pills = ['All', ...names];
-  const pillIdx = Math.min(pill, pills.length - 1);
-  const filter = pillIdx === 0 ? null : pills[pillIdx]!;
-  const widths = pills.map(pillWidth);
-  const win = pillWindow(widths, cols, pillStart);
+  // The page's own width decides its form (never the device): measured
+  // once at mount (the box is laid out at its final size at once) and on
+  // resize. A hidden page (width 0) keeps its form.
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const check = (w: number): void => {
+      if (w > 0) setNarrow(w < HISTORY_NARROW);
+    };
+    check(el.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((es) => {
+      const e = es[es.length - 1];
+      if (e) check(e.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  const list = sortSessions(
-    (all ?? []).filter((s) => filter === null || s.character === filter),
-    sort,
+  // Pills: All + one per character with sessions. A filter whose last
+  // session went falls back to All.
+  const names = useMemo(() => pillNames(all ?? []), [all]);
+  const pill = filter !== null && names.includes(filter) ? filter : null;
+  const pillIdx = pill === null ? 0 : names.indexOf(pill) + 1;
+
+  // Sorted once per change of the list, the pill or the sort (not per key).
+  const list = useMemo(
+    () =>
+      sortSessions(
+        (all ?? []).filter((s) => pill === null || s.character === pill),
+        sort,
+      ),
+    [all, pill, sort],
   );
   // The cursor follows its session when the list changes (sort, save,
   // reload); after a delete it stays at the same index.
@@ -136,9 +209,22 @@ export function HistoryFrame(): VNode {
   if (cursor < 0) cursor = Math.max(0, Math.min(cursorIdx, list.length - 1));
   const cur = list[cursor];
 
-  const disabled = (b: ButtonId): boolean => {
+  const moveTo = (i: number): void => {
+    const n = Math.max(0, Math.min(list.length - 1, i));
+    setCursorIdx(n);
+    setCursorId(list[n]?.id ?? null);
+  };
+  const choosePill = (i: number): void => {
+    const n = Math.max(0, Math.min(names.length, i));
+    setFilter(n === 0 ? null : names[n - 1]!);
+    setCursorId(null);
+    setCursorIdx(0);
+  };
+
+  const disabled = (b: ActionId): boolean => {
     switch (b) {
       case 'RUN LOG':
+      case 'EXPORT':
         return !cur?.hasLog;
       case 'STATS':
       case 'RATE':
@@ -146,41 +232,11 @@ export function HistoryFrame(): VNode {
         return !cur;
       case 'SAVE':
         return !cur || cur.saved;
-      case 'EXPORT':
-        return !cur?.hasLog;
       case 'BACKUP':
         return (all ?? []).length === 0;
       case 'RESTORE':
-      case 'BACK':
         return false;
     }
-  };
-  const btnEnabled = (i: number): boolean => !disabled(BUTTONS[i]!);
-  const btnIdx = btnEnabled(btn) ? btn : step(BUTTONS.length, btn, 1, { enabled: btnEnabled, wrap: true });
-  const firstBtn = step(BUTTONS.length, -1, 1, { enabled: btnEnabled });
-
-  // Layout: pills, blank, the package, flash, storage (the body).
-  // The table fits the data, at least as tall as the button column.
-  const visible = Math.max(3, Math.min(Math.max(BUTTONS.length - 1, (all ?? []).length), bodyRows - 5));
-  const charW = Math.min(12, Math.max(6, ...list.map((s) => s.character.length)));
-
-  const moveTo = (i: number): void => {
-    const n = Math.max(0, Math.min(list.length - 1, i));
-    setCursorIdx(n);
-    setCursorId(list[n]?.id ?? null);
-  };
-  const choosePill = (i: number): void => {
-    const n = Math.max(0, Math.min(pills.length - 1, i));
-    setPill(n);
-    setPillStart((s) => scrollPills(widths, cols, s, n));
-    setCursorId(null);
-    setCursorIdx(0);
-  };
-
-  const openLog = (s: Session | undefined): void => {
-    if (!s?.hasLog) return;
-    if (openPlayer) openPlayer(s);
-    else nav.flash(NO_PLAYER, 'fail');
   };
 
   const run = async (what: () => Promise<void>): Promise<void> => {
@@ -191,6 +247,18 @@ export function HistoryFrame(): VNode {
     } finally {
       busy.current = false;
     }
+  };
+
+  const openLog = (s: Session | undefined): void => {
+    if (!s?.hasLog) return;
+    if (!openPlayer) {
+      nav.flash(NO_PLAYER, 'fail');
+      return;
+    }
+    void run(async () => {
+      const r = await openPlayer(s);
+      if (r && !r.ok) nav.push(<RunLogErrorDialog session={s} error={r.error} />, { overlay: true });
+    });
   };
 
   const save = (): Promise<void> =>
@@ -235,242 +303,188 @@ export function HistoryFrame(): VNode {
       }
     });
 
-  const press = (b: ButtonId): void => {
+  const press = (b: ActionId): void => {
     if (disabled(b)) return;
     switch (b) {
       case 'RUN LOG':
         return openLog(cur);
       case 'STATS':
-        return cur && nav.push(<SessionStatsFrame session={cur} />);
+        return cur && nav.push(<HistoryStatsFrame session={cur} />);
       case 'RATE':
-        return cur && nav.push(<RateFrame session={cur} done={reload} />);
+        return cur && openRate(nav, cur, reload);
       case 'SAVE':
         void save();
         return;
       case 'EXPORT':
-        // The export editor needs a big screen and a keyboard (ADR 0075 §3).
-        if (cur && device().phone) return nav.flash('Export: desktop only.', 'fail');
+        // Every device: stage 43 builds the Export editor for the phone (ADR 0075 addendum).
         return cur && nav.push(<ExportEditorFrame session={cur} />);
       case 'DELETE':
-        return cur && nav.push(<DeleteFrame session={cur} done={reload} />);
+        return cur && openDelete(nav, cur, reload);
       case 'BACKUP':
         void backup();
         return;
       case 'RESTORE':
         fileRef.current?.click();
         return;
-      case 'BACK':
-        return nav.pop();
     }
   };
 
-  const zones: Zone[] = ['filter', 'table', 'buttons'];
-  const toTable = (): void => {
-    setZone('table');
-    moveTo(0);
-  };
-
-  useKeys((_e, nk) => {
-    if (nk === 'tab' || nk === 'backtab') {
-      setZone(zones[(zones.indexOf(zone) + (nk === 'tab' ? 1 : 2)) % 3]!);
-      return true;
-    }
-    if (zone === 'filter') {
-      switch (nk) {
-        case 'left':
-        case 'right':
-          choosePill(pillIdx + (nk === 'left' ? -1 : 1));
-          return true;
-        case 'down':
-        case 'activate':
-          toTable();
-          return true;
-        case 'up':
-          return true;
-      }
-      return false;
-    }
-    if (zone === 'buttons') {
-      switch (nk) {
-        case 'up':
-          if (btnIdx === firstBtn) setZone('filter');
-          else setBtn(step(BUTTONS.length, btnIdx, -1, { enabled: btnEnabled }));
-          return true;
-        case 'down':
-          setBtn(step(BUTTONS.length, btnIdx, 1, { enabled: btnEnabled, wrap: true }));
-          return true;
-        case 'right':
-          setZone('table');
-          return true;
-        case 'left':
-          return true;
-        case 'activate':
-          press(BUTTONS[btnIdx]!);
-          return true;
-      }
-      return false;
-    }
-    switch (nk) {
-      case 'up':
-        if (cursor <= 0) setZone('filter');
-        else moveTo(cursor - 1);
-        return true;
-      case 'down':
-        moveTo(cursor + 1);
-        return true;
-      case 'pgup':
-        moveTo(cursor - 10);
-        return true;
-      case 'pgdn':
-        moveTo(cursor + 10);
-        return true;
-      case 'home':
-        moveTo(0);
-        return true;
-      case 'end':
-        moveTo(list.length - 1);
-        return true;
-      case 'left':
-        setZone('buttons');
-        return true;
-      case 'right':
-        return true;
-      case 'activate':
-        openLog(cur);
-        return true;
-    }
-    return false;
+  const lc = useListCursor({
+    count: list.length,
+    initial: cursor,
+    activateOn: 'dblclick',
+    touch: 'tap-selects',
+    onChange: moveTo,
+    onActivate: (i) => openLog(list[i]),
   });
+  // The cursor's own index follows the session (sort, filter, reload).
+  useLayoutEffect(() => {
+    if (lc.i !== cursor) lc.set(cursor);
+  }, [cursor, lc.i]);
 
-  const columns: Column<Session>[] = [
-    { key: 'char', title: 'Char', width: charW, sortable: true, cell: (s) => ({ text: s.character }) },
-    { key: 'date', title: 'Date', width: 10, sortable: true, cell: (s) => ({ text: fmtDate(s.startUs) }) },
-    { key: 'time', title: 'Time', width: 6, sortable: true, cell: (s) => ({ text: fmtTime(s.startUs) }) },
-    { key: 'dur', title: 'Dur.', width: 6, sortable: true, cell: (s) => ({ text: fmtDur(s.endUs - s.startUs) }) },
-    { key: 'expires', title: 'Expires', width: 9, sortable: true, cell: expiresCell },
-    { key: 'rating', title: 'Rating', width: 8, sortable: true, cell: ratingCell },
-  ];
-  const tableW = columns.reduce((n, c) => n + c.width, 0) + columns.length - 1 + (list.length > visible ? 1 : 0);
-  const at = centreLeft(cols, BUTTON_W + GAP + tableW);
-  const empty = all !== null && all.length === 0;
-
-  // The pill row: centred when it fits, else the window between ‹ › slots.
-  const pillRow = (
-    <div
-      class="wc-line wc-pills"
-      style={indent(
-        win.overflow ? 0 : centreLeft(cols, widths.reduce((n, w) => n + w, 0) + (pills.length - 1) * PILL_GAP),
-      )}
-    >
-      {win.overflow && (
-        <span
-          class="wc-pill-arrow"
-          data-arrow="left"
-          onClick={() => setPillStart((s) => panPills(widths, cols, s, -1))}
-        >
-          {win.left ? '‹ ' : '  '}
-        </span>
-      )}
-      {pills.slice(win.start, win.end).map((name, k) => {
-        const i = win.start + k;
-        return (
-          <>
-            {k > 0 && ' '.repeat(PILL_GAP)}
-            <Button
-              label={name}
-              width={widths[i]!}
-              selected={i === pillIdx}
-              focused={zone === 'filter'}
-              onClick={() => {
-                setZone('filter');
-                choosePill(i);
-              }}
-            />
-          </>
-        );
-      })}
-      {win.overflow && (
-        <>
-          {' '.repeat(
-            Math.max(
-              0,
-              cols -
-                2 * PILL_SLOT -
-                widths.slice(win.start, win.end).reduce((n, w) => n + w, 0) -
-                (win.end - win.start - 1) * PILL_GAP,
-            ),
-          )}
-          <span
-            class="wc-pill-arrow"
-            data-arrow="right"
-            onClick={() => setPillStart((s) => panPills(widths, cols, s, 1))}
-          >
-            {win.right ? ' ›' : '  '}
-          </span>
-        </>
-      )}
-    </div>
+  const zone = useButtonZone({ ids: ZONE, enabled: (id) => !disabled(id as ActionId), press: (id) => press(id as ActionId) });
+  const letters: Record<string, () => void> = Object.fromEntries(
+    ZONE.map((id) => [ACTION[id].letter, () => press(id)] as const),
   );
 
-  return (
-    <Page title="History" footer={['↑↓ Navigate', 'Tab/←→ Cycle', 'Enter Open', 'ESC Back']}>
-      {pillRow}
-      <Blank />
-      <div class="wc-pkg" style={{ ...indent(at), display: 'flex' }}>
-        <div class="wc-btncol">
-          {BUTTONS.map((b, i) => (
-            <div class="wc-line">
-              <Button
-                label={b}
-                width={BUTTON_W}
-                selected={i === btnIdx}
-                focused={zone === 'buttons'}
-                disabled={disabled(b)}
-                onClick={() => {
-                  setBtn(i);
-                  setZone('buttons');
-                  press(b);
-                }}
-              />
-            </div>
-          ))}
+  useKeys((e, nk) => {
+    // The sort list (a native select) keeps its own keys.
+    if (inTextField(e.target) && nk !== 'back') return false;
+    if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      openHistoryKeys(nav);
+      return true;
+    }
+    if (letterAction(e, letters)) return true;
+    if (zone.key(e, nk)) return true;
+    if (zone.zone !== 'list') return false;
+    if (nk === 'left' || nk === 'right') {
+      choosePill(pillIdx + (nk === 'left' ? -1 : 1));
+      return true;
+    }
+    return lc.key(e, nk);
+  });
+
+  const inRows = zone.zone === 'list';
+  const empty = all !== null && all.length === 0;
+  const btn = (id: ActionId, extra: { primary?: boolean; danger?: boolean; small?: boolean } = {}): VNode => (
+    <GlassButton
+      key={id}
+      id={id}
+      label={ACTION[id].label}
+      letter={ACTION[id].letter}
+      icon={ACTION[id].icon}
+      selected={zone.sel === id}
+      disabled={disabled(id)}
+      onClick={() => press(id)}
+      {...extra}
+    />
+  );
+
+  const card = (
+    <aside key="card" class="wc-hist-card" aria-label="The chosen session" aria-live="polite">
+      {cur ? (
+        <div key={cur.id} class="wc-hist-card-in">
+          <SessionCard s={cur} />
+          <div class="wc-lk-btncol wc-hist-acts">
+            {btn('RUN LOG', { primary: true })}
+            {btn('STATS')}
+            {btn('RATE')}
+            {btn('SAVE')}
+            {btn('EXPORT')}
+            {btn('DELETE', { danger: true })}
+          </div>
         </div>
-        <div style={{ width: `calc(var(--cell-w) * ${GAP})` }} />
-        <div class="wc-history-table">
-          <Table
-            key={pill}
-            columns={columns}
-            rows={list}
-            cursor={cursor}
-            visible={visible}
-            focused={zone === 'table'}
-            sort={sort}
-            onSort={(k) => {
-              setSort((s) => nextHistorySort(s, k as HistorySortKey));
-              setZone('table');
-            }}
-            onRowClick={(i) => {
-              moveTo(i);
-              setZone('table');
-              openLog(list[i]);
-            }}
-          />
-          {empty && (
-            <div class="wc-history-empty" style={{ marginTop: `calc(var(--cell-h) * ${-visible})` }}>
-              <Line at={centreLeft(tableW, EMPTY.length)}>
-                <span class="wc-c-hint">{EMPTY}</span>
-              </Line>
-            </div>
-          )}
-        </div>
-      </div>
-      <FlashRow />
-      {storage && (
-        <>
-          <Blank n={Math.max(0, bodyRows - 4 - Math.max(BUTTONS.length, visible + 1))} />
-          <Centered text={storage} class="wc-c-hint wc-history-storage" />
-        </>
+      ) : (
+        <p class="wc-lk-empty wc-hist-card-empty">
+          {all === null
+            ? ''
+            : all.length === 0
+              ? 'Recorded sessions show here. Restore brings back a backup from another browser.'
+              : 'No session chosen.'}
+        </p>
       )}
+    </aside>
+  );
+
+  // One component per row that re-renders only when its session, place or
+  // state changes (a key moves the cursor: two rows render, not all).
+  const rows: VNode[] = [];
+  list.forEach((s, i) => {
+    const on = i === cursor;
+    rows.push(<HistoryRow key={s.id} s={s} i={i} state={on ? (inRows ? 'cur' : 'idle') : null} />);
+    if (narrow && on) rows.push(card);
+  });
+  // The rows' pointer handlers, delegated from their parent to the cursor's (no closures per row).
+  const onRow = (kind: 'onPointerDown' | 'onPointerMove' | 'onClick' | 'onDblClick', e: PointerEvent | MouseEvent): void => {
+    const row = (e.target as Element | null)?.closest?.('.wc-lk-tr[data-i]');
+    const i = row ? Number(row.getAttribute('data-i')) : NaN;
+    if (!Number.isFinite(i)) return;
+    const rp = lc.rowProps(i);
+    if (kind === 'onPointerDown' || kind === 'onPointerMove') rp[kind](e as PointerEvent);
+    else rp[kind](e);
+  };
+
+  const note = all === null ? 'Loading…' : readFailed ? READ_FAILED : empty ? EMPTY : list.length === 0 ? EMPTY : null;
+
+  return (
+    <Box title="History" size="large" maxWidth={HISTORY_MAX_W} onBack={() => nav.pop()} class="wc-hist" winClass={'wc-hist-win' + (narrow ? ' is-narrow' : '')}>
+      <BoxHead class="wc-hist-head">
+        <div class="wc-hist-pills">
+          <Seg
+            kind="pills"
+            label="Character"
+            value={pill ?? ''}
+            onChange={(v) => choosePill(v === '' ? 0 : names.indexOf(v) + 1)}
+            options={[{ value: '', label: 'All', id: 'All' }, ...names.map((n) => ({ value: n, label: n, id: n }))]}
+          />
+        </div>
+        <HistoryKeysButton />
+        {narrow && (
+          <div class="wc-hist-sort">
+            <Select
+              id="sort"
+              label="Sort by"
+              value={sortValue(sort)}
+              options={sortOptions(sort)}
+              onChange={(v) => {
+                const s = parseSortValue(v);
+                if (s) setSort(s);
+              }}
+            />
+          </div>
+        )}
+      </BoxHead>
+      <BoxBody class="wc-hist-main" scroll={narrow} bodyRef={bodyRef}>
+        <div
+          class="wc-hist-tablewrap"
+          onPointerDown={(e) => onRow('onPointerDown', e)}
+          onPointerMove={(e) => onRow('onPointerMove', e)}
+          onClick={(e) => onRow('onClick', e)}
+          onDblClick={(e) => onRow('onDblClick', e)}
+        >
+          <Table
+            cols={COLS}
+            scroll={!narrow}
+            stackBelow={narrow ? STACK_ALWAYS : undefined}
+            bodyRef={lc.scrollRef as Ref<HTMLDivElement>}
+            heads={HEADS.map((h) => ({ key: h.key, label: h.label, sort: true }))}
+            sort={sort}
+            onSort={(k) => setSort((s) => nextHistorySort(s, k as HistorySortKey))}
+          >
+            {note !== null ? <p class="wc-lk-empty wc-hist-note">{note}</p> : rows}
+            {narrow && note !== null && card}
+          </Table>
+        </div>
+        {!narrow && card}
+      </BoxBody>
+      <BoxFoot class="wc-hist-foot">
+        <div class="wc-hist-footbtns">
+          {btn('BACKUP', { small: true })}
+          {btn('RESTORE', { small: true })}
+        </div>
+        <LookFlash class="wc-hist-flash" />
+        <span class="wc-hist-storage">{storage}</span>
+      </BoxFoot>
       <input
         ref={fileRef}
         type="file"
@@ -479,9 +493,189 @@ export function HistoryFrame(): VNode {
         class="wc-history-file"
         onChange={() => void onFile()}
       />
-    </Page>
+    </Box>
+  );
+});
+
+/** `stackBelow` that always stacks (the page decides its narrow form by its own width, not the table's). */
+const STACK_ALWAYS = 1e6;
+
+interface HistoryRowProps {
+  s: Session;
+  i: number;
+  /** The chosen row: `cur` with the keyboard in the rows, `idle` while it is in the buttons. */
+  state: 'cur' | 'idle' | null;
+}
+
+/**
+ * One table row. Its pointer handlers are delegated from the rows' parent
+ * (`TableRow` takes no `onPointerDown`, which the cursor needs to tell a
+ * tap from a click: a kit gap, reported for wave 3), so the row has no
+ * closures and renders again only when its own props change.
+ */
+class HistoryRow extends Component<HistoryRowProps> {
+  override shouldComponentUpdate(n: HistoryRowProps): boolean {
+    const p = this.props;
+    return n.s !== p.s || n.i !== p.i || n.state !== p.state;
+  }
+
+  override render(): VNode {
+    const { s, i, state } = this.props;
+    return (
+      <TableRow id={s.id} on={state !== null} class={state === null ? undefined : `is-${state}`} data-i={i}>
+        <span class="wc-lk-td wc-hist-char">{s.character}</span>
+        <span class="wc-lk-td wc-hist-date">{fmtDate(s.startUs)}</span>
+        <span class="wc-lk-td wc-hist-time">{fmtTime(s.startUs)}</span>
+        <span class="wc-lk-td wc-hist-dur">{fmtDur(s.endUs - s.startUs)}</span>
+        <span class={`wc-lk-td wc-hist-exp is-${expiryTone(s)}`}>{expiresText(s)}</span>
+        <span class="wc-lk-td wc-hist-rate">{s.saved && s.rating > 0 ? <LookStars n={s.rating} /> : ''}</span>
+      </TableRow>
+    );
+  }
+}
+
+/** The chosen session's card: name, level, the long date, Duration, Deeds, Kept, Log. */
+function SessionCard(p: { s: Session }): VNode {
+  const s = p.s;
+  const deeds = sessionDeeds(s);
+  const d = deeds && deedsParts(deeds);
+  const n = s.runs.length;
+  return (
+    <>
+      <div class="wc-hist-name">
+        {s.character}
+        {s.level !== undefined && <small>Level {s.level}</small>}
+      </div>
+      <div class="wc-hist-when">
+        {fmtLongDate(s.startUs)} · {fmtTime(s.startUs)}
+      </div>
+      <dl class="wc-lk-kv wc-hist-kv">
+        <dt>Duration</dt>
+        <dd>
+          {fmtDurLong(s.endUs - s.startUs)}{' '}
+          <span class="wc-lk-dim">
+            · {n} run{n === 1 ? '' : 's'}
+          </span>
+        </dd>
+        <dt>Deeds</dt>
+        <dd>
+          {d ? (
+            <>
+              {d.kills}
+              {d.pvp && (
+                <>
+                  {' · '}
+                  <span class="wc-hist-pk">{d.pvp}</span>
+                </>
+              )}
+              {d.deaths && (
+                <>
+                  {' · '}
+                  <span class="wc-hist-dead">{d.deaths}</span>
+                </>
+              )}
+            </>
+          ) : (
+            <span class="wc-lk-faint">Not recorded</span>
+          )}
+        </dd>
+        <dt>Kept</dt>
+        <dd>
+          {s.saved || s.expiresDays === null ? (
+            <>
+              <span class="wc-lk-gold">Saved</span>
+              {s.rating > 0 && (
+                <>
+                  {' '}
+                  <LookStars n={s.rating} />
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {expiresInText(s.expiresDays)}
+              <i class="wc-hist-gauge" aria-hidden="true">
+                <b style={{ width: `${expiryLeft(s.expiresDays) * 100}%` }} />
+              </i>
+            </>
+          )}
+        </dd>
+        <dt>Log</dt>
+        <dd>{s.hasLog ? 'Captured text' : <span class="wc-lk-faint">No text captured</span>}</dd>
+      </dl>
+    </>
   );
 }
+
+// ------------------------------------------------------------------ stand-ins
+//
+// WP 45-B (`history-stats.tsx`: HistoryStatsFrame) and WP 45-C
+// (`history-dialogs.tsx`: RateDialog, DeleteDialog, RunLogErrorDialog,
+// HistoryKeysButton, openHistoryKeys) are built in parallel. Until they
+// land on the stage branch the page uses these stand-ins with the
+// contract's names: Statistics, Rate and Delete are today's frames (old
+// look, on the cell grid), the run-log error box and the keys box are the
+// kit's `Dialog` and `openKeyHelp`. At the merge this block goes and the
+// two files' exports are imported instead (the call sites stay).
+
+/** Stand-in for WP 45-B's `HistoryStatsFrame`: today's Statistics frame. */
+function HistoryStatsFrame(p: { session: Session }): VNode {
+  return <SessionStatsFrame session={p.session} />;
+}
+
+/** Stand-in for WP 45-C's `RateDialog` (an overlay frame): today's Rate frame. */
+function openRate(nav: Nav, s: Session, done: () => Promise<void>): void {
+  nav.push(<RateFrame session={s} done={done} />);
+}
+
+/** Stand-in for WP 45-C's `DeleteDialog` (an overlay frame): today's Delete frame. */
+function openDelete(nav: Nav, s: Session, done: () => Promise<void>): void {
+  nav.push(<DeleteFrame session={s} done={done} />);
+}
+
+/** History's keys (the "?" box): no key-hint row on the page (owner decision 4). */
+const HISTORY_KEYS: [string, string][] = [
+  ['↑ ↓', 'Move'],
+  ['PgUp PgDn', 'Ten rows'],
+  ['Home End', 'First, last'],
+  ['← →', 'Character'],
+  ['Enter', 'Run log'],
+  ['R', 'Run log'],
+  ['T', 'Stats'],
+  ['A', 'Rate'],
+  ['S', 'Save'],
+  ['X', 'Export'],
+  ['D', 'Delete'],
+  ['B', 'Backup'],
+  ['O', 'Restore'],
+  ['Tab', 'Buttons'],
+  ['?', 'This list'],
+  ['Esc', 'Back'],
+];
+
+/** Stand-in for WP 45-C's `openHistoryKeys`. */
+function openHistoryKeys(nav: Nav): void {
+  openKeyHelp(nav, 'Keys', HISTORY_KEYS);
+}
+
+/** Stand-in for WP 45-C's `HistoryKeysButton`: the "?" glass icon button. */
+function HistoryKeysButton(): VNode {
+  const nav = useNav();
+  return <GlassButton id="KEYS" icon="help" title="Keys (?)" small onClick={() => openHistoryKeys(nav)} />;
+}
+
+/** Stand-in for WP 45-C's `RunLogErrorDialog` (an overlay frame). */
+const RunLogErrorDialog = lookFrame(function RunLogErrorDialog(p: { session: Session; error: string }): VNode {
+  const nav = useNav();
+  const close = (): void => nav.pop();
+  return (
+    <Dialog title="Run log" dlg="runlog-error" buttons={[{ id: 'OK', label: 'OK', primary: true, run: close }]} onCancel={close}>
+      <p class="wc-lk-q">This run log could not be opened.</p>
+      <p class="wc-lk-qn wc-hist-err">{p.error}</p>
+      <p class="wc-lk-qn">The run data may be damaged. Stats and Backup may still work.</p>
+    </Dialog>
+  );
+});
 
 // ------------------------------------------------------------------ rate
 

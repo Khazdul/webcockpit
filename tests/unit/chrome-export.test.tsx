@@ -99,6 +99,8 @@ async function until(ok: () => boolean, what = 'condition'): Promise<void> {
 const frame = (host: HTMLElement) => host.querySelector('.wc-frame:not([hidden])')!;
 const title = (host: HTMLElement) => frame(host).querySelector('.wc-title-row')?.textContent;
 const btn = (host: HTMLElement, label: string) => frame(host).querySelector<HTMLElement>(`[data-btn="${label}"]`);
+/** History (stage 45: a look page) is the top frame. */
+const historyTop = (host: HTMLElement) => frame(host).querySelector('.wc-hist') !== null;
 const logRows = (host: HTMLElement) =>
   [...frame(host).querySelectorAll<HTMLElement>('.wc-exp-row:not(.is-empty)')].map((r) => ({
     kind: r.dataset.kind,
@@ -127,7 +129,7 @@ async function openEditor(lib: RunLibrary) {
   await act(() => page.show());
   for (let i = 0; i < 3; i++) await key('ArrowDown');
   await key('Enter');
-  await until(() => frame(host).querySelectorAll('.wc-tr:not(.is-empty)').length === 1, 'the History row');
+  await until(() => frame(host).querySelectorAll('.wc-hist .wc-lk-tr').length === 1, 'the History row');
   expect(btn(host, 'EXPORT')!.getAttribute('aria-disabled')).toBeNull();
   await act(() => btn(host, 'EXPORT')!.click());
   await until(() => logRows(host).length > 0, 'the editor rows');
@@ -224,7 +226,7 @@ describe('Export editor frame', () => {
     await key('ArrowDown');
     expect(selHead(host)).toBe('LINE · 3');
     await key('Escape');
-    expect(title(host)).toBe('─── History ───');
+    expect(historyTop(host)).toBe(true);
   });
 
   it('the mouse: a press moves the cursor, a drag selects, Shift+click extends', async () => {
@@ -397,7 +399,7 @@ describe('Export editor frame', () => {
 
     // BACK returns to History; reopening restores the edits.
     await key('Escape');
-    expect(title(host)).toBe('─── History ───');
+    expect(historyTop(host)).toBe(true);
     cleanup.splice(0).forEach((c) => c());
     document.body.innerHTML = '';
     host = await openEditor(lib);
