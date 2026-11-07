@@ -23,7 +23,7 @@ stage 41 (ADR 0125), in the directions the owner chose from round 7 (README,
 
 The same pages run in three hosts. On the start page they use the big-page
 layout B "Rummet växer" from stage 42. In game they open in the movable,
-resizable Scripts window, using the frame of each direction. On the phone
+resizable Scripts window, in one frame (Lykta) on every page. On the phone
 they open from ESC → Options → Scripts. Every function, key and editor
 feature listed under "Must keep working" stays. The editor and the
 manual must stay as fast as today.
@@ -36,13 +36,17 @@ own structure and keep CodeMirror.
 
 - Scripts page **C Instrumentbrädan**, script editor **C Fokus**, manual
   **A Boken**.
-- In-game window frame: **each direction's own** ("Riktningens" in the
-  review page's frame switch). The mockups set it per page: the
-  Scripts page **Lykta** (`win-a`), the editor **Glass** (`win-b`), the
-  manual **Lykta** (`win-a`). The frame of the Scripts window therefore
-  follows its top frame (stage 42's `WindowLook` `'lykta' | 'glass'`, set
-  with `useWindowChrome`). This wins over stage 43's accepted default "the
-  same frame for both editors" (listed as an open question below).
+- In-game window frame: **one frame, Lykta, for every page** (owner,
+  2026-11-07: "the Profile page and the Scripts page, with their
+  sub-pages, can all have the same frame, the direction's own"). The
+  Scripts window and all its sub-pages (Scripts page, script editor,
+  manual) use the **Lykta** frame (`win-a`), the frame of the chosen
+  directions (Scripts page C, and Profile editor B in stage 43). The window
+  never switches frame when a sub-page opens; the mockups' Glass frame for
+  the editor (`win-b`) is dropped from scope. The top frame sets only the
+  title and note (`useWindowChrome({ title?, note? })`). This answers the
+  earlier question "Riktningens (Glass for the editor) or Lykta
+  everywhere": Lykta everywhere.
 - Big pages on the start page: **B Rummet växer** (stage 42 builds it).
 
 Defaults the owner accepted by not objecting (the open questions on the
@@ -85,7 +89,8 @@ Read first:
   content, states, flashes and keys of all three pages. **This is the
   checklist of what must stay reachable.**
 - `round7/scripts/index.html`: the review page with the owner's
-  questions; the frame switch "Riktningens / Lykta / Glas".
+  questions; the frame switch "Riktningens / Lykta / Glas" (answered:
+  Lykta everywhere).
 
 Mockups (open with `?ctx=start&open&nointro` or
 `?ctx=game[&bg=paper][&win=small]`. The DEMO panel at the bottom left
@@ -101,7 +106,7 @@ hover, find, a syntax error, unsaved → Esc, a bundled script):
 | `round7/scripts/editor.css` | Status line and position styles |
 | `round7/scripts/manual-a.html` | Manual A (contents, scroll spy, find in the head, narrow "Contents" overlay, keys) |
 | `round7/scripts/common.js` / `common.css` | Host (start box vs window, inline Back), dialogs (`SC.dialog`, `SC.dialogs`), setting controls (`SC.control`, `SC.settings`), help typesetting, manual HTML, code surface and pop-up styles |
-| `round7/base/README.md`, `base.css` | The kit's mockup classes (`.lp`, `.box-large`, `.ibtn`, `.field`, `.tog`, `.seg`, `.rows`, `.code`, `.wwin.win-a`, `.wwin.win-b`, Paper variants) |
+| `round7/base/README.md`, `base.css` | The kit's mockup classes (`.lp`, `.box-large`, `.ibtn`, `.field`, `.tog`, `.seg`, `.rows`, `.code`, `.wwin.win-a` (the window frame; `.wwin.win-b` is not built), Paper variants) |
 | `round7/layout/b-room.html` | How a big page opens and closes on the start page |
 
 Current code (what each page replaces; read before you change it):
@@ -135,7 +140,8 @@ In:
   the unsaved prompt, in the new look.
 - The script manual in the new look (a new DOM manual; the grid manual
   stays for the profile editor).
-- The Scripts window's per-page frame, title and note, the inline Back,
+- The Scripts window's per-page title and note (the frame is stage 42's
+  Lykta, the same on every page), the inline Back,
   and the close request through the unsaved prompt.
 - Tests, the ADR, the guide's status text, spec §2.10 / §5 and README /
   About lines that describe these pages.
@@ -316,8 +322,7 @@ kit widgets (`Field`, `Toggle`, `Seg`, icon-only `GlassButton`, `Rule`,
 `letterAction`, the icons).
 
 1. Rewrite `ScriptsFrame` as a `lookFrame`: `<Box size="large"
-   title="Scripts" onBack=…>`, with `useWindowChrome({ look: 'lykta',
-   title: 'Scripts' })`. In the window it is the root, so it has no Back
+   title="Scripts" onBack=…>`, with `useWindowChrome({ title: 'Scripts' })`. In the window it is the root, so it has no Back
    (`Box` shows none in the `window` place).
 2. Layout from `page-c.html`, with container queries on the box/window
    content (never the viewport, so one rule set serves the start box, a
@@ -402,8 +407,9 @@ tokens and `--lk-mono`.
 
 1. `ScriptEditor` becomes a `lookFrame`: `<Box size="large"
    title={name + (dirty ? ' •' : '')}>` on the start page.
-   `useWindowChrome({ look: 'glass', title: 'Scripts', note: name + (dirty ?
-   ' •' : '') })` in game, with `InlineBack` at the top left of the well.
+   `useWindowChrome({ title: 'Scripts', note: name + (dirty ? ' •' : '') })`
+   in game (the window keeps its Lykta frame), with `InlineBack` at the top
+   left of the well.
 2. The well (`.ec-well`): CodeMirror fills it. Tools at the top right are
    small glass icon buttons in a frosted pill: Save (primary, disabled
    when clean or read-only), Find, Manual. A read-only script gets
@@ -452,8 +458,8 @@ Highlight API and a `<mark>` fallback, the keys and the Esc order, the
 narrow contents overlay).
 
 1. `ScriptManual` becomes a `lookFrame`: `<Box size="large" title="Script
-   Manual">` on the start page; in game `useWindowChrome({ look: 'lykta',
-   title: 'Scripts', note: 'Manual' })` and `InlineBack` in the head.
+   Manual">` on the start page; in game `useWindowChrome({ title:
+   'Scripts', note: 'Manual' })` and `InlineBack` in the head.
    `openScriptManual(nav, name?)` keeps its signature and its
    `manualSectionOf` lookup.
 2. Host stage 42's `LookManual` (`src/editor/look-manual.tsx`, read only)
@@ -496,13 +502,12 @@ narrow contents overlay).
 
 ### 44d — The Scripts window, the phone host, docs (after 44a–c land, or as the integration step)
 
-Uses from 42: the window frames (`WindowLook` `'lykta' | 'glass'`, dark
-and Paper, `data-look`), `useWindowChrome`, the `menu` place for look
+Uses from 42: the window frame (Lykta, dark and Paper), `useWindowChrome`, the `menu` place for look
 frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
 
-1. Check that the Scripts window switches frame with its top frame: page
-   (Lykta), then Edit (Glass, note = name), then F1 (Lykta, note "Manual"),
-   and back down. Check the title, note, focus dimming, the X, and Esc at
+1. Check that the Scripts window keeps its Lykta frame on every page while
+   the title and note follow the top frame: page (title "Scripts"), then
+   Edit (note = name), then F1 (note "Manual"), and back down. Check the title, note, focus dimming, the X, and Esc at
    each level. Check the close request with unsaved changes: X → the
    prompt; Keep editing keeps the window; No closes. Check the bar
    icon's mark and the stored place. Check a small window (360 × 260 px)
@@ -522,7 +527,9 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
    never take "the next free number" themselves). It collects the
    decisions 44a–c report: letters, the phone drill-down, the second-tap
    change, the status text, the class hooks, the dialog overlays, the
-   window frame per top frame (the highlight API is ADR 0127's). Also an
+   one window frame (Lykta on every page, Glass dropped; owner
+   2026-11-07) with the note per top frame (the highlight API is ADR
+   0127's). Also an
    ADR 0121 addendum (layout superseded by the new look; behaviour kept)
    and spec §2.10 (stage 42 adds the §5 rows). README lines are wave 3's;
    the About text's Scripts lines are stage 47's (`about.tsx`): list the
@@ -543,7 +550,7 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
 | `.wc-lk-dialog[data-dlg=new|rename|delete|export|import|restore|unsaved]` | dialogs (stage 42's `Dialog`) |
 | `.wc-sed`, `.wc-sed-status`, `.wc-sed-problem`, `.wc-sed-tools` | editor |
 | `.wc-sman` (the frame's root), and stage 42's `.wc-lk-mtoc li[data-i]`, `.wc-lk-mtoc li.is-on`, `.wc-lk-mtext section[data-i]`, `.wc-lk-mfind input`, `.wc-search-count` | manual |
-| `.wc-win[data-win="scripts"][data-look="lykta|glass"]`, `.wc-win-t`, `.wc-win-n` (stage 42) | the window |
+| `.wc-win[data-win="scripts"]`, `.wc-win-t`, `.wc-win-n` (stage 42; no `data-look`) | the window |
 
 ## Tasks
 
@@ -558,7 +565,7 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
       Import, Restore); file picker; flashes
 - [ ] 44a: phone drill-down with settings; `on · at login`; guide sentence
 - [ ] 44a: `helpBlocks` + DOM help; model pruned; unit and e2e tests
-- [ ] 44b: editor C in the large box and the Glass window; tools, read-only
+- [ ] 44b: editor C in the large box and the Scripts window (Lykta); tools, read-only
       plate, Duplicate; status line; `Modified · Ln, Col`
 - [ ] 44b: stage 42's lantern code theme on the buffer (`.wc-code`);
       pop-up plates (dark and Paper)
@@ -567,7 +574,7 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
 - [ ] 44c: the script manual hosts stage 42's `LookManual` (contents with
       counts, links, highlighted examples, find in the head); checked
       against `manual-a.html`; F1 targets; e2e tests
-- [ ] 44d: Scripts window frames per top frame, note, inline Back, close
+- [ ] 44d: Scripts window: one Lykta frame on every page, note per top frame, inline Back, close
       request, bar mark; dark and Paper; small and large window
 - [ ] 44d: phone ESC → Options → Scripts end to end
 - [ ] 44d: remaining e2e/unit selector updates; ADR 0129; ADR 0121
@@ -602,8 +609,8 @@ E2e (Playwright). Update the specs listed per package. New cases:
 - Letters N I M E X R D, and no letter firing while a field is typed in.
 - The editor's tools: they dim while typing; Save is disabled when the
   buffer is clean; Duplicate on a bundled script.
-- The Scripts window's frame follows the top frame (`.wc-win[data-look]`,
-  stage 42), and its note (`.wc-win-n`) shows the script name with `•`
+- The Scripts window keeps one frame on every page (stage 42's Lykta),
+  and its note (`.wc-win-n`) shows the script name with `•`
   when dirty.
 - The manual: F1 targets, link to a Lua entry, find count and navigation,
   the narrow contents overlay.
@@ -632,7 +639,7 @@ server (ADR 0125 addendum: Firefox runs at half speed there).
 - **No blur under the code.** The code well is opaque (or close to it).
   No `backdrop-filter` over the scrolling text area. The tools pill may
   blur (it is small). In-game windows have no `backdrop-filter` at all
-  (ADR 0127; the Glass body is an opaque fill); still give the well its
+  (ADR 0127; the window body is opaque); still give the well its
   own opaque background.
 - **The sky behind a big box** keeps its ADR 0124 budget. Do not add
   canvas or animation work. Stage 42 runs the sky at its calm rate while
@@ -691,8 +698,8 @@ you can use the demo or a real login.
    index, and Ctrl+F finds with Case/Word/Regex. On a narrow window the
    contents are behind a Contents button.
 7. **In game.** Open the Scripts window (bar icon or `#scripts`). The
-   page has the Lykta frame. Edit switches it to the Glass frame with the
-   script's name as a note, and F1 switches to Lykta with "Manual". The
+   window has the Lykta frame on every page: Edit shows the script's name
+   as a note and F1 shows "Manual"; the frame itself never changes. The
    small Back on sub-pages and Esc go back a level; X with unsaved
    changes asks first. Move and resize it, make it small, and try the
    Paper background.
@@ -703,20 +710,16 @@ you can use the demo or a real login.
 
 Feedback wanted: the instrument panel tiles (size, density), the help
 column's typography, the editor's tools (too hidden, too visible?), the
-Glass frame for the editor next to the Lykta page frame in game, and the
+one Lykta frame for the page, the editor and the manual in game, and the
 manual's contents and find.
 
 ## Open questions for the owner (after testing)
 
 The build follows the default until the owner answers.
 
-1. **The script editor's window frame**: glass (round 7 "Riktningens", the
-   editor C's own frame) while the Scripts page and the manual keep the
-   lantern frame; stage 43 had proposed one frame for both editors.
-   *Default: Riktningens (glass for the editor).*
-2. **The second tap on the selected script no longer opens the editor**
+1. **The second tap on the selected script no longer opens the editor**
    (Edit is in reach on the panel). *Default: removed.*
-3. **The page's letters N I M E X R D** (new; the TUI page had none).
+2. **The page's letters N I M E X R D** (new; the TUI page had none).
    *Default: these letters.*
 
 ## Owner feedback
@@ -741,9 +744,10 @@ The canonical names are in `docs/stages/42-look-pages-base.md` ("API" and
    Back on the phone's ESC menu. **`InlineBack`**: the small Back for a
    window sub-page (rendered only in a window and only when the frame is
    not the stack's root; calls `nav.pop()`).
-3. **Window frames**: `WindowLook` `'lykta' | 'glass'` (dark and Paper,
-   `data-look`), set by the top frame with `useWindowChrome({ look, title,
-   note })` while it is on top, reverting when it pops; 8 edges, the grip,
+3. **Window frame**: one frame, Lykta (dark and Paper), the same on every
+   page and sub-page; the top frame sets the title and note with
+   `useWindowChrome({ title, note })` while it is on top, reverting when it
+   pops; 8 edges, the grip,
    focus dimming, the stored place, the minimum (≥ 360 × 260 px) and
    `data-win` unchanged; `WindowsHandle` unchanged; look frames get a free
    body, old-look frames the cell grid.

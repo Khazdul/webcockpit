@@ -19,8 +19,9 @@ editing a shared file**. Stage 42 ships:
    pages, a settled signal).
 2. **Places**: the same look frame runs on the start page, in an in-game
    window and on the phone's ESC menu, and the kit adapts (`useLookPlace`).
-3. **In-game window frames** in the new look: **Lykta** and **Glass**, on
-   dark and Paper, chosen per top frame (`useWindowChrome`).
+3. **The in-game window frame** in the new look: **Lykta**, on dark and
+   Paper, one frame for every window and every sub-page in it (owner,
+   2026-11-07); the top frame sets the title and note (`useWindowChrome`).
 4. **The kit**: controls and widgets, dialogs and overlay frames,
    popovers, list / grid / button cursors, shortcut letters, the Esc rule
    for fields, icons, tokens (dark and Paper).
@@ -33,7 +34,7 @@ editing a shared file**. Stage 42 ships:
    wave 2 starts from proven parts.
 
 No user-facing page changes its content in this stage. What the owner can
-see after it: the gallery, the new in-game window frames around today's
+see after it: the gallery, the new in-game window frame around today's
 TUI content, and the run log player's Back and h:mm:ss.
 
 ## References
@@ -51,8 +52,8 @@ Read first: `CLAUDE.md`, `progress.md` (top), this file, then:
   - `round7/layout/b-room.html` — layout B: the open / close choreography
     and its timings (below).
   - `round7/base/README.md`, `base.css`, `base.js`, `gallery.html` (every
-    component), `ingame.html` (both window frames over real game
-    screenshots, `?bg=paper`).
+    component), `ingame.html` (the window frames over real game
+    screenshots, `?bg=paper`; only the Lykta frame, `win-a`, is built).
 - The five wave-2 stage files (`43-profile-pages.md` … `47-credits-about.md`),
   each ending with "Uses from stage 42": this stage's API is their union.
 
@@ -157,17 +158,22 @@ lay themselves out by their own width, never by the device.
 
 ### In-game windows
 
-- Two looks, `WindowLook = 'lykta' | 'glass'`, re-derived from the base's
-  `.wwin.win-a` (Lykta: 5 px iron band, small riveted brackets, centred
-  hood with title and dim note, small iron X, opaque lamp-lit body) and
-  `.wwin.win-b` (Glass: 7 px stone-iron frame, big brackets, a frosted
-  title bar with title left, note and a glass X, a glass body). Both have
-  a bronze Paper variant (`data-light` on `.wc-windows`, as today).
-- The top frame of a window's stack sets the look, title and note with
-  `useWindowChrome({ look?, title?, note? })` while it is on top (as
-  `useScenery`), reverting when it pops. Defaults: Profile = Lykta, title
-  "Profile", note the profile name; Scripts = Lykta, title "Scripts". The
-  frame's look is visible as `data-look` (tests).
+- **One frame, Lykta**, re-derived from the base's `.wwin.win-a` (5 px
+  iron band, small riveted brackets, centred hood with title and dim
+  note, small iron X, opaque lamp-lit body), with a bronze Paper variant
+  (`data-light` on `.wc-windows`, as today). Owner decision 2026-11-07
+  ("the Profile page and the Scripts page, with their sub-pages, can all
+  have the same frame, the direction's own"): every in-game window for
+  Profile and Scripts and all their sub-pages (Profile editor, Import,
+  Export; Scripts page, script editor, manual) uses this one frame, the
+  frame of both chosen directions (Profile editor B, Scripts page C). The
+  window never switches frame when a sub-page opens. The mockups' Glass
+  window (`.wwin.win-b`) is dropped from scope: there is no look type, no
+  look prop and no `data-look`.
+- The top frame of a window's stack sets the title and note with
+  `useWindowChrome({ title?, note? })` while it is on top (as
+  `useScenery`), reverting when it pops. Defaults: Profile title
+  "Profile", note the profile name; Scripts title "Scripts".
 - Behaviour is unchanged (ADR 0103): the bar drags, 8 edges and the grip
   resize, focus follows presses, without focus the frame dims and the
   content goes to 55 %, the X is the close request, geometry in whole
@@ -177,9 +183,10 @@ lay themselves out by their own width, never by the device.
   grid for old-look frames (`floor` of the body's px, the grid centred),
   through the same `wrap` / `frameAttrs` props the start surface uses.
 - **No `backdrop-filter` in windows**: the game text scrolls under them all
-  the time. The Glass body is a 0.94 opaque fill with the base's gradients.
+  the time. The Lykta body is opaque.
 - The old cyan window border goes with this (NIGHT-PASS decision 6, round
-  7 "Riktningens"); see the open questions.
+  7 "Riktningens", which for these pages is Lykta); see the open
+  questions.
 
 ### Kit rules (owner's baseline, unchanged)
 
@@ -401,16 +408,17 @@ letterAction(e: KeyboardEvent, map: Record<string, () => void>): boolean     // 
 ### Window frames (42d) — `window.tsx`, `window-chrome.ts`, `windows.tsx`, `index.tsx`
 
 ```ts
-type WindowLook = 'lykta' | 'glass';
-WindowFrameProps.look: WindowLook                      // all other props unchanged (id, title, titleNote, rect, grid, cellW, cellH, z, focused, onRect, onClose)
-useWindowChrome(c: { look?: WindowLook; title?: string; note?: string }): void   // no-op outside a window
+// One frame (Lykta, dark and Paper): no look type and no look prop.
+// WindowFrameProps unchanged (id, title, titleNote, rect, grid, cellW, cellH, z, focused, onRect, onClose)
+useWindowChrome(c: { title?: string; note?: string }): void   // no-op outside a window
 // windows.tsx: look frames inside a window get place 'window', a free body and the tokens;
 //   old-look frames get the cell grid; ProfileRoot moves to src/chrome/frames/profile-window.tsx (verbatim).
 // index.tsx: look frames in the phone ESC menu get place 'menu' (full-screen Lykta page over the opaque background).
 ```
 
-Test hooks: `.wc-win[data-win][data-look="lykta|glass"][data-focused]`,
-`.wc-win-t` (title), `.wc-win-n` (note), `.wc-win-x`, `.wc-win-body`.
+Test hooks: `.wc-win[data-win][data-focused]`, `.wc-win-t` (title),
+`.wc-win-n` (note), `.wc-win-x`, `.wc-win-body`. No `data-look`: there is
+one frame.
 
 ### Code and manuals (42e) — `src/editor/look-code.ts|css`, `cm.ts`, `search.ts`, `look-manual.tsx|css`, `look-manual-find.ts`
 
@@ -489,8 +497,8 @@ Hook: `.wc-pv-back`.
 |---|---|---|
 | Place of a frame | `useLookPlace()`, `LookPlace`, `LookPlaceCtx` | `useLookHost` (44); "host" as the term (44) |
 | Place-aware page | `Box` adapts to the place | `LookPage` (43) |
-| Window frame looks | `WindowLook = 'lykta' \| 'glass'` | `win-a` / `win-b`, "Lyktfönster" / "Glasfönster" as code names (43, 44, mockups) |
-| Per-frame window title / look | `useWindowChrome` | — |
+| Window frame | one frame, Lykta; no look type | `WindowLook = 'lykta' \| 'glass'` (dropped with Glass, owner 2026-11-07); `win-a` / `win-b`, "Lyktfönster" / "Glasfönster" as code names (43, 44, mockups) |
+| Per-frame window title / note | `useWindowChrome` | — |
 | Dialog | `Dialog` (`title`, `dlg`, `buttons`, `onCancel`, `inline`) | `Plate` (44), `LookDialog` with `hood`, `question`, `within`, `onEsc` (43) |
 | Dialog test hook | `.wc-lk-dialog[data-dlg]` | `.wc-lk-plate[data-dlg]` (44), `.wc-pe-dialog` (43) |
 | Overlay frame | `nav.push(node, { overlay: true })` | `lookDialog()` marker (44) |
@@ -688,7 +696,7 @@ layers, the Esc rule, Ctrl+S from a field), new
    cancel), an inline dialog, a popover with controls, a keys box, a list
    and a grid with their cursors and a button zone.
 
-### 42d — Window frames (Lykta, Glass; dark, Paper) and the ESC menu host
+### 42d — The window frame (Lykta; dark, Paper) and the ESC menu host
 
 Owns: `src/chrome/kit/window.tsx`, `window.css`, `window-geom.ts`,
 `window-chrome.ts`, `src/chrome/windows.tsx`, new
@@ -697,12 +705,13 @@ Owns: `src/chrome/kit/window.tsx`, `window.css`, `window-geom.ts`,
 Tests: `tests/unit/window-geom.test.ts`, `tests/e2e/windows.spec.ts`,
 `menubar.spec.ts` (the window title: "Profile" with the name as the note),
 `popup-focus.spec.ts`, `phone-esc-menu.spec.ts` (all kept green, selectors
-updated), new `tests/unit/window-frame.test.tsx` (look switch by
-`useWindowChrome`, revert on pop, Paper, focus dimming,
+updated), new `tests/unit/window-frame.test.tsx` (title and note by
+`useWindowChrome`, revert on pop, the frame unchanged when a sub-page
+opens, Paper, focus dimming,
 `LookPlaceCtx` = `window` inside, `menu` in the ESC menu).
 
-1. The two looks on dark and Paper; title, note, X, grip, edges;
-   behaviour unchanged.
+1. The Lykta frame on dark and Paper; title, note, X, grip, edges;
+   behaviour unchanged. No Glass frame.
 2. `useWindowChrome` plumbing from the top frame to `WindowFrame`.
 3. Window stacks: `LookPlaceCtx` `window`, `.wc-look` on the body,
    `wrap` / `frameAttrs` for old-look frames on a whole-cell grid inside
@@ -711,7 +720,7 @@ updated), new `tests/unit/window-frame.test.tsx` (look switch by
    the opaque background (`LookPlaceCtx` `menu`); old-look frames and the
    TUI border as today.
 5. Move `ProfileRoot` to `src/chrome/frames/profile-window.tsx` unchanged.
-6. Gallery section "Windows": both frames, focused and not, dark and
+6. Gallery section "Windows": the Lykta frame, focused and not, dark and
    Paper, over a plain backdrop, with a look frame and an old-look frame
    inside; resize them.
 
@@ -844,7 +853,7 @@ stage's test plan.
       `useKeyboardInset`; gallery section; tests
 - [ ] 42c: stack (overlay, hold, key layers, Esc rule); `Dialog`,
       `KeyHelp`, `Popover`; cursors, button zone, `letterAction`; tests
-- [ ] 42d: Lykta and Glass frames on dark and Paper; `useWindowChrome`;
+- [ ] 42d: the Lykta frame on dark and Paper (no Glass); `useWindowChrome`;
       window and menu look hosts; `ProfileRoot` moved; tests
 - [ ] 42e: `lookCodeTheme`, `.wc-code` rules, lantern find panel,
       `LookManual`, `ManualContents`, `look-manual-find`; measurements; tests
@@ -879,7 +888,7 @@ size at mount (a `ResizeObserver` log shows one size), keys reach the page
 during the morph, reduced motion = a fade; a capped box centred at 2560 px;
 a tall box; the swap), `look-kit-controls.spec.ts`,
 `look-kit-overlays.spec.ts`, `look-kit-code.spec.ts`, `player-core.spec.ts`,
-and the window specs with `data-look`. Keep green: `chrome.spec.ts`,
+and the window specs with the frame's hooks (`.wc-win-t`, `.wc-win-n`). Keep green: `chrome.spec.ts`,
 `enter-transition.spec.ts`, `windows.spec.ts`, `menubar.spec.ts`,
 `popup-focus.spec.ts`, `phone-esc-menu.spec.ts`, `editor.spec.ts`,
 `script-code-editor.spec.ts`, `manual-find.spec.ts`, `player.spec.ts`,
@@ -903,9 +912,9 @@ toolbox for the next pages. On the branch: `npm run dev`, then:
 3. **Controls** and **Overlays**: buttons, toggles, fields, lists, tables,
    pills, a dialog over the box, a popover. Also with a narrow window or a
    phone. Do they look like the round 7 mockups?
-4. **Windows**: the two window frames (lantern and glass), dark and Paper.
+4. **Windows**: the window frame (lantern), dark and Paper.
    Then in the game: open Profile and Scripts from the menu bar: today's
-   content in the new frames (the content changes in the next stages).
+   content in the new frame (the content changes in the next stages).
 5. **Code**: the code well in the new colours, Ctrl+F's find row, and the
    manual (the profile manual and the script manual) as one long page.
 6. **The run log player** (History → a session → Run log): a Back button
@@ -913,17 +922,17 @@ toolbox for the next pages. On the branch: `npm run dev`, then:
    an hour read `1:34:07`.
 
 Feedback wanted: the grow / shrink motion and its speed, the window
-frames in the game (dark and Paper), and the open questions below.
+frame in the game (dark and Paper), and the open questions below.
 
 ## Open questions for the owner (after testing)
 
 The build follows the default until the owner answers.
 
-1. **The in-game window frames.** The thin cyan border goes; the Profile
-   and Scripts windows get the lantern frame (Lykta), and the Scripts
-   window switches to the glass frame while the script editor is open
-   (round 7 "Riktningens"). *Default: as described.* (Stage 41's note "the
-   cyan border stays for now" covered the time before these frames.)
+1. **The cyan window border goes.** The Profile and Scripts windows get
+   the lantern frame (Lykta) on every page and sub-page (the frame itself
+   is the owner's decision of 2026-11-07, not a question). *Default: the
+   cyan border goes.* (Stage 41's note "the cyan border stays for now"
+   covered the time before this frame.)
 2. **The code font.** The mockups used JetBrains Mono for code; the build
    uses your terminal font (as the game and today's editors). *Default:
    the terminal font.*
@@ -935,8 +944,8 @@ The build follows the default until the owner answers.
 **ADR 0127 — The look pages base** (`docs/decisions/0127-look-pages-base.md`):
 layout B as built (the proxy, the choreography, the hold, keys during a
 morph, the box swap, the cap, tall, settled), places and `Box`'s
-adaptation, the window looks and `useWindowChrome` (and the end of the
-cyan border), the ESC menu host, overlay frames, key layers and the Esc
+adaptation, the one window frame (Lykta; Glass dropped) and
+`useWindowChrome` (and the end of the cyan border), the ESC menu host, overlay frames, key layers and the Esc
 rule, the controls and their ARIA, tokens (`--lk-*`, Paper, the inlay's
 one source), icons, the lantern CodeMirror theme, the find panel and
 `LookManual`, the player core, the performance rules with the measured

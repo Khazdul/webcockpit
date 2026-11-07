@@ -32,7 +32,7 @@ Chosen directions (recorded in the mockups README, "Round 7 decisions"):
    lines, the entry's detail on the right without a card. Narrow: the rail
    becomes a row on top; narrower: one column, the entry opens as a sheet.
 2. **In-game window frame: the direction's own** ("Riktningens"): for B
-   that is **A "Lyktfönster"** (stage 42's `WindowLook` `'lykta'`; the
+   that is **A "Lyktfönster"** (stage 42's one window frame, Lykta; the
    mockup's `.wwin.win-a` in `round7/base/base.css`: the
    Lykta pane as a window, thin iron band, small riveted brackets, centred
    hood with title and dim note, small iron X, opaque lamp-lit window).
@@ -53,12 +53,16 @@ the ADRs of this stage repeat them):
 6. **Esc in a text field first leaves the field** (the keyboard goes back
    to the list or the zone it came from); **a second Esc goes back** (leaves
    the editor, asking first when something is unapplied).
-7. **The window frames in the game follow round 7's "Riktningens"** (the
-   owner's explicit decision, which wins over the accepted default "the
-   same frame for both editors"): the Profile window is always Lykta
-   (`WindowLook` `'lykta'`, stage 42); the Scripts window is Lykta for its
-   page and manual and Glass while the script editor is open (stage 44).
-   Listed as an open question below; the build follows this.
+7. **One window frame in the game, Lykta** (owner decision 2026-11-07,
+   explicit: "the Profile page and the Scripts page, with their sub-pages,
+   can all have the same frame, the direction's own"): every in-game
+   window for Profile and Scripts and all their sub-pages (Profile editor,
+   Import, Export; Scripts page, script editor, manual) uses the Lykta
+   frame, the frame of both chosen directions (Profile editor B, Scripts
+   page C). The window never switches frame when a sub-page opens. The
+   Glass window frame is dropped; stage 42 builds only Lykta. This answers
+   the earlier question "Riktningens (Glass for the script editor) or
+   Lykta everywhere": Lykta everywhere.
 8. **Export works on the phone** (today History says "Export: desktop
    only."). The mockup's 390 px layout is the reference.
 9. **Keep the editor's quiet status** at the foot right ("All saved" on the
@@ -108,7 +112,7 @@ Mockups (`notes/research/start-menu-mockups/round7/`):
 | Editor B | `profiles/editor-b.html`, `editor-page.js` (wiring, URL states `?page=editor`, `?ctx=game&bg=paper`, `?view=editor|help`, `?kind=macro`, `?sel=F5`, `?modal=confirm|held|capture`, `?empty`, `?sheet`), `ped.js` (the editor; the `L === 'b'` branches), `ped.css` (`.ped-b`, the `@container ped` rules at 940 and 640 px, the shared narrow rules at 520 px, the `.wwin` density rules), `shell.js` / `shell.css` (dialogs `SHELL.dialog`, the window `SHELL.game`), `data.js` (Gibur's real-shaped profile, the manual sections) | `ped.js` `window.PED_FRAME = 'a'` = Lyktfönster |
 | Import C | `profiles/import-c.html`, `imp.js` (`layout === 'c'`: pick → reading → report or error), `imp.css` (`.imp-c`, `.imp-drop`, `.imp-fmts`, `.imp-acc`, `.imp-sum`) | ignore the receipt's Edit button (decision 3) |
 | Export B | `profiles/export-b.html`, `exp.js` (`L === 'b'`: the bar, `exp-tools`, `exp-foot2`, the inline comment `placeInline`, the inline title), `exp.css` (`.exp-b`, `@media 900 / 600 px`) | replace the two export buttons by the toggle + EXPORT (decision 4) |
-| Shared base | `base/README.md`, `base/base.css`, `base/base.js`, `base/ingame.html` (both window frames over real game screenshots, `?bg=paper`), `base/gallery.html` (every component) | |
+| Shared base | `base/README.md`, `base/base.css`, `base/base.js`, `base/ingame.html` (the window frames over real game screenshots, `?bg=paper`; only Lykta, `win-a`, is built), `base/gallery.html` (every component) | |
 | Big-page layout | `layout/b-room.html` (B Rummet växer) | built by stage 42 |
 
 Current code these pages replace (read before building; every item in the
@@ -413,8 +417,9 @@ ESC menu's look host are stage 42's (read only; nobody edits them in wave
 
 Build (against the current editor at first, then against 43a's):
 
-1. Check the Profile window in stage 42's Lykta frame (`data-look="lykta"`,
-   the default for Profile): title "Profile", note the profile name, X,
+1. Check the Profile window in stage 42's Lykta frame (the one frame for
+   every window and sub-page; it does not change when Import or Export
+   opens): title "Profile", note the profile name, X,
    resize grip, dimmed content without focus, bronze on Paper. The frame,
    its API and geometry rules are stage 42's; this package only checks
    them with the new editor inside and reports gaps.
@@ -631,7 +636,7 @@ E2E (Playwright, `tests/e2e/`), with the selectors that change:
   and script-manual cases for the Scripts stage untouched.
 - `windows.spec.ts`, `menubar.spec.ts` (the `─── Profile Editor: default
   ───` title at line ~270), `profile-apply.spec.ts`, `popup-focus.spec.ts`
-  (43b): the window frame selectors from stage 42 (`.wc-win[data-win][data-look]`,
+  (43b): the window frame selectors from stage 42 (`.wc-win[data-win]`,
   `.wc-win-t`, `.wc-win-n`), the editor's new hooks;
   apply-in-place cases unchanged in substance.
 - `phone-esc-menu.spec.ts` (line ~155), `phone-frames.spec.ts` (lines
@@ -736,12 +741,7 @@ The build follows the default until the owner answers.
 3. **The import page before the file picker** (direction C's own page with
    the drop zone; the picker opens from Choose files…). *Default: as built
    (the owner chose C).*
-4. **The window frames**: the Profile window has the lantern frame (Lykta);
-   the Scripts window switches to the glass frame while the script editor
-   is open (round 7 "Riktningens", which wins over the accepted default "the
-   same frame for both editors"). *Default: as described; the alternative is
-   Lykta for every Scripts page too (a one-line change in stage 44).*
-5. **Help on a narrow editor** shows the manual's sections as a dropdown,
+4. **Help on a narrow editor** shows the manual's sections as a dropdown,
    not a row of 60 headings. *Default: the dropdown.*
 
 ## Owner feedback
@@ -768,9 +768,10 @@ wave 3.
 4. **Places**: `useLookPlace(): 'start' | 'window' | 'menu'`; `Box` renders
    the right thing per place (no separate page wrapper); the look hosts of
    the window stacks and the ESC menu stack are stage 42's.
-5. **The window frame**: `WindowLook` `'lykta'` (the Profile window's
-   default: title "Profile", note the profile name); `useWindowChrome` if
-   the editor ever needs another title or note.
+5. **The window frame**: stage 42's one Lykta frame (the Profile window's
+   default: title "Profile", note the profile name); `useWindowChrome({
+   title?, note? })` if a sub-page needs another title or note. The frame
+   itself never changes.
 6. **Tokens** `--lk-*` with the Paper values under `data-light` (text,
    dim, faint, item, on, head, accent, danger, ok, well, rule; the fonts).
 7. **Controls**: `Seg` (views, the export format; `aria-checked`,

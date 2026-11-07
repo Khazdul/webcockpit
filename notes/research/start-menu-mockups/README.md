@@ -236,6 +236,11 @@ Round 7 (choose a direction per page; details on each review page):
   export at once).
 - **Scripts page: C Instrumentbrädan. Script editor: C Fokus. Manual: A
   Boken.** In-game window frame: each direction's own ("Riktningens").
+  Clarified by the owner the same day: the Profile page and the Scripts
+  page, with all their sub-pages (Profile editor, Import, Export; Scripts
+  page, script editor, manual), share one frame, the directions' own
+  **Lykta** (`win-a`); the window never switches frame when a sub-page
+  opens, and the Glass window frame (`win-b`) is not built.
 - **History: A Tabell och kort**, but the box must not grow wider than its
   content needs on a very wide screen; past that width it stays put and
   more of the sky shows around it.
