@@ -994,7 +994,8 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
       if (inFind) return false;
     }
     if (nk === 'back') {
-      void close();
+      // Esc: an open find closes first, whichever zone has the keyboard; else leave.
+      if (!ctl?.closeFind()) void close();
       return true;
     }
     if (nk === 'tab' || nk === 'backtab') {
