@@ -55,6 +55,7 @@ import {
   inTextField,
   letterAction,
   lookFrame,
+  useBoxSettled,
   useLookPlace,
   useWindowChrome,
 } from '../../chrome/kit/look';
@@ -176,6 +177,9 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const isTop = useIsTop();
   const place = useLookPlace();
   const inGame = place !== 'start';
+  // Read so the editor renders again once the box has landed: a field the
+  // keyboard went to during the morph (hidden, so unfocusable) gets the focus then.
+  useBoxSettled();
   useWindowChrome({ title: 'Profile', note: host.name });
   // The head's line follows the connection (43b's hosts tell; else read at render).
   const [, setLiveTick] = useState(0);
@@ -1238,6 +1242,12 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
           {mode === 'lite' && !help && (
             <div
               class="wc-pe-detail wc-lk-scroll"
+              // A press on a field moves the keyboard there before the focus moves: a render
+              // between the old field's blur and the new one's focus must not pull it back.
+              onPointerDown={(e) => {
+                const f = (e.target as Element).closest?.('[data-field]')?.getAttribute('data-field');
+                if (f === 'pattern' || f === 'body') focusZone('detail', f);
+              }}
               onFocusIn={(e) => {
                 const f = (e.target as Element).closest?.('[data-field]')?.getAttribute('data-field');
                 if (f === 'pattern' || f === 'body') focusZone('detail', f);

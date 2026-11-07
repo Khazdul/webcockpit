@@ -450,6 +450,27 @@ test('Esc in a field leaves the field first; the status says what is applied', a
   expect(await stored(page)).toBe('#alias {a} {b}\n#alias {gv} {x}\n');
 });
 
+test('the mouse: a click moves between the fields; a click elsewhere applies', async ({ page }) => {
+  await openFromStart(page, '#alias {a} {b}\n');
+  await kind(page, 'alias');
+  await pattern(page).click();
+  await expect(pattern(page)).toBeFocused();
+  await expect(pe(page)).toHaveAttribute('data-zone', 'detail');
+  await page.keyboard.press('End');
+  await page.keyboard.type('x');
+  await body(page).click();
+  await expect(body(page)).toBeFocused();
+  await page.keyboard.type('y');
+  await pattern(page).click();
+  await expect(pattern(page)).toBeFocused();
+  await expect.poll(() => stored(page)).toBe('#alias {ax} {by}\n');
+  // A click on a kind leaves the field.
+  await pe(page).locator('[data-rail="action"]').click();
+  await expect(pattern(page)).toBeHidden();
+  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await expect(pe(page).locator('input:focus, textarea:focus')).toHaveCount(0);
+});
+
 test('the Profile window while disconnected saves directly', async ({ page }) => {
   const errors = watchErrors(page);
   await openWindow(page, '#alias {a} {b}\n', true);
