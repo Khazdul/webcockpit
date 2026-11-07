@@ -19,18 +19,19 @@ import {
 const box: MarkBox = { cx: 500, cy: 200, vw: 1000, vh: 800 };
 
 function look(over: Omit<Partial<SkyLook>, 'light'> & { light?: Partial<SkyLook['light']> } = {}): SkyLook {
-  const base: SkyLook = {
-    period: 'day',
-    season: 'summer',
+  // Only the fields the wordmark reads matter; the rest of SkyLook is not used here.
+  const base = {
+    period: 'day' as const,
+    season: 'summer' as const,
     dayness: 1,
     top: '#3d7fc4',
     mid: '#79acd9',
     horizon: '#c9def0',
     below: '#9cc3e6',
     textBackLuminance: 0.6,
-    light: { kind: 'sun', x: 0.5, y: 0.05, strength: 1, color: '#fff3d6' },
+    light: { kind: 'sun' as const, x: 0.5, y: 0.05, strength: 1, color: '#fff3d6' },
   };
-  return { ...base, ...over, light: { ...base.light, ...over.light } } as SkyLook;
+  return { ...base, ...over, light: { ...base.light, ...over.light } } as unknown as SkyLook;
 }
 
 describe('wordmarkLight', () => {
