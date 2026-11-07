@@ -9,7 +9,7 @@ test('?kit opens the gallery over the menu; Back and Esc return to it', async ({
   page.on('pageerror', (e) => errors.push(e.message));
   const box = await openKit(page);
   await expect(box).toHaveAttribute('aria-label', 'Kit');
-  await expect(box.locator('.wc-lk-tabs[role="tablist"]')).toBeAttached();
+  await expect(box.locator('.wc-lk-tabs[role="tablist"][aria-label="Kit sections"]')).toBeAttached();
   await backTo(page);
   await expect(startTop(page).locator('.wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   // Once per page load: the menu stays.
