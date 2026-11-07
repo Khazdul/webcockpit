@@ -6,6 +6,7 @@
 // holds the state and the keys.
 
 import { Component, type Ref, type VNode } from 'preact';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Field, GlassButton, Icon, type IconName, KeyLabel, TextArea } from '../../chrome/kit/look';
 import { type EntryNode, FIELD_LABELS, validateEntry } from '../../script/doc';
 import {
@@ -128,7 +129,37 @@ function rowView(p: RowProps): VNode {
   );
 }
 
-/** The entry list: every row of the kind, then `+ New <kind>`. Native scrolling; a click selects, the editor decides what opens. */
+/** A kind with more entries than this draws only the rows near the view (ADR 0128: switching kinds stays cheap). */
+export const WINDOW_FROM = 200;
+/** Rows drawn above and below the view when windowed. */
+const OVERSCAN = 12;
+/** A row's height until one is measured (px). */
+const ROW_H = 54;
+
+/**
+ * Brings row `i` of the list `el` into view (`block: nearest`): the row
+ * itself when it is drawn, else by the measured row height (a windowed
+ * list draws only the rows near the view).
+ */
+export function revealRow(el: HTMLElement | null, i: number): void {
+  if (!el) return;
+  const row = el.querySelector<HTMLElement>(`[data-i="${i}"]`);
+  if (row) {
+    row.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  const h = Number(el.dataset.rowH) || ROW_H;
+  const top = i * h;
+  if (top < el.scrollTop) el.scrollTop = top;
+  else if (top + h > el.scrollTop + el.clientHeight) el.scrollTop = top + h - el.clientHeight;
+}
+
+/**
+ * The entry list: every row of the kind, then `+ New <kind>`. Native
+ * scrolling; a click selects, the editor decides what opens. Over
+ * WINDOW_FROM entries only the rows near the view are drawn, between two
+ * spacers of the rows' measured height.
+ */
 export function EntryList(p: {
   kind: LiteKind;
   list: readonly EntryNode[];
@@ -144,12 +175,61 @@ export function EntryList(p: {
     return el ? Number(el.getAttribute('data-i')) : null;
   };
   const n = p.list.length;
+  const windowed = n > WINDOW_FROM;
+  const box = useRef<HTMLDivElement | null>(null);
+  const [rowH, setRowH] = useState(ROW_H);
+  const [view, setView] = useState({ top: 0, height: 800 });
+  const raf = useRef(0);
+  // The row height (measured once a row is drawn) and the view's size; a scroll moves the window on the next frame.
+  // Measured once (a layout read), not per render: typing in a field must not force a layout.
+  const measured = useRef(false);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el || !windowed || measured.current) return;
+    const r = el.querySelector<HTMLElement>('.wc-pe-row:not(.wc-pe-new)');
+    const h = r ? r.getBoundingClientRect().height : 0;
+    if (h <= 0) return;
+    measured.current = true;
+    if (Math.abs(h - rowH) > 0.5) setRowH(h);
+  });
+  useEffect(() => {
+    const el = box.current;
+    if (!el || !windowed) return;
+    const read = (): void => setView({ top: el.scrollTop, height: el.clientHeight });
+    read();
+    const onScroll = (): void => {
+      cancelAnimationFrame(raf.current);
+      raf.current = requestAnimationFrame(read);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onScroll);
+    ro?.observe(el);
+    return () => {
+      cancelAnimationFrame(raf.current);
+      el.removeEventListener('scroll', onScroll);
+      ro?.disconnect();
+    };
+  }, [windowed, p.kind]);
+  // Items 0 … n (n: the New row).
+  const from = windowed ? Math.max(0, Math.floor(view.top / rowH) - OVERSCAN) : 0;
+  const to = windowed ? Math.min(n + 1, Math.ceil((view.top + view.height) / rowH) + OVERSCAN) : n + 1;
+  const rows: VNode[] = [];
+  for (let i = from; i < Math.min(to, n); i++) {
+    const e = p.list[i]!;
+    rows.push(<Row key={e.id} e={e} i={i} on={i === p.idx} idle={i === p.idx && !p.focused} visited={p.visited(e.id)} />);
+  }
   return (
     <div
-      ref={p.listRef}
+      ref={(el) => {
+        box.current = el;
+        if (typeof p.listRef === 'function') p.listRef(el);
+        else if (p.listRef) p.listRef.current = el;
+      }}
       class="wc-lk-rows is-flat wc-pe-list wc-lk-scroll"
       role="listbox"
       aria-label={KIND_LABELS[p.kind]}
+      data-row-h={windowed ? String(rowH) : undefined}
+      data-windowed={windowed ? '' : undefined}
       onMouseDown={keepFocus}
       onClick={(e) => {
         const i = rowOf(e);
@@ -160,20 +240,23 @@ export function EntryList(p: {
         if (i !== null) p.onRow(i, 'dblclick');
       }}
     >
-      {p.list.map((e, i) => (
-        <Row key={e.id} e={e} i={i} on={i === p.idx} idle={i === p.idx && !p.focused} visited={p.visited(e.id)} />
-      ))}
-      <div
-        key="new"
-        class={cx('wc-lk-row wc-pe-row wc-pe-new', p.idx === n && 'is-on', p.idx === n && !p.focused && 'is-idle')}
-        role="option"
-        aria-selected={p.idx === n ? 'true' : 'false'}
-        data-i={n}
-        data-row="new"
-      >
-        <Icon name="plus" />
-        <span>New {KIND_ONE[p.kind]}</span>
-      </div>
+      {from > 0 && <div key="above" class="wc-pe-spacer" style={{ height: `${from * rowH}px` }} />}
+      {rows}
+      {to > n ? (
+        <div
+          key="new"
+          class={cx('wc-lk-row wc-pe-row wc-pe-new', p.idx === n && 'is-on', p.idx === n && !p.focused && 'is-idle')}
+          role="option"
+          aria-selected={p.idx === n ? 'true' : 'false'}
+          data-i={n}
+          data-row="new"
+        >
+          <Icon name="plus" />
+          <span>New {KIND_ONE[p.kind]}</span>
+        </div>
+      ) : (
+        <div key="below" class="wc-pe-spacer" style={{ height: `${(n + 1 - to) * rowH}px` }} />
+      )}
     </div>
   );
 }

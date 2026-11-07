@@ -838,6 +838,63 @@ test('Lite list scrolls by pixels; the cursor stays in view; hover never moves i
   await expect(pattern(page)).toBeFocused();
 });
 
+test('a long kind draws only the rows near the view; keys and the scroll still reach every row', async ({ page }) => {
+  const errors = watchErrors(page);
+  const n = 600;
+  const text = Array.from({ length: n }, (_, i) => `#alias {a${String(i).padStart(3, '0')}} {say ${i}}`).join('\n') + '\n';
+  await openFromStart(page, text);
+  await kind(page, 'alias');
+  const box = pe(page).locator('.wc-pe-list');
+  await expect(box).toHaveAttribute('data-windowed', '');
+  expect(await rows(page).count()).toBeLessThan(80);
+  // End: the New row, drawn and in view.
+  await page.keyboard.press('End');
+  await expect(curRow(page)).toHaveAttribute('data-row', 'new');
+  await expect(curRow(page)).toBeInViewport();
+  expect(await rows(page).count()).toBeLessThan(80);
+  // ↑ from the end: the last alias.
+  await page.keyboard.press('ArrowUp');
+  await expect(curRow(page).locator('.wc-pe-pat')).toHaveText('a599');
+  // Home, then PgDn: the cursor moves a page and stays in view.
+  await page.keyboard.press('Home');
+  await expect(curRow(page).locator('.wc-pe-pat')).toHaveText('a000');
+  await page.keyboard.press('PageDown');
+  await page.keyboard.press('PageDown');
+  await expect(curRow(page)).toBeInViewport();
+  // The wheel scrolls; the rows under the view are drawn.
+  await box.hover();
+  for (let i = 0; i < 20; i++) await page.mouse.wheel(0, 400);
+  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBeGreaterThan(5000);
+  // The wheel scrolls smoothly: wait until it rests.
+  let last = -1;
+  await expect
+    .poll(async () => {
+      const now = await box.evaluate((el) => el.scrollTop);
+      const rest = now === last;
+      last = now;
+      return rest;
+    })
+    .toBe(true);
+  // A row drawn wholly inside the list's view, far down the kind.
+  const inView = () =>
+    box.evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      const r = [...el.querySelectorAll<HTMLElement>('[data-i]')].find((x) => {
+        const rb = x.getBoundingClientRect();
+        return rb.top >= b.top && rb.bottom <= b.bottom;
+      });
+      return r ? Number(r.dataset.i) : -1;
+    });
+  await expect.poll(inView).toBeGreaterThan(90);
+  const hit = box.locator(`[data-i="${await inView()}"]`);
+  // A click selects the row it hit, a second opens it.
+  const name = await hit.locator('.wc-pe-pat').textContent();
+  await hit.click();
+  await hit.click();
+  await expect(pattern(page)).toHaveValue(name!);
+  expect(errors).toEqual([]);
+});
+
 test('Editor shows the whole stored text of the bundled khazdul profile', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');

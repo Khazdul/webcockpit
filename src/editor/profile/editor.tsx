@@ -97,7 +97,7 @@ import {
 import { BindDialog, type Capture, captureStep } from './capture';
 import type { GridPos, HlDim } from './detail-highlight';
 import { HelpRail, HelpView } from './help-view';
-import { Detail, type DetailField, EntryList, KindRail } from './lite';
+import { Detail, type DetailField, EntryList, KindRail, revealRow } from './lite';
 import { type CommitWhy, type EditorHost, type Mode, type Outcome, ProfileModel } from './model';
 import { TextRail, sectionAt, showLine, useTextSections } from './text-view';
 import '../profile.css';
@@ -314,11 +314,12 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     for (const e of byId.values()) out.push(e);
     return out;
   }, [entries, order]);
+  // The rail's counts change with entries added or removed (or a new base), not with typing.
   const counts = useMemo(() => {
     const c = { action: 0, alias: 0, highlight: 0, macro: 0, substitute: 0 } as Record<LiteKind, number>;
-    for (const n of doc.nodes) if (n.type === 'entry' && n.kind in c) c[n.kind as LiteKind]++;
+    for (const n of docRef.current.nodes) if (n.type === 'entry' && n.kind in c) c[n.kind as LiteKind]++;
     return c;
-  }, [doc]);
+  }, [doc.nodes.length, base, mode]);
   const wantId = cursorIds[kind];
   let idx = wantId === SENTINEL ? list.length : list.findIndex((e) => e.id === wantId);
   if (idx < 0) idx = 0;
@@ -328,7 +329,8 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const bodyText = cur ? (bodyDraft && bodyDraft.id === cur.id ? bodyDraft.text : displayBody(cur.kind, cur.body)) : '';
 
   // What the status says about Lite's edits (the serialisations are cheap next to a render).
-  const editing = useMemo(() => mode === 'lite' && serialize(pendingDoc(base, doc)) !== serialize(base), [mode, base, doc]);
+  const baseText = useMemo(() => serialize(base), [base]);
+  const editing = useMemo(() => mode === 'lite' && serialize(pendingDoc(base, doc)) !== baseText, [mode, base, doc, baseText]);
   const saveState: SaveState = heldNow ? 'held' : editing ? 'editing' : 'clean';
 
   /** The keyboard goes to `z` (and the detail's `f`); in one column the detail is a sheet over the list. */
@@ -349,7 +351,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   useLayoutEffect(() => {
     if (!reveal.current) return;
     reveal.current = false;
-    listRef.current?.querySelector<HTMLElement>(`[data-i="${idx}"]`)?.scrollIntoView({ block: 'nearest' });
+    revealRow(listRef.current, idx);
   }, [idx, kind]);
 
   // ------------------------------------------------------------- editing
@@ -1032,7 +1034,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
 
   // --------------------------------------------------------------- render
 
-  const modified = mode === 'editor' ? bufferNow() !== serialize(base) : false;
+  const modified = mode === 'editor' ? bufferNow() !== baseText : false;
   const unappliedNow = mode === 'editor' ? modified : saveState !== 'clean';
   const viewIdx = VIEW_LABELS.findIndex((v) => v.view === view);
   const detailAt: DetailField | null = zone === 'detail' && !capture && !modal ? field : null;
@@ -1226,7 +1228,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
           </nav>
           <div class="wc-pe-main">
             {mode === 'lite' && !help && (
-              <EntryList kind={kind} list={list} idx={idx} focused={zone === 'list'} visited={isVisited} listRef={listRef} onRow={onRow} />
+              <EntryList key={kind} kind={kind} list={list} idx={idx} focused={zone === 'list'} visited={isVisited} listRef={listRef} onRow={onRow} />
             )}
             {mode === 'editor' && <div class="wc-pe-buf" ref={bufRef} hidden={help} />}
             {help && (

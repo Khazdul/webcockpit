@@ -278,6 +278,10 @@
   outline: none;
 }
 
+.wc-pe-spacer {
+  flex: none;
+}
+
 .wc-lk-rows.is-flat > .wc-pe-row {
   min-height: 52px;
   flex-direction: column;
