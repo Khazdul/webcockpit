@@ -47,6 +47,17 @@
 // place and on/off in its records (`temp`): it floats where the player saw
 // it, is not in the viewer's toggles, and its close cross hides it until
 // it goes away. Spotlights hide temporary panes too (`hideTempPanes`).
+//
+// The player core (stage 42f, ADR 0127): `open` fails (rejects) on a
+// session whose logs are not stored or hold nothing, so the shell can say
+// why (`PlayerOpenResult`). The view options `hours`, `back` and `bare`
+// pass through `opts.view`; a bare view keeps no rail, so the stage takes
+// the whole width. `viewerControls(displayOnly)` hands a page its own
+// Display controls over the same overrides (the Spotlights viewer, stage
+// 46), and `setPaletteTweak` changes ANSI colours while the viewer's
+// theme is Default (the Spotlights viewer's brighter red). A host can
+// live in any element (`Shell.embedPlayer`): it fills it and follows its
+// size.
 
 import type { RunLibrary } from '../runs/library';
 import type { RunEvent } from '../runs/events';
@@ -114,7 +125,12 @@ export interface PlayerOpenOptions {
   /** Markers as playback offsets; default: the events' markers (`markersOf`) on `playAtLogUs`. */
   marks?: (tl: Timeline) => PlacedMark[];
   /** View mode options; `header` and `onEsc` replace the log player's. */
-  view?: Partial<Pick<PlayerViewOptions, 'header' | 'keys' | 'startHidden' | 'railHoverTime' | 'boxButtons' | 'onEsc' | 'closeTitle' | 'shiftSeek'>>;
+  view?: Partial<
+    Pick<
+      PlayerViewOptions,
+      'header' | 'keys' | 'startHidden' | 'railHoverTime' | 'boxButtons' | 'onEsc' | 'closeTitle' | 'shiftSeek' | 'hours' | 'back' | 'bare'
+    >
+  >;
   /** Start playing at once (default true). */
   autoplay?: boolean;
   /** Runs whose login system line is not printed (HTML replay `hiddenSys`, ADR 0019). */
@@ -177,6 +193,10 @@ export class PlayerHost {
   private dropTemps: () => void = () => {};
   /** Run when the host is disposed (a mode's own layers, ADR 0110). */
   private readonly disposers: Array<() => void> = [];
+  /** ANSI colours over the recorded ones while the viewer's theme is Default (`setPaletteTweak`). */
+  private tweak: Readonly<Record<number, string>> | null = null;
+  /** Px kept free at the right for the rail (none for a bare view). */
+  private railW = RAIL_W;
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -207,12 +227,18 @@ export class PlayerHost {
     return this.appRef;
   }
 
-  /** Loads a History session's logs and events and starts playing. */
-  async open(session: Session, lib: RunLibrary): Promise<void> {
+  /**
+   * Loads a History session's logs and events and starts playing (`opts`:
+   * the mode, as `openChain`). Rejects when the logs cannot be read, are
+   * not stored, or hold nothing to play.
+   */
+  async open(session: Session, lib: RunLibrary, opts: PlayerOpenOptions = {}): Promise<void> {
     const ids = session.runs.map((r) => r.runId);
     const [chain, events] = await Promise.all([lib.chainLog(ids), lib.events(ids)]);
     if (this.closed) return;
-    this.openChain(chain, events, { character: session.character, level: session.level });
+    if (chain.length === 0) throw new Error('The run log is not stored.');
+    if (chain.every((r) => r.text.length === 0)) throw new Error('The run log is empty.');
+    this.openChain(chain, events, { character: session.character, level: session.level }, opts);
   }
 
   /** Script pane ids with records in the open log, in order of appearance. */
@@ -238,6 +264,11 @@ export class PlayerHost {
   openChain(chain: readonly PlayedRun[], events: readonly RunEvent[], info: PlayerInfo, opts: PlayerOpenOptions = {}): void {
     // A reel rebuilt for new settings opens again on the same host (ADR 0110).
     this.clearChain();
+    const railW = opts.view?.bare ? 0 : RAIL_W;
+    if (railW !== this.railW) {
+      this.railW = railW;
+      this.fitKey = '';
+    }
     const tl = buildTimeline(chain, opts.edits);
     this.scriptIds = scriptPaneIdsOf(tl).filter(isScriptPaneId);
     this.hiddenSys = new Set(opts.hiddenSys ?? []);
@@ -287,7 +318,7 @@ export class PlayerHost {
       onEsc,
       closeTitle: 'Back to History (Esc)',
       ...(this.opts.hideMs !== undefined ? { hideMs: this.opts.hideMs } : {}),
-      ...(opts.viewerSettings !== false ? { settings: this.controls(opts.viewerSettings !== 'display') } : {}),
+      ...(opts.viewerSettings !== false ? { settings: this.viewerControls(opts.viewerSettings === 'display') } : {}),
       boxButtons: fullscreen,
       ...opts.view,
     });
@@ -479,12 +510,24 @@ export class PlayerHost {
     this.view?.refresh();
   }
 
+  /**
+   * ANSI colours (index 0–15 → `#rrggbb`) drawn over the recorded palette
+   * while the viewer's theme is Default; a chosen theme keeps its own
+   * colours. null: none. The Spotlights viewer's brighter red (stage 46).
+   */
+  setPaletteTweak(t: Readonly<Record<number, string>> | null): void {
+    this.tweak = t && Object.keys(t).length > 0 ? { ...t } : null;
+    this.compose();
+    this.view?.refresh();
+  }
+
   /** The current store := the recorded settings (`base`) with the overrides. */
   private compose(): void {
     const store = this.store;
     const base = this.base;
     if (!store || !base) return;
     const o = this.viewer;
+    const tweak = o.theme === 'default' ? this.tweak : null;
     this.applying = true;
     try {
       // Top-level parts replaced whole (a returned patch would merge, and
@@ -492,6 +535,14 @@ export class PlayerHost {
       store.update((draft) => {
         const d = JSON.parse(JSON.stringify(base)) as Settings;
         applyViewer(d, o);
+        if (tweak) {
+          const ansi = d.appearance.ansi.slice();
+          for (const [i, c] of Object.entries(tweak)) {
+            const k = Number(i);
+            if (Number.isInteger(k) && k >= 0 && k < ansi.length) ansi[k] = c;
+          }
+          d.appearance.ansi = ansi;
+        }
         Object.assign(draft, d);
       });
     } finally {
@@ -499,8 +550,14 @@ export class PlayerHost {
     }
   }
 
-  /** The control box's popups' settings (PlayerView), over this host; `panes`: with the Panes popup. */
-  private controls(panes: boolean): ViewerControls {
+  /**
+   * The viewer settings over this host (ADR 0021): the control box's
+   * popups (PlayerView), or a page's own Display controls (the Spotlights
+   * viewer). `displayOnly`: font and colours, no Panes. They change the
+   * host's overrides, so they hold across the chains it plays.
+   */
+  viewerControls(displayOnly: boolean): ViewerControls {
+    const panes = !displayOnly;
     const on = (id: PaneId): boolean => {
       const s = this.store?.get();
       return s ? paneSettingsOf(s.panes, id).on : false;
@@ -545,7 +602,7 @@ export class PlayerHost {
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;
     // The rail's width is kept free, so it never covers a pane.
-    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, RAIL_W, devicePixelRatioOf(this.el.ownerDocument), textGridOf(this.el.ownerDocument)) };
+    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, this.railW, devicePixelRatioOf(this.el.ownerDocument), textGridOf(this.el.ownerDocument)) };
     const key = JSON.stringify(a);
     if (key !== this.fitKey) {
       this.fitKey = key;
@@ -554,12 +611,12 @@ export class PlayerHost {
     this.placeStage();
   }
 
-  /** Sizes the stage: the whole player less the rail on the right. */
+  /** Sizes the stage: the whole player less the rail on the right (a bare view: all of it). */
   private placeStage(): void {
     const st = this.stage.style;
     st.left = '0';
     st.top = '0';
     st.height = '100%';
-    st.width = `calc(100% - ${RAIL_W}px)`;
+    st.width = this.railW > 0 ? `calc(100% - ${this.railW}px)` : '100%';
   }
 }

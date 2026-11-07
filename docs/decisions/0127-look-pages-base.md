@@ -130,8 +130,129 @@ timings.)
 
 ### 42f — Player core
 
-(42f fills this: `fmtClock` hours, `back`, `bare`, `press`, the
-`openPlayer` result, `embedPlayer`, `viewerControls`, `setPaletteTweak`.)
+The core that stage 45 (the run log player) and stage 46 (the Spotlights
+viewer) build on, in `src/player/strip.ts`, `view.ts`, `player.css`,
+`src/app/player-host.ts`, `shell.ts` and `src/chrome/kit/hooks.ts`.
+
+**h:mm:ss.** `fmtClock(ms, hours = false)`: with `hours`, `h:mm:ss` from
+one hour (`1:34:07`, hours not padded, `100:01:01` past 99) and today's
+`MM:SS` below (`02:02`), so a short session reads as before. The view's
+`hours` option uses it for the clock and the rail's time hint (the marker
+tips hold no times). On for the run log player (and for stage 46's
+viewer); off by default, so the HTML replay keeps `MM:SS` (`221:07`).
+
+**Back.** The view option `back: { title }` adds the kit's Back
+(`button.wc-lk-back.wc-pv-back.wc-look`, the kit's chevron and "Back",
+`title` and `aria-label` from the option, `tabIndex -1`, a press never
+takes the focus) as the first child of `.wc-player-chrome`, at 10 / 6 px
+from the top left. Being part of the chrome it fades and stops taking the
+pointer with it (`[data-hidden]`), with no work of its own. A click closes
+an open popup, then calls `onEsc` (as Close and Esc). The header's left
+part moves right of Back when, centred, it would meet it: Back's right
+edge is measured once (`offsetLeft + offsetWidth + 8`, the first render
+where it has a size), and the header then starts there and narrows to
+the room left, so the hints give way first and the left part is cut, never
+covered. The chrome's `button { all: unset }` reset skips Back through
+`:where(:not(.wc-pv-back))`, keeping the reset's old specificity so the
+box's own rules still win over it. The run log player keeps Close and the
+header's `ESC Back` (stage 45's open question 1; default: keep all three).
+
+*Deviation: the CSS.* The stage file had `player.css` import
+`look-glass.css`. Measured on a build, that adds 1.46 kB gzip to the HTML
+replay bundle (budget: 1.5 kB) before 42b grows the glass rules and the
+tokens, for a Back the replay never shows. So `player.css` imports
+nothing: the in-app player only opens from the start page (History, the
+Spotlights page, the dev hooks after boot), whose chrome chunk has already
+put the kit's glass rules and the `--lk-*` tokens in the document; the
+Back carries `.wc-look` itself for the tokens (and their Paper values
+under a light player's `[data-light]`). A player shown without the chrome
+CSS would draw Back as a plain button; none does.
+
+**Bare.** The view option `bare` builds no chrome in the page: an empty
+`.wc-player-chrome[data-bare]`, no header, rail, markers, control box,
+popups (the `settings` option is ignored), hint, tip or Back, and nothing
+auto-hides (`startHidden` is ignored). The keys, the pause cursor line,
+the wheel and clicks on lines stay the view's, and `render` only keeps
+`data-playing` / `data-seeking`. The host keeps no rail width for a bare
+view: the stage takes the whole width and the font fit uses it
+(`railW` 0, per `openChain`).
+
+**press.** `PlayerView.press(act)` with `PlayerAct = 'start' | 'back' |
+'play' | 'fwd' | 'slower' | 'faster'`: the control box's buttons for a
+page's own controls; `play` plays or pauses and, paused with the cursor
+moved, resumes from the cursor line as Space does.
+
+**Keys while parked.** The view owns every key through a window capture
+listener (ADR 0018). It now lets a key pass when its root is not shown: not
+connected, or the root or an ancestor `hidden` or with an inline `display:
+none` (no layout read; one parent walk per key). So an embedded host
+parked under its page (stage 46 keeps the host alive on the wall) does not
+take the page's keys, and the full-page player no longer swallows keys
+while it loads hidden.
+
+**The open's result.** `type PlayerOpenResult = { ok: true } | { ok:
+false; error: string }` (in `hooks.ts`). `ChromeServices.openPlayer(session)`
+and `Shell.openPlayer` / `openPlayerChain` resolve to it once the player
+shows or did not open. The reasons are sentences for History's error box
+(stage 45): `The run log is not stored.` (no stored run of the session),
+`The run log is empty.` (runs with no text; both thrown by
+`PlayerHost.open`, which used to open an empty player), a read error's own
+message, `Another player is open.`, `The player opens from the start page
+only.` and `The player was closed while it opened.` A failure is still
+logged to the console. `PlayerHost.open(session, lib, opts?)` takes the
+mode, as `openChain`.
+
+**The run log mode.** The shell opens the run log player (`openPlayer`,
+and the dev hook's `openPlayerChain`) with `view: { back: { title: 'Back
+to History (Esc)' }, hours: true }`. `PlayerOpenOptions.view` passes
+`hours`, `back` and `bare` through. The Spotlights reel is unchanged (its
+options are `spotlight-mode.ts`'s, stage 46's).
+
+**Embedded.** `ChromeServices.embedPlayer(slot)` / `Shell.embedPlayer`: a
+`PlayerHost` whose root is `slot` (the host's `.wc-player` fills it,
+`height: 100%`, and its ResizeObserver follows the slot's size), with a
+no-op `onClose`. The start page stays shown; the host is the shell's
+`playerHost` (the dev hook `__wc.shell.playerHost`) until it is disposed
+(`onDispose` clears it; `close()` disposes, and shows or hides nothing).
+While it lives, `openPlayer`, `openSpotlights` and a second `embedPlayer`
+are refused (null for `embedPlayer`). The caller opens what it plays
+(`host.open` / `openChain`). Both kinds of host come from one loader in
+the shell (`makeHost`: the refusals, the one dynamic import, the host as
+`playerHost`), so the start chunk holds the player chunk's import once.
+
+**Viewer controls and the palette tweak.** `PlayerHost.viewerControls(
+displayOnly)` is public (it was the private `controls(panes)`): the same
+`ViewerControls` the box's popups use, over the host's overrides, so a
+page's own Display popover and the font and colours hold across the
+chains a host plays. `PlayerHost.setPaletteTweak(map | null)`: ANSI index
+→ colour, applied in `compose()` over the recorded palette (to
+`appearance.ansi`, so `--ansi-N` and the bold tokens follow) only while
+the viewer's theme is Default; a chosen theme keeps its own colours, and
+null drops it. For stage 46's brighter red (`{ 1: '#c43c3c' }`); the run
+log player and the replay set none.
+
+**Gallery.** Section "Player" (`gallery/player.tsx`): an embedded host in
+a 340 px slot playing a bare, `hours` view of a stored session (one of
+several runs first, as the dev hook picks) or, without one, a built-in
+sample of 1 h 34 min 7 s with every seventh line in ANSI red; buttons
+calling `press`; a readout in `h:mm:ss`; the Display colours through
+`viewerControls(true)`; the palette tweak; Park (the slot `hidden`: the
+keys go back to the gallery). While the player is shown it has the keys
+(Esc leaves the gallery).
+
+**Tests.** Unit: `player-timeline.test.ts` (`fmtClock` with and without
+hours), `player-modes.test.ts` (hours, Back and its popup rule, the
+header moving right of Back, `press`, bare, keys while parked,
+`viewerControls`, `setPaletteTweak`, `open`'s rejections and modes).
+E2E: `player-core.spec.ts` (History → Run log: Back top left, in Cinzel,
+clear of the header, hides with the chrome after 6 s, returns to History
+with its cursor; a 1h34m log reads `1:34:07` and the position `1:02:03`;
+a 420 px window keeps the header right of Back; the HTML replay has no
+Back and `94:07`; a broken session resolves `{ ok: false, error: 'The run
+log is not stored.' }`; `embedPlayer` fills its slot, follows it, is the
+`playerHost`, refuses a second player and hands back on `close()`; the
+gallery section). Helpers in `tests/e2e/look.ts`: `playerBack`,
+`playerClock`, `longLogText`, `openLongPlayer`.
 
 ### 42-Z — Integration
 
@@ -151,6 +272,18 @@ adds its row; 42-Z gives the totals against the stage 41 tip.
 | editor JS | 634.13 / 209.14 kB | 634.13 / 209.14 kB | 42-0 |
 | player-host JS | 34.69 / 11.42 kB | 34.69 / 11.42 kB | 42-0 |
 | gallery | — | none (`VITE_KIT=1`: 1.67 / 0.97 kB JS, 0.56 / 0.31 kB CSS) | 42-0 |
+
+42f alone, on the 42-0 tip (`2c2601bd`), same build; the replay bundle's
+gzip is `gzip -9` of `dist/replay/replay.js` (the HTML replay carries it
+and `player.css`):
+
+| Chunk | 42-0 tip | With 42f | Budget |
+|---|---|---|---|
+| start (`index-*.js`) | 21.77 / 8.18 kB | 22.43 / 8.43 kB | "unchanged": +0.25 kB gzip, the shell's part of the API (the result's reasons, `embedPlayer`, the run log mode); the shell lives in the start chunk |
+| player-host JS | 34.69 / 11.42 kB | 36.75 / 12.07 kB | ≤ +2 kB: +0.65 kB gzip |
+| player-host CSS | 10.02 / 2.46 kB | 10.12 / 2.49 kB | (with JS) +0.68 kB gzip in all |
+| chrome JS, CSS | 229.91 / 82.77, 48.04 / 10.65 kB | unchanged | — |
+| HTML replay bundle | 1319.53 kB / 453 855 B | 1321.75 kB / 454 263 B | ≤ +1.5 kB gzip: +0.41 kB (importing `look-glass.css` in `player.css`, as first planned, measured +1.46 kB) |
 
 ## Consequences
 
