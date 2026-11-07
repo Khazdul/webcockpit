@@ -520,6 +520,21 @@ export function Table(p: {
     ro.observe(el);
     return () => ro.disconnect();
   }, [below]);
+  // With `scroll`: the rows' scrollbar gutter as it is (`--lk-gut`; 0 with
+  // overlay scrollbars, as Firefox on Linux), so the heads line up with the
+  // rows. Read when the scroller's size changes, never per frame.
+  const body = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const t = ref.current;
+    const el = body.current;
+    if (!p.scroll || !t || !el) return;
+    const put = (): void => t.style.setProperty('--lk-gut', `${Math.max(0, el.offsetWidth - el.clientWidth)}px`);
+    put();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(put);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [p.scroll]);
   return (
     <div ref={ref} class={cx('wc-lk-tbl', stacked && 'is-stacked', p.scroll && 'is-scroll')} role="table" style={{ '--lk-cols': p.cols }}>
       <div class="wc-lk-throw" role="row">
@@ -541,7 +556,10 @@ export function Table(p: {
           );
         })}
       </div>
-      <div class={cx('wc-lk-tbody', p.scroll && 'wc-lk-scroll')} role="rowgroup" ref={(el) => setRef(p.bodyRef, el)}>
+      <div class={cx('wc-lk-tbody', p.scroll && 'wc-lk-scroll')} role="rowgroup" ref={(el) => {
+          body.current = el;
+          setRef(p.bodyRef, el);
+        }}>
         {p.children}
       </div>
     </div>

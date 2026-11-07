@@ -351,7 +351,8 @@ describe('Table', () => {
       'ResizeObserver',
       class {
         constructor(cb: (e: { contentRect: { width: number } }[]) => void) {
-          fire = (w) => cb([{ contentRect: { width: w } }]);
+          // The first observer is the stacking one (the gutter's comes after it).
+          fire ??= (w) => cb([{ contentRect: { width: w } }]);
         }
         observe(): void {}
         disconnect(): void {}
@@ -361,6 +362,8 @@ describe('Table', () => {
     const t = $(host, '.wc-lk-tbl');
     expect(t.classList.contains('is-scroll')).toBe(true);
     expect($(t, '.wc-lk-tbody').classList.contains('wc-lk-scroll')).toBe(true);
+    // The rows' scrollbar gutter as measured (none here), for the heads' padding.
+    expect(t.style.getPropertyValue('--lk-gut')).toBe('0px');
     expect(t.classList.contains('is-stacked')).toBe(false);
     act(() => fire!(400));
     expect(t.classList.contains('is-stacked')).toBe(true);

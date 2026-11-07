@@ -548,9 +548,14 @@ select.wc-lk-input option {
   scrollbar-gutter: stable;
 }
 
-/* The heads line up with the rows above a stable scrollbar gutter. */
+/* The heads line up with the rows above a stable scrollbar gutter, as wide
+ * as it is (`--lk-gut`, measured by Table: 0 with overlay scrollbars). */
 .wc-lk-tbl.is-scroll > .wc-lk-throw {
-  padding-right: calc(18px + 8px);
+  padding-right: calc(18px + var(--lk-gut, 8px));
+}
+
+html.wc-phone .wc-lk-tbl.is-scroll > .wc-lk-throw {
+  padding-right: calc(12px + var(--lk-gut, 0px));
 }
 
 .wc-lk-throw,
@@ -685,6 +690,8 @@ select.wc-lk-input option {
 .wc-lk-rule > .wc-lk-sec {
   margin: 0;
   min-width: 0;
+  /* Room between the lines when it wraps (the caps' own 1 would touch). */
+  line-height: 1.35;
 }
 
 .wc-lk-hair {
