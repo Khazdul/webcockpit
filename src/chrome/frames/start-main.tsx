@@ -91,7 +91,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     return menuKey(items, cursor, setCursor, nk);
   });
 
-  const ink = useDarkInk();
+  const ink = useDarkInk('quote');
   return (
     <div class="wc-start-main wc-lk-page">
       <div class="wc-sm-stage">

@@ -2,25 +2,11 @@
  * the scenery (wordmark, almanac, notices), the start menu and the
  * quote. The kit's box, buttons and labels are in kit/look.css. */
 
-.wc-start {
-  /* The wordmark's place: its top, its measured height (set by the
-   * surface), and the gap to the menu panel (the mockup's numbers). */
-  --wc-brand-top: clamp(18px, 5.2vh, 70px);
-  --wc-brand-gap: clamp(14px, 2.6vh, 30px);
-}
-
-.wc-start-skyhost,
-.wc-start-vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.wc-start-vignette {
-  background:
-    radial-gradient(130% 95% at 50% 42%, transparent 52%, rgba(0, 0, 0, 0.55) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 18%);
-}
+/* The places of the sky, the wordmark and the panel (`--wc-brand-top`,
+ * `--wc-brand-pad`, `--wc-brand-gap`, `--wc-panel-w`) are shared with the
+ * first paint: src/start/geometry.css. The wordmark's measured height is
+ * `--wc-brand-h` (set by the surface). The sky brings its own vignette and
+ * grain (ADR 0124); the page adds none. */
 
 /* The frame stack fills the surface; each new-look frame is its own layer. */
 .wc-start > .wc-stack {
@@ -67,14 +53,6 @@
 }
 
 .wc-start-brand {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--wc-brand-top);
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-  transform-origin: 50% 0;
   transition: transform 0.8s cubic-bezier(0.3, 0.9, 0.25, 1);
 }
 
@@ -86,14 +64,8 @@
   justify-content: flex-start;
   top: 10px;
   left: 16px;
+  padding-top: 0;
   transform: none;
-}
-
-/* The menu always wins: on a short window the wordmark goes. */
-@media (max-height: 560px) {
-  .wc-start-brand {
-    display: none;
-  }
 }
 
 /* The almanac at the bottom right: date, time · period · year, version. */
@@ -246,7 +218,7 @@
 
 .wc-sm-panel {
   flex: none;
-  width: min(360px, 100%);
+  width: min(var(--wc-panel-w), 100%);
 }
 
 .wc-sm-win {
@@ -447,23 +419,9 @@
 
 /* ------------------------------------------------------------ phone */
 
-/* The sky reaches under the notch and the home indicator (the surface
- * itself keeps to the safe area, src/ui/ui.css). */
+/* The sky reaches under the notch and the home indicator (geometry.css). */
 html.wc-phone .wc-start {
   overflow: visible;
-}
-
-html.wc-phone .wc-start-skyhost,
-html.wc-phone .wc-start-vignette {
-  inset:
-    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-top, 0px)))
-    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-right, 0px)))
-    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-bottom, 0px)))
-    calc(-1 * (var(--pad, 0px) + env(safe-area-inset-left, 0px)));
-}
-
-html.wc-phone .wc-start {
-  --wc-brand-top: 26px;
 }
 
 /* Clear of the phone's fullscreen button (src/ui/ui.css .wc-fs-btn). */

@@ -259,6 +259,8 @@ export class Shell {
       // The chrome chunk and the fonts load side by side (ADR 0083).
       let chromeDone = false;
       let fontsDone = false;
+      let reveal!: () => void;
+      const revealed = new Promise<void>((r) => (reveal = r));
       const progress = (): void => {
         if (chromeDone && fontsDone) bootStep(90, 'Starting');
         else bootStep(70, chromeDone ? 'Loading fonts' : 'Loading interface');
@@ -275,7 +277,8 @@ export class Shell {
             progress();
           }),
         ]);
-        this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter() });
+        // The sky engine mounts after the reveal, over the first paint's sky (ADR 0083).
+        this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter(), skyHold: revealed });
         this.startMount.style.opacity = '0';
         this.showStart();
         bootStep(100, 'Ready');
@@ -283,6 +286,7 @@ export class Shell {
       } finally {
         this.startMount.style.opacity = '';
         bootDone();
+        reveal();
       }
     }
     // Well after the first paint and the web font, so it never competes
