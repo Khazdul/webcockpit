@@ -334,19 +334,30 @@
  * opaque game background; its page (`.wc-menu-page`, `.wc-look`) carries
  * the kit's tokens, Paper with `data-light` on a light game background; the
  * kit's Box draws the Lykta frame in it (place `menu`). Old-look frames
- * keep the TUI border. */
+ * keep the TUI border.
+ *
+ * The opaque background is one layer under every shown look frame (not
+ * each frame's own), so an overlay frame (a dialog, kit/stack.tsx
+ * `push(node, { overlay: true })`) shows the look page below it. */
+
+.wc-overlay:has(> .wc-overlay-box .wc-frame.wc-menu-look:not([hidden]))::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: var(--term-bg);
+}
 
 .wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look {
   position: fixed;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
     env(safe-area-inset-left, 0px);
-  background: var(--term-bg);
 }
 
 .wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look[hidden] {
