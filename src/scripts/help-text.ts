@@ -242,3 +242,28 @@ export function typesetHelp(lines: readonly string[], width: number): HelpLine[]
 
 /** The cells of a typeset line. */
 export const helpLineText = (l: HelpLine): string => l.map((s) => s.text).join('');
+
+// ------------------------------------------------------------ blocks for the DOM (stage 44a)
+
+/**
+ * One block of help, for a page that lays the help out itself (the
+ * Scripts page's DOM help, stage 44a): the same block decisions as
+ * `typesetHelp` (headings, paragraphs, list items, term tables, pre runs,
+ * the blank lines between them).
+ */
+export type HelpBlock = Block;
+
+/** The help `lines` (relative indentation, header.ts) as blocks, as `typesetHelp` sees them. */
+export function helpBlocks(lines: readonly string[]): HelpBlock[] {
+  return blocks(lines);
+}
+
+/**
+ * Whether a table whose widest term is `termW` cells goes term over
+ * description at `width` cells, as `typesetHelp` decides it (the term
+ * column over 40 % of the width, or under 12 cells left for the text).
+ */
+export function helpTableStacks(termW: number, width: number): boolean {
+  const descAt = BLOCK_INDENT + termW + TABLE_GAP;
+  return descAt > Math.max(8, width) * TERM_SHARE || Math.max(8, width) - descAt < 12;
+}
