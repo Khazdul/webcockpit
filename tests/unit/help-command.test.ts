@@ -88,7 +88,7 @@ describe('#help resolution', () => {
     const intro = helpSections().find((x) => x.heading === 'Scripts')!.text.join('\n');
     expect(intro).toContain('#scripts');
     expect(intro).toContain('Scripts on the start page');
-    expect(intro).toContain('MANUAL');
+    expect(intro).toContain('Manual on the Scripts page');
     expect(intro).toContain('#script');
     expect(intro).toContain('#lua');
     const script = helpSections().find((x) => x.heading === '#script')!.syntax!.join('\n');

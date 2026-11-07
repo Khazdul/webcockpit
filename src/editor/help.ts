@@ -96,7 +96,7 @@ const INTRO: readonly HelpSection[] = [
       'Lite is a simplified view where you edit your settings one at a time: the kinds on the left (A, I, G, M and S choose one), their entries in the middle and the one you edit on the right. A change takes effect by itself once you finish it: when you leave the field (Esc does that too), go to another entry or kind, click in the game, add or delete an entry (N, D), bind a key or pick a highlight colour. Not while you type, so a half-written pattern never fires. An entry with a problem (a missing pattern, unbalanced braces) is not applied until it is fixed; the line under it says why, and the status at the bottom right reads Not applied.',
       'Editor lets you edit the whole settings file directly (experienced users); the rail on the left lists its parts and takes you there. Its changes take effect with Ctrl+S (Save, or Apply while you are connected), or when you go back to Lite; until then the status shows Modified. A text that does not load (unbalanced braces) is not applied, and the editor says why. Ctrl+F finds and Ctrl+H replaces; in this manual Ctrl+F finds too.',
       'Ctrl+S applies at once in either view. While you are connected the changes go into the running game; otherwise they are saved and load on the next connect. Settings you type on the input line meanwhile (#alias …) and variables your scripts save are kept, and show up in the editor. L, E and H switch between Lite, Editor and Help. Esc leaves a field first; then it goes back, and asks Apply / Discard / Keep editing only while something is not applied yet.',
-      'Profile → Import on the start page also reads settings from TinTin++, JMC (.set files) and Powwow. Choose the main file together with the files it #reads; a report then shows what was translated, what was kept as #nop and why.',
+      'Profile → Import on the start page also reads settings from TinTin++, JMC (.set files), Powwow and Mudlet. Drop the files on its page or choose them, the main file together with the files it #reads; a receipt then shows what was translated, what was kept as #nop or skipped, and why.',
       'It also reads Mudlet profile saves and exported packages (.xml or .mpackage). Aliases, triggers, keys, timers and variables become profile rules; no scripts are made, and Lua it cannot translate is kept as #nop.',
     ],
   },
@@ -286,7 +286,7 @@ const BASICS: readonly HelpSection[] = [
     topics: ['scripts'],
     text: [
       'Scripts are small Lua programs kept beside the profile, not in it. The Scripts window (the menu bar\'s Scripts button, or #scripts; Scripts on the start page) lists them: turn one on or off, change its settings, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
-      'MANUAL on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
+      'Manual on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
       '#script controls the scripts from the input line, and #lua calls a function a script exported. Both are under Commands below.',
     ],
   },
@@ -591,7 +591,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     text: [
       'Calls a function that a script exported with export(name, fn). The rest of the line is its argument, as one text with the words joined by spaces; with nothing after the function name it gets nil; an empty {} counts as nothing.',
       'Works on the input line and in aliases, actions and macros. It is not run while a profile loads. When the script is not running, or has not exported the function, a line in the game window says so.',
-      'How a script exports a function: Profile bridge in the script manual (MANUAL on the Scripts page).',
+      'How a script exports a function: Profile bridge in the script manual (Manual on the Scripts page).',
       'With only a script name, or nothing at all, #lua does nothing.',
     ],
     examples: [
