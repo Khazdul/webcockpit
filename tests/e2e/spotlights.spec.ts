@@ -166,7 +166,13 @@ test('Credits rolls the chronicle; ESC returns, and so does the end', async ({ p
   // The roll's end (The End. leaves the top) returns to the menu too.
   await menuRow(page, 'credits').click();
   await expect(frame(page).locator('.wc-credits-col')).toBeVisible();
-  await page.evaluate(() => document.getAnimations().forEach((a) => a.finish()));
+  // Finish the roll; skip endless ones (the start page's sky and wordmark
+  // may run one), which cannot be finished.
+  await page.evaluate(() =>
+    document.getAnimations().forEach((a) => {
+      if (a.effect?.getComputedTiming().iterations !== Infinity) a.finish();
+    }),
+  );
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Credits');
   expect(errors).toEqual([]);
 });
