@@ -852,7 +852,7 @@ stage's test plan.
       `useKeyboardInset`; gallery section; tests
 - [ ] 42c: stack (overlay, hold, key layers, Esc rule); `Dialog`,
       `KeyHelp`, `Popover`; cursors, button zone, `letterAction`; tests
-- [ ] 42d: the Lykta frame on dark and Paper (no Glass); `useWindowChrome`;
+- [x] 42d: the Lykta frame on dark and Paper (no Glass); `useWindowChrome`;
       window and menu look hosts; `ProfileRoot` moved; tests
 - [ ] 42e: `lookCodeTheme`, `.wc-code` rules, lantern find panel,
       `LookManual`, `ManualContents`, `look-manual-find`; measurements; tests
