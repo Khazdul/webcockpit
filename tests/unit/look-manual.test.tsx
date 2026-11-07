@@ -66,6 +66,16 @@ async function type(input: HTMLInputElement, text: string): Promise<void> {
   });
 }
 
+/** Lets the reader draw its remaining chunks (idle callbacks). */
+async function drawAll(): Promise<void> {
+  for (let k = 0; k < 200 && document.querySelector('.wc-lk-msec.is-pending'); k++) {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 5));
+    });
+  }
+  expect(document.querySelector('.wc-lk-msec.is-pending')).toBeNull();
+}
+
 const onTOC = (): string | null | undefined => document.querySelector('.wc-lk-mtoc li.is-on')?.getAttribute('data-i');
 const count = (): string => document.querySelector('.wc-search-count')?.textContent ?? '';
 
@@ -78,6 +88,7 @@ describe('the text', () => {
         example: (l, lang) => codeLine(l, lang, known),
         link: (name) => indexLinkOf(`- ${name}:`)?.section ?? null,
       });
+      await drawAll();
       const secs = document.querySelectorAll<HTMLElement>('.wc-lk-mtext section[data-i]');
       expect(secs).toHaveLength(sections.length);
       sections.forEach((s, i) => {
@@ -115,6 +126,37 @@ describe('the text', () => {
     await act(async () => a.click());
     expect(ctl().section()).toBe(to);
     expect(onSection).toHaveBeenLastCalledWith(to);
+  });
+});
+
+describe('drawing in chunks', () => {
+  it('draws the first screen at once and the rest when idle; a jump draws through its section', async () => {
+    const sections = scriptManualSections();
+    const { ctl } = await mount({ sections });
+    const pending = (): number => document.querySelectorAll('.wc-lk-msec.is-pending').length;
+    expect(pending()).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.wc-lk-msec')).toHaveLength(sections.length);
+    const far = sections.length - 2;
+    expect(document.querySelector(`section[data-i="${far}"]`)!.classList.contains('is-pending')).toBe(true);
+    await act(async () => ctl().goto(far));
+    expect(document.querySelector(`section[data-i="${far}"]`)!.classList.contains('is-pending')).toBe(false);
+    expect(document.querySelector(`section[data-i="${far}"] h3`)!.textContent).toBe(sections[far]!.heading);
+    expect(ctl().section()).toBe(far);
+    await drawAll();
+  });
+
+  it('draws through a match beyond the drawn sections', async () => {
+    const sections = scriptManualSections();
+    const last = sections.length - 1;
+    const { ctl } = await mount({ sections });
+    expect(document.querySelector(`section[data-i="${last}"]`)!.classList.contains('is-pending')).toBe(true);
+    const input = document.querySelector<HTMLInputElement>('.wc-lk-mfind input')!;
+    await type(input, sections[last]!.heading);
+    // From the first match, Shift+Enter wraps to the last one: in the last section.
+    await press(ctl(), 'Enter', { shiftKey: true }, input);
+    expect(document.querySelector(`section[data-i="${last}"]`)!.classList.contains('is-pending')).toBe(false);
+    expect(document.querySelectorAll(`section[data-i="${last}"] mark.wc-lk-mark.is-now`)).toHaveLength(1);
+    expect(ctl().section()).toBe(last);
   });
 });
 

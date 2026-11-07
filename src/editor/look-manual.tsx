@@ -123,6 +123,10 @@ const FOLD_OVER = 30;
 const LINE_STEP = 44;
 /** The contents list becomes an overlay at or under this width (px). */
 const NARROW = 700;
+/** Sections drawn with the reader (or through `initial` and AHEAD more); the rest follow in chunks of CHUNK when idle. */
+const FIRST_DRAWN = 24;
+const AHEAD = 8;
+const CHUNK = 32;
 /** Where the spy reads the current section: this many px below the text's top. */
 const SPY_AT = 24;
 
@@ -281,6 +285,8 @@ interface TextProps {
   sections: readonly HelpSection[];
   groups: Readonly<Record<string, string>>;
   marks: FallbackMarks | null;
+  /** Sections drawn so far (the rest are empty placeholders until their chunk). */
+  upto: number;
   textRef: RefObject<HTMLElement>;
   example?: LookManualProps['example'];
   link?: LookManualProps['link'];
@@ -306,8 +312,12 @@ const LEAD_NAME = /^([A-Za-z_#][\w.:#]*):/;
 class ManualText extends Component<TextProps> {
   override shouldComponentUpdate(n: TextProps): boolean {
     const p = this.props;
-    return n.sections !== p.sections || n.groups !== p.groups || n.marks !== p.marks;
+    return n.sections !== p.sections || n.groups !== p.groups || n.marks !== p.marks || n.upto !== p.upto;
   }
+
+  /** Each section's element, kept while the sections, groups and marks stay (Preact skips an unchanged vnode). */
+  private drawn = new Map<number, VNode>();
+  private drawnFor: unknown[] = [];
 
   private body(s: HelpSection, i: number): VNode[] {
     const p = this.props;
@@ -446,6 +456,11 @@ class ManualText extends Component<TextProps> {
   override render(): VNode {
     const p = this.props;
     const out: VNode[] = [];
+    const deps = [p.sections, p.groups, p.marks];
+    if (deps.some((d, k) => d !== this.drawnFor[k])) {
+      this.drawn.clear();
+      this.drawnFor = deps;
+    }
     let group: string | null = null;
     p.sections.forEach((s, i) => {
       if (s.group !== group) {
@@ -459,11 +474,19 @@ class ManualText extends Component<TextProps> {
           );
         }
       }
-      out.push(
-        <section class="wc-lk-msec" key={i} data-i={i} aria-label={s.heading}>
-          {this.body(s, i)}
-        </section>,
-      );
+      let sec = this.drawn.get(i);
+      if (!sec) {
+        sec =
+          i < p.upto ? (
+            <section class="wc-lk-msec" key={i} data-i={i} aria-label={s.heading}>
+              {this.body(s, i)}
+            </section>
+          ) : (
+            <section class="wc-lk-msec is-pending" key={i} data-i={i} aria-label={s.heading} />
+          );
+        if (i < p.upto) this.drawn.set(i, sec);
+      }
+      out.push(sec);
     });
     return (
       <article class="wc-lk-mtext wc-lk-scroll" ref={p.textRef} data-wc-native-mouse="">
@@ -571,6 +594,18 @@ export function LookManual(p: LookManualProps): VNode {
   const text = useRef<HTMLElement>(null);
   const input = useRef<HTMLInputElement | null>(null);
   const [cur, setCur] = useState(() => clamp(p.initial ?? 0, n));
+  // Sections are drawn in chunks: the first screen at once, the rest when the main thread is idle.
+  const [upto, setUpto] = useState(() => Math.min(n, Math.max(FIRST_DRAWN, cur + AHEAD)));
+  const uptoRef = useRef(upto);
+  uptoRef.current = upto;
+  /** Draws through section `i` now (a jump or a match beyond the drawn ones). */
+  const drawThrough = (i: number): boolean => {
+    if (i < uptoRef.current) return true;
+    const to = Math.min(n, i + AHEAD);
+    uptoRef.current = to;
+    setUpto(to);
+    return false;
+  };
   const [zone, setZone] = useState<'text' | 'toc'>('text');
   const [tocOpen, setTocOpen] = useState(false);
   const [barOpen, setBarOpen] = useState(false);
@@ -591,11 +626,53 @@ export function LookManual(p: LookManualProps): VNode {
   const secEl = (i: number): HTMLElement | null => text.current?.querySelector<HTMLElement>(`section[data-i="${i}"]`) ?? null;
   const narrow = (): boolean => (root.current?.clientWidth ?? Infinity) <= NARROW;
 
+  /**
+   * Scrolls the text to `place()` now and again in the next three frames:
+   * the sections that come into view are laid out then (content-visibility)
+   * and change size, which may move the target. A user's scroll (wheel,
+   * touch, a press) or another jump cancels it.
+   */
+  const jump = useRef(0);
+  /** While a jump settles, the spy's reports are stale (the jump has set the section). */
+  const settling = useRef(false);
+  const settle = (place: (t: HTMLElement) => void): void => {
+    const t = text.current;
+    if (!t) return;
+    const id = ++jump.current;
+    place(t);
+    if (typeof requestAnimationFrame !== 'function') return;
+    settling.current = true;
+    let n = 0;
+    const again = (): void => {
+      if (id !== jump.current || !text.current) return;
+      place(text.current);
+      if (++n < 3) requestAnimationFrame(again);
+      else settling.current = false;
+    };
+    requestAnimationFrame(again);
+  };
+
+  /** The section the last jump went to, until the reader scrolls (p then goes to the one before). */
+  const landed = useRef(-1);
+
+  // The section's own top at the text's top: the browser's scroll anchor is
+  // then the section itself, so sections above it that get laid out late
+  // (content-visibility, fonts) do not move it.
+  /** A jump to a section that was not drawn yet: done once it is. */
+  const pendingGoto = useRef(-1);
   const goto = (i: number): void => {
     const k = clamp(i, n);
-    const t = text.current;
-    const s = secEl(k);
-    if (t && s) t.scrollTop = Math.max(0, s.offsetTop - 8);
+    if (!drawThrough(k)) {
+      pendingGoto.current = k;
+      landed.current = k;
+      setCur(k);
+      return;
+    }
+    settle((t) => {
+      const s = secEl(k);
+      if (s) t.scrollTop = s.offsetTop;
+    });
+    landed.current = k;
     setCur(k);
   };
 
@@ -667,8 +744,8 @@ export function LookManual(p: LookManualProps): VNode {
     const c = st.current.cur;
     if (dir > 0) return goto(c + 1);
     const t = text.current;
-    const s = secEl(c);
-    if (t && s && t.scrollTop > s.offsetTop + 4) goto(c);
+    const h = secEl(c)?.querySelector('h3');
+    if (landed.current !== c && t && h && h.getBoundingClientRect().top < t.getBoundingClientRect().top - 4) goto(c);
     else goto(c - 1);
   };
 
@@ -761,6 +838,12 @@ export function LookManual(p: LookManualProps): VNode {
       }
       return false;
     }
+    // A scroll key ends a jump's settling.
+    if (nk && nk !== 'left') {
+      jump.current++;
+      settling.current = false;
+      landed.current = -1;
+    }
     switch (nk) {
       case 'up':
       case 'down':
@@ -806,6 +889,26 @@ export function LookManual(p: LookManualProps): VNode {
     return () => p.ctl?.(null);
   }, []);
 
+  // The next chunk of sections when the main thread is idle.
+  useEffect(() => {
+    if (upto >= n) return;
+    const next = (): void => setUpto((u) => (uptoRef.current = Math.min(n, Math.max(u, uptoRef.current) + CHUNK)));
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(next, { timeout: 200 });
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(next, 0);
+    return () => clearTimeout(id);
+  }, [upto, n]);
+
+  // A jump that waited for its section to be drawn.
+  useLayoutEffect(() => {
+    const k = pendingGoto.current;
+    if (k < 0 || k >= upto) return;
+    pendingGoto.current = -1;
+    goto(k);
+  }, [upto]);
+
   // The first section (the host's `initial`).
   useLayoutEffect(() => {
     if (cur > 0) goto(cur);
@@ -826,7 +929,7 @@ export function LookManual(p: LookManualProps): VNode {
         (entries) => {
           let best = -1;
           for (const en of entries) if (en.isIntersecting) best = Math.max(best, Number((en.target as HTMLElement).dataset.i));
-          if (best >= 0) setCur(best);
+          if (best >= 0 && !settling.current) setCur(best);
         },
         { root: t, rootMargin: `-${SPY_AT}px 0px -${Math.max(0, now - SPY_AT - 1)}px 0px`, threshold: 0 },
       );
@@ -835,9 +938,17 @@ export function LookManual(p: LookManualProps): VNode {
     make();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(make) : null;
     ro?.observe(t);
+    // The reader scrolls by hand: a jump's settling stops.
+    const mine = (): void => {
+      jump.current++;
+      settling.current = false;
+      landed.current = -1;
+    };
+    for (const ev of ['wheel', 'touchstart', 'pointerdown'] as const) t.addEventListener(ev, mine, { passive: true });
     return () => {
       ro?.disconnect();
       io?.disconnect();
+      for (const ev of ['wheel', 'touchstart', 'pointerdown'] as const) t.removeEventListener(ev, mine);
     };
   }, [sections]);
 
@@ -856,12 +967,12 @@ export function LookManual(p: LookManualProps): VNode {
     () => (api || !active.matches.length ? null : { by: matchesByBlock(active.matches), now: active.matches[find.hit] ?? null }),
     [api, active, find.hit],
   );
-  const ranges = useRef<{ result: SectionFindResult; all: Range[]; of: Map<SectionMatch, Range> } | null>(null);
+  const ranges = useRef<{ result: SectionFindResult; upto: number; all: Range[]; of: Map<SectionMatch, Range> } | null>(null);
   const me = useRef({});
   useLayoutEffect(() => {
     const t = text.current;
     if (!t || !api) return;
-    if (ranges.current?.result !== active) {
+    if (ranges.current?.result !== active || ranges.current.upto !== upto) {
       const all: Range[] = [];
       const of = new Map<SectionMatch, Range>();
       const blocks = new Map<string, Element>();
@@ -883,12 +994,12 @@ export function LookManual(p: LookManualProps): VNode {
           });
         }
       }
-      ranges.current = { result: active, all, of };
+      ranges.current = { result: active, upto, all, of };
     }
     const m = active.matches[find.hit];
     owners.set(me.current, { all: ranges.current.all, now: (m && ranges.current.of.get(m)) ?? null });
     paintHighlights();
-  }, [active, find.hit, api]);
+  }, [active, find.hit, api, upto]);
   useEffect(
     () => () => {
       owners.delete(me.current);
@@ -900,18 +1011,24 @@ export function LookManual(p: LookManualProps): VNode {
   // A step or a new query: the current match in view, the contents following.
   useLayoutEffect(() => {
     if (!reveal.current) return;
-    reveal.current = false;
     const m = active.matches[find.hit];
     const t = text.current;
-    if (!m || !t) return;
-    const el = secEl(m.section)?.querySelector<HTMLElement>(`[data-b="${m.block}"]`);
-    if (el) {
+    if (!m || !t) {
+      reveal.current = false;
+      return;
+    }
+    // A match in a section not drawn yet: draw through it first (this runs again then).
+    if (!drawThrough(m.section)) return;
+    reveal.current = false;
+    settle((t) => {
+      const el = secEl(m.section)?.querySelector<HTMLElement>(`[data-b="${m.block}"]`);
+      if (!el) return;
       const tr = t.getBoundingClientRect();
       const r = el.getBoundingClientRect();
       if (r.top < tr.top + SPY_AT || r.bottom > tr.bottom - 8) t.scrollTop += r.top - tr.top - t.clientHeight / 3;
-    }
+    });
     setCur(m.section);
-  }, [find]);
+  }, [find, upto]);
 
   // Ctrl+F before the bar was drawn: its field gets the focus now.
   useLayoutEffect(() => {
@@ -999,6 +1116,7 @@ export function LookManual(p: LookManualProps): VNode {
           sections={sections}
           groups={groups}
           marks={marks}
+          upto={upto}
           textRef={text}
           example={p.example}
           link={p.link}

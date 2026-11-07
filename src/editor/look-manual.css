@@ -274,7 +274,12 @@
 .wc-lk-msec {
   padding: 4px 0 10px;
   content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
+  contain-intrinsic-size: auto 480px;
+}
+
+/* A section whose chunk is not drawn yet (look-manual.tsx draws the rest when idle). */
+.wc-lk-msec.is-pending {
+  height: 480px;
 }
 
 .wc-lk-mgroup {
