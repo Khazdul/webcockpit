@@ -5,16 +5,23 @@
  * layout in CSS px, not cells; the type is Cinzel (bundled, bold) and
  * Cormorant (bundled, src/theme/fonts.ts START_FACES).
  *
- * This file: the box, its page and the flash (package 42a). The tokens are
- * in look-tokens.css, the glass buttons, Back, the icons and the shortcut
+ * This file: the box, its places and pages, its slots, layout B's proxy
+ * and the flash (package 42a, ADR 0127). The tokens are in
+ * look-tokens.css, the glass buttons, Back, the icons and the shortcut
  * letters in look-glass.css (shared with the player, 42f). Stage 42-0
- * split them out (ADR 0127). */
+ * split them out.
+ *
+ * Geometry: `--lk-box-m` (the large box's margin to the window edge; 6 px
+ * on a phone) and the large window's glass, `--lk-large-fill` and
+ * `--lk-large-blur` (the blur rule, ADR 0127 "Measurements"), on
+ * `.wc-look` with fallbacks here. */
 
 @import "./look-tokens.css";
 @import "./look-glass.css";
 
 /* Free layout: undo the cell grid's text rules (kit.css .wc-chrome). */
 .wc-lk-page,
+.wc-lk-inwin,
 .wc-start-scenery,
 .wc-start-pills,
 .wc-lk-tiny {
@@ -41,13 +48,47 @@
   box-sizing: border-box;
 }
 
-.wc-lk-sub-large {
-  padding: 58px 16px 16px;
+/* A tall normal box: grows downward to the window's bottom margin; its
+ * content box fills it (its BoxBody scrolls). */
+.wc-lk-sub.is-tall {
+  padding-bottom: var(--lk-box-m, clamp(12px, 1.9vw, 28px));
 }
+
+.wc-lk-sub.is-tall > .wc-lk-box {
+  flex: 1 1 0;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-lk-sub.is-tall > .wc-lk-box > .wc-lk-win {
+  flex: 1 1 auto;
+}
+
+/* Layout B "Rummet växer": the large box nearly fills the window, on every
+ * side `--lk-box-m` from its edge (no wordmark above it); with a width cap
+ * it stops there, centred, and the sky shows on both sides. */
+.wc-lk-large {
+  position: absolute;
+  inset: var(--lk-box-m, clamp(12px, 1.9vw, 28px));
+  display: flex;
+  justify-content: center;
+}
+
+/* The phone's ESC menu: the box fills the menu, over the opaque background. */
+.wc-lk-menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
 
 /* ------------------------------------------------------------ the box */
 
-.wc-lk-box {
+.wc-lk-box,
+.wc-lk-morph {
   position: relative;
   box-sizing: border-box;
   padding: 7px;
@@ -69,17 +110,42 @@
   width: min(760px, 100%);
 }
 
-.wc-lk-box-large {
-  width: 100%;
+.wc-lk-box-large,
+.wc-lk-box-full {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
+  max-width: var(--lk-box-maxw, none);
   display: flex;
   flex-direction: column;
 }
 
-.wc-lk-box-large > .wc-lk-win {
+/* (`:where`: a page's own `winClass` padding wins.) */
+:where(.wc-lk-box-large, .wc-lk-box-full) > .wc-lk-win {
   flex: 1 1 auto;
-  min-height: 0;
+  padding: 44px 22px 14px;
+}
+
+/* The large window's glass: more opaque than the menu panel's (long text
+ * over a bright sky). Its blur follows the measured rule (ADR 0127). */
+.wc-lk-box-large > .wc-lk-win,
+.wc-lk-mwin {
+  background:
+    radial-gradient(55% 70px at 50% 0, rgba(255, 207, 143, 0.14), transparent),
+    radial-gradient(130% 90% at 50% 30%, rgba(255, 207, 143, 0.08), rgba(255, 207, 143, 0.03) 60%, transparent 90%),
+    var(--lk-large-fill, rgba(13, 10, 8, 0.68));
+  -webkit-backdrop-filter: var(--lk-large-blur, blur(9px) saturate(1.1));
+  backdrop-filter: var(--lk-large-blur, blur(9px) saturate(1.1));
+}
+
+/* The ESC menu's box: over the opaque background, no blur. */
+.wc-lk-box-full > .wc-lk-win {
+  background:
+    radial-gradient(55% 70px at 50% 0, rgba(255, 207, 143, 0.14), transparent),
+    radial-gradient(130% 90% at 50% 30%, rgba(255, 207, 143, 0.08), rgba(255, 207, 143, 0.03) 60%, transparent 90%),
+    var(--lk-win-fill-large, rgba(13, 10, 8, 0.68));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* Riveted corner brackets. */
@@ -152,6 +218,27 @@
   justify-content: center;
 }
 
+/* A new title cross-fades with the old one (`MOTION.swap.title`). */
+.wc-lk-hood {
+  justify-content: center;
+}
+
+.wc-lk-hood-t.is-out {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  animation: wc-lk-fade-out 0.2s ease forwards;
+}
+
+.wc-lk-hood-t.is-in {
+  animation: wc-lk-fade 0.2s ease;
+}
+
+@keyframes wc-lk-fade-out {
+  to { opacity: 0; }
+}
+
 .wc-lk-hood-t {
   font: 700 14px/1 var(--lk-display);
   letter-spacing: 0.14em;
@@ -171,9 +258,16 @@
   box-shadow: 0 1px 0 rgba(255, 226, 190, 0.28);
 }
 
-/* The lit window. */
+/* The lit window: the content box in every place (a flex column and an
+ * inline-size container, so pages lay themselves out by their own width,
+ * never by the device). */
 .wc-lk-win {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  container: wc-page / inline-size;
   border: 1px solid #000;
   border-radius: 2px;
   padding: 40px 22px 14px;
@@ -184,6 +278,94 @@
     rgba(14, 11, 9, 0.58);
   -webkit-backdrop-filter: blur(9px) saturate(1.1);
   backdrop-filter: blur(9px) saturate(1.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.1), inset 0 0 40px rgba(0, 0, 0, 0.65);
+}
+
+/* The slots: a fixed head, a body that fills and scrolls natively (a thin
+ * iron scrollbar), a fixed foot. */
+.wc-lk-bhead,
+.wc-lk-bfoot {
+  flex: none;
+}
+
+.wc-lk-bbody {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.wc-lk-bbody.wc-lk-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 214, 160, 0.22) transparent;
+}
+
+/* ------------------------------------------------------------ in a window */
+
+/* The window frame is the box (42d): no iron, no hood, no Back; the content box fills the window. */
+.wc-lk-box.wc-lk-inwin {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-lk-inwin > .wc-lk-win {
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: 0;
+  padding: 12px 16px;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* A window sub-page's small Back: placed by the page, in the flow. */
+.wc-lk-back.wc-lk-iback {
+  position: relative;
+  left: auto;
+  top: auto;
+  align-self: flex-start;
+}
+
+/* ------------------------------------------------------------ layout B's proxy */
+
+/* An empty iron frame that carries the motion between two boxes (the
+ * start surface's, src/chrome/start-morph.tsx): fixed, its geometry
+ * animated, contained so its layout touches nothing else. Visible only
+ * while an animation says so. */
+.wc-lk-morph {
+  position: fixed;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.wc-lk-morph[hidden] {
+  display: none;
+}
+
+.wc-lk-morph > .wc-lk-hood {
+  padding: 0;
+}
+
+.wc-lk-mwin {
+  position: absolute;
+  inset: 7px;
+  border: 1px solid #000;
+  border-radius: 2px;
   box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.1), inset 0 0 40px rgba(0, 0, 0, 0.65);
 }
 
@@ -225,6 +407,24 @@ html.wc-phone .wc-lk-sub {
 
 html.wc-phone .wc-lk-win {
   padding: 38px 10px 10px;
+}
+
+html.wc-phone .wc-lk-sub.is-tall {
+  padding: 10px 6px var(--lk-box-m, 6px);
+}
+
+html.wc-phone :where(.wc-lk-box-large, .wc-lk-box-full) > .wc-lk-win {
+  padding: 42px 10px 10px;
+}
+
+html.wc-phone .wc-lk-inwin > .wc-lk-win {
+  padding: 10px;
+}
+
+@media (max-width: 600px) {
+  .wc-lk-large {
+    inset: var(--lk-box-m, 6px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
