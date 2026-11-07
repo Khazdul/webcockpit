@@ -150,8 +150,8 @@ test('script manual: the text and menu scrollbars drag their thumbs; the track p
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
-  await startFrame(page).locator('.wc-scr-row[data-script="dragtest"] .wc-scr-name').click();
-  await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await startFrame(page).locator('.wc-scr-row[data-name="dragtest"] .wc-scr-name').click();
+  await startFrame(page).locator('.wc-scr-panel [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
   await expect(editor.locator('.cm-content')).toBeFocused();
   // The script editor's own buffer bar needs a long script; the manual first.
@@ -181,8 +181,8 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
-  await startFrame(page).locator('.wc-scr-row[data-script="longscript"] .wc-scr-name').click();
-  await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await startFrame(page).locator('.wc-scr-row[data-name="longscript"] .wc-scr-name').click();
+  await startFrame(page).locator('.wc-scr-panel [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
   const content = editor.locator('.cm-content');
   await expect(content).toBeFocused();
@@ -194,9 +194,11 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('the Scripts window: the help scrollbar drags; the game input keeps away', async ({ page }) => {
+// Stage 44a: the Scripts page has no TUI scrollbars any more; its help
+// scrolls natively (the kit's thin iron scrollbar), checked here by the wheel.
+test('the Scripts window: the help scrolls natively; the game input keeps away', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.setViewportSize({ width: 1440, height: 600 });
   await mockMume(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
@@ -207,13 +209,16 @@ test('the Scripts window: the help scrollbar drags; the game input keeps away', 
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await page.locator('.wc-mb[data-mb="scripts"]').click();
   const win = page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
-  await win.locator('.wc-scr-row[data-script="aaahelp"] .wc-scr-name').first().click();
-  await expect(win.locator('.wc-scr-help')).toContainText('Help line 0');
-  const bar = win.locator('.wc-scr-helpbox .wc-tui-bar');
+  await win.locator('.wc-scr-row[data-name="aaahelp"] .wc-scr-name').first().click();
   const scroller = win.locator('.wc-scr-help');
-  await dragThumb(page, bar, scroller);
-  await expectTrackPagesUp(bar, scroller);
-  // The mouseup stayed in the window: the game input did not take the focus.
+  await expect(scroller).toContainText('Help line 0');
+  await expect(win.locator('.wc-tui-bar')).toHaveCount(0);
+  expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === 'auto')).toBe(true);
+  await scroller.hover();
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => scrollTop(scroller)).toBeGreaterThan(0);
+  // A press in the help stays in the window: the game input does not take the focus.
+  await scroller.click();
   await expect(page.locator('.wc-input-field')).not.toBeFocused();
   expect(errors).toEqual([]);
 });
