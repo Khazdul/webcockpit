@@ -33,6 +33,9 @@
 // keys and characters), so the page below never acts on one; keys with
 // Ctrl / Alt / Meta and function keys pass. In a text field of the dialog
 // the editing keys are the field's; Enter, Esc and Tab are the dialog's.
+// An overlay dialog's keys are its frame's handler (`useKeys`, latest
+// wins); a dialog frame that wants keys of its own adds a key layer
+// (`useKeyLayer`), which comes first.
 
 import type { ComponentChildren, FunctionComponent, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
@@ -329,12 +332,16 @@ export function Popover(p: PopoverProps): VNode {
       el.dataset.side = top === below ? 'below' : 'above';
     };
     place();
-    const view = el.ownerDocument.defaultView;
+    const doc = el.ownerDocument;
+    const view = doc.defaultView;
     view?.addEventListener('resize', place);
+    // A scrolling page between the anchor and the offset parent moves the anchor.
+    doc.addEventListener('scroll', place, { capture: true, passive: true });
     const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null;
     ro?.observe(el);
     return () => {
       view?.removeEventListener('resize', place);
+      doc.removeEventListener('scroll', place, { capture: true });
       ro?.disconnect();
       releaseFocus(el);
     };
