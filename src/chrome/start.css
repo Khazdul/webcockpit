@@ -126,6 +126,24 @@
   color: var(--lk-faint);
 }
 
+/* On a bright sky the quote's dark ink, with a faint light lip (pale text
+ * with a dark shadow does not read on a day sky). */
+.wc-start-almanac.is-ink {
+  background: none;
+  text-shadow: 0 1px 0 rgba(255, 248, 232, 0.45);
+}
+
+.wc-start-almanac.is-ink .wc-alm-d { color: #3a2614; }
+.wc-start-almanac.is-ink .wc-alm-m { color: #4a3a2a; }
+.wc-start-almanac.is-ink .wc-alm-v { color: #5a4a38; }
+
+.wc-start-almanac,
+.wc-alm-d,
+.wc-alm-m,
+.wc-alm-v {
+  transition: color 2.5s, text-shadow 2.5s;
+}
+
 /* The client notices (ADR 0025): small glass pills at the top right. */
 .wc-start-pills {
   position: absolute;

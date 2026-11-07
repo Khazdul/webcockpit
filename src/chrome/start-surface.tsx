@@ -394,8 +394,9 @@ function Almanac(p: { run: boolean }): VNode {
     return () => clearInterval(t);
   }, [p.run]);
   const a = almanacLines(gameTimeAt(Math.floor(g)));
+  const ink = useDarkInk();
   return (
-    <aside class="wc-start-almanac" aria-label="Game time">
+    <aside class={'wc-start-almanac' + (ink ? ' is-ink' : '')} aria-label="Game time">
       <div class="wc-alm-d">{a.date}</div>
       <div class="wc-alm-m">{a.time}</div>
       <div class="wc-alm-v">WebCockpit {version || CLIENT_VERSION}</div>

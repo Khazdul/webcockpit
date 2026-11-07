@@ -58,8 +58,9 @@ pure `skyLookAt` of the start clock and the plain background.
 **Quote colour.** Quote style A's ink comes from
 `SkyLook.textBackLuminance`, never from canvas pixels: dark iron-brown
 ink above 0.5, pale parchment again below 0.4 (hysteresis), with the
-mockup's 2.5 s cross-fade. The almanac keeps the mockup's pale text on a
-soft corner shade at all times.
+mockup's 2.5 s cross-fade. The almanac follows the same rule (pale on a
+soft corner shade, dark ink without the shade on a bright sky): the
+mockup's pale almanac did not read on a day sky, above all on a phone.
 
 **Client notices** (ADR 0025) over the sky are small glass pills at the
 top right (the update pill reloads on a click); on an old-look frame
