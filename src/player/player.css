@@ -166,8 +166,13 @@
   }
 }
 
-.wc-player:has(.wc-phone-tabs:not([hidden])) .wc-pv-back {
+.wc-player:has(.wc-phone-tabs:not([hidden]) > .wc-phone-sep) .wc-pv-back {
   top: calc(var(--cell-h) + 2px);
+}
+
+/* A strip of one tab (every pane off: only GAME) switches nothing: not shown. */
+.wc-player .wc-phone-tabs:not(:has(> .wc-phone-sep)) {
+  display: none;
 }
 
 .wc-player-chrome button:focus-visible {
