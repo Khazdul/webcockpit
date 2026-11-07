@@ -37,6 +37,14 @@ import { FIND_HINT, RULE, TOGGLES, type Toggle, formatCount } from './manual-sea
 export interface SearchOptions {
   /** Something in the panel got focus (the frame's zone follows). */
   onFocus?: () => void;
+  /**
+   * The panel's look (stage 42e, ADR 0127): `tui` today's, `lantern` a
+   * Field, `n of m`, the toggles and icon buttons, a Replace row when
+   * editable. Default `tui`. 42-0 stub: accepted, not used yet.
+   */
+  look?: 'tui' | 'lantern';
+  /** The panel at the top of the buffer (lantern). */
+  top?: boolean;
 }
 
 /** Matches counted for "n of m"; more shows as "1000+". */

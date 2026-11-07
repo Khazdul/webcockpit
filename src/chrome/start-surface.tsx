@@ -323,7 +323,7 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   return (
     <div
       class={
-        `wc-chrome wc-start is-${scenery}` +
+        `wc-chrome wc-start wc-look is-${scenery}` +
         (lookSmall && !covered ? ' is-tiny' : '') +
         (gridSmall && covered ? ' is-grid-small' : '') +
         (p.leaving ? ' is-leaving' : '')

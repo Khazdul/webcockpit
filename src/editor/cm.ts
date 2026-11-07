@@ -68,6 +68,12 @@ export interface BufferOptions {
   onScroll: (s: ScrollStatus) => void;
   onClipboard: (kind: 'copy' | 'cut') => void;
   onFocus: () => void;
+  /**
+   * The buffer's look (stage 42e, ADR 0127): `tui` today's editors,
+   * `lantern` the new-look pages (look-code.ts). Default `tui`. 42-0 stub:
+   * accepted, not used yet.
+   */
+  look?: 'tui' | 'lantern';
 }
 
 // ------------------------------------------------------------ highlighting

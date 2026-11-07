@@ -1,9 +1,9 @@
-// The lantern kit (stage 41, ADR 0125): the start page's new-look
-// widgets, free DOM over the sky instead of cells on the grid. Shared by
-// the start menu (src/chrome/frames/start-main.tsx) and every sub-page
-// that has moved to the new look (the Profile list first); the other
-// sub-pages keep the TUI kit (widgets.tsx) on the grid until their own
-// stages.
+// The lantern kit (stage 41, ADR 0125; stage 42, ADR 0127): the new-look
+// widgets, free DOM over the sky (or in a window, or the phone's ESC menu)
+// instead of cells on the grid. Shared by the start menu
+// (src/chrome/frames/start-main.tsx) and every page that has moved to the
+// new look (the Profile list first); the other pages keep the TUI kit
+// (widgets.tsx) on the grid until their own stages.
 //
 //   export const MyFrame = lookFrame(function MyFrame() {
 //     const nav = useNav();
@@ -23,16 +23,40 @@
 // straight over the sky; an unmarked frame is drawn on the cell grid over
 // an opaque terminal-coloured layer, exactly as before (src/chrome/start-surface.tsx).
 //
+// This file is the kit's barrel: it holds the frames, the scenery, the
+// places and the box (package 42a) and re-exports the module files:
+//
+//   look-keys.ts       letterOf, letterAt, KeyLabel, letterAction (42c)
+//   look-icons.tsx     Icon, ICONS, IconName, IconDraw (42b)
+//   look-controls.tsx  GlassButton, Seg, Tabs, Field, …, LookFlash (42b)
+//   look-overlay.tsx   Dialog, KeyHelp, openKeyHelp, Popover (42c)
+//   look-cursor.ts     useListCursor, useGridCursor, useButtonZone (42c)
+//   look-motion.ts     MOTION, reducedMotion, useReducedMotion (42a)
+//   window-chrome.ts   useWindowChrome (42d)
+//
+// CSS: look.css (the box and its page), which imports look-tokens.css
+// (the `--lk-*` tokens on `.wc-look`) and look-glass.css (the glass
+// buttons and Back, also for the player).
+//
 // Rules (the owner's, README "Baseline"): no key-hint rows, no shortcut
 // letters at row ends, no ⏎. A shortcut is the letter marked inside its
 // label (`KeyLabel`: a fine lit underline). Selection is restrained: the
 // chosen row's text and icon brighten; no glide, glow or sweep. Every
 // sub-page has Back at the top left; Esc does the same. No lanterns.
 
-import type { ComponentChildren, FunctionComponent, VNode } from 'preact';
+import type { ComponentChildren, FunctionComponent, Ref, VNode } from 'preact';
 import { createContext } from 'preact';
 import { useContext, useLayoutEffect } from 'preact/hooks';
-import { useFlash, useIsTopFrame } from './stack';
+import { Icon } from './look-icons';
+import { useIsTopFrame, useNav } from './stack';
+
+export * from './look-keys';
+export * from './look-icons';
+export * from './look-controls';
+export * from './look-overlay';
+export * from './look-cursor';
+export * from './look-motion';
+export * from './window-chrome';
 
 // ------------------------------------------------------------ frames
 
@@ -54,7 +78,8 @@ export function isLookFrame(node: VNode): boolean {
  * What the start surface shows around the top frame: `main` the full
  * wordmark and the almanac (the start menu), `sub` a smaller wordmark
  * above a normal box, `large` the wordmark small in the corner (a box
- * that nearly fills the window), `grid` nothing (an old-look frame covers
+ * that nearly fills the window; in stage 42a it becomes layout B: no
+ * wordmark, almanac or quote), `grid` nothing (an old-look frame covers
  * the sky).
  */
 export type Scenery = 'main' | 'sub' | 'large' | 'grid';
@@ -70,108 +95,21 @@ export function useScenery(s: Scenery): void {
   }, [top, s, set]);
 }
 
-// ------------------------------------------------------------ keys
+// ------------------------------------------------------------ places
 
-/** The shortcut letter of a key press (a–z, lower case), or null (modifiers, other keys). */
-export function letterOf(e: { key: string; ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean }): string | null {
-  if (e.ctrlKey || e.altKey || e.metaKey) return null;
-  return /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : null;
-}
+/**
+ * Where a look frame runs (stage 42, ADR 0127): `start` over the sky,
+ * `window` in an in-game window (the window frame is the box), `menu` the
+ * phone's ESC menu (a full-screen Lykta page over the opaque background).
+ */
+export type LookPlace = 'start' | 'window' | 'menu';
 
-/** Index of the shortcut `letter` in `label` (its first occurrence, any case), or -1. */
-export function letterAt(label: string, letter: string | undefined): number {
-  return letter ? label.toLowerCase().indexOf(letter.toLowerCase()) : -1;
-}
+/** The place of the frames below; provided by each stack's host (42d: windows, the ESC menu). Default `start`. */
+export const LookPlaceCtx = createContext<LookPlace>('start');
 
-/** A label with its shortcut letter marked by a fine lit underline. */
-export function KeyLabel(p: { text: string; letter?: string | undefined; class?: string }): VNode {
-  const i = letterAt(p.text, p.letter);
-  return (
-    <span class={p.class}>
-      {i < 0 ? (
-        p.text
-      ) : (
-        <>
-          {p.text.slice(0, i)}
-          <u class="wc-sk">{p.text[i]}</u>
-          {p.text.slice(i + 1)}
-        </>
-      )}
-    </span>
-  );
-}
-
-// ------------------------------------------------------------ icons
-
-const ICONS: Record<string, ComponentChildren> = {
-  // Start menu (round 6 mockup), 18 × 18 unless noted.
-  door: (
-    <>
-      <path d="M4.5 20V10.5a6.5 6.5 0 0 1 13 0V20" />
-      <path d="M2.5 20h17" />
-      <path d="M8 20v-8.5a3 3 0 0 1 6 0V20" />
-      <path d="M12.4 16.4h.1" />
-    </>
-  ),
-  person: (
-    <>
-      <circle cx="9" cy="5.6" r="3" />
-      <path d="M3 16c0-3.6 2.7-5.6 6-5.6s6 2 6 5.6" />
-    </>
-  ),
-  scroll: (
-    <>
-      <path d="M5.5 2.5h8a2 2 0 0 1 2 2v1.5h-2" />
-      <path d="M13.5 4.5v9a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-1.5h8v1.5a2 2 0 0 0 2 2" />
-      <path d="M5.5 2.5a2 2 0 0 0-2 2v7.5" />
-      <path d="M6.5 6.5h4.5M6.5 9h4.5" />
-    </>
-  ),
-  hourglass: <path d="M4.5 2h9M4.5 16h9M5.5 2c0 4 7 5 7 7s-7 3-7 7M12.5 2c0 4-7 5-7 7s7 3 7 7" />,
-  star: <path d="M9 1.5l1.7 5.8 5.8 1.7-5.8 1.7L9 16.5l-1.7-5.8L1.5 9l5.8-1.7z" />,
-  quill: (
-    <>
-      <path d="M15.5 2.5C9 3 5.2 8 4 14.5L2.6 16.2" />
-      <path d="M15.5 2.5c-.8 5.2-4.8 9.2-10.6 10.4" />
-      <path d="M8.5 9.5l-2-1.2" />
-    </>
-  ),
-  info: (
-    <>
-      <circle cx="9" cy="9" r="7" />
-      <path d="M9 8.2v4.8M9 5.4v.1" />
-    </>
-  ),
-  // Buttons, 16 × 16.
-  back: <path d="M9.8 3.2 5 8l4.8 4.8" />,
-  check: <path d="M3 8.5 6.4 12 13 4.5" />,
-  plus: <path d="M8 3v10M3 8h10" />,
-  pencil: <path d="M10.5 2.5l3 3-8 8H2.5v-3z" />,
-  rename: (
-    <>
-      <path d="M2.5 12.5 5.5 4l3 8.5M3.6 9.6h3.8" />
-      <path d="M11 3.5v9M9.5 3.5h3M9.5 12.5h3" />
-    </>
-  ),
-  import: <path d="M8 2v8M4.8 7 8 10.2 11.2 7M2.5 13.5h11" />,
-  export: <path d="M8 10.2V2.2M4.8 5.4 8 2.2l3.2 3.2M2.5 13.5h11" />,
-  trash: <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9" />,
-};
-
-/** The size of each icon's drawing (its viewBox side). */
-const ICON_BOX: Record<string, number> = { door: 22 };
-const BUTTON_ICONS = new Set(['back', 'check', 'plus', 'pencil', 'rename', 'import', 'export', 'trash']);
-
-export type IconName = keyof typeof ICONS;
-
-/** A small line icon (stroke: currentColor). */
-export function Icon(p: { name: IconName; class?: string }): VNode {
-  const n = ICON_BOX[p.name] ?? (BUTTON_ICONS.has(p.name) ? 16 : 18);
-  return (
-    <svg class={'wc-lk-ic' + (p.class ? ' ' + p.class : '')} viewBox={`0 0 ${n} ${n}`} aria-hidden="true">
-      {ICONS[p.name]}
-    </svg>
-  );
+/** The place this frame runs in. */
+export function useLookPlace(): LookPlace {
+  return useContext(LookPlaceCtx);
 }
 
 // ------------------------------------------------------------ the box
@@ -179,16 +117,18 @@ export function Icon(p: { name: IconName; class?: string }): VNode {
 export type BoxSize = 'normal' | 'large';
 
 export interface BoxProps {
-  /** The hood's label; none: the plain polished plate (the start menu). */
+  /** The hood's label; may change between renders; none: the plain polished plate (the start menu). */
   title?: string;
   /**
    * `normal`: a centred box under the wordmark (the Profile list);
-   * `large`: nearly the whole window, the wordmark small in the corner
-   * (content-heavy pages; the exact layout is still being designed, so
-   * this is a first cut).
+   * `large`: nearly the whole window (layout B "Rummet växer", 42a).
    */
   size?: BoxSize;
-  /** Shows Back at the top left (every sub-page). Esc does the same through the frame stack. */
+  /** Normal only: grows downward to the window's bottom margin (42a; 42-0 stub: ignored). */
+  tall?: boolean;
+  /** Large only: CSS px; the box stops there, centred (42a; 42-0 stub: ignored). */
+  maxWidth?: number;
+  /** Shows Back at the top left (a sub-page; start and menu). Esc does the same through the frame stack. */
   onBack?: () => void;
   /** The accessible name (default: the title). */
   label?: string;
@@ -237,6 +177,40 @@ export function Box(p: BoxProps): VNode {
   return sub ? <div class={`wc-lk-page wc-lk-sub wc-lk-sub-${size}`}>{box}</div> : box;
 }
 
+/** The box's fixed head (at the top of the window). 42-0 stub. */
+export function BoxHead(p: { class?: string; children?: ComponentChildren }): VNode {
+  return <div class={'wc-lk-bhead' + (p.class ? ' ' + p.class : '')}>{p.children}</div>;
+}
+
+/** The box's body: fills the window, scrolls natively (thin iron scrollbar) unless `scroll` is false. 42-0 stub. */
+export function BoxBody(p: {
+  class?: string;
+  scroll?: boolean;
+  bodyRef?: Ref<HTMLDivElement>;
+  children?: ComponentChildren;
+}): VNode {
+  const scroll = p.scroll ?? true;
+  return (
+    <div ref={p.bodyRef} class={'wc-lk-bbody' + (scroll ? ' wc-lk-scroll' : '') + (p.class ? ' ' + p.class : '')}>
+      {p.children}
+    </div>
+  );
+}
+
+/** The box's fixed foot (at the bottom of the window). 42-0 stub. */
+export function BoxFoot(p: { class?: string; children?: ComponentChildren }): VNode {
+  return <div class={'wc-lk-bfoot' + (p.class ? ' ' + p.class : '')}>{p.children}</div>;
+}
+
+/**
+ * False from the frame's mount until its content has faded in (true at
+ * once with reduced motion, in windows and in the ESC menu). Pages that
+ * measure wait for it. 42-0 stub: always true.
+ */
+export function useBoxSettled(): boolean {
+  return true;
+}
+
 /** Back, at the top left of a sub-page's box (Esc does the same). */
 export function BackButton(p: { onClick: () => void }): VNode {
   return (
@@ -258,70 +232,31 @@ export function BackButton(p: { onClick: () => void }): VNode {
   );
 }
 
-// ------------------------------------------------------------ buttons
-
-export interface GlassButtonProps {
-  label: string;
-  /** The shortcut letter, marked in the label (the page handles the key). */
-  letter?: string;
-  icon?: IconName;
-  /** `data-btn` (tests and the page's own lookups). */
-  id?: string;
-  /** Keyboard cursor on it (the page's button zone). */
-  selected?: boolean;
-  disabled?: boolean;
-  /** Destructive (Delete). */
-  danger?: boolean;
-  title?: string;
-  onClick: () => void;
-}
-
 /**
- * A glass button: clear, faintly frosted glass with a lit top edge, no
- * texture. Never takes the focus (the frame stack keeps it); the page's
- * keys reach it through `selected` and its shortcut letter.
+ * The small Back of a window's sub-page: rendered only in a window and
+ * only when the frame is not the stack's root (elsewhere the box has its
+ * own Back). Default action: `nav.pop()`. 42-0 stub: a plain Back.
  */
-export function GlassButton(p: GlassButtonProps): VNode {
-  const cls =
-    'wc-lk-btn' + (p.selected ? ' is-sel' : '') + (p.disabled ? ' is-disabled' : '') + (p.danger ? ' is-danger' : '');
+export function InlineBack(p: { label?: string; onClick?: () => void }): VNode | null {
+  const place = useLookPlace();
+  const nav = useNav();
+  if (place !== 'window' || nav.depth() <= 1) return null;
+  const label = p.label ?? 'Back';
   return (
     <button
       type="button"
-      class={cls}
-      data-btn={p.id}
+      class="wc-lk-back wc-lk-iback"
       tabIndex={-1}
-      title={p.title}
-      aria-disabled={p.disabled ? 'true' : undefined}
-      aria-keyshortcuts={p.letter?.toUpperCase()}
+      title={`${label} (Esc)`}
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => {
         e.stopPropagation();
-        if (!p.disabled) p.onClick();
+        if (p.onClick) p.onClick();
+        else nav.pop();
       }}
     >
-      {p.icon && <Icon name={p.icon} />}
-      <KeyLabel text={p.label} letter={p.letter} />
+      <Icon name="back" />
+      {label}
     </button>
   );
 }
-
-// ------------------------------------------------------------ feedback
-
-/**
- * The page's transient message (the stack's flash, ~3 s): an italic line
- * at the bottom of the box. Always laid out (empty when none), so the box
- * never changes height.
- */
-export function LookFlash(p: { class?: string }): VNode {
-  const f = useFlash();
-  return (
-    <div class={'wc-lk-flash' + (p.class ? ' ' + p.class : '')} role="status" aria-live="polite">
-      {f && (
-        <span key={f.seq} class={f.kind === 'ok' ? 'is-ok' : 'is-fail'}>
-          {f.text}
-        </span>
-      )}
-    </div>
-  );
-}
-

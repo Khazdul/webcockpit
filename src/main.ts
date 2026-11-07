@@ -19,6 +19,9 @@
 //                           (a way back from a setting that breaks the page)
 //   ?touch=1, ?phone=1      force the touch / phone flags on (ADR 0075,
 //                           src/core/device.ts)
+//   ?kit[=<section>]        dev server (or a `VITE_KIT=1` build) only: opens
+//                           the lantern kit's gallery over the start menu
+//                           (src/chrome/kit/gallery, ADR 0127)
 //
 // Start-up order: @font-face rules → settings from the localStorage mirror
 // → theme and font preload → settings from IndexedDB and the look-up of
@@ -235,6 +238,10 @@ async function openPlayerLogs(rels: string[], character = 'Replay'): Promise<num
 }
 
 declare global {
+  interface ImportMetaEnv {
+    /** `VITE_KIT=1 npm run build`: a build with the kit gallery (`?kit`, for the benches; ADR 0127). */
+    readonly VITE_KIT?: string;
+  }
   interface Window {
     /** Dev server only: handles for the browser tests and the console. */
     __wc?: {

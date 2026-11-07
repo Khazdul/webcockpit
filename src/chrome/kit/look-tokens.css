@@ -1,0 +1,25 @@
+/* The lantern kit's tokens (stage 41, ADR 0125; stage 42, ADR 0127):
+ * one set of custom properties, `--lk-*`, on the `.wc-look` scope (the
+ * start surface's root; from stage 42d also the window bodies of look
+ * frames and the ESC menu host; the player's Back, 42f). Package 42b owns
+ * this file: it adds the colour, inlay and motion tokens of the stage 42
+ * API and their Paper values under `[data-light] .wc-look` and
+ * `.wc-look[data-light]`. The mockups' `--c-*` names are not used (they
+ * clash with the app's TUI theme). */
+
+.wc-look {
+  --lk-display: "Cinzel", Georgia, "Times New Roman", serif;
+  --lk-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --lk-sc: "Cormorant SC", "Cormorant Garamond", Georgia, serif;
+  --lk-mono: var(--font-mono, ui-monospace, monospace);
+  --lk-iron: #2a2622;
+  --lk-iron-lo: #110f0e;
+  --lk-text: #eadcc3;
+  --lk-dim: #9a8b76;
+  --lk-faint: #6d6252;
+  /* A fine stone-like grain for the iron (no canvas: an SVG noise tile). */
+  --lk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
+}
+
+/* Paper (windows and the ESC menu follow the game background; the start
+ * page is always dark): 42b. */
