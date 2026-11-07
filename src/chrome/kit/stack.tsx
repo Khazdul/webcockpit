@@ -25,6 +25,32 @@
 // prompt is up; the request goes on when the frame leaves (Apply,
 // Discard) and is dropped when the prompt closes with the frame still
 // there (Keep editing). `control.unsaved()` asks the frames' `dirty`.
+//
+// Stage 42c (ADR 0127), for the lantern look:
+//
+// - Overlay frames: `nav.push(node, { overlay: true })` keeps the frame
+//   below drawn (inert, `data-under`) under the overlay, which gets the
+//   keys (a dialog, look-overlay.tsx). Chains stack up (a dialog over a
+//   dialog: the page and the first dialog stay drawn). The stack's flash
+//   belongs to the page (the topmost frame that is not an overlay), so a
+//   flash a dialog makes before it pops shows on the page after the pop.
+//   An overlay frame must be a look frame (`lookFrame`).
+// - The hold (`hold` prop, asked on a push or a pop between two pages,
+//   never for an overlay): the frame below a push stays drawn for that
+//   many ms (`data-held="push"`), a popped frame stays mounted for that
+//   many ms (`data-held="pop"`, after the frames), both inert and out of
+//   the key path, so the start surface's fades are real. One hold at a
+//   time: the next push or pop ends the last one.
+// - Only the top frame lacks the `hidden` attribute; a frame drawn under
+//   an overlay or held keeps it and is shown by its `data-under` /
+//   `data-held` (look-overlay.css), so `.wc-frame:not([hidden])` stays
+//   "the top frame".
+// - Key layers (`useKeyLayer`): a popover or an inline dialog gets the top
+//   frame's keys before the frame's handler, the most recent layer first.
+// - The Esc rule (look frames and overlays only): an Esc that no layer and
+//   not the frame's handler consumes, pressed in a text field inside the
+//   frame, blurs the field and gives the focus back to the host; it does
+//   not pop. Old-look frames keep Esc = back from anywhere.
 
 import type { ComponentChildren, JSX, VNode } from 'preact';
 import { createContext } from 'preact';
@@ -49,14 +75,14 @@ export const FLASH_MS = 3000;
 
 export interface Nav {
   /**
-   * Pushes a frame. `overlay`: the frame below stays drawn, veiled and
-   * inert (a dialog over the page; stage 42c, ADR 0127). 42-0 stub: the
-   * option is accepted and the push is a normal one.
+   * Pushes a frame. `overlay`: the frame below stays drawn and inert under
+   * it, and keeps the stack's flash (a dialog over the page; it must be a
+   * look frame and bring its own veil, as `Dialog` does; ADR 0127).
    */
   push(node: VNode, opts?: { overlay?: boolean }): void;
   /** Pops `n` frames (never the root; on the root it calls the stack's `onRootBack`). */
   pop(n?: number): void;
-  /** Replaces the top frame. */
+  /** Replaces the top frame (an overlay stays an overlay). */
   replace(node: VNode): void;
   /** A transient message on the flash row (success in C_ACCENT, failure in C_HINT). */
   flash(text: string, kind?: FlashKind): void;
@@ -72,6 +98,10 @@ interface Entry {
   dirty: { current: (() => boolean) | null };
   /** `useUnsaved`: the frame shows its unsaved-changes prompt (or is saving). */
   prompting: boolean;
+  /** Pushed with `{ overlay: true }`: the frames below stay drawn. */
+  overlay: boolean;
+  /** `useKeyLayer`: the layers over the frame's handler, the most recent last. */
+  layers: { run: KeyHandler }[];
 }
 
 interface FrameCtxValue {
@@ -100,11 +130,49 @@ export function useKeys(handler: KeyHandler): void {
 
 /**
  * A key layer over the frame's handler (a popover, an inline dialog): while
- * `active` (default true) it gets the frame's keys first, the top layer
- * first; true = consumed. Stage 42c, ADR 0127. 42-0 stub: not routed yet.
+ * `active` (default true) and its frame is the top frame, it gets the keys
+ * before the frame's handler, the most recently activated layer first;
+ * true = consumed, false = the next layer (then the frame) gets the key.
+ * Latest closure wins. Stage 42c, ADR 0127.
  */
-export function useKeyLayer(_handler: KeyHandler, _active = true): void {
-  useFrameCtx();
+export function useKeyLayer(handler: KeyHandler, active = true): void {
+  const { entry } = useFrameCtx();
+  const latest = useRef(handler);
+  latest.current = handler;
+  useLayoutEffect(() => {
+    if (!active) return;
+    const layer = { run: (e: KeyboardEvent, nk: NavKey | null): boolean => latest.current(e, nk) };
+    entry.layers.push(layer);
+    return () => {
+      const i = entry.layers.indexOf(layer);
+      if (i >= 0) entry.layers.splice(i, 1);
+    };
+  }, [active, entry]);
+}
+
+/**
+ * Whether `node` is a look frame (`lookFrame` in look.tsx marks the
+ * component with this key; a unit test keeps the two in step). Read here
+ * by the key, not through look.tsx: importing the kit's barrel would pull
+ * the whole lantern kit into the chunk this file shares with the editors.
+ */
+const LOOK_MARK = '__wcLook';
+function isLookNode(node: VNode): boolean {
+  const t = node.type as unknown;
+  return typeof t === 'function' && (t as unknown as Record<string, unknown>)[LOOK_MARK] === true;
+}
+
+/** The top frame's layers, then its handler: true when one consumed the key. */
+function runKeys(entry: Entry, e: KeyboardEvent, nk: NavKey | null): boolean {
+  for (let i = entry.layers.length - 1; i >= 0; i--) if (entry.layers[i]!.run(e, nk)) return true;
+  return entry.keys.current?.(e, nk) === true;
+}
+
+/** Index of the page: the topmost frame that is not an overlay (the root never is one). */
+function pageIndex(s: readonly Entry[]): number {
+  let i = s.length - 1;
+  while (i > 0 && s[i]!.overlay) i--;
+  return i;
 }
 
 export function useNav(): Nav {
@@ -204,7 +272,9 @@ export interface FrameStackProps {
   /**
    * The hold (stage 42c, ADR 0127): ms the frame below (a push) or the
    * popped frame (a pop) stays drawn, inert and out of the key path, so
-   * the surface's fades are real. 42-0 stub: accepted, not used yet.
+   * the surface's fades are real. `from` is the page that was shown, `to`
+   * the page shown next (overlays are skipped: an overlay's push or pop
+   * asks nothing). 0 or less: no hold.
    */
   hold?: (from: VNode, to: VNode, dir: 'push' | 'pop') => number;
 }
@@ -215,57 +285,120 @@ const isTextField = (t: EventTarget | null): boolean => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || el?.isContentEditable === true;
 };
 
+/** A hold in progress: the frame kept drawn (below a push) or mounted (after a pop). */
+interface Hold {
+  entry: Entry;
+  dir: 'push' | 'pop';
+  timer: ReturnType<typeof setTimeout>;
+}
+
 export function FrameStack(props: FrameStackProps): VNode {
   const nextId = useRef(1);
-  const mk = (node: VNode): Entry => ({
+  const mk = (node: VNode, overlay = false): Entry => ({
     id: nextId.current++,
     node,
     keys: { current: null },
     dirty: { current: null },
     prompting: false,
+    overlay,
+    layers: [],
   });
-  const [stack, setStack] = useState<Entry[]>(() => [mk(props.root)]);
+  // The frames live in a ref, changed at once by `nav` (two pushes in one
+  // task both count) and drawn by a render that `commit` asks for.
+  const stackRef = useRef<Entry[] | null>(null);
+  stackRef.current ??= [mk(props.root)];
+  const stack = stackRef.current;
+  const [, setTick] = useState(0);
   const [flash, setFlash] = useState<Flash | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const stackRef = useRef(stack);
-  stackRef.current = stack;
   const propsRef = useRef(props);
   propsRef.current = props;
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashSeq = useRef(0);
+  const alive = useRef(true);
+  const held = useRef<Hold | null>(null);
+
+  const commit = (next: Entry[]): void => {
+    stackRef.current = next;
+    if (alive.current) setTick((t) => t + 1);
+  };
+  const endHold = (): void => {
+    if (!held.current) return;
+    clearTimeout(held.current.timer);
+    held.current = null;
+  };
+  const startHold = (entry: Entry, dir: 'push' | 'pop', ms: number): void => {
+    const timer = setTimeout(() => {
+      if (held.current?.entry !== entry) return;
+      held.current = null;
+      if (alive.current) setTick((t) => t + 1);
+    }, ms);
+    held.current = { entry, dir, timer };
+  };
 
   const nav = useMemo<Nav>(
     () => ({
-      push: (node) => {
-        setFlash(null);
-        setStack((s) => [...s, mk(node)]);
+      push: (node, opts) => {
+        const s = stackRef.current!;
+        const overlay = opts?.overlay === true;
+        if (!overlay) {
+          setFlash(null);
+          endHold();
+          const from = s[pageIndex(s)]!;
+          const ms = propsRef.current.hold?.(from.node, node, 'push') ?? 0;
+          if (ms > 0) startHold(from, 'push', ms);
+        }
+        commit([...s, mk(node, overlay)]);
       },
       // Popping the root frame leaves the stack (`onRootBack`): the ESC
       // menu opened straight at a frame closes (ADR 0099).
       pop: (n = 1) => {
-        if (stackRef.current.length <= 1) propsRef.current.onRootBack?.();
-        else setStack((s) => (s.length > 1 ? s.slice(0, Math.max(1, s.length - n)) : s));
+        const s = stackRef.current!;
+        if (s.length <= 1) {
+          propsRef.current.onRootBack?.();
+          return;
+        }
+        const next = s.slice(0, Math.max(1, s.length - n));
+        // The page that leaves (the topmost popped frame that is not an overlay), if any.
+        const gone = s.slice(next.length).filter((e) => !e.overlay);
+        const page = gone[gone.length - 1];
+        if (page) {
+          endHold();
+          const ms = propsRef.current.hold?.(page.node, next[pageIndex(next)]!.node, 'pop') ?? 0;
+          if (ms > 0) startHold(page, 'pop', ms);
+        }
+        commit(next);
       },
-      replace: (node) => setStack((s) => [...s.slice(0, -1), mk(node)]),
+      replace: (node) => {
+        const s = stackRef.current!;
+        const old = s[s.length - 1]!;
+        if (held.current?.entry === old) endHold();
+        commit([...s.slice(0, -1), mk(node, old.overlay)]);
+      },
       flash: (text, kind = 'ok') => {
         if (flashTimer.current) clearTimeout(flashTimer.current);
         setFlash({ text, kind, seq: ++flashSeq.current });
         flashTimer.current = setTimeout(() => setFlash(null), FLASH_MS);
       },
-      depth: () => stackRef.current.length,
+      depth: () => stackRef.current!.length,
     }),
     [],
   );
 
-  useEffect(() => () => {
-    if (flashTimer.current) clearTimeout(flashTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      alive.current = false;
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      endHold();
+    },
+    [],
+  );
 
-  /** An Esc for the top frame: its handler first, else pop (or `onRootBack` on the root). */
+  /** An Esc for the top frame: its layers and handler first, else pop (or `onRootBack` on the root). */
   const back = (e: KeyboardEvent): 'handled' | 'popped' | 'root' => {
-    const s = stackRef.current;
+    const s = stackRef.current!;
     const top = s[s.length - 1]!;
-    if (top.keys.current?.(e, 'back')) return 'handled';
+    if (runKeys(top, e, 'back')) return 'handled';
     if (s.length > 1) {
       nav.pop();
       return 'popped';
@@ -282,23 +415,34 @@ export function FrameStack(props: FrameStackProps): VNode {
     if (!win) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.isComposing) return;
+      const host = hostRef.current;
       // A popup inside a frame keeps its keys (a window's own frame is outside the host).
       const own = (e.target as Element | null)?.closest?.(`[${OWN_KEYS_ATTR}]`);
-      if (own && own !== hostRef.current && hostRef.current?.contains(own)) return;
+      if (own && own !== host && host?.contains(own)) return;
       e.stopPropagation();
       if (propsRef.current.paused) {
         if (navKey(e)) e.preventDefault();
         return;
       }
-      const s = stackRef.current;
+      const s = stackRef.current!;
       const top = s[s.length - 1]!;
       const nk = navKey(e);
-      if (top.keys.current?.(e, nk)) {
+      if (runKeys(top, e, nk)) {
         e.preventDefault();
         return;
       }
       if (nk === 'back') {
         e.preventDefault();
+        // The Esc rule (look frames): a text field in the frame lets go of the focus first.
+        if ((top.overlay || isLookNode(top.node)) && isTextField(e.target)) {
+          const frame = host?.querySelector(`:scope > [data-frame="${top.id}"]`);
+          const field = host?.ownerDocument.activeElement as HTMLElement | null;
+          if (frame?.contains(e.target as Node) && field) {
+            field.blur();
+            host?.focus({ preventScroll: true });
+            return;
+          }
+        }
         if (s.length > 1) nav.pop();
         else propsRef.current.onRootBack?.();
         return;
@@ -313,10 +457,8 @@ export function FrameStack(props: FrameStackProps): VNode {
   const closing = useRef(false);
   const tries = useRef(0);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const alive = useRef(true);
   useEffect(
     () => () => {
-      alive.current = false;
       if (closeTimer.current) clearTimeout(closeTimer.current);
     },
     [],
@@ -330,7 +472,7 @@ export function FrameStack(props: FrameStackProps): VNode {
   };
   const closeStep = (): void => {
     if (!closing.current) return;
-    const s = stackRef.current;
+    const s = stackRef.current!;
     const top = s[s.length - 1]!;
     // The prompt is up: the answer decides.
     if (top.prompting) return;
@@ -344,7 +486,7 @@ export function FrameStack(props: FrameStackProps): VNode {
     }
     later(() => {
       if (!closing.current) return;
-      const now = stackRef.current;
+      const now = stackRef.current!;
       if (now.length < depth) return; // the pop's own effect goes on
       if (now[now.length - 1]!.prompting) return;
       // Esc closed something inside the frame (a search, a pop-up): again.
@@ -365,7 +507,7 @@ export function FrameStack(props: FrameStackProps): VNode {
   }, [depthNow]);
   const promptClosed = (entry: Entry): void => {
     // Keep editing: the frame is still there.
-    if (stackRef.current.includes(entry)) closing.current = false;
+    if (stackRef.current!.includes(entry)) closing.current = false;
   };
   const control = useMemo<StackControl>(
     () => ({
@@ -374,8 +516,8 @@ export function FrameStack(props: FrameStackProps): VNode {
         tries.current = 0;
         closeStep();
       },
-      unsaved: () => stackRef.current.some((e) => e.dirty.current?.() === true),
-      prompting: () => stackRef.current[stackRef.current.length - 1]!.prompting,
+      unsaved: () => stackRef.current!.some((e) => e.dirty.current?.() === true),
+      prompting: () => stackRef.current![stackRef.current!.length - 1]!.prompting,
     }),
     [],
   );
@@ -408,10 +550,86 @@ export function FrameStack(props: FrameStackProps): VNode {
     return () => doc.removeEventListener('focusin', onFocusIn);
   }, [props.active, props.trap]);
 
+  // Overlays sit over the page's box: its rectangle (inside the overlay
+  // frame) is `--wc-ov-l/t/w/h` on every overlay frame above the page, kept
+  // current by a ResizeObserver (a dialog centres in it, look-overlay.css).
+  const page = pageIndex(stack);
+  const pageId = stack[page]!.id;
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (!host || page === stack.length - 1) return;
+    const pageEl = host.querySelector<HTMLElement>(`:scope > [data-frame="${pageId}"]`);
+    const box = pageEl?.querySelector<HTMLElement>('.wc-lk-box') ?? pageEl?.querySelector<HTMLElement>('.wc-lk-win') ?? null;
+    const overlays = (): HTMLElement[] => [...host.querySelectorAll<HTMLElement>(':scope > .wc-frame[data-overlay]')];
+    const place = (): void => {
+      const b = box?.getBoundingClientRect();
+      for (const el of overlays()) {
+        const f = el.getBoundingClientRect();
+        if (!b || b.width <= 0 || b.height <= 0 || f.width <= 0) {
+          for (const v of ['l', 't', 'w', 'h']) el.style.removeProperty(`--wc-ov-${v}`);
+          continue;
+        }
+        // The box's part inside the overlay frame (a long page may scroll it partly out).
+        const l = Math.max(0, b.left - f.left);
+        const t = Math.max(0, b.top - f.top);
+        const r = Math.min(f.width, b.right - f.left);
+        const btm = Math.min(f.height, b.bottom - f.top);
+        el.style.setProperty('--wc-ov-l', `${Math.round(l)}px`);
+        el.style.setProperty('--wc-ov-t', `${Math.round(t)}px`);
+        el.style.setProperty('--wc-ov-w', `${Math.round(Math.max(0, r - l))}px`);
+        el.style.setProperty('--wc-ov-h', `${Math.round(Math.max(0, btm - t))}px`);
+      }
+    };
+    place();
+    if (typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(place);
+    ro.observe(host);
+    if (box) ro.observe(box);
+    return () => ro.disconnect();
+  }, [topId, pageId, stack.length]);
+
+  const hold = held.current;
+  const leaving = hold && hold.dir === 'pop' && !stack.includes(hold.entry) ? hold.entry : null;
+  const hasOverlay = page < stack.length - 1;
+  const frame = (entry: Entry, i: number): VNode => {
+    const isTop = i === stack.length - 1;
+    // Drawn below the top: under an overlay, or held by a push or a pop.
+    const under = !isTop && i >= page;
+    const heldDir = !isTop && !under && hold?.entry === entry ? hold.dir : undefined;
+    const attrs = props.frameAttrs?.(entry.node);
+    return (
+      <div
+        key={entry.id}
+        class={'wc-frame' + (attrs?.class ? ' ' + attrs.class : '')}
+        style={attrs?.style}
+        data-frame={entry.id}
+        data-overlay={entry.overlay ? '' : undefined}
+        data-under={under ? '' : undefined}
+        data-held={heldDir}
+        hidden={!isTop}
+        inert={under || heldDir !== undefined ? true : undefined}
+      >
+        <FrameCtx.Provider
+          value={{
+            entry,
+            nav,
+            isTop: isTop && props.active,
+            topFrame: isTop,
+            // The page keeps the flash under its overlays.
+            flash: i === page ? flash : null,
+            promptClosed,
+          }}
+        >
+          {props.wrap ? props.wrap(entry.node) : entry.node}
+        </FrameCtx.Provider>
+      </div>
+    );
+  };
+
   return (
     <div
       ref={hostRef}
-      class="wc-stack"
+      class={'wc-stack' + (hasOverlay ? ' has-overlay' : '')}
       tabIndex={-1}
       // The game input refocuses itself on document mouseup; not while the
       // chrome is up. Except inside `[data-wc-native-mouse]` (the profile
@@ -421,25 +639,8 @@ export function FrameStack(props: FrameStackProps): VNode {
         if (!(e.target as Element | null)?.closest?.('[data-wc-native-mouse]')) e.stopPropagation();
       }}
     >
-      {stack.map((entry, i) => {
-        const isTop = i === stack.length - 1;
-        const attrs = props.frameAttrs?.(entry.node);
-        return (
-          <div
-            key={entry.id}
-            class={'wc-frame' + (attrs?.class ? ' ' + attrs.class : '')}
-            style={attrs?.style}
-            data-frame={entry.id}
-            hidden={!isTop}
-          >
-            <FrameCtx.Provider
-              value={{ entry, nav, isTop: isTop && props.active, topFrame: isTop, flash: isTop ? flash : null, promptClosed }}
-            >
-              {props.wrap ? props.wrap(entry.node) : entry.node}
-            </FrameCtx.Provider>
-          </div>
-        );
-      })}
+      {/* The popped frame while its hold lasts: after the frames (it was on top), in the same keyed list, so it stays mounted. */}
+      {leaving ? [...stack.map(frame), frame(leaving, -1)] : stack.map(frame)}
       {props.children}
     </div>
   );

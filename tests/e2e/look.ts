@@ -98,6 +98,29 @@ export const segOption = (scope: Page | Locator, label: string, opt: string): Lo
 
 // ------------------------------------------------------------ 42c (overlays, cursors, letters, the stack)
 
+/**
+ * The frames the start surface's stack draws below the top one: under an
+ * overlay (`data-under`) or held by a push or a pop (`data-held`). They
+ * keep the `hidden` attribute (so `startTop` stays the top frame only) and
+ * are inert.
+ */
+export const drawnBelow = (page: Page): Locator => page.locator('.wc-start .wc-frame:is([data-under], [data-held])');
+
+/** The top frame when it is an overlay frame (a dialog pushed with `{ overlay: true }`). */
+export const overlayTop = (page: Page): Locator => page.locator('.wc-start .wc-frame[data-overlay]:not([hidden])');
+
+/** A dialog's button by its id (`data-btn`). */
+export const dialogButton = (page: Page, dlg: string, id: string): Locator => dialog(page, dlg).locator(`.wc-lk-btn[data-btn="${id}"]`);
+
+/** The dialog button the keyboard is on (`.is-sel`), by its id, or null. */
+export async function dialogSel(page: Page, dlg: string): Promise<string | null> {
+  const sel = dialog(page, dlg).locator('.wc-lk-btn.is-sel');
+  return (await sel.count()) ? sel.first().getAttribute('data-btn') : null;
+}
+
+/** The kit gallery's Overlays section's readout of the last result. */
+export const kitOut = (page: Page): Locator => kitSection(page, 'overlays').locator('[data-kit-out]');
+
 // ------------------------------------------------------------ 42d (window frame, ESC menu host)
 
 /** Window `id`'s title in its hood (`.wc-win-t`). */
