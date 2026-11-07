@@ -39,7 +39,7 @@ const check = (page: Page, name: string) => pop(page).locator('.wc-ck-cb', { has
 const cardSwitch = (page: Page, label: string) => card(page).locator(`[role="switch"][aria-label="${label}"]`);
 const cardCheck = (page: Page, name: string) => card(page).locator(`.wc-sc-cb[data-name="${name}"]`);
 const fold = (page: Page, key: 'kinds' | 'chars') => card(page).locator(`[data-fold="${key}"]`);
-const menuRow = (page: Page, key: string) => page.locator(`.wc-start .wc-mrow[data-key="${key}"] .wc-label`);
+const menuRow = (page: Page, key: string) => page.locator(`.wc-start .wc-sm-item[data-key="${key}"]`);
 
 /** Opens the reel; the card is there with its filter. */
 async function openReel(page: Page): Promise<void> {
@@ -125,7 +125,7 @@ test('the card filter: kinds, characters and period fold out and rebuild the ree
   // Esc leaves the reel.
   await page.keyboard.press('Escape');
   await expect(player(page)).toHaveCount(0);
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Spotlights >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
   expect(errors).toEqual([]);
 });
 
@@ -189,7 +189,7 @@ test('the filtered start page offers Settings…; a change opens the reel; no Op
   await expect(player(page)).toBeVisible();
   await expect(header(page)).toContainText('Rasta (L42) · SPOTLIGHT 1 / 4');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Spotlights >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
   expect(errors).toEqual([]);
 });
 

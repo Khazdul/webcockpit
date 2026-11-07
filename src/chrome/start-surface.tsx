@@ -17,7 +17,7 @@
 // page is hidden (the game, a player), the document is hidden, or an
 // old-look frame covers it.
 
-import type { ComponentChildren, VNode } from 'preact';
+import type { ComponentChildren, JSX, VNode } from 'preact';
 import { createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { noticeIndicators } from '../app/notices';
@@ -27,7 +27,7 @@ import { startGameMinutes } from '../start/clock';
 import { type StartSkyHandle, mountStartSky } from '../start/sky';
 import { type SkyLook, skyLookAt } from '../start/sky/look';
 import { Wordmark } from '../start/wordmark';
-import { GridCtx, type HostGrid, useElementSize, useHostGrid, useNotices, useServices } from './kit/hooks';
+import { GridCtx, useElementSize, useHostGrid, useNotices, useServices } from './kit/hooks';
 import { type Scenery, SceneryCtx, isLookFrame, useScenery } from './kit/look';
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
 import { FrameStack } from './kit/stack';
@@ -186,15 +186,23 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   const gridSmall = g.cols > 0 && tooSmall(g.cols, g.rows);
   const paused = covered ? gridSmall : lookSmall;
   const run = p.visible && !docHidden && !covered && !reducedMotion();
-  const wrap = (node: VNode): VNode => (isLookFrame(node) ? node : <GridLayer g={g}>{node}</GridLayer>);
+  const wrap = (node: VNode): VNode => (isLookFrame(node) ? node : <GridFrame>{node}</GridFrame>);
+  // An old-look frame's element is the cell grid itself, as before.
+  const screen = { left: g.left, top: g.top, width: g.cols * g.cellW, height: g.rows * g.cellH };
+  const frameAttrs = (node: VNode): { class: string; style: JSX.CSSProperties } | null =>
+    isLookFrame(node) ? null : { class: 'wc-screen wc-start-gridframe', style: screen };
 
   return (
     <div
-      class={`wc-chrome wc-start is-${scenery}` + (lookSmall && !covered ? ' is-tiny' : '')}
+      class={
+        `wc-chrome wc-start is-${scenery}` +
+        (lookSmall && !covered ? ' is-tiny' : '') +
+        (gridSmall && covered ? ' is-grid-small' : '')
+      }
       ref={ref}
       hidden={!p.visible}
     >
-      <div class="wc-start-sky" ref={skyHost} aria-hidden="true" />
+      <div class="wc-start-skyhost" ref={skyHost} aria-hidden="true" />
       <div class="wc-start-vignette" aria-hidden="true" />
       <SkyCtx.Provider value={store}>
         <div class="wc-start-scenery" hidden={covered}>
@@ -206,9 +214,21 @@ export function StartSurface(p: StartSurfaceProps): VNode {
         {size.w > 0 && (
           <GridCtx.Provider value={{ cols: g.cols, rows: g.rows, surface: 'start' }}>
             <SceneryCtx.Provider value={setScenery}>
-              <FrameStack key={p.epoch} root={p.root} active={p.visible} paused={paused} wrap={wrap} />
+              <FrameStack
+                key={p.epoch}
+                root={p.root}
+                active={p.visible}
+                paused={paused}
+                wrap={wrap}
+                frameAttrs={frameAttrs}
+              />
             </SceneryCtx.Provider>
           </GridCtx.Provider>
+        )}
+        {covered && g.cols > 0 && (
+          <div class={'wc-screen wc-start-gridtop' + (gridSmall ? ' is-small' : '')} style={screen}>
+            {gridSmall ? <TooSmall cols={g.cols} rows={g.rows} /> : <StartNotices cols={g.cols} />}
+          </div>
         )}
         {!covered && <NoticePill />}
         {!covered && lookSmall && <LookTooSmall w={size.w} h={size.h} />}
@@ -225,34 +245,14 @@ function StartWordmark(p: { size: 'full' | 'small'; run: boolean }): VNode {
 // ------------------------------------------------------------- grid frames
 
 /**
- * An old-look frame: the cell grid as before, over an opaque layer in the
- * terminal background, with the client notices on its top row and the
- * minimum-size notice (Inv §3.1) when the grid is too small.
+ * Marks an old-look frame: while it is the top frame the sky's scenery
+ * goes (and the sky pauses). Its element is the cell grid (`frameAttrs`),
+ * over the terminal background (start.css); the client notices and the
+ * minimum-size notice (Inv §3.1) are drawn above it by the surface.
  */
-function GridLayer(p: { g: HostGrid; children: ComponentChildren }): VNode {
-  // Nothing of the sky's scenery while this frame is the top frame.
+function GridFrame(p: { children: ComponentChildren }): VNode {
   useScenery('grid');
-  const { g } = p;
-  const small = g.cols > 0 && tooSmall(g.cols, g.rows);
-  return (
-    <div class="wc-start-grid">
-      {g.cols > 0 && (
-        <div
-          class="wc-screen"
-          hidden={small}
-          style={{ left: g.left, top: g.top, width: g.cols * g.cellW, height: g.rows * g.cellH }}
-        >
-          {p.children}
-          <StartNotices cols={g.cols} />
-        </div>
-      )}
-      {small && (
-        <div class="wc-screen" style={{ left: g.left, top: g.top, width: g.cols * g.cellW, height: g.rows * g.cellH }}>
-          <TooSmall cols={g.cols} rows={g.rows} />
-        </div>
-      )}
-    </div>
-  );
+  return <>{p.children}</>;
 }
 
 // ------------------------------------------------------------- notices

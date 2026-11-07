@@ -33,10 +33,10 @@ for (const width of [412, 360, 320]) {
     await restoreDemo(page);
     // No Options on the start page (stage 32); the ESC menu's Options has
     // no Spotlights row either (tests/e2e/phone-esc-menu.spec.ts).
-    await expect(page.locator('.wc-start .wc-mrow[data-key="spotlights"]')).toBeVisible();
-    await expect(page.locator('.wc-start .wc-mrow[data-key="options"]')).toHaveCount(0);
+    await expect(page.locator('.wc-start .wc-sm-item[data-key="spotlights"]')).toBeVisible();
+    await expect(page.locator('.wc-start .wc-sm-item[data-key="options"]')).toHaveCount(0);
 
-    await page.locator('.wc-start .wc-mrow[data-key="spotlights"]').tap();
+    await page.locator('.wc-start .wc-sm-item[data-key="spotlights"]').tap();
     const header = page.locator('.wc-player-header');
     await expect(page.locator('.wc-player')).toBeVisible();
     await expect(header).toContainText('SPOTLIGHT 1 / 5');

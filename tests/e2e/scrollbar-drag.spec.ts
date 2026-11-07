@@ -91,7 +91,7 @@ async function expectTrackPagesUp(bar: Locator, scroller: Locator): Promise<void
 async function openProfile(page: Page, text: string): Promise<void> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async (t) => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', t);
@@ -142,13 +142,13 @@ test('script manual: the text and menu scrollbars drag their thumbs; the track p
   await page.setViewportSize({ width: 1280, height: 600 });
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await lib(page, 'init');
   await lib(page, 'create', 'dragtest', '-- @name dragtest\n-- @api 1\n\necho("x")\n');
   // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   await startFrame(page).locator('.wc-scr-row[data-script="dragtest"] .wc-scr-name').click();
   await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
@@ -172,14 +172,14 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   await page.setViewportSize({ width: 1280, height: 600 });
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await lib(page, 'init');
   const src = '-- @name longscript\n-- @api 1\n\n' + Array.from({ length: 150 }, (_, i) => `echo("${i}")`).join('\n') + '\n';
   await lib(page, 'create', 'longscript', src);
   // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   await startFrame(page).locator('.wc-scr-row[data-script="longscript"] .wc-scr-name').click();
   await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
@@ -199,7 +199,7 @@ test('the Scripts window: the help scrollbar drags; the game input keeps away', 
   await page.setViewportSize({ width: 1280, height: 600 });
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await lib(page, 'init');
   const help = Array.from({ length: 60 }, (_, i) => `-- @help     Help line ${i} for the drag test.`).join('\n');
   await lib(page, 'create', 'aaahelp', `-- @name aaahelp\n-- @summary Long help\n-- @api 1\n${help}\n\necho("x")\n`);
@@ -223,7 +223,7 @@ test('About (start page): the TuiScrollbar drags its thumb; holding the track pa
   await page.setViewportSize({ width: 1100, height: 500 });
   await mockMume(page);
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow[data-key="about"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="about"]').click();
   await expect(startFrame(page).locator('.wc-title-row')).toContainText('─── About ───');
   const bar = startFrame(page).locator('.wc-tui-bar');
   const scroller = startFrame(page).locator('.wc-about-text');
@@ -253,7 +253,7 @@ test('Export editor: the overview map thumb drags the log; the click that ends t
     const w = window as unknown as { __wc: { runs(): Promise<{ restore(b: Blob): Promise<unknown> }> } };
     await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
   });
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   const f = startFrame(page);
   await expect(f.locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
   await page.keyboard.press('Home');

@@ -9,7 +9,7 @@
   --wc-brand-gap: clamp(14px, 2.6vh, 30px);
 }
 
-.wc-start-sky,
+.wc-start-skyhost,
 .wc-start-vignette {
   position: absolute;
   inset: 0;
@@ -22,7 +22,7 @@
     linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 18%);
 }
 
-/* The frame stack fills the surface; each frame is its own layer. */
+/* The frame stack fills the surface; each new-look frame is its own layer. */
 .wc-start > .wc-stack {
   position: absolute;
   inset: 0;
@@ -33,11 +33,31 @@
   inset: 0;
 }
 
-/* An old-look frame: the cell grid as before, over the terminal background. */
-.wc-start-grid {
-  position: absolute;
-  inset: 0;
+/* An old-look frame: its element is the cell grid, as before (placed by
+ * the surface), and everything around it is the terminal background. */
+.wc-start > .wc-stack > .wc-frame.wc-start-gridframe {
+  inset: auto;
   background: var(--term-bg);
+  box-shadow: 0 0 0 200vmax var(--term-bg);
+}
+
+.wc-start.is-grid-small > .wc-stack > .wc-frame.wc-start-gridframe {
+  visibility: hidden;
+}
+
+/* Above an old-look frame: the client notices on its top row, or the size notice. */
+.wc-start-gridtop {
+  pointer-events: none;
+}
+
+.wc-start-gridtop.is-small {
+  background: var(--term-bg);
+  box-shadow: 0 0 0 200vmax var(--term-bg);
+}
+
+.wc-start-gridtop .wc-start-notices,
+.wc-start-gridtop .wc-start-notice-btn {
+  pointer-events: auto;
 }
 
 /* ------------------------------------------------------------ scenery */
@@ -415,7 +435,7 @@ html.wc-phone .wc-start {
   overflow: visible;
 }
 
-html.wc-phone .wc-start-sky,
+html.wc-phone .wc-start-skyhost,
 html.wc-phone .wc-start-vignette {
   inset:
     calc(-1 * (var(--pad, 0px) + env(safe-area-inset-top, 0px)))
@@ -426,6 +446,12 @@ html.wc-phone .wc-start-vignette {
 
 html.wc-phone .wc-start {
   --wc-brand-top: 26px;
+}
+
+/* Clear of the phone's fullscreen button (src/ui/ui.css .wc-fs-btn). */
+html.wc-phone .wc-start-pills {
+  right: 60px;
+  top: 16px;
 }
 
 html.wc-phone .wc-sm-item {

@@ -8,6 +8,7 @@ import { headerParts, linkClass } from '../../src/chrome/frames/esc-main';
 import { colorChoices, gridToggle, parseHex } from '../../src/chrome/frames/options';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
 import { START_MENU_ROWS } from '../../src/chrome/start-layout';
+import { Notices } from '../../src/app/notices';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
 import { ScriptLibrary } from '../../src/scripts';
@@ -139,7 +140,7 @@ describe('start page', () => {
     await act(() => page.show());
 
     // The sky behind, the wordmark and the almanac around the menu; no banner, no footer.
-    expect(host.querySelector('.wc-start-sky')).not.toBeNull();
+    expect(host.querySelector('.wc-start-skyhost')).not.toBeNull();
     expect(host.querySelector('.wc-start-brand .wc-wordmark')).not.toBeNull();
     expect(host.querySelector('.wc-start-almanac')?.textContent).toMatch(/, the \d+(st|nd|rd|th) of .*T\.A\. \d+/);
     expect(host.querySelector('.wc-start-almanac')?.textContent).toContain('WebCockpit 9.9.9');
@@ -184,7 +185,7 @@ describe('start page', () => {
     await key('ArrowUp');
     await key('Enter');
     expect(title(host)).toBe('─── Scripts ───');
-    expect(host.querySelector('.wc-frame:not([hidden]) .wc-start-grid .wc-screen')).not.toBeNull();
+    expect(host.querySelector('.wc-frame.wc-screen.wc-start-gridframe:not([hidden])')).not.toBeNull();
     expect(host.querySelector('.wc-start')?.classList.contains('is-grid')).toBe(true);
     await key('Escape');
     expect(title(host)).toBeUndefined();
@@ -256,6 +257,30 @@ describe('start page', () => {
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     expect(menuLabels(host)).toEqual(['Enter MUME', 'Profile', 'History', 'Spotlights', 'Credits', 'About']);
+  });
+
+  it('client notices: glass pills over the sky, the TUI row over an old-look frame', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const notices = new Notices();
+    const page = mountStartPage(host, { ...startServices(), notices }, { onEnter: () => {} });
+    cleanup.push(() => page.dispose());
+    await act(() => page.show());
+    expect(host.querySelector('.wc-start-pills')).toBeNull();
+    await act(() => {
+      notices.newVersion({ version: '9.9.10', commit: 'abc' });
+      notices.storageSuperseded();
+    });
+    expect([...host.querySelectorAll('.wc-start-pill')].map((e) => e.textContent)).toEqual([
+      'Update 9.9.10 available: reload',
+      'Storage: not saved',
+    ]);
+    await key('a');
+    expect(title(host)).toBe('─── About ───');
+    expect(host.querySelector('.wc-start-pills')).toBeNull();
+    expect(host.querySelector('.wc-start-gridtop .wc-start-notices')?.textContent).toBe(
+      'Update 9.9.10 available: reload  Storage: not saved',
+    );
   });
 
   it('the Profile list: rows, buttons, letters, zones and Back', async () => {

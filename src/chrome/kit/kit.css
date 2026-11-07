@@ -388,8 +388,9 @@ textarea.wc-field {
   font-weight: bold;
 }
 
-/* The start surface's client notices (src/chrome/index.tsx StartNotices):
- * right-aligned on the top row, above every start frame. */
+/* The start surface's client notices over an old-look frame
+ * (src/chrome/start-surface.tsx StartNotices): right-aligned on the top
+ * row of the grid. Over the sky they are pills (start.css). */
 .wc-start-notices {
   position: absolute;
   top: 0;

@@ -23,7 +23,7 @@ const token = (page: Page, name: string) =>
 const stored = (page: Page) => page.evaluate(() => window.__wc!.shell.profiles.get('default').then((r) => r?.text ?? null));
 
 async function enterMume(page: Page): Promise<void> {
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await expect(rows(page).filter({ hasText: '[SYSTEM] Profile default loaded.' })).toHaveCount(1);
@@ -42,7 +42,7 @@ test('a typed alias is confirmed in the editor colours; #message aliases off sil
     ws.send(Buffer.concat([Buffer.from([IAC, WILL, GMCP]), Buffer.from('\r\nBy what name do you wish to be known? ')]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     // A user action and a highlight that would match the rows: they must not fire.

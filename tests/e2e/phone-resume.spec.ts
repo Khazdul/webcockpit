@@ -29,8 +29,8 @@ async function play(page: Page, answer: () => boolean): Promise<{ pings: () => n
     ws.send(bytes([IAC, WILL, GMCP]));
   });
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await page.locator('.wc-start .wc-mrow[data-key="enter"] .wc-label').tap();
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   server!.send(gmcp('Char.Name {"name":"Tester","fullname":"Tester the Mock"}'));
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);

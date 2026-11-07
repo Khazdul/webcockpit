@@ -24,8 +24,8 @@ const cur = (page: Page) => frame(page).locator('.wc-tr.is-cur-focus, .wc-tr.is-
 const btn = (page: Page, label: string) => frame(page).locator(`[data-btn="${label}"]`);
 
 async function openHistory(page: Page): Promise<void> {
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   await expect(frame(page).locator('.wc-title-row')).toHaveText('─── History ───');
 }
 
@@ -122,7 +122,7 @@ test('Exit with a rating saves the run; History lists it as saved', async ({ pag
     ws.send(bytes([IAC, WILL, GMCP]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   const name = 'Exitrater';
@@ -143,7 +143,7 @@ test('Exit with a rating saves the run; History lists it as saved', async ({ pag
   await page.keyboard.press('y');
 
   // Back on the start page; History lists the run as saved with ★★★.
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await openHistory(page);
   const row = rows(page).filter({ hasText: name });
   await expect(row).toHaveCount(1);

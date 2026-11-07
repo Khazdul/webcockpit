@@ -26,7 +26,7 @@
 // Discard) and is dropped when the prompt closes with the frame still
 // there (Keep editing). `control.unsaved()` asks the frames' `dirty`.
 
-import type { ComponentChildren, VNode } from 'preact';
+import type { ComponentChildren, JSX, VNode } from 'preact';
 import { createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { type NavKey, navKey } from './nav';
@@ -178,11 +178,13 @@ export interface FrameStackProps {
   /** ESC on the root frame (start page: nothing; ESC menu: close). */
   onRootBack?: () => void;
   /**
-   * Draws each frame's node inside a wrapper (the start surface puts
-   * old-look frames on the cell grid, ADR 0125). Called on every render;
-   * must give a frame the same wrapper type every time.
+   * Draws each frame's node inside a wrapper component (the start surface
+   * marks old-look frames, ADR 0125). Called on every render; must give a
+   * frame the same wrapper type every time.
    */
   wrap?: (node: VNode) => VNode;
+  /** Extra class and style for a frame's element (the start surface places old-look frames on the cell grid). */
+  frameAttrs?: (node: VNode) => { class?: string; style?: JSX.CSSProperties } | null;
   /** Extra content inside the host (e.g. a size notice). */
   children?: ComponentChildren;
 }
@@ -397,8 +399,15 @@ export function FrameStack(props: FrameStackProps): VNode {
     >
       {stack.map((entry, i) => {
         const isTop = i === stack.length - 1;
+        const attrs = props.frameAttrs?.(entry.node);
         return (
-          <div key={entry.id} class="wc-frame" data-frame={entry.id} hidden={!isTop}>
+          <div
+            key={entry.id}
+            class={'wc-frame' + (attrs?.class ? ' ' + attrs.class : '')}
+            style={attrs?.style}
+            data-frame={entry.id}
+            hidden={!isTop}
+          >
             <FrameCtx.Provider
               value={{ entry, nav, isTop: isTop && props.active, topFrame: isTop, flash: isTop ? flash : null, promptClosed }}
             >

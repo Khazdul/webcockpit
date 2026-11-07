@@ -40,7 +40,7 @@ function mixColours(el: Locator, p: number, tint: string): Promise<{ got: string
 /** Opens the start page and enters MUME (Enter MUME is pre-selected). */
 async function enterMume(page: Page): Promise<void> {
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
 }
 

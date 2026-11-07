@@ -8,8 +8,8 @@ test('a touch drag on the About thumb scrolls the text in proportion', async ({ 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await startFrame(page).locator('.wc-mrow[data-key="about"]').tap();
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await startFrame(page).locator('.wc-sm-item[data-key="about"]').tap();
   await expect(startFrame(page).locator('.wc-title-row')).toContainText('─── About ───');
   const bar = startFrame(page).locator('.wc-tui-bar');
   const scroller = startFrame(page).locator('.wc-about-text');

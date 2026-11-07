@@ -57,13 +57,13 @@ const bufferText = (page: Page) =>
 async function scriptsPage(page: Page, source = SOURCE): Promise<Locator> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await lib(page, 'init');
   await lib(page, 'create', 'finder', source);
   // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');

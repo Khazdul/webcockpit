@@ -102,7 +102,7 @@ test('a run with a script pane plays back with the pane, in the log player and t
   const sentText = () => Buffer.concat(received).toString('latin1');
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page);
   await page.keyboard.press('Enter');
   const live = page.locator(`.wc-pane[data-pane="${ID}"]`);
@@ -138,7 +138,7 @@ test('a run with a script pane plays back with the pane, in the log player and t
 
   // The log player (from the start page): the pane shows the recorded content.
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   const opened = await page.evaluate(async () => {
     const lib = await window.__wc!.runs();
     const s = (await lib.listSessions(Date.now() * 1000)).find((x) => x.character === 'Paner')!;

@@ -132,7 +132,7 @@ test('a live disconnect blanks Character and Group', async ({ page }) => {
     ws.send(bytes([IAC, WILL, GMCP], '\r\nBy what name do you wish to be known? '));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   server!.send(gmcp('Char.Name {"name":"Rasta","fullname":"Rasta Fari"}'));

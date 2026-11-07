@@ -125,7 +125,7 @@ async function expectInk(page: Page, targets: Array<[string, Locator]>, where: s
 async function openProfiles(page: Page): Promise<void> {
   await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(
     async ([a, b, c]) => {
       const p = window.__wc!.shell.profiles;

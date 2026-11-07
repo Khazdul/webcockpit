@@ -53,7 +53,7 @@ const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
 async function openStart(page: Page): Promise<void> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
 }
 
 /** Start page → Scripts with the keyboard (under Profile since stage 32). */
@@ -61,7 +61,7 @@ async function scriptsFromStart(page: Page): Promise<Locator> {
   await openStart(page);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');

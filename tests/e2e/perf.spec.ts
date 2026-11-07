@@ -15,7 +15,7 @@ const gmcp = (payload: string) => bytes([IAC, SB, GMCP], payload, [IAC, SE]);
 
 async function enterMume(page: Page): Promise<void> {
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
 }
 

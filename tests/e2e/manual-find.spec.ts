@@ -48,13 +48,13 @@ const currentInView = (page: Page, root: ReturnType<typeof manual>) =>
 async function openManual(page: Page): Promise<void> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await lib(page, 'init');
   await lib(page, 'create', 'findme', '-- @name     findme\n-- @summary  find test\n-- @api      1\n\nlocal x = 1\n');
   // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
@@ -70,7 +70,7 @@ async function openManual(page: Page): Promise<void> {
 async function openProfile(page: Page, text: string): Promise<void> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async (t) => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', t);

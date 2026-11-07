@@ -45,7 +45,7 @@ function watchErrors(page: Page): string[] {
 async function openFromStart(page: Page, text?: string): Promise<void> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   if (text !== undefined) {
     await page.evaluate(async (t) => {
       await window.__wc!.shell.profiles.init();
@@ -130,7 +130,7 @@ test('lite → editor → lite → ESC saves; reload shows it', async ({ page })
   const saved = '#nop head\n\n#alias {b} {bee}\n#alias {gv %1} {\n    get %1;\n    value %1\n}\n#macro {F1} {one}\n#alias {k} {kill}';
   expect(await stored(page)).toBe(saved);
   await page.reload();
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   expect(await stored(page)).toBe(saved);
   expect(errors).toEqual([]);
 });
@@ -335,7 +335,7 @@ test('the Profile window while disconnected saves directly', async ({ page }) =>
   const errors = watchErrors(page);
   const mock = await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
@@ -360,7 +360,7 @@ test('the Profile window while disconnected saves directly', async ({ page }) =>
 test('the Profile window while connected: Keep editing, Discard, Apply', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
@@ -611,7 +611,7 @@ test('HELP keeps the EDITOR buffer: text, cursor and undo history', async ({ pag
 test('the Profile window → HELP while connected: LITE applies on the way, EDITOR asks', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
@@ -838,7 +838,7 @@ test('EDITOR and HELP fill the Profile window to its last cell', async ({ page }
   await page.setViewportSize({ width: 1600, height: 800 });
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async (t) => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', t);
@@ -1062,7 +1062,7 @@ for (const dpr of [1, 1.5]) {
 test('EDITOR shows the whole stored text of the bundled khazdul profile', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   // The seeded khazdul text, as a first run stores it, under the profile that EDIT opens.
   const text = await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
