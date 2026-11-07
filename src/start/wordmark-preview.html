@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+  Dev-only preview of the start page wordmark (ADR 0126); never built (vite builds index.html only).
+  Open http://localhost:5173/src/start/wordmark-preview.html?sky=day|dusk|night|dark|dawn
+  Shows the Preact <Wordmark> (full, centred as on the start menu, and small in the top left corner) over a plain
+  sky gradient with the sun or moon drawn where `look.light` says; `paint=1` uses `paintWordmark` (the first
+  paint's path) for the big mark instead. `lx`/`ly` (0..1) move the light, `run=0` stops the sheen.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wordmark preview</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: var(--sky); }
+  #light { position: fixed; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+  #stage { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; padding: clamp(18px, 5.2vh, 70px) 16px 0; }
+  #corner { position: fixed; left: 16px; top: 14px; }
+</style>
+</head>
+<body>
+<div id="light"></div>
+<main id="stage"><div id="big"></div></main>
+<div id="corner"></div>
+<script type="module">
+import { h, render } from 'preact';
+import { Wordmark } from './wordmark.tsx';
+import { paintWordmark } from './wordmark-svg.ts';
+
+const qs = new URLSearchParams(location.search);
+const SKIES = {
+  day: { dayness: 1, top: '#2f6fb8', mid: '#5f9bd4', horizon: '#b9d5ee', light: { kind: 'sun', x: 0.36, y: 0.08, strength: 1, color: '#fff3d6' } },
+  dawn: { dayness: 0.55, top: '#33477a', mid: '#8a7aa6', horizon: '#f0b48c', light: { kind: 'sun', x: 0.06, y: 0.55, strength: 0.6, color: '#ffc88a' } },
+  dusk: { dayness: 0.4, top: '#283463', mid: '#59537f', horizon: '#c98a80', light: { kind: 'sun', x: 0.93, y: 0.6, strength: 0.45, color: '#ffb070' } },
+  night: { dayness: 0, top: '#04060c', mid: '#0a0f1e', horizon: '#141a2c', light: { kind: 'moon', x: 0.22, y: 0.2, strength: 0.35, color: '#d8e2f0' } },
+  dark: { dayness: 0, top: '#020306', mid: '#05070d', horizon: '#0b0f1a', light: { kind: 'none', x: 0.5, y: 1.2, strength: 0, color: '#000' } },
+};
+const s = SKIES[qs.get('sky')] ?? SKIES.day;
+if (qs.has('lx')) s.light.x = +qs.get('lx');
+if (qs.has('ly')) s.light.y = +qs.get('ly');
+const look = { period: 'day', season: 'summer', below: s.horizon, textBackLuminance: 0.5, ...s };
+document.body.style.setProperty('--sky', `linear-gradient(${s.top}, ${s.mid} 55%, ${s.horizon} 75%, ${s.horizon})`);
+const L = document.getElementById('light');
+if (s.light.kind !== 'none') {
+  const d = s.light.kind === 'sun' ? 110 : 52;
+  Object.assign(L.style, { left: `${s.light.x * 100}vw`, top: `${s.light.y * 100}vh`, width: `${d}px`, height: `${d}px`,
+    background: `radial-gradient(circle, ${s.light.color} 0 48%, transparent 70%)`, boxShadow: `0 0 60px 20px ${s.light.color}55` });
+}
+const run = qs.get('run') !== '0';
+if (qs.get('paint') === '1') paintWordmark(document.getElementById('big'), look, 'full');
+else render(h(Wordmark, { look, size: 'full', run }), document.getElementById('big'));
+if (qs.get('small') !== '0') render(h(Wordmark, { look, size: 'small', run }), document.getElementById('corner'));
+document.documentElement.dataset.ready = '1';
+</script>
+</body>
+</html>
