@@ -127,8 +127,9 @@ export function bootQuote(): number | null {
  * `opacity: 0` before showing it: waits for the main frame to render and
  * for every font face its layout started (at most `fontMs`), then in one
  * task unhides it, hands over from the first paint (its layer goes:
- * `bootDone`) and fades the whole start surface (sky, wordmark, menu,
- * quote, almanac, notices) in as one block. Resolves when the fade has
+ * `bootDone`) and fades the start page (sky, wordmark, almanac, notices
+ * and the menu with its quote) in as one block, all with one start time;
+ * a sub-page opened during the fade shows at once. Resolves when the fade has
  * started (it runs on). `prefers-reduced-motion`: at once, no fade.
  *
  * Since stage 41 (ADR 0125) the start page is no longer the cell grid the
@@ -151,9 +152,18 @@ export async function revealStart(mount: HTMLElement, fontMs = FONT_GATE_MS): Pr
     main.getBoundingClientRect();
     await gate(fonts.ready, fontMs);
   }
-  const surface = mount.querySelector<HTMLElement>('.wc-start');
-  if (main && surface && typeof surface.animate === 'function' && !reducedMotion(win)) {
-    surface.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL_FADE_MS, easing: 'ease-in-out', fill: 'backwards' });
+  if (main && !reducedMotion(win)) {
+    // The sky, the scenery and the menu, not a sub-page opened meanwhile.
+    const parts = [
+      ...mount.querySelectorAll<HTMLElement>(
+        '.wc-start > .wc-start-skyhost, .wc-start > .wc-start-vignette, .wc-start > .wc-start-scenery, .wc-start > .wc-start-pills',
+      ),
+      main,
+    ].filter((el) => typeof el.animate === 'function');
+    // Started in one task, so they share their start time (the first frame that draws them).
+    for (const el of parts) {
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL_FADE_MS, easing: 'ease-in-out', fill: 'backwards' });
+    }
   }
   mount.style.opacity = '';
   bootDone();

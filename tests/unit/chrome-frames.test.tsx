@@ -222,7 +222,7 @@ describe('start page', () => {
     await act(() => page.show());
     const history = host.querySelector<HTMLElement>('.wc-sm-item[data-key="history"]')!;
     await act(() => {
-      history.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
+      history.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse', movementX: 2, bubbles: true }));
     });
     expect(startSel(host)).toBe('History');
     const about = host.querySelector<HTMLElement>('.wc-sm-item[data-key="about"]')!;

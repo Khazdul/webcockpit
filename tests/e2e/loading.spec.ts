@@ -101,12 +101,13 @@ test('the start page fades in as one block over about 1.35 s', async ({ page }) 
     document.getAnimations().map((a) => {
       const t = (a.effect as KeyframeEffect).getComputedTiming();
       const el = (a.effect as KeyframeEffect).target as HTMLElement;
-      return { end: Number(t.endTime), delay: Number(t.delay), surface: el.classList.contains('wc-start'), loader: el.id === 'wc-boot' };
-    }).filter((f) => !f.loader && f.surface),
+      return { end: Number(t.endTime), delay: Number(t.delay), main: el.classList.contains('wc-start-main'), loader: el.id === 'wc-boot', inSky: !!el.closest('.wc-start-skyhost, .wc-start-brand') && !el.classList.contains('wc-start-skyhost') };
+    }).filter((f) => !f.loader && !f.inSky),
   );
-  // One fade, on the whole surface: nothing leads.
-  expect(fades).toHaveLength(1);
-  expect(fades[0]!.delay).toBe(0);
+  // The sky, the scenery and the menu together: nothing leads.
+  expect(fades.some((f) => f.main)).toBe(true);
+  expect(fades.length).toBeGreaterThanOrEqual(3);
+  for (const f of fades) expect(f).toMatchObject({ delay: 0, end: fades[0]!.end });
   expect(fades[0]!.end).toBeGreaterThanOrEqual(1250);
   expect(fades[0]!.end).toBeLessThanOrEqual(1450);
 });

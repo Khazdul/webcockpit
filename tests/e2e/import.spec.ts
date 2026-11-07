@@ -26,7 +26,7 @@ async function openProfilePicker(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
 }
 
 /** IMPORT with `file`; waits for the report and returns its counts. */

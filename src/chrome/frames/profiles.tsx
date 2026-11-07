@@ -339,7 +339,7 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
               data-name={r.name}
               title={on ? enterHint : undefined}
               onMouseDown={(e) => e.preventDefault()}
-              onPointerEnter={(e) => {
+              onPointerMove={(e) => {
                 if (e.pointerType !== 'touch' && !on) moveTo(i);
               }}
               onClick={(e) => {

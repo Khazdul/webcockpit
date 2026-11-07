@@ -132,7 +132,8 @@ function MenuRow(p: { item: StartItem; selected: boolean; active: boolean; onSel
       aria-current={p.selected ? 'true' : undefined}
       aria-keyshortcuts={it.letter.toUpperCase()}
       onMouseDown={(e) => e.preventDefault()}
-      onPointerEnter={(e) => {
+      onPointerMove={(e) => {
+        // On a move (not pointerenter, which fires when the page reappears under a resting pointer).
         if (e.pointerType !== 'touch' && !p.selected) p.onSelect();
       }}
       onClick={(e) => {
