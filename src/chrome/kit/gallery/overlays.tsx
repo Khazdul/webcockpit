@@ -208,7 +208,7 @@ function OverlaysSection(): VNode {
   );
 
   return (
-    <div class="wc-kit-ov" style={{ position: 'relative', display: 'grid', gap: '10px', paddingBottom: '18px' }}>
+    <div class="wc-kit-ov" style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '10px', paddingBottom: '18px' }}>
       <Rule title="Dialogs" />
       <p class="wc-lk-txt wc-lk-dim" style={{ margin: 0 }}>
         Each opens over the box as an overlay frame: the box stays drawn and inert under the veil.
