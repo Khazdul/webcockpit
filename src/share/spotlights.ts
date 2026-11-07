@@ -298,3 +298,36 @@ export function hasVisibleEntry(text: string, fromUs: number, toUs: number): boo
 export function emptyState(filters: SpotlightSettings, any = true): 'no_data' | 'filtered' {
   return !any || filtersOpen(filters) ? 'no_data' : 'filtered';
 }
+
+/**
+ * The Spotlights page's character chips (stage 46, B "Galleriet"): `name`
+ * null is the `All` chip, a name one of the listed `names`.
+ *
+ * - All on → off brings back the remembered set (`allCharactersPatch`);
+ *   with no listed name All stays on (nothing to show instead).
+ * - A name while All is on shows only that name.
+ * - With All off a name toggles; turning the last one off turns All back
+ *   on (the remembered set is kept for the next All off).
+ */
+export function chipPatch(f: SpotlightSettings, name: string | null, names: readonly string[]): Partial<SpotlightSettings> {
+  if (name === null) {
+    if (f.allCharacters && names.length === 0) return {};
+    return allCharactersPatch(names, f, !f.allCharacters);
+  }
+  if (f.allCharacters) return { allCharacters: false, characters: [name] };
+  const next = characterPatch(names, f, name, !f.characters.includes(name));
+  return next.characters && next.characters.length > 0 ? next : { allCharacters: true };
+}
+
+/** The character chips that are lit: `All`, or the remembered names that are listed. */
+export function chipsOn(f: SpotlightSettings, names: readonly string[]): string[] {
+  return f.allCharacters ? [] : names.filter((n) => f.characters.includes(n));
+}
+
+/**
+ * The Spotlights palette tweak (stage 46): ANSI normal red (`#800000` in
+ * the Default palette) is hard to read on the near-black wells, so the
+ * card stills and the viewer draw it brighter while the colours are
+ * Default (about 3.8:1 on the well; a chosen theme keeps its own red).
+ */
+export const SPOTLIGHT_PALETTE_TWEAK: Readonly<Record<number, string>> = { 1: '#c43c3c' };
