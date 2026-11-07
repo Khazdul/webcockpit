@@ -1,27 +1,18 @@
 // @vitest-environment happy-dom
-// Stage 30e (ADR 0110): the Spotlights settings popup (kinds, characters,
-// period; the start page's, since the reel's card took the gear's place in
-// stage 32c, ADR 0114; Credits' filtered page still opens it) and its
-// character rules. Stage 46 (ADR 0131): Spotlights' filtered and no-data
-// states are its wall's, not pages of their own.
+// Stage 30e (ADR 0110): the Spotlights settings' character rules (shared
+// by the wall's filter row, src/share/spotlights.ts). Stage 46 (ADR 0131):
+// Spotlights' filtered and no-data states are its wall's, not pages of
+// their own; the settings popup the old filtered pages opened is gone
+// (wave 3).
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type ChromeServices, mountStartPage } from '../../src/chrome';
-import { ServicesCtx } from '../../src/chrome/kit/hooks';
-import { Check } from '../../src/chrome/popups/controls';
-import {
-  PERIOD_LABELS,
-  SpotlightsPopup,
-  allCharactersPatch,
-  characterPatch,
-  characterRows,
-} from '../../src/chrome/popups/spotlights-settings';
+import { PERIOD_LABELS, allCharactersPatch, characterPatch, characterRows } from '../../src/share/spotlights';
 import { ProfileStore } from '../../src/profiles';
 import type { RunEvent } from '../../src/runs/events';
 import type { RunLibrary } from '../../src/runs/library';
 import { SPOTLIGHT_PERIODS, SettingsStore, defaultSettings } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
-import { render } from 'preact';
 import { BASE_US, makeLog, meta } from './player-helpers';
 
 const cleanup: Array<() => void> = [];
@@ -65,9 +56,7 @@ function services(lib: RunLibrary, extra: Partial<ChromeServices> = {}): ChromeS
   return { settings, cells, profiles: new ProfileStore({ factory: null }), version: '9.9.9', runs: async () => lib, ...extra };
 }
 
-const pop = () => document.querySelector<HTMLElement>('.wc-sp-spot');
-const toggleOf = (label: string) => pop()!.querySelector<HTMLElement>(`[role="switch"][aria-label="${label}"]`);
-const checks = () => [...pop()!.querySelectorAll<HTMLButtonElement>('.wc-ck-cb')];
+const pop = () => document.querySelector<HTMLElement>('.wc-pop');
 
 describe('character rules', () => {
   const f = (p: Partial<ReturnType<typeof defaultSettings>['spotlights']> = {}) => ({ ...defaultSettings().spotlights, ...p });
@@ -95,111 +84,6 @@ describe('character rules', () => {
   });
 });
 
-describe('Check control', () => {
-  it('is a checkbox row that toggles, and stays out of reach when disabled', async () => {
-    const host = document.createElement('div');
-    document.body.append(host);
-    const on = vi.fn();
-    act(() => render(<Check label="Rasta" on={false} onChange={on} />, host));
-    const b = host.querySelector<HTMLButtonElement>('.wc-ck-cb')!;
-    expect(b.getAttribute('role')).toBe('checkbox');
-    expect(b.getAttribute('aria-checked')).toBe('false');
-    expect(b.textContent).toBe('Rasta');
-    await click(b);
-    expect(on).toHaveBeenCalledWith(true);
-    act(() => render(<Check label="Rasta" on disabled onChange={on} />, host));
-    expect(b.disabled).toBe(true);
-    expect(b.getAttribute('aria-checked')).toBe('true');
-    expect(b.querySelector('svg')).not.toBeNull();
-    render(null, host);
-  });
-});
-
-describe('Spotlights popup', () => {
-  async function open(names: string[]) {
-    const host = document.createElement('div');
-    document.body.append(host);
-    const svc = services(fakeLib(names));
-    const place = vi.fn();
-    let shown = true;
-    const onClose = vi.fn(() => {
-      shown = false;
-      draw();
-    });
-    const draw = () =>
-      render(
-        <ServicesCtx.Provider value={svc}>{shown && <SpotlightsPopup place={place} onClose={onClose} focusOnOpen />}</ServicesCtx.Provider>,
-        host,
-      );
-    act(draw);
-    cleanup.push(() => render(null, host));
-    await flush();
-    return { svc, place, onClose, isOpen: () => pop() !== null };
-  }
-
-  it('opens with the focus on its first control; kinds write the store at once', async () => {
-    const { svc, place } = await open(['Bob', 'Rasta']);
-    expect(place).toHaveBeenCalled();
-    expect(pop()!.getAttribute('aria-label')).toBe('Spotlights settings');
-    expect(pop()!.querySelector('.wc-pop-title')!.textContent).toBe('Spotlights');
-    expect(document.activeElement).toBe(toggleOf('Achievements'));
-    expect([...pop()!.querySelectorAll('.wc-ck-sub')].map((e) => e.textContent)).toEqual(['Kinds', 'Characters']);
-    await click(toggleOf('Deaths'));
-    await click(toggleOf('PvP kills'));
-    expect(svc.settings.get().spotlights).toMatchObject({ achievements: true, deaths: false, levelUps: true, pvp: false });
-    expect(toggleOf('Deaths')!.getAttribute('aria-checked')).toBe('false');
-  });
-
-  it('characters: dimmed and disabled while All is on; All off checks them; a check writes the subset', async () => {
-    const { svc } = await open(['Bob', 'Rasta']);
-    expect(checks().map((c) => c.textContent)).toEqual(['Bob', 'Rasta']);
-    expect(checks().every((c) => c.disabled)).toBe(true);
-    expect(pop()!.querySelector('.wc-sp-chars')!.classList.contains('is-dim')).toBe(true);
-    await click(toggleOf('All characters'));
-    expect(svc.settings.get().spotlights).toMatchObject({ allCharacters: false, characters: ['Bob', 'Rasta'] });
-    expect(checks().every((c) => !c.disabled && c.getAttribute('aria-checked') === 'true')).toBe(true);
-    await click(checks()[0]!);
-    expect(svc.settings.get().spotlights.characters).toEqual(['Rasta']);
-    // ↑↓ move between the names.
-    act(() => checks()[0]!.focus());
-    await keydown(checks()[0]!, 'ArrowDown');
-    expect(document.activeElement).toBe(checks()[1]);
-    // All on again keeps the subset for later.
-    await click(toggleOf('All characters'));
-    expect(svc.settings.get().spotlights).toMatchObject({ allCharacters: true, characters: ['Rasta'] });
-    expect(checks().map((c) => c.getAttribute('aria-checked'))).toEqual(['false', 'true']);
-  });
-
-  it('says so when no character is recorded', async () => {
-    await open([]);
-    expect(pop()!.querySelector('.wc-sp-nochars')!.textContent).toBe('No characters recorded yet.');
-    expect(checks()).toHaveLength(0);
-  });
-
-  it('the period dropdown writes the store', async () => {
-    const { svc } = await open(['Bob']);
-    const dd = pop()!.querySelector<HTMLElement>('.wc-sp-period .wc-ck-dd')!;
-    expect(dd.textContent).toContain('All time');
-    await click(dd);
-    const opts = [...pop()!.querySelectorAll<HTMLElement>('.wc-ck-opt')];
-    expect(opts.map((o) => o.textContent)).toEqual(['All time', 'Last year', 'Last 3 months', 'Last month', 'Last week']);
-    await click(opts[3]!);
-    expect(svc.settings.get().spotlights.period).toBe('month');
-  });
-
-  it('Esc and its X close it', async () => {
-    const a = await open(['Bob']);
-    await keydown(document.activeElement, 'Escape');
-    expect(a.onClose).toHaveBeenCalledTimes(1);
-    expect(a.isOpen()).toBe(false);
-    render(null, document.body.lastElementChild!);
-    const b = await open(['Bob']);
-    await click(pop()!.querySelector('.wc-pop-x'));
-    expect(b.onClose).toHaveBeenCalledTimes(1);
-    expect(b.isOpen()).toBe(false);
-  });
-});
-
 // ------------------------------------------------------- the start page
 
 const frameEl = (host: HTMLElement) => host.querySelector<HTMLElement>('.wc-frame:not([hidden])')!;
@@ -209,7 +93,6 @@ const startSel = (host: HTMLElement) => frameEl(host).querySelector('.wc-sm-item
 describe('filtered empty pages (start page)', () => {
   // Stage 46 (ADR 0131): Spotlights has no pages of its own for these any
   // more; no data and nothing passing are states of its wall. The
-  // `FilteredFrame` itself stays for Credits until stage 47.
 
   /** A run of Rasta's with a level-up and a death, its log, and the library over it. */
   function rastaLib(): RunLibrary {
