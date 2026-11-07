@@ -48,6 +48,9 @@ import { useIsOverlay, useIsTopFrame } from './kit/stack';
 /** A large box covering at least this share of the view calms the sky behind it. */
 export const CALM_COVER = 0.85;
 
+/** ms a held frame stays mounted past its plan's need (the animation clock lags the hold's timer). */
+const HOLD_SLACK = 120;
+
 /** What the stage knows of one frame on the surface. */
 interface Host {
   id: number;
@@ -144,9 +147,17 @@ export class MorphStage {
     return host;
   }
 
-  /** The stack's hold for a change away from the current top frame (42c's `hold`). */
+  /**
+   * The stack's hold for a change away from the current top frame (42c's
+   * `hold`): the plan's need plus `HOLD_SLACK`. The hold is a timer from
+   * the frame change, the plan runs on the animation clock, which starts
+   * a frame or two later; the old frame hides itself on that clock (its
+   * `hide` at `out`), so the slack never shows it longer, it only keeps it
+   * mounted until the proxy has taken over.
+   */
   hold(dir: 'push' | 'pop'): number {
-    return morphHold(kindOf(this.cur), dir, reducedMotion());
+    const ms = morphHold(kindOf(this.cur), dir, reducedMotion());
+    return ms > 0 ? ms + HOLD_SLACK : 0;
   }
 
   /**
