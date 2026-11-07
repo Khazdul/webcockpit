@@ -176,5 +176,44 @@ in-game backdrops are real app screenshots). Each folder has a
 | Spotlights | `spotlights/` | https://claude.ai/artifact/SeywEXWYkuJmTVFYpdyKmV |
 | Credits och About | `about/` | https://claude.ai/artifact/1EhXMPb5hkUXk8MbmkS4oW |
 
-Nothing in round 7 is built; the owner chooses first. The open questions
-per page are listed in `progress.md` (session log, 2026-11-07 night).
+Nothing in round 7 is built; the owner chooses first.
+
+### Open questions for the owner (night pass)
+
+Stage 41 (built):
+1. Wordmark tint: c "Turkos" built; a (steel) and b (mithril) are the
+   alternatives.
+2. Shortcut letters: menu E P S H L C A, Profile list S N E R D I X (the
+   old menu had none). OK?
+3. Profile list: the new "Changed" column — keep?
+4. Enter MUME: a 280 ms fade; or the mockup's zoom?
+5. The quote stays pale with a stronger outline on bright days (the sky
+   is never bright enough for the 0.54 dark-ink threshold); dark ink
+   instead (threshold ~0.47)?
+6. The wordmark's faint sheen may cost 2–4 fps: keep, run occasionally,
+   or drop?
+7. Names that differ only in case (gibur / Gibur) look identical in
+   Cinzel capitals: show them differently?
+
+Round 7 (choose a direction per page; details on each review page):
+- Big pages: A corner mark, B room grows, C name plate.
+- Profile editor: letters for views/kinds; "All saved" status and the
+  in-game "Connected" line; Esc in a field blurs first or leaves; same or
+  different window frame for the two editors; export on the phone?
+  Import: its own page with a drop zone (C) or the file picker at once?
+  Export: TEXT FILE renamed "Plain text"?
+- Scripts: tooltips enough for Ctrl+S/F/F1; settings controls on the
+  phone (new); in-game sub-pages with their own small Back; shorten "on ·
+  runs when you enter MUME"; B's inspector rail instead of the signature
+  popup.
+- History and players: key row removed (tooltips only, or a "?" help);
+  hide the player controls (as today) or fixed in the box; replay title
+  card, note cards, sky in the exported file; cyan rivet playhead; h:mm:ss
+  times; History B/C new structures; a clearer error when a log cannot
+  open.
+- Spotlights: play at once (A, C) or a wall of cards (B); hide controls;
+  keep the filtered start page; letters F D P S (F is fullscreen in the
+  replay today); an end card; a brighter dark red on black.
+- Credits and About: auto-roll or a book; a Settings… button with the
+  chronicle; the full third-party notices in About; where the wordmark
+  goes in About; normal or large box for text pages.
