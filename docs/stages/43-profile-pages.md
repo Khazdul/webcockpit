@@ -570,11 +570,11 @@ Build:
 - [x] 43a: Help view (look manual, rail headings, find)
 - [x] 43a: keys (letters, Tab ring, rail, list, detail, Esc rule, Ctrl+S/F/H)
 - [x] 43a: editor e2e and unit tests updated; ADR 0128 (Profile editor B)
-- [ ] 43b: Profile window (stage 42's Lykta frame and look host) checked
+- [x] 43b: Profile window (stage 42's Lykta frame and look host) checked
       with the new editor; `ProfileRoot` in the new look; live line; focus
       rules re-checked
-- [ ] 43b: phone ESC menu and `#profile` host the new editor; tablet checked
-- [ ] 43b: window, menubar, profile-apply and phone tests updated; ADR 0103
+- [x] 43b: phone ESC menu and `#profile` host the new editor; tablet checked
+- [x] 43b: window, menubar, profile-apply and phone tests updated; ADR 0103
       addendum for the Profile window's content (stage 42's addendum covers
       the frame)
 - [x] 43c: import page (drop zone, choose, formats, reading, error)
