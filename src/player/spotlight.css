@@ -1,4 +1,5 @@
-/* The Spotlights card (src/player/spotlight-card.ts, stage 32c, ADR 0114):
+/* The Spotlights card (src/player/spotlight-card.ts, stage 32c, ADR 0114;
+ * only the shell's full-page reel shows it since stage 46, ADR 0131):
  * the ghost look of the player chrome (player.css) at fixed px sizes.
  * Inside .wc-player, below the chrome (z 50), so the box's popups and the
  * marker tips stay on top; above the empty stage. Colours: the player's

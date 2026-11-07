@@ -1,0 +1,667 @@
+/* The Spotlights viewer (spotlights-viewer.tsx, stage 46 B "Galleriet",
+ * ADR 0131): over the box's window, opaque, a flex column of the head, the
+ * countdown, the game well (the embedded player), the track and the
+ * control row. Re-derived from round7/spotlights/spotlights-b.html and
+ * spot.css in the kit's tokens (`--lk-*`). The start page is always dark,
+ * so there are no Paper rules. No backdrop-filter anywhere (the opaque
+ * viewer covers the sky, which is paused while it shows). */
+
+.wc-spv {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 44px 22px 10px;
+  box-sizing: border-box;
+  background:
+    radial-gradient(55% 70px at 50% 0, rgba(255, 207, 143, 0.1), transparent),
+    #0b0907;
+  color: var(--lk-text);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.wc-spv [hidden] {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------ the head */
+
+.wc-spv-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 4px 4px 0;
+  flex: none;
+}
+
+.wc-spv-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.wc-spv-kind {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--k);
+  font: 700 11px/1 var(--lk-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.wc-spv-kind .wc-lk-ic {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.7;
+}
+
+.wc-spv-label {
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: var(--lk-on);
+  font: 700 clamp(21px, 2vw, 28px)/1.15 var(--lk-display);
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-spv-meta {
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--lk-dim);
+  font: italic 500 17.5px/1.2 var(--lk-serif);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-spv-meta b {
+  color: var(--lk-text);
+  font: 600 12.5px/1 var(--lk-display);
+  font-style: normal;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wc-spv-nav {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.wc-spv-count {
+  min-width: 74px;
+  color: var(--lk-dim);
+  font: 600 11px/1 var(--lk-display);
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: 0.22em;
+  text-align: center;
+}
+
+/* The countdown: a fine rule that drains from both sides to the moment. */
+.wc-spv-cd {
+  position: relative;
+  flex: none;
+  height: 1px;
+  margin: 12px 4px 10px;
+  background: var(--lk-rule);
+}
+
+.wc-spv-cd i {
+  position: absolute;
+  top: -0.5px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(240, 210, 160, 0.75);
+}
+
+/* ------------------------------------------------------------ the game well */
+
+.wc-spv-well {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--lk-well-edge);
+  border-radius: 5px;
+  background: #000;
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+}
+
+/* The game text sits inset in the well (the well takes the player's background). */
+.wc-spv-slots {
+  position: absolute;
+  inset: 8px 6px 6px 16px;
+}
+
+.wc-spv-slot {
+  position: absolute;
+  inset: 0;
+}
+
+/* The phone's pane tab strip holds only GAME here (every pane is off): a
+ * label with nothing to switch to. Its row stays (the player's layout). */
+.wc-spv-slot .wc-phone-tabs {
+  visibility: hidden;
+}
+
+/* The end card: a veil over the game text with a small plate. */
+.wc-spv-end {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: radial-gradient(60% 55% at 50% 50%, rgba(8, 6, 5, 0.86), rgba(5, 4, 3, 0.6));
+  animation: wc-spv-fade calc(0.3s * var(--lk-ts, 1)) ease-out;
+}
+
+.wc-spv-end-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  padding: 22px 28px 20px;
+  border: 1px solid rgba(255, 214, 160, 0.16);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 214, 160, 0.05), transparent 40%),
+    rgba(16, 12, 10, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 206, 0.12), 0 20px 48px -8px rgba(0, 0, 0, 0.85);
+  text-align: center;
+}
+
+.wc-spv-end-t {
+  color: var(--lk-head);
+  font: 600 11px/1 var(--lk-display);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.wc-spv-end-n {
+  margin-top: 10px;
+  color: var(--lk-on);
+  font: 700 26px/1.1 var(--lk-display);
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0.05em;
+}
+
+.wc-spv-end-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@keyframes wc-spv-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------ the track */
+
+.wc-spv-trk {
+  position: relative;
+  flex: none;
+  height: 40px;
+  margin: 6px 8px 0;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.wc-spv-trk-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 9px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 214, 160, 0.13);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* The played part: the mithril inlay's lit band. */
+.wc-spv-trk-done {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--lk-inlay-mid) 55%, transparent), var(--lk-inlay-mid) 80%, var(--lk-inlay-hi));
+}
+
+.wc-spv-trk-ticks i {
+  position: absolute;
+  bottom: -2px;
+  width: 1px;
+  height: 7px;
+  background: rgba(255, 214, 160, 0.35);
+}
+
+/* The playhead: a small rivet in the mithril inlay's tint. */
+.wc-spv-trk-head {
+  position: absolute;
+  left: 0;
+  bottom: 4.5px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, var(--lk-rivet-hi) 0 1.4px, var(--lk-rivet-mid) 3.4px, var(--lk-rivet-lo) 6px);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 0 6px color-mix(in srgb, var(--lk-inlay-mid) 55%, transparent);
+  pointer-events: none;
+}
+
+.wc-spv-trk-marks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22px;
+  pointer-events: none;
+}
+
+.wc-spv-mk {
+  all: unset;
+  position: absolute;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: var(--k);
+  cursor: pointer;
+  opacity: 0.55;
+  pointer-events: auto;
+  transform: translateX(-50%);
+  transition: opacity calc(0.3s * var(--lk-ts, 1));
+}
+
+.wc-spv-mk .wc-lk-ic {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.7;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8));
+}
+
+.wc-spv-mk.is-past,
+.wc-spv-mk.is-cur,
+.wc-spv-mk:hover {
+  opacity: 1;
+}
+
+.wc-spv-trk-hint,
+.wc-spv-trk-tip {
+  position: absolute;
+  z-index: 3;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 214, 160, 0.16);
+  border-radius: 4px;
+  background: rgba(16, 12, 10, 0.94);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.wc-spv-trk-hint {
+  bottom: 22px;
+  color: var(--lk-text);
+  font: 400 11.5px/1 var(--lk-mono);
+}
+
+.wc-spv-trk-tip {
+  bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--lk-text);
+  font: 500 15px/1.2 var(--lk-serif);
+}
+
+.wc-spv-trk-tl {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.wc-spv-trk-tl .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+  color: var(--k);
+  stroke-width: 1.7;
+}
+
+.wc-spv-trk-tl b {
+  color: var(--lk-head);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ the control row */
+
+.wc-spv-ctl {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.wc-spv-cb {
+  all: unset;
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  color: var(--lk-item);
+  cursor: pointer;
+  transition: color calc(0.25s * var(--lk-ts, 1));
+}
+
+.wc-spv-cb .wc-lk-ic {
+  width: 18px;
+  height: 18px;
+}
+
+.wc-spv-cb.is-ten .wc-lk-ic {
+  width: 21px;
+  height: 21px;
+}
+
+.wc-spv-cb:not(:disabled):hover {
+  color: var(--lk-on);
+}
+
+.wc-spv-cb:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+/* Play / pause: round glass. */
+.wc-spv-play {
+  all: unset;
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 42px;
+  height: 42px;
+  margin: 0 4px;
+  border: 1px solid var(--lk-glass-edge);
+  border-radius: 50%;
+  background: var(--lk-glass);
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip), inset 0 -1px 0 rgba(0, 0, 0, 0.25), var(--lk-glass-shadow);
+  color: var(--lk-glass-text);
+  cursor: pointer;
+  transition:
+    color calc(0.25s * var(--lk-ts, 1)),
+    background calc(0.25s * var(--lk-ts, 1)),
+    box-shadow calc(0.25s * var(--lk-ts, 1));
+}
+
+.wc-spv-play .wc-lk-ic {
+  width: 19px;
+  height: 19px;
+}
+
+.wc-spv-play:not(:disabled):hover {
+  background: var(--lk-glass-hot);
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip-hot), var(--lk-glass-halo), var(--lk-glass-shadow);
+  color: var(--lk-glass-text-hot);
+}
+
+.wc-spv-play:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* The speed, in a small well: ‹ 1× ›. */
+.wc-spv-spd {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 30px;
+  margin-left: 8px;
+  border: 1px solid var(--lk-well-edge);
+  border-radius: 6px;
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+}
+
+.wc-spv-spd .wc-spv-cb {
+  width: 24px;
+  height: 28px;
+}
+
+.wc-spv-spd .wc-spv-cb .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+}
+
+.wc-spv-spd-v {
+  min-width: 38px;
+  color: var(--lk-text);
+  font: 400 12.5px/1 var(--lk-mono);
+  text-align: center;
+}
+
+.wc-spv-clock {
+  flex: none;
+  margin-left: 12px;
+  color: var(--lk-faint);
+  font: 400 12.5px/1 var(--lk-mono);
+  white-space: nowrap;
+}
+
+.wc-spv-clock b {
+  color: var(--lk-text);
+  font-weight: 400;
+}
+
+.wc-spv-grow {
+  flex: 1;
+  min-width: 6px;
+}
+
+.wc-spv-ctl .wc-lk-btn {
+  flex: none;
+}
+
+.wc-spv-cb.is-fs {
+  margin-left: 6px;
+}
+
+/* ------------------------------------------------------------ Display */
+
+.wc-spv .wc-lk-pop {
+  width: 384px;
+  max-width: calc(100% - 12px);
+  box-sizing: border-box;
+}
+
+.wc-spv-dp-t {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  color: var(--lk-head);
+  font: 700 12.5px/1 var(--lk-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.wc-spv-dp-sec {
+  margin: 4px 0 9px;
+  color: var(--lk-dim);
+  font: 600 11px/1 var(--lk-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.wc-spv-dp-sec.is-cur {
+  color: var(--lk-head);
+}
+
+.wc-spv-dp .wc-lk-seg {
+  margin-bottom: 14px;
+}
+
+.wc-spv-sws {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 10px;
+}
+
+.wc-spv-sw {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 5px;
+  color: var(--lk-item);
+  cursor: pointer;
+  font: 500 16px/1 var(--lk-serif);
+  transition: color calc(0.25s * var(--lk-ts, 1));
+}
+
+.wc-spv-sw i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 214, 160, 0.28), inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.wc-spv-sw:hover {
+  color: var(--lk-text);
+}
+
+.wc-spv-sw.is-on {
+  color: var(--lk-on);
+}
+
+.wc-spv-sw.is-on i {
+  box-shadow: 0 0 0 1px #000, 0 0 0 2.5px rgba(255, 214, 160, 0.75);
+}
+
+.wc-spv-sw.is-sel {
+  box-shadow: inset 0 0 0 1px var(--lk-glass-edge-on);
+}
+
+/* ------------------------------------------------------------ narrow and phone */
+
+@container wc-page (max-width: 740px) {
+  .wc-spv-clock {
+    display: none;
+  }
+}
+
+@container wc-page (max-width: 600px) {
+  .wc-spv {
+    padding: 56px 8px 6px;
+  }
+
+  .wc-spv-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .wc-spv-nav {
+    justify-content: space-between;
+  }
+
+  .wc-spv-label {
+    font-size: 19px;
+    white-space: normal;
+  }
+
+  .wc-spv-meta {
+    font-size: 15.5px;
+    white-space: normal;
+  }
+
+  .wc-spv-cd {
+    margin: 8px 4px 8px;
+  }
+
+  .wc-spv-slots {
+    inset: 6px 4px 4px 8px;
+  }
+
+  .wc-spv-ctl {
+    gap: 0;
+  }
+
+  .wc-spv-cb {
+    width: 32px;
+  }
+
+  .wc-spv-play {
+    width: 40px;
+    height: 40px;
+    margin: 0 2px;
+  }
+
+  .wc-spv-spd {
+    margin-left: 4px;
+  }
+
+  /* Display as an icon: its label goes. */
+  .wc-spv-ctl .wc-lk-btn[data-btn='display'] {
+    width: 34px;
+    padding: 0;
+  }
+
+  .wc-spv-ctl .wc-lk-btn[data-btn='display'] > span {
+    display: none;
+  }
+
+  .wc-spv .wc-lk-pop {
+    width: auto;
+    left: 6px !important;
+    right: 6px;
+  }
+}
+
+/* Touch: wider targets on the track and the markers. */
+@media (pointer: coarse) {
+  .wc-spv-trk {
+    height: 46px;
+  }
+
+  .wc-spv-trk-marks {
+    height: 28px;
+  }
+
+  .wc-spv-mk {
+    width: 28px;
+    height: 28px;
+  }
+
+  .wc-spv-cb {
+    min-height: 40px;
+  }
+
+  .wc-spv-spd .wc-spv-cb {
+    min-height: 0;
+    height: 30px;
+  }
+}
