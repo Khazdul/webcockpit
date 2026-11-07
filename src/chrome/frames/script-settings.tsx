@@ -11,7 +11,8 @@
 // The page owns the values, the keys and the saving (scripts.tsx): a tile
 // only draws and reports presses. Typing uses a real <input> that holds
 // the focus while it is open (`.wc-scr-input`); Enter keeps and Esc
-// cancels through the page's keys (the stack sees them first).
+// cancels through the page's keys (the stack sees them first). A blur
+// keeps the text too, so Esc is the only way to drop it.
 
 import type { VNode } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';
@@ -43,12 +44,14 @@ export interface SettingTileProps {
   onEdit(): void;
   /** The typed text changed. */
   onEditText(text: string): void;
+  /** The input lost the focus while open (a tap elsewhere, the phone's keyboard gone): keep the text. */
+  onEditEnd(): void;
 }
 
 const keepFocus = (e: MouseEvent): void => e.preventDefault();
 
 /** The value being typed: an input that takes the focus when it appears and gives it back to the stack when it goes. */
-function SettingInput(p: { edit: SettingEdit; kind: 'number' | 'string'; onInput(t: string): void }): VNode {
+function SettingInput(p: { edit: SettingEdit; kind: 'number' | 'string'; onInput(t: string): void; onBlur(): void }): VNode {
   const ref = useRef<HTMLInputElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -73,6 +76,7 @@ function SettingInput(p: { edit: SettingEdit; kind: 'number' | 'string'; onInput
       autocapitalize="off"
       inputMode={p.kind === 'number' ? 'decimal' : undefined}
       onInput={(e) => p.onInput(e.currentTarget.value)}
+      onBlur={p.onBlur}
     />
   );
 }
@@ -95,7 +99,7 @@ function Control(p: SettingTileProps): VNode {
         <span class="wc-scr-ctl">
           <GlassButton icon="prev" title="Less" small disabled={d.min !== undefined && n <= d.min} onClick={() => p.onStep(-1)} />
           {p.edit ? (
-            <SettingInput edit={p.edit} kind="number" onInput={p.onEditText} />
+            <SettingInput edit={p.edit} kind="number" onInput={p.onEditText} onBlur={p.onEditEnd} />
           ) : (
             <button type="button" class="wc-scr-val" tabIndex={-1} title={`Click to type a value${range}`} onMouseDown={keepFocus} onClick={p.onEdit}>
               {valueText(d, v)}
@@ -124,7 +128,7 @@ function Control(p: SettingTileProps): VNode {
       return (
         <span class="wc-scr-ctl wc-scr-ctl-str">
           {p.edit ? (
-            <SettingInput edit={p.edit} kind="string" onInput={p.onEditText} />
+            <SettingInput edit={p.edit} kind="string" onInput={p.onEditText} onBlur={p.onEditEnd} />
           ) : (
             <button type="button" class="wc-scr-str" tabIndex={-1} title="Click to edit" onMouseDown={keepFocus} onClick={p.onEdit}>
               {String(v)}
