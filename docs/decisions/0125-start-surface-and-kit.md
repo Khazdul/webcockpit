@@ -80,7 +80,9 @@ and icon brighten). Keys: ↑ ↓ Tab Shift+Tab Home End (wrap), Enter /
 Space, Esc does nothing, and the shortcut letters **E P S H L C A**
 (the old menu had none; these are the mockup's, unique, Spotlights = L),
 marked in the label by a fine lit underline. Mouse hover selects (the
-old page only lightened on hover); a click or a tap activates. No
+old page only lightened on hover), on a pointer move, not on
+pointerenter, so a page that reappears under a resting pointer (after a
+player or a sub-page) keeps its cursor; a click or a tap activates. No
 footer, no ⏎, no letters at row ends. Messages (`nav.flash`: "Loading
 spotlights…", "Spotlights are not available here.", errors) show as an
 italic line at the foot of the panel.
@@ -92,8 +94,9 @@ out.
 
 **The first paint hand-over** (ADR 0083). `revealStart` still waits for
 the main frame and the fonts, then removes the first paint's layer
-(`bootDone`) and fades the whole surface in as one block (1350 ms; none
-with reduced motion). The first paint still draws the pixel banner and
+(`bootDone`) and fades the sky, the scenery, the notices and the menu in
+as one block (1350 ms, one start time; none with reduced motion); a
+sub-page opened during the fade shows at once. The first paint still draws the pixel banner and
 the bar on the cell grid until its redesign (41d), so the hand-over is a
 fade, not a pixel-identical swap. `startLayout` / `START_MENU_ROWS`
 stay in src/chrome/start-layout.ts for the first paint only, and
@@ -151,7 +154,7 @@ the TUI list is kept:
   Import (I; one or more files, native or foreign, then the import
   report), Export (X). With no profile under the cursor, Select, Edit,
   Rename, Delete and Export are disabled. Back (and Esc) return to the
-  menu (was the BACK button).
+  menu (was the BACK button). Hover moves the cursor on a pointer move.
 - Messages unchanged: "Created …", "Renamed to …", "Deleted …",
   "Exported ….tin.", "Export failed: …", "Imported … from ….", "Import
   failed: …", "Could not read profiles: …", "No profile …", "Could not
