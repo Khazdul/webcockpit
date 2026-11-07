@@ -397,11 +397,14 @@ export function setWordmarkMotion(root: ParentNode, run: boolean): void {
     return;
   }
   if (band.__wcw) return;
-  band.__wcw = band.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(560%)' }], {
+  const anim = band.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(560%)' }], {
     duration: SHEEN_S * 1000,
     iterations: Infinity,
     easing: 'linear',
   });
+  // cancel() rejects `finished`; nobody waits on it
+  anim.finished?.catch(() => {});
+  band.__wcw = anim;
 }
 
 /**
