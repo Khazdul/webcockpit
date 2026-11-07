@@ -8,6 +8,7 @@
 //   const chrome = await import('../chrome');
 //   const start = chrome.mountStartPage(host, services, { onEnter });
 //   start.hide(); …; start.show({ keep: true });   // back where it was
+//   const run = start.leave();   // Enter MUME's transition, over the cockpit
 //   const menu = chrome.mountEscMenu(host, services, { status, close, reconnect, exit });
 //   menu.open({ preselect: 'reconnect' });
 //   menu.open({ target: 'scripts' });   // straight at a frame (ADR 0099)
@@ -29,6 +30,7 @@ import { device } from '../core/device';
 import { FrameStack } from './kit/stack';
 import { randomQuote } from './quotes';
 import { StartSurface } from './start-surface';
+import { type EnterRun, playEnter } from './enter-transition';
 
 export { StartNotices, type StartNoticeToken, TooSmall, startNoticeTokens } from './start-surface';
 
@@ -68,10 +70,27 @@ export interface StartPageShowOptions {
   keep?: boolean;
 }
 
+/** Enter MUME's transition (src/chrome/enter-transition.ts). */
+export interface StartLeave {
+  /** Resolves true when the page has faded out (the caller hides it), false when it was cancelled. */
+  readonly finished: Promise<boolean>;
+}
+
 export interface StartPageHandle {
   /** Shows the start page: on its main frame (a fresh frame stack), or as it was with `keep`. */
   show(opts?: StartPageShowOptions): void;
   hide(): void;
+  /**
+   * Plays Enter MUME's transition (ADR 0125): the page stays visible and
+   * its sky keeps running, its frame stack lets go of the keys and the
+   * focus, its pointer events stop, and it folds, zooms and fades out.
+   * The caller shows the cockpit under it and hides the page once
+   * `finished` resolves true. `show()` and `hide()` cancel it and put
+   * every element back. Null when the page is not visible or the browser
+   * has no Web Animations: the caller switches at once. A second call
+   * during the transition returns the running one.
+   */
+  leave(): StartLeave | null;
   readonly visible: boolean;
   dispose(): void;
 }
@@ -82,30 +101,64 @@ export function mountStartPage(host: HTMLElement, services: ChromeServices, opts
   const quote = randomQuote();
   let visible = false;
   let epoch = 0;
+  let leaving: EnterRun | null = null;
   const draw = (): void =>
     render(
       <ServicesCtx.Provider value={services}>
-        <StartSurface visible={visible} epoch={epoch} skyHold={opts.skyHold} root={<StartMain onEnter={opts.onEnter} quote={quote} />} />
+        <StartSurface
+          visible={visible}
+          leaving={!!leaving}
+          epoch={epoch}
+          skyHold={opts.skyHold}
+          root={<StartMain onEnter={opts.onEnter} quote={quote} />}
+        />
       </ServicesCtx.Provider>,
       host,
     );
+  // A transition stops when the page shows or hides: its animations are
+  // cancelled after the render, in the same task, so no frame shows the
+  // page put back before it is hidden.
+  const redraw = (): void => {
+    const was = leaving;
+    leaving = null;
+    draw();
+    was?.cancel();
+  };
   return {
     show(o = {}) {
       visible = true;
       if (!o.keep) epoch++;
-      draw();
+      redraw();
     },
     hide() {
       visible = false;
+      redraw();
+    },
+    leave() {
+      if (leaving) return leaving;
+      const el = host.querySelector<HTMLElement>('.wc-start');
+      if (!visible || !el || typeof el.animate !== 'function') return null;
+      leaving = playEnter(el, reducedMotion());
       draw();
+      return leaving;
     },
     get visible() {
       return visible;
     },
     dispose() {
+      leaving?.cancel();
+      leaving = null;
       render(null, host);
     },
   };
+}
+
+function reducedMotion(): boolean {
+  try {
+    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  } catch {
+    return false;
+  }
 }
 
 // --------------------------------------------------------------- ESC menu

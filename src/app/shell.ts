@@ -94,6 +94,7 @@ import type {
   PopupPlace,
   SettingsPopupTarget,
   SettingsPopupsHandle,
+  StartLeave,
   StartPageHandle,
   WindowId,
   WindowsHandle,
@@ -127,9 +128,6 @@ import { installWeather } from '../weather/hook';
 import { REVEAL_FADE_MS, bootDone, bootStep, revealStart } from './boot-progress';
 
 type ChromeModule = typeof import('../chrome');
-
-/** Enter MUME: the cockpit's fade in from the start page, ms. */
-const ENTER_FADE_MS = 280;
 
 /** Delay before the profile editor chunk is prefetched on the start page. */
 const EDITOR_PREFETCH_MS = 2000;
@@ -181,6 +179,8 @@ export class Shell {
   private popupsP: Promise<SettingsPopupsHandle> | null = null;
   /** The cockpit is the visible view. */
   private inCockpit = false;
+  /** Enter MUME's transition, while the start page leaves over the cockpit. */
+  private entering: { leave: StartLeave; css: string } | null = null;
   /** Some live connection has reached login (the bootstrap guard). */
   private everUp = false;
   private prevConn: ConnState = 'idle';
@@ -297,17 +297,61 @@ export class Shell {
     setTimeout(() => this.idle(() => void import('../editor').catch(() => undefined)), EDITOR_PREFETCH_MS);
   }
 
-  /** Enter MUME: shows the cockpit and connects. */
+  /**
+   * Enter MUME: shows the cockpit and connects, both at once (ADR 0125):
+   * the input has the focus and every key from the first moment, and the
+   * game's text may arrive while the start page still leaves over it (it
+   * folds, its sky zooms, it fades out: `StartPageHandle.leave`). A second
+   * Enter or click meanwhile is the cockpit's (the start page has let go
+   * of its keys and pointer events). Without the transition (no Web
+   * Animations) the switch is at once.
+   */
   enter(): void {
+    if (this.inCockpit) return;
     const app = this.ensureApp();
-    this.showCockpit(app);
-    // A short fade in from the start page (ADR 0125); the input has its
-    // focus and its keys at once.
-    const win = app.el.ownerDocument.defaultView;
-    if (typeof app.el.animate === 'function' && !win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      app.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ENTER_FADE_MS, easing: 'ease-out' });
+    const start = this.start;
+    const leave = start?.visible ? start.leave() : null;
+    if (!leave) {
+      this.showCockpit(app);
+      app.connectLive();
+      return;
     }
+    // The page lies over the cockpit where it is now, out of the flow.
+    const host = this.startHost;
+    const r = host.getBoundingClientRect();
+    const css = host.style.cssText;
+    Object.assign(host.style, {
+      position: 'fixed',
+      left: `${r.left}px`,
+      top: `${r.top}px`,
+      width: `${r.width}px`,
+      height: `${r.height}px`,
+      zIndex: '500',
+      pointerEvents: 'none',
+    });
+    const entering = { leave, css };
+    this.entering = entering;
+    this.showCockpit(app, { keepStart: true });
     app.connectLive();
+    void leave.finished.then((done) => {
+      if (!done || this.entering !== entering) return;
+      this.endEnter();
+      this.start?.hide();
+      this.startHost.style.display = 'none';
+    });
+  }
+
+  /** Enter MUME's transition is playing (tests, the dev hook). */
+  get enterPlaying(): boolean {
+    return !!this.entering;
+  }
+
+  /** Puts the start page's host back in the flow after the transition. */
+  private endEnter(): void {
+    const e = this.entering;
+    if (!e) return;
+    this.entering = null;
+    this.startHost.style.cssText = e.css;
   }
 
   /** Exit session: closes the connection and returns to the start page. */
@@ -543,6 +587,8 @@ export class Shell {
   // ------------------------------------------------------------------ views
 
   private showStart(): void {
+    // Back before the transition was over: the page shows as it was (start.show() cancels it).
+    this.endEnter();
     this.inCockpit = false;
     // The windows close with the cockpit; their unsaved changes are discarded (ADR 0103).
     this.windows?.closeAll();
@@ -558,9 +604,11 @@ export class Shell {
     }
   }
 
-  private showCockpit(app: App): void {
-    this.start?.hide();
-    this.startHost.style.display = 'none';
+  private showCockpit(app: App, o: { keepStart?: boolean } = {}): void {
+    if (!o.keepStart) {
+      this.start?.hide();
+      this.startHost.style.display = 'none';
+    }
     app.el.style.display = '';
     this.inCockpit = true;
     app.menuBar?.setShown(true);

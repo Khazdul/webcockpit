@@ -493,3 +493,12 @@ html.wc-phone.wc-kbd .wc-start-almanac {
     transition: none;
   }
 }
+
+/* ------------------------------------------------------------ Enter MUME */
+
+/* The transition (src/chrome/enter-transition.ts): while the page folds,
+ * zooms and fades over the cockpit, nothing on it takes a pointer. */
+.wc-start.is-leaving,
+.wc-start.is-leaving * {
+  pointer-events: none !important;
+}

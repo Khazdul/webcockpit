@@ -378,6 +378,10 @@ export function FrameStack(props: FrameStackProps): VNode {
     if (!props.active || props.trap === false || !host) return;
     const doc = host.ownerDocument;
     const onFocusIn = (e: FocusEvent): void => {
+      // A passive effect's cleanup runs only after the next paint: a render
+      // that made the stack inactive (Enter MUME's transition hands the
+      // focus to the game input in the same task) lets go at once.
+      if (!propsRef.current.active || propsRef.current.trap === false) return;
       if (!host.contains(e.target as Node)) host.focus({ preventScroll: true });
     };
     doc.addEventListener('focusin', onFocusIn);

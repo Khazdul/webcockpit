@@ -23,6 +23,12 @@
 // a player: its canvases and frame loop are not kept for an hour of play)
 // and mounted again when it shows; it pauses while the document is hidden
 // or an old-look frame covers it.
+//
+// Enter MUME's transition (`leaving`, src/chrome/enter-transition.ts): the
+// page stays visible over the cockpit while it folds, zooms and fades; the
+// sky keeps running, the frame stack lets go of the keys and the focus
+// (they belong to the cockpit's input from the first moment) and the
+// surface takes no pointer events.
 
 import type { ComponentChildren, JSX, VNode } from 'preact';
 import { createContext } from 'preact';
@@ -198,6 +204,8 @@ export const LOOK_MIN = { w: 300, h: 340 } as const;
 
 export interface StartSurfaceProps {
   visible: boolean;
+  /** Enter MUME's transition is playing: no keys, focus or pointer events. */
+  leaving?: boolean;
   /** A new frame stack on every change (show without `keep`). */
   epoch: number;
   root: VNode;
@@ -316,7 +324,8 @@ export function StartSurface(p: StartSurfaceProps): VNode {
       class={
         `wc-chrome wc-start is-${scenery}` +
         (lookSmall && !covered ? ' is-tiny' : '') +
-        (gridSmall && covered ? ' is-grid-small' : '')
+        (gridSmall && covered ? ' is-grid-small' : '') +
+        (p.leaving ? ' is-leaving' : '')
       }
       ref={ref}
       hidden={!p.visible}
@@ -335,7 +344,7 @@ export function StartSurface(p: StartSurfaceProps): VNode {
               <FrameStack
                 key={p.epoch}
                 root={p.root}
-                active={p.visible}
+                active={p.visible && !p.leaving}
                 paused={paused}
                 wrap={wrap}
                 frameAttrs={frameAttrs}
