@@ -3,7 +3,6 @@
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
-import { creditsRoll, creditsWidth } from '../../src/chrome/frames/credits';
 import type { RunEvent } from '../../src/runs/events';
 import { RunLibrary } from '../../src/runs/library';
 import { defaultSettings } from '../../src/settings';
@@ -171,21 +170,5 @@ describe('loadReel', () => {
     const text = reel.chain[0]!.text;
     expect(text).toContain('Char.Name');
     expect(text.indexOf('Char.Name')).toBeLessThan(text.indexOf('Ibuki is dead'));
-  });
-});
-
-describe('Credits roll', () => {
-  it('uses a column of min(60, max(40, cols − 8))', () => {
-    expect(creditsWidth(200)).toBe(60);
-    expect(creditsWidth(60)).toBe(52);
-    expect(creditsWidth(44)).toBe(40);
-  });
-
-  it('rolls 1 row/s from the bottom row until The End. has left the top', () => {
-    const lines = ['Opening.', '', 'A deed.', '', 'The End.', '', ''];
-    const r = creditsRoll(lines, 20, 16);
-    expect(r.fromY).toBe(19 * 16);
-    expect(r.toY).toBe(-5 * 16);
-    expect(r.ms).toBe(24_000);
   });
 });

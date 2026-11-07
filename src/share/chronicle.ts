@@ -239,3 +239,83 @@ export function buildChronicle(
   out.push(CHRONICLE_END);
   return out;
 }
+
+// ------------------------------------------------------------ the book (stage 47, ADR 0132)
+
+/** One deed of the book: its date phrase (set in small caps) and the rest of its sentence. */
+export interface BookDeed {
+  /** When it happened, µs. */
+  us: number;
+  /** `On the first of May, 2026` (every template starts with `{date}`). */
+  date: string;
+  /** The sentence after the date phrase (starts with its space: ` you fell …`). */
+  rest: string;
+  kind: SpotlightKind;
+}
+
+/** One character's chapter: the header split around the name for the title page. */
+export interface BookChapter {
+  name: string;
+  /** The whole header (`The Lay of Rasta, Mostly True`). */
+  header: string;
+  /** The header's words before the name (`The Lay of`; may be ''). */
+  pre: string;
+  /** The header's words after the name (`, Mostly True`, `and the Long Road`; may be ''). */
+  post: string;
+  deeds: BookDeed[];
+}
+
+/** The chronicle as structure (Credits' book). */
+export interface ChronicleBook {
+  opening: string;
+  chapters: BookChapter[];
+  end: string;
+}
+
+/**
+ * The chronicle as a book: the same chapters, order and sentences as
+ * `buildChronicle` (the same templates, hashes and filters), unwrapped and
+ * split for typesetting, or null when no event passes the filters.
+ */
+export function chronicleBook(
+  runs: readonly ChronicleRun[],
+  filters: SpotlightSettings,
+  opts: { nowUs?: number } = {},
+): ChronicleBook | null {
+  const shown = spotlightFilter(filters, opts.nowUs ?? Date.now() * 1000);
+  const byChar = new Map<string, BookDeed[]>();
+  for (const r of runs) {
+    let level: number | undefined = undefined;
+    for (const e of r.events) {
+      if (e.type === 'run_start' && e.level !== undefined) level = e.level;
+      if (e.type === 'level_up') level = e.level;
+      const kind = kindOf(e);
+      if (!kind || !shown(kind, r.meta.character, eventAt(e))) continue;
+      const text = eventSentence(r.meta.character, r.meta.runId, e, level ?? r.meta.summary?.level);
+      if (!text) continue;
+      const us = eventAt(e);
+      const phrase = datePhrase(us);
+      const date = text.startsWith(phrase) ? phrase : '';
+      const list = byChar.get(r.meta.character) ?? [];
+      list.push({ us, date, rest: text.slice(date.length), kind });
+      byChar.set(r.meta.character, list);
+    }
+  }
+  if (byChar.size === 0) return null;
+  const chapters = [...byChar.entries()]
+    .map(([name, deeds]) => ({ name, deeds: deeds.sort((a, b) => a.us - b.us) }))
+    .sort((a, b) => a.deeds[0]!.us - b.deeds[0]!.us || a.name.localeCompare(b.name))
+    .map(({ name, deeds }): BookChapter => {
+      // Split the template, not the header: a name may be a word of it (`Tale`).
+      const tpl = CHAPTER_HEADERS[stableHash(name) % CHAPTER_HEADERS.length]!;
+      const at = tpl.indexOf('{name}');
+      return {
+        name,
+        header: tpl.replaceAll('{name}', name),
+        pre: tpl.slice(0, at).trim(),
+        post: tpl.slice(at + '{name}'.length).trim(),
+        deeds,
+      };
+    });
+  return { opening: CHRONICLE_OPENING, chapters, end: CHRONICLE_END };
+}
