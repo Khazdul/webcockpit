@@ -220,7 +220,7 @@ test('a filter that lets nothing through opens on the nothing-passes wall; no Op
   expect(errors).toEqual([]);
 });
 
-test('no recorded spotlights: the wall says how they are made, without the filter row', async ({ page }) => {
+test('no recorded spotlights: the wall says how they are made, without the filter row, Play all disabled', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -230,10 +230,13 @@ test('no recorded spotlights: the wall says how they are made, without the filte
   await menuRow(page, 'spotlights').click();
   await expect(empty(page)).toContainText('No spotlights yet.');
   await expect(head(page)).toHaveCount(0);
-  await expect(playAll(page)).toHaveCount(0);
-  // F does nothing; Esc goes to the menu.
+  // The foot keeps Play all, disabled (as the mockup's empty state).
+  await expect(playAll(page)).toHaveAttribute('aria-disabled', 'true');
+  // F and P do nothing; Esc goes to the menu.
   await page.keyboard.press('f');
+  await page.keyboard.press('p');
   await expect(head(page)).toHaveCount(0);
+  await expect(page.locator('.wc-spv')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(menuSel(page)).toHaveText('Spotlights');
   expect(errors).toEqual([]);

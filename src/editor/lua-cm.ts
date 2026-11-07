@@ -623,6 +623,9 @@ const caseFix = ViewPlugin.fromClass(
 /** Visible rows of the completion list, and the px of one. */
 const COMPLETION_ROWS = 10;
 const COMPLETION_ROW_PX = 25;
+/** A touch screen: rows of a finger's height (40 px), six of them in about the same room. */
+const TOUCH_ROWS = 6;
+const TOUCH_ROW_PX = 40;
 
 /**
  * The pop-ups as small lit plates of the Lykta family (round 7, editor C):
@@ -707,13 +710,27 @@ function luaTheme(): Extension {
     '.cm-tooltip-lint .cm-diagnostic': { padding: '8px 14px 9px', margin: '0', border: 'none' },
     '.cm-tooltip-section:not(:first-child)': { borderTop: '1px solid var(--lk-pop-rule)' },
     '.cm-snippetField': { backgroundColor: 'var(--lk-pop-snip)', borderRadius: '2px' },
+    // A finger: rows tall enough to hit, and the plates kept inside a phone's
+    // frame (its edge is about 15 px in on either side, and the room keeps 4 px off it).
+    '@media (pointer: coarse)': {
+      '.cm-tooltip.cm-tooltip-autocomplete > ul': { maxHeight: `${TOUCH_ROWS * TOUCH_ROW_PX + 4}px` },
+      '.cm-tooltip.cm-tooltip-autocomplete > ul > li': { height: `${TOUCH_ROW_PX}px`, lineHeight: `${TOUCH_ROW_PX}px` },
+      '.cm-tooltip.wc-lua-sig, .cm-tooltip.cm-tooltip-lint': { maxWidth: 'min(460px, calc(100vw - 40px))' },
+      '.cm-tooltip.cm-tooltip-hover': { maxWidth: 'min(420px, calc(100vw - 40px))' },
+    },
   });
 }
 
-/** The pop-ups' room: the box or window that holds the editor (its lit content box), else the browser window. */
+/** How far the pop-ups keep inside the box's edge: clear of its border (a plate pushed to the right lay on it). */
+const ROOM_INSET = 4;
+
+/** The pop-ups' room: the box or window that holds the editor (its lit content box, inside its border), else the browser window. */
 function tooltipRoom(view: EditorView): DOMRect {
   const host = view.dom.closest('.wc-lk-win');
-  if (host) return host.getBoundingClientRect();
+  if (host) {
+    const r = host.getBoundingClientRect();
+    return new DOMRect(r.x + ROOM_INSET, r.y + ROOM_INSET, Math.max(0, r.width - 2 * ROOM_INSET), Math.max(0, r.height - 2 * ROOM_INSET));
+  }
   const win = view.dom.ownerDocument.defaultView;
   return new DOMRect(0, 0, win?.innerWidth ?? 0, win?.innerHeight ?? 0);
 }

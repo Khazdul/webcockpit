@@ -337,6 +337,11 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     onScroll();
   };
   useLayoutEffect(syncThumb);
+  // A new block size (the log's height changed: a resize, the soft keyboard,
+  // the title field's inset) re-quantizes the scroll position; no scroll event
+  // comes when only the height changes, and the old block would draw rows far
+  // from the view.
+  useLayoutEffect(syncBlock, [blockPx]);
 
   /** Scrolls item `i` into view (as little as possible). */
   const reveal = (i: number): void => {
@@ -884,7 +889,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
 
   return box(
     <div
-      class={'wc-exp' + (editing ? ' is-editing' : '')}
+      class={'wc-exp' + (editing ? ' is-editing' : '') + (comp ? ' is-composing' : '') + (editing && inset > 0 ? ' is-kbd' : '')}
       data-format={doc.format}
       style={editing && inset > 0 ? { paddingBottom: `${inset}px` } : undefined}
     >

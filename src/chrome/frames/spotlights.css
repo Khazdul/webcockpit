@@ -20,7 +20,9 @@
   display: contents;
   --spw-bold: #ffffff;
   --spw-fg: #c0c0c0;
-  --spw-echo: color-mix(in oklab, #c0c0c0 55%, #7fb2e6);
+  /* The stills' colours: the Default ones here; a chosen Display theme's
+   * font colour, background and bold come inline (`stillPalette`). */
+  --spw-echo: color-mix(in oklab, var(--spw-fg) 55%, #7fb2e6);
 }
 
 /* ------------------------------------------------------------ the filter row */
@@ -182,8 +184,9 @@
   color: var(--lk-dim);
 }
 
-/* The still: the game text at the moment, bottom-anchored, in the Default
- * palette (the page's `--spw-a0` … `--spw-a15`, with the brighter red). */
+/* The still: the game text at the moment, bottom-anchored, in the page's
+ * `--spw-a0` … `--spw-a15` (the Default palette with the brighter red, or
+ * the viewer's Display theme on its own background). */
 .wc-spw-still {
   display: flex;
   flex-direction: column;
@@ -195,7 +198,7 @@
   overflow: hidden;
   border-radius: 4px;
   border: 1px solid rgba(255, 214, 160, 0.07);
-  background: rgba(4, 3, 2, 0.9);
+  background: var(--spw-bg, rgba(4, 3, 2, 0.9));
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
   font: 400 11px/1.42 var(--lk-mono);
   font-variant-ligatures: none;

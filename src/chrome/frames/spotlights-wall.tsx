@@ -15,7 +15,9 @@
 //      [▶ Play all]  5 spotlights · 01:12                 flash
 //
 // The card's still is the last visible lines before the moment, in the
-// Default palette with the brighter red (`SPOTLIGHT_PALETTE_TWEAK`). The
+// Default palette with the brighter red (`SPOTLIGHT_PALETTE_TWEAK`) while
+// the viewer's Display colours are Default, else in that theme's
+// background and font colour with the plain palette (`stillPalette`). The
 // chosen card (`.is-on`) brightens; with the keyboard in the filter row it
 // stays chosen but dimmer (`.is-idle`).
 //
@@ -30,6 +32,7 @@
 //
 // States: a reel (the wall); nothing passes (the filter row stays, the
 // wall says so); no data at all (no filter row; how spotlights are made).
+// The foot's Play all stays in every state, disabled without a card.
 //
 // Keys. On the wall: arrows move in 2D (the columns from the layout),
 // PgUp / PgDn, Home / End, Enter or Space plays the chosen card, P plays
@@ -66,6 +69,7 @@ import {
   chipsOn,
 } from '../../share/spotlights';
 import { DOS_PALETTE } from '../../theme/presets';
+import { type ViewerTheme, themeColors } from '../../player/viewer';
 import { colorToCss } from '../../ui/palette';
 import { useServices, useSettings } from '../kit/hooks';
 import {
@@ -87,7 +91,7 @@ import {
   useGridCursor,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
-import { SpotlightsViewer } from './spotlights-viewer';
+import { SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
 import './spotlights.css';
 
 /** The empty states' texts (Inv §7.6; the filtered one ADR 0110). */
@@ -160,15 +164,41 @@ const KIND_ICON: Readonly<Record<SpotlightKind, IconDraw>> = {
   achievement: { draw: <path d={KIND_PATH.achievement} />, box: 24 },
 };
 
+const STILL_PALETTES = new Map<ViewerTheme, Record<string, string>>();
+
 /**
- * The stills' palette (the CSS custom properties `--spw-a0` … `--spw-a15`
- * on the page): the Default (DOS) palette with the brighter red.
+ * The stills' colours for the viewer's Display theme (the CSS custom
+ * properties `--spw-a0` … `--spw-a15`, `--spw-fg`, `--spw-bg`, `--spw-bold`
+ * on the page). Default: the Default (DOS) palette with the brighter red
+ * on the page's near-black well (owner decision 4). A chosen theme keeps
+ * its own red, as the viewer draws it: the plain palette (the theme sets
+ * only the background and the font colour, `applyViewer`) on the theme's
+ * background, in its font colour.
  */
-const STILL_PALETTE: Record<string, string> = (() => {
+export function stillPalette(theme: ViewerTheme): Record<string, string> {
+  const had = STILL_PALETTES.get(theme);
+  if (had) return had;
+  const colors = themeColors(theme);
   const out: Record<string, string> = {};
-  DOS_PALETTE.forEach((c, i) => (out[`--spw-a${i}`] = SPOTLIGHT_PALETTE_TWEAK[i] ?? c));
+  DOS_PALETTE.forEach((c, i) => (out[`--spw-a${i}`] = (colors ? undefined : SPOTLIGHT_PALETTE_TWEAK[i]) ?? c));
+  if (colors) {
+    out['--spw-fg'] = colors.fg;
+    out['--spw-bg'] = colors.bg;
+    // Bold in the font colour brightens it (white), except on Paper's light ground (ink stays ink).
+    out['--spw-bold'] = theme === 'paper' ? colors.fg : '#ffffff';
+  }
+  STILL_PALETTES.set(theme, out);
   return out;
-})();
+}
+
+/** The Display theme the stills follow: the kept viewer host's (Default without one). */
+function viewerTheme(): ViewerTheme {
+  try {
+    return keptSpotlightsHost()?.viewerControls(true).theme() ?? 'default';
+  } catch {
+    return 'default';
+  }
+}
 
 /** The CSS colour of a still's run colour: the page's palette for 0–15 (bold brightens 0–7), else its own. */
 function runColor(c: Color, bold: boolean): string {
@@ -289,7 +319,13 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
   const [zone, setZone] = useState<'wall' | 'filter'>('wall');
   const [fsel, setFsel] = useState(0);
   const [view, setView] = useState<Viewing | null>(null);
+  /** The Display theme the stills are drawn in (read from the viewer's host when it is left). */
+  const [stillTheme, setStillTheme] = useState<ViewerTheme>(viewerTheme);
   const viewSeq = useRef(0);
+  /** A rebuild is in flight (the latest one). */
+  const loading = useRef(false);
+  /** A card asked to play while it was (`id`; null: Play all), opened when the new wall lands. */
+  const wantOpen = useRef<{ id: string | null } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const periodRef = useRef<HTMLDivElement>(null);
 
@@ -304,8 +340,18 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
     if (!el || typeof getComputedStyle !== 'function') return 1;
     return getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
   };
-  const openViewer = (i: number): void => {
+  /**
+   * Plays card i (`all`: Play all, from the first). While a rebuild is in
+   * flight the cards on screen are the old reel's: the open waits for the
+   * new wall and plays that spotlight there (or the new first one), if it
+   * still passes.
+   */
+  const openViewer = (i: number, all = false): void => {
     if (!reel || i < 0 || i >= count || view) return;
+    if (loading.current) {
+      wantOpen.current = { id: all ? null : (reel.reel.spots[i]?.id ?? null) };
+      return;
+    }
     setZone('wall');
     setView({ start: i, seq: ++viewSeq.current });
   };
@@ -344,29 +390,41 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
     if (filterKey === loadedKey.current) return;
     loadedKey.current = filterKey;
     const my = ++seq.current;
+    loading.current = true;
     keep.current = reel?.reel.spots[grid.i]?.id ?? null;
     p.source.load(filters, now()).then(
       (next) => {
         if (my !== seq.current) return;
+        loading.current = false;
         setState(next);
       },
       (err: unknown) => {
         if (my !== seq.current) return;
+        loading.current = false;
+        wantOpen.current = null;
         console.error('WebCockpit: Spotlights could not be loaded', err);
         nav.flash('Spotlights could not be loaded.', 'fail');
       },
     );
   }, [filterKey]);
 
-  // A rebuilt wall keeps the chosen card when it still passes, else the first.
+  // A rebuilt wall keeps the chosen card when it still passes, else the
+  // first; a card asked to play during the rebuild plays now.
   useLayoutEffect(() => {
+    const want = wantOpen.current;
+    wantOpen.current = null;
     if (!reel) return;
-    const id = keep.current;
+    const id = want ? want.id : keep.current;
     keep.current = null;
-    const j = id === null ? -1 : reel.reel.spots.findIndex((s) => s.id === id);
+    const found = id === null ? -1 : reel.reel.spots.findIndex((s) => s.id === id);
+    const j = want && want.id === null ? 0 : found;
     grid.set(Math.max(0, j));
     if (j > 0) reveal(j);
     else gridRef.current?.closest('.wc-lk-bbody')?.scrollTo?.({ top: 0 });
+    if (want && j >= 0 && j < reel.reel.spots.length) {
+      setZone('wall');
+      setView({ start: j, seq: ++viewSeq.current });
+    }
   }, [state]);
 
   const patch = (f: Partial<SpotlightSettings>): void => {
@@ -393,6 +451,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
   const keepChosen = useRef<number | null>(null);
   const leave = useCallback((i: number): void => {
     keepChosen.current = i;
+    setStillTheme(viewerTheme());
     setView(null);
     setZone('wall');
   }, []);
@@ -418,7 +477,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
     setZone('filter');
     if (fsel > periodStop) setFsel(0);
   };
-  const playAll = (): void => openViewer(0);
+  const playAll = (): void => openViewer(0, true);
   const blurPeriod = (): void => {
     const sel = periodRef.current?.querySelector('select');
     if (sel && sel.ownerDocument.activeElement === sel) sel.blur();
@@ -490,7 +549,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
       class="wc-spw"
       winClass={'wc-spw-win' + (view ? ' is-viewing' : '')}
     >
-      <div class="wc-spw-wall" style={STILL_PALETTE} inert={view ? true : undefined}>
+      <div class="wc-spw-wall" style={stillPalette(stillTheme)} data-still-theme={stillTheme} inert={view ? true : undefined}>
         {!noData && (
           <BoxHead class={'wc-spw-head' + (zone === 'filter' ? ' is-cur' : '')}>
             <span class="wc-spw-cap" aria-hidden="true">
@@ -568,7 +627,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
           )}
         </BoxBody>
         <BoxFoot class="wc-spw-foot">
-          {!noData && <GlassButton id="PLAY" label="Play all" letter="p" icon="play" primary disabled={count === 0} onClick={playAll} />}
+          <GlassButton id="PLAY" label="Play all" letter="p" icon="play" primary disabled={count === 0} onClick={playAll} />
           <span class="wc-spw-sum">{reel ? wallSummary(count, reel.lengthMs) : ''}</span>
           <LookFlash class="wc-spw-flash" />
         </BoxFoot>

@@ -20,11 +20,20 @@
 //
 // Keys. ↑ ↓ PgUp PgDn (10) Home End move the cursor; ← → change the
 // character pill; Enter (Space) or a double click opens the run log; a
-// click selects (touch: a tap selects, a tap on the chosen row opens).
+// click selects (touch: a tap selects, a tap on the chosen row opens). A
+// pointer passing over the rows never moves the cursor (the mockup's list
+// has no hover): the card's actions act on the cursor's session, and the
+// way to them crosses other rows. A click on a row or a head brings the
+// keyboard back to the rows.
 // Letters marked in the labels: R Run log, T Stats, A Rate, S Save,
 // X Export, D Delete, B Backup, O Restore; `?` (or the "?" button) shows
 // the keys. Tab / Shift+Tab: rows ↔ buttons (← → ↑ ↓ walk the enabled
 // buttons, Enter presses). Esc or Back returns to the menu.
+//
+// While a run log is opening (a large log takes a moment) the page holds
+// its keys, its Back and its actions, so the player opens over History and
+// its Back returns there; a failed open shows its error box only while
+// History is still the top frame.
 //
 // The frame keeps its state (filter, sort, cursor, scroll) while a
 // sub-frame, a dialog or the log player is shown: the start page is only
@@ -64,6 +73,7 @@ import {
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   DEFAULT_HISTORY_SORT,
+  HISTORY_MAX_W,
   type HistorySort,
   type HistorySortKey,
   deedsParts,
@@ -94,8 +104,6 @@ export const NO_PLAYER = 'Log player not available.';
 const EMPTY = 'No runs recorded yet.';
 const READ_FAILED = 'The runs could not be read.';
 
-/** The box stops at its content's width (table ≤ 800 + gap 26 + card 290 + padding), centred (owner decision 2). */
-export const HISTORY_MAX_W = 1180;
 /** Below this content width (px) the page takes its narrow form (two-line rows, the card under the row). */
 export const HISTORY_NARROW = 680;
 
@@ -144,7 +152,18 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const busy = useRef(false);
+  /** A run log is opening: the page's keys, Back and actions wait. */
+  const opening = useRef(false);
   const loaded = useRef(false);
+  const top = useRef(isTop);
+  top.current = isTop;
+  const alive = useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    [],
+  );
 
   const reload = async (): Promise<void> => {
     try {
@@ -252,8 +271,16 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
       return;
     }
     void run(async () => {
-      const r = await openPlayer(s);
-      if (r && !r.ok) nav.push(<RunLogErrorDialog session={s} error={r.error} />, { overlay: true });
+      opening.current = true;
+      try {
+        const r = await openPlayer(s);
+        // Only over History: the box belongs to this page, not to whatever is on top now.
+        if (r && !r.ok && alive.current && top.current) {
+          nav.push(<RunLogErrorDialog session={s} error={r.error} />, { overlay: true });
+        }
+      } finally {
+        opening.current = false;
+      }
     });
   };
 
@@ -300,7 +327,7 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
     });
 
   const press = (b: ActionId): void => {
-    if (disabled(b)) return;
+    if (opening.current || disabled(b)) return;
     switch (b) {
       case 'RUN LOG':
         return openLog(cur);
@@ -344,6 +371,8 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
   );
 
   useKeys((e, nk) => {
+    // A run log is opening: hold every key (Esc too) until it has opened or failed.
+    if (opening.current) return true;
     // The sort list (a native select) keeps its own keys.
     if (inTextField(e.target) && nk !== 'back') return false;
     if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -410,20 +439,29 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
     rows.push(<HistoryRow key={s.id} s={s} i={i} state={on ? (inRows ? 'cur' : 'idle') : null} />);
     if (narrow && on) rows.push(card);
   });
-  // The rows' pointer handlers, delegated from their parent to the cursor's (no closures per row).
-  const onRow = (kind: 'onPointerDown' | 'onPointerMove' | 'onClick' | 'onDblClick', e: PointerEvent | MouseEvent): void => {
+  // The rows' pointer handlers, delegated from their parent to the cursor's
+  // (no closures per row). No pointer move: hovering a row does not choose
+  // it (the mockup's list; the card acts on the cursor). A click or a
+  // double click brings the keyboard back to the rows.
+  const onRow = (kind: 'onPointerDown' | 'onClick' | 'onDblClick', e: PointerEvent | MouseEvent): void => {
     const row = (e.target as Element | null)?.closest?.('.wc-lk-tr[data-i]');
     const i = row ? Number(row.getAttribute('data-i')) : NaN;
     if (!Number.isFinite(i)) return;
     const rp = lc.rowProps(i);
-    if (kind === 'onPointerDown' || kind === 'onPointerMove') rp[kind](e as PointerEvent);
-    else rp[kind](e);
+    if (kind === 'onPointerDown') {
+      rp.onPointerDown(e as PointerEvent);
+      return;
+    }
+    zone.reset();
+    rp[kind](e);
   };
 
   const note = all === null ? 'Loading…' : readFailed ? READ_FAILED : empty ? EMPTY : list.length === 0 ? EMPTY : null;
 
   return (
-    <Box title="History" size="large" maxWidth={HISTORY_MAX_W} onBack={() => nav.pop()} class="wc-hist" winClass={'wc-hist-win' + (narrow ? ' is-narrow' : '')}>
+    <Box title="History" size="large" maxWidth={HISTORY_MAX_W} onBack={() => {
+        if (!opening.current) nav.pop();
+      }} class="wc-hist" winClass={'wc-hist-win' + (narrow ? ' is-narrow' : '')}>
       <BoxHead class="wc-hist-head">
         <div class="wc-hist-pills">
           <Seg
@@ -454,7 +492,6 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
         <div
           class="wc-hist-tablewrap"
           onPointerDown={(e) => onRow('onPointerDown', e)}
-          onPointerMove={(e) => onRow('onPointerMove', e)}
           onClick={(e) => onRow('onClick', e)}
           onDblClick={(e) => onRow('onDblClick', e)}
         >
@@ -465,7 +502,10 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
             bodyRef={lc.scrollRef as Ref<HTMLDivElement>}
             heads={HEADS.map((h) => ({ key: h.key, label: h.label, sort: true }))}
             sort={sort}
-            onSort={(k) => setSort((s) => nextHistorySort(s, k as HistorySortKey))}
+            onSort={(k) => {
+              zone.reset();
+              setSort((s) => nextHistorySort(s, k as HistorySortKey));
+            }}
           >
             {note !== null ? <p class="wc-lk-empty wc-hist-note">{note}</p> : rows}
             {narrow && note !== null && card}

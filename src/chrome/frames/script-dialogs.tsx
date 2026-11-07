@@ -23,6 +23,17 @@ export const NAME_HINT = `A letter, then letters, digits, _ or -. At most ${SCRI
 
 const plural = (n: number, one: string): string => `${n} ${one}${n === 1 ? '' : 's'}`;
 
+/**
+ * The dialog's place on the stack before an await, and a pop that only happens while it is still
+ * the top frame: Esc during the await has already popped it, and a second pop would take the
+ * Scripts page (or close the window at its root).
+ */
+function popper(nav: ReturnType<typeof useNav>): { stillTop(): boolean; pop(): void } {
+  const depth = nav.depth();
+  const stillTop = (): boolean => nav.depth() === depth;
+  return { stillTop, pop: () => void (stillTop() && nav.pop()) };
+}
+
 // ------------------------------------------------------------ New, Rename
 
 export interface NameDialogProps {
@@ -43,6 +54,7 @@ export const NameDialog = lookFrame(function NameDialog(p: NameDialogProps): VNo
   const confirm = async (): Promise<void> => {
     if (busy.current) return;
     busy.current = true;
+    const at = popper(nav);
     try {
       const name = value.trim();
       if (p.mode === 'rename' && name === p.from) return nav.pop();
@@ -55,17 +67,21 @@ export const NameDialog = lookFrame(function NameDialog(p: NameDialogProps): VNo
       if (p.mode === 'create') {
         await p.lib.create(name);
         p.done(name);
-        // The editor opens in this dialog's place, on the template.
+        // The editor opens in this dialog's place, on the template (not if the dialog was left meanwhile).
         const mod = await import('../../editor').catch(() => null);
-        nav.pop();
-        if (mod) mod.openScriptEditor(nav, { library: p.lib, name, onName: p.done });
-        else nav.flash(`Created ${name}. It is off until you turn it on.`);
+        if (mod && at.stillTop()) {
+          nav.pop();
+          mod.openScriptEditor(nav, { library: p.lib, name, onName: p.done });
+        } else {
+          nav.flash(`Created ${name}. It is off until you turn it on.`);
+          at.pop();
+        }
         return;
       }
       await p.lib.rename(p.from!, name);
       p.done(name);
       nav.flash(`Renamed to ${name}.`);
-      nav.pop();
+      at.pop();
     } catch (e) {
       setError(errText(e));
     } finally {
@@ -109,7 +125,11 @@ export const NameDialog = lookFrame(function NameDialog(p: NameDialogProps): VNo
 /** Delete: Y deletes; N, Enter or any other key cancels (y/N). */
 export const DeleteDialog = lookFrame(function DeleteDialog(p: { lib: ScriptLibrary; name: string; done(next: string | null): void }): VNode {
   const nav = useNav();
+  const busy = useRef(false);
   const confirm = async (): Promise<void> => {
+    if (busy.current) return;
+    busy.current = true;
+    const at = popper(nav);
     try {
       const names = p.lib.list().map((s) => s.name);
       const i = names.indexOf(p.name);
@@ -120,7 +140,7 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { lib: ScriptLibr
     } catch (e) {
       nav.flash(errText(e), 'fail');
     }
-    nav.pop();
+    at.pop();
   };
   return (
     <Dialog
@@ -203,11 +223,12 @@ export const ImportDialog = lookFrame(function ImportDialog(p: { lib: ScriptLibr
   const confirm = async (): Promise<void> => {
     if (busy.current) return;
     busy.current = true;
+    const at = popper(nav);
     try {
       const info = await p.lib.importFile(p.fileName, p.text);
       p.done(info.name);
       nav.flash(`Imported ${info.name} from ${p.fileName}. It is off until you turn it on.`);
-      nav.pop();
+      at.pop();
     } catch (e) {
       busy.current = false;
       setError(`Import failed: ${errText(e)}`);
@@ -281,6 +302,7 @@ export const RestoreDialog = lookFrame(function RestoreDialog(p: {
   const confirm = async (): Promise<void> => {
     if (busy.current) return;
     busy.current = true;
+    const at = popper(nav);
     try {
       const r = await p.lib.restore(b);
       if (r.added[0]) p.done(r.added[0]);
@@ -292,7 +314,7 @@ export const RestoreDialog = lookFrame(function RestoreDialog(p: {
     } catch (e) {
       nav.flash(`Restore failed: ${errText(e)}`, 'fail');
     }
-    nav.pop();
+    at.pop();
   };
   useKeyLayer((e) => {
     if ((e.key === 'y' || e.key === 'Y') && !e.ctrlKey && !e.altKey && !e.metaKey) {

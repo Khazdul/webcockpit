@@ -16,6 +16,12 @@
 .wc-pe-win {
   /* The editor fills the box's lit window. */
   overflow: hidden;
+  /* No blur under the fields (as the script editor, .wc-sed-win): the
+   * large window's backdrop-filter is redrawn on every keystroke, which
+   * under software compositing costs 130 ms p95 per key in the Lite form
+   * against 20 ms flat (stage 43 wave 3). A more opaque fill instead. */
+  --lk-large-blur: none;
+  --lk-large-fill: rgba(13, 10, 8, 0.86);
 }
 
 .wc-pe {
@@ -72,6 +78,13 @@
   text-overflow: ellipsis;
   font: italic 500 15px/1.2 var(--lk-serif);
   color: var(--lk-dim);
+}
+
+.wc-pe-live-t {
+  /* The text itself carries the ellipsis (a flex box's bare text cannot). */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wc-pe-live i {
@@ -180,6 +193,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Room inside the clip for the shortcut letter's mark (drawn under the
+   * glyphs), without changing the row's height. */
+  padding-block: 5px;
+  margin-block: -5px;
 }
 
 .wc-pe-rn {
@@ -283,6 +300,9 @@
 }
 
 .wc-lk-rows.is-flat > .wc-pe-row {
+  /* Never squeezed below its content in the list's flex column (the body
+   * line's descenders would be clipped). */
+  flex: none;
   min-height: 52px;
   flex-direction: column;
   align-items: stretch;
@@ -954,7 +974,9 @@
     display: none;
   }
 
-  .wc-pe {
+  /* .wc-pe is the `pe` container and cannot query itself: the denser
+   * type is set on its children. */
+  .wc-pe > * {
     --pe-mono: 12.5px;
   }
 }
@@ -986,7 +1008,16 @@
     gap: 6px 18px;
   }
 
+  /* In the game the live line takes a row of its own under the views: beside
+   * them it would keep about 130 px of its 250. */
+  .wc-pe-head:has(> .wc-pe-live) {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
   .wc-pe-live {
+    order: 1;
+    flex-basis: 100%;
     font-size: 14px;
   }
 }

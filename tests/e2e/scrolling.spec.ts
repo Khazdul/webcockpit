@@ -3,6 +3,7 @@
 // by whole rows. A small wheel delta moves a scroll box by less than a row.
 import { type Locator, type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
+import { lookBox, morphDone } from './look';
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 
@@ -62,22 +63,15 @@ async function restoreRuns(page: Page, copies = 0): Promise<void> {
   }, copies);
 }
 
-test('About scrolls by pixels; the keys by rows', async ({ page }) => {
+test('About scrolls by pixels', async ({ page }) => {
+  // About is one long leaf in a native scroller (stage 47, ADR 0132); its keys are about.spec's.
   await page.setViewportSize({ width: 1000, height: 500 });
   await page.goto('/');
   await page.locator('.wc-start .wc-sm-item[data-key="about"]').click();
-  await expect(startFrame(page).locator('.wc-title-row')).toContainText('─── About ───');
-  const box = startFrame(page).locator('.wc-about-text');
-  await expectPixelWheel(page, box);
-  // The keys: Home to the top, ↓ one row, End to the end.
-  await page.keyboard.press('Home');
-  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
-  await page.keyboard.press('ArrowDown');
-  const row = await box.locator('.wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
-  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBeCloseTo(row, 0);
-  await page.keyboard.press('End');
-  await expect(box.locator('.wc-line').last()).toBeInViewport();
-  await expect(startFrame(page).locator('.wc-tui-bar .wc-scroll-thumb').first()).toBeVisible();
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('About');
+  await morphDone(page);
+  // Less than one ↑ / ↓ step (40 px) for a 5 px wheel.
+  await expectPixelWheel(page, lookBox(page).locator('.wc-about-body'), 40);
 });
 
 test('History table scrolls by pixels; the cursor stays in view', async ({ page }) => {

@@ -72,3 +72,31 @@ test('the editor on a phone: full width, the smaller code, the tools in reach', 
   await expect(editor(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('the pop-ups on a phone: completion rows a finger can hit, the signature inside the frame', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await openEditor(page);
+  await editor(page).locator('.cm-content').tap();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('func');
+  const items = page.locator('.cm-tooltip-autocomplete > ul > li');
+  await expect(items.first()).toBeVisible();
+  for (const li of (await items.all()).slice(0, 3)) expect((await li.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+  await page.keyboard.press('Escape');
+  await expect(items).toHaveCount(0);
+
+  // The longest signature plate stays inside the box's frame.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('echo(string.format(');
+  const sig = page.locator('.cm-tooltip.wc-lua-sig');
+  await expect(sig).toBeVisible();
+  const win = (await page.locator('.wc-frame:not([hidden]) .wc-lk-win').first().boundingBox())!;
+  const b = (await sig.boundingBox())!;
+  expect(b.x).toBeGreaterThanOrEqual(win.x - 0.5);
+  // (Clear of its 1 px border on the right.)
+  expect(b.x + b.width).toBeLessThanOrEqual(win.x + win.width - 1);
+  expect(errors).toEqual([]);
+});

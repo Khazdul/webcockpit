@@ -55,6 +55,8 @@ export interface EditorLog {
   raw: string[];
   /** Shown length in cells (a command's prefix included). */
   len: Uint32Array;
+  /** The shown text (no SGR; a command's or system line's prefix included), for the word wrap. */
+  plain: string[];
 }
 
 /**
@@ -69,26 +71,32 @@ export function buildEditorLog(chain: readonly ChainRun[]): EditorLog {
   const kinds: number[] = [];
   const raw: string[] = [];
   const lens: number[] = [];
+  const plain: string[] = [];
+  const shown = (t: string): void => {
+    plain.push(t);
+    lens.push(t.length);
+  };
   for (const e of playerEntries(chain)) {
     if (e.kind === 'in') {
       ts.push(e.ts);
       kinds.push(KIND_IN);
       raw.push(e.body);
-      lens.push(stripAnsi(e.body).length);
+      // (stripAnsi returns the same string when the line has no escapes.)
+      shown(stripAnsi(e.body));
     } else if (e.kind === 'out') {
       if (e.body === '' || PLAYING_COMMANDS.includes(e.body)) continue;
       ts.push(e.ts);
       kinds.push(KIND_OUT);
       raw.push(e.body);
-      lens.push(OUT_PREFIX.length + e.body.length);
+      shown(OUT_PREFIX + e.body);
     } else if (e.kind === 'sys') {
       ts.push(e.ts);
       kinds.push(KIND_SYS);
       raw.push(e.body);
-      lens.push(SYS_PREFIX.length + e.body.length);
+      shown(SYS_PREFIX + e.body);
     }
   }
-  return { ts, kind: Uint8Array.from(kinds), raw, len: Uint32Array.from(lens) };
+  return { ts, kind: Uint8Array.from(kinds), raw, len: Uint32Array.from(lens), plain };
 }
 
 /** The first entry with log µs ≥ `us` (entries.length when none). */
@@ -132,9 +140,38 @@ export interface Items {
   width: number;
 }
 
-/** Rows an entry takes at `width` cells (hard wrap, like the log player). */
+/** Rows a text of `len` cells takes at `width` cells when wrapped hard (a lower bound of `wrapSpans`). */
 export function entryRows(len: number, width: number): number {
   return Math.max(1, Math.ceil(len / Math.max(1, width)));
+}
+
+/**
+ * Word wrap at `width` cells: a row breaks at the last space that fits (the
+ * space itself is not shown), and a word longer than a row breaks hard.
+ * Returns the row count; with `out`, pushes each row's [start, end) offsets.
+ * A text that fits is one row (an empty text too).
+ */
+export function wrapSpans(text: string, width: number, out?: number[]): number {
+  const w = Math.max(1, width);
+  const n = text.length;
+  let pos = 0;
+  let rows = 1;
+  while (n - pos > w) {
+    // The last space within the row, or the one just after a full row.
+    let sp = pos + w;
+    while (sp > pos && text.charCodeAt(sp) !== 32) sp--;
+    const end = sp > pos ? sp : pos + w;
+    out?.push(pos, end);
+    pos = sp > pos ? sp + 1 : end;
+    rows++;
+  }
+  out?.push(pos, n);
+  return rows;
+}
+
+/** Rows entry `e` takes at `width` cells (word wrap; nothing scanned for a line that fits). */
+export function entryWrapRows(log: EditorLog, e: number, width: number): number {
+  return log.len[e]! <= width ? 1 : wrapSpans(log.plain[e]!, width);
 }
 
 /** Comment lines at the log width (80 columns, fewer when the log is narrower). */
@@ -170,7 +207,7 @@ export function buildItems(log: EditorLog, comments: readonly ExportComment[], w
     ref[it] = e;
     entryItem[e] = it;
     rowStart[it] = row;
-    row += entryRows(log.len[e]!, width);
+    row += entryWrapRows(log, e, width);
     it++;
   }
   while (ci < comments.length) pushComment();
@@ -573,10 +610,11 @@ export function entrySegments(log: EditorLog, e: number, width: number): Seg[][]
     runs = [{ start: 0, end: text.length, fg: -2 }];
   } else ({ text, runs } = parseSgr(log.raw[e]!));
   const rows: Seg[][] = [];
-  const n = entryRows(text.length, w);
+  const spans: number[] = [];
+  const n = wrapSpans(text, w, spans);
   for (let r = 0; r < n; r++) {
-    const a = r * w;
-    const b = Math.min(text.length, a + w);
+    const a = spans[2 * r]!;
+    const b = spans[2 * r + 1]!;
     const segs: Seg[] = [];
     let pos = a;
     for (const run of runs) {
@@ -602,11 +640,10 @@ export function entrySegments(log: EditorLog, e: number, width: number): Seg[][]
 
 /** An entry's plain rows at `width` cells (excluded lines lose their colour). */
 export function entryPlainRows(log: EditorLog, e: number, width: number): string[] {
-  const w = Math.max(1, width);
-  const k = log.kind[e];
-  const text = k === KIND_OUT ? OUT_PREFIX + log.raw[e]! : k === KIND_SYS ? SYS_PREFIX + log.raw[e]! : stripAnsi(log.raw[e]!);
-  const n = entryRows(text.length, w);
-  return Array.from({ length: n }, (_, r) => text.slice(r * w, (r + 1) * w));
+  const text = log.plain[e]!;
+  const spans: number[] = [];
+  const n = wrapSpans(text, width, spans);
+  return Array.from({ length: n }, (_, r) => text.slice(spans[2 * r], spans[2 * r + 1]));
 }
 
 // ----------------------------------------------------------------- info

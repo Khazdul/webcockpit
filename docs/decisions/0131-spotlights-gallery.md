@@ -45,7 +45,8 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
   their own: nothing passing keeps the filter row and says `No spotlights
   match your settings.` with "Turn on a kind or a character above, or
   choose a longer period."; no data has no filter row and the text that
-  says how spotlights are made. `EmptyStateFrame`, `FilteredFrame`,
+  says how spotlights are made. The foot's Play all stays in every state,
+  disabled without a card (as the mockup's empty state). `EmptyStateFrame`, `FilteredFrame`,
   `CREDITS_EMPTY` and the settings popup stay exported for Credits until
   stage 47; the menu no longer calls `services.openSpotlights`.
 - The wall's model is `WallReel`: the reel, one still per spotlight and
@@ -79,10 +80,14 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
   `buildTimeline`: the lead-in is free, gaps of 10 s or less play in real
   time, then the dwell to `toUs`. A unit test holds it to the timeline's
   `durationMs`.
-- The stills use the Default palette with the brighter red
-  (`SPOTLIGHT_PALETTE_TWEAK`, `{ 1: '#c43c3c' }`), as CSS custom
-  properties on the page; they do not follow the viewer's Display theme
-  (owner question below).
+- The stills' colours are CSS custom properties on the page
+  (`stillPalette(theme)`), following the viewer's Display colours (owner
+  decision 4; wave 3): while they are Default, the Default palette with
+  the brighter red (`SPOTLIGHT_PALETTE_TWEAK`, `{ 1: '#c43c3c' }`) on the
+  near-black well; with a chosen theme, the plain palette (a theme sets
+  only the background and the font colour, `applyViewer`) on the theme's
+  background in its font colour, so a still shows the red the viewer
+  showed. The wall reads the kept host's theme when the viewer is left.
 - **Chips** (`chipPatch(f, name | null, names)` in `share/spotlights.ts`):
   All off brings back the remembered set (or every name); a name while
   All is on shows only that name; the last name off turns All back on and
@@ -91,7 +96,12 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
   `ReelSource`, the latest change wins (a sequence number, no debounce),
   and the chosen card stays chosen while it still passes, else the first.
   The filter changes only on the wall (the viewer covers the row), so ADR
-  0110's "rebuild while playing" becomes "rebuild the wall".
+  0110's "rebuild while playing" becomes "rebuild the wall". While a
+  rebuild is in flight the cards on screen are the old reel's: Enter, P,
+  a double click or a tap waits for the new wall and plays that
+  spotlight there (P: the new first one), or nothing if it no longer
+  passes (wave 3; before, the viewer played the old reel and the wall
+  chose a card by an index of it on leaving).
 - **Keys on the wall**: arrows in 2D (columns read from the grid's
   computed template after the box has settled), PgUp / PgDn, Home / End,
   Enter or Space plays the chosen card, P plays all, F (or Tab, or ↑ from
@@ -189,11 +199,28 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
   `setTimeout(0)` check after parking, disposes it when the frame leaves
   the document (a pop with the hold, or a whole start-page swap). A
   backward seek still rebuilds the player App (engine behaviour); the
-  chunk load and the host are saved.
+  chunk load and the host are saved. The host being made (the embed and
+  the chunk load) is module state too (`creating`): a viewer opened
+  before the first one's host was ready (it was left at once) waits for
+  it and adopts it, instead of asking the shell for a second player,
+  which it refuses (wave 3).
 - **Follow loop**: engine events plus a rAF loop while playing update the
   countdown, the played part and the playhead by direct style writes;
   Preact re-renders only when the index, play state, speed, whole second
-  or end state change.
+  or end state change. The writes are transforms on their own layers
+  (`will-change: transform`): the played part is its full width scaled
+  from the left, the playhead a translate in px of the track's observed
+  width, the countdown a scale from the middle, and the track is written
+  only when the playhead moves by a device pixel (wave 3: width / left
+  percentages laid out and repainted the track every frame, 48–54 fps in
+  headed Firefox).
+- **Touch** (coarse pointer): the control row's buttons 40 px tall; in a
+  page under 600 px the transport buttons and the speed arrows take 40 px
+  wide and give way to 32 px (flex) where the row has no room, Display is
+  a 40 px icon; the speed well 40 px tall; the track 50 px with 32 px
+  kind markers; Display's colour rows 40 px. Under a 300 px page To the
+  start goes (Home and the track still get there), so every other
+  control keeps 32 px at 320 px.
 
 ### Tests (46-C)
 
@@ -233,6 +260,11 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
   `spotlights` chunk 1.73 kB, `spotlight-reel` 2.42 kB, `spotlight-mode`
   4.69 kB JS plus 1.54 kB CSS (the old card's, until wave 3). 46-A against
   its base: chrome JS +4.34 kB, chrome CSS +1.16 kB.
+- The viewer playing (wave 3, after the transforms; dev server, headless,
+  1440×900, the demo backup, 5 s of rAF): Chromium 62.3 fps, p95 17.0 ms,
+  3 frames over 20 ms; Firefox 62.5 fps, p95 17.0 ms, 2 over 20 ms. The
+  headed numbers that found the cost (Firefox 48–54 fps, p95 43–48 ms)
+  want a headed re-run on the owner's machine.
 
 ## Consequences
 
@@ -248,9 +280,15 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
   icons as `IconDraw` (duplicated in the wall and the viewer), `cardDate`
   and `longDate` (fixed English names), `wallSummary`, the plain
   transport button and the round glass play button, the colour swatch
-  radio group. `SPOTLIGHT_RED` (spotlight-mode) and
-  `SPOTLIGHT_PALETTE_TWEAK` (share/spotlights) hold the same colour; one
-  should import the other.
+  radio group. The red has one source: `SPOTLIGHT_RED` and
+  `SPOTLIGHT_PALETTE_TWEAK` in `share/spotlights.ts` (spotlight-mode
+  re-exports the first and sets the second).
+- Known gap (player core, stage 42's `PlayerHost.relayout`): the host
+  fits at least 60 columns (`MIN_VIEW_COLS`) into its slot, so on a
+  390 px phone the game text is about 8 px and does not wrap, and
+  Display's font sizes have no effect there. The fix belongs in the
+  player core (fit a bare or phone host to the phone minimums, and let a
+  Display size win over the column fit).
 
 ## Open questions for the owner
 
@@ -258,9 +296,7 @@ The stage ran as three packages: 46-A (the wall and the filter row), 46-B
    left free.*
 2. Hundreds of spotlights: group the wall by character or month, or one
    wall? *Built: one wall in reel order.*
-3. Should the card stills follow the viewer's Display theme? *Built: the
-   Default palette with the brighter red.*
-4. Prev at the first spotlight: the head's ‹ is disabled there (as the old
+3. Prev at the first spotlight: the head's ‹ is disabled there (as the old
    card); mockup B left it enabled (← restarts the first). *Built:
    disabled; the ← key still restarts.*
-5. The end card follows mockup A's title-card style, since B has none.
+4. The end card follows mockup A's title-card style, since B has none.

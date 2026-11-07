@@ -202,7 +202,7 @@ describe('viewer helpers', () => {
 // ------------------------------------------------------------ the viewer
 
 describe('SpotlightsViewer', () => {
-  function services(wall: FakeWall, made: PlayerHost[]): ChromeServices {
+  function services(wall: FakeWall, made: PlayerHost[], gate?: Promise<void>): ChromeServices {
     const settings = new SettingsStore({ factory: null, storage: null, win: null });
     void settings.load();
     const cells = new CellMetrics({ measure: () => ({ w: 10, h: 20, px: 15, ls: 0 }), loadFont: async () => {} });
@@ -214,6 +214,8 @@ describe('SpotlightsViewer', () => {
       version: '9.9.9',
       runs: async () => ({}) as unknown as RunLibrary,
       embedPlayer: async (slot: HTMLElement) => {
+        if (gate) await gate;
+        // The shell refuses a second player.
         if (made.some((h) => !h.isClosed)) return null;
         const h = newHost(slot, wall);
         made.push(h);
@@ -222,7 +224,7 @@ describe('SpotlightsViewer', () => {
     };
   }
 
-  async function mount(start = 0) {
+  async function mount(start = 0, o: { gate?: Promise<void> } = {}) {
     const wall = new FakeWall();
     const made: PlayerHost[] = [];
     const left: number[] = [];
@@ -253,7 +255,7 @@ describe('SpotlightsViewer', () => {
     });
     await act(async () => {
       render(
-        <ServicesCtx.Provider value={services(wall, made)}>
+        <ServicesCtx.Provider value={services(wall, made, o.gate)}>
           <FrameStack root={<Root />} active />
         </ServicesCtx.Provider>,
         document.body,
@@ -261,7 +263,7 @@ describe('SpotlightsViewer', () => {
     });
     await act(async () => ref.nav!.push(<Page />));
     // The embed and the reel module load asynchronously.
-    for (let n = 0; n < 50 && !document.querySelector('.wc-spv-slot .wc-player'); n++) await act(async () => void (await frame()));
+    for (let n = 0; n < 50 && !o.gate && !document.querySelector('.wc-spv-slot .wc-player'); n++) await act(async () => void (await frame()));
     await act(async () => {
       wall.advance(100);
       await frame();
@@ -389,5 +391,28 @@ describe('SpotlightsViewer', () => {
     await v.tick();
     expect(h.isClosed).toBe(true);
     expect(keptSpotlightsHost()).toBeNull();
+  });
+
+  it('a viewer opened while the first host is still being made adopts it, not a second player', async () => {
+    let ready!: () => void;
+    const gate = new Promise<void>((r) => (ready = r));
+    const v = await mount(0, { gate });
+    expect(v.made.length).toBe(0);
+    // Left before the host is ready, and a second card at once.
+    await v.show(false);
+    await v.show(true);
+    await act(async () => {
+      ready();
+      await frame();
+    });
+    for (let n = 0; n < 50 && !document.querySelector('.wc-spv-slot .wc-player'); n++) await v.tick(20);
+    expect(v.left).toEqual([]);
+    expect(v.made.length).toBe(1);
+    expect(document.querySelectorAll('.wc-spv-slot')).toHaveLength(1);
+    expect(v.host().el.isConnected).toBe(true);
+    expect(keptSpotlightsHost()).toBe(v.host());
+    await act(async () => v.nav().pop());
+    await v.tick();
+    expect(v.host().isClosed).toBe(true);
   });
 });

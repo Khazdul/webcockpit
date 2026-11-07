@@ -291,9 +291,9 @@ describe('start page', () => {
     expect(embedPlayer).not.toHaveBeenCalled();
     expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('Spotlights');
     expect(wall()?.querySelector('.wc-spw-empty')?.textContent).toContain('No spotlights yet.');
-    // No data: no filter row, no Play all.
+    // No data: no filter row; Play all disabled.
     expect(wall()?.querySelector('.wc-spw-head')).toBeNull();
-    expect(wall()?.querySelector('[data-btn="PLAY"]')).toBeNull();
+    expect(wall()?.querySelector('[data-btn="PLAY"]')?.getAttribute('aria-disabled')).toBe('true');
     // A bare modifier is not a key; Esc goes back to the menu.
     await key('Shift');
     expect(wall()).not.toBeNull();

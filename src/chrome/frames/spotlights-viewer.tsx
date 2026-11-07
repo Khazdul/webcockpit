@@ -166,6 +166,14 @@ interface Kept {
 /** The parked host of the open Spotlights page (one at a time: the shell refuses a second player). */
 let kept: Kept | null = null;
 
+/**
+ * The host being made (the embed and the chunk load), settled once it is
+ * `kept` (or failed). A viewer opened meanwhile (the first one left before
+ * its host was ready) waits for it and adopts it instead of asking the
+ * shell for a second player, which it would refuse.
+ */
+let creating: Promise<void> | null = null;
+
 function disposeKept(): void {
   const k = kept;
   kept = null;
@@ -356,6 +364,10 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
       setK(kk);
     };
     void (async () => {
+      while (creating) {
+        await creating;
+        if (dead) return;
+      }
       const well = wellRef.current;
       if (!well) return;
       const { reel, start } = props.current;
@@ -375,6 +387,9 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
       slot.className = 'wc-spv-slot';
       well.append(slot);
       let host: PlayerHost | null = null;
+      let made!: () => void;
+      const making = new Promise<void>((r) => (made = r));
+      creating = making;
       try {
         const [h, mod] = await Promise.all([
           services.embedPlayer ? services.embedPlayer(slot) : Promise.resolve(null),
@@ -403,6 +418,9 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
         if (dead) return;
         nav.flash('The spotlight could not be played.', 'fail');
         props.current.onLeave(start);
+      } finally {
+        if (creating === making) creating = null;
+        made();
       }
     })();
     return () => {
@@ -423,13 +441,15 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
       if (k.host.isClosed) return;
       const eng = k.host.engine;
       if (!eng) return;
-      // The countdown: drains from both sides to the moment (gone after it).
+      // The countdown: drains from both sides to the moment (gone after
+      // it). A scale on its own layer: no layout or paint per frame.
       const left = k.reel.countdown();
       const cd = cdRef.current;
       if (cd) {
-        cd.hidden = !(left > 0);
-        const pct = `${(((1 - left) / 2) * 100).toFixed(2)}%`;
-        if (cd.style.left !== pct) cd.style.left = cd.style.right = pct;
+        const off = !(left > 0);
+        if (cd.hidden !== off) cd.hidden = off;
+        const t = `scaleX(${Math.max(0, Math.min(1, left)).toFixed(3)})`;
+        if (!off && cd.style.transform !== t) cd.style.transform = t;
       }
       trackDraw.current();
       syncBg();
@@ -556,18 +576,27 @@ function Track(p: { k: Kept | null; draw: { current: () => void } }): VNode {
     return () => ro.disconnect();
   }, []);
 
-  // The played part and the playhead follow the engine (or the drag) without a render.
-  let lastPct = '';
+  // The played part and the playhead follow the engine (or the drag)
+  // without a render: transforms on their own layers (a scale and a
+  // move, so no layout or paint per frame), written only when the
+  // playhead moves by a device pixel.
+  const last = useRef({ px: -1, w: -1 });
   p.draw.current = () => {
     const e = p.k?.host.engine;
     if (!e || !done.current || !head.current) return;
     const pos = drag.current ? drag.current.ms : e.position;
-    const pct = `${(e.duration > 0 ? Math.max(0, Math.min(1, pos / e.duration)) * 100 : 0).toFixed(3)}%`;
-    if (pct === lastPct) return;
-    lastPct = pct;
-    done.current.style.width = pct;
-    head.current.style.left = pct;
+    const f = e.duration > 0 ? Math.max(0, Math.min(1, pos / e.duration)) : 0;
+    const dpr = el.current?.ownerDocument.defaultView?.devicePixelRatio || 1;
+    const px = Math.round(f * w * dpr) / dpr;
+    if (px === last.current.px && w === last.current.w) return;
+    last.current = { px, w };
+    done.current.style.transform = `scaleX(${w > 0 ? (px / w).toFixed(5) : 0})`;
+    head.current.style.transform = `translateX(${px}px)`;
   };
+  // A new width (and the first one): draw again, also while paused.
+  useLayoutEffect(() => {
+    p.draw.current();
+  }, [w]);
 
   const at = (clientX: number): number => {
     const r = line.current?.getBoundingClientRect();

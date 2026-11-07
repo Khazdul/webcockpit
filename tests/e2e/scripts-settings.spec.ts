@@ -404,3 +404,52 @@ test('the letters N I M E X R D press the buttons, and none fires while a field 
   await expect(startFrame(page)).toContainText('Script Manual');
   expect(errors).toEqual([]);
 });
+
+test('narrow: the panel shows exactly while the keys are on it; a double click on a switch only flips it', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const f = await scriptsFromStart(page);
+  const scr = f.locator('.wc-scr');
+  const idx = f.locator('.wc-scr-idx');
+  const panel = f.locator('.wc-scr-panel');
+  // Wide: a click on a setting puts the keys there; narrowing then shows that panel, not the index.
+  await row(f, 'mercenaries').locator('.wc-scr-name').click();
+  await tile(f, 'warn').locator('.wc-scr-k').click();
+  await expect(curTile(f)).toHaveAttribute('data-set', 'warn');
+  await page.setViewportSize({ width: 560, height: 800 });
+  await expect(scr).toHaveAttribute('data-w', 'narrow');
+  await expect(panel).toBeVisible();
+  await expect(idx).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(idx).toBeVisible();
+  await expect(f.locator('.wc-scr-row.is-cur')).toHaveAttribute('data-name', 'mercenaries');
+
+  // X from the index: the dialog, then the panel on Export; Esc the index again, and ↑ walks it.
+  await page.keyboard.press('x');
+  await expect(page.locator('.wc-lk-dialog[data-dlg="export"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-lk-dialog')).toHaveCount(0);
+  await expect(panel).toBeVisible();
+  await expect(kbButton(f)).toHaveAttribute('data-btn', 'EXPORT');
+  await page.keyboard.press('Escape');
+  await expect(idx).toBeVisible();
+  await expect(panel).toBeHidden();
+  await page.keyboard.press('ArrowUp');
+  await expect(f.locator('.wc-scr-row.is-cur')).toHaveCount(1);
+  await expect(f.locator('.wc-scr-row.is-cur')).not.toHaveAttribute('data-name', 'mercenaries');
+
+  // Wide again: a double click on a row's switch flips it twice and opens no editor.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(scr).toHaveAttribute('data-w', 'wide');
+  const sw = row(f, 'mercenaries').locator('.wc-scr-tog [role="switch"]');
+  const was = (await sw.getAttribute('aria-checked'))!;
+  await sw.dblclick();
+  await expect(sw).toHaveAttribute('aria-checked', was);
+  await page.waitForTimeout(600);
+  await expect(page.locator('.wc-sed')).toHaveCount(0);
+  await expect(scr).toBeVisible();
+  // A double click on the name still opens the editor.
+  await row(f, 'mercenaries').locator('.wc-scr-name').dblclick();
+  await expect(page.locator('.wc-frame:not([hidden]) > .wc-sed')).toHaveAttribute('data-script', 'mercenaries');
+  expect(errors).toEqual([]);
+});
