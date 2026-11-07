@@ -15,7 +15,9 @@
 //      [▶ Play all]  5 spotlights · 01:12                 flash
 //
 // The card's still is the last visible lines before the moment, in the
-// Default palette with the brighter red (`SPOTLIGHT_PALETTE_TWEAK`). The
+// Default palette with the brighter red (`SPOTLIGHT_PALETTE_TWEAK`) while
+// the viewer's Display colours are Default, else in that theme's
+// background and font colour with the plain palette (`stillPalette`). The
 // chosen card (`.is-on`) brightens; with the keyboard in the filter row it
 // stays chosen but dimmer (`.is-idle`).
 //
@@ -66,6 +68,7 @@ import {
   chipsOn,
 } from '../../share/spotlights';
 import { DOS_PALETTE } from '../../theme/presets';
+import { type ViewerTheme, themeColors } from '../../player/viewer';
 import { colorToCss } from '../../ui/palette';
 import { useServices, useSettings } from '../kit/hooks';
 import {
@@ -87,7 +90,7 @@ import {
   useGridCursor,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
-import { SpotlightsViewer } from './spotlights-viewer';
+import { SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
 import './spotlights.css';
 
 /** The empty states' texts (Inv §7.6; the filtered one ADR 0110). */
@@ -160,15 +163,41 @@ const KIND_ICON: Readonly<Record<SpotlightKind, IconDraw>> = {
   achievement: { draw: <path d={KIND_PATH.achievement} />, box: 24 },
 };
 
+const STILL_PALETTES = new Map<ViewerTheme, Record<string, string>>();
+
 /**
- * The stills' palette (the CSS custom properties `--spw-a0` … `--spw-a15`
- * on the page): the Default (DOS) palette with the brighter red.
+ * The stills' colours for the viewer's Display theme (the CSS custom
+ * properties `--spw-a0` … `--spw-a15`, `--spw-fg`, `--spw-bg`, `--spw-bold`
+ * on the page). Default: the Default (DOS) palette with the brighter red
+ * on the page's near-black well (owner decision 4). A chosen theme keeps
+ * its own red, as the viewer draws it: the plain palette (the theme sets
+ * only the background and the font colour, `applyViewer`) on the theme's
+ * background, in its font colour.
  */
-const STILL_PALETTE: Record<string, string> = (() => {
+export function stillPalette(theme: ViewerTheme): Record<string, string> {
+  const had = STILL_PALETTES.get(theme);
+  if (had) return had;
+  const colors = themeColors(theme);
   const out: Record<string, string> = {};
-  DOS_PALETTE.forEach((c, i) => (out[`--spw-a${i}`] = SPOTLIGHT_PALETTE_TWEAK[i] ?? c));
+  DOS_PALETTE.forEach((c, i) => (out[`--spw-a${i}`] = (colors ? undefined : SPOTLIGHT_PALETTE_TWEAK[i]) ?? c));
+  if (colors) {
+    out['--spw-fg'] = colors.fg;
+    out['--spw-bg'] = colors.bg;
+    // Bold in the font colour brightens it (white), except on Paper's light ground (ink stays ink).
+    out['--spw-bold'] = theme === 'paper' ? colors.fg : '#ffffff';
+  }
+  STILL_PALETTES.set(theme, out);
   return out;
-})();
+}
+
+/** The Display theme the stills follow: the kept viewer host's (Default without one). */
+function viewerTheme(): ViewerTheme {
+  try {
+    return keptSpotlightsHost()?.viewerControls(true).theme() ?? 'default';
+  } catch {
+    return 'default';
+  }
+}
 
 /** The CSS colour of a still's run colour: the page's palette for 0–15 (bold brightens 0–7), else its own. */
 function runColor(c: Color, bold: boolean): string {
@@ -289,6 +318,8 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
   const [zone, setZone] = useState<'wall' | 'filter'>('wall');
   const [fsel, setFsel] = useState(0);
   const [view, setView] = useState<Viewing | null>(null);
+  /** The Display theme the stills are drawn in (read from the viewer's host when it is left). */
+  const [stillTheme, setStillTheme] = useState<ViewerTheme>(viewerTheme);
   const viewSeq = useRef(0);
   const gridRef = useRef<HTMLDivElement>(null);
   const periodRef = useRef<HTMLDivElement>(null);
@@ -393,6 +424,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
   const keepChosen = useRef<number | null>(null);
   const leave = useCallback((i: number): void => {
     keepChosen.current = i;
+    setStillTheme(viewerTheme());
     setView(null);
     setZone('wall');
   }, []);
@@ -490,7 +522,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
       class="wc-spw"
       winClass={'wc-spw-win' + (view ? ' is-viewing' : '')}
     >
-      <div class="wc-spw-wall" style={STILL_PALETTE} inert={view ? true : undefined}>
+      <div class="wc-spw-wall" style={stillPalette(stillTheme)} data-still-theme={stillTheme} inert={view ? true : undefined}>
         {!noData && (
           <BoxHead class={'wc-spw-head' + (zone === 'filter' ? ' is-cur' : '')}>
             <span class="wc-spw-cap" aria-hidden="true">

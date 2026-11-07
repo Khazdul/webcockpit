@@ -299,4 +299,26 @@ test('ANSI red is drawn brighter on the dark wells with the Default colours; a c
   await page.keyboard.press('Escape');
   await expect(pop).toHaveCount(0);
   await expect(viewer(page)).toBeVisible();
+  // Dark again, then back to the wall: the stills follow the viewer's theme (its own red, its background).
+  await page.keyboard.press('d');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowRight');
+  await expect(pop.locator('[data-theme="dark"]')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(viewer(page)).toHaveCount(0);
+  const still = cards(page).first().locator('.wc-spw-ln span').first();
+  await expect(still).toHaveCSS('color', 'rgb(128, 0, 0)');
+  await expect(cards(page).first().locator('.wc-spw-still')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  // Default again: the brighter red in the stills too.
+  await page.keyboard.press('Enter');
+  await expect(viewer(page)).toBeVisible();
+  await page.keyboard.press('d');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowLeft');
+  await expect(pop.locator('[data-theme="default"]')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(viewer(page)).toHaveCount(0);
+  await expect(still).toHaveCSS('color', RED);
 });
