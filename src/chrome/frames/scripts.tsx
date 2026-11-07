@@ -378,7 +378,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     const el =
       r === 'list'
         ? idxRef.current?.querySelector<HTMLElement>('.wc-scr-row.is-on')
-        : panelRef.current?.querySelector<HTMLElement>(`[data-pk="${dKey}"]`);
+        : panelRef.current?.querySelector<HTMLElement>(dKey === 'help' ? '[data-rule="help"]' : `[data-pk="${dKey}"]`);
     if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
   });
 
@@ -760,19 +760,22 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
 
   const help = cur && (
     <div class="wc-scr-helpwrap">
-      <div class="wc-lk-rule wc-scr-helprule" data-pk="help">
-        <Fold
-          open={helpOpen}
-          label="Help"
-          class={inPanel && dKey === 'help' ? 'is-cur' : undefined}
-          onToggle={() => {
-            setZone('panel');
-            setDkey('help');
-            setHelpOpen((o) => !o);
-          }}
-        />
-        <i class="wc-lk-hair" aria-hidden="true" />
-      </div>
+      <Rule
+        class="wc-scr-helprule"
+        id="help"
+        title={
+          <Fold
+            open={helpOpen}
+            label="Help"
+            class={inPanel && dKey === 'help' ? 'is-cur' : undefined}
+            onToggle={() => {
+              setZone('panel');
+              setDkey('help');
+              setHelpOpen((o) => !o);
+            }}
+          />
+        }
+      />
       {helpOpen && (
         <div class={'wc-lk-well wc-scr-help' + (width === 'wide' ? ' wc-lk-scroll' : '')} ref={helpRef}>
           {helpBody}

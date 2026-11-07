@@ -61,16 +61,20 @@
 
 /* ------------------------------------------------------------ head */
 
+/* The head wraps: in a narrow box the find gets a row of its own under
+ * Contents (and a sub-page's Back) instead of running out of the box. */
 .wc-lk-mhead {
   display: none;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
   margin-bottom: 10px;
   min-width: 0;
 }
 
-.wc-lk-mhead.has-find {
+.wc-lk-mhead.has-find,
+.wc-lk-mhead.has-before {
   display: flex;
 }
 

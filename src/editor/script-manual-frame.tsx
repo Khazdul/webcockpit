@@ -23,7 +23,7 @@
 // `.wc-lk-mfind input`, `.wc-search-count`).
 
 import type { ComponentChildren, VNode } from 'preact';
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useRef } from 'preact/hooks';
 import { Box, InlineBack, lookFrame, useLookPlace, useWindowChrome } from '../chrome/kit/look';
 import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
 import { type ManualCtl, LookManual, codeLine } from './look-manual';
@@ -80,23 +80,18 @@ export const ScriptManual = lookFrame(function ScriptManual({ section = 0 }: { s
   // non-empty find); an Esc it leaves goes back.
   useKeys((e, nk) => ctl.current?.key(e, nk) ?? false);
 
-  // A window's sub-page has its own small Back, at the left of the reader's head.
+  // A window's sub-page has its own small Back, first in the reader's head.
   const iback = place === 'window' && nav.depth() > 1;
-  const backRef = useRef<HTMLSpanElement>(null);
-  // The head makes room for the Back: its width, read once.
-  useLayoutEffect(() => {
-    const el = backRef.current;
-    const w = el?.offsetWidth ?? 0;
-    if (el && w > 0) el.parentElement?.style.setProperty('--wc-sman-iback-w', `${w}px`);
-  }, [iback]);
   return (
-    <Box size="large" title="Script Manual" onBack={() => nav.pop()} class={'wc-sman' + (iback ? ' has-iback' : '')}>
-      {iback && (
-        <span class="wc-sman-iback" ref={backRef}>
-          <InlineBack />
-        </span>
-      )}
+    <Box size="large" title="Script Manual" onBack={() => nav.pop()} class="wc-sman">
       <LookManual
+        before={
+          iback ? (
+            <span class="wc-sman-iback">
+              <InlineBack />
+            </span>
+          ) : undefined
+        }
         sections={scriptManualSections()}
         contents="own"
         find="head"

@@ -51,6 +51,7 @@ import {
   Dialog,
   GlassButton,
   LookFlash,
+  useLocalFlash,
   Seg,
   inTextField,
   letterAction,
@@ -60,7 +61,7 @@ import {
   useWindowChrome,
 } from '../../chrome/kit/look';
 import type { NavKey } from '../../chrome/kit/nav';
-import { type Flash, type FlashKind, type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../../chrome/kit/stack';
+import { type FlashKind, type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../../chrome/kit/stack';
 import { device } from '../../core/device';
 import { type EntryNode, addEntry, alignDoc, displayBody, editEntry, listEntries, parseProfile, removeEntry, serialize, storeBody } from '../../script/doc';
 import { displayKey } from '../../script/keys';
@@ -144,43 +145,6 @@ function revealField(el: HTMLElement): void {
   else if (r.bottom > b.bottom) sc.scrollTop += Math.min(r.bottom - b.bottom, r.top - b.top);
 }
 
-/**
- * The editor's own flash (1.5 s; 6 s for a failure), controlled through
- * the kit's `LookFlash`. A local helper: the kit's `useLocalFlash` has no
- * way to clear a flash or read the one showing, which the editor needs (a
- * flip clears it; an apply does not cover a flash still up).
- */
-function useEditorFlash(): { flash: Flash | null; show(text: string, kind?: FlashKind, ms?: number): void; clear(): void; showing(): boolean } {
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const st = useRef<{ seq: number; timer: ReturnType<typeof setTimeout> | null; on: Flash | null }>({ seq: 0, timer: null, on: null });
-  useEffect(
-    () => () => {
-      if (st.current.timer) clearTimeout(st.current.timer);
-    },
-    [],
-  );
-  const api = useRef({
-    show(text: string, kind: FlashKind = 'ok', ms = FLASH_MS): void {
-      const s = st.current;
-      if (s.timer) clearTimeout(s.timer);
-      s.on = { text, kind, seq: ++s.seq };
-      setFlash(s.on);
-      s.timer = setTimeout(() => {
-        s.on = null;
-        setFlash(null);
-      }, ms);
-    },
-    clear(): void {
-      const s = st.current;
-      if (s.timer) clearTimeout(s.timer);
-      s.on = null;
-      setFlash(null);
-    },
-    showing: (): boolean => st.current.on !== null,
-  }).current;
-  return { flash, ...api };
-}
-
 /** Pushes the profile editor for `host` onto the frame stack. */
 export function openProfileEditor(nav: Nav, host: EditorHost): void {
   nav.push(<ProfileEditor host={host} />);
@@ -234,7 +198,9 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const [sheet, setSheet] = useState(false);
   // The keyboard's entry in Editor's rail.
   const [railCur, setRailCur] = useState(0);
-  const flash = useEditorFlash();
+  // The editor's own flash (1.5 s by default; a flip clears it, an apply does not cover one still up).
+  const [flashNow, showFlash, flashCtl] = useLocalFlash();
+  const flash = { flash: flashNow, show: (text: string, kind?: FlashKind, ms = FLASH_MS) => showFlash(text, kind, ms), ...flashCtl };
 
   const rootRef = useRef<HTMLDivElement>(null);
   const patternRef = useRef<HTMLInputElement>(null);

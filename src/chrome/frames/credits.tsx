@@ -53,6 +53,7 @@ import {
   lookFrame,
   useBoxSettled,
   useReducedMotion,
+  useSwipe,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
 
@@ -136,61 +137,6 @@ export function posAt(l: BookLayout, s: number): BookPos {
 
 /** The position at chapter `k`'s first page. */
 export const posOfChapter = (k: number): BookPos => ({ ch: k, off: 0, lit: k });
-
-/**
- * Calls `turn(1)` for a swipe to the left and `turn(-1)` for one to the
- * right (longer than `CREDITS_SWIPE` and more sideways than up or down),
- * from touch events, or from pen and touch pointers where no touch events
- * come. Listeners, not JSX props: Preact binds `onTouchStart` only where
- * the element knows `ontouchstart` (not in a desktop browser).
- */
-function useSwipe(ref: { current: HTMLElement | null }, turn: (dir: 1 | -1) => void): void {
-  const latest = useRef(turn);
-  latest.current = turn;
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let at: { x: number; y: number; by: 'touch' | 'pointer' } | null = null;
-    const end = (x: number, y: number, by: 'touch' | 'pointer'): void => {
-      if (!at || at.by !== by) return;
-      const dx = x - at.x;
-      const dy = y - at.y;
-      at = null;
-      if (Math.abs(dx) > CREDITS_SWIPE && Math.abs(dx) > Math.abs(dy)) latest.current(dx < 0 ? 1 : -1);
-    };
-    const onTouchStart = (e: TouchEvent): void => {
-      const t = e.touches[0];
-      if (t && e.touches.length === 1) at = { x: t.clientX, y: t.clientY, by: 'touch' };
-      else at = null;
-    };
-    const onTouchEnd = (e: TouchEvent): void => {
-      const t = e.changedTouches[0];
-      if (t) end(t.clientX, t.clientY, 'touch');
-    };
-    const onPointerDown = (e: PointerEvent): void => {
-      if (e.pointerType !== 'mouse' && !at) at = { x: e.clientX, y: e.clientY, by: 'pointer' };
-    };
-    const onPointerUp = (e: PointerEvent): void => end(e.clientX, e.clientY, 'pointer');
-    const cancel = (): void => {
-      at = null;
-    };
-    const opts = { passive: true } as const;
-    el.addEventListener('touchstart', onTouchStart, opts);
-    el.addEventListener('touchend', onTouchEnd, opts);
-    el.addEventListener('touchcancel', cancel, opts);
-    el.addEventListener('pointerdown', onPointerDown, opts);
-    el.addEventListener('pointerup', onPointerUp, opts);
-    el.addEventListener('pointercancel', cancel, opts);
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', cancel);
-      el.removeEventListener('pointerdown', onPointerDown);
-      el.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('pointercancel', cancel);
-    };
-  }, []);
-}
 
 /**
  * Measures the book: how many pages each chapter fills (the column of its
@@ -520,7 +466,7 @@ function Book(p: { book: ChronicleBook }): VNode {
   });
 
   // Touch: a sideways swipe over 40 px turns.
-  useSwipe(bookRef, (d) => (d > 0 ? next() : prev()));
+  useSwipe(bookRef, (d) => (d > 0 ? next() : prev()), CREDITS_SWIPE);
 
   const one = layout ? layout.per === 1 : false;
   const left = spread * (layout?.per ?? 2) + 1;
@@ -528,23 +474,15 @@ function Book(p: { book: ChronicleBook }): VNode {
   return (
     <>
       <BoxHead class="wc-cred-head">
-        <div
-          class="wc-cred-pills"
-          onClickCapture={(e) => {
-            // A click on the lit pill goes back to its chapter's first page (Seg only reports changes).
-            const opt = (e.target as Element).closest?.('.wc-lk-opt');
-            if (opt?.getAttribute('aria-checked') === 'true') {
-              const k = book.chapters.findIndex((c) => c.name === opt.getAttribute('data-opt'));
-              if (k >= 0) goTo(posOfChapter(k));
-            }
-          }}
-        >
+        <div class="wc-cred-pills">
           <Seg
             kind="pills"
             label="Chapters"
             options={book.chapters.map((c, i) => ({ value: String(i), label: c.name, id: c.name }))}
             value={String(pos.lit)}
             onChange={(v) => goTo(posOfChapter(Number(v)))}
+            // A click on the lit pill goes back to its chapter's first page.
+            onReclick={(v) => goTo(posOfChapter(Number(v)))}
           />
         </div>
       </BoxHead>

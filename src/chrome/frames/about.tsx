@@ -413,23 +413,15 @@ export const AboutFrame = lookFrame(function AboutFrame(): VNode {
   return (
     <Box title="About" size="large" onBack={() => nav.pop()} class="wc-about" winClass="wc-about-win">
       <BoxHead class="wc-about-strip">
-        <div
-          class="wc-about-pills"
-          onClickCapture={(e) => {
-            // A tap on the lit pill goes back to its section's head (Seg only reports changes).
-            const opt = (e.target as Element).closest?.('.wc-lk-opt');
-            if (opt?.getAttribute('aria-checked') === 'true') {
-              const i = secs.findIndex((s) => s.id === opt.getAttribute('data-opt'));
-              if (i >= 0) jump(i);
-            }
-          }}
-        >
+        <div class="wc-about-pills">
           <Seg
             kind="pills"
             label="Contents"
             options={secs.map((s, i) => ({ value: s.id, label: rail[i]!.nav, letter: rail[i]!.letter, id: s.id }))}
             value={secs[cur]?.id ?? ''}
             onChange={(v) => jump(secs.findIndex((s) => s.id === v))}
+            // A tap on the lit pill goes back to its section's head.
+            onReclick={(v) => jump(secs.findIndex((s) => s.id === v))}
           />
         </div>
       </BoxHead>

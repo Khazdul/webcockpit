@@ -1,42 +1,10 @@
 /* The script manual's frame (stage 44c; script-manual-frame.tsx). The
- * reader is stage 42's (look-manual.css); this file only adjusts its head
- * for this page (round 7 manual A):
- *
- * - the head wraps, so on a narrow box (a phone) the find gets a row of
- *   its own under Contents instead of running out of the box;
- * - a window sub-page's small Back sits at the left of the head, in its
- *   row (Back, Contents, then the find). The frame sets
- *   `--wc-sman-iback-w` to the Back's measured width. */
-
-.wc-sman .wc-lk-mhead {
-  flex-wrap: wrap;
-}
+ * reader is stage 42's (look-manual.css): its head wraps and takes a
+ * window sub-page's small Back first in its row (`LookManual`'s `before`,
+ * folded into the kit in wave 3), so this page has nothing of its own to
+ * adjust but the Back's box. */
 
 .wc-sman-iback {
-  position: absolute;
-  z-index: 2;
-  top: 12px;
-  left: 16px;
   display: flex;
-}
-
-.wc-sman.has-iback .wc-lk-mhead {
-  min-height: 34px;
-}
-
-/* Wide: the find is the head's first item. */
-.wc-sman.has-iback .wc-lk-mfind {
-  margin-left: calc(var(--wc-sman-iback-w, 100px) + 12px);
-}
-
-/* Narrow (the reader's own 700 px, as its Contents button): Contents is
- * first, and the find may wrap under it at the full width. */
-@container wc-lkman (max-width: 700px) {
-  .wc-sman.has-iback .wc-lk-mtocbtn {
-    margin-left: calc(var(--wc-sman-iback-w, 100px) + 12px);
-  }
-
-  .wc-sman.has-iback .wc-lk-mfind {
-    margin-left: 0;
-  }
+  flex: none;
 }

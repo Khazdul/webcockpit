@@ -95,6 +95,11 @@ export interface LookManualProps {
   link?(text: string): number | null;
   /** The find query kept across opens. */
   memory?: FindMemory;
+  /**
+   * Drawn first in the head's row, before Contents and the find (a window
+   * sub-page's small Back); the head then always shows.
+   */
+  before?: ComponentChildren;
 }
 
 export interface ManualContentsProps {
@@ -1076,8 +1081,9 @@ export function LookManual(p: LookManualProps): VNode {
       class={cx('wc-lk-manual', own ? 'has-toc' : 'no-toc', tocOpen && 'is-toc-open', own && zone === 'toc' && 'is-toc-zone')}
       data-zone={own ? zone : 'text'}
     >
-      {(own || bar) && (
-        <div class={cx('wc-lk-mhead', bar && 'has-find')}>
+      {(own || bar || !!p.before) && (
+        <div class={cx('wc-lk-mhead', bar && 'has-find', p.before ? 'has-before' : false)}>
+          {p.before}
           {own && (
             <span class="wc-lk-mtocbtn">
               <GlassButton

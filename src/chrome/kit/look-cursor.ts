@@ -26,7 +26,7 @@
 //   the clicks above.
 
 import type { Ref } from 'preact';
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { NavKey } from './nav';
 
 export interface ListCursorOptions {
@@ -284,4 +284,68 @@ export function useButtonZone(o: ButtonZoneOptions): ButtonZone {
     return false;
   };
   return { zone: sel === null ? 'list' : 'buttons', sel, key, reset: () => go(null) };
+}
+
+// ------------------------------------------------------------ swipe
+
+/** A swipe's least sideways travel (px). */
+export const SWIPE_MIN = 40;
+
+/**
+ * Calls `turn(1)` for a swipe to the left and `turn(-1)` for one to the
+ * right (longer than `min` px and more sideways than up or down),
+ * from touch events, or from pen and touch pointers where no touch events
+ * come. Listeners, not JSX props: Preact binds `onTouchStart` only where
+ * the element knows `ontouchstart` (not in a desktop browser). The
+ * element is read once, at mount (stage 47's book, moved to the kit in
+ * wave 3).
+ */
+export function useSwipe(ref: { current: HTMLElement | null }, turn: (dir: 1 | -1) => void, min = SWIPE_MIN): void {
+  const latest = useRef(turn);
+  latest.current = turn;
+  const least = useRef(min);
+  least.current = min;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let at: { x: number; y: number; by: 'touch' | 'pointer' } | null = null;
+    const end = (x: number, y: number, by: 'touch' | 'pointer'): void => {
+      if (!at || at.by !== by) return;
+      const dx = x - at.x;
+      const dy = y - at.y;
+      at = null;
+      if (Math.abs(dx) > least.current && Math.abs(dx) > Math.abs(dy)) latest.current(dx < 0 ? 1 : -1);
+    };
+    const onTouchStart = (e: TouchEvent): void => {
+      const t = e.touches[0];
+      if (t && e.touches.length === 1) at = { x: t.clientX, y: t.clientY, by: 'touch' };
+      else at = null;
+    };
+    const onTouchEnd = (e: TouchEvent): void => {
+      const t = e.changedTouches[0];
+      if (t) end(t.clientX, t.clientY, 'touch');
+    };
+    const onPointerDown = (e: PointerEvent): void => {
+      if (e.pointerType !== 'mouse' && !at) at = { x: e.clientX, y: e.clientY, by: 'pointer' };
+    };
+    const onPointerUp = (e: PointerEvent): void => end(e.clientX, e.clientY, 'pointer');
+    const cancel = (): void => {
+      at = null;
+    };
+    const opts = { passive: true } as const;
+    el.addEventListener('touchstart', onTouchStart, opts);
+    el.addEventListener('touchend', onTouchEnd, opts);
+    el.addEventListener('touchcancel', cancel, opts);
+    el.addEventListener('pointerdown', onPointerDown, opts);
+    el.addEventListener('pointerup', onPointerUp, opts);
+    el.addEventListener('pointercancel', cancel, opts);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', cancel);
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointercancel', cancel);
+    };
+  }, []);
 }

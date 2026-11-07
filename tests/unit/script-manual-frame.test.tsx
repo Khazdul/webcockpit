@@ -230,7 +230,7 @@ describe('the script manual in the Scripts window', () => {
     // The window frame is the box: no hood or Back of the box's own.
     expect(box.classList.contains('wc-lk-inwin')).toBe(true);
     expect(box.querySelector(':scope > .wc-lk-hood')).toBeNull();
-    expect(box.classList.contains('has-iback')).toBe(true);
+    expect(box.querySelector('.wc-lk-mhead.has-before > .wc-sman-iback')).not.toBeNull();
     const back = box.querySelector<HTMLElement>('.wc-sman-iback .wc-lk-iback')!;
     expect(back.textContent).toContain('Back');
     expect(current(w.el)).toBe('tempTimer');

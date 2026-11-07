@@ -132,7 +132,13 @@ export type SegProps = {
   /** The keyboard's option (.is-sel). */
   selected?: number;
 } & (
-  | { multi?: false; value: string; onChange(v: string): void }
+  | {
+      multi?: false;
+      value: string;
+      onChange(v: string): void;
+      /** A click on the chosen option (which `onChange` does not report): a pill row's "back to its start". */
+      onReclick?(v: string): void;
+    }
   | { multi: true; values: readonly string[]; onChange(v: string, on: boolean): void }
 );
 
@@ -188,6 +194,7 @@ export function Seg(p: SegProps): VNode {
             if (o.disabled) return;
             if (p.multi) p.onChange(o.value, !on(o.value));
             else if (!on(o.value)) p.onChange(o.value);
+            else p.onReclick?.(o.value);
           }}
         >
           {o.icon && <IconOf icon={o.icon} />}
@@ -601,11 +608,16 @@ export function TableRow(p: {
 
 // ------------------------------------------------------------ text pieces
 
-/** A section heading with a hairline (and an optional right-hand button: Settings ─── Reset all). */
-export function Rule(p: { title: string; children?: ComponentChildren }): VNode {
+/**
+ * A section heading with a hairline (and an optional right-hand button:
+ * Settings ─── Reset all). A string title is the small-caps heading; a
+ * node is drawn as it is (a `Fold`'s head: Help ───). `id` names the
+ * rule as `data-rule`.
+ */
+export function Rule(p: { title: ComponentChildren; id?: string; class?: string; children?: ComponentChildren }): VNode {
   return (
-    <div class="wc-lk-rule">
-      <h3 class="wc-lk-sec">{p.title}</h3>
+    <div class={cx('wc-lk-rule', p.class)} data-rule={p.id}>
+      {typeof p.title === 'string' ? <h3 class="wc-lk-sec">{p.title}</h3> : p.title}
       <i class="wc-lk-hair" aria-hidden="true" />
       {p.children}
     </div>
@@ -718,23 +730,47 @@ function FlashLine(p: { class?: string | undefined; flash: Flash | null }): VNod
   );
 }
 
-/** A flash of the page's own (a dialog, a pane of a page): `[flash, show(text, kind, ms)]`. */
-export function useLocalFlash(): [Flash | null, (text: string, kind?: FlashKind, ms?: number) => void] {
+/** `useLocalFlash`'s third part: clear the flash now, or ask whether one shows (read at once, not at the next render). */
+export interface LocalFlashCtl {
+  clear(): void;
+  showing(): boolean;
+}
+
+/**
+ * A flash of the page's own (a dialog, a pane of a page):
+ * `[flash, show(text, kind, ms), { clear, showing }]`.
+ */
+export function useLocalFlash(): [Flash | null, (text: string, kind?: FlashKind, ms?: number) => void, LocalFlashCtl] {
   const [flash, setFlash] = useState<Flash | null>(null);
-  const seq = useRef(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const st = useRef<{ seq: number; timer: ReturnType<typeof setTimeout> | null; on: Flash | null }>({ seq: 0, timer: null, on: null });
   useEffect(
     () => () => {
-      if (timer.current) clearTimeout(timer.current);
+      if (st.current.timer) clearTimeout(st.current.timer);
     },
     [],
   );
-  const show = useRef((text: string, kind: FlashKind = 'ok', ms = FLASH_MS): void => {
-    if (timer.current) clearTimeout(timer.current);
-    setFlash({ text, kind, seq: ++seq.current });
-    timer.current = setTimeout(() => setFlash(null), ms);
+  const api = useRef({
+    show(text: string, kind: FlashKind = 'ok', ms = FLASH_MS): void {
+      const s = st.current;
+      if (s.timer) clearTimeout(s.timer);
+      s.on = { text, kind, seq: ++s.seq };
+      setFlash(s.on);
+      s.timer = setTimeout(() => {
+        s.on = null;
+        setFlash(null);
+      }, ms);
+    },
+    ctl: {
+      clear(): void {
+        const s = st.current;
+        if (s.timer) clearTimeout(s.timer);
+        s.on = null;
+        setFlash(null);
+      },
+      showing: (): boolean => st.current.on !== null,
+    } as LocalFlashCtl,
   }).current;
-  return [flash, show];
+  return [flash, api.show, api.ctl];
 }
 
 // ------------------------------------------------------------ the soft keyboard
