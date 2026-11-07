@@ -536,18 +536,29 @@ export function fontUrl(file: string): string {
  * preload but its fill face.
  */
 export function preloadFont(id: FontId, doc: Document = document): void {
-  for (const { file } of renderFaces(id)) {
-    if (!file) continue;
-    const href = fontUrl(file);
-    if (doc.head.querySelector(`link[rel="preload"][href="${href}"]`)) continue;
-    const link = doc.createElement('link');
-    link.rel = 'preload';
-    link.as = 'font';
-    link.type = 'font/woff2';
-    link.crossOrigin = 'anonymous';
-    link.href = href;
-    doc.head.appendChild(link);
-  }
+  for (const { file } of renderFaces(id)) if (file) preloadFile(file, doc);
+}
+
+/**
+ * Preloads the start page's own faces (Cinzel for its labels, Cormorant
+ * for the quote and the notes, ADR 0125): the first paint asks for them at
+ * once, so they download beside the scripts and the reveal does not wait
+ * for them afterwards (ADR 0083).
+ */
+export function preloadStartFaces(doc: Document = document): void {
+  for (const { file } of [TITLE_FACE, ...START_FACES]) preloadFile(file, doc);
+}
+
+function preloadFile(file: string, doc: Document): void {
+  const href = fontUrl(file);
+  if (doc.head.querySelector(`link[rel="preload"][href="${href}"]`)) return;
+  const link = doc.createElement('link');
+  link.rel = 'preload';
+  link.as = 'font';
+  link.type = 'font/woff2';
+  link.crossOrigin = 'anonymous';
+  link.href = href;
+  doc.head.appendChild(link);
 }
 
 /**

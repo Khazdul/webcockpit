@@ -1,35 +1,25 @@
 // Boot progress and the start page reveal (ADR 0083).
 //
-// index.html paints first (src/boot/first-paint.ts, inlined at build): the
-// start page banner where the app will draw it, a block-glyph bar below
-// it, and `window.__wcBoot`. The boot calls `bootStep` at its real steps
-// and `bootDone` when the first view is up. Every other entry point (the
+// index.html paints first (src/boot/first-paint.ts, inlined at build; ADR
+// 0083 and its 2026-11-07 addendum): the start page's sky for the current
+// game time and the wordmark exactly where the start page will show them,
+// a loading line in an empty panel where the menu will appear, and
+// `window.__wcBoot`. The boot calls `bootStep` at its real steps and
+// `bootDone` when the first view is up. Every other entry point (the
 // exported HTML replay, unit tests) has no first paint, so both are no-ops
 // there.
 //
 // The start page is held until the selected font's faces are loaded
 // (`gate`, with a long safety timeout for a stalled download), then the
-// first paint's layer goes and the start page fades in as one block,
-// once no font face is loading (`revealStart`). Only on the first boot;
-// returning to the start page later is instant.
-
-import type { StarAnim } from '../chrome/banner-data';
-
-/** The first paint's banner clock: the app's banner twinkles on from it. */
-export interface BootBanner {
-  anims: StarAnim[];
-  /** `performance.now()` when the first paint's twinkle started. */
-  t0: number;
-}
+// first paint's layer goes (the start page's identical sky and wordmark are
+// under it) and the menu, the quote, the almanac and the notices fade in
+// as one block, once no font face is loading (`revealStart`). Only on the
+// first boot; returning to the start page later is instant.
 
 /** The loader API defined by index.html. */
 export interface BootLoader {
   step(percent: number, label?: string): void;
   done(): void;
-  /** The banner the first paint drew (null once the app's banner has taken it). */
-  banner?: BootBanner | null;
-  /** Index into QUOTES of the quote the first paint laid the page out for. */
-  quote?: number;
 }
 
 declare global {
@@ -104,38 +94,18 @@ function waitFor(win: Window, find: () => HTMLElement | null, frames: number): P
   });
 }
 
-/** The first paint's banner clock, once (the start page's banner takes it; later banners start their own). */
-export function takeBootBanner(): BootBanner | null {
-  try {
-    const l = loader();
-    const b = l?.banner ?? null;
-    if (l) l.banner = null;
-    return b;
-  } catch {
-    return null;
-  }
-}
-
-/** Index of the quote the first paint laid the start page out for, or null. */
-export function bootQuote(): number | null {
-  const q = loader()?.quote;
-  return typeof q === 'number' && Number.isInteger(q) && q >= 0 ? q : null;
-}
-
 /**
  * Reveals the start page mounted in `mount`, which the caller hid with
  * `opacity: 0` before showing it: waits for the main frame to render and
  * for every font face its layout started (at most `fontMs`), then in one
- * task unhides it, hands over from the first paint (its layer goes:
- * `bootDone`) and fades the start page (sky, wordmark, almanac, notices
- * and the menu with its quote) in as one block, all with one start time;
- * a sub-page opened during the fade shows at once. Resolves when the fade has
- * started (it runs on). `prefers-reduced-motion`: at once, no fade.
- *
- * Since stage 41 (ADR 0125) the start page is no longer the cell grid the
- * first paint drew its pixel banner on, so the hand-over is a fade, not a
- * pixel-for-pixel swap; the first paint's redesign (stage 41d) makes the
- * two match again.
+ * task unhides it and hands over from the first paint (its layer goes:
+ * `bootDone`). The sky and the wordmark are the first paint's own pixels
+ * at the same place, so they show at once; the menu with its quote, the
+ * almanac and the notices fade in as one block, all with one start time
+ * (the first paint's loading panel fades out over them). Without a first
+ * paint (it failed) the sky and the wordmark fade in with them. A
+ * sub-page opened during the fade shows at once. Resolves when the fade
+ * has started (it runs on). `prefers-reduced-motion`: at once, no fade.
  *
  * The font wait: a face that is still loading hides all text of its style
  * (`font-display: block`), not only its own glyphs. The page's first
@@ -153,10 +123,13 @@ export async function revealStart(mount: HTMLElement, fontMs = FONT_GATE_MS): Pr
     await gate(fonts.ready, fontMs);
   }
   if (main && !reducedMotion(win)) {
-    // The sky, the scenery and the menu, not a sub-page opened meanwhile.
+    // What the first paint did not show, not a sub-page opened meanwhile.
+    const painted = !!doc.querySelector('#wc-first .wcf-sky');
     const parts = [
       ...mount.querySelectorAll<HTMLElement>(
-        '.wc-start > .wc-start-skyhost, .wc-start > .wc-start-vignette, .wc-start > .wc-start-scenery, .wc-start > .wc-start-pills',
+        painted
+          ? '.wc-start .wc-start-almanac, .wc-start > .wc-start-pills'
+          : '.wc-start > .wc-start-skyhost, .wc-start > .wc-start-scenery, .wc-start > .wc-start-pills',
       ),
       main,
     ].filter((el) => typeof el.animate === 'function');
