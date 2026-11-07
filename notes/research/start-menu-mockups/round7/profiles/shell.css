@@ -1,0 +1,75 @@
+/* Round 7 · profiles group · the host around the pages: the Profile list stand-in (round 6 #profilePanel
+   style), the tiny corner mark (layout A, the neutral default), modal dialogs, the in-game reopen spot. */
+:root { --box-top: 46px; }
+
+/* ---- the start stage steps back for a sub-page (list) and for a big page */
+#menuPanel.in, #quote.in, #almanac.in, #brand.in { transition: opacity calc(.4s * var(--ts)), transform calc(.6s * var(--ts)) var(--ease), filter calc(.45s * var(--ts)); }
+body.sub #menuPanel, body.pg #menuPanel { opacity: 0; transform: scale(.95) translateY(16px); filter: blur(6px); pointer-events: none; animation: none; }
+body.sub #quote, body.pg #quote, body.pg #almanac { opacity: 0; animation: none; pointer-events: none; }
+body.pg #stage > * { pointer-events: none; }
+body.pgv #stage { z-index: 5; }
+body.instant * { transition: none !important; }
+
+/* ---- normal-size boxes (the list, small pages): hidden until shown */
+.nbox { opacity: 0; visibility: hidden; pointer-events: none; transform: translate(-50%, 24px) scale(.96); filter: blur(4px);
+  transition: opacity calc(.45s * var(--ts)) calc(.1s * var(--ts)), transform calc(.6s * var(--ts)) calc(.1s * var(--ts)) var(--ease), filter calc(.45s * var(--ts)) calc(.1s * var(--ts)), visibility 0s calc(.6s * var(--ts)); }
+.nbox.shown { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, 0); filter: none; transition-delay: calc(.12s * var(--ts)), calc(.12s * var(--ts)), calc(.12s * var(--ts)), 0s; }
+.nbox.away { opacity: 0; transform: translate(-50%, -14px) scale(.97); filter: blur(5px); }
+.nbox.tall { bottom: auto; max-height: calc(100vh - clamp(150px, 26vh, 270px) - 22px); display: flex; }
+.nbox.tall > .win { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---- big boxes */
+.bbox { visibility: hidden; opacity: 0; }
+body.pgv .bbox.cur { visibility: visible; }
+
+/* ---- the tiny mark: where the wordmark lands (left of the hood, resting on the frame); click = Back */
+#mark { position: fixed; z-index: 6; left: calc(var(--box-m) + 12px); top: 4px; --wm-w: 112px; opacity: 0; pointer-events: none; }
+body.pg.landed #mark { pointer-events: auto; cursor: pointer; }
+#mark .wm-c { filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+
+/* ---- the Profile list stand-in (the real one is built by the list agent; same family as round 6) */
+#plist .win { padding-bottom: 12px; }
+.pl-rows { max-height: min(340px, calc(100vh - 420px)); min-height: 120px; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; padding: 2px; }
+.pl-rows .row { min-height: 46px; }
+.pl-name { font: 700 16.5px/1 var(--display); letter-spacing: .08em; }
+.pl-def { font: italic 500 14.5px/1 var(--serif); color: var(--c-faint); }
+.pl-sel { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font: 600 10px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--c-accent); }
+.pl-sel svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pl-btns { justify-content: center; margin: 16px 0 4px; gap: 8px; }
+.pl-foot { min-height: 22px; margin-top: 6px; text-align: center; }
+.pl-foot .flash { position: static; }
+@media (max-width: 600px) {
+  #brand.in { transition: transform calc(.6s * var(--ts)) var(--ease), opacity calc(.4s * var(--ts)); }
+  body.sub #brand { transform: scale(.7) translateY(-14px); }
+  .pl-rows { max-height: calc(100vh - 430px); }
+  .pl-btns { gap: 6px; }
+  .pl-btns .ibtn { padding: 0 9px; }
+}
+
+/* ---- modal dialogs (Apply changes?, Bind key, Held …): a small Lykta box over a dimmed page */
+.dlg-veil { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: radial-gradient(60% 60% at 50% 45%, rgba(8,6,4,.35), rgba(8,6,4,.62)); opacity: 0; transition: opacity calc(.25s * var(--ts)); }
+.dlg-veil.show { opacity: 1; }
+.wwin .dlg-veil, .dlg-veil.inbox { position: absolute; border-radius: 3px; }
+.dlg { width: min(460px, 100%); transform: translateY(10px) scale(.98); transition: transform calc(.35s * var(--ts)) var(--ease); }
+.dlg-veil.show .dlg { transform: none; }
+.dlg > .win { padding: 40px 24px 18px; text-align: center; --win-fill: rgba(16,12,10,.9); }
+.dlg .dlg-q { font: 600 21px/1.3 var(--serif); color: var(--c-text); margin: 4px 0 6px; }
+.dlg .dlg-p { font: italic 500 16.5px/1.4 var(--serif); color: var(--c-dim); margin: 0 0 4px; }
+.dlg .dlg-err { font: italic 500 16.5px/1.4 var(--serif); color: var(--c-danger); min-height: 23px; margin: 6px 0 0; }
+.dlg .btnrow { justify-content: center; margin-top: 18px; }
+.dlg .keycap { display: inline-flex; align-items: center; justify-content: center; min-width: 160px; height: 58px; padding: 0 22px; margin: 12px auto 2px; border-radius: 8px;
+  font: 500 15px/1 var(--mono); color: var(--c-dim); background: var(--well); border: 1px solid var(--well-edge); box-shadow: var(--well-in), 0 1px 0 var(--well-lip); }
+.dlg .keycap .pulse { width: 8px; height: 8px; border-radius: 50%; margin-right: 12px; background: var(--c-accent); animation: dlg-pulse calc(1.4s * var(--ts)) ease-in-out infinite; }
+@keyframes dlg-pulse { 50% { opacity: .25; } }
+.paper .dlg-veil, .dlg-veil.paperish { background: rgba(80,60,30,.22); }
+.paper .dlg > .win { --win-fill: rgba(250,245,232,.97); }
+
+/* ---- in-game: an invisible spot over the menu bar's Profile icon reopens the window */
+.reopen { position: absolute; top: 872px; width: 24px; height: 24px; margin-left: -12px; pointer-events: auto; cursor: pointer; border-radius: 4px; }
+.reopen:hover { box-shadow: 0 0 0 1px rgba(232,184,96,.6); }
+/* phone: a tall page box (a report) takes the room under a hidden wordmark */
+@media (max-width: 600px) {
+  body:has(.nbox.tall.shown) #brand { opacity: 0; }
+  .nbox.tall { top: 46px; max-height: calc(100vh - 52px); }
+}

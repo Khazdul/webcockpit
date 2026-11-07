@@ -1,0 +1,150 @@
+/* Round 7 · profiles · the Export editor and its input (exp.js). A "Panelen" (log | overview strip | panel, as
+   ADR 0115; the input is a dialog) · B "Verktygsraden" (a toolbar over a full-width log, the title and the
+   exports in the foot; the input opens inline in the log) · C "Tidslinjen" (the overview as a timeline across
+   the top, a floating selection chip, a drawer from the right for comment, title and export). */
+.exp { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; --cmt: #f0cc6a; --excl: #c46b5c; --sel: rgba(233,196,124,.11); --sel-bar: rgba(233,196,124,.75); }
+.exp [hidden] { display: none !important; }
+.exp-state { flex: 1; display: flex; align-items: center; justify-content: center; font: italic 500 19px/1.4 var(--serif); color: var(--c-dim); }
+.exp-state.bad { color: var(--c-danger); }
+
+/* ---- the log (game text stays monospace with its colours) */
+.exp-log { flex: 1; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; position: relative;
+  border-radius: 5px; background: rgba(6,5,4,.55); box-shadow: var(--well-in); border: 1px solid var(--well-edge); padding: 8px 0; user-select: none; outline: none; }
+.er { position: relative; display: flex; min-height: 21px; padding: 0 14px 0 26px; font: 400 13px/21px var(--mono); color: #cfc7b8; cursor: text; white-space: pre-wrap; word-break: break-word; }
+.er .tx { flex: 1; min-width: 0; max-width: 100ch; }
+.er::before { content: ""; position: absolute; left: 8px; top: 0; bottom: 0; width: 3px; border-radius: 1px; }
+.er.cur { background: rgba(255,214,160,.06); }
+.er.cur::before { background: rgba(255,207,143,.55); }
+.exp.z-panel .er.cur::before { background: rgba(255,207,143,.25); }
+.er.sel { background: var(--sel); }
+.er.sel::before { background: var(--sel-bar); }
+.er.sel.cur { background: rgba(233,196,124,.17); }
+.er.x .tx { color: #5d564c !important; }
+.er.x .tx span { color: inherit !important; }
+.er.x::after { content: ""; position: absolute; left: 14px; top: 0; bottom: 0; width: 4px; background: var(--excl); opacity: .85; }
+.er.out .tx { color: #9fb7c9; } .er.out .tx::before { content: "> "; color: #6f7f8a; }
+.er.sys .tx { color: #8a8478; font-style: italic; }
+.er.cm { padding-top: 3px; padding-bottom: 3px; }
+.er.cm .tx { color: var(--cmt); }
+.er.end .tx { color: var(--c-faint); text-align: center; font-family: var(--serif); font-style: italic; font-size: 15px; }
+.lc { color: #5fd7d7; } .lg { color: #87d75f; } .ly { color: #e8d070; } .lr { color: #e8796a; } .lb { color: #87afff; } .lw { color: #e6e1d6; } .lo { color: #ffa040; }
+.paper .exp-log { background: rgba(255,253,246,.85); }
+.paper .er { color: #2a2116; } .paper .lc { color: #0e6e72; } .paper .lg { color: #3a7a12; } .paper .ly { color: #8a6a00; } .paper .lr { color: #a8281c; } .paper .lb { color: #2a4f9a; }
+
+/* ---- the overview strip (A, B vertical; C horizontal timeline) */
+.exp-map { position: relative; flex: none; width: 16px; margin: 0 4px; border-radius: 3px; background: var(--well); box-shadow: var(--well-in); cursor: pointer; }
+.exp-map i { position: absolute; left: 2px; right: 2px; }
+.exp-map i.x { background: var(--excl); opacity: .85; }
+.exp-map i.c { height: 5px !important; background: var(--cmt); border-radius: 1px; }
+.exp-map i.l { left: -1px; right: -1px; height: 13px !important; margin-top: -4px; font: 700 9.5px/13px var(--display); text-align: center; font-style: normal; color: #1a120a; background: var(--c-accent); border-radius: 2px; }
+.exp-map .thumb { position: absolute; left: -2px; right: -2px; border-radius: 3px; border: 1px solid rgba(255,214,160,.55); background: rgba(255,214,160,.08); cursor: grab; }
+
+/* ---- panel (A) */
+.exp-a .exp-main { flex: 1; min-height: 0; display: flex; }
+.exp-panel { flex: 0 0 272px; margin-left: 22px; display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; padding: 2px 2px 4px; }
+.exp-sum .who { font: 700 22px/1 var(--display); letter-spacing: .08em; color: var(--c-head); }
+.exp-sum .who small { font: 600 10px/1 var(--display); letter-spacing: .22em; color: var(--c-dim); margin-left: 8px; text-transform: uppercase; }
+.exp-sum .ln { font: 500 16px/1.4 var(--serif); color: var(--c-dim); margin-top: 6px; }
+.exp-sum .ln b { color: var(--c-text); font-weight: 600; }
+.exp-panel .h-sec { margin: 16px 0 8px; }
+.exp-panel .btncol .ibtn { width: 100%; }
+.exp-panel .ibtn .sub { margin-left: auto; font: italic 500 13.5px/1 var(--serif); letter-spacing: 0; text-transform: none; color: var(--c-faint); }
+.exp-panel .ibtn.last::after { content: "last"; position: absolute; right: -2px; top: -7px; font: italic 500 12px/1 var(--serif); letter-spacing: .02em; color: var(--c-accent); background: rgba(14,11,9,.9); padding: 1px 5px; border-radius: 3px; }
+.exp-ttl { font: 400 12.5px/1.4 var(--mono); color: var(--c-text); word-break: break-all; margin: 0 0 8px; }
+.exp-ttl em { color: var(--c-faint); font-style: normal; }
+.exp-legend { margin-top: auto; padding-top: 14px; display: grid; grid-template-columns: 14px 1fr; gap: 5px 10px; align-items: center; font: italic 500 14.5px/1.2 var(--serif); color: var(--c-dim); }
+.exp-legend i { height: 13px; border-radius: 1px; }
+.exp-foot { display: flex; align-items: center; gap: 12px; min-height: 30px; padding-top: 10px; }
+.exp-foot .flash { position: static; flex: 1; text-align: center; }
+.exp-a .exp-ghost { visibility: hidden; }
+
+/* ---- B · toolbar */
+.exp-b .exp-bar { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; padding: 0 0 12px; margin-bottom: 12px; border-bottom: 1px solid var(--c-rule); }
+.exp-b .exp-who { font: 700 19px/1 var(--display); letter-spacing: .08em; color: var(--c-head); white-space: nowrap; }
+.exp-b .exp-who small { font: italic 500 15px/1 var(--serif); letter-spacing: .01em; color: var(--c-dim); margin-left: 8px; }
+.exp-b .exp-selhead { margin-left: auto; font: 600 10.5px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--c-dim); white-space: nowrap; }
+.exp-b .exp-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.exp-b .exp-main { flex: 1; min-height: 0; display: flex; }
+.exp-b .exp-foot2 { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--c-rule); }
+.exp-b .exp-file { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 360px; }
+.exp-b .exp-file .lbl { margin: 0; }
+.exp-b .exp-file .fn { font: 400 13px/1.3 var(--mono); color: var(--c-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; border-bottom: 1px dashed transparent; }
+.exp-b .exp-file .fn:hover { border-bottom-color: var(--c-rule); }
+.exp-b .exp-file .fn em { color: var(--c-faint); font-style: normal; }
+.exp-b .exp-file .field { height: 30px; font-size: 13px; max-width: 460px; }
+.exp-b .exp-file .hint { font: italic 500 14.5px/1.2 var(--serif); color: var(--c-faint); white-space: nowrap; }
+.exp-b .exp-outs { display: flex; gap: 8px; margin-left: auto; }
+.exp-b .ibtn.last { box-shadow: inset 0 1px 0 var(--glass-lip), inset 0 0 0 1px color-mix(in srgb, var(--c-accent) 40%, transparent), var(--glass-shadow); }
+.exp-b .exp-foot { padding-top: 6px; min-height: 24px; }
+
+/* ---- the input: comment composer (dialog in A, inline in B, drawer in C) */
+.exp-comp .field { font: 400 14px/1.5 var(--mono); }
+.exp-comp textarea.field { min-height: 76px; height: 76px; resize: none; }
+.exp-comp .cnt { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0 0; font: 400 11.5px/1.2 var(--mono); color: var(--c-faint); }
+.exp-comp .cnt.full { color: var(--c-danger); }
+.exp-comp .pv { margin-top: 10px; padding: 8px 12px; border-radius: 5px; background: rgba(6,5,4,.7); border: 1px solid var(--well-edge); font: 400 12px/1.55 var(--mono); color: var(--cmt); white-space: pre; overflow-x: auto; scrollbar-width: thin; min-height: 40px; }
+.exp-comp .pv.empty { color: var(--c-faint); font: italic 500 15.5px/1.4 var(--serif); }
+.exp-comp .hold { margin: 7px 0 0; font: italic 500 15px/1.3 var(--serif); color: var(--c-dim); }
+.exp-comp .file { margin: 10px 0 0; font: italic 500 15.5px/1.3 var(--serif); color: var(--c-dim); }
+.exp-comp .file b { font: 400 13px var(--mono); color: var(--c-text); font-style: normal; }
+.exp-comp .btnrow { justify-content: flex-end; margin-top: 14px; gap: 8px; }
+.dlg.exp-dlg { width: min(640px, 100%); }
+.dlg.exp-dlg > .win { text-align: left; padding: 40px 22px 16px; }
+.exp-b .exp-inline { margin: 4px 14px 8px 26px; padding: 14px 16px; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh), 0 0 0 1px rgba(240,204,106,.18); white-space: normal; cursor: default; }
+.exp-b .exp-inline .lbl { color: var(--c-head); }
+
+/* ---- C · timeline, chip, drawer */
+.exp-c .exp-top { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; margin-bottom: 12px; }
+.exp-c .exp-who { font: 700 19px/1 var(--display); letter-spacing: .08em; color: var(--c-head); white-space: nowrap; }
+.exp-c .exp-who small { font: italic 500 15px/1 var(--serif); letter-spacing: .01em; color: var(--c-dim); margin-left: 8px; }
+.exp-c .exp-top .sp { flex: 1; }
+.exp-c .exp-fn { font: 400 12.5px/1 var(--mono); color: var(--c-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; cursor: pointer; }
+.exp-c .exp-fn:hover { color: var(--c-text); }
+.exp-tl { position: relative; height: 46px; margin: 0 0 12px; border-radius: 5px; background: var(--well); box-shadow: var(--well-in); border: 1px solid var(--well-edge); cursor: pointer; user-select: none; }
+.exp-tl .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,214,160,.08); }
+.exp-tl .tick b { position: absolute; bottom: 3px; left: 4px; font: 400 10px/1 var(--mono); color: var(--c-faint); white-space: nowrap; }
+.exp-tl i { position: absolute; top: 6px; height: 18px; }
+.exp-tl i.x { background: var(--excl); opacity: .8; border-radius: 1px; min-width: 2px; }
+.exp-tl i.c { width: 9px !important; height: 9px; top: 10px; margin-left: -4px; background: var(--cmt); transform: rotate(45deg); border-radius: 1px; }
+.exp-tl i.l { top: 4px; width: 15px !important; height: 15px; margin-left: -7px; font: 700 10px/15px var(--display); font-style: normal; text-align: center; color: #1a120a; background: var(--c-accent); border-radius: 3px; }
+.exp-tl .win { position: absolute; top: -1px; bottom: -1px; border-radius: 4px; border: 1px solid rgba(255,214,160,.6); background: rgba(255,214,160,.07); cursor: grab; }
+.exp-c .exp-main { flex: 1; min-height: 0; display: flex; position: relative; }
+.exp-chip { position: absolute; z-index: 5; right: 22px; display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border-radius: 8px;
+  background: rgba(24,18,14,.92); border: 1px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-lip), 0 8px 24px rgba(0,0,0,.55); transition: top calc(.18s * var(--ts)) var(--ease); }
+.exp-chip .t { font: 600 10px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--c-dim); margin-right: 6px; white-space: nowrap; }
+.paper .exp-chip { background: rgba(252,248,238,.96); }
+.exp-drawer { position: absolute; z-index: 8; top: 0; right: 0; bottom: 0; width: min(420px, 100%); padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 6px; overflow: auto;
+  background: rgba(18,14,11,.97); border-left: 1px solid var(--c-rule); box-shadow: -18px 0 40px -10px rgba(0,0,0,.7); border-radius: 0 3px 3px 0;
+  transform: translateX(104%); opacity: 0; transition: transform calc(.35s * var(--ts)) var(--ease), opacity calc(.25s * var(--ts)); pointer-events: none; }
+.exp-drawer.open { transform: none; opacity: 1; pointer-events: auto; }
+.exp-drawer .h-page { margin: 0 0 8px; font-size: 16px; }
+.exp-drawer .x { position: absolute; right: 12px; top: 12px; }
+.exp-drawer .outs { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.exp-drawer .out { all: unset; cursor: pointer; display: grid; grid-template-columns: 26px 1fr auto; gap: 2px 12px; align-items: center; padding: 12px 14px; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh); color: var(--c-item); transition: color .3s; }
+.exp-drawer .out:hover, .exp-drawer .out:focus-visible { color: var(--c-on); }
+.exp-drawer .out svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; grid-row: span 2; }
+.exp-drawer .out b { font: 700 13px/1.1 var(--display); letter-spacing: .14em; text-transform: uppercase; }
+.exp-drawer .out span { font: italic 500 15px/1.2 var(--serif); color: var(--c-dim); grid-column: 2; }
+.exp-drawer .out em { grid-row: 1; grid-column: 3; font: italic 500 13px/1 var(--serif); color: var(--c-accent); }
+.paper .exp-drawer { background: rgba(250,245,232,.98); }
+
+/* ---- narrow (tablet portrait / split screen; History keeps Export off the phone) */
+@media (max-width: 900px) {
+  .exp-a .exp-main { flex-direction: column; }
+  .exp-a .exp-panel { order: -1; flex: none; margin: 0 0 10px; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 8px; overflow: visible; }
+  .exp-a .exp-panel .h-sec, .exp-a .exp-legend, .exp-a .exp-ttl, .exp-a .exp-ghost, .exp-a .ibtn .sub { display: none; }
+  .exp-a .exp-panel .btncol { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .exp-a .exp-panel .btncol .ibtn { width: auto; }
+  .exp-a .exp-sum { flex-basis: 100%; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .exp-a .exp-sum .ln { margin: 0; font-size: 15px; }
+  .exp-a .exp-map, .exp-b .exp-map { display: none; }
+  .exp-b .exp-selhead { margin-left: 0; flex-basis: 100%; }
+  .exp-c .exp-fn { display: none; }
+}
+@media (max-width: 600px) {
+  .er { padding-left: 20px; font-size: 12px; line-height: 19px; }
+  .er::before { left: 5px; } .er.x::after { left: 10px; }
+  .exp-b .exp-file { flex-basis: 100%; }
+  .exp-chip { right: 8px; }
+  .exp-chip .t { display: none; }
+}
