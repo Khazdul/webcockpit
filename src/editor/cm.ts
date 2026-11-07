@@ -13,6 +13,10 @@
 //   selection copy / cut the whole line (CodeMirror's line-wise copy).
 // - Alt+↑/↓ swap lines (defaultKeymap's moveLineUp/Down).
 // - Ctrl+F find and replace (search.ts; the frame routes its keys).
+// - Two looks (`BufferOptions.look`): `tui` (default; `theme()` and the TUI
+//   find panel at the bottom) and `lantern` (stage 42e, ADR 0127: the
+//   lantern theme of look-code.ts and the lantern find panel at the top),
+//   for the new-look pages (43, 44).
 //
 // Keys reach CodeMirror through `handleKey` (runScopeHandlers), not through
 // its own keydown listener: the chrome's frame stack routes every key at
@@ -41,6 +45,7 @@ import {
   lineNumbers,
   runScopeHandlers,
 } from '@codemirror/view';
+import { lookCodeTheme } from './look-code';
 import { searchExtension } from './search';
 import { type BraceScan, braceMatchAt, scanBraces, tokenizeLine } from './syntax';
 
@@ -70,8 +75,8 @@ export interface BufferOptions {
   onFocus: () => void;
   /**
    * The buffer's look (stage 42e, ADR 0127): `tui` today's editors,
-   * `lantern` the new-look pages (look-code.ts). Default `tui`. 42-0 stub:
-   * accepted, not used yet.
+   * `lantern` the new-look pages (look-code.ts: the theme, the `.wc-code`
+   * class on the editor, the lantern find panel at the top). Default `tui`.
    */
   look?: 'tui' | 'lantern';
 }
@@ -244,6 +249,7 @@ export function theme(): Extension {
 
 /** A fresh editor state (fresh undo history) over `opts.text`. */
 export function createBufferState(opts: BufferOptions): EditorState {
+  const lantern = opts.look === 'lantern';
   return EditorState.create({
     doc: opts.text,
     selection: EditorSelection.cursor(0),
@@ -258,7 +264,7 @@ export function createBufferState(opts: BufferOptions): EditorState {
       keymap.of([{ key: 'Backspace', run: pairDelete }, ...defaultKeymap, ...historyKeymap]),
       syntaxPlugin,
       statusPlugin(opts),
-      searchExtension({ onFocus: opts.onFocus }),
+      searchExtension(lantern ? { onFocus: opts.onFocus, look: 'lantern', top: true } : { onFocus: opts.onFocus }),
       EditorView.contentAttributes.of({
         spellcheck: 'false',
         autocorrect: 'off',
@@ -274,7 +280,7 @@ export function createBufferState(opts: BufferOptions): EditorState {
       EditorView.updateListener.of((u) => {
         if (u.geometryChanged || u.viewportChanged) reportScroll(u.view, opts);
       }),
-      theme(),
+      lantern ? lookCodeTheme() : theme(),
     ],
   });
 }

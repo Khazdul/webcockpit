@@ -1,0 +1,281 @@
+/* The lantern code look (stage 42e, ADR 0127): the colours of the code
+ * wells on the new-look pages (look-code.ts sets the structure), the
+ * token colours, the lint and match rules, and the lantern find panel
+ * (search.ts, `look: 'lantern'`). In the lazy editor chunk.
+ *
+ * Everything is keyed on `.wc-code` (the editor's class from
+ * `lookCodeTheme()`, the manual's example wells) and `.wc-lk-search` (the
+ * find panel), never on a page: the profile editor (43) and the script
+ * editor (44) share it. Dark by default; Paper under `[data-light]` (a
+ * window on the Paper background, the gallery's Paper preview). The start
+ * page is always dark.
+ *
+ * Code wells, the find panel and the manual are inner surfaces: solid or
+ * plain translucent fills, no backdrop-filter (stage 42 performance
+ * rules). */
+
+.wc-code,
+.wc-lk-search,
+.wc-lk-manual {
+  --lk-code-fs: 13.5px;
+  /* Whole pixels: the rows never drift by a sub-pixel. */
+  --lk-code-lh: 22px;
+  --lk-code-text: #d8d0c2;
+  --lk-code-bg: rgba(5, 4, 3, 0.84);
+  --lk-code-edge: rgba(255, 214, 160, 0.12);
+  --lk-code-in: inset 0 1px 3px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 226, 186, 0.14);
+  --lk-code-gutter: #5a5348;
+  --lk-code-gutter-on: #a8987f;
+  --lk-code-gutter-bg: #0b0908;
+  --lk-code-gutter-edge: rgba(255, 214, 160, 0.07);
+  --lk-code-line: rgba(255, 214, 160, 0.05);
+  --lk-code-line-edge: rgba(255, 207, 143, 0.3);
+  --lk-code-sel: rgba(255, 200, 130, 0.26);
+  --lk-code-caret: #ffd9a0;
+  --lk-code-match: rgba(255, 200, 110, 0.18);
+  --lk-code-match-edge: rgba(255, 200, 110, 0.25);
+  --lk-code-match-now: rgba(255, 200, 110, 0.42);
+  --lk-code-match-now-edge: rgba(255, 220, 160, 0.7);
+  --lk-code-brace: rgba(255, 214, 160, 0.45);
+  --lk-code-bad: #e0705a;
+  --lk-code-warn: #e9c47c;
+  --lk-code-thumb: var(--lk-scroll-thumb, rgba(255, 214, 160, 0.22));
+  /* Tokens (round 7 base: keyword, string, comment, number, name, operator). */
+  --lk-code-kw: #e6b874;
+  --lk-code-str: #a9c98e;
+  --lk-code-com: #6f6a5e;
+  --lk-code-num: #d99a6c;
+  --lk-code-fn: #8fcfd2;
+  --lk-code-op: #b5a58a;
+  --lk-code-var: #e8dcc6;
+  /* The find panel's own surface and its texts. */
+  --lk-find-bg: rgba(14, 11, 9, 0.95);
+  --lk-find-edge: rgba(255, 214, 160, 0.12);
+  --lk-find-sh: 0 10px 26px rgba(0, 0, 0, 0.6);
+  --lk-find-text: var(--lk-text, #eadcc3);
+  --lk-find-dim: var(--lk-dim, #9a8b76);
+  --lk-find-bad: var(--lk-danger, #e6a690);
+}
+
+[data-light] .wc-code,
+.wc-code[data-light],
+[data-light] .wc-lk-search,
+[data-light] .wc-lk-manual,
+.wc-lk-manual[data-light] {
+  --lk-code-text: #2a2116;
+  --lk-code-bg: rgba(255, 253, 246, 0.94);
+  --lk-code-edge: rgba(100, 76, 40, 0.28);
+  --lk-code-in: inset 0 1px 2px rgba(60, 40, 10, 0.14), 0 1px 0 rgba(255, 255, 255, 0.6);
+  --lk-code-gutter: #a8987c;
+  --lk-code-gutter-on: #4a3c2a;
+  --lk-code-gutter-bg: #f6f0e2;
+  --lk-code-gutter-edge: rgba(120, 90, 40, 0.12);
+  --lk-code-line: rgba(160, 120, 50, 0.07);
+  --lk-code-line-edge: rgba(160, 110, 40, 0.4);
+  --lk-code-sel: rgba(170, 120, 40, 0.25);
+  --lk-code-caret: #7a4a0a;
+  --lk-code-match: rgba(200, 140, 40, 0.18);
+  --lk-code-match-edge: rgba(160, 110, 40, 0.3);
+  --lk-code-match-now: rgba(200, 140, 40, 0.42);
+  --lk-code-match-now-edge: rgba(140, 90, 20, 0.6);
+  --lk-code-brace: rgba(120, 80, 30, 0.55);
+  --lk-code-bad: #b8341c;
+  --lk-code-warn: #8a5a0e;
+  --lk-code-thumb: var(--lk-scroll-thumb, rgba(100, 76, 40, 0.3));
+  --lk-code-kw: #8a4f00;
+  --lk-code-str: #3d6a1e;
+  --lk-code-com: #9a907c;
+  --lk-code-num: #a8461c;
+  --lk-code-fn: #0e6a72;
+  --lk-code-op: #6b5a44;
+  --lk-code-var: #2a2116;
+  --lk-find-bg: rgba(251, 246, 234, 0.97);
+  --lk-find-edge: rgba(100, 76, 40, 0.25);
+  --lk-find-sh: 0 8px 20px rgba(60, 40, 10, 0.2);
+  --lk-find-text: var(--lk-text, #2a2116);
+  --lk-find-dim: var(--lk-dim, #6b5a44);
+  --lk-find-bad: var(--lk-danger, #9a2e1c);
+}
+
+@media (max-width: 600px) {
+  .wc-code,
+  .wc-lk-search,
+  .wc-lk-manual {
+    --lk-code-fs: 12.5px;
+    --lk-code-lh: 20px;
+  }
+}
+
+/* ------------------------------------------------------------ tokens */
+
+/* tt++ (syntax.ts): commands, braces, `;`, variables, colour codes and escapes. */
+.wc-code .wc-syn-cmd { color: var(--lk-code-kw); }
+.wc-code .wc-syn-brace { color: var(--lk-code-op); }
+.wc-code .wc-syn-delim { color: var(--lk-code-op); }
+.wc-code .wc-syn-var { color: var(--lk-code-fn); }
+.wc-code .wc-syn-code { color: var(--lk-code-num); }
+.wc-code .wc-syn-comment { color: var(--lk-code-com); font-style: italic; }
+.wc-code .wc-syn-inert {
+  text-decoration: underline wavy var(--lk-code-warn);
+  text-underline-offset: 2px;
+}
+
+/* Lua (lua-cm.ts's highlight style; the manual's `codeLine`). */
+.wc-code .wc-lua-kw { color: var(--lk-code-kw); }
+.wc-code .wc-lua-str { color: var(--lk-code-str); }
+.wc-code .wc-lua-comment { color: var(--lk-code-com); font-style: italic; }
+.wc-code .wc-lua-num { color: var(--lk-code-num); }
+.wc-code .wc-lua-std { color: var(--lk-code-fn); }
+
+/* tt++ brace match (cm.ts): a fine lit ring, the text unchanged. */
+.wc-code .wc-brace-match,
+.wc-code .wc-brace-match > span {
+  color: inherit;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--lk-code-brace);
+  border-radius: 2px;
+}
+
+/* The selection (the editors keep the native one). */
+.wc-code.cm-editor .cm-content ::selection,
+.wc-code.cm-editor .cm-content::selection {
+  color: inherit;
+  background: var(--lk-code-sel);
+}
+
+/* The matches: outrank the TUI's `.wc-ped-buffer .cm-editor .cm-scroller` rules. */
+.wc-code.cm-editor .cm-scroller .cm-line .cm-searchMatch {
+  outline: none;
+  color: inherit;
+  background: var(--lk-code-match);
+  box-shadow: inset 0 0 0 1px var(--lk-code-match-edge);
+}
+
+.wc-code.cm-editor .cm-scroller .cm-line .cm-searchMatch-selected,
+.wc-code.cm-editor .cm-scroller .cm-line .cm-searchMatch-selected * {
+  color: inherit;
+  background: var(--lk-code-match-now);
+  box-shadow: inset 0 0 0 1px var(--lk-code-match-now-edge);
+}
+
+.wc-code .cm-scroller::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.wc-code .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--lk-code-thumb);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* ------------------------------------------------------------ find panel */
+
+/* `.wc-search` stays on the root (the frames' focus checks); its TUI rules
+ * (editor.css) are undone here. */
+.wc-search.wc-lk-search {
+  padding: 8px 10px 0 8px;
+  font: 500 15px/1.3 var(--lk-serif, Georgia, serif);
+  letter-spacing: normal;
+  white-space: normal;
+  color: var(--lk-find-text);
+  overflow: visible;
+}
+
+.wc-search.wc-lk-search.is-bottom {
+  padding: 0 10px 8px 8px;
+}
+
+.wc-lk-sin {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: var(--lk-find-bg);
+  box-shadow: 0 0 0 1px var(--lk-find-edge), var(--lk-find-sh);
+  container: wc-lk-find / inline-size;
+}
+
+.wc-lk-search.is-top .wc-lk-sin {
+  animation: wc-lk-find-drop calc(0.25s * var(--lk-ts, 1)) cubic-bezier(0.3, 0.9, 0.25, 1);
+}
+
+@keyframes wc-lk-find-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-lk-search.is-top .wc-lk-sin {
+    animation: wc-lk-find-fade 0.15s;
+  }
+}
+
+@keyframes wc-lk-find-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.wc-lk-srow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.wc-lk-slbl {
+  flex: none;
+  width: 62px;
+  font: 600 10.5px/1 var(--lk-display, Georgia, serif);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-find-dim);
+}
+
+.wc-lk-srow > .wc-lk-field {
+  flex: 1 1 160px;
+  min-width: 120px;
+  margin: 0;
+}
+
+.wc-lk-srow > .wc-lk-field input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  font-size: 13px;
+}
+
+.wc-lk-search .wc-search-count {
+  min-width: 74px;
+  font: italic 500 15px/1 var(--lk-serif, Georgia, serif);
+  color: var(--lk-find-dim);
+  white-space: nowrap;
+}
+
+.wc-lk-search .wc-search-count.is-bad {
+  color: var(--lk-find-bad);
+}
+
+.wc-lk-sbtns {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+
+@container wc-lk-find (max-width: 560px) {
+  .wc-lk-slbl {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .wc-lk-srow > .wc-lk-field input {
+    height: 40px;
+  }
+}
