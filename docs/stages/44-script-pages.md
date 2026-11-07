@@ -574,10 +574,10 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
 - [x] 44c: the script manual hosts stage 42's `LookManual` (contents with
       counts, links, highlighted examples, find in the head); checked
       against `manual-a.html`; F1 targets; e2e tests
-- [ ] 44d: Scripts window: one Lykta frame on every page, note per top frame, inline Back, close
+- [x] 44d: Scripts window: one Lykta frame on every page, note per top frame, inline Back, close
       request, bar mark; dark and Paper; small and large window
-- [ ] 44d: phone ESC → Options → Scripts end to end
-- [ ] 44d: remaining e2e/unit selector updates; ADR 0129; ADR 0121
+- [x] 44d: phone ESC → Options → Scripts end to end
+- [x] 44d: remaining e2e/unit selector updates; ADR 0129; ADR 0121
       addendum; spec §2.10; About facts listed for stage 47, README for
       wave 3
 - [ ] Performance checks (below), numbers in the ADR
