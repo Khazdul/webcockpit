@@ -486,6 +486,22 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
   };
   let ro: ResizeObserver | null = null;
 
+  // A device pixel ratio change without a CSS size change (a window moved
+  // between a 1× and a Retina screen): a `(resolution: Xdppx)` query for
+  // the current ratio fires once it no longer matches, then is re-armed.
+  let dprQuery: MediaQueryList | null = null;
+  const onDpr = (): void => {
+    watchDpr();
+    onResize();
+  };
+  function watchDpr(): void {
+    dprQuery?.removeEventListener?.('change', onDpr);
+    dprQuery = null;
+    if (disposed || typeof globalThis.matchMedia !== 'function') return;
+    dprQuery = globalThis.matchMedia(`(resolution: ${globalThis.devicePixelRatio || 1}dppx)`);
+    dprQuery.addEventListener?.('change', onDpr);
+  }
+
   /** Undoes everything the mount did (dispose, or a mount that failed half-way). */
   function teardown(): void {
     disposed = true;
@@ -494,6 +510,8 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     resizeTimer = null;
     ro?.disconnect();
     ro = null;
+    dprQuery?.removeEventListener?.('change', onDpr);
+    dprQuery = null;
     removeEventListener('resize', onResize);
     removeEventListener('pointermove', onPointer);
     doc.removeEventListener('visibilitychange', onVisibility);
@@ -529,6 +547,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     ro = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
     ro?.observe(host);
     addEventListener('resize', onResize);
+    watchDpr();
     start();
   } catch (e) {
     teardown();

@@ -133,4 +133,47 @@ describe('mountStartSky', () => {
     expect(observers.every((o) => o.disconnected)).toBe(true);
     expect(caf).toHaveBeenCalledWith(7);
   });
+
+  it('follows a device pixel ratio change that leaves the CSS size alone', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    try {
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeContext() as never);
+      const queries: { media: string; on: Set<() => void> }[] = [];
+      vi.stubGlobal('matchMedia', (media: string) => {
+        const q = { media, on: new Set<() => void>() };
+        queries.push(q);
+        return {
+          media,
+          matches: true,
+          addEventListener: (_: string, f: () => void) => q.on.add(f),
+          removeEventListener: (_: string, f: () => void) => q.on.delete(f),
+        };
+      });
+      vi.stubGlobal('devicePixelRatio', 1);
+      const h = host();
+      Object.defineProperty(h, 'clientWidth', { value: 800 });
+      Object.defineProperty(h, 'clientHeight', { value: 500 });
+      const s = mountStartSky(h, { params: {}, reducedMotion: true, quality: 'high' });
+      const canvas = h.querySelector('canvas')!;
+      expect(canvas.width).toBe(800);
+      const armed = (): { media: string; on: Set<() => void> }[] => queries.filter((q) => q.on.size > 0);
+      expect(armed().map((q) => q.media)).toEqual(['(resolution: 1dppx)']);
+      // to a Retina screen: the bodies canvas follows (the high tier caps the ratio at 1.5)
+      vi.stubGlobal('devicePixelRatio', 2);
+      for (const f of [...armed()[0]!.on]) f();
+      vi.advanceTimersByTime(200);
+      expect(canvas.width).toBe(1200);
+      expect(armed().map((q) => q.media)).toEqual(['(resolution: 2dppx)']);
+      // and back
+      vi.stubGlobal('devicePixelRatio', 1);
+      for (const f of [...armed()[0]!.on]) f();
+      vi.advanceTimersByTime(200);
+      expect(canvas.width).toBe(800);
+      expect(armed().map((q) => q.media)).toEqual(['(resolution: 1dppx)']);
+      s.dispose();
+      expect(armed()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
