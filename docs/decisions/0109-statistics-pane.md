@@ -129,3 +129,11 @@ script is removed (ADR 0111), so there is no STAT button question left.
 The ESC menu is gone on desktop and tablet (ADR 0112): there the pane is
 the only live Statistics view in play. The ESC frame (`LiveStatsFrame`)
 stays for the phone, which has no Statistics pane.
+
+## Addendum: History's Statistics is its own page (2026-11-07, ADR 0130)
+
+History → Stats no longer pushes `SessionStatsFrame`: stage 45's
+`HistoryStatsFrame` draws an archived session in History's large box with
+the same pure model (`buildStats`, `rateSeries`, the sort helpers). The
+pane and the phone's ESC frame keep `statsBody`, unchanged.
+`SessionStatsFrame` has no caller left (wave 3's sweep).

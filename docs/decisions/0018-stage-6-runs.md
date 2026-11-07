@@ -736,3 +736,17 @@ root is hidden (a parked embedded host). `openPlayer` /
 `PlayerHost.open` rejects an empty or unstored chain instead of opening an
 empty player. `embedPlayer(slot)` puts a player host in a page's own
 slot. Details: ADR 0127 "42f".
+
+## Addendum: History in the new look (2026-11-07, ADR 0130)
+
+Stage 45 moves History off the TUI grid into layout B's large box,
+direction "Tabell och kort": the session table beside a card for the
+chosen session, with the actions as glass buttons on the card and Backup /
+Restore in the foot; the box stops at 1180 px on a wide window. The data,
+the sort rules, the disabled rules, the flashes, the cursor rules (it
+follows its session; after a delete it keeps its index) and Y-or-cancel
+on Delete are unchanged. What changes: a row click selects and a double
+click, Enter or R opens the log player (a click opened it); ← / → change
+the pill; every action has a letter; Statistics opens in the same box;
+Rate and Delete are small boxes over the page; a failed open shows a box
+with the reason. Details: ADR 0130.

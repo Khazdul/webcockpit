@@ -277,3 +277,10 @@ takes the full width and the format toggle and Export share one row;
 margin taps select and extend, the comment composer stays above the soft
 keyboard, and the download works on Android Chrome. History's gate is
 removed by stage 45 in the same wave.
+
+## Addendum 2026-11-07 — History's Export gate removed (stage 45, ADR 0130)
+
+History's `Export: desktop only.` is gone: Export opens the Export editor
+on every device (its phone layout: the addendum above, ADR 0128 §43d).
+History itself takes a narrow form below 680 px of page (two-line rows, a
+sort list, the card under the chosen row; ADR 0130).
