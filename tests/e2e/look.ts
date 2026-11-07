@@ -32,7 +32,8 @@ export async function openStart(page: Page, query = ''): Promise<void> {
 export async function openKit(page: Page, section?: string): Promise<Locator> {
   await page.goto(section ? `/?kit=${encodeURIComponent(section)}` : '/?kit');
   const box = startTop(page).locator('.wc-lk-box.wc-kit');
-  await expect(box.locator('.wc-lk-hood-t')).toHaveText('Kit');
+  // The gallery's own hood (sections draw boxes of their own inside it).
+  await expect(box.locator(':scope > .wc-lk-hood > .wc-lk-hood-t')).toHaveText('Kit');
   if (section) await expect(box.locator(`.wc-lk-tab[data-tab="${section}"]`)).toHaveAttribute('aria-selected', 'true');
   return box;
 }
@@ -70,11 +71,106 @@ export async function reducedMotion(page: Page, on = true): Promise<void> {
 
 // ------------------------------------------------------------ 42a (box, layout B, places)
 
+/**
+ * Waits until no layout B morph runs on the start surface: `data-lk-morph`
+ * gone and the proxy landed (a loaded headless Firefox advances its
+ * animations only as fast as it paints, slower than the timers).
+ */
+export async function morphDone(page: Page): Promise<void> {
+  await expect(page.locator('.wc-start')).not.toHaveAttribute('data-lk-morph', /./, { timeout: 5000 });
+  await expect(page.locator('.wc-lk-morph')).toBeHidden({ timeout: 5000 });
+}
+
+/** Layout B's proxy (the empty iron frame that carries a morph). */
+export const morphProxy = (page: Page): Locator => page.locator('.wc-lk-morph');
+
+/**
+ * Opens one of the kit gallery's Box demos (`large`, `capped`, `tall`,
+ * `normal`, `swap`) from its Box section and returns the demo's box.
+ */
+export async function openBoxDemo(page: Page, id: string): Promise<Locator> {
+  await kitSection(page, 'box').locator(`[data-btn="${id}"]`).click();
+  const box = startTop(page).locator('.wc-lk-box.wc-kb-demo');
+  await expect(box).toBeAttached();
+  return box;
+}
+
+/** The demo pages' logs (`window.__lkBoxLog`, gallery/box.tsx): sizes from the mount, settled time, keys. */
+export async function boxLogs(page: Page): Promise<{ title: string; sizes: [number, number][]; settledAt: number | null; keys: number }[]> {
+  return page.evaluate(() => (window as unknown as { __lkBoxLog?: never[] }).__lkBoxLog ?? []);
+}
+
 // ------------------------------------------------------------ 42b (controls, widgets, icons, tokens)
+
+/**
+ * Opens the gallery's Controls section on a surface (`sky` over the start
+ * page's sky, `window` a dark window body, `paper` a Paper one) and returns
+ * the surface's element (`.wc-kitc-surface`).
+ */
+export async function openControls(page: Page, surface: 'sky' | 'window' | 'paper' = 'sky'): Promise<Locator> {
+  await page.goto(`/?kit=controls&surface=${surface}`);
+  const box = startTop(page).locator('.wc-lk-box.wc-kit');
+  await expect(box.locator('.wc-lk-tab[data-tab="controls"]')).toHaveAttribute('aria-selected', 'true');
+  const s = kitSection(page, 'controls').locator('.wc-kitc-surface');
+  await expect(s).toHaveAttribute('data-surface', surface);
+  return s;
+}
+
+/** A kit glass button by its `data-btn`. */
+export const glassButton = (scope: Page | Locator, id: string): Locator => scope.locator(`.wc-lk-btn[data-btn="${id}"]`);
+
+/** A kit field (`Field`, `TextArea`, `Select`, `Check`, `Toggle`) by its `data-field`. */
+export const kitField = (scope: Page | Locator, id: string): Locator => scope.locator(`[data-field="${id}"]`);
+
+/** A `Seg` (by its label) option by its `data-opt`. */
+export const segOption = (scope: Page | Locator, label: string, opt: string): Locator =>
+  scope.locator(`.wc-lk-seg[aria-label="${label}"] .wc-lk-opt[data-opt="${opt}"]`);
 
 // ------------------------------------------------------------ 42c (overlays, cursors, letters, the stack)
 
+/**
+ * The frames the start surface's stack draws below the top one: under an
+ * overlay (`data-under`) or held by a push or a pop (`data-held`). They
+ * keep the `hidden` attribute (so `startTop` stays the top frame only) and
+ * are inert.
+ */
+export const drawnBelow = (page: Page): Locator => page.locator('.wc-start .wc-frame:is([data-under], [data-held])');
+
+/** The top frame when it is an overlay frame (a dialog pushed with `{ overlay: true }`). */
+export const overlayTop = (page: Page): Locator => page.locator('.wc-start .wc-frame[data-overlay]:not([hidden])');
+
+/** A dialog's button by its id (`data-btn`). */
+export const dialogButton = (page: Page, dlg: string, id: string): Locator => dialog(page, dlg).locator(`.wc-lk-btn[data-btn="${id}"]`);
+
+/** The dialog button the keyboard is on (`.is-sel`), by its id, or null. */
+export async function dialogSel(page: Page, dlg: string): Promise<string | null> {
+  const sel = dialog(page, dlg).locator('.wc-lk-btn.is-sel');
+  return (await sel.count()) ? sel.first().getAttribute('data-btn') : null;
+}
+
+/** The kit gallery's Overlays section's readout of the last result. */
+export const kitOut = (page: Page): Locator => kitSection(page, 'overlays').locator('[data-kit-out]');
+
 // ------------------------------------------------------------ 42d (window frame, ESC menu host)
+
+/** Window `id`'s title in its hood (`.wc-win-t`). */
+export const winTitle = (page: Page, id: string): Locator => win(page, id).locator('.wc-win-hood .wc-win-t');
+
+/** Window `id`'s dim note after the title (`.wc-win-n`; absent without a note). */
+export const winNote = (page: Page, id: string): Locator => win(page, id).locator('.wc-win-hood .wc-win-n');
+
+/** Window `id`'s visible frame (the top of its stack). */
+export const winTop = (page: Page, id: string): Locator => win(page, id).locator('.wc-win-content .wc-frame:not([hidden])');
+
+/** Opens window `id` (`profile`, `scripts`) from the menu bar and waits for it to have the focus. */
+export async function openWin(page: Page, id: string): Promise<Locator> {
+  await page.locator(`.wc-mb[data-mb="${id}"]`).click();
+  await expect(win(page, id)).toHaveAttribute('data-focused', '');
+  return win(page, id);
+}
+
+/** The phone ESC menu's visible look frame (full screen, place `menu`). */
+export const menuLook = (page: Page): Locator => page.locator('.wc-overlay .wc-frame.wc-menu-look:not([hidden])');
 
 // ------------------------------------------------------------ 42e (code look, find panel, LookManual)
 
@@ -124,3 +220,44 @@ export async function openKitCode(
 }
 
 // ------------------------------------------------------------ 42f (player core)
+
+/** The player's Back (the run log player's; none in the HTML replay). */
+export const playerBack = (page: Page): Locator => page.locator('.wc-player-chrome .wc-pv-back');
+
+/** The player's clock readout (`<b>pos</b> / dur`). */
+export const playerClock = (page: Page): Locator => page.locator('.wc-player-chrome .wc-player-clock');
+
+/**
+ * A capture log of one run: an inbound line every `step` s from 0 to
+ * `secs` (gaps over 10 s would collapse, so the length plays as written),
+ * and the last line at exactly `secs`. `baseUs`: the run's start.
+ */
+export function longLogText(secs: number, step = 5, baseUs = Date.UTC(2026, 8, 27, 20, 0, 0) * 1000): string {
+  const ts = (s: number): string => String(baseUs + Math.round(s * 1e6)).padStart(16, '0');
+  let text = '';
+  let i = 0;
+  for (let s = 0; s < secs; s += step) text += `${ts(s)} Line ${++i}: the road runs on.\n`;
+  return text + `${ts(secs)} The end.\n`;
+}
+
+/**
+ * Opens the run log player (`__wc.shell.openPlayerChain`, as History's Run
+ * log: Back and `h:mm:ss`) on a log `secs` long, from the start page.
+ * Open the start page with `openStart` first: a player opened before its
+ * first show would be covered by it. Resolves to the shell's
+ * `PlayerOpenResult`.
+ */
+export async function openLongPlayer(page: Page, secs: number, character = 'Long'): Promise<{ ok: boolean; error?: string }> {
+  await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
+  const text = longLogText(secs);
+  return page.evaluate(
+    ([text, character]) => {
+      const w = window as unknown as {
+        __wc: { shell: { openPlayerChain(c: unknown[], e: unknown[], i: { character: string }): Promise<{ ok: boolean; error?: string }> } };
+      };
+      const meta = { runId: `${character}/1`, character, startedUs: Number(text.slice(0, 16)), endedUs: null, sealed: true, bytes: text.length, lines: 0 };
+      return w.__wc.shell.openPlayerChain([{ meta, text }], [], { character });
+    },
+    [text, character] as const,
+  );
+}

@@ -1,6 +1,6 @@
 // The lantern kit's shortcut letters (stage 41, ADR 0125; split out of
-// look.tsx in stage 42-0, ADR 0127). Package 42c owns this file: it adds
-// the rules for letters in and out of text fields.
+// look.tsx in stage 42-0, ADR 0127). Package 42c owns this file: the
+// rules for letters in and out of text fields (`letterAction`).
 //
 // A shortcut is the letter marked inside its label (`KeyLabel`: a fine lit
 // underline), never a letter at the row's end or a key-hint row (the
@@ -31,24 +31,24 @@ export function KeyLabel(p: { text: string; letter?: string | undefined; class?:
   ) as VNode;
 }
 
-/** Whether `t` is a text field (input, textarea, contenteditable). */
-function inTextField(t: EventTarget | null): boolean {
+/** Whether `t` is a text field (input, textarea, select, contenteditable): a letter is text there. */
+export function inTextField(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
   const tag = el?.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable === true;
 }
 
 /**
- * Runs the action of the key's shortcut letter in `map` (lower-case
- * letters) and returns true; false when the key is no letter of the map,
- * or when it was typed in a text field (the letter is text there).
- *
- * 42-0 stub: complete enough to code against; 42c owns the final rules.
+ * Runs the action of the key's shortcut letter in `map` and returns true;
+ * false when the key is no letter of the map, carries Ctrl / Alt / Meta,
+ * or was typed in a text field (the letter is text there; the page's own
+ * Ctrl+S / Ctrl+F reach its handler as before). Shift is allowed (Caps
+ * Lock, Shift+N = N). The map's keys are letters in either case.
  */
-export function letterAction(e: KeyboardEvent, map: Record<string, () => void>): boolean {
+export function letterAction(e: KeyboardEvent, map: Readonly<Record<string, () => void>>): boolean {
   if (inTextField(e.target)) return false;
   const l = letterOf(e);
-  const run = l ? map[l] : undefined;
+  const run = l ? (map[l] ?? map[l.toUpperCase()]) : undefined;
   if (!run) return false;
   run();
   return true;

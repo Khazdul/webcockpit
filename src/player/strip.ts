@@ -184,10 +184,17 @@ export function fitHints(cols: number, hints: ReadonlyArray<HeaderHint> = HINTS)
   return keep.map((h) => h.text);
 }
 
-/** `MM:SS` with unbounded minutes (`78:34`). */
-export function fmtClock(ms: number): string {
+/**
+ * A playback time. Without `hours` (the HTML replay): `MM:SS` with
+ * unbounded minutes (`78:34`). With `hours` (the run log player and the
+ * Spotlights viewer, ADR 0127): `h:mm:ss` from one hour (`1:18:34`),
+ * `MM:SS` below (`02:02`).
+ */
+export function fmtClock(ms: number, hours = false): string {
   const s = Math.max(0, Math.floor(ms / 1000));
-  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const p2 = (n: number): string => String(n).padStart(2, '0');
+  if (hours && s >= 3600) return `${Math.floor(s / 3600)}:${p2(Math.floor(s / 60) % 60)}:${p2(s % 60)}`;
+  return `${p2(Math.floor(s / 60))}:${p2(s % 60)}`;
 }
 
 /** `YYYY-MM-DD HH:MM`, local time. */

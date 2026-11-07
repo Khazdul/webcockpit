@@ -85,9 +85,10 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     { key: 'about', label: 'About', letter: 'a', icon: 'info', activate: () => nav.push(<AboutFrame />) },
   ];
   const [cursor, setCursor] = useMenuCursor(items, 'enter');
-  useKitGallery(nav);
+  const kit = useKitGallery(nav);
   useKeys((e, nk) => {
     if (nk === 'back') return true;
+    if (kit(e)) return true;
     const l = letterOf(e);
     const i = l ? items.findIndex((it) => it.letter === l) : -1;
     if (i >= 0) {
@@ -114,7 +115,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
           </ul>
           <LookFlash class="wc-sm-flash" />
         </Box>
-        <blockquote class={'wc-sm-quote' + (ink ? ' is-ink' : bright ? ' is-lit' : '')}>
+        <blockquote class={'wc-sm-quote wc-lk-fades' + (ink ? ' is-ink' : bright ? ' is-lit' : '')}>
           <p>{p.quote.text}</p>
           <span class="wc-sm-orn" aria-hidden="true" />
           <cite>{p.quote.by}</cite>
@@ -125,18 +126,31 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
 });
 
 // Dev only (stage 42, ADR 0127): `?kit` (or `?kit=<section>`) opens the kit
-// gallery over the menu after the first render, once per page load. A
-// normal build holds none of it: the condition folds to false and the
-// dynamic import goes with it; `VITE_KIT=1 npm run build` keeps it.
+// gallery over the menu after the first render, once per page load; with
+// `?kit` in the address, `k` on the menu opens it again (the benches and
+// the e2e specs measure the menu → large box morph with it). A normal
+// build holds none of it: the condition folds to false and the dynamic
+// import goes with it; `VITE_KIT=1 npm run build` keeps it.
 let kitOpened = false;
-function useKitGallery(nav: ReturnType<typeof useNav>): void {
+function useKitGallery(nav: ReturnType<typeof useNav>): (e: KeyboardEvent) => boolean {
+  const open = (section: string): void => {
+    void import('../kit/gallery').then((m) => nav.push(<m.KitGallery section={section || undefined} />));
+  };
   useEffect(() => {
     if (!(import.meta.env.DEV || import.meta.env.VITE_KIT)) return;
     const section = new URLSearchParams(location.search).get('kit');
     if (section === null || kitOpened) return;
     kitOpened = true;
-    void import('../kit/gallery').then((m) => nav.push(<m.KitGallery section={section || undefined} />));
+    open(section);
   }, []);
+  return (e) => {
+    if (!(import.meta.env.DEV || import.meta.env.VITE_KIT)) return false;
+    if (e.key !== 'k' || e.ctrlKey || e.altKey || e.metaKey) return false;
+    const section = new URLSearchParams(location.search).get('kit');
+    if (section === null) return false;
+    open(section);
+    return true;
+  };
 }
 
 function MenuRow(p: { item: StartItem; selected: boolean; active: boolean; onSelect: () => void }): VNode {

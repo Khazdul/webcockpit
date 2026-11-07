@@ -147,3 +147,19 @@ where the phone's ESC menu sits; the phone has no windows.
 Esc with nothing open opens the Exit popup everywhere the bar exists, not
 only in fullscreen (ADR 0112 addendum). Keyboard Lock is still asked for
 in fullscreen, so Chromium gives Esc to the page there.
+
+## Addendum (2026-11-07, stage 42d)
+
+The frame's look is replaced (ADR 0127 "42d"): one Lykta frame for every
+window and every sub-page in it (a 5 px iron band with riveted brackets, a
+centred hood with the title and a dim note, a small iron X, the opaque
+lamp-lit body; bronze on Paper). The cyan border and the one-cell title row
+are gone. The title is "Profile" with the profile's name as the note
+(no longer `Profile: <name>`), "Scripts"; a window's frames may set both
+with `useWindowChrome`. The geometry stays in whole cells (the same
+minimum, the default, `settings.windows`); inside it the frame is drawn in
+CSS px and the body is px: look frames fill it, old-look frames get the
+largest whole-cell grid that fits it, centred (at the default cell size
+the same `w - 2 × h - 2` cells as before). The resize bands lie over the
+band's outer edge instead of the margin cells. `ProfileRoot` moved to
+`src/chrome/frames/profile-window.tsx`.

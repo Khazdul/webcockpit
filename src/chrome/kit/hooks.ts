@@ -11,7 +11,14 @@ import type { CellMetrics, CellSize } from '../../theme/cells';
 import type { MapStore } from '../../map/store';
 import type { ScriptLibrary } from '../../scripts';
 import type { NoticeState, Notices } from '../../app/notices';
+import type { PlayerHost } from '../../app/player-host';
 import type { ScriptPaneInfo } from '../../layout/cockpit';
+
+/**
+ * How opening the run log player went (`ChromeServices.openPlayer`, stage
+ * 42f): `error` says why it did not open, in a sentence for the user.
+ */
+export type PlayerOpenResult = { ok: true } | { ok: false; error: string };
 
 /** The script panes on screen (ADR 0053), for Options → Panes. */
 export interface ScriptPaneList {
@@ -34,12 +41,25 @@ export interface ChromeServices {
   /** The run library (History, backups; ADR 0018), opened on first use. */
   runs: () => Promise<RunLibrary>;
   /**
-   * Opens the log player on `session` (History → RUN LOG, ADR 0018). The
-   * shell hides the start page (its frame stack intact) and shows it again
-   * with `show({ keep: true })` when the player closes. Absent: History
-   * reports that the player is not available.
+   * Opens the log player on `session` (History → RUN LOG, ADR 0018), with
+   * Back at the top left and times as `h:mm:ss` (ADR 0127). The shell
+   * hides the start page (its frame stack intact) and shows it again with
+   * `show({ keep: true })` when the player closes. Resolves once the player
+   * shows, or with the reason it could not open (the logs are not stored,
+   * cannot be read, another player is open). Absent: History reports that
+   * the player is not available.
    */
-  openPlayer?: (session: Session) => void;
+  openPlayer?: (session: Session) => Promise<PlayerOpenResult>;
+  /**
+   * A player host mounted in `slot` (ADR 0127; the Spotlights viewer,
+   * stage 46): it fills the slot and follows its size, and the start page
+   * stays shown. The caller opens what it plays (`host.open` /
+   * `openChain`, e.g. with `view: { bare: true, hours: true }`). The
+   * shell tracks it as its `playerHost` and refuses a second player (null
+   * then, or when the player cannot load); the host's `close()` /
+   * `dispose()` hand it back without showing or hiding the start page.
+   */
+  embedPlayer?: (slot: HTMLElement) => Promise<PlayerHost | null>;
   /**
    * Loads the Spotlights reel and plays it in the player (ADR 0019), the
    * start page hidden as for `openPlayer`. Resolves to the empty state to

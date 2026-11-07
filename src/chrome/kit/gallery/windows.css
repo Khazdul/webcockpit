@@ -1,0 +1,50 @@
+/* The kit gallery's "Windows" section (dev only, stage 42d, ADR 0127): two
+ * stages, a plain game backdrop each (dark, Paper), with the window layer
+ * (`.wc-windows`) inside instead of over the cockpit. */
+
+.wc-kitwin {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wc-kitwin-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: 480px;
+  border: 1px solid #000;
+  border-radius: 2px;
+  background: #000;
+  --term-bg: #000;
+}
+
+.wc-kitwin-stage[data-bg="paper"] {
+  background: #f4ecd8;
+  --term-bg: #f4ecd8;
+}
+
+.wc-kitwin-page {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 18px;
+}
+
+.wc-kitwin-page .wc-lk-iback {
+  position: static;
+}
+
+.wc-kitwin-game {
+  margin: 0;
+  padding: 6px 10px;
+  font: var(--font-size, 15px) / var(--cell-h, 18px) var(--font-mono, monospace);
+  color: #b8b8b8;
+  white-space: pre;
+  user-select: none;
+}
+
+.wc-kitwin-stage[data-bg="paper"] .wc-kitwin-game {
+  color: #4a3c26;
+}

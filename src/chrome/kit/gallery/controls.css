@@ -1,0 +1,172 @@
+/* The kit gallery's "Controls" section (dev only, stage 42b, ADR 0127):
+ * the section's own layout and its two window surfaces (a stand-in for
+ * 42d's window body: opaque, lamp-lit, dark or Paper). */
+
+.wc-kitc {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  container: wc-kitc / inline-size;
+}
+
+.wc-kitc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.wc-kitc-inset {
+  font: italic 500 14px/1 var(--lk-serif);
+}
+
+.wc-kitc-surface {
+  border-radius: 3px;
+}
+
+/* The window body stand-in: opaque (game text scrolls under windows). */
+.wc-kitc-surface.is-win {
+  padding: 18px 16px 16px;
+  border: 1px solid #000;
+  background:
+    radial-gradient(50% 90px at 50% 0, rgba(255, 207, 143, 0.13), transparent),
+    radial-gradient(120% 90% at 50% 25%, rgba(255, 207, 143, 0.06), transparent 85%),
+    #0f0c0a;
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.08), inset 0 0 36px rgba(0, 0, 0, 0.7);
+}
+
+.wc-kitc-surface.is-win[data-light] {
+  border-color: #6a5a3c;
+  background: radial-gradient(50% 90px at 50% 0, rgba(255, 255, 255, 0.7), transparent), #f7f0de;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), inset 0 0 30px rgba(120, 90, 40, 0.12);
+}
+
+.wc-kitc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 10px 34px;
+}
+
+@container wc-kitc (max-width: 900px) {
+  .wc-kitc-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.wc-kitc-grid > section {
+  min-width: 0;
+}
+
+.wc-kitc-grid > section > .wc-lk-rule:first-child {
+  margin-top: 0;
+}
+
+.wc-kitc-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.wc-kitc-flash {
+  margin-top: 8px;
+}
+
+.wc-kitc-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.wc-kitc-narrow {
+  display: flex;
+  max-width: min(100%, 340px);
+}
+
+.wc-kitc-name {
+  font: 700 16px/1 var(--lk-display);
+  letter-spacing: 0.08em;
+}
+
+.wc-kitc-end {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.wc-kitc-flat {
+  margin-top: 12px;
+}
+
+.wc-kitc-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.wc-kitc-checks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.wc-kitc-soon {
+  color: var(--lk-soon) !important;
+}
+
+.wc-kitc-seals {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 12px 0;
+}
+
+/* The inlay tokens on a drop-cap letter (as the Credits book will use them). */
+.wc-kitc-inlay {
+  font: 700 46px/1 var(--lk-display);
+  background: var(--lk-inlay-metal);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9));
+}
+
+.wc-kitc-icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 4px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wc-kitc-icons > li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 4px 0;
+  color: var(--lk-text);
+  font: 500 13px/1 var(--lk-serif);
+}
+
+.wc-kitc-icons > li > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lk-dim);
+}
+
+/* A table that scrolls under its heads (Table `scroll`). */
+.wc-kitc-tblbox {
+  display: flex;
+  flex-direction: column;
+  height: 220px;
+}
+
+.wc-kitc .wc-lk-fold + .wc-lk-well {
+  margin-top: 10px;
+}

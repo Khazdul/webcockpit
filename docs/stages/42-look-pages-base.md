@@ -842,21 +842,21 @@ stage's test plan.
 
 - [x] 42-0: look.tsx split, stubs, `.wc-look`, gallery shell (`?kit`,
       `VITE_KIT`), `tests/e2e/look.ts`, ADR 0127 skeleton; all green
-- [ ] 42a: `Box` (tall, maxWidth, slots, title fade, places), morph proxy
+- [x] 42a: `Box` (tall, maxWidth, slots, title fade, places), morph proxy
       and choreography, hold wiring, box swap, normal → normal morph
-- [ ] 42a: scenery `large` = layout B; `useBoxSettled`, `InlineBack`,
+- [x] 42a: scenery `large` = layout B; `useBoxSettled`, `InlineBack`,
       `useReducedMotion`, `useSkyPause`, `LookWordmark`, `setRate('calm')`
-- [ ] 42a: measurements (morph, large box with and without blur); blur
+- [x] 42a: measurements (morph, large box with and without blur); blur
       rule decided; `bench/results/look-box.md`
-- [ ] 42b: controls, widgets, icons, tokens (dark, Paper, inlay), `Seal`,
+- [x] 42b: controls, widgets, icons, tokens (dark, Paper, inlay), `Seal`,
       `useKeyboardInset`; gallery section; tests
-- [ ] 42c: stack (overlay, hold, key layers, Esc rule); `Dialog`,
+- [x] 42c: stack (overlay, hold, key layers, Esc rule); `Dialog`,
       `KeyHelp`, `Popover`; cursors, button zone, `letterAction`; tests
-- [ ] 42d: the Lykta frame on dark and Paper (no Glass); `useWindowChrome`;
+- [x] 42d: the Lykta frame on dark and Paper (no Glass); `useWindowChrome`;
       window and menu look hosts; `ProfileRoot` moved; tests
 - [ ] 42e: `lookCodeTheme`, `.wc-code` rules, lantern find panel,
       `LookManual`, `ManualContents`, `look-manual-find`; measurements; tests
-- [ ] 42f: `fmtClock` hours, `back`, `bare`, `press`, `openPlayer` result,
+- [x] 42f: `fmtClock` hours, `back`, `bare`, `press`, `openPlayer` result,
       `embedPlayer`, `viewerControls`, `setPaletteTweak`; tests
 - [ ] 42-Z: merged; typecheck, lint, unit, e2e (Chromium, Firefox, phone),
       build green; chunk sizes recorded; screenshots reviewed

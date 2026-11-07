@@ -56,7 +56,9 @@ test('the bar opens the Profile window: the editor, focused, ~80% centred on who
   await icon(page, 'profile').click();
   await expect(win(page, 'profile')).toBeVisible();
   await expect(win(page, 'profile')).toHaveAttribute('data-focused', '');
-  await expect(win(page, 'profile').locator('.wc-win-title')).toHaveText('Profile:default');
+  // The Lykta frame (ADR 0127): the title in the hood, the profile's name as the note.
+  await expect(win(page, 'profile').locator('.wc-win-t')).toHaveText('Profile');
+  await expect(win(page, 'profile').locator('.wc-win-n')).toHaveText('default');
   await expect(editorToggle(page)).toBeVisible();
   await expect(overlay(page)).toBeHidden();
   await expect(icon(page, 'profile')).toHaveClass(/is-open/);

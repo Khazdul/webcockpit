@@ -60,12 +60,34 @@
   transform: scale(0.62) translateY(-14px);
 }
 
+/* Layout B (stage 42a, ADR 0127; the timings are MOTION in
+ * kit/look-motion.ts): while a large box is open the wordmark lifts 46 px
+ * and fades (from where it rests: the full mark, or the sub-page's smaller
+ * one), and it settles back after the box has begun to shrink. Transform
+ * and opacity only (no filter on the masked mark). */
 .wc-start.is-large .wc-start-brand {
-  justify-content: flex-start;
-  top: 10px;
-  left: 16px;
-  padding-top: 0;
-  transform: none;
+  transform: translateY(-46px) scale(0.97);
+  opacity: 0;
+  transition:
+    transform 0.62s cubic-bezier(0.5, 0, 0.5, 1),
+    opacity 0.62s cubic-bezier(0.5, 0, 0.5, 1);
+}
+
+.wc-start.is-large.is-lift-sub .wc-start-brand {
+  transform: scale(0.62) translateY(-14px) translateY(-46px) scale(0.97);
+}
+
+.wc-start.is-from-large .wc-start-brand {
+  transition:
+    transform 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.32s,
+    opacity 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.32s;
+}
+
+/* The phone: no wordmark and no almanac around a tall box (data-lk-box: the top box's kind, src/chrome/start-morph.tsx). */
+html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-brand,
+html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
+  opacity: 0;
+  visibility: hidden;
 }
 
 /* The almanac at the bottom right: date, time · period · year, version. */
@@ -114,6 +136,20 @@
 .wc-alm-m,
 .wc-alm-v {
   transition: color 2.5s, text-shadow 2.5s;
+}
+
+/* Layout B: the almanac fades while a large box is open, and comes back
+ * after the box has shrunk (the content's fade and the shrink: 0.92 s). */
+.wc-start-almanac {
+  transition: color 2.5s, text-shadow 2.5s, opacity 0.35s;
+}
+
+.wc-start.is-large .wc-start-almanac {
+  opacity: 0;
+}
+
+.wc-start.is-from-large .wc-start-almanac {
+  transition: color 2.5s, text-shadow 2.5s, opacity 0.35s 0.92s;
 }
 
 /* The client notices (ADR 0025): small glass pills at the top right. */
@@ -491,6 +527,25 @@ html.wc-phone.wc-kbd .wc-start-almanac {
   .wc-sm-quote p,
   .wc-sm-quote cite {
     transition: none;
+  }
+
+  /* Layout B with reduced motion: the wordmark and the almanac fade, nothing lifts. */
+  .wc-start.is-large .wc-start-brand {
+    transform: none;
+    transition: opacity 0.26s;
+  }
+
+  .wc-start.is-large.is-lift-sub .wc-start-brand {
+    transform: scale(0.62) translateY(-14px);
+  }
+
+  .wc-start.is-from-large .wc-start-brand {
+    transition: opacity 0.24s;
+  }
+
+  .wc-start-almanac,
+  .wc-start.is-from-large .wc-start-almanac {
+    transition: opacity 0.24s;
   }
 }
 
