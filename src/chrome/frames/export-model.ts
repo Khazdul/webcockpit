@@ -140,11 +140,6 @@ export interface Items {
   width: number;
 }
 
-/** Rows a text of `len` cells takes at `width` cells when wrapped hard (a lower bound of `wrapSpans`). */
-export function entryRows(len: number, width: number): number {
-  return Math.max(1, Math.ceil(len / Math.max(1, width)));
-}
-
 /**
  * Word wrap at `width` cells: a row breaks at the last space that fits (the
  * space itself is not shown), and a word longer than a row breaks hard.

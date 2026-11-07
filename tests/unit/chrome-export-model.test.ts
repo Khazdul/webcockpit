@@ -16,7 +16,6 @@ import {
   contentHeight,
   entryAtOrAfter,
   entryPlainRows,
-  entryRows,
   entryRangeUs,
   entrySegments,
   fmtCount,
@@ -96,7 +95,6 @@ describe('export editor log', () => {
       { text: 'look', cls: '' },
     ]);
     expect(entryPlainRows(log, 0, 4)).toEqual(['abcd', 'efg']);
-    expect(entryRows(0, 80)).toBe(1);
   });
 
   it('wraps at the last space that fits; a word longer than a row breaks hard', () => {

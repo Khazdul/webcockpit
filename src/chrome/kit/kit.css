@@ -96,7 +96,6 @@
 .wc-c-hint { color: var(--c-hint); }
 .wc-c-off { color: var(--c-off); }
 .wc-c-accent { color: var(--c-accent); font-weight: bold; }
-.wc-about-link { color: inherit; text-decoration: underline; }
 .wc-c-yellow { color: var(--c-yellow); font-weight: bold; }
 .wc-c-err { color: var(--c-err); font-weight: bold; }
 .wc-c-danger { color: var(--c-danger); }
