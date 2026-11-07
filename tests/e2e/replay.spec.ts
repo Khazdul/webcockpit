@@ -120,6 +120,9 @@ test('the HTML replay plays from file:// with no network and no storage', async 
   // Header, hints, the panes, text, markers, no input line.
   await expect(chrome(p).locator('.wc-player-header')).toContainText('Demo fight · Rasta (L42) · 2026-09-26');
   await expect(chrome(p).locator('.wc-player-hints')).toHaveText('Space Play · ← → 10 s · ↑↓ Scroll · 1–6 Speed · F Fullscreen');
+  // Stage 45 (decision 3): the replay has no Back (the run log player's) and keeps its MM:SS clock.
+  await expect(chrome(p).locator('.wc-pv-back, .wc-lk-back')).toHaveCount(0);
+  await expect(chrome(p).locator('.wc-player-clock')).toHaveText(/^\d\d:\d\d \/ 02:02$/);
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
   await expect(player(p).locator('.wc-pane[data-pane="character"]')).toContainText('Rasta');
   // The kind-icon markers and the A2 chrome, from the file alone (nothing fetched).

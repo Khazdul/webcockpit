@@ -35,12 +35,14 @@ test('the run log player: Back at the top left hides with the chrome and returns
     await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
   });
   await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
-  await expect(frame(page).locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
+  // History in the new look (stage 45).
+  const hist = frame(page).locator('.wc-hist');
+  await expect(hist.locator('.wc-lk-tr')).toHaveCount(3);
   await page.keyboard.press('ArrowDown');
-  const cur = frame(page).locator('.wc-tr.is-cur-focus, .wc-tr.is-cur');
+  const cur = hist.locator('.wc-lk-tr.is-on');
   await expect(cur).toContainText('Rasta');
   const before = await cur.textContent();
-  await frame(page).locator('[data-btn="RUN LOG"]').click();
+  await hist.locator('.wc-lk-btn[data-btn="RUN LOG"]').click();
 
   const back = playerBack(page);
   await expect(back).toBeVisible();
@@ -68,7 +70,7 @@ test('the run log player: Back at the top left hides with the chrome and returns
   await expect(back).toHaveCSS('pointer-events', 'auto');
   await back.click();
   await expect(page.locator('.wc-player')).toHaveCount(0);
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── History ───');
+  await expect(hist.locator('.wc-lk-hood-t').last()).toHaveText('History');
   await expect(cur).toHaveText(before!);
   expect(await page.evaluate(() => (window as unknown as { __wc: { shell: Shell } }).__wc.shell.playerHost)).toBeNull();
 });
