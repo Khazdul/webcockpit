@@ -179,13 +179,13 @@ describe('start page', () => {
     await key('Enter');
     expect(host.querySelector('.wc-lk-flash')?.textContent).toMatch(/not available/);
 
-    // Scripts opens (old look, on the grid) and ESC comes back with the cursor kept.
+    // Scripts opens (a large look box since stage 44a) and ESC comes back with the cursor kept.
     await key('ArrowUp');
     await key('ArrowUp');
     await key('Enter');
-    expect(title(host)).toBe('─── Scripts ───');
-    expect(host.querySelector('.wc-frame.wc-screen.wc-start-gridframe:not([hidden])')).not.toBeNull();
-    expect(host.querySelector('.wc-start')?.classList.contains('is-grid')).toBe(true);
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-lk-hood-t')?.textContent).toBe('Scripts');
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-scr')).not.toBeNull();
+    expect(host.querySelector('.wc-start')?.classList.contains('is-large')).toBe(true);
     await key('Escape');
     expect(title(host)).toBeUndefined();
     expect(startSel(host)).toBe('Scripts');
@@ -522,8 +522,8 @@ describe('ESC menu', () => {
 
     // Scripts, Panes and Exit.
     await act(() => menu.open({ target: 'scripts' }));
-    expect(title(host)).toBe('─── Scripts ───');
-    await act(() => host.querySelector<HTMLElement>('.wc-frame:not([hidden]) .wc-footer-btn')!.click());
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-lk-hood-t')?.textContent).toBe('Scripts');
+    await act(() => host.querySelector<HTMLElement>('.wc-frame:not([hidden]) .wc-lk-back')!.click());
     expect(close).toHaveBeenCalledTimes(3);
     await shut();
     await act(() => menu.open({ target: 'panes' }));
