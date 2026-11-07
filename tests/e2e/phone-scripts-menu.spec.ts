@@ -138,3 +138,46 @@ test('ESC → Options → Scripts: the index, a panel by tap, a setting the runn
   await expect(menu(page).locator('.wc-mrow[data-key="scripts"]')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+const TYPED = `-- @name     phonetyped
+-- @summary  A number and a word
+-- @api      1
+-- @setting  warn number 5 0..30 unit min "Warn before the end"
+-- @setting  word string hello "What to say"
+`;
+
+test('a typed setting is kept when the tile is left by touch: All scripts, or a tap elsewhere', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/?phone=1');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.evaluate(async (src) => {
+    const l = window.__wc!.shell.scripts!;
+    await l.init();
+    await l.create('phonetyped', src);
+  }, TYPED);
+  const settings = () => page.evaluate(() => window.__wc!.shell.scripts!.settingsOf('phonetyped'));
+  const f = page.locator('.wc-start .wc-frame:not([hidden])');
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await expect(f.locator('.wc-scr')).toHaveAttribute('data-w', 'narrow');
+  await f.locator('.wc-scr-row[data-name="phonetyped"] .wc-scr-name').tap();
+  // The number: a tap on its value types over it; then All scripts, with no Enter.
+  const warn = f.locator('.wc-scr-set[data-set="warn"]');
+  await warn.locator('.wc-scr-val').tap();
+  await expect(warn.locator('input.wc-scr-input')).toBeFocused();
+  await page.keyboard.type('7');
+  await f.locator('.wc-scr-panel [data-btn="LIST"]').tap();
+  await expect.poll(settings).toMatchObject({ warn: 7 });
+  await expect(f.locator('.wc-lk-flash')).toHaveText('warn = 7 min');
+  await expect(f.locator('.wc-scr-idx')).toBeVisible();
+  // The word: a tap on the panel's empty space ends the typing and keeps it (no field left open).
+  await f.locator('.wc-scr-row[data-name="phonetyped"] .wc-scr-name').tap();
+  const word = f.locator('.wc-scr-set[data-set="word"]');
+  await word.locator('.wc-scr-str').tap();
+  await expect(word.locator('input.wc-scr-input')).toBeFocused();
+  await page.keyboard.type(' you');
+  await f.locator('.wc-scr-panel .wc-scr-summary').tap();
+  await expect.poll(settings).toMatchObject({ word: 'hello you' });
+  await expect(f.locator('input.wc-scr-input')).toHaveCount(0);
+  expect(await typing(page)).toBe(false);
+  expect(errors).toEqual([]);
+});

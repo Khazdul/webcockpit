@@ -393,6 +393,124 @@ describe('Scripts page', () => {
     expect(frame(host).textContent).toContain('Scripts are not available here.');
   });
 
+  it('narrow: a letter that moves the keys to the panel shows it, and Esc shows the index again', async () => {
+    const lib = await library();
+    await lib.create('mine');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 560 });
+    cleanup.push(() => Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1400 }));
+    const host = await openScripts(lib);
+    const main = () => frame(host).querySelector('.wc-scr-main')!;
+    expect(frame(host).querySelector('.wc-scr')?.getAttribute('data-w')).toBe('narrow');
+    expect(main().classList.contains('is-drill')).toBe(false);
+    await key('ArrowDown');
+    // X from the index: the keys go to the panel's Export, and the panel shows with them.
+    await key('x');
+    await flush();
+    await key('Escape');
+    await flush();
+    expect(document.querySelector('.wc-lk-dialog')).toBeNull();
+    expect(main().classList.contains('is-drill')).toBe(true);
+    expect(frame(host).querySelector('.wc-scr-panel .wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('EXPORT');
+    // Esc: the index, its cursor row lit, and the arrows walk it.
+    await key('Escape');
+    expect(main().classList.contains('is-drill')).toBe(false);
+    expect(frame(host).querySelector('.wc-scr-row.is-cur')?.getAttribute('data-name')).toBe('mine');
+    await key('ArrowUp');
+    expect(frame(host).querySelector('.wc-scr-row.is-cur')?.getAttribute('data-name')).toBe('looter');
+  });
+
+  it('a typed setting is kept when the tile is left without Enter; Esc alone drops it', async () => {
+    const lib = await library();
+    await lib.create('mine');
+    const host = await openScripts(lib);
+    const input = () => frame(host).querySelector('input.wc-scr-input') as HTMLInputElement | null;
+    const type = (v: string) =>
+      act(() => {
+        input()!.value = v;
+        input()!.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    // looter's delay: a digit starts typing; the field loses the focus (a tap elsewhere).
+    await key('ArrowRight');
+    await key('7');
+    expect(input()?.value).toBe('7');
+    await act(() => input()!.blur());
+    await flush();
+    expect(input()).toBeNull();
+    expect(lib.get('looter')!.settings.delay).toBe(7);
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('delay = 7');
+    // A click on another script's row keeps what was typed.
+    await key('3');
+    await act(() => (frame(host).querySelector('.wc-scr-row[data-name="mine"]') as HTMLElement).click());
+    await flush();
+    expect(lib.get('looter')!.settings.delay).toBe(3);
+    expect(frame(host).querySelector('.wc-scr-row.is-on')?.getAttribute('data-name')).toBe('mine');
+    // All scripts (the panel's way back) keeps it too.
+    await act(() => (frame(host).querySelector('.wc-scr-row[data-name="looter"]') as HTMLElement).click());
+    await key('ArrowRight');
+    await key('5');
+    await type('5.5');
+    await act(() => (frame(host).querySelector('[data-btn="LIST"]') as HTMLElement).click());
+    await flush();
+    expect(lib.get('looter')!.settings.delay).toBe(5.5);
+    // Esc drops the typing, and the blur that follows saves nothing.
+    await key('ArrowRight');
+    await key('9');
+    await key('Escape');
+    await flush();
+    expect(input()).toBeNull();
+    expect(lib.get('looter')!.settings.delay).toBe(5.5);
+  });
+
+  it('a dialog left while its work is pending never pops the page under it', async () => {
+    const lib = await library();
+    await lib.create('mine');
+    const host = await openScripts(lib);
+    const page = () => frame(host).querySelector('.wc-scr');
+    // Delete: two quick Y presses delete once and pop once.
+    await key('ArrowDown');
+    await key('d');
+    await flush();
+    const remove = vi.spyOn(lib, 'remove');
+    await key('y');
+    await key('y');
+    await flush();
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(lib.get('mine')).toBeNull();
+    expect(page()).not.toBeNull();
+    expect(document.querySelector('.wc-lk-dialog')).toBeNull();
+    // New: Esc while the script is being created leaves the dialog only; no editor opens.
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const create = lib.create.bind(lib);
+    vi.spyOn(lib, 'create').mockImplementation(async (...a: Parameters<ScriptLibrary['create']>) => {
+      await gate;
+      return create(...a);
+    });
+    await key('n');
+    await flush();
+    const input = document.querySelector('.wc-lk-dialog[data-dlg="new"] input') as HTMLInputElement;
+    await act(() => {
+      input.value = 'later';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await key('Enter');
+    await key('Escape');
+    await flush();
+    expect(document.querySelector('.wc-lk-dialog')).toBeNull();
+    await act(() => release());
+    // The editor's chunk loads, then the dialog sees it is gone: a flash on the page instead.
+    await vi.waitFor(
+      async () => {
+        await flush();
+        expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('Created later. It is off until you turn it on.');
+      },
+      { timeout: 10_000, interval: 50 },
+    );
+    expect(lib.get('later')).not.toBeNull();
+    expect(page()).not.toBeNull();
+    expect(frame(host).querySelector('.wc-sed')).toBeNull();
+  });
+
   it('stacks a help table when its terms take too much of the width', () => {
     expect(helpStacks(18, 380)).toBe(false);
     expect(helpStacks(18, 300)).toBe(true);

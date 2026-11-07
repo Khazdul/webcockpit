@@ -335,10 +335,39 @@ scrollbar cases became native-scroll checks (the Scripts help and index,
 the Import dialog's code, the editor's buffer); the manual's TUI-bar case
 was dropped.
 
+### Wave 3 — fixes after review
+
+- **The narrow drill-down follows the keys.** On a narrow page (640 px
+  and under) the panel shows exactly while the keys are on it
+  (`narrow && zone === 'panel'`), instead of a separate `drill` flag. A
+  letter (E X R D), a panel button, a setting press, or New's "back from
+  the editor" that moves the keys to the panel now also shows the panel,
+  and a resize from wide to narrow shows whichever side holds the keys.
+  Before, X from the index then Esc left the keys on the hidden panel.
+- **A typed setting is kept unless Esc drops it.** A number or string
+  being typed is saved on Enter and also when the tile is left any other
+  way: the input's blur (a tap elsewhere, the phone's keyboard closed and
+  a tap on empty space), All scripts, or a click on another row. Esc is
+  the only cancel. The edit ends once: the page clears its edit ref at
+  once, so the blur that follows Enter or Esc saves nothing twice.
+- **A double click on a row's switch is no edit.** The switch's span
+  stops `dblclick`; a double click on the rest of the row still opens
+  the editor.
+- **Dialogs pop only while on top.** New, Rename, Delete, Import and
+  Restore record the stack depth before their await and pop only if it
+  is unchanged (as `editScript` does). A New left with Esc while the
+  script is being created keeps the script, opens no editor and flashes
+  "Created …". Delete has a busy guard against a second Y.
+- **Touch-size completion rows.** Under `pointer: coarse` the completion
+  list's rows are 40 px (six visible, about the old ten rows' height),
+  and the signature, lint and hover plates are capped at the viewport
+  less 40 px. The pop-ups' room (`tooltipRoom`) is the box inset by 4 px,
+  so a plate CodeMirror pushes to the right edge stays off the border.
+
 ## Measurements
 
 All headless on a machine shared with other agents (load average 2–15);
-treat them as rough, and re-measure headed in wave 3.
+treat them as rough. Wave 3 measured the page's fps headed (below).
 
 - **Typing** (44b; 300 characters at 35 ms into the middle of a 400-line
   script; production builds; keydown to the next frame, p95 / max ms; base
@@ -371,8 +400,17 @@ treat them as rough, and re-measure headed in wave 3.
   in software rendering, not the page: every full-width large box drops
   the same way (About), and with `backdrop-filter` switched off the
   Scripts page runs at 60 in Chromium. ADR 0127 measured the blurred
-  large box headed on the owner's GPU at 58–60 fps. Open for wave 3:
-  measure headed; if it holds there, nothing to do.
+  large box headed on the owner's GPU at 58–60 fps.
+
+  **Headed (wave 3):** real windows on the owner's Iris Xe, 1728 × 1000
+  @2 and 390 × 844 @3, production build: the Scripts page runs at 60.0
+  fps in Chromium and 59.4–60.0 in Firefox, so the drop is headless only.
+  About runs at 58.0 (Chromium) and 55.7–56.4 (Firefox); that is its
+  wordmark's sheen, not the blur. Headless Chromium (SwiftShader)
+  reproduces the drop (Scripts 22.2 fps on the build, 60.0 with the blur
+  off). Nothing to do on this page; the software-compositing case (a
+  machine without GPU compositing) belongs to stage 42's blur rule (ADR
+  0127, "The blur rule", and its wave-3 finding).
 - **Chunks** (production build): chrome JS 265.3 kB (93.5 kB gzip);
   scripts chunk 279.5 kB (85.5 kB gzip); editor 651.8 kB (216.3 kB gzip).
   44b's import of the kit barrel from the editor chunk moved the barrel
@@ -383,9 +421,10 @@ treat them as rough, and re-measure headed in wave 3.
 - ADR 0121's layout is superseded; its behaviour stays (addendum there).
   spec §2.10 describes the new page, editor and manual.
 - `typesetHelp` stays for `#script help`; `helpBlocks` serves the page.
-- The grid editor's `.wc-ped*` rules stay for wave 3's sweep;
-  `scriptManualLayout()` in `script-reference.ts` is now unused (the
-  profile Help keeps the TUI `ManualView`).
+- The grid editor's `.wc-ped*` rules stay for wave 3's sweep.
+  `scriptManualLayout()` in `script-reference.ts` was unused once the
+  lantern manual landed and is removed (wave 3); the profile Help keeps
+  the TUI `ManualView`.
 - **For wave 3 (kit, stage 42's files):**
   - Layout B hides the new box with a `visibility` animation while it
     morphs; Firefox drops the focus of anything inside it, so keys typed

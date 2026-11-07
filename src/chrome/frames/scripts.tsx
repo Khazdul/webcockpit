@@ -320,8 +320,10 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   const [dkey, setDkey] = useState('buttons');
   const [dbtn, setDbtn] = useState<PanelId>('EDIT');
   const [fbtn, setFbtn] = useState<FootId>('NEW');
-  const [drill, setDrill] = useState(false);
   const [editing, setEditing] = useState<SettingEdit | null>(null);
+  /** The open edit as of the last render, cleared the moment it ends (a blur after Enter or Esc is no second end). */
+  const editRef = useRef<SettingEdit | null>(null);
+  editRef.current = editing;
   const [helpOpen, setHelpOpen] = useState(true);
   const [, setTick] = useState(0);
   /** Setting values being saved, by `script\0setting`: shown at once, and the base of the next step. */
@@ -356,6 +358,9 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
 
   // Without a script the panel has no keys; without scripts the index none.
   const effZone: Zone = zone === 'panel' && !cur ? 'list' : zone === 'list' && list.length === 0 ? 'foot' : zone;
+  // Narrow: the panel shows (the drill-down) exactly while the keys are on it, so a letter, a
+  // button or a setting that moves the keys there also shows it, and a resize never strands them.
+  const drill = narrow && effZone === 'panel';
 
   const disabled = (b: ButtonId): boolean => {
     if (b === 'NEW' || b === 'IMPORT' || b === 'MANUAL') return false;
@@ -393,7 +398,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   // ------------------------------------------------------------- actions
 
   const select = (name: string | null): void => {
-    if (name !== cur?.name) setEditing(null);
+    if (name !== cur?.name) finishEdit(true);
     setCursorName(name);
   };
   const moveTo = (i: number): void => {
@@ -403,9 +408,8 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     select(s.name);
   };
   const toList = (): void => {
+    finishEdit(true);
     setZone('list');
-    setDrill(false);
-    setEditing(null);
   };
   /** Into the panel of `s` (default the selected script), on its first setting or its button row. */
   const enterPanel = (s: ScriptInfo | undefined = cur): void => {
@@ -413,7 +417,6 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     setZone('panel');
     setEditing(null);
     setDkey(panelKeys(s).find((k) => k.startsWith('set:')) ?? 'buttons');
-    setDrill(true);
     reveal.current = 'panel';
   };
   /** The keys on the panel's button row, on `id` (Edit: back from the editor, Esc goes to the index first). */
@@ -528,11 +531,16 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     }
   };
 
-  /** Ends the typing: Enter keeps the value (a number clamped to its range), Esc drops it. */
-  const finishEdit = (keep: boolean): void => {
-    const ed = editing;
+  /**
+   * Ends the typing: Enter keeps the value (a number clamped to its range), Esc drops it. Leaving
+   * the tile any other way (a blur, a tap on All scripts or on another row) keeps it too.
+   */
+  function finishEdit(keep: boolean): void {
+    const ed = editRef.current;
+    if (!ed) return;
+    editRef.current = null;
     setEditing(null);
-    if (!keep || !ed || !cur) return;
+    if (!keep || !cur) return;
     const d = cur.header.settings.find((x) => x.name === ed.name);
     if (!d) return;
     if (d.type === 'number') {
@@ -542,7 +550,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
       return;
     }
     if (ed.text !== shown(d)) void save(cur, d, ed.text, true);
-  };
+  }
 
   const startEdit = (d: SettingDecl, text: string, selectAll: boolean): void => {
     if (d.type !== 'number' && d.type !== 'string') return;
@@ -607,10 +615,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
       const at = Math.max(0, ring.indexOf(effZone));
       const next = ring[(at + (nk === 'tab' ? 1 : ring.length - 1)) % ring.length]!;
       if (next === 'panel') enterPanel();
-      else {
-        setZone(next);
-        setDrill(false);
-      }
+      else setZone(next);
       return true;
     }
 
@@ -622,10 +627,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
           setFbtn(FOOT[Math.max(0, Math.min(FOOT.length - 1, at + (nk === 'left' ? -1 : 1)))]!);
           return true;
         case 'up':
-          if (list.length > 0) {
-            setZone('list');
-            setDrill(false);
-          }
+          if (list.length > 0) setZone('list');
           return true;
         case 'down':
           return true;
@@ -870,7 +872,11 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
                 if (editing?.name === d.name) return;
                 startEdit(d, d.type === 'number' ? valueText(d, shown(d)) : String(shown(d)), d.type === 'number');
               }}
-              onEditText={(t) => setEditing((ed) => (ed ? { ...ed, text: t, select: false } : ed))}
+              onEditText={(t) => {
+                if (editRef.current) editRef.current = { ...editRef.current, text: t, select: false };
+                setEditing((ed) => (ed ? { ...ed, text: t, select: false } : ed));
+              }}
+              onEditEnd={() => finishEdit(true)}
             />
           ))}
         </div>
@@ -896,7 +902,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   return (
     <Box size="large" title="Scripts" onBack={() => nav.pop()} winClass="wc-scr-win">
       <div class={`wc-scr is-${width}` + (inPanel ? ' is-panel' : '')} ref={rootRef} data-w={width}>
-        <BoxBody scroll={false} class={'wc-scr-main' + (drill && narrow ? ' is-drill' : '')}>
+        <BoxBody scroll={false} class={'wc-scr-main' + (drill ? ' is-drill' : '')}>
           <nav class="wc-scr-idx wc-lk-scroll" aria-label="Scripts" ref={idxRef}>
             {list.length === 0 ? (
               <p class="wc-lk-empty wc-scr-none">{ready ? 'No scripts yet.' : ''}</p>
@@ -937,7 +943,8 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
                         if (pointer.current !== 'touch') edit(s);
                       }}
                     >
-                      <span class="wc-scr-tog">
+                      {/* The kit's Toggle stops a click, not a double click: a quick off-and-on is no edit. */}
+                      <span class="wc-scr-tog" onDblClick={(e) => e.stopPropagation()}>
                         <Toggle
                           on={s.enabled}
                           label={s.enabled ? `Turn ${s.name} off` : `Turn ${s.name} on`}
