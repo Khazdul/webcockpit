@@ -1,5 +1,5 @@
-// Stage 47 (ADR 0132): the chronicle as a book (`chronicleBook`) against
-// the rolled chronicle (`buildChronicle`), and Credits' book positions
+// Stage 47 (ADR 0132): the chronicle as a book (`chronicleBook`; the
+// rolled `buildChronicle` it replaced is gone, wave 3), and Credits' book positions
 // (`spreadOf`, `posAt`). The frame itself: credits-frame.test.tsx.
 import { describe, expect, it } from 'vitest';
 import type { RunMeta } from '../../src/capture/store';
@@ -10,11 +10,10 @@ import {
   CHRONICLE_OPENING,
   type ChronicleBook,
   type ChronicleRun,
-  buildChronicle,
   chronicleBook,
   datePhrase,
+  eventSentence,
   stableHash,
-  wrapText,
 } from '../../src/share/chronicle';
 import { type BookLayout, posAt, posOfChapter, spreadCount, spreadOf } from '../../src/chrome/frames/credits';
 import { OPEN_FILTERS } from '../../src/share/spotlights';
@@ -43,18 +42,6 @@ const rasta = run('Rasta', 'r1', [
 ]);
 const all = (): SpotlightSettings => ({ ...OPEN_FILTERS, characters: [] });
 
-/** The book set back into the roll's rows (the same wrapping as `buildChronicle`). */
-function rows(book: ChronicleBook, width = 60): string[] {
-  const out: string[] = [...wrapText(book.opening, width), '', ''];
-  for (const ch of book.chapters) {
-    out.push(...wrapText(ch.header, width), '');
-    for (const d of ch.deeds) out.push(...wrapText(d.date + d.rest, width), '');
-    out.push('');
-  }
-  out.push(book.end);
-  return out;
-}
-
 /** A name whose header is template `i`. */
 function nameFor(i: number): string {
   for (let k = 0; ; k++) {
@@ -64,18 +51,23 @@ function nameFor(i: number): string {
 }
 
 describe('chronicleBook', () => {
-  it('tells the same chapters, order and sentences as buildChronicle', () => {
+  it('tells a chapter per character (oldest first deed first), each deed its event\'s sentence in time order', () => {
     const book = chronicleBook([gittan, rasta], all(), { nowUs: T0 + 10 * DAY })!;
     expect(book.opening).toBe(CHRONICLE_OPENING);
     expect(book.end).toBe(CHRONICLE_END);
     expect(book.chapters.map((c) => c.name)).toEqual(['Rasta', 'Gittan']); // oldest first deed first
-    for (const w of [40, 60, 200]) expect(rows(book, w)).toEqual(buildChronicle([gittan, rasta], all(), { width: w, nowUs: T0 + 10 * DAY }));
-    // A filter: the same as the roll's.
+    const told = (b: ChronicleBook) => b.chapters.map((c) => c.deeds.map((d) => d.date + d.rest));
+    const said = (r: ChronicleRun, i: number, level: number) => eventSentence(r.meta.character, r.meta.runId, r.events[i]!, level);
+    expect(told(book)).toEqual([
+      [said(rasta, 1, 42), said(rasta, 2, 42), said(rasta, 4, 42)],
+      [said(gittan, 1, 14), said(gittan, 2, 15), said(gittan, 3, 15)],
+    ]);
+    // A filter: only the kinds it lets through.
     const pvp: SpotlightSettings = { ...all(), achievements: false, deaths: false, levelUps: false };
     const onlyPvp = chronicleBook([gittan, rasta], pvp, { nowUs: T0 + 10 * DAY })!;
     expect(onlyPvp.chapters.map((c) => c.name)).toEqual(['Rasta']);
     expect(onlyPvp.chapters[0]!.deeds.map((d) => d.kind)).toEqual(['pkill']);
-    expect(rows(onlyPvp)).toEqual(buildChronicle([gittan, rasta], pvp, { nowUs: T0 + 10 * DAY }));
+    expect(told(onlyPvp)).toEqual([[said(rasta, 2, 42)]]);
   });
 
   it('splits each deed into its date phrase and the rest, keeping the kind', () => {

@@ -5,12 +5,12 @@ import { defaultSettings } from '../../src/settings';
 import {
   CHRONICLE_END,
   CHRONICLE_OPENING,
+  type ChronicleRun,
   TEMPLATES,
-  buildChronicle,
+  chronicleBook,
   datePhrase,
   eventSentence,
   stableHash,
-  wrapText,
 } from '../../src/share/chronicle';
 import {
   OPEN_FILTERS,
@@ -29,6 +29,13 @@ import { BASE_US, makeLog, meta } from './player-helpers';
 
 const S = 1e6;
 const all = () => defaultSettings().spotlights;
+
+/** The book as one text: the opening, each chapter's header and deeds, the end; '' when nothing passes. */
+function told(runs: readonly ChronicleRun[], f: Parameters<typeof chronicleBook>[1], nowUs?: number): string {
+  const b = chronicleBook(runs, f, nowUs === undefined ? {} : { nowUs });
+  if (!b) return '';
+  return [b.opening, ...b.chapters.flatMap((c) => [c.header, ...c.deeds.map((d) => d.date + d.rest)]), b.end].join(' ');
+}
 
 function run(id: string, startUs: number, events: RunEvent[], extra = {}) {
   return { meta: meta(id, startUs, { bytes: 100, ...extra }), events };
@@ -104,13 +111,11 @@ describe('selectSpotlights', () => {
   });
 });
 
-describe('buildChronicle', () => {
-  it('writes an opening, a chapter per character (oldest first) and The End.', () => {
-    const lines = buildChronicle([gittan, rasta], all(), { width: 60 });
-    expect(lines.slice(0, 3)).toEqual([...wrapText(CHRONICLE_OPENING, 60), '', ''].slice(0, 3));
-    expect(lines.at(-1)).toBe(CHRONICLE_END);
-    expect(lines.every((l) => l.length <= 60)).toBe(true);
-    const text = lines.join(' ');
+describe('the chronicle', () => {
+  it('tells an opening, a chapter per character (oldest first) and The End.', () => {
+    const text = told([gittan, rasta], all());
+    expect(text.startsWith(CHRONICLE_OPENING)).toBe(true);
+    expect(text.endsWith(CHRONICLE_END)).toBe(true);
     expect(text.indexOf('Rasta')).toBeLessThan(text.indexOf('Gittan'));
     expect(text).toContain('*Ibuki the Half-Elf*');
     expect(text).toContain('level 42');
@@ -118,8 +123,8 @@ describe('buildChronicle', () => {
     expect(text).toContain('Explorer.');
     expect(text).not.toContain('Explorer..');
     expect(text).not.toContain('an orc');
-    // Deterministic.
-    expect(buildChronicle([rasta, gittan], all(), { width: 60 })).toEqual(lines);
+    // Deterministic, whatever the order of the runs.
+    expect(told([rasta, gittan], all())).toBe(text);
   });
 
   it('keeps the same sentence for the same event and filters kinds', () => {
@@ -130,17 +135,15 @@ describe('buildChronicle', () => {
     expect(TEMPLATES.level.map((t) => t.replace('{date}', datePhrase(BASE_US)).replace('{level}', '7'))).toContain(a);
     expect(stableHash('abc')).toBe(0x1a47e90b);
     const onlyPvp = { ...all(), achievements: false, deaths: false, levelUps: false, pvp: true };
-    const text = buildChronicle([rasta, gittan], onlyPvp).join(' ');
+    const text = told([rasta, gittan], onlyPvp);
     expect(text).toContain('Ibuki');
     expect(text).not.toContain('Gittan');
-    expect(buildChronicle([gittan], { ...onlyPvp, pvp: false })).toEqual([]);
+    expect(told([gittan], { ...onlyPvp, pvp: false })).toBe('');
   });
 
   it('writes dates in words', () => {
     expect(datePhrase(new Date(2026, 4, 1, 12).getTime() * 1000)).toBe('On the first of May, 2026');
     expect(datePhrase(new Date(2026, 11, 31, 12).getTime() * 1000)).toBe('On the thirty-first of December, 2026');
-    expect(wrapText('aaa bbb ccc', 7)).toEqual(['aaa bbb', 'ccc']);
-    expect(wrapText('abcdefghij', 4)).toEqual(['abcd', 'efgh', 'ij']);
   });
 });
 
@@ -191,11 +194,11 @@ describe('Spotlights filter (ADR 0110)', () => {
 
   it('filters the chronicle the same way', () => {
     const now = BASE_US + 200 * S;
-    const text = buildChronicle([rasta, gittan], { ...all(), allCharacters: false, characters: ['Rasta'] }, { nowUs: now }).join(' ');
+    const text = told([rasta, gittan], { ...all(), allCharacters: false, characters: ['Rasta'] }, now);
     expect(text).toContain('Ibuki');
     expect(text).not.toContain('Gittan');
-    expect(buildChronicle([rasta, gittan], { ...all(), period: 'week' }, { nowUs: now + 30 * DAY })).toEqual([]);
-    expect(buildChronicle([rasta, gittan], { ...all(), period: 'week' }, { nowUs: now + 3 * DAY }).join(' ')).toContain('Gittan');
+    expect(told([rasta, gittan], { ...all(), period: 'week' }, now + 30 * DAY)).toBe('');
+    expect(told([rasta, gittan], { ...all(), period: 'week' }, now + 3 * DAY)).toContain('Gittan');
   });
 });
 
