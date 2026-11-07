@@ -126,16 +126,19 @@
   padding: 44px 22px 14px;
 }
 
-/* The large window's glass: more opaque than the menu panel's (long text
- * over a bright sky). Its blur follows the measured rule (ADR 0127). */
+/* The large window (and the proxy's): more opaque than the menu panel's
+ * (long text over a bright sky). No blur (the measured rule, ADR 0127
+ * wave 3: without a GPU it cost 60 % of the frames and 6× the typing
+ * latency; on a GPU nothing): a fill pre-tinted to the blurred glass's
+ * mean colour over the night sky. Small glass pieces keep their blur. */
 .wc-lk-box-large > .wc-lk-win,
 .wc-lk-mwin {
   background:
     radial-gradient(55% 70px at 50% 0, rgba(255, 207, 143, 0.14), transparent),
     radial-gradient(130% 90% at 50% 30%, rgba(255, 207, 143, 0.08), rgba(255, 207, 143, 0.03) 60%, transparent 90%),
-    var(--lk-large-fill, rgba(13, 10, 8, 0.68));
-  -webkit-backdrop-filter: var(--lk-large-blur, blur(9px) saturate(1.1));
-  backdrop-filter: var(--lk-large-blur, blur(9px) saturate(1.1));
+    var(--lk-large-fill, rgba(19, 17, 13, 0.84));
+  -webkit-backdrop-filter: var(--lk-large-blur, none);
+  backdrop-filter: var(--lk-large-blur, none);
 }
 
 /* The ESC menu's box: over the opaque background, no blur. */
