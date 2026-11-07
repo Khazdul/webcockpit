@@ -41,13 +41,12 @@ import { nowUs } from '../../core/types';
 import { BadBackupError, backupFileName } from '../../runs/library';
 import type { Session } from '../../runs/stitch';
 import { downloadBlob } from '../kit/download';
-import { useGrid, useServices } from '../kit/hooks';
+import { useServices } from '../kit/hooks';
 import {
   Box,
   BoxBody,
   BoxFoot,
   BoxHead,
-  Dialog,
   GlassButton,
   type IconName,
   LookFlash,
@@ -59,13 +58,10 @@ import {
   inTextField,
   letterAction,
   lookFrame,
-  openKeyHelp,
   useButtonZone,
   useListCursor,
 } from '../kit/look';
-import { centreLeft } from '../kit/nav';
-import { type Nav, useIsTop, useKeys, useNav } from '../kit/stack';
-import { Blank, Centered, FlashRow, Line, Page, STARS_W, Stars, ratingKey } from '../kit/widgets';
+import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   DEFAULT_HISTORY_SORT,
   type HistorySort,
@@ -87,10 +83,10 @@ import {
   sortOptions,
   sortSessions,
   sortValue,
-  stars,
   storageText,
 } from './history-model';
 import { ExportEditorFrame } from './export-editor';
+import { DeleteDialog, HistoryKeysButton, RateDialog, RunLogErrorDialog, openHistoryKeys } from './history-dialogs';
 import { SessionStatsFrame } from './statistics';
 import './history.css';
 
@@ -311,7 +307,7 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
       case 'STATS':
         return cur && nav.push(<HistoryStatsFrame session={cur} />);
       case 'RATE':
-        return cur && openRate(nav, cur, reload);
+        return cur && nav.push(<RateDialog session={cur} done={reload} />, { overlay: true });
       case 'SAVE':
         void save();
         return;
@@ -319,7 +315,7 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
         // Every device: stage 43 builds the Export editor for the phone (ADR 0075 addendum).
         return cur && nav.push(<ExportEditorFrame session={cur} />);
       case 'DELETE':
-        return cur && openDelete(nav, cur, reload);
+        return cur && nav.push(<DeleteDialog session={cur} done={reload} />, { overlay: true });
       case 'BACKUP':
         void backup();
         return;
@@ -609,184 +605,14 @@ function SessionCard(p: { s: Session }): VNode {
 
 // ------------------------------------------------------------------ stand-ins
 //
-// WP 45-B (`history-stats.tsx`: HistoryStatsFrame) and WP 45-C
-// (`history-dialogs.tsx`: RateDialog, DeleteDialog, RunLogErrorDialog,
-// HistoryKeysButton, openHistoryKeys) are built in parallel. Until they
-// land on the stage branch the page uses these stand-ins with the
-// contract's names: Statistics, Rate and Delete are today's frames (old
-// look, on the cell grid), the run-log error box and the keys box are the
-// kit's `Dialog` and `openKeyHelp`. At the merge this block goes and the
-// two files' exports are imported instead (the call sites stay).
+// WP 45-B (`history-stats.tsx`: HistoryStatsFrame) is built in parallel.
+// Until it lands on the stage branch the page uses this stand-in with the
+// contract's name: today's Statistics frame (old look, on the cell grid).
+// At the merge it goes and the file's export is imported instead (the call
+// site stays). Rate, Delete, the run-log error box and the keys box are WP
+// 45-C's (`history-dialogs.tsx`).
 
 /** Stand-in for WP 45-B's `HistoryStatsFrame`: today's Statistics frame. */
 function HistoryStatsFrame(p: { session: Session }): VNode {
   return <SessionStatsFrame session={p.session} />;
-}
-
-/** Stand-in for WP 45-C's `RateDialog` (an overlay frame): today's Rate frame. */
-function openRate(nav: Nav, s: Session, done: () => Promise<void>): void {
-  nav.push(<RateFrame session={s} done={done} />);
-}
-
-/** Stand-in for WP 45-C's `DeleteDialog` (an overlay frame): today's Delete frame. */
-function openDelete(nav: Nav, s: Session, done: () => Promise<void>): void {
-  nav.push(<DeleteFrame session={s} done={done} />);
-}
-
-/** History's keys (the "?" box): no key-hint row on the page (owner decision 4). */
-const HISTORY_KEYS: [string, string][] = [
-  ['↑ ↓', 'Move'],
-  ['PgUp PgDn', 'Ten rows'],
-  ['Home End', 'First, last'],
-  ['← →', 'Character'],
-  ['Enter', 'Run log'],
-  ['R', 'Run log'],
-  ['T', 'Stats'],
-  ['A', 'Rate'],
-  ['S', 'Save'],
-  ['X', 'Export'],
-  ['D', 'Delete'],
-  ['B', 'Backup'],
-  ['O', 'Restore'],
-  ['Tab', 'Buttons'],
-  ['?', 'This list'],
-  ['Esc', 'Back'],
-];
-
-/** Stand-in for WP 45-C's `openHistoryKeys`. */
-function openHistoryKeys(nav: Nav): void {
-  openKeyHelp(nav, 'Keys', HISTORY_KEYS);
-}
-
-/** Stand-in for WP 45-C's `HistoryKeysButton`: the "?" glass icon button. */
-function HistoryKeysButton(): VNode {
-  const nav = useNav();
-  return <GlassButton id="KEYS" icon="help" title="Keys (?)" small onClick={() => openHistoryKeys(nav)} />;
-}
-
-/** Stand-in for WP 45-C's `RunLogErrorDialog` (an overlay frame). */
-const RunLogErrorDialog = lookFrame(function RunLogErrorDialog(p: { session: Session; error: string }): VNode {
-  const nav = useNav();
-  const close = (): void => nav.pop();
-  return (
-    <Dialog title="Run log" dlg="runlog-error" buttons={[{ id: 'OK', label: 'OK', primary: true, run: close }]} onCancel={close}>
-      <p class="wc-lk-q">This run log could not be opened.</p>
-      <p class="wc-lk-qn wc-hist-err">{p.error}</p>
-      <p class="wc-lk-qn">The run data may be damaged. Stats and Backup may still work.</p>
-    </Dialog>
-  );
-});
-
-// ------------------------------------------------------------------ rate
-
-/** Rate the session (Inv §7.4): 0–5, ←/→, click; Enter/Space saves (also an unsaved chain); ESC cancels. */
-export function RateFrame(p: { session: Session; done: () => Promise<void> }): VNode {
-  const { runs } = useServices();
-  const nav = useNav();
-  const { cols } = useGrid();
-  const [rating, setRating] = useState(p.session.saved ? p.session.rating : 0);
-  const busy = useRef(false);
-  const commit = async (): Promise<void> => {
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      await (await runs()).save(p.session, rating);
-      await p.done();
-      nav.pop();
-      nav.flash(rating > 0 ? `Rated ${stars(rating)}.` : 'Saved, no rating.');
-    } catch (e) {
-      nav.pop();
-      nav.flash(`Rating failed: ${errText(e)}`, 'fail');
-    }
-  };
-  useKeys((e, nk) => {
-    if (nk === 'activate') {
-      void commit();
-      return true;
-    }
-    const r = ratingKey(e, rating);
-    if (r === null) return false;
-    setRating(r);
-    return true;
-  });
-  const s = p.session;
-  return (
-    <Page
-      title="Rate the session"
-      footer={[
-        '0-5 Rate',
-        '←→ Adjust',
-        { text: 'Enter Save', onClick: () => void commit() },
-        { text: 'ESC Cancel', onClick: () => nav.pop() },
-      ]}
-    >
-      <Centered
-        text={`${s.character} · ${fmtDate(s.startUs)} · ${fmtTime(s.startUs)} · ${fmtDur(s.endUs - s.startUs)}`}
-        class="wc-c-body"
-      />
-      <Blank />
-      <Stars value={rating} at={centreLeft(cols, STARS_W)} onSet={setRating} />
-      <Blank />
-      <FlashRow />
-    </Page>
-  );
-}
-
-// ---------------------------------------------------------------- delete
-
-/** Delete session (Inv §7.4, a modal): Y deletes every run of the chain; any other key cancels. */
-export function DeleteFrame(p: { session: Session; done: () => Promise<void> }): VNode {
-  const { runs } = useServices();
-  const nav = useNav();
-  const { cols } = useGrid();
-  const busy = useRef(false);
-  const s = p.session;
-  const confirm = async (): Promise<void> => {
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      await (await runs()).remove(s);
-      await p.done();
-      nav.pop();
-      nav.flash('Session deleted.');
-    } catch (e) {
-      nav.pop();
-      nav.flash(`Delete failed: ${errText(e)}`, 'fail');
-    }
-  };
-  useKeys((e) => {
-    if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return true;
-    if ((e.key === 'y' || e.key === 'Y') && !e.ctrlKey && !e.altKey && !e.metaKey) void confirm();
-    else nav.pop();
-    return true;
-  });
-  const rows: Array<[string, string]> = [
-    ['Character', s.character],
-    ['Date', fmtDate(s.startUs)],
-    ['Time', fmtTime(s.startUs)],
-    ['Duration', fmtDur(s.endUs - s.startUs)],
-    ['Runs', String(s.runs.length)],
-  ];
-  const x = centreLeft(cols, 11 + Math.max(...rows.map(([, v]) => v.length)));
-  return (
-    <Page
-      title="Delete session"
-      titleClass="wc-c-header"
-      footer={[
-        { text: 'Y Delete', onClick: () => void confirm() },
-        { text: 'Any other key Cancel', onClick: () => nav.pop() },
-      ]}
-    >
-      {rows.map(([k, v]) => (
-        <Line at={x}>
-          <span class="wc-c-hint">{k.padEnd(11)}</span>
-          <span class="wc-c-item">{v}</span>
-        </Line>
-      ))}
-      {s.saved && <Centered text={`Saved: yes${s.rating > 0 ? ' — ' + stars(s.rating) : ''}`} class="wc-c-accent" />}
-      <Blank />
-      <Centered text="This will permanently delete the session's logs and run data." class="wc-c-hint" />
-      <Centered text="This cannot be undone." class="wc-c-hint" />
-    </Page>
-  );
 }

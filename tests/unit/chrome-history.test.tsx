@@ -396,7 +396,7 @@ describe('History frame', () => {
 
     // Rate: 4 stars with keys, Enter saves.
     await key('a');
-    expect(title(host)).toBe('─── Rate the session ───');
+    expect(dlg('rate')).not.toBeNull();
     await key('3');
     await key('ArrowRight');
     await key('Enter');
@@ -406,7 +406,7 @@ describe('History frame', () => {
 
     // Delete: a key other than Y cancels; Y deletes; the cursor stays at the same index.
     await act(() => btn(host, 'DELETE').click());
-    expect(frame(host).textContent).toContain('Saved: yes — ★★★★');
+    expect(dlg('delete')?.textContent).toContain('yes — ★★★★');
     await key('n');
     expect(rowTexts(host)).toHaveLength(3);
     await key('d');
