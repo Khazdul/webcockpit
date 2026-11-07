@@ -7,8 +7,8 @@ import { type Locator, type Page, expect, test } from '@playwright/test';
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const tool = (page: Page, id: string) => editor(page).locator(`.wc-sed-tools [data-btn="${id}"]`);
-// A row of the Scripts page: the grid page's `data-script`, the lantern page's `data-name` (stage 44a).
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"], .wc-scr-row[data-name="${name}"]`);
+// A row of the Scripts page by its `data-name` (stage 44a).
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
 const source = (page: Page) => page.evaluate(() => window.__wc!.shell.scripts!.list().find((s) => s.name === 'phoneed')!.source);
 
 /** Start page → Scripts → the script `phoneed` → Edit, all by taps. */

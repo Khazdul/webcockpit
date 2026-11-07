@@ -4,6 +4,7 @@
 // error on its line) and the Scripts page's syntax check of a script that
 // is off. Nothing reaches the real server.
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { morphDone } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -41,8 +42,8 @@ const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed')
 const panel = (page: Page) => editor(page).locator('.wc-search');
 const unsaved = (page: Page) => editor(page).locator('.wc-lk-dialog[data-dlg="unsaved"]');
 const flash = (page: Page) => editor(page).locator('.wc-lk-flash');
-// A row of the Scripts page: the grid page's `data-script`, the lantern page's `data-name` (stage 44a).
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"], .wc-scr-row[data-name="${name}"]`);
+// A row of the Scripts page by its `data-name` (stage 44a).
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(
     ([fn, args]) => {
@@ -84,6 +85,9 @@ async function openEditor(page: Page, f: Locator, name = 'finder'): Promise<void
   await row(f, name).locator('.wc-scr-name').click();
   await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', name);
+  // The box's morph runs ~0.3 s: Firefox drops the focus of a box hidden by it (the
+  // editor takes it back when it lands), so keys go in after it.
+  await morphDone(page);
   await expect(editor(page).locator('.cm-content')).toBeFocused();
 }
 

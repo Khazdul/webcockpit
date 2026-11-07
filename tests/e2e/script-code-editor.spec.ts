@@ -5,6 +5,7 @@
 // Manual; Duplicate for a bundled script) dim while typing; Ctrl+S and F1
 // as before. Nothing reaches the real server.
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { morphDone } from './look';
 import { completeLua } from '../../src/editor/lua-api';
 
 const IAC = 255;
@@ -39,8 +40,8 @@ const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const tool = (page: Page, id: string) => editor(page).locator(`.wc-sed-tools [data-btn="${id}"]`);
 const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
-// A row of the Scripts page: the grid page's `data-script`, the lantern page's `data-name` (stage 44a).
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"], .wc-scr-row[data-name="${name}"]`);
+// A row of the Scripts page by its `data-name` (stage 44a).
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
 const list = (page: Page) => page.locator('.cm-tooltip-autocomplete');
 const marker = (page: Page) => editor(page).locator('.cm-gutter-lint .cm-lint-marker-error');
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
@@ -74,6 +75,9 @@ async function openEditor(page: Page): Promise<Locator> {
   await row(f, 'coder').locator('.wc-scr-name').click();
   await f.locator('[data-btn="EDIT"]:visible').first().click();
   await expect(editor(page)).toHaveAttribute('data-script', 'coder');
+  // The box's morph runs ~0.3 s: Firefox drops the focus of a box hidden by it (the
+  // editor takes it back when it lands), so keys go in after it.
+  await morphDone(page);
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');
   return f;
