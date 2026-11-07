@@ -189,6 +189,11 @@ export function useIsTopFrame(): boolean {
   return useFrameCtx().topFrame;
 }
 
+/** True for a frame pushed with `{ overlay: true }` (a dialog over the page). */
+export function useIsOverlay(): boolean {
+  return useFrameCtx().entry.overlay;
+}
+
 /** The current flash message (shared by the stack). */
 export function useFlash(): Flash | null {
   return useFrameCtx().flash;

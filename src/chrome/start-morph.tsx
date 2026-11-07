@@ -42,7 +42,7 @@ import {
   planLength,
   reducedMotion,
 } from './kit/look';
-import { useIsTopFrame } from './kit/stack';
+import { useIsOverlay, useIsTopFrame } from './kit/stack';
 
 /** A large box covering at least this share of the view calms the sky behind it. */
 export const CALM_COVER = 0.85;
@@ -418,13 +418,17 @@ export const MorphCtx = createContext<MorphStage | null>(null);
 
 /**
  * Wraps a frame on the start surface (the surface's `wrap`): tells the
- * stage when the frame becomes the top one, takes its outermost box's
+ * stage when the frame becomes the top one (never for an overlay frame:
+ * the page under it stays drawn and keeps its box), takes its outermost box's
  * report and provides `useBoxSettled`. `grid`: an old-look frame (no box;
  * it covers the sky).
  */
 export function LookHost(p: { grid?: boolean; children: ComponentChildren }): VNode {
   const stage = useContext(MorphCtx);
-  const top = useIsTopFrame();
+  // An overlay (a dialog over the page) is no page change: the page's box stays the stage's top box.
+  const topFrame = useIsTopFrame();
+  const overlay = useIsOverlay();
+  const top = topFrame && !overlay;
   const [settled, setSettled] = useState(() => !stage || reducedMotion());
   const host = useMemo(() => stage?.newHost(setSettled, !!p.grid) ?? null, [stage]);
   const report = useMemo(() => (stage && host ? (b: BoxReport | null) => stage.boxChanged(host, b) : null), [stage, host]);
