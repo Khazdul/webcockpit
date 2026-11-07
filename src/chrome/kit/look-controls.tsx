@@ -1,26 +1,47 @@
-// The lantern kit's controls and widgets (stage 41, ADR 0125; stage 42,
-// ADR 0127). Package 42b owns this file.
+// The lantern kit's controls and widgets (stage 41, ADR 0125; stage 42b,
+// ADR 0127). Package 42b owns this file; its look is look-controls.css
+// (the glass buttons' is look-glass.css, shared with the player).
 //
-// `GlassButton` and `LookFlash` are stage 41's, unchanged in behaviour.
-// The rest are 42-0 stubs: the stage 42 API's names, props and exports,
-// rendered as plain elements with the right roles, so that the parallel
-// packages (42c's dialogs, 42e's find head, the gallery sections) can code
-// against them before 42b draws them.
+// Re-derived from the round 7 base (notes/research/start-menu-mockups/
+// round7/base/: gallery.html, base.css) in the app's structure. Every
+// colour is a `--lk-*` token (look-tokens.css), so the same control works
+// over the sky, in a dark window body and on Paper (`data-light`).
 //
-// Rules (the owner's, README "Baseline"): glass buttons never take the DOM
-// focus (the frame stack keeps it); the page's keys reach them through
-// `selected` and their shortcut letter.
+// Rules (the owner's, README "Baseline"): no key-hint rows; a shortcut is
+// the letter marked inside its label; selection only brightens (no glide,
+// glow or sweep). Buttons, options, tabs, checks and toggles never take
+// the DOM focus (the frame stack keeps it: `tabIndex=-1`, no focus on
+// press); the page's keys reach them through `selected` and its letters.
+// Text fields and selects do take the focus while they are typed in (the
+// stack's Esc rule gives it back, 42c). Nothing depends on hover.
+//
+// ARIA: `Seg` is a radiogroup of radios (one choice) or a group of
+// checkboxes (`multi`), both with `aria-checked`; `Tabs` a tablist of tabs
+// with `aria-selected`; `Check` a checkbox and `Toggle` a switch with
+// `aria-checked`; disabled pieces carry `aria-disabled` (they stay in the
+// layout and ignore presses); `Table` a table with column heads and
+// `aria-sort`; a `Field` with an error is `aria-invalid` and described by
+// its error or hint line.
 
 import type { ComponentChildren, Ref, VNode } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type IconDraw, type IconName, Icon } from './look-icons';
 import { KeyLabel } from './look-keys';
 import { FLASH_MS, type Flash, type FlashKind, useFlash } from './stack';
+import './look-controls.css';
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
 function IconOf(p: { icon: IconName | IconDraw }): VNode {
   return typeof p.icon === 'string' ? <Icon name={p.icon} /> : <Icon {...p.icon} />;
+}
+
+/** Presses never move the DOM focus (the frame stack keeps it). */
+const keepFocus = (e: MouseEvent): void => e.preventDefault();
+
+function setRef<T>(ref: Ref<T> | undefined, el: T | null): void {
+  if (typeof ref === 'function') ref(el);
+  else if (ref) ref.current = el;
 }
 
 // ------------------------------------------------------------ buttons
@@ -52,7 +73,8 @@ export interface GlassButtonProps {
 /**
  * A glass button: clear, faintly frosted glass with a lit top edge, no
  * texture. Never takes the focus (the frame stack keeps it); the page's
- * keys reach it through `selected` and its shortcut letter.
+ * keys reach it through `selected` and its shortcut letter. Icon-only
+ * without `label` (square; `title` is its name).
  */
 export function GlassButton(p: GlassButtonProps): VNode {
   const cls = cx(
@@ -76,7 +98,7 @@ export function GlassButton(p: GlassButtonProps): VNode {
       aria-label={p.label === undefined ? p.title : undefined}
       aria-disabled={p.disabled ? 'true' : undefined}
       aria-keyshortcuts={p.letter?.toUpperCase()}
-      onMouseDown={(e) => e.preventDefault()}
+      onMouseDown={keepFocus}
       onClick={(e) => {
         e.stopPropagation();
         if (!p.disabled) p.onClick();
@@ -114,12 +136,37 @@ export type SegProps = {
   | { multi: true; values: readonly string[]; onChange(v: string, on: boolean): void }
 );
 
-/** A segmented control or a row of pills (one choice, or several with `multi`). 42-0 stub. */
+/** Scrolls `child` into `box`'s sideways view (only `box`, never the page). */
+function keepInView(box: HTMLElement, child: HTMLElement | null): void {
+  if (!child || box.scrollWidth <= box.clientWidth) return;
+  const pad = 12;
+  const left = child.offsetLeft;
+  const right = left + child.offsetWidth;
+  if (left - pad < box.scrollLeft) box.scrollLeft = Math.max(0, left - pad);
+  else if (right + pad > box.scrollLeft + box.clientWidth) box.scrollLeft = right + pad - box.clientWidth;
+}
+
+/**
+ * A segmented control (`kind="seg"`, one well) or a row of pills
+ * (`kind="pills"`: one line that scrolls sideways, the keyboard's or the
+ * chosen pill kept in view): one choice, or several with `multi` (chips).
+ * The chosen option is lit glass; the keyboard's has a fine lit ring.
+ */
 export function Seg(p: SegProps): VNode {
   const on = (v: string): boolean => (p.multi ? p.values.includes(v) : p.value === v);
+  const pills = p.kind === 'pills';
+  const box = useRef<HTMLDivElement>(null);
+  const chosen = p.multi ? undefined : p.value;
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!pills || !el) return;
+    const i = p.selected ?? (chosen === undefined ? -1 : p.options.findIndex((o) => o.value === chosen));
+    keepInView(el, (el.children[i] as HTMLElement | undefined) ?? null);
+  }, [pills, chosen, p.selected]);
   return (
     <div
-      class={cx('wc-lk-seg', p.kind === 'pills' && 'is-pills')}
+      ref={box}
+      class={cx('wc-lk-seg', pills && 'is-pills', p.multi && 'is-multi')}
       role={p.multi ? 'group' : 'radiogroup'}
       aria-label={p.label}
     >
@@ -127,19 +174,20 @@ export function Seg(p: SegProps): VNode {
         <button
           key={o.value}
           type="button"
-          class={cx('wc-lk-opt', on(o.value) && 'is-on', p.selected === i && 'is-sel')}
+          class={cx('wc-lk-opt', on(o.value) && 'is-on', p.selected === i && 'is-sel', o.disabled && 'is-disabled')}
           role={p.multi ? 'checkbox' : 'radio'}
           aria-checked={on(o.value) ? 'true' : 'false'}
           aria-disabled={o.disabled ? 'true' : undefined}
+          aria-keyshortcuts={o.letter?.toUpperCase()}
           data-opt={o.id ?? o.value}
           tabIndex={-1}
           title={o.title}
-          onMouseDown={(e) => e.preventDefault()}
+          onMouseDown={keepFocus}
           onClick={(e) => {
             e.stopPropagation();
             if (o.disabled) return;
             if (p.multi) p.onChange(o.value, !on(o.value));
-            else p.onChange(o.value);
+            else if (!on(o.value)) p.onChange(o.value);
           }}
         >
           {o.icon && <IconOf icon={o.icon} />}
@@ -150,25 +198,31 @@ export function Seg(p: SegProps): VNode {
   );
 }
 
-/** Page tabs (a fine lit underline on the active one). 42-0 stub. */
+/** Page tabs: text with a fine lit underline under the active one (scrolls sideways when narrow). */
 export function Tabs(p: { tabs: SegOption[]; value: string; onChange(v: string): void; label: string }): VNode {
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el) keepInView(el, el.querySelector<HTMLElement>('.wc-lk-tab.is-on'));
+  }, [p.value]);
   return (
-    <div class="wc-lk-tabs" role="tablist" aria-label={p.label}>
+    <div ref={box} class="wc-lk-tabs" role="tablist" aria-label={p.label}>
       {p.tabs.map((t) => (
         <button
           key={t.value}
           type="button"
-          class={cx('wc-lk-tab', t.value === p.value && 'is-on')}
+          class={cx('wc-lk-tab', t.value === p.value && 'is-on', t.disabled && 'is-disabled')}
           role="tab"
           aria-selected={t.value === p.value ? 'true' : 'false'}
           aria-disabled={t.disabled ? 'true' : undefined}
+          aria-keyshortcuts={t.letter?.toUpperCase()}
           data-tab={t.id ?? t.value}
           tabIndex={-1}
           title={t.title}
-          onMouseDown={(e) => e.preventDefault()}
+          onMouseDown={keepFocus}
           onClick={(e) => {
             e.stopPropagation();
-            if (!t.disabled) p.onChange(t.value);
+            if (!t.disabled && t.value !== p.value) p.onChange(t.value);
           }}
         >
           {t.icon && <IconOf icon={t.icon} />}
@@ -184,6 +238,7 @@ export function Tabs(p: { tabs: SegOption[]; value: string; onChange(v: string):
 export interface FieldProps {
   value: string;
   onInput(v: string): void;
+  /** The value is committed: Enter or leaving the field after a change (the input's `change`). */
   onCommit?(v: string): void;
   label?: string;
   /** `data-field`. */
@@ -203,43 +258,83 @@ export interface TextAreaProps extends Omit<FieldProps, 'inputRef'> {
   inputRef?: Ref<HTMLTextAreaElement>;
 }
 
-function FieldShell(p: { label?: string | undefined; id?: string | undefined; error?: string | null | undefined; hint?: string | undefined; mono?: boolean | undefined; children: ComponentChildren }): VNode {
+function FieldShell(p: {
+  label?: string | undefined;
+  id?: string | undefined;
+  error?: string | null | undefined;
+  hint?: string | undefined;
+  mono?: boolean | undefined;
+  noteId: string;
+  area?: boolean;
+  children: ComponentChildren;
+}): VNode {
   return (
-    <label class={cx('wc-lk-field', p.mono && 'is-mono', p.error && 'is-bad')} data-field={p.id}>
+    <label class={cx('wc-lk-field', p.area && 'is-area', p.mono && 'is-mono', p.error && 'is-bad')} data-field={p.id}>
       {p.label && <span class="wc-lk-lbl">{p.label}</span>}
       {p.children}
-      {p.error ? <span class="wc-lk-ferr">{p.error}</span> : p.hint ? <span class="wc-lk-fhint">{p.hint}</span> : null}
+      {p.error ? (
+        <span class="wc-lk-ferr" id={p.noteId}>
+          {p.error}
+        </span>
+      ) : p.hint ? (
+        <span class="wc-lk-fhint" id={p.noteId}>
+          {p.hint}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-function useAutoFocus(ref: { current: HTMLInputElement | HTMLTextAreaElement | null }, auto?: boolean, all?: boolean): void {
+/**
+ * The field's own behaviour: the first focus (`autoFocus`, `selectAll`),
+ * and kept above the phone's soft keyboard (when the visual viewport
+ * shrinks under a focused field, the field scrolls into view).
+ */
+function useFieldEl(ref: { current: HTMLInputElement | HTMLTextAreaElement | null }, auto?: boolean, all?: boolean): void {
   useEffect(() => {
     const el = ref.current;
-    if (!el || !auto) return;
-    el.focus({ preventScroll: true });
-    if (all) el.select();
+    if (!el) return;
+    if (auto) {
+      el.focus({ preventScroll: true });
+      if (all) el.select();
+    }
+    const vv = typeof window === 'undefined' ? null : window.visualViewport;
+    if (!vv) return;
+    const onResize = (): void => {
+      if (document.activeElement !== el || keyboardInset() <= 0) return;
+      const r = el.getBoundingClientRect();
+      if (r.bottom > vv.offsetTop + vv.height || r.top < vv.offsetTop) el.scrollIntoView({ block: 'nearest' });
+    };
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
   }, []);
 }
 
-/** A text input in a glass well, with its label and an error or hint line. 42-0 stub. */
+/**
+ * A text input in a glass well, with its label (small Cinzel caps) and an
+ * error or hint line. Text in it is selectable (`user-select: text`).
+ */
 export function Field(p: FieldProps): VNode {
   const own = useRef<HTMLInputElement | null>(null);
-  useAutoFocus(own, p.autoFocus, p.selectAll);
+  const noteId = useId();
+  useFieldEl(own, p.autoFocus, p.selectAll);
   return (
-    <FieldShell label={p.label} id={p.id} error={p.error} hint={p.hint} mono={p.mono}>
+    <FieldShell label={p.label} id={p.id} error={p.error} hint={p.hint} mono={p.mono} noteId={noteId}>
       <input
         ref={(el) => {
           own.current = el;
-          if (typeof p.inputRef === 'function') p.inputRef(el);
-          else if (p.inputRef) p.inputRef.current = el;
+          setRef(p.inputRef, el);
         }}
+        class="wc-lk-input"
         type="text"
         value={p.value}
         placeholder={p.placeholder}
         maxLength={p.maxLength}
         spellcheck={false}
+        autocomplete="off"
+        autocapitalize="off"
         aria-invalid={p.error ? 'true' : undefined}
+        aria-describedby={p.error || p.hint ? noteId : undefined}
         onInput={(e) => p.onInput(e.currentTarget.value)}
         onChange={(e) => p.onCommit?.(e.currentTarget.value)}
       />
@@ -247,24 +342,26 @@ export function Field(p: FieldProps): VNode {
   );
 }
 
-/** A multi-line text field in a glass well. 42-0 stub. */
+/** A multi-line text field in a glass well (resizes vertically). */
 export function TextArea(p: TextAreaProps): VNode {
   const own = useRef<HTMLTextAreaElement | null>(null);
-  useAutoFocus(own, p.autoFocus, p.selectAll);
+  const noteId = useId();
+  useFieldEl(own, p.autoFocus, p.selectAll);
   return (
-    <FieldShell label={p.label} id={p.id} error={p.error} hint={p.hint} mono={p.mono}>
+    <FieldShell label={p.label} id={p.id} error={p.error} hint={p.hint} mono={p.mono} noteId={noteId} area>
       <textarea
         ref={(el) => {
           own.current = el;
-          if (typeof p.inputRef === 'function') p.inputRef(el);
-          else if (p.inputRef) p.inputRef.current = el;
+          setRef(p.inputRef, el);
         }}
+        class="wc-lk-input"
         value={p.value}
-        rows={p.rows}
+        rows={p.rows ?? 4}
         placeholder={p.placeholder}
         maxLength={p.maxLength}
         spellcheck={false}
         aria-invalid={p.error ? 'true' : undefined}
+        aria-describedby={p.error || p.hint ? noteId : undefined}
         onInput={(e) => p.onInput(e.currentTarget.value)}
         onChange={(e) => p.onCommit?.(e.currentTarget.value)}
       />
@@ -272,17 +369,29 @@ export function TextArea(p: TextAreaProps): VNode {
   );
 }
 
-/** A checkbox with a lit tick. 42-0 stub. */
+/** A checkbox: a small well with a lit tick, and its label. */
 export function Check(p: { checked: boolean; onChange(on: boolean): void; label: string; id?: string }): VNode {
   return (
-    <label class="wc-lk-check" data-field={p.id}>
-      <input type="checkbox" checked={p.checked} onChange={(e) => p.onChange(e.currentTarget.checked)} />
-      <span>{p.label}</span>
-    </label>
+    <button
+      type="button"
+      class={cx('wc-lk-check', p.checked && 'is-on')}
+      role="checkbox"
+      aria-checked={p.checked ? 'true' : 'false'}
+      data-field={p.id}
+      tabIndex={-1}
+      onMouseDown={keepFocus}
+      onClick={(e) => {
+        e.stopPropagation();
+        p.onChange(!p.checked);
+      }}
+    >
+      <span class="wc-lk-cbox" aria-hidden="true" />
+      <span class="wc-lk-clabel">{p.label}</span>
+    </button>
   );
 }
 
-/** A toggle: a groove and a riveted knob, "On / Off". 42-0 stub. */
+/** A toggle: a groove with a riveted knob, its state ("On" / "Off") and its label. */
 export function Toggle(p: { on: boolean; onChange(on: boolean): void; label: string; id?: string }): VNode {
   return (
     <button
@@ -293,19 +402,26 @@ export function Toggle(p: { on: boolean; onChange(on: boolean): void; label: str
       aria-label={p.label}
       data-field={p.id}
       tabIndex={-1}
-      onMouseDown={(e) => e.preventDefault()}
+      onMouseDown={keepFocus}
       onClick={(e) => {
         e.stopPropagation();
         p.onChange(!p.on);
       }}
     >
-      <span class="wc-lk-tlabel">{p.label}</span>
-      <span class="wc-lk-tstate">{p.on ? 'On' : 'Off'}</span>
+      <span class="wc-lk-groove" aria-hidden="true">
+        <i class="wc-lk-knob" />
+      </span>
+      <span class="wc-lk-tstate" aria-hidden="true">
+        {p.on ? 'On' : 'Off'}
+      </span>
+      <span class="wc-lk-tlabel" aria-hidden="true">
+        {p.label}
+      </span>
     </button>
   );
 }
 
-/** A select in a glass well. 42-0 stub. */
+/** A native select in a glass well, with a chevron and its label. */
 export function Select(p: {
   value: string;
   options: { value: string; label: string }[];
@@ -316,7 +432,7 @@ export function Select(p: {
   return (
     <label class="wc-lk-field wc-lk-select" data-field={p.id}>
       <span class="wc-lk-lbl">{p.label}</span>
-      <select value={p.value} onChange={(e) => p.onChange(e.currentTarget.value)}>
+      <select class="wc-lk-input" value={p.value} aria-label={p.label} onChange={(e) => p.onChange(e.currentTarget.value)}>
         {p.options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -336,7 +452,14 @@ export interface TableHead {
   align?: 'end';
 }
 
-/** A table on one grid with sortable heads (`data-dir`). 42-0 stub. */
+/**
+ * A table on one grid (`cols` is its `grid-template-columns`) with
+ * sortable heads: the sorted one has `data-dir` (`1` ascending ▴, `-1`
+ * descending ▾) and `aria-sort`. Below `stackBelow` px of its own width
+ * the table is `.is-stacked`: the heads hide and each row takes two lines
+ * (the first cell on the first, the others after it; a page refines it in
+ * its own CSS). Rows: `TableRow`, cells `.wc-lk-td` (`.is-end` right).
+ */
 export function Table(p: {
   /** `grid-template-columns`. */
   cols: string;
@@ -347,42 +470,75 @@ export function Table(p: {
   stackBelow?: number;
   children?: ComponentChildren;
 }): VNode {
+  const ref = useRef<HTMLDivElement>(null);
+  const [stacked, setStacked] = useState(false);
+  const below = p.stackBelow;
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !below) {
+      setStacked(false);
+      return;
+    }
+    const check = (w: number): void => setStacked(w > 0 && w < below);
+    check(el.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((es) => {
+      const e = es[es.length - 1];
+      if (e) check(e.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [below]);
   return (
-    <div class="wc-lk-tbl" role="table" style={{ '--lk-cols': p.cols }}>
+    <div ref={ref} class={cx('wc-lk-tbl', stacked && 'is-stacked')} role="table" style={{ '--lk-cols': p.cols }}>
       <div class="wc-lk-throw" role="row">
-        {p.heads.map((h) => (
-          <span
-            key={h.key}
-            class={cx('wc-lk-th', h.sort && 'is-sort', h.align === 'end' && 'is-end')}
-            role="columnheader"
-            data-key={h.key}
-            data-dir={p.sort?.key === h.key ? String(p.sort.dir) : undefined}
-            onClick={h.sort ? () => p.onSort?.(h.key) : undefined}
-          >
-            {h.label}
-          </span>
-        ))}
+        {p.heads.map((h) => {
+          const dir = p.sort?.key === h.key ? p.sort.dir : undefined;
+          return (
+            <span
+              key={h.key}
+              class={cx('wc-lk-th', h.sort && 'is-sort', h.align === 'end' && 'is-end')}
+              role="columnheader"
+              data-key={h.key}
+              data-dir={dir === undefined ? undefined : String(dir)}
+              aria-sort={dir === undefined ? (h.sort ? 'none' : undefined) : dir === 1 ? 'ascending' : 'descending'}
+              onMouseDown={h.sort ? keepFocus : undefined}
+              onClick={h.sort ? () => p.onSort?.(h.key) : undefined}
+            >
+              {h.label}
+            </span>
+          );
+        })}
       </div>
       {p.children}
     </div>
   );
 }
 
-/** A table row (cells: `.wc-lk-td`). 42-0 stub. */
+/**
+ * A table row (cells: `.wc-lk-td`, `.is-end` right-aligned). `on`: the
+ * chosen row (its text brightens, nothing else). Takes a list cursor's
+ * `rowProps(i)` as well (`onPointerMove`, `data-i`).
+ */
 export function TableRow(p: {
   on?: boolean;
   id?: string;
-  onClick?(): void;
-  onDblClick?(): void;
+  class?: string;
+  onClick?(e: MouseEvent): void;
+  onDblClick?(e: MouseEvent): void;
+  onPointerMove?(e: PointerEvent): void;
+  'data-i'?: number;
   children?: ComponentChildren;
 }): VNode {
   return (
     <div
-      class={cx('wc-lk-tr', p.on && 'is-on')}
+      class={cx('wc-lk-tr', p.on && 'is-on', p.class)}
       role="row"
       data-id={p.id}
-      onClick={p.onClick && (() => p.onClick?.())}
-      onDblClick={p.onDblClick && (() => p.onDblClick?.())}
+      data-i={p['data-i']}
+      onPointerMove={p.onPointerMove && ((e) => p.onPointerMove?.(e))}
+      onClick={p.onClick && ((e) => p.onClick?.(e))}
+      onDblClick={p.onDblClick && ((e) => p.onDblClick?.(e))}
     >
       {p.children}
     </div>
@@ -391,64 +547,77 @@ export function TableRow(p: {
 
 // ------------------------------------------------------------ text pieces
 
-/** A section heading with a hairline (and an optional right-hand button). 42-0 stub. */
+/** A section heading with a hairline (and an optional right-hand button: Settings ─── Reset all). */
 export function Rule(p: { title: string; children?: ComponentChildren }): VNode {
   return (
     <div class="wc-lk-rule">
-      <span class="wc-lk-sec">{p.title}</span>
-      <i class="wc-lk-hair" />
+      <h3 class="wc-lk-sec">{p.title}</h3>
+      <i class="wc-lk-hair" aria-hidden="true" />
       {p.children}
     </div>
   );
 }
 
-/** A thin rule with an open diamond. 42-0 stub. */
+/** A thin rule with an open diamond in the middle. */
 export function OrnRule(): VNode {
   return <div class="wc-lk-orn" role="separator" aria-hidden="true" />;
 }
 
-/** A fold: a heading that opens and closes its content. 42-0 stub. */
-export function Fold(p: { open: boolean; onToggle(): void; label: string; children?: ComponentChildren }): VNode {
+/** A fold: a heading (small caps, a chevron) that opens and closes its content. */
+export function Fold(p: { open: boolean; onToggle(): void; label: string; class?: string; children?: ComponentChildren }): VNode {
+  const bodyId = useId();
   return (
-    <div class={cx('wc-lk-fold', p.open && 'is-open')}>
+    <div class={cx('wc-lk-fold', p.open && 'is-open', p.class)}>
       <button
         type="button"
         class="wc-lk-fold-h"
         aria-expanded={p.open ? 'true' : 'false'}
+        aria-controls={p.open ? bodyId : undefined}
         tabIndex={-1}
-        onMouseDown={(e) => e.preventDefault()}
+        onMouseDown={keepFocus}
         onClick={(e) => {
           e.stopPropagation();
           p.onToggle();
         }}
       >
-        {p.label}
+        <Icon name="fold" />
+        <span>{p.label}</span>
       </button>
-      {p.open && <div class="wc-lk-fold-b">{p.children}</div>}
+      {p.open && (
+        <div class="wc-lk-fold-b" id={bodyId}>
+          {p.children}
+        </div>
+      )}
     </div>
   );
 }
 
-/** A well: a sunk, solid surface (code, a log, a quote). 42-0 stub. */
+/** A well: a sunk, solid surface (code, a log, a quote); `mono` in the terminal font. */
 export function Well(p: { mono?: boolean; class?: string; children?: ComponentChildren }): VNode {
   return <div class={cx('wc-lk-well', p.mono && 'wc-lk-mono', p.class)}>{p.children}</div>;
 }
 
-/** A row of stars (`n` of `max`). 42-0 stub. */
+/** A row of stars (`n` of `max`, default 5): gold, the rest faint. */
 export function Stars(p: { n: number; max?: number }): VNode {
-  const max = p.max ?? 5;
+  const max = Math.max(0, Math.round(p.max ?? 5));
+  const n = Math.max(0, Math.min(max, Math.round(p.n)));
   return (
-    <span class="wc-lk-stars" role="img" aria-label={`${p.n} of ${max}`}>
-      {'★'.repeat(Math.max(0, Math.min(max, p.n)))}
-      {'☆'.repeat(Math.max(0, max - Math.max(0, p.n)))}
+    <span class="wc-lk-stars" role="img" aria-label={`${n} of ${max}`}>
+      <span class="wc-lk-star-on">{'★'.repeat(n)}</span>
+      <span class="wc-lk-star-off">{'★'.repeat(max - n)}</span>
     </span>
   );
 }
 
-/** The "M" mark (the favicon's drawing). 42-0 stub. */
+/**
+ * The "M" mark: the favicon's drawing (public/favicon.svg, built by
+ * scripts/build-favicons.ts from the wordmark's M), as an image so its SVG
+ * ids never clash and it costs no bundle bytes.
+ */
 export function Seal(p: { size?: number }): VNode {
   const s = p.size ?? 32;
-  return <span class="wc-lk-seal" style={{ width: `${s}px`, height: `${s}px` }} aria-hidden="true" />;
+  const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
+  return <img class="wc-lk-seal" src={`${base}favicon.svg`} width={s} height={s} alt="" aria-hidden="true" draggable={false} />;
 }
 
 // ------------------------------------------------------------ feedback
@@ -492,7 +661,39 @@ export function useLocalFlash(): [Flash | null, (text: string, kind?: FlashKind,
   return [flash, show];
 }
 
-/** The px the soft keyboard covers at the bottom of the layout viewport (visualViewport). 42-0 stub: 0. */
+// ------------------------------------------------------------ the soft keyboard
+
+/**
+ * The px the soft keyboard covers at the bottom of the layout viewport
+ * (from `visualViewport`), 0 without one. A pinch zoom shrinks the visual
+ * viewport too; that is told apart by its scale.
+ */
+export function keyboardInset(win: Pick<Window, 'innerHeight' | 'visualViewport'> | undefined = typeof window === 'undefined' ? undefined : window): number {
+  const vv = win?.visualViewport;
+  if (!win || !vv) return 0;
+  const covered = vv.scale > 1.01 ? win.innerHeight - vv.height * vv.scale : win.innerHeight - vv.height - vv.offsetTop;
+  return covered > 1 ? Math.round(covered) : 0;
+}
+
+/** The px the soft keyboard covers now (`keyboardInset`), updated as it opens and closes (one update per frame). */
 export function useKeyboardInset(): number {
-  return 0;
+  const [inset, setInset] = useState(() => keyboardInset());
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let raf = 0;
+    const on = (): void => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setInset(keyboardInset()));
+    };
+    vv.addEventListener('resize', on);
+    vv.addEventListener('scroll', on);
+    on();
+    return () => {
+      cancelAnimationFrame(raf);
+      vv.removeEventListener('resize', on);
+      vv.removeEventListener('scroll', on);
+    };
+  }, []);
+  return inset;
 }
