@@ -18,15 +18,17 @@
 
 import './kit/kit.css';
 import './kit/look.css';
-import { type VNode, render } from 'preact';
+import { type ComponentChildren, type VNode, render } from 'preact';
 import { useRef } from 'preact/hooks';
 import { isLive } from '../app/status';
 import { EscMain, type EscActions, ExitConfirm, ProfileEntry } from './frames/esc-main';
 import { OptionsHub, PanesFrame } from './frames/options';
 import { ScriptsFrame } from './frames/scripts';
 import { StartMain } from './frames/start-main';
-import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid } from './kit/hooks';
+import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useSettings } from './kit/hooks';
 import { device } from '../core/device';
+import { isLight } from '../theme/color';
+import { LookPlaceCtx, isLookFrame } from './kit/look';
 import { FrameStack } from './kit/stack';
 import { randomQuote } from './quotes';
 import { StartSurface } from './start-surface';
@@ -216,6 +218,41 @@ function menuRoot(p: MenuSurfaceProps): VNode {
 const MENU_SHARE = 0.8;
 const menuShare = (): number => (device().phone ? 1 : MENU_SHARE);
 
+/**
+ * Where the menu's frames are drawn (stage 42d, ADR 0127): an old-look
+ * frame on the TUI grid inside the border, as before; a look frame over the
+ * whole screen on the opaque game background (window.css `.wc-menu-look`),
+ * in a `.wc-look` page (the kit's tokens, Paper on a light game background),
+ * where the kit's Box draws the Lykta frame (place `menu`).
+ */
+const menuFrameAttrs = (node: VNode): { class: string } | null => (isLookFrame(node) ? { class: 'wc-menu-look' } : null);
+const menuWrap = (node: VNode): VNode => (isLookFrame(node) ? <MenuLookPage>{node}</MenuLookPage> : node);
+
+/** A look frame's page in the menu: the tokens, dark or Paper as the game background. */
+function MenuLookPage(p: { children: ComponentChildren }): VNode {
+  const settings = useSettings();
+  return (
+    <div class="wc-look wc-menu-page" data-light={isLight(settings.appearance.bg) ? '' : undefined}>
+      {p.children}
+    </div>
+  );
+}
+
+/** The menu's frame stack: look frames in the place `menu`, full screen; old-look frames on the grid. */
+export function MenuStack(p: { root: VNode; active: boolean; onRootBack: () => void }): VNode {
+  return (
+    <LookPlaceCtx.Provider value="menu">
+      <FrameStack
+        root={p.root}
+        active={p.active}
+        onRootBack={p.onRootBack}
+        wrap={menuWrap}
+        frameAttrs={menuFrameAttrs}
+      />
+    </LookPlaceCtx.Provider>
+  );
+}
+
 function MenuSurface(p: MenuSurfaceProps): VNode {
   const ref = useRef<HTMLDivElement>(null);
   const g = useHostGrid(ref);
@@ -244,7 +281,7 @@ function MenuSurface(p: MenuSurfaceProps): VNode {
           </div>
           <div class="wc-overlay-inner" style={{ left: cw, top: ch, width: (W - 2) * cw, height: (H - 2) * ch }}>
             <GridCtx.Provider value={{ cols: W - 2, rows: H - 2, surface: 'menu' }}>
-              <FrameStack key={p.epoch} root={menuRoot(p)} active={p.open} onRootBack={p.close} />
+              <MenuStack key={p.epoch} root={menuRoot(p)} active={p.open} onRootBack={p.close} />
             </GridCtx.Provider>
           </div>
         </div>
