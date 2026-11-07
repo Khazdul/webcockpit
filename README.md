@@ -49,7 +49,7 @@ To serve it under a subpath, build with `WEBCOCKPIT_BASE=/path/ npm run build`
 clock, even before you connect: the sun and moon cross it, clouds drift,
 stars and shooting stars come out at night, and the season brings its
 weather (snow all winter, now and then rain in spring and autumn). Over
-it sit the forged-iron MUME wordmark with its cyan metal inlay, the
+it sit the forged-iron MUME wordmark with its mithril inlay, the
 menu, a Tolkien quote and, at the bottom right, the date and time in
 Middle-earth. The keyboard drives it: ↑↓ and Enter, or the underlined
 letter of each entry (E Enter MUME, P Profile, S Scripts, H History,
