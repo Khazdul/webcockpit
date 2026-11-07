@@ -95,9 +95,9 @@ view and a full text view with syntax highlighting, and both edit the
 same profile. Round-trips are lossless. Macros bind any key the browser
 lets through. Profiles can be exported and imported as `.tin` files,
 and import also reads TinTin++, JMC, Powwow and Mudlet profiles. The
-start page's Profile list shows when each was last changed, and its
-buttons have letters too: Select, New, Edit, Rename, Delete, Import,
-Export (S N E R D I X).
+start page's Profile list shows when each was last changed; the
+highlighted profile has its own Select, Edit, Rename and Delete buttons
+(S E R D), and New, Import and Export (N I X) sit below the list.
 
 **Lua scripts.** Scripts in Lua 5.4 run beside the profile, in a
 sandbox, with an API for triggers, aliases, keys, timers, GMCP, the map

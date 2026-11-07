@@ -252,3 +252,54 @@ stubs; put together they changed as follows.
   the machine) and not conclusive; left as is and noted for the owner.
   In the dev server Firefox ran at 31–48 fps on the app page (module
   loading and the dev client); always measure a build.
+
+## Addendum 2026-11-07 — actions on the row (the Profile list)
+
+The owner, after testing: choosing a profile and then an action in a
+separate button row is awkward; each profile row gets its own buttons,
+shown only on the highlighted row. This replaces the two focus zones and
+the seven-button row described above under "The Profile list".
+
+- **The highlighted row** (↑ ↓, a hover or a click / tap) shows small
+  glass buttons inside it: **Select** (only when it is not the selected
+  profile), **Edit**, **Rename**, **Delete** (Rename and Delete disabled
+  on `default`, with a tooltip saying why). Other rows show none. The
+  selected profile keeps its "Selected" tag; the selection style is
+  unchanged (the row brightens, no glow, no glide; the buttons fade in
+  over 150 ms, none with reduced motion).
+- **Page buttons** at the foot: **New**, **Import**, **Export** (Export
+  takes the highlighted profile; its tooltip names it).
+- **Layout.** On a wide box the buttons sit on the row's line between
+  the name and the Changed column (`grid-template-areas: "name acts
+  time"`), so a row without buttons looks as before and nothing shifts
+  as the highlight moves. Below 620 px of list width (a container query
+  on `.wc-pl-list`) and on the phone they take a line of their own under
+  the name and share its width (40 px high on the phone, labels without
+  icons). The highlighted row grows downwards only, so a hover cannot
+  make the rows jump under the pointer; the list scrolls the highlight
+  into view after a key, never after a pointer move.
+- **Keys.** ↑ ↓ PgUp PgDn (10) Home End move the highlight from anywhere;
+  on a row button the same button follows to the new row (Select falls
+  back to Edit on the selected profile), from a page button the keys go
+  back to the row. **Tab / Shift+Tab** walk one ring — the row, its
+  enabled buttons, the enabled page buttons — and wrap; **← / →** walk
+  the same order and stop at the ends. **Enter / Space** press the
+  keyboard's button; on the row itself Enter selects the profile, and on
+  the profile that is already selected it opens the editor (stage 25's
+  "the second click edits", kept because Enter on the selected profile
+  has nothing else to do). Letters marked in the labels: **S E R D** act
+  on the highlighted row, **N I X** anywhere on the page. Esc and Back
+  return to the menu.
+- **Mouse and touch.** A pointer move highlights (as the start menu);
+  a click or tap on a row that is not highlighted highlights it, on the
+  highlighted row it does what Enter does. On a touch screen (no hover)
+  the first tap therefore shows the row's buttons and the second selects.
+- **Focus.** Buttons never take the DOM focus (the stack keeps it).
+  After Rename the highlight is on the new name and the keys on the row;
+  after Delete the highlight goes to the neighbour in the order shown
+  (the row below, or above at the end; `DeleteFrame`'s `next`).
+- Tests address the row buttons as `.wc-pl-row.is-on [data-btn=…]`
+  (there is only one set, so `.wc-start [data-btn="EDIT"]` still
+  works) and the page buttons as `.wc-pl-btns [data-btn=…]`; a click
+  meant for the row itself goes to its name (`.wc-pl-n`), since the
+  buttons fill the middle of a wide row.
