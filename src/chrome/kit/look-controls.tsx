@@ -429,10 +429,29 @@ export function Select(p: {
   label: string;
   id?: string;
 }): VNode {
+  // A choice made with the pointer gives the focus back to the frame stack
+  // at once (its letters and arrows work again); one made with the keys
+  // keeps it in the select until Esc (the stack's Esc rule).
+  const byPointer = useRef(false);
   return (
     <label class="wc-lk-field wc-lk-select" data-field={p.id}>
       <span class="wc-lk-lbl">{p.label}</span>
-      <select class="wc-lk-input" value={p.value} aria-label={p.label} onChange={(e) => p.onChange(e.currentTarget.value)}>
+      <select
+        class="wc-lk-input"
+        value={p.value}
+        aria-label={p.label}
+        onPointerDown={() => (byPointer.current = true)}
+        onKeyDown={() => (byPointer.current = false)}
+        onChange={(e) => {
+          const el = e.currentTarget;
+          p.onChange(el.value);
+          if (!byPointer.current) return;
+          byPointer.current = false;
+          const stack = el.closest<HTMLElement>('.wc-stack');
+          el.blur();
+          stack?.focus({ preventScroll: true });
+        }}
+      >
         {p.options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -527,7 +546,8 @@ export function Table(p: {
 /**
  * A table row (cells: `.wc-lk-td`, `.is-end` right-aligned). `on`: the
  * chosen row (its text brightens, nothing else). Takes a list cursor's
- * `rowProps(i)` as well (`onPointerMove`, `data-i`).
+ * `rowProps(i)` whole: `onPointerDown` (which tells a touch tap from a
+ * click), `onPointerMove`, the clicks and `data-i`.
  */
 export function TableRow(p: {
   on?: boolean;
@@ -535,6 +555,7 @@ export function TableRow(p: {
   class?: string;
   onClick?(e: MouseEvent): void;
   onDblClick?(e: MouseEvent): void;
+  onPointerDown?(e: PointerEvent): void;
   onPointerMove?(e: PointerEvent): void;
   'data-i'?: number;
   children?: ComponentChildren;
@@ -545,6 +566,7 @@ export function TableRow(p: {
       role="row"
       data-id={p.id}
       data-i={p['data-i']}
+      onPointerDown={p.onPointerDown && ((e) => p.onPointerDown?.(e))}
       onPointerMove={p.onPointerMove && ((e) => p.onPointerMove?.(e))}
       onClick={p.onClick && ((e) => p.onClick?.(e))}
       onDblClick={p.onDblClick && ((e) => p.onDblClick?.(e))}
