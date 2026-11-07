@@ -565,11 +565,11 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
       Import, Restore); file picker; flashes
 - [x] 44a: phone drill-down with settings; `on · at login`; guide sentence
 - [x] 44a: `helpBlocks` + DOM help; model pruned; unit and e2e tests
-- [ ] 44b: editor C in the large box and the Scripts window (Lykta); tools, read-only
+- [x] 44b: editor C in the large box and the Scripts window (Lykta); tools, read-only
       plate, Duplicate; status line; `Modified · Ln, Col`
-- [ ] 44b: stage 42's lantern code theme on the buffer (`.wc-code`);
+- [x] 44b: stage 42's lantern code theme on the buffer (`.wc-code`);
       pop-up plates (dark and Paper)
-- [ ] 44b: find row in the well (42's lantern panel, `top`); unsaved
+- [x] 44b: find row in the well (42's lantern panel, `top`); unsaved
       prompt as an inline `Dialog` with `useUnsaved`; e2e tests
 - [x] 44c: the script manual hosts stage 42's `LookManual` (contents with
       counts, links, highlighted examples, find in the head); checked
