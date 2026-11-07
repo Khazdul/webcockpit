@@ -458,8 +458,15 @@
 
 .wc-exp-tfield {
   flex: 1 1 200px;
-  min-width: 0;
+  min-width: 220px;
   max-width: 460px;
+}
+
+/* The title being edited asks for room enough for a readable field, the
+ * hint, Save and Cancel; where the row cannot give it beside the format
+ * toggle and Export (about 1024 px and less), those drop to a line below. */
+.wc-exp-file.is-edit {
+  flex: 1 1 680px;
 }
 
 .wc-exp-tfield .wc-lk-input {
@@ -500,6 +507,25 @@
 
 .wc-exp-flash {
   margin-top: 6px;
+}
+
+/* A field open on a short view (the soft keyboard up, or a short window):
+ * what is disabled while it is open steps aside for the log, so the
+ * composer's Cancel and Save, or a few lines above the title, stay in view. */
+.wc-exp.is-editing.is-kbd .wc-exp-tools,
+.wc-exp.is-editing.is-kbd .wc-exp-outs,
+.wc-exp.is-composing.is-kbd .wc-exp-foot,
+.wc-exp.is-composing.is-kbd .wc-exp-hold {
+  display: none;
+}
+
+@media (max-height: 600px) {
+  .wc-exp.is-editing .wc-exp-tools,
+  .wc-exp.is-editing .wc-exp-outs,
+  .wc-exp.is-composing .wc-exp-foot,
+  .wc-exp.is-composing .wc-exp-hold {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------ narrow */
@@ -568,6 +594,16 @@
   .wc-exp-file.is-edit .wc-exp-thint {
     flex-basis: 100%;
     order: 3;
+  }
+
+  /* The field takes what Save and Cancel leave on their row. */
+  .wc-exp-file.is-edit .wc-exp-tfield {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .wc-exp-file.is-edit .wc-lk-btn {
+    padding: 0 10px;
   }
 
   .wc-exp-outs {

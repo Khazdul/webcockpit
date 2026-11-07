@@ -889,7 +889,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
 
   return box(
     <div
-      class={'wc-exp' + (editing ? ' is-editing' : '')}
+      class={'wc-exp' + (editing ? ' is-editing' : '') + (comp ? ' is-composing' : '') + (editing && inset > 0 ? ' is-kbd' : '')}
       data-format={doc.format}
       style={editing && inset > 0 ? { paddingBottom: `${inset}px` } : undefined}
     >
