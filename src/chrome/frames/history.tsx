@@ -87,7 +87,7 @@ import {
 } from './history-model';
 import { ExportEditorFrame } from './export-editor';
 import { DeleteDialog, HistoryKeysButton, RateDialog, RunLogErrorDialog, openHistoryKeys } from './history-dialogs';
-import { SessionStatsFrame } from './statistics';
+import { HistoryStatsFrame } from './history-stats';
 import './history.css';
 
 export const NO_PLAYER = 'Log player not available.';
@@ -601,18 +601,4 @@ function SessionCard(p: { s: Session }): VNode {
       </dl>
     </>
   );
-}
-
-// ------------------------------------------------------------------ stand-ins
-//
-// WP 45-B (`history-stats.tsx`: HistoryStatsFrame) is built in parallel.
-// Until it lands on the stage branch the page uses this stand-in with the
-// contract's name: today's Statistics frame (old look, on the cell grid).
-// At the merge it goes and the file's export is imported instead (the call
-// site stays). Rate, Delete, the run-log error box and the keys box are WP
-// 45-C's (`history-dialogs.tsx`).
-
-/** Stand-in for WP 45-B's `HistoryStatsFrame`: today's Statistics frame. */
-function HistoryStatsFrame(p: { session: Session }): VNode {
-  return <SessionStatsFrame session={p.session} />;
 }
