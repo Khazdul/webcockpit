@@ -3,6 +3,7 @@
 // the manual. LITE has no find: Ctrl+F / Ctrl+H do nothing there (ADR
 // 0119). Nothing reaches the real server.
 import { type Page, expect, test } from '@playwright/test';
+import { manualMarks } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -23,7 +24,7 @@ function watchErrors(page: Page): string[] {
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
-const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sman');
+const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
 const ped = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-ped');
 const lib = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(
@@ -44,7 +45,7 @@ const currentInView = (page: Page, root: ReturnType<typeof manual>) =>
     return b.top >= a.top - 1 && b.bottom <= a.bottom + 1;
   });
 
-/** Start page → Scripts → EDIT on a user script, then F1: the Script Manual. */
+/** Start page → Scripts → EDIT on a user script, then F1: the Script Manual (stage 44: the lantern reader). */
 async function openManual(page: Page): Promise<void> {
   await mockMume(page);
   await page.goto('/');
@@ -57,14 +58,31 @@ async function openManual(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  await f.locator('.wc-scr-row[data-script="findme"] .wc-scr-name').click();
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await f.locator('.wc-scr-row:is([data-script="findme"], [data-name="findme"]) .wc-scr-name').click();
+  await f.locator('[data-btn="EDIT"]').first().click();
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+Home');
   await page.keyboard.press('F1');
   await expect(manual(page)).toBeVisible();
 }
+
+/**
+ * The lantern manual's current find match (the Highlight API's range, or
+ * the fallback's `<mark>`): its text, and whether it is inside the text's
+ * visible part.
+ */
+const manualNow = (page: Page) =>
+  page.evaluate(() => {
+    const text = document.querySelector('.wc-frame:not([hidden]) .wc-sman .wc-lk-mtext');
+    const reg = (CSS as unknown as { highlights?: Map<string, Set<Range>> }).highlights;
+    let r: Range | Element | null = null;
+    if (reg) for (const range of reg.get('wc-lk-find-now') ?? []) r = range;
+    else r = document.querySelector('mark.wc-lk-mark.is-now');
+    if (!text || !r) return { text: '', inView: false };
+    const a = text.getBoundingClientRect();
+    const b = r.getBoundingClientRect();
+    return { text: r instanceof Range ? r.toString() : (r.textContent ?? ''), inView: b.top >= a.top - 1 && b.bottom <= a.bottom + 1 };
+  });
 
 /** Start page → Profile → EDIT on `default` holding `text`. */
 async function openProfile(page: Page, text: string): Promise<void> {
@@ -81,76 +99,103 @@ async function openProfile(page: Page, text: string): Promise<void> {
   await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
 }
 
-test('Script Manual: Ctrl+F finds and scrolls to the match; ESC closes the panel, then the manual', async ({ page }) => {
+test('Script Manual: Ctrl+F finds and scrolls to the match; Esc clears the find, then leaves the manual', async ({ page }) => {
   const errors = watchErrors(page);
   await openManual(page);
   const m = manual(page);
-  const rowsH = await m.locator('.wc-ped-manual').evaluate((el) => el.getBoundingClientRect().height);
+  // Round 7 manual A: the find is always in the head.
+  const field = m.locator('.wc-lk-mfind input');
+  const count = m.locator('.wc-lk-mfind .wc-search-count');
+  await expect(field).toBeVisible();
+  await expect(field).not.toBeFocused();
 
   await page.keyboard.press('Control+f');
-  const panel = m.locator('.wc-search');
-  const field = panel.getByRole('textbox', { name: 'Find' });
   await expect(field).toBeFocused();
-  // The manual gives the panel its three rows.
-  const cellH = await m.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
-  await expect.poll(() => m.locator('.wc-ped-manual').evaluate((el) => el.getBoundingClientRect().height)).toBeCloseTo(rowsH - 3 * cellH, 0);
-
   // n and p type into the field (not heading jumps).
   await page.keyboard.type('walks a list in order');
   await expect(field).toHaveValue('walks a list in order');
-  await expect(panel.locator('.wc-search-count')).toHaveText(/1 of \d+/);
-  await expect(m.locator('.wc-msearch-cur')).toHaveText(/^walks a list in order$/i);
-  await expect.poll(() => currentInView(page, m)).toBe(true);
-  // The menu's current section follows the match: Enter until it is ipairs's entry.
-  const cur = m.locator('.wc-ped-menu .wc-tr.is-cur');
-  for (let i = 0; i < 5 && !/^ ipairs\s*$/.test((await cur.textContent()) ?? ''); i++) {
+  await expect(count).toHaveText(/1 of \d+/);
+  await expect.poll(() => manualNow(page)).toEqual({ text: expect.stringMatching(/^walks a list in order$/i), inView: true });
+  // Every match is marked (sections drawn later, when idle, get theirs then).
+  const n = Number((await count.textContent())!.match(/of (\d+)/)![1]);
+  await expect.poll(() => manualMarks(page)).toBe(n);
+  // The contents' current section follows the match: Enter until it is ipairs's entry.
+  const cur = m.locator('.wc-lk-mtoc li.is-on');
+  for (let i = 0; i < 5 && (await cur.textContent()) !== 'ipairs'; i++) {
     await page.keyboard.press('Enter');
-    await expect.poll(() => currentInView(page, m)).toBe(true);
+    await expect.poll(() => manualNow(page).then((n) => n.inView)).toBe(true);
   }
-  await expect(cur).toHaveText(/^ ipairs\s*$/);
-  await expect(m.locator('.wc-msearch-cur')).toHaveText('Walks a list in order');
+  await expect(cur).toHaveText('ipairs');
+  expect((await manualNow(page)).text).toBe('Walks a list in order');
 
-  // A broader query: Enter steps on, Shift+Enter back, wrapping around.
+  // A broader query: Enter steps on, Shift+Enter back, wrapping around; F3 too.
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.type('iterator');
-  await expect(panel.locator('.wc-search-count')).toHaveText(/^\s*\d+ of (\d+)\s*$/);
-  const total = Number((await panel.locator('.wc-search-count').textContent())!.match(/of (\d+)/)![1]);
+  await expect(count).toHaveText(/^\s*\d+ of (\d+)\s*$/);
+  const total = Number((await count.textContent())!.match(/of (\d+)/)![1]);
   expect(total).toBeGreaterThan(2);
-  const at = () => panel.locator('.wc-search-count').textContent().then((t) => Number(t!.match(/(\d+) of/)![1]));
+  const at = () => count.textContent().then((t) => Number(t!.match(/(\d+) of/)![1]));
   const a = await at();
   await page.keyboard.press('Enter');
   await expect.poll(at).toBe((a % total) + 1);
   await page.keyboard.press('Shift+Enter');
   await expect.poll(at).toBe(a);
-  await expect(m.locator('.wc-msearch-hit, .wc-msearch-cur').first()).toBeVisible();
-  await expect.poll(() => currentInView(page, m)).toBe(true);
+  await page.keyboard.press('F3');
+  await expect.poll(at).toBe((a % total) + 1);
+  await expect.poll(() => manualNow(page).then((n) => n.inView)).toBe(true);
+  // The previous button steps back, and the field keeps the focus.
+  await m.locator('.wc-lk-mfind [data-btn="prev"]').click();
+  await expect.poll(at).toBe(a);
+  await expect(field).toBeFocused();
 
   // Alt+C: case; a bad regex says so.
+  const opt = (o: string) => m.locator(`.wc-lk-mfind [data-opt="${o}"]`);
   await page.keyboard.press('Alt+c');
-  await expect(panel.locator('[data-toggle="caseSensitive"]')).toHaveClass(/is-on/);
+  await expect(opt('case')).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('Alt+c');
+  await expect(opt('case')).toHaveAttribute('aria-checked', 'false');
   await page.keyboard.press('Alt+r');
+  await expect(opt('regex')).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.type('(');
-  await expect(panel.locator('.wc-search-count')).toHaveText(/Bad regex/);
+  await expect(count).toHaveText(/Bad regex/);
   await page.keyboard.press('Alt+r');
+  await expect(count).not.toHaveText(/Bad regex/);
 
-  // ESC closes the panel (the manual stays, its height back); ESC again goes back.
+  // Esc in the field clears the find and leaves the field; the manual stays.
   await page.keyboard.press('Escape');
-  await expect(panel).toHaveCount(0);
+  await expect(field).toHaveValue('');
+  await expect(field).not.toBeFocused();
   await expect(m).toBeVisible();
-  await expect(m.locator('.wc-msearch-hit, .wc-msearch-cur')).toHaveCount(0);
-  await expect.poll(() => m.locator('.wc-ped-manual').evaluate((el) => el.getBoundingClientRect().height)).toBeCloseTo(rowsH, 0);
+  await expect.poll(() => manualMarks(page)).toBe(0);
 
-  // Ctrl+F again: the last query is back, selected.
+  // A find typed, then Tab to the text: Esc clears the find first, then leaves the manual.
   await page.keyboard.press('Control+f');
   await expect(field).toBeFocused();
-  await expect(field).toHaveValue('(');
+  await page.keyboard.type('timer');
+  await expect(count).toHaveText(/1 of \d+/);
+  await page.keyboard.press('Tab');
+  await expect(field).not.toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(panel).toHaveCount(0);
+  await expect(field).toHaveValue('');
+  await expect(m).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(manual(page)).toHaveCount(0);
   await expect(editor(page)).toBeVisible();
+
+  // The query is kept across opens (here left with Back while it was typed).
+  await page.keyboard.press('F1');
+  await expect(manual(page)).toBeVisible();
+  await page.keyboard.press('Control+f');
+  await page.keyboard.type('sandbox');
+  await expect(count).toHaveText(/1 of \d+/);
+  await startFrame(page).locator('.wc-lk-back').first().click();
+  await expect(manual(page)).toHaveCount(0);
+  await expect(editor(page)).toBeVisible();
+  await page.keyboard.press('F1');
+  await expect(field).toHaveValue('sandbox');
+  await expect(count).toHaveText(/\d+ (of \d+|matches)/);
+  await expect.poll(() => manualMarks(page)).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
 

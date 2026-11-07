@@ -37,8 +37,8 @@ end
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
-const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sman');
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
+const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
 const list = (page: Page) => page.locator('.cm-tooltip-autocomplete');
 const sig = (page: Page) => page.locator('.cm-tooltip.wc-lua-sig');
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
@@ -55,13 +55,14 @@ const bufferText = (page: Page) =>
     .locator('.cm-content')
     .evaluate((el) => [...el.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
 const selectionText = (page: Page) => page.evaluate(() => window.getSelection()?.toString() ?? '');
-/** The text of the manual's top row (it scrolls natively). */
+/** The heading of the manual's section at the top of its text (stage 44: the lantern reader). */
 const manualTop = (page: Page) =>
   manual(page)
-    .locator('.wc-ped-manual-rows')
+    .locator('.wc-lk-mtext')
     .evaluate((el) => {
-      const t = el.scrollTop;
-      return ([...el.children] as HTMLElement[]).find((c) => c.offsetTop >= t - 1)?.textContent ?? '';
+      const top = el.getBoundingClientRect().top;
+      const s = [...el.querySelectorAll('section[data-i]')].find((c) => c.getBoundingClientRect().bottom > top + 24);
+      return s?.getAttribute('aria-label') ?? '';
     });
 
 /** Start page → Scripts → EDIT on a user script holding SOURCE; the cursor on a new last line. */
@@ -77,9 +78,9 @@ async function openEditor(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   await row(f, 'luahelp').locator('.wc-scr-name').click();
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'luahelp');
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');
@@ -204,8 +205,9 @@ test('hover on ipairs shows the Lua docs; F1 opens its Lua reference entry', asy
   await page.mouse.click(cell!.x, cell!.y);
   await page.keyboard.press('F1');
   await expect(manual(page)).toBeVisible();
-  await expect(manual(page).locator('.wc-ped-menu .wc-tr.is-cur')).toHaveText(/^ ipairs\s*$/);
-  await expect(manual(page).locator('.wc-ped-manual')).toContainText('ipairs(t) → iterator');
+  await expect(manual(page).locator('.wc-lk-mtoc li.is-on')).toHaveText('ipairs');
+  await expect.poll(() => manualTop(page)).toBe('ipairs');
+  await expect(manual(page).locator('.wc-lk-mtext section[aria-label="ipairs"]')).toContainText('ipairs(t) → iterator');
   expect(errors).toEqual([]);
 });
 
@@ -214,21 +216,35 @@ test('MANUAL: Lua basics in the guide, the Lua reference with a linked index', a
   await openEditor(page);
   await page.keyboard.press('F1');
   await expect(manual(page)).toBeVisible();
-  await expect(manual(page).locator('.wc-ped-menu-label').filter({ hasText: /\S/ })).toHaveText([/Guide/, /API reference/, /Lua reference/]);
-  await manual(page).locator('.wc-ped-menu [data-section="Lua basics"]').click();
+  await expect.poll(() => manualTop(page)).toBe('Getting started');
+  // The contents (round 7 manual A): Guide open, the two references folded with their counts.
+  const toc = manual(page).locator('.wc-lk-mtoc');
+  const group = (label: string) => toc.locator('.wc-lk-mgrp', { hasText: label });
+  await expect(toc.locator('.wc-lk-mgrp-t')).toHaveText(['Guide', 'API reference', 'Lua reference']);
+  await expect(group('Guide')).toHaveAttribute('aria-expanded', 'true');
+  await expect(group('API reference')).toHaveAttribute('aria-expanded', 'false');
+  await expect(group('Lua reference')).toHaveAttribute('aria-expanded', 'false');
+  await expect(group('Guide').locator('.wc-lk-mcount')).toHaveText(String(await toc.locator('[data-g="guide"] li').count()));
+  await expect(group('API reference').locator('.wc-lk-mcount')).toHaveText(/^\d{2,}$/);
+  await toc.locator('li', { hasText: /^Lua basics$/ }).click();
   await expect.poll(() => manualTop(page)).toBe('Lua basics');
-  await expect(manual(page).locator('.wc-ped-manual')).toContainText('Not equal is ~=, not !=.');
+  await expect(manual(page).locator('.wc-lk-mtext section[aria-label="Lua basics"]')).toContainText('Not equal is ~=, not !=.');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-lua-basics-dark-${info.project.name}.png` });
 
-  await manual(page).locator('.wc-ped-menu [data-section="Lua patterns"]').click();
+  await toc.locator('li', { hasText: /^Lua patterns$/ }).click();
   await expect.poll(() => manualTop(page)).toBe('Lua patterns');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-lua-patterns-dark-${info.project.name}.png` });
 
-  await manual(page).locator('.wc-ped-menu [data-section="Lua library"]').click();
+  // The Lua reference unfolds; its index's names link to their entries.
+  await group('Lua reference').click();
+  await expect(group('Lua reference')).toHaveAttribute('aria-expanded', 'true');
+  await toc.locator('li', { hasText: /^Lua library$/ }).click();
   await expect.poll(() => manualTop(page)).toBe('Lua library');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-lua-index-dark-${info.project.name}.png` });
-  await manual(page).locator('.wc-ped-manual a', { hasText: /^string\.format$/ }).click();
+  await manual(page).locator('.wc-lk-mtext a.wc-lk-mlink', { hasText: /^string\.format$/ }).click();
   await expect.poll(() => manualTop(page)).toBe('string.format');
-  await expect(manual(page).locator('.wc-ped-menu .wc-tr.is-cur')).toHaveText(/^ string\.format\s*$/);
+  await expect(toc.locator('li.is-on')).toHaveText('string.format');
+  // Its example is highlighted Lua.
+  await expect(manual(page).locator('.wc-lk-mtext section[aria-label="string.format"] pre.wc-lk-mcode .wc-lua-str').first()).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -271,23 +271,21 @@ test('the Scripts page shows a syntax error of a script that is off', async ({ p
 
 // -------------------------------------------------------------- MANUAL
 
-const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sman');
-/** The text of the manual's top row (it scrolls natively). */
+const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
+/** The heading of the manual's section at the top of its text (stage 44: the lantern reader). */
 const manualTop = (page: Page) =>
   manual(page)
-    .locator('.wc-ped-manual-rows')
+    .locator('.wc-lk-mtext')
     .evaluate((el) => {
-      const t = el.scrollTop;
-      return ([...el.children] as HTMLElement[]).find((c) => c.offsetTop >= t - 1)?.textContent ?? '';
+      const top = el.getBoundingClientRect().top;
+      const s = [...el.querySelectorAll('section[data-i]')].find((c) => c.getBoundingClientRect().bottom > top + 24);
+      return s?.getAttribute('aria-label') ?? '';
     });
 
 test('MANUAL: from the editor (F1 at the name under the cursor, else at the start) and from the Scripts page', async ({ page }, info) => {
   const errors = watchErrors(page);
   const f = await scriptsPage(page);
   await openEditor(page, f);
-  // No buttons (round 4): F1 opens the manual, the footer says so.
-  await expect(editor(page).locator('[data-btn]')).toHaveCount(0);
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('F1 Manual');
 
   // Search open, cursor inside tempTrigger on line 5: F1 opens its reference entry.
   await page.keyboard.press('Control+f');
@@ -295,50 +293,66 @@ test('MANUAL: from the editor (F1 at the name under the cursor, else at the star
   await editor(page).locator('.cm-line', { hasText: 'tempTrigger' }).click({ position: { x: 30, y: 5 } });
   await page.keyboard.press('F1');
   await expect(manual(page)).toBeVisible();
-  // Near the end of A–Z the entry cannot reach the top row: it is in view and marked.
-  await expect(manual(page).locator('.wc-ped-menu .wc-tr.is-cur')).toHaveText(/^ tempTrigger\s*$/);
-  await expect(manual(page).locator('[data-kind="heading"]', { hasText: /^tempTrigger$/ })).toBeInViewport();
-  await expect(manual(page).locator('.wc-ped-manual')).toContainText('tempTrigger(substring, fn)');
-  await expect(manual(page).locator('.wc-ped-menu-label').filter({ hasText: /\S/ })).toHaveText([/Guide/, /API reference/, /Lua reference/]);
+  // The large box's hood names it; the entry is at the top and lit in the contents.
+  await expect(manual(page).locator(':scope > .wc-lk-hood')).toContainText('Script Manual');
+  await expect(manual(page).locator('.wc-lk-mtoc li.is-on')).toHaveText('tempTrigger');
+  await expect.poll(() => manualTop(page)).toBe('tempTrigger');
+  await expect(manual(page).locator('.wc-lk-mtext h3', { hasText: /^tempTrigger$/ })).toBeInViewport();
+  await expect(manual(page).locator('.wc-lk-mtext section[aria-label="tempTrigger"]')).toContainText('tempTrigger(substring, fn)');
+  await expect(manual(page).locator('.wc-lk-mgrp-t')).toHaveText(['Guide', 'API reference', 'Lua reference']);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-dark-${info.project.name}.png` });
 
-  // The wheel scrolls by pixels, not rows.
-  const rows = manual(page).locator('.wc-ped-manual-rows');
-  const before = await rows.evaluate((el) => el.scrollTop);
-  await rows.hover();
+  // The wheel scrolls the text natively, by pixels.
+  const text = manual(page).locator('.wc-lk-mtext');
+  const before = await text.evaluate((el) => el.scrollTop);
+  await text.hover();
   await page.mouse.wheel(0, -6);
-  await expect.poll(() => rows.evaluate((el) => el.scrollTop)).toBeLessThan(before);
-  const cell = await rows.locator('.wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
-  expect(before - (await rows.evaluate((el) => el.scrollTop))).toBeLessThan(cell);
-  // n / p jump between headings; Tab goes to the menu.
+  await expect.poll(() => text.evaluate((el) => el.scrollTop)).toBeLessThan(before);
+  expect(before - (await text.evaluate((el) => el.scrollTop))).toBeLessThan(40);
+  // n / p jump between headings; Tab goes to the contents.
   await page.keyboard.press('p');
   await expect.poll(() => manualTop(page)).toBe('tempTimer');
+  await expect(manual(page).locator('.wc-lk-mtoc li.is-on')).toHaveText('tempTimer');
+  await page.keyboard.press('n');
+  await expect.poll(() => manualTop(page)).toBe('tempTrigger');
   await page.keyboard.press('Tab');
-  await expect(manual(page)).toHaveAttribute('data-zone', 'menu');
+  await expect(manual(page).locator('.wc-lk-manual')).toHaveAttribute('data-zone', 'toc');
+  // ↑ in the contents: the section before.
+  await page.keyboard.press('ArrowUp');
+  await expect(manual(page).locator('.wc-lk-mtoc li.is-on')).toHaveText('tempTimer');
+  await expect.poll(() => manualTop(page)).toBe('tempTimer');
 
-  // ESC: back in the editor with the search panel, its query and the cursor.
+  // Esc: back in the editor with its search query and the cursor.
   await page.keyboard.press('Escape');
   await expect(manual(page)).toHaveCount(0);
   await expect(editor(page)).toBeVisible();
-  await expect(panel(page).getByRole('textbox', { name: 'Find' })).toHaveValue('goblin');
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Ln 5,');
+  await expect(editor(page).locator('.wc-search input').first()).toHaveValue('goblin');
+  await expect(editor(page)).toContainText('Ln 5,');
 
   // F1 away from any name: the start of the guide.
   await editor(page).locator('.cm-content').click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.press('F1');
   await expect.poll(() => manualTop(page)).toBe('Getting started');
-  await paper(page);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-light-${info.project.name}.png` });
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-scr')).toBeVisible();
+  await expect(manual(page).locator('.wc-lk-mtoc li.is-on')).toHaveText('Getting started');
+  // Back at the top left goes back too.
+  await f.locator('.wc-sman > .wc-lk-back').click();
+  await expect(manual(page)).toHaveCount(0);
+  await expect(editor(page)).toBeVisible();
+  // Esc leaves the editor (its search first).
+  const pageManual = f.locator('[data-btn="MANUAL"]');
+  for (let i = 0; i < 3 && !(await pageManual.isVisible()); i++) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+  }
+  await expect(pageManual).toBeVisible();
 
-  // The Scripts page has Manual in its foot.
-  await f.locator('[data-btn="MANUAL"]').click();
+  // The Scripts page has Manual among its page buttons: the guide's start.
+  await pageManual.click();
   await expect(manual(page)).toBeVisible();
+  await expect.poll(() => manualTop(page)).toBe('Getting started');
   await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-scr')).toBeVisible();
+  await expect(manual(page)).toHaveCount(0);
+  await expect(pageManual).toBeVisible();
   expect(errors).toEqual([]);
 });
