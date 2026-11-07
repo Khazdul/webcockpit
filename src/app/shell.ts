@@ -71,7 +71,13 @@
 // its frame stack and shows the player (src/app/player-host.ts, a chunk of
 // its own); its ESC closes it and shows the start page as it was
 // (`show({ keep: true })`). Only from the start page, never over the
-// cockpit.
+// cockpit. The player core (stage 42f, ADR 0127): the run log player has
+// the kit's Back at the top left and times as `h:mm:ss`, and `openPlayer`
+// resolves to a `PlayerOpenResult` (why it did not open, for History's
+// error box) instead of only logging a failure. `embedPlayer(slot)` mounts
+// a host inside a page of the start surface (the Spotlights viewer, stage
+// 46): the start page stays, the host is the shell's `playerHost` until it
+// is disposed, and no second player opens meanwhile.
 //
 // Map (ADR 0020): `maps` (src/map/store.ts) is the current map, shared by
 // the cockpit's Map pane, the log player's and Options → Mapper.
@@ -101,7 +107,8 @@ import type {
 } from '../chrome';
 import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
 import type { PaneId } from '../layout/types';
-import type { PlayerHost, PlayerInfo } from './player-host';
+import type { PlayerHost, PlayerInfo, PlayerOpenOptions } from './player-host';
+import type { PlayerOpenResult } from '../chrome/kit/hooks';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
 import type { ChainRun } from '../player/timeline';
@@ -131,6 +138,12 @@ type ChromeModule = typeof import('../chrome');
 
 /** Delay before the profile editor chunk is prefetched on the start page. */
 const EDITOR_PREFETCH_MS = 2000;
+
+/** The run log player's mode (ADR 0127): the kit's Back, times as `h:mm:ss`. */
+const RUN_LOG_VIEW: PlayerOpenOptions = { view: { back: { title: 'Back to History (Esc)' }, hours: true } };
+
+/** Why a player did not open, as a sentence. */
+const errText = (e: unknown): string => (e instanceof Error && e.message ? e.message : String(e));
 
 /** Reasons that never auto-open the menu: the user asked for the disconnect. */
 const QUIET_REASONS = new Set([REASON_USER_RECONNECT, REASON_USER_DISCONNECT, REASON_REPLAY_START]);
@@ -509,14 +522,42 @@ export class Shell {
     return this.player;
   }
 
-  /** Opens the log player on `session` (from the start page only). */
-  openPlayer(session: Session): Promise<void> {
-    return this.startPlayer(async (host) => host.open(session, await this.runLibrary()));
+  /** Opens the log player on `session` (from the start page only); resolves to how it went. */
+  openPlayer(session: Session): Promise<PlayerOpenResult> {
+    return this.startPlayer(async (host) => host.open(session, await this.runLibrary(), RUN_LOG_VIEW));
   }
 
-  /** Opens the log player on logs that are not stored (dev hook, measurements). */
-  openPlayerChain(chain: readonly ChainRun[], events: readonly RunEvent[], info: PlayerInfo): Promise<void> {
-    return this.startPlayer((host) => host.openChain(chain, events, info));
+  /** Opens the log player on logs that are not stored (dev hook, measurements), as the run log player. */
+  openPlayerChain(chain: readonly ChainRun[], events: readonly RunEvent[], info: PlayerInfo): Promise<PlayerOpenResult> {
+    return this.startPlayer((host) => host.openChain(chain, events, info, RUN_LOG_VIEW));
+  }
+
+  /**
+   * A player host mounted in `slot`, inside a page of the start surface
+   * (ChromeServices.embedPlayer): it fills the slot and follows its size,
+   * and the start page stays shown. Null while another player is open or
+   * opening, over the cockpit, or when the player chunk cannot load. The
+   * host is `playerHost` until it is disposed (its `close()` disposes it
+   * too, and shows or hides nothing).
+   */
+  async embedPlayer(slot: HTMLElement): Promise<PlayerHost | null> {
+    if (this.inCockpit || this.player || this.playerOpening) return null;
+    this.playerOpening = true;
+    try {
+      const { PlayerHost } = await import('./player-host');
+      if (this.inCockpit || this.player || !slot.isConnected) return null;
+      const host = new PlayerHost({ root: slot, settings: this.opts.settings, onClose: () => {}, map: this.maps.host() });
+      this.player = host;
+      host.onDispose(() => {
+        if (this.player === host) this.player = null;
+      });
+      return host;
+    } catch (err) {
+      console.error('WebCockpit: the embedded player could not load', err);
+      return null;
+    } finally {
+      this.playerOpening = false;
+    }
   }
 
   /**
@@ -550,12 +591,13 @@ export class Shell {
     return this.reel;
   }
 
-  private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<void> {
-    if (this.inCockpit || this.player || this.playerOpening) return;
+  private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<PlayerOpenResult> {
+    if (this.inCockpit) return { ok: false, error: 'The player opens from the start page only.' };
+    if (this.player || this.playerOpening) return { ok: false, error: 'Another player is open.' };
     this.playerOpening = true;
     try {
       const { PlayerHost } = await import('./player-host');
-      if (this.inCockpit) return;
+      if (this.inCockpit) return { ok: false, error: 'The player opens from the start page only.' };
       const host = new PlayerHost({
         root: this.opts.root,
         settings: this.opts.settings,
@@ -565,14 +607,16 @@ export class Shell {
       host.el.style.display = 'none';
       this.player = host;
       await load(host);
-      if (this.player !== host) return;
+      if (this.player !== host) return { ok: false, error: 'The player was closed while it opened.' };
       this.start?.hide();
       this.startHost.style.display = 'none';
       host.el.style.display = '';
+      return { ok: true };
     } catch (err) {
       console.error('WebCockpit: the log player could not open', err);
       this.player?.dispose();
       this.player = null;
+      return { ok: false, error: errText(err) };
     } finally {
       this.playerOpening = false;
     }
@@ -701,7 +745,8 @@ export class Shell {
       ...(this.opts.notices ? { notices: this.opts.notices } : {}),
       onProfileSaved: (name) => this.appRef?.ui('system', `Profile {${uiValue(name)}} saved.`),
       runs: () => this.runLibrary(),
-      openPlayer: (session) => void this.openPlayer(session),
+      openPlayer: (session) => this.openPlayer(session),
+      embedPlayer: (slot) => this.embedPlayer(slot),
       openSpotlights: () => this.openSpotlights(),
       maps: this.maps,
       scripts: this.scripts,
