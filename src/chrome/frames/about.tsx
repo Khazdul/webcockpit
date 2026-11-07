@@ -57,7 +57,7 @@ CREDITS
   Tilesets        Shimrod's seasonal tiles; Desert by Khazdul, from Shimrod's tiles; Gefe & Rik by Octavia, after Gefe and Rik's maps; Gray's Map by Sunnyl75, after Gray's maps.
   Cockpit         The terminal client for MUME that WebCockpit is modelled on.
   MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
-  Fonts           Agave, Anonymous Pro, Cascadia Mono, DejaVu Sans Mono, Fantasque Sans Mono, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex Mono, Inconsolata, JetBrains Mono, mononoki and Noto Sans Mono for the text; Cinzel for the pane titles, the start page's menu and buttons and the MUME wordmark; Cormorant Garamond for the start page's quote and notes and the text of its pages, and Cormorant SC for the quote's author. Each is under its own licence (fonts/README.md). Lucida Console is used only when installed and is not part of WebCockpit.
+  Fonts           Agave, Anonymous Pro, Cascadia Mono, DejaVu Sans Mono, Fantasque Sans Mono, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex Mono, Inconsolata, JetBrains Mono, mononoki and Noto Sans Mono for the text; Cinzel for the pane titles, the start page's menu and buttons and the MUME wordmark; Cormorant Garamond for the start page's quote and notes, and Cormorant SC for the quote's author. Each is under its own licence (fonts/README.md). Lucida Console is used only when installed and is not part of WebCockpit.
   Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
   TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
 
