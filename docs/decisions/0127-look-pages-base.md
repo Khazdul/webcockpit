@@ -587,9 +587,177 @@ checks the title "Profile" and the note "default" (`.wc-win-t`,
 
 ### 42e — CodeMirror lantern theme, find panel, `LookManual`
 
-(42e fills this: `lookCodeTheme` and the `.wc-code` rules, the lantern find
-panel, `LookManual`, `ManualContents`, the find helpers; the manual's
-timings.)
+The code wells and the manuals of the new-look pages, in the lazy editor
+chunk: `src/editor/look-code.ts|css`, `cm.ts` (the `look` option),
+`search.ts`, `look-manual.tsx|css`, `look-manual-find.ts`. Nothing on
+today's pages changes: `tui` stays the default look, and the TUI find
+panel and manual (`manual-view.tsx`) are untouched (one fix: the TUI
+panel now redraws its count when typing finds nothing).
+
+**`lookCodeTheme()`** returns the structure only (an `EditorView.theme`)
+and `EditorView.editorAttributes` with `LOOK_CODE_CLASS` (`wc-code`), so
+a buffer is styled without its host doing anything. Every colour is a
+`--lk-code-*` custom property of `look-code.css`, defined on `.wc-code`
+(and on `.wc-lk-search`, `.wc-lk-manual`) for dark and again under
+`[data-light]` for Paper: one theme object for both backgrounds, and a
+window that turns Paper needs no reconfigure. The font is `--lk-mono`
+(the user's terminal font; open question 1), 13.5 px on a whole-pixel
+22 px row (12.5 / 20 px on the phone) so rows never drift; the gutter is
+a darker strip with a hairline; the current line is a faint band with a
+lit 2 px tick, only while focused; the caret and the native selection are
+warm; search matches are soft amber with a ring, the current one
+brighter; the matching bracket is a fine ring (tt++ `.wc-brace-match`
+and Lua `.cm-matchingBracket` alike); lint ranges get a dashed underline
+(error red, warning gold) and the lint gutter a lit dot (a ring for a
+warning). The token palette is the round 7 base's: tt++ `wc-syn-cmd`
+keyword gold, `brace` / `delim` operator, `var` the teal name colour,
+`code` (colour codes, escapes) number orange, inert commands a wavy gold
+underline; Lua `wc-lua-kw|str|comment|num|std` (keyword, string green,
+comment italic grey, number, API names teal). The rules are keyed
+`.wc-code .wc-syn-*` / `.wc-code .wc-lua-*` (and, for the matches,
+`.wc-code.cm-editor .cm-scroller .cm-line …`), so they outrank the TUI's
+global `wc-syn-*` and `.wc-ped-buffer` rules whatever the CSS order. The
+Lua pop-up plates (completion, hover, signature, the lint tooltip) stay
+44b's (`lua-cm.ts`, `script-editor.css`).
+
+**`BufferOptions.look = 'lantern'`** (cm.ts) swaps `theme()` for
+`lookCodeTheme()` and asks `searchExtension` for the lantern panel at the
+top. 44b's Lua buffer does the same in `lua-cm.ts`:
+`lookCodeTheme()` instead of `theme()`, `searchExtension({ look:
+'lantern', top: true, onFocus })`.
+
+**The lantern find panel** (`searchExtension({ look: 'lantern', top })`).
+The panel logic (the query from the fields, typing seeks from where the
+search began, next / previous, replace one / all, the keys) moved into a
+base class shared by both looks; the lantern subclass draws the kit's
+`Field` (mono), the count, a multi `Seg` (Case / Word / Regex) and
+icon-only `GlassButton`s (up, down, close), plus a Replace row (`Field`,
+Replace, All) when the buffer is editable, with Preact into the panel's
+element (`render()` per sync; a dozen elements). The root keeps
+`.wc-search` beside `.wc-lk-search`, so `searchFocused` and the frames'
+`closest('.wc-search')` focus checks hold; look-code.css undoes the TUI
+grid rules on it. Keys are unchanged (`searchFrameKey`; Enter / F3 /
+Ctrl+G next, Shift previous, Enter in Replace replaces, Ctrl+Enter all,
+Alt+C/W/R, Tab and ↑↓ between the fields, Esc closes). Buttons never take
+the focus (the field keeps it). A step selects the field's text (that is
+CodeMirror's own `findNext`, as in the TUI). The panel is an inner
+surface: an opaque plate with a ring and a drop shadow, no blur; with
+`top` it drops in (250 ms × `--lk-ts`; a 150 ms fade with reduced
+motion). Hooks: `.wc-lk-search`, `[data-field=find|replace] input`,
+`.wc-search-count` (`.is-bad`), `[data-opt=case|word|regex]`,
+`[data-btn=prev|next|close|replace|all]`.
+
+**`look-manual-find.ts`** (pure). A section is drawn as blocks
+(`manualBlocks`: the heading, each syntax line, each paragraph, each `- `
+item without its dash, the labels "Parameters" and "Returns" (a
+`Parameters:` line's items become parameters, `Returns: x` the label and
+the paragraph x), each example note and each example line, with the
+example's index and language). A block's text is exactly the text the
+reader draws for it (links and colours are spans inside it), so a match
+(section, block, from, to) maps straight onto the block's text nodes, and
+a match never spans two blocks (the TUI's rule: within one row).
+`findInSections` (cap 1000, `capped`), `firstInSection` (typing searches
+from the current section on, wrapping), `sectionCountText` (the panels'
+"3 of 12", "12 matches", "No matches", "Bad regex", "1000+"),
+`matchesByBlock`. The blocks are cached per section object.
+
+**`LookManual`** (the API's props, plus two additions: `example(line,
+lang)` gets the line's language, and `codeLine(line, lang, luaKnown?)` is
+exported as the ready-made example hook; `ManualContents` takes `active`,
+the fine tick while the list has the keys).
+
+- *Layout.* A head (the Contents button under 700 px; the find, always
+  with `find: 'head'`, after Ctrl+F with `'bar'`), then the contents (250
+  px, `contents: 'own'`) beside the text. The reader is an inline-size
+  container (`wc-lkman`): under 700 px of its own width the contents
+  become an opaque overlay over the text (opened by Contents, Tab or ←;
+  Esc, a choice or → / Enter closes it), the find's toggles hide (Alt
+  keys still work); under 560 px the text steps down a size. The text is
+  the script manual A's typesetting: group dividers with hairlines,
+  Cinzel headings (a code name such as `#alias` or `string.format` in the
+  terminal font), syntax lines in a well, paragraphs at 76ch, diamond
+  lists, the small-caps labels, parameters `name (type): text`, italic
+  example notes, examples in `.wc-code` wells (`pre.wc-lk-mcode`, one
+  `span.wc-lk-mline` per line). A list item's leading name (`- name: …`)
+  becomes a link when the host's `link(name)` returns a section (the Lua
+  index). Coarse pointers: contents entries and group heads 40 px.
+- *Drawing in chunks.* The first screen (24 sections, or through
+  `initial` and 8 more) is drawn with the reader; the rest in idle chunks
+  of 32 (`requestIdleCallback`, `setTimeout` without it) as empty
+  placeholders until then (480 px). A section's element is cached, so a
+  chunk diffs only the new ones. A jump or a match beyond the drawn
+  sections draws through it first. Sections are `content-visibility:
+  auto` (`contain-intrinsic-size: auto 480px`).
+- *Jumps.* `goto` puts the section's own top at the text's top (so the
+  browser's scroll anchor is the section itself: sections above it that
+  are laid out late, or fonts, do not move it) and settles over three
+  frames, cancelled by the reader's wheel, touch, press or scroll keys.
+  Measured need: without it the target drifted out of view in Firefox
+  (and in Chromium under load).
+- *The current section* comes from an `IntersectionObserver` with a 1 px
+  band 24 px under the text's top (rebuilt only when the text's height
+  changes); the spy never reads layout per scroll event. While a jump
+  settles, its reports are stale and ignored (the jump has set the
+  section). `n` is the next section; `p` the current one's heading when
+  the text is below it, else the previous one (and always the previous
+  one right after a jump). `onSection` hears every change.
+- *Keys* (`ctl.key`, the host's frame calls it first): ↑↓ 44 px (in the
+  contents: the section), PgUp / PgDn and Space / Enter a page (Shift
+  back), Home / End, ← / Tab to the contents and → / Enter / Tab back,
+  `n` / `p`, Ctrl+F (open or select), F3 / Ctrl+G (Shift back), Alt+C/W/R.
+  In the find field: Enter next (Shift previous), Tab back to the text,
+  Esc clears the query (`head`) or closes the bar (`bar`) and leaves the
+  field; letters and arrows are the field's. Esc outside the field: the
+  overlay, then a non-empty find, else `false` (the host's Back). Tab and
+  ← are the host's with `contents: 'none'`.
+- *Marks.* The CSS Custom Highlight API: two highlights shared by every
+  reader on the page (`wc-lk-find`, `wc-lk-find-now` with priority 1;
+  each reader registers its ranges, the registry is rebuilt from all of
+  them), so the profile Help and the script manual can be open in two
+  windows at once. The ranges are built once per result (and when a chunk
+  draws more sections); a step changes only the current one. Where the
+  API is missing (happy-dom; older browsers) the blocks with matches
+  are drawn with `mark.wc-lk-mark` (`.is-now`) instead. A step or a new
+  query scrolls the current match's block into view only when it is not.
+- *Find memory.* `memory.query` is written on every change and read at
+  mount; the bar reopens with it.
+
+**`ManualContents`**: the groups as folding heads with counts; a group of
+over 30 sections starts folded unless it holds the current section, and
+opens when the current section moves into it (it can be folded again);
+the current entry is lit (`.is-on`, `aria-current`) and kept in view by
+setting the list's own `scrollTop` on a change (never `scrollIntoView`).
+Folded groups draw no entries. The profile editor's rail (43) uses it
+with `contents: 'none'`; the gallery's "Host rail" shows that pairing.
+
+**Gallery section "Code"** (`gallery/code.tsx|css`): Dark / Paper; a
+lantern tt++ buffer (Ctrl+F, Ctrl+H, the brace ring, the inert-command
+underline, the line and column under it); the Lua and tt++ palettes
+through `codeLine`; the profile and script manuals with contents own or a
+host rail and find in the head or as a bar (`data-open-ms`: the time from
+the choice to the first frame with the manual). The editor parts load
+with a dynamic import, as the pages load the editor chunk.
+
+**Tests.** `tests/unit/look-manual-find.test.ts` (the blocks of both
+manuals, the toggles, a bad regex, the 1000 cap, the count texts,
+`firstInSection`), `tests/unit/look-manual.test.tsx` (every block of both
+manuals drawn with exactly its text, with the hooks; groups, lists,
+parameters, examples; the Lua index links; `codeLine`; the contents,
+folding and counts; `goto`, `initial`, `onSection`; n / p, Tab, ↑↓, the
+narrow overlay; find in the head and as a bar with marks, the toggles,
+Bad regex, the buttons, the memory; drawing in chunks and through a
+match), `tests/e2e/look-kit-code.spec.ts` (the lantern panel at the top:
+n of m, toggles, Bad regex, Replace, All, Esc; the manual's n / p, find
+with marks and Esc, the Lua links, the narrow overlay, the host rail and
+the find bar, Paper). E2E helpers (42e block of `look.ts`):
+`lanternFind`, `lookManual`, `manualSection`, `manualMarks`,
+`openKitCode`.
+
+**Found on the way (for 42-Z, not 42e's files):** the app ships only
+Cormorant Garamond *Medium Italic* (`src/theme/fonts.ts` `START_FACES`,
+declared as the family's only face), so every upright `--lk-serif` text
+(the manual's body, the page texts of 43–47) renders italic. The pages
+need the upright Medium face (latin subset) beside it.
 
 ### 42f — Player core
 
@@ -764,6 +932,37 @@ and `player.css`):
 41.21 / 15.62 → 43.60 / 16.44 kB; chrome JS, start, editor and
 player-host unchanged (`Dialog`, `Popover`, the cursors and the zone are
 tree-shaken until a page uses them; wave 2 adds them).
+
+42e alone, against the 42-0 tip (`2c2601bd`), raw / gzip:
+
+| Chunk | 42-0 tip | With 42e | Note |
+|---|---|---|---|
+| editor JS | 634.14 / 209.14 kB | 639.94 / 210.67 kB | +1.53 gzip: the lantern theme and find panel |
+| editor CSS | 6.61 / 1.61 kB | 11.98 / 3.07 kB | +1.46 gzip: `look-code.css` |
+| chrome JS | 229.92 / 82.78 kB | 226.89 / 81.57 kB | `look-controls.tsx` moves out (below) |
+| shared chunk (Preact, the stack) | 41.22 / 15.63 kB (`scripts-model-*`) | 45.93 / 17.38 kB (`look-controls-*`) | the editor now imports the kit's controls, so they join the chunk that the chrome and the editors share (named after a module in it); the chrome's load: +0.54 kB gzip |
+| start (`index-*.js`) | 21.77 / 8.18 kB | 21.77 / 8.19 kB | unchanged |
+| editor, once a page imports `LookManual` (measured with an import added to `src/editor/index.ts`) | (42-0) | JS 654.59 / 215.82 kB, CSS 20.57 / 4.92 kB | JS +6.68 gzip (within the +8 kB budget); with the CSS +9.99 kB gzip in all, over it by about 2 kB if the CSS counts |
+
+The manual's timings: a production build with `VITE_KIT=1` (`vite
+preview`), real windows (Wayland, i7-12700H with Iris Xe), 1440 × 900,
+five runs each, medians (the script manual, 188 sections; the gallery's
+`data-open-ms` and an input event with the whole word, then each
+keystroke of "t" … "timer"):
+
+| | Chromium | Firefox |
+|---|---|---|
+| open the script manual, cold (the first in the page): the choice → the first frame with it | 17.6 ms | 27.6 ms |
+| open it again (warm) | 13.9 ms | 17.1 ms |
+| find "timer": the input → the first frame with its 50 marks | 10.5 ms | 11.9 ms |
+| a keystroke → its frame | 16.4 ms | 14.6 ms |
+| a keystroke's work (the input → rendered, the marks set), median / max | 4.4 / 11.8 ms | 7.1 / 23.6 ms (the 1000 marks of "t") |
+| long tasks (> 50 ms) while opening | none | — (no API) |
+| an idle frame, for reference | 15.6 ms | 15.0 ms |
+
+Before the chunked drawing the cold open was 58 ms (Chromium) and 65 ms
+(Firefox), with one 57–60 ms long task each time. Headless runs are not
+used: headless Firefox draws in software and its idle frames take 58 ms.
 
 ## Consequences
 
