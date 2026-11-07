@@ -1858,6 +1858,16 @@ macro_keys.py, ttpp_syntax.py, palette.py, ADRs 0042, 0081–0084, 0089–0092,
 
 ### 5.1 Entry points
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the editor is one
+> look page in every place: the start page's Profile list → Edit grows it
+> into the large box; in the game the Profile window (menu bar, `#profile`)
+> and the phone's ESC menu (or `#profile`) open it directly. Its head
+> shows the profile's name and, in the game, the live line ("Connected ·
+> changes apply to the game", or "Not connected · changes are saved" once
+> the session ends; Apply then becomes Save). A profile that cannot open,
+> or a save that fails on the way out, keeps its message with Edit (E or
+> Enter) to try again. Each open starts in Lite.
+
 | Opened from | What it edits | On close (ESC) |
 |---|---|---|
 | Launcher → Profile → **Edit** button | The profile file on disk (not live) | Parses if needed, saves the file, returns to `profile` frame, flashes `Saved <name>.tin.` (C_ACCENT) or `Save failed: <reason>` (C_HINT) |
@@ -1875,6 +1885,9 @@ macro_keys.py, ttpp_syntax.py, palette.py, ADRs 0042, 0081–0084, 0089–0092,
   goes away.
 
 ### 5.2 Kinds (what exists and what doesn't)
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the same five
+> kinds, in the Lite rail with their icons, counts and letters.
 
 The GUI edits **exactly five kinds**: `ACTIONS`, `ALIASES`, `HIGHLIGHTS`,
 `MACROS`, `SUBSTITUTES`, shown in that alphabetical order.
@@ -1898,6 +1911,15 @@ chars counts (`#mac`, `#Hi`, `#SUB`). Plurals such as `#macros` do not match.
 > spec.md, because Cockpit only has five.
 
 ### 5.3 Layout
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): no cell grid. The
+> editor lays itself out by its own width (container queries, 940 and
+> 640 px): over 940 a rail | the list | the detail; 641–940 the rail as a
+> row of tabs over list | detail; 640 and under one column, an entry
+> opening as a sheet with a back button named after its kind ("‹
+> Aliases"). The head holds the name and the views (Lite, Editor, Help);
+> the foot the view's buttons, the flash and a quiet status at the right.
+> No key-hint rows: the letters are underlined in the labels.
 
 The editor is not centred vertically: the body is anchored to the top and
 the footer hint sits on the **last terminal row**. A spacer fills the rows
@@ -1966,6 +1988,11 @@ k        kill %1;…                    ░     │ gv %1                       
 
 ### 5.4 Three-state colour grammar (ADR 0083, 0134)
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): replaced by
+> the lantern kit's states (ADR 0127): the chosen row lit (`is-on`), the
+> keyboard's item with a fine ring (`is-sel`); no amber-or-nothing
+> grammar and no gold brackets.
+
 | State | Token | Style |
 |---|---|---|
 | Inactive | `C_BUTTON_INACTIVE` | fg `#bcbcbc`, **no bg** (terminal bg shows through) |
@@ -1993,6 +2020,13 @@ k        kill %1;…                    ░     │ gv %1                       
 
 ### 5.5 LITE/EDITOR toggle and mode flip
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): three views,
+> Lite, Editor and Help, as a segmented control in the head (L, E, H;
+> ← → on it). A flip keeps the rules below: the text is lined up and
+> what was held back is tried again. Help is the manual in the lantern
+> reader (its contents in the rail, find with Ctrl+F); it lies over
+> Editor, whose buffer stays mounted.
+
 - **Keys on the focused toggle:** `←` selects LITE and `→` selects EDITOR
   (no-op if that mode is already active). `Enter`/`Space`/`↓` go down into
   the first zone of the mode. They **never** flip the mode.
@@ -2011,6 +2045,19 @@ k        kill %1;…                    ░     │ gv %1                       
 - Because the flip goes through serialise → parse, it also re-sorts.
 
 ### 5.6 Lite mode
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the rail lists the five
+> kinds with icons, counts and letters (A I G M S). The list has two lines
+> per row (the pattern; the body's first line with … when more follow;
+> macros show the key as a chip, highlights in their own colours), `+ New
+> <kind>` last, sorted as below but read at commit points only (a pattern
+> being typed does not move its row). The detail is the kit's fields and
+> text areas; macros a Key cell ("Press to bind…"; key capture is desktop
+> only); highlights the Underscore / Blink / Reverse checks, Text and
+> Background swatches and a "Shows as" preview, and a body the picker
+> cannot read is kept as written until a style or colour is chosen. N
+> new, D delete (Del in the list). Esc in a field applies the edit and
+> goes back to the list; a second Esc leaves.
 
 #### Kind buttons row
 
@@ -2176,6 +2223,13 @@ Pattern
 
 ### 5.7 Editor mode
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): CodeMirror in the
+> lantern theme, the find panel at the top of the buffer (Ctrl+F, Ctrl+H;
+> Case, Word, Regex). The rail lists the text's sections: the first line of
+> each kind of setting and the profile's own `#nop` headings, in text
+> order; a click jumps there. The status at the foot shows Modified, the
+> brace balance ("1 unclosed {") and Ln / Col.
+
 #### Syntax highlighting (ttpp_syntax.py, ADR 0089)
 
 The tokenizer is purely lexical, single pass, and has no whitelist of
@@ -2299,6 +2353,12 @@ command names. Base text is C_ITEM `#bcbcbc`.
 
 ### 5.8 Focus model
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the keyboard's place
+> is state (views, rail, list, detail, buffer, help); only text fields and
+> the buffer take the DOM focus. Tab walks views → rail → list → detail
+> and around; Esc leaves a field or the buffer first (the stack's Esc
+> rule, ADR 0127), then a sheet, then the editor.
+
 - **Axes:** mode ∈ {lite, editor}; a toggle-focused flag; in lite mode a zone
   ∈ {kind, list, detail} plus the detail field index.
 - **Tab cycle:**
@@ -2327,6 +2387,13 @@ command names. Base text is C_ITEM `#bcbcbc`.
   - Everything else: `Tab Cycle · ESC Save & back`.
 
 ### 5.9 Save semantics and round-trip rules
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): unchanged in
+> substance: the round trip stays byte-exact and entries that do not
+> validate are held back. The prompt "Apply changes to your profile?"
+> (Yes, apply · No, discard · Keep editing) comes only while something is
+> not applied yet; the quiet status says All saved, All applied, Editing
+> or Not applied.
 
 - **Save** happens on ESC from either mode. EDITOR mode parses first. The
   file write is atomic (temp file then rename).
@@ -2977,6 +3044,19 @@ random access into raw logs by time → store `.log` in time-indexed chunks. Opt
 are global settings (not per profile).
 
 ### 7.7 Export editor and HTML replay
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128 §43d and the ADR
+> 0115 addendum): History → Export opens the editor as a large page, not
+> the cell frame below: a bar (the character, the summary, the selection
+> and the tools Exclude / Include X, Add comment C, Edit E, Delete D), the
+> log as the terminal inside the box (virtual rows in pixels, word-wrapped
+> at the measured width, at most 120 columns) beside the overview strip,
+> and a foot with the file name (T edits the title inline), the format
+> toggle (HTML replay H, Plain text P; choosing never exports) and Export
+> (O). Comments are written inline at their place (C, E or Enter; Enter
+> saves, Esc cancels, Ctrl+U clears). "TEXT FILE" is "Plain text". It
+> works on a phone: a tap on the margin selects a line, a second extends,
+> a tap on the text moves the cursor. The replay itself is unchanged.
 
 History → **EXPORT** (needs a log) opens `export_editor` (ADR 0147).
 

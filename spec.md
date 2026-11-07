@@ -293,6 +293,11 @@ Mapped to Inv §5.
 - **In play** on desktop and tablet the editor opens in a movable
   Profile window over the cockpit, and the Scripts page in a Scripts
   window (stage 30 S8, ADR 0103).
+- **The look (stage 43, ADR 0128).** One lantern page in every place: a
+  large box on the start page, the Profile window's body, a full-screen
+  page in the phone's ESC menu. Three views, Lite, Editor and Help (L, E,
+  H), with a rail that follows the view (the kinds; the text's sections;
+  the manual's headings), and a quiet status at the foot.
 
 - **Lite view.**
   - Cockpit's 5 kinds: actions, aliases, highlights, macros and
@@ -329,18 +334,24 @@ Mapped to Inv §7.
   - **Capture starts in stage 1**, even though the screens that use the
     data come later.
 - **Screens:**
-  - History browser.
+  - History: a table of sessions and a card for the chosen one, in the
+    large box (stage 45, ADR 0130); Statistics, Rate and Delete open in
+    or over the same box.
   - Log player, with play, pause, scrubber, jump and speed control. Its
     chrome (stage 32c, ADR 0114) is in the ghost look of the in-game
     popups: a control box (to the start, back and forward 10 s,
     play/pause, speed `◄ 1× ►`, time, Panes, Display, Close), a thin
     rail at the right edge with kind-icon markers, and the header line
-    with the key hints.
+    with the key hints; a Back chip at the top left and h:mm:ss from one
+    hour (stage 42, ADR 0127).
   - Statistics.
-  - Spotlights reel and Credits. The reel's card shows the spotlight and
-    holds its filter (ADR 0114).
-  - Export editor with cuts and comments. It exports plain text or a
-    self-contained HTML replay.
+  - Spotlights: a wall of cards with the filter row, and a viewer that
+    grows out of a card and plays the reel (stage 46, ADR 0131; the
+    full-page reel with its card, ADR 0114, is gone). Credits: the
+    chronicle as a book, filtered by the same row (stage 47, ADR 0132).
+  - Export editor with cuts and comments written inline, as a large page
+    with a format toggle (stage 43, ADR 0128 §43d). It exports plain text
+    or a self-contained HTML replay.
   - The log player and the HTML replay share one renderer.
   - The log player and the HTML replay show the whole screen as the
     player saw it: the game output and every pane, in the player's
@@ -630,25 +641,30 @@ Research: `notes/research/import/`. Design: ADR 0073.
   (saved definition files) and Mudlet (profile saves and exported
   package XML, `.mpackage`/`.zip`; ADR 0076). Other clients are out of
   scope.
-- **Input:** IMPORT in the profile picker accepts one or more files at
-  once. Files referenced by `#read` (tt++, JMC) are resolved by name
-  among the chosen files and inlined; references not found are listed in
-  the report.
+- **Input:** Import on the Profile list opens the import page (stage 43,
+  ADR 0128 §43c): one or more files at once, dropped on it or chosen
+  (Choose files…). Files referenced by `#read` (tt++, JMC) are resolved
+  by name among the chosen files and inlined; references not found are
+  listed in the receipt. A failed import is shown on the page.
 - **Decoding:** strict UTF-8, else windows-1252 (windows-1251 when the
   text scores as Cyrillic); a BOM is stripped; CRLF becomes LF.
 - **Detection:** signature scoring per format (ADR 0073). Plain WebCockpit
   exports and native tt++ go the tt++ path. The detected format and the
-  deciding signals are shown in the report.
+  deciding signals are shown in the receipt.
 - **Translation:** each source item is *translated* (to the profile
   language), *kept* (preserved as text: inert tt++ commands verbatim,
   untranslatable foreign lines in a marked `#nop` block with a reason),
   or *skipped* (client state with no meaning here, e.g. JMC's `#presub`,
-  Powwow's `#option`; still listed in the report). Nothing is dropped
-  without a report line.
-- **Report:** after import a report frame shows the format, counts for
-  translated / kept / skipped / warnings, and a list of every item that
-  was not translated as-is, with its source line and reason. The profile
-  itself starts with a short `#nop` header naming the source and date.
+  Powwow's `#option`; still listed in the receipt). Nothing is dropped
+  without a receipt line.
+- **Receipt:** after import the page turns into a receipt (stage 43,
+  ADR 0128 §43c; it was the "IMPORT REPORT" frame): the format and its
+  signals, a summary sentence of the counts translated / kept / skipped /
+  warnings, and collapsible lists of every item that was not translated
+  as-is, with its source line and reason. OK only; the new profile is
+  then selected on the list. A native profile that needed no change gets
+  a short form. The profile itself starts with a short `#nop` header
+  naming the source and date.
 - **Mudlet (ADR 0076):** profile only, never scripts. Item bodies are
   Lua; a Lua-subset translator turns the common forms (`send`,
   variables, `matches[n]`, `if/elseif/else`, `cecho`/`decho`/`echo`,
@@ -656,7 +672,7 @@ Research: `notes/research/import/`. Design: ADR 0073.
   `fg`/`bg`/`replace`) into tt++, and inlines simple functions defined in
   the profile's Scripts. Colorizer triggers become `#highlight`, key
   codes become macro key names, saved variables become `#variable`.
-  Items of third-party packages are skipped and the report names the
+  Items of third-party packages are skipped and the receipt names the
   built-in replacement where there is one.
 - **Pure core:** detection, decoding and translation are pure functions
   in `src/import/` with no DOM, unit-tested with corpus files.
@@ -680,8 +696,8 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
   that shows one pane at a time instead of docks; no dragging or
   resizing; the input stays above the on-screen keyboard; safe-area
   insets in landscape and on notched screens.
-- **Desktop-only on a phone:** the export editor, arranging panes and
-  macro key capture.
+- **Desktop-only on a phone:** arranging panes and macro key capture
+  (the export editor works on a phone since stages 43 and 45).
 
 ## 3. Profile language
 
