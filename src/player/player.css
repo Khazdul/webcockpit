@@ -4,7 +4,14 @@
  * re-declared from them rather than inherited from <body>. The chrome's
  * colours are the menu surface tokens (`--sf-*`, ADR 0116) of that theme:
  * a light card on Paper, a tinted panel on the dark themes, following the
- * viewer's chosen background, not the app's. */
+ * viewer's chosen background, not the app's.
+ *
+ * The run log player's Back (stage 42f, ADR 0127) is the lantern kit's
+ * Back: its look comes from the kit's glass rules, imported here so the
+ * player chunk (and the HTML replay, which carries this file) has them
+ * without the chrome chunk. */
+
+@import "../chrome/kit/look-glass.css";
 
 .wc-player {
   position: relative;
@@ -109,10 +116,22 @@
   letter-spacing: normal;
 }
 
-.wc-player-chrome button {
+.wc-player-chrome button:not(.wc-pv-back) {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
+}
+
+/* ------------------------------------------------------------ Back
+ * The kit's Back (`.wc-lk-back`, look-glass.css; the `--lk-*` tokens from
+ * its own `.wc-look`), at the top left over the game text, level with the
+ * header row. Part of the chrome: it fades and stops taking the pointer
+ * with it (`[data-hidden]`). */
+
+.wc-player-chrome .wc-pv-back {
+  top: 6px;
+  left: 10px;
+  pointer-events: auto;
 }
 
 .wc-player-chrome button:focus-visible {
