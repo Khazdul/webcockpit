@@ -148,18 +148,20 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const busy = useRef(false);
+  const loaded = useRef(false);
 
   const reload = async (): Promise<void> => {
     try {
       const lib = await runs();
       setAll(await lib.listSessions(nowUs()));
+      loaded.current = true;
       setReadFailed(false);
       setStorage(storageText(await lib.estimate()));
     } catch (e) {
-      setAll((cur) => {
-        if (cur === null) setReadFailed(true);
-        return cur ?? [];
-      });
+      // A failed first read leaves the page empty with its note; a later
+      // one keeps the list it has.
+      if (!loaded.current) setReadFailed(true);
+      setAll((cur) => cur ?? []);
       nav.flash(`Could not read the runs: ${errText(e)}`, 'fail');
     }
   };
