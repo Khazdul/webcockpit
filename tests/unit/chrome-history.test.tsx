@@ -473,6 +473,62 @@ describe('History frame', () => {
     expect(curRow(host)).toMatch(/^Rasta/);
   });
 
+  it('a pointer passing over the rows does not choose one; a row or head click brings the keyboard back to the rows', async () => {
+    const lib = await library();
+    const { host } = await openHistory(lib);
+    const row = (i: number) => hist(host).querySelectorAll<HTMLElement>('.wc-lk-tr')[i]!;
+    await act(() => row(1).click()); // Rasta
+    expect(curRow(host)).toMatch(/^Rasta/);
+    // On the way to the card the pointer crosses row 2: the card stays on Rasta.
+    await act(() => {
+      row(2).dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' }));
+    });
+    expect(curRow(host)).toMatch(/^Rasta/);
+    expect(hist(host).querySelector('.wc-hist-name')?.textContent).toBe('Rasta');
+    // Tab into the buttons, then a click on a row: the rows have the keyboard again.
+    const sel = () => frame(host).querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn');
+    await key('Tab');
+    expect(sel()).toBe('RUN LOG');
+    await act(() => row(2).click());
+    expect(sel()).toBeUndefined();
+    expect(row(2).classList.contains('is-cur')).toBe(true);
+    await key('ArrowUp');
+    expect(curRow(host)).toMatch(/^Rasta/);
+    // And a head click.
+    await key('Tab');
+    expect(sel()).toBe('RUN LOG');
+    await act(() => hist(host).querySelector<HTMLElement>('.wc-lk-th[data-key="char"]')!.click());
+    expect(sel()).toBeUndefined();
+    expect(hist(host).querySelector('.wc-lk-tr.is-on')?.classList.contains('is-cur')).toBe(true);
+  });
+
+  it('holds its keys, Back and actions while a run log opens; a failed open shows its box over History', async () => {
+    const lib = await library();
+    let settle: (r: { ok: false; error: string }) => void = () => {};
+    const openPlayer = vi.fn(() => new Promise<{ ok: false; error: string }>((r) => (settle = r)));
+    const { host } = await openHistory(lib, { openPlayer });
+    await key('ArrowDown'); // Rasta
+    await key('r');
+    expect(openPlayer).toHaveBeenCalledTimes(1);
+    // Esc, Back, a letter and a button wait for the open.
+    await key('Escape');
+    expect(hood(host)).toBe('History');
+    await act(() => hist(host).querySelector<HTMLElement>('.wc-lk-back')!.click());
+    expect(hood(host)).toBe('History');
+    await key('t');
+    await act(() => btn(host, 'STATS').click());
+    expect(hood(host)).toBe('History');
+    await key('ArrowDown');
+    expect(curRow(host)).toMatch(/^Rasta/);
+    await act(async () => settle({ ok: false, error: 'The run log is not stored.' }));
+    await until(() => dlg('runlog-error') !== null, 'the error box');
+    await key('Enter');
+    expect(dlg('runlog-error')).toBeNull();
+    // The keys work again.
+    await key('ArrowDown');
+    expect(curRow(host)).toMatch(/Saved/);
+  });
+
   it('flashes when the player is not available', async () => {
     const lib = await library();
     const { host } = await openHistory(lib);
