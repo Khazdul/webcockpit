@@ -15,7 +15,7 @@
 import { clamp, mix, rgba, rng, sstep } from './color';
 import { type SkyScene, skyLayers } from './look';
 import { paintLayers } from './paint-layers';
-import { type Sprite, bitmap, sprite } from './sprite';
+import { type Sprite, bitmap, context2d, sprite } from './sprite';
 
 /** Glow sprites are this many px per CSS px. */
 const GLOW_Q = 0.5;
@@ -45,7 +45,7 @@ interface Shoot {
 export function glowSprite(size = 64): Sprite {
   const c = document.createElement('canvas');
   c.width = c.height = size;
-  const x = c.getContext('2d')!;
+  const x = context2d(c);
   const h = size / 2;
   const g = x.createRadialGradient(h, h, 0, h, h, h);
   g.addColorStop(0, 'rgba(255,255,255,1)');

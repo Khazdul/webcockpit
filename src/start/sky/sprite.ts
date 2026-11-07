@@ -10,6 +10,13 @@ export interface Sprite {
   readonly h: number;
 }
 
+/** `c`'s 2D context; throws when the browser has none to give (iOS Safari, canvas memory exhausted). */
+export function context2d(c: HTMLCanvasElement): CanvasRenderingContext2D {
+  const x = c.getContext('2d');
+  if (!x) throw new Error('WebCockpit: no 2D canvas context for the start page sky');
+  return x;
+}
+
 /** A sprite of `c` that switches to an ImageBitmap of it when one is ready. */
 export function sprite(c: HTMLCanvasElement): Sprite {
   const s: Sprite = { src: c, w: c.width, h: c.height };

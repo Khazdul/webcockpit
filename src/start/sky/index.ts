@@ -32,6 +32,7 @@ import { CLOUD_BAND, Clouds } from './clouds';
 import { type SkyLook, type SkyScene, skyCss, skySceneAt } from './look';
 import { type SkyParams, type SkyQuality, pageSkyParams } from './params';
 import { Precip } from './precip';
+import { context2d } from './sprite';
 import type { SkyWeatherState } from './weather';
 
 export type { SkyLook } from './look';
@@ -213,10 +214,11 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       'position:absolute;left:6px;top:6px;padding:3px 6px;font:11px/1.35 ui-monospace,monospace;white-space:pre;color:#cfe;background:rgba(0,0,0,.55);border-radius:3px;z-index:1;';
     root.append(statsD);
   }
-  host.appendChild(root);
-  const bctx = bodiesC.getContext('2d')!;
-  const cctx = cloudC.getContext('2d')!;
-  const fctx = frontC.getContext('2d')!;
+  // Everything that can fail for want of canvas memory (iOS Safari hands
+  // out null contexts then) is made before the root goes into the host.
+  const bctx = context2d(bodiesC);
+  const cctx = context2d(cloudC);
+  const fctx = context2d(frontC);
 
   const dot = glowSprite(64);
   const bodies = new Bodies(1);
@@ -258,7 +260,6 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     mouse.x = e.clientX / W;
     mouse.y = e.clientY / H;
   };
-  if (!still) addEventListener('pointermove', onPointer, { passive: true });
 
   function size(): void {
     const w = Math.max(1, host.clientWidth || innerWidth);
@@ -474,7 +475,6 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     if (doc.hidden) stop();
     else start();
   };
-  doc.addEventListener('visibilitychange', onVisibility);
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   const onResize = (): void => {
     if (resizeTimer) clearTimeout(resizeTimer);
@@ -484,29 +484,56 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       if (mode !== 'run') paintStill();
     }, 120);
   };
-  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
-  ro?.observe(host);
-  addEventListener('resize', onResize);
+  let ro: ResizeObserver | null = null;
 
-  root.dataset['skyQuality'] = quality;
-  root.dataset['skyMode'] = mode;
-  size();
-  // the gradients at once (before the first frame), so nothing flashes
-  scene = skySceneAt(now(), { view: { w: W, h: H }, weather: forcedWeather });
-  {
-    const css = skyCss(scene);
-    back.style.background = css.back;
-    air.style.background = css.air;
-    lastCss = css;
-    cssAt = performance.now();
-    bodies.refresh(scene);
-    clouds.refresh(scene, reduced && !freeze ? scene.g * 0.05 : scene.g, tier.cloudQ);
+  /** Undoes everything the mount did (dispose, or a mount that failed half-way). */
+  function teardown(): void {
+    disposed = true;
+    stop();
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = null;
+    ro?.disconnect();
+    ro = null;
+    removeEventListener('resize', onResize);
+    removeEventListener('pointermove', onPointer);
+    doc.removeEventListener('visibilitychange', onVisibility);
+    subs.clear();
+    root.remove();
   }
-  if ((opts.fadeIn ?? !still) && typeof bodiesC.animate === 'function') {
-    // to the element's own opacity (the clouds' and the grain's are below 1)
-    for (const el of [bodiesC, cloudC, frontC, grainD]) el.animate([{ opacity: 0 }, {}], { duration: 900, easing: 'ease-out' });
+
+  // Into the host and live. A throw from here on (a canvas the browser
+  // will not size, say) must not leave a root or a listener behind: the
+  // start page catches it and tries again on its next show.
+  try {
+    host.appendChild(root);
+    root.dataset['skyQuality'] = quality;
+    root.dataset['skyMode'] = mode;
+    size();
+    // the gradients at once (before the first frame), so nothing flashes
+    scene = skySceneAt(now(), { view: { w: W, h: H }, weather: forcedWeather });
+    {
+      const css = skyCss(scene);
+      back.style.background = css.back;
+      air.style.background = css.air;
+      lastCss = css;
+      cssAt = performance.now();
+      bodies.refresh(scene);
+      clouds.refresh(scene, reduced && !freeze ? scene.g * 0.05 : scene.g, tier.cloudQ);
+    }
+    if ((opts.fadeIn ?? !still) && typeof bodiesC.animate === 'function') {
+      // to the element's own opacity (the clouds' and the grain's are below 1)
+      for (const el of [bodiesC, cloudC, frontC, grainD]) el.animate([{ opacity: 0 }, {}], { duration: 900, easing: 'ease-out' });
+    }
+    if (!still) addEventListener('pointermove', onPointer, { passive: true });
+    doc.addEventListener('visibilitychange', onVisibility);
+    ro = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
+    ro?.observe(host);
+    addEventListener('resize', onResize);
+    start();
+  } catch (e) {
+    teardown();
+    throw e;
   }
-  start();
 
   return {
     look: () => scene,
@@ -521,16 +548,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       else start();
     },
     dispose() {
-      if (disposed) return;
-      disposed = true;
-      stop();
-      if (resizeTimer) clearTimeout(resizeTimer);
-      ro?.disconnect();
-      removeEventListener('resize', onResize);
-      removeEventListener('pointermove', onPointer);
-      doc.removeEventListener('visibilitychange', onVisibility);
-      subs.clear();
-      root.remove();
+      if (!disposed) teardown();
     },
     stats,
     repaint() {
