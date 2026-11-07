@@ -56,6 +56,7 @@ import { BLANK_LINES } from './timeline';
 import { SPEEDS } from './engine';
 import { PANE_IDS, type PaneId } from '../layout/types';
 import { OWN_KEYS_ATTR } from '../ui/input-pane';
+import { SPOTLIGHT_PALETTE_TWEAK, SPOTLIGHT_RED } from '../share/spotlights';
 
 export { REEL_NO_MATCH };
 
@@ -81,13 +82,8 @@ export interface ReelHandle {
   rebuild(): Promise<void>;
 }
 
-/**
- * ANSI normal red as Spotlights draws it on its dark wells (owner decision,
- * stage 46): the Default palette's `#800000` is too dark on near-black;
- * this reads at about 3.6:1 there. Only while the Display colours are
- * Default (the host's palette tweak); a chosen theme keeps its own red.
- */
-export const SPOTLIGHT_RED = '#c43c3c';
+/** ANSI normal red as Spotlights draws it (one source with the wall's stills: share/spotlights.ts). */
+export { SPOTLIGHT_RED };
 
 /** The bare reel's options (the Spotlights page's viewer). */
 export interface BareReelOptions {
@@ -205,7 +201,7 @@ function openBareReel(host: PlayerHost, first: Reel, o: BareReelOptions): BareRe
     unsubEngine = null;
     parked = false;
     // The brighter red, Display's font and colours (kept across opens), every pane off.
-    host.setPaletteTweak({ 1: SPOTLIGHT_RED });
+    host.setPaletteTweak(SPOTLIGHT_PALETTE_TWEAK);
     host.setViewer({ ...host.viewerOverrides, panes });
     host.openChain(
       r.chain,
