@@ -354,7 +354,10 @@ slower fade into the game. It replaces the fade above
   fade (the App's first build and layout, the connection), no long
   task; pausing the engine changed nothing measurable. Headless
   rendering drops some frames (33 ms) while two full-window layers
-  blend; a real GPU should not; to be judged by the owner.
+  blend; a real GPU should not. Headless Firefox is no guide (it draws
+  the idle start page at about 20 fps; during the transition it ran
+  no worse, with or without the engine paused). To be judged by the
+  owner in a real window.
 - **Back to the start page** (Exit, even during the transition) shows
   it as it was: `show()` and `hide()` cancel the animations after their
   render in the same task, and the shell restores the host.
