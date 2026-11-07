@@ -1,5 +1,8 @@
 // Stage 7 P3: the Spotlights reel's loading and arithmetic, the card's
 // countdown and width (stage 32c), and the Credits roll (ADR 0019, Inv §7.6).
+// Stage 46 (ADR 0131): what the wall reads from a loaded reel (each card's
+// still and the reel's length) and the page's one `ReelSource` reading
+// only windows not read yet; the still's rules: spotlights-still.test.ts.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
@@ -9,8 +12,11 @@ import { defaultSettings } from '../../src/settings';
 import { CARD_MIN_W, CARD_W, cardWidth, countdownLeft } from '../../src/player/spotlight-card';
 import {
   RESTART_MS,
+  ReelSource,
   fmtDate,
   loadReel,
+  reelLengthMs,
+  spotStill,
   navTarget,
   reelMarks,
   spotAt,
@@ -170,5 +176,89 @@ describe('loadReel', () => {
     const text = reel.chain[0]!.text;
     expect(text).toContain('Char.Name');
     expect(text.indexOf('Char.Name')).toBeLessThan(text.indexOf('Ibuki is dead'));
+  });
+});
+
+describe('the wall\'s reads (stage 46)', () => {
+  /** Rasta's run: a login stretch, then a PvP kill in red and a death; Gittan's: an achievement. */
+  async function library() {
+    const lib = await RunLibrary.open(new IDBFactory(), { locks: null, storage: null });
+    const ESC = '\x1b';
+    const login = makeLog(BASE_US, [
+      { at: 1, gmcp: 'Char.Name', json: { name: 'Rasta' } },
+      { at: 3, in: 'Welcome back.' },
+    ]);
+    const play = makeLog(BASE_US, [
+      { at: 3000, in: `${ESC}[31mIbuki slashes you.${ESC}[0m` },
+      { at: 3001, in: '* HP:Hurt>' },
+      { at: 3002, in: 'Ibuki is dead! R.I.P.' },
+      { at: 3100, in: `${ESC}[31mAn orc crushes you.${ESC}[0m` },
+      { at: 3101, in: 'You are dead! Sorry...' },
+    ]);
+    const events: RunEvent[] = [
+      { type: 'run_start', us: us(2), character: 'Rasta', level: 42, schema: 1 },
+      { type: 'pkill', us: us(3002), logUs: us(3002), name: 'Ibuki', race: 'the Half-Elf', xpDelta: 5 },
+      { type: 'char_death', us: us(3101), logUs: us(3101) },
+    ];
+    await lib.store.putWholeRun(
+      meta('Rasta/1', BASE_US, { bytes: login.length + play.length }),
+      events.map((event, seq) => ({ runId: 'Rasta/1', seq, event })),
+      [
+        { runId: 'Rasta/1', seq: 0, firstUs: us(1), lastUs: us(3), text: login },
+        { runId: 'Rasta/1', seq: 1, firstUs: us(3000), lastUs: us(3101), text: play },
+      ],
+    );
+    const g0 = us(0, BASE_US + 7200 * S);
+    const gText = makeLog(g0, [
+      { at: 10, in: 'A wight hits you.' },
+      { at: 12, in: 'Achievement unlocked: Rest.' },
+    ]);
+    await lib.store.putWholeRun(
+      meta('Gittan/1', g0, { bytes: gText.length }),
+      [
+        { type: 'run_start', us: g0, character: 'Gittan', level: 14, schema: 1 },
+        { type: 'achievement', us: g0 + 12 * S, name: 'Rest' },
+      ].map((event, seq) => ({ runId: 'Gittan/1', seq, event: event as RunEvent })),
+      [{ runId: 'Gittan/1', seq: 0, firstUs: g0 + 10 * S, lastUs: g0 + 12 * S, text: gText }],
+    );
+    return lib;
+  }
+
+  it('gives each card its still (never the login stretch; ANSI kept) and the wall its length', async () => {
+    const reel = await loadReel(await library(), defaultSettings().spotlights);
+    if (!('spots' in reel)) throw new Error('no reel');
+    expect(reel.spots.map((s) => `${s.character}:${s.kind}`)).toEqual(['Gittan:achievement', 'Rasta:death', 'Rasta:pkill']);
+    const stills = reel.spots.map((_, i) => spotStill(reel, i));
+    expect(stills[0]!.map((l) => l.text)).toEqual(['A wight hits you.', 'Achievement unlocked: Rest.']);
+    expect(stills[1]!.map((l) => l.text)).toEqual(['An orc crushes you.', 'You are dead! Sorry...']);
+    expect(stills[1]![0]!.runs).toEqual([{ start: 0, end: 19, fg: 1 }]);
+    expect(stills[2]!.map((l) => l.text)).toEqual(['Ibuki slashes you.', 'Ibuki is dead! R.I.P.']);
+    expect(stills.flat().some((l) => l.text.includes('Welcome back') || l.text.includes('HP:'))).toBe(false);
+    const tl = buildTimeline(reel.chain, { windows: reel.spots.map((s) => ({ fromUs: s.fromUs, toUs: s.toUs })) });
+    expect(reelLengthMs(reel)).toBeCloseTo(tl.durationMs, 6);
+  });
+
+  it('one ReelSource for the page: a rebuild for new filters reads only the windows not read yet', async () => {
+    const lib = await library();
+    const reads: string[] = [];
+    const read = lib.chainLogRange.bind(lib);
+    lib.chainLogRange = (id, from, to) => {
+      reads.push(id);
+      return read(id, from, to);
+    };
+    const src = new ReelSource(lib);
+    const f = defaultSettings().spotlights;
+    const all = await src.load(f, Date.now() * 1000);
+    expect('spots' in all && all.spots.length).toBe(3);
+    const first = reads.length;
+    expect(first).toBeGreaterThanOrEqual(3);
+    // Deaths off, then on again: every window is read already.
+    const noDeaths = await src.load({ ...f, deaths: false }, Date.now() * 1000);
+    expect('spots' in noDeaths && noDeaths.spots.map((s) => s.kind)).toEqual(['achievement', 'pkill']);
+    await src.load(f, Date.now() * 1000);
+    expect(reads.length).toBe(first);
+    // Nothing passes: the wall's filtered state, still no read.
+    expect(await src.load({ ...f, allCharacters: false, characters: [] }, Date.now() * 1000)).toEqual({ empty: 'filtered' });
+    expect(reads.length).toBe(first);
   });
 });

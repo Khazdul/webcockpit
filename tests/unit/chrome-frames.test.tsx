@@ -230,22 +230,30 @@ describe('start page', () => {
     expect(host.querySelector('.wc-frame:not([hidden]) .wc-title-row')?.textContent).toBe('─── About ─── 9.9.9');
   });
 
-  it('Spotlights shows the empty state from the service; any key returns', async () => {
+  it('Spotlights opens its wall (stage 46): with no recorded spotlight it says how they are made; Esc returns', async () => {
     const host = document.createElement('div');
     document.body.append(host);
+    // The old full-page reel is no longer how the page loads: the menu loads the reel itself and pushes the wall.
     const openSpotlights = vi.fn(async () => 'no_data' as const);
-    const page = mountStartPage(host, { ...services(), openSpotlights }, { onEnter: () => {} });
+    const embedPlayer = vi.fn(async () => null);
+    const page = mountStartPage(host, { ...services(), openSpotlights, embedPlayer }, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     await act(() => host.querySelector<HTMLElement>('.wc-sm-item[data-key="spotlights"]')!.click());
-    await act(async () => {});
-    expect(openSpotlights).toHaveBeenCalledTimes(1);
-    expect(title(host)).toBe('─── Spotlights ───');
-    expect(host.querySelector('.wc-frame:not([hidden])')?.textContent).toContain('No spotlights yet.');
-    expect(host.querySelector('.wc-frame:not([hidden]) .wc-footer')?.textContent).toBe('Any key to return');
+    const wall = () => host.querySelector('.wc-frame:not([hidden]) .wc-spw');
+    for (let i = 0; i < 20 && !wall(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
+    expect(openSpotlights).not.toHaveBeenCalled();
+    expect(embedPlayer).not.toHaveBeenCalled();
+    expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('Spotlights');
+    expect(wall()?.querySelector('.wc-spw-empty')?.textContent).toContain('No spotlights yet.');
+    // No data: no filter row, no Play all.
+    expect(wall()?.querySelector('.wc-spw-head')).toBeNull();
+    expect(wall()?.querySelector('[data-btn="PLAY"]')).toBeNull();
+    // A bare modifier is not a key; Esc goes back to the menu.
     await key('Shift');
-    expect(title(host)).toBe('─── Spotlights ───');
-    await key('q');
+    expect(wall()).not.toBeNull();
+    await key('Escape');
+    for (let i = 0; i < 40 && !startSel(host); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
     expect(startSel(host)).toBe('Spotlights');
   });
 
