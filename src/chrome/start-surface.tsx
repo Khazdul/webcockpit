@@ -34,6 +34,7 @@ import { startGameMinutes } from '../start/clock';
 import '../start/geometry.css';
 import type { StartSkyHandle } from '../start/sky';
 import { type SkyLook, type SkyView, skyCss } from '../start/sky/look';
+import { pageSkyParams } from '../start/sky/params';
 import { startSkyLook } from '../start/start-look';
 import { Wordmark } from '../start/wordmark';
 import { GridCtx, useElementSize, useHostGrid, useNotices, useServices } from './kit/hooks';
@@ -133,6 +134,23 @@ export function useDarkInk(spot: InkSpot = 'quote'): boolean {
     return s.subscribe(upd);
   }, [s, spot]);
   return ink;
+}
+
+/**
+ * Whether the sky behind the text at `spot` is bright (luma above 0.42,
+ * below 0.38 again), so pale ink needs a stronger outline: a day sky reads
+ * about 0.48 to 0.51 at the quote, under the dark-ink threshold.
+ */
+export function useBrightBack(spot: InkSpot = 'quote'): boolean {
+  const s = useContext(SkyCtx) ?? store();
+  const at = (l: number, cur: boolean): boolean => (cur ? l >= 0.38 : l > 0.42);
+  const [bright, set] = useState(() => at(backOf(s.look(), spot), false));
+  useEffect(() => {
+    const upd = (l: SkyLook): void => set((cur) => at(backOf(l, spot), cur));
+    upd(s.look());
+    return s.subscribe(upd);
+  }, [s, spot]);
+  return bright;
 }
 
 /**
@@ -244,6 +262,8 @@ export function StartSurface(p: StartSurfaceProps): VNode {
     }
     sky.current = s;
     host.style.background = '';
+    // ?skyStats: the engine's handle for bench/start-page-bench.ts (its stats).
+    if (pageSkyParams().stats) (globalThis as { __wcSky?: StartSkyHandle }).__wcSky = s;
     feed.attach(s);
     setSkyN((n) => n + 1);
     return () => {

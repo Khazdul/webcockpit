@@ -22,7 +22,7 @@ import { Box, Icon, type IconName, KeyLabel, LookFlash, letterOf, lookFrame, use
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import { type MenuItem, menuKey, useMenuCursor } from '../kit/widgets';
 import type { Quote } from '../quotes';
-import { useDarkInk } from '../start-surface';
+import { useBrightBack, useDarkInk } from '../start-surface';
 import { AboutFrame } from './about';
 import { CreditsFrame } from './credits';
 import { HistoryFrame } from './history';
@@ -92,6 +92,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   });
 
   const ink = useDarkInk('quote');
+  const bright = useBrightBack('quote');
   return (
     <div class="wc-start-main wc-lk-page">
       <div class="wc-sm-stage">
@@ -106,7 +107,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
           </ul>
           <LookFlash class="wc-sm-flash" />
         </Box>
-        <blockquote class={'wc-sm-quote' + (ink ? ' is-ink' : '')}>
+        <blockquote class={'wc-sm-quote' + (ink ? ' is-ink' : bright ? ' is-lit' : '')}>
           <p>{p.quote.text}</p>
           <span class="wc-sm-orn" aria-hidden="true" />
           <cite>{p.quote.by}</cite>

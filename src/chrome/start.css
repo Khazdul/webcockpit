@@ -411,6 +411,17 @@
   transition: color 2.5s, text-shadow 2.5s;
 }
 
+/* Pale ink on a bright sky (a day sky is bright but under the dark-ink
+ * threshold): the outline is a little heavier and a soft dark shade sits
+ * close round the letters (still nothing behind the words as a block). */
+.wc-sm-quote.is-lit p {
+  text-shadow: 0 0 1px rgba(10, 6, 3, 1), 0 1px 1px rgba(10, 6, 3, 0.9), 0 0 4px rgba(10, 6, 3, 0.55), 0 0 10px rgba(10, 6, 3, 0.25);
+}
+.wc-sm-quote.is-lit cite {
+  text-shadow: 0 0 1px rgba(10, 6, 3, 1), 0 1px 1px rgba(10, 6, 3, 0.85), 0 0 4px rgba(10, 6, 3, 0.5);
+}
+.wc-sm-quote.is-lit .wc-sm-orn::before { filter: drop-shadow(0 1px 0 rgba(10, 6, 3, 0.8)) drop-shadow(0 0 2px rgba(10, 6, 3, 0.5)); }
+
 .wc-sm-quote.is-ink { color: #24180e; }
 .wc-sm-quote.is-ink p { text-shadow: 0 1px 0 rgba(255, 248, 232, 0.5), 0 0 1px rgba(255, 248, 232, 0.35); }
 .wc-sm-quote.is-ink .wc-sm-orn::before { filter: drop-shadow(0 1px 0 rgba(255, 248, 232, 0.45)); }
