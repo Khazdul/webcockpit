@@ -24,7 +24,9 @@ import {
 } from '../../src/chrome/kit/look';
 import { FrameStack, type Nav, useNav } from '../../src/chrome/kit/stack';
 import { LookHost, MorphCtx, MorphStage } from '../../src/chrome/start-morph';
+import { LookWordmark } from '../../src/chrome/start-surface';
 import { calmTier } from '../../src/start/sky';
+import { SHEEN_FIRST_MS } from '../../src/start/wordmark-svg';
 
 afterEach(() => {
   render(null, document.body);
@@ -392,5 +394,32 @@ describe('the sky at the calm rate', () => {
   it('caps every layer at ~30 Hz, rain and snow included, and never speeds one up', () => {
     expect(calmTier({ starMs: 32, cloudMs: 32, precipMs: 0 })).toEqual({ starMs: 32, cloudMs: 32, precipMs: 32 });
     expect(calmTier({ starMs: 64, cloudMs: 64, precipMs: 32 })).toEqual({ starMs: 64, cloudMs: 64, precipMs: 32 });
+  });
+});
+
+describe('LookWordmark', () => {
+  it('passes no sheen in page content unless asked (stage 42 wave 3)', () => {
+    vi.useFakeTimers();
+    const animate = vi.fn(() => ({ finished: Promise.resolve(), cancel() {}, playState: 'running' }));
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    const proto = Element.prototype as unknown as { animate?: unknown };
+    const had = proto.animate;
+    proto.animate = animate;
+    try {
+      const plain = document.createElement('div');
+      const lit = document.createElement('div');
+      document.body.append(plain, lit);
+      act(() => render(<LookWordmark size="small" />, plain));
+      act(() => render(<LookWordmark size="small" sheen />, lit));
+      act(() => void vi.advanceTimersByTime(SHEEN_FIRST_MS + 100));
+      const bands = animate.mock.contexts as Element[];
+      expect(bands.some((b) => plain.contains(b))).toBe(false);
+      expect(bands.some((b) => lit.contains(b))).toBe(true);
+      render(null, plain);
+      render(null, lit);
+    } finally {
+      proto.animate = had;
+      vi.useRealTimers();
+    }
   });
 });
