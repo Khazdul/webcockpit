@@ -110,7 +110,7 @@ function startServices(): ChromeServices {
 }
 
 const menuLabels = (host: HTMLElement) =>
-  [...host.querySelectorAll('.wc-frame:not([hidden]) .wc-mrow .wc-label')].map((e) => e.textContent);
+  [...host.querySelectorAll('.wc-frame:not([hidden]) .wc-sm-item .wc-sm-label')].map((e) => e.textContent);
 
 const key = (k: string, init: KeyboardEventInit = {}) =>
   act(() => {
@@ -119,11 +119,15 @@ const key = (k: string, init: KeyboardEventInit = {}) =>
     );
   });
 
+/** The ESC menu's (old-look) cursor row. */
 const selected = (host: HTMLElement) => host.querySelector('.wc-frame:not([hidden]) .wc-mrow.is-sel')?.textContent;
+/** The start menu's cursor row (the new look, ADR 0125). */
+const startSel = (host: HTMLElement) =>
+  host.querySelector('.wc-frame:not([hidden]) .wc-sm-item.is-sel .wc-sm-label')?.textContent;
 const title = (host: HTMLElement) => host.querySelector('.wc-frame:not([hidden]) .wc-c-section')?.textContent;
 
 describe('start page', () => {
-  it('renders the banner and menu, navigates, and keeps keys from the page', async () => {
+  it('renders the menu over the sky, navigates, and keeps keys from the page', async () => {
     const host = document.createElement('div');
     document.body.append(host);
     const onEnter = vi.fn();
@@ -132,65 +136,95 @@ describe('start page', () => {
     cleanup.push(() => document.removeEventListener('keydown', docKeys, true));
     const page = mountStartPage(host, startServices(), { onEnter });
     cleanup.push(() => page.dispose());
-    const started = vi.spyOn(window, 'setInterval');
     await act(() => page.show());
-    expect(started).toHaveBeenCalledWith(expect.any(Function), 83); // 12 Hz
 
-    expect(host.querySelectorAll('.wc-banner .wc-line')).toHaveLength(11);
-    expect(host.querySelector('[data-star]')).not.toBeNull();
-    expect(selected(host)).toBe('<< Enter MUME >>');
-    // Stage 32: no Options; Scripts under Profile; as long as the first paint's menu.
+    // The sky behind, the wordmark and the almanac around the menu; no banner, no footer.
+    expect(host.querySelector('.wc-start-sky')).not.toBeNull();
+    expect(host.querySelector('.wc-start-brand .wc-wordmark')).not.toBeNull();
+    expect(host.querySelector('.wc-start-almanac')?.textContent).toMatch(/, the \d+(st|nd|rd|th) of .*T\.A\. \d+/);
+    expect(host.querySelector('.wc-start-almanac')?.textContent).toContain('WebCockpit 9.9.9');
+    expect(host.querySelector('.wc-banner')).toBeNull();
+    expect(host.querySelector('.wc-footer')).toBeNull();
+    expect(host.querySelector('.wc-sm-quote cite')?.textContent).not.toBe('');
+    expect(startSel(host)).toBe('Enter MUME');
+    // Stage 32: no Options; Scripts under Profile, with the profile's name; as long as the first paint's menu.
     const labels = ['Enter MUME', 'Profile', 'Scripts', 'History', 'Spotlights', 'Credits', 'About'];
     expect(menuLabels(host)).toEqual(labels);
     expect(labels).toHaveLength(START_MENU_ROWS);
-    expect(host.querySelector('.wc-mrow[data-key="options"]')).toBeNull();
+    expect(host.querySelector('.wc-sm-item[data-key="options"]')).toBeNull();
+    expect(host.querySelector('.wc-sm-item[data-key="scripts"] .wc-sm-note')?.textContent).toBe('(default)');
+    // The shortcut letters, marked in the labels.
+    expect([...host.querySelectorAll('.wc-sm-item u.wc-sk')].map((u) => u.textContent)).toEqual([
+      'E',
+      'P',
+      'S',
+      'H',
+      'l',
+      'C',
+      'A',
+    ]);
 
     await key('ArrowUp');
-    expect(selected(host)).toBe('<< About >>');
+    expect(startSel(host)).toBe('About');
     await key('ArrowDown');
     await key('ArrowDown');
-    expect(selected(host)).toBe('<< Profile >>');
+    expect(startSel(host)).toBe('Profile');
     expect(docKeys).not.toHaveBeenCalled();
 
     // Spotlights without the player service says so.
     await key('ArrowDown');
     await key('ArrowDown');
     await key('ArrowDown');
-    expect(selected(host)).toBe('<< Spotlights >>');
+    expect(startSel(host)).toBe('Spotlights');
     await key('Enter');
-    expect(host.querySelector('.wc-flash')?.textContent).toMatch(/not available/);
+    expect(host.querySelector('.wc-lk-flash')?.textContent).toMatch(/not available/);
 
-    // Scripts opens and ESC comes back with the cursor kept.
+    // Scripts opens (old look, on the grid) and ESC comes back with the cursor kept.
     await key('ArrowUp');
     await key('ArrowUp');
     await key('Enter');
     expect(title(host)).toBe('─── Scripts ───');
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-start-grid .wc-screen')).not.toBeNull();
+    expect(host.querySelector('.wc-start')?.classList.contains('is-grid')).toBe(true);
     await key('Escape');
     expect(title(host)).toBeUndefined();
-    expect(selected(host)).toBe('<< Scripts >>');
+    expect(startSel(host)).toBe('Scripts');
+    expect(host.querySelector('.wc-start')?.classList.contains('is-main')).toBe(true);
 
-    // ESC on the main page is a no-op; Enter MUME calls back.
+    // ESC on the main page is a no-op; a letter goes straight to its row.
     await key('Escape');
-    expect(selected(host)).toBe('<< Scripts >>');
+    expect(startSel(host)).toBe('Scripts');
+    await key('a');
+    expect(title(host)).toBe('─── About ───');
+    await key('Escape');
+    expect(startSel(host)).toBe('About');
+    // Ctrl+letter is not a shortcut.
+    await key('h', { ctrlKey: true });
+    expect(startSel(host)).toBe('About');
     await key('Home');
     await key('Enter');
     expect(onEnter).toHaveBeenCalledTimes(1);
+    await key('e');
+    expect(onEnter).toHaveBeenCalledTimes(2);
 
-    // Hidden: the star timer stops and keys pass through.
-    const cleared = vi.spyOn(window, 'clearInterval');
+    // Hidden: keys pass through.
     await act(() => page.hide());
-    expect(cleared).toHaveBeenCalled();
     await key('ArrowDown');
     expect(docKeys).toHaveBeenCalledTimes(1);
   });
 
-  it('mouse click selects and activates', async () => {
+  it('mouse: hover selects, a click selects and activates', async () => {
     const host = document.createElement('div');
     document.body.append(host);
     const page = mountStartPage(host, services(), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    const about = host.querySelector<HTMLElement>('.wc-mrow[data-key="about"] .wc-label')!;
+    const history = host.querySelector<HTMLElement>('.wc-sm-item[data-key="history"]')!;
+    await act(() => {
+      history.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
+    });
+    expect(startSel(host)).toBe('History');
+    const about = host.querySelector<HTMLElement>('.wc-sm-item[data-key="about"]')!;
     await act(() => about.click());
     expect(title(host)).toBe('─── About ───');
     expect(host.querySelector('.wc-frame:not([hidden]) .wc-title-row')?.textContent).toBe('─── About ─── 9.9.9');
@@ -203,7 +237,7 @@ describe('start page', () => {
     const page = mountStartPage(host, { ...services(), openSpotlights }, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="spotlights"] .wc-label')!.click());
+    await act(() => host.querySelector<HTMLElement>('.wc-sm-item[data-key="spotlights"]')!.click());
     await act(async () => {});
     expect(openSpotlights).toHaveBeenCalledTimes(1);
     expect(title(host)).toBe('─── Spotlights ───');
@@ -212,7 +246,7 @@ describe('start page', () => {
     await key('Shift');
     expect(title(host)).toBe('─── Spotlights ───');
     await key('q');
-    expect(selected(host)).toBe('<< Spotlights >>');
+    expect(startSel(host)).toBe('Spotlights');
   });
 
   it('without a script library there is no Scripts row (only tests mount it so)', async () => {
@@ -222,6 +256,61 @@ describe('start page', () => {
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     expect(menuLabels(host)).toEqual(['Enter MUME', 'Profile', 'History', 'Spotlights', 'Credits', 'About']);
+  });
+
+  it('the Profile list: rows, buttons, letters, zones and Back', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const svc = startServices();
+    await svc.profiles.init();
+    await svc.profiles.create('scout', '');
+    const page = mountStartPage(host, svc, { onEnter: () => {} });
+    cleanup.push(() => page.dispose());
+    await act(() => page.show());
+    await key('p');
+    await act(async () => new Promise((r) => setTimeout(r, 0)));
+    const f = () => host.querySelector('.wc-frame:not([hidden])')!;
+    expect(f().querySelector('.wc-lk-hood-t')?.textContent).toBe('Profiles');
+    expect(host.querySelector('.wc-start')?.classList.contains('is-sub')).toBe(true);
+    const names = () => [...f().querySelectorAll('.wc-pl-n')].map((e) => e.textContent);
+    // `khazdul` is bundled.
+    expect(names()).toEqual(['default', 'khazdul', 'scout']);
+    expect(f().querySelector('.wc-pl-row.is-on')?.textContent).toContain('default');
+    expect(f().querySelector('.wc-pl-row.is-on .wc-pl-tag')?.textContent).toBe('Selected');
+    const btn = (id: string) => f().querySelector(`[data-btn="${id}"]`)!;
+    expect(btn('SELECT').getAttribute('aria-disabled')).toBe('true');
+    expect(btn('DELETE').getAttribute('aria-disabled')).toBe('true');
+    expect(btn('EDIT').getAttribute('aria-disabled')).toBeNull();
+    expect([...f().querySelectorAll('.wc-lk-btn u.wc-sk')].map((u) => u.textContent)).toEqual([
+      'S', 'N', 'E', 'R', 'D', 'I', 'x',
+    ]);
+    // The header sorts.
+    await act(() => f().querySelector<HTMLElement>('.wc-pl-sort')!.click());
+    expect(names()).toEqual(['scout', 'khazdul', 'default']);
+    await act(() => f().querySelector<HTMLElement>('.wc-pl-sort')!.click());
+    // End and S select the last profile.
+    await key('End');
+    expect(f().querySelector('.wc-pl-row.is-on')?.textContent).toContain('scout');
+    expect(btn('SELECT').getAttribute('aria-disabled')).toBeNull();
+    await key('s');
+    expect(svc.settings.get().profile).toBe('scout');
+    // Tab: the buttons have the keys; ←/→ move along them, skipping disabled ones; ↑ returns.
+    await key('Tab');
+    expect(f().querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('NEW');
+    await key('ArrowRight');
+    expect(f().querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('EDIT');
+    await key('ArrowUp');
+    expect(f().querySelector('.wc-lk-btn.is-sel')).toBeNull();
+    // N: the old-look name prompt; Esc back to the list.
+    await key('n');
+    expect(title(host)).toBe('─── Create New Profile ───');
+    await key('Escape');
+    expect(f().querySelector('.wc-lk-hood-t')?.textContent).toBe('Profiles');
+    // Back (and Esc) return to the menu.
+    await act(() => f().querySelector<HTMLElement>('.wc-lk-back')!.click());
+    expect(startSel(host)).toBe('Profile');
+    // The menu's Scripts row follows the selected profile.
+    expect(host.querySelector('.wc-sm-item[data-key="scripts"] .wc-sm-note')?.textContent).toBe('(scout)');
   });
 });
 

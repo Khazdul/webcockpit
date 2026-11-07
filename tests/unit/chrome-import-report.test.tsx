@@ -122,6 +122,8 @@ const key = (k: string, init: KeyboardEventInit = {}) =>
 
 const frame = (host: HTMLElement) => host.querySelector('.wc-frame:not([hidden])')!;
 const title = (host: HTMLElement) => frame(host).querySelector('.wc-title-row .wc-c-section')?.textContent;
+/** The Profile list's hood (the new look, ADR 0125). */
+const hood = (host: HTMLElement) => frame(host).querySelector('.wc-lk-hood-t')?.textContent;
 const settle = () => act(async () => new Promise((r) => setTimeout(r, 0)));
 
 async function openPicker(svc: ChromeServices): Promise<HTMLElement> {
@@ -133,7 +135,7 @@ async function openPicker(svc: ChromeServices): Promise<HTMLElement> {
   await key('ArrowDown');
   await key('Enter');
   await settle();
-  expect(title(host)).toBe('─── Profile ───');
+  expect(hood(host)).toBe('Profiles');
   return host;
 }
 
@@ -189,9 +191,9 @@ describe('IMPORT and the report frame', () => {
 
     // ESC is OK: back to the picker with the profile under the cursor.
     await key('Escape');
-    expect(title(host)).toBe('─── Profile ───');
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Imported "mychar" from mychar.set.');
-    expect(frame(host).querySelector('.wc-tr.is-cur-focus')?.textContent).toContain('mychar');
+    expect(hood(host)).toBe('Profiles');
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('Imported "mychar" from mychar.set.');
+    expect(frame(host).querySelector('.wc-pl-row.is-on')?.textContent).toContain('mychar');
   });
 
   it('shows the short form for an unchanged profile; OK returns', async () => {
@@ -203,7 +205,7 @@ describe('IMPORT and the report frame', () => {
     expect(frame(host).textContent).toContain('TinTin++, 1 line, nothing changed');
     expect(frame(host).querySelector('.wc-import-list')).toBeNull();
     await key('Enter');
-    expect(title(host)).toBe('─── Profile ───');
+    expect(hood(host)).toBe('Profiles');
     expect(svc.settings.get().profile).toBe('My_Warrior');
   });
 
@@ -214,7 +216,7 @@ describe('IMPORT and the report frame', () => {
     });
     const host = await openPicker(svc);
     await choose(host, [new File(['x'], 'x.tin')]);
-    expect(title(host)).toBe('─── Profile ───');
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Import failed: boom');
+    expect(hood(host)).toBe('Profiles');
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('Import failed: boom');
   });
 });
