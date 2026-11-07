@@ -15,7 +15,8 @@
 //            └──────────────────────────┘
 //
 // Rate: 0–5, ← → (↑ ↓) adjust, a click sets (a click on the lit last star
-// clears), hover peeks; Enter (Space, S) saves, also an unsaved session;
+// clears), hover peeks (the stars' outline only: the words always name
+// the rating Save stores); Enter (Space, S) saves, also an unsaved session;
 // Esc cancels. Delete: Y deletes every run of the chain, any other key (or
 // a click on the veil) cancels; Delete / Cancel buttons for the mouse. The
 // run-log error box: OK (Enter, Esc, click). The keys box: the kit's
@@ -116,7 +117,6 @@ export const RateDialog = lookFrame(function RateDialog(p: { session: Session; d
     return false;
   });
 
-  const shown = peek || rating;
   return (
     <Dialog
       title="Rate the session"
@@ -156,7 +156,7 @@ export const RateDialog = lookFrame(function RateDialog(p: { session: Session; d
         ))}
       </div>
       <p class="wc-hd-val" aria-live="polite">
-        {ratingWords(shown)}
+        {ratingWords(rating)}
       </p>
     </Dialog>
   );

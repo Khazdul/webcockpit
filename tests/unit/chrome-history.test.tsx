@@ -12,7 +12,6 @@ import {
   DEFAULT_HISTORY_SORT,
   HISTORY_SORT_OPTIONS,
   deedsParts,
-  expiresCell,
   expiresInText,
   expiresText,
   expiryLeft,
@@ -26,12 +25,7 @@ import {
   sessionDeeds,
   sortOptions,
   sortValue,
-  panPills,
   pillNames,
-  pillWidth,
-  pillWindow,
-  ratingCell,
-  scrollPills,
   sortSessions,
   storageText,
 } from '../../src/chrome/frames/history-model';
@@ -92,12 +86,7 @@ describe('History model', () => {
     expect(nextHistorySort({ key: 'char', dir: 1 }, 'rating')).toEqual({ key: 'rating', dir: -1 });
   });
 
-  it('formats the cells', () => {
-    expect(expiresCell(a)).toEqual({ text: '13 days', class: 'wc-st-label' });
-    expect(expiresCell(b)).toEqual({ text: 'Saved', class: 'wc-c-accent' });
-    expect(ratingCell(b)).toEqual({ text: '★★★★★', class: 'wc-st-star' });
-    expect(ratingCell(a).text).toBe('');
-    expect(ratingCell({ ...b, rating: 0 }).text).toBe('');
+  it('formats the durations, the pills and the storage line', () => {
     expect(fmtDur(5 * H + 2 * 60e6)).toBe('5h02m');
     expect(fmtDur(34 * 60e6)).toBe('34m');
     expect(pillNames([a, b, c, a])).toEqual(['Gittan', 'Melker', 'Rasta']);
@@ -105,22 +94,6 @@ describe('History model', () => {
     expect(fmtBytes(6_400_000_000)).toBe('6.4 GB');
     expect(storageText({ usage: 1_200_000, quota: 2e9 })).toBe('Storage: 1.2 MB of 2.0 GB');
     expect(storageText(null)).toBe('');
-  });
-
-  it('windows the pill row by whole pills with edge slots', () => {
-    const widths = ['All', 'Aaaaaaaa', 'Bbbbbbbb', 'Cccccccc', 'Dddddddd'].map(pillWidth); // 5, 10 × 4
-    // Fits: everything, no arrows.
-    expect(pillWindow(widths, 60, 0)).toEqual({ start: 0, end: 5, overflow: false, left: false, right: false });
-    // 30 cells: 26 inside the slots → All + 2 names (5 + 1 + 10 + 1 + 10 = 27 > 26 → All + 1).
-    expect(pillWindow(widths, 30, 0)).toEqual({ start: 0, end: 2, overflow: true, left: false, right: true });
-    // The cursor on the last pill scrolls the minimum.
-    const s = scrollPills(widths, 30, 0, 4);
-    expect(pillWindow(widths, 30, s)).toMatchObject({ end: 5, left: true, right: false });
-    expect(scrollPills(widths, 30, s, 1)).toBe(1);
-    // Panning moves the window one pill, clamped.
-    expect(panPills(widths, 30, 0, 1)).toBe(1);
-    expect(panPills(widths, 30, 0, -1)).toBe(0);
-    expect(panPills(widths, 30, s, 5)).toBe(s);
   });
 
   it('sums the deeds over the runs and words them for the card', () => {
@@ -471,6 +444,62 @@ describe('History frame', () => {
     await key('Enter');
     expect(dlg('runlog-error')).toBeNull();
     expect(curRow(host)).toMatch(/^Rasta/);
+  });
+
+  it('a pointer passing over the rows does not choose one; a row or head click brings the keyboard back to the rows', async () => {
+    const lib = await library();
+    const { host } = await openHistory(lib);
+    const row = (i: number) => hist(host).querySelectorAll<HTMLElement>('.wc-lk-tr')[i]!;
+    await act(() => row(1).click()); // Rasta
+    expect(curRow(host)).toMatch(/^Rasta/);
+    // On the way to the card the pointer crosses row 2: the card stays on Rasta.
+    await act(() => {
+      row(2).dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' }));
+    });
+    expect(curRow(host)).toMatch(/^Rasta/);
+    expect(hist(host).querySelector('.wc-hist-name')?.textContent).toBe('Rasta');
+    // Tab into the buttons, then a click on a row: the rows have the keyboard again.
+    const sel = () => frame(host).querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn');
+    await key('Tab');
+    expect(sel()).toBe('RUN LOG');
+    await act(() => row(2).click());
+    expect(sel()).toBeUndefined();
+    expect(row(2).classList.contains('is-cur')).toBe(true);
+    await key('ArrowUp');
+    expect(curRow(host)).toMatch(/^Rasta/);
+    // And a head click.
+    await key('Tab');
+    expect(sel()).toBe('RUN LOG');
+    await act(() => hist(host).querySelector<HTMLElement>('.wc-lk-th[data-key="char"]')!.click());
+    expect(sel()).toBeUndefined();
+    expect(hist(host).querySelector('.wc-lk-tr.is-on')?.classList.contains('is-cur')).toBe(true);
+  });
+
+  it('holds its keys, Back and actions while a run log opens; a failed open shows its box over History', async () => {
+    const lib = await library();
+    let settle: (r: { ok: false; error: string }) => void = () => {};
+    const openPlayer = vi.fn(() => new Promise<{ ok: false; error: string }>((r) => (settle = r)));
+    const { host } = await openHistory(lib, { openPlayer });
+    await key('ArrowDown'); // Rasta
+    await key('r');
+    expect(openPlayer).toHaveBeenCalledTimes(1);
+    // Esc, Back, a letter and a button wait for the open.
+    await key('Escape');
+    expect(hood(host)).toBe('History');
+    await act(() => hist(host).querySelector<HTMLElement>('.wc-lk-back')!.click());
+    expect(hood(host)).toBe('History');
+    await key('t');
+    await act(() => btn(host, 'STATS').click());
+    expect(hood(host)).toBe('History');
+    await key('ArrowDown');
+    expect(curRow(host)).toMatch(/^Rasta/);
+    await act(async () => settle({ ok: false, error: 'The run log is not stored.' }));
+    await until(() => dlg('runlog-error') !== null, 'the error box');
+    await key('Enter');
+    expect(dlg('runlog-error')).toBeNull();
+    // The keys work again.
+    await key('ArrowDown');
+    expect(curRow(host)).toMatch(/Saved/);
   });
 
   it('flashes when the player is not available', async () => {

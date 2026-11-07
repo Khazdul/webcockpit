@@ -59,10 +59,10 @@ test('Rate: keys, a click, hover peeks; Enter saves an unsaved session', async (
   await expect(dialog(page, 'rate').locator('.wc-hd-val')).toHaveText('Four stars');
   await page.keyboard.press('ArrowLeft');
   await expect(lit(page)).toHaveCount(3);
-  // Hover peeks without setting; the words follow the peek.
+  // Hover peeks without setting: the stars' outline only; the words keep naming the rating Save stores.
   await dialog(page, 'rate').locator('.wc-hd-stars > button[data-v="5"]').hover();
   await expect(dialog(page, 'rate').locator('.wc-hd-stars > button.is-peek')).toHaveCount(5);
-  await expect(dialog(page, 'rate').locator('.wc-hd-val')).toHaveText('Five stars');
+  await expect(dialog(page, 'rate').locator('.wc-hd-val')).toHaveText('Three stars');
   await expect(lit(page)).toHaveCount(3);
   await page.mouse.move(5, 5);
   await expect(dialog(page, 'rate').locator('.wc-hd-stars > button.is-peek')).toHaveCount(0);
