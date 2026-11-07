@@ -125,6 +125,11 @@ const RECHECK_MS = 10_000;
 
 const LAYER = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;';
 
+/**
+ * The mockup's film grain (grey noise in overlay blend at 6 %), as white
+ * and black specks in plain blend: as faint, but no blend mode, which
+ * costs a backdrop read every composite on software compositors.
+ */
 let grainUrl: string | null = null;
 function grain(): string {
   if (grainUrl) return grainUrl;
@@ -136,8 +141,8 @@ function grain(): string {
   for (let i = 0; i < id.data.length; i += 4) {
     s = (Math.imul(s, 1103515245) + 12345) >>> 0;
     const v = s >>> 24;
-    id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
-    id.data[i + 3] = 40;
+    id.data[i] = id.data[i + 1] = id.data[i + 2] = v >= 128 ? 255 : 0;
+    id.data[i + 3] = Math.round((Math.abs(v - 127.5) / 127.5) * 40);
   }
   x.putImageData(id, 0, 0);
   grainUrl = c.toDataURL();
@@ -199,7 +204,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
   frontC.style.cssText = `${LAYER}display:none;`;
   frontC.width = frontC.height = 1;
   const grainD = doc.createElement('div');
-  grainD.style.cssText = `${LAYER}opacity:.06;mix-blend-mode:overlay;display:none;`;
+  grainD.style.cssText = `${LAYER}opacity:.06;display:none;`;
   root.append(back, bodiesC, cloudC, air, frontC, grainD);
   let statsD: HTMLDivElement | null = null;
   if (opts.stats ?? params.stats) {
