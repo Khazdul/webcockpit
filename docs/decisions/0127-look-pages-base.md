@@ -113,9 +113,141 @@ Paper, the inlay's one source, the icon set, `Seal`, `useKeyboardInset`.)
 
 ### 42c — Overlays, dialogs, popovers, cursors, letters, the stack
 
-(42c fills this: overlay frames, the hold, key layers, the Esc rule for
-fields, `Dialog`, `KeyHelp`, `Popover`, the cursors and the button zone,
-`letterAction`.)
+**The stack's model.** The frames live in a ref that `nav` changes at once
+(two pushes in one task both count, and the hold can be decided in the
+same call) and a render is asked for after each change; the state hook
+held only a counter. Each entry gained `overlay` and its key `layers`.
+
+**Overlay frames.** `nav.push(node, { overlay: true })`: the frame below
+stays drawn under the overlay, `inert`, and marked `data-under`; the
+overlay frame (`data-overlay`) gets the keys as any top frame, and an
+unhandled Esc pops it. Chains work (a dialog over a dialog: the page and
+the first dialog stay drawn). The page is the topmost frame that is not an
+overlay: it keeps the stack's flash while overlays are up (an overlay's
+`useFlash()` is null), so a dialog's `nav.flash(…)` before its `nav.pop()`
+shows on the page; an overlay push does not clear the flash, a normal push
+still does. `replace` keeps an overlay an overlay. The stack measures the
+page's box (its first `.wc-lk-box`, else `.wc-lk-win`) and sets its
+rectangle inside each overlay frame as `--wc-ov-l/t/w/h` (clipped to the
+frame, kept current by a `ResizeObserver`), so a dialog centres over the
+box below, not over the whole surface; with nothing to measure (an
+old-look page) the dialog centres in the frame. An overlay frame must be a
+look frame (`lookFrame`), or the start surface would draw it on the cell
+grid.
+
+**`hidden` stays "not the top".** Only the top frame lacks the `hidden`
+attribute; a frame drawn under an overlay or held keeps it and is shown by
+CSS (`.wc-frame[hidden]:is([data-under], [data-held]) { display: block }`
+in `look-overlay.css`). So every existing selector of the form
+`.wc-frame:not([hidden])` (about twenty specs, the e2e helpers'
+`startTop`) still means the top frame, and `inert` takes the drawn frames
+out of the accessibility tree and of every pointer and focus path.
+
+**The hold.** `FrameStackProps.hold(from, to, dir)` is asked on a push or
+a pop that changes the page (never for an overlay's own push or pop);
+`from` is the page that was shown, `to` the one shown next. A push keeps
+the frame below drawn (`data-held="push"`, inert) for the answer in ms; a
+pop keeps the popped frame mounted (the same instance, after the frames in
+the same keyed list, `data-held="pop"`, inert, out of the key path) for
+the answer, then unmounts it. One hold at a time: the next push or pop
+ends the last, so a Back during an opening makes the frame below the top
+again at once, and the frame being opened becomes the held popped one (42a
+fades it from where it is). These two attributes are the surface's hooks
+for its fades (42a).
+
+**Key layers.** `useKeyLayer(handler, active = true)` adds a layer to the
+frame's entry while active; the stack asks the top frame's layers, the
+most recently activated first, then the frame's handler (also for a close
+request's synthetic Esc). A layer returning false passes the key on.
+
+**The Esc rule.** Look frames and overlay frames only: an Esc that no
+layer and not the frame's handler consumes, pressed in a text field
+(`input`, `textarea`, contenteditable) inside the top frame, blurs the
+field and focuses the stack host; it does not pop. The next Esc goes back.
+Old-look frames keep Esc = back from anywhere (the profile editor's
+CodeMirror and the TUI fields are unchanged). Ctrl+S / Ctrl+F / Ctrl+H
+reach the frame's handler from fields as before (tested). The stack reads
+`lookFrame`'s marker key itself (a unit test keeps it in step with
+`isLookFrame`) instead of importing the barrel: `stack.tsx` lives in the
+chunk the chrome shares with the editors, and an import of `look.tsx`
+there moved the whole lantern kit (6.6 kB) out of the chrome chunk into
+that shared one.
+
+**`Dialog`.** A small Lykta box: the box's iron, smaller brackets, the
+hood with the title (the accessible name), an opaque lit window (0.94, no
+`backdrop-filter`), the content, an error line (`role=alert`) and a row of
+glass buttons; on a dim radial veil (a plain fill). It rises 8 px and
+fades in 300 ms (a fade only with reduced motion). Keys: its letters
+(outside text fields), Enter presses the keyboard's button (the primary
+until Tab / ← → walk the enabled buttons; Tab rings, ← → stop at the
+ends), Space as Enter outside fields, Esc `onCancel`, any other key too
+with `anyKeyCancels` (a click on the veil as well). A dialog holds every
+plain key (nav keys and characters) so the page never acts on one; keys
+with Ctrl / Alt / Meta and the F-keys pass. In its text fields the editing
+keys stay the field's; Enter, Esc and Tab are the dialog's. As an overlay
+frame its handler is the frame's (`useKeys`); `inline` it is a key layer
+over the page's handler, drawn over its nearest positioned ancestor, and
+marked `data-wc-own-keys`, so keys typed in its own fields bypass the
+stack (and the page) and its own `keydown` handles Enter / Esc / Tab
+there. The focus returns to the stack host when a closing dialog held it.
+Paper: a bronze frame and a parchment window under `[data-light]`.
+Content helpers: `.wc-lk-q` (the question), `.wc-lk-qn` (a dim note);
+fields take the dialog's width.
+
+**`KeyHelp`, `openKeyHelp`.** A two-column grid (`dl`), the keys in the
+terminal font, what they do in the serif; `openKeyHelp` pushes it in a
+`Dialog` (`data-dlg="keys"`, one OK, any key closes) as an overlay frame.
+
+**`Popover`.** A small lit plate (iron edge, lit lip, dark glass; Paper:
+parchment) placed by script under its anchor in its offset parent's px
+(above when there is no room below), kept inside it, current on resize.
+Esc closes it through a key layer (and from its own fields through its own
+`keydown`: it carries `data-wc-own-keys`); a press outside it and outside
+its anchor closes it (the anchor's own click toggles). No
+`backdrop-filter`.
+
+**Cursors.** `useListCursor` and `useGridCursor` share one core: a pointer
+*move* (not `pointerenter`) moves the cursor, a touch never hovers; after
+a key the cursor's row (`[data-i]` inside `scrollRef`) is scrolled into
+view (`block: nearest`), never after a pointer. Mouse and pen: with
+`activateOn: 'click'` (default) a click moves and activates, with
+`'dblclick'` a click moves and a double click activates. Touch:
+`'tap-activates'` (default with `click`) a tap activates;
+`'tap-selects'` (default with `dblclick`) the first tap moves, a tap on
+the cursor's row activates; a touch double tap never activates twice. The
+pointer type is read on `pointerdown` (`rowProps` adds `onPointerDown`; a
+`click` is not a `PointerEvent` in every engine). The grid: ← → one item
+across the row ends (around the ends with `wrap`), ↑ ↓ one row (↓ onto a
+shorter last row goes to its last item), PgUp / PgDn `page` items in whole
+rows. The cursor stays inside `count` when the list shrinks.
+
+**`useButtonZone`.** One ring: the list, then the enabled buttons; Tab
+forward, Shift+Tab back. In the buttons ← → (and ↑ ↓) walk the enabled
+ones and stop at the ends (wrap with `wrap`). A button that becomes
+disabled hands the keyboard to the next enabled one, else the one before,
+else the list. Added: an optional `press(id)` so Enter / Space in the
+zone press the keyboard's button (without it the page reads `sel`).
+
+**`letterAction`.** Fires only outside text fields (`input`, `textarea`,
+`select`, contenteditable) and without Ctrl / Alt / Meta; Shift is allowed
+(Caps Lock); the map's letters in either case. `inTextField` is exported
+from `look-keys.ts` (the dialog uses it).
+
+**The gallery's Overlays section** (`gallery/overlays.tsx`): every dialog
+shape as an overlay frame (a question with Y / N / Esc that flashes on the
+page, an input dialog with a `Field` and its error, an error dialog, an
+any-key dialog, the keys box), an inline dialog in a panel (with a Paper
+toggle), a popover with a `Seg`, a `Toggle` and a `Field`, a filter
+`Field` (the Esc rule), a 30-row list with its cursor and a button zone
+(one button can be disabled), and a grid with its cursor. Layout by inline
+styles (the section has no stylesheet; the gallery is dev only).
+
+**Test hooks.** `.wc-frame[data-overlay]`, `[data-under]`,
+`[data-held="push" | "pop"]`, `.wc-stack.has-overlay`,
+`.wc-lk-dialog[data-dlg]` (`.wc-lk-btn[data-btn]`, `.is-sel`,
+`.wc-lk-dialog-err`), `.wc-lk-veil.is-inline`, `.wc-lk-keyhelp`,
+`.wc-lk-pop`; e2e helpers `drawnBelow`, `overlayTop`, `dialogButton`,
+`dialogSel`, `kitOut` in `tests/e2e/look.ts`.
 
 ### 42d — The window frame (Lykta; dark, Paper) and the ESC menu host
 
@@ -151,6 +283,13 @@ adds its row; 42-Z gives the totals against the stage 41 tip.
 | editor JS | 634.13 / 209.14 kB | 634.13 / 209.14 kB | 42-0 |
 | player-host JS | 34.69 / 11.42 kB | 34.69 / 11.42 kB | 42-0 |
 | gallery | — | none (`VITE_KIT=1`: 1.67 / 0.97 kB JS, 0.56 / 0.31 kB CSS) | 42-0 |
+
+42c, against the 42-0 tip (`2c2601bd`), raw / gzip: chrome CSS 48.04 /
+10.65 → 52.91 / 11.68 kB (`look-overlay.css`); the shared chunk that holds
+`stack.tsx` (`scripts-model-*.js`, loaded with the chrome and the editors)
+41.21 / 15.62 → 43.60 / 16.44 kB; chrome JS, start, editor and
+player-host unchanged (`Dialog`, `Popover`, the cursors and the zone are
+tree-shaken until a page uses them; wave 2 adds them).
 
 ## Consequences
 
