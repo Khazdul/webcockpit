@@ -234,6 +234,32 @@ test('profile Help: Ctrl+F finds in the manual; Esc closes the find, then saves 
   expect(errors).toEqual([]);
 });
 
+test('profile Help: Esc closes an open find whichever zone has the keyboard, then leaves', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openProfile(page, '#alias {b} {bee}\n');
+  await ped(page).locator('.wc-pe-views [data-opt="help"]').click();
+  await expect(ped(page)).toHaveAttribute('data-view', 'help');
+  await page.keyboard.press('Control+f');
+  const bar = ped(page).locator('.wc-lk-mfind');
+  const field = bar.locator('input');
+  await expect(field).toBeFocused();
+  await page.keyboard.type('alias');
+  // Tab: the field lets go, the bar stays; Shift+Tab: the rail has the keyboard.
+  await page.keyboard.press('Tab');
+  await expect(field).not.toBeFocused();
+  await expect(field).toBeVisible();
+  await page.keyboard.press('Shift+Tab');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'rail');
+  // Esc closes the find first; the editor stays.
+  await page.keyboard.press('Escape');
+  await expect(field).toBeHidden();
+  await expect(ped(page)).toHaveAttribute('data-view', 'help');
+  // The next Esc leaves.
+  await page.keyboard.press('Escape');
+  await expect(ped(page)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('Lite: Ctrl+F and Ctrl+H do nothing (ADR 0119); Editor keeps both', async ({ page }) => {
   const errors = watchErrors(page);
   await openProfile(page, '#alias {k} {kill orc}\n#action {An orc arrives.} {kill orc}\n');

@@ -295,6 +295,28 @@ describe('the import page', () => {
     expect(editor.open.mock.calls[0]![1]).toMatchObject({ name: 'mychar' });
   });
 
+  it('Space never closes the receipt: with no header lit, or on OK, it stays', async () => {
+    const svc = services();
+    importFiles.mockReturnValue(result());
+    const host = await openImport(svc);
+    await choose(host, [new File(['x'], 'mychar.set')]);
+    expect(frame(host).querySelector('.wc-imp-name')).not.toBeNull();
+    // Nothing lit: Space pages the receipt (as a browser does), it does not press OK.
+    await key(' ');
+    await settle();
+    expect(frame(host).querySelector('.wc-imp-name')).not.toBeNull();
+    // On OK too.
+    await key('Tab', { shiftKey: true });
+    expect(sel(host)).toBe('OK');
+    await key(' ');
+    await settle();
+    expect(frame(host).querySelector('.wc-imp-name')).not.toBeNull();
+    // Enter on OK still closes it.
+    await key('Enter');
+    await settle();
+    expect(hood(host)).toBe('Profiles');
+  });
+
   it('O and Esc are OK too', async () => {
     for (const k of ['o', 'Escape']) {
       const svc = services();

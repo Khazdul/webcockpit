@@ -179,6 +179,9 @@ export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptPr
         return scroll((el) => el.scrollHeight);
       case 'activate':
         if (stop >= 0 && stop < groups.length) toggle(stop);
+        // Space never means OK: it pages the receipt down (the browser's
+        // habit), so a reader does not close a long receipt by accident.
+        else if (e.key === ' ') return scroll((el) => el.scrollTop + page(el));
         else ok();
         return true;
     }

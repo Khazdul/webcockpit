@@ -450,6 +450,28 @@ html.wc-phone .wc-imp-drop-t {
   text-align: left;
 }
 
+/* Touch: OK (the receipt's only action) and the group headers are full
+ * 40 px targets. */
+@media (pointer: coarse) {
+  .wc-imp-foot .wc-lk-btn.is-primary {
+    min-width: 72px;
+    justify-content: center;
+  }
+
+  .wc-imp-grp-h {
+    min-height: 44px;
+  }
+}
+
+html.wc-phone .wc-imp-foot .wc-lk-btn.is-primary {
+  min-width: 72px;
+  justify-content: center;
+}
+
+html.wc-phone .wc-imp-grp-h {
+  min-height: 44px;
+}
+
 /* ------------------------------------------------------------ narrow (the box's own width) */
 
 @container wc-page (max-width: 600px) {

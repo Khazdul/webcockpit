@@ -641,12 +641,13 @@ test('profiles: Enter or a click on the selected profile edits it, on another se
   await page.keyboard.press('Enter');
   await expect(plist(page).locator('.wc-lk-hood-t')).toHaveText('Profiles');
   const row = (name: string) => plist(page).locator(`.wc-pl-row[data-name="${name}"]`);
-  const editorTitle = page.locator('.wc-frame:not([hidden]) > .wc-ped .wc-ped-title .wc-c-section');
+  // The Profile editor's head names the profile (stage 43, ADR 0128).
+  const editorTitle = page.locator('.wc-frame:not([hidden]) .wc-pe .wc-pe-name');
   await expect(plCursor(page)).toContainText('default');
 
   // Keyboard: Enter on the selected profile opens the editor, like Edit.
   await page.keyboard.press('Enter');
-  await expect(editorTitle).toHaveText('─── Profile Editor: default ───');
+  await expect(editorTitle).toHaveText(/^default/);
   await page.keyboard.press('Escape');
   await expect(plist(page)).toBeVisible();
 
@@ -657,7 +658,7 @@ test('profiles: Enter or a click on the selected profile edits it, on another se
   await expect.poll(async () => (await settings(page)).profile).toBe('scout');
   await expect(plist(page)).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(editorTitle).toHaveText('─── Profile Editor: scout ───');
+  await expect(editorTitle).toHaveText(/^scout/);
   await page.keyboard.press('Escape');
   await expect(plist(page)).toBeVisible();
 
@@ -669,7 +670,7 @@ test('profiles: Enter or a click on the selected profile edits it, on another se
   await expect.poll(async () => (await settings(page)).profile).toBe('default');
   await expect(plist(page)).toBeVisible();
   await row('default').locator('.wc-pl-n').click();
-  await expect(editorTitle).toHaveText('─── Profile Editor: default ───');
+  await expect(editorTitle).toHaveText(/^default/);
   await page.keyboard.press('Escape');
   await expect(plist(page)).toBeVisible();
   // The row's own buttons show on the hovered row only: Select there, then it goes.
@@ -681,7 +682,7 @@ test('profiles: Enter or a click on the selected profile edits it, on another se
   await expect(row('scout').locator('.wc-pl-tag')).toHaveText('Selected');
   // Its Edit opens the editor.
   await row('scout').locator('[data-btn="EDIT"]').click();
-  await expect(editorTitle).toHaveText('─── Profile Editor: scout ───');
+  await expect(editorTitle).toHaveText(/^scout/);
   await page.keyboard.press('Escape');
   await expect(plist(page)).toBeVisible();
   // Esc returns to the menu.
