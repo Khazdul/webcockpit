@@ -1,25 +1,192 @@
-/* The lantern kit's tokens (stage 41, ADR 0125; stage 42, ADR 0127):
- * one set of custom properties, `--lk-*`, on the `.wc-look` scope (the
- * start surface's root; from stage 42d also the window bodies of look
- * frames and the ESC menu host; the player's Back, 42f). Package 42b owns
- * this file: it adds the colour, inlay and motion tokens of the stage 42
- * API and their Paper values under `[data-light] .wc-look` and
- * `.wc-look[data-light]`. The mockups' `--c-*` names are not used (they
- * clash with the app's TUI theme). */
+/* The lantern kit's tokens (stage 41, ADR 0125; stage 42b, ADR 0127): one
+ * set of custom properties, `--lk-*`, on the `.wc-look` scope (the start
+ * surface's root, the window bodies of look frames and the ESC menu host
+ * (42d), the player's Back (42f)), with the Paper values under
+ * `[data-light] .wc-look` and `.wc-look[data-light]` (windows and the ESC
+ * menu follow the game background; the start page is always dark).
+ *
+ * Re-derived from the round 7 base (notes/research/start-menu-mockups/
+ * round7/base/base.css). The mockups' `--c-*` names are not used (they
+ * clash with the app's TUI theme: `--c-item`, `--c-hint`, `--c-cursor`).
+ * The canonical list is the stage 42 API; the `--lk-glass-*`, `--lk-row*`,
+ * `--lk-sk*`, `--lk-scroll-*` and `--lk-*-hot` tokens are the kit's own
+ * (the controls read them, so a Paper context turns every control light).
+ *
+ * The mithril inlay tokens are the wordmark's own constants
+ * (src/start/wordmark-svg.ts `INLAY_TOKENS`); a unit test compares them
+ * (tests/unit/look-controls.test.tsx), so change them there and here. */
 
 .wc-look {
+  /* ---- type */
   --lk-display: "Cinzel", Georgia, "Times New Roman", serif;
   --lk-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
   --lk-sc: "Cormorant SC", "Cormorant Garamond", Georgia, serif;
   --lk-mono: var(--font-mono, ui-monospace, monospace);
+
+  /* ---- the iron (the boxes; the same on Paper: the start page is dark) */
   --lk-iron: #2a2622;
   --lk-iron-lo: #110f0e;
+  /* A fine stone-like grain for the iron (no canvas: an SVG noise tile). */
+  --lk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
+
+  /* ---- text (dark: lit by the lamp in a dark window) */
   --lk-text: #eadcc3;
   --lk-dim: #9a8b76;
   --lk-faint: #6d6252;
-  /* A fine stone-like grain for the iron (no canvas: an SVG noise tile). */
-  --lk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
+  --lk-item: #a69679;
+  --lk-on: #fff1d8;
+  --lk-on-glow: rgba(255, 196, 128, 0.28);
+  --lk-ic-on: #ffe2b4;
+  --lk-head: #d6bf96;
+  --lk-accent: #e9c47c;
+  --lk-gold: #e9c47c;
+  --lk-danger: #e6a690;
+  --lk-danger-hot: #ffd2c2;
+  --lk-danger-glow: rgba(255, 90, 60, 0.9);
+  --lk-ok: #a9c98e;
+  --lk-soon: #e8a65e;
+  --lk-flash: #ffb870;
+  --lk-flash-glow: rgba(255, 140, 50, 0.6);
+  --lk-flash-fail: #f0a08a;
+  --lk-rule: rgba(255, 200, 130, 0.18);
+  /* The shortcut letter's fine underline, at rest and lit. */
+  --lk-sk: rgba(255, 190, 120, 0.3);
+  --lk-sk-on: rgba(255, 214, 160, 0.7);
+
+  /* ---- glass (buttons, the chosen option) */
+  --lk-glass: linear-gradient(180deg, rgba(255, 232, 200, 0.13), rgba(255, 220, 180, 0.04) 48%, rgba(255, 210, 160, 0.02) 52%, rgba(255, 200, 150, 0.06));
+  --lk-glass-hot: linear-gradient(180deg, rgba(255, 226, 186, 0.22), rgba(255, 210, 160, 0.08) 48%, rgba(255, 200, 150, 0.05) 52%, rgba(255, 190, 130, 0.12));
+  --lk-glass-primary: linear-gradient(180deg, rgba(255, 214, 160, 0.24), rgba(255, 200, 140, 0.08) 48%, rgba(255, 190, 120, 0.05) 52%, rgba(255, 190, 120, 0.14));
+  --lk-glass-off: linear-gradient(180deg, rgba(255, 232, 200, 0.05), rgba(255, 220, 180, 0.02));
+  --lk-glass-edge: rgba(255, 214, 160, 0.16);
+  --lk-glass-edge-on: rgba(255, 214, 160, 0.5);
+  --lk-glass-lip: rgba(255, 236, 206, 0.42);
+  --lk-glass-lip-hot: rgba(255, 240, 215, 0.6);
+  --lk-glass-text: #dcc8a4;
+  --lk-glass-text-hot: #fff1da;
+  --lk-glass-text-primary: #f2dcb2;
+  --lk-glass-text-off: #7d7060;
+  --lk-back-text: #c8b394;
+  --lk-glass-glow: rgba(255, 190, 110, 0.75);
+  --lk-glass-halo: 0 0 16px -4px rgba(255, 150, 60, 0.5);
+  --lk-glass-danger-halo: 0 0 18px -4px rgba(255, 70, 40, 0.6);
+  --lk-glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --lk-glass-ts: 0 1px 1px rgba(0, 0, 0, 0.6);
+  --lk-glass-blur: blur(4px) brightness(1.1);
+
+  /* ---- wells (fields, code, grooves): solid or plain translucent, never blurred */
+  --lk-well: rgba(6, 5, 4, 0.42);
+  --lk-well-edge: rgba(255, 214, 160, 0.12);
+  --lk-well-lip: rgba(255, 226, 186, 0.14);
+  --lk-well-in: inset 0 1px 3px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  --lk-option-bg: #1a1612;
+
+  /* ---- rows (cards) and the scrollbar */
+  --lk-row: linear-gradient(180deg, rgba(255, 207, 143, 0.06), rgba(255, 207, 143, 0.02));
+  --lk-row-sh: inset 0 1px 0 rgba(255, 207, 143, 0.12), inset 0 0 0 1px rgba(255, 207, 143, 0.04), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --lk-scroll-thumb: rgba(255, 214, 160, 0.22);
+  --lk-scroll-thumb-hot: rgba(255, 214, 160, 0.38);
+
+  /* ---- the box's window glass (normal; large boxes: more opaque, long text over a bright sky) */
+  --lk-win-fill: rgba(14, 11, 9, 0.58);
+  --lk-win-fill-large: rgba(13, 10, 8, 0.68);
+
+  /* ---- geometry: the large box's margin to the window edge (6 px on the phone) */
+  --lk-box-m: clamp(12px, 1.9vw, 28px);
+
+  /* ---- the mithril inlay (src/start/wordmark-svg.ts INLAY_TOKENS: the day metal's
+   *      top lip, its lit band and its dark core; COCKPIT's ink; the rivets) */
+  --lk-inlay-hi: #d4ecee;
+  --lk-inlay-mid: #7eaeb2;
+  --lk-inlay-lo: #2c4e51;
+  --lk-inlay-ink: #cfe2e4;
+  --lk-rivet-hi: #eef9fa;
+  --lk-rivet-mid: #72a7ac;
+  --lk-rivet-lo: #1b3335;
+  /* The banded metal as one gradient (a drop cap, a playhead): reflects, never glows. */
+  --lk-inlay-metal: linear-gradient(180deg, var(--lk-inlay-hi) 0%, var(--lk-inlay-mid) 22%, var(--lk-inlay-lo) 48%, #4c777b 60%, #a2c4c8 75%, #20383a 100%);
+
+  /* ---- motion: every kit transition is multiplied by --lk-ts */
+  --lk-ts: 1;
 }
 
-/* Paper (windows and the ESC menu follow the game background; the start
- * page is always dark): 42b. */
+/* Paper: ink on parchment, bronze edges (an in-game window or the ESC menu
+ * on the Paper background). */
+[data-light] .wc-look,
+.wc-look[data-light] {
+  --lk-text: #2a2116;
+  --lk-dim: #6b5a44;
+  --lk-faint: #a08f74;
+  --lk-item: #4a3c2a;
+  --lk-on: #0e0904;
+  --lk-on-glow: transparent;
+  --lk-ic-on: #3a2a14;
+  --lk-head: #4a3418;
+  --lk-accent: #8a5a0e;
+  --lk-gold: #8a5a0e;
+  --lk-danger: #9a2e1c;
+  --lk-danger-hot: #c22a12;
+  --lk-danger-glow: transparent;
+  --lk-ok: #3f6a22;
+  --lk-soon: #9a5410;
+  --lk-flash: #8a4a0c;
+  --lk-flash-glow: transparent;
+  --lk-flash-fail: #a8321c;
+  --lk-rule: rgba(110, 80, 40, 0.22);
+  --lk-sk: rgba(120, 80, 30, 0.35);
+  --lk-sk-on: rgba(90, 55, 15, 0.8);
+
+  --lk-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 252, 244, 0.42) 48%, rgba(250, 242, 226, 0.36) 52%, rgba(255, 250, 240, 0.6));
+  --lk-glass-hot: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 250, 238, 0.6) 48%, rgba(250, 240, 220, 0.5) 52%, rgba(255, 248, 232, 0.8));
+  --lk-glass-primary: linear-gradient(180deg, rgba(255, 240, 205, 0.95), rgba(246, 222, 170, 0.6) 48%, rgba(236, 206, 150, 0.55) 52%, rgba(248, 226, 180, 0.8));
+  --lk-glass-off: rgba(255, 255, 255, 0.25);
+  --lk-glass-edge: rgba(100, 76, 40, 0.3);
+  --lk-glass-edge-on: rgba(90, 60, 20, 0.6);
+  --lk-glass-lip: rgba(255, 255, 255, 0.95);
+  --lk-glass-lip-hot: #fff;
+  --lk-glass-text: #4a3820;
+  --lk-glass-text-hot: #140c04;
+  --lk-glass-text-primary: #3a2408;
+  --lk-glass-text-off: #a08f74;
+  --lk-back-text: #4a3820;
+  --lk-glass-glow: transparent;
+  --lk-glass-halo: 0 0 0 1px rgba(120, 86, 40, 0.18);
+  --lk-glass-danger-halo: 0 0 0 1px rgba(160, 40, 20, 0.3);
+  --lk-glass-shadow: 0 1px 2px rgba(80, 60, 30, 0.25);
+  --lk-glass-ts: 0 1px 0 rgba(255, 255, 255, 0.7);
+  /* Windows sit over scrolling game text: no blur there (ADR 0127). */
+  --lk-glass-blur: none;
+
+  --lk-well: rgba(255, 253, 247, 0.7);
+  --lk-well-edge: rgba(100, 76, 40, 0.28);
+  --lk-well-lip: rgba(255, 255, 255, 0.9);
+  --lk-well-in: inset 0 1px 2px rgba(80, 60, 30, 0.22), inset 0 0 0 1px rgba(100, 76, 40, 0.12);
+  --lk-option-bg: #fbf6ea;
+
+  --lk-row: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 250, 238, 0.3));
+  --lk-row-sh: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(110, 84, 44, 0.14), 0 1px 2px rgba(80, 60, 30, 0.14);
+  --lk-scroll-thumb: rgba(100, 76, 40, 0.28);
+  --lk-scroll-thumb-hot: rgba(100, 76, 40, 0.45);
+
+  /* The lit cream window (opaque: game text scrolls under windows). */
+  --lk-win-fill: #f7f0de;
+  --lk-win-fill-large: #f7f0de;
+
+}
+
+/* The phone: the large box nearly touches the edges. */
+@media (max-width: 600px) {
+  .wc-look {
+    --lk-box-m: 6px;
+  }
+}
+
+html.wc-phone .wc-look {
+  --lk-box-m: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-look {
+    --lk-ts: 0.2;
+  }
+}

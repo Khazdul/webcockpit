@@ -1,0 +1,999 @@
+/* The lantern kit's controls and widgets (stage 42b, ADR 0127):
+ * src/chrome/kit/look-controls.tsx. Re-derived from the round 7 base
+ * (notes/research/start-menu-mockups/round7/base/base.css) in the app's
+ * classes (`.wc-lk-*`). Every colour is a `--lk-*` token (look-tokens.css),
+ * so a Paper context (`data-light`) turns every control light without
+ * extra rules; the few Paper rules below are where the light needs another
+ * shape (no glows, a darker knob).
+ *
+ * Performance (ADR 0127): no `backdrop-filter` on inner surfaces (wells,
+ * rows, tables, cards): they are solid or plain translucent fills. Every
+ * transition is colour or opacity, scaled by `--lk-ts`.
+ *
+ * Phone and touch: `@media (pointer: coarse)` makes every target (options,
+ * tabs, rows, checks, toggles, fields, selects, fold heads) at least 40 px
+ * high. Nothing depends on hover. */
+
+/* Free layout inside a cell-grid host (kit.css .wc-chrome sets pre and the
+ * cell font): every control sets its own type. */
+.wc-lk-seg,
+.wc-lk-tabs,
+.wc-lk-field,
+.wc-lk-check,
+.wc-lk-toggle,
+.wc-lk-tbl,
+.wc-lk-rule,
+.wc-lk-fold,
+.wc-lk-well,
+.wc-lk-rows,
+.wc-lk-kv,
+.wc-lk-empty,
+.wc-lk-lead,
+.wc-lk-txt {
+  white-space: normal;
+  letter-spacing: normal;
+  font-variant-ligatures: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------ segmented control, pills, chips */
+
+.wc-lk-seg {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: var(--lk-well);
+  border: 1px solid var(--lk-well-edge);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+}
+
+/* Pills: one line that scrolls sideways (the chosen one kept in view by the component). */
+.wc-lk-seg.is-pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.wc-lk-seg.is-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.wc-lk-opt {
+  all: unset;
+  flex: none;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  font: 600 11.5px/1 var(--lk-display);
+  letter-spacing: 0.14em;
+  color: var(--lk-item);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color calc(0.3s * var(--lk-ts)),
+    background calc(0.3s * var(--lk-ts)),
+    box-shadow calc(0.3s * var(--lk-ts));
+}
+
+.wc-lk-opt .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+}
+
+.wc-lk-opt:not(.is-disabled):hover {
+  color: var(--lk-text);
+}
+
+.wc-lk-opt.is-on {
+  color: var(--lk-on);
+  background: var(--lk-glass-hot);
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip), 0 1px 2px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 0 8px var(--lk-on-glow);
+}
+
+.wc-lk-opt.is-on .wc-lk-ic {
+  opacity: 1;
+  color: var(--lk-ic-on);
+}
+
+/* The keyboard's option: a fine lit ring (the chosen one stays lit glass). */
+.wc-lk-opt.is-sel {
+  box-shadow: inset 0 0 0 1px var(--lk-sk-on);
+  color: var(--lk-on);
+}
+
+.wc-lk-opt.is-on.is-sel {
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip), inset 0 0 0 1px var(--lk-sk-on), 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.wc-lk-opt.is-disabled {
+  cursor: default;
+  color: var(--lk-faint);
+  opacity: 0.6;
+}
+
+/* Chips (several choices): the chosen ones lit, the others plain text in the well. */
+.wc-lk-seg.is-multi .wc-lk-opt.is-on {
+  background: var(--lk-glass);
+}
+
+/* ------------------------------------------------------------ tabs */
+
+.wc-lk-tabs {
+  display: flex;
+  gap: 22px;
+  border-bottom: 1px solid var(--lk-rule);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.wc-lk-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.wc-lk-tab {
+  all: unset;
+  flex: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  font: 600 12px/1 var(--lk-display);
+  letter-spacing: 0.18em;
+  color: var(--lk-item);
+  -webkit-tap-highlight-color: transparent;
+  transition: color calc(0.3s * var(--lk-ts));
+}
+
+.wc-lk-tab .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+}
+
+.wc-lk-tab:not(.is-disabled):hover {
+  color: var(--lk-text);
+}
+
+.wc-lk-tab.is-on {
+  color: var(--lk-on);
+  text-shadow: 0 0 8px var(--lk-on-glow);
+}
+
+.wc-lk-tab.is-on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--lk-sk-on) 20%, var(--lk-sk-on) 80%, transparent);
+}
+
+.wc-lk-tab.is-disabled {
+  cursor: default;
+  color: var(--lk-faint);
+}
+
+/* ------------------------------------------------------------ fields, select */
+
+.wc-lk-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font: 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-lk-lbl {
+  display: block;
+  margin: 0 0 7px;
+  font: 600 10px/1 var(--lk-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-lk-input {
+  display: block;
+  width: 100%;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  border: 1px solid var(--lk-well-edge);
+  outline: none;
+  font: 500 17px/1 var(--lk-serif);
+  letter-spacing: normal;
+  color: var(--lk-text);
+  caret-color: var(--lk-accent);
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+  -webkit-user-select: text;
+  user-select: text;
+  transition:
+    border-color calc(0.25s * var(--lk-ts)),
+    box-shadow calc(0.25s * var(--lk-ts));
+}
+
+.wc-lk-input::placeholder {
+  color: var(--lk-faint);
+  font-style: italic;
+  opacity: 1;
+}
+
+.wc-lk-input::selection {
+  background: color-mix(in srgb, var(--lk-accent) 35%, transparent);
+}
+
+.wc-lk-input:focus {
+  border-color: color-mix(in srgb, var(--lk-accent) 55%, transparent);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip), 0 0 0 3px color-mix(in srgb, var(--lk-accent) 14%, transparent);
+}
+
+.wc-lk-input:disabled {
+  opacity: 0.55;
+}
+
+.wc-lk-field.is-mono .wc-lk-input {
+  font: 400 13.5px/1 var(--lk-mono);
+}
+
+textarea.wc-lk-input {
+  height: auto;
+  min-height: 90px;
+  padding: 9px 12px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.wc-lk-field.is-mono textarea.wc-lk-input {
+  line-height: 1.55;
+}
+
+.wc-lk-field.is-bad .wc-lk-input {
+  border-color: color-mix(in srgb, var(--lk-danger) 70%, transparent);
+}
+
+.wc-lk-ferr,
+.wc-lk-fhint {
+  display: block;
+  margin-top: 5px;
+  font: italic 500 14.5px/1.3 var(--lk-serif);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-lk-ferr {
+  color: var(--lk-danger);
+}
+
+.wc-lk-fhint {
+  color: var(--lk-faint);
+}
+
+select.wc-lk-input {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 34px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wc-lk-select {
+  position: relative;
+}
+
+/* The chevron, in the dim ink of each theme (a mask, no image per theme). */
+.wc-lk-select::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  background: var(--lk-dim);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
+
+select.wc-lk-input option {
+  background: var(--lk-option-bg);
+  color: var(--lk-text);
+}
+
+/* ------------------------------------------------------------ check, toggle */
+
+.wc-lk-check,
+.wc-lk-toggle {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  cursor: pointer;
+  font: 500 16.5px/1.2 var(--lk-serif);
+  color: var(--lk-text);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-lk-cbox {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px solid var(--lk-well-edge);
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+  transition: border-color calc(0.2s * var(--lk-ts));
+}
+
+.wc-lk-check.is-on .wc-lk-cbox {
+  border-color: color-mix(in srgb, var(--lk-accent) 50%, transparent);
+}
+
+.wc-lk-check.is-on .wc-lk-cbox::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--lk-on);
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
+  filter: drop-shadow(0 0 3px var(--lk-on-glow));
+}
+
+.wc-lk-groove {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 20px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 1px solid var(--lk-well-edge);
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+  transition:
+    background calc(0.3s * var(--lk-ts)),
+    border-color calc(0.3s * var(--lk-ts));
+}
+
+/* The riveted knob: a polished iron stud, brighter when on. */
+.wc-lk-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #fff6e4 0 10%, #b9a285 28%, #5a4636 64%, #1a120d 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 0.5px #000;
+  transition: transform calc(0.25s * var(--lk-ts)) cubic-bezier(0.3, 0.9, 0.25, 1);
+}
+
+.wc-lk-toggle.is-on .wc-lk-groove {
+  background: linear-gradient(180deg, rgba(255, 207, 143, 0.3), rgba(255, 180, 100, 0.14));
+  border-color: rgba(255, 207, 143, 0.4);
+}
+
+.wc-lk-toggle.is-on .wc-lk-knob {
+  transform: translateX(18px);
+  background: radial-gradient(circle at 36% 30%, #fffaf0 0 14%, #e8cfa6 32%, #8a6a48 66%, #2a1d12 100%);
+}
+
+.wc-lk-tstate {
+  flex: none;
+  min-width: 26px;
+  font: 600 10.5px/1 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-lk-toggle.is-on .wc-lk-tstate {
+  color: var(--lk-text);
+}
+
+/* The keyboard's check or toggle (a page's `.is-cur` on it, or its row). */
+.wc-lk-check.is-cur .wc-lk-clabel,
+.wc-lk-toggle.is-cur .wc-lk-tlabel,
+.is-cur > .wc-lk-check .wc-lk-clabel,
+.is-cur > .wc-lk-toggle .wc-lk-tlabel {
+  color: var(--lk-on);
+  text-shadow: 0 0 8px var(--lk-on-glow);
+}
+
+/* ------------------------------------------------------------ rows (lists) */
+
+/* `.wc-lk-rows > .wc-lk-row`: cards (round 6's profile rows); `.is-flat`:
+ * hairline rows (dense lists). `.is-on` the chosen row (the text brightens,
+ * nothing else); `.is-idle` chosen while the keyboard is in another zone
+ * (dimmer); `.is-cur` the fine tick of the keyboard's zone. */
+.wc-lk-rows {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wc-lk-row {
+  position: relative;
+  min-height: 46px;
+  padding: 0 18px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--lk-item);
+  background: var(--lk-row);
+  box-shadow: var(--lk-row-sh);
+  font: 500 16px/1.25 var(--lk-serif);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color calc(0.45s * var(--lk-ts)),
+    text-shadow calc(0.45s * var(--lk-ts));
+}
+
+.wc-lk-row.is-on {
+  color: var(--lk-on);
+  text-shadow: 0 0 10px var(--lk-on-glow);
+  transition-duration: calc(0.3s * var(--lk-ts));
+}
+
+.wc-lk-row.is-idle {
+  color: color-mix(in srgb, var(--lk-on) 55%, var(--lk-item));
+  text-shadow: none;
+}
+
+.wc-lk-row .wc-lk-dim {
+  transition: color calc(0.45s * var(--lk-ts));
+}
+
+.wc-lk-row.is-on .wc-lk-dim {
+  color: color-mix(in srgb, var(--lk-dim) 55%, var(--lk-on));
+}
+
+.wc-lk-row.is-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.wc-lk-rows.is-flat {
+  gap: 0;
+}
+
+.wc-lk-rows.is-flat > .wc-lk-row {
+  min-height: 40px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--lk-rule);
+}
+
+.wc-lk-rows.is-flat > .wc-lk-row:last-child {
+  border-bottom: 0;
+}
+
+/* The keyboard's zone: a fine lit tick at the left of its row (or any `.is-cur`). */
+.wc-lk-row.is-cur::before,
+.wc-lk-tr.is-cur::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 2px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 1px;
+  background: var(--lk-sk-on);
+}
+
+/* ------------------------------------------------------------ tables */
+
+.wc-lk-tbl {
+  --lk-cols: 1fr;
+  position: relative;
+  min-width: 0;
+  font: 500 16px/1.25 var(--lk-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--lk-item);
+}
+
+/* `scroll`: the table fills its flex parent; the heads stay, the rows scroll. */
+.wc-lk-tbl.is-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-lk-tbl.is-scroll > .wc-lk-throw {
+  flex: none;
+}
+
+.wc-lk-tbl.is-scroll > .wc-lk-tbody {
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+}
+
+/* The heads line up with the rows above a stable scrollbar gutter. */
+.wc-lk-tbl.is-scroll > .wc-lk-throw {
+  padding-right: calc(18px + 8px);
+}
+
+.wc-lk-throw,
+.wc-lk-tr {
+  display: grid;
+  grid-template-columns: var(--lk-cols);
+  gap: 14px;
+  align-items: center;
+}
+
+.wc-lk-throw {
+  padding: 0 18px 8px;
+  border-bottom: 1px solid var(--lk-rule);
+}
+
+.wc-lk-th {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 10.5px/1 var(--lk-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wc-lk-th.is-sort {
+  cursor: pointer;
+}
+
+.wc-lk-th.is-sort:hover,
+.wc-lk-th[data-dir] {
+  color: var(--lk-text);
+}
+
+.wc-lk-th[data-dir]::after {
+  content: " ▾";
+  letter-spacing: 0;
+}
+
+.wc-lk-th[data-dir="1"]::after {
+  content: " ▴";
+}
+
+.wc-lk-tr {
+  position: relative;
+  min-height: 41px;
+  padding: 0 18px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--lk-rule);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color calc(0.45s * var(--lk-ts)),
+    text-shadow calc(0.45s * var(--lk-ts));
+}
+
+.wc-lk-tbody > .wc-lk-tr:last-child {
+  border-bottom: 0;
+}
+
+.wc-lk-tr.is-on {
+  color: var(--lk-on);
+  text-shadow: 0 0 10px var(--lk-on-glow);
+  transition-duration: calc(0.3s * var(--lk-ts));
+}
+
+.wc-lk-tr.is-idle {
+  color: color-mix(in srgb, var(--lk-on) 55%, var(--lk-item));
+  text-shadow: none;
+}
+
+.wc-lk-td {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-lk-th.is-end,
+.wc-lk-td.is-end {
+  justify-self: end;
+  text-align: right;
+}
+
+/* Two-line rows below the table's `stackBelow` width: no heads; the first
+ * cell on the first line, the others after it (pages refine the grid). */
+.wc-lk-tbl.is-stacked > .wc-lk-throw {
+  display: none;
+}
+
+.wc-lk-tbl.is-stacked > .wc-lk-tbody > .wc-lk-tr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 9px 12px;
+  min-height: 0;
+}
+
+.wc-lk-tbl.is-stacked > .wc-lk-tbody > .wc-lk-tr > .wc-lk-td:first-child {
+  flex: 1 0 100%;
+}
+
+.wc-lk-tbl.is-stacked > .wc-lk-tbody > .wc-lk-tr > .wc-lk-td.is-end {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------ text pieces */
+
+/* A section head (small Cinzel caps), alone or in a `Rule` with its hairline. */
+.wc-lk-sec {
+  margin: 0 0 10px;
+  font: 600 11px/1 var(--lk-display);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-lk-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 10px;
+}
+
+.wc-lk-rule > .wc-lk-sec {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.wc-lk-hair {
+  flex: 1;
+  min-width: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--lk-rule), transparent);
+}
+
+.wc-lk-rule > :not(.wc-lk-sec):not(.wc-lk-hair) {
+  flex: none;
+}
+
+/* The ornament rule: a thin line with an open diamond in the middle. */
+.wc-lk-orn {
+  position: relative;
+  display: block;
+  width: min(260px, 60%);
+  height: 9px;
+  margin: 12px auto;
+  color: var(--lk-rule);
+}
+
+.wc-lk-orn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor 25%, currentColor 44%, transparent 46%, transparent 54%, currentColor 56%, currentColor 75%, transparent);
+}
+
+.wc-lk-orn::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  box-sizing: border-box;
+  transform: rotate(45deg);
+  border: 1px solid currentColor;
+}
+
+/* A fold: a small-caps head with a chevron that turns. */
+.wc-lk-fold-h {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  cursor: pointer;
+  font: 600 11px/1 var(--lk-display);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+  -webkit-tap-highlight-color: transparent;
+  transition: color calc(0.25s * var(--lk-ts));
+}
+
+.wc-lk-fold-h .wc-lk-ic {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.7;
+  transform: rotate(-90deg);
+  transition: transform calc(0.25s * var(--lk-ts));
+}
+
+.wc-lk-fold.is-open > .wc-lk-fold-h .wc-lk-ic {
+  transform: none;
+}
+
+.wc-lk-fold-h:hover,
+.wc-lk-fold.is-cur > .wc-lk-fold-h {
+  color: var(--lk-on);
+}
+
+.wc-lk-fold-b {
+  padding-top: 8px;
+}
+
+/* A well: sunk and solid (never blurred). */
+.wc-lk-well {
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--lk-well-edge);
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+  font: 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-text);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-lk-well.wc-lk-mono {
+  font: 400 13px/1.55 var(--lk-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Stars: gold, the rest faint. */
+.wc-lk-stars {
+  white-space: nowrap;
+  letter-spacing: 0.12em;
+}
+
+.wc-lk-star-on {
+  color: var(--lk-gold);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--lk-gold) 30%, transparent);
+}
+
+.wc-lk-star-off {
+  color: var(--lk-faint);
+  opacity: 0.55;
+}
+
+/* The "M" seal. */
+.wc-lk-seal {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Text helpers. */
+.wc-lk-lead {
+  font: italic 500 17px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-lk-txt {
+  font: 500 17px/1.45 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-lk-empty {
+  padding: 40px 16px;
+  text-align: center;
+  font: italic 500 19px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-lk-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  align-items: baseline;
+  margin: 0;
+}
+
+.wc-lk-kv > dt {
+  margin: 0;
+  font: 600 10px/1.6 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-lk-kv > dd {
+  margin: 0;
+  font-variant-numeric: lining-nums;
+  min-width: 0;
+  font: 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-lk-dim { color: var(--lk-dim); }
+.wc-lk-faint { color: var(--lk-faint); }
+.wc-lk-gold { color: var(--lk-gold); }
+.wc-lk-ok { color: var(--lk-ok); }
+.wc-lk-bad { color: var(--lk-danger); }
+.wc-lk-mono { font-family: var(--lk-mono); }
+
+/* Links: lit and underlined (not in an old-look frame on the cell grid). */
+.wc-look a:not(.wc-screen a) {
+  color: var(--lk-head);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--lk-head) 45%, transparent);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+  transition: color calc(0.25s * var(--lk-ts)), text-decoration-color calc(0.25s * var(--lk-ts));
+}
+
+.wc-look a:not(.wc-screen a):hover {
+  color: var(--lk-on);
+  text-decoration-color: var(--lk-sk-on);
+}
+
+/* ------------------------------------------------------------ the thin iron scrollbar */
+
+.wc-lk-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+}
+
+.wc-lk-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.wc-lk-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wc-lk-scroll::-webkit-scrollbar-thumb {
+  background: var(--lk-scroll-thumb);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.wc-lk-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--lk-scroll-thumb-hot);
+}
+
+/* ------------------------------------------------------------ the flash on Paper */
+
+/* (The flash's line is look.css's; its colours here, so Paper turns them ink.) */
+.wc-look .wc-lk-flash .is-ok {
+  color: var(--lk-flash);
+  text-shadow: 0 0 10px var(--lk-flash-glow), 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.wc-look .wc-lk-flash .is-fail {
+  color: var(--lk-flash-fail);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--lk-flash-fail) 45%, transparent), 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+[data-light] .wc-look .wc-lk-flash > span,
+.wc-look[data-light] .wc-lk-flash > span {
+  text-shadow: none;
+}
+
+/* ------------------------------------------------------------ Paper shapes */
+
+[data-light] .wc-look .wc-lk-opt.is-on,
+.wc-look[data-light] .wc-lk-opt.is-on {
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip), inset 0 0 0 1px rgba(110, 84, 44, 0.18), 0 1px 2px rgba(80, 60, 30, 0.2);
+}
+
+[data-light] .wc-look .wc-lk-toggle.is-on .wc-lk-groove,
+.wc-look[data-light] .wc-lk-toggle.is-on .wc-lk-groove {
+  background: linear-gradient(180deg, rgba(200, 150, 70, 0.45), rgba(220, 180, 110, 0.3));
+  border-color: rgba(120, 80, 30, 0.45);
+}
+
+[data-light] .wc-look .wc-lk-star-on,
+.wc-look[data-light] .wc-lk-star-on {
+  text-shadow: none;
+}
+
+/* ------------------------------------------------------------ phone and touch */
+
+html.wc-phone .wc-lk-row {
+  padding: 0 12px;
+}
+
+html.wc-phone .wc-lk-throw {
+  padding: 0 12px 8px;
+}
+
+html.wc-phone .wc-lk-tr {
+  padding: 0 12px;
+}
+
+html.wc-phone .wc-lk-opt {
+  padding: 0 11px;
+}
+
+/* Coarse pointers: every target at least 40 px high. */
+@media (pointer: coarse) {
+  .wc-lk-opt,
+  .wc-lk-tab,
+  .wc-lk-check,
+  .wc-lk-toggle,
+  .wc-lk-fold-h,
+  .wc-lk-row,
+  .wc-lk-tr {
+    min-height: 40px;
+  }
+
+  .wc-lk-input {
+    height: 40px;
+  }
+
+  textarea.wc-lk-input {
+    height: auto;
+    min-height: 90px;
+  }
+
+  .wc-lk-select::after {
+    bottom: 14px;
+  }
+
+  /* Nothing depends on hover: a sticky :hover after a tap must not light a piece. */
+  .wc-lk-opt:not(.is-on):not(.is-sel):hover,
+  .wc-lk-tab:not(.is-on):hover {
+    color: var(--lk-item);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No slide or turn: the knob and the chevron jump. */
+  .wc-lk-knob,
+  .wc-lk-fold-h .wc-lk-ic {
+    transition: none;
+  }
+}

@@ -72,6 +72,30 @@ export async function reducedMotion(page: Page, on = true): Promise<void> {
 
 // ------------------------------------------------------------ 42b (controls, widgets, icons, tokens)
 
+/**
+ * Opens the gallery's Controls section on a surface (`sky` over the start
+ * page's sky, `window` a dark window body, `paper` a Paper one) and returns
+ * the surface's element (`.wc-kitc-surface`).
+ */
+export async function openControls(page: Page, surface: 'sky' | 'window' | 'paper' = 'sky'): Promise<Locator> {
+  await page.goto(`/?kit=controls&surface=${surface}`);
+  const box = startTop(page).locator('.wc-lk-box.wc-kit');
+  await expect(box.locator('.wc-lk-tab[data-tab="controls"]')).toHaveAttribute('aria-selected', 'true');
+  const s = kitSection(page, 'controls').locator('.wc-kitc-surface');
+  await expect(s).toHaveAttribute('data-surface', surface);
+  return s;
+}
+
+/** A kit glass button by its `data-btn`. */
+export const glassButton = (scope: Page | Locator, id: string): Locator => scope.locator(`.wc-lk-btn[data-btn="${id}"]`);
+
+/** A kit field (`Field`, `TextArea`, `Select`, `Check`, `Toggle`) by its `data-field`. */
+export const kitField = (scope: Page | Locator, id: string): Locator => scope.locator(`[data-field="${id}"]`);
+
+/** A `Seg` (by its label) option by its `data-opt`. */
+export const segOption = (scope: Page | Locator, label: string, opt: string): Locator =>
+  scope.locator(`.wc-lk-seg[aria-label="${label}"] .wc-lk-opt[data-opt="${opt}"]`);
+
 // ------------------------------------------------------------ 42c (overlays, cursors, letters, the stack)
 
 // ------------------------------------------------------------ 42d (window frame, ESC menu host)
