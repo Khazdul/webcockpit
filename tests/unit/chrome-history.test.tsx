@@ -352,7 +352,7 @@ describe('History frame', () => {
     await act(() => btn(host, 'RUN LOG').click());
     expect(flash(host)).toBe(NO_PLAYER);
     await act(() => btn(host, 'EXPORT').click());
-    expect(title(host)).toBe('─── Export Editor ───');
+    expect(frame(host).querySelector('.wc-exp')).not.toBeNull();
     await key('Escape');
     expect(title(host)).toBe('─── History ───');
   });

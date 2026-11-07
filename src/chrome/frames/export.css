@@ -1,137 +1,603 @@
-/* Export editor (Inv §7.7, export-editor.tsx, export-input.tsx). Colours
- * are the inventory's export colours; the rest are kit tokens. */
+/* Export editor (Inv §7.7, export-editor.tsx; the lantern look, direction B
+ * "Verktygsraden", ADR 0128 §43d). Re-derived from the round 7 mockup
+ * (notes/research/start-menu-mockups/round7/profiles/exp.css, `.exp-b`)
+ * with the kit's tokens (`--lk-*`).
+ *
+ * The page lays itself out by its own width (`@container wc-page`, the
+ * box's content box), never by the device. The log is the terminal inside
+ * the box: the user's terminal font, background and ANSI colours (the
+ * `.wc-f*` classes); `[data-light]` (a light terminal background, set on
+ * the root by the theme) turns its marks dark. No `backdrop-filter`
+ * anywhere here: the log, the strip and the composer are solid wells. */
 
-.wc-exp-row {
-  cursor: pointer;
-  color: var(--term-fg);
+/* ------------------------------------------------------------ the page */
+
+/* The large box's window: the page fills it (the box itself stays full width
+ * for the swap from History; the page caps its own width). */
+.wc-exp-win {
+  align-items: center;
 }
 
-.wc-exp-row.is-empty {
-  cursor: default;
+.wc-exp {
+  /* The log's metrics (export-editor.tsx reads --exp-lh, --exp-ml, --exp-mr). */
+  --exp-fs: 13px;
+  --exp-lh: 21px;
+  --exp-ml: 26px;
+  --exp-mr: 14px;
+  --exp-cmt: #f0cc6a;
+  --exp-excl: #c46b5c;
+  --exp-excl-tx: #5d564c;
+  --exp-sel: rgba(233, 196, 124, 0.11);
+  --exp-sel-cur: rgba(233, 196, 124, 0.17);
+  --exp-sel-bar: rgba(233, 196, 124, 0.75);
+  --exp-cur: rgba(255, 214, 160, 0.06);
+  --exp-cur-bar: rgba(255, 207, 143, 0.55);
+  --exp-cur-idle: rgba(255, 207, 143, 0.25);
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* ~120 columns of log, the strip and the margins: a very wide window shows more sky-lit box, not longer lines. */
+  max-width: 1320px;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
-/* The cursor row: a band across the log width. */
-.wc-exp-row.is-cur {
-  background: #303030;
+[data-light] .wc-exp {
+  --exp-cmt: #8a6a00;
+  --exp-excl: #a8281c;
+  --exp-excl-tx: #9a9286;
+  --exp-sel: rgba(138, 90, 14, 0.1);
+  --exp-sel-cur: rgba(138, 90, 14, 0.17);
+  --exp-sel-bar: rgba(138, 90, 14, 0.75);
+  --exp-cur: rgba(60, 40, 10, 0.06);
+  --exp-cur-bar: rgba(138, 90, 14, 0.55);
+  --exp-cur-idle: rgba(138, 90, 14, 0.25);
 }
 
-.wc-exp-mark {
-  color: var(--c-hint);
+.wc-exp-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font: italic 500 19px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
 }
 
-.wc-exp-mark.is-focus {
-  color: var(--c-cursor);
-  font-weight: bold;
+.wc-exp-state.is-bad {
+  color: var(--lk-danger);
 }
 
-/* The selection (ADR 0115 §2): a faint band, `┃` in the margin. */
-.wc-exp-row.is-sel {
-  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
-}
+/* ------------------------------------------------------------ the bar */
 
-.wc-exp-row.is-sel.is-cur {
-  background: color-mix(in srgb, var(--c-accent) 22%, #303030);
-}
-
-.wc-exp-mark.is-sel {
-  color: var(--c-accent);
-  font-weight: bold;
-}
-
-/* Exclusion bar, excluded lines (flat grey), comments. */
 .wc-exp-bar {
-  color: #af5f5f;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 0 0 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--lk-rule);
 }
 
-.wc-exp-excl {
-  color: #4e4e4e;
+.wc-exp-who {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 10px;
 }
 
-.wc-exp-comment {
-  color: var(--c-yellow, #ffd75f);
+.wc-exp-name {
+  font: 700 19px/1 var(--lk-display);
+  letter-spacing: 0.08em;
+  color: var(--lk-head);
+  white-space: nowrap;
 }
 
-/* A light terminal background (ADR 0041): the band and the greys are taken
- * toward black instead, the reds darker. */
-[data-light] .wc-exp-row.is-cur {
-  background: var(--c-line-hl);
+.wc-exp-counts {
+  font: italic 500 15px/1.2 var(--lk-serif);
+  letter-spacing: 0.01em;
+  color: var(--lk-dim);
 }
 
-[data-light] .wc-exp-row.is-sel.is-cur {
-  background: color-mix(in srgb, var(--c-accent) 22%, var(--c-line-hl));
+.wc-exp-selhead {
+  margin-left: auto;
+  font: 600 10.5px/1 var(--lk-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+  white-space: nowrap;
 }
 
-[data-light] .wc-exp-excl {
-  color: var(--c-hint);
+.wc-exp-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-[data-light] .wc-exp-bar,
-[data-light] .wc-exp-map-excl {
-  color: var(--c-danger);
+/* ------------------------------------------------------------ the log */
+
+.wc-exp-main {
+  display: flex;
+  min-width: 0;
 }
 
-/* A command row's `> `. */
-.wc-exp-prefix {
-  color: var(--c-hint);
-}
-
-/* Overview map. Its thumb drags the log (ADR 0106): no panning on it. */
-.wc-exp-map {
-  touch-action: none;
-  user-select: none;
-}
-
-.wc-exp-map-row {
-  cursor: pointer;
-}
-
-.wc-exp-map-excl {
-  color: #6f3030;
-}
-
-.wc-exp-map-track {
-  color: var(--c-off);
-}
-
-.wc-exp-map-thumb {
-  color: var(--c-hint);
-}
-
-/* Input frame caret. */
-.wc-exp-caret {
-  color: var(--c-cursor);
-  font-weight: bold;
-}
-
-/* A system line the player prints (`[SYSTEM] … logged in.`), coloured as
- * the output pane's `.wc-sys`. */
-.wc-exp-sys {
-  color: var(--c-yellow);
-}
-
-/* The log: a native scroll box over a spacer of all the rows; the rendered
- * rows sit in a window placed at their row. */
 .wc-exp-log {
-  flex: 0 0 auto;
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+  border-radius: 5px;
+  border: 1px solid var(--lk-well-edge);
+  box-shadow: var(--lk-well-in);
+  background: color-mix(in srgb, var(--term-bg, #000) 72%, transparent);
+  color: var(--term-fg, #c0c0c0);
+  font: 400 var(--exp-fs) / var(--exp-lh) var(--lk-mono);
+  -webkit-user-select: none;
   user-select: none;
+  outline: none;
 }
 
-/* The panel right of the log (ADR 0115 §5); the export used last is marked. */
-.wc-exp-panel {
-  flex: 0 0 auto;
-  overflow: hidden;
+.wc-exp-log::-webkit-scrollbar {
+  width: 8px;
 }
 
-.wc-exp-last {
-  color: var(--c-accent);
+.wc-exp-log::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--lk-scroll-thumb);
+}
+
+/* The character width probe (ten zeros in the log's font). */
+.wc-exp-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
 }
 
 .wc-exp-spacer {
   position: relative;
 }
 
-.wc-exp-window {
+/* An item: one or more rows of the line height, placed at its row. */
+.wc-exp-row {
   position: absolute;
   left: 0;
   right: 0;
+  box-sizing: border-box;
+  padding: 0 var(--exp-mr) 0 var(--exp-ml);
+  white-space: pre;
+  cursor: text;
+}
+
+.wc-exp-ln {
+  height: var(--exp-lh);
+  overflow: hidden;
+}
+
+/* The cursor and the selection: a band and a fine bar in the margin. */
+.wc-exp-row::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 1px;
+}
+
+.wc-exp-row.is-cur {
+  background: var(--exp-cur);
+}
+
+.wc-exp-row.is-cur::before {
+  background: var(--exp-cur-bar);
+}
+
+.wc-exp-log.is-idle .wc-exp-row.is-cur::before {
+  background: var(--exp-cur-idle);
+}
+
+.wc-exp-row.is-sel {
+  background: var(--exp-sel);
+}
+
+.wc-exp-row.is-sel::before {
+  background: var(--exp-sel-bar);
+}
+
+.wc-exp-row.is-sel.is-cur {
+  background: var(--exp-sel-cur);
+}
+
+/* Excluded lines: greyed (their colours gone), a red bar in the margin. */
+.wc-exp-row[data-kind="excluded"] {
+  color: var(--exp-excl-tx);
+}
+
+.wc-exp-row[data-kind="excluded"]::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--exp-excl);
+  opacity: 0.85;
+}
+
+/* Commands (`> look`) in the terminal's echo colour, the prefix dim; system lines dim italic. */
+.wc-exp-row[data-kind="command"] {
+  color: var(--term-echo, var(--term-fg));
+}
+
+.wc-exp-prefix {
+  opacity: 0.55;
+}
+
+.wc-exp-sys {
+  font-style: italic;
+  opacity: 0.62;
+}
+
+.wc-exp-row[data-kind="comment"] {
+  color: var(--exp-cmt);
+}
+
+.wc-exp-row[data-kind="end"] {
+  text-align: center;
+  font: italic 500 15px / var(--exp-lh) var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+/* ------------------------------------------------------------ the composer */
+
+.wc-exp-comp {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 4px var(--exp-mr) 8px var(--exp-ml);
+  white-space: normal;
+  cursor: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-exp-comp-in {
+  padding: 14px 16px;
+  border-radius: 6px;
+  background: var(--lk-row), var(--lk-option-bg);
+  box-shadow: var(--lk-row-sh), 0 0 0 1px color-mix(in srgb, var(--exp-cmt) 22%, transparent);
+}
+
+.wc-exp-comp .wc-lk-lbl {
+  color: var(--lk-head);
+}
+
+.wc-exp-comp textarea.wc-lk-input {
+  min-height: 64px;
+  height: 64px;
+  resize: none;
+  font-size: 14px;
+}
+
+.wc-exp-count {
+  margin: 6px 0 0;
+  text-align: right;
+  font: 400 11.5px/1.2 var(--lk-mono);
+  color: var(--lk-faint);
+}
+
+.wc-exp-count.is-full {
+  color: var(--lk-danger);
+}
+
+.wc-exp-preview {
+  margin-top: 8px;
+  padding: 8px 12px;
+  min-height: 22px;
+  border-radius: 5px;
+  border: 1px solid var(--lk-well-edge);
+  background: color-mix(in srgb, var(--term-bg, #000) 78%, transparent);
+  font: 400 12px/1.55 var(--lk-mono);
+  color: var(--exp-cmt);
+  white-space: pre;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.wc-exp-preview.is-empty {
+  text-align: center;
+  white-space: normal;
+  font: italic 500 15.5px/1.4 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-exp-hold {
+  margin: 7px 0 0;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-exp-cbtns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ------------------------------------------------------------ the strip */
+
+.wc-exp-map {
+  position: relative;
+  flex: none;
+  width: 16px;
+  margin-left: 8px;
+  border-radius: 3px;
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wc-exp-map > i {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  pointer-events: none;
+}
+
+.wc-exp-mx {
+  background: var(--exp-excl);
+  opacity: 0.85;
+}
+
+.wc-exp-mc {
+  height: 5px;
+  background: var(--exp-cmt);
+  border-radius: 1px;
+}
+
+.wc-exp-ml {
+  left: -1px !important;
+  right: -1px !important;
+  height: 13px;
+  margin-top: -4px;
+  font: 700 9.5px/13px var(--lk-display);
+  font-style: normal;
+  text-align: center;
+  color: #1a120a;
+  background: var(--lk-accent);
+  border-radius: 2px;
+}
+
+.wc-exp-thumb {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 0;
+  height: 10%;
+  box-sizing: border-box;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--lk-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--lk-accent) 8%, transparent);
+  cursor: grab;
+}
+
+.wc-exp-thumb[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------ the foot */
+
+.wc-exp-foot {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-exp-row2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.wc-exp-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 360px;
+}
+
+.wc-exp-flabel {
+  font: 600 10px/1 var(--lk-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-exp-fn {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 13px/1.3 var(--lk-mono);
+  color: var(--lk-text);
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+}
+
+.wc-exp-fn:hover {
+  border-bottom-color: var(--lk-rule);
+}
+
+.wc-exp-fn em {
+  font-style: normal;
+  color: var(--lk-faint);
+}
+
+.wc-exp-tfield {
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: 460px;
+}
+
+.wc-exp-tfield .wc-lk-input {
+  height: 30px;
+  font-size: 13px;
+}
+
+.wc-exp-thint {
+  font: italic 500 14.5px/1.2 var(--lk-serif);
+  color: var(--lk-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.wc-exp-thint b {
+  font: 400 13px var(--lk-mono);
+  color: var(--lk-text);
+}
+
+.wc-exp-outs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.wc-exp-outs .wc-lk-seg {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.wc-exp-outs .wc-lk-opt {
+  white-space: nowrap;
+}
+
+.wc-exp-flash {
+  margin-top: 6px;
+}
+
+/* ------------------------------------------------------------ narrow */
+
+/* Tablet portrait, split screen: the strip goes, the selection heading takes a line of its own. */
+@container wc-page (max-width: 900px) {
+  .wc-exp-map {
+    display: none;
+  }
+
+  .wc-exp-selhead {
+    margin-left: 0;
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .wc-exp-tools {
+    order: 2;
+  }
+}
+
+/* The phone: smaller rows, a wider tap margin; the file on a line of its own,
+ * the toggle and Export on one row. */
+@container wc-page (max-width: 600px) {
+  .wc-exp {
+    --exp-fs: 12px;
+    --exp-lh: 19px;
+    --exp-ml: 28px;
+    --exp-mr: 10px;
+  }
+
+  .wc-exp-row::before {
+    left: 10px;
+  }
+
+  .wc-exp-row[data-kind="excluded"]::after {
+    left: 16px;
+  }
+
+  .wc-exp-bar {
+    gap: 8px 10px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+
+  .wc-exp-name {
+    font-size: 17px;
+  }
+
+  .wc-exp-counts {
+    font-size: 14px;
+  }
+
+  .wc-exp-tools {
+    gap: 6px;
+  }
+
+  .wc-exp-file {
+    flex-basis: 100%;
+  }
+
+  .wc-exp-file.is-edit {
+    flex-wrap: wrap;
+  }
+
+  .wc-exp-file.is-edit .wc-exp-thint {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .wc-exp-outs {
+    flex-basis: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+
+  /* One row: the two formats (sharing the room, without their icons), Export. */
+  .wc-exp-outs .wc-lk-seg {
+    flex: 1 1 auto;
+  }
+
+  .wc-exp-outs .wc-lk-opt {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    padding: 0 6px;
+    letter-spacing: 0.06em;
+    font-size: 10.5px;
+  }
+
+  .wc-exp-outs .wc-lk-opt .wc-lk-ic {
+    display: none;
+  }
+
+  .wc-exp-outs .wc-lk-btn {
+    flex: none;
+    padding: 0 12px;
+  }
+
+  .wc-exp-foot {
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  .wc-exp-comp-in {
+    padding: 12px;
+  }
 }
