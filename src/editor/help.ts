@@ -1,5 +1,8 @@
-// The HELP view's manual for writing a profile (ADR 0037): content as
-// data, and its layout into cell rows. No DOM, no Preact; unit tested.
+// The manual for writing a profile (ADR 0037; the profile editor's Help
+// view, ADR 0128): content as data (`helpSections`, which the lantern
+// reader typesets), and its layout into cell rows for `#help` on the input
+// line. No DOM, no Preact; unit tested. (The TUI Help view's menu and
+// frame helpers are gone, stage 43 wave 3.)
 //
 // Every statement describes what the engine in src/script/engine does, not
 // what tt++ does. tests/unit/editor-help.test.ts keeps it honest: every
@@ -1010,86 +1013,4 @@ export function helpLineText(l: HelpLine): string {
 /** Width of a row in cells. */
 export function helpLineWidth(l: HelpLine): number {
   return l.indent + l.segs.reduce((n, s) => n + cps(s.text), 0);
-}
-
-/**
- * The section to put on the top row for `n` (`dir` 1: the next one) or `p`
- * (-1: the current one's heading when `top` is below it, else the previous
- * one). `section` is the current section.
- */
-export function helpStep(headings: readonly number[], top: number, section: number, dir: 1 | -1): number {
-  if (dir === 1) return Math.min(headings.length - 1, section + 1);
-  return top > (headings[section] ?? 0) ? section : Math.max(0, section - 1);
-}
-
-// ------------------------------------------------------- navigation menu
-
-export interface HelpMenuRow {
-  kind: 'blank' | 'group' | 'entry';
-  label: string;
-  /** Index of the section (and of its row in `HelpLayout.headings`); -1 for labels and blanks. */
-  section: number;
-}
-
-/**
- * The navigation menu: one entry per section in manual order, with the
- * group titles as labels. A blank row sets each group apart.
- */
-export function helpMenu(sections: readonly HelpSection[] = helpSections()): HelpMenuRow[] {
-  const rows: HelpMenuRow[] = [];
-  let group: HelpGroup | null = null;
-  sections.forEach((s, i) => {
-    if (s.group !== group) {
-      group = s.group;
-      if (rows.length > 0) rows.push({ kind: 'blank', label: '', section: -1 });
-      const title = GROUP_TITLES[group];
-      if (title) rows.push({ kind: 'group', label: title, section: -1 });
-    }
-    rows.push({ kind: 'entry', label: s.heading, section: i });
-  });
-  return rows;
-}
-
-/** Width of the menu's text column: the longest label and a cell on each side. */
-export function helpMenuWidth(menu: readonly HelpMenuRow[]): number {
-  return menu.reduce((n, r) => Math.max(n, cps(r.label)), 0) + 2;
-}
-
-/** The menu row of section `section`, or 0. */
-export function helpMenuRow(menu: readonly HelpMenuRow[], section: number): number {
-  return Math.max(0, menu.findIndex((r) => r.kind === 'entry' && r.section === section));
-}
-
-/** The section the manual shows at row `top`: the last heading at or above it. */
-export function helpCurrent(headings: readonly number[], top: number): number {
-  let cur = 0;
-  for (let i = 0; i < headings.length && headings[i]! <= top; i++) cur = i;
-  return cur;
-}
-
-/** Cells between the menu's scrollbar and the manual. */
-export const HELP_MENU_GAP = 3;
-/** The narrowest manual column the menu may leave; below it the menu is hidden. */
-export const HELP_MIN_W = 52;
-
-export interface HelpFrame {
-  /** Whether the menu is shown. */
-  menu: boolean;
-  /** Left cell and width of the manual column (text, a blank cell, the scrollbar). */
-  at: number;
-  width: number;
-}
-
-/**
- * Where the menu and the manual go in a frame `cols` wide. HELP spans the
- * whole grid (ADR 0037): the menu (`menuW` cells, its scrollbar and the
- * gap) starts in cell 0 and the manual runs to the last cell. Under
- * HELP_MIN_W for the manual the menu is dropped and the manual takes the
- * whole width.
- */
-export function helpFrame(cols: number, menuW: number): HelpFrame {
-  const side = menuW + 1 + HELP_MENU_GAP;
-  const width = cols - side;
-  if (width < HELP_MIN_W) return { menu: false, at: 0, width: cols };
-  return { menu: true, at: side, width };
 }
