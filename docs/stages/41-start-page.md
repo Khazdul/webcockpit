@@ -1,6 +1,6 @@
 # Stage 41 — The new start page
 
-Status: **In progress** (night pass 2026-11-07, branch `stage-41-start-page`; see
+Status: **Owner testing** (night pass 2026-11-07, branch `stage-41-start-page`; see
 `notes/research/start-menu-mockups/NIGHT-PASS.md` for the whole pass).
 
 ## Goal
@@ -124,20 +124,64 @@ is; re-derive the look in the app's own structure.
 
 ## Tasks
 
-- [ ] 41a: ADR for the start-page sky engine; implementation; perf check
-- [ ] 41b: wordmark 3 (inlaid metal); "M" favicon
-- [ ] 41c: layout, menu, selection, shortcuts, quote A, almanac, phone
-- [ ] 41d: first paint redesign + ADR 0083 addendum
-- [ ] 41e: sub-page kit + Profile list in the new look
-- [ ] 41f: remove the pixel banner from the start page; ESC menu still OK;
-      tests, manual, About, Inv pointers
-- [ ] Test guide for the owner (below)
+- [x] 41a: ADR 0124 (own module, not `src/weather/`); sky engine in
+      `src/start/sky/`; perf: 56–60 fps on the Iris Xe in Chromium and
+      Firefox, sky work < 1 ms median (`bench/results/start-sky*.md`,
+      `bench/results/start-page-headed.md`)
+- [x] 41b: ADR 0126; wordmark 3 with the cyan inlay (tint c "Turkos",
+      alternatives in `round6/logo-3-cyan.html?tint=a|b|c` and
+      `round6/logo-3-cyan-compare.html`); "M" favicon (svg, ico, 180 px)
+- [x] 41c: layout, menu, selection, shortcuts (E P S H L C A), quote A,
+      almanac, phone; Enter MUME fades the cockpit in (280 ms)
+- [x] 41d: first paint paints the sky and the wordmark where the app
+      will; ADR 0083 addendum; e2e hand-over check (no movement)
+- [x] 41e: ADR 0125; lantern kit (`src/chrome/kit/look.tsx`): box, Back,
+      glass buttons, key letters; Profile list in the new look (S N E R D
+      I X, a Changed column); other sub-pages unchanged on the cell grid
+- [x] 41f: pixel banner gone from the start page and first paint (the
+      phone ESC menu keeps `Banner`); tests, About, README, notices, spec
+      and Inv notes
+- [x] Test guide for the owner (below)
 
 ## Test guide
 
-To be written when built: open the branch preview, check day/dusk/night
-and a winter month (demo or `?` parameters if kept), keyboard and mouse,
-phone, Profile list with Back and glass buttons, performance feel.
+Branch only (not merged, not deployed): `git checkout stage-41-start-page`,
+`npm run dev`, open http://localhost:5173/. For a true first paint use a
+build: `npm run build && npm run preview`. Try Chromium and Firefox.
+
+The sky follows the offline game clock. To see other hours and months add
+URL parameters (ADR 0124): `?skyHour=6` (dawn), `?skyHour=13`,
+`?skyHour=20` (dusk), `?skyHour=23`; `&skyMonth=0` (Afteryule, snow),
+`&skyMonth=3` (spring), `&skyWeather=rain|snow|storm|fog|clear`;
+`&skyFast` runs the clock 600× to watch sunrise and sunset; `&skyStats`
+shows fps.
+
+1. **First paint.** Reload a few times (once with a cold cache): the sky
+   and the wordmark appear at once, in place; a thin cyan line in an empty
+   panel shows loading only if it takes a moment; then the menu, quote and
+   almanac fade in. Nothing should jump.
+2. **Wordmark.** Forged iron with the cyan inlay. Close enough to the old
+   pixel logo's hue, and still metal (not neon)? The glint leans toward the
+   sun or moon. The three tints side by side:
+   `notes/research/start-menu-mockups/round6/logo-3-cyan-compare.html`.
+3. **Sky.** Day, dusk, night, dawn; winter snow; a spring rain. Calm, the
+   sun larger than the moon, never overlapping, no white specks at night.
+4. **Menu.** ↑↓, Enter/Space, the letters E P S H L C A, mouse hover and
+   click; the selection only brightens the row. Scripts shows the profile
+   name in dim italic. No hint rows.
+5. **Quote and almanac.** Legible at every hour? (On bright days the quote
+   stays pale with a crisp outline; see the open questions.)
+6. **Profile list** (P). Back top left and Esc; S N E R D I X; Tab and ←/→
+   to the buttons; the new Changed column; Import and Export still work.
+   The editor, prompts and the import report still open in the old look.
+7. **Other pages** (Scripts, History, Credits, About, Spotlights) open in
+   the old look over an opaque background as before; Back returns to the
+   new menu; the log player returns to History.
+8. **Phone** (or a narrow window): the layout fits; taps work.
+9. **Performance feel.** Smooth, no stutter; the fan stays quiet.
+
+Feedback wanted: the wordmark tint, the feel of the sky and the panel, the
+shortcut letters, and the open questions in the session log.
 
 ## Owner feedback
 

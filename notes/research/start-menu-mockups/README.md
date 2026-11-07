@@ -151,3 +151,30 @@ Inlay and rivets: **bluish/cyan metal** like the early pixel logo, not
 brass (owner, 2026-11-07); to be tuned at the start of the night pass.
 Favicon: an "M" in the wordmark's iron and inlay (owner, 2026-11-07).
 Next session: `NIGHT-PASS.md` and `docs/stages/41-start-page.md`.
+
+## Night pass (2026-11-07): stage 41 built, round 7 mockups
+
+Stage 41 (the start page on this baseline) is built on branch
+`stage-41-start-page` (not merged): `docs/stages/41-start-page.md`, ADRs
+0124 (sky), 0125 (start surface and lantern kit), 0126 (wordmark and
+favicon), 0083 addendum (first paint). Inlay tint: **c "Turkos"**; the
+alternatives are `round6/logo-3-cyan.html?tint=a|b|c` and
+`round6/logo-3-cyan-compare.html`.
+
+Round 7 (`round7/`) mocks every other page reached from the start menu,
+2–3 directions each, on a shared base (`round7/base/`, README there; the
+in-game backdrops are real app screenshots). Each folder has a
+`CONTENT.md` (the page's real content, states and keys) and an
+`index.html` review page; shots in `round7/shots/` (gitignored).
+
+| Review page | Folder | Artifact |
+|---|---|---|
+| Stora sidor (how big pages open; A corner mark, B room grows, C name plate) | `layout/` | https://claude.ai/artifact/YEVy5cZFg7gCswmWEeV7fQ |
+| Profiler (editor incl. in-game window, Import, Export) | `profiles/` | https://claude.ai/artifact/VZZwDHYmtsAaa9iA8FN9JE |
+| Skript (page, editor, manual; start and in-game) | `scripts/` | https://claude.ai/artifact/RLPnZSmFqpxKunvdnwyiD4 |
+| Historik och spelare (History, run log player, HTML replay) | `history/` | https://claude.ai/artifact/MQCZKacGEKmr8SAAovDSHn |
+| Spotlights | `spotlights/` | https://claude.ai/artifact/SeywEXWYkuJmTVFYpdyKmV |
+| Credits och About | `about/` | https://claude.ai/artifact/1EhXMPb5hkUXk8MbmkS4oW |
+
+Nothing in round 7 is built; the owner chooses first. The open questions
+per page are listed in `progress.md` (session log, 2026-11-07 night).
