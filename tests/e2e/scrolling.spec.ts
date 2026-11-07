@@ -6,14 +6,21 @@ import { pinDemoClock } from './demo-clock';
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 
-/** A wheel of 5 px over `box` scrolls it by a few pixels: more than 0, less than a row. */
-async function expectPixelWheel(page: Page, box: Locator): Promise<void> {
+/**
+ * A wheel of 5 px over `box` scrolls it by a few pixels: more than 0, less
+ * than a row (`row`: the rows' selector, default the grid's `.wc-line`, or
+ * a height in px for text without row elements).
+ */
+async function expectPixelWheel(page: Page, box: Locator, row: string | number = '.wc-line'): Promise<void> {
   await expect(box).toBeVisible();
-  const m = await box.evaluate((el) => ({
-    top: el.scrollTop,
-    over: el.scrollHeight - el.clientHeight,
-    row: (el.querySelector('.wc-line') as HTMLElement | null)?.getBoundingClientRect().height ?? 0,
-  }));
+  const m = await box.evaluate(
+    (el, row) => ({
+      top: el.scrollTop,
+      over: el.scrollHeight - el.clientHeight,
+      row: typeof row === 'number' ? row : ((el.querySelector(row) as HTMLElement | null)?.getBoundingClientRect().height ?? 0),
+    }),
+    row,
+  );
   expect(m.over, 'the box overflows').toBeGreaterThan(5);
   expect(m.row).toBeGreaterThan(0);
   await box.hover();
@@ -112,8 +119,8 @@ test('Statistics tables scroll by pixels', async ({ page }) => {
   await expect.poll(() => kills.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
 
-test('Scripts list and help scroll by pixels; the cursor stays in view', async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 500 });
+test('Scripts index and help scroll by pixels; the cursor stays in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 500 });
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
@@ -122,37 +129,40 @@ test('Scripts list and help scroll by pixels; the cursor stays in view', async (
   });
   await page.locator('.wc-start .wc-sm-item[data-key="scripts"]').click();
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  const list = f.locator('.wc-scr-list');
-  await expectPixelWheel(page, list);
-  // End moves the cursor to the last script and pulls the list along; Home back.
+  await expect(f.locator('.wc-scr')).toHaveAttribute('data-w', 'wide');
+  // The index: a native scroller (stage 44a: the TUI scrollbars are gone).
+  const list = f.locator('.wc-scr-idx');
+  await expectPixelWheel(page, list, '.wc-scr-row');
+  // End moves the cursor to the last script and pulls the index along; Home back.
   await page.keyboard.press('End');
-  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^s29\s*$/);
-  await expect(f.locator('.wc-scr-name.is-cur')).toBeInViewport({ ratio: 0.9 });
+  await expect(f.locator('.wc-scr-row.is-on')).toHaveAttribute('data-name', 's29');
+  await expect(f.locator('.wc-scr-row.is-on')).toBeInViewport({ ratio: 0.9 });
   await page.keyboard.press('Home');
   await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBe(0);
-  // The help of the bundled coin looter is longer than the panel at this height.
-  await f.locator('.wc-scr-row[data-script="coinlooter"] .wc-scr-name').click();
-  await expect(f.locator('.wc-scr-frame')).toContainText('bundled · read-only');
-  await expectPixelWheel(page, f.locator('.wc-scr-help'));
+  // keymanager's help is longer than its column at this height.
+  await f.locator('.wc-scr-row[data-name="keymanager"] .wc-scr-name').click();
+  await expect(f.locator('.wc-scr-panel')).toContainText('bundled · read-only');
+  await expectPixelWheel(page, f.locator('.wc-scr-helpcol .wc-scr-help'), 'p');
 });
 
-test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {
+test('Scripts → Import code view scrolls by pixels', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 500 });
   await page.goto('/');
   await page.locator('.wc-start .wc-sm-item[data-key="scripts"]').click();
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
   await f.locator('[data-btn="IMPORT"]').click();
   const code = Array.from({ length: 60 }, (_, i) => `echo("line ${i + 1}")`).join('\n');
   await (await chooser).setFiles({ name: 'long.lua', mimeType: 'text/plain', buffer: Buffer.from(code) });
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Import Script ───');
-  const box = f.locator('.wc-scr-import-code');
-  await expectPixelWheel(page, box);
+  const box = page.locator('.wc-lk-dialog[data-dlg="import"] .wc-scr-codebox');
+  // A line of the code: its line height.
+  const line = await box.locator('.wc-scr-src').evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+  await expectPixelWheel(page, box, line);
   await page.keyboard.press('End');
-  await expect(box.locator('.wc-line').last()).toContainText('line 60');
-  await expect(box.locator('.wc-line').last()).toBeInViewport({ ratio: 0.9 });
+  await expect.poll(() => box.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThan(2);
+  await page.keyboard.press('Home');
+  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
 });
 
 test('Export editor log scrolls by pixels; the rows near the view are rendered', async ({ page }) => {

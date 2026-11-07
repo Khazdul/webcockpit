@@ -1,7 +1,8 @@
-// Stage 38 (ADR 0121): the Scripts page's framed detail. The selected
-// script joins the frame, settings are controls that save at once (and a
-// running script sees them), RESET ALL, the help scrolls in its own box,
-// and the in-game window's narrow layout.
+// Stage 38 (ADR 0121), restyled in stage 44a (round 7 C "Instrumentbrädan"):
+// the Scripts page's panel. Settings are tiles whose controls save at once
+// (and a running script sees them), Reset all, the help in its own column
+// (or under the panel, or a drill-down step, by the page's own width), the
+// keys and letters, and a narrow in-game window.
 import { type Locator, type Page, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -36,11 +37,16 @@ end)
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const scriptsWin = (page: Page) => page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
-const setting = (f: Locator, name: string) => f.locator(`.wc-scr-drow[data-row="set:${name}"]`);
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
+const tile = (f: Locator, name: string) => f.locator(`.wc-scr-set[data-set="${name}"]`);
+/** The keyboard's tile (its name, or null when the keys are elsewhere). */
+const curTile = (f: Locator) => f.locator('.wc-scr-set.is-cur');
+const kbButton = (f: Locator) => f.locator('.wc-lk-btn.is-sel');
+const flash = (f: Locator) => f.locator('.wc-lk-flash');
 const settingsOf = (page: Page, name: string) =>
   page.evaluate((n) => window.__wc!.shell.scripts.settingsOf(n), name) as Promise<Record<string, unknown>>;
 const gameRows = (page: Page) => page.locator('.wc-rows .wc-row');
+const scrollTop = (l: Locator) => l.evaluate((e) => e.scrollTop);
 
 const hostSynced = (page: Page) =>
   page.evaluate(async () => {
@@ -60,257 +66,341 @@ async function scriptsFromStart(page: Page): Promise<Locator> {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   return f;
 }
 
-/** In the game with `knobs` on and running, the Scripts window open on it. */
-async function knobsRunning(page: Page): Promise<Locator> {
+/** In the game, the Scripts window open (with `knobs` on and running when asked). */
+async function scriptsWindow(page: Page, knobs = true): Promise<Locator> {
   await openStart(page);
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.evaluate(async (src) => {
-    const l = window.__wc!.shell.scripts;
-    await l.create('knobs', src);
-    await l.setEnabled('knobs', true);
-  }, KNOBS);
-  await hostSynced(page);
+  if (knobs) {
+    await page.evaluate(async (src) => {
+      const l = window.__wc!.shell.scripts;
+      await l.create('knobs', src);
+      await l.setEnabled('knobs', true);
+    }, KNOBS);
+    await hostSynced(page);
+  }
   await page.locator('.wc-mb[data-mb="scripts"]').click();
   const f = scriptsWin(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
+  if (!knobs) return f;
   await row(f, 'knobs').locator('.wc-scr-name').click();
-  await expect(f.locator('.wc-scr-frame .wc-scr-title')).toHaveText('knobs');
-  await expect(f.locator('.wc-scr-frame')).toContainText('● on · running', { timeout: 10_000 });
+  await expect(f.locator('.wc-scr-panel .wc-scr-title')).toHaveText('knobs');
+  await expect(f.locator('.wc-scr-status')).toHaveText('on · running', { timeout: 10_000 });
   return f;
 }
 
-test('the selected script has the panel fill beside the framed detail', async ({ page }) => {
+test('three widths: the help in its column, under the panel, and a drill-down step', async ({ page }) => {
   const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
   const f = await scriptsFromStart(page);
-  // NEW IMPORT MANUAL above the list; the script's buttons in the frame's top border.
-  await expect(f.locator('.wc-scr-buttons [data-btn]')).toHaveText([/NEW/, /IMPORT/, /MANUAL/]);
-  await expect(f.locator('.wc-scr-top [data-btn]')).toHaveText([/EDIT/, /EXPORT/, /RENAME/, /DELETE/]);
+  const scr = f.locator('.wc-scr');
+  await expect(scr).toHaveAttribute('data-w', 'wide');
+  // New, Import and Manual in the foot; the script's buttons in its panel; no buttons in the rows.
+  await expect(f.locator('.wc-scr-fbtns [data-btn]')).toHaveText([/New/, /Import/, /Manual/]);
+  await expect(f.locator('.wc-scr-btns [data-btn]')).toHaveText([/Edit/, /Export/, /Rename/, /Delete/]);
   await expect(f.locator('.wc-scr-row [data-btn]')).toHaveCount(0);
-  // almanac first: its row is selected, its name in the border.
-  await expect(f.locator('.wc-scr-row.is-sel')).toHaveAttribute('data-script', 'almanac');
-  await expect(f.locator('.wc-scr-top')).toContainText('── almanac ──');
-  await expect(f.locator('.wc-scr-frame')).toContainText('─ Settings');
-  await expect(f.locator('.wc-scr-frame')).toContainText('─ Commands');
-  await expect(f.locator('.wc-scr-frame')).toContainText('▾ Help');
-  // The top border is as wide as the bottom one: its ┐ sits on the right edge.
-  const cells = (l: Locator) => l.evaluate((e) => [...(e.textContent ?? '')].length);
-  expect(await cells(f.locator('.wc-scr-top'))).toBe(await cells(f.locator('.wc-scr-frame > .wc-line').last()));
-  // Down: the selection moves; the frame's left edge stays a whole line.
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  const tab = f.locator('.wc-scr-row.is-sel');
-  await expect(tab).toHaveAttribute('data-script', 'keymanager');
-  await expect(f.locator('.wc-scr-top')).toContainText('── keymanager ──');
-  const edges = await f.locator('.wc-scr-list .wc-line > .wc-scr-line').allTextContents();
-  expect(new Set(edges)).toEqual(new Set(['│']));
-  // Bundled: RENAME and DELETE are off, its settings are not.
-  await expect(f.locator('.wc-scr-top [data-btn="RENAME"]')).toHaveAttribute('aria-disabled', 'true');
-  await expect(setting(f, 'hours')).toContainText('◂ 12 ▸ h');
-  // The selected row has the panel fill, as the frame.
-  const fill = await tab.locator('.wc-scr-cells').evaluate((e) => getComputedStyle(e).backgroundColor);
-  const panel = await f.locator('.wc-scr-detail').evaluate((e) => getComputedStyle(e).backgroundColor);
-  expect(fill).toBe(panel);
-  expect(fill).not.toBe('rgba(0, 0, 0, 0)');
+  await expect(f.locator('.wc-scr-row.is-on')).toHaveAttribute('data-name', 'almanac');
+  await expect(f.locator('.wc-scr-panel .wc-lk-sec')).toHaveText(['Settings', 'Commands']);
+  // The help is its own column beside the panel, open.
+  await expect(f.locator('.wc-scr-helpcol .wc-scr-help')).toBeVisible();
+  await expect(f.locator('.wc-scr-helpcol .wc-lk-fold-h')).toHaveAttribute('aria-expanded', 'true');
+  await expect(f.locator('.wc-scr-count')).toHaveText(/^\d+ scripts$/);
+  // keymanager's hours: a stepper with its unit; bundled settings stay editable.
+  await row(f, 'keymanager').click();
+  await expect(tile(f, 'hours').locator('.wc-scr-val')).toHaveText('12');
+  await expect(tile(f, 'hours').locator('.wc-scr-unit')).toHaveText('h');
+  await expect(tile(f, 'hours').locator('[aria-label="More"]')).not.toHaveAttribute('aria-disabled', 'true');
+
+  // Narrower: the help moves under the panel (one help, never two).
+  await page.setViewportSize({ width: 980, height: 800 });
+  await expect(scr).toHaveAttribute('data-w', 'mid');
+  await expect(f.locator('.wc-scr-helpcol')).toHaveCount(0);
+  await expect(f.locator('.wc-scr-panel .wc-scr-help')).toHaveCount(1);
+  await expect(f.locator('.wc-scr-help')).toHaveCount(1);
+  await expect(f.locator('.wc-scr-idx')).toBeVisible();
+
+  // Narrow: the index alone; a click drills into the panel, All scripts goes back.
+  await page.setViewportSize({ width: 560, height: 800 });
+  await expect(scr).toHaveAttribute('data-w', 'narrow');
+  await expect(f.locator('.wc-scr-panel')).toBeHidden();
+  await row(f, 'mercenaries').click();
+  await expect(f.locator('.wc-scr-panel')).toBeVisible();
+  await expect(f.locator('.wc-scr-idx')).toBeHidden();
+  await expect(curTile(f)).toHaveAttribute('data-set', 'autopay');
+  await f.locator('[data-btn="LIST"]').click();
+  await expect(f.locator('.wc-scr-idx')).toBeVisible();
+  await expect(f.locator('.wc-scr-panel')).toBeHidden();
+  // Enter drills in as well; Esc comes back to the index.
+  await page.keyboard.press('Enter');
+  await expect(f.locator('.wc-scr-panel')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-scr-panel')).toBeHidden();
+  await expect(f.locator('.wc-scr-row.is-cur')).toHaveAttribute('data-name', 'mercenaries');
   expect(errors).toEqual([]);
 });
 
 test('settings by keys save at once and the running script sees them', async ({ page }) => {
   const errors = watchErrors(page);
-  const f = await knobsRunning(page);
-  // → enters the detail on the first setting.
+  const f = await scriptsWindow(page);
+  // → enters the panel on the first setting.
   await page.keyboard.press('ArrowRight');
-  await expect(setting(f, 'loud').locator('.wc-scr-cursor')).toHaveText('▸');
-  await expect(f.locator('.wc-footer')).toContainText('←→ Switch');
+  await expect(curTile(f)).toHaveAttribute('data-set', 'loud');
 
-  // Boolean: Space flips.
+  // Boolean: Space flips; the tile shows it changed and its default.
   await page.keyboard.press(' ');
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ loud: true });
-  await expect(setting(f, 'loud').locator('.wc-scr-sw-on')).toHaveText('ON');
-  await expect(setting(f, 'loud')).toContainText('loud*');
+  await expect(tile(f, 'loud').locator('[role="switch"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(tile(f, 'loud').locator('.wc-scr-chg')).toHaveCount(1);
+  await expect(tile(f, 'loud').locator('.wc-scr-def')).toHaveText('default off');
 
   // Number: → steps by 0.5; a digit starts typing; Enter keeps (clamped to 0..5).
   await page.keyboard.press('ArrowDown');
-  await expect(f.locator('.wc-footer')).toContainText('←→ Step');
+  await expect(curTile(f)).toHaveAttribute('data-set', 'delay');
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ delay: 2.5 });
   await page.keyboard.press('7');
-  await expect(setting(f, 'delay').locator('input.wc-scr-input')).toHaveValue('7');
-  await expect(f.locator('.wc-footer')).toHaveText('Enter Keep · ESC Cancel');
+  const num = tile(f, 'delay').locator('input.wc-scr-input');
+  await expect(num).toHaveValue('7');
+  await expect(num).toBeFocused();
   await page.keyboard.press('Enter');
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ delay: 5 });
-  await expect(f.locator('.wc-flash')).toHaveText('delay = 5 s');
+  await expect(flash(f)).toHaveText('delay = 5 s');
+  await expect(tile(f, 'delay').locator('[aria-label="More"]')).toHaveAttribute('aria-disabled', 'true');
   // Not a number: refused, the old value stays. Esc cancels typing.
   await page.keyboard.press('1');
   await page.keyboard.type('x');
   await page.keyboard.press('Enter');
-  await expect(f.locator('.wc-flash')).toHaveText('delay must be a number.');
+  await expect(flash(f)).toHaveText('delay must be a number.');
   await page.keyboard.press('3');
   await page.keyboard.press('Escape');
-  await expect(setting(f, 'delay').locator('input')).toHaveCount(0);
+  await expect(tile(f, 'delay').locator('input')).toHaveCount(0);
   expect(await settingsOf(page, 'knobs')).toMatchObject({ delay: 5 });
-  // Esc ended the typing only: still in the detail.
-  await expect(setting(f, 'delay').locator('.wc-scr-cursor')).toHaveText('▸');
+  // Esc ended the typing only: still in the panel.
+  await expect(curTile(f)).toHaveAttribute('data-set', 'delay');
 
-  // Choice: → picks the next option.
+  // Choice: → picks the next option; Enter wraps around.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ size: 'big' });
-  await expect(setting(f, 'size')).toContainText('( ) small  (•) big');
+  await expect(tile(f, 'size').locator('[role="radio"][aria-checked="true"]')).toHaveText('big');
+  await page.keyboard.press('ArrowRight');
+  expect(await settingsOf(page, 'knobs')).toMatchObject({ size: 'big' });
 
   // String: Enter edits, Enter keeps.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  const input = setting(f, 'word').locator('input.wc-scr-input');
+  const input = tile(f, 'word').locator('input.wc-scr-input');
   await expect(input).toBeFocused();
   await expect(input).toHaveValue('hello');
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.type('good bye');
   await page.keyboard.press('Enter');
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ word: 'good bye' });
-  await expect(setting(f, 'word')).toContainText('[good bye');
+  await expect(tile(f, 'word').locator('.wc-scr-str')).toHaveText('good bye');
+  await expect(flash(f)).toHaveText('word = good bye');
 
   // The running script got sysSettingChanged with the new values.
   for (const t of ['[set loud=true]', '[set delay=2.5]', '[set delay=5]', '[set size=big]', '[set word=good bye]']) {
     await expect(gameRows(page).filter({ hasText: t })).toHaveCount(1);
   }
-  // Esc: the list, then the window closes.
+  // Esc: the index, then the window closes.
   await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-scr-cursor', { hasText: '▸' })).toHaveCount(0);
+  await expect(curTile(f)).toHaveCount(0);
+  await expect(f.locator('.wc-scr-row.is-cur')).toHaveAttribute('data-name', 'knobs');
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('settings by mouse, and RESET ALL', async ({ page }) => {
+test('settings by mouse, and Reset all', async ({ page }) => {
   const errors = watchErrors(page);
-  const f = await knobsRunning(page);
-  const hit = (h: string) => f.locator(`[data-hit="${h}"]`);
-  await expect(f.locator('.wc-scr-frame [data-btn="RESET ALL"]')).toHaveAttribute('aria-disabled', 'true');
+  const f = await scriptsWindow(page);
+  const reset = f.locator('[data-btn="RESET"]');
+  await expect(reset).toHaveAttribute('aria-disabled', 'true');
 
-  await hit('set:loud:on').click();
+  await tile(f, 'loud').locator('[role="switch"]').click();
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ loud: true });
-  await hit('set:delay:dec').click();
-  await hit('set:delay:dec').click();
+  await tile(f, 'delay').locator('[aria-label="Less"]').click();
+  await tile(f, 'delay').locator('[aria-label="Less"]').click();
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ delay: 1 });
-  await hit('set:size:opt:1').click();
+  await tile(f, 'size').locator('[role="radio"]', { hasText: 'big' }).click();
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ size: 'big' });
   // A click on the value types over it.
-  await hit('set:delay:type').click();
-  const num = setting(f, 'delay').locator('input.wc-scr-input');
+  await tile(f, 'delay').locator('.wc-scr-val').click();
+  const num = tile(f, 'delay').locator('input.wc-scr-input');
   await expect(num).toBeFocused();
   await page.keyboard.type('4.5');
   await page.keyboard.press('Enter');
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ delay: 4.5 });
-  await hit('set:word:edit').nth(1).click();
+  await tile(f, 'word').locator('.wc-scr-str').click();
+  await expect(tile(f, 'word').locator('input.wc-scr-input')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.type('yo');
   await page.keyboard.press('Enter');
   await expect.poll(() => settingsOf(page, 'knobs')).toMatchObject({ word: 'yo' });
-  // A click on a row puts the cursor there.
-  await setting(f, 'size').click();
-  await expect(setting(f, 'size').locator('.wc-scr-cursor')).toHaveText('▸');
+  // A press on a tile puts the keyboard there.
+  await tile(f, 'size').locator('.wc-scr-k').click();
+  await expect(curTile(f)).toHaveAttribute('data-set', 'size');
+  await expect(f.locator('.wc-scr-chg')).toHaveCount(4);
 
-  // RESET ALL: every value back to its default, the script told of each.
-  const reset = f.locator('.wc-scr-frame [data-btn="RESET ALL"]');
+  // Reset all: every value back to its default, the script told of each.
   await expect(reset).not.toHaveAttribute('aria-disabled', 'true');
   await reset.click();
-  await expect(f.locator('.wc-flash')).toHaveText('Reset loud, delay, size, word to the defaults.');
+  await expect(flash(f)).toHaveText('Reset loud, delay, size, word to the defaults.');
   await expect.poll(() => settingsOf(page, 'knobs')).toEqual({ loud: false, delay: 2, size: 'small', word: 'hello' });
   await expect(reset).toHaveAttribute('aria-disabled', 'true');
-  await expect(f.locator('.wc-scr-frame')).not.toContainText('*');
+  await expect(f.locator('.wc-scr-chg')).toHaveCount(0);
   for (const t of ['[set loud=false]', '[set delay=2]', '[set size=small]', '[set word=hello]']) {
     await expect(gameRows(page).filter({ hasText: t })).toHaveCount(1);
   }
   expect(errors).toEqual([]);
 });
 
-test('RESET ALL and the help fold by keys', async ({ page }) => {
+test('Reset all and the help fold by keys', async ({ page }) => {
   const f = await scriptsFromStart(page);
   await page.evaluate(() => window.__wc!.shell.scripts.setSetting('mercenaries', 'cost', '20'));
   await row(f, 'mercenaries').locator('.wc-scr-name').click();
-  await expect(setting(f, 'cost')).toContainText('cost*');
-  await expect(setting(f, 'cost')).toContainText('( ) 10  (•) 20 silver');
-  // → the first setting, ↑ RESET ALL, Enter.
+  await expect(tile(f, 'cost').locator('.wc-scr-chg')).toHaveCount(1);
+  await expect(tile(f, 'cost').locator('[role="radio"][aria-checked="true"]')).toHaveText('20');
+  await expect(tile(f, 'cost').locator('.wc-scr-unit')).toHaveText('silver');
+  await expect(tile(f, 'cost').locator('.wc-scr-def')).toHaveText('default 10 silver');
+  // → the first setting, ↑ Reset all, Enter.
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowUp');
-  await expect(f.locator('.wc-scr-frame .wc-btn.is-sel-focus')).toHaveText(/RESET ALL/);
+  await expect(kbButton(f)).toHaveAttribute('data-btn', 'RESET');
   await page.keyboard.press('Enter');
-  await expect(f.locator('.wc-flash')).toHaveText('Reset cost to the default.');
-  expect(await settingsOf(page, 'mercenaries')).toMatchObject({ cost: 10 });
-  // End: the help fold; Enter folds it, again unfolds it.
+  await expect(flash(f)).toHaveText('Reset cost to the default.');
+  expect(await page.evaluate(() => window.__wc!.shell.scripts.settingsOf('mercenaries'))).toMatchObject({ cost: 10 });
+  // End: the help fold; Enter folds it, again unfolds it (kept across scripts).
   await page.keyboard.press('End');
-  await expect(f.locator('.wc-scr-fold')).toHaveClass(/is-cursor/);
+  const fold = f.locator('.wc-scr-helprule .wc-lk-fold');
+  await expect(fold).toHaveClass(/is-cur/);
   await page.keyboard.press('Enter');
-  await expect(f.locator('.wc-scr-fold')).toHaveText('▸ Help');
-  await expect(f.locator('.wc-scr-helpbox')).toHaveCount(0);
-  await page.keyboard.press('Enter');
-  await expect(f.locator('.wc-scr-helpbox')).toHaveCount(1);
+  await expect(fold.locator('.wc-lk-fold-h')).toHaveAttribute('aria-expanded', 'false');
+  await expect(f.locator('.wc-scr-help')).toHaveCount(0);
+  await row(f, 'keymanager').locator('.wc-scr-name').click();
+  await expect(f.locator('.wc-scr-help')).toHaveCount(0);
+  await fold.locator('.wc-lk-fold-h').click();
+  await expect(f.locator('.wc-scr-help')).toHaveCount(1);
 });
 
-test('PgUp/PgDn and the wheel scroll the help in its own box', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 640 });
+test('PgUp/PgDn and the wheel scroll the help: its column when wide, else the panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 640 });
   const f = await scriptsFromStart(page);
   // keymanager's help is long; Settings and Commands stay in view.
   await row(f, 'keymanager').locator('.wc-scr-name').click();
-  const help = f.locator('.wc-scr-help');
+  const help = f.locator('.wc-scr-helpcol .wc-scr-help');
   await expect(help).toContainText('Locate life gives a key');
-  const top = () => help.evaluate((e) => e.scrollTop);
-  expect(await top()).toBe(0);
-  await expect(f.locator('.wc-scr-helpbox .wc-tui-bar')).toHaveCount(1);
+  expect(await scrollTop(help)).toBe(0);
   await page.keyboard.press('PageDown');
-  await expect.poll(top).toBeGreaterThan(0);
-  const after = await top();
+  await expect.poll(() => scrollTop(help)).toBeGreaterThan(0);
+  const after = await scrollTop(help);
   await page.keyboard.press('PageDown');
-  await expect.poll(top).toBeGreaterThan(after);
+  await expect.poll(() => scrollTop(help)).toBeGreaterThan(after);
   await page.keyboard.press('PageUp');
   await page.keyboard.press('PageUp');
-  await expect.poll(top).toBe(0);
+  await expect.poll(() => scrollTop(help)).toBe(0);
   // The settings did not move.
-  await expect(setting(f, 'hours')).toBeInViewport();
-  // The wheel over the help box.
+  await expect(tile(f, 'hours')).toBeInViewport();
+  // The wheel over the help.
   await help.hover();
   await page.mouse.wheel(0, 200);
-  await expect.poll(top).toBeGreaterThan(0);
-  // The headings are in the section role.
-  await expect(help.locator('.wc-c-section', { hasText: 'The safe key' })).toHaveCount(1);
+  await expect.poll(() => scrollTop(help)).toBeGreaterThan(0);
+  // The headings are set as headings; the command table is a table.
+  await expect(help.locator('h4', { hasText: 'The safe key' })).toHaveCount(1);
+  await expect(help.locator('.wc-scr-t2 dt', { hasText: 'locatel home' })).toHaveCount(1);
+
+  // Narrower: the help is under the panel, and PgDn scrolls the panel.
+  await page.setViewportSize({ width: 980, height: 640 });
+  await expect(f.locator('.wc-scr')).toHaveAttribute('data-w', 'mid');
+  const panel = f.locator('.wc-scr-panel');
+  await expect.poll(() => scrollTop(panel)).toBe(0);
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => scrollTop(panel)).toBeGreaterThan(0);
 });
 
-test('a narrow Scripts window: buttons on their own row, labels under the controls', async ({ page }) => {
+test('a narrow Scripts window: the index, then the panel with its buttons two by two', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.setViewportSize({ width: 760, height: 620 });
-  await openStart(page);
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.locator('.wc-mb[data-mb="scripts"]').click();
-  const f = scriptsWin(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await page.setViewportSize({ width: 700, height: 620 });
+  const f = await scriptsWindow(page, false);
+  await expect(f.locator('.wc-scr')).toHaveAttribute('data-w', 'narrow');
+  await expect(f.locator('.wc-scr-panel')).toBeHidden();
   await row(f, 'mercenaries').locator('.wc-scr-name').click();
-  await expect(f.locator('.wc-scr-frame .wc-scr-title')).toHaveText('mercenaries');
-  // The buttons do not fit the border: a row of their own.
-  await expect(f.locator('.wc-scr-top [data-btn]')).toHaveCount(0);
-  await expect(f.locator('.wc-scr-drow .wc-scr-dbuttons [data-btn]')).toHaveText([/EDIT/, /EXPORT/, /RENAME/, /DELETE/]);
-  const cells = (l: Locator) => l.evaluate((e) => [...(e.textContent ?? '')].length);
-  expect(await cells(f.locator('.wc-scr-top'))).toBe(await cells(f.locator('.wc-scr-frame > .wc-line').last()));
-  // A label on the row under its control.
-  const cost = setting(f, 'cost');
-  await expect(cost).not.toContainText('Per payment');
-  await expect(f.locator('.wc-scr-drow', { hasText: 'Per payment' })).toHaveCount(1);
-  // Every frame row fits inside the window.
+  await expect(f.locator('.wc-scr-panel .wc-scr-title')).toHaveText('mercenaries');
+  // The buttons two by two.
+  const box = async (id: string) => (await f.locator(`.wc-scr-btns [data-btn="${id}"]`).boundingBox())!;
+  const [edit, exp, ren] = [await box('EDIT'), await box('EXPORT'), await box('RENAME')];
+  expect(Math.abs(edit.y - exp.y)).toBeLessThan(2);
+  expect(ren.y).toBeGreaterThan(edit.y + edit.height - 1);
+  expect(Math.abs(ren.x - edit.x)).toBeLessThan(2);
+  // Every tile fits inside the window.
   const win = (await page.locator('.wc-win[data-win="scripts"]').boundingBox())!;
-  const frame = (await f.locator('.wc-scr-frame').boundingBox())!;
-  expect(frame.x + frame.width).toBeLessThanOrEqual(win.x + win.width);
-  // The keys reach the warn setting at the bottom: the frame scrolls to it.
+  const t = (await tile(f, 'cost').boundingBox())!;
+  expect(t.x + t.width).toBeLessThanOrEqual(win.x + win.width);
+  // The keys reach the warn setting at the bottom: the panel scrolls to it.
+  await page.keyboard.press('End');
+  await page.keyboard.press('ArrowUp');
+  await expect(curTile(f)).toHaveAttribute('data-set', 'warn');
+  await expect(tile(f, 'warn')).toBeInViewport();
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(() => settingsOf(page, 'mercenaries')).toMatchObject({ warn: 4 });
+  // Esc: back to the index (the panel goes), then the window closes.
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-scr-idx')).toBeVisible();
+  await expect(f.locator('.wc-scr-panel')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-win')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('the letters N I M E X R D press the buttons, and none fires while a field is typed in', async ({ page }) => {
+  const errors = watchErrors(page);
+  const f = await scriptsFromStart(page);
+  const dialog = (dlg: string) => page.locator(`.wc-lk-dialog[data-dlg="${dlg}"]`);
+  // The letters are marked in the labels.
+  for (const [id, l] of [['NEW', 'N'], ['IMPORT', 'I'], ['MANUAL', 'M'], ['EDIT', 'E'], ['EXPORT', 'x'], ['RENAME', 'R'], ['DELETE', 'D']]) {
+    await expect(f.locator(`[data-btn="${id}"] u.wc-sk`)).toHaveText(l!);
+  }
+  // N: the New dialog; letters typed in its field are text.
+  await page.keyboard.press('n');
+  await expect(dialog('new').locator('input')).toBeFocused();
+  await page.keyboard.type('mexrdi');
+  await expect(dialog('new').locator('input')).toHaveValue('mexrdi');
+  await expect(page.locator('.wc-lk-dialog')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(dialog('new')).toHaveCount(0);
+  // X: Export; R and D do nothing on a bundled script.
+  await page.keyboard.press('x');
+  await expect(dialog('export')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('r');
+  await page.keyboard.press('d');
+  await expect(page.locator('.wc-lk-dialog')).toHaveCount(0);
+  // I: the file picker.
+  const chooser = page.waitForEvent('filechooser');
+  await page.keyboard.press('i');
+  await chooser;
+  // A setting being typed in keeps its letters too.
+  await page.locator('.wc-scr-row[data-name="mercenaries"]').click();
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('End');
   await page.keyboard.press('ArrowUp');
-  await expect(setting(f, 'warn').locator('.wc-scr-cursor')).toHaveText('▸');
-  await expect(setting(f, 'warn')).toBeInViewport();
-  await page.keyboard.press('ArrowLeft');
-  await expect.poll(() => settingsOf(page, 'mercenaries')).toMatchObject({ warn: 4 });
+  await expect(curTile(f)).toHaveAttribute('data-set', 'warn');
+  await page.keyboard.press('2');
+  await page.keyboard.type('e');
+  await expect(tile(f, 'warn').locator('input.wc-scr-input')).toHaveValue('2e');
+  await page.keyboard.press('Escape');
+  await expect(tile(f, 'warn').locator('input')).toHaveCount(0);
+  // E: the editor on the selected script; M: the manual.
+  await page.keyboard.press('e');
+  await expect(page.locator('.wc-frame:not([hidden]) .wc-sed')).toHaveAttribute('data-script', 'mercenaries');
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-scr')).toBeVisible();
+  await page.keyboard.press('m');
+  await expect(startFrame(page)).toContainText('Script Manual');
   expect(errors).toEqual([]);
 });

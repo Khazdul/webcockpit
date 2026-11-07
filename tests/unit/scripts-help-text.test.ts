@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUNDLED_SCRIPTS } from '../../src/scripts/bundled';
 import { parseHeader } from '../../src/scripts/header';
-import { type HelpLine, helpLineText, typesetHelp, wrapWords } from '../../src/scripts/help-text';
+import { type HelpLine, helpBlocks, helpLineText, typesetHelp, wrapWords } from '../../src/scripts/help-text';
 
 const text = (lines: HelpLine[]): string[] => lines.map(helpLineText);
 const roles = (l: HelpLine): string[] => l.filter((s) => s.role).map((s) => s.role!);
@@ -114,5 +114,62 @@ describe('bundled help', () => {
     expect(headings('almanac')).toEqual(['Three tabs', 'Your own events', 'Commands']);
     expect(headings('keymanager')).toEqual(['The pick window', 'The safe key', 'TV', 'The Port keys pane']);
     expect(headings('readability')).toEqual(['Mobs', 'Movement', 'Exits and flags', 'Turning a part off']);
+  });
+});
+
+describe('helpBlocks (the Scripts page\'s DOM help, stage 44a)', () => {
+  /** The blocks typeset as `typesetHelp` would: the same decisions give the same lines. */
+  const linesOf = (help: readonly string[], w: number): string[] => {
+    const out: string[] = [];
+    for (const b of helpBlocks(help)) {
+      switch (b.kind) {
+        case 'blank':
+          out.push('');
+          break;
+        case 'heading':
+        case 'para':
+          out.push(...wrapWords(b.text, w));
+          break;
+        case 'item':
+          wrapWords(b.text, w - b.bullet.length - 1).forEach((l, i) => out.push(i === 0 ? `${b.bullet} ${l}` : `${' '.repeat(b.bullet.length + 1)}${l}`));
+          break;
+        case 'table': {
+          const termW = Math.max(...b.rows.map((r) => [...r.term].length));
+          // typesetHelp's rule: the term column over 40 % of the width, or under 12 cells for the text.
+          const stacked = 2 + termW + 2 > w * 0.4 || w - (2 + termW + 2) < 12;
+          for (const r of b.rows) {
+            if (stacked) {
+              out.push(...wrapWords(r.term, w - 2).map((l) => `  ${l}`));
+              out.push(...wrapWords(r.desc, w - 6).map((l) => `      ${l}`));
+              continue;
+            }
+            const at = 2 + termW + 2;
+            wrapWords(r.desc, w - at).forEach((l, i) => out.push(i === 0 ? `  ${r.term.padEnd(termW + 2)}${l}` : `${' '.repeat(at)}${l}`));
+          }
+          break;
+        }
+        case 'pre':
+          for (const l of b.lines) out.push(`  ${l}`);
+          break;
+      }
+    }
+    return out;
+  };
+
+  it('makes the same block decisions as typesetHelp for every bundled script', () => {
+    for (const b of BUNDLED_SCRIPTS) {
+      const help = parseHeader(b.source).header.help;
+      // Wide enough that no pre line wraps (pre runs are kept as written).
+      for (const w of [80, 120]) expect(linesOf(help, w), `${b.name} @${w}`).toEqual(text(typesetHelp(help, w)));
+    }
+  });
+
+  it('gives paragraphs, items, tables (not when a term ends a sentence), pre runs and headings', () => {
+    const blocks = helpBlocks(['Intro', 'goes on.', '', '- one', '• two', '## Usage', '  cmd   does it', '  cmd2  more', '', '  A line.   becomes: B']);
+    expect(blocks.map((b) => b.kind)).toEqual(['para', 'blank', 'item', 'item', 'blank', 'heading', 'table', 'blank', 'pre']);
+    expect(blocks[0]).toEqual({ kind: 'para', text: 'Intro goes on.' });
+    expect(blocks[3]).toEqual({ kind: 'item', bullet: '•', text: 'two' });
+    expect(blocks[6]).toEqual({ kind: 'table', rows: [{ term: 'cmd', desc: 'does it' }, { term: 'cmd2', desc: 'more' }] });
+    expect(blocks[8]).toEqual({ kind: 'pre', lines: ['A line.   becomes: B'] });
   });
 });
