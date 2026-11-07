@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  Start page sky harness (stage 41a, ADR 0124). Dev server only:
+    http://localhost:5173/src/start/sky/dev/harness.html?skyHour=21&skyMonth=0&skyStats
+  Every `sky*` URL parameter works (src/start/sky/params.ts). Extra here:
+    text     a sample quote at 80 % height whose ink follows `textBackLuminance`
+    firstpaint   only the CSS gradients of `skyCss` (what the first paint can draw)
+  `window.__sky` is the handle; `window.__skyLook` the look module.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Start sky harness</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #host { position: fixed; inset: 0; }
+  #quote { position: fixed; left: 0; right: 0; top: 78%; text-align: center; font: italic 500 24px/1.3 Georgia, serif; color: #f6ead3; transition: color 2.5s; }
+  #quote.ink { color: #24180e; }
+</style>
+</head>
+<body>
+<div id="host"></div>
+<script type="module" src="./harness.ts"></script>
+</body>
+</html>
