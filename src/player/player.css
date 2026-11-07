@@ -7,11 +7,11 @@
  * viewer's chosen background, not the app's.
  *
  * The run log player's Back (stage 42f, ADR 0127) is the lantern kit's
- * Back: its look comes from the kit's glass rules, imported here so the
- * player chunk (and the HTML replay, which carries this file) has them
- * without the chrome chunk. */
-
-@import "../chrome/kit/look-glass.css";
+ * Back: its look is the kit's glass rules (src/chrome/kit/look-glass.css
+ * and the `--lk-*` tokens), which are not imported here. The in-app player
+ * only ever opens from the start page, whose chrome chunk has put them in
+ * the document already; the HTML replay, which carries this file, shows
+ * no Back and so carries none of them (its size budget, ADR 0127). */
 
 .wc-player {
   position: relative;

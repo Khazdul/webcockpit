@@ -144,6 +144,7 @@ const RUN_LOG_VIEW: PlayerOpenOptions = { view: { back: { title: 'Back to Histor
 
 /** Why a player did not open, as a sentence. */
 const errText = (e: unknown): string => (e instanceof Error && e.message ? e.message : String(e));
+const ONLY_START = 'The player opens from the start page only.';
 
 /** Reasons that never auto-open the menu: the user asked for the disconnect. */
 const QUIET_REASONS = new Set([REASON_USER_RECONNECT, REASON_USER_DISCONNECT, REASON_REPLAY_START]);
@@ -541,23 +542,12 @@ export class Shell {
    * too, and shows or hides nothing).
    */
   async embedPlayer(slot: HTMLElement): Promise<PlayerHost | null> {
-    if (this.inCockpit || this.player || this.playerOpening) return null;
-    this.playerOpening = true;
-    try {
-      const { PlayerHost } = await import('./player-host');
-      if (this.inCockpit || this.player || !slot.isConnected) return null;
-      const host = new PlayerHost({ root: slot, settings: this.opts.settings, onClose: () => {}, map: this.maps.host() });
-      this.player = host;
-      host.onDispose(() => {
-        if (this.player === host) this.player = null;
-      });
-      return host;
-    } catch (err) {
-      console.error('WebCockpit: the embedded player could not load', err);
-      return null;
-    } finally {
-      this.playerOpening = false;
-    }
+    const host = await this.makeHost(slot, () => {});
+    if (typeof host === 'string') return null;
+    host.onDispose(() => {
+      if (this.player === host) this.player = null;
+    });
+    return host;
   }
 
   /**
@@ -591,21 +581,32 @@ export class Shell {
     return this.reel;
   }
 
-  private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<PlayerOpenResult> {
-    if (this.inCockpit) return { ok: false, error: 'The player opens from the start page only.' };
-    if (this.player || this.playerOpening) return { ok: false, error: 'Another player is open.' };
+  /**
+   * A new player host in `root`, once its chunk is in, as the shell's
+   * `playerHost`; or why none may open (over the cockpit, another player
+   * open or opening, the chunk lost).
+   */
+  private async makeHost(root: HTMLElement, onClose: () => void): Promise<PlayerHost | string> {
+    if (this.inCockpit) return ONLY_START;
+    if (this.player || this.playerOpening) return 'Another player is open.';
     this.playerOpening = true;
     try {
       const { PlayerHost } = await import('./player-host');
-      if (this.inCockpit) return { ok: false, error: 'The player opens from the start page only.' };
-      const host = new PlayerHost({
-        root: this.opts.root,
-        settings: this.opts.settings,
-        onClose: () => this.closePlayer(),
-        map: this.maps.host(),
-      });
-      host.el.style.display = 'none';
-      this.player = host;
+      if (this.inCockpit || !root.isConnected) return ONLY_START;
+      return (this.player = new PlayerHost({ root, settings: this.opts.settings, onClose, map: this.maps.host() }));
+    } catch (err) {
+      console.error('WebCockpit: the player could not load', err);
+      return errText(err);
+    } finally {
+      this.playerOpening = false;
+    }
+  }
+
+  private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<PlayerOpenResult> {
+    const host = await this.makeHost(this.opts.root, () => this.closePlayer());
+    if (typeof host === 'string') return { ok: false, error: host };
+    host.el.style.display = 'none';
+    try {
       await load(host);
       if (this.player !== host) return { ok: false, error: 'The player was closed while it opened.' };
       this.start?.hide();
@@ -614,11 +615,9 @@ export class Shell {
       return { ok: true };
     } catch (err) {
       console.error('WebCockpit: the log player could not open', err);
-      this.player?.dispose();
-      this.player = null;
+      host.dispose();
+      if (this.player === host) this.player = null;
       return { ok: false, error: errText(err) };
-    } finally {
-      this.playerOpening = false;
     }
   }
 
