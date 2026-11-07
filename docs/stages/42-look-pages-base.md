@@ -856,7 +856,7 @@ stage's test plan.
       window and menu look hosts; `ProfileRoot` moved; tests
 - [ ] 42e: `lookCodeTheme`, `.wc-code` rules, lantern find panel,
       `LookManual`, `ManualContents`, `look-manual-find`; measurements; tests
-- [ ] 42f: `fmtClock` hours, `back`, `bare`, `press`, `openPlayer` result,
+- [x] 42f: `fmtClock` hours, `back`, `bare`, `press`, `openPlayer` result,
       `embedPlayer`, `viewerControls`, `setPaletteTweak`; tests
 - [ ] 42-Z: merged; typecheck, lint, unit, e2e (Chromium, Firefox, phone),
       build green; chunk sizes recorded; screenshots reviewed
