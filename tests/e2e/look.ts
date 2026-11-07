@@ -174,6 +174,51 @@ export const menuLook = (page: Page): Locator => page.locator('.wc-overlay .wc-f
 
 // ------------------------------------------------------------ 42e (code look, find panel, LookManual)
 
+/** The lantern find panel of a code buffer (search.ts, `look: 'lantern'`). */
+export const lanternFind = (scope: Page | Locator): Locator => scope.locator('.wc-lk-search');
+
+/** The top `LookManual` on the page. */
+export const lookManual = (page: Page): Locator => page.locator('.wc-lk-manual').first();
+
+/** A manual's current section (its contents' lit entry; `contents: 'own'` or a host rail). */
+export const manualSection = (page: Page): Promise<number> =>
+  page
+    .locator('.wc-lk-mtoc li.is-on')
+    .first()
+    .getAttribute('data-i')
+    .then((i) => Number(i));
+
+/**
+ * The find matches marked in the manuals: the Highlight API's ranges
+ * (`::highlight(wc-lk-find)`), or the `<mark>` fallback's elements.
+ */
+export const manualMarks = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const reg = (CSS as unknown as { highlights?: Map<string, Set<Range>> }).highlights;
+    return reg ? (reg.get('wc-lk-find')?.size ?? 0) : document.querySelectorAll('mark.wc-lk-mark').length;
+  });
+
+/**
+ * Opens the kit gallery's Code section and, with `show`, one of its manuals
+ * (`profile`, `script`) with the reader's options; waits for the editor parts.
+ */
+export async function openKitCode(
+  page: Page,
+  o: { show?: 'profile' | 'script'; contents?: 'own' | 'none'; find?: 'head' | 'bar'; paper?: boolean } = {},
+): Promise<Locator> {
+  await openKit(page, 'code');
+  const sec = kitSection(page, 'code');
+  await expect(sec.locator('.wc-kit-code-buf .cm-editor, .wc-lk-manual').first()).toBeVisible();
+  if (o.paper) await sec.locator('[data-kit=look] [data-opt=paper]').click();
+  if (o.show) {
+    await sec.locator(`[data-kit=show] [data-opt=${o.show}]`).click();
+    if (o.contents) await sec.locator(`[data-kit=contents] [data-opt=${o.contents}]`).click();
+    if (o.find) await sec.locator(`[data-kit=find] [data-opt=${o.find}]`).click();
+    await expect(sec.locator(`.wc-kit-code-man[data-which=${o.show}] .wc-lk-manual`)).toBeVisible();
+  }
+  return sec;
+}
+
 // ------------------------------------------------------------ 42f (player core)
 
 /** The player's Back (the run log player's; none in the HTML replay). */
