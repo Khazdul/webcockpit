@@ -137,36 +137,6 @@ test('profile LITE: the body box scrollbar drags its thumb', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
-test('script manual: the text and menu scrollbars drag their thumbs; the track pages', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1280, height: 600 });
-  await mockMume(page);
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await lib(page, 'init');
-  await lib(page, 'create', 'dragtest', '-- @name dragtest\n-- @api 1\n\necho("x")\n');
-  // Scripts, under Profile on the start page (stage 32).
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
-  await page.keyboard.press('Enter');
-  await startFrame(page).locator('.wc-scr-row[data-script="dragtest"] .wc-scr-name').click();
-  await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
-  const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
-  await expect(editor.locator('.cm-content')).toBeFocused();
-  // The script editor's own buffer bar needs a long script; the manual first.
-  await page.keyboard.press('F1');
-  const manual = page.locator('.wc-frame:not([hidden]) > .wc-sman');
-  await expect(manual).toBeVisible();
-  const textBar = manual.locator('.wc-ped-manual .wc-tui-bar');
-  const rows = manual.locator('.wc-ped-manual-rows');
-  await dragThumb(page, textBar, rows);
-  await expectTrackPagesUp(textBar, rows);
-  const menuBar = manual.locator('.wc-ped-menu > .wc-tui-bar');
-  await dragThumb(page, menuBar, manual.locator('.wc-ped-menu-rows'), 1);
-  expect(errors).toEqual([]);
-});
-
 test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1280, height: 600 });

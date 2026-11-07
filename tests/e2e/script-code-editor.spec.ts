@@ -34,7 +34,7 @@ end
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
-const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sman');
+const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
 const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
 const list = (page: Page) => page.locator('.cm-tooltip-autocomplete');
 const marker = (page: Page) => editor(page).locator('.cm-gutter-lint .cm-lint-marker-error');
