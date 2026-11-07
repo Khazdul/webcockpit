@@ -139,6 +139,9 @@
     var(--lk-large-fill, rgba(19, 17, 13, 0.84));
   -webkit-backdrop-filter: var(--lk-large-blur, none);
   backdrop-filter: var(--lk-large-blur, none);
+  /* Its own stacking context, as the blur gave it: a page's layers (the
+   * Spotlights viewer's z-index) stay under the box's Back and hood. */
+  isolation: isolate;
 }
 
 /* The ESC menu's box: over the opaque background, no blur. */

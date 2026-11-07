@@ -1115,11 +1115,15 @@ with `sheen`). The sweeping masked band was About's idle cost: 7–12 frames
 over 20 ms per pass in Chromium (57.8–58.7 fps, 60.0 without), 56.4–57.4
 fps in Firefox, flat or blurred alike.
 
-**The morph.** A new box waits for its landing transparent and
-pointer-transparent (`opacity: 0`, `pointer-events: none` on the document
-timeline) instead of `visibility: hidden`: what is under `visibility:
-hidden` cannot take the DOM focus, so a field's or an editor's focus at
-mount was lost (in Chromium and Firefox). A leaving frame still hides by
+**The morph.** A new box waits for its landing transparent (`opacity: 0`
+on the document timeline) instead of `visibility: hidden`: what is under
+`visibility: hidden` cannot take the DOM focus, so a field's or an
+editor's focus at mount was lost (in Chromium and Firefox). It takes the
+pointer at once, as it takes the keys (an invisible page under the proxy
+for up to a second; a test that drives a page right after opening it now
+reaches it, as a key would). Its own stacking context stays: the large
+window has `isolation: isolate`, which the blur used to give it (without
+it the Spotlights viewer's layer covered the box's Back). A leaving frame still hides by
 `visibility`. `morphHold` from a normal or tall box covers the longest
 plan away from it (a pop onto a large box is an `open`: its content fades
 for `open.items`, 200 ms; it held 140 ms, and for ~60 ms no box was
