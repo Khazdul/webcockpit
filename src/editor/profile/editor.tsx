@@ -1222,7 +1222,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
           {inGame ? (
             <span class={cx('wc-pe-live', live && 'is-live')}>
               <i aria-hidden="true" />
-              {liveText(live)}
+              <span class="wc-pe-live-t">{liveText(live)}</span>
             </span>
           ) : (
             <span class="wc-pe-name">
