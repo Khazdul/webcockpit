@@ -69,6 +69,13 @@
   color: var(--lk-danger);
 }
 
+/* A coarse pointer's Back is 40 px tall: the page starts below it (on the start page and the phone's menu). */
+@media (pointer: coarse) {
+  :is(.wc-lk-box-large, .wc-lk-box-full) > .wc-lk-win > .wc-exp {
+    margin-top: 12px;
+  }
+}
+
 /* ------------------------------------------------------------ the bar */
 
 .wc-exp-bar {
