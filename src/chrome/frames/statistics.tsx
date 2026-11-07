@@ -1,15 +1,19 @@
-// Statistics (Inv §7.3, ADR 0018): one renderer, two surfaces.
+// Statistics (Inv §7.3, ADR 0018): one renderer for the ESC menu's page
+// and the Statistics pane.
 //
 //   ESC → Statistics   LiveStatsFrame: the live run chain (`app.runs`),
 //                      refreshed at 1 Hz and on R; ` · Run ended` when the
 //                      run ends while it is open (the data stays).
-//   History → STATS    SessionStatsFrame: an archived chain, loaded once.
+//   Statistics pane    statsBody (src/chrome/stats-pane.tsx).
+//
+// History → Stats is stage 45's lantern page (history-stats.tsx); the
+// archived TUI frame is gone (wave 3).
 //
 //   ◆ STATISTICS — Rasta · Lvl 42 · Run 1h 10m · ★★★★        (centred)
 //   ALLIES …                  ▒  ACHIEVEMENTS …          ▒   3 rows each
 //   KILLS        N  XP/N  XP tot ▒  PvPs         N     XP ▼  ▒   sortable
 //   ────────────                 ────────────
-//   rows …  (live: fit to the height; History: fit to the data)
+//   rows …  (fit to the height)
 //   Total                        Total
 //   XP/h                         TP/h                        sparklines
 //   ▌◄▬▬ 48.2k XP ▬▬►▐                                         XP ruler
@@ -25,14 +29,13 @@ import type { AppStatusView } from '../../app/status';
 import { nowUs } from '../../core/types';
 import type { LiveRuns } from '../../runs/live';
 import { type StatsModel, buildStats, rateSeries } from '../../runs/stats';
-import type { Session } from '../../runs/stitch';
-import { useGrid, useServices } from '../kit/hooks';
+import { useGrid } from '../kit/hooks';
 import { cellLen, centreLeft, truncate, wrapText } from '../kit/nav';
 import { device } from '../../core/device';
 import { useIsTop, useKeys } from '../kit/stack';
 import { Footer, indent } from '../kit/widgets';
 import { type ScrollBox, TuiScrollbar, useScrollBox } from '../kit/scroll';
-import { fmtDate, fmtDur, fmtTime, stars } from './history-model';
+import { stars } from './history-model';
 import {
   DEFAULT_KILL_SORT,
   DEFAULT_PVP_SORT,
@@ -113,11 +116,6 @@ export function paneHeader(m: StatsModel | null, rating: number, ended: boolean,
     ],
     cols,
   );
-}
-
-/** The History header: `◆ Session details — Rasta · 2026-09-26 · 21:00 · 1h10m`. */
-export function sessionHeader(s: Session): string {
-  return `◆ Session details — ${s.character} · ${fmtDate(s.startUs)} · ${fmtTime(s.startUs)} · ${fmtDur(s.endUs - s.startUs)}`;
 }
 
 export interface StatsViewProps {
@@ -614,29 +612,4 @@ export function LiveStatsFrame(p: LiveStatsProps): VNode {
       }}
     />
   );
-}
-
-// ------------------------------------------------------------- archived
-
-/** History → STATS: an archived chain (Inv §7.3, §7.4). */
-export function SessionStatsFrame(p: { session: Session }): VNode {
-  const { runs } = useServices();
-  const [model, setModel] = useState<StatsModel | null>(null);
-  const [note, setNote] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const lib = await runs();
-        const events = await lib.events(p.session.runs.map((r) => r.runId));
-        if (alive) setModel(buildStats(events, { character: p.session.character }));
-      } catch (e) {
-        if (alive) setNote(`Could not read the session: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return <StatsView model={model} header={sessionHeader(p.session)} live={false} note={note} />;
 }
