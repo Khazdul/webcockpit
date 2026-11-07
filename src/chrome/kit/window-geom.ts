@@ -2,13 +2,17 @@
 // on the cockpit's grid (origin at the cockpit element's top left, as the
 // panes; `cols × rows` whole cells).
 //
-// A window's rectangle is its outer box. The title bar is its top row,
-// the content grid is inset one cell on the left, right and bottom (the
-// thin border and the resize bands live in those cells), so the content
-// is `w - 2 × h - 2` cells.
+// A window's rectangle is its outer box, in whole cells. Inside it the
+// Lykta frame (stage 42d, ADR 0127) is drawn in CSS px: a 5 px iron band,
+// the hood over the top of the lit window, the lit window's 1 px edge.
+// What is left is the body (`windowBody`): free DOM for look frames, and
+// for old-look frames the largest whole-cell grid that fits it, centred
+// (at the default cell size that is `w - 2 × h - 2` cells, as the old
+// one-cell frame gave).
 //
-// - Minimum content 60 × 18 cells (outer 62 × 20). A screen smaller than
-//   that along an axis makes the window fill the screen along it.
+// - Minimum 62 × 20 cells outer (it was 60 × 18 content cells in a one-cell
+//   frame; at least 360 × 260 CSS px at the default cell size). A screen
+//   smaller than that along an axis makes the window fill the screen along it.
 // - Always fully on screen: `fitRect` shrinks, then moves.
 // - Default: about 80% of the screen, centred, at least the minimum.
 // - Drags and resizes move whole cells (`cellDelta` rounds the pointer's
@@ -26,10 +30,10 @@ export interface CellGrid {
   rows: number;
 }
 
-/** Cells the frame takes around the content: one column each side, the title row and one bottom row. */
+/** The frame's budget in cells for the minimum (one column each side, the title row and one bottom row). */
 export const FRAME_W = 2;
 export const FRAME_H = 2;
-/** The least content size, in cells. */
+/** The least content size, in cells (the minimum's measure: an old-look grid at the default cell size). */
 export const MIN_CONTENT_COLS = 60;
 export const MIN_CONTENT_ROWS = 18;
 export const MIN_W = MIN_CONTENT_COLS + FRAME_W;
@@ -115,4 +119,46 @@ export function resizeRect(start: CellRect, edge: Edge, dx: number, dy: number, 
 /** True when `a` and `b` are the same rectangle. */
 export function sameRect(a: CellRect | null, b: CellRect | null): boolean {
   return a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
+}
+
+// ------------------------------------------------------------ the body (px)
+
+/** The Lykta frame's iron band, CSS px (every side). */
+export const BAND_PX = 5;
+/** The lit window's edge (its 1 px black border), CSS px. */
+export const GLASS_EDGE_PX = 1;
+/** Room under the hood at the top of the lit window, CSS px (the hood hangs 23 px from the window's top). */
+export const HOOD_PX = 19;
+/** The least room between an old-look grid and the lit window's edge, CSS px (right and bottom; the grid is centred). */
+export const GRID_GAP_PX = 2;
+
+/** A window's body: the lit window's content box, and the old-look cell grid centred in it. */
+export interface WindowBody {
+  /** The content box, CSS px (below the hood, inside the lit window's edge). */
+  w: number;
+  h: number;
+  /** The old-look grid in whole cells. */
+  cols: number;
+  rows: number;
+  /** The grid's offset in the content box, whole CSS px (centred). */
+  left: number;
+  top: number;
+}
+
+/** The body of a window of `rect` cells, with cells of `cellW × cellH` px. */
+export function windowBody(rect: CellRect, cellW: number, cellH: number): WindowBody {
+  const edge = BAND_PX + GLASS_EDGE_PX;
+  const w = Math.max(0, rect.w * cellW - 2 * edge);
+  const h = Math.max(0, rect.h * cellH - 2 * edge - HOOD_PX);
+  const fit = (px: number, cell: number): number => (cell > 0 ? Math.max(0, Math.floor((px - 2 * GRID_GAP_PX) / cell + 1e-6)) : 0);
+  const cols = fit(w, cellW);
+  const rows = cellH > 0 ? Math.max(0, Math.floor((h - GRID_GAP_PX) / cellH + 1e-6)) : 0;
+  return {
+    w,
+    h,
+    cols,
+    rows,
+    left: Math.max(0, Math.floor((w - cols * cellW) / 2)),
+    top: Math.max(0, Math.floor((h - rows * cellH) / 2)),
+  };
 }
