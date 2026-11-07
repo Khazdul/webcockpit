@@ -48,7 +48,7 @@ export const NEW_BODY: Readonly<Record<LiteKind, string>> = {
 
 /** The detail prompt when the `+ New entry` row is selected (Inv §5.6). */
 export function sentinelPrompt(kind: LiteKind, count: number): string {
-  return count === 0 ? `No ${PLURAL[kind]} yet. Press n to add one.` : `Press Enter to create a new ${kind}.`;
+  return count === 0 ? `No ${PLURAL[kind]} yet. Press N to add one.` : `Press Enter to create a new ${kind}.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -421,4 +421,196 @@ export function applicableDoc(base: ProfileDoc, doc: ProfileDoc): { doc: Profile
 export function heldText(h: HeldEntry): string {
   const what = h.entry.pattern.trim() === '' ? h.entry.kind : `${h.entry.kind} ${ellipsis(h.entry.pattern.trim(), 24)}`;
   return `${h.reason} (${what})`;
+}
+
+// ---------------------------------------------------------------------------
+// The new look (stage 43a, ADR 0128): direction B "Ryggen"
+// ---------------------------------------------------------------------------
+
+/** The kinds as the rail and the sheet's back button name them. */
+export const KIND_LABELS: Readonly<Record<LiteKind, string>> = {
+  action: 'Actions',
+  alias: 'Aliases',
+  highlight: 'Highlights',
+  macro: 'Macros',
+  substitute: 'Substitutes',
+};
+
+/** One entry of the kind, for `New alias` and the prompts. */
+export const KIND_ONE: Readonly<Record<LiteKind, string>> = {
+  action: 'action',
+  alias: 'alias',
+  highlight: 'highlight',
+  macro: 'macro',
+  substitute: 'substitute',
+};
+
+/** The kinds' shortcut letters (ADR 0128): Actions, alIases, hiGhlights, Macros, Substitutes. */
+export const KIND_LETTERS: Readonly<Record<LiteKind, string>> = {
+  action: 'a',
+  alias: 'i',
+  highlight: 'g',
+  macro: 'm',
+  substitute: 's',
+};
+
+/** The views' labels and shortcut letters (Lite, Editor, Help). */
+export const VIEW_LABELS: readonly { view: EditorViewName; label: string; letter: string }[] = [
+  { view: 'lite', label: 'Lite', letter: 'l' },
+  { view: 'editor', label: 'Editor', letter: 'e' },
+  { view: 'help', label: 'Help', letter: 'h' },
+];
+
+/** The highlight styles' labels in the new look (whole words). */
+export const HL_STYLE_NAMES: Readonly<Record<HlStyle, string>> = {
+  underscore: 'Underscore',
+  blink: 'Blink',
+  reverse: 'Reverse',
+};
+
+/**
+ * The body line of a list row (two-line rows): the first non-blank line,
+ * with ` …` when more non-blank lines follow. The row cuts it with CSS.
+ */
+export function previewLine(kind: EntryKind, raw: string): string {
+  const lines = displayBody(kind, raw).replace(/\r\n?/g, '\n').split('\n');
+  let i = 0;
+  while (i < lines.length - 1 && lines[i]!.trim() === '') i++;
+  const first = lines[i]!;
+  return lines.slice(i + 1).some((l) => l.trim() !== '') ? `${first} …` : first;
+}
+
+/**
+ * The macro's key as the Key cell and the list's key chip show it:
+ * `F5`; `Press to bind…` when empty (`hint`); `Custom: \eOp` for a key
+ * the client does not know (`hint`, `custom`).
+ */
+export function keyLabel(pattern: string): { text: string; hint: boolean; custom: boolean } {
+  if (pattern === '') return { text: 'Press to bind…', hint: true, custom: false };
+  const c = normalizeKey(pattern);
+  if (!c) return { text: `Custom: ${pattern}`, hint: true, custom: true };
+  return { text: displayKey(c), hint: false, custom: false };
+}
+
+/** What the editor's quiet status says about the lite edits (ADR 0128). */
+export type SaveState = 'clean' | 'editing' | 'held';
+
+/**
+ * The status at the foot right: `All saved` (not live) or `All applied`
+ * (live) when nothing is left, `Editing` while an edit is not applied yet,
+ * `Not applied` while an apply held something back.
+ */
+export function statusText(state: SaveState, live: boolean): string {
+  if (state === 'held') return 'Not applied';
+  if (state === 'editing') return 'Editing';
+  return live ? 'All applied' : 'All saved';
+}
+
+/** The head's line in the game (ADR 0128): the connection, not the profile. */
+export function liveText(live: boolean): string {
+  return live ? 'Connected · changes apply to the game' : 'Not connected · changes are saved';
+}
+
+/** A section of the profile text, for the Editor view's rail. */
+export interface TextSection {
+  label: string;
+  /** 1-based line of the section's first line. */
+  line: number;
+  /** `kind`: the first line of a kind of setting; `note`: the profile's own `#nop` heading. */
+  type: 'kind' | 'note';
+}
+
+const SECTION_KIND: Readonly<Partial<Record<EntryKind, string>>> = {
+  variable: 'Variables',
+  action: 'Actions',
+  alias: 'Aliases',
+  highlight: 'Highlights',
+  macro: 'Macros',
+  substitute: 'Substitutes',
+};
+
+const SECTION_COMMAND: Readonly<Record<string, string>> = {
+  ticker: 'Timers & events',
+  delay: 'Timers & events',
+  event: 'Timers & events',
+  class: 'Classes',
+};
+
+/** The longest `#nop` heading label in the rail. */
+const NOTE_MAX = 40;
+
+/** A `#nop` comment's text as a heading: its braces and rule characters gone, cut to NOTE_MAX. */
+function noteLabel(text: string): string {
+  let t = text.replace(/^\s*#\w+\s*/, '').trim();
+  if (t.startsWith('{') && t.endsWith('}')) t = t.slice(1, -1).trim();
+  t = t.replace(/^[-=*#~_+\s]+/, '').replace(/[-=*#~_+\s]+$/, '');
+  return ellipsis(t.split(/\r?\n/)[0]!.trim(), NOTE_MAX);
+}
+
+/** The section label a node starts (a kind of setting), or null. */
+function sectionOf(n: DocNode): string | null {
+  if (n.type === 'entry') return SECTION_KIND[n.kind] ?? null;
+  if (n.type === 'passthrough' && n.command) return SECTION_COMMAND[n.command.name] ?? null;
+  return null;
+}
+
+/** `actions`, `Action`, `ACTIONS` all name `Actions`. */
+const sameName = (a: string, b: string): boolean => a.toLowerCase().replace(/s$/, '') === b.toLowerCase().replace(/s$/, '');
+
+/**
+ * The Editor view's rail (ADR 0128): the first line of each kind of
+ * setting the text holds (Variables, Actions, Aliases, Highlights, Macros,
+ * Substitutes, Timers & events, Classes) and the profile's own `#nop`
+ * headings (a comment that starts a paragraph: first in the text or after
+ * a blank line), in text order, with their line numbers. A heading that
+ * only names the kind starting right under it (`#nop ---- actions ----`
+ * over the first `#action`) is that kind's entry, at the heading's line.
+ */
+export function textSections(doc: ProfileDoc): TextSection[] {
+  const out: TextSection[] = [];
+  const seen = new Set<string>();
+  const nodes = doc.nodes;
+  let line = 1;
+  let prev: DocNode | null = null;
+  for (let k = 0; k < nodes.length; k++) {
+    const n = nodes[k]!;
+    const label = sectionOf(n);
+    if (label !== null && !seen.has(label)) {
+      seen.add(label);
+      out.push({ label, line, type: 'kind' });
+    } else if (n.type === 'comment' && (prev === null || prev.type === 'blank')) {
+      const t = noteLabel(n.text);
+      const under = nodes[k + 1] ? sectionOf(nodes[k + 1]!) : null;
+      if (under !== null && !seen.has(under) && sameName(t, under)) {
+        seen.add(under);
+        out.push({ label: under, line, type: 'kind' });
+      } else if (t) out.push({ label: t, line, type: 'note' });
+    }
+    for (let i = n.text.indexOf('\n'); i >= 0; i = n.text.indexOf('\n', i + 1)) line++;
+    prev = n;
+  }
+  return out;
+}
+
+/** The sample text of a highlight's "Shows as": its pattern without anchors, wildcards and arguments, or `text`. */
+export function showsAs(pattern: string): string {
+  const t = pattern
+    .replace(/^\^/, '')
+    .replace(/^\*+|\*+$/g, '')
+    .replace(/%[!+]?\d+/g, '…')
+    .trim();
+  return t || 'text';
+}
+
+/** The editor's layout by its own width (ADR 0128): rail | list | detail, the rail as a row, one column. */
+export type PeLayout = 'wide' | 'mid' | 'narrow';
+
+/** Above this width the rail stands at the left (B's grid). */
+export const PE_WIDE = 940;
+/** At or under this width one column; the entry opens as a sheet. */
+export const PE_NARROW = 640;
+
+/** The layout for a width in CSS px (the same thresholds as profile.css's container queries). */
+export function peLayout(width: number): PeLayout {
+  return width > PE_WIDE ? 'wide' : width > PE_NARROW ? 'mid' : 'narrow';
 }
