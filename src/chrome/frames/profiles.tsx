@@ -1,8 +1,11 @@
 // The Profile list (Inv §3.4; stage 41e, ADR 0125): the first sub-page in
 // the new look (src/chrome/kit/look.tsx), a lantern box under the smaller
 // wordmark with Back at its top left. Its sub-frames (the New / Rename
-// name prompt, Blank or Copy, the Delete confirm, the import report, the
-// profile editor) still open in the old look on the cell grid.
+// name prompt, Blank or Copy, the Delete confirm, the profile editor)
+// still open in the old look on the cell grid. Import pushes the import
+// page (stage 43c, import-page.tsx), which picks or takes dropped files
+// and shows the receipt; after its OK the list highlights the new profile
+// and flashes `Imported "x" from y.`.
 //
 //   [Back]                  ( Profiles )
 //     NAME ▲                                               CHANGED
@@ -50,8 +53,7 @@ import {
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { Box, GlassButton, type IconName, LookFlash, letterOf, lookFrame } from '../kit/look';
 import { editProfile } from './profile-edit';
-import { loadImportFiles } from './import-load';
-import { ImportReportFrame } from './import-report';
+import { ImportFrame } from './import-page';
 import { centreLeft } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
@@ -140,7 +142,6 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
   const [dir, setDir] = useState<1 | -1>(1);
   const [cursorName, setCursorName] = useState<string>(s.profile);
   const [stop, setStop] = useState<Stop>('ROW');
-  const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   /** Scroll the highlight into view after this move (keys, not the pointer: the list must not move under it). */
   const reveal = useRef(true);
@@ -240,33 +241,6 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
     }
   };
 
-  // IMPORT: one or more files (a foreign entry file and the files it
-  // `#read`s, or Mudlet archives) through the lazy import chunk (ADR 0073,
-  // ADR 0076), then the report.
-  const onFile = async (): Promise<void> => {
-    const input = fileRef.current;
-    const chosen = [...(input?.files ?? [])];
-    if (!input || chosen.length === 0) return;
-    input.value = '';
-    try {
-      const [importFiles, files] = await Promise.all([
-        loadImportFiles(),
-        Promise.all(chosen.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))),
-      ]);
-      const result = await importFiles(files);
-      const name = await profiles.importFile(result.entry, result.profileText);
-      settings.update({ profile: name });
-      await reload();
-      setCursorName(name);
-      setStop('ROW');
-      nav.push(
-        <ImportReportFrame result={result} name={name} onClose={() => nav.flash(`Imported "${name}" from ${result.entry}.`)} />,
-      );
-    } catch (e) {
-      nav.flash(`Import failed: ${errText(e)}`, 'fail');
-    }
-  };
-
   const press = (b: ButtonId): void => {
     if (disabled(b)) return;
     switch (b) {
@@ -287,8 +261,10 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
         return nav.push(<DeleteFrame name={curName} next={next} done={done} />);
       }
       case 'IMPORT':
-        fileRef.current?.click();
-        return;
+        // The import page (stage 43c): one or more files (a foreign entry
+        // file and the files it `#read`s, or Mudlet archives) through the
+        // lazy import chunk (ADR 0073, ADR 0076), then the receipt.
+        return nav.push(<ImportFrame done={done} />);
       case 'EXPORT':
         void exportCur();
         return;
@@ -424,7 +400,6 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
       </ul>
       <div class="wc-lk-btns wc-pl-btns">{PAGE_BUTTONS.map(button)}</div>
       <LookFlash />
-      <input ref={fileRef} type="file" multiple hidden class="wc-profile-file" onChange={() => void onFile()} />
     </Box>
   );
 });

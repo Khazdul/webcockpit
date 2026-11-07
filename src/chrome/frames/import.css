@@ -1,0 +1,481 @@
+/* The import page and its receipt (stage 43c, direction C "Importsidan",
+ * ADR 0128): import-page.tsx and import-report.tsx. Re-derived from the
+ * round 7 mockup (notes/research/start-menu-mockups/round7/profiles/
+ * import-c.html, imp.css `.imp-c`) in the kit's tokens; never copied.
+ * Prefix `wc-imp-`. Both frames lay themselves out by the box's own
+ * width (the `wc-page` container), never by the device. No
+ * `backdrop-filter` on any inner surface (the drop zone and the format
+ * cards are solid fills). */
+
+.wc-imp.wc-lk-box-normal {
+  width: min(780px, 100%);
+}
+
+/* ------------------------------------------------------------ the page */
+
+.wc-imp-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wc-imp-lead {
+  margin: 2px auto 16px;
+  max-width: 560px;
+  text-align: center;
+  font: italic 500 17px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-imp-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 170px;
+  padding: 22px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  text-align: center;
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in);
+  border: 1px dashed color-mix(in srgb, var(--lk-accent) 32%, transparent);
+  transition:
+    border-color calc(0.3s * var(--lk-ts)),
+    background-color calc(0.3s * var(--lk-ts));
+}
+
+.wc-imp-drop.is-over {
+  border-color: color-mix(in srgb, var(--lk-accent) 72%, transparent);
+  background-color: color-mix(in srgb, var(--lk-accent) 7%, transparent);
+}
+
+.wc-imp-drop .wc-imp-drop-ic {
+  width: 36px;
+  height: 36px;
+  color: var(--lk-dim);
+  stroke-width: 0.6;
+}
+
+.wc-imp-drop.is-over .wc-imp-drop-ic {
+  color: var(--lk-accent);
+}
+
+.wc-imp-drop-t {
+  margin: 0;
+  font: italic 500 18px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+/* A touch device has nothing to drop (the native picker opens from the button). */
+@media (hover: none) and (pointer: coarse) {
+  .wc-imp-drop-t {
+    display: none;
+  }
+}
+
+html.wc-phone .wc-imp-drop-t {
+  display: none;
+}
+
+.wc-imp-fmts {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.wc-imp-fmts > li {
+  padding: 12px 12px 11px;
+  border-radius: 6px;
+  background: var(--lk-row);
+  box-shadow: var(--lk-row-sh);
+}
+
+.wc-imp-fmts b {
+  display: block;
+  font: 700 13px/1 var(--lk-display);
+  letter-spacing: 0.12em;
+  color: var(--lk-head);
+}
+
+.wc-imp-fmts span {
+  display: block;
+  margin-top: 7px;
+  font: 400 11.5px/1.45 var(--lk-mono);
+  color: var(--lk-dim);
+}
+
+.wc-imp-fmts em {
+  display: block;
+  margin-top: 5px;
+  font: italic 500 14px/1.3 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-imp-err {
+  padding: 20px 10px 8px;
+  text-align: center;
+}
+
+.wc-imp-err p {
+  margin: 0 0 6px;
+  font: 500 18px/1.4 var(--lk-serif);
+  color: var(--lk-danger);
+  overflow-wrap: anywhere;
+}
+
+.wc-imp-err-files {
+  font: 400 13px/1.4 var(--lk-mono);
+  color: var(--lk-dim);
+  overflow-wrap: anywhere;
+}
+
+/* Reading: the files' names and a thin running bar, in the page's height. */
+.wc-imp-page.is-reading {
+  justify-content: center;
+}
+
+.wc-imp-reading {
+  padding: 34px 10px 26px;
+  text-align: center;
+}
+
+.wc-imp-reading p {
+  margin: 0 0 14px;
+  font: italic 500 18px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+  overflow-wrap: anywhere;
+}
+
+.wc-imp-bar {
+  width: min(320px, 80%);
+  height: 3px;
+  margin: 0 auto;
+  border-radius: 2px;
+  background: var(--lk-well);
+  overflow: hidden;
+}
+
+.wc-imp-bar > i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--lk-accent), transparent);
+  animation: wc-imp-run 1.1s linear infinite;
+}
+
+@keyframes wc-imp-run {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(260%); }
+}
+
+@keyframes wc-imp-pulse {
+  50% { opacity: 0.35; }
+}
+
+/* ------------------------------------------------------------ the receipt */
+
+.wc-imp-who {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.wc-imp-name {
+  font: 700 24px/1.05 var(--lk-display);
+  letter-spacing: 0.08em;
+  color: var(--lk-head);
+  overflow-wrap: anywhere;
+}
+
+.wc-imp-from {
+  font: italic 500 16.5px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-imp-from b,
+.wc-imp-mono {
+  font: 400 13px var(--lk-mono);
+  font-style: normal;
+  color: var(--lk-text);
+}
+
+.wc-imp-fmt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.wc-imp-f {
+  margin-right: 4px;
+  font: 700 12.5px/1 var(--lk-display);
+  letter-spacing: 0.16em;
+  color: var(--lk-on);
+}
+
+.wc-imp-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 11px;
+  font: italic 500 14px/1 var(--lk-serif);
+  color: var(--lk-dim);
+  background: var(--lk-well);
+  border: 1px solid var(--lk-well-edge);
+  white-space: nowrap;
+}
+
+.wc-imp-body {
+  margin-top: 12px;
+  padding-right: 6px;
+}
+
+.wc-imp-notes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.wc-imp-notes li {
+  position: relative;
+  padding-left: 20px;
+  font: 500 15.5px/1.35 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-imp-notes li::before {
+  content: "!";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  font: 700 13px/1.5 var(--lk-display);
+  color: var(--lk-accent);
+}
+
+.wc-imp-notes li.is-miss,
+.wc-imp-notes li.is-miss::before {
+  color: var(--lk-danger);
+}
+
+.wc-imp-notes li.is-miss::before {
+  content: "✕";
+  font-size: 11px;
+}
+
+.wc-imp-notes .wc-imp-mono {
+  font-size: 12.5px;
+  color: inherit;
+}
+
+.wc-imp-sum {
+  margin: 0 0 4px;
+  font: 500 18px/1.45 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-imp-sum b {
+  font-weight: 600;
+  color: var(--lk-head);
+}
+
+.wc-imp-acc {
+  margin-top: 10px;
+}
+
+.wc-imp-grp {
+  border-bottom: 1px solid var(--lk-rule);
+}
+
+.wc-imp-grp-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 11px 4px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: 600 12px/1 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-item);
+  transition: color calc(0.3s * var(--lk-ts));
+}
+
+.wc-imp-grp.is-sel > .wc-imp-grp-h {
+  color: var(--lk-on);
+}
+
+@media (hover: hover) {
+  .wc-imp-grp-h:hover {
+    color: var(--lk-on);
+  }
+}
+
+.wc-imp-chev {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin: 0 4px 0 2px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  opacity: 0.7;
+  transform: rotate(-45deg);
+  transition: transform calc(0.25s * var(--lk-ts));
+}
+
+.wc-imp-grp.is-open .wc-imp-chev {
+  transform: rotate(45deg);
+}
+
+.wc-imp-grp-n {
+  margin-left: auto;
+  font: 600 17px/1 var(--lk-serif);
+  letter-spacing: 0;
+  color: var(--lk-dim);
+}
+
+.wc-imp-grp-b {
+  padding: 0 4px 10px 26px;
+  animation: wc-imp-in calc(0.24s * var(--lk-ts)) ease-out;
+}
+
+@keyframes wc-imp-in {
+  from { opacity: 0; }
+}
+
+.wc-imp-it {
+  padding: 7px 0 8px;
+  border-bottom: 1px solid var(--lk-rule);
+}
+
+.wc-imp-it:last-child {
+  border-bottom: 0;
+}
+
+.wc-imp-at {
+  margin-right: 10px;
+  font: 400 12px/1.4 var(--lk-mono);
+  color: var(--lk-dim);
+  white-space: nowrap;
+}
+
+.wc-imp-why {
+  font: 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-imp-w {
+  color: var(--lk-accent);
+}
+
+.wc-imp-src {
+  display: block;
+  margin-top: 3px;
+  font: 400 12.5px/1.4 var(--lk-mono);
+  color: var(--lk-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-imp-fine {
+  margin: 0;
+  padding: 30px 10px;
+  text-align: center;
+  font: italic 500 18px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-imp-ok {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 6px 8px;
+  font: 500 18px/1.4 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-imp-ok .wc-imp-ok-ic {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  color: var(--lk-ok);
+  stroke-width: 0.85;
+}
+
+.wc-imp-ok-note {
+  display: block;
+  font: italic 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-imp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-imp-foot .wc-imp-flash {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+/* ------------------------------------------------------------ narrow (the box's own width) */
+
+@container wc-page (max-width: 600px) {
+  .wc-imp-fmts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wc-imp-drop {
+    min-height: 130px;
+  }
+
+  .wc-imp-lead {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .wc-imp-name {
+    font-size: 20px;
+  }
+
+  .wc-imp-grp-b {
+    padding-left: 12px;
+  }
+
+  .wc-imp-sum {
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-imp-bar > i {
+    width: 100%;
+    transform: none;
+    animation: wc-imp-pulse 1.6s ease-in-out infinite;
+  }
+
+  .wc-imp-chev {
+    transition: none;
+  }
+}
