@@ -3,12 +3,12 @@
  * (notes/research/start-menu-mockups/round6/logo-3.html: the menu panel,
  * the Profile page) in the Lykta family of the panes (ADR 0123). Free
  * layout in CSS px, not cells; the type is Cinzel (bundled, bold) and
- * Cormorant (bundled, src/theme/fonts.ts START_FACES).
+ * Cormorant (bundled, src/theme/fonts.ts START_FACES and LOOK_FACES).
  *
  * This file: the box, its places and pages, its slots, layout B's proxy
  * and the flash (package 42a, ADR 0127). The tokens are in
  * look-tokens.css, the glass buttons, Back, the icons and the shortcut
- * letters in look-glass.css (shared with the player, 42f). Stage 42-0
+ * letters in look-glass.css (whose rules the player's Back uses, 42f). Stage 42-0
  * split them out.
  *
  * Geometry: `--lk-box-m` (the large box's margin to the window edge; 6 px

@@ -167,13 +167,24 @@ export const TITLE_FACE: FontFaceFile & { file: string; notice: string } = {
  * Medium Italic for the quote and the dim italic notes, Cormorant SC
  * SemiBold for the quote's author. Latin subsets; they download only when
  * the start page shows text in them. Not in the exported replay. Each is
- * the family's only face, declared at the normal weight: CSS uses them
- * at `font-weight: normal` (the files are already Medium and SemiBold),
- * so no browser synthesises a bold.
+ * declared at the normal weight: CSS uses them at `font-weight: normal`
+ * (the files are already Medium and SemiBold), so no browser synthesises
+ * a bold.
  */
 export const START_FACES: readonly (FontFaceFile & { file: string })[] = [
   { family: 'Cormorant Garamond', weight: 'normal', style: 'italic', file: 'CormorantGaramond-MediumItalic-latin.woff2', text: 'Ag' },
   { family: 'Cormorant SC', weight: 'normal', file: 'CormorantSC-SemiBold-latin.woff2', text: 'Ag' },
+];
+
+/**
+ * Cormorant Garamond Medium, upright (stage 42, ADR 0127): the look
+ * pages' body text (`--lk-serif` rows, fields, the manuals). Without it
+ * the family's only face was the italic, so every upright serif text drew
+ * italic. Not preloaded: the start page's first paint shows no upright
+ * serif text, and a browser downloads it when a look page first does.
+ */
+export const LOOK_FACES: readonly (FontFaceFile & { file: string })[] = [
+  { family: 'Cormorant Garamond', weight: 'normal', file: 'CormorantGaramond-Medium-latin.woff2', text: 'Ag' },
 ];
 
 /** The code points of Agave-Bold.woff2 (its cmap; tests/unit/font-glyphs.test.ts). */
@@ -416,7 +427,7 @@ export function fontFiles(id: FontId): FontFaceFile[] {
 /** The @font-face rules of every family, each (family, weight) once. */
 export function allFontFaces(): FontFaceFile[] {
   const seen = new Set<string>();
-  const out: FontFaceFile[] = [TITLE_FACE, ...START_FACES];
+  const out: FontFaceFile[] = [TITLE_FACE, ...START_FACES, ...LOOK_FACES];
   for (const id of FONT_IDS) {
     for (const f of familyFaces(id)) {
       const key = `${f.family}|${f.weight}`;
