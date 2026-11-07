@@ -1,8 +1,8 @@
 # Stage 42 — The shared base for the look pages
 
-Status: **Next** (planned 2026-11-07; wave 1 of the broad pass, on the
-integration branch `stage-41-start-page`; nothing merged to main until the
-owner has tested the whole of stages 42–47).
+Status: **Built** (2026-11-07, 42-Z integrated on the branch
+`stage-41-start-page`; owner testing together with stages 43–47, nothing
+merged to main until then).
 
 ## Goal
 
@@ -858,11 +858,12 @@ stage's test plan.
       `LookManual`, `ManualContents`, `look-manual-find`; measurements; tests
 - [x] 42f: `fmtClock` hours, `back`, `bare`, `press`, `openPlayer` result,
       `embedPlayer`, `viewerControls`, `setPaletteTweak`; tests
-- [ ] 42-Z: merged; typecheck, lint, unit, e2e (Chromium, Firefox, phone),
-      build green; chunk sizes recorded; screenshots reviewed
-- [ ] ADR 0127 written (every package's part, the numbers)
-- [ ] spec §5 rows for stages 42–47
-- [ ] Owner test guide (below) checked against the build
+- [x] 42-Z: merged; typecheck, unit, e2e (Chromium, Firefox, phone),
+      build green (no lint script in the repo; one Firefox flake named in
+      the ADR); chunk sizes recorded; screenshots reviewed
+- [x] ADR 0127 written (every package's part, the numbers)
+- [x] spec §5 rows for stages 42–47
+- [x] Owner test guide (below) checked against the build
 - [ ] Owner feedback recorded in this file
 
 ## Test plan
@@ -905,23 +906,33 @@ toolbox for the next pages. On the branch: `npm run dev`, then:
    big box (the wordmark lifts away, the quote and the date fade); Back or
    Esc shrinks it back into the menu. Is the motion right (speed, the
    hood widening, the content fading in after)?
-2. In the gallery's **Box** tab: a box with a width cap (more sky on the
-   sides on a wide window), a tall box, and switching between two big
-   pages (the box stays, the content changes).
+2. In the gallery's **Box** tab: a box with a width cap (**Capped 1180**:
+   more sky on the sides on a wide window), a **Tall box**, and switching
+   between two big pages (**Large → large**, then `n`: the box stays, the
+   content changes). From the menu, `k` opens the gallery again.
 3. **Controls** and **Overlays**: buttons, toggles, fields, lists, tables,
-   pills, a dialog over the box, a popover. Also with a narrow window or a
-   phone. Do they look like the round 7 mockups?
+   pills, a dialog over the box, a popover. Controls has Sky / Window /
+   Paper at the top; Overlays a Paper switch for the inline dialog. Also
+   with a narrow window or a phone. Do they look like the round 7 mockups?
+   The body text is now upright Cormorant Garamond (before, all of it was
+   italic).
 4. **Windows**: the window frame (lantern), dark and Paper.
    Then in the game: open Profile and Scripts from the menu bar: today's
-   content in the new frame (the content changes in the next stages).
-5. **Code**: the code well in the new colours, Ctrl+F's find row, and the
-   manual (the profile manual and the script manual) as one long page.
+   content in the new frame (the content changes in the next stages). For
+   Paper in the game, pick a light **Background** in Settings. The title
+   now reads "Profile" with the profile's name as a dim note.
+5. **Code**: the code well in the new colours (Dark / Paper), Ctrl+F's
+   find row in the buffer, and the manual (Profile manual, Script manual)
+   as one long page with its contents and find.
 6. **The run log player** (History → a session → Run log): a Back button
    at the top left (it hides with the controls while playing); times over
    an hour read `1:34:07`.
 
 Feedback wanted: the grow / shrink motion and its speed, the window
 frame in the game (dark and Paper), and the open questions below.
+
+Screenshots of every gallery section, the windows and the player are not
+in the repository (gitignored); the session report lists where they are.
 
 ## Open questions for the owner (after testing)
 
@@ -932,6 +943,9 @@ The build follows the default until the owner answers.
    the terminal font.*
 2. **The grow motion** takes about 1.3 s before the page's content shows
    (the mockup's timing). *Default: as the mockup; shorten if it feels slow.*
+3. **The window title.** An in-game window's hood reads the page's name
+   ("Profile") with the profile's name as a dim italic note, instead of
+   "Profile: <name>". *Default: name and note, as the round 7 mockup.*
 
 ## ADR
 

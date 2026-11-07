@@ -1,6 +1,6 @@
 # 0127 — The look pages base
 
-- Status: Proposed (stage 42 in progress; each package fills its section)
+- Status: Accepted (stage 42 built and integrated; owner testing with stages 43–47)
 - Date: 2026-11-07
 - Related: stage 42 (`docs/stages/42-look-pages-base.md`), ADR 0103 (in-game
   windows), ADR 0123 (Lykta panes), ADR 0124 (start sky), ADR 0125 (start
@@ -47,8 +47,8 @@ evaluation.
 **CSS.** `look.css` keeps the box, its page and the flash and imports
 `look-tokens.css` (the `--lk-*` tokens) and `look-glass.css` (the icons'
 base rule, the glass buttons, Back and the shortcut letters, which import
-the tokens themselves, so the player can import `look-glass.css` alone,
-42f). The imports are inlined and deduplicated by the build (the tokens
+the tokens themselves, so a file can import `look-glass.css` alone; the
+player does not, see 42f). The imports are inlined and deduplicated by the build (the tokens
 appear once in the chrome CSS).
 
 **The `.wc-look` scope.** The tokens moved from `.wc-start` to `.wc-look`,
@@ -227,7 +227,7 @@ helpers `morphDone`, `morphProxy`, `openBoxDemo`, `boxLogs`
 **Files.** `look-controls.tsx` (the components), `look-controls.css` (their
 look; imported by the module, so it rides in the chrome chunk with the
 kit), `look-glass.css` (the glass buttons, Back, the icons' base rule and
-the shortcut letters; shared with the player), `look-tokens.css`,
+the shortcut letters; its rules also draw the player's Back), `look-tokens.css`,
 `look-icons.tsx`, and one added export in `src/start/wordmark-svg.ts`
 (`INLAY_TOKENS`). Re-derived from the round 7 base
 (`round7/base/base.css`, `gallery.html`) in the app's classes, never
@@ -887,8 +887,78 @@ gallery section). Helpers in `tests/e2e/look.ts`: `playerBack`,
 
 ### 42-Z — Integration
 
-(42-Z fills this: the merged result, the chunk sizes before and after, the
-bench numbers, the test hooks, the canonical names table as built.)
+All seven packages are merged on the integration branch
+(`stage-41-start-page`); 42-Z wired what was still waiting for another
+package and fixed what the merged whole showed.
+
+**Overlays and the morph.** `LookHost` told the morph stage that every
+frame that became the stack's top was a page change, so an overlay dialog
+(42c) over a box made the stage fade and hide the page under it (the
+gallery box vanished under its dialog: `look-kit-overlays.spec.ts:29`).
+The stack now exports `useIsOverlay()` and `LookHost` never reports an
+overlay frame as the top: the page keeps its box, nothing morphs, and the
+pop finds the page still the stage's top. The hold (42c) and the leave
+fade (42a) were already wired at the merge (`morphHold` through the
+surface's `hold`); nothing else was stubbed.
+
+**One look-frame mark.** `stack.tsx` exports `LOOK_MARK` and `look.tsx`
+imports it (it was the same string in both files); the stack still never
+imports the kit's barrel.
+
+**Upright Cormorant Garamond.** Only the Medium Italic was bundled, as the
+family's only face, so every upright `--lk-serif` text (rows, fields, kv
+values, the manuals' body, the wave-2 pages) drew italic. `LOOK_FACES` in
+`src/theme/fonts.ts` adds the upright Medium Latin subset
+(`CormorantGaramond-Medium-latin.woff2`, 23.3 kB, from
+`@fontsource/cormorant-garamond@5.3.0` like the italic; the same OFL
+notice). It is not preloaded: the start page's first paint shows only the
+italic, and a browser downloads the upright when a look page first shows
+upright serif text. The start page's look is unchanged (its quote, notes
+and pills ask for italic explicitly).
+
+**Places checked against 42d.** `Box` in place `window` draws no iron,
+hood or Back and gives the lit window the page padding (12 / 16 px) inside
+42d's window body, which only clears the hood; in place `menu` it fills
+`.wc-menu-page` (`.wc-lk-menu`, `position: absolute; inset: 0`) over 42d's
+opaque layer. The gallery's Windows section now uses a real `Box` in its
+look frames (42d had drawn plain content while `Box` was a stub).
+
+**Gallery.** The shell's stand-in tab rules are gone (the real `Tabs` look
+is 42b's); the Overlays section fits a phone-width box; a `Rule`'s title
+now wraps instead of pushing its control (a Seg, a toggle) out of a narrow
+box (a kit fix in `look-controls.css`). Every section was screenshotted at
+1440 × 900, 1280 × 720 and 390 × 844 (dark and Paper where the section has
+both), with the in-game Profile and Scripts windows (dark, Paper) and the
+run log player with Back; no other drift from the round 7 base was found.
+
+**Decisions on the packages' open points.**
+
+- *The morph's skipped vsyncs* (42a: 2–11 of ~80 frames 33 ms apart, no
+  long animation frame). Accepted and recorded, not changed now: the idle
+  menu itself skips about 1.5 frames a second on the same machine, the
+  profile with a proxy without blur, shadow and grain still skipped 0–6
+  (as built 2–6), and a lighter proxy changes the look mid-flight. Wave
+  3's performance pass measures it again on the built pages.
+- *The phone's fullscreen button* (`.wc-fs-btn`, top right) sits inside a
+  large or tall box's top-right padding, clear of its content: left as is.
+- *`player.css` without `look-glass.css`* (42f): confirmed. The player only
+  opens from the start page, whose chrome CSS holds the glass rules; the
+  replay bundle stays within its budget (below).
+- *The start chunk's +0.25 kB gzip* from the shell's player API (42f):
+  accepted (one shared loader; moving the run log mode into the lazy chunk
+  would split the refusal logic in two).
+- *The editor chunk budget* (42e: +8 kB gzip): read as JavaScript. With
+  `LookManual` imported (wave 2) the editor's JS grows +6.68 kB gzip and its
+  CSS +3.31 kB; the CSS loads in parallel with the JS and is cached with it.
+
+**Checks on the merged tip** (2026-11-07): `tsc --noEmit` clean; vitest
+212 files, 3 364 tests passed (2 skipped); Playwright, all three projects
+against one dev server: Chromium 391 passed, Firefox 389 passed and 1
+failed, phone 48 passed (1 skipped). The Firefox failure,
+`pane-gear.spec.ts:164` (a 30 s timeout under the full run's load), passed
+three times of three alone: a flake. No lint script exists in the repo.
+`npm run build` and `VITE_KIT=1 npm run build` both succeed; the normal
+build holds no gallery code.
 
 ## Measurements
 
@@ -963,6 +1033,27 @@ keystroke of "t" … "timer"):
 Before the chunked drawing the cold open was 58 ms (Chromium) and 65 ms
 (Firefox), with one 57–60 ms long task each time. Headless runs are not
 used: headless Firefox draws in software and its idle frames take 58 ms.
+
+**Stage 42 as integrated** (42-Z, all packages merged), against the stage
+41 tip, production build (`vite build`), raw / gzip:
+
+| Chunk | Stage 41 tip (`ed0a5922`) | Stage 42 integrated | Change (gzip) |
+|---|---|---|---|
+| start (`index-*.js`) | 21.77 / 8.18 kB | 22.47 / 8.45 kB | +0.27 kB (42f's shell API) |
+| chrome JS | 229.55 / 82.60 kB | 239.48 / 85.93 kB | +3.33 kB |
+| chrome CSS | 48.00 / 10.63 kB | 65.98 / 14.87 kB | +4.24 kB |
+| shared chunk (Preact, the stack, the kit's controls; `scripts-model-*` → `look-controls-*`) | 41.21 / 15.62 kB (at the 42-0 tip) | 52.88 / 19.95 kB JS, 16.10 / 3.66 kB CSS | +4.33 kB JS, +3.66 kB CSS (`look-controls.css` rides with the module) |
+| editor JS | 634.13 / 209.14 kB | 639.93 / 210.68 kB | +1.54 kB |
+| editor CSS | 6.61 / 1.61 kB | 11.97 / 3.07 kB | +1.46 kB |
+| player-host JS | 34.69 / 11.42 kB | 36.75 / 12.07 kB | +0.65 kB |
+| player-host CSS | 10.02 / 2.46 kB | 10.12 / 2.49 kB | +0.03 kB |
+| HTML replay bundle (`replay.js`, `gzip -9`) | 1319.53 kB / 453 855 B | 1321.75 kB / 454 263 B | +0.41 kB (budget 1.5) |
+| gallery | — | none | `VITE_KIT=1`: 34.30 / 13.47 kB JS, 5.16 / 1.62 kB CSS |
+| fonts | — | + `CormorantGaramond-Medium-latin.woff2` 23.3 kB | not preloaded |
+
+The chrome's first load (chrome + shared chunk, JS and CSS) grows by
+about 15.6 kB gzip over stage 41, most of it the controls' CSS and the
+overlays that wave 2's pages use; the start page's own chunk by 0.27 kB.
 
 ## Consequences
 
