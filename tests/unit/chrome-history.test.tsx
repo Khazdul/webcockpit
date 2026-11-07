@@ -486,7 +486,7 @@ describe('History frame', () => {
     const { host } = await openHistory(lib);
     await key('ArrowDown');
     await key('x');
-    expect(title(host)).toBe('─── Export Editor ───');
+    expect(frame(host).querySelector('.wc-exp')).not.toBeNull();
     await key('Escape');
     await until(() => hood(host) === 'History', 'History again');
     expect(curRow(host)).toMatch(/^Rasta/);

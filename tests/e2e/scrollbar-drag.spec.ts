@@ -243,7 +243,7 @@ test('About (start page): the TuiScrollbar drags its thumb; holding the track pa
   expect(errors).toEqual([]);
 });
 
-test('Export editor: the overview map thumb drags the log; the click that ends the drag does not jump', async ({ page }) => {
+test('Export editor: the overview strip thumb drags the log; the press that ends the drag does not jump', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1400, height: 820 });
   await pinDemoClock(page);
@@ -259,24 +259,27 @@ test('Export editor: the overview map thumb drags the log; the click that ends t
   await page.keyboard.press('Home');
   await page.keyboard.press('ArrowDown');
   await f.locator('[data-btn="EXPORT"]').click();
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Editor ───');
+  await expect(f.locator('.wc-exp')).toBeVisible();
   const log = f.locator('.wc-exp-log');
-  const thumb = f.locator('.wc-exp-map-thumb').first();
+  const thumb = f.locator('.wc-exp-thumb');
   await expect(thumb).toBeVisible();
   const box = (await thumb.boundingBox())!;
-  const m0 = await log.evaluate((el) => ({ top: el.scrollTop, max: el.scrollHeight - el.clientHeight, h: el.scrollHeight, c: el.clientHeight }));
+  const strip = (await f.locator('.wc-exp-map').boundingBox())!;
+  const m0 = await log.evaluate((el) => ({ top: el.scrollTop, max: el.scrollHeight - el.clientHeight, h: el.scrollHeight }));
   expect(m0.max).toBeGreaterThan(0);
-  const mapRows = await f.locator('.wc-exp-map-row').count();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 4 * box.height, { steps: 4 });
-  // Four map rows of `mapRows` cover about 4 / mapRows of the log.
-  const want = (4 / mapRows) * m0.h;
-  await expect.poll(() => scrollTop(log)).toBeGreaterThan(want * 0.7);
-  expect(await scrollTop(log)).toBeLessThan(want * 1.3 + box.height);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 60, { steps: 4 });
+  // 60 px of a strip of `strip.height` px cover about 60 / strip.height of the log.
+  const want = (60 / strip.height) * m0.h;
+  await expect.poll(() => scrollTop(log)).toBeGreaterThan(want * 0.8);
+  expect(await scrollTop(log)).toBeLessThan(want * 1.2);
   const before = await scrollTop(log);
   await page.mouse.up();
   await page.waitForTimeout(100);
   expect(await scrollTop(log)).toBe(before);
+  // A press on the strip below the thumb jumps there.
+  await page.mouse.click(strip.x + strip.width / 2, strip.y + strip.height - 4);
+  await expect.poll(() => scrollTop(log)).toBeGreaterThan(m0.max * 0.8);
   expect(errors).toEqual([]);
 });
