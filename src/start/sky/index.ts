@@ -81,6 +81,12 @@ export interface StartSkyHandle {
   onLook(cb: (look: SkyLook) => void): () => void;
   /** Stops all animation (hidden page, start page hidden, game entered). */
   setPaused(paused: boolean): void;
+  /**
+   * `calm`: every layer at its 30 Hz tier at most, rain and snow included
+   * (a large box covers most of the view, stage 42a); `full`: the tier's
+   * own rates (default).
+   */
+  setRate(rate: 'full' | 'calm'): void;
   dispose(): void;
   /** Frame statistics (bench, harness, the `?skyStats` readout). */
   stats(): StartSkyStats;
@@ -111,6 +117,14 @@ const TIERS: Readonly<Record<SkyQuality, Tier>> = {
   low: { dpr: 0.75, cloudQ: 0.3, starMs: 64, cloudMs: 64, precipMs: 32, starK: 0.5, particleK: 0.5, minFrame: 30, grain: false },
 };
 const NEXT_DOWN: Readonly<Record<SkyQuality, SkyQuality | null>> = { high: 'medium', medium: 'low', low: null };
+
+/** The calm rate (stage 42a, ADR 0127): least ms between repaints of every canvas behind a large box. */
+const CALM_MS = 32;
+
+/** A tier's repaint pace at the calm rate: no layer above ~30 Hz, rain and snow included. */
+export function calmTier<T extends Pick<Tier, 'starMs' | 'cloudMs' | 'precipMs'>>(t: T): T {
+  return { ...t, starMs: Math.max(t.starMs, CALM_MS), cloudMs: Math.max(t.cloudMs, CALM_MS), precipMs: Math.max(t.precipMs, CALM_MS) };
+}
 
 /** CSS gradients are rewritten at most this often (ms), unless time runs fast. */
 const CSS_EVERY = 500;
@@ -228,6 +242,9 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
   // ------------------------------------------------------------- state
   let quality: SkyQuality = pinned ?? 'high';
   let tier = TIERS[quality];
+  let rate: 'full' | 'calm' = 'full';
+  /** The repaint pace: the tier's, or capped at ~30 Hz while calm. */
+  let pace = tier;
   let W = 0;
   let H = 0;
   let dpr = 1;
@@ -297,6 +314,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
   function setQuality(q: SkyQuality): void {
     quality = q;
     tier = TIERS[q];
+    pace = rate === 'calm' ? calmTier(tier) : tier;
     root.dataset['skyQuality'] = q;
     W = 0; // force a resize of the canvases
     size();
@@ -334,11 +352,11 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     bodies.update(scene, dt, !still);
     const cloudy = clouds.visible(scene);
     const free = still || fast;
-    let bodiesDue = free || ms - bodiesAt >= (bodies.busy(scene) ? tier.starMs : 95) - 4;
-    let cloudsDue = cloudy && (free || ms - cloudsAt >= tier.cloudMs - 4 || precip.flash > 0.02);
+    let bodiesDue = free || ms - bodiesAt >= (bodies.busy(scene) ? pace.starMs : 95) - 4;
+    let cloudsDue = cloudy && (free || ms - cloudsAt >= pace.cloudMs - 4 || precip.flash > 0.02);
     if (bodiesDue && cloudsDue && !free) {
-      if (ms - bodiesAt > ms - cloudsAt) cloudsDue = ms - cloudsAt > tier.cloudMs * 2;
-      else bodiesDue = ms - bodiesAt > tier.starMs * 2;
+      if (ms - bodiesAt > ms - cloudsAt) cloudsDue = ms - cloudsAt > pace.cloudMs * 2;
+      else bodiesDue = ms - bodiesAt > pace.starMs * 2;
     }
     if (bodiesDue) {
       bodiesAt = ms;
@@ -360,7 +378,7 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
     }
     // rain, snow, lightning
     precipDt += dt;
-    if ((precip.active(scene) || precip.dirty || (!still && scene.weather.storm > 0.5)) && (free || ms - precipAt >= tier.precipMs - 4)) {
+    if ((precip.active(scene) || precip.dirty || (!still && scene.weather.storm > 0.5)) && (free || ms - precipAt >= pace.precipMs - 4)) {
       precipAt = ms;
       frontSize();
       precip.draw(fctx, scene, t, precipDt, par, still, tier.particleK);
@@ -565,6 +583,12 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       paused = p;
       if (p) stop();
       else start();
+    },
+    setRate(r) {
+      if (r === rate) return;
+      rate = r;
+      pace = r === 'calm' ? calmTier(tier) : tier;
+      root.dataset['skyRate'] = r;
     },
     dispose() {
       if (!disposed) teardown();

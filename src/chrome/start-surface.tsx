@@ -10,8 +10,16 @@
 // Keys, focus, Esc / Back and `show({ keep: true })` are the stack's, as
 // before. The top frame tells the surface what it needs around it
 // (`useScenery`): the full wordmark and the almanac (the menu), a smaller
-// wordmark (a sub-page's box), the wordmark in the corner (a large box),
-// or nothing (an old-look frame).
+// wordmark (a sub-page's box), nothing but the sky (a large box, layout B
+// "Rummet växer": the wordmark lifts away, the almanac and the quote
+// fade), or nothing at all (an old-look frame).
+//
+// Layout B (stage 42a, ADR 0127): the surface morphs from one box to the
+// next with an empty iron proxy (src/chrome/start-morph.ts, `MorphStage`);
+// every look frame is wrapped in a `LookHost` for it, the stack holds the
+// old frame while it fades (`hold`), and a large box that covers most of
+// the view calms the sky (`setRate('calm')`). A page may pause the sky
+// while an opaque surface of its own covers it (`useSkyPause`).
 //
 // The sky (ADR 0124) is two things here. Its smooth part, the CSS
 // gradients of the look model for the current game time, is on the sky's
@@ -32,7 +40,7 @@
 
 import type { ComponentChildren, JSX, VNode } from 'preact';
 import { createContext } from 'preact';
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { noticeIndicators } from '../app/notices';
 import { CLIENT_VERSION } from '../core/build-info';
 import { gameTimeAt } from '../gmcp/gametime';
@@ -44,10 +52,11 @@ import { pageSkyParams } from '../start/sky/params';
 import { startSkyLook } from '../start/start-look';
 import { Wordmark } from '../start/wordmark';
 import { GridCtx, useElementSize, useHostGrid, useNotices, useServices } from './kit/hooks';
-import { type Scenery, SceneryCtx, isLookFrame, useScenery } from './kit/look';
+import { MOTION, type Scenery, SceneryCtx, isLookFrame, reducedMotion, useScenery } from './kit/look';
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
-import { FrameStack } from './kit/stack';
+import { FrameStack, useIsTopFrame } from './kit/stack';
 import { almanacLines } from './start-layout';
+import { LookHost, MorphCtx, MorphStage } from './start-morph';
 import './start.css';
 
 // ------------------------------------------------------------------ sky
@@ -168,12 +177,44 @@ export function inkFor(luma: number, cur: boolean): boolean {
   return cur ? luma >= 0.46 : luma > 0.54;
 }
 
-function reducedMotion(): boolean {
+/** True while the calling frame is its stack's top frame (true outside a frame). */
+function useTopOrFree(): boolean {
   try {
-    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    return useIsTopFrame();
   } catch {
-    return false;
+    return true;
   }
+}
+
+// ------------------------------------------------------------ sky pause
+
+/** The surface's sky pause: a page registers while it covers the sky with an opaque surface of its own. */
+const SkyPauseCtx = createContext<(() => () => void) | null>(null);
+
+/**
+ * Pauses the sky fully while `on` and the calling frame is the top one
+ * (an opaque surface covers the box: the Spotlights viewer). No-op outside
+ * the start surface.
+ */
+export function useSkyPause(on: boolean): void {
+  const reg = useContext(SkyPauseCtx);
+  const top = useTopOrFree();
+  useEffect(() => {
+    if (!reg || !on || !top) return;
+    return reg();
+  }, [reg, on, top]);
+}
+
+/**
+ * The wordmark inside a page's content (About, Credits): it follows the
+ * sky's light as the start page's does; its sheen passes only while the
+ * frame is the top one. In a window or the ESC menu it keeps the start
+ * clock's still light.
+ */
+export function LookWordmark(p: { size: 'small' | 'full'; class?: string }): VNode {
+  const look = useSkyLook();
+  const top = useTopOrFree();
+  return <Wordmark look={look} size={p.size} run={top} class={'wc-lk-wordmark' + (p.class ? ' ' + p.class : '')} />;
 }
 
 /** The document's visibility (the sky and the wordmark stop while hidden). */
@@ -221,11 +262,57 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   const ref = useRef<HTMLDivElement>(null);
   const skyHost = useRef<HTMLDivElement>(null);
   const brandRef = useRef<HTMLDivElement>(null);
+  const proxyRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(ref);
   const g = useHostGrid(ref);
-  const [scenery, setScenery] = useState<Scenery>('main');
   const docHidden = useDocHidden();
   const feed = useMemo(() => new SkyFeed(), []);
+
+  // The scenery, and how the wordmark moves (layout B: it lifts from where
+  // it rests, the full mark or the sub-page's smaller one, and settles back
+  // with its own timing).
+  const [scenery, setSceneryNow] = useState<Scenery>('main');
+  const [liftSub, setLiftSub] = useState(false);
+  const [fromLarge, setFromLarge] = useState(false);
+  const sceneryNow = useRef<Scenery>('main');
+  const setScenery = useCallback((s: Scenery) => {
+    const was = sceneryNow.current;
+    if (s === was) return;
+    sceneryNow.current = s;
+    if (s === 'large') {
+      setLiftSub(was === 'sub');
+      setFromLarge(false);
+    } else if (was === 'large') setFromLarge(true);
+    setSceneryNow(s);
+  }, []);
+  useEffect(() => {
+    if (!fromLarge) return;
+    const c = MOTION.close;
+    const t = setTimeout(
+      () => setFromLarge(false),
+      Math.max(c.wordmark.delay + c.wordmark.ms, c.content.ms + c.box.ms + c.scenery.ms) + 60,
+    );
+    return () => clearTimeout(t);
+  }, [fromLarge]);
+
+  // Layout B's morph between boxes, and the sky's rate behind a large box.
+  const [calm, setCalm] = useState(false);
+  const stage = useMemo(
+    () => new MorphStage({ root: () => ref.current, proxy: () => proxyRef.current, onCalm: setCalm }),
+    [],
+  );
+  useEffect(() => () => stage.dispose(), [stage]);
+  useEffect(() => stage.resized(), [stage, size.w, size.h]);
+  const [pauses, setPauses] = useState(0);
+  const pauseSky = useCallback(() => {
+    setPauses((n) => n + 1);
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      setPauses((n) => n - 1);
+    };
+  }, []);
 
   // The engine's chunk, and the hold before it may mount.
   const [mod, setMod] = useState<SkyModule | null>(null);
@@ -292,8 +379,11 @@ export function StartSurface(p: StartSurfaceProps): VNode {
 
   const covered = scenery === 'grid';
   useEffect(() => {
-    sky.current?.setPaused(docHidden || covered);
-  }, [docHidden, covered, skyN]);
+    sky.current?.setPaused(docHidden || covered || pauses > 0);
+  }, [docHidden, covered, pauses, skyN]);
+  useEffect(() => {
+    sky.current?.setRate(calm ? 'calm' : 'full');
+  }, [calm, skyN]);
 
   // The wordmark's height, for the frames' layout (`--wc-brand-h`).
   useLayoutEffect(() => {
@@ -313,8 +403,12 @@ export function StartSurface(p: StartSurfaceProps): VNode {
   const gridSmall = g.cols > 0 && tooSmall(g.cols, g.rows);
   const paused = covered ? gridSmall : lookSmall;
   // The wordmark's sheen: not while hidden, covered, leaving (Enter MUME) or with reduced motion.
-  const run = p.visible && !docHidden && !covered && !p.leaving && !reducedMotion();
-  const wrap = (node: VNode): VNode => (isLookFrame(node) ? node : <GridFrame>{node}</GridFrame>);
+  const run = p.visible && !docHidden && !covered && scenery !== 'large' && !p.leaving && !reducedMotion();
+  const wrap = (node: VNode): VNode =>
+    isLookFrame(node) ? <LookHost>{node}</LookHost> : <GridFrame>{node}</GridFrame>;
+  // The stack holds the old frame while its content fades (42c); only between two look frames.
+  const hold = (from: VNode, to: VNode, dir: 'push' | 'pop'): number =>
+    isLookFrame(from) && isLookFrame(to) ? stage.hold(dir) : 0;
   // An old-look frame's element is the cell grid itself, as before.
   const screen = { left: g.left, top: g.top, width: g.cols * g.cellW, height: g.rows * g.cellH };
   const frameAttrs = (node: VNode): { class: string; style: JSX.CSSProperties } | null =>
@@ -324,6 +418,8 @@ export function StartSurface(p: StartSurfaceProps): VNode {
     <div
       class={
         `wc-chrome wc-start wc-look is-${scenery}` +
+        (liftSub ? ' is-lift-sub' : '') +
+        (fromLarge ? ' is-from-large' : '') +
         (lookSmall && !covered ? ' is-tiny' : '') +
         (gridSmall && covered ? ' is-grid-small' : '') +
         (p.leaving ? ' is-leaving' : '')
@@ -335,24 +431,30 @@ export function StartSurface(p: StartSurfaceProps): VNode {
       <SkyCtx.Provider value={feed}>
         <div class="wc-start-scenery" hidden={covered}>
           <div class="wc-start-brand" ref={brandRef}>
-            <StartWordmark size={scenery === 'large' ? 'small' : 'full'} run={run} place={scenery} />
+            <StartWordmark size="full" run={run} place={scenery} />
           </div>
-          {scenery !== 'large' && <Almanac run={p.visible && !covered && !docHidden} />}
+          <Almanac run={p.visible && !covered && !docHidden && scenery !== 'large'} />
         </div>
         {size.w > 0 && (
           <GridCtx.Provider value={{ cols: g.cols, rows: g.rows, surface: 'start' }}>
             <SceneryCtx.Provider value={setScenery}>
-              <FrameStack
-                key={p.epoch}
-                root={p.root}
-                active={p.visible && !p.leaving}
-                paused={paused}
-                wrap={wrap}
-                frameAttrs={frameAttrs}
-              />
+              <MorphCtx.Provider value={stage}>
+                <SkyPauseCtx.Provider value={pauseSky}>
+                  <FrameStack
+                    key={p.epoch}
+                    root={p.root}
+                    active={p.visible && !p.leaving}
+                    paused={paused}
+                    wrap={wrap}
+                    frameAttrs={frameAttrs}
+                    hold={hold}
+                  />
+                </SkyPauseCtx.Provider>
+              </MorphCtx.Provider>
             </SceneryCtx.Provider>
           </GridCtx.Provider>
         )}
+        <MorphProxy proxyRef={proxyRef} />
         {covered && g.cols > 0 && (
           <div class={'wc-screen wc-start-gridtop' + (gridSmall ? ' is-small' : '')} style={screen}>
             {gridSmall ? <TooSmall cols={g.cols} rows={g.rows} /> : <StartNotices cols={g.cols} />}
@@ -376,11 +478,31 @@ function StartWordmark(p: { size: 'full' | 'small'; run: boolean; place: string 
  * Marks an old-look frame: while it is the top frame the sky's scenery
  * goes (and the sky pauses). Its element is the cell grid (`frameAttrs`),
  * over the terminal background (start.css); the client notices and the
- * minimum-size notice (Inv §3.1) are drawn above it by the surface.
+ * minimum-size notice (Inv §3.1) are drawn above it by the surface. It
+ * never morphs (the morph stage knows it as `grid`).
  */
 function GridFrame(p: { children: ComponentChildren }): VNode {
   useScenery('grid');
-  return <>{p.children}</>;
+  return <LookHost grid>{p.children}</LookHost>;
+}
+
+/**
+ * Layout B's proxy (start.css `.wc-lk-morph`): an empty iron frame with its
+ * four brackets, the hood and the window glass, that carries the motion
+ * from one box's rectangle to the next (src/chrome/start-morph.ts). Idle,
+ * it is `hidden`.
+ */
+function MorphProxy(p: { proxyRef: { current: HTMLDivElement | null } }): VNode {
+  return (
+    <div class="wc-lk-morph" ref={p.proxyRef} hidden aria-hidden="true">
+      <i class="wc-lk-br wc-lk-b1" />
+      <i class="wc-lk-br wc-lk-b2" />
+      <i class="wc-lk-br wc-lk-b3" />
+      <i class="wc-lk-br wc-lk-b4" />
+      <div class="wc-lk-hood is-plain" />
+      <div class="wc-lk-mwin" />
+    </div>
+  );
 }
 
 // ------------------------------------------------------------- notices

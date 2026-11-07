@@ -32,7 +32,8 @@ export async function openStart(page: Page, query = ''): Promise<void> {
 export async function openKit(page: Page, section?: string): Promise<Locator> {
   await page.goto(section ? `/?kit=${encodeURIComponent(section)}` : '/?kit');
   const box = startTop(page).locator('.wc-lk-box.wc-kit');
-  await expect(box.locator('.wc-lk-hood-t')).toHaveText('Kit');
+  // The gallery's own hood (sections draw boxes of their own inside it).
+  await expect(box.locator(':scope > .wc-lk-hood > .wc-lk-hood-t')).toHaveText('Kit');
   if (section) await expect(box.locator(`.wc-lk-tab[data-tab="${section}"]`)).toHaveAttribute('aria-selected', 'true');
   return box;
 }
@@ -69,6 +70,35 @@ export async function reducedMotion(page: Page, on = true): Promise<void> {
 }
 
 // ------------------------------------------------------------ 42a (box, layout B, places)
+
+/**
+ * Waits until no layout B morph runs on the start surface: `data-lk-morph`
+ * gone and the proxy landed (a loaded headless Firefox advances its
+ * animations only as fast as it paints, slower than the timers).
+ */
+export async function morphDone(page: Page): Promise<void> {
+  await expect(page.locator('.wc-start')).not.toHaveAttribute('data-lk-morph', /./, { timeout: 5000 });
+  await expect(page.locator('.wc-lk-morph')).toBeHidden({ timeout: 5000 });
+}
+
+/** Layout B's proxy (the empty iron frame that carries a morph). */
+export const morphProxy = (page: Page): Locator => page.locator('.wc-lk-morph');
+
+/**
+ * Opens one of the kit gallery's Box demos (`large`, `capped`, `tall`,
+ * `normal`, `swap`) from its Box section and returns the demo's box.
+ */
+export async function openBoxDemo(page: Page, id: string): Promise<Locator> {
+  await kitSection(page, 'box').locator(`[data-btn="${id}"]`).click();
+  const box = startTop(page).locator('.wc-lk-box.wc-kb-demo');
+  await expect(box).toBeAttached();
+  return box;
+}
+
+/** The demo pages' logs (`window.__lkBoxLog`, gallery/box.tsx): sizes from the mount, settled time, keys. */
+export async function boxLogs(page: Page): Promise<{ title: string; sizes: [number, number][]; settledAt: number | null; keys: number }[]> {
+  return page.evaluate(() => (window as unknown as { __lkBoxLog?: never[] }).__lkBoxLog ?? []);
+}
 
 // ------------------------------------------------------------ 42b (controls, widgets, icons, tokens)
 
