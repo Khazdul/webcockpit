@@ -361,7 +361,8 @@ was dropped.
 - **Touch-size completion rows.** Under `pointer: coarse` the completion
   list's rows are 40 px (six visible, about the old ten rows' height),
   and the signature, lint and hover plates are capped at the viewport
-  less 40 px so they stay inside the phone's frame.
+  less 40 px. The pop-ups' room (`tooltipRoom`) is the box inset by 4 px,
+  so a plate CodeMirror pushes to the right edge stays off the border.
 
 ## Measurements
 
