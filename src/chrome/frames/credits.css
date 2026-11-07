@@ -330,14 +330,6 @@
   }
 }
 
-/* Coarse pointers: Back grows to 40 px (look-glass.css) and would reach
- * into the pills; the head starts below it. */
-@media (pointer: coarse) {
-  .wc-cred-head {
-    margin-top: 8px;
-  }
-}
-
 @container wc-page (max-width: 600px) {
   .wc-cred-head {
     justify-content: flex-start;

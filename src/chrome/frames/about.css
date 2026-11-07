@@ -13,11 +13,6 @@
   padding: 44px 0 0;
 }
 
-/* The phone: room under Back (40 px high on a coarse pointer) for the strip of pills. */
-html.wc-phone .wc-lk-box.wc-about > .wc-about-win {
-  padding: 52px 0 0;
-}
-
 .wc-about-grid {
   flex: 1 1 auto;
   min-height: 0;

@@ -420,14 +420,6 @@
   font-size: 13px;
 }
 
-/* A coarse pointer makes Back 40 px high: the head clears it (kit gap,
- * reported for wave 3: Back outgrows the window's top padding there). */
-@media (pointer: coarse) {
-  .wc-hist-win > .wc-hist-head {
-    margin-top: 10px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .wc-hist-card-in {
     animation-duration: 0.12s;

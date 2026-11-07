@@ -480,9 +480,3 @@
   }
 }
 
-/* Coarse pointers: the kit's Back grows to 40 px and would cover the name; the head steps down. */
-@media (pointer: coarse) {
-  .wc-hs > .wc-hs-head {
-    padding-top: 16px;
-  }
-}
