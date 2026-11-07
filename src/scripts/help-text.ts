@@ -257,13 +257,3 @@ export type HelpBlock = Block;
 export function helpBlocks(lines: readonly string[]): HelpBlock[] {
   return blocks(lines);
 }
-
-/**
- * Whether a table whose widest term is `termW` cells goes term over
- * description at `width` cells, as `typesetHelp` decides it (the term
- * column over 40 % of the width, or under 12 cells left for the text).
- */
-export function helpTableStacks(termW: number, width: number): boolean {
-  const descAt = BLOCK_INDENT + termW + TABLE_GAP;
-  return descAt > Math.max(8, width) * TERM_SHARE || Math.max(8, width) - descAt < 12;
-}

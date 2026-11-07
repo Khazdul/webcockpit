@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUNDLED_SCRIPTS } from '../../src/scripts/bundled';
 import { parseHeader } from '../../src/scripts/header';
-import { type HelpLine, helpBlocks, helpLineText, helpTableStacks, typesetHelp, wrapWords } from '../../src/scripts/help-text';
+import { type HelpLine, helpBlocks, helpLineText, typesetHelp, wrapWords } from '../../src/scripts/help-text';
 
 const text = (lines: HelpLine[]): string[] => lines.map(helpLineText);
 const roles = (l: HelpLine): string[] => l.filter((s) => s.role).map((s) => s.role!);
@@ -135,7 +135,8 @@ describe('helpBlocks (the Scripts page\'s DOM help, stage 44a)', () => {
           break;
         case 'table': {
           const termW = Math.max(...b.rows.map((r) => [...r.term].length));
-          const stacked = helpTableStacks(termW, w);
+          // typesetHelp's rule: the term column over 40 % of the width, or under 12 cells for the text.
+          const stacked = 2 + termW + 2 > w * 0.4 || w - (2 + termW + 2) < 12;
           for (const r of b.rows) {
             if (stacked) {
               out.push(...wrapWords(r.term, w - 2).map((l) => `  ${l}`));
@@ -170,12 +171,5 @@ describe('helpBlocks (the Scripts page\'s DOM help, stage 44a)', () => {
     expect(blocks[3]).toEqual({ kind: 'item', bullet: '•', text: 'two' });
     expect(blocks[6]).toEqual({ kind: 'table', rows: [{ term: 'cmd', desc: 'does it' }, { term: 'cmd2', desc: 'more' }] });
     expect(blocks[8]).toEqual({ kind: 'pre', lines: ['A line.   becomes: B'] });
-  });
-
-  it('stacks a table as typesetHelp does', () => {
-    expect(helpTableStacks(3, 40)).toBe(false);
-    expect(helpTableStacks(7, 20)).toBe(true);
-    // Under 12 cells left for the description.
-    expect(helpTableStacks(10, 30)).toBe(true);
   });
 });

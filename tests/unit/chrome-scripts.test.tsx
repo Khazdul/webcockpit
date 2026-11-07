@@ -6,20 +6,22 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AppStatusState, AppStatusView } from '../../src/app/status';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
+import { helpStacks } from '../../src/chrome/frames/scripts';
 import {
-  ALL_BUTTONS,
-  PAGE_BUTTONS,
-  PAGE_BUTTONS_W,
-  ROW_FIXED,
-  type Row,
-  detailRows,
-  helpLines,
-  listLines,
-  rowCells,
+  anyChanged,
+  clampSetting,
+  countText,
+  defaultText,
+  nextChoice,
+  noHelpText,
+  panelKeys,
+  panelProblems,
+  rowProblem,
   scriptState,
-  scriptsLayout,
+  shownValue,
   stepChoice,
   stepSetting,
+  typedNumber,
 } from '../../src/chrome/frames/scripts-model';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
@@ -40,8 +42,6 @@ const LOOTER = `-- @name     looter
 tempTrigger("x", function() end)
 `;
 
-const text = (r: Row): string => r.map((s) => s.text).join('');
-
 async function library(): Promise<ScriptLibrary> {
   const lib = new ScriptLibrary({ factory: null, bundled: [{ name: 'looter', source: LOOTER }] });
   await lib.init();
@@ -49,25 +49,6 @@ async function library(): Promise<ScriptLibrary> {
 }
 
 describe('scripts model', () => {
-  it('lays the package out: name column grows, the frame fills the width, dropped when narrow', () => {
-    const wide = scriptsLayout(200, ['a', 'looter']);
-    // The button row is wider than a short name's row.
-    expect(wide.listW).toBe(PAGE_BUTTONS_W);
-    expect(wide.nameW).toBe(PAGE_BUTTONS_W - ROW_FIXED);
-    expect(wide.buttons).toEqual(PAGE_BUTTONS);
-    // The package spans the grid less one cell each side (ADR 0115 §1).
-    expect(wide.at).toBe(1);
-    expect(wide.listW + 1 + wide.detailW).toBe(200 - 2);
-    const long = scriptsLayout(200, ['x'.repeat(40)]);
-    expect(long.nameW).toBe(32);
-    // The in-game window's least width (60) still has a frame.
-    expect(scriptsLayout(60, ['mercenaries']).detailW).toBe(60 - 2 - PAGE_BUTTONS_W - 1);
-    // A phone: the list alone, every button above it.
-    const phone = scriptsLayout(40, ['a'], true);
-    expect(phone.detailW).toBe(0);
-    expect(phone.buttons).toEqual(ALL_BUTTONS);
-  });
-
   it('steps numbers on the step grid inside the range, and choices', () => {
     const d = { name: 'n', type: 'number' as const, default: 25, label: '', min: 5, max: 60, step: 5 };
     expect(stepSetting(d, 25, 1)).toBe(30);
@@ -77,22 +58,34 @@ describe('scripts model', () => {
     expect(stepSetting(d, 5, -1)).toBe(5);
     expect(stepSetting({ ...d, min: undefined, max: undefined, step: 0.1 }, 0.2, 1)).toBe(0.3);
     expect(stepSetting({ name: 'h', type: 'number', default: 12, label: '', min: 0.5, max: 24 }, 0.5, 1)).toBe(1);
-    const c = { name: 'c', type: 'choice' as const, default: 10, label: '', options: [10, 20] };
+    expect(clampSetting(d, 99)).toBe(60);
+    expect(typedNumber(d, ' 7 ')).toBe(7);
+    expect(typedNumber(d, '99')).toBe(60);
+    expect(typedNumber(d, 'x')).toBeNull();
+    expect(typedNumber(d, '')).toBeNull();
+    const c = { name: 'c', type: 'choice' as const, default: 10, label: '', options: [10, 20], unit: 'silver' };
     expect(stepChoice(c, 10, 1)).toBe(20);
     expect(stepChoice(c, 20, 1)).toBe(20);
     expect(stepChoice(c, 20, -1)).toBe(10);
+    // Enter / Space take the next and wrap.
+    expect(nextChoice(c, 20)).toBe(10);
+    expect(defaultText(c)).toBe('default 10 silver');
+    expect(defaultText({ name: 'b', type: 'boolean', default: true, label: '' })).toBe('default on');
   });
 
-  it('states: off, running, failed, no host yet', async () => {
+  it('states: off, running, failed, at login, starting', async () => {
     const lib = await library();
     const s = lib.get('looter')!;
-    expect(scriptState(s, null)).toMatchObject({ glyph: '○', text: 'off', mark: ' ' });
+    expect(scriptState(s, null)).toMatchObject({ glyph: '○', text: 'off', cls: 'off', dot: 'off', mark: null });
     const on: ScriptInfo = { ...s, enabled: true };
-    expect(scriptState(on, true)).toMatchObject({ text: 'on · running', cls: 'wc-c-ok', mark: '●' });
-    expect(scriptState(on, null).text).toBe('on · runs when you enter MUME');
+    expect(scriptState(on, true)).toMatchObject({ text: 'on · running', cls: 'ok', dot: 'on', mark: 'ok', markTitle: 'Running' });
+    expect(scriptState(on, null)).toMatchObject({ text: 'on · at login', cls: 'ok', dot: 'wait', mark: null });
+    expect(scriptState(on, false).text).toBe('on · starting');
     expect(scriptState({ ...on, lastError: 'looter:3: boom' }, false)).toMatchObject({
       text: 'on · not running',
-      mark: '!',
+      cls: 'err',
+      dot: 'bad',
+      mark: 'err',
       markTitle: 'looter:3: boom',
     });
   });
@@ -100,86 +93,50 @@ describe('scripts model', () => {
   it('puts an error line under a script that failed', async () => {
     const lib = await library();
     await lib.create('mine', '-- @name mine\nx = 1\n');
-    const list = lib.list();
-    expect(listLines(list)).toEqual([
-      { kind: 'script', index: 0 },
-      { kind: 'script', index: 1 },
-      { kind: 'error', index: 1, text: 'Cannot load: the header needs "-- @api 1".' },
-    ]);
+    expect(lib.list().map((s) => rowProblem(s))).toEqual([null, 'Cannot load: the header needs "-- @api 1".']);
   });
 
   it('shows the page check\'s syntax error when nothing else is wrong', async () => {
     const lib = await library();
     await lib.create('broken', '-- @name broken\n-- @api 1\nx = = 1\n');
-    const list = lib.list();
     const syntax = (s: ScriptInfo) => (s.name === 'broken' ? "broken:3: unexpected symbol near '='" : null);
-    const i = list.findIndex((s) => s.name === 'broken');
-    expect(listLines(list, syntax).filter((l) => l.kind === 'error')).toEqual([
-      { kind: 'error', index: i, text: "Syntax error: broken:3: unexpected symbol near '='" },
-    ]);
-    const rows = detailRows({ s: lib.get('broken')!, running: null, syntax, width: 60, cursor: null, editing: null, helpOpen: true }).rows.map((r) => text(r.segs));
-    expect(rows).toContain("  Syntax error: broken:3: unexpected symbol near '='");
+    expect(rowProblem(lib.get('broken')!, syntax)).toBe("Syntax error: broken:3: unexpected symbol near '='");
+    expect(panelProblems(lib.get('broken')!, syntax)).toEqual([{ text: "Syntax error: broken:3: unexpected symbol near '='", kind: 'err' }]);
     // A load problem or last error comes first and alone.
     lib.setError('broken', 'broken:3: earlier');
-    expect(listLines(lib.list(), syntax).filter((l) => l.kind === 'error').map((l) => l.kind === 'error' && l.text)).toEqual(['broken:3: earlier']);
+    expect(rowProblem(lib.get('broken')!, syntax)).toBe('broken:3: earlier');
+    expect(panelProblems(lib.get('broken')!, syntax)).toEqual([{ text: 'Last error: broken:3: earlier', kind: 'err' }]);
   });
 
-  it('builds the detail: summary, status, settings as controls, commands, the help heading', async () => {
-    const lib = await library();
-    await lib.setSetting('looter', 'delay', '2');
-    const m = detailRows({ s: lib.get('looter')!, running: null, width: 60, cursor: 'set:delay', editing: null, helpOpen: true });
-    const rows = m.rows.map((r) => text(r.segs));
-    expect(rows[0]).toBe('Loots coins');
-    expect(rows[1]).toBe('○ off   bundled · read-only');
-    expect(rows[3]).toMatch(/^─ Settings ─+  RESET ALL $/);
-    expect(rows[3]!.length).toBe(60);
-    // The cursor marks delay; it differs from its default (*).
-    expect(rows[4]).toMatch(/^▸ delay\*  ◂   2 ▸ +Seconds before looting$/);
-    // The labels line up after the widest control.
-    expect(rows[4]!.indexOf('Seconds')).toBe(rows[5]!.indexOf('What to say'));
-    expect(rows[5]).toMatch(/^  greet   \[hello there +\]  What to say$/);
-    expect(rows).toContain('  cl  toggle on/off');
-    expect(rows).toContain('  F5  loot now');
-    expect(rows.at(-1)).toMatch(/^▾ Help ─+ PgUp\/PgDn$/);
-    expect(m.keys).toEqual(['buttons', 'reset', 'set:delay', 'set:greet', 'help']);
-    expect(m.changed).toBe(true);
-    for (const r of m.rows) expect(rowCells(r.segs)).toBeLessThanOrEqual(60);
-    // RESET ALL is a button, disabled when every value is its default.
-    const reset = m.rows[3]!.segs.find((sg) => sg.button);
-    expect(reset).toMatchObject({ hit: 'reset', button: { disabled: false, cursor: false } });
-    await lib.resetSettings('looter');
-    const fresh = detailRows({ s: lib.get('looter')!, running: null, width: 60, cursor: 'reset', editing: null, helpOpen: false });
-    expect(fresh.changed).toBe(false);
-    expect(fresh.rows[3]!.segs.find((sg) => sg.button)).toMatchObject({ button: { disabled: true, cursor: true } });
-    expect(text(fresh.rows.at(-1)!.segs)).toMatch(/^▸ Help ─+$/);
-  });
-
-  it('puts each label under its control when the frame is narrow', async () => {
-    const lib = await library();
-    const rows = detailRows({ s: lib.get('looter')!, running: null, width: 34, cursor: null, editing: { name: 'delay', text: '7' }, helpOpen: true }).rows;
-    const i = rows.findIndex((r) => r.key === 'set:delay');
-    expect(text(rows[i]!.segs)).toBe('  delay   ◂ 7 ▸');
-    expect(rows[i]!.segs.find((sg) => sg.field)).toMatchObject({ field: 3, text: '7' });
-    expect(text(rows[i + 1]!.segs)).toBe('    Seconds before looting');
-  });
-
-  it('typesets the help for the box, and says when there is none', async () => {
-    const lib = await library();
-    const help = helpLines(lib.get('looter')!, 40).map(text);
-    expect(help).toEqual(['First help line.', '', 'After a blank line.']);
-    await lib.create('bare', '-- @name bare\n-- @api 1\nx = 1\n');
-    expect(helpLines(lib.get('bare')!, 40).map(text).join(' ')).toContain('No help yet.');
-  });
-
-  it('shows load problems', async () => {
+  it('lists the panel\'s problems: load, last error, header lines', async () => {
     const lib = await library();
     await lib.create('bare', '-- @name bare\n-- @setting x bogus 1\nx = 1\n');
     lib.setError('bare', 'bare:3: oops');
-    const rows = detailRows({ s: lib.get('bare')!, running: false, width: 50, cursor: null, editing: null, helpOpen: true }).rows.map((r) => text(r.segs));
-    expect(rows).toContain('  Cannot load: the header needs "-- @api 1".');
-    expect(rows).toContain('  Last error: bare:3: oops');
-    expect(rows.some((r) => r.startsWith('  Header line 2:'))).toBe(true);
-    expect(rows).toContain('  No settings.');
+    const pr = panelProblems(lib.get('bare')!);
+    expect(pr.slice(0, 2)).toEqual([
+      { text: 'Cannot load: the header needs "-- @api 1".', kind: 'err' },
+      { text: 'Last error: bare:3: oops', kind: 'err' },
+    ]);
+    expect(pr.some((p) => p.kind === 'header' && p.text.startsWith('Header line 2:'))).toBe(true);
+  });
+
+  it('the panel\'s keyboard rows, changed values, the count and the help note', async () => {
+    const lib = await library();
+    const s = lib.get('looter')!;
+    expect(panelKeys(s)).toEqual(['buttons', 'reset', 'set:delay', 'set:greet', 'help']);
+    expect(anyChanged(s)).toBe(false);
+    expect(anyChanged(s, { delay: 2 })).toBe(true);
+    expect(shownValue(s, s.header.settings[0]!, { delay: 2 })).toBe(2);
+    await lib.setSetting('looter', 'delay', '2');
+    expect(anyChanged(lib.get('looter')!)).toBe(true);
+    await lib.create('bare', '-- @name bare\n-- @api 1\nx = 1\n');
+    expect(panelKeys(lib.get('bare')!)).toEqual(['buttons', 'help']);
+    expect(noHelpText(lib.get('bare')!)).toContain('No help yet.');
+    expect(noHelpText(s)).toBe('No help.');
+    const list = lib.list();
+    expect(countText(list, () => null)).toBe('2 scripts');
+    expect(countText(list, (n) => n === 'looter')).toBe('2 scripts · 1 running');
+    expect(countText([], () => null)).toBe('');
   });
 });
 
@@ -276,45 +233,125 @@ describe('Scripts page', () => {
     await lib.create('mine');
     const host = await openScripts(lib);
     const f = frame(host);
-    expect(f.querySelector('.wc-title-row')?.textContent).toBe('─── Scripts ───');
+    expect(f.querySelector('.wc-lk-hood-t')?.textContent).toBe('Scripts');
     const rows = [...f.querySelectorAll('.wc-scr-row')];
-    expect(rows.map((r) => r.getAttribute('data-script'))).toEqual(['looter', 'mine']);
-    expect(rows[0]!.querySelector('.wc-scr-lock')).not.toBeNull();
+    expect(rows.map((r) => r.getAttribute('data-name'))).toEqual(['looter', 'mine']);
+    expect(rows[0]!.querySelector('.wc-scr-lock')?.getAttribute('title')).toBe('Bundled with WebCockpit: read-only. Duplicate it to change it.');
     expect(rows[1]!.querySelector('.wc-scr-lock')).toBeNull();
-    expect(f.querySelector('.wc-scr-frame')?.textContent).toContain('Seconds before looting');
-    expect(f.querySelector('.wc-scr-frame')?.textContent).not.toContain('#script set');
-    // RENAME and DELETE are off for a bundled script.
+    expect(rows[0]!.classList.contains('is-on')).toBe(true);
+    const panel = f.querySelector('.wc-scr-panel')!;
+    expect(panel.querySelector('.wc-scr-title')?.textContent).toBe('looter');
+    expect(panel.querySelector('.wc-scr-status')?.textContent).toBe('off');
+    expect(panel.textContent).toContain('bundled · read-only');
+    expect(f.querySelector('.wc-scr-set[data-set="delay"]')?.textContent).toContain('Seconds before looting');
+    expect(f.textContent).not.toContain('#script set');
+    // The commands and the typeset help (its own column on a wide page).
+    expect(f.querySelector('.wc-scr-cmds')?.textContent).toContain('toggle on/off');
+    expect(f.querySelector('.wc-scr-helpcol .wc-scr-help')?.textContent).toBe('First help line.After a blank line.');
+    // Rename and Delete are off for a bundled script, with the reason.
     expect(f.querySelector('[data-btn="RENAME"]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(f.querySelector('[data-btn="RENAME"]')?.getAttribute('title')).toBe('Bundled scripts are read-only');
     expect(f.querySelector('[data-btn="EXPORT"]')?.getAttribute('aria-disabled')).toBeNull();
+    // The letters are marked in the labels; the foot counts the scripts.
+    expect(f.querySelector('[data-btn="EXPORT"] u.wc-sk')?.textContent).toBe('x');
+    expect(f.querySelector('.wc-scr-count')?.textContent).toBe('2 scripts');
   });
 
-  it('toggles with Enter on the cursor row and moves with the arrows', async () => {
+  it('toggles with Enter and Space on the cursor row and moves with the arrows', async () => {
     const lib = await library();
     await lib.create('mine');
     const host = await openScripts(lib);
     await key('ArrowDown');
-    expect(frame(host).querySelector('.wc-scr-name.is-cur')?.textContent?.trim()).toBe('mine');
+    expect(frame(host).querySelector('.wc-scr-row.is-on')?.getAttribute('data-name')).toBe('mine');
+    expect(frame(host).querySelector('.wc-scr-row.is-cur')?.getAttribute('data-name')).toBe('mine');
     await key('Enter');
     await flush();
     expect(lib.get('mine')!.enabled).toBe(true);
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('mine is on. It runs when you enter MUME.');
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('mine is on. It runs when you enter MUME.');
+    expect(frame(host).querySelector('.wc-scr-status')?.textContent).toBe('on · at login');
     await key(' ');
     await flush();
     expect(lib.get('mine')!.enabled).toBe(false);
-    // ↑ past the first script reaches the buttons; RENAME is enabled for a user script.
+    // ↓ on the last script reaches the foot's buttons; ↑ the index again.
+    await key('ArrowDown');
+    expect(frame(host).querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('NEW');
+    expect(frame(host).querySelector('.wc-scr-row.is-cur')).toBeNull();
+    await key('ArrowRight');
+    expect(frame(host).querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('IMPORT');
     await key('ArrowUp');
+    expect(frame(host).querySelector('.wc-scr-row.is-cur')?.getAttribute('data-name')).toBe('mine');
+    // → the panel: its first setting (none here: the button row, Edit).
+    await key('ArrowRight');
+    expect(frame(host).querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('EDIT');
+    // Esc back to the index; ↑ to looter, → its first setting.
+    await key('Escape');
     await key('ArrowUp');
-    expect(frame(host).querySelector('.wc-btn.is-sel-focus')?.textContent?.trim()).toBe('NEW');
+    await key('ArrowRight');
+    expect(frame(host).querySelector('.wc-scr-set.is-cur')?.getAttribute('data-set')).toBe('delay');
+    // → steps it (0.5 → 1.5, step 1), Enter types over it.
+    await key('ArrowRight');
+    await flush();
+    expect(lib.get('looter')!.settings.delay).toBe(1);
+    expect(frame(host).querySelector('.wc-scr-set[data-set="delay"] .wc-scr-chg')).not.toBeNull();
+    expect(frame(host).querySelector('.wc-scr-set[data-set="delay"] .wc-scr-def')?.textContent).toBe('default 0.5');
+    await key('4');
+    const input = frame(host).querySelector('input.wc-scr-input') as HTMLInputElement;
+    expect(input.value).toBe('4');
+    await key('Enter');
+    await flush();
+    expect(lib.get('looter')!.settings.delay).toBe(4);
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('delay = 4');
+    // ↑ Reset all, Enter: back to the defaults.
+    await key('ArrowUp');
+    expect(frame(host).querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn')).toBe('RESET');
+    await key('Enter');
+    await flush();
+    expect(lib.get('looter')!.settings.delay).toBe(0.5);
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('Reset delay to the default.');
   });
 
-  it('renames and deletes a user script with the prompts', async () => {
+  it('the letters press the buttons, not while a field is typed in', async () => {
+    const lib = await library();
+    await lib.create('mine');
+    const host = await openScripts(lib);
+    await key('ArrowDown');
+    await key('x');
+    await flush();
+    expect(document.querySelector('.wc-lk-dialog[data-dlg="export"]')).not.toBeNull();
+    await key('Escape');
+    await flush();
+    expect(document.querySelector('.wc-lk-dialog')).toBeNull();
+    // Rename's field holds the focus: a letter typed there is text.
+    await key('r');
+    await flush();
+    const input = document.querySelector('.wc-lk-dialog[data-dlg="rename"] input') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(document.activeElement).toBe(input);
+    await key('d');
+    await flush();
+    expect(document.querySelector('.wc-lk-dialog[data-dlg="delete"]')).toBeNull();
+  });
+
+  it('renames and deletes a user script with the dialogs', async () => {
     const lib = await library();
     await lib.create('mine');
     const host = await openScripts(lib);
     await key('ArrowDown');
     await act(() => (frame(host).querySelector('[data-btn="RENAME"]') as HTMLElement).click());
-    expect(frame(host).querySelector('.wc-title-row')?.textContent).toBe('─── Rename Script ───');
-    const input = frame(host).querySelector('input.wc-field') as HTMLInputElement;
+    await flush();
+    const dlg = document.querySelector('.wc-lk-dialog[data-dlg="rename"]')!;
+    expect(dlg.querySelector('.wc-lk-hood-t')?.textContent).toBe('Rename Script');
+    expect(dlg.textContent).toContain('A letter, then letters, digits, _ or -. At most 32.');
+    // The page stays drawn under the dialog.
+    expect(host.querySelector('.wc-frame[data-under] .wc-scr')).not.toBeNull();
+    const input = dlg.querySelector('input') as HTMLInputElement;
+    await act(() => {
+      input.value = '9bad';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await key('Enter');
+    await flush();
+    expect(dlg.querySelector('.wc-lk-dialog-err')?.textContent).toBe('The name must start with a letter.');
     await act(() => {
       input.value = 'yours';
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -322,15 +359,43 @@ describe('Scripts page', () => {
     await key('Enter');
     await flush();
     expect(lib.get('yours')?.source).toContain('-- @name     yours');
-    expect(frame(host).querySelector('.wc-scr-name.is-cur')?.textContent?.trim()).toBe('yours');
+    expect(document.querySelector('.wc-lk-dialog')).toBeNull();
+    expect(frame(host).querySelector('.wc-scr-row.is-on')?.getAttribute('data-name')).toBe('yours');
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('Renamed to yours.');
     await act(() => (frame(host).querySelector('[data-btn="DELETE"]') as HTMLElement).click());
-    expect(frame(host).textContent).toContain("Delete script 'yours'?  (y/N)");
+    await flush();
+    expect(document.querySelector('.wc-lk-dialog[data-dlg="delete"]')?.textContent).toContain('Delete script yours?');
+    // Any key but Y cancels.
     await key('n');
+    await flush();
     expect(lib.get('yours')).not.toBeNull();
+    expect(document.querySelector('.wc-lk-dialog')).toBeNull();
     await act(() => (frame(host).querySelector('[data-btn="DELETE"]') as HTMLElement).click());
+    await flush();
     await key('y');
     await flush();
     expect(lib.get('yours')).toBeNull();
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Deleted yours.');
+    expect(frame(host).querySelector('.wc-lk-flash')?.textContent).toBe('Deleted yours.');
+    // The cursor is on the neighbour, the keys on the index.
+    expect(frame(host).querySelector('.wc-scr-row.is-cur')?.getAttribute('data-name')).toBe('looter');
+  });
+
+  it('says so when this page has no script library', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const state: AppStatusState = { conn: 'playing', replay: false, character: '', linkMs: 38, linkSuspect: false, capture: '', xml: true };
+    const status: AppStatusView = { get: () => state, subscribe: () => () => {} };
+    const menu = mountEscMenu(host, services(), { status, close: () => {}, reconnect: () => {}, exit: () => {} });
+    cleanup.push(() => menu.dispose());
+    await act(() => menu.open({ target: 'scripts' }));
+    await flush();
+    expect(frame(host).querySelector('.wc-lk-hood-t')?.textContent).toBe('Scripts');
+    expect(frame(host).textContent).toContain('Scripts are not available here.');
+  });
+
+  it('stacks a help table when its terms take too much of the width', () => {
+    expect(helpStacks(18, 380)).toBe(false);
+    expect(helpStacks(18, 300)).toBe(true);
+    expect(helpStacks(4, 200)).toBe(true);
   });
 });

@@ -1,179 +1,837 @@
-/* Scripts page (scripts.tsx, ADR 0121): cell-grid sizes and --c-* tokens only. */
+/* The Scripts page (scripts.tsx; stage 44a, round 7 C "Instrumentbrädan")
+ * in the lantern look: the kit's `--lk-*` tokens, so the start box, a dark
+ * window and Paper share one rule set. The layout follows the content
+ * box's own width (container `wc-page`, look.css), never the viewport.
+ * No backdrop-filter on any surface here (ADR 0127). */
 
-.wc-scr-left,
-.wc-scr-right {
-  flex: 0 0 auto;
-  overflow: hidden;
+/* The page fills the box's lit window. */
+.wc-scr-win {
+  padding-bottom: 12px;
 }
 
-.wc-scr-name.is-off {
-  color: var(--c-body);
-}
-
-.wc-scr-name.is-off:hover {
-  color: var(--c-hover);
-}
-
-/* The selected script beside the frame: the panel fill, its name in the
- * title role, no selection band. */
-.wc-scr-fill {
-  background: var(--c-panel);
-}
-
-.wc-scr-row.is-sel .wc-scr-name.is-cur,
-.wc-scr-row.is-sel .wc-scr-name.is-cur:hover {
-  background: none;
-  color: var(--c-title);
-  font-weight: bold;
-}
-
-.wc-scr-cells {
-  display: inline-block;
-  height: var(--cell-h);
-  overflow: hidden;
-  vertical-align: top;
-}
-
-.wc-scr-gap {
-  display: inline-block;
-  width: var(--cell-w);
-}
-
-/* The padlock of a bundled script: one cell, the hint colour. */
-.wc-scr-lock {
-  display: inline-block;
-  width: var(--cell-w);
-  height: var(--cell-h);
-  vertical-align: top;
-  color: var(--c-body);
-}
-
-.wc-scr-lock svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.wc-scr-mark {
-  display: inline-block;
-  width: var(--cell-w);
-}
-
-.wc-scr-error,
-.wc-scr-blank {
-  display: inline-block;
-  height: var(--cell-h);
-  overflow: hidden;
-  vertical-align: top;
-}
-
-/* The list's scrollbar sits in the rows' scrollbar cell, over the rows. */
-.wc-scr-listwrap {
-  position: relative;
-  overflow: hidden;
-}
-
-.wc-scr-listbar {
-  position: absolute;
-  top: 0;
-}
-
-/* The detail frame's lines (not bold) and the help box's. */
-.wc-scr-line {
-  color: var(--c-section);
-}
-
-.wc-scr-box {
-  color: var(--c-hint);
-}
-
-.wc-scr-frame {
+.wc-scr {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-/* Inside the frame: one cell of padding each side. */
-.wc-scr-pad {
-  box-sizing: border-box;
-  padding: 0 var(--cell-w);
+/* ------------------------------------------------------------ the three columns */
+
+.wc-scr-main {
+  display: grid;
+  grid-template-columns: 228px minmax(0, 1fr) minmax(0, 1.05fr);
+  min-height: 0;
 }
 
-.wc-scr-drow {
+.wc-scr-idx,
+.wc-scr-panel,
+.wc-scr-helpcol {
+  min-height: 0;
+  min-width: 0;
+}
+
+.wc-scr-idx,
+.wc-scr-panel {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.wc-scr-idx {
+  padding: 0 12px 6px 0;
+  border-right: 1px solid var(--lk-rule);
+}
+
+.wc-scr-panel {
+  padding: 0 24px 10px;
+}
+
+.wc-scr-helpcol {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 6px 24px;
+  border-left: 1px solid var(--lk-rule);
+}
+
+/* "All scripts": only in the narrow drill-down. */
+.wc-scr-panel > .wc-lk-btn[data-btn="LIST"] {
+  display: none;
+}
+
+/* ------------------------------------------------------------ the index */
+
+.wc-scr-idx .wc-lk-rows.is-flat > .wc-scr-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-content: center;
+  column-gap: 8px;
+  row-gap: 1px;
+  min-height: 40px;
+  padding: 0 8px 0 10px;
+  border-bottom-color: color-mix(in srgb, var(--lk-rule) 70%, transparent);
+}
+
+.wc-scr-row.has-err {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* The row's switch alone (its state and label are the row's own). */
+.wc-scr-tog {
+  display: inline-flex;
+}
+
+.wc-scr-tog .wc-lk-toggle {
+  min-height: 0;
+  gap: 0;
+}
+
+.wc-scr-tog .wc-lk-tstate,
+.wc-scr-tog .wc-lk-tlabel,
+.wc-scr-set .wc-lk-tlabel {
+  display: none;
+}
+
+.wc-scr-tog .wc-lk-groove {
+  width: 32px;
+  height: 17px;
+}
+
+.wc-scr-tog .wc-lk-knob {
+  width: 11px;
+  height: 11px;
+}
+
+.wc-scr-tog .wc-lk-toggle.is-on .wc-lk-knob {
+  transform: translateX(15px);
+}
+
+.wc-scr-name {
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 13px/1.15 var(--lk-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.wc-scr-setting {
-  cursor: default;
+.wc-scr-row.is-off .wc-scr-name {
+  color: var(--lk-faint);
 }
 
-/* A run that does something when clicked (a control, a fold). */
-.wc-scr-hit {
-  cursor: pointer;
+.wc-scr-row.is-on .wc-scr-name {
+  color: var(--lk-on);
+  text-shadow: 0 0 8px var(--lk-on-glow);
 }
 
-.wc-scr-hit:hover {
-  color: var(--c-hover);
+.wc-scr-lock {
+  display: inline-flex;
+  justify-self: end;
+  color: var(--lk-dim);
+  opacity: 0.85;
 }
 
-.wc-scr-cursor {
-  color: var(--c-cursor);
-  font-weight: bold;
+.wc-scr-lock .wc-lk-ic {
+  width: 11px;
+  height: 14px;
 }
 
-.wc-scr-fold {
-  color: var(--c-section);
-  font-weight: bold;
+/* The row's mark: a lit dot when it runs, a "!" when it failed. */
+.wc-scr-mark {
+  justify-self: end;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
 
-.wc-scr-fold.is-cursor,
-.wc-scr-fold.is-cursor:hover {
-  color: var(--c-cursor);
+.wc-scr-mark.is-ok {
+  background: var(--lk-ok);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
-.wc-scr-arrow {
-  color: var(--c-title);
+.wc-scr-mark.is-err {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  font: normal 700 13px/1 var(--lk-display);
+  color: var(--lk-danger);
 }
 
-.wc-scr-arrow:hover {
-  color: var(--c-active);
+.wc-scr-mark.is-err::before {
+  content: "!";
 }
 
-/* `[ON|OFF]`: the active half inverted. */
-.wc-scr-sw-on,
-.wc-scr-sw-on:hover {
-  background: var(--c-ok);
-  color: var(--c-sel-fg);
-  font-weight: bold;
+.wc-scr-error {
+  grid-column: 2 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: italic 500 13.5px/1.3 var(--lk-serif);
+  color: var(--lk-danger);
+  text-shadow: none;
 }
 
-.wc-scr-sw-off,
-.wc-scr-sw-off:hover {
-  background: var(--c-off);
-  color: var(--c-active);
-  font-weight: bold;
-}
+/* ------------------------------------------------------------ the panel */
 
-/* The value being typed. */
-.wc-scr-input {
-  background: var(--term-bg);
+.wc-scr-titlerow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .wc-scr-title {
-  font-weight: bold;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font: 700 25px/1.1 var(--lk-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lk-head);
 }
 
-/* Scripts → IMPORT (and the help box): a box side, one cell wide. */
-.wc-scr-import-side {
-  flex: 0 0 auto;
-  width: var(--cell-w);
-  white-space: pre;
-  line-height: var(--cell-h);
+.wc-scr.is-panel .wc-scr-title {
+  color: var(--lk-on);
+}
+
+.wc-scr-summary {
+  margin: 4px 0 0;
+  font: italic 500 17px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-scr-stl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+}
+
+.wc-scr-status,
+.wc-scr-ro {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  font: italic 500 15.5px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-scr-status.is-ok {
+  color: var(--lk-ok);
+}
+
+.wc-scr-status.is-err {
+  color: var(--lk-danger);
+}
+
+.wc-scr-ro {
+  gap: 6px;
+  font-size: 15px;
+  color: var(--lk-faint);
+}
+
+.wc-scr-ro .wc-lk-ic {
+  width: 10px;
+  height: 12px;
+}
+
+.wc-scr-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.wc-scr-dot.is-on {
+  background: var(--lk-ok);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.wc-scr-dot.is-wait {
+  box-shadow: inset 0 0 0 1.5px var(--lk-ok);
+}
+
+.wc-scr-dot.is-off {
+  box-shadow: inset 0 0 0 1.5px var(--lk-faint);
+}
+
+.wc-scr-dot.is-bad {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  font: normal 700 13px/1 var(--lk-display);
+  color: var(--lk-danger);
+}
+
+.wc-scr-dot.is-bad::before {
+  content: "!";
+}
+
+.wc-scr-btns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  justify-content: start;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+
+.wc-scr-problem {
+  margin: 8px 0 0;
+  padding: 7px 12px;
+  border-radius: 4px;
+  font: 500 15.5px/1.35 var(--lk-serif);
+  color: var(--lk-danger);
+  overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--lk-danger) 9%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--lk-danger) 55%, transparent);
+}
+
+.wc-scr-none {
+  margin: 0;
+  padding: 2px 0;
+  font: italic 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-scr-idx > .wc-scr-none {
+  padding: 24px 6px;
+  font-size: 17px;
+}
+
+/* ------------------------------------------------------------ setting tiles */
+
+.wc-scr-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 10px;
+}
+
+.wc-scr-tiles > .wc-scr-none {
+  grid-column: 1 / -1;
+}
+
+.wc-scr-set {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: var(--lk-row);
+  box-shadow: var(--lk-row-sh);
+}
+
+.wc-scr-set.is-cur {
+  background: linear-gradient(180deg, rgba(255, 207, 143, 0.12), rgba(255, 207, 143, 0.04));
+}
+
+/* The keyboard's tile: the fine lit tick of its zone, as a row's. */
+.wc-scr-set.is-cur::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  width: 2px;
+  height: 16px;
+  border-radius: 1px;
+  background: var(--lk-sk-on);
+}
+
+.wc-scr-k {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 12px/1.2 var(--lk-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+  transition: color calc(0.3s * var(--lk-ts));
+}
+
+.wc-scr-set.is-cur .wc-scr-k {
+  color: var(--lk-on);
+  text-shadow: 0 0 8px var(--lk-on-glow);
+}
+
+/* Changed from the default: a small lit diamond. */
+.wc-scr-chg {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background: var(--lk-accent);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--lk-accent) 50%, transparent);
+}
+
+.wc-scr-lab {
+  min-width: 0;
+  font: 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-scr-set.is-cur .wc-scr-lab {
+  color: var(--lk-text);
+}
+
+.wc-scr-def {
+  display: block;
+  font: italic 500 14px/1.3 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+/* The controls. */
+.wc-scr-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.wc-scr-ctl-str {
+  width: 100%;
+}
+
+.wc-scr-unit {
+  font: italic 500 15.5px/1 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-scr-val,
+.wc-scr-str {
+  all: unset;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  border: 1px solid var(--lk-well-edge);
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+  color: var(--lk-text);
+  cursor: text;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-scr-val {
+  min-width: 46px;
+  justify-content: flex-end;
+  font: 600 17px/1 var(--lk-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-scr-str {
+  width: 100%;
+  height: 30px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 500 16.5px/1 var(--lk-serif);
+}
+
+.wc-scr-val:hover,
+.wc-scr-str:hover {
+  border-color: color-mix(in srgb, var(--lk-accent) 40%, transparent);
+}
+
+input.wc-scr-input {
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  border-color: color-mix(in srgb, var(--lk-accent) 60%, transparent);
+  box-shadow: var(--lk-well-in), 0 0 0 3px color-mix(in srgb, var(--lk-accent) 14%, transparent);
+}
+
+input.wc-scr-val {
+  width: 72px;
+  text-align: right;
+}
+
+.wc-scr-set .wc-lk-seg .wc-lk-opt {
+  font-variant-numeric: lining-nums;
+}
+
+/* ------------------------------------------------------------ commands */
+
+.wc-scr-cmds {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 7px 16px;
+  align-items: baseline;
+}
+
+.wc-scr-c {
+  font: 400 13px/1.4 var(--lk-mono);
+  color: var(--lk-text);
+  white-space: nowrap;
+}
+
+.wc-scr-c kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font: 600 12px/1.35 var(--lk-mono);
+  color: var(--lk-text);
+  border: 1px solid var(--lk-well-edge);
+  background: var(--lk-well);
+  box-shadow: 0 1px 0 var(--lk-well-lip);
+}
+
+.wc-scr-ct {
+  font: 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+@container wc-page (max-width: 460px) {
+  .wc-scr-cmds {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .wc-scr-ct {
+    margin-bottom: 6px;
+  }
+}
+
+/* ------------------------------------------------------------ the help */
+
+.wc-scr-helpwrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wc-scr-helpcol > .wc-scr-helpwrap {
+  flex: 1 1 auto;
+}
+
+.wc-scr-helprule {
+  margin-top: 18px;
+}
+
+.wc-scr-helpcol .wc-scr-helprule {
+  margin-top: 2px;
 }
 
 .wc-scr-help {
-  flex: 0 0 auto;
+  min-height: 0;
+  padding: 12px 16px 4px;
 }
 
-.wc-scrollrow > .wc-scr-gap {
-  flex: 0 0 auto;
+.wc-scr-helpcol .wc-scr-help {
+  flex: 1 1 auto;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px 6px;
+  background: radial-gradient(120% 60% at 50% 0, rgba(255, 214, 160, 0.06), transparent), var(--lk-well);
+}
+
+.wc-scr-helptext {
+  font: 500 17px/1.48 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-scr-helpcol .wc-scr-helptext {
+  font-size: 17.5px;
+}
+
+.wc-scr-helptext > :first-child {
+  margin-top: 0;
+}
+
+.wc-scr-helptext p {
+  margin: 0 0 10px;
+  max-width: 80ch;
+}
+
+.wc-scr-helptext h4 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 8px;
+  font: 600 12.5px/1.2 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-head);
+}
+
+.wc-scr-helptext h4::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--lk-rule), transparent);
+}
+
+.wc-scr-helptext ul {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  max-width: 72ch;
+}
+
+.wc-scr-helptext li {
+  position: relative;
+  margin: 0 0 4px;
+  padding-left: 18px;
+}
+
+.wc-scr-helptext li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+  border: 1px solid var(--lk-dim);
+}
+
+/* A term table: two columns, or each description under its term. */
+.wc-scr-t2 {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 18px;
+  align-items: baseline;
+  max-width: 96ch;
+  margin: 2px 0 12px 14px;
+}
+
+.wc-scr-t2 dt {
+  margin: 0;
+  font: 600 13.5px/1.45 var(--lk-display);
+  letter-spacing: 0.08em;
+  color: var(--lk-head);
+  white-space: nowrap;
+}
+
+.wc-scr-t2 dt.is-cmd {
+  font: 400 13px/1.5 var(--lk-mono);
+  letter-spacing: 0;
+  color: var(--lk-text);
+}
+
+.wc-scr-t2 dd {
+  margin: 0;
+  color: var(--lk-dim);
+}
+
+.wc-scr-t2.is-stacked {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-left: 4px;
+}
+
+.wc-scr-t2.is-stacked dt {
+  white-space: normal;
+}
+
+.wc-scr-t2.is-stacked dd {
+  margin: 0 0 8px 14px;
+}
+
+.wc-scr-helptext pre {
+  margin: 2px 0 12px 14px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  font: 400 12.5px/1.6 var(--lk-mono);
+  color: var(--lk-text);
+  border: 1px solid var(--lk-well-edge);
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in);
+}
+
+/* ------------------------------------------------------------ the foot */
+
+.wc-scr-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-scr-fbtns {
+  display: flex;
+  gap: 8px;
+}
+
+.wc-scr-flash {
+  flex: 1;
+  min-width: 0;
+}
+
+.wc-scr-count {
+  white-space: nowrap;
+  font: italic 500 15.5px/1 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+/* ------------------------------------------------------------ dialogs */
+
+.wc-scr-warn {
+  margin: 0 0 6px;
+  text-align: center;
+  font: 600 16px/1.35 var(--lk-serif);
+  color: var(--lk-danger);
+}
+
+.wc-scr-xfile {
+  font-size: 13px;
+}
+
+.wc-scr-gap {
+  margin-top: 10px;
+}
+
+.wc-scr-xrows {
+  margin: 4px 0 10px;
+}
+
+.wc-scr-xrows > .wc-lk-row {
+  justify-content: space-between;
+}
+
+.wc-scr-xtitle {
+  font: 600 14px/1.15 var(--lk-display);
+  letter-spacing: 0.08em;
+}
+
+.wc-scr-xnote {
+  font-style: italic;
+}
+
+/* The imported file's code, with its line numbers. */
+.wc-scr-code {
+  margin-top: 8px;
+  padding: 0;
+  display: flex;
+  min-height: 120px;
+}
+
+.wc-scr-codebox {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  max-height: 46vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.wc-scr-gut,
+.wc-scr-src {
+  margin: 0;
+  padding: 8px 10px;
+  font: inherit;
+  white-space: pre;
+}
+
+.wc-scr-gut {
+  position: sticky;
+  left: 0;
+  flex: none;
+  text-align: right;
+  color: var(--lk-faint);
+  border-right: 1px solid var(--lk-rule);
+  background: var(--lk-option-bg);
+  user-select: none;
+}
+
+.wc-scr-src {
+  flex: 1;
+  color: var(--lk-text);
+}
+
+/* ------------------------------------------------------------ Paper, phone */
+
+[data-light] .wc-look .wc-scr-set.is-cur,
+.wc-look[data-light] .wc-scr-set.is-cur {
+  background: #fff;
+}
+
+[data-light] .wc-look .wc-scr-chg,
+.wc-look[data-light] .wc-scr-chg {
+  box-shadow: none;
+}
+
+[data-light] .wc-look .wc-scr-helpcol .wc-scr-help,
+.wc-look[data-light] .wc-scr-helpcol .wc-scr-help {
+  background: var(--lk-well);
+}
+
+html.wc-phone .wc-scr-title {
+  font-size: 19px;
+}
+
+html.wc-phone .wc-scr-helptext {
+  font-size: 16.5px;
+}
+
+@media (pointer: coarse) {
+  .wc-scr-idx .wc-lk-rows.is-flat > .wc-scr-row {
+    min-height: 44px;
+  }
+
+  .wc-scr-val,
+  .wc-scr-str,
+  .wc-scr-tog .wc-lk-toggle {
+    min-height: 40px;
+  }
+}
+
+/* ------------------------------------------------------------ the widths (last: they override the rules above) */
+
+/* 641–1000 px: the index and the panel; the help under the panel. */
+@container wc-page (max-width: 1000px) {
+  .wc-scr-main {
+    grid-template-columns: 224px minmax(0, 1fr);
+  }
+}
+
+/* 640 px and under: the index alone; the panel is a step of its own. */
+@container wc-page (max-width: 640px) {
+  .wc-scr-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wc-scr-idx {
+    border-right: 0;
+    padding-right: 2px;
+  }
+
+  .wc-scr-panel {
+    display: none;
+    padding: 0 4px 10px 2px;
+  }
+
+  .wc-scr-main.is-drill > .wc-scr-idx {
+    display: none;
+  }
+
+  .wc-scr-main.is-drill > .wc-scr-panel {
+    display: block;
+  }
+
+  .wc-scr-panel > .wc-lk-btn[data-btn="LIST"] {
+    display: inline-flex;
+    margin-bottom: 10px;
+  }
+
+  .wc-scr-btns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wc-scr-count {
+    display: none;
+  }
 }
