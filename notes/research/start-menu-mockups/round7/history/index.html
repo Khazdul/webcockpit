@@ -1,0 +1,105 @@
+<title>Historik och spelare · runda 7</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<style>
+/* Round 7 review: History, the run log player and the HTML replay. Tabs over the live mockups (an iframe), one
+   Swedish note per tab and a row of state links. Layout: a slim switcher bar over a full-bleed frame. Dark on purpose. */
+:root {
+  --night: #0d1014; --iron: #1b2026; --rule: #2e353e; --text: #dfe3e8; --dim: #8d97a3; --lamp: #f0b45c;
+  --display: "Cinzel", Georgia, serif; --body: "Cormorant Garamond", Georgia, serif; --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--night); color: var(--text); font-family: var(--ui); display: flex; flex-direction: column; }
+header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--iron); border-bottom: 1px solid var(--rule);
+}
+h1 { font: 700 15px/1 var(--display); letter-spacing: .12em; margin: 0; color: var(--lamp); white-space: nowrap; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+nav .grp { font: 500 11px/1 var(--display); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; margin: 0 2px 0 8px; }
+nav .grp:first-child { margin-left: 0; }
+nav button {
+  font: 500 13.5px/1 var(--display); letter-spacing: .05em; color: var(--dim);
+  background: transparent; border: 1px solid var(--rule); border-radius: 3px; padding: 7px 10px; cursor: pointer;
+}
+nav button:hover { color: var(--text); }
+nav button[aria-selected="true"] { color: var(--night); background: var(--lamp); border-color: var(--lamp); }
+nav button:focus-visible, a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.info { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.note { flex: 1 1 420px; min-width: 0; margin: 0; font: italic 500 16.5px/1.3 var(--body); color: var(--dim); }
+.note b { font-style: normal; color: var(--text); font-weight: 500; }
+.states { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; }
+.states span { color: var(--dim); }
+.states a { color: var(--lamp); text-decoration: none; cursor: pointer; white-space: nowrap; }
+.states a:hover { text-decoration: underline; }
+.states a.on { color: var(--text); text-decoration: underline; }
+a.full { font-size: 13px; color: var(--lamp); white-space: nowrap; }
+main { flex: 1; min-height: 0; position: relative; }
+iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+@media (max-width: 700px) { nav .grp { flex-basis: 100%; margin: 4px 0 0; } .note { font-size: 15px; } }
+</style>
+
+<header>
+  <h1>Historik och spelare · runda 7</h1>
+  <nav role="tablist" id="tabs"></nav>
+  <div class="info">
+    <p class="note" id="note"></p>
+    <div class="states" id="states"></div>
+    <a class="full" id="full" target="_blank" rel="noopener">Öppna i helfönster ↗</a>
+  </div>
+</header>
+<main><iframe id="frame" title="Mockup"></iframe></main>
+
+<script>
+const DIRS = [
+  { grp: 'Historik' },
+  { id: 'ha', file: 'history-a.html', name: 'A · Tabell och kort', note: '<b>Historik A · Tabell och kort.</b> Layoutstudiens sida, förfinad: tabellen med sorterbara rubriker och karaktärspiller, den valda sessionen i ett kort till höger (nivå, längd, dåd, utgångsmätare) med de sex åtgärderna; Backup och Restore i foten. Stats öppnas i samma låda, Rate och Delete som små lådor ovanpå. Prova ←/→ (karaktär), ↑↓, T, A, D, och Enter (öppnar körloggen A).',
+    states: [['', 'Vanlig'], ['?do=stats', 'Stats'], ['?do=rate', 'Rate'], ['?do=delete', 'Delete'], ['?empty', 'Tom'], ['?error', 'Fel'], ['?restorefail', 'Restore fel (tryck O)'], ['?menu', 'Från startmenyn']] },
+  { id: 'hb', file: 'history-b.html', name: 'B · Krönikan', note: '<b>Historik B · Krönikan.</b> Sessionerna under dagrubriker, var och en med ett dygnsband som visar när på dygnet den spelades (korsar midnatt i två delar). Den valda raden öppnar sig på plats med sammanfattning och åtgärderna som en rad glasknappar. Karaktärer som flikar, ordning som en liten segmentrad; annan ordning än datum tar bort dagrubrikerna.',
+    states: [['', 'Vanlig'], ['?do=stats', 'Stats'], ['?do=rate', 'Rate'], ['?do=delete', 'Delete'], ['?empty', 'Tom'], ['?error', 'Fel']] },
+  { id: 'hc', file: 'history-c.html', name: 'C · Liggaren', note: '<b>Historik C · Liggaren.</b> Karaktärerna till vänster (nivå, antal sessioner, timmar, sparade) – att välja en är filtret. Sessionerna som kort i ett rutnät (datum, veckodag och tid, längd, dåd, en tunn linje som töms mot utgången), en gemensam åtgärdsrad i foten. Tab växlar mellan karaktärerna och korten; pilarna rör sig i rutnätet.',
+    states: [['', 'Vanlig'], ['?do=stats', 'Stats'], ['?do=delete', 'Delete'], ['?empty', 'Tom'], ['?error', 'Fel']] },
+  { grp: 'Körlogg' },
+  { id: 'pa', file: 'player-a.html', name: 'A · Ramen', note: '<b>Körlogg A · Ramen.</b> Spelaren i den stora lådan med himlen runt och ordmärket litet i hörnet. Spelets cockpit (text, karta, Timers, Group, Comm) i fönstret, den lodräta skenan med markörerna längs högerkanten och en nit i cyanstål som spelhuvud. Kontrollerna är en glasrad i lådans fot – aldrig över texten, så de behöver inte gömmas. Mellanslag, ←/→, 1–6, ↑↓ i paus, Esc tillbaka till Historik.',
+    states: [['', 'Spelar'], ['?paused', 'Paus'], ['?pop=panes&paused', 'Panes'], ['?pop=display&paused', 'Display'], ['?loading', 'Laddar'], ['?error', 'Fel'], ['?ended', 'Slut'], ['?pos=150', 'Vid 2:30']] },
+  { id: 'pb', file: 'player-b.html', name: 'B · Teatern', note: '<b>Körlogg B · Teatern.</b> Spelaren fyller fönstret som spelet (ingen himmel, ingen låda, inget ordmärke). En blank skylt hänger från överkanten med karaktär, körning och datum; Back uppe till vänster; kontrollerna i en liten Lykta-panel nere till höger som tonar bort 6 s efter senaste rörelse när den spelar (som i dag). Närmast dagens spelare.',
+    states: [['', 'Spelar'], ['?fasthide', 'Gömmer sig snabbt'], ['?paused', 'Paus'], ['?pop=display&paused', 'Display'], ['?loading', 'Laddar'], ['?error', 'Fel']] },
+  { id: 'pc', file: 'player-c.html', name: 'C · Tidslinjen', note: '<b>Körlogg C · Tidslinjen.</b> Stora lådan utan ordmärke (lådan ut mot kanterna). En vågrät tidslinje över hela foten: Run 1 och Run 2 som avsnitt, markörerna ovanför, en nit som spelhuvud; transporten i mitten under, hastigheten som en segmentrad (¼× till 8×). Lättast att träffa med tummen på telefonen.',
+    states: [['', 'Spelar'], ['?paused', 'Paus'], ['?pop=panes&paused', 'Panes'], ['?loading', 'Laddar'], ['?ended', 'Slut']] },
+  { grp: 'HTML-replay' },
+  { id: 'ra', file: 'replay-a.html', name: 'A · Under himlen', note: '<b>Replay A · Under himlen.</b> Den nedladdade filen med himlen bakom (ingen startmeny), ordmärket som tillverkarmärke, exporttiteln på ett titelkort innan den spelar, tidslinjen från körlogg C med anteckningarna som små romber. Under en antecknings paus visas den också som ett notkort (gula ##-raderna finns kvar i texten). Inget Back; F helskärm.',
+    states: [['', 'Titelkort'], ['?cover=0&pos=150.45', 'Notkort (vänta)'], ['?cover=0&paused', 'Paus'], ['?error', 'Trasig fil'], ['?loading&cover=0', 'Öppnar']] },
+  { id: 'rb', file: 'replay-b.html', name: 'B · Svart sal', note: '<b>Replay B · Svart sal.</b> Samma fil utan himmel: mindre och lugnare. Skylten från körlogg B med exporttiteln, Lykta-panelen, F helskärm, inget Back. Anteckningarna som gula ##-rader och ett notkort under pausen.',
+    states: [['', 'Spelar'], ['?pos=150.45', 'Notkort (vänta)'], ['?paused', 'Paus'], ['?error', 'Trasig fil']] },
+];
+const tabs = document.getElementById('tabs'), frame = document.getElementById('frame'), note = document.getElementById('note'), full = document.getElementById('full'), states = document.getElementById('states');
+let cur = null;
+function load(d, q) {
+  const src = d.file + (q || '');
+  frame.src = src; full.href = src;
+  for (const a of states.querySelectorAll('a')) a.classList.toggle('on', a.dataset.q === (q || ''));
+}
+function show(id) {
+  const d = DIRS.find((x) => x.id === id) || DIRS[1];
+  cur = d;
+  note.innerHTML = d.note;
+  states.innerHTML = '<span>Lägen:</span>' + d.states.map(([q, l]) => `<a data-q="${q}">${l}</a>`).join('');
+  states.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => load(d, a.dataset.q)));
+  load(d, '');
+  for (const b of tabs.querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.id === d.id));
+  if (location.hash.slice(1) !== d.id) history.replaceState(null, '', '#' + d.id);
+  frame.focus();
+}
+for (const d of DIRS) {
+  if (d.grp) { const s = document.createElement('span'); s.className = 'grp'; s.textContent = d.grp; tabs.append(s); continue; }
+  const b = document.createElement('button');
+  b.role = 'tab'; b.dataset.id = d.id; b.textContent = d.name;
+  b.onclick = () => show(d.id);
+  tabs.append(b);
+}
+addEventListener('hashchange', () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+</script>

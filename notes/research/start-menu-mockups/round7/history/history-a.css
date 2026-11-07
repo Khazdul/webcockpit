@@ -1,0 +1,73 @@
+/* Round 7 · History · A "Tabell och kort" (from layout/history.css, refined). */
+.hist { --hist-cols: minmax(110px, 1fr) 112px 64px 76px 96px 100px; }
+.hist-head { display: flex; justify-content: center; margin-bottom: 16px; }
+.hist-sort { display: none; width: auto; }
+.hist-main { flex: 1; min-height: 0; display: flex; justify-content: center; gap: 26px; }
+.hist-tablewrap { flex: 0 1 800px; min-width: 0; display: flex; flex-direction: column; }
+.hist-tbl { --cols: var(--hist-cols); }
+.hist-tablewrap > .hist-tbl .th-row { padding-right: 26px; border-bottom: 1px solid var(--c-rule); margin: 0 0 2px; }
+.hist-body { padding-right: 0; }
+.hist-rows .row { min-height: 41px; padding: 0 18px; }
+.hist-rows .row:last-child { border-bottom: 0; }
+.hist-rows .h-date, .hist-rows .h-time, .hist-rows .h-dur { font: 500 17px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
+.h-char { font: 700 15.5px/1 var(--display); letter-spacing: .08em; }
+.h-exp { font: 500 16px/1 var(--serif); }
+.h-exp.gold { font-weight: 600; }
+.h-rate { font-size: 14px; }
+.hist-rows .empty { padding: 70px 16px; }
+.hist-card { flex: 0 0 290px; align-self: flex-start; max-height: 100%; overflow: auto; scrollbar-width: thin; padding: 20px 20px 18px; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh); }
+.hc-name { font: 700 24px/1 var(--display); letter-spacing: .08em; color: var(--c-head); }
+.hc-name small { display: block; margin-top: 7px; font: 600 10px/1 var(--display); letter-spacing: .24em; color: var(--c-dim); text-transform: uppercase; }
+.hc-when { font: italic 500 17px/1.3 var(--serif); color: var(--c-dim); margin: 12px 0 14px; }
+.hc-kv { margin: 0 0 18px; }
+.hc-acts .ibtn { width: 100%; }
+.hc-empty { padding: 24px 6px; font-size: 17px; }
+.hist-foot { display: flex; align-items: center; gap: 16px; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--c-rule); }
+.hist-flash { flex: 1; text-align: center; }
+.hist-storage { font: 400 11.5px/1 var(--mono); color: var(--c-faint); white-space: nowrap; }
+
+@media (max-height: 780px) and (min-width: 761px) {
+  .hist-card { padding: 14px 16px 12px; }
+  .hc-name { font-size: 21px; }
+  .hc-when { margin: 8px 0 10px; font-size: 16px; }
+  .hc-kv { gap: 3px 14px; margin-bottom: 12px; }
+  .hc-acts { gap: 6px; }
+  .hc-acts .ibtn { height: 29px; }
+  .hist-head { margin-bottom: 10px; }
+}
+@media (max-width: 1100px) { .hist-card { flex-basis: 250px; } .hist { --hist-cols: minmax(84px, 1.2fr) 104px 56px 68px 84px 90px; } }
+@media (max-width: 760px) {
+  .hist-head { flex-direction: column; align-items: stretch; gap: 8px; margin-bottom: 10px; }
+  .hist-pills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .hist-pills button { padding: 0 11px; }
+  .hist-sort { display: block; height: 32px; font-size: 15.5px; }
+  .hist-tablewrap > .hist-tbl { display: none; }
+  .hist-main { display: flex; }
+  .hist-tablewrap { flex: 1 1 auto; }
+  .hist-rows .row { display: grid; grid-template-columns: auto auto auto 1fr auto; gap: 5px 10px; padding: 9px 10px; min-height: 0; }
+  .hist-rows .h-char { grid-column: 1 / 5; grid-row: 1; }
+  .hist-rows .h-exp { grid-column: 5; grid-row: 1; font-size: 15px; }
+  .hist-rows .h-date { grid-column: 1; grid-row: 2; }
+  .hist-rows .h-time { grid-column: 2; grid-row: 2; }
+  .hist-rows .h-dur { grid-column: 3; grid-row: 2; }
+  .hist-rows .h-rate { grid-column: 5; grid-row: 2; font-size: 12.5px; }
+  .hist-rows .h-date, .hist-rows .h-time, .hist-rows .h-dur { font-size: 15px; }
+  .hist-card { margin: 2px 0 10px; padding: 14px 12px 12px; max-height: none; overflow: visible; flex: none; }
+  .hc-name { font-size: 19px; }
+  .hc-when { font-size: 15.5px; margin: 8px 0 10px; }
+  .hc-kv { gap: 4px 12px; margin-bottom: 12px; }
+  .hc-kv dd { font-size: 15px; }
+  .hc-acts { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .hc-acts .ibtn { width: auto; flex: 1 1 30%; justify-content: center; }
+  .hist-foot { flex-wrap: wrap; gap: 8px 12px; padding-top: 10px; }
+  .hist-flash { order: 3; flex-basis: 100%; min-height: 0; }
+  .hist-storage { margin-left: auto; font-size: 10.5px; }
+}
+
+/* refinements (round 7 history group) */
+.hist-head { gap: 14px; }
+.h-exp.soon { color: #e8a65e; }
+.hc-gauge { display: block; height: 3px; margin-top: 6px; border-radius: 2px; background: var(--well); box-shadow: var(--well-in); overflow: hidden; }
+.hc-gauge b { display: block; height: 100%; background: linear-gradient(90deg, #b07a3a, #e9c47c); }
+.hc-pk { color: #e0915a; } .hc-dead { color: #e06c6c; }
+.hist-card .kv dd { font-variant-numeric: lining-nums; }
