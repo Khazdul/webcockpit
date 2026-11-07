@@ -776,6 +776,16 @@ html.wc-phone .wc-lk-tbl.is-scroll > .wc-lk-throw {
   padding-top: 8px;
 }
 
+/* A fold with an aside: the heading spans the row, the aside at its right end. */
+.wc-lk-fold.has-aside > .wc-lk-fold-h {
+  display: flex;
+  width: 100%;
+}
+
+.wc-lk-fold-a {
+  margin-left: auto;
+}
+
 /* A well: sunk and solid (never blurred). */
 .wc-lk-well {
   padding: 8px 12px;

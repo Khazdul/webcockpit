@@ -617,11 +617,24 @@ export function OrnRule(): VNode {
   return <div class="wc-lk-orn" role="separator" aria-hidden="true" />;
 }
 
-/** A fold: a heading (small caps, a chevron) that opens and closes its content. */
-export function Fold(p: { open: boolean; onToggle(): void; label: string; class?: string; children?: ComponentChildren }): VNode {
+/**
+ * A fold: a heading (small caps, a chevron) that opens and closes its
+ * content. `aside` sits at the heading's right end (a count; the heading
+ * then spans the row); `id` names it as `data-fold`.
+ */
+export function Fold(p: {
+  open: boolean;
+  onToggle(): void;
+  label: string;
+  aside?: ComponentChildren;
+  id?: string;
+  class?: string;
+  children?: ComponentChildren;
+}): VNode {
   const bodyId = useId();
+  const aside = p.aside !== undefined && p.aside !== null && p.aside !== false;
   return (
-    <div class={cx('wc-lk-fold', p.open && 'is-open', p.class)}>
+    <div class={cx('wc-lk-fold', p.open && 'is-open', aside && 'has-aside', p.class)} data-fold={p.id}>
       <button
         type="button"
         class="wc-lk-fold-h"
@@ -636,6 +649,7 @@ export function Fold(p: { open: boolean; onToggle(): void; label: string; class?
       >
         <Icon name="fold" />
         <span>{p.label}</span>
+        {aside && <span class="wc-lk-fold-a">{p.aside}</span>}
       </button>
       {p.open && (
         <div class="wc-lk-fold-b" id={bodyId}>

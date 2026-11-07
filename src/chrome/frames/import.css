@@ -308,58 +308,34 @@ html.wc-phone .wc-imp-drop-t {
   border-bottom: 1px solid var(--lk-rule);
 }
 
-.wc-imp-grp-h {
-  display: flex;
-  align-items: center;
+/* The groups are the kit's folds with the count as their aside (stage 43
+ * wave 3): a full-width head in the receipt's size, a body under it. */
+.wc-imp-grp > .wc-lk-fold-h {
   gap: 10px;
-  width: 100%;
-  margin: 0;
   padding: 11px 4px;
-  border: 0;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  font: 600 12px/1 var(--lk-display);
+  font-size: 12px;
   letter-spacing: 0.2em;
-  text-transform: uppercase;
   color: var(--lk-item);
   transition: color calc(0.3s * var(--lk-ts));
 }
 
-.wc-imp-grp.is-sel > .wc-imp-grp-h {
+.wc-imp-grp.is-sel > .wc-lk-fold-h {
   color: var(--lk-on);
 }
 
 @media (hover: hover) {
-  .wc-imp-grp-h:hover {
+  .wc-imp-grp > .wc-lk-fold-h:hover {
     color: var(--lk-on);
   }
 }
 
-.wc-imp-chev {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  margin: 0 4px 0 2px;
-  border: solid currentColor;
-  border-width: 0 1.5px 1.5px 0;
-  opacity: 0.7;
-  transform: rotate(-45deg);
-  transition: transform calc(0.25s * var(--lk-ts));
-}
-
-.wc-imp-grp.is-open .wc-imp-chev {
-  transform: rotate(45deg);
-}
-
 .wc-imp-grp-n {
-  margin-left: auto;
   font: 600 17px/1 var(--lk-serif);
   letter-spacing: 0;
   color: var(--lk-dim);
 }
 
-.wc-imp-grp-b {
+.wc-imp-grp > .wc-lk-fold-b {
   padding: 0 4px 10px 26px;
   animation: wc-imp-in calc(0.24s * var(--lk-ts)) ease-out;
 }
@@ -458,7 +434,7 @@ html.wc-phone .wc-imp-drop-t {
     justify-content: center;
   }
 
-  .wc-imp-grp-h {
+  .wc-imp-grp > .wc-lk-fold-h {
     min-height: 44px;
   }
 }
@@ -468,7 +444,7 @@ html.wc-phone .wc-imp-foot .wc-lk-btn.is-primary {
   justify-content: center;
 }
 
-html.wc-phone .wc-imp-grp-h {
+html.wc-phone .wc-imp-grp > .wc-lk-fold-h {
   min-height: 44px;
 }
 
@@ -492,7 +468,7 @@ html.wc-phone .wc-imp-grp-h {
     font-size: 20px;
   }
 
-  .wc-imp-grp-b {
+  .wc-imp-grp > .wc-lk-fold-b {
     padding-left: 12px;
   }
 
@@ -506,9 +482,5 @@ html.wc-phone .wc-imp-grp-h {
     width: 100%;
     transform: none;
     animation: wc-imp-pulse 1.6s ease-in-out infinite;
-  }
-
-  .wc-imp-chev {
-    transition: none;
   }
 }

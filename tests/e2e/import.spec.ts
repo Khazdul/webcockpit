@@ -81,7 +81,7 @@ test('IMPORT a JMC file: the import page, the receipt with format and counts, OK
   expect(c.kept + c.skipped).toBeGreaterThan(0);
   await expect(frame(page).locator('.wc-imp-sum')).toContainText(`${c.translated} settings were translated`);
   // The first group is open, with `file:line` items.
-  await expect(frame(page).locator('.wc-imp-grp').first().locator('.wc-imp-grp-h')).toHaveAttribute(
+  await expect(frame(page).locator('.wc-imp-grp').first().locator('.wc-lk-fold-h')).toHaveAttribute(
     'aria-expanded',
     'true',
   );
@@ -106,7 +106,7 @@ test('IMPORT a Mudlet profile save: receipt with format, packages and kept items
   expect(c.skipped).toBeGreaterThan(0);
   // Open every group (Tab walks the headers, Space folds), then read them.
   const acc = frame(page).locator('.wc-imp-acc');
-  const heads = acc.locator('.wc-imp-grp-h');
+  const heads = acc.locator('.wc-lk-fold-h');
   const count = await heads.count();
   for (let i = 0; i < count; i++) {
     await page.keyboard.press('Tab');

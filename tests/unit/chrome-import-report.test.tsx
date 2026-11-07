@@ -244,8 +244,8 @@ describe('the import page', () => {
     );
     // The groups: the first open, the others folded.
     const groups = [...f.querySelectorAll<HTMLElement>('.wc-imp-grp')];
-    expect(groups.map((g) => g.dataset['grp'])).toEqual(['kept', 'skipped', 'warned']);
-    expect(groups.map((g) => g.querySelector('.wc-imp-grp-h')!.getAttribute('aria-expanded'))).toEqual([
+    expect(groups.map((g) => g.dataset['fold'])).toEqual(['kept', 'skipped', 'warned']);
+    expect(groups.map((g) => g.querySelector('.wc-lk-fold-h')!.getAttribute('aria-expanded'))).toEqual([
       'true',
       'false',
       'false',
@@ -259,25 +259,25 @@ describe('the import page', () => {
 
     // Tab walks the headers and OK; Space and Enter on a header fold it.
     await key('Tab');
-    expect(frame(host).querySelector('.wc-imp-grp.is-sel')?.getAttribute('data-grp')).toBe('kept');
+    expect(frame(host).querySelector('.wc-imp-grp.is-sel')?.getAttribute('data-fold')).toBe('kept');
     expect(sel(host)).toBeNull();
     await key(' ');
-    expect(frame(host).querySelector('[data-grp="kept"] .wc-imp-grp-h')?.getAttribute('aria-expanded')).toBe('false');
+    expect(frame(host).querySelector('[data-fold="kept"] .wc-lk-fold-h')?.getAttribute('aria-expanded')).toBe('false');
     await key('Tab');
     await key('Tab');
     await key('Enter');
-    const warned = frame(host).querySelector('[data-grp="warned"]')!;
-    expect(warned.querySelector('.wc-imp-grp-h')?.getAttribute('aria-expanded')).toBe('true');
+    const warned = frame(host).querySelector('[data-fold="warned"]')!;
+    expect(warned.querySelector('.wc-lk-fold-h')?.getAttribute('aria-expanded')).toBe('true');
     expect(warned.querySelector('.wc-imp-why')?.textContent).toBe('became #ticker; tick timing differs');
     expect(warned.querySelector('.wc-imp-w')?.textContent).toBe('tick timing differs');
     // A click on a header folds it too.
     await act(() => {
-      frame(host).querySelector<HTMLElement>('[data-grp="skipped"] .wc-imp-grp-h')!.click();
+      frame(host).querySelector<HTMLElement>('[data-fold="skipped"] .wc-lk-fold-h')!.click();
     });
-    expect(frame(host).querySelector('[data-grp="skipped"] .wc-imp-grp-h')?.getAttribute('aria-expanded')).toBe('true');
+    expect(frame(host).querySelector('[data-fold="skipped"] .wc-lk-fold-h')?.getAttribute('aria-expanded')).toBe('true');
     // Shift+Tab back round to OK (skipped → kept → OK).
     await key('Tab', { shiftKey: true });
-    expect(frame(host).querySelector('.wc-imp-grp.is-sel')?.getAttribute('data-grp')).toBe('kept');
+    expect(frame(host).querySelector('.wc-imp-grp.is-sel')?.getAttribute('data-fold')).toBe('kept');
     await key('Tab', { shiftKey: true });
     expect(sel(host)).toBe('OK');
     expect(editor.open).not.toHaveBeenCalled();

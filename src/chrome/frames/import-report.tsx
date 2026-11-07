@@ -29,10 +29,9 @@
 import { Fragment, type VNode } from 'preact';
 import { useMemo, useRef, useState } from 'preact/hooks';
 import type { ImportItem, ImportResult } from '../../import/types';
-import { Box, BoxBody, BoxFoot, BoxHead, GlassButton, Icon, LookFlash, letterAction, lookFrame } from '../kit/look';
+import { Box, BoxBody, BoxFoot, BoxHead, Fold, GlassButton, Icon, LookFlash, letterAction, lookFrame } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
 import {
-  type ImportGroup,
   formatName,
   itemAt,
   itemWhy,
@@ -78,40 +77,6 @@ function Item(p: { it: ImportItem }): VNode {
   );
 }
 
-/**
- * A collapsible group: a header button (the title, the count at the
- * right; `aria-expanded`) and its items while open. The kit's `Fold` has
- * no slot for the count, hence this local one (reported for wave 3).
- */
-function Group(p: { g: ImportGroup; open: boolean; sel: boolean; onToggle(): void }): VNode {
-  return (
-    <section class={'wc-imp-grp' + (p.open ? ' is-open' : '') + (p.sel ? ' is-sel' : '')} data-grp={p.g.id}>
-      <button
-        type="button"
-        class="wc-imp-grp-h"
-        tabIndex={-1}
-        aria-expanded={p.open ? 'true' : 'false'}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={(e) => {
-          e.stopPropagation();
-          p.onToggle();
-        }}
-      >
-        <i class="wc-imp-chev" aria-hidden="true" />
-        <span class="wc-imp-grp-t">{p.g.title}</span>
-        <span class="wc-imp-grp-n">{p.g.items.length}</span>
-      </button>
-      {p.open && (
-        <div class="wc-imp-grp-b">
-          {p.g.items.map((it, i) => (
-            <Item key={i} it={it} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptProps): VNode {
   const nav = useNav();
   const r = p.result;
@@ -149,7 +114,7 @@ export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptPr
     setStop(to);
     // A header the keyboard lands on comes into view.
     const g = groups[to];
-    const h = g && bodyRef.current?.querySelector<HTMLElement>(`[data-grp="${g.id}"] > .wc-imp-grp-h`);
+    const h = g && bodyRef.current?.querySelector<HTMLElement>(`[data-fold="${g.id}"] > .wc-lk-fold-h`);
     if (h && typeof h.scrollIntoView === 'function') h.scrollIntoView({ block: 'nearest' });
   };
 
@@ -251,16 +216,22 @@ export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptPr
             {groups.length > 0 ? (
               <div class="wc-imp-acc">
                 {groups.map((g, i) => (
-                  <Group
+                  <Fold
                     key={g.id}
-                    g={g}
+                    id={g.id}
+                    class={'wc-imp-grp' + (stop === i ? ' is-sel' : '')}
+                    label={g.title}
+                    aside={<span class="wc-imp-grp-n">{g.items.length}</span>}
                     open={open.has(g.id)}
-                    sel={stop === i}
                     onToggle={() => {
                       setStop(i);
                       toggle(i);
                     }}
-                  />
+                  >
+                    {g.items.map((it, k) => (
+                      <Item key={k} it={it} />
+                    ))}
+                  </Fold>
                 ))}
               </div>
             ) : (
