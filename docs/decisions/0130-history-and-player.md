@@ -44,12 +44,12 @@ kit's gold `Stars`) beside a 290 px **card** for the chosen session. Foot:
 Backup and Restore (small), `LookFlash` and the storage line. The export
 name `HistoryFrame` and `NO_PLAYER` stay.
 
-**The width cap.** `HISTORY_MAX_W = 1180`: the table up to 800 px + the
+**The width cap.** `HISTORY_MAX_W = 1180` (in `history-model.ts`): the table up to 800 px + the
 26 px gap + the 290 px card + the window's padding (44) and frame (16) is
 about 1176. Measured at 2560×1440: the box is at most 1180 px wide,
 centred, full height (layout B's height rule is unchanged). Statistics
-uses the same cap (`HISTORY_STATS_MAXW`), so the box swap keeps the
-rectangle instead of morphing its width.
+imports the same constant (wave 3; it had its own `HISTORY_STATS_MAXW`
+copy), so the box swap keeps the rectangle instead of morphing its width.
 
 **The narrow form follows the page's own width, never the device.** A
 ResizeObserver on the box body: under 680 px of content (about a 760 px
@@ -81,7 +81,16 @@ layout effect (`lc.set(cursor)`; `onChange` writes back) with
 `activateOn: 'dblclick'` and `touch: 'tap-selects'`: a click selects, a
 double click or Enter opens the run log (today a single click opened it);
 on touch a tap selects and a tap on the chosen row opens (the kit's rule,
-as the Profile list).
+as the Profile list). **A pointer passing over a row does not move the
+cursor** (wave 3): the page delegates the cursor's `onPointerDown`,
+`onClick` and `onDblClick` but not its `onPointerMove`. The kit's rule
+"a pointer move over a row moves the cursor" fits a list whose actions
+sit on the row; here the six actions sit in the card and act on the
+cursor, and the way from a row to the card crosses other rows (in the
+narrow form the card even moved under the hovered row and followed the
+pointer down). The chosen mockup builds its list with hover off. A click
+or double click on a row, and a head click, also bring the keyboard back
+to the rows (`zone.reset()`), as the old frame did.
 
 **Keys.** ↑↓ PgUp PgDn (10) Home End move; ← / → change the pill (only in
 the rows' zone: in the buttons they walk the buttons); Enter or Space open
@@ -109,7 +118,13 @@ shows a wrong order.
 
 **Run log.** `const r = await openPlayer(s)`; on `{ ok: false }` the
 run-log error box (45-C) opens over the page with `r.error`; without the
-service the flash says `Log player not available.` as before.
+service the flash says `Log player not available.` as before. While the
+open is pending (a large log loads for a while) the page holds every key
+(Esc too), its Back and its actions (wave 3): otherwise Esc could leave
+History during the load, and the player's Back would then return to the
+menu, or the error box would land over the menu or Statistics. As a
+second guard the error box is pushed only while History is still mounted
+and the top frame.
 
 **Export on every device.** `nav.push(<ExportEditorFrame session={…} />)`;
 the phone gate (`Export: desktop only.`) is removed, because stage 43
@@ -189,7 +204,10 @@ frame, which runs before the Dialog's own handler.
   Space and S press Save (primary) and save an unsaved session too; Esc
   cancels. A click sets a star, a click on the lit last star clears it;
   hover peeks with a mouse only (`pointerenter`), so a tap leaves no hover
-  state. The stars are `<button role=radio>`s with an inline SVG that never
+  state. The peek outlines the stars only; the words under them always
+  name the rating Save stores (wave 3, as the mockup: with the pointer
+  resting on a star, a click that clears it or a key would otherwise leave
+  words that disagree with the stars). The stars are `<button role=radio>`s with an inline SVG that never
   take focus. Flashes as before.
 - Delete (hood "Delete session"): a key/value list (Character, the long
   date, Time, the long duration, Runs, and `Saved: yes — ★★★★` in gold when
@@ -319,10 +337,13 @@ raw TSX for Statistics). Wave 3's build pass records the chrome chunk.
 
 ## Consequences
 
-- History, Statistics, Rate and Delete no longer use the TUI widgets;
-  the grid-only model helpers (`pillWindow`, `PILL_*`, `expiresCell`,
-  `ratingCell`, `panPills`, `scrollPills`) stay for their unit tests until
-  wave 3's sweep, as does `SessionStatsFrame`.
+- History, Statistics, Rate and Delete no longer use the TUI widgets.
+  Wave 3 removed the grid-only model helpers (`pillWindow`, `PILL_*`,
+  `pillWidth`, `expiresCell`, `ratingCell`, `Cell`, `panPills`,
+  `scrollPills`) with their tests, and Statistics' own copy of
+  `fmtLongDate` (it imports History's). `SessionStatsFrame`
+  (statistics.tsx, not stage 45's file) is left for the main session's
+  sweep.
 - History is the reference user of the kit's `Table` with a cursor and a
   button zone. Kit gaps found here, solved with local helpers, for wave 3:
   1. `TableRow` passes no `onPointerDown`, which the cursor needs to tell a
