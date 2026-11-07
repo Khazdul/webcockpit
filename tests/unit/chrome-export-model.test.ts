@@ -37,6 +37,7 @@ import {
   runStyle,
   selectedEntries,
   selectionTitle,
+  wrapSpans,
 } from '../../src/chrome/frames/export-model';
 import type { RunEvent } from '../../src/runs/events';
 import { addComment, defaultExportDoc, excludeRange } from '../../src/share/edits';
@@ -96,6 +97,36 @@ describe('export editor log', () => {
     ]);
     expect(entryPlainRows(log, 0, 4)).toEqual(['abcd', 'efg']);
     expect(entryRows(0, 80)).toBe(1);
+  });
+
+  it('wraps at the last space that fits; a word longer than a row breaks hard', () => {
+    const rows = (t: string, w: number): string[] => {
+      const sp: number[] = [];
+      const n = wrapSpans(t, w, sp);
+      const out = Array.from({ length: n }, (_, r) => t.slice(sp[2 * r], sp[2 * r + 1]));
+      expect(out.length).toBe(n);
+      return out;
+    };
+    expect(rows('A path leads south.', 10)).toEqual(['A path', 'leads', 'south.']);
+    // A space just after a full row breaks there.
+    expect(rows('abcde fgh', 5)).toEqual(['abcde', 'fgh']);
+    expect(rows('abcdefghij kl', 4)).toEqual(['abcd', 'efgh', 'ij', 'kl']);
+    expect(rows('', 8)).toEqual(['']);
+    expect(rows('fits', 4)).toEqual(['fits']);
+    expect(wrapSpans('one two three', 1000)).toBe(1);
+  });
+
+  it('word-wraps the rendered rows and counts the same rows in the items', () => {
+    const line = 'The old bridge spans the \x1b[32mHoarwell\x1b[0m here, its three arches worn.';
+    const log = buildEditorLog(chain([`${ts(0)} ${line}`, `${ts(1)} > say guarding you`]));
+    const segRows = entrySegments(log, 0, 20).map((r) => r.map((s) => s.text).join(''));
+    expect(segRows).toEqual(['The old bridge spans', 'the Hoarwell here,', 'its three arches', 'worn.']);
+    expect(entrySegments(log, 0, 20)[1]).toContainEqual({ text: 'Hoarwell', cls: 'wc-f2' });
+    expect(entryPlainRows(log, 0, 20)).toEqual(segRows);
+    expect(entryPlainRows(log, 1, 12)).toEqual(['> say', 'guarding you']);
+    const items = buildItems(log, [], 20);
+    expect(items.rowStart[1]! - items.rowStart[0]!).toBe(4);
+    expect(items.rowStart[2]! - items.rowStart[1]!).toBe(entryPlainRows(log, 1, 20).length);
   });
 });
 
