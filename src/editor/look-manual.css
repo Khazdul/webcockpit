@@ -521,7 +521,9 @@
     min-width: 0;
   }
 
+  /* The count keeps its whole text ("12 of 340"); the field gives way. */
   .wc-lk-mfind .wc-search-count {
+    flex: none;
     min-width: 0;
   }
 
