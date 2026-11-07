@@ -271,6 +271,7 @@ export class MorphStage {
     }
 
     // The new frame: its box hidden until the landing, then its content (or the whole box) fades in.
+    const firstIn = next.anims.length;
     if (box) {
       if (plan.land > 0) this.hide(next, box, 0, plan.land, false);
       if (plan.in > 0) {
@@ -281,15 +282,27 @@ export class MorphStage {
     const nextFrame = next.frame();
     if (nextFrame && plan.sceneryIn > 0) this.fade(next, [...nextFrame.querySelectorAll('.wc-lk-fades')], 1, plan.sceneryIn, plan.land);
 
-    // Settled once the content has faded in (at once with reduced motion or when nothing moves).
+    // Settled once the content has faded in (at once with reduced motion or when nothing moves):
+    // when its animations have finished (on the animation clock, which a loaded browser may run
+    // behind the timers), and not before their planned length.
     const length = plan.land + plan.in;
     if (plan.type === 'none' || reducedMotion() || length <= 0) next.setSettled(true);
     else {
       next.setSettled(false);
-      this.timer = setTimeout(() => {
-        this.timer = null;
-        if (this.cur === next) next.setSettled(true);
-      }, length);
+      const ins = next.anims.slice(firstIn).map((a) => a.finished);
+      const timed = new Promise<void>((done) => {
+        this.timer = setTimeout(() => {
+          this.timer = null;
+          done();
+        }, length);
+      });
+      const plan0 = plan;
+      Promise.all([timed, ...ins]).then(
+        () => {
+          if (this.cur === next && this.last === plan0) next.setSettled(true);
+        },
+        () => {},
+      );
     }
     const total = planLength(plan);
     if (root && total > 0) {

@@ -13,7 +13,7 @@
 // address (the menu → large box morph, for the benches).
 
 import type { VNode } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useSkyPause } from '../../start-surface';
 import {
   Box,
@@ -99,9 +99,7 @@ const DemoPage = lookFrame(function DemoPage(p: DemoProps): VNode {
   const mark = useRef<HTMLDivElement>(null);
   const log = useBoxLog(p.title, mark);
   const [keys, setKeys] = useState(0);
-  useEffect(() => {
-    if (settled && log.settledAt === null) log.settledAt = performance.now() - log.mountedAt;
-  }, [settled]);
+  if (settled && log.settledAt === null) log.settledAt = performance.now() - log.mountedAt;
   const openNext = (): void => {
     if (p.next) nav.push(<DemoPage {...p.next} />);
   };
