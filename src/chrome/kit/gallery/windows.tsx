@@ -9,7 +9,7 @@
 import type { VNode } from 'preact';
 import { useRef, useState } from 'preact/hooks';
 import { useCells, useElementSize } from '../hooks';
-import { GlassButton, InlineBack, lookFrame, useLookPlace, useWindowChrome } from '../look';
+import { Box, GlassButton, InlineBack, lookFrame, useLookPlace, useWindowChrome } from '../look';
 import { useNav } from '../stack';
 import { Blank, Line, Page } from '../widgets';
 import { WindowFrame, WindowStack } from '../window';
@@ -33,9 +33,9 @@ const GAME = [
   'A crow caws somewhere to the north.',
 ];
 
-// The demo frames draw plain content, not `Box`: the Box section (42a)
-// shows how a Box adapts to the place; this one shows the window around
-// it.
+// The demo look frames are a `Box` (42a) in place `window`: no iron frame,
+// hood or Back of its own (the window frame is the box, its title bar the
+// hood), the lit window filling the window's body with the page padding.
 
 /** A look frame in a window: its title and note, a sub-page. */
 const DemoLook = lookFrame(function DemoLook(): VNode {
@@ -43,7 +43,7 @@ const DemoLook = lookFrame(function DemoLook(): VNode {
   const place = useLookPlace();
   useWindowChrome({ title: 'Kit', note: 'a look frame' });
   return (
-    <div class="wc-kitwin-page">
+    <Box title="Kit" winClass="wc-kitwin-page">
       <p class="wc-lk-txt">
         A look frame in a window: the place is <b data-place>{place}</b>. It sets the window's title and note
         (<code>useWindowChrome</code>); a sub-page sets its own and the window keeps its frame.
@@ -51,17 +51,18 @@ const DemoLook = lookFrame(function DemoLook(): VNode {
       <div class="wc-lk-btns">
         <GlassButton id="SUB" label="Sub-page" icon="next" onClick={() => nav.push(<DemoSub />)} />
       </div>
-    </div>
+    </Box>
   );
 });
 
 const DemoSub = lookFrame(function DemoSub(): VNode {
+  const nav = useNav();
   useWindowChrome({ title: 'Sub-page', note: 'pushed' });
   return (
-    <div class="wc-kitwin-page">
+    <Box title="Sub-page" onBack={() => nav.pop()} winClass="wc-kitwin-page">
       <InlineBack />
       <p class="wc-lk-txt">A sub-page: Back (or Esc in the game) pops it and the title reverts.</p>
-    </div>
+    </Box>
   );
 });
 

@@ -1,9 +1,11 @@
 /* The lantern kit's glass pieces (stage 41, ADR 0125; split out of
  * look.css in stage 42-0, filled in 42b, ADR 0127): the line icons' base
  * rule, the glass buttons (plain, primary, danger, small, icon-only),
- * Back and the shortcut letters. Imported by look.css and by the player
- * (src/player/player.css, 42f: the run log player's Back), so it needs
- * only the tokens (look-tokens.css). Package 42b owns this file.
+ * Back and the shortcut letters. Imported by look.css; it needs only the
+ * tokens (look-tokens.css). The run log player's Back (42f) uses these
+ * rules too, but src/player/player.css does not import this file: the
+ * player opens from the start page, whose chrome CSS already holds it,
+ * and the HTML replay never shows Back (ADR 0127, "Player core").
  *
  * Every colour is a token, so a Paper context (`data-light`) turns the
  * buttons light. Glass buttons never take the DOM focus (the frame stack
