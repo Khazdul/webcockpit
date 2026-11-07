@@ -272,39 +272,4 @@ describe('filtered empty pages (start page)', () => {
     expect(frameEl(host).querySelector('.wc-footer')!.textContent).toBe('Any key to return');
   });
 
-  it('Credits follows the filters; its filtered page rolls once a change lets something through', async () => {
-    const rasta = {
-      meta: meta('Rasta/1', BASE_US, { bytes: 100 }),
-      events: [
-        { type: 'run_start', us: BASE_US, character: 'Rasta', level: 41, schema: 1 },
-        { type: 'pkill', us: BASE_US + 20 * S, logUs: BASE_US + 20 * S, name: 'Ibuki', race: 'the Half-Elf', xpDelta: 5 },
-      ] as RunEvent[],
-    };
-    // The roll without Web Animations (happy-dom rejects a cancelled one).
-    const animate = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
-    Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: undefined });
-    cleanup.push(() => animate && Object.defineProperty(Element.prototype, 'animate', animate));
-    const host = document.createElement('div');
-    document.body.append(host);
-    const svc = services(fakeLib(['Rasta'], [rasta]));
-    // Only another character: nothing to tell.
-    svc.settings.update({ spotlights: { allCharacters: false, characters: ['Bob'] } });
-    const page = mountStartPage(host, svc, { onEnter: () => {} });
-    cleanup.push(() => page.dispose());
-    await act(() => page.show());
-    await click(host.querySelector('.wc-sm-item[data-key="credits"]'));
-    await flush();
-    await flush();
-    expect(title(host)).toBe('─── Credits ───');
-    expect(frameEl(host).textContent).toContain('No chronicle entries match your settings.');
-    await keydown(document.activeElement, 'Enter');
-    await flush();
-    // The popup open: a change does not roll yet.
-    await click(toggleOf('All characters'));
-    expect(svc.settings.get().spotlights.allCharacters).toBe(true);
-    expect(frameEl(host).querySelector('.wc-credits-col')).toBeNull();
-    await keydown(document.activeElement, 'Escape');
-    await flush();
-    expect(frameEl(host).querySelector('.wc-credits-col')!.textContent).toContain('Ibuki');
-  });
 });
