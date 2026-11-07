@@ -842,11 +842,11 @@ stage's test plan.
 
 - [x] 42-0: look.tsx split, stubs, `.wc-look`, gallery shell (`?kit`,
       `VITE_KIT`), `tests/e2e/look.ts`, ADR 0127 skeleton; all green
-- [ ] 42a: `Box` (tall, maxWidth, slots, title fade, places), morph proxy
+- [x] 42a: `Box` (tall, maxWidth, slots, title fade, places), morph proxy
       and choreography, hold wiring, box swap, normal → normal morph
-- [ ] 42a: scenery `large` = layout B; `useBoxSettled`, `InlineBack`,
+- [x] 42a: scenery `large` = layout B; `useBoxSettled`, `InlineBack`,
       `useReducedMotion`, `useSkyPause`, `LookWordmark`, `setRate('calm')`
-- [ ] 42a: measurements (morph, large box with and without blur); blur
+- [x] 42a: measurements (morph, large box with and without blur); blur
       rule decided; `bench/results/look-box.md`
 - [x] 42b: controls, widgets, icons, tokens (dark, Paper, inlay), `Seal`,
       `useKeyboardInset`; gallery section; tests
