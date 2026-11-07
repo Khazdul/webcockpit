@@ -6,6 +6,7 @@ import {
   PROFILE_TEMPLATE,
   ProfileError,
   ProfileStore,
+  caseTwins,
   isValidName,
   nameError,
   nameFromFileName,
@@ -35,6 +36,14 @@ describe('profile names', () => {
     expect(nameError('ranger', ['default', 'ranger'], 'ranger')).toBeNull();
     // Case-sensitive, like the IndexedDB key.
     expect(nameError('Ranger', ['ranger'])).toBeNull();
+  });
+
+  it('finds the names that differ from another only in case', () => {
+    expect(caseTwins(['default', 'gibur', 'Gibur', 'khazdul', 'GIBUR', 'scout'])).toEqual(
+      new Set(['gibur', 'Gibur', 'GIBUR']),
+    );
+    expect(caseTwins(['default', 'gibur', 'scout'])).toEqual(new Set());
+    expect(caseTwins([])).toEqual(new Set());
   });
 
   it('derives a valid name from a file name', () => {

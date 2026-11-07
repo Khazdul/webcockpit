@@ -102,6 +102,29 @@
   color: #c99050;
 }
 
+/* The second line: a case twin's real spelling, then the Selected tag. */
+.wc-pl-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Names alike but for case (gibur, Gibur): the real spelling, plain and dim (the display face is small caps). */
+.wc-pl-case {
+  font: 400 12px/1 var(--lk-mono);
+  letter-spacing: 0;
+  color: var(--lk-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.wc-pl-sub .wc-pl-tag {
+  flex: none;
+}
+
 .wc-pl-time {
   grid-area: time;
   font: 400 12px/1.3 var(--lk-mono);
@@ -121,7 +144,8 @@
   text-shadow: 0 0 10px rgba(255, 196, 128, 0.3);
 }
 
-.wc-pl-row.is-on .wc-pl-time {
+.wc-pl-row.is-on .wc-pl-time,
+.wc-pl-row.is-on .wc-pl-case {
   color: #bea582;
 }
 

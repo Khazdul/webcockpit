@@ -421,3 +421,22 @@ in stepped frames the sky is gone at about 5.5 s by day, sooner at night
 compositor-only, so the surface is re-rastered during the fade; the sky
 under it repaints every frame anyway. Reduced motion is unchanged (a
 220 ms plain fade, no sweep).
+
+## Addendum 2026-11-07 — names that differ only in case
+
+Profile names are unique case-sensitively (ADR 0010), so `gibur` and
+`Gibur` can both exist, and in the Profile list's display face (Cinzel,
+whose lower case is small caps) they look nearly identical. When the
+list holds two or more names that are equal ignoring case
+(`caseTwins` in `src/profiles/names.ts`), each of those rows gets a
+second line with the real spelling in the plain mono face (12 px,
+`--lk-dim`, a step brighter on the highlighted row, the time column's
+face), followed by the Selected tag when that row is the selected
+profile (`.wc-pl-sub` > `.wc-pl-case`, `.wc-pl-tag`). Rows without a
+case twin look as before. The second line fits the 54 px row on a wide
+box; on a narrow box or a phone the row grows anyway.
+
+The start menu's Profile note needs no change: it is set in Cormorant
+Garamond italic with no `text-transform` or small caps, so it already
+shows the real spelling, "(Gibur)" or "(gibur)", always (not only when a
+twin exists).

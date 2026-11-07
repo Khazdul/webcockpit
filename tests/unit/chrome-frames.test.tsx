@@ -282,6 +282,40 @@ describe('start page', () => {
     );
   });
 
+  it('the Profile list shows the real spelling of names that differ only in case', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const svc = startServices();
+    await svc.profiles.init();
+    await svc.profiles.create('gibur', '');
+    await svc.profiles.create('Gibur', '');
+    await svc.profiles.create('scout', '');
+    svc.settings.update({ profile: 'Gibur' });
+    const page = mountStartPage(host, svc, { onEnter: () => {} });
+    cleanup.push(() => page.dispose());
+    await act(() => page.show());
+    // The start menu's note keeps the real case (an italic serif, not small caps).
+    expect(host.querySelector('.wc-sm-item[data-key="profile"] .wc-sm-note')?.textContent).toBe('(Gibur)');
+    await key('p');
+    await act(async () => new Promise((r) => setTimeout(r, 0)));
+    const f = () => host.querySelector('.wc-frame:not([hidden])')!;
+    const row = (n: string) => f().querySelector(`.wc-pl-row[data-name="${n}"]`)!;
+    expect([...f().querySelectorAll('.wc-pl-n')].map((e) => e.textContent)).toEqual([
+      'default', 'Gibur', 'gibur', 'khazdul', 'scout',
+    ]);
+    expect(row('gibur').querySelector('.wc-pl-case')?.textContent).toBe('gibur');
+    expect(row('Gibur').querySelector('.wc-pl-case')?.textContent).toBe('Gibur');
+    // The selected twin: the spelling, then the tag, on its second line.
+    expect([...row('Gibur').querySelectorAll('.wc-pl-sub > *')].map((e) => e.className)).toEqual([
+      'wc-pl-case', 'wc-pl-tag',
+    ]);
+    // Names without a twin look as before.
+    for (const n of ['default', 'khazdul', 'scout']) {
+      expect(row(n).querySelector('.wc-pl-case')).toBeNull();
+      expect(row(n).querySelector('.wc-pl-sub')).toBeNull();
+    }
+  });
+
   it('the Profile list: rows, buttons, letters, zones and Back', async () => {
     const host = document.createElement('div');
     document.body.append(host);

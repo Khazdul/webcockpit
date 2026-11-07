@@ -30,6 +30,10 @@
 // move; a click or tap on a row that is not highlighted highlights it, on
 // the highlighted row it does what Enter does. The name header sorts
 // (A–Z / Z–A). Feedback goes to the flash line at the foot (~3 s).
+//
+// Names that differ only in case (`gibur`, `Gibur`) look alike in the
+// display face's small caps: each of them gets its real spelling on a
+// second line, in the plain mono face (ADR 0125 addendum).
 
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
@@ -38,6 +42,7 @@ import {
   NAME_HINT,
   NAME_MAX,
   type ProfileRecord,
+  caseTwins,
   compareNames,
   downloadProfile,
   nameError,
@@ -154,6 +159,8 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
 
   const all = list ?? [];
   const rows = dir > 0 ? all : [...all].reverse();
+  /** Names alike but for case: their real spelling shows under them (Cinzel draws them alike). */
+  const twins = caseTwins(all.map((r) => r.name));
   let cursor = rows.findIndex((r) => r.name === cursorName);
   if (cursor < 0) cursor = Math.max(0, rows.findIndex((r) => r.name === s.profile));
   const cur = rows[cursor];
@@ -399,7 +406,12 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
             >
               <span class="wc-pl-name">
                 <span class="wc-pl-n">{r.name}</span>
-                {sel && <small class="wc-pl-tag">Selected</small>}
+                {(sel || twins.has(r.name)) && (
+                  <span class="wc-pl-sub">
+                    {twins.has(r.name) && <span class="wc-pl-case">{r.name}</span>}
+                    {sel && <small class="wc-pl-tag">Selected</small>}
+                  </span>
+                )}
               </span>
               {on && <span class="wc-pl-acts">{rowButtons(sel).map(button)}</span>}
               <span class="wc-pl-time" title={fullDate(r.modified)}>
