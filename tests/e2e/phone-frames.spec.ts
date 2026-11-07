@@ -104,12 +104,12 @@ test('Profile: a tap on a profile selects it, a tap on the selected profile open
   });
   await tapRow(page, 'profile');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
-  const row = f.locator('.wc-table .wc-tr', { hasText: 'phoneprof' });
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  const row = f.locator('.wc-pl-row[data-name="phoneprof"]');
   const profile = () => page.evaluate(() => window.__wc!.settings.get().profile);
   await row.tap();
   await expect.poll(profile).toBe('phoneprof');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await expect(page.locator('.wc-ped')).toHaveCount(0);
   await row.tap();
   // The editor opens (its title is cut to the phone's width).
