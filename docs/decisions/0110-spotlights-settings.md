@@ -132,3 +132,17 @@ Credits no longer opens the settings popup: its filtered state is a page
 of the book that points to the filter on the Spotlights page, which sets
 the kinds, characters and period for both. Credits reads the filter when
 it opens, as before.
+
+## Addendum 2026-11-07 — the filter row above the wall (stage 46, ADR 0131)
+
+The Spotlights settings are the filter row above the Spotlights page's
+wall of cards: one chip per kind, `All` and one chip per recorded
+character (a name while All is on shows only that name; the last name off
+turns All back on; All off brings back the remembered set), and the
+period. Same store, saved at once, and Credits still follows them. The
+filter changes only on the wall, so "rebuild while playing" becomes
+"rebuild the wall": the page keeps one `ReelSource` (only windows not read
+yet are read), the latest change wins, and the chosen card stays chosen
+while it still passes, else the first. Nothing passing is a state of the
+wall (the row stays), not a page with `Settings…`; the card's filter is
+no longer on the Spotlights page.

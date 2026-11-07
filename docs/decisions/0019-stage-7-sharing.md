@@ -940,3 +940,15 @@ large box: a chapter per character on its own pages, turned by the
 reader, with no roll and no automatic return. `chronicleBook` gives the
 chronicle as structure from the same templates, hashes and order;
 `buildChronicle` stays for its tests. See ADR 0132.
+
+## Addendum 2026-11-07 — Spotlights as a gallery (stage 46, ADR 0131)
+
+Start menu → Spotlights no longer plays the reel at once in the full-page
+player. It opens a wall of cards in the large box (one card per spotlight
+in reel order, with a still of the game text at the moment), the
+Spotlights settings as the filter row above it; Enter on a card (or Play
+all) plays the reel in a viewer inside the box from that card on, and Esc
+returns to the wall. What a spotlight is, the rotation, the windows, the
+blank transitions and the labels are unchanged. The reel ends on an end
+card (Play again) instead of parking on the last spotlight. Details: ADR
+0131.

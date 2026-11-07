@@ -69,3 +69,14 @@ but it opens the Spotlights settings popup (kinds, characters, period),
 not the viewer settings. The reel stays bare otherwise: no panes, no
 viewer font, colour or pane toggles (`viewerSettings: false` as before;
 the gear is `PlayerViewOptions.gear`). See ADR 0110.
+
+## Addendum 2026-11-07 — the bare reel in the Spotlights page (stage 46, ADR 0131)
+
+The game-text-only rule holds in the Spotlights page's viewer: every pane
+off (script panes too), Display (font size, colours) and no Panes. The
+viewer draws its own head, countdown, track (with the kind markers and
+their tips, near ones sharing one) and control row around an embedded,
+bare player view. The reel's own settings control (the gear of the
+2026-10-31 addendum, then the card's filter, ADR 0114) is now the page's
+filter row above the wall. ANSI normal red is drawn
+brighter (`#c43c3c`) while the Display colours are Default.

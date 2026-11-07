@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 // Stage 30e (ADR 0110): the Spotlights settings popup (kinds, characters,
 // period; the start page's, since the reel's card took the gear's place in
-// stage 32c, ADR 0114), its character rules, the
-// start page's "filtered" pages with their `Settings…`, and Credits
-// following the filters.
+// stage 32c, ADR 0114; Credits' filtered page still opens it) and its
+// character rules. Stage 46 (ADR 0131): Spotlights' filtered and no-data
+// states are its wall's, not pages of their own.
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type ChromeServices, mountStartPage } from '../../src/chrome';
@@ -22,7 +22,7 @@ import type { RunLibrary } from '../../src/runs/library';
 import { SPOTLIGHT_PERIODS, SettingsStore, defaultSettings } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
 import { render } from 'preact';
-import { BASE_US, meta } from './player-helpers';
+import { BASE_US, makeLog, meta } from './player-helpers';
 
 const cleanup: Array<() => void> = [];
 afterEach(() => {
@@ -203,73 +203,92 @@ describe('Spotlights popup', () => {
 // ------------------------------------------------------- the start page
 
 const frameEl = (host: HTMLElement) => host.querySelector<HTMLElement>('.wc-frame:not([hidden])')!;
-const selected = (host: HTMLElement) => frameEl(host).querySelector('.wc-mrow.is-sel')?.textContent;
 const title = (host: HTMLElement) => frameEl(host).querySelector('.wc-c-section')?.textContent;
 const startSel = (host: HTMLElement) => frameEl(host).querySelector('.wc-sm-item.is-sel .wc-sm-label')?.textContent;
 
 describe('filtered empty pages (start page)', () => {
-  it('Spotlights: Settings… opens the popup in the page; Esc closes it first; a change tries again', async () => {
+  // Stage 46 (ADR 0131): Spotlights has no pages of its own for these any
+  // more; no data and nothing passing are states of its wall. The
+  // `FilteredFrame` itself stays for Credits until stage 47.
+
+  /** A run of Rasta's with a level-up and a death, its log, and the library over it. */
+  function rastaLib(): RunLibrary {
+    const r1 = BASE_US;
+    const events: RunEvent[] = [
+      { type: 'run_start', us: r1, character: 'Rasta', level: 41, schema: 1 },
+      { type: 'level_up', us: r1 + 20 * S, level: 42 },
+      { type: 'char_death', us: r1 + 60 * S, logUs: r1 + 60 * S },
+    ];
+    const m = meta('Rasta/1', r1, { bytes: 100 });
+    const text = makeLog(r1, [20, 60].flatMap((t) => [{ at: t - 2, in: `Before ${t}.` }, { at: t, in: `Moment ${t}.` }]));
+    return {
+      characters: async () => ['Rasta'],
+      store: { listRuns: async () => [m] },
+      events: async () => events,
+      chainLogRange: async () => ({ meta: m, text }),
+    } as unknown as RunLibrary;
+  }
+
+  const wall = (host: HTMLElement) => frameEl(host).querySelector<HTMLElement>('.wc-spw');
+  const until = async (ok: () => boolean) => {
+    for (let i = 0; i < 40 && !ok(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
+  };
+
+  it('Spotlights: a filter that lets nothing through opens the wall with its filter row; a chip there brings the cards back', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const openSpotlights = vi.fn<() => Promise<'no_data' | 'filtered' | null>>(async () => 'filtered');
-    const svc = services(fakeLib(['Bob', 'Rasta']), { openSpotlights });
+    const openSpotlights = vi.fn(async () => 'filtered' as const);
+    const svc = services(rastaLib(), { openSpotlights, embedPlayer: async () => null });
+    svc.settings.update({ spotlights: { allCharacters: false, characters: [] } });
     const page = mountStartPage(host, svc, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
-    await flush();
-    expect(title(host)).toBe('─── Spotlights ───');
-    expect(frameEl(host).textContent).toContain('No spotlights match your settings.');
-    expect(frameEl(host).textContent).not.toContain('Options');
-    expect(frameEl(host).querySelector('.wc-footer')!.textContent).toContain('Enter Settings');
-    expect(selected(host)).toBe('<< Settings… >>');
-
-    // Enter opens the popup inside the page, with the keys.
-    await keydown(document.activeElement, 'Enter');
-    await flush();
-    expect(pop()).not.toBeNull();
-    expect(frameEl(host).contains(pop())).toBe(true);
-    expect(document.activeElement).toBe(toggleOf('Achievements'));
-    // Keys in the popup are its own: Tab stays inside, Space flips the toggle (the page's menu does not see them).
-    await keydown(document.activeElement, 'Tab');
-    expect(pop()!.contains(document.activeElement)).toBe(true);
-    // Esc in it closes it, unchanged: no retry, the page stays.
-    await keydown(document.activeElement, 'Escape');
+    await until(() => wall(host) !== null);
+    // The wall, not a page of its own: no Settings…, no popup, no Options.
+    expect(openSpotlights).not.toHaveBeenCalled();
+    expect(wall(host)!.querySelector('.wc-spw-empty')!.textContent).toContain('No spotlights match your settings.');
+    expect(wall(host)!.textContent).not.toContain('Settings…');
+    expect(wall(host)!.textContent).not.toContain('Options');
+    expect(title(host)).toBeUndefined();
     expect(pop()).toBeNull();
-    expect(title(host)).toBe('─── Spotlights ───');
-    expect(openSpotlights).toHaveBeenCalledTimes(1);
-
-    // Esc on the page with the popup open (the keys outside it) closes the popup, not the page.
-    await click(frameEl(host).querySelector('.wc-mrow[data-key="settings"] .wc-label'));
-    await flush();
-    expect(pop()).not.toBeNull();
-    act(() => host.querySelector<HTMLElement>('.wc-stack')!.focus());
+    // The filter row is there: the kinds, All and Rasta, the period.
+    const chips = [...wall(host)!.querySelectorAll<HTMLElement>('.wc-spw-head [role="checkbox"]')];
+    expect(chips.map((c) => c.textContent)).toEqual(['Achievements', 'Deaths', 'Level-ups', 'PvP kills', 'All', 'Rasta']);
+    // Rasta's chip: the cards are back and the setting is saved.
+    await click(wall(host)!.querySelector('.wc-spw-chars [data-opt="Rasta"]'));
+    await until(() => (wall(host)?.querySelectorAll('.wc-spw-card').length ?? 0) > 0);
+    expect(svc.settings.get().spotlights).toMatchObject({ allCharacters: false, characters: ['Rasta'] });
+    expect([...wall(host)!.querySelectorAll('.wc-spw-label')].map((e) => e.textContent)).toEqual(['Death (level 42)', 'Reached level 42']);
+    // Esc: the menu.
     await keydown(document.activeElement, 'Escape');
-    expect(pop()).toBeNull();
-    expect(title(host)).toBe('─── Spotlights ───');
-
-    // A change, then closing: it tries again; the reel opens and the page goes.
-    openSpotlights.mockResolvedValueOnce(null);
-    await keydown(document.activeElement, 'Enter');
-    await flush();
-    await click(toggleOf('Deaths'));
-    expect(svc.settings.get().spotlights.deaths).toBe(false);
-    await click(pop()!.querySelector('.wc-pop-x'));
-    await flush();
-    expect(openSpotlights).toHaveBeenCalledTimes(2);
+    await until(() => startSel(host) !== undefined);
     expect(startSel(host)).toBe('Spotlights');
   });
 
-  it('Spotlights: the no-data page is unchanged', async () => {
+  it('Spotlights: no data is a wall without the filter row', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const page = mountStartPage(host, services(fakeLib([]), { openSpotlights: async () => 'no_data' }), { onEnter: () => {} });
+    const page = mountStartPage(host, services(fakeLib([]), { embedPlayer: async () => null }), { onEnter: () => {} });
+    cleanup.push(() => page.dispose());
+    await act(() => page.show());
+    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
+    await until(() => wall(host) !== null);
+    expect(wall(host)!.querySelector('.wc-spw-empty')!.textContent).toContain('No spotlights yet.');
+    expect(wall(host)!.querySelector('.wc-spw-head')).toBeNull();
+    expect(frameEl(host).querySelector('.wc-footer')).toBeNull();
+  });
+
+  it('Spotlights: without an embedded player the menu flashes and stays', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const page = mountStartPage(host, services(fakeLib([])), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
     await flush();
-    expect(frameEl(host).textContent).toContain('No spotlights yet.');
-    expect(frameEl(host).querySelector('.wc-footer')!.textContent).toBe('Any key to return');
+    expect(wall(host)).toBeNull();
+    expect(startSel(host)).toBe('Spotlights');
+    expect(host.textContent).toContain('Spotlights are not available here.');
   });
-
 });
