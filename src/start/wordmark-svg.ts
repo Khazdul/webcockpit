@@ -94,6 +94,21 @@ const RIVET_NIGHT: [Rgb, Rgb, Rgb] = [hex('#f5fcfe'), hex('#97b2b9'), hex('#2938
 const LIP = 'rgba(206,232,234,.55)';
 /** COCKPIT's ink. */
 const INK = '#cfe2e4';
+/**
+ * The inlay's colours as the lantern kit's `--lk-inlay-*` / `--lk-rivet-*`
+ * tokens (src/chrome/kit/look-tokens.css, stage 42b, ADR 0127): the day
+ * metal's stops (`hi` its top lip, `mid` its lit band, `lo` its dark core),
+ * COCKPIT's ink and the day rivets. One source: a unit test compares the
+ * CSS with these (tests/unit/look-controls.test.tsx).
+ */
+export const INLAY_TOKENS = {
+  day: DAY,
+  hi: DAY[0]![1],
+  mid: DAY[1]![1],
+  lo: DAY[2]![1],
+  ink: INK,
+  rivet: /* @__PURE__ */ RIVET_DAY.map((c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('')) as [string, string, string],
+} as const;
 /** The iron face, top to bottom. */
 const FACE: ReadonlyArray<[number, string]> = [
   [0, '#6a5c4e'],
