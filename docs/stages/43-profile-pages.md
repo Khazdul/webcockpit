@@ -561,15 +561,15 @@ Build:
       checked (below). This stage's ADR is **0128** (assigned by the main
       session; the profile editor B, with the import page and the export
       editor's decisions in it), plus addenda to 0073, 0115, 0075 and 0103
-- [ ] 43a: model extracted from `frame.tsx`, unit-tested
-- [ ] 43a: editor shell (head, views, rail, foot, status, dialogs) in the
+- [x] 43a: model extracted from `frame.tsx`, unit-tested
+- [x] 43a: editor shell (head, views, rail, foot, status, dialogs) in the
       large box on the start page; layouts at > 940, 641–940, ≤ 640 px
-- [ ] 43a: Lite list and detail for all five kinds (key capture, highlight
+- [x] 43a: Lite list and detail for all five kinds (key capture, highlight
       styles and swatches, notes, sentinel)
-- [ ] 43a: Editor view (CodeMirror, rail sections, status, find/replace)
-- [ ] 43a: Help view (look manual, rail headings, find)
-- [ ] 43a: keys (letters, Tab ring, rail, list, detail, Esc rule, Ctrl+S/F/H)
-- [ ] 43a: editor e2e and unit tests updated; ADR 0128 (Profile editor B)
+- [x] 43a: Editor view (CodeMirror, rail sections, status, find/replace)
+- [x] 43a: Help view (look manual, rail headings, find)
+- [x] 43a: keys (letters, Tab ring, rail, list, detail, Esc rule, Ctrl+S/F/H)
+- [x] 43a: editor e2e and unit tests updated; ADR 0128 (Profile editor B)
 - [ ] 43b: Profile window (stage 42's Lykta frame and look host) checked
       with the new editor; `ProfileRoot` in the new look; live line; focus
       rules re-checked
