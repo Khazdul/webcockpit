@@ -54,7 +54,9 @@ menu, a Tolkien quote and, at the bottom right, the date and time in
 Middle-earth. The keyboard drives it: ↑↓ and Enter, or the underlined
 letter of each entry (E Enter MUME, P Profile, S Scripts, H History,
 L Spotlights, C Credits, A About); Esc goes back. The mouse and a tap
-work too. The browser tab's icon is the same iron "M".
+work too. Each entry opens its page in a large box that grows out of
+the menu, with Back at the top left; the letters marked in a page's
+buttons are its shortcuts. The browser tab's icon is the same iron "M".
 
 **Connection.** The browser talks to `wss://mume.org/ws-play/`
 directly, with full GMCP and a keep-alive that shows
@@ -90,20 +92,26 @@ immediately, from the menu bar's Settings in the game.
 </div>
 
 **Profiles.** Actions, aliases, highlights, macros, substitutes, gags,
-variables and tickers in tt++ syntax. The profile editor has a form
-view and a full text view with syntax highlighting, and both edit the
-same profile. Round-trips are lossless. Macros bind any key the browser
-lets through. Profiles can be exported and imported as `.tin` files,
-and import also reads TinTin++, JMC, Powwow and Mudlet profiles. The
+variables and tickers in tt++ syntax. The profile editor has three
+views: Lite, a form for each kind; Editor, the whole profile as text
+with syntax highlighting and find and replace; and Help, the manual.
+Lite and Editor edit the same profile, and round-trips are lossless.
+Macros bind any key the browser lets through. Profiles can be exported
+and imported as `.tin` files, and import also reads TinTin++, JMC,
+Powwow and Mudlet profiles: drop the files on the import page or choose
+them, and a receipt counts the settings translated, kept as `#nop`,
+skipped or in need of a look. The
 start page's Profile list shows when each was last changed; the
 highlighted profile has its own Select, Edit, Rename and Delete buttons
 (S E R D), and New, Import and Export (N I X) sit below the list.
 
 **Lua scripts.** Scripts in Lua 5.4 run beside the profile, in a
 sandbox, with an API for triggers, aliases, keys, timers, GMCP, the map
-and panes of their own, down to bars and buttons. The script editor
-completes names, shows help as you type and marks errors, and a manual
-with examples is built in.
+and panes of their own, down to bars and buttons. The Scripts page
+lists them beside the chosen script's panel: its settings as tiles that
+take effect at once, and its help. The script editor completes names,
+shows help as you type and marks errors, and a manual with contents,
+find and highlighted examples is built in.
 
 **Bundled scripts.** Ready to turn on in Scripts (on the start page or
 the menu bar): an almanac of MUME's seasons, moon and events; a port key
@@ -135,13 +143,18 @@ drawing runs in a worker, so text and keys are never slowed.
 </div>
 
 **Runs.** Every login starts a run, recorded in the browser. The
-start page offers History (with each run's Statistics and a log player
-that replays the whole screen) and Spotlights with your kills, deaths,
-level-ups and achievements. Runs older than 14 days are pruned unless you save them.
+start page offers History, a table of sessions with a card for the
+chosen one (its Statistics, a log player that replays the whole screen,
+rating, saving, export, deletion), and Spotlights, a wall of cards of
+your kills, deaths, level-ups and achievements that play in a viewer
+growing out of the card. Credits tells your characters' deeds as a
+book, filtered as Spotlights is. Runs older than 14 days are pruned
+unless you save them.
 
-**Export editor.** Cut spans from a run, add `## ` comments to narrate
-it, and export plain text or a self-contained HTML replay that anyone
-can open without WebCockpit.
+**Export editor.** Cut spans from a run, write comments at their place
+in the log to narrate it, and export plain text or a self-contained
+HTML replay that anyone can open without WebCockpit. It works on a
+phone too.
 
 <div align="center">
 <img width="400" alt="Export editor" src="docs/img/exporteditor.png" />

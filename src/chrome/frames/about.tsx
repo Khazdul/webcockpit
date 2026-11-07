@@ -68,13 +68,13 @@ Choose Enter MUME on the start page. Behind its menu runs MUME's own sky by the 
 
 In the game, the menu bar at the right end of the input line holds Profile, Scripts, Panes, Settings, Fullscreen and Exit; Panes and Settings set up the panes and the look, and every change applies at once. On a phone, ☰ opens the menu.
 
-Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → Edit on the start page; in the game, Profile in the menu bar opens the editor. A profile is written in TinTin++ syntax. Help in the profile editor, or #help in the game, explains each command with examples. Profile → Import reads profiles from TinTin++, JMC, Powwow and Mudlet: drop the files on its page or choose them, and a receipt sums up what was translated.
+Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → Edit on the start page; in the game, Profile in the menu bar opens the editor. A profile is written in TinTin++ syntax. The editor has three views: Lite, a form for each kind of setting; Editor, the profile as text; and Help, the manual (L, E and H switch between them). Help, or #help in the game, explains each command with examples. Profile → Import reads profiles from TinTin++, JMC, Powwow and Mudlet: drop the files on its page or choose them, and a receipt sums up what was translated.
 
 WHAT IS INSIDE
   Panes           Character, Timers, Group, Communication, UI messages, Map and Statistics. Dock them on any side, in several columns or rows, or let them float.
   Map             Reads MMapper maps and follows you as you move. Settings → Mapper in the game picks the tileset, among them Shimrod's, which follows MUME's season.
   Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Settings → Weather effects in the game turns them off or picks what to show; #weather demo plays them all.
-  Runs            Every login is recorded in this browser. History on the start page lists them: rate a run, open its Statistics or its log in the player, and back them all up or restore them. Spotlights shows the best moments as a wall of cards, and Credits tells your characters' deeds as a book. The filter row on the Spotlights page picks the kinds, characters and period shown there and in Credits.
+  Runs            Every login is recorded in this browser. History on the start page lists them: rate a run, open its Statistics or its log in the player, and back them all up or restore them. Spotlights shows the best moments as a wall of cards; a card plays in a viewer that grows out of it and plays on through the rest. Credits tells your characters' deeds as a book. The filter row on the Spotlights page picks the kinds, characters and period shown there and in Credits.
   Export          Cut a run, add comments and export it as an HTML replay anyone can open, or as plain text.
   Phone           Log in and chat from a phone; History, Export and the scripts' settings work there too. Real play is for a keyboard.
 
@@ -82,7 +82,7 @@ SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 LUA SCRIPTS
-Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Scripts on the start page or in the game's menu bar, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. Manual on the Scripts page, or F1 in the editor, opens the full manual with examples.
+Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Scripts on the start page or in the game's menu bar, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. A script's settings are tiles on its panel, and take effect at once. A bundled script opens read-only; Duplicate makes an editable copy. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. Manual on the Scripts page, or F1 in the editor, opens the full manual with examples.
 
 CREDITS
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper
