@@ -441,13 +441,15 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
       if (k.host.isClosed) return;
       const eng = k.host.engine;
       if (!eng) return;
-      // The countdown: drains from both sides to the moment (gone after it).
+      // The countdown: drains from both sides to the moment (gone after
+      // it). A scale on its own layer: no layout or paint per frame.
       const left = k.reel.countdown();
       const cd = cdRef.current;
       if (cd) {
-        cd.hidden = !(left > 0);
-        const pct = `${(((1 - left) / 2) * 100).toFixed(2)}%`;
-        if (cd.style.left !== pct) cd.style.left = cd.style.right = pct;
+        const off = !(left > 0);
+        if (cd.hidden !== off) cd.hidden = off;
+        const t = `scaleX(${Math.max(0, Math.min(1, left)).toFixed(3)})`;
+        if (!off && cd.style.transform !== t) cd.style.transform = t;
       }
       trackDraw.current();
       syncBg();
@@ -574,18 +576,27 @@ function Track(p: { k: Kept | null; draw: { current: () => void } }): VNode {
     return () => ro.disconnect();
   }, []);
 
-  // The played part and the playhead follow the engine (or the drag) without a render.
-  let lastPct = '';
+  // The played part and the playhead follow the engine (or the drag)
+  // without a render: transforms on their own layers (a scale and a
+  // move, so no layout or paint per frame), written only when the
+  // playhead moves by a device pixel.
+  const last = useRef({ px: -1, w: -1 });
   p.draw.current = () => {
     const e = p.k?.host.engine;
     if (!e || !done.current || !head.current) return;
     const pos = drag.current ? drag.current.ms : e.position;
-    const pct = `${(e.duration > 0 ? Math.max(0, Math.min(1, pos / e.duration)) * 100 : 0).toFixed(3)}%`;
-    if (pct === lastPct) return;
-    lastPct = pct;
-    done.current.style.width = pct;
-    head.current.style.left = pct;
+    const f = e.duration > 0 ? Math.max(0, Math.min(1, pos / e.duration)) : 0;
+    const dpr = el.current?.ownerDocument.defaultView?.devicePixelRatio || 1;
+    const px = Math.round(f * w * dpr) / dpr;
+    if (px === last.current.px && w === last.current.w) return;
+    last.current = { px, w };
+    done.current.style.transform = `scaleX(${w > 0 ? (px / w).toFixed(5) : 0})`;
+    head.current.style.transform = `translateX(${px}px)`;
   };
+  // A new width (and the first one): draw again, also while paused.
+  useLayoutEffect(() => {
+    p.draw.current();
+  }, [w]);
 
   const at = (clientX: number): number => {
     const r = line.current?.getBoundingClientRect();
