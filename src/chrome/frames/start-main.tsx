@@ -16,7 +16,7 @@
 // the phone's ESC menu keeps it.
 
 import { Fragment, type VNode } from 'preact';
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { useServices, useSettings } from '../kit/hooks';
 import { Box, Icon, type IconName, KeyLabel, LookFlash, letterOf, lookFrame, useScenery } from '../kit/look';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
@@ -85,6 +85,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     { key: 'about', label: 'About', letter: 'a', icon: 'info', activate: () => nav.push(<AboutFrame />) },
   ];
   const [cursor, setCursor] = useMenuCursor(items, 'enter');
+  useKitGallery(nav);
   useKeys((e, nk) => {
     if (nk === 'back') return true;
     const l = letterOf(e);
@@ -122,6 +123,21 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     </div>
   );
 });
+
+// Dev only (stage 42, ADR 0127): `?kit` (or `?kit=<section>`) opens the kit
+// gallery over the menu after the first render, once per page load. A
+// normal build holds none of it: the condition folds to false and the
+// dynamic import goes with it; `VITE_KIT=1 npm run build` keeps it.
+let kitOpened = false;
+function useKitGallery(nav: ReturnType<typeof useNav>): void {
+  useEffect(() => {
+    if (!(import.meta.env.DEV || import.meta.env.VITE_KIT)) return;
+    const section = new URLSearchParams(location.search).get('kit');
+    if (section === null || kitOpened) return;
+    kitOpened = true;
+    void import('../kit/gallery').then((m) => nav.push(<m.KitGallery section={section || undefined} />));
+  }, []);
+}
 
 function MenuRow(p: { item: StartItem; selected: boolean; active: boolean; onSelect: () => void }): VNode {
   const ref = useRef<HTMLLIElement>(null);
