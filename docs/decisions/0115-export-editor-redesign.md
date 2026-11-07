@@ -126,3 +126,19 @@ Small additions made while building; none changes the design above.
 - On a narrow grid the one-line summary ends with `· n selected` while a
   selection is up (there is no selection heading there), and the export
   used last is marked `◄` after its button.
+
+## Addendum 2026-11-07 — the lantern look (stage 43d, ADR 0128)
+
+The editor moved to the new look, direction B "Verktygsraden" (ADR 0128
+§43d). §1's cell layout and §5's panel are replaced: a bar over a
+full-width log (the summary, the selection heading, Exclude / Include, Add
+comment, Edit, Delete), the overview strip at the log's right, and a foot
+with the file name (the title edited inline), a format toggle and Export.
+§4 changes: H and P only **choose** the format (the doc's `format`, saved
+at once) and **O** exports the chosen one; the "◄ last" mark goes. The
+comment and title inputs are inline (the comment in the log at its place,
+the title in the foot), not pages of their own. The log wraps at the
+columns that fit (at most 120) and keeps its virtual rendering in pixels.
+§2, §3 and §6 (selection, range operations, keys, touch) hold, minus the
+panel zone: Tab now walks the bar's and the foot's buttons. "TEXT FILE" is
+called "Plain text".
