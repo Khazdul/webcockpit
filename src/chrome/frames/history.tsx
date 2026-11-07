@@ -35,8 +35,8 @@
 // Pure helpers (sort, cells, the card's words, the phone's sort list):
 // history-model.ts.
 
-import type { Ref, VNode } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { Component, type Ref, type VNode } from 'preact';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { nowUs } from '../../core/types';
 import { BadBackupError, backupFileName } from '../../runs/library';
 import type { Session } from '../../runs/stitch';
@@ -190,13 +190,18 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
 
   // Pills: All + one per character with sessions. A filter whose last
   // session went falls back to All.
-  const names = pillNames(all ?? []);
+  const names = useMemo(() => pillNames(all ?? []), [all]);
   const pill = filter !== null && names.includes(filter) ? filter : null;
   const pillIdx = pill === null ? 0 : names.indexOf(pill) + 1;
 
-  const list = sortSessions(
-    (all ?? []).filter((s) => pill === null || s.character === pill),
-    sort,
+  // Sorted once per change of the list, the pill or the sort (not per key).
+  const list = useMemo(
+    () =>
+      sortSessions(
+        (all ?? []).filter((s) => pill === null || s.character === pill),
+        sort,
+      ),
+    [all, pill, sort],
   );
   // The cursor follows its session when the list changes (sort, save,
   // reload); after a delete it stays at the same index.
@@ -401,32 +406,23 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
     </aside>
   );
 
+  // One component per row that re-renders only when its session, place or
+  // state changes (a key moves the cursor: two rows render, not all).
   const rows: VNode[] = [];
   list.forEach((s, i) => {
     const on = i === cursor;
-    const tone = expiryTone(s);
-    const rp = lc.rowProps(i);
-    rows.push(
-      <TableRow
-        key={s.id}
-        id={s.id}
-        on={on}
-        class={on ? (inRows ? 'is-cur' : 'is-idle') : undefined}
-        data-i={i}
-        onPointerMove={rp.onPointerMove}
-        onClick={rp.onClick}
-        onDblClick={rp.onDblClick}
-      >
-        <span class="wc-lk-td wc-hist-char">{s.character}</span>
-        <span class="wc-lk-td wc-hist-date">{fmtDate(s.startUs)}</span>
-        <span class="wc-lk-td wc-hist-time">{fmtTime(s.startUs)}</span>
-        <span class="wc-lk-td wc-hist-dur">{fmtDur(s.endUs - s.startUs)}</span>
-        <span class={`wc-lk-td wc-hist-exp is-${tone}`}>{expiresText(s)}</span>
-        <span class="wc-lk-td wc-hist-rate">{s.saved && s.rating > 0 ? <LookStars n={s.rating} /> : ''}</span>
-      </TableRow>,
-    );
+    rows.push(<HistoryRow key={s.id} s={s} i={i} state={on ? (inRows ? 'cur' : 'idle') : null} />);
     if (narrow && on) rows.push(card);
   });
+  // The rows' pointer handlers, delegated from their parent to the cursor's (no closures per row).
+  const onRow = (kind: 'onPointerDown' | 'onPointerMove' | 'onClick' | 'onDblClick', e: PointerEvent | MouseEvent): void => {
+    const row = (e.target as Element | null)?.closest?.('.wc-lk-tr[data-i]');
+    const i = row ? Number(row.getAttribute('data-i')) : NaN;
+    if (!Number.isFinite(i)) return;
+    const rp = lc.rowProps(i);
+    if (kind === 'onPointerDown' || kind === 'onPointerMove') rp[kind](e as PointerEvent);
+    else rp[kind](e);
+  };
 
   const note = all === null ? 'Loading…' : readFailed ? READ_FAILED : empty ? EMPTY : list.length === 0 ? EMPTY : null;
 
@@ -459,7 +455,13 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
         )}
       </BoxHead>
       <BoxBody class="wc-hist-main" scroll={narrow} bodyRef={bodyRef}>
-        <div class="wc-hist-tablewrap" onPointerDown={(e) => rowPointerDown(e, lc.rowProps)}>
+        <div
+          class="wc-hist-tablewrap"
+          onPointerDown={(e) => onRow('onPointerDown', e)}
+          onPointerMove={(e) => onRow('onPointerMove', e)}
+          onClick={(e) => onRow('onClick', e)}
+          onDblClick={(e) => onRow('onDblClick', e)}
+        >
           <Table
             cols={COLS}
             scroll={!narrow}
@@ -498,15 +500,38 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
 /** `stackBelow` that always stacks (the page decides its narrow form by its own width, not the table's). */
 const STACK_ALWAYS = 1e6;
 
+interface HistoryRowProps {
+  s: Session;
+  i: number;
+  /** The chosen row: `cur` with the keyboard in the rows, `idle` while it is in the buttons. */
+  state: 'cur' | 'idle' | null;
+}
+
 /**
- * Local helper (kit gap, reported for wave 3): `TableRow` does not take a
- * cursor's `onPointerDown`, so the pointer type that tells a tap from a
- * click (`touch: 'tap-selects'`) is handed over here, from the rows' parent.
+ * One table row. Its pointer handlers are delegated from the rows' parent
+ * (`TableRow` takes no `onPointerDown`, which the cursor needs to tell a
+ * tap from a click: a kit gap, reported for wave 3), so the row has no
+ * closures and renders again only when its own props change.
  */
-function rowPointerDown(e: PointerEvent, rowProps: (i: number) => { onPointerDown(e: PointerEvent): void }): void {
-  const row = (e.target as Element | null)?.closest?.('.wc-lk-tr[data-i]');
-  const i = row ? Number(row.getAttribute('data-i')) : NaN;
-  if (Number.isFinite(i)) rowProps(i).onPointerDown(e);
+class HistoryRow extends Component<HistoryRowProps> {
+  override shouldComponentUpdate(n: HistoryRowProps): boolean {
+    const p = this.props;
+    return n.s !== p.s || n.i !== p.i || n.state !== p.state;
+  }
+
+  override render(): VNode {
+    const { s, i, state } = this.props;
+    return (
+      <TableRow id={s.id} on={state !== null} class={state === null ? undefined : `is-${state}`} data-i={i}>
+        <span class="wc-lk-td wc-hist-char">{s.character}</span>
+        <span class="wc-lk-td wc-hist-date">{fmtDate(s.startUs)}</span>
+        <span class="wc-lk-td wc-hist-time">{fmtTime(s.startUs)}</span>
+        <span class="wc-lk-td wc-hist-dur">{fmtDur(s.endUs - s.startUs)}</span>
+        <span class={`wc-lk-td wc-hist-exp is-${expiryTone(s)}`}>{expiresText(s)}</span>
+        <span class="wc-lk-td wc-hist-rate">{s.saved && s.rating > 0 ? <LookStars n={s.rating} /> : ''}</span>
+      </TableRow>
+    );
+  }
 }
 
 /** The chosen session's card: name, level, the long date, Duration, Deeds, Kept, Log. */

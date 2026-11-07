@@ -65,8 +65,11 @@
   flex-direction: column;
 }
 
+/* Rows out of view skip layout and paint (a few hundred sessions; ADR 0130). */
 .wc-hist-tablewrap .wc-lk-tr {
   min-height: 41px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 41px;
 }
 
 .wc-hist-char {
@@ -316,6 +319,7 @@
   align-items: baseline;
   padding: 9px 10px;
   min-height: 0;
+  contain-intrinsic-size: auto 62px;
 }
 
 .is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-hist-char {
