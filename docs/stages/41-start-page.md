@@ -1,6 +1,6 @@
 # Stage 41 — The new start page
 
-Status: **Next** (planned 2026-11-07, to be built in the night pass; see
+Status: **In progress** (night pass 2026-11-07, branch `stage-41-start-page`; see
 `notes/research/start-menu-mockups/NIGHT-PASS.md` for the whole pass).
 
 ## Goal

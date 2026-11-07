@@ -46,7 +46,7 @@ Next: stage 41, the new start page, in a long autonomous night pass (`notes/rese
 | 38 | Scripts page | Done | `docs/stages/38-scripts-page.md` |
 | 39 | Group and Timers panes | Done | `docs/stages/39-group-timers.md` |
 | 40 | Lantern pane look | Done | `docs/stages/40-lantern-panes.md` |
-| 41 | New start page | Next | `docs/stages/41-start-page.md` |
+| 41 | New start page | In progress | `docs/stages/41-start-page.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
