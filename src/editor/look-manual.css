@@ -38,9 +38,9 @@
   color: var(--lk-m-text);
 }
 
-[data-light] .wc-lk-manual,
+:not(html)[data-light] .wc-lk-manual,
 .wc-lk-manual[data-light],
-[data-light] .wc-lk-mtoc {
+:not(html)[data-light] .wc-lk-mtoc {
   --lk-m-head: var(--lk-head, #4a3418);
   --lk-m-text: var(--lk-text, #2a2116);
   --lk-m-dim: var(--lk-dim, #6b5a44);
@@ -455,11 +455,11 @@
   background-color: rgba(255, 200, 110, 0.5);
 }
 
-[data-light] ::highlight(wc-lk-find) {
+:not(html)[data-light] ::highlight(wc-lk-find) {
   background-color: rgba(200, 140, 40, 0.2);
 }
 
-[data-light] ::highlight(wc-lk-find-now) {
+:not(html)[data-light] ::highlight(wc-lk-find-now) {
   background-color: rgba(200, 140, 40, 0.45);
 }
 

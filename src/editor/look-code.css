@@ -57,10 +57,10 @@
   --lk-find-bad: var(--lk-danger, #e6a690);
 }
 
-[data-light] .wc-code,
+:not(html)[data-light] .wc-code,
 .wc-code[data-light],
-[data-light] .wc-lk-search,
-[data-light] .wc-lk-manual,
+:not(html)[data-light] .wc-lk-search,
+:not(html)[data-light] .wc-lk-manual,
 .wc-lk-manual[data-light] {
   --lk-code-text: #2a2116;
   --lk-code-bg: rgba(255, 253, 246, 0.94);

@@ -251,11 +251,11 @@
 
 /* ------------------------------------------------------------ Paper */
 
-[data-light] .wc-lk-veil {
+:not(html)[data-light] .wc-lk-veil {
   background: radial-gradient(70% 70% at 50% 45%, rgba(80, 60, 30, 0.14), rgba(80, 60, 30, 0.3));
 }
 
-[data-light] .wc-lk-dialog {
+:not(html)[data-light] .wc-lk-dialog {
   border-color: #5a4a30;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent 35%, rgba(0, 0, 0, 0.1)),
@@ -263,20 +263,20 @@
   box-shadow: inset 1px 1px 0 rgba(255, 246, 222, 0.7), 0 18px 44px -10px rgba(60, 40, 10, 0.45);
 }
 
-[data-light] .wc-lk-dwin {
+:not(html)[data-light] .wc-lk-dwin {
   border-color: #5a4a30;
   background: rgba(250, 245, 232, 0.97);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   scrollbar-color: rgba(120, 90, 40, 0.35) transparent;
 }
 
-[data-light] .wc-lk-pop {
+:not(html)[data-light] .wc-lk-pop {
   border-color: #6a5a3c;
   background: linear-gradient(180deg, #d8c49a, #a8946e);
   box-shadow: 0 8px 22px -6px rgba(60, 40, 10, 0.4);
 }
 
-[data-light] .wc-lk-pop-in {
+:not(html)[data-light] .wc-lk-pop-in {
   background: #fbf6ea;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
