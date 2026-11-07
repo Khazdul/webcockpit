@@ -133,7 +133,7 @@ is; re-derive the look in the app's own structure.
       `round6/logo-3-cyan-compare.html`); "M" favicon (svg, ico, 180 px)
 - [x] 41c: layout, menu, selection, shortcuts (E P S H L C A), quote A,
       almanac, phone; Enter MUME fades the page away, zooms the sky and
-      fades into the game (4.3 s, `src/chrome/enter-transition.ts`)
+      sweeps the game in from the bottom (6.3 s, `src/chrome/enter-transition.ts`)
 - [x] Owner feedback 2026-11-07: mithril inlay (subtle tint d), row
       actions in the Profile list, profile name on Profile, the Enter
       MUME transition
@@ -186,8 +186,8 @@ shows fps.
    new menu; the log player returns to History.
 8. **Phone** (or a narrow window): the layout fits; taps work.
 9. **Enter MUME.** The wordmark, panel and quote fade where they are,
-   the almanac slides down, the sky zooms in (~2-3 s), then a 2 s fade
-   into the game; typing at once goes to the game; reduced motion gives a
+   the almanac slides down, the sky zooms in, then a 4 s fade into the
+   game that clears the bottom first and sweeps up; typing at once goes to the game; reduced motion gives a
    short plain fade.
 10. **Performance feel.** Smooth, no stutter; the fan stays quiet.
 
@@ -214,6 +214,8 @@ shortcut letters, and the open questions in the session log.
   fast). Third round: the scroll up did not look good; the wordmark and
   the panel fade in place, the almanac slides down a little faster, the
   sky shows sooner, a longer zoom and a slower fade (4.3 s in all).
+  Fourth round: the fade twice as long (4 s) and softer, sweeping up
+  from the bottom (6.3 s in all).
 - **The profile name** belongs on Profile, not Scripts: "PROFILE
   (khazdul)".
 - The in-game window kit's thin cyan border stays as it is for now.

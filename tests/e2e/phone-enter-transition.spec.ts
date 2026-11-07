@@ -24,7 +24,7 @@ test('a tap on Enter MUME plays the transition; Exit session resets the page', a
   expect(s).toEqual({ leaving: true, host: 'fixed', cockpit: 'flex' });
   // A second tap lands on the cockpit.
   await row.tap({ force: true });
-  await expect(page.locator('.wc-start')).toBeHidden();
+  await expect(page.locator('.wc-start')).toBeHidden({ timeout: 10_000 });
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   expect(opened).toBe(1);
 

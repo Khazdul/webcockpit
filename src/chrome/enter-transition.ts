@@ -7,7 +7,8 @@
 //   zoom   the sky host scales up (a compositor transform: the canvases
 //          are not repainted larger; the engine keeps drawing);
 //   fade   the whole surface fades out over the cockpit, which is already
-//          shown underneath, focused and connecting.
+//          shown underneath, focused and connecting; a soft mask sweeps
+//          up with it, so the game shows from the bottom first.
 //
 // The owner asked for an unhurried pace (2026-11-07): a quick leave, then
 // a long zoom and a slow fade. `prefers-reduced-motion`: a plain short fade of
@@ -33,14 +34,28 @@ export interface EnterTiming {
 }
 
 /** How far the sky zooms in. */
-export const ENTER_ZOOM = 1.1;
+export const ENTER_ZOOM = 1.12;
+
+/**
+ * The fade's sweep: a vertical mask three times the surface's height,
+ * opaque in its top third and clear in its bottom third with a ramp one
+ * surface height tall between, so the sweep takes the whole fade. Sliding it from the top (0 %) to
+ * the bottom (100 %) clears the surface from its bottom edge upwards.
+ */
+const SWEEP_MASK = 'linear-gradient(to bottom, #000 33.3%, transparent 66.7%)';
+const sweepFrame = (pos: string): Keyframe => ({
+  maskImage: SWEEP_MASK,
+  maskSize: '100% 300%',
+  maskRepeat: 'no-repeat',
+  maskPosition: `0 ${pos}`,
+});
 
 const LEAVE: Phase = { delay: 0, duration: 600 };
 /** The almanac's slide, a little longer than the fade. */
 const SLIDE: Phase = { delay: 0, duration: 700 };
 /** Most of the zoom happens in its first ~2.3 s; it eases on through the fade. */
-const ZOOM: Phase = { delay: 450, duration: 3850 };
-const FADE: Phase = { delay: 2300, duration: 2000 };
+const ZOOM: Phase = { delay: 450, duration: 5850 };
+const FADE: Phase = { delay: 2300, duration: 4000 };
 const STILL_FADE: Phase = { delay: 0, duration: 220 };
 
 const end = (p: Phase): number => p.delay + p.duration;
@@ -59,6 +74,10 @@ export interface EnterRun {
 }
 
 const EASE_IN_OUT = 'cubic-bezier(0.45, 0, 0.55, 1)';
+/** The sweep: a soft start, then an even climb to the top. */
+const SWEEP_EASE = 'cubic-bezier(0.35, 0, 0.9, 0.9)';
+/** The final fade's opacity: lingers, then goes. */
+const FADE_EASE = 'cubic-bezier(0.5, 0, 0.7, 0.6)';
 /** A slide that gathers speed and leaves. */
 const EASE_IN = 'cubic-bezier(0.55, 0, 0.8, 0.35)';
 /** The zoom: an even start, most of the travel early, a long soft tail. */
@@ -104,10 +123,24 @@ export function playEnter(surface: HTMLElement, reduced: boolean): EnterRun {
       ZOOM_EASE,
     );
   }
+  // The sweep (not with reduced motion): the bottom clears first and the
+  // clear edge climbs, a soft ramp, never a line.
+  if (!reduced) {
+    anims.push(
+      surface.animate([sweepFrame('0%'), sweepFrame('100%')], {
+        delay: t.fade.delay,
+        duration: t.fade.duration,
+        easing: SWEEP_EASE,
+        fill: 'forwards',
+      }),
+    );
+  }
+  // The opacity under it: slow at first, so the sweep leads and the top
+  // of the sky lingers, then the whole surface thins away.
   const fade = surface.animate([{ opacity: 1 }, { opacity: 0 }], {
     delay: t.fade.delay,
     duration: t.fade.duration,
-    easing: reduced ? 'ease-out' : EASE_IN_OUT,
+    easing: reduced ? 'ease-out' : FADE_EASE,
     fill: 'forwards',
   });
   anims.push(fade);

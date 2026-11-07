@@ -46,14 +46,15 @@ test('Enter MUME: the page leaves over the cockpit; keys go to the input at once
   // At once: connecting, the input has the focus, the page is still there and leaving.
   await expect.poll(opened).toBe(1);
   const s = await state(page);
-  expect(s).toMatchObject({ leaving: true, surface: 1, sky: 1, panel: 1, position: 'fixed' });
+  // The surface: the sweep and the fade.
+  expect(s).toMatchObject({ leaving: true, surface: 2, sky: 1, panel: 1, position: 'fixed' });
   await expect(field(page)).toBeFocused();
   // Keys typed meanwhile reach the input, never the start menu (P would open the Profile list).
   await page.keyboard.type('pa');
   await expect(field(page)).toHaveValue('pa');
   await expect(page.locator('.wc-pl')).toHaveCount(0);
   // The end: the page is hidden and its host back in the flow.
-  await expect(start(page)).toBeHidden();
+  await expect(start(page)).toBeHidden({ timeout: 10_000 });
   expect(await state(page)).toMatchObject({ leaving: false, surface: 0, sky: 0, panel: 0, position: 'relative' });
   await expect(field(page)).toBeFocused();
   await expect(field(page)).toHaveValue('pa');
@@ -69,7 +70,7 @@ test('a second click or Enter during the transition does not enter twice', async
   // The page takes no pointer events now: this click lands on the cockpit.
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.keyboard.press('Enter');
-  await expect(start(page)).toBeHidden();
+  await expect(start(page)).toBeHidden({ timeout: 10_000 });
   await page.waitForTimeout(300);
   expect(opened()).toBe(1);
 });
@@ -92,7 +93,7 @@ test('Exit during the transition puts the start page back as it was; Enter MUME 
   await expect(startSel(page)).toHaveText('Profile');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
-  await expect(start(page)).toBeHidden();
+  await expect(start(page)).toBeHidden({ timeout: 10_000 });
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
 });
 

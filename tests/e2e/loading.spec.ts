@@ -242,8 +242,9 @@ test('returning to the start page from the game does not fade again', async ({ p
   await expect(page.locator('.wc-start-sky')).toHaveCount(1);
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toBeVisible();
-  // The sky engine is not kept while the game runs (ADR 0125 addendum).
-  await expect(page.locator('.wc-start-sky')).toHaveCount(0);
+  // The sky engine is not kept while the game runs (ADR 0125 addendum);
+  // it goes when Enter MUME's transition is over.
+  await expect(page.locator('.wc-start-sky')).toHaveCount(0, { timeout: 10_000 });
   // Enter MUME's own short fade of the cockpit.
   await page.waitForFunction(`${PAGE_ANIMS}.length === 0`);
   await page.evaluate(() => window.__wc!.shell.exitSession());

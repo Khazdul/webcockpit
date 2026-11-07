@@ -18,8 +18,8 @@ describe('enterTiming', () => {
     expect(zoom.delay).toBeGreaterThanOrEqual(leave.duration / 2);
     expect(t.fade.delay).toBeGreaterThanOrEqual(zoom.delay + 1000);
     expect(t.fade.delay - zoom.delay).toBeLessThanOrEqual(2500);
-    expect(t.fade.duration).toBeGreaterThanOrEqual(1000);
-    expect(t.fade.duration).toBeLessThanOrEqual(2500);
+    expect(t.fade.duration).toBeGreaterThanOrEqual(3000);
+    expect(t.fade.duration).toBeLessThanOrEqual(4500);
     expect(t.total).toBe(t.fade.delay + t.fade.duration);
     expect(ENTER_ZOOM).toBeGreaterThan(1);
     expect(ENTER_ZOOM).toBeLessThanOrEqual(1.15);
@@ -96,9 +96,12 @@ describe('playEnter', () => {
     const [zoom] = on(played, 'wc-start-skyhost');
     expect(zoom?.frames.at(-1)?.transform).toBe(`scale(${ENTER_ZOOM})`);
     expect(zoom?.opts.delay).toBe(t.zoom!.delay);
-    const [fade] = on(played, 'wc-start');
+    const [sweep, fade] = on(played, 'wc-start');
     expect(fade?.opts).toMatchObject({ delay: t.fade.delay, duration: t.fade.duration, fill: 'forwards' });
     expect(fade?.frames.at(-1)?.opacity).toBe(0);
+    // The sweep: the mask slides from the top to the bottom, clearing the bottom first.
+    expect(sweep?.frames.map((f) => f.maskPosition)).toEqual(['0 0%', '0 100%']);
+    expect(sweep?.opts).toMatchObject({ delay: t.fade.delay, duration: t.fade.duration });
     fade!.finish();
     await expect(run.finished).resolves.toBe(true);
   });
@@ -130,6 +133,6 @@ describe('playEnter', () => {
       }) as HTMLElement['animate'];
     }
     playEnter(el, false);
-    expect(calls).toEqual([el.firstElementChild, el]);
+    expect(calls).toEqual([el.firstElementChild, el, el]); // the sky zooms; the surface sweeps and fades
   });
 });

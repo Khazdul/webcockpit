@@ -127,7 +127,7 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
 test('Enter MUME shows the cockpit and connects; Esc opens the Exit popup, no menu (ADR 0112)', async ({ page }) => {
   const mock = await enterMume(page);
   expect(mock.opened()).toBe(1);
-  await expect(start(page)).toBeHidden();
+  await expect(start(page)).toBeHidden({ timeout: 10_000 });
   const field = page.locator('.wc-input-field');
   await expect(field).toBeFocused();
   await page.keyboard.press('Escape');

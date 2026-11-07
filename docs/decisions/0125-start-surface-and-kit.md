@@ -400,3 +400,24 @@ above:
 | fade | the whole surface fades out over the cockpit | 2300 ms | 2000 ms | ease-in-out |
 
 Total 4.3 s; the sky alone shows from about 0.7 to 2.3 s.
+
+## Addendum 2026-11-07 (fourth round) — a 4 s fade that sweeps up
+
+The owner wanted the fade into the game twice as long and softer, the
+bottom clearing a little before the top. The fade is now 4000 ms (from
+2300 ms) and two animations on the surface:
+
+- **The sweep**: a vertical `mask-image` three surface heights tall
+  (opaque in its top third, clear in its bottom third, a ramp one height
+  tall between) slides from `0 0%` to `0 100%`
+  (`cubic-bezier(0.35, 0, 0.9, 0.9)`): the bottom clears first and the
+  clear edge climbs as a soft ramp, never a line.
+- **The opacity** under it: `cubic-bezier(0.5, 0, 0.7, 0.6)`, slow at
+  first so the sweep leads, then the whole surface thins away.
+
+The zoom runs on through it (450 ms to 6300 ms, to 1.12). Total 6.3 s;
+in stepped frames the sky is gone at about 5.5 s by day, sooner at night
+(the dark upper sky melts into the dark cockpit). Mask positions are not
+compositor-only, so the surface is re-rastered during the fade; the sky
+under it repaints every frame anyway. Reduced motion is unchanged (a
+220 ms plain fade, no sweep).
