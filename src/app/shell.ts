@@ -87,10 +87,8 @@
 // cockpit App's output once; the chrome shows them on the start page and
 // in the phone's ESC menu header (`services.notices`).
 //
-// Spotlights (ADR 0019): `openSpotlights()` (the start page's Spotlights)
-// loads the reel (src/player/spotlight-reel.ts) and opens it in the same
-// player host (src/player/spotlight-mode.ts); ESC returns to the start
-// page's main menu the same way.
+// Spotlights (ADR 0019, 0131): the start page's Spotlights page loads the
+// reel itself and plays it in an embedded host (`embedPlayer`).
 
 import type { BenchProbe } from './bench-hook';
 import type {
@@ -112,7 +110,6 @@ import type { PlayerOpenResult } from '../chrome/kit/hooks';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
 import type { ChainRun } from '../player/timeline';
-import type { ReelHandle } from '../player/spotlight-mode';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
@@ -204,8 +201,6 @@ export class Shell {
   private swept = false;
   private player: PlayerHost | null = null;
   private playerOpening = false;
-  /** The open Spotlights reel (ADR 0110). */
-  private reel: ReelHandle | null = null;
   /** The current map (ADR 0020): the cockpit's and the log player's Map pane, Options → Mapper. */
   readonly maps: MapStore;
   /** The script library (ADR 0051): the cockpit's script host and the Scripts page. */
@@ -551,37 +546,6 @@ export class Shell {
   }
 
   /**
-   * Loads the Spotlights reel and plays it (from the start page only).
-   * Resolves to the empty state when there is nothing to play.
-   */
-  async openSpotlights(): Promise<'no_data' | 'filtered' | null> {
-    if (this.inCockpit || this.player || this.playerOpening) return null;
-    const [{ ReelSource }, lib] = await Promise.all([import('../player/spotlight-reel'), this.runLibrary()]);
-    const settings = this.opts.settings;
-    // One source per open: the runs are read once, and a rebuild for new
-    // settings reads only windows not read yet (ADR 0110).
-    const source = new ReelSource(lib);
-    const reel = await source.load(settings.get().spotlights, Date.now() * 1000);
-    if ('empty' in reel) return reel.empty;
-    const { openSpotlightReel } = await import('../player/spotlight-mode');
-    await this.startPlayer((host) => {
-      this.reel = openSpotlightReel(host, reel, {
-        source,
-        settings,
-        // The card's Characters list: the recorded characters.
-        characters: () => lib.characters(),
-      });
-      host.onDispose(() => (this.reel = null));
-    });
-    return null;
-  }
-
-  /** The open Spotlights reel (tests, the dev hook). */
-  get spotlightReel(): ReelHandle | null {
-    return this.reel;
-  }
-
-  /**
    * A new player host in `root`, once its chunk is in, as the shell's
    * `playerHost`; or why none may open (over the cockpit, another player
    * open or opening, the chunk lost).
@@ -746,7 +710,6 @@ export class Shell {
       runs: () => this.runLibrary(),
       openPlayer: (session) => this.openPlayer(session),
       embedPlayer: (slot) => this.embedPlayer(slot),
-      openSpotlights: () => this.openSpotlights(),
       maps: this.maps,
       scripts: this.scripts,
       scriptRunning: (name) => this.appRef?.scriptRunning(name) ?? null,

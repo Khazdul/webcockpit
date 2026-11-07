@@ -63,12 +63,6 @@ export interface ChromeServices {
    */
   embedPlayer?: (slot: HTMLElement) => Promise<PlayerHost | null>;
   /**
-   * Loads the Spotlights reel and plays it in the player (ADR 0019), the
-   * start page hidden as for `openPlayer`. Resolves to the empty state to
-   * show when there is nothing to play, else null once the reel is up.
-   */
-  openSpotlights?: () => Promise<'no_data' | 'filtered' | null>;
-  /**
    * The current map (ADR 0020; Options → Mapper, the HTML replay
    * export). Absent: the Mapper page says the map store is not available
    * and exports use the bundled map.

@@ -1,6 +1,5 @@
 // The Spotlights reel (ADR 0019 "Spotlights", Inv §7.6): loading and the
-// reel's arithmetic. No DOM; the card is src/player/spotlight-card.ts and
-// the player wiring src/player/spotlight-mode.ts.
+// reel's arithmetic. No DOM; the player wiring is src/player/spotlight-mode.ts.
 //
 // Loading (`ReelSource`). Every sealed run with a log and its events →
 // `selectSpotlights` (the Spotlights settings' filters, ADR 0110; rotation
@@ -438,4 +437,11 @@ export function reelLengthMs(reel: Reel): number {
   let ms = 0;
   for (let i = 0; i < reel.spots.length; i++) ms += spotLengthMs(reel, i);
   return ms;
+}
+
+/** What is left of the countdown at `p` in a spotlight starting at `start` whose moment is `moment` (1 → 0). */
+export function countdownLeft(start: number, moment: number, p: number): number {
+  const span = moment - start;
+  if (!(span > 0)) return 0;
+  return Math.max(0, Math.min(1, (moment - p) / span));
 }

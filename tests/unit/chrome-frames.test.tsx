@@ -278,16 +278,14 @@ describe('start page', () => {
   it('Spotlights opens its wall (stage 46): with no recorded spotlight it says how they are made; Esc returns', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    // The old full-page reel is no longer how the page loads: the menu loads the reel itself and pushes the wall.
-    const openSpotlights = vi.fn(async () => 'no_data' as const);
+    // The menu loads the reel itself and pushes the wall.
     const embedPlayer = vi.fn(async () => null);
-    const page = mountStartPage(host, { ...services(), openSpotlights, embedPlayer }, { onEnter: () => {} });
+    const page = mountStartPage(host, { ...services(), embedPlayer }, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     await act(() => host.querySelector<HTMLElement>('.wc-sm-item[data-key="spotlights"]')!.click());
     const wall = () => host.querySelector('.wc-frame:not([hidden]) .wc-spw');
     for (let i = 0; i < 20 && !wall(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
-    expect(openSpotlights).not.toHaveBeenCalled();
     expect(embedPlayer).not.toHaveBeenCalled();
     expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('Spotlights');
     expect(wall()?.querySelector('.wc-spw-empty')?.textContent).toContain('No spotlights yet.');

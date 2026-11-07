@@ -5,7 +5,7 @@
 // their own; the settings popup the old filtered pages opened is gone
 // (wave 3).
 import { act } from 'preact/test-utils';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { type ChromeServices, mountStartPage } from '../../src/chrome';
 import { PERIOD_LABELS, allCharactersPatch, characterPatch, characterRows } from '../../src/share/spotlights';
 import { ProfileStore } from '../../src/profiles';
@@ -120,8 +120,7 @@ describe('filtered empty pages (start page)', () => {
   it('Spotlights: a filter that lets nothing through opens the wall with its filter row; a chip there brings the cards back', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const openSpotlights = vi.fn(async () => 'filtered' as const);
-    const svc = services(rastaLib(), { openSpotlights, embedPlayer: async () => null });
+    const svc = services(rastaLib(), { embedPlayer: async () => null });
     svc.settings.update({ spotlights: { allCharacters: false, characters: [] } });
     const page = mountStartPage(host, svc, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
@@ -129,7 +128,6 @@ describe('filtered empty pages (start page)', () => {
     await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
     await until(() => wall(host) !== null);
     // The wall, not a page of its own: no Settings…, no popup, no Options.
-    expect(openSpotlights).not.toHaveBeenCalled();
     expect(wall(host)!.querySelector('.wc-spw-empty')!.textContent).toContain('No spotlights match your settings.');
     expect(wall(host)!.textContent).not.toContain('Settings…');
     expect(wall(host)!.textContent).not.toContain('Options');

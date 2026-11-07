@@ -1,5 +1,5 @@
-// Stage 7 P3: the Spotlights reel's loading and arithmetic, and the card's
-// countdown and width (stage 32c). The Credits book: credits-frame.test.tsx.
+// Stage 7 P3: the Spotlights reel's loading and arithmetic, and the
+// countdown to a moment (the viewer's). The Credits book: credits-frame.test.tsx.
 // Stage 46 (ADR 0131): what the wall reads from a loaded reel (each card's
 // still and the reel's length) and the page's one `ReelSource` reading
 // only windows not read yet; the still's rules: spotlights-still.test.ts.
@@ -9,10 +9,10 @@ import { describe, expect, it } from 'vitest';
 import type { RunEvent } from '../../src/runs/events';
 import { RunLibrary } from '../../src/runs/library';
 import { defaultSettings } from '../../src/settings';
-import { CARD_MIN_W, CARD_W, cardWidth, countdownLeft } from '../../src/player/spotlight-card';
 import {
   RESTART_MS,
   ReelSource,
+  countdownLeft,
   fmtDate,
   loadReel,
   reelLengthMs,
@@ -91,20 +91,13 @@ describe('reel positions', () => {
   });
 });
 
-describe('Spotlights card', () => {
+describe('Spotlights countdown and dates', () => {
   it('drains the countdown symmetrically to the moment', () => {
     expect(countdownLeft(1000, 11000, 1000)).toBe(1);
     expect(countdownLeft(1000, 11000, 6000)).toBe(0.5);
     expect(countdownLeft(1000, 11000, 11000)).toBe(0);
     expect(countdownLeft(1000, 11000, 15000)).toBe(0);
     expect(countdownLeft(1000, 1000, 1000)).toBe(0); // the moment is the first line
-  });
-
-  it('is CARD_W wide, narrower on a narrow player, and hides when too narrow', () => {
-    expect(cardWidth(1400)).toBe(CARD_W);
-    expect(cardWidth(360)).toBe(360 - 12 - 28 - 8);
-    expect(cardWidth(12 + 28 + 8 + CARD_MIN_W)).toBe(CARD_MIN_W);
-    expect(cardWidth(12 + 28 + 8 + CARD_MIN_W - 1)).toBe(0);
   });
 
   it('formats the header date', () => {
