@@ -198,6 +198,10 @@ test('the kit gallery: an embedded bare player driven by press()', async ({ page
   await expect(read).toContainText('playing');
   await page.keyboard.press(' ');
   await expect(read).toContainText('paused');
+  // Only the player's: the page's own keys (] the next section) do nothing while it shows.
+  await page.keyboard.press(']');
+  await page.waitForTimeout(150);
+  await expect(page.locator('.wc-lk-tab[data-tab="player"]')).toHaveAttribute('aria-selected', 'true');
   // The brighter red: the player's ANSI 1.
   const red = () => slot.locator('.wc-player').evaluate((el) => (el as HTMLElement).style.getPropertyValue('--ansi-1'));
   expect(await red()).toBe('#800000');
@@ -209,4 +213,7 @@ test('the kit gallery: an embedded bare player driven by press()', async ({ page
   await page.keyboard.press(' ');
   await page.waitForTimeout(150);
   await expect(read).toContainText('paused');
+  // Parked, the page's keys are back: ] goes to the next section.
+  await page.keyboard.press(']');
+  await expect(page.locator('.wc-lk-tab[data-tab="player"]')).toHaveAttribute('aria-selected', 'false');
 });

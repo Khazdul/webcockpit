@@ -152,6 +152,20 @@ export function useKeyLayer(handler: KeyHandler, active = true): void {
 }
 
 /**
+ * A frame that shows an embedded player (`services.embedPlayer`, a bare
+ * view) gives it the keys while `on`: the stack's key listener and the
+ * view's are both capture listeners on the window, and the stack's runs
+ * first, so both would see every key (Space would toggle playback and
+ * press the page's button; Esc would pop the page and then call the
+ * view's `onEsc`). This layer swallows every key for the frame; the view
+ * handles them, and its `onEsc` leaves. Off (the player parked or not
+ * ready yet): the frame's keys as usual. Stage 42 wave 3, ADR 0127.
+ */
+export function usePlayerKeys(on: boolean): void {
+  useKeyLayer(() => true, on);
+}
+
+/**
  * The key `lookFrame` (look.tsx) sets on a look frame's component. It
  * lives here, and look.tsx imports it: importing the kit's barrel from
  * this file would pull the whole lantern kit into the chunk this file

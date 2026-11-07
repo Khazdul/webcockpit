@@ -58,6 +58,8 @@ export interface ChromeServices {
    * shell tracks it as its `playerHost` and refuses a second player (null
    * then, or when the player cannot load); the host's `close()` /
    * `dispose()` hand it back without showing or hiding the start page.
+   * The view reads the keys from the window as the frame stack does, so
+   * the frame gives them to it with `usePlayerKeys(shown)` (stack.tsx).
    */
   embedPlayer?: (slot: HTMLElement) => Promise<PlayerHost | null>;
   /**
