@@ -67,9 +67,9 @@ test('start page: wordmark, menu, quote and almanac over the sky; no connection 
   await expect(page.locator('.wc-start .wc-banner')).toHaveCount(0);
   await expect(page.locator('.wc-start .wc-footer')).toHaveCount(0);
   const rows = page.locator('.wc-start .wc-frame:not([hidden]) .wc-sm-item .wc-sm-label');
-  // Stage 32: no Options; Scripts under Profile (with the profile's name).
+  // Stage 32: no Options; Scripts under Profile; Profile carries the profile's name.
   await expect(rows).toHaveText(['Enter MUME', 'Profile', 'Scripts', 'History', 'Spotlights', 'Credits', 'About']);
-  await expect(startRow(page, 'scripts').locator('.wc-sm-note')).toHaveText('(default)');
+  await expect(startRow(page, 'profile').locator('.wc-sm-note')).toHaveText('(default)');
   await expect(page.locator('.wc-start .wc-sm-item u.wc-sk')).toHaveText(['E', 'P', 'S', 'H', 'l', 'C', 'A']);
   await expect(page.locator('.wc-start .wc-sm-quote cite')).not.toBeEmpty();
   await expect(page.locator('.wc-start .wc-start-almanac')).toContainText(/, the \d+(st|nd|rd|th) of /);

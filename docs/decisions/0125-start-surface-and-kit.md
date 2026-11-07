@@ -303,3 +303,9 @@ the seven-button row described above under "The Profile list".
   works) and the page buttons as `.wc-pl-btns [data-btn=…]`; a click
   meant for the row itself goes to its name (`.wc-pl-n`), since the
   buttons fill the middle of a wide row.
+
+## Addendum (2026-11-07): the profile name sits on Profile
+
+The owner moved the selected profile's name from the Scripts row to the
+Profile row ("PROFILE (khazdul)"): it names what the Profile page
+changes. Scripts has no note now.

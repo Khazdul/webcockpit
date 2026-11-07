@@ -152,7 +152,7 @@ describe('start page', () => {
     expect(menuLabels(host)).toEqual(labels);
     expect(labels).toHaveLength(7);
     expect(host.querySelector('.wc-sm-item[data-key="options"]')).toBeNull();
-    expect(host.querySelector('.wc-sm-item[data-key="scripts"] .wc-sm-note')?.textContent).toBe('(default)');
+    expect(host.querySelector('.wc-sm-item[data-key="profile"] .wc-sm-note')?.textContent).toBe('(default)');
     // The shortcut letters, marked in the labels.
     expect([...host.querySelectorAll('.wc-sm-item u.wc-sk')].map((u) => u.textContent)).toEqual([
       'E',
@@ -395,7 +395,7 @@ describe('start page', () => {
     await act(() => f().querySelector<HTMLElement>('.wc-lk-back')!.click());
     expect(startSel(host)).toBe('Profile');
     // The menu's Scripts row follows the selected profile.
-    expect(host.querySelector('.wc-sm-item[data-key="scripts"] .wc-sm-note')?.textContent).toBe('(default)');
+    expect(host.querySelector('.wc-sm-item[data-key="profile"] .wc-sm-note')?.textContent).toBe('(default)');
   });
 });
 

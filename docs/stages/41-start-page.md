@@ -167,8 +167,8 @@ shows fps.
 3. **Sky.** Day, dusk, night, dawn; winter snow; a spring rain. Calm, the
    sun larger than the moon, never overlapping, no white specks at night.
 4. **Menu.** ↑↓, Enter/Space, the letters E P S H L C A, mouse hover and
-   click; the selection only brightens the row. Scripts shows the profile
-   name in dim italic. No hint rows.
+   click; the selection only brightens the row. Profile shows the selected
+   profile's name in dim italic. No hint rows.
 5. **Quote and almanac.** Legible at every hour? (On bright days the quote
    stays pale with a crisp outline; see the open questions.)
 6. **Profile list** (P). Back top left and Esc; S N E R D I X; Tab and ←/→
@@ -198,6 +198,8 @@ shortcut letters, and the open questions in the session log.
 - **Enter MUME:** everything folds away until only the sky is left, the
   sky zooms in a little, then a somewhat slower fade into the game
   (replaces the 280 ms fade).
+- **The profile name** belongs on Profile, not Scripts: "PROFILE
+  (khazdul)".
 - The in-game window kit's thin cyan border stays as it is for now.
 - Round 7 directions chosen for the later stages: see "Round 7 decisions"
   in `notes/research/start-menu-mockups/README.md`.

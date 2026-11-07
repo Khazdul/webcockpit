@@ -3,8 +3,8 @@
 // The wordmark, the almanac and the client notices belong to the start
 // surface (src/chrome/start-surface.tsx), which also draws the sky.
 //
-// Items: Enter MUME (primary, set apart by a rule), Profile, Scripts
-// (with the selected profile's name, small, dim, italic), History,
+// Items: Enter MUME (primary, set apart by a rule), Profile (with the
+// selected profile's name, small, dim, italic), Scripts, History,
 // Spotlights, Credits, About; each with a small line icon. Keys: ↑↓ (and
 // Tab), Home / End, Enter / Space, and the shortcut letter marked in each
 // label (E P S H L C A). The mouse selects on hover and activates on a
@@ -42,7 +42,7 @@ interface StartItem extends MenuItem {
   /** The shortcut letter, marked in the label. */
   letter: string;
   icon: IconName;
-  /** After the label, small and dim (Scripts: the profile's name). */
+  /** After the label, small and dim (Profile: the selected profile's name). */
   note?: string;
 }
 
@@ -54,7 +54,14 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   useScenery('main');
   const items: StartItem[] = [
     { key: 'enter', label: 'Enter MUME', letter: 'e', icon: 'door', activate: p.onEnter },
-    { key: 'profile', label: 'Profile', letter: 'p', icon: 'person', activate: () => nav.push(<ProfileFrame />) },
+    {
+      key: 'profile',
+      label: 'Profile',
+      letter: 'p',
+      icon: 'person',
+      note: profile,
+      activate: () => nav.push(<ProfileFrame />),
+    },
     ...(services.scripts
       ? [
           {
@@ -62,7 +69,6 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
             label: 'Scripts',
             letter: 's',
             icon: 'scroll' as const,
-            note: profile,
             activate: () => nav.push(<ScriptsFrame />),
           },
         ]
