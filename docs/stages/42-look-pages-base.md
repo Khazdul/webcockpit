@@ -840,7 +840,7 @@ stage's test plan.
 
 ## Tasks
 
-- [ ] 42-0: look.tsx split, stubs, `.wc-look`, gallery shell (`?kit`,
+- [x] 42-0: look.tsx split, stubs, `.wc-look`, gallery shell (`?kit`,
       `VITE_KIT`), `tests/e2e/look.ts`, ADR 0127 skeleton; all green
 - [ ] 42a: `Box` (tall, maxWidth, slots, title fade, places), morph proxy
       and choreography, hold wiring, box swap, normal → normal morph
