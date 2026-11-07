@@ -1098,8 +1098,8 @@ the morph proxy's window (`.wc-lk-box-large > .wc-lk-win`, `.wc-lk-mwin`)
 have no `backdrop-filter`; `--lk-large-blur` defaults to `none`. The fill
 is not the plain 0.84 but `rgba(19, 17, 13, 0.84)`, tinted to the blurred
 glass's mean colour over the night sky (screenshots of About at 1440×900,
-mean RGB of three text-free areas: blurred 31.6 / 27.0 / 21.8, plain 0.84
-26.5 / 21.5 / 17.7, the tinted fill 31.3 / 26.3 / ~21.7), so the look
+mean RGB of three areas beside the text: blurred 31.6 / 27.0 / 21.8, plain 0.84
+26.5 / 21.5 / 17.7, the tinted fill 31.3 / 27.3 / 21.6), so the look
 stays close to the mockups. A runtime gate (glass on a GPU only, by the
 WebGL renderer string or the rAF median of the first second) was not
 built: it needs a WebGL context or a mode switch mid-session, and on a GPU
