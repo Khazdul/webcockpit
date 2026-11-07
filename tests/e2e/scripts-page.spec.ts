@@ -177,6 +177,8 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   await f.locator('[data-btn="NEW"]').click();
   await expect(dialog(page, 'new')).toBeVisible();
   await expect(page.locator('.wc-win[data-win="scripts"] .wc-frame[data-under] .wc-scr')).toHaveCount(1);
+  // The field takes the focus a moment after the dialog shows (the kit's Field autoFocus).
+  await expect(dialog(page, 'new').locator('input')).toBeFocused();
   await page.keyboard.type('9bad');
   await page.keyboard.press('Enter');
   await expect(dialog(page, 'new').locator('.wc-lk-dialog-err')).toHaveText('The name must start with a letter.');
