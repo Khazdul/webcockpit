@@ -296,12 +296,12 @@ describe('the filter row', () => {
 });
 
 describe('states and the viewer', () => {
-  it('no data: no filter row, how spotlights are made, no Play all; Esc to the menu', async () => {
+  it('no data: no filter row, how spotlights are made, Play all disabled; Esc to the menu', async () => {
     const t = setup({ reel: { empty: 'no_data' } });
     await flush();
     expect(head()).toBeNull();
     expect(document.querySelector('.wc-spw-empty')!.textContent).toMatch(/^No spotlights yet\. Play a session/);
-    expect(document.querySelector('[data-btn="PLAY"]')).toBeNull();
+    expect(document.querySelector('[data-btn="PLAY"]')!.getAttribute('aria-disabled')).toBe('true');
     await key('f');
     await key('p');
     expect(head()).toBeNull();

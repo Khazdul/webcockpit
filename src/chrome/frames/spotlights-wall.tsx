@@ -32,6 +32,7 @@
 //
 // States: a reel (the wall); nothing passes (the filter row stays, the
 // wall says so); no data at all (no filter row; how spotlights are made).
+// The foot's Play all stays in every state, disabled without a card.
 //
 // Keys. On the wall: arrows move in 2D (the columns from the layout),
 // PgUp / PgDn, Home / End, Enter or Space plays the chosen card, P plays
@@ -626,7 +627,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
           )}
         </BoxBody>
         <BoxFoot class="wc-spw-foot">
-          {!noData && <GlassButton id="PLAY" label="Play all" letter="p" icon="play" primary disabled={count === 0} onClick={playAll} />}
+          <GlassButton id="PLAY" label="Play all" letter="p" icon="play" primary disabled={count === 0} onClick={playAll} />
           <span class="wc-spw-sum">{reel ? wallSummary(count, reel.lengthMs) : ''}</span>
           <LookFlash class="wc-spw-flash" />
         </BoxFoot>
