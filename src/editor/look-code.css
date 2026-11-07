@@ -57,10 +57,10 @@
   --lk-find-bad: var(--lk-danger, #e6a690);
 }
 
-[data-light] .wc-code,
+:not(html)[data-light] .wc-code,
 .wc-code[data-light],
-[data-light] .wc-lk-search,
-[data-light] .wc-lk-manual,
+:not(html)[data-light] .wc-lk-search,
+:not(html)[data-light] .wc-lk-manual,
 .wc-lk-manual[data-light] {
   --lk-code-text: #2a2116;
   --lk-code-bg: rgba(255, 253, 246, 0.94);
@@ -231,7 +231,7 @@
 
 .wc-lk-slbl {
   flex: none;
-  width: 62px;
+  width: 70px;
   font: 600 10.5px/1 var(--lk-display, Georgia, serif);
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -271,6 +271,27 @@
 @container wc-lk-find (max-width: 560px) {
   .wc-lk-slbl {
     display: none;
+  }
+}
+
+/* A phone: Case / Word / Regex and the arrows share one row under the
+ * field (the panel stays three rows tall over a keyboard-short buffer). */
+@container wc-lk-find (max-width: 420px) {
+  .wc-lk-srow {
+    column-gap: 6px;
+  }
+
+  .wc-lk-sin .wc-lk-seg > .wc-lk-opt {
+    padding: 0 6px;
+    letter-spacing: 0.1em;
+  }
+
+  .wc-lk-sin .wc-lk-seg {
+    padding: 2px;
+  }
+
+  .wc-lk-sbtns {
+    gap: 3px;
   }
 }
 

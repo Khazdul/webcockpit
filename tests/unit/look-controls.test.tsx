@@ -29,6 +29,7 @@ import {
   Well,
   keyboardInset,
   useKeyboardInset,
+  useListCursor,
   useLocalFlash,
 } from '../../src/chrome/kit/look';
 import { INLAY_TOKENS } from '../../src/start/wordmark-svg';
@@ -316,13 +317,42 @@ describe('Table', () => {
     expect(row).toHaveBeenCalledTimes(1);
   });
 
+  it('a TableRow takes a list cursor’s rowProps whole: a touch tap tells itself from a click', () => {
+    const activated: number[] = [];
+    function List() {
+      const lc = useListCursor({ count: 2, activateOn: 'dblclick', onActivate: (i) => activated.push(i) });
+      return (
+        <Table cols="1fr" heads={heads}>
+          {[0, 1].map((i) => (
+            <TableRow key={i} on={lc.i === i} {...lc.rowProps(i)}>
+              <span class="wc-lk-td">{i}</span>
+            </TableRow>
+          ))}
+        </Table>
+      );
+    }
+    const host = mount(<List />);
+    const row = () => [...host.querySelectorAll<HTMLElement>('.wc-lk-tbody > .wc-lk-tr')][1]!;
+    const tap = (): void => {
+      act(() => void row().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' })));
+      click(row());
+    };
+    // 'tap-selects' (the default with dblclick): the first tap chooses the row, a tap on the chosen row opens it.
+    tap();
+    expect(row().classList.contains('is-on')).toBe(true);
+    expect(activated).toEqual([]);
+    tap();
+    expect(activated).toEqual([1]);
+  });
+
   it('stacks its rows below `stackBelow` px of its own width', () => {
     let fire: ((w: number) => void) | null = null;
     vi.stubGlobal(
       'ResizeObserver',
       class {
         constructor(cb: (e: { contentRect: { width: number } }[]) => void) {
-          fire = (w) => cb([{ contentRect: { width: w } }]);
+          // The first observer is the stacking one (the gutter's comes after it).
+          fire ??= (w) => cb([{ contentRect: { width: w } }]);
         }
         observe(): void {}
         disconnect(): void {}
@@ -332,6 +362,8 @@ describe('Table', () => {
     const t = $(host, '.wc-lk-tbl');
     expect(t.classList.contains('is-scroll')).toBe(true);
     expect($(t, '.wc-lk-tbody').classList.contains('wc-lk-scroll')).toBe(true);
+    // The rows' scrollbar gutter as measured (none here), for the heads' padding.
+    expect(t.style.getPropertyValue('--lk-gut')).toBe('0px');
     expect(t.classList.contains('is-stacked')).toBe(false);
     act(() => fire!(400));
     expect(t.classList.contains('is-stacked')).toBe(true);

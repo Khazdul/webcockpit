@@ -24,7 +24,7 @@ import type { ViewerTheme } from '../../../player/viewer';
 import { fmtClock, fmtSpeed } from '../../../player/strip';
 import { useServices } from '../hooks';
 import { GlassButton, Rule, Seg, Toggle } from '../look';
-import { useNav } from '../stack';
+import { useNav, usePlayerKeys } from '../stack';
 import type { KitSection } from './kit';
 
 /** The sample: one run, a line every 5 s for 1 h 34 min 7 s, every seventh in ANSI red. */
@@ -115,6 +115,8 @@ function PlayerSection(): VNode {
       h?.dispose();
     };
   }, []);
+  // The view takes the keys while it shows (else Space and Esc would act twice).
+  usePlayerKeys(!!host && !parked);
 
   const vc = host?.viewerControls(true);
   return (

@@ -267,7 +267,10 @@ html.wc-phone .wc-lk-btn:not(.keep-ic):not(.is-icon) .wc-lk-ic {
   display: none;
 }
 
-/* Coarse pointers: every target at least 40 px high (and icon-only ones as wide). */
+/* Coarse pointers: every target at least 40 px high (and icon-only ones as
+ * wide). A box's Back grows upward, to the box's top band, and ends where
+ * the 27 px one does: never down over the page's first line, so no page
+ * needs room of its own under it (stage 42 wave 3, ADR 0127). */
 @media (pointer: coarse) {
   .wc-lk-btn,
   .wc-lk-back {
@@ -276,6 +279,10 @@ html.wc-phone .wc-lk-btn:not(.keep-ic):not(.is-icon) .wc-lk-ic {
 
   .wc-lk-btn.is-icon {
     min-width: 40px;
+  }
+
+  .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
+    top: 3px;
   }
 }
 

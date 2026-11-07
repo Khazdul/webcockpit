@@ -291,13 +291,18 @@ function FieldShell(p: {
  * shrinks under a focused field, the field scrolls into view).
  */
 function useFieldEl(ref: { current: HTMLInputElement | HTMLTextAreaElement | null }, auto?: boolean, all?: boolean): void {
+  // The focus in a layout effect: before the first paint and before the
+  // frame stack's own (a parent's) layout effect, which then leaves it
+  // there; a key typed the moment a dialog opens reaches the field.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !auto) return;
+    el.focus({ preventScroll: true });
+    if (all) el.select();
+  }, []);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (auto) {
-      el.focus({ preventScroll: true });
-      if (all) el.select();
-    }
     const vv = typeof window === 'undefined' ? null : window.visualViewport;
     if (!vv) return;
     const onResize = (): void => {
@@ -429,10 +434,29 @@ export function Select(p: {
   label: string;
   id?: string;
 }): VNode {
+  // A choice made with the pointer gives the focus back to the frame stack
+  // at once (its letters and arrows work again); one made with the keys
+  // keeps it in the select until Esc (the stack's Esc rule).
+  const byPointer = useRef(false);
   return (
     <label class="wc-lk-field wc-lk-select" data-field={p.id}>
       <span class="wc-lk-lbl">{p.label}</span>
-      <select class="wc-lk-input" value={p.value} aria-label={p.label} onChange={(e) => p.onChange(e.currentTarget.value)}>
+      <select
+        class="wc-lk-input"
+        value={p.value}
+        aria-label={p.label}
+        onPointerDown={() => (byPointer.current = true)}
+        onKeyDown={() => (byPointer.current = false)}
+        onChange={(e) => {
+          const el = e.currentTarget;
+          p.onChange(el.value);
+          if (!byPointer.current) return;
+          byPointer.current = false;
+          const stack = el.closest<HTMLElement>('.wc-stack');
+          el.blur();
+          stack?.focus({ preventScroll: true });
+        }}
+      >
         {p.options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -496,6 +520,21 @@ export function Table(p: {
     ro.observe(el);
     return () => ro.disconnect();
   }, [below]);
+  // With `scroll`: the rows' scrollbar gutter as it is (`--lk-gut`; 0 with
+  // overlay scrollbars, as Firefox on Linux), so the heads line up with the
+  // rows. Read when the scroller's size changes, never per frame.
+  const body = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const t = ref.current;
+    const el = body.current;
+    if (!p.scroll || !t || !el) return;
+    const put = (): void => t.style.setProperty('--lk-gut', `${Math.max(0, el.offsetWidth - el.clientWidth)}px`);
+    put();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(put);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [p.scroll]);
   return (
     <div ref={ref} class={cx('wc-lk-tbl', stacked && 'is-stacked', p.scroll && 'is-scroll')} role="table" style={{ '--lk-cols': p.cols }}>
       <div class="wc-lk-throw" role="row">
@@ -517,7 +556,10 @@ export function Table(p: {
           );
         })}
       </div>
-      <div class={cx('wc-lk-tbody', p.scroll && 'wc-lk-scroll')} role="rowgroup" ref={(el) => setRef(p.bodyRef, el)}>
+      <div class={cx('wc-lk-tbody', p.scroll && 'wc-lk-scroll')} role="rowgroup" ref={(el) => {
+          body.current = el;
+          setRef(p.bodyRef, el);
+        }}>
         {p.children}
       </div>
     </div>
@@ -527,7 +569,8 @@ export function Table(p: {
 /**
  * A table row (cells: `.wc-lk-td`, `.is-end` right-aligned). `on`: the
  * chosen row (its text brightens, nothing else). Takes a list cursor's
- * `rowProps(i)` as well (`onPointerMove`, `data-i`).
+ * `rowProps(i)` whole: `onPointerDown` (which tells a touch tap from a
+ * click), `onPointerMove`, the clicks and `data-i`.
  */
 export function TableRow(p: {
   on?: boolean;
@@ -535,6 +578,7 @@ export function TableRow(p: {
   class?: string;
   onClick?(e: MouseEvent): void;
   onDblClick?(e: MouseEvent): void;
+  onPointerDown?(e: PointerEvent): void;
   onPointerMove?(e: PointerEvent): void;
   'data-i'?: number;
   children?: ComponentChildren;
@@ -545,6 +589,7 @@ export function TableRow(p: {
       role="row"
       data-id={p.id}
       data-i={p['data-i']}
+      onPointerDown={p.onPointerDown && ((e) => p.onPointerDown?.(e))}
       onPointerMove={p.onPointerMove && ((e) => p.onPointerMove?.(e))}
       onClick={p.onClick && ((e) => p.onClick?.(e))}
       onDblClick={p.onDblClick && ((e) => p.onDblClick?.(e))}

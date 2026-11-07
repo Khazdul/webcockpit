@@ -207,14 +207,16 @@ export function useSkyPause(on: boolean): void {
 
 /**
  * The wordmark inside a page's content (About, Credits): it follows the
- * sky's light as the start page's does; its sheen passes only while the
- * frame is the top one. In a window or the ESC menu it keeps the start
- * clock's still light.
+ * sky's light as the start page's does. No sheen by default: the masked
+ * sweeping band costs frames over a page of text (stage 42 wave 3, ADR
+ * 0127: 7–12 frames over 20 ms per pass in Chromium, more in Firefox);
+ * with `sheen` it passes now and then while the frame is the top one. In
+ * a window or the ESC menu it keeps the start clock's still light.
  */
-export function LookWordmark(p: { size: 'small' | 'full'; class?: string }): VNode {
+export function LookWordmark(p: { size: 'small' | 'full'; class?: string; sheen?: boolean }): VNode {
   const look = useSkyLook();
   const top = useTopOrFree();
-  return <Wordmark look={look} size={p.size} run={top} class={'wc-lk-wordmark' + (p.class ? ' ' + p.class : '')} />;
+  return <Wordmark look={look} size={p.size} run={top && p.sheen === true} class={'wc-lk-wordmark' + (p.class ? ' ' + p.class : '')} />;
 }
 
 /** The document's visibility (the sky and the wordmark stop while hidden). */

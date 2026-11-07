@@ -125,14 +125,54 @@
 
 /* ------------------------------------------------------------ Back
  * The kit's Back (`.wc-lk-back`, look-glass.css; the `--lk-*` tokens from
- * its own `.wc-look`), at the top left over the game text, level with the
- * header row. Part of the chrome: it fades and stops taking the pointer
- * with it (`[data-hidden]`). */
+ * its own `.wc-look`), at the top left over the game text, in the header
+ * row and as tall as it (stage 42 wave 3): it hides no more of the text
+ * than the header does. Opaque, as the header's chips: the canvas colour
+ * under the kit's glass edge, no blur (game text moves under it; Firefox
+ * and Paper showed the text through the glass). Part of the chrome: it
+ * fades and stops taking the pointer with it (`[data-hidden]`). */
 
 .wc-player-chrome .wc-pv-back {
-  top: 6px;
+  top: 0;
   left: 10px;
+  height: var(--cell-h);
+  min-height: 15px;
+  padding: 0 9px 0 6px;
+  gap: 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  background: var(--term-bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip);
   pointer-events: auto;
+}
+
+.wc-player-chrome .wc-pv-back .wc-lk-ic {
+  width: 11px;
+  height: 11px;
+}
+
+.wc-player-chrome .wc-pv-back:hover {
+  background: var(--term-bg);
+}
+
+/* A finger: a 40 px target (look-glass.css). On a phone it sits under the
+ * pane tab strip (row 0), so a tap on GAME or CHAR never meets it. */
+@media (pointer: coarse) {
+  .wc-player-chrome .wc-pv-back {
+    min-height: 40px;
+    font-size: 10.5px;
+  }
+}
+
+.wc-player:has(.wc-phone-tabs:not([hidden]) > .wc-phone-sep) .wc-pv-back {
+  top: calc(var(--cell-h) + 2px);
+}
+
+/* A strip of one tab (every pane off: only GAME) switches nothing: not shown. */
+.wc-player .wc-phone-tabs:not(:has(> .wc-phone-sep)) {
+  display: none;
 }
 
 .wc-player-chrome button:focus-visible {

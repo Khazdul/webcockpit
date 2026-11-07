@@ -412,6 +412,41 @@ describe('FrameStack overlays, the hold, key layers and the Esc rule (stage 42c)
     expect(backs).toBe(0);
   });
 
+  it('a focused select keeps its arrows (not prevented, not the frame’s); Esc gives the focus back', async () => {
+    let nav!: ReturnType<typeof useNav>;
+    const seen: string[] = [];
+    function Root() {
+      nav = useNav();
+      return <div />;
+    }
+    const LookPage = lookFrame(function LookPage() {
+      useKeys((e) => (seen.push(e.key), e.key !== 'Escape'));
+      return (
+        <select class="sel">
+          <option value="a">A</option>
+          <option value="b">B</option>
+        </select>
+      );
+    });
+    await act(async () => {
+      render(<FrameStack root={<Root />} active />, document.body);
+    });
+    await act(async () => nav.push(<LookPage />));
+    const sel = document.querySelector<HTMLSelectElement>('.sel')!;
+    sel.focus();
+    for (const k of ['ArrowDown', 'ArrowUp', 'Home', 'End', ' ']) {
+      const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
+      sel.dispatchEvent(ev);
+      expect(ev.defaultPrevented, k).toBe(false);
+    }
+    expect(seen).toEqual([]);
+    await act(async () => {
+      keyIn(sel, 'Escape');
+    });
+    expect(document.activeElement).toBe(document.querySelector('.wc-stack'));
+    expect(nav.depth()).toBe(2);
+  });
+
   it('the Esc rule knows look frames by lookFrame’s own mark (the two stay in step)', async () => {
     let nav!: ReturnType<typeof useNav>;
     function Root() {

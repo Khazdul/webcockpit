@@ -282,7 +282,19 @@
   -webkit-font-smoothing: antialiased;
 }
 
-.wc-win-content > .wc-stack > .wc-frame.wc-win-look[hidden] {
+/* No blur in a window (game text scrolls under it all the time) nor in the
+ * ESC menu (an opaque background): the glass buttons and Back are plain
+ * translucent fills there, dark as on Paper. (Two classes: over the
+ * tokens' own `.wc-look` default, whatever the order the sheets load in.) */
+.wc-look.wc-win-look,
+.wc-look.wc-menu-page {
+  --lk-glass-blur: none;
+}
+
+/* A hidden look frame is gone, except one drawn under an overlay or held
+ * by a transition (look-overlay.css): it keeps its own display here, so
+ * the dialog's page stays drawn, veiled and inert. */
+.wc-win-content > .wc-stack > .wc-frame.wc-win-look[hidden]:not([data-under], [data-held]) {
   display: none;
 }
 
@@ -360,7 +372,9 @@
     env(safe-area-inset-left, 0px);
 }
 
-.wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look[hidden] {
+/* As in a window: a frame under an overlay dialog or held by a
+ * transition stays drawn (look-overlay.css), with the menu's own flex. */
+.wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look[hidden]:not([data-under], [data-held]) {
   display: none;
 }
 

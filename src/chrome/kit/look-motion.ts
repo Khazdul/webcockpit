@@ -292,7 +292,10 @@ export function morphPlan(from: MorphEnd | null, to: MorphEnd | null, reduced = 
  */
 export function morphHold(from: BoxKind, dir: 'push' | 'pop', reduced = false): number {
   if (!boxed(from)) return 0;
-  if (reduced) return dir === 'push' ? MOTION.reduced.open : MOTION.reduced.close;
+  // A pop from a normal or tall box can land on a large box below it (an
+  // `open`: its content fades for `open.items` before the proxy shows) or
+  // on a normal one (a `swap`, shorter): hold for the longer.
+  if (reduced) return dir === 'push' || from !== 'large' ? MOTION.reduced.open : MOTION.reduced.close;
   if (dir === 'push') {
     if (from === 'menu') return MOTION.open.scenery.ms;
     if (from === 'large') return MOTION.close.content.ms;
@@ -300,5 +303,5 @@ export function morphHold(from: BoxKind, dir: 'push' | 'pop', reduced = false): 
   }
   if (from === 'large') return MOTION.close.content.ms;
   if (from === 'menu') return 0;
-  return MOTION.swap.out;
+  return Math.max(MOTION.open.items.ms, MOTION.swap.out);
 }

@@ -2,9 +2,10 @@
 // morph between the top frame's box and the next one's.
 //
 // Pages are laid out at their final size from their first frame: the new
-// box is in place but hidden (a `visibility` animation on its element, so
-// container queries, CodeMirror and pagination measure the real box at
-// mount, and keys go to the new frame at once). An empty iron frame, the
+// box is in place but hidden (an `opacity: 0` animation on its element,
+// so container queries, CodeMirror and
+// pagination measure the real box at mount, keys go to the new frame at
+// once and its fields can take the focus at mount). An empty iron frame, the
 // proxy (`.wc-lk-morph`, `position: fixed`, `contain: strict`, owned by the
 // surface), carries the motion from the old box's rectangle to the new
 // one's; when it lands the real box shows under it on the same clock, the
@@ -46,6 +47,9 @@ import { useIsOverlay, useIsTopFrame } from './kit/stack';
 
 /** A large box covering at least this share of the view calms the sky behind it. */
 export const CALM_COVER = 0.85;
+
+/** ms a held frame stays mounted past its plan's need (the animation clock lags the hold's timer). */
+const HOLD_SLACK = 120;
 
 /** What the stage knows of one frame on the surface. */
 interface Host {
@@ -143,9 +147,17 @@ export class MorphStage {
     return host;
   }
 
-  /** The stack's hold for a change away from the current top frame (42c's `hold`). */
+  /**
+   * The stack's hold for a change away from the current top frame (42c's
+   * `hold`): the plan's need plus `HOLD_SLACK`. The hold is a timer from
+   * the frame change, the plan runs on the animation clock, which starts
+   * a frame or two later; the old frame hides itself on that clock (its
+   * `hide` at `out`), so the slack never shows it longer, it only keeps it
+   * mounted until the proxy has taken over.
+   */
   hold(dir: 'push' | 'pop'): number {
-    return morphHold(kindOf(this.cur), dir, reducedMotion());
+    const ms = morphHold(kindOf(this.cur), dir, reducedMotion());
+    return ms > 0 ? ms + HOLD_SLACK : 0;
   }
 
   /**
@@ -338,8 +350,15 @@ export class MorphStage {
    */
   private hide(host: Host, el: Element, from: number, ms: number, after: boolean): void {
     if (!canAnimate(el)) return;
+    // A leaving frame hides by `visibility` (nothing in it is reachable any
+    // more). A new box is only transparent until it lands: what is under
+    // `visibility: hidden` cannot take the DOM focus, so a field's or an
+    // editor's focus at mount would be lost. It takes the pointer as it
+    // takes the keys, at once (the new frame is the top one).
+    const gone: Keyframe = { opacity: 0 };
+    const frames: Keyframe[] = after ? [{ visibility: 'visible' }, { visibility: 'hidden' }] : [gone, gone];
     const a = quiet(
-      el.animate([{ visibility: after ? 'visible' : 'hidden' }, { visibility: 'hidden' }], {
+      el.animate(frames, {
         duration: ms,
         delay: from,
         fill: after ? 'forwards' : 'backwards',

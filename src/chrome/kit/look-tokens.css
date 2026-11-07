@@ -2,8 +2,11 @@
  * set of custom properties, `--lk-*`, on the `.wc-look` scope (the start
  * surface's root, the window bodies of look frames and the ESC menu host
  * (42d), the player's Back (42f)), with the Paper values under
- * `[data-light] .wc-look` and `.wc-look[data-light]` (windows and the ESC
- * menu follow the game background; the start page is always dark).
+ * `:not(html)[data-light] .wc-look` and `.wc-look[data-light]` (windows and
+ * the ESC menu follow the game background; the start page is always dark).
+ * Never `<html>`'s own `data-light` (the TUI theme's, set whenever the
+ * terminal background is light): every Paper rule of the kit names a
+ * Paper host below it (`.wc-windows`, the menu page, the player).
  *
  * Re-derived from the round 7 base (notes/research/start-menu-mockups/
  * round7/base/base.css). The mockups' `--c-*` names are not used (they
@@ -112,7 +115,7 @@
 
 /* Paper: ink on parchment, bronze edges (an in-game window or the ESC menu
  * on the Paper background). */
-[data-light] .wc-look,
+:not(html)[data-light] .wc-look,
 .wc-look[data-light] {
   --lk-text: #2a2116;
   --lk-dim: #6b5a44;

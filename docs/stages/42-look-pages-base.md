@@ -864,6 +864,10 @@ stage's test plan.
 - [x] ADR 0127 written (every package's part, the numbers)
 - [x] spec §5 rows for stages 42–47
 - [x] Owner test guide (below) checked against the build
+- [x] Wave 3: the review's, the visual check's and the performance run's
+      kit findings fixed; the blur rule revised (no blur on large boxes);
+      the wave-2 kit gaps that are bugs (ADR 0127 addendum "wave 3");
+      `phone-look-kit.spec.ts` added
 - [ ] Owner feedback recorded in this file
 
 ## Test plan
@@ -946,6 +950,17 @@ The build follows the default until the owner answers.
 3. **The window title.** An in-game window's hood reads the page's name
    ("Profile") with the profile's name as a dim italic note, instead of
    "Profile: <name>". *Default: name and note, as the round 7 mockup.*
+4. **The big box's glass (wave 3).** Without a GPU the frosted blur behind
+   big pages cost most of the frames (22 fps instead of 60, typing 6×
+   slower); with a GPU it cost nothing. The big box is now a plain dark
+   fill tinted to look like the blurred glass, for everyone. *Default: no
+   blur. Alternative: keep the blur where a GPU draws the page.*
+5. **The run log player's Back (wave 3)** is now a small opaque chip in
+   the header row (it hid the start of two lines); on a phone it sits just
+   under the GAME / CHAR tabs. *Default: as built.*
+6. **The wordmark on About (wave 3)** no longer passes its sheen (it
+   dropped frames over the text). *Default: no sheen in pages; the start
+   menu's wordmark keeps it.*
 
 ## ADR
 

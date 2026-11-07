@@ -548,9 +548,14 @@ select.wc-lk-input option {
   scrollbar-gutter: stable;
 }
 
-/* The heads line up with the rows above a stable scrollbar gutter. */
+/* The heads line up with the rows above a stable scrollbar gutter, as wide
+ * as it is (`--lk-gut`, measured by Table: 0 with overlay scrollbars). */
 .wc-lk-tbl.is-scroll > .wc-lk-throw {
-  padding-right: calc(18px + 8px);
+  padding-right: calc(18px + var(--lk-gut, 8px));
+}
+
+html.wc-phone .wc-lk-tbl.is-scroll > .wc-lk-throw {
+  padding-right: calc(12px + var(--lk-gut, 0px));
 }
 
 .wc-lk-throw,
@@ -685,6 +690,8 @@ select.wc-lk-input option {
 .wc-lk-rule > .wc-lk-sec {
   margin: 0;
   min-width: 0;
+  /* Room between the lines when it wraps (the caps' own 1 would touch). */
+  line-height: 1.35;
 }
 
 .wc-lk-hair {
@@ -918,25 +925,25 @@ select.wc-lk-input option {
   text-shadow: 0 0 10px color-mix(in srgb, var(--lk-flash-fail) 45%, transparent), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
-[data-light] .wc-look .wc-lk-flash > span,
+:not(html)[data-light] .wc-look .wc-lk-flash > span,
 .wc-look[data-light] .wc-lk-flash > span {
   text-shadow: none;
 }
 
 /* ------------------------------------------------------------ Paper shapes */
 
-[data-light] .wc-look .wc-lk-opt.is-on,
+:not(html)[data-light] .wc-look .wc-lk-opt.is-on,
 .wc-look[data-light] .wc-lk-opt.is-on {
   box-shadow: inset 0 1px 0 var(--lk-glass-lip), inset 0 0 0 1px rgba(110, 84, 44, 0.18), 0 1px 2px rgba(80, 60, 30, 0.2);
 }
 
-[data-light] .wc-look .wc-lk-toggle.is-on .wc-lk-groove,
+:not(html)[data-light] .wc-look .wc-lk-toggle.is-on .wc-lk-groove,
 .wc-look[data-light] .wc-lk-toggle.is-on .wc-lk-groove {
   background: linear-gradient(180deg, rgba(200, 150, 70, 0.45), rgba(220, 180, 110, 0.3));
   border-color: rgba(120, 80, 30, 0.45);
 }
 
-[data-light] .wc-look .wc-lk-star-on,
+:not(html)[data-light] .wc-look .wc-lk-star-on,
 .wc-look[data-light] .wc-lk-star-on {
   text-shadow: none;
 }
@@ -969,6 +976,14 @@ html.wc-phone .wc-lk-opt {
   .wc-lk-row,
   .wc-lk-tr {
     min-height: 40px;
+  }
+
+  /* A sortable head keeps its drawn size and its row's height; its touch
+   * target reaches up over the space above the table and down to the
+   * first row (which wins where they meet): about 40 px (stage 42 wave 3). */
+  .wc-lk-th.is-sort {
+    padding: 20px 0 15px;
+    margin: -20px 0 -15px;
   }
 
   .wc-lk-input {

@@ -56,6 +56,7 @@ import type { ComponentChildren, JSX, VNode } from 'preact';
 import { createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { type NavKey, navKey } from './nav';
+import { inTextField } from './look-keys';
 import { OWN_KEYS_ATTR } from '../../ui/input-pane';
 
 /** A frame's key handler: true = consumed (the default action is prevented). */
@@ -148,6 +149,20 @@ export function useKeyLayer(handler: KeyHandler, active = true): void {
       if (i >= 0) entry.layers.splice(i, 1);
     };
   }, [active, entry]);
+}
+
+/**
+ * A frame that shows an embedded player (`services.embedPlayer`, a bare
+ * view) gives it the keys while `on`: the stack's key listener and the
+ * view's are both capture listeners on the window, and the stack's runs
+ * first, so both would see every key (Space would toggle playback and
+ * press the page's button; Esc would pop the page and then call the
+ * view's `onEsc`). This layer swallows every key for the frame; the view
+ * handles them, and its `onEsc` leaves. Off (the player parked or not
+ * ready yet): the frame's keys as usual. Stage 42 wave 3, ADR 0127.
+ */
+export function usePlayerKeys(on: boolean): void {
+  useKeyLayer(() => true, on);
 }
 
 /**
@@ -286,11 +301,22 @@ export interface FrameStackProps {
   hold?: (from: VNode, to: VNode, dir: 'push' | 'pop') => number;
 }
 
-const isTextField = (t: EventTarget | null): boolean => {
-  const el = t as HTMLElement | null;
-  const tag = el?.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || el?.isContentEditable === true;
-};
+/** A field that holds the focus while used: an input, a textarea, a select or contenteditable (look-keys). */
+const isTextField = inTextField;
+
+/**
+ * The keys a focused select uses itself (stage 42 wave 3, ADR 0127): its
+ * arrows, Home / End, PgUp / PgDn and Space go to the select, not to the
+ * frame (which would move its own cursor), and are not prevented. Enter,
+ * Tab and Esc keep the stack's rules (Esc gives the focus back).
+ */
+const selectOwns = (e: KeyboardEvent, nk: NavKey | null): boolean =>
+  (e.target as HTMLElement | null)?.tagName === 'SELECT' &&
+  nk !== null &&
+  nk !== 'back' &&
+  nk !== 'tab' &&
+  nk !== 'backtab' &&
+  e.key !== 'Enter';
 
 /** A hold in progress: the frame kept drawn (below a push) or mounted (after a pop). */
 interface Hold {
@@ -434,6 +460,7 @@ export function FrameStack(props: FrameStackProps): VNode {
       const s = stackRef.current!;
       const top = s[s.length - 1]!;
       const nk = navKey(e);
+      if (selectOwns(e, nk)) return;
       if (runKeys(top, e, nk)) {
         e.preventDefault();
         return;

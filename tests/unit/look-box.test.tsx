@@ -24,7 +24,9 @@ import {
 } from '../../src/chrome/kit/look';
 import { FrameStack, type Nav, useNav } from '../../src/chrome/kit/stack';
 import { LookHost, MorphCtx, MorphStage } from '../../src/chrome/start-morph';
+import { LookWordmark } from '../../src/chrome/start-surface';
 import { calmTier } from '../../src/start/sky';
+import { SHEEN_FIRST_MS } from '../../src/start/wordmark-svg';
 
 afterEach(() => {
   render(null, document.body);
@@ -281,10 +283,27 @@ describe('morphPlan', () => {
     expect(morphHold('normal', 'push')).toBe(200);
     expect(morphHold('large', 'push')).toBe(240);
     expect(morphHold('large', 'pop')).toBe(240);
-    expect(morphHold('normal', 'pop')).toBe(140);
+    // a pop from a normal or tall box onto a large one is an `open`: its content fades for 200 ms
+    expect(morphHold('normal', 'pop')).toBe(200);
+    expect(morphHold('tall', 'pop')).toBe(200);
     expect(morphHold('grid', 'push')).toBe(0);
     expect(morphHold('none', 'pop')).toBe(0);
     expect(morphHold('menu', 'push', true)).toBe(260);
+  });
+
+  it('morphHold covers the old box until its plan no longer needs it (every pair, both motions)', () => {
+    const kinds = ['menu', 'normal', 'tall', 'large'] as const;
+    const rect = (k: string) => (k === 'large' ? LARGE : PANEL);
+    for (const reduced of [false, true])
+      for (const fk of kinds)
+        for (const tk of kinds)
+          for (const dir of ['push', 'pop'] as const) {
+            if (dir === 'pop' && fk === 'menu') continue; // the menu is the root; it is never popped
+            const p = morphPlan(end(fk, rect(fk), { shown: true }), end(tk, rect(tk)), reduced);
+            // the old box is drawn until its fade ends and, without a fade, until the proxy shows
+            const needs = Math.max(p.out, p.flight ? Math.min(p.flight.show, p.flight.at) : 0);
+            expect(morphHold(fk, dir, reduced), `${fk} → ${tk} ${dir}${reduced ? ' reduced' : ''}`).toBeGreaterThanOrEqual(needs);
+          }
   });
 });
 
@@ -375,5 +394,32 @@ describe('the sky at the calm rate', () => {
   it('caps every layer at ~30 Hz, rain and snow included, and never speeds one up', () => {
     expect(calmTier({ starMs: 32, cloudMs: 32, precipMs: 0 })).toEqual({ starMs: 32, cloudMs: 32, precipMs: 32 });
     expect(calmTier({ starMs: 64, cloudMs: 64, precipMs: 32 })).toEqual({ starMs: 64, cloudMs: 64, precipMs: 32 });
+  });
+});
+
+describe('LookWordmark', () => {
+  it('passes no sheen in page content unless asked (stage 42 wave 3)', () => {
+    vi.useFakeTimers();
+    const animate = vi.fn(() => ({ finished: Promise.resolve(), cancel() {}, playState: 'running' }));
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    const proto = Element.prototype as unknown as { animate?: unknown };
+    const had = proto.animate;
+    proto.animate = animate;
+    try {
+      const plain = document.createElement('div');
+      const lit = document.createElement('div');
+      document.body.append(plain, lit);
+      act(() => render(<LookWordmark size="small" />, plain));
+      act(() => render(<LookWordmark size="small" sheen />, lit));
+      act(() => void vi.advanceTimersByTime(SHEEN_FIRST_MS + 100));
+      const bands = animate.mock.contexts as Element[];
+      expect(bands.some((b) => plain.contains(b))).toBe(false);
+      expect(bands.some((b) => lit.contains(b))).toBe(true);
+      render(null, plain);
+      render(null, lit);
+    } finally {
+      proto.animate = had;
+      vi.useRealTimers();
+    }
   });
 });

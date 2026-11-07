@@ -93,6 +93,8 @@ import type { ViewerFont, ViewerTheme } from './viewer';
 
 /** Chrome hides this long after the last activity in play, ms. */
 export const HIDE_MS = 6000;
+/** A click this soon after the press that showed the hidden chrome presses nothing in it, ms. */
+const REVEAL_MS = 400;
 /** Cursor step of PgUp / PgDn, lines. */
 export const PAGE_STEP = 20;
 /** ← / → step, ms. */
@@ -283,6 +285,8 @@ export class PlayerView {
   private raf: number | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private shown = true;
+  /** When a press showed the hidden chrome (ms, `performance.now`): its click must not press what appeared under it. */
+  private revealedAt = -Infinity;
   private railSig = '';
   private marksSig = '';
   private headSig = '';
@@ -396,7 +400,8 @@ export class PlayerView {
     this.unsubs.push(opts.engine.subscribe((c) => this.onEngine(c)));
     this.win.addEventListener('keydown', this.onKey, true);
     opts.root.addEventListener('pointermove', this.onActivity);
-    opts.root.addEventListener('pointerdown', this.onActivity);
+    opts.root.addEventListener('pointerdown', this.onDown);
+    this.el.addEventListener('click', this.onRevealClick, true);
     opts.root.addEventListener('wheel', this.onWheel, { passive: false });
     opts.root.addEventListener('click', this.onStageClick);
     this.railEl.addEventListener('pointerdown', this.onRailDown);
@@ -1015,6 +1020,25 @@ export class PlayerView {
     this.touch();
   };
 
+  /** A press shows the chrome; one that showed it hidden notes when (a later press is a press). */
+  private readonly onDown = (): void => {
+    this.revealedAt = this.shown ? -Infinity : performance.now();
+    this.onActivity();
+  };
+
+  /**
+   * A tap on the hidden chrome shows it on pointerdown, and its click
+   * then lands on whatever control appeared under the finger (a tap at
+   * the top left would leave through Back, one on the box would pause).
+   * Such a click, within `REVEAL_MS` of the press, presses nothing.
+   */
+  private readonly onRevealClick = (e: MouseEvent): void => {
+    if (performance.now() - this.revealedAt > REVEAL_MS) return;
+    this.revealedAt = -Infinity;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   /** Shows the chrome and re-arms the auto-hide (in play, no popup open). */
   touch(): void {
     this.show();
@@ -1294,7 +1318,8 @@ export class PlayerView {
     this.win.removeEventListener('keydown', this.onKey, true);
     const root = this.o.root;
     root.removeEventListener('pointermove', this.onActivity);
-    root.removeEventListener('pointerdown', this.onActivity);
+    root.removeEventListener('pointerdown', this.onDown);
+    this.el.removeEventListener('click', this.onRevealClick, true);
     root.removeEventListener('wheel', this.onWheel);
     root.removeEventListener('click', this.onStageClick);
     this.boxEl.removeEventListener('wheel', this.onBoxWheel);

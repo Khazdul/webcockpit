@@ -178,3 +178,62 @@ test('two large boxes swap: the box stays, a new width morphs, Back returns', as
   await expect(startTop(page).locator('.wc-lk-box .wc-lk-hood-t')).toHaveText('History');
   await expect(morphProxy(page)).toBeHidden();
 });
+
+test('back from a tall box to the large one: a box is drawn on every frame; the large window does not blur', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openKit(page, 'box');
+  await morphDone(page);
+  // The rule (ADR 0127, wave 3): a large box's window is a pre-tinted fill, no backdrop-filter.
+  const win = startTop(page).locator('.wc-lk-box.wc-kit > .wc-lk-win');
+  expect(['none', '']).toContain(await win.evaluate((el) => getComputedStyle(el).backdropFilter));
+  await openBoxDemo(page, 'tall');
+  await morphDone(page);
+  // Esc: the tall box's content fades, then the proxy grows into the gallery's large box.
+  const empty = await page.evaluate(async () => {
+    const shown = (el: Element | null): boolean => {
+      if (!el || !el.isConnected || el.getClientRects().length === 0) return false;
+      for (let e: Element | null = el; e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+      }
+      return true;
+    };
+    const proxy = document.querySelector('.wc-lk-morph') as HTMLElement;
+    let blank = 0;
+    const t0 = performance.now();
+    await new Promise<void>((done) => {
+      const tick = (): void => {
+        const boxes = [...document.querySelectorAll('.wc-start .wc-frame .wc-lk-box')];
+        if (!(!proxy.hidden && shown(proxy)) && !boxes.some(shown)) blank++;
+        if (performance.now() - t0 < 900) requestAnimationFrame(tick);
+        else done();
+      };
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      requestAnimationFrame(tick);
+    });
+    return blank;
+  });
+  expect(empty).toBe(0);
+  await morphDone(page);
+  await expect(startTop(page).locator('.wc-lk-box.wc-kit')).toBeVisible();
+});
+
+test('a box that is still morphing in can take the DOM focus (a field focuses at mount)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openKit(page, 'box');
+  await morphDone(page);
+  await openBoxDemo(page, 'tall');
+  await expect(page.locator('.wc-start')).toHaveAttribute('data-lk-morph', /./);
+  // Mid-morph (before the landing): an element in the new box takes the focus.
+  const took = await page.evaluate(() => {
+    const box = [...document.querySelectorAll('.wc-start .wc-frame:not([hidden]) .wc-lk-box.wc-kb-demo')].pop();
+    const probe = document.createElement('input');
+    box?.querySelector('.wc-lk-win')?.append(probe);
+    probe.focus();
+    const ok = document.activeElement === probe && document.querySelector('.wc-start')!.hasAttribute('data-lk-morph');
+    probe.remove();
+    return ok;
+  });
+  expect(took).toBe(true);
+  await morphDone(page);
+});
