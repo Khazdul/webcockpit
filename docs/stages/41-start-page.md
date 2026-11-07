@@ -195,5 +195,9 @@ shortcut letters, and the open questions in the session log.
   profile row gets its own Edit, Rename and Delete buttons, plus Select
   when it is not the active profile; the buttons show only on the
   highlighted row.
+- **Enter MUME:** everything folds away until only the sky is left, the
+  sky zooms in a little, then a somewhat slower fade into the game
+  (replaces the 280 ms fade).
+- The in-game window kit's thin cyan border stays as it is for now.
 - Round 7 directions chosen for the later stages: see "Round 7 decisions"
   in `notes/research/start-menu-mockups/README.md`.
