@@ -565,3 +565,47 @@ The log renders about two and a half views of rows (about 100 rows at
 
 - ADR 0115 (the export editor): addendum 2026-11-07 (43d).
 - ADR 0075 (phone): addendum 2026-11-07, export on the phone (43d).
+
+## Wave 3 fixes (2026-11-07)
+
+From the wave-3 review, the visual check against the mockups and the
+performance run. Each changes a detail above; the rest stands.
+
+- **Export: word wrap** (changes "Entries wrap hard at `cols`" in 43d).
+  The log wraps at the last space within the row; a word longer than a
+  row still breaks hard, and the breaking space is not shown
+  (`wrapSpans`). `EditorLog` keeps each entry's shown text (`plain`,
+  the same string as `raw` when a line has no escapes), so `buildItems`
+  counts the rows of the same text `entrySegments` and `entryPlainRows`
+  draw; a line that fits is never scanned. The replay and the text
+  export are not affected (they wrap in their own way). Reason: the 390
+  px mockup wraps at words, and hard wrap split words on the phone.
+- **Export: the render block follows the log's height.** The block size
+  depends on the view's height, so a layout effect re-quantizes the
+  scroll position whenever it changes (a height-only resize, the soft
+  keyboard, the title field's inset), not only on a scroll event.
+- **Export: room for the inline fields.** The title being edited asks for
+  680 px (field at least 220 px); a narrower foot drops the format toggle
+  and Export to a line of their own. On the phone the field, Save and
+  Cancel share a row. With the soft keyboard up (`is-kbd`, the inset is
+  above 0) or a view under 600 px tall, the disabled tools and format row
+  step aside, and while composing the foot and the hold line too, so the
+  composer's Cancel and Save stay in view.
+- **Import receipt: Space never means OK.** Space on a lit header folds
+  it; elsewhere it pages the receipt down. Enter keeps "header: fold,
+  else OK". On a coarse pointer OK is at least 72 px wide and the group
+  headers 44 px tall.
+- **Profile Help: Esc closes an open find in every zone** (the rail and
+  the views too), then leaves.
+- **Profile editor look:** Lite rows never shrink below their content
+  (`flex: none`; descenders were clipped); the rail labels pad their clip
+  box for the shortcut marks; the narrow 12.5 px mono is set on the
+  editor's children (`.wc-pe` is the `pe` container and cannot query
+  itself); the in-game live line carries its own ellipsis and, at 520 px
+  and less, takes a row of its own under the views.
+- **No blur under the profile editor** (`.wc-pe-win`: `--lk-large-blur:
+  none`, fill 0.86), as the script editor (ADR 0129). Under software
+  compositing the blur cost 130 ms p95 per key in the Lite form against
+  20 ms flat; headed GPU showed no difference.
+- **Specs:** `chrome.spec.ts` (the profile list's Enter / click edits)
+  and `typed-settings.spec.ts` drive the new editor's hooks.
