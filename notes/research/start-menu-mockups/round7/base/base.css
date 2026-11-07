@@ -1,0 +1,549 @@
+/* =====================================================================================================
+   WebCockpit start-menu mockups · round 7 · shared base (CSS)
+   -----------------------------------------------------------------------------------------------------
+   Throwaway mockup code. Built from the agreed baseline round6/logo-3.html (sky, wordmark 3 with the
+   inlay changed to cyan metal, the Lykta menu panel, the Profile sub-page box, glass buttons, Back top
+   left, quote A, almanac bottom right) plus the shared pieces every round-7 page mockup needs: the box
+   in two sizes, list rows and tables with the restrained selection, inputs, a monospace code surface,
+   and the in-game backdrop with two movable/resizable window frames. API: README.md in this folder.
+
+   Colours are tokens. Components read the --c-* / --glass-* / --well-* tokens, so a `.paper` context
+   (an in-game window on the Paper background) turns every component light without extra classes.
+   ===================================================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400;1,500&family=Cormorant+SC:wght@500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  /* ---- fixed palette (the start page is always "dark iron in a lit window") */
+  --lamp: #ffcf8f; --lamp-hot: #ffe8c2;
+  --iron: #2a2622; --iron-hi: #5d544a; --iron-lo: #110f0e;
+  --display: 'Cinzel', 'Times New Roman', serif;
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --sc: 'Cormorant SC', 'Cormorant Garamond', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --grain: none;
+
+  /* ---- component tokens (dark: text lit by the lamp in a dark window) */
+  --c-text: #eadcc3;          /* body text */
+  --c-dim: #9a8b76;           /* secondary text, column heads */
+  --c-faint: #6d6252;         /* tertiary, disabled */
+  --c-item: #a69679;          /* list rows / menu items at rest */
+  --c-on: #fff1d8;            /* the chosen row's text (the only selection mark) */
+  --c-on-glow: rgba(255,196,128,.28);
+  --c-ic-on: #ffe2b4;
+  --c-head: #d6bf96;          /* headings inside a page (Cinzel) */
+  --c-accent: #e9c47c;        /* gold: Saved, stars, the default profile */
+  --c-ok: #a9c98e;
+  --c-danger: #e6a690; --c-danger-hot: #ffd2c2; --c-danger-glow: rgba(255,90,60,.9);
+  --c-sk: rgba(255,190,120,.3); --c-sk-on: rgba(255,214,160,.7);   /* the shortcut letter's fine underline */
+  --c-rule: rgba(255,200,130,.18);
+  --glass: linear-gradient(180deg, rgba(255,232,200,.13), rgba(255,220,180,.04) 48%, rgba(255,210,160,.02) 52%, rgba(255,200,150,.06));
+  --glass-hot: linear-gradient(180deg, rgba(255,226,186,.22), rgba(255,210,160,.08) 48%, rgba(255,200,150,.05) 52%, rgba(255,190,130,.12));
+  --glass-edge: rgba(255,214,160,.16);
+  --glass-lip: rgba(255,236,206,.42); --glass-lip-hot: rgba(255,240,215,.6);
+  --glass-text: #dcc8a4; --glass-text-hot: #fff1da; --glass-glow: rgba(255,190,110,.75);
+  --glass-halo: 0 0 16px -4px rgba(255,150,60,.5);
+  --glass-shadow: 0 1px 2px rgba(0,0,0,.45);
+  --glass-ts: 0 1px 1px rgba(0,0,0,.6);
+  --well: rgba(6,5,4,.42);    /* fields, the code surface, grooves */
+  --well-edge: rgba(255,214,160,.12);
+  --well-lip: rgba(255,226,186,.14);
+  --well-in: inset 0 1px 3px rgba(0,0,0,.7), inset 0 0 0 1px rgba(0,0,0,.35);
+  --row: linear-gradient(180deg, rgba(255,207,143,.06), rgba(255,207,143,.02));
+  --row-sh: inset 0 1px 0 rgba(255,207,143,.12), inset 0 0 0 1px rgba(255,207,143,.04), 0 1px 3px rgba(0,0,0,.5);
+  --scroll-thumb: rgba(255,214,160,.22); --scroll-thumb-hot: rgba(255,214,160,.38);
+
+  /* ---- wordmark inlay (rivets; the inlay's own gradients are WC.INLAY in base.js) — set by base.js */
+  --rv-hi: #eaffff; --rv-mid: #46b4b8; --rv-lo: #0b3a3e;
+
+  /* ---- geometry */
+  --box-m: clamp(12px, 1.9vw, 28px);       /* the large box's margin to the window edge */
+  --box-top: var(--box-m);                  /* layouts raise this to leave room for a mark */
+  --win-fill: rgba(14,11,9,.58);            /* the box's window glass (normal box) */
+  --win-fill-large: rgba(13,10,8,.68);      /* large boxes: more opaque, long text over a bright sky */
+  --win-blur: 9px;
+
+  /* ---- motion: every base transition is multiplied by --ts (reduced motion → short, ?slow=N → slow) */
+  --ts: 1;
+  --ease: cubic-bezier(.3,.9,.25,1);
+  --ease-io: cubic-bezier(.6,0,.25,1);
+}
+/* Paper context: an in-game window on the light (Paper) background. Ink on parchment, bronze edges. */
+.paper {
+  --c-text: #2a2116; --c-dim: #6b5a44; --c-faint: #a08f74; --c-item: #4a3c2a;
+  --c-on: #0e0904; --c-on-glow: transparent; --c-ic-on: #3a2a14; --c-head: #4a3418;
+  --c-accent: #8a5a0e; --c-ok: #3f6a22;
+  --c-danger: #9a2e1c; --c-danger-hot: #c22a12; --c-danger-glow: transparent;
+  --c-sk: rgba(120,80,30,.35); --c-sk-on: rgba(90,55,15,.8);
+  --c-rule: rgba(110,80,40,.22);
+  --glass: linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,252,244,.42) 48%, rgba(250,242,226,.36) 52%, rgba(255,250,240,.6));
+  --glass-hot: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,250,238,.6) 48%, rgba(250,240,220,.5) 52%, rgba(255,248,232,.8));
+  --glass-edge: rgba(100,76,40,.3);
+  --glass-lip: rgba(255,255,255,.95); --glass-lip-hot: #fff;
+  --glass-text: #4a3820; --glass-text-hot: #140c04; --glass-glow: transparent;
+  --glass-halo: 0 0 0 1px rgba(120,86,40,.18);
+  --glass-shadow: 0 1px 2px rgba(80,60,30,.25);
+  --glass-ts: 0 1px 0 rgba(255,255,255,.7);
+  --well: rgba(255,253,247,.7); --well-edge: rgba(100,76,40,.28); --well-lip: rgba(255,255,255,.9);
+  --well-in: inset 0 1px 2px rgba(80,60,30,.22), inset 0 0 0 1px rgba(100,76,40,.12);
+  --row: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,250,238,.3));
+  --row-sh: inset 0 1px 0 rgba(255,255,255,.9), inset 0 0 0 1px rgba(110,84,44,.14), 0 1px 2px rgba(80,60,30,.14);
+  --scroll-thumb: rgba(100,76,40,.28); --scroll-thumb-hot: rgba(100,76,40,.45);
+}
+@media (prefers-reduced-motion: reduce) { :root { --ts: .2; } }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #020306; color: var(--c-text); overflow: hidden; }
+body { font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* ================================================================ the sky (canvas, made by WC.sky.start) */
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; animation: wc-fadein 2.2s .1s ease-out forwards; }
+@keyframes wc-fadein { to { opacity: 1; } }
+.vignette { position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(130% 95% at 50% 42%, transparent 52%, rgba(0,0,0,.55) 100%), linear-gradient(180deg, rgba(0,0,0,.22), transparent 18%); }
+.grain { position: fixed; inset: -60px; pointer-events: none; background-image: var(--grain); opacity: .06; mix-blend-mode: overlay; animation: wc-grain 1s steps(5) infinite; }
+@keyframes wc-grain { 0%{transform:translate(0,0)} 20%{transform:translate(-23px,11px)} 40%{transform:translate(17px,-29px)} 60%{transform:translate(-9px,31px)} 80%{transform:translate(29px,7px)} }
+@keyframes wc-appear { to { opacity: 1; } }
+@keyframes wc-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+/* The intro animations (fade/rise on load) hand over to plain styles when they end (base.js adds .in), so a
+   layout can then animate opacity/transform of #brand, #menuPanel, #quote, #almanac with transitions.
+   html.nointro (?nointro) skips the intro: everything is there at once (screenshots). */
+#brand.in, #menuPanel.in, #quote.in, #almanac.in { opacity: 1; animation: none; }
+.nointro #scene, .nointro #brand, .nointro #menuPanel, .nointro #quote, .nointro #almanac { animation: none; opacity: 1; }
+
+/* ================================================================ the start stage (WC.startMenu) */
+#stage { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+  padding: clamp(18px, 5.2vh, 70px) 16px 0; pointer-events: none; }
+#stage > * { pointer-events: auto; }
+
+/* ================================================================ wordmark (WC.Wordmark)
+   .wm            the mark: a canvas (.wm-c, forged iron MUME with the cyan inlay) + the COCKPIT line
+   --wm-w         its width; the canvas is --wm-w × .34; the COCKPIT line scales with it
+   .wm.small      a small mark (corner / plate): --wm-w 120px by default
+   .wm.bare       no COCKPIT line (the plate) */
+.wm { --wm-w: clamp(290px, 40vw, 660px); display: flex; flex-direction: column; align-items: center; transform-origin: 0 0; }
+#brand { opacity: 0; animation: wc-appear 1.6s .5s ease-out forwards; }
+.wm-c { display: block; width: var(--wm-w); height: calc(var(--wm-w) * .34); }
+.wm .cockpit { display: flex; align-items: center; gap: .9em; margin-top: calc(var(--wm-w) * -.035);
+  font: 600 max(6.5px, calc(var(--wm-w) * .0245))/1 var(--display); letter-spacing: .95em; padding-left: .95em; color: #e4e2da;
+  text-shadow: 0 1px 2px #000, 0 0 18px rgba(0,0,0,.9); white-space: nowrap; }
+.wm .cockpit .rule { width: calc(var(--wm-w) * .165); height: max(1.5px, calc(var(--wm-w) * .0046)); position: relative;
+  background: linear-gradient(90deg, transparent, #4a4640 30%, #67615a); border-radius: 2px; box-shadow: 0 1px 0 #000; }
+.wm .cockpit .rule.r { transform: scaleX(-1); }
+.wm .cockpit .rule::after { content: ""; position: absolute; right: -3px; top: 50%; width: max(4px, calc(var(--wm-w) * .0106)); aspect-ratio: 1; transform: translateY(-50%); border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--rv-hi), var(--rv-mid) 40%, var(--rv-lo) 80%); box-shadow: 0 1px 1px #000; }
+.wm.small { --wm-w: 120px; }
+.wm.small .cockpit { gap: .7em; letter-spacing: .7em; padding-left: .7em; margin-top: calc(var(--wm-w) * -.02); text-shadow: 0 1px 1px #000, 0 0 6px rgba(0,0,0,.9); }
+.wm.small .cockpit .rule::after { right: -2px; }
+.wm.bare .cockpit { display: none; }
+.wm[data-href] { cursor: pointer; }
+
+/* ================================================================ the Lykta box family (.lp)
+   Structure (WC.decorate builds the parts from data attributes):
+     section.lp[data-hood="Title"|""][data-back]
+       i.br.b1…b4      riveted iron corner brackets
+       div.hood        the glossy plate on the top edge (title) — .hood.plain: no title, an engraved line
+       button.backbtn  Back, top left, level with the hood (data-back)
+       div.win         the lit glass window (put your content here) */
+.lp { position: relative; padding: 7px; border-radius: 5px; border: 1px solid #000;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.22)), var(--grain), var(--iron);
+  background-size: auto, 160px 160px, auto;
+  box-shadow: inset 1px 1px 0 rgba(130,116,100,.55), inset -1px -1px 0 var(--iron-lo), 0 0 46px -8px rgba(255,170,90,.24), 0 30px 80px -12px rgba(0,0,0,.85); }
+.lp .br { position: absolute; width: 24px; height: 24px; z-index: 4; pointer-events: none;
+  background: radial-gradient(circle at 3.5px 3.5px, #fff1d6 0 1px, #ffb35c 1.3px, #1a1412 1.9px 2.6px, transparent 3.1px) 0 0 / 7px 7px no-repeat,
+              radial-gradient(circle at 3.5px 3.5px, #1a1412 0 1.2px, transparent 1.8px) 17px 0 / 7px 7px no-repeat,
+              radial-gradient(circle at 3.5px 3.5px, #1a1412 0 1.2px, transparent 1.8px) 0 17px / 7px 7px no-repeat,
+              linear-gradient(135deg, #6f655a, var(--iron) 75%);
+  clip-path: polygon(0 0, 100% 0, 100% 7px, 7px 7px, 7px 100%, 0 100%); box-shadow: inset 1px 1px 0 rgba(255,255,255,.2); }
+.lp .b1 { top: -1px; left: -1px; } .lp .b2 { top: -1px; right: -1px; transform: scaleX(-1); }
+.lp .b3 { bottom: -1px; left: -1px; transform: scaleY(-1); } .lp .b4 { bottom: -1px; right: -1px; transform: scale(-1,-1); }
+.hood { position: absolute; z-index: 5; top: -1px; left: 50%; transform: translateX(-50%); height: 27px; padding: 0 26px;
+  display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 0 0 13px 13px; white-space: nowrap; overflow: hidden;
+  background:
+    radial-gradient(34% 70% at 30% 8%, rgba(255,247,232,.72), rgba(255,236,206,.22) 40%, rgba(255,236,206,0) 72%),
+    linear-gradient(104deg, rgba(255,255,255,0) 58%, rgba(255,240,220,.16) 62%, rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, #7d6a58 0%, #4c3e33 30%, #2a211b 47%, #0f0b09 53%, #1c1612 70%, #3d3027 92%, #574536 100%);
+  box-shadow: inset 0 1px 0 rgba(255,244,226,.85), inset 0 -1px 0 rgba(255,214,170,.35), inset 1px 0 0 rgba(255,232,206,.22), inset -1px 0 0 rgba(255,232,206,.12),
+              0 0 0 1px #000, 0 3px 10px rgba(0,0,0,.6); }
+.hood::before, .hood::after { content: ""; position: absolute; top: 10px; width: 6px; height: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #fff6e4 0 12%, #c9a885 26%, #5a4636 62%, #160f0b 100%); box-shadow: 0 1px 0 rgba(255,220,180,.25), 0 0 0 .5px #000; }
+.hood::before { left: 9px; } .hood::after { right: 9px; }
+.hood .t { font: 700 14px/1 var(--display); letter-spacing: .14em; padding-top: 2px; color: #ffe6bf; text-shadow: 0 0 5px rgba(255,200,120,.9), 0 0 14px rgba(255,150,60,.5); }
+.hood.plain { width: 74px; padding: 0; }
+.hood .eng { display: block; width: 30px; height: 2px; margin-top: 1px; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, rgba(8,5,3,.85) 18%, rgba(8,5,3,.85) 82%, transparent); box-shadow: 0 1px 0 rgba(255,226,190,.28); }
+.lp .win { position: relative; border: 1px solid #000; border-radius: 2px; padding: 32px 12px 12px; overflow: hidden;
+  background: radial-gradient(55% 70px at 50% 0, rgba(255,207,143,.14), transparent),
+              radial-gradient(130% 90% at 50% 30%, rgba(255,207,143,.08), rgba(255,207,143,.03) 60%, transparent 90%), var(--win-fill);
+  -webkit-backdrop-filter: blur(var(--win-blur)) saturate(1.1); backdrop-filter: blur(var(--win-blur)) saturate(1.1);
+  box-shadow: inset 0 0 0 1px rgba(255,207,143,.10), inset 0 0 40px rgba(0,0,0,.65); }
+
+/* ---- the two box sizes ------------------------------------------------------------------------------
+   .box-normal  a sub-page like round 6's Profile page: centred under the wordmark, 820 px wide at most
+   .box-large   a content-heavy page: nearly the whole window (inset --box-top / --box-m), the window is a
+                flex column: .box-head (fixed) · .box-body (scrolls) · .box-foot (fixed)
+   Both are position: fixed; a layout positions, shows and animates them (the base does not). */
+.box-normal { position: fixed; z-index: 3; left: 50%; top: clamp(150px, 26vh, 270px); width: min(820px, calc(100vw - 32px)); transform: translateX(-50%); }
+.box-normal > .win { padding: 40px 22px 14px; }
+.box-large { position: fixed; z-index: 3; top: var(--box-top); left: var(--box-m); right: var(--box-m); bottom: var(--box-m); display: flex; }
+.box-large > .win { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 44px 22px 14px; --win-fill: var(--win-fill-large); }
+.box-head { flex: none; }
+.box-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.box-foot { flex: none; }
+/* a thin iron scrollbar inside the window */
+.box-body, .scroll { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+.box-body::-webkit-scrollbar, .scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.box-body::-webkit-scrollbar-thumb, .scroll::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+.box-body::-webkit-scrollbar-thumb:hover, .scroll::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-thumb-hot); }
+
+/* ================================================================ Back, glass buttons */
+.ibtn, .backbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 34px; padding: 0 18px 0 14px; border-radius: 5px; cursor: pointer;
+  font: 700 12px/1 var(--display); letter-spacing: .16em; color: var(--glass-text); border: 1px solid var(--glass-edge); background: var(--glass);
+  -webkit-backdrop-filter: blur(4px) brightness(1.1); backdrop-filter: blur(4px) brightness(1.1);
+  box-shadow: inset 0 1px 0 var(--glass-lip), inset 0 -1px 0 rgba(0,0,0,.25), var(--glass-shadow); text-shadow: var(--glass-ts); white-space: nowrap;
+  transition: color .25s, text-shadow .25s, box-shadow .25s, background .25s, transform .12s; }
+.ibtn svg, .backbtn svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+.ibtn:hover, .ibtn:focus-visible, .ibtn.on, .backbtn:hover, .backbtn:focus-visible { outline: none; color: var(--glass-text-hot); text-shadow: 0 0 7px var(--glass-glow); background: var(--glass-hot);
+  box-shadow: inset 0 1px 0 var(--glass-lip-hot), inset 0 0 0 1px rgba(255,200,130,.12), inset 0 -1px 0 rgba(0,0,0,.25), var(--glass-halo), var(--glass-shadow); }
+.ibtn:active, .backbtn:active { transform: translateY(1px); }
+.ibtn.primary { color: #f2dcb2; border-color: rgba(255,214,160,.26);
+  background: linear-gradient(180deg, rgba(255,214,160,.24), rgba(255,200,140,.08) 48%, rgba(255,190,120,.05) 52%, rgba(255,190,120,.14)); }
+.paper .ibtn.primary { color: #3a2408; border-color: rgba(120,80,30,.4); background: linear-gradient(180deg, rgba(255,240,205,.95), rgba(246,222,170,.6) 48%, rgba(236,206,150,.55) 52%, rgba(248,226,180,.8)); }
+.ibtn.danger { color: var(--c-danger); }
+.ibtn.danger:hover, .ibtn.danger:focus-visible { color: var(--c-danger-hot); text-shadow: 0 0 7px var(--c-danger-glow);
+  box-shadow: inset 0 1px 0 var(--glass-lip), inset 0 -1px 0 rgba(0,0,0,.25), 0 0 18px -4px rgba(255,70,40,.6), var(--glass-shadow); }
+.paper .ibtn.danger:hover { box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(160,40,20,.3), var(--glass-shadow); }
+.ibtn:disabled, .ibtn.disabled { cursor: default; color: var(--c-faint); text-shadow: none; opacity: .62; background: linear-gradient(180deg, rgba(255,232,200,.05), rgba(255,220,180,.02));
+  box-shadow: inset 0 1px 0 rgba(255,236,206,.12), var(--glass-shadow); transform: none; }
+.paper .ibtn:disabled, .paper .ibtn.disabled { background: rgba(255,255,255,.25); box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.ibtn:disabled u.sk, .ibtn.disabled u.sk { background-image: none; }
+.ibtn.small { height: 28px; padding: 0 12px 0 10px; font-size: 10.5px; gap: 6px; }
+.ibtn.small svg { width: 13px; height: 13px; }
+.ibtn.icon { padding: 0; width: 34px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btncol { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.btncol .ibtn { justify-content: flex-start; }
+/* Back: every sub-page box has it in the same place (top left of the window, level with the hood). Esc does the same. */
+.backbtn { position: absolute; left: 16px; top: 15px; z-index: 6; height: 27px; padding: 0 12px 0 7px; gap: 5px; font-size: 10.5px; letter-spacing: .2em; color: #c8b394; }
+.backbtn svg { width: 13px; height: 13px; stroke-width: 1.8; }
+/* The shortcut letter is marked inside the label: a fine lit underline (brighter when chosen / hovered). */
+u.sk { text-decoration: none; background: linear-gradient(90deg, transparent 8%, var(--c-sk) 8% 92%, transparent 92%) 0 100% / 100% 1px no-repeat; padding-bottom: 2px; }
+.on u.sk, .item.on u.sk, .ibtn:hover u.sk, .ibtn:focus-visible u.sk, .seg button:hover u.sk, .tabs button:hover u.sk { background-image: linear-gradient(90deg, transparent 8%, var(--c-sk-on) 8% 92%, transparent 92%); }
+
+/* ================================================================ start menu (WC.startMenu) */
+#menuPanel { width: min(360px, calc(100vw - 32px)); margin-top: clamp(14px, 2.6vh, 30px); opacity: 0; animation: wc-rise 1.4s .9s cubic-bezier(.2,.8,.2,1) forwards; }
+.menu { list-style: none; margin: 0; padding: 0; position: relative; z-index: 1; }
+.item { position: relative; z-index: 2; display: flex; align-items: center; gap: 14px; height: 42px; padding: 0 18px;
+  font: 600 15.5px/1 var(--display); letter-spacing: .17em; color: var(--c-item); cursor: pointer; user-select: none; transition: color .45s, text-shadow .45s; }
+.item .ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; opacity: .65; transition: opacity .45s, color .45s; }
+.item .ctx { font: italic 500 14px/1 var(--serif); letter-spacing: .02em; color: var(--c-faint); opacity: .75; margin-left: -4px; transition: color .45s, opacity .45s; }
+.item.prime { height: 56px; gap: 16px; font-size: 20px; font-weight: 700; letter-spacing: .1em; color: #c9b28a; }
+.item.prime .ic { width: 22px; height: 22px; stroke-width: 1.5; }
+.item.on { color: var(--c-on); text-shadow: 0 0 10px var(--c-on-glow), 0 1px 1px rgba(0,0,0,.6); transition-duration: .3s; }
+.item.on .ic { opacity: 1; color: var(--c-ic-on); transition-duration: .3s; }
+.item.on .ctx { color: var(--c-dim); opacity: .9; }
+.sep { height: 13px; margin: 2px 8px 4px; position: relative; list-style: none; }
+.sep::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,200,130,.24) 30%, rgba(255,200,130,.24) 70%, transparent); }
+.sep::after { content: ""; position: absolute; left: 50%; top: 3px; width: 7px; height: 7px; margin-left: -3.5px; transform: rotate(45deg);
+  background: linear-gradient(135deg, #7a6a58, #2a2420); box-shadow: 0 0 0 1px #000, 0 0 6px rgba(255,160,70,.3); }
+#menuWin { padding-bottom: 22px; }
+.flash { position: absolute; left: 0; right: 0; bottom: 5px; text-align: center; pointer-events: none;
+  font: italic 500 15px/1 var(--serif); color: #ffb870; text-shadow: 0 0 10px rgba(255,140,50,.6), 0 1px 2px #000; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+.flash.show { opacity: 1; }
+.flash.static { position: static; display: block; min-height: 18px; }
+.flash.fail { color: #ff9a80; }
+.paper .flash { color: #8a4a0c; text-shadow: none; }
+
+/* ================================================================ quote · A "Fri skrift" (WC.startMenu fills it) */
+#quote { margin: clamp(16px, 3.2vh, 36px) 0 0; max-width: 660px; padding: 0 18px; text-align: center; color: #f6ead3;
+  opacity: 0; animation: wc-rise 1.6s 1.3s ease-out forwards; transition: color 2.5s; }
+#quote p { margin: 0; font: italic 500 clamp(19px, 1.6vw, 25px)/1.3 var(--serif); letter-spacing: .005em; color: inherit; text-wrap: balance;
+  text-shadow: 0 0 1px rgba(10,6,3,.95), 0 1px 1px rgba(10,6,3,.85), 0 0 3px rgba(10,6,3,.4); transition: text-shadow 2.5s; }
+#quote .orn { display: block; position: relative; width: 150px; height: 9px; margin: 11px auto 9px; color: inherit; opacity: .75; }
+#quote .orn::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor 22%, currentColor 40%, transparent 45%, transparent 55%, currentColor 60%, currentColor 78%, transparent); filter: drop-shadow(0 1px 0 rgba(10,6,3,.55)); }
+#quote .orn::after { content: ""; position: absolute; left: 50%; top: 1px; width: 6px; height: 6px; margin-left: -3px; transform: rotate(45deg); border: 1px solid currentColor; box-shadow: 0 1px 0 rgba(10,6,3,.5); }
+#quote cite { display: block; font: 600 clamp(15px, 1.1vw, 17px)/1 var(--sc); font-style: normal; letter-spacing: .14em; color: #ead2a6; text-shadow: 0 0 1px rgba(10,6,3,.95), 0 1px 1px rgba(10,6,3,.8); transition: color 2.5s; }
+#quote.ink { color: #24180e; }
+#quote.ink p { text-shadow: 0 1px 0 rgba(255,248,232,.5), 0 0 1px rgba(255,248,232,.35); }
+#quote.ink .orn::before { filter: drop-shadow(0 1px 0 rgba(255,248,232,.45)); }
+#quote.ink .orn::after { box-shadow: 0 1px 0 rgba(255,248,232,.4); }
+#quote.ink cite { color: #4a3119; text-shadow: 0 1px 0 rgba(255,248,232,.45); }
+
+/* ================================================================ almanac (bottom right) */
+#almanac { position: fixed; right: 0; bottom: 0; z-index: 2; text-align: right; pointer-events: none;
+  padding: 36px max(20px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) 90px;
+  background: radial-gradient(farthest-side at 100% 100%, rgba(4,3,2,.34), rgba(4,3,2,.14) 55%, transparent);
+  text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.85); opacity: 0; animation: wc-appear 1.4s 1.6s ease-out forwards; }
+#almanac .d { font: 600 12px/1.55 var(--display); letter-spacing: .15em; color: #c9b08a; }
+#almanac .m { font: 400 11px/1.65 var(--mono); color: #9a8b76; }
+#almanac .v { font: 400 11px/1.65 var(--mono); color: #6d6252; }
+
+/* ================================================================ page content: headings, text, rules */
+.h-page { font: 700 18px/1.1 var(--display); letter-spacing: .12em; color: var(--c-head); margin: 0; }
+.h-sec { font: 600 11px/1 var(--display); letter-spacing: .24em; color: var(--c-dim); text-transform: uppercase; margin: 0 0 10px; }
+.lead { font: italic 500 17px/1.35 var(--serif); color: var(--c-dim); }
+.txt { font: 500 17px/1.45 var(--serif); color: var(--c-text); }
+.muted { color: var(--c-dim); } .faint { color: var(--c-faint); } .gold { color: var(--c-accent); } .ok { color: var(--c-ok); } .bad { color: var(--c-danger); }
+.mono { font-family: var(--mono); }
+.stars { color: var(--c-accent); letter-spacing: .12em; text-shadow: 0 0 6px rgba(255,190,90,.25); }
+.paper .stars { text-shadow: none; }
+.orn-rule { display: block; position: relative; height: 9px; margin: 12px auto; width: min(260px, 60%); color: var(--c-rule); }
+.orn-rule::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: linear-gradient(90deg, transparent, currentColor 25%, currentColor 44%, transparent 46%, transparent 54%, currentColor 56%, currentColor 75%, transparent); }
+.orn-rule::after { content: ""; position: absolute; left: 50%; top: 1px; width: 6px; height: 6px; margin-left: -3px; transform: rotate(45deg); border: 1px solid currentColor; }
+.hr { height: 1px; border: 0; margin: 12px 0; background: linear-gradient(90deg, transparent, var(--c-rule) 15%, var(--c-rule) 85%, transparent); }
+.empty { padding: 40px 16px; text-align: center; font: italic 500 19px/1.4 var(--serif); color: var(--c-dim); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: baseline; }
+.kv dt { font: 600 10px/1.6 var(--display); letter-spacing: .2em; color: var(--c-dim); text-transform: uppercase; }
+.kv dd { margin: 0; font: 500 16px/1.3 var(--serif); color: var(--c-text); }
+
+/* ================================================================ list rows (restrained selection)
+   .rows > .row       a card-like row (round 6's profile rows); .row.on = chosen: the text brightens, nothing else
+   .rows.flat > .row  hairline-separated rows instead of cards (dense lists) */
+.rows { position: relative; display: flex; flex-direction: column; gap: 7px; }
+.row { position: relative; min-height: 46px; padding: 0 18px; display: flex; align-items: center; gap: 12px; border-radius: 5px; cursor: pointer; color: var(--c-item);
+  background: var(--row); box-shadow: var(--row-sh); transition: color .45s, text-shadow .45s; user-select: none; }
+.row.on { color: var(--c-on); text-shadow: 0 0 10px var(--c-on-glow); transition-duration: .3s; }
+.rows.flat { gap: 0; }
+.rows.flat > .row { border-radius: 0; background: none; box-shadow: none; border-bottom: 1px solid var(--c-rule); min-height: 40px; }
+.row .dim { color: var(--c-dim); transition: color .45s; } .row.on .dim { color: color-mix(in srgb, var(--c-dim) 55%, var(--c-on)); }
+.row.disabled { cursor: default; opacity: .55; }
+
+/* ---- tables: a header and rows on one grid (set --cols on .tbl) */
+.tbl { --cols: 1fr; position: relative; }
+.tbl .th-row, .tbl .row { display: grid; grid-template-columns: var(--cols); gap: 14px; align-items: center; }
+.tbl .th-row { padding: 0 18px 8px; position: sticky; top: 0; z-index: 2; }
+.tbl .th { font: 600 10.5px/1 var(--display); letter-spacing: .22em; color: var(--c-dim); text-transform: uppercase; white-space: nowrap; user-select: none; }
+.tbl .th.sort { cursor: pointer; } .tbl .th.sort:hover { color: var(--c-text); }
+.tbl .th[data-dir]::after { content: " ▾"; letter-spacing: 0; color: var(--c-text); }
+.tbl .th[data-dir="1"]::after { content: " ▴"; }
+.tbl .th.r, .tbl .td.r { text-align: right; justify-self: end; }
+.tbl .td { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ================================================================ inputs
+   .field        text input / textarea (a glass well); .field.mono for hosts, paths, code-ish values
+   .select       a native <select> in the same well, with a chevron
+   input.chk     checkbox (a small well with a lit tick)
+   input.tog     toggle (a groove with a riveted knob)
+   .seg          segmented control / filter pills: <div class="seg"><button aria-selected="true">…
+   .tabs         page tabs (text with a fine lit underline under the active one)
+   label.lbl     a field label (small Cinzel caps) */
+.lbl { display: block; font: 600 10px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--c-dim); margin: 0 0 7px; }
+.field, .select { display: block; width: 100%; height: 36px; padding: 0 12px; border-radius: 5px; border: 1px solid var(--well-edge); outline: none;
+  font: 500 17px/1 var(--serif); color: var(--c-text); background: var(--well); box-shadow: var(--well-in), 0 1px 0 var(--well-lip); transition: border-color .25s, box-shadow .25s; }
+textarea.field { height: auto; min-height: 90px; padding: 9px 12px; line-height: 1.4; resize: vertical; }
+.field.mono { font: 400 13.5px/1 var(--mono); }
+.field::placeholder { color: var(--c-faint); font-style: italic; }
+.field:focus, .select:focus { border-color: color-mix(in srgb, var(--c-accent) 55%, transparent); box-shadow: var(--well-in), 0 1px 0 var(--well-lip), 0 0 0 3px color-mix(in srgb, var(--c-accent) 14%, transparent); }
+.field:disabled, .select:disabled { opacity: .55; }
+.field.bad { border-color: color-mix(in srgb, var(--c-danger) 70%, transparent); }
+.select { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23b8a585' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"), none;
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 12px; background-color: var(--well); }
+.select option { background: #1a1612; color: #eadcc3; }
+.paper .select option { background: #fbf6ea; color: #2a2116; }
+input.chk { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; margin: 0; border-radius: 4px; flex: none; cursor: pointer; vertical-align: -3px;
+  border: 1px solid var(--well-edge); background: var(--well); box-shadow: var(--well-in), 0 1px 0 var(--well-lip); position: relative; transition: border-color .2s; }
+input.chk:checked { border-color: color-mix(in srgb, var(--c-accent) 50%, transparent); }
+input.chk:checked::after { content: ""; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px; border: solid var(--c-on); border-width: 0 2px 2px 0; transform: rotate(42deg);
+  filter: drop-shadow(0 0 3px var(--c-on-glow)); }
+input.tog { appearance: none; -webkit-appearance: none; width: 38px; height: 20px; margin: 0; border-radius: 10px; flex: none; cursor: pointer; position: relative; vertical-align: -5px;
+  border: 1px solid var(--well-edge); background: var(--well); box-shadow: var(--well-in), 0 1px 0 var(--well-lip); transition: background .3s, border-color .3s; }
+input.tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #fff6e4 0 10%, #b9a285 28%, #5a4636 64%, #1a120d 100%); box-shadow: 0 1px 2px rgba(0,0,0,.6), 0 0 0 .5px #000; transition: transform calc(.25s * var(--ts)) var(--ease); }
+input.tog:checked { background: linear-gradient(180deg, rgba(255,207,143,.30), rgba(255,180,100,.14)); border-color: rgba(255,207,143,.4); }
+input.tog:checked::after { transform: translateX(18px); background: radial-gradient(circle at 36% 30%, #fffaf0 0 14%, #e8cfa6 32%, #8a6a48 66%, #2a1d12 100%); }
+.paper input.tog:checked { background: linear-gradient(180deg, rgba(200,150,70,.45), rgba(220,180,110,.3)); border-color: rgba(120,80,30,.45); }
+.check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font: 500 16.5px/1.2 var(--serif); color: var(--c-text); user-select: none; }
+.seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 7px; background: var(--well); border: 1px solid var(--well-edge); box-shadow: var(--well-in), 0 1px 0 var(--well-lip); flex-wrap: wrap; }
+.seg button { all: unset; cursor: pointer; height: 28px; padding: 0 14px; border-radius: 5px; display: inline-flex; align-items: center; gap: 6px;
+  font: 600 11.5px/1 var(--display); letter-spacing: .14em; color: var(--c-item); transition: color .3s, background .3s, box-shadow .3s; white-space: nowrap; }
+.seg button:hover { color: var(--c-text); }
+.seg button[aria-selected="true"] { color: var(--c-on); background: var(--glass-hot); box-shadow: inset 0 1px 0 var(--glass-lip), 0 1px 2px rgba(0,0,0,.35); text-shadow: 0 0 8px var(--c-on-glow); }
+.seg button:focus-visible { outline: 1px solid var(--c-sk-on); outline-offset: 1px; }
+.seg.zone-off button[aria-selected="true"] { color: var(--c-text); text-shadow: none; }
+.tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--c-rule); overflow-x: auto; scrollbar-width: none; }
+.tabs button { flex: none; }
+.tabs button { all: unset; cursor: pointer; padding: 6px 2px 9px; position: relative; font: 600 12px/1 var(--display); letter-spacing: .18em; color: var(--c-item); transition: color .3s; }
+.tabs button:hover { color: var(--c-text); }
+.tabs button[aria-selected="true"] { color: var(--c-on); text-shadow: 0 0 8px var(--c-on-glow); }
+.tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--c-sk-on) 20%, var(--c-sk-on) 80%, transparent); }
+.form { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px 20px; }
+
+/* ================================================================ code surface (the Scripts editor keeps monospace)
+   <div class="code"><div class="code-gut">1\n2…</div><pre class="code-src">…tokens…</pre></div>
+   token spans: .tk-k keyword · .tk-s string · .tk-c comment · .tk-n number · .tk-f function · .tk-v variable · .tk-o operator
+   .code-line.cur  the caret line (a faint band) */
+.code { display: flex; border-radius: 5px; overflow: auto; border: 1px solid var(--well-edge); background: rgba(5,4,3,.82); box-shadow: var(--well-in), 0 1px 0 var(--well-lip);
+  font: 400 13.5px/1.6 var(--mono); color: #d8d0c2; tab-size: 2; }
+.code-gut { flex: none; padding: 10px 10px 10px 14px; text-align: right; color: #5a5348; user-select: none; white-space: pre; border-right: 1px solid rgba(255,214,160,.07); background: rgba(255,214,160,.02); }
+.code-src { flex: 1; margin: 0; padding: 10px 14px; white-space: pre; min-width: 0; font: inherit; }
+.code-line { display: block; margin: 0 -14px; padding: 0 14px; } .code-line.cur { background: rgba(255,214,160,.05); box-shadow: inset 2px 0 0 rgba(255,207,143,.35); }
+.tk-k { color: #e6b874; } .tk-s { color: #a9c98e; } .tk-c { color: #6f6a5e; font-style: italic; } .tk-n { color: #d99a6c; } .tk-f { color: #8fcfd2; } .tk-v { color: #e8dcc6; } .tk-o { color: #b5a58a; }
+.paper .code { background: rgba(255,253,246,.92); color: #2a2116; }
+.paper .code-gut { color: #a8987c; background: rgba(120,90,40,.04); border-right-color: rgba(120,90,40,.12); }
+.paper .code-line.cur { background: rgba(160,120,50,.07); box-shadow: inset 2px 0 0 rgba(160,110,40,.45); }
+.paper .tk-k { color: #8a4f00; } .paper .tk-s { color: #3d6a1e; } .paper .tk-c { color: #9a907c; } .paper .tk-n { color: #a8461c; } .paper .tk-f { color: #0e6a72; } .paper .tk-v { color: #2a2116; } .paper .tk-o { color: #6b5a44; }
+
+/* ================================================================ DEMO panel (mockup tool, bottom left) and toast */
+#demo { position: fixed; left: 12px; bottom: 12px; z-index: 900; font: 400 11px/1.4 var(--mono); color: #b8ab98; }
+#demo > button { font: 600 10.5px/1 var(--mono); letter-spacing: .08em; color: #a8987f; background: rgba(12,10,9,.72); border: 1px solid #3a332c; border-radius: 4px; padding: 6px 10px; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#demo > button:hover { color: #ffdcab; border-color: #6b5a48; }
+#demo .body { display: none; margin-bottom: 6px; width: 312px; max-height: calc(100vh - 70px); overflow: auto; padding: 10px 12px; background: rgba(12,10,9,.9); border: 1px solid #3a332c; border-radius: 5px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+#demo.open .body { display: block; }
+#demo label { display: grid; grid-template-columns: 62px 1fr 44px; align-items: center; gap: 6px; margin: 5px 0; }
+#demo select, #demo input[type=range] { width: 100%; font: inherit; color: #e0d2bc; background: #1c1916; border: 1px solid #3a332c; border-radius: 3px; padding: 2px; accent-color: #e08a3a; }
+#demo .row2 { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+#demo .row2 button, #demo .seasons button { font: inherit; color: #e0d2bc; background: #1c1916; border: 1px solid #3a332c; border-radius: 3px; padding: 3px 7px; cursor: pointer; }
+#demo .row2 button.on, #demo .seasons button.on { border-color: #b07a3a; color: #ffd9a0; }
+#demo .seasons { display: grid; grid-template-columns: 62px repeat(4, 1fr); gap: 4px; align-items: center; margin: 5px 0; }
+#demo .seasons button { font-size: 10px; padding: 3px 0; }
+#demo .ro { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2c2722; color: #8e8170; white-space: pre-line; }
+#demo .extra:empty { display: none; }
+#demo .extra { margin-top: 8px; padding-top: 8px; border-top: 1px solid #2c2722; }
+#toast { position: fixed; left: 50%; top: 46%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity .8s; z-index: 800;
+  font: italic 500 24px/1.4 var(--serif); color: #ffe7c4; text-shadow: 0 0 14px rgba(255,140,50,.7), 0 1px 3px #000; }
+#toast small { display: block; margin-top: 6px; font: 400 12px/1.6 var(--mono); font-style: normal; color: #ffe2b8; text-shadow: 0 1px 2px #000, 0 0 12px #000; }
+#toast.show { opacity: 1; }
+
+/* ================================================================ IN-GAME backdrop (WC.ingame) and windows (WC.window)
+   The backdrop is a real screenshot of the app in game view (Lykta panes, the menu bar bottom centre-right),
+   1440×900, scaled to cover and anchored bottom left (the menu bar and the panes stay in view). */
+body.ingame { background: #000; }
+body.ingame.paper-bg { background: #f4ecd8; }
+.igbg { position: fixed; left: 0; bottom: 0; width: 1440px; height: 900px; transform-origin: 0 100%; background: center / 100% 100% no-repeat; pointer-events: none; }
+.igbg .barmark { position: absolute; width: 16px; height: 2px; margin-left: -8px; top: 893px; border-radius: 1px; background: #e8b860; box-shadow: 0 0 6px rgba(232,184,96,.8); }
+.paper-bg .igbg .barmark { background: #9a6410; box-shadow: none; }
+.igshade { position: fixed; inset: 0; pointer-events: none; background: rgba(0,0,0,0); }
+
+/* ---- the shared window chassis (both treatments)
+   .wwin[data-title][data-note]   position/size inline (left/top/width/height in px)
+     .w-bar     the title bar: drag to move (pointer events, so a pen or finger works too)
+     .w-x       close (as Esc)
+     .w-body    the content (scrolls inside; put a page's content here)
+     .w-edge×8  resize bands on the edges and corners · .w-grip the visible grip (bottom right)
+   [data-focused] on the window that has the focus; without it the frame dims and the content goes to 55 %. */
+.wwin { position: fixed; z-index: 98; display: flex; flex-direction: column; min-width: 320px; min-height: 200px; user-select: none; }
+.wwin .w-bar { cursor: move; touch-action: none; flex: none; position: relative; z-index: 6; }
+.wwin .w-x { all: unset; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.wwin .w-x svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.wwin .w-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; user-select: none; transition: opacity .25s; }
+.wwin .field, .wwin .code-src, .wwin .selectable { user-select: text; }
+.wwin:not([data-focused]) .w-body > * { opacity: .55; }
+.wwin .w-edge { position: absolute; z-index: 7; touch-action: none; }
+.wwin .w-edge[data-edge="n"] { left: 12px; right: 12px; top: -3px; height: 6px; cursor: ns-resize; }
+.wwin .w-edge[data-edge="s"] { left: 12px; right: 12px; bottom: -3px; height: 7px; cursor: ns-resize; }
+.wwin .w-edge[data-edge="w"] { top: 12px; bottom: 12px; left: -3px; width: 7px; cursor: ew-resize; }
+.wwin .w-edge[data-edge="e"] { top: 12px; bottom: 12px; right: -3px; width: 7px; cursor: ew-resize; }
+.wwin .w-edge[data-edge="nw"] { left: -3px; top: -3px; width: 14px; height: 14px; cursor: nwse-resize; }
+.wwin .w-edge[data-edge="ne"] { right: -3px; top: -3px; width: 14px; height: 14px; cursor: nesw-resize; }
+.wwin .w-edge[data-edge="sw"] { left: -3px; bottom: -3px; width: 14px; height: 14px; cursor: nesw-resize; }
+.wwin .w-edge[data-edge="se"] { right: -3px; bottom: -3px; width: 16px; height: 16px; cursor: nwse-resize; }
+.wwin .w-grip { position: absolute; right: 3px; bottom: 3px; z-index: 8; width: 12px; height: 12px; cursor: nwse-resize; touch-action: none; opacity: .45;
+  background: linear-gradient(135deg, transparent 0 45%, var(--grip) 45% 52%, transparent 52% 65%, var(--grip) 65% 72%, transparent 72% 85%, var(--grip) 85% 92%, transparent 92%); }
+.wwin[data-focused] .w-grip { opacity: .9; }
+.wwin.dragging, .wwin.dragging * { cursor: inherit; }
+
+/* ---- .win-a · "Lyktfönster": the in-game window as a Lykta pane. A thin iron band (5 px) with small riveted
+   corner brackets, a centred iron hood with the Cinzel title in lamp light, the window lit from within
+   (opaque: game text must not show through). The X is a small iron stud on the band, right. */
+.win-a { --grip: #b49a78; padding: 5px; border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255,255,255,.07), transparent 40%, rgba(0,0,0,.25)), var(--grain), linear-gradient(180deg, #37312b, #26211c);
+  background-size: auto, 160px 160px, auto;
+  box-shadow: inset 1px 1px 0 rgba(150,132,112,.5), inset -1px -1px 0 #0c0a08, 0 0 0 1px #000, 0 0 34px -8px rgba(255,170,90,.22), 0 22px 60px -10px rgba(0,0,0,.85); }
+.win-a .wbr { position: absolute; width: 15px; height: 15px; z-index: 5; pointer-events: none;
+  background: radial-gradient(circle at 3px 3px, #fff1d6 0 .8px, #ffb35c 1.1px, #1a1412 1.6px 2.2px, transparent 2.6px) 0 0 / 6px 6px no-repeat, linear-gradient(135deg, #6f655a, #2a2622 80%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%); }
+.win-a .wbr.b1 { top: 0; left: 0; } .win-a .wbr.b2 { top: 0; right: 0; transform: scaleX(-1); } .win-a .wbr.b3 { bottom: 0; left: 0; transform: scaleY(-1); } .win-a .wbr.b4 { bottom: 0; right: 0; transform: scale(-1,-1); }
+.win-a .w-bar { position: absolute; left: 0; right: 0; top: 0; height: 24px; }
+.win-a .w-hood { position: absolute; left: 50%; top: 0; transform: translateX(-50%); height: 23px; padding: 0 22px; display: flex; align-items: center; gap: 8px; white-space: nowrap; max-width: calc(100% - 90px); overflow: hidden;
+  border-radius: 0 0 7px 7px; background: linear-gradient(180deg, #5a4f44, #3a322b 45%, #2a241f);
+  box-shadow: inset 0 1px 0 rgba(255,236,206,.35), inset 0 -1px 0 rgba(255,214,170,.18), 0 0 0 1px #000, 0 2px 5px rgba(0,0,0,.5); }
+.win-a .w-hood::before, .win-a .w-hood::after { content: ""; position: absolute; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: radial-gradient(circle at 36% 30%, #e8d6bd 0 14%, #7a6650 40%, #1a120d 100%); box-shadow: 0 0 0 .5px #000; }
+.win-a .w-hood::before { left: 8px; } .win-a .w-hood::after { right: 8px; }
+.win-a .w-t { font: 700 12.5px/1 var(--display); letter-spacing: .13em; padding-top: 1px; color: #b49c7c; transition: color .25s, text-shadow .25s; }
+.win-a .w-n { font: italic 500 13.5px/1 var(--serif); color: #8a7a64; overflow: hidden; text-overflow: ellipsis; }
+.win-a[data-focused] .w-t { color: #ffe2b4; text-shadow: 0 0 5px rgba(255,200,120,.8), 0 0 12px rgba(255,150,60,.4); }
+.win-a[data-focused] .w-n { color: #bfa682; }
+.win-a .w-x { position: absolute; right: 8px; top: 4px; width: 22px; height: 16px; border-radius: 3px; color: #8e7d68; }
+.win-a .w-x:hover { color: #ffb8a0; background: rgba(255,90,60,.14); }
+.win-a .w-body { border: 1px solid #000; border-radius: 2px; padding: 28px 14px 12px; overflow: hidden;
+  background: radial-gradient(50% 90px at 50% 0, rgba(255,207,143,.13), transparent), radial-gradient(120% 90% at 50% 25%, rgba(255,207,143,.06), transparent 85%), #0f0c0a;
+  box-shadow: inset 0 0 0 1px rgba(255,207,143,.08), inset 0 0 36px rgba(0,0,0,.7); }
+.win-a:not([data-focused]) .w-body { background: #0d0b09; }
+/* Paper: bronze band and hood (as the Paper Lykta panes), an engraved dark title, a cream lit window */
+.paper-bg .win-a { --grip: #7a6444;
+  background: linear-gradient(180deg, rgba(255,255,255,.25), transparent 40%, rgba(0,0,0,.12)), var(--grain), linear-gradient(180deg, #a8946e, #8a7552);
+  background-size: auto, 160px 160px, auto;
+  box-shadow: inset 1px 1px 0 rgba(255,246,222,.7), inset -1px -1px 0 #5a4a30, 0 0 0 1px #4a3c26, 0 18px 44px -10px rgba(60,40,10,.45); }
+.paper-bg .win-a .wbr { background: radial-gradient(circle at 3px 3px, #fff8e8 0 .8px, #c49a52 1.1px, #4a3a22 1.6px 2.2px, transparent 2.6px) 0 0 / 6px 6px no-repeat, linear-gradient(135deg, #d8c49a, #8a7552 80%); }
+.paper-bg .win-a .w-hood { background: linear-gradient(180deg, #e2cf9e, #b89c66 50%, #9a8050); box-shadow: inset 0 1px 0 rgba(255,250,232,.9), 0 0 0 1px #5a4a30, 0 2px 4px rgba(60,40,10,.3); }
+.paper-bg .win-a .w-t { color: #5a4422; text-shadow: 0 1px 0 rgba(255,246,220,.6); }
+.paper-bg .win-a[data-focused] .w-t { color: #2e1e08; text-shadow: 0 1px 0 rgba(255,246,220,.8); }
+.paper-bg .win-a .w-n, .paper-bg .win-a[data-focused] .w-n { color: #5a4a30; }
+.paper-bg .win-a .w-x { color: #4a3c26; } .paper-bg .win-a .w-x:hover { color: #a02a10; background: rgba(160,40,20,.12); }
+.paper-bg .win-a .w-body { border-color: #6a5a3c; background: radial-gradient(50% 90px at 50% 0, rgba(255,255,255,.7), transparent), #f7f0de; box-shadow: inset 0 0 0 1px rgba(255,255,255,.6), inset 0 0 30px rgba(120,90,40,.12); }
+
+/* ---- .win-b · "Glasfönster": the start-page box family. The 7 px stone-iron frame with the big riveted brackets,
+   a frosted glass title bar inside the frame (title left in Cinzel, the profile/script name as a dim italic note,
+   the X as a small glass button right), the box's glass window below (more opaque than on the start page). */
+.win-b { --grip: #b49a78; padding: 7px; border-radius: 5px; border: 1px solid #000;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.22)), var(--grain), var(--iron);
+  background-size: auto, 160px 160px, auto;
+  box-shadow: inset 1px 1px 0 rgba(130,116,100,.55), inset -1px -1px 0 var(--iron-lo), 0 0 46px -10px rgba(255,170,90,.22), 0 24px 70px -12px rgba(0,0,0,.85); }
+.win-b .wbr { position: absolute; width: 22px; height: 22px; z-index: 5; pointer-events: none;
+  background: radial-gradient(circle at 3.5px 3.5px, #fff1d6 0 1px, #ffb35c 1.3px, #1a1412 1.9px 2.6px, transparent 3.1px) 0 0 / 7px 7px no-repeat, linear-gradient(135deg, #6f655a, var(--iron) 75%);
+  clip-path: polygon(0 0, 100% 0, 100% 7px, 7px 7px, 7px 100%, 0 100%); }
+.win-b .wbr.b1 { top: -1px; left: -1px; } .win-b .wbr.b2 { top: -1px; right: -1px; transform: scaleX(-1); } .win-b .wbr.b3 { bottom: -1px; left: -1px; transform: scaleY(-1); } .win-b .wbr.b4 { bottom: -1px; right: -1px; transform: scale(-1,-1); }
+.win-b .w-bar { height: 32px; display: flex; align-items: center; gap: 10px; padding: 0 6px 0 14px; border: 1px solid #000; border-bottom: 0; border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, rgba(255,232,200,.16), rgba(255,220,180,.05) 48%, rgba(255,210,160,.02) 52%, rgba(255,200,150,.07)), rgba(20,16,13,.92);
+  box-shadow: inset 0 1px 0 rgba(255,236,206,.38), inset 0 -1px 0 rgba(255,207,143,.12); }
+.win-b .w-t { font: 700 12.5px/1 var(--display); letter-spacing: .16em; color: #a8977c; padding-top: 1px; transition: color .25s, text-shadow .25s; }
+.win-b .w-n { font: italic 500 14.5px/1 var(--serif); color: #7a6c58; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-b[data-focused] .w-t { color: #f2dfbd; text-shadow: 0 0 8px rgba(255,190,110,.35); }
+.win-b[data-focused] .w-n { color: #b29c7c; }
+.win-b .w-x { width: 26px; height: 22px; border-radius: 4px; color: #a8977c; border: 1px solid rgba(255,214,160,.12);
+  background: linear-gradient(180deg, rgba(255,232,200,.1), rgba(255,220,180,.03)); box-shadow: inset 0 1px 0 rgba(255,236,206,.3); }
+.win-b .w-x:hover { color: #ffd2c2; box-shadow: inset 0 1px 0 rgba(255,200,180,.5), 0 0 12px -3px rgba(255,70,40,.6); }
+.win-b .w-body { border: 1px solid #000; border-radius: 0 0 2px 2px; padding: 14px 14px 12px; overflow: hidden;
+  background: radial-gradient(55% 70px at 50% 0, rgba(255,207,143,.10), transparent), rgba(14,11,9,.9);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05); backdrop-filter: blur(10px) saturate(1.05);
+  box-shadow: inset 0 0 0 1px rgba(255,207,143,.08), inset 0 0 40px rgba(0,0,0,.6); }
+.paper-bg .win-b { --grip: #7a6444; border-color: #5a4a30;
+  background: linear-gradient(180deg, rgba(255,255,255,.25), transparent 35%, rgba(0,0,0,.1)), var(--grain), linear-gradient(180deg, #a8946e, #8a7552);
+  background-size: auto, 160px 160px, auto;
+  box-shadow: inset 1px 1px 0 rgba(255,246,222,.7), inset -1px -1px 0 #5a4a30, 0 18px 44px -10px rgba(60,40,10,.45); }
+.paper-bg .win-b .wbr { background: radial-gradient(circle at 3.5px 3.5px, #fff8e8 0 1px, #c49a52 1.3px, #4a3a22 1.9px 2.6px, transparent 3.1px) 0 0 / 7px 7px no-repeat, linear-gradient(135deg, #d8c49a, #8a7552 80%); }
+.paper-bg .win-b .w-bar { border-color: #5a4a30; background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,250,238,.5) 48%, rgba(246,236,214,.45) 52%, rgba(250,242,226,.7)), #efe5cc;
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(110,84,44,.18); }
+.paper-bg .win-b .w-t { color: #6b5a44; text-shadow: none; } .paper-bg .win-b[data-focused] .w-t { color: #2a1c08; }
+.paper-bg .win-b .w-n, .paper-bg .win-b[data-focused] .w-n { color: #6b5a44; }
+.paper-bg .win-b .w-x { color: #4a3c26; border-color: rgba(100,76,40,.3); background: rgba(255,255,255,.5); box-shadow: inset 0 1px 0 #fff; }
+.paper-bg .win-b .w-body { border-color: #5a4a30; background: rgba(250,245,232,.94); box-shadow: inset 0 0 0 1px rgba(255,255,255,.6), inset 0 0 30px rgba(120,90,40,.1); }
+
+/* ================================================================ phone (≈ 390 × 844) */
+@media (max-width: 600px) {
+  #stage { padding-top: 62px; }
+  .item { height: 38px; font-size: 14.5px; }
+  .item.prime { height: 52px; font-size: 18.5px; }
+  #menuPanel .win { padding-top: 30px; }
+  #quote { max-width: 360px; }
+  #quote .orn { width: 120px; margin: 9px auto 8px; }
+  #almanac { padding: 24px 12px max(12px, env(safe-area-inset-bottom, 0px)) 48px; }
+  #almanac .d { font-size: 10.5px; letter-spacing: .12em; }
+  #almanac .m, #almanac .v { font-size: 10px; line-height: 1.5; }
+  :root { --box-m: 6px; }
+  .box-normal { top: 112px; }
+  .box-normal > .win { padding: 38px 10px 10px; }
+  .box-large { top: max(var(--box-top), env(safe-area-inset-top, 0px)); bottom: max(var(--box-m), env(safe-area-inset-bottom, 0px)); }
+  .box-large > .win { padding: 42px 10px 10px; }
+  .ibtn { padding: 0 10px; font-size: 10.5px; letter-spacing: .1em; height: 34px; gap: 6px; }
+  .ibtn svg { display: none; }
+  .ibtn.keep-ic svg { display: block; }
+  .row { padding: 0 12px; }
+  .tbl .th-row { padding: 0 12px 8px; }
+  .hood { padding: 0 20px; }
+  .hood .t { font-size: 12.5px; }
+  .backbtn { left: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .grain { animation: none; } }

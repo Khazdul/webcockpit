@@ -1,0 +1,80 @@
+<title>Stora sidor runda 7</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<style>
+/* Round 7 review: how a content-heavy page (History) opens from the start menu. Tabs over a-/b-/c-*.html (live, in an iframe). Layout: a slim switcher bar over a full-bleed frame. Single dark look on purpose. */
+:root {
+  --night: #0d1014;
+  --iron: #1b2026;
+  --rule: #2e353e;
+  --text: #dfe3e8;
+  --dim: #8d97a3;
+  --lamp: #f0b45c;
+  --display: "Cinzel", Georgia, serif;
+  --body: "Cormorant Garamond", Georgia, serif;
+  --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--night); color: var(--text); font-family: var(--ui); display: flex; flex-direction: column; }
+header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--iron); border-bottom: 1px solid var(--rule);
+}
+h1 { font: 700 15px/1 var(--display); letter-spacing: .12em; margin: 0; color: var(--lamp); white-space: nowrap; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; }
+nav button {
+  font: 500 14px/1 var(--display); letter-spacing: .06em; color: var(--dim);
+  background: transparent; border: 1px solid var(--rule); border-radius: 3px;
+  padding: 8px 12px; cursor: pointer;
+}
+nav button:hover { color: var(--text); }
+nav button[aria-selected="true"] { color: var(--night); background: var(--lamp); border-color: var(--lamp); }
+nav button:focus-visible, a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.note { flex: 1 1 320px; min-width: 0; font: italic 500 16px/1.3 var(--body); color: var(--dim); margin: 0; }
+.note b { font-style: normal; color: var(--text); font-weight: 500; }
+a.full { font-size: 13px; color: var(--lamp); white-space: nowrap; }
+main { flex: 1; min-height: 0; position: relative; }
+iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+</style>
+
+<header>
+  <h1>Stora sidor · runda 7</h1>
+  <nav role="tablist" id="tabs"></nav>
+  <p class="note" id="note"></p>
+  <a class="full" id="full" target="_blank" rel="noopener">Öppna i helfönster ↗</a>
+</header>
+<main><iframe id="frame" title="Mockup"></iframe></main>
+
+<script>
+const DIRS = [
+  { id: 'a', file: 'a-corner.html', name: 'A Märket i hörnet', note: '<b>A · Märket i hörnet.</b> Ordmärket krymper och glider upp till ett litet märke i övre vänstra hörnet, vilande på lådans ram (klick på det = tillbaka). Menypanelen sjunker undan, lådan stiger fram och fyller nästan hela fönstret.' },
+  { id: 'b', file: 'b-room.html', name: 'B Rummet växer', note: '<b>B · Rummet växer.</b> Menypanelen blir själva sidan: punkterna tonar bort och samma järnlåda växer ut från panelens plats tills den fyller fönstret. Ordmärket lyfter och tonar bort helt, och kommer tillbaka när lådan krymper in i menyn igen.' },
+  { id: 'c', file: 'c-plate.html', name: 'C Namnplåten', note: '<b>C · Namnplåten.</b> Ordmärket reser upp och krymper in i lådans huv, som blir en bredare stålplåt över ramens överkant: det lilla inlagda märket bredvid sidans namn. Lådan stiger fram under den.' },
+];
+const tabs = document.getElementById('tabs');
+const frame = document.getElementById('frame');
+const note = document.getElementById('note');
+const full = document.getElementById('full');
+function show(id) {
+  const d = DIRS.find(x => x.id === id) || DIRS[0];
+  frame.src = d.file;
+  note.innerHTML = d.note + ' Tryck H (eller klicka History) för att öppna, Esc eller Back för att gå tillbaka. Innehållet är riktig History: filter, sortering på kolumnrubrikerna, ↑↓, ←→ för filtret, bokstäverna på knapparna. Prova också mobilbredd.';
+  full.href = d.file;
+  for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.id === d.id));
+  if (location.hash.slice(1) !== d.id) history.replaceState(null, '', '#' + d.id);
+  frame.focus();
+}
+for (const d of DIRS) {
+  const b = document.createElement('button');
+  b.role = 'tab'; b.dataset.id = d.id; b.textContent = d.name;
+  b.onclick = () => show(d.id);
+  tabs.append(b);
+}
+addEventListener('hashchange', () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+</script>

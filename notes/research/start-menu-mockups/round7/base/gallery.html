@@ -1,0 +1,92 @@
+<!doctype html>
+<!-- Round 7 base · component gallery: every base component on the sky, in a large box. Reference for the page
+     agents (copy the markup). Not a review page. Keys: ↑↓ in the list, letters on the buttons, Esc → back
+     to the start menu state (the gallery opens on ?page=… ; without it, the start menu with Profile → gallery). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 base · gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="base.css">
+<style>
+  #gal { opacity: 0; pointer-events: none; transition: opacity calc(.5s * var(--ts)); }
+  body.page #gal { opacity: 1; pointer-events: auto; }
+  body.page #stage { opacity: 0; pointer-events: none; transition: opacity calc(.4s * var(--ts)); }
+  .gal-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 26px 34px; padding: 4px 6px 10px; }
+  .gal-grid section { min-width: 0; }
+  @media (max-width: 900px) { .gal-grid { grid-template-columns: 1fr; } }
+  .wmrow { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<section class="lp box-large" id="gal" data-hood="Gallery" data-back aria-label="Gallery">
+  <div class="win">
+    <div class="box-head" style="display:flex;justify-content:center;margin-bottom:14px">
+      <div class="seg" role="tablist"><button aria-selected="true">All</button><button>Gibur</button><button>Rasta</button><button>Taube</button></div>
+    </div>
+    <div class="box-body">
+      <div class="gal-grid">
+        <section>
+          <h3 class="h-sec">List rows (restrained selection)</h3>
+          <div class="rows" id="rows">
+            <div class="row"><b style="font:700 16px var(--display);letter-spacing:.08em">Gibur</b><span class="dim" style="font-style:italic">Man · warrior</span><span class="dim mono" style="margin-left:auto;font-size:12px">2 hours ago</span></div>
+            <div class="row"><b style="font:700 16px var(--display);letter-spacing:.08em">Taube</b><span class="dim" style="font-style:italic">Elf · mage</span><span class="dim mono" style="margin-left:auto;font-size:12px">yesterday</span></div>
+            <div class="row"><b style="font:700 16px var(--display);letter-spacing:.08em">Morwen</b><span class="dim" style="font-style:italic">Dwarf · cleric</span><span class="dim mono" style="margin-left:auto;font-size:12px">3 weeks ago</span></div>
+          </div>
+          <h3 class="h-sec" style="margin-top:22px">Glass buttons</h3>
+          <div class="btnrow">
+            <button class="ibtn primary"><svg viewBox="0 0 16 16"><path d="M4 3l9 5-9 5z"/></svg><span><u class="sk">R</u>un log</span></button>
+            <button class="ibtn"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg><span><u class="sk">N</u>ew</span></button>
+            <button class="ibtn danger"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg><span><u class="sk">D</u>elete</span></button>
+            <button class="ibtn" disabled><span>E<u class="sk">x</u>port</span></button>
+            <button class="ibtn small"><span>Small</span></button>
+          </div>
+          <div class="flash static" id="gflash" style="margin-top:10px"></div>
+          <h3 class="h-sec" style="margin-top:18px">Code surface</h3>
+<div class="code"><div class="code-gut">1
+2
+3
+4
+5
+6</div><pre class="code-src"><span class="code-line"><span class="tk-c">-- heal the group when someone drops low</span></span><span class="code-line"><span class="tk-k">local</span> <span class="tk-v">low</span> <span class="tk-o">=</span> <span class="tk-n">40</span></span><span class="code-line cur"><span class="tk-k">function</span> <span class="tk-f">on_group</span>(<span class="tk-v">m</span>)</span><span class="code-line">  <span class="tk-k">if</span> <span class="tk-v">m</span>.hp <span class="tk-o">&lt;</span> <span class="tk-v">low</span> <span class="tk-k">then</span> <span class="tk-f">send</span>(<span class="tk-s">"cast 'heal' "</span> <span class="tk-o">..</span> <span class="tk-v">m</span>.name) <span class="tk-k">end</span></span><span class="code-line"><span class="tk-k">end</span></span><span class="code-line"></span></pre></div>
+        </section>
+        <section>
+          <h3 class="h-sec">Tabs</h3>
+          <div class="tabs" role="tablist"><button aria-selected="true">General</button><button>Connection</button><button>Appearance</button><button>Panes</button></div>
+          <div class="form" style="margin-top:16px">
+            <div><label class="lbl" for="f1">Profile name</label><input class="field" id="f1" value="Gibur"></div>
+            <div><label class="lbl" for="f2">Character</label><input class="field" id="f2" placeholder="name to log in as"></div>
+            <div><label class="lbl" for="f3">Server</label><input class="field mono" id="f3" value="mume.org:4242"></div>
+            <div><label class="lbl" for="f4">Font</label><select class="select" id="f4"><option>DejaVu Sans Mono</option><option>Lucida Console</option></select></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:18px">
+            <label class="check"><input type="checkbox" class="chk" checked> Log in automatically</label>
+            <label class="check"><input type="checkbox" class="chk"> Record runs</label>
+            <label class="check"><input type="checkbox" class="tog" checked> Weather in the sky</label>
+            <label class="check"><input type="checkbox" class="tog"> Bold brightens colours</label>
+          </div>
+          <h3 class="h-sec" style="margin-top:22px">Key / value</h3>
+          <dl class="kv"><dt>Character</dt><dd>Rasta</dd><dt>Duration</dt><dd>5h02m</dd><dt>Rating</dt><dd class="stars">★★★★</dd><dt>Expires</dt><dd class="gold">Saved</dd></dl>
+          <h3 class="h-sec" style="margin-top:22px">Wordmark sizes</h3>
+          <div class="wmrow"><div class="wm small" id="wm1"></div><div class="wm small" id="wm2" style="--wm-w:84px"></div><div class="wm small bare" id="wm3" style="--wm-w:64px"></div></div>
+          <p class="empty">No runs recorded yet.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+<script src="base.js"></script>
+<script>
+WC.sky.start();
+const menu = WC.startMenu({ onActivate(k) { if (k === 'profile') { open(); return true; } } });
+WC.decorate();
+['wm1', 'wm2', 'wm3'].forEach((id) => WC.Wordmark(document.getElementById(id)));
+const list = WC.list(document.getElementById('rows'), { onActivate: () => WC.flash(document.getElementById('gflash'), 'Edit — not in this mockup') });
+let pop = null;
+function open() { document.body.classList.add('page'); menu.active = false; pop = WC.keys.push({ key: (e) => list.key(e) || WC.shortcut(e, { r: () => WC.flash(document.getElementById('gflash'), 'Run log'), n: () => WC.flash(document.getElementById('gflash'), 'New'), d: () => WC.flash(document.getElementById('gflash'), 'Delete') }), back: close }); }
+function close() { document.body.classList.remove('page'); menu.active = true; pop && pop(); }
+if (WC.qs.has('page')) open();
+</script>
+</body>
+</html>
