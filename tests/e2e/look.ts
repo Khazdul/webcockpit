@@ -76,6 +76,25 @@ export async function reducedMotion(page: Page, on = true): Promise<void> {
 
 // ------------------------------------------------------------ 42d (window frame, ESC menu host)
 
+/** Window `id`'s title in its hood (`.wc-win-t`). */
+export const winTitle = (page: Page, id: string): Locator => win(page, id).locator('.wc-win-hood .wc-win-t');
+
+/** Window `id`'s dim note after the title (`.wc-win-n`; absent without a note). */
+export const winNote = (page: Page, id: string): Locator => win(page, id).locator('.wc-win-hood .wc-win-n');
+
+/** Window `id`'s visible frame (the top of its stack). */
+export const winTop = (page: Page, id: string): Locator => win(page, id).locator('.wc-win-content .wc-frame:not([hidden])');
+
+/** Opens window `id` (`profile`, `scripts`) from the menu bar and waits for it to have the focus. */
+export async function openWin(page: Page, id: string): Promise<Locator> {
+  await page.locator(`.wc-mb[data-mb="${id}"]`).click();
+  await expect(win(page, id)).toHaveAttribute('data-focused', '');
+  return win(page, id);
+}
+
+/** The phone ESC menu's visible look frame (full screen, place `menu`). */
+export const menuLook = (page: Page): Locator => page.locator('.wc-overlay .wc-frame.wc-menu-look:not([hidden])');
+
 // ------------------------------------------------------------ 42e (code look, find panel, LookManual)
 
 // ------------------------------------------------------------ 42f (player core)
