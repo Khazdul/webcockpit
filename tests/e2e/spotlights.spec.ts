@@ -137,46 +137,6 @@ test('Spotlights plays the reel: header, card, ←/→, Shift+←/→, park at t
   expect(errors).toEqual([]);
 });
 
-test('Credits rolls the chronicle; ESC returns, and so does the end', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await pinDemoClock(page);
-  await page.goto('/');
-  await restoreDemo(page);
-  await menuRow(page, 'credits').click();
-  const col = frame(page).locator('.wc-credits-col');
-  await expect(col).toContainText('Ibuki');
-  await expect(col).toContainText('Rasta');
-  await expect(col).toContainText('Gittan');
-  await expect(col).toContainText('The End.');
-  await expect(frame(page).locator('.wc-credits-hint')).toHaveText('Escape to exit');
-  const cellH = await page.evaluate(() => document.querySelector('.wc-credits-col .wc-line')!.getBoundingClientRect().height);
-  const y0 = (await col.boundingBox())!.y;
-  await page.waitForTimeout(1600);
-  const y1 = (await col.boundingBox())!.y;
-  expect(y0 - y1).toBeGreaterThan(cellH);
-  expect(y0 - y1).toBeLessThan(cellH * 4);
-  // Other keys do nothing; ESC goes back.
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await expect(col).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Credits');
-
-  // The roll's end (The End. leaves the top) returns to the menu too.
-  await menuRow(page, 'credits').click();
-  await expect(frame(page).locator('.wc-credits-col')).toBeVisible();
-  // Finish the roll; skip endless ones (the start page's sky and wordmark
-  // may run one), which cannot be finished.
-  await page.evaluate(() =>
-    document.getAnimations().forEach((a) => {
-      if (a.effect?.getComputedTiming().iterations !== Infinity) a.finish();
-    }),
-  );
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Credits');
-  expect(errors).toEqual([]);
-});
-
 test('the Spotlights box has Fullscreen', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 820 });
   await pinDemoClock(page);

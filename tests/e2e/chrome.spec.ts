@@ -5,6 +5,7 @@
 // 32: its frames are tested in the phone's ESC menu (tests/e2e/esc-options.ts).
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 import { menuFlash, menuFrame, menuSel, menuTitle, openEscOptions } from './esc-options';
+import { lookBox } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -126,14 +127,18 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await expect(startSel(page)).toHaveText('About');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
-  // No runs stored: the Credits empty state; any key returns.
-  await expect(startTitle(page)).toHaveText('─── Credits ───');
+  // No runs stored: the Credits book's no-data page (stage 47); other keys stay, Esc returns.
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await expect(lookBox(page).locator('.wc-cred-book')).toHaveAttribute('data-state', 'no_data');
   await page.keyboard.press('Enter');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await page.keyboard.press('Escape');
   await expect(startSel(page)).toHaveText('Credits');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Space');
-  await expect(startTitle(page)).toHaveText('─── About ───');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toContainText(/─── About ─── \d+\.\d+\.\d+/);
+  // About: the leaf with the version at its head (stage 47).
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('About');
+  await expect(lookBox(page).locator('.wc-about-ver')).toHaveText(/^WebCockpit \d+\.\d+\.\d+/);
   await page.keyboard.press('Escape');
   await expect(startSel(page)).toHaveText('About');
   // ESC on the main page does nothing.
@@ -141,8 +146,8 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await expect(startSel(page)).toHaveText('About');
   // A letter goes straight to its row.
   await page.keyboard.press('c');
-  await expect(startTitle(page)).toHaveText('─── Credits ───');
-  await page.keyboard.press('Enter');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await page.keyboard.press('Escape');
   await expect(startSel(page)).toHaveText('Credits');
   // Hover selects; clicking selects and activates.
   await startRow(page, 'history').hover();

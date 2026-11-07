@@ -1,5 +1,5 @@
-// Stage 7 P3: the Spotlights reel's loading and arithmetic, the card's
-// countdown and width (stage 32c), and the Credits roll (ADR 0019, Inv §7.6).
+// Stage 7 P3: the Spotlights reel's loading and arithmetic, and the card's
+// countdown and width (stage 32c). The Credits book: credits-frame.test.tsx.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
