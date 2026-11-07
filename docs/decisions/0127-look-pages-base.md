@@ -271,6 +271,10 @@ adds its row; 42-Z gives the totals against the stage 41 tip.
 | editor JS | 634.13 / 209.14 kB | 634.13 / 209.14 kB | 42-0 |
 | player-host JS | 34.69 / 11.42 kB | 34.69 / 11.42 kB | 42-0 |
 | gallery | — | none (`VITE_KIT=1`: 1.67 / 0.97 kB JS, 0.56 / 0.31 kB CSS) | 42-0 |
+| start (`index-*.js`) | | 21.77 / 8.18 kB (unchanged: `INLAY_TOKENS` is tree-shaken) | 42b |
+| chrome JS | | 233.20 / 84.06 kB (+3.29 / +1.29 over 42-0) | 42b |
+| chrome CSS | | 70.06 / 14.80 kB (+22.02 / +4.15 over 42-0: `look-controls.css`) | 42b |
+| editor JS, player-host JS | | unchanged | 42b |
 
 ## Consequences
 
