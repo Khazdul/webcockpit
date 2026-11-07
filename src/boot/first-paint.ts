@@ -21,7 +21,7 @@
 // - the wordmark (`src/start/wordmark-svg.ts`, the same markup and light
 //   as the app's `Wordmark`) where the surface's `.wc-start-brand` puts it;
 // - after 150 ms, a loading panel where the menu panel will appear: an
-//   empty outline with a thin cyan-steel line that follows the downloads
+//   empty outline with a thin mithril line that follows the downloads
 //   (`__wcBootSizes`) and the boot's steps, and a small label.
 //
 // The hand-over (src/app/boot-progress.ts `revealStart`, `bootDone`): in
