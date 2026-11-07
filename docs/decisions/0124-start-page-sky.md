@@ -281,3 +281,18 @@ all clouds lit at once took 20–90 ms.
   just off-screen (more stay in view than drifting from a random start);
   the lightning flash whitens the clouds as one wash; the reduced-motion sky
   is still rather than slowed.
+
+## Addendum 2026-11-07 — a failed mount, the device pixel ratio
+
+- **A mount that fails leaves nothing.** The canvas contexts (and the dot
+  sprite) are taken and null-checked before the root goes into the host;
+  iOS Safari returns null from `getContext` when canvas memory runs out.
+  Everything after the append runs under a `try` that tears the mount
+  down (root, listeners, ResizeObserver, media query, timers) and
+  rethrows, so the start page's retry on its next show cannot pile up
+  roots.
+- **Device pixel ratio.** Besides the ResizeObserver and window resize, a
+  `(resolution: Xdppx)` media query for the current ratio calls the
+  (debounced) resize path when it stops matching (a window moved between
+  a 1× and a Retina screen, no CSS size change) and is re-armed for the
+  new ratio; `dispose()` removes it.
