@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// Stage 6 P1 chrome, stage 45 (WP 45-A): History in the new look (pills, table, card, sort, buttons, Rate, Delete,
+// Stage 6 P1 chrome, stage 45 (WP 45-A, 45-E): History in the new look (pills, table, card, sort, buttons, Rate, Delete,
 // the player seam), Statistics (both surfaces) and Exit with rating.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
@@ -38,7 +38,7 @@ import {
 import { NO_PLAYER } from '../../src/chrome/frames/history';
 import { ProfileStore } from '../../src/profiles';
 import type { RunEvent } from '../../src/runs/events';
-import { RunLibrary } from '../../src/runs/library';
+import { BadBackupError, RunLibrary } from '../../src/runs/library';
 import type { LiveRuns } from '../../src/runs/live';
 import { DAY_US, type Session } from '../../src/runs/stitch';
 import { ScriptLibrary } from '../../src/scripts';
@@ -529,6 +529,66 @@ describe('History frame', () => {
     const { host } = await openHistory(lib, {}, 0);
     await until(() => (hist(host).textContent ?? '').includes('The runs could not be read.'), 'the read error');
     expect(flash(host)).toBe('Could not read the runs: the database is blocked');
+  });
+
+  it('Backup (B) and Restore (O): their flashes and failures; Save failure; one action at a time', async () => {
+    const lib = await library();
+    const { host } = await openHistory(lib);
+    // Backup: a download and its name in the flash.
+    if (!URL.createObjectURL) (URL as unknown as { createObjectURL: () => string }).createObjectURL = () => 'blob:x';
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x');
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    await key('b');
+    await until(() => /^Saved webcockpit-runs-\d{4}-\d\d-\d\d\.jsonl\.gz\.$/.test(flash(host)), 'the backup flash');
+    expect(clicked).toHaveBeenCalledTimes(1);
+    vi.spyOn(lib, 'backup').mockRejectedValueOnce(new Error('disk full'));
+    await act(() => btn(host, 'BACKUP').click());
+    await until(() => flash(host) === 'Backup failed: disk full', 'the backup failure');
+
+    // Restore: O opens the file picker; a chosen file restores and reloads.
+    const input = hist(host).querySelector<HTMLInputElement>('.wc-history-file')!;
+    expect(input.accept).toBe('.gz,.jsonl.gz,application/gzip');
+    const picked = vi.spyOn(input, 'click').mockImplementation(() => {});
+    await key('o');
+    expect(picked).toHaveBeenCalledTimes(1);
+    const choose = async (): Promise<void> => {
+      Object.defineProperty(input, 'files', { configurable: true, value: [new File(['x'], 'b.jsonl.gz')] });
+      await act(() => {
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    };
+    const restore = vi.spyOn(lib, 'restore').mockResolvedValueOnce({ added: 2, skipped: 1 });
+    await choose();
+    await until(() => flash(host) === 'Restored 2 runs (1 already present).', 'the restore flash');
+    expect(restore).toHaveBeenCalledTimes(1);
+    restore.mockRejectedValueOnce(new BadBackupError('not a WebCockpit backup'));
+    await choose();
+    await until(() => flash(host) === 'Restore failed: not a WebCockpit backup', 'the restore failure');
+    expect(rowTexts(host)).toHaveLength(3);
+
+    // Save: a failure flashes; the row stays unsaved.
+    await key('ArrowDown');
+    vi.spyOn(lib, 'save').mockRejectedValueOnce(new Error('quota'));
+    await key('s');
+    await until(() => flash(host) === 'Save failed: quota', 'the save failure');
+    expect(curRow(host)).not.toContain('Saved');
+
+    // One action at a time: while a save waits, a second S and a B do nothing.
+    let release: () => void = () => {};
+    const save = vi.spyOn(lib, 'save').mockImplementationOnce(() => new Promise<void>((r) => (release = r)));
+    const backup = vi.spyOn(lib, 'backup');
+    save.mockClear();
+    backup.mockClear();
+    await key('s');
+    await key('s');
+    await key('b');
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(backup).not.toHaveBeenCalled();
+    await act(async () => {
+      release();
+      await Promise.resolve();
+    });
+    await until(() => flash(host) === 'Saved.', 'the save');
   });
 
   it('shows an archived session in Statistics (T)', async () => {
