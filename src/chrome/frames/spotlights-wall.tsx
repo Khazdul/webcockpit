@@ -54,7 +54,7 @@ import { Component, type ComponentChildren, type VNode } from 'preact';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { type Color, type StyleRun, isTrueColor } from '../../core/types';
 import type { Reel, ReelEmpty, StillLine } from '../../player/spotlight-reel';
-import { KIND_COLOR, KIND_PATH } from '../../player/icons';
+import { KIND_COLOR } from '../../player/icons';
 import { fmtClock } from '../../player/strip';
 import { SPOTLIGHT_PERIODS, type SpotlightSettings } from '../../settings';
 import {
@@ -63,7 +63,6 @@ import {
   SPOTLIGHT_KINDS,
   SPOTLIGHT_PALETTE_TWEAK,
   type Spotlight,
-  type SpotlightKind,
   type SpotlightKindKey,
   chipPatch,
   chipsOn,
@@ -79,7 +78,6 @@ import {
   BoxHead,
   GlassButton,
   Icon,
-  type IconDraw,
   KeyLabel,
   LookFlash,
   type RowProps,
@@ -91,7 +89,7 @@ import {
   useGridCursor,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
-import { SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
+import { KIND_ICON, SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
 import './spotlights.css';
 
 /** The empty states' texts (Inv §7.6; the filtered one ADR 0110). */
@@ -155,14 +153,6 @@ export function wallSummary(count: number, lengthMs: number): string {
   if (count <= 0) return '';
   return `${count} spotlight${count === 1 ? '' : 's'} · ${fmtClock(lengthMs, true)}`;
 }
-
-/** A kind's icon for the kit (`IconDraw` over the player's drawing, 24 units). */
-const KIND_ICON: Readonly<Record<SpotlightKind, IconDraw>> = {
-  death: { draw: <path d={KIND_PATH.death} />, box: 24 },
-  pkill: { draw: <path d={KIND_PATH.pkill} />, box: 24 },
-  level: { draw: <path d={KIND_PATH.level} />, box: 24 },
-  achievement: { draw: <path d={KIND_PATH.achievement} />, box: 24 },
-};
 
 const STILL_PALETTES = new Map<ViewerTheme, Record<string, string>>();
 

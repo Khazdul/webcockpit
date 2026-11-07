@@ -112,8 +112,8 @@ const THEMES: ReadonlyArray<{ value: ViewerTheme; label: string }> = [
   { value: 'slate', label: 'Slate' },
 ];
 
-/** A kind's icon for the kit (the player's drawing, 24 units). */
-const KIND_ICON: Readonly<Record<KindIcon, IconDraw>> = {
+/** A kind's icon for the kit (the player's drawing, 24 units): the wall's cards and chips, the viewer's head. */
+export const KIND_ICON: Readonly<Record<KindIcon, IconDraw>> = {
   death: { draw: <path d={KIND_PATH.death} />, box: 24 },
   pkill: { draw: <path d={KIND_PATH.pkill} />, box: 24 },
   level: { draw: <path d={KIND_PATH.level} />, box: 24 },
