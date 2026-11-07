@@ -931,3 +931,12 @@ ids, the channel list); pacing records, which show when there was
 activity at a resolution of about a minute; and for left-out runs the
 VIEW parts and channel list they set. A run with an achievement or bad
 JSON is not left out (its records are folded like any other run's).
+
+## Addendum — Credits as a book (2026-11-07, ADR 0132)
+
+The roll (1 row/s, the fade bands, `Escape to exit`, the return when
+*The End.* leaves the top) is replaced by a book in the start page's
+large box: a chapter per character on its own pages, turned by the
+reader, with no roll and no automatic return. `chronicleBook` gives the
+chronicle as structure from the same templates, hashes and order;
+`buildChronicle` stays for its tests. See ADR 0132.
