@@ -1,5 +1,5 @@
 // The favicons (stage 41b, ADR 0126): the wordmark's "M" in forged iron
-// with the cyan metal inlay, reproducible:
+// with the mithril inlay, reproducible:
 //
 //   node scripts/build-favicons.ts
 //
@@ -57,7 +57,7 @@ export function faviconSvg(o: Opts = {}): string {
     `<linearGradient id="face" gradientUnits="userSpaceOnUse" x1="0" y1="-720" x2="0" y2="0">` +
     `<stop offset="0" stop-color="#7a6a5a"/><stop offset=".2" stop-color="#463b31"/><stop offset=".65" stop-color="#2a221c"/><stop offset="1" stop-color="#16110e"/></linearGradient>` +
     `<linearGradient id="inlay" gradientUnits="userSpaceOnUse" x1="0" y1="-720" x2="0" y2="0">` +
-    `<stop offset="0" stop-color="#d4fffc"/><stop offset=".25" stop-color="#3ee0de"/><stop offset=".5" stop-color="#119a9c"/><stop offset=".7" stop-color="#46d6d4"/><stop offset="1" stop-color="#0b6e70"/></linearGradient>` +
+    `<stop offset="0" stop-color="#eaf5f6"/><stop offset=".25" stop-color="#9ccbd0"/><stop offset=".5" stop-color="#4a7f84"/><stop offset=".7" stop-color="#8cbfc3"/><stop offset="1" stop-color="#33595c"/></linearGradient>` +
     (o.tile
       ? `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1224"/><stop offset=".7" stop-color="#16213b"/><stop offset="1" stop-color="#23304c"/></linearGradient>` +
         `<radialGradient id="moon" cx=".22" cy=".14" r=".6"><stop offset="0" stop-color="#9fb3d6" stop-opacity=".35"/><stop offset="1" stop-color="#9fb3d6" stop-opacity="0"/></radialGradient>`
