@@ -29,6 +29,7 @@ import {
   Well,
   keyboardInset,
   useKeyboardInset,
+  useListCursor,
   useLocalFlash,
 } from '../../src/chrome/kit/look';
 import { INLAY_TOKENS } from '../../src/start/wordmark-svg';
@@ -314,6 +315,34 @@ describe('Table', () => {
     expect(rows[0]!.getAttribute('data-i')).toBe('0');
     click(rows[0]!);
     expect(row).toHaveBeenCalledTimes(1);
+  });
+
+  it('a TableRow takes a list cursor’s rowProps whole: a touch tap tells itself from a click', () => {
+    const activated: number[] = [];
+    function List() {
+      const lc = useListCursor({ count: 2, activateOn: 'dblclick', onActivate: (i) => activated.push(i) });
+      return (
+        <Table cols="1fr" heads={heads}>
+          {[0, 1].map((i) => (
+            <TableRow key={i} on={lc.i === i} {...lc.rowProps(i)}>
+              <span class="wc-lk-td">{i}</span>
+            </TableRow>
+          ))}
+        </Table>
+      );
+    }
+    const host = mount(<List />);
+    const row = () => [...host.querySelectorAll<HTMLElement>('.wc-lk-tbody > .wc-lk-tr')][1]!;
+    const tap = (): void => {
+      act(() => void row().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' })));
+      click(row());
+    };
+    // 'tap-selects' (the default with dblclick): the first tap chooses the row, a tap on the chosen row opens it.
+    tap();
+    expect(row().classList.contains('is-on')).toBe(true);
+    expect(activated).toEqual([]);
+    tap();
+    expect(activated).toEqual([1]);
   });
 
   it('stacks its rows below `stackBelow` px of its own width', () => {

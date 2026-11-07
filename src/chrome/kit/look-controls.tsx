@@ -291,13 +291,18 @@ function FieldShell(p: {
  * shrinks under a focused field, the field scrolls into view).
  */
 function useFieldEl(ref: { current: HTMLInputElement | HTMLTextAreaElement | null }, auto?: boolean, all?: boolean): void {
+  // The focus in a layout effect: before the first paint and before the
+  // frame stack's own (a parent's) layout effect, which then leaves it
+  // there; a key typed the moment a dialog opens reaches the field.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !auto) return;
+    el.focus({ preventScroll: true });
+    if (all) el.select();
+  }, []);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (auto) {
-      el.focus({ preventScroll: true });
-      if (all) el.select();
-    }
     const vv = typeof window === 'undefined' ? null : window.visualViewport;
     if (!vv) return;
     const onResize = (): void => {
