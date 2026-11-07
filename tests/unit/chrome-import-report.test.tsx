@@ -192,7 +192,8 @@ describe('the import page', () => {
     const f = frame(host);
     expect(f.querySelector('.wc-imp-lead')?.textContent).toMatch(/^Settings from another client become a new profile/);
     expect(f.querySelector('.wc-imp-drop-t')?.textContent).toBe('Drop the files here');
-    expect(sel(host)).toBe('CHOOSE');
+    // Choose files… is the primary button; nothing is lit until the keyboard walks (Enter presses it).
+    expect(sel(host)).toBeNull();
     expect([...f.querySelectorAll('.wc-imp-fmts b')].map((b) => b.textContent)).toEqual([
       'TinTin++',
       'JMC',
@@ -252,9 +253,9 @@ describe('the import page', () => {
     expect(groups[0]!.querySelector('.wc-imp-at')?.textContent).toBe('mychar.set:3');
     expect(groups[0]!.querySelector('.wc-imp-why')?.textContent).toBe('JScript');
     expect(groups[0]!.querySelector('.wc-imp-src')?.textContent).toBe('#scriptlet {x} …');
-    // OK only: no Edit.
+    // OK only: no Edit. Nothing lit yet (Enter is OK).
     expect(f.querySelector('[data-btn="EDIT"]')).toBeNull();
-    expect(sel(host)).toBe('OK');
+    expect(sel(host)).toBeNull();
 
     // Tab walks the headers and OK; Space and Enter on a header fold it.
     await key('Tab');

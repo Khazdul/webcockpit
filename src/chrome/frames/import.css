@@ -11,6 +11,17 @@
   width: min(780px, 100%);
 }
 
+/* A coarse pointer's Back is 40 px high: the content starts below it. */
+@media (pointer: coarse) {
+  .wc-lk-win.wc-imp-win {
+    padding-top: 58px;
+  }
+}
+
+html.wc-phone .wc-lk-win.wc-imp-win {
+  padding-top: 58px;
+}
+
 /* ------------------------------------------------------------ the page */
 
 .wc-imp-page {

@@ -117,8 +117,12 @@ export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptPr
   const r = p.result;
   const groups = useMemo(() => (r.unchanged ? [] : reportGroups(r)), [r]);
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(groups.slice(0, 1).map((g) => g.id)));
-  /** The keyboard's stop: a group header (its index) or OK (`groups.length`). */
-  const [stop, setStop] = useState(groups.length);
+  /**
+   * The keyboard's stop: a group header (its index), OK (`groups.length`),
+   * or none yet (-1: nothing is lit, Enter is OK; Tab starts at the first
+   * header, Shift+Tab at OK).
+   */
+  const [stop, setStop] = useState(-1);
   const bodyRef = useRef<HTMLDivElement>(null);
   const tall = groups.length > 0;
 
@@ -159,7 +163,7 @@ export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptPr
         return true;
       case 'tab':
       case 'backtab':
-        moveStop((stop + (nk === 'tab' ? 1 : n - 1)) % n);
+        moveStop(stop < 0 ? (nk === 'tab' ? 0 : n - 1) : (stop + (nk === 'tab' ? 1 : n - 1)) % n);
         return true;
       case 'up':
         return scroll((el) => el.scrollTop - STEP);
@@ -174,7 +178,7 @@ export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptPr
       case 'end':
         return scroll((el) => el.scrollHeight);
       case 'activate':
-        if (stop < groups.length) toggle(stop);
+        if (stop >= 0 && stop < groups.length) toggle(stop);
         else ok();
         return true;
     }

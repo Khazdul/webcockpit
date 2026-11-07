@@ -30,7 +30,7 @@
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useServices } from '../kit/hooks';
-import { Box, GlassButton, Icon, LookFlash, letterAction, lookFrame } from '../kit/look';
+import { Box, GlassButton, Icon, letterAction, lookFrame } from '../kit/look';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import { loadImportFiles, readImportFiles } from './import-load';
 import { IMPORT_FORMATS, IMPORT_LEAD, readingText } from './import-model';
@@ -205,7 +205,6 @@ export const ImportFrame = lookFrame(function ImportFrame(p: { done: ImportDone 
                   letter="c"
                   icon="folder"
                   primary
-                  selected
                   keepIcon
                   onClick={choose}
                 />
@@ -229,7 +228,6 @@ export const ImportFrame = lookFrame(function ImportFrame(p: { done: ImportDone 
             </>
           )}
         </div>
-        <LookFlash />
       </Box>
       <input ref={fileRef} type="file" multiple hidden class="wc-imp-file" onChange={onFile} />
     </>
