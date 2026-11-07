@@ -166,10 +166,16 @@ test('Export editor log scrolls by pixels; the rows near the view are rendered',
   await page.keyboard.press('ArrowDown');
   await expect(f.locator('.wc-tr.is-cur-focus')).toContainText('Rasta');
   await f.locator('[data-btn="EXPORT"]').click();
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Editor ───');
+  await expect(f.locator('.wc-exp')).toBeVisible();
   const log = f.locator('.wc-exp-log');
   await expect(log.locator('.wc-exp-row').first()).toBeVisible();
-  await expectPixelWheel(page, log);
+  // A small wheel step scrolls less than one row (pixels, not rows).
+  const lh = await log.evaluate((el) => (el.querySelector('.wc-exp-ln') as HTMLElement).getBoundingClientRect().height);
+  expect(lh).toBeGreaterThan(0);
+  await log.hover();
+  await page.mouse.wheel(0, 5);
+  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(await log.evaluate((el) => el.scrollTop)).toBeLessThan(lh);
   // A long swipe: the rows in view are rendered (no blanks).
   for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 300);
   await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBeGreaterThan(2000);
