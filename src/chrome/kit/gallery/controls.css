@@ -159,3 +159,14 @@
   white-space: nowrap;
   color: var(--lk-dim);
 }
+
+/* A table that scrolls under its heads (Table `scroll`). */
+.wc-kitc-tblbox {
+  display: flex;
+  flex-direction: column;
+  height: 220px;
+}
+
+.wc-kitc .wc-lk-fold + .wc-lk-well {
+  margin-top: 10px;
+}

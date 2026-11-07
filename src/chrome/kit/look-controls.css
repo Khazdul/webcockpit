@@ -526,7 +526,31 @@ select.wc-lk-input option {
   position: relative;
   min-width: 0;
   font: 500 16px/1.25 var(--lk-serif);
+  font-variant-numeric: lining-nums tabular-nums;
   color: var(--lk-item);
+}
+
+/* `scroll`: the table fills its flex parent; the heads stay, the rows scroll. */
+.wc-lk-tbl.is-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-lk-tbl.is-scroll > .wc-lk-throw {
+  flex: none;
+}
+
+.wc-lk-tbl.is-scroll > .wc-lk-tbody {
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+}
+
+/* The heads line up with the rows above a stable scrollbar gutter. */
+.wc-lk-tbl.is-scroll > .wc-lk-throw {
+  padding-right: calc(18px + 8px);
 }
 
 .wc-lk-throw,
@@ -538,9 +562,6 @@ select.wc-lk-input option {
 }
 
 .wc-lk-throw {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   padding: 0 18px 8px;
   border-bottom: 1px solid var(--lk-rule);
 }
@@ -591,7 +612,7 @@ select.wc-lk-input option {
     text-shadow calc(0.45s * var(--lk-ts));
 }
 
-.wc-lk-tr:last-child {
+.wc-lk-tbody > .wc-lk-tr:last-child {
   border-bottom: 0;
 }
 
@@ -625,7 +646,7 @@ select.wc-lk-input option {
   display: none;
 }
 
-.wc-lk-tbl.is-stacked > .wc-lk-tr {
+.wc-lk-tbl.is-stacked > .wc-lk-tbody > .wc-lk-tr {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -634,11 +655,11 @@ select.wc-lk-input option {
   min-height: 0;
 }
 
-.wc-lk-tbl.is-stacked > .wc-lk-tr > .wc-lk-td:first-child {
+.wc-lk-tbl.is-stacked > .wc-lk-tbody > .wc-lk-tr > .wc-lk-td:first-child {
   flex: 1 0 100%;
 }
 
-.wc-lk-tbl.is-stacked > .wc-lk-tr > .wc-lk-td.is-end {
+.wc-lk-tbl.is-stacked > .wc-lk-tbody > .wc-lk-tr > .wc-lk-td.is-end {
   margin-left: auto;
 }
 
@@ -826,6 +847,7 @@ select.wc-lk-input option {
 
 .wc-lk-kv > dd {
   margin: 0;
+  font-variant-numeric: lining-nums;
   min-width: 0;
   font: 500 16px/1.3 var(--lk-serif);
   color: var(--lk-text);

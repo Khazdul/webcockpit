@@ -458,7 +458,10 @@ export interface TableHead {
  * descending ▾) and `aria-sort`. Below `stackBelow` px of its own width
  * the table is `.is-stacked`: the heads hide and each row takes two lines
  * (the first cell on the first, the others after it; a page refines it in
- * its own CSS). Rows: `TableRow`, cells `.wc-lk-td` (`.is-end` right).
+ * its own CSS). Rows: `TableRow` in `.wc-lk-tbody`, cells `.wc-lk-td`
+ * (`.is-end` right). With `scroll` the table fills its parent (a flex
+ * column) and only the rows scroll under the fixed heads, in a thin iron
+ * scrollbar (`bodyRef` is that scroller: a list cursor's `scrollRef`).
  */
 export function Table(p: {
   /** `grid-template-columns`. */
@@ -468,6 +471,10 @@ export function Table(p: {
   onSort?(key: string): void;
   /** Below this width (px) the rows take two lines. */
   stackBelow?: number;
+  /** The heads stay, the rows scroll (the table fills a flex column). */
+  scroll?: boolean;
+  /** The rows' element (the scroller with `scroll`). */
+  bodyRef?: Ref<HTMLDivElement>;
   children?: ComponentChildren;
 }): VNode {
   const ref = useRef<HTMLDivElement>(null);
@@ -490,7 +497,7 @@ export function Table(p: {
     return () => ro.disconnect();
   }, [below]);
   return (
-    <div ref={ref} class={cx('wc-lk-tbl', stacked && 'is-stacked')} role="table" style={{ '--lk-cols': p.cols }}>
+    <div ref={ref} class={cx('wc-lk-tbl', stacked && 'is-stacked', p.scroll && 'is-scroll')} role="table" style={{ '--lk-cols': p.cols }}>
       <div class="wc-lk-throw" role="row">
         {p.heads.map((h) => {
           const dir = p.sort?.key === h.key ? p.sort.dir : undefined;
@@ -510,7 +517,9 @@ export function Table(p: {
           );
         })}
       </div>
-      {p.children}
+      <div class={cx('wc-lk-tbody', p.scroll && 'wc-lk-scroll')} role="rowgroup" ref={(el) => setRef(p.bodyRef, el)}>
+        {p.children}
+      </div>
     </div>
   );
 }
@@ -625,12 +634,20 @@ export function Seal(p: { size?: number }): VNode {
 /**
  * The page's transient message: an italic line at the bottom of the box.
  * Always laid out (empty when none), so the box never changes height.
- * Controlled when `flash` is given (`useLocalFlash`), else the stack's
- * flash (~3 s).
+ * Controlled when `flash` is given (`useLocalFlash`; then it works
+ * outside a frame too), else the stack's flash (~3 s).
  */
 export function LookFlash(p: { class?: string; flash?: Flash | null }): VNode {
-  const stack = useFlash();
-  const f = p.flash !== undefined ? p.flash : stack;
+  return p.flash !== undefined ? <FlashLine class={p.class} flash={p.flash} /> : <StackFlash class={p.class} />;
+}
+
+/** The stack's flash (only inside a frame). */
+function StackFlash(p: { class?: string | undefined }): VNode {
+  return <FlashLine class={p.class} flash={useFlash()} />;
+}
+
+function FlashLine(p: { class?: string | undefined; flash: Flash | null }): VNode {
+  const f = p.flash;
   return (
     <div class={'wc-lk-flash' + (p.class ? ' ' + p.class : '')} role="status" aria-live="polite">
       {f && (

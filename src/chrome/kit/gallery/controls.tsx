@@ -76,6 +76,8 @@ const RUNS = [
   { id: 'r1', char: 'Gibur', date: '2026-11-06', dur: '1:34:07', exp: '12 400', stars: 4 },
   { id: 'r2', char: 'Rasta', date: '2026-11-05', dur: '0:42:10', exp: '3 100', stars: 2 },
   { id: 'r3', char: 'Taube', date: '2026-10-29', dur: '5:02:44', exp: '61 950', stars: 5 },
+  { id: 'r4', char: 'Morwen', date: '2026-10-21', dur: '2:15:00', exp: '20 010', stars: 3 },
+  { id: 'r5', char: 'Haldir', date: '2026-10-02', dur: '0:09:31', exp: '410', stars: 1 },
 ];
 
 function Controls(): VNode {
@@ -97,6 +99,7 @@ function Controls(): VNode {
   const [weather, setWeather] = useState(true);
   const [bold, setBold] = useState(false);
   const [row, setRow] = useState(0);
+  const [run, setRun] = useState('r1');
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 }>({ key: 'date', dir: -1 });
   const [folded, setFolded] = useState(false);
   const inset = useKeyboardInset();
@@ -220,31 +223,34 @@ function Controls(): VNode {
             </ul>
 
             <Rule title="Table" />
-            <Table
-              cols="minmax(90px, 1fr) 110px 84px 80px 92px"
-              stackBelow={560}
-              heads={[
-                { key: 'char', label: 'Character', sort: true },
-                { key: 'date', label: 'Date', sort: true },
-                { key: 'dur', label: 'Time', sort: true, align: 'end' },
-                { key: 'exp', label: 'Exp', align: 'end' },
-                { key: 'stars', label: 'Rating', align: 'end' },
-              ]}
-              sort={sort}
-              onSort={(k) => setSort((s) => (s.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 }))}
-            >
-              {runs.map((r) => (
-                <TableRow key={r.id} id={r.id} on={RUNS[row]?.id === r.id} onClick={() => setRow(RUNS.indexOf(r))}>
-                  <span class="wc-lk-td wc-kitc-name">{r.char}</span>
-                  <span class="wc-lk-td">{r.date}</span>
-                  <span class="wc-lk-td is-end">{r.dur}</span>
-                  <span class="wc-lk-td is-end wc-lk-gold">{r.exp}</span>
-                  <span class="wc-lk-td is-end">
-                    <Stars n={r.stars} />
-                  </span>
-                </TableRow>
-              ))}
-            </Table>
+            <div class="wc-kitc-tblbox">
+              <Table
+                scroll
+                cols="minmax(90px, 1fr) 110px 84px 80px 92px"
+                stackBelow={560}
+                heads={[
+                  { key: 'char', label: 'Character', sort: true },
+                  { key: 'date', label: 'Date', sort: true },
+                  { key: 'dur', label: 'Time', sort: true, align: 'end' },
+                  { key: 'exp', label: 'Exp', align: 'end' },
+                  { key: 'stars', label: 'Rating', align: 'end' },
+                ]}
+                sort={sort}
+                onSort={(k) => setSort((s) => (s.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 }))}
+              >
+                {runs.map((r) => (
+                  <TableRow key={r.id} id={r.id} on={run === r.id} onClick={() => setRun(r.id)}>
+                    <span class="wc-lk-td wc-kitc-name">{r.char}</span>
+                    <span class="wc-lk-td">{r.date}</span>
+                    <span class="wc-lk-td is-end">{r.dur}</span>
+                    <span class="wc-lk-td is-end wc-lk-gold">{r.exp}</span>
+                    <span class="wc-lk-td is-end">
+                      <Stars n={r.stars} />
+                    </span>
+                  </TableRow>
+                ))}
+              </Table>
+            </div>
           </section>
 
           <section>
