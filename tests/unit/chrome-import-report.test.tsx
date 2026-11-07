@@ -70,7 +70,9 @@ describe('import page and receipt text', () => {
     expect(summaryText({ translated: 412, kept: 9, skipped: 6, warnings: 4 })).toBe(
       '412 settings were translated, 9 kept as #nop, 6 skipped, and 4 need a look.',
     );
-    expect(summaryText({ translated: 1, kept: 0, skipped: 0, warnings: 1 })).toBe('1 setting was translated and 1 needs a look.');
+    expect(summaryText({ translated: 1, kept: 0, skipped: 0, warnings: 1 })).toBe(
+      '1 setting was translated and 1 needs a look.',
+    );
     expect(summaryText({ translated: 3, kept: 0, skipped: 0, warnings: 0 })).toBe('3 settings were translated.');
     expect(summaryText({ translated: 0, kept: 2, skipped: 5, warnings: 0 })).toBe(
       '0 settings were translated, 2 kept as #nop, and 5 skipped.',
@@ -90,7 +92,9 @@ describe('import page and receipt text', () => {
   it('names the source, the files and the short form', () => {
     expect(sourceLine('\n  #scriptlet {x}\n{more}')).toBe('#scriptlet {x} …');
     expect(sourceLine('#presub on')).toBe('#presub on');
-    expect(fromText('gibur.set', ['gibur.set', 'paths.set', 'spells.set'])).toBe('a new profile from gibur.set and 2 more files');
+    expect(fromText('gibur.set', ['gibur.set', 'paths.set', 'spells.set'])).toBe(
+      'a new profile from gibur.set and 2 more files',
+    );
     expect(fromText('gibur.set', ['gibur.set', 'paths.set'])).toBe('a new profile from gibur.set and 1 more file');
     expect(fromText('x.tin', ['x.tin'])).toBe('a new profile from x.tin');
     expect(readingText(['a.set', 'b.set'])).toBe('Reading a.set, b.set…');
@@ -98,7 +102,9 @@ describe('import page and receipt text', () => {
     expect(unchangedText(result({ format: 'tintin', unchanged: true, profileText: 'a\nb\nc\n' }))).toBe(
       'TinTin++, 3 lines, nothing changed.',
     );
-    expect(unchangedText(result({ format: 'tintin', unchanged: true, profileText: 'a\n' }))).toBe('TinTin++, 1 line, nothing changed.');
+    expect(unchangedText(result({ format: 'tintin', unchanged: true, profileText: 'a\n' }))).toBe(
+      'TinTin++, 1 line, nothing changed.',
+    );
   });
 });
 
@@ -187,7 +193,12 @@ describe('the import page', () => {
     expect(f.querySelector('.wc-imp-lead')?.textContent).toMatch(/^Settings from another client become a new profile/);
     expect(f.querySelector('.wc-imp-drop-t')?.textContent).toBe('Drop the files here');
     expect(sel(host)).toBe('CHOOSE');
-    expect([...f.querySelectorAll('.wc-imp-fmts b')].map((b) => b.textContent)).toEqual(['TinTin++', 'JMC', 'Powwow', 'Mudlet']);
+    expect([...f.querySelectorAll('.wc-imp-fmts b')].map((b) => b.textContent)).toEqual([
+      'TinTin++',
+      'JMC',
+      'Powwow',
+      'Mudlet',
+    ]);
     // Enter and C open the native picker.
     const input = f.querySelector<HTMLInputElement>('.wc-imp-file')!;
     const click = vi.spyOn(input, 'click').mockImplementation(() => {});
@@ -202,7 +213,10 @@ describe('the import page', () => {
     const svc = services();
     importFiles.mockReturnValue(result());
     const host = await openImport(svc);
-    await choose(host, [new File([new Uint8Array([0x23, 0x61, 0xe9])], 'mychar.set'), new File(['#alias a b'], 'global.set')]);
+    await choose(host, [
+      new File([new Uint8Array([0x23, 0x61, 0xe9])], 'mychar.set'),
+      new File(['#alias a b'], 'global.set'),
+    ]);
 
     expect(importFiles).toHaveBeenCalledTimes(1);
     const files = importFiles.mock.calls[0]![0];
@@ -218,14 +232,23 @@ describe('the import page', () => {
     expect(f.querySelector('.wc-imp-name')?.textContent).toBe('mychar');
     expect(f.querySelector('.wc-imp-from')?.textContent).toBe('a new profile from mychar.set and 1 more file');
     expect(f.querySelector('.wc-imp-f')?.textContent).toBe('JMC');
-    expect([...f.querySelectorAll('.wc-imp-chip')].map((c) => c.textContent)).toEqual(['.set file name', '#hot with Ctrl+']);
+    expect([...f.querySelectorAll('.wc-imp-chip')].map((c) => c.textContent)).toEqual([
+      '.set file name',
+      '#hot with Ctrl+',
+    ]);
     expect(f.querySelector('.wc-imp-notes')?.textContent).toContain('Only the first matching action');
     expect(f.querySelector('.wc-imp-notes .is-miss')?.textContent).toBe('Missing files: spells.set');
-    expect(f.querySelector('.wc-imp-sum')?.textContent).toBe('2 settings were translated, 1 kept as #nop, 1 skipped, and 2 need a look.');
+    expect(f.querySelector('.wc-imp-sum')?.textContent).toBe(
+      '2 settings were translated, 1 kept as #nop, 1 skipped, and 2 need a look.',
+    );
     // The groups: the first open, the others folded.
     const groups = [...f.querySelectorAll<HTMLElement>('.wc-imp-grp')];
     expect(groups.map((g) => g.dataset['grp'])).toEqual(['kept', 'skipped', 'warned']);
-    expect(groups.map((g) => g.querySelector('.wc-imp-grp-h')!.getAttribute('aria-expanded'))).toEqual(['true', 'false', 'false']);
+    expect(groups.map((g) => g.querySelector('.wc-imp-grp-h')!.getAttribute('aria-expanded'))).toEqual([
+      'true',
+      'false',
+      'false',
+    ]);
     expect(groups[0]!.querySelector('.wc-imp-at')?.textContent).toBe('mychar.set:3');
     expect(groups[0]!.querySelector('.wc-imp-why')?.textContent).toBe('JScript');
     expect(groups[0]!.querySelector('.wc-imp-src')?.textContent).toBe('#scriptlet {x} …');
@@ -290,7 +313,16 @@ describe('the import page', () => {
   it('shows the short form for an unchanged profile; Enter is OK', async () => {
     const svc = services();
     importFiles.mockReturnValue(
-      result({ format: 'tintin', entry: 'My Warrior.tin', signals: [], unchanged: true, items: [], fileWarnings: [], missingFiles: [], profileText: '#alias {k} {kill %1}\n' }),
+      result({
+        format: 'tintin',
+        entry: 'My Warrior.tin',
+        signals: [],
+        unchanged: true,
+        items: [],
+        fileWarnings: [],
+        missingFiles: [],
+        profileText: '#alias {k} {kill %1}\n',
+      }),
     );
     const host = await openImport(svc);
     await choose(host, [new File(['#alias {k} {kill %1}\n'], 'My Warrior.tin')]);
@@ -308,7 +340,14 @@ describe('the import page', () => {
 
   it('says so when every setting was translated as it was', async () => {
     const svc = services();
-    importFiles.mockReturnValue(result({ items: [result().items[0]!], counts: { translated: 1, kept: 0, skipped: 0, warnings: 0 }, fileWarnings: [], missingFiles: [] }));
+    importFiles.mockReturnValue(
+      result({
+        items: [result().items[0]!],
+        counts: { translated: 1, kept: 0, skipped: 0, warnings: 0 },
+        fileWarnings: [],
+        missingFiles: [],
+      }),
+    );
     const host = await openImport(svc);
     await choose(host, [new File(['x'], 'mychar.set')]);
     const f = frame(host);

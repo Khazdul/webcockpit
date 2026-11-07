@@ -5,7 +5,12 @@
 
 import type { ImportCounts, ImportFormat, ImportItem, ImportResult } from '../../import/types';
 
-const FORMAT_NAMES: Record<ImportFormat, string> = { tintin: 'TinTin++', jmc: 'JMC', powwow: 'Powwow', mudlet: 'Mudlet' };
+const FORMAT_NAMES: Record<ImportFormat, string> = {
+  tintin: 'TinTin++',
+  jmc: 'JMC',
+  powwow: 'Powwow',
+  mudlet: 'Mudlet',
+};
 
 /** The format's name as the user knows it ("TinTin++", "JMC", …). */
 export const formatName = (f: ImportFormat): string => FORMAT_NAMES[f];
@@ -28,7 +33,8 @@ export const IMPORT_FORMATS: readonly { name: string; ext: string; note: string 
 ];
 
 /** The page's lead line. */
-export const IMPORT_LEAD = 'Settings from another client become a new profile. Choose the main file together with the files it #reads.';
+export const IMPORT_LEAD =
+  'Settings from another client become a new profile. Choose the main file together with the files it #reads.';
 
 /** "Reading gibur.set, paths.set, spells.set…" */
 export const readingText = (names: readonly string[]): string => `Reading ${names.join(', ')}…`;
@@ -45,7 +51,11 @@ export function reportGroups(r: ImportResult): ImportGroup[] {
   const groups: ImportGroup[] = [
     { id: 'kept', title: 'Kept as #nop', items: r.items.filter((i) => i.outcome === 'kept') },
     { id: 'skipped', title: 'Skipped', items: r.items.filter((i) => i.outcome === 'skipped') },
-    { id: 'warned', title: 'Translated with a warning', items: r.items.filter((i) => i.outcome === 'translated' && !!i.warning) },
+    {
+      id: 'warned',
+      title: 'Translated with a warning',
+      items: r.items.filter((i) => i.outcome === 'translated' && !!i.warning),
+    },
   ];
   return groups.filter((g) => g.items.length > 0);
 }
@@ -62,7 +72,9 @@ export interface SummaryPart {
  * kept as #nop", "6 skipped", "4 need a look").
  */
 export function summaryParts(c: ImportCounts): SummaryPart[] {
-  const out: SummaryPart[] = [{ n: c.translated, text: c.translated === 1 ? 'setting was translated' : 'settings were translated' }];
+  const out: SummaryPart[] = [
+    { n: c.translated, text: c.translated === 1 ? 'setting was translated' : 'settings were translated' },
+  ];
   if (c.kept > 0) out.push({ n: c.kept, text: 'kept as #nop' });
   if (c.skipped > 0) out.push({ n: c.skipped, text: 'skipped' });
   if (c.warnings > 0) out.push({ n: c.warnings, text: c.warnings === 1 ? 'needs a look' : 'need a look' });
@@ -92,7 +104,8 @@ export function fromText(entry: string, chosen: readonly string[]): string {
 }
 
 /** The short form of a native profile that needed no change: "TinTin++, 214 lines, nothing changed." */
-export const unchangedText = (r: ImportResult): string => `${formatName(r.format)}, ${plural(lineCount(r.profileText), 'line')}, nothing changed.`;
+export const unchangedText = (r: ImportResult): string =>
+  `${formatName(r.format)}, ${plural(lineCount(r.profileText), 'line')}, nothing changed.`;
 
 /** An item's place: `file:line`. */
 export const itemAt = (it: ImportItem): string => `${it.file}:${it.line}`;

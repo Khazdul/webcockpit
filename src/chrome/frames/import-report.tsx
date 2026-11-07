@@ -264,7 +264,15 @@ export const ImportReceipt = lookFrame(function ImportReceipt(p: ImportReceiptPr
       </BoxBody>
       <BoxFoot class="wc-imp-foot">
         <LookFlash class="wc-imp-flash" />
-        <GlassButton id="OK" label="OK" letter="o" icon="check" primary selected={stop === groups.length} onClick={ok} />
+        <GlassButton
+          id="OK"
+          label="OK"
+          letter="o"
+          icon="check"
+          primary
+          selected={stop === groups.length}
+          onClick={ok}
+        />
       </BoxFoot>
     </Box>
   );

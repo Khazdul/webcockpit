@@ -40,10 +40,7 @@ import './import.css';
 /** Called when an import is done (after the receipt's OK): the list's cursor and flash. */
 export type ImportDone = (name: string, message: string) => void;
 
-type Stage =
-  | { at: 'pick' }
-  | { at: 'reading'; names: string[] }
-  | { at: 'error'; message: string; names: string[] };
+type Stage = { at: 'pick' } | { at: 'reading'; names: string[] } | { at: 'error'; message: string; names: string[] };
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -177,50 +174,64 @@ export const ImportFrame = lookFrame(function ImportFrame(p: { done: ImportDone 
   });
 
   const reading = stage.at === 'reading';
+  // The picker's input sits beside the box, not in it: the box is
+  // `visibility: hidden` while it morphs in, and Chromium opens no file
+  // chooser for an input that is not visible (Enter right after Import).
   return (
-    <Box title="Import" onBack={leave} class="wc-imp" winClass="wc-imp-win">
-      <div
-        ref={rootRef}
-        class={'wc-imp-page' + (reading ? ' is-reading' : '')}
-        data-stage={stage.at}
-        style={reading && hold > 0 ? { minHeight: `${hold}px` } : undefined}
-      >
-        {reading ? (
-          <div class="wc-imp-reading" role="status">
-            <p>{readingText(stage.names)}</p>
-            <div class="wc-imp-bar">
-              <i />
-            </div>
-          </div>
-        ) : (
-          <>
-            <p class="wc-imp-lead">{IMPORT_LEAD}</p>
-            <div class={'wc-imp-drop' + (over ? ' is-over' : '')}>
-              <Icon name="drop" class="wc-imp-drop-ic" />
-              <p class="wc-imp-drop-t">Drop the files here</p>
-              <GlassButton id="CHOOSE" label="Choose files…" letter="c" icon="folder" primary selected keepIcon onClick={choose} />
-            </div>
-            {stage.at === 'error' ? (
-              <div class="wc-imp-err" role="alert">
-                <p>Import failed: {stage.message}</p>
-                {stage.names.length > 0 && <span class="wc-imp-err-files">{stage.names.join(', ')}</span>}
+    <>
+      <Box title="Import" onBack={leave} class="wc-imp" winClass="wc-imp-win">
+        <div
+          ref={rootRef}
+          class={'wc-imp-page' + (reading ? ' is-reading' : '')}
+          data-stage={stage.at}
+          style={reading && hold > 0 ? { minHeight: `${hold}px` } : undefined}
+        >
+          {reading ? (
+            <div class="wc-imp-reading" role="status">
+              <p>{readingText(stage.names)}</p>
+              <div class="wc-imp-bar">
+                <i />
               </div>
-            ) : (
-              <ul class="wc-imp-fmts" aria-label="Formats">
-                {IMPORT_FORMATS.map((f) => (
-                  <li key={f.name}>
-                    <b>{f.name}</b>
-                    <span>{f.ext}</span>
-                    <em>{f.note}</em>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </div>
-      <LookFlash />
+            </div>
+          ) : (
+            <>
+              <p class="wc-imp-lead">{IMPORT_LEAD}</p>
+              <div class={'wc-imp-drop' + (over ? ' is-over' : '')}>
+                <Icon name="drop" class="wc-imp-drop-ic" />
+                <p class="wc-imp-drop-t">Drop the files here</p>
+                <GlassButton
+                  id="CHOOSE"
+                  label="Choose files…"
+                  letter="c"
+                  icon="folder"
+                  primary
+                  selected
+                  keepIcon
+                  onClick={choose}
+                />
+              </div>
+              {stage.at === 'error' ? (
+                <div class="wc-imp-err" role="alert">
+                  <p>Import failed: {stage.message}</p>
+                  {stage.names.length > 0 && <span class="wc-imp-err-files">{stage.names.join(', ')}</span>}
+                </div>
+              ) : (
+                <ul class="wc-imp-fmts" aria-label="Formats">
+                  {IMPORT_FORMATS.map((f) => (
+                    <li key={f.name}>
+                      <b>{f.name}</b>
+                      <span>{f.ext}</span>
+                      <em>{f.note}</em>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+        <LookFlash />
+      </Box>
       <input ref={fileRef} type="file" multiple hidden class="wc-imp-file" onChange={onFile} />
-    </Box>
+    </>
   );
 });
