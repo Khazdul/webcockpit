@@ -4,8 +4,13 @@
 // a marker click, the end, and ESC back to History with its state kept.
 // Stage 32c (ADR 0114): the ghost-look box (±10 s, speed steps, Close),
 // the kind-icon markers and the rail.
+// Stage 45 (WP 45-D, ADR 0130): History in the new look opens it; the
+// kit's Back at the top left (hides with the chrome, returns to History
+// exactly as it was, never over the header or the box on a narrow
+// window) and the times as h:mm:ss from one hour.
 import { type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
+import { openLongPlayer, openStart, playerBack, playerClock } from './look';
 
 interface Eng {
   position: number;
@@ -31,8 +36,79 @@ async function settled(page: Page): Promise<void> {
 
 const player = (page: Page) => page.locator('.wc-player');
 const chrome = (page: Page) => page.locator('.wc-player-chrome');
-const frame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-const cur = (page: Page) => frame(page).locator('.wc-tr.is-cur-focus, .wc-tr.is-cur');
+// History (stage 45, the new look): the page, its rows, the chosen row, its buttons.
+const hist = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-hist');
+const rows = (page: Page) => hist(page).locator('.wc-lk-tr');
+const cur = (page: Page) => hist(page).locator('.wc-lk-tr.is-on');
+const histBtn = (page: Page, id: string) => hist(page).locator(`.wc-lk-btn[data-btn="${id}"]`);
+
+/** Opens History from the start menu and waits for its rows (keys before that are lost). */
+async function openHistory(page: Page, count: number): Promise<void> {
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
+  await expect(rows(page)).toHaveCount(count);
+}
+
+/** Restores the demo backup through the dev hook. */
+async function restoreDemo(page: Page): Promise<void> {
+  await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
+  await page.evaluate(async () => {
+    const w = window as unknown as { __wc: { runs(): Promise<{ restore(b: Blob): Promise<unknown> }> } };
+    await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
+  });
+}
+
+/**
+ * Restores the demo backup and `copies` more of it, copy k with its run
+ * ids renamed (`Gittan/c3-…`, the chain links too) and every time `k`
+ * hours earlier, so History lists 3 × (copies + 1) sessions.
+ */
+async function restoreDemoCopies(page: Page, copies: number): Promise<void> {
+  await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
+  const res = await page.evaluate(async (n) => {
+    const w = window as unknown as { __wc: { runs(): Promise<{ restore(b: Blob): Promise<{ added: number }> }> } };
+    const gz = await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob();
+    const text = await new Response(gz.stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    const lines = text.split('\n').filter((l) => l !== '');
+    const out = [lines[0]!];
+    for (let k = 0; k <= n; k++) {
+      const shift = k * 3600e6;
+      const id = (x: string): string => (k === 0 ? x : x.replace('/', `/c${k}-`));
+      const at = (x: unknown): unknown => (typeof x === 'number' ? x - shift : x);
+      for (const line of lines.slice(1)) {
+        const o = JSON.parse(line) as Record<string, any>;
+        if (o.type === 'export') {
+          if (k === 0) out.push(line);
+          continue;
+        }
+        if (o.type === 'run') {
+          const m = o.run;
+          m.runId = id(m.runId);
+          for (const f of ['startedUs', 'endedUs', 'savedUs']) if (f in m) m[f] = at(m[f]);
+          if (m.summary) {
+            m.summary.startUs = at(m.summary.startUs);
+            m.summary.lastEventUs = at(m.summary.lastEventUs);
+            if (m.summary.previousRunId) m.summary.previousRunId = id(m.summary.previousRunId);
+          }
+        } else {
+          o.runId = id(o.runId);
+          if (o.type === 'event') o.event.us = at(o.event.us);
+          if (o.type === 'chunk') {
+            o.firstUs = at(o.firstUs);
+            o.lastUs = at(o.lastUs);
+            o.text = (o.text as string).replace(/^\d{16}/gm, (t) => String(Number(t) - shift).padStart(16, '0'));
+          }
+        }
+        out.push(JSON.stringify(o));
+      }
+    }
+    const blob = new Blob([out.join('\n') + '\n']);
+    const packed = await new Response(blob.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+    return (await w.__wc.runs()).restore(packed);
+  }, copies);
+  expect(res.added).toBe(4 * (copies + 1));
+}
 
 test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, ESC back', async ({ page }) => {
   const errors: string[] = [];
@@ -40,18 +116,11 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
   await page.setViewportSize({ width: 1400, height: 820 });
   await pinDemoClock(page);
   await page.goto('/');
-  await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
-  await page.evaluate(async () => {
-    const w = window as unknown as { __wc: { runs(): Promise<{ restore(b: Blob): Promise<unknown> }> } };
-    await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
-  });
-  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── History ───');
-  // History loads its sessions asynchronously; keys before that are lost.
-  await expect(frame(page).locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
+  await restoreDemo(page);
+  await openHistory(page, 3);
   await page.keyboard.press('ArrowDown');
   await expect(cur(page)).toContainText('Rasta');
-  await frame(page).locator('[data-btn="RUN LOG"]').click();
+  await histBtn(page, 'RUN LOG').click();
   const opened = Date.now();
 
   // Text at once: the run's lead-in (login GMCP, VIEW/SIZE) takes no time.
@@ -162,7 +231,7 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
   // ESC: back to History, the Rasta row still current.
   await page.keyboard.press('Escape');
   await expect(player(page)).toHaveCount(0);
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── History ───');
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
   await expect(cur(page)).toContainText('Rasta');
   expect(errors).toEqual([]);
 });
@@ -174,11 +243,202 @@ test('the chrome hides while playing and shows on activity; ?player= opens a dem
   await page.goto('/?player=runs-demo.jsonl.gz');
   await expect(player(page)).toBeVisible();
   await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  await expect(playerBack(page)).toBeVisible();
   await page.clock.runFor(6500);
   await expect(chrome(page)).toHaveAttribute('data-hidden', '');
+  // Back is part of the chrome: it goes with it and takes no pointer.
+  await expect(playerBack(page)).toHaveCSS('pointer-events', 'none');
   await page.mouse.move(200, 200);
   await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  await expect(playerBack(page)).toHaveCSS('pointer-events', 'auto');
+  // A key shows it too (Shift does nothing else in the player).
+  await page.clock.runFor(6500);
+  await expect(chrome(page)).toHaveAttribute('data-hidden', '');
+  await page.keyboard.press('Shift');
+  await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
   expect(errors).toEqual([]);
+});
+
+test('Back: the kit look at the top left, hides with the chrome, returns to History exactly as it was', async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1400, height: 700 });
+  await pinDemoClock(page);
+  await page.goto('/');
+  // 13 × the demo: Gittan has 26 sessions, more than the table shows.
+  await restoreDemoCopies(page, 12);
+  await openHistory(page, 39);
+
+  // History's state: the Gittan pill, sorted by Time (twice: flipped), scrolled, a row far down chosen.
+  await hist(page).locator('.wc-hist-pills [aria-checked]', { hasText: 'Gittan' }).click();
+  await expect(rows(page)).toHaveCount(26);
+  const timeHead = hist(page).locator('.wc-lk-th[data-key="time"]');
+  await timeHead.click();
+  const dir1 = await timeHead.getAttribute('data-dir');
+  await timeHead.click();
+  await expect(timeHead).not.toHaveAttribute('data-dir', dir1 ?? '');
+  const body = hist(page).locator('.wc-lk-tbody');
+  expect(await body.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(100);
+  await body.evaluate((el) => (el.scrollTop = Math.round((el.scrollHeight - el.clientHeight) / 2)));
+  // The row in the middle of what shows.
+  const pick = await body.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    return [...el.querySelectorAll('.wc-lk-tr')].findIndex((x) => {
+      const b = x.getBoundingClientRect();
+      return b.top <= mid && b.bottom > mid;
+    });
+  });
+  expect(pick).toBeGreaterThan(3);
+  await rows(page).nth(pick).click();
+  await expect(rows(page).nth(pick)).toHaveClass(/is-on/);
+  const state = async () => ({
+    pill: await hist(page).locator('.wc-hist-pills [aria-checked="true"]').textContent(),
+    dir: await timeHead.getAttribute('data-dir'),
+    rows: await rows(page).count(),
+    cur: await cur(page).textContent(),
+    idx: await rows(page).evaluateAll((rs) => rs.findIndex((r) => r.classList.contains('is-on'))),
+    card: await hist(page).locator('.wc-hist-card .wc-hist-name').textContent(),
+    scroll: await body.evaluate((el) => el.scrollTop),
+  });
+  const before = await state();
+  expect(before.idx).toBe(pick);
+  await page.keyboard.press('r');
+
+  // The player: Back at the top left, the kit's glass Back in Cinzel.
+  const back = playerBack(page);
+  await expect(back).toBeVisible();
+  await expect(page.locator('.wc-start')).toBeHidden();
+  await expect(back).toHaveText('Back');
+  await expect(back).toHaveAttribute('title', 'Back to History (Esc)');
+  await expect(back).toHaveAttribute('aria-label', 'Back to History (Esc)');
+  await expect(back).toHaveClass(/wc-lk-back/);
+  await expect(back).toHaveCSS('font-family', /Cinzel/);
+  await expect(back.locator('svg.wc-lk-ic')).toHaveCount(1);
+  const bb = (await back.boundingBox())!;
+  expect(bb.x).toBeGreaterThanOrEqual(4);
+  expect(bb.x).toBeLessThan(24);
+  expect(bb.y).toBeGreaterThanOrEqual(0);
+  expect(bb.y).toBeLessThan(16);
+  // It never takes the focus (the player's keys stay the player's).
+  expect(await back.evaluate((el) => el.tabIndex)).toBe(-1);
+  // Clear of the header's left part and of the box.
+  const head = (await chrome(page).locator('.wc-player-head-left').boundingBox())!;
+  expect(head.x).toBeGreaterThanOrEqual(bb.x + bb.width);
+  const box = (await chrome(page).locator('.wc-player-box').boundingBox())!;
+  expect(box.y).toBeGreaterThan(bb.y + bb.height);
+
+  // Playing: Back hides with the chrome 6 s after the last activity.
+  await expect(chrome(page).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Pause');
+  await page.mouse.move(700, 400);
+  await expect(chrome(page)).toHaveAttribute('data-hidden', '', { timeout: 9000 });
+  await expect.poll(() => chrome(page).evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+  await expect(back).toHaveCSS('pointer-events', 'none');
+  // A pointer move brings it back.
+  await page.mouse.move(720, 420);
+  await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  await expect(back).toHaveCSS('pointer-events', 'auto');
+  // Paused, it stays.
+  await page.keyboard.press(' ');
+  await expect(chrome(page).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');
+  await page.waitForTimeout(6500);
+  await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  await expect(back).toBeVisible();
+
+  // A click: History exactly as it was (pill, sort, cursor, card, scroll).
+  await back.click();
+  await expect(player(page)).toHaveCount(0);
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
+  await expect(rows(page)).toHaveCount(26);
+  await expect(cur(page)).toHaveText(before.cur!);
+  expect(await state()).toEqual(before);
+  expect(await page.evaluate(() => (window as unknown as { __wc: { shell: { playerHost: unknown } } }).__wc.shell.playerHost)).toBeNull();
+  // The keys are History's again: ↓ moves the cursor one row.
+  await page.keyboard.press('ArrowDown');
+  await expect(rows(page).nth(pick + 1)).toHaveClass(/is-on/);
+  expect(errors).toEqual([]);
+});
+
+test('h:mm:ss from one hour: the clock and the rail hint; under an hour mm:ss', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await openStart(page);
+  expect(await openLongPlayer(page, (60 + 34) * 60 + 7)).toEqual({ ok: true });
+  // A 1h34m session: …/ 1:34:07; under an hour the position keeps mm:ss.
+  await expect(playerClock(page)).toHaveText(/^00:\d\d \/ 1:34:07$/);
+  await page.keyboard.press(' ');
+  await expect(chrome(page).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');
+  await page.evaluate(() =>
+    (window as unknown as { __wc: { shell: { playerHost: { engine: { seek(ms: number): void } } } } }).__wc.shell.playerHost.engine.seek(
+      59 * 60_000 + 59_000,
+    ),
+  );
+  await settled(page);
+  await expect(playerClock(page)).toHaveText('59:59 / 1:34:07');
+  await page.keyboard.press('ArrowRight');
+  await settled(page);
+  await expect(playerClock(page)).toHaveText('1:00:09 / 1:34:07');
+  // The rail's seek hint while dragging: h:mm:ss low on the rail (past the hour), mm:ss at the top.
+  const rail = (await chrome(page).locator('.wc-player-rail').boundingBox())!;
+  const hint = chrome(page).locator('.wc-player-hint');
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + rail.height * 0.9);
+  await page.mouse.down();
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveText(/^\s*1:[0-3]\d:\d\d\s*$/);
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + 2, { steps: 4 });
+  await expect(hint).toHaveText(/^\s*00:\d\d\s*$/);
+  await page.mouse.up();
+  await expect(hint).toBeHidden();
+  await settled(page);
+  await expect(playerClock(page)).toHaveText(/^00:\d\d \/ 1:34:07$/);
+  // Esc goes back as Back does (to the start page here).
+  await page.keyboard.press('Escape');
+  await expect(player(page)).toHaveCount(0);
+  await expect(page.locator('.wc-start')).toBeVisible();
+});
+
+test('a narrow window (≤ 480 px): Back never covers the header’s left part or the compact box', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await page.goto('/?player=runs-demo.jsonl.gz');
+  await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
+  // Paused: the chrome stays up while we measure.
+  await page.keyboard.press(' ');
+  await expect(chrome(page).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');
+  type R = { x: number; y: number; width: number; height: number };
+  const meet = (a: R, b: R): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const sizes: Array<[number, number]> = [
+    [480, 700],
+    [420, 640],
+    [390, 844],
+    [360, 640],
+    [320, 568],
+  ];
+  for (const [w, h] of sizes) {
+    await page.setViewportSize({ width: w, height: h });
+    await expect(chrome(page).locator('.wc-player-box')).toHaveAttribute('data-compact', '');
+    // The header lays out again on the next frame after the resize.
+    await expect
+      .poll(async () => {
+        const b = (await playerBack(page).boundingBox())!;
+        const l = (await chrome(page).locator('.wc-player-head-left').boundingBox())!;
+        return l.x >= b.x + b.width;
+      })
+      .toBe(true);
+    const back = (await playerBack(page).boundingBox())!;
+    const left = (await chrome(page).locator('.wc-player-head-left').boundingBox())!;
+    const box = (await chrome(page).locator('.wc-player-box').boundingBox())!;
+    expect(meet(back, left), `${w}×${h}: Back over the header`).toBe(false);
+    expect(meet(back, box), `${w}×${h}: Back over the box`).toBe(false);
+    // Back and the header's left part stay inside the window (the left part is cut, not pushed out).
+    expect(back.x).toBeGreaterThanOrEqual(0);
+    expect(left.x + left.width).toBeLessThanOrEqual(w + 0.5);
+    // Nothing lies over Back: its middle is Back's.
+    const mid: [number, number] = [back.x + back.width / 2, back.y + back.height / 2];
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.wc-pv-back') != null, mid), `${w}×${h}: Back covered`).toBe(true);
+  }
+  await playerBack(page).click();
+  await expect(player(page)).toHaveCount(0);
+  await expect(page.locator('.wc-start')).toBeVisible();
 });
 
 test('the header hints give way on a narrow window, never over the left part', async ({ page }) => {
