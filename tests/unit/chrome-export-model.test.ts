@@ -6,32 +6,37 @@ import {
   ITEM_END,
   ITEM_ENTRY,
   KIND_OUT,
+  LOG_MAX_COLS,
+  barSummary,
   buildEditorLog,
   buildItems,
-  centredTop,
   changedComment,
   commentSlot,
+  composerTop,
+  contentHeight,
   entryAtOrAfter,
   entryPlainRows,
   entryRows,
   entryRangeUs,
   entrySegments,
-  exportLayout,
+  fmtCount,
   itemAtRow,
+  itemAtY,
+  itemHeight,
   itemKey,
+  itemTop,
   keyAfterDelete,
   keyItem,
-  mapItem,
-  mapMarks,
+  logCols,
+  mapItemAt,
+  mapStrip,
   mapThumb,
   pageItem,
   parseSgr,
+  revealTop,
   runStyle,
   selectedEntries,
   selectionTitle,
-  summaryLines,
-  summaryText,
-  topFor,
 } from '../../src/chrome/frames/export-model';
 import type { RunEvent } from '../../src/runs/events';
 import { addComment, defaultExportDoc, excludeRange } from '../../src/share/edits';
@@ -156,59 +161,90 @@ describe('export editor items', () => {
     expect(entryRangeUs(log, 2, 4)).toEqual([log.ts[2], null]);
   });
 
-  it('lays the package out: the log fills the width beside a 30-cell panel; narrow puts the panel above', () => {
-    // [margin 2][log][gap 1][map 2][gap 2][panel 30] within cols − 2.
-    expect(exportLayout(200)).toEqual({ at: 1, logW: 200 - 2 - 2 - 1 - 2 - 2 - 30, panelW: 30 });
-    expect(exportLayout(400).logW).toBe(400 - 39);
-    expect(exportLayout(79)).toEqual({ at: 1, logW: 40, panelW: 30 });
-    expect(exportLayout(78)).toEqual({ at: 1, logW: 78 - 7, panelW: 0 });
-    expect(exportLayout(30).logW).toBe(23);
+  it('wraps the log at the columns that fit, within 16 and 120', () => {
+    expect(logCols(780, 7.8)).toBe(100);
+    expect(logCols(5000, 7.8)).toBe(LOG_MAX_COLS);
+    expect(logCols(40, 7.8)).toBe(16);
+    expect(logCols(800, 0)).toBe(100);
   });
 
-  it('keeps the cursor on screen, pages by the viewport and centres', () => {
+  it('pages by the viewport; places items in pixels around the inline composer', () => {
     const long = buildEditorLog(chain(Array.from({ length: 100 }, (_, i) => `${ts(i)} line ${i}`)));
     const items = buildItems(long, [], 80);
-    expect(topFor(items, 50, 0, 10)).toBe(41);
-    expect(topFor(items, 5, 41, 10)).toBe(5);
-    expect(topFor(items, 100, 0, 10)).toBe(91);
     expect(pageItem(items, 50, 10, 1)).toBe(60);
     expect(pageItem(items, 5, 10, -1)).toBe(0);
     expect(pageItem(items, 0, 10, -1)).toBe(0);
-    expect(centredTop(items, 50, 10)).toBe(45);
-    expect(centredTop(items, 2, 10)).toBe(0);
+    // No composer: rows of 21 px after an 8 px padding.
+    const g = { lh: 21, pad: 8, comp: null };
+    expect(itemTop(items, 3, g)).toBe(8 + 63);
+    expect(itemHeight(items, 3, g)).toBe(21);
+    expect(contentHeight(items, g)).toBe(8 + 101 * 21);
+    expect(itemAtY(items, 8 + 63 + 20, g)).toBe(3);
+    expect(itemAtY(items, -5, g)).toBe(0);
+    expect(itemAtY(items, 1e9, g)).toBe(100);
+    expect(composerTop(items, g)).toBe(-1);
+    // A new comment's composer (100 px) before item 10: the items from 10 move down.
+    const add = { lh: 21, pad: 8, comp: { at: 10, edit: false, h: 100 } };
+    expect(composerTop(items, add)).toBe(8 + 210);
+    expect(itemTop(items, 9, add)).toBe(8 + 189);
+    expect(itemTop(items, 10, add)).toBe(8 + 210 + 100);
+    expect(itemAtY(items, 8 + 210 + 50, add)).toBe(10);
+    expect(itemAtY(items, 8 + 210 + 100 + 21 + 5, add)).toBe(11);
+    expect(contentHeight(items, add)).toBe(8 + 101 * 21 + 100);
+    // Editing a two-row comment: it is replaced by the composer.
+    const doc = addComment(defaultExportDoc('Rasta/1'), T + 5e6, 'x '.repeat(50));
+    const withC = buildItems(long, doc.comments, 80);
+    const ci = withC.commentItem[0]!;
+    expect(withC.rowStart[ci + 1]! - withC.rowStart[ci]!).toBe(2);
+    const edit = { lh: 21, pad: 8, comp: { at: ci, edit: true, h: 120 } };
+    expect(itemHeight(withC, ci, edit)).toBe(120);
+    expect(itemTop(withC, ci + 1, edit)).toBe(8 + 5 * 21 + 120);
+    expect(itemAtY(withC, 8 + 5 * 21 + 100, edit)).toBe(ci);
+    expect(itemAtY(withC, 8 + 5 * 21 + 125, edit)).toBe(ci + 1);
+    // Scrolling something into view, moving as little as possible.
+    expect(revealTop(0, 200, 300, 21)).toBe(121);
+    expect(revealTop(500, 200, 300, 21)).toBe(300);
+    expect(revealTop(250, 200, 300, 21)).toBe(250);
+    expect(revealTop(0, 200, 300, 21, 4)).toBe(125);
   });
 
-  it('draws the overview map: markers over comments over excluded, and the thumb', () => {
+  it('draws the overview strip: merged excluded stretches, comments and event letters; the thumb', () => {
     const long = buildEditorLog(chain(Array.from({ length: 100 }, (_, i) => `${ts(i)} line ${i}`)));
     let doc = defaultExportDoc('Rasta/1');
     doc = excludeRange(doc, T + 90e6, null);
+    doc = excludeRange(doc, T + 10e6, T + 20e6);
     doc = addComment(doc, T + 30e6, 'hello');
     const items = buildItems(long, doc.comments, 80);
     const events = [{ type: 'pkill', us: T + 50e6 + 5, logUs: T + 50e6, name: 'X', race: 'y', xpDelta: 1 }] as RunEvent[];
-    const m = mapMarks(items, long, doc, events, 10);
-    expect(m[0]).toBe(null);
-    // 102 rows (100 entries, the comment, the end row) on 10 map rows.
-    expect(m[2]).toBe('comment');
-    expect(m[5]).toBe('K');
-    expect(m[7]).toBe(null);
-    expect(m.slice(8)).toEqual(['excluded', 'excluded']);
-    expect(mapThumb(items, 0, 10, 10)).toEqual([0, 0]);
-    expect(mapThumb(items, 51, 51, 10)).toEqual([5, 9]);
-    expect(mapThumb(buildItems(log, [], 80), 0, 10, 10)).toEqual([0, 9]);
-    expect(mapItem(items, 5, 10)).toBe(56);
+    const m = mapStrip(items, long, doc, events);
+    // 102 rows: 100 entries, the comment (before entry 30), the end row.
+    expect(m.excluded).toEqual([
+      [10 / 102, 20 / 102],
+      [91 / 102, 101 / 102],
+    ]);
+    expect(m.comments).toEqual([30 / 102]);
+    expect(m.marks).toEqual([{ letter: 'K', at: 51 / 102 }]);
+    expect(mapItemAt(items, 0)).toBe(0);
+    expect(mapItemAt(items, 51 / 102 + 0.001)).toBe(51);
+    expect(mapItemAt(items, 2)).toBe(101);
+    expect(mapThumb(0, 200, 1000)).toEqual([0, 0.2]);
+    expect(mapThumb(900, 200, 1000)).toEqual([0.8, 0.2]);
+    expect(mapThumb(0, 200, 150)).toEqual([0, 1]);
+    expect(mapThumb(0, 10, 100000)).toEqual([0, 0.02]);
   });
 
   it('writes the summary and the selection heading', () => {
-    const sum = { character: 'Rasta', level: 73, date: '2026-09-25', lines: 70098, excluded: 3, comments: 1 };
-    expect(summaryLines(sum)).toEqual(['Rasta (L73)', '2026-09-25 · 70098 lines', '3 excluded · 1 comment']);
-    expect(summaryText({ character: 'Rasta', date: 'd', lines: 1, excluded: 0, comments: 2 })).toBe(
-      'Rasta · d · 1 line · 0 excluded · 2 comments',
+    const sum = { character: 'Rasta', level: 72, date: '2026-09-25', lines: 70098, excluded: 3, comments: 1 };
+    expect(barSummary(sum)).toEqual({ who: 'Rasta', line: 'Level 72 · 2026-09-25 · 70,098 lines · 3 excluded · 1 comment' });
+    expect(barSummary({ character: 'Rasta', date: 'd', lines: 1, excluded: 0, comments: 2 }).line).toBe(
+      'd · 1 line · 0 excluded · 2 comments',
     );
-    expect(selectionTitle({ selected: 4 })).toBe('SELECTION · 4 lines');
-    expect(selectionTitle({ selected: 1 })).toBe('SELECTION · 1 line');
-    expect(selectionTitle({ entry: 11 })).toBe('LINE · 12');
-    expect(selectionTitle({ comment: true })).toBe('COMMENT');
-    expect(selectionTitle({ end: true })).toBe('END OF LOG');
+    expect(fmtCount(1234567)).toBe('1,234,567');
+    expect(selectionTitle({ selected: 4 })).toBe('Selection · 4 lines');
+    expect(selectionTitle({ selected: 1 })).toBe('Selection · 1 line');
+    expect(selectionTitle({ entry: 11 })).toBe('Line · 12');
+    expect(selectionTitle({ comment: true })).toBe('Comment');
+    expect(selectionTitle({ end: true })).toBe('End of log');
   });
 });
 
@@ -225,14 +261,14 @@ describe('export editor on a 5 h chain', () => {
     doc = excludeRange(doc, T + 1000e6, null);
     doc = addComment(doc, T + 500e6, 'hello');
     const items = buildItems(big, doc.comments, 100);
-    mapMarks(items, big, doc, [], 40);
+    mapStrip(items, big, doc, []);
     expect(big.ts.length).toBe(100_000);
     expect(items.count).toBe(100_002);
     expect(performance.now() - t0).toBeLessThan(2000);
     // An edit's rebuild (items + map) alone.
     const t1 = performance.now();
     buildItems(big, addComment(doc, T + 600e6, 'two').comments, 100);
-    mapMarks(items, big, doc, [], 40);
+    mapStrip(items, big, doc, []);
     expect(performance.now() - t1).toBeLessThan(300);
   });
 });

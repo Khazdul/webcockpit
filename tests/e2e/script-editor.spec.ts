@@ -38,7 +38,7 @@ tempAlias("^gob$", function() send("kill goblin") end)
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const panel = (page: Page) => editor(page).locator('.wc-search');
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(
     ([fn, args]) => {
@@ -66,13 +66,13 @@ async function scriptsPage(page: Page, source = SOURCE): Promise<Locator> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   return f;
 }
 
 async function openEditor(page: Page, f: Locator, name = 'finder'): Promise<void> {
   await row(f, name).locator('.wc-scr-name').click();
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', name);
   await expect(editor(page).locator('.cm-content')).toBeFocused();
 }
@@ -104,7 +104,8 @@ test('Ctrl+F opens our find panel: find, next, previous, replace, all; ESC close
   await expect(panel(page)).toBeVisible();
   const find = panel(page).getByRole('textbox', { name: 'Find' });
   await expect(find).toBeFocused();
-  expect(await page.evaluate(() => (window as unknown as { ctrlF: boolean[] }).ctrlF)).toEqual([true]);
+  // (The listener records on a timer: poll it.)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { ctrlF: boolean[] }).ctrlF)).toEqual([true]);
 
   await page.keyboard.type('goblin');
   await expect(panel(page).locator('.wc-search-count')).toHaveText(/1 of 3/);
@@ -160,7 +161,7 @@ test('Ctrl+F opens our find panel: find, next, previous, replace, all; ESC close
   await page.keyboard.press('Escape');
   await expect(editor(page).locator('.wc-ped-overlay')).toContainText('Save changes to finder?');
   await page.keyboard.press('n');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   expect(await lib<{ source: string }>(page, 'get', 'finder').then((s) => s.source)).toBe(SOURCE);
   expect(errors).toEqual([]);
 });
@@ -176,7 +177,7 @@ test('read-only scripts can be searched, not replaced', async ({ page }) => {
   await expect(panel(page).locator('.wc-search-count')).toHaveText(/1 of \d+/);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -259,11 +260,11 @@ test('runtime errors of the saved script are marked on their line, live, until t
 test('the Scripts page shows a syntax error of a script that is off', async ({ page }) => {
   const errors = watchErrors(page);
   const f = await scriptsPage(page, SOURCE.replace('end)\ntempAlias', 'end\ntempAlias'));
-  // The list is narrow (ADR 0121): the row shows the start, its title and the frame the whole message.
-  await expect(f.locator('.wc-scr-error')).toContainText(/^\s*Syntax error: /);
-  await expect(f.locator('.wc-scr-error')).toHaveAttribute('title', /^Syntax error: finder:\d+: /);
+  // The index is narrow (ADR 0121): the row shows the start, its title and the panel the whole message.
+  await expect(row(f, 'finder').locator('.wc-scr-error')).toContainText(/^Syntax error: /);
+  await expect(row(f, 'finder').locator('.wc-scr-error')).toHaveAttribute('title', /^Syntax error: finder:\d+: /);
   await row(f, 'finder').locator('.wc-scr-name').click();
-  await expect(f.locator('.wc-scr-frame')).toContainText('Syntax error: finder:');
+  await expect(f.locator('.wc-scr-panel .wc-scr-problem')).toContainText('Syntax error: finder:');
   expect(await lib<{ enabled: boolean }>(page, 'get', 'finder').then((s) => s.enabled)).toBe(false);
   expect(errors).toEqual([]);
 });

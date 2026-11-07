@@ -112,18 +112,16 @@ describe('the windows: one Lykta frame', () => {
     expect(el.querySelector('.wc-windows')!.hasAttribute('data-light')).toBe(true);
   });
 
-  it('puts an old-look root on a whole-cell grid centred in the body', async () => {
+  it('puts the Scripts page (a look frame since stage 44a) over the free body', async () => {
     const { el, wins } = open();
     await act(() => wins.open('scripts'));
     const w = el.querySelector<HTMLElement>('.wc-win[data-win="scripts"]')!;
     const f = w.querySelector<HTMLElement>('.wc-frame')!;
-    expect(f.classList.contains('wc-win-grid')).toBe(true);
-    expect(f.classList.contains('wc-look')).toBe(false);
-    // 1400 × 800 px, 10 × 20 px cells: 140 × 40 cells, the default window 112 × 32.
-    const b = windowBody({ x: 0, y: 0, w: 112, h: 32 }, 10, 20);
-    expect(f.style.width).toBe(`${b.cols * 10}px`);
-    expect(f.style.height).toBe(`${b.rows * 20}px`);
-    expect(f.style.left).toBe(`${b.left}px`);
+    expect(f.classList.contains('wc-win-look')).toBe(true);
+    expect(f.classList.contains('wc-win-grid')).toBe(false);
+    // (No script library here: the page's note, in the window's place.)
+    expect(f.querySelector('.wc-lk-inwin')?.textContent).toContain('Scripts are not available here.');
+    expect(w.querySelector('.wc-win-t')!.textContent).toBe('Scripts');
   });
 });
 

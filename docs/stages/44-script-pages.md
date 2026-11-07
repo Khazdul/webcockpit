@@ -555,16 +555,16 @@ frames in the phone's ESC menu, and the `WindowsHandle` API unchanged.
 ## Tasks
 
 - [ ] Stage 42 merged; its API in place (see "Uses from stage 42"); gaps noted
-- [ ] 44a: `ScriptsFrame` as a look frame in the large box; three
+- [x] 44a: `ScriptsFrame` as a look frame in the large box; three
       breakpoints by container query; index, panel, help column; foot
-- [ ] 44a: setting tiles (switch, stepper, choice, text) with keys,
+- [x] 44a: setting tiles (switch, stepper, choice, text) with keys,
       mouse and touch; Reset all; flashes as before
-- [ ] 44a: keys (zones, letters N I M E X R D), selection, Esc levels;
+- [x] 44a: keys (zones, letters N I M E X R D), selection, Esc levels;
       back from the editor on the button row
-- [ ] 44a: dialogs as overlay frames with `Dialog` (New, Rename, Delete, Export,
+- [x] 44a: dialogs as overlay frames with `Dialog` (New, Rename, Delete, Export,
       Import, Restore); file picker; flashes
-- [ ] 44a: phone drill-down with settings; `on · at login`; guide sentence
-- [ ] 44a: `helpBlocks` + DOM help; model pruned; unit and e2e tests
+- [x] 44a: phone drill-down with settings; `on · at login`; guide sentence
+- [x] 44a: `helpBlocks` + DOM help; model pruned; unit and e2e tests
 - [ ] 44b: editor C in the large box and the Scripts window (Lykta); tools, read-only
       plate, Duplicate; status line; `Modified · Ln, Col`
 - [ ] 44b: stage 42's lantern code theme on the buffer (`.wc-code`);

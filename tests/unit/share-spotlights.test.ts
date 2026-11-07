@@ -15,6 +15,8 @@ import {
 import {
   OPEN_FILTERS,
   STATE_PREFIX_US,
+  chipPatch,
+  chipsOn,
   emptyState,
   filtersOpen,
   hasVisibleEntry,
@@ -194,5 +196,36 @@ describe('Spotlights filter (ADR 0110)', () => {
     expect(text).not.toContain('Gittan');
     expect(buildChronicle([rasta, gittan], { ...all(), period: 'week' }, { nowUs: now + 30 * DAY })).toEqual([]);
     expect(buildChronicle([rasta, gittan], { ...all(), period: 'week' }, { nowUs: now + 3 * DAY }).join(' ')).toContain('Gittan');
+  });
+});
+
+// Stage 46 (B "Galleriet"): the Spotlights page's character chips.
+describe('character chips (chipPatch)', () => {
+  const f = (p: Partial<ReturnType<typeof all>> = {}) => ({ ...all(), ...p });
+  const names = ['Gittan', 'Rasta', 'Taube'];
+
+  it('a name while All is on shows only that name', () => {
+    expect(chipPatch(f(), 'Rasta', names)).toEqual({ allCharacters: false, characters: ['Rasta'] });
+    expect(chipPatch(f({ characters: ['Gittan', 'Taube'] }), 'Rasta', names)).toEqual({ allCharacters: false, characters: ['Rasta'] });
+  });
+
+  it('with All off a name toggles, in list order; the last name off turns All back on', () => {
+    expect(chipPatch(f({ allCharacters: false, characters: ['Taube'] }), 'Gittan', names)).toEqual({ characters: ['Gittan', 'Taube'] });
+    expect(chipPatch(f({ allCharacters: false, characters: ['Gittan', 'Taube'] }), 'Taube', names)).toEqual({ characters: ['Gittan'] });
+    // The last one: All on, and the remembered set stays for the next All off.
+    expect(chipPatch(f({ allCharacters: false, characters: ['Gittan'] }), 'Gittan', names)).toEqual({ allCharacters: true });
+  });
+
+  it('All off brings back the remembered set (or every listed name); All on keeps it', () => {
+    expect(chipPatch(f({ characters: ['Rasta', 'Gone'] }), null, names)).toEqual({ allCharacters: false, characters: ['Rasta'] });
+    expect(chipPatch(f({ characters: ['Gone'] }), null, names)).toEqual({ allCharacters: false, characters: names });
+    expect(chipPatch(f({ allCharacters: false, characters: ['Rasta'] }), null, names)).toEqual({ allCharacters: true });
+    // No listed name: All stays on.
+    expect(chipPatch(f(), null, [])).toEqual({});
+  });
+
+  it('lights All, or the remembered names that are listed', () => {
+    expect(chipsOn(f({ characters: ['Rasta'] }), names)).toEqual([]);
+    expect(chipsOn(f({ allCharacters: false, characters: ['Taube', 'Gone', 'Gittan'] }), names)).toEqual(['Gittan', 'Taube']);
   });
 });

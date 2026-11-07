@@ -151,8 +151,8 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
-  await startFrame(page).locator('.wc-scr-row[data-script="longscript"] .wc-scr-name').click();
-  await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await startFrame(page).locator('.wc-scr-row[data-name="longscript"] .wc-scr-name').click();
+  await startFrame(page).locator('.wc-scr-panel [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
   const content = editor.locator('.cm-content');
   await expect(content).toBeFocused();
@@ -164,9 +164,11 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('the Scripts window: the help scrollbar drags; the game input keeps away', async ({ page }) => {
+// Stage 44a: the Scripts page has no TUI scrollbars any more; its help
+// scrolls natively (the kit's thin iron scrollbar), checked here by the wheel.
+test('the Scripts window: the help scrolls natively; the game input keeps away', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.setViewportSize({ width: 1440, height: 600 });
   await mockMume(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
@@ -177,13 +179,16 @@ test('the Scripts window: the help scrollbar drags; the game input keeps away', 
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await page.locator('.wc-mb[data-mb="scripts"]').click();
   const win = page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
-  await win.locator('.wc-scr-row[data-script="aaahelp"] .wc-scr-name').first().click();
-  await expect(win.locator('.wc-scr-help')).toContainText('Help line 0');
-  const bar = win.locator('.wc-scr-helpbox .wc-tui-bar');
+  await win.locator('.wc-scr-row[data-name="aaahelp"] .wc-scr-name').first().click();
   const scroller = win.locator('.wc-scr-help');
-  await dragThumb(page, bar, scroller);
-  await expectTrackPagesUp(bar, scroller);
-  // The mouseup stayed in the window: the game input did not take the focus.
+  await expect(scroller).toContainText('Help line 0');
+  await expect(win.locator('.wc-tui-bar')).toHaveCount(0);
+  expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === 'auto')).toBe(true);
+  await scroller.hover();
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => scrollTop(scroller)).toBeGreaterThan(0);
+  // A press in the help stays in the window: the game input does not take the focus.
+  await scroller.click();
   await expect(page.locator('.wc-input-field')).not.toBeFocused();
   expect(errors).toEqual([]);
 });
@@ -213,7 +218,7 @@ test('About (start page): the TuiScrollbar drags its thumb; holding the track pa
   expect(errors).toEqual([]);
 });
 
-test('Export editor: the overview map thumb drags the log; the click that ends the drag does not jump', async ({ page }) => {
+test('Export editor: the overview strip thumb drags the log; the press that ends the drag does not jump', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1400, height: 820 });
   await pinDemoClock(page);
@@ -229,24 +234,27 @@ test('Export editor: the overview map thumb drags the log; the click that ends t
   await page.keyboard.press('Home');
   await page.keyboard.press('ArrowDown');
   await f.locator('[data-btn="EXPORT"]').click();
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Editor ───');
+  await expect(f.locator('.wc-exp')).toBeVisible();
   const log = f.locator('.wc-exp-log');
-  const thumb = f.locator('.wc-exp-map-thumb').first();
+  const thumb = f.locator('.wc-exp-thumb');
   await expect(thumb).toBeVisible();
   const box = (await thumb.boundingBox())!;
-  const m0 = await log.evaluate((el) => ({ top: el.scrollTop, max: el.scrollHeight - el.clientHeight, h: el.scrollHeight, c: el.clientHeight }));
+  const strip = (await f.locator('.wc-exp-map').boundingBox())!;
+  const m0 = await log.evaluate((el) => ({ top: el.scrollTop, max: el.scrollHeight - el.clientHeight, h: el.scrollHeight }));
   expect(m0.max).toBeGreaterThan(0);
-  const mapRows = await f.locator('.wc-exp-map-row').count();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 4 * box.height, { steps: 4 });
-  // Four map rows of `mapRows` cover about 4 / mapRows of the log.
-  const want = (4 / mapRows) * m0.h;
-  await expect.poll(() => scrollTop(log)).toBeGreaterThan(want * 0.7);
-  expect(await scrollTop(log)).toBeLessThan(want * 1.3 + box.height);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 60, { steps: 4 });
+  // 60 px of a strip of `strip.height` px cover about 60 / strip.height of the log.
+  const want = (60 / strip.height) * m0.h;
+  await expect.poll(() => scrollTop(log)).toBeGreaterThan(want * 0.8);
+  expect(await scrollTop(log)).toBeLessThan(want * 1.2);
   const before = await scrollTop(log);
   await page.mouse.up();
   await page.waitForTimeout(100);
   expect(await scrollTop(log)).toBe(before);
+  // A press on the strip below the thumb jumps there.
+  await page.mouse.click(strip.x + strip.width / 2, strip.y + strip.height - 4);
+  await expect.poll(() => scrollTop(log)).toBeGreaterThan(m0.max * 0.8);
   expect(errors).toEqual([]);
 });

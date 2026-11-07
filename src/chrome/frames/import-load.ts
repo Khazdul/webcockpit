@@ -8,6 +8,9 @@
 // profile is named after it); several are named `<archive>_<entry>.xml`. An
 // archive without XML, or one that cannot be read, is a file warning; when
 // nothing is left to import the whole import fails with that message.
+//
+// `readImportFiles` reads the files the import page was given (the picker
+// or a drop, stage 43c) into the core's `ImportFile`s.
 
 import type { ImportFile, ImportResult } from '../../import/types';
 import type { ZipEntry } from '../../import/zip';
@@ -60,4 +63,9 @@ export async function loadImportFiles(): Promise<ImportFilesAsync> {
     if (warnings.length === 0) return r;
     return { ...r, fileWarnings: [...warnings, ...r.fileWarnings], counts: { ...r.counts, warnings: r.counts.warnings + warnings.length } };
   };
+}
+
+/** Reads chosen or dropped files (a `FileList`, `DataTransfer.files` or an array) as the import core's `ImportFile`s. */
+export async function readImportFiles(files: ArrayLike<File>): Promise<ImportFile[]> {
+  return Promise.all(Array.from(files, async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })));
 }

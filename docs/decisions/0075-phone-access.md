@@ -267,3 +267,13 @@ exists it prints `The ESC menu is gone: use the menu bar, or #profile,
 #scripts, #panes, #settings, #fullscreen, #exit.` The clickable `ESC …`
 footer tokens are unchanged on every device. §3.4's resume check still
 ends in the ESC menu's auto-open, which was already phone only.
+
+## Addendum 2026-11-07 — export on the phone (stage 43d, ADR 0128)
+
+§3's "Export: desktop only." goes (owner decision, stage 43): the Export
+editor has a phone layout (ADR 0128 §43d): the bar wraps with the
+selection heading on its own line, the strip is hidden, the file line
+takes the full width and the format toggle and Export share one row;
+margin taps select and extend, the comment composer stays above the soft
+keyboard, and the download works on Android Chrome. History's gate is
+removed by stage 45 in the same wave.

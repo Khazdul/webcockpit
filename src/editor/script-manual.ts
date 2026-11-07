@@ -17,7 +17,7 @@ const GETTING_STARTED: HelpSection = {
   group: "guide",
   heading: "Getting started",
   text: [
-    "A script is a small Lua 5.4 program that reacts to the game: it can watch the lines MUME sends, add aliases and keys, run timers, read GMCP data and send commands. Scripts live in a library beside the profile, not in it. A script that is on runs whichever profile you use. Scripts run only once you have entered MUME: on the start page, a script that is on shows on · runs when you enter MUME.",
+    "A script is a small Lua 5.4 program that reacts to the game: it can watch the lines MUME sends, add aliases and keys, run timers, read GMCP data and send commands. Scripts live in a library beside the profile, not in it. A script that is on runs whichever profile you use. Scripts run only once you have entered MUME: on the start page, a script that is on shows on · at login.",
     "Open the Scripts window with the menu bar's Scripts button or #scripts (on a phone, ESC → Options → Scripts), or Scripts on the start page. It lists every script on the left; the selected one opens into the frame on the right:",
     "- [X] turns a script on or off (Space or Enter in the list). A dot after the name means it is running; ! means it is on but failed to load, with the problem in red under its row.",
     "- The frame's top border has the script's name and its buttons: EDIT opens it in the editor, EXPORT, RENAME and DELETE. Inside: its summary and status, its settings, its commands (aliases and keys) and its help in a box of its own.",

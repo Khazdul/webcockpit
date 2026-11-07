@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// Stage 6 P1 chrome: History (pills, table, sort, buttons, Rate, Delete,
+// Stage 6 P1 chrome, stage 45 (WP 45-A): History in the new look (pills, table, card, sort, buttons, Rate, Delete,
 // the player seam), Statistics (both surfaces) and Exit with rating.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
@@ -10,10 +10,22 @@ import type { RunMeta } from '../../src/capture/store';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
 import {
   DEFAULT_HISTORY_SORT,
+  HISTORY_SORT_OPTIONS,
+  deedsParts,
   expiresCell,
+  expiresInText,
+  expiresText,
+  expiryLeft,
+  expiryTone,
   fmtBytes,
   fmtDur,
+  fmtDurLong,
+  fmtLongDate,
   nextHistorySort,
+  parseSortValue,
+  sessionDeeds,
+  sortOptions,
+  sortValue,
   panPills,
   pillNames,
   pillWidth,
@@ -110,6 +122,54 @@ describe('History model', () => {
     expect(panPills(widths, 30, 0, -1)).toBe(0);
     expect(panPills(widths, 30, s, 5)).toBe(s);
   });
+
+  it('sums the deeds over the runs and words them for the card', () => {
+    const run = (kills: number, pkills: number, deaths: number) =>
+      ({ summary: { startUs: 0, lastEventUs: 0, kills, pkills, deaths } }) as RunMeta;
+    expect(sessionDeeds({ runs: [run(40, 1, 0), run(24, 1, 1)] })).toEqual({ kills: 64, pkills: 2, deaths: 1 });
+    expect(sessionDeeds({ runs: [{ summary: null } as RunMeta, run(1, 0, 0)] })).toEqual({ kills: 1, pkills: 0, deaths: 0 });
+    expect(sessionDeeds({ runs: [{} as RunMeta] })).toBeNull();
+    expect(deedsParts({ kills: 64, pkills: 2, deaths: 1 })).toEqual({ kills: '64 kills', pvp: '2 PvP', deaths: '1 death' });
+    expect(deedsParts({ kills: 1, pkills: 0, deaths: 3 })).toEqual({ kills: '1 kill', pvp: null, deaths: '3 deaths' });
+  });
+
+  it('formats the card: long duration and date, the expiry tone, text and gauge', () => {
+    expect(fmtDurLong(3 * H + 41 * 60e6)).toBe('3 h 41 min');
+    expect(fmtDurLong(48 * 60e6)).toBe('48 min');
+    expect(fmtLongDate(new Date(2026, 10, 6, 21, 12).getTime() * 1000)).toBe('Friday, 6 November 2026');
+    expect(fmtLongDate(new Date(2026, 8, 28, 9, 0).getTime() * 1000)).toBe('Monday, 28 September 2026');
+    expect(expiryTone(b)).toBe('saved');
+    expect(expiryTone({ saved: false, expiresDays: 2 })).toBe('soon');
+    expect(expiryTone({ saved: false, expiresDays: 3 })).toBe('later');
+    expect(expiresText(a)).toBe('13 days');
+    expect(expiresText(b)).toBe('Saved');
+    expect(expiresInText(14)).toBe('Expires in 14 days');
+    expect(expiresInText(1)).toBe('Expires in 1 day');
+    expect(expiresInText(0)).toBe('Expires today');
+    expect(expiryLeft(7)).toBe(0.5);
+    expect(expiryLeft(20)).toBe(1);
+    expect(expiryLeft(-1)).toBe(0);
+  });
+
+  it("names the phone's sort list for every sort", () => {
+    expect(HISTORY_SORT_OPTIONS.map((o) => o.label)).toEqual([
+      'Newest first',
+      'Oldest first',
+      'Character',
+      'Longest',
+      'Rating',
+      'Expires soonest',
+    ]);
+    expect(sortValue(DEFAULT_HISTORY_SORT)).toBe('date:-1');
+    expect(parseSortValue('dur:-1')).toEqual({ key: 'dur', dir: -1 });
+    expect(parseSortValue('expires:1')).toEqual({ key: 'expires', dir: 1 });
+    expect(parseSortValue('nope:1')).toBeNull();
+    expect(parseSortValue('date:2')).toBeNull();
+    expect(sortOptions(DEFAULT_HISTORY_SORT)).toHaveLength(6);
+    const time = sortOptions({ key: 'time', dir: 1 });
+    expect(time).toHaveLength(7);
+    expect(time[6]).toEqual({ value: 'time:1', label: 'By time of day ▴' });
+  });
 });
 
 // ------------------------------------------------------------- rendering
@@ -199,13 +259,26 @@ async function until(ok: () => boolean, what = 'condition'): Promise<void> {
 
 const frame = (host: HTMLElement) => host.querySelector('.wc-frame:not([hidden])')!;
 const title = (host: HTMLElement) => frame(host).querySelector('.wc-title-row')?.textContent;
-const rowTexts = (host: HTMLElement) =>
-  [...frame(host).querySelectorAll('.wc-tr:not(.is-empty)')].map((r) => r.textContent!.replace(/\s+/g, ' ').trim());
-const curRow = (host: HTMLElement) => frame(host).querySelector('.wc-tr.is-cur-focus, .wc-tr.is-cur')?.textContent;
+/** The History page (a look frame; it stays drawn under its dialogs). */
+const hist = (host: HTMLElement) => host.querySelector<HTMLElement>('.wc-hist')!;
+const hood = (host: HTMLElement) => frame(host).querySelector(':scope .wc-lk-box > .wc-lk-hood .wc-lk-hood-t:not(.is-out)')?.textContent;
+/** A row's cells joined by one space; the rating as its gold stars. */
+const cells = (r: Element) =>
+  [...r.querySelectorAll('.wc-lk-td')]
+    .map((td) => (td.querySelector('.wc-lk-star-on')?.textContent ?? td.textContent ?? '').trim())
+    .join(' ')
+    .trim();
+const rowTexts = (host: HTMLElement) => [...(hist(host)?.querySelectorAll('.wc-lk-tr') ?? [])].map(cells);
+const curRow = (host: HTMLElement) => {
+  const r = hist(host)?.querySelector('.wc-lk-tr.is-on');
+  return r ? cells(r) : undefined;
+};
 const btn = (host: HTMLElement, label: string) => frame(host).querySelector<HTMLElement>(`[data-btn="${label}"]`)!;
-const flash = (host: HTMLElement) => frame(host).querySelector('.wc-flash')?.textContent ?? '';
+const flash = (host: HTMLElement) =>
+  (hist(host)?.querySelector('.wc-lk-flash') ?? frame(host).querySelector('.wc-flash'))?.textContent ?? '';
+const dlg = (name: string) => document.querySelector<HTMLElement>(`.wc-lk-dialog[data-dlg="${name}"]`);
 
-async function openHistory(lib: RunLibrary, extra: Partial<ChromeServices> = {}) {
+async function openHistory(lib: RunLibrary, extra: Partial<ChromeServices> = {}, n = 3) {
   const host = document.createElement('div');
   document.body.append(host);
   const page = mountStartPage(host, services(lib, extra), { onEnter: vi.fn() });
@@ -213,190 +286,263 @@ async function openHistory(lib: RunLibrary, extra: Partial<ChromeServices> = {})
   await act(() => page.show());
   for (let i = 0; i < 3; i++) await key('ArrowDown');
   await key('Enter');
-  await until(() => rowTexts(host).length === 3, 'the History rows');
+  await until(() => !!hist(host) && rowTexts(host).length === n, 'the History rows');
   return { host, page };
 }
 
 describe('History frame', () => {
-  it('lists sessions newest first with pills, cells, disabled rules and the storage line', async () => {
+  it('lists sessions newest first with pills, cells, the card, disabled rules and the storage line', async () => {
     const lib = await library();
     const { host } = await openHistory(lib);
-    expect(title(host)).toBe('─── History ───');
-    expect([...frame(host).querySelectorAll('.wc-pills .wc-btn')].map((p) => p.textContent!.trim())).toEqual([
+    expect(hood(host)).toBe('History');
+    expect(hist(host).style.getPropertyValue('--lk-box-maxw')).toBe('1180px');
+    expect([...hist(host).querySelectorAll('.wc-hist-pills [role="radio"]')].map((p) => p.textContent)).toEqual([
       'All',
       'Gittan',
       'Rasta',
     ]);
+    expect(hist(host).querySelector('.wc-hist-pills [aria-checked="true"]')?.textContent).toBe('All');
     const rows = rowTexts(host);
     expect(rows[0]).toMatch(/^Gittan \d{4}-\d\d-\d\d \d\d:\d\d 1h00m 13 days$/);
     expect(rows[1]).toMatch(/^Rasta .* 1h00m 12 days$/);
     expect(rows[2]).toMatch(/^Gittan .* Saved ★★★$/);
-    expect(frame(host).querySelector('.wc-th')?.parentElement?.textContent).toContain('Date ▼');
-    // Row 0 has no log: RUN LOG and EXPORT are disabled; SAVE is not.
+    expect(hist(host).querySelector('.wc-lk-th[data-dir="-1"]')?.getAttribute('data-key')).toBe('date');
+    // The card: row 0 (Gittan, no log): name, the long date, no deeds summary, not kept.
+    const card = () => hist(host).querySelector('.wc-hist-card')!.textContent!;
+    expect(hist(host).querySelector('.wc-hist-name')?.textContent).toBe('Gittan');
+    expect(card()).toMatch(/(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \d+ \w+ \d{4} · \d\d:\d\d/);
+    expect(card()).toContain('1 h 0 min · 1 run');
+    expect(card()).toContain('Expires in 13 days');
+    expect(card()).toContain('No text captured');
+    // Row 0 has no log: Run log and Export are disabled; Save is not.
     expect(btn(host, 'RUN LOG').getAttribute('aria-disabled')).toBe('true');
     expect(btn(host, 'SAVE').getAttribute('aria-disabled')).toBeNull();
     expect(btn(host, 'EXPORT').getAttribute('aria-disabled')).toBe('true');
-    expect(frame(host).textContent).toContain('Storage: 147 KB of 6.4 GB');
-    // The saved row: SAVE disabled.
+    expect(hist(host).querySelector('.wc-hist-storage')?.textContent).toBe('Storage: 147 KB of 6.4 GB');
+    // Rasta: level, deeds summed from the run summary.
+    await key('ArrowDown');
+    expect(hist(host).querySelector('.wc-hist-name')?.textContent).toBe('Rasta');
+    expect(card()).toContain('1 kill');
+    expect(card()).toContain('Captured text');
+    // The saved row: Save disabled, Kept says Saved with its stars.
     await key('End');
     expect(curRow(host)).toContain('Saved');
+    expect(card()).toContain('Saved');
     expect(btn(host, 'SAVE').getAttribute('aria-disabled')).toBe('true');
     expect(btn(host, 'EXPORT').getAttribute('aria-disabled')).toBeNull();
+    // No key-hint row: the keys are behind "?".
+    expect(hist(host).querySelector('.wc-footer')).toBeNull();
+    expect(btn(host, 'KEYS').getAttribute('aria-label')).toBe('Keys (?)');
   });
 
-  it('filters by pill, sorts by header click, and keys move between the zones', async () => {
+  it('filters by pill with ← →, sorts by a head click keeping the cursor, and Tab walks rows ↔ buttons', async () => {
     const lib = await library();
     const { host } = await openHistory(lib);
-    // Table row 0 → ↑ → the filter row; → filters to Gittan at once.
-    await key('ArrowUp');
     await key('ArrowRight');
     expect(rowTexts(host).every((r) => r.startsWith('Gittan'))).toBe(true);
     expect(rowTexts(host)).toHaveLength(2);
+    expect(hist(host).querySelector('.wc-hist-pills [aria-checked="true"]')?.textContent).toBe('Gittan');
     await key('ArrowRight');
     expect(rowTexts(host)).toHaveLength(1);
     await key('ArrowRight'); // clamped
     expect(rowTexts(host)[0]).toMatch(/^Rasta/);
     await key('ArrowLeft');
     await key('ArrowLeft');
-    // ↓ enters the table at row 0.
-    await key('ArrowDown');
-    expect(frame(host).querySelector('.wc-tr.is-cur-focus')).not.toBeNull();
-    // Header click sorts: Char ▲, then the cursor keeps its session.
+    expect(rowTexts(host)).toHaveLength(3);
+    // A pill click filters at once, the cursor on row 0.
+    await key('End');
+    await act(() => hist(host).querySelector<HTMLElement>('[data-opt="Gittan"]')!.click());
+    expect(rowTexts(host)).toHaveLength(2);
+    expect(hist(host).querySelector('.wc-lk-tr.is-on')?.getAttribute('data-i')).toBe('0');
+    await act(() => hist(host).querySelector<HTMLElement>('[data-opt="All"]')!.click());
+    // Header click sorts: Char ▴, and the cursor keeps its session.
+    await key('Home');
     await key('ArrowDown');
     const before = curRow(host);
-    const charTh = [...frame(host).querySelectorAll<HTMLElement>('.wc-th')].find((t) =>
-      t.textContent!.startsWith('Char'),
-    )!;
-    await act(() => charTh.click());
-    expect(frame(host).querySelector('.wc-th')?.textContent).toContain('Char ▲');
+    await act(() => hist(host).querySelector<HTMLElement>('.wc-lk-th[data-key="char"]')!.click());
+    expect(hist(host).querySelector('.wc-lk-th[data-key="char"]')?.getAttribute('data-dir')).toBe('1');
     expect(rowTexts(host).map((r) => r.split(' ')[0])).toEqual(['Gittan', 'Gittan', 'Rasta']);
     expect(curRow(host)).toBe(before);
-    // ← to the buttons, ↑ from the first enabled button goes to the filter.
+    // Tab: the first enabled button; the row dims (.is-idle); ← → walk the buttons, skipping disabled ones.
+    await key('Home');
+    await key('Tab');
+    const sel = () => frame(host).querySelector('.wc-lk-btn.is-sel')?.getAttribute('data-btn');
+    // (Row 0 has no log: Run log is skipped.)
+    expect(sel()).toBe('STATS');
+    expect(hist(host).querySelector('.wc-lk-tr.is-on')?.classList.contains('is-idle')).toBe(true);
+    await key('ArrowRight');
+    expect(sel()).toBe('RATE');
     await key('ArrowLeft');
-    expect(frame(host).querySelector('.wc-btn.is-sel-focus')?.textContent?.trim()).toBe('RUN LOG');
-    await key('ArrowUp');
-    expect(frame(host).querySelector('.wc-pills .wc-btn.is-sel-focus')?.textContent?.trim()).toBe('All');
+    await key('ArrowLeft'); // stops at the first enabled one
+    expect(sel()).toBe('STATS');
+    // In the buttons ← → do not change the pill.
+    expect(rowTexts(host)).toHaveLength(3);
+    await key('Tab', { shiftKey: true });
+    expect(sel()).toBeUndefined();
+    expect(hist(host).querySelector('.wc-lk-tr.is-on')?.classList.contains('is-cur')).toBe(true);
+    // Shift+Tab from the rows: the last enabled button (Restore).
+    await key('Tab', { shiftKey: true });
+    expect(sel()).toBe('RESTORE');
   });
 
-  it('saves, rates and deletes a session', async () => {
+  it('saves (S), rates (A) and deletes (D) a session', async () => {
     const lib = await library();
     const { host } = await openHistory(lib);
     await key('ArrowDown'); // Rasta
-    await act(() => btn(host, 'SAVE').click());
+    await key('s');
     await until(() => (curRow(host) ?? '').includes('Saved'), 'the saved row');
     expect(flash(host)).toBe('Saved.');
+    expect(btn(host, 'SAVE').getAttribute('aria-disabled')).toBe('true');
 
-    // RATE: 4 stars with keys, Enter saves.
-    await act(() => btn(host, 'RATE').click());
-    expect(title(host)).toBe('─── Rate the session ───');
+    // Rate: 4 stars with keys, Enter saves.
+    await key('a');
+    expect(dlg('rate')).not.toBeNull();
     await key('3');
     await key('ArrowRight');
-    expect(frame(host).querySelectorAll('.wc-stars .wc-st-star')).toHaveLength(4);
     await key('Enter');
     await until(() => (curRow(host) ?? '').includes('★★★★'), 'the rated row');
     expect(flash(host)).toBe('Rated ★★★★.');
     expect((await lib.listSessions(NOW)).find((s) => s.character === 'Rasta')?.rating).toBe(4);
 
-    // RATE again, click star 2, ESC cancels.
-    await act(() => btn(host, 'RATE').click());
-    await act(() => frame(host).querySelector<HTMLElement>('[data-star="2"]')!.click());
-    await key('Escape');
-    expect(title(host)).toBe('─── History ───');
-    expect(curRow(host)).toContain('★★★★');
-
-    // DELETE: the modal lists the session; a key other than Y cancels.
+    // Delete: a key other than Y cancels; Y deletes; the cursor stays at the same index.
     await act(() => btn(host, 'DELETE').click());
-    expect(frame(host).querySelector('.wc-c-header')?.textContent).toBe('─── Delete session ───');
-    expect(frame(host).textContent).toContain('Saved: yes — ★★★★');
-    expect(frame(host).textContent).toContain('This cannot be undone.');
+    expect(dlg('delete')?.textContent).toContain('yes — ★★★★');
     await key('n');
     expect(rowTexts(host)).toHaveLength(3);
-    await act(() => btn(host, 'DELETE').click());
+    await key('d');
     await key('y');
     await until(() => rowTexts(host).length === 2, 'the row gone');
     expect(rowTexts(host).some((r) => r.startsWith('Rasta'))).toBe(false);
-    // The cursor stays at the same index.
     expect(curRow(host)).toMatch(/Gittan.*Saved/);
     expect(flash(host)).toBe('Session deleted.');
+    // Rasta's pill went with its last session.
+    expect([...hist(host).querySelectorAll('.wc-hist-pills [role="radio"]')].map((p) => p.textContent)).toEqual([
+      'All',
+      'Gittan',
+    ]);
   });
 
-  it('opens the player on a row with a log and keeps its state across hide / show({ keep })', async () => {
+  it('opens the player (Enter, R, double click) and keeps its state across hide / show({ keep })', async () => {
     const lib = await library();
-    const openPlayer = vi.fn();
+    const openPlayer = vi.fn(async () => ({ ok: true as const }));
     const { host, page } = await openHistory(lib, { openPlayer });
     await key('Enter'); // row 0 has no log: nothing
+    await key('r');
     expect(openPlayer).not.toHaveBeenCalled();
     await key('ArrowDown');
     await key('Enter');
-    expect(openPlayer).toHaveBeenCalledTimes(1);
-    expect((openPlayer.mock.calls[0]![0] as Session).character).toBe('Rasta');
+    await until(() => openPlayer.mock.calls.length === 1, 'the player');
+    expect((openPlayer.mock.calls[0] as unknown as [Session])[0].character).toBe('Rasta');
+    await key('r');
+    await until(() => openPlayer.mock.calls.length === 2, 'the player by R');
+    // A click selects, a double click opens.
+    const row2 = hist(host).querySelectorAll<HTMLElement>('.wc-lk-tr')[2]!;
+    await act(() => row2.click());
+    expect(curRow(host)).toMatch(/Saved/);
+    expect(openPlayer).toHaveBeenCalledTimes(2);
+    await act(() => {
+      row2.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    });
+    await until(() => openPlayer.mock.calls.length === 3, 'the player by a double click');
     const before = curRow(host);
     await act(() => page.hide());
     expect(host.querySelector('.wc-chrome')?.hasAttribute('hidden')).toBe(true);
     await act(() => page.show({ keep: true }));
     await until(() => rowTexts(host).length === 3, 'the rows again');
-    expect(title(host)).toBe('─── History ───');
+    expect(hood(host)).toBe('History');
     expect(curRow(host)).toBe(before);
-    // Keys reach History again.
-    await key('ArrowDown');
-    expect(curRow(host)).toMatch(/Saved/);
-    // A plain show() starts over on the main frame.
-    await act(() => page.show());
-    expect(title(host)).toBeUndefined();
+    await key('ArrowUp');
+    expect(curRow(host)).toMatch(/^Rasta/);
   });
 
-  it('flashes when the player is not available; EXPORT opens the export editor', async () => {
+  it('shows the run-log error box when the log cannot open', async () => {
+    const lib = await library();
+    const openPlayer = vi.fn(async () => ({ ok: false as const, error: 'The run log is not stored.' }));
+    const { host } = await openHistory(lib, { openPlayer });
+    await key('ArrowDown');
+    await key('Enter');
+    await until(() => dlg('runlog-error') !== null, 'the error box');
+    const box = dlg('runlog-error')!;
+    expect(box.textContent).toContain('This run log could not be opened.');
+    expect(box.textContent).toContain('The run log is not stored.');
+    expect(box.textContent).toContain('The run data may be damaged. Stats and Backup may still work.');
+    // The page stays drawn under it.
+    expect(hist(host).isConnected).toBe(true);
+    await key('Enter');
+    expect(dlg('runlog-error')).toBeNull();
+    expect(curRow(host)).toMatch(/^Rasta/);
+  });
+
+  it('flashes when the player is not available', async () => {
     const lib = await library();
     const { host } = await openHistory(lib);
     await key('ArrowDown');
     await act(() => btn(host, 'RUN LOG').click());
     expect(flash(host)).toBe(NO_PLAYER);
-    await act(() => btn(host, 'EXPORT').click());
-    expect(title(host)).toBe('─── Export Editor ───');
-    await key('Escape');
-    expect(title(host)).toBe('─── History ───');
   });
 
-  it('shows the empty state with only BACK and RESTORE enabled', async () => {
-    const lib = await RunLibrary.open(new IDBFactory(), { locks: null, storage: null });
-    const host = document.createElement('div');
-    document.body.append(host);
-    const page = mountStartPage(host, services(lib), { onEnter: vi.fn() });
-    cleanup.push(() => page.dispose());
-    await act(() => page.show());
-    for (let i = 0; i < 3; i++) await key('ArrowDown');
-    await key('Enter');
-    await until(() => (frame(host).textContent ?? '').includes('No runs recorded yet.'), 'the empty state');
-    const enabled = [...frame(host).querySelectorAll('.wc-btncol .wc-btn:not([aria-disabled])')].map((b) =>
-      b.textContent!.trim(),
-    );
-    expect(enabled).toEqual(['RESTORE', 'BACK']);
-    expect([...frame(host).querySelectorAll('.wc-pills .wc-btn')]).toHaveLength(1);
-  });
-
-  it('shows an archived session in Statistics', async () => {
+  it('Export (X) opens the export editor; Back returns to History', async () => {
     const lib = await library();
     const { host } = await openHistory(lib);
     await key('ArrowDown');
-    await act(() => btn(host, 'STATS').click());
+    await key('x');
+    expect(frame(host).querySelector('.wc-exp')).not.toBeNull();
+    await key('Escape');
+    await until(() => hood(host) === 'History', 'History again');
+    expect(curRow(host)).toMatch(/^Rasta/);
+  });
+
+  it('the "?" button and the ? key show the keys; any key closes them', async () => {
+    const lib = await library();
+    const { host } = await openHistory(lib);
+    await key('?');
+    expect(dlg('keys')?.textContent).toContain('Run log');
+    expect(dlg('keys')?.textContent).toContain('Character');
+    await key('x');
+    expect(dlg('keys')).toBeNull();
+    expect(title(host)).toBeUndefined(); // the export editor did not open
+    await act(() => btn(host, 'KEYS').click());
+    expect(dlg('keys')).not.toBeNull();
+    await key('Escape');
+    expect(dlg('keys')).toBeNull();
+    expect(hood(host)).toBe('History');
+  });
+
+  it('shows the empty state with only Restore enabled', async () => {
+    const lib = await RunLibrary.open(new IDBFactory(), { locks: null, storage: null });
+    const { host } = await openHistory(lib, {}, 0);
+    await until(() => (hist(host).textContent ?? '').includes('No runs recorded yet.'), 'the empty state');
+    expect(hist(host).querySelector('.wc-hist-card')?.textContent).toBe(
+      'Recorded sessions show here. Restore brings back a backup from another browser.',
+    );
+    const enabled = [...hist(host).querySelectorAll('.wc-lk-btn[data-btn]:not([aria-disabled])')].map((b) =>
+      b.getAttribute('data-btn'),
+    );
+    expect(enabled).toEqual(['KEYS', 'RESTORE']);
+    expect(btn(host, 'BACKUP').getAttribute('aria-disabled')).toBe('true');
+    expect(hist(host).querySelectorAll('.wc-hist-pills [role="radio"]')).toHaveLength(1);
+  });
+
+  it('shows the read error when the runs cannot be read', async () => {
+    const lib = await library();
+    vi.spyOn(lib, 'listSessions').mockRejectedValue(new Error('the database is blocked'));
+    const { host } = await openHistory(lib, {}, 0);
+    await until(() => (hist(host).textContent ?? '').includes('The runs could not be read.'), 'the read error');
+    expect(flash(host)).toBe('Could not read the runs: the database is blocked');
+  });
+
+  it('shows an archived session in Statistics (T)', async () => {
+    const lib = await library();
+    const { host } = await openHistory(lib);
+    await key('ArrowDown');
+    await key('t');
     await until(() => (frame(host).textContent ?? '').includes('An orc scout'), 'the kills');
     const text = frame(host).textContent!;
-    expect(frame(host).querySelector('.wc-stats-header')?.textContent).toMatch(
-      /^◆ Session details — Rasta · \d{4}-\d\d-\d\d · \d\d:\d\d · 1h00m$/,
-    );
-    expect(text).toContain('♦ Kuzzim');
-    expect(text).toContain('♦ Norsy');
-    expect(text).toContain('★ That was a quick trip!');
+    expect(text).toContain('Kuzzim');
+    expect(text).toContain('That was a quick trip!');
     expect(text).toContain('*Ibuki the Half-Elf*');
-    expect(text).toContain('XP/h');
-    // Sort by N via its title label; Tab moves the gold title.
-    expect(frame(host).querySelector('.wc-c-accent.wc-stat-sort')?.textContent).toBe('KILLS');
-    await act(() => frame(host).querySelector<HTMLElement>('[data-sort="n"]')!.click());
-    expect(frame(host).querySelector('[data-sort="n"]')?.textContent).toBe('N ▼');
-    await key('Tab');
-    expect(frame(host).querySelector('.wc-c-accent.wc-stat-sort')?.textContent).toBe('PvPs');
     await key('Escape');
-    expect(title(host)).toBe('─── History ───');
+    await until(() => hood(host) === 'History', 'History again');
   });
 });
 

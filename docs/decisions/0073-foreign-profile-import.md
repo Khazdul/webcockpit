@@ -212,3 +212,19 @@ A review against the JMC 3.7 source found more mistranslations. Fixed:
 - Highlight colour words resolve in `add_codes` order (`re` red, `bl`
   black, `b` black). #multihighlight is tracked; more than one highlight
   without it gets a file warning (JMC applies only the first match).
+
+## Addendum 2026-11-07 — the import page and the receipt (stage 43c)
+
+The report frame above is replaced by the new look (ADR 0128, 43c).
+Import on the Profile list opens an import page first (a drop zone with
+Choose files…, the four formats); the native picker opens from its button
+(Enter, C), and files dropped on the box import as well. Errors stay on
+that page ("Import failed: …" with the chosen files). The report becomes
+a receipt in the same box: the name, "a new profile from …", the format
+with its signals, the file-wide warnings and missing files, the counts as
+one sentence ("412 settings were translated, 9 kept as #nop, 6 skipped,
+and 4 need a look."), and the groups Kept as #nop / Skipped / Translated
+with a warning as collapsible sections. EDIT is gone (owner, 2026-11-07):
+OK returns to the list, where the new profile is selected and highlighted
+and Enter opens the editor. The import core and its sequence are
+unchanged.

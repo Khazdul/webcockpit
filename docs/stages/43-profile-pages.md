@@ -577,12 +577,12 @@ Build:
 - [ ] 43b: window, menubar, profile-apply and phone tests updated; ADR 0103
       addendum for the Profile window's content (stage 42's addendum covers
       the frame)
-- [ ] 43c: import page (drop zone, choose, formats, reading, error)
-- [ ] 43c: receipt (summary, groups, OK only, keys), list flash and cursor
+- [x] 43c: import page (drop zone, choose, formats, reading, error)
+- [x] 43c: receipt (summary, groups, OK only, keys), list flash and cursor
       after OK; tests; ADR 0073 addendum
-- [ ] 43d: Export editor B (bar, log, map, foot, toggle, Export, inline
+- [x] 43d: Export editor B (bar, log, map, foot, toggle, Export, inline
       comment and title), virtual log kept; tests; ADR 0115 addendum
-- [ ] 43d: phone layout and `phone-export.spec.ts`; ADR 0075 addendum
+- [x] 43d: phone layout and `phone-export.spec.ts`; ADR 0075 addendum
       (export on the phone)
 - [ ] Wave 3: check that History's EXPORT is no longer gated on the phone
       (removed by stage 45, WP 45-A); restore the gate only if 43d's phone
