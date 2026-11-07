@@ -73,6 +73,7 @@ import {
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   DEFAULT_HISTORY_SORT,
+  HISTORY_MAX_W,
   type HistorySort,
   type HistorySortKey,
   deedsParts,
@@ -103,8 +104,6 @@ export const NO_PLAYER = 'Log player not available.';
 const EMPTY = 'No runs recorded yet.';
 const READ_FAILED = 'The runs could not be read.';
 
-/** The box stops at its content's width (table ≤ 800 + gap 26 + card 290 + padding), centred (owner decision 2). */
-export const HISTORY_MAX_W = 1180;
 /** Below this content width (px) the page takes its narrow form (two-line rows, the card under the row). */
 export const HISTORY_NARROW = 680;
 

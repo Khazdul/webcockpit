@@ -1,12 +1,16 @@
-// History (Inv §7.4): pure helpers for the frame in history.tsx. Sorting,
-// the cells, the filter pill window and small formatters; since stage 45
-// also the new-look page's card (deeds, long date and duration, expiry)
-// and the phone's sort list. The grid-only helpers (`pillWindow`,
-// `PILL_*`, `expiresCell`, `ratingCell`) stay for their tests until wave
-// 3. No DOM; unit tested.
+// History (Inv §7.4): pure helpers for the page in history.tsx (stage 45,
+// ADR 0130). Sorting, the pills' names, small formatters, the card's words
+// (deeds, long date and duration, expiry), the phone's sort list and the
+// box's width cap. No DOM; unit tested.
 
 import { RETENTION_DAYS, type Session } from '../../runs/stitch';
-import { cellLen } from '../kit/nav';
+
+/**
+ * History's box stops at its content's width (table ≤ 800 + gap 26 + card
+ * 290 + padding), centred (owner decision 2). Statistics uses the same
+ * cap, so the box swap keeps the same rectangle and nothing morphs.
+ */
+export const HISTORY_MAX_W = 1180;
 
 // ------------------------------------------------------------------ sort
 
@@ -84,93 +88,9 @@ export function fmtDur(us: number): string {
 /** `★★★` for a rating (blank for 0). */
 export const stars = (n: number): string => '★'.repeat(Math.max(0, Math.min(5, n)));
 
-export interface Cell {
-  text: string;
-  class?: string;
-}
-
-/** Expires: `Saved` in gold, else `<N> days` (Inv §7.4). */
-export function expiresCell(s: Session): Cell {
-  if (s.saved || s.expiresDays === null) return { text: 'Saved', class: 'wc-c-accent' };
-  return { text: `${s.expiresDays} days`, class: 'wc-st-label' };
-}
-
-/** Rating: N gold stars; blank when unsaved or 0. */
-export function ratingCell(s: Session): Cell {
-  return s.saved && s.rating > 0 ? { text: stars(s.rating), class: 'wc-st-star' } : { text: '' };
-}
-
 /** The characters with sessions, alphabetical (the filter pills after `All`). */
 export function pillNames(list: readonly Session[]): string[] {
   return [...new Set(list.map((s) => s.character))].sort((a, b) => a.localeCompare(b));
-}
-
-// ----------------------------------------------------------------- pills
-
-/** Cells between pills. */
-export const PILL_GAP = 1;
-/** Edge slots for `‹` / `›` when the row overflows. */
-export const PILL_SLOT = 2;
-
-/** A pill is its label with one cell of padding on each side. */
-export const pillWidth = (label: string): number => cellLen(label) + 2;
-
-export interface PillWindow {
-  /** First and one-past-last visible pill. */
-  start: number;
-  end: number;
-  /** The row does not fit: edge slots are reserved. */
-  overflow: boolean;
-  /** Pills hidden to the left / right (the arrows). */
-  left: boolean;
-  right: boolean;
-}
-
-const span = (widths: readonly number[], from: number, to: number): number => {
-  let w = 0;
-  for (let i = from; i < to; i++) w += widths[i]! + (i > from ? PILL_GAP : 0);
-  return w;
-};
-
-/** One past the last whole pill that fits from `start` in `inner` cells (at least one pill). */
-function fitFrom(widths: readonly number[], start: number, inner: number): number {
-  let end = start + 1;
-  while (end < widths.length && span(widths, start, end + 1) <= inner) end++;
-  return Math.min(end, widths.length);
-}
-
-/** The largest start that still fills the row to the last pill. */
-function maxStart(widths: readonly number[], inner: number): number {
-  let s = widths.length - 1;
-  while (s > 0 && span(widths, s - 1, widths.length) <= inner) s--;
-  return Math.max(0, s);
-}
-
-/**
- * The visible pills from `start` in `avail` cells: all of them when they
- * fit (centred, no arrows), else whole pills inside the edge slots.
- */
-export function pillWindow(widths: readonly number[], avail: number, start: number): PillWindow {
-  const n = widths.length;
-  if (n === 0) return { start: 0, end: 0, overflow: false, left: false, right: false };
-  if (span(widths, 0, n) <= avail) return { start: 0, end: n, overflow: false, left: false, right: false };
-  const inner = Math.max(1, avail - 2 * PILL_SLOT);
-  const s = Math.max(0, Math.min(start, maxStart(widths, inner)));
-  const end = fitFrom(widths, s, inner);
-  return { start: s, end, overflow: true, left: s > 0, right: end < n };
-}
-
-/** The start that keeps pill `cursor` visible, moving the window as little as possible. */
-export function scrollPills(widths: readonly number[], avail: number, start: number, cursor: number): number {
-  let s = pillWindow(widths, avail, start).start;
-  if (cursor < s) return cursor;
-  while (s < cursor && pillWindow(widths, avail, s).end <= cursor) s++;
-  return pillWindow(widths, avail, s).start;
-}
-
-/** `‹` / `›`: the window moves one pill (the cursor stays). */
-export function panPills(widths: readonly number[], avail: number, start: number, delta: number): number {
-  return pillWindow(widths, avail, start + delta).start;
 }
 
 // ---------------------------------------------------------------- misc

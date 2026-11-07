@@ -12,11 +12,11 @@ import {
   HistoryStatsFrame,
   RULER_LABEL_MIN,
   SPARK_H,
-  fmtLongDate,
   rulerView,
   sparkPaths,
   statsWhen,
 } from '../../src/chrome/frames/history-stats';
+import { fmtLongDate } from '../../src/chrome/frames/history-model';
 import { type ChromeServices, ServicesCtx } from '../../src/chrome/kit/hooks';
 import { FrameStack } from '../../src/chrome/kit/stack';
 import { xpForLevel } from '../../src/gmcp/levels';

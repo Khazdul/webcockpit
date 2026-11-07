@@ -39,7 +39,7 @@ import type { Session } from '../../runs/stitch';
 import { useServices } from '../kit/hooks';
 import { Box, BoxBody, BoxHead, Icon, type IconDraw, Stars, Table, TableRow, lookFrame } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
-import { fmtDur, fmtTime } from './history-model';
+import { HISTORY_MAX_W, fmtDur, fmtLongDate, fmtTime } from './history-model';
 import {
   DEFAULT_KILL_SORT,
   DEFAULT_PVP_SORT,
@@ -53,12 +53,6 @@ import {
   sortPvps,
 } from './stats-layout';
 import './history-stats.css';
-
-/**
- * The box's width cap (CSS px): History's own cap (WP 45-A), so the box
- * swap keeps the same rectangle and nothing morphs.
- */
-export const HISTORY_STATS_MAXW = 1180;
 
 /** Samples per sparkline (one `rateSeries` call per chart and data load). */
 export const SPARK_BUCKETS = 48;
@@ -77,28 +71,6 @@ const PVPS = 3;
 const ROW_PX = 27;
 
 // ------------------------------------------------------------------ text
-
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-/** `Friday, 6 November 2026` (local; the same in every browser, unlike `toLocaleDateString`). */
-export function fmtLongDate(us: number): string {
-  const d = new Date(us / 1000);
-  return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-}
 
 /** The head's line without the stars: `Session details · Friday, 6 November 2026 · 21:12 · 3h41m · 2 runs`. */
 export function statsWhen(s: Session): string {
@@ -533,7 +505,7 @@ export const HistoryStatsFrame = lookFrame(function HistoryStatsFrame(p: { sessi
     <Box
       title="Statistics"
       size="large"
-      maxWidth={HISTORY_STATS_MAXW}
+      maxWidth={HISTORY_MAX_W}
       onBack={() => nav.pop()}
       class="wc-hs-box"
       winClass="wc-hs"
