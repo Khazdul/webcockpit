@@ -60,13 +60,14 @@ import type { ViewerControls } from '../../player/view';
 import type { ViewerFont, ViewerTheme } from '../../player/viewer';
 import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../../core/fullscreen';
 import { device } from '../../core/device';
-import { type KindIcon, KIND_COLOR, KIND_PATH, LETTER_KIND } from '../../player/icons';
+import { type KindIcon, KIND_COLOR, LETTER_KIND } from '../../player/icons';
 import { fmtClock } from '../../player/strip';
 import { KIND_LABEL } from '../../share/spotlights';
 import { useServices } from '../kit/hooks';
-import { GlassButton, Icon, type IconDraw, type IconName, Popover, Seg, letterAction, useReducedMotion } from '../kit/look';
+import { GlassButton, Icon, type IconName, Popover, Seg, letterAction, useReducedMotion } from '../kit/look';
 import { useKeyLayer, useNav } from '../kit/stack';
 import { useSkyPause } from '../start-surface';
+import { KIND_ICON } from './spotlights-icons';
 import './spotlights-viewer.css';
 
 export interface SpotlightsViewerProps {
@@ -111,14 +112,6 @@ const THEMES: ReadonlyArray<{ value: ViewerTheme; label: string }> = [
   { value: 'sepia', label: 'Sepia' },
   { value: 'slate', label: 'Slate' },
 ];
-
-/** A kind's icon for the kit (the player's drawing, 24 units): the wall's cards and chips, the viewer's head. */
-export const KIND_ICON: Readonly<Record<KindIcon, IconDraw>> = {
-  death: { draw: <path d={KIND_PATH.death} />, box: 24 },
-  pkill: { draw: <path d={KIND_PATH.pkill} />, box: 24 },
-  level: { draw: <path d={KIND_PATH.level} />, box: 24 },
-  achievement: { draw: <path d={KIND_PATH.achievement} />, box: 24 },
-};
 
 /** The clip-path that shows only `card` of `box` (both client rectangles); clamped to the box. */
 export function cardInset(card: DOMRect | null, box: DOMRect): string {

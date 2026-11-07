@@ -89,7 +89,8 @@ import {
   useGridCursor,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
-import { KIND_ICON, SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
+import { KIND_ICON } from './spotlights-icons';
+import { SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
 import './spotlights.css';
 
 /** The empty states' texts (Inv §7.6; the filtered one ADR 0110). */
