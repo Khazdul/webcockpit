@@ -364,3 +364,22 @@ slower fade into the game. It replaces the fade above
 - **`prefers-reduced-motion`**: a 220 ms ease-out fade of the surface;
   nothing folds or zooms. (The old 280 ms fade had none; a short fade
   is not motion.) Without Web Animations the switch is at once.
+
+## Addendum 2026-11-07 (later) — the transition, slower, scrolling away
+
+After trying it the owner wanted no folding and an unhurried pace: the
+wordmark and the menu panel scroll up out of view, the almanac (bottom
+right) is pushed down out of view, then the sky zooms in for 1-2 s, then
+a 1-2 s fade into the game. Replaces the phases above (the rest of that
+addendum holds: the cockpit underneath from the first moment, the keys,
+the sky running, reduced motion, going back).
+
+| phase | what | start | length | easing |
+|---|---|---|---|---|
+| leave | the wordmark, the panel and the quote move up together (`translate`) by the quote's bottom + 48 px, so all clear the top edge; the almanac moves down past the bottom edge; the notice pills fade in the first half | 0 | 900 ms | ease-in (gathers speed) |
+| zoom | the sky host scales to 1.1 about 50 % 45 %; most of the travel in its first ~1.8 s, a soft tail through the fade | 700 ms | 3000 ms | `cubic-bezier(0.35, 0, 0.25, 1)` |
+| fade | the whole surface fades out over the cockpit | 2200 ms | 1500 ms | ease-in-out |
+
+Total 3.7 s; the sky alone shows from about 0.9 to 2.2 s. Distances are
+measured when the transition starts (a resize during it keeps them). The
+timings live in `src/chrome/enter-transition.ts`.

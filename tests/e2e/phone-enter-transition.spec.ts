@@ -1,4 +1,4 @@
-// Enter MUME's transition on a phone (ADR 0125, addendum): a tap folds the
+// Enter MUME's transition on a phone (ADR 0125, addendum): a tap sends the
 // page away over the cockpit; Exit session brings it back as it was.
 import { type Page, expect, test } from '@playwright/test';
 

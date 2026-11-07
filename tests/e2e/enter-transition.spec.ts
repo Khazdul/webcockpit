@@ -1,4 +1,4 @@
-// Enter MUME's transition (ADR 0125, addendum): the start page folds, its
+// Enter MUME's transition (ADR 0125, addendum): the scenery scrolls away, the
 // sky zooms and it fades out over the cockpit, which is shown, focused and
 // connecting from the first moment. Against a mocked MUME WebSocket.
 import { type Page, expect, test } from '@playwright/test';
@@ -96,7 +96,7 @@ test('Exit during the transition puts the start page back as it was; Enter MUME 
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
 });
 
-test('with reduced motion: a short fade, nothing folds or zooms', async ({ page }) => {
+test('with reduced motion: a short fade, nothing moves or zooms', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openStart(page);
   await page.keyboard.press('Enter');

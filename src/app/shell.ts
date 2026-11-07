@@ -301,7 +301,7 @@ export class Shell {
    * Enter MUME: shows the cockpit and connects, both at once (ADR 0125):
    * the input has the focus and every key from the first moment, and the
    * game's text may arrive while the start page still leaves over it (it
-   * folds, its sky zooms, it fades out: `StartPageHandle.leave`). A second
+   * scrolls away, its sky zooms, it fades out: `StartPageHandle.leave`). A second
    * Enter or click meanwhile is the cockpit's (the start page has let go
    * of its keys and pointer events). Without the transition (no Web
    * Animations) the switch is at once.

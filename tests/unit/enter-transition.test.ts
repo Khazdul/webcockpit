@@ -5,30 +5,29 @@ import { describe, expect, it } from 'vitest';
 import { ENTER_ZOOM, enterTiming, playEnter } from '../../src/chrome/enter-transition';
 
 describe('enterTiming', () => {
-  it('folds, then zooms, then fades, overlapping, in 1.5 to 2 s', () => {
+  it('leaves, then zooms, then fades, unhurried (the zoom and the fade 1-2 s each)', () => {
     const t = enterTiming(false);
-    expect(t.fold && t.zoom).toBeTruthy();
-    const fold = t.fold!;
+    expect(t.leave && t.zoom).toBeTruthy();
+    const leave = t.leave!;
     const zoom = t.zoom!;
-    expect(fold.delay).toBe(0);
-    expect(fold.duration).toBeGreaterThanOrEqual(300);
-    expect(fold.duration).toBeLessThanOrEqual(400);
-    // The zoom starts before the fold is over; the fade once only the sky is left.
-    expect(zoom.delay).toBeLessThan(fold.duration);
-    expect(t.fade.delay).toBeGreaterThanOrEqual(fold.delay + fold.duration);
-    // A slower fade than the fold.
-    expect(t.fade.duration).toBeGreaterThanOrEqual(600);
-    expect(t.fade.duration).toBeLessThanOrEqual(900);
+    expect(leave.delay).toBe(0);
+    expect(leave.duration).toBeGreaterThanOrEqual(600);
+    expect(leave.duration).toBeLessThanOrEqual(1200);
+    // The zoom starts as the scenery is nearly gone; the fade after it.
+    expect(zoom.delay).toBeLessThanOrEqual(leave.duration);
+    expect(zoom.delay).toBeGreaterThanOrEqual(leave.duration / 2);
+    expect(t.fade.delay).toBeGreaterThanOrEqual(zoom.delay + 1000);
+    expect(t.fade.delay - zoom.delay).toBeLessThanOrEqual(2000);
+    expect(t.fade.duration).toBeGreaterThanOrEqual(1000);
+    expect(t.fade.duration).toBeLessThanOrEqual(2000);
     expect(t.total).toBe(t.fade.delay + t.fade.duration);
-    expect(t.total).toBeGreaterThanOrEqual(1500);
-    expect(t.total).toBeLessThanOrEqual(2000);
-    expect(ENTER_ZOOM).toBeGreaterThanOrEqual(1.04);
-    expect(ENTER_ZOOM).toBeLessThanOrEqual(1.08);
+    expect(ENTER_ZOOM).toBeGreaterThan(1);
+    expect(ENTER_ZOOM).toBeLessThanOrEqual(1.15);
   });
 
-  it('with reduced motion: a short fade, nothing folds or zooms', () => {
+  it('with reduced motion: a short fade, nothing moves or zooms', () => {
     const t = enterTiming(true);
-    expect(t.fold).toBeNull();
+    expect(t.leave).toBeNull();
     expect(t.zoom).toBeNull();
     expect(t.fade.delay).toBe(0);
     expect(t.total).toBeLessThanOrEqual(300);
@@ -83,17 +82,19 @@ function surface(): { el: HTMLElement; played: Played[] } {
 const on = (played: Played[], cls: string): Played[] => played.filter((p) => p.el.classList.contains(cls));
 
 describe('playEnter', () => {
-  it('folds the panel, fades the scenery, zooms the sky and fades the surface last', async () => {
+  it('scrolls the scenery up, the almanac down, zooms the sky and fades the surface last', async () => {
     const { el, played } = surface();
     const run = playEnter(el, false);
     const t = enterTiming(false);
-    expect(on(played, 'wc-sm-panel')).toHaveLength(1);
-    expect(on(played, 'wc-sm-win')).toHaveLength(1);
-    for (const c of ['wc-start-brand', 'wc-sm-quote', 'wc-start-almanac']) {
+    for (const c of ['wc-start-brand', 'wc-sm-panel', 'wc-sm-quote']) {
       const [a] = on(played, c);
-      expect(a?.frames.at(-1)?.opacity).toBe(0);
-      expect(a?.opts.fill).toBe('forwards');
+      expect(a?.frames.at(-1)?.translate).toMatch(/^0 -\d+px$/);
+      expect(a?.opts).toMatchObject({ delay: t.leave!.delay, duration: t.leave!.duration, fill: 'forwards' });
     }
+    // One block: the same distance for all three.
+    expect(new Set(['wc-start-brand', 'wc-sm-panel', 'wc-sm-quote'].map((c) => on(played, c)[0]?.frames.at(-1)?.translate)).size).toBe(1);
+    const [alm] = on(played, 'wc-start-almanac');
+    expect(alm?.frames.at(-1)?.translate).toMatch(/^0 \d+px$/);
     const [zoom] = on(played, 'wc-start-skyhost');
     expect(zoom?.frames.at(-1)?.transform).toBe(`scale(${ENTER_ZOOM})`);
     expect(zoom?.opts.delay).toBe(t.zoom!.delay);

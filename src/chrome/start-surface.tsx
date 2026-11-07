@@ -25,7 +25,7 @@
 // or an old-look frame covers it.
 //
 // Enter MUME's transition (`leaving`, src/chrome/enter-transition.ts): the
-// page stays visible over the cockpit while it folds, zooms and fades; the
+// page stays visible over the cockpit while its scenery scrolls away, the sky zooms and it fades; the
 // sky keeps running, the frame stack lets go of the keys and the focus
 // (they belong to the cockpit's input from the first moment) and the
 // surface takes no pointer events.

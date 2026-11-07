@@ -1,18 +1,19 @@
-// Enter MUME's transition (ADR 0125, addendum "Enter MUME transition"):
-// the start page leaves over the cockpit in three overlapping phases.
+// Enter MUME's transition (ADR 0125, addenda "Enter MUME transition"):
+// the start page leaves over the cockpit in three phases.
 //
-//   fold   the menu panel folds up into its hood while the wordmark, the
-//          quote, the almanac and the notices fade, until only the sky is
-//          left;
-//   zoom   the sky host scales up a little (a compositor transform: the
-//          canvases are not repainted larger; the engine keeps drawing);
+//   leave  the wordmark, the menu panel and the quote scroll up out of
+//          view together; the almanac (bottom right) slides down out of
+//          view; the notices fade. Only the sky is left;
+//   zoom   the sky host scales up (a compositor transform: the canvases
+//          are not repainted larger; the engine keeps drawing);
 //   fade   the whole surface fades out over the cockpit, which is already
 //          shown underneath, focused and connecting.
 //
-// `prefers-reduced-motion`: a plain short fade of the surface, nothing
-// folds or zooms. Everything is Web Animations with `fill: 'forwards'`,
-// cancelled by `cancel()` (the start page shows again: everything is as
-// it was).
+// The owner asked for an unhurried pace (2026-11-07): the zoom and the
+// fade take 1-2 s each. `prefers-reduced-motion`: a plain short fade of
+// the surface, nothing moves or zooms. Everything is Web Animations with
+// `fill: 'forwards'`, cancelled by `cancel()` (the start page shows
+// again: everything is as it was).
 
 /** One phase's place on the transition's clock, ms. */
 export interface Phase {
@@ -21,8 +22,8 @@ export interface Phase {
 }
 
 export interface EnterTiming {
-  /** The panel folds; the wordmark, quote, almanac and notices fade. */
-  fold: Phase | null;
+  /** The wordmark, panel and quote scroll up; the almanac slides down. */
+  leave: Phase | null;
   /** The sky zooms in. */
   zoom: Phase | null;
   /** The surface fades out over the cockpit. */
@@ -32,19 +33,20 @@ export interface EnterTiming {
 }
 
 /** How far the sky zooms in. */
-export const ENTER_ZOOM = 1.07;
+export const ENTER_ZOOM = 1.1;
 
-const FOLD: Phase = { delay: 0, duration: 380 };
-const ZOOM: Phase = { delay: 220, duration: 1280 };
-const FADE: Phase = { delay: 660, duration: 840 };
+const LEAVE: Phase = { delay: 0, duration: 900 };
+/** Most of the zoom happens in its first ~1.8 s; it eases on through the fade. */
+const ZOOM: Phase = { delay: 700, duration: 3000 };
+const FADE: Phase = { delay: 2200, duration: 1500 };
 const STILL_FADE: Phase = { delay: 0, duration: 220 };
 
 const end = (p: Phase): number => p.delay + p.duration;
 
 /** The transition's phases, or only a short fade with `reduced` motion. */
 export function enterTiming(reduced: boolean): EnterTiming {
-  if (reduced) return { fold: null, zoom: null, fade: STILL_FADE, total: end(STILL_FADE) };
-  return { fold: FOLD, zoom: ZOOM, fade: FADE, total: Math.max(end(FOLD), end(ZOOM), end(FADE)) };
+  if (reduced) return { leave: null, zoom: null, fade: STILL_FADE, total: end(STILL_FADE) };
+  return { leave: LEAVE, zoom: ZOOM, fade: FADE, total: Math.max(end(LEAVE), end(ZOOM), end(FADE)) };
 }
 
 export interface EnterRun {
@@ -55,6 +57,10 @@ export interface EnterRun {
 }
 
 const EASE_IN_OUT = 'cubic-bezier(0.45, 0, 0.55, 1)';
+/** A scroll that gathers speed and leaves. */
+const EASE_IN = 'cubic-bezier(0.55, 0, 0.8, 0.35)';
+/** The zoom: an even start, most of the travel early, a long soft tail. */
+const ZOOM_EASE = 'cubic-bezier(0.35, 0, 0.25, 1)';
 
 /**
  * Plays the transition on the start surface `surface` (`.wc-start`).
@@ -70,34 +76,23 @@ export function playEnter(surface: HTMLElement, reduced: boolean): EnterRun {
   };
   const all = (sel: string): Element[] => [...surface.querySelectorAll(sel)];
 
-  if (t.fold) {
-    const f = t.fold;
-    // The panel folds up into its hood: the window's rows go first, then
-    // the iron box closes to a strip under the hood and fades.
-    for (const el of all('.wc-sm-panel')) {
-      run(
-        el,
-        [
-          { transform: 'none', opacity: 1, transformOrigin: '50% 0' },
-          { transform: 'scale(1, 0.06)', opacity: 1, offset: 0.62, transformOrigin: '50% 0' },
-          { transform: 'scale(0.82, 0.03)', opacity: 0, transformOrigin: '50% 0' },
-        ],
-        f,
-        EASE_IN_OUT,
-      );
+  if (t.leave) {
+    const l = t.leave;
+    const vh = surface.ownerDocument.defaultView?.innerHeight ?? 0;
+    // Up and away as one block: far enough that the lowest of them (the
+    // quote) clears the top edge.
+    const up = all('.wc-start-brand, .wc-sm-panel, .wc-sm-quote');
+    const bottom = Math.max(0, ...up.map((el) => el.getBoundingClientRect().bottom));
+    const rise = `0 ${-Math.ceil(bottom + 48)}px`;
+    for (const el of up) run(el, [{ translate: '0 0' }, { translate: rise }], l, EASE_IN);
+    // The almanac goes the other way, out under the bottom edge.
+    for (const el of all('.wc-start-almanac')) {
+      const top = el.getBoundingClientRect().top;
+      const fall = `0 ${Math.ceil(Math.max(vh, top) - top + 48)}px`;
+      run(el, [{ translate: '0 0' }, { translate: fall }], l, EASE_IN);
     }
-    for (const el of all('.wc-sm-panel .wc-lk-win')) {
-      run(el, [{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 0 }], f, 'ease-in');
-    }
-    const fadeOut = { delay: f.delay, duration: Math.round(f.duration * 0.85) };
-    for (const el of all('.wc-start-brand')) {
-      run(el, [{ opacity: 1, translate: '0 0' }, { opacity: 0, translate: '0 -10px' }], fadeOut, 'linear');
-    }
-    for (const el of all('.wc-sm-quote')) {
-      run(el, [{ opacity: 1, translate: '0 0' }, { opacity: 0, translate: '0 10px' }], fadeOut, 'linear');
-    }
-    for (const el of all('.wc-start-almanac, .wc-start-pills')) {
-      run(el, [{ opacity: 1 }, { opacity: 0 }], fadeOut, 'linear');
+    for (const el of all('.wc-start-pills')) {
+      run(el, [{ opacity: 1 }, { opacity: 0 }], { delay: l.delay, duration: Math.round(l.duration / 2) }, 'linear');
     }
   }
   if (t.zoom) {
@@ -109,7 +104,7 @@ export function playEnter(surface: HTMLElement, reduced: boolean): EnterRun {
         { transform: `scale(${ENTER_ZOOM})`, transformOrigin: '50% 45%' },
       ],
       t.zoom,
-      EASE_IN_OUT,
+      ZOOM_EASE,
     );
   }
   const fade = surface.animate([{ opacity: 1 }, { opacity: 0 }], {
