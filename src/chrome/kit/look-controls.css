@@ -971,6 +971,14 @@ html.wc-phone .wc-lk-opt {
     min-height: 40px;
   }
 
+  /* A sortable head keeps its drawn size and its row's height; its touch
+   * target reaches up over the space above the table and down to the
+   * first row (which wins where they meet): about 40 px (stage 42 wave 3). */
+  .wc-lk-th.is-sort {
+    padding: 20px 0 15px;
+    margin: -20px 0 -15px;
+  }
+
   .wc-lk-input {
     height: 40px;
   }

@@ -477,6 +477,13 @@ html.wc-phone .wc-start-pills {
   top: 16px;
 }
 
+/* A large or tall box reaches the phone's top right corner, where the
+ * fullscreen button floats over its page: the button steps aside while one
+ * is up on the shown start page (back on the menu). */
+html.wc-phone:has(.wc-start-host:not([style*="display: none"]) .wc-start:is([data-lk-box="large"], [data-lk-box="tall"])) .wc-fs-btn {
+  visibility: hidden;
+}
+
 html.wc-phone .wc-sm-item {
   height: 38px;
   font-size: 14.5px;
