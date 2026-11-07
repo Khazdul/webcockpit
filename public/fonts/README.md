@@ -63,7 +63,23 @@ The pane frame's title (ADR 0123 "Title") is not in the terminal font:
 |---|---|---|---|
 | `Cinzel-Bold-latin.woff2` | Cinzel 2.000, Bold, Latin subset | `files/cinzel-latin-700-normal.woff2` from npm `@fontsource/cinzel@5.3.0` (Google Fonts' Latin subset, used as is; not an npm dependency) | SIL OFL 1.1, © 2020 The Cinzel Project Authors, no Reserved Font Name (`LICENSE-Cinzel.txt`, the package's `LICENSE`) |
 
-Its @font-face rule (`src/theme/fonts.ts` `TITLE_FACE`) is generated with
+## Start page book faces
+
+The new start page (stage 41, ADR 0125) sets its quote, its dim notes and
+the quote's author in Cormorant:
+
+| File | Family, version | Source | Licence (file here) |
+|---|---|---|---|
+| `CormorantGaramond-MediumItalic-latin.woff2` | Cormorant Garamond (Google Fonts v21), Medium Italic, Latin subset | `files/cormorant-garamond-latin-500-italic.woff2` from npm `@fontsource/cormorant-garamond@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2015 The Cormorant Project Authors (`LICENSE-CormorantGaramond.txt`, the package's `LICENSE`) |
+| `CormorantSC-SemiBold-latin.woff2` | Cormorant SC (Google Fonts v19), SemiBold, Latin subset | `files/cormorant-sc-latin-600-normal.woff2` from npm `@fontsource/cormorant-sc@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2015 The Cormorant Project Authors (`LICENSE-CormorantSC.txt`, the package's `LICENSE`) |
+
+Their @font-face rules (`src/theme/fonts.ts` `START_FACES`) are generated
+with the others, `font-display: block`, each the family's only face at
+the normal weight (the files are already Medium and SemiBold, so no
+browser synthesises a bold); they download when the start page shows
+text in them. Not embedded in the exported replay.
+
+The title face's @font-face rule (`src/theme/fonts.ts` `TITLE_FACE`) is generated with
 the terminal fonts', `font-display: block`; it downloads when a framed
 pane first shows a title (`src/panes/title-font.ts` asks for it and
 re-places the hoods when it has loaded). The exported HTML replay embeds
@@ -219,6 +235,8 @@ fe09e040c8d9246f9e4f71e4345d3d9230573d51e8abaea565718c4bd0e28e51  Agave-Bold.wof
 ffefff0dece1c2edcfe90d7348869aa1d2f9e34a4a2454fd31acd82715bab964  AnonymousPro-Bold.woff2
 ebe57882f58621f8317650f7f49556cd7a385c75f036afaf1b5c73ed8fdbae8d  AnonymousPro-Regular.woff2
 8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263  Cinzel-Bold-latin.woff2
+4fb55a7a6d564d428061fe12c82c896264bcc8b7f0b52840bf88e0db5b91256f  CormorantGaramond-MediumItalic-latin.woff2
+12e0111fadbbbd005472837880657dd323d93441ac4b09cbdb34ebd6e8614fff  CormorantSC-SemiBold-latin.woff2
 d84776a2893f382b96c8bfe085d438dc07f2fdd98210fa9f2d3ac62d82a7aef4  CascadiaMono-Bold.woff2
 abbf67cceb200508c9590ac9b75b37dd2211f58ea56279f1fa6ec87265f9d713  CascadiaMono-Regular.woff2
 989f3749f990060bc0f303d3d966fd2b2e45780023bd19a29c7376b58489d2f1  DejaVuSansMono-Bold.woff2

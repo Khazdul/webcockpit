@@ -45,7 +45,7 @@ function watchErrors(page: Page): string[] {
 async function openFromStart(page: Page, text?: string): Promise<void> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   if (text !== undefined) {
     await page.evaluate(async (t) => {
       await window.__wc!.shell.profiles.init();
@@ -54,7 +54,7 @@ async function openFromStart(page: Page, text?: string): Promise<void> {
   }
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
   await page.locator('.wc-start [data-btn="EDIT"]').click();
   await expect(ped(page).locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: default ───');
   await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
@@ -126,11 +126,11 @@ test('lite → editor → lite → ESC saves; reload shows it', async ({ page })
 
   // ESC saves and flashes on the Profile frame.
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
   const saved = '#nop head\n\n#alias {b} {bee}\n#alias {gv %1} {\n    get %1;\n    value %1\n}\n#macro {F1} {one}\n#alias {k} {kill}';
   expect(await stored(page)).toBe(saved);
   await page.reload();
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   expect(await stored(page)).toBe(saved);
   expect(errors).toEqual([]);
 });
@@ -146,7 +146,7 @@ test('a flip without edits keeps the text byte for byte', async ({ page }) => {
   await expect(ped(page).locator('.wc-syn-inert')).toHaveAttribute('title', /other forms do nothing/);
   await page.keyboard.press('Escape');
   // Nothing changed: pops without saving.
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
   expect(await stored(page)).toBe(text);
 });
 
@@ -169,7 +169,7 @@ test('EDITOR: Ctrl+F finds and replaces; ESC closes the panel, then the editor',
   await expect(panel).toHaveCount(0);
   await expect(content(page)).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
   expect(await stored(page)).toContain('kill troll');
 });
 
@@ -224,7 +224,7 @@ test('kind row: n adds an entry of that kind, Del deletes nothing; the footer na
   await expect(listRows(page)).toHaveText([/^F1\s+one/, /^F5\s+draw/, /\+ New entry/]);
 
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#action {orc} {kill orc}\n#action {troll} {}\n#macro {F1} {one}\n#macro {F5} {draw}\n');
   expect(errors).toEqual([]);
 });
@@ -262,7 +262,7 @@ test('macro key capture: F5 binds, Ctrl+W is rejected, ESC cancels a new entry',
   await expect(listRows(page)).toHaveCount(3);
 
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#macro {F1} {one}\n#macro {Ctrl+A} {draw}\n');
 });
 
@@ -292,7 +292,7 @@ test('macro key capture: printable keys bind and warn (ADR 0026)', async ({ page
   await page.keyboard.type('three');
 
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#macro {F1} {one}\n#macro {A} {two}\n#macro {Shift+1} {three}\n');
 });
 
@@ -305,7 +305,7 @@ test('highlight picker: styles, text and background swatches', async ({ page }) 
   await page.keyboard.press('End');
   await page.keyboard.press('Home');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
 
   await page.locator('.wc-start [data-btn="EDIT"]').click();
   await kind(page, 'highlight');
@@ -327,7 +327,7 @@ test('highlight picker: styles, text and background swatches', async ({ page }) 
   await ped(page).locator('[data-swatch="bg-0-1"]').click();
   await expect(listRows(page).nth(1)).toContainText('reverse green');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#highlight {bold one} {bold red}\n#highlight {^%1 enters} {reverse green}\n');
 });
 
@@ -335,7 +335,7 @@ test('the Profile window while disconnected saves directly', async ({ page }) =>
   const errors = watchErrors(page);
   const mock = await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
@@ -360,7 +360,7 @@ test('the Profile window while disconnected saves directly', async ({ page }) =>
 test('the Profile window while connected: Keep editing, Discard, Apply', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
@@ -446,7 +446,7 @@ test('editor keys: line swap, undo, copy line, Tab and ↑ to the toggle', async
   await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
   await expect.poll(() => stored(page)).toBe('one\nthree\n');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
 });
 
 // ---------------------------------------------------------------- HELP view
@@ -578,7 +578,7 @@ test('HELP from the start page: manual, scrolling, and back to LITE with edits i
   // ESC in HELP saves and goes back, as in the other views.
   await toHelp(page);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-flash')).toHaveText('Saved default.');
   expect(await stored(page)).toBe('#alias {b} {bee}\n#alias {gv %1} {get %1}\n#macro {F1} {one}\n');
   expect(errors).toEqual([]);
 });
@@ -604,14 +604,14 @@ test('HELP keeps the EDITOR buffer: text, cursor and undo history', async ({ pag
   // Unchanged again: ESC from HELP pops without saving.
   await toHelp(page);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
   expect(await stored(page)).toBe('one\ntwo\nthree\n');
 });
 
 test('the Profile window → HELP while connected: LITE applies on the way, EDITOR asks', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
@@ -838,7 +838,7 @@ test('EDITOR and HELP fill the Profile window to its last cell', async ({ page }
   await page.setViewportSize({ width: 1600, height: 800 });
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async (t) => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', t);
@@ -1062,7 +1062,7 @@ for (const dpr of [1, 1.5]) {
 test('EDITOR shows the whole stored text of the bundled khazdul profile', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   // The seeded khazdul text, as a first run stores it, under the profile that EDIT opens.
   const text = await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
@@ -1114,7 +1114,7 @@ test('EDITOR shows the whole stored text of the bundled khazdul profile', async 
 
   // Nothing was edited: ESC pops without saving and the text is untouched.
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
   expect(await stored(page)).toBe(text);
 });
 

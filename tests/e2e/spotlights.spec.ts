@@ -33,7 +33,7 @@ const player = (page: Page) => page.locator('.wc-player');
 const chrome = (page: Page) => page.locator('.wc-player-chrome');
 const header = (page: Page) => chrome(page).locator('.wc-player-header');
 const box = (page: Page) => page.locator('.wc-spot-card');
-const menuRow = (page: Page, key: string) => page.locator(`.wc-start .wc-mrow[data-key="${key}"] .wc-label`);
+const menuRow = (page: Page, key: string) => page.locator(`.wc-start .wc-sm-item[data-key="${key}"]`);
 
 test('Spotlights plays the reel: header, card, ←/→, Shift+←/→, park at the end, ESC back', async ({ page }) => {
   const errors: string[] = [];
@@ -133,7 +133,7 @@ test('Spotlights plays the reel: header, card, ←/→, Shift+←/→, park at t
   // ESC: back to the start page's main menu.
   await page.keyboard.press('Escape');
   await expect(player(page)).toHaveCount(0);
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Spotlights >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
   expect(errors).toEqual([]);
 });
 
@@ -161,13 +161,13 @@ test('Credits rolls the chronicle; ESC returns, and so does the end', async ({ p
   await page.keyboard.press('Enter');
   await expect(col).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Credits >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Credits');
 
   // The roll's end (The End. leaves the top) returns to the menu too.
   await menuRow(page, 'credits').click();
   await expect(frame(page).locator('.wc-credits-col')).toBeVisible();
   await page.evaluate(() => document.getAnimations().forEach((a) => a.finish()));
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Credits >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Credits');
   expect(errors).toEqual([]);
 });
 

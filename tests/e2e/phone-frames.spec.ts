@@ -15,13 +15,13 @@ const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden
 const SCRIPT_BUTTONS = ['NEW', 'IMPORT', 'EDIT', 'EXPORT', 'RENAME', 'DELETE', 'MANUAL'];
 
 async function tapRow(page: Page, key: string): Promise<void> {
-  await startFrame(page).locator(`.wc-mrow[data-key="${key}"]`).tap();
+  await startFrame(page).locator(`.wc-sm-item[data-key="${key}"]`).tap();
 }
 
 /** Start page → Scripts by a tap, with one own script `phonetest`. */
 async function openScripts(page: Page): Promise<Locator> {
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     const l = window.__wc!.shell.scripts!;
     await l.init();
@@ -97,19 +97,19 @@ test('Scripts on a phone: the list alone, EDIT above it opens the selected scrip
 
 test('Profile: a tap on a profile selects it, a tap on the selected profile opens the editor', async ({ page }) => {
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.create('phoneprof', '');
   });
   await tapRow(page, 'profile');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
-  const row = f.locator('.wc-table .wc-tr', { hasText: 'phoneprof' });
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  const row = f.locator('.wc-pl-row[data-name="phoneprof"]');
   const profile = () => page.evaluate(() => window.__wc!.settings.get().profile);
   await row.tap();
   await expect.poll(profile).toBe('phoneprof');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await expect(page.locator('.wc-ped')).toHaveCount(0);
   await row.tap();
   // The editor opens (its title is cut to the phone's width).
@@ -126,7 +126,7 @@ test('the command line is a textarea: Enter sends, no newline; the password prom
   });
   const sentText = () => Buffer.concat(received).toString('latin1');
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await tapRow(page, 'enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
 
@@ -217,7 +217,7 @@ for (const [width, dpr] of [
 
     test('is whole and centred, or not shown', async ({ page }) => {
       await page.goto('/?phone=1');
-      await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
       const spans = page.locator('.wc-banner .wc-banner-word, .wc-banner .wc-banner-word-dim');
       if ((await spans.count()) === 0) return;
       let left = Infinity;

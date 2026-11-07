@@ -48,7 +48,7 @@ test('mercenaries: enable, hire, the pane row and gauge, orders, cost toggle, pa
   const sentText = () => Buffer.concat(received).toString('latin1');
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   server!.send(gmcp('Char.Name {"name":"Rasta","fullname":"Rasta the Orc"}'));

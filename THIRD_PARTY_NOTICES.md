@@ -122,6 +122,15 @@ The pane titles use one more font (ADR 0123):
   Authors (https://github.com/NDISCOVER/Cinzel). SIL Open Font License
   1.1. `LICENSE-Cinzel.txt`.
 
+The start page uses two more (stage 41, ADR 0125):
+
+- **Cormorant Garamond** (Medium Italic, Latin subset as Google Fonts
+  serves it, v21, from npm `@fontsource/cormorant-garamond` 5.3.0) and
+  **Cormorant SC** (SemiBold, Latin subset, v19, from npm
+  `@fontsource/cormorant-sc` 5.3.0). Copyright 2015 The Cormorant Project
+  Authors (https://github.com/CatharsisFonts/Cormorant). SIL Open Font
+  License 1.1. `LICENSE-CormorantGaramond.txt`, `LICENSE-CormorantSC.txt`.
+
 **Lucida Console** is not distributed with WebCockpit and is never
 embedded in an exported file. It is offered only when it is installed on
 the user's device, and then used through the browser's `local()` font

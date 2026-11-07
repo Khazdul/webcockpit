@@ -51,7 +51,7 @@ const hostSynced = (page: Page) =>
 async function openStart(page: Page): Promise<void> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
 }
 
 async function scriptsFromStart(page: Page): Promise<Locator> {

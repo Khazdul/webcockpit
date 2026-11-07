@@ -45,7 +45,7 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
     const w = window as unknown as { __wc: { runs(): Promise<{ restore(b: Blob): Promise<unknown> }> } };
     await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
   });
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   await expect(frame(page).locator('.wc-title-row')).toHaveText('─── History ───');
   // History loads its sessions asynchronously; keys before that are lost.
   await expect(frame(page).locator('.wc-tr:not(.is-empty)')).toHaveCount(3);

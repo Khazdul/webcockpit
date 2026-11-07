@@ -24,7 +24,7 @@ async function openHistory(page: Page): Promise<void> {
     const w = window as unknown as { __wc: { runs(): Promise<{ restore(b: Blob): Promise<unknown> }> } };
     await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
   });
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   await expect(title(page)).toHaveText('─── History ───');
 }
 
@@ -120,7 +120,7 @@ test('export editor: comment, exclude, title, text download, persistence', async
   // After a reload too (IndexedDB).
   await page.reload();
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   await expect(title(page)).toHaveText('─── History ───');
   await openEditor(page);
   await expect(counts(page)).toHaveText('1 excluded · 1 comment');

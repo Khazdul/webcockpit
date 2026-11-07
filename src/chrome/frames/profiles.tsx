@@ -1,20 +1,33 @@
-// Profile frame (Inv §3.4, "P4" layout) and its sub-frames.
+// The Profile list (Inv §3.4; stage 41e, ADR 0125): the first sub-page in
+// the new look (src/chrome/kit/look.tsx), a lantern box under the smaller
+// wordmark with Back at its top left. Its sub-frames (the New / Rename
+// name prompt, Blank or Copy, the Delete confirm, the import report, the
+// profile editor) still open in the old look on the cell grid.
 //
-//   [ button column | 2-cell gap | table (Name ▲, Selected) | scrollbar ]
+//   [Back]                  ( Profiles )
+//     NAME ▲                         CHANGED
+//     default  SELECTED              2 hours ago      ← the cursor row
+//     scout                          yesterday
+//   [Select] [New] [Edit] [Rename] [Delete] [Import] [Export]
+//                    flash line
 //
-// Two focus zones: the table (default, cursor on the selected profile) and
-// the buttons. Tab/Shift+Tab toggle, ← focuses the buttons, → the table.
-// In the table, Enter or a click on a row selects that profile; on the
-// profile that is already selected it opens the editor, as EDIT does
-// (stage 25: first click selects, the second edits).
-// Buttons: SELECT (disabled on the selected row), NEW, EDIT (the profile
-// editor, src/editor, loaded on demand),
-// RENAME and DELETE (disabled on `default`), IMPORT (one or more files,
-// native or foreign, then the import report), EXPORT, BACK.
-// Feedback goes to the flash row under the package (~3 s).
+// Every feature of the TUI list is kept. Two focus zones: the list
+// (default, cursor on the selected profile) and the buttons. Tab /
+// Shift+Tab toggle them; ← / → from the list go to the buttons, where
+// ← / → move along them and ↑ returns to the list. In the list ↑ ↓,
+// PgUp / PgDn (10), Home / End. Enter or a click on a row selects that
+// profile; on the profile that is already selected it opens the editor,
+// as Edit does (stage 25: the first click selects, the second edits).
+// The name column's header sorts (A–Z / Z–A). Each button's letter is
+// marked in its label and works from either zone: S Select (disabled on
+// the selected row), N New, E Edit, R Rename and D Delete (both disabled
+// on `default`), I Import (one or more files, native or foreign, then the
+// import report), X Export. Esc or Back returns to the menu. Feedback
+// goes to the flash line at the foot of the box (~3 s). The mouse
+// selects a row on hover.
 
 import type { VNode } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import {
   DEFAULT_PROFILE,
   NAME_HINT,
@@ -25,56 +38,92 @@ import {
   nameError,
 } from '../../profiles';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
+import { Box, GlassButton, type IconName, LookFlash, letterOf, lookFrame } from '../kit/look';
 import { editProfile } from './profile-edit';
 import { loadImportFiles } from './import-load';
 import { ImportReportFrame } from './import-report';
-import { cellLen, centreLeft, step } from '../kit/nav';
+import { centreLeft, step } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   Blank,
-  Button,
   Centered,
-  type Column,
   FlashRow,
   type MenuItem,
   MenuRows,
   Page,
-  Table,
   TextField,
-  indent,
   menuKey,
-  useBodyRows,
   useMenuCursor,
 } from '../kit/widgets';
+import './profiles.css';
 
 type Done = (name: string, message: string) => void;
 
-const BUTTONS = ['SELECT', 'NEW', 'EDIT', 'RENAME', 'DELETE', 'IMPORT', 'EXPORT', 'BACK'] as const;
+const BUTTONS = ['SELECT', 'NEW', 'EDIT', 'RENAME', 'DELETE', 'IMPORT', 'EXPORT'] as const;
 type ButtonId = (typeof BUTTONS)[number];
-const BUTTON_W = Math.max(...BUTTONS.map((b) => b.length)) + 2;
-const GAP = 2;
-const SEL_W = 8;
+
+interface ButtonDef {
+  id: ButtonId;
+  label: string;
+  letter: string;
+  icon: IconName;
+  danger?: boolean;
+}
+
+const BUTTON_DEFS: readonly ButtonDef[] = [
+  { id: 'SELECT', label: 'Select', letter: 's', icon: 'check' },
+  { id: 'NEW', label: 'New', letter: 'n', icon: 'plus' },
+  { id: 'EDIT', label: 'Edit', letter: 'e', icon: 'pencil' },
+  { id: 'RENAME', label: 'Rename', letter: 'r', icon: 'rename' },
+  { id: 'DELETE', label: 'Delete', letter: 'd', icon: 'trash', danger: true },
+  { id: 'IMPORT', label: 'Import', letter: 'i', icon: 'import' },
+  { id: 'EXPORT', label: 'Export', letter: 'x', icon: 'export' },
+];
+
+/** PgUp / PgDn in the list. */
+const PAGE = 10;
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-export function ProfileFrame(): VNode {
+const MIN = 60_000;
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+
+/** "just now", "5 minutes ago", "2 hours ago", "yesterday", "3 days ago", "3 weeks ago", "4 months ago", "2 years ago"; "" when unknown. */
+export function timeAgo(ms: number, now: number = Date.now()): string {
+  if (!(ms > 0)) return '';
+  const d = Math.max(0, now - ms);
+  const n = (v: number, unit: string): string => `${v} ${unit}${v === 1 ? '' : 's'} ago`;
+  if (d < MIN) return 'just now';
+  if (d < HOUR) return n(Math.floor(d / MIN), 'minute');
+  if (d < DAY) return n(Math.floor(d / HOUR), 'hour');
+  if (d < 2 * DAY) return 'yesterday';
+  if (d < 14 * DAY) return n(Math.floor(d / DAY), 'day');
+  if (d < 60 * DAY) return n(Math.floor(d / (7 * DAY)), 'week');
+  if (d < 365 * DAY) return n(Math.floor(d / (30 * DAY)), 'month');
+  return n(Math.floor(d / (365 * DAY)), 'year');
+}
+
+const fullDate = (ms: number): string => (ms > 0 ? `Changed ${new Date(ms).toLocaleString()}` : '');
+
+export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
   const { profiles, settings, onProfileSaved } = useServices();
   const s = useSettings();
   const nav = useNav();
   const isTop = useIsTop();
-  const { cols } = useGrid();
-  const bodyRows = useBodyRows();
-  const [list, setList] = useState<ProfileRecord[]>([]);
+  const [list, setList] = useState<ProfileRecord[] | null>(null);
   const [dir, setDir] = useState<1 | -1>(1);
   const [cursorName, setCursorName] = useState<string>(s.profile);
   const [zone, setZone] = useState<'table' | 'buttons'>('table');
   const [btn, setBtn] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const reload = async (): Promise<void> => {
     try {
       setList(await profiles.list());
     } catch (e) {
+      setList((l) => l ?? []);
       nav.flash(`Could not read profiles: ${errText(e)}`, 'fail');
     }
   };
@@ -82,7 +131,8 @@ export function ProfileFrame(): VNode {
     if (isTop) void reload();
   }, [isTop]);
 
-  const rows = dir > 0 ? list : [...list].reverse();
+  const all = list ?? [];
+  const rows = dir > 0 ? all : [...all].reverse();
   let cursor = rows.findIndex((r) => r.name === cursorName);
   if (cursor < 0) cursor = Math.max(0, rows.findIndex((r) => r.name === s.profile));
   const cur = rows[cursor];
@@ -97,11 +147,11 @@ export function ProfileFrame(): VNode {
   const btnEnabled = (i: number): boolean => !disabled(BUTTONS[i]!);
   const btnIdx = btnEnabled(btn) ? btn : step(BUTTONS.length, btn, 1, { enabled: btnEnabled, wrap: true });
 
-  // Layout.
-  const visible = Math.max(3, Math.min(Math.max(rows.length, BUTTONS.length - 1), bodyRows - 3));
-  const nameW = Math.min(NAME_MAX, Math.max(12, ...rows.map((r) => cellLen(r.name))));
-  const tableW = nameW + 1 + SEL_W + (rows.length > visible ? 1 : 0);
-  const at = centreLeft(cols, BUTTON_W + GAP + tableW);
+  // The cursor row stays in view in a long list.
+  useLayoutEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>('.wc-pl-row.is-on');
+    if (isTop && el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+  }, [cursor, rows.length, isTop]);
 
   const done: Done = (name, message) => {
     setCursorName(name);
@@ -187,36 +237,48 @@ export function ProfileFrame(): VNode {
       case 'EXPORT':
         void exportCur();
         return;
-      case 'BACK':
-        return nav.pop();
     }
   };
 
-  useKeys((_e, nk) => {
-    switch (nk) {
-      case 'tab':
-      case 'backtab':
-        setZone(zone === 'table' ? 'buttons' : 'table');
-        return true;
-      case 'left':
-        setZone('buttons');
-        return true;
-      case 'right':
-        setZone('table');
-        return true;
+  useKeys((e, nk) => {
+    const l = letterOf(e);
+    const def = l ? BUTTON_DEFS.find((d) => d.letter === l) : undefined;
+    if (def) {
+      press(def.id);
+      return true;
+    }
+    if (nk === 'tab' || nk === 'backtab') {
+      setZone(zone === 'table' ? 'buttons' : 'table');
+      return true;
     }
     if (zone === 'buttons') {
-      if (nk === 'up' || nk === 'down') {
-        setBtn(step(BUTTONS.length, btnIdx, nk === 'up' ? -1 : 1, { enabled: btnEnabled }));
-        return true;
-      }
-      if (nk === 'activate') {
-        press(BUTTONS[btnIdx]!);
-        return true;
+      switch (nk) {
+        case 'left':
+        case 'right':
+          setBtn(step(BUTTONS.length, btnIdx, nk === 'left' ? -1 : 1, { enabled: btnEnabled }));
+          return true;
+        case 'home':
+          setBtn(step(BUTTONS.length, -1, 1, { enabled: btnEnabled }));
+          return true;
+        case 'end':
+          setBtn(step(BUTTONS.length, BUTTONS.length, -1, { enabled: btnEnabled }));
+          return true;
+        case 'up':
+          setZone('table');
+          return true;
+        case 'down':
+          return true;
+        case 'activate':
+          press(BUTTONS[btnIdx]!);
+          return true;
       }
       return false;
     }
     switch (nk) {
+      case 'left':
+      case 'right':
+        setZone('buttons');
+        return true;
       case 'up':
         moveTo(cursor - 1);
         return true;
@@ -224,10 +286,10 @@ export function ProfileFrame(): VNode {
         moveTo(cursor + 1);
         return true;
       case 'pgup':
-        moveTo(cursor - 10);
+        moveTo(cursor - PAGE);
         return true;
       case 'pgdn':
-        moveTo(cursor + 10);
+        moveTo(cursor + PAGE);
         return true;
       case 'home':
         moveTo(0);
@@ -242,70 +304,87 @@ export function ProfileFrame(): VNode {
     return false;
   });
 
-  const columns: Column<ProfileRecord>[] = [
-    { key: 'name', title: 'Name', width: nameW, sortable: true, cell: (r) => ({ text: r.name }) },
-    {
-      key: 'sel',
-      title: 'Selected',
-      width: SEL_W,
-      align: 'center',
-      cell: (r) => (r.name === s.profile ? { text: '✓', class: 'wc-c-ok' } : { text: '' }),
-    },
-  ];
-
+  const now = Date.now();
+  const enterHint = cur && cur.name === s.profile ? 'Enter or click: edit' : 'Enter or click: select';
   return (
-    <Page
-      title="Profile"
-      footer={['↑↓ Navigate', 'Tab/←→ Cycle', zone === 'table' && cur?.name === s.profile ? 'Enter Edit' : 'Enter Select', 'ESC Back']}
-    >
-      <div class="wc-pkg" style={{ ...indent(at), display: 'flex' }}>
-        <div class="wc-btncol">
-          {BUTTONS.map((b, i) => (
-            <div class="wc-line">
-              <Button
-                label={b}
-                width={BUTTON_W}
-                selected={i === btnIdx}
-                focused={zone === 'buttons'}
-                disabled={disabled(b)}
-                onClick={() => {
-                  setBtn(i);
-                  setZone('buttons');
-                  press(b);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-        <div style={{ width: `calc(var(--cell-w) * ${GAP})` }} />
-        <Table
-          columns={columns}
-          rows={rows}
-          cursor={cursor}
-          visible={visible}
-          focused={zone === 'table'}
-          sort={{ key: 'name', dir }}
-          onSort={() => setDir(dir > 0 ? -1 : 1)}
-          onRowClick={(i) => {
-            moveTo(i);
-            setZone('table');
-            pick(rows[i]);
-          }}
-        />
+    <Box title="Profiles" onBack={() => nav.pop()} class="wc-pl" winClass="wc-pl-win">
+      <div class="wc-pl-head">
+        <button
+          type="button"
+          tabIndex={-1}
+          class="wc-pl-sort"
+          title="Sort by name"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setDir(dir > 0 ? -1 : 1)}
+        >
+          Name {dir > 0 ? '▲' : '▼'}
+        </button>
+        <span>Changed</span>
       </div>
-      <Blank />
-      <FlashRow />
-      <input
-        ref={fileRef}
-        type="file"
-        multiple
-        hidden
-        class="wc-profile-file"
-        onChange={() => void onFile()}
-      />
-    </Page>
+      <ul
+        class={'wc-pl-list' + (zone === 'table' ? ' is-focus' : '')}
+        ref={listRef}
+        role="listbox"
+        aria-label="Profiles"
+      >
+        {rows.map((r, i) => {
+          const on = i === cursor;
+          const sel = r.name === s.profile;
+          return (
+            <li
+              key={r.name}
+              class={'wc-pl-row' + (on ? ' is-on' : '') + (sel ? ' is-selected' : '')}
+              role="option"
+              aria-selected={on ? 'true' : 'false'}
+              data-name={r.name}
+              title={on ? enterHint : undefined}
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerMove={(e) => {
+                if (e.pointerType !== 'touch' && !on) moveTo(i);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                moveTo(i);
+                setZone('table');
+                pick(r);
+              }}
+            >
+              <span class="wc-pl-name">
+                <span class="wc-pl-n">{r.name}</span>
+                {sel && <small class="wc-pl-tag">Selected</small>}
+              </span>
+              <span class="wc-pl-time" title={fullDate(r.modified)}>
+                {timeAgo(r.modified, now)}
+              </span>
+            </li>
+          );
+        })}
+        {list !== null && rows.length === 0 && <li class="wc-pl-empty">No profiles yet. New makes one.</li>}
+      </ul>
+      <div class="wc-lk-btns wc-pl-btns">
+        {BUTTON_DEFS.map((d, i) => (
+          <GlassButton
+            key={d.id}
+            id={d.id}
+            label={d.label}
+            letter={d.letter}
+            icon={d.icon}
+            danger={d.danger}
+            disabled={disabled(d.id)}
+            selected={zone === 'buttons' && i === btnIdx}
+            onClick={() => {
+              setBtn(i);
+              setZone('buttons');
+              press(d.id);
+            }}
+          />
+        ))}
+      </div>
+      <LookFlash />
+      <input ref={fileRef} type="file" multiple hidden class="wc-profile-file" onChange={() => void onFile()} />
+    </Box>
   );
-}
+});
 
 // ------------------------------------------------------------ name input
 

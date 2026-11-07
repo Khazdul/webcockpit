@@ -79,7 +79,7 @@ test('a script pane floats, docks, toggles, takes clicks and comes back where it
   const sentText = () => Buffer.concat(received).toString('latin1');
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page);
   await page.keyboard.press('Enter');
 
@@ -187,7 +187,7 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   const inSettings = () => page.evaluate((id) => JSON.stringify(window.__wc!.settings.get()).includes(id), TID);
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page, TEMP, 'temps');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-output')).toContainText('temps ready');
@@ -299,7 +299,7 @@ test('an overflowing script pane scrolls by pixels; a list stays at the top, a c
   });
   const sentText = () => Buffer.concat(received).toString('latin1');
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page, LONG, 'longs');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-output')).toContainText('longs ready');
@@ -374,7 +374,7 @@ test('pane:onWheel gets whole cells; true takes the scroll, otherwise the pane s
   });
   const sentText = () => Buffer.concat(received).toString('latin1');
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page, WHEEL, 'wheels');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-output')).toContainText('wheels ready');
@@ -425,7 +425,7 @@ test('a script pane has a grab cursor on its top row and a close cross on hover;
   page.on('pageerror', (e) => errors.push(e.message));
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page, HOVER, 'hovers');
   await page.keyboard.press('Enter');
   const id = 'hovers/main';
@@ -500,7 +500,7 @@ test('createPane{tooltip = true} is accepted; no pane shows a name tag on hover'
   page.on('pageerror', (e) => errors.push(e.message));
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page, HOVER.replace('border = false}', 'border = false, tooltip = true}'), 'hovers');
   await page.keyboard.press('Enter');
   // The pane exists: createPane did not reject the option.
@@ -517,7 +517,7 @@ test('createPane{tooltip = true} is accepted; no pane shows a name tag on hover'
 // ADR 0084 addendum 2: no hover outline on the map, the others keep it.
 test('the map has no hover outline, the other panes keep it', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-pane-comm')).toBeVisible();
@@ -537,7 +537,7 @@ test('partial-row gauges under the text; pane:theme follows a new pane colour', 
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(
     page,
     `-- @name panes

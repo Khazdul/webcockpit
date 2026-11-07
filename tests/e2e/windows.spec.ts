@@ -255,7 +255,7 @@ async function enterMume(page: Page, profile: string): Promise<void> {
     ws.send(Buffer.concat([Buffer.from([IAC, WILL, GMCP]), Buffer.from('\r\nBy what name do you wish to be known? ')]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async (t) => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.save('default', t);

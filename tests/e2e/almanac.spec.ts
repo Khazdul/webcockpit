@@ -51,7 +51,7 @@ test('almanac: synced clock, NOW, PLAN and LORE tabs, an event added with the ed
   });
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   // The `time` command's answer sets the clock to the hour.

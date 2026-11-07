@@ -151,6 +151,6 @@ test.describe('landscape', () => {
 
 test('the start page opens on a portrait phone without too small', async ({ page }) => {
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await expect(tooSmall(page)).toHaveCount(0);
 });

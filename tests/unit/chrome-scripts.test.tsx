@@ -225,10 +225,10 @@ async function openScripts(lib: ScriptLibrary): Promise<HTMLElement> {
   const page = mountStartPage(host, services(lib), { onEnter: () => {} });
   cleanup.push(() => page.dispose());
   await act(() => page.show());
-  const items = [...host.querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
+  const items = [...host.querySelectorAll('.wc-sm-item')].map((e) => e.getAttribute('data-key'));
   // Scripts sits under Profile on the main menu (stage 32).
   expect(items.slice(0, 3)).toEqual(['enter', 'profile', 'scripts']);
-  await act(() => (host.querySelector('.wc-mrow[data-key="scripts"] .wc-label') as HTMLElement).click());
+  await act(() => (host.querySelector('.wc-sm-item[data-key="scripts"]') as HTMLElement).click());
   await flush();
   return host;
 }
@@ -264,8 +264,8 @@ describe('Scripts page', () => {
     const page = mountStartPage(host, services(), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    expect(host.querySelector('.wc-mrow[data-key="profile"]')).not.toBeNull();
-    expect(host.querySelector('.wc-mrow[data-key="scripts"]')).toBeNull();
+    expect(host.querySelector('.wc-sm-item[data-key="profile"]')).not.toBeNull();
+    expect(host.querySelector('.wc-sm-item[data-key="scripts"]')).toBeNull();
     await act(() => page.dispose());
     expect(await escOptionsHub()).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'weather', 'back']);
     expect(await escOptionsHub(await library())).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'scripts', 'weather', 'back']);

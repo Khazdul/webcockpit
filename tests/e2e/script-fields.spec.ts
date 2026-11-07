@@ -88,7 +88,7 @@ test('a script pane text field takes the keyboard and gives it back; its keys ne
   const field = pane.locator('input.wc-spane-field');
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await putScript(page, SCRIPT, 'fields');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-output')).toContainText('fields ready');

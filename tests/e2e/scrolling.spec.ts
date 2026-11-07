@@ -58,7 +58,7 @@ async function restoreRuns(page: Page, copies = 0): Promise<void> {
 test('About scrolls by pixels; the keys by rows', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 500 });
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow[data-key="about"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="about"]').click();
   await expect(startFrame(page).locator('.wc-title-row')).toContainText('─── About ───');
   const box = startFrame(page).locator('.wc-about-text');
   await expectPixelWheel(page, box);
@@ -78,7 +78,7 @@ test('History table scrolls by pixels; the cursor stays in view', async ({ page 
   await pinDemoClock(page);
   await page.goto('/');
   await restoreRuns(page, 8);
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   await expect(startFrame(page).locator('.wc-title-row')).toHaveText('─── History ───');
   const box = startFrame(page).locator('.wc-table-rows');
   await expect(box.locator('.wc-tr:not(.is-empty)')).toHaveCount(35);
@@ -95,7 +95,7 @@ test('Statistics tables scroll by pixels', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 520 });
   await page.goto('/');
   await restoreRuns(page);
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   await expect(startFrame(page).locator('.wc-title-row')).toHaveText('─── History ───');
   await page.keyboard.press('ArrowDown');
   await expect(startFrame(page).locator('.wc-tr.is-cur-focus')).toContainText('Rasta');
@@ -115,12 +115,12 @@ test('Statistics tables scroll by pixels', async ({ page }) => {
 test('Scripts list and help scroll by pixels; the cursor stays in view', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 500 });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     const w = window as unknown as { __wc: { shell: { scripts: { create(name: string): Promise<unknown> } } } };
     for (let i = 0; i < 30; i++) await w.__wc.shell.scripts.create(`s${String(i).padStart(2, '0')}`);
   });
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="scripts"]').click();
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
   const list = f.locator('.wc-scr-list');
@@ -140,7 +140,7 @@ test('Scripts list and help scroll by pixels; the cursor stays in view', async (
 test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 500 });
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="scripts"]').click();
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
   const chooser = page.waitForEvent('filechooser');
@@ -160,7 +160,7 @@ test('Export editor log scrolls by pixels; the rows near the view are rendered',
   await pinDemoClock(page);
   await page.goto('/');
   await restoreRuns(page);
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   const f = startFrame(page);
   await expect(f.locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
   await page.keyboard.press('ArrowDown');

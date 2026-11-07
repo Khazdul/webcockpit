@@ -1,10 +1,12 @@
 // Stage 24 round 1 (ADR 0083, ADR 0075 §3.2): on a phone grid under 45
-// columns the first paint crops the banner as the app does, at the same
-// place, and the app's banner takes over without a pixel changing.
+// columns the first paint crops the banner as the old start page did.
+// Since stage 41 (ADR 0125) the start page has no pixel banner: at the
+// hand-over the first paint's layer goes and the new page takes over (the
+// first paint's redesign, 41d, makes the two match again).
 import { expect, test } from '@playwright/test';
-import { holdChrome, wordmarkClips } from './first-paint';
+import { holdChrome } from './first-paint';
 
-test('a cropped banner is painted where the app draws it', async ({ page }) => {
+test('a cropped banner is painted first; the hand-over leaves the new start page', async ({ page }) => {
   // DejaVu 16 on a Pixel 7: 10 px cells, 41 columns.
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
@@ -18,16 +20,9 @@ test('a cropped banner is painted where the app draws it', async ({ page }) => {
   await expect(first).toHaveCount(11);
   const width = await first.first().evaluate((e) => e.textContent!.length);
   expect(width).toBeLessThan(45);
-  await page.evaluate(() => document.fonts.ready);
-  const rects = await first.evaluateAll((els) => els.map((e) => JSON.stringify(e.getBoundingClientRect())));
-  const clips = await wordmarkClips(page);
-  const before = await Promise.all(clips.map((clip) => page.screenshot({ clip })));
   release();
   await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
   await expect(page.locator('#wc-first')).toHaveCount(0);
-  const app = page.locator('.wc-start .wc-banner .wc-line');
-  expect(await app.first().evaluate((e) => e.textContent!.length)).toBe(width);
-  expect(await app.evaluateAll((els) => els.map((e) => JSON.stringify(e.getBoundingClientRect())))).toEqual(rects);
-  const after = await Promise.all(clips.map((clip) => page.screenshot({ clip })));
-  for (let i = 0; i < clips.length; i++) expect(after[i]!.equals(before[i]!), `wordmark part ${i}`).toBe(true);
+  await expect(page.locator('.wc-start .wc-banner')).toHaveCount(0);
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
 });

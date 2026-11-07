@@ -54,7 +54,7 @@ test('a user script triggers, rewrites a line and takes an alias', async ({ page
   const sentText = () => Buffer.concat(received).toString('latin1');
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   // The start page has opened (and upgraded) the database by now.
   await expect.poll(() => page.evaluate(() => new Promise((r) => {
     const q = indexedDB.open('webcockpit');
