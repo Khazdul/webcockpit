@@ -205,6 +205,7 @@ describe('Spotlights popup', () => {
 const frameEl = (host: HTMLElement) => host.querySelector<HTMLElement>('.wc-frame:not([hidden])')!;
 const selected = (host: HTMLElement) => frameEl(host).querySelector('.wc-mrow.is-sel')?.textContent;
 const title = (host: HTMLElement) => frameEl(host).querySelector('.wc-c-section')?.textContent;
+const startSel = (host: HTMLElement) => frameEl(host).querySelector('.wc-sm-item.is-sel .wc-sm-label')?.textContent;
 
 describe('filtered empty pages (start page)', () => {
   it('Spotlights: Settings… opens the popup in the page; Esc closes it first; a change tries again', async () => {
@@ -215,7 +216,7 @@ describe('filtered empty pages (start page)', () => {
     const page = mountStartPage(host, svc, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-mrow[data-key="spotlights"] .wc-label'));
+    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
     await flush();
     expect(title(host)).toBe('─── Spotlights ───');
     expect(frameEl(host).textContent).toContain('No spotlights match your settings.');
@@ -256,7 +257,7 @@ describe('filtered empty pages (start page)', () => {
     await click(pop()!.querySelector('.wc-pop-x'));
     await flush();
     expect(openSpotlights).toHaveBeenCalledTimes(2);
-    expect(selected(host)).toBe('<< Spotlights >>');
+    expect(startSel(host)).toBe('Spotlights');
   });
 
   it('Spotlights: the no-data page is unchanged', async () => {
@@ -265,7 +266,7 @@ describe('filtered empty pages (start page)', () => {
     const page = mountStartPage(host, services(fakeLib([]), { openSpotlights: async () => 'no_data' }), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-mrow[data-key="spotlights"] .wc-label'));
+    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
     await flush();
     expect(frameEl(host).textContent).toContain('No spotlights yet.');
     expect(frameEl(host).querySelector('.wc-footer')!.textContent).toBe('Any key to return');
@@ -291,7 +292,7 @@ describe('filtered empty pages (start page)', () => {
     const page = mountStartPage(host, svc, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-mrow[data-key="credits"] .wc-label'));
+    await click(host.querySelector('.wc-sm-item[data-key="credits"]'));
     await flush();
     await flush();
     expect(title(host)).toBe('─── Credits ───');

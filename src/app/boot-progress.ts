@@ -9,10 +9,9 @@
 //
 // The start page is held until the selected font's faces are loaded
 // (`gate`, with a long safety timeout for a stalled download), then the
-// app's banner takes the first paint's place in the same frame and the
-// rest of the page fades in as one block, once no font face is loading
-// (`revealStart`). Only on the first boot; returning to the start page
-// later is instant.
+// first paint's layer goes and the start page fades in as one block,
+// once no font face is loading (`revealStart`). Only on the first boot;
+// returning to the start page later is instant.
 
 import type { StarAnim } from '../chrome/banner-data';
 
@@ -49,9 +48,8 @@ declare global {
  */
 export const FONT_GATE_MS = 45_000;
 /**
- * The start page's fade-in, ms. Every row fades in together, as one
- * block: a stagger by position made the top row (the selected
- * `<< Enter MUME >>`) lead.
+ * The start page's fade-in, ms: the whole surface together, as one block
+ * (a stagger by position made the top of the page lead).
  */
 export const REVEAL_FADE_MS = 1350;
 
@@ -128,11 +126,15 @@ export function bootQuote(): number | null {
  * Reveals the start page mounted in `mount`, which the caller hid with
  * `opacity: 0` before showing it: waits for the main frame to render and
  * for every font face its layout started (at most `fontMs`), then in one
- * task unhides it and hands over from the first paint (its banner goes,
- * the app's identical one is there), and fades every other row of the
- * main frame (and the notices row) in, all together. A banner the first
- * paint did not draw fades in with the rest. Resolves when the fade has
+ * task unhides it, hands over from the first paint (its layer goes:
+ * `bootDone`) and fades the whole start surface (sky, wordmark, menu,
+ * quote, almanac, notices) in as one block. Resolves when the fade has
  * started (it runs on). `prefers-reduced-motion`: at once, no fade.
+ *
+ * Since stage 41 (ADR 0125) the start page is no longer the cell grid the
+ * first paint drew its pixel banner on, so the hand-over is a fade, not a
+ * pixel-for-pixel swap; the first paint's redesign (stage 41d) makes the
+ * two match again.
  *
  * The font wait: a face that is still loading hides all text of its style
  * (`font-display: block`), not only its own glyphs. The page's first
@@ -149,16 +151,9 @@ export async function revealStart(mount: HTMLElement, fontMs = FONT_GATE_MS): Pr
     main.getBoundingClientRect();
     await gate(fonts.ready, fontMs);
   }
-  if (main && !reducedMotion(win)) {
-    const drawn = doc.querySelector('#wc-first .wcf-banner') !== null;
-    const rows = [...mount.querySelectorAll<HTMLElement>('.wc-start-notices'), ...main.children].filter(
-      (el): el is HTMLElement =>
-        typeof (el as HTMLElement).animate === 'function' && !(drawn && el.classList.contains('wc-banner')),
-    );
-    // Started in one task, so they share their start time (the first frame that draws them).
-    for (const el of rows) {
-      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL_FADE_MS, easing: 'ease-in-out', fill: 'backwards' });
-    }
+  const surface = mount.querySelector<HTMLElement>('.wc-start');
+  if (main && surface && typeof surface.animate === 'function' && !reducedMotion(win)) {
+    surface.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL_FADE_MS, easing: 'ease-in-out', fill: 'backwards' });
   }
   mount.style.opacity = '';
   bootDone();

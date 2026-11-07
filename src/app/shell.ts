@@ -128,6 +128,9 @@ import { bootDone, bootStep, revealStart } from './boot-progress';
 
 type ChromeModule = typeof import('../chrome');
 
+/** Enter MUME: the cockpit's fade in from the start page, ms. */
+const ENTER_FADE_MS = 280;
+
 /** Delay before the profile editor chunk is prefetched on the start page. */
 const EDITOR_PREFETCH_MS = 2000;
 
@@ -291,6 +294,12 @@ export class Shell {
   enter(): void {
     const app = this.ensureApp();
     this.showCockpit(app);
+    // A short fade in from the start page (ADR 0125); the input has its
+    // focus and its keys at once.
+    const win = app.el.ownerDocument.defaultView;
+    if (typeof app.el.animate === 'function' && !win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      app.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ENTER_FADE_MS, easing: 'ease-out' });
+    }
     app.connectLive();
   }
 
