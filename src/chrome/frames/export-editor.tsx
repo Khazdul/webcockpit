@@ -171,10 +171,14 @@ interface Metrics {
   view: number;
 }
 
-/** The open comment composer: a new comment (`add`) before item `place`, or comment `index` edited. */
+/**
+ * The open comment composer: a new comment (`add`) before item `place`, or
+ * comment `index` edited. The text being typed is the composer's own state,
+ * so a keystroke re-renders the composer, never the log.
+ */
 type Composer =
-  | { edit: false; place: number; beforeUs: number | null; slot: number; text: string }
-  | { edit: true; index: number; text: string };
+  | { edit: false; place: number; beforeUs: number | null; slot: number; initial: string }
+  | { edit: true; index: number; initial: string };
 
 const px = (el: Element, name: string, fallback: number): number => {
   const v = parseFloat(getComputedStyle(el).getPropertyValue(name));
@@ -204,7 +208,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
   const blockRef = useRef(0);
   const [comp, setComp] = useState<Composer | null>(null);
   const [compH, setCompH] = useState(0);
-  /** The title being edited inline in the foot, or null. */
+  /** The title edited inline in the foot (its starting text; the field keeps what is typed), or null. */
   const [titleEdit, setTitleEdit] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -398,7 +402,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     if (!d || !log || !items || comp || titleEdit !== null) return;
     if (edit) {
       if (curComment < 0) return;
-      setComp({ edit: true, index: curComment, text: d.comments[curComment]!.text });
+      setComp({ edit: true, index: curComment, initial: d.comments[curComment]!.text });
       return;
     }
     // Above the selection, or at the cursor (after a cursor comment).
@@ -406,7 +410,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     const at = above ? selLo : cur;
     const { beforeUs, slot } = commentSlot(d, log, items, at, above);
     const place = !above && items.kind[at] === ITEM_COMMENT ? at + 1 : at;
-    setComp({ edit: false, place, beforeUs, slot, text: '' });
+    setComp({ edit: false, place, beforeUs, slot, initial: '' });
   };
 
   const closeComposer = (): void => {
@@ -414,13 +418,13 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     setComp(null);
   };
 
-  const saveComment = (): void => {
+  const saveComment = (text: string): void => {
     const c = comp;
     const before = docRef.current;
     if (!c || !before || !items) return;
     closeComposer();
     if (c.edit) {
-      const next = editComment(before, c.index, c.text);
+      const next = editComment(before, c.index, text);
       if (next.comments.length < before.comments.length) {
         setAnchor(null);
         setCursor(keyAfterDelete(items, c.index));
@@ -428,7 +432,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
       save(next);
       return;
     }
-    const next = addComment(before, c.beforeUs, c.text, c.slot);
+    const next = addComment(before, c.beforeUs, text, c.slot);
     if (next === before) return;
     setAnchor(null);
     setCursor({ comment: changedComment(before.comments, next.comments) });
@@ -452,11 +456,11 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
     toStack(logRef.current);
     setTitleEdit(null);
   };
-  const saveTitle = (): void => {
+  const saveTitle = (text: string): void => {
     const d = docRef.current;
     if (titleEdit === null || !d) return;
     const def = defaultTitle(s.character, s.startUs);
-    const v = titleEdit.replace(/\s+/g, ' ').trim();
+    const v = text.replace(/\s+/g, ' ').trim();
     closeTitle();
     save(setTitle(d, v === def ? '' : v));
   };
@@ -867,8 +871,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
         boxRef={compRef}
         top={composerTop(items, geom)}
         edit={comp.edit}
-        text={comp.text}
-        onText={(text) => setComp((c) => (c ? { ...c, text } : c))}
+        initial={comp.initial}
         onSave={saveComment}
         onCancel={closeComposer}
       />
@@ -945,9 +948,8 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
         <div class="wc-exp-row2">
           {titleEdit !== null ? (
             <TitleEditor
-              text={titleEdit}
+              initial={titleEdit}
               ext={ext}
-              onText={setTitleEdit}
               onSave={saveTitle}
               onCancel={closeTitle}
             />
@@ -1011,26 +1013,26 @@ function CommentComposer(p: {
   boxRef: { current: HTMLDivElement | null };
   top: number;
   edit: boolean;
-  text: string;
-  onText(v: string): void;
-  onSave(): void;
+  initial: string;
+  onSave(text: string): void;
   onCancel(): void;
 }): VNode {
-  const flat = collapseComment(p.text);
+  const [text, setText] = useState(p.initial);
+  const flat = collapseComment(text);
   return (
     <div
       class="wc-exp-comp"
       ref={p.boxRef}
       style={{ top: `${p.top}px` }}
       data-wc-own-keys=""
-      onKeyDown={(e) => fieldKeys(e, { save: p.onSave, cancel: p.onCancel, clear: () => p.onText('') })}
+      onKeyDown={(e) => fieldKeys(e, { save: () => p.onSave(text), cancel: p.onCancel, clear: () => setText('') })}
     >
       <div class="wc-exp-comp-in">
         <TextArea
           label={p.edit ? 'Edit comment' : 'Add comment'}
           id="comment"
-          value={p.text}
-          onInput={(v) => p.onText(pasteText(v))}
+          value={text}
+          onInput={(v) => setText(pasteText(v))}
           mono
           rows={2}
           maxLength={COMMENT_MAX}
@@ -1040,15 +1042,15 @@ function CommentComposer(p: {
         <div class={'wc-exp-count' + (flat.length >= COMMENT_MAX ? ' is-full' : '')}>{`${flat.length} / ${COMMENT_MAX}`}</div>
         {flat ? (
           <>
-            <div class="wc-exp-preview">{commentLines(p.text).join('\n')}</div>
-            <p class="wc-exp-hold">{holdText(commentHoldMs(p.text))}</p>
+            <div class="wc-exp-preview">{commentLines(text).join('\n')}</div>
+            <p class="wc-exp-hold">{holdText(commentHoldMs(text))}</p>
           </>
         ) : (
           <div class="wc-exp-preview is-empty">{p.edit ? 'An empty comment is deleted.' : 'Type the comment.'}</div>
         )}
         <div class="wc-exp-cbtns">
           <GlassButton id="CANCEL" label="Cancel" small onClick={p.onCancel} />
-          <GlassButton id="SAVE" label="Save" small primary onClick={p.onSave} />
+          <GlassButton id="SAVE" label="Save" small primary onClick={() => p.onSave(text)} />
         </div>
       </div>
     </div>
@@ -1056,17 +1058,18 @@ function CommentComposer(p: {
 }
 
 /** The title, edited inline in the foot: the field, the file it gives (or the default), Save and Cancel. */
-function TitleEditor(p: { text: string; ext: string; onText(v: string): void; onSave(): void; onCancel(): void }): VNode {
-  const v = p.text.replace(/\s+/g, ' ').trim();
+function TitleEditor(p: { initial: string; ext: string; onSave(text: string): void; onCancel(): void }): VNode {
+  const [text, setText] = useState(p.initial);
+  const v = text.replace(/\s+/g, ' ').trim();
   return (
     <div
       class="wc-exp-file is-edit"
       data-wc-own-keys=""
-      onKeyDown={(e) => fieldKeys(e, { save: p.onSave, cancel: p.onCancel, clear: () => p.onText('') })}
+      onKeyDown={(e) => fieldKeys(e, { save: () => p.onSave(text), cancel: p.onCancel, clear: () => setText('') })}
     >
       <span class="wc-exp-flabel">File</span>
       <div class="wc-exp-tfield">
-        <Field value={p.text} onInput={p.onText} id="title" mono maxLength={TITLE_MAX} autoFocus selectAll />
+        <Field value={text} onInput={setText} id="title" mono maxLength={TITLE_MAX} autoFocus selectAll />
       </div>
       <span class="wc-exp-thint">
         {v ? (
@@ -1077,7 +1080,7 @@ function TitleEditor(p: { text: string; ext: string; onText(v: string): void; on
           'Empty: the default title.'
         )}
       </span>
-      <GlassButton id="SAVE" label="Save" small primary onClick={p.onSave} />
+      <GlassButton id="SAVE" label="Save" small primary onClick={() => p.onSave(text)} />
       <GlassButton id="CANCEL" label="Cancel" small onClick={p.onCancel} />
     </div>
   );
