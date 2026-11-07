@@ -14,19 +14,22 @@
 // deeds, the first with a drop cap in the wordmark's mithril inlay, each
 // date phrase in small caps. `The End.` closes the last chapter.
 //
-// Pagination is CSS columns: the pages are columns of one element as high
-// as the page, overflowing sideways, so the browser lays the book out at
-// any size without script. A spread is one book width; turning moves the
-// columns by whole spreads (`translateX`, in CSS units, so a resize needs
-// no script to stay aligned). Script reads layout only to count the pages
-// and find each chapter's first page: once the box has settled
+// Pagination is CSS columns: each chapter is a column box as high as a
+// page, its pages overflowing sideways, placed at its first page, so the
+// browser lays the text out at any size. A spread is one book width;
+// turning moves the pages by whole spreads (`translateX`, in CSS units, so
+// a resize needs no script to stay aligned). Pages per spread are the CSS's
+// (a container query; script reads the result). Script reads layout only to
+// count the pages and find each chapter's first page: once the box has settled
 // (`useBoxSettled`), when the fonts arrive, and on a resize (debounced
 // 120 ms), keeping the current chapter and the page inside it. A turn is a
 // short fade with a 14 px drift (170 ms out, 240 ms in; none with reduced
-// motion).
+// motion); it lands when the fade-out finishes, or 250 ms after it should
+// have, whichever comes first.
 //
 // Keys: → / PgDn / Space the next spread, ← / PgUp the previous, ↓ / ↑ the
-// next / previous chapter, Home / End, N / P; Esc and Back leave (there is
+// next / previous chapter (↓ in the last chapter stays; ↑ in the first goes
+// to page 1), Home / End, N / P; Esc and Back leave (there is
 // no roll and no automatic return). Touch: a sideways swipe over 40 px
 // turns. Loading, the storage error, no data and the filtered state are
 // pages of the book with today's texts.
@@ -73,6 +76,8 @@ const RELAYOUT_MS = 120;
 const TURN_OUT = 170;
 const TURN_IN = 240;
 const TURN_DRIFT = 14;
+/** A turn lands by this long after its fade-out should have ended, finished or not (ms). */
+const TURN_LATE = 250;
 
 /** Every stored run with its events (the chronicle's input). */
 async function chronicleRuns(lib: RunLibrary): Promise<ChronicleRun[]> {
@@ -195,8 +200,11 @@ function useSwipe(ref: { current: HTMLElement | null }, turn: (dir: 1 | -1) => v
  * where it is placed.
  */
 function measure(book: HTMLElement, pages: HTMLElement): BookLayout {
-  const w = book.clientWidth;
-  const per: 1 | 2 = w < CREDITS_ONE_PAGE ? 1 : 2;
+  // The unrounded width (clientWidth rounds: a book 639.5 px wide would read 640), and the
+  // pages per spread the CSS applied (its container query), so script and layout agree.
+  const w = book.getBoundingClientRect().width;
+  const css = typeof getComputedStyle === 'function' ? getComputedStyle(pages).getPropertyValue('--wc-cred-per').trim() : '';
+  const per: 1 | 2 = css === '1' ? 1 : css === '2' ? 2 : w < CREDITS_ONE_PAGE ? 1 : 2;
   const pitch = w / per;
   const counts = [...pages.querySelectorAll<HTMLElement>('.wc-cred-ch')].map((ch) => {
     const tail = ch.querySelector('.wc-cred-tail');
@@ -321,6 +329,7 @@ function Book(p: { book: ChronicleBook }): VNode {
   const target = useRef<BookPos | null>(null);
   const anim = useRef<Animation | null>(null);
   const fadeIn = useRef(0);
+  const landTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Measures now (once the box has settled; on a resize; when the fonts arrive). */
   const relayout = (): BookLayout | null => {
@@ -353,15 +362,18 @@ function Book(p: { book: ChronicleBook }): VNode {
   useEffect(() => {
     const b = bookRef.current;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let lastW = b?.clientWidth ?? 0;
-    let lastH = b?.clientHeight ?? 0;
+    // The unrounded size (a fraction of a pixel can cross the one-page query).
+    const at = b?.getBoundingClientRect();
+    let lastW = at?.width ?? 0;
+    let lastH = at?.height ?? 0;
     const RO = globalThis.ResizeObserver;
     const ro =
       b && RO
-        ? new RO(() => {
-            if (b.clientWidth === lastW && b.clientHeight === lastH) return;
-            lastW = b.clientWidth;
-            lastH = b.clientHeight;
+        ? new RO((entries) => {
+            const r = entries[entries.length - 1]?.contentRect;
+            if (!r || (r.width === lastW && r.height === lastH)) return;
+            lastW = r.width;
+            lastH = r.height;
             if (timer) clearTimeout(timer);
             timer = setTimeout(() => {
               timer = null;
@@ -383,6 +395,7 @@ function Book(p: { book: ChronicleBook }): VNode {
       fonts?.removeEventListener?.('loadingdone', onFonts);
       ro?.disconnect();
       if (timer) clearTimeout(timer);
+      if (landTimer.current) clearTimeout(landTimer.current);
       anim.current?.cancel();
     };
   }, []);
@@ -434,7 +447,12 @@ function Book(p: { book: ChronicleBook }): VNode {
       { duration: TURN_OUT, easing: 'ease-in', fill: 'forwards' },
     );
     anim.current = out;
-    out.onfinish = () => {
+    let landed = false;
+    const land = (): void => {
+      if (landed) return;
+      landed = true;
+      if (landTimer.current) clearTimeout(landTimer.current);
+      landTimer.current = null;
       const t = target.current;
       target.current = null;
       if (!t) return;
@@ -443,6 +461,9 @@ function Book(p: { book: ChronicleBook }): VNode {
       // The out-fade holds its end (fill) until the in-fade replaces it.
       requestAnimationFrame(() => out.cancel());
     };
+    out.onfinish = land;
+    // A stalled or slow timeline (a hidden tab, a starved engine) must not hold the turn.
+    landTimer.current = setTimeout(land, TURN_OUT + TURN_LATE);
   };
   const goSpread = (s: number): void => {
     const l = ensure();
@@ -454,8 +475,10 @@ function Book(p: { book: ChronicleBook }): VNode {
   };
   const chapter = (d: 1 | -1): void => {
     const cur = (target.current ?? posRef.current).lit;
-    const k = Math.max(0, Math.min(book.chapters.length - 1, cur + d));
-    goTo(posOfChapter(k));
+    // Past the last chapter there is no next one: stay (never turn back). Before the first,
+    // ↑ goes to the book's first page.
+    if (cur + d >= book.chapters.length) return;
+    goTo(posOfChapter(Math.max(0, cur + d)));
   };
   const next = (): void => goSpread(here() + 1);
   const prev = (): void => goSpread(here() - 1);
