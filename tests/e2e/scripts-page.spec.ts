@@ -1,6 +1,9 @@
 // Stage 10 P2: the Scripts page and the script editor (spec §2.10,
 // ADR 0051), from the start page and the menu bar's Scripts window,
-// against a mocked MUME.
+// against a mocked MUME. Stage 44a: the page in the lantern look (a large
+// box, the index, the panel, dialogs as overlay frames). The editor's
+// parts are checked through hooks that outlive its own restyle (44b):
+// `.wc-sed[data-script][data-readonly]`, its text, the CodeMirror classes.
 import { readFile } from 'node:fs/promises';
 import { type Locator, type Page, expect, test } from '@playwright/test';
 
@@ -39,8 +42,13 @@ end)
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 /** The Scripts window's visible frame (ADR 0103). */
 const scriptsWin = (page: Page) => page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
-const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
+const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sed');
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
+const toggleOf = (f: Locator, name: string) => row(f, name).locator('.wc-scr-tog [role="switch"]');
+/** The selected script (the lit row). */
+const selected = (f: Locator) => f.locator('.wc-scr-row.is-on');
+const flash = (f: Locator) => f.locator('.wc-lk-flash');
+const dialog = (page: Page, dlg: string) => page.locator(`.wc-lk-dialog[data-dlg="${dlg}"]`);
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(
     ([fn, args]) => {
@@ -56,7 +64,7 @@ async function openStart(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
 }
 
-/** Start page → Scripts with the keyboard (under Profile since stage 32). */
+/** Start page → Scripts with the keyboard (under Profile since stage 32): a large box. */
 async function scriptsFromStart(page: Page): Promise<Locator> {
   await openStart(page);
   await page.keyboard.press('ArrowDown');
@@ -64,7 +72,8 @@ async function scriptsFromStart(page: Page): Promise<Locator> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-lk-box-large .wc-scr')).toBeVisible();
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Scripts');
   return f;
 }
 
@@ -97,52 +106,58 @@ test('Scripts from the start page: bundled coin looter, help, toggle, read-only 
   const f = await scriptsFromStart(page);
   const looter = row(f, 'coinlooter');
   await expect(looter).toBeVisible();
-  await expect(looter.locator('.wc-scr-lock')).toHaveCount(1);
+  await expect(looter.locator('.wc-scr-lock')).toHaveAttribute('title', 'Bundled with WebCockpit: read-only. Duplicate it to change it.');
   // The cursor starts on the first script (almanac); Down moves it to the
-  // coin looter, whose help is on the right.
-  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^almanac\s*$/);
+  // coin looter, whose panel and help show beside the index.
+  await expect(selected(f)).toHaveAttribute('data-name', 'almanac');
   await page.keyboard.press('ArrowDown');
-  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^coinlooter\s*$/);
-  const detail = f.locator('.wc-scr-frame');
-  await expect(detail).toContainText('bundled · read-only');
-  await expect(detail).toContainText('Seconds to wait before looting');
-  await expect(detail).not.toContainText('#script set coinlooter');
-  // Bundled: RENAME and DELETE are off.
+  await expect(selected(f)).toHaveAttribute('data-name', 'coinlooter');
+  const panel = f.locator('.wc-scr-panel');
+  await expect(panel.locator('.wc-scr-title')).toHaveText('coinlooter');
+  await expect(panel).toContainText('bundled · read-only');
+  await expect(panel).toContainText('Seconds to wait before looting');
+  await expect(f).not.toContainText('#script set coinlooter');
+  // Bundled: Rename and Delete are off, with the reason.
   await expect(f.locator('[data-btn="RENAME"]')).toHaveAttribute('aria-disabled', 'true');
-  await expect(f.locator('[data-btn="DELETE"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(f.locator('[data-btn="DELETE"]')).toHaveAttribute('title', 'Bundled scripts are read-only');
 
-  // Enter on the toggle turns it on (global, stored), again turns it off.
+  // Enter on the row turns it on (global, stored), again turns it off.
   await page.keyboard.press('Enter');
-  await expect(looter.locator('.wc-check')).toHaveClass(/is-on/);
-  await expect(f.locator('.wc-flash')).toHaveText('coinlooter is on. It runs when you enter MUME.');
+  await expect(toggleOf(f, 'coinlooter')).toHaveAttribute('aria-checked', 'true');
+  await expect(flash(f)).toHaveText('coinlooter is on. It runs when you enter MUME.');
+  await expect(panel.locator('.wc-scr-status')).toHaveText('on · at login');
   expect(await lib<string[]>(page, 'enabledNames')).toEqual(['coinlooter']);
   await page.keyboard.press('Enter');
-  await expect(looter.locator('.wc-check')).not.toHaveClass(/is-on/);
+  await expect(toggleOf(f, 'coinlooter')).toHaveAttribute('aria-checked', 'false');
 
-  // → into the detail (its first setting), Home to its buttons, Enter on EDIT: the read-only editor.
+  // → into the panel (its first setting), Home to its buttons, Enter on Edit: the read-only editor.
   await page.keyboard.press('ArrowRight');
-  await expect(f.locator('.wc-scr-drow[data-row="set:auto"] .wc-scr-cursor')).toHaveText('▸');
+  await expect(f.locator('.wc-scr-set.is-cur')).toHaveAttribute('data-set', 'auto');
   await page.keyboard.press('Home');
-  await expect(f.locator('.wc-btn.is-sel-focus')).toHaveText(/EDIT/);
+  await expect(f.locator('.wc-lk-btn.is-sel')).toHaveAttribute('data-btn', 'EDIT');
   await page.keyboard.press('Enter');
   await expect(editor(page)).toHaveAttribute('data-readonly', 'true');
-  await expect(editor(page).locator('.wc-ped-title')).toContainText('─── Script Editor: coinlooter ───');
+  await expect(editor(page)).toHaveAttribute('data-script', 'coinlooter');
   const before = await bufferText(page);
   await page.keyboard.type('xyz');
   expect(await bufferText(page)).toBe(before);
   await expect(editor(page).locator('[data-btn="SAVE"]')).toHaveCount(0);
 
-  // DUPLICATE opens the editable copy in its place.
+  // Duplicate opens the editable copy in its place.
   await editor(page).locator('[data-btn="DUPLICATE"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'coinlooter-copy');
   await expect(editor(page)).toHaveAttribute('data-readonly', 'false');
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Duplicated as coinlooter-copy');
+  await expect(editor(page)).toContainText('Duplicated as coinlooter-copy');
   expect(await bufferText(page)).toContain('-- @name     coinlooter-copy');
   await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   await expect(row(f, 'coinlooter-copy')).toBeVisible();
   await expect(row(f, 'coinlooter-copy').locator('.wc-scr-lock')).toHaveCount(0);
-  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^coinlooter-copy\s*$/);
+  await expect(selected(f)).toHaveAttribute('data-name', 'coinlooter-copy');
+  // Back from the editor the keys are on the panel's button row: Esc goes to the index first.
+  await expect(f.locator('.wc-lk-btn.is-sel')).toHaveAttribute('data-btn', 'EDIT');
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-scr-row.is-cur')).toHaveAttribute('data-name', 'coinlooter-copy');
   expect(errors).toEqual([]);
 });
 
@@ -153,14 +168,18 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await openScriptsWindow(page);
   const f = scriptsWin(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
+  await expect(page.locator('.wc-win[data-win="scripts"] .wc-win-t')).toHaveText('Scripts');
+  // The window's root page has no Back of its own.
+  await expect(f.locator('.wc-lk-back')).toHaveCount(0);
 
-  // NEW: name prompt, then the editor on the template.
+  // New: the name dialog over the page, then the editor on the template.
   await f.locator('[data-btn="NEW"]').click();
-  await expect(f.locator('.wc-title-row')).toHaveText('─── New Script ───');
+  await expect(dialog(page, 'new')).toBeVisible();
+  await expect(page.locator('.wc-win[data-win="scripts"] .wc-frame[data-under] .wc-scr')).toHaveCount(1);
   await page.keyboard.type('9bad');
   await page.keyboard.press('Enter');
-  await expect(f.locator('.wc-c-danger')).toHaveText('The name must start with a letter.');
+  await expect(dialog(page, 'new').locator('.wc-lk-dialog-err')).toHaveText('The name must start with a letter.');
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.type('pagetest');
   await page.keyboard.press('Enter');
@@ -178,25 +197,28 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
 
   // Unsaved changes: ESC asks; ESC again keeps editing.
   await page.keyboard.press('Escape');
-  await expect(editor(page).locator('.wc-ped-overlay')).toContainText('Save changes to pagetest?');
+  await expect(editor(page)).toContainText('Save changes to pagetest?');
   await page.keyboard.press('Escape');
-  await expect(editor(page).locator('.wc-ped-overlay')).toHaveCount(0);
+  await expect(editor(page)).not.toContainText('Save changes to pagetest?');
 
   await setBuffer(page, SOURCE('seen'));
   await page.keyboard.press('ControlOrMeta+s');
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. Turn it on in the list to run it.');
+  await expect(editor(page)).toContainText('Saved. Turn it on in the list to run it.');
   expect(await lib<{ source: string }>(page, 'get', 'pagetest').then((s) => s.source)).toBe(SOURCE('seen'));
   await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^pagetest\s*$/);
-  await expect(f.locator('.wc-scr-frame')).toContainText('Shout about it');
+  await expect(f.locator('.wc-scr')).toBeVisible();
+  await expect(selected(f)).toHaveAttribute('data-name', 'pagetest');
+  await expect(f.locator('.wc-scr-set[data-set="loud"]')).toContainText('Shout about it');
 
   // Turn it on with the mouse; the host starts it.
-  await row(f, 'pagetest').locator('.wc-check').click();
-  await expect(row(f, 'pagetest').locator('.wc-scr-mark')).toHaveText('●', { timeout: 10_000 });
-  await expect(f.locator('.wc-scr-frame')).toContainText('● on · running');
+  await toggleOf(f, 'pagetest').click();
+  await expect(row(f, 'pagetest').locator('.wc-scr-mark.is-ok')).toHaveCount(1, { timeout: 10_000 });
+  await expect(f.locator('.wc-scr-status')).toHaveText('on · running');
+  await expect(f.locator('.wc-scr-count')).toContainText(/scripts · \d+ running/);
 
-  // Esc on the list closes the window; back in the game the trigger fires.
+  // Esc: the panel (the editor was opened from it), then the window closes;
+  // back in the game the trigger fires.
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
@@ -208,14 +230,14 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   // Edit and save while it runs: it reloads at once.
   await openScriptsWindow(page);
   await row(f, 'pagetest').locator('.wc-scr-name').click();
-  await expect(f.locator('.wc-scr-frame .wc-scr-title')).toHaveText('pagetest');
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await expect(f.locator('.wc-scr-panel .wc-scr-title')).toHaveText('pagetest');
+  await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'pagetest');
   await editor(page).locator('.cm-content').click();
   await setBuffer(page, SOURCE('again'));
   await page.keyboard.press('ControlOrMeta+s');
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  // Esc: the editor, the detail frame (EDIT was pressed there), the window.
+  await expect(editor(page)).toContainText('Saved. The script reloads.');
+  // Esc: the editor, the panel (Edit was pressed there), the window.
   for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
@@ -225,15 +247,14 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   await expect(rows.filter({ hasText: '[goblin again]' })).toHaveCount(1);
   await expect(rows.filter({ hasText: '[goblin seen]' })).toHaveCount(1);
 
-  // A runtime error shows on the editor's status row and under the list row.
+  // A runtime error shows under the list row and in the editor.
   await openScriptsWindow(page);
   await row(f, 'pagetest').locator('.wc-scr-name').click();
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   await editor(page).locator('.cm-content').click();
   await setBuffer(page, SOURCE('again').replace('echo(', 'ecko('));
   await page.keyboard.press('ControlOrMeta+s');
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  // Esc: the editor, the detail frame (EDIT was pressed there), the window.
+  await expect(editor(page)).toContainText('Saved. The script reloads.');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
@@ -242,11 +263,13 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   await page.keyboard.press('Enter');
   await expect.poll(() => lib<{ lastError: string | null }>(page, 'get', 'pagetest').then((s) => s.lastError)).toMatch(/^pagetest:8:/);
   await openScriptsWindow(page);
-  await expect(f.locator('.wc-scr-error').first()).toContainText('pagetest:8:');
+  await expect(row(f, 'pagetest').locator('.wc-scr-error')).toContainText('pagetest:8:');
+  await expect(row(f, 'pagetest').locator('.wc-scr-error')).toHaveAttribute('title', /^pagetest:8:/);
   await row(f, 'pagetest').locator('.wc-scr-name').click();
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await expect(f.locator('.wc-scr-problem')).toContainText('Last error: pagetest:8:');
+  await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
   // … and on its line in the editor (lua-lint.ts).
-  await expect(editor(page).locator('.wc-sed-status')).toHaveAttribute('title', /^Ln 8: Runtime error \(saved version\): /);
+  await expect(editor(page)).toContainText('Runtime error (saved version)');
   await expect(editor(page).locator('.cm-lintRange.wc-diag-runtime')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
@@ -258,43 +281,49 @@ test('import shows the code and a warning first; export downloads the .lua file'
   const chooser = page.waitForEvent('filechooser');
   await f.locator('[data-btn="IMPORT"]').click();
   await (await chooser).setFiles({ name: 'goblins.lua', mimeType: 'text/plain', buffer: Buffer.from(SOURCE('imported')) });
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Import Script ───');
-  await expect(f.locator('.wc-c-err').first()).toHaveText('This script can send commands to the game as you.');
-  await expect(f.locator('.wc-scr-import')).toContainText('echo("[goblin imported]")');
+  const imp = dialog(page, 'import');
+  await expect(imp.locator('.wc-lk-hood-t')).toHaveText('Import Script');
+  await expect(imp.locator('.wc-scr-warn')).toHaveText('This script can send commands to the game as you.');
+  await expect(imp).toContainText('Read goblins.lua before you import it. It is added turned off.');
+  await expect(imp.locator('.wc-scr-src')).toContainText('echo("[goblin imported]")');
+  await expect(imp.locator('.wc-scr-gut')).toContainText('9');
   // ESC cancels: nothing is added.
   await page.keyboard.press('Escape');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(imp).toHaveCount(0);
   expect(await lib(page, 'get', 'pagetest')).toBeNull();
 
   const again = page.waitForEvent('filechooser');
   await f.locator('[data-btn="IMPORT"]').click();
   await (await again).setFiles({ name: 'goblins.lua', mimeType: 'text/plain', buffer: Buffer.from(SOURCE('imported')) });
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Import Script ───');
+  await expect(imp).toBeVisible();
   await page.keyboard.press('y');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  await expect(f.locator('.wc-flash')).toHaveText('Imported pagetest from goblins.lua. It is off until you turn it on.');
-  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^pagetest\s*$/);
-  await expect(row(f, 'pagetest').locator('.wc-check')).not.toHaveClass(/is-on/);
+  await expect(imp).toHaveCount(0);
+  await expect(flash(f)).toHaveText('Imported pagetest from goblins.lua. It is off until you turn it on.');
+  await expect(selected(f)).toHaveAttribute('data-name', 'pagetest');
+  await expect(toggleOf(f, 'pagetest')).toHaveAttribute('aria-checked', 'false');
 
-  // EXPORT asks: this script, or all of them. Enter takes this script.
+  // Export asks: this script, or all of them. Enter takes this script.
   await f.locator('[data-btn="EXPORT"]').click();
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Scripts ───');
-  await expect(f.locator('.wc-mrow.is-sel')).toHaveText('<< This script (pagetest.lua) >>');
+  const exp = dialog(page, 'export');
+  await expect(exp.locator('.wc-lk-row.is-on')).toHaveAttribute('data-k', 'one');
+  await expect(exp.locator('.wc-lk-row[data-k="one"]')).toContainText('pagetest.lua');
   const download = page.waitForEvent('download');
   await page.keyboard.press('Enter');
   const d = await download;
   expect(d.suggestedFilename()).toBe('pagetest.lua');
   expect(await readFile(await d.path(), 'utf8')).toBe(SOURCE('imported'));
-  await expect(f.locator('.wc-flash')).toHaveText('Exported pagetest.lua.');
+  await expect(flash(f)).toHaveText('Exported pagetest.lua.');
 
-  // Keyboard: the button row has the focus after the click; → → to DELETE, Enter, y.
+  // Keyboard: the panel's button row has the keys after the click; → → to Delete, Enter, y.
+  await expect(f.locator('.wc-lk-btn.is-sel')).toHaveAttribute('data-btn', 'EXPORT');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
-  await expect(f.locator('.wc-btn.is-sel-focus')).toHaveText(/DELETE/);
+  await expect(f.locator('.wc-lk-btn.is-sel')).toHaveAttribute('data-btn', 'DELETE');
   await page.keyboard.press('Enter');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Delete Script ───');
+  await expect(dialog(page, 'delete')).toContainText('Delete script pagetest?');
+  await expect(dialog(page, 'delete')).toContainText('Its settings and saved data go too.');
   await page.keyboard.press('y');
-  await expect(f.locator('.wc-flash')).toHaveText('Deleted pagetest.');
+  await expect(flash(f)).toHaveText('Deleted pagetest.');
   expect(await lib(page, 'get', 'pagetest')).toBeNull();
   expect(errors).toEqual([]);
 });
@@ -308,9 +337,9 @@ test('export all writes one backup file; import restores it, turned off, with se
   await lib(page, 'setSetting', 'coinlooter', 'delay', '0.5');
 
   await f.locator('[data-btn="EXPORT"]').click();
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Scripts ───');
+  await expect(dialog(page, 'export')).toContainText('A backup holds your own scripts');
   const download = page.waitForEvent('download');
-  await f.locator('.wc-mrow[data-key="all"] .wc-label').click();
+  await dialog(page, 'export').locator('.wc-lk-row[data-k="all"]').click();
   const d = await download;
   expect(d.suggestedFilename()).toMatch(/^webcockpit-scripts-\d{4}-\d\d-\d\d\.json$/);
   const text = await readFile(await d.path(), 'utf8');
@@ -323,27 +352,29 @@ test('export all writes one backup file; import restores it, turned off, with se
       expect.objectContaining({ name: 'coinlooter', settings: { delay: 0.5 } }),
     ]),
   );
-  await expect(f.locator('.wc-flash')).toHaveText(`Exported 1 script and all settings to ${d.suggestedFilename()}.`);
+  await expect(flash(f)).toHaveText(`Exported 1 script and all settings to ${d.suggestedFilename()}.`);
 
-  // Lose the script, then restore the backup through IMPORT.
+  // Lose the script, then restore the backup through Import.
   await lib(page, 'remove', 'pagetest');
   await expect(row(f, 'pagetest')).toHaveCount(0);
   const chooser = page.waitForEvent('filechooser');
   await f.locator('[data-btn="IMPORT"]').click();
   await (await chooser).setFiles({ name: d.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.from(text) });
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Restore Scripts ───');
-  await expect(f.locator('.wc-c-err').first()).toHaveText('These scripts can send commands to the game as you.');
-  await expect(f).toContainText('1 script: pagetest');
+  const res = dialog(page, 'restore');
+  await expect(res.locator('.wc-lk-hood-t')).toHaveText('Restore Scripts');
+  await expect(res.locator('.wc-scr-warn')).toHaveText('These scripts can send commands to the game as you.');
+  await expect(res).toContainText(`Restore from ${d.suggestedFilename()}?`);
+  await expect(res).toContainText('1 script: pagetest');
   await page.keyboard.press('y');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  await expect(f.locator('.wc-flash')).toHaveText('Restored 1 script, settings and data of 1. Restored scripts are off.');
-  await expect(row(f, 'pagetest').locator('.wc-check')).not.toHaveClass(/is-on/);
+  await expect(res).toHaveCount(0);
+  await expect(flash(f)).toHaveText('Restored 1 script, settings and data of 1. Restored scripts are off.');
+  await expect(toggleOf(f, 'pagetest')).toHaveAttribute('aria-checked', 'false');
   expect(await lib(page, 'get', 'pagetest')).toMatchObject({ source: SOURCE('backed up'), enabled: false, settings: { loud: true } });
 
   // A file that is not a backup is refused with a reason.
   const bad = page.waitForEvent('filechooser');
   await f.locator('[data-btn="IMPORT"]').click();
   await (await bad).setFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"type":"webcockpit-scripts","schema":9}') });
-  await expect(f.locator('.wc-flash')).toHaveText('Restore failed: Unknown backup version 9.');
+  await expect(flash(f)).toHaveText('Restore failed: Unknown backup version 9.');
   expect(errors).toEqual([]);
 });
