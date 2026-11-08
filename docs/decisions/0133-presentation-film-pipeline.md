@@ -569,3 +569,10 @@ The rest of round 1 is in the takes and the Film composition:
   The old ending on the 3:06.35 hit stays when the card fits before it.
 - Take frames now go to `video/out/frames/` on disk. Take B's PNG frames
   ran to about 10 GB and filled the `/tmp` tmpfs.
+
+**Owner round 4 (2026-11-08).** No dips at all. The wolf, too, is a plain
+cut; the takes keep their `dip` markers. The end card comes up 2.6 s after
+Credits' Back (`CARD_DELAY_S`) and holds about 3 s. The fade is still
+placed from the Back, so it stays on beat 295 (3:38.94), black at 3:42.45.
+The start page's quote still fades on the recorded page 0.4 s after the
+Back (take B); delaying that too would need a new take.
