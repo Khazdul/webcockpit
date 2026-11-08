@@ -129,6 +129,16 @@ export class Pointer {
     } else await this.stroke(p.land, p.ms);
   }
 
+  /** Presses where the pointer is now, the press landing at `at` (epoch ms). */
+  async pressAt(at: number): Promise<number> {
+    await this.rest(at);
+    const down = Date.now();
+    await this.page.mouse.down();
+    await sleep(this.r(60, 115));
+    await this.page.mouse.up();
+    return down;
+  }
+
   /** Rests until `until` (epoch ms), drifting a pixel or two now and then. */
   async rest(until: number): Promise<void> {
     while (Date.now() < until - 40) {
@@ -184,11 +194,15 @@ export class Pointer {
     return down;
   }
 
-  /** Moves straight onto `el` (no click), arriving at `at` (epoch ms). */
-  async hoverAt(el: Locator, at: number): Promise<void> {
-    await this.rest(at - 2100);
+  /** Moves straight onto `el` (no click), arriving at `at` (epoch ms); `slow`: an unhurried move the eye can follow. */
+  async hoverAt(el: Locator, at: number, o: { slow?: boolean } = {}): Promise<void> {
+    await this.rest(at - (o.slow ? 3600 : 2100));
     const b = await this.box(el);
     const p = this.plan(b);
+    if (o.slow) {
+      p.ms *= 2.4;
+      p.over = null;
+    }
     await this.rest(at - p.ms - (p.over ? p.fixMs + 50 : 0));
     await this.follow(p);
   }

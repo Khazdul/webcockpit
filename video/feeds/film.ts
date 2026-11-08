@@ -28,3 +28,13 @@ export const EXCERPTS = {
 } satisfies Record<string, Excerpt>;
 
 export type ExcerptName = keyof typeof EXCERPTS;
+
+/**
+ * The pony is never labelled in the film (owner, round 1: "MINE" looks
+ * ugly): its label comes out of the text and the GMCP. Every film excerpt
+ * passes its lines through this. (Tod keeps his label.)
+ */
+export function noPonyLabel(body: string): string | null {
+  if (body.startsWith('\x1bGMCP ')) return body.replace(/"label":"MINE"/g, '"label":0').replace(/"labels":\["MINE"\]/g, '"labels":[]');
+  return body.replace(/ \(MINE\)'s/g, "'s").replace(/ \(MINE\)/g, '');
+}

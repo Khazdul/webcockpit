@@ -17,10 +17,10 @@
 // leaves south, Gittan looks (`l`), leads the pony (`lead pony`).
 import { type Step, lineBytes } from '../../scripts/lib/mume-feed.ts';
 import { type Excerpt, excerptFeed, loadBackup } from '../record/lib/run-feed.ts';
-import { BREE_RUN, FILM_BACKUP } from './film.ts';
+import { BREE_RUN, FILM_BACKUP, noPonyLabel } from './film.ts';
 
 /** The run's first seconds after the arrival, up to just before `gro pony` (8.6 s). */
-export const ARRIVAL_EXCERPT: Excerpt = { run: BREE_RUN, from: 0.5, to: 8.5, dropCmds: [/^change width/] };
+export const ARRIVAL_EXCERPT: Excerpt = { run: BREE_RUN, from: 0.5, to: 8.5, dropCmds: [/^change width/], rewrite: noPonyLabel };
 
 /** MUME's notice after the room on a (re)connect, from the owner's Cockpit log (2026-09-26). */
 const DISCORD = 'MUME has a community _Discord_ channel that you can reach at \x1b[33mhttps://discord.gg/XkZN55am9a\x1b[0m';
@@ -34,10 +34,11 @@ export interface Arrival {
   from: number;
 }
 
-export function arrival(): Arrival {
+/** `o` changes the excerpt that plays on (take A ends it before `lead pony` and plays it faster). */
+export function arrival(o: Partial<Excerpt> = {}): Arrival {
   const runs = loadBackup(FILM_BACKUP);
   const run = runs.get(BREE_RUN)!;
-  const feed = excerptFeed(runs, ARRIVAL_EXCERPT);
+  const feed = excerptFeed(runs, { ...ARRIVAL_EXCERPT, ...o });
   // the room at login, from the GMCP before the run's start
   let room = 'Lodging Foyer';
   let exits = 'south';

@@ -88,6 +88,8 @@ export interface Excerpt {
   maxGap?: number;
   /** `prime` only from this second (default: the run's start): the GMCP between the previous excerpt and this one. */
   primeFrom?: number;
+  /** Rewrites every line's body (text and `\x1bGMCP …` records) before use; null drops the line. */
+  rewrite?: (body: string) => string | null;
 }
 
 export interface ExcerptFeed {
@@ -109,8 +111,12 @@ const isClientRecord = (body: string): boolean => /^\x1b[A-Z]/.test(body) && !bo
 const plain = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '');
 
 export function excerptFeed(runs: Map<string, Run>, ex: Excerpt): ExcerptFeed {
-  const run = runs.get(ex.run);
-  if (!run) throw new Error(`no run ${ex.run} in the backup`);
+  const found = runs.get(ex.run);
+  if (!found) throw new Error(`no run ${ex.run} in the backup`);
+  const rw = ex.rewrite;
+  const run: Run = rw
+    ? { meta: found.meta, lines: found.lines.flatMap((l) => { const b = rw(l.body); return b === null ? [] : [{ us: l.us, body: b }]; }) }
+    : found;
   const t0 = run.meta.startedUs;
   const rel = (us: number): number => (us - t0) / 1e6;
   const speed = ex.speed ?? 1;
