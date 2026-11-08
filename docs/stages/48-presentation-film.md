@@ -154,3 +154,27 @@ done.
 - Map-on moved to the walk after the strike (no room before it).
 - (5) The silver-to-gold gap shows only about 1.2 s (a pause cap in
   take A): to raise next round.
+
+### Round 2 (2026-11-08, on the round 1 cut)
+
+1. Group must not open docked to the right: a smaller floating pane,
+   bottom right/middle.
+2. The Group settings go too fast to see: show the gear's tooltip before
+   the click, then wait a few seconds before each setting is clicked.
+3. Timers also opens as a smaller floating pane next to Group. Then go
+   through its settings the same way, calmly (at least 8–10 s): turn off
+   Herblores, toggle the display (grid, circles, columns, back to bars).
+4. The Map opens docked as now (it looks good); Group and Timers float
+   over it, far down to the right, side by side.
+5. No Group settings after the wolf.
+6. A clearer fade or transition of the whole game window when the film
+   jumps between game moments (login and mercenary, the wolf, the bar).
+7. Caption: "Open the profile to create aliases, actions and keys from
+   the menu or in the editor."
+8. The editor's search result: about 3 s more.
+9. Scripts: the rows change too fast to read; stop on Almanac.
+10. History: the log plays with the small text size; the right-docked
+    panes about 20 % narrower (the two columns of the right dock stay
+    equally wide).
+11. (Carried from round 1) The mercenary: 2–3 s between 10 silver and
+    1 gold.
