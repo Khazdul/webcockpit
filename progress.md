@@ -72,9 +72,10 @@ Statuses: Next, In progress, Owner testing, Done.
   green, `test:prod` 10/10 on mumecockpit.com. README
   screenshots not regenerated: `scripts/screenshots.ts` still drives the
   old start menu (`.wc-mrow`) and fails every shot; follow-up.
-- **Open:** /tmp full of old vite dirs; the settings change lost in a
-  reload under 200 ms; the morph's 20–69 ms frames; real-window perf
-  checks of 45–47; 38+ old agent worktrees; F11 in a real browser window.
+- **Open:** the settings change lost in a reload under 200 ms; the
+  morph's 20–69 ms frames; real-window perf checks of 45–47. Done after
+  the release: F11 tested by the owner in a real window; /tmp cleared;
+  the 39 merged agent worktrees and their branches removed.
 
 ### 2026-11-08 — Owner feedback round 1 on stages 43 and 45
 
