@@ -43,9 +43,12 @@ export const lineBytes = (raw: string): Buffer =>
 
 /**
  * A feed step: bytes from the server, or a command typed into the input
- * line. `mark` names the step for a recorder's timeline (the film).
+ * line. `mark` names the step for a recorder's timeline (the film). `at`
+ * (ms from the start of `play`) times it: the bytes go then, a command's
+ * Enter lands then (its typing starts before); untimed steps follow the
+ * pace's delays.
  */
-export type Step = ({ out: Buffer } | { cmd: string }) & { mark?: string };
+export type Step = ({ out: Buffer } | { cmd: string }) & { mark?: string; at?: number };
 
 /** The body of each line of a fixture log (timestamps dropped). */
 export function fixture(name: string): string[] {
@@ -266,18 +269,24 @@ export async function connect(page: Page, prepare?: (page: Page) => Promise<void
 export async function play(page: Page, server: WebSocketRoute, steps: readonly Step[], pace: Pace = {}): Promise<void> {
   const p = { ...FAST, ...pace };
   const input = page.locator('.wc-input-field');
+  const t0 = Date.now();
   for (const [i, s] of steps.entries()) {
-    if ('cmd' in s && p.beforeCmd) await sleep(p.beforeCmd);
+    if (s.at !== undefined) {
+      // a command's typing (one key per typeDelay, then Enter) ends at its time
+      const lead = 'cmd' in s ? s.cmd.length * p.typeDelay + 40 : 0;
+      const wait = t0 + s.at - lead - Date.now();
+      if (wait > 0) await sleep(wait);
+    } else if ('cmd' in s && p.beforeCmd) await sleep(p.beforeCmd);
     await p.onStep?.(s, i);
     if ('cmd' in s) {
       await input.focus();
       if (p.typeDelay > 0) await page.keyboard.type(s.cmd, { delay: p.typeDelay });
       else await page.keyboard.insertText(s.cmd);
       await page.keyboard.press('Enter');
-      await sleep(p.afterCmd);
+      if (s.at === undefined) await sleep(p.afterCmd);
     } else {
       server.send(s.out);
-      await sleep(p.afterOut);
+      if (s.at === undefined) await sleep(p.afterOut);
     }
   }
 }
