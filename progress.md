@@ -51,10 +51,27 @@ Released 0.3.2 (start menu panel 360 px in the production build too; Pages deplo
 | 45 | History and run log player | Done | `docs/stages/45-history-player.md` |
 | 46 | Spotlights gallery | Done | `docs/stages/46-spotlights.md` |
 | 47 | Credits and About | Done | `docs/stages/47-credits-about.md` |
+| 48 | Presentation film | Owner testing | `docs/stages/48-presentation-film.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-08 — Stage 48: presentation film, first full cut
+
+- **Done (subagent, branch `worktree-agent-aaa28cb01f9b220f5`):** the film
+  pipeline in `video/` (Remotion + Playwright screencast against a mocked
+  MUME feed from the owner's runs, ADR 0133 and addenda); beat grid 81 bpm
+  confirmed by ear; banding fixed with PNG capture, lossless intermediate
+  and 10-bit masters (the night stays); the whole film from manuscript
+  draft 3 in two takes, 3:10, HEVC 10-bit + H.264 in `video/out/` (not in
+  git); polish pass: night on every start page, no quote under the end
+  card, Timers caption after the spells land. Manuscript is now draft 4.
+- **Next:** the owner watches the full cut; polish rounds; 4K for upload.
+- **Open:** the owner's verdict on the strike look, the 1 s empty boxes,
+  Paper 0.4 s late, 46 fps start page, the montage; whether to fix the
+  "Offline replay mode" bug (Enter MUME before `shell.boot()` returns).
+- **Commits:** d930c8ed…fcc9f243, plus this one. Not merged to main yet.
 
 ### 2026-11-08 — Start menu panel width, release 0.3.2
 
