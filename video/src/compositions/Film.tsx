@@ -36,6 +36,8 @@ const RESTART_BEAT = 259;
 const DIP_S = 0.35;
 /** The end card holds at least this long before the fade, s. */
 const CARD_HOLD_S = 4;
+/** The card comes up this long after Credits' Back (owner round 4: the start menu is seen alone first), s. */
+const CARD_DELAY_S = 2.6;
 /** A fade at the end that is not the music's own ring-out, s (picture and music together). */
 const END_FADE_S = 3.5;
 
@@ -56,10 +58,12 @@ function musicB(b: TimelineFile, kind: string, label?: string): number {
  * starts on that downbeat.
  */
 export function ending(b: TimelineFile): { cardFrom: number; fadeFrom: number; end: number } {
-  const cardFrom = musicB(b, 'start-again') + 0.6;
+  const back = musicB(b, 'start-again');
+  const cardFrom = back + CARD_DELAY_S;
   const hit = beatS(LAST_HIT);
   if (cardFrom + 3 <= hit && cardFrom + 8 >= hit) return { cardFrom, fadeFrom: hit, end: 190.2 };
-  const earliest = cardFrom + CARD_HOLD_S;
+  // the fade is placed from the Back (round 3's card at +0.6, held 4 s), so the later card (round 4) holds about 3 s
+  const earliest = back + 0.6 + CARD_HOLD_S;
   let n = Math.ceil((earliest - beatS(0)) / (beatS(1) - beatS(0)));
   while (!isDownbeat(n)) n++;
   if (n > LAST_HIT && n < RESTART_BEAT) n = RESTART_BEAT;
@@ -153,7 +157,8 @@ export function Film({ a, b }: FilmProps) {
 
   const m0A = marker(a, 'music0').t;
   // only into the wolf fight now (owner round 3: no dip at the mercenary or the inn)
-  const dips = a.markers.filter((m) => m.kind === 'dip').map((m) => m.t - m0A);
+  // none now (owner round 4: the wolf too is a plain cut); the takes' `dip` markers are kept
+  const dips: number[] = [];
   const tips = a.markers
     .filter((m) => m.kind === 'tip' && m.box)
     .map((m) => ({ from: m.t - m0A, to: (a.markers.find((e) => e.kind === 'tip-end' && e.label === m.label && e.t >= m.t)?.t ?? m.t + 1.2) - m0A, text: m.label, box: m.box! }));
