@@ -183,3 +183,14 @@ done.
     back less hastily: Back, Back, visibly. Credits stays (owner's
     answer): Credits 4–5 s, Back. Then the start page at least 3–5 s,
     the music fades, the end.
+
+**Outcome (2026-11-08, commits up to 2216c2e0):** all 12 done.
+- Timers and its settings come after the strike.
+- The strike is in Bree's street, before the West Gate.
+- The ending: Play all, Back, Back, Credits, Back, then the end card for
+  3.9 s; the fade starts on the last hit.
+- The walk and the wolf now play at 3×.
+- Exit lands 0.4 s after beat 199.
+- The browser's own tooltips aren't captured headless, so Remotion draws
+  them.
+- A strip of map shows below the floating panes.
