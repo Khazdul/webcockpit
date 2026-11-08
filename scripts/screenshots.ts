@@ -14,8 +14,9 @@
 // fixtures (tests/fixtures/*.log, invented names); the weather is pinned
 // with the dev hook `__weather` (src/weather/dev.ts). `exporteditor` also
 // writes htmlplayer.png: it records a run through the mocked connection,
-// edits it in the Export Editor (ADR 0115), exports the HTML replay (H) and
-// opens the file. The snow shots run in Firefox (see there). The
+// edits it in the Export Editor (ADR 0115, stage 43d), exports the HTML
+// replay (H, then O) and opens the file. The start-menu pages are driven as
+// tests/e2e does (look.ts, history-page, scripts-page). The snow shots run in Firefox (see there). The
 // `discord-*` shots are for the 0.2.0 release post (WC_SHOT_OUT them
 // elsewhere); some restore the demo runs (tests/fixtures/runs-demo.jsonl.gz)
 // with the page's clock pinned, as tests/e2e/demo-clock.ts does.
@@ -23,7 +24,7 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { type Browser, type BrowserContext, type Page, type WebSocketRoute, chromium, firefox as firefoxType } from '@playwright/test';
+import { type Browser, type BrowserContext, type Locator, type Page, type WebSocketRoute, chromium, firefox as firefoxType } from '@playwright/test';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 /** Output directory (WC_SHOT_OUT, default docs/img/), with a trailing slash. */
@@ -251,8 +252,41 @@ function gameFeed(fight: Fight = 'none'): Step[] {
 
 // ------------------------------------------------------------ pages
 
+/** The start page's menu, Enter MUME chosen (the new look, stage 42: tests/e2e/look.ts `openStart`). */
+async function startMenu(page: Page): Promise<void> {
+  await page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label', { hasText: 'Enter MUME' }).waitFor();
+}
+
+/** The start surface's visible frame (the top of its stack). */
+const startTop = (page: Page): Locator => page.locator('.wc-start .wc-frame:not([hidden])');
+
+/** Waits until no layout B morph runs on the start surface (as tests/e2e/look.ts `morphDone`). */
+async function morphDone(page: Page): Promise<void> {
+  await page.waitForFunction(() => !document.querySelector('.wc-start')?.hasAttribute('data-lk-morph'));
+  await page.locator('.wc-lk-morph').waitFor({ state: 'hidden' });
+}
+
+/**
+ * MUME's date, pinned so a shot does not change with the real date (a game
+ * year is six real days): the seasonal map tiles and the start page's sky
+ * and date line follow it. 16:00 on the 15th of Wedmath (late summer), year
+ * 3039. Saved as the browser's clock (src/gmcp/clock.ts, `wc.clock`) with
+ * the precision still `unset`, as on a new install, unless the page saved
+ * one of its own.
+ */
+const GAME_MOMENT_S = 3039 * 518_400 + 7 * 43_200 + 14 * 1440 + 16 * 60;
+
 async function newPage(browser: Browser): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, baseURL: BASE });
+  await ctx.addInitScript((moment) => {
+    try {
+      if (localStorage.getItem('wc.clock')) return;
+      const now = Math.floor(Date.now() / 1000);
+      localStorage.setItem('wc.clock', JSON.stringify({ epoch: now - moment, precision: 'unset', lastSync: now, reason: null }));
+    } catch {
+      // No storage (a file: page): the real date.
+    }
+  }, GAME_MOMENT_S);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
   return { ctx, page };
@@ -274,7 +308,7 @@ async function live(page: Page, steps: readonly Step[], prepare?: (page: Page) =
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
+  await startMenu(page);
   await prepare?.(page);
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => /^login/.test(document.querySelector('.wc-app')?.getAttribute('data-status') ?? ''));
@@ -393,13 +427,24 @@ async function demoStart(browser: Browser, clock = DEMO_NOW): Promise<{ ctx: Bro
   const { ctx, page } = await newPage(browser);
   await page.clock.setSystemTime(clock);
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
+  await startMenu(page);
   await restoreDemo(page);
   return { ctx, page };
 }
 
-/** Clicks a start-menu row. */
-const menuRow = (page: Page, key: string): Promise<void> => page.locator(`.wc-start .wc-mrow[data-key="${key}"] .wc-label`).click();
+/** Clicks a start-menu item and waits for its page to land. */
+async function menuRow(page: Page, key: string): Promise<void> {
+  await page.locator(`.wc-start .wc-sm-item[data-key="${key}"]`).click();
+  await morphDone(page);
+}
+
+/** History (stage 45, ADR 0130): its page, once its sessions have loaded. */
+async function history(page: Page): Promise<Locator> {
+  await menuRow(page, 'history');
+  const h = startTop(page).locator('.wc-hist');
+  await h.locator('.wc-lk-tr').first().waitFor();
+  return h;
+}
 
 /** The best of `tries` lightning strikes (the most near-white sky), `gap` ms apart. */
 async function brightestStrike(page: Page, tries: number, gap = 3000): Promise<Buffer> {
@@ -447,13 +492,13 @@ async function exportEditor(browser: Browser, name: string, player?: string): Pr
   await page.waitForFunction(() => !/^playing/.test(document.querySelector('.wc-app')?.getAttribute('data-status') ?? ''));
   await sleep(1500);
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
-  await menuRow(page, 'history');
-  const f = page.locator('.wc-start .wc-frame:not([hidden])');
-  await f.locator('.wc-tr:not(.is-empty)').first().waitFor();
+  await startMenu(page);
+  const h = await history(page);
   await page.keyboard.press('Home');
-  await f.locator('[data-btn="EXPORT"]').click();
-  await f.locator('.wc-exp-row:not(.is-empty)').first().waitFor();
+  await h.locator('.wc-lk-btn[data-btn="EXPORT"]').click();
+  await morphDone(page);
+  const f = startTop(page);
+  await f.locator('.wc-exp-row').first().waitFor();
   const cur = (text: string) => f.locator('.wc-exp-row.is-cur', { hasText: text });
   const downTo = async (text: string): Promise<void> => {
     for (let i = 0; i < 600 && !(await cur(text).count()); i++) await page.keyboard.press('ArrowDown');
@@ -478,18 +523,24 @@ async function exportEditor(browser: Browser, name: string, player?: string): Pr
   await sleep(300);
   // On a whole row, so no line is cut at the top.
   await f.locator('.wc-exp-log').evaluate((el) => {
-    const ch = parseFloat(getComputedStyle(el).getPropertyValue('--cell-h'));
-    el.scrollTop = Math.round(el.scrollTop / ch) * ch;
+    // The first line the top edge cuts, moved down to the edge (rows sit below an 8 px pad, comments are taller).
+    const top = el.getBoundingClientRect().top + el.clientTop;
+    const cut = [...el.querySelectorAll('.wc-exp-ln')].find((l) => {
+      const r = l.getBoundingClientRect();
+      return r.top < top - 0.5 && r.bottom > top + 0.5;
+    });
+    if (cut) el.scrollTop -= top - cut.getBoundingClientRect().top;
   });
   await page.mouse.move(5, VIEWPORT.height - 5);
   await sleep(800);
   await shot(page, name);
   if (!player) return ctx.close();
 
-  // H: the HTML replay, downloaded, then opened from disk.
+  // H chooses the HTML replay (the default), O exports it; the file is opened from disk.
   await page.keyboard.press('Escape'); // the selection goes; the export takes the whole log either way
-  const download = page.waitForEvent('download');
   await page.keyboard.press('h');
+  const download = page.waitForEvent('download');
+  await page.keyboard.press('o');
   const file = `${TMP}replay.html`;
   await (await download).saveAs(file);
   await ctx.close();
@@ -530,7 +581,7 @@ const SHOTS: Record<string, Shot> = {
   async startpage(browser) {
     const { ctx, page } = await newPage(browser);
     await page.goto('/');
-    await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
+    await startMenu(page);
     await sleep(2500);
     await shot(page, 'startpage');
     await ctx.close();
@@ -581,7 +632,7 @@ const SHOTS: Record<string, Shot> = {
   async scripts(browser) {
     const { ctx, page } = await newPage(browser);
     await page.goto('/');
-    await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
+    await startMenu(page);
     await page.evaluate(async (src) => {
       const lib = window.__wc!.shell.scripts as unknown as {
         init(): Promise<void>;
@@ -593,13 +644,14 @@ const SHOTS: Record<string, Shot> = {
       // On: the editor's state line reads "● on · runs when you enter MUME", not "○ off".
       await lib.setEnabled('killcounter', true);
     }, KILL_COUNTER);
-    await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
-    const f = page.locator('.wc-start .wc-frame:not([hidden])');
-    // Select it in the list, then EDIT in its detail frame (the Scripts page, ADR 0121).
-    await f.locator('.wc-scr-row[data-script="killcounter"] .wc-scr-name').click();
-    await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+    await menuRow(page, 'scripts');
+    const f = startTop(page);
+    // Select it in the list, then EDIT in its panel (the Scripts page, stage 44).
+    await f.locator('.wc-scr-row[data-name="killcounter"] .wc-scr-name').click();
+    await f.locator('.wc-scr-panel [data-btn="EDIT"]').click();
     const ed = page.locator('.wc-frame:not([hidden]) > .wc-sed');
     await ed.locator('.cm-content').waitFor();
+    await morphDone(page);
     // A new line after the trigger, a call being typed (high enough for the help panel to fit).
     await ed.locator('.cm-line', { hasText: /^end\)$/ }).click();
     await page.keyboard.press('End');
@@ -668,21 +720,15 @@ const SHOTS: Record<string, Shot> = {
       await sleep(6000);
     }, { fight: 'mid', clock: AFTER_RASTA, prepare: restoreDemo }),
 
-  // Start page → Spotlights: the reel plays Rasta's death in the Large font (Display), its card at the
-  // top right, the control box shown. The demo's spotlights are short: the default font leaves the top half empty.
+  // Start page → Spotlights (stage 46, ADR 0131): the wall's first card, Rasta's death, plays in the
+  // viewer; the shot when the death line is in.
   async 'discord-spotlights'(browser) {
     const { ctx, page } = await demoStart(browser);
     await menuRow(page, 'spotlights');
-    await page.locator('.wc-spot-card').waitFor();
-    const box = page.locator('.wc-player-chrome .wc-player-box');
-    await page.mouse.move(VIEWPORT.width * 0.35, VIEWPORT.height * 0.45, { steps: 4 });
-    await box.locator('[data-act="display"]').click();
-    await page.locator('.wc-pc-pop-display .wc-pc-sg[data-font="large"]').click();
-    await box.locator('[data-act="display"]').click();
-    await page.locator('.wc-pc-pop-display').waitFor({ state: 'hidden' });
-    await page.locator('.wc-player .wc-output', { hasText: 'You are dead!' }).waitFor({ timeout: 30_000 });
+    await startTop(page).locator('.wc-spw .wc-spw-card.is-on').waitFor();
+    await page.keyboard.press('Enter');
+    await page.locator('.wc-spv .wc-output', { hasText: 'You are dead!' }).waitFor({ timeout: 30_000 });
     await sleep(1500);
-    // A move shows the chrome again (it hides 6 s after the last); the pointer rests on the text.
     await page.mouse.move(VIEWPORT.width * 0.3, VIEWPORT.height * 0.4, { steps: 4 });
     await sleep(700);
     await shot(page, 'discord-spotlights');
@@ -693,12 +739,11 @@ const SHOTS: Record<string, Shot> = {
   // where Timers (empty in the demo) has just been switched off.
   async 'discord-runlog'(browser) {
     const { ctx, page } = await demoStart(browser);
-    await menuRow(page, 'history');
-    const f = page.locator('.wc-start .wc-frame:not([hidden])');
-    await f.locator('.wc-tr:not(.is-empty)').nth(2).waitFor();
+    const h = await history(page);
+    await h.locator('.wc-lk-tr').nth(2).waitFor();
     await page.keyboard.press('ArrowDown');
-    await f.locator('.wc-tr.is-cur-focus, .wc-tr.is-cur', { hasText: 'Rasta' }).waitFor();
-    await f.locator('[data-btn="RUN LOG"]').click();
+    await h.locator('.wc-lk-tr.is-on', { hasText: 'Rasta' }).waitFor();
+    await h.locator('.wc-lk-btn[data-btn="RUN LOG"]').click();
     // The in-app player's engine (as tests/e2e/player.spec.ts reads it).
     const engine = 'window.__wc.shell.playerHost.engine';
     await page.waitForFunction('window.__wc.shell.playerHost?.engine?.duration > 0');
@@ -708,7 +753,7 @@ const SHOTS: Record<string, Shot> = {
     const box = page.locator('.wc-player-chrome .wc-player-box');
     await page.mouse.move(VIEWPORT.width * 0.4, VIEWPORT.height * 0.5, { steps: 4 });
     await box.locator('[data-act="panes"]').click();
-    await page.locator('.wc-pc-pop-panes .wc-pc-prow[data-pane="timers"]').click();
+    await box.locator('.wc-pc-pop[data-pop="panes"] [data-pane="timers"]').click();
     await page.mouse.move(VIEWPORT.width * 0.4, VIEWPORT.height * 0.5, { steps: 4 });
     await sleep(1000);
     // Played on until the top line is short (the header line sits over it).
@@ -751,9 +796,9 @@ const SHOTS: Record<string, Shot> = {
       async (page) => {
         await sleep(3000);
         await barOpen(page, 'scripts');
-        const row = page.locator('.wc-scr-row[data-script="killcounter"]').first();
+        const row = page.locator('.wc-win[data-win="scripts"] .wc-scr-row[data-name="killcounter"]').first();
         await row.waitFor();
-        for (let i = 0; i < 8 && !(await row.evaluate((el) => el.querySelector('.is-cur') !== null)); i++) {
+        for (let i = 0; i < 8 && !(await row.evaluate((el) => el.classList.contains('is-on'))); i++) {
           await page.keyboard.press('ArrowDown');
         }
         await page.mouse.move(VIEWPORT.width * 0.3, VIEWPORT.height * 0.03);
