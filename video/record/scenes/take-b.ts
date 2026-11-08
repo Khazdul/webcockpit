@@ -1,16 +1,16 @@
 // Take B of the film (video/manuscript.md; owner rounds 1 and 2): the rest
-// of part 3, parts 4 and 5, music from beat 155 (1:55.24) to the end.
+// of part 3, parts 4 and 5, music from beat 175 (2:10.05) to the end.
 //
 //   part 3   into the inn (the cut from take A): the barman looks up, offers
 //            the quest, Gittan nods; his monologue goes on behind the Profile
 //            window (caption first, the pointer slowly to the icon, its
 //            tooltip, then the click; alias fk → kill wolf on the Lite form,
 //            the Editor, the found line held about 5 s) and the Scripts window
-//            (the same way; three rows, slowly, ending on Almanac)
-//   part 4   Exit on beat 199; the start page a moment; History, the Bree
+//            (the same way; Almanac briefly, Mercenaries: on, cost 20 silver)
+//   part 4   Exit on a downbeat; the start page a moment; History, the Bree
 //            session's log player (small text, a narrower right dock);
-//            Spotlights, the wall a while, Play all until the first
-//            spotlight's moment, Back to the wall, Back to the start page
+//            Spotlights, the wall a while, Rasta's PvP kill (card 2) played
+//            whole and on into the next spotlight, Back, Back
 //   part 5   Credits held, Back; the start page under the end card
 //
 // Off camera the game is brought to the inn as take A left it: the run
@@ -19,7 +19,7 @@
 // game (night by then, indoors).
 import type { Locator } from '@playwright/test';
 import { type Step, play, sleep } from '../../../scripts/lib/mume-feed.ts';
-import { beatS } from '../../src/beats.ts';
+import { beatS, isDownbeat } from '../../src/beats.ts';
 import { arrival } from '../../feeds/arrival.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
 import { FILM_PAGE, freshStart, prepareFilm } from '../lib/film-state.ts';
@@ -28,11 +28,18 @@ import { type LoginMock, mockMumeLogin } from '../lib/mume-login.ts';
 import { excerptFeed, loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
 
-/** The take's camera rolls at this music time (s); the film cuts to it on beat 155 (1:55.24). */
-export const TAKE_B_FROM = beatS(155) - 1.0;
+/** The take's camera rolls at this music time (s); the film cuts to it on beat 175 (2:10.05). */
+export const TAKE_B_FROM = beatS(175) - 1.0;
 export const TAKE_B_END = beatS(262);
 
 const SEED = 20261109;
+
+/** The first downbeat at or after music second `s`. */
+function nextDownbeat(s: number): number {
+  let n = Math.ceil((s - beatS(0)) / (beatS(1) - beatS(0)));
+  while (!isDownbeat(n)) n++;
+  return n;
+}
 const b = beatS;
 
 export const takeB: Scene = {
@@ -62,7 +69,7 @@ export const takeB: Scene = {
         d.group.npcMode = 'all';
         d.group.fight = true;
         d.timers.groups.herb!.enabled = false;
-        d.timers.layout = 'grid';
+        d.timers.layout = 'flow';
         d.timers.cols = 2;
         d.timers.style = 'bars';
         // the windows a little shorter than their default, so the lower thirds sit below them (cells)
@@ -90,7 +97,8 @@ export const takeB: Scene = {
     await page.locator('.wc-input-field').fill('');
     // the barman looks up, offers, Gittan nods (music 104.3 to 109.3); then his monologue behind the windows
     const inn = excerptFeed(runs, { run: BREE_RUN, from: 155.5, to: 172.6, primeFrom: 155.5, speed: 3.2, rewrite: noPonyLabel });
-    const talk = excerptFeed(runs, { run: BREE_RUN, from: 172.6, to: 248, primeFrom: 172.6, speed: 3.2, rewrite: noPonyLabel });
+    // his monologue at the game's own tempo, behind Profile and Scripts (owner round 3)
+    const talk = excerptFeed(runs, { run: BREE_RUN, from: 172.6, to: 248, primeFrom: 172.6, speed: 1, rewrite: noPonyLabel });
     await sleep(2500);
     await page.mouse.move(1500, 860);
     return { login, server, inn: inn.steps, talk: talk.steps };
@@ -113,10 +121,10 @@ export const takeB: Scene = {
     const pointer = new Pointer(page, SEED, { x: 1500, y: 860 });
 
     const game = (async () => {
-      await until(T(113.4));
+      await until(T(130.3));
       marks.mark('segment', 'inn');
       await play(page, server, state.inn as Step[], { typeDelay: 90, onStep: (s) => ('cmd' in s ? marks.mark('cmd', s.cmd) : undefined) });
-      await until(T(119.0));
+      await until(T(136.0));
       marks.mark('segment', 'monologue');
       await play(page, server, state.talk as Step[]);
     })();
@@ -137,10 +145,10 @@ export const takeB: Scene = {
         return pointer.pressAt(T(at));
       };
       // Profile: a new alias on the Lite form, then the Editor
-      marks.markAt(await iconClick('profile', 121.6, 122.9), 'profile', 'the Profile window');
+      marks.markAt(await iconClick('profile', 138.6, 139.9), 'profile', 'the Profile window');
       const pe = page.locator('.wc-win[data-win="profile"] .wc-frame:not([hidden]) .wc-pe');
-      await pointer.clickAt(pe.locator('.wc-pe-rit[data-rail="alias"]'), T(124.2));
-      marks.markAt(await pointer.clickAt(pe.locator('[data-btn="NEW"]'), T(125.0)), 'alias-new', 'New entry');
+      await pointer.clickAt(pe.locator('.wc-pe-rit[data-rail="alias"]'), T(141.2));
+      marks.markAt(await pointer.clickAt(pe.locator('[data-btn="NEW"]'), T(142.0)), 'alias-new', 'New entry');
       const rnd = seeded(SEED + 1);
       const type = async (text: string): Promise<void> => {
         for (const ch of text) {
@@ -157,7 +165,7 @@ export const takeB: Scene = {
       await sleep(350);
       await page.keyboard.press('Escape');
       marks.mark('alias', 'fk → kill wolf');
-      marks.markAt(await pointer.clickAt(pe.locator('.wc-pe-views [data-opt="editor"]'), T(128.2)), 'editor', 'the Editor view');
+      marks.markAt(await pointer.clickAt(pe.locator('.wc-pe-views [data-opt="editor"]'), T(145.2)), 'editor', 'the Editor view');
       await sleep(700);
       // The new line in view: khazdul is long, so the editor's Find goes to it.
       const line = pe.locator('.cm-line', { hasText: '#alias {fk} {kill wolf}' });
@@ -172,29 +180,33 @@ export const takeB: Scene = {
       await sleep(5000);
       marks.mark('profile-closed', 'the Profile window closes');
       await page.locator('.wc-win[data-win="profile"] .wc-win-x').click().catch(() => page.keyboard.press('Escape'));
-      // Scripts: a few rows, slowly, ending on Almanac (its settings and help)
+      // Scripts: Almanac briefly, then Mercenaries: held, the script on, its cost 20 silver (owner round 3)
       marks.mark('scripts-caption', 'the Scripts caption');
       const scriptsAt = (Date.now() - music0) / 1000;
       marks.markAt(await iconClick('scripts', scriptsAt + 1.8, scriptsAt + 3.0), 'scripts', 'the Scripts window');
       const sw = page.locator('.wc-win[data-win="scripts"]');
       const s0 = (Date.now() - music0) / 1000;
-      for (const [i, n] of ['mapsearch', 'coinlooter', 'almanac'].entries()) {
-        marks.markAt(await pointer.clickAt(sw.locator(`.wc-scr-row[data-name="${n}"] .wc-scr-name`).first(), T(s0 + 1.3 + i * 1.4)), 'script', n);
-      }
-      await until(Math.max(T(b(199)) - 3000, Date.now() + 2500));
+      marks.markAt(await pointer.clickAt(sw.locator('.wc-scr-row[data-name="almanac"] .wc-scr-name').first(), T(s0 + 1.2)), 'script', 'almanac');
+      marks.markAt(await pointer.clickAt(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-scr-name').first(), T(s0 + 3.3)), 'script', 'mercenaries');
+      // held about 3 s, then the pointer rests on the switch about 1.5 s before the press
+      marks.markAt(await calm(sw.locator('.wc-scr-row[data-name="mercenaries"] .wc-lk-toggle').first(), s0 + 3.3 + 3.0 + 1.5, 1.5), 'merc-on', 'Mercenaries on');
+      // its cost: a choice of 10 or 20 silver (no typed value: the script offers only these two)
+      marks.markAt(await calm(sw.locator('[aria-label="cost"] [data-opt="1"]').first(), s0 + 3.3 + 3.0 + 1.5 + 2.1, 1.5), 'merc-cost', 'cost 20 silver');
+      await sleep(2000);
       await page.keyboard.press('Escape');
       marks.mark('scripts-closed', 'the Scripts window closes');
-      // Exit to the start page on beat 199 (2:27.83), a downbeat
-      marks.markAt(await pointer.clickAt(mb('exit'), T(b(199)) - 1300), 'exit-icon', 'the Exit icon');
-      marks.markAt(await pointer.clickAt(page.locator('.wc-pop-exit [data-act="exit"]'), B(199), { quick: true }), 'exit', 'Exit to the start page');
+      // Exit to the start page on the next downbeat
+      const exitBeat = nextDownbeat((Date.now() - music0) / 1000 + 1.6);
+      marks.markAt(await pointer.clickAt(mb('exit'), T(b(exitBeat)) - 1300), 'exit-icon', 'the Exit icon');
+      marks.markAt(await pointer.clickAt(page.locator('.wc-pop-exit [data-act="exit"]'), B(exitBeat), { quick: true }), 'exit', `Exit on beat ${exitBeat}`);
       // The start page a moment, then History: the Bree session (12:07, under this take's own run), its log player
       const menu = (key: string) => page.locator(`.wc-start .wc-sm-item[data-key="${key}"] .wc-sm-label`).first();
-      marks.markAt(await pointer.clickAt(menu('history'), B(199) + 2200), 'history', 'History');
+      marks.markAt(await pointer.clickAt(menu('history'), B(exitBeat) + 2200), 'history', 'History');
       const hist = page.locator('.wc-start .wc-frame:not([hidden]) .wc-hist');
       await hist.locator('.wc-lk-tr').first().waitFor();
       const bree = hist.locator('.wc-lk-tr', { hasText: '12:07' }).first();
-      await pointer.clickAt((await bree.count()) ? bree : hist.locator('.wc-lk-tr').nth(1), B(199) + 3800);
-      marks.markAt(await pointer.clickAt(hist.locator('.wc-lk-btn[data-btn="RUN LOG"]'), B(199) + 5200), 'runlog', 'the log player');
+      await pointer.clickAt((await bree.count()) ? bree : hist.locator('.wc-lk-tr').nth(1), B(exitBeat) + 3800);
+      marks.markAt(await pointer.clickAt(hist.locator('.wc-lk-btn[data-btn="RUN LOG"]'), B(exitBeat) + 5200), 'runlog', 'the log player');
       const engine = 'window.__wc.shell.playerHost.engine';
       await page.waitForFunction(`window.__wc.shell.playerHost?.engine?.duration > 0`, undefined, { timeout: 15_000 });
       // The player: small text; its right dock about 20 % narrower, its columns equally wide (owner round 2)
@@ -212,24 +224,34 @@ export const takeB: Scene = {
       marks.mark('player-small', 'small text, narrower panes');
       // into the wolf fight, and play
       await page.evaluate(`${engine}.seek(Math.min(${engine}.duration * 0.18, 122e6))`).catch(() => {});
-      await until(B(199) + 10000);
+      await until(B(exitBeat) + 10000);
       await page.keyboard.press('Escape');
       await sleep(400);
       await page.keyboard.press('Escape');
       marks.mark('history-closed', 'back on the start page');
-      // Spotlights: the wall a while, then Play all, until the first spotlight's moment
+      // Spotlights: the wall a while, then Rasta's PvP kill of *a Half-Elf* (card 2), played whole at its
+      // own speed; the viewer plays on through the reel: about 3 s into the next spotlight, then out
       const sp0 = (Date.now() - music0) / 1000 + 0.6;
       marks.markAt(await pointer.clickAt(menu('spotlights'), T(sp0)), 'spotlights', 'Spotlights');
       const wall = page.locator('.wc-start .wc-frame:not([hidden]) .wc-spw');
       await wall.locator('.wc-spw-card').first().waitFor();
-      marks.markAt(await calm(page.locator('.wc-start [data-btn="PLAY"]').first(), sp0 + 3.2, 0.7), 'play-all', 'Play all');
-      await page
-        .locator('.wc-spv .wc-output', { hasText: /death cry|last breath|is dead! R\.I\.P\.|You are dead!/i })
-        .first()
-        .waitFor({ timeout: 25_000 })
-        .catch(() => {});
-      marks.mark('moment', 'the first spotlight\'s moment');
-      await sleep(1000);
+      const rasta = wall.locator('.wc-spw-card', { hasText: 'Half-Elf' }).first();
+      // a double click opens a card in the viewer (the wall's `activateOn: 'dblclick'`)
+      await pointer.hoverAt(rasta, T(sp0 + 3.0 - 0.7));
+      await until(T(sp0 + 3.0));
+      await page.mouse.down({ clickCount: 1 });
+      await page.mouse.up({ clickCount: 1 });
+      await sleep(110);
+      await page.mouse.down({ clickCount: 2 });
+      await page.mouse.up({ clickCount: 2 });
+      marks.mark('rasta', 'the Half-Elf spotlight');
+      // the viewer's count reads "2 / 5" for the Half-Elf, "3 / 5" once the next spotlight begins
+      const count = page.locator('.wc-start .wc-spv-count');
+      await count.filter({ hasText: /^2 \// }).first().waitFor({ timeout: 8000 }).catch(() => {});
+      marks.mark('rasta-playing', 'the Half-Elf spotlight plays');
+      await count.filter({ hasText: /^3 \// }).first().waitFor({ timeout: 90_000 }).catch(() => {});
+      marks.mark('next-spotlight', 'the next spotlight begins');
+      await sleep(3000);
       // Back, calmly: out of the player, then out of Spotlights
       const m1 = (Date.now() - music0) / 1000;
       // the box's Back: out of the player to the wall (Back to the wall shows only at the reel's end)

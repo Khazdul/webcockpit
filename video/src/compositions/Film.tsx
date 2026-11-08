@@ -2,9 +2,9 @@
 // music from 0:00. Two takes (record/scenes/take-a.ts, take-b.ts), each
 // already timed to the music:
 //
-//   take A  0:00 → beat 163 (2:01.16)  the start page, Profile, the login,
+//   take A  0:00 → beat 175 (2:10.05)  the start page, Profile, the login,
 //                                      the game to the strike, the walk, the wolf
-//   take B  beat 163 → the end         the inn, Profile and Scripts windows,
+//   take B  beat 175 → the end         the inn, Profile and Scripts windows,
 //                                      History, Spotlights, Credits, and the
 //                                      start page under the end card
 //
@@ -12,7 +12,7 @@
 // in B, whose label is the music second it started at), so a new take
 // needs no retiming. On top: the lower thirds, the pane gears' tooltips (a
 // headless capture does not draw the browser's), a dip of the whole frame
-// where the game jumps (the take's `dip` markers and the cut), the end card,
+// where the game jumps into the fight (the take's `dip` marker), the end card,
 // the music, the fades.
 import { AbsoluteFill, Audio, Easing, interpolate, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import pkg from '../../../package.json';
@@ -27,15 +27,17 @@ export interface FilmProps extends Record<string, unknown> {
 }
 
 /** Take B starts on this beat (a downbeat). */
-const CUT_B = 155;
-/** The last full hit of the music. */
+const CUT_B = 175;
+/** The last full hit of the music before its break. */
 const LAST_HIT = 251;
+/** The music restarts on this beat (3:12.28), a downbeat on the same grid. */
+const RESTART_BEAT = 259;
 /** Half a dip (to dark, then back), s. */
 const DIP_S = 0.35;
 /** The end card holds at least this long before the fade, s. */
 const CARD_HOLD_S = 4;
-/** A fade at the end that is not the music's own (before the last hit), s. */
-const END_FADE_S = 3;
+/** A fade at the end that is not the music's own ring-out, s (picture and music together). */
+const END_FADE_S = 3.5;
 
 /** The music s of take B's marker. */
 function musicB(b: TimelineFile, kind: string, label?: string): number {
@@ -44,20 +46,23 @@ function musicB(b: TimelineFile, kind: string, label?: string): number {
 }
 
 /**
- * The ending (owner round 2, item 12): the end card from just after Credits'
- * Back, held at least CARD_HOLD_S, then the picture and the music fade. When
- * that lands near the last hit (3:06.35) the old ending stays: the fade from
- * the hit, black at 3:10.2, the music ringing out. Before it, a 3 s fade of
- * both from the next downbeat.
+ * The ending (owner rounds 2 and 3): the end card from just after Credits'
+ * Back, held at least CARD_HOLD_S, then the picture and the music fade
+ * together over END_FADE_S from the next downbeat. When the card can hold
+ * 3-8 s before the last hit (3:06.35) the old ending stays instead: the fade
+ * from the hit, black at 3:10.2, the music ringing out. The music breaks
+ * after the hit and restarts at 3:12.28, which is beat 259 on the same grid
+ * (a downbeat; measured, ADR 0133): a fade that would start in the break
+ * starts on that downbeat.
  */
 export function ending(b: TimelineFile): { cardFrom: number; fadeFrom: number; end: number } {
   const cardFrom = musicB(b, 'start-again') + 0.6;
-  const earliest = cardFrom + CARD_HOLD_S;
   const hit = beatS(LAST_HIT);
-  // the last hit is near: the card holds 3–8 s and the old ending stays
   if (cardFrom + 3 <= hit && cardFrom + 8 >= hit) return { cardFrom, fadeFrom: hit, end: 190.2 };
+  const earliest = cardFrom + CARD_HOLD_S;
   let n = Math.ceil((earliest - beatS(0)) / (beatS(1) - beatS(0)));
   while (!isDownbeat(n)) n++;
+  if (n > LAST_HIT && n < RESTART_BEAT) n = RESTART_BEAT;
   const fadeFrom = beatS(n);
   return { cardFrom, fadeFrom, end: fadeFrom + END_FADE_S };
 }
@@ -147,7 +152,8 @@ export function Film({ a, b }: FilmProps) {
     interpolate(fr, [0, f(0.4), f(end.fadeFrom), durationInFrames - 1], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
   const m0A = marker(a, 'music0').t;
-  const dips = [...a.markers.filter((m) => m.kind === 'dip').map((m) => m.t - m0A), beatS(CUT_B)];
+  // only into the wolf fight now (owner round 3: no dip at the mercenary or the inn)
+  const dips = a.markers.filter((m) => m.kind === 'dip').map((m) => m.t - m0A);
   const tips = a.markers
     .filter((m) => m.kind === 'tip' && m.box)
     .map((m) => ({ from: m.t - m0A, to: (a.markers.find((e) => e.kind === 'tip-end' && e.label === m.label && e.t >= m.t)?.t ?? m.t + 1.2) - m0A, text: m.label, box: m.box! }));

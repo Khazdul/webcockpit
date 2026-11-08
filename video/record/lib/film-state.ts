@@ -55,12 +55,15 @@ interface FilmSettings {
     floating: { id: string; x: number; y: number; w: number; h: number }[];
   };
   weather: { enabled: boolean };
+  timers: { groups: Record<string, { enabled: boolean }> };
   panes: Record<'map' | 'timers' | 'group' | 'comm', { on: boolean }>;
   profile: string;
 }
 
 /** Where Group and Timers float (cells: the cockpit is 160 × 49 at 1600 × 900 CSS px). */
-export const FILM_FLOATS = { timers: { x: 110, y: 35, w: 25, h: 12 }, group: { x: 135, y: 35, w: 25, h: 12 } } as const;
+// Over the docked map (cells 111-160), right of the game text, not lined up (owner round 3): Group two
+// cells right of Timers and a row higher; both end well above the map's bottom.
+export const FILM_FLOATS = { timers: { x: 112, y: 31, w: 22, h: 12 }, group: { x: 136, y: 30, w: 22, h: 12 } } as const;
 
 /** Where the page fetches the backup from (served from video/private/ by a route). */
 const BACKUP_URL = '/__film/runs.jsonl.gz';
@@ -113,6 +116,8 @@ export async function prepareFilm(page: Page): Promise<void> {
       d.panes.group.on = false;
       d.panes.comm.on = false;
       d.profile = 'default';
+      // Herblores off before Timers ever shows (owner round 3)
+      d.timers.groups.herb!.enabled = false;
       // Group and Timers float, small, side by side at the bottom right (owner, round 2): over the map
       // once it is docked. The right dock keeps one lane of the width the map had (holding Comm,
       // which stays off), so the docked map is as wide as before.

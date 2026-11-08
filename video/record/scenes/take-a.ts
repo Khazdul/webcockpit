@@ -1,31 +1,32 @@
-// Take A of the film (video/manuscript.md; owner rounds 1 and 2): parts 1
-// and 2 and the first half of part 3 in one continuous take, music 0:00 to
-// beat 155 (1:55.24).
+// Take A of the film (video/manuscript.md; owner rounds 1-3): parts 1 and 2
+// and the first half of part 3 in one continuous take, music 0:00 to beat
+// 175 (2:10.05).
 //
 //   part 1   the start page, Profile, Enter MUME, the login, Gittan in the inn
 //            (scenes/part1.ts `opening`)
 //   part 2   lead and group the pony (never labelled); south to the fountain
-//            (outdoors); the Group pane on (floating, small, bottom right) and
-//            its settings, calmly: the gear's tooltip, NPC visibility All, the
-//            Fight card; Settings: tabs two beats each to Weather effects, the
-//            switch on, the night sky fades in; Appearance: the font list held
-//            open, backgrounds Paper, Teal, Sepia, back to Black; (a dip) the
-//            mercenary: 10 silver refused, a pause, 1 gold; rain
-//   part 3   the strike on beat 107 (1:19.68), in the street; out of the West
-//            Gate; Timers on (floating beside Group), shield, arm, invis; the
-//            Timers settings, calmly: Herblores off, Grid, Circles, 2 columns,
-//            Bars; Map on (docked; Group and Timers float over it); a walk into
-//            the hills; (a dip) the wolf's room by name, the second wolf, the
+//            (outdoors); the Group pane on (floating) and its settings, calmly:
+//            the gear's tooltip, NPC visibility All, the Fight card; Settings:
+//            tabs two beats each to Weather effects, the switch on, the night
+//            sky fades in; Appearance: the font list held open, backgrounds
+//            Paper, Teal, Sepia, back to Black; the mercenary arrives (staged),
+//            10 silver refused, a visible pause, 1 gold; rain
+//   part 3   the strike on beat 107 (1:19.68), in the street; the mercenary
+//            grouped; out of the West Gate; Timers on (floating beside Group;
+//            Herblores already off), shield, arm, invis; the Timers settings,
+//            calmly: Grid, Circles, 2 columns, back to Bars and Flow; Map on
+//            (docked; Group and Timers float over it); a walk into the wolves'
+//            hills; (a dip) the second wolf at about the game's tempo, the
 //            kill, butcher
 //
 // The game is the owner's Bree run in segments that keep its order, each
 // started at its music time; the GMCP of what is cut between them arrives at
-// the next one's start (`primeFrom`). Where the run jumps, the take marks a
-// `dip` and the jump falls in its middle (the Film darkens the frame there).
-// Commands are never typed while a popup holds the keys. Only the weather is
-// staged.
+// the next one's start (`primeFrom`). Where the run jumps into the fight, the
+// take marks a `dip` and the jump falls in its middle (the Film darkens the
+// frame there). Commands are never typed while a popup holds the keys. Only
+// the weather and the mercenary's arrival line are staged.
 import type { Locator } from '@playwright/test';
-import { type DevWindow, type Step, gmcpBytes, play, sleep } from '../../../scripts/lib/mume-feed.ts';
+import { type DevWindow, type Step, gmcpBytes, lineBytes, play, sleep } from '../../../scripts/lib/mume-feed.ts';
 import { beatS } from '../../src/beats.ts';
 import { arrival } from '../../feeds/arrival.ts';
 import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
@@ -45,6 +46,8 @@ interface Segment {
   typeDelay?: number;
   /** The run jumps here: a dip of the whole frame centred on the segment's start. */
   dip?: boolean;
+  /** Staged text lines sent at `at` instead of the excerpt (the mercenary's arrival). */
+  lines?: string[];
 }
 
 const ex = (e: Omit<Excerpt, 'run' | 'rewrite'>): Excerpt => ({ run: BREE_RUN, rewrite: noPonyLabel, ...e });
@@ -60,21 +63,27 @@ export const SEGMENTS: Segment[] = [
     ex: ex({ from: 9.0, to: 15.8, primeFrom: 9.0, speed: 1.8, maxGap: 0.8, drop: [[12.05, 12.3], [13.85, 14.0]], dropCmds: [/^label /] }),
     typeDelay: 90,
   },
-  // the mercenary: 10 silver refused, about 2.8 s, 1 gold, grouped (the wait before the grouping cut)
-  { name: 'merc', at: 74.9, dip: true, ex: ex({ from: 64.6, to: 71.3, primeFrom: 15.8, speed: 1, drop: [[68.1, 70.6]] }), typeDelay: 45 },
+  // (staged) the mercenary arrives
+  { name: 'merc-arrives', at: 73.6, ex: ex({ from: 64.6, to: 64.6 }), lines: ['', 'A citizen mercenary has arrived from the west.', '', '*# R Mana:Burning>'] },
+  // 10 silver, refused and given back
+  { name: 'merc', at: 75.1, ex: ex({ from: 64.6, to: 65.5, primeFrom: 15.8, speed: 1 }), typeDelay: 45 },
+  // a visible pause, nothing typed (owner round 3: at least 2.5 s from the returned silver to the first key), then 1 gold
+  { name: 'merc-gold', at: 78.9, ex: ex({ from: 67.5, to: 68.0, primeFrom: 65.5, speed: 1 }), typeDelay: 45 },
+  // grouped (after the strike)
+  { name: 'merc-group', at: 81.3, ex: ex({ from: 70.7, to: 71.3, primeFrom: 68.0, speed: 1 }), typeDelay: 45 },
   // to the West Gate, `sa open`, out through it
-  { name: 'gate', at: 80.6, ex: ex({ from: 80.6, to: 83.7, primeFrom: 71.4, speed: 2.2, maxGap: 0.5 }), typeDelay: 55 },
+  { name: 'gate', at: 82.6, ex: ex({ from: 80.6, to: 83.7, primeFrom: 71.4, speed: 2.2, maxGap: 0.5 }), typeDelay: 55 },
   // shield, arm, invis (Timers is on by now)
-  { name: 'casts', at: 83.7, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
-  // a few rooms west and north into the hills, where the wolves are
-  { name: 'walk', at: 103.4, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 3, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
-  // (a dip) into the wolves' Grassy Hills, its name shown; k wolf, Tod joins; (flee and back cut); assist, the kill, butcher, the fur
+  { name: 'casts', at: 85.7, ex: ex({ from: 84.5, to: 94.0, primeFrom: 83.7, speed: 2, maxGap: 0.6 }), typeDelay: 55 },
+  // a few rooms west and north into the hills, into the wolves' Grassy Hills (its name shown)
+  { name: 'walk', at: 105.4, ex: ex({ from: 94.4, to: 103.6, primeFrom: 94.0, speed: 2, maxGap: 0.5, drop: [[98.6, 98.85]] }), typeDelay: 55 },
+  // (a dip) k wolf, Tod joins; (flee and back cut); assist, the kill, butcher, the fur: at about the game's own tempo
   {
     name: 'wolf',
-    at: 107.0,
+    at: 110.6,
     dip: true,
-    ex: ex({ from: 119.0, to: 143.9, primeFrom: 103.6, speed: 3, maxGap: 0.7, drop: [[122.3, 125.6]], dropCmds: [/^get coins/, /^l$/] }),
-    typeDelay: 55,
+    ex: ex({ from: 119.0, to: 143.9, primeFrom: 103.6, speed: 1.15, maxGap: 1.5, drop: [[122.3, 125.6]], dropCmds: [/^get coins/, /^l$/] }),
+    typeDelay: 70,
   },
 ];
 
@@ -103,20 +112,20 @@ const UI = {
     ['#000000', 73.4], // Black again
   ] as const,
   settingsClose: 74.3,
-  // after the strike: Timers on, its settings once the spells are in; then Map
-  panesTimers: 82.3,
-  timers: 83.0,
-  timersTip: 89.5,
-  timersPress: 90.6,
-  herbs: 92.6,
-  grid: 94.1,
-  circles: 95.7,
-  colsOpen: 97.1,
-  cols: 97.8,
-  bars: 99.3,
-  timersClose: 100.4,
-  panesMap: 100.7,
-  map: 101.4,
+  // after the strike: Timers on, its settings once the spells are in, back to Bars and Flow; then Map
+  panesTimers: 84.3,
+  timers: 85.0,
+  timersTip: 91.4,
+  timersPress: 92.5,
+  grid: 94.0,
+  circles: 95.6,
+  colsOpen: 97.0,
+  cols: 97.7,
+  bars: 99.2,
+  flow: 100.7,
+  timersClose: 101.9,
+  panesMap: 102.2,
+  map: 102.9,
 } as const;
 
 /** The weather's moments, music s. */
@@ -128,11 +137,12 @@ const SKY = {
   strikeLeadMs: 210,
 };
 
-/** The film cuts to take B on beat 155 (1:55.24), a downbeat; the take runs on a little. */
-export const CUT_A = 155;
+/** The film cuts to take B on beat 175 (2:10.05), a downbeat; the take runs on a little. */
+export const CUT_A = 175;
 export const TAKE_A_END = b(CUT_A) + 1.5;
 
 function segmentSteps(runs: Map<string, Run>, seg: Segment): Step[] {
+  if (seg.lines) return [{ out: Buffer.concat(seg.lines.map(lineBytes)), at: 0 }];
   const f = excerptFeed(runs, seg.ex);
   return [...f.prime.map((s) => ({ ...s, at: 0 })), ...f.steps];
 }
@@ -236,12 +246,12 @@ export const takeA: Scene = {
       await paneOn('timers', UI.panesTimers, UI.timers);
       const tg = await gear('timers', UI.timersTip, UI.timersPress);
       marks.mark('timers-gear', 'the Timers pane settings');
-      await choose(tg.locator('.wc-ck-tg[aria-label="Show Herblores"]'), UI.herbs, 'herbs-off', 'Herblores off');
       await choose(tg.locator('[aria-label="Layout"] [data-value="grid"]'), UI.grid, 'timers-mode', 'grid', 1.2);
       await choose(tg.locator('[aria-label="Style"] [data-value="circles"]'), UI.circles, 'timers-mode', 'circles', 1.2);
       await choose(tg.locator('.wc-ck-dd[aria-label="Grid columns"]'), UI.colsOpen, 'cols-open', 'Grid columns', 1.0);
       await choose(page.locator('.wc-ck-list[aria-label="Grid columns"] .wc-ck-opt[data-value="2"]'), UI.cols, 'timers-mode', 'columns', 0.6);
       await choose(tg.locator('[aria-label="Style"] [data-value="bars"]'), UI.bars, 'timers-mode', 'bars', 1.2);
+      await choose(tg.locator('[aria-label="Layout"] [data-value="flow"]'), UI.flow, 'timers-mode', 'flow', 1.2);
       await until(T(UI.timersClose));
       await close();
       marks.mark('timers-gear-closed', 'closed');
