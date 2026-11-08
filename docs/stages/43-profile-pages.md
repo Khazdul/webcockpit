@@ -704,7 +704,8 @@ or a narrow window; a game session for the in-game parts.
    type, Esc (leaves the field), Esc again (leaves; "Saved …" on the list).
    N for a new entry, D to delete. G (Highlights): the colour swatches and
    "Shows as". M (Macros): Enter on the key, press a key. E for Editor:
-   the rail lists the text's sections, Ctrl+F finds, Save. H for Help: the
+   the text fills the box from the left edge (no rail), Ctrl+F finds,
+   Save. H for Help: the
    rail lists the manual's headings.
 2. **Narrow.** Make the window narrower: the rail becomes a row, then one
    column where the entry opens as a sheet ("‹ Aliases" back).
