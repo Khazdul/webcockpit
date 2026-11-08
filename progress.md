@@ -56,6 +56,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-08 — Owner feedback round 1 on stages 43 and 45
+
+- **Done (two subagents, branch `stage-41-start-page`):** Profile → Editor
+  has no "In the text" rail; the buffer fills from the box's left edge,
+  Esc in the buffer goes to the views (stage 43, ADR 0128 note). The run
+  log player opens in History's big box with the sky paused around it;
+  Fullscreen puts the player's own element in browser fullscreen, and
+  leaving fullscreen any way puts it back in the box (stage 45 decision 3
+  superseded, ADR 0130 note; new `run-log.tsx`, `Shell.openRunLog`).
+- **Tests:** typecheck clean, unit 3501 passed; full e2e 924/928 (1 skipped;
+  3 failures pass alone: firefox layout:432 after a SWGL graphics crash,
+  output:551, scripts-settings:411, which fails under parallel load on
+  2b59b705 too).
+- **Next:** the owner keeps testing stages 41–47 on the branch.
+- **Commits:** 26c20299, 6a461d31, bacb1e1d, d7e4bc32, 9cdc6de5 and the merge.
+
 ### 2026-11-07/08 — Build pass: stages 42–47 (every start-menu page)
 
 - **Done (three workflows, ~85 subagents, branch `stage-41-start-page`, not
