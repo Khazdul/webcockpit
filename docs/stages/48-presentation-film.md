@@ -114,4 +114,33 @@ and render is in `video/README.md`.
 
 ## Owner feedback
 
-(after the first full cut)
+### Round 1 (2026-11-08, on the first full cut)
+
+1. Part 1: the transition into Profile hitches just after the click.
+2. Part 1: after Enter MUME, as the zoom starts, the sky/clouds change in
+   one jump and it zooms into other clouds than those seen before.
+3. Never label the pony (the "MINE" label looks ugly). Lead and group
+   it, then open the Group pane and, from its settings, turn on showing
+   unlabelled NPCs: shows both the pane and that an unlabelled mount
+   can be shown. Group also has "Fight card" on.
+4. Settings: dwell twice as long on each tab; show two more backgrounds
+   besides Paper; open the font drop-down briefly (no change).
+5. A pause of a couple of seconds between giving the mercenary 10 silver
+   and 1 gold.
+6. After the spells and the Timers caption, dwell; walk a few rooms
+   instead of jumping straight into the fight.
+7. The fight: show entering the room (room name) before hitting the
+   wolf.
+8. After the Group caption, open the Group pane's settings and hold them
+   at least 5–6 s so they can be read.
+9. At 1:48 the Timers pane cannot hold all timers: Timers and Group one
+   row taller for the whole film.
+10. Profile and Scripts: the caption first, then the pointer goes slowly
+    to the menu-bar icon, hovers until its tooltip shows, then clicks.
+11. Back on the start page: dwell longer there and in History; longer on
+    Spotlights before clicking.
+12. Credits: it presses Next though Next cannot be pressed. Show it 4–5 s,
+    then press Back.
+13. After Credits, back on the start page, the film is done: no montage,
+    no return to the game. Stay on the start page and fade out.
+14. Fit the lengths so the film lands at about the same total time.
