@@ -5,12 +5,12 @@
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { TimelineFile } from '../timeline';
 
-/** Seconds of rest before the pointer fades out. */
+/** Seconds of rest before the pointer fades out (default; `restS` per composition). */
 const REST_S = 4.5;
 /** Logged moves closer than this belong to one movement (a glide logs one every frame). */
 const MOVE_GAP_S = 0.2;
 
-export function Cursor({ tl, startS = 0 }: { tl: TimelineFile; startS?: number }) {
+export function Cursor({ tl, startS = 0, restS = REST_S }: { tl: TimelineFile; startS?: number; restS?: number }) {
   const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
   const t = startS + frame / fps;
@@ -29,10 +29,10 @@ export function Cursor({ tl, startS = 0 }: { tl: TimelineFile; startS?: number }
   // this movement's first event, and whether the pointer had faded out before it
   let j = i - 1;
   while (j > 0 && pts[j]!.t - pts[j - 1]!.t < MOVE_GAP_S) j--;
-  const wasHidden = j === 0 || pts[j]!.t - pts[j - 1]!.t > REST_S + 0.6;
+  const wasHidden = j === 0 || pts[j]!.t - pts[j - 1]!.t > restS + 0.6;
   const fadeIn = wasHidden ? interpolate(t - pts[j]!.t, [0, 0.25], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 1;
   const last = moving ? t : a.t;
-  const fadeOut = interpolate(t - last, [REST_S, REST_S + 0.6], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const fadeOut = interpolate(t - last, [restS, restS + 0.6], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   const press = tl.input.filter((e) => e.type === 'down' && e.t <= t).at(-1);
   const ring = press ? (t - press.t) / 0.45 : 1;
   // a 20 CSS px pointer, as the page would show it

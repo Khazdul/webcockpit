@@ -1,9 +1,12 @@
-// The film's part 1 (music 0:00 to the phrase at 0:38.21, beat 51), one
-// continuous take: the start page in the middle of the night, a shooting
-// star; the pointer opens Profile, the page grows out of the menu, khazdul
-// is highlighted (the pointer on its row) and selected (its Select button),
-// Back; Enter MUME, the transition, MUME's welcome screen (the real one,
-// mocked socket); the name typed, the password typed masked.
+// The film's part 1 (music 0:00 to beat 59, 0:44.13), one continuous take:
+// the start page in the middle of the night, a shooting star; the pointer
+// opens Profile, the page grows out of the menu, khazdul is highlighted (the
+// pointer on its row) and selected (its Select button), Back; Enter MUME
+// (the pointer stays where it clicked), the transition, MUME's welcome
+// screen (the real one, mocked socket); the name typed, the password typed
+// masked; Gittan arrives in the Prancing Pony's Lodging Foyer and the run
+// plays on: a guard leaves, she looks, leads the pony (feeds/arrival.ts).
+// Part 2 continues from this game state (the run's `gro pony` at 8.6 s).
 //
 // The take is timed to the music, so the composition (src/compositions/
 // Part1.tsx) only lines it up: `music0` is the take's moment for music
@@ -13,8 +16,10 @@
 //
 // Markers: `start` (the start page is up), `music0`, `shoot`, `profile`,
 // `highlight`, `select`, `back`, `enter`, `banner` (MUME's text arrives),
-// `name`, `password`, `end`; `active`/`active-end` around the whole take.
-import { sleep } from '../../../scripts/lib/mume-feed.ts';
+// `name`, `password`, `arrive` (the room), `cmd` (each command of the run),
+// `end`; `active`/`active-end` around the whole take.
+import { play, sleep } from '../../../scripts/lib/mume-feed.ts';
+import { arrival } from '../../feeds/arrival.ts';
 import { beatS } from '../../src/beats.ts';
 import { FILM_PAGE, freshStart, prepareFilm, shootingStar } from '../lib/film-state.ts';
 import { Pointer, seeded } from '../lib/mouse.ts';
@@ -31,23 +36,29 @@ const SHOOT_S = 5.0;
 const SEED = 20261108;
 
 /**
- * The beats (owner, 2026-11-08: into Profile at 12–13 s, the part ends on
- * the phrase at beat 51). Presses land on these; `highlight` is when the
- * pointer arrives on khazdul's row; `name` and `password` are their Enters.
+ * The beats (owner, 2026-11-08: into Profile at 12–13 s). Presses land on
+ * these; `highlight` is when the pointer arrives on khazdul's row; `name`
+ * and `password` are their Enters. The part ends on beat 59 (a bar), once
+ * Gittan has arrived and the game has moved a little.
  */
-export const BEATS = { profile: 17, highlight: 20, select: 23, back: 27, enter: 31, name: 43, password: 47, end: 51 } as const;
+export const BEATS = { profile: 17, highlight: 20, select: 23, back: 27, enter: 31, name: 43, password: 47, end: 59 } as const;
+/** Gittan's room appears this long after the password's Enter (MUME's answer). */
+const ARRIVE_AFTER_MS = 650;
 
 export const part1: Scene = {
+  // PNG frames at the film's size: the night sky's gradients stay clean.
+  mode: 'intel-1.2-png',
   page: FILM_PAGE,
 
   async setup(page) {
     await prepareFilm(page);
     const login = await mockMumeLogin(page);
-    return { login };
+    return { login, arrival: arrival() };
   },
 
   async run({ page, marks }, state) {
     const login = state.login as LoginMock;
+    const arrive = state.arrival as ReturnType<typeof arrival>;
     await freshStart(page);
     marks.mark('start', 'the start page is up');
     marks.mark('active', 'the take');
@@ -82,10 +93,8 @@ export const part1: Scene = {
     // Enter MUME.
     marks.markAt(await pointer.clickAt(menu('enter'), B(BEATS.enter)), 'enter', `beat ${BEATS.enter}`);
 
-    // MUME's welcome screen; the hand leaves the mouse below the text.
+    // MUME's welcome screen. The hand leaves the mouse where it clicked (the overlay pointer fades there).
     await page.waitForFunction(() => /^login/.test(document.querySelector('.wc-app')?.getAttribute('data-status') ?? ''));
-    await sleep(350);
-    await pointer.moveTo(1150, 720);
     const input = page.locator('.wc-input-field');
     await input.focus();
     // Typing at a person's uneven pace: the Enter of each lands on its beat.
@@ -104,6 +113,14 @@ export const part1: Scene = {
     await typeTo('Gittan', B(BEATS.name));
     // Made up; the socket goes nowhere. The client masks it (the server took over the echo).
     await typeTo('starlight', B(BEATS.password));
+    // Gittan arrives: the room, then the run plays on from its `from` second.
+    const server = login.server()!;
+    const arrivedAt = B(BEATS.password) + ARRIVE_AFTER_MS;
+    await until(arrivedAt);
+    server.send('out' in arrive.arrive ? arrive.arrive.out : Buffer.alloc(0));
+    marks.mark('arrive', 'Gittan arrives in the Lodging Foyer');
+    await until(arrivedAt + arrive.from * 1000);
+    await play(page, server, arrive.steps, { typeDelay: 110, onStep: (st) => ('cmd' in st ? marks.mark('cmd', st.cmd) : undefined) });
     await until(T(beatS(BEATS.end) + TAIL_S));
     for (const k of ['banner', 'name', 'password'] as const) {
       const t = login.at[k];
