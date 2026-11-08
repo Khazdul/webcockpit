@@ -6,7 +6,9 @@ import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remo
 import type { TimelineFile } from '../timeline';
 
 /** Seconds of rest before the pointer fades out. */
-const REST_S = 2.5;
+const REST_S = 4.5;
+/** Logged moves closer than this belong to one movement (a glide logs one every frame). */
+const MOVE_GAP_S = 0.2;
 
 export function Cursor({ tl, startS = 0 }: { tl: TimelineFile; startS?: number }) {
   const frame = useCurrentFrame();
@@ -15,23 +17,28 @@ export function Cursor({ tl, startS = 0 }: { tl: TimelineFile; startS?: number }
   const scale = width / tl.width;
   const pts = tl.input.filter((e) => e.x !== undefined && (e.type === 'move' || e.type === 'down' || e.type === 'up'));
   if (!pts.length || t < pts[0]!.t) return null;
-  // the position: between the logged points around t
+  // the position: between the logged points around t while it moves; at rest where it stopped
   let i = pts.findIndex((e) => e.t > t);
   if (i < 0) i = pts.length;
   const a = pts[i - 1]!;
   const b = pts[i];
-  const u = b ? Math.min(1, (t - a.t) / Math.max(b.t - a.t, 1e-3)) : 1;
-  const x = (a.x! + (b ? (b.x! - a.x!) * u : 0)) * scale;
-  const y = (a.y! + (b ? (b.y! - a.y!) * u : 0)) * scale;
-  const fadeIn = interpolate(t, [pts[0]!.t, pts[0]!.t + 0.25], [0, 1], { extrapolateRight: 'clamp' });
-  const last = b ? t : a.t;
+  const moving = !!b && b.t - a.t < MOVE_GAP_S;
+  const u = moving ? Math.min(1, (t - a.t) / Math.max(b.t - a.t, 1e-3)) : 0;
+  const x = (a.x! + (moving ? (b.x! - a.x!) * u : 0)) * scale;
+  const y = (a.y! + (moving ? (b.y! - a.y!) * u : 0)) * scale;
+  // this movement's first event, and whether the pointer had faded out before it
+  let j = i - 1;
+  while (j > 0 && pts[j]!.t - pts[j - 1]!.t < MOVE_GAP_S) j--;
+  const wasHidden = j === 0 || pts[j]!.t - pts[j - 1]!.t > REST_S + 0.6;
+  const fadeIn = wasHidden ? interpolate(t - pts[j]!.t, [0, 0.25], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 1;
+  const last = moving ? t : a.t;
   const fadeOut = interpolate(t - last, [REST_S, REST_S + 0.6], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   const press = tl.input.filter((e) => e.type === 'down' && e.t <= t).at(-1);
   const ring = press ? (t - press.t) / 0.45 : 1;
   // a 20 CSS px pointer, as the page would show it
   const size = 20 * tl.dpr * scale;
   return (
-    <AbsoluteFill style={{ pointerEvents: 'none', opacity: fadeIn * fadeOut }}>
+    <AbsoluteFill style={{ pointerEvents: 'none', opacity: Math.min(fadeIn, fadeOut) }}>
       {ring < 1 ? (
         <div
           style={{

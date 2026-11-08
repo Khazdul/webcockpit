@@ -1,10 +1,9 @@
 // "An evening in Bree", the pipeline's test scene (ADR 0133): the bree
-// recording with a title, a zoom into the map pane while Rasta walks, a
-// caption for the sunset, music, fades. Every time comes from the
-// recording's markers, so a new take needs no retiming.
+// recording with a zoom into the map pane while Rasta walks, the pointer,
+// music, fades. Every time comes from the recording's markers, so a new
+// take needs no retiming. Not part of the film (its captions are gone).
 import { AbsoluteFill, Audio, Easing, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { Camera, type Shot } from '../components/Camera';
-import { Caption, Title } from '../components/Caption';
 import { Cursor } from '../components/Cursor';
 import { type TimelineFile, f, marker } from '../timeline';
 
@@ -27,7 +26,6 @@ export function TestBree({ tl }: TestBreeProps) {
 
   const walk = marker(tl, 'walk').t;
   const tell = marker(tl, 'tell').t;
-  const night = marker(tl, 'night').t;
   const map = marker(tl, 'map').box!;
 
   // In just after the first command, out so the view is whole again when the tell arrives.
@@ -54,11 +52,6 @@ export function TestBree({ tl }: TestBreeProps) {
         <OffthreadVideo src={staticFile(`recordings/${tl.scene}.mp4`)} muted style={{ width: '100%', height: '100%' }} />
         <Cursor tl={tl} />
       </Camera>
-
-      <Title from={f(0.25)} dur={f(Math.max(2.6, walk + 0.3))} title="MUME, in a browser tab." line="WebCockpit · nothing to install, just a link" />
-      <Caption from={zoom.in + f(0.7)} dur={zoom.out - zoom.in} text="The map follows every step." sub="Rooms and exits drawn as you walk Bree." />
-      {/* While the dusk glow is strongest, after the tell has had its moment. */}
-      <Caption from={f(Math.min(tell + 1.2, night - 4))} dur={f(4.4)} text="Dusk falls over Bree." sub="Weather and daylight follow the game." />
 
       <AbsoluteFill style={{ backgroundColor: 'black', opacity: black }} />
 
