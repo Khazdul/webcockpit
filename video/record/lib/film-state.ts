@@ -61,9 +61,9 @@ interface FilmSettings {
 }
 
 /** Where Group and Timers float (cells: the cockpit is 160 × 49 at 1600 × 900 CSS px). */
-// Over the docked map (cells 111-160), right of the game text, not lined up (owner round 3): Group two
-// cells right of Timers and a row higher; both end well above the map's bottom.
-export const FILM_FLOATS = { timers: { x: 112, y: 31, w: 22, h: 12 }, group: { x: 136, y: 30, w: 22, h: 12 } } as const;
+// Left of the map's lane (cells 111-160) with a cell's gap, stacked: Group on top, an empty row, Timers,
+// whose bottom sits just above the menu bar (owner round 4). They stay put when the map comes on.
+export const FILM_FLOATS = { group: { x: 88, y: 22, w: 22, h: 12 }, timers: { x: 88, y: 35, w: 22, h: 12 } } as const;
 
 /** Where the page fetches the backup from (served from video/private/ by a route). */
 const BACKUP_URL = '/__film/runs.jsonl.gz';
