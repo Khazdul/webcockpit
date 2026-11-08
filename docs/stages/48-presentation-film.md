@@ -229,3 +229,9 @@ done.
 - The wolf plays at 1.15×.
 - The Half-Elf spotlight plays whole; the viewer moves on to Kohrn by
   itself.
+
+### Round 4 (2026-11-08, on the round 3 cut)
+
+1. Remove the dip at about 1:53 (the wolf).
+2. The end card about 2 s later (about 3:36), so the whole start menu is
+   seen for a few seconds first.
