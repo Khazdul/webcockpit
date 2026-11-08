@@ -359,6 +359,9 @@ test('a narrow Scripts window: the index, then the panel with its buttons two by
 
 test('the letters N I M E X R D press the buttons, and none fires while a field is typed in', async ({ page }) => {
   const errors = watchErrors(page);
+  // File chooser interception on from the start: switched on by the waitForEvent just before `i`, it
+  // can reach Chromium after the key's input.click(), and the picker then never shows as an event.
+  page.on('filechooser', () => {});
   const f = await scriptsFromStart(page);
   const dialog = (dlg: string) => page.locator(`.wc-lk-dialog[data-dlg="${dlg}"]`);
   // The letters are marked in the labels.
