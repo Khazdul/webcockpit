@@ -1,5 +1,6 @@
 // Stage 45 (WP 45-D, ADR 0130): the run log player's Back on a phone
-// (touch, 390 px wide). History → a tapped row's card → Run log; Back at
+// (touch, 390 px wide). History → a tapped row's card → Run log, in the
+// big box (owner feedback 2026-11-08); Back at
 // the top left clear of the header and the compact box; hidden with the
 // chrome, a tap on the text shows it; a tap on Back returns to History
 // with its chosen row.
@@ -34,13 +35,18 @@ test('the run log player on a phone: Back top left, clear of the header and the 
 
   const back = playerBack(page);
   await expect(back).toBeVisible();
-  await expect(page.locator('.wc-start')).toBeHidden();
+  // In History's big box, the start page around it (stage 45 owner feedback, ADR 0130).
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-rl-box .wc-rl-slot > .wc-player')).toHaveCount(1);
+  await expect(page.locator('.wc-start')).toBeVisible();
   await expect(chrome(page).locator('.wc-player-box')).toHaveAttribute('data-compact', '');
   // The compact box has no time readout (as before).
   await expect(playerClock(page)).toBeHidden();
   const b = (await back.boundingBox())!;
-  expect(b.x).toBeLessThan(24);
-  expect(b.y).toBeLessThan(16);
+  const pl = (await page.locator('.wc-player').boundingBox())!;
+  expect(b.x - pl.x).toBeLessThan(24);
+  expect(b.y - pl.y).toBeLessThan(16);
+  // The box nearly fills the phone's screen.
+  expect(pl.width).toBeGreaterThan(390 * 0.9);
   // A finger fits it.
   expect(b.height).toBeGreaterThanOrEqual(24);
   // The header's left part starts right of it; the compact box is far below.
@@ -54,7 +60,7 @@ test('the run log player on a phone: Back top left, clear of the header and the 
   const box = (await chrome(page).locator('.wc-player-box').boundingBox())!;
   expect(meet(b, left)).toBe(false);
   expect(meet(b, box)).toBe(false);
-  expect(left.x + left.width).toBeLessThanOrEqual(390.5);
+  expect(left.x + left.width).toBeLessThanOrEqual(pl.x + pl.width + 0.5);
 
   // Playing, the chrome hides with Back; a tap on the game text shows it again.
   // (A tap where a hidden control sits presses it, Back as the box's buttons:

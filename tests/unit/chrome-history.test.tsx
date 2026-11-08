@@ -30,6 +30,7 @@ import {
   storageText,
 } from '../../src/chrome/frames/history-model';
 import { NO_PLAYER } from '../../src/chrome/frames/history';
+import type { PlayerHost } from '../../src/app/player-host';
 import { ProfileStore } from '../../src/profiles';
 import type { RunEvent } from '../../src/runs/events';
 import { BadBackupError, RunLibrary } from '../../src/runs/library';
@@ -231,6 +232,28 @@ async function until(ok: () => boolean, what = 'condition'): Promise<void> {
 }
 
 const frame = (host: HTMLElement) => host.querySelector('.wc-frame:not([hidden])')!;
+
+/** A stand-in for the run log's PlayerHost (`services.openRunLog`): an element, close and dispose. */
+class FakeHost {
+  readonly el = document.createElement('div');
+  isClosed = false;
+  private readonly fns: Array<() => void> = [];
+  constructor() {
+    this.el.className = 'wc-player';
+  }
+  onDispose(fn: () => void): void {
+    this.fns.push(fn);
+  }
+  dispose(): void {
+    if (this.isClosed) return;
+    this.isClosed = true;
+    this.el.remove();
+    for (const fn of this.fns.splice(0)) fn();
+  }
+  close(): void {
+    this.dispose();
+  }
+}
 const title = (host: HTMLElement) => frame(host).querySelector('.wc-title-row')?.textContent;
 /** The History page (a look frame; it stays drawn under its dialogs). */
 const hist = (host: HTMLElement) => host.querySelector<HTMLElement>('.wc-hist')!;
@@ -395,43 +418,72 @@ describe('History frame', () => {
     ]);
   });
 
-  it('opens the player (Enter, R, double click) and keeps its state across hide / show({ keep })', async () => {
+  it('opens the run log (Enter, R, double click) in its page in the same box; its close returns to History as it was', async () => {
     const lib = await library();
-    const openPlayer = vi.fn(async () => ({ ok: true as const }));
-    const { host, page } = await openHistory(lib, { openPlayer });
+    const hosts: FakeHost[] = [];
+    const openRunLog = vi.fn(async () => {
+      const h = new FakeHost();
+      hosts.push(h);
+      return { ok: true as const, host: h as unknown as PlayerHost };
+    });
+    const { host, page } = await openHistory(lib, { openRunLog });
     await key('Enter'); // row 0 has no log: nothing
     await key('r');
-    expect(openPlayer).not.toHaveBeenCalled();
+    expect(openRunLog).not.toHaveBeenCalled();
     await key('ArrowDown');
+    const before = curRow(host);
     await key('Enter');
-    await until(() => openPlayer.mock.calls.length === 1, 'the player');
-    expect((openPlayer.mock.calls[0] as unknown as [Session])[0].character).toBe('Rasta');
+    await until(() => hood(host) === 'Run log', 'the run log page');
+    expect((openRunLog.mock.calls[0] as unknown as [Session])[0].character).toBe('Rasta');
+    // The player's element fills the page's slot in the big box; History stays mounted under it.
+    expect(hosts[0]!.el.parentElement?.classList.contains('wc-rl-slot')).toBe(true);
+    expect(frame(host).querySelector('.wc-lk-box-large.wc-rl-box')).not.toBeNull();
+    expect(host.querySelector('.wc-hist')).not.toBeNull();
+    // The page's keys are the player's: a History letter does nothing.
+    await key('t');
+    expect(hood(host)).toBe('Run log');
+    await act(() => hosts[0]!.close());
+    await until(() => hood(host) === 'History', 'History again');
+    expect(curRow(host)).toBe(before);
+    expect(curRow(host)).toMatch(/^Rasta/);
     await key('r');
-    await until(() => openPlayer.mock.calls.length === 2, 'the player by R');
+    await until(() => openRunLog.mock.calls.length === 2 && hood(host) === 'Run log', 'the run log by R');
+    await act(() => hosts[1]!.close());
+    await until(() => hood(host) === 'History', 'History after R');
     // A click selects, a double click opens.
     const row2 = hist(host).querySelectorAll<HTMLElement>('.wc-lk-tr')[2]!;
     await act(() => row2.click());
     expect(curRow(host)).toMatch(/Saved/);
-    expect(openPlayer).toHaveBeenCalledTimes(2);
+    expect(openRunLog).toHaveBeenCalledTimes(2);
     await act(() => {
       row2.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
-    await until(() => openPlayer.mock.calls.length === 3, 'the player by a double click');
-    const before = curRow(host);
-    await act(() => page.hide());
-    expect(host.querySelector('.wc-chrome')?.hasAttribute('hidden')).toBe(true);
-    await act(() => page.show({ keep: true }));
-    await until(() => rowTexts(host).length === 3, 'the rows again');
-    expect(hood(host)).toBe('History');
-    expect(curRow(host)).toBe(before);
-    await key('ArrowUp');
-    expect(curRow(host)).toMatch(/^Rasta/);
+    await until(() => openRunLog.mock.calls.length === 3 && hood(host) === 'Run log', 'the run log by a double click');
+    // A fresh start page (the stack torn down) disposes the host.
+    await act(() => page.show());
+    expect(hosts[2]!.isClosed).toBe(true);
+    expect(hosts[2]!.el.isConnected).toBe(false);
+  });
+
+  it('disposes a run log that finished opening after History left the top', async () => {
+    const lib = await library();
+    let settle: (r: { ok: true; host: PlayerHost }) => void = () => {};
+    const openRunLog = vi.fn(() => new Promise<{ ok: true; host: PlayerHost }>((r) => (settle = r)));
+    const { host, page } = await openHistory(lib, { openRunLog });
+    await key('ArrowDown');
+    await key('r');
+    expect(openRunLog).toHaveBeenCalledTimes(1);
+    await act(() => page.show());
+    const h = new FakeHost();
+    await act(async () => settle({ ok: true, host: h as unknown as PlayerHost }));
+    expect(h.isClosed).toBe(true);
+    expect(host.querySelector('.wc-rl-box')).toBeNull();
   });
 
   it('shows the run-log error box when the log cannot open', async () => {
     const lib = await library();
-    const openPlayer = vi.fn(async () => ({ ok: false as const, error: 'The run log is not stored.' }));
-    const { host } = await openHistory(lib, { openPlayer });
+    const openRunLog = vi.fn(async () => ({ ok: false as const, error: 'The run log is not stored.' }));
+    const { host } = await openHistory(lib, { openRunLog });
     await key('ArrowDown');
     await key('Enter');
     await until(() => dlg('runlog-error') !== null, 'the error box');
@@ -478,11 +530,11 @@ describe('History frame', () => {
   it('holds its keys, Back and actions while a run log opens; a failed open shows its box over History', async () => {
     const lib = await library();
     let settle: (r: { ok: false; error: string }) => void = () => {};
-    const openPlayer = vi.fn(() => new Promise<{ ok: false; error: string }>((r) => (settle = r)));
-    const { host } = await openHistory(lib, { openPlayer });
+    const openRunLog = vi.fn(() => new Promise<{ ok: false; error: string }>((r) => (settle = r)));
+    const { host } = await openHistory(lib, { openRunLog });
     await key('ArrowDown'); // Rasta
     await key('r');
-    expect(openPlayer).toHaveBeenCalledTimes(1);
+    expect(openRunLog).toHaveBeenCalledTimes(1);
     // Esc, Back, a letter and a button wait for the open.
     await key('Escape');
     expect(hood(host)).toBe('History');

@@ -110,10 +110,11 @@ test('History: table and card, pills, keys, the keys box, Backup, a bad Restore,
   await expect(flash(page)).toContainText('Restore failed:');
   await expect(rows(page)).toHaveCount(3);
 
-  // Enter: the run log player; Esc: History exactly as it was.
+  // Enter: the run log player in the same big box (the start page stays); Esc: History exactly as it was.
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-player')).toBeVisible();
-  await expect(page.locator('.wc-start')).toBeHidden();
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-rl-box .wc-rl-slot > .wc-player')).toHaveCount(1);
+  await expect(page.locator('.wc-start')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-player')).toHaveCount(0);
   await expect(cur(page)).toContainText('Rasta');

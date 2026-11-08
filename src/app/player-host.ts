@@ -1,8 +1,13 @@
-// The log player in the app (ADR 0018 "Log player"): History → RUN LOG
-// opens a session here (Shell.openPlayer). One `PlayerHost` per open:
+// The log player in the app (ADR 0018 "Log player"): History → Run log
+// opens a session here (Shell.openRunLog; the host then moves into the Run
+// log page in History's big box, src/chrome/frames/run-log.tsx, ADR 0130).
+// One `PlayerHost` per open:
 //
-//   .wc-player                  fills the page; the recorded theme and the
-//                               cell size are custom properties on it
+//   .wc-player                  fills its parent (the box's window, or the
+//                               page for Shell.openPlayer); the recorded
+//                               theme and the cell size are custom
+//                               properties on it; the element the control
+//                               box's Fullscreen puts in fullscreen
 //     .wc-player-stage          the window left of the rail
 //       .wc-app                 a player App (src/app/app.ts `player: true`)
 //     .wc-player-chrome         src/player/view.ts
@@ -282,17 +287,22 @@ export class PlayerHost {
       ? opts.marks(tl)
       : markersOf(events).map((m) => ({ letter: m.letter, offset: playAtLogUs(tl, m.us), tip: m.tip }));
     const onEsc = (): void => this.close();
-    // Fullscreen in the control box (run log, Spotlights) where the page has
+    // Fullscreen in the control box (the run log player) where the page has
     // it; the HTML replay passes its own (with its F key) in `opts.view`. Not
     // on a phone: it has the corner button (ADR 0097), and the compact box
-    // has no room for one more icon at 360 px.
+    // has no room for one more icon at 360 px. It puts the player's own
+    // element in fullscreen (stage 45 owner feedback, ADR 0130): the player
+    // in History's box then fills the screen, and any way out of the
+    // browser's fullscreen (the button, Esc, F11) puts it back in the box;
+    // closing the player removes the element, which leaves fullscreen.
     const doc = this.el.ownerDocument;
+    const fsEl = this.el;
     const fullscreen = canFullscreen(doc) && !device().phone
       ? [
           {
-            label: () => (isFullscreen(doc) ? 'Exit fullscreen' : 'Fullscreen'),
-            icon: () => (isFullscreen(doc) ? ('fullscreenExit' as const) : ('fullscreen' as const)),
-            onClick: () => void toggleFullscreen(doc),
+            label: () => (isFullscreen(doc, fsEl) ? 'Exit fullscreen' : 'Fullscreen'),
+            icon: () => (isFullscreen(doc, fsEl) ? ('fullscreenExit' as const) : ('fullscreen' as const)),
+            onClick: () => void toggleFullscreen(doc, fsEl),
           },
         ]
       : [];

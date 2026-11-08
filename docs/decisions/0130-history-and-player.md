@@ -415,3 +415,58 @@ frame while idle. The Profile list is the reference row.
 History (the demo backup, the capped box) idles like the other large
 pages. The player was not measured in this pass (its headed Iris Xe
 check with Back stays open).
+
+## Owner feedback (2026-11-08): the run log in the big box
+
+The owner reversed decision 3 ("today's player, filling the whole
+player window, no sky, no box"): the run log player starts in History's
+big box with its border and the sky around it; its Fullscreen fills the
+whole window and the browser goes fullscreen. Technical decisions:
+
+- **How it opens.** A new service, `ChromeServices.openRunLog(session)`
+  (`Shell.openRunLog`), makes a player host in a hidden parking element
+  in the page root, loads the session into it as the run log player
+  (Back, `h:mm:ss`) and resolves to `{ ok: true, host }` or `{ ok: false,
+  error }`. History then pushes `RunLogFrame` (`src/chrome/frames/run-log.tsx`)
+  with the host; the frame moves `host.el` into its slot. Loading first
+  keeps the old contract: a failed open shows `RunLogErrorDialog` and
+  History never moved; an open that finishes when History is no longer
+  the top frame disposes the host. The "one player, only from the start
+  page" rules are `makeHost`'s, shared with `embedPlayer`.
+  `ChromeServices.openPlayer` is gone (History was its only user);
+  `Shell.openPlayer` and `openPlayerChain` keep the whole-window path for
+  the dev hooks (`__wc.openPlayer`, `?player=`, `openPlayerLogs`), the
+  bench and the tests that drive the player directly.
+- **The page.** `RunLogFrame` is a look frame with `Box size="large"
+  title="Run log"`: pushed over History's large box it is the kit's box
+  swap (the box stays, the hood's title cross-fades to "Run log", the
+  player fades in). The box's own Back is hidden by CSS: the player's
+  Back (top left, hiding with its chrome), Esc and the control box's Close
+  are the ways back. The window's padding is a 20 px band under the hood
+  (so the hood never covers the player's header) and nothing else; the
+  slot fills the rest and the player fills the slot (`ResizeObserver`
+  relayout, as any host). The host's close disposes it and the frame pops
+  itself (only while it is the top frame); the frame's unmount disposes a
+  host still open (a fresh start page). History stays mounted under it,
+  so its filter, sort, cursor and scroll are as left.
+- **Keys.** `usePlayerKeys(true)`: the frame's key layer swallows every
+  key at the stack and the view handles them (as the Spotlights viewer).
+  The player has no `F` key (only the HTML replay has one); none added.
+- **Fullscreen.** The control box's button puts the player's own element
+  in fullscreen (`toggleFullscreen(doc, host.el)`; `isFullscreen(doc,
+  el)` for its label and icon) instead of the document. The browser's
+  top layer then shows the player alone, filling the screen, whatever
+  the box's styles (its window is a size container and isolated, which
+  would trap a `position: fixed` copy); the filled state *is* the
+  browser's fullscreen state, so leaving it any way (the button, the
+  browser's Esc, F11) puts the player back in the box with no state of
+  our own, and closing the player (its element leaves the page) leaves
+  fullscreen. The page's own fullscreen (the phone's corner button, a
+  tablet's menu bar) is separate: with the page fullscreen the player's
+  button still reads "Fullscreen" and asks for its own element. The
+  phone has no player Fullscreen button (as before); there the box
+  nearly fills the screen (layout B's 6 px margin).
+- **Sky.** `useSkyPause(true)` while the frame shows: the sky stays as a
+  still picture around the box, so the run log costs no more frames than
+  the full-window player did (the "Performance" budget above; the box
+  adds no animation besides the swap's fades).

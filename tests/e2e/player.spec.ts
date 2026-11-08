@@ -8,6 +8,9 @@
 // kit's Back at the top left (hides with the chrome, returns to History
 // exactly as it was, never over the header or the box on a narrow
 // window) and the times as h:mm:ss from one hour.
+// Stage 45 owner feedback (2026-11-08, ADR 0130): the run log plays in
+// History's big box over the sky; Fullscreen puts the player alone in the
+// browser's fullscreen, and leaving it any way puts it back in the box.
 import { type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
 import { openLongPlayer, openStart, playerBack, playerClock } from './look';
@@ -41,6 +44,33 @@ const hist = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc
 const rows = (page: Page) => hist(page).locator('.wc-lk-tr');
 const cur = (page: Page) => hist(page).locator('.wc-lk-tr.is-on');
 const histBtn = (page: Page, id: string) => hist(page).locator(`.wc-lk-btn[data-btn="${id}"]`);
+
+/** History's big box while it shows the run log (stage 45 owner feedback, ADR 0130). */
+const runLogBox = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-box-large.wc-rl-box');
+
+/** The player lies inside the big box's window, with the sky (the box's margin) around the box. */
+async function expectInBox(page: Page): Promise<void> {
+  await expect(runLogBox(page).locator('.wc-rl-slot > .wc-player')).toHaveCount(1);
+  const g = await page.evaluate(() => {
+    const r = (el: Element | null) => el!.getBoundingClientRect().toJSON() as DOMRect;
+    return {
+      vw: window.innerWidth,
+      vh: window.innerHeight,
+      box: r(document.querySelector('.wc-rl-box')),
+      player: r(document.querySelector('.wc-player')),
+      fs: document.fullscreenElement !== null,
+    };
+  });
+  expect(g.fs).toBe(false);
+  expect(g.player.left).toBeGreaterThan(g.box.left);
+  expect(g.player.top).toBeGreaterThan(g.box.top);
+  expect(g.player.right).toBeLessThan(g.box.right);
+  expect(g.player.bottom).toBeLessThan(g.box.bottom);
+  expect(g.box.left).toBeGreaterThan(0);
+  expect(g.box.top).toBeGreaterThan(0);
+  expect(g.box.right).toBeLessThan(g.vw);
+  expect(g.box.bottom).toBeLessThan(g.vh);
+}
 
 /** Opens History from the start menu and waits for its rows (keys before that are lost). */
 async function openHistory(page: Page, count: number): Promise<void> {
@@ -128,9 +158,12 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
   expect(Date.now() - opened).toBeLessThan(1500);
   expect((await engine(page)).position).toBeLessThan(1500);
 
-  // Playing from the start, chrome shown, the start page hidden.
+  // Playing from the start, chrome shown, in History's big box: the start
+  // page (its sky) stays around it (stage 45 owner feedback, ADR 0130).
   await expect(player(page)).toBeVisible();
-  await expect(page.locator('.wc-start')).toBeHidden();
+  await expect(page.locator('.wc-start')).toBeVisible();
+  await expect(runLogBox(page).locator('.wc-lk-hood-t').last()).toHaveText('Run log');
+  await expectInBox(page);
   await expect(chrome(page).locator('.wc-player-header')).toContainText('Rasta (L42) · Run 1 of 2 · 2026-09-26 21:00');
   await expect(chrome(page).locator('.wc-player-hints')).toHaveText('Space Play/Pause · ← → 10 s · 1–6 Speed · ↑↓ Cursor · ESC Back');
   await expect(chrome(page).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Pause');
@@ -160,18 +193,18 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
   await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
   // No input line.
   await expect(player(page).locator('.wc-input-slot')).toBeHidden();
-  // The cockpit fills the window left of the rail (no letterbox); the rail is narrower than two cells.
+  // The cockpit fills the box's window left of the rail (no letterbox); the rail is narrower than two cells.
   const geo = await page.evaluate(() => {
     const r = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
     const game = r('.wc-player .wc-output');
     const cellW = parseFloat(getComputedStyle(document.querySelector('.wc-player')!).getPropertyValue('--cell-w'));
-    return { vw: window.innerWidth, stage: r('.wc-player-stage'), rail: r('.wc-player-rail'), game, cellW };
+    return { win: r('.wc-rl-slot'), stage: r('.wc-player-stage'), rail: r('.wc-player-rail'), game, cellW };
   });
-  expect(geo.stage.left).toBe(0);
+  expect(geo.stage.left).toBeCloseTo(geo.win.left, 0);
   expect(Math.abs(geo.stage.right - geo.rail.left)).toBeLessThan(1);
-  expect(geo.rail.right).toBeCloseTo(geo.vw, 0);
+  expect(geo.rail.right).toBeCloseTo(geo.win.right, 0);
   expect(geo.rail.width).toBeLessThan(2 * geo.cellW);
-  expect(geo.game.width).toBeGreaterThan(geo.vw * 0.4);
+  expect(geo.game.width).toBeGreaterThan(geo.win.width * 0.4);
 
   // Speed keys.
   const speed = chrome(page).locator('.wc-player-speed');
@@ -306,10 +339,10 @@ test('Back: the kit look at the top left, hides with the chrome, returns to Hist
   expect(before.idx).toBe(pick);
   await page.keyboard.press('r');
 
-  // The player: Back at the top left, the kit's glass Back in Cinzel.
+  // The player, in History's big box: Back at its top left, the kit's glass Back in Cinzel.
   const back = playerBack(page);
   await expect(back).toBeVisible();
-  await expect(page.locator('.wc-start')).toBeHidden();
+  await expectInBox(page);
   await expect(back).toHaveText('Back');
   await expect(back).toHaveAttribute('title', 'Back to History (Esc)');
   await expect(back).toHaveAttribute('aria-label', 'Back to History (Esc)');
@@ -317,10 +350,13 @@ test('Back: the kit look at the top left, hides with the chrome, returns to Hist
   await expect(back).toHaveCSS('font-family', /Cinzel/);
   await expect(back.locator('svg.wc-lk-ic')).toHaveCount(1);
   const bb = (await back.boundingBox())!;
-  expect(bb.x).toBeGreaterThanOrEqual(4);
-  expect(bb.x).toBeLessThan(24);
-  expect(bb.y).toBeGreaterThanOrEqual(0);
-  expect(bb.y).toBeLessThan(16);
+  const pl = (await player(page).boundingBox())!;
+  expect(bb.x - pl.x).toBeGreaterThanOrEqual(4);
+  expect(bb.x - pl.x).toBeLessThan(24);
+  expect(bb.y - pl.y).toBeGreaterThanOrEqual(0);
+  expect(bb.y - pl.y).toBeLessThan(16);
+  // The box's own Back is not drawn: the player's is the way back.
+  await expect(runLogBox(page).locator(':scope > .wc-lk-back')).toBeHidden();
   // It never takes the focus (the player's keys stay the player's).
   expect(await back.evaluate((el) => el.tabIndex)).toBe(-1);
   // Clear of the header's left part and of the box.
@@ -537,7 +573,7 @@ test('the box: ±10 s by buttons and keys, To the start, speed steps, Panes and 
   expect(errors).toEqual([]);
 });
 
-test('the run log box has Fullscreen: it toggles the page fullscreen, its label follows', async ({ page }) => {
+test('the control box has Fullscreen: it toggles the player’s own fullscreen, its label follows', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 820 });
   await page.goto('/?player=runs-demo.jsonl.gz');
   await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
@@ -560,4 +596,78 @@ test('the run log box has Fullscreen: it toggles the page fullscreen, its label 
   await fs.click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(false);
   await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+});
+
+test('History → Run log in the big box; Fullscreen fills the screen, leaving it any way puts it back; Esc returns to History', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await pinDemoClock(page);
+  await page.goto('/');
+  await restoreDemo(page);
+  await openHistory(page, 3);
+  await page.keyboard.press('ArrowDown');
+  await expect(cur(page)).toContainText('Rasta');
+  const chosen = await cur(page).textContent();
+  await page.keyboard.press('Enter');
+  await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
+  // In the box: the start page and its sky stay around it.
+  await expect(page.locator('.wc-start')).toBeVisible();
+  await expectInBox(page);
+
+  const fs = chrome(page).locator('.wc-player-box [data-act="extra"]');
+  await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+  const filled = () =>
+    page.evaluate(() => {
+      const p = document.querySelector('.wc-player')!;
+      const r = p.getBoundingClientRect();
+      return {
+        el: document.fullscreenElement === p,
+        full: Math.abs(r.left) < 1 && Math.abs(r.top) < 1 && Math.abs(r.width - window.innerWidth) < 1 && Math.abs(r.height - window.innerHeight) < 1,
+      };
+    });
+  const railGap = async () => {
+    const [r, p] = await Promise.all([chrome(page).locator('.wc-player-rail').boundingBox(), player(page).boundingBox()]);
+    return Math.abs(r!.x + r!.width - (p!.x + p!.width));
+  };
+
+  // The button: the player alone in the browser's fullscreen, filling it.
+  await fs.click();
+  await expect.poll(filled).toEqual({ el: true, full: true });
+  await expect(fs).toHaveAttribute('aria-label', 'Exit fullscreen');
+  await expect.poll(railGap).toBeLessThan(1);
+  // The button again: back in the box.
+  await fs.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+  await expectInBox(page);
+  // Fullscreen left the browser's way (Esc, F11): back in the box too.
+  await fs.click();
+  await expect.poll(filled).toEqual({ el: true, full: true });
+  await page.evaluate(() => document.exitFullscreen());
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+  await expectInBox(page);
+  await expect.poll(railGap).toBeLessThan(1);
+  // The player's keys work in the box.
+  await page.keyboard.press(' ');
+  await expect(chrome(page).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');
+
+  // Closing it from fullscreen leaves fullscreen with it.
+  await fs.click();
+  await expect.poll(filled).toEqual({ el: true, full: true });
+  await chrome(page).locator('.wc-player-box [data-act="close"]').click();
+  await expect(player(page)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
+  await expect(cur(page)).toHaveText(chosen!);
+
+  // Esc from the box: History, the same session chosen.
+  await page.keyboard.press('Enter');
+  await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
+  await page.keyboard.press('Escape');
+  await expect(player(page)).toHaveCount(0);
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
+  await expect(cur(page)).toHaveText(chosen!);
+  expect(errors).toEqual([]);
 });

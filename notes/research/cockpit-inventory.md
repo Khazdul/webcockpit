@@ -2895,7 +2895,7 @@ Opened from History (RUN LOG / row). Replays the chain's `.log` files as one tim
 Opens **playing from 00:00** with chrome visible.
 
 > WebCockpit (2026-11-07, stages 42 and 45, WebCockpit ADRs 0127 and
-> 0130): the player keeps its ghost look (ADR 0114) and fills the window.
+> 0130): the player keeps its ghost look (ADR 0114).
 > Two additions: a **Back** button at the top left in the kit's look,
 > part of the chrome (it hides 6 s after the last activity while playing
 > and returns on a pointer move, a key or a tap), going back to History
@@ -2904,6 +2904,11 @@ Opens **playing from 00:00** with chrome visible.
 > clock, the rail's seek hint and its marker tips (Cockpit: unbounded
 > minutes, `221:07`). The exported HTML replay is unchanged: no Back,
 > `MM:SS`.
+>
+> Owner feedback 2026-11-08 (ADR 0130): the run log player opens in
+> History's big box, over the still sky, instead of filling the window;
+> its Fullscreen button puts the player alone in the browser's
+> fullscreen, and leaving fullscreen any way puts it back in the box.
 
 ```
 Rasta (L73) · Run 1 of 2 · 2026-09-25 22:03                     ESC Back  ░░

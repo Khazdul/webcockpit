@@ -5,6 +5,11 @@
 // Firefox on iPad offers the API but never enters fullscreen: a request
 // that has not taken effect within `SETTLE_MS` marks fullscreen refused
 // for the rest of the page's life, and `canFullscreen` turns false.
+//
+// `isFullscreen` and `toggleFullscreen` take an element: the run log
+// player puts only itself in fullscreen (stage 45 owner feedback, ADR
+// 0130), so the browser's own way out (Esc, F11) also puts it back in its
+// box, and closing it (its element leaves the page) leaves fullscreen.
 
 const SETTLE_MS = 2000;
 let refused = false;
@@ -30,9 +35,11 @@ export function canFullscreen(doc: Document = document): boolean {
   return typeof el.requestFullscreen === 'function' || typeof el.webkitRequestFullscreen === 'function';
 }
 
-export function isFullscreen(doc: Document = document): boolean {
+/** Whether the page is in fullscreen; with `el`, whether `el` is the fullscreen element. */
+export function isFullscreen(doc: Document = document, el?: Element): boolean {
   const d = doc as FsDocument;
-  return !!(d.fullscreenElement ?? d.webkitFullscreenElement);
+  const fs = d.fullscreenElement ?? d.webkitFullscreenElement ?? null;
+  return el ? fs === el : fs !== null;
 }
 
 export function exitFullscreen(doc: Document = document): void {
@@ -43,15 +50,18 @@ export function exitFullscreen(doc: Document = document): void {
 }
 
 /**
- * Leaves fullscreen, or asks for it. Resolves false when the browser
- * refused (or ignored) the request; `canFullscreen` is false from then on.
+ * Leaves fullscreen, or asks for it: for the whole page, or with `target`
+ * for that element (left again when it is the fullscreen element; asked
+ * for while the page or another element is fullscreen). Resolves false
+ * when the browser refused (or ignored) the request; `canFullscreen` is
+ * false from then on.
  */
-export function toggleFullscreen(doc: Document = document): Promise<boolean> {
-  if (isFullscreen(doc)) {
+export function toggleFullscreen(doc: Document = document, target?: HTMLElement): Promise<boolean> {
+  if (isFullscreen(doc, target)) {
     exitFullscreen(doc);
     return Promise.resolve(true);
   }
-  const el = doc.documentElement as FsElement;
+  const el = (target ?? doc.documentElement) as FsElement;
   return new Promise<boolean>((resolve) => {
     let done = false;
     const finish = (ok: boolean): void => {
@@ -65,8 +75,8 @@ export function toggleFullscreen(doc: Document = document): Promise<boolean> {
       }
       resolve(ok);
     };
-    const off = onFullscreenChange(() => finish(isFullscreen(doc)), doc);
-    const timer = setTimeout(() => finish(isFullscreen(doc)), SETTLE_MS);
+    const off = onFullscreenChange(() => finish(isFullscreen(doc, target)), doc);
+    const timer = setTimeout(() => finish(isFullscreen(doc, target)), SETTLE_MS);
     try {
       if (el.requestFullscreen) void el.requestFullscreen().catch(() => finish(false));
       else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();

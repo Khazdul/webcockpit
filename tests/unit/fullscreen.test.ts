@@ -74,6 +74,44 @@ describe('fullscreen', () => {
     expect(canFullscreen()).toBe(false);
     expect(b.el.isConnected).toBe(false);
   });
+
+  it('puts one element in fullscreen and tells it from the page (the run log player, ADR 0130)', async () => {
+    Object.assign(document.documentElement, { requestFullscreen: vi.fn(() => Promise.resolve()) });
+    const el = document.createElement('div');
+    document.body.append(el);
+    let fs: Element | null = null;
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fs });
+    const req = vi.fn(() => {
+      fs = el;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      return Promise.resolve();
+    });
+    const exit = vi.fn(() => {
+      fs = null;
+      return Promise.resolve();
+    });
+    Object.assign(el, { requestFullscreen: req });
+    Object.assign(document, { exitFullscreen: exit });
+    try {
+      expect(isFullscreen(document, el)).toBe(false);
+      expect(await toggleFullscreen(document, el)).toBe(true);
+      expect(req).toHaveBeenCalledOnce();
+      expect(isFullscreen(document, el)).toBe(true);
+      expect(isFullscreen(document, document.documentElement)).toBe(false);
+      expect(isFullscreen()).toBe(true);
+      await toggleFullscreen(document, el);
+      expect(exit).toHaveBeenCalledOnce();
+      expect(isFullscreen(document, el)).toBe(false);
+      // The page in fullscreen: the element still asks for its own.
+      fs = document.documentElement;
+      await toggleFullscreen(document, el);
+      expect(req).toHaveBeenCalledTimes(2);
+      expect(exit).toHaveBeenCalledOnce();
+    } finally {
+      delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+      delete (document as { exitFullscreen?: unknown }).exitFullscreen;
+    }
+  });
 });
 
 describe('Esc in fullscreen: Keyboard Lock (ADR 0103)', () => {

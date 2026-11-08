@@ -16,7 +16,8 @@ and phone path History has today.
 
 The run log player (History → Run log) keeps **today's player** (stage
 32c, ADR 0114 "ghost look") almost unchanged, filling the whole player
-window. The only additions are a **Back button at the top left** (the
+window (since the owner feedback of 2026-11-08: in the big box, filling
+the window only in Fullscreen; see "Owner feedback"). The only additions are a **Back button at the top left** (the
 kit's Back), playback times as **h:mm:ss**, and a clear error box in
 History when a run log cannot open. The exported HTML replay stays
 exactly as it is today.
@@ -38,7 +39,9 @@ accepted for the round 7 open questions (recorded here as decisions):
    layout B: the full window less the box margin.)
 3. **Run log player = none of the A/B/C mockups.** Today's player, almost
    unchanged, filling the whole player window (no sky, no box, no
-   wordmark). The only addition is a **Back button**, top left, in the
+   wordmark). *Superseded 2026-11-08 by the owner's feedback (below): the
+   player starts in the big box with the sky; Fullscreen fills the
+   window.* The only addition is a **Back button**, top left, in the
    kit's Back style. The HTML replay is **exactly as today** (no Back,
    same times, same header).
 4. **No key-hint row on History**; a small **"?" button** (and the `?`
@@ -165,6 +168,8 @@ What must keep working (from the code and `CONTENT.md`):
 - **Run log**: Enter / double click / R / the Run log button →
   `services.openPlayer(session)`; the start page is hidden with History's
   state intact; Esc or Back returns to History exactly as it was.
+  (Since the owner feedback of 2026-11-08: `services.openRunLog(session)`
+  and the Run log page in the big box, below.)
 - **Keys today that change**: Tab zones filter → table → buttons become
   rows ↔ buttons (as the Profile list, ADR 0125); ←/→ in the rows change
   the pill (today they jumped to the buttons); every action has its
@@ -457,10 +462,14 @@ session.
 6. **Rate** (A) and **Delete** (D): small boxes over the page. Rate with
    0–5 or ←/→, Enter saves. Delete asks; Y deletes, anything else
    cancels.
-7. **Run log** (Enter, double click or R): today's player, filling the
-   window, with a **Back** button at the top left (it hides while playing
-   and comes back when you move the mouse). Times over an hour read
-   `1:34:07`. Back or Esc returns to History as you left it.
+7. **Run log** (Enter, double click or R): today's player, in the same
+   big box (its hood reads "Run log", the sky still around it), with a
+   **Back** button at the top left (it hides while playing and comes back
+   when you move the mouse). Times over an hour read `1:34:07`. The
+   **Fullscreen** button in the control box: the player fills the whole
+   screen and the browser goes fullscreen; the button again, Esc or F11
+   puts it back in the box. Back or Esc returns to History as you left
+   it.
 8. **A broken run log** (if you have one): a small box says it could not
    be opened, and why.
 9. **Phone** (or a narrow window): rows on two lines, a sort list, the
@@ -484,6 +493,26 @@ The build follows the default until the owner answers.
    asked for one addition only).*
 2. Should the HTML replay also show times as `h:mm:ss` (today `MM:SS`)?
    *Default: `MM:SS`, exactly as today.*
+
+## Owner feedback (2026-11-08)
+
+- **The run log player starts in the big box.** History → Run log opens
+  the player in History's large box (the box swap: the hood turns to
+  "Run log"), with the box's border and the paused sky around it, instead
+  of filling the window. The player is otherwise unchanged (Back, header,
+  rail, control box, popups, keys); Back, Esc and Close return to History
+  as it was. Decision 3 is superseded.
+- **Fullscreen fills the window and the browser goes fullscreen.** The
+  control box's Fullscreen puts the player alone in the browser's
+  fullscreen (no border, no sky); leaving fullscreen any way (the button,
+  Esc, F11) puts it back in the box. Closing the player leaves
+  fullscreen. The phone keeps layout B's box (no player Fullscreen
+  button, as before).
+
+Built on the stage branch (technical decisions in ADR 0130, "Owner
+feedback (2026-11-08)"): `services.openRunLog` loads the session into a
+parked host and History pushes `RunLogFrame` with it; a failed open still
+shows the error box over History. Test guide step 7 updated.
 
 ## Uses from stage 42
 
