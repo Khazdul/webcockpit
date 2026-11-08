@@ -238,3 +238,12 @@ done.
 3. In the game, Group and Timers float left of the visible map, stacked
    (Group on top, 1 empty row, Timers below), in the lower part of the
    screen just above the menu bar; both the size Group has now.
+
+**Outcome (2026-11-08, commits up to f0dec365):** all 3 done.
+- The film has no dips now.
+- The end card appears at 3:35.0.
+- The panes are stacked left of the map (22×12 at x 88) in both takes.
+- Left over:
+  - The start page's quote fades right after Credits' Back, not when the
+    card appears; fixing that needs a re-take of take B.
+  - Long captions overlap the lower edge of the Timers pane.
