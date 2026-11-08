@@ -2,34 +2,65 @@
 // music from 0:00. Two takes (record/scenes/take-a.ts, take-b.ts), each
 // already timed to the music:
 //
-//   take A  0:00 → beat 140 (1:44.13)  the start page, Profile, the login,
+//   take A  0:00 → beat 163 (2:01.16)  the start page, Profile, the login,
 //                                      the game to the strike, the walk, the wolf
-//   take B  beat 140 → the end         the inn, Profile and Scripts windows,
+//   take B  beat 163 → the end         the inn, Profile and Scripts windows,
 //                                      History, Spotlights, Credits, and the
 //                                      start page under the end card
 //
 // A take's music time comes from its markers (`music0` in A; `musicfrom`
 // in B, whose label is the music second it started at), so a new take
-// needs no retiming. On top: the lower thirds, the end card, the music, the
-// fades. (The montage of round 0 is gone: owner round 1, item 13.)
+// needs no retiming. On top: the lower thirds, the pane gears' tooltips (a
+// headless capture does not draw the browser's), a dip of the whole frame
+// where the game jumps (the take's `dip` markers and the cut), the end card,
+// the music, the fades.
 import { AbsoluteFill, Audio, Easing, interpolate, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import pkg from '../../../package.json';
-import { beat, beatS } from '../beats';
+import { beat, beatS, isDownbeat } from '../beats';
 import { LowerThird } from '../components/Caption';
 import { Cursor } from '../components/Cursor';
-import { type TimelineFile, f, marker } from '../timeline';
+import { type Box, type TimelineFile, f, marker } from '../timeline';
 
 export interface FilmProps extends Record<string, unknown> {
   a: TimelineFile | null;
   b: TimelineFile | null;
 }
 
-/** Take B starts on this beat. */
-const CUT_B = 140;
-/** The end card from beat 229 (after Credits' Back); the last full hit is beat 251; black by about 3:10. */
-const CARD_FROM = 229;
+/** Take B starts on this beat (a downbeat). */
+const CUT_B = 155;
+/** The last full hit of the music. */
 const LAST_HIT = 251;
-export const FILM_END_S = 190.2;
+/** Half a dip (to dark, then back), s. */
+const DIP_S = 0.35;
+/** The end card holds at least this long before the fade, s. */
+const CARD_HOLD_S = 4;
+/** A fade at the end that is not the music's own (before the last hit), s. */
+const END_FADE_S = 3;
+
+/** The music s of take B's marker. */
+function musicB(b: TimelineFile, kind: string, label?: string): number {
+  const m = marker(b, 'musicfrom');
+  return marker(b, kind, label).t - m.t + Number(m.label);
+}
+
+/**
+ * The ending (owner round 2, item 12): the end card from just after Credits'
+ * Back, held at least CARD_HOLD_S, then the picture and the music fade. When
+ * that lands near the last hit (3:06.35) the old ending stays: the fade from
+ * the hit, black at 3:10.2, the music ringing out. Before it, a 3 s fade of
+ * both from the next downbeat.
+ */
+export function ending(b: TimelineFile): { cardFrom: number; fadeFrom: number; end: number } {
+  const cardFrom = musicB(b, 'start-again') + 0.6;
+  const earliest = cardFrom + CARD_HOLD_S;
+  const hit = beatS(LAST_HIT);
+  // the last hit is near: the card holds 3–8 s and the old ending stays
+  if (cardFrom + 3 <= hit && cardFrom + 8 >= hit) return { cardFrom, fadeFrom: hit, end: 190.2 };
+  let n = Math.ceil((earliest - beatS(0)) / (beatS(1) - beatS(0)));
+  while (!isDownbeat(n)) n++;
+  const fadeFrom = beatS(n);
+  return { cardFrom, fadeFrom, end: fadeFrom + END_FADE_S };
+}
 
 /** A take's time (s from its first frame) at a music time. */
 interface Take {
@@ -57,6 +88,45 @@ function Shot({ take, from, cursor = true }: { take: Take; from: number; cursor?
   );
 }
 
+/** A dip of the whole frame centred on music second `at`. */
+function Dip({ at }: { at: number }) {
+  const frame = useCurrentFrame();
+  const c = f(at);
+  const h = f(DIP_S);
+  const o = interpolate(frame, [c - h, c, c + h], [0, 0.94, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad) });
+  return o > 0 ? <AbsoluteFill style={{ backgroundColor: 'black', opacity: o }} /> : null;
+}
+
+/** A pane button's tooltip (its `title`), drawn above it: box in video px (= film px at 1920). */
+function Tip({ from, to, text, box }: { from: number; to: number; text: string; box: Box }) {
+  const frame = useCurrentFrame();
+  const o = interpolate(frame, [f(from), f(from) + 6, f(to) - 4, f(to)], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  if (o <= 0) return null;
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none', opacity: o }}>
+      <div
+        style={{
+          position: 'absolute',
+          right: 1920 - (box.x + box.w) - 4,
+          top: box.y - 40,
+          padding: '5px 11px 6px',
+          borderRadius: 5,
+          background: 'rgba(20, 18, 16, 0.96)',
+          border: '1px solid rgba(201, 164, 92, 0.55)',
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.6)',
+          color: '#ece0c4',
+          fontFamily: "'Cormorant Garamond', serif",
+          fontWeight: 500,
+          fontSize: 22,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {text}
+      </div>
+    </AbsoluteFill>
+  );
+}
+
 export function Film({ a, b }: FilmProps) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -65,17 +135,22 @@ export function Film({ a, b }: FilmProps) {
   const Bt = takeB(b);
   /** Music s of a take's marker. */
   const mA = (kind: string, label?: string): number => marker(a, kind, label).t - marker(a, 'music0').t;
-  const mB = (kind: string, label?: string): number => {
-    const m = marker(b, 'musicfrom');
-    return marker(b, kind, label).t - m.t + Number(m.label);
-  };
+  const mB = (kind: string, label?: string): number => musicB(b, kind, label);
   const cutB = beat(CUT_B);
   const fs = (s: number): number => f(s);
   const span = (from: number, to: number) => ({ from: fs(from), dur: Math.max(1, fs(to) - fs(from)) });
+  const end = ending(b);
 
   const ease = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad) } as const;
-  const black = interpolate(frame, [0, f(1.4), beat(LAST_HIT), durationInFrames - f(0.4)], [1, 0, 0, 1], ease);
-  const volume = (fr: number): number => interpolate(fr, [0, f(0.4), beat(LAST_HIT), durationInFrames - 1], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const black = interpolate(frame, [0, f(1.4), f(end.fadeFrom), durationInFrames - f(0.15)], [1, 0, 0, 1], ease);
+  const volume = (fr: number): number =>
+    interpolate(fr, [0, f(0.4), f(end.fadeFrom), durationInFrames - 1], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+
+  const m0A = marker(a, 'music0').t;
+  const dips = [...a.markers.filter((m) => m.kind === 'dip').map((m) => m.t - m0A), beatS(CUT_B)];
+  const tips = a.markers
+    .filter((m) => m.kind === 'tip' && m.box)
+    .map((m) => ({ from: m.t - m0A, to: (a.markers.find((e) => e.kind === 'tip-end' && e.label === m.label && e.t >= m.t)?.t ?? m.t + 1.2) - m0A, text: m.label, box: m.box! }));
 
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
@@ -85,21 +160,30 @@ export function Film({ a, b }: FilmProps) {
       <Sequence from={cutB}>
         <Shot take={Bt} from={Bt.at(beatS(CUT_B))} />
       </Sequence>
-      {/* The lower thirds, each while what it names is on screen (owner round 1: the menu-bar ones come first, then the pointer). */}
+      {tips.map((t, i) => (
+        <Tip key={i} {...t} />
+      ))}
+      {dips.map((at, i) => (
+        <Dip key={i} at={at} />
+      ))}
+      {/* The lower thirds, each while what it names is on screen; the menu-bar ones come first, then the pointer. */}
       <LowerThird from={beat(3)} dur={beat(15) - beat(3)} text={[`Live demo of WebCockpit ${pkg.version}`, 'Try it at mumecockpit.com']} />
       <LowerThird {...span(mA('profile') + 0.9, mA('back') - 0.3)} text="Profiles hold your basic settings." />
       <LowerThird {...span(mA('weather-on') + 0.4, mA('font-list') - 0.5)} text="Weather effects follow the game." />
       <LowerThird {...span(mA('font-list'), mA('settings-closed') + 0.3)} text="Customise fonts, colours and more." />
-      {/* once Shield, Armour and Shroud are in the Timers pane, then Group as Tod fights; the Group settings follow */}
+      {/* once Shield, Armour and Shroud are in the Timers pane; then Group as Tod fights */}
       <LowerThird {...span(mA('segment', 'casts') + 4.8, mA('segment', 'casts') + 8.8)} text="The Timers pane tracks spells, buffs and more." />
-      <LowerThird {...span(mA('segment', 'wolf') + 1.7, mA('group-gear-2') - 0.6)} text="The Group pane shows your group and follows your fights." />
-      <LowerThird {...span(beatS(147), mB('profile-closed') + 0.2)} text="Create aliases, actions and keys from the menu or in the editor." />
-      <LowerThird {...span(beatS(165), mB('scripts-closed'))} text="A Lua scripting engine for anything more complex." />
-      <LowerThird {...span(beatS(184), beatS(199) - 0.3)} text="Every session is saved and can be replayed." />
-      <LowerThird {...span(beatS(202) + 0.5, beatS(216))} text="Spotlights collect your kills, deaths, level-ups and achievements." />
-      <LowerThird {...span(beatS(219) + 0.6, beatS(226))} text="Credits tell your characters' story as a book." />
-      {/* The end card, centred low over the night start page (its quote faded on the page); it fades with the music's tail. */}
-      <LowerThird from={beat(CARD_FROM)} dur={durationInFrames - beat(CARD_FROM) + f(1)} text={[`WebCockpit ${pkg.version}`, 'mumecockpit.com · Free and open source']} center />
+      <LowerThird {...span(mA('segment', 'wolf') + 1.7, beatS(CUT_B) - 0.5)} text="The Group pane shows your group and follows your fights." />
+      <LowerThird
+        {...span(mB('segment', 'monologue') + 0.8, mB('profile-closed') + 0.2)}
+        text="Open the profile to create aliases, actions and keys from the menu or in the editor."
+      />
+      <LowerThird {...span(mB('scripts-caption'), mB('scripts-closed'))} text="A Lua scripting engine for anything more complex." />
+      <LowerThird {...span(mB('history') + 0.5, mB('history-closed'))} text="Every session is saved and can be replayed." />
+      <LowerThird {...span(mB('spotlights') + 0.5, mB('back-start'))} text="Spotlights collect your kills, deaths, level-ups and achievements." />
+      <LowerThird {...span(mB('credits') + 0.6, mB('credits-back'))} text="Credits tell your characters' story as a book." />
+      {/* The end card, centred low over the night start page (its quote faded on the page). */}
+      <LowerThird from={f(end.cardFrom)} dur={durationInFrames - f(end.cardFrom) + f(1)} text={[`WebCockpit ${pkg.version}`, 'mumecockpit.com · Free and open source']} center />
 
       <AbsoluteFill style={{ backgroundColor: 'black', opacity: black }} />
       <Audio src={staticFile('music/sunset-plains.wav')} volume={volume} />

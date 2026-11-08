@@ -1,21 +1,23 @@
-// Take B of the film (video/manuscript.md; owner round 1): the rest of
-// part 3, parts 4 and 5, music from beat 140 (1:44.13) to the end.
+// Take B of the film (video/manuscript.md; owner rounds 1 and 2): the rest
+// of part 3, parts 4 and 5, music from beat 155 (1:55.24) to the end.
 //
 //   part 3   into the inn (the cut from take A): the barman looks up, offers
 //            the quest, Gittan nods; his monologue goes on behind the Profile
 //            window (caption first, the pointer slowly to the icon, its
 //            tooltip, then the click; alias fk → kill wolf on the Lite form,
-//            the Editor) and the Scripts window (the same way; the list
-//            flicked, Mercenaries' settings and help)
-//   part 4   Exit on beat 179; the start page a moment; History, the Bree
-//            session's log player; Spotlights, the wall a while, Rasta's PvP
-//            kill in the viewer
-//   part 5   Credits held, Back; the start page holds under the end card
+//            the Editor, the found line held about 5 s) and the Scripts window
+//            (the same way; three rows, slowly, ending on Almanac)
+//   part 4   Exit on beat 199; the start page a moment; History, the Bree
+//            session's log player (small text, a narrower right dock);
+//            Spotlights, the wall a while, Play all until the first
+//            spotlight's moment, Back to the wall, Back to the start page
+//   part 5   Credits held, Back; the start page under the end card
 //
 // Off camera the game is brought to the inn as take A left it: the run
-// played fast from its start to 155.5 s (so Group, Timers and the map carry
-// its state), Map, Group (unlabelled NPCs, Fight card) and Timers on, the
-// weather effects on and following the game (night by then, indoors).
+// played fast from its start to 155.5 s, Map docked, Group (unlabelled NPCs,
+// Fight card) and Timers floating, the weather effects on and following the
+// game (night by then, indoors).
+import type { Locator } from '@playwright/test';
 import { type Step, play, sleep } from '../../../scripts/lib/mume-feed.ts';
 import { beatS } from '../../src/beats.ts';
 import { arrival } from '../../feeds/arrival.ts';
@@ -26,9 +28,9 @@ import { type LoginMock, mockMumeLogin } from '../lib/mume-login.ts';
 import { excerptFeed, loadBackup } from '../lib/run-feed.ts';
 import type { Scene } from '../lib/scene.ts';
 
-/** The take's camera rolls at this music time (s); the film cuts to it on beat 140 (1:44.13). */
-export const TAKE_B_FROM = beatS(140) - 1.0;
-export const TAKE_B_END = beatS(256);
+/** The take's camera rolls at this music time (s); the film cuts to it on beat 155 (1:55.24). */
+export const TAKE_B_FROM = beatS(155) - 1.0;
+export const TAKE_B_END = beatS(262);
 
 const SEED = 20261109;
 const b = beatS;
@@ -47,6 +49,7 @@ export const takeB: Scene = {
         profile: string;
         windows: Record<string, unknown>;
         group: { npcMode: string; fight: boolean };
+        timers: { layout: string; cols: number | string; style: string; groups: Record<string, { enabled: boolean }> };
       };
       const wc = (window as unknown as { __wc: { settings: { update(fn: (d: D) => void): void } } }).__wc;
       wc.settings.update((d) => {
@@ -58,6 +61,10 @@ export const takeB: Scene = {
         d.profile = 'khazdul';
         d.group.npcMode = 'all';
         d.group.fight = true;
+        d.timers.groups.herb!.enabled = false;
+        d.timers.layout = 'grid';
+        d.timers.cols = 2;
+        d.timers.style = 'bars';
         // the windows a little shorter than their default, so the lower thirds sit below them (cells)
         d.windows = { ...d.windows, profile: { x: 12, y: 4, w: 142, h: 37 }, scripts: { x: 12, y: 4, w: 142, h: 37 } };
       });
@@ -106,10 +113,10 @@ export const takeB: Scene = {
     const pointer = new Pointer(page, SEED, { x: 1500, y: 860 });
 
     const game = (async () => {
-      await until(T(104.3));
+      await until(T(113.4));
       marks.mark('segment', 'inn');
       await play(page, server, state.inn as Step[], { typeDelay: 90, onStep: (s) => ('cmd' in s ? marks.mark('cmd', s.cmd) : undefined) });
-      await until(T(109.7));
+      await until(T(119.0));
       marks.mark('segment', 'monologue');
       await play(page, server, state.talk as Step[]);
     })();
@@ -124,11 +131,16 @@ export const takeB: Scene = {
         // the tooltip held at least a second
         return pointer.pressAt(Math.max(T(press), Date.now() + 1000));
       };
+      /** A calm press: the pointer onto it, a short hover so the eye finds it, then the press. */
+      const calm = async (el: Locator, at: number, hover = 0.7): Promise<number> => {
+        await pointer.hoverAt(el, T(at - hover));
+        return pointer.pressAt(T(at));
+      };
       // Profile: a new alias on the Lite form, then the Editor
-      marks.markAt(await iconClick('profile', b(147) + 1.9, b(151)), 'profile', 'the Profile window');
+      marks.markAt(await iconClick('profile', 121.6, 122.9), 'profile', 'the Profile window');
       const pe = page.locator('.wc-win[data-win="profile"] .wc-frame:not([hidden]) .wc-pe');
-      await pointer.clickAt(pe.locator('.wc-pe-rit[data-rail="alias"]'), B(152));
-      marks.markAt(await pointer.clickAt(pe.locator('[data-btn="NEW"]'), B(153)), 'alias-new', 'New entry');
+      await pointer.clickAt(pe.locator('.wc-pe-rit[data-rail="alias"]'), T(124.2));
+      marks.markAt(await pointer.clickAt(pe.locator('[data-btn="NEW"]'), T(125.0)), 'alias-new', 'New entry');
       const rnd = seeded(SEED + 1);
       const type = async (text: string): Promise<void> => {
         for (const ch of text) {
@@ -145,7 +157,7 @@ export const takeB: Scene = {
       await sleep(350);
       await page.keyboard.press('Escape');
       marks.mark('alias', 'fk → kill wolf');
-      marks.markAt(await pointer.clickAt(pe.locator('.wc-pe-views [data-opt="editor"]'), B(158)), 'editor', 'the Editor view');
+      marks.markAt(await pointer.clickAt(pe.locator('.wc-pe-views [data-opt="editor"]'), T(128.2)), 'editor', 'the Editor view');
       await sleep(700);
       // The new line in view: khazdul is long, so the editor's Find goes to it.
       const line = pe.locator('.cm-line', { hasText: '#alias {fk} {kill wolf}' });
@@ -156,64 +168,89 @@ export const takeB: Scene = {
         await page.keyboard.press('Enter');
         marks.mark('find', 'Find {fk}');
       }
-      // the found line held about two seconds
-      await until(Math.max(B(163) - 300, Date.now() + 2000));
+      // the found line held about five seconds (owner round 2)
+      await sleep(5000);
       marks.mark('profile-closed', 'the Profile window closes');
       await page.locator('.wc-win[data-win="profile"] .wc-win-x').click().catch(() => page.keyboard.press('Escape'));
-      // Scripts: the list flicked on the beat, Mercenaries' settings and help
-      marks.markAt(await iconClick('scripts', b(165) + 1.7, b(170)), 'scripts', 'the Scripts window');
+      // Scripts: a few rows, slowly, ending on Almanac (its settings and help)
+      marks.mark('scripts-caption', 'the Scripts caption');
+      const scriptsAt = (Date.now() - music0) / 1000;
+      marks.markAt(await iconClick('scripts', scriptsAt + 1.8, scriptsAt + 3.0), 'scripts', 'the Scripts window');
       const sw = page.locator('.wc-win[data-win="scripts"]');
-      for (const [i, n] of ['coinlooter', 'keymanager', 'mapsearch', 'mercenaries'].entries()) {
-        marks.markAt(await pointer.clickAt(sw.locator(`.wc-scr-row[data-name="${n}"] .wc-scr-name`).first(), B(171 + i), { quick: true }), 'script', n);
+      const s0 = (Date.now() - music0) / 1000;
+      for (const [i, n] of ['mapsearch', 'coinlooter', 'almanac'].entries()) {
+        marks.markAt(await pointer.clickAt(sw.locator(`.wc-scr-row[data-name="${n}"] .wc-scr-name`).first(), T(s0 + 1.3 + i * 1.4)), 'script', n);
       }
-      await until(T(b(176) + 0.2));
+      await until(Math.max(T(b(199)) - 3000, Date.now() + 2500));
       await page.keyboard.press('Escape');
       marks.mark('scripts-closed', 'the Scripts window closes');
-      // Exit to the start page on beat 179
-      marks.markAt(await pointer.clickAt(mb('exit'), B(177)), 'exit-icon', 'the Exit icon');
-      marks.markAt(await pointer.clickAt(page.locator('.wc-pop-exit [data-act="exit"]'), B(179), { quick: true }), 'exit', 'Exit to the start page');
+      // Exit to the start page on beat 199 (2:27.83), a downbeat
+      marks.markAt(await pointer.clickAt(mb('exit'), T(b(199)) - 1300), 'exit-icon', 'the Exit icon');
+      marks.markAt(await pointer.clickAt(page.locator('.wc-pop-exit [data-act="exit"]'), B(199), { quick: true }), 'exit', 'Exit to the start page');
       // The start page a moment, then History: the Bree session (12:07, under this take's own run), its log player
       const menu = (key: string) => page.locator(`.wc-start .wc-sm-item[data-key="${key}"] .wc-sm-label`).first();
-      marks.markAt(await pointer.clickAt(menu('history'), B(183)), 'history', 'History');
+      marks.markAt(await pointer.clickAt(menu('history'), B(199) + 2200), 'history', 'History');
       const hist = page.locator('.wc-start .wc-frame:not([hidden]) .wc-hist');
       await hist.locator('.wc-lk-tr').first().waitFor();
       const bree = hist.locator('.wc-lk-tr', { hasText: '12:07' }).first();
-      await pointer.clickAt((await bree.count()) ? bree : hist.locator('.wc-lk-tr').nth(1), B(186));
-      marks.markAt(await pointer.clickAt(hist.locator('.wc-lk-btn[data-btn="RUN LOG"]'), B(188)), 'runlog', 'the log player');
+      await pointer.clickAt((await bree.count()) ? bree : hist.locator('.wc-lk-tr').nth(1), B(199) + 3800);
+      marks.markAt(await pointer.clickAt(hist.locator('.wc-lk-btn[data-btn="RUN LOG"]'), B(199) + 5200), 'runlog', 'the log player');
       const engine = 'window.__wc.shell.playerHost.engine';
       await page.waitForFunction(`window.__wc.shell.playerHost?.engine?.duration > 0`, undefined, { timeout: 15_000 });
+      // The player: small text; its right dock about 20 % narrower, its columns equally wide (owner round 2)
+      await page.evaluate(() => {
+        type Lane = { size: number };
+        const h = (window as unknown as { __wc: { shell: { playerHost: { app: { settings: { get(): { layout: { docks: { right: { lanes: Lane[] } } } } } }; setViewer(o: unknown): void; viewerOverrides: Record<string, unknown> } } } }).__wc.shell.playerHost;
+        const layout = JSON.parse(JSON.stringify(h.app.settings.get().layout)) as { docks: { right: { lanes: Lane[] } } };
+        const lanes = layout.docks.right.lanes;
+        if (lanes.length) {
+          const w = Math.round((lanes.reduce((a, l) => a + l.size, 0) / lanes.length) * 0.8);
+          for (const l of lanes) l.size = w;
+        }
+        h.setViewer({ ...h.viewerOverrides, font: 'small', layout });
+      });
+      marks.mark('player-small', 'small text, narrower panes');
       // into the wolf fight, and play
       await page.evaluate(`${engine}.seek(Math.min(${engine}.duration * 0.18, 122e6))`).catch(() => {});
-      await until(B(199));
+      await until(B(199) + 10000);
       await page.keyboard.press('Escape');
       await sleep(400);
       await page.keyboard.press('Escape');
-      // Spotlights: the wall a while, then Rasta's PvP kill in the viewer
-      marks.markAt(await pointer.clickAt(menu('spotlights'), B(202)), 'spotlights', 'Spotlights');
+      marks.mark('history-closed', 'back on the start page');
+      // Spotlights: the wall a while, then Play all, until the first spotlight's moment
+      const sp0 = (Date.now() - music0) / 1000 + 0.6;
+      marks.markAt(await pointer.clickAt(menu('spotlights'), T(sp0)), 'spotlights', 'Spotlights');
       const wall = page.locator('.wc-start .wc-frame:not([hidden]) .wc-spw');
       await wall.locator('.wc-spw-card').first().waitFor();
-      const rasta = wall.locator('.wc-spw-card', { hasText: 'Rasta' }).first();
-      await pointer.clickAt(rasta, B(206));
-      // Enter opens the chosen card in the viewer
-      await until(B(207));
-      await page.keyboard.press('Enter');
-      marks.mark('viewer', 'the Spotlight viewer');
-      await until(B(216));
-      await page.keyboard.press('Escape');
+      marks.markAt(await calm(page.locator('.wc-start [data-btn="PLAY"]').first(), sp0 + 3.2, 0.7), 'play-all', 'Play all');
+      await page
+        .locator('.wc-spv .wc-output', { hasText: /death cry|last breath|is dead! R\.I\.P\.|You are dead!/i })
+        .first()
+        .waitFor({ timeout: 25_000 })
+        .catch(() => {});
+      marks.mark('moment', 'the first spotlight\'s moment');
+      await sleep(1000);
+      // Back, calmly: out of the player, then out of Spotlights
+      const m1 = (Date.now() - music0) / 1000;
+      // the box's Back: out of the player to the wall (Back to the wall shows only at the reel's end)
+      marks.markAt(await calm(page.locator('.wc-start button[aria-label="Back (Esc)"]').first(), m1 + 1.2, 0.6), 'back-wall', 'Back to the wall');
       await sleep(400);
-      await page.keyboard.press('Escape');
+      const m2 = (Date.now() - music0) / 1000;
+      marks.markAt(await calm(page.locator('.wc-start button[aria-label="Back (Esc)"]').first(), m2 + 1.2, 0.6), 'back-start', 'Back to the start page');
       // Credits: the book held, no page turned; Back
-      marks.markAt(await pointer.clickAt(menu('credits'), B(219)), 'credits', 'Credits');
-      marks.markAt(await pointer.clickAt(page.locator('.wc-start button[aria-label="Back (Esc)"]').first(), B(226)), 'credits-back', 'Back from Credits');
+      const c0 = (Date.now() - music0) / 1000 + 0.8;
+      marks.markAt(await pointer.clickAt(menu('credits'), T(c0)), 'credits', 'Credits');
+      marks.markAt(await calm(page.locator('.wc-start button[aria-label="Back (Esc)"]').first(), c0 + 4.9, 0.6), 'credits-back', 'Back from Credits');
       marks.mark('start-again', 'the start page');
-      // The quote fades as the end card comes in (beat 229); the hand has left the mouse
-      await until(B(228));
+      // The quote fades as the end card comes in; the hand has left the mouse
+      await sleep(400);
       await page.addStyleTag({ content: '.wc-start .wc-sm-quote { transition: opacity 0.8s ease !important; opacity: 0 !important; }' });
       marks.mark('quote-hidden', 'the quote fades for the end card');
     };
 
     await Promise.all([game, ui()]);
-    await until(T(TAKE_B_END));
+    // the end card holds over the start page, then the Film fades (it reads the time from `start-again`)
+    await until(Math.max(T(TAKE_B_END), Date.now() + 10_000));
     marks.mark('active-end', 'the take');
   },
 };

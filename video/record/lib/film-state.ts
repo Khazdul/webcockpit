@@ -3,8 +3,9 @@
 //
 //   - profiles: the bundled `khazdul` present (ADR 0024), `default` selected,
 //     so a scene can pick khazdul on camera;
-//   - weather effects off; no panes at all (the Settings scene switches on
-//     Map, Timers and Group on camera; Comm is not used in the film);
+//   - weather effects off; no panes at all (the takes switch on Group and
+//     Timers, which float small at the bottom right, and Map, docked right;
+//     Comm is not used in the film);
 //   - the five runs of the film backup restored (History, Spotlights,
 //     Credits), as `restoreDemo` in scripts/screenshots.ts does;
 //   - the page's date pinned to the evening of 2026-11-08 (FILM_NOW), so the
@@ -49,11 +50,17 @@ interface FilmWindow {
   };
 }
 interface FilmSettings {
-  layout: { docks: { right: { lanes: { panes: { id: string; desired: number }[] }[] } } };
+  layout: {
+    docks: { right: { lanes: { size: number; panes: { id: string; desired: number }[] }[]; tail: { id: string; desired: number }[] } };
+    floating: { id: string; x: number; y: number; w: number; h: number }[];
+  };
   weather: { enabled: boolean };
   panes: Record<'map' | 'timers' | 'group' | 'comm', { on: boolean }>;
   profile: string;
 }
+
+/** Where Group and Timers float (cells: the cockpit is 160 × 49 at 1600 × 900 CSS px). */
+export const FILM_FLOATS = { timers: { x: 110, y: 35, w: 25, h: 12 }, group: { x: 135, y: 35, w: 25, h: 12 } } as const;
 
 /** Where the page fetches the backup from (served from video/private/ by a route). */
 const BACKUP_URL = '/__film/runs.jsonl.gz';
@@ -97,7 +104,7 @@ export async function prepareFilm(page: Page): Promise<void> {
   await page.goto('/');
   await startMenu(page);
   await page.waitForFunction(() => (window as unknown as FilmWindow).__wc !== undefined);
-  await page.evaluate(async (url) => {
+  await page.evaluate(async ({ url, floats }) => {
     const wc = (window as unknown as FilmWindow).__wc!;
     wc.settings.update((d) => {
       d.weather.enabled = false;
@@ -106,15 +113,24 @@ export async function prepareFilm(page: Page): Promise<void> {
       d.panes.group.on = false;
       d.panes.comm.on = false;
       d.profile = 'default';
-      // Timers and Group one row taller than the new-player layout (owner, round 1: at 1:48 the timers did not fit)
-      for (const lane of d.layout.docks.right.lanes) for (const p of lane.panes) if (p.id === 'timers' || p.id === 'group') p.desired += 22;
+      // Group and Timers float, small, side by side at the bottom right (owner, round 2): over the map
+      // once it is docked. The right dock keeps one lane of the width the map had (holding Comm,
+      // which stays off), so the docked map is as wide as before.
+      const right = d.layout.docks.right;
+      right.lanes = [{ size: 50, panes: [{ id: 'comm', desired: 125 }] }];
+      right.tail = right.tail.filter((p) => p.id !== 'comm');
+      d.layout.floating = [
+        ...d.layout.floating.filter((f) => f.id !== 'group' && f.id !== 'timers'),
+        { id: 'timers', ...floats.timers },
+        { id: 'group', ...floats.group },
+      ];
     });
     const profiles = wc.shell.profiles as unknown as { init(): Promise<void>; get(n: string): Promise<unknown> };
     await profiles.init();
     if (!(await profiles.get('khazdul'))) throw new Error('the bundled khazdul profile is missing');
     const lib = await wc.runs();
     await lib.restore(await (await fetch(url)).blob());
-  }, BACKUP_URL);
+  }, { url: BACKUP_URL, floats: FILM_FLOATS });
   // The settings are written to IndexedDB after a short debounce.
   await page.waitForTimeout(600);
 }
