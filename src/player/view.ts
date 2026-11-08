@@ -159,7 +159,7 @@ export interface BoxButton {
 }
 
 export interface PlayerViewOptions {
-  /** The player element (fills the window; the chrome is laid over it). */
+  /** The player element (fills its host: the window, or the run log's box; the chrome is laid over it). */
   root: HTMLElement;
   engine: PlayerEngine;
   /** The header at run `run` (called on every render; cheap). */
