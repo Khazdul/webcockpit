@@ -21,8 +21,10 @@ import { type CaptureStats, Screencast } from './lib/screencast.ts';
 import { Marks, type TimelineFile, relativeInput } from './lib/timeline.ts';
 import { bree } from './scenes/bree.ts';
 import { part1 } from './scenes/part1.ts';
+import { takeA } from './scenes/take-a.ts';
+import { takeB } from './scenes/take-b.ts';
 
-const SCENES: Record<string, Scene> = { bree, part1 };
+const SCENES: Record<string, Scene> = { bree, part1, 'take-a': takeA, 'take-b': takeB };
 
 const VIDEO = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(VIDEO, 'public/recordings');

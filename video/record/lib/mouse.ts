@@ -143,9 +143,10 @@ export class Pointer {
   }
 
   /** The target's box, once it has stopped moving (a page that grows in). */
-  private async box(el: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+  private async box(el: Locator, polls = 8): Promise<{ x: number; y: number; width: number; height: number }> {
     let prev = await el.boundingBox();
-    for (let i = 0; i < 20; i++) {
+    if (polls <= 1 && prev) return prev;
+    for (let i = 0; i < polls; i++) {
       await sleep(50);
       const b = await el.boundingBox();
       if (b && prev && Math.abs(b.x - prev.x) < 0.5 && Math.abs(b.y - prev.y) < 0.5 && Math.abs(b.width - prev.width) < 0.5) return b;
@@ -160,11 +161,17 @@ export class Pointer {
    * (epoch ms): rests (drifting) until the movement must start, moves, waits
    * a human moment, presses, releases. Returns the press time.
    */
-  async clickAt(el: Locator, at: number): Promise<number> {
-    await this.rest(at - 1700);
-    const b = await this.box(el);
+  async clickAt(el: Locator, at: number, o: { quick?: boolean } = {}): Promise<number> {
+    await this.rest(at - 2100);
+    // `quick`: a run of clicks close together (tabs flicked on the beat), the hand already there:
+    // no wait for the target to settle, a shorter move and a shorter pause
+    const b = o.quick ? await this.box(el, 1) : await this.box(el);
     const p = this.plan(b);
-    const react = this.r(150, 350);
+    if (o.quick) {
+      p.ms *= 0.7;
+      p.over = null;
+    }
+    const react = o.quick ? this.r(40, 90) : this.r(150, 350);
     const lead = p.ms + (p.over ? p.fixMs + 50 : 0) + react;
     await this.rest(at - lead);
     await this.follow(p);
@@ -179,7 +186,7 @@ export class Pointer {
 
   /** Moves straight onto `el` (no click), arriving at `at` (epoch ms). */
   async hoverAt(el: Locator, at: number): Promise<void> {
-    await this.rest(at - 1700);
+    await this.rest(at - 2100);
     const b = await this.box(el);
     const p = this.plan(b);
     await this.rest(at - p.ms - (p.over ? p.fixMs + 50 : 0));
