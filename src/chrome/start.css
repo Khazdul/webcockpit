@@ -252,7 +252,9 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   }
 }
 
-.wc-sm-panel {
+/* (Two classes: the look kit's `.wc-lk-box-normal` width, 760 px, must not
+ * win when the production build loads look.css after this file.) */
+.wc-sm-panel.wc-lk-box {
   flex: none;
   width: min(var(--wc-panel-w), 100%);
 }
