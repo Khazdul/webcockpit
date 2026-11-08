@@ -407,8 +407,11 @@ two takes:
   The bolt itself comes down between the text and the Map pane (it
   avoids the map), so the strike reads mostly as the sky's flash.
 - When the Map pane comes on, the fountain's Room.Info is sent again (it
-  counts as a look): the map was hidden when Gittan got there and would
-  otherwise show its default place until her next move.
+  counts as a look) once the map has read its map file (it reads it the
+  first time its pane appears; a Room.Info before that is not placed):
+  the map was hidden when Gittan got there and would otherwise show its
+  default place until her next move. Its default view still shows for
+  about 0.3 s while it reads ("Drawing map…").
 - Take B's windows (Profile, Scripts) are placed a little shorter than
   their default (settings `windows`, in cells) so the lower thirds sit
   below them; Find in the Editor goes to the new alias (khazdul is 500
@@ -417,6 +420,12 @@ two takes:
 **The pointer** gained `clickAt(…, { quick: true })` for clicks a beat
 apart (the Settings tabs, a Panes row after its popup): no wait for the
 target to settle, a 30 % shorter move, a 40–90 ms pause.
+
+Rendering the whole film's ProRes master (about 11.6 GB) filled /tmp (a
+tmpfs here), where Remotion stages it, and its ffmpeg quit mid-render;
+`record/render.ts` now points TMPDIR at `video/out/tmp`. The film renders
+in about 14 minutes (master 7.5, HEVC 5, H.264 1.5); the 4K variant would
+add about 15.
 
 **Capture**: both takes PNG at DPR 1.2. Frames a second are what the page
 sends: about 46 on the start page, 12 while the clear night sky is the
