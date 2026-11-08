@@ -144,3 +144,13 @@ and render is in `video/README.md`.
 13. After Credits, back on the start page, the film is done: no montage,
     no return to the game. Stay on the start page and fade out.
 14. Fit the lengths so the film lands at about the same total time.
+
+**Outcome (2026-11-08, re-recorded, commits up to 52191b81):** all 14
+done.
+- (1) The Profile hitch was the page's first-open cost; Profile is now
+  warmed off camera.
+- (2) The sky jump came from our staging: the captured welcome screen
+  synced the clock. Only the film sets the clock now.
+- Map-on moved to the walk after the strike (no room before it).
+- (5) The silver-to-gold gap shows only about 1.2 s (a pause cap in
+  take A): to raise next round.
