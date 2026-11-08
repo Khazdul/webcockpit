@@ -194,3 +194,28 @@ done.
 - The browser's own tooltips aren't captured headless, so Remotion draws
   them.
 - A strip of map shows below the floating panes.
+
+### Round 3 (2026-11-08, on the round 2 cut)
+
+1. About 1:05: the mercenary should seem to arrive ("A citizen mercenary
+   has arrived from the west." or similar). After the 10 silver, a pause
+   of a couple of seconds before the 1 gold.
+2. Remove the dip at about 1:15 (unnecessary).
+3. Herblores is already off when Timers opens, so its group header is
+   never seen.
+4. Timers and Group sit a little more to the left and a few rows up
+   (still right of the game text, lower part of the screen). Group about
+   2 left and 1 up from Timers' line: not symmetrical, so they clearly
+   just float on the map.
+5. After the Timers settings tour, back to how it was (bars, flow).
+6. Slow the wolf fight a lot, to about normal game tempo (at least 50 %
+   slower, maybe more); it feels fast-forwarded.
+7. Scripts: Almanac briefly, then Mercenaries: stop a few seconds, enable
+   the script and set its cost to 20 silver.
+8. Spotlights: changed mind, show spotlight #2 (PvP kill *a Half-Elf*)
+   instead of Play all; play the whole spotlight until a few seconds
+   after the next one has begun, then go out.
+9. Remove the dip at about 1:55 (far too fast).
+10. The barman's lines come much slower while Profile and Scripts are
+    shown.
+11. If the changes make the whole lopsided, rebalance the whole.
