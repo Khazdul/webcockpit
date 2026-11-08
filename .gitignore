@@ -12,3 +12,11 @@ notes/research/start-menu-mockups/round4/shots/
 notes/research/start-menu-mockups/round5/shots/
 notes/research/start-menu-mockups/round6/shots/
 notes/research/start-menu-mockups/round7/shots/
+# The presentation film (video/, ADR 0133): recordings, music, renders and
+# the owner's raw material stay local.
+video/node_modules/
+video/.env.local
+video/public/recordings/
+video/public/music/
+video/private/
+video/out/

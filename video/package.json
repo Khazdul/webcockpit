@@ -1,0 +1,24 @@
+{
+  "name": "webcockpit-video",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "description": "The WebCockpit presentation film: scripted recordings of the client, cut in Remotion (ADR 0133).",
+  "scripts": {
+    "record": "node record/record.ts",
+    "studio": "remotion studio src/index.ts",
+    "render": "node record/render.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.541",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.541"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  }
+}
