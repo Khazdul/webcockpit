@@ -2,11 +2,17 @@
 // (Page.startScreencast, ADR 0133): every composited frame at full device
 // pixel size, written to disk as it comes with the compositor's timestamp.
 // The frames are assembled to constant 60 fps afterwards (encode.ts).
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { CDPSession, Page } from '@playwright/test';
+
+const FRAMES_ROOT = (() => {
+  const d = fileURLToPath(new URL('../../out/frames/', import.meta.url));
+  mkdirSync(d, { recursive: true });
+  return d;
+})();
 
 export interface Frame {
   file: string;
@@ -33,7 +39,11 @@ interface ScreencastFrame {
 }
 
 export class Screencast {
-  readonly dir = mkdtempSync(join(tmpdir(), 'wc-rec-'));
+  /**
+   * The frames, on disk under video/out/ (a long take's PNG frames run to 10 GB: more than /tmp holds
+   * when it is a tmpfs).
+   */
+  readonly dir = mkdtempSync(join(FRAMES_ROOT, 'wc-rec-'));
   readonly frames: Frame[] = [];
   private cdp: CDPSession | null = null;
   private writes: Promise<void>[] = [];

@@ -57,7 +57,14 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
     const cast = new Screencast(page, { width: VIEWPORT.width * mode.dpr, height: VIEWPORT.height * mode.dpr, format: mode.format, ...(mode.quality ? { quality: mode.quality } : {}) });
     try {
       await cast.start();
-      await scene.run({ page, marks }, state);
+      try {
+        await scene.run({ page, marks }, state);
+      } catch (err) {
+        // what the page showed when the scene failed, and the markers so far
+        await page.screenshot({ path: join(VIDEO, 'out', `fail-${sceneName}.png`) }).catch(() => {});
+        console.error(`  markers so far: ${marks.relative(cast.t0, 1e9).map((m) => `${m.kind}@${m.t.toFixed(1)}`).join(' ')}`);
+        throw err;
+      }
       const end = Date.now() / 1000;
       const input = await inputEvents(page);
       await cast.stop();
