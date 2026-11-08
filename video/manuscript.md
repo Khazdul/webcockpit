@@ -57,10 +57,10 @@ Cuts and events are placed by beat number (Remotion helper), not seconds.
 
 | Music | Picture | Caption |
 |---|---|---|
-| 0:00–0:19 | Start page at dusk: stars, a shooting star, the wordmark. | **WebCockpit** · *mumecockpit.com* |
-| 0:20–0:35 | Pointer to Profile (beat 27); the page grows out of the menu; khazdul highlighted and selected; Back. | *Profiles hold your basic settings.* |
-| 0:35–0:50 | Enter MUME on beat 47 (0:35.24; the transition takes about 4.5 s, so beat 51 would leave no time to hold the login), MUME's real welcome screen held about 4.5 s; name typed (beat 61), password masked (beat 65). | — |
-| 0:51–1:08 | Gittan in Bree with only Comm showing (weather off, plain black). Pony and `where` in the game while Settings opens: tabs flicked on the beat, ending on Weather effects; the switch goes on and the sky fades in. Background Black → Paper. Panes: Map on, then Timers, then Group as Tod joins. | *Customise fonts, colours and more.* — at the switch: *Weather effects follow the game.* |
+| 0:00–0:13 | Start page in the middle of the night (MUME 00:05, faint clouds, stars); the client's own shooting star at 0:05.0 (dev hook). | Lower third, beats 3–15: *Live demo of WebCockpit 0.3.2* / *Try it at mumecockpit.com* (version read at render time) |
+| 0:13–0:23 | Profile pressed on beat 17 (0:13.02); khazdul Selected on beat 23; Back on beat 27. Human-like pointer, no stops between targets. | *Profiles hold your basic settings.* |
+| 0:23–0:38 | Enter MUME on beat 31 (0:23.39); MUME's real welcome screen up by about 0:28, held about 3.5 s; name Enter beat 43, password (masked) Enter beat 47; fade at the phrase on beat 51 (0:38.21). | — |
+| 0:38–1:08 | Gittan in Bree with no panes at all (weather off, plain black; Comm is never used in the film). Pony and `where` in the game while Settings opens: tabs flicked on the beat, ending on Weather effects; the switch goes on and the sky fades in. Background Black → Paper. Panes: Map on, then Timers, then Group as Tod joins. | *Customise fonts, colours and more.* — at the switch: *Weather effects follow the game.* |
 | 1:08–1:18 | Back to Black. Out of the west gate; shield, arm, invis fill Timers. Sky darkens, rain starts. | *The Timers pane tracks spells, buffs and more.* |
 | **1:19.68** | **A lightning strike on the drum hit**; the storm sweeps the client. | — |
 | 1:19.7–1:31 | The second wolf, about 12 s: attack, Tod joins, assist, the kill, butcher. | After a few seconds: *The Group pane shows your group and follows your fights.* |
