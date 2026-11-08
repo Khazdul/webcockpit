@@ -86,6 +86,8 @@ export interface Excerpt {
   dropCmds?: RegExp[];
   /** A pause in the log longer than this (s, after `speed`) is shortened to it. */
   maxGap?: number;
+  /** `prime` only from this second (default: the run's start): the GMCP between the previous excerpt and this one. */
+  primeFrom?: number;
 }
 
 export interface ExcerptFeed {
@@ -120,6 +122,7 @@ export function excerptFeed(runs: Map<string, Run>, ex: Excerpt): ExcerptFeed {
   let size = 0;
   for (const l of run.lines) {
     if (rel(l.us) >= ex.from) break;
+    if (ex.primeFrom !== undefined && rel(l.us) < ex.primeFrom) continue;
     const g = gmcpOf(l.body);
     if (g === null || PRIME_SKIP.test(g.split(' ')[0]!)) continue;
     const b = gmcpBytes(g);
