@@ -36,8 +36,8 @@ async function openAbout(page: Page): Promise<void> {
   await morphDone(page);
 }
 
-const LETTERS = ['W', 'M', 'B', 'G', 'I', 'S', 'U', 'C', 'L'];
-const SECTIONS = ['intro', 'mume', 'pvp', 'start', 'inside', 'settings', 'lua', 'credits', 'licence'];
+const LETTERS = ['W', 'M', 'G', 'B', 'I', 'S', 'U', 'C', 'L'];
+const SECTIONS = ['intro', 'mume', 'start', 'pvp', 'inside', 'settings', 'lua', 'credits', 'licence'];
 
 test('the leaf: small wordmark and version, sections, rail with letters, seal; Esc leaves', async ({ page }) => {
   const errors = watchErrors(page);
@@ -59,15 +59,15 @@ test('the leaf: small wordmark and version, sections, rail with letters, seal; E
   await expect(lookBox(page).locator('.wc-about-sec')).toHaveCount(8);
   await expect(lookBox(page).locator('.wc-about-h')).toHaveText([
     /^MUME — MULTI-USERS IN MIDDLE-EARTH$/,
-    'BUILT FOR PVP',
     'GETTING STARTED',
+    'BUILT FOR PVP',
     'WHAT IS INSIDE',
     'SETTINGS',
     'LUA SCRIPTS',
     'CREDITS',
     'LICENCE',
   ]);
-  await expect(lookBox(page).locator('[data-sec="inside"] .wc-lk-kv dt')).toHaveText(['Panes', 'Map', 'Weather', 'Runs', 'Export', 'Phone']);
+  await expect(lookBox(page).locator('[data-sec="inside"] .wc-lk-kv dt')).toHaveText(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Phone']);
   await expect(lookBox(page).locator('[data-sec="credits"] .wc-lk-kv dt').first()).toHaveText('MMapper');
   await expect(lookBox(page).locator('.wc-about-colophon img')).toHaveCount(1);
   // The rail: nine rows, each with its letter; the intro lit at the top.
@@ -185,5 +185,5 @@ test('links open in a new tab; the licence and the third-party notices are serve
   const res = await page.request.get(new URL((await notices.getAttribute('href'))!, page.url()).href);
   expect(await res.text()).toMatch(/Cormorant Garamond/);
   // Game commands are set in the terminal font, not links.
-  await expect(lookBox(page).locator('.wc-about-cmd')).toContainText(['#help', '#weather demo', '?safe']);
+  await expect(lookBox(page).locator('.wc-about-cmd')).toContainText(['pray to the tower hills', 'help newbie', 'who ranger', '#help', '?safe']);
 });

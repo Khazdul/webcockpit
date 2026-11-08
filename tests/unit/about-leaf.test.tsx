@@ -27,8 +27,8 @@ describe('aboutSections', () => {
     expect(secs[0]!.title).toBe('');
     expect(secs[1]!.title).toBe('MUME — MULTI-USERS IN MIDDLE-EARTH');
     expect(secs.map((s) => s.title).slice(2)).toEqual([
-      'BUILT FOR PVP',
       'GETTING STARTED',
+      'BUILT FOR PVP',
       'WHAT IS INSIDE',
       'SETTINGS',
       'LUA SCRIPTS',
@@ -39,11 +39,13 @@ describe('aboutSections', () => {
 
   it('groups key/value rows and keeps the paragraphs', () => {
     const kv = (id: string) => secs.find((s) => s.id === id)!.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
-    expect(kv('inside')).toEqual(['Panes', 'Map', 'Weather', 'Runs', 'Export', 'Phone']);
+    expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Phone']);
     expect(kv('credits')).toEqual(['MMapper', 'Tilesets', 'Cockpit', 'MUME', 'Fonts', 'Libraries', 'TinTin++']);
-    expect(kv('pvp')).toEqual(['Website', 'Discord']);
-    const pvp = secs.find((s) => s.id === 'pvp')!.blocks;
-    expect(pvp.map((b) => ('p' in b ? 'p' : 'kv'))).toEqual(['p', 'p', 'p', 'kv']);
+    expect(kv('mume')).toEqual(['Website', 'Discord']);
+    const mume = secs.find((s) => s.id === 'mume')!.blocks;
+    expect(mume.map((b) => ('p' in b ? 'p' : 'kv'))).toEqual(['p', 'p', 'p', 'p', 'kv']);
+    const start = secs.find((s) => s.id === 'start')!.blocks;
+    expect(start.map((b) => ('p' in b ? 'p' : 'kv'))).toEqual(['p', 'p', 'p', 'p', 'kv']);
     expect(secs[0]!.blocks).toHaveLength(1);
     // Every line of the text lands in exactly one block.
     const lines = ABOUT_TEXT.split('\n').filter((l) => l.trim() !== '').length;
@@ -64,10 +66,11 @@ describe('aboutSections', () => {
   });
 
   it('states the facts of the new pages', () => {
-    expect(ABOUT_TEXT).toContain('The filter row on the Spotlights page picks the kinds, characters and period shown there and in Credits.');
-    expect(ABOUT_TEXT).toContain("Credits tells your characters' deeds as a book");
+    expect(ABOUT_TEXT).toContain('History, Spotlights and Credits on the start page look back at your runs');
     expect(ABOUT_TEXT).toContain('Third-party notices: THIRD_PARTY_NOTICES.md');
     expect(ABOUT_TEXT).not.toContain('card at the top right');
+    // Cut for newcomers (ADR 0132 addendum, 2026-11-08).
+    expect(ABOUT_TEXT).not.toMatch(/TinTin\+\+ syntax|#weather demo|Behind its menu|underlined letter/);
     expect(ABOUT_TEXT).not.toMatch(/\bMANUAL\b|\bHELP in\b/);
   });
 });
@@ -78,6 +81,10 @@ describe('aboutTokens', () => {
     expect(links).toEqual([
       ['mume.org', 'https://mume.org'],
       ['discord.gg/XkZN55am9a', 'https://discord.gg/XkZN55am9a'],
+      ['docs.mume.org/resources/newcomers', 'https://docs.mume.org/resources/newcomers'],
+      ['mume.org/help/newbie', 'https://mume.org/help/newbie'],
+      ['mume.org/help/basics', 'https://mume.org/help/basics'],
+      ['docs.mume.org/wiki/guides', 'https://docs.mume.org/wiki/guides'],
       ['github.com/MUME/MMapper', 'https://github.com/MUME/MMapper'],
       ['fonts/README.md', '/app/fonts/README.md'],
       ['tintin.mudhalla.net', 'https://tintin.mudhalla.net'],
@@ -199,16 +206,24 @@ describe('About: the leaf', () => {
     expect(q('.wc-about-ver')?.textContent).toBe('WebCockpit 9.9.9 (abc1234)');
     expect(q('.wc-about-lead')?.textContent).toMatch(/^WebCockpit is a MUD client for MUME/);
     expect([...document.querySelectorAll('.wc-about-h')].map((h) => h.textContent)).toHaveLength(8);
-    expect(document.querySelectorAll('.wc-about-kv')).toHaveLength(3);
+    expect(document.querySelectorAll('.wc-about-kv')).toHaveLength(4);
     expect(q('.wc-about-kv dt')?.textContent).toBe('Website');
     const links = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a')];
-    expect(links).toHaveLength(8);
+    expect(links).toHaveLength(12);
     for (const a of links) {
       expect(a.target).toBe('_blank');
       expect(a.rel).toBe('noopener noreferrer');
     }
     expect(links.at(-1)!.getAttribute('href')).toBe('/THIRD_PARTY_NOTICES.md');
-    expect([...document.querySelectorAll('.wc-about-cmd')].map((c) => c.textContent)).toEqual(['#help', '#weather demo', '?safe']);
+    expect([...document.querySelectorAll('.wc-about-cmd')].map((c) => c.textContent)).toEqual([
+      'pray to the tower hills',
+      'help newbie',
+      'consider',
+      'flee',
+      'who ranger',
+      '#help',
+      '?safe',
+    ]);
     expect(q('.wc-about-colophon .wc-lk-seal')).not.toBeNull();
     // No commit: the version alone.
     render(null, document.body);
@@ -271,10 +286,10 @@ describe('About: the leaf', () => {
   it('the spy lights the section whose head has passed a third of the view', async () => {
     await mountAbout();
     await scrollBy(3 * SEC + 30 - VIEW / 3 + 1);
-    expect(lit()).toBe('Getting started');
-    expect(pill()).toBe('Getting started');
-    await scrollBy(3 * SEC + 30 - VIEW / 3 - 10);
     expect(lit()).toBe('Built for PvP');
+    expect(pill()).toBe('Built for PvP');
+    await scrollBy(3 * SEC + 30 - VIEW / 3 - 10);
+    expect(lit()).toBe('Getting started');
     await scrollBy(0);
     expect(lit()).toBe('WebCockpit');
   });

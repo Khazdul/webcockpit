@@ -80,10 +80,12 @@ describe('About text', () => {
     expect(secs.slice(1).every((x) => x.title === x.title.toUpperCase() && x.blocks.length > 0)).toBe(true);
   });
 
-  it('keeps the key/value rows of What is inside, Credits and Built for PvP as tables', () => {
-    expect(kv('inside')).toEqual(['Panes', 'Map', 'Weather', 'Runs', 'Export', 'Phone']);
+  it('keeps the key/value rows of What is inside, Credits, MUME and Getting started as tables', () => {
+    expect(kv('inside')).toEqual(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Phone']);
     expect(kv('credits')).toEqual(['MMapper', 'Tilesets', 'Cockpit', 'MUME', 'Fonts', 'Libraries', 'TinTin++']);
-    expect(kv('pvp')).toEqual(['Website', 'Discord']);
+    expect(kv('mume')).toEqual(['Website', 'Discord']);
+    expect(kv('start')).toEqual(['Newcomers', 'First steps', 'Basics', 'Guides']);
+    expect(kv('pvp')).toEqual([]);
     // Every non-blank line of the text lands in one block, nothing is lost.
     for (const line of ABOUT_TEXT.split('\n').filter((l) => l.trim() !== ''))
       expect(texts.some((t) => line.includes(t) && t.length > 0 && line.trim().endsWith(t.trim()))).toBe(true);
@@ -99,13 +101,25 @@ describe('About text', () => {
         'https://github.com/MUME/MMapper',
         'https://tintin.mudhalla.net',
         'https://github.com/Khazdul/webcockpit',
+        'https://docs.mume.org/resources/newcomers',
+        'https://mume.org/help/newbie',
+        'https://mume.org/help/basics',
+        'https://docs.mume.org/wiki/guides',
         '/wc/LICENSE.txt',
         '/wc/fonts/README.md',
         '/wc/THIRD_PARTY_NOTICES.md',
       ]),
     );
-    expect(links).toHaveLength(8);
-    expect(tokens.flatMap((t) => ('cmd' in t ? [t.cmd] : []))).toEqual(['#help', '#weather demo', '?safe']);
+    expect(links).toHaveLength(12);
+    expect(tokens.flatMap((t) => ('cmd' in t ? [t.cmd] : []))).toEqual([
+      'pray to the tower hills',
+      'help newbie',
+      'consider',
+      'flee',
+      'who ranger',
+      '#help',
+      '?safe',
+    ]);
     // The tokens give back the text unchanged.
     const p = 'Licence text: LICENSE.txt. Source code: github.com/Khazdul/webcockpit';
     expect(aboutTokens(p).map((t) => ('text' in t ? t.text : 'link' in t ? t.link : t.cmd)).join('')).toBe(p);
@@ -113,14 +127,13 @@ describe('About text', () => {
 
   it('gives each section a unique letter, marked in its rail label', () => {
     const letters = ABOUT_NAV.map((n) => n.letter);
-    expect(letters).toEqual(['w', 'm', 'b', 'g', 'i', 's', 'u', 'c', 'l']);
+    expect(letters).toEqual(['w', 'm', 'g', 'b', 'i', 's', 'u', 'c', 'l']);
     expect(new Set(letters).size).toBe(letters.length);
     for (const n of ABOUT_NAV) expect(n.nav.toLowerCase()).toContain(n.letter);
   });
 
   it('states the facts the new pages changed (stage 47)', () => {
-    expect(ABOUT_TEXT).toContain('The filter row on the Spotlights page picks the kinds, characters and period shown there and in Credits.');
-    expect(ABOUT_TEXT).toContain("Credits tells your characters' deeds as a book");
+    expect(ABOUT_TEXT).toContain('History, Spotlights and Credits on the start page look back at your runs');
     expect(ABOUT_TEXT).toContain('Third-party notices: THIRD_PARTY_NOTICES.md');
     expect(ABOUT_TEXT).not.toMatch(/Spotlights reel picks/);
   });

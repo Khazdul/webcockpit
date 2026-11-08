@@ -378,3 +378,31 @@ About idles at 60.0 fps in Chromium now that its wordmark has no sheen
 (wave 3 measured 58.0 with it) and at 59.0–59.5 in Firefox (55.7–56.4
 with it). Credits idles like the other large pages. Pagination and
 About's scroll were not re-measured.
+
+## Addendum (2026-11-08): the text cut down for newcomers
+
+The owner reviewed About against a side-by-side mockup
+(`notes/research/about-rework/compare.html`) and asked for less detail:
+give a picture of what WebCockpit is and let the user find the rest.
+
+- **Getting started** follows MUME (the rail: W M G B I S U C L) and is
+  about starting MUME: create an account and a character, the menu bar in
+  two sentences, newcomer status to level 13, the Halls of Mandos and
+  `pray to the tower hills`, `help newbie`, `consider` / `flee`, Rangers
+  (`who ranger`) and Discord. Four beginner links, chosen 2026-11-08
+  (all live and current; mume.org/new is the stale 2022 page):
+  docs.mume.org/resources/newcomers, mume.org/help/newbie,
+  mume.org/help/basics, docs.mume.org/wiki/guides.
+- The start page's sky, arrow keys, Esc/Back and shortcut letters are no
+  longer described.
+- **What is inside**: shorter rows. Panes names a few and says how to use
+  them; Profile moves here from Getting started (no "TinTin++ syntax");
+  Export is part of Runs; Weather drops `#weather demo`.
+- "Free to play" and the Website / Discord rows move from Built for PvP to
+  MUME.
+- **Credits → Fonts** refers to fonts/README.md instead of listing every
+  face.
+- Lua scripts, Settings and Licence are unchanged.
+- The link pattern learns `docs.mume.org` (before it, only the
+  `mume.org/...` tail would have been a link); the new game commands are
+  set in the terminal font.

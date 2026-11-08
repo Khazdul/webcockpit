@@ -8,11 +8,13 @@
 // (<commit>)` (ADR 0025) at its head, an ornament rule, the intro as the
 // lead-in, then each section (a Cinzel head with a short rule, Cormorant
 // paragraphs, key/value rows as a small two-column table), and the colophon
-// (an ornament rule and the "M" seal). Web addresses (mume.org, discord.gg,
-// github.com, tintin.mudhalla.net) and the site's own files (LICENSE.txt,
-// THIRD_PARTY_NOTICES.md, fonts/README.md, served at the site root, see
-// vite.config.ts) are links that open in a new tab; game commands
-// (#help, #weather demo, ?safe) are set in the terminal font.
+// (an ornament rule and the "M" seal). Web addresses (mume.org,
+// docs.mume.org, discord.gg, github.com, tintin.mudhalla.net) and the
+// site's own files (LICENSE.txt, THIRD_PARTY_NOTICES.md, fonts/README.md,
+// served at the site root, see vite.config.ts) are links that open in a new
+// tab; game commands (#help, ?safe, help newbie, who ranger, ...) are set in
+// the terminal font. The text was cut down for newcomers on 2026-11-08 (ADR
+// 0132 addendum): Getting started is about starting MUME.
 //
 // The contents rail at the left (a strip of pills above the text when the
 // box is narrow) follows the reading: the section whose head has passed a
@@ -23,7 +25,7 @@
 // jumped-to section stays lit.
 //
 // Keys: ↑ / ↓ about 40 px, PgUp / PgDn / Space / Enter 85 % of the view
-// (Shift+Space back), Home / End, the letters W M B G I S U C L, Esc / Back.
+// (Shift+Space back), Home / End, the letters W M G B I S U C L, Esc / Back.
 
 import './about.css';
 import type { VNode } from 'preact';
@@ -54,29 +56,35 @@ Pick a side. The Free Peoples — Men, Elves, Hobbits, Dwarves and Beornings —
 
 The world is wide and true to the books: the Shire, Bree, Rivendell, Moria, Lothlórien, Fangorn, Isengard, the Misty Mountains and much more, all there to explore. Roleplay is encouraged, and names that do not fit Middle-earth do not last.
 
-BUILT FOR PVP
-PvP is what sets MUME apart: towers and terrain to take, deep skill and spell systems, and constant skirmishes between the sides. Big raids draw a hundred players or more. The pace is high, and a fast client with reliable reflexes is what lets you keep up.
-
-WebCockpit is made for that. Keystrokes go to the game at once, macros and actions fire without delay, and the panes show what matters in a fight: your vitals, spell and debuff timers, your group, the channels and the map.
-
 MUME is free to play. No subscription, just connect.
   Website         mume.org
   Discord         discord.gg/XkZN55am9a
 
 GETTING STARTED
-Choose Enter MUME on the start page. Behind its menu runs MUME's own sky by the game clock: sun, moon, stars and the weather of the season, with the date and time of Middle-earth at the bottom right. Move with the arrow keys or the mouse; Enter, Space or a click opens an entry, and the underlined letter in each one is its shortcut (E for Enter MUME). Esc, or Back at the top left, goes back one page.
+Choose Enter MUME on the start page and follow the prompts to create an account and your first character. Once you are in, the menu bar at the right end of the input line holds Profile, Scripts, Panes and Settings. On a phone, ☰ opens it.
 
-In the game, the menu bar at the right end of the input line holds Profile, Scripts, Panes, Settings, Fullscreen and Exit; Panes and Settings set up the panes and the look, and every change applies at once. On a phone, ☰ opens the menu.
+A new character is a newcomer until level 13, and the game goes easy on you until then. You start in the Halls of Mandos: pray to the tower hills takes you to the Tower Hills, the recommended first area. Type help newbie for the first steps. Take it slowly: consider a monster before you attack it, and flee when a fight turns against you.
 
-Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → Edit on the start page; in the game, Profile in the menu bar opens the editor. A profile is written in TinTin++ syntax. The editor has three views: Lite, a form for each kind of setting; Editor, the profile as text; and Help, the manual (L, E and H switch between them). Help, or #help in the game, explains each command with examples. Profile → Import reads profiles from TinTin++, JMC, Powwow and Mudlet: drop the files on its page or choose them, and a receipt sums up what was translated.
+You do not have to learn alone. Rangers are volunteers who help new players; who ranger shows the ones online. Questions are welcome on Discord too.
+
+Good places to start reading:
+  Newcomers       The community's beginner guide, with a step-by-step tutorial: docs.mume.org/resources/newcomers
+  First steps     Leaving Mandos, finding help and other players: mume.org/help/newbie
+  Basics          The commands you need in the first hour: mume.org/help/basics
+  Guides          The MUME wiki's guides, from the first hour to level 12 and beyond: docs.mume.org/wiki/guides
+
+BUILT FOR PVP
+PvP is what sets MUME apart: towers and terrain to take, deep skill and spell systems, and constant skirmishes between the sides. Big raids draw a hundred players or more. The pace is high, and a fast client with reliable reflexes is what lets you keep up.
+
+WebCockpit is made for that. Keystrokes go to the game at once, macros and actions fire without delay, and the panes show what matters in a fight: your vitals, spell and debuff timers, your group, the channels and the map.
 
 WHAT IS INSIDE
-  Panes           Character, Timers, Group, Communication, UI messages, Map and Statistics. Dock them on any side, in several columns or rows, or let them float.
-  Map             Reads MMapper maps and follows you as you move. Settings → Mapper in the game picks the tileset, among them Shimrod's, which follows MUME's season.
-  Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Settings → Weather effects in the game turns them off or picks what to show; #weather demo plays them all.
-  Runs            Every login is recorded in this browser. History on the start page lists them: rate a run, open its Statistics or its log in the player, and back them all up or restore them. Spotlights shows the best moments as a wall of cards; a card plays in a viewer that grows out of it and plays on through the rest. Credits tells your characters' deeds as a book. The filter row on the Spotlights page picks the kinds, characters and period shown there and in Credits.
-  Export          Cut a run, add comments and export it as an HTML replay anyone can open, or as plain text.
-  Phone           Log in and chat from a phone; History, Export and the scripts' settings work there too. Real play is for a keyboard.
+  Panes           Small windows around the game text: your character's vitals, spell timers, your group, the channels, the map. Panes in the menu bar turns them on and off. Drag one to dock it on any side, or let it float.
+  Profile         Your aliases, actions, highlights, macros and timers. Edit them as a form or as text; #help explains every command. Import brings in profiles from TinTin++, JMC, Powwow and Mudlet.
+  Map             Reads MMapper maps and follows you as you move.
+  Weather         The sky and weather of Middle-earth over the whole client, driven by the game.
+  Runs            Every login is recorded in this browser. History, Spotlights and Credits on the start page look back at your runs, and Export turns one into an HTML replay anyone can open.
+  Phone           Log in and chat from a phone. Real play is for a keyboard.
 
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
@@ -89,7 +97,7 @@ CREDITS
   Tilesets        Shimrod's seasonal tiles; Desert by Khazdul, from Shimrod's tiles; Gefe & Rik by Octavia, after Gefe and Rik's maps; Gray's Map by Sunnyl75, after Gray's maps.
   Cockpit         The terminal client for MUME that WebCockpit is modelled on.
   MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
-  Fonts           Agave, Anonymous Pro, Cascadia Mono, DejaVu Sans Mono, Fantasque Sans Mono, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex Mono, Inconsolata, JetBrains Mono, mononoki and Noto Sans Mono for the text; Cinzel for the pane titles, the start page's menu, headings and buttons and the MUME wordmark; Cormorant Garamond for the start page's quote, notes and pages, and Cormorant SC for its small capitals. Each is under its own licence (fonts/README.md). Lucida Console is used only when installed and is not part of WebCockpit.
+  Fonts           The fonts for the game text, Cinzel and Cormorant Garamond are each under their own licence, listed in fonts/README.md. Lucida Console is used only when installed and is not part of WebCockpit.
   Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
   TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
 
@@ -117,8 +125,8 @@ export interface AboutSection {
 export const ABOUT_NAV: readonly { id: string; head: string; nav: string; letter: string }[] = [
   { id: 'intro', head: '', nav: 'WebCockpit', letter: 'w' },
   { id: 'mume', head: 'MUME', nav: 'MUME', letter: 'm' },
-  { id: 'pvp', head: 'BUILT FOR PVP', nav: 'Built for PvP', letter: 'b' },
   { id: 'start', head: 'GETTING STARTED', nav: 'Getting started', letter: 'g' },
+  { id: 'pvp', head: 'BUILT FOR PVP', nav: 'Built for PvP', letter: 'b' },
   { id: 'inside', head: 'WHAT IS INSIDE', nav: 'What is inside', letter: 'i' },
   { id: 'settings', head: 'SETTINGS', nav: 'Settings', letter: 's' },
   { id: 'lua', head: 'LUA SCRIPTS', nav: 'Lua scripts', letter: 'u' },
@@ -163,7 +171,7 @@ export function aboutSections(text: string): AboutSection[] {
 export type AboutToken = { text: string } | { link: string; href: string } | { cmd: string };
 
 const LINK_RE =
-  /\b((?:mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt|THIRD_PARTY_NOTICES\.md|fonts\/README\.md)|(#help|#weather demo|\?safe)(?!\w)/g;
+  /\b((?:docs\.mume\.org|mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt|THIRD_PARTY_NOTICES\.md|fonts\/README\.md)|(#help|#weather demo|\?safe|\bpray to the tower hills|\bhelp newbie|\bwho ranger|\bconsider|\bflee)(?!\w)/g;
 /** The site's own files (served from `public/` or by vite.config.ts). */
 const LOCAL_FILES = new Set(['LICENSE.txt', 'THIRD_PARTY_NOTICES.md', 'fonts/README.md']);
 
