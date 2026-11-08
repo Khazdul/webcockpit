@@ -484,12 +484,15 @@ whole window and the browser goes fullscreen. Technical decisions:
   `usePlayerKeys` was a key layer returning true for every key, and the
   frame stack prevents the default of every consumed key; the Spotlights
   viewer's layer and the wall's handler did the same. Fixes:
-  - The frame stack (`stack.tsx`) never prevents a function key
-    (`isBrowserKey`: F1–F24, with any modifiers) and no frame handler
-    sees one; only a key layer registered with `{ browserKeys: true }`
-    does, and its `true` prevents the default. This holds on every page
-    of the start surface, the ESC menu and the windows (a dialog's "any
-    key cancels" no longer eats F11 either).
+  - The frame stack (`stack.tsx`) never prevents F11 (`isBrowserKey`,
+    with any modifiers) and no frame handler sees it; only a key layer
+    registered with `{ browserKeys: true }` does, and its `true` prevents
+    the default. This holds on every page of the start surface, the ESC
+    menu and the windows (a dialog's "any key cancels" no longer eats
+    F11). Only F11: the other function keys are pages' keys (F1 opens the
+    manuals, the editor's macro capture binds F5 …), so the rule cannot
+    cover them; as a consequence the editor's macro capture cannot take
+    F11 any more (the app binds nothing to it by default).
   - `usePlayerKeys` and the Spotlights viewer let every browser shortcut
     through (`isBrowserShortcut`: Ctrl, Alt or Meta, or a function key):
     the player uses none, so Ctrl+R, Ctrl+L, Alt+← … reach the browser.

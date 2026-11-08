@@ -47,9 +47,9 @@
 //   "the top frame".
 // - Key layers (`useKeyLayer`): a popover or an inline dialog gets the top
 //   frame's keys before the frame's handler, the most recent layer first.
-// - Browser keys (stage 45 owner feedback round 2, ADR 0130): the function
-//   keys (F11, F5, F12 …) are never prevented and no frame handler sees
-//   them, only a layer that asks (`browserKeys`).
+// - F11 is the browser's (stage 45 owner feedback round 2, ADR 0130): it
+//   is never prevented and no frame handler sees it, only a layer that
+//   asks (`browserKeys`: the run log page's Fullscreen).
 // - The Esc rule (look frames and overlays only): an Esc that no layer and
 //   not the frame's handler consumes, pressed in a text field inside the
 //   frame, blurs the field and gives the focus back to the host; it does
@@ -138,8 +138,8 @@ export function useKeys(handler: KeyHandler): void {
  * before the frame's handler, the most recently activated layer first;
  * true = consumed, false = the next layer (then the frame) gets the key.
  * Latest closure wins. Stage 42c, ADR 0127. `browserKeys`: it also gets
- * the browser's function keys (`isBrowserKey`), which no frame handler
- * sees (the run log's F11).
+ * F11 (`isBrowserKey`), which no frame handler sees (the run log's
+ * Fullscreen).
  */
 export function useKeyLayer(handler: KeyHandler, active = true, opts: { browserKeys?: boolean } = {}): void {
   const { entry } = useFrameCtx();
@@ -170,8 +170,8 @@ export function useKeyLayer(handler: KeyHandler, active = true, opts: { browserK
  * ready yet): the frame's keys as usual. Stage 42 wave 3, ADR 0127.
  */
 export function usePlayerKeys(on: boolean): void {
-  // Browser shortcuts pass (the player uses none): no handler takes them,
-  // so the stack leaves their default alone (owner feedback round 2, ADR 0130).
+  // Browser shortcuts pass (the player uses none): the layer leaves them to
+  // the frame's handler and the stack (owner feedback round 2, ADR 0130).
   useKeyLayer((e) => !isBrowserShortcut(e), on);
 }
 
@@ -205,24 +205,25 @@ function runBrowserLayers(entry: Entry, e: KeyboardEvent): boolean {
 }
 
 /**
- * A key the browser keeps on every page: the function keys F1–F24, with
- * or without modifiers (F11 fullscreen, F5 reload, F12 the dev tools).
- * The frame stack never prevents them and its frames' handlers never see
- * them; a key layer can ask for them (`useKeyLayer(fn, on, { browserKeys:
- * true })`). Stage 45 owner feedback round 2, ADR 0130.
+ * A key the browser keeps on every page: F11, its fullscreen, with or
+ * without modifiers (the app binds nothing to it; F1, F5 … are pages'
+ * keys: the manuals, the editor's macro capture). The frame stack never
+ * prevents it and its frames' handlers never see it; a key layer can ask
+ * for it (`useKeyLayer(fn, on, { browserKeys: true })`). Stage 45 owner
+ * feedback round 2, ADR 0130.
  */
 export function isBrowserKey(e: { key: string }): boolean {
-  return /^F([1-9]|1\d|2[0-4])$/.test(e.key);
+  return e.key === 'F11';
 }
 
 /**
  * A browser shortcut with Ctrl, Alt or Meta (Ctrl+R, Ctrl+L, Ctrl+T, Alt+←
- * …) or a function key: the keys a page that gives every key to an embedded
- * player (`usePlayerKeys`) lets through to the browser; the player uses
- * none of them.
+ * …) or a function key F1–F24 (F5, F12 …): the keys a page that gives
+ * every key to an embedded player (`usePlayerKeys`) lets through to the
+ * browser; the player uses none of them.
  */
 export function isBrowserShortcut(e: { key: string; ctrlKey: boolean; altKey: boolean; metaKey: boolean }): boolean {
-  return e.ctrlKey || e.altKey || e.metaKey || isBrowserKey(e);
+  return e.ctrlKey || e.altKey || e.metaKey || /^F([1-9]|1\d|2[0-4])$/.test(e.key);
 }
 
 /** Index of the page: the topmost frame that is not an overlay (the root never is one). */
@@ -499,9 +500,8 @@ export function FrameStack(props: FrameStackProps): VNode {
       }
       const s = stackRef.current!;
       const top = s[s.length - 1]!;
-      // The browser's function keys (F11 fullscreen, F5 reload, F12 the dev
-      // tools …) go to the browser: no frame handler sees them, only a key
-      // layer that asks for them (the run log's F11).
+      // F11 goes to the browser (its fullscreen): no frame handler sees it,
+      // only a key layer that asks for it (the run log's Fullscreen).
       if (isBrowserKey(e)) {
         if (runBrowserLayers(top, e)) e.preventDefault();
         return;

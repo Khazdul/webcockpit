@@ -497,7 +497,7 @@ describe('browser keys (stage 45 owner feedback round 2, ADR 0130)', () => {
     return e.defaultPrevented;
   };
 
-  it('never prevents a function key: no frame handler sees it, only a layer that asks', async () => {
+  it('never prevents F11: no frame handler sees it, only a layer that asks; other function keys are the pages', async () => {
     const log: string[] = [];
     let ask!: (on: boolean) => void;
     function Page() {
@@ -512,16 +512,16 @@ describe('browser keys (stage 45 owner feedback round 2, ADR 0130)', () => {
       render(<FrameStack root={<Page />} active />, document.body);
     });
     expect(press('F11')).toBe(false);
-    expect(press('F5')).toBe(false);
-    expect(press('F12', { ctrlKey: true, shiftKey: true })).toBe(false);
+    expect(press('F11', { shiftKey: true })).toBe(false);
     expect(log).toEqual([]);
+    // F1 (the manuals), F5 (the editor's macro capture): the frame's keys as any.
+    expect(press('F1')).toBe(true);
     expect(press('a')).toBe(true);
-    expect(log).toEqual(['layer:a']);
+    expect(log).toEqual(['layer:F1', 'layer:a']);
     log.length = 0;
     await act(async () => ask(true));
     expect(press('F11')).toBe(true);
-    expect(press('F5')).toBe(false);
-    expect(log).toEqual(['f:F11', 'f:F5']);
+    expect(log).toEqual(['f:F11']);
   });
 
   it('a page that gives every key to its player lets the browser shortcuts through', async () => {
@@ -541,7 +541,7 @@ describe('browser keys (stage 45 owner feedback round 2, ADR 0130)', () => {
     expect(press('ArrowLeft', { altKey: true })).toBe(false);
     expect(press('F5')).toBe(false);
     // The shortcuts go on to the frame's own handler, which leaves them too.
-    expect(log).toEqual(['r', 'l', 'ArrowLeft']);
+    expect(log).toEqual(['r', 'l', 'ArrowLeft', 'F5']);
     expect(isBrowserShortcut({ key: 'r', ctrlKey: true, altKey: false, metaKey: false })).toBe(true);
     expect(isBrowserShortcut({ key: 'F11', ctrlKey: false, altKey: false, metaKey: false })).toBe(true);
     expect(isBrowserShortcut({ key: 'f', ctrlKey: false, altKey: false, metaKey: false })).toBe(false);

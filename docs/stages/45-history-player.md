@@ -531,10 +531,10 @@ shows the error box over History. Test guide step 7 updated.
   page gives every key to the player through a key layer
   (`usePlayerKeys`) that consumed every key, so the frame stack called
   `preventDefault` on F11 too (and on F5, F12, Ctrl+R, Ctrl+L …); the
-  Spotlights viewer did the same. Now the frame stack never prevents a
-  function key (F1–F24) and no frame handler sees one, anywhere (start
-  page, every page, the dialogs); the player pages let every Ctrl, Alt or
-  Meta shortcut through too. On the run log page F11 does what the
+  Spotlights viewer did the same. Now the frame stack never prevents F11
+  and no frame handler sees it, anywhere (start page, every page, the
+  dialogs); the player pages let every function key and every Ctrl, Alt
+  or Meta shortcut through to the browser. On the run log page F11 does what the
   Fullscreen button does (the player alone in the browser's fullscreen;
   F11 again, Esc or the button puts it back in the box); where the player
   has no Fullscreen button (a phone) F11 is the browser's.
