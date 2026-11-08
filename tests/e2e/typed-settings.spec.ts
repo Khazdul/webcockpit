@@ -44,10 +44,10 @@ async function openProfile(page: Page): Promise<void> {
 
 /** Editor → game: the window closes with the editor (nothing edited, so nothing asks). */
 async function backToGame(page: Page): Promise<void> {
-  // In Editor the first Esc leaves the buffer for the rail (ADR 0128).
+  // In Editor the first Esc leaves the buffer for the views (ADR 0128, owner feedback 2026-11-08).
   if ((await pe(page).getAttribute('data-zone')) === 'buffer') {
     await page.keyboard.press('Escape');
-    await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+    await expect(pe(page)).toHaveAttribute('data-zone', 'views');
   }
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);

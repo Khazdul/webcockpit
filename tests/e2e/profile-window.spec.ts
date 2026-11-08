@@ -61,6 +61,10 @@ test('the head line follows the connection while the window is open; Editor’s 
   await expect(pe(page).locator('.wc-pe-status')).toHaveText('All applied');
   await pe(page).locator('.wc-pe-views [data-opt="editor"]').click();
   await expect(pe(page).locator('[data-btn="APPLY"]')).toBeVisible();
+  // Editor has no rail: the buffer starts at the window body's left edge.
+  await expect(pe(page).locator('.wc-pe-rail')).toHaveCount(0);
+  const root = (await pe(page).boundingBox())!;
+  expect(Math.abs((await pe(page).locator('.wc-pe-buf').boundingBox())!.x - root.x)).toBeLessThan(1);
   // The session ends with the window open: the line, the button and the status follow at once.
   await server().close();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);

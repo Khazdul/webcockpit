@@ -21,7 +21,6 @@ import {
   previewLine,
   showsAs,
   statusText,
-  textSections,
 } from '../../src/editor/logic';
 import { balanceText, braceMatchAt, scanBraces, tokenizeLine } from '../../src/editor/syntax';
 import {
@@ -290,40 +289,6 @@ describe('the new look (ADR 0128)', () => {
     expect(new Set(letters).size).toBe(letters.length);
     for (const v of VIEW_LABELS) expect(v.label.toLowerCase()).toContain(v.letter);
     expect(KINDS.map((k) => KIND_LETTERS[k]).join('')).toBe('aigms');
-  });
-
-  it('lists the text sections for the rail: kinds, timers, classes and #nop headings, in text order', () => {
-    const text = [
-      '#nop {Gibur, a warrior.}',
-      '',
-      '#variable {target} {orc}',
-      '',
-      '#nop ---- actions ----',
-      '#action {x} {',
-      '  y',
-      '}',
-      '#nop not a heading',
-      '#alias {a} {b}',
-      '',
-      '#nop == Fighting ==',
-      '#macro {F1} {bash}',
-      '#ticker {t} {score} {60}',
-      '#class {c} {open}',
-      '#alias {z} {zz}',
-      '',
-    ].join('\n');
-    expect(textSections(parseProfile(text))).toEqual([
-      { label: 'Gibur, a warrior.', line: 1, type: 'note' },
-      { label: 'Variables', line: 3, type: 'kind' },
-      // The heading that only names the kind below it is that kind's entry.
-      { label: 'Actions', line: 5, type: 'kind' },
-      { label: 'Aliases', line: 10, type: 'kind' },
-      { label: 'Fighting', line: 12, type: 'note' },
-      { label: 'Macros', line: 13, type: 'kind' },
-      { label: 'Timers & events', line: 14, type: 'kind' },
-      { label: 'Classes', line: 15, type: 'kind' },
-    ]);
-    expect(textSections(parseProfile(''))).toEqual([]);
   });
 
   it('shows a highlight pattern without its anchors, wildcards and arguments', () => {

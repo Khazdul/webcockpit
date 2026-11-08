@@ -7,10 +7,10 @@
 //
 //   head   the profile's name (start page) or the live line (in the
 //          game), the views Lite · Editor · Help
-//   rail   the spine: the kinds (Lite), the text's sections (Editor), the
-//          manual's headings (Help)
-//   main   the entry list (Lite), the CodeMirror buffer (Editor), the
-//          manual (Help); Lite's entry detail beside the list (no card)
+//   rail   the spine: the kinds (Lite), the manual's headings (Help);
+//          Editor has none (owner feedback 2026-11-08)
+//   main   the entry list (Lite), the CodeMirror buffer (Editor, the whole
+//          width), the manual (Help); Lite's entry detail beside the list
 //   foot   the view's buttons, the flash, the quiet status
 //
 // The editor lays itself out by its own width (`peLayout`, the same
@@ -32,14 +32,14 @@
 //
 // Keys (ADR 0128, a rework of ADR 0119 for the rail): the frame stack's
 // listener routes every key here (`useKeys`), the inline dialogs' and the
-// capture's key layers first. Zones: views, rail, list, detail (Lite),
-// buffer (Editor), help (Help). The keyboard's zone is state: only text
+// capture's key layers first. Zones: views, rail, list, detail (Lite);
+// views, buffer (Editor); views, rail, help (Help). The keyboard's zone is state: only text
 // fields and the buffer take the DOM focus, everything else is reached by
 // keys and letters (L E H views; in Lite A I G M S kinds, N new, D delete;
 // in Help n / p headings), and the stack host keeps the focus otherwise.
-// Esc leaves a field or the buffer first (decision 6), closes the sheet,
-// the find, and only then leaves the editor (asking first when something
-// is not applied).
+// Esc leaves a field or the buffer first (decision 6; the buffer to the
+// views), closes the sheet, the find, and only then leaves the editor
+// (asking first when something is not applied).
 
 import type { EditorView } from '@codemirror/view';
 import type { VNode } from 'preact';
@@ -100,7 +100,6 @@ import type { GridPos, HlDim } from './detail-highlight';
 import { HelpRail, HelpView } from './help-view';
 import { Detail, type DetailField, EntryList, KindRail, revealRow } from './lite';
 import { type CommitWhy, type EditorHost, type Mode, type Outcome, ProfileModel } from './model';
-import { TextRail, sectionAt, showLine, useTextSections } from './text-view';
 import '../profile.css';
 
 export type { EditorHost } from './model';
@@ -196,8 +195,6 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const [layout, setLayout] = useState<PeLayout>('wide');
   // One column: the entry is open as a sheet over the list.
   const [sheet, setSheet] = useState(false);
-  // The keyboard's entry in Editor's rail.
-  const [railCur, setRailCur] = useState(0);
   // The editor's own flash (1.5 s by default; a flip clears it, an apply does not cover one still up).
   const [flashNow, showFlash, flashCtl] = useLocalFlash();
   const flash = { flash: flashNow, show: (text: string, kind?: FlashKind, ms = FLASH_MS) => showFlash(text, kind, ms), ...flashCtl };
@@ -465,9 +462,6 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     if (!help && mode === 'editor') viewRef.current?.requestMeasure();
   }, [help]);
 
-  // The text's sections for Editor's rail: read when the buffer opens, then after edits (debounced).
-  const textSecs = useTextSections(() => (modeRef.current === 'editor' && viewRef.current ? bufferText(viewRef.current) : null));
-
   // The CodeMirror buffer, mounted while in Editor (a fresh state, so a fresh undo history, on every flip).
   useLayoutEffect(() => {
     if (mode !== 'editor' || !bufRef.current) return;
@@ -475,16 +469,12 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
       text: bufferInit.current,
       eol: doc.eol,
       look: 'lantern',
-      onStatus: (s) => {
-        setStatus(s);
-        textSecs.touch();
-      },
+      onStatus: setStatus,
       onScroll: () => {},
       onClipboard: (k) => flash.show(k === 'copy' ? 'Copied' : 'Cut'),
       onFocus: () => setZone('buffer'),
     });
     viewRef.current = v;
-    textSecs.now();
     return () => {
       bufferInit.current = bufferText(v);
       v.destroy();
@@ -655,19 +645,13 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     h: () => select('help'),
   };
 
-  /** Editor's rail: the current section (the cursor's), the keyboard's entry when the rail has the keys. */
-  const curSection = sectionAt(textSecs.sections, status.line);
-
-  /** The zone after `z` in the Tab ring. */
-  const enterZone = (z: Zone, f?: DetailField): void => {
-    if (z === 'rail' && mode === 'editor' && !help) setRailCur(Math.max(0, curSection));
-    focusZone(z, f);
-  };
+  /** Editor has no rail: the view's own zone stands in for it. */
+  const textOnly = mode === 'editor' && !help;
 
   const cycle = (dir: 1 | -1): void => {
     let order: { z: Zone; f?: DetailField }[];
     if (help) order = [{ z: 'views' }, { z: 'rail' }, { z: 'help' }];
-    else if (mode === 'editor') order = [{ z: 'views' }, { z: 'rail' }, { z: 'buffer' }];
+    else if (mode === 'editor') order = [{ z: 'views' }, { z: 'buffer' }];
     else {
       order = [{ z: 'views' }, { z: 'rail' }, { z: 'list' }];
       if (cur) for (const f of fields) order.push({ z: 'detail', f });
@@ -676,7 +660,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     const next = order[((((i < 0 ? 0 : i) + dir) % order.length) + order.length) % order.length]!;
     if (zone === 'detail' && field === 'pattern') leavePattern();
     if (next.z === 'detail') setBodyDraft(null);
-    enterZone(next.z, next.f);
+    focusZone(next.z, next.f);
   };
 
   const viewsKey = (nk: NavKey | null): boolean => {
@@ -685,7 +669,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
       return true;
     }
     if (nk === 'down' || nk === 'activate') {
-      enterZone('rail');
+      focusZone(textOnly ? 'buffer' : 'rail');
       return true;
     }
     return nk !== null;
@@ -759,7 +743,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
         moveTo(list.length, true);
         return true;
       case 'left':
-        enterZone('rail');
+        focusZone('rail');
         return true;
       case 'right':
       case 'activate':
@@ -835,7 +819,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     return false;
   };
 
-  /** Esc in a text field (or on a detail control): back to the list, or the rail from the buffer (decision 6). */
+  /** Esc in a text field (or on a detail control): back to the list, or the views from the buffer (decision 6). */
   const inOwnField = (e: KeyboardEvent): boolean => inTextField(e.target) && !!rootRef.current?.contains(e.target as Node);
 
   const liteKeys = (e: KeyboardEvent, nk: NavKey | null): boolean => {
@@ -905,7 +889,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
       return found;
     }
     if (nk === 'back') {
-      if (zone === 'buffer' || inOwnField(e)) enterZone('rail');
+      if (zone === 'buffer' || inOwnField(e)) focusZone('views');
       else void close();
       return true;
     }
@@ -915,32 +899,8 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     }
     if (zone === 'buffer') return v ? handleKey(v, e) : false;
     if (letterAction(e, viewLetters)) return true;
-    if (zone === 'views') return viewsKey(nk);
-    if (zone === 'rail') {
-      const secs = textSecs.sections;
-      const n = secs.length;
-      const go = (j: number): void => {
-        const s = secs[j];
-        if (s && v) showLine(v, s.line, true);
-        focusZone('buffer');
-      };
-      const step = (d: number): void => {
-        const j = clamp(railCur + d, 0, Math.max(0, n - 1));
-        setRailCur(j);
-        const s = secs[j];
-        if (s && v) showLine(v, s.line, false);
-      };
-      const back = railRow ? 'left' : 'up';
-      const fwd = railRow ? 'right' : 'down';
-      if (nk === back || nk === fwd) step(nk === fwd ? 1 : -1);
-      else if (nk === 'pgup' || nk === 'pgdn') step(nk === 'pgdn' ? 10 : -10);
-      else if (nk === 'home' || nk === 'end') step(nk === 'end' ? n : -n);
-      else if (nk === (railRow ? 'down' : 'right') || nk === 'activate') go(railCur);
-      else if (railRow && nk === 'up') focusZone('views');
-      else return nk !== null;
-      return true;
-    }
-    return false;
+    // Every zone but the buffer is the views here (Editor has no rail).
+    return viewsKey(nk);
   };
 
   const goSection = (i: number): void => manualCtl.current?.goto(clamp(i, 0, manual.length - 1));
@@ -1023,23 +983,10 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const viewIdx = VIEW_LABELS.findIndex((v) => v.view === view);
   const detailAt: DetailField | null = zone === 'detail' && !capture && !modal ? field : null;
 
-  let rail: VNode;
+  let rail: VNode | null = null;
   if (help) {
     rail = <HelpRail sections={manual} current={helpSection} active={zone === 'rail'} onGo={(i) => goSection(i)} />;
-  } else if (mode === 'editor') {
-    rail = (
-      <TextRail
-        sections={textSecs.sections}
-        current={curSection}
-        sel={zone === 'rail' ? railCur : -1}
-        onGo={(line) => {
-          const v = viewRef.current;
-          if (v) showLine(v, line, true);
-          focusZone('buffer');
-        }}
-      />
-    );
-  } else {
+  } else if (mode === 'lite') {
     rail = (
       <KindRail
         kind={kind}
@@ -1207,9 +1154,11 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
           </div>
         </BoxHead>
         <div class="wc-pe-cols">
-          <nav class={cx('wc-pe-rail', zone === 'rail' && 'is-zone')} aria-label={help ? 'Sections' : mode === 'editor' ? 'In the text' : 'Kinds'}>
-            {rail}
-          </nav>
+          {rail && (
+            <nav class={cx('wc-pe-rail', zone === 'rail' && 'is-zone')} aria-label={help ? 'Sections' : 'Kinds'}>
+              {rail}
+            </nav>
+          )}
           <div class="wc-pe-main">
             {mode === 'lite' && !help && (
               <EntryList key={kind} kind={kind} list={list} idx={idx} focused={zone === 'list'} visited={isVisited} listRef={listRef} onRow={onRow} />

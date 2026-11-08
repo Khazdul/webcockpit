@@ -2,7 +2,8 @@
 // page the editor lays itself out in one column, a tap opens an entry as a
 // sheet ("‹ Aliases" back), the soft keyboard types into real fields, the
 // kinds are a row of tabs, every target is a tap away, key capture says it
-// is desktop only, and Help's sections are a dropdown. The in-game hosts
+// is desktop only, Editor's buffer has the whole width (no rail) and
+// Help's sections are a dropdown. The in-game hosts
 // (the ESC menu's Profile row, #profile) are 43b's specs.
 import { type Page, expect, test } from '@playwright/test';
 import { morphDone } from './look';
@@ -75,6 +76,16 @@ test('the editor on a phone: one column, a tap opens the entry as a sheet, typin
   await pe(page).locator('.wc-pe-row').first().tap();
   await expect(pe(page).locator('.wc-pe-keyhint')).toHaveText('Key capture: desktop only.');
   await pe(page).locator('[data-btn="SHEET"]').tap();
+
+  // Editor: no rail, the buffer fills the box from its left edge.
+  await pe(page).locator('.wc-pe-views [data-opt="editor"]').tap();
+  await expect(pe(page)).toHaveAttribute('data-view', 'editor');
+  await expect(pe(page).locator('.cm-content')).toBeVisible();
+  await expect(pe(page).locator('.wc-pe-rail')).toHaveCount(0);
+  const ebox = (await pe(page).boundingBox())!;
+  const buf = (await pe(page).locator('.wc-pe-buf').boundingBox())!;
+  expect(Math.abs(buf.x - ebox.x)).toBeLessThan(1);
+  expect(buf.x + buf.width).toBeCloseTo(ebox.x + ebox.width, 0);
 
   // Help: the sections are a dropdown; Back leaves.
   await pe(page).locator('.wc-pe-views [data-opt="help"]').tap();

@@ -168,9 +168,9 @@ test('Lite → Editor → Lite → Esc saves; reload shows it', async ({ page })
   await expect(status(page)).toContainText('Modified');
   await expect(status(page)).toContainText('Ln 9, Col 18');
 
-  // Esc leaves the buffer (the rail has the keys), L flips back to Lite: the list is re-read.
+  // Esc leaves the buffer (the views have the keys), L flips back to Lite: the list is re-read.
   await page.keyboard.press('Escape');
-  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'views');
   await page.keyboard.press('l');
   await expect(pe(page)).toHaveAttribute('data-view', 'lite');
   await kind(page, 'alias');
@@ -223,7 +223,7 @@ test('Editor: Ctrl+F finds and replaces; Esc closes the panel, leaves the buffer
   await expect(panel).toHaveCount(0);
   await expect(content(page)).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'views');
   await expect(content(page)).not.toBeFocused();
   // The Find button opens it again.
   await pe(page).locator('[data-btn="FIND"]').click();
@@ -565,15 +565,18 @@ test('Editor keys: line swap, undo, copy line, the Tab ring, ← on the views fl
   await page.keyboard.press('Control+x');
   await expect(flash(page)).toHaveText('Cut');
   expect(await bufferText(page)).toBe('one\nthree\n');
-  // Tab never inserts a tab: buffer → views → rail → buffer.
+  // Tab never inserts a tab: buffer → views → buffer (Editor has no rail).
   await page.keyboard.press('Tab');
   await expect(pe(page)).toHaveAttribute('data-zone', 'views');
   await expect(views(page, 'editor')).toHaveClass(/is-sel/);
   await page.keyboard.press('Tab');
-  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
-  await page.keyboard.press('Tab');
   await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
+  await expect(content(page)).toBeFocused();
   await page.keyboard.press('Shift+Tab');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'views');
+  // ↓ on the views goes into the buffer, Shift+Tab from there back to the views.
+  await page.keyboard.press('ArrowDown');
+  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
   await page.keyboard.press('Shift+Tab');
   await expect(pe(page)).toHaveAttribute('data-zone', 'views');
   // ← on the views flips to Lite; the edited text is parsed back and saved (ADR 0105).
@@ -585,30 +588,47 @@ test('Editor keys: line swap, undo, copy line, the Tab ring, ← on the views fl
   await expect(listFlash(page)).toHaveText('Saved default.');
 });
 
-test('Editor rail: the text sections in order; a click puts the line at the top and the cursor on it', async ({ page }) => {
+test('Editor has no rail: the buffer fills from the left in every layout; Esc goes to the views', async ({ page }) => {
   const errors = watchErrors(page);
-  const text = '#nop {Gibur, a warrior.}\n\n#variable {t} {orc}\n\n#nop ---- actions ----\n#action {x} {y}\n\n#alias {a} {b}\n#ticker {t} {score} {60}\n';
-  await openFromStart(page, text);
-  await page.keyboard.press('e');
-  const items = pe(page).locator('[data-rail="text"]');
-  await expect(items).toHaveText([/Gibur, a warrior\.\s*1/, /Variables\s*3/, /Actions\s*5/, /Aliases\s*8/, /Timers & events\s*9/]);
-  await items.filter({ hasText: 'Aliases' }).click();
-  await expect(status(page)).toContainText('Ln 8, Col 1');
-  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
-  await expect(items.filter({ hasText: 'Aliases' })).toHaveClass(/is-on/);
-  // Typing a new kind adds its section after a rest (debounced).
-  await page.keyboard.press('Control+End');
-  await page.keyboard.type('#macro {F1} {bash}\n');
-  await expect(items.filter({ hasText: 'Macros' })).toHaveText(/Macros\s*10/);
-  // The rail's keys: Esc to the rail, ↑ to a section, Enter jumps there.
-  await page.keyboard.press('Escape');
-  await expect(pe(page)).toHaveAttribute('data-zone', 'rail');
-  await page.keyboard.press('Home');
-  await expect(items.first()).toHaveClass(/is-cur/);
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await expect(status(page)).toContainText('Ln 3, Col 1');
-  await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await openFromStart(page, '#alias {a} {b}\n#action {x} {y}\n');
+  for (const [w, layout] of [
+    [1440, 'wide'],
+    [900, 'mid'],
+    [560, 'narrow'],
+  ] as const) {
+    await page.setViewportSize({ width: w, height: 800 });
+    await expect(pe(page)).toHaveAttribute('data-layout', layout);
+    // Lite's spine and head, to compare with Editor's (the flip must not move them).
+    await expect(pe(page).locator('.wc-pe-rail')).toHaveCount(1);
+    const liteHead = (await pe(page).locator('.wc-pe-head').boundingBox())!;
+    const liteCols = (await pe(page).locator('.wc-pe-cols').boundingBox())!;
+    await page.keyboard.press('e');
+    await expect(pe(page)).toHaveAttribute('data-view', 'editor');
+    await expect(pe(page).locator('.wc-pe-rail')).toHaveCount(0);
+    const root = (await pe(page).boundingBox())!;
+    const cols = (await pe(page).locator('.wc-pe-cols').boundingBox())!;
+    const buf = (await pe(page).locator('.wc-pe-buf').boundingBox())!;
+    // The buffer starts at the box body's left edge and fills the columns.
+    expect(Math.abs(buf.x - root.x)).toBeLessThan(1);
+    expect(Math.abs(buf.y - cols.y)).toBeLessThan(1);
+    expect(buf.x + buf.width).toBeCloseTo(cols.x + cols.width, 0);
+    expect(buf.height).toBeGreaterThan(cols.height - 2);
+    expect((await pe(page).locator('.wc-pe-head').boundingBox())!).toEqual(liteHead);
+    expect((await pe(page).locator('.wc-pe-cols').boundingBox())!).toEqual(liteCols);
+    // Esc leaves the buffer to the views; L back to Lite (the rail is back, Lite's keys as before).
+    await expect(pe(page)).toHaveAttribute('data-zone', 'buffer');
+    await page.keyboard.press('Escape');
+    await expect(pe(page)).toHaveAttribute('data-zone', 'views');
+    await expect(content(page)).not.toBeFocused();
+    await page.keyboard.press('l');
+    await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+    await expect(pe(page).locator('.wc-pe-rail')).toHaveCount(1);
+    await expect(pe(page)).toHaveAttribute('data-zone', 'list');
+  }
+  // In Help the rail stays.
+  await page.keyboard.press('h');
+  await expect(pe(page).locator('.wc-pe-rail')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
@@ -793,12 +813,13 @@ test('narrower: the rail becomes a row; then one column, the entry opens as a sh
   expect(errors).toEqual([]);
 });
 
-test('Editor and Help fill the main column; Lite keeps the rail, the list and the detail', async ({ page }) => {
+test('Editor fills the columns, Help its main column; Lite keeps the rail, the list and the detail', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await openFromStart(page, Array.from({ length: 120 }, (_, i) => `#alias {a${i}} {say ${i}}`).join('\n') + '\n');
   const cols = (await pe(page).locator('.wc-pe-cols').boundingBox())!;
   await page.keyboard.press('e');
   const buf = (await pe(page).locator('.wc-pe-buf').boundingBox())!;
+  expect(buf.x).toBeCloseTo(cols.x, 0);
   expect(buf.x + buf.width).toBeCloseTo(cols.x + cols.width, 0);
   // The buffer scrolls natively (no TUI scrollbar).
   const scroller = pe(page).locator('.cm-scroller');
@@ -931,8 +952,8 @@ test('Editor shows the whole stored text of the bundled khazdul profile', async 
   });
   expect(state).not.toBeNull();
   expect(state!.text).toBe(text);
-  // The rail lists the text's sections.
-  await expect(pe(page).locator('[data-rail="text"]:not(.is-note)', { hasText: 'Aliases' })).toHaveCount(1);
+  // No rail in Editor.
+  await expect(pe(page).locator('.wc-pe-rail')).toHaveCount(0);
 
   // Nothing was edited: Esc leaves the buffer, Esc pops without saving.
   await page.keyboard.press('Escape');
