@@ -219,3 +219,13 @@ done.
 10. The barman's lines come much slower while Profile and Scripts are
     shown.
 11. If the changes make the whole lopsided, rebalance the whole.
+
+**Outcome (2026-11-08, commits up to 7aad3ad3):** all 11 done.
+- The film is 3:42.4.
+- The ending fades picture and music from beat 295 (3:38.94). The beat
+  phase after the music's restart is ambiguous by half a beat, so check it
+  by ear.
+- Mercenaries' cost is a 10/20 choice, so 20 is pressed, not typed.
+- The wolf plays at 1.15×.
+- The Half-Elf spotlight plays whole; the viewer moves on to Kohrn by
+  itself.
