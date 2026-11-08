@@ -43,7 +43,7 @@ const SEED = 20261108;
  * and `password` are their Enters. The part ends on beat 59 (a bar), once
  * Gittan has arrived and the game has moved a little.
  */
-export const BEATS = { profile: 17, highlight: 20, select: 23, back: 27, enter: 31, name: 43, password: 47, end: 59 } as const;
+export const BEATS = { profile: 17, highlight: 20, select: 23, back: 27, enter: 31, name: 43, password: 46, end: 59 } as const;
 /** Gittan's room appears this long after the password's Enter (MUME's answer). */
 const ARRIVE_AFTER_MS = 650;
 
@@ -65,6 +65,15 @@ export async function opening(page: Page, marks: Marks, state: SceneState): Prom
   const login = state.login as LoginMock;
   const arrive = state.arrival as ReturnType<typeof arrival>;
   await freshStart(page);
+  // The Profile page's first open costs the client one long frame (about 80 ms: measured with
+  // record/intervals.ts, round 1 item 1): it is opened and closed once here, before music 0:00
+  await page.keyboard.press('p');
+  await page.waitForFunction(() => !document.querySelector('.wc-start')?.hasAttribute('data-lk-morph'));
+  await sleep(500);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('.wc-start')?.hasAttribute('data-lk-morph'));
+  await page.keyboard.press('ArrowUp');
+  await sleep(300);
   marks.mark('start', 'the start page is up');
   marks.mark('active', 'the take');
   const music0 = Date.now() + MUSIC0_AFTER_MS;

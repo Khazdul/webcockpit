@@ -16,9 +16,10 @@
 // reloads the start page with the game clock set again, just before the
 // camera rolls.
 import { readFileSync } from 'node:fs';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import type { Page } from '@playwright/test';
 import { startMenu } from '../../../scripts/lib/mume-feed.ts';
-import { FILM_BACKUP } from '../../feeds/film.ts';
+import { BREE_RUN, FILM_BACKUP, noPonyLabel } from '../../feeds/film.ts';
 import type { PageOptions } from './browser.ts';
 
 /** The page's date: Sunday 2026-11-08, 19:40 local time. */
@@ -48,6 +49,7 @@ interface FilmWindow {
   };
 }
 interface FilmSettings {
+  layout: { docks: { right: { lanes: { panes: { id: string; desired: number }[] }[] } } };
   weather: { enabled: boolean };
   panes: Record<'map' | 'timers' | 'group' | 'comm', { on: boolean }>;
   profile: string;
@@ -56,9 +58,42 @@ interface FilmSettings {
 /** Where the page fetches the backup from (served from video/private/ by a route). */
 const BACKUP_URL = '/__film/runs.jsonl.gz';
 
+/**
+ * The film backup as restored: the pony's label taken out of the Bree run's
+ * log too (`noPonyLabel`), so History's log player never shows it either.
+ */
+function filmBackup(): Buffer {
+  const lines = gunzipSync(readFileSync(FILM_BACKUP)).toString('utf8').split('\n');
+  const out = lines.map((l) => {
+    if (!l.includes(BREE_RUN) || !l.startsWith('{"type":"chunk"')) return l;
+    const d = JSON.parse(l) as { text: string };
+    d.text = d.text
+      .split('\n')
+      .flatMap((t) => {
+        if (t.length < 17 || t[16] !== ' ') return [t];
+        const body = noPonyLabel(t.slice(17));
+        return body === null ? [] : [`${t.slice(0, 17)}${body}`];
+      })
+      .join('\n');
+    return JSON.stringify(d);
+  });
+  return gzipSync(Buffer.from(out.join('\n'), 'utf8'));
+}
+
 /** Opens the start page and prepares the film's state (see the top). Stays on the start page. */
 export async function prepareFilm(page: Page): Promise<void> {
-  await page.route(`**${BACKUP_URL}`, (r) => r.fulfill({ body: readFileSync(FILM_BACKUP), contentType: 'application/gzip' }));
+  // MUME's clock stays the film's: the client syncs `wc.clock` from the game (the captured welcome's
+  // MSSP at Enter MUME, the run's GMCP later), which moved the start page's sky in one jump mid-
+  // transition and turned take B's start page to the run's evening. Only the film's own writes
+  // (`__filmClockOk` set around them) get through.
+  await page.context().addInitScript(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (this: Storage, k: string, v: string) {
+      if (k === 'wc.clock' && !(window as unknown as { __filmClockOk?: boolean }).__filmClockOk) return;
+      set.call(this, k, v);
+    };
+  });
+  await page.route(`**${BACKUP_URL}`, (r) => r.fulfill({ body: filmBackup(), contentType: 'application/gzip' }));
   await page.goto('/');
   await startMenu(page);
   await page.waitForFunction(() => (window as unknown as FilmWindow).__wc !== undefined);
@@ -71,6 +106,8 @@ export async function prepareFilm(page: Page): Promise<void> {
       d.panes.group.on = false;
       d.panes.comm.on = false;
       d.profile = 'default';
+      // Timers and Group one row taller than the new-player layout (owner, round 1: at 1:48 the timers did not fit)
+      for (const lane of d.layout.docks.right.lanes) for (const p of lane.panes) if (p.id === 'timers' || p.id === 'group') p.desired += 22;
     });
     const profiles = wc.shell.profiles as unknown as { init(): Promise<void>; get(n: string): Promise<unknown> };
     await profiles.init();
@@ -86,7 +123,10 @@ export async function prepareFilm(page: Page): Promise<void> {
 export async function freshStart(page: Page, moment: number = FILM_NIGHT, query = ''): Promise<void> {
   await page.evaluate((m) => {
     const now = Math.floor(Date.now() / 1000);
+    const w = window as unknown as { __filmClockOk?: boolean };
+    w.__filmClockOk = true;
     localStorage.setItem('wc.clock', JSON.stringify({ epoch: now - m, precision: 'unset', lastSync: now, reason: null }));
+    w.__filmClockOk = false;
   }, moment);
   await page.goto(`/?skyWeather=${FILM_SKY}${query ? `&${query}` : ''}`);
   await startMenu(page);
