@@ -23,9 +23,10 @@ const opt = (name: string, d: string): string => {
 };
 const before = Number(opt('--before', '2'));
 const after = Number(opt('--after', '4'));
+const outArg = opt('--out', '');
 const [scene, kind, label] = args;
 if (!scene || !kind) throw new Error('usage: node record/intervals.ts <scene> <marker kind> [<label>] [--before s] [--after s] [--out png]');
-const out = opt('--out', join(VIDEO, `out/stills/intervals-${scene}-${kind}.png`));
+const out = outArg || join(VIDEO, `out/stills/intervals-${scene}-${kind}.png`);
 const tl = JSON.parse(readFileSync(join(VIDEO, `public/recordings/${scene}.json`), 'utf8')) as TimelineFile;
 const m = tl.markers.find((x) => x.kind === kind && (label === undefined || x.label === label));
 if (!m || !tl.frameTimes) throw new Error(`no marker ${kind} or no frame times in ${scene}.json (re-record)`);
