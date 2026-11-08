@@ -494,3 +494,36 @@ The rest of round 1 is in the takes and the Film composition:
 - The montage is gone. The end card comes up over the start page on
   beat 229, and the quote fades on the page as it does.
 - The cut to take B moved to beat 140 (1:44.13). Exit is on beat 179.
+
+**Owner round 2 (2026-11-08).**
+
+- *Floating Group and Timers.* `prepareFilm` floats both panes, small
+  (25 × 12 cells), side by side at the bottom right (`FILM_FLOATS`). The
+  right dock keeps one lane 50 cells wide, holding Comm, which stays off.
+  When no lane is shown, a dock's spanning panes take the stored lane sizes,
+  so the docked Map is as wide as before, and the two floats sit over its
+  lower right.
+- *Pane gears, calmly.* The gear's tooltip is the browser's own `title`,
+  which a headless capture does not draw. The take marks it (`tip`, with the
+  gear's box) and the Film draws it in the same place. `Pointer.pressAt`
+  holds it about 1 s before the press. In a gear's settings the pointer goes
+  onto each setting and waits about 2 s before pressing (the Timers modes
+  about 1.2 s): NPC visibility All and Fight card for Group; Herblores off,
+  Grid, Circles, Grid columns 2 and Bars for Timers.
+- *The new order.* Group comes before the strike; Timers and its settings
+  come after it, once the spells are in. Map comes after that, then the
+  walk and the wolf. There are no Group settings after the wolf.
+- *Dips.* Where the run jumps (into the mercenary, into the wolf) the take
+  marks a `dip` at the segment's start. Its bytes arrive at that instant,
+  and the Film darkens the whole frame around it: 0.35 s down to 94 %
+  black, 0.35 s back up. The cut to the inn gets the same dip.
+- *The log player.* `playerHost.setViewer` sets the small font and the
+  recorded layout with its right lanes 20 % narrower and equal. These are
+  viewer overrides, so only the player changes, not the live game.
+- *The ending* (round 2, item 12). Spotlights plays Play all until the
+  first spotlight's moment, plus 1 s. Then come Back to the wall and Back
+  to the start page, each with a visible move and a short hover, then
+  Credits and Back. The end card comes up then and holds at least 4 s.
+  `ending()` in `Film.tsx` places the fade: on the last hit when it falls
+  near it, otherwise over 3 s from the next downbeat, the music fading
+  with the picture. The Film's length follows from it.
