@@ -576,3 +576,9 @@ Credits' Back (`CARD_DELAY_S`) and holds about 3 s. The fade is still
 placed from the Back, so it stays on beat 295 (3:38.94), black at 3:42.45.
 The start page's quote still fades on the recorded page 0.4 s after the
 Back (take B); delaying that too would need a new take.
+Also in round 4: Group and Timers float stacked to the left of the map's
+lane. Each is 22 × 12 cells, at x 88, a cell's gap from the lane at
+111. Group is at row 22, then one empty row, then Timers at row 35, just
+above the menu bar. They stay there for the whole game, with or without
+the map. Both takes were re-recorded for it. The History player keeps
+its own layout.
