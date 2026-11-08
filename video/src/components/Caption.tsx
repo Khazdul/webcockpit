@@ -36,8 +36,11 @@ function useShow(from: number, dur: number): { opacity: number; lift: number } {
   return { opacity, lift };
 }
 
-/** One short sentence (or a few short lines) low on the left, on a solid dark scrim. */
-export function LowerThird({ from, dur, text }: { from: number; dur: number; text: string | string[] }) {
+/**
+ * One short sentence (or a few short lines) low on the left, on a solid
+ * dark scrim; `center` puts the same box centred low (the end card).
+ */
+export function LowerThird({ from, dur, text, center = false }: { from: number; dur: number; text: string | string[]; center?: boolean }) {
   const { opacity, lift } = useShow(from, dur);
   const { width, height } = useVideoConfig();
   return (
@@ -45,7 +48,7 @@ export function LowerThird({ from, dur, text }: { from: number; dur: number; tex
       <div
         style={{
           position: 'absolute',
-          left: width * SAFE,
+          ...(center ? { left: '50%', translate: '-50% 0', textAlign: 'center' as const } : { left: width * SAFE }),
           bottom: height * SAFE + 18,
           opacity,
           transform: `translateY(${lift}px)`,
