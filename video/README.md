@@ -41,9 +41,11 @@ captured once into `private/mume-login.json` and replayed by
 The recorder starts the repository's dev server on port 5189 (`WC_VIDEO_PORT`)
 unless one answers there, logs in through a **mocked** MUME WebSocket (nothing
 reaches mume.org) and plays the scene's feed (`feeds/`, invented names only).
-It films in real time through the DevTools screencast at 2400×1350 (1600×900
-CSS px at device scale 1.5; a scene that zooms asks for 2), then encodes the
-frames to constant 60 fps H.264.
+It films in real time through the DevTools screencast with PNG frames at
+1920×1080 (1600×900 CSS px at device scale 1.2; a scene that zooms asks for
+2), then encodes them losslessly (libx264rgb, QP 0) at a constant 60 fps.
+JPEG frames band dark gradients (ADR 0133 addendum; `node record/banding.ts`
+shows each stage).
 It prints the capture rate it got; ADR 0133 has the measured table.
 
 Each recording comes with `<scene>.json`: size, fps, length, the capture
@@ -63,7 +65,9 @@ one from the input log.
 
 ```sh
 npm run studio                       # Remotion Studio in the browser
-npm run render -- Part1              # out/part1.mp4
+npm run render -- Part1              # out/part1-master.mov (ProRes 4444), then from it:
+                                     #   part1.mp4 (HEVC 10-bit), part1-4k.mp4 (for YouTube), part1-h264.mp4
+npm run render -- Part1 --no-4k      # without the 4K variant (about 3.5 of 6.5 minutes)
 npm run render -- TestBree           # out/test-bree.mp4 (the pipeline test)
 npm run typecheck
 ```

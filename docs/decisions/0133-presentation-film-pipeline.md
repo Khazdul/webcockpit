@@ -193,9 +193,10 @@ note) and renders (`video/out/`) are gitignored.
 ## Addendum (2026-11-08): the film's groundwork and part 1
 
 Owner decisions since: no zooms in practice (the camera stays available),
-so takes are captured at **DPR 1.5** (`intel-1.5`, about 58 fps on the
-start page) unless a scene asks for `intel-2` (`Scene.mode`; the bree
-test scene does); few captions, plain and descriptive; real player names
+so takes were captured at DPR 1.5 (`intel-1.5`), and since the banding
+work below at **DPR 1.2 with PNG frames** (`intel-1.2-png`), unless a
+scene asks for another mode (`Scene.mode`; the bree test scene zooms and
+uses `intel-2`); few captions, plain and descriptive; real player names
 stay. The film follows `video/manuscript.md` (the director's script, beat
 grid at 81 bpm).
 
@@ -285,20 +286,85 @@ the frame, `isDownbeat(n)` for n ≡ 3 (mod 4). Scene scripts time their
 presses by it too, so a take is already in step with the music and the
 composition only lines it up (no retiming, no cuts inside an action).
 
-**Part 1** (music 0:00 to the phrase at 0:38.21, beat 51; owner: into
-Profile at 12–13 s): one take, `record/scenes/part1.ts` →
-`src/compositions/Part1.tsx`. The shooting star at 0:05.0; the lower third
-"Live demo of WebCockpit <version>" / "Try it at mumecockpit.com" from
-beat 3 to beat 15 (the version read from the repository's package.json
-when the film is bundled); Profile pressed on beat 17 (0:13.02); the
-pointer on khazdul's row on beat 20 and its Select on beat 23 (0:17.46);
-Back on beat 27 (0:20.43); Enter MUME on beat 31 (0:23.39); MUME's screen
-up by about 0:28 (the client's transition takes about 4.5 s); the name's
-Enter on beat 43 (0:32.28), the password's on beat 47 (0:35.24); the end
-on beat 51 with a 0.35 s fade (the music runs on into part 2). "Profiles
-hold your basic settings." from 0.9 s after Profile until just before
-Back. In the take every press landed within 30 ms of its beat. A take is
-about 43 s (70 s with setup and encoding); the render about 80 s.
+**Part 1** (music 0:00 to beat 59, 0:44.13; owner: into Profile at
+12–13 s, then Gittan arriving in the game): one take,
+`record/scenes/part1.ts` → `src/compositions/Part1.tsx`. The shooting star
+at 0:05.0; the lower third "Live demo of WebCockpit <version>" / "Try it at
+mumecockpit.com" from beat 3 to beat 15 (the version read from the
+repository's package.json when the film is bundled); Profile pressed on
+beat 17 (0:13.02); the pointer on khazdul's row on beat 20 and its Select
+on beat 23 (0:17.46); Back on beat 27 (0:20.43); Enter MUME on beat 31
+(0:23.39), after which the pointer stays where it clicked and the overlay
+fades it out there (2.5 s at rest; the start page is gone by then, so no
+hover state lingers); MUME's screen up by about 0:28 (the client's
+transition takes about 4.5 s); the name's Enter on beat 43 (0:32.28), the
+password's on beat 47 (0:35.24); Gittan arrives at 0:35.9 (below); the
+part ends on beat 59 (a bar, 0:44.13) with no fade, the game running:
+part 2 continues from this state (the run's `gro pony` at 8.6 s lands at
+about 0:44.5). "Profiles hold your basic settings." from 0.9 s after
+Profile until just before Back. Every press landed within 30 ms of its
+beat. A take is about 48 s (78 s with setup and encoding).
+
+**Arriving in the game** (`feeds/arrival.ts`). MUME's text after a
+password was never captured (that needs real credentials), and no log
+here has a fresh login: the Bree run starts at Char.Name, and the owner's
+Cockpit run logs (`/home/ole/MUME/data/runs`, read only) start after their
+logins; the one login in them is a reconnect ("Reconnecting.", the room,
+MUME's Discord notice, the prompt). So the arrival is staged from the run:
+all its GMCP before its start (Char.Name puts the client in playing, and
+the client prints `[SYSTEM] Gittan logged in.` by itself), then the room
+as that GMCP has it (Lodging Foyer; Barliman, the pony, an elite guard
+from Room.Chars.Set; no description, Gittan plays in brief mode, as her
+own `l` shows), MUME's Discord notice as it follows the room in that log,
+and the run's first prompt. Then the run plays on in real time from
+0.5 s (its two `Ok.` for the owner's start-up script left out): the guard
+leaves south, `l`, `lead pony`. No panes.
+
+**Dark gradients** (owner: blocky banding around the Profiles box's frame
+and glow, crawling where the sky changes colour). Measured with
+`record/banding.ts` (the start page at night, sky frozen, Profile open;
+the same crop of the box's corner and glow from each stage, boosted with
+curves 0/0 0.25/1 1/1) and `record/master-test.ts` (the final encodings,
+and each re-encoded as YouTube would: 8-bit VP9 at 6 Mbit/s for 1080p,
+18 Mbit/s for 4K):
+
+- The browser's own picture (`page.screenshot`, and a PNG screencast
+  frame) is smooth; the sky carries a fine grain of its own.
+- **JPEG screencast frames are where it starts**: q95 has 8×8 blocks and
+  stepped purple arcs round the glow; q100 still has the arcs (Chrome's
+  JPEG is 4:2:0 at any quality). Only PNG frames are clean.
+- x264 CRF 12 `-tune animation` 4:2:0 then blocked them further, and the
+  8-bit CRF 14 render added its own steps.
+- Lossless intermediates from the PNG frame: libx264rgb QP 0 is
+  bit-exact through Remotion's OffthreadVideo (PSNR ∞ against the frame,
+  checked with `src/DecodeTest.tsx`); x264 4:4:4 QP 0 52.5 dB and ProRes
+  4444 51.1 dB (their YUV rounding), both clean too.
+- Finals from the ProRes master: H.264 8-bit CRF 14 keeps a faint
+  contour round the glow; 10-bit (H.264 High 10, HEVC Main10) is clean.
+  Added grain (`noise` ±3 levels) made the 10-bit file 70–90 Mbit/s and
+  turned to blotches in the 6 Mbit/s VP9 re-encode, so none is added: the
+  sky's own grain dithers. The 4K upload's VP9 re-encode at 18 Mbit/s
+  keeps the glow smooth.
+
+Capture rates with PNG (part 1's start page, frames a second while the sky
+moves): DPR 1.5 about 34 (`intel-1.5-png`, mean 27.7 over the take), DPR
+1.2 about 46 (`intel-1.2-png`, mean 36.5; NVIDIA 24.5), JPEG q100 at DPR
+1.5 about 59. The cost is Chrome's PNG encoder (acking without writing
+the frames gave 45 fps at DPR 1.2), so it is a ceiling, not ours to tune.
+
+Chosen: **capture PNG at DPR 1.2** (1600×900 CSS is 1920×1080, the film's
+own size, so no scaling after; Chrome gives 1920×1079 frames, padded with a
+black row); the recording **libx264rgb QP 0**, RGB, GOP 30 (about 4 MB a
+second of film); Remotion renders a **ProRes 4444 master**
+(yuv444p10le requested; 2.3 GB for part 1, 90 s); `record/master.ts` then
+makes **`<name>.mp4`, HEVC Main10 CRF 14** (aq-mode 3, no SAO; 6 MB, 66 s),
+**`<name>-4k.mp4`, HEVC Main10 3840×2160** (Lanczos, CRF 16; 12 MB, 215 s)
+for the YouTube upload, and **`<name>-h264.mp4`, H.264 8-bit CRF 12**
+(22 s) for players without HEVC 10-bit (browsers). `npm run render`
+does both steps (about 6.5 min for part 1; `--no-4k` skips the 4K
+variant). A scene with fast motion that needs 60 fps can ask for
+`intel-1.2-q100` and accept JPEG's chroma steps; part 1 stays PNG: its
+start page moves slowly, and 46 frames a second of it play smoothly.
 
 **Found on the way** (client, not fixed here): when Enter MUME is pressed
 before `shell.boot()` has returned (fast automation; the start page's
