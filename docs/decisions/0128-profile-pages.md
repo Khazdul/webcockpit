@@ -627,3 +627,36 @@ performance run. Each changes a detail above; the rest stands.
 - Texts: the profile manual's Import paragraph names the page and the
   receipt; About and README name the three views; spec §2.7, §2.11 and
   §2.12 and Inv §5.1–5.9 and §7.7 carry stage 43's notes.
+
+## Final check (2026-11-08): measured
+
+Headed (real windows) on the owner's Iris Xe, a `VITE_KIT=1` production
+build under `vite preview`, load average 1.4–4.5, nothing else running;
+the full method and every page in `bench/results/look-box.md`, "Final
+check". Cells: `fps · p95 / max frame ms · frames > 20 ms` over 5 s; no
+page had a main-thread stall over 16 ms or (Chromium) a long animation
+frame while idle. The Profile list is the reference row.
+
+| page | Chromium 1728×1000 @2 | Chromium 390×844 @3 | Firefox 1728×1000 @2 | Firefox 390×844 @3 |
+|---|---|---|---|---|
+| Profile list | 59.7 · 18.0 / 34.9 · 2 | 59.6 · 18.1 / 35.8 · 3 | 58.8 · 26.6 / 45.6 · 35 | 58.9 · 28.9 / 50.3 · 20 |
+| Profile editor | 60.0 · 18.0 / 19.5 · 0 | 60.0 · 17.6 / 19.3 · 0 | 59.4 · 26.4 / 43.3 · 33 | 59.8 · 24.5 / 42.7 · 29 |
+| Import | 60.1 · 18.1 / 19.6 · 0 | 59.9 · 17.7 / 35.4 · 1 | 59.0 · 19.3 / 36.7 · 9 | 59.2 · 28.6 / 47.9 · 35 |
+| Export editor | 60.0 · 18.0 / 19.4 · 0 | 60.0 · 17.8 / 19.3 · 0 | 58.6 · 20.9 / 40.2 · 20 | 59.4 · 25.4 / 45.8 · 34 |
+**Typing** (150 characters at 35 ms; keydown to the next frame, so about
+16 ms means the next frame):
+
+| browser | geometry | where | keydown → next frame p50 / p95 / max ms | keys > 33 ms | rAF fps | main-thread stalls > 16 ms (longest) |
+|---|---|---|---|---|---|---|
+| chromium | 1728×1000 @2 | Profile editor, Lite (pattern field) | 12.0 / 20.7 / 21.9 | 0 of 150 | 60.0 | 66 (27.1) |
+| chromium | 1728×1000 @2 | Profile editor, Editor view | 12.6 / 20.6 / 24.3 | 0 of 150 | 60.1 | 78 (28.3) |
+| chromium | 390×844 @3 | Profile editor, Lite (pattern field) | 10.8 / 20.4 / 21.8 | 0 of 150 | 60.0 | 69 (26.4) |
+| chromium | 390×844 @3 | Profile editor, Editor view | 12.8 / 22.8 / 36.6 | 1 of 150 | 60.1 | 76 (40.1) |
+| firefox | 1728×1000 @2 | Profile editor, Lite (pattern field) | 7.5 / 23.7 / 44.1 | 4 of 150 | 66.9 | 1 (19.2) |
+| firefox | 1728×1000 @2 | Profile editor, Editor view | 9.2 / 19.0 / 23.4 | 0 of 150 | 65.9 | 1 (16.0) |
+| firefox | 390×844 @3 | Profile editor, Lite (pattern field) | 7.7 / 20.0 / 30.2 | 0 of 150 | 66.1 | 0 (0.0) |
+| firefox | 390×844 @3 | Profile editor, Editor view | 9.4 / 16.6 / 36.7 | 1 of 150 | 65.0 | 2 (20.1) |
+At most 4 of 150 keys over 33 ms (the longest 44 ms, Firefox, the Lite
+pattern field); no long animation frame. Chromium's `setTimeout` probe
+sees a 17–40 ms gap on about every second key while its rAF rate stays
+at 60 (not traced further).

@@ -314,3 +314,25 @@ reel only. The `spotlight-mode` chunk is 2.07 kB JS (1.07 kB gzip) and
 no CSS (was 4.69 kB JS plus the card's 1.54 kB CSS). The kinds' icons
 are one copy, `spotlights-icons.tsx`. Still open: the headed re-run of
 the wall and the viewer on the owner's machine.
+
+## Final check (2026-11-08): the headed re-run
+
+Headed (real windows) on the owner's Iris Xe, a `VITE_KIT=1` production
+build under `vite preview`, load average 1.4–4.5, nothing else running;
+the full method and every page in `bench/results/look-box.md`, "Final
+check". Cells: `fps · p95 / max frame ms · frames > 20 ms` over 5 s; no
+page had a main-thread stall over 16 ms or (Chromium) a long animation
+frame while idle. The Profile list is the reference row.
+
+| page | Chromium 1728×1000 @2 | Chromium 390×844 @3 | Firefox 1728×1000 @2 | Firefox 390×844 @3 |
+|---|---|---|---|---|
+| Profile list | 59.7 · 18.0 / 34.9 · 2 | 59.6 · 18.1 / 35.8 · 3 | 58.8 · 26.6 / 45.6 · 35 | 58.9 · 28.9 / 50.3 · 20 |
+| Spotlights wall | 60.0 · 17.8 / 18.8 · 0 | 60.0 · 17.8 / 19.0 · 0 | 58.8 · 19.3 / 37.5 · 8 | 60.0 · 19.4 / 32.4 · 11 |
+| Spotlights viewer (playing) | 56.8 · 33.1 / 35.8 · 17 | 57.2 · 30.4 / 37.6 · 16 | 53.6 · 34.8 / 52.6 · 59 | 59.0 · 19.9 / 39.9 · 11 |
+The wall idles at 58.8–60.0 fps. The viewer was measured while it plays
+the first card (not idle): Chromium 56.8–57.2 fps with 16–17 skipped
+vsyncs in 5 s, Firefox 53.6 fps at 1728×1000 @2 (59 over 20 ms, the
+longest 52.6 ms) and 59.0 on the phone. That is better than the headed
+numbers that found the cost (Firefox 48–54 fps, p95 43–48 ms) on the big
+window and the same on the phone; the viewer playing is the one page that
+does not hold 60 in Chromium.

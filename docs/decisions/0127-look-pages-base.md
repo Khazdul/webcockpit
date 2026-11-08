@@ -1253,3 +1253,46 @@ play buttons and colour swatches; a `DialogButton` icon and a
 written by any page); `restoreDemoCopies` (player.spec.ts) as a shared
 e2e helper. The spotlight kinds' icons are one copy
 (`spotlights-icons.tsx`) for the wall and the viewer.
+
+## Final check (2026-11-08): the kit and the morph, measured
+
+Headed (real windows) on the owner's Iris Xe, a `VITE_KIT=1` production
+build under `vite preview`, load average 1.4–4.5, nothing else running;
+the full method and every page in `bench/results/look-box.md`, "Final
+check". Cells: `fps · p95 / max frame ms · frames > 20 ms` over 5 s; no
+page had a main-thread stall over 16 ms or (Chromium) a long animation
+frame while idle. The Profile list is the reference row.
+
+| page | Chromium 1728×1000 @2 | Chromium 390×844 @3 | Firefox 1728×1000 @2 | Firefox 390×844 @3 |
+|---|---|---|---|---|
+| start menu | 59.7 · 17.9 / 34.6 · 2 | 59.5 · 17.9 / 36.2 · 3 | 59.1 · 26.0 / 44.1 · 33 | 59.2 · 28.7 / 47.2 · 32 |
+| Profile list | 59.7 · 18.0 / 34.9 · 2 | 59.6 · 18.1 / 35.8 · 3 | 58.8 · 26.6 / 45.6 · 35 | 58.9 · 28.9 / 50.3 · 20 |
+Every large box idles at 60.0 fps in Chromium with no skipped vsync, and
+at 58.4–60.0 in Firefox with as many frames over 20 ms as the menu (see
+the full table): the no-blur large box costs nothing over the menu.
+
+**The grow morph** (menu → About / Scripts and back, three times each, at
+both geometries):
+
+| browser | geometry | morph | fps (3 runs) | frames > 20 ms | max frame ms | main-thread stalls > 16 ms (longest) |
+|---|---|---|---|---|---|---|
+| chromium | 1728×1000 @2 | menu → About | 57.7, 54.3, 58.3 | 8, 15, 4 | 35.8, 34.5, 33.6 | 1 (45.3), 1 (20.9), 1 (23.7) |
+| chromium | 1728×1000 @2 | About → menu | 56.4, 57.5, 55.6 | 8, 5, 9 | 35.3, 34.8, 34.8 | 1 (32.8), 1 (21.3), 0 |
+| chromium | 1728×1000 @2 | menu → Scripts page | 57.5, 57.5, 58.9 | 6, 7, 4 | 43.7, 36.4, 34.4 | 2 (49.2), 1 (25.4), 1 (27.4) |
+| chromium | 1728×1000 @2 | Scripts page → menu | 56.5, 55.9, 57.4 | 9, 9, 5 | 34.5, 35.3, 35.2 | 1 (23.3), 1 (26.1), 1 (26.5) |
+| chromium | 390×844 @3 | menu → About | 58.3, 58.1, 59.8 | 4, 6, 3 | 36.6, 37.4, 32.1 | 1 (38.8), 1 (27.9), 1 (22.1) |
+| chromium | 390×844 @3 | About → menu | 58.1, 57.8, 57.5 | 4, 4, 5 | 36.8, 37.6, 36.6 | 1 (20.5), 0, 1 (20.5) |
+| chromium | 390×844 @3 | menu → Scripts page | 59.8, 58.6, 57.8 | 3, 2, 4 | 34.3, 36.3, 34.4 | 2 (40.6), 1 (20.6), 0 |
+| chromium | 390×844 @3 | Scripts page → menu | 59.0, 58.1, 57.8 | 3, 4, 3 | 35.9, 33.7, 33.8 | 1 (26.0), 1 (22.2), 1 (21.2) |
+| firefox | 1728×1000 @2 | menu → About | 52.4, 53.9, 54.8 | 17, 18, 20 | 57.7, 47.5, 48.5 | 1 (40.6), 1 (23.1), 1 (22.0) |
+| firefox | 1728×1000 @2 | About → menu | 57.9, 50.9, 51.9 | 20, 18, 23 | 42.7, 52.8, 43.6 | 1 (25.9), 1 (23.7), 1 (21.0) |
+| firefox | 1728×1000 @2 | menu → Scripts page | 52.0, 52.8, 54.5 | 17, 14, 18 | 62.7, 62.9, 47.6 | 2 (35.6), 2 (29.0), 2 (32.3) |
+| firefox | 1728×1000 @2 | Scripts page → menu | 53.2, 55.5, 50.7 | 13, 16, 17 | 57.5, 44.5, 59.6 | 1 (18.3), 1 (19.9), 0 |
+| firefox | 390×844 @3 | menu → About | 51.7, 53.9, 54.5 | 19, 17, 15 | 51.9, 51.3, 52.9 | 1 (32.7), 2 (24.5), 1 (20.5) |
+| firefox | 390×844 @3 | About → menu | 53.6, 50.1, 54.6 | 16, 13, 18 | 48.3, 68.6, 48.4 | 1 (20.2), 1 (18.9), 1 (18.6) |
+| firefox | 390×844 @3 | menu → Scripts page | 55.2, 55.0, 57.2 | 19, 14, 13 | 42.0, 37.1, 37.4 | 2 (36.5), 1 (27.2), 1 (23.6) |
+| firefox | 390×844 @3 | Scripts page → menu | 55.1, 52.3, 53.2 | 20, 19, 12 | 39.8, 48.7, 51.5 | 0, 1 (19.5), 1 (20.1) |
+No long animation frame. The open's mount task (20–49 ms, one or two per
+open) and Chromium's 2–15 / Firefox's 12–23 skipped vsyncs per morph are
+as wave 3 found them; the target "no frame over 16 ms during a morph" is
+still not met and stays recorded for a later stage.

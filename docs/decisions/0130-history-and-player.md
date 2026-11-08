@@ -398,3 +398,20 @@ statistics.tsx; the file keeps the ESC menu's live Statistics and the
 pane's `statsBody`. History and Statistics drop their own room under a
 coarse Back (the kit's Back clears them, ADR 0127). Still open: the
 real-window Iris Xe check of the player.
+
+## Final check (2026-11-08): measured
+
+Headed (real windows) on the owner's Iris Xe, a `VITE_KIT=1` production
+build under `vite preview`, load average 1.4–4.5, nothing else running;
+the full method and every page in `bench/results/look-box.md`, "Final
+check". Cells: `fps · p95 / max frame ms · frames > 20 ms` over 5 s; no
+page had a main-thread stall over 16 ms or (Chromium) a long animation
+frame while idle. The Profile list is the reference row.
+
+| page | Chromium 1728×1000 @2 | Chromium 390×844 @3 | Firefox 1728×1000 @2 | Firefox 390×844 @3 |
+|---|---|---|---|---|
+| Profile list | 59.7 · 18.0 / 34.9 · 2 | 59.6 · 18.1 / 35.8 · 3 | 58.8 · 26.6 / 45.6 · 35 | 58.9 · 28.9 / 50.3 · 20 |
+| History | 60.0 · 18.1 / 19.6 · 0 | 60.0 · 18.0 / 19.8 · 0 | 58.6 · 19.7 / 36.2 · 14 | 59.2 · 30.1 / 47.2 · 28 |
+History (the demo backup, the capped box) idles like the other large
+pages. The player was not measured in this pass (its headed Iris Xe
+check with Back stays open).

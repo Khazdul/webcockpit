@@ -468,3 +468,34 @@ manual's window Back is `LookManual`'s `before` slot in a head that wraps
 icon. The script manual's "Getting started" now describes this page (the
 switch, the panel, the tiles, Reset all, the letters) instead of the TUI
 frame; About and README name the tiles and Duplicate.
+
+## Final check (2026-11-08): measured
+
+Headed (real windows) on the owner's Iris Xe, a `VITE_KIT=1` production
+build under `vite preview`, load average 1.4–4.5, nothing else running;
+the full method and every page in `bench/results/look-box.md`, "Final
+check". Cells: `fps · p95 / max frame ms · frames > 20 ms` over 5 s; no
+page had a main-thread stall over 16 ms or (Chromium) a long animation
+frame while idle. The Profile list is the reference row.
+
+| page | Chromium 1728×1000 @2 | Chromium 390×844 @3 | Firefox 1728×1000 @2 | Firefox 390×844 @3 |
+|---|---|---|---|---|
+| Profile list | 59.7 · 18.0 / 34.9 · 2 | 59.6 · 18.1 / 35.8 · 3 | 58.8 · 26.6 / 45.6 · 35 | 58.9 · 28.9 / 50.3 · 20 |
+| Scripts page | 60.0 · 18.0 / 19.3 · 0 | 60.0 · 17.8 / 19.4 · 0 | 58.6 · 22.8 / 43.1 · 25 | 59.6 · 28.8 / 45.0 · 35 |
+| script editor | 60.1 · 17.3 / 17.8 · 0 | 60.0 · 17.2 / 17.7 · 0 | 59.0 · 33.3 / 38.3 · 18 | 58.4 · 33.5 / 50.7 · 22 |
+| script manual | 60.0 · 17.8 / 19.0 · 0 | 60.0 · 17.9 / 19.3 · 0 | 59.4 · 19.5 / 35.9 · 10 | 59.6 · 19.2 / 34.8 · 8 |
+**Typing** in the middle of a 400-line script (150 characters at 35 ms;
+keydown to the next frame):
+
+| browser | geometry | where | keydown → next frame p50 / p95 / max ms | keys > 33 ms | rAF fps | main-thread stalls > 16 ms (longest) |
+|---|---|---|---|---|---|---|
+| chromium | 1728×1000 @2 | script editor (400 lines, the middle) | 13.9 / 23.7 / 26.3 | 0 of 150 | 60.1 | 109 (30.2) |
+| chromium | 390×844 @3 | script editor (400 lines, the middle) | 13.5 / 22.6 / 24.6 | 0 of 150 | 60.0 | 95 (29.7) |
+| firefox | 1728×1000 @2 | script editor (400 lines, the middle) | 12.7 / 24.1 / 32.5 | 0 of 150 | 42.8 | 1 (16.3) |
+| firefox | 390×844 @3 | script editor (400 lines, the middle) | 11.1 / 23.8 / 41.9 | 2 of 150 | 43.4 | 2 (18.0) |
+Keystrokes land within two frames (2 of 150 over 33 ms, the longest 42
+ms, Firefox on the phone); no long animation frame. Firefox's rAF rate
+falls to 43 fps while typing here (65–66 in the profile editor's code view),
+so the script editor drops frames between keys in Firefox; against 44b's
+headless numbers (Firefox start page p95 14.6 ms) the headed p95 is 24
+ms. The Scripts page and the manual idle like the other large pages.

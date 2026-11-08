@@ -359,3 +359,22 @@ tests are gone (`spotlights.spec.ts`, `spotlights-settings.spec.ts`,
   viewer, and the Scripts tiles and Duplicate. Still open: the
   real-window measurements (the book's pagination on the Iris Xe, About's
   scroll and its mask).
+
+## Final check (2026-11-08): measured
+
+Headed (real windows) on the owner's Iris Xe, a `VITE_KIT=1` production
+build under `vite preview`, load average 1.4–4.5, nothing else running;
+the full method and every page in `bench/results/look-box.md`, "Final
+check". Cells: `fps · p95 / max frame ms · frames > 20 ms` over 5 s; no
+page had a main-thread stall over 16 ms or (Chromium) a long animation
+frame while idle. The Profile list is the reference row.
+
+| page | Chromium 1728×1000 @2 | Chromium 390×844 @3 | Firefox 1728×1000 @2 | Firefox 390×844 @3 |
+|---|---|---|---|---|
+| Profile list | 59.7 · 18.0 / 34.9 · 2 | 59.6 · 18.1 / 35.8 · 3 | 58.8 · 26.6 / 45.6 · 35 | 58.9 · 28.9 / 50.3 · 20 |
+| Credits | 60.0 · 18.0 / 19.3 · 0 | 60.0 · 17.7 / 19.6 · 0 | 59.4 · 30.0 / 49.5 · 28 | 59.4 · 19.5 / 39.3 · 12 |
+| About | 60.0 · 17.9 / 19.5 · 0 | 60.0 · 17.8 / 19.2 · 0 | 59.0 · 28.3 / 50.4 · 35 | 59.5 · 25.8 / 43.7 · 33 |
+About idles at 60.0 fps in Chromium now that its wordmark has no sheen
+(wave 3 measured 58.0 with it) and at 59.0–59.5 in Firefox (55.7–56.4
+with it). Credits idles like the other large pages. Pagination and
+About's scroll were not re-measured.
