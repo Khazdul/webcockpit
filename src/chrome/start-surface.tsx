@@ -359,8 +359,9 @@ export function StartSurface(p: StartSurfaceProps): VNode {
     }
     sky.current = s;
     host.style.background = '';
-    // ?skyStats: the engine's handle for bench/start-page-bench.ts (its stats).
-    if (pageSkyParams().stats) (globalThis as { __wcSky?: StartSkyHandle }).__wcSky = s;
+    // ?skyStats: the engine's handle for bench/start-page-bench.ts (its stats); on the dev
+    // server always (`__wcSky.shoot()`, the presentation film's shooting star, ADR 0133).
+    if (pageSkyParams().stats || import.meta.env.DEV) (globalThis as { __wcSky?: StartSkyHandle }).__wcSky = s;
     feed.attach(s);
     setSkyN((n) => n + 1);
     return () => {

@@ -27,7 +27,7 @@
 // `?skyFreeze` one still frame. Nothing runs while paused or hidden.
 
 import { startEpoch, startGameMinutes } from '../clock';
-import { Bodies, type Parallax, glowSprite } from './bodies';
+import { Bodies, type Parallax, type ShootAt, glowSprite } from './bodies';
 import { CLOUD_BAND, Clouds } from './clouds';
 import { type SkyLook, type SkyScene, skyCss, skySceneAt } from './look';
 import { type SkyParams, type SkyQuality, pageSkyParams } from './params';
@@ -92,6 +92,12 @@ export interface StartSkyHandle {
   stats(): StartSkyStats;
   /** Paints at once (tests: after changing the clock behind `now`). */
   repaint(): void;
+  /**
+   * Dev server only (undefined in a production build): a shooting star now,
+   * whatever the sky, its path random or given (the presentation film times
+   * one, ADR 0133).
+   */
+  shoot?: (at?: ShootAt) => void;
 }
 
 interface Tier {
@@ -599,6 +605,13 @@ export function mountStartSky(host: HTMLElement, opts: StartSkyOptions = {}): St
       const a = performance.now();
       paint((a - t0) / 1000, 0);
     },
+    ...(import.meta.env.DEV
+      ? {
+          shoot(at?: ShootAt) {
+            if (!disposed) bodies.shoot(scene, at);
+          },
+        }
+      : {}),
   };
 }
 

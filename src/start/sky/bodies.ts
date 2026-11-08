@@ -57,6 +57,14 @@ export function glowSprite(size = 64): Sprite {
   return sprite(c);
 }
 
+/** Where a shooting star starts (`Bodies.shoot`): shares of the view, 1 to the right, the angle down (rad). */
+export interface ShootAt {
+  x?: number;
+  y?: number;
+  dir?: 1 | -1;
+  angle?: number;
+}
+
 export class Bodies {
   /** Per star (8 floats): radius (0..1 of the field), angle, size, brightness, twinkle rate, phase, colour. */
   private readonly star: Float32Array;
@@ -207,17 +215,12 @@ export class Bodies {
 
   /** Advances the shooting stars by `dt` real seconds. */
   update(s: SkyScene, dt: number, allowShoot: boolean): void {
-    const { w: W, h: H } = s.view;
     const wx = s.weather;
     if (allowShoot && s.paint.dark > 0.6 && wx.cloud < 0.25 && wx.fog < 0.3) {
       this.nextShoot -= dt;
       if (this.nextShoot <= 0) {
-        const R = Math.random;
-        this.nextShoot = 25 + R() * 50;
-        const ang = 0.35 + R() * 0.5;
-        const dir = R() < 0.5 ? 1 : -1;
-        const sp = 550 + R() * 450;
-        this.shoots.push({ x: W * (0.1 + 0.8 * R()), y: R() * H * 0.3, vx: Math.cos(ang) * sp * dir, vy: Math.sin(ang) * sp, life: 0, max: 0.5 + R() * 0.6, len: 70 + R() * 110 });
+        this.nextShoot = 25 + Math.random() * 50;
+        this.shoot(s);
       }
     }
     for (const sh of this.shoots) {
@@ -226,6 +229,22 @@ export class Bodies {
       sh.life += dt;
     }
     if (this.shoots.length) this.shoots = this.shoots.filter((sh) => sh.life < sh.max);
+  }
+
+  /**
+   * Starts a shooting star now, whatever the sky; `update` also starts them
+   * by itself. Its path is random unless `at` gives it: the start (shares of
+   * the view), the direction (1 to the right) and the angle (rad, down).
+   */
+  shoot(s: SkyScene, at: ShootAt = {}): void {
+    const { w: W, h: H } = s.view;
+    const R = Math.random;
+    const ang = at.angle ?? 0.35 + R() * 0.5;
+    const dir = at.dir ?? (R() < 0.5 ? 1 : -1);
+    const sp = 550 + R() * 450;
+    const x = W * (at.x ?? 0.1 + 0.8 * R());
+    const y = H * (at.y ?? R() * 0.3);
+    this.shoots.push({ x, y, vx: Math.cos(ang) * sp * dir, vy: Math.sin(ang) * sp, life: 0, max: 0.5 + R() * 0.6, len: 70 + R() * 110 });
   }
 
   /**
