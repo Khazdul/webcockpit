@@ -79,8 +79,9 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
         scene: sceneName,
         recordedAt: new Date().toISOString(),
         mode: modeName,
-        width: size.width,
-        height: size.height,
+        // the encoder pads odd sizes to even
+        width: Math.ceil(size.width / 2) * 2,
+        height: Math.ceil(size.height / 2) * 2,
         dpr: mode.dpr,
         fps: FPS,
         frames: enc.frames,

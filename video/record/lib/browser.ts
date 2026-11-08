@@ -42,6 +42,12 @@ export const MODES: Record<string, CaptureMode> = {
   'nvidia-2-q100': { headed: false, dpr: 2, channel: 'chromium', args: NVIDIA, format: 'jpeg', quality: 100 },
   'intel-2': { headed: false, dpr: 2, channel: 'chromium', args: INTEL, format: 'jpeg', quality: 95 },
   'intel-1.5': { headed: false, dpr: 1.5, channel: 'chromium', args: INTEL, format: 'jpeg', quality: 95 },
+  'intel-1.5-q100': { headed: false, dpr: 1.5, channel: 'chromium', args: INTEL, format: 'jpeg', quality: 100 },
+  'intel-1.5-png': { headed: false, dpr: 1.5, channel: 'chromium', args: INTEL, format: 'png' },
+  // 1600×900 CSS at 1.2 is 1920×1080: the film's own size, no scaling after.
+  'intel-1.2-png': { headed: false, dpr: 1.2, channel: 'chromium', args: INTEL, format: 'png' },
+  'nvidia-1.2-png': { headed: false, dpr: 1.2, channel: 'chromium', args: NVIDIA, format: 'png' },
+  'intel-1.2-q100': { headed: false, dpr: 1.2, channel: 'chromium', args: INTEL, format: 'jpeg', quality: 100 },
   'intel-2-png': { headed: false, dpr: 2, channel: 'chromium', args: INTEL, format: 'png' },
   'intel-2-q90': { headed: false, dpr: 2, channel: 'chromium', args: INTEL, format: 'jpeg', quality: 90 },
   'intel-2-novsync': { headed: false, dpr: 2, channel: 'chromium', args: [...INTEL, '--disable-gpu-vsync'], format: 'jpeg', quality: 95 },
@@ -50,8 +56,13 @@ export const MODES: Record<string, CaptureMode> = {
   'headed-2': { headed: true, dpr: 2, format: 'jpeg', quality: 95 },
   'headed-2-png': { headed: true, dpr: 2, format: 'png' },
 };
-/** DPR 1.5 (owner, 2026-11-08: no zooms in practice); a scene that zooms asks for `intel-2` (Scene.mode). */
-export const DEFAULT_MODE = 'intel-1.5';
+/**
+ * The film's default (ADR 0133 addendum): 1600×900 CSS at DPR 1.2 is the
+ * film's own 1920×1080, and PNG frames carry dark gradients without the
+ * JPEG's blocks and chroma steps, at about 46 fps (JPEG q100 holds 60 but
+ * bands the glows). A busy scene may ask for `intel-1.2-q100` (Scene.mode).
+ */
+export const DEFAULT_MODE = 'intel-1.2-png';
 
 export async function launch(mode: CaptureMode): Promise<Browser> {
   return chromium.launch({

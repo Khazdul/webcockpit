@@ -83,12 +83,12 @@ export async function prepareFilm(page: Page): Promise<void> {
 }
 
 /** Reloads the start page with MUME's clock at `moment` again (setup took a while) and the film's sky: the camera can roll. */
-export async function freshStart(page: Page, moment: number = FILM_NIGHT): Promise<void> {
+export async function freshStart(page: Page, moment: number = FILM_NIGHT, query = ''): Promise<void> {
   await page.evaluate((m) => {
     const now = Math.floor(Date.now() / 1000);
     localStorage.setItem('wc.clock', JSON.stringify({ epoch: now - m, precision: 'unset', lastSync: now, reason: null }));
   }, moment);
-  await page.goto(`/?skyWeather=${FILM_SKY}`);
+  await page.goto(`/?skyWeather=${FILM_SKY}${query ? `&${query}` : ''}`);
   await startMenu(page);
 }
 

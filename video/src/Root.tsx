@@ -4,12 +4,15 @@ import { Composition } from 'remotion';
 import { beat } from './beats';
 import { PART1_END_BEAT, Part1, type Part1Props } from './compositions/Part1';
 import { TestBree, type TestBreeProps } from './compositions/TestBree';
+import { DecodeTest } from './DecodeTest';
 import './fonts';
 import { FPS, HEIGHT, WIDTH, loadTimeline } from './timeline';
 
 export function Root() {
   return (
     <>
+      {/* A check, not the film: a recording as Remotion decodes it (ADR 0133 addendum). */}
+      <Composition id="DecodeTest" component={DecodeTest} width={1920} height={1080} fps={60} durationInFrames={20} defaultProps={{ file: 'part1.mp4' }} />
       <Composition
         id="Part1"
         component={Part1}
@@ -17,7 +20,7 @@ export function Root() {
         height={HEIGHT}
         fps={FPS}
         durationInFrames={beat(PART1_END_BEAT)}
-        defaultProps={{ tl: null, fadeOut: true } satisfies Part1Props}
+        defaultProps={{ tl: null, fadeOut: false } satisfies Part1Props}
         calculateMetadata={async ({ props }) => ({ props: { ...props, tl: await loadTimeline('part1') } })}
       />
       <Composition

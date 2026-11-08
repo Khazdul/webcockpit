@@ -1,12 +1,15 @@
-// Screencast frames → a constant 60 fps H.264 file (ADR 0133). Each frame
+// Screencast frames → a constant 60 fps recording (ADR 0133). Each frame
 // is held until the next one's timestamp (ffmpeg's concat demuxer with a
 // duration per frame), then resampled to 60 fps: a still page sends no
 // frames, and those stretches become repeated frames, as on the screen.
 //
-// libx264 at CRF 12, yuv420p, BT.709 limited range, a GOP of 30 frames (0.5 s,
-// so Remotion Studio seeks fast), +faststart: near-lossless for the small
-// TUI text. Quality over speed (an 18 s take encodes in about 22 s on 20
-// cores); h264_nvenc is the fallback if takes get long.
+// The recording is lossless (ADR 0133 addendum: the first takes' lossy
+// x264 CRF 12 with `-tune animation`, on top of the JPEG frames, put 8×8
+// blocks into dark gradients): libx264rgb at QP 0, RGB as the frames come,
+// so not even a YUV conversion rounds the sky. Remotion's OffthreadVideo
+// decodes it bit-exactly (checked with src/DecodeTest.tsx). A GOP of 30
+// frames (0.5 s) keeps Remotion Studio seeking fast. About 10–30 MB a second
+// of film; disk is cheap.
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -58,11 +61,13 @@ export async function encode(frames: readonly Frame[], to: number, out: string, 
   await run('ffmpeg', [
     '-y', '-hide_banner', '-loglevel', 'error',
     '-f', 'concat', '-safe', '0', '-i', list,
-    '-vf', `fps=${FPS},scale=in_range=pc:out_range=tv:in_color_matrix=bt601:out_color_matrix=bt709:flags=lanczos+accurate_rnd+full_chroma_int,format=yuv420p`,
+    // JPEG frames decode as full-range YCbCr (BT.601 in JFIF); PNG frames are RGB already.
+    // (DPR 1.2 gives 1920×1079 frames, Chrome rounding down: a black row at the bottom makes 1080, pixels untouched)
+    '-vf', `fps=${FPS},scale=in_range=pc:in_color_matrix=bt601:flags=accurate_rnd+full_chroma_int,format=bgr0,pad=width=ceil(iw/2)*2:height=ceil(ih/2)*2:x=0:y=0:color=black`,
     '-frames:v', String(total),
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '12', '-tune', 'animation',
-    '-g', '30', '-keyint_min', '30', '-sc_threshold', '0', '-bf', '2',
-    '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
+    '-c:v', 'libx264rgb', '-qp', '0', '-preset', 'faster',
+    '-g', '30', '-keyint_min', '30', '-sc_threshold', '0',
+    '-color_primaries', 'bt709', '-color_trc', 'iec61966-2-1',
     '-movflags', '+faststart',
     out,
   ]);
