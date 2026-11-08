@@ -57,6 +57,23 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-08 — Stage 48: film published, branch merged
+
+- **Done:** the film is on YouTube. A first HEVC 4K upload broke about
+  1 s in the background changes; the H.264 4K re-encode played clean.
+  `master.ts` now makes `-youtube.mp4` (H.264 4K, ADR 0133). Also:
+  thumbnail (`video/record/thumbnail.ts`), YouTube description,
+  manuscript final.
+- **Tests:** typecheck clean (root and video); unit 3503 passed; chrome
+  and loading e2e 60/60.
+- **Merged:** `worktree-agent-aaa28cb01f9b220f5` into main
+  (fast-forward) and pushed. Private and generated files (gitignored)
+  moved to `video/` in the main checkout; only the latest takes, the
+  upload file and the thumbnails were kept. Worktree removed.
+- **Open:** "[SYSTEM] Offline replay mode." prints when Enter MUME is
+  pressed before `shell.boot()` returns, on a real connection. Fix in a
+  later session.
+
 ### 2026-11-08 — Stage 48: owner rounds 1–4, film approved
 
 - **Done (subagent):** four owner feedback rounds, each re-recorded and
