@@ -22,7 +22,7 @@
 // with the page's clock pinned, as tests/e2e/demo-clock.ts does. The feed,
 // the mocked login and the weather helpers live in scripts/lib/mume-feed.ts
 // (shared with the presentation film, video/).
-import { type ChildProcess, spawn } from 'node:child_process';
+import { devServer } from './lib/dev-server.ts';
 import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -80,27 +80,6 @@ draw()
  */
 let ff: Promise<Browser> | null = null;
 const firefox = (): Promise<Browser> => (ff ??= firefoxType.launch({ firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(SCALE) } }));
-
-// ------------------------------------------------------------ dev server
-
-async function up(): Promise<boolean> {
-  try {
-    return (await fetch(BASE)).ok;
-  } catch {
-    return false;
-  }
-}
-
-async function devServer(): Promise<ChildProcess | null> {
-  if (await up()) return null;
-  const child = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { cwd: ROOT, stdio: 'ignore' });
-  for (let i = 0; i < 120; i++) {
-    if (await up()) return child;
-    await sleep(500);
-  }
-  child.kill();
-  throw new Error(`dev server did not start on ${BASE}`);
-}
 
 // ------------------------------------------------------------ pages
 
@@ -602,7 +581,7 @@ const SHOTS: Record<string, Shot> = {
 const wanted = process.argv.slice(2);
 for (const w of wanted) if (!(w in SHOTS)) throw new Error(`unknown shot ${w}; known: ${Object.keys(SHOTS).join(' ')}`);
 mkdirSync(OUT, { recursive: true });
-const server = await devServer();
+const server = await devServer(PORT);
 const browser = await chromium.launch();
 const failed: string[] = [];
 try {
