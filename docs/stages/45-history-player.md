@@ -1,6 +1,6 @@
 # Stage 45 — History and the run log player
 
-Status: **Built**, one check left before owner testing (2026-11-08;
+Status: **Owner testing**, one performance check still open (2026-11-08;
 planned 2026-11-07, built in wave 2 of the broad pass on
 `stage-41-start-page`, wave 3 and its sweep done). Left: the real-window
 check of the player on the Iris Xe (ADR 0130 "Performance"; needs the
