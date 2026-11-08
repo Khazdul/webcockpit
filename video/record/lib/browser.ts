@@ -50,7 +50,8 @@ export const MODES: Record<string, CaptureMode> = {
   'headed-2': { headed: true, dpr: 2, format: 'jpeg', quality: 95 },
   'headed-2-png': { headed: true, dpr: 2, format: 'png' },
 };
-export const DEFAULT_MODE = 'intel-2';
+/** DPR 1.5 (owner, 2026-11-08: no zooms in practice); a scene that zooms asks for `intel-2` (Scene.mode). */
+export const DEFAULT_MODE = 'intel-1.5';
 
 export async function launch(mode: CaptureMode): Promise<Browser> {
   return chromium.launch({
@@ -70,9 +71,10 @@ export async function launch(mode: CaptureMode): Promise<Browser> {
 }
 
 /**
- * Keys and pointer events in the page, epoch ms: the same wall clock as the
- * screencast's frame timestamps, so the recorder turns them into the
- * timeline's `input` (s from the first frame, video px).
+ * Keys and pointer events in the page, epoch ms from the page's
+ * `performance` clock (not `Date`, which a scene may shift): the same wall
+ * clock as the screencast's frame timestamps, so the recorder turns them
+ * into the timeline's `input` (s from the first frame, video px).
  */
 export interface InputEvent {
   at: number;
@@ -82,19 +84,47 @@ export interface InputEvent {
   y?: number;
 }
 
-export async function newPage(browser: Browser, mode: CaptureMode, baseURL: string): Promise<{ ctx: BrowserContext; page: Page }> {
+export interface PageOptions {
+  /** MUME's game moment (s since year 0) the page's clock is pinned to (default GAME_MOMENT_S). */
+  moment?: number;
+  /**
+   * The page's date (epoch ms at load): `Date` in the page runs on from it
+   * (a constant shift; rAF, timers and `performance` are untouched, unlike
+   * Playwright's page.clock). Workers keep the real date, so a scene that
+   * pins the weather by the clock should not shift far.
+   */
+  now?: number;
+}
+
+export async function newPage(browser: Browser, mode: CaptureMode, baseURL: string, o: PageOptions = {}): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: mode.dpr, baseURL });
-  await pinGameMoment(ctx);
+  if (o.now !== undefined) {
+    await ctx.addInitScript((shift) => {
+      const Real = Date;
+      const now = (): number => Real.now() + shift;
+      // `new Date()` and `Date.now()` shifted; `new Date(x)`, parse, UTC as they are.
+      const Shifted = function (this: unknown, ...a: unknown[]) {
+        if (!new.target) return new Real(now()).toString();
+        return a.length === 0 ? new Real(now()) : new (Real as unknown as new (...b: unknown[]) => Date)(...a);
+      } as unknown as DateConstructor;
+      Object.setPrototypeOf(Shifted, Real);
+      Object.defineProperty(Shifted, 'prototype', { value: Real.prototype });
+      Shifted.now = now;
+      globalThis.Date = Shifted;
+    }, o.now - Date.now());
+  }
+  await pinGameMoment(ctx, o.moment);
   await ctx.addInitScript(() => {
     const log: { at: number; type: string; key?: string; x?: number; y?: number }[] = [];
     (window as unknown as { __recInput: typeof log }).__recInput = log;
     const opt = { capture: true, passive: true };
-    addEventListener('keydown', (e) => log.push({ at: Date.now(), type: 'key', key: e.key }), opt);
-    addEventListener('pointerdown', (e) => log.push({ at: Date.now(), type: 'down', x: e.clientX, y: e.clientY }), opt);
-    addEventListener('pointerup', (e) => log.push({ at: Date.now(), type: 'up', x: e.clientX, y: e.clientY }), opt);
+    const t = (): number => performance.timeOrigin + performance.now();
+    addEventListener('keydown', (e) => log.push({ at: t(), type: 'key', key: e.key }), opt);
+    addEventListener('pointerdown', (e) => log.push({ at: t(), type: 'down', x: e.clientX, y: e.clientY }), opt);
+    addEventListener('pointerup', (e) => log.push({ at: t(), type: 'up', x: e.clientX, y: e.clientY }), opt);
     // Every move: a later scene's cursor overlay follows the pointer through the Settings popup.
-    addEventListener('pointermove', (e) => log.push({ at: Date.now(), type: 'move', x: e.clientX, y: e.clientY }), opt);
-    addEventListener('wheel', (e) => log.push({ at: Date.now(), type: 'wheel', x: e.clientX, y: e.clientY }), opt);
+    addEventListener('pointermove', (e) => log.push({ at: t(), type: 'move', x: e.clientX, y: e.clientY }), opt);
+    addEventListener('wheel', (e) => log.push({ at: t(), type: 'wheel', x: e.clientX, y: e.clientY }), opt);
   });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));

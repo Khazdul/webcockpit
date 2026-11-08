@@ -18,6 +18,9 @@ import type { Scene } from '../lib/scene.ts';
 const SPEED = 5;
 
 export const bree: Scene = {
+  // The test scene zooms into the map pane: DPR 2.
+  mode: 'intel-2',
+
   async setup(page) {
     const { before, look, walk } = breeFeed();
     const server = await connect(page);
