@@ -10,10 +10,12 @@ import { isLookFrame, lookFrame } from '../../src/chrome/kit/look';
 import {
   FrameStack,
   type StackControl,
+  isBrowserShortcut,
   useFlash,
   useKeyLayer,
   useKeys,
   useNav,
+  usePlayerKeys,
   useUnsaved,
 } from '../../src/chrome/kit/stack';
 
@@ -485,5 +487,63 @@ describe('FrameStack overlays, the hold, key layers and the Esc rule (stage 42c)
     expect(fs).toHaveLength(2);
     expect(fs[1]!.hasAttribute('data-overlay')).toBe(true);
     expect(fs[0]!.hasAttribute('data-under')).toBe(true);
+  });
+});
+
+describe('browser keys (stage 45 owner feedback round 2, ADR 0130)', () => {
+  const press = (k: string, init: KeyboardEventInit = {}): boolean => {
+    const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+
+  it('never prevents a function key: no frame handler sees it, only a layer that asks', async () => {
+    const log: string[] = [];
+    let ask!: (on: boolean) => void;
+    function Page() {
+      const [on, set] = useState(false);
+      ask = set;
+      useKeys((e) => (log.push(`page:${e.key}`), true));
+      useKeyLayer((e) => (log.push(`layer:${e.key}`), true));
+      useKeyLayer((e) => (log.push(`f:${e.key}`), e.key === 'F11'), on, { browserKeys: true });
+      return <div />;
+    }
+    await act(async () => {
+      render(<FrameStack root={<Page />} active />, document.body);
+    });
+    expect(press('F11')).toBe(false);
+    expect(press('F5')).toBe(false);
+    expect(press('F12', { ctrlKey: true, shiftKey: true })).toBe(false);
+    expect(log).toEqual([]);
+    expect(press('a')).toBe(true);
+    expect(log).toEqual(['layer:a']);
+    log.length = 0;
+    await act(async () => ask(true));
+    expect(press('F11')).toBe(true);
+    expect(press('F5')).toBe(false);
+    expect(log).toEqual(['f:F11', 'f:F5']);
+  });
+
+  it('a page that gives every key to its player lets the browser shortcuts through', async () => {
+    const log: string[] = [];
+    function Page() {
+      usePlayerKeys(true);
+      useKeys((e) => (log.push(e.key), false));
+      return <div />;
+    }
+    await act(async () => {
+      render(<FrameStack root={<Page />} active />, document.body);
+    });
+    expect(press(' ')).toBe(true);
+    expect(press('Escape')).toBe(true);
+    expect(press('r', { ctrlKey: true })).toBe(false);
+    expect(press('l', { ctrlKey: true })).toBe(false);
+    expect(press('ArrowLeft', { altKey: true })).toBe(false);
+    expect(press('F5')).toBe(false);
+    // The shortcuts go on to the frame's own handler, which leaves them too.
+    expect(log).toEqual(['r', 'l', 'ArrowLeft']);
+    expect(isBrowserShortcut({ key: 'r', ctrlKey: true, altKey: false, metaKey: false })).toBe(true);
+    expect(isBrowserShortcut({ key: 'F11', ctrlKey: false, altKey: false, metaKey: false })).toBe(true);
+    expect(isBrowserShortcut({ key: 'f', ctrlKey: false, altKey: false, metaKey: false })).toBe(false);
   });
 });

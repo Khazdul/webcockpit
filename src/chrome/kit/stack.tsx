@@ -47,6 +47,9 @@
 //   "the top frame".
 // - Key layers (`useKeyLayer`): a popover or an inline dialog gets the top
 //   frame's keys before the frame's handler, the most recent layer first.
+// - Browser keys (stage 45 owner feedback round 2, ADR 0130): the function
+//   keys (F11, F5, F12 …) are never prevented and no frame handler sees
+//   them, only a layer that asks (`browserKeys`).
 // - The Esc rule (look frames and overlays only): an Esc that no layer and
 //   not the frame's handler consumes, pressed in a text field inside the
 //   frame, blurs the field and gives the focus back to the host; it does
@@ -102,7 +105,7 @@ interface Entry {
   /** Pushed with `{ overlay: true }`: the frames below stay drawn. */
   overlay: boolean;
   /** `useKeyLayer`: the layers over the frame's handler, the most recent last. */
-  layers: { run: KeyHandler }[];
+  layers: { run: KeyHandler; browserKeys?: boolean }[];
 }
 
 interface FrameCtxValue {
@@ -134,21 +137,24 @@ export function useKeys(handler: KeyHandler): void {
  * `active` (default true) and its frame is the top frame, it gets the keys
  * before the frame's handler, the most recently activated layer first;
  * true = consumed, false = the next layer (then the frame) gets the key.
- * Latest closure wins. Stage 42c, ADR 0127.
+ * Latest closure wins. Stage 42c, ADR 0127. `browserKeys`: it also gets
+ * the browser's function keys (`isBrowserKey`), which no frame handler
+ * sees (the run log's F11).
  */
-export function useKeyLayer(handler: KeyHandler, active = true): void {
+export function useKeyLayer(handler: KeyHandler, active = true, opts: { browserKeys?: boolean } = {}): void {
   const { entry } = useFrameCtx();
   const latest = useRef(handler);
   latest.current = handler;
+  const browserKeys = opts.browserKeys === true;
   useLayoutEffect(() => {
     if (!active) return;
-    const layer = { run: (e: KeyboardEvent, nk: NavKey | null): boolean => latest.current(e, nk) };
+    const layer = { run: (e: KeyboardEvent, nk: NavKey | null): boolean => latest.current(e, nk), browserKeys };
     entry.layers.push(layer);
     return () => {
       const i = entry.layers.indexOf(layer);
       if (i >= 0) entry.layers.splice(i, 1);
     };
-  }, [active, entry]);
+  }, [active, entry, browserKeys]);
 }
 
 /**
@@ -157,12 +163,16 @@ export function useKeyLayer(handler: KeyHandler, active = true): void {
  * view's are both capture listeners on the window, and the stack's runs
  * first, so both would see every key (Space would toggle playback and
  * press the page's button; Esc would pop the page and then call the
- * view's `onEsc`). This layer swallows every key for the frame; the view
- * handles them, and its `onEsc` leaves. Off (the player parked or not
+ * view's `onEsc`). This layer swallows every key for the frame but the
+ * browser's shortcuts (`isBrowserShortcut`: Ctrl, Alt or Meta, or a
+ * function key), which go to the browser untouched; the view handles
+ * the rest, and its `onEsc` leaves. Off (the player parked or not
  * ready yet): the frame's keys as usual. Stage 42 wave 3, ADR 0127.
  */
 export function usePlayerKeys(on: boolean): void {
-  useKeyLayer(() => true, on);
+  // Browser shortcuts pass (the player uses none): no handler takes them,
+  // so the stack leaves their default alone (owner feedback round 2, ADR 0130).
+  useKeyLayer((e) => !isBrowserShortcut(e), on);
 }
 
 /**
@@ -183,6 +193,36 @@ function isLookNode(node: VNode): boolean {
 function runKeys(entry: Entry, e: KeyboardEvent, nk: NavKey | null): boolean {
   for (let i = entry.layers.length - 1; i >= 0; i--) if (entry.layers[i]!.run(e, nk)) return true;
   return entry.keys.current?.(e, nk) === true;
+}
+
+/** A browser key (`isBrowserKey`) to the layers that asked for them, the most recent first. */
+function runBrowserLayers(entry: Entry, e: KeyboardEvent): boolean {
+  for (let i = entry.layers.length - 1; i >= 0; i--) {
+    const l = entry.layers[i]!;
+    if (l.browserKeys && l.run(e, null)) return true;
+  }
+  return false;
+}
+
+/**
+ * A key the browser keeps on every page: the function keys F1–F24, with
+ * or without modifiers (F11 fullscreen, F5 reload, F12 the dev tools).
+ * The frame stack never prevents them and its frames' handlers never see
+ * them; a key layer can ask for them (`useKeyLayer(fn, on, { browserKeys:
+ * true })`). Stage 45 owner feedback round 2, ADR 0130.
+ */
+export function isBrowserKey(e: { key: string }): boolean {
+  return /^F([1-9]|1\d|2[0-4])$/.test(e.key);
+}
+
+/**
+ * A browser shortcut with Ctrl, Alt or Meta (Ctrl+R, Ctrl+L, Ctrl+T, Alt+←
+ * …) or a function key: the keys a page that gives every key to an embedded
+ * player (`usePlayerKeys`) lets through to the browser; the player uses
+ * none of them.
+ */
+export function isBrowserShortcut(e: { key: string; ctrlKey: boolean; altKey: boolean; metaKey: boolean }): boolean {
+  return e.ctrlKey || e.altKey || e.metaKey || isBrowserKey(e);
 }
 
 /** Index of the page: the topmost frame that is not an overlay (the root never is one). */
@@ -459,6 +499,13 @@ export function FrameStack(props: FrameStackProps): VNode {
       }
       const s = stackRef.current!;
       const top = s[s.length - 1]!;
+      // The browser's function keys (F11 fullscreen, F5 reload, F12 the dev
+      // tools …) go to the browser: no frame handler sees them, only a key
+      // layer that asks for them (the run log's F11).
+      if (isBrowserKey(e)) {
+        if (runBrowserLayers(top, e)) e.preventDefault();
+        return;
+      }
       const nk = navKey(e);
       if (selectOwns(e, nk)) return;
       if (runKeys(top, e, nk)) {

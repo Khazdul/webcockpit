@@ -671,3 +671,107 @@ test('History → Run log in the big box; Fullscreen fills the screen, leaving i
   await expect(cur(page)).toHaveText(chosen!);
   expect(errors).toEqual([]);
 });
+
+/** Dispatches a keydown on the window (as the browser would) and tells whether the page prevented it. */
+async function prevented(page: Page, key: string, init: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {}): Promise<boolean> {
+  return page.evaluate(
+    ([key, init]) => {
+      const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    },
+    [key, init] as const,
+  );
+}
+
+test('F11: on the run log page the player’s Fullscreen; elsewhere, and the other browser keys, the browser’s', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await pinDemoClock(page);
+  await page.goto('/');
+  await restoreDemo(page);
+  // The start page leaves F11 (and the other function keys) to the browser.
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  expect(await prevented(page, 'F11')).toBe(false);
+  expect(await prevented(page, 'F5')).toBe(false);
+  await openHistory(page, 3);
+  expect(await prevented(page, 'F11')).toBe(false);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
+  await expectInBox(page);
+
+  // The run log page: the browser's other keys pass; the player's keys stay the player's.
+  for (const [k, init] of [
+    ['F5', {}],
+    ['F12', {}],
+    ['r', { ctrlKey: true }],
+    ['l', { ctrlKey: true }],
+    ['I', { ctrlKey: true, shiftKey: true }],
+    ['ArrowLeft', { altKey: true }],
+  ] as const) {
+    expect(await prevented(page, k, init), k).toBe(false);
+  }
+  expect(await player(page).count()).toBe(1);
+
+  // F11: the player alone in the browser's fullscreen; F11 again: back in the box.
+  const fs = chrome(page).locator('.wc-player-box [data-act="extra"]');
+  await page.keyboard.press('F11');
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.querySelector('.wc-player'))).toBe(true);
+  await expect(fs).toHaveAttribute('aria-label', 'Exit fullscreen');
+  await page.keyboard.press('F11');
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+  await expectInBox(page);
+  // F11, then the button: out again.
+  await page.keyboard.press('F11');
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+  await fs.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expectInBox(page);
+  expect(await player(page).count()).toBe(1);
+
+  // Back on History: F11 is the browser's again.
+  await page.keyboard.press('Escape');
+  await expect(player(page)).toHaveCount(0);
+  await expect(hist(page).locator('.wc-lk-hood-t').last()).toHaveText('History');
+  expect(await prevented(page, 'F11')).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('the hood plate floats over the player: the player fills the box’s window to the frame', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await pinDemoClock(page);
+  await page.goto('/');
+  await restoreDemo(page);
+  await openHistory(page, 3);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
+  const g = await page.evaluate(() => {
+    const r = (s: string) => document.querySelector(s)!.getBoundingClientRect();
+    const win = document.querySelector('.wc-rl-win')!;
+    const cs = getComputedStyle(win);
+    const hood = r('.wc-rl-box > .wc-lk-hood');
+    const top = document.elementFromPoint(hood.left + hood.width / 2, hood.top + hood.height / 2);
+    const below = document.elementFromPoint(hood.left - 4, hood.top + hood.height / 2);
+    return {
+      win: r('.wc-rl-win'),
+      player: r('.wc-player'),
+      hood,
+      border: parseFloat(cs.borderTopWidth),
+      hoodOnTop: !!top?.closest('.wc-lk-hood'),
+      beside: !!below?.closest('.wc-player'),
+    };
+  });
+  // Up to the window's edge on every side (inside its 1 px line).
+  expect(Math.abs(g.player.top - (g.win.top + g.border))).toBeLessThan(1);
+  expect(Math.abs(g.player.left - (g.win.left + g.border))).toBeLessThan(1);
+  expect(Math.abs(g.player.right - (g.win.right - g.border))).toBeLessThan(1);
+  expect(Math.abs(g.player.bottom - (g.win.bottom - g.border))).toBeLessThan(1);
+  // The plate lies over the player's top edge, on top; beside it the player takes the pointer.
+  expect(g.hood.bottom).toBeGreaterThan(g.player.top);
+  expect(g.hoodOnTop).toBe(true);
+  expect(g.beside).toBe(true);
+});

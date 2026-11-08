@@ -88,7 +88,7 @@ import {
   useBoxSettled,
   useGridCursor,
 } from '../kit/look';
-import { useKeys, useNav } from '../kit/stack';
+import { isBrowserShortcut, useKeys, useNav } from '../kit/stack';
 import { KIND_ICON } from './spotlights-icons';
 import { SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
 import './spotlights.css';
@@ -476,8 +476,8 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
   const groupStart = (g: Stop['group']): number => stops.findIndex((s) => s.group === g);
 
   useKeys((e, nk) => {
-    // The viewer's keys are the player view's own (a window listener after the stack's).
-    if (view) return true;
+    // The viewer's keys are the player view's own (a window listener after the stack's); the browser's shortcuts pass.
+    if (view) return !isBrowserShortcut(e);
     const inSelect = (e.target as HTMLElement | null)?.tagName === 'SELECT';
     if (zone === 'filter') {
       if (nk === 'back' || nk === 'down') {

@@ -65,7 +65,7 @@ import { fmtClock } from '../../player/strip';
 import { KIND_LABEL } from '../../share/spotlights';
 import { useServices } from '../kit/hooks';
 import { GlassButton, Icon, type IconName, Popover, Seg, letterAction, useReducedMotion } from '../kit/look';
-import { useKeyLayer, useNav } from '../kit/stack';
+import { isBrowserShortcut, useKeyLayer, useNav } from '../kit/stack';
 import { useSkyPause } from '../start-surface';
 import { KIND_ICON } from './spotlights-icons';
 import './spotlights-viewer.css';
@@ -331,8 +331,11 @@ export function SpotlightsViewer(p: SpotlightsViewerProps): VNode {
 
   // The frame's keys while the viewer shows: the stack's listener runs before
   // the view's, so a layer over the page swallows every key there (the
-  // view handles them); before the host is ready it takes Esc itself.
-  useKeyLayer((_e, nk) => {
+  // view handles them) but the browser's shortcuts (Ctrl+R, Ctrl+L …; the
+  // stack leaves the function keys to the browser itself); before the host
+  // is ready it takes Esc itself.
+  useKeyLayer((e, nk) => {
+    if (isBrowserShortcut(e)) return false;
     if (nk === 'back' && !kRef.current) leave();
     return true;
   });
