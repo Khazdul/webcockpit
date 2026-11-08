@@ -1138,10 +1138,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
               <span class="wc-pe-live-t">{liveText(live)}</span>
             </span>
           ) : (
-            <span class="wc-pe-name">
-              {host.name}
-              <small>tt++ profile</small>
-            </span>
+            <span class="wc-pe-name">{host.name}</span>
           )}
           <div class={cx('wc-pe-views', zone === 'views' && 'is-cur')}>
             <Seg

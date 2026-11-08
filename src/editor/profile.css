@@ -63,13 +63,6 @@
   color: var(--lk-head);
 }
 
-.wc-pe-name small {
-  margin-left: 10px;
-  font: italic 500 15px/1 var(--lk-serif);
-  letter-spacing: 0.02em;
-  color: var(--lk-faint);
-}
-
 .wc-pe-live {
   min-width: 0;
   display: inline-flex;
@@ -957,10 +950,6 @@
 
   .wc-pe-name {
     font-size: 18px;
-  }
-
-  .wc-pe-name small {
-    display: none;
   }
 
   /* .wc-pe is the `pe` container and cannot query itself: the denser
