@@ -1,8 +1,8 @@
 // Renders a composition (settings in remotion.config.ts) to a ProRes 4444
 // master, then makes the films from it (record/master.ts):
 //
-//   npm run render -- Part1             out/part1-master.mov → out/part1.mp4, part1-4k.mp4, part1-h264.mp4
-//   npm run render -- Part1 --no-4k     without the 4K variant
+//   npm run render -- Part1             out/part1-master.mov → out/part1.mp4, part1-youtube.mp4, part1-h264.mp4
+//   npm run render -- Part1 --no-4k     without the YouTube 4K variant
 //   npm run render -- Film --out webcockpit-demo   out/webcockpit-demo-master.mov → webcockpit-demo.mp4, …
 //   npm run render -- Part1 --concurrency 8   (other flags go to `remotion render`)
 import { spawnSync } from 'node:child_process';

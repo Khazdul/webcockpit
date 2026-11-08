@@ -67,10 +67,11 @@ one from the input log.
 
 ```sh
 npm run studio                       # Remotion Studio in the browser
-npm run render -- Film --out webcockpit-demo --no-4k   # the whole film: out/webcockpit-demo.mp4, -h264.mp4
-npm run render -- Part1              # out/part1-master.mov (ProRes 4444), then from it:
-                                     #   part1.mp4 (HEVC 10-bit), part1-4k.mp4 (for YouTube), part1-h264.mp4
-npm run render -- Part1 --no-4k      # without the 4K variant (about 3.5 of 6.5 minutes)
+npm run render -- Film --out webcockpit-demo   # the whole film: out/webcockpit-demo-master.mov (ProRes 4444), then
+                                     #   webcockpit-demo.mp4 (HEVC 10-bit), -youtube.mp4 (4K H.264, the upload), -h264.mp4
+npm run render -- Film --out webcockpit-demo --no-4k   # without the YouTube 4K variant
+npm run render -- Part1              # the same for part 1 alone
+node record/thumbnail.ts             # out/thumbnail/: the start page at 3840×2160, for the YouTube thumbnail
 npm run render -- TestBree           # out/test-bree.mp4 (the pipeline test)
 npm run typecheck
 ```

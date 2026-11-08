@@ -247,3 +247,10 @@ done.
   - The start page's quote fades right after Credits' Back, not when the
     card appears; fixing that needs a re-take of take B.
   - Long captions overlap the lower edge of the Timers pane.
+
+### Published (2026-11-08)
+
+The owner uploaded the film to YouTube. A first HEVC 4K upload broke for
+about a second in the colour changes. The H.264 4K re-encode played clean
+(ADR 0133, "The YouTube upload"). The thumbnail and the description were
+made in the same session.

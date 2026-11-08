@@ -582,3 +582,13 @@ lane. Each is 22 × 12 cells, at x 88, a cell's gap from the lane at
 above the menu bar. They stay there for the whole game, with or without
 the map. Both takes were re-recorded for it. The History player keeps
 its own layout.
+
+**The YouTube upload (2026-11-08).** The first upload was the HEVC Main10
+4K file (CRF 16, about 3 Mbit/s). On YouTube it showed about a second of
+broken picture in the background changes, where the whole frame goes from
+Black to Paper. The local file decodes clean, with even frame times. The
+upload is now **H.264 High 8-bit 4K60** (CRF 14, about 18 Mbit/s), with a
+closed GOP of 30 and AAC 384k, as YouTube recommends. That file played
+clean on YouTube (owner). `record/master.ts` makes it as
+`<base>-youtube.mp4` in place of `-4k.mp4`. The thumbnail is the start
+page at 3840×2160 (`record/thumbnail.ts`).

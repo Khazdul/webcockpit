@@ -1,13 +1,13 @@
 # Presentation film — manuscript
 
-Draft 4 (2026-11-08): the first full cut as built (from draft 3, with
-every owner comment so far). Next: polish with the owner. Times are music time in "Sunset Plains" by Yoiyami (CC0,
+Final (2026-11-08): the film as published, after four owner feedback
+rounds (`docs/stages/48-presentation-film.md`). 3:42.45. Times are music time in "Sunset Plains" by Yoiyami (CC0,
 `public/music/sunset-plains.wav`).
 
 ## Rules from the owner
 
-- About 3 minutes, never longer than the music. The film ends in
-  the music's near-silent break after 3:06.35 (black by about 3:10).
+- About 3 minutes, never longer than the music. The final cut runs to
+  3:42 and ends with a music fade (owner rounds 2–3).
 - **Few captions, plain and descriptive, no slogans.** No chapter cards;
   only the opening and end cards sit mid-frame. Don't mention tt++.
   Show rather than tell. Don't caption what the eye already sees (the map
@@ -68,30 +68,29 @@ order; only the weather is staged.
 
 | Music | Picture | Caption |
 |---|---|---|
-| **Part 1** 0:00–0:13 | Start page in the middle of the night (MUME 00:05, faint clouds, stars); the client's own shooting star at 0:05.0 (dev hook). | Lower third, beats 3–15: *Live demo of WebCockpit 0.3.2* / *Try it at mumecockpit.com* (version read at render time) |
+| **Opening** 0:00–0:13 | Start page in the middle of the night (MUME 00:05, faint clouds, stars); the client's own shooting star at 0:05.0 (dev hook). Profile is warmed off camera before 0:00. | Lower third, beats 3–15: *Live demo of WebCockpit 0.3.2* / *Try it at mumecockpit.com* (version read at render time) |
 | 0:13–0:23 | Profile pressed on beat 17 (0:13.02); khazdul Selected on beat 23; Back on beat 27. | *Profiles hold your basic settings.* |
-| 0:23–0:38 | Enter MUME on beat 31 (0:23.39); the pointer stays and fades. MUME's real welcome screen up by about 0:28, held about 3.5 s; name Enter beat 43, password (masked) Enter beat 47. | — |
-| 0:35.9–0:44 | MUME's post-login lines; Gittan arrives in the Prancing Pony's Lodging Foyer: room, people, prompt, a moment of life. No panes. No fade: the game continues. | — |
-| **Part 2** 0:44–1:06 | In the game: lead pony, group it, label it, two rooms south to the fountain (outdoors). Settings opens from the menu bar on beat 69: tabs flicked on beats 71–73, ending on **Weather effects**; the switch goes on (beat 75) and the night sky fades in over the client (a clear night is pinned; the run says late afternoon). `where` after Settings closes (popups take the keys). Then Appearance: background **Black → Paper** (1:00.8, about 0.4 s after beat 81), held, back to **Black** on beat 85. | At the switch: *Weather effects follow the game.* — at Paper: *Customise fonts, colours and more.* |
-| 1:06–1:15 | Panes from the menu bar: **Map** on at 1:08.4 (the map follows by itself, no caption); the mercenary hired (10 silver refused, 1 gold), **Group** on at 1:15.2 as Tod joins (`label Tod` dropped; the label arrives through GMCP). | — |
-| 1:15–1:19.68 | Out of the west gate; rain from 1:15.6, heavy from 1:17.9; **Timers** on at 1:18.4. | — |
-| **Part 3** **1:19.68** | **A lightning strike on the drum hit** (beat 107, flash measured at 1:19.65); shield, armour and shroud fill the Timers pane. | From about 1:23.6, 4 s: *The Timers pane tracks spells, buffs and more.* |
-| 1:23–1:33 | The second wolf only: attack, Tod joins, assist, the kill, butcher. | 1 s after the Timers caption, until the cut: *The Group pane shows your group and follows your fights.* |
-| 1:33.02–1:49 (cut on beat 125) | Back into the inn (a short cut); the barman looks up, offers the quest, Gittan nods. | — |
-| 1:49.31–2:13 | The barman's monologue goes on behind. **Profile** window from the menu bar on beat 147: the alias `fk` → `kill wolf` on the Lite form (1:51.9), then **Editor** (1:56.5; Find jumps to the alias). Then **Scripts** (about 2:01.9): rows flicked on beats 165–171, ending on Mercenaries, its settings and help shown. | *Create aliases, actions and keys from the menu or in the editor.* — *A Lua scripting engine for anything more complex.* |
-| **Part 4** 2:13.02–2:25 | Exit on beat 179 to the start page (night, the film's own clock); **History**: the Bree session chosen, its log player (2:17.5) replays the session a few seconds. | *Every session is saved and can be replayed.* |
-| 2:25.2–2:36.72 | **Spotlights** wall with the five cards (viewer at 2:27.8); Rasta's PvP kill (*a Half-Elf*) opens in the viewer and plays. | *Spotlights collect your kills, deaths, level-ups and achievements.* |
-| **Part 5** 2:36.72–2:44 | **Credits**: the book, a page turned on beat 215. | *Credits tell your characters' story as a book.* |
-| 2:44–2:58 | Montage, beats 221–239: nine two-beat cuts from the film (the shooting star, the sky fading in, the Paper flip, the map, the strike, the wolf, the editor, the log player, the spotlight). No captions. | — |
-| 2:58–3:10 | End card from beat 239 over the night start page (quote hidden), same box style, centred low: *WebCockpit 0.3.2* / *mumecockpit.com · Free and open source*. From the last full hit (3:06.35) it fades with the ringing tail; black by about 3:10. | (the card) |
+| 0:23–0:36 | Enter MUME on beat 31 (0:23.39); the pointer stays and fades. MUME's real welcome screen, held about 3.6 s; name Enter beat 43, password (masked) Enter beat 46. | — |
+| 0:36–0:56 | Gittan arrives in the Lodging Foyer; lead pony, group it (never labelled). **Group** on at 0:45.7, floating; its gear's tooltip, then NPC visibility **All** (the pony appears) and **Fight card** on, about 2 s rest before each. | — |
+| 0:56–1:14 | **Settings**: tabs two beats each, ending on **Weather effects**; the switch goes on and the night sky fades in (a clear night is pinned). Appearance: the font list open about 2 s; backgrounds **Paper** (1:08) → **Teal** → **Sepia** → **Black**. | *Weather effects follow the game.* — *Customise fonts, colours and more.* |
+| 1:13–1:19.68 | "A citizen mercenary has arrived from the west." (staged); 10 silver refused, 2.6 s idle, 1 gold; out of Bree's street in the rain. | — |
+| **1:19.68** | **A lightning strike on the drum hit** (beat 107), in Bree's street before the West Gate; Tod grouped. | — |
+| 1:21–1:50 | **Timers** on (1:25), floating; shield, armour and shroud fill it. Its settings, calmly (Herblores is off from the start): Grid, Circles, 2 columns, back to Bars and Flow. **Map** on, docked (1:43.8); a few rooms walked. | From about 1:25, 4 s: *The Timers pane tracks spells, buffs and more.* |
+| 1:50–2:10 | The second wolf at about game tempo (1.15×): Grassy Hills by name, `k wolf`, Tod joins, assist, the kill, butcher. Plain cut in. | *The Group pane shows your group and follows your fights.* |
+| 2:10.05–2:51 (cut on beat 175) | The inn; the barman at 1× behind. **Profile**: caption first, the pointer slowly to the menu-bar icon, tooltip, click; the alias `fk` → `kill wolf` on the Lite form, then **Editor** (Find, the line held 5 s). **Scripts** the same way: Almanac briefly, then **Mercenaries**: switched on, cost **20** silver pressed. | *Open the profile to create aliases, actions and keys from the menu or in the editor.* — *A Lua scripting engine for anything more complex.* |
+| 2:51.7–3:03 | Exit to the start page (night, the film's own clock), held; **History**: the Bree session's log player with small text and narrower panes. | *Every session is saved and can be replayed.* |
+| 3:03–3:27 | **Spotlights** wall held; Rasta's PvP kill of *a Half-Elf* (#2) opened, played whole, then about 4 s of the next (*Kohrn the Orc*); Back, Back. | *Spotlights collect your kills, deaths, level-ups and achievements.* |
+| 3:28–3:33 | **Credits**: the book held about 4.5 s, no Next; Back. | *Credits tell your characters' story as a book.* |
+| 3:33–3:42.45 | The start page (the quote fades); the end card at 3:35.0: *WebCockpit 0.3.2* / *mumecockpit.com · Free and open source*. Picture and music fade together from beat 295 (3:38.94); black at 3:42.45. | (the card) |
+
+Game moments join with plain cuts (no dips, owner round 4). Group and
+Timers float stacked left of the map's lane for the whole game (22 × 12
+cells each).
 
 ## Open
 
-- Polish after the owner has seen the whole film. Known: the strike
-  reads mostly as a sky flash (the bolt is partly behind the panes);
-  History, Spotlights and Credits show an empty box for about 1 s as
-  they grow in; Paper is 0.4 s late; the layout reflows while the Panes
-  popup is open.
-- Caption wording is draft; the Credits line is the least certain.
-- Not in the film for now: import, the export editor and HTML replay,
-  the phone. Possibly one cut each in the final montage.
+- Published on YouTube 2026-11-08 (`out/webcockpit-demo-youtube.mp4`).
+- Known, accepted: the strike reads mostly as a sky flash; History and
+  Spotlights show an empty box about 1 s as they grow in; the quote fades
+  before the end card (a new take B would fix it).
+- Not in the film: import, the export editor and HTML replay, the phone.
