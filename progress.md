@@ -51,11 +51,26 @@ Released 0.3.2 (start menu panel 360 px in the production build too; Pages deplo
 | 45 | History and run log player | Done | `docs/stages/45-history-player.md` |
 | 46 | Spotlights gallery | Done | `docs/stages/46-spotlights.md` |
 | 47 | Credits and About | Done | `docs/stages/47-credits-about.md` |
-| 48 | Presentation film | Owner testing | `docs/stages/48-presentation-film.md` |
+| 48 | Presentation film | Done | `docs/stages/48-presentation-film.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-08 — Stage 48: owner rounds 1–4, film approved
+
+- **Done (subagent):** four owner feedback rounds, each re-recorded and
+  re-rendered:
+  - pony never labelled; Group and Timers settings shown calmly;
+  - panes floating, stacked left of the map;
+  - slower fight and barman; Mercenaries set to 20 silver;
+  - the Half-Elf spotlight played whole; no montage, no dips.
+  The film is 3:42, ending in a music fade from beat 295. The owner
+  approved it ("Det här blir perfekt"). 4K made for YouTube, copied to
+  ~/Downloads; YouTube description drafted.
+- **Open:** the "Offline replay mode" bug (Enter MUME before
+  `shell.boot()` returns); branch not merged to main.
+- **Commits:** fe377fcc…f0dec365, plus this one.
 
 ### 2026-11-08 — Stage 48: presentation film, first full cut
 

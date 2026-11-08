@@ -1,6 +1,6 @@
 # Stage 48 — Presentation film
 
-Status: **Owner testing** (first full cut, 2026-11-08). Branch
+Status: **Done**, approved by the owner 2026-11-08 after four feedback rounds ("Det här blir perfekt"); 4K for YouTube made. Branch
 `worktree-agent-aaa28cb01f9b220f5`.
 
 ## Goal
@@ -80,8 +80,8 @@ and render is in `video/README.md`.
   - [x] night sky on every start page in take B;
   - [x] no quote under the end card;
   - [x] the Timers caption after the spells land.
-- [ ] Owner review of the full film, then polish rounds.
-- [ ] 4K variant for upload (`npm run render -- Film --out webcockpit-demo`).
+- [x] Owner review of the full film, then polish rounds (rounds 1–4).
+- [x] 4K variant for upload (`video/out/webcockpit-demo-4k.mp4`, from the master).
 - [ ] Decide: the "Offline replay mode" client bug. Pressing Enter MUME
   before `shell.boot()` returns prints "[SYSTEM] Offline replay mode." on
   a real connection.
