@@ -28,8 +28,11 @@ node record/frames.ts <mp4> <png> <t…>       # a contact sheet, to check a tak
 The film is written in `manuscript.md` (the director's script and its beat
 grid). Its scenes start from the same prepared browser
 (`record/lib/film-state.ts`: khazdul bundled but `default` selected, weather
-off, only Comm shown, the five film runs restored, the page's date and
-MUME's clock pinned). Game excerpts come from the owner's runs backup in
+off, no panes, the five film runs restored, the page's date, MUME's clock,
+the start page's sky and `Math.random` pinned). Scenes move the pointer with
+`Pointer` from `record/lib/mouse.ts` (seeded, hand-like, straight to each
+target) and fire the start page's shooting star with `shootingStar` (a
+dev-server hook). Game excerpts come from the owner's runs backup in
 `private/film-runs.jsonl.gz` through `record/lib/run-feed.ts`; the specs (run
 id and seconds) are in `feeds/film.ts`. MUME's login screen is the real one,
 captured once into `private/mume-login.json` and replayed by

@@ -233,39 +233,72 @@ socket that goes nowhere.
 
 **Prepared state** (`record/lib/film-state.ts`): a fresh profile with the
 new-player defaults; the bundled `khazdul` present and `default` selected;
-weather off; Map, Timers and Group hidden, Comm shown; the five runs of the
+weather off; **no panes at all** (owner: Comm is not used in the film; the
+Settings scene switches on Map, Timers and Group); the five runs of the
 film backup restored through `__wc.runs().restore()`; the page's `Date`
 shifted to 2026-11-08 19:40 by an init script (`newPage({ now })`: rAF,
 timers and `performance` untouched, unlike Playwright's `page.clock`;
 workers keep the real date, so a scene that pins the weather by the clock
-should not shift far); MUME's clock at 23:15 on 15 Wedmath, just after
-sunset, so the start page shows dusk with the stars coming out, darkening
-to night over the take (a shooting star crosses when the sky is dark
-enough; the takes so far had one near 0:34). The input log now uses the page's
-`performance` clock, which the shift leaves alone.
+should not shift far); MUME's clock at 00:05 on 16 Wedmath (the middle of
+the night) and the start page's sky `?skyWeather=fair` (a few clouds, the
+stars showing through); the page's `Math.random` seeded (`newPage({ seed
+})`, mulberry32), so the start page's quote and anything else random come
+out the same on every take (seed 1: "Not all those who wander are lost.",
+short enough to leave room for the lower third). The input log uses the
+page's `performance` clock, which the date shift leaves alone.
 
-**Captions** (`src/components/Caption.tsx`): `LowerThird`, one short plain
-sentence in Cormorant Garamond low on the left on a solid scrim (92 %
+**The shooting star on demand** (a dev-server hook in the client): the
+start page's sky only starts shooting stars by itself (the first about
+12 s after the page is dark enough, and never with clouds over 0.25, which
+`fair` is). The owner wants one about 5–6 s into the film, so the sky
+engine's handle has `shoot(at?)` (a star now, whatever the sky; its start,
+direction and angle optional), defined only when `import.meta.env.DEV`
+(absent from a production build, checked in `dist/`), and the start
+surface publishes the handle as `globalThis.__wcSky` on the dev server
+(in production still only with `?skyStats`, as before). `Bodies.shoot`
+is the same code `update` now calls for its own stars. The film calls it
+at 0:05.0 (`film-state.ts` `shootingStar`), top right, heading right.
+
+**The pointer** (`record/lib/mouse.ts` `Pointer`; owner: the first take's
+pointer looked scripted): straight to each target, no stops on the way; a
+Fitts-like time (180 + 165 × log2(d / w + 1) ms, ±10 %); minimum-jerk
+progress on warped time (t^0.72), so a fast start and a long deceleration;
+a quadratic path bowed sideways by 3–11 % of the distance at a random point;
+on moves over 180 px, three times in ten, 4–10 px past the target and back;
+a landing point off the centre inside the target; a 150–350 ms pause before
+the press and a 60–115 ms press; a drift of a pixel or so every 0.35–0.9 s
+while it rests; steps 13–19 ms apart. All from a seeded generator, so a
+retake moves the same; `clickAt(el, t)` plans the move so the press lands
+at `t`. Typing is uneven the same way (85–205 ms between keys, seeded). The
+cursor overlay hides a pointer that has rested 4.5 s and fades it back in
+when it moves.
+
+**Captions** (`src/components/Caption.tsx`): `LowerThird`, one or two short
+plain lines in Cormorant Garamond low on the left on a solid scrim (92 %
 black; the blurred band of the test scene let text show through), and
-`TitleCard` (Cinzel over Cormorant italic, centred on a point) for the
-opening and end cards. Both fade in with a 12 px rise and fade out in
-0.45 s, inside a 5 % safe margin.
+`TitleCard` (Cinzel over Cormorant italic, centred on a point) for the end
+card. Both fade in with a 12 px rise and fade out in 0.45 s, inside a 5 %
+safe margin.
 
 **Beats** (`src/beats.ts`): `beatS(n)` = 0.4248 + n × 60/81 s, `beat(n)`
 the frame, `isDownbeat(n)` for n ≡ 3 (mod 4). Scene scripts time their
-clicks by it too, so a take is already in step with the music and the
+presses by it too, so a take is already in step with the music and the
 composition only lines it up (no retiming, no cuts inside an action).
 
-**Part 1** (music 0:00 to 0:50.06, beat 67): one take,
-`record/scenes/part1.ts` → `src/compositions/Part1.tsx`. Profile is
-clicked on beat 27 (0:20.43), khazdul highlighted on beat 31 and its Select
-on beat 35 (the phrase at 0:26.36), Back on beat 41, Enter MUME on beat 47
-(0:35.24, rather than beat 51 at 0:38.21: the client's transition takes
-about 4.5 s, and MUME's screen should be held a few seconds before the
-name), the name's Enter on beat 61, the password's on beat 65. The opening
-card (WebCockpit · mumecockpit.com) stands left of the menu from beat 3
-to beat 15, clear of the wordmark and the menu. A take is about 54 s
-(93 s with setup and encoding); the render about 100 s.
+**Part 1** (music 0:00 to the phrase at 0:38.21, beat 51; owner: into
+Profile at 12–13 s): one take, `record/scenes/part1.ts` →
+`src/compositions/Part1.tsx`. The shooting star at 0:05.0; the lower third
+"Live demo of WebCockpit <version>" / "Try it at mumecockpit.com" from
+beat 3 to beat 15 (the version read from the repository's package.json
+when the film is bundled); Profile pressed on beat 17 (0:13.02); the
+pointer on khazdul's row on beat 20 and its Select on beat 23 (0:17.46);
+Back on beat 27 (0:20.43); Enter MUME on beat 31 (0:23.39); MUME's screen
+up by about 0:28 (the client's transition takes about 4.5 s); the name's
+Enter on beat 43 (0:32.28), the password's on beat 47 (0:35.24); the end
+on beat 51 with a 0.35 s fade (the music runs on into part 2). "Profiles
+hold your basic settings." from 0.9 s after Profile until just before
+Back. In the take every press landed within 30 ms of its beat. A take is
+about 43 s (70 s with setup and encoding); the render about 80 s.
 
 **Found on the way** (client, not fixed here): when Enter MUME is pressed
 before `shell.boot()` has returned (fast automation; the start page's
