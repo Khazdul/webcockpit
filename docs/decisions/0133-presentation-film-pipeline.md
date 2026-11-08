@@ -530,3 +530,42 @@ The rest of round 1 is in the takes and the Film composition:
   with the picture. The Film's length follows from it. To fit, the cut to
   the inn moved to beat 155 and Exit to beat 199. The walk and the wolf
   run at 3×, and the History player plays about 5 s.
+
+**Owner round 3 (2026-11-08).**
+
+- *The mercenary.* His arrival is staged: "A citizen mercenary has arrived
+  from the west.", sent about 1.5 s before the first give. The run's merc
+  stretch is split into segments (silver; gold; grouping), so the pause is
+  real idle time: in the take, the first key of `give 1 gold mercenary`
+  comes 2.6 s after the returned silver is shown (keystroke log). The
+  grouping now follows the strike.
+- *Dips.* There is now one, into the wolf fight. The mercenary and the
+  inn are plain cuts in the text. The cut to take B is a cut.
+- *Herblores* is off in the film state, so the Timers pane never shows
+  its header. The Timers tour is Grid, Circles, 2 columns, then back to
+  Bars and Flow, so the pane ends as it began.
+- *Floats.* Timers sits at 22 × 12 cells from (112, 31), Group at
+  22 × 12 from (136, 30): over the docked map (cells 111–160), ending well
+  above its bottom, not lined up.
+- *The wolf* plays at 1.15× (the flee and return still cut). The barman's
+  monologue plays at 1×, behind Profile and Scripts.
+- *Scripts.* Almanac about 2 s; Mercenaries held about 3 s, then switched
+  on, then its cost set. The script's cost is a choice of 10 or 20 silver
+  (`@setting cost choice 10 10|20`), not a typed value, so 20 is pressed.
+  The pointer rests about 1.5 s before each.
+- *Spotlights.* Rasta's PvP kill of a Half-Elf (card 2) opens in the
+  viewer and plays whole at its own speed. The viewer plays on through the
+  reel by itself, and the take waits for its count to read "3 / 5" (the
+  next spotlight), then about 3 s more.
+- *The music after its break.* An onset analysis of the music at 10 ms
+  (energy rise, folded at the beat period) gives 81 bpm there too. The
+  restart at 3:12.28 falls exactly on beat 259 of the same grid, a
+  downbeat. On the drums (1:30–3:00) the method finds the grid within
+  10 ms. After the restart, beats and off-beats score almost the same (the
+  phase is ambiguous by half a beat), so the grid is taken to continue from
+  the restart's downbeat. `ending()` fades the picture and the music
+  together over 3.5 s from the first downbeat at least 4 s into the end
+  card, and from the restart's downbeat when that would fall in the break.
+  The old ending on the 3:06.35 hit stays when the card fits before it.
+- Take frames now go to `video/out/frames/` on disk. Take B's PNG frames
+  ran to about 10 GB and filled the `/tmp` tmpfs.
