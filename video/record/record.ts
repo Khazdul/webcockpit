@@ -20,8 +20,9 @@ import type { Scene } from './lib/scene.ts';
 import { type CaptureStats, Screencast } from './lib/screencast.ts';
 import { Marks, type TimelineFile, relativeInput } from './lib/timeline.ts';
 import { bree } from './scenes/bree.ts';
+import { part1 } from './scenes/part1.ts';
 
-const SCENES: Record<string, Scene> = { bree };
+const SCENES: Record<string, Scene> = { bree, part1 };
 
 const VIDEO = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(VIDEO, 'public/recordings');
@@ -36,7 +37,7 @@ const flag = (name: string): string | undefined => {
 const name = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--mode'));
 if (!name || !(name in SCENES)) throw new Error(`usage: npm run record -- <scene> [--mode <mode>] [--measure]; scenes: ${Object.keys(SCENES).join(' ')}`);
 const measure = args.includes('--measure');
-const modeNames = measure ? (flag('--mode')?.split(',') ?? Object.keys(MODES)) : [flag('--mode') ?? DEFAULT_MODE];
+const modeNames = measure ? (flag('--mode')?.split(',') ?? Object.keys(MODES)) : [flag('--mode') ?? SCENES[name]!.mode ?? DEFAULT_MODE];
 for (const m of modeNames) if (!(m in MODES)) throw new Error(`unknown mode ${m}; known: ${Object.keys(MODES).join(' ')}`);
 
 const fmt = (s: CaptureStats): string =>
@@ -48,7 +49,7 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
   const t = Date.now();
   const browser = await launch(mode);
   try {
-    const { page } = await newPage(browser, mode, BASE);
+    const { page } = await newPage(browser, mode, BASE, scene.page);
     const state = await scene.setup(page);
     const marks = new Marks(mode.dpr);
     const cast = new Screencast(page, { width: VIEWPORT.width * mode.dpr, height: VIEWPORT.height * mode.dpr, format: mode.format, ...(mode.quality ? { quality: mode.quality } : {}) });
@@ -92,6 +93,8 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
       console.log(`  ${join(OUT, `${sceneName}.mp4`)}\n  ${join(OUT, `${sceneName}.json`)}  (${rel.length} markers, ${timeline.input.length} input events)`);
       return active;
     } finally {
+      // stopped first, so no frame is still being written into the directory
+      await cast.stop();
       cast.dispose();
     }
   } finally {
