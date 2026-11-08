@@ -166,11 +166,12 @@ export const takeA: Scene = {
         marks.markAt(await pointer.clickAt(page.locator(`.wc-pop-row[data-pane="${pane}"]`), T(pick), { quick: true }), 'pane', pane);
         await sleep(220);
         await popupClose(page);
-        // the map locates Gittan at once (a Room.Info counts as a look), once its pane is in the layout
+        // the map locates Gittan (a Room.Info counts as a look) once it has read its map file: it reads
+        // it when its pane first appears, and a Room.Info before that is not placed
         if (pane === 'map') {
-          await page.locator('.wc-pane[data-pane="map"]').waitFor({ timeout: 3000 }).catch(() => {});
-          await sleep(150);
+          await page.locator('.wc-pane-map .wc-pane-content[data-map-state="loaded"]').waitFor({ timeout: 8000 }).catch(() => {});
           server.send(state.fountain as Buffer);
+          marks.mark('map-located', 'the map finds Gittan');
         }
       }
     })();
