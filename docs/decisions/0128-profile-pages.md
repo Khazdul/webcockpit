@@ -660,3 +660,23 @@ At most 4 of 150 keys over 33 ms (the longest 44 ms, Firefox, the Lite
 pattern field); no long animation frame. Chromium's `setTimeout` probe
 sees a 17–40 ms gap on about every second key while its rAF rate stays
 at 60 (not traced further).
+
+## Owner feedback (2026-11-08): Editor has no rail
+
+The owner found Editor's "In the text" rail not needed and asked for the
+buffer to fill to the left. Editor now renders no rail in any layout or
+place (start page box, Profile window, the phone's ESC menu page): its
+columns are one, the CodeMirror buffer starts at the box's left edge,
+where Lite's rail starts, and the head and the columns do not move on a
+flip. Lite (Kinds) and Help (Sections) keep their rails.
+
+- Keys: Editor's zones are views and buffer; Tab / Shift+Tab ring views →
+  buffer. Esc in the buffer leaves it to the views (decision 6's "Esc in
+  a text field first leaves the field"), the next Esc leaves the editor
+  as before; ↓ / Enter on the views goes into the buffer. Lite and Help
+  are unchanged.
+- Removed: `text-view.tsx` (`TextRail`, `useTextSections`, `sectionAt`,
+  `showLine`), `logic.ts`'s `textSections` / `TextSection` and their unit
+  test, the editor's `railCur`, and the CSS only Editor's rail used
+  (`.wc-pe-rit.is-small`, `.is-note`, `.wc-pe-rempty`). The paragraphs
+  above about Editor's rail are superseded.

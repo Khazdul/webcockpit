@@ -746,7 +746,14 @@ The build follows the default until the owner answers.
 
 ## Owner feedback
 
-(none yet)
+### 2026-11-08: Editor without "In the text"
+
+"In Profile > Editor, the left area where you see 'In the text' is not
+needed. Let the editor window fill all the way to the left instead."
+Done: Editor's rail is removed in every layout and place; the buffer
+fills from the box's left edge. Esc from the buffer goes to the views
+(the next Esc leaves the editor); the Tab ring is views → buffer. Lite and
+Help keep their rails. ADR 0128, addendum "Owner feedback (2026-11-08)".
 
 ## Uses from stage 42
 

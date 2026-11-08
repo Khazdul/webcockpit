@@ -2225,10 +2225,10 @@ Pattern
 
 > WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): CodeMirror in the
 > lantern theme, the find panel at the top of the buffer (Ctrl+F, Ctrl+H;
-> Case, Word, Regex). The rail lists the text's sections: the first line of
-> each kind of setting and the profile's own `#nop` headings, in text
-> order; a click jumps there. The status at the foot shows Modified, the
-> brace balance ("1 unclosed {") and Ln / Col.
+> Case, Word, Regex). No rail: the buffer takes the editor's width (owner
+> feedback 2026-11-08; the "In the text" rail of the first build is gone).
+> The status at the foot shows Modified, the brace balance ("1 unclosed {")
+> and Ln / Col.
 
 #### Syntax highlighting (ttpp_syntax.py, ADR 0089)
 

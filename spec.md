@@ -296,8 +296,9 @@ Mapped to Inv §5.
 - **The look (stage 43, ADR 0128).** One lantern page in every place: a
   large box on the start page, the Profile window's body, a full-screen
   page in the phone's ESC menu. Three views, Lite, Editor and Help (L, E,
-  H), with a rail that follows the view (the kinds; the text's sections;
-  the manual's headings), and a quiet status at the foot.
+  H), with a rail that follows the view (the kinds; the manual's
+  headings; Editor has none, its buffer takes the width: owner feedback
+  2026-11-08), and a quiet status at the foot.
 
 - **Lite view.**
   - Cockpit's 5 kinds: actions, aliases, highlights, macros and
