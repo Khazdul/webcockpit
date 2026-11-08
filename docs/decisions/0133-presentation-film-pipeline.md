@@ -438,3 +438,17 @@ the shooting star, the sky fading in, Paper, the map, the strike, the
 wolf fight, the profile editor, the log player, the spotlight. The end
 card (beat 239) is the lower-third box centred low over take B's start
 page; from beat 251 the picture and the music fade, black at 3:10.
+
+**Polish (2026-11-08).** Take B's start page kept the game's clock: the
+run's GMCP synced `wc.clock` to its own time, so History, Spotlights and
+Credits stood under a sunset and the end card under dusk on another date.
+Take B now lets only the film's pin write `wc.clock` (an init script drops
+writes whose precision is not `unset`), so every start-page moment is the
+opening's night (16th of Wedmath, T.A. 3039, fair). The start page's quote
+is hidden on the recorded page under the montage (an injected style at
+beat 233), so the end card stands on the sky alone. The Timers caption now
+starts once Shield, Armour and Shroud are in the pane (0.4 s into the wolf
+segment, 4 s long) and the Group caption follows a second later until just
+before the cut. The film is rendered to temporary names and moved over
+`webcockpit-demo.mp4` and `-h264.mp4` when done, so a playable film is
+always there.

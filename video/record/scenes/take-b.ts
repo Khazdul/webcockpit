@@ -36,6 +36,22 @@ export const takeB: Scene = {
   page: FILM_PAGE,
 
   async setup(page) {
+    // The start page's MUME clock stays where film-state pins it (night, the 16th of Wedmath): the
+    // game's own clock sync would otherwise move it to the run's time (an evening in T.A. 2861)
+    // before Exit. Only the pin's own writes (precision `unset`) get through.
+    await page.context().addInitScript(() => {
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (this: Storage, k: string, v: string) {
+        if (k === 'wc.clock') {
+          try {
+            if ((JSON.parse(v) as { precision?: string }).precision !== 'unset') return;
+          } catch {
+            return;
+          }
+        }
+        set.call(this, k, v);
+      };
+    });
     await prepareFilm(page);
     await page.evaluate(() => {
       type D = { weather: { enabled: boolean }; panes: Record<string, { on: boolean }>; profile: string; windows: Record<string, unknown> };
@@ -188,6 +204,10 @@ export const takeB: Scene = {
       // Back to the start page: it holds under the montage and the end card; the hand leaves the mouse
       await page.keyboard.press('Escape');
       marks.mark('start-again', 'the start page');
+      // Under the montage (not on screen): the quote goes, so the end card stands on the sky alone
+      await until(B(233));
+      await page.addStyleTag({ content: '.wc-start .wc-sm-quote { visibility: hidden !important; }' });
+      marks.mark('quote-hidden', 'the quote hidden for the end card');
     };
 
     await Promise.all([game, ui()]);

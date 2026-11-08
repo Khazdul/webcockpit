@@ -113,8 +113,9 @@ export function Film({ a, b }: FilmProps) {
       <LowerThird {...span(mA('profile') + 0.9, mA('back') - 0.3)} text="Profiles hold your basic settings." />
       <LowerThird {...span(mA('weather-on') + 0.4, mA('paper') - 0.5)} text="Weather effects follow the game." />
       <LowerThird {...span(mA('paper') + 0.1, mA('settings-closed') + 0.3)} text="Customise fonts, colours and more." />
-      <LowerThird {...span(mA('pane', 'timers') + 0.3, mA('segment', 'wolf') + 0.5)} text="The Timers pane tracks spells, buffs and more." />
-      <LowerThird {...span(mA('segment', 'wolf') + 3.0, beatS(CUT_B) - 0.3)} text="The Group pane shows your group and follows your fights." />
+      {/* Once Shield, Armour and Shroud are in the Timers pane (the shroud lands as the wolf segment starts), then Group. */}
+      <LowerThird {...span(mA('segment', 'wolf') + 0.4, mA('segment', 'wolf') + 4.4)} text="The Timers pane tracks spells, buffs and more." />
+      <LowerThird {...span(mA('segment', 'wolf') + 5.4, beatS(CUT_B) - 0.3)} text="The Group pane shows your group and follows your fights." />
       <LowerThird {...span(beatS(148), beatS(161))} text="Create aliases, actions and keys from the menu or in the editor." />
       <LowerThird {...span(beatS(164), beatS(175))} text="A Lua scripting engine for anything more complex." />
       <LowerThird {...span(beatS(182), beatS(193))} text="Every session is saved and can be replayed." />
