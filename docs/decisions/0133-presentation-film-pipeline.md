@@ -523,7 +523,10 @@ The rest of round 1 is in the takes and the Film composition:
 - *The ending* (round 2, item 12). Spotlights plays Play all until the
   first spotlight's moment, plus 1 s. Then come Back to the wall and Back
   to the start page, each with a visible move and a short hover, then
-  Credits and Back. The end card comes up then and holds at least 4 s.
-  `ending()` in `Film.tsx` places the fade: on the last hit when it falls
-  near it, otherwise over 3 s from the next downbeat, the music fading
-  with the picture. The Film's length follows from it.
+  Credits and Back. The end card comes up then. `ending()` in `Film.tsx`
+  places the fade: on the last hit (3:06.35, black at 3:10.2, the music
+  ringing out) when the card can hold 3–8 s before it; otherwise after at
+  least 4 s, over 3 s from the next downbeat, with the music fading along
+  with the picture. The Film's length follows from it. To fit, the cut to
+  the inn moved to beat 155 and Exit to beat 199. The walk and the wolf
+  run at 3×, and the History player plays about 5 s.
