@@ -89,6 +89,7 @@ async function record(sceneName: string, modeName: string, keep: boolean): Promi
         frames: enc.frames,
         durationS: enc.seconds,
         capture: { ...all, active, perSecond: cast.perSecond() },
+        frameTimes: cast.frames.map((fr) => Math.round((fr.ts - t0) * 10000) / 10000),
         markers: rel,
         input: relativeInput(input, t0, end - t0, mode.dpr),
       };

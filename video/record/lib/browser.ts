@@ -153,6 +153,15 @@ export async function newPage(browser: Browser, mode: CaptureMode, baseURL: stri
     // Every move: a later scene's cursor overlay follows the pointer through the Settings popup.
     addEventListener('pointermove', (e) => log.push({ at: t(), type: 'move', x: e.clientX, y: e.clientY }), opt);
     addEventListener('wheel', (e) => log.push({ at: t(), type: 'wheel', x: e.clientX, y: e.clientY }), opt);
+    // The page's own long frames (over 40 ms between animation frames), to tell a hitch in the
+    // client from one in the capture (record/intervals.ts)
+    let last = 0;
+    const raf = (now: number): void => {
+      if (last && now - last > 40) log.push({ at: performance.timeOrigin + now, type: 'longframe', key: String(Math.round(now - last)) });
+      last = now;
+      requestAnimationFrame(raf);
+    };
+    requestAnimationFrame(raf);
   });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));

@@ -43,6 +43,8 @@ export interface TimelineFile {
   frames: number;
   durationS: number;
   capture: CaptureStats & { active: CaptureStats; perSecond: number[] };
+  /** Each captured frame's time, s from the first (record/intervals.ts plots their spacing). */
+  frameTimes?: number[];
   markers: Marker[];
   input: TimelineInput[];
 }
