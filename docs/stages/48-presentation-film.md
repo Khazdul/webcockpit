@@ -235,3 +235,6 @@ done.
 1. Remove the dip at about 1:53 (the wolf).
 2. The end card about 2 s later (about 3:36), so the whole start menu is
    seen for a few seconds first.
+3. In the game, Group and Timers float left of the visible map, stacked
+   (Group on top, 1 empty row, Timers below), in the lower part of the
+   screen just above the menu bar; both the size Group has now.
