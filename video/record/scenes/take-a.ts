@@ -150,9 +150,9 @@ export const takeA: Scene = {
       const bg = page.locator('.wc-sp-settings .wc-ck-dd[aria-label="Background"]');
       const opt = (hex: string) => page.locator(`.wc-ck-list[aria-label="Background"] .wc-ck-opt[data-value="${hex}"]`);
       await pointer.clickAt(bg, T(UI.bgOpen));
-      marks.markAt(await pointer.clickAt(opt('#f4ecd8'), T(UI.paper)), 'paper', 'Paper');
+      marks.markAt(await pointer.clickAt(opt('#f4ecd8'), T(UI.paper), { quick: true }), 'paper', 'Paper');
       await pointer.clickAt(bg, T(UI.bgOpen2));
-      marks.markAt(await pointer.clickAt(opt('#000000'), T(UI.black)), 'black', 'Black again');
+      marks.markAt(await pointer.clickAt(opt('#000000'), T(UI.black), { quick: true }), 'black', 'Black again');
       await until(T(UI.close));
       await popupClose(page);
       marks.mark('settings-closed', 'Settings closes');
@@ -164,10 +164,14 @@ export const takeA: Scene = {
       ] as const) {
         await pointer.clickAt(mb('panes'), T(open));
         marks.markAt(await pointer.clickAt(page.locator(`.wc-pop-row[data-pane="${pane}"]`), T(pick), { quick: true }), 'pane', pane);
-        // the map locates Gittan at once (a Room.Info counts as a look)
-        if (pane === 'map') server.send(state.fountain as Buffer);
         await sleep(220);
         await popupClose(page);
+        // the map locates Gittan at once (a Room.Info counts as a look), once its pane is in the layout
+        if (pane === 'map') {
+          await page.locator('.wc-pane[data-pane="map"]').waitFor({ timeout: 3000 }).catch(() => {});
+          await sleep(150);
+          server.send(state.fountain as Buffer);
+        }
       }
     })();
 
