@@ -15,10 +15,18 @@ import type { PlayerHost } from '../../app/player-host';
 import type { ScriptPaneInfo } from '../../layout/cockpit';
 
 /**
- * How opening the run log player went (`ChromeServices.openPlayer`, stage
- * 42f): `error` says why it did not open, in a sentence for the user.
+ * How opening the log player went (`Shell.openPlayer`, the whole-window
+ * player of the dev hook and the tests; stage 42f): `error` says why it
+ * did not open, in a sentence for the user.
  */
 export type PlayerOpenResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * How opening a run log for History's box went (`ChromeServices.openRunLog`,
+ * stage 45 owner feedback, ADR 0130): the loaded, playing host, which the
+ * caller puts in its page (or disposes), or why it did not open.
+ */
+export type RunLogOpenResult = { ok: true; host: PlayerHost } | { ok: false; error: string };
 
 /** The script panes on screen (ADR 0053), for Options → Panes. */
 export interface ScriptPaneList {
@@ -41,15 +49,19 @@ export interface ChromeServices {
   /** The run library (History, backups; ADR 0018), opened on first use. */
   runs: () => Promise<RunLibrary>;
   /**
-   * Opens the log player on `session` (History → RUN LOG, ADR 0018), with
-   * Back at the top left and times as `h:mm:ss` (ADR 0127). The shell
-   * hides the start page (its frame stack intact) and shows it again with
-   * `show({ keep: true })` when the player closes. Resolves once the player
-   * shows, or with the reason it could not open (the logs are not stored,
-   * cannot be read, another player is open). Absent: History reports that
-   * the player is not available.
+   * Loads `session` into a new run log player host (Back at the top left,
+   * times as `h:mm:ss`, Fullscreen in its control box; ADR 0127, 0130) and
+   * starts it playing, parked out of sight: the start page stays as it is.
+   * Resolves to the host, which the caller moves into its page
+   * (`slot.append(host.el)`: History's Run log page, `RunLogFrame`) or
+   * disposes, or with the reason it could not open (the logs are not
+   * stored, cannot be read, another player is open, not from the start
+   * page). The shell tracks the host as its `playerHost` until it is
+   * disposed; its `close()` (Esc, Back, Close) disposes it and shows or
+   * hides nothing. Absent: History reports that the player is not
+   * available.
    */
-  openPlayer?: (session: Session) => Promise<PlayerOpenResult>;
+  openRunLog?: (session: Session) => Promise<RunLogOpenResult>;
   /**
    * A player host mounted in `slot` (ADR 0127; the Spotlights viewer,
    * stage 46): it fills the slot and follows its size, and the start page

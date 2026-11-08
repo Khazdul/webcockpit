@@ -30,14 +30,18 @@
 // the keys. Tab / Shift+Tab: rows ↔ buttons (← → ↑ ↓ walk the enabled
 // buttons, Enter presses). Esc or Back returns to the menu.
 //
-// While a run log is opening (a large log takes a moment) the page holds
-// its keys, its Back and its actions, so the player opens over History and
-// its Back returns there; a failed open shows its error box only while
-// History is still the top frame.
+// Run log (stage 45 owner feedback 2026-11-08, ADR 0130): the session
+// loads into a player host first (`services.openRunLog`); then the Run log
+// page (run-log.tsx) is pushed with it, in the same big box (the box
+// swap), the player filling the box's window over the still sky. While it
+// is opening (a large log takes a moment) the page holds its keys, its
+// Back and its actions; a failed open shows its error box, and a finished
+// one pushes the page, only while History is still the top frame (else
+// the host is disposed).
 //
 // The frame keeps its state (filter, sort, cursor, scroll) while a
-// sub-frame, a dialog or the log player is shown: the start page is only
-// hidden, and the list is re-read whenever the frame is on top again. The
+// sub-frame, a dialog or the run log is shown (it stays mounted under
+// them), and the list is re-read whenever the frame is on top again. The
 // cursor follows its session through sort, save and reload; after a delete
 // it stays at the same index.
 //
@@ -98,6 +102,7 @@ import {
 import { ExportEditorFrame } from './export-editor';
 import { DeleteDialog, HistoryKeysButton, RateDialog, RunLogErrorDialog, openHistoryKeys } from './history-dialogs';
 import { HistoryStatsFrame } from './history-stats';
+import { RunLogFrame } from './run-log';
 import './history.css';
 
 export const NO_PLAYER = 'Log player not available.';
@@ -138,7 +143,7 @@ const COLS = 'var(--wc-hist-cols)';
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
-  const { runs, openPlayer } = useServices();
+  const { runs, openRunLog } = useServices();
   const nav = useNav();
   const isTop = useIsTop();
   const [all, setAll] = useState<Session[] | null>(null);
@@ -266,16 +271,20 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
 
   const openLog = (s: Session | undefined): void => {
     if (!s?.hasLog) return;
-    if (!openPlayer) {
+    if (!openRunLog) {
       nav.flash(NO_PLAYER, 'fail');
       return;
     }
     void run(async () => {
       opening.current = true;
       try {
-        const r = await openPlayer(s);
-        // Only over History: the box belongs to this page, not to whatever is on top now.
-        if (r && !r.ok && alive.current && top.current) {
+        const r = await openRunLog(s);
+        // Only over History: the page and the box belong to it, not to whatever is on top now.
+        const here = alive.current && top.current;
+        if (r.ok) {
+          if (here) nav.push(<RunLogFrame host={r.host} />);
+          else r.host.dispose();
+        } else if (here) {
           nav.push(<RunLogErrorDialog session={s} error={r.error} />, { overlay: true });
         }
       } finally {

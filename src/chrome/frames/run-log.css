@@ -1,0 +1,26 @@
+/* History → Run log (run-log.tsx; stage 45 owner feedback, ADR 0130): the
+ * run log player fills the big box's window. The box's own Back is not
+ * drawn (the player has its Back, top left, hiding with its chrome); the
+ * window keeps only a band under the hood, so the hood never covers the
+ * player's header. */
+
+.wc-rl-box > .wc-lk-back {
+  display: none;
+}
+
+.wc-lk-box > .wc-lk-win.wc-rl-win {
+  padding: 20px 0 0;
+}
+
+.wc-rl-slot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wc-rl-slot > .wc-player {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}

@@ -306,8 +306,8 @@ describe('History dialogs: the run-log error box and the keys box', () => {
   it('shows why a run log could not open; Esc, Enter or OK closes it', async () => {
     const lib = await library();
     const long = 'IDB: the chunk Rasta/1#0000000000000000000000000000000000000000000000000000000000000 is missing';
-    const openPlayer = vi.fn(async () => ({ ok: false as const, error: long }));
-    const { host } = await openHistory(lib, { openPlayer });
+    const openRunLog = vi.fn(async () => ({ ok: false as const, error: long }));
+    const { host } = await openHistory(lib, { openRunLog });
     await key('r');
     await until(() => dlg('runlog-error') !== null, 'the error box');
     const box = dlg('runlog-error')!;

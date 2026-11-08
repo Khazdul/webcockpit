@@ -48,9 +48,12 @@ test('the run log player: Back at the top left hides with the chrome and returns
   await expect(back).toBeVisible();
   await expect(back).toHaveText('Back');
   await expect(back).toHaveAttribute('title', 'Back to History (Esc)');
+  // In History's big box (stage 45 owner feedback, ADR 0130): at the player's top left.
+  await expect(frame(page).locator('.wc-rl-box .wc-rl-slot > .wc-player')).toHaveCount(1);
   const box = (await back.boundingBox())!;
-  expect(box.x).toBeLessThan(24);
-  expect(box.y).toBeLessThan(16);
+  const pl = (await page.locator('.wc-player').boundingBox())!;
+  expect(box.x - pl.x).toBeLessThan(24);
+  expect(box.y - pl.y).toBeLessThan(16);
   // The kit's look: the glass Back in Cinzel.
   await expect(back).toHaveCSS('font-family', /Cinzel/);
   // The header's left part is clear of it.

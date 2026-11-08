@@ -66,18 +66,25 @@
 // first use) and runs the retention sweep once, when the start page first
 // shows (Web Lock `webcockpit-sweep`, so one tab sweeps; errors are silent).
 //
-// Log player (ADR 0018): `openPlayer(session)` (History's RUN LOG, via
-// ChromeServices) loads the chain, hides the start page without touching
-// its frame stack and shows the player (src/app/player-host.ts, a chunk of
-// its own); its ESC closes it and shows the start page as it was
-// (`show({ keep: true })`). Only from the start page, never over the
-// cockpit. The player core (stage 42f, ADR 0127): the run log player has
-// the kit's Back at the top left and times as `h:mm:ss`, and `openPlayer`
-// resolves to a `PlayerOpenResult` (why it did not open, for History's
-// error box) instead of only logging a failure. `embedPlayer(slot)` mounts
-// a host inside a page of the start surface (the Spotlights viewer, stage
-// 46): the start page stays, the host is the shell's `playerHost` until it
-// is disposed, and no second player opens meanwhile.
+// Log player (ADR 0018; src/app/player-host.ts, a chunk of its own). Only
+// from the start page, never over the cockpit, and one at a time. The
+// player core (stage 42f, ADR 0127): the run log player has the kit's Back
+// at the top left and times as `h:mm:ss`, and an open resolves to why it
+// did not open (History's error box) instead of only logging a failure.
+// - `openRunLog(session)` (History's Run log, via ChromeServices; stage 45
+//   owner feedback, ADR 0130) loads the chain into a host parked out of
+//   sight in the page root and resolves to it; History moves it into its
+//   Run log page in the big box (`RunLogFrame`), over the still sky. The
+//   start page stays; the host's close (Esc, Back) disposes it and the page
+//   pops itself.
+// - `openPlayer(session)` and `openPlayerChain` (the dev hook, the bench,
+//   the tests) show the player over the whole window: the start page is
+//   hidden without touching its frame stack and shown again as it was
+//   (`show({ keep: true })`) when the player closes.
+// - `embedPlayer(slot)` mounts a host inside a page of the start surface
+//   (the Spotlights viewer, stage 46): the start page stays.
+// Each host is the shell's `playerHost` until it is disposed, and no
+// second player opens meanwhile.
 //
 // Map (ADR 0020): `maps` (src/map/store.ts) is the current map, shared by
 // the cockpit's Map pane, the log player's and Options → Mapper.
@@ -106,7 +113,7 @@ import type {
 import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
 import type { PaneId } from '../layout/types';
 import type { PlayerHost, PlayerInfo, PlayerOpenOptions } from './player-host';
-import type { PlayerOpenResult } from '../chrome/kit/hooks';
+import type { PlayerOpenResult, RunLogOpenResult } from '../chrome/kit/hooks';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
 import type { ChainRun } from '../player/timeline';
@@ -518,7 +525,39 @@ export class Shell {
     return this.player;
   }
 
-  /** Opens the log player on `session` (from the start page only); resolves to how it went. */
+  /**
+   * Loads `session` into a run log player host parked out of sight (from
+   * the start page only; ChromeServices.openRunLog): resolves to the
+   * playing host, which the caller moves into its page or disposes, or to
+   * why it did not open.
+   */
+  async openRunLog(session: Session): Promise<RunLogOpenResult> {
+    const doc = this.opts.root.ownerDocument;
+    const park = doc.createElement('div');
+    park.className = 'wc-player-park';
+    park.style.display = 'none';
+    this.opts.root.appendChild(park);
+    const host = await this.makeHost(park, () => {});
+    if (typeof host === 'string') {
+      park.remove();
+      return { ok: false, error: host };
+    }
+    host.onDispose(() => {
+      park.remove();
+      if (this.player === host) this.player = null;
+    });
+    try {
+      await host.open(session, await this.runLibrary(), RUN_LOG_VIEW);
+      if (host.isClosed) return { ok: false, error: 'The player was closed while it opened.' };
+      return { ok: true, host };
+    } catch (err) {
+      console.error('WebCockpit: the log player could not open', err);
+      host.dispose();
+      return { ok: false, error: errText(err) };
+    }
+  }
+
+  /** Opens the log player over the whole window on `session` (from the start page only; the dev hook); resolves to how it went. */
   openPlayer(session: Session): Promise<PlayerOpenResult> {
     return this.startPlayer(async (host) => host.open(session, await this.runLibrary(), RUN_LOG_VIEW));
   }
@@ -708,7 +747,7 @@ export class Shell {
       ...(this.opts.notices ? { notices: this.opts.notices } : {}),
       onProfileSaved: (name) => this.appRef?.ui('system', `Profile {${uiValue(name)}} saved.`),
       runs: () => this.runLibrary(),
-      openPlayer: (session) => this.openPlayer(session),
+      openRunLog: (session) => this.openRunLog(session),
       embedPlayer: (slot) => this.embedPlayer(slot),
       maps: this.maps,
       scripts: this.scripts,
