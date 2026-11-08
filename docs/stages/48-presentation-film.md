@@ -178,3 +178,8 @@ done.
     equally wide).
 11. (Carried from round 1) The mercenary: 2–3 s between 10 silver and
     1 gold.
+12. Spotlights: press **Play all** instead of opening one card; show
+    just enough to see the first spotlight happen (+ about 1 s). Then go
+    back less hastily: Back, Back, visibly. Credits stays (owner's
+    answer): Credits 4–5 s, Back. Then the start page at least 3–5 s,
+    the music fades, the end.
