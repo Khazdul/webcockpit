@@ -452,3 +452,45 @@ segment, 4 s long) and the Group caption follows a second later until just
 before the cut. The film is rendered to temporary names and moved over
 `webcockpit-demo.mp4` and `-h264.mp4` when done, so a playable film is
 always there.
+
+**Owner round 1 (2026-11-08).** Two hitches were diagnosed with
+`record/intervals.ts`. A take now keeps every frame's time, and the page
+logs its own long frames (over 40 ms between animation frames), so a gap
+can be told apart as the capture's or the client's.
+
+- *The hitch after the Profile click* was the client: the Profile page's
+  first open costs one long frame of about 80 ms (lazy code and layout).
+  It is opened and closed once off camera, before music 0:00. After that
+  the page has no long frame there, and the worst capture gap is 56 ms.
+- *The sky's jump at Enter MUME* was staging. The captured welcome screen
+  carries MUME's MSSP game date, and the client synced `wc.clock` from it
+  (reason `mssp`). The start page's sky, still on screen during the
+  transition, then jumped from the film's pinned midnight to the real
+  game time. Film pages now let only the film's own writes reach
+  `wc.clock` (`prepareFilm`). This also replaces take B's narrower guard.
+  A real user's saved clock is already close to MUME's time, so for them
+  the same sync moves the sky by at most minutes.
+
+The rest of round 1 is in the takes and the Film composition:
+
+- The pony is never labelled. `noPonyLabel` rewrites the run's text and
+  GMCP everywhere, including the backup restored for History's player.
+- The Group pane comes on with its gear: NPC visibility All, the Fight
+  card on.
+- Settings tabs hold two beats each. The font list stays open about 2 s,
+  and the backgrounds go Paper, Teal, Sepia, then Black.
+- About 2.8 s pass between the refused silver and the gold.
+- Map on moved after the strike, as round 1 allowed, because the part
+  before the strike would not fit otherwise.
+- A walk into the hills, entering the wolves' room by name, comes before
+  the fight.
+- The Group pane's settings are held about 6 s after the Group caption.
+- Timers and Group are one row taller (layout `desired` +22).
+- Menu-bar icons are reached slowly (`Pointer.hoverAt(…, { slow })`), and
+  each tooltip is held at least a second before the click
+  (`Pointer.pressAt`).
+- History and Spotlights get longer dwells. Credits is held, then Back
+  (no Next).
+- The montage is gone. The end card comes up over the start page on
+  beat 229, and the quote fades on the page as it does.
+- The cut to take B moved to beat 140 (1:44.13). Exit is on beat 179.
