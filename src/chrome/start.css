@@ -261,10 +261,24 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   padding: 32px 12px 22px;
 }
 
+/* The rows form one left-aligned group, centred in the panel: the middle
+ * column is as wide as the widest row; the rule under Enter MUME spans
+ * all three columns, the panel's full width. */
 .wc-sm {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: 1fr minmax(0, max-content) 1fr;
+}
+
+.wc-sm-item {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.wc-sm-sep {
+  grid-column: 1 / -1;
 }
 
 .wc-sm-item {
