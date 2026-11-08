@@ -371,3 +371,61 @@ before `shell.boot()` has returned (fast automation; the start page's
 reveal still running), `src/main.ts` prints `[SYSTEM] Offline replay
 mode.` on a real connection. A person is unlikely to be that fast; the
 film waits.
+
+## Addendum (2026-11-08): the whole film, first cut
+
+Built from `video/manuscript.md` draft 3 while the owner was away, for him
+to watch and polish. Composition `Film` (`src/compositions/Film.tsx`),
+two takes:
+
+- **Take A** (`record/scenes/take-a.ts`), music 0:00 to beat 125
+  (1:33.02): part 1 (`opening` in `scenes/part1.ts`), part 2 and the
+  first half of part 3 in one continuous take. After the arrival the run
+  is cut into segments that keep its order (pony and fountain; `where`;
+  the mercenary; the West Gate; the casts; the second wolf), each started
+  at its music time at its own speed (1 to 2.4), with the GMCP of what is
+  cut between them sent at the next one's start (`Excerpt.primeFrom`), so
+  the map, Group and Timers stay right. A game track, a pointer track and
+  a weather track run side by side; no command is typed while a popup
+  holds the keys.
+- **Take B** (`record/scenes/take-b.ts`), beat 125 to the end: off camera
+  the run is played fast to just before the inn (so the panes carry its
+  state), Map, Group and Timers on, weather on (following the game: night
+  by then, indoors), khazdul selected; on camera the inn and the barman,
+  his monologue at 3.1× behind the Profile and Scripts windows, Exit,
+  History's log player, Spotlights' viewer, Credits, and the start page,
+  which holds under the montage and the end card.
+
+**Staged** (everything else is the owner's run, time-compressed):
+
+- The weather, after the switch is flipped on camera at the fountain:
+  `__weather.jump` to a clear night (the run says late afternoon; the
+  manuscript asks for the night sky), clouds and light rain at 1:15.6,
+  heavy rain at 1:17.9, and `emit('strike', { storm: true })` called
+  210 ms before beat 107: the return stroke's flash was measured on the
+  take's frames (mean brightness of the game area) to land on 1:19.67.
+  The bolt itself comes down between the text and the Map pane (it
+  avoids the map), so the strike reads mostly as the sky's flash.
+- When the Map pane comes on, the fountain's Room.Info is sent again (it
+  counts as a look): the map was hidden when Gittan got there and would
+  otherwise show its default place until her next move.
+- Take B's windows (Profile, Scripts) are placed a little shorter than
+  their default (settings `windows`, in cells) so the lower thirds sit
+  below them; Find in the Editor goes to the new alias (khazdul is 500
+  lines long).
+
+**The pointer** gained `clickAt(…, { quick: true })` for clicks a beat
+apart (the Settings tabs, a Panes row after its popup): no wait for the
+target to settle, a 30 % shorter move, a 40–90 ms pause.
+
+**Capture**: both takes PNG at DPR 1.2. Frames a second are what the page
+sends: about 46 on the start page, 12 while the clear night sky is the
+only thing moving (its stars repaint at about 12 Hz: content, not
+capture), 50–55 in the storm and the fight, 24–45 in take B's windows and
+pages. No take needed JPEG.
+
+The montage (beats 221–239) is nine cuts of two beats from the takes:
+the shooting star, the sky fading in, Paper, the map, the strike, the
+wolf fight, the profile editor, the log player, the spotlight. The end
+card (beat 239) is the lower-third box centred low over take B's start
+page; from beat 251 the picture and the music fade, black at 3:10.

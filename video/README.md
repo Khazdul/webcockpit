@@ -16,7 +16,9 @@ npx remotion browser ensure # Remotion's own headless Chrome, once
 ## Record a scene
 
 ```sh
-npm run record -- part1                      # public/recordings/part1.mp4 + part1.json
+npm run record -- take-a                     # the film's take A (0:00–1:33), public/recordings/take-a.*
+npm run record -- take-b                     # the film's take B (1:33–3:10)
+npm run record -- part1                      # part 1 alone (public/recordings/part1.*)
 npm run record -- part1 --mode intel-2       # another capture mode (record/lib/browser.ts)
 npm run record -- bree --measure             # every mode: an fps table, no files kept
 node record/gpu-probe.ts                     # which flags give WebGL2 on which GPU
@@ -65,6 +67,7 @@ one from the input log.
 
 ```sh
 npm run studio                       # Remotion Studio in the browser
+npm run render -- Film --out webcockpit-demo --no-4k   # the whole film: out/webcockpit-demo.mp4, -h264.mp4
 npm run render -- Part1              # out/part1-master.mov (ProRes 4444), then from it:
                                      #   part1.mp4 (HEVC 10-bit), part1-4k.mp4 (for YouTube), part1-h264.mp4
 npm run render -- Part1 --no-4k      # without the 4K variant (about 3.5 of 6.5 minutes)
