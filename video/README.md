@@ -16,17 +16,31 @@ npx remotion browser ensure # Remotion's own headless Chrome, once
 ## Record a scene
 
 ```sh
-npm run record -- bree                       # public/recordings/bree.mp4 + bree.json
-npm run record -- bree --mode intel-1.5      # another capture mode (record/lib/browser.ts)
+npm run record -- part1                      # public/recordings/part1.mp4 + part1.json
+npm run record -- part1 --mode intel-2       # another capture mode (record/lib/browser.ts)
 npm run record -- bree --measure             # every mode: an fps table, no files kept
 node record/gpu-probe.ts                     # which flags give WebGL2 on which GPU
+node record/capture-login.ts                 # MUME's real welcome screen → private/ (once)
+node record/feed-info.ts [name] [-v]         # what the film's excerpts come to
+node record/frames.ts <mp4> <png> <t…>       # a contact sheet, to check a take by eye
 ```
+
+The film is written in `manuscript.md` (the director's script and its beat
+grid). Its scenes start from the same prepared browser
+(`record/lib/film-state.ts`: khazdul bundled but `default` selected, weather
+off, only Comm shown, the five film runs restored, the page's date and
+MUME's clock pinned). Game excerpts come from the owner's runs backup in
+`private/film-runs.jsonl.gz` through `record/lib/run-feed.ts`; the specs (run
+id and seconds) are in `feeds/film.ts`. MUME's login screen is the real one,
+captured once into `private/mume-login.json` and replayed by
+`record/lib/mume-login.ts`.
 
 The recorder starts the repository's dev server on port 5189 (`WC_VIDEO_PORT`)
 unless one answers there, logs in through a **mocked** MUME WebSocket (nothing
 reaches mume.org) and plays the scene's feed (`feeds/`, invented names only).
-It films in real time through the DevTools screencast at 3200×1800 (1600×900
-CSS px at device scale 2), then encodes the frames to constant 60 fps H.264.
+It films in real time through the DevTools screencast at 2400×1350 (1600×900
+CSS px at device scale 1.5; a scene that zooms asks for 2), then encodes the
+frames to constant 60 fps H.264.
 It prints the capture rate it got; ADR 0133 has the measured table.
 
 Each recording comes with `<scene>.json`: size, fps, length, the capture
@@ -46,27 +60,31 @@ one from the input log.
 
 ```sh
 npm run studio                       # Remotion Studio in the browser
-npm run render -- TestBree           # out/test-bree.mp4
+npm run render -- Part1              # out/part1.mp4
+npm run render -- TestBree           # out/test-bree.mp4 (the pipeline test)
 npm run typecheck
 ```
 
 Compositions live in `src/compositions/` and are registered in `src/Root.tsx`;
-`src/components/` has the camera (zoom into a timeline box), titles and
-captions, and the pointer.
+`src/components/` has the camera (zoom into a timeline box), the captions
+(`LowerThird`, `TitleCard`) and the pointer. Time things by the music's beats
+with `beat(n)` from `src/beats.ts` (scene scripts use `beatS(n)`).
 
 ## Files that stay local
 
 Ignored by git: `public/recordings/` (takes), `public/music/`, `out/`,
 `private/`, `node_modules/`, `.env.local`.
 
-- **Music** goes in `public/music/`. The test scene uses *Sunset Plains* by
+- **Music** goes in `public/music/`. The film uses *Sunset Plains* by
   Yoiyami (CC0, opengameart.org): `public/music/sunset-plains.wav`, with its
   licence note beside it (`sunset-plains-license.txt`). Copy both from the
   owner's music folder.
 - **Fonts** in `public/fonts/` are the start page's (Cinzel, Cormorant
   Garamond; SIL OFL 1.1, licences beside them) and are committed.
-- **Raw logs** of real sessions go in `private/`. A feed made from one is
-  committed only after other players' names are replaced by invented ones.
+- **Raw logs**, the film's runs backup (`private/film-runs.jsonl.gz`) and the
+  captured login screen stay in `private/`; scenes read them there and only
+  the excerpt specs are committed. The film shows real player names (owner,
+  2026-11-08); a feed *committed* to the repository still uses invented ones.
 - **Credentials** (only for a scene that logs in to the real game, which none
   does yet): `MUME_USER` and `MUME_PASSWORD` from the environment or from
   `video/.env.local`. Never in a file that is committed.

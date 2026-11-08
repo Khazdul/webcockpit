@@ -189,3 +189,86 @@ note) and renders (`video/out/`) are gitignored.
 - The zoom into the map: how deep and how long (now about 1.55×, held
   about 2.5 s).
 - DPR 2 at about 48 fps, or DPR 1.5 at about 58 fps with softer zooms.
+
+## Addendum (2026-11-08): the film's groundwork and part 1
+
+Owner decisions since: no zooms in practice (the camera stays available),
+so takes are captured at **DPR 1.5** (`intel-1.5`, about 58 fps on the
+start page) unless a scene asks for `intel-2` (`Scene.mode`; the bree
+test scene does); few captions, plain and descriptive; real player names
+stay. The film follows `video/manuscript.md` (the director's script, beat
+grid at 81 bpm).
+
+**Run log → feed** (`video/record/lib/run-feed.ts`). `loadBackup` reads a
+runs backup (format: `src/runs/library.ts`); `excerptFeed` turns an
+excerpt (run id, seconds from the run's start, `speed`, `drop` ranges,
+`dropLines`/`dropCmds` patterns, `maxGap`) into timed Steps: the server's
+lines at their compressed times, commands typed so that their Enter lands
+when the player sent them. Dropped ranges lose their text and commands but
+keep their GMCP (sent at the cut), so the panes never disagree with the
+text. `prime` is every GMCP record before the excerpt (no text, no
+`Comm.Channel.Text`): Char, Group, Room, the map's position and the timers
+are right at the first visible line. `play()` (scripts/lib/mume-feed.ts)
+takes an optional `at` per step for this. The excerpt specs are committed
+(`video/feeds/film.ts`); the log stays in the gitignored `video/private/`.
+`node record/feed-info.ts` shows what each excerpt comes to without its
+content.
+
+**MUME's login screen.** On a real connection the client shows, after
+Enter MUME's transition (the scenery fades, the sky zooms and fades out
+over the cockpit, about 4.5 s): `[SYSTEM] Connecting to MUME...`,
+`[SYSTEM] Connected.`, `[SYSTEM] Profile <name> loaded.`, then MUME's
+welcome text ending in `By what name do you wish to be known?`. It was
+captured once (`node record/capture-login.ts`): the real client against
+the real server through a Playwright WebSocket proxy that lets only telnet
+negotiation and GMCP through (Core.Hello, Core.Supports.Set, pings) and
+types nothing, so no name or password is ever sent. The server's frames
+and their timing go to `video/private/mume-login.json` (MUME's text, not
+committed). The mock (`record/lib/mume-login.ts`) replays them, then plays
+MUME's side of a login: after the name `IAC WILL ECHO` and `Password: `
+(staged, not captured: capturing it would mean sending a name), after the
+password `IAC WONT ECHO`. The client masks the input line while the
+server echoes. The scene types `Gittan` and a made-up password into a
+socket that goes nowhere.
+
+**Prepared state** (`record/lib/film-state.ts`): a fresh profile with the
+new-player defaults; the bundled `khazdul` present and `default` selected;
+weather off; Map, Timers and Group hidden, Comm shown; the five runs of the
+film backup restored through `__wc.runs().restore()`; the page's `Date`
+shifted to 2026-11-08 19:40 by an init script (`newPage({ now })`: rAF,
+timers and `performance` untouched, unlike Playwright's `page.clock`;
+workers keep the real date, so a scene that pins the weather by the clock
+should not shift far); MUME's clock at 23:15 on 15 Wedmath, just after
+sunset, so the start page shows dusk with the stars coming out, darkening
+to night over the take (a shooting star crosses when the sky is dark
+enough; the takes so far had one near 0:34). The input log now uses the page's
+`performance` clock, which the shift leaves alone.
+
+**Captions** (`src/components/Caption.tsx`): `LowerThird`, one short plain
+sentence in Cormorant Garamond low on the left on a solid scrim (92 %
+black; the blurred band of the test scene let text show through), and
+`TitleCard` (Cinzel over Cormorant italic, centred on a point) for the
+opening and end cards. Both fade in with a 12 px rise and fade out in
+0.45 s, inside a 5 % safe margin.
+
+**Beats** (`src/beats.ts`): `beatS(n)` = 0.4248 + n × 60/81 s, `beat(n)`
+the frame, `isDownbeat(n)` for n ≡ 3 (mod 4). Scene scripts time their
+clicks by it too, so a take is already in step with the music and the
+composition only lines it up (no retiming, no cuts inside an action).
+
+**Part 1** (music 0:00 to 0:50.06, beat 67): one take,
+`record/scenes/part1.ts` → `src/compositions/Part1.tsx`. Profile is
+clicked on beat 27 (0:20.43), khazdul highlighted on beat 31 and its Select
+on beat 35 (the phrase at 0:26.36), Back on beat 41, Enter MUME on beat 47
+(0:35.24, rather than beat 51 at 0:38.21: the client's transition takes
+about 4.5 s, and MUME's screen should be held a few seconds before the
+name), the name's Enter on beat 61, the password's on beat 65. The opening
+card (WebCockpit · mumecockpit.com) stands left of the menu from beat 3
+to beat 15, clear of the wordmark and the menu. A take is about 54 s
+(93 s with setup and encoding); the render about 100 s.
+
+**Found on the way** (client, not fixed here): when Enter MUME is pressed
+before `shell.boot()` has returned (fast automation; the start page's
+reveal still running), `src/main.ts` prints `[SYSTEM] Offline replay
+mode.` on a real connection. A person is unlikely to be that fast; the
+film waits.
