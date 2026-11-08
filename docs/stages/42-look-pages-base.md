@@ -1,6 +1,6 @@
 # Stage 42 — The shared base for the look pages
 
-Status: **Owner testing** (2026-11-08; built 2026-11-07, 42-Z integrated
+Status: **Done**, released in 0.3.0 (approved by the owner 2026-11-08). Before that: **Owner testing** (2026-11-08; built 2026-11-07, 42-Z integrated
 on the branch `stage-41-start-page`, wave 3 and its sweep done; tested
 together with stages 43–47, nothing merged to main until then).
 

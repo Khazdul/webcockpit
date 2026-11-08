@@ -1,6 +1,6 @@
 # Stage 41 — The new start page
 
-Status: **Owner testing** (night pass 2026-11-07, branch `stage-41-start-page`; see
+Status: **Done**, released in 0.3.0 (approved by the owner 2026-11-08). Before that: **Owner testing** (night pass 2026-11-07, branch `stage-41-start-page`; see
 `notes/research/start-menu-mockups/NIGHT-PASS.md` for the whole pass).
 
 ## Goal

@@ -1,6 +1,6 @@
 # Stage 44 — Scripts page, script editor and script manual in the new look
 
-Status: **Owner testing** (2026-11-08; planned 2026-11-07, built in wave 2
+Status: **Done**, released in 0.3.0 (approved by the owner 2026-11-08). Before that: **Owner testing** (2026-11-08; planned 2026-11-07, built in wave 2
 of the broad pass on `stage-41-start-page`, wave 3 and its sweep done;
 nothing merged until the owner has tested).
 

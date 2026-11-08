@@ -1,6 +1,6 @@
 # Stage 46 — Spotlights: the gallery
 
-Status: **Owner testing**, one performance check still open (2026-11-08;
+Status: **Done**, released in 0.3.0 (approved by the owner 2026-11-08). Before that: **Owner testing**, one performance check still open (2026-11-08;
 planned 2026-11-07, built in wave 2 of the broad pass on
 `stage-41-start-page`, wave 3 and its sweep done). Left: a headed re-run
 of the wall and the viewer on the owner's machine (production build,
