@@ -69,9 +69,9 @@ Statuses: Next, In progress, Owner testing, Done.
   pass on rerun (several hit by a source edit mid-run); look-kit-box:182
   is load-flaky (6/6 alone), scripts-settings:411 load-flaky since 2b59b705.
 - **Released 0.3.0:** merged in 61c2d706, tag `v0.3.0`, Pages deploy
-  green, `test:prod` 10/10 on mumecockpit.com. README
-  screenshots not regenerated: `scripts/screenshots.ts` still drives the
-  old start menu (`.wc-mrow`) and fails every shot; follow-up.
+  green, `test:prod` 10/10 on mumecockpit.com. After the
+  tag: `scripts/screenshots.ts` drives the new start page (and pins the
+  MUME date), README screenshots regenerated (4716afc7, 2679200d).
 - **Open:** the settings change lost in a reload under 200 ms; the
   morph's 20–69 ms frames; real-window perf checks of 45–47. Done after
   the release: F11 tested by the owner in a real window; /tmp cleared;
