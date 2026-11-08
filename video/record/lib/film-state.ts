@@ -3,13 +3,14 @@
 //
 //   - profiles: the bundled `khazdul` present (ADR 0024), `default` selected,
 //     so a scene can pick khazdul on camera;
-//   - weather effects off; the Map, Timers and Group panes hidden, Comm
-//     shown (a scene switches them on on camera);
+//   - weather effects off; no panes at all (the Settings scene switches on
+//     Map, Timers and Group on camera; Comm is not used in the film);
 //   - the five runs of the film backup restored (History, Spotlights,
 //     Credits), as `restoreDemo` in scripts/screenshots.ts does;
 //   - the page's date pinned to the evening of 2026-11-08 (FILM_NOW), so the
-//     runs' dates read as they did, and MUME's clock at dusk on the start
-//     page (FILM_DUSK), stars coming out.
+//     runs' dates read as they did, and MUME's clock just after midnight on
+//     the start page (FILM_NIGHT), the sky `fair` (FILM_SKY: a few clouds,
+//     the stars showing through).
 //
 // `filmPage` makes the page and prepares it on the start page; `freshStart`
 // reloads the start page with the game clock set again, just before the
@@ -26,11 +27,17 @@ export const FILM_NOW = new Date(2026, 10, 8, 19, 40, 0).getTime();
 const YEAR_S = 518_400;
 const MONTH_S = 43_200;
 const DAY_S = 1440;
-/** MUME's clock on the start page: 23:15 on the 15th of Wedmath, T.A. 3039 (the sun set at 23:00; the stars come out over the next minutes). */
-export const FILM_DUSK = 3039 * YEAR_S + 7 * MONTH_S + 14 * DAY_S + 23 * 60 + 15;
+/** MUME's clock on the start page: 00:05 on the 16th of Wedmath, T.A. 3039 (the middle of the night; a take runs on about 40 game minutes). */
+export const FILM_NIGHT = 3039 * YEAR_S + 7 * MONTH_S + 15 * DAY_S + 5;
+/** The start page's weather (`?skyWeather`, src/start/sky/params.ts): a few clouds, the stars still showing. */
+export const FILM_SKY = 'fair';
 
-/** The page options a film scene passes to `newPage`. */
-export const FILM_PAGE: PageOptions = { now: FILM_NOW, moment: FILM_DUSK };
+/**
+ * The page options a film scene passes to `newPage`. The page's
+ * `Math.random` is seeded: seed 1 gives the start page the quote "Not all
+ * those who wander are lost." (short: it leaves room for the lower third).
+ */
+export const FILM_PAGE: PageOptions = { now: FILM_NOW, moment: FILM_NIGHT, seed: 1 };
 
 /** The dev hooks this file uses (`window.__wc`, src/main.ts), typed here (the app's types stay out of video/). */
 interface FilmWindow {
@@ -62,7 +69,7 @@ export async function prepareFilm(page: Page): Promise<void> {
       d.panes.map.on = false;
       d.panes.timers.on = false;
       d.panes.group.on = false;
-      d.panes.comm.on = true;
+      d.panes.comm.on = false;
       d.profile = 'default';
     });
     const profiles = wc.shell.profiles as unknown as { init(): Promise<void>; get(n: string): Promise<unknown> };
@@ -75,12 +82,27 @@ export async function prepareFilm(page: Page): Promise<void> {
   await page.waitForTimeout(600);
 }
 
-/** Reloads the start page with MUME's clock at `moment` again (setup took a while): the camera can roll. */
-export async function freshStart(page: Page, moment: number = FILM_DUSK): Promise<void> {
+/** Reloads the start page with MUME's clock at `moment` again (setup took a while) and the film's sky: the camera can roll. */
+export async function freshStart(page: Page, moment: number = FILM_NIGHT): Promise<void> {
   await page.evaluate((m) => {
     const now = Math.floor(Date.now() / 1000);
     localStorage.setItem('wc.clock', JSON.stringify({ epoch: now - m, precision: 'unset', lastSync: now, reason: null }));
   }, moment);
-  await page.goto('/');
+  await page.goto(`/?skyWeather=${FILM_SKY}`);
   await startMenu(page);
+}
+
+/**
+ * A shooting star on the start page now (the dev server's `__wcSky.shoot`,
+ * ADR 0133 addendum), starting at `x`, `y` (shares of the view), going
+ * right (`dir` 1) or left, `angle` rad down.
+ */
+export async function shootingStar(page: Page, at: { x: number; y: number; dir: 1 | -1; angle: number }): Promise<void> {
+  const ok = await page.evaluate((a) => {
+    const sky = (globalThis as unknown as { __wcSky?: { shoot?: (p: typeof a) => void } }).__wcSky;
+    if (!sky?.shoot) return false;
+    sky.shoot(a);
+    return true;
+  }, at);
+  if (!ok) throw new Error('no __wcSky.shoot: is this the dev server?');
 }

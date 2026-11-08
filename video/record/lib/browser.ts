@@ -94,6 +94,11 @@ export interface PageOptions {
    * pins the weather by the clock should not shift far.
    */
   now?: number;
+  /**
+   * Seeds the page's `Math.random` (mulberry32): the start page's quote, the
+   * stars and anything else random come out the same on every take.
+   */
+  seed?: number;
 }
 
 export async function newPage(browser: Browser, mode: CaptureMode, baseURL: string, o: PageOptions = {}): Promise<{ ctx: BrowserContext; page: Page }> {
@@ -112,6 +117,18 @@ export async function newPage(browser: Browser, mode: CaptureMode, baseURL: stri
       Shifted.now = now;
       globalThis.Date = Shifted;
     }, o.now - Date.now());
+  }
+  if (o.seed !== undefined) {
+    await ctx.addInitScript((seed) => {
+      let a = seed >>> 0;
+      Math.random = () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }, o.seed);
   }
   await pinGameMoment(ctx, o.moment);
   await ctx.addInitScript(() => {

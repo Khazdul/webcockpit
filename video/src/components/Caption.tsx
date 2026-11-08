@@ -1,8 +1,9 @@
 // The film's two kinds of text (owner, 2026-11-08: few captions, plain and
 // descriptive, no slogans, no chapter cards):
 //
-//   LowerThird  one short plain sentence in Cormorant Garamond, low on the
-//               left, on a solid scrim (nothing behind shows through);
+//   LowerThird  a short plain sentence (or two lines) in Cormorant
+//               Garamond, low on the left, on a solid scrim (nothing behind
+//               shows through);
 //   TitleCard   the opening and end cards: Cinzel over a line of Cormorant
 //               italic, centred on a point (the frame's centre by default).
 //
@@ -35,8 +36,8 @@ function useShow(from: number, dur: number): { opacity: number; lift: number } {
   return { opacity, lift };
 }
 
-/** One short sentence low on the left, on a solid dark scrim. */
-export function LowerThird({ from, dur, text }: { from: number; dur: number; text: string }) {
+/** One short sentence (or a few short lines) low on the left, on a solid dark scrim. */
+export function LowerThird({ from, dur, text }: { from: number; dur: number; text: string | string[] }) {
   const { opacity, lift } = useShow(from, dur);
   const { width, height } = useVideoConfig();
   return (
@@ -61,7 +62,7 @@ export function LowerThird({ from, dur, text }: { from: number; dur: number; tex
           whiteSpace: 'nowrap',
         }}
       >
-        {text}
+        {typeof text === 'string' ? text : text.map((l) => <div key={l}>{l}</div>)}
       </div>
     </AbsoluteFill>
   );
