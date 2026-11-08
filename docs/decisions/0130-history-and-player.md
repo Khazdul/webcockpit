@@ -470,3 +470,34 @@ whole window and the browser goes fullscreen. Technical decisions:
   still picture around the box, so the run log costs no more frames than
   the full-window player did (the "Performance" budget above; the box
   adds no animation besides the swap's fades).
+
+### Round 2 (2026-11-08): the player to the frame; F11
+
+- **No band.** `.wc-rl-win` has no padding: the player fills the large
+  box's window to its 1 px line on every side, and the hood plate
+  (z-index 5 in the box, over the window's isolated stacking context)
+  floats over the player's top edge. The plate takes the pointer on its
+  own rectangle only. The header is not laid out around it (owner's
+  call): at 1440 and 1864 px the plate lies over the first key hint, on a
+  390 px phone over the middle of the run info.
+- **F11 and the browser's keys.** The cause of the dead F11:
+  `usePlayerKeys` was a key layer returning true for every key, and the
+  frame stack prevents the default of every consumed key; the Spotlights
+  viewer's layer and the wall's handler did the same. Fixes:
+  - The frame stack (`stack.tsx`) never prevents a function key
+    (`isBrowserKey`: F1–F24, with any modifiers) and no frame handler
+    sees one; only a key layer registered with `{ browserKeys: true }`
+    does, and its `true` prevents the default. This holds on every page
+    of the start surface, the ESC menu and the windows (a dialog's "any
+    key cancels" no longer eats F11 either).
+  - `usePlayerKeys` and the Spotlights viewer let every browser shortcut
+    through (`isBrowserShortcut`: Ctrl, Alt or Meta, or a function key):
+    the player uses none, so Ctrl+R, Ctrl+L, Alt+← … reach the browser.
+  - `RunLogFrame` has a `browserKeys` layer for plain F11: it toggles the
+    player element's fullscreen, as the control box's button does (where
+    the button exists: not on a phone, and only where the browser has the
+    API); otherwise F11 is left to the browser. While the player is
+    fullscreen, F11 (or the browser's Esc) leaves it, back into the box.
+  Whether a browser lets a page take F11 at all is the browser's choice;
+  the e2e drives F11 through Playwright on Chromium and Firefox, and a
+  real window's F11 is the owner's check.

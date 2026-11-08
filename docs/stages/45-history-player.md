@@ -466,10 +466,11 @@ session.
    big box (its hood reads "Run log", the sky still around it), with a
    **Back** button at the top left (it hides while playing and comes back
    when you move the mouse). Times over an hour read `1:34:07`. The
-   **Fullscreen** button in the control box: the player fills the whole
-   screen and the browser goes fullscreen; the button again, Esc or F11
-   puts it back in the box. Back or Esc returns to History as you left
-   it.
+   **Fullscreen** button in the control box, or **F11**: the player fills
+   the whole screen and the browser goes fullscreen; the button again, Esc
+   or F11 puts it back in the box. The player reaches the box's frame on
+   every side, the "Run log" plate floating over its top edge. Back or Esc
+   returns to History as you left it.
 8. **A broken run log** (if you have one): a small box says it could not
    be opened, and why.
 9. **Phone** (or a narrow window): rows on two lines, a sort list, the
@@ -513,6 +514,30 @@ Built on the stage branch (technical decisions in ADR 0130, "Owner
 feedback (2026-11-08)"): `services.openRunLog` loads the session into a
 parked host and History pushes `RunLogFrame` with it; a failed open still
 shows the error box over History. Test guide step 7 updated.
+
+### Round 2 (2026-11-08)
+
+- **"Fill the box all the way up; let the 'Run log' badge float on top of
+  the player."** The 20 px band under the hood is gone: the player fills
+  the box's whole window up to the frame on every side, and the hood
+  plate lies over the player's top edge (it takes clicks on its own plate
+  only). The header is not moved around it (the owner's call), so the
+  plate covers what lies under its ~130 px: at 1440 and at 1864 px wide
+  the first key hint (`Space Play/Pause`, all but its first and last
+  letters); on a 390 px phone the middle of the run info (`(L42) · Run 1
+  of 2 · 2026-`, between `Rasta` and `09-26`). Back, the rest of the run
+  info, the other hints and the rail are clear at all three widths.
+- **"F11 does not make the browser go fullscreen."** Cause: the run log
+  page gives every key to the player through a key layer
+  (`usePlayerKeys`) that consumed every key, so the frame stack called
+  `preventDefault` on F11 too (and on F5, F12, Ctrl+R, Ctrl+L …); the
+  Spotlights viewer did the same. Now the frame stack never prevents a
+  function key (F1–F24) and no frame handler sees one, anywhere (start
+  page, every page, the dialogs); the player pages let every Ctrl, Alt or
+  Meta shortcut through too. On the run log page F11 does what the
+  Fullscreen button does (the player alone in the browser's fullscreen;
+  F11 again, Esc or the button puts it back in the box); where the player
+  has no Fullscreen button (a phone) F11 is the browser's.
 
 ## Uses from stage 42
 
