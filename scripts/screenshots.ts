@@ -19,12 +19,15 @@
 // tests/e2e does (look.ts, history-page, scripts-page). The snow shots run in Firefox (see there). The
 // `discord-*` shots are for the 0.2.0 release post (WC_SHOT_OUT them
 // elsewhere); some restore the demo runs (tests/fixtures/runs-demo.jsonl.gz)
-// with the page's clock pinned, as tests/e2e/demo-clock.ts does.
+// with the page's clock pinned, as tests/e2e/demo-clock.ts does. The feed,
+// the mocked login and the weather helpers live in scripts/lib/mume-feed.ts
+// (shared with the presentation film, video/).
 import { type ChildProcess, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { type Browser, type BrowserContext, type Locator, type Page, type WebSocketRoute, chromium, firefox as firefoxType } from '@playwright/test';
+import { type Browser, type BrowserContext, type Locator, type Page, chromium, firefox as firefoxType } from '@playwright/test';
+import { DAY, type Fight, NIGHT, type Pin, SCENE, gameFeed, jump, live, pinGameMoment, sleep, startMenu, weather } from './lib/mume-feed.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 /** Output directory (WC_SHOT_OUT, default docs/img/), with a trailing slash. */
@@ -70,8 +73,6 @@ end
 draw()
 `;
 
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
 /**
  * Firefox, launched on first use. It drops a context's deviceScaleFactor on
  * the cross-origin isolated app page, so the ratio comes from a pref
@@ -101,161 +102,7 @@ async function devServer(): Promise<ChildProcess | null> {
   throw new Error(`dev server did not start on ${BASE}`);
 }
 
-// ------------------------------------------------------------ telnet feed
-
-const IAC = 255;
-const SB = 250;
-const SE = 240;
-const WILL = 251;
-const GA = 249;
-const GMCP = 201;
-
-const gmcpBytes = (body: string): Buffer => Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(body, 'utf8'), Buffer.from([IAC, SE])]);
-
-/** A prompt as replay-socket.ts tells one: visible text ending in `>`, short. */
-const isPrompt = (raw: string): boolean => {
-  const vis = raw.replace(/\x1b\[[0-9;]*m/g, '').trim();
-  return vis.length > 0 && vis.length < 80 && vis.endsWith('>');
-};
-
-/** One server line: a prompt goes without a newline and ends with GA. */
-const lineBytes = (raw: string): Buffer =>
-  isPrompt(raw) ? Buffer.concat([Buffer.from(raw, 'utf8'), Buffer.from([IAC, GA])]) : Buffer.from(`${raw}\r\n`, 'utf8');
-
-/** A feed step: bytes from the server, or a command typed into the input line. */
-type Step = { out: Buffer } | { cmd: string };
-
-/** The body of each line of a fixture log (timestamps dropped). */
-function fixture(name: string): string[] {
-  return readFileSync(`${ROOT}tests/fixtures/${name}`, 'utf8')
-    .split('\n')
-    .filter((l) => l.length >= 17)
-    .map((l) => l.slice(17));
-}
-
-/**
- * Fixture lines → steps. GMCP records become telnet GMCP, `> cmd` lines are
- * typed. `descs`: a room's description from its Room.Info is shown under
- * the room name (the fixtures keep only the name; MUME prints both).
- */
-function toSteps(lines: readonly string[], o: { descs?: boolean; gmcp?: (pkg: string) => boolean } = {}): Step[] {
-  const steps: Step[] = [];
-  let buf: Buffer[] = [];
-  let desc: string | null = null;
-  // Commands typed ahead (`n;n;n`) wait for the prompt before them, so each echo sits on its prompt.
-  const ahead: string[] = [];
-  const flush = (): void => {
-    if (buf.length) steps.push({ out: Buffer.concat(buf) });
-    buf = [];
-  };
-  for (const l of lines) {
-    if (l.startsWith('> ')) {
-      flush();
-      if (steps.length && 'cmd' in steps.at(-1)!) ahead.push(l.slice(2));
-      else steps.push({ cmd: l.slice(2) });
-    } else if (l.startsWith('\x1bGMCP ')) {
-      const body = l.slice(6);
-      const pkg = body.split(' ')[0]!;
-      if (o.gmcp && !o.gmcp(pkg)) continue;
-      if (pkg === 'Room.Info' && o.descs) desc = (JSON.parse(body.slice(pkg.length + 1)) as { desc?: string }).desc ?? null;
-      buf.push(gmcpBytes(body));
-    } else if (/^\x1b[A-Z]/.test(l)) {
-      continue; // other client records (VIEW, SIZE, …)
-    } else {
-      buf.push(lineBytes(l));
-      if (desc !== null && l.startsWith('\x1b[32m')) {
-        for (const d of desc.replace(/\n+$/, '').split('\n')) buf.push(lineBytes(d));
-        desc = null;
-      }
-      if (isPrompt(l)) {
-        flush();
-        const next = ahead.shift();
-        if (next !== undefined) steps.push({ cmd: next });
-      }
-    }
-  }
-  flush();
-  return steps;
-}
-
-/** Unsolicited channel text: GMCP, then an empty line, the text, an empty line, the prompt. */
-function comm(channel: string, talker: string, text: string, colour = ''): Step {
-  const g = gmcpBytes(`Comm.Channel.Text ${JSON.stringify({ channel, talker, 'talker-type': 'player', text })}`);
-  const shown = colour ? `\x1b[${colour}m${text}\x1b[0m` : text;
-  return { out: Buffer.concat([g, lineBytes(''), lineBytes(shown), lineBytes(''), lineBytes('*=>')]) };
-}
-
-/** How much of the fight on Hill Road the feed plays. */
-type Fight = 'none' | 'mid' | 'full';
-
-/**
- * The fight of gmcp-demo.log (`kill scout` to the achievement), moved to
- * Bree: the orc scout becomes a half-orc ruffian who arrives first. Its
- * Group GMCP is dropped (other ids than this feed's group). `mid` stops
- * while the ruffian is wounded.
- */
-function fightSteps(fight: Fight): Step[] {
-  if (fight === 'none') return [];
-  const demo = fixture('gmcp-demo.log').map((l) =>
-    l.replace(/an orc scout/g, 'a half-orc ruffian').replace(/An orc scout/g, 'A half-orc ruffian').replace(/scout/g, 'ruffian'),
-  );
-  const from = demo.indexOf('> kill ruffian');
-  const to = fight === 'mid' ? demo.indexOf('Gibur grins at the ruffian wickedly.') - 3 : demo.indexOf('> narrate ruffian down at the ford');
-  const arrive: Step = { out: Buffer.concat([lineBytes(''), lineBytes('\x1b[31mA half-orc ruffian arrives from the north.\x1b[0m'), lineBytes(''), lineBytes('*=>')]) };
-  return [arrive, ...toSteps(demo.slice(from, to), { gmcp: (pkg) => !pkg.startsWith('Group.') })];
-}
-
-/**
- * The gameplay feed: Rasta logs in on the Old East Road in Bree (map-demo),
- * casts his spells (timers-demo, without its login and GMCP), walks Bree
- * with room descriptions while friends talk on the channels, and ends up
- * on Hill Road, where `fight` may add a fight. All names are the fixtures'
- * invented ones.
- */
-function gameFeed(fight: Fight = 'none'): Step[] {
-  const map = fixture('map-demo.log');
-  const firstMove = map.indexOf('> n');
-  const timers = fixture('timers-demo.log');
-  const spellsFrom = timers.indexOf('> arm');
-  const spellsTo = timers.indexOf('> store fireb');
-  const walk = toSteps(map.slice(firstMove), { descs: true });
-  const talk: Step[] = [
-    comm('tales', 'Gibur', "Gibur narrates 'orcs gathering at the ford'", '33'),
-    comm('tells', 'Gibur', "Gibur tells you 'meet me at the Pony, bring the merc'", '32'),
-    comm('says', 'Dori', "Dori says 'I can smell them' in Khuzdul.", '36'),
-    comm('questions', 'Ecthel', "Ecthel asks 'anyone near Rivendell?'", '33'),
-    comm('songs', 'Lindir', "Lindir sings 'A Elbereth Gilthoniel'", '33'),
-    comm('tells', 'Gibur', "Gibur tells you 'more coming, 2 trolls'", '32'),
-  ];
-  // A channel message after every few moves.
-  const mixed: Step[] = [];
-  let moves = 0;
-  for (const s of walk) {
-    mixed.push(s);
-    if ('cmd' in s && ++moves % 5 === 0 && talk.length) mixed.push(talk.shift()!);
-  }
-  const friends: Step = {
-    out: Buffer.concat([
-      gmcpBytes(`Group.Add ${JSON.stringify({ id: 4, type: 'ally', name: 'Dori', label: 0, hp: 118, 'hp-string': 'Fine', maxhp: 150, mana: 0, 'mana-string': 'Full', maxmana: 0, mp: 96, 'mp-string': 'Rested', maxmp: 120 })}`),
-      gmcpBytes(`Group.Add ${JSON.stringify({ id: 5, type: 'npc', name: 'a sturdy pony', label: 'PONY', hp: 90, 'hp-string': 'Healthy', maxhp: 90, mana: 0, 'mana-string': 'Full', maxmana: 0, mp: 40, 'mp-string': 'Tired', maxmp: 120 })}`),
-    ]),
-  };
-  return [
-    ...toSteps(map.slice(0, firstMove), { descs: true }),
-    friends,
-    ...toSteps(timers.slice(spellsFrom, spellsTo), { gmcp: () => false }),
-    ...mixed,
-    ...talk,
-    ...fightSteps(fight),
-  ];
-}
-
 // ------------------------------------------------------------ pages
-
-/** The start page's menu, Enter MUME chosen (the new look, stage 42: tests/e2e/look.ts `openStart`). */
-async function startMenu(page: Page): Promise<void> {
-  await page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label', { hasText: 'Enter MUME' }).waitFor();
-}
 
 /** The start surface's visible frame (the top of its stack). */
 const startTop = (page: Page): Locator => page.locator('.wc-start .wc-frame:not([hidden])');
@@ -266,83 +113,12 @@ async function morphDone(page: Page): Promise<void> {
   await page.locator('.wc-lk-morph').waitFor({ state: 'hidden' });
 }
 
-/**
- * MUME's date, pinned so a shot does not change with the real date (a game
- * year is six real days): the seasonal map tiles and the start page's sky
- * and date line follow it. 16:00 on the 15th of Wedmath (late summer), year
- * 3039. Saved as the browser's clock (src/gmcp/clock.ts, `wc.clock`) with
- * the precision still `unset`, as on a new install, unless the page saved
- * one of its own.
- */
-const GAME_MOMENT_S = 3039 * 518_400 + 7 * 43_200 + 14 * 1440 + 16 * 60;
-
 async function newPage(browser: Browser): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, baseURL: BASE });
-  await ctx.addInitScript((moment) => {
-    try {
-      if (localStorage.getItem('wc.clock')) return;
-      const now = Math.floor(Date.now() / 1000);
-      localStorage.setItem('wc.clock', JSON.stringify({ epoch: now - moment, precision: 'unset', lastSync: now, reason: null }));
-    } catch {
-      // No storage (a file: page): the real date.
-    }
-  }, GAME_MOMENT_S);
+  await pinGameMoment(ctx);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
   return { ctx, page };
-}
-
-/**
- * Logs in through a mocked MUME WebSocket and plays `steps` (commands typed
- * into the input line). `prepare` runs on the start page, before the cockpit
- * is built (a layout change after the feed would rewrap its text).
- */
-async function live(page: Page, steps: readonly Step[], prepare?: (page: Page) => Promise<void>): Promise<WebSocketRoute> {
-  let server: WebSocketRoute | null = null;
-  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
-    server = ws;
-    // Core.Ping answered at once, so the bar's link dot reads a good link (not "no answer").
-    ws.onMessage((m) => {
-      if (Buffer.from(m).includes('Core.Ping')) ws.send(gmcpBytes('Core.Ping'));
-    });
-    ws.send(Buffer.from([IAC, WILL, GMCP]));
-  });
-  await page.goto('/');
-  await startMenu(page);
-  await prepare?.(page);
-  await page.keyboard.press('Enter');
-  await page.waitForFunction(() => /^login/.test(document.querySelector('.wc-app')?.getAttribute('data-status') ?? ''));
-  const input = page.locator('.wc-input-field');
-  for (const s of steps) {
-    if ('cmd' in s) {
-      await input.focus();
-      await page.keyboard.insertText(s.cmd);
-      await page.keyboard.press('Enter');
-      await sleep(30);
-    } else {
-      server!.send(s.out);
-      await sleep(40);
-    }
-  }
-  // The input line keeps the last command; a screenshot shows it empty.
-  await input.fill('');
-  return server!;
-}
-
-/** The weather dev hook; resolves once the effects run. */
-async function weather(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    const w = await window.__wc!.weather();
-    if (!w) throw new Error('weather effects did not start');
-  });
-}
-
-type Pin = Record<string, unknown>;
-/** Outdoors, standing, no clock-driven turn or moon (the demo's SCENE). */
-const SCENE: Pin = { fog: '', light: '', position: 'standing', dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 };
-
-async function jump(page: Page, pin: Pin): Promise<void> {
-  await page.evaluate((p) => window.__weather!.jump(p as never), pin);
 }
 
 async function shot(page: Page, name: string, png?: Buffer): Promise<void> {
@@ -396,9 +172,6 @@ async function brightShare(page: Page, png: Buffer): Promise<number> {
     return n / (w * h);
   }, png.toString('base64'));
 }
-
-const DAY: Pin = { clock: 'day', light: '*', sunU: 0.5, moonUp: false, moonU: -1 };
-const NIGHT: Pin = { clock: 'night', light: ')', sunU: -1 };
 
 // ------------------------------------------------------------ helpers
 
