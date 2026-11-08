@@ -1400,6 +1400,14 @@ exists (ADR 0069). It is a **frame stack**: one frame visible at a time,
 sub-pages pushed/popped; ESC pops one level. In WebCockpit this becomes the
 page you land on when opening the link.
 
+> WebCockpit (2026-11-07, stage 41): the start page no longer copies the
+> TUI look below. It follows WebCockpit ADRs 0124 (a sky driven by the
+> offline game clock), 0125 (the start surface, the menu panel and the
+> sub-page kit) and 0126 (the forged-iron "MUME" wordmark with a cyan
+> metal inlay, and the "M" favicon). The frame stack, ESC = back and the
+> rule that Enter / Space is always a forward action still hold. The
+> Cockpit text is kept as the reference it was.
+
 ### 3.1 Startup
 
 | Cockpit | Browser note |
@@ -1440,6 +1448,19 @@ page you land on when opening the link.
 
           ↑↓ Navigate · Enter/Space Select          <- footer, #585858, last row
 ```
+
+> WebCockpit (2026-11-07, stage 41, WebCockpit ADR 0125): no pixel
+> banner and no starfield rows; the wordmark is drawn over the sky
+> (ADR 0126). The menu (Enter MUME set apart by a rule, Profile, Scripts
+> with the profile's name, History, Spotlights, Credits, About; no
+> Options since stage 32, no Quit) sits in an iron panel; the cursor row
+> brightens its text and icon instead of `<< >>`. Shortcut letters are
+> marked in the labels (E P S H L C A), hover selects, and there is **no
+> key-hint footer**. The quote is set in italic Cormorant with the author
+> in small caps, its colour following the sky; an **almanac** at the
+> bottom right shows the game date, time and the version. The banner
+> table below now describes Cockpit and the phone's ESC menu (Inv §4),
+> which kept the pixel banner when stage 41 began.
 
 **Menu entries** (order, `_rebuild_main_items`):
 
@@ -1492,6 +1513,14 @@ Browser note: animate with `requestAnimationFrame` or a low-rate timer, only whi
 | Mouse | Click selects + activates. Hover lightens (`C_HOVER`). Wheel scrolls lists (without moving cursor on tables). |
 | Footer | Every frame has a `C_HINT` shortcut row anchored to the last row, e.g. `↑↓ Navigate · Tab/←→ Cycle · Enter Select · ESC Back` |
 
+> WebCockpit (2026-11-07, stage 41, WebCockpit ADR 0125): frames in the
+> new look (the start menu, then the Profile list; the other sub-pages
+> follow in their own stages) have no footer row. They open in an iron
+> box with a Back button at the top left (Esc still goes back), use glass
+> buttons, mark each shortcut letter in its label, and show a selection
+> by brightening only (no gold fill, no `<< >>`). Frames not yet moved
+> keep the grammar below.
+
 Shared chrome (ADR 0085): sub-page titles `─── Name ───` centred in `C_SECTION` bold `#008787`, 2 blank rows above in the launcher (1 in the popup), 1 below. Three cell grammars (ADR 0087):
 
 | Grammar | Where | Cursor focused | Selected, zone unfocused | Hover | Other |
@@ -1526,6 +1555,18 @@ Other palette roles: `C_TITLE` bold `#00d7d7`, `C_BODY` `#8a8a8a`, `C_HINT` `#58
 
    ↑↓ Navigate · Tab/←→ Cycle · Enter Select · ESC Back
 ```
+
+> WebCockpit (2026-11-07, stage 41e, WebCockpit ADR 0125): the Profile
+> list is in the new look. The table (Name, sortable, with a "Selected"
+> tag in place of the ✓ column, and a new **Changed** column: when each
+> profile was last changed) sits above a row of glass buttons Select,
+> New, Edit, Rename, Delete, Import, Export with the letters S N E R D I
+> X marked in the labels; they work from either focus zone. Back at the
+> top left replaces BACK, there is no footer, and the "Enter Select /
+> Enter Edit" hint is the cursor row's tooltip. ← / → from the list go to
+> the buttons (now below it). Import is new (goal 7); the sub-frames
+> (name prompt, Blank / Copy, Delete confirm, import report, editor) are
+> unchanged.
 
 - Centred package `[ button column | 2-cell gap | table | scrollbar ]`, recentred on resize. Button column: 7 uppercase buttons, width = longest label + 2, no borders; first button top-aligns with the table header.
 - Table: `Name` (dynamic width, sortable by clicking header, default `▲` asc), `Selected` (width 8, centred ✓ on the active profile, not sortable). Header row always `C_HINT`.
@@ -1640,6 +1681,21 @@ Cockpit spawns a background GitHub-release check, polls `version.cache` mtime to
 - **About** — scrollable page from `about.txt` (~170 lines: intro, CONNECTION, GMCP, … keys/commands). Title `─── About ─── 0.X.Y` (version right-aligned `C_BODY`, optional `Update available` in `C_ACCENT`). Three-colour rule per line: ALL-CAPS line → heading `C_TITLE`; indented line → `C_ACCENT` (commands like `  cp -e`); other text → `C_BODY`. Word-wrapped to width, scroll with arrows/PgUp/PgDn/wheel. Browser: content must be rewritten for WebCockpit (no MMapper/TinTin++/tmux text).
 - **Credits** — standalone main-menu entry (ADR 0122) opening a scrolling end-credits chronicle built from all characters' events; details in §7.
 - **Quit** — see 3.2 (browser: drop).
+
+> WebCockpit (2026-11-07, stage 47, WebCockpit ADR 0132): **About** is no
+> longer a scrolling TUI text. It is one long leaf in the start page's
+> large box: the small wordmark and `WebCockpit <version> (<commit>)` at
+> its head, the intro as an italic lead-in, each section with a Cinzel
+> heading, key/value lines as a two-column table, the "M" seal at the end.
+> The text is our own (`ABOUT_TEXT`; ALL-CAPS line = heading, indented
+> `key  description` = a table row) in nine sections. A contents rail at
+> the left follows the reading; a click or the section's letter (W M B G
+> I S U C L) jumps; on a phone or a narrow window the rail is a strip of
+> section pills. Keys: ↑↓ 40 px, PgUp / PgDn / Space / Enter 85 % of the
+> view, Home / End, Esc / Back. Links (mume.org, discord.gg, github.com,
+> tintin.mudhalla.net, `LICENSE.txt`, `fonts/README.md`,
+> `THIRD_PARTY_NOTICES.md`, the last two published at the site root) open
+> in a new tab. **Credits** is a book, not a roll (§7.6).
 
 ### 3.12 Other launcher frames (covered in §7)
 
@@ -1802,6 +1858,16 @@ macro_keys.py, ttpp_syntax.py, palette.py, ADRs 0042, 0081–0084, 0089–0092,
 
 ### 5.1 Entry points
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the editor is one
+> look page in every place: the start page's Profile list → Edit grows it
+> into the large box; in the game the Profile window (menu bar, `#profile`)
+> and the phone's ESC menu (or `#profile`) open it directly. Its head
+> shows the profile's name and, in the game, the live line ("Connected ·
+> changes apply to the game", or "Not connected · changes are saved" once
+> the session ends; Apply then becomes Save). A profile that cannot open,
+> or a save that fails on the way out, keeps its message with Edit (E or
+> Enter) to try again. Each open starts in Lite.
+
 | Opened from | What it edits | On close (ESC) |
 |---|---|---|
 | Launcher → Profile → **Edit** button | The profile file on disk (not live) | Parses if needed, saves the file, returns to `profile` frame, flashes `Saved <name>.tin.` (C_ACCENT) or `Save failed: <reason>` (C_HINT) |
@@ -1819,6 +1885,9 @@ macro_keys.py, ttpp_syntax.py, palette.py, ADRs 0042, 0081–0084, 0089–0092,
   goes away.
 
 ### 5.2 Kinds (what exists and what doesn't)
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the same five
+> kinds, in the Lite rail with their icons, counts and letters.
 
 The GUI edits **exactly five kinds**: `ACTIONS`, `ALIASES`, `HIGHLIGHTS`,
 `MACROS`, `SUBSTITUTES`, shown in that alphabetical order.
@@ -1842,6 +1911,15 @@ chars counts (`#mac`, `#Hi`, `#SUB`). Plurals such as `#macros` do not match.
 > spec.md, because Cockpit only has five.
 
 ### 5.3 Layout
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): no cell grid. The
+> editor lays itself out by its own width (container queries, 940 and
+> 640 px): over 940 a rail | the list | the detail; 641–940 the rail as a
+> row of tabs over list | detail; 640 and under one column, an entry
+> opening as a sheet with a back button named after its kind ("‹
+> Aliases"). The head holds the name and the views (Lite, Editor, Help);
+> the foot the view's buttons, the flash and a quiet status at the right.
+> No key-hint rows: the letters are underlined in the labels.
 
 The editor is not centred vertically: the body is anchored to the top and
 the footer hint sits on the **last terminal row**. A spacer fills the rows
@@ -1910,6 +1988,11 @@ k        kill %1;…                    ░     │ gv %1                       
 
 ### 5.4 Three-state colour grammar (ADR 0083, 0134)
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): replaced by
+> the lantern kit's states (ADR 0127): the chosen row lit (`is-on`), the
+> keyboard's item with a fine ring (`is-sel`); no amber-or-nothing
+> grammar and no gold brackets.
+
 | State | Token | Style |
 |---|---|---|
 | Inactive | `C_BUTTON_INACTIVE` | fg `#bcbcbc`, **no bg** (terminal bg shows through) |
@@ -1937,6 +2020,13 @@ k        kill %1;…                    ░     │ gv %1                       
 
 ### 5.5 LITE/EDITOR toggle and mode flip
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): three views,
+> Lite, Editor and Help, as a segmented control in the head (L, E, H;
+> ← → on it). A flip keeps the rules below: the text is lined up and
+> what was held back is tried again. Help is the manual in the lantern
+> reader (its contents in the rail, find with Ctrl+F); it lies over
+> Editor, whose buffer stays mounted.
+
 - **Keys on the focused toggle:** `←` selects LITE and `→` selects EDITOR
   (no-op if that mode is already active). `Enter`/`Space`/`↓` go down into
   the first zone of the mode. They **never** flip the mode.
@@ -1955,6 +2045,19 @@ k        kill %1;…                    ░     │ gv %1                       
 - Because the flip goes through serialise → parse, it also re-sorts.
 
 ### 5.6 Lite mode
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the rail lists the five
+> kinds with icons, counts and letters (A I G M S). The list has two lines
+> per row (the pattern; the body's first line with … when more follow;
+> macros show the key as a chip, highlights in their own colours), `+ New
+> <kind>` last, sorted as below but read at commit points only (a pattern
+> being typed does not move its row). The detail is the kit's fields and
+> text areas; macros a Key cell ("Press to bind…"; key capture is desktop
+> only); highlights the Underscore / Blink / Reverse checks, Text and
+> Background swatches and a "Shows as" preview, and a body the picker
+> cannot read is kept as written until a style or colour is chosen. N
+> new, D delete (Del in the list). Esc in a field applies the edit and
+> goes back to the list; a second Esc leaves.
 
 #### Kind buttons row
 
@@ -2120,6 +2223,13 @@ Pattern
 
 ### 5.7 Editor mode
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): CodeMirror in the
+> lantern theme, the find panel at the top of the buffer (Ctrl+F, Ctrl+H;
+> Case, Word, Regex). No rail: the buffer takes the editor's width (owner
+> feedback 2026-11-08; the "In the text" rail of the first build is gone).
+> The status at the foot shows Modified, the brace balance ("1 unclosed {")
+> and Ln / Col.
+
 #### Syntax highlighting (ttpp_syntax.py, ADR 0089)
 
 The tokenizer is purely lexical, single pass, and has no whitelist of
@@ -2243,6 +2353,12 @@ command names. Base text is C_ITEM `#bcbcbc`.
 
 ### 5.8 Focus model
 
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): the keyboard's place
+> is state (views, rail, list, detail, buffer, help); only text fields and
+> the buffer take the DOM focus. Tab walks views → rail → list → detail
+> and around; Esc leaves a field or the buffer first (the stack's Esc
+> rule, ADR 0127), then a sheet, then the editor.
+
 - **Axes:** mode ∈ {lite, editor}; a toggle-focused flag; in lite mode a zone
   ∈ {kind, list, detail} plus the detail field index.
 - **Tab cycle:**
@@ -2271,6 +2387,13 @@ command names. Base text is C_ITEM `#bcbcbc`.
   - Everything else: `Tab Cycle · ESC Save & back`.
 
 ### 5.9 Save semantics and round-trip rules
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128): unchanged in
+> substance: the round trip stays byte-exact and entries that do not
+> validate are held back. The prompt "Apply changes to your profile?"
+> (Yes, apply · No, discard · Keep editing) comes only while something is
+> not applied yet; the quiet status says All saved, All applied, Editing
+> or Not applied.
 
 - **Save** happens on ESC from either mode. EDITOR mode parses first. The
   file write is atomic (temp file then rename).
@@ -2683,6 +2806,28 @@ subscribe to the in-memory event stream instead of re-reading storage every seco
 Main-menu entry **History** (start page). Lists **sessions** (stitched chains, § 7.2), never
 the active run.
 
+> WebCockpit (2026-11-07, stage 45, WebCockpit ADR 0130): History is in
+> the new look, "Tabell och kort" in the large box of layout B, capped at
+> its content width (1180 px) and centred on a wide window. The pill row
+> (`All` + one per character) scrolls sideways instead of windowing with
+> `‹ ›`; a "?" button and the `?` key show the keys in a small box (no
+> footer). The table (the same six sortable columns, sort rules
+> unchanged, ▾ / ▴ in the heads) sits beside a **card** for the chosen
+> session: name, level, the long date and time, duration and runs, deeds
+> (kills · PvP · deaths summed from the run summaries), kept (Saved and
+> stars, or "Expires in N days" with a draining gauge), and whether text
+> was captured. The card holds the six actions as glass buttons (Run log,
+> Stats, Rate, Save, Export, Delete) with the letters R T A S X D; Backup
+> (B) and Restore (O) sit in the foot with the flash and the storage line.
+> A row click selects; Enter, a double click or R opens the log player
+> (Cockpit: a click opened it). ← / → change the pill; Tab / Shift+Tab
+> move rows ↔ buttons. Stats opens in the same box (`Statistics`, § 7.3);
+> Rate and Delete are small boxes over the veiled page with the same keys
+> (Delete: Y deletes, any other key cancels). A run log that cannot open
+> shows a box with the reason (Cockpit: nothing). Export works on a phone
+> too. On a narrow page (< 680 px of content) the heads give way to a
+> sort list, rows take two lines and the card opens under the chosen row.
+
 ```
                          ─── History ───
               [ All ]  Gittan   Melker   Rasta
@@ -2749,6 +2894,22 @@ parse every run's events).
 Opened from History (RUN LOG / row). Replays the chain's `.log` files as one timeline.
 Opens **playing from 00:00** with chrome visible.
 
+> WebCockpit (2026-11-07, stages 42 and 45, WebCockpit ADRs 0127 and
+> 0130): the player keeps its ghost look (ADR 0114).
+> Two additions: a **Back** button at the top left in the kit's look,
+> part of the chrome (it hides 6 s after the last activity while playing
+> and returns on a pointer move, a key or a tap), going back to History
+> exactly as it was, like Esc and the box's Close, which both stay; and
+> times from one hour up read **h:mm:ss** (`12:41 / 3:41:07`) in the
+> clock, the rail's seek hint and its marker tips (Cockpit: unbounded
+> minutes, `221:07`). The exported HTML replay is unchanged: no Back,
+> `MM:SS`.
+>
+> Owner feedback 2026-11-08 (ADR 0130): the run log player opens in
+> History's big box, over the still sky, instead of filling the window;
+> its Fullscreen button puts the player alone in the browser's
+> fullscreen, and leaving fullscreen any way puts it back in the box.
+
 ```
 Rasta (L73) · Run 1 of 2 · 2026-09-25 22:03                     ESC Back  ░░
 …full-width replayed MUME text, ANSI colours…                              ░░
@@ -2790,6 +2951,24 @@ in-app player too (owner decision).
 
 **Spotlights** (main menu, between History and Credits) — cross-character highlight reel
 played in the same `log_view` engine (spotlight mode).
+
+> WebCockpit (stage 46, ADR 0131): the events, windows, rotation,
+> transitions, labels and the ←/→ rules below still hold; the page around
+> them differs. Spotlights opens on a **wall of cards** in the large box
+> (one per spotlight in reel order: kind, a still of the last visible
+> lines before the moment, label, character · level · date), with the
+> settings as a **filter row** above it (kind chips, `All` and character
+> chips, the period; ADR 0110). Enter, a double click or a tap plays a
+> card in a **viewer** inside the box that grows out of the card and plays
+> on through the rest (head with `‹ n / N ›`, countdown, track with kind
+> markers, an always-visible control row, Display; no info box, no
+> auto-hide). The reel ends on an **end card** (Play again) instead of
+> parking. Esc returns to the wall with the current spotlight's card
+> chosen, a second Esc to the menu. Empty states are states of the wall:
+> no data (no filter row) and nothing passing (`No spotlights match your
+> settings.`, the row stays). Letters: F filter row, P Play all / Play
+> again, D Display. ANSI normal red is drawn brighter on the dark wells
+> while the Display colours are Default.
 
 | Aspect | Behaviour |
 |---|---|
@@ -2837,6 +3016,28 @@ to see content here.").
   bottom 35 % fade linearly between canvas colour and white; `Escape to exit` hint top-right
   `#555555`; auto-returns to menu when `The End.` leaves the top. Only ESC is bound.
 
+> WebCockpit (2026-11-07, stage 47, WebCockpit ADR 0132): **Credits is a
+> book**, not a roll. The large box on the start page holds two pages
+> side by side (one page when the book is under 640 px wide, as on a
+> phone), each with a folio (`— 3 —`). The opening line (*Here the scribes
+> have set down …*) is an epigraph at the top of page 1; each character's
+> chapter (oldest first deed first, the same seven headers and five
+> templates per kind, chosen by the same stable hashes) starts on a new
+> page with a title page: the header's words in small caps around the
+> name in Cinzel. Each deed is a paragraph with its date phrase in small
+> caps, the chapter's first with a drop cap in the wordmark's mithril
+> inlay; *The End.* closes the last chapter. The pills at the top are the
+> characters (no Opening pill); a click jumps to that chapter. Keys: → /
+> PgDn / Space and ← / PgUp turn a spread, ↓ / ↑ go to the next / previous
+> chapter, Home / End, N / P (and the Next / Previous buttons); a sideways
+> swipe over 40 px turns on touch. **No roll and no automatic return**:
+> only Esc / Back leave. Loading, the storage error, no data and the
+> filtered state (*No chronicle entries match your settings.* plus *The
+> filter on the Spotlights page chooses what the chronicle tells.*) are
+> pages of the book. Credits has no Settings…: it follows the Spotlights
+> page's filter (kinds, characters, period; WebCockpit ADR 0110), read when
+> the page opens.
+
 **Options → Spotlights** (`options_spotlights`): four `[X]`/`[ ]` rows — Achievements,
 Deaths, Level-ups, PvP kills (all default on), `Back`; Enter/Space/click toggles; saved
 globally (startup.conf). Filter applies to reel and credits. Note: plain mob kills are never
@@ -2848,6 +3049,19 @@ random access into raw logs by time → store `.log` in time-indexed chunks. Opt
 are global settings (not per profile).
 
 ### 7.7 Export editor and HTML replay
+
+> WebCockpit (2026-11-07, stage 43, WebCockpit ADR 0128 §43d and the ADR
+> 0115 addendum): History → Export opens the editor as a large page, not
+> the cell frame below: a bar (the character, the summary, the selection
+> and the tools Exclude / Include X, Add comment C, Edit E, Delete D), the
+> log as the terminal inside the box (virtual rows in pixels, word-wrapped
+> at the measured width, at most 120 columns) beside the overview strip,
+> and a foot with the file name (T edits the title inline), the format
+> toggle (HTML replay H, Plain text P; choosing never exports) and Export
+> (O). Comments are written inline at their place (C, E or Enter; Enter
+> saves, Esc cancels, Ctrl+U clears). "TEXT FILE" is "Plain text". It
+> works on a phone: a tap on the margin selects a line, a second extends,
+> a tap on the text moves the cursor. The replay itself is unchanged.
 
 History → **EXPORT** (needs a log) opens `export_editor` (ADR 0147).
 

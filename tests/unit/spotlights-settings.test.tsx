@@ -1,28 +1,19 @@
 // @vitest-environment happy-dom
-// Stage 30e (ADR 0110): the Spotlights settings popup (kinds, characters,
-// period; the start page's, since the reel's card took the gear's place in
-// stage 32c, ADR 0114), its character rules, the
-// start page's "filtered" pages with their `Settings…`, and Credits
-// following the filters.
+// Stage 30e (ADR 0110): the Spotlights settings' character rules (shared
+// by the wall's filter row, src/share/spotlights.ts). Stage 46 (ADR 0131):
+// Spotlights' filtered and no-data states are its wall's, not pages of
+// their own; the settings popup the old filtered pages opened is gone
+// (wave 3).
 import { act } from 'preact/test-utils';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { type ChromeServices, mountStartPage } from '../../src/chrome';
-import { ServicesCtx } from '../../src/chrome/kit/hooks';
-import { Check } from '../../src/chrome/popups/controls';
-import {
-  PERIOD_LABELS,
-  SpotlightsPopup,
-  allCharactersPatch,
-  characterPatch,
-  characterRows,
-} from '../../src/chrome/popups/spotlights-settings';
+import { PERIOD_LABELS, allCharactersPatch, characterPatch, characterRows } from '../../src/share/spotlights';
 import { ProfileStore } from '../../src/profiles';
 import type { RunEvent } from '../../src/runs/events';
 import type { RunLibrary } from '../../src/runs/library';
 import { SPOTLIGHT_PERIODS, SettingsStore, defaultSettings } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
-import { render } from 'preact';
-import { BASE_US, meta } from './player-helpers';
+import { BASE_US, makeLog, meta } from './player-helpers';
 
 const cleanup: Array<() => void> = [];
 afterEach(() => {
@@ -65,9 +56,7 @@ function services(lib: RunLibrary, extra: Partial<ChromeServices> = {}): ChromeS
   return { settings, cells, profiles: new ProfileStore({ factory: null }), version: '9.9.9', runs: async () => lib, ...extra };
 }
 
-const pop = () => document.querySelector<HTMLElement>('.wc-sp-spot');
-const toggleOf = (label: string) => pop()!.querySelector<HTMLElement>(`[role="switch"][aria-label="${label}"]`);
-const checks = () => [...pop()!.querySelectorAll<HTMLButtonElement>('.wc-ck-cb')];
+const pop = () => document.querySelector<HTMLElement>('.wc-pop');
 
 describe('character rules', () => {
   const f = (p: Partial<ReturnType<typeof defaultSettings>['spotlights']> = {}) => ({ ...defaultSettings().spotlights, ...p });
@@ -95,215 +84,92 @@ describe('character rules', () => {
   });
 });
 
-describe('Check control', () => {
-  it('is a checkbox row that toggles, and stays out of reach when disabled', async () => {
-    const host = document.createElement('div');
-    document.body.append(host);
-    const on = vi.fn();
-    act(() => render(<Check label="Rasta" on={false} onChange={on} />, host));
-    const b = host.querySelector<HTMLButtonElement>('.wc-ck-cb')!;
-    expect(b.getAttribute('role')).toBe('checkbox');
-    expect(b.getAttribute('aria-checked')).toBe('false');
-    expect(b.textContent).toBe('Rasta');
-    await click(b);
-    expect(on).toHaveBeenCalledWith(true);
-    act(() => render(<Check label="Rasta" on disabled onChange={on} />, host));
-    expect(b.disabled).toBe(true);
-    expect(b.getAttribute('aria-checked')).toBe('true');
-    expect(b.querySelector('svg')).not.toBeNull();
-    render(null, host);
-  });
-});
-
-describe('Spotlights popup', () => {
-  async function open(names: string[]) {
-    const host = document.createElement('div');
-    document.body.append(host);
-    const svc = services(fakeLib(names));
-    const place = vi.fn();
-    let shown = true;
-    const onClose = vi.fn(() => {
-      shown = false;
-      draw();
-    });
-    const draw = () =>
-      render(
-        <ServicesCtx.Provider value={svc}>{shown && <SpotlightsPopup place={place} onClose={onClose} focusOnOpen />}</ServicesCtx.Provider>,
-        host,
-      );
-    act(draw);
-    cleanup.push(() => render(null, host));
-    await flush();
-    return { svc, place, onClose, isOpen: () => pop() !== null };
-  }
-
-  it('opens with the focus on its first control; kinds write the store at once', async () => {
-    const { svc, place } = await open(['Bob', 'Rasta']);
-    expect(place).toHaveBeenCalled();
-    expect(pop()!.getAttribute('aria-label')).toBe('Spotlights settings');
-    expect(pop()!.querySelector('.wc-pop-title')!.textContent).toBe('Spotlights');
-    expect(document.activeElement).toBe(toggleOf('Achievements'));
-    expect([...pop()!.querySelectorAll('.wc-ck-sub')].map((e) => e.textContent)).toEqual(['Kinds', 'Characters']);
-    await click(toggleOf('Deaths'));
-    await click(toggleOf('PvP kills'));
-    expect(svc.settings.get().spotlights).toMatchObject({ achievements: true, deaths: false, levelUps: true, pvp: false });
-    expect(toggleOf('Deaths')!.getAttribute('aria-checked')).toBe('false');
-  });
-
-  it('characters: dimmed and disabled while All is on; All off checks them; a check writes the subset', async () => {
-    const { svc } = await open(['Bob', 'Rasta']);
-    expect(checks().map((c) => c.textContent)).toEqual(['Bob', 'Rasta']);
-    expect(checks().every((c) => c.disabled)).toBe(true);
-    expect(pop()!.querySelector('.wc-sp-chars')!.classList.contains('is-dim')).toBe(true);
-    await click(toggleOf('All characters'));
-    expect(svc.settings.get().spotlights).toMatchObject({ allCharacters: false, characters: ['Bob', 'Rasta'] });
-    expect(checks().every((c) => !c.disabled && c.getAttribute('aria-checked') === 'true')).toBe(true);
-    await click(checks()[0]!);
-    expect(svc.settings.get().spotlights.characters).toEqual(['Rasta']);
-    // ↑↓ move between the names.
-    act(() => checks()[0]!.focus());
-    await keydown(checks()[0]!, 'ArrowDown');
-    expect(document.activeElement).toBe(checks()[1]);
-    // All on again keeps the subset for later.
-    await click(toggleOf('All characters'));
-    expect(svc.settings.get().spotlights).toMatchObject({ allCharacters: true, characters: ['Rasta'] });
-    expect(checks().map((c) => c.getAttribute('aria-checked'))).toEqual(['false', 'true']);
-  });
-
-  it('says so when no character is recorded', async () => {
-    await open([]);
-    expect(pop()!.querySelector('.wc-sp-nochars')!.textContent).toBe('No characters recorded yet.');
-    expect(checks()).toHaveLength(0);
-  });
-
-  it('the period dropdown writes the store', async () => {
-    const { svc } = await open(['Bob']);
-    const dd = pop()!.querySelector<HTMLElement>('.wc-sp-period .wc-ck-dd')!;
-    expect(dd.textContent).toContain('All time');
-    await click(dd);
-    const opts = [...pop()!.querySelectorAll<HTMLElement>('.wc-ck-opt')];
-    expect(opts.map((o) => o.textContent)).toEqual(['All time', 'Last year', 'Last 3 months', 'Last month', 'Last week']);
-    await click(opts[3]!);
-    expect(svc.settings.get().spotlights.period).toBe('month');
-  });
-
-  it('Esc and its X close it', async () => {
-    const a = await open(['Bob']);
-    await keydown(document.activeElement, 'Escape');
-    expect(a.onClose).toHaveBeenCalledTimes(1);
-    expect(a.isOpen()).toBe(false);
-    render(null, document.body.lastElementChild!);
-    const b = await open(['Bob']);
-    await click(pop()!.querySelector('.wc-pop-x'));
-    expect(b.onClose).toHaveBeenCalledTimes(1);
-    expect(b.isOpen()).toBe(false);
-  });
-});
-
 // ------------------------------------------------------- the start page
 
 const frameEl = (host: HTMLElement) => host.querySelector<HTMLElement>('.wc-frame:not([hidden])')!;
-const selected = (host: HTMLElement) => frameEl(host).querySelector('.wc-mrow.is-sel')?.textContent;
 const title = (host: HTMLElement) => frameEl(host).querySelector('.wc-c-section')?.textContent;
+const startSel = (host: HTMLElement) => frameEl(host).querySelector('.wc-sm-item.is-sel .wc-sm-label')?.textContent;
 
 describe('filtered empty pages (start page)', () => {
-  it('Spotlights: Settings… opens the popup in the page; Esc closes it first; a change tries again', async () => {
+  // Stage 46 (ADR 0131): Spotlights has no pages of its own for these any
+  // more; no data and nothing passing are states of its wall. The
+
+  /** A run of Rasta's with a level-up and a death, its log, and the library over it. */
+  function rastaLib(): RunLibrary {
+    const r1 = BASE_US;
+    const events: RunEvent[] = [
+      { type: 'run_start', us: r1, character: 'Rasta', level: 41, schema: 1 },
+      { type: 'level_up', us: r1 + 20 * S, level: 42 },
+      { type: 'char_death', us: r1 + 60 * S, logUs: r1 + 60 * S },
+    ];
+    const m = meta('Rasta/1', r1, { bytes: 100 });
+    const text = makeLog(r1, [20, 60].flatMap((t) => [{ at: t - 2, in: `Before ${t}.` }, { at: t, in: `Moment ${t}.` }]));
+    return {
+      characters: async () => ['Rasta'],
+      store: { listRuns: async () => [m] },
+      events: async () => events,
+      chainLogRange: async () => ({ meta: m, text }),
+    } as unknown as RunLibrary;
+  }
+
+  const wall = (host: HTMLElement) => frameEl(host).querySelector<HTMLElement>('.wc-spw');
+  const until = async (ok: () => boolean) => {
+    for (let i = 0; i < 40 && !ok(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
+  };
+
+  it('Spotlights: a filter that lets nothing through opens the wall with its filter row; a chip there brings the cards back', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const openSpotlights = vi.fn<() => Promise<'no_data' | 'filtered' | null>>(async () => 'filtered');
-    const svc = services(fakeLib(['Bob', 'Rasta']), { openSpotlights });
+    const svc = services(rastaLib(), { embedPlayer: async () => null });
+    svc.settings.update({ spotlights: { allCharacters: false, characters: [] } });
     const page = mountStartPage(host, svc, { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-mrow[data-key="spotlights"] .wc-label'));
-    await flush();
-    expect(title(host)).toBe('─── Spotlights ───');
-    expect(frameEl(host).textContent).toContain('No spotlights match your settings.');
-    expect(frameEl(host).textContent).not.toContain('Options');
-    expect(frameEl(host).querySelector('.wc-footer')!.textContent).toContain('Enter Settings');
-    expect(selected(host)).toBe('<< Settings… >>');
-
-    // Enter opens the popup inside the page, with the keys.
-    await keydown(document.activeElement, 'Enter');
-    await flush();
-    expect(pop()).not.toBeNull();
-    expect(frameEl(host).contains(pop())).toBe(true);
-    expect(document.activeElement).toBe(toggleOf('Achievements'));
-    // Keys in the popup are its own: Tab stays inside, Space flips the toggle (the page's menu does not see them).
-    await keydown(document.activeElement, 'Tab');
-    expect(pop()!.contains(document.activeElement)).toBe(true);
-    // Esc in it closes it, unchanged: no retry, the page stays.
-    await keydown(document.activeElement, 'Escape');
+    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
+    await until(() => wall(host) !== null);
+    // The wall, not a page of its own: no Settings…, no popup, no Options.
+    expect(wall(host)!.querySelector('.wc-spw-empty')!.textContent).toContain('No spotlights match your settings.');
+    expect(wall(host)!.textContent).not.toContain('Settings…');
+    expect(wall(host)!.textContent).not.toContain('Options');
+    expect(title(host)).toBeUndefined();
     expect(pop()).toBeNull();
-    expect(title(host)).toBe('─── Spotlights ───');
-    expect(openSpotlights).toHaveBeenCalledTimes(1);
-
-    // Esc on the page with the popup open (the keys outside it) closes the popup, not the page.
-    await click(frameEl(host).querySelector('.wc-mrow[data-key="settings"] .wc-label'));
-    await flush();
-    expect(pop()).not.toBeNull();
-    act(() => host.querySelector<HTMLElement>('.wc-stack')!.focus());
+    // The filter row is there: the kinds, All and Rasta, the period.
+    const chips = [...wall(host)!.querySelectorAll<HTMLElement>('.wc-spw-head [role="checkbox"]')];
+    expect(chips.map((c) => c.textContent)).toEqual(['Achievements', 'Deaths', 'Level-ups', 'PvP kills', 'All', 'Rasta']);
+    // Rasta's chip: the cards are back and the setting is saved.
+    await click(wall(host)!.querySelector('.wc-spw-chars [data-opt="Rasta"]'));
+    await until(() => (wall(host)?.querySelectorAll('.wc-spw-card').length ?? 0) > 0);
+    expect(svc.settings.get().spotlights).toMatchObject({ allCharacters: false, characters: ['Rasta'] });
+    expect([...wall(host)!.querySelectorAll('.wc-spw-label')].map((e) => e.textContent)).toEqual(['Death (level 42)', 'Reached level 42']);
+    // Esc: the menu.
     await keydown(document.activeElement, 'Escape');
-    expect(pop()).toBeNull();
-    expect(title(host)).toBe('─── Spotlights ───');
-
-    // A change, then closing: it tries again; the reel opens and the page goes.
-    openSpotlights.mockResolvedValueOnce(null);
-    await keydown(document.activeElement, 'Enter');
-    await flush();
-    await click(toggleOf('Deaths'));
-    expect(svc.settings.get().spotlights.deaths).toBe(false);
-    await click(pop()!.querySelector('.wc-pop-x'));
-    await flush();
-    expect(openSpotlights).toHaveBeenCalledTimes(2);
-    expect(selected(host)).toBe('<< Spotlights >>');
+    await until(() => startSel(host) !== undefined);
+    expect(startSel(host)).toBe('Spotlights');
   });
 
-  it('Spotlights: the no-data page is unchanged', async () => {
+  it('Spotlights: no data is a wall without the filter row', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const page = mountStartPage(host, services(fakeLib([]), { openSpotlights: async () => 'no_data' }), { onEnter: () => {} });
+    const page = mountStartPage(host, services(fakeLib([]), { embedPlayer: async () => null }), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-mrow[data-key="spotlights"] .wc-label'));
-    await flush();
-    expect(frameEl(host).textContent).toContain('No spotlights yet.');
-    expect(frameEl(host).querySelector('.wc-footer')!.textContent).toBe('Any key to return');
+    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
+    await until(() => wall(host) !== null);
+    expect(wall(host)!.querySelector('.wc-spw-empty')!.textContent).toContain('No spotlights yet.');
+    expect(wall(host)!.querySelector('.wc-spw-head')).toBeNull();
+    expect(frameEl(host).querySelector('.wc-footer')).toBeNull();
   });
 
-  it('Credits follows the filters; its filtered page rolls once a change lets something through', async () => {
-    const rasta = {
-      meta: meta('Rasta/1', BASE_US, { bytes: 100 }),
-      events: [
-        { type: 'run_start', us: BASE_US, character: 'Rasta', level: 41, schema: 1 },
-        { type: 'pkill', us: BASE_US + 20 * S, logUs: BASE_US + 20 * S, name: 'Ibuki', race: 'the Half-Elf', xpDelta: 5 },
-      ] as RunEvent[],
-    };
-    // The roll without Web Animations (happy-dom rejects a cancelled one).
-    const animate = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
-    Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: undefined });
-    cleanup.push(() => animate && Object.defineProperty(Element.prototype, 'animate', animate));
+  it('Spotlights: without an embedded player the menu flashes and stays', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const svc = services(fakeLib(['Rasta'], [rasta]));
-    // Only another character: nothing to tell.
-    svc.settings.update({ spotlights: { allCharacters: false, characters: ['Bob'] } });
-    const page = mountStartPage(host, svc, { onEnter: () => {} });
+    const page = mountStartPage(host, services(fakeLib([])), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await click(host.querySelector('.wc-mrow[data-key="credits"] .wc-label'));
+    await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
     await flush();
-    await flush();
-    expect(title(host)).toBe('─── Credits ───');
-    expect(frameEl(host).textContent).toContain('No chronicle entries match your settings.');
-    await keydown(document.activeElement, 'Enter');
-    await flush();
-    // The popup open: a change does not roll yet.
-    await click(toggleOf('All characters'));
-    expect(svc.settings.get().spotlights.allCharacters).toBe(true);
-    expect(frameEl(host).querySelector('.wc-credits-col')).toBeNull();
-    await keydown(document.activeElement, 'Escape');
-    await flush();
-    expect(frameEl(host).querySelector('.wc-credits-col')!.textContent).toContain('Ibuki');
+    expect(wall(host)).toBeNull();
+    expect(startSel(host)).toBe('Spotlights');
+    expect(host.textContent).toContain('Spotlights are not available here.');
   });
 });

@@ -1,0 +1,106 @@
+<!doctype html>
+<!--
+  Round 7 · layout · A "Märket i hörnet" (the mark in the corner).
+  A content-heavy page (History) opens in the largest box: inset 46 px at the top and --box-m elsewhere.
+  The full wordmark shrinks and glides up to the top left corner, where it lands as a tiny mark resting on
+  the box's frame, left of the hood and above Back (clicking it goes back, as Esc). The menu panel sinks
+  back and blurs away, the quote and the almanac fade, the box rises in. Back / Esc: the reverse.
+  Reduced motion: no flight, a short cross-fade. Shares base/ (sky, wordmark, box, kit) and history.js.
+  URL: ?page=history opens on the page; ?slow=6 slows every transition; ?nointro skips the load fade.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · A Märket i hörnet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="history.css">
+<style>
+:root { --box-top: 46px; }
+#page { visibility: hidden; opacity: 0; }
+body.pgv #page { visibility: visible; }
+/* the start stage steps back */
+#menuPanel.in, #quote.in, #almanac.in { transition: opacity calc(.4s * var(--ts)), transform calc(.6s * var(--ts)) var(--ease), filter calc(.45s * var(--ts)); }
+body.pg #menuPanel { opacity: 0; transform: scale(.95) translateY(16px); filter: blur(6px); pointer-events: none; animation: none; }
+body.pg #quote, body.pg #almanac { opacity: 0; animation: none; }
+/* the tiny mark: where the wordmark lands (left of the hood, resting on the frame) */
+#mark { position: fixed; z-index: 6; left: calc(var(--box-m) + 12px); top: 4px; --wm-w: 112px; opacity: 0; pointer-events: none; }
+body.pg.landed #mark { pointer-events: auto; cursor: pointer; }
+#mark .wm-c { filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+body.pgv #stage { z-index: 5; }   /* the flying mark passes over the box */
+body.pg #stage > * { pointer-events: none; }   /* the faded start stage never catches a click over the page */
+body.instant * { transition: none !important; }
+@media (max-width: 600px) {
+  :root { --box-top: 40px; }
+  #mark { --wm-w: 96px; left: 14px; top: 3px; }
+}
+</style>
+</head>
+<body>
+<div class="wm small bare" id="mark" title="Start (Esc)" aria-label="MUME Cockpit — back to the start"></div>
+<section class="lp box-large" id="page" data-hood="History" data-back aria-label="History"><div class="win"></div></section>
+<script src="../base/base.js"></script>
+<script src="history.js"></script>
+<script>
+WC.sky.start();
+const menu = WC.startMenu({ onActivate(k) { if (k === 'history') { open(); return true; } } });
+WC.decorate();
+const page = document.getElementById('page'), mark = document.getElementById('mark'), brand = menu.brand;
+const tiny = WC.Wordmark(mark);
+const H = HISTORY.mount(page.querySelector('.win'));
+const EASE = 'cubic-bezier(.45,.05,.2,1)';
+let pop = null, isOpen = false;
+mark.addEventListener('click', () => { if (isOpen && !WC.busy) close(); });
+
+async function open(instant = false) {
+  if (isOpen || WC.busy) return;
+  WC.busy = true; isOpen = true; menu.active = false;
+  H.onShow();
+  if (instant) document.body.classList.add('instant');
+  document.body.classList.add('pg', 'pgv');
+  const from = WC.rect(brand), to = mark.querySelector('.wm-c').getBoundingClientRect();
+  const D = instant ? 0 : WC.dur(1);
+  const anims = [];
+  if (WC.RM || instant) {
+    anims.push(brand.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260 * D, fill: 'forwards' }));
+    anims.push(mark.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * D, fill: 'forwards' }));
+  } else {
+    // the flight: the full mark shrinks onto the tiny one; the last part cross-fades to the small, crisp instance
+    anims.push(brand.animate([{ transform: 'none', opacity: 1 }, { transform: WC.flyTo(from, to), opacity: 1, offset: .78 }, { transform: WC.flyTo(from, to), opacity: 0 }],
+      { duration: 950 * D, easing: EASE, fill: 'forwards' }));
+    anims.push(mark.animate([{ opacity: 0 }, { opacity: 0, offset: .72 }, { opacity: 1 }], { duration: 950 * D, fill: 'forwards' }));
+  }
+  anims.push(page.animate([{ opacity: 0, transform: 'translateY(22px) scale(.985)' }, { opacity: 1, transform: 'none' }],
+    { duration: (WC.RM ? 260 : 700) * D, delay: (WC.RM ? 0 : 180) * D, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }));
+  await Promise.all(anims.map((a) => a.finished));
+  document.body.classList.add('landed'); document.body.classList.remove('instant');
+  pop = WC.keys.push({ key: H.layer.key, back: close });
+  WC.busy = false;
+}
+async function close() {
+  if (!isOpen || WC.busy) return;
+  WC.busy = true; pop && pop(); pop = null;
+  document.body.classList.remove('landed');
+  const from = WC.rect(brand), to = mark.querySelector('.wm-c').getBoundingClientRect();
+  const D = WC.dur(1), anims = [];
+  anims.push(page.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(18px) scale(.985)' }], { duration: (WC.RM ? 220 : 450) * D, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }));
+  if (WC.RM) {
+    anims.push(mark.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220 * D, fill: 'forwards' }));
+    anims.push(brand.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * D, fill: 'forwards' }));
+  } else {
+    anims.push(mark.animate([{ opacity: 1 }, { opacity: 0, offset: .22 }, { opacity: 0 }], { duration: 900 * D, fill: 'forwards' }));
+    anims.push(brand.animate([{ transform: WC.flyTo(from, to), opacity: 0 }, { transform: WC.flyTo(from, to), opacity: 1, offset: .2 }, { transform: 'none', opacity: 1 }],
+      { duration: 900 * D, easing: EASE, fill: 'forwards' }));
+  }
+  setTimeout(() => document.body.classList.remove('pg'), (WC.RM ? 120 : 250) * D);
+  await Promise.all(anims.map((a) => a.finished));
+  document.body.classList.remove('pgv');
+  anims.forEach((a) => a.cancel());
+  isOpen = false; menu.active = true; menu.select(menu.cur); WC.busy = false;
+}
+if (WC.qs.get('page') === 'history') open(true);
+window.LAYOUT = { open, close };
+</script>
+</body>
+</html>

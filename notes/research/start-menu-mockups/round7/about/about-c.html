@@ -1,0 +1,115 @@
+<!doctype html>
+<!--
+  Round 7 · About · C "Titelbladet" (a title page with contents).
+  The normal box: the full wordmark stays where it is on the start page (it is the About page's own
+  title) and the box takes the menu panel's place, like the title page of a book. The box shows the intro
+  and a short table of contents (the real sections, two columns on a wide screen, the restrained
+  selection), and the "M" seal with the version at the foot. Enter or a click opens a section in the same
+  box (its text, the next and previous section at the foot); Back / Esc returns to the contents, a
+  second Esc to the start menu.
+  Keys: contents ↑↓ Enter and the letters in the titles; a section ↑↓ PgUp PgDn Space Home End (scroll,
+  as today) and ←/→ (previous / next section, new). Phone: one column, the box down to the bottom.
+  URL: ?page · ?sec=credits (open on a section)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · About C Titelbladet</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+#page > .win { padding: 42px 0 0; }
+#body { padding: 0 30px 18px; }
+.view { display: none; }
+.view.on { display: block; animation: vin calc(.35s * var(--ts)) cubic-bezier(.2,.8,.2,1); }
+@keyframes vin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.lead-in { font: italic 500 20px/1.5 var(--serif); color: #ecdcbc; text-align: center; text-wrap: balance; margin: 8px auto 4px; max-width: 34em; }
+.toc { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; margin-top: 4px; }
+.toc .row { min-height: 40px; font: 600 12px/1.25 var(--display); letter-spacing: .16em; text-transform: uppercase; }
+.toc .row .sub { margin-left: 12px; font: italic 500 16px/1 var(--serif); letter-spacing: .01em; text-transform: none; color: var(--c-dim); }
+.toc .row .chev { margin-left: auto; width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; opacity: .45; flex: none; }
+.toc .row.on .chev { opacity: .9; }
+.colophon { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0 2px; }
+.colophon .seal { width: 34px; height: 34px; }
+.sec h2 { margin: 6px 0 16px; text-align: center; font: 700 15px/1.3 var(--display); letter-spacing: .2em; color: var(--c-head); text-shadow: 0 -1px 0 rgba(0,0,0,.9), 0 1px 0 rgba(255,226,180,.18); }
+.sec h2 + .orn-rule { margin: -4px auto 20px; width: 140px; }
+.sec .txtw { max-width: 660px; margin: 0 auto; }
+.secfoot { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--c-rule); }
+.secfoot .ibtn { max-width: 48%; }
+.secfoot .ibtn span { overflow: hidden; text-overflow: ellipsis; }
+.secfoot .sp { flex: 1; }
+@media (max-width: 600px) {
+  #body { padding: 0 12px 12px; }
+  .lead-in { font-size: 18px; }
+  .toc { grid-template-columns: 1fr; }
+  .secfoot .ibtn { max-width: 49%; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-normal pgbox" id="page" data-hood="About" data-back aria-label="About">
+  <div class="win"><div class="box-body" id="body">
+    <div class="view" id="home">
+      <p class="lead-in" id="intro"></p>
+      <span class="orn-rule" aria-hidden="true"></span>
+      <nav class="toc rows flat" id="toc" aria-label="Contents"></nav>
+      <footer class="colophon"><img class="seal" id="seal" alt="The M mark"><span class="ver" id="ver"></span></footer>
+    </div>
+    <article class="view sec" id="sec"></article>
+  </div></div>
+</section>
+<script src="about-text.js"></script>
+<script src="notices.js"></script>
+<script src="../base/base.js"></script>
+<script src="common.js"></script>
+<script>
+const secs = PG.about(), N = PG.NOTICES_META, esc = PG.esc;
+const list = [...secs.slice(1), N];   // the contents (the intro is on the title page)
+const body = document.getElementById('body'), home = document.getElementById('home'), secEl = document.getElementById('sec'), toc = document.getElementById('toc');
+document.getElementById('intro').innerHTML = PG.linked(secs[0].blocks[0].p);
+document.getElementById('seal').src = PG.SEAL;
+document.getElementById('ver').textContent = `WebCockpit ${PG.VERSION} (${PG.COMMIT})`;
+const CHEV = '<svg class="chev" viewBox="0 0 12 12"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg>';
+const title = (s) => s.title.replace(/ — .*/, '').toLowerCase().replace(/(^|[\s-])\S/g, (m) => m.toUpperCase()).replace('Pvp', 'PvP').replace('Mume', 'MUME');
+// a heading with a subtitle ("MUME — MULTI-USERS IN MIDDLE-EARTH"): the name in Cinzel, the rest in dim italic
+toc.innerHTML = list.map((s) => { const [main, sub] = s.title.split(' — ');
+  return `<div class="row" data-id="${s.id}"><span>${PG.sk(main, s.sk)}${sub ? `<i class="sub">${esc(sub.toLowerCase().replace(/(^|[\s-])middle/i, '$1Middle').replace(/^./, (c) => c.toUpperCase()))}</i>` : ''}</span>${CHEV}</div>`; }).join('');
+const tl = WC.list(toc, { activateOn: 'click', hover: true, onActivate: (i) => open(i) });
+let at = -1;   // -1 = the title page, else the open section's index in `list`
+function show(view) { [home, secEl].forEach((v) => v.classList.toggle('on', v === view)); body.scrollTop = 0; }
+function open(i) {
+  at = (i + list.length) % list.length; const s = list[at];
+  const prev = list[(at - 1 + list.length) % list.length], next = list[(at + 1) % list.length];
+  secEl.innerHTML = `<h2>${esc(s.title)}</h2><span class="orn-rule" aria-hidden="true"></span>
+    <div class="txtw${s.id === 'notices' ? ' notices' : ''}">${s.id === 'notices' ? PG.notices() : PG.blocksHtml(s)}</div>
+    <div class="secfoot">
+      ${at > 0 ? `<button class="ibtn small" type="button" data-go="-1"><svg viewBox="0 0 16 16"><path d="M9.8 3.2 5 8l4.8 4.8"/></svg><span>${esc(title(prev))}</span></button>` : '<span class="sp"></span>'}
+      ${at < list.length - 1 ? `<button class="ibtn small" type="button" data-go="1"><span>${esc(title(next))}</span><svg viewBox="0 0 16 16"><path d="M6.2 3.2 11 8l-4.8 4.8"/></svg></button>` : ''}
+    </div>`;
+  secEl.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => open(at + +b.dataset.go)));
+  show(secEl);
+}
+function contents() { const was = at; at = -1; show(home); if (was >= 0) { tl.set(was, true); tl.items[was].scrollIntoView({ block: 'nearest' }); } }
+const letters = Object.fromEntries(list.map((s, i) => [s.sk.toLowerCase(), () => { tl.set(i, true); open(i); }]));
+const app = PG.boot({
+  key: 'about', box: document.getElementById('page'), mode: 'stay',
+  onOpen() { contents(); tl.set(0, true); if (PG.qs.get('sec')) { const i = list.findIndex((s) => s.id === PG.qs.get('sec')); if (i >= 0) { tl.set(i, true); open(i); } } },
+  layer: {
+    key(e) {
+      if (at < 0) return tl.key(e) || WC.shortcut(e, letters);
+      if (e.key === 'ArrowRight' && at < list.length - 1) { open(at + 1); return true; }
+      if (e.key === 'ArrowLeft' && at > 0) { open(at - 1); return true; }
+      const page = body.clientHeight * .85;
+      const step = { ArrowDown: 40, ArrowUp: -40, PageDown: page, PageUp: -page, ' ': page, Enter: page }[e.key];
+      if (step) { body.scrollBy({ top: step, behavior: WC.RM ? 'auto' : 'smooth' }); return true; }
+      if (e.key === 'Home') { body.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+      if (e.key === 'End') { body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); return true; }
+      return WC.shortcut(e, letters);
+    },
+    back() { if (at >= 0) contents(); else app.close(); },
+  },
+});
+</script>
+</body>
+</html>

@@ -723,3 +723,30 @@ play/pause, speed `◄ 1× ►`, time, Panes, Display, Close), a 12 px rail with
 kind-icon markers, and the header on dark chips. ← → now go back and
 forward 10 s and Home to the start; the hints gain `← → 10 s`. The strip
 maths here (half-block rows) are replaced by the rail's (ADR 0114).
+
+## Addendum: the run log player's Back, h:mm:ss and the open's result (2026-11-07, ADR 0127)
+
+Stage 42f: `fmtClock(ms, hours)` formats `h:mm:ss` from one hour when
+asked (the run log player); `MM:SS` stays the default (the HTML replay).
+The view gains `back` (the kit's Back in the chrome), `bare` (no chrome,
+for a page's own controls) and `press(act)`; it lets keys pass while its
+root is hidden (a parked embedded host). `openPlayer` /
+`openPlayerChain` resolve to `PlayerOpenResult` (`{ ok: true }` or
+`{ ok: false, error }` with a sentence History can show), and
+`PlayerHost.open` rejects an empty or unstored chain instead of opening an
+empty player. `embedPlayer(slot)` puts a player host in a page's own
+slot. Details: ADR 0127 "42f".
+
+## Addendum: History in the new look (2026-11-07, ADR 0130)
+
+Stage 45 moves History off the TUI grid into layout B's large box,
+direction "Tabell och kort": the session table beside a card for the
+chosen session, with the actions as glass buttons on the card and Backup /
+Restore in the foot; the box stops at 1180 px on a wide window. The data,
+the sort rules, the disabled rules, the flashes, the cursor rules (it
+follows its session; after a delete it keeps its index) and Y-or-cancel
+on Delete are unchanged. What changes: a row click selects and a double
+click, Enter or R opens the log player (a click opened it); ← / → change
+the pill; every action has a letter; Statistics opens in the same box;
+Rate and Delete are small boxes over the page; a failed open shows a box
+with the reason. Details: ADR 0130.

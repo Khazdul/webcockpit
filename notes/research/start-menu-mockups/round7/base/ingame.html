@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Round 7 base · in-game window demo: the real game view (screenshot) with both window treatments.
+     .win-a "Lyktfönster" (a Lykta pane as a window: iron band, hood title) and .win-b "Glasfönster" (the
+     start-page box family with a glass title bar). Drag the title bars, resize from the edges / corners.
+     DEMO (bottom left) switches Dark / Paper; ?bg=paper starts on Paper. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Round 7 base · in-game windows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div class="wwin win-a" id="wa" data-title="Profile" data-note="Gibur" style="left:60px;top:70px;width:520px;height:440px">
+  <div class="tabs" role="tablist"><button aria-selected="true">General</button><button>Connection</button><button>Panes</button></div>
+  <div class="box-body" style="padding-top:14px">
+    <div class="form">
+      <div><label class="lbl">Profile name</label><input class="field" value="Gibur"></div>
+      <div><label class="lbl">Server</label><input class="field mono" value="mume.org:4242"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
+      <label class="check"><input type="checkbox" class="tog" checked> Weather in the sky</label>
+      <label class="check"><input type="checkbox" class="chk"> Record runs</label>
+    </div>
+  </div>
+  <div class="btnrow" style="justify-content:flex-end;margin-top:12px"><button class="ibtn"><span><u class="sk">C</u>ancel</span></button><button class="ibtn primary"><span><u class="sk">S</u>ave</span></button></div>
+</div>
+<div class="wwin win-b" id="wb" data-title="Scripts" data-note="gibur" style="left:420px;top:300px;width:500px;height:400px">
+  <div class="rows flat" id="srows">
+    <div class="row"><span style="font:600 14px var(--display);letter-spacing:.08em">heal-low</span><span class="dim" style="font-style:italic">trigger · group</span><span class="dim" style="margin-left:auto"><input type="checkbox" class="tog" checked></span></div>
+    <div class="row"><span style="font:600 14px var(--display);letter-spacing:.08em">herb-timer</span><span class="dim" style="font-style:italic">timer</span><span class="dim" style="margin-left:auto"><input type="checkbox" class="tog" checked></span></div>
+    <div class="row"><span style="font:600 14px var(--display);letter-spacing:.08em">autoloot</span><span class="dim" style="font-style:italic">alias</span><span class="dim" style="margin-left:auto"><input type="checkbox" class="tog"></span></div>
+  </div>
+<div class="code" style="margin-top:12px;flex:1;min-height:0"><div class="code-gut">1
+2
+3</div><pre class="code-src"><span class="code-line"><span class="tk-k">function</span> <span class="tk-f">on_group</span>(<span class="tk-v">m</span>)</span><span class="code-line cur">  <span class="tk-k">if</span> <span class="tk-v">m</span>.hp <span class="tk-o">&lt;</span> <span class="tk-n">40</span> <span class="tk-k">then</span> <span class="tk-f">send</span>(<span class="tk-s">"cast 'heal' "</span> <span class="tk-o">..</span> <span class="tk-v">m</span>.name) <span class="tk-k">end</span></span><span class="code-line"><span class="tk-k">end</span></span></pre></div>
+</div>
+<script src="base.js"></script>
+<script>
+const ig = WC.ingame();
+const a = WC.window(document.getElementById('wa'), { focus: false });
+const b = WC.window(document.getElementById('wb'));
+WC.list(document.getElementById('srows'));
+ig.markBar('scripts');
+</script>
+</body>
+</html>

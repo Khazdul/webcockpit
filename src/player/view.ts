@@ -39,6 +39,22 @@
 // `closeTitle` adds Close (absent: none, the replay), `shiftSeek` names
 // Shift+← → in the ±10 s tooltips, and `onEsc` is ESC.
 //
+// The player core (stage 42f, ADR 0127): `hours` shows the times as
+// `h:mm:ss` from one hour (the clock, the rail's time hint; the run log
+// player and the Spotlights viewer; the HTML replay keeps `MM:SS`).
+// `back` adds the kit's Back at the top left (`.wc-pv-back`, the look of
+// src/chrome/kit/look-glass.css): part of the chrome, so it hides and
+// shows with it, and it calls `onEsc` (an open popup closes first); the
+// header's left part moves right of it when the two would meet. `bare`
+// draws no chrome at all (no header, rail, markers, control box, popups,
+// hint or tip, and nothing hides): the keys, the pause cursor line, the
+// wheel and clicks on lines stay, and a host page drives it with
+// `press(act)` (the Spotlights viewer, stage 46).
+//
+// The keys are the player's only while its root is shown: a root inside a
+// hidden element (`hidden`, or an inline `display: none`, e.g. an
+// embedded player parked under its page) lets every key pass.
+//
 // Viewer settings (ADR 0021, as 0114): with `settings`, Display (font size
 // and colours) and, when it has panes, Panes (pane toggles and Reset
 // layout) open popups above the box. The box takes the pointer (clicks and
@@ -77,6 +93,8 @@ import type { ViewerFont, ViewerTheme } from './viewer';
 
 /** Chrome hides this long after the last activity in play, ms. */
 export const HIDE_MS = 6000;
+/** A click this soon after the press that showed the hidden chrome presses nothing in it, ms. */
+const REVEAL_MS = 400;
 /** Cursor step of PgUp / PgDn, lines. */
 export const PAGE_STEP = 20;
 /** ← / → step, ms. */
@@ -141,7 +159,7 @@ export interface BoxButton {
 }
 
 export interface PlayerViewOptions {
-  /** The player element (fills the window; the chrome is laid over it). */
+  /** The player element (fills its host: the window, or the run log's box; the chrome is laid over it). */
   root: HTMLElement;
   engine: PlayerEngine;
   /** The header at run `run` (called on every render; cheap). */
@@ -170,6 +188,12 @@ export interface PlayerViewOptions {
   settings?: ViewerControls;
   /** Auto-hide delay (tests). */
   hideMs?: number;
+  /** Times as `h:mm:ss` from one hour (the run log player, Spotlights); absent: `MM:SS` (the HTML replay). */
+  hours?: boolean;
+  /** The kit's Back at the top left (part of the chrome): its tooltip and accessible name. It calls `onEsc`. */
+  back?: { title: string };
+  /** No chrome (header, rail, markers, box, popups, hint, tip, auto-hide); the keys, cursor, wheel and clicks stay. */
+  bare?: boolean;
 }
 
 /** The pane part of the viewer settings (the Panes popup). */
@@ -214,6 +238,14 @@ export type PlayerPopup = 'panes' | 'display';
 
 type Act = 'start' | 'back' | 'play' | 'fwd' | 'slower' | 'faster' | 'panes' | 'display' | 'close';
 
+/** What a host page may press (`PlayerView.press`): the control box's buttons. */
+export type PlayerAct = 'start' | 'back' | 'play' | 'fwd' | 'slower' | 'faster';
+
+/** Back's gap to the header's left part, px. */
+const BACK_GAP = 8;
+/** The kit's Back chevron (src/chrome/kit/look-icons.tsx `back`), 16-unit box. */
+const BACK_PATH = 'M9.8 3.2 5 8l4.8 4.8';
+
 interface Popup {
   el: HTMLDivElement;
   body: HTMLDivElement;
@@ -244,11 +276,17 @@ export class PlayerView {
   private openPop: PlayerPopup | null = null;
   private readonly hintEl: HTMLDivElement;
   private readonly tipEl: HTMLDivElement;
+  /** The kit's Back (option `back`), or null. */
+  private readonly backEl: HTMLButtonElement | null = null;
+  /** Back's right edge plus its gap, px, once measured (0: not yet). */
+  private backRight = 0;
   private readonly unsubs: Array<() => void> = [];
   private readonly ro: ResizeObserver | null = null;
   private raf: number | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private shown = true;
+  /** When a press showed the hidden chrome (ms, `performance.now`): its click must not press what appeared under it. */
+  private revealedAt = -Infinity;
   private railSig = '';
   private marksSig = '';
   private headSig = '';
@@ -317,8 +355,10 @@ export class PlayerView {
     grow.className = 'wc-pc-grow';
     row.append(start, back, this.btnPlay, fwd, speed, this.clockEl, grow);
     const tail: HTMLElement[] = [];
-    if (opts.settings?.panes) tail.push(this.popupButton('panes', 'Panes', 'panes'));
-    if (opts.settings) tail.push(this.popupButton('display', 'Display: font size and colours', 'display'));
+    // A bare view has no box, so no popups either.
+    const settings = opts.bare ? undefined : opts.settings;
+    if (settings?.panes) tail.push(this.popupButton('panes', 'Panes', 'panes'));
+    if (settings) tail.push(this.popupButton('display', 'Display: font size and colours', 'display'));
     for (const b of opts.boxButtons ?? []) {
       const btn = this.iconButton('wc-pc-ib', b.label(), playerIcon(doc, b.icon()));
       btn.dataset.act = 'extra';
@@ -348,15 +388,20 @@ export class PlayerView {
     this.hintEl.hidden = true;
     this.tipEl = div('wc-player-tip');
     this.tipEl.hidden = true;
-    this.el.append(this.headerEl, this.marksEl, this.railEl, this.boxEl, this.hintEl, this.tipEl);
+    if (opts.bare) this.el.toggleAttribute('data-bare', true);
+    else {
+      if (opts.back) this.backEl = this.backButton(opts.back.title);
+      this.el.append(...(this.backEl ? [this.backEl] : []), this.headerEl, this.marksEl, this.railEl, this.boxEl, this.hintEl, this.tipEl);
+    }
     opts.root.appendChild(this.el);
-    this.quiet = opts.startHidden ?? false;
+    this.quiet = !opts.bare && (opts.startHidden ?? false);
 
     this.wasPlaying = opts.engine.playing;
     this.unsubs.push(opts.engine.subscribe((c) => this.onEngine(c)));
     this.win.addEventListener('keydown', this.onKey, true);
     opts.root.addEventListener('pointermove', this.onActivity);
-    opts.root.addEventListener('pointerdown', this.onActivity);
+    opts.root.addEventListener('pointerdown', this.onDown);
+    this.el.addEventListener('click', this.onRevealClick, true);
     opts.root.addEventListener('wheel', this.onWheel, { passive: false });
     opts.root.addEventListener('click', this.onStageClick);
     this.railEl.addEventListener('pointerdown', this.onRailDown);
@@ -379,6 +424,49 @@ export class PlayerView {
   /** Redraws on the next frame (a header or setting that changed outside the engine's events). */
   refresh(): void {
     this.schedule();
+  }
+
+  /**
+   * Presses one of the control box's buttons (a host page's own controls,
+   * the bare view): `play` plays or pauses, and resumes from the cursor
+   * line as Space does.
+   */
+  press(act: PlayerAct): void {
+    if (this.disposed) return;
+    this.quiet = false;
+    this.touch();
+    this.act(act);
+  }
+
+  /** A playback time as this mode shows it. */
+  private clock(ms: number): string {
+    return fmtClock(ms, this.o.hours === true);
+  }
+
+  /** The kit's Back: never takes the focus; closes an open popup, then `onEsc`. */
+  private backButton(title: string): HTMLButtonElement {
+    const doc = this.doc;
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = 'wc-lk-back wc-pv-back wc-look';
+    b.tabIndex = -1;
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'wc-lk-ic');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', BACK_PATH);
+    svg.append(path);
+    b.append(svg, 'Back');
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.setPopup(null);
+      this.o.onEsc();
+    });
+    return b;
   }
 
   private iconButton(cls: string, label: string, icon: SVGSVGElement): HTMLButtonElement {
@@ -622,6 +710,11 @@ export class PlayerView {
     const cols = Math.max(1, Math.floor((W - RAIL_W) / w));
     const dur = eng.duration;
     const pos = this.drag ? this.drag.offset : eng.position;
+    if (this.o.bare) {
+      this.el.dataset.playing = String(eng.playing);
+      this.el.toggleAttribute('data-seeking', eng.seeking);
+      return;
+    }
 
     this.renderHeader(W, w, cols);
 
@@ -647,7 +740,7 @@ export class PlayerView {
 
     // Control box.
     const labels = this.o.boxButtons?.map((b) => `${b.label()}|${b.icon()}`) ?? [];
-    const boxSig = `${eng.playing}|${eng.speed}|${fmtClock(pos)}|${fmtClock(dur)}|${labels.join('|')}`;
+    const boxSig = `${eng.playing}|${eng.speed}|${this.clock(pos)}|${this.clock(dur)}|${labels.join('|')}`;
     if (boxSig !== this.boxSig) {
       this.boxSig = boxSig;
       const playing = eng.playing;
@@ -661,8 +754,8 @@ export class PlayerView {
       this.btnSlower.disabled = i <= 0;
       this.btnFaster.disabled = i < 0 || i >= SPEEDS.length - 1;
       const cur = this.doc.createElement('b');
-      cur.textContent = fmtClock(pos);
-      this.clockEl.replaceChildren(cur, ` / ${fmtClock(dur)}`);
+      cur.textContent = this.clock(pos);
+      this.clockEl.replaceChildren(cur, ` / ${this.clock(dur)}`);
       this.o.boxButtons?.forEach((b, k) => {
         const btn = this.extraBtns[k]!;
         const label = b.label();
@@ -681,19 +774,31 @@ export class PlayerView {
     this.el.toggleAttribute('data-seeking', eng.seeking);
   }
 
-  /** Header: the left part and the hints that fit, each on an opaque chip, centred left of the rail. */
+  /**
+   * Header: the left part and the hints that fit, each on an opaque chip,
+   * centred left of the rail; right of Back (option `back`) when centred
+   * it would meet it, and as much narrower as it has to be.
+   */
   private renderHeader(W: number, w: number, cols: number): void {
     const hd = this.o.header(this.o.engine.run);
     const leftLen = hd.left.reduce((n, p) => n + p.text.length, 0) + 3 * Math.max(0, hd.left.length - 1);
     const full = hintsWidth(hd.hints.map((x) => x.text));
     const extra = HEADER_GAP + 2 * CHIP_PAD;
-    const hc = Math.max(1, Math.min(Math.max(HEADER_COLS, leftLen + extra + full), cols));
+    let hc = Math.max(1, Math.min(Math.max(HEADER_COLS, leftLen + extra + full), cols));
+    let left = Math.max(0, Math.floor((W - RAIL_W - hc * w) / 2));
+    // Back's place is measured once (its size never changes after that).
+    const back = this.backEl;
+    if (back && this.backRight === 0 && back.offsetWidth > 0) this.backRight = back.offsetLeft + back.offsetWidth + BACK_GAP;
+    if (this.backRight > 0 && left < this.backRight) {
+      left = this.backRight;
+      hc = Math.max(1, Math.min(hc, Math.floor((W - RAIL_W - left) / w)));
+    }
     const hints = fitHints(hc - leftLen - extra, hd.hints);
-    const headSig = `${JSON.stringify(hd)}|${hc}|${w}|${W}|${hints.join()}`;
+    const headSig = `${JSON.stringify(hd)}|${hc}|${left}|${w}|${W}|${hints.join()}`;
     if (headSig === this.headSig) return;
     this.headSig = headSig;
     this.headerEl.style.width = `${hc * w}px`;
-    this.headerEl.style.left = `${Math.max(0, Math.floor((W - RAIL_W - hc * w) / 2))}px`;
+    this.headerEl.style.left = `${left}px`;
     this.headLeft.textContent = '';
     hd.left.forEach((p, i) => {
       if (i > 0) {
@@ -915,12 +1020,31 @@ export class PlayerView {
     this.touch();
   };
 
+  /** A press shows the chrome; one that showed it hidden notes when (a later press is a press). */
+  private readonly onDown = (): void => {
+    this.revealedAt = this.shown ? -Infinity : performance.now();
+    this.onActivity();
+  };
+
+  /**
+   * A tap on the hidden chrome shows it on pointerdown, and its click
+   * then lands on whatever control appeared under the finger (a tap at
+   * the top left would leave through Back, one on the box would pause).
+   * Such a click, within `REVEAL_MS` of the press, presses nothing.
+   */
+  private readonly onRevealClick = (e: MouseEvent): void => {
+    if (performance.now() - this.revealedAt > REVEAL_MS) return;
+    this.revealedAt = -Infinity;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   /** Shows the chrome and re-arms the auto-hide (in play, no popup open). */
   touch(): void {
     this.show();
     if (this.hideTimer !== null) clearTimeout(this.hideTimer);
     this.hideTimer = null;
-    if (!this.o.engine.playing || this.openPop) return;
+    if (this.o.bare || !this.o.engine.playing || this.openPop) return;
     this.hideTimer = setTimeout(() => {
       this.hideTimer = null;
       if (this.o.engine.playing && !this.drag && !this.openPop) this.setShown(false);
@@ -939,8 +1063,18 @@ export class PlayerView {
 
   // ----------------------------------------------------------------- keys
 
+  /** The root is in the page and no ancestor hides it (`hidden`, inline `display: none`); no layout read. */
+  private rootShown(): boolean {
+    const root = this.o.root;
+    if (!root.isConnected) return false;
+    for (let el: HTMLElement | null = root; el; el = el.parentElement) if (el.hidden || el.style.display === 'none') return false;
+    return true;
+  }
+
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.isComposing) return;
+    // Parked out of sight (an embedded player under its page): the keys are the page's.
+    if (!this.rootShown()) return;
     // A popup's keys are its own (the box's popups, the Spotlights card).
     if ((e.target as Element | null)?.closest?.(`[${OWN_KEYS_ATTR}]`)) return;
     // The player owns the keyboard (see the file header).
@@ -1135,7 +1269,7 @@ export class PlayerView {
 
   private showHint(clientY: number, offset = this.drag?.offset ?? 0): void {
     const root = this.o.root.getBoundingClientRect();
-    this.hintEl.textContent = fmtClock(offset);
+    this.hintEl.textContent = this.clock(offset);
     this.hintEl.style.top = `${Math.round(clientY - root.top)}px`;
     this.hintEl.hidden = false;
   }
@@ -1184,7 +1318,8 @@ export class PlayerView {
     this.win.removeEventListener('keydown', this.onKey, true);
     const root = this.o.root;
     root.removeEventListener('pointermove', this.onActivity);
-    root.removeEventListener('pointerdown', this.onActivity);
+    root.removeEventListener('pointerdown', this.onDown);
+    this.el.removeEventListener('click', this.onRevealClick, true);
     root.removeEventListener('wheel', this.onWheel);
     root.removeEventListener('click', this.onStageClick);
     this.boxEl.removeEventListener('wheel', this.onBoxWheel);

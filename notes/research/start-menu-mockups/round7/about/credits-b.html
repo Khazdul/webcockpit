@@ -1,0 +1,178 @@
+<!doctype html>
+<!--
+  Round 7 · Credits · B "Krönikeboken" (the chronicle as a book).
+  The large box (corner mark) holds an open book: two pages side by side with a shaded gutter, folios at
+  the foot of each page. Each character's chapter starts on a new page: the header set as a title page
+  ("Of" / RASTA / "and Things Better Left Unsung"), the first deed with a drop cap in the wordmark's mithril
+  inlay, the deeds as running text with the date in small caps. The reader turns the pages: ←/→, PgUp/PgDn,
+  P/N or the glass buttons, a swipe on a phone; ↑/↓ or the pills jump between chapters; Home/End.
+  Not like today: no roll and no automatic return to the menu (question for the owner). New: Settings…
+  (S) opens the Spotlights settings here too; the book rebuilds when it closes after a change.
+  Phone: one page at a time. URL: ?page · ?spread=2 · ?empty · ?filtered · ?error · ?loading
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Credits B Krönikeboken</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+#page > .win { padding: 44px 26px 14px; }
+.bk-head { display: flex; justify-content: center; margin-bottom: 14px; }
+.bk-head .seg { max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.book-wrap { position: relative; flex: 1; min-height: 0; display: flex; justify-content: center; }
+/* the open book: two pages of warm, slightly lighter "paper-dark" with a shaded gutter */
+.book { --pw: 400px; --g: 84px; position: relative; width: 100%; max-width: 1180px; overflow: hidden; border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 44px), rgba(0,0,0,.34) calc(50% - 3px), rgba(255,220,170,.06) 50%, rgba(0,0,0,.34) calc(50% + 3px), transparent calc(50% + 44px)),
+    radial-gradient(120% 90% at 25% 40%, rgba(255,214,160,.06), transparent 70%), radial-gradient(120% 90% at 75% 40%, rgba(255,214,160,.06), transparent 70%),
+    rgba(10,8,6,.35);
+  box-shadow: inset 0 0 0 1px rgba(255,207,143,.08), inset 0 0 50px rgba(0,0,0,.45); }
+.book.one { background: radial-gradient(120% 90% at 50% 40%, rgba(255,214,160,.06), transparent 70%), rgba(10,8,6,.35); }
+.pages { position: absolute; top: 46px; bottom: 64px; left: calc(var(--g) / 2); width: calc(100% - var(--g)); column-width: var(--pw); column-gap: var(--g); column-fill: auto; will-change: transform; }
+.book.one .pages { left: 28px; width: calc(100% - 56px); }
+.folio { position: absolute; bottom: 24px; font: 600 11px/1 var(--display); letter-spacing: .3em; color: var(--c-faint); }
+.folio.l { left: 25%; transform: translateX(-50%); } .folio.r { left: 75%; transform: translateX(-50%); }
+.book.one .folio.l { left: 50%; } .book.one .folio.r { display: none; }
+/* type */
+.bk-open { margin: 32% 6% 0; text-align: center; font: italic 500 24px/1.5 var(--serif); color: #e6d4b4; text-wrap: balance; }
+.bk-open + .orn-rule { margin-top: 28px; }
+.bk-ch { break-before: column; }
+.bk-title { margin: 6% 0 34px; text-align: center; }
+.bk-title .role { display: block; font: 600 12.5px/1.5 var(--display); letter-spacing: .3em; text-transform: uppercase; color: var(--c-dim); }
+.bk-title .name { display: block; margin: 6px 0 4px; font: 700 38px/1.1 var(--display); letter-spacing: .12em; color: #ddc59c; text-shadow: 0 -1px 0 #000, 0 1px 0 rgba(255,226,180,.3); }
+.bk-title + .orn-rule { margin: 0 auto 26px; width: 120px; }
+.bk-p { margin: 0 0 .7em; font: 500 19px/1.6 var(--serif); color: var(--c-text); text-align: left; hyphens: manual; text-wrap: pretty; text-indent: 1.4em; }
+.bk-p.first { text-indent: 0; }
+.bk-p .cr-date { color: var(--c-head); }
+/* the drop cap: the wordmark's mithril inlay (metal, reflects, never glows) */
+.bk-p.first::first-letter { float: left; font: 700 3.25em/.8 var(--display); margin: .07em .1em 0 0; padding-top: .04em;
+  background: linear-gradient(180deg, #deedf1 0%, #8fb7bd 24%, #3a5a60 50%, #62868c 62%, #aac8cd 78%, #2c4246 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.9)); }
+.bk-end { margin: 60px 0 0; text-align: center; font: 700 26px/1 var(--display); letter-spacing: .24em; color: #e2cba2; text-shadow: 0 -1px 0 #000, 0 1px 0 rgba(255,226,180,.3); }
+.bk-none { margin: 30% 8% 0; text-align: center; font: italic 500 20px/1.45 var(--serif); color: var(--c-dim); }
+.bk-foot { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 12px; position: relative; }
+.bk-foot .side { position: absolute; right: 0; top: 12px; }
+.bk-foot .ibtn[disabled] { opacity: .4; cursor: default; }
+@media (max-width: 600px) {
+  #page > .win { padding: 42px 8px 8px; }
+  .bk-head { margin-bottom: 8px; justify-content: flex-start; }
+  .pages { top: 22px; bottom: 46px; }
+  .folio { bottom: 16px; }
+  .bk-open { font-size: 20px; margin-top: 40%; }
+  .bk-title .name { font-size: 30px; }
+  .bk-p { font-size: 17.5px; line-height: 1.55; text-align: left; }
+  .bk-foot { justify-content: space-between; padding-top: 8px; }
+  .bk-foot .side { position: static; }
+}
+@media (max-width: 900px) and (min-width: 601px) { .bk-foot .side { position: static; } .bk-foot { justify-content: space-between; } }
+</style>
+</head>
+<body>
+<section class="lp box-large pgbox" id="page" data-hood="Credits" data-back aria-label="Credits">
+  <div class="win">
+    <div class="box-head bk-head"><div class="seg" role="tablist" id="chs" aria-label="Chapters"></div></div>
+    <div class="book-wrap"><div class="book" id="book"><div class="pages" id="pages"></div><span class="folio l" id="fl"></span><span class="folio r" id="fr"></span></div></div>
+    <div class="box-foot bk-foot">
+      <button class="ibtn" type="button" id="prev"><svg viewBox="0 0 16 16"><path d="M9.8 3.2 5 8l4.8 4.8"/></svg><span><u class="sk">P</u>revious</span></button>
+      <button class="ibtn" type="button" id="next"><span><u class="sk">N</u>ext</span><svg viewBox="0 0 16 16"><path d="M6.2 3.2 11 8l-4.8 4.8"/></svg></button>
+      <span class="side"><button class="ibtn" type="button" id="set"><svg viewBox="0 0 16 16"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg><span><u class="sk">S</u>ettings…</span></button></span>
+    </div>
+  </div>
+</section>
+<script src="../base/base.js"></script>
+<script src="common.js"></script>
+<script>
+const book = document.getElementById('book'), pages = document.getElementById('pages'), chs = document.getElementById('chs');
+const fl = document.getElementById('fl'), fr = document.getElementById('fr'), prev = document.getElementById('prev'), next = document.getElementById('next');
+let spread = +(PG.qs.get('spread') || 0), per = 2, count = 1, starts = [];
+const esc = PG.esc;
+
+function render() {
+  const c = PG.qs.has('loading') ? null : PG.chronicle();
+  if (!c) { pages.innerHTML = PG.qs.has('loading') ? '' : `<p class="bk-none">${esc(PG.CREDITS_EMPTY.filtered)}</p>`; chs.innerHTML = ''; layout(); return; }
+  pages.innerHTML = `<p class="bk-open">${esc(c.opening)}</p><span class="orn-rule" aria-hidden="true"></span>` + c.chapters.map((ch) => `
+    <section class="bk-ch" data-ch="${esc(ch.name)}">
+      <h2 class="bk-title">${ch.pre ? `<span class="role">${esc(ch.pre)}</span>` : ''}<span class="name">${esc(ch.name)}${ch.post.startsWith(',') ? ',' : ''}</span>${ch.post ? `<span class="role">${esc(ch.post.replace(/^,\s*/, ''))}</span>` : ''}</h2>
+      <span class="orn-rule" aria-hidden="true"></span>
+      ${ch.deeds.map((d, i) => `<p class="bk-p${i ? '' : ' first'}">${PG.deedHtml(d)}</p>`).join('')}
+    </section>`).join('') + `<p class="bk-end">${esc(c.end)}</p>`;
+  chs.innerHTML = `<button role="tab" data-to="0">Opening</button>` + c.chapters.map((ch) => `<button role="tab" data-ch="${esc(ch.name)}">${esc(ch.name)}</button>`).join('');
+  layout();
+}
+/** Measures the pages: one or two per view, how many spreads, where each chapter starts. */
+function layout() {
+  const W = book.clientWidth, phone = W < 640;
+  per = phone ? 1 : 2; book.classList.toggle('one', phone);
+  const g = phone ? 56 : 84, inner = W - g;            // width the columns live in
+  const pw = phone ? inner : (inner - g) / 2;
+  book.style.setProperty('--pw', pw + 'px'); book.style.setProperty('--g', g + 'px');
+  pages.style.columnWidth = pw + 'px'; pages.style.columnGap = g + 'px';
+  pages.style.transform = 'none';
+  const pitch = pw + g, cols = Math.max(1, Math.round((pages.scrollWidth + g) / pitch));
+  count = Math.max(1, Math.ceil(cols / per));
+  const left0 = pages.getBoundingClientRect().left;
+  starts = [...pages.querySelectorAll('.bk-ch')].map((s) => ({ name: s.dataset.ch, spread: Math.floor(Math.round((s.getBoundingClientRect().left - left0) / pitch) / per) }));
+  spread = Math.min(spread, count - 1);
+  go(spread, true);
+}
+function go(s, instant) {
+  s = Math.max(0, Math.min(count - 1, s));
+  const W = book.clientWidth, phone = per === 1, g = phone ? 56 : 84, pw = parseFloat(pages.style.columnWidth), pitch = (pw + g) * per;
+  const turn = () => {
+    spread = s; pages.style.transform = `translateX(${-s * pitch}px)`;
+    fl.textContent = `— ${s * per + 1} —`; fr.textContent = per === 2 ? `— ${s * per + 2} —` : '';
+    prev.disabled = s === 0; next.disabled = s === count - 1;
+    const cur = [...starts].reverse().find((x) => x.spread <= s);
+    chs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(cur ? b.dataset.ch === cur.name : b.dataset.to === '0')));
+    const on = chs.querySelector('[aria-selected="true"]'); on && on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
+  if (instant || s === spread) { turn(); return; }
+  const dir = s > spread ? 1 : -1, D = WC.dur(1);
+  pages.animate([{ opacity: 1, translate: '0 0' }, { opacity: 0, translate: `${-14 * dir}px 0` }], { duration: 170 * D, easing: 'ease-in' }).finished.then(() => {
+    turn(); pages.animate([{ opacity: 0, translate: `${14 * dir}px 0` }, { opacity: 1, translate: '0 0' }], { duration: 240 * D, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  });
+}
+const chapterStep = (d) => {
+  const marks = [0, ...starts.map((x) => x.spread)];
+  const i = marks.reduce((k, v, j) => (v <= spread ? j : k), 0);
+  go(marks[Math.max(0, Math.min(marks.length - 1, i + d))]);
+};
+chs.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.to) go(0); else go(starts.find((x) => x.name === b.dataset.ch).spread); });
+prev.addEventListener('click', () => go(spread - 1)); next.addEventListener('click', () => go(spread + 1));
+let popup = null;
+const setBtn = document.getElementById('set');
+function settings() {
+  if (popup) { popup.close(); return; }
+  setBtn.classList.add('on');
+  popup = PG.settingsPopup(setBtn, (changed) => { popup = null; setBtn.classList.remove('on'); if (changed) { spread = 0; render(); } });
+}
+setBtn.addEventListener('click', settings);
+// swipe on touch screens
+let sx = null;
+book.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') sx = e.clientX; });
+book.addEventListener('pointerup', (e) => { if (sx === null) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 40) go(spread + (dx < 0 ? 1 : -1)); });
+
+const app = PG.boot({
+  key: 'credits', box: document.getElementById('page'), mode: 'corner',
+  onOpen() { render(); },
+  onShown() { layout(); },
+  layer: {
+    key(e) {
+      switch (e.key) {
+        case 'ArrowRight': case 'PageDown': case ' ': go(spread + 1); return true;
+        case 'ArrowLeft': case 'PageUp': go(spread - 1); return true;
+        case 'ArrowDown': chapterStep(1); return true;
+        case 'ArrowUp': chapterStep(-1); return true;
+        case 'Home': go(0); return true;
+        case 'End': go(count - 1); return true;
+      }
+      return WC.shortcut(e, { n: () => go(spread + 1), p: () => go(spread - 1), s: settings });
+    },
+  },
+});
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => app.isOpen && layout(), 120); });
+</script>
+</body>
+</html>

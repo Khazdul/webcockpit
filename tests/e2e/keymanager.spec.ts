@@ -50,7 +50,7 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   const count = (s: string) => sentText().split(s).length - 1;
 
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));
@@ -191,7 +191,7 @@ test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and
   });
   const sentText = () => Buffer.concat(received).toString('latin1');
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));
@@ -329,7 +329,7 @@ test('keymanager TVs tile from the top left in opening order, close gaps, and mo
   });
   const login = async () => {
     await page.goto('/');
-    await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+    await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
     server = null;
     await page.keyboard.press('Enter');
     await expect.poll(() => server !== null).toBe(true);
@@ -404,7 +404,7 @@ test('keymanager: the ◻ is light green while its TV is open and goes back to g
     ws.send(bytes([IAC, WILL, GMCP]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));
@@ -473,7 +473,7 @@ test('keymanager: borderless, the close cross shows on hover and the ? stays cli
     ws.send(bytes([IAC, WILL, GMCP]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));

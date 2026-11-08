@@ -1,0 +1,125 @@
+<!doctype html>
+<!--
+  Round 7 · layout · C "Namnplåten" (the name plate).
+  The wordmark travels up and shrinks into the box's hood, which becomes a wider plate bolted across the
+  top edge of the frame: the small engraved mark (the same iron with the mithril inlay, still lit by the sky)
+  beside the page's name. The box rises in under it, nearly filling the window (inset 40 px at the top for
+  the plate, --box-m elsewhere). The menu panel sinks back, the quote and the almanac fade. Back / Esc: the
+  mark lifts off the plate and returns to its place over the menu. Reduced motion: a short cross-fade.
+  URL: ?page=history opens on the page; ?slow=6 slows every transition; ?nointro skips the load fade.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · C Namnplåten</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="history.css">
+<style>
+:root { --box-top: 40px; }
+#page { visibility: hidden; opacity: 0; }
+body.pgv #page { visibility: visible; }
+body.pgv #stage { z-index: 5; }   /* the travelling mark passes over the box */
+#menuPanel.in, #quote.in, #almanac.in { transition: opacity calc(.4s * var(--ts)), transform calc(.6s * var(--ts)) var(--ease), filter calc(.45s * var(--ts)); }
+body.pg #menuPanel { opacity: 0; transform: scale(.95) translateY(16px); filter: blur(6px); pointer-events: none; animation: none; }
+body.pg #quote, body.pg #almanac { opacity: 0; animation: none; }
+/* the name plate: a wider hood bolted across the top edge, burnished iron a step lighter than the frame so the
+   dark iron letters stand off it; two rivets; the mark, an engraved divider, the page's name in lamp light */
+.plate { position: absolute; z-index: 5; left: 50%; top: -24px; transform: translateX(-50%); height: 56px; padding: 0 30px 0 26px;
+  display: flex; align-items: center; gap: 16px; border-radius: 10px; white-space: nowrap;
+  background:
+    radial-gradient(38% 80% at 24% 0%, rgba(255,250,240,.30), rgba(255,250,240,0) 70%),
+    linear-gradient(103deg, rgba(255,255,255,0) 56%, rgba(255,244,228,.10) 61%, rgba(255,255,255,0) 68%),
+    linear-gradient(180deg, #8a847c 0%, #69625a 30%, #4c4640 50%, #544d46 68%, #6f675e 100%);
+  box-shadow: inset 0 1px 0 rgba(255,244,226,.65), inset 0 -1px 0 rgba(255,214,170,.28), inset 1px 0 0 rgba(255,232,206,.18), inset -1px 0 0 rgba(255,232,206,.1),
+              0 0 0 1px #000, 0 5px 14px rgba(0,0,0,.6); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 50%; margin-top: -3.5px; width: 7px; height: 7px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, var(--rv-hi, #eef9fa) 0 12%, var(--rv-mid, #72a7ac) 34%, var(--rv-lo, #1b3335) 80%); box-shadow: 0 1px 0 rgba(255,220,180,.2), 0 0 0 .5px #000; }
+.plate::before { left: 10px; } .plate::after { right: 10px; }
+.plate .wm { --wm-w: 108px; margin-top: 3px; }
+.plate .pdiv { width: 2px; height: 26px; border-radius: 1px; background: linear-gradient(180deg, transparent, rgba(8,5,3,.9) 20%, rgba(8,5,3,.9) 80%, transparent); box-shadow: 1px 0 0 rgba(255,226,190,.22); }
+.plate .pt { font: 700 14.5px/1 var(--display); letter-spacing: .16em; padding-top: 2px; color: #fff0d6; text-shadow: 0 1px 1px rgba(10,6,3,.9), 0 0 6px rgba(255,190,110,.55); }
+#page > .win { padding-top: 46px; }
+body.pg #stage > * { pointer-events: none; }   /* the faded start stage never catches a click over the page */
+body.instant * { transition: none !important; }
+@media (max-width: 600px) {
+  :root { --box-top: 30px; }
+  .plate { top: -18px; height: 44px; gap: 11px; padding: 0 22px 0 20px; }
+  .plate .wm { --wm-w: 82px; }
+  .plate .pdiv { height: 20px; }
+  .plate .pt { font-size: 12px; }
+  #page > .win { padding-top: 40px; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-large" id="page" data-back aria-label="History">
+  <div class="plate"><div class="wm small bare" id="pmark" aria-label="MUME Cockpit"></div><i class="pdiv" aria-hidden="true"></i><span class="pt">History</span></div>
+  <div class="win"></div>
+</section>
+<script src="../base/base.js"></script>
+<script src="history.js"></script>
+<script>
+WC.sky.start();
+const menu = WC.startMenu({ onActivate(k) { if (k === 'history') { open(); return true; } } });
+WC.decorate();
+const page = document.getElementById('page'), plate = page.querySelector('.plate'), pmark = document.getElementById('pmark'), brand = menu.brand;
+WC.Wordmark(pmark);
+const H = HISTORY.mount(page.querySelector('.win'));
+const EASE = 'cubic-bezier(.45,.05,.2,1)';
+let pop = null, isOpen = false;
+
+async function open(instant = false) {
+  if (isOpen || WC.busy) return;
+  WC.busy = true; isOpen = true; menu.active = false;
+  H.onShow();
+  if (instant) document.body.classList.add('instant');
+  document.body.classList.add('pg', 'pgv');
+  const from = WC.rect(brand), to = pmark.querySelector('.wm-c').getBoundingClientRect();
+  const D = instant ? 0 : WC.dur(1), anims = [];
+  if (WC.RM || instant) {
+    anims.push(brand.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260 * D, fill: 'forwards' }));
+    anims.push(page.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * D, fill: 'forwards' }));
+  } else {
+    // the mark travels up into the plate; the plate widens under it; the box rises in
+    anims.push(brand.animate([{ transform: 'none', opacity: 1 }, { transform: WC.flyTo(from, to), opacity: 1, offset: .8 }, { transform: WC.flyTo(from, to), opacity: 0 }],
+      { duration: 1000 * D, easing: EASE, fill: 'forwards' }));
+    anims.push(pmark.animate([{ opacity: 0 }, { opacity: 0, offset: .76 }, { opacity: 1 }], { duration: 1000 * D, fill: 'forwards' }));
+    anims.push(plate.animate([{ opacity: 0, transform: 'translateX(-50%) scaleX(.55)' }, { opacity: 0, transform: 'translateX(-50%) scaleX(.55)', offset: .35 }, { opacity: 1, transform: 'translateX(-50%)' }],
+      { duration: 1000 * D, easing: 'cubic-bezier(.3,.8,.3,1)', fill: 'forwards' }));
+    anims.push(page.animate([{ opacity: 0, transform: 'translateY(26px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 760 * D, delay: 160 * D, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }));
+  }
+  await Promise.all(anims.map((a) => a.finished));
+  document.body.classList.remove('instant');
+  pop = WC.keys.push({ key: H.layer.key, back: close });
+  WC.busy = false;
+}
+async function close() {
+  if (!isOpen || WC.busy) return;
+  WC.busy = true; pop && pop(); pop = null;
+  const from = WC.rect(brand), to = pmark.querySelector('.wm-c').getBoundingClientRect();
+  const D = WC.dur(1), anims = [];
+  if (WC.RM) {
+    anims.push(page.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240 * D, fill: 'forwards' }));
+    anims.push(brand.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * D, fill: 'forwards' }));
+  } else {
+    anims.push(pmark.animate([{ opacity: 1 }, { opacity: 0, offset: .2 }, { opacity: 0 }], { duration: 950 * D, fill: 'forwards' }));
+    anims.push(brand.animate([{ transform: WC.flyTo(from, to), opacity: 0 }, { transform: WC.flyTo(from, to), opacity: 1, offset: .18 }, { transform: 'none', opacity: 1 }],
+      { duration: 950 * D, easing: EASE, fill: 'forwards' }));
+    anims.push(plate.animate([{ opacity: 1, transform: 'translateX(-50%)' }, { opacity: 0, transform: 'translateX(-50%) scaleX(.55)', offset: .5 }, { opacity: 0, transform: 'translateX(-50%) scaleX(.55)' }],
+      { duration: 950 * D, easing: 'cubic-bezier(.5,0,.7,.4)', fill: 'forwards' }));
+    anims.push(page.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(22px)' }], { duration: 520 * D, delay: 120 * D, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }));
+  }
+  setTimeout(() => document.body.classList.remove('pg'), (WC.RM ? 120 : 380) * D);
+  await Promise.all(anims.map((a) => a.finished));
+  document.body.classList.remove('pgv');
+  anims.forEach((a) => a.cancel());
+  isOpen = false; menu.active = true; menu.select(menu.cur); WC.busy = false;
+}
+if (WC.qs.get('page') === 'history') open(true);
+window.LAYOUT = { open, close };
+</script>
+</body>
+</html>

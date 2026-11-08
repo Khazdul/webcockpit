@@ -1,0 +1,391 @@
+/* The Spotlights page (stage 46, B "Galleriet"): the wall of cards and the
+ * filter row in the large box (src/chrome/frames/spotlights-wall.tsx).
+ * Re-derived from notes/research/start-menu-mockups/round7/spotlights/
+ * spotlights-b.html in the kit's tokens (`--lk-*`); the start page is
+ * always dark, so there is no Paper variant.
+ *
+ * Performance (stage 46): a wall can hold hundreds of cards. Each card is
+ * `content-visibility: auto` with a fixed intrinsic size (off-screen cards
+ * are not laid out or painted), and no card has a filter, a backdrop
+ * filter or a shadow that changes on scroll; only colour and opacity
+ * change when a card is chosen. */
+
+.wc-lk-win.wc-spw-win {
+  padding: 44px 22px 12px;
+}
+
+/* The wall's three slots stay the window's children for layout (the
+ * wrapper only carries the stills' palette and `inert` under the viewer). */
+.wc-spw-wall {
+  display: contents;
+  --spw-bold: #ffffff;
+  --spw-fg: #c0c0c0;
+  /* The stills' colours: the Default ones here; a chosen Display theme's
+   * font colour, background and bold come inline (`stillPalette`). */
+  --spw-echo: color-mix(in oklab, var(--spw-fg) 55%, #7fb2e6);
+}
+
+/* ------------------------------------------------------------ the filter row */
+
+.wc-spw-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin: 2px 0 16px;
+}
+
+.wc-spw-cap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 10.5px/1 var(--lk-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lk-faint);
+  transition: color calc(0.3s * var(--lk-ts));
+}
+
+.wc-spw-cap .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+}
+
+.wc-spw-head.is-cur .wc-spw-cap {
+  color: var(--lk-dim);
+}
+
+.wc-spw-kinds,
+.wc-spw-chars {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.wc-spw-head .wc-lk-opt {
+  padding: 0 12px;
+  gap: 7px;
+}
+
+/* The kind chips' icons in their kind colours: faint while off, full when on. */
+.wc-spw-kinds .wc-lk-opt .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+  opacity: 0.4;
+  transition: opacity calc(0.3s * var(--lk-ts));
+}
+
+.wc-spw-kinds .wc-lk-opt.is-on .wc-lk-ic {
+  opacity: 1;
+}
+
+.wc-spw-kinds .wc-lk-opt[data-opt="achievement"] .wc-lk-ic { color: #e3b341; }
+.wc-spw-kinds .wc-lk-opt[data-opt="death"] .wc-lk-ic { color: #e06c6c; }
+.wc-spw-kinds .wc-lk-opt[data-opt="level"] .wc-lk-ic { color: #7fbf7f; }
+.wc-spw-kinds .wc-lk-opt[data-opt="pkill"] .wc-lk-ic { color: #e0915a; }
+
+.wc-spw-none {
+  font: italic 500 15px/1.2 var(--lk-serif);
+  color: var(--lk-faint);
+  white-space: nowrap;
+}
+
+/* The period: a native select without its caption (the row says Filter). */
+.wc-spw-period .wc-lk-lbl {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.wc-spw-period .wc-lk-input {
+  width: auto;
+  min-width: 150px;
+  font-size: 16px;
+}
+
+.wc-spw-period.is-sel .wc-lk-input {
+  box-shadow: var(--lk-well-in), inset 0 0 0 1px var(--lk-sk-on);
+  color: var(--lk-on);
+}
+
+/* ------------------------------------------------------------ the wall */
+
+.wc-spw-body {
+  padding: 2px 6px 6px 2px;
+}
+
+.wc-spw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 248px), 1fr));
+  gap: 14px;
+}
+
+.wc-spw-grid.is-empty {
+  display: block;
+}
+
+.wc-lk-row.wc-spw-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+  padding: 12px 14px 13px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 196px;
+}
+
+.wc-spw-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wc-spw-kind {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font: 700 10.5px/1 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--k);
+  text-shadow: none;
+  opacity: 0.8;
+  transition: opacity calc(0.3s * var(--lk-ts));
+}
+
+.wc-spw-kind .wc-lk-ic {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.wc-spw-n {
+  margin-left: auto;
+  font: 600 11px/1 var(--lk-display);
+  letter-spacing: 0.1em;
+  color: var(--lk-faint);
+  text-shadow: none;
+}
+
+.wc-spw-card.is-on .wc-spw-kind,
+.wc-spw-card.is-idle .wc-spw-kind {
+  opacity: 1;
+}
+
+.wc-spw-card.is-on .wc-spw-n {
+  color: var(--lk-dim);
+}
+
+/* The still: the game text at the moment, bottom-anchored, in the page's
+ * `--spw-a0` … `--spw-a15` (the Default palette with the brighter red, or
+ * the viewer's Display theme on its own background). */
+.wc-spw-still {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: calc(4 * 1.42em + 14px);
+  margin: 10px 0 11px;
+  padding: 6px 9px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 214, 160, 0.07);
+  background: var(--spw-bg, rgba(4, 3, 2, 0.9));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+  font: 400 11px/1.42 var(--lk-mono);
+  font-variant-ligatures: none;
+  letter-spacing: normal;
+  color: var(--spw-fg);
+  text-shadow: none;
+  /* The text scrolls up out of the well (as the game screen does). */
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0, #000 18px);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0, #000 18px);
+  opacity: 0.72;
+  transition: opacity calc(0.3s * var(--lk-ts));
+}
+
+.wc-spw-ln {
+  flex: none;
+  min-height: 1.42em;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-spw-ln.is-cmd {
+  color: var(--spw-echo);
+}
+
+.wc-spw-card.is-on .wc-spw-still,
+.wc-spw-card.is-idle .wc-spw-still {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .wc-spw-card:hover .wc-spw-still {
+    opacity: 1;
+  }
+}
+
+.wc-spw-label {
+  min-height: 2.5em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font: 700 16px/1.25 var(--lk-display);
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+
+.wc-spw-meta {
+  margin-top: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: italic 500 15.5px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+  text-shadow: none;
+}
+
+.wc-spw-meta b {
+  font: 600 11.5px/1 var(--lk-display);
+  letter-spacing: 0.12em;
+  color: var(--lk-text);
+  transition: color calc(0.3s * var(--lk-ts));
+}
+
+.wc-spw-card.is-on .wc-spw-meta b {
+  color: var(--lk-on);
+}
+
+/* The empty walls: nothing passes, or no data at all. */
+.wc-spw-empty {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 90px 16px;
+  text-wrap: balance;
+}
+
+.wc-spw-empty small {
+  display: block;
+  margin-top: 8px;
+  font-size: 16.5px;
+  color: var(--lk-faint);
+}
+
+/* ------------------------------------------------------------ the foot */
+
+.wc-spw-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 36px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-spw-sum {
+  font: italic 500 16px/1 var(--lk-serif);
+  color: var(--lk-dim);
+  white-space: nowrap;
+}
+
+.wc-spw-flash {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+/* ------------------------------------------------------------ narrow (the box's own width) and the phone */
+
+@container wc-page (max-width: 600px) {
+  .wc-spw-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .wc-spw-cap {
+    display: none;
+  }
+
+  .wc-spw-kinds,
+  .wc-spw-chars {
+    display: block;
+  }
+
+  .wc-spw-head .wc-lk-seg {
+    display: flex;
+    width: 100%;
+  }
+
+  .wc-spw-head .wc-lk-opt {
+    padding: 0 10px;
+  }
+
+  .wc-spw-none {
+    display: block;
+    margin-top: 4px;
+  }
+
+  .wc-spw-period .wc-lk-input {
+    width: 100%;
+  }
+
+  .wc-spw-grid {
+    gap: 8px;
+  }
+
+  .wc-lk-row.wc-spw-card {
+    padding: 10px 11px 11px;
+    contain-intrinsic-size: auto 170px;
+  }
+
+  .wc-spw-still {
+    height: calc(3 * 1.42em + 12px);
+    margin: 8px 0 9px;
+  }
+
+  .wc-spw-ln:first-child:nth-last-child(4) {
+    display: none;
+  }
+
+  .wc-spw-label {
+    min-height: 0;
+    font-size: 15px;
+  }
+
+  .wc-spw-foot {
+    gap: 10px;
+  }
+
+  .wc-spw-sum {
+    font-size: 14.5px;
+  }
+}
+
+@media (max-width: 600px) {
+  .wc-lk-win.wc-spw-win {
+    padding: 42px 8px 8px;
+  }
+}
+
+html.wc-phone .wc-lk-win.wc-spw-win {
+  padding: 42px 8px 8px;
+}
+
+/* (Over the kit's phone row padding, which is for one-line rows.) */
+html.wc-phone .wc-lk-row.wc-spw-card {
+  padding: 10px 11px 11px;
+}

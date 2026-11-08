@@ -1,0 +1,14 @@
+/* The kit gallery's own frame (dev only, stage 42, ADR 0127): the tabs
+ * (`BoxHead`, the kit's real `Tabs`) fixed at the top of the large box,
+ * the section below scrolling (`BoxBody`). The sections style themselves
+ * with the kit's classes; these rules are the shell's only. */
+
+.wc-kit-body {
+  padding-top: 12px;
+}
+
+.wc-kit-none {
+  text-align: center;
+  color: var(--lk-dim);
+  font-style: italic;
+}

@@ -1,0 +1,10 @@
+/* The script manual's frame (stage 44c; script-manual-frame.tsx). The
+ * reader is stage 42's (look-manual.css): its head wraps and takes a
+ * window sub-page's small Back first in its row (`LookManual`'s `before`,
+ * folded into the kit in wave 3), so this page has nothing of its own to
+ * adjust but the Back's box. */
+
+.wc-sman-iback {
+  display: flex;
+  flex: none;
+}

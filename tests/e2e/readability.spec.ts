@@ -43,7 +43,7 @@ test('readability: a mob line is rewritten, and its colours adapt to a new backg
     ws.send(bytes([IAC, WILL, GMCP]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect.poll(() => server !== null).toBe(true);
   server!.send(gmcp('Char.Name {"name":"Rasta","fullname":"Rasta the Orc"}'));

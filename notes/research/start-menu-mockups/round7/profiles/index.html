@@ -1,0 +1,108 @@
+<title>Profiler runda 7</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<style>
+/* Round 7 review · Profiles (Profile editor, Import, Export editor): tabs over the live mockups in an iframe.
+   The editor tabs get a context switch: the start page, in game (dark / Paper), or both side by side.
+   Layout: a slim switcher bar over a full-bleed frame. Single dark look on purpose. */
+:root {
+  --night: #0d1014; --iron: #1b2026; --rule: #2e353e; --text: #dfe3e8; --dim: #8d97a3; --lamp: #f0b45c;
+  --display: "Cinzel", Georgia, serif; --body: "Cormorant Garamond", Georgia, serif; --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--night); color: var(--text); font-family: var(--ui); display: flex; flex-direction: column; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--iron); border-bottom: 1px solid var(--rule); }
+h1 { font: 700 15px/1 var(--display); letter-spacing: .12em; margin: 0; color: var(--lamp); white-space: nowrap; }
+nav { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+nav .grp { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+nav .grp > span { font: 500 11px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-right: 4px; }
+nav button, .ctx button { font: 500 13.5px/1 var(--display); letter-spacing: .05em; color: var(--dim); background: transparent; border: 1px solid var(--rule); border-radius: 3px; padding: 7px 10px; cursor: pointer; }
+nav button:hover, .ctx button:hover { color: var(--text); }
+nav button[aria-selected="true"] { color: var(--night); background: var(--lamp); border-color: var(--lamp); }
+.ctx { display: flex; gap: 4px; align-items: center; }
+.ctx[hidden] { display: none; }
+.ctx > span { font: italic 500 15px/1 var(--body); color: var(--dim); margin-right: 4px; }
+.ctx button[aria-pressed="true"] { color: var(--text); border-color: var(--lamp); }
+nav button:focus-visible, .ctx button:focus-visible, a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.note { flex: 1 1 100%; min-width: 0; font: italic 500 16px/1.3 var(--body); color: var(--dim); margin: 0; }
+.note b { font-style: normal; color: var(--text); font-weight: 500; }
+a.full { font-size: 13px; color: var(--lamp); white-space: nowrap; }
+main { flex: 1; min-height: 0; position: relative; display: flex; }
+main iframe { flex: 1; min-width: 0; height: 100%; border: 0; background: #000; }
+main.both iframe + iframe { border-left: 2px solid var(--rule); }
+main .cap { position: absolute; top: 6px; z-index: 2; font: 500 11px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--lamp); background: rgba(13,16,20,.8); padding: 5px 8px; border-radius: 3px; pointer-events: none; }
+@media (max-width: 700px) { main.both { flex-direction: column; } main.both iframe + iframe { border-left: 0; border-top: 2px solid var(--rule); } }
+</style>
+
+<header>
+  <h1>Profiler · runda 7</h1>
+  <nav role="tablist" id="tabs"></nav>
+  <div class="ctx" id="ctx" hidden><span>Var:</span><button data-c="start">Startsidan</button><button data-c="game">I spelet</button><button data-c="paper">I spelet · Paper</button><button data-c="both">Sida vid sida</button></div>
+  <a class="full" id="full" target="_blank" rel="noopener">Öppna i helfönster ↗</a>
+  <p class="note" id="note"></p>
+</header>
+<main id="main"></main>
+
+<script>
+const ED_TRY = ' <b>Prova:</b> Profile-listan är öppen — tryck E (Edit). ←→ byter typ, ↑↓ i listan, Enter in i posten, N ny post, D tar bort, Esc ut ur fältet och sedan tillbaka. G (Highlights) visar färgväljaren, M (Macros) tangentfångsten (Enter på tangenten). E för Editor (Ctrl+F söker, Ctrl+S sparar), H för Help. DEMO nere till vänster visar dialogerna.';
+const GAME_NOTE = ' <b>I spelet:</b> samma innehåll i ett flyttbart fönster (dra i titelraden, dra i kanter och hörn) bredvid Lykta-panelerna och menyraden; ändringar tillämpas på spelet. Skriv något i Editor och tryck Esc: frågan "Apply changes?". Klick i spelet tar fokus från fönstret; ikonen Profile i menyraden öppnar det igen. DEMO: Lyktfönster/Glasfönster och Dark/Paper.';
+const TABS = [
+  { g: 'Profilredigeraren', id: 'ea', file: 'editor-a.html', name: 'A Tre fält', ed: true,
+    note: '<b>A · Tre fält.</b> Närmast dagens editor, översatt: typerna som flikar med antal, listan till vänster (mönster | kommandon), posten till höger i ett eget kort, Lite/Editor/Help uppe till höger. En diskret status nere till höger ("All saved"). Smalt (telefon, litet fönster): listan, och posten öppnas som ett eget blad med en tillbaka-knapp. I spelet: Glasfönstret.' },
+  { g: 'Profilredigeraren', id: 'eb', file: 'editor-b.html', name: 'B Ryggen', ed: true,
+    note: '<b>B · Ryggen.</b> En navigeringsrygg till vänster som byter innehåll med vyn: typerna med ikoner i Lite, textens avsnitt i Editor (klick hoppar dit), manualens rubriker i Help. Listan visar mönster och kommando på två rader; posten till höger utan kort. Smalt blir ryggen en rad överst. I spelet: Lyktfönstret.' },
+  { g: 'Profilredigeraren', id: 'ec', file: 'editor-c.html', name: 'C Kortleken', ed: true,
+    note: '<b>C · Kortleken.</b> En enda kolumn: den valda posten fälls ut på plats som ett kort direkt under raden. Typerna som en pillerrad ovanför listan, Help med en rullista för avsnitten. Samma layout i stort fönster, smalt spelfönster och telefon. I spelet: Lyktfönstret, smalare.' },
+  { g: 'Import', id: 'ia', file: 'import-a.html', name: 'A Kvittot',
+    note: '<b>A · Kvittot.</b> Rapporten tar listans plats (ordmärket kvar ovanför), som ett kvitto: namn, format och signaler, fyra siffror, varningarna för hela profilen och saknade filer, sedan Kept / Skipped / Warnings med fil:rad, varför och källraden. Edit och OK (Esc = OK).' },
+  { g: 'Import', id: 'ib', file: 'import-b.html', name: 'B Flikar och källa',
+    note: '<b>B · Flikar och källa.</b> Stora lådan. Till vänster filerna (huvudfil, läst via #read, tillagd sist, saknas), fördelningen som en stapel och varningarna för hela profilen; till höger en flik per utfall, en tabell (fil, rad, varför) och den valda postens källtext under. ←→ flikar, ↑↓ rader.' },
+  { g: 'Import', id: 'ic', file: 'import-c.html', name: 'C Importsidan',
+    note: '<b>C · Importsidan.</b> Import får en egen sida före filväljaren: ett släppfält, "Choose files…" och de fyra formaten. Sedan "Reading …" och rapporten i samma låda, med en mening som sammanfattar och utfallen som hopfällbara grupper. Fel visas på sidan, inte bara i listans flash.' },
+  { g: 'Export', id: 'xa', file: 'export-a.html', name: 'A Panelen',
+    note: '<b>A · Panelen.</b> Som ADR 0115: loggen, översiktsremsan (uteslutet, kommentarer, L för level, tumme) och en panel till höger med sammanfattning, markeringen, titeln och de två exporterna ("last" på den senaste). Kommentar och titel skrivs i en dialog med förhandsvisning.' },
+  { g: 'Export', id: 'xb', file: 'export-b.html', name: 'B Verktygsraden',
+    note: '<b>B · Verktygsraden.</b> Loggen i full bredd. Sammanfattningen och åtgärderna i en rad överst, filnamnet och exporterna i foten. Kommentaren skrivs direkt i loggen där den hamnar; titeln redigeras direkt i foten.' },
+  { g: 'Export', id: 'xc', file: 'export-c.html', name: 'C Tidslinjen',
+    note: '<b>C · Tidslinjen.</b> Översikten blir en tidslinje med klockslag överst (uteslutna sträckor, kommentarer ◆, L), ett litet chip svävar vid markeringen med Exclude/Comment, och Export…, titel och kommentar öppnas i en låda från höger.' },
+];
+const TRY = {
+  ia: ' <b>Prova:</b> Profile-listan är öppen — tryck I (Import). DEMO väljer vad som "importeras": JMC (med saknad fil), Mudlet, TinTin++ (oförändrad) eller ett fel. ↑↓ rullar, E Edit, O eller Enter OK; efteråt finns profilen i listan.',
+  xa: ' <b>Prova:</b> History är öppen — välj en rad och tryck X (Export). Dra över rader eller Shift+↑↓ för att markera, X utesluter/tar med, C kommenterar, E/D på en kommentar, T titel, H och P exporterar, Esc rensar markeringen och går sedan tillbaka. DEMO visar lägena.',
+};
+const tabs = document.getElementById('tabs'), main = document.getElementById('main'), note = document.getElementById('note'), full = document.getElementById('full'), ctxEl = document.getElementById('ctx');
+let cur = null, ctx = 'start';
+function url(t, c) {
+  if (t.ed) return c === 'start' ? `${t.file}?page=list` : c === 'both' ? `${t.file}?page=editor` : `${t.file}?ctx=game${c === 'paper' ? '&bg=paper' : ''}`;
+  return t.g === 'Import' ? `${t.file}?page=list` : `${t.file}?page=history`;
+}
+function show(id, c) {
+  const t = TABS.find((x) => x.id === id) || TABS[0];
+  cur = t; if (c) ctx = c;
+  ctxEl.hidden = !t.ed;
+  for (const b of ctxEl.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.c === ctx));
+  main.className = t.ed && ctx === 'both' ? 'both' : '';
+  if (t.ed && ctx === 'both') {
+    main.innerHTML = `<iframe title="Startsidan" src="${url(t, 'both')}"></iframe><iframe title="I spelet" src="${t.file}?ctx=game"></iframe><span class="cap" style="left:8px">Startsidan</span><span class="cap" style="left:calc(50% + 8px)">I spelet</span>`;
+  } else main.innerHTML = `<iframe title="Mockup" src="${url(t, t.ed ? ctx : 'start')}"></iframe>`;
+  note.innerHTML = t.note + (t.ed ? (ctx === 'start' || ctx === 'both' ? ED_TRY : GAME_NOTE) : t.g === 'Import' ? TRY.ia : TRY.xa);
+  full.href = t.ed && ctx !== 'both' ? url(t, ctx) : url(t, 'start');
+  for (const b of tabs.querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.id === t.id));
+  const h = t.ed ? `${t.id}-${ctx}` : t.id;
+  if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
+  const f = main.querySelector('iframe'); f && f.focus();
+}
+let g = '', grp = null;
+for (const t of TABS) {
+  if (t.g !== g) { g = t.g; grp = document.createElement('div'); grp.className = 'grp'; grp.innerHTML = `<span>${g}</span>`; tabs.append(grp); }
+  const b = document.createElement('button'); b.role = 'tab'; b.dataset.id = t.id; b.textContent = t.name; b.onclick = () => show(t.id); grp.append(b);
+}
+ctxEl.querySelectorAll('button').forEach((b) => (b.onclick = () => show(cur.id, b.dataset.c)));
+const fromHash = () => { const [id, c] = location.hash.slice(1).split('-'); show(id, c || undefined); };
+addEventListener('hashchange', fromHash);
+fromHash();
+</script>

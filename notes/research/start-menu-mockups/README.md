@@ -151,3 +151,107 @@ Inlay and rivets: **bluish/cyan metal** like the early pixel logo, not
 brass (owner, 2026-11-07); to be tuned at the start of the night pass.
 Favicon: an "M" in the wordmark's iron and inlay (owner, 2026-11-07).
 Next session: `NIGHT-PASS.md` and `docs/stages/41-start-page.md`.
+
+## Night pass (2026-11-07): stage 41 built, round 7 mockups
+
+Stage 41 (the start page on this baseline) is built on branch
+`stage-41-start-page` (not merged): `docs/stages/41-start-page.md`, ADRs
+0124 (sky), 0125 (start surface and lantern kit), 0126 (wordmark and
+favicon), 0083 addendum (first paint). Inlay tint: **c "Turkos"**; the
+alternatives are `round6/logo-3-cyan.html?tint=a|b|c` and
+`round6/logo-3-cyan-compare.html`.
+
+Round 7 (`round7/`) mocks every other page reached from the start menu,
+2–3 directions each, on a shared base (`round7/base/`, README there; the
+in-game backdrops are real app screenshots). Each folder has a
+`CONTENT.md` (the page's real content, states and keys) and an
+`index.html` review page; shots in `round7/shots/` (gitignored).
+
+| Review page | Folder | Artifact |
+|---|---|---|
+| Stora sidor (how big pages open; A corner mark, B room grows, C name plate) | `layout/` | https://claude.ai/artifact/YEVy5cZFg7gCswmWEeV7fQ |
+| Profiler (editor incl. in-game window, Import, Export) | `profiles/` | https://claude.ai/artifact/VZZwDHYmtsAaa9iA8FN9JE |
+| Skript (page, editor, manual; start and in-game) | `scripts/` | https://claude.ai/artifact/RLPnZSmFqpxKunvdnwyiD4 |
+| Historik och spelare (History, run log player, HTML replay) | `history/` | https://claude.ai/artifact/MQCZKacGEKmr8SAAovDSHn |
+| Spotlights | `spotlights/` | https://claude.ai/artifact/SeywEXWYkuJmTVFYpdyKmV |
+| Credits och About | `about/` | https://claude.ai/artifact/1EhXMPb5hkUXk8MbmkS4oW |
+
+Nothing in round 7 is built; the owner chooses first.
+
+### Open questions for the owner (night pass)
+
+Stage 41 (built):
+1. Wordmark tint: c "Turkos" built; a (steel) and b (mithril) are the
+   alternatives.
+2. Shortcut letters: menu E P S H L C A, Profile list S N E R D I X (the
+   old menu had none). OK?
+3. Profile list: the new "Changed" column — keep?
+4. Enter MUME: a 280 ms fade; or the mockup's zoom?
+5. The quote stays pale with a stronger outline on bright days (the sky
+   is never bright enough for the 0.54 dark-ink threshold); dark ink
+   instead (threshold ~0.47)?
+6. The wordmark's faint sheen may cost 2–4 fps: keep, run occasionally,
+   or drop?
+7. Names that differ only in case (gibur / Gibur) look identical in
+   Cinzel capitals: show them differently?
+
+Round 7 (choose a direction per page; details on each review page):
+- Big pages: A corner mark, B room grows, C name plate.
+- Profile editor: letters for views/kinds; "All saved" status and the
+  in-game "Connected" line; Esc in a field blurs first or leaves; same or
+  different window frame for the two editors; export on the phone?
+  Import: its own page with a drop zone (C) or the file picker at once?
+  Export: TEXT FILE renamed "Plain text"?
+- Scripts: tooltips enough for Ctrl+S/F/F1; settings controls on the
+  phone (new); in-game sub-pages with their own small Back; shorten "on ·
+  runs when you enter MUME"; B's inspector rail instead of the signature
+  popup.
+- History and players: key row removed (tooltips only, or a "?" help);
+  hide the player controls (as today) or fixed in the box; replay title
+  card, note cards, sky in the exported file; cyan rivet playhead; h:mm:ss
+  times; History B/C new structures; a clearer error when a log cannot
+  open.
+- Spotlights: play at once (A, C) or a wall of cards (B); hide controls;
+  keep the filtered start page; letters F D P S (F is fullscreen in the
+  replay today); an end card; a brighter dark red on black.
+- Credits and About: auto-roll or a book; a Settings… button with the
+  chronicle; the full third-party notices in About; where the wordmark
+  goes in About; normal or large box for text pages.
+
+### Round 7 decisions (owner, 2026-11-07)
+
+- **Wordmark tint: mithril** (`round6/logo-3-cyan.html?tint=b`, possibly a
+  subtler variant). Everything derived from the old logo cyan (rivets,
+  playhead rivets, initials, accents) follows, in the app and in the
+  mockups.
+- **Big pages: B Rummet växer** (`layout/b-room.html`).
+- **Profile list (built in stage 41):** Edit, Rename, Delete on each
+  profile row, plus Select when not active; shown only on the highlighted
+  row.
+- **Profile editor: B Ryggen.**
+- **Import: C Importsidan**, but the receipt after an import has no Edit
+  button.
+- **Export: B Verktygsraden**, changed: a toggle between HTML replay and
+  Plain text, and an explicit EXPORT button (the format buttons no longer
+  export at once).
+- **Scripts page: C Instrumentbrädan. Script editor: C Fokus. Manual: A
+  Boken.** In-game window frame: each direction's own ("Riktningens").
+  Clarified by the owner the same day: the Profile page and the Scripts
+  page, with all their sub-pages (Profile editor, Import, Export; Scripts
+  page, script editor, manual), share one frame, the directions' own
+  **Lykta** (`win-a`); the window never switches frame when a sub-page
+  opens, and the Glass window frame (`win-b`) is not built.
+- **History: A Tabell och kort**, but the box must not grow wider than its
+  content needs on a very wide screen; past that width it stays put and
+  more of the sky shows around it.
+- **Run log player: none of A/B/C.** Keep today's player almost unchanged,
+  filling the whole player window; the only addition is a Back button.
+  The exported HTML replay therefore stays as it is today.
+- **Spotlights: B Galleriet.**
+- **Credits: B Krönikeboken**, without a separate "Opening" tab.
+- **About: A Bladet.**
+
+**Accepted defaults** (proposed in chat on 2026-11-07; the owner answered
+only where they wanted something else): the in-game window kit's cyan
+border stays for now; the profile name shows on Profile, not Scripts; the
+other defaults per page are recorded in stages 43–47.

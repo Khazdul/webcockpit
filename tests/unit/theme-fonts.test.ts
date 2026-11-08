@@ -126,7 +126,7 @@ describe('detectLocalFonts', () => {
 });
 
 describe('@font-face rules', () => {
-  it('declares every family once per weight; Lucida only as local(), with font-display: block', () => {
+  it('declares every face once (family, weight, style); Lucida only as local(), with font-display: block', () => {
     const css = fontFaceCss();
     const rules = css.split('\n');
     for (const r of rules) expect(r).toContain('font-display:block');
@@ -136,8 +136,11 @@ describe('@font-face rules', () => {
       expect(r).toContain('src:local("Lucida Console"), local("LucidaConsole");');
       expect(r).not.toContain('url(');
     }
-    const keys = rules.map((r) => /font-family:"([^"]+)".*font-weight:(\w+)/.exec(r)!.slice(1).join('|'));
+    const keys = rules.map((r) => /font-family:"([^"]+)".*font-weight:(\w+);font-style:(\w+)/.exec(r)!.slice(1).join('|'));
     expect(new Set(keys).size).toBe(keys.length);
+    // Cormorant Garamond: the italic (the start page) and the upright (the look pages, ADR 0127).
+    expect(keys).toContain('Cormorant Garamond|normal|italic');
+    expect(keys).toContain('Cormorant Garamond|normal|normal');
     // 3270 has no bold: its bold rule is the regular file (no synthetic bold).
     expect(css).toContain(
       '@font-face{font-family:"IBM 3270";src:url("/fonts/IBM3270-Regular.woff2") format("woff2");font-weight:bold;',

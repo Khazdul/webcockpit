@@ -1,0 +1,113 @@
+<!doctype html>
+<!--
+  Round 7 · layout · B "Rummet växer" (the room grows).
+  The menu panel itself becomes the page: its items fade, and the same iron box grows out of the panel's
+  place until it fills the window (inset --box-m on every side; no wordmark while the page is open). The
+  plain plate on the hood widens into the page's name plate. The wordmark lifts and fades away upwards, the
+  quote and the almanac fade. Back / Esc: the content fades, the box shrinks back into the menu panel, the
+  menu items return and the wordmark settles down again. Reduced motion: a short cross-fade, no growth.
+  URL: ?page=history opens on the page; ?slow=6 slows every transition; ?nointro skips the load fade.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · B Rummet växer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="history.css">
+<style>
+#page { visibility: hidden; }
+body.pg #page { visibility: visible; }
+body.pg #menuPanel { visibility: hidden; animation: none; opacity: 1; }
+#quote.in, #almanac.in { transition: opacity calc(.35s * var(--ts)); }
+body.pg-out #quote, body.pg-out #almanac { opacity: 0; animation: none; }
+/* while the box grows or shrinks its content is hidden; it fades in when the box has settled */
+#page > .win > * { transition: opacity calc(.32s * var(--ts)); }
+#page.morph > .win > * { opacity: 0; }
+#page .hood .t { transition: opacity calc(.3s * var(--ts)); }
+#page.morph .hood .t { opacity: 0; }
+#page.morph .backbtn { opacity: 0; }
+#page .backbtn { transition: opacity calc(.3s * var(--ts)); }
+body.pg #stage > * { pointer-events: none; }   /* the faded start stage never catches a click over the page */
+body.instant * { transition: none !important; }
+</style>
+</head>
+<body>
+<section class="lp box-large" id="page" data-hood="History" data-back aria-label="History"><div class="win"></div></section>
+<script src="../base/base.js"></script>
+<script src="history.js"></script>
+<script>
+WC.sky.start();
+const menu = WC.startMenu({ onActivate(k) { if (k === 'history') { open(); return true; } } });
+WC.decorate();
+const page = document.getElementById('page'), brand = menu.brand, panel = menu.panel, menuWin = panel.querySelector('.win');
+const hood = page.querySelector('.hood');
+const H = HISTORY.mount(page.querySelector('.win'));
+const EASE = 'cubic-bezier(.55,0,.15,1)';
+const geo = (r) => ({ left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+const LIFT = { transform: 'translateY(-46px) scale(.97)', opacity: 0, filter: 'blur(3px)' }, REST = { transform: 'none', opacity: 1, filter: 'blur(0px)' };
+let pop = null, isOpen = false, held = [];
+
+async function open(instant = false) {
+  if (isOpen || WC.busy) return;
+  WC.busy = true; isOpen = true; menu.active = false;
+  H.onShow();
+  if (instant) document.body.classList.add('instant');
+  const D = instant ? 0 : WC.dur(1);
+  const pr = panel.getBoundingClientRect();
+  held.forEach((a) => a.cancel()); held = [];
+  // 1 · the menu's items go quiet, the wordmark lifts away, the quote and the almanac fade
+  const items = menuWin.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 * D, fill: 'forwards' });
+  held.push(items, brand.animate([REST, LIFT], { duration: 620 * D, easing: 'cubic-bezier(.5,0,.5,1)', fill: 'forwards' }));
+  document.body.classList.add('pg-out');
+  await items.finished;
+  // 2 · the panel becomes the page: the same box, now growing out of the panel's place
+  page.classList.add('morph');
+  document.body.classList.add('pg');
+  const fr = page.getBoundingClientRect();
+  if (WC.RM || instant) {
+    await page.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * D }).finished;
+  } else {
+    const hw = hood.offsetWidth;
+    const grow = page.animate([geo(pr), geo(fr)], { duration: 780 * D, easing: EASE });
+    hood.animate([{ width: '74px' }, { width: '74px', offset: .25 }, { width: hw + 'px' }], { duration: 780 * D, easing: EASE });
+    await grow.finished;
+  }
+  // 3 · the content fades in
+  page.classList.remove('morph');
+  await WC.wait(instant ? 0 : 320);
+  document.body.classList.remove('instant');
+  pop = WC.keys.push({ key: H.layer.key, back: close });
+  WC.busy = false;
+}
+async function close() {
+  if (!isOpen || WC.busy) return;
+  WC.busy = true; pop && pop(); pop = null;
+  const D = WC.dur(1);
+  page.classList.add('morph');
+  await WC.wait(240);
+  const pr = panel.getBoundingClientRect(), fr = page.getBoundingClientRect();
+  let shrink;
+  if (WC.RM) shrink = page.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240 * D, fill: 'forwards' });
+  else {
+    shrink = page.animate([geo(fr), geo(pr)], { duration: 680 * D, easing: EASE, fill: 'forwards' });
+    hood.animate([{ width: hood.offsetWidth + 'px' }, { width: '74px', offset: .75 }, { width: '74px' }], { duration: 680 * D, easing: EASE });
+  }
+  const settle = brand.animate([LIFT, REST], { duration: 700 * D, delay: (WC.RM ? 0 : 320) * D, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
+  await shrink.finished;
+  // the box is the menu panel again
+  document.body.classList.remove('pg');
+  shrink.cancel();
+  const back = menuWin.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * D, fill: 'forwards' });
+  document.body.classList.remove('pg-out');
+  await Promise.all([back.finished, settle.finished]);
+  held.forEach((a) => a.cancel()); back.cancel(); settle.cancel(); held = [];
+  page.classList.remove('morph');
+  isOpen = false; menu.active = true; menu.select(menu.cur); WC.busy = false;
+}
+if (WC.qs.get('page') === 'history') open(true);
+window.LAYOUT = { open, close };
+</script>
+</body>
+</html>

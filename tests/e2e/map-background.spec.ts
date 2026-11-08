@@ -75,7 +75,9 @@ test('Settings → Mapper → Background colour: a named colour is drawn live an
   await expect.poll(() => countColour(page, MAROON), { timeout: 10_000 }).toBeGreaterThan(maroonBefore + 1000);
   expect(await content.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(46, 18, 20)');
 
-  // Kept over a reload: the worker starts with it.
+  // Kept over a reload: the worker starts with it. Saved first: the store writes 200 ms after a
+  // change, and a reload inside that window loses it (the pagehide flush does not commit).
+  await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
   await expect(page.locator('.wc-cockpit')).toBeVisible();
   await expect(content).toHaveAttribute('data-map-bg', '#2e1214');

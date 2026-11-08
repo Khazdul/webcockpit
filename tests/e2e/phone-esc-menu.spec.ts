@@ -11,7 +11,7 @@ const GMCP = 201;
 const overlay = (page: Page) => page.locator('.wc-overlay');
 const menu = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden])');
 const menuSel = (page: Page) => menu(page).locator('.wc-mrow.is-sel');
-const startSel = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel');
+const startSel = (page: Page) => page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label');
 const field = (page: Page) => page.locator('.wc-input-slot textarea, .wc-input-slot input').first();
 
 function watchErrors(page: Page): string[] {
@@ -30,8 +30,8 @@ async function enterMume(page: Page): Promise<{ server: () => WebSocketRoute; op
     ws.send(Buffer.concat([Buffer.from([IAC, WILL, GMCP]), Buffer.from('\r\nBy what name do you wish to be known? ')]));
   });
   await page.goto('/?phone=1');
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
-  await page.locator('.wc-start .wc-mrow[data-key="enter"] .wc-label').tap();
+  await expect(startSel(page)).toHaveText('Enter MUME');
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   return { server: () => server!, opened: () => opened };
 }
@@ -69,12 +69,12 @@ test('Esc opens the menu with its status header; the keys go to it; Esc and Cont
 test('the selected profile shows in the header', async ({ page }) => {
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.goto('/?phone=1');
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  await expect(startSel(page)).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.create('scout', '');
     window.__wc!.settings.update({ profile: 'scout' });
   });
-  await page.locator('.wc-start .wc-mrow[data-key="enter"] .wc-label').tap();
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await page.locator('.wc-menu-btn').tap();
   await expect(page.locator('.wc-overlay .wc-esc-header').first()).toContainText('Profile: scout');
@@ -120,7 +120,7 @@ test('Exit session asks first, returns to the start page and closes the connecti
   await page.keyboard.press('Enter');
   await page.keyboard.press('y');
   await expect(page.locator('.wc-start')).toBeVisible();
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  await expect(startSel(page)).toHaveText('Enter MUME');
   await expect(page.locator('.wc-app')).toBeHidden();
   await expect(overlay(page)).toBeHidden();
   await expect.poll(() => closed).toBe(true);
@@ -152,15 +152,26 @@ test('Profile and Options → Scripts open their frames in the menu, not windows
   await expect(page.locator('.wc-app')).toBeVisible();
   await page.locator('.wc-menu-btn').tap();
   await menu(page).locator('.wc-mrow[data-key="profile"]').tap();
-  await expect(menu(page).locator('.wc-ped-title .wc-c-section')).toContainText('Profile Edit');
+  // The editor in the new look, full screen in the menu (place `menu`, ADR 0127, 0128).
+  const pe = menu(page).locator('.wc-pe');
+  await expect(pe).toHaveAttribute('data-view', 'lite');
+  await expect(pe).toHaveClass(/\bis-menu\b/);
+  await expect(menu(page).locator('.wc-lk-box-full .wc-lk-hood-t')).toHaveText('Profile');
   await expect(page.locator('.wc-win')).toHaveCount(0);
+  // Back (top left) returns to the menu, as Esc does.
+  await menu(page).locator('.wc-lk-back').tap();
+  await expect(menu(page).locator('.wc-mrow[data-key="profile"]')).toBeVisible();
+  await menu(page).locator('.wc-mrow[data-key="profile"]').tap();
+  await expect(pe).toHaveAttribute('data-view', 'lite');
   await page.keyboard.press('Escape');
   await expect(menu(page).locator('.wc-mrow[data-key="options"]')).toBeVisible();
   await menu(page).locator('.wc-mrow[data-key="options"]').tap();
   // Options has no Spotlights row: its settings are in the reel's gear (ADR 0110).
   await expect(menu(page).locator('.wc-mrow[data-key="spotlights"]')).toHaveCount(0);
   await menu(page).locator('.wc-mrow[data-key="scripts"]').tap();
-  await expect(menu(page).locator('.wc-title-row')).toContainText('Scripts');
+  // The lantern Scripts page in the menu place (stage 44): its hood and the page.
+  await expect(menu(page).locator('.wc-lk-hood-t')).toHaveText('Scripts');
+  await expect(menu(page).locator('.wc-scr')).toBeVisible();
   await expect(page.locator('.wc-win')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

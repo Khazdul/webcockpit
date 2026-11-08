@@ -1,0 +1,427 @@
+/* History in the new look (src/chrome/frames/history.tsx; stage 45 WP 45-A,
+ * ADR 0130), after the round 7 mockup A "Tabell och kort"
+ * (notes/research/start-menu-mockups/round7/history/history-a.*): the
+ * session table and the chosen session's card in the large box of layout
+ * B, Backup / Restore, the flash and the storage line in the foot.
+ *
+ * The page lays itself out by its own width: `.is-narrow` (set by the page
+ * from its body's width, < 680 px) is the phone's form (two-line rows, the
+ * sort list, the card under the chosen row); the container query below
+ * tightens the columns between that and the full width.
+ *
+ * Performance (ADR 0127): plain DOM rows with no per-row effects; no
+ * `backdrop-filter` on the table or the card; the only motion is the
+ * card's content fading in (opacity). */
+
+/* ------------------------------------------------------------ head */
+
+.wc-hist-head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 0 0 16px;
+}
+
+.wc-hist-pills {
+  grid-column: 2;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.wc-hist-head > .wc-lk-btn.is-icon {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.wc-hist-sort {
+  grid-column: 1 / -1;
+}
+
+/* The sort list's label is its `aria-label` (the mockup shows the choice only). */
+.wc-hist-sort .wc-lk-lbl {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the table and the card */
+
+.wc-hist-main {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+}
+
+.wc-hist-tablewrap {
+  --wc-hist-cols: minmax(110px, 1fr) 112px 64px 76px 96px 100px;
+  flex: 0 1 800px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Rows out of view skip layout and paint (a few hundred sessions; ADR 0130). */
+.wc-hist-tablewrap .wc-lk-tr {
+  min-height: 41px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 41px;
+}
+
+.wc-hist-char {
+  font: 700 15.5px/1.2 var(--lk-display);
+  letter-spacing: 0.08em;
+}
+
+.wc-hist-date,
+.wc-hist-time,
+.wc-hist-dur {
+  font: 500 17px/1.2 var(--lk-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wc-hist-exp {
+  font: 500 16px/1.2 var(--lk-serif);
+}
+
+.wc-hist-exp.is-saved {
+  font-weight: 600;
+  color: var(--lk-gold);
+}
+
+.wc-hist-exp.is-soon {
+  color: var(--lk-soon);
+}
+
+.wc-hist-exp.is-later {
+  color: var(--lk-dim);
+}
+
+.wc-lk-tr.is-on .wc-hist-exp.is-later {
+  color: color-mix(in srgb, var(--lk-dim) 55%, var(--lk-on));
+}
+
+.wc-hist-rate {
+  font-size: 14px;
+}
+
+/* Only the gold stars in the table (the card's Kept line says the rest). */
+.wc-hist-rate .wc-lk-star-off {
+  display: none;
+}
+
+.wc-hist-note.wc-lk-empty {
+  margin: 0;
+  padding: 70px 16px;
+}
+
+.wc-hist-card {
+  flex: 0 0 290px;
+  align-self: flex-start;
+  box-sizing: border-box;
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+  padding: 20px 20px 18px;
+  border-radius: 6px;
+  background: var(--lk-row);
+  box-shadow: var(--lk-row-sh);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The card's content swap: opacity only. */
+.wc-hist-card-in {
+  animation: wc-hist-in calc(0.22s * var(--lk-ts, 1)) ease-out;
+}
+
+@keyframes wc-hist-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.wc-hist-name {
+  font: 700 24px/1 var(--lk-display);
+  letter-spacing: 0.08em;
+  color: var(--lk-head);
+  overflow-wrap: anywhere;
+}
+
+.wc-hist-name small {
+  display: block;
+  margin-top: 7px;
+  font: 600 10px/1 var(--lk-display);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-hist-when {
+  margin: 12px 0 14px;
+  font: italic 500 17px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-hist-kv {
+  margin: 0 0 18px;
+}
+
+.wc-hist-kv .wc-lk-stars {
+  font-size: 14px;
+}
+
+.wc-hist-pk {
+  color: #e0915a;
+}
+
+.wc-hist-dead {
+  color: #e06c6c;
+}
+
+/* The drain gauge under "Expires in N days". */
+.wc-hist-gauge {
+  display: block;
+  height: 3px;
+  margin-top: 6px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in);
+}
+
+.wc-hist-gauge > b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #b07a3a, var(--lk-gold));
+}
+
+.wc-hist-acts > .wc-lk-btn {
+  width: 100%;
+}
+
+.wc-hist-card-empty.wc-lk-empty {
+  margin: 0;
+  padding: 24px 6px;
+  font-size: 17px;
+}
+
+/* ------------------------------------------------------------ foot */
+
+.wc-hist-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-hist-footbtns {
+  display: flex;
+  gap: 10px;
+}
+
+.wc-hist-flash {
+  flex: 1;
+  min-width: 0;
+}
+
+.wc-hist-storage {
+  font: italic 500 14px/1 var(--lk-serif);
+  color: var(--lk-faint);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ medium and short windows */
+
+@container wc-page (max-width: 1040px) {
+  .wc-hist-tablewrap {
+    --wc-hist-cols: minmax(70px, 1fr) 96px 50px 58px 72px 76px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-main {
+    gap: 18px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-card {
+    flex-basis: 250px;
+  }
+}
+
+@media (max-height: 780px) {
+  .wc-hist-win:not(.is-narrow) .wc-hist-card {
+    padding: 14px 16px 12px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-name {
+    font-size: 21px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-when {
+    margin: 8px 0 10px;
+    font-size: 16px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-kv {
+    gap: 3px 14px;
+    margin-bottom: 12px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-acts {
+    gap: 6px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-acts > .wc-lk-btn {
+    height: 29px;
+  }
+
+  .wc-hist-win:not(.is-narrow) .wc-hist-head {
+    margin-bottom: 10px;
+  }
+}
+
+/* ------------------------------------------------------------ narrow (a phone) */
+
+.is-narrow .wc-hist-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 10px;
+}
+
+.is-narrow .wc-hist-pills {
+  grid-column: 1;
+  justify-content: flex-start;
+}
+
+.is-narrow .wc-hist-head > .wc-lk-btn.is-icon {
+  grid-column: 2;
+}
+
+.is-narrow .wc-hist-main {
+  display: block;
+}
+
+.is-narrow .wc-hist-tablewrap {
+  display: block;
+}
+
+/* Two-line rows: the name and Expires, then date, time, length and the stars. */
+.is-narrow .wc-hist-tablewrap .wc-lk-tbl.is-stacked > .wc-lk-tbody > .wc-lk-tr {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+  gap: 5px 10px;
+  align-items: baseline;
+  padding: 9px 10px;
+  min-height: 0;
+  contain-intrinsic-size: auto 62px;
+}
+
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-hist-char {
+  grid-column: 1 / 5;
+  grid-row: 1;
+}
+
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-hist-exp {
+  grid-column: 5;
+  grid-row: 1;
+  justify-self: end;
+  font-size: 15px;
+}
+
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-hist-date {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-hist-time {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-hist-dur {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.is-narrow .wc-hist-tablewrap .wc-lk-tr > .wc-hist-rate {
+  grid-column: 5;
+  grid-row: 2;
+  justify-self: end;
+  font-size: 12.5px;
+}
+
+.is-narrow .wc-hist-date,
+.is-narrow .wc-hist-time,
+.is-narrow .wc-hist-dur {
+  font-size: 15px;
+}
+
+/* The card opens under the chosen row, its buttons in a wrapping row. */
+.is-narrow .wc-hist-card {
+  margin: 2px 0 10px;
+  padding: 14px 12px 12px;
+  max-height: none;
+  overflow: visible;
+}
+
+.is-narrow .wc-hist-name {
+  font-size: 19px;
+}
+
+.is-narrow .wc-hist-when {
+  margin: 8px 0 10px;
+  font-size: 15.5px;
+}
+
+.is-narrow .wc-hist-kv {
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+
+.is-narrow .wc-hist-kv > dd {
+  font-size: 15px;
+}
+
+.is-narrow .wc-hist-acts {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.is-narrow .wc-hist-acts > .wc-lk-btn {
+  width: auto;
+  flex: 1 1 30%;
+  justify-content: center;
+}
+
+.is-narrow .wc-hist-foot {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  padding-top: 10px;
+}
+
+.is-narrow .wc-hist-flash {
+  order: 3;
+  flex-basis: 100%;
+  min-height: 0;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.is-narrow .wc-hist-storage {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-hist-card-in {
+    animation-duration: 0.12s;
+  }
+}

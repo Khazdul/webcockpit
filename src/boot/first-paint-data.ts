@@ -4,27 +4,6 @@
 import { FONT_IDS, FONT_SIZE_MAX, FONT_SIZE_MIN, LEGACY_APPEARANCE, PADDING_MAX, PADDING_MIN, PADDING_STEP, PHONE_FONT_SIZE, defaultSettings } from '../settings/types';
 import type { AppearanceSettings, FontId } from '../settings/types';
 import { normalizeHex } from '../theme/color';
-import { FONTS } from '../theme/fonts';
-import { BANNER_FACES } from './banner-faces';
-
-/**
- * The regular files that draw the banner in family `id`, in its CSS stack
- * order (glyph faces ahead of it, the family, the faces after it, DejaVu
- * Sans Mono), or `local:<id>` for a family that is only installed.
- */
-export function bannerFiles(id: FontId): string[] {
-  const f = FONTS[id];
-  const files = [
-    ...(f.overrides ?? []).map((o) => o.regular),
-    f.regular ?? `local:${id}`,
-    ...(f.fallbacks ?? []).map((o) => o.regular),
-    FONTS.dejavu.regular!,
-  ];
-  return [...new Set(files)].filter((file) => file.startsWith('local:') || file in BANNER_FACES);
-}
-
-/** The @font-face name of a banner face. */
-export const faceName = (file: string): string => `WebCockpit First ${file.replace(/\.woff2$/, '')}`;
 
 /** The appearance fields the first paint uses. */
 export type FirstAppearance = Pick<AppearanceSettings, 'font' | 'size' | 'padding' | 'fg' | 'bg'>;
@@ -65,3 +44,13 @@ export function firstAppearance(raw: string | null, phone: boolean): FirstAppear
   };
 }
 
+
+/**
+ * The CSS `top` of the start menu's panel (src/chrome/start.css
+ * `.wc-sm-stage`): under the wordmark (`brandH`, its box's height in CSS
+ * px, as the surface measures it for `--wc-brand-h`) and the gap, or 18 px
+ * from the top when the wordmark is hidden (a short window).
+ */
+export function panelTop(brandH: number | null): string {
+  return brandH === null ? '18px' : `calc(var(--wc-brand-top) + ${brandH}px + var(--wc-brand-gap))`;
+}

@@ -1,80 +1,156 @@
-// Profile frame (Inv §3.4, "P4" layout) and its sub-frames.
+// The Profile list (Inv §3.4; stage 41e, ADR 0125): the first sub-page in
+// the new look (src/chrome/kit/look.tsx), a lantern box under the smaller
+// wordmark with Back at its top left. Its sub-frames (the New / Rename
+// name prompt, Blank or Copy, the Delete confirm, the profile editor)
+// still open in the old look on the cell grid. Import pushes the import
+// page (stage 43c, import-page.tsx), which picks or takes dropped files
+// and shows the receipt; after its OK the list highlights the new profile
+// and flashes `Imported "x" from y.`.
 //
-//   [ button column | 2-cell gap | table (Name ▲, Selected) | scrollbar ]
+//   [Back]                  ( Profiles )
+//     NAME ▲                                               CHANGED
+//     default  SELECTED                                    2 hours ago
+//     scout          [Select] [Edit] [Rename] [Delete]     yesterday   ← highlighted
+//     ranger                                               3 days ago
+//                    [New] [Import] [Export]
+//                          flash line
 //
-// Two focus zones: the table (default, cursor on the selected profile) and
-// the buttons. Tab/Shift+Tab toggle, ← focuses the buttons, → the table.
-// In the table, Enter or a click on a row selects that profile; on the
-// profile that is already selected it opens the editor, as EDIT does
-// (stage 25: first click selects, the second edits).
-// Buttons: SELECT (disabled on the selected row), NEW, EDIT (the profile
-// editor, src/editor, loaded on demand),
-// RENAME and DELETE (disabled on `default`), IMPORT (one or more files,
-// native or foreign, then the import report), EXPORT, BACK.
-// Feedback goes to the flash row under the package (~3 s).
+// The highlighted row (ADR 0125 addendum "Actions on the row") carries its
+// own glass buttons: Select (not on the selected profile), Edit, Rename and
+// Delete (both disabled on `default`); other rows show none. New, Import
+// and Export belong to the page and sit at the foot (Export takes the
+// highlighted profile).
+//
+// Keys. ↑ ↓ PgUp PgDn (10) Home End move the highlight from anywhere (on
+// a row button the same button follows to the new row when it has it).
+// Tab / Shift+Tab walk one ring: the row, its buttons, the page buttons,
+// skipping disabled ones, and wrap; ← / → walk the same order and stop at
+// the ends. Enter or Space presses the keyboard's button; on the row it
+// selects the profile, or opens the editor on the profile that is already
+// selected (stage 25: the first click selects, the second edits). Letters,
+// marked in the labels: S E R D on the highlighted row, N I X anywhere.
+// Esc or Back returns to the menu. The mouse highlights a row on a pointer
+// move; a click or tap on a row that is not highlighted highlights it, on
+// the highlighted row it does what Enter does. The name header sorts
+// (A–Z / Z–A). Feedback goes to the flash line at the foot (~3 s).
+//
+// Names that differ only in case (`gibur`, `Gibur`) look alike in the
+// display face's small caps: each of them gets its real spelling on a
+// second line, in the plain mono face (ADR 0125 addendum).
 
 import type { VNode } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import {
   DEFAULT_PROFILE,
   NAME_HINT,
   NAME_MAX,
   type ProfileRecord,
+  caseTwins,
   compareNames,
   downloadProfile,
   nameError,
 } from '../../profiles';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
+import { Box, GlassButton, type IconName, LookFlash, letterOf, lookFrame } from '../kit/look';
 import { editProfile } from './profile-edit';
-import { loadImportFiles } from './import-load';
-import { ImportReportFrame } from './import-report';
-import { cellLen, centreLeft, step } from '../kit/nav';
+import { ImportFrame } from './import-page';
+import { centreLeft } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   Blank,
-  Button,
   Centered,
-  type Column,
   FlashRow,
   type MenuItem,
   MenuRows,
   Page,
-  Table,
   TextField,
-  indent,
   menuKey,
-  useBodyRows,
   useMenuCursor,
 } from '../kit/widgets';
+import './profiles.css';
 
 type Done = (name: string, message: string) => void;
 
-const BUTTONS = ['SELECT', 'NEW', 'EDIT', 'RENAME', 'DELETE', 'IMPORT', 'EXPORT', 'BACK'] as const;
-type ButtonId = (typeof BUTTONS)[number];
-const BUTTON_W = Math.max(...BUTTONS.map((b) => b.length)) + 2;
-const GAP = 2;
-const SEL_W = 8;
+/** The highlighted row's buttons. */
+const ROW_BUTTONS = ['SELECT', 'EDIT', 'RENAME', 'DELETE'] as const;
+/** The page's buttons, at the foot. */
+const PAGE_BUTTONS = ['NEW', 'IMPORT', 'EXPORT'] as const;
+type RowButton = (typeof ROW_BUTTONS)[number];
+type PageButton = (typeof PAGE_BUTTONS)[number];
+type ButtonId = RowButton | PageButton;
+/** Where the keyboard is: the highlighted row itself, or one of the buttons. */
+type Stop = 'ROW' | ButtonId;
+
+interface ButtonDef {
+  label: string;
+  letter: string;
+  icon: IconName;
+  danger?: boolean;
+}
+
+const BUTTON_DEFS: Readonly<Record<ButtonId, ButtonDef>> = {
+  SELECT: { label: 'Select', letter: 's', icon: 'check' },
+  EDIT: { label: 'Edit', letter: 'e', icon: 'pencil' },
+  RENAME: { label: 'Rename', letter: 'r', icon: 'rename' },
+  DELETE: { label: 'Delete', letter: 'd', icon: 'trash', danger: true },
+  NEW: { label: 'New', letter: 'n', icon: 'plus' },
+  IMPORT: { label: 'Import', letter: 'i', icon: 'import' },
+  EXPORT: { label: 'Export', letter: 'x', icon: 'export' },
+};
+
+const BY_LETTER = new Map<string, ButtonId>(
+  (Object.keys(BUTTON_DEFS) as ButtonId[]).map((id) => [BUTTON_DEFS[id].letter, id]),
+);
+
+const isRowButton = (s: Stop): s is RowButton => (ROW_BUTTONS as readonly string[]).includes(s);
+
+/** The buttons of a row: Select only when it is not the selected profile. */
+const rowButtons = (selected: boolean): readonly RowButton[] => (selected ? ROW_BUTTONS.slice(1) : ROW_BUTTONS);
+
+/** PgUp / PgDn in the list. */
+const PAGE = 10;
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-export function ProfileFrame(): VNode {
+const MIN = 60_000;
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+
+/** "just now", "5 minutes ago", "2 hours ago", "yesterday", "3 days ago", "3 weeks ago", "4 months ago", "2 years ago"; "" when unknown. */
+export function timeAgo(ms: number, now: number = Date.now()): string {
+  if (!(ms > 0)) return '';
+  const d = Math.max(0, now - ms);
+  const n = (v: number, unit: string): string => `${v} ${unit}${v === 1 ? '' : 's'} ago`;
+  if (d < MIN) return 'just now';
+  if (d < HOUR) return n(Math.floor(d / MIN), 'minute');
+  if (d < DAY) return n(Math.floor(d / HOUR), 'hour');
+  if (d < 2 * DAY) return 'yesterday';
+  if (d < 14 * DAY) return n(Math.floor(d / DAY), 'day');
+  if (d < 60 * DAY) return n(Math.floor(d / (7 * DAY)), 'week');
+  if (d < 365 * DAY) return n(Math.floor(d / (30 * DAY)), 'month');
+  return n(Math.floor(d / (365 * DAY)), 'year');
+}
+
+const fullDate = (ms: number): string => (ms > 0 ? `Changed ${new Date(ms).toLocaleString()}` : '');
+
+export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
   const { profiles, settings, onProfileSaved } = useServices();
   const s = useSettings();
   const nav = useNav();
   const isTop = useIsTop();
-  const { cols } = useGrid();
-  const bodyRows = useBodyRows();
-  const [list, setList] = useState<ProfileRecord[]>([]);
+  const [list, setList] = useState<ProfileRecord[] | null>(null);
   const [dir, setDir] = useState<1 | -1>(1);
   const [cursorName, setCursorName] = useState<string>(s.profile);
-  const [zone, setZone] = useState<'table' | 'buttons'>('table');
-  const [btn, setBtn] = useState(0);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [stop, setStop] = useState<Stop>('ROW');
+  const listRef = useRef<HTMLUListElement>(null);
+  /** Scroll the highlight into view after this move (keys, not the pointer: the list must not move under it). */
+  const reveal = useRef(true);
 
   const reload = async (): Promise<void> => {
     try {
       setList(await profiles.list());
     } catch (e) {
+      setList((l) => l ?? []);
       nav.flash(`Could not read profiles: ${errText(e)}`, 'fail');
     }
   };
@@ -82,47 +158,72 @@ export function ProfileFrame(): VNode {
     if (isTop) void reload();
   }, [isTop]);
 
-  const rows = dir > 0 ? list : [...list].reverse();
+  const all = list ?? [];
+  const rows = dir > 0 ? all : [...all].reverse();
+  /** Names alike but for case: their real spelling shows under them (Cinzel draws them alike). */
+  const twins = caseTwins(all.map((r) => r.name));
   let cursor = rows.findIndex((r) => r.name === cursorName);
   if (cursor < 0) cursor = Math.max(0, rows.findIndex((r) => r.name === s.profile));
   const cur = rows[cursor];
   const curName = cur?.name ?? '';
+  const curSelected = !!cur && cur.name === s.profile;
 
   const disabled = (b: ButtonId): boolean => {
-    if (!cur) return b === 'SELECT' || b === 'EDIT' || b === 'RENAME' || b === 'DELETE' || b === 'EXPORT';
-    if (b === 'SELECT') return cur.name === s.profile;
-    if (b === 'RENAME' || b === 'DELETE') return cur.name === DEFAULT_PROFILE;
-    return false;
+    switch (b) {
+      case 'NEW':
+      case 'IMPORT':
+        return false;
+      case 'SELECT':
+        return !cur || curSelected;
+      case 'RENAME':
+      case 'DELETE':
+        return !cur || cur.name === DEFAULT_PROFILE;
+      default:
+        return !cur;
+    }
   };
-  const btnEnabled = (i: number): boolean => !disabled(BUTTONS[i]!);
-  const btnIdx = btnEnabled(btn) ? btn : step(BUTTONS.length, btn, 1, { enabled: btnEnabled, wrap: true });
 
-  // Layout.
-  const visible = Math.max(3, Math.min(Math.max(rows.length, BUTTONS.length - 1), bodyRows - 3));
-  const nameW = Math.min(NAME_MAX, Math.max(12, ...rows.map((r) => cellLen(r.name))));
-  const tableW = nameW + 1 + SEL_W + (rows.length > visible ? 1 : 0);
-  const at = centreLeft(cols, BUTTON_W + GAP + tableW);
+  // The keyboard's ring: the row, its enabled buttons, the enabled page buttons.
+  const ring: Stop[] = [
+    'ROW',
+    ...(cur ? rowButtons(curSelected) : []).filter((b) => !disabled(b)),
+    ...PAGE_BUTTONS.filter((b) => !disabled(b)),
+  ];
+  /** `stop` resolved against this row: a row button it lacks gives the row's first button, else the row. */
+  const resolve = (st: Stop): Stop => {
+    if (ring.includes(st)) return st;
+    if (isRowButton(st)) return ring.find(isRowButton) ?? 'ROW';
+    return 'ROW';
+  };
+  const at = resolve(stop);
+  const atRow = at === 'ROW' || isRowButton(at);
+
+  // The highlighted row stays in view in a long list (after a key, not under the pointer).
+  useLayoutEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>('.wc-pl-row.is-on');
+    if (reveal.current && isTop && el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+    reveal.current = true;
+  }, [cursor, rows.length, isTop]);
 
   const done: Done = (name, message) => {
     setCursorName(name);
-    setZone('table');
+    setStop('ROW');
     nav.flash(message);
   };
-  const moveTo = (i: number): void => {
+  /** Highlights row `i` (clamped); a row button stays on its button when the new row has it. */
+  const moveTo = (i: number, byPointer = false): void => {
     const r = rows[Math.max(0, Math.min(rows.length - 1, i))];
-    if (r) setCursorName(r.name);
-  };
-
-  const select = (): void => {
-    if (!cur || cur.name === s.profile) return;
-    settings.update({ profile: cur.name });
+    if (!r) return;
+    reveal.current = !byPointer;
+    setCursorName(r.name);
+    if (!isRowButton(at)) setStop('ROW');
   };
 
   const edit = (name: string): void => {
     void editProfile(nav, profiles, name, { isLive: () => false, onSaved: onProfileSaved });
   };
 
-  /** Enter or a click on row `r`: select it, or edit it when it is the selected profile. */
+  /** Enter on the row, or a click on the highlighted row: select it, or edit it when it is the selected profile. */
   const pick = (r: ProfileRecord | undefined): void => {
     if (!r) return;
     if (r.name === s.profile) edit(r.name);
@@ -140,38 +241,13 @@ export function ProfileFrame(): VNode {
     }
   };
 
-  // IMPORT: one or more files (a foreign entry file and the files it
-  // `#read`s, or Mudlet archives) through the lazy import chunk (ADR 0073,
-  // ADR 0076), then the report.
-  const onFile = async (): Promise<void> => {
-    const input = fileRef.current;
-    const chosen = [...(input?.files ?? [])];
-    if (!input || chosen.length === 0) return;
-    input.value = '';
-    try {
-      const [importFiles, files] = await Promise.all([
-        loadImportFiles(),
-        Promise.all(chosen.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))),
-      ]);
-      const result = await importFiles(files);
-      const name = await profiles.importFile(result.entry, result.profileText);
-      settings.update({ profile: name });
-      await reload();
-      setCursorName(name);
-      setZone('table');
-      nav.push(
-        <ImportReportFrame result={result} name={name} onClose={() => nav.flash(`Imported "${name}" from ${result.entry}.`)} />,
-      );
-    } catch (e) {
-      nav.flash(`Import failed: ${errText(e)}`, 'fail');
-    }
-  };
-
   const press = (b: ButtonId): void => {
     if (disabled(b)) return;
     switch (b) {
       case 'SELECT':
-        return select();
+        // The row's Select goes; a keyboard on it moves on to Edit (`resolve`).
+        if (cur) settings.update({ profile: cur.name });
+        return;
       case 'NEW':
         return nav.push(<NameFrame mode="create" done={done} />);
       case 'EDIT':
@@ -179,44 +255,39 @@ export function ProfileFrame(): VNode {
         return;
       case 'RENAME':
         return nav.push(<NameFrame mode="rename" from={curName} done={done} />);
-      case 'DELETE':
-        return nav.push(<DeleteFrame name={curName} done={done} />);
+      case 'DELETE': {
+        // Afterwards the highlight goes to the row below (above at the end), in the order shown.
+        const next = rows[cursor + 1]?.name ?? rows[cursor - 1]?.name;
+        return nav.push(<DeleteFrame name={curName} next={next} done={done} />);
+      }
       case 'IMPORT':
-        fileRef.current?.click();
-        return;
+        // The import page (stage 43c): one or more files (a foreign entry
+        // file and the files it `#read`s, or Mudlet archives) through the
+        // lazy import chunk (ADR 0073, ADR 0076), then the receipt.
+        return nav.push(<ImportFrame done={done} />);
       case 'EXPORT':
         void exportCur();
         return;
-      case 'BACK':
-        return nav.pop();
     }
   };
 
-  useKeys((_e, nk) => {
+  useKeys((e, nk) => {
+    const l = letterOf(e);
+    const id = l ? BY_LETTER.get(l) : undefined;
+    if (id) {
+      press(id);
+      return true;
+    }
+    const i = ring.indexOf(at);
     switch (nk) {
       case 'tab':
       case 'backtab':
-        setZone(zone === 'table' ? 'buttons' : 'table');
+        setStop(ring[(i + (nk === 'tab' ? 1 : ring.length - 1)) % ring.length]!);
         return true;
       case 'left':
-        setZone('buttons');
-        return true;
       case 'right':
-        setZone('table');
+        setStop(ring[Math.max(0, Math.min(ring.length - 1, i + (nk === 'left' ? -1 : 1)))]!);
         return true;
-    }
-    if (zone === 'buttons') {
-      if (nk === 'up' || nk === 'down') {
-        setBtn(step(BUTTONS.length, btnIdx, nk === 'up' ? -1 : 1, { enabled: btnEnabled }));
-        return true;
-      }
-      if (nk === 'activate') {
-        press(BUTTONS[btnIdx]!);
-        return true;
-      }
-      return false;
-    }
-    switch (nk) {
       case 'up':
         moveTo(cursor - 1);
         return true;
@@ -224,10 +295,10 @@ export function ProfileFrame(): VNode {
         moveTo(cursor + 1);
         return true;
       case 'pgup':
-        moveTo(cursor - 10);
+        moveTo(cursor - PAGE);
         return true;
       case 'pgdn':
-        moveTo(cursor + 10);
+        moveTo(cursor + PAGE);
         return true;
       case 'home':
         moveTo(0);
@@ -236,76 +307,102 @@ export function ProfileFrame(): VNode {
         moveTo(rows.length - 1);
         return true;
       case 'activate':
-        pick(cur);
+        if (at === 'ROW') pick(cur);
+        else press(at);
         return true;
     }
     return false;
   });
 
-  const columns: Column<ProfileRecord>[] = [
-    { key: 'name', title: 'Name', width: nameW, sortable: true, cell: (r) => ({ text: r.name }) },
-    {
-      key: 'sel',
-      title: 'Selected',
-      width: SEL_W,
-      align: 'center',
-      cell: (r) => (r.name === s.profile ? { text: '✓', class: 'wc-c-ok' } : { text: '' }),
-    },
-  ];
-
-  return (
-    <Page
-      title="Profile"
-      footer={['↑↓ Navigate', 'Tab/←→ Cycle', zone === 'table' && cur?.name === s.profile ? 'Enter Edit' : 'Enter Select', 'ESC Back']}
-    >
-      <div class="wc-pkg" style={{ ...indent(at), display: 'flex' }}>
-        <div class="wc-btncol">
-          {BUTTONS.map((b, i) => (
-            <div class="wc-line">
-              <Button
-                label={b}
-                width={BUTTON_W}
-                selected={i === btnIdx}
-                focused={zone === 'buttons'}
-                disabled={disabled(b)}
-                onClick={() => {
-                  setBtn(i);
-                  setZone('buttons');
-                  press(b);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-        <div style={{ width: `calc(var(--cell-w) * ${GAP})` }} />
-        <Table
-          columns={columns}
-          rows={rows}
-          cursor={cursor}
-          visible={visible}
-          focused={zone === 'table'}
-          sort={{ key: 'name', dir }}
-          onSort={() => setDir(dir > 0 ? -1 : 1)}
-          onRowClick={(i) => {
-            moveTo(i);
-            setZone('table');
-            pick(rows[i]);
-          }}
-        />
-      </div>
-      <Blank />
-      <FlashRow />
-      <input
-        ref={fileRef}
-        type="file"
-        multiple
-        hidden
-        class="wc-profile-file"
-        onChange={() => void onFile()}
+  const button = (b: ButtonId): VNode => {
+    const d = BUTTON_DEFS[b];
+    const off = disabled(b);
+    let title: string | undefined;
+    if (off && (b === 'RENAME' || b === 'DELETE') && cur?.name === DEFAULT_PROFILE)
+      title = `The default profile cannot be ${b === 'RENAME' ? 'renamed' : 'deleted'}`;
+    else if (b === 'EXPORT' && cur) title = `Export "${cur.name}" as a .tin file`;
+    return (
+      <GlassButton
+        key={b}
+        id={b}
+        label={d.label}
+        letter={d.letter}
+        icon={d.icon}
+        danger={d.danger}
+        disabled={off}
+        title={title}
+        selected={at === b}
+        onClick={() => {
+          setStop(b);
+          press(b);
+        }}
       />
-    </Page>
+    );
+  };
+
+  const now = Date.now();
+  const enterHint = curSelected ? 'Enter or click: edit' : 'Enter or click: select';
+  return (
+    <Box title="Profiles" onBack={() => nav.pop()} class="wc-pl" winClass="wc-pl-win">
+      <div class="wc-pl-head">
+        <button
+          type="button"
+          tabIndex={-1}
+          class="wc-pl-sort"
+          title="Sort by name"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setDir(dir > 0 ? -1 : 1)}
+        >
+          Name {dir > 0 ? '▲' : '▼'}
+        </button>
+        <span class="wc-pl-head-time">Changed</span>
+      </div>
+      <ul class={'wc-pl-list' + (atRow ? ' is-focus' : '')} ref={listRef} aria-label="Profiles">
+        {rows.map((r, i) => {
+          const on = i === cursor;
+          const sel = r.name === s.profile;
+          return (
+            <li
+              key={r.name}
+              class={'wc-pl-row' + (on ? ' is-on' : '') + (sel ? ' is-selected' : '')}
+              aria-current={on ? 'true' : undefined}
+              data-name={r.name}
+              title={on ? enterHint : undefined}
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerMove={(e) => {
+                // On a move (not pointerenter, which fires when the page reappears under a resting pointer).
+                if (e.pointerType !== 'touch' && !on) moveTo(i, true);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setStop('ROW');
+                if (on) pick(r);
+                else moveTo(i, true);
+              }}
+            >
+              <span class="wc-pl-name">
+                <span class="wc-pl-n">{r.name}</span>
+                {(sel || twins.has(r.name)) && (
+                  <span class="wc-pl-sub">
+                    {twins.has(r.name) && <span class="wc-pl-case">{r.name}</span>}
+                    {sel && <small class="wc-pl-tag">Selected</small>}
+                  </span>
+                )}
+              </span>
+              {on && <span class="wc-pl-acts">{rowButtons(sel).map(button)}</span>}
+              <span class="wc-pl-time" title={fullDate(r.modified)}>
+                {timeAgo(r.modified, now)}
+              </span>
+            </li>
+          );
+        })}
+        {list !== null && rows.length === 0 && <li class="wc-pl-empty">No profiles yet. New makes one.</li>}
+      </ul>
+      <div class="wc-lk-btns wc-pl-btns">{PAGE_BUTTONS.map(button)}</div>
+      <LookFlash />
+    </Box>
   );
-}
+});
 
 // ------------------------------------------------------------ name input
 
@@ -460,8 +557,12 @@ function CopyFrame(p: { name: string; create: (text?: string) => Promise<void> }
   );
 }
 
-/** DELETE: `Delete profile 'name'?  (y/N)`; any other key cancels. */
-function DeleteFrame(p: { name: string; done: Done }): VNode {
+/**
+ * DELETE: `Delete profile 'name'?  (y/N)`; any other key cancels. The
+ * highlight then goes to `next` (the neighbour in the list's order) when
+ * it is still there, else the next name A–Z.
+ */
+function DeleteFrame(p: { name: string; next?: string | undefined; done: Done }): VNode {
   const { profiles, settings } = useServices();
   const nav = useNav();
   const confirm = async (): Promise<void> => {
@@ -469,7 +570,11 @@ function DeleteFrame(p: { name: string; done: Done }): VNode {
       await profiles.remove(p.name);
       const names = (await profiles.list()).map((r) => r.name);
       if (settings.get().profile === p.name) settings.update({ profile: DEFAULT_PROFILE });
-      const next = names.find((n) => compareNames(n, p.name) > 0) ?? names[names.length - 1] ?? DEFAULT_PROFILE;
+      const next =
+        (p.next !== undefined && names.includes(p.next) ? p.next : undefined) ??
+        names.find((n) => compareNames(n, p.name) > 0) ??
+        names[names.length - 1] ??
+        DEFAULT_PROFILE;
       p.done(next, `Deleted "${p.name}".`);
       nav.pop();
     } catch (e) {

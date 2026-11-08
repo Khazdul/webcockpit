@@ -1,0 +1,83 @@
+<!doctype html>
+<!--
+  Round 7 · Script editor · C "Fokus": the least chrome, the most code. The box's hood carries the script's
+  name; the code surface fills the whole window; Save, Find and Manual are small glass icons resting in the
+  code well's top right corner (Duplicate for a bundled script, with a read-only plate top left); the find
+  row slides down inside the well; the status is a quiet engraved line under it. Pop-ups as in A.
+  Best where room is scarce: a small in-game window, a laptop, a phone.
+  Keys as A: Ctrl+S · Ctrl+F / Ctrl+H · Ctrl+Space · F1 · Tab · Esc (pop-up → find → editor, asks when unsaved).
+  URL: ?ctx=start|game · ?frame=a|b · ?bg=paper · ?win=small · ?sc=rescue|coinlooter|autoeat · ?demo-state=…
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Script editor · C Fokus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="editor.css">
+<style>
+.box-large > .win { padding-top: 46px; }
+.ec-well { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ec-well > #code { flex: 1; }
+.ec-tools { position: absolute; z-index: 20; top: 8px; right: 14px; display: flex; gap: 6px; padding: 4px; border-radius: 8px; background: rgba(10,8,6,.72); box-shadow: 0 0 0 1px rgba(255,214,160,.08), 0 6px 18px rgba(0,0,0,.5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: opacity calc(.3s * var(--ts)); }
+.paper .ec-tools { background: rgba(250,244,230,.85); box-shadow: 0 0 0 1px rgba(100,76,40,.2), 0 4px 12px rgba(60,40,10,.15); }
+.ec-tools .ibtn { width: 32px; height: 30px; padding: 0; }
+.ec-tools .ibtn span { display: none; }
+.ec-tools .ibtn.wide { width: auto; padding: 0 12px 0 10px; }
+.ec-tools .ibtn.wide span { display: inline; }
+.ec-tools .ibtn svg { display: block; }
+.typing .ec-tools { opacity: .35; }
+.typing .ec-tools:hover, .ec-tools:focus-within { opacity: 1; }
+.ec-ro { position: absolute; z-index: 20; top: 10px; left: 72px; display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 9px; border-radius: 12px; font: italic 500 14.5px/1 var(--serif); color: var(--c-dim); background: rgba(10,8,6,.72); box-shadow: 0 0 0 1px rgba(255,214,160,.1); }
+.paper .ec-ro { background: rgba(250,244,230,.85); }
+.ec-ro svg { width: 9px; height: 12px; }
+.ec-find { position: absolute; z-index: 22; top: 0; left: 64px; right: 0; padding: 8px 12px 0 8px; }
+.ec-find .sc-find { background: rgba(14,11,9,.95); box-shadow: 0 0 0 1px rgba(255,214,160,.12), 0 10px 26px rgba(0,0,0,.6); animation: ec-drop calc(.25s * var(--ts)) var(--ease); }
+.paper .ec-find .sc-find { background: rgba(251,246,234,.97); box-shadow: 0 0 0 1px rgba(100,76,40,.25), 0 8px 20px rgba(60,40,10,.2); }
+@keyframes ec-drop { from { opacity: 0; transform: translateY(-8px); } }
+.finding .ec-tools { display: none; }
+.ec-line { flex: none; display: flex; align-items: center; gap: 14px; padding: 8px 4px 0; min-height: 30px; }
+.ec-line .se-status .sc-st, .ec-line .se-prob { font-size: 14.5px; }
+.ec-line .flash.static { flex: 1; text-align: center; font-size: 14.5px; }
+.ec-line .se-status { flex: 0 1 auto; }
+.ec-head { margin-bottom: 8px; }
+@media (max-width: 600px) { .sc-ed { font-size: 12.5px; --lh: 20px; } .ec-ro { left: 58px; } .ec-find { left: 0; } .ec-line { flex-wrap: wrap; gap: 2px 10px; } .ec-line .se-status { flex-basis: 100%; } }
+@media (prefers-reduced-motion: reduce) { .ec-find .sc-find { animation: none; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="editor.js"></script>
+<script>
+const { esc, I } = SC;
+let E = null;
+const name = SC.qs.get('sc') || 'rescue';
+const host = SC.host({
+  title: name, note: '', frame: 'b', depth: 1, open: true,
+  canClose: () => (E ? E.canClose() : true),
+  build(root, host) {
+    const s0 = SC.lib.get(name) || SC.lib.get('rescue');
+    const ro = s0 && s0.readonly && !SC.qs.has('dup');
+    root.innerHTML = `
+      ${host.inlineBack ? `<div class="sc-head ec-head">${SC.inlineBack(host)}</div>` : ''}
+      <div class="ec-well">
+        ${ro ? `<span class="ec-ro">${I.lock}bundled · read-only</span>` : ''}
+        <div class="ec-tools" role="toolbar" aria-label="Editor">${ro ? SC.btn('Duplicate', { act: 'duplicate', icon: 'dup', kind: 'primary', cls: 'wide', title: 'Make your own copy to edit' }) : SC.btn('Save', { act: 'save', icon: 'save', kind: 'primary', title: 'Save (Ctrl+S)' })}${SC.btn('Find', { act: 'find', icon: 'find', title: 'Find and replace (Ctrl+F, Ctrl+H)' })}${SC.btn('Manual', { act: 'manual', icon: 'book', title: 'The manual at the name under the cursor (F1)' })}</div>
+        <div class="ec-find se-findslot"></div>
+        <div id="code"></div>
+      </div>
+      <div class="ec-line"><div class="se-status"></div><div class="flash static"></div><div class="se-pos"></div></div>`;
+    if (host.game) { host.setTitle('Scripts'); host.setNote(name); }
+    E = SE.mount(root, host, { file: 'c', code: root.querySelector('#code'), status: root.querySelector('.se-status'), pos: root.querySelector('.se-pos'), flash: root.querySelector('.flash'), findSlot: root.querySelector('.ec-find'),
+      onPaint({ dirty }) { const t = `${name}${dirty ? ' •' : ''}`; if (!host.game) host.setTitle(t); else host.setNote(t); } });
+    let tt = null; E.ed.ta.addEventListener('input', () => { root.classList.add('typing'); clearTimeout(tt); tt = setTimeout(() => root.classList.remove('typing'), 1600); });
+    return E.layer;
+  },
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!doctype html>
+<!--
+  Round 7 · Spotlights · B "Galleriet" (the gallery wall).
+  Spotlights opens on a wall of cards in the large box instead of playing at once: one card per spotlight in reel
+  order (kind, label, character · level · date, and a "still" of the game text at the moment, in its real colours).
+  The Spotlights settings are the filter row above the wall (kind chips with their icons, character chips, period),
+  so the filtered and no-data cases are just the wall saying so. Enter on a card (or Play all) opens the reel in a
+  viewer that grows out of the card and keeps playing through the following spotlights; Back / Esc returns to the
+  wall with the current spotlight's card chosen, a second Esc leaves the page.
+  States: ?open (the wall) ?at=N (the viewer on spotlight N) ?pause ?end ?display ?none ?filtered ?empty ?error ?freeze.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Spotlights B · Galleriet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="spot.css">
+<style>
+.gal { --scr-native: rgba(4,3,2,.86); }
+.gal > .win { padding: 44px 22px 12px; }
+/* ---- the filter row */
+.gal-head { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px 14px; margin: 2px 0 16px; }
+.gal-head[hidden] { display: none; }
+.gal-head .seg button { padding: 0 12px; gap: 7px; }
+.gal-kinds button .kic { width: 14px; height: 14px; opacity: .4; transition: opacity .3s; }
+.gal-kinds button[aria-selected="true"] .kic { opacity: 1; }
+.gal-period { width: auto; min-width: 150px; height: 36px; font-size: 16px; }
+/* ---- the wall */
+.gal-body { padding: 2px 6px 6px 2px; }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 248px), 1fr)); gap: 14px; }
+.gc { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; padding: 12px 14px 13px; }
+.gc-top { display: flex; align-items: center; gap: 8px; }
+.gc-kind { display: flex; align-items: center; gap: 7px; font: 700 10.5px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--k); opacity: .8; transition: opacity .3s; }
+.gc.on .gc-kind { opacity: 1; }
+.gc-n { margin-left: auto; font: 600 11px/1 var(--display); letter-spacing: .1em; color: var(--c-faint); }
+.gc.on .gc-n { color: var(--c-dim); }
+.gc-still { margin: 10px 0 11px; height: calc(4 * 1.42em + 14px); border-radius: 4px; --scr-fs: 11px; border: 1px solid rgba(255,214,160,.07); box-shadow: inset 0 1px 3px rgba(0,0,0,.7); opacity: .72; transition: opacity .3s; }
+.gc-still .scr-in { padding: 6px 9px; }
+.gc-still .ln { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc.on .gc-still, .gc:hover .gc-still { opacity: 1; }
+.gc-label { font: 700 16px/1.25 var(--display); letter-spacing: .04em; color: inherit; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.5em; }
+.gc-meta { margin-top: 5px; font: italic 500 15.5px/1.2 var(--serif); color: var(--c-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-meta b { font: 600 11.5px/1 var(--display); font-style: normal; letter-spacing: .12em; color: var(--c-text); }
+.gc.on .gc-meta b { color: var(--c-on); }
+.gal-grid .empty small { display: block; margin-top: 8px; font-size: 16.5px; color: var(--c-faint); }
+.gal-grid > .empty { grid-column: 1 / -1; padding: 90px 16px; max-width: 620px; margin: 0 auto; text-wrap: balance; }
+/* ---- the foot */
+.gal-foot { display: flex; align-items: center; gap: 14px; padding-top: 12px; margin-top: 10px; border-top: 1px solid var(--c-rule); }
+.gal-sum { font: italic 500 16px/1 var(--serif); color: var(--c-dim); white-space: nowrap; }
+.gal-flash { flex: 1; text-align: right; }
+/* ---- the viewer (grows out of the chosen card) */
+.gv { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; padding: 44px 22px 10px;
+  background: radial-gradient(55% 70px at 50% 0, rgba(255,207,143,.10), transparent), rgba(11,9,7,.97); }
+.gv[hidden] { display: none; }
+.gv-head { display: flex; align-items: flex-end; gap: 16px; padding: 4px 4px 0; }
+.gv-title { min-width: 0; flex: 1; }
+.gv-kind { display: flex; align-items: center; gap: 8px; font: 700 11px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; }
+.gv-kind .kic { width: 16px; height: 16px; }
+.gv-label { margin: 8px 0 0; font: 700 clamp(21px, 2vw, 28px)/1.15 var(--display); letter-spacing: .05em; color: var(--c-on); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gv-meta { margin-top: 6px; font: italic 500 17.5px/1.2 var(--serif); color: var(--c-dim); }
+.gv-meta b { font: 600 12.5px/1 var(--display); font-style: normal; letter-spacing: .12em; color: var(--c-text); }
+.gv-nav { display: flex; align-items: center; gap: 6px; flex: none; }
+.gv-count { min-width: 74px; text-align: center; font: 600 11px/1 var(--display); letter-spacing: .22em; color: var(--c-dim); }
+.gv-cd { position: relative; height: 1px; margin: 12px 4px 10px; background: var(--c-rule); }
+.gv-cd i { position: absolute; top: -.5px; height: 2px; border-radius: 1px; background: rgba(240,210,160,.75); }
+.gv-scr { flex: 1; min-height: 0; border-radius: 5px; border: 1px solid var(--well-edge); box-shadow: var(--well-in), 0 1px 0 var(--well-lip); }
+.gv-scr.scr { --scr-native: rgba(3,2,2,.92); }
+.gv-scr .scr-in { padding: 10px 18px; }
+.gv-trk { margin: 6px 8px 0; }
+.gv-ctl { padding: 0 2px; }
+.gv-display { right: 22px; bottom: 64px; width: 344px; }
+.gal.viewing .gal-head, .gal.viewing .gal-body, .gal.viewing .gal-foot { visibility: hidden; }
+
+@media (max-width: 760px) {
+  .gv-ctl .clock { display: none; }
+}
+@media (max-width: 600px) {
+  .gal > .win { padding: 42px 8px 8px; }
+  .gal-head { flex-direction: column; align-items: stretch; gap: 8px; margin-bottom: 10px; }
+  .gal-head .seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; max-width: 100%; }
+  .gal-head .seg button { padding: 0 10px; }
+  .gal-period { width: 100%; }
+  .gal-grid { gap: 8px; }
+  .gc { padding: 10px 11px 11px; }
+  .gc-still { height: calc(3 * 1.42em + 12px); margin: 8px 0 9px; }
+  .gc-still .ln:first-child:nth-last-child(4) { display: none; }
+  .gc-label { min-height: 0; font-size: 15px; }
+  .gal-foot { gap: 10px; }
+  .gal-sum { font-size: 14.5px; }
+  .gv { padding: 42px 8px 6px; }
+  .gv-head { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .gv-nav { align-self: stretch; justify-content: space-between; }
+  .gv-label { white-space: normal; font-size: 19px; }
+  .gv-meta { font-size: 15.5px; }
+  .gv-scr { --scr-fs: 11.5px; }
+  .gv-scr .scr-in { padding: 6px 8px; }
+  .gv-ctl { gap: 0; }
+  .gv-ctl .cb { width: 30px; }
+  .gv-ctl .cb.play { width: 38px; height: 38px; margin: 0 2px; }
+  .gv-ctl .ibtn.small span { display: none; } .gv-ctl .ibtn.small svg { display: block; } .gv-ctl .ibtn.small { padding: 0 8px; }
+  .gv-ctl .cb.fs { display: none; }
+  .gv-display { left: 6px; right: 6px; width: auto; bottom: 60px; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-large pg-page gal" id="galBox" data-hood="Spotlights" data-back aria-label="Spotlights">
+  <div class="win">
+    <div class="box-head gal-head" id="head">
+      <div class="seg gal-kinds" id="kinds" role="group" aria-label="Kinds"></div>
+      <div class="seg gal-chars" id="chars" role="group" aria-label="Characters"></div>
+      <select class="select gal-period" id="period" aria-label="Period"></select>
+    </div>
+    <div class="box-body gal-body"><div class="gal-grid" id="grid" role="listbox" aria-label="Spotlights"></div></div>
+    <div class="box-foot gal-foot">
+      <button class="ibtn primary" type="button" id="playAll"></button>
+      <span class="gal-sum" id="sum"></span>
+      <span class="flash static gal-flash" id="flashB"></span>
+    </div>
+    <div class="gv" id="gv" hidden aria-label="Spotlight">
+      <div class="gv-head">
+        <div class="gv-title" id="gvTitle" aria-live="polite"></div>
+        <div class="gv-nav">
+          <button class="ibtn icon small keep-ic" type="button" data-nav="-1" title="Previous spotlight (←)" aria-label="Previous spotlight (←)"></button>
+          <span class="gv-count" id="gvCount"></span>
+          <button class="ibtn icon small keep-ic" type="button" data-nav="1" title="Next spotlight (→)" aria-label="Next spotlight (→)"></button>
+        </div>
+      </div>
+      <div class="gv-cd" aria-hidden="true"><i id="gvCd"></i></div>
+      <div class="gv-scr" id="gvScr"></div>
+      <div class="gv-trk" id="gvTrk"></div>
+      <div class="gv-ctl" id="gvCtl"></div>
+      <div class="pop gv-display" id="displayPop" hidden aria-label="Display">
+        <div class="pop-t">Display<button class="pop-x" type="button" data-close aria-label="Close (Esc)"></button></div>
+        <div id="dp"></div>
+      </div>
+    </div>
+  </div>
+</section>
+<script src="../base/base.js"></script>
+<script src="spot.js"></script>
+<script>
+(() => {
+const { qs, F, KIND, KIND_ORDER } = SPOT;
+WC.sky.start();
+const menu = WC.startMenu({ onActivate(k) { if (k === 'spotlights') { SPOT.launch(menu, () => open()); return true; } } });
+WC.decorate();
+const $ = (s) => document.querySelector(s);
+const box = $('#galBox'), grid = $('#grid'), gv = $('#gv');
+document.querySelectorAll('.pop-x').forEach((x) => { x.innerHTML = SPOT.icon('close'); });
+$('[data-nav="-1"]').innerHTML = SPOT.icon('prev'); $('[data-nav="1"]').innerHTML = SPOT.icon('next');
+$('#playAll').innerHTML = `${SPOT.icon('play')}<span><u class="sk">P</u>lay all</span>`;
+
+// ---------------------------------------------------------------- the reel behind the wall and the viewer
+const reel = SPOT.newReel();
+let viewing = false;
+
+// ---------------------------------------------------------------- the filter row (the Spotlights settings as chips)
+function renderHead() {
+  $('#head').hidden = !SPOT.DATA.length;
+  $('#kinds').innerHTML = KIND_ORDER.map((k) => `<button type="button" role="checkbox" aria-checked="${F[KIND[k].key]}" aria-selected="${F[KIND[k].key]}" data-kind="${k}">${SPOT.kindIcon(k)}${KIND[k].label}</button>`).join('');
+  $('#chars').innerHTML = `<button type="button" data-c="*" aria-selected="${F.allCharacters}" aria-pressed="${F.allCharacters}">All</button>` +
+    SPOT.CHARS.map((n) => { const on = !F.allCharacters && F.characters.includes(n); return `<button type="button" data-c="${n}" aria-selected="${on}" aria-pressed="${on}">${n}</button>`; }).join('');
+  $('#period').innerHTML = SPOT.PERIODS.map(([v, l]) => `<option value="${v}" ${F.period === v ? 'selected' : ''}>${l}</option>`).join('');
+}
+$('#head').addEventListener('mousedown', (e) => { if (!e.target.closest('select')) e.preventDefault(); });
+$('#kinds').addEventListener('click', (e) => { const b = e.target.closest('[data-kind]'); if (b) SPOT.patch({ [KIND[b.dataset.kind].key]: !F[KIND[b.dataset.kind].key] }); });
+// Chips: All turns the remembered set off; a name while All is on shows only that name; then names toggle.
+$('#chars').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  const c = b.dataset.c;
+  if (c === '*') SPOT.patch(F.allCharacters ? SPOT.allCharactersPatch(false) : { allCharacters: true });
+  else if (F.allCharacters) SPOT.patch({ allCharacters: false, characters: [c] });
+  else { const on = F.characters.includes(c), next = SPOT.characterPatch(c, !on); SPOT.patch(next.characters.length ? next : { allCharacters: true }); }
+});
+$('#period').addEventListener('change', (e) => { SPOT.patch({ period: e.target.value }); e.target.blur(); });
+
+// ---------------------------------------------------------------- the wall
+const stillLines = (s) => {
+  const out = [];
+  for (let k = s.lines.length - 1; k >= 0 && out.length < 4; k--) { const [t, c, x] = s.lines[k]; if (t > 0.15 || !x || c === 'p') continue; out.unshift(`<div class="ln ${c}">${SPOT.lineHtml(x)}</div>`); }
+  return out.join('');
+};
+let list = null;
+function renderWall(keepId) {
+  const spots = reel.spots;
+  if (!spots.length) {
+    grid.innerHTML = SPOT.DATA.length
+      ? `<div class="empty">${SPOT.EMPTY_FILTERED}<small>Turn on a kind or a character above, or choose a longer period.</small></div>`
+      : `<div class="empty">${SPOT.EMPTY_NO_DATA}</div>`;
+  } else grid.innerHTML = spots.map((s, i) => `
+    <div class="gc row" role="option" data-i="${i}" style="--k:${KIND[s.kind].color}">
+      <div class="gc-top"><span class="gc-kind">${SPOT.kindIcon(s.kind)}${KIND[s.kind].name}</span><span class="gc-n">${i + 1}</span></div>
+      <div class="gc-still scr" data-theme="default"><div class="scr-in">${stillLines(s)}</div></div>
+      <div class="gc-label">${SPOT.esc(s.label)}</div>
+      <div class="gc-meta"><b>${s.char}</b> · level ${s.level} · ${SPOT.fmtShort(s.atMs)}</div>
+    </div>`).join('');
+  const n = spots.length;
+  $('#sum').textContent = n ? `${n} spotlight${n > 1 ? 's' : ''} · ${SPOT.fmtClock(reel.total)}` : '';
+  $('#playAll').disabled = !n;
+  if (!list) list = WC.list(grid, { item: '.gc', onActivate: (i) => play(i), activateOn: matchMedia('(pointer: coarse)').matches ? 'click' : 'dblclick' });
+  list.refresh();
+  const j = keepId ? Math.max(0, spots.findIndex((s) => s.id === keepId)) : 0;
+  list.set(j, true);
+}
+SPOT.onFilter(() => { const keep = reel.spot && list && reel.spots[list.i] ? reel.spots[list.i].id : null; reel.rebuild(SPOT.select()); reel.pause(); renderHead(); renderWall(keep); });
+$('#playAll').addEventListener('click', () => play(0));
+function gridKey(e) {
+  if (!list || !list.items.length) return false;
+  const cols = Math.max(1, list.items.filter((x) => x.offsetTop === list.items[0].offsetTop).length);
+  if (e.key === 'ArrowRight') { list.set(list.i + 1); return true; }
+  if (e.key === 'ArrowLeft') { list.set(list.i - 1); return true; }
+  if (e.key === 'ArrowDown') { list.set(list.i + cols); return true; }
+  if (e.key === 'ArrowUp') { list.set(list.i - cols); return true; }
+  return list.key(e);
+}
+
+// ---------------------------------------------------------------- the viewer
+const scr = SPOT.screen($('#gvScr'), reel);
+SPOT.track($('#gvTrk'), reel, { dir: 'h', hoverTime: true });
+SPOT.controls($('#gvCtl'), reel, { onToggle: () => (!reel.playing && scr.cursor !== null ? scr.resume() : reel.toggle()),
+  buttons: [{ act: 'display', icon: 'display', label: '<u class="sk">D</u>isplay', title: 'Display: font size and colours' }], onAct: () => toggleDisplay() });
+SPOT.displayPanel($('#dp')); SPOT.applyDisplay();
+gv.querySelectorAll('[data-nav]').forEach((b) => b.addEventListener('click', () => reel.go(+b.dataset.nav)));
+let tSig = '';
+function viewTitle() {
+  if (!viewing) return;
+  const s = reel.spot, i = reel.index, n = reel.spots.length; if (!s) return;
+  if (s.id !== tSig) {
+    tSig = s.id;
+    $('#gvTitle').innerHTML = `<div class="gv-kind" style="color:${KIND[s.kind].color}">${SPOT.kindIcon(s.kind)}${KIND[s.kind].name}</div>
+      <h2 class="gv-label">${SPOT.esc(s.label)}</h2><div class="gv-meta"><b>${s.char}</b> · level ${s.level} · ${SPOT.fmtLong(s.atMs)}</div>`;
+    $('#gvCount').textContent = `${i + 1} / ${n}`;
+    $('[data-nav="-1"]').disabled = false; $('[data-nav="1"]').disabled = i + 1 >= n;
+    if (list) list.set(i, true);
+  }
+  const left = reel.countdown, cd = $('#gvCd');
+  cd.hidden = left <= 0; cd.style.left = cd.style.right = `${((1 - left) / 2 * 100).toFixed(2)}%`;
+}
+reel.on(viewTitle);
+function toggleDisplay(on) { const p = $('#displayPop'); p.hidden = on === undefined ? !p.hidden : !on; $('#gvCtl [data-act="display"]').classList.toggle('on', !p.hidden); }
+$('#displayPop [data-close]').addEventListener('click', () => toggleDisplay(false));
+
+/** The card's rect inside the window, as a clip-path inset. */
+function cardInset(i) {
+  const c = list && list.items[i], w = box.querySelector('.win');
+  if (!c) return 'inset(30% 30% 30% 30% round 6px)';
+  const r = c.getBoundingClientRect(), b = w.getBoundingClientRect();
+  return `inset(${r.top - b.top}px ${b.right - r.right}px ${b.bottom - r.bottom}px ${r.left - b.left}px round 6px)`;
+}
+async function play(i, instant = false) {
+  if (!reel.spots.length || viewing) return;
+  list && list.set(i, true);
+  const from = cardInset(i);
+  viewing = true; tSig = ''; box.classList.add('viewing');
+  reel.goTo(i); reel.play(); gv.hidden = false; viewTitle(); scr.render(true);
+  if (!instant && !WC.RM) await gv.animate([{ clipPath: from, opacity: .6 }, { clipPath: 'inset(0 0 0 0 round 0px)', opacity: 1 }], { duration: WC.dur(480), easing: 'cubic-bezier(.3,.8,.2,1)' }).finished;
+}
+async function leaveViewer() {
+  if (!viewing) return;
+  const i = reel.index; reel.pause(); toggleDisplay(false);
+  box.classList.remove('viewing'); list && list.set(i);
+  if (!WC.RM) await gv.animate([{ clipPath: 'inset(0 0 0 0 round 0px)', opacity: 1 }, { clipPath: cardInset(i), opacity: .4 }], { duration: WC.dur(380), easing: 'cubic-bezier(.5,0,.3,1)' }).finished;
+  gv.hidden = true; viewing = false;
+}
+
+// ---------------------------------------------------------------- open / close
+function open(instant = false) {
+  reel.load(SPOT.select()); reel.pos = 0; reel.playing = false;
+  renderHead(); renderWall(); viewing = false; gv.hidden = true; box.classList.remove('viewing');
+  return sh.show(box, { instant });
+}
+const sh = SPOT.shell({
+  menu,
+  key(e) {
+    if (e.key === 'Escape') return false;
+    if (viewing) {
+      if (e.target.closest && e.target.closest('.pop')) return false;
+      if (WC.shortcut(e, { d: () => toggleDisplay() })) return true;
+      return SPOT.reelKey(e, reel, scr);
+    }
+    if (e.target.closest && e.target.closest('.gal-head') && !['Escape'].includes(e.key) && !(e.key.length === 1 && /[pP]/.test(e.key))) return false;
+    if (WC.shortcut(e, { p: () => play(0) })) return true;
+    return gridKey(e);
+  },
+  back() {
+    if (viewing) { if (!$('#displayPop').hidden) return toggleDisplay(false); return leaveViewer(); }
+    sh.close();
+  },
+  onClosed() { reel.pause(); gv.hidden = true; viewing = false; box.classList.remove('viewing'); },
+});
+
+// ---------------------------------------------------------------- URL states (screenshots)
+(async () => {
+  if (!['open', 'filtered', 'empty', 'at', 'none'].some((k) => qs.has(k))) return;
+  await open(true);
+  if (qs.has('none')) SPOT.patch({ achievements: false, deaths: false, levelUps: false, pvp: false });
+  if (qs.has('card')) list.set(+qs.get('card') - 1, true);
+  const at = qs.has('at') ? +qs.get('at') : ['end', 'pause', 'display'].some((k) => qs.has(k)) ? 1 : 0;
+  if (at && reel.spots.length) {
+    const i = Math.max(0, Math.min(reel.spots.length - 1, at - 1));
+    await play(i, true); reel.seek(reel.momentAt(i) + (+qs.get('dt') || 1600));
+    if (qs.has('end')) reel.seek(reel.total);
+    if (qs.has('pause')) { reel.pause(); scr.moveCursor(-3); }
+    if (qs.has('display')) toggleDisplay(true);
+  }
+})();
+window.MOCK = { reel, scr, sh, open, play };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<title>Credits och About · runda 7</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<style>
+/* Round 7 review: Credits and About, three directions each. Tabs over the live mockups (credits-*.html, about-*.html) in an iframe, one Swedish note per tab, and state buttons that reload the mockup with URL parameters. Single dark look on purpose (as the earlier review pages). */
+:root {
+  --night: #0d1014;
+  --iron: #1b2026;
+  --rule: #2e353e;
+  --text: #dfe3e8;
+  --dim: #8d97a3;
+  --lamp: #f0b45c;
+  --display: "Cinzel", Georgia, serif;
+  --body: "Cormorant Garamond", Georgia, serif;
+  --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--night); color: var(--text); font-family: var(--ui); display: flex; flex-direction: column; }
+header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--iron); border-bottom: 1px solid var(--rule);
+}
+h1 { font: 700 15px/1 var(--display); letter-spacing: .12em; margin: 0; color: var(--lamp); white-space: nowrap; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; }
+nav button, .states button {
+  font: 500 14px/1 var(--display); letter-spacing: .06em; color: var(--dim);
+  background: transparent; border: 1px solid var(--rule); border-radius: 3px;
+  padding: 8px 12px; cursor: pointer;
+}
+nav button:hover, .states button:hover { color: var(--text); }
+nav button[aria-selected="true"] { color: var(--night); background: var(--lamp); border-color: var(--lamp); }
+nav button:focus-visible, .states button:focus-visible, a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+nav .grp { font: 600 11px/1 var(--display); letter-spacing: .16em; color: var(--dim); align-self: center; padding: 0 2px 0 6px; text-transform: uppercase; }
+.note { flex: 1 1 360px; min-width: 0; font: italic 500 16px/1.3 var(--body); color: var(--dim); margin: 0; }
+.note b { font-style: normal; color: var(--text); font-weight: 500; }
+.states { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.states span { font: 12px/1 var(--ui); color: var(--dim); margin-right: 2px; }
+.states button { font: 12px/1 var(--ui); letter-spacing: 0; padding: 6px 9px; }
+.states button[aria-pressed="true"] { color: var(--lamp); border-color: var(--lamp); }
+a.full { font-size: 13px; color: var(--lamp); white-space: nowrap; }
+main { flex: 1; min-height: 0; position: relative; }
+iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+</style>
+
+<header>
+  <h1>Credits och About · runda 7</h1>
+  <nav role="tablist" id="tabs"></nav>
+  <p class="note" id="note"></p>
+  <div class="states" id="states"></div>
+  <a class="full" id="full" target="_blank" rel="noopener">Öppna i helfönster ↗</a>
+</header>
+<main><iframe id="frame" title="Mockup"></iframe></main>
+
+<script>
+const CR = [['', 'Från menyn'], ['page', 'Öppen'], ['page&empty', 'Ingen krönika'], ['page&filtered', 'Filtrerad'], ['page&error', 'Fel'], ['page&rm', 'Utan rörelse']];
+const AB = [['', 'Från menyn'], ['page', 'Öppen'], ['page&rm', 'Utan rörelse']];
+const DIRS = [
+  { id: 'ca', grp: 'Credits', file: 'credits-a.html', name: 'A Eftertexter', states: CR,
+    note: '<b>Credits A · Eftertexter.</b> Stora lådan (märket i hörnet). Krönikan stiger långsamt upp genom fönstret som i dag (ungefär en rad i sekunden, tonar in nedtill och ut upptill) men satt som filmens eftertexter: kapitlets roll och namn (”Of” / RASTA) i graverad Cinzel, dåden med datum i kapitäler, ett ornament mellan kapitlen och ”The End.”. När slutet passerat går sidan själv tillbaka till menyn, som i dag. Bara Esc/Back. DEMO-panelen har rullfart ×4/×16.' },
+  { id: 'cb', grp: 'Credits', file: 'credits-b.html', name: 'B Krönikeboken', states: CR,
+    note: '<b>Credits B · Krönikeboken.</b> Stora lådan med en uppslagen bok: två sidor, skuggad rygg, sidnummer. Varje karaktär börjar på ny sida med titeln som ett titelblad och en anfang i ordmärkets mithril. Du bläddrar själv: ←/→, P/N eller knapparna (svep på mobil), ↑/↓ eller flikarna hoppar mellan kapitel. Ny: <b>Settings…</b> (S) öppnar Spotlights-filtret även här. Ingen rullning och ingen automatisk återgång.' },
+  { id: 'cc', grp: 'Credits', file: 'credits-c.html', name: 'C I himlens ljus', states: CR,
+    note: '<b>Credits C · I himlens ljus.</b> Normal låda; ordmärket står kvar och lådan tar menypanelens plats. Krönikan spelas som lugna titelkort: namnet stort i ordmärkets mithril med en glans där solen eller månen står (prova DEMO: dag, skymning, natt), dåden ett i taget under. Rutorna nedtill visar var du är. Går själv tillbaka efter ”The End.”. Nytt: ←/→ stegar, klick på en ruta hoppar.' },
+  { id: 'aa', grp: 'About', file: 'about-a.html', name: 'A Bladet', states: AB,
+    note: '<b>About A · Bladet.</b> Stora lådan. Ordmärket glider ner och blir bladets rubrik (inte till hörnet), versionen under. Hela About-texten i en läsbar spalt, sedan tredjepartsnoterna (nytt) och M-sigillet som avslutning. Innehållslistan till vänster följer läsningen och hoppar på klick eller bokstav. ↑↓ PgUp PgDn Home End som i dag. Mobil: listan blir en rad med flikar.' },
+  { id: 'ab', grp: 'About', file: 'about-b.html', name: 'B Flikarna', states: AB,
+    note: '<b>About B · Flikarna.</b> Stora lådan som uppslagsverk. Ordmärket landar i lådans huvud till vänster, flikar i mitten, M-sigillet och versionen till höger. Texten sorterad i fyra flikar som använder bredden: About (intro, MUME, PvP med länkarna som glasplattor), Getting started (med sex kort för What is inside), Credits (kort), Licence (med tredjepartsnoterna). ←/→ eller A G C L byter flik.' },
+  { id: 'ac', grp: 'About', file: 'about-c.html', name: 'C Titelbladet', states: AB,
+    note: '<b>About C · Titelbladet.</b> Normal låda under det stora ordmärket, som en boks titelsida: introt, en innehållsförteckning (↑↓ Enter eller bokstaven) och M-sigillet med versionen. Ett avsnitt öppnas i samma låda med föregående/nästa längst ner (←/→); Back/Esc tar dig till innehållet, en gång till till menyn.' },
+];
+const tabs = document.getElementById('tabs'), frame = document.getElementById('frame'), note = document.getElementById('note'), full = document.getElementById('full'), states = document.getElementById('states');
+let cur = null, q = '';
+function load() { const src = cur.file + (q ? '?' + q : ''); frame.src = src; full.href = src; [...states.querySelectorAll('button')].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === q))); frame.focus(); }
+function show(id, keepState) {
+  const d = DIRS.find((x) => x.id === id) || DIRS[0];
+  cur = d; if (!keepState) q = '';
+  note.innerHTML = d.note + ' Öppna med ' + (d.grp === 'Credits' ? 'C' : 'A') + ' (eller klicka i menyn), Esc eller Back går tillbaka. Prova också mobilbredd.';
+  states.innerHTML = '<span>Läge:</span>' + d.states.map(([v, l]) => `<button data-q="${v}">${l}</button>`).join('');
+  states.querySelectorAll('button').forEach((b) => (b.onclick = () => { q = b.dataset.q; load(); }));
+  for (const b of tabs.querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.id === d.id));
+  if (location.hash.slice(1) !== d.id) history.replaceState(null, '', '#' + d.id);
+  load();
+}
+let grp = '';
+for (const d of DIRS) {
+  if (d.grp !== grp) { grp = d.grp; const s = document.createElement('span'); s.className = 'grp'; s.textContent = grp; tabs.append(s); }
+  const b = document.createElement('button');
+  b.role = 'tab'; b.dataset.id = d.id; b.textContent = d.name;
+  b.onclick = () => show(d.id);
+  tabs.append(b);
+}
+addEventListener('hashchange', () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+</script>

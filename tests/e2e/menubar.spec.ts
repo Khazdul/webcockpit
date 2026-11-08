@@ -36,7 +36,7 @@ async function enterMume(page: Page): Promise<() => WebSocketRoute | null> {
     ws.send(Buffer.concat([Buffer.from([IAC, WILL, GMCP]), Buffer.from('\r\nBy what name do you wish to be known? ')]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   return () => server;
@@ -260,14 +260,19 @@ test('Settings opens its popup (ADR 0107); Scripts and Profile open their window
   await icon(page, 'scripts').click();
   await expect(overlay(page)).toBeHidden();
   const scripts = page.locator('.wc-win[data-win="scripts"]');
-  await expect(scripts.locator('.wc-frame:not([hidden]) .wc-title-row .wc-c-section')).toHaveText('─── Scripts ───');
+  // The Scripts page in the window's Lykta frame (stage 44): title Scripts, no note.
+  await expect(scripts.locator('.wc-win-t')).toHaveText('Scripts');
+  await expect(scripts.locator('.wc-frame:not([hidden]) .wc-scr')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(scripts).toHaveCount(0);
   await expect(field(page)).toBeFocused();
   await field(page).fill('#profile');
   await page.keyboard.press('Enter');
-  const ped = page.locator('.wc-win[data-win="profile"] .wc-frame:not([hidden]) > .wc-ped');
-  await expect(ped.locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: default ───');
+  // The editor in the window's Lykta frame: "Profile" with the profile's name as the note (ADR 0127, 0128).
+  const profileWin = page.locator('.wc-win[data-win="profile"]');
+  await expect(profileWin.locator('.wc-frame:not([hidden]) .wc-pe')).toHaveAttribute('data-view', 'lite');
+  await expect(profileWin.locator('.wc-win-t')).toHaveText('Profile');
+  await expect(profileWin.locator('.wc-win-n')).toHaveText('default');
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(overlay(page)).toBeHidden();

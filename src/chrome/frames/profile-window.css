@@ -1,0 +1,47 @@
+/* The in-game hosts' root page of the profile editor (profile-window.tsx,
+ * stage 43b, ADR 0128): seen only while the editor's chunk loads and after
+ * the editor left with a failure. A quiet centred column in the window's
+ * Lykta body or the phone's ESC-menu box: the profile's name, the
+ * "Opening …" line or the failure, and Edit. */
+
+.wc-pw-win {
+  overflow: hidden;
+}
+
+.wc-pw {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.wc-pw-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 20px/1.1 var(--lk-display);
+  letter-spacing: 0.1em;
+  color: var(--lk-head);
+}
+
+.wc-pw-opening {
+  min-height: 1.3em;
+  margin: 0;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-pw .wc-pw-flash {
+  max-width: 100%;
+  min-height: 1.3em;
+  white-space: normal;
+}
+
+.wc-pw-btns {
+  display: flex;
+  gap: 10px;
+}

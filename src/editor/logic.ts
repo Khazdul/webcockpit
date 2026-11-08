@@ -1,6 +1,8 @@
-// Pure helpers for the profile editor's lite view (Inv §5.6): list order
-// and previews, the highlight colour model, hints, warnings, the macro Key
-// cell, the title row and the view toggle. No DOM, no Preact, no CodeMirror; unit tested.
+// Pure helpers for the profile editor (Inv §5.6, ADR 0128): list order and
+// previews, the highlight colour model, hints, warnings, the views, the
+// pending and held changes, the status texts, the text sections and the
+// layout widths. No DOM, no Preact, no CodeMirror; unit tested. (The TUI
+// editor's cell geometry, title row and Key cell are gone, stage 43 wave 3.)
 
 import { resolveCommand } from '../script/commands';
 import {
@@ -21,14 +23,6 @@ export type LiteKind = 'action' | 'alias' | 'highlight' | 'macro' | 'substitute'
 
 export const KINDS: readonly LiteKind[] = ['action', 'alias', 'highlight', 'macro', 'substitute'];
 
-export const KIND_TITLES: Readonly<Record<LiteKind, string>> = {
-  action: 'ACTIONS',
-  alias: 'ALIASES',
-  highlight: 'HIGHLIGHTS',
-  macro: 'MACROS',
-  substitute: 'SUBSTITUTES',
-};
-
 const PLURAL: Readonly<Record<LiteKind, string>> = {
   action: 'actions',
   alias: 'aliases',
@@ -48,24 +42,12 @@ export const NEW_BODY: Readonly<Record<LiteKind, string>> = {
 
 /** The detail prompt when the `+ New entry` row is selected (Inv §5.6). */
 export function sentinelPrompt(kind: LiteKind, count: number): string {
-  return count === 0 ? `No ${PLURAL[kind]} yet. Press n to add one.` : `Press Enter to create a new ${kind}.`;
+  return count === 0 ? `No ${PLURAL[kind]} yet. Press N to add one.` : `Press Enter to create a new ${kind}.`;
 }
 
 // ---------------------------------------------------------------------------
 // Entry list
 // ---------------------------------------------------------------------------
-
-/** Width of the pattern column in the entry list (Inv §5.6); the narrowest it gets (ADR 0104). */
-export const PATTERN_COL = 8;
-
-/**
- * The pattern column of an entry list `width` cells wide (ADR 0104): half
- * the row less the separating space, never under PATTERN_COL. The
- * Commands column takes the rest.
- */
-export function patternColumn(width: number): number {
-  return Math.max(PATTERN_COL, Math.floor((width - 1) / 2));
-}
 
 /**
  * The entries of `kind` in lite display order (Inv §5.6 "Sort"): by
@@ -93,38 +75,6 @@ export function ellipsis(s: string, n: number): string {
   if (n <= 0) return '';
   const cps = [...s];
   return cps.length <= n ? s : cps.slice(0, n - 1).join('') + '…';
-}
-
-/** What the list and the Key cell show for a pattern: the key's display name for macros. */
-export function patternLabel(kind: EntryKind, pattern: string): string {
-  if (kind !== 'macro') return pattern;
-  const c = normalizeKey(pattern);
-  return c ? displayKey(c) : pattern;
-}
-
-/**
- * The body preview for the list (Inv §5.6): leading blank lines skipped,
- * the first line cut to `width` with `…`, and `…` also when more non-blank
- * lines follow.
- */
-export function bodyPreview(kind: EntryKind, raw: string, width: number): string {
-  const lines = displayBody(kind, raw).replace(/\r\n?/g, '\n').split('\n');
-  let i = 0;
-  while (i < lines.length - 1 && lines[i]!.trim() === '') i++;
-  const first = lines[i]!;
-  const more = lines.slice(i + 1).some((l) => l.trim() !== '');
-  const cut = ellipsis(first, width);
-  if (!more || cut !== first) return cut;
-  const cps = [...first];
-  return cps.length + 1 <= width ? first + '…' : cps.slice(0, Math.max(0, width - 1)).join('') + '…';
-}
-
-/** A list row's two columns (`patternColumn`), cut to their widths. */
-export function rowText(e: EntryNode, width: number): { pattern: string; body: string } {
-  const patW = patternColumn(width);
-  const bodyW = Math.max(1, width - patW - 1);
-  const pat = ellipsis(patternLabel(e.kind, e.pattern), patW);
-  return { pattern: pat + ' '.repeat(patW - [...pat].length), body: bodyPreview(e.kind, e.body, bodyW) };
 }
 
 // ---------------------------------------------------------------------------
@@ -279,97 +229,16 @@ export function entryWarning(e: { kind: EntryKind; pattern: string }): string | 
 }
 
 // ---------------------------------------------------------------------------
-// Macro Key cell (Inv §5.6)
+// Views, pending changes
 // ---------------------------------------------------------------------------
 
-export interface KeyCell {
-  text: string;
-  /** Shown in C_HINT (empty or unknown key). */
-  hint: boolean;
-}
-
-export function keyCell(pattern: string): KeyCell {
-  if (pattern === '') return { text: '[ Press to bind… ]', hint: true };
-  const c = normalizeKey(pattern);
-  if (!c) return { text: `[ Custom: ${pattern} ]`, hint: true };
-  return { text: `[ ${displayKey(c)} ]`, hint: false };
-}
-
-// ---------------------------------------------------------------------------
-// Title row, save text
-// ---------------------------------------------------------------------------
-
-/** The views of the toggle in the title row, in their order. */
+/** The editor's three views (Lite, Editor, Help; `VIEW_LABELS` for their labels and letters). */
 export type EditorViewName = 'lite' | 'editor' | 'help';
-export const VIEWS: readonly { view: EditorViewName; label: string; width: number }[] = [
-  { view: 'lite', label: 'LITE', width: 6 },
-  { view: 'editor', label: 'EDITOR', width: 8 },
-  { view: 'help', label: 'HELP', width: 6 },
-];
 
-/** Width of the toggle: ` LITE ` + space + ` EDITOR ` + space + ` HELP `. */
-export const TOGGLE_W = VIEWS.reduce((n, v) => n + v.width, 0) + VIEWS.length - 1;
-
-/**
- * Width of the centred column at full size in Inv §5.3 (title, kind row,
- * LITE body). Since ADR 0104 the column grows past it, and from here up
- * the list and the detail panel split it in halves.
- */
-export const FULL_W = 77;
-
-/** The widest LITE column (ADR 0104): a wider frame centres it. */
-export const LITE_MAX_W = 160;
-
-/** Sizes in cells (Inv §5.3). */
-export const KIND_W = 13;
-export const KIND_GAP = 3;
-/** Between the list's scrollbar column and the detail panel. */
-export const LIST_GAP = 3;
-
-/** Where the LITE view's parts go on a frame `cols` cells wide (ADR 0104). */
-export interface LiteGeometry {
-  /** The column: `w` cells from cell `at` (title row, kind row, body). */
-  at: number;
-  w: number;
-  /** The entry list's text width; its scrollbar takes one more cell. */
-  list: number;
-  /** The detail panel's width (Pattern and Commands boxes). */
-  detail: number;
-  /** The kind row: five buttons `kindW` wide, `kindGap` apart, from `kindAt`. */
-  kindAt: number;
-  kindW: number;
-  kindGap: number;
-}
-
-/**
- * The LITE layout (ADR 0104). The column fills the frame less one cell on
- * each side, up to LITE_MAX_W, centred. From FULL_W up the list (with its
- * scrollbar cell) and the detail panel split the column less LIST_GAP in
- * halves, the odd cell to the detail panel; below FULL_W the detail panel
- * is 45 % (at least 24 cells) and the list the rest, as before. A desktop
- * frame keeps a 40-cell floor; a phone has none (ADR 0075 §3.2). The kind
- * row is centred over the column, its buttons full size from FULL_W up.
- */
-export function liteGeometry(cols: number, phone: boolean): LiteGeometry {
-  const w = Math.max(phone ? Math.min(40, cols - 2) : 40, Math.min(LITE_MAX_W, cols - 2));
-  const at = Math.max(0, Math.floor((cols - w) / 2));
-  const list = w >= FULL_W ? Math.floor((w - LIST_GAP) / 2) - 1 : w - Math.max(24, Math.floor(w * 0.45)) - 1 - LIST_GAP;
-  const detail = w - list - 1 - LIST_GAP;
-  const kindGap = 5 * KIND_W + 4 * KIND_GAP <= w ? KIND_GAP : 1;
-  const kindW = kindGap === KIND_GAP ? KIND_W : Math.floor((w - 4) / 5);
-  const kindAt = at + Math.max(0, Math.floor((w - (5 * kindW + 4 * kindGap)) / 2));
-  return { at, w, list, detail, kindAt, kindW, kindGap };
-}
-
-/** The view ← / → moves to from `cur` in the toggle (no wrap-around). */
+/** The view ← / → moves to from `cur` (no wrap-around). */
 export function stepView(cur: EditorViewName, dir: 1 | -1): EditorViewName {
-  const i = VIEWS.findIndex((v) => v.view === cur);
-  return VIEWS[Math.max(0, Math.min(VIEWS.length - 1, i + dir))]!.view;
-}
-
-/** The title `─── Profile Editor: <name> ───` (Inv §5.3), cut to `width` cells. */
-export function titleText(name: string, width: number): string {
-  return ellipsis(`─── Profile Editor: ${name} ───`, width);
+  const i = VIEW_LABELS.findIndex((v) => v.view === cur);
+  return VIEW_LABELS[Math.max(0, Math.min(VIEW_LABELS.length - 1, i + dir))]!.view;
 }
 
 /**
@@ -421,4 +290,115 @@ export function applicableDoc(base: ProfileDoc, doc: ProfileDoc): { doc: Profile
 export function heldText(h: HeldEntry): string {
   const what = h.entry.pattern.trim() === '' ? h.entry.kind : `${h.entry.kind} ${ellipsis(h.entry.pattern.trim(), 24)}`;
   return `${h.reason} (${what})`;
+}
+
+// ---------------------------------------------------------------------------
+// The new look (stage 43a, ADR 0128): direction B "Ryggen"
+// ---------------------------------------------------------------------------
+
+/** The kinds as the rail and the sheet's back button name them. */
+export const KIND_LABELS: Readonly<Record<LiteKind, string>> = {
+  action: 'Actions',
+  alias: 'Aliases',
+  highlight: 'Highlights',
+  macro: 'Macros',
+  substitute: 'Substitutes',
+};
+
+/** One entry of the kind, for `New alias` and the prompts. */
+export const KIND_ONE: Readonly<Record<LiteKind, string>> = {
+  action: 'action',
+  alias: 'alias',
+  highlight: 'highlight',
+  macro: 'macro',
+  substitute: 'substitute',
+};
+
+/** The kinds' shortcut letters (ADR 0128): Actions, alIases, hiGhlights, Macros, Substitutes. */
+export const KIND_LETTERS: Readonly<Record<LiteKind, string>> = {
+  action: 'a',
+  alias: 'i',
+  highlight: 'g',
+  macro: 'm',
+  substitute: 's',
+};
+
+/** The views' labels and shortcut letters (Lite, Editor, Help). */
+export const VIEW_LABELS: readonly { view: EditorViewName; label: string; letter: string }[] = [
+  { view: 'lite', label: 'Lite', letter: 'l' },
+  { view: 'editor', label: 'Editor', letter: 'e' },
+  { view: 'help', label: 'Help', letter: 'h' },
+];
+
+/** The highlight styles' labels in the new look (whole words). */
+export const HL_STYLE_NAMES: Readonly<Record<HlStyle, string>> = {
+  underscore: 'Underscore',
+  blink: 'Blink',
+  reverse: 'Reverse',
+};
+
+/**
+ * The body line of a list row (two-line rows): the first non-blank line,
+ * with ` …` when more non-blank lines follow. The row cuts it with CSS.
+ */
+export function previewLine(kind: EntryKind, raw: string): string {
+  const lines = displayBody(kind, raw).replace(/\r\n?/g, '\n').split('\n');
+  let i = 0;
+  while (i < lines.length - 1 && lines[i]!.trim() === '') i++;
+  const first = lines[i]!;
+  return lines.slice(i + 1).some((l) => l.trim() !== '') ? `${first} …` : first;
+}
+
+/**
+ * The macro's key as the Key cell and the list's key chip show it:
+ * `F5`; `Press to bind…` when empty (`hint`); `Custom: \eOp` for a key
+ * the client does not know (`hint`, `custom`).
+ */
+export function keyLabel(pattern: string): { text: string; hint: boolean; custom: boolean } {
+  if (pattern === '') return { text: 'Press to bind…', hint: true, custom: false };
+  const c = normalizeKey(pattern);
+  if (!c) return { text: `Custom: ${pattern}`, hint: true, custom: true };
+  return { text: displayKey(c), hint: false, custom: false };
+}
+
+/** What the editor's quiet status says about the lite edits (ADR 0128). */
+export type SaveState = 'clean' | 'editing' | 'held';
+
+/**
+ * The status at the foot right: `All saved` (not live) or `All applied`
+ * (live) when nothing is left, `Editing` while an edit is not applied yet,
+ * `Not applied` while an apply held something back.
+ */
+export function statusText(state: SaveState, live: boolean): string {
+  if (state === 'held') return 'Not applied';
+  if (state === 'editing') return 'Editing';
+  return live ? 'All applied' : 'All saved';
+}
+
+/** The head's line in the game (ADR 0128): the connection, not the profile. */
+export function liveText(live: boolean): string {
+  return live ? 'Connected · changes apply to the game' : 'Not connected · changes are saved';
+}
+
+/** The sample text of a highlight's "Shows as": its pattern without anchors, wildcards and arguments, or `text`. */
+export function showsAs(pattern: string): string {
+  const t = pattern
+    .replace(/^\^/, '')
+    .replace(/^\*+|\*+$/g, '')
+    .replace(/%[!+]?\d+/g, '…')
+    .trim();
+  return t || 'text';
+}
+
+/** The editor's layout by its own width (ADR 0128): rail | list | detail, the rail as a row, one column. */
+export type PeLayout = 'wide' | 'mid' | 'narrow';
+
+/** Above this width the rail stands at the left (B's grid). */
+export const PE_WIDE = 940;
+/** At or under this width one column; the entry opens as a sheet. */
+export const PE_NARROW = 640;
+
+/** The layout for a width in CSS px (the same thresholds as profile.css's container queries). */
+export function peLayout(width: number): PeLayout {
+  return width > PE_WIDE ? 'wide' : width > PE_NARROW ? 'mid' : 'narrow';
 }

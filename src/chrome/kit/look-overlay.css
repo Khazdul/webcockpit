@@ -1,0 +1,312 @@
+/* The lantern kit's overlays (src/chrome/kit/look-overlay.tsx, stage 42c,
+ * ADR 0127): the frames the stack draws under an overlay or holds during
+ * a transition, the dialog (a small Lykta box on a dim veil), the keys
+ * box and the popover. Re-derived from the round 7 mockups' dialogs
+ * (notes/research/start-menu-mockups/round7: profiles/shell.css `.dlg`,
+ * history/hist.css `.hp-dlg`, scripts/common.css `.sc-pop`).
+ *
+ * Performance (stage 42 rules): no backdrop-filter anywhere here (the
+ * veil and the dialog's window are plain fills; the game text or the sky
+ * moves under them); motion is opacity and transform only. Tokens come
+ * from look-tokens.css (`--lk-*`, with fallbacks for the ones 42b adds).
+ * Paper: under a `[data-light]` ancestor (the windows, the ESC menu). */
+
+/* ------------------------------------------------------------ the stack's drawn frames */
+
+/* Only the top frame lacks `hidden` (stack.tsx); a frame under an overlay
+ * or held by a push or a pop keeps it and is drawn by these (inert). */
+.wc-stack > .wc-frame[hidden]:is([data-under], [data-held]) {
+  display: block;
+}
+
+/* An overlay frame lies over the frame below it. On the start surface
+ * every frame is a layer already (start.css); elsewhere (a window, the
+ * ESC menu) the stack becomes their containing block while one is up. */
+:where(.wc-stack.has-overlay) {
+  position: relative;
+}
+
+.wc-stack > .wc-frame[data-overlay] {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+
+/* ------------------------------------------------------------ the veil and the slot */
+
+.wc-lk-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  /* Free layout: undo the cell grid's text rules (a window's TUI body). */
+  white-space: normal;
+  font-family: var(--lk-serif);
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: normal;
+  font-variant-ligatures: normal;
+  color: var(--lk-text);
+  -webkit-font-smoothing: antialiased;
+  background: radial-gradient(70% 70% at 50% 45%, rgba(8, 6, 4, 0.42), rgba(4, 3, 2, 0.7));
+  animation: wc-lk-veil-in calc(0.2s * var(--lk-ts, 1)) ease-out;
+}
+
+.wc-lk-veil.is-inline {
+  border-radius: 2px;
+}
+
+/* Where the dialog centres: the page's box (`--wc-ov-*` from the stack),
+ * or the whole veil (an inline dialog, or nothing to centre over). */
+.wc-lk-dslot {
+  position: absolute;
+  left: var(--wc-ov-l, 0px);
+  top: var(--wc-ov-t, 0px);
+  width: var(--wc-ov-w, 100%);
+  height: var(--wc-ov-h, 100%);
+  box-sizing: border-box;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.wc-lk-veil.is-inline > .wc-lk-dslot {
+  inset: 0;
+  width: auto;
+  height: auto;
+  padding: 10px;
+}
+
+/* ------------------------------------------------------------ the dialog */
+
+.wc-lk-dialog {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  pointer-events: auto;
+  border-radius: 5px;
+  border: 1px solid #000;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0.22)),
+    var(--lk-grain),
+    var(--lk-iron);
+  background-size: auto, 160px 160px, auto;
+  box-shadow:
+    inset 1px 1px 0 rgba(130, 116, 100, 0.55),
+    inset -1px -1px 0 var(--lk-iron-lo),
+    0 0 40px -10px rgba(255, 170, 90, 0.22),
+    0 24px 60px -10px rgba(0, 0, 0, 0.85);
+  animation: wc-lk-dialog-in calc(0.3s * var(--lk-ts, 1)) cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* The dialog's brackets: the box's, a size smaller. */
+.wc-lk-dialog > .wc-lk-br {
+  width: 18px;
+  height: 18px;
+  clip-path: polygon(0 0, 100% 0, 100% 6px, 6px 6px, 6px 100%, 0 100%);
+  background:
+    radial-gradient(circle at 3px 3px, #fff1d6 0 0.9px, #ffb35c 1.2px, #1a1412 1.7px 2.3px, transparent 2.7px) 0 0 / 6px 6px no-repeat,
+    linear-gradient(135deg, #6f655a, var(--lk-iron) 75%);
+}
+
+.wc-lk-dialog > .wc-lk-hood {
+  height: 25px;
+  max-width: calc(100% - 44px);
+  box-sizing: border-box;
+}
+
+.wc-lk-dialog .wc-lk-hood-t {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The dialog's lit window: opaque enough to read over anything, no blur. */
+.wc-lk-dwin {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #000;
+  border-radius: 2px;
+  padding: 38px 24px 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 214, 160, 0.22) transparent;
+  text-align: center;
+  background:
+    radial-gradient(55% 70px at 50% 0, rgba(255, 207, 143, 0.13), transparent),
+    rgba(16, 12, 10, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.1), inset 0 0 40px rgba(0, 0, 0, 0.55);
+}
+
+.wc-lk-dialog-b {
+  font: 500 17px/1.4 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-lk-dialog-b > p {
+  margin: 0 0 6px;
+}
+
+/* The question, and a dim note under it. */
+.wc-lk-dialog-b .wc-lk-q {
+  font: 600 20px/1.3 var(--lk-serif);
+  color: var(--lk-text);
+  margin: 2px 0 6px;
+  text-wrap: balance;
+}
+
+.wc-lk-dialog-b .wc-lk-qn {
+  font: italic 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+  margin: 0 0 4px;
+}
+
+/* Fields in a dialog take its width, left-aligned. */
+.wc-lk-dialog-b .wc-lk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 2px;
+  text-align: left;
+}
+
+.wc-lk-dialog-err {
+  min-height: 22px;
+  margin: 8px 0 0;
+  font: italic 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-danger, #e88f78);
+  text-wrap: balance;
+}
+
+.wc-lk-dialog-btns {
+  margin: 18px 0 2px;
+}
+
+/* ------------------------------------------------------------ the keys box */
+
+.wc-lk-keyhelp {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 18px;
+  margin: 2px auto 4px;
+  width: max-content;
+  max-width: 100%;
+  text-align: left;
+  align-items: baseline;
+}
+
+.wc-lk-kh-row {
+  display: contents;
+}
+
+.wc-lk-keyhelp dt {
+  font: 500 13px/1.4 var(--lk-mono);
+  color: var(--lk-head, #e8cfa6);
+  white-space: nowrap;
+}
+
+.wc-lk-keyhelp dd {
+  margin: 0;
+  font: 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+/* ------------------------------------------------------------ the popover */
+
+/* A small lit plate (iron edge, lit top lip), dark glass; inside the page,
+ * placed under its anchor by the script. */
+.wc-lk-pop {
+  position: absolute;
+  z-index: 40;
+  min-width: 180px;
+  max-width: min(420px, calc(100% - 12px));
+  box-sizing: border-box;
+  padding: 1px;
+  border-radius: 5px;
+  border: 1px solid #000;
+  white-space: normal;
+  font: 500 16px/1.35 var(--lk-serif);
+  letter-spacing: normal;
+  color: var(--lk-text);
+  text-align: left;
+  background: linear-gradient(180deg, #4a4038, #2a2420);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 206, 0.3), 0 10px 30px -6px rgba(0, 0, 0, 0.8);
+  animation: wc-lk-pop-in calc(0.16s * var(--lk-ts, 1)) ease-out;
+}
+
+.wc-lk-pop-in {
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: rgba(18, 14, 11, 0.97);
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.08);
+}
+
+/* ------------------------------------------------------------ Paper */
+
+:not(html)[data-light] .wc-lk-veil {
+  background: radial-gradient(70% 70% at 50% 45%, rgba(80, 60, 30, 0.14), rgba(80, 60, 30, 0.3));
+}
+
+:not(html)[data-light] .wc-lk-dialog {
+  border-color: #5a4a30;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent 35%, rgba(0, 0, 0, 0.1)),
+    linear-gradient(180deg, #a8946e, #8a7552);
+  box-shadow: inset 1px 1px 0 rgba(255, 246, 222, 0.7), 0 18px 44px -10px rgba(60, 40, 10, 0.45);
+}
+
+:not(html)[data-light] .wc-lk-dwin {
+  border-color: #5a4a30;
+  background: rgba(250, 245, 232, 0.97);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  scrollbar-color: rgba(120, 90, 40, 0.35) transparent;
+}
+
+:not(html)[data-light] .wc-lk-pop {
+  border-color: #6a5a3c;
+  background: linear-gradient(180deg, #d8c49a, #a8946e);
+  box-shadow: 0 8px 22px -6px rgba(60, 40, 10, 0.4);
+}
+
+:not(html)[data-light] .wc-lk-pop-in {
+  background: #fbf6ea;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+/* ------------------------------------------------------------ phone and motion */
+
+html.wc-phone .wc-lk-dslot {
+  padding: 8px;
+}
+
+html.wc-phone .wc-lk-dwin {
+  padding: 36px 12px 12px;
+}
+
+@keyframes wc-lk-veil-in {
+  from { opacity: 0; }
+}
+
+@keyframes wc-lk-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+}
+
+@keyframes wc-lk-pop-in {
+  from { opacity: 0; transform: translateY(-3px); }
+}
+
+/* Reduced motion: fades only, no rise. */
+@media (prefers-reduced-motion: reduce) {
+  .wc-lk-dialog,
+  .wc-lk-pop {
+    animation-name: wc-lk-veil-in;
+  }
+}

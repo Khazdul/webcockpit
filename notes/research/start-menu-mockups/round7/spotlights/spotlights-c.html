@@ -1,0 +1,263 @@
+<!doctype html>
+<!--
+  Round 7 · Spotlights · C "Scen och programblad" (the stage and the programme).
+  The hybrid: the reel plays at once, as today, but inside the large box with everything in view. Left the stage:
+  a title line (kind, label, character · level · date, "Spotlight 3 of 11") with the countdown under it, and the
+  game text in a dark well with today's vertical rail on its right edge (kind markers, gold playhead). Right the
+  programme: the Spotlights settings folded as in today's card (Kinds, Characters, Period) and the reel's running
+  order, the current spotlight lit with its progress; a click jumps there. The control row sits in the box's foot.
+  Nothing passes = the same page with an empty stage and the settings unfolded (the filtered start page is merged
+  into it); no data = a normal box. Phone: the programme becomes a sheet over the stage.
+  States: ?open ?at=N ?pause ?end ?display ?none ?filter (folds open) ?filtered ?empty ?error ?freeze ?prog (phone sheet).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Spotlights C · Scen och programblad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="spot.css">
+<style>
+.stg > .win { padding: 44px 22px 10px; }
+.stg-main { flex: 1; min-height: 0; display: flex; gap: 22px; }
+/* ---- the stage */
+.stg-stage { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.stg-title { display: flex; align-items: flex-end; gap: 16px; padding: 2px 4px 0; min-height: 72px; }
+.st-main { flex: 1; min-width: 0; }
+.st-kind { display: flex; align-items: center; gap: 8px; font: 700 11px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; }
+.st-kind .kic { width: 16px; height: 16px; }
+.st-label { margin: 8px 0 0; font: 700 clamp(20px, 1.9vw, 27px)/1.15 var(--display); letter-spacing: .05em; color: var(--c-on); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-meta { margin-top: 5px; font: italic 500 17.5px/1.2 var(--serif); color: var(--c-dim); }
+.st-meta b { font: 600 12.5px/1 var(--display); font-style: normal; letter-spacing: .12em; color: var(--c-text); }
+.st-side { flex: none; display: flex; align-items: center; gap: 10px; }
+.st-count { font: 600 11px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--c-dim); white-space: nowrap; }
+.st-prog { display: none; }
+.stg-cd { position: relative; height: 1px; margin: 12px 4px 10px; background: var(--c-rule); }
+.stg-cd i { position: absolute; top: -.5px; height: 2px; border-radius: 1px; background: rgba(240,210,160,.75); }
+.stg-well { flex: 1; min-height: 0; position: relative; border-radius: 5px; overflow: hidden; border: 1px solid var(--well-edge); box-shadow: var(--well-in), 0 1px 0 var(--well-lip); background: rgba(3,2,2,.92); }
+.stg-scr { position: absolute; inset: 0 34px 0 0; }
+.stg-scr.scr { --scr-native: transparent; }
+.stg-scr .scr-in { padding: 10px 16px; }
+.stg-rail { position: absolute; top: 0; bottom: 0; right: 0; border-left: 1px solid rgba(255,214,160,.06); }
+.stg-well:has(.scr[data-theme="paper"]) { background: #e9dfc6; }
+.stg-empty { position: absolute; inset: 0 34px 0 0; display: grid; place-items: center; text-align: center; padding: 20px; }
+.stg-empty[hidden] { display: none; }
+/* ---- the programme */
+.stg-prog { flex: 0 0 300px; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+.stg-fp { padding: 12px 16px 12px; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh); }
+.stg-fp .fp-sec + .fp-sec { margin-top: 4px; padding-top: 4px; }
+.stg-fp .fp-per .fp-row { min-height: 36px; }
+.stg-fp .fp-sel { min-width: 140px; height: 31px; font-size: 15.5px; }
+.stg-fp .fp-chars { grid-template-columns: 1fr 1fr; }
+.sp-h { display: flex; align-items: baseline; justify-content: space-between; margin: 18px 4px 6px; }
+.sp-h .h-sec { margin: 0; }
+.sp-h span { font: italic 500 15px/1 var(--serif); color: var(--c-faint); }
+.stg-list { position: relative; flex: 1 1 auto; min-height: 216px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; padding-right: 4px; }
+.stg-list .row { flex: none; min-height: 54px; padding: 6px 10px 8px 6px; gap: 10px; align-items: center; }
+.sr-n { width: 20px; flex: none; text-align: right; font: 600 10.5px/1 var(--display); letter-spacing: .06em; color: var(--c-faint); }
+.row.on .sr-n { color: var(--c-dim); }
+.stg-list .kic { opacity: .7; transition: opacity .3s; } .stg-list .row.on .kic { opacity: 1; }
+.sr-t { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.sr-t b { font: 600 13.5px/1.2 var(--display); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-t i { font: italic 500 15px/1.1 var(--serif); color: var(--c-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.on .sr-t i { color: color-mix(in srgb, var(--c-dim) 55%, var(--c-on)); }
+.sr-bar { position: absolute; left: 36px; right: 10px; bottom: 4px; height: 1px; background: transparent; }
+.sr-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(240,210,160,.55); }
+.stg-list .empty { padding: 30px 8px; font-size: 16.5px; }
+/* ---- the foot */
+.stg-foot { display: flex; align-items: center; gap: 14px; padding-top: 8px; margin-top: 10px; border-top: 1px solid var(--c-rule); }
+.stg-foot .ctl { flex: 1; }
+.stg-display { right: 22px; bottom: 62px; width: 344px; }
+.sp-msg.st { font-size: 20px; }
+#normBox > .win { padding: 44px 26px 22px; }
+#normBox .orn-rule { margin: 4px auto 16px; }
+
+@media (max-width: 1100px) { .stg-prog { flex-basis: 260px; } .stg-main { gap: 16px; } }
+@media (max-width: 860px) {
+  .st-prog { display: inline-flex; }
+  .stg-prog { position: absolute; z-index: 12; left: 8px; right: 8px; bottom: 58px; max-height: 72%; padding: 14px 12px 10px; border-radius: 7px;
+    background: rgba(18,14,11,.97); border: 1px solid rgba(255,214,160,.17); box-shadow: 0 -10px 40px rgba(0,0,0,.6); }
+  .stg:not(.prog-open) .stg-prog { display: none; }
+  .stg-foot .clock { display: none; }
+}
+@media (max-width: 600px) {
+  .stg > .win { padding: 42px 8px 6px; }
+  .stg-title { flex-direction: column; align-items: stretch; gap: 8px; min-height: 0; }
+  .st-side { justify-content: space-between; }
+  .st-label { white-space: normal; font-size: 19px; }
+  .st-meta { font-size: 15.5px; }
+  .stg-cd { margin: 8px 2px 8px; }
+  .stg-scr { --scr-fs: 11.5px; right: 26px; }
+  .stg-scr .scr-in { padding: 6px 8px; }
+  .stg-rail.trk.v { width: 26px; }
+  .stg-rail .trk-mk { width: 18px; height: 18px; } .stg-rail .trk-mk .kic { width: 13px; height: 13px; }
+  .stg-empty { right: 26px; }
+  .stg-foot .ctl { gap: 0; }
+  .stg-foot .cb { width: 30px; }
+  .stg-foot .cb.play { width: 38px; height: 38px; margin: 0 2px; }
+  .stg-foot .cb.pn, .stg-foot .cb.fs { display: none; }
+  .stg-foot .ibtn.small span { display: none; } .stg-foot .ibtn.small svg { display: block; } .stg-foot .ibtn.small { padding: 0 8px; }
+  .stg-display { left: 6px; right: 6px; width: auto; bottom: 56px; }
+  .stg-prog { left: 4px; right: 4px; bottom: 54px; max-height: 76%; }
+  #normBox > .win { padding: 40px 12px 16px; }
+  .sp-msg { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-large pg-page stg" id="stgBox" data-hood="Spotlights" data-back aria-label="Spotlights">
+  <div class="win">
+    <div class="stg-main">
+      <div class="stg-stage">
+        <div class="stg-title">
+          <div class="st-main" id="stTitle" aria-live="polite"></div>
+          <div class="st-side">
+            <span class="st-count" id="stCount"></span>
+            <button class="ibtn small st-prog" type="button" id="progBtn" aria-expanded="false"></button>
+          </div>
+        </div>
+        <div class="stg-cd" aria-hidden="true"><i id="stCd"></i></div>
+        <div class="stg-well">
+          <div class="stg-scr" id="scr"></div>
+          <div class="stg-empty" id="stEmpty" hidden></div>
+          <div class="stg-rail" id="rail"></div>
+        </div>
+      </div>
+      <aside class="stg-prog" id="prog" aria-label="Programme">
+        <div class="stg-fp" id="fp"></div>
+        <div class="sp-h"><h3 class="h-sec">Programme</h3><span id="progN"></span></div>
+        <div class="stg-list rows flat" id="list" role="listbox" aria-label="Spotlights in the reel"></div>
+      </aside>
+    </div>
+    <div class="box-foot stg-foot"><div id="ctl"></div></div>
+    <div class="pop stg-display" id="displayPop" hidden aria-label="Display">
+      <div class="pop-t">Display<button class="pop-x" type="button" data-close aria-label="Close (Esc)"></button></div>
+      <div id="dp"></div>
+    </div>
+  </div>
+</section>
+<section class="lp box-normal pg-page" id="normBox" data-hood="Spotlights" data-back aria-label="Spotlights">
+  <div class="win"><span class="orn-rule" aria-hidden="true"></span><p class="sp-msg" id="normMsg"></p></div>
+</section>
+<script src="../base/base.js"></script>
+<script src="spot.js"></script>
+<script>
+(() => {
+const { qs, KIND } = SPOT;
+WC.sky.start();
+const menu = WC.startMenu({ onActivate(k) { if (k === 'spotlights') { SPOT.launch(menu, () => open()); return true; } } });
+WC.decorate();
+const $ = (s) => document.querySelector(s);
+const box = $('#stgBox'), norm = $('#normBox');
+document.querySelectorAll('.pop-x').forEach((x) => { x.innerHTML = SPOT.icon('close'); });
+$('#progBtn').innerHTML = `${SPOT.icon('list')}<span><u class="sk">P</u>rogramme</span>`;
+$('#normMsg').textContent = SPOT.EMPTY_NO_DATA;
+
+// ---------------------------------------------------------------- the reel
+const reel = SPOT.newReel();
+const scr = SPOT.screen($('#scr'), reel);
+SPOT.track($('#rail'), reel, { dir: 'v', hoverTime: true });
+SPOT.controls($('#ctl'), reel, { prevNext: true, onToggle: () => (!reel.playing && scr.cursor !== null ? scr.resume() : reel.toggle()),
+  buttons: [{ act: 'display', icon: 'display', label: '<u class="sk">D</u>isplay', title: 'Display: font size and colours' }], onAct: () => toggleDisplay() });
+const fp = SPOT.filterPanel($('#fp'), { folds: true, openKinds: qs.has('filter'), openChars: qs.has('filter') });
+SPOT.displayPanel($('#dp')); SPOT.applyDisplay();
+
+// the title line and the programme follow the reel
+let tSig = '', lSig = null;
+function title() {
+  const s = reel.spot, i = reel.index, n = reel.spots.length;
+  const sig = !n ? 'none' : `${s.id}|${reel.atEnd}`;
+  if (sig !== tSig) {
+    tSig = sig;
+    $('#stEmpty').hidden = !!n;
+    if (!n) {
+      $('#stTitle').innerHTML = `<div class="st-kind" style="color:var(--c-dim)">Nothing to play</div><h2 class="st-label" style="color:var(--c-text)">Spotlights</h2>`;
+      $('#stCount').textContent = '';
+      $('#stEmpty').innerHTML = `<p class="sp-msg st">${SPOT.DATA.length ? SPOT.EMPTY_FILTERED : SPOT.EMPTY_NO_DATA}<small>Change the kinds, characters or period in the programme.</small></p>`;
+    } else {
+      $('#stTitle').innerHTML = `<div class="st-kind" style="color:${KIND[s.kind].color}">${SPOT.kindIcon(s.kind)}${KIND[s.kind].name}</div>
+        <h2 class="st-label">${SPOT.esc(s.label)}</h2><div class="st-meta"><b>${s.char}</b> · level ${s.level} · ${SPOT.fmtLong(s.atMs)}</div>`;
+      $('#stCount').textContent = reel.atEnd ? `End of the reel · ${n} of ${n}` : `Spotlight ${i + 1} of ${n}`;
+    }
+  }
+  const left = reel.countdown, cd = $('#stCd');
+  cd.hidden = !n || left <= 0; cd.style.left = cd.style.right = `${((1 - left) / 2 * 100).toFixed(2)}%`;
+  // the programme
+  const ls = reel.spots.map((x) => x.id).join();
+  if (ls !== lSig) {
+    lSig = ls;
+    $('#progN').textContent = n ? `${n} · ${SPOT.fmtClock(reel.total)}` : '';
+    $('#list').innerHTML = n ? reel.spots.map((x, k) => `<div class="row" role="option" data-i="${k}" title="${SPOT.esc(x.char + ': ' + x.tip)}">
+        <span class="sr-n">${k + 1}</span>${SPOT.kindIcon(x.kind)}<span class="sr-t"><b>${SPOT.esc(x.label)}</b><i>${x.char} · ${SPOT.fmtShort(x.atMs)}</i></span><span class="sr-bar"><i></i></span></div>`).join('')
+      : `<p class="empty">${SPOT.DATA.length ? 'Nothing passes the settings above.' : 'Nothing recorded yet.'}</p>`;
+  }
+  const rows = $('#list').children;
+  for (let k = 0; k < rows.length; k++) {
+    const on = k === i && n > 0, r = rows[k];
+    if (r.classList.contains('on') !== on) {
+      r.classList.toggle('on', on);
+      // keep the current row in view by scrolling the list only (never the column with the settings)
+      if (on) { const L = $('#list'); if (r.offsetTop < L.scrollTop) L.scrollTop = r.offsetTop; else if (r.offsetTop + r.offsetHeight > L.scrollTop + L.clientHeight) L.scrollTop = r.offsetTop + r.offsetHeight - L.clientHeight; }
+    }
+    const bar = r.querySelector('.sr-bar i'); if (bar) bar.style.width = on ? `${Math.min(100, reel.local / reel.spots[k].dur * 100).toFixed(1)}%` : '0';
+  }
+}
+reel.on(title);
+$('#list').addEventListener('click', (e) => { const r = e.target.closest('.row'); if (r) { reel.goTo(+r.dataset.i); if (!reel.playing) reel.play(); if (matchMedia('(max-width: 860px)').matches) toggleProg(false); } });
+SPOT.onFilter(() => {
+  if (!sh.st.open) return;
+  const was = reel.spots.length; reel.rebuild(SPOT.select()); title();
+  if (!was && reel.spots.length) reel.play();
+});
+
+// ---------------------------------------------------------------- popovers and the phone's programme sheet
+function toggleDisplay(on) { const p = $('#displayPop'); p.hidden = on === undefined ? !p.hidden : !on; $('#ctl [data-act="display"]').classList.toggle('on', !p.hidden); if (!p.hidden) toggleProg(false); }
+$('#displayPop [data-close]').addEventListener('click', () => toggleDisplay(false));
+function toggleProg(on) { const o = on === undefined ? !box.classList.contains('prog-open') : on; box.classList.toggle('prog-open', o); $('#progBtn').setAttribute('aria-expanded', String(o)); $('#progBtn').classList.toggle('on', o); if (o) toggleDisplay(false); }
+$('#progBtn').addEventListener('click', () => toggleProg());
+const sheet = () => matchMedia('(max-width: 860px)').matches;
+
+// ---------------------------------------------------------------- open / close
+function open(instant = false) {
+  if (!SPOT.DATA.length) return sh.show(norm, { instant });
+  reel.load(SPOT.select()); reel.pos = 0; reel.speed = 1; reel.playing = reel.spots.length > 0; tSig = ''; lSig = null;
+  if (!reel.spots.length) { fp.open.kinds = true; fp.open.chars = true; fp.render(); }
+  reel.emit('rebuild');
+  return sh.show(box, { instant });
+}
+const sh = SPOT.shell({
+  menu,
+  key(e) {
+    if (e.key === 'Escape') return false;
+    if (sh.st.cur === norm) { if (['Shift', 'Control', 'Alt', 'Meta', 'Tab', 'CapsLock'].includes(e.key)) return false; sh.close(); return true; }
+    if (e.target.closest && e.target.closest('.pop, .stg-fp')) return false;
+    if (WC.shortcut(e, { d: () => toggleDisplay(), p: () => sheet() && toggleProg() })) return true;
+    return SPOT.reelKey(e, reel, scr);
+  },
+  back() {
+    if (!$('#displayPop').hidden) return toggleDisplay(false);
+    if (box.classList.contains('prog-open')) return toggleProg(false);
+    sh.close();
+  },
+  onClosed() { reel.pause(); toggleDisplay(false); toggleProg(false); },
+});
+norm.addEventListener('click', (e) => { if (!e.target.closest('.backbtn')) sh.close(); });
+
+// ---------------------------------------------------------------- URL states (screenshots)
+(async () => {
+  if (!['open', 'filtered', 'empty'].some((k) => qs.has(k))) return;
+  await open(true);
+  if (sh.st.cur !== box) return;
+  if (qs.has('at') && reel.spots.length) { const i = Math.max(0, Math.min(reel.spots.length - 1, +qs.get('at') - 1)); reel.seek(reel.momentAt(i) + (+qs.get('dt') || 1600)); }
+  if (qs.has('end')) reel.seek(reel.total);
+  if (qs.has('pause')) { reel.pause(); scr.moveCursor(-3); }
+  if (qs.has('none')) { fp.open.kinds = true; fp.render(); SPOT.patch({ achievements: false, deaths: false, levelUps: false, pvp: false }); }
+  if (qs.has('display')) toggleDisplay(true);
+  if (qs.has('prog')) toggleProg(true);
+})();
+window.MOCK = { reel, scr, sh, open };
+})();
+</script>
+</body>
+</html>

@@ -7,9 +7,14 @@
 //   const wins = chrome.mountWindows(host, services, { status, commitProfile, flushWriteBack, focusInput });
 //   wins.toggle('profile');   // closed → open and focus; open → raise and focus; focused → close request
 //
-// - Each window holds its own FrameStack on its own cell grid, inside the
-//   window kit's frame (kit/window.tsx). Its stack routes keys only while
-//   the window has the focus and never traps the focus.
+// - Each window holds its own FrameStack in the window kit's Lykta frame
+//   (kit/window.tsx, stage 42d, ADR 0127): look frames run in the place
+//   `window` and fill the body, old-look frames sit on a whole-cell grid
+//   centred in it. Its stack routes keys only while the window has the
+//   focus and never traps the focus. The top frames set the title and note
+//   (`useWindowChrome`); the defaults are "Profile" with the profile's name
+//   as the note, and "Scripts". The Profile window's root frame lives in
+//   frames/profile-window.tsx.
 // - Focus follows presses, as in a desktop window system: a press in a
 //   window focuses and raises it; a press anywhere else (the game text,
 //   the input, a pane, the bar, a popup, the other window) takes its focus
@@ -29,18 +34,18 @@
 
 import './kit/window.css';
 import { Component, type VNode, render } from 'preact';
-import { useEffect, useMemo, useRef } from 'preact/hooks';
+import { useRef } from 'preact/hooks';
 import type { WindowId, WindowRect } from '../settings';
 import { isLight } from '../theme/color';
 import { OWN_KEYS_ATTR, WINDOW_BTN_ATTR } from '../ui/input-pane';
-import { type EscActions, profileEditOptions } from './frames/esc-main';
-import { editProfile } from './frames/profile-edit';
+import type { EscActions } from './frames/esc-main';
+import { ProfileRoot } from './frames/profile-window';
 import { ScriptsFrame } from './frames/scripts';
-import { type ChromeServices, GridCtx, ServicesCtx, useCells, useElementSize, useServices, useSettings } from './kit/hooks';
-import { type StackControl, FrameStack, useFlash, useIsTopFrame, useKeys, useNav } from './kit/stack';
-import { WindowFrame } from './kit/window';
-import { type CellGrid, type CellRect, FRAME_H, FRAME_W, defaultRect, fitRect } from './kit/window-geom';
-import { Blank, FlashRow, Page } from './kit/widgets';
+import { type ChromeServices, ServicesCtx, useCells, useElementSize, useSettings } from './kit/hooks';
+import type { StackControl } from './kit/stack';
+import { WindowFrame, WindowStack } from './kit/window';
+import { type WindowChromeStore, useWindowChromeOf, windowChromeStore } from './kit/window-chrome';
+import { type CellGrid, type CellRect, type WindowBody, defaultRect, fitRect, windowBody } from './kit/window-geom';
 
 export type { WindowId } from '../settings';
 
@@ -84,6 +89,8 @@ interface WinState {
   offset: number;
   /** The rectangle while a drag runs (not yet stored). */
   live: CellRect | null;
+  /** The title and note its frames set (`useWindowChrome`); new on every open. */
+  chrome: WindowChromeStore;
 }
 
 interface SurfaceProps {
@@ -112,37 +119,76 @@ function WindowsSurface(p: SurfaceProps): VNode {
         p.wins.map((w, i) => {
           const stored: WindowRect | null = settings.windows[w.id];
           const rect = w.live ?? (stored ? fitRect(stored, grid) : defaultRect(grid, w.offset));
-          const focused = p.focused === w.id;
-          const profile = w.id === 'profile';
           return (
-            <WindowFrame
+            <Win
               key={w.id}
-              id={w.id}
-              title={profile ? 'Profile:' : 'Scripts'}
-              {...(profile ? { titleNote: settings.profile } : {})}
+              w={w}
+              profile={settings.profile}
               rect={rect}
               grid={grid}
               cellW={c.w}
               cellH={c.h}
               z={i + 1}
-              focused={focused}
-              onRect={(r, done) => p.onRect(w.id, r, done)}
-              onClose={() => p.requestClose(w.id)}
-            >
-              <WinStack
-                id={w.id}
-                epoch={w.epoch}
-                focused={focused}
-                cols={rect.w - FRAME_W}
-                rows={rect.h - FRAME_H}
-                opts={p.opts}
-                control={p.control}
-                close={p.close}
-              />
-            </WindowFrame>
+              focused={p.focused === w.id}
+              surface={p}
+            />
           );
         })}
     </div>
+  );
+}
+
+/** A window's own title and note, until one of its frames sets them (`useWindowChrome`). */
+export function windowDefaults(id: WindowId, profile: string): { title: string; note?: string } {
+  return id === 'profile' ? { title: 'Profile', note: profile } : { title: 'Scripts' };
+}
+
+interface WinProps {
+  w: WinState;
+  profile: string;
+  rect: CellRect;
+  grid: CellGrid;
+  cellW: number;
+  cellH: number;
+  z: number;
+  focused: boolean;
+  surface: SurfaceProps;
+}
+
+/** One window: the Lykta frame, its title and note (its frames' `useWindowChrome`, else the defaults), its stack. */
+function Win(p: WinProps): VNode {
+  const { w, rect, surface: s } = p;
+  const set = useWindowChromeOf(w.chrome);
+  const def = windowDefaults(w.id, p.profile);
+  const title = set?.title ?? def.title;
+  const note = set?.note ?? def.note;
+  return (
+    <WindowFrame
+      id={w.id}
+      title={title}
+      {...(note ? { titleNote: note } : {})}
+      rect={rect}
+      grid={p.grid}
+      cellW={p.cellW}
+      cellH={p.cellH}
+      z={p.z}
+      focused={p.focused}
+      onRect={(r, done) => s.onRect(w.id, r, done)}
+      onClose={() => s.requestClose(w.id)}
+    >
+      <WinStack
+        id={w.id}
+        epoch={w.epoch}
+        focused={p.focused}
+        body={windowBody(rect, p.cellW, p.cellH)}
+        cellW={p.cellW}
+        cellH={p.cellH}
+        chrome={w.chrome}
+        opts={s.opts}
+        control={s.control}
+        close={s.close}
+      />
+    </WindowFrame>
   );
 }
 
@@ -150,77 +196,55 @@ interface WinStackProps {
   id: WindowId;
   epoch: number;
   focused: boolean;
-  cols: number;
-  rows: number;
+  body: WindowBody;
+  cellW: number;
+  cellH: number;
+  chrome: WindowChromeStore;
   opts: WindowsOptions;
   control: (id: WindowId, c: StackControl | null) => void;
   close: (id: WindowId) => void;
 }
 
+const sameBody = (a: WindowBody, b: WindowBody): boolean =>
+  a.w === b.w && a.h === b.h && a.cols === b.cols && a.rows === b.rows && a.left === b.left && a.top === b.top;
+
 /**
- * A window's frame stack on its cell grid. Rendered again only when its
- * focus, size or open changes, not on every move of a window or change of
- * the other one: frames re-render on every stack render (the frame
- * context), and some focus themselves when they do.
+ * A window's frame stack in its body (kit/window.tsx `WindowStack`).
+ * Rendered again only when its focus, size or open changes, not on every
+ * move of a window, change of its title or change of the other one: frames
+ * re-render on every stack render (the frame context), and some focus
+ * themselves when they do.
  */
 class WinStack extends Component<WinStackProps> {
   override shouldComponentUpdate(n: WinStackProps): boolean {
     const p = this.props;
-    return p.id !== n.id || p.epoch !== n.epoch || p.focused !== n.focused || p.cols !== n.cols || p.rows !== n.rows;
+    return (
+      p.id !== n.id ||
+      p.epoch !== n.epoch ||
+      p.focused !== n.focused ||
+      p.chrome !== n.chrome ||
+      p.cellW !== n.cellW ||
+      p.cellH !== n.cellH ||
+      !sameBody(p.body, n.body)
+    );
   }
 
   override render(): VNode {
-    return <WinStackBody {...this.props} />;
-  }
-}
-
-function WinStackBody(p: WinStackProps): VNode {
-  const grid = useMemo(() => ({ cols: p.cols, rows: p.rows, surface: 'menu' as const }), [p.cols, p.rows]);
-  return (
-    <GridCtx.Provider value={grid}>
-      <FrameStack
+    const p = this.props;
+    return (
+      <WindowStack
         key={p.epoch}
+        body={p.body}
+        cellW={p.cellW}
+        cellH={p.cellH}
         root={p.id === 'profile' ? <ProfileRoot opts={p.opts} close={() => p.close('profile')} /> : <ScriptsFrame />}
         active={p.focused}
-        trap={false}
         onRootBack={() => p.close(p.id)}
         control={(ctl) => p.control(p.id, ctl)}
+        chrome={p.chrome.sink}
       />
-    </GridCtx.Provider>
-  );
-}
-
-/**
- * The Profile window's root frame: it loads the active profile's editor
- * over itself (as ESC → Profile does) and closes the window once the editor
- * is left, unless the editor left with a failure to show (a failed save or
- * apply): then the flash stays, Enter opens the editor again, Esc closes.
- */
-function ProfileRoot(p: { opts: WindowsOptions; close: () => void }): VNode {
-  const nav = useNav();
-  const top = useIsTopFrame();
-  const flash = useFlash();
-  const settings = useSettings();
-  const { profiles, onProfileSaved } = useServices();
-  const left = useRef(false);
-  const edit = (): void =>
-    void editProfile(nav, profiles, settings.profile, profileEditOptions(p.opts, onProfileSaved));
-  useEffect(edit, []);
-  useEffect(() => {
-    if (!top) left.current = true;
-    else if (left.current && flash?.kind !== 'fail') p.close();
-  }, [top]);
-  useKeys((_e, nk) => {
-    if (nk !== 'activate') return false;
-    edit();
-    return true;
-  });
-  return (
-    <Page title="Profile" footer={[{ text: 'Enter Edit', onClick: edit }, 'ESC Close']}>
-      <Blank />
-      <FlashRow />
-    </Page>
-  );
+    );
+  }
 }
 
 /** Mounts the windows layer into `host` (none open). */
@@ -294,7 +318,7 @@ export function mountWindows(host: HTMLElement, services: ChromeServices, opts: 
       const stored = services.settings.get().windows[id];
       // The second window opened at the default place stands a cell beside the first.
       const offset = !stored && wins.length > 0 && !services.settings.get().windows[wins[0]!.id] ? 1 : 0;
-      wins = [...wins, { id, epoch: ++epoch, offset, live: null }];
+      wins = [...wins, { id, epoch: ++epoch, offset, live: null, chrome: windowChromeStore() }];
     }
     focus(id);
     draw();

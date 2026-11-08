@@ -1,12 +1,15 @@
-// Export editor (Inv §7.7, ADR 0019, ADR 0115): pure helpers for the frame
-// in export-editor.tsx. The layout, the log's visible entries, the item
-// list (entries, comments, the end row) with its wrapped row offsets, the
-// selection's entries, the overview map, SGR colouring of the rows on
-// screen, and the cursor arithmetic. No DOM; unit tested.
+// Export editor (Inv §7.7, ADR 0019, ADR 0115, ADR 0128 §43d): pure
+// helpers for the frame in export-editor.tsx. The log's visible entries,
+// the item list (entries, comments, the end row) with its wrapped row
+// offsets, the pixel geometry of the virtual log (rows at one line height,
+// the inline comment composer as one extra item of measured height), the
+// selection's entries, the overview strip's stretches and marks, SGR
+// colouring of the rows on screen, the bar's summary and the cursor
+// arithmetic. No DOM; unit tested.
 //
 // Built for a 5 h chain (~100 000 entries): the log is read once into flat
 // arrays; the item list is rebuilt in one pass when the comments or the
-// width change; only the rows on screen are coloured.
+// width change; only the rows near the view are coloured.
 
 import type { Color, StyleRun } from '../../core/types';
 import { rgb } from '../../core/types';
@@ -16,40 +19,20 @@ import { markersOf } from '../../player/strip';
 import type { RunEvent } from '../../runs/events';
 import { stripAnsi } from '../../share/capture';
 import { SYS_PREFIX, playerEntries } from '../../share/system-lines';
-import { COMMENT_COLS, type ExportComment, type ExportDoc, commentLines, rangeAt } from '../../share/edits';
+import { COMMENT_COLS, type ExportComment, type ExportDoc, commentLines } from '../../share/edits';
 import { colorToCss } from '../../ui/palette';
 
 // ---------------------------------------------------------------- layout
 
-/** The log's margin: the cursor / selection cell and the exclusion cell. */
-export const MARGIN = 2;
-export const MAP_GAP = 1;
-export const MAP_W = 2;
-export const PANEL_GAP = 2;
-export const PANEL_W = 30;
-/** The narrowest log beside the panel; below it the panel goes above the log. */
-export const LOG_MIN = 40;
+/** The log never wraps wider than this many columns (a very wide window caps the page, ADR 0128 §43d). */
+export const LOG_MAX_COLS = 120;
+/** … nor narrower than this (a tiny window still shows words). */
+export const LOG_MIN_COLS = 16;
 
-export interface ExportLayout {
-  /** Left edge of the package (cells). */
-  at: number;
-  /** The log's text width (the margin not included). */
-  logW: number;
-  /** The panel's width on the right; 0 = the panel sits above the log as rows. */
-  panelW: number;
-}
-
-/**
- * The package `[margin 2][log][gap 1][map 2][gap 2][panel 30]`, the grid
- * less a one-cell margin each side (ADR 0115 §1). The log has no upper cap.
- * When a 40-cell log does not fit beside the panel, the panel moves above
- * the log and the log takes the whole width (ADR 0115 §6).
- */
-export function exportLayout(cols: number): ExportLayout {
-  const room = cols - 2 - MARGIN - MAP_GAP - MAP_W;
-  const beside = room - PANEL_GAP - PANEL_W;
-  if (beside >= LOG_MIN) return { at: 1, logW: beside, panelW: PANEL_W };
-  return { at: 1, logW: Math.max(8, room), panelW: 0 };
+/** The log's wrap width in columns: what fits in `textW` px at `charW` px a character, within the caps. */
+export function logCols(textW: number, charW: number): number {
+  const cw = charW > 0 ? charW : 8;
+  return Math.max(LOG_MIN_COLS, Math.min(LOG_MAX_COLS, Math.floor((Math.max(0, textW) + 0.5) / cw)));
 }
 
 // ------------------------------------------------------------------- log
@@ -72,6 +55,8 @@ export interface EditorLog {
   raw: string[];
   /** Shown length in cells (a command's prefix included). */
   len: Uint32Array;
+  /** The shown text (no SGR; a command's or system line's prefix included), for the word wrap. */
+  plain: string[];
 }
 
 /**
@@ -86,26 +71,32 @@ export function buildEditorLog(chain: readonly ChainRun[]): EditorLog {
   const kinds: number[] = [];
   const raw: string[] = [];
   const lens: number[] = [];
+  const plain: string[] = [];
+  const shown = (t: string): void => {
+    plain.push(t);
+    lens.push(t.length);
+  };
   for (const e of playerEntries(chain)) {
     if (e.kind === 'in') {
       ts.push(e.ts);
       kinds.push(KIND_IN);
       raw.push(e.body);
-      lens.push(stripAnsi(e.body).length);
+      // (stripAnsi returns the same string when the line has no escapes.)
+      shown(stripAnsi(e.body));
     } else if (e.kind === 'out') {
       if (e.body === '' || PLAYING_COMMANDS.includes(e.body)) continue;
       ts.push(e.ts);
       kinds.push(KIND_OUT);
       raw.push(e.body);
-      lens.push(OUT_PREFIX.length + e.body.length);
+      shown(OUT_PREFIX + e.body);
     } else if (e.kind === 'sys') {
       ts.push(e.ts);
       kinds.push(KIND_SYS);
       raw.push(e.body);
-      lens.push(SYS_PREFIX.length + e.body.length);
+      shown(SYS_PREFIX + e.body);
     }
   }
-  return { ts, kind: Uint8Array.from(kinds), raw, len: Uint32Array.from(lens) };
+  return { ts, kind: Uint8Array.from(kinds), raw, len: Uint32Array.from(lens), plain };
 }
 
 /** The first entry with log µs ≥ `us` (entries.length when none). */
@@ -149,9 +140,33 @@ export interface Items {
   width: number;
 }
 
-/** Rows an entry takes at `width` cells (hard wrap, like the log player). */
-export function entryRows(len: number, width: number): number {
-  return Math.max(1, Math.ceil(len / Math.max(1, width)));
+/**
+ * Word wrap at `width` cells: a row breaks at the last space that fits (the
+ * space itself is not shown), and a word longer than a row breaks hard.
+ * Returns the row count; with `out`, pushes each row's [start, end) offsets.
+ * A text that fits is one row (an empty text too).
+ */
+export function wrapSpans(text: string, width: number, out?: number[]): number {
+  const w = Math.max(1, width);
+  const n = text.length;
+  let pos = 0;
+  let rows = 1;
+  while (n - pos > w) {
+    // The last space within the row, or the one just after a full row.
+    let sp = pos + w;
+    while (sp > pos && text.charCodeAt(sp) !== 32) sp--;
+    const end = sp > pos ? sp : pos + w;
+    out?.push(pos, end);
+    pos = sp > pos ? sp + 1 : end;
+    rows++;
+  }
+  out?.push(pos, n);
+  return rows;
+}
+
+/** Rows entry `e` takes at `width` cells (word wrap; nothing scanned for a line that fits). */
+export function entryWrapRows(log: EditorLog, e: number, width: number): number {
+  return log.len[e]! <= width ? 1 : wrapSpans(log.plain[e]!, width);
 }
 
 /** Comment lines at the log width (80 columns, fewer when the log is narrower). */
@@ -187,7 +202,7 @@ export function buildItems(log: EditorLog, comments: readonly ExportComment[], w
     ref[it] = e;
     entryItem[e] = it;
     rowStart[it] = row;
-    row += entryRows(log.len[e]!, width);
+    row += entryWrapRows(log, e, width);
     it++;
   }
   while (ci < comments.length) pushComment();
@@ -213,30 +228,86 @@ export function itemAtRow(items: Items, row: number): number {
   return lo;
 }
 
-/** The top row that keeps item `cur` on screen, moving as little as possible. */
-export function topFor(items: Items, cur: number, top: number, height: number): number {
-  const a = items.rowStart[cur]!;
-  const b = items.rowStart[cur + 1]!;
-  let t = top;
-  if (b > t + height) t = b - height;
-  if (a < t) t = a;
-  return clampTop(items, t, height);
-}
-
-export function clampTop(items: Items, top: number, height: number): number {
-  return Math.max(0, Math.min(top, items.totalRows - height));
-}
-
-/** The top row that centres item `cur`. */
-export function centredTop(items: Items, cur: number, height: number): number {
-  return clampTop(items, items.rowStart[cur]! - Math.floor(height / 2), height);
-}
-
 /** PgUp / PgDn: the item one viewport (`height` rows) away. */
 export function pageItem(items: Items, cur: number, height: number, dir: 1 | -1): number {
   const target = itemAtRow(items, items.rowStart[cur]! + dir * Math.max(1, height));
   if (target === cur) return Math.max(0, Math.min(items.count - 1, cur + dir));
   return target;
+}
+
+// ------------------------------------------------------------ geometry
+
+/**
+ * The inline comment composer in the log (ADR 0128 §43d): before item `at`
+ * (a new comment) or in place of comment item `at` (`edit`), `h` px tall
+ * (measured).
+ */
+export interface ComposerSlot {
+  at: number;
+  edit: boolean;
+  h: number;
+}
+
+/** The virtual log's pixel geometry: one line height, the padding above the first row, the composer. */
+export interface LogGeom {
+  lh: number;
+  pad: number;
+  comp: ComposerSlot | null;
+}
+
+/** The composer's px offset added to item `i`'s top (0 above the composer). */
+function shiftOf(items: Items, i: number, g: LogGeom): number {
+  const c = g.comp;
+  if (!c) return 0;
+  if (c.edit) return i > c.at ? c.h - (items.rowStart[c.at + 1]! - items.rowStart[c.at]!) * g.lh : 0;
+  return i >= c.at ? c.h : 0;
+}
+
+/** Item `i`'s top in the log's content (px; `i = count` is the end of the last item). */
+export function itemTop(items: Items, i: number, g: LogGeom): number {
+  return g.pad + items.rowStart[i]! * g.lh + shiftOf(items, i, g);
+}
+
+/** Item `i`'s height (px; the composer's for an edited comment). */
+export function itemHeight(items: Items, i: number, g: LogGeom): number {
+  if (g.comp?.edit && g.comp.at === i) return g.comp.h;
+  return (items.rowStart[i + 1]! - items.rowStart[i]!) * g.lh;
+}
+
+/** The composer's top in the log's content (px), or -1 without one. */
+export function composerTop(items: Items, g: LogGeom): number {
+  return g.comp ? g.pad + items.rowStart[g.comp.at]! * g.lh : -1;
+}
+
+/** The content's height: the padding, every row and the composer (the bottom padding is the caller's). */
+export function contentHeight(items: Items, g: LogGeom): number {
+  return itemTop(items, items.count, g);
+}
+
+/**
+ * The item at content y (px), clamped to the items; a y on the composer
+ * gives the item it stands for (the one it sits before, or the edited one).
+ */
+export function itemAtY(items: Items, y: number, g: LogGeom): number {
+  const c = g.comp;
+  let yy = y - g.pad;
+  if (c) {
+    const top = items.rowStart[c.at]! * g.lh;
+    if (yy >= top && yy < top + c.h) return Math.min(items.count - 1, c.at);
+    if (yy >= top + c.h) yy -= shiftOf(items, items.count, g);
+  }
+  return itemAtRow(items, Math.floor(yy / Math.max(1, g.lh)));
+}
+
+/**
+ * The scrollTop that shows [top, top + h) in a view of `view` px at
+ * `scroll`, moving as little as possible (`margin` px kept around it).
+ */
+export function revealTop(scroll: number, view: number, top: number, h: number, margin = 0): number {
+  let t = scroll;
+  if (top + h + margin > t + view) t = top + h + margin - view;
+  if (top - margin < t) t = top - margin;
+  return Math.max(0, t);
 }
 
 // ------------------------------------------------------------ comments
@@ -323,56 +394,54 @@ export function entryRangeUs(log: EditorLog, lo: number, hi: number): [number, n
 
 // ------------------------------------------------------------------ map
 
-export type MapMark = 'K' | 'D' | 'A' | 'L' | 'comment' | 'excluded' | null;
+export type MarkLetter = 'K' | 'D' | 'A' | 'L';
 
-/** The overview map's content column: one mark per map row (markers > comments > excluded). */
-export function mapMarks(
-  items: Items,
-  log: EditorLog,
-  doc: ExportDoc,
-  events: readonly RunEvent[],
-  height: number,
-): MapMark[] {
-  const out: MapMark[] = Array.from({ length: Math.max(0, height) }, () => null);
-  if (height <= 0) return out;
-  const total = items.totalRows;
-  const rowOf = (item: number): number => Math.min(height - 1, Math.floor((items.rowStart[item]! * height) / total));
-  const rank = (m: MapMark): number => (m === null ? 0 : m === 'excluded' ? 1 : m === 'comment' ? 2 : 3);
-  const put = (r: number, m: MapMark): void => {
-    if (rank(m) > rank(out[r]!)) out[r] = m;
-  };
-  if (doc.excludes.length > 0) {
-    for (let e = 0; e < log.ts.length; e++) {
-      if (rangeAt(doc, log.ts[e]!) >= 0) {
-        // An excluded stretch covers every map row from its first to its last row.
-        const it = items.entryItem[e]!;
-        const r0 = rowOf(it);
-        const r1 = Math.min(height - 1, Math.floor(((items.rowStart[it + 1]! - 1) * height) / total));
-        for (let r = r0; r <= r1; r++) put(r, 'excluded');
-      }
-    }
+/**
+ * The overview strip beside the log (ADR 0115 §5, ADR 0128 §43d), as
+ * fractions of the log's rows (0 top, 1 bottom): the excluded stretches
+ * (merged), the comments and the event letters (K pkill, D death, A
+ * achievement, L level). Drawn as a few absolutely placed marks, never one
+ * element per line; O(ranges · log n + comments + events).
+ */
+export interface MapStrip {
+  excluded: [from: number, to: number][];
+  comments: number[];
+  marks: { letter: MarkLetter; at: number }[];
+}
+
+export function mapStrip(items: Items, log: EditorLog, doc: ExportDoc, events: readonly RunEvent[]): MapStrip {
+  const total = Math.max(1, items.totalRows);
+  const n = log.ts.length;
+  const excluded: [number, number][] = [];
+  for (const [from, to] of doc.excludes) {
+    const e0 = entryAtOrAfter(log, from);
+    const e1 = (to === null ? n : entryAtOrAfter(log, to)) - 1;
+    if (e1 < e0 || e0 >= n) continue;
+    const a = items.rowStart[items.entryItem[e0]!]! / total;
+    const b = items.rowStart[items.entryItem[e1]! + 1]! / total;
+    const last = excluded[excluded.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else excluded.push([a, b]);
   }
-  for (let c = 0; c < items.commentItem.length; c++) put(rowOf(items.commentItem[c]!), 'comment');
-  for (const m of markersOf(events)) {
+  const comments = Array.from(items.commentItem, (it) => items.rowStart[it]! / total);
+  const marks = markersOf(events).map((m) => {
     const e = entryAtOrAfter(log, m.us);
-    put(rowOf(e < log.ts.length ? items.entryItem[e]! : items.count - 1), m.letter);
-  }
-  return out;
+    return { letter: m.letter as MarkLetter, at: items.rowStart[e < n ? items.entryItem[e]! : items.count - 1]! / total };
+  });
+  return { excluded, comments, marks };
 }
 
-/** The map's viewport thumb: first and last map row (inclusive). */
-export function mapThumb(items: Items, top: number, visible: number, height: number): [number, number] {
-  const total = items.totalRows;
-  if (height <= 0) return [0, -1];
-  if (total <= visible) return [0, height - 1];
-  const a = Math.floor((top * height) / total);
-  const b = Math.max(a, Math.ceil(((top + visible) * height) / total) - 1);
-  return [Math.min(a, height - 1), Math.min(b, height - 1)];
+/** The item a press at fraction `f` (0–1) of the strip jumps to. */
+export function mapItemAt(items: Items, f: number): number {
+  return itemAtRow(items, Math.floor(Math.max(0, Math.min(1, f)) * items.totalRows));
 }
 
-/** The item a click on map row `r` jumps to. */
-export function mapItem(items: Items, r: number, height: number): number {
-  return itemAtRow(items, Math.floor(((r + 0.5) * items.totalRows) / Math.max(1, height)));
+/** The strip's viewport thumb as fractions [top, height] of the strip (at least `min` tall). */
+export function mapThumb(scrollTop: number, view: number, content: number, min = 0.02): [number, number] {
+  if (!(content > view)) return [0, 1];
+  const h = Math.max(min, view / content);
+  const t = Math.max(0, Math.min(1 - h, scrollTop / content));
+  return [t, h];
 }
 
 // ------------------------------------------------------------------ SGR
@@ -536,10 +605,11 @@ export function entrySegments(log: EditorLog, e: number, width: number): Seg[][]
     runs = [{ start: 0, end: text.length, fg: -2 }];
   } else ({ text, runs } = parseSgr(log.raw[e]!));
   const rows: Seg[][] = [];
-  const n = entryRows(text.length, w);
+  const spans: number[] = [];
+  const n = wrapSpans(text, w, spans);
   for (let r = 0; r < n; r++) {
-    const a = r * w;
-    const b = Math.min(text.length, a + w);
+    const a = spans[2 * r]!;
+    const b = spans[2 * r + 1]!;
     const segs: Seg[] = [];
     let pos = a;
     for (const run of runs) {
@@ -565,11 +635,10 @@ export function entrySegments(log: EditorLog, e: number, width: number): Seg[][]
 
 /** An entry's plain rows at `width` cells (excluded lines lose their colour). */
 export function entryPlainRows(log: EditorLog, e: number, width: number): string[] {
-  const w = Math.max(1, width);
-  const k = log.kind[e];
-  const text = k === KIND_OUT ? OUT_PREFIX + log.raw[e]! : k === KIND_SYS ? SYS_PREFIX + log.raw[e]! : stripAnsi(log.raw[e]!);
-  const n = entryRows(text.length, w);
-  return Array.from({ length: n }, (_, r) => text.slice(r * w, (r + 1) * w));
+  const text = log.plain[e]!;
+  const spans: number[] = [];
+  const n = wrapSpans(text, width, spans);
+  return Array.from({ length: n }, (_, r) => text.slice(spans[2 * r], spans[2 * r + 1]));
 }
 
 // ----------------------------------------------------------------- info
@@ -585,24 +654,36 @@ export interface Summary {
 
 const plural = (n: number, w: string): string => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-/** The panel's summary (ADR 0115 §5): `Rasta (L73)`, `2026-09-25 · 70098 lines`, `3 excluded · 1 comment`. */
-export function summaryLines(p: Summary): [string, string, string] {
-  const who = p.level !== undefined ? `${p.character} (L${p.level})` : p.character;
-  return [who, `${p.date} · ${plural(p.lines, 'line')}`, `${p.excluded} excluded · ${plural(p.comments, 'comment')}`];
+/** A count with thousands separators (`70,098`), as the bar shows it. */
+export function fmtCount(n: number): string {
+  return Math.round(n).toLocaleString('en-US');
 }
 
-/** The summary on one line (the panel above the log, ADR 0115 §6). */
-export function summaryText(p: Summary): string {
-  return summaryLines(p).join(' · ');
+/** The bar's summary (ADR 0128 §43d): `Rasta` and `Level 72 · 2026-09-25 · 70,098 lines · 3 excluded · 1 comment`. */
+export function barSummary(p: Summary): { who: string; line: string } {
+  const parts = [
+    ...(p.level !== undefined ? [`Level ${p.level}`] : []),
+    p.date,
+    `${fmtCount(p.lines)} line${p.lines === 1 ? '' : 's'}`,
+    `${p.excluded} excluded`,
+    plural(p.comments, 'comment'),
+  ];
+  return { who: p.character, line: parts.join(' · ') };
 }
 
-/** The panel's selection heading: `SELECTION · 4 lines`, `LINE · 12`, `COMMENT`, `END OF LOG`. */
+/** The bar's selection heading (drawn in capitals): `Selection · 4 lines`, `Line · 12`, `Comment`, `End of log`. */
 export function selectionTitle(sel: { selected: number } | { entry: number } | { comment: true } | { end: true }): string {
-  if ('selected' in sel) return `SELECTION · ${plural(sel.selected, 'line')}`;
-  if ('entry' in sel) return `LINE · ${sel.entry + 1}`;
-  if ('comment' in sel) return 'COMMENT';
-  return 'END OF LOG';
+  if ('selected' in sel) return `Selection · ${plural(sel.selected, 'line')}`;
+  if ('entry' in sel) return `Line · ${sel.entry + 1}`;
+  if ('comment' in sel) return 'Comment';
+  return 'End of log';
 }
+
+/** Longest export title, characters. */
+export const TITLE_MAX = 200;
+
+/** Newlines (and tabs) of typed or pasted comment text as spaces (a comment is one paragraph). */
+export const pasteText = (s: string): string => s.replace(/\r\n|[\r\n\t]/g, ' ');
 
 /** The hold line under a comment preview: `Holds the replay for 7 s.` */
 export function holdText(ms: number): string {

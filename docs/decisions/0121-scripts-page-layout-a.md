@@ -1,6 +1,6 @@
 # 0121 — Scripts page: framed detail, editable settings, readable help
 
-- Status: Accepted
+- Status: Accepted (layout superseded by ADR 0129, 2026-11-07; behaviour kept)
 - Date: 2026-11-04
 - Related: stage 38 (`docs/stages/38-scripts-page.md`). ADR 0051 (user
   scripts: header, settings, Scripts page P2), ADR 0103 (Scripts window),
@@ -239,3 +239,24 @@ Supersedes two points above:
 - **No brackets round the name.** The top border reads
   `┌── name ───── EDIT ─ EXPORT ─ RENAME ─ DELETE ─┐`: the line stops at
   the name with a space either side, without `┤ ├`.
+
+## Addendum: the lantern look (2026-11-07, ADR 0129)
+
+Stage 44 moves the Scripts page off the cell grid into the lantern look
+(round 7, direction C "Instrumentbrädan"): the index, the selected
+script's panel with its settings as tiles, and the help as a reading
+column, by container width (help under the panel at 1000 px and less, the
+index alone with a drill-down to the panel at 640 px and less). **The
+layout above is superseded**: the frame, the tab, the panel fill, the
+cell-based narrow rules, the TUI scrollbar and the footer hints go.
+**The behaviour is kept**: the controls and their keys, saving at once,
+Reset all without confirmation, the flashes, the three zones and Tab,
+Esc to the list first after Edit, PgUp / PgDn for the help, the help
+typesetting (now built in the DOM by `helpBlocks`, with the same block
+decisions; `typesetHelp` and `#script help` are unchanged), the
+`@setting` extensions and the header. Changed on purpose: the settings
+work on the phone (the drill-down panel), ↓ on the last row reaches the
+foot, letters N I M E X R D press the buttons, a tap on the selected
+name no longer opens the editor (Edit is in reach; a mouse double click
+does), the status before the game reads `on · at login`, and the dialogs
+are small boxes over the page. Details: ADR 0129.

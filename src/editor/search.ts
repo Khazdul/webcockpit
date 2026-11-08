@@ -4,18 +4,32 @@
 // DOM. So Ctrl+F opens this panel instead.
 //
 // The search state, the match highlighting and the commands are
-// `@codemirror/search`; the panel is ours, drawn in the TUI grammar (kit
-// classes: `.wc-field`, `.wc-btn`, `.wc-check`, `--c-*` roles, so the
-// light chrome works too):
+// `@codemirror/search`; the panel is ours, in one of two looks
+// (`SearchOptions.look`):
+//
+// `tui` (default; today's editors), drawn in the TUI grammar (kit classes:
+// `.wc-field`, `.wc-btn`, `.wc-check`, `--c-*` roles, so the light chrome
+// works too):
 //
 //   ──────────────────────────────────────────────────────────────────────
 //   Find    › orc▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁   3 of 12   [ ] Case  [ ] Word  [ ] Regex
 //   Replace › ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁   REPLACE  ALL     Enter Next · ESC Close
 //
+// `lantern` (stage 42e, ADR 0127; the new-look pages, 43 and 44), drawn
+// with the lantern kit (look-code.css): a Find field, `n of m`, the Case /
+// Word / Regex toggles and the previous / next / close icon buttons; a
+// Replace row (Replace, All) when the buffer is editable. With `top` it
+// sits at the top of the buffer (the script editor's find row slides down
+// inside the code well).
+//
+//   Find     [ orc               ]  3 of 12   (Case|Word|Regex)  ˄ ˅ ✕
+//   Replace  [                   ]  (Replace) (All)
+//
 // The replace row is there whenever the buffer is editable (Ctrl+H moves
 // to it). Keys never reach the panel's own listeners: the chrome's frame
 // stack routes every key at window capture phase (ADR 0013), so the
-// frame calls `searchFrameKey` and the panel's keys are handled here.
+// frame calls `searchFrameKey` and the panel's keys are handled here; the
+// keys are the same in both looks.
 
 import {
   SearchQuery,
@@ -32,11 +46,21 @@ import {
 } from '@codemirror/search';
 import { EditorSelection, type Extension } from '@codemirror/state';
 import { EditorView, type Panel, type ViewUpdate } from '@codemirror/view';
+import { h, render } from 'preact';
+import { Field, GlassButton, Seg } from '../chrome/kit/look-controls';
 import { FIND_HINT, RULE, TOGGLES, type Toggle, formatCount } from './manual-search';
 
 export interface SearchOptions {
   /** Something in the panel got focus (the frame's zone follows). */
   onFocus?: () => void;
+  /**
+   * The panel's look (stage 42e, ADR 0127): `tui` today's, `lantern` a
+   * Field, `n of m`, the toggles and icon buttons, a Replace row when
+   * editable. Default `tui`.
+   */
+  look?: 'tui' | 'lantern';
+  /** The panel at the top of the buffer (default: at the bottom). */
+  top?: boolean;
 }
 
 /** Matches counted for "n of m"; more shows as "1000+". */
@@ -65,26 +89,178 @@ export function countText(query: SearchQuery, view: EditorView): { text: string;
   return formatCount(n, at);
 }
 
-class TuiSearchPanel implements Panel {
+/** The panel's query logic and keys, shared by both looks; a look draws the fields. */
+abstract class SearchPanel implements Panel {
+  abstract readonly dom: HTMLElement;
+  readonly top: boolean;
+  protected query: SearchQuery;
+  /** Where typing in the find field searches from (the cursor when the panel opened). */
+  protected origin: number;
+
+  constructor(
+    protected readonly view: EditorView,
+    protected readonly opts: SearchOptions,
+  ) {
+    this.top = !!opts.top;
+    this.query = getSearchQuery(view.state);
+    this.origin = view.state.selection.main.from;
+    panels.set(view, this);
+  }
+
+  /** The find field (its value is the query's text). */
+  protected abstract get findInput(): HTMLInputElement;
+  /** The replace field; null for a read-only buffer. */
+  protected abstract get replaceInput(): HTMLInputElement | null;
+  /** The fields and toggles to the query: the match count and the toggles. */
+  protected abstract sync(): void;
+
+  mount(): void {
+    this.focusFind();
+  }
+
+  destroy(): void {
+    if (panels.get(this.view) === this) panels.delete(this.view);
+  }
+
+  update(u: ViewUpdate): void {
+    const q = getSearchQuery(u.state);
+    if (!q.eq(this.query)) {
+      this.query = q;
+      if (this.findInput.value !== q.search) this.findInput.value = q.search;
+      const r = this.replaceInput;
+      if (r && r.value !== q.replace) r.value = q.replace;
+      this.sync();
+    } else if (u.docChanged || u.selectionSet) this.sync();
+  }
+
+  protected spec(over: Partial<Record<Toggle, boolean>> = {}): SearchQuery {
+    return new SearchQuery({
+      search: this.findInput.value,
+      replace: this.replaceInput?.value ?? '',
+      caseSensitive: over.caseSensitive ?? this.query.caseSensitive,
+      wholeWord: over.wholeWord ?? this.query.wholeWord,
+      regexp: over.regexp ?? this.query.regexp,
+      literal: this.query.literal,
+    });
+  }
+
+  /** Sets the query from the fields; typing in Find moves to the first match from where the search began. */
+  protected commit(seek: boolean, q = this.spec()): void {
+    if (q.eq(this.query)) return;
+    this.query = q;
+    const effects = setSearchQuery.of(q);
+    if (seek && q.valid && q.search) {
+      const m = q.getCursor(this.view.state, this.origin).next();
+      const hit = m.done ? q.getCursor(this.view.state).next() : m;
+      if (!hit.done) {
+        this.view.dispatch({
+          effects: [effects, EditorView.scrollIntoView(hit.value.from, { y: 'center' })],
+          selection: EditorSelection.single(hit.value.from, hit.value.to),
+          userEvent: 'select.search',
+        });
+        this.sync();
+        return;
+      }
+    }
+    this.view.dispatch({ effects });
+    // No selection change follows: the count ("No matches", "Bad regex") is drawn here.
+    this.sync();
+  }
+
+  toggle(k: Toggle): void {
+    this.commit(true, this.spec({ [k]: !this.query[k] }));
+    this.sync();
+  }
+
+  go(dir: 1 | -1): void {
+    this.commit(false);
+    if (dir > 0) findNext(this.view);
+    else findPrevious(this.view);
+    this.origin = this.view.state.selection.main.from;
+  }
+
+  replaceOne(): void {
+    this.commit(false);
+    replaceNext(this.view);
+  }
+
+  replaceEvery(): void {
+    this.commit(false);
+    replaceAll(this.view);
+  }
+
+  focusFind(): void {
+    this.findInput.focus();
+    this.findInput.select();
+  }
+
+  focusReplace(): boolean {
+    const r = this.replaceInput;
+    if (!r) return false;
+    r.focus();
+    r.select();
+    return true;
+  }
+
+  /** A key while focus is in the panel: true consumed, false the field's own (typing). */
+  key(e: KeyboardEvent): boolean {
+    const mod = e.ctrlKey || e.metaKey;
+    const k = e.key.toLowerCase();
+    const replace = this.replaceInput;
+    const inReplace = replace !== null && e.target === replace;
+    if (e.key === 'Escape' && !mod && !e.altKey) {
+      closeSearch(this.view);
+      return true;
+    }
+    if (e.key === 'Enter' && !e.altKey) {
+      if (inReplace) {
+        if (mod) this.replaceEvery();
+        else this.replaceOne();
+      } else this.go(e.shiftKey ? -1 : 1);
+      return true;
+    }
+    if (e.key === 'F3' || (mod && k === 'g' && !e.altKey)) {
+      this.go(e.shiftKey ? -1 : 1);
+      return true;
+    }
+    if (mod && !e.altKey && k === 'f') {
+      this.focusFind();
+      return true;
+    }
+    if (mod && !e.altKey && k === 'h') {
+      this.focusReplace();
+      return true;
+    }
+    if (e.altKey && !mod) {
+      const t = TOGGLES.find((x) => x.hotkey === k);
+      if (t) {
+        this.toggle(t.key);
+        return true;
+      }
+    }
+    if (!mod && !e.altKey && (e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      if (replace) {
+        if (inReplace) this.focusFind();
+        else this.focusReplace();
+      }
+      return true;
+    }
+    return false;
+  }
+}
+
+/** The TUI panel: a rule and one or two grid rows. */
+class TuiSearchPanel extends SearchPanel {
   readonly dom: HTMLElement;
-  readonly top = false;
   private readonly find: HTMLInputElement;
   private readonly replace: HTMLInputElement | null;
   private readonly count: HTMLElement;
   private readonly checks = new Map<Toggle, HTMLElement>();
-  private query: SearchQuery;
-  /** Where typing in the find field searches from (the cursor when the panel opened). */
-  private origin: number;
 
-  constructor(
-    private readonly view: EditorView,
-    opts: SearchOptions,
-  ) {
+  constructor(view: EditorView, opts: SearchOptions) {
+    super(view, opts);
     const doc = view.dom.ownerDocument;
-    this.query = getSearchQuery(view.state);
-    this.origin = view.state.selection.main.from;
     const readOnly = view.state.readOnly;
-    panels.set(view, this);
 
     this.dom = el(doc, 'div', 'wc-search');
     this.dom.setAttribute('role', 'search');
@@ -155,26 +331,17 @@ class TuiSearchPanel implements Panel {
     this.sync();
   }
 
-  mount(): void {
-    this.focusFind();
+  protected get findInput(): HTMLInputElement {
+    return this.find;
   }
 
-  destroy(): void {
-    if (panels.get(this.view) === this) panels.delete(this.view);
+  protected get replaceInput(): HTMLInputElement | null {
+    return this.replace;
   }
 
-  update(u: ViewUpdate): void {
-    const q = getSearchQuery(u.state);
-    if (!q.eq(this.query)) {
-      this.query = q;
-      if (this.find.value !== q.search) this.find.value = q.search;
-      if (this.replace && this.replace.value !== q.replace) this.replace.value = q.replace;
-      this.sync();
-    } else if (u.docChanged || u.selectionSet) this.sync();
-  }
-
-  /** The fields and toggles to the query: the match count and the check boxes. */
-  private sync(): void {
+  protected sync(): void {
+    // Before the constructor has drawn the panel (a commit from the base).
+    if (!this.count) return;
     const c = countText(this.query, this.view);
     this.count.textContent = c.text ? `  ${c.text}  ` : '  ';
     this.count.className = 'wc-search-count ' + c.cls;
@@ -184,128 +351,151 @@ class TuiSearchPanel implements Panel {
       e.firstElementChild!.textContent = on ? '[X]' : '[ ]';
     }
   }
+}
 
-  private spec(over: Partial<Record<Toggle, boolean>> = {}): SearchQuery {
-    return new SearchQuery({
-      search: this.find.value,
-      replace: this.replace?.value ?? '',
-      caseSensitive: over.caseSensitive ?? this.query.caseSensitive,
-      wholeWord: over.wholeWord ?? this.query.wholeWord,
-      regexp: over.regexp ?? this.query.regexp,
-      literal: this.query.literal,
-    });
-  }
+/** The toggles as `Seg` options (data-opt: case, word, regex). */
+const LANTERN_TOGGLES = TOGGLES.map((t) => ({
+  value: t.key,
+  label: t.label,
+  title: t.title,
+  id: t.key === 'caseSensitive' ? 'case' : t.key === 'wholeWord' ? 'word' : 'regex',
+}));
 
-  /** Sets the query from the fields; typing in Find moves to the first match from where the search began. */
-  private commit(seek: boolean, q = this.spec()): void {
-    if (q.eq(this.query)) return;
-    this.query = q;
-    const effects = setSearchQuery.of(q);
-    if (seek && q.valid && q.search) {
-      const m = q.getCursor(this.view.state, this.origin).next();
-      const hit = m.done ? q.getCursor(this.view.state).next() : m;
-      if (!hit.done) {
-        this.view.dispatch({
-          effects: [effects, EditorView.scrollIntoView(hit.value.from, { y: 'center' })],
-          selection: EditorSelection.single(hit.value.from, hit.value.to),
-          userEvent: 'select.search',
-        });
-        return;
-      }
-    }
-    this.view.dispatch({ effects });
-  }
+/** Sets an attribute on a field's input once it is drawn (the kit's `Field` has no prop for it). */
+const attrs =
+  (set: (el: HTMLInputElement) => void, own: (el: HTMLInputElement | null) => void) =>
+  (el: HTMLInputElement | null): void => {
+    own(el);
+    if (el) set(el);
+  };
 
-  toggle(k: Toggle): void {
-    this.commit(true, this.spec({ [k]: !this.query[k] }));
+/**
+ * The lantern panel: the kit's Field, Seg and glass buttons, drawn with
+ * Preact into the panel's element. Hooks: `.wc-lk-search` (also
+ * `.wc-search`, so the frames' focus checks hold), `[data-field=find|
+ * replace] input`, `.wc-search-count`, `[data-opt=case|word|regex]`,
+ * `[data-btn=prev|next|close|replace|all]`.
+ */
+class LanternSearchPanel extends SearchPanel {
+  readonly dom: HTMLElement;
+  private find: HTMLInputElement | null = null;
+  private replace: HTMLInputElement | null = null;
+  private readonly editable: boolean;
+  private readonly findRef: (el: HTMLInputElement | null) => void;
+  private readonly replaceRef: (el: HTMLInputElement | null) => void;
+
+  constructor(view: EditorView, opts: SearchOptions) {
+    super(view, opts);
+    this.editable = !view.state.readOnly;
+    this.dom = view.dom.ownerDocument.createElement('div');
+    this.dom.className = 'wc-search wc-lk-search' + (this.top ? ' is-top' : ' is-bottom');
+    this.dom.setAttribute('role', 'search');
+    this.dom.addEventListener('focusin', () => opts.onFocus?.());
+    this.findRef = attrs(
+      (el) => {
+        el.setAttribute('aria-label', 'Find');
+        el.setAttribute('main-field', 'true');
+        el.autocomplete = 'off';
+      },
+      (el) => (this.find = el),
+    );
+    this.replaceRef = attrs(
+      (el) => {
+        el.setAttribute('aria-label', 'Replace');
+        el.autocomplete = 'off';
+      },
+      (el) => (this.replace = el),
+    );
     this.sync();
   }
 
-  go(dir: 1 | -1): void {
-    this.commit(false);
-    if (dir > 0) findNext(this.view);
-    else findPrevious(this.view);
-    this.origin = this.view.state.selection.main.from;
+  protected get findInput(): HTMLInputElement {
+    return this.find!;
   }
 
-  replaceOne(): void {
-    this.commit(false);
-    replaceNext(this.view);
+  protected get replaceInput(): HTMLInputElement | null {
+    return this.editable ? this.replace : null;
   }
 
-  replaceEvery(): void {
-    this.commit(false);
-    replaceAll(this.view);
+  override destroy(): void {
+    render(null, this.dom);
+    super.destroy();
   }
 
-  focusFind(): void {
-    this.find.focus();
-    this.find.select();
-  }
-
-  focusReplace(): boolean {
-    if (!this.replace) return false;
-    this.replace.focus();
-    this.replace.select();
-    return true;
-  }
-
-  /** A key while focus is in the panel: true consumed, false the field's own (typing). */
-  key(e: KeyboardEvent): boolean {
-    const mod = e.ctrlKey || e.metaKey;
-    const k = e.key.toLowerCase();
-    const inReplace = this.replace !== null && e.target === this.replace;
-    if (e.key === 'Escape' && !mod && !e.altKey) {
-      closeSearch(this.view);
-      return true;
-    }
-    if (e.key === 'Enter' && !e.altKey) {
-      if (inReplace) {
-        if (mod) this.replaceEvery();
-        else this.replaceOne();
-      } else this.go(e.shiftKey ? -1 : 1);
-      return true;
-    }
-    if (e.key === 'F3' || (mod && k === 'g' && !e.altKey)) {
-      this.go(e.shiftKey ? -1 : 1);
-      return true;
-    }
-    if (mod && !e.altKey && k === 'f') {
-      this.focusFind();
-      return true;
-    }
-    if (mod && !e.altKey && k === 'h') {
-      this.focusReplace();
-      return true;
-    }
-    if (e.altKey && !mod) {
-      const t = TOGGLES.find((x) => x.hotkey === k);
-      if (t) {
-        this.toggle(t.key);
-        return true;
-      }
-    }
-    if (!mod && !e.altKey && (e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-      if (this.replace) {
-        if (inReplace) this.focusFind();
-        else this.focusReplace();
-      }
-      return true;
-    }
-    return false;
+  protected sync(): void {
+    // Before the subclass has set up (a commit from the base).
+    if (!this.dom) return;
+    const q = this.query;
+    const c = countText(q, this.view);
+    const values = TOGGLES.filter((t) => q[t.key]).map((t) => t.key);
+    const findRow = h(
+      'div',
+      { class: 'wc-lk-srow' },
+      h('span', { class: 'wc-lk-slbl', 'aria-hidden': 'true' }, 'Find'),
+      h(Field, {
+        id: 'find',
+        mono: true,
+        value: this.find?.value ?? q.search,
+        placeholder: 'text or pattern',
+        inputRef: this.findRef,
+        onInput: () => this.commit(true),
+      }),
+      h('span', { class: 'wc-search-count' + (c.cls === 'wc-c-err' ? ' is-bad' : ''), 'aria-live': 'polite' }, c.text),
+      h(Seg, {
+        label: 'Find options',
+        multi: true,
+        options: LANTERN_TOGGLES,
+        values,
+        onChange: (v: string) => this.toggle(v as Toggle),
+      }),
+      h(
+        'span',
+        { class: 'wc-lk-sbtns' },
+        h(GlassButton, { icon: 'up', small: true, id: 'prev', title: 'Previous (Shift+Enter)', onClick: () => this.go(-1) }),
+        h(GlassButton, { icon: 'down', small: true, id: 'next', title: 'Next (Enter)', onClick: () => this.go(1) }),
+        h(GlassButton, { icon: 'close', small: true, id: 'close', title: 'Close (Esc)', onClick: () => closeSearch(this.view) }),
+      ),
+    );
+    const replaceRow = this.editable
+      ? h(
+          'div',
+          { class: 'wc-lk-srow' },
+          h('span', { class: 'wc-lk-slbl', 'aria-hidden': 'true' }, 'Replace'),
+          h(Field, {
+            id: 'replace',
+            mono: true,
+            value: this.replace?.value ?? q.replace,
+            placeholder: 'with',
+            inputRef: this.replaceRef,
+            onInput: () => this.commit(false),
+          }),
+          h(
+            'span',
+            { class: 'wc-lk-sbtns' },
+            h(GlassButton, { label: 'Replace', small: true, id: 'replace', title: 'Replace (Enter in Replace)', onClick: () => this.replaceOne() }),
+            h(GlassButton, { label: 'All', small: true, id: 'all', title: 'Replace all (Ctrl+Enter in Replace)', onClick: () => this.replaceEvery() }),
+          ),
+        )
+      : null;
+    render(h('div', { class: 'wc-lk-sin' }, findRow, replaceRow), this.dom);
   }
 }
 
 /** The open panel of each view (the search package keeps its panel constructor private). */
-const panels = new WeakMap<EditorView, TuiSearchPanel>();
+const panels = new WeakMap<EditorView, SearchPanel>();
 
-function panelOf(view: EditorView): TuiSearchPanel | null {
+function panelOf(view: EditorView): SearchPanel | null {
   return panels.get(view) ?? null;
 }
 
-/** The search extension: state, highlighting and the TUI panel at the bottom. */
+/** The search extension: state, highlighting and the panel (TUI at the bottom, or the lantern look). */
 export function searchExtension(opts: SearchOptions = {}): Extension {
-  return search({ createPanel: (view) => new TuiSearchPanel(view, opts), scrollToMatch: (r) => EditorView.scrollIntoView(r, { y: 'center' }) });
+  const make = opts.look === 'lantern' ? (v: EditorView) => new LanternSearchPanel(v, opts) : (v: EditorView) => new TuiSearchPanel(v, opts);
+  return search({
+    top: !!opts.top,
+    createPanel: make,
+    scrollToMatch: (r) => EditorView.scrollIntoView(r, { y: 'center' }),
+  });
 }
 
 /** True while the panel is open. */

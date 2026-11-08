@@ -3,17 +3,25 @@
 // by whole rows. A small wheel delta moves a scroll box by less than a row.
 import { type Locator, type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
+import { lookBox, morphDone } from './look';
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 
-/** A wheel of 5 px over `box` scrolls it by a few pixels: more than 0, less than a row. */
-async function expectPixelWheel(page: Page, box: Locator): Promise<void> {
+/**
+ * A wheel of 5 px over `box` scrolls it by a few pixels: more than 0, less
+ * than a row (`row`: the rows' selector, default the grid's `.wc-line`, or
+ * a height in px for text without row elements).
+ */
+async function expectPixelWheel(page: Page, box: Locator, row: string | number = '.wc-line'): Promise<void> {
   await expect(box).toBeVisible();
-  const m = await box.evaluate((el) => ({
-    top: el.scrollTop,
-    over: el.scrollHeight - el.clientHeight,
-    row: (el.querySelector('.wc-line') as HTMLElement | null)?.getBoundingClientRect().height ?? 0,
-  }));
+  const m = await box.evaluate(
+    (el, row) => ({
+      top: el.scrollTop,
+      over: el.scrollHeight - el.clientHeight,
+      row: typeof row === 'number' ? row : ((el.querySelector(row) as HTMLElement | null)?.getBoundingClientRect().height ?? 0),
+    }),
+    row,
+  );
   expect(m.over, 'the box overflows').toBeGreaterThan(5);
   expect(m.row).toBeGreaterThan(0);
   await box.hover();
@@ -55,22 +63,15 @@ async function restoreRuns(page: Page, copies = 0): Promise<void> {
   }, copies);
 }
 
-test('About scrolls by pixels; the keys by rows', async ({ page }) => {
+test('About scrolls by pixels', async ({ page }) => {
+  // About is one long leaf in a native scroller (stage 47, ADR 0132); its keys are about.spec's.
   await page.setViewportSize({ width: 1000, height: 500 });
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow[data-key="about"] .wc-label').click();
-  await expect(startFrame(page).locator('.wc-title-row')).toContainText('─── About ───');
-  const box = startFrame(page).locator('.wc-about-text');
-  await expectPixelWheel(page, box);
-  // The keys: Home to the top, ↓ one row, End to the end.
-  await page.keyboard.press('Home');
-  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
-  await page.keyboard.press('ArrowDown');
-  const row = await box.locator('.wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
-  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBeCloseTo(row, 0);
-  await page.keyboard.press('End');
-  await expect(box.locator('.wc-line').last()).toBeInViewport();
-  await expect(startFrame(page).locator('.wc-tui-bar .wc-scroll-thumb').first()).toBeVisible();
+  await page.locator('.wc-start .wc-sm-item[data-key="about"]').click();
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('About');
+  await morphDone(page);
+  // Less than one ↑ / ↓ step (40 px) for a 5 px wheel.
+  await expectPixelWheel(page, lookBox(page).locator('.wc-about-body'), 40);
 });
 
 test('History table scrolls by pixels; the cursor stays in view', async ({ page }) => {
@@ -78,15 +79,16 @@ test('History table scrolls by pixels; the cursor stays in view', async ({ page 
   await pinDemoClock(page);
   await page.goto('/');
   await restoreRuns(page, 8);
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
-  await expect(startFrame(page).locator('.wc-title-row')).toHaveText('─── History ───');
-  const box = startFrame(page).locator('.wc-table-rows');
-  await expect(box.locator('.wc-tr:not(.is-empty)')).toHaveCount(35);
-  await expectPixelWheel(page, box);
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
+  // History in the new look (stage 45): the kit table's body scrolls under its heads.
+  const box = startFrame(page).locator('.wc-hist .wc-lk-tbody');
+  await expect(box.locator('.wc-lk-tr')).toHaveCount(35);
+  await expectPixelWheel(page, box, '.wc-lk-tr');
   // End moves the cursor to the last row and pulls the view along.
   await page.keyboard.press('End');
-  await expect(box.locator('.wc-tr.is-cur-focus')).toContainText('Gittan 2026-09-25');
-  await expect(box.locator('.wc-tr.is-cur-focus')).toBeInViewport({ ratio: 0.9 });
+  await expect(box.locator('.wc-lk-tr.is-on .wc-hist-date')).toHaveText('2026-09-25');
+  await expect(box.locator('.wc-lk-tr.is-on .wc-hist-char')).toHaveText('Gittan');
+  await expect(box.locator('.wc-lk-tr.is-on')).toBeInViewport({ ratio: 0.9 });
   await page.keyboard.press('Home');
   await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
 });
@@ -95,64 +97,73 @@ test('Statistics tables scroll by pixels', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 520 });
   await page.goto('/');
   await restoreRuns(page);
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
-  await expect(startFrame(page).locator('.wc-title-row')).toHaveText('─── History ───');
-  await page.keyboard.press('ArrowDown');
-  await expect(startFrame(page).locator('.wc-tr.is-cur-focus')).toContainText('Rasta');
-  await startFrame(page).locator('[data-btn="STATS"]').click();
-  const stats = startFrame(page).locator('.wc-stats');
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
+  // History and its Statistics in the new look (stage 45).
+  const hist = startFrame(page).locator('.wc-hist');
+  // (No pinned clock: the unsaved demo sessions may have expired; the saved Rasta one stays.)
+  await hist.locator('.wc-lk-tr .wc-hist-char', { hasText: 'Rasta' }).click();
+  await expect(hist.locator('.wc-lk-tr.is-on .wc-hist-char')).toHaveText('Rasta');
+  await hist.locator('[data-btn="STATS"]').click();
+  const stats = startFrame(page).locator('.wc-hs-box');
   await expect(stats).toContainText('*Ibuki the Half-Elf*');
-  const kills = stats.locator('.wc-stat-col[data-table="2"] .wc-scrollbox');
-  await expectPixelWheel(page, kills);
-  // The wheel focused KILLS: its title is gold; ↓ scrolls it by a row.
-  await expect(stats.locator('.wc-c-accent.wc-stat-sort').first()).toHaveText('KILLS');
+  // Allies first: the wheel must move the focus to Kills.
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(stats.locator('.wc-hs-sec.is-focus')).toHaveAttribute('data-sec', 'allies');
+  const kills = stats.locator('[data-tbl="kills"] .wc-lk-tbody');
+  await expectPixelWheel(page, kills, '.wc-lk-tr');
+  // The wheel focused Kills (its head in the accent colour); ↓ scrolls it by a row.
+  await expect(stats.locator('.wc-hs-sec.is-focus')).toHaveAttribute('data-sec', 'kills');
   await page.keyboard.press('Home');
   await expect.poll(() => kills.evaluate((el) => el.scrollTop)).toBe(0);
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => kills.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
 
-test('Scripts list and help scroll by pixels; the cursor stays in view', async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 500 });
+test('Scripts index and help scroll by pixels; the cursor stays in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 500 });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     const w = window as unknown as { __wc: { shell: { scripts: { create(name: string): Promise<unknown> } } } };
     for (let i = 0; i < 30; i++) await w.__wc.shell.scripts.create(`s${String(i).padStart(2, '0')}`);
   });
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="scripts"]').click();
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  const list = f.locator('.wc-scr-list');
-  await expectPixelWheel(page, list);
-  // End moves the cursor to the last script and pulls the list along; Home back.
+  await expect(f.locator('.wc-scr')).toHaveAttribute('data-w', 'wide');
+  // The index: a native scroller (stage 44a: the TUI scrollbars are gone).
+  const list = f.locator('.wc-scr-idx');
+  await expectPixelWheel(page, list, '.wc-scr-row');
+  // End moves the cursor to the last script and pulls the index along; Home back.
   await page.keyboard.press('End');
-  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^s29\s*$/);
-  await expect(f.locator('.wc-scr-name.is-cur')).toBeInViewport({ ratio: 0.9 });
+  await expect(f.locator('.wc-scr-row.is-on')).toHaveAttribute('data-name', 's29');
+  await expect(f.locator('.wc-scr-row.is-on')).toBeInViewport({ ratio: 0.9 });
   await page.keyboard.press('Home');
   await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBe(0);
-  // The help of the bundled coin looter is longer than the panel at this height.
-  await f.locator('.wc-scr-row[data-script="coinlooter"] .wc-scr-name').click();
-  await expect(f.locator('.wc-scr-frame')).toContainText('bundled · read-only');
-  await expectPixelWheel(page, f.locator('.wc-scr-help'));
+  // keymanager's help is longer than its column at this height.
+  await f.locator('.wc-scr-row[data-name="keymanager"] .wc-scr-name').click();
+  await expect(f.locator('.wc-scr-panel')).toContainText('bundled · read-only');
+  await expectPixelWheel(page, f.locator('.wc-scr-helpcol .wc-scr-help'), 'p');
 });
 
-test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {
+test('Scripts → Import code view scrolls by pixels', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 500 });
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="scripts"]').click();
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
   await f.locator('[data-btn="IMPORT"]').click();
   const code = Array.from({ length: 60 }, (_, i) => `echo("line ${i + 1}")`).join('\n');
   await (await chooser).setFiles({ name: 'long.lua', mimeType: 'text/plain', buffer: Buffer.from(code) });
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Import Script ───');
-  const box = f.locator('.wc-scr-import-code');
-  await expectPixelWheel(page, box);
+  const box = page.locator('.wc-lk-dialog[data-dlg="import"] .wc-scr-codebox');
+  // A line of the code: its line height.
+  const line = await box.locator('.wc-scr-src').evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+  await expectPixelWheel(page, box, line);
   await page.keyboard.press('End');
-  await expect(box.locator('.wc-line').last()).toContainText('line 60');
-  await expect(box.locator('.wc-line').last()).toBeInViewport({ ratio: 0.9 });
+  await expect.poll(() => box.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThan(2);
+  await page.keyboard.press('Home');
+  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
 });
 
 test('Export editor log scrolls by pixels; the rows near the view are rendered', async ({ page }) => {
@@ -160,16 +171,23 @@ test('Export editor log scrolls by pixels; the rows near the view are rendered',
   await pinDemoClock(page);
   await page.goto('/');
   await restoreRuns(page);
-  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  await page.locator('.wc-start .wc-sm-item[data-key="history"]').click();
   const f = startFrame(page);
-  await expect(f.locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
+  // History in the new look (stage 45).
+  await expect(f.locator('.wc-hist .wc-lk-tr')).toHaveCount(3);
   await page.keyboard.press('ArrowDown');
-  await expect(f.locator('.wc-tr.is-cur-focus')).toContainText('Rasta');
-  await f.locator('[data-btn="EXPORT"]').click();
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Editor ───');
+  await expect(f.locator('.wc-hist .wc-lk-tr.is-on .wc-hist-char')).toHaveText('Rasta');
+  await f.locator('.wc-hist [data-btn="EXPORT"]').click();
+  await expect(f.locator('.wc-exp')).toBeVisible();
   const log = f.locator('.wc-exp-log');
   await expect(log.locator('.wc-exp-row').first()).toBeVisible();
-  await expectPixelWheel(page, log);
+  // A small wheel step scrolls less than one row (pixels, not rows).
+  const lh = await log.evaluate((el) => (el.querySelector('.wc-exp-ln') as HTMLElement).getBoundingClientRect().height);
+  expect(lh).toBeGreaterThan(0);
+  await log.hover();
+  await page.mouse.wheel(0, 5);
+  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(await log.evaluate((el) => el.scrollTop)).toBeLessThan(lh);
   // A long swipe: the rows in view are rendered (no blanks).
   for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 300);
   await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBeGreaterThan(2000);

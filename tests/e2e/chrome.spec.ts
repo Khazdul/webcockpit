@@ -5,6 +5,7 @@
 // 32: its frames are tested in the phone's ESC menu (tests/e2e/esc-options.ts).
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 import { menuFlash, menuFrame, menuSel, menuTitle, openEscOptions } from './esc-options';
+import { lookBox } from './look';
 
 const IAC = 255;
 const WILL = 251;
@@ -28,9 +29,13 @@ async function mockMume(page: Page): Promise<Mock> {
 
 const start = (page: Page) => page.locator('.wc-start');
 const overlay = (page: Page) => page.locator('.wc-overlay');
-const startSel = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel');
+const startSel = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-sm-item.is-sel .wc-sm-label');
+const startRow = (page: Page, key: string) => page.locator(`.wc-start .wc-sm-item[data-key="${key}"]`);
+/** The Profile list (the new look, ADR 0125). */
+const plist = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-pl');
+const plCursor = (page: Page) => plist(page).locator('.wc-pl-row.is-on');
+const plFlash = (page: Page) => plist(page).locator('.wc-lk-flash');
 const startTitle = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
-const startFlash = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash');
 const settings = (page: Page) => page.evaluate(() => window.__wc!.settings.get());
 
 function watchErrors(page: Page): string[] {
@@ -42,7 +47,7 @@ function watchErrors(page: Page): string[] {
 async function openStart(page: Page): Promise<Mock> {
   const mock = await mockMume(page);
   await page.goto('/');
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  await expect(startSel(page)).toHaveText('Enter MUME');
   return mock;
 }
 
@@ -53,78 +58,110 @@ async function enterMume(page: Page): Promise<Mock> {
   return mock;
 }
 
-test('start page: banner, menu and quote; no connection until Enter MUME', async ({ page }) => {
+test('start page: wordmark, menu, quote and almanac over the sky; no connection until Enter MUME', async ({ page }) => {
   const errors = watchErrors(page);
   const mock = await openStart(page);
   await expect(start(page)).toBeVisible();
-  await expect(page.locator('.wc-start .wc-banner .wc-line')).toHaveCount(11);
-  await expect(page.locator('.wc-start .wc-banner [data-star]')).toHaveCount(13);
-  const rows = page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow');
-  // Stage 32: no Options; Scripts under Profile.
-  await expect(rows).toHaveText([
-    '<< Enter MUME >>',
-    '   Profile   ',
-    '   Scripts   ',
-    '   History   ',
-    '   Spotlights   ',
-    '   Credits   ',
-    '   About   ',
-  ]);
-  await expect(page.locator('.wc-start .wc-c-quote-attr')).toHaveText(/^— /);
-  await expect(page.locator('.wc-start .wc-footer')).toHaveText('↑↓ Navigate · Enter/Space Select');
-  // Rows sit on whole cells.
-  const cellH = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h')));
-  const h = await rows.first().evaluate((el) => el.parentElement!.getBoundingClientRect().height);
-  expect(h).toBe(cellH);
+  await expect(page.locator('.wc-start .wc-start-skyhost')).toHaveCount(1);
+  await expect(page.locator('.wc-start .wc-start-brand .wc-wordmark')).toBeVisible();
+  // No pixel banner and no key-hint row (stage 41).
+  await expect(page.locator('.wc-start .wc-banner')).toHaveCount(0);
+  await expect(page.locator('.wc-start .wc-footer')).toHaveCount(0);
+  const rows = page.locator('.wc-start .wc-frame:not([hidden]) .wc-sm-item .wc-sm-label');
+  // Stage 32: no Options; Scripts under Profile; Profile carries the profile's name.
+  await expect(rows).toHaveText(['Enter MUME', 'Profile', 'Scripts', 'History', 'Spotlights', 'Credits', 'About']);
+  await expect(startRow(page, 'profile').locator('.wc-sm-note')).toHaveText('(default)');
+  await expect(page.locator('.wc-start .wc-sm-item u.wc-sk')).toHaveText(['E', 'P', 'S', 'H', 'l', 'C', 'A']);
+  await expect(page.locator('.wc-start .wc-sm-quote cite')).not.toBeEmpty();
+  await expect(page.locator('.wc-start .wc-start-almanac')).toContainText(/, the \d+(st|nd|rd|th) of /);
+  await expect(page.locator('.wc-start .wc-start-almanac')).toContainText(/\d+:\d\d(am|pm) · (dawn|day|dusk|night) · T\.A\. \d+/);
+  await expect(page.locator('.wc-start .wc-start-almanac')).toContainText(/WebCockpit \d+\.\d+\.\d+/);
+  // The panel sits under the wordmark, the quote under the panel.
+  const brand = await page.locator('.wc-start .wc-start-brand').boundingBox();
+  const panel = await page.locator('.wc-start .wc-sm-panel').boundingBox();
+  const quote = await page.locator('.wc-start .wc-sm-quote').boundingBox();
+  expect(panel!.y).toBeGreaterThanOrEqual(brand!.y + brand!.height);
+  expect(quote!.y).toBeGreaterThan(panel!.y + panel!.height);
   expect(mock.opened()).toBe(0);
   await expect(page.locator('.wc-app')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('stars twinkle only while the start page shows', async ({ page }) => {
+test('the almanac follows the game clock, a minute a second', async ({ page }) => {
   await openStart(page);
-  // Speed time up: the twinkle is driven by performance.now().
-  const looks = await page.evaluate(async () => {
-    const seen = new Set<string>();
-    for (let i = 0; i < 40; i++) {
-      document.querySelectorAll('.wc-start [data-star]').forEach((el) => seen.add(el.className + el.textContent));
-      await new Promise((r) => setTimeout(r, 100));
-    }
-    return seen.size;
-  });
-  expect(looks).toBeGreaterThan(3);
+  const time = page.locator('.wc-start .wc-alm-m');
+  const t0 = await time.textContent();
+  await expect.poll(() => time.textContent(), { timeout: 4000 }).not.toBe(t0);
+});
+
+/** The wordmark sheen's animations, as `playState/iterations`. */
+const sheenAnims = (page: Page) =>
+  page.evaluate(() =>
+    document
+      .getAnimations()
+      .filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('[data-wcw="sheen-band"]'))
+      .map((a) => `${a.playState}/${a.effect!.getComputedTiming().iterations}`),
+  );
+
+test('the wordmark sheen passes once in a while and rests in between', async ({ page }) => {
+  await openStart(page);
+  // ADR 0126 addendum: one finite pass a few seconds after the page shows, no running animation otherwise.
+  expect(await sheenAnims(page)).toEqual([]);
+  await expect.poll(() => sheenAnims(page), { timeout: 10_000, intervals: [200] }).toEqual(['running/1']);
+  await expect.poll(() => sheenAnims(page), { timeout: 10_000, intervals: [200] }).toEqual([]);
+  await page.waitForTimeout(1500);
+  expect(await sheenAnims(page)).toEqual([]);
+});
+
+test('a sheen pass running on Enter MUME stops with the leaving page', async ({ page }) => {
+  await openStart(page);
+  await expect.poll(() => sheenAnims(page), { timeout: 10_000, intervals: [200] }).toEqual(['running/1']);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-start.is-leaving')).toHaveCount(1);
+  await expect.poll(() => sheenAnims(page), { timeout: 1000, intervals: [100] }).toEqual([]);
 });
 
 test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await openStart(page);
   await page.keyboard.press('ArrowUp');
-  await expect(startSel(page)).toHaveText('<< About >>');
+  await expect(startSel(page)).toHaveText('About');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
-  // No runs stored: the Credits empty state; any key returns.
-  await expect(startTitle(page)).toHaveText('─── Credits ───');
+  // No runs stored: the Credits book's no-data page (stage 47); other keys stay, Esc returns.
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await expect(lookBox(page).locator('.wc-cred-book')).toHaveAttribute('data-state', 'no_data');
   await page.keyboard.press('Enter');
-  await expect(startSel(page)).toHaveText('<< Credits >>');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await page.keyboard.press('Escape');
+  await expect(startSel(page)).toHaveText('Credits');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Space');
-  await expect(startTitle(page)).toHaveText('─── About ───');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toContainText(/─── About ─── \d+\.\d+\.\d+/);
+  // About: the leaf with the version at its head (stage 47).
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('About');
+  await expect(lookBox(page).locator('.wc-about-ver')).toHaveText(/^WebCockpit \d+\.\d+\.\d+/);
   await page.keyboard.press('Escape');
-  await expect(startSel(page)).toHaveText('<< About >>');
+  await expect(startSel(page)).toHaveText('About');
   // ESC on the main page does nothing.
   await page.keyboard.press('Escape');
-  await expect(startSel(page)).toHaveText('<< About >>');
-  // Hover lightens without moving the cursor; clicking selects and activates.
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"]').hover();
-  await expect(startSel(page)).toHaveText('<< About >>');
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
-  await expect(startTitle(page)).toHaveText('─── Scripts ───');
+  await expect(startSel(page)).toHaveText('About');
+  // A letter goes straight to its row.
+  await page.keyboard.press('c');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await page.keyboard.press('Escape');
+  await expect(startSel(page)).toHaveText('Credits');
+  // Hover selects; clicking selects and activates.
+  await startRow(page, 'history').hover();
+  await expect(startSel(page)).toHaveText('History');
+  await startRow(page, 'scripts').click();
+  // Scripts: the large lantern box (stage 44).
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Scripts');
+  await expect(lookBox(page).locator('.wc-scr')).toBeVisible();
 });
 
 test('Enter MUME shows the cockpit and connects; Esc opens the Exit popup, no menu (ADR 0112)', async ({ page }) => {
   const mock = await enterMume(page);
   expect(mock.opened()).toBe(1);
-  await expect(start(page)).toBeHidden();
+  await expect(start(page)).toBeHidden({ timeout: 10_000 });
   const field = page.locator('.wc-input-field');
   await expect(field).toBeFocused();
   await page.keyboard.press('Escape');
@@ -172,7 +209,7 @@ test('no auto-open when the first connection never reaches login', async ({ page
     void ws.close();
   });
   await page.goto('/');
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  await expect(startSel(page)).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
   await page.waitForTimeout(300);
@@ -188,7 +225,7 @@ test('Exit returns to the start page and closes the connection; Enter MUME again
   await expect(page.locator('.wc-pop-exit')).toBeFocused();
   await page.keyboard.press('y');
   await expect(start(page)).toBeVisible();
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  await expect(startSel(page)).toHaveText('Enter MUME');
   await expect(page.locator('.wc-app')).toBeHidden();
   await expect(overlay(page)).toBeHidden();
   await expect.poll(() => closed).toBe(true);
@@ -504,16 +541,21 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
   await openStart(page);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
-  const table = page.locator('.wc-start .wc-frame:not([hidden]) .wc-table');
-  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('default');
-  await expect(page.locator('.wc-start [data-btn="SELECT"]')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.locator('.wc-start [data-btn="EDIT"]')).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(page.locator('.wc-start [data-btn="DELETE"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(plist(page).locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(plCursor(page)).toContainText('default');
+  await expect(plCursor(page).locator('.wc-pl-tag')).toHaveText('Selected');
+  // The highlighted row's buttons (no Select on the selected profile); the page's at the foot.
+  await expect(plist(page).locator('.wc-pl-acts')).toHaveCount(1);
+  await expect(plCursor(page).locator('[data-btn="SELECT"]')).toHaveCount(0);
+  await expect(plCursor(page).locator('[data-btn="EDIT"]')).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(plCursor(page).locator('[data-btn="DELETE"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(plist(page).locator('.wc-pl-btns .wc-lk-btn')).toHaveText([/New/, /Import/, /Export/]);
 
-  // NEW: invalid name, then a good one, then Blank.
+  // NEW: invalid name, then a good one, then Blank. Tab: the row's Edit, then New.
   await page.keyboard.press('Tab');
-  await expect(page.locator('.wc-start .wc-btn.is-sel-focus')).toHaveText(/NEW/);
+  await expect(plist(page).locator('.wc-lk-btn.is-sel')).toHaveText(/Edit/);
+  await page.keyboard.press('Tab');
+  await expect(plist(page).locator('.wc-lk-btn.is-sel')).toHaveText(/New/);
   await page.keyboard.press('Enter');
   await expect(startTitle(page)).toHaveText('─── Create New Profile ───');
   await page.keyboard.type('9lives');
@@ -524,63 +566,69 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-start .wc-frame:not([hidden])')).toContainText('Name: ranger');
   await page.keyboard.press('b');
-  await expect(startFlash(page)).toHaveText('Created "ranger".');
+  await expect(plFlash(page)).toHaveText('Created "ranger".');
   await expect.poll(async () => (await settings(page)).profile).toBe('ranger');
-  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('ranger');
-  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('✓');
+  await expect(plCursor(page)).toContainText('ranger');
+  await expect(plCursor(page).locator('.wc-pl-tag')).toHaveText('Selected');
 
-  // RENAME.
-  await page.locator('.wc-start [data-btn="RENAME"]').click();
+  // RENAME (its letter).
+  await page.keyboard.press('r');
   await expect(startTitle(page)).toHaveText('─── Rename Profile ───');
   await page.keyboard.press('Control+a');
   await page.keyboard.type('hunter');
   await page.keyboard.press('Enter');
-  await expect(startFlash(page)).toHaveText('Renamed to "hunter".');
+  await expect(plFlash(page)).toHaveText('Renamed to "hunter".');
   await expect.poll(async () => (await settings(page)).profile).toBe('hunter');
-  await expect(table).not.toContainText('ranger');
+  await expect(plist(page)).not.toContainText('ranger');
 
   // EXPORT.
   const download = page.waitForEvent('download');
   await page.locator('.wc-start [data-btn="EXPORT"]').click();
   expect((await download).suggestedFilename()).toBe('hunter.tin');
-  await expect(startFlash(page)).toHaveText('Exported hunter.tin.');
+  await expect(plFlash(page)).toHaveText('Exported hunter.tin.');
 
   // DELETE: any other key cancels, y deletes.
   await page.locator('.wc-start [data-btn="DELETE"]').click();
   await expect(page.locator('.wc-start .wc-frame:not([hidden])')).toContainText("Delete profile 'hunter'?  (y/N)");
   await page.keyboard.press('x');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await expect(plist(page).locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await page.locator('.wc-start [data-btn="DELETE"]').click();
   await page.keyboard.press('y');
-  await expect(startFlash(page)).toHaveText('Deleted "hunter".');
+  await expect(plFlash(page)).toHaveText('Deleted "hunter".');
   await expect.poll(async () => (await settings(page)).profile).toBe('default');
-  await expect(table).not.toContainText('hunter');
+  await expect(plist(page)).not.toContainText('hunter');
 
   // IMPORT: name from the file, _2 on a collision, becomes selected; the
-  // report frame (stage 17) comes first.
+  // import page (stage 43c: Choose files… opens the picker, Enter too) and
+  // the receipt come first.
   for (const expected of ['My_Warrior', 'My_Warrior_2']) {
+    // (The listener first: Chromium's chooser interception is set up asynchronously.)
     const chooser = page.waitForEvent('filechooser');
     await page.locator('.wc-start [data-btn="IMPORT"]').click();
+    await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t:not(.is-out)')).toHaveText('Import');
+    await page.keyboard.press('Enter');
     await (await chooser).setFiles({
       name: 'My Warrior.tin',
       mimeType: 'text/plain',
       buffer: Buffer.from('#alias {k} {kill %1}\n'),
     });
-    // A native profile: the short import report, then OK (ESC) back to the picker.
-    await expect(startTitle(page)).toHaveText('─── IMPORT REPORT ───');
-    await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-import-head')).toContainText('nothing changed');
+    // A native profile: the short receipt, then OK (ESC) back to the list.
+    await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-imp-ok')).toContainText('nothing changed');
     await page.keyboard.press('Escape');
-    await expect(startFlash(page)).toHaveText(`Imported "${expected}" from My Warrior.tin.`);
+    await expect(plFlash(page)).toHaveText(`Imported "${expected}" from My Warrior.tin.`);
     await expect.poll(async () => (await settings(page)).profile).toBe(expected);
   }
   const text = await page.evaluate(() => window.__wc!.shell.profiles.get('My_Warrior').then((r) => r?.text));
   expect(text).toBe('#alias {k} {kill %1}\n');
 
-  // SELECT by keyboard in the table, then the ESC header shows it.
+  // SELECT by keyboard in the list.
   await page.keyboard.press('Home');
-  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('default');
+  await expect(plCursor(page)).toContainText('default');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).profile).toBe('default');
+  // Back returns to the menu, Profile still chosen.
+  await plist(page).locator('.wc-lk-back').click();
+  await expect(startSel(page)).toHaveText('Profile');
 });
 
 test('profiles: Enter or a click on the selected profile edits it, on another selects it', async ({ page }) => {
@@ -591,39 +639,55 @@ test('profiles: Enter or a click on the selected profile edits it, on another se
   });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
-  const frame = page.locator('.wc-start .wc-frame:not([hidden])');
-  const table = frame.locator('.wc-table');
-  const editorTitle = page.locator('.wc-frame:not([hidden]) > .wc-ped .wc-ped-title .wc-c-section');
-  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('default');
-  await expect(frame.locator('.wc-footer')).toContainText('Enter Edit');
+  await expect(plist(page).locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  const row = (name: string) => plist(page).locator(`.wc-pl-row[data-name="${name}"]`);
+  // The Profile editor's head names the profile (stage 43, ADR 0128).
+  const editorTitle = page.locator('.wc-frame:not([hidden]) .wc-pe .wc-pe-name');
+  await expect(plCursor(page)).toContainText('default');
 
-  // Keyboard: Enter on the selected profile opens the editor, like EDIT.
+  // Keyboard: Enter on the selected profile opens the editor, like Edit.
   await page.keyboard.press('Enter');
-  await expect(editorTitle).toHaveText('─── Profile Editor: default ───');
+  await expect(editorTitle).toHaveText(/^default/);
   await page.keyboard.press('Escape');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await expect(plist(page)).toBeVisible();
 
   // Enter on another profile selects it; a second Enter edits it.
   await page.keyboard.press('End');
-  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('scout');
-  await expect(frame.locator('.wc-footer')).toContainText('Enter Select');
+  await expect(plCursor(page)).toContainText('scout');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).profile).toBe('scout');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await expect(plist(page)).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(editorTitle).toHaveText('─── Profile Editor: scout ───');
+  await expect(editorTitle).toHaveText(/^scout/);
   await page.keyboard.press('Escape');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await expect(plist(page)).toBeVisible();
 
-  // Mouse: the first click on a row selects it, the second edits it.
-  await table.locator('.wc-tr', { hasText: 'default' }).click();
+  // Mouse: hover highlights; a click on the highlighted row (its name: the
+  // buttons sit in its middle) selects it, the next edits it.
+  await row('default').hover();
+  await expect(plCursor(page)).toContainText('default');
+  await row('default').locator('.wc-pl-n').click();
   await expect.poll(async () => (await settings(page)).profile).toBe('default');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
-  await table.locator('.wc-tr', { hasText: 'default' }).click();
-  await expect(editorTitle).toHaveText('─── Profile Editor: default ───');
+  await expect(plist(page)).toBeVisible();
+  await row('default').locator('.wc-pl-n').click();
+  await expect(editorTitle).toHaveText(/^default/);
   await page.keyboard.press('Escape');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await expect(plist(page)).toBeVisible();
+  // The row's own buttons show on the hovered row only: Select there, then it goes.
+  await row('scout').hover();
+  await expect(row('default').locator('.wc-lk-btn')).toHaveCount(0);
+  await row('scout').locator('[data-btn="SELECT"]').click();
+  await expect.poll(async () => (await settings(page)).profile).toBe('scout');
+  await expect(row('scout').locator('[data-btn="SELECT"]')).toHaveCount(0);
+  await expect(row('scout').locator('.wc-pl-tag')).toHaveText('Selected');
+  // Its Edit opens the editor.
+  await row('scout').locator('[data-btn="EDIT"]').click();
+  await expect(editorTitle).toHaveText(/^scout/);
+  await page.keyboard.press('Escape');
+  await expect(plist(page)).toBeVisible();
+  // Esc returns to the menu.
+  await page.keyboard.press('Escape');
+  await expect(startSel(page)).toHaveText('Profile');
 });
 
 test('the selected profile shows in the bar\'s Profile tooltip', async ({ page }) => {
@@ -647,7 +711,7 @@ test('too small a window shows a notice instead of the menu', async ({ page }) =
   await page.waitForTimeout(200);
   await expect(page.locator('.wc-app')).toHaveCount(0);
   await page.setViewportSize({ width: 1000, height: 700 });
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  await expect(startSel(page)).toHaveText('Enter MUME');
 });
 
 test('offline modes skip the start page; the bar is there and Esc opens the Exit popup, no menu', async ({ page }) => {

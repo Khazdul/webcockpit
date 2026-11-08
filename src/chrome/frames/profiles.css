@@ -1,0 +1,292 @@
+/* The Profile list in the new look (src/chrome/frames/profiles.tsx,
+ * ADR 0125), after the round 6 mockup's Profile page. The highlighted row
+ * carries its own buttons (ADR 0125 addendum "Actions on the row"): on one
+ * line between the name and the time on a wide box, on a line of their
+ * own under them on a narrow box or a phone. */
+
+.wc-pl.wc-lk-box-normal {
+  width: min(860px, 100%);
+}
+
+.wc-pl-win {
+  padding: 40px 22px 10px;
+}
+
+.wc-pl-head,
+.wc-pl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 112px;
+  grid-template-areas: "name acts time";
+  align-items: center;
+  column-gap: 14px;
+  padding: 0 18px;
+}
+
+.wc-pl-head {
+  margin: 0 0 8px;
+  font: 700 10.5px/1 var(--lk-display);
+  letter-spacing: 0.24em;
+  color: var(--lk-dim);
+}
+
+.wc-pl-sort {
+  grid-area: name;
+  justify-self: start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.wc-pl-sort:hover {
+  color: #e8d4b0;
+}
+
+.wc-pl-head-time {
+  grid-area: time;
+}
+
+/* The list: card rows, the restrained selection (text brightens). */
+.wc-pl-list {
+  container: wc-pl / inline-size;
+  list-style: none;
+  margin: 0;
+  padding: 2px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  /* Six rows, then it scrolls (the highlighted row is kept in view). */
+  max-height: calc(6 * 54px + 5 * 7px + 6px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 143, 0.25) transparent;
+}
+
+.wc-pl-row {
+  flex: none;
+  position: relative;
+  box-sizing: border-box;
+  height: 54px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: #a69679;
+  background: linear-gradient(180deg, rgba(255, 207, 143, 0.06), rgba(255, 207, 143, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 207, 143, 0.12), inset 0 0 0 1px rgba(255, 207, 143, 0.04), 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.5s, color 0.45s;
+}
+
+.wc-pl-name {
+  grid-area: name;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.wc-pl-n {
+  font: 700 17px/1.1 var(--lk-display);
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: text-shadow 0.45s;
+}
+
+.wc-pl-tag {
+  font: 700 9.5px/1 var(--lk-display);
+  letter-spacing: 0.2em;
+  color: #c99050;
+}
+
+/* The second line: a case twin's real spelling, then the Selected tag. */
+.wc-pl-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Names alike but for case (gibur, Gibur): the real spelling, plain and dim (the display face is small caps). */
+.wc-pl-case {
+  font: 400 12px/1 var(--lk-mono);
+  letter-spacing: 0;
+  color: var(--lk-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.wc-pl-sub .wc-pl-tag {
+  flex: none;
+}
+
+.wc-pl-time {
+  grid-area: time;
+  font: 400 12px/1.3 var(--lk-mono);
+  letter-spacing: 0;
+  color: var(--lk-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-pl-row.is-on {
+  color: #fff1d8;
+  box-shadow: inset 0 1px 0 rgba(255, 207, 143, 0.2), inset 0 0 0 1px rgba(255, 207, 143, 0.12), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.wc-pl-row.is-on .wc-pl-n {
+  text-shadow: 0 0 10px rgba(255, 196, 128, 0.3);
+}
+
+.wc-pl-row.is-on .wc-pl-time,
+.wc-pl-row.is-on .wc-pl-case {
+  color: #bea582;
+}
+
+/* A page button has the keys: the highlighted row stays marked, a step dimmer. */
+.wc-pl-list:not(.is-focus) .wc-pl-row.is-on {
+  color: #d9c7a6;
+  box-shadow: inset 0 1px 0 rgba(255, 207, 143, 0.14), inset 0 0 0 1px rgba(255, 207, 143, 0.07), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.wc-pl-list:not(.is-focus) .wc-pl-row.is-on .wc-pl-n {
+  text-shadow: none;
+}
+
+/* The highlighted row's buttons: smaller glass, next to the time. */
+.wc-pl-acts {
+  grid-area: acts;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  animation: wc-lk-fade 0.15s ease-out;
+}
+
+.wc-pl-acts .wc-lk-btn {
+  height: 30px;
+  padding: 0 11px 0 9px;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.wc-pl-acts .wc-lk-btn .wc-lk-ic {
+  width: 13px;
+  height: 13px;
+}
+
+.wc-pl-empty {
+  padding: 18px;
+  text-align: center;
+  font: italic 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-pl-btns {
+  margin-top: 16px;
+  gap: 8px;
+}
+
+.wc-pl-btns .wc-lk-btn {
+  padding: 0 14px 0 11px;
+}
+
+/* ------------------------------------------------------------ narrow */
+
+/* The name, the tag and the time on the first line; the buttons on their own line below. */
+@container wc-pl (max-width: 620px) {
+  .wc-pl-row {
+    height: auto;
+    min-height: 54px;
+    padding: 8px 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name time" "acts acts";
+    align-content: center;
+  }
+
+  .wc-pl-time {
+    text-align: right;
+  }
+
+  /* A margin, not a row gap: a row without buttons keeps its text centred. */
+  .wc-pl-acts {
+    margin-top: 8px;
+  }
+
+  .wc-pl-acts .wc-lk-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    height: 38px;
+  }
+}
+
+/* ------------------------------------------------------------ phone */
+
+html.wc-phone .wc-pl-head {
+  display: none;
+}
+
+html.wc-phone .wc-pl-win {
+  padding: 50px 10px 8px;
+}
+
+html.wc-phone .wc-pl-btns .wc-lk-btn {
+  height: 40px;
+  padding: 0 12px;
+}
+
+html.wc-phone .wc-pl-row {
+  height: auto;
+  min-height: 48px;
+  padding: 8px 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name time" "acts acts";
+  align-content: center;
+}
+
+html.wc-phone .wc-pl-acts {
+  margin-top: 8px;
+}
+
+html.wc-phone .wc-pl-n {
+  font-size: 15px;
+}
+
+html.wc-phone .wc-pl-time {
+  font-size: 11px;
+  text-align: right;
+}
+
+/* Big enough to tap: the row's buttons share its width, 40 px high. */
+html.wc-phone .wc-pl-acts .wc-lk-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  height: 40px;
+  padding: 0 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+
+/* Five rows and the highlighted one's buttons, then it scrolls. */
+html.wc-phone .wc-pl-list {
+  max-height: calc(5 * 48px + 48px + 5 * 7px + 6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-pl-row,
+  .wc-pl-n {
+    transition: none;
+  }
+
+  .wc-pl-acts {
+    animation: none;
+  }
+}

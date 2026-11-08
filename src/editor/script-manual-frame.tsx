@@ -1,136 +1,107 @@
-// The script MANUAL (stage 10 feedback rounds 1 and 3): a full-screen
-// frame with the guide, the A–Z API reference and the Lua reference
-// (script-reference.ts; the Lua index's names are links) in the
-// profile editor's HELP layout (manual-view.tsx). Opened from the script
-// editor (MANUAL, F1 at the name under the cursor) and from the Scripts
-// page; ESC goes back, and the editor below keeps its buffer, cursor and
-// search. Ctrl+F finds in the manual (ADR 0070; ESC closes the panel first).
+// The script manual (stage 44c, ADR 0129; round 7 direction A "Boken"):
+// the guide, the A–Z API reference and the Lua reference
+// (script-reference.ts) in stage 42's lantern manual reader (`LookManual`,
+// look-manual.tsx): the contents at the left (Guide open, the two
+// references folded with their counts, the current section lit and
+// following the scroll), the whole manual as one typeset text on the
+// right, and the find always in the head. Under 700 px of the reader's
+// width the contents hide behind a Contents button.
+//
+// Opened from the script editor (F1 at the name under the cursor:
+// `manualSectionOf`) and from the Scripts page (Manual). Its places
+// (stage 42): on the start page a large box (layout B) titled "Script
+// Manual" with Back at the top left; in the in-game Scripts window the
+// window's Lykta frame titled "Scripts" with the note "Manual", and a
+// small Back (`InlineBack`) at the left of the head; on the phone's ESC
+// menu a full-screen box. Esc goes back (after the reader's own Esc: a
+// contents overlay, then a non-empty find), and the editor below keeps
+// its buffer, cursor, undo history and search.
+//
+// Hooks: `.wc-sman` (the frame's root, the box), `.wc-sman-iback` (the
+// head's Back in a window); the reader's are the kit's (`.wc-lk-manual`,
+// `.wc-lk-mtoc li[data-i]`, `.wc-lk-mtext section[data-i]`,
+// `.wc-lk-mfind input`, `.wc-search-count`).
 
-import type { VNode } from 'preact';
-import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { useGrid } from '../chrome/kit/hooks';
-import { escHints } from '../chrome/kit/esc';
-import { cellLen, centreLeft, truncate } from '../chrome/kit/nav';
-import { type Nav, useKeys } from '../chrome/kit/stack';
-import { indent } from '../chrome/kit/widgets';
-import { helpFrame, helpMenu, helpMenuWidth } from './help';
-import { type ManualControl, type ManualZone, ManualView } from './manual-view';
-import { indexLinkOf, manualSectionOf, scriptManualLayout, scriptManualSections } from './script-reference';
+import type { ComponentChildren, VNode } from 'preact';
+import { useRef } from 'preact/hooks';
+import { Box, InlineBack, lookFrame, useLookPlace, useWindowChrome } from '../chrome/kit/look';
+import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
+import { type ManualCtl, LookManual, codeLine } from './look-manual';
+import type { FindMemory } from './look-manual-find';
+import { apiDoc } from './lua-api';
+import { EMPTY_QUERY } from './manual-search';
+import { SCRIPT_MANUAL_GROUPS, indexLinkOf, manualSectionOf, scriptManualSections } from './script-reference';
+import './script-manual-frame.css';
 
-/** Footer hints, longest first; the first that fits is shown. */
-const BODY_HINTS = [
-  '↑↓ Scroll · ← Menu · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · Tab Cycle · ESC Back',
-  '↑↓ Scroll · ← Menu · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Back',
-  '↑↓ Scroll · ← Menu · n/p Heading · Ctrl+F Find · ESC Back',
-  '↑↓ Scroll · ← Menu · n/p Heading · ESC Back',
-  '↑↓ Scroll · ESC Back',
-];
-const MENU_HINTS = [
-  '↑↓ Section · → Manual · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · Tab Cycle · ESC Back',
-  '↑↓ Section · → Manual · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Back',
-  '↑↓ Section · → Manual · Ctrl+F Find · ESC Back',
-  '↑↓ Section · → Manual · ESC Back',
-  '↑↓ Section · ESC Back',
-];
-const NARROW_HINTS = [
-  '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · ESC Back',
-  '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · ESC Back',
-  '↑↓ Scroll · Ctrl+F Find · ESC Back',
-  '↑↓ Scroll · ESC Back',
-];
+/** The find's query (and its Case / Word / Regex), kept across opens of the manual. */
+const memory: FindMemory = { query: EMPTY_QUERY };
+
+/** API and library names are coloured in the examples. */
+const luaKnown = (name: string): boolean => apiDoc(name) !== null;
+
+/**
+ * The examples' highlighted lines, made once per line for the page's life
+ * (the manual's ~190 sections are drawn again on every open; the Lua
+ * tokenising is not). Preact copies a vnode it has drawn before, so the
+ * cached children can be drawn again.
+ */
+const lines = new Map<string, ComponentChildren>();
+function example(line: string, lang: 'tt' | 'lua'): ComponentChildren {
+  const key = lang + line;
+  let out = lines.get(key);
+  if (out === undefined) {
+    out = codeLine(line, lang, luaKnown);
+    lines.set(key, out);
+  }
+  return out;
+}
+
+/** A Lua index line's name that links to its entry (`- string.format: …`): the entry's section. */
+const link = (name: string): number | null => indexLinkOf(`- ${name}:`)?.section ?? null;
+
+/** The section `name` opens the manual at (F1): its entry, or a guide chapter; else Getting started (0). */
+export function scriptManualSection(name?: string): number {
+  const i = name ? manualSectionOf(name) : -1;
+  return i >= 0 ? i : 0;
+}
 
 /** Pushes the manual, at the reference entry or section of `name` when there is one. */
 export function openScriptManual(nav: Nav, name?: string): void {
-  const i = name ? manualSectionOf(name) : -1;
-  nav.push(<ScriptManual section={i >= 0 ? i : 0} />);
+  nav.push(<ScriptManual section={scriptManualSection(name)} />);
 }
 
-export function ScriptManual({ section: initial = 0 }: { section?: number }): VNode {
-  const { cols, rows, surface } = useGrid();
-  const [zone, setZone] = useState<ManualZone>('help');
-  const ctl = useRef<ManualControl | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
+export const ScriptManual = lookFrame(function ScriptManual({ section = 0 }: { section?: number }): VNode {
+  const nav = useNav();
+  const place = useLookPlace();
+  const ctl = useRef<ManualCtl | null>(null);
+  useWindowChrome({ title: 'Scripts', note: 'Manual' });
 
-  const sections = scriptManualSections();
-  const menu = useMemo(() => helpMenu(sections), [sections]);
-  const menuW = useMemo(() => helpMenuWidth(menu), [menu]);
-  const hf = helpFrame(cols, menuW);
-  const layout = useMemo(() => scriptManualLayout(hf.width - 2), [hf.width]);
-  const gap = surface === 'start' ? 2 : 1;
-  // gap + title + blank + manual + blank + footer
-  const height = Math.max(3, rows - gap - 4);
-  const z: ManualZone = hf.menu ? zone : 'help';
+  // The reader's keys first (its Esc: the contents overlay, then a
+  // non-empty find); an Esc it leaves goes back.
+  useKeys((e, nk) => ctl.current?.key(e, nk) ?? false);
 
-  // The root holds the keyboard, unless the find field has it.
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    const active = root?.ownerDocument.activeElement;
-    if (!root || active === root || (active && root.contains(active) && active.closest('.wc-search'))) return;
-    root.focus({ preventScroll: true });
-  });
-
-  useKeys((e, nk) => {
-    // Find in the manual: Ctrl+F, the panel's keys; ESC closes it first.
-    const found = ctl.current?.findKey(e) ?? null;
-    if (found !== null) return found;
-    if ((nk === 'tab' || nk === 'backtab') && hf.menu) {
-      setZone(z === 'menu' ? 'help' : 'menu');
-      return true;
-    }
-    const r = ctl.current?.key(e, nk, z) ?? false;
-    return r === 'up-out' ? true : r;
-  });
-
-  const title = truncate('─── Script Manual ───', cols);
-  const hints = !hf.menu ? NARROW_HINTS : z === 'menu' ? MENU_HINTS : BODY_HINTS;
-  const hint = truncate(hints.find((h) => cellLen(h) <= cols) ?? hints.at(-1)!, cols);
-
-  /** A Lua index line's name as a link to its entry. */
-  function indexLinks(text: string): string | (string | VNode)[] {
-    const hit = indexLinkOf(text);
-    if (!hit) return text;
-    return [
-      '- ',
-      <a
-        class="wc-about-link"
-        href={`#${hit.name}`}
-        onClick={(e) => {
-          e.preventDefault();
-          ctl.current?.goto(hit.section);
-        }}
-      >
-        {hit.name}
-      </a>,
-      text.slice(2 + hit.name.length),
-    ];
-  }
-
+  // A window's sub-page has its own small Back, first in the reader's head.
+  const iback = place === 'window' && nav.depth() > 1;
   return (
-    <div class="wc-page wc-ped wc-sman" ref={rootRef} tabIndex={-1} data-zone={z}>
-      <div class="wc-line" style={{ height: `calc(var(--cell-h) * ${gap})` }} />
-      <div class="wc-line wc-ped-title">
-        <span style={indent(centreLeft(cols, cellLen(title)))} class="wc-c-section">
-          {title}
-        </span>
-      </div>
-      <div class="wc-line" />
-      <ManualView
-        layout={layout}
-        menu={hf.menu ? menu : null}
-        menuW={menuW}
-        width={hf.width}
-        height={height}
-        focus={z}
-        onZone={setZone}
-        ctl={ctl}
-        initial={initial}
-        text={indexLinks}
+    <Box size="large" title="Script Manual" onBack={() => nav.pop()} class="wc-sman">
+      <LookManual
+        before={
+          iback ? (
+            <span class="wc-sman-iback">
+              <InlineBack />
+            </span>
+          ) : undefined
+        }
+        sections={scriptManualSections()}
+        contents="own"
+        find="head"
+        groups={SCRIPT_MANUAL_GROUPS}
+        initial={section}
+        link={link}
+        example={example}
+        memory={memory}
+        ctl={(c) => (ctl.current = c)}
       />
-      <div class="wc-ped-spacer" />
-      <div class="wc-line" />
-      <div class="wc-line wc-footer wc-ped-footer wc-c-hint" style={indent(centreLeft(cols, cellLen(hint)))}>
-        {escHints(hint)}
-      </div>
-    </div>
+    </Box>
   );
-}
+});

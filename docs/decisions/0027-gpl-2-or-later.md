@@ -47,3 +47,10 @@ copyright line or a modification notice (GPL-2 §2a, GPL-3 §5a).
   root (`licencePlugin` in `vite.config.ts`; the dev server serves the
   same file). About links it, so every copy of the app carries the GPL
   text (GPL-2 §1). The site-root smoke test checks it.
+
+## Addendum (2026-11-07, ADR 0132): third-party notices on the site
+
+The same plugin serves (dev) and emits (build) `THIRD_PARTY_NOTICES.md`
+at the site root beside `LICENSE.txt`, so every copy of the site carries
+the notices of the fonts, libraries and map assets it ships. About links
+both.

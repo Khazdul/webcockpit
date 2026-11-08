@@ -6,19 +6,11 @@ import { Bus } from '../../src/core/bus';
 import type { Line } from '../../src/core/types';
 import {
   CODE_INDENT,
-  HELP_MENU_GAP,
-  HELP_MIN_W,
   type HelpExample,
-  helpCurrent,
-  helpFrame,
   helpLayout,
   helpLineText,
   helpLineWidth,
-  helpMenu,
-  helpMenuRow,
-  helpMenuWidth,
   helpSections,
-  helpStep,
 } from '../../src/editor/help';
 import { messageRows, messageText } from '../../src/app/messages';
 import { COMMANDS, resolveCommand } from '../../src/script/commands';
@@ -163,7 +155,6 @@ describe('manual coverage (no drift from the command table)', () => {
     for (const h of hidden) {
       expect(covered.has(h), h).toBe(false);
       expect(sections.some((s) => s.heading === '#' + h), h).toBe(false);
-      expect(helpMenu().some((r) => r.label === '#' + h), h).toBe(false);
       expect(all, h).not.toContain('#' + h);
     }
   });
@@ -287,71 +278,5 @@ describe('layout', () => {
     expect(text[commands + 3]).toBe('    #action {pattern} {commands} {priority}');
     expect(headings.map((h) => text[h])).toEqual(sections.map((s) => s.heading));
     expect(text.at(-1)).not.toBe('');
-  });
-
-  it('steps between sections with n and p', () => {
-    const h = [0, 10, 25];
-    expect(helpStep(h, 0, 0, 1)).toBe(1);
-    expect(helpStep(h, 12, 1, 1)).toBe(2);
-    expect(helpStep(h, 25, 2, 1)).toBe(2);
-    // p: back to the heading of the section being read, then to the one before.
-    expect(helpStep(h, 12, 1, -1)).toBe(1);
-    expect(helpStep(h, 10, 1, -1)).toBe(0);
-    expect(helpStep(h, 0, 0, -1)).toBe(0);
-    // A last section that cannot reach the top row (top is clamped above its heading).
-    expect(helpStep(h, 20, 2, -1)).toBe(1);
-  });
-
-  it('lists every section in the menu, in order, under its group label', () => {
-    const menu = helpMenu();
-    const entries = menu.filter((r) => r.kind === 'entry');
-    expect(entries.map((r) => r.label)).toEqual(sections.map((s) => s.heading));
-    expect(entries.map((r) => r.section)).toEqual(sections.map((_, i) => i));
-    expect(menu.filter((r) => r.kind === 'group').map((r) => r.label)).toEqual(['Basics', 'Commands']);
-    const labels = menu.map((r) => r.label);
-    expect(labels.slice(0, 4)).toEqual(['Writing a profile', '', 'Basics', 'Braces and ;']);
-    expect(labels[labels.indexOf('Commands') + 1]).toBe('#action');
-    expect(labels.at(-1)).toBe('#variable');
-    expect(menu.every((r) => (r.kind === 'entry') === (r.section >= 0))).toBe(true);
-    expect(helpMenuWidth(menu)).toBe(Math.max(...sections.map((s) => [...s.heading].length)) + 2);
-    expect(helpMenuRow(menu, 0)).toBe(0);
-    expect(menu[helpMenuRow(menu, sections.findIndex((s) => s.heading === '#highlight'))]!.label).toBe('#highlight');
-    expect(helpMenuRow(menu, 999)).toBe(0);
-  });
-
-  it('follows a custom section list in the menu', () => {
-    const menu = helpMenu([
-      { group: 'commands', heading: '#a', text: [] },
-      { group: 'commands', heading: '#b', text: [] },
-      { group: 'intro', heading: 'Z', text: [] },
-    ]);
-    expect(menu.map((r) => `${r.kind}:${r.label}:${r.section}`)).toEqual([
-      'group:Commands:-1',
-      'entry:#a:0',
-      'entry:#b:1',
-      'blank::-1',
-      'entry:Z:2',
-    ]);
-  });
-
-  it('finds the section at the top row', () => {
-    const h = [0, 10, 25];
-    expect(helpCurrent(h, 0)).toBe(0);
-    expect(helpCurrent(h, 9)).toBe(0);
-    expect(helpCurrent(h, 10)).toBe(1);
-    expect(helpCurrent(h, 24)).toBe(1);
-    expect(helpCurrent(h, 400)).toBe(2);
-    expect(helpCurrent([], 3)).toBe(0);
-    const { headings } = helpLayout(75);
-    headings.forEach((row, i) => expect(helpCurrent(headings, row)).toBe(i));
-  });
-
-  it('spans the whole grid: the menu in cell 0, the manual to the last cell, the menu dropped when narrow', () => {
-    const side = 19 + 1 + HELP_MENU_GAP;
-    expect(helpFrame(140, 19)).toEqual({ menu: true, at: side, width: 140 - side });
-    expect(helpFrame(side + HELP_MIN_W, 19)).toEqual({ menu: true, at: side, width: HELP_MIN_W });
-    expect(helpFrame(side + HELP_MIN_W - 1, 19)).toEqual({ menu: false, at: 0, width: side + HELP_MIN_W - 1 });
-    expect(helpFrame(140, 120)).toEqual({ menu: false, at: 0, width: 140 });
-    for (let cols = 42; cols < 260; cols++) expect(helpFrame(cols, 19).at + helpFrame(cols, 19).width).toBe(cols);
   });
 });

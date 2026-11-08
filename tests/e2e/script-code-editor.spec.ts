@@ -1,8 +1,11 @@
-// Stage 10 feedback round 4: the script editor as a code editor. No
-// buttons (Ctrl+S, F1), Tab indents and accepts completions, Enter closes
-// blocks, live errors are held back while typing valid code, and known
-// names are corrected to their case. Nothing reaches the real server.
+// Stage 10 feedback round 4: the script editor as a code editor. Tab
+// indents and accepts completions, Enter closes blocks, live errors are
+// held back while typing valid code, and known names are corrected to
+// their case. Stage 44b: the tools in the well's corner (Save, Find,
+// Manual; Duplicate for a bundled script) dim while typing; Ctrl+S and F1
+// as before. Nothing reaches the real server.
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { morphDone } from './look';
 import { completeLua } from '../../src/editor/lua-api';
 
 const IAC = 255;
@@ -33,9 +36,12 @@ end
 `;
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
+// The editor's root (`display: contents`, the frame's child; stage 44b).
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
-const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sman');
-const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
+const tool = (page: Page, id: string) => editor(page).locator(`.wc-sed-tools [data-btn="${id}"]`);
+const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) .wc-sman');
+// A row of the Scripts page by its `data-name` (stage 44a).
+const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-name="${name}"]`);
 const list = (page: Page) => page.locator('.cm-tooltip-autocomplete');
 const marker = (page: Page) => editor(page).locator('.cm-gutter-lint .cm-lint-marker-error');
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
@@ -56,19 +62,22 @@ const bufferText = (page: Page) =>
 async function openEditor(page: Page): Promise<Locator> {
   await mockMume(page);
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await lib(page, 'init');
   await lib(page, 'create', 'coder', SOURCE);
   // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Scripts');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr').first()).toBeVisible();
   await row(f, 'coder').locator('.wc-scr-name').click();
-  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
+  await f.locator('[data-btn="EDIT"]:visible').first().click();
   await expect(editor(page)).toHaveAttribute('data-script', 'coder');
+  // The box's morph runs ~0.3 s: Firefox drops the focus of a box hidden by it (the
+  // editor takes it back when it lands), so keys go in after it.
+  await morphDone(page);
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');
   return f;
@@ -101,21 +110,81 @@ async function typeWatching(page: Page, text: string, quietMs: number): Promise<
   });
 }
 
-test('no buttons: Ctrl+S saves, F1 opens the manual', async ({ page }) => {
+test('the tools: Save, Find, Manual; Ctrl+S saves, F1 opens the manual', async ({ page }) => {
   const errors = watchErrors(page);
   await openEditor(page);
-  await expect(editor(page).locator('[data-btn="SAVE"]')).toHaveCount(0);
-  await expect(editor(page).locator('[data-btn="MANUAL"]')).toHaveCount(0);
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Ctrl+S Save');
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('F1 Manual');
+  // No key hints (owner default 1): the tools' tooltips name the keys.
+  await expect(tool(page, 'SAVE')).toHaveAttribute('title', 'Save (Ctrl+S)');
+  await expect(tool(page, 'FIND')).toHaveAttribute('title', 'Find and replace (Ctrl+F, Ctrl+H)');
+  await expect(tool(page, 'MANUAL')).toHaveAttribute('title', 'The manual at the name under the cursor (F1)');
+  await expect(tool(page, 'DUPLICATE')).toHaveCount(0);
+  await expect(editor(page).locator('.wc-sed-ro')).toHaveCount(0);
+  // Save is disabled while the buffer is clean.
+  await expect(tool(page, 'SAVE')).toHaveAttribute('aria-disabled', 'true');
   await page.keyboard.type('x = 1');
+  await expect(tool(page, 'SAVE')).not.toHaveAttribute('aria-disabled', 'true');
   await page.keyboard.press('ControlOrMeta+s');
-  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved.');
+  await expect(editor(page).locator('.wc-lk-flash')).toContainText('Saved. Turn it on in the list to run it.');
   await expect.poll(() => lib<{ source: string }>(page, 'get', 'coder').then((s) => s.source)).toContain('x = 1');
+  await expect(tool(page, 'SAVE')).toHaveAttribute('aria-disabled', 'true');
   await page.keyboard.press('F1');
   await expect(manual(page)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(editor(page)).toBeVisible();
+  await expect(editor(page).locator('.cm-content')).toBeFocused();
+
+  // By pointer: Save, Find, Manual; the buffer keeps the keys.
+  await page.keyboard.type('\ny = 2');
+  await tool(page, 'SAVE').click();
+  await expect.poll(() => lib<{ source: string }>(page, 'get', 'coder').then((s) => s.source)).toContain('y = 2');
+  await expect(editor(page).locator('.cm-content')).toBeFocused();
+  await tool(page, 'FIND').click();
+  await expect(editor(page).locator('.wc-search').getByRole('textbox', { name: 'Find' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(editor(page).locator('.wc-search')).toHaveCount(0);
+  await tool(page, 'MANUAL').click();
+  await expect(manual(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(editor(page)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('the tools dim while typing and come back after a pause; a bundled script has Duplicate', async ({ page }) => {
+  const errors = watchErrors(page);
+  const f = await openEditor(page);
+  const tools = editor(page).locator('.wc-sed-tools');
+  const opacity = () => tools.evaluate((el) => Number(getComputedStyle(el).opacity));
+  await expect.poll(opacity).toBe(1);
+  // (A comment: no completion list opens.)
+  await page.keyboard.type('-- z');
+  await expect.poll(opacity).toBeLessThan(0.5);
+  await expect.poll(opacity, { timeout: 4000 }).toBe(1);
+
+  // coinlooter: read-only, the plate, Duplicate (reached by Tab), and its copy opens in place.
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect(editor(page).locator('.wc-lk-flash')).toContainText('Saved.');
+  await page.keyboard.press('Escape');
+  await expect(editor(page)).toHaveCount(0);
+  await row(f, 'coinlooter').locator('.wc-scr-name').click();
+  await f.locator('[data-btn="EDIT"]:visible').first().click();
+  await expect(editor(page)).toHaveAttribute('data-readonly', 'true');
+  await expect(editor(page).locator('.wc-sed-ro')).toHaveText('bundled · read-only');
+  await expect(tool(page, 'SAVE')).toHaveCount(0);
+  await expect(tool(page, 'DUPLICATE')).toBeVisible();
+  await expect(tool(page, 'DUPLICATE')).not.toHaveClass(/is-sel/);
+  await page.keyboard.press('Tab');
+  await expect(editor(page)).toHaveAttribute('data-zone', 'buttons');
+  await expect(tool(page, 'DUPLICATE')).toHaveClass(/is-sel/);
+  await page.keyboard.press('ArrowDown');
+  await expect(editor(page)).toHaveAttribute('data-zone', 'buffer');
+  // ↑ on the first line reaches it too; Enter duplicates.
+  await page.keyboard.press('ArrowUp');
+  await expect(editor(page)).toHaveAttribute('data-zone', 'buttons');
+  await page.keyboard.press('Enter');
+  await expect(editor(page)).toHaveAttribute('data-script', 'coinlooter-copy');
+  await expect(editor(page)).toHaveAttribute('data-readonly', 'false');
+  await expect(editor(page).locator('.wc-lk-flash')).toContainText('Duplicated as coinlooter-copy. This copy is yours to edit.');
+  await expect(tool(page, 'SAVE')).toBeVisible();
   expect(errors).toEqual([]);
 });
 

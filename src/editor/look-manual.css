@@ -1,0 +1,570 @@
+/* The lantern manual reader (stage 42e, ADR 0127; look-manual.tsx): the
+ * script manual A "Boken" and the profile Help (43). The contents at the
+ * left (an overlay under 700 px of the reader's own width), the whole
+ * manual as one typeset text on the right, the find in the head. In the
+ * lazy editor chunk. Colours from the kit's `--lk-*` tokens (dark and
+ * Paper) and look-code.css's `--lk-code-*`; inner surfaces only (no
+ * backdrop-filter). */
+
+.wc-lk-manual,
+.wc-lk-mtoc {
+  --lk-m-head: var(--lk-head, #d6bf96);
+  --lk-m-text: var(--lk-text, #eadcc3);
+  --lk-m-dim: var(--lk-dim, #9a8b76);
+  --lk-m-faint: var(--lk-faint, #6d6252);
+  --lk-m-item: var(--lk-item, #cbb994);
+  --lk-m-on: var(--lk-on, #fff1d8);
+  --lk-m-rule: var(--lk-rule, rgba(255, 200, 130, 0.18));
+  --lk-m-tick: var(--lk-sk-on, rgba(255, 214, 160, 0.7));
+  --lk-m-well: var(--lk-well, rgba(6, 5, 4, 0.42));
+  --lk-m-well-edge: var(--lk-well-edge, rgba(255, 214, 160, 0.12));
+  --lk-m-link-line: var(--lk-sk, rgba(255, 190, 120, 0.3));
+  --lk-m-overlay: #100c0a;
+  --lk-m-overlay-sh: 0 0 0 1px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 236, 206, 0.2), 0 18px 40px rgba(0, 0, 0, 0.7);
+  --lk-m-mark: rgba(255, 200, 110, 0.22);
+  --lk-m-mark-now: rgba(255, 200, 110, 0.5);
+  --lk-m-thumb: var(--lk-scroll-thumb, rgba(255, 214, 160, 0.22));
+}
+
+.wc-lk-manual {
+  container: wc-lkman / inline-size;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  white-space: normal;
+  color: var(--lk-m-text);
+}
+
+:not(html)[data-light] .wc-lk-manual,
+.wc-lk-manual[data-light],
+:not(html)[data-light] .wc-lk-mtoc {
+  --lk-m-head: var(--lk-head, #4a3418);
+  --lk-m-text: var(--lk-text, #2a2116);
+  --lk-m-dim: var(--lk-dim, #6b5a44);
+  --lk-m-faint: var(--lk-faint, #a08f74);
+  --lk-m-item: var(--lk-item, #4a3c2a);
+  --lk-m-on: var(--lk-on, #0e0904);
+  --lk-m-rule: var(--lk-rule, rgba(110, 80, 40, 0.22));
+  --lk-m-tick: var(--lk-sk-on, rgba(90, 55, 15, 0.8));
+  --lk-m-well: var(--lk-well, rgba(120, 90, 40, 0.07));
+  --lk-m-well-edge: var(--lk-well-edge, rgba(100, 76, 40, 0.22));
+  --lk-m-link-line: var(--lk-sk, rgba(120, 80, 30, 0.35));
+  --lk-m-overlay: #fbf6ea;
+  --lk-m-overlay-sh: 0 0 0 1px #6a5a3c, 0 12px 30px rgba(60, 40, 10, 0.3);
+  --lk-m-mark: rgba(200, 140, 40, 0.2);
+  --lk-m-mark-now: rgba(200, 140, 40, 0.45);
+  --lk-m-thumb: var(--lk-scroll-thumb, rgba(100, 76, 40, 0.3));
+}
+
+/* ------------------------------------------------------------ head */
+
+/* The head wraps: in a narrow box the find gets a row of its own under
+ * Contents (and a sub-page's Back) instead of running out of the box. */
+.wc-lk-mhead {
+  display: none;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+
+.wc-lk-mhead.has-find,
+.wc-lk-mhead.has-before {
+  display: flex;
+}
+
+.wc-lk-mtocbtn {
+  display: none;
+  flex: none;
+}
+
+.wc-lk-mfind {
+  flex: 1 1 420px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.wc-lk-mfind-f {
+  position: relative;
+  flex: 0 1 340px;
+  min-width: 140px;
+}
+
+.wc-lk-mfind-f > .wc-lk-field {
+  margin: 0;
+}
+
+.wc-lk-mfind-f input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding-left: 32px;
+  font-size: 16px;
+}
+
+.wc-lk-mfind-ic {
+  position: absolute;
+  z-index: 1;
+  left: 11px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  color: var(--lk-m-dim);
+  pointer-events: none;
+}
+
+.wc-lk-mfind .wc-search-count {
+  min-width: 64px;
+  text-align: right;
+  font: italic 500 15px/1 var(--lk-serif, Georgia, serif);
+  color: var(--lk-m-dim);
+  white-space: nowrap;
+}
+
+.wc-lk-mfind .wc-search-count.is-bad {
+  color: var(--lk-danger, #e6a690);
+}
+
+.wc-lk-mfind-btns {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+
+/* ------------------------------------------------------------ body */
+
+.wc-lk-mmain {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  gap: 26px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.wc-lk-manual .wc-lk-scroll,
+.wc-lk-mtoc,
+.wc-lk-mtext {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-m-thumb) transparent;
+  min-height: 0;
+}
+
+.wc-lk-mtoc::-webkit-scrollbar,
+.wc-lk-mtext::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.wc-lk-mtoc::-webkit-scrollbar-thumb,
+.wc-lk-mtext::-webkit-scrollbar-thumb {
+  background: var(--lk-m-thumb);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* ------------------------------------------------------------ contents */
+
+.wc-lk-mtoc {
+  flex: 0 0 250px;
+  padding: 2px 8px 10px 2px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.wc-lk-mgrp {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 6px 6px;
+  cursor: pointer;
+  font: 600 10.5px/1 var(--lk-display, Georgia, serif);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--lk-m-dim);
+}
+
+.wc-lk-mtocg:first-child .wc-lk-mgrp {
+  padding-top: 2px;
+}
+
+.wc-lk-mgrp .wc-lk-ic {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  transition: transform calc(0.2s * var(--lk-ts, 1));
+}
+
+.wc-lk-mgrp[aria-expanded="false"] .wc-lk-ic {
+  transform: rotate(-90deg);
+}
+
+.wc-lk-mcount {
+  margin-left: auto;
+  letter-spacing: 0.05em;
+  font: italic 500 13px/1 var(--lk-serif, Georgia, serif);
+  text-transform: none;
+  color: var(--lk-m-faint);
+}
+
+.wc-lk-mtoc ul {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+
+.wc-lk-mtoc li {
+  padding: 4px 6px 4px 22px;
+  border-radius: 3px;
+  font: 500 16px/1.25 var(--lk-serif, Georgia, serif);
+  color: var(--lk-m-item);
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.wc-lk-mtoc li.is-code {
+  font: 400 12.5px/1.45 var(--lk-mono, monospace);
+}
+
+.wc-lk-mtoc li.is-on {
+  color: var(--lk-m-on);
+}
+
+/* The list has the keyboard: a fine lit tick at the current entry. */
+.wc-lk-mtoc.is-zone li.is-on {
+  box-shadow: inset 2px 0 0 var(--lk-m-tick);
+}
+
+@media (hover: hover) {
+  .wc-lk-mgrp:hover,
+  .wc-lk-mtoc li:hover {
+    color: var(--lk-m-text);
+  }
+}
+
+/* ------------------------------------------------------------ text */
+
+.wc-lk-mtext {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 22px 40vh 6px;
+  font: 500 17.5px/1.5 var(--lk-serif, Georgia, serif);
+  color: var(--lk-m-text);
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: auto;
+}
+
+.wc-lk-msec {
+  padding: 4px 0 10px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
+}
+
+/* A section whose chunk is not drawn yet (look-manual.tsx draws the rest when idle). */
+.wc-lk-msec.is-pending {
+  height: 480px;
+}
+
+.wc-lk-mgroup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 34px 0 6px;
+  font: 600 11px/1 var(--lk-display, Georgia, serif);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--lk-m-dim);
+  user-select: none;
+}
+
+.wc-lk-mgroup:first-child {
+  margin-top: 0;
+}
+
+.wc-lk-mgroup::before,
+.wc-lk-mgroup::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--lk-m-rule));
+}
+
+.wc-lk-mgroup::after {
+  background: linear-gradient(90deg, var(--lk-m-rule), transparent);
+}
+
+.wc-lk-mh {
+  margin: 22px 0 10px;
+  font: 700 21px/1.2 var(--lk-display, Georgia, serif);
+  letter-spacing: 0.08em;
+  color: var(--lk-m-head);
+}
+
+.wc-lk-msec:first-child .wc-lk-mh,
+.wc-lk-mgroup:first-child + .wc-lk-msec .wc-lk-mh {
+  margin-top: 8px;
+}
+
+.wc-lk-mh.is-code {
+  font: 600 18px/1.3 var(--lk-mono, monospace);
+  letter-spacing: 0;
+}
+
+.wc-lk-msyn {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font: 400 13px/1.65 var(--lk-mono, monospace);
+  color: var(--lk-m-head);
+  background: var(--lk-m-well);
+  border: 1px solid var(--lk-m-well-edge);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wc-lk-mline {
+  display: block;
+  min-height: 1.6em;
+}
+
+.wc-lk-mtext p {
+  margin: 0 0 10px;
+  max-width: 76ch;
+}
+
+.wc-lk-mlist {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-width: 76ch;
+}
+
+.wc-lk-mlist li {
+  position: relative;
+  margin: 0 0 6px;
+  padding-left: 20px;
+}
+
+.wc-lk-mlist li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0.64em;
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+  border: 1px solid var(--lk-m-dim);
+}
+
+.wc-lk-mlabel {
+  margin: 12px 0 5px;
+  font: 600 10.5px/1 var(--lk-display, Georgia, serif);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lk-m-dim);
+}
+
+.wc-lk-mparams {
+  margin: 0 0 12px;
+  max-width: 76ch;
+}
+
+.wc-lk-mparam {
+  margin: 0 0 5px;
+  padding-left: 14px;
+  text-indent: -14px;
+  color: var(--lk-m-dim);
+}
+
+.wc-lk-mpn {
+  font: 600 13px/1.5 var(--lk-mono, monospace);
+  color: var(--lk-m-text);
+}
+
+.wc-lk-mpt {
+  font-style: italic;
+  color: var(--lk-m-faint);
+}
+
+.wc-lk-mnote {
+  margin: 14px 0 6px;
+  font-style: italic;
+  font-size: 16.5px;
+  line-height: 1.4;
+  color: var(--lk-m-dim);
+}
+
+.wc-lk-mcode {
+  display: block;
+  margin: 0 0 12px;
+  padding: 9px 14px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  border-radius: 5px;
+  font: 400 13px/1.6 var(--lk-mono, monospace);
+  font-variant-ligatures: none;
+  white-space: pre;
+  tab-size: 2;
+  color: var(--lk-code-text);
+  background: var(--lk-code-bg);
+  border: 1px solid var(--lk-code-edge);
+  box-shadow: var(--lk-code-in);
+}
+
+.wc-lk-mlink {
+  color: var(--lk-m-head);
+  font-family: var(--lk-mono, monospace);
+  font-size: 0.8em;
+  text-decoration: underline;
+  text-decoration-color: var(--lk-m-link-line);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .wc-lk-mlink:hover {
+    color: var(--lk-m-on);
+    text-decoration-color: var(--lk-m-tick);
+  }
+}
+
+/* Find: the Highlight API's marks (shared by every reader), or the fallback's <mark>s. */
+::highlight(wc-lk-find) {
+  background-color: rgba(255, 200, 110, 0.22);
+}
+
+::highlight(wc-lk-find-now) {
+  background-color: rgba(255, 200, 110, 0.5);
+}
+
+:not(html)[data-light] ::highlight(wc-lk-find) {
+  background-color: rgba(200, 140, 40, 0.2);
+}
+
+:not(html)[data-light] ::highlight(wc-lk-find-now) {
+  background-color: rgba(200, 140, 40, 0.45);
+}
+
+.wc-lk-mark {
+  color: inherit;
+  background: var(--lk-m-mark);
+  border-radius: 2px;
+}
+
+.wc-lk-mark.is-now {
+  background: var(--lk-m-mark-now);
+}
+
+/* ------------------------------------------------------------ narrow */
+
+@container wc-lkman (max-width: 700px) {
+  .wc-lk-mhead {
+    display: flex;
+  }
+
+  .has-toc .wc-lk-mtocbtn {
+    display: inline-flex;
+  }
+
+  .wc-lk-mtoc {
+    display: none;
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(300px, 86%);
+    padding: 10px 12px;
+    border-radius: 5px;
+    background: var(--lk-m-overlay);
+    box-shadow: var(--lk-m-overlay-sh);
+  }
+
+  .is-toc-open .wc-lk-mtoc {
+    display: block;
+  }
+
+  .wc-lk-mfind .wc-lk-seg,
+  .wc-lk-mfind .wc-search-count:empty {
+    display: none;
+  }
+
+  .wc-lk-mhead {
+    gap: 8px;
+  }
+
+  .wc-lk-mfind {
+    flex: 1 1 200px;
+    flex-wrap: nowrap;
+  }
+
+  .wc-lk-mfind-f {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* The count keeps its whole text ("12 of 340"); the field gives way. */
+  .wc-lk-mfind .wc-search-count {
+    flex: none;
+    min-width: 0;
+  }
+
+  .wc-lk-mtext {
+    padding: 0 10px 40vh 2px;
+  }
+}
+
+@container wc-lkman (max-width: 560px) {
+  .wc-lk-mtext {
+    font-size: 16.5px;
+  }
+}
+
+@media (max-width: 600px) {
+  .wc-lk-mfind [data-btn="prev"] {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .wc-lk-mtoc li,
+  .wc-lk-mgrp {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    box-sizing: border-box;
+  }
+
+  .wc-lk-mfind-f input {
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-lk-mgrp .wc-lk-ic,
+  .wc-lk-mtoc li {
+    transition: none;
+  }
+}

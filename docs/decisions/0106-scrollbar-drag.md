@@ -57,3 +57,20 @@ editor's overview map with its own thumb.
 - The LITE Commands box wraps and scrolls again: the phone's one-row
   `textarea.wc-field` rule had overridden its `pre-wrap` and vertical
   scrolling, so its bar showed a thumb for content that could not scroll.
+
+## Addendum (2026-11-07, stage 47 wave 3)
+
+About left the TUI grid in stage 47 (ADR 0132): its text is one leaf in
+a native scroller, so it has no `░█` bar. Its two drag tests went with it:
+
+- Desktop (`scrollbar-drag.spec.ts`): the case moved to the Statistics
+  pane in its narrow layout, the last `░█` bar on the desktop that a test
+  reaches without a live game (a replayed fixture fills it); its thumb
+  drags in proportion and the drag goes on outside the bar.
+- Phone (`phone-scrollbar-drag.spec.ts`): deleted. No `░█` bar is left on
+  the phone that a test can reach cheaply: the Statistics pane is not on
+  the phone, and the ESC menu's Statistics needs a live run with enough
+  rows to scroll. The touch rules above (`touch-action: none`, pointer
+  capture) are unchanged and shared with the desktop bars, but a finger
+  drag is no longer covered end to end. Cover it again if a phone surface
+  keeps a `░█` bar after the new look, or retire the rule with the bars.

@@ -1,8 +1,9 @@
 # Fonts
 
 Self-hosted web fonts for WebCockpit's terminal grid (ADR 0010 "Fonts and
-cell grid", ADR 0011, ADR 0043, ADR 0049) and the pane titles (Cinzel,
-ADR 0123; see "Title font" below). Terminal fonts: regular and bold only; no
+cell grid", ADR 0011, ADR 0043, ADR 0049), the pane titles and the start
+page's labels (Cinzel, ADR 0123, ADR 0125; see "Title font" below) and the
+start page's quote and notes (Cormorant, "Start page book faces"). Terminal fonts: regular and bold only; no
 italics (MUME output does not need them; italic runs are synthesised by
 the browser). The @font-face rules are generated from
 `src/theme/fonts.ts` (`fontFaceCss`); a browser downloads a family only
@@ -57,13 +58,36 @@ Notes:
 
 ## Title font
 
-The pane frame's title (ADR 0123 "Title") is not in the terminal font:
+The pane frame's title (ADR 0123 "Title") is not in the terminal font.
+Since stage 41 the start page's menu, buttons, Back and almanac date line
+use the same face (ADR 0125), and the start page wordmark and the "M"
+favicon are outlines drawn from Cinzel's variable font, which is not
+shipped (`scripts/build-wordmark-glyphs.py`, ADR 0126):
 
 | File | Family, version | Source | Licence (file here) |
 |---|---|---|---|
 | `Cinzel-Bold-latin.woff2` | Cinzel 2.000, Bold, Latin subset | `files/cinzel-latin-700-normal.woff2` from npm `@fontsource/cinzel@5.3.0` (Google Fonts' Latin subset, used as is; not an npm dependency) | SIL OFL 1.1, © 2020 The Cinzel Project Authors, no Reserved Font Name (`LICENSE-Cinzel.txt`, the package's `LICENSE`) |
 
-Its @font-face rule (`src/theme/fonts.ts` `TITLE_FACE`) is generated with
+## Start page book faces
+
+The new start page (stage 41, ADR 0125) sets its quote, its dim notes and
+the quote's author in Cormorant:
+
+| File | Family, version | Source | Licence (file here) |
+|---|---|---|---|
+| `CormorantGaramond-MediumItalic-latin.woff2` | Cormorant Garamond (Google Fonts v21), Medium Italic, Latin subset | `files/cormorant-garamond-latin-500-italic.woff2` from npm `@fontsource/cormorant-garamond@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2015 The Cormorant Project Authors (`LICENSE-CormorantGaramond.txt`, the package's `LICENSE`) |
+| `CormorantGaramond-Medium-latin.woff2` | Cormorant Garamond (Google Fonts v21), Medium, Latin subset | `files/cormorant-garamond-latin-500-normal.woff2` from npm `@fontsource/cormorant-garamond@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2015 The Cormorant Project Authors (`LICENSE-CormorantGaramond.txt`, the package's `LICENSE`) |
+| `CormorantSC-SemiBold-latin.woff2` | Cormorant SC (Google Fonts v19), SemiBold, Latin subset | `files/cormorant-sc-latin-600-normal.woff2` from npm `@fontsource/cormorant-sc@5.3.0` (used as is; not an npm dependency) | SIL OFL 1.1, © 2015 The Cormorant Project Authors (`LICENSE-CormorantSC.txt`, the package's `LICENSE`) |
+
+Their @font-face rules (`src/theme/fonts.ts` `START_FACES`, and
+`LOOK_FACES` for the upright Medium) are generated with the others,
+`font-display: block`, each at the normal weight (the files are already
+Medium and SemiBold, so no browser synthesises a bold); they download when
+a page shows text in them. The upright Medium (stage 42, ADR 0127) is the
+look pages' body text and is not preloaded; the start page's first paint
+uses only the italic. Not embedded in the exported replay.
+
+The title face's @font-face rule (`src/theme/fonts.ts` `TITLE_FACE`) is generated with
 the terminal fonts', `font-display: block`; it downloads when a framed
 pane first shows a title (`src/panes/title-font.ts` asks for it and
 re-places the hoods when it has loaded). The exported HTML replay embeds
@@ -219,6 +243,9 @@ fe09e040c8d9246f9e4f71e4345d3d9230573d51e8abaea565718c4bd0e28e51  Agave-Bold.wof
 ffefff0dece1c2edcfe90d7348869aa1d2f9e34a4a2454fd31acd82715bab964  AnonymousPro-Bold.woff2
 ebe57882f58621f8317650f7f49556cd7a385c75f036afaf1b5c73ed8fdbae8d  AnonymousPro-Regular.woff2
 8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263  Cinzel-Bold-latin.woff2
+8197bf53615ddc8c423f444c7f0eec63b7fa0ba093fcfbec60dfdd28429b0fc8  CormorantGaramond-Medium-latin.woff2
+4fb55a7a6d564d428061fe12c82c896264bcc8b7f0b52840bf88e0db5b91256f  CormorantGaramond-MediumItalic-latin.woff2
+12e0111fadbbbd005472837880657dd323d93441ac4b09cbdb34ebd6e8614fff  CormorantSC-SemiBold-latin.woff2
 d84776a2893f382b96c8bfe085d438dc07f2fdd98210fa9f2d3ac62d82a7aef4  CascadiaMono-Bold.woff2
 abbf67cceb200508c9590ac9b75b37dd2211f58ea56279f1fa6ec87265f9d713  CascadiaMono-Regular.woff2
 989f3749f990060bc0f303d3d966fd2b2e45780023bd19a29c7376b58489d2f1  DejaVuSansMono-Bold.woff2

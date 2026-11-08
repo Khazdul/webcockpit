@@ -66,12 +66,25 @@
 // first use) and runs the retention sweep once, when the start page first
 // shows (Web Lock `webcockpit-sweep`, so one tab sweeps; errors are silent).
 //
-// Log player (ADR 0018): `openPlayer(session)` (History's RUN LOG, via
-// ChromeServices) loads the chain, hides the start page without touching
-// its frame stack and shows the player (src/app/player-host.ts, a chunk of
-// its own); its ESC closes it and shows the start page as it was
-// (`show({ keep: true })`). Only from the start page, never over the
-// cockpit.
+// Log player (ADR 0018; src/app/player-host.ts, a chunk of its own). Only
+// from the start page, never over the cockpit, and one at a time. The
+// player core (stage 42f, ADR 0127): the run log player has the kit's Back
+// at the top left and times as `h:mm:ss`, and an open resolves to why it
+// did not open (History's error box) instead of only logging a failure.
+// - `openRunLog(session)` (History's Run log, via ChromeServices; stage 45
+//   owner feedback, ADR 0130) loads the chain into a host parked out of
+//   sight in the page root and resolves to it; History moves it into its
+//   Run log page in the big box (`RunLogFrame`), over the still sky. The
+//   start page stays; the host's close (Esc, Back) disposes it and the page
+//   pops itself.
+// - `openPlayer(session)` and `openPlayerChain` (the dev hook, the bench,
+//   the tests) show the player over the whole window: the start page is
+//   hidden without touching its frame stack and shown again as it was
+//   (`show({ keep: true })`) when the player closes.
+// - `embedPlayer(slot)` mounts a host inside a page of the start surface
+//   (the Spotlights viewer, stage 46): the start page stays.
+// Each host is the shell's `playerHost` until it is disposed, and no
+// second player opens meanwhile.
 //
 // Map (ADR 0020): `maps` (src/map/store.ts) is the current map, shared by
 // the cockpit's Map pane, the log player's and Options → Mapper.
@@ -81,10 +94,8 @@
 // cockpit App's output once; the chrome shows them on the start page and
 // in the phone's ESC menu header (`services.notices`).
 //
-// Spotlights (ADR 0019): `openSpotlights()` (the start page's Spotlights)
-// loads the reel (src/player/spotlight-reel.ts) and opens it in the same
-// player host (src/player/spotlight-mode.ts); ESC returns to the start
-// page's main menu the same way.
+// Spotlights (ADR 0019, 0131): the start page's Spotlights page loads the
+// reel itself and plays it in an embedded host (`embedPlayer`).
 
 import type { BenchProbe } from './bench-hook';
 import type {
@@ -94,17 +105,18 @@ import type {
   PopupPlace,
   SettingsPopupTarget,
   SettingsPopupsHandle,
+  StartLeave,
   StartPageHandle,
   WindowId,
   WindowsHandle,
 } from '../chrome';
 import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
 import type { PaneId } from '../layout/types';
-import type { PlayerHost, PlayerInfo } from './player-host';
+import type { PlayerHost, PlayerInfo, PlayerOpenOptions } from './player-host';
+import type { PlayerOpenResult, RunLogOpenResult } from '../chrome/kit/hooks';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
 import type { ChainRun } from '../player/timeline';
-import type { ReelHandle } from '../player/spotlight-mode';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
@@ -124,12 +136,19 @@ import { NoticeIndicator } from '../ui/notice-indicator';
 import { device } from '../core/device';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
-import { bootDone, bootStep, revealStart } from './boot-progress';
+import { REVEAL_FADE_MS, bootDone, bootStep, revealStart } from './boot-progress';
 
 type ChromeModule = typeof import('../chrome');
 
 /** Delay before the profile editor chunk is prefetched on the start page. */
 const EDITOR_PREFETCH_MS = 2000;
+
+/** The run log player's mode (ADR 0127): the kit's Back, times as `h:mm:ss`. */
+const RUN_LOG_VIEW: PlayerOpenOptions = { view: { back: { title: 'Back to History (Esc)' }, hours: true } };
+
+/** Why a player did not open, as a sentence. */
+const errText = (e: unknown): string => (e instanceof Error && e.message ? e.message : String(e));
+const ONLY_START = 'The player opens from the start page only.';
 
 /** Reasons that never auto-open the menu: the user asked for the disconnect. */
 const QUIET_REASONS = new Set([REASON_USER_RECONNECT, REASON_USER_DISCONNECT, REASON_REPLAY_START]);
@@ -178,6 +197,8 @@ export class Shell {
   private popupsP: Promise<SettingsPopupsHandle> | null = null;
   /** The cockpit is the visible view. */
   private inCockpit = false;
+  /** Enter MUME's transition, while the start page leaves over the cockpit. */
+  private entering: { leave: StartLeave; css: string } | null = null;
   /** Some live connection has reached login (the bootstrap guard). */
   private everUp = false;
   private prevConn: ConnState = 'idle';
@@ -187,8 +208,6 @@ export class Shell {
   private swept = false;
   private player: PlayerHost | null = null;
   private playerOpening = false;
-  /** The open Spotlights reel (ADR 0110). */
-  private reel: ReelHandle | null = null;
   /** The current map (ADR 0020): the cockpit's and the log player's Map pane, Options → Mapper. */
   readonly maps: MapStore;
   /** The script library (ADR 0051): the cockpit's script host and the Scripts page. */
@@ -256,6 +275,8 @@ export class Shell {
       // The chrome chunk and the fonts load side by side (ADR 0083).
       let chromeDone = false;
       let fontsDone = false;
+      let reveal!: () => void;
+      const revealed = new Promise<void>((r) => (reveal = r));
       const progress = (): void => {
         if (chromeDone && fontsDone) bootStep(90, 'Starting');
         else bootStep(70, chromeDone ? 'Loading fonts' : 'Loading interface');
@@ -272,7 +293,10 @@ export class Shell {
             progress();
           }),
         ]);
-        this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter() });
+        // The sky engine mounts once the reveal's fade is over, on the first paint's
+        // sky (ADR 0083): its canvases fade in on screen, and it judges the
+        // device's frame times without the page's own fade in them (ADR 0124).
+        this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter(), skyHold: revealed });
         this.startMount.style.opacity = '0';
         this.showStart();
         bootStep(100, 'Ready');
@@ -280,6 +304,8 @@ export class Shell {
       } finally {
         this.startMount.style.opacity = '';
         bootDone();
+        const still = this.opts.root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        setTimeout(reveal, still ? 0 : REVEAL_FADE_MS);
       }
     }
     // Well after the first paint and the web font, so it never competes
@@ -287,11 +313,61 @@ export class Shell {
     setTimeout(() => this.idle(() => void import('../editor').catch(() => undefined)), EDITOR_PREFETCH_MS);
   }
 
-  /** Enter MUME: shows the cockpit and connects. */
+  /**
+   * Enter MUME: shows the cockpit and connects, both at once (ADR 0125):
+   * the input has the focus and every key from the first moment, and the
+   * game's text may arrive while the start page still leaves over it (it
+   * fades away, its sky zooms, it fades out: `StartPageHandle.leave`). A second
+   * Enter or click meanwhile is the cockpit's (the start page has let go
+   * of its keys and pointer events). Without the transition (no Web
+   * Animations) the switch is at once.
+   */
   enter(): void {
+    if (this.inCockpit) return;
     const app = this.ensureApp();
-    this.showCockpit(app);
+    const start = this.start;
+    const leave = start?.visible ? start.leave() : null;
+    if (!leave) {
+      this.showCockpit(app);
+      app.connectLive();
+      return;
+    }
+    // The page lies over the cockpit where it is now, out of the flow.
+    const host = this.startHost;
+    const r = host.getBoundingClientRect();
+    const css = host.style.cssText;
+    Object.assign(host.style, {
+      position: 'fixed',
+      left: `${r.left}px`,
+      top: `${r.top}px`,
+      width: `${r.width}px`,
+      height: `${r.height}px`,
+      zIndex: '500',
+      pointerEvents: 'none',
+    });
+    const entering = { leave, css };
+    this.entering = entering;
+    this.showCockpit(app, { keepStart: true });
     app.connectLive();
+    void leave.finished.then((done) => {
+      if (!done || this.entering !== entering) return;
+      this.endEnter();
+      this.start?.hide();
+      this.startHost.style.display = 'none';
+    });
+  }
+
+  /** Enter MUME's transition is playing (tests, the dev hook). */
+  get enterPlaying(): boolean {
+    return !!this.entering;
+  }
+
+  /** Puts the start page's host back in the flow after the transition. */
+  private endEnter(): void {
+    const e = this.entering;
+    if (!e) return;
+    this.entering = null;
+    this.startHost.style.cssText = e.css;
   }
 
   /** Exit session: closes the connection and returns to the start page. */
@@ -449,72 +525,102 @@ export class Shell {
     return this.player;
   }
 
-  /** Opens the log player on `session` (from the start page only). */
-  openPlayer(session: Session): Promise<void> {
-    return this.startPlayer(async (host) => host.open(session, await this.runLibrary()));
+  /**
+   * Loads `session` into a run log player host parked out of sight (from
+   * the start page only; ChromeServices.openRunLog): resolves to the
+   * playing host, which the caller moves into its page or disposes, or to
+   * why it did not open.
+   */
+  async openRunLog(session: Session): Promise<RunLogOpenResult> {
+    const doc = this.opts.root.ownerDocument;
+    const park = doc.createElement('div');
+    park.className = 'wc-player-park';
+    park.style.display = 'none';
+    this.opts.root.appendChild(park);
+    const host = await this.makeHost(park, () => {});
+    if (typeof host === 'string') {
+      park.remove();
+      return { ok: false, error: host };
+    }
+    host.onDispose(() => {
+      park.remove();
+      if (this.player === host) this.player = null;
+    });
+    try {
+      await host.open(session, await this.runLibrary(), RUN_LOG_VIEW);
+      if (host.isClosed) return { ok: false, error: 'The player was closed while it opened.' };
+      return { ok: true, host };
+    } catch (err) {
+      console.error('WebCockpit: the log player could not open', err);
+      host.dispose();
+      return { ok: false, error: errText(err) };
+    }
   }
 
-  /** Opens the log player on logs that are not stored (dev hook, measurements). */
-  openPlayerChain(chain: readonly ChainRun[], events: readonly RunEvent[], info: PlayerInfo): Promise<void> {
-    return this.startPlayer((host) => host.openChain(chain, events, info));
+  /** Opens the log player over the whole window on `session` (from the start page only; the dev hook); resolves to how it went. */
+  openPlayer(session: Session): Promise<PlayerOpenResult> {
+    return this.startPlayer(async (host) => host.open(session, await this.runLibrary(), RUN_LOG_VIEW));
+  }
+
+  /** Opens the log player on logs that are not stored (dev hook, measurements), as the run log player. */
+  openPlayerChain(chain: readonly ChainRun[], events: readonly RunEvent[], info: PlayerInfo): Promise<PlayerOpenResult> {
+    return this.startPlayer((host) => host.openChain(chain, events, info, RUN_LOG_VIEW));
   }
 
   /**
-   * Loads the Spotlights reel and plays it (from the start page only).
-   * Resolves to the empty state when there is nothing to play.
+   * A player host mounted in `slot`, inside a page of the start surface
+   * (ChromeServices.embedPlayer): it fills the slot and follows its size,
+   * and the start page stays shown. Null while another player is open or
+   * opening, over the cockpit, or when the player chunk cannot load. The
+   * host is `playerHost` until it is disposed (its `close()` disposes it
+   * too, and shows or hides nothing).
    */
-  async openSpotlights(): Promise<'no_data' | 'filtered' | null> {
-    if (this.inCockpit || this.player || this.playerOpening) return null;
-    const [{ ReelSource }, lib] = await Promise.all([import('../player/spotlight-reel'), this.runLibrary()]);
-    const settings = this.opts.settings;
-    // One source per open: the runs are read once, and a rebuild for new
-    // settings reads only windows not read yet (ADR 0110).
-    const source = new ReelSource(lib);
-    const reel = await source.load(settings.get().spotlights, Date.now() * 1000);
-    if ('empty' in reel) return reel.empty;
-    const { openSpotlightReel } = await import('../player/spotlight-mode');
-    await this.startPlayer((host) => {
-      this.reel = openSpotlightReel(host, reel, {
-        source,
-        settings,
-        // The card's Characters list: the recorded characters.
-        characters: () => lib.characters(),
-      });
-      host.onDispose(() => (this.reel = null));
+  async embedPlayer(slot: HTMLElement): Promise<PlayerHost | null> {
+    const host = await this.makeHost(slot, () => {});
+    if (typeof host === 'string') return null;
+    host.onDispose(() => {
+      if (this.player === host) this.player = null;
     });
-    return null;
+    return host;
   }
 
-  /** The open Spotlights reel (tests, the dev hook). */
-  get spotlightReel(): ReelHandle | null {
-    return this.reel;
-  }
-
-  private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<void> {
-    if (this.inCockpit || this.player || this.playerOpening) return;
+  /**
+   * A new player host in `root`, once its chunk is in, as the shell's
+   * `playerHost`; or why none may open (over the cockpit, another player
+   * open or opening, the chunk lost).
+   */
+  private async makeHost(root: HTMLElement, onClose: () => void): Promise<PlayerHost | string> {
+    if (this.inCockpit) return ONLY_START;
+    if (this.player || this.playerOpening) return 'Another player is open.';
     this.playerOpening = true;
     try {
       const { PlayerHost } = await import('./player-host');
-      if (this.inCockpit) return;
-      const host = new PlayerHost({
-        root: this.opts.root,
-        settings: this.opts.settings,
-        onClose: () => this.closePlayer(),
-        map: this.maps.host(),
-      });
-      host.el.style.display = 'none';
-      this.player = host;
+      if (this.inCockpit || !root.isConnected) return ONLY_START;
+      return (this.player = new PlayerHost({ root, settings: this.opts.settings, onClose, map: this.maps.host() }));
+    } catch (err) {
+      console.error('WebCockpit: the player could not load', err);
+      return errText(err);
+    } finally {
+      this.playerOpening = false;
+    }
+  }
+
+  private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<PlayerOpenResult> {
+    const host = await this.makeHost(this.opts.root, () => this.closePlayer());
+    if (typeof host === 'string') return { ok: false, error: host };
+    host.el.style.display = 'none';
+    try {
       await load(host);
-      if (this.player !== host) return;
+      if (this.player !== host) return { ok: false, error: 'The player was closed while it opened.' };
       this.start?.hide();
       this.startHost.style.display = 'none';
       host.el.style.display = '';
+      return { ok: true };
     } catch (err) {
       console.error('WebCockpit: the log player could not open', err);
-      this.player?.dispose();
-      this.player = null;
-    } finally {
-      this.playerOpening = false;
+      host.dispose();
+      if (this.player === host) this.player = null;
+      return { ok: false, error: errText(err) };
     }
   }
 
@@ -527,6 +633,8 @@ export class Shell {
   // ------------------------------------------------------------------ views
 
   private showStart(): void {
+    // Back before the transition was over: the page shows as it was (start.show() cancels it).
+    this.endEnter();
     this.inCockpit = false;
     // The windows close with the cockpit; their unsaved changes are discarded (ADR 0103).
     this.windows?.closeAll();
@@ -542,9 +650,11 @@ export class Shell {
     }
   }
 
-  private showCockpit(app: App): void {
-    this.start?.hide();
-    this.startHost.style.display = 'none';
+  private showCockpit(app: App, o: { keepStart?: boolean } = {}): void {
+    if (!o.keepStart) {
+      this.start?.hide();
+      this.startHost.style.display = 'none';
+    }
     app.el.style.display = '';
     this.inCockpit = true;
     app.menuBar?.setShown(true);
@@ -637,8 +747,8 @@ export class Shell {
       ...(this.opts.notices ? { notices: this.opts.notices } : {}),
       onProfileSaved: (name) => this.appRef?.ui('system', `Profile {${uiValue(name)}} saved.`),
       runs: () => this.runLibrary(),
-      openPlayer: (session) => void this.openPlayer(session),
-      openSpotlights: () => this.openSpotlights(),
+      openRunLog: (session) => this.openRunLog(session),
+      embedPlayer: (slot) => this.embedPlayer(slot),
       maps: this.maps,
       scripts: this.scripts,
       scriptRunning: (name) => this.appRef?.scriptRunning(name) ?? null,

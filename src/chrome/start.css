@@ -1,0 +1,566 @@
+/* The start surface (src/chrome/start-surface.tsx, ADR 0125): the sky,
+ * the scenery (wordmark, almanac, notices), the start menu and the
+ * quote. The kit's box, buttons and labels are in kit/look.css. */
+
+/* The places of the sky, the wordmark and the panel (`--wc-brand-top`,
+ * `--wc-brand-pad`, `--wc-brand-gap`, `--wc-panel-w`) are shared with the
+ * first paint: src/start/geometry.css. The wordmark's measured height is
+ * `--wc-brand-h` (set by the surface). The sky brings its own vignette and
+ * grain (ADR 0124); the page adds none. */
+
+/* The frame stack fills the surface; each new-look frame is its own layer. */
+.wc-start > .wc-stack {
+  position: absolute;
+  inset: 0;
+}
+
+.wc-start > .wc-stack > .wc-frame {
+  position: absolute;
+  inset: 0;
+}
+
+/* An old-look frame: its element is the cell grid, as before (placed by
+ * the surface), and everything around it is the terminal background. */
+.wc-start > .wc-stack > .wc-frame.wc-start-gridframe {
+  inset: auto;
+  background: var(--term-bg);
+  box-shadow: 0 0 0 200vmax var(--term-bg);
+}
+
+.wc-start.is-grid-small > .wc-stack > .wc-frame.wc-start-gridframe {
+  visibility: hidden;
+}
+
+/* Above an old-look frame: the client notices on its top row, or the size notice. */
+.wc-start-gridtop {
+  pointer-events: none;
+}
+
+.wc-start-gridtop.is-small {
+  background: var(--term-bg);
+  box-shadow: 0 0 0 200vmax var(--term-bg);
+}
+
+.wc-start-gridtop .wc-start-notices,
+.wc-start-gridtop .wc-start-notice-btn {
+  pointer-events: auto;
+}
+
+/* ------------------------------------------------------------ scenery */
+
+.wc-start-scenery[hidden] {
+  display: none;
+}
+
+.wc-start-brand {
+  transition: transform 0.8s cubic-bezier(0.3, 0.9, 0.25, 1);
+}
+
+.wc-start.is-sub .wc-start-brand {
+  transform: scale(0.62) translateY(-14px);
+}
+
+/* Layout B (stage 42a, ADR 0127; the timings are MOTION in
+ * kit/look-motion.ts): while a large box is open the wordmark lifts 46 px
+ * and fades (from where it rests: the full mark, or the sub-page's smaller
+ * one), and it settles back after the box has begun to shrink. Transform
+ * and opacity only (no filter on the masked mark). */
+.wc-start.is-large .wc-start-brand {
+  transform: translateY(-46px) scale(0.97);
+  opacity: 0;
+  transition:
+    transform 0.62s cubic-bezier(0.5, 0, 0.5, 1),
+    opacity 0.62s cubic-bezier(0.5, 0, 0.5, 1);
+}
+
+.wc-start.is-large.is-lift-sub .wc-start-brand {
+  transform: scale(0.62) translateY(-14px) translateY(-46px) scale(0.97);
+}
+
+.wc-start.is-from-large .wc-start-brand {
+  transition:
+    transform 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.32s,
+    opacity 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.32s;
+}
+
+/* The phone: no wordmark and no almanac around a tall box (data-lk-box: the top box's kind, src/chrome/start-morph.tsx). */
+html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-brand,
+html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* The almanac at the bottom right: date, time · period · year, version. */
+.wc-start-almanac {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  text-align: right;
+  pointer-events: none;
+  padding: 36px 20px 16px 90px;
+  background: radial-gradient(farthest-side at 100% 100%, rgba(4, 3, 2, 0.34), rgba(4, 3, 2, 0.14) 55%, transparent);
+  text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.85);
+}
+
+.wc-alm-d {
+  font: 700 12px/1.55 var(--lk-display);
+  letter-spacing: 0.15em;
+  color: #c9b08a;
+}
+
+.wc-alm-m,
+.wc-alm-v {
+  font: 400 11px/1.65 var(--lk-mono);
+  letter-spacing: 0;
+  color: var(--lk-dim);
+}
+
+.wc-alm-v {
+  color: var(--lk-faint);
+}
+
+/* On a bright sky the quote's dark ink, with a faint light lip (pale text
+ * with a dark shadow does not read on a day sky). */
+.wc-start-almanac.is-ink {
+  background: none;
+  text-shadow: 0 1px 0 rgba(255, 248, 232, 0.45);
+}
+
+.wc-start-almanac.is-ink .wc-alm-d { color: #3a2614; }
+.wc-start-almanac.is-ink .wc-alm-m { color: #4a3a2a; }
+.wc-start-almanac.is-ink .wc-alm-v { color: #5a4a38; }
+
+.wc-start-almanac,
+.wc-alm-d,
+.wc-alm-m,
+.wc-alm-v {
+  transition: color 2.5s, text-shadow 2.5s;
+}
+
+/* Layout B: the almanac fades while a large box is open, and comes back
+ * after the box has shrunk (the content's fade and the shrink: 0.92 s). */
+.wc-start-almanac {
+  transition: color 2.5s, text-shadow 2.5s, opacity 0.35s;
+}
+
+.wc-start.is-large .wc-start-almanac {
+  opacity: 0;
+}
+
+.wc-start.is-from-large .wc-start-almanac {
+  transition: color 2.5s, text-shadow 2.5s, opacity 0.35s 0.92s;
+}
+
+/* The client notices (ADR 0025): small glass pills at the top right. */
+.wc-start-pills {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  max-width: calc(100% - 24px);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.wc-start-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 11px;
+  margin: 0;
+  border-radius: 12px;
+  font: italic 500 14px/1 var(--lk-serif);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 214, 160, 0.18);
+  background: linear-gradient(180deg, rgba(255, 232, 200, 0.14), rgba(255, 220, 180, 0.04) 50%, rgba(20, 14, 10, 0.35));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 206, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+}
+
+.wc-start-pill.is-update {
+  color: #ffd98a;
+  cursor: pointer;
+}
+
+.wc-start-pill.is-update:hover {
+  color: #fff0c8;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 215, 0.6), 0 0 14px -4px rgba(255, 190, 90, 0.7), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.wc-start-pill.is-storage {
+  color: #ffb0a0;
+}
+
+/* The minimum-size notice over the sky. */
+.wc-start.is-tiny > .wc-stack {
+  visibility: hidden;
+}
+
+.wc-lk-tiny {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px;
+  text-align: center;
+  font-style: italic;
+  text-shadow: 0 1px 2px #000;
+}
+
+.wc-lk-tiny-t {
+  font: 700 15px/1.4 var(--lk-display);
+  font-style: normal;
+  letter-spacing: 0.12em;
+  color: #ffd98a;
+}
+
+.wc-lk-tiny-h {
+  color: var(--lk-dim);
+}
+
+/* ------------------------------------------------------------ the menu */
+
+.wc-start-main {
+  position: absolute;
+  inset: 0;
+}
+
+.wc-sm-stage {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  padding: calc(var(--wc-brand-top) + var(--wc-brand-h, 0px) + var(--wc-brand-gap)) 16px 72px;
+}
+
+@media (max-height: 560px) {
+  .wc-sm-stage {
+    padding-top: 18px;
+  }
+}
+
+.wc-sm-panel {
+  flex: none;
+  width: min(var(--wc-panel-w), 100%);
+}
+
+.wc-sm-win {
+  padding: 32px 12px 22px;
+}
+
+.wc-sm {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wc-sm-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 42px;
+  padding: 0 18px;
+  font: 700 15.5px/1 var(--lk-display);
+  letter-spacing: 0.17em;
+  color: #a69679;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.45s, text-shadow 0.45s;
+}
+
+.wc-sm-item .wc-sm-ic {
+  opacity: 0.65;
+  transition: opacity 0.45s, color 0.45s;
+}
+
+.wc-sm-note {
+  font: italic 500 14px/1 var(--lk-serif);
+  letter-spacing: 0.02em;
+  color: var(--lk-faint);
+  opacity: 0.75;
+  margin-left: -4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  transition: color 0.45s, opacity 0.45s;
+}
+
+.wc-sm-label {
+  white-space: nowrap;
+}
+
+.wc-sm-item.is-prime {
+  height: 56px;
+  gap: 16px;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+  color: #c9b28a;
+}
+
+.wc-sm-item.is-prime .wc-sm-ic {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.5;
+}
+
+/* The selection (round 2's 07): the chosen row's text and icon come up to
+ * full lamp-lit brightness; no glow behind the row, no glide, no sweep. */
+.wc-sm-item.is-sel {
+  color: #fff1d8;
+  text-shadow: 0 0 10px rgba(255, 196, 128, 0.28), 0 1px 1px rgba(0, 0, 0, 0.6);
+  transition-duration: 0.3s;
+}
+
+.wc-sm-item.is-sel .wc-sm-ic {
+  opacity: 1;
+  color: #ffe2b4;
+  transition-duration: 0.3s;
+}
+
+.wc-sm-item.is-sel .wc-sm-note {
+  color: var(--lk-dim);
+  opacity: 0.9;
+}
+
+/* The rule under Enter MUME, with a small iron diamond. */
+.wc-sm-sep {
+  position: relative;
+  height: 13px;
+  margin: 2px 8px 4px;
+  list-style: none;
+}
+
+.wc-sm-sep::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 200, 130, 0.24) 30%, rgba(255, 200, 130, 0.24) 70%, transparent);
+}
+
+.wc-sm-sep::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #7a6a58, #2a2420);
+  box-shadow: 0 0 0 1px #000, 0 0 6px rgba(255, 160, 70, 0.3);
+}
+
+/* Messages ("Loading spotlights…", errors) at the foot of the panel. */
+.wc-sm-flash {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+}
+
+/* ------------------------------------------------------------ the quote (style A) */
+
+/* Nothing behind the words. Pale parchment with a crisp dark outline; on a
+ * bright sky (SkyLook.textBackLuminance) dark iron-brown ink with a faint
+ * light lip. */
+.wc-sm-quote {
+  flex: none;
+  margin: clamp(16px, 3.2vh, 36px) 0 0;
+  max-width: 660px;
+  padding: 0 18px;
+  text-align: center;
+  color: #f6ead3;
+  transition: color 2.5s;
+}
+
+.wc-sm-quote p {
+  margin: 0;
+  font: italic 500 clamp(19px, 1.6vw, 25px)/1.3 var(--lk-serif);
+  font-weight: normal;
+  letter-spacing: 0.005em;
+  color: inherit;
+  text-wrap: balance;
+  text-shadow: 0 0 1px rgba(10, 6, 3, 0.95), 0 1px 1px rgba(10, 6, 3, 0.85), 0 0 3px rgba(10, 6, 3, 0.4);
+  transition: text-shadow 2.5s;
+}
+
+.wc-sm-orn {
+  display: block;
+  position: relative;
+  width: 150px;
+  height: 9px;
+  margin: 11px auto 9px;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.wc-sm-orn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor 22%, currentColor 40%, transparent 45%, transparent 55%, currentColor 60%, currentColor 78%, transparent);
+  filter: drop-shadow(0 1px 0 rgba(10, 6, 3, 0.55));
+  transition: filter 2.5s;
+}
+
+.wc-sm-orn::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  box-sizing: border-box;
+  transform: rotate(45deg);
+  border: 1px solid currentColor;
+  box-shadow: 0 1px 0 rgba(10, 6, 3, 0.5);
+  transition: box-shadow 2.5s;
+}
+
+.wc-sm-quote cite {
+  display: block;
+  font: normal clamp(15px, 1.1vw, 17px)/1 var(--lk-sc);
+  letter-spacing: 0.14em;
+  color: #ead2a6;
+  text-shadow: 0 0 1px rgba(10, 6, 3, 0.95), 0 1px 1px rgba(10, 6, 3, 0.8);
+  transition: color 2.5s, text-shadow 2.5s;
+}
+
+/* Pale ink on a bright sky (a day sky is bright but under the dark-ink
+ * threshold): the outline is a little heavier and a soft dark shade sits
+ * close round the letters (still nothing behind the words as a block). */
+.wc-sm-quote.is-lit p {
+  text-shadow: 0 0 1px rgba(10, 6, 3, 1), 0 1px 1px rgba(10, 6, 3, 0.9), 0 0 4px rgba(10, 6, 3, 0.55), 0 0 10px rgba(10, 6, 3, 0.25);
+}
+.wc-sm-quote.is-lit cite {
+  text-shadow: 0 0 1px rgba(10, 6, 3, 1), 0 1px 1px rgba(10, 6, 3, 0.85), 0 0 4px rgba(10, 6, 3, 0.5);
+}
+.wc-sm-quote.is-lit .wc-sm-orn::before { filter: drop-shadow(0 1px 0 rgba(10, 6, 3, 0.8)) drop-shadow(0 0 2px rgba(10, 6, 3, 0.5)); }
+
+.wc-sm-quote.is-ink { color: #24180e; }
+.wc-sm-quote.is-ink p { text-shadow: 0 1px 0 rgba(255, 248, 232, 0.5), 0 0 1px rgba(255, 248, 232, 0.35); }
+.wc-sm-quote.is-ink .wc-sm-orn::before { filter: drop-shadow(0 1px 0 rgba(255, 248, 232, 0.45)); }
+.wc-sm-quote.is-ink .wc-sm-orn::after { box-shadow: 0 1px 0 rgba(255, 248, 232, 0.4); }
+.wc-sm-quote.is-ink cite { color: #4a3119; text-shadow: 0 1px 0 rgba(255, 248, 232, 0.45); }
+
+/* ------------------------------------------------------------ phone */
+
+/* The sky reaches under the notch and the home indicator (geometry.css). */
+html.wc-phone .wc-start {
+  overflow: visible;
+}
+
+/* Clear of the phone's fullscreen button (src/ui/ui.css .wc-fs-btn). */
+html.wc-phone .wc-start-pills {
+  right: 60px;
+  top: 16px;
+}
+
+/* A large or tall box reaches the phone's top right corner, where the
+ * fullscreen button floats over its page: the button steps aside while one
+ * is up on the shown start page (back on the menu). */
+html.wc-phone:has(.wc-start-host:not([style*="display: none"]) .wc-start:is([data-lk-box="large"], [data-lk-box="tall"])) .wc-fs-btn {
+  visibility: hidden;
+}
+
+html.wc-phone .wc-sm-item {
+  height: 38px;
+  font-size: 14.5px;
+}
+
+html.wc-phone .wc-sm-item.is-prime {
+  height: 52px;
+  font-size: 18.5px;
+}
+
+html.wc-phone .wc-sm-win {
+  padding-top: 30px;
+}
+
+html.wc-phone .wc-sm-quote {
+  max-width: 360px;
+}
+
+html.wc-phone .wc-sm-orn {
+  width: 120px;
+  margin: 9px auto 8px;
+}
+
+html.wc-phone .wc-start-almanac {
+  padding: 24px 12px 12px 48px;
+}
+
+html.wc-phone .wc-alm-d {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+}
+
+html.wc-phone .wc-alm-m,
+html.wc-phone .wc-alm-v {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+html.wc-phone.wc-kbd .wc-start-almanac {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-start-brand,
+  .wc-sm-item,
+  .wc-sm-item .wc-sm-ic,
+  .wc-sm-quote,
+  .wc-sm-quote p,
+  .wc-sm-quote cite {
+    transition: none;
+  }
+
+  /* Layout B with reduced motion: the wordmark and the almanac fade, nothing lifts. */
+  .wc-start.is-large .wc-start-brand {
+    transform: none;
+    transition: opacity 0.26s;
+  }
+
+  .wc-start.is-large.is-lift-sub .wc-start-brand {
+    transform: scale(0.62) translateY(-14px);
+  }
+
+  .wc-start.is-from-large .wc-start-brand {
+    transition: opacity 0.24s;
+  }
+
+  .wc-start-almanac,
+  .wc-start.is-from-large .wc-start-almanac {
+    transition: opacity 0.24s;
+  }
+}
+
+/* ------------------------------------------------------------ Enter MUME */
+
+/* The transition (src/chrome/enter-transition.ts): while the page folds,
+ * zooms and fades over the cockpit, nothing on it takes a pointer. */
+.wc-start.is-leaving,
+.wc-start.is-leaving * {
+  pointer-events: none !important;
+}

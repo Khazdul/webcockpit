@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Round 7 · Run log A · Ramen
+  The run log in the large box on the sky: the wordmark small in the corner, the player cockpit in the window, the vertical rail with the markers inside its right edge, the controls as a glass bar in the box foot (never over the game text, so no auto-hide).
+  Shared: game.js (the fake player cockpit), pchrome.js (the chrome). Keys: Space play/pause · ←/→ 10 s · Home start ·
+  ↑↓ PgUp PgDn End the pause cursor · 1–6 speed · Esc a popup, else back.
+  URL: ?loading · ?error · ?paused · ?pos=MIN · ?pop=panes|display · ?ended · ?t= ?m= (the sky)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Run log A · Ramen</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="game.css">
+<link rel="stylesheet" href="pchrome.css">
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="hpages.js"></script>
+<script src="game.js"></script>
+<script src="pchrome.js"></script>
+<script>PC.mount({ layout: 'a', mode: 'log', sky: true, mark: true, cover: false });</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<!--
+  Round 7 · History · A "Tabell och kort" (table and card). The layout study's History (layout/history.js),
+  refined: the session table with sortable heads and character pills on the left, the chosen session in a
+  side card with its six actions (on a phone the card opens under the chosen row), Backup / Restore and the
+  storage line in the foot. Stats opens inside the same box; Rate and Delete are small boxes over it.
+  Run log → player-a.html (and back). URL: ?empty · ?error · ?restorefail · ?statsloading · ?menu (start on the
+  start menu) · ?pick=s4 (choose a session) · ?do=stats|rate|delete (open one at once).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · History A · Tabell och kort</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="hist.css">
+<link rel="stylesheet" href="history-a.css">
+</head>
+<body>
+<section class="lp box-large hpage" id="page" data-hood="History" data-back aria-label="History"><div class="win"></div></section>
+<script src="../base/base.js"></script>
+<script src="hdata.js"></script>
+<script src="hpages.js"></script>
+<script src="history-a.js"></script>
+<script src="shell.js"></script>
+<script>
+const page = document.getElementById('page');
+WC.decorate(page);
+const h = HISTA.mount(page, { onRunLog: (s) => { location.href = `player-a.html?from=${encodeURIComponent('history-a.html?nointro&pick=' + s.id)}&nointro`; } });
+const shell = SHELL.init({ key: 'history', page, layer: h.layer });
+const d = WC.qs.get('do');
+if (d) setTimeout(() => h.act(d === 'delete' ? 'delete' : d), 120);
+</script>
+</body>
+</html>

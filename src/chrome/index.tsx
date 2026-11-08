@@ -1,5 +1,6 @@
-// The chrome chunk (ADR 0010 "Chrome", ADR 0013): the start page and the
-// phone's ESC menu (ADR 0112) as Preact surfaces on the cell grid, and the
+// The chrome chunk (ADR 0010 "Chrome", ADR 0013): the start page (free
+// DOM over the sky with old-look frames on the cell grid, ADR 0125) and the
+// phone's ESC menu (ADR 0112) as Preact surfaces, and the
 // cockpit's windows, popups and Statistics pane where the menu bar exists. Loaded with a dynamic
 // import from src/app/shell.ts, so Preact never sits on the game's hot
 // path (the output and input panes are plain TypeScript).
@@ -7,6 +8,7 @@
 //   const chrome = await import('../chrome');
 //   const start = chrome.mountStartPage(host, services, { onEnter });
 //   start.hide(); …; start.show({ keep: true });   // back where it was
+//   const run = start.leave();   // Enter MUME's transition, over the cockpit
 //   const menu = chrome.mountEscMenu(host, services, { status, close, reconnect, exit });
 //   menu.open({ preselect: 'reconnect' });
 //   menu.open({ target: 'scripts' });   // straight at a frame (ADR 0099)
@@ -15,21 +17,24 @@
 //   const stats = chrome.mountStatsPane(host, services, { runs, status }); // ADR 0109
 
 import './kit/kit.css';
-import { type VNode, render } from 'preact';
+import './kit/look.css';
+import { type ComponentChildren, type VNode, render } from 'preact';
 import { useRef } from 'preact/hooks';
-import { noticeIndicators } from '../app/notices';
 import { isLive } from '../app/status';
-import { CLIENT_VERSION } from '../core/build-info';
 import { EscMain, type EscActions, ExitConfirm, ProfileEntry } from './frames/esc-main';
 import { OptionsHub, PanesFrame } from './frames/options';
 import { ScriptsFrame } from './frames/scripts';
 import { StartMain } from './frames/start-main';
-import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
-import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
+import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useSettings } from './kit/hooks';
 import { device } from '../core/device';
+import { isLight } from '../theme/color';
+import { LookPlaceCtx, isLookFrame } from './kit/look';
 import { FrameStack } from './kit/stack';
-import { QUOTES, type Quote, randomQuote } from './quotes';
-import { bootQuote } from '../app/boot-progress';
+import { randomQuote } from './quotes';
+import { StartSurface } from './start-surface';
+import { type EnterRun, playEnter } from './enter-transition';
+
+export { StartNotices, type StartNoticeToken, TooSmall, startNoticeTokens } from './start-surface';
 
 export type { ChromeServices } from './kit/hooks';
 export { WINDOW_BTN_ATTR, type WindowId, type WindowsHandle, type WindowsOptions, mountWindows } from './windows';
@@ -49,6 +54,12 @@ export { type StatsPaneHandle, type StatsPaneOptions, mountStatsPane } from './s
 export interface StartPageOptions {
   /** Enter MUME. */
   onEnter: () => void;
+  /**
+   * The sky engine mounts once this settles (the first boot passes the
+   * reveal, ADR 0083: the engine's canvases then fade in on screen over
+   * the first paint's sky). Default: as soon as its chunk is in.
+   */
+  skyHold?: Promise<unknown>;
 }
 
 export interface StartPageShowOptions {
@@ -61,155 +72,95 @@ export interface StartPageShowOptions {
   keep?: boolean;
 }
 
+/** Enter MUME's transition (src/chrome/enter-transition.ts). */
+export interface StartLeave {
+  /** Resolves true when the page has faded out (the caller hides it), false when it was cancelled. */
+  readonly finished: Promise<boolean>;
+}
+
 export interface StartPageHandle {
   /** Shows the start page: on its main frame (a fresh frame stack), or as it was with `keep`. */
   show(opts?: StartPageShowOptions): void;
   hide(): void;
+  /**
+   * Plays Enter MUME's transition (ADR 0125): the page stays visible and
+   * its sky keeps running, its frame stack lets go of the keys and the
+   * focus, its pointer events stop, and its scenery fades away, the sky zooms and it fades out.
+   * The caller shows the cockpit under it and hides the page once
+   * `finished` resolves true. `show()` and `hide()` cancel it and put
+   * every element back. Null when the page is not visible or the browser
+   * has no Web Animations: the caller switches at once. A second call
+   * during the transition returns the running one.
+   */
+  leave(): StartLeave | null;
   readonly visible: boolean;
   dispose(): void;
 }
 
-interface StartSurfaceProps extends StartPageOptions {
-  visible: boolean;
-  epoch: number;
-  quote: Quote;
-}
-
-function StartSurface(p: StartSurfaceProps): VNode {
-  const ref = useRef<HTMLDivElement>(null);
-  const g = useHostGrid(ref);
-  const small = g.cols > 0 && tooSmall(g.cols, g.rows);
-  return (
-    <div class="wc-chrome wc-start" ref={ref} hidden={!p.visible}>
-      {g.cols > 0 && (
-        <GridCtx.Provider value={{ cols: g.cols, rows: g.rows, surface: 'start' }}>
-          <div
-            class="wc-screen"
-            hidden={small}
-            style={{ left: g.left, top: g.top, width: g.cols * g.cellW, height: g.rows * g.cellH }}
-          >
-            <FrameStack
-              key={p.epoch}
-              root={<StartMain onEnter={p.onEnter} quote={p.quote} />}
-              active={p.visible}
-              paused={small}
-            />
-            <StartNotices cols={g.cols} />
-          </div>
-          {small && <TooSmall cols={g.cols} rows={g.rows} />}
-        </GridCtx.Provider>
-      )}
-    </div>
-  );
-}
-
-/**
- * The client notices on the start surface (ADR 0025, amended): right-aligned
- * on the top row, which every start frame leaves blank, so they show on the
- * main menu and on every sub-frame. `Update 0.1.3 available: reload`
- * (C_YELLOW) reloads on click (no game is connected here); superseded
- * storage adds `Storage: not saved` (C_ERR).
- */
-export function StartNotices(p: { cols: number }): VNode | null {
-  const items = startNoticeTokens(useNotices());
-  if (items.length === 0) return null;
-  const full = items.map((t) => t.text).join('  ');
-  const text = truncate(full, Math.max(0, p.cols - 2));
-  return (
-    <div class="wc-line wc-start-notices" role="status">
-      {text !== full ? (
-        <span class={items[0]!.cls} title={items[0]!.title} onClick={items[0]!.onClick}>
-          {text}
-        </span>
-      ) : (
-        items.map((t, i) => (
-          <>
-            {i > 0 && '  '}
-            <span class={t.cls + (t.onClick ? ' wc-start-notice-btn' : '')} title={t.title} onClick={t.onClick}>
-              {t.text}
-            </span>
-          </>
-        ))
-      )}
-    </div>
-  );
-}
-
-export interface StartNoticeToken {
-  text: string;
-  title: string;
-  cls: string;
-  onClick?: () => void;
-}
-
-/** The start surface's notice tokens for `s`, update first. */
-export function startNoticeTokens(s: Parameters<typeof noticeIndicators>[0]): StartNoticeToken[] {
-  return noticeIndicators(s, CLIENT_VERSION).map((n) =>
-    n.key === 'update'
-      ? {
-          text: `Update ${s.update!.version} available: reload`,
-          title: `WebCockpit ${s.update!.version} is available (this tab runs ${CLIENT_VERSION}). Click to reload.`,
-          cls: 'wc-c-yellow',
-          onClick: () => globalThis.location?.reload(),
-        }
-      : { text: n.text, title: n.title, cls: 'wc-c-err' },
-  );
-}
-
-/** The minimum-size notice (Inv §3.1). */
-export function TooSmall(p: { cols: number; rows: number }): VNode {
-  const m = minView();
-  const lines = [
-    { text: 'Window too small', cls: 'wc-c-yellow' },
-    { text: `Needs ${m.cols}×${m.rows} cells, has ${p.cols}×${p.rows}.`, cls: 'wc-c-body' },
-    { text: 'Enlarge the window, zoom out, or open with ?safe.', cls: 'wc-c-hint' },
-  ];
-  const top = Math.max(0, Math.floor((p.rows - lines.length) / 2));
-  return (
-    <div class="wc-start-too-small">
-      {Array.from({ length: top }, () => (
-        <div class="wc-line" />
-      ))}
-      {lines.map((l) => (
-        <div class="wc-line" style={{ paddingLeft: `calc(var(--cell-w) * ${centreLeft(p.cols, l.text.length)})` }}>
-          <span class={l.cls}>{l.text}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** Mounts the start page into `host` (hidden until `show()`). */
 export function mountStartPage(host: HTMLElement, services: ChromeServices, opts: StartPageOptions): StartPageHandle {
-  // Once per page load (Inv §3.2); the one the first paint laid out for (ADR 0083).
-  const q = bootQuote();
-  const quote = (q !== null ? QUOTES[q] : undefined) ?? randomQuote();
+  // Once per page load (Inv §3.2).
+  const quote = randomQuote();
   let visible = false;
   let epoch = 0;
+  let leaving: EnterRun | null = null;
   const draw = (): void =>
     render(
       <ServicesCtx.Provider value={services}>
-        <StartSurface visible={visible} epoch={epoch} quote={quote} onEnter={opts.onEnter} />
+        <StartSurface
+          visible={visible}
+          leaving={!!leaving}
+          epoch={epoch}
+          skyHold={opts.skyHold}
+          root={<StartMain onEnter={opts.onEnter} quote={quote} />}
+        />
       </ServicesCtx.Provider>,
       host,
     );
+  // A transition stops when the page shows or hides: its animations are
+  // cancelled after the render, in the same task, so no frame shows the
+  // page put back before it is hidden.
+  const redraw = (): void => {
+    const was = leaving;
+    leaving = null;
+    draw();
+    was?.cancel();
+  };
   return {
     show(o = {}) {
       visible = true;
       if (!o.keep) epoch++;
-      draw();
+      redraw();
     },
     hide() {
       visible = false;
+      redraw();
+    },
+    leave() {
+      if (leaving) return leaving;
+      const el = host.querySelector<HTMLElement>('.wc-start');
+      if (!visible || !el || typeof el.animate !== 'function') return null;
+      leaving = playEnter(el, reducedMotion());
       draw();
+      return leaving;
     },
     get visible() {
       return visible;
     },
     dispose() {
+      leaving?.cancel();
+      leaving = null;
       render(null, host);
     },
   };
+}
+
+function reducedMotion(): boolean {
+  try {
+    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  } catch {
+    return false;
+  }
 }
 
 // --------------------------------------------------------------- ESC menu
@@ -267,6 +218,41 @@ function menuRoot(p: MenuSurfaceProps): VNode {
 const MENU_SHARE = 0.8;
 const menuShare = (): number => (device().phone ? 1 : MENU_SHARE);
 
+/**
+ * Where the menu's frames are drawn (stage 42d, ADR 0127): an old-look
+ * frame on the TUI grid inside the border, as before; a look frame over the
+ * whole screen on the opaque game background (window.css `.wc-menu-look`),
+ * in a `.wc-look` page (the kit's tokens, Paper on a light game background),
+ * where the kit's Box draws the Lykta frame (place `menu`).
+ */
+const menuFrameAttrs = (node: VNode): { class: string } | null => (isLookFrame(node) ? { class: 'wc-menu-look' } : null);
+const menuWrap = (node: VNode): VNode => (isLookFrame(node) ? <MenuLookPage>{node}</MenuLookPage> : node);
+
+/** A look frame's page in the menu: the tokens, dark or Paper as the game background. */
+function MenuLookPage(p: { children: ComponentChildren }): VNode {
+  const settings = useSettings();
+  return (
+    <div class="wc-look wc-menu-page" data-light={isLight(settings.appearance.bg) ? '' : undefined}>
+      {p.children}
+    </div>
+  );
+}
+
+/** The menu's frame stack: look frames in the place `menu`, full screen; old-look frames on the grid. */
+export function MenuStack(p: { root: VNode; active: boolean; onRootBack: () => void }): VNode {
+  return (
+    <LookPlaceCtx.Provider value="menu">
+      <FrameStack
+        root={p.root}
+        active={p.active}
+        onRootBack={p.onRootBack}
+        wrap={menuWrap}
+        frameAttrs={menuFrameAttrs}
+      />
+    </LookPlaceCtx.Provider>
+  );
+}
+
 function MenuSurface(p: MenuSurfaceProps): VNode {
   const ref = useRef<HTMLDivElement>(null);
   const g = useHostGrid(ref);
@@ -295,7 +281,7 @@ function MenuSurface(p: MenuSurfaceProps): VNode {
           </div>
           <div class="wc-overlay-inner" style={{ left: cw, top: ch, width: (W - 2) * cw, height: (H - 2) * ch }}>
             <GridCtx.Provider value={{ cols: W - 2, rows: H - 2, surface: 'menu' }}>
-              <FrameStack key={p.epoch} root={menuRoot(p)} active={p.open} onRootBack={p.close} />
+              <MenuStack key={p.epoch} root={menuRoot(p)} active={p.open} onRootBack={p.close} />
             </GridCtx.Provider>
           </div>
         </div>

@@ -51,6 +51,25 @@ export function nameFromFileName(fileName: string): string {
 }
 
 /**
+ * The names in `names` that equal another one but for case (`gibur` and
+ * `Gibur`): the Profile list shows their real spelling, since its small
+ * caps face draws them alike (ADR 0125 addendum "Names that differ only
+ * in case").
+ */
+export function caseTwins(names: Iterable<string>): Set<string> {
+  const byFold = new Map<string, string[]>();
+  for (const n of names) {
+    const k = n.toLowerCase();
+    const group = byFold.get(k);
+    if (group) group.push(n);
+    else byFold.set(k, [n]);
+  }
+  const twins = new Set<string>();
+  for (const group of byFold.values()) if (group.length > 1) for (const n of group) twins.add(n);
+  return twins;
+}
+
+/**
  * `base` if it is free, else `base_2`, `base_3` … (cut so the suffix fits
  * in 32 characters).
  */

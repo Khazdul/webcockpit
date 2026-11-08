@@ -218,7 +218,7 @@ test('live comm is archived per character and seeded after a reload', async ({ p
   const server = await live(page);
   const login = async () => {
     await page.goto('/');
-    await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+    await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
     await page.keyboard.press('Enter');
     await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
     server().send(gmcp('Char.Name', { name: 'Testchar', fullname: 'Testchar the Tester' }));

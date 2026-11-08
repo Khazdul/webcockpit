@@ -42,10 +42,11 @@ The full history of every change is in this repository's git log.
 
 ## Fonts (`public/fonts/`)
 
-Terminal fonts offered in Options → Appearance → Font (ADR 0010, ADR
-0049). Each is an unmodified font converted losslessly to WOFF2 (or
-upstream's own WOFF2), not subset; names and copyright notices are kept.
-Each licence text is shipped next to the files. Sources, versions, the
+Terminal fonts offered in Settings → Appearance → Font in the game
+(Options → Appearance on the phone; ADR 0010, ADR 0049). Each is an
+unmodified font converted losslessly to WOFF2 (or upstream's own WOFF2),
+not subset; names and copyright notices are kept. Each licence text is
+shipped next to the files. Sources, versions, the
 conversion, metrics and SHA-256 sums: `public/fonts/README.md`.
 
 - **DejaVu Sans Mono** 2.37 (regular, bold). Bitstream Vera Fonts
@@ -115,12 +116,31 @@ conversion, metrics and SHA-256 sums: `public/fonts/README.md`.
   Copyright 2026 The WebCockpit Authors. SIL Open Font License 1.1.
   `LICENSE-WebCockpitFill.txt`.
 
-The pane titles use one more font (ADR 0123):
+The pane titles use one more font (ADR 0123), which the start page's
+menu, buttons and almanac date line also use (stage 41, ADR 0125):
 
 - **Cinzel** 2.000 (bold only, Latin subset as Google Fonts serves it,
   from npm `@fontsource/cinzel` 5.3.0). Copyright 2020 The Cinzel Project
   Authors (https://github.com/NDISCOVER/Cinzel). SIL Open Font License
   1.1. `LICENSE-Cinzel.txt`.
+- The start page wordmark ("MUME", "COCKPIT") and the "M" favicon
+  (`public/favicon.svg`, `favicon.ico`, `apple-touch-icon.png`) are drawn
+  from Cinzel's letter outlines (the variable font `Cinzel[wght].ttf`
+  2.000 from google/fonts, weights 900 and 600), extracted by
+  `scripts/build-wordmark-glyphs.py` into `src/start/wordmark-glyphs.ts`
+  (ADR 0126). The font file itself is not shipped; the outlines are part
+  of a logo made with the font. Same copyright and licence as above.
+
+The start page uses two more (stage 41, ADR 0125), Cormorant Garamond
+for the quote, the dim italic notes and the text of its pages (stage 42,
+ADR 0127), Cormorant SC for the quote's author and small capitals:
+
+- **Cormorant Garamond** (Medium and Medium Italic, Latin subset as Google Fonts
+  serves it, v21, from npm `@fontsource/cormorant-garamond` 5.3.0) and
+  **Cormorant SC** (SemiBold, Latin subset, v19, from npm
+  `@fontsource/cormorant-sc` 5.3.0). Copyright 2015 The Cormorant Project
+  Authors (https://github.com/CatharsisFonts/Cormorant). SIL Open Font
+  License 1.1. `LICENSE-CormorantGaramond.txt`, `LICENSE-CormorantSC.txt`.
 
 **Lucida Console** is not distributed with WebCockpit and is never
 embedded in an exported file. It is offered only when it is installed on

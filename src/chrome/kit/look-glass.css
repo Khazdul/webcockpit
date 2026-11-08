@@ -1,0 +1,315 @@
+/* The lantern kit's glass pieces (stage 41, ADR 0125; split out of
+ * look.css in stage 42-0, filled in 42b, ADR 0127): the line icons' base
+ * rule, the glass buttons (plain, primary, danger, small, icon-only),
+ * Back and the shortcut letters. Imported by look.css; it needs only the
+ * tokens (look-tokens.css). The run log player's Back (42f) uses these
+ * rules too, but src/player/player.css does not import this file: the
+ * player opens from the start page, whose chrome CSS already holds it,
+ * and the HTML replay never shows Back (ADR 0127, "Player core").
+ *
+ * Every colour is a token, so a Paper context (`data-light`) turns the
+ * buttons light. Glass buttons never take the DOM focus (the frame stack
+ * keeps it): the keyboard's button is `.is-sel`. */
+
+@import "./look-tokens.css";
+
+/* ------------------------------------------------------------ icons */
+
+.wc-lk-ic {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Small text inside an icon (the "10" of the skip buttons). */
+.wc-lk-ic text {
+  fill: currentColor;
+  stroke: none;
+  font: 700 9px/1 var(--lk-serif, Georgia, serif);
+  letter-spacing: -0.02em;
+}
+
+/* ------------------------------------------------------------ glass buttons */
+
+.wc-lk-btn,
+.wc-lk-back {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 18px 0 14px;
+  margin: 0;
+  box-sizing: border-box;
+  border-radius: 5px;
+  cursor: pointer;
+  font: 700 12px/1 var(--lk-display);
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  color: var(--lk-glass-text);
+  border: 1px solid var(--lk-glass-edge);
+  background: var(--lk-glass);
+  -webkit-backdrop-filter: var(--lk-glass-blur);
+  backdrop-filter: var(--lk-glass-blur);
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip), inset 0 -1px 0 rgba(0, 0, 0, 0.25), var(--lk-glass-shadow);
+  text-shadow: var(--lk-glass-ts);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color calc(0.25s * var(--lk-ts, 1)),
+    text-shadow calc(0.25s * var(--lk-ts, 1)),
+    box-shadow calc(0.25s * var(--lk-ts, 1)),
+    background calc(0.25s * var(--lk-ts, 1)),
+    transform 0.12s;
+}
+
+.wc-lk-btn .wc-lk-ic,
+.wc-lk-back .wc-lk-ic {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.5;
+  opacity: 0.8;
+}
+
+.wc-lk-btn:focus,
+.wc-lk-back:focus {
+  outline: none;
+}
+
+.wc-lk-btn:not(.is-disabled):hover,
+.wc-lk-btn.is-sel:not(.is-disabled),
+.wc-lk-back:hover {
+  color: var(--lk-glass-text-hot);
+  text-shadow: 0 0 7px var(--lk-glass-glow);
+  background: var(--lk-glass-hot);
+  box-shadow:
+    inset 0 1px 0 var(--lk-glass-lip-hot),
+    inset 0 0 0 1px rgba(255, 200, 130, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    var(--lk-glass-halo),
+    var(--lk-glass-shadow);
+}
+
+.wc-lk-btn:not(.is-disabled):hover .wc-lk-ic,
+.wc-lk-btn.is-sel:not(.is-disabled) .wc-lk-ic {
+  opacity: 1;
+}
+
+/* The keyboard's button: a lit ring as well, so it reads without a pointer. */
+.wc-lk-btn.is-sel:not(.is-disabled) {
+  border-color: var(--lk-glass-edge-on);
+}
+
+.wc-lk-btn:not(.is-disabled):active,
+.wc-lk-back:active {
+  transform: translateY(1px);
+}
+
+/* The page's main action: a warmer, fuller glass. */
+.wc-lk-btn.is-primary:not(.is-disabled) {
+  color: var(--lk-glass-text-primary);
+  border-color: color-mix(in srgb, var(--lk-glass-edge-on) 52%, transparent);
+  background: var(--lk-glass-primary);
+}
+
+.wc-lk-btn.is-primary.is-sel:not(.is-disabled),
+.wc-lk-btn.is-primary:not(.is-disabled):hover {
+  color: var(--lk-glass-text-hot);
+  border-color: var(--lk-glass-edge-on);
+}
+
+.wc-lk-btn.is-disabled {
+  cursor: default;
+  color: var(--lk-glass-text-off);
+  text-shadow: none;
+  opacity: 0.62;
+  background: var(--lk-glass-off);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lk-glass-lip) 40%, transparent), var(--lk-glass-shadow);
+}
+
+.wc-lk-btn.is-sel.is-disabled {
+  border-color: color-mix(in srgb, var(--lk-glass-edge-on) 55%, transparent);
+}
+
+.wc-lk-btn.is-danger:not(.is-disabled) {
+  color: var(--lk-danger);
+}
+
+.wc-lk-btn.is-danger:not(.is-disabled):hover,
+.wc-lk-btn.is-danger.is-sel:not(.is-disabled) {
+  color: var(--lk-danger-hot);
+  text-shadow: 0 0 7px var(--lk-danger-glow);
+  box-shadow:
+    inset 0 1px 0 var(--lk-glass-lip),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    var(--lk-glass-danger-halo),
+    var(--lk-glass-shadow);
+}
+
+.wc-lk-btn.is-small {
+  height: 28px;
+  padding: 0 12px 0 10px;
+  gap: 6px;
+  font-size: 10.5px;
+}
+
+.wc-lk-btn.is-small .wc-lk-ic {
+  width: 13px;
+  height: 13px;
+}
+
+/* Icon-only: square (its `title` is its name). */
+.wc-lk-btn.is-icon {
+  width: 34px;
+  padding: 0;
+}
+
+.wc-lk-btn.is-icon.is-small {
+  width: 28px;
+}
+
+.wc-lk-btn.is-icon .wc-lk-ic {
+  width: 16px;
+  height: 16px;
+}
+
+.wc-lk-btn.is-icon.is-small .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+}
+
+/* Back: the same place on every sub-page (top left, level with the hood). */
+.wc-lk-back {
+  position: absolute;
+  left: 16px;
+  top: 15px;
+  z-index: 6;
+  height: 27px;
+  padding: 0 12px 0 7px;
+  gap: 5px;
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: var(--lk-back-text);
+}
+
+.wc-lk-back .wc-lk-ic {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.8;
+}
+
+.wc-lk-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 18px 0 6px;
+}
+
+/* A column of buttons (a card's actions). */
+.wc-lk-btncol {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.wc-lk-btncol > .wc-lk-btn {
+  justify-content: flex-start;
+}
+
+/* ------------------------------------------------------------ shortcut letters */
+
+/* Marked inside the label: a fine lit underline, brighter when the row or button is chosen. */
+u.wc-sk {
+  text-decoration: none;
+  background: linear-gradient(90deg, transparent 8%, var(--lk-sk, rgba(255, 190, 120, 0.3)) 8% 92%, transparent 92%) 0 100% / 100% 1px no-repeat;
+  padding-bottom: 2px;
+}
+
+.is-sel u.wc-sk,
+.is-on u.wc-sk,
+.wc-lk-btn:not(.is-disabled):hover u.wc-sk {
+  background-image: linear-gradient(90deg, transparent 8%, var(--lk-sk-on, rgba(255, 214, 160, 0.7)) 8% 92%, transparent 92%);
+}
+
+.wc-lk-btn.is-disabled u.wc-sk,
+.is-disabled u.wc-sk {
+  background-image: none;
+}
+
+/* ------------------------------------------------------------ phone and touch */
+
+html.wc-phone .wc-lk-btns {
+  gap: 6px;
+}
+
+html.wc-phone .wc-lk-btn {
+  padding: 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  height: 32px;
+  gap: 5px;
+}
+
+html.wc-phone .wc-lk-btn.is-icon {
+  padding: 0;
+  width: 34px;
+}
+
+/* Glass buttons drop their icons on the phone, unless `keepIcon` (or icon-only). */
+html.wc-phone .wc-lk-btn:not(.keep-ic):not(.is-icon) .wc-lk-ic {
+  display: none;
+}
+
+/* Coarse pointers: every target at least 40 px high (and icon-only ones as
+ * wide). A box's Back grows upward, to the box's top band, and ends where
+ * the 27 px one does: never down over the page's first line, so no page
+ * needs room of its own under it (stage 42 wave 3, ADR 0127). */
+@media (pointer: coarse) {
+  .wc-lk-btn,
+  .wc-lk-back {
+    min-height: 40px;
+  }
+
+  .wc-lk-btn.is-icon {
+    min-width: 40px;
+  }
+
+  .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
+    top: 3px;
+  }
+}
+
+/* Nothing depends on hover: a touch screen's sticky :hover would light the
+ * last tapped button, so only the keyboard's `.is-sel` lights there. */
+@media (hover: none) {
+  .wc-lk-btn:not(.is-disabled):not(.is-sel):hover {
+    color: var(--lk-glass-text);
+    text-shadow: var(--lk-glass-ts);
+    background: var(--lk-glass);
+    box-shadow: inset 0 1px 0 var(--lk-glass-lip), inset 0 -1px 0 rgba(0, 0, 0, 0.25), var(--lk-glass-shadow);
+  }
+
+  .wc-lk-btn.is-primary:not(.is-disabled):not(.is-sel):hover {
+    color: var(--lk-glass-text-primary);
+    background: var(--lk-glass-primary);
+  }
+
+  .wc-lk-btn.is-danger:not(.is-disabled):not(.is-sel):hover {
+    color: var(--lk-danger);
+    text-shadow: var(--lk-glass-ts);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-lk-btn,
+  .wc-lk-back {
+    transition: none;
+  }
+}

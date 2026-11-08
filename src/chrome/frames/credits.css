@@ -1,34 +1,343 @@
-/* Credits (src/chrome/frames/credits.tsx, Inv §7.6). */
+/* Credits: the chronicle as a book (src/chrome/frames/credits.tsx; stage
+ * 47, ADR 0132; round 7's B "Krönikeboken", notes/research/
+ * start-menu-mockups/round7/about/credits-b.html). Prefix `wc-cred-`.
+ *
+ * The pages are CSS columns of one element (`.wc-cred-pages`) as high as a
+ * page, overflowing sideways: two columns per book width (one when the
+ * book is narrower than 640 px, a container query), so a spread is one
+ * book width and a turn moves the columns by `--wc-cred-s` spreads. No
+ * `backdrop-filter` on the book (ADR 0127's rule for inner surfaces). */
 
-.wc-credits {
-  position: relative;
+.wc-cred-win {
+  padding-bottom: 12px;
 }
 
-.wc-credits-view {
+/* ------------------------------------------------------------ head: the chapter pills */
+
+.wc-cred-head {
+  display: flex;
+  justify-content: center;
+  min-height: 36px;
+  margin-bottom: 12px;
+}
+
+.wc-cred-pills {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ the book */
+
+.wc-cred-body {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.wc-cred-book {
+  --wc-cred-g: 84px;
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 1180px;
+  max-height: 1000px;
+  align-self: center;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 3px;
+  container: wc-cred-book / inline-size;
+  touch-action: pan-y;
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.08), inset 0 0 50px rgba(0, 0, 0, 0.45);
+}
+
+/* The paper and the shaded gutter (two pages), a still layer under the pages. */
+.wc-cred-bg {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 44px), rgba(0, 0, 0, 0.34) calc(50% - 3px), rgba(255, 220, 170, 0.06) 50%, rgba(0, 0, 0, 0.34) calc(50% + 3px), transparent calc(50% + 44px)),
+    radial-gradient(120% 90% at 25% 40%, rgba(255, 214, 160, 0.06), transparent 70%),
+    radial-gradient(120% 90% at 75% 40%, rgba(255, 214, 160, 0.06), transparent 70%),
+    rgba(10, 8, 6, 0.35);
 }
 
-/* White text (black on a light canvas, ADR 0041); the view's mask blends
- * it into the canvas at the bands. */
-.wc-credits-col {
+/* One page (a book narrower than 640 px: the phone, a narrow window), and the states' page. */
+@container wc-cred-book (max-width: 639.98px) {
+  .wc-cred-bg {
+    background:
+      radial-gradient(120% 90% at 50% 40%, rgba(255, 214, 160, 0.06), transparent 70%),
+      rgba(10, 8, 6, 0.35);
+  }
+}
+
+.wc-cred-book.is-note > .wc-cred-bg {
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgba(255, 214, 160, 0.06), transparent 70%),
+    rgba(10, 8, 6, 0.35);
+}
+
+.wc-cred-book.is-note {
+  max-width: 620px;
+}
+
+/* The moving layer (pages and folios): a turn fades and drifts it. */
+.wc-cred-spread {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset: 0;
+}
+
+.wc-cred-pages {
+  --wc-cred-per: 2;
+  position: absolute;
+  top: 46px;
+  bottom: 64px;
+  left: calc(var(--wc-cred-g) / 2);
+  width: calc(100% - var(--wc-cred-g));
+  /* Whole spreads: the element is a book width less the gutter, a spread is one book width. */
+  transform: translateX(calc(var(--wc-cred-s, 0) * -1 * (100% + var(--wc-cred-g))));
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A chapter: a column box one page wide and one page high, its further
+ * pages overflowing to the right one page pitch apart (a book width over
+ * the pages per spread); placed at its first page (`--wc-cred-p`, from the
+ * measure). Every chapter so starts on a new page in every engine (Firefox
+ * has no forced column breaks). */
+.wc-cred-ch {
+  position: absolute;
   top: 0;
-  color: var(--c-active, #ffffff);
-  will-change: transform;
+  bottom: 0;
+  left: calc(var(--wc-cred-p, 0) * (100% + var(--wc-cred-g)) / var(--wc-cred-per));
+  width: calc((100% + var(--wc-cred-g)) / var(--wc-cred-per) - var(--wc-cred-g));
+  column-count: 1;
+  column-gap: var(--wc-cred-g);
+  column-fill: auto;
 }
 
-.wc-credits-hint {
+/* Until the first measure every chapter sits on page 1: show only the first. */
+.wc-cred-book:not([data-ready]) .wc-cred-ch:not(:first-child) {
+  visibility: hidden;
+}
+
+@container wc-cred-book (max-width: 639.98px) {
+  .wc-cred-pages {
+    --wc-cred-g: 56px;
+    --wc-cred-per: 1;
+    top: 26px;
+    bottom: 48px;
+  }
+}
+
+/* ------------------------------------------------------------ folios */
+
+.wc-cred-folio {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--cell-h);
-  color: #555555;
+  bottom: 24px;
+  transform: translateX(-50%);
+  font: 700 11px/1 var(--lk-display);
+  letter-spacing: 0.3em;
+  color: var(--lk-faint);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
-[data-light] .wc-credits-hint {
-  color: var(--c-hint);
+.wc-cred-folio.is-l {
+  left: 25%;
+}
+
+.wc-cred-folio.is-r {
+  left: 75%;
+}
+
+@container wc-cred-book (max-width: 639.98px) {
+  .wc-cred-folio {
+    bottom: 16px;
+  }
+
+  .wc-cred-folio.is-l {
+    left: 50%;
+  }
+
+  .wc-cred-folio.is-r {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------ type */
+
+/* The epigraph: the opening line at the top of page 1. */
+.wc-cred-open {
+  margin: 4% 6% 0;
+  text-align: center;
+  font: italic 500 22px/1.5 var(--lk-serif);
+  color: #e6d4b4;
+  text-wrap: balance;
+}
+
+.wc-cred-open + .wc-lk-orn {
+  margin: 22px auto 0;
+}
+
+.wc-cred-title {
+  margin: 6% 0 30px;
+  text-align: center;
+  font-weight: normal;
+  break-after: avoid;
+}
+
+.wc-cred-role {
+  display: block;
+  font: 700 12.5px/1.5 var(--lk-display);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-cred-name {
+  display: block;
+  margin: 6px 0 4px;
+  font: 700 38px/1.1 var(--lk-display);
+  letter-spacing: 0.12em;
+  color: #ddc59c;
+  text-shadow: 0 -1px 0 #000, 0 1px 0 rgba(255, 226, 180, 0.3);
+  overflow-wrap: anywhere;
+}
+
+.wc-cred-title + .wc-lk-orn {
+  width: 120px;
+  margin: 0 auto 26px;
+  break-after: avoid;
+}
+
+.wc-cred-p {
+  margin: 0 0 0.7em;
+  font: 500 19px/1.6 var(--lk-serif);
+  color: var(--lk-text);
+  text-align: left;
+  text-indent: 1.4em;
+  text-wrap: pretty;
+  orphans: 2;
+  widows: 2;
+}
+
+.wc-cred-p.is-first {
+  text-indent: 0;
+  break-inside: avoid;
+}
+
+.wc-cred-date {
+  font-family: var(--lk-sc);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--lk-head);
+}
+
+/* The drop cap: the wordmark's mithril inlay (metal, reflects, never glows):
+ * a static gradient clipped to the letter and one drop shadow. */
+.wc-cred-p.is-first::first-letter {
+  float: left;
+  margin: 0.07em 0.1em 0 0;
+  padding-top: 0.04em;
+  font: 700 3.25em/0.8 var(--lk-display);
+  background: var(--lk-inlay-metal);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9));
+}
+
+.wc-cred-end {
+  margin: 56px 0 0;
+  text-align: center;
+  font: 700 26px/1 var(--lk-display);
+  letter-spacing: 0.24em;
+  color: #e2cba2;
+  text-shadow: 0 -1px 0 #000, 0 1px 0 rgba(255, 226, 180, 0.3);
+  break-inside: avoid;
+  break-before: avoid;
+}
+
+/* ------------------------------------------------------------ the states (one page) */
+
+.wc-cred-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px 8%;
+  box-sizing: border-box;
+}
+
+.wc-cred-none {
+  margin: 0 0 8%;
+  text-align: center;
+  font: italic 500 20px/1.45 var(--lk-serif);
+  color: var(--lk-dim);
+  text-wrap: balance;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wc-cred-none.is-faint {
+  color: var(--lk-faint);
+}
+
+.wc-cred-none.is-bad {
+  color: var(--lk-danger);
+}
+
+.wc-cred-note .wc-lk-orn {
+  width: 120px;
+  margin: 0 auto 18px;
+}
+
+.wc-cred-none.is-hint {
+  font-size: 17px;
+  color: var(--lk-faint);
+}
+
+/* ------------------------------------------------------------ foot */
+
+.wc-cred-foot {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+/* ------------------------------------------------------------ narrow book, phone */
+
+@container wc-cred-book (max-width: 639.98px) {
+  .wc-cred-open {
+    margin-top: 6%;
+    font-size: 20px;
+  }
+
+  .wc-cred-name {
+    font-size: 30px;
+  }
+
+  .wc-cred-p {
+    font-size: 17.5px;
+    line-height: 1.55;
+  }
+
+  .wc-cred-end {
+    font-size: 22px;
+  }
+}
+
+@container wc-page (max-width: 600px) {
+  .wc-cred-head {
+    justify-content: flex-start;
+    margin-bottom: 8px;
+  }
+
+  .wc-cred-foot {
+    justify-content: space-between;
+    padding-top: 8px;
+  }
 }

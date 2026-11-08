@@ -1,13 +1,15 @@
-// Credits (ADR 0019 "Credits", Inv §7.6): the chronicle of every
-// character's deeds, rolled up the screen like end credits. Pure and
-// deterministic: the same event always reads the same, because its sentence
-// template is picked by a stable hash of (character, run, time, kind).
+// Credits (ADR 0019 "Credits", ADR 0132, Inv §7.6): the chronicle of every
+// character's deeds, told as a book (`chronicleBook`, Credits' pages). Pure
+// and deterministic: the same event always reads the same, because its
+// sentence template is picked by a stable hash of (character, run, time,
+// kind).
 //
 // Shape: an opening line, one chapter per character (the character whose
 // first deed is oldest first), each with a header and one sentence per
 // death, level-up, PvP kill and achievement (filtered by the Spotlights
-// settings: kinds × characters × period, ADR 0110; no log needed), then `The End.` Lines are word-wrapped to the
-// column width; an empty string is a blank row. The wording is our own.
+// settings: kinds × characters × period, ADR 0110; no log needed), then
+// `The End.` The wording is our own. (The rolled, word-wrapped
+// `buildChronicle` of the old Credits is gone, stage 47 wave 3.)
 
 import type { RunMeta } from '../capture/store';
 import type { RunEvent } from '../runs/events';
@@ -163,54 +165,55 @@ export function eventSentence(character: string, runId: string, e: RunEvent, lev
     .replaceAll('{atlevel}', atlevel);
 }
 
-/** Word-wraps `text` to `width` columns (a longer word is broken). */
-export function wrapText(text: string, width: number): string[] {
-  const w = Math.max(1, width);
-  const out: string[] = [];
-  let cur = '';
-  for (let word of text.split(/\s+/).filter(Boolean)) {
-    while (word.length > w) {
-      if (cur) out.push(cur);
-      cur = '';
-      out.push(word.slice(0, w));
-      word = word.slice(w);
-    }
-    if (!word) continue;
-    if (!cur) cur = word;
-    else if (cur.length + 1 + word.length <= w) cur += ' ' + word;
-    else {
-      out.push(cur);
-      cur = word;
-    }
-  }
-  if (cur) out.push(cur);
-  return out;
-}
-
 export interface ChronicleRun {
   meta: RunMeta;
   events: readonly RunEvent[];
 }
 
-export interface ChronicleOptions {
-  /** Column width in cells (default 60). */
-  width?: number;
-  /** Now, µs: the period counts back from it (default the clock). */
-  nowUs?: number;
+// ------------------------------------------------------------ the book (stage 47, ADR 0132)
+
+/** One deed of the book: its date phrase (set in small caps) and the rest of its sentence. */
+export interface BookDeed {
+  /** When it happened, µs. */
+  us: number;
+  /** `On the first of May, 2026` (every template starts with `{date}`). */
+  date: string;
+  /** The sentence after the date phrase (starts with its space: ` you fell …`). */
+  rest: string;
+  kind: SpotlightKind;
+}
+
+/** One character's chapter: the header split around the name for the title page. */
+export interface BookChapter {
+  name: string;
+  /** The whole header (`The Lay of Rasta, Mostly True`). */
+  header: string;
+  /** The header's words before the name (`The Lay of`; may be ''). */
+  pre: string;
+  /** The header's words after the name (`, Mostly True`, `and the Long Road`; may be ''). */
+  post: string;
+  deeds: BookDeed[];
+}
+
+/** The chronicle as structure (Credits' book). */
+export interface ChronicleBook {
+  opening: string;
+  chapters: BookChapter[];
+  end: string;
 }
 
 /**
- * The chronicle as display rows ('' = blank), or [] when no event passes
- * the filters (the frame then shows its empty state).
+ * The chronicle as a book: a chapter per character (oldest first deed
+ * first), each deed its event's sentence in time order, unwrapped and
+ * split for typesetting, or null when no event passes the filters.
  */
-export function buildChronicle(
+export function chronicleBook(
   runs: readonly ChronicleRun[],
   filters: SpotlightSettings,
-  opts: ChronicleOptions = {},
-): string[] {
-  const width = opts.width ?? 60;
+  opts: { nowUs?: number } = {},
+): ChronicleBook | null {
   const shown = spotlightFilter(filters, opts.nowUs ?? Date.now() * 1000);
-  const byChar = new Map<string, Array<{ us: number; text: string }>>();
+  const byChar = new Map<string, BookDeed[]>();
   for (const r of runs) {
     let level: number | undefined = undefined;
     for (const e of r.events) {
@@ -220,22 +223,29 @@ export function buildChronicle(
       if (!kind || !shown(kind, r.meta.character, eventAt(e))) continue;
       const text = eventSentence(r.meta.character, r.meta.runId, e, level ?? r.meta.summary?.level);
       if (!text) continue;
+      const us = eventAt(e);
+      const phrase = datePhrase(us);
+      const date = text.startsWith(phrase) ? phrase : '';
       const list = byChar.get(r.meta.character) ?? [];
-      list.push({ us: eventAt(e), text });
+      list.push({ us, date, rest: text.slice(date.length), kind });
       byChar.set(r.meta.character, list);
     }
   }
-  if (byChar.size === 0) return [];
+  if (byChar.size === 0) return null;
   const chapters = [...byChar.entries()]
     .map(([name, deeds]) => ({ name, deeds: deeds.sort((a, b) => a.us - b.us) }))
-    .sort((a, b) => a.deeds[0]!.us - b.deeds[0]!.us || a.name.localeCompare(b.name));
-  const out: string[] = [...wrapText(CHRONICLE_OPENING, width), '', ''];
-  for (const ch of chapters) {
-    const header = CHAPTER_HEADERS[stableHash(ch.name) % CHAPTER_HEADERS.length]!.replaceAll('{name}', ch.name);
-    out.push(...wrapText(header, width), '');
-    for (const d of ch.deeds) out.push(...wrapText(d.text, width), '');
-    out.push('');
-  }
-  out.push(CHRONICLE_END);
-  return out;
+    .sort((a, b) => a.deeds[0]!.us - b.deeds[0]!.us || a.name.localeCompare(b.name))
+    .map(({ name, deeds }): BookChapter => {
+      // Split the template, not the header: a name may be a word of it (`Tale`).
+      const tpl = CHAPTER_HEADERS[stableHash(name) % CHAPTER_HEADERS.length]!;
+      const at = tpl.indexOf('{name}');
+      return {
+        name,
+        header: tpl.replaceAll('{name}', name),
+        pre: tpl.slice(0, at).trim(),
+        post: tpl.slice(at + '{name}'.length).trim(),
+        deeds,
+      };
+    });
+  return { opening: CHRONICLE_OPENING, chapters, end: CHRONICLE_END };
 }

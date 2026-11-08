@@ -1,7 +1,9 @@
-// Stage 17 C1: foreign profile import (ADR 0073). Profile → IMPORT with a
-// JMC file, the import report, then EDIT opens the new profile.
-// Stage 20 C1: Mudlet (ADR 0076), a profile save (.xml) and an exported
-// package archive (.mpackage, unpacked in the import UI).
+// Stage 17 C1: foreign profile import (ADR 0073). Stage 20 C1: Mudlet
+// (ADR 0076), a profile save (.xml) and an exported package archive
+// (.mpackage, unpacked in the import UI). Stage 43c (ADR 0128, ADR 0073
+// addendum): Import opens its own page (a drop zone, Choose files…, the
+// formats); the receipt follows in the same box with OK only, and OK goes
+// back to the list with the new profile highlighted.
 import { fileURLToPath } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
 
@@ -14,97 +16,172 @@ const MUDLET_XML = fileURLToPath(new URL('../fixtures/import/mudlet/profile.xml'
 const MUDLET_PKG = fileURLToPath(new URL('../fixtures/import/mudlet/MyHighlights.mpackage', import.meta.url));
 
 const frame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-const startTitle = (page: Page) => frame(page).locator('.wc-title-row .wc-c-section');
-const ped = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-ped');
+const hood = (page: Page) => frame(page).locator('.wc-lk-hood-t:not(.is-out)');
+const receipt = (page: Page) => frame(page).locator('.wc-imp-rc');
 
 /** Opens Profile from the start menu with a fake MUME behind it. */
-async function openProfilePicker(page: Page): Promise<void> {
+async function openProfileList(page: Page): Promise<void> {
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
     ws.send(Buffer.concat([Buffer.from([IAC, WILL, GMCP]), Buffer.from('\r\nBy what name do you wish to be known? ')]));
   });
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await expect(hood(page)).toHaveText('Profiles');
 }
 
-/** IMPORT with `file`; waits for the report and returns its counts. */
-async function importFile(page: Page, file: string): Promise<number[]> {
+/** Import → the import page → Choose files… with `file`; waits for the receipt and returns its counts. */
+async function importFile(page: Page, file: string): Promise<{ translated: number; kept: number; skipped: number }> {
+  // (The listener first: Chromium's chooser interception is set up asynchronously.)
   const chooser = page.waitForEvent('filechooser');
   await page.locator('.wc-start [data-btn="IMPORT"]').click();
+  await expect(hood(page)).toHaveText('Import');
+  await frame(page).locator('[data-btn="CHOOSE"]').click();
   await (await chooser).setFiles(file);
-  await expect(startTitle(page)).toHaveText('─── IMPORT REPORT ───');
-  const counts = (await frame(page).locator('.wc-import-head').textContent()) ?? '';
-  const m = /Translated (\d+) · Kept (\d+) · Skipped (\d+) · Warnings (\d+)/.exec(counts);
-  expect(m).not.toBeNull();
-  return m!.slice(1).map(Number);
+  await expect(receipt(page)).toBeVisible();
+  const sum = frame(page).locator('.wc-imp-sum');
+  const n = async (k: string): Promise<number> => Number(await sum.getAttribute(`data-${k}`));
+  return { translated: await n('translated'), kept: await n('kept'), skipped: await n('skipped') };
 }
 
-test('IMPORT a JMC file: report with format and counts, EDIT opens the profile', async ({ page }) => {
+/** OK on the receipt: the list, the flash, the new profile highlighted and selected. */
+async function okToList(page: Page, name: string, entry: string): Promise<void> {
+  await expect(frame(page).locator('[data-btn="EDIT"]')).toHaveCount(0);
+  await frame(page).locator('[data-btn="OK"]').click();
+  await expect(hood(page)).toHaveText('Profiles');
+  await expect(frame(page).locator('.wc-lk-flash')).toHaveText(`Imported "${name}" from ${entry}.`);
+  await expect(frame(page).locator('.wc-pl-row.is-on')).toHaveAttribute('data-name', name);
+  await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().profile)).toBe(name);
+}
+
+const profileText = (page: Page, name: string) =>
+  page.evaluate((n) => window.__wc!.shell.profiles.get(n).then((r) => r?.text ?? ''), name);
+
+test('IMPORT a JMC file: the import page, the receipt with format and counts, OK back to the list', async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await openProfilePicker(page);
-  const [translated, kept, skipped] = await importFile(page, SAMPLE);
-  const head = frame(page).locator('.wc-import-head');
-  await expect(head).toContainText('Profile  e2e_sample');
-  await expect(head).toContainText('Format   JMC');
-  expect(translated).toBeGreaterThan(0);
-  expect(kept! + skipped!).toBeGreaterThan(0);
-  await expect(frame(page).locator('.wc-import-list')).toContainText('e2e-sample.set:');
-  await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().profile)).toBe('e2e_sample');
+  await openProfileList(page);
+  // The page before the picker: the lead, the drop zone, the formats.
+  await page.locator('.wc-start [data-btn="IMPORT"]').click();
+  await expect(hood(page)).toHaveText('Import');
+  await expect(frame(page).locator('.wc-imp-drop')).toContainText('Drop the files here');
+  await expect(frame(page).locator('.wc-imp-fmts > li')).toHaveCount(4);
+  // Esc goes back to the list.
+  await page.keyboard.press('Escape');
+  await expect(hood(page)).toHaveText('Profiles');
 
-  // EDIT opens the profile editor on the new profile; its text is the import.
-  await frame(page).locator('[data-btn="EDIT"]').click();
-  await expect(ped(page).locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: e2e_sample ───');
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
-  const content = ped(page).locator('.cm-content');
-  await expect(content).toContainText('Imported from');
-  await expect(content).toContainText('#alias');
+  const c = await importFile(page, SAMPLE);
+  await expect(frame(page).locator('.wc-imp-name')).toHaveText('e2e_sample');
+  await expect(frame(page).locator('.wc-imp-from')).toHaveText('a new profile from e2e-sample.set');
+  await expect(frame(page).locator('.wc-imp-f')).toHaveText('JMC');
+  expect(c.translated).toBeGreaterThan(0);
+  expect(c.kept + c.skipped).toBeGreaterThan(0);
+  await expect(frame(page).locator('.wc-imp-sum')).toContainText(`${c.translated} settings were translated`);
+  // The first group is open, with `file:line` items.
+  await expect(frame(page).locator('.wc-imp-grp').first().locator('.wc-lk-fold-h')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await expect(frame(page).locator('.wc-imp-acc')).toContainText('e2e-sample.set:');
+
+  await okToList(page, 'e2e_sample', 'e2e-sample.set');
+  const text = await profileText(page, 'e2e_sample');
+  expect(text).toContain('Imported from');
+  expect(text).toContain('#alias');
   expect(errors).toEqual([]);
 });
 
-test('IMPORT a Mudlet profile save: report with format, packages and kept items, EDIT shows a translated alias', async ({ page }) => {
+test('IMPORT a Mudlet profile save: receipt with format, packages and kept items', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await openProfilePicker(page);
-  const [translated, kept, skipped] = await importFile(page, MUDLET_XML);
-  const head = frame(page).locator('.wc-import-head');
-  await expect(head).toContainText('Profile  profile');
-  await expect(head).toContainText('Format   Mudlet');
-  expect(translated).toBeGreaterThan(0);
-  expect(kept).toBeGreaterThan(0);
-  expect(skipped).toBeGreaterThan(0);
-  const list = frame(page).locator('.wc-import-list');
-  await expect(list).toContainText('Multiline (AND) trigger');
-  await expect(list).toContainText('WebCockpit has a built-in Key manager');
-  await expect(list).toContainText('Package Port Key Library');
-
-  await frame(page).locator('[data-btn="EDIT"]').click();
-  await expect(ped(page).locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: profile ───');
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
-  const content = ped(page).locator('.cm-content');
-  await expect(content).toContainText('Imported from Mudlet file profile.xml');
-  await expect(content).toContainText('#alias {^qd$} {get draught pack;quaff draught}');
+  await openProfileList(page);
+  const c = await importFile(page, MUDLET_XML);
+  await expect(frame(page).locator('.wc-imp-name')).toHaveText('profile');
+  await expect(frame(page).locator('.wc-imp-f')).toHaveText('Mudlet');
+  expect(c.translated).toBeGreaterThan(0);
+  expect(c.kept).toBeGreaterThan(0);
+  expect(c.skipped).toBeGreaterThan(0);
+  // Open every group (Tab walks the headers, Space folds), then read them.
+  const acc = frame(page).locator('.wc-imp-acc');
+  const heads = acc.locator('.wc-lk-fold-h');
+  const count = await heads.count();
+  for (let i = 0; i < count; i++) {
+    await page.keyboard.press('Tab');
+    await expect(acc.locator('.wc-imp-grp').nth(i)).toHaveClass(/is-sel/);
+    if ((await heads.nth(i).getAttribute('aria-expanded')) === 'false') await page.keyboard.press('Space');
+    await expect(heads.nth(i)).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(acc).toContainText('Multiline (AND) trigger');
+  await expect(acc).toContainText('WebCockpit has a built-in Key manager');
+  await expect(acc).toContainText('Package Port Key Library');
+  // Tab on to OK; Enter is OK.
+  await page.keyboard.press('Tab');
+  await expect(frame(page).locator('[data-btn="OK"]')).toHaveClass(/is-sel/);
+  await page.keyboard.press('Enter');
+  await expect(hood(page)).toHaveText('Profiles');
+  await expect(frame(page).locator('.wc-pl-row.is-on')).toHaveAttribute('data-name', 'profile');
+  const text = await profileText(page, 'profile');
+  expect(text).toContain('Imported from Mudlet file profile.xml');
+  expect(text).toContain('#alias {^qd$} {get draught pack;quaff draught}');
   expect(errors).toEqual([]);
 });
 
 test('IMPORT a Mudlet .mpackage: unpacked, named after the archive', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await openProfilePicker(page);
-  const [translated] = await importFile(page, MUDLET_PKG);
-  const head = frame(page).locator('.wc-import-head');
-  await expect(head).toContainText('Profile  MyHighlights');
-  await expect(head).toContainText('Format   Mudlet');
-  expect(translated).toBeGreaterThan(0);
+  await openProfileList(page);
+  const c = await importFile(page, MUDLET_PKG);
+  await expect(frame(page).locator('.wc-imp-name')).toHaveText('MyHighlights');
+  await expect(frame(page).locator('.wc-imp-f')).toHaveText('Mudlet');
+  expect(c.translated).toBeGreaterThan(0);
+  // O is OK.
+  await page.keyboard.press('o');
+  await expect(hood(page)).toHaveText('Profiles');
   await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().profile)).toBe('MyHighlights');
+  expect(await profileText(page, 'MyHighlights')).toContain('#alias {^hl$}');
+  expect(errors).toEqual([]);
+});
 
-  await frame(page).locator('[data-btn="EDIT"]').click();
-  await ped(page).locator('[data-btn="EDITOR"]').click();
-  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
-  await expect(ped(page).locator('.cm-content')).toContainText('#alias {^hl$}');
+test('IMPORT: files dropped on the box are imported; a broken archive fails on the page', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await openProfileList(page);
+  await page.keyboard.press('i');
+  await expect(hood(page)).toHaveText('Import');
+
+  const drop = async (name: string, bytes: number[]): Promise<void> => {
+    const dt = await page.evaluateHandle(
+      ([n, b]) => {
+        const d = new DataTransfer();
+        d.items.add(new File([new Uint8Array(b)], n));
+        return d;
+      },
+      [name, bytes] as const,
+    );
+    const zone = frame(page).locator('.wc-imp-drop');
+    await zone.dispatchEvent('dragenter', { dataTransfer: dt });
+    await expect(zone).toHaveClass(/is-over/);
+    await zone.dispatchEvent('dragover', { dataTransfer: dt });
+    await zone.dispatchEvent('drop', { dataTransfer: dt });
+  };
+
+  // A "zip" that cannot be read: the error stays on the page, with the file under it.
+  await drop('rasta.mpackage', [0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
+  const err = frame(page).locator('.wc-imp-err');
+  await expect(err).toContainText('Import failed: rasta.mpackage could not be unpacked');
+  await expect(frame(page).locator('.wc-imp-err-files')).toHaveText('rasta.mpackage');
+  await expect(hood(page)).toHaveText('Import');
+  await expect(frame(page).locator('[data-btn="CHOOSE"]')).toBeVisible();
+
+  // A native profile dropped: the short receipt; Esc is OK.
+  await drop('My Warrior.tin', [...Buffer.from('#alias {k} {kill %1}\n')]);
+  await expect(frame(page).locator('.wc-imp-ok')).toContainText('TinTin++, 1 line, nothing changed.');
+  await page.keyboard.press('Escape');
+  await expect(hood(page)).toHaveText('Profiles');
+  await expect(frame(page).locator('.wc-lk-flash')).toHaveText('Imported "My_Warrior" from My Warrior.tin.');
+  await expect(frame(page).locator('.wc-pl-row.is-on')).toHaveAttribute('data-name', 'My_Warrior');
   expect(errors).toEqual([]);
 });

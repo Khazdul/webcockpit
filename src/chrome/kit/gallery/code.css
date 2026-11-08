@@ -1,0 +1,82 @@
+/* Kit gallery section "Code" (dev only, stage 42e): its own layout. The
+ * parts style themselves (look-code.css, look-manual.css). */
+
+.wc-kit-code {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  white-space: normal;
+}
+
+.wc-kit-code[data-light] {
+  padding: 14px;
+  border-radius: 6px;
+  background: #f4ecd8;
+  color: #2a2116;
+}
+
+.wc-kit-code-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: center;
+}
+
+.wc-kit-code-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 18px;
+}
+
+@container wc-page (max-width: 820px) {
+  .wc-kit-code-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.wc-kit-code-bufwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wc-kit-code-buf {
+  height: 340px;
+  min-width: 0;
+}
+
+.wc-kit-code-pos {
+  font: italic 500 14.5px/1 var(--lk-serif, Georgia, serif);
+  text-align: right;
+}
+
+.wc-kit-code-tokens {
+  min-width: 0;
+}
+
+.wc-kit-code-man {
+  display: flex;
+  gap: 18px;
+  height: min(72vh, 760px);
+  min-height: 320px;
+}
+
+.wc-kit-code-rail {
+  display: flex;
+  flex: 0 0 220px;
+  min-height: 0;
+  padding-right: 10px;
+  border-right: 1px solid rgba(255, 214, 160, 0.1);
+}
+
+.wc-kit-code-rail .wc-lk-mtoc {
+  flex: 1 1 auto;
+}
+
+@container wc-page (max-width: 700px) {
+  .wc-kit-code-rail {
+    display: none;
+  }
+}

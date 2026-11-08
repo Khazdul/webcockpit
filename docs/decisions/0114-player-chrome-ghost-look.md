@@ -157,3 +157,25 @@ A sweep of widths 320–1920 px (Chromium, Firefox, the phone project):
 - The Panes and Display popups hang from the box's right edge; their
   width is capped to the room left of it (`--pc-pop-max`), not to
   `100vw − 24px`.
+
+## Addendum 2026-11-07 — Back and h:mm:ss (stage 42f, ADR 0127)
+
+The run log player's chrome gains the lantern kit's Back at the top left
+(`.wc-lk-back.wc-pv-back`, part of `.wc-player-chrome`, so it fades and
+stops taking the pointer with the rest of the chrome). A click closes an
+open popup first, then leaves as Close and Esc do. The header's left part
+moves right of Back when it would meet it. Close in the control box and
+the header's `ESC Back` stay (stage 45, open question 1). The clock and
+the rail's time hint read `h:mm:ss` from one hour (`1:34:07`) in the run
+log player; the HTML replay keeps `MM:SS`. `player.css` does not import
+the kit's glass rules: the player opens from the start page, whose chrome
+CSS holds them, and the replay never shows Back. Details: ADR 0127 "42f".
+
+## Addendum 2026-11-07 — the Spotlights card leaves the page (stage 46, ADR 0131)
+
+The Spotlights page no longer shows the card or the full-page reel: its
+viewer (in the page's large box) has its own head, countdown, track and
+always-visible control row around an embedded, bare player view. The
+card, `spotlight.css` and the full-page reel stay only for the shell's
+`openSpotlights` until wave 3 removes them. The run log player's ghost
+look is unchanged.

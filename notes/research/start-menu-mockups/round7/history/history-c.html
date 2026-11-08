@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  Round 7 · History · C "Liggaren" (the ledger by character). The characters on the left, the chosen one's
+  sessions as cards, one action bar in the foot for the chosen card. Tab switches characters ↔ cards.
+  Run log → player-c.html.
+  URL: ?empty · ?error · ?restorefail · ?menu · ?pick=s4 · ?do=stats|rate|delete
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · History C · Liggaren</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="hist.css">
+<link rel="stylesheet" href="history-c.css">
+</head>
+<body>
+<section class="lp box-large hpage" id="page" data-hood="History" data-back aria-label="History"><div class="win"></div></section>
+<script src="../base/base.js"></script>
+<script src="hdata.js"></script>
+<script src="hpages.js"></script>
+<script src="history-c.js"></script>
+<script src="shell.js"></script>
+<script>
+const page = document.getElementById('page');
+WC.decorate(page);
+const h = HISTC.mount(page, { onRunLog: (s) => { location.href = `player-c.html?from=${encodeURIComponent('history-c.html?nointro&pick=' + s.id)}&nointro`; } });
+SHELL.init({ key: 'history', page, layer: h.layer });
+const d = WC.qs.get('do');
+if (d) setTimeout(() => h.act(d), 120);
+</script>
+</body>
+</html>

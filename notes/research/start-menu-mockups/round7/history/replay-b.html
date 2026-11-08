@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Round 7 · HTML replay B · Svart sal
+  The exported replay without the sky (a smaller, calmer file): layout B's plate with the export title, the Lykta control panel, Fullscreen (F), no Back; the notes as the yellow ## rows and a note card during the hold.
+  Shared: game.js (the fake player cockpit), pchrome.js (the chrome). Keys: Space play/pause · ←/→ 10 s · Home start ·
+  ↑↓ PgUp PgDn End the pause cursor · 1–6 speed · Esc a popup, else back (here: leave fullscreen) · F fullscreen.
+  URL: ?loading · ?error · ?paused · ?pos=MIN · ?pop=panes|display · ?ended · ?cover=0 · ?t= ?m= (the sky)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · HTML replay B · Svart sal</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="game.css">
+<link rel="stylesheet" href="pchrome.css">
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="hpages.js"></script>
+<script src="game.js"></script>
+<script src="pchrome.js"></script>
+<script>PC.mount({ layout: 'b', mode: 'replay', sky: false, mark: false, cover: false });</script>
+</body>
+</html>

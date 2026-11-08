@@ -125,7 +125,7 @@ async function expectInk(page: Page, targets: Array<[string, Locator]>, where: s
 async function openProfiles(page: Page): Promise<void> {
   await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(
     async ([a, b, c]) => {
       const p = window.__wc!.shell.profiles;
@@ -137,35 +137,19 @@ async function openProfiles(page: Page): Promise<void> {
   );
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row .wc-c-section')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
 }
 
 for (const dpr of [1, 1.5]) {
   it.describe(`underscores at device pixel ratio ${dpr}`, () => {
     useDpr(dpr);
 
-    it('a profile name keeps its underscores in the Profiles list and the name field', async ({ dprPage: page }) => {
+    // The Profiles list itself is new-look DOM in Cinzel since stage 41
+    // (ADR 0125), not cell-grid rows; the name prompt still is.
+    it('a profile name keeps its underscores in the rename prompt and the name field', async ({ dprPage: page }) => {
       await openProfiles(page);
       await expectDpr(page, dpr);
-      const table = page.locator('.wc-start .wc-frame:not([hidden]) .wc-table');
-      const row = (name: string): Locator => table.locator('.wc-tr', { hasText: name });
-      await expect(table.locator('.wc-tr.is-cur-focus')).toContainText(NAME);
-      for (const [font, size] of LOOKS) {
-        await look(page, font, size);
-        await expectInk(
-          page,
-          [
-            ['row above the cursor band', row(ABOVE)],
-            ['cursor row', row(NAME)],
-            ['row below the cursor band', row(BELOW)],
-          ],
-          `${font} ${size}`,
-        );
-      }
-      // Rows are still exactly one cell high.
-      const cellH = (await cellSize(page)).h;
-      expect(await row(NAME).evaluate((el) => el.parentElement!.getBoundingClientRect().height)).toBe(cellH);
-
+      await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-pl-row.is-on')).toContainText(NAME);
       // RENAME: the name in the text field and in the line above it.
       await page.locator('.wc-start [data-btn="RENAME"]').click();
       const frame = page.locator('.wc-start .wc-frame:not([hidden])');
@@ -362,12 +346,8 @@ for (const dpr of [1, 1.5]) {
     });
 
     it('accented capitals keep the marks they had before the lift: kit row, input line, output row', async ({ dprPage: page }) => {
-      await openProfiles(page);
+      await page.goto(DEMO);
       await expectDpr(page, dpr);
-      const table = page.locator('.wc-start .wc-frame:not([hidden]) .wc-table');
-      // Marked: the tests write the text straight into the element.
-      await table.locator('.wc-tr', { hasText: ABOVE }).evaluate((el) => el.setAttribute('data-acc', ''));
-      const kitRow = table.locator('[data-acc]');
       const setSpan = (loc: Locator) => (t: string) => loc.evaluate((el, t) => void (el.textContent = t + 'xxx'), t);
       const check = async (name: string, loc: Locator, set: (t: string) => Promise<void>, clip: boolean, where: string): Promise<void> => {
         const real = await marksInk(page, loc, set);
@@ -382,14 +362,8 @@ for (const dpr of [1, 1.5]) {
         expect(real.px, `${name}, ${where}: accent pixels ${real.px} vs ${ref.px} (plain one-cell line)`).toBeGreaterThanOrEqual(ref.px - (dpr === 1 ? 0 : 2));
         expect(real.ink, `${name}, ${where}: accent ink ${real.ink} vs ${ref.ink}`).toBeGreaterThanOrEqual(ref.ink * (dpr === 1 ? 0.98 : 0.8));
       };
-      for (const [font, size] of LOOKS) {
-        await look(page, font, size);
-        await check('kit list row', kitRow, setSpan(kitRow), true, `${font} ${size}`);
-      }
 
       // The cockpit: the input line and an output row (rows are not clipped one by one).
-      await page.goto(DEMO);
-      await expectDpr(page, dpr);
       const rows = page.locator('.wc-output .wc-row:not(.wc-partial)');
       await expect(rows.filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
       const input = page.locator('.wc-input-field');
@@ -406,6 +380,25 @@ for (const dpr of [1, 1.5]) {
         await look(page, font, size);
         await check('input line', input, (t) => input.fill(t + 'xxx'), true, `${font} ${size}`);
         await check('output row', out, setSpan(out), false, `${font} ${size}`);
+      }
+
+      // A kit row on the cell grid: the in-game Statistics pane's (the start
+      // page's lists are new-look DOM: Profiles since stage 41, ADR 0125;
+      // History since stage 45, ADR 0130). Last: its float covers the game text.
+      await page.evaluate(() => window.__wc!.settings.update((d) => void (d.panes.statistics.on = true)));
+      const tableRow = page.locator('.wc-pane[data-pane="statistics"] .wc-stats-pane .wc-line').nth(1);
+      await expect(tableRow).toBeVisible();
+      // Marked: the tests write the text straight into the element. A solid
+      // fill of its own, so it and its twin stand on the same colour (the
+      // pane's lantern frame paints a gradient under its rows).
+      await tableRow.evaluate((el) => {
+        el.setAttribute('data-acc', '');
+        (el as HTMLElement).style.background = 'rgb(0, 0, 0)';
+      });
+      const kitRow = page.locator('.wc-pane[data-pane="statistics"] [data-acc]');
+      for (const [font, size] of LOOKS) {
+        await look(page, font, size);
+        await check('kit list row', kitRow, setSpan(kitRow), true, `${font} ${size}`);
       }
     });
   });

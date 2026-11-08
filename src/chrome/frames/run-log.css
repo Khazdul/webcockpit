@@ -1,0 +1,27 @@
+/* History → Run log (run-log.tsx; stage 45 owner feedback, ADR 0130): the
+ * run log player fills the big box's whole window, up to the frame on
+ * every side (owner feedback round 2); the hood plate "Run log" floats
+ * over the player's top edge (it is above the window, z-index 5, and
+ * takes the clicks on its own plate only). The box's own Back is not
+ * drawn (the player has its Back, top left, hiding with its chrome). */
+
+.wc-rl-box > .wc-lk-back {
+  display: none;
+}
+
+.wc-lk-box > .wc-lk-win.wc-rl-win {
+  padding: 0;
+}
+
+.wc-rl-slot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wc-rl-slot > .wc-player {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}

@@ -1,0 +1,148 @@
+<!doctype html>
+<!--
+  Round 7 · Credits · C "I himlens ljus" (names lit by the sky's light).
+  The normal box: the full wordmark stays where it is and the box takes the menu panel's place. The
+  chronicle plays as a slow sequence of title cards, like the end of a film: the opening line; then each
+  character's chapter with the name set large in the wordmark's mithril inlay metal, lit by the real sky (a
+  glint that sits where the sun or moon is, brighter by day, silvery and dim at night); under it the deeds
+  one at a time (date in small caps, the sentence as written); then "The End." and back to the menu by
+  itself (as today). A row of small diamonds at the foot shows where in the chronicle you are.
+  Today only Esc works; new here (question for the owner): ←/→ step back and forward, a click on a diamond
+  jumps to that chapter. Reduced motion: cards swap without fades; the glint stands still.
+  URL: ?page · ?card=N (start at card N) · ?hold (stop on the card) · ?empty · ?filtered · ?error · ?loading
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Credits C I himlens ljus</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+#page { width: min(760px, calc(100vw - 32px)); }
+#page > .win { padding: 42px 26px 16px; }
+.stagec { position: relative; height: min(360px, calc(var(--avail, 400px) - 60px)); min-height: 240px; }
+.card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 4%; }
+.c-open { font: italic 500 25px/1.45 var(--serif); color: #ecdcbc; max-width: 24em; text-wrap: balance; }
+.c-role { font: 600 13px/1.5 var(--display); letter-spacing: .3em; text-transform: uppercase; color: #b9a684; }
+/* the name: mithril inlay metal (the wordmark's), lit by the sky — a glint where the sun / moon is */
+.c-name { --gx: 50%; --ga: .5; position: relative; margin: 4px 0 2px; font: 700 clamp(46px, 7.4vw, 76px)/1.05 var(--display); letter-spacing: .1em; padding: 0 .06em;
+  background:
+    linear-gradient(104deg, transparent calc(var(--gx) - 16%), rgba(255,255,255,calc(var(--ga) * .55)) calc(var(--gx) - 4%), rgba(255,255,255,var(--ga)) var(--gx), rgba(255,255,255,calc(var(--ga) * .55)) calc(var(--gx) + 4%), transparent calc(var(--gx) + 16%)),
+    linear-gradient(180deg, var(--i0) 0%, var(--i1) 22%, var(--i2) 48%, var(--i3) 60%, var(--i4) 75%, var(--i5) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.95)) drop-shadow(0 0 1px rgba(0,0,0,.9)) drop-shadow(0 3px 6px rgba(0,0,0,.55)); }
+.c-deed { margin-top: 30px; min-height: 5.4em; width: 100%; max-width: 30em; }
+.c-deed .cr-date { display: block; font-size: 15.5px; letter-spacing: .14em; color: #d9bf93; margin-bottom: 4px; }
+.c-deed .rest { font: 500 21px/1.45 var(--serif); color: var(--c-text); text-wrap: balance; }
+.c-end { font: 700 34px/1 var(--display); letter-spacing: .26em; color: #e2cba2; text-shadow: 0 -1px 0 #000, 0 1px 0 rgba(255,226,180,.3); }
+.dots { display: flex; justify-content: center; align-items: center; gap: 14px; padding-top: 10px; }
+.dots button { all: unset; cursor: pointer; width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid rgba(255,207,143,.35); transition: background .4s, border-color .4s, box-shadow .4s; }
+.dots button:hover { border-color: rgba(255,226,180,.7); }
+.dots button.on { background: linear-gradient(135deg, #e6f1f2, #6f9ea3); border-color: #a9c6ca; box-shadow: 0 0 0 1px #000; }
+.dots button.done { background: rgba(255,207,143,.28); }
+.dots button:focus-visible { outline: 1px solid var(--c-sk-on); outline-offset: 3px; }
+@media (max-width: 600px) {
+  #page > .win { padding: 40px 12px 12px; }
+  .stagec { height: min(420px, calc(var(--avail, 420px) - 50px)); }
+  .c-open { font-size: 21px; }
+  .c-name { font-size: 46px; }
+  .c-role { font-size: 11.5px; letter-spacing: .22em; }
+  .c-deed .rest { font-size: 19px; }
+  .c-end { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+<section class="lp box-normal pgbox" id="page" data-hood="Credits" data-back aria-label="Credits">
+  <div class="win">
+    <div class="stagec" id="stagec" aria-live="polite"></div>
+    <div class="dots" id="dots" aria-label="Chapters"></div>
+  </div>
+</section>
+<script src="../base/base.js"></script>
+<script src="common.js"></script>
+<script>
+const stagec = document.getElementById('stagec'), dots = document.getElementById('dots'), esc = PG.esc;
+let cards = [], idx = 0, timer = null, live = false;
+const HOLD = PG.qs.has('hold');
+const words = (s) => s.split(/\s+/).length;
+/** The sequence: opening · per chapter a name card and then one card per deed (the name stays) · The End. */
+function build() {
+  const c = PG.qs.has('loading') ? null : PG.chronicle();
+  cards = []; if (!c) return;
+  cards.push({ kind: 'open', html: `<p class="c-open">${esc(c.opening)}</p>`, ms: 6500, dot: 0 });
+  c.chapters.forEach((ch, k) => {
+    const head = `${ch.pre ? `<div class="c-role">${esc(ch.pre)}</div>` : ''}<div class="c-name">${esc(ch.name)}${ch.post.startsWith(',') ? ',' : ''}</div>${ch.post ? `<div class="c-role">${esc(ch.post.replace(/^,\s*/, ''))}</div>` : ''}`;
+    cards.push({ kind: 'name', ch: k, head, deed: '', ms: 3200, dot: k + 1 });
+    ch.deeds.forEach((d) => cards.push({ kind: 'deed', ch: k, head, deed: `<span class="cr-date">${esc(d.date)}</span><span class="rest">${esc(d.rest.trim())}</span>`, ms: Math.max(4800, words(d.text) * 330), dot: k + 1 }));
+  });
+  cards.push({ kind: 'end', html: `<p class="c-end">${esc(c.end)}</p>`, ms: 5000, dot: c.chapters.length + 1 });
+  dots.innerHTML = [`<button aria-label="Opening"></button>`, ...c.chapters.map((ch) => `<button aria-label="${esc(ch.name)}"></button>`), `<button aria-label="The End"></button>`].join('');
+}
+let shown = null;   // { el, ch } the card on screen
+function paint(i, instant) {
+  const c = cards[i]; if (!c) return;
+  const D = instant || WC.RM ? 0 : WC.dur(1);
+  [...dots.children].forEach((b, k) => { b.classList.toggle('on', k === c.dot); b.classList.toggle('done', k < c.dot); });
+  // the same chapter: keep the name, change only the deed under it
+  if (shown && c.ch !== undefined && shown.ch === c.ch && c.kind === 'deed') {
+    const dd = shown.el.querySelector('.c-deed'), old = dd.firstElementChild;
+    const n = WC.el('div', {}, c.deed); n.style.position = 'absolute'; n.style.inset = '0';
+    dd.append(n);
+    if (old) old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 700 * D, fill: 'forwards' }).finished.then(() => old.remove());
+    n.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 900 * D, delay: 350 * D, fill: 'backwards', easing: 'cubic-bezier(.2,.8,.2,1)' });
+    return;
+  }
+  const el = WC.el('div', { class: 'card' }, c.html || `${c.head}<div class="c-deed" style="position:relative">${c.deed ? `<div style="position:absolute;inset:0">${c.deed}</div>` : ''}</div>`);
+  stagec.append(el);
+  if (shown) { const o = shown.el; o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 800 * D, fill: 'forwards' }).finished.then(() => o.remove()); }
+  el.animate([{ opacity: 0, filter: 'blur(3px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 1300 * D, delay: (shown ? 450 : 0) * D, fill: 'backwards', easing: 'cubic-bezier(.3,.7,.3,1)' });
+  shown = { el, ch: c.ch };
+  light(WC.sky.env, true);
+}
+function go(i, instant) {
+  clearTimeout(timer);
+  if (i >= cards.length) { app.close(); return; }
+  idx = Math.max(0, i); paint(idx, instant);
+  if (!HOLD) timer = setTimeout(() => go(idx + 1), cards[idx].ms * (WC.TS === 1 ? 1 : 1));
+}
+dots.addEventListener('click', (e) => {
+  const k = [...dots.children].indexOf(e.target.closest('button')); if (k < 0) return;
+  const i = cards.findIndex((c) => c.dot === k); if (i >= 0) go(i);
+});
+// the sky's light on the names: glint position from the sun / moon, strength from its intensity, tint day ↔ night
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const DAYI = WC.INLAY.day.map((s) => hex(s[1])), NIGHTI = WC.INLAY.night.map((s) => hex(s[1]));
+let lastKey = '';
+function light(env, force) {
+  if (!shown) return;
+  const n = shown.el.querySelector('.c-name'); if (!n) return;
+  const r = n.getBoundingClientRect(), L = env.light || {};
+  // as the wordmark's glint: the light's side of the screen, compressed onto the name (always on it)
+  const gx = Math.max(4, Math.min(96, 50 + ((L.x ?? r.left + r.width / 2) - (r.left + r.width / 2)) / ((env.W || innerWidth) * 1.1) * 100 * 1.6));
+  const ga = Math.max(.08, Math.min(.85, .12 + .7 * (L.I || 0) * (.55 + .45 * env.daylight)));
+  const t = env.daylight, key = `${gx.toFixed(1)}|${ga.toFixed(2)}|${t.toFixed(2)}`;
+  if (!force && key === lastKey) return; lastKey = key;
+  n.style.setProperty('--gx', gx.toFixed(1) + '%'); n.style.setProperty('--ga', ga.toFixed(2));
+  DAYI.forEach((d, i) => { const c = d.map((v, k) => Math.round(NIGHTI[i][k] + (v - NIGHTI[i][k]) * t)); n.style.setProperty('--i' + i, `rgb(${c})`); });
+}
+let fcount = 0;
+WC.sky.onFrame((env) => { if (live && (++fcount % 4 === 0)) light(env); });
+
+const app = PG.boot({
+  key: 'credits', box: document.getElementById('page'), mode: 'stay',
+  onOpen() { build(); stagec.innerHTML = ''; shown = null; live = true; if (cards.length) { idx = +(PG.qs.get('card') || 0); paint(idx, true); } },
+  onShown() { if (cards.length) { clearTimeout(timer); if (!HOLD) timer = setTimeout(() => go(idx + 1), cards[idx].ms); } },
+  onClose() { clearTimeout(timer); live = false; stagec.innerHTML = ''; shown = null; },
+  layer: {
+    key(e) {
+      if (e.key === 'ArrowRight') { go(idx + 1); return true; }
+      if (e.key === 'ArrowLeft') { go(idx - 1); return true; }
+      return e.key !== 'Escape' && e.key !== 'Backspace' && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Enter'].includes(e.key);
+    },
+  },
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<!--
+  Round 7 · Script manual · B "Uppslaget" (the reference desk): search first. A wide search field heads the
+  page with All / Guide / API / Lua; under it the results (with nothing typed: every chapter and entry, by
+  part) on the left, and one chapter or entry at a time on the right, as a page with ‹ › to its neighbours.
+  Typing filters at once: names first, then chapters whose text holds the words (with how often, and the
+  first line it is on); the words are marked on the page. F1 from the editor opens straight on the entry.
+  Keys: Ctrl+F or / to the search · ↑↓ the results (also from the field) · Enter opens · ← → the previous /
+  next page · PgUp/PgDn scroll the page · Tab between results and page · Esc clears the search, then back.
+  Narrow (a small window, a phone): results, then the page.
+  URL: ?ctx=start|game · ?at=<name> · ?from=editor-b|page-b · ?find=<search>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Script manual · B Uppslaget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="common.css">
+<style>
+.mb-head { gap: 10px 14px; margin-bottom: 14px; }
+.mb-q { position: relative; flex: 1 1 380px; min-width: 0; }
+.mb-q svg { position: absolute; left: 14px; top: 50%; width: 17px; height: 17px; margin-top: -8.5px; fill: none; stroke: var(--c-dim); stroke-width: 1.5; pointer-events: none; }
+.mb-q .field { height: 42px; padding-left: 42px; font-size: 19px; }
+.mb-main { gap: 22px; }
+.mb-res { flex: 0 0 300px; display: flex; flex-direction: column; min-height: 0; }
+.mb-res .sum { flex: none; font: italic 500 15px/1.2 var(--serif); color: var(--c-faint); padding: 0 4px 8px; }
+.mb-list { flex: 1; min-height: 0; padding: 0 6px 6px 0; }
+.mb-list .grp { padding: 12px 6px 6px; font: 600 10.5px/1 var(--display); letter-spacing: .24em; text-transform: uppercase; color: var(--c-dim); }
+.mb-list .grp:first-child { padding-top: 2px; }
+.mb-list .row { min-height: 0; padding: 7px 10px 8px; flex-direction: column; align-items: stretch; gap: 2px; border-radius: 0; background: none; box-shadow: none; border-bottom: 1px solid color-mix(in srgb, var(--c-rule) 70%, transparent); }
+.mb-list .row .t { font: 500 16.5px/1.25 var(--serif); }
+.mb-list .row .t.api { font: 400 13px/1.4 var(--mono); }
+.mb-list .row .s { font: italic 500 14px/1.3 var(--serif); color: var(--c-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mb-list .row .s b { font-style: normal; font-weight: 600; color: var(--c-dim); }
+.mb-list .row .n { font: italic 500 13.5px/1 var(--serif); color: var(--c-faint); }
+.mb-list .row .top { display: flex; align-items: baseline; gap: 8px; }
+.mb-list .row .top .n { margin-left: auto; }
+.mb-list .row.on .s { color: var(--c-dim); }
+.mb-page { flex: 1; min-width: 0; display: flex; flex-direction: column; border-radius: 6px; background: var(--row); box-shadow: var(--row-sh); padding: 4px 26px 0; }
+.mb-crumb { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 0 0; font: 600 10.5px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--c-faint); }
+.mb-crumb .k { font: italic 500 14.5px/1 var(--serif); letter-spacing: 0; text-transform: none; margin-left: auto; }
+.mb-text { flex: 1; min-height: 0; padding: 0 6px 20px 0; }
+.mb-text section h2 { margin-top: 10px; font-size: 26px; }
+.mb-text section h2.api { font-size: 21px; }
+.mb-pfoot { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 0 12px; border-top: 1px solid var(--c-rule); }
+.mb-pfoot .ibtn { max-width: 46%; }
+.mb-pfoot .ibtn span { overflow: hidden; text-overflow: ellipsis; }
+.mb-pfoot .ibtn.next { margin-left: auto; flex-direction: row-reverse; padding: 0 12px 0 16px; }
+.mb-pfoot .ibtn .api { font-family: var(--mono); letter-spacing: 0; text-transform: none; font-weight: 400; font-size: 12px; }
+.mb-back { display: none; }
+.zone-page .mb-page { box-shadow: var(--row-sh), 0 0 0 1px color-mix(in srgb, var(--c-sk-on) 30%, transparent); }
+@container sc (max-width: 720px) {
+  .mb-res { flex: 1; }
+  .mb-page { display: none; padding: 0 14px; }
+  .drill .mb-res { display: none; }
+  .drill .mb-page { display: flex; }
+  .mb-back { display: inline-flex; margin: 10px 0 0; align-self: flex-start; }
+  .mb-head .seg button { padding: 0 10px; }
+}
+@media (max-width: 600px) { .mb-q .field { font-size: 17px; height: 38px; } .mb-head .seg { width: 100%; justify-content: space-between; } }
+</style>
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+const { esc, h, I } = SC;
+const SECS = SD.manual;
+const from = SC.qs.get('from');
+const host = SC.host({
+  title: 'Script Manual', frame: 'b', depth: from ? 1 : 0, open: !!from,
+  onRootBack: from ? () => host.go(`${from}.html`, SC.qs.get('sc') ? { sc: SC.qs.get('sc') } : {}) : null,
+  build(root, host) {
+    if (host.game) host.setTitle('Scripts'), host.setNote('Manual');
+    root.innerHTML = `
+      <div class="sc-head mb-head">${SC.inlineBack(host)}<div class="mb-q">${I.find}<input class="field" id="q" placeholder="Search the manual: chapters, API and Lua names, words" spellcheck="false" autocomplete="off" aria-label="Search the manual"></div>
+        <div class="seg" role="tablist" aria-label="Part"><button type="button" data-g="" aria-selected="true">All</button><button type="button" data-g="guide" aria-selected="false">Guide</button><button type="button" data-g="reference" aria-selected="false">API</button><button type="button" data-g="lua" aria-selected="false">Lua</button></div></div>
+      <div class="sc-body mb-main">
+        <div class="mb-res"><div class="sum" id="sum"></div><div class="mb-list sc-scroll" id="list" role="listbox" aria-label="Results"></div></div>
+        <div class="mb-page"><button type="button" class="ibtn small mb-back" data-act="list">${I.back}<span>Results</span></button><div class="mb-crumb" id="crumb"></div><article class="mb-text sc-scroll sc-man" id="text"></article><div class="mb-pfoot" id="pfoot"></div></div>
+      </div>`;
+    const q = root.querySelector('#q'), listEl = root.querySelector('#list'), textEl = root.querySelector('#text'), crumb = root.querySelector('#crumb'), pfoot = root.querySelector('#pfoot'), sum = root.querySelector('#sum');
+    const linkOf = (n) => SECS.findIndex((x) => x.group === 'lua' && x.heading === n);
+    const plain = SECS.map((s) => [s.heading, ...(s.syntax || []), ...(s.text || []), ...(s.examples || []).map((e) => (e.note || '') + ' ' + e.code)].join('\n'));
+    let group = '', results = [], ri = 0, cur = 0, zone = 'list';
+    const narrow = () => root.clientWidth <= 720;
+    function search() {
+      const t = q.value.trim(), tl = t.toLowerCase();
+      const inG = (i) => !group || SECS[i].group === group;
+      if (!t) { results = SECS.map((_, i) => ({ i })).filter((r) => inG(r.i)); }
+      else {
+        const words = tl.split(/\s+/).filter(Boolean);
+        const named = [], texted = [];
+        SECS.forEach((s, i) => {
+          if (!inG(i)) return;
+          const hl = s.heading.toLowerCase();
+          if (hl === tl || hl.startsWith(tl) || (hl.includes(tl) && tl.length > 2)) { named.push({ i, score: hl === tl ? 0 : hl.startsWith(tl) ? 1 : 2 }); return; }
+          const body = plain[i].toLowerCase();
+          if (words.every((w) => body.includes(w))) {
+            const n = body.split(words[0]).length - 1, line = plain[i].split('\n').find((l) => l.toLowerCase().includes(words[0])) || '';
+            texted.push({ i, n, line });
+          }
+        });
+        named.sort((a, b) => a.score - b.score || SECS[a.i].heading.length - SECS[b.i].heading.length);
+        texted.sort((a, b) => b.n - a.n);
+        results = [...named, ...texted];
+      }
+      ri = Math.max(0, results.findIndex((r) => r.i === cur)); if (t) ri = 0;
+      renderList();
+    }
+    function snippet(line, w) { const l = line.toLowerCase(), k = l.indexOf(w); if (k < 0) return esc(line.slice(0, 90)); const a = Math.max(0, k - 28); return (a ? '…' : '') + esc(line.slice(a, k)) + '<b>' + esc(line.slice(k, k + w.length)) + '</b>' + esc(line.slice(k + w.length, k + w.length + 70)); }
+    function renderList() {
+      const t = q.value.trim().toLowerCase(), w0 = t.split(/\s+/)[0] || '';
+      let g = null, html = '';
+      results.forEach((r, k) => {
+        const s = SECS[r.i];
+        if (!t && s.group !== g) { g = s.group; html += `<div class="grp">${SC.GROUPS[g]}</div>`; }
+        html += `<div class="row${k === ri ? ' on' : ''}" data-k="${k}" role="option"><div class="top"><span class="t${s.group !== 'guide' ? ' api' : ''}">${esc(s.heading)}</span>${t ? `<span class="n">${r.n ? `${r.n}×` : ''} ${s.group === 'guide' ? 'guide' : s.group === 'lua' ? 'Lua' : 'API'}</span>` : ''}</div>${r.line ? `<div class="s">${snippet(r.line, w0)}</div>` : t ? '' : ''}</div>`;
+      });
+      listEl.innerHTML = html || `<p class="empty" style="padding:30px 10px;font-size:17px">Nothing in the manual matches “${esc(q.value)}”.</p>`;
+      sum.textContent = t ? `${results.length} found` : `${results.length} chapters and entries`;
+      listEl.querySelectorAll('.row').forEach((r) => r.addEventListener('click', () => { ri = +r.dataset.k; paintList(); open(results[ri].i); if (narrow()) { root.classList.add('drill'); zone = 'page'; paintZone(); } }));
+      paintList(false);
+    }
+    function paintList(scroll = true) { listEl.querySelectorAll('.row').forEach((r) => r.classList.toggle('on', +r.dataset.k === ri)); const on = listEl.querySelector('.row.on'); if (on && scroll) on.scrollIntoView({ block: 'nearest' }); }
+    function open(i) {
+      cur = i; const s = SECS[i], same = SECS.filter((x) => x.group === s.group), k = same.indexOf(s);
+      crumb.innerHTML = `${SC.GROUPS[s.group]}<span class="k">${k + 1} of ${same.length}</span>`;
+      textEl.innerHTML = SC.manualHTML(s, i, { linkOf }); textEl.scrollTop = 0;
+      const t = q.value.trim(); if (t) { const m = SC.markText(textEl, t.split(/\s+/)[0]); if (m.marks[0]) { m.marks[0].classList.add('now'); if (m.marks[0].offsetTop > textEl.clientHeight * .6) m.marks[0].scrollIntoView({ block: 'center' }); } }
+      const nm = (j) => (SECS[j].group === 'guide' ? esc(SECS[j].heading) : `<span class="api">${esc(SECS[j].heading)}</span>`);
+      pfoot.innerHTML = `${i > 0 ? `<button type="button" class="ibtn small" data-go="${i - 1}" title="Previous (←)">${I.left}<span>${nm(i - 1)}</span></button>` : ''}${i < SECS.length - 1 ? `<button type="button" class="ibtn small next" data-go="${i + 1}" title="Next (→)">${I.right}<span>${nm(i + 1)}</span></button>` : ''}`;
+    }
+    root.addEventListener('click', (e) => { const g2 = e.target.closest('[data-go]'); if (g2) { e.preventDefault(); open(+g2.dataset.go); const k = results.findIndex((r) => r.i === cur); if (k >= 0) { ri = k; paintList(); } return; } const b = e.target.closest('[data-act]'); if (!b) return; if (b.dataset.act === 'list') { root.classList.remove('drill'); zone = 'list'; paintZone(); } else if (b.dataset.act === 'back') host.go(`${from || 'page-b'}.html`, SC.qs.get('sc') ? { sc: SC.qs.get('sc') } : {}); });
+    root.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => { root.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-selected', x === b)); group = b.dataset.g; search(); }));
+    let qt = null; q.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => { search(); if (results[0] && !narrow()) open(results[0].i); }, 150); });
+    q.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); ri = Math.max(0, Math.min(results.length - 1, ri + (e.key === 'ArrowDown' ? 1 : -1))); paintList(); if (!narrow() && results[ri]) open(results[ri].i); }
+      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (results[ri]) { open(results[ri].i); q.blur(); zone = 'page'; if (narrow()) root.classList.add('drill'); paintZone(); } }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (q.value) { q.value = ''; search(); } else q.blur(); }
+    });
+    const paintZone = () => root.classList.toggle('zone-page', zone === 'page');
+    const at = SC.qs.get('at');
+    let first = 0;
+    if (at) { first = SECS.findIndex((s) => s.group !== 'guide' && s.heading === at); if (first < 0) first = SECS.findIndex((s) => s.heading.toLowerCase() === at.toLowerCase()); if (first < 0) first = 0; }
+    cur = first;
+    if (SC.qs.get('find')) q.value = SC.qs.get('find');
+    search(); open(SC.qs.get('find') && results[0] ? results[0].i : first);
+    if (!SC.qs.get('find')) { ri = Math.max(0, results.findIndex((r) => r.i === cur)); paintList(); }
+    if (narrow() && at) { root.classList.add('drill'); zone = 'page'; }
+    paintZone();
+    return {
+      key(e) {
+        const k = e.key, mod = e.ctrlKey || e.metaKey;
+        if ((mod && /^f$/i.test(k)) || (k === '/' && !mod)) { q.focus(); q.select(); return true; }
+        if (k === 'Tab') { zone = zone === 'list' ? 'page' : 'list'; root.classList.toggle('drill', narrow() && zone === 'page'); paintZone(); return true; }
+        if (k === 'PageDown' || k === 'PageUp') { textEl.scrollBy({ top: (k === 'PageDown' ? 1 : -1) * (textEl.clientHeight - 50), behavior: WC.RM ? 'auto' : 'smooth' }); return true; }
+        if (zone === 'page') {
+          if (k === 'ArrowLeft' || k === 'ArrowRight') { const j = cur + (k === 'ArrowLeft' ? -1 : 1); if (j >= 0 && j < SECS.length) { open(j); const r = results.findIndex((x) => x.i === j); if (r >= 0) { ri = r; paintList(); } } return true; }
+          if (k === 'ArrowDown' || k === 'ArrowUp') { textEl.scrollBy({ top: k === 'ArrowDown' ? 44 : -44 }); return true; }
+          if (k === 'Home' || k === 'End') { textEl.scrollTop = k === 'Home' ? 0 : textEl.scrollHeight; return true; }
+          return false;
+        }
+        if (k === 'ArrowDown' || k === 'ArrowUp') { ri = Math.max(0, Math.min(results.length - 1, ri + (k === 'ArrowDown' ? 1 : -1))); paintList(); if (!narrow() && results[ri]) open(results[ri].i); return true; }
+        if (k === 'Enter' || k === 'ArrowRight') { if (results[ri]) { open(results[ri].i); zone = 'page'; if (narrow()) root.classList.add('drill'); paintZone(); } return true; }
+        if (k.length === 1 && /[a-z]/i.test(k) && !mod && !e.altKey) { q.focus(); return false; }
+        return false;
+      },
+      back() { if (zone === 'page' && narrow()) { root.classList.remove('drill'); zone = 'list'; paintZone(); return true; } if (q.value) { q.value = ''; search(); return true; } return false; },
+    };
+  },
+});
+</script>
+</body>
+</html>

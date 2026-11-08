@@ -1,0 +1,1007 @@
+/* The profile editor in the new look, direction B "Ryggen" (stage 43a,
+ * ADR 0128). Re-derived from the round 7 mockup (notes/research/
+ * start-menu-mockups/round7/profiles/editor-b.html, ped.css `.ped-b`) in
+ * the app's structure, on the lantern kit's tokens (`--lk-*`), so the same
+ * rules serve the start page's large box, a dark or Paper in-game window
+ * and the phone's ESC menu.
+ *
+ * The editor lays itself out by its own width (`container: pe`), never by
+ * the device: rail | list | detail above 940 px, the rail as a row of tabs
+ * up to 940 px, one column (the entry as a sheet) at 640 px and less. The
+ * thresholds are logic.ts's PE_WIDE / PE_NARROW (the keys follow them).
+ * Editor has no rail: its buffer takes the whole width in every layout
+ * (owner feedback 2026-11-08).
+ *
+ * Inner surfaces (the list, the fields, the code well, the swatches) are
+ * solid or plain translucent fills: no backdrop-filter (stage 42's rules). */
+
+.wc-pe-win {
+  /* The editor fills the box's lit window. */
+  overflow: hidden;
+  /* No blur under the fields (as the script editor, .wc-sed-win): the
+   * large window's backdrop-filter is redrawn on every keystroke, which
+   * under software compositing costs 130 ms p95 per key in the Lite form
+   * against 20 ms flat (stage 43 wave 3). A more opaque fill instead. */
+  --lk-large-blur: none;
+  --lk-large-fill: rgba(13, 10, 8, 0.86);
+}
+
+.wc-pe {
+  container: pe / inline-size;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--lk-text);
+  font: 500 16px/1.3 var(--lk-serif);
+  --pe-mono: 13.5px;
+}
+
+.wc-pe [hidden] {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------ the head */
+
+.wc-pe-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  margin: 0 0 14px;
+}
+
+.wc-pe-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 22px/1.1 var(--lk-display);
+  letter-spacing: 0.1em;
+  color: var(--lk-head);
+}
+
+.wc-pe-live {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: italic 500 15px/1.2 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-pe-live-t {
+  /* The text itself carries the ellipsis (a flex box's bare text cannot). */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-pe-live i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lk-faint);
+}
+
+.wc-pe-live.is-live i {
+  background: var(--lk-ok);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--lk-ok) 70%, transparent);
+}
+
+[data-light] .wc-pe-live.is-live i {
+  box-shadow: none;
+}
+
+.wc-pe-views {
+  margin-left: auto;
+  flex: none;
+}
+
+.wc-pe-views .wc-lk-opt {
+  min-width: 72px;
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------ the columns (B) */
+
+.wc-pe-cols {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 228px minmax(0, 1fr) minmax(0, 0.95fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.wc-pe[data-view="help"] .wc-pe-cols {
+  grid-template-columns: 228px minmax(0, 1fr);
+}
+
+/* Editor: no rail, the buffer from the box's left edge (in every layout). */
+.wc-pe[data-view="editor"] .wc-pe-cols {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---- the rail (the spine) */
+
+.wc-pe-rail {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 18px 0 0;
+  margin-right: 22px;
+  border-right: 1px solid var(--lk-rule);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+}
+
+.wc-pe[data-view="help"] .wc-pe-rail {
+  overflow: hidden;
+}
+
+.wc-pe-railh {
+  flex: none;
+  margin: 4px 0 10px 12px;
+  font: 600 10px/1 var(--lk-display);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-pe-rit {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font: 600 13.5px/1 var(--lk-display);
+  letter-spacing: 0.14em;
+  color: var(--lk-item);
+  transition:
+    color calc(0.4s * var(--lk-ts)),
+    text-shadow calc(0.4s * var(--lk-ts));
+}
+
+.wc-pe-rit .wc-lk-ic {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  opacity: 0.6;
+  transition: opacity calc(0.4s * var(--lk-ts));
+}
+
+.wc-pe-rlabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Room inside the clip for the shortcut letter's mark (drawn under the
+   * glyphs), without changing the row's height. */
+  padding-block: 5px;
+  margin-block: -5px;
+}
+
+.wc-pe-rn {
+  margin-left: auto;
+  flex: none;
+  font: 500 14px/1 var(--lk-serif);
+  letter-spacing: 0;
+  color: var(--lk-faint);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wc-pe-rit:hover {
+    color: var(--lk-text);
+  }
+}
+
+.wc-pe-rit.is-on {
+  color: var(--lk-on);
+  text-shadow: 0 0 10px var(--lk-on-glow);
+}
+
+.wc-pe-rit.is-on .wc-lk-ic {
+  opacity: 1;
+}
+
+.wc-pe-rit.is-on .wc-pe-rn {
+  color: var(--lk-dim);
+}
+
+/* The keyboard's entry (the rail has the keys): a fine lit tick. */
+.wc-pe-rit.is-cur::before,
+.wc-pe-row.is-cur::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 2px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 1px;
+  background: var(--lk-sk-on);
+}
+
+/* Help: the manual's contents fill the rail (it scrolls itself); the dropdown is the row's. */
+.wc-pe-hcont {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.wc-pe-hcont .wc-lk-mtoc {
+  flex: 1 1 auto;
+}
+
+.wc-pe-hsel {
+  display: none;
+}
+
+/* ---- the main column and the list */
+
+.wc-pe-main {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-pe-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lk-scroll-thumb) transparent;
+  outline: none;
+}
+
+.wc-pe-spacer {
+  flex: none;
+}
+
+.wc-lk-rows.is-flat > .wc-pe-row {
+  /* Never squeezed below its content in the list's flex column (the body
+   * line's descenders would be clipped). */
+  flex: none;
+  min-height: 52px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 14px;
+}
+
+.wc-pe-l1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wc-pe-pat,
+.wc-pe-bod {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+  font: 400 var(--pe-mono)/1.35 var(--lk-mono);
+}
+
+.wc-pe-bod {
+  font-size: calc(var(--pe-mono) - 1px);
+  color: var(--lk-dim);
+}
+
+.wc-pe-row.is-on .wc-pe-bod {
+  color: color-mix(in srgb, var(--lk-dim) 45%, var(--lk-on));
+}
+
+.wc-pe-row.is-idle .wc-pe-bod {
+  color: var(--lk-dim);
+}
+
+.wc-lk-rows.is-flat > .wc-pe-new {
+  min-height: 40px;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  font: italic 500 16px/1 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-lk-rows.is-flat > .wc-pe-new.is-on {
+  color: var(--lk-on);
+}
+
+.wc-pe-new .wc-lk-ic {
+  width: 13px;
+  height: 13px;
+}
+
+.wc-pe-flag {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.wc-pe-flag.is-bad {
+  background: var(--lk-danger);
+}
+
+.wc-pe-flag.is-warn {
+  background: var(--lk-accent);
+}
+
+/* The macro's key chip (a small keycap in a well). */
+.wc-pe-kc {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font: 500 12.5px/1 var(--lk-mono);
+  color: inherit;
+  white-space: pre;
+  background: var(--lk-well);
+  border: 1px solid var(--lk-well-edge);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35), 0 1px 0 var(--lk-well-lip);
+}
+
+.wc-pe-kc.is-custom {
+  font-style: italic;
+  color: var(--lk-dim);
+}
+
+[data-light] .wc-pe-kc {
+  box-shadow: inset 0 -2px 0 rgba(120, 90, 40, 0.12), 0 1px 0 #fff;
+}
+
+/* ---- the detail (no card) */
+
+.wc-pe-detail {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 4px 0 26px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.wc-pe-fields {
+  flex: 1 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wc-pe-fields .wc-lk-field.is-mono .wc-lk-input {
+  font-size: var(--pe-mono);
+}
+
+/* Commands (New text) take the height that is left. */
+.wc-pe-fields > .wc-lk-field.is-area {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.wc-pe-fields > .wc-lk-field.is-area textarea.wc-lk-input {
+  flex: 1 1 auto;
+  min-height: 110px;
+  resize: none;
+}
+
+.wc-pe-notes:empty {
+  display: none;
+}
+
+.wc-pe-note {
+  margin: 0 0 4px;
+  font: italic 500 15.5px/1.35 var(--lk-serif);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-pe-note::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 8px 2px 0;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+
+.wc-pe-msg {
+  color: var(--lk-danger);
+}
+
+.wc-pe-warn {
+  color: var(--lk-accent);
+}
+
+/* The sentinel's prompt (the New row). */
+.wc-pe-prompt {
+  padding: 50px 20px;
+  text-align: center;
+  font: italic 500 18px/1.45 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-pe-prompt p {
+  margin: 0 0 16px;
+}
+
+/* The sheet's back button (one column only). */
+.wc-pe-sheetbar {
+  display: none;
+}
+
+/* ---- the macro's Key cell */
+
+.wc-pe-keyrow .wc-lk-lbl {
+  margin-bottom: 7px;
+}
+
+.wc-pe-keyline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.wc-pe-keycap {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 6px;
+  font: 500 16px/1 var(--lk-mono);
+  white-space: pre;
+  color: var(--lk-text);
+  background: var(--lk-well);
+  border: 1px solid var(--lk-well-edge);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.4), var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color calc(0.25s * var(--lk-ts)),
+    border-color calc(0.25s * var(--lk-ts));
+}
+
+.wc-pe-keycap.is-hint {
+  font: italic 500 16px/1 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-pe-keycap.is-sel,
+.wc-pe-keycap:focus-visible {
+  color: var(--lk-on);
+  border-color: color-mix(in srgb, var(--lk-accent) 55%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wc-pe-keycap:hover {
+    color: var(--lk-on);
+    border-color: color-mix(in srgb, var(--lk-accent) 55%, transparent);
+  }
+}
+
+.wc-pe-keyhint {
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+/* ---- the highlight's styles, swatches and "Shows as" */
+
+.wc-pe-hl {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.wc-pe-hl > .wc-lk-lbl {
+  margin: 0 0 8px;
+}
+
+.wc-pe-verb {
+  margin: 0 0 12px;
+  font: italic 500 15px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-pe-verb code {
+  font: 400 13px var(--lk-mono);
+  font-style: normal;
+  color: var(--lk-text);
+  white-space: pre-wrap;
+}
+
+.wc-pe-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0 0 16px;
+}
+
+.wc-pe-style {
+  position: relative;
+  border-radius: 4px;
+}
+
+.wc-pe-style.is-sel {
+  outline: 1px solid var(--lk-sk-on);
+  outline-offset: 3px;
+}
+
+.wc-pe-swatches {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 6px 34px;
+}
+
+.wc-pe-swgrid {
+  display: grid;
+  grid-template-columns: repeat(2, 30px);
+  gap: 6px 8px;
+}
+
+.wc-pe-swcap {
+  grid-column: span 2;
+  margin-bottom: 2px;
+  font: 600 9.5px/1 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-dim);
+}
+
+.wc-pe-sw {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  cursor: pointer;
+  width: 30px;
+  height: 20px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-pe-sw.is-sel {
+  outline: 1px solid var(--lk-sk-on);
+  outline-offset: 2px;
+}
+
+.wc-pe-sw.is-on::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
+  filter: drop-shadow(0 0 2px #000);
+}
+
+.wc-pe-shows {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 5px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 400 var(--pe-mono)/1.5 var(--lk-mono);
+  color: var(--term-fg, #d8d0c2);
+  background: var(--term-bg, #0c0a09);
+  border: 1px solid var(--lk-well-edge);
+  box-shadow: var(--lk-well-in);
+}
+
+.wc-pe-shows .wc-lk-lbl {
+  margin: 0;
+  flex: none;
+}
+
+.wc-pe-sample {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+/* ---- the Bind key dialog's waiting keycap (pulses; still with reduced motion) */
+
+.wc-pe-keywait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 4px auto 12px;
+  width: max-content;
+  max-width: 100%;
+  padding: 0 22px;
+  height: 54px;
+  border-radius: 6px;
+  font: 500 16px/1 var(--lk-mono);
+  color: var(--lk-text);
+  background: var(--lk-well);
+  border: 1px solid var(--lk-well-edge);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.4), var(--lk-well-in), 0 1px 0 var(--lk-well-lip);
+}
+
+.wc-pe-keywait i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lk-accent);
+  box-shadow: 0 0 8px var(--lk-on-glow);
+  animation: wc-pe-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes wc-pe-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ---- Editor: the code well, Help: the manual */
+
+.wc-pe-buf {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-pe-buf > .cm-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.wc-pe-main > .wc-lk-manual {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------ the foot */
+
+.wc-pe-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-pe-btns {
+  flex: none;
+  display: flex;
+  gap: 8px;
+}
+
+.wc-pe-foot .wc-pe-flash {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-pe-status {
+  flex: none;
+  max-width: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 400 12px/1 var(--lk-mono);
+  color: var(--lk-faint);
+}
+
+.wc-pe-mod {
+  font: italic 500 15px/1 var(--lk-serif);
+  color: var(--lk-accent);
+}
+
+.wc-pe-bal {
+  color: var(--lk-danger);
+}
+
+.wc-pe-cmdhint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: italic 500 14.5px/1 var(--lk-serif);
+  color: var(--lk-accent);
+}
+
+.wc-pe-sv {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: italic 500 14.5px/1 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-pe-sv i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lk-ok);
+  opacity: 0.8;
+}
+
+.wc-pe-sv.is-editing i {
+  background: var(--lk-accent);
+}
+
+.wc-pe-sv.is-held {
+  color: var(--lk-danger);
+}
+
+.wc-pe-sv.is-held i {
+  background: var(--lk-danger);
+}
+
+/* ------------------------------------------------------------ in a window, in the ESC menu: denser */
+
+.wc-pe.is-window,
+.wc-pe.is-menu {
+  --pe-mono: 13px;
+}
+
+.wc-pe.is-window .wc-pe-head {
+  margin-bottom: 10px;
+}
+
+.wc-pe.is-window .wc-pe-foot {
+  min-height: 40px;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+/* A small window (stage 43b): one column at the minimum size (60 × 18
+ * cells, about 540 × 330 px) still shows the list's rows and the sheet's
+ * two fields. The detail scrolls when they do not fit (the editor brings
+ * the focused field into view). */
+@container pe (max-width: 640px) {
+  .wc-pe.is-window .wc-pe-head {
+    margin-bottom: 6px;
+  }
+
+  .wc-pe.is-window .wc-pe-rail {
+    margin-bottom: 6px;
+    padding-bottom: 0;
+  }
+
+  .wc-pe.is-window .wc-pe-rit {
+    height: 30px;
+  }
+
+  .wc-pe.is-window .wc-pe-sheetbar {
+    margin-bottom: 6px;
+  }
+
+  .wc-pe.is-window .wc-pe-fields {
+    gap: 8px;
+  }
+
+  .wc-pe.is-window .wc-pe-fields > .wc-lk-field.is-area textarea.wc-lk-input {
+    min-height: 4.2em;
+  }
+
+  .wc-pe.is-window .wc-pe-foot {
+    min-height: 0;
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+}
+
+/* ------------------------------------------------------------ the rail as a row (641–940 px) */
+
+@container pe (max-width: 940px) {
+  .wc-pe-cols {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .wc-pe[data-view="help"] .wc-pe-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wc-pe[data-view="editor"] .wc-pe-cols {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .wc-pe-rail {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    gap: 2px;
+    margin: 0 0 12px;
+    padding: 0 0 4px;
+    border: 0;
+    border-bottom: 1px solid var(--lk-rule);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .wc-pe[data-view="help"] .wc-pe-rail {
+    overflow: visible;
+    padding-bottom: 10px;
+  }
+
+  .wc-pe-railh {
+    display: none;
+  }
+
+  .wc-pe-rit {
+    height: 34px;
+  }
+
+  .wc-pe-rit .wc-lk-ic {
+    display: none;
+  }
+
+  .wc-pe-rn {
+    margin-left: 4px;
+  }
+
+  .wc-pe-rit.is-cur::before {
+    left: 50%;
+    top: auto;
+    bottom: 0;
+    width: 16px;
+    height: 2px;
+    margin: 0 0 0 -8px;
+  }
+
+  .wc-pe-hcont {
+    display: none;
+  }
+
+  .wc-pe-hsel {
+    display: block;
+    flex: 1 1 auto;
+    max-width: 460px;
+  }
+
+  .wc-pe-hsel .wc-lk-lbl {
+    display: none;
+  }
+
+  .wc-pe-hsel.is-cur .wc-lk-input {
+    border-color: color-mix(in srgb, var(--lk-accent) 55%, transparent);
+  }
+
+  .wc-pe-detail {
+    padding-left: 20px;
+  }
+}
+
+/* ------------------------------------------------------------ one column (≤ 640 px): the entry as a sheet */
+
+@container pe (max-width: 640px) {
+  .wc-pe-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wc-pe-detail {
+    display: none;
+    padding-left: 0;
+  }
+
+  .wc-pe.is-sheet .wc-pe-detail {
+    display: flex;
+  }
+
+  .wc-pe.is-sheet .wc-pe-main {
+    display: none;
+  }
+
+  .wc-pe-sheetbar {
+    display: flex;
+    flex: none;
+    margin: 0 0 10px;
+  }
+
+  .wc-pe-head {
+    gap: 10px;
+  }
+
+  .wc-pe-name {
+    font-size: 18px;
+  }
+
+  /* .wc-pe is the `pe` container and cannot query itself: the denser
+   * type is set on its children. */
+  .wc-pe > * {
+    --pe-mono: 12.5px;
+  }
+}
+
+/* ------------------------------------------------------------ narrow (phone, small windows) */
+
+@container pe (max-width: 520px) {
+  .wc-pe-views .wc-lk-opt {
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .wc-pe-foot {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .wc-pe-foot .wc-pe-flash {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .wc-pe-status {
+    margin-left: auto;
+    max-width: none;
+  }
+
+  .wc-pe-swatches {
+    gap: 6px 18px;
+  }
+
+  /* In the game the live line takes a row of its own under the views: beside
+   * them it would keep about 130 px of its 250. */
+  .wc-pe-head:has(> .wc-pe-live) {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .wc-pe-live {
+    order: 1;
+    flex-basis: 100%;
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-pe-keywait i {
+    animation: none;
+  }
+}

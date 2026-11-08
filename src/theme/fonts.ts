@@ -162,6 +162,31 @@ export const TITLE_FACE: FontFaceFile & { file: string; notice: string } = {
   notice: 'Cinzel Bold, Latin subset (pane titles; SIL Open Font License 1.1)',
 };
 
+/**
+ * The start page's book faces (stage 41, ADR 0125): Cormorant Garamond
+ * Medium Italic for the quote and the dim italic notes, Cormorant SC
+ * SemiBold for the quote's author. Latin subsets; they download only when
+ * the start page shows text in them. Not in the exported replay. Each is
+ * declared at the normal weight: CSS uses them at `font-weight: normal`
+ * (the files are already Medium and SemiBold), so no browser synthesises
+ * a bold.
+ */
+export const START_FACES: readonly (FontFaceFile & { file: string })[] = [
+  { family: 'Cormorant Garamond', weight: 'normal', style: 'italic', file: 'CormorantGaramond-MediumItalic-latin.woff2', text: 'Ag' },
+  { family: 'Cormorant SC', weight: 'normal', file: 'CormorantSC-SemiBold-latin.woff2', text: 'Ag' },
+];
+
+/**
+ * Cormorant Garamond Medium, upright (stage 42, ADR 0127): the look
+ * pages' body text (`--lk-serif` rows, fields, the manuals). Without it
+ * the family's only face was the italic, so every upright serif text drew
+ * italic. Not preloaded: the start page's first paint shows no upright
+ * serif text, and a browser downloads it when a look page first does.
+ */
+export const LOOK_FACES: readonly (FontFaceFile & { file: string })[] = [
+  { family: 'Cormorant Garamond', weight: 'normal', file: 'CormorantGaramond-Medium-latin.woff2', text: 'Ag' },
+];
+
 /** The code points of Agave-Bold.woff2 (its cmap; tests/unit/font-glyphs.test.ts). */
 export const AGAVE_BOLD_RANGE =
   'U+20-7E, U+A0-2AF, U+2B9-2BF, U+2C2-2C3, U+2C6-2C7, U+2D8-2DD, U+2EE, U+300-304, U+306-30C, ' +
@@ -348,6 +373,8 @@ export async function detectLocalFonts(): Promise<FontId[]> {
 export interface FontFaceFile {
   family: string;
   weight: 'normal' | 'bold';
+  /** Default normal (the start page's quote face is italic). */
+  style?: 'italic';
   /** File name under public/fonts; absent for a `local()` face. */
   file?: string;
   /** `local()` names (Lucida Console). */
@@ -400,7 +427,7 @@ export function fontFiles(id: FontId): FontFaceFile[] {
 /** The @font-face rules of every family, each (family, weight) once. */
 export function allFontFaces(): FontFaceFile[] {
   const seen = new Set<string>();
-  const out: FontFaceFile[] = [TITLE_FACE];
+  const out: FontFaceFile[] = [TITLE_FACE, ...START_FACES, ...LOOK_FACES];
   for (const id of FONT_IDS) {
     for (const f of familyFaces(id)) {
       const key = `${f.family}|${f.weight}`;
@@ -413,10 +440,10 @@ export function allFontFaces(): FontFaceFile[] {
 }
 
 /** One @font-face rule; `src` is the CSS `src` value. */
-export function fontFaceRule(f: Pick<FontFaceFile, 'family' | 'weight' | 'unicodeRange'>, src: string): string {
+export function fontFaceRule(f: Pick<FontFaceFile, 'family' | 'weight' | 'style' | 'unicodeRange'>, src: string): string {
   return (
     `@font-face{font-family:"${f.family}";src:${src};` +
-    `font-weight:${f.weight};font-style:normal;font-display:block` +
+    `font-weight:${f.weight};font-style:${f.style ?? 'normal'};font-display:block` +
     (f.unicodeRange ? `;unicode-range:${f.unicodeRange}` : '') +
     '}'
   );
@@ -520,18 +547,29 @@ export function fontUrl(file: string): string {
  * preload but its fill face.
  */
 export function preloadFont(id: FontId, doc: Document = document): void {
-  for (const { file } of renderFaces(id)) {
-    if (!file) continue;
-    const href = fontUrl(file);
-    if (doc.head.querySelector(`link[rel="preload"][href="${href}"]`)) continue;
-    const link = doc.createElement('link');
-    link.rel = 'preload';
-    link.as = 'font';
-    link.type = 'font/woff2';
-    link.crossOrigin = 'anonymous';
-    link.href = href;
-    doc.head.appendChild(link);
-  }
+  for (const { file } of renderFaces(id)) if (file) preloadFile(file, doc);
+}
+
+/**
+ * Preloads the start page's own faces (Cinzel for its labels, Cormorant
+ * for the quote and the notes, ADR 0125): the first paint asks for them at
+ * once, so they download beside the scripts and the reveal does not wait
+ * for them afterwards (ADR 0083).
+ */
+export function preloadStartFaces(doc: Document = document): void {
+  for (const { file } of [TITLE_FACE, ...START_FACES]) preloadFile(file, doc);
+}
+
+function preloadFile(file: string, doc: Document): void {
+  const href = fontUrl(file);
+  if (doc.head.querySelector(`link[rel="preload"][href="${href}"]`)) return;
+  const link = doc.createElement('link');
+  link.rel = 'preload';
+  link.as = 'font';
+  link.type = 'font/woff2';
+  link.crossOrigin = 'anonymous';
+  link.href = href;
+  doc.head.appendChild(link);
 }
 
 /**

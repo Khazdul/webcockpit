@@ -1,0 +1,65 @@
+/* Round 7 · History · B "Krönikan" (the chronicle). */
+.chron { --ch-cols: 64px minmax(90px, 150px) minmax(160px, 1fr) 70px 104px 92px; }
+.ch-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 0 6px 6px; }
+.ch-tabs { flex: 1; min-width: 0; border-bottom: 0; gap: 26px; }
+.ch-tabs button { font-size: 13px; }
+.ch-order button { padding: 0 11px; font-size: 10.5px; }
+.ch-order-sel { display: none; width: auto; }
+.ch-axis, .ch-line { display: grid; grid-template-columns: var(--ch-cols); gap: 18px; align-items: center; }
+.ch-axis { padding: 10px 24px 8px 18px; margin: 0 6px; border-top: 1px solid var(--c-rule); border-bottom: 1px solid var(--c-rule); }
+.ch-axis .ch-axl { font: 600 10px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--c-dim); white-space: nowrap; }
+.ch-axis .ch-axl.r { text-align: right; }
+.ch-axis span:nth-child(2) { grid-column: 1 / 3; }
+.ch-axis span:first-child { display: none; }
+.ch-ticks { display: flex; justify-content: space-between; font: 600 10px/1 var(--display); letter-spacing: .1em; color: var(--c-faint); }
+.ch-ticks b { font-weight: 600; width: 0; display: flex; justify-content: center; }
+.ch-ticks b:first-child { justify-content: flex-start; } .ch-ticks b:last-child { justify-content: flex-end; }
+.ch-body { padding: 0 6px; }
+.ch-list { display: flex; flex-direction: column; }
+.ch-day { display: flex; align-items: center; gap: 14px; padding: 18px 18px 6px; }
+.ch-day::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--c-rule), transparent 70%); }
+.ch-day span { font: 600 11.5px/1 var(--display); letter-spacing: .24em; text-transform: uppercase; color: var(--c-head); }
+.ch-day:first-child { padding-top: 6px; }
+.ch-row.row { display: block; min-height: 0; padding: 0; border-radius: 4px; background: none; box-shadow: none; }
+.ch-line { padding: 9px 24px 9px 18px; min-height: 42px; }
+.ch-time { font: 500 19px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; color: inherit; white-space: nowrap; }
+.ch-time small { display: block; font: 600 9.5px/1 var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--c-faint); margin-bottom: 4px; }
+.ch-char { font: 700 15.5px/1 var(--display); letter-spacing: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-band { position: relative; height: 8px; border-radius: 4px; background: var(--well); box-shadow: var(--well-in);
+  background-image: linear-gradient(90deg, transparent calc(25% - .5px), rgba(255,214,160,.08) 25%, transparent calc(25% + .5px), transparent calc(50% - .5px), rgba(255,214,160,.08) 50%, transparent calc(50% + .5px), transparent calc(75% - .5px), rgba(255,214,160,.08) 75%, transparent calc(75% + .5px)); }
+.ch-band i { position: absolute; top: 1px; bottom: 1px; border-radius: 3px; background: linear-gradient(180deg, #a08a68, #6e5c44); transition: background .45s, box-shadow .45s; }
+.ch-row.on .ch-band i { background: linear-gradient(180deg, #f2d7a2, #b8904f); box-shadow: 0 0 8px rgba(255,190,110,.35); }
+.ch-dur { text-align: right; font: 500 17px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
+.ch-saved { font: 600 16px/1 var(--serif); color: var(--c-accent); }
+.ch-exp { display: inline-flex; align-items: center; gap: 6px; font: 500 16px/1 var(--serif); color: var(--c-dim); white-space: nowrap; }
+.ch-exp svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; opacity: .8; }
+.ch-exp.soon { color: #e8a65e; }
+.ch-rate { font-size: 14px; white-space: nowrap; }
+.ch-row + .ch-row .ch-line { border-top: 1px solid color-mix(in srgb, var(--c-rule) 55%, transparent); }
+.ch-open { display: none; }
+.ch-row.on .ch-open { display: block; padding: 2px 24px 14px calc(18px + 64px + 18px); }
+.ch-row.on { background: linear-gradient(180deg, rgba(255,207,143,.05), rgba(255,207,143,.015)); box-shadow: inset 0 1px 0 rgba(255,207,143,.10), inset 0 0 0 1px rgba(255,207,143,.05); }
+.ch-row.on + .ch-row .ch-line { border-top-color: transparent; }
+.ch-sum { margin: 0 0 10px; font: italic 500 16.5px/1.3 var(--serif); color: var(--c-dim); }
+.ch-sum .hc-pk { color: #e0915a; } .ch-sum .hc-dead { color: #e06c6c; }
+.ch-acts { gap: 8px; }
+.ch-list .empty small { display: block; margin-top: 8px; font-size: 16px; color: var(--c-faint); }
+.ch-list.flat .ch-row:first-child .ch-line { border-top: 0; }
+@media (max-width: 1100px) { .chron { --ch-cols: 64px minmax(80px, 120px) minmax(120px, 1fr) 62px 96px 84px; } .ch-axis, .ch-line { gap: 12px; } .ch-row.on .ch-open { padding-left: 18px; } }
+@media (max-width: 760px) {
+  .ch-head { flex-direction: column; align-items: stretch; gap: 8px; margin: 0 0 6px; }
+  .ch-tabs { gap: 18px; }
+  .ch-order { display: none; } .ch-order-sel { display: block; height: 32px; font-size: 15.5px; }
+  .ch-axis { display: none; }
+  .ch-body { padding: 0; }
+  .ch-line { grid-template-columns: auto 1fr auto; grid-template-areas: "time char kept" "band band band" "dur rate rate"; gap: 7px 10px; padding: 10px 10px; }
+  .ch-time { grid-area: time; font-size: 17px; } .ch-time small { display: inline; margin-right: 6px; }
+  .ch-char { grid-area: char; } .ch-kept { grid-area: kept; text-align: right; }
+  .ch-band { grid-area: band; height: 6px; }
+  .ch-dur { grid-area: dur; text-align: left; font-size: 15px; color: var(--c-dim); } .ch-rate { grid-area: rate; text-align: right; font-size: 12.5px; }
+  .ch-day { padding: 12px 10px 4px; }
+  .ch-row.on .ch-open { padding: 0 10px 12px; }
+  .ch-acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ch-acts .ibtn { padding: 0 6px; }
+  .ch-sum { font-size: 15px; }
+}

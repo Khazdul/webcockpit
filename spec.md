@@ -256,6 +256,15 @@ Mapped to Inv §3.
   right (stage 30e, ADR 0110; stage 32c, ADR 0114).
 - **Removed:** connection modes and the update flow. Updating means
   reloading the page.
+- **Look** (stage 41, 2026-11-07; ADRs 0124–0126,
+  `docs/stages/41-start-page.md`): the TUI page of Inv §3.2 (pixel
+  banner, `<< >>` menu, key-hint footer) is replaced by a sky driven by
+  the offline game clock, a forged-iron "MUME" wordmark with a cyan metal
+  inlay, a menu panel whose shortcut letters are marked in the labels
+  (E P S H L C A; no key-hint rows), the quote in book type and an
+  almanac at the bottom right. Sub-pages move to the same box, with Back
+  and glass buttons, one stage at a time; the Profile list was first
+  (ADR 0125).
 
 ### 2.6 Menu bar and ESC menu
 
@@ -284,6 +293,12 @@ Mapped to Inv §5.
 - **In play** on desktop and tablet the editor opens in a movable
   Profile window over the cockpit, and the Scripts page in a Scripts
   window (stage 30 S8, ADR 0103).
+- **The look (stage 43, ADR 0128).** One lantern page in every place: a
+  large box on the start page, the Profile window's body, a full-screen
+  page in the phone's ESC menu. Three views, Lite, Editor and Help (L, E,
+  H), with a rail that follows the view (the kinds; the manual's
+  headings; Editor has none, its buffer takes the width: owner feedback
+  2026-11-08), and a quiet status at the foot.
 
 - **Lite view.**
   - Cockpit's 5 kinds: actions, aliases, highlights, macros and
@@ -320,18 +335,24 @@ Mapped to Inv §7.
   - **Capture starts in stage 1**, even though the screens that use the
     data come later.
 - **Screens:**
-  - History browser.
+  - History: a table of sessions and a card for the chosen one, in the
+    large box (stage 45, ADR 0130); Statistics, Rate and Delete open in
+    or over the same box.
   - Log player, with play, pause, scrubber, jump and speed control. Its
     chrome (stage 32c, ADR 0114) is in the ghost look of the in-game
     popups: a control box (to the start, back and forward 10 s,
     play/pause, speed `◄ 1× ►`, time, Panes, Display, Close), a thin
     rail at the right edge with kind-icon markers, and the header line
-    with the key hints.
+    with the key hints; a Back chip at the top left and h:mm:ss from one
+    hour (stage 42, ADR 0127).
   - Statistics.
-  - Spotlights reel and Credits. The reel's card shows the spotlight and
-    holds its filter (ADR 0114).
-  - Export editor with cuts and comments. It exports plain text or a
-    self-contained HTML replay.
+  - Spotlights: a wall of cards with the filter row, and a viewer that
+    grows out of a card and plays the reel (stage 46, ADR 0131; the
+    full-page reel with its card, ADR 0114, is gone). Credits: the
+    chronicle as a book, filtered by the same row (stage 47, ADR 0132).
+  - Export editor with cuts and comments written inline, as a large page
+    with a format toggle (stage 43, ADR 0128 §43d). It exports plain text
+    or a self-contained HTML replay.
   - The log player and the HTML replay share one renderer.
   - The log player and the HTML replay show the whole screen as the
     player saw it: the game output and every pane, in the player's
@@ -384,28 +405,44 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   (stage 32). In play it
   is the menu bar's Scripts window (ADR 0103), and on the phone the ESC
   menu's Options → Scripts.
-- **Scripts page** (layout A, ADR 0121):
-  - **List on the left:** every script by name, with an enable toggle, a
-    lock mark on bundled scripts and a running dot. *New*, *Import* and
-    *Manual* sit above the list.
-  - **Right side:** a framed detail that the selected list row runs into
-    (a tab with the panel fill). Its top border has the script's name and
-    its buttons *Edit*, *Export*, *Rename*, *Delete*. Inside:
-    - summary, status and problems;
-    - its settings as controls (a switch, a number with ◂ ▸, a choice, a
-      text field), saved at once, and *Reset all*;
-    - its aliases and keys;
-    - the `@help` text, typeset (paragraphs, lists, tables, headings) in
-      a box of its own that scrolls.
-
-    Without room for the frame (a phone) the list is alone and every
-    button sits above it.
-  - **Edit** opens a full-screen editor like the profile's EDITOR view:
-    - CodeMirror with Lua mode;
-    - completion and hover help for the script API;
-    - save reloads the script at once if it is enabled.
+- **Scripts page** (the lantern look of stage 44, ADR 0129; the behaviour
+  of ADR 0121 is kept, its cell layout is not). The same page, editor and
+  manual run on the start page (layout B's large box, with Back), in the
+  game's Scripts window (one Lykta frame on every page; the title is
+  *Scripts*, the note names the editor's script or *Manual*, and the
+  sub-pages have a small Back) and in the phone's ESC menu (a full-screen
+  box with Back). Three columns, by the width of the page itself:
+  - **Index:** every script by name, with an enable switch, a padlock on
+    bundled scripts, a running or failed mark and the error line under a
+    failed script.
+  - **Panel:** the selected script: its name, summary, status
+    (`on · running`, `on · at login` before the game, `off`, …) and
+    problems; *Edit*, *Export*, *Rename*, *Delete*; its settings as tiles
+    (a switch, a number with ◂ ▸, a choice, a text field), saved at once,
+    and *Reset all*; its aliases and keys.
+  - **Help:** the `@help` text, typeset (paragraphs, lists, tables,
+    headings), as a reading column of its own.
+  - *New*, *Import* and *Manual* are in the foot with the count. Narrower,
+    the help moves under the panel; on a phone or in a small window the
+    index is alone and a tap opens the script's panel (settings work
+    there too). Letters N I M E X R D work the buttons. The dialogs (New,
+    Rename, Delete, Export, Import, Restore) are small boxes over the
+    page.
+  - **Edit** opens the script editor (direction "Fokus"):
+    - CodeMirror with Lua mode, the script's name in the hood (`•` while
+      unsaved);
+    - completion, signature help and hover docs for the script API, and
+      live errors;
+    - Save, Find and Manual as small icons in the code's corner (their
+      tooltips name Ctrl+S, Ctrl+F / Ctrl+H and F1), and a status line
+      under the code;
+    - save reloads the script at once if it is enabled; leaving with
+      unsaved changes asks first.
 
     A bundled script opens read-only, with *Duplicate*.
+  - **Manual** (direction "Boken"): the guide, the API reference and the
+    Lua reference as one text with folding contents and a find in the
+    head; F1 in the editor opens it at the name under the cursor.
   - Errors appear in UI messages and on the script's row as
     `<script>:<line>: <message>`.
 - **Header:**
@@ -605,25 +642,30 @@ Research: `notes/research/import/`. Design: ADR 0073.
   (saved definition files) and Mudlet (profile saves and exported
   package XML, `.mpackage`/`.zip`; ADR 0076). Other clients are out of
   scope.
-- **Input:** IMPORT in the profile picker accepts one or more files at
-  once. Files referenced by `#read` (tt++, JMC) are resolved by name
-  among the chosen files and inlined; references not found are listed in
-  the report.
+- **Input:** Import on the Profile list opens the import page (stage 43,
+  ADR 0128 §43c): one or more files at once, dropped on it or chosen
+  (Choose files…). Files referenced by `#read` (tt++, JMC) are resolved
+  by name among the chosen files and inlined; references not found are
+  listed in the receipt. A failed import is shown on the page.
 - **Decoding:** strict UTF-8, else windows-1252 (windows-1251 when the
   text scores as Cyrillic); a BOM is stripped; CRLF becomes LF.
 - **Detection:** signature scoring per format (ADR 0073). Plain WebCockpit
   exports and native tt++ go the tt++ path. The detected format and the
-  deciding signals are shown in the report.
+  deciding signals are shown in the receipt.
 - **Translation:** each source item is *translated* (to the profile
   language), *kept* (preserved as text: inert tt++ commands verbatim,
   untranslatable foreign lines in a marked `#nop` block with a reason),
   or *skipped* (client state with no meaning here, e.g. JMC's `#presub`,
-  Powwow's `#option`; still listed in the report). Nothing is dropped
-  without a report line.
-- **Report:** after import a report frame shows the format, counts for
-  translated / kept / skipped / warnings, and a list of every item that
-  was not translated as-is, with its source line and reason. The profile
-  itself starts with a short `#nop` header naming the source and date.
+  Powwow's `#option`; still listed in the receipt). Nothing is dropped
+  without a receipt line.
+- **Receipt:** after import the page turns into a receipt (stage 43,
+  ADR 0128 §43c; it was the "IMPORT REPORT" frame): the format and its
+  signals, a summary sentence of the counts translated / kept / skipped /
+  warnings, and collapsible lists of every item that was not translated
+  as-is, with its source line and reason. OK only; the new profile is
+  then selected on the list. A native profile that needed no change gets
+  a short form. The profile itself starts with a short `#nop` header
+  naming the source and date.
 - **Mudlet (ADR 0076):** profile only, never scripts. Item bodies are
   Lua; a Lua-subset translator turns the common forms (`send`,
   variables, `matches[n]`, `if/elseif/else`, `cecho`/`decho`/`echo`,
@@ -631,7 +673,7 @@ Research: `notes/research/import/`. Design: ADR 0073.
   `fg`/`bg`/`replace`) into tt++, and inlines simple functions defined in
   the profile's Scripts. Colorizer triggers become `#highlight`, key
   codes become macro key names, saved variables become `#variable`.
-  Items of third-party packages are skipped and the report names the
+  Items of third-party packages are skipped and the receipt names the
   built-in replacement where there is one.
 - **Pure core:** detection, decoding and translation are pure functions
   in `src/import/` with no DOM, unit-tested with corpus files.
@@ -655,8 +697,8 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
   that shows one pane at a time instead of docks; no dragging or
   resizing; the input stays above the on-screen keyboard; safe-area
   insets in landscape and on notched screens.
-- **Desktop-only on a phone:** the export editor, arranging panes and
-  macro key capture.
+- **Desktop-only on a phone:** arranging panes and macro key capture
+  (the export editor works on a phone since stages 43 and 45).
 
 ## 3. Profile language
 
@@ -732,6 +774,13 @@ what feedback is wanted.
 | 30 | **Fixed menu.** A menu bar right of the input field (clock, Profile, Scripts, Panes, Settings, Fullscreen, Exit) in the ghost-icon look. Movable Profile and Scripts windows, a live Settings popup, gears on the panes, a Statistics pane, Spotlights settings in the reel; the ESC menu removed on desktop last (`docs/stages/30-fixed-menu.md`, steps 30a–f). | Change settings while you play. |
 | 31 | **Menu bar clock and weather smoothness.** Mockups for a clock that blends into the menu bar (small tweaks and drastic variants), then the chosen one built; a review of why snow (and other weather) feels jerky, and the fix (`docs/stages/31-clock-and-snow.md`, steps 31a–b). | Pick a clock; watch snow fall smoothly. |
 | 38 | **Scripts page.** Mockups in four directions, then the chosen one (A, pure TUI) built: the selected script joins a framed detail, settings edited in place and saved at once, typeset help in its own scrolling box, `@setting` ranges, units and choices (`docs/stages/38-scripts-page.md`, ADR 0121). | Change a script's settings in the small Scripts window; read a long help. |
+| 41 | **The new start page.** The night sky, the mithril wordmark, the almanac, the lantern menu panel and kit (ADR 0124–0126), the Profile list with row actions, and the Enter MUME transition (`docs/stages/41-start-page.md`). | Open the start page on desktop and phone; pick a profile and enter MUME. |
+| 42 | **The shared base for the look pages.** Layout B "Rummet växer" (the big box that grows out of the menu), box places (start page, in-game window, the phone's ESC menu), the kit's controls, dialogs and cursors, the one Lykta window frame (dark and Paper), the lantern CodeMirror look, the find row and the manual reader, and the run log player core; a dev-only kit gallery (`?kit`, ADR 0127). | The kit gallery's grow and shrink motion; the Profile and Scripts windows in their new frame; the run log player's Back. |
+| 43 | **Profile pages in the new look.** The Profile editor (B "Ryggen") as a big page and as an in-game window, Import (C) and Export (B, with a format toggle and EXPORT) (ADR 0128). | Edit a profile on the start page and in the game; import and export one. |
+| 44 | **Script pages in the new look.** The Scripts page (C "Instrumentbrädan"), the script editor (C "Fokus") and the script manual (A "Boken") (ADR 0129). | Change a script's settings, edit a script, read and search the manual. |
+| 45 | **History and the run log player.** History in the big box (A "Tabell och kort") with Statistics, Rate and Delete; the run log player with Back and h:mm:ss (ADR 0130). | Browse, rate and delete sessions; play a run log. |
+| 46 | **Spotlights: the gallery.** A wall of spotlight cards (B "Galleriet") with the settings as its filter row, and the reel in a viewer that grows out of a card (ADR 0131). | Browse the wall, play one spotlight and the whole reel, change the filter. |
+| 47 | **Credits and About.** Credits as a book (B "Krönikeboken") and About as one long leaf (A "Bladet") (ADR 0132). | Read the chronicle and the About page on desktop and phone. |
 
 ## 6. Open questions for the owner
 

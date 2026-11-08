@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  Round 7 · History · B "Krönikan" (the chronicle). Sessions under day headings with a 24-hour day band per
+  session; the chosen row opens in place with its summary and the six actions. Character tabs, an order
+  control (Newest · Oldest · Longest · Rating · Expiring · A–Z). Run log → player-b.html.
+  URL: ?empty · ?error · ?restorefail · ?menu · ?pick=s4 · ?do=stats|rate|delete
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · History B · Krönikan</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="hist.css">
+<link rel="stylesheet" href="history-b.css">
+</head>
+<body>
+<section class="lp box-large hpage" id="page" data-hood="History" data-back aria-label="History"><div class="win"></div></section>
+<script src="../base/base.js"></script>
+<script src="hdata.js"></script>
+<script src="hpages.js"></script>
+<script src="history-b.js"></script>
+<script src="shell.js"></script>
+<script>
+const page = document.getElementById('page');
+WC.decorate(page);
+const h = HISTB.mount(page, { onRunLog: (s) => { location.href = `player-b.html?from=${encodeURIComponent('history-b.html?nointro&pick=' + s.id)}&nointro`; } });
+SHELL.init({ key: 'history', page, layer: h.layer });
+const d = WC.qs.get('do');
+if (d) setTimeout(() => h.act(d), 120);
+</script>
+</body>
+</html>

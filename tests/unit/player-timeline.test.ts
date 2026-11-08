@@ -328,6 +328,19 @@ describe('strip maths', () => {
     expect(fmtClock(0)).toBe('00:00');
     expect(fmtClock(61_999)).toBe('01:01');
     expect(fmtClock(78 * 60_000 + 34_000)).toBe('78:34');
+    expect(fmtClock(-5)).toBe('00:00');
+  });
+
+  it('formats the clock as h:mm:ss from one hour with `hours` (ADR 0127), MM:SS below', () => {
+    expect(fmtClock(0, true)).toBe('00:00');
+    expect(fmtClock(20_000, true)).toBe('00:20');
+    expect(fmtClock(2 * 60_000 + 2_000, true)).toBe('02:02');
+    expect(fmtClock(3_599_999, true)).toBe('59:59');
+    expect(fmtClock(3_600_000, true)).toBe('1:00:00');
+    expect(fmtClock((60 + 34) * 60_000 + 7_400, true)).toBe('1:34:07');
+    expect(fmtClock((3 * 60 + 41) * 60_000 + 7_000, true)).toBe('3:41:07');
+    expect(fmtClock(100 * 3_600_000 + 61_000, true)).toBe('100:01:01');
+    expect(fmtClock((3 * 60 + 41) * 60_000 + 7_000, false)).toBe('221:07');
   });
 });
 

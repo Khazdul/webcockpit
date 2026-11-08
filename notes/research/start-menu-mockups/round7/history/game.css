@@ -1,0 +1,53 @@
+/* Round 7 · history group · the fake player cockpit (game.js): game text in monospace with the DOS ANSI
+   palette, the side panes in the Lykta look (ADR 0123) as the in-game screenshot shows them. */
+.gs { --gs-bg: #000; --gs-fg: #c0c0c0; --gs-fs: 14px; --gs-lh: 1.36;
+  --a0: #000; --a1: #800000; --a2: #008000; --a3: #808000; --a4: #000080; --a5: #800080; --a6: #008080; --a7: #c0c0c0;
+  --a8: #808080; --a9: #ff0000; --a10: #00ff00; --a11: #ffff00; --a12: #0000ff; --a13: #ff00ff; --a14: #00ffff; --a15: #ffffff;
+  --gs-cur: #303030; --gs-pane-bg: radial-gradient(120% 90% at 50% 0, #1c1813, #0d0b09); --gs-pane-ink: #c0c0c0;
+  position: absolute; inset: 0; display: flex; gap: 6px; background: var(--gs-bg); color: var(--gs-fg);
+  font: 400 var(--gs-fs)/var(--gs-lh) 'DejaVu Sans Mono', 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0; overflow: hidden; }
+.gs[data-font="small"] { --gs-fs: 12px; } .gs[data-font="medium"] { --gs-fs: 15px; } .gs[data-font="large"] { --gs-fs: 18px; }
+.gs[data-theme="teal"] { --gs-bg: #002b36; --gs-cur: #0a3d4a; --gs-pane-bg: #00232c; }
+.gs[data-theme="sepia"] { --gs-bg: #2b1b12; --gs-cur: #44301f; --gs-pane-bg: #23160e; }
+.gs[data-theme="slate"] { --gs-bg: #1c2128; --gs-cur: #2c333d; --gs-pane-bg: #171b21; }
+.gs[data-theme="paper"] { --gs-bg: #f4ecd8; --gs-fg: #000; --gs-cur: #e2d6b8; --gs-pane-bg: #efe5cc; --gs-pane-ink: #2a2116;
+  --a0: #000; --a1: #a01c1c; --a2: #2a6e1a; --a3: #7a5c00; --a4: #1c3c9a; --a5: #8a2a8a; --a6: #106a72; --a7: #4a4538;
+  --a8: #6e6858; --a9: #c42020; --a10: #2f7a14; --a11: #846400; --a12: #2a56c8; --a13: #a828a8; --a14: #00737e; --a15: #000; }
+.gs .a0{color:var(--a0)}.gs .a1{color:var(--a1)}.gs .a2{color:var(--a2)}.gs .a3{color:var(--a3)}.gs .a4{color:var(--a4)}.gs .a5{color:var(--a5)}.gs .a6{color:var(--a6)}.gs .a7{color:var(--a7)}
+.gs .a8{color:var(--a8)}.gs .a9{color:var(--a9)}.gs .a10{color:var(--a10)}.gs .a11{color:var(--a11)}.gs .a12{color:var(--a12)}.gs .a13{color:var(--a13)}.gs .a14{color:var(--a14)}.gs .a15{color:var(--a15)}
+.gs-out { flex: 1; min-width: 0; overflow: auto; scrollbar-width: none; padding: 6px 10px 10px; }
+.gs-out::-webkit-scrollbar { display: none; }
+.gs-rows { display: flex; flex-direction: column; justify-content: flex-end; min-height: 100%; }
+.gs-row { white-space: pre-wrap; overflow-wrap: anywhere; min-height: calc(var(--gs-fs) * var(--gs-lh)); }
+.gs-row.cur { background: var(--gs-cur); box-shadow: -10px 0 0 var(--gs-cur), 10px 0 0 var(--gs-cur); }
+.gs-row.gs-runs { margin-top: calc(var(--gs-fs) * var(--gs-lh)); }
+.gs-cm { color: var(--a11, #ffd75f); }
+.gs[data-theme="default"] .gs-cm, .gs[data-theme="dark"] .gs-cm { color: #ffd75f; }
+/* side panes (Lykta) */
+.gs-side { flex: 0 0 min(34%, 470px); min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 0 0 4px; }
+.gs.no-side .gs-side { display: none; }
+.gs-pane { position: relative; flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 14px 6px 6px; border-radius: 3px; color: var(--gs-pane-ink);
+  background: var(--gs-pane-bg); border: 1px solid #000; box-shadow: inset 0 0 0 2px #2c2620, inset 0 0 0 3px #0c0a08, inset 0 1px 0 3px rgba(255,220,180,.06); font-size: calc(var(--gs-fs) * .93); }
+.gs-pane[hidden], .gs-duo[hidden] { display: none; }
+.gs-pt { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); padding: 2px 12px 3px; border-radius: 0 0 7px 7px; white-space: nowrap;
+  font: 700 9.5px/1 'Cinzel', serif; letter-spacing: .14em; color: #d8c4a0; text-transform: uppercase;
+  background: linear-gradient(180deg, #5c4c3e, #2a211b 50%, #3d3027); box-shadow: inset 0 1px 0 rgba(255,240,220,.4), 0 0 0 1px #000; }
+.gs-map { flex: 1 1 46%; padding: 0; overflow: hidden; }
+.gs-map .gs-pt { z-index: 2; }
+.gs-mapimg { position: absolute; inset: 3px; background: #0d1a2a center / cover no-repeat; border-radius: 2px; }
+.gs-duo { flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; min-height: 0; }
+.gs-pb { min-height: 0; overflow: hidden; }
+.gs-timer { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.gs-timer i { font-style: normal; color: #7fbf7f; } .gs-timer b { color: #7fbf7f; font-weight: 400; }
+.gs-tl { flex: 1; height: 1px; background: #3a342c; } .gs-tm { margin-left: auto; color: var(--a8); }
+.gs-gm { display: grid; grid-template-columns: minmax(0, 1fr) 22px 22px 22px; gap: 3px; align-items: center; white-space: nowrap; }
+.gs-gm span { overflow: hidden; text-overflow: ellipsis; } .gs-gm.pc span, .gs-gm.me span { font-weight: 700; color: var(--a15); }
+.gs[data-theme="paper"] .gs-gm.pc span, .gs[data-theme="paper"] .gs-gm.me span { color: #000; }
+.gs-gm i, .gs-bars i { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--c) calc(var(--v) * 100%), #2a2622 0); }
+.gs-bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+.gs-commp { flex: 1 1 32%; }
+.gs-ch { white-space: nowrap; overflow: hidden; margin-bottom: 2px; }
+.gs-comm { display: flex; flex-direction: column; justify-content: flex-end; flex: 1; }
+.gs-comm > div, .gs-ui > div { flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-ui { display: flex; flex-direction: column; justify-content: flex-end; max-height: 7.5em; }
+@media (max-width: 760px) { .gs-side { display: none; } .gs { --gs-fs: 12.5px; } .gs-out { padding: 4px 6px 8px; } }

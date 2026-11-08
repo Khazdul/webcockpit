@@ -4,7 +4,14 @@
  * re-declared from them rather than inherited from <body>. The chrome's
  * colours are the menu surface tokens (`--sf-*`, ADR 0116) of that theme:
  * a light card on Paper, a tinted panel on the dark themes, following the
- * viewer's chosen background, not the app's. */
+ * viewer's chosen background, not the app's.
+ *
+ * The run log player's Back (stage 42f, ADR 0127) is the lantern kit's
+ * Back: its look is the kit's glass rules (src/chrome/kit/look-glass.css
+ * and the `--lk-*` tokens), which are not imported here. The in-app player
+ * only ever opens from the start page, whose chrome chunk has put them in
+ * the document already; the HTML replay, which carries this file, shows
+ * no Back and so carries none of them (its size budget, ADR 0127). */
 
 .wc-player {
   position: relative;
@@ -89,8 +96,7 @@
   pointer-events: none !important;
 }
 
-/* Glass: the control box, its popups, the marker tip, the time hint (and
- * the Spotlights card, spotlight.css). */
+/* Glass: the control box, its popups, the marker tip, the time hint. */
 .wc-player-box,
 .wc-pc-pop,
 .wc-player-tip,
@@ -109,10 +115,63 @@
   letter-spacing: normal;
 }
 
-.wc-player-chrome button {
+/* (`:where` keeps the specificity of `.wc-player-chrome button`: the box's own rules win over it.) */
+.wc-player-chrome button:where(:not(.wc-pv-back)) {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
+}
+
+/* ------------------------------------------------------------ Back
+ * The kit's Back (`.wc-lk-back`, look-glass.css; the `--lk-*` tokens from
+ * its own `.wc-look`), at the top left over the game text, in the header
+ * row and as tall as it (stage 42 wave 3): it hides no more of the text
+ * than the header does. Opaque, as the header's chips: the canvas colour
+ * under the kit's glass edge, no blur (game text moves under it; Firefox
+ * and Paper showed the text through the glass). Part of the chrome: it
+ * fades and stops taking the pointer with it (`[data-hidden]`). */
+
+.wc-player-chrome .wc-pv-back {
+  top: 0;
+  left: 10px;
+  height: var(--cell-h);
+  min-height: 15px;
+  padding: 0 9px 0 6px;
+  gap: 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  background: var(--term-bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 1px 0 var(--lk-glass-lip);
+  pointer-events: auto;
+}
+
+.wc-player-chrome .wc-pv-back .wc-lk-ic {
+  width: 11px;
+  height: 11px;
+}
+
+.wc-player-chrome .wc-pv-back:hover {
+  background: var(--term-bg);
+}
+
+/* A finger: a 40 px target (look-glass.css). On a phone it sits under the
+ * pane tab strip (row 0), so a tap on GAME or CHAR never meets it. */
+@media (pointer: coarse) {
+  .wc-player-chrome .wc-pv-back {
+    min-height: 40px;
+    font-size: 10.5px;
+  }
+}
+
+.wc-player:has(.wc-phone-tabs:not([hidden]) > .wc-phone-sep) .wc-pv-back {
+  top: calc(var(--cell-h) + 2px);
+}
+
+/* A strip of one tab (every pane off: only GAME) switches nothing: not shown. */
+.wc-player .wc-phone-tabs:not(:has(> .wc-phone-sep)) {
+  display: none;
 }
 
 .wc-player-chrome button:focus-visible {

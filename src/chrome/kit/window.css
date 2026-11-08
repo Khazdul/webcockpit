@@ -1,48 +1,100 @@
-/* The windows (stage 30 S8, ADR 0103; src/chrome/kit/window.tsx,
- * src/chrome/windows.tsx). A conventional frame, set apart from the panes:
- * thin cyan border, almost square corners, a slim title bar one cell high,
- * a small grip bottom right, the opaque terminal background. Unfocused: a
- * dim border and title, dimmed content. The title bar's fills and texts are
- * the menu surface tokens (`--sf-*`, ADR 0116) with a share of the cyan
- * border, so the bar is tinted like the page and keeps its cyan identity.
+/* The windows (stage 30 S8, ADR 0103; the Lykta frame, stage 42d, ADR
+ * 0127; src/chrome/kit/window.tsx, src/chrome/windows.tsx). One frame for
+ * every window: a Lykta pane as a window (re-derived from the round 7
+ * base's in-game window "win-a"). A 5 px iron band with small riveted
+ * brackets, a centred iron hood with the Cinzel title in lamp light and a
+ * dim italic note, a small iron X on the band at the right, the opaque
+ * lamp-lit window; on Paper (`data-light`, the game background is light) a
+ * bronze band and hood, an engraved dark title and a cream window.
+ * Without focus the title dims and the content goes to 55 %. The cyan
+ * border of stage 30 is gone.
+ *
+ * No backdrop-filter anywhere here: the game text scrolls under the
+ * windows all the time; the lit window is opaque.
  *
  * Stacking: the layer is a stacking context at z-index 98 in the cockpit,
  * above the panes (floating ones from 10 up) and the weather's front layer
  * (90), below the bar popups (260) and tooltips (270). The phone's ESC menu
- * (100) never meets them: the phone has no windows. */
+ * (100) never meets them: the phone has no windows.
+ *
+ * The px geometry (band, hood room, edge) is mirrored by window-geom.ts
+ * (`BAND_PX`, `HOOD_PX`, `GLASS_EDGE_PX`), which sizes the old-look grid. */
 
 .wc-windows {
   position: absolute;
   inset: 0;
   z-index: 98;
   pointer-events: none;
-  /* The identity colour, on every background. */
-  --win-border: #1f8a8f;
-  --win-border-dim: color-mix(in srgb, var(--win-border) 30%, var(--sf-border));
-  --win-bar: color-mix(in srgb, var(--sf-bg) 95%, var(--win-border));
-  --win-bar-dim: color-mix(in srgb, var(--sf-bg) 70%, var(--term-bg));
-  --win-bar-line: color-mix(in srgb, var(--sf-bg) 78%, var(--win-border));
-  --win-bar-line-dim: var(--sf-line);
-  --win-title: color-mix(in srgb, var(--sf-hot) 60%, var(--win-border));
-  --win-title-dim: color-mix(in srgb, var(--sf-faint) 70%, var(--win-border));
-  --win-note: color-mix(in srgb, var(--sf-dim) 50%, var(--win-border));
-  --win-note-dim: color-mix(in srgb, var(--sf-off) 78%, var(--win-border));
-  --win-x: color-mix(in srgb, var(--sf-dim) 50%, var(--win-border));
-  --win-x-dim: color-mix(in srgb, var(--sf-off) 78%, var(--win-border));
-  --win-grip: color-mix(in srgb, var(--win-border) 75%, var(--sf-bg));
-  --win-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 20px 56px rgba(0, 0, 0, 0.8);
+  /* A fine stone-like grain for the iron (the start kit's tile). */
+  --win-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
+  --win-iron: linear-gradient(180deg, #37312b, #26211c);
+  --win-iron-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 40%, rgba(0, 0, 0, 0.25));
+  --win-shadow:
+    inset 1px 1px 0 rgba(150, 132, 112, 0.5), inset -1px -1px 0 #0c0a08, 0 0 0 1px #000,
+    0 0 34px -8px rgba(255, 170, 90, 0.22), 0 22px 60px -10px rgba(0, 0, 0, 0.85);
+  --win-bracket:
+    radial-gradient(circle at 3px 3px, #fff1d6 0 0.8px, #ffb35c 1.1px, #1a1412 1.6px 2.2px, transparent 2.6px) 0 0 / 6px 6px no-repeat,
+    linear-gradient(135deg, #6f655a, #2a2622 80%);
+  --win-hood: linear-gradient(180deg, #5a4f44, #3a322b 45%, #2a241f);
+  --win-hood-shadow:
+    inset 0 1px 0 rgba(255, 236, 206, 0.35), inset 0 -1px 0 rgba(255, 214, 170, 0.18), 0 0 0 1px #000,
+    0 2px 5px rgba(0, 0, 0, 0.5);
+  --win-rivet: radial-gradient(circle at 36% 30%, #e8d6bd 0 14%, #7a6650 40%, #1a120d 100%);
+  --win-title: #b49c7c;
+  --win-title-on: #ffe2b4;
+  --win-title-glow: 0 0 5px rgba(255, 200, 120, 0.8), 0 0 12px rgba(255, 150, 60, 0.4);
+  --win-title-dim-glow: none;
+  --win-note: #8a7a64;
+  --win-note-on: #bfa682;
+  --win-x: #8e7d68;
+  --win-x-hot: #ffb8a0;
+  --win-x-hot-bg: rgba(255, 90, 60, 0.14);
+  --win-edge: #000;
+  --win-glass:
+    radial-gradient(50% 90px at 50% 0, rgba(255, 207, 143, 0.13), transparent),
+    radial-gradient(120% 90% at 50% 25%, rgba(255, 207, 143, 0.06), transparent 85%), #0f0c0a;
+  --win-glass-dim: #0d0b09;
+  --win-glass-shadow: inset 0 0 0 1px rgba(255, 207, 143, 0.08), inset 0 0 36px rgba(0, 0, 0, 0.7);
+  --win-grip: #b49a78;
 }
 
-/* A light terminal background: a softer shadow. */
+/* Paper: bronze band and hood (as the Paper Lykta panes), an engraved dark
+ * title, a cream lit window. */
 .wc-windows[data-light] {
-  --win-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 16px 44px rgba(0, 0, 0, 0.28);
+  --win-iron: linear-gradient(180deg, #a8946e, #8a7552);
+  --win-iron-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent 40%, rgba(0, 0, 0, 0.12));
+  --win-shadow:
+    inset 1px 1px 0 rgba(255, 246, 222, 0.7), inset -1px -1px 0 #5a4a30, 0 0 0 1px #4a3c26,
+    0 18px 44px -10px rgba(60, 40, 10, 0.45);
+  --win-bracket:
+    radial-gradient(circle at 3px 3px, #fff8e8 0 0.8px, #c49a52 1.1px, #4a3a22 1.6px 2.2px, transparent 2.6px) 0 0 / 6px 6px no-repeat,
+    linear-gradient(135deg, #d8c49a, #8a7552 80%);
+  --win-hood: linear-gradient(180deg, #e2cf9e, #b89c66 50%, #9a8050);
+  --win-hood-shadow: inset 0 1px 0 rgba(255, 250, 232, 0.9), 0 0 0 1px #5a4a30, 0 2px 4px rgba(60, 40, 10, 0.3);
+  --win-rivet: radial-gradient(circle at 36% 30%, #fff8e8 0 14%, #b08a50 45%, #4a3a22 100%);
+  --win-title: #5a4422;
+  --win-title-on: #2e1e08;
+  --win-title-glow: 0 1px 0 rgba(255, 246, 220, 0.8);
+  --win-title-dim-glow: 0 1px 0 rgba(255, 246, 220, 0.6);
+  --win-note: #5a4a30;
+  --win-note-on: #5a4a30;
+  --win-x: #4a3c26;
+  --win-x-hot: #a02a10;
+  --win-x-hot-bg: rgba(160, 40, 20, 0.12);
+  --win-edge: #6a5a3c;
+  --win-glass: radial-gradient(50% 90px at 50% 0, rgba(255, 255, 255, 0.7), transparent), #f7f0de;
+  --win-glass-dim: #f3ecd9;
+  --win-glass-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), inset 0 0 30px rgba(120, 90, 40, 0.12);
+  --win-grip: #7a6444;
 }
 
 .wc-win {
   position: absolute;
+  box-sizing: border-box;
   pointer-events: auto;
-  border-radius: 2px;
-  background: var(--term-bg);
+  border-radius: 4px;
+  background: var(--win-iron-sheen), var(--win-grain), var(--win-iron);
+  background-size: auto, 160px 160px, auto;
   box-shadow: var(--win-shadow);
   color: var(--c-item);
   font-family: var(--font-mono);
@@ -57,75 +109,111 @@
   outline: none;
 }
 
-/* The border is drawn over the box, so the content grid starts on whole cells. */
-.wc-win::after {
-  content: '';
+/* Riveted corner brackets on the band. */
+.wc-win-br {
   position: absolute;
-  inset: 0;
-  z-index: 3;
-  border: 1px solid var(--win-border-dim);
-  border-radius: 2px;
+  z-index: 5;
+  width: 15px;
+  height: 15px;
   pointer-events: none;
+  background: var(--win-bracket);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%);
 }
 
-.wc-win[data-focused]::after {
-  border-color: var(--win-border);
-}
+.wc-win-b1 { top: 0; left: 0; }
+.wc-win-b2 { top: 0; right: 0; transform: scaleX(-1); }
+.wc-win-b3 { bottom: 0; left: 0; transform: scaleY(-1); }
+.wc-win-b4 { right: 0; bottom: 0; transform: scale(-1, -1); }
 
+/* The top band: drag to move. Above the lit window's top, under the hood. */
 .wc-win-bar {
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
+  z-index: 6;
+  height: 24px;
+  cursor: move;
+  touch-action: none;
+}
+
+.wc-win-hood {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 2px 0 var(--cell-w);
-  border-bottom: 1px solid var(--win-bar-line-dim);
-  border-radius: 2px 2px 0 0;
-  background: var(--win-bar-dim);
-  cursor: move;
-  touch-action: none;
+  gap: 8px;
+  height: 23px;
+  max-width: calc(100% - 90px);
+  padding: 0 22px;
   overflow: hidden;
+  white-space: nowrap;
+  letter-spacing: normal;
+  line-height: 1;
+  border-radius: 0 0 7px 7px;
+  background: var(--win-hood);
+  box-shadow: var(--win-hood-shadow);
 }
 
-.wc-win[data-focused] > .wc-win-bar {
-  background: var(--win-bar);
-  border-bottom-color: var(--win-bar-line);
+/* The hood's two rivets. */
+.wc-win-hood::before,
+.wc-win-hood::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--win-rivet);
+  box-shadow: 0 0 0 0.5px #000;
 }
 
-.wc-win-title {
+.wc-win-hood::before { left: 8px; }
+.wc-win-hood::after { right: 8px; }
+
+.wc-win-t {
+  flex: 0 0 auto;
+  padding-top: 1px;
+  font: 700 12.5px/1 "Cinzel", Georgia, "Times New Roman", serif;
+  letter-spacing: 0.13em;
+  color: var(--win-title);
+  text-shadow: var(--win-title-dim-glow);
+  transition: color 0.25s, text-shadow 0.25s;
+}
+
+.wc-win[data-focused] .wc-win-t {
+  color: var(--win-title-on);
+  text-shadow: var(--win-title-glow);
+}
+
+.wc-win-n {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* 13 px at a 15 px font, as the bar popups. */
-  font-size: calc(var(--font-size) * 0.867);
-  letter-spacing: 0.02em;
-  color: var(--win-title-dim);
-}
-
-.wc-win[data-focused] .wc-win-title {
-  color: var(--win-title);
-}
-
-.wc-win-tn {
-  margin-left: 0.6em;
-  color: var(--win-note-dim);
-}
-
-.wc-win[data-focused] .wc-win-tn {
+  font: italic 500 13.5px/1 "Cormorant Garamond", Georgia, "Times New Roman", serif;
   color: var(--win-note);
 }
 
+.wc-win[data-focused] .wc-win-n {
+  color: var(--win-note-on);
+}
+
+/* The X: a small iron stud on the band at the right. */
 .wc-win-x {
   all: unset;
-  flex: 0 0 auto;
+  position: absolute;
+  right: 8px;
+  top: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--cell-w) * 2.5);
-  height: calc(100% - 2px);
-  border-radius: 2px;
+  width: 22px;
+  height: 16px;
+  border-radius: 3px;
+  color: var(--win-x);
   cursor: pointer;
 }
 
@@ -133,57 +221,107 @@
   width: 10px;
   height: 10px;
   fill: none;
-  stroke: var(--win-x-dim);
+  stroke: currentColor;
   stroke-width: 1.8;
   stroke-linecap: round;
 }
 
-.wc-win[data-focused] .wc-win-x > svg {
-  stroke: var(--win-x);
-}
-
 .wc-win-x:hover {
-  background: var(--sf-danger-hover);
+  color: var(--win-x-hot);
+  background: var(--win-x-hot-bg);
 }
 
-.wc-win-x:hover > svg {
-  stroke: var(--sf-danger);
-}
-
+/* The lit window, inside the band; its content box starts below the hood. */
 .wc-win-body {
   position: absolute;
+  inset: 5px;
+  box-sizing: border-box;
   overflow: hidden;
+  border: 1px solid var(--win-edge);
+  border-radius: 2px;
+  background: var(--win-glass);
+  box-shadow: var(--win-glass-shadow);
 }
 
 .wc-win:not([data-focused]) > .wc-win-body {
-  opacity: 0.5;
+  background: var(--win-glass-dim);
 }
 
-/* Resize bands: the side and bottom margins (a cell each), a thin top
- * band over the title row, cell-sized corners. */
+.wc-win-content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 19px;
+  bottom: 0;
+  transition: opacity 0.25s;
+}
+
+.wc-win:not([data-focused]) .wc-win-content {
+  opacity: 0.55;
+}
+
+/* A look frame fills the content box: free DOM, the kit's own type (the
+ * cell grid's text rules undone, as look.css does for `.wc-lk-page`). */
+.wc-win-content > .wc-stack > .wc-frame.wc-win-look {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wc-win-look,
+.wc-menu-page {
+  white-space: normal;
+  font-family: var(--lk-serif);
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: normal;
+  font-variant-ligatures: normal;
+  color: var(--lk-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* No blur in a window (game text scrolls under it all the time) nor in the
+ * ESC menu (an opaque background): the glass buttons and Back are plain
+ * translucent fills there, dark as on Paper. (Two classes: over the
+ * tokens' own `.wc-look` default, whatever the order the sheets load in.) */
+.wc-look.wc-win-look,
+.wc-look.wc-menu-page {
+  --lk-glass-blur: none;
+}
+
+/* A hidden look frame is gone, except one drawn under an overlay or held
+ * by a transition (look-overlay.css): it keeps its own display here, so
+ * the dialog's page stays drawn, veiled and inert. */
+.wc-win-content > .wc-stack > .wc-frame.wc-win-look[hidden]:not([data-under], [data-held]) {
+  display: none;
+}
+
+/* Resize bands: thin strips over the band's outer edge, corners a little larger. */
 .wc-win-edge {
   position: absolute;
-  z-index: 2;
+  z-index: 7;
   touch-action: none;
 }
 
-.wc-win-edge[data-edge="n"] { left: var(--cell-w); right: var(--cell-w); top: 0; height: max(3px, calc(var(--cell-h) * 0.25)); cursor: ns-resize; }
-.wc-win-edge[data-edge="s"] { left: var(--cell-w); right: var(--cell-w); bottom: 0; height: var(--cell-h); cursor: ns-resize; }
-.wc-win-edge[data-edge="w"] { left: 0; top: var(--cell-h); bottom: var(--cell-h); width: var(--cell-w); cursor: ew-resize; }
-.wc-win-edge[data-edge="e"] { right: 0; top: var(--cell-h); bottom: var(--cell-h); width: var(--cell-w); cursor: ew-resize; }
-.wc-win-edge[data-edge="nw"] { left: 0; top: 0; width: var(--cell-w); height: max(3px, calc(var(--cell-h) * 0.25)); cursor: nwse-resize; }
-.wc-win-edge[data-edge="ne"] { right: 0; top: 0; width: var(--cell-w); height: max(3px, calc(var(--cell-h) * 0.25)); cursor: nesw-resize; }
-.wc-win-edge[data-edge="sw"] { left: 0; bottom: 0; width: var(--cell-w); height: var(--cell-h); cursor: nesw-resize; }
-.wc-win-edge[data-edge="se"] { right: 0; bottom: 0; width: var(--cell-w); height: var(--cell-h); cursor: nwse-resize; }
+.wc-win-edge[data-edge="n"] { left: 14px; right: 14px; top: -3px; height: 7px; cursor: ns-resize; }
+.wc-win-edge[data-edge="s"] { left: 14px; right: 14px; bottom: -3px; height: 8px; cursor: ns-resize; }
+.wc-win-edge[data-edge="w"] { top: 14px; bottom: 14px; left: -3px; width: 8px; cursor: ew-resize; }
+.wc-win-edge[data-edge="e"] { top: 14px; bottom: 14px; right: -3px; width: 8px; cursor: ew-resize; }
+.wc-win-edge[data-edge="nw"] { left: -3px; top: -3px; width: 17px; height: 17px; cursor: nwse-resize; }
+.wc-win-edge[data-edge="ne"] { right: -3px; top: -3px; width: 17px; height: 17px; cursor: nesw-resize; }
+.wc-win-edge[data-edge="sw"] { left: -3px; bottom: -3px; width: 17px; height: 17px; cursor: nesw-resize; }
+.wc-win-edge[data-edge="se"] { right: -3px; bottom: -3px; width: 17px; height: 17px; cursor: nwse-resize; }
 
-/* The grip: three short diagonal strokes in the bottom right corner. */
+/* The grip: three short diagonal strokes in the lit window's bottom right corner. */
 .wc-win-grip {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  z-index: 4;
-  width: 11px;
-  height: 11px;
+  right: 3px;
+  bottom: 3px;
+  z-index: 8;
+  width: 12px;
+  height: 12px;
   cursor: nwse-resize;
   touch-action: none;
   background: linear-gradient(
@@ -196,9 +334,56 @@
     var(--win-grip) 85% 92%,
     transparent 92%
   );
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .wc-win[data-focused] > .wc-win-grip {
-  opacity: 1;
+  opacity: 0.9;
+}
+
+/* ------------------------------------------------ the phone's ESC menu: look frames
+ * (src/chrome/index.tsx). A look frame covers the whole screen over the
+ * opaque game background; its page (`.wc-menu-page`, `.wc-look`) carries
+ * the kit's tokens, Paper with `data-light` on a light game background; the
+ * kit's Box draws the Lykta frame in it (place `menu`). Old-look frames
+ * keep the TUI border.
+ *
+ * The opaque background is one layer under every shown look frame (not
+ * each frame's own), so an overlay frame (a dialog, kit/stack.tsx
+ * `push(node, { overlay: true })`) shows the look page below it. */
+
+.wc-overlay:has(> .wc-overlay-box .wc-frame.wc-menu-look:not([hidden]))::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: var(--term-bg);
+}
+
+.wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+/* As in a window: a frame under an overlay dialog or held by a
+ * transition stays drawn (look-overlay.css), with the menu's own flex. */
+.wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look[hidden]:not([data-under], [data-held]) {
+  display: none;
+}
+
+.wc-menu-page {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }

@@ -1,79 +1,92 @@
-// The script editor (spec §2.10, ADR 0051 "P2"): a full-screen frame on
-// the chrome's frame stack, laid out like the profile editor's EDITOR view
-// (ADR 0015, ADR 0037): title row with buttons, a CodeMirror buffer with
-// the TUI scrollbar, a status row (state, load errors, warnings) and the
-// footer (hints or a flash, Ln/Col).
+// The script editor (spec §2.10, ADR 0051 "P2"; stage 44b, ADR 0129): a
+// look frame in the lantern look, round 7's editor C "Fokus": the least
+// chrome and the most code.
+//
+// - On the start page a large box (layout B) with the script's name in the
+//   hood (`name •` while there are unsaved changes) and Back at the top
+//   left; in game the Scripts window's Lykta frame (title "Scripts", the
+//   note the name) with a small Back over the well; on the phone's ESC
+//   menu a full-screen box.
+// - The code well: CodeMirror (lua-cm.ts, stage 42's lantern code theme)
+//   fills it. Save, Find and Manual are small glass icons in a frosted
+//   pill at its top right (Duplicate instead of Save for a bundled script,
+//   with the plate "bundled · read-only" at the top left); they dim while
+//   you type and hide while the find row (42's lantern panel, at the top
+//   of the well) is open.
+// - A quiet status line under the well: the state and the first problem,
+//   the flash in the middle, `Modified · Ln, Col` at the right.
+// - The unsaved prompt is stage 42's inline `Dialog` (`data-dlg="unsaved"`).
 //
 // Keys: Ctrl+S saves; F1 opens the script manual (at the API or Lua name
-// under the cursor); Ctrl+F finds and replaces (search.ts; ESC closes the
+// under the cursor); Ctrl+F finds and replaces (search.ts; Esc closes the
 // panel before it closes the editor). Tab and Shift+Tab work as in a code
 // editor (lua-cm.ts): accept the completion, else the next or previous
-// snippet field, else indent or dedent. ESC closes the pop-ups first
-// (completion, signature help, hover, snippet), then the editor, and asks
-// first when there are unsaved changes. The title row has no buttons
-// (stage 10 feedback round 4), except for a bundled script: it opens
-// read-only with DUPLICATE (Tab or ↑ on the first line reaches it), which
-// opens an editable copy in its place.
+// snippet field, else indent or dedent. Esc closes the pop-ups first
+// (completion, signature help, hover, snippet), then the find row, then
+// the editor, and asks first when there are unsaved changes. A bundled
+// script opens read-only: Tab or ↑ on the first line reaches Duplicate,
+// which opens an editable copy in its place. No key hints anywhere: the
+// tools' tooltips name their keys.
+//
+// Speed (stage 44 performance notes): CodeMirror owns the buffer; the
+// frame never re-creates the view and re-renders only when the dirty
+// state, the problems, the flash or the find row change. The position is a
+// small component of its own (`PosLine`), the running poll another
+// (`StateLine`), and the tools' typing dim is one class on the root with a
+// single timer.
+//
+// Hooks: `.wc-sed` (the root, `display: contents`, with `data-script`,
+// `data-readonly`, `data-zone`), `.wc-sed-well`, `.wc-sed-tools`
+// (`[data-btn=SAVE|DUPLICATE|FIND|MANUAL]`), `.wc-sed-ro`,
+// `.wc-sed-status` (title: the problem), `.wc-sed-problem`, `.wc-sed-pos`,
+// `.wc-lk-flash`, `.wc-lk-dialog[data-dlg="unsaved"]`.
 
 import type { EditorView } from '@codemirror/view';
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { problemText, scriptState } from '../chrome/frames/scripts-model';
-import { useGrid, useServices } from '../chrome/kit/hooks';
-import { escHints } from '../chrome/kit/esc';
-import { device } from '../core/device';
-import { cellLen, centreLeft, scrollbar, truncate } from '../chrome/kit/nav';
+import { useServices } from '../chrome/kit/hooks';
+import {
+  Box,
+  BoxFoot,
+  BoxHead,
+  Dialog,
+  GlassButton,
+  Icon,
+  InlineBack,
+  LookFlash,
+  lookFrame,
+  useBoxSettled,
+  useLocalFlash,
+  useLookPlace,
+  useWindowChrome,
+} from '../chrome/kit/look';
 import { type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../chrome/kit/stack';
-import { barPress } from '../chrome/kit/scroll';
-import { Button, indent } from '../chrome/kit/widgets';
 import type { ScriptInfo, ScriptLibrary } from '../scripts';
-import { type BufferStatus, type ScrollStatus, handleKey, onFirstLine, pageScroll } from './cm';
-import { FULL_W } from './logic';
 import { checkScript } from '../scripts/check';
+import { useSkyPause } from '../chrome/start-surface';
+import { type BufferStatus, handleKey, onFirstLine } from './cm';
 import { nameAt } from './lua-api';
-import { openScriptManual } from './script-manual-frame';
 import { completing, createLuaBuffer, dismissPopups, snippetTab } from './lua-cm';
 import { type ScriptDiagnostic, diagnosticText } from './lua-diagnostics';
 import { markScriptSaved, setScriptLastError } from './lua-lint';
-import { searchFocused, searchFrameKey } from './search';
+import { openScriptManual } from './script-manual-frame';
+import { openSearch, searchFocused, searchFrameKey } from './search';
+import './script-editor.css';
 
 export interface ScriptEditorHost {
   library: ScriptLibrary;
   /** The script to edit. */
   name: string;
-  /** The script now has another name (a save took a new `@name`, DUPLICATE opened the copy). */
+  /** The script now has another name (a save took a new `@name`, Duplicate opened the copy). */
   onName?: (name: string) => void;
 }
 
-interface LocalFlash {
-  text: string;
-  kind: 'ok' | 'fail';
-  seq: number;
-}
-
 type Zone = 'buttons' | 'buffer';
-type Btn = 'DUPLICATE';
 
-const FLASH_MS = 3000;
-const MODAL_HINT = 'Y to save · N to discard · ESC to keep editing';
-/** The confirm hint on a narrow phone (ADR 0075 §3.2). */
-const MODAL_HINT_SHORT = 'Y Save · N Discard · ESC Keep editing';
-/** Footer hints, longest first; the first that fits beside Ln/Col is shown. */
-const HINTS = [
-  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · Tab Indent · ESC Back',
-  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · ESC Back',
-  'Ctrl+S Save · Ctrl+F Find · F1 Manual · ESC Back',
-  'Ctrl+S Save · F1 Manual · ESC Back',
-  'Ctrl+S Save · ESC Back',
-];
-const RO_HINTS = [
-  'Read-only: DUPLICATE makes your copy · Ctrl+F Find · F1 Manual · Tab Cycle · ESC Back',
-  'Read-only: DUPLICATE makes your copy · Ctrl+F Find · F1 Manual · ESC Back',
-  'Read-only · Ctrl+F Find · F1 Manual · ESC Back',
-  'Read-only · ESC Back',
-];
+/** How long the tools stay dim after the last input. */
+const TYPING_MS = 1600;
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
-const plain = (e: KeyboardEvent): boolean => !e.ctrlKey && !e.altKey && !e.metaKey;
 
 /** Pushes the script editor for `host.name` (no-op when the script is gone). */
 export function openScriptEditor(nav: Nav, host: ScriptEditorHost): void {
@@ -81,79 +94,112 @@ export function openScriptEditor(nav: Nav, host: ScriptEditorHost): void {
   nav.push(<ScriptEditor host={host} />);
 }
 
-export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditorHost; flash?: string }): VNode {
+// ------------------------------------------------------------ small stores
+
+/** A value outside Preact's state: its readers re-render alone (the cursor's position). */
+interface Cell<T> {
+  get(): T;
+  set(v: T): void;
+  sub(fn: () => void): () => void;
+}
+
+function cell<T>(v: T): Cell<T> {
+  const fns = new Set<() => void>();
+  return {
+    get: () => v,
+    set(next) {
+      v = next;
+      for (const fn of fns) fn();
+    },
+    sub(fn) {
+      fns.add(fn);
+      return () => fns.delete(fn);
+    },
+  };
+}
+
+function useCell<T>(c: Cell<T>): T {
+  const [, bump] = useState(0);
+  useLayoutEffect(() => c.sub(() => bump((n) => n + 1)), [c]);
+  return c.get();
+}
+
+// ------------------------------------------------------------ the frame
+
+export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditorHost; flash?: string }): VNode {
   const nav = useNav();
   const isTop = useIsTop();
-  const { cols, rows, surface } = useGrid();
-  const { scriptRunning } = useServices();
+  const place = useLookPlace();
+  // Firefox drops the focus of an element its box's morph hides (layout B's
+  // `visibility` animation, stage 42); settling re-renders, and the focus
+  // effect below takes the buffer's focus back.
+  useBoxSettled();
   const lib = host.library;
 
   const [name, setName] = useState(host.name);
   const [info, setInfo] = useState<ScriptInfo | null>(() => lib.get(host.name));
-  const [saved, setSaved] = useState(() => lib.get(host.name)?.source ?? '');
-  const [text, setText] = useState(saved);
   const [zone, setZone] = useState<Zone>('buffer');
-  const [btn, setBtn] = useState(0);
   const [modal, setModal] = useState<null | 'confirm' | 'saving'>(null);
-  const [flash, setFlash] = useState<LocalFlash | null>(null);
-  const [status, setStatus] = useState<BufferStatus>({ line: 1, col: 1, unclosed: 0, stray: 0, hint: null });
-  const [scroll, setScroll] = useState<ScrollStatus>({ top: 0, height: 0, client: 0 });
   const [diags, setDiags] = useState<readonly ScriptDiagnostic[]>([]);
-  const [, setTick] = useState(0);
+  const [dirty, setDirty] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const [flash, showFlash] = useLocalFlash();
+  const [pos] = useState(() => cell<BufferStatus>({ line: 1, col: 1, unclosed: 0, stray: 0, hint: null }));
 
   const rootRef = useRef<HTMLDivElement>(null);
   const bufRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const nameRef = useRef(name);
   nameRef.current = name;
+  /** The saved text, and the buffer's (kept out of state: no render per keystroke). */
+  const savedRef = useRef(lib.get(host.name)?.source ?? '');
   const busy = useRef(false);
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flashSeq = useRef(0);
-  const cellH = useRef(16);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const readOnly = info?.readonly ?? true;
-  const buttons: Btn[] = readOnly ? ['DUPLICATE'] : [];
-  const dirty = !readOnly && text !== saved;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
+  const buttons = readOnly ? (['DUPLICATE'] as const) : ([] as const);
+  const shown = `${name}${dirty ? ' •' : ''}`;
 
-  const showFlash = (t: string, kind: 'ok' | 'fail' = 'ok', ms = FLASH_MS): void => {
-    if (flashTimer.current) clearTimeout(flashTimer.current);
-    setFlash({ text: t, kind, seq: ++flashSeq.current });
-    flashTimer.current = setTimeout(() => setFlash(null), ms);
-  };
+  // The window's title and note (in game; a no-op elsewhere).
+  useWindowChrome({ title: 'Scripts', note: shown });
+  // The editor's box is opaque (no blur, an opaque code well): the sky
+  // behind it stands still while the editor is on top, so its frames never
+  // compete with typing (a no-op outside the start page).
+  useSkyPause(true);
+
   useEffect(() => {
     if (initialFlash) showFlash(initialFlash);
-    return () => void (flashTimer.current && clearTimeout(flashTimer.current));
+    return () => void (typingTimer.current && clearTimeout(typingTimer.current));
   }, []);
 
-  // The script as the library sees it (state, errors), and the host's
-  // running state, which changes without a library event: polled.
+  // The script as the library sees it (state, errors).
   useEffect(() => lib.subscribe(() => setInfo(lib.get(nameRef.current))), [lib]);
-  useEffect(() => {
-    if (!isTop) return;
-    const t = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(t);
-  }, [isTop]);
-
-  // ------------------------------------------------------------ geometry
-
-  const gap = surface === 'start' ? 2 : 1;
-  // A phone may be narrower than 42 columns (ADR 0075 §3.2): no 40-cell floor there.
-  const W = Math.max(device().phone ? Math.min(40, cols - 2) : 40, Math.min(FULL_W, cols - 2));
-  const at = centreLeft(cols, W);
-  // gap + title + blank + buffer + status + footer
-  const bufferH = Math.max(3, rows - gap - 4);
 
   // -------------------------------------------------------------- buffer
+
+  /** The tools dim while typing: one class on the root, one timer. */
+  const typed = (): void => {
+    const root = rootRef.current;
+    if (!root) return;
+    root.classList.add('is-typing');
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => root.classList.remove('is-typing'), TYPING_MS);
+  };
 
   useLayoutEffect(() => {
     if (!bufRef.current) return;
     const view = createLuaBuffer(bufRef.current, {
-      text: saved,
+      text: savedRef.current,
       readOnly,
-      onStatus: setStatus,
-      onScroll: setScroll,
-      onChange: setText,
+      onStatus: (s) => pos.set(s),
+      onChange: (text) => {
+        setDirty(!readOnlyRef.current && text !== savedRef.current);
+        typed();
+      },
       onFocus: () => setZone('buffer'),
+      onSearch: setFinding,
       // Live errors: header and a compile-only check (the Lua runtime
       // loads now, in its own chunk), plus the running script's last error.
       lint: {
@@ -178,23 +224,24 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     if (viewRef.current) setScriptLastError(viewRef.current, lastError);
   }, [lastError]);
 
-  // Keyboard focus follows the zone.
+  // Keyboard focus follows the zone: the buffer, else the frame stack (the
+  // tools never take the focus; the prompt's keys come through the stack).
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || !isTop) return;
-    const lh = parseFloat(getComputedStyle(root).lineHeight);
-    if (lh > 0) cellH.current = lh;
     const v = viewRef.current;
     if (zone === 'buffer' && v && !modal) {
       if (!v.hasFocus && !searchFocused(v)) v.focus();
       return;
     }
-    if (root.ownerDocument.activeElement !== root) root.focus({ preventScroll: true });
+    const stack = root.closest<HTMLElement>('.wc-stack');
+    if (stack && root.ownerDocument.activeElement !== stack) stack.focus({ preventScroll: true });
   });
 
   // ------------------------------------------------------------- actions
 
-  const current = (): string => viewRef.current?.state.doc.toString() ?? text;
+  const current = (): string => viewRef.current?.state.doc.toString() ?? savedRef.current;
+  const unsaved = (): boolean => !readOnlyRef.current && current() !== savedRef.current;
 
   /** Saves the buffer. True when it was saved. */
   const save = async (): Promise<boolean> => {
@@ -205,8 +252,8 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     try {
       const r = await lib.save(before, src);
       if (viewRef.current) markScriptSaved(viewRef.current, src);
-      setSaved(src);
-      setText(src);
+      savedRef.current = src;
+      setDirty(current() !== src);
       if (r.name !== nameRef.current) {
         nameRef.current = r.name;
         setName(r.name);
@@ -241,13 +288,21 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
   };
 
   const close = (): void => {
-    if (dirty || (!readOnly && current() !== saved)) return setModal('confirm');
+    if (modal) return;
+    if (unsaved()) return setModal('confirm');
     nav.pop();
   };
   // A window's close request waits for the prompt; the Exit popup warns (ADR 0103).
-  useUnsaved(() => dirty || (!readOnly && current() !== saved), modal !== null);
+  useUnsaved(unsaved, modal !== null);
 
+  const keepEditing = (): void => {
+    if (modal === 'confirm') setModal(null);
+  };
+  const discard = (): void => {
+    if (modal === 'confirm') nav.pop();
+  };
   const saveAndClose = async (): Promise<void> => {
+    if (modal !== 'confirm') return;
     setModal('saving');
     const ok = await save();
     if (ok) {
@@ -259,31 +314,28 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
   /** The script manual, at the API or Lua name under the cursor when `atCursor` and there is one. */
   const manual = (atCursor: boolean): void => {
     const v = viewRef.current;
-    let name: string | undefined;
+    let at: string | undefined;
     if (atCursor && v) {
       const head = v.state.selection.main.head;
       const line = v.state.doc.lineAt(head);
       const hit = nameAt(line.text, head - line.from);
-      if (hit) name = hit.doc.name;
+      if (hit) at = hit.doc.name;
     }
-    openScriptManual(nav, name);
+    openScriptManual(nav, at);
   };
 
-  const press = (b: Btn): void => {
-    if (b === 'DUPLICATE') void duplicate();
+  const find = (): void => {
+    const v = viewRef.current;
+    if (!v) return;
+    setZone('buffer');
+    openSearch(v);
   };
 
   // ---------------------------------------------------------------- keys
 
   useKeys((e, nk) => {
-    if (modal === 'saving') return true;
-    if (modal === 'confirm') {
-      const k = e.key.toLowerCase();
-      if (plain(e) && k === 'y') void saveAndClose();
-      else if (plain(e) && k === 'n') nav.pop();
-      else if (nk === 'back') setModal(null);
-      return true;
-    }
+    // The prompt is a key layer over this handler (its letters, Enter, Esc); while saving, nothing else.
+    if (modal) return true;
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
       void save();
       return true;
@@ -294,7 +346,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     }
     const v = viewRef.current;
     if (zone === 'buffer' && v && completing(v)) return handleKey(v, e);
-    // The buffer's pop-ups and snippet fields take ESC and Tab first.
+    // The buffer's pop-ups and snippet fields take Esc and Tab first.
     if (zone === 'buffer' && v && !searchFocused(v)) {
       if (nk === 'back' && dismissPopups(v)) return true;
       if ((nk === 'tab' || nk === 'backtab') && snippetTab(v, nk === 'backtab')) return true;
@@ -304,7 +356,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
         return true;
       }
     }
-    // Find and replace: Ctrl+F, the panel's keys, and ESC closes it first.
+    // Find and replace: Ctrl+F, the panel's keys, and Esc closes it first.
     const found = v ? searchFrameKey(v, e) : null;
     if (found !== null) {
       if (found && zone !== 'buffer') setZone('buffer');
@@ -319,13 +371,11 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
       return true;
     }
     if (zone === 'buttons') {
-      const i = Math.min(btn, buttons.length - 1);
-      if (nk === 'left' || nk === 'right') setBtn(Math.max(0, Math.min(buttons.length - 1, i + (nk === 'left' ? -1 : 1))));
-      else if (nk === 'activate') press(buttons[i]!);
+      if (nk === 'activate') void duplicate();
       else if (nk === 'down') {
         v?.dispatch({ selection: { anchor: 0 }, scrollIntoView: true });
         setZone('buffer');
-      } else return false;
+      } else if (nk !== 'left' && nk !== 'right' && nk !== 'up') return false;
       return true;
     }
     if (!v) return false;
@@ -338,187 +388,147 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
 
   // -------------------------------------------------------------- render
 
-  const titleFull = `─── Script Editor: ${name} ───`;
-  const btnW = (b: string): number => cellLen(b) + 4;
-  const btnsW = buttons.length > 0 ? buttons.reduce((n, b) => n + btnW(b), 0) + buttons.length - 1 : 0;
-  const roText = readOnly ? ' read-only' : '';
-  const title = truncate(titleFull, Math.max(10, W - btnsW - 1 - cellLen(roText)));
-  const titleAt = Math.max(0, Math.min(centreLeft(cols, cellLen(title)), at + W - btnsW - 1 - cellLen(title) - cellLen(roText)));
-  const btnFocused = zone === 'buttons' && !modal;
-  const bIdx = Math.min(btn, buttons.length - 1);
-
-  const titleRow = (
-    <div class="wc-line wc-ped-title">
-      <span style={indent(titleAt)} class="wc-c-section">
-        {title}
-      </span>
-      {roText && <span class="wc-c-hint wc-sed-ro">{roText}</span>}
-      <span style={indent(Math.max(1, at + W - btnsW - titleAt - cellLen(title) - cellLen(roText)))} />
-      <span class="wc-sed-buttons">
-        {buttons.map((b, i) => (
-          <>
-            {i > 0 && ' '}
-            <Button
-              label={b}
-              width={btnW(b)}
-              selected={i === bIdx}
-              focused={btnFocused}
-              onClick={() => {
-                setBtn(i);
-                setZone('buttons');
-                press(b);
-              }}
-            />
-          </>
-        ))}
-      </span>
-    </div>
-  );
-
-  // Status row: state, then the first live error of the buffer (lua-lint.ts),
-  // else the saved script's load error or last error.
-  const st = info ? scriptState(info, scriptRunning?.(name) ?? null) : null;
-  const live = diags[0] ? diagnosticText(diags[0]) : null;
-  // With unsaved changes the saved script's problems may be fixed already: only the live ones show.
-  const savedInfo = info && !dirty ? info : null;
-  const problem = live ?? (savedInfo ? problemText(savedInfo) : null);
-  const headerProblem = savedInfo && savedInfo.problems.length > 0 ? `Header ${savedInfo.problems[0]}` : null;
-  const stText = st ? `${st.glyph} ${st.text}` : '';
-  const room = Math.max(0, W - cellLen(stText) - 3);
-  const extra = problem ?? headerProblem;
-  const statusRow = (
-    <div class="wc-line wc-sed-status" style={indent(at)} title={extra ?? undefined}>
-      {st && <span class={st.cls}>{stText}</span>}
-      {extra && (
-        <>
-          <span class="wc-c-hint">{' · '}</span>
-          <span class={problem ? 'wc-c-err wc-sed-problem' : 'wc-c-danger wc-sed-problem'}>{truncate(extra, room)}</span>
-        </>
+  const inWindow = place === 'window' && nav.depth() > 1;
+  const tools = (
+    <div class="wc-sed-tools" role="toolbar" aria-label="Editor">
+      {readOnly ? (
+        <GlassButton
+          id="DUPLICATE"
+          label="Duplicate"
+          icon="duplicate"
+          keepIcon
+          primary
+          small
+          selected={zone === 'buttons' && !modal}
+          title="Make your own copy to edit"
+          onClick={() => void duplicate()}
+        />
+      ) : (
+        <GlassButton id="SAVE" icon="save" primary small disabled={!dirty} title="Save (Ctrl+S)" onClick={() => void save()} />
       )}
+      <GlassButton id="FIND" icon="find" small title="Find and replace (Ctrl+F, Ctrl+H)" onClick={find} />
+      <GlassButton id="MANUAL" icon="book" small title="The manual at the name under the cursor (F1)" onClick={() => manual(true)} />
     </div>
   );
-
-  // Touch (ADR 0075 §3.2): the key-only hints are tappable.
-  const tapActions = device().touch
-    ? { 'Ctrl+S Save': () => void save(), 'F1 Manual': () => manual(false) }
-    : undefined;
-  const right = `${dirty ? 'Modified  ·  ' : ''}Ln ${status.line}, Col ${status.col}`;
-  const rightAt = at + W - cellLen(right);
-  const roomC = Math.max(0, rightAt - at - 2);
-  const hints = (readOnly ? RO_HINTS : HINTS).find((h) => cellLen(h) <= roomC) ?? (readOnly ? RO_HINTS : HINTS).at(-1)!;
-  const centre = truncate(flash ? flash.text : hints, roomC);
-  const cAt = Math.max(at, Math.min(centreLeft(cols, cellLen(centre)), rightAt - 2 - cellLen(centre)));
-  const footer = (
-    <div class="wc-line wc-footer wc-ped-footer">
-      <span
-        style={indent(cAt)}
-        class={flash ? (flash.kind === 'ok' ? 'wc-c-accent' : 'wc-c-err') : 'wc-c-hint'}
-        role={flash ? 'status' : undefined}
-      >
-        {flash ? centre : escHints(centre, tapActions)}
-      </span>
-      <span style={indent(Math.max(2, rightAt - cAt - cellLen(centre)))} />
-      <span class={dirty ? 'wc-ped-note' : 'wc-c-hint'}>{right}</span>
-    </div>
-  );
-
-  const cellHpx = cellH.current;
-  const total = Math.max(1, Math.round(scroll.height / cellHpx));
-  const visible = Math.max(1, Math.round(scroll.client / cellHpx));
-  const bar = scrollbar(total, Math.min(visible, bufferH), Math.round(scroll.top / cellHpx));
 
   return (
     <div
-      class="wc-page wc-ped wc-sed"
+      class={'wc-sed' + (finding ? ' is-finding' : '')}
       ref={rootRef}
-      tabIndex={-1}
       data-zone={zone}
       data-script={name}
       data-readonly={readOnly ? 'true' : 'false'}
     >
-      <div class="wc-line" style={{ height: `calc(var(--cell-h) * ${gap})` }} />
-      {titleRow}
-      <div class="wc-line" />
-      <div class="wc-ped-bufwrap" style={{ height: `calc(var(--cell-h) * ${bufferH})` }}>
-        <div class="wc-ped-buffer" ref={bufRef} style={{ width: `calc(var(--cell-w) * ${cols - 1})` }} />
-        <div class="wc-ped-bufbar">
-          {Array.from({ length: bufferH }, (_, i) =>
-            bar.length && i < bar.length ? (
-              <div
-                class={'wc-line ' + (bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track')}
-                {...barPress(() => {
-                  const v = viewRef.current;
-                  return { el: v?.scrollDOM, bar, i, rowPx: cellHpx, page: (dir) => v && pageScroll(v, dir) };
-                })}
-              >
-                {bar[i] ? '█' : '░'}
-              </div>
-            ) : (
-              <div class="wc-line" />
-            ),
+      <Box size="large" title={shown} label={`Script editor: ${name}`} onBack={close} winClass="wc-sed-win">
+        {inWindow && (
+          <BoxHead class="wc-sed-head">
+            <InlineBack onClick={close} />
+          </BoxHead>
+        )}
+        <div class="wc-sed-well">
+          {readOnly && (
+            <span class="wc-sed-ro" title="Bundled with WebCockpit: read-only. Duplicate it to change it.">
+              <Icon name="lock" />
+              bundled · read-only
+            </span>
           )}
+          {tools}
+          <div class="wc-sed-buf" ref={bufRef} />
         </div>
-      </div>
-      <div class="wc-ped-spacer" />
-      {statusRow}
-      {footer}
-      {modal && renderModal()}
+        <BoxFoot class="wc-sed-line">
+          <StateLine info={info} name={name} dirty={dirty} diags={diags} />
+          <LookFlash class="wc-sed-flash" flash={flash} />
+          <PosLine pos={pos} dirty={dirty} />
+        </BoxFoot>
+        {modal && (
+          <Dialog
+            inline
+            dlg="unsaved"
+            width={540}
+            title={modal === 'saving' ? 'Saving…' : 'Unsaved changes'}
+            onCancel={keepEditing}
+            buttons={[
+              { id: 'KEEP', label: 'Keep editing', disabled: modal === 'saving', run: keepEditing },
+              { id: 'NO', label: 'No, discard', letter: 'n', danger: true, disabled: modal === 'saving', run: discard },
+              { id: 'YES', label: 'Yes, save', letter: 'y', primary: true, disabled: modal === 'saving', run: () => void saveAndClose() },
+            ]}
+          >
+            <p class="wc-lk-q">
+              Save changes to <b>{name}</b>?
+            </p>
+          </Dialog>
+        )}
+      </Box>
     </div>
   );
+});
 
-  function renderModal(): VNode {
-    const lines =
-      modal === 'saving'
-        ? [{ text: '', cls: '' }, { text: 'Saving…', cls: 'wc-c-accent' }, { text: '', cls: '' }]
-        : [
-            { text: '', cls: '' },
-            { text: `Save changes to ${name}?`, cls: 'wc-c-active' },
-            { text: '', cls: '' },
-            { text: MODAL_HINT, cls: 'wc-c-hint' },
-            { text: '', cls: '' },
-          ];
-    const w = Math.min(cols - 2, 54);
-    const h = lines.length + 2;
-    // Touch: Y and N are tappable; a narrow phone gets the short wording.
-    const hint = device().phone && cellLen(MODAL_HINT) > w - 2 ? MODAL_HINT_SHORT : MODAL_HINT;
-    const tap = device().touch
-      ? {
-          [hint === MODAL_HINT ? 'Y to save' : 'Y Save']: () => void saveAndClose(),
-          [hint === MODAL_HINT ? 'N to discard' : 'N Discard']: () => nav.pop(),
-        }
-      : undefined;
-    const left = centreLeft(cols, w);
-    const top = Math.max(0, Math.floor((rows - h) / 2));
-    return (
-      <div
-        class="wc-ped-overlay"
-        role="dialog"
-        aria-modal="true"
-        style={{
-          left: `calc(var(--cell-w) * ${left})`,
-          top: `calc(var(--cell-h) * ${top})`,
-          width: `calc(var(--cell-w) * ${w})`,
-          height: `calc(var(--cell-h) * ${h})`,
-        }}
-      >
-        <div class="wc-line wc-c-section">{'┌' + '─'.repeat(w - 2) + '┐'}</div>
-        {lines.map((l) => (
-          <div class="wc-line">
-            <span class="wc-c-section">│</span>
-            {l.text === MODAL_HINT ? (
-              <span class={l.cls} style={indent(centreLeft(w - 2, cellLen(hint)))}>
-                {tap ? escHints(truncate(hint, w - 2), tap) : truncate(hint, w - 2)}
-              </span>
-            ) : (
-              <span class={l.cls} style={indent(centreLeft(w - 2, cellLen(l.text)))}>
-                {truncate(l.text, w - 2)}
-              </span>
-            )}
-            <span class="wc-ped-overlay-r wc-c-section">│</span>
-          </div>
-        ))}
-        <div class="wc-line wc-c-section">{'└' + '─'.repeat(w - 2) + '┘'}</div>
-      </div>
-    );
-  }
+// ------------------------------------------------------------ the status line
+
+type Dot = 'on' | 'wait' | 'off' | 'bad';
+
+/** The status dot: running, on but not yet (starting, at login), off, or failed. */
+function dotOf(s: ScriptInfo, running: boolean | null): Dot {
+  if (!s.enabled) return 'off';
+  if (running === true) return 'on';
+  if (s.lastError || s.loadProblem) return 'bad';
+  return 'wait';
+}
+
+/**
+ * The state and the first problem: the first live error of the buffer
+ * (lua-lint.ts), else the saved script's load or last error, else its
+ * first header problem. With unsaved changes the saved script's problems
+ * may be fixed already: only the live ones show. The host's running state
+ * changes without a library event: polled every second while the editor
+ * is the top frame.
+ */
+function StateLine(p: { info: ScriptInfo | null; name: string; dirty: boolean; diags: readonly ScriptDiagnostic[] }): VNode {
+  const isTop = useIsTop();
+  const { scriptRunning } = useServices();
+  const ask = (): boolean | null => scriptRunning?.(p.name) ?? null;
+  const [running, setRunning] = useState(ask);
+  useEffect(() => {
+    setRunning(ask());
+    if (!isTop) return;
+    const t = setInterval(() => setRunning(ask()), 1000);
+    return () => clearInterval(t);
+  }, [isTop, p.name]);
+
+  const info = p.info;
+  const st = info ? scriptState(info, running) : null;
+  const dot = info ? dotOf(info, running) : 'off';
+  const live = p.diags[0] ? diagnosticText(p.diags[0]) : null;
+  const saved = info && !p.dirty ? info : null;
+  const problem = live ?? (saved ? problemText(saved) : null);
+  const extra = problem ?? (saved && saved.problems.length > 0 ? `Header ${saved.problems[0]}` : null);
+  return (
+    <div class="wc-sed-status" title={extra ?? undefined}>
+      {st && (
+        <span class={`wc-sed-st is-${dot}`}>
+          <i class={`wc-sed-dot is-${dot}`} aria-hidden="true" />
+          {st.text}
+        </span>
+      )}
+      {extra && <span class="wc-sed-problem">{extra}</span>}
+    </div>
+  );
+}
+
+/** `Modified · Ln 12, Col 5`: the cursor's place, re-rendered alone. */
+function PosLine(p: { pos: Cell<BufferStatus>; dirty: boolean }): VNode {
+  const s = useCell(p.pos);
+  return (
+    <div class="wc-sed-pos">
+      {p.dirty && (
+        <>
+          <span class="wc-sed-mod">Modified</span>
+          <span class="wc-sed-sep">·</span>
+        </>
+      )}
+      <span>
+        Ln {s.line}, Col {s.col}
+      </span>
+    </div>
+  );
 }

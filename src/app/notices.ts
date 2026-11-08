@@ -9,7 +9,9 @@
 //
 // - a persistent indicator: the cockpit's input row, left of the clock
 //   (src/ui/notice-indicator.ts), the phone's ESC menu status header and the
-//   start page's footer (src/chrome), from `get()` / `subscribe()`;
+//   start page (src/chrome/start-surface.tsx: small pills at the top right
+//   over the sky, the top row of an old-look frame), from `get()` /
+//   `subscribe()`;
 // - once, a `[SYSTEM]` line in the output and a UI pane line, on the bus of
 //   the App `attach`ed (lines from before the App existed are replayed when
 //   it attaches).

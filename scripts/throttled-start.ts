@@ -120,7 +120,7 @@ try {
       if (document.documentElement.dataset.wcBoot === 'ready' && !fontLog.some((l) => l.endsWith('reveal'))) {
         fontLog.push(`${Math.round(performance.now())} reveal`);
       }
-      const rows = [...document.querySelectorAll('.wc-start-main .wc-mrow')];
+      const rows = [...document.querySelectorAll('.wc-start-main .wc-sm-item')];
       if (rows.length) {
         const ready = document.documentElement.dataset.wcBoot === 'ready';
         if (ready && !readyAt) readyAt = performance.now();
@@ -153,12 +153,12 @@ try {
         const bar = document.getElementById('wc-boot');
         const mount = document.querySelector<HTMLElement>('.wc-start-main')?.closest('.wc-start-host > div');
         return {
-          first: !!document.querySelector('#wc-first .wcf-banner'),
-          app: !!document.querySelector('.wc-start .wc-banner'),
+          first: !!document.querySelector('#wc-first .wcf-sky'),
+          app: !!document.querySelector('.wc-start .wc-wordmark'),
           pct: bar ? bar.getAttribute('aria-valuenow') : null,
           label: bar?.querySelector('.l')?.textContent ?? null,
           mount: mount ? getComputedStyle(mount).opacity : null,
-          rows: [...document.querySelectorAll('.wc-start-main .wc-mrow')]
+          rows: [...document.querySelectorAll('.wc-start-main .wc-sm-item')]
             .map((r) => `${eff(r)}${r.classList.contains('is-sel') ? '*' : ''}`)
             .join(' '),
           loading: [...document.fonts]

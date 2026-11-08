@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Round 7 · Run log C · Tidslinjen
+  The run log in the large box with no wordmark (the box to the edges): a horizontal timeline across the foot (run 1 / run 2 segments, the markers above it, a rivet playhead), the transport under it in the middle, speed as a segmented row.
+  Shared: game.js (the fake player cockpit), pchrome.js (the chrome). Keys: Space play/pause · ←/→ 10 s · Home start ·
+  ↑↓ PgUp PgDn End the pause cursor · 1–6 speed · Esc a popup, else back.
+  URL: ?loading · ?error · ?paused · ?pos=MIN · ?pop=panes|display · ?ended · ?t= ?m= (the sky)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Round 7 · Run log C · Tidslinjen</title>
+<link rel="stylesheet" href="../base/base.css">
+<link rel="stylesheet" href="game.css">
+<link rel="stylesheet" href="pchrome.css">
+</head>
+<body>
+<script src="../base/base.js"></script>
+<script src="hpages.js"></script>
+<script src="game.js"></script>
+<script src="pchrome.js"></script>
+<script>PC.mount({ layout: 'c', mode: 'log', sky: true, mark: false, cover: false });</script>
+</body>
+</html>

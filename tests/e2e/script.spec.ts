@@ -17,7 +17,7 @@ test('the default profile macros and a typed alias send to the game', async ({ p
   });
   const sentText = () => Buffer.concat(received).toString('utf8');
   await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await expect(rows(page).filter({ hasText: '[SYSTEM] Profile default loaded.' })).toHaveCount(1);

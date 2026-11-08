@@ -11,17 +11,19 @@ const ECHO = 1;
 
 const bytes = (codes: number[], text = '') => Buffer.concat([Buffer.from(codes), Buffer.from(text, 'latin1')]);
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-/** Without room for the detail frame every button is above the list (ADR 0121). */
-const SCRIPT_BUTTONS = ['NEW', 'IMPORT', 'EDIT', 'EXPORT', 'RENAME', 'DELETE', 'MANUAL'];
+/** The page's own buttons, in its foot (stage 44a). */
+const FOOT_BUTTONS = ['NEW', 'IMPORT', 'MANUAL'];
+/** The script's buttons, in its panel (two by two on a phone). */
+const PANEL_BUTTONS = ['EDIT', 'EXPORT', 'RENAME', 'DELETE'];
 
 async function tapRow(page: Page, key: string): Promise<void> {
-  await startFrame(page).locator(`.wc-mrow[data-key="${key}"]`).tap();
+  await startFrame(page).locator(`.wc-sm-item[data-key="${key}"]`).tap();
 }
 
-/** Start page → Scripts by a tap, with one own script `phonetest`. */
+/** Start page → Scripts by a tap, with one own script `phonetest`: the index alone (stage 44a). */
 async function openScripts(page: Page): Promise<Locator> {
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     const l = window.__wc!.shell.scripts!;
     await l.init();
@@ -29,7 +31,8 @@ async function openScripts(page: Page): Promise<Locator> {
   });
   await tapRow(page, 'scripts');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-scr')).toHaveAttribute('data-w', 'narrow');
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Scripts');
   return f;
 }
 
@@ -41,79 +44,145 @@ async function inView(page: Page, l: Locator): Promise<void> {
   expect(b.x + b.width).toBeLessThanOrEqual(w + 0.5);
 }
 
+/** At least 40 px high: a touch target. */
+async function tappable(l: Locator): Promise<void> {
+  expect((await l.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+}
+
 for (const width of [412, 360]) {
   test.describe(`${width} wide`, () => {
     test.use({ viewport: { width, height: 800 } });
 
-    test('Scripts: every button in reach, the footer whole', async ({ page }) => {
+    test('Scripts: every button in reach and big enough to tap', async ({ page }) => {
       const f = await openScripts(page);
-      for (const b of SCRIPT_BUTTONS) await inView(page, f.locator(`.wc-scr-buttons [data-btn="${b}"]`));
-      const row = f.locator('.wc-scr-row[data-script="phonetest"]');
-      await inView(page, row.locator('.wc-check'));
+      for (const b of FOOT_BUTTONS) {
+        await inView(page, f.locator(`.wc-scr-foot [data-btn="${b}"]`));
+        await tappable(f.locator(`.wc-scr-foot [data-btn="${b}"]`));
+      }
+      const row = f.locator('.wc-scr-row[data-name="phonetest"]');
+      await inView(page, row.locator('.wc-scr-tog [role="switch"]'));
       await inView(page, row.locator('.wc-scr-name'));
-      // The footer wraps instead of ending in `…`, and ESC Back is tappable.
-      const footer = f.locator('.wc-footer');
-      await expect(footer).not.toContainText('…');
-      await expect(footer).toContainText('Space On/off');
-      await inView(page, footer.locator('.wc-esc-btn', { hasText: 'ESC Back' }));
-      for (const l of await footer.locator('.wc-line').all()) await inView(page, l);
-      // A button far right on desktop works by tap: MANUAL opens the manual.
+      await tappable(row);
+      // A tap on the row: its panel, the script's buttons two by two, All scripts back.
+      await row.tap();
+      await expect(f.locator('.wc-scr-panel .wc-scr-title')).toHaveText('phonetest');
+      for (const b of [...PANEL_BUTTONS, 'LIST']) {
+        await inView(page, f.locator(`.wc-scr-panel [data-btn="${b}"]`));
+        await tappable(f.locator(`.wc-scr-panel [data-btn="${b}"]`));
+      }
+      await f.locator('[data-btn="LIST"]').tap();
+      await expect(f.locator('.wc-scr-idx')).toBeVisible();
+      // Manual works by tap.
       await f.locator('[data-btn="MANUAL"]').tap();
       await expect(page.locator('.wc-frame:not([hidden])').last()).toContainText('Script Manual');
     });
   });
 }
 
-test('Scripts: a tap on [ ] toggles, a tap on the selected name opens the editor', async ({ page }) => {
+test('Scripts: a tap on the switch toggles, a tap on a row opens its panel, its settings change by tap', async ({ page }) => {
   const f = await openScripts(page);
-  const row = f.locator('.wc-scr-row[data-script="phonetest"]');
+  const row = f.locator('.wc-scr-row[data-name="phonetest"]');
   const enabled = () =>
     page.evaluate(() => window.__wc!.shell.scripts!.list().find((s) => s.name === 'phonetest')!.enabled);
   expect(await enabled()).toBe(false);
-  await row.locator('.wc-check').tap();
+  await row.locator('.wc-scr-tog [role="switch"]').tap();
   await expect.poll(enabled).toBe(true);
-  await row.locator('.wc-check').tap();
+  await row.locator('.wc-scr-tog [role="switch"]').tap();
   await expect.poll(enabled).toBe(false);
-  // First tap selects (the editor stays closed), the second opens it.
-  await row.locator('.wc-scr-name').tap();
-  await expect(row.locator('.wc-scr-name')).toHaveClass(/is-cur/);
+  // The switch keeps the index; the editor stays closed.
+  await expect(f.locator('.wc-scr-panel')).toBeHidden();
   await expect(page.locator('.wc-sed')).toHaveCount(0);
-  await row.locator('.wc-scr-name').tap();
-  await expect(page.locator('.wc-frame:not([hidden]) > .wc-sed')).toHaveAttribute('data-script', 'phonetest');
-  // Ctrl+S has a tap path on touch.
-  await expect(page.locator('.wc-sed .wc-act-btn[data-act="Ctrl+S Save"]')).toBeVisible();
+  // A tap on mercenaries: its panel with its settings (owner default 2, round 7).
+  await f.locator('.wc-scr-row[data-name="mercenaries"]').tap();
+  const cost = f.locator('.wc-scr-set[data-set="cost"]');
+  await cost.locator('[role="radio"]', { hasText: '20' }).tap();
+  const settings = () => page.evaluate(() => window.__wc!.shell.scripts!.settingsOf('mercenaries'));
+  await expect.poll(settings).toMatchObject({ cost: 20 });
+  await f.locator('.wc-scr-set[data-set="minutes"] [aria-label="More"]').tap();
+  await expect.poll(settings).toMatchObject({ minutes: 30 });
+  await tappable(f.locator('.wc-scr-set[data-set="minutes"] [aria-label="More"]'));
+  // No soft keyboard by mistake: the taps never focused a text field.
+  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('INPUT');
 });
 
-test('Scripts on a phone: the list alone, EDIT above it opens the selected script', async ({ page }) => {
+test('Scripts on a phone: the index alone, a tap opens the panel, Edit opens the selected script', async ({ page }) => {
   const f = await openScripts(page);
-  // No room for the detail frame (ADR 0121): not drawn, nothing cut.
-  await expect(f.locator('.wc-scr-frame')).toHaveCount(0);
-  const row = f.locator('.wc-scr-row[data-script="phonetest"]');
+  // No room for the panel beside the index: one step at a time.
+  await expect(f.locator('.wc-scr-panel')).toBeHidden();
+  const row = f.locator('.wc-scr-row[data-name="phonetest"]');
   await row.locator('.wc-scr-name').tap();
-  await expect(row.locator('.wc-scr-name')).toHaveClass(/is-cur/);
-  await f.locator('.wc-scr-buttons [data-btn="EDIT"]').tap();
-  await expect(page.locator('.wc-frame:not([hidden]) > .wc-sed')).toHaveAttribute('data-script', 'phonetest');
+  await expect(row).toHaveClass(/is-on/);
+  await expect(f.locator('.wc-scr-idx')).toBeHidden();
+  await f.locator('.wc-scr-panel [data-btn="EDIT"]').tap();
+  await expect(page.locator('.wc-frame:not([hidden]) .wc-sed')).toHaveAttribute('data-script', 'phonetest');
 });
 
-test('Profile: a tap on a profile selects it, a tap on the selected profile opens the editor', async ({ page }) => {
+test('Profile: a tap highlights a profile and shows its buttons; they fit and are big enough to tap', async ({ page }) => {
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.init();
     await window.__wc!.shell.profiles.create('phoneprof', '');
   });
   await tapRow(page, 'profile');
   const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
-  const row = f.locator('.wc-table .wc-tr', { hasText: 'phoneprof' });
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  const row = f.locator('.wc-pl-row[data-name="phoneprof"]');
   const profile = () => page.evaluate(() => window.__wc!.settings.get().profile);
+  await expect(row.locator('.wc-lk-btn')).toHaveCount(0);
+  // The first tap only highlights.
   await row.tap();
+  await expect(row).toHaveClass(/is-on/);
+  expect(await profile()).toBe('default');
+  const btns = row.locator('.wc-lk-btn');
+  await expect(btns).toHaveText([/Select/, /Edit/, /Rename/, /Delete/]);
+  await expect(f.locator('.wc-pl-acts')).toHaveCount(1);
+  // All four inside the row, on one line, at least 40 px high.
+  const rb = (await row.boundingBox())!;
+  const boxes = await btns.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+  for (const b of boxes) {
+    expect(b.height).toBeGreaterThanOrEqual(40);
+    expect(b.left).toBeGreaterThanOrEqual(rb.x);
+    expect(b.right).toBeLessThanOrEqual(rb.x + rb.width);
+    expect(b.top).toBe(boxes[0]!.top);
+  }
+  // Select, then Rename: the old-look prompt; Esc back with the row still highlighted.
+  await row.locator('[data-btn="SELECT"]').tap();
   await expect.poll(profile).toBe('phoneprof');
-  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
-  await expect(page.locator('.wc-ped')).toHaveCount(0);
-  await row.tap();
-  // The editor opens (its title is cut to the phone's width).
-  await expect(page.locator('.wc-frame:not([hidden]) > .wc-ped .wc-ped-title .wc-c-section')).toHaveText(/^─── Profile Editor/);
+  await expect(btns).toHaveText([/Edit/, /Rename/, /Delete/]);
+  await row.locator('[data-btn="RENAME"]').tap();
+  await expect(f.locator('.wc-title-row')).toContainText('Rename Profile');
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(row).toHaveClass(/is-on/);
+});
+
+test('Profile: a tap on the highlighted profile selects it, a tap on the selected profile opens the editor', async ({ page }) => {
+  await page.goto('/?phone=1');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.create('phoneprof', '');
+  });
+  await tapRow(page, 'profile');
+  const f = startFrame(page);
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  const row = f.locator('.wc-pl-row[data-name="phoneprof"]');
+  const profile = () => page.evaluate(() => window.__wc!.settings.get().profile);
+  // The first tap highlights, the second selects, the third edits (on the name: the buttons fill the row's lower half).
+  const name = row.locator('.wc-pl-n');
+  await name.tap();
+  await expect(row).toHaveClass(/is-on/);
+  expect(await profile()).toBe('default');
+  await name.tap();
+  await expect.poll(profile).toBe('phoneprof');
+  await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+  await expect(page.locator('.wc-pe')).toHaveCount(0);
+  await name.tap();
+  // The editor opens in the large box (ADR 0128), one column on the phone.
+  const pe = page.locator('.wc-frame:not([hidden]) .wc-pe');
+  await expect(pe.locator('.wc-pe-name')).toHaveText(/^phoneprof/);
+  await expect(pe).toHaveAttribute('data-layout', 'narrow');
 });
 
 test('the command line is a textarea: Enter sends, no newline; the password prompt is masked', async ({ page }) => {
@@ -126,7 +195,7 @@ test('the command line is a textarea: Enter sends, no newline; the password prom
   });
   const sentText = () => Buffer.concat(received).toString('latin1');
   await page.goto('/?phone=1');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await tapRow(page, 'enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
 
@@ -168,43 +237,14 @@ test('the command line is a textarea: Enter sends, no newline; the password prom
   await expect(field).toHaveValue('');
 });
 
-test('a name prompt in a menu is a one-row textarea; Enter confirms', async ({ page }) => {
+test('the Scripts name dialog: its field has the focus; Enter confirms', async ({ page }) => {
   const f = await openScripts(page);
   await f.locator('[data-btn="NEW"]').tap();
-  const field = startFrame(page).locator('.wc-field');
-  expect(await field.evaluate((e) => e.tagName)).toBe('TEXTAREA');
+  const field = page.locator('.wc-lk-dialog[data-dlg="new"] input');
   await expect(field).toBeFocused();
   await page.keyboard.type('phonenew');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-frame:not([hidden]) > .wc-sed')).toHaveAttribute('data-script', 'phonenew');
-});
-
-test('Statistics stack their sides; History swipes sideways to every column', async ({ page }) => {
-  await page.goto('/?phone=1');
-  await page.waitForFunction(() => window.__wc !== undefined);
-  await page.evaluate(async () => {
-    const lib = await window.__wc!.runs();
-    await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
-  });
-  await tapRow(page, 'history');
-  const f = startFrame(page);
-  await expect(f.locator('.wc-title-row')).toHaveText('─── History ───');
-  // The last column is wider than the screen; the body scrolls to it.
-  const body = f.locator('.wc-body');
-  const [sw, cw] = await body.evaluate((b) => [b.scrollWidth, b.clientWidth]);
-  expect(sw).toBeGreaterThan(cw);
-  await body.evaluate((b) => (b.scrollLeft = b.scrollWidth));
-  await inView(page, f.locator('.wc-th', { hasText: 'Rating' }));
-  await body.evaluate((b) => (b.scrollLeft = 0));
-  await f.locator('[data-btn="STATS"]').tap();
-  const stats = f.locator('.wc-stats');
-  await expect(stats).toContainText('KILLS');
-  // KILLS and PvPs one above the other, each inside the screen.
-  const kills = (await stats.locator('[data-sort="name"]').first().boundingBox())!;
-  const pvps = (await stats.locator('[data-sort="name"]').nth(1).boundingBox())!;
-  expect(pvps.y).toBeGreaterThan(kills.y);
-  await inView(page, stats.locator('[data-sort="xpTotal"]'));
-  await expect(stats.locator('.wc-footer')).not.toContainText('…');
+  await expect(page.locator('.wc-frame:not([hidden]) .wc-sed')).toHaveAttribute('data-script', 'phonenew');
 });
 
 for (const [width, dpr] of [
@@ -217,7 +257,7 @@ for (const [width, dpr] of [
 
     test('is whole and centred, or not shown', async ({ page }) => {
       await page.goto('/?phone=1');
-      await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
       const spans = page.locator('.wc-banner .wc-banner-word, .wc-banner .wc-banner-word-dim');
       if ((await spans.count()) === 0) return;
       let left = Infinity;

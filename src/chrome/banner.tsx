@@ -1,14 +1,13 @@
 // The banner (Inv §10.7): starfield + MUME/COCKPIT wordmark, 45 × 11
-// cells, centred. Stars twinkle on one timer (12 Hz on the start page,
-// 6 Hz in the ESC menu) that runs only while the banner is visible and
+// cells, centred. Since stage 41 only the phone's ESC menu shows it (the
+// start page has the new wordmark, ADR 0126). Stars twinkle on one timer
+// (6 Hz in the ESC menu) that runs only while the banner is visible and
 // the page is not hidden; a tick touches only the star spans whose look
-// changed (class and glyph), never re-renders. The first banner after a
-// page load continues the twinkle of the one index.html painted before
-// the app loaded (ADR 0083): same phases, same clock.
+// changed (class and glyph), never re-renders. Each banner has its own
+// phases and clock.
 
 import type { VNode } from 'preact';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { takeBootBanner } from '../app/boot-progress';
 import { BANNER_W, STARS, bannerCrop, bannerRows, makeAnims, starLook } from './banner-data';
 import { centreLeft } from './kit/nav';
 import { useGrid } from './kit/hooks';
@@ -28,8 +27,7 @@ export function Banner(p: BannerProps): VNode {
   // A grid under 45 columns (only a phone) crops the starfield (ADR 0075 §3.2).
   const crop = bannerCrop(cols) ?? { c0: 0, width: BANNER_W };
   const rows = useMemo(() => bannerRows(STARS, crop.c0, crop.width), [crop.c0, crop.width]);
-  const boot = useMemo(() => takeBootBanner(), []);
-  const anims = useMemo(() => boot?.anims ?? makeAnims(), [boot]);
+  const anims = useMemo(() => makeAnims(), []);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,7 +36,7 @@ export function Banner(p: BannerProps): VNode {
     const win = doc?.defaultView;
     if (!p.run || !host || !doc || !win) return;
     const spans = STARS.map((_, i) => host.querySelector<HTMLSpanElement>(`[data-star="${i}"]`));
-    const t0 = boot?.t0 ?? win.performance.now();
+    const t0 = win.performance.now();
     const tick = (): void => {
       if (doc.hidden) return;
       const t = (win.performance.now() - t0) / 1000;
@@ -54,7 +52,7 @@ export function Banner(p: BannerProps): VNode {
     tick();
     const id = win.setInterval(tick, Math.round(1000 / p.hz));
     return () => win.clearInterval(id);
-  }, [p.run, p.hz, anims, boot, crop.c0, crop.width]);
+  }, [p.run, p.hz, anims, crop.c0, crop.width]);
 
   const at = centreLeft(cols, crop.width);
   return (

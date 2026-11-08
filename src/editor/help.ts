@@ -1,5 +1,8 @@
-// The HELP view's manual for writing a profile (ADR 0037): content as
-// data, and its layout into cell rows. No DOM, no Preact; unit tested.
+// The manual for writing a profile (ADR 0037; the profile editor's Help
+// view, ADR 0128): content as data (`helpSections`, which the lantern
+// reader typesets), and its layout into cell rows for `#help` on the input
+// line. No DOM, no Preact; unit tested. (The TUI Help view's menu and
+// frame helpers are gone, stage 43 wave 3.)
 //
 // Every statement describes what the engine in src/script/engine does, not
 // what tt++ does. tests/unit/editor-help.test.ts keeps it honest: every
@@ -90,10 +93,10 @@ const INTRO: readonly HelpSection[] = [
     heading: 'Writing a profile',
     text: [
       'A profile is a text file of TinTin++ (tt++) commands: your actions, aliases, highlights, macros, substitutes, variables and timers. It is loaded when you connect, and again when you apply changes.',
-      'LITE is a simplified view where you can edit your settings. A change takes effect by itself once you finish it: when you leave the field, go to another entry or kind, click in the game, add or delete an entry, bind a key or pick a highlight colour. Not while you type, so a half-written pattern never fires. An entry with a problem (a missing pattern, unbalanced braces) is not applied until it is fixed; the line under it and the footer say why.',
-      'EDITOR lets you edit the whole settings file directly (experienced users). Its changes take effect with Ctrl+S, or when you go back to LITE; until then the footer shows Modified. A text that does not load (unbalanced braces) is not applied, and the footer says why. In this manual Ctrl+F finds too.',
-      'Ctrl+S applies at once in either view. While you are connected the changes go into the running game; otherwise they are saved and load on the next connect. Settings you type on the input line meanwhile (#alias …) and variables your scripts save are kept, and show up in the editor. ESC goes back; it asks Apply / Discard / Keep editing only while something is not applied yet.',
-      'Profile → IMPORT on the start page also reads settings from TinTin++, JMC (.set files) and Powwow. Choose the main file together with the files it #reads; a report then shows what was translated, what was kept as #nop and why.',
+      'Lite is a simplified view where you edit your settings one at a time: the kinds on the left (A, I, G, M and S choose one), their entries in the middle and the one you edit on the right. A change takes effect by itself once you finish it: when you leave the field (Esc does that too), go to another entry or kind, click in the game, add or delete an entry (N, D), bind a key or pick a highlight colour. Not while you type, so a half-written pattern never fires. An entry with a problem (a missing pattern, unbalanced braces) is not applied until it is fixed; the line under it says why, and the status at the bottom right reads Not applied.',
+      'Editor lets you edit the whole settings file directly (experienced users); the rail on the left lists its parts and takes you there. Its changes take effect with Ctrl+S (Save, or Apply while you are connected), or when you go back to Lite; until then the status shows Modified. A text that does not load (unbalanced braces) is not applied, and the editor says why. Ctrl+F finds and Ctrl+H replaces; in this manual Ctrl+F finds too.',
+      'Ctrl+S applies at once in either view. While you are connected the changes go into the running game; otherwise they are saved and load on the next connect. Settings you type on the input line meanwhile (#alias …) and variables your scripts save are kept, and show up in the editor. L, E and H switch between Lite, Editor and Help. Esc leaves a field first; then it goes back, and asks Apply / Discard / Keep editing only while something is not applied yet.',
+      'Profile → Import on the start page also reads settings from TinTin++, JMC (.set files), Powwow and Mudlet. Drop the files on its page or choose them, the main file together with the files it #reads; a receipt then shows what was translated, what was kept as #nop or skipped, and why.',
       'It also reads Mudlet profile saves and exported packages (.xml or .mpackage). Aliases, triggers, keys, timers and variables become profile rules; no scripts are made, and Lua it cannot translate is kept as #nop.',
     ],
   },
@@ -238,7 +241,7 @@ const BASICS: readonly HelpSection[] = [
     topics: ['keys'],
     text: [
       'A macro is bound to a key name: F1 … F24, Numpad0 … Numpad9, NumpadDecimal, NumpadAdd, NumpadSubtract, NumpadMultiply, NumpadDivide, NumpadEnter, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown, Insert, Delete, Tab, Backspace, letters and digits (A, 1), with Ctrl+, Alt+ and Shift+ in that order in front: Ctrl+A, Alt+1, Ctrl+Shift+F1.',
-      'Names are physical keys, the same on every keyboard layout. The tt++ escape forms work too: \\eOp is Numpad0, \\e[15~ is F5, ^G is Ctrl+G. The easy way is LITE → MACROS: press Enter on the Key cell and then the key.',
+      'Names are physical keys, the same on every keyboard layout. The tt++ escape forms work too: \\eOp is Numpad0, \\e[15~ is F5, ^G is Ctrl+G. The easy way is Lite → Macros: press Enter on the Key cell and then the key.',
       'Not bindable: ESC, Enter, and keys the browser keeps (Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+Tab, and the same with Shift). A bound key no longer does what it did on the input line: a macro on A means a is not typed.',
       'A script can bind a key too. A macro on the same key wins over the script, and the editor warns about it.',
     ],
@@ -283,7 +286,7 @@ const BASICS: readonly HelpSection[] = [
     topics: ['scripts'],
     text: [
       'Scripts are small Lua programs kept beside the profile, not in it. The Scripts window (the menu bar\'s Scripts button, or #scripts; Scripts on the start page) lists them: turn one on or off, change its settings, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
-      'MANUAL on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
+      'Manual on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
       '#script controls the scripts from the input line, and #lua calls a function a script exported. Both are under Commands below.',
     ],
   },
@@ -588,7 +591,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     text: [
       'Calls a function that a script exported with export(name, fn). The rest of the line is its argument, as one text with the words joined by spaces; with nothing after the function name it gets nil; an empty {} counts as nothing.',
       'Works on the input line and in aliases, actions and macros. It is not run while a profile loads. When the script is not running, or has not exported the function, a line in the game window says so.',
-      'How a script exports a function: Profile bridge in the script manual (MANUAL on the Scripts page).',
+      'How a script exports a function: Profile bridge in the script manual (Manual on the Scripts page).',
       'With only a script name, or nothing at all, #lua does nothing.',
     ],
     examples: [
@@ -712,7 +715,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['profile'],
     syntax: ['#profile'],
     text: [
-      'Opens the Profile window with the editor of the profile in use, as the menu bar\'s Profile button does. Changes take effect while the window stays open: in LITE when you finish an edit (leave the field, click in the game), in EDITOR with Ctrl+S. The window can be moved and resized and stays open while you play: a click in the game text or the input line gives the keys back to the game, a click in the window gives them to the window. Typed again, #profile brings the window to the front and gives it the keys; the Profile button does too, and closes the window when it already has them. X or Esc in the window closes it, asking first only when a change is not applied yet. On a phone it opens the editor in the menu instead. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+      'Opens the Profile window with the editor of the profile in use, as the menu bar\'s Profile button does. Changes take effect while the window stays open: in Lite when you finish an edit (leave the field, click in the game), in Editor with Ctrl+S. The window can be moved and resized and stays open while you play: a click in the game text or the input line gives the keys back to the game, a click in the window gives them to the window. Typed again, #profile brings the window to the front and gives it the keys; the Profile button does too, and closes the window when it already has them. X or Esc in the window closes it, asking first only when a change is not applied yet. On a phone it opens the editor in the menu instead. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#profile' }],
   },
@@ -1010,86 +1013,4 @@ export function helpLineText(l: HelpLine): string {
 /** Width of a row in cells. */
 export function helpLineWidth(l: HelpLine): number {
   return l.indent + l.segs.reduce((n, s) => n + cps(s.text), 0);
-}
-
-/**
- * The section to put on the top row for `n` (`dir` 1: the next one) or `p`
- * (-1: the current one's heading when `top` is below it, else the previous
- * one). `section` is the current section.
- */
-export function helpStep(headings: readonly number[], top: number, section: number, dir: 1 | -1): number {
-  if (dir === 1) return Math.min(headings.length - 1, section + 1);
-  return top > (headings[section] ?? 0) ? section : Math.max(0, section - 1);
-}
-
-// ------------------------------------------------------- navigation menu
-
-export interface HelpMenuRow {
-  kind: 'blank' | 'group' | 'entry';
-  label: string;
-  /** Index of the section (and of its row in `HelpLayout.headings`); -1 for labels and blanks. */
-  section: number;
-}
-
-/**
- * The navigation menu: one entry per section in manual order, with the
- * group titles as labels. A blank row sets each group apart.
- */
-export function helpMenu(sections: readonly HelpSection[] = helpSections()): HelpMenuRow[] {
-  const rows: HelpMenuRow[] = [];
-  let group: HelpGroup | null = null;
-  sections.forEach((s, i) => {
-    if (s.group !== group) {
-      group = s.group;
-      if (rows.length > 0) rows.push({ kind: 'blank', label: '', section: -1 });
-      const title = GROUP_TITLES[group];
-      if (title) rows.push({ kind: 'group', label: title, section: -1 });
-    }
-    rows.push({ kind: 'entry', label: s.heading, section: i });
-  });
-  return rows;
-}
-
-/** Width of the menu's text column: the longest label and a cell on each side. */
-export function helpMenuWidth(menu: readonly HelpMenuRow[]): number {
-  return menu.reduce((n, r) => Math.max(n, cps(r.label)), 0) + 2;
-}
-
-/** The menu row of section `section`, or 0. */
-export function helpMenuRow(menu: readonly HelpMenuRow[], section: number): number {
-  return Math.max(0, menu.findIndex((r) => r.kind === 'entry' && r.section === section));
-}
-
-/** The section the manual shows at row `top`: the last heading at or above it. */
-export function helpCurrent(headings: readonly number[], top: number): number {
-  let cur = 0;
-  for (let i = 0; i < headings.length && headings[i]! <= top; i++) cur = i;
-  return cur;
-}
-
-/** Cells between the menu's scrollbar and the manual. */
-export const HELP_MENU_GAP = 3;
-/** The narrowest manual column the menu may leave; below it the menu is hidden. */
-export const HELP_MIN_W = 52;
-
-export interface HelpFrame {
-  /** Whether the menu is shown. */
-  menu: boolean;
-  /** Left cell and width of the manual column (text, a blank cell, the scrollbar). */
-  at: number;
-  width: number;
-}
-
-/**
- * Where the menu and the manual go in a frame `cols` wide. HELP spans the
- * whole grid (ADR 0037): the menu (`menuW` cells, its scrollbar and the
- * gap) starts in cell 0 and the manual runs to the last cell. Under
- * HELP_MIN_W for the manual the menu is dropped and the manual takes the
- * whole width.
- */
-export function helpFrame(cols: number, menuW: number): HelpFrame {
-  const side = menuW + 1 + HELP_MENU_GAP;
-  const width = cols - side;
-  if (width < HELP_MIN_W) return { menu: false, at: 0, width: cols };
-  return { menu: true, at: side, width };
 }
