@@ -53,6 +53,14 @@ The owner approved `stats-r4.html` as is ("Statistics är perfekt").
   buttons and a drawer. Folded, a chip shows the open chat.
   Artifact: https://claude.ai/artifact/WxL2EFps5GFkzWCRH5pxEb
 
+## Comm round 6 (2026-11-09)
+
+- `comm-r6.html` — the owner chose r5 B "Ryggrad". No channel icons in
+  the thread, the chat list fills from the top, the spine shows on hover
+  only, unfold icon left of the open-chat chip. Three ways to mark own
+  messages: 1 flat tint, 2 no surface, 3 no marking.
+  Artifact: https://claude.ai/artifact/9gPthncQrRGkXMvoADbYUd
+
 ## Owner brief
 
 - Comm: total rework. Channel filtering (e.g. the most recently active

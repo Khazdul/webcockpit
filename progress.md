@@ -69,7 +69,9 @@ Statuses: Next, In progress, Owner testing, Done.
   hover buttons, a Group entry (`comm-r4.html`, `stats-r4.html`).
 - **Round 5:** Statistics r4 approved. Comm r5: three fold variants
   (`comm-r5.html`).
-- **Next:** owner picks a Comm fold variant; then a stage file for the build.
+- **Round 6:** Comm r5 B chosen; r6 has three own-message markings
+  (`comm-r6.html`).
+- **Next:** owner picks a marking; then a stage file for the build.
 - **Open issues:** freeze or re-rate kill ratings; Comm message font.
 - **Commits:** this one.
 
