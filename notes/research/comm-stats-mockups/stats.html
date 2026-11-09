@@ -1,0 +1,854 @@
+<title>Statistics Pane Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: one column of five concepts; each is a live Statistics pane in the Lykta frame with its Swedish caption beside it (under it when narrow). */
+:root {
+  color-scheme: dark;
+  /* page */
+  --page: #0c0b0a;
+  --ink: #d8d3c8;
+  --muted: #958e82;
+  --rule: #26231f;
+  --accent: #c9a96a;
+  /* type */
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "DejaVu Sans Mono", "JetBrains Mono", ui-monospace, monospace;
+  /* pane: Plain tint, candle lamp (17 Lykta) */
+  --lamp: #c9b28c;
+  --iron: #2a2826;
+  --iron-hi: #57524a;
+  --iron-lo: #171614;
+  --pane-bg: #050504;
+  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --fg: #cfc9bd;
+  --hot: #f1ece1;
+  --dim: #8a847a;
+  --trk: rgba(0, 0, 0, .55);
+  /* the app's stats colours (history-stats.css) */
+  --teal: #7cc4c8;
+  --pk: #e0915a;
+  --lvl: #7fbf7f;
+  --ach: #e3b341;
+  /* rating ramp, diverging around Good (always with a label, pips or a grade letter) */
+  --r0: #d0442e;  /* Poor */
+  --r1: #e08a2c;  /* Meh */
+  --r2: #7fb0d8;  /* Good */
+  --r3: #4fbf78;  /* Great */
+  --r4: #ffd54a;  /* Superb */
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--page); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 90px; }
+header.intro { display: grid; gap: 10px; margin-bottom: 18px; max-width: 70ch; }
+header.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(24px, 4vw, 32px); letter-spacing: .04em; color: var(--hot); text-wrap: balance; }
+header.intro p { margin: 0; color: var(--muted); }
+header.intro p b { color: var(--ink); font-weight: 500; }
+
+/* control bar */
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 0; margin-bottom: 8px; background: var(--page); border-bottom: 1px solid var(--rule); font-size: 14px; }
+.ctl .cl { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.cg { display: flex; align-items: center; gap: 8px; }
+.btn, .seg button { font: inherit; cursor: pointer; border: 1px solid var(--rule); background: #17150f; color: var(--ink); padding: 3px 11px; border-radius: 5px; }
+.btn:hover, .seg button:hover { color: var(--hot); border-color: #3a352c; }
+.btn:focus-visible, .seg button:focus-visible, .toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn.prim { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--hot); }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: #151410; border: 1px solid var(--rule); }
+.seg button { border: 0; background: none; color: var(--muted); padding: 2px 9px; border-radius: 4px; }
+.seg button[aria-pressed="true"] { background: #2b2822; color: var(--hot); }
+.ctl .hint { color: var(--muted); font-size: 13px; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 0 20px; font-size: 14px; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+.toc b { font-family: var(--display); color: var(--accent); margin-right: 5px; }
+
+/* concept sections */
+section.v { display: grid; grid-template-columns: minmax(0, 470px) minmax(0, 1fr); gap: 20px 32px; align-items: start; padding: 30px 0 34px; border-top: 1px solid var(--rule); scroll-margin-top: 60px; }
+@media (max-width: 880px) { section.v { grid-template-columns: minmax(0, 1fr); } }
+.stage { padding: 12px; border-radius: 6px; background: #000; display: flex; justify-content: center; min-width: 0; }
+.cap { display: grid; gap: 10px; align-content: start; min-width: 0; max-width: 62ch; }
+.cap .hd { display: flex; align-items: baseline; gap: 12px; }
+.cap .num { font-family: var(--display); font-size: 28px; color: var(--accent); line-height: 1; }
+.cap h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: .05em; color: var(--hot); text-wrap: balance; }
+.cap h2 small { display: block; font-family: var(--body); font-size: 14px; letter-spacing: .02em; color: var(--muted); font-weight: 400; }
+.cap ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+.cap li::marker { color: var(--accent); }
+.cap .try { margin: 0; font-size: 15px; color: var(--muted); }
+.cap .try b { color: var(--accent); font-weight: 500; }
+.scaleref { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; font-size: 13px; margin-top: 4px; }
+.scaleref div { padding: 4px 6px; border-radius: 4px; background: #14120e; border-top: 3px solid var(--c); }
+.scaleref b { display: block; color: var(--hot); font-weight: 500; }
+.scaleref span { color: var(--muted); font-size: 12px; }
+@media (max-width: 480px) { .scaleref { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ===================================================== the Lykta pane */
+.pane { position: relative; width: min(100%, 448px); height: 604px; padding: 5px; border-radius: 3px; font-family: var(--mono); font-size: 12.5px; line-height: 17px; color: var(--fg);
+  box-shadow: 0 0 22px -4px color-mix(in srgb, var(--lamp) 22%, transparent); }
+.pane::before { content: ""; position: absolute; inset: 0; padding: 5px; border-radius: 3px; border: 1px solid #000; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo);
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.fx { position: absolute; z-index: 4; width: 13px; height: 13px; pointer-events: none;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--iron-hi), var(--iron) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%); }
+.f1 { top: 0; left: 0; } .f2 { top: 0; right: 0; transform: scaleX(-1); } .f3 { bottom: 0; left: 0; transform: scaleY(-1); } .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+.plate { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); height: 17px; padding: 0 15px; border-radius: 0 0 8px 8px; z-index: 6; display: flex; align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 7px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.plate::before { left: 5px; } .plate::after { right: 5px; }
+.pt { font-family: var(--display); font-weight: 700; font-size: 11.5px; letter-spacing: .12em; line-height: 13px; padding-top: 1px;
+  color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+.hole { position: relative; height: 100%; overflow: hidden; padding: 18px 9px 9px; border: 1px solid #000; border-radius: 1px; display: flex; flex-direction: column; gap: 7px;
+  background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 17%, transparent), color-mix(in srgb, var(--lamp) 5%, transparent) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 24px rgba(0,0,0,.55); }
+.card { border-radius: 4px; padding: 7px 9px;
+  background: linear-gradient(180deg, var(--frost), var(--frost2));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+.sec { display: flex; align-items: baseline; gap: 8px; font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--lamp) 35%, #c8c8c8); }
+.sec::after { content: ""; flex: 1; height: 1px; align-self: center; background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 34%, transparent), transparent 85%); }
+.sec .dim { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.dim { color: var(--dim); }
+.hot { color: var(--hot); }
+.num { font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sp { flex: 1; }
+.ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.trk { display: block; position: relative; height: 7px; border-radius: 3px; background: var(--trk); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+
+/* rating chip: colour + pips + word */
+.rc { --c: var(--dim); display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; height: 16px; border-radius: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 85%, #fff); background: color-mix(in srgb, var(--c) 14%, rgba(0,0,0,.35)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.rc .pp { display: inline-flex; gap: 1.5px; }
+.rc .pp i { width: 3px; height: 8px; border-radius: 1px; background: currentColor; opacity: .22; }
+.rc .pp i.on { opacity: 1; }
+.r-superb { text-shadow: 0 0 6px color-mix(in srgb, var(--r4) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--r4) 60%, transparent), 0 0 8px -1px color-mix(in srgb, var(--r4) 55%, transparent); }
+.rc.cal { --c: var(--dim); font-weight: 400; font-style: italic; }
+.pkc { --c: var(--pk); }
+
+/* the 5-zone scale bar */
+.scale { position: relative; padding-top: 9px; }
+.scale .bands { display: flex; height: 6px; gap: 2px; }
+.scale .bands i { display: block; height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, rgba(0,0,0,.4)); }
+.scale .bands i.here { background: var(--c); box-shadow: 0 0 6px -1px var(--c); }
+.scale .lbl { display: flex; gap: 2px; font-size: 9.5px; line-height: 12px; margin-top: 2px; }
+.scale .lbl span { overflow: hidden; white-space: nowrap; text-align: center; color: var(--dim); }
+.scale .lbl span.here { color: var(--hot); }
+.scale .mk { position: absolute; top: 0; width: 0; height: 0; border: 5px solid transparent; border-top: 7px solid var(--hot); border-bottom: 0; transform: translateX(-5px); filter: drop-shadow(0 0 3px rgba(255,255,255,.4)); transition: left .4s ease; }
+
+/* motion */
+@keyframes slideIn { from { transform: translateY(-14px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rowIn { from { transform: translateY(-6px); opacity: 0; max-height: 0; } to { transform: none; opacity: 1; max-height: 24px; } }
+@keyframes drop { from { transform: translateY(-46px); opacity: 0; } 60% { opacity: 1; } 80% { transform: translateY(3px); } to { transform: none; opacity: 1; } }
+@keyframes glow { from { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 80%, transparent), 0 0 14px -2px var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); } to { box-shadow: inset 0 0 0 1px transparent; background: transparent; } }
+@keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes toast { 0% { transform: translate(-50%, -30px); opacity: 0; } 12% { transform: translate(-50%, 0); opacity: 1; } 85% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -10px); opacity: 0; } }
+@keyframes flash { from { box-shadow: inset 0 0 0 1px var(--r4), 0 0 18px -2px var(--r4); } to { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), 0 1px 2px rgba(0,0,0,.45); } }
+.a-slide { animation: slideIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.a-row { animation: rowIn .4s ease-out both; overflow: hidden; }
+.a-drop { animation: drop .6s cubic-bezier(.3,.7,.3,1) both; transform-box: fill-box; transform-origin: center; }
+.a-glow { animation: glow 2.4s ease-out both; }
+.a-pop { animation: pop .45s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .a-slide, .a-row, .a-drop, .a-pop, .a-glow, .toast, .flash { animation-duration: 1ms !important; } .scale .mk { transition: none; } }
+
+/* ---------------- 1 Kill card */
+.c1-top { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; }
+.hero { padding: 9px 11px 10px; display: grid; gap: 4px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent), inset 0 0 0 1px var(--frost-edge), inset 3px 0 0 -1px var(--c), 0 2px 6px rgba(0,0,0,.5); }
+.hero .mob { color: var(--hot); font-weight: 700; font-size: 13.5px; }
+.hero .big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hero .bigxp { font-size: 30px; line-height: 34px; font-weight: 700; color: color-mix(in srgb, var(--c) 55%, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); font-variant-numeric: tabular-nums; }
+.hero .xpu { color: var(--dim); }
+.hero .rc { height: 20px; font-size: 12px; padding: 0 7px; }
+.hero .ratio { font-size: 12px; }
+.hero .ratio b { color: var(--hot); }
+.feed { display: grid; gap: 1px; }
+.fr { display: grid; grid-template-columns: 30px minmax(0, 1fr) minmax(40px, 30%) 44px 18px; align-items: center; gap: 7px; height: 22px; padding: 0 4px; border-radius: 3px; }
+.fr:nth-child(odd) { background: rgba(255,255,255,.018); }
+.fr .t { color: var(--dim); font-size: 10.5px; text-align: right; }
+.fr .x { text-align: right; color: var(--hot); }
+.fr .bar { position: relative; height: 9px; }
+.fr .bar .fill { top: 1px; bottom: 1px; }
+.fr .bar .med { position: absolute; top: -7px; bottom: -7px; width: 0; border-left: 1px dashed color-mix(in srgb, var(--lamp) 55%, transparent); }
+.fr .g { font-weight: 700; font-size: 10.5px; text-align: center; color: var(--c); }
+.foot4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: auto; }
+.tile { padding: 5px 7px 6px; display: grid; gap: 0; }
+.tile .k { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; }
+.tile .v { font-size: 15px; line-height: 20px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tile .v small { font-size: 10.5px; font-weight: 400; color: var(--dim); }
+
+/* ---------------- 2 XP pulse */
+svg.ch { display: block; width: 100%; height: auto; overflow: visible; }
+svg.ch text { font-family: var(--mono); font-size: 9.5px; fill: var(--dim); }
+svg.ch .grid { stroke: rgba(255,255,255,.06); stroke-width: 1; }
+svg.ch .axis { stroke: rgba(255,255,255,.16); stroke-width: 1; }
+svg.ch .band { fill: color-mix(in srgb, var(--r2) 12%, transparent); }
+svg.ch .medl { stroke: color-mix(in srgb, var(--lamp) 70%, transparent); stroke-width: 1; stroke-dasharray: 3 3; }
+svg.ch text.hl { fill: color-mix(in srgb, var(--lamp) 80%, #fff); }
+svg.ch .stem { stroke-width: 1.5; stroke-linecap: round; }
+svg.ch .dot { stroke: var(--pane-bg); stroke-width: 2; }
+.p3 { display: grid; grid-template-columns: 1.15fr 1fr .85fr; gap: 5px; }
+.big2 { font-size: 22px; line-height: 26px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; }
+.up { color: var(--r3); } .down { color: var(--r1); }
+.ringw { display: flex; align-items: center; gap: 7px; }
+.ringw svg { flex: none; }
+.ringw .txt { font-size: 10.5px; line-height: 13px; }
+.legend5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+.legend5 > div { display: grid; justify-items: center; gap: 1px; padding: 3px 0 2px; border-radius: 3px; background: rgba(0,0,0,.25); font-size: 9.5px; line-height: 11px; color: var(--dim); }
+.legend5 > div b { font-size: 10.5px; color: color-mix(in srgb, var(--c) 85%, #fff); }
+.legend5 > div.here { background: color-mix(in srgb, var(--c) 16%, rgba(0,0,0,.3)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+
+/* ---------------- 3 distribution */
+.mobt { display: grid; gap: 1px; overflow: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: #3b372f transparent; }
+.mr { display: grid; grid-template-columns: minmax(0, 1fr) 20px 40px 98px; align-items: center; gap: 7px; height: 21px; padding: 0 5px; border-radius: 3px; --c: transparent; }
+.mr.h { height: 18px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.mr .n, .mr .a { text-align: right; font-variant-numeric: tabular-nums; }
+.mr .a { color: var(--hot); }
+.mr .cmp { display: flex; justify-content: flex-end; }
+.mr.cur { background: color-mix(in srgb, var(--lamp) 9%, transparent); box-shadow: inset 2px 0 0 var(--lamp); }
+.insight { font-size: 11.5px; line-height: 15px; }
+.insight b { color: var(--hot); font-weight: 700; }
+
+/* ---------------- 4 arcade */
+.c4top { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 7px; }
+.medal { display: grid; justify-items: center; align-content: center; gap: 0; padding: 6px 4px 7px; position: relative; }
+.medal .lt { font-family: var(--display); font-weight: 700; font-size: 40px; line-height: 44px; color: color-mix(in srgb, var(--c) 70%, #fff); text-shadow: 0 0 16px color-mix(in srgb, var(--c) 60%, transparent); }
+.medal .k { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.medal .tr { font-size: 10px; }
+.stk { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: center; }
+.stk .cnt { font-size: 28px; line-height: 30px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; }
+.stk .cnt.hotstreak { color: color-mix(in srgb, var(--r3) 70%, #fff); text-shadow: 0 0 10px color-mix(in srgb, var(--r3) 50%, transparent); }
+.flames { display: flex; gap: 2px; }
+.flames i { width: 7px; height: 12px; border-radius: 2px; background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.flames i.on { background: linear-gradient(180deg, color-mix(in srgb, var(--r3), #fff 35%), var(--r3)); box-shadow: 0 0 5px -1px var(--r3); }
+.tiles { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.gt { aspect-ratio: 1; max-width: 100%; border-radius: 4px; display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 15px;
+  color: color-mix(in srgb, var(--c) 80%, #fff); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 22%, transparent), color-mix(in srgb, var(--c) 8%, rgba(0,0,0,.4)));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 40%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); }
+.gt.e { background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+.gt.pk { --c: var(--pk); font-family: var(--mono); font-size: 11px; }
+.gt.S { text-shadow: 0 0 8px var(--r4); }
+.last4 { display: grid; gap: 2px; }
+.last4 .ln { display: flex; align-items: baseline; gap: 8px; }
+.last4 .xp { font-size: 20px; line-height: 24px; font-weight: 700; color: var(--hot); }
+.plaque { position: relative; padding: 8px 12px 9px; border-radius: 4px; text-align: center; display: grid; gap: 1px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--r4) 13%, transparent), color-mix(in srgb, var(--r4) 4%, transparent)), linear-gradient(180deg, var(--frost), var(--frost2));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--r4) 35%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--r4) 25%, transparent), 0 1px 3px rgba(0,0,0,.5); }
+.plaque::before, .plaque::after { content: ""; position: absolute; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%; background: var(--iron-lo); box-shadow: 0 1px 0 color-mix(in srgb, var(--r4) 40%, transparent); }
+.plaque::before { left: 6px; } .plaque::after { right: 6px; }
+.plaque .k { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .2em; color: color-mix(in srgb, var(--r4) 75%, #fff); }
+.plaque .m { color: var(--hot); font-weight: 700; }
+.plaque.flash { animation: flash 2s ease-out both; }
+.toasts { position: absolute; top: 14px; left: 0; right: 0; height: 0; z-index: 5; pointer-events: none; }
+.toast { position: absolute; left: 50%; top: 0; transform: translateX(-50%); white-space: nowrap; padding: 4px 12px; border-radius: 0 0 6px 6px; font-weight: 700; font-size: 12px;
+  color: color-mix(in srgb, var(--c) 70%, #fff); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 30%, #000), color-mix(in srgb, var(--c) 14%, #000));
+  box-shadow: 0 0 0 1px #000, inset 0 -1px 0 color-mix(in srgb, var(--c) 60%, transparent), 0 4px 14px -2px color-mix(in srgb, var(--c) 50%, transparent); animation: toast 3.6s ease both; }
+.sheet { display: grid; gap: 3px; }
+.sheet > div { display: grid; grid-template-columns: 16px minmax(0, 1fr) 24px; gap: 8px; align-items: center; }
+.sheet .gl { font-family: var(--display); font-weight: 700; color: color-mix(in srgb, var(--c) 80%, #fff); text-align: center; }
+.sheet .num { text-align: right; }
+.lvbar { display: grid; gap: 3px; margin-top: auto; }
+
+/* ---------------- 5 overview */
+.ovh { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ovh .nm { font-weight: 700; color: var(--hot); letter-spacing: .08em; }
+.ovh .stars { color: var(--ach); letter-spacing: 1px; }
+.ruler { display: grid; gap: 3px; }
+.ruler .trk { height: 9px; }
+.ruler .pre { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: rgba(255,255,255,.08); }
+.ruler .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--hot); border-radius: 1px; box-shadow: 0 0 4px rgba(255,255,255,.5); }
+.ruler .lb { display: flex; justify-content: space-between; font-size: 10.5px; gap: 6px; }
+.kt { display: grid; gap: 1px; overflow: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: #3b372f transparent; }
+.kr { display: grid; grid-template-columns: minmax(0, 1fr) 22px 40px 46px 64px; gap: 6px; align-items: center; height: 20px; padding: 0 5px; border-radius: 3px; --c: transparent; }
+.kr.h { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); height: 17px; }
+.kr .r { text-align: right; font-variant-numeric: tabular-nums; }
+.kr .rt { display: flex; justify-content: flex-end; }
+.kr.tot { border-top: 1px solid rgba(255,255,255,.08); border-radius: 0; color: var(--hot); font-weight: 700; }
+.kr.pkr .nm { color: var(--pk); }
+.spk2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.spk2 .card { padding: 5px 7px 4px; display: grid; gap: 2px; }
+
+/* tooltip */
+#tip { position: fixed; z-index: 50; pointer-events: none; padding: 4px 8px; border-radius: 4px; background: #1b1915; border: 1px solid #3a352c; color: var(--ink); font-family: var(--mono); font-size: 11.5px; line-height: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.6); max-width: 260px; }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Statistics-panelen, fem idéer</h1>
+    <p>Fem förslag på hur Statistics-panelen i spelet kan bli <b>levande</b>. Panelerna är igång: en ny kill kommer var fjärde till åttonde sekund (speltiden går 30 gånger snabbare i demot). Varje kill får ett betyg som jämförs med <b>medianen för sessionens egna kills</b>, så 2k XP kan vara "Superb" på level 12 och "Poor" på level 48.</p>
+  </header>
+
+  <div class="ctl" role="toolbar" aria-label="Demo controls">
+    <div class="cg"><button class="btn" id="pause" aria-pressed="false">Pause</button><button class="btn prim" id="killnow">Kill now</button></div>
+    <div class="cg"><span class="cl">Session</span><div class="seg" id="lvl"><button data-l="12" aria-pressed="false">Level 12</button><button data-l="34" aria-pressed="true">Level 34</button><button data-l="48" aria-pressed="false">Level 48</button></div></div>
+    <span class="hint" id="medhint"></span>
+  </div>
+  <nav class="toc" aria-label="Concepts">
+    <a href="#s1"><b>1</b>Senaste fångst</a><a href="#s2"><b>2</b>XP-puls</a><a href="#s3"><b>3</b>Fördelning</a><a href="#s4"><b>4</b>Arkad</a><a href="#s5"><b>5</b>Översikt</a>
+  </nav>
+
+  <section class="v" id="s1">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="c1"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">1</span><h2>Senaste fångst<small>Kill card: den senaste killen i fokus</small></h2></div>
+      <ul>
+        <li>Senaste killen visas som ett stort kort: mob, XP i stor stil, betyget som märke och hur många gånger medianen det var.</li>
+        <li>En skala med fem fält under kortet visar var killen hamnade, från Poor till Superb.</li>
+        <li>När nästa kill kommer glider kortet in och den förra flyttar ner i listan över de tio senaste.</li>
+        <li>Varje rad har en stapel i samma skala och en streckad linje för medianen, så bra och dåliga kills syns direkt.</li>
+        <li>Längst ner: snitt-XP per kill, XP/h, antal kills och medianen.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> tryck Kill now några gånger och se kortet byta. Byt till Level 12: medianen och betygen ändras, fast skalan ser likadan ut.</p>
+      <div class="scaleref" id="scaleref"></div>
+    </div>
+  </section>
+
+  <section class="v" id="s2">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="c2"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">2</span><h2>XP-puls<small>Ett diagram som rullar med tiden</small></h2></div>
+      <ul>
+        <li>De senaste 30 minuterna som ett rullande diagram. Varje kill är en punkt på en stjälk, högre punkt betyder mer XP.</li>
+        <li>Ett ljust fält visar vad som är "Good" just nu (0,8–1,5 × medianen), och en streckad linje visar medianen.</li>
+        <li>Nya kills faller ner i diagrammet. Punkterna glider åt vänster när tiden går.</li>
+        <li>Under diagrammet: XP/h de senaste 15 minuterna jämfört med hela sessionen, en ring för nästa level med beräknad tid kvar, och TP/h.</li>
+        <li>Längst ner förklaras skalan, och det fält som senaste killen hamnade i är markerat.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> hovra en punkt för mob och XP. Pausa och tryck Kill now flera gånger tätt: XP/h nu stiger över snittet och pilen vänder uppåt.</p>
+    </div>
+  </section>
+
+  <section class="v" id="s3">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="c3"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">3</span><h2>Fördelning<small>Vilka mobs lönar sig?</small></h2></div>
+      <ul>
+        <li>Ett histogram över sessionens kills på en logaritmisk XP-axel. Staplarna har betygets färg och zonerna är namngivna överst.</li>
+        <li>Den senaste killen faller in som en markör med texten "better than 82%" av sessionens kills.</li>
+        <li>Tabellen visar varje mob med antal, snitt-XP och hur snittet står sig mot medianen. Då ser man vad som är värt att jaga.</li>
+        <li>En rad överst sammanfattar: de mobs som ger mest per kill just nu.</li>
+        <li>PK räknas inte in i fördelningen, så att en stor PK inte förskjuter skalan.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> titta på markören när en ny kill kommer. Byt level och jämför hur tabellen sorterar om sig.</p>
+    </div>
+  </section>
+
+  <section class="v" id="s4">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="toasts" id="t4"></div><div class="hole" id="c4"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">4</span><h2>Arkad<small>Lite spelkänsla, men lugnt</small></h2></div>
+      <ul>
+        <li>Varje kill får en bokstav: S, A, B, C eller D (Superb till Poor). De tio senaste står som brickor.</li>
+        <li>Ett jaktbetyg för de tio senaste killen, med pil när det går upp eller ner.</li>
+        <li>En streak räknar kills i rad som är Good eller bättre. Den bästa streaken sparas.</li>
+        <li>Sessionens bästa kill står på en rekordskylt som blinkar till när rekordet slås.</li>
+        <li>Level, achievement, nytt rekord och PK glider ner som en kort notis under titeln.</li>
+        <li>Inget rör sig när inget händer.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> vänta på en level-up (den kommer efter några kills) eller tryck Kill now tills en Superb ger nytt rekord.</p>
+    </div>
+  </section>
+
+  <section class="v" id="s5">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="c5"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">5</span><h2>Översikt<small>Dagens panel och startsidans Statistics, vidareutvecklade</small></h2></div>
+      <ul>
+        <li>Rubrik med namn, level, betygsstjärnor, speltid och allierade.</li>
+        <li>XP-linjalen överst: var du började, var du är nu och hur mycket som är kvar till nästa level.</li>
+        <li>Fyra rutor: XP/h, kills, snitt per kill och deaths.</li>
+        <li>Kill-tabellen från startsidan, med ett betyg per mob. Raden för den senaste killen lyser upp en kort stund.</li>
+        <li>XP/h och TP/h som små kurvor med det senaste värdet markerat.</li>
+        <li>Det lugna alternativet: allt syns, inget hoppar.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> se raden lysa upp när en kill kommer. Hovra kurvorna för värden.</p>
+    </div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+(() => {
+'use strict';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPEED = 30;                // game seconds per real second
+const MIN = 60000;
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------- helpers
+function fmtK(n) {
+  const v = Math.round(Math.abs(n)); const sign = n < 0 && v > 0 ? '-' : '';
+  let s;
+  if (v < 1000) s = String(v);
+  else if (v < 99950) s = (v / 1000).toFixed(1) + 'k';
+  else if (v < 999500) s = Math.round(v / 1000) + 'k';
+  else s = (v / 1e6).toFixed(1) + 'M';
+  return sign + s;
+}
+function fmtClock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000)); const p2 = (n) => String(n).padStart(2, '0');
+  const h = Math.floor(s / 3600);
+  return h > 0 ? `${h}:${p2(Math.floor(s / 60) % 60)}:${p2(s % 60)}` : `${p2(Math.floor(s / 60))}:${p2(s % 60)}`;
+}
+function fmtDur(ms) { const m = Math.round(ms / MIN); return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`; }
+function ago(ms) { const m = Math.floor(ms / MIN); return m < 1 ? '0m' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60}m`; }
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function median(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1.5 ? 1.5 : f <= 2 ? 2 : f <= 3 ? 3 : f <= 5 ? 5 : f <= 7.5 ? 7.5 : 10) * p; }
+
+// ------------------------------------------------------------- rating
+const RATINGS = [
+  { k: 'poor', label: 'Poor', grade: 'D', c: 'var(--r0)', lo: 0, hi: 0.45 },
+  { k: 'meh', label: 'Meh', grade: 'C', c: 'var(--r1)', lo: 0.45, hi: 0.8 },
+  { k: 'good', label: 'Good', grade: 'B', c: 'var(--r2)', lo: 0.8, hi: 1.5 },
+  { k: 'great', label: 'Great', grade: 'A', c: 'var(--r3)', lo: 1.5, hi: 2.5 },
+  { k: 'superb', label: 'Superb', grade: 'S', c: 'var(--r4)', lo: 2.5, hi: Infinity },
+];
+const CAL_MIN = 5;
+function rateIdx(r) { return r < 0.45 ? 0 : r < 0.8 ? 1 : r < 1.5 ? 2 : r < 2.5 ? 3 : 4; }
+/** Median of the last 30 mob kills (PK left out), or null while calibrating. */
+function refMedian() { const xs = S.kills.filter((k) => !k.pk).slice(-30).map((k) => k.xp); return xs.length >= CAL_MIN ? median(xs) : null; }
+function rateOf(xp, med) { return med ? RATINGS[rateIdx(xp / med)] : null; }
+function chip(R, extra = '') {
+  if (!R) return `<span class="rc cal">calibrating…</span>`;
+  const i = RATINGS.indexOf(R);
+  const pips = RATINGS.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('');
+  return `<span class="rc r-${R.k}" style="--c:${R.c}"><span class="pp" aria-hidden="true">${pips}</span>${R.label}${extra}</span>`;
+}
+// log2 scale from 0.25× to 4×
+const scalePos = (r) => Math.min(1, Math.max(0, (Math.log2(Math.max(r, 0.01)) + 2) / 4));
+const BOUNDS = [0, scalePos(0.45), scalePos(0.8), scalePos(1.5), scalePos(2.5), 1];
+function scaleBar(r) {
+  const here = r == null ? -1 : rateIdx(r);
+  const bands = RATINGS.map((R, i) => `<i style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)};--c:${R.c}" class="${i === here ? 'here' : ''}"></i>`).join('');
+  const lbl = RATINGS.map((R, i) => `<span style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)}" class="${i === here ? 'here' : ''}">${R.label}</span>`).join('');
+  const mk = r == null ? '' : `<span class="mk" style="left:${(scalePos(r) * 100).toFixed(1)}%"></span>`;
+  return `<div class="scale">${mk}<div class="bands">${bands}</div><div class="lbl">${lbl}</div></div>`;
+}
+
+// ------------------------------------------------------------- session model
+const BANDS = {
+  12: { mobs: [['a rabbit', 380, 2], ['a large rat', 470, 3], ['a wild boar', 950, 3], ['a wolf', 1150, 4], ['a hobbit thief', 1550, 3], ['a goblin scout', 2150, 2], ['a giant spider', 2950, .6]], tp: [1, 1], ach: 'Slew a giant spider' },
+  34: { mobs: [['a black bear', 2250, 3], ['a warg', 2850, 3], ['a dunlending raider', 3400, 3], ['an orc warrior', 4300, 4], ['a barrow-wight', 6300, 2], ['a stone troll', 8400, 1.2]], tp: [1, 3], ach: 'Slew a stone troll' },
+  48: { mobs: [['an easterling soldier', 6500, 3], ['an orc captain', 8300, 3], ['a great spider', 11500, 3], ['a cave troll', 15500, 3], ['a hill giant', 19500, 2], ['a mountain troll', 24500, .8], ['an olog-hai', 39000, .25]], tp: [2, 4], ach: 'Slew an olog-hai' },
+};
+let S, rng;
+
+function pickMob() {
+  const m = BANDS[S.band].mobs; const tot = m.reduce((s, x) => s + x[2], 0);
+  let r = rng() * tot;
+  for (const x of m) { r -= x[2]; if (r <= 0) return x; }
+  return m[m.length - 1];
+}
+function gauss() { return Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng()); }
+
+function newSession(band) {
+  rng = mulberry(band * 7919 + 3);
+  const mobs = BANDS[band].mobs;
+  const wsum = mobs.reduce((s, x) => s + x[2], 0);
+  const est = mobs.reduce((s, x) => s + x[1] * x[2], 0) / wsum;
+  S = { band, level: band, span: Math.round(est * 45 / 1000) * 1000, xpIn: 0, gained: 0, startIn: 0,
+    tpStart: 140 + band * 3, tp: 0, kills: [], tps: [], miles: [], now: 70 * MIN, achDone: false, liveKills: 0, killSeq: 0, bestStreak: 0 };
+  S.startIn = Math.round(S.span * 0.16); S.xpIn = S.startIn; S.tp = S.tpStart; S.levelStart = band;
+  const ts = Array.from({ length: 25 }, () => rng() * 68 * MIN + 1 * MIN).sort((a, b) => a - b);
+  ts.forEach((t, i) => addKill(t, i === 15 ? 'pk' : null, false));
+  S.now = 70 * MIN;
+}
+
+function addKill(t, kind, live) {
+  let k;
+  if (kind === 'pk') {
+    const med = refMedian() || 3000;
+    k = { t, name: '*Ugluk the Orc*', xp: Math.round(med * (4 + rng() * 2) / 10) * 10, pk: true };
+  } else {
+    const [name, base] = pickMob();
+    k = { t, name, xp: Math.max(50, Math.round(base * Math.exp(gauss() * 0.16) / 10) * 10), pk: false };
+  }
+  k.id = ++S.killSeq; k.real = live ? performance.now() : -1e9;
+  S.kills.push(k);
+  S.gained += k.xp; S.xpIn += k.xp;
+  const out = [];
+  if (S.xpIn >= S.span) {
+    S.xpIn -= S.span; S.level++; S.span = Math.round(S.span * 1.08 / 1000) * 1000;
+    S.miles.push({ t, kind: 'level', text: `Level ${S.level}!` }); out.push('level');
+  }
+  if (rng() < 0.32) { const [a, b] = BANDS[S.band].tp; const d = a + Math.floor(rng() * (b - a + 1)); S.tp += d; S.tps.push({ t, d }); }
+  if (live) {
+    S.liveKills++;
+    if (!S.achDone && S.liveKills === 5) { S.achDone = true; S.miles.push({ t, kind: 'ach', text: BANDS[S.band].ach }); out.push('ach'); }
+  }
+  return { k, out };
+}
+
+// derived numbers
+function sessionMs() { return S.now; }
+function xpPerHour(winMin) {
+  if (winMin == null) return S.gained / (sessionMs() / 3600000);
+  const from = S.now - winMin * MIN;
+  const sum = S.kills.filter((k) => k.t > from).reduce((s, k) => s + k.xp, 0);
+  return sum / (winMin / 60);
+}
+function tpPerHour() { return (S.tp - S.tpStart) / (sessionMs() / 3600000); }
+function series(kind, buckets) {
+  const w = 15 * MIN; const out = [];
+  const evs = kind === 'tp' ? S.tps.map((x) => ({ t: x.t, v: x.d })) : S.kills.map((k) => ({ t: k.t, v: k.xp }));
+  for (let i = 0; i < buckets; i++) {
+    const t = (i + 1) / buckets * S.now; const lo = t - w;
+    const sum = evs.filter((e) => e.t > lo && e.t <= t).reduce((s, e) => s + e.v, 0);
+    out.push(sum / (Math.min(w, t) / 3600000));
+  }
+  return out;
+}
+function etaMs() { const r = xpPerHour(20) || xpPerHour(); return r > 0 ? (S.span - S.xpIn) / r * 3600000 : Infinity; }
+function lastKill() { return S.kills[S.kills.length - 1]; }
+function lastMobKill() { for (let i = S.kills.length - 1; i >= 0; i--) if (!S.kills[i].pk) return S.kills[i]; return null; }
+function streak() { let n = 0; const med = refMedian(); if (!med) return 0; for (let i = S.kills.length - 1; i >= 0; i--) { const k = S.kills[i]; if (k.pk) continue; if (k.xp / med >= 0.8) n++; else break; } return n; }
+function bestKill() { return S.kills.filter((k) => !k.pk).reduce((b, k) => (!b || k.xp > b.xp ? k : b), null); }
+/** Animation class for a freshly arrived kill, continued across re-renders by a negative delay. */
+function fresh(k, cls, dur) {
+  if (!k) return { c: '', s: '' };
+  const el = performance.now() - k.real;
+  return el < dur ? { c: cls, s: `animation-delay:-${Math.round(el)}ms;` } : { c: '', s: '' };
+}
+
+// ------------------------------------------------------------- 1 Kill card
+function r1() {
+  const el = $('c1'); const med = refMedian(); const k = lastKill();
+  const R = k.pk ? null : rateOf(k.xp, med); const r = med ? k.xp / med : null;
+  const f = fresh(k, 'a-slide', 450); const fr = fresh(k, 'a-row', 400);
+  const feed = S.kills.slice(-11, -1).reverse();
+  const max = Math.max(med ? med * 3 : 0, ...feed.map((x) => x.xp)) || 1;
+  const rows = feed.map((x, i) => {
+    const Rx = x.pk ? null : rateOf(x.xp, med);
+    const c = x.pk ? 'var(--pk)' : Rx ? Rx.c : 'var(--dim)';
+    const g = x.pk ? 'PK' : Rx ? Rx.grade : '·';
+    const tip = `${x.name} · ${fmtK(x.xp)} XP${Rx ? ' · ' + Rx.label + ' (' + (x.xp / med).toFixed(1) + '×)' : x.pk ? ' · PvP' : ''}`;
+    return `<div class="fr ${i === 0 ? fr.c : ''}" style="${i === 0 ? fr.s : ''}--c:${c}" data-tip="${esc(tip)}">
+      <span class="t num">${ago(S.now - x.t)}</span><span class="ell" style="${x.pk ? 'color:var(--pk)' : ''}">${esc(x.name)}</span>
+      <span class="bar"><span class="trk" style="height:9px"><span class="fill" style="width:${(Math.min(1, x.xp / max) * 100).toFixed(1)}%"></span></span>${med ? `<span class="med" style="left:${(med / max * 100).toFixed(1)}%"></span>` : ''}</span>
+      <span class="x num">${fmtK(x.xp)}</span><span class="g" title="${Rx ? Rx.label : ''}">${g}</span></div>`;
+  }).join('');
+  const kc = S.kills.length; const avg = S.gained / kc;
+  const heroC = k.pk ? 'var(--pk)' : R ? R.c : 'var(--lamp)';
+  const ratioLine = k.pk ? `<span class="dim">PvP kill · not rated, kept out of the median</span>`
+    : r ? `<span>${r >= 1 ? '▲' : '▼'} <b>${r.toFixed(1)}×</b> your median <span class="dim">(${fmtK(med)})</span></span>` : `<span class="dim">Rating starts after ${CAL_MIN} kills</span>`;
+  el.innerHTML = `
+    <div class="c1-top"><span class="hot">Gibur</span><span class="dim">L${S.level}</span><span class="dim">·</span><span class="num js-rt">${fmtClock(S.now)}</span><span class="sp"></span><span class="dim">with</span><span style="color:var(--teal)">Lindir</span></div>
+    <div class="sec">Last kill <span class="dim js-ago">${ago(S.now - k.t)} ago</span></div>
+    <div class="card hero ${f.c}" style="${f.s}--c:${heroC}">
+      <div class="row"><span class="mob ell" style="${k.pk ? 'color:var(--pk)' : ''}">${esc(k.name)}</span></div>
+      <div class="big"><span class="bigxp">+${fmtK(k.xp)}</span><span class="xpu">XP</span><span class="sp"></span>${k.pk ? `<span class="rc pkc" style="--c:var(--pk)">⚔ PvP</span>` : chip(R)}</div>
+      <div class="ratio">${ratioLine}</div>
+      ${k.pk ? '' : scaleBar(r)}
+    </div>
+    <div class="sec">Earlier <span class="dim">bar = XP · ┆ = median</span></div>
+    <div class="feed">${rows}</div>
+    <div class="foot4">
+      <div class="card tile"><span class="k">Avg / kill</span><span class="v">${fmtK(avg)}</span></div>
+      <div class="card tile"><span class="k">Median</span><span class="v">${med ? fmtK(med) : '—'}</span></div>
+      <div class="card tile"><span class="k">XP / h</span><span class="v">${fmtK(xpPerHour())}</span></div>
+      <div class="card tile"><span class="k">Kills</span><span class="v">${kc}</span></div>
+    </div>`;
+}
+
+// ------------------------------------------------------------- 2 XP pulse
+function r2() {
+  const el = $('c2'); const med = refMedian(); const k = lastKill();
+  const W = 420, H = 280, x0 = 36, x1 = 412, y0 = 14, y1 = 256;
+  const span = 30 * MIN; const tFrom = S.now - span;
+  const vis = S.kills.filter((x) => x.t >= tFrom - MIN);
+  const ymax = niceMax(Math.max(med ? med * 2.6 : 1000, ...vis.map((x) => x.xp)));
+  const X = (t) => x0 + (t - tFrom) / span * (x1 - x0); const Y = (v) => y1 - v / ymax * (y1 - y0);
+  let g = '';
+  for (let i = 0; i <= 3; i++) { const v = ymax * i / 3; g += `<line class="grid" x1="${x0}" x2="${x1}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${x0 - 5}" y="${Y(v) + 3}" text-anchor="end">${fmtK(v)}</text>`; }
+  [30, 20, 10, 0].forEach((m) => { const x = X(S.now - m * MIN); g += `<text x="${x}" y="${y1 + 14}" text-anchor="${m === 0 ? 'end' : m === 30 ? 'start' : 'middle'}">${m ? '−' + m + 'm' : 'now'}</text>`; });
+  if (med) {
+    const ya = Y(Math.min(ymax, med * 1.5)), yb = Y(med * 0.8);
+    g += `<rect class="band" x="${x0}" y="${ya}" width="${x1 - x0}" height="${yb - ya}"/><text x="${x1}" y="${ya - 4}" text-anchor="end" style="fill:color-mix(in srgb,var(--r2) 80%,#fff)">Good ${fmtK(med * 0.8)}–${fmtK(med * 1.5)}</text>`;
+    g += `<line class="medl" x1="${x0}" x2="${x1}" y1="${Y(med)}" y2="${Y(med)}"/><text class="hl" x="${x1}" y="${yb + 11}" text-anchor="end">median ${fmtK(med)}</text>`;
+  }
+  g += `<line class="axis" x1="${x0}" x2="${x1}" y1="${y1}" y2="${y1}"/>`;
+  let dots = '';
+  for (const x of vis) {
+    if (x.t < tFrom) continue;
+    const R = x.pk ? null : rateOf(x.xp, med); const c = x.pk ? 'var(--pk)' : R ? R.c : 'var(--dim)';
+    const f = fresh(x, 'a-drop', 600); const cx = X(x.t), cy = Y(Math.min(x.xp, ymax));
+    const tip = `${x.name} · ${fmtK(x.xp)} XP · ${ago(S.now - x.t)} ago${R ? ' · ' + R.label : x.pk ? ' · PvP' : ''}`;
+    const mark = x.pk ? `<rect class="dot" x="${cx - 5}" y="${cy - 5}" width="10" height="10" transform="rotate(45 ${cx} ${cy})" style="fill:${c}"/>`
+      : `<circle class="dot" cx="${cx}" cy="${cy}" r="${x.id === k.id ? 5.5 : 4.5}" style="fill:${c}"/>`;
+    dots += `<g class="${f.c}" style="${f.s}" data-tip="${esc(tip)}"><line class="stem" x1="${cx}" x2="${cx}" y1="${y1}" y2="${cy}" style="stroke:color-mix(in srgb, ${c} 55%, transparent)"/>${mark}<circle cx="${cx}" cy="${cy}" r="11" style="fill:transparent"/></g>`;
+  }
+  const now15 = xpPerHour(15), ses = xpPerHour();
+  const up = now15 >= ses;
+  const pct = S.xpIn / S.span; const C = 2 * Math.PI * 21;
+  const eta = etaMs();
+  const lk = lastMobKill(); const lr = lk && med ? rateIdx(lk.xp / med) : -1;
+  const leg = RATINGS.map((R, i) => `<div class="${i === lr ? 'here' : ''}" style="--c:${R.c}"><b>${R.label}</b><span>${i === 0 ? '< 0.45×' : i === 4 ? '≥ 2.5×' : R.lo + '–' + R.hi + '×'}</span></div>`).join('');
+  el.innerHTML = `
+    <div class="c1-top"><span class="hot">Gibur</span><span class="dim">L${S.level}</span><span class="dim">·</span><span class="num js-rt">${fmtClock(S.now)}</span><span class="sp"></span><span class="dim">${S.kills.length} kills</span></div>
+    <div class="sec">XP per kill <span class="dim">last 30 min</span></div>
+    <svg class="ch" viewBox="0 0 ${W} ${H}" role="img" aria-label="XP per kill over the last 30 minutes">${g}${dots}</svg>
+    <div class="p3">
+      <div class="card"><div class="tile" style="padding:0"><span class="k">XP / h · last 15m</span></div>
+        <div class="big2">${fmtK(now15)} <span class="${up ? 'up' : 'down'}" style="font-size:16px">${up ? '▲' : '▼'}</span></div>
+        <div class="dim" style="font-size:10.5px">session ${fmtK(ses)}/h</div></div>
+      <div class="card ringw">
+        <svg width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="21" style="fill:none;stroke:rgba(0,0,0,.55);stroke-width:6"/>
+          <circle cx="27" cy="27" r="21" transform="rotate(-90 27 27)" style="fill:none;stroke:var(--lvl);stroke-width:6;stroke-linecap:round;stroke-dasharray:${(C * pct).toFixed(1)} ${C.toFixed(1)};filter:drop-shadow(0 0 3px var(--lvl))"/>
+          <text x="27" y="31" text-anchor="middle" style="font-family:var(--mono);font-size:11px;font-weight:700;fill:var(--hot)">${Math.floor(pct * 100)}%</text></svg>
+        <div class="txt"><span class="hot">Level ${S.level + 1}</span><br><span class="dim">in ≈ </span><span class="hot num">${isFinite(eta) ? fmtDur(eta) : '—'}</span><br><span class="dim">at this rate</span></div></div>
+      <div class="card"><div class="tile" style="padding:0"><span class="k">TP / h</span></div><div class="big2" style="color:var(--teal)">${tpPerHour().toFixed(1)}</div><div class="dim" style="font-size:10.5px">+${S.tp - S.tpStart} TP</div></div>
+    </div>
+    <div class="sec">Rating scale <span class="dim">× session median</span></div>
+    <div class="legend5">${leg}</div>
+    <div class="dim" style="font-size:11px;margin-top:auto">Last: <span class="hot">${esc(k.name)}</span> +${fmtK(k.xp)} ${k.pk ? '<span style="color:var(--pk)">PvP</span>' : (rateOf(k.xp, med) || { label: 'calibrating…' }).label}</div>`;
+}
+
+// ------------------------------------------------------------- 3 Distribution
+function r3() {
+  const el = $('c3'); const med = refMedian(); const mobK = S.kills.filter((k) => !k.pk);
+  const W = 420, H = 214, x0 = 10, x1 = 410, y0 = 26, y1 = 186;
+  const xs = mobK.map((k) => k.xp);
+  const lo = Math.min(...xs, med ? med * 0.3 : Infinity) * 0.9, hi = Math.max(...xs, med ? med * 3.2 : 0) * 1.1;
+  const L = (v) => (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo));
+  const X = (v) => x0 + L(v) * (x1 - x0);
+  const NB = 16; const bins = new Array(NB).fill(0);
+  xs.forEach((v) => { bins[Math.min(NB - 1, Math.floor(L(v) * NB))]++; });
+  const bmax = Math.max(...bins, 1); const Y = (n) => y1 - n / bmax * (y1 - y0 - 6);
+  let g = '';
+  if (med) {
+    [0.45, 0.8, 1.5, 2.5].forEach((t) => { const x = X(med * t); if (x > x0 && x < x1) g += `<line class="grid" x1="${x}" x2="${x}" y1="${y0 - 14}" y2="${y1}" style="stroke-dasharray:2 3;stroke:rgba(255,255,255,.12)"/>`; });
+    const edges = [lo, med * 0.45, med * 0.8, med * 1.5, med * 2.5, hi];
+    RATINGS.forEach((R, i) => { const a = Math.max(x0, X(Math.max(lo, edges[i]))), b = Math.min(x1, X(Math.min(hi, edges[i + 1]))); if (b - a > 26) g += `<text x="${(a + b) / 2}" y="${y0 - 16}" text-anchor="middle" style="fill:${R.c}">${R.label}</text>`; });
+  }
+  const bw = (x1 - x0) / NB;
+  bins.forEach((n, i) => {
+    if (!n) return;
+    const center = Math.exp(Math.log(lo) + (i + 0.5) / NB * (Math.log(hi) - Math.log(lo)));
+    const R = rateOf(center, med); const c = R ? R.c : 'var(--dim)';
+    const x = x0 + i * bw + 1, y = Y(n);
+    const a = Math.exp(Math.log(lo) + i / NB * (Math.log(hi) - Math.log(lo))), b = Math.exp(Math.log(lo) + (i + 1) / NB * (Math.log(hi) - Math.log(lo)));
+    g += `<path d="M${x},${y1} V${y + 3} q0,-3 3,-3 h${bw - 8} q3,0 3,3 V${y1} Z" style="fill:color-mix(in srgb, ${c} 75%, transparent)" data-tip="${fmtK(a)}–${fmtK(b)} XP · ${n} kill${n > 1 ? 's' : ''}${R ? ' · ' + R.label : ''}"/>`;
+  });
+  g += `<line class="axis" x1="${x0}" x2="${x1}" y1="${y1}" y2="${y1}"/>`;
+  const ticks = med ? [lo / 0.9 * 1.0, med, hi / 1.1] : [lo, hi];
+  ticks.forEach((v, i) => g += `<text x="${X(v)}" y="${y1 + 13}" text-anchor="${i === 0 ? 'start' : i === ticks.length - 1 ? 'end' : 'middle'}" ${med && v === med ? 'class="hl"' : ''}>${med && v === med ? 'median ' : ''}${fmtK(v)}</text>`);
+  const lk = lastMobKill(); let pctTxt = '';
+  if (lk) {
+    const better = xs.filter((v) => v < lk.xp).length / Math.max(1, xs.length - 1);
+    const pc = Math.round(Math.min(1, better) * 100);
+    const f = fresh(lk, 'a-drop', 600); const cx = X(lk.xp);
+    g += `<g class="${f.c}" style="${f.s}"><line x1="${cx}" x2="${cx}" y1="${y0 - 6}" y2="${y1}" style="stroke:var(--hot);stroke-width:1.5"/><path d="M${cx - 5},${y0 - 12} h10 l-5,7 z" style="fill:var(--hot)"/></g>`;
+    pctTxt = `<span class="hot">${esc(lk.name)}</span> +${fmtK(lk.xp)} · better than <b class="hot">${pc}%</b> of this session's kills`;
+  }
+  // per mob
+  const by = new Map();
+  mobK.forEach((k) => { const r = by.get(k.name) || { name: k.name, n: 0, xp: 0 }; r.n++; r.xp += k.xp; by.set(k.name, r); });
+  const rows = [...by.values()].map((r) => ({ ...r, avg: r.xp / r.n })).sort((a, b) => b.avg - a.avg);
+  const worth = med ? rows.filter((r) => r.avg / med >= 1.3 && r.n >= 2).slice(0, 2) : [];
+  const tr = rows.map((r) => {
+    const R = rateOf(r.avg, med);
+    return `<div class="mr ${lk && r.name === lk.name ? 'cur' : ''}"><span class="ell">${esc(r.name)}</span><span class="n dim">${r.n}</span><span class="a">${fmtK(r.avg)}</span><span class="cmp">${med ? chip(R, ` ${(r.avg / med).toFixed(1)}×`) : chip(null)}</span></div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="c1-top"><span class="hot">Gibur</span><span class="dim">L${S.level}</span><span class="dim">·</span><span class="num js-rt">${fmtClock(S.now)}</span><span class="sp"></span><span class="dim">${mobK.length} mob kills</span></div>
+    <div class="sec">XP per kill <span class="dim">log scale · zones from the median</span></div>
+    <svg class="ch" viewBox="0 0 ${W} ${H}" role="img" aria-label="Distribution of XP per kill this session">${g}</svg>
+    <div class="card insight">${pctTxt}</div>
+    <div class="sec">By mob <span class="dim">avg vs median</span></div>
+    ${worth.length ? `<div class="insight dim">Worth hunting: ${worth.map((r) => `<b>${esc(r.name)}</b> ${(r.avg / med).toFixed(1)}×`).join(', ')}</div>` : ''}
+    <div class="mobt"><div class="mr h"><span>Mob</span><span class="n">N</span><span class="n">Avg</span><span class="n">Rating</span></div>${tr}</div>`;
+}
+
+// ------------------------------------------------------------- 4 Arcade
+let lastGrade = null, gradeTrend = 0, lastBestId = null;
+function huntGrade() {
+  const med = refMedian(); if (!med) return null;
+  const last = S.kills.filter((k) => !k.pk).slice(-10);
+  const avg = last.reduce((s, k) => s + rateIdx(k.xp / med), 0) / last.length;
+  return avg >= 3.3 ? 4 : avg >= 2.5 ? 3 : avg >= 1.8 ? 2 : avg >= 1.1 ? 1 : 0;
+}
+function r4(ev) {
+  const el = $('c4'); const med = refMedian(); const k = lastKill();
+  const gi = huntGrade();
+  if (ev === 'kill' && lastGrade != null && gi != null && gi !== lastGrade) gradeTrend = gi > lastGrade ? 1 : -1;
+  if (ev === 'reset') gradeTrend = 0;
+  lastGrade = gi;
+  const G = gi == null ? null : RATINGS[gi];
+  const st = streak(); S.bestStreak = Math.max(S.bestStreak, st);
+  const last10 = S.kills.slice(-10);
+  const tiles = Array.from({ length: 10 }, (_, i) => {
+    const x = last10[i - (10 - last10.length)];
+    if (!x) return `<span class="gt e"></span>`;
+    const R = x.pk ? null : rateOf(x.xp, med); const f = x.id === k.id ? fresh(x, 'a-pop', 450) : { c: '', s: '' };
+    return x.pk ? `<span class="gt pk ${f.c}" style="${f.s}" data-tip="${esc(x.name)} · ${fmtK(x.xp)} XP · PvP">PK</span>`
+      : `<span class="gt ${R ? R.grade : ''} ${f.c}" style="${f.s}--c:${R ? R.c : 'var(--dim)'}" data-tip="${esc(x.name)} · ${fmtK(x.xp)} XP${R ? ' · ' + R.label : ''}">${R ? R.grade : '·'}</span>`;
+  }).join('');
+  const best = bestKill();
+  const flash = ev === 'kill' && best && best.id === k.id && lastBestId != null && lastBestId !== best.id;
+  lastBestId = best ? best.id : null;
+  const R = k.pk ? null : rateOf(k.xp, med);
+  const flames = Array.from({ length: 10 }, (_, i) => `<i class="${i < Math.min(st, 10) ? 'on' : ''}"></i>`).join('');
+  el.innerHTML = `
+    <div class="c1-top"><span class="hot">Gibur</span><span class="dim">L${S.level}</span><span class="dim">·</span><span class="num js-rt">${fmtClock(S.now)}</span><span class="sp"></span><span class="dim">${fmtK(xpPerHour())} XP/h</span></div>
+    <div class="c4top">
+      <div class="card medal" style="--c:${G ? G.c : 'var(--dim)'}"><span class="k">Hunt</span><span class="lt">${G ? G.grade : '–'}</span>
+        <span class="tr ${gradeTrend > 0 ? 'up' : gradeTrend < 0 ? 'down' : 'dim'}">${gradeTrend > 0 ? '▲ rising' : gradeTrend < 0 ? '▼ falling' : G ? G.label : 'calibrating'}</span></div>
+      <div class="card stk">
+        <span class="cnt ${st >= 3 ? 'hotstreak' : ''}">×${st}</span>
+        <div><div class="hot" style="font-weight:700">Streak</div><div class="dim" style="font-size:10.5px">Good or better in a row</div></div>
+        <div class="flames" style="grid-column:1/-1">${flames}</div>
+        <div class="dim" style="grid-column:1/-1;font-size:10.5px">Best this session <span class="hot">×${S.bestStreak}</span> · grade = avg of last 10 kills</div>
+      </div>
+    </div>
+    <div class="sec">Last 10 kills</div>
+    <div class="tiles">${tiles}</div>
+    <div class="card last4" style="--c:${k.pk ? 'var(--pk)' : R ? R.c : 'var(--dim)'}">
+      <div class="ln"><span class="ell hot" style="font-weight:700;${k.pk ? 'color:var(--pk)' : ''}">${esc(k.name)}</span><span class="sp"></span><span class="dim js-ago">${ago(S.now - k.t)}</span></div>
+      <div class="ln"><span class="xp num">+${fmtK(k.xp)}</span><span class="dim">XP</span><span class="sp"></span>${k.pk ? `<span class="rc" style="--c:var(--pk)">⚔ PvP</span>` : chip(R, med ? ` ${(k.xp / med).toFixed(1)}×` : '')}</div>
+    </div>
+    ${best ? `<div class="plaque ${flash ? 'flash' : ''}"><span class="k">SESSION RECORD</span><span class="m">${esc(best.name)}</span><span class="num"><span class="hot" style="font-size:15px;font-weight:700">+${fmtK(best.xp)}</span> <span class="dim">· ${med ? (best.xp / med).toFixed(1) + '× median · ' : ''}${ago(S.now - best.t)} ago</span></span></div>` : ''}
+    <div class="sec">Grade sheet <span class="dim">all ${S.kills.filter((x) => !x.pk).length} mob kills</span></div>
+    ${gradeSheet(med)}
+    <div class="lvbar"><div class="row" style="font-size:11px"><span class="hot">L${S.level}</span><span class="sp"></span><span class="dim">L${S.level + 1} in ≈ ${isFinite(etaMs()) ? fmtDur(etaMs()) : '—'}</span></div>
+      <div class="trk"><span class="fill" style="--c:var(--lvl);width:${(S.xpIn / S.span * 100).toFixed(1)}%"></span></div></div>`;
+  return flash;
+}
+function gradeSheet(med) {
+  const cnt = [0, 0, 0, 0, 0]; const mk = S.kills.filter((x) => !x.pk);
+  if (med) mk.forEach((x) => cnt[rateIdx(x.xp / med)]++);
+  const max = Math.max(...cnt, 1);
+  return `<div class="sheet">${RATINGS.slice().reverse().map((R) => { const n = cnt[RATINGS.indexOf(R)]; return `<div style="--c:${R.c}" data-tip="${R.label}: ${n} kills"><span class="gl">${R.grade}</span><span class="trk"><span class="fill" style="width:${(n / max * 100).toFixed(0)}%"></span></span><span class="num hot">${n}</span></div>`; }).join('')}</div>`;
+}
+function toast4(text, c) {
+  const t = document.createElement('div'); t.className = 'toast'; t.style.setProperty('--c', c); t.textContent = text;
+  const box = $('t4');
+  const n = box.children.length; t.style.top = n * 26 + 'px';
+  box.append(t); setTimeout(() => t.remove(), 3700);
+}
+
+// ------------------------------------------------------------- 5 Overview
+function spark(vals, col, label, unit, fmt) {
+  const W = 200, H = 52; const max = Math.max(...vals, 1) * 1.1;
+  const pts = vals.map((v, i) => [i / (vals.length - 1) * (W - 6) + 1, H - 2 - v / max * (H - 6)]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('');
+  const last = pts[pts.length - 1];
+  const hits = pts.map((p, i) => `<rect x="${(p[0] - 2.5).toFixed(1)}" y="0" width="5" height="${H}" style="fill:transparent" data-tip="${label} ${fmt(vals[i])}${unit} · ${fmtDur((i + 1) / vals.length * S.now)}"/>`).join('');
+  return `<div class="card"><div class="row" style="font-size:10px"><span class="dim" style="letter-spacing:.08em;text-transform:uppercase">${label}</span><span class="sp"></span><span class="hot num" style="font-weight:700">${fmt(vals[vals.length - 1])}</span></div>
+    <svg class="ch" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:52px" aria-label="${label}"><path d="${line} L${last[0]},${H} L1,${H} Z" style="fill:color-mix(in srgb, ${col} 16%, transparent)"/>
+    <path d="${line}" style="fill:none;stroke:${col};stroke-width:1.5;vector-effect:non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="2.6" style="fill:${col};stroke:var(--pane-bg);stroke-width:1"/>${hits}</svg></div>`;
+}
+function r5() {
+  const el = $('c5'); const med = refMedian(); const k = lastKill();
+  const by = new Map();
+  S.kills.filter((x) => !x.pk).forEach((x) => { const r = by.get(x.name) || { name: x.name, n: 0, xp: 0, lastId: 0 }; r.n++; r.xp += x.xp; r.lastId = Math.max(r.lastId, x.id); by.set(x.name, r); });
+  const rows = [...by.values()].sort((a, b) => b.xp - a.xp);
+  const pks = S.kills.filter((x) => x.pk);
+  const tr = rows.map((r) => {
+    const R = rateOf(r.xp / r.n, med); const isLast = r.lastId === k.id; const f = isLast ? fresh(k, 'a-glow', 2400) : { c: '', s: '' };
+    return `<div class="kr ${f.c}" style="${f.s}--c:${R ? R.c : 'var(--lamp)'}"><span class="ell ${isLast ? 'hot' : ''}">${esc(r.name)}</span><span class="r dim">${r.n}</span><span class="r">${fmtK(r.xp / r.n)}</span><span class="r hot">${fmtK(r.xp)}</span><span class="rt">${chip(R)}</span></div>`;
+  }).join('');
+  const pkr = pks.length ? (() => { const f = k.pk ? fresh(k, 'a-glow', 2400) : { c: '', s: '' }; return `<div class="kr pkr ${f.c}" style="${f.s}--c:var(--pk)"><span class="ell nm">⚔ *Ugluk the Orc*</span><span class="r dim">${pks.length}</span><span class="r">${fmtK(pks.reduce((s, x) => s + x.xp, 0) / pks.length)}</span><span class="r hot">${fmtK(pks.reduce((s, x) => s + x.xp, 0))}</span><span class="rt"><span class="rc" style="--c:var(--pk)">PvP</span></span></div>`; })() : '';
+  // ruler: the current level, session start marked
+  const levels = S.level - S.levelStart;
+  const startFrac = levels ? 0 : S.startIn / S.span; const nowFrac = S.xpIn / S.span;
+  const R = k.pk ? null : rateOf(k.xp, med);
+  el.innerHTML = `
+    <div class="ovh"><span class="nm">GIBUR</span><span class="dim">L${S.level}</span><span class="stars" aria-label="4 of 5 stars">★★★★<span class="dim">★</span></span><span class="sp"></span><span class="num hot js-rt">${fmtClock(S.now)}</span></div>
+    <div class="dim" style="font-size:11px;margin-top:-5px">with <span style="color:var(--teal)">Lindir</span>${S.miles.length ? ' · ' + S.miles.map((m) => `<span style="color:${m.kind === 'level' ? 'var(--lvl)' : 'var(--ach)'}">${m.kind === 'level' ? '⇈' : '★'} ${esc(m.text.replace('!', ''))}</span>`).join(' · ') : ''}</div>
+    <div class="card ruler">
+      <div class="row" style="font-size:10px"><span class="dim" style="letter-spacing:.08em">EXPERIENCE</span><span class="sp"></span><span class="hot num" style="font-weight:700">+${fmtK(S.gained)} XP</span><span class="dim">this run${levels ? ` · +${levels} level` : ''}</span></div>
+      <div class="trk"><span class="pre" style="width:${(startFrac * 100).toFixed(1)}%"></span><span class="fill" style="--c:var(--teal);left:${(startFrac * 100).toFixed(1)}%;width:${((nowFrac - startFrac) * 100).toFixed(1)}%"></span>
+        <span class="tick" style="left:${(nowFrac * 100).toFixed(1)}%"></span></div>
+      <div class="lb"><span class="dim">L${S.level}${levels ? '' : ' · start ' + Math.round(startFrac * 100) + '%'}</span><span class="hot">${Math.round(nowFrac * 100)}%</span><span class="dim">L${S.level + 1} −${fmtK(S.span - S.xpIn)} · ≈${isFinite(etaMs()) ? fmtDur(etaMs()) : '—'}</span></div>
+    </div>
+    <div class="foot4" style="margin-top:0">
+      <div class="card tile"><span class="k">XP / h</span><span class="v">${fmtK(xpPerHour())}</span></div>
+      <div class="card tile"><span class="k">Kills</span><span class="v">${S.kills.length}</span></div>
+      <div class="card tile"><span class="k">Avg / kill</span><span class="v">${fmtK(S.gained / S.kills.length)}</span></div>
+      <div class="card tile"><span class="k">Deaths</span><span class="v">0</span></div>
+    </div>
+    <div class="row" style="font-size:11.5px"><span class="dim">Last</span><span class="ell hot" style="${k.pk ? 'color:var(--pk)' : ''}">${esc(k.name)}</span><span class="num">+${fmtK(k.xp)}</span><span class="sp"></span>${k.pk ? '<span class="rc" style="--c:var(--pk)">PvP</span>' : chip(R)}</div>
+    <div class="kt"><div class="kr h"><span>Kills</span><span class="r">N</span><span class="r">XP/N</span><span class="r">XP ▾</span><span class="r">Rating</span></div>${tr}${pkr}
+      <div class="kr tot"><span>Total</span><span class="r">${S.kills.length}</span><span></span><span class="r">${fmtK(S.gained)}</span><span></span></div></div>
+    <div class="spk2" style="margin-top:auto">${spark(series('xp', 40), 'var(--teal)', 'XP / h', '', fmtK)}${spark(series('tp', 40), 'var(--ach)', 'TP / h', '', (v) => v.toFixed(1))}</div>`;
+}
+
+// ------------------------------------------------------------- driver
+function renderAll(ev) { r1(); r2(); r3(); const fl = r4(ev); r5(); refHint(); return fl; }
+function refHint() {
+  const med = refMedian();
+  $('medhint').textContent = med ? `Session median ${fmtK(med)} XP · Good = ${fmtK(med * 0.8)}–${fmtK(med * 1.5)}` : 'Calibrating…';
+  const sr = $('scaleref');
+  sr.innerHTML = RATINGS.map((R, i) => `<div style="--c:${R.c}"><b>${R.label}</b><span>${i === 0 ? '< 0,45×' : i === 4 ? '≥ 2,5×' : String(R.lo).replace('.', ',') + '–' + String(R.hi).replace('.', ',') + '×'}${med ? ' · ' + (i === 0 ? '< ' + fmtK(med * .45) : i === 4 ? '≥ ' + fmtK(med * 2.5) : fmtK(med * R.lo) + '–' + fmtK(med * R.hi)) : ''}</span></div>`).join('');
+}
+function liveKill(forcePk) {
+  S.now += Math.round((20 + rng() * 40) * 1000);
+  const pk = forcePk || (S.liveKills > 2 && rng() < 0.04);
+  const { k, out } = addKill(S.now, pk ? 'pk' : null, true);
+  const flash = renderAll('kill');
+  if (out.includes('level')) toast4(`⇈ Level ${S.level}!`, 'var(--lvl)');
+  if (out.includes('ach')) toast4(`★ ${BANDS[S.band].ach}`, 'var(--ach)');
+  if (flash) toast4(`New session record · +${fmtK(k.xp)}`, 'var(--r4)');
+  if (k.pk) toast4(`⚔ ${k.name} +${fmtK(k.xp)}`, 'var(--pk)');
+  const st = streak(); if (!k.pk && (st === 5 || st === 10)) toast4(`Streak ×${st}`, 'var(--r3)');
+}
+
+let paused = false, nextKillAt = 0, lastReal = performance.now();
+function schedule() { nextKillAt = performance.now() + 4000 + Math.random() * 4000; }
+function tick() {
+  const t = performance.now(); const dt = t - lastReal; lastReal = t;
+  if (!paused) {
+    S.now += dt * SPEED;
+    if (t >= nextKillAt) { liveKill(false); schedule(); }
+  }
+  document.querySelectorAll('.js-rt').forEach((e) => { e.textContent = fmtClock(S.now); });
+  const k = lastKill(); document.querySelectorAll('.js-ago').forEach((e) => { e.textContent = ago(S.now - k.t) + (e.closest('#c1') ? ' ago' : ''); });
+}
+let lastChart = 0;
+function loop() {
+  tick();
+  const t = performance.now();
+  if (!paused && t - lastChart > 1000) { lastChart = t; r2(); }
+}
+
+function start(band) {
+  newSession(band); lastGrade = null; gradeTrend = 0; lastBestId = null;
+  $('t4').innerHTML = '';
+  renderAll('reset'); schedule();
+}
+$('pause').addEventListener('click', (e) => { paused = !paused; e.currentTarget.textContent = paused ? 'Play' : 'Pause'; e.currentTarget.setAttribute('aria-pressed', String(paused)); if (!paused) { lastReal = performance.now(); schedule(); } });
+$('killnow').addEventListener('click', () => { liveKill(false); if (!paused) schedule(); });
+$('lvl').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('lvl').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  start(Number(b.dataset.l));
+});
+
+// tooltip
+const tip = $('tip');
+document.addEventListener('pointermove', (e) => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t) { tip.hidden = true; return; }
+  tip.textContent = t.getAttribute('data-tip'); tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 12, y = e.clientY - h - 10;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 12;
+  if (y < 8) y = e.clientY + 16;
+  tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px';
+});
+document.addEventListener('pointerleave', () => { tip.hidden = true; });
+
+start(34);
+setInterval(loop, 250);
+})();
+</script>

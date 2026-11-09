@@ -57,6 +57,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-09 — Comm and Statistics panes: mockups round 1
+
+- **Done:** five live mockups each for a reworked Comm pane and a live
+  Statistics pane in the Lykta look (`notes/research/comm-stats-mockups/`,
+  artifacts in its README). Kill rating relative to the session median.
+- **Next:** owner picks directions; then a stage file for the build.
+- **Open issues:** freeze or re-rate kill ratings; Comm message font.
+- **Commits:** this one.
+
 ### 2026-11-08 — About text for newcomers, release 0.3.3
 
 - **Done:** side-by-side mockup of the About text, current vs proposed
