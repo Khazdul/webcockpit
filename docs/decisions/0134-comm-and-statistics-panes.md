@@ -121,9 +121,17 @@ contrast (`lightShift` / `fitContrast`, as Comm does today).
 
 **Reply line:** in a chat a plain field `Reply to <Name>…` that sends
 `tell <name> <text>`; your bubble shows a small `tell` mark. In Public it
-sends `say`, in Group `say` (MUME has no group channel to our knowledge;
-revisit if one is found). Hidden in a log player, a replay and when not
-connected.
+sends `say`, in Group `tell group <text>` (owner, 2026-11-09). Hidden in a
+log player, a replay and when not connected.
+
+**Group tells:** MUME sends them on the `tells` channel with no
+destination and the text `<Name> tells the group '…'` (seen in the
+owner's Cockpit comm archives and run logs, 2026-09/10; the current pane
+wrongly shows them as `<Name> tells you`). They go to Group, and into the
+sender's record as an overheard line; they never open, raise or count in a
+private chat. Your own `tell group` has not been captured: the model takes
+a `destination` of `group` / `the group`, or a text `You tell the group
+'…'`, as a group tell; check the real form in the first live test.
 
 **Text is selectable** for copy in the thread and in search results; the
 pane no longer prevents mousedown there (the input keeps the game's keys
@@ -170,3 +178,28 @@ cost is agreed first.
   per-pane fold / width.
 - The Options → Panes → Comm page and the gear share the new rows.
 - The Statistics pane moves off the shared `statsBody`; the phone keeps it.
+
+## Addendum: 49a findings (2026-11-09)
+
+- **Settings:** `comm.chatWindow` (default 30), `comm.folded` and
+  `comm.listWidth` (CSS px, 40–400, null = automatic) live in the `comm`
+  settings (there is one Comm pane; the gear, the Options page and a
+  player's VIEW records already carry `comm`). Tells and Whispers off in
+  Public for new users (`COMM_PUBLIC_DEFAULT_OFF`) go into the defaults in
+  49c with the new pane: the old pane's filters hide a channel from the
+  whole pane. Stored filters are kept. `comm.showHeader`
+  stays in the settings until 49c replaces the pane, its gear and the
+  Options page (removing it now would rewrite the old header code and its
+  tests only to delete them in 49c); 49c drops it.
+- **Talker types:** MUME's `talker-type` is `npc`, `ally`, `neutral` or
+  `enemy` (Cockpit `docs/gmcp.md`); the archives also show `player`. Only
+  `npc` keeps a talker out of the chats. Your own messages carry `talker`
+  "you", the `destination` and only the message as `text`.
+- **Own directed emotes:** GMCP carries no target for emotes; an own emote
+  or social that names a person with a chat goes to that chat (whole
+  word). Others' emotes open their chat whether directed or not.
+- **Group view:** placed at arrival by the roster then; an archive load
+  (before the roster is known) leaves Group empty until new talk.
+- **Rating:** the median leaves out kills that gave no XP (a fold without
+  an XP change); the Median tile shows the rating's median (the last 30
+  mob kills). XP text is `fmtK`, already exact under 1000.
