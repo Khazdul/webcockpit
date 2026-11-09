@@ -52,6 +52,7 @@ Released 0.3.3 (About cut down for newcomers: Getting started after MUME, about 
 | 46 | Spotlights gallery | Done | `docs/stages/46-spotlights.md` |
 | 47 | Credits and About | Done | `docs/stages/47-credits-about.md` |
 | 48 | Presentation film | Done | `docs/stages/48-presentation-film.md` |
+| 49 | Comm and Statistics panes | In progress | `docs/stages/49-comm-stats-panes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
@@ -71,7 +72,9 @@ Statuses: Next, In progress, Owner testing, Done.
   (`comm-r5.html`).
 - **Round 6:** Comm r5 B chosen; r6 has three own-message markings
   (`comm-r6.html`).
-- **Next:** owner picks a marking; then a stage file for the build.
+- **Round 6:** owner chose "Stilla ton"; Comm and Statistics approved.
+  ADR 0134 and `docs/stages/49-comm-stats-panes.md` written.
+- **Next:** stage 49a: performance baseline on main first, then models.
 - **Open issues:** freeze or re-rate kill ratings; Comm message font.
 - **Commits:** this one.
 
