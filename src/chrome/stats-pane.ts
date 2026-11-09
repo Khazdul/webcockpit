@@ -19,8 +19,10 @@
 //
 // - The list is virtual: rows have one height, the space is n rows tall and
 //   only the rows in view (plus a margin) exist, so a run of thousands of
-//   kills costs the same DOM as one of thirty. Bottom-anchored: at the
-//   bottom it follows new kills; scrolled up it stays and counts them.
+//   kills costs the same DOM as one of thirty. Bottom-anchored by CSS (the
+//   scroller is a reversed column, scrollTop 0 is the bottom), so following
+//   new kills writes no scroll position and forces no layout; scrolled up,
+//   the view is held by one scroll write per change and `↓ N new` counts.
 // - A new kill appends: the previous card's kill becomes the list's last row
 //   (it slides up from the card), the card shows the new one. Bars are a
 //   transform of `--xp / --st-scale` (scale = 3 × the median), so a new
@@ -61,6 +63,8 @@ const PIN_SLACK = 4;
 /** Tick and the rows' age refresh (ms). */
 const TICK_MS = 1000;
 const AGE_EVERY = 60;
+/** The bars' scale is rewritten when it moved more than this (a fraction). */
+const SCALE_STEP = 0.03;
 
 const prevent = (e: Event): void => e.preventDefault();
 
@@ -81,8 +85,22 @@ function setAttr(e: HTMLElement, name: string, v: string | null): void {
   } else if (e.getAttribute(name) !== v) e.setAttribute(name, v);
 }
 
+/**
+ * Whether the user asked for reduced motion, read from a list kept current
+ * by its change event: evaluating `matchMedia(…).matches` on every kill
+ * forced a style and layout update.
+ */
+const motion = new WeakMap<Document, { reduce: boolean }>();
 function reducedMotion(doc: Document): boolean {
-  return doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
+  let m = motion.get(doc);
+  if (!m) {
+    const mql = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const st = { reduce: mql?.matches ?? true };
+    mql?.addEventListener?.('change', (e) => (st.reduce = e.matches));
+    motion.set(doc, st);
+    m = st;
+  }
+  return m.reduce;
 }
 
 export class StatsPaneView implements StatsPaneHandle {
@@ -113,7 +131,8 @@ export class StatsPaneView implements StatsPaneHandle {
   private readonly rows = new Map<number, HTMLDivElement>();
   private rowH = 0;
   private viewH = 0;
-  private top = 0;
+  /** Distance of the view from the list's bottom (px; the reversed column's −scrollTop). */
+  private fromBottom = 0;
   private pinned = true;
   private unseen = 0;
   private shown = false;
@@ -124,7 +143,17 @@ export class StatsPaneView implements StatsPaneHandle {
   private frame = 0;
   /** The kill on the card (its time and name). */
   private cardKey = '';
-  private cardAge: HTMLElement | null = null;
+  private readonly cardAge: HTMLSpanElement;
+  private readonly cardMob: HTMLDivElement;
+  private readonly cardXp: HTMLSpanElement;
+  private readonly badge: HTMLSpanElement;
+  private readonly badgeText: HTMLSpanElement;
+  private readonly scaleBox: HTMLDivElement;
+  private readonly scaleMk: HTMLSpanElement;
+  private readonly bandEls: HTMLElement[] = [];
+  private readonly lblEls: HTMLElement[] = [];
+  /** The `--st-scale` written last (a new one is written only when it moved more than SCALE_STEP). */
+  private shownScale = 0;
   private ageRef = 0;
 
   constructor(host: HTMLElement, feed: StatsFeed) {
@@ -172,6 +201,37 @@ export class StatsPaneView implements StatsPaneHandle {
     list.append(this.scroll, this.more);
 
     this.card = el(doc, 'div', 'wc-st-card');
+    this.card.hidden = true;
+    const head = el(doc, 'div', 'wc-st-card-top');
+    this.cardAge = el(doc, 'span', 'wc-st-dim wc-st-cage');
+    head.append(el(doc, 'span', 'wc-st-k', 'Last kill'), this.cardAge);
+    this.cardMob = el(doc, 'div', 'wc-st-mob');
+    const big = el(doc, 'div', 'wc-st-big');
+    this.cardXp = el(doc, 'span', 'wc-st-bigxp');
+    this.badge = el(doc, 'span', 'wc-st-badge');
+    const pips = el(doc, 'span', 'wc-st-pips');
+    pips.setAttribute('aria-hidden', 'true');
+    for (let j = 0; j < RATING_ORDER.length; j++) pips.append(el(doc, 'i', ''));
+    this.badgeText = el(doc, 'span', '');
+    this.badge.append(pips, this.badgeText);
+    big.append(this.cardXp, el(doc, 'span', 'wc-st-dim', 'XP'), el(doc, 'span', 'wc-st-sp'), this.badge);
+    this.scaleBox = el(doc, 'div', 'wc-st-scale');
+    this.scaleMk = el(doc, 'span', 'wc-st-mk');
+    const bands = el(doc, 'div', 'wc-st-bands');
+    const lbl = el(doc, 'div', 'wc-st-lbl');
+    for (const b of scaleBands()) {
+      const i = el(doc, 'i', '');
+      i.dataset['r'] = b.rating;
+      i.style.flex = b.frac.toFixed(4);
+      bands.append(i);
+      this.bandEls.push(i);
+      const t = el(doc, 'span', '', RATING_LABEL[b.rating]);
+      t.style.flex = b.frac.toFixed(4);
+      lbl.append(t);
+      this.lblEls.push(t);
+    }
+    this.scaleBox.append(this.scaleMk, bands, lbl);
+    this.card.append(head, this.cardMob, big, this.scaleBox);
     // A row that is never shown: its height is the list's row height.
     this.probe = el(doc, 'div', 'wc-st-row wc-st-probe');
     this.probe.append(el(doc, 'span', 'wc-st-age', '0m'));
@@ -187,7 +247,6 @@ export class StatsPaneView implements StatsPaneHandle {
       ? new RO((entries) => {
           for (const e of entries) {
             this.viewH = e.contentRect.height;
-            if (this.pinned) this.toBottom();
             this.renderWindow();
           }
         })
@@ -214,7 +273,6 @@ export class StatsPaneView implements StatsPaneHandle {
       if (this.measureRow() && this.rowH !== old) {
         this.clearRows();
         this.layoutSpace();
-        if (this.pinned) this.toBottom();
         this.renderWindow();
       } else if (this.rowH === 0) this.rowH = old;
     }
@@ -247,8 +305,7 @@ export class StatsPaneView implements StatsPaneHandle {
       this.kills = [];
       this.clearRows();
       this.cardKey = '';
-      this.cardAge = null;
-      this.card.replaceChildren();
+      this.card.hidden = true;
       this.syncTimer();
       return;
     }
@@ -273,7 +330,12 @@ export class StatsPaneView implements StatsPaneHandle {
     const rater = raterOf(next);
     this.median = rater.median;
     this.scale = barScale(this.median, next);
-    this.root.style.setProperty('--st-scale', String(this.scale));
+    // Every row's bar follows `--st-scale`: written only when it moved
+    // enough to see, so most kills restyle and repaint no row.
+    if (!(Math.abs(this.scale - this.shownScale) <= this.shownScale * SCALE_STEP)) {
+      this.shownScale = this.scale;
+      this.root.style.setProperty('--st-scale', String(this.scale));
+    }
     setAttr(this.root, 'data-cal', this.median === null ? '' : null);
 
     const t = tilesOf(next, this.median, m, m.durationUs);
@@ -290,8 +352,11 @@ export class StatsPaneView implements StatsPaneHandle {
       this.unseen = 0;
     }
     this.layoutSpace();
-    if (this.pinned) this.toBottom();
-    else if (added > 0) {
+    if (!appended) this.toBottom();
+    else if (!this.pinned && added > 0) {
+      // Scrolled up: hold the view where it is (the list grew below it).
+      this.fromBottom += added * this.rowH;
+      this.scroll.scrollTop = -this.fromBottom;
       this.unseen += added;
       this.showMore();
     }
@@ -322,10 +387,11 @@ export class StatsPaneView implements StatsPaneHandle {
     this.more.hidden = true;
   }
 
+  /** Back to the bottom (a scroll write only when not there already). */
   private toBottom(): void {
-    const h = this.listLen() * this.rowH;
-    this.top = Math.max(0, h - this.viewH);
-    this.scroll.scrollTop = h;
+    if (this.fromBottom !== 0) this.scroll.scrollTop = 0;
+    this.fromBottom = 0;
+    this.pinned = true;
     this.unseen = 0;
     this.more.hidden = true;
   }
@@ -338,16 +404,14 @@ export class StatsPaneView implements StatsPaneHandle {
   /** Makes the rows in view (plus the margin) and drops the rest. */
   private renderWindow(): void {
     const n = this.listLen();
-    if (n > 0 && this.rowH <= 0 && this.measureRow()) {
-      this.layoutSpace();
-      if (this.pinned) this.toBottom();
-    }
+    if (n > 0 && this.rowH <= 0 && this.measureRow()) this.layoutSpace();
     if (this.rowH <= 0 || n === 0 || !this.shown) {
       if (n === 0) this.clearRows();
       return;
     }
-    const lo = Math.max(0, Math.floor(this.top / this.rowH) - OVERSCAN);
-    const hi = Math.min(n, Math.ceil((this.top + this.viewH) / this.rowH) + OVERSCAN);
+    const top = Math.max(0, n * this.rowH - this.viewH - this.fromBottom);
+    const lo = Math.max(0, Math.floor(top / this.rowH) - OVERSCAN);
+    const hi = Math.min(n, Math.ceil((top + this.viewH) / this.rowH) + OVERSCAN);
     for (const [i, row] of this.rows) {
       if (i < lo || i >= hi) {
         row.remove();
@@ -400,14 +464,13 @@ export class StatsPaneView implements StatsPaneHandle {
         { transform: `translateY(${Math.round(this.rowH * 1.6)}px)`, opacity: 0.2 },
         { transform: 'translateY(0)', opacity: 1 },
       ],
-      { duration: 320, easing: 'cubic-bezier(.2,.7,.2,1)' },
+      { duration: 200, easing: 'cubic-bezier(.2,.7,.2,1)' },
     );
   }
 
   private readonly onScroll = (): void => {
-    this.top = this.scroll.scrollTop;
-    const h = this.listLen() * this.rowH;
-    this.pinned = this.top + this.viewH >= h - PIN_SLACK;
+    this.fromBottom = Math.max(0, -this.scroll.scrollTop);
+    this.pinned = this.fromBottom <= PIN_SLACK;
     if (this.pinned && this.unseen) {
       this.unseen = 0;
       this.more.hidden = true;
@@ -424,10 +487,9 @@ export class StatsPaneView implements StatsPaneHandle {
     e.preventDefault();
     if (e.button !== 0) return;
     this.pinned = true;
-    const h = this.listLen() * this.rowH;
     this.unseen = 0;
     this.more.hidden = true;
-    this.scroll.scrollTo({ top: h, behavior: reducedMotion(this.doc) ? 'auto' : 'smooth' });
+    this.scroll.scrollTo({ top: 0, behavior: reducedMotion(this.doc) ? 'auto' : 'smooth' });
   };
 
   private readonly onDown = (e: MouseEvent): void => {
@@ -438,12 +500,11 @@ export class StatsPaneView implements StatsPaneHandle {
 
   // ------------------------------------------------------------ card
 
+  /** The card in place: texts, the badge and the scale's marker (no elements made). */
   private drawCard(fresh: boolean, rate: (xp: number) => Rated | null): void {
     const k = this.kills[this.kills.length - 1];
     if (!k) {
       this.cardKey = '';
-      this.cardAge = null;
-      this.card.replaceChildren();
       this.card.hidden = true;
       return;
     }
@@ -452,29 +513,39 @@ export class StatsPaneView implements StatsPaneHandle {
     if (key === this.cardKey) return;
     const newKill = !this.cardKey.startsWith(`${k.us}|${k.name}|`);
     this.cardKey = key;
-    const d = this.doc;
     const rated = k.pk ? null : rate(k.xp);
     setAttr(this.card, 'data-r', rated ? rated.rating : null);
     setAttr(this.card, 'data-pk', k.pk ? '' : null);
+    setText(this.cardAge, `${fmtAge(this.ageRef - k.us)} ago`);
+    setText(this.cardMob, k.name);
+    this.cardMob.title = k.name;
+    setText(this.cardXp, `+${fmtK(k.xp)}`);
 
-    const head = el(d, 'div', 'wc-st-card-top');
-    this.cardAge = el(d, 'span', 'wc-st-dim wc-st-cage', `${fmtAge(this.ageRef - k.us)} ago`);
-    head.append(el(d, 'span', 'wc-st-k', 'Last kill'), this.cardAge);
-    const mob = el(d, 'div', 'wc-st-mob', k.name);
-    mob.title = k.name;
-    const big = el(d, 'div', 'wc-st-big');
-    big.append(el(d, 'span', 'wc-st-bigxp', `+${fmtK(k.xp)}`), el(d, 'span', 'wc-st-dim', 'XP'), el(d, 'span', 'wc-st-sp'), badge(d, k.pk, rated));
-    const parts: HTMLElement[] = [head, mob, big];
-    if (!k.pk) parts.push(scaleEl(d, rated));
-    this.card.replaceChildren(...parts);
+    // The badge: PvP, calibrating, or the rating with its pips.
+    const state = k.pk ? 'pk' : rated ? 'rated' : 'cal';
+    setAttr(this.badge, 'data-state', state);
+    setAttr(this.badge, 'data-r', rated ? rated.rating : null);
+    setText(this.badgeText, k.pk ? '⚔ PvP' : rated ? RATING_LABEL[rated.rating] : 'calibrating…');
+    const at = rated ? RATING_ORDER.indexOf(rated.rating) : -1;
+    const pips = this.badge.firstChild!.childNodes;
+    for (let j = 0; j < pips.length; j++) (pips[j] as HTMLElement).classList.toggle('on', j <= at);
 
-    if (fresh && newKill && !reducedMotion(d) && typeof this.card.animate === 'function') {
+    // The scale (not for a pkill): the band and label of the rating, the marker at its ratio.
+    this.scaleBox.hidden = k.pk;
+    for (let j = 0; j < this.bandEls.length; j++) {
+      this.bandEls[j]!.classList.toggle('here', j === at);
+      this.lblEls[j]!.classList.toggle('here', j === at);
+    }
+    this.scaleMk.hidden = !rated;
+    if (rated) this.scaleMk.style.left = `${(scalePos(rated.ratio) * 100).toFixed(1)}%`;
+
+    if (fresh && newKill && !reducedMotion(this.doc) && typeof this.card.animate === 'function') {
       this.card.animate(
         [
           { transform: 'translateY(10px)', opacity: 0 },
           { transform: 'translateY(0)', opacity: 1 },
         ],
-        { duration: 300, easing: 'cubic-bezier(.2,.7,.2,1)' },
+        { duration: 200, easing: 'cubic-bezier(.2,.7,.2,1)' },
       );
     }
   }
@@ -508,42 +579,6 @@ export class StatsPaneView implements StatsPaneHandle {
     const us = this.st.live ? Math.max(this.feed.nowUs(), m.endUs ?? 0) - m.startUs : m.durationUs;
     setText(this.clock, fmtRunClock(us));
   }
-}
-
-function badge(d: Document, pk: boolean, rated: Rated | null): HTMLElement {
-  if (pk) return el(d, 'span', 'wc-st-badge is-pk', '⚔ PvP');
-  if (!rated) return el(d, 'span', 'wc-st-badge is-cal', 'calibrating…');
-  const b = el(d, 'span', 'wc-st-badge');
-  b.dataset['r'] = rated.rating;
-  const pips = el(d, 'span', 'wc-st-pips');
-  pips.setAttribute('aria-hidden', 'true');
-  const at = RATING_ORDER.indexOf(rated.rating);
-  for (let j = 0; j < RATING_ORDER.length; j++) pips.append(el(d, 'i', j <= at ? 'on' : ''));
-  b.append(pips, d.createTextNode(RATING_LABEL[rated.rating]));
-  return b;
-}
-
-function scaleEl(d: Document, rated: Rated | null): HTMLElement {
-  const s = el(d, 'div', 'wc-st-scale');
-  const bands = el(d, 'div', 'wc-st-bands');
-  const lbl = el(d, 'div', 'wc-st-lbl');
-  for (const b of scaleBands()) {
-    const here = rated?.rating === b.rating;
-    const i = el(d, 'i', here ? 'here' : '');
-    i.dataset['r'] = b.rating;
-    i.style.flex = String(b.frac.toFixed(4));
-    bands.append(i);
-    const t = el(d, 'span', here ? 'here' : '', RATING_LABEL[b.rating]);
-    t.style.flex = String(b.frac.toFixed(4));
-    lbl.append(t);
-  }
-  if (rated) {
-    const mk = el(d, 'span', 'wc-st-mk');
-    mk.style.left = `${(scalePos(rated.ratio) * 100).toFixed(1)}%`;
-    s.append(mk);
-  }
-  s.append(bands, lbl);
-  return s;
 }
 
 /** Mounts the Statistics pane's view into `host` (hidden until `resize` gives it cells). */

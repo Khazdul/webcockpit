@@ -443,7 +443,7 @@ describe('mountStatsPane (the view)', () => {
     expect(host.querySelector('.wc-st-count')!.textContent).toBe('6');
     expect(host.querySelector('.wc-st-card')!.hasAttribute('data-pk')).toBe(true);
     expect(host.querySelector('.wc-st-badge')!.textContent).toBe('⚔ PvP');
-    expect(host.querySelector('.wc-st-scale')).toBeNull();
+    expect(host.querySelector<HTMLElement>('.wc-st-scale')!.hidden).toBe(true);
 
     // Outside the list a mousedown is prevented; in the list it is not (rows can be selected).
     const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });

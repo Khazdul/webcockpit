@@ -242,6 +242,10 @@
 .wc-st-scroll {
   flex: 1 1 0;
   min-height: 0;
+  /* Reversed: scrollTop 0 is the bottom, so the list stays there as kills
+   * are added without a scroll write. */
+  display: flex;
+  flex-direction: column-reverse;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -254,6 +258,7 @@
 
 .wc-st-space {
   position: relative;
+  flex: none;
 }
 
 .wc-st-row {
@@ -451,14 +456,20 @@
   background: color-mix(in srgb, var(--c) 14%, var(--st-badge-back));
 }
 
-.wc-st-badge.is-pk {
+.wc-st-badge[data-state='pk'] {
   --c: var(--st-pk);
 }
 
-.wc-st-badge.is-cal {
+.wc-st-badge[data-state='cal'] {
   font-weight: 400;
   font-style: italic;
   background: none;
+}
+
+.wc-st-badge:not([data-state='rated']) > .wc-st-pips,
+.wc-st-scale[hidden],
+.wc-st-mk[hidden] {
+  display: none;
 }
 
 .wc-st-badge[data-r='superb'] {
