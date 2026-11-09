@@ -8,6 +8,17 @@ pane, in the Lykta look (ADR 0123). Throwaway HTML; never copy as is.
 - `stats.html` — Senaste fångst, XP-puls, Fördelning, Arkad, Översikt.
   Artifact: https://claude.ai/artifact/BSgHwmVYfkNPgG1sR6Jc4d
 
+## Round 2 (2026-11-09)
+
+The owner chose Comm 2 "Samtal" and Statistics 1 "Senaste fångst" and
+asked for three variants of each (feedback in the session; summary in
+progress.md).
+
+- `comm-r2.html` — A Ikonräls, B Namnlista, C Kompakt.
+  Artifact: https://claude.ai/artifact/CTndfrR6ijfqyd2xivKmBG
+- `stats-r2.html` — A Ringar, B Rör, C Fångstbalk.
+  Artifact: https://claude.ai/artifact/7EDecVtXnobQDn3yATqXUb
+
 ## Owner brief
 
 - Comm: total rework. Channel filtering (e.g. the most recently active

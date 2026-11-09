@@ -62,7 +62,9 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Done:** five live mockups each for a reworked Comm pane and a live
   Statistics pane in the Lykta look (`notes/research/comm-stats-mockups/`,
   artifacts in its README). Kill rating relative to the session median.
-- **Next:** owner picks directions; then a stage file for the build.
+- **Round 2:** owner chose Comm 2 "Samtal" and Stats 1 "Senaste fångst";
+  three variants each (`comm-r2.html`, `stats-r2.html`, links in README).
+- **Next:** owner picks a variant; then a stage file for the build.
 - **Open issues:** freeze or re-rate kill ratings; Comm message font.
 - **Commits:** this one.
 

@@ -1,0 +1,707 @@
+<title>Statistics Round Two</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: one column of five concepts; each is a live Statistics pane in the Lykta frame with its Swedish caption beside it (under it when narrow). */
+:root {
+  color-scheme: dark;
+  /* page */
+  --page: #0c0b0a;
+  --ink: #d8d3c8;
+  --muted: #958e82;
+  --rule: #26231f;
+  --accent: #c9a96a;
+  /* type */
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "DejaVu Sans Mono", "JetBrains Mono", ui-monospace, monospace;
+  /* pane: Plain tint, candle lamp (17 Lykta) */
+  --lamp: #c9b28c;
+  --iron: #2a2826;
+  --iron-hi: #57524a;
+  --iron-lo: #171614;
+  --pane-bg: #050504;
+  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --fg: #cfc9bd;
+  --hot: #f1ece1;
+  --dim: #8a847a;
+  --trk: rgba(0, 0, 0, .55);
+  /* the app's stats colours (history-stats.css) */
+  --teal: #7cc4c8;
+  --pk: #e0915a;
+  --lvl: #7fbf7f;
+  --ach: #e3b341;
+  /* rating ramp, diverging around Good (always with a label, pips or a grade letter) */
+  --r0: #d0442e;  /* Poor */
+  --r1: #e08a2c;  /* Meh */
+  --r2: #7fb0d8;  /* Good */
+  --r3: #4fbf78;  /* Great */
+  --r4: #ffd54a;  /* Superb */
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--page); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 90px; }
+header.intro { display: grid; gap: 10px; margin-bottom: 18px; max-width: 70ch; }
+header.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(24px, 4vw, 32px); letter-spacing: .04em; color: var(--hot); text-wrap: balance; }
+header.intro p { margin: 0; color: var(--muted); }
+header.intro p b { color: var(--ink); font-weight: 500; }
+
+/* control bar */
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 0; margin-bottom: 8px; background: var(--page); border-bottom: 1px solid var(--rule); font-size: 14px; }
+.ctl .cl { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.cg { display: flex; align-items: center; gap: 8px; }
+.btn, .seg button { font: inherit; cursor: pointer; border: 1px solid var(--rule); background: #17150f; color: var(--ink); padding: 3px 11px; border-radius: 5px; }
+.btn:hover, .seg button:hover { color: var(--hot); border-color: #3a352c; }
+.btn:focus-visible, .seg button:focus-visible, .toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn.prim { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--hot); }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: #151410; border: 1px solid var(--rule); }
+.seg button { border: 0; background: none; color: var(--muted); padding: 2px 9px; border-radius: 4px; }
+.seg button[aria-pressed="true"] { background: #2b2822; color: var(--hot); }
+.ctl .hint { color: var(--muted); font-size: 13px; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 0 20px; font-size: 14px; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+.toc b { font-family: var(--display); color: var(--accent); margin-right: 5px; }
+
+/* concept sections */
+section.v { display: grid; grid-template-columns: minmax(0, 470px) minmax(0, 1fr); gap: 20px 32px; align-items: start; padding: 30px 0 34px; border-top: 1px solid var(--rule); scroll-margin-top: 60px; }
+@media (max-width: 880px) { section.v { grid-template-columns: minmax(0, 1fr); } }
+.stage { padding: 12px; border-radius: 6px; background: #000; display: flex; justify-content: center; min-width: 0; }
+.cap { display: grid; gap: 10px; align-content: start; min-width: 0; max-width: 62ch; }
+.cap .hd { display: flex; align-items: baseline; gap: 12px; }
+.cap .num { font-family: var(--display); font-size: 28px; color: var(--accent); line-height: 1; }
+.cap h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: .05em; color: var(--hot); text-wrap: balance; }
+.cap h2 small { display: block; font-family: var(--body); font-size: 14px; letter-spacing: .02em; color: var(--muted); font-weight: 400; }
+.cap ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+.cap li::marker { color: var(--accent); }
+.cap .try { margin: 0; font-size: 15px; color: var(--muted); }
+.cap .try b { color: var(--accent); font-weight: 500; }
+.scaleref { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; font-size: 13px; margin-top: 4px; }
+.scaleref div { padding: 4px 6px; border-radius: 4px; background: #14120e; border-top: 3px solid var(--c); }
+.scaleref b { display: block; color: var(--hot); font-weight: 500; }
+.scaleref span { color: var(--muted); font-size: 12px; }
+@media (max-width: 480px) { .scaleref { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ===================================================== the Lykta pane */
+.pane { position: relative; width: min(100%, 448px); height: 604px; padding: 5px; border-radius: 3px; font-family: var(--mono); font-size: 12.5px; line-height: 17px; color: var(--fg);
+  box-shadow: 0 0 22px -4px color-mix(in srgb, var(--lamp) 22%, transparent); }
+.pane::before { content: ""; position: absolute; inset: 0; padding: 5px; border-radius: 3px; border: 1px solid #000; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo);
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.fx { position: absolute; z-index: 4; width: 13px; height: 13px; pointer-events: none;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--iron-hi), var(--iron) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%); }
+.f1 { top: 0; left: 0; } .f2 { top: 0; right: 0; transform: scaleX(-1); } .f3 { bottom: 0; left: 0; transform: scaleY(-1); } .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+.plate { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); height: 17px; padding: 0 15px; border-radius: 0 0 8px 8px; z-index: 6; display: flex; align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 7px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.plate::before { left: 5px; } .plate::after { right: 5px; }
+.pt { font-family: var(--display); font-weight: 700; font-size: 11.5px; letter-spacing: .12em; line-height: 13px; padding-top: 1px;
+  color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+.hole { position: relative; height: 100%; overflow: hidden; padding: 18px 9px 9px; border: 1px solid #000; border-radius: 1px; display: flex; flex-direction: column; gap: 7px;
+  background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 17%, transparent), color-mix(in srgb, var(--lamp) 5%, transparent) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 24px rgba(0,0,0,.55); }
+.card { border-radius: 4px; padding: 7px 9px;
+  background: linear-gradient(180deg, var(--frost), var(--frost2));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+.sec { display: flex; align-items: baseline; gap: 8px; font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--lamp) 35%, #c8c8c8); }
+.sec::after { content: ""; flex: 1; height: 1px; align-self: center; background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 34%, transparent), transparent 85%); }
+.sec .dim { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.dim { color: var(--dim); }
+.hot { color: var(--hot); }
+.num { font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sp { flex: 1; }
+.ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.trk { display: block; position: relative; height: 7px; border-radius: 3px; background: var(--trk); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+
+/* rating chip: colour + pips + word */
+.rc { --c: var(--dim); display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; height: 16px; border-radius: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 85%, #fff); background: color-mix(in srgb, var(--c) 14%, rgba(0,0,0,.35)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.rc .pp { display: inline-flex; gap: 1.5px; }
+.rc .pp i { width: 3px; height: 8px; border-radius: 1px; background: currentColor; opacity: .22; }
+.rc .pp i.on { opacity: 1; }
+.r-superb { text-shadow: 0 0 6px color-mix(in srgb, var(--r4) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--r4) 60%, transparent), 0 0 8px -1px color-mix(in srgb, var(--r4) 55%, transparent); }
+.rc.cal { --c: var(--dim); font-weight: 400; font-style: italic; }
+.pkc { --c: var(--pk); }
+
+/* the 5-zone scale bar */
+.scale { position: relative; padding-top: 9px; }
+.scale .bands { display: flex; height: 6px; gap: 2px; }
+.scale .bands i { display: block; height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, rgba(0,0,0,.4)); }
+.scale .bands i.here { background: var(--c); box-shadow: 0 0 6px -1px var(--c); }
+.scale .lbl { display: flex; gap: 2px; font-size: 9.5px; line-height: 12px; margin-top: 2px; }
+.scale .lbl span { overflow: hidden; white-space: nowrap; text-align: center; color: var(--dim); }
+.scale .lbl span.here { color: var(--hot); }
+.scale .mk { position: absolute; top: 0; width: 0; height: 0; border: 5px solid transparent; border-top: 7px solid var(--hot); border-bottom: 0; transform: translateX(-5px); filter: drop-shadow(0 0 3px rgba(255,255,255,.4)); transition: left .4s ease; }
+
+/* motion */
+@keyframes slideIn { from { transform: translateY(-14px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rowIn { from { transform: translateY(-6px); opacity: 0; max-height: 0; } to { transform: none; opacity: 1; max-height: 24px; } }
+@keyframes drop { from { transform: translateY(-46px); opacity: 0; } 60% { opacity: 1; } 80% { transform: translateY(3px); } to { transform: none; opacity: 1; } }
+@keyframes glow { from { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 80%, transparent), 0 0 14px -2px var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); } to { box-shadow: inset 0 0 0 1px transparent; background: transparent; } }
+@keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes toast { 0% { transform: translate(-50%, -30px); opacity: 0; } 12% { transform: translate(-50%, 0); opacity: 1; } 85% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -10px); opacity: 0; } }
+@keyframes flash { from { box-shadow: inset 0 0 0 1px var(--r4), 0 0 18px -2px var(--r4); } to { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), 0 1px 2px rgba(0,0,0,.45); } }
+.a-slide { animation: slideIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.a-row { animation: rowIn .4s ease-out both; overflow: hidden; }
+.a-drop { animation: drop .6s cubic-bezier(.3,.7,.3,1) both; transform-box: fill-box; transform-origin: center; }
+.a-glow { animation: glow 2.4s ease-out both; }
+.a-pop { animation: pop .45s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .a-slide, .a-row, .a-drop, .a-pop, .a-glow, .toast, .flash { animation-duration: 1ms !important; } .scale .mk { transition: none; } }
+
+/* ---------------- 1 Kill card */
+.c1-top { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; }
+.hero { padding: 9px 11px 10px; display: grid; gap: 4px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent), inset 0 0 0 1px var(--frost-edge), inset 3px 0 0 -1px var(--c), 0 2px 6px rgba(0,0,0,.5); }
+.hero .mob { color: var(--hot); font-weight: 700; font-size: 13.5px; }
+.hero .big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hero .bigxp { font-size: 30px; line-height: 34px; font-weight: 700; color: color-mix(in srgb, var(--c) 55%, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); font-variant-numeric: tabular-nums; }
+.hero .xpu { color: var(--dim); }
+.hero .rc { height: 20px; font-size: 12px; padding: 0 7px; }
+.hero .ratio { font-size: 12px; }
+.hero .ratio b { color: var(--hot); }
+.feed { display: grid; gap: 1px; }
+.fr { display: grid; grid-template-columns: 30px minmax(0, 1fr) minmax(40px, 30%) 44px 18px; align-items: center; gap: 7px; height: 22px; padding: 0 4px; border-radius: 3px; }
+.fr:nth-child(odd) { background: rgba(255,255,255,.018); }
+.fr .t { color: var(--dim); font-size: 10.5px; text-align: right; }
+.fr .x { text-align: right; color: var(--hot); }
+.fr .bar { position: relative; height: 9px; }
+.fr .bar .fill { top: 1px; bottom: 1px; }
+.fr .bar .med { position: absolute; top: -7px; bottom: -7px; width: 0; border-left: 1px dashed color-mix(in srgb, var(--lamp) 55%, transparent); }
+.fr .g { font-weight: 700; font-size: 10.5px; text-align: center; color: var(--c); }
+.foot4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: auto; }
+.tile { padding: 5px 7px 6px; display: grid; gap: 0; }
+.tile .k { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; }
+.tile .v { font-size: 15px; line-height: 20px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tile .v small { font-size: 10.5px; font-weight: 400; color: var(--dim); }
+
+
+/* ===================================================== round 2 */
+:root { --xpc: #7cc4c8; --tpc: #b59be0; }
+.hole { gap: 7px; }
+.top { display: flex; flex-direction: column; gap: 7px; min-height: 0; flex: 1; }
+.hero .hrow { display: flex; align-items: baseline; gap: 8px; }
+.hero .hrow .ago { margin-left: auto; font-size: 11px; white-space: nowrap; }
+.feed { overflow: hidden; min-height: 0; flex: 1; align-content: start; }
+.fr .bar .med { opacity: .45; }
+.fr { grid-template-columns: 30px minmax(0, 1fr) minmax(40px, 26%) 44px 18px; }
+.fr.lk, .fr:hover { background: color-mix(in srgb, var(--lamp) 10%, transparent); box-shadow: inset 2px 0 0 var(--c); }
+.bot { flex: none; }
+.k9 { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.clock { font-size: 17px; line-height: 20px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.xpk { color: color-mix(in srgb, var(--xpc) 80%, #fff); }
+.tpk { color: color-mix(in srgb, var(--tpc) 80%, #fff); }
+.wait { color: var(--r1); }
+@keyframes lvlglow { 0% { filter: drop-shadow(0 0 0 transparent); } 25% { filter: drop-shadow(0 0 10px var(--lvl)); } 100% { filter: drop-shadow(0 0 0 transparent); } }
+.lvlup { animation: lvlglow 2.2s ease-out; }
+.lvtoast { position: absolute; left: 50%; top: -11px; transform: translateX(-50%); padding: 1px 9px; border-radius: 9px; font-size: 10.5px; font-weight: 700; white-space: nowrap; color: #e9f6e5;
+  background: color-mix(in srgb, var(--lvl) 35%, #000); box-shadow: 0 0 0 1px color-mix(in srgb, var(--lvl) 60%, transparent), 0 0 12px -2px var(--lvl); animation: toastfade 2.6s ease both; pointer-events: none; }
+@keyframes toastfade { 0% { opacity: 0; transform: translate(-50%, 6px); } 12%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+
+/* ---------------- A rings */
+.fa { position: relative; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 8px 10px 8px 6px; }
+.medal2 { position: relative; width: 112px; height: 112px; }
+.medal2 svg { display: block; width: 112px; height: 112px; }
+.medal2 .arc { transition: stroke-dasharray .9s cubic-bezier(.2,.8,.2,1); }
+.medal2.nt .arc { transition: none; }
+.medal2 .ctr { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.medal2 .lv { font-family: var(--display); font-weight: 700; font-size: 25px; line-height: 26px; color: color-mix(in srgb, var(--lamp) 55%, #fff); text-shadow: 0 0 10px color-mix(in srgb, var(--lamp) 55%, transparent); }
+.medal2 .ln { font-size: 9px; letter-spacing: .14em; color: var(--dim); }
+@keyframes ringpulse { 0% { filter: drop-shadow(0 0 0 transparent); } 30% { filter: drop-shadow(0 0 6px var(--c)); } 100% { filter: drop-shadow(0 0 0 transparent); } }
+.medal2 .pulse { animation: ringpulse 1.4s ease-out; }
+.fa dl { margin: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 3px 6px; align-items: baseline; min-width: 0; }
+.fa dt { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.fa dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.fa dd b { font-weight: 700; }
+.fa dd .clock { font-size: 18px; }
+.sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 5px -1px var(--c); margin-right: 4px; vertical-align: 0; }
+
+/* ---------------- B tubes */
+.fb { position: relative; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; padding: 8px 10px; }
+.badge { width: 48px; height: 52px; border-radius: 5px; display: grid; place-content: center; text-align: center;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--lamp) 26%, transparent), transparent 75%), rgba(0,0,0,.4); box-shadow: inset 0 0 0 1px var(--frost-edge), inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent); }
+.badge .ln { font-size: 8.5px; letter-spacing: .16em; color: var(--dim); }
+.badge .lv { font-family: var(--display); font-weight: 700; font-size: 22px; line-height: 24px; color: color-mix(in srgb, var(--lamp) 55%, #fff); text-shadow: 0 0 8px color-mix(in srgb, var(--lamp) 50%, transparent); }
+.bars { display: grid; gap: 6px; min-width: 0; }
+.bl { display: grid; gap: 2px; min-width: 0; }
+.bl .lt { display: flex; gap: 6px; align-items: baseline; font-size: 10.5px; line-height: 12px; white-space: nowrap; overflow: hidden; }
+.bl .lt .nm { font-weight: 700; letter-spacing: .08em; }
+.bl .lt .pc { margin-left: auto; color: var(--hot); font-variant-numeric: tabular-nums; }
+.tube { position: relative; display: block; height: 10px; border-radius: 5px; background: var(--trk); overflow: hidden; box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); }
+.tube.thin { height: 7px; }
+.tube .fill { border-radius: 5px; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+.tube.nt .fill { transition: none; }
+.tube .seg { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 45%), var(--c) 55%); box-shadow: 0 0 8px var(--c); animation: segflash 2s ease-out forwards; }
+@keyframes segflash { 0% { opacity: 0; } 10% { opacity: 1; } 55% { opacity: 1; } 100% { opacity: 0; } }
+.fb .rt { display: grid; justify-items: end; gap: 0; }
+.fb .meta { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 10.5px; color: var(--dim); }
+.fb .meta b { color: var(--fg); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+/* ---------------- C kill bar */
+.fc { position: relative; display: grid; gap: 5px; padding: 8px 10px 9px; }
+.fc .hd { display: flex; align-items: baseline; gap: 8px; }
+.fc .lv { font-family: var(--display); font-weight: 700; font-size: 20px; line-height: 22px; color: color-mix(in srgb, var(--lamp) 55%, #fff); text-shadow: 0 0 8px color-mix(in srgb, var(--lamp) 50%, transparent); }
+.fc .nx { font-size: 11px; }
+.fc .hd .clock { margin-left: auto; }
+.kbar { display: flex; height: 16px; padding: 2px; gap: 1px; border-radius: 5px; background: var(--trk); box-shadow: inset 0 1px 2px rgba(0,0,0,.8), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); overflow: hidden; }
+.kbar .s { flex: none; height: 100%; border-radius: 2px; min-width: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 40%), var(--c) 50%, color-mix(in srgb, var(--c), #000 22%)); }
+.kbar .s.pre { --c: #4a463f; background: repeating-linear-gradient(135deg, #3a3731 0 3px, #2b2924 3px 6px); }
+.kbar .s.grp { background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 25%), color-mix(in srgb, var(--c), #000 30%)); }
+.kbar .s.lk { outline: 1px solid #fff; outline-offset: 0; z-index: 1; }
+@keyframes segin { from { transform: scaleX(0); filter: brightness(2.2); } 60% { filter: brightness(1.6); } to { transform: none; filter: none; } }
+.kbar .s.new { transform-origin: left; animation: segin .9s cubic-bezier(.2,.8,.2,1); }
+.fc .ln2 { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10.5px; line-height: 13px; color: var(--dim); }
+.fc .ln2 b { color: var(--fg); font-weight: 400; font-variant-numeric: tabular-nums; }
+.fc .tprow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 7px; align-items: center; font-size: 10.5px; }
+.legendk { display: flex; gap: 8px; flex-wrap: wrap; font-size: 9.5px; color: var(--dim); }
+.legendk i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--c); margin-right: 3px; vertical-align: -1px; }
+
+/* tooltip */
+#tip { position: fixed; z-index: 50; pointer-events: none; padding: 4px 8px; border-radius: 4px; background: #1b1915; border: 1px solid #3a352c; color: var(--ink); font-family: var(--mono); font-size: 11.5px; line-height: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.6); max-width: 260px; }
+@media (prefers-reduced-motion: reduce) { .lvlup, .lvtoast, .medal2 .pulse, .tube .seg, .kbar .s.new { animation-duration: 1ms !important; } .medal2 .arc, .tube .fill { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Statistics, runda två</h1>
+    <p>Tre varianter som bygger vidare på <b>Senaste fångst</b>. Kortet för senaste killen ligger nu överst och listan "Earlier" direkt under. Medianen syns inte längre, och namn och grupp är borta. Längst ner finns level, framsteg mot nästa level i <b>både XP och TP</b> och en klocka som räknar upp. Varianterna skiljer sig bara i hur botten ser ut.</p>
+  </header>
+
+  <div class="ctl" role="toolbar" aria-label="Demo controls">
+    <div class="cg"><button class="btn" id="pause" aria-pressed="false">Pause</button><button class="btn prim" id="killnow">Kill now</button></div>
+    <div class="cg"><span class="cl">Session</span><div class="seg" id="lvl"><button data-l="12" aria-pressed="false">Level 12</button><button data-l="34" aria-pressed="true">Level 34</button><button data-l="48" aria-pressed="false">Level 48</button></div></div>
+    <span class="hint">En kill var 4–8 s. Level-up kräver både full XP och full TP.</span>
+  </div>
+  <nav class="toc" aria-label="Variants">
+    <a href="#sa"><b>A</b>Ringar</a><a href="#sb"><b>B</b>Rör</a><a href="#sc"><b>C</b>Fångstbalk</a>
+  </nav>
+
+  <section class="v" id="sa">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="pa"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">A</span><h2>Ringar<small>Level-medaljong med två ringar</small></h2></div>
+      <ul>
+        <li>"L34" i mitten. Den yttre ringen visar XP mot nästa level, den inre TP.</li>
+        <li>Ringarna fylls med en kort rörelse och glöder i killens betygsfärg när en kill kommer.</li>
+        <li>Bredvid står vad som är kvar i XP och TP, beräknad tid till nästa level och klockan.</li>
+        <li>Betyget står som märke, och raden under säger till exempel "▲ 2.1× typical". "Typical" är sessionens vanliga XP per kill, utan att talet visas.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> tryck Kill now flera gånger och se ringarna fyllas. Fortsätt tills du når nästa level. Byt till Level 12 och se att betygen följer sessionen.</p>
+    </div>
+  </section>
+
+  <section class="v" id="sb">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="pb"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">B</span><h2>Rör<small>Två glansiga staplar i full bredd</small></h2></div>
+      <ul>
+        <li>Level-märket till vänster, XP- och TP-stapeln i mitten och klockan till höger.</li>
+        <li>Varje stapel visar procent och hur mycket som är kvar.</li>
+        <li>Vid en kill blinkar den nya biten av XP-stapeln i killens betygsfärg och tonar sedan in i stapeln.</li>
+        <li>Under staplarna: XP/h, antal kills och beräknad tid till nästa level.</li>
+        <li>Tar minst plats av de tre och läses snabbast.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> titta på XP-stapeln när en kill kommer. En "Superb" lyser gult och en "Poor" rött.</p>
+    </div>
+  </section>
+
+  <section class="v" id="sc">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="pc"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">C</span><h2>Fångstbalk<small>XP-stapeln byggd av dina kills</small></h2></div>
+      <ul>
+        <li>XP-stapeln består av en bit per kill sedan förra leveln, färgad efter betyg. Du ser vad som tog dig hit.</li>
+        <li>Den randiga biten i början är XP från innan den här sessionen.</li>
+        <li>Små kills i rad med samma betyg slås ihop när bitarna blir för smala.</li>
+        <li>Hovra en bit för att se killen. Raden i listan lyser upp om killen finns där, och tvärtom.</li>
+        <li>TP som en tunn stapel under, level till vänster och klockan till höger.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> hovra bitarna i stapeln och raderna i listan. Kör till en level-up och se stapeln börja om från noll.</p>
+    </div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+(() => {
+'use strict';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MIN = 60000;
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------- helpers
+function fmtK(n) {
+  const v = Math.round(Math.abs(n)); const sign = n < 0 && v > 0 ? '-' : '';
+  let s;
+  if (v < 1000) s = String(v);
+  else if (v < 99950) s = (v / 1000).toFixed(1) + 'k';
+  else if (v < 999500) s = Math.round(v / 1000) + 'k';
+  else s = (v / 1e6).toFixed(1) + 'M';
+  return sign + s;
+}
+function fmtRun(ms) { const s = Math.max(0, Math.floor(ms / 1000)); const p2 = (n) => String(n).padStart(2, '0'); return `${Math.floor(s / 3600)}:${p2(Math.floor(s / 60) % 60)}:${p2(s % 60)}`; }
+function fmtEta(ms) { if (!isFinite(ms)) return '—'; const m = Math.max(1, Math.round(ms / MIN)); return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`; }
+function ago(ms) { const m = Math.floor(ms / MIN); return m < 1 ? 'now' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60}m`; }
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function median(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ------------------------------------------------------------- rating (relative to the session; the reference value is never shown)
+const RATINGS = [
+  { k: 'poor', label: 'Poor', grade: 'D', c: 'var(--r0)' },
+  { k: 'meh', label: 'Meh', grade: 'C', c: 'var(--r1)' },
+  { k: 'good', label: 'Good', grade: 'B', c: 'var(--r2)' },
+  { k: 'great', label: 'Great', grade: 'A', c: 'var(--r3)' },
+  { k: 'superb', label: 'Superb', grade: 'S', c: 'var(--r4)' },
+];
+const CAL_MIN = 5;
+function rateIdx(r) { return r < 0.45 ? 0 : r < 0.8 ? 1 : r < 1.5 ? 2 : r < 2.5 ? 3 : 4; }
+function refMedian() { const xs = S.kills.filter((k) => !k.pk).slice(-30).map((k) => k.xp); return xs.length >= CAL_MIN ? median(xs) : null; }
+function rateOf(xp, med) { return med ? RATINGS[rateIdx(xp / med)] : null; }
+function colOf(k, med) { if (k.pk) return 'var(--pk)'; const R = rateOf(k.xp, med); return R ? R.c : 'var(--dim)'; }
+function chip(R) {
+  if (!R) return `<span class="rc cal">calibrating…</span>`;
+  const i = RATINGS.indexOf(R);
+  const pips = RATINGS.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('');
+  return `<span class="rc r-${R.k}" style="--c:${R.c}"><span class="pp" aria-hidden="true">${pips}</span>${R.label}</span>`;
+}
+const scalePos = (r) => Math.min(1, Math.max(0, (Math.log2(Math.max(r, 0.01)) + 2) / 4));
+const BOUNDS = [0, scalePos(0.45), scalePos(0.8), scalePos(1.5), scalePos(2.5), 1];
+function scaleBar(r) {
+  const here = r == null ? -1 : rateIdx(r);
+  const bands = RATINGS.map((R, i) => `<i style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)};--c:${R.c}" class="${i === here ? 'here' : ''}"></i>`).join('');
+  const lbl = RATINGS.map((R, i) => `<span style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)}" class="${i === here ? 'here' : ''}">${R.label}</span>`).join('');
+  const mk = r == null ? '' : `<span class="mk" style="left:${(scalePos(r) * 100).toFixed(1)}%"></span>`;
+  return `<div class="scale">${mk}<div class="bands">${bands}</div><div class="lbl">${lbl}</div></div>`;
+}
+
+// ------------------------------------------------------------- session model
+// vt: game time (ms) used for "ago" and rates; each live kill also advances it by 25–55 s so rates stay plausible.
+// run: the run clock (ms), ticks once per real second.
+const BANDS = {
+  12: { mobs: [['a rabbit', 380, 2], ['a large rat', 470, 3], ['a wild boar', 950, 3], ['a wolf', 1150, 4], ['a hobbit thief', 1550, 3], ['a goblin scout', 2150, 2], ['a giant spider', 2950, .6]], tp: [1, 2] },
+  34: { mobs: [['a black bear', 2250, 3], ['a warg', 2850, 3], ['a dunlending raider', 3400, 3], ['an orc warrior', 4300, 4], ['a barrow-wight', 6300, 2], ['a stone troll', 8400, 1.2]], tp: [1, 3] },
+  48: { mobs: [['an easterling soldier', 6500, 3], ['an orc captain', 8300, 3], ['a great spider', 11500, 3], ['a cave troll', 15500, 3], ['a hill giant', 19500, 2], ['a mountain troll', 24500, .8], ['an olog-hai', 39000, .25]], tp: [2, 4] },
+};
+let S, rng;
+function pickMob() {
+  const m = BANDS[S.band].mobs; const tot = m.reduce((s, x) => s + x[2], 0);
+  let r = rng() * tot;
+  for (const x of m) { r -= x[2]; if (r <= 0) return x; }
+  return m[m.length - 1];
+}
+function gauss() { return Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng()); }
+
+function newSession(band) {
+  rng = mulberry(band * 7919 + 3);
+  const mobs = BANDS[band].mobs;
+  const wsum = mobs.reduce((s, x) => s + x[2], 0);
+  const est = mobs.reduce((s, x) => s + x[1] * x[2], 0) / wsum;
+  const span = Math.round(est * 45 / 1000) * 1000;
+  const tpSpan = Math.round(14 + band * 0.6);
+  S = { band, level: band, span, tpSpan, xpIn: Math.round(span * 0.16), tpIn: Math.round(tpSpan * 0.3), gained: 0,
+    kills: [], lvl: [], vt: 0, run: 70 * MIN + 23000, killSeq: 0, levelEvent: 0 };
+  S.lvl = [{ pre: true, xp: S.xpIn }];
+  const ts = Array.from({ length: 25 }, () => rng() * 68 * MIN + 1 * MIN).sort((a, b) => a - b);
+  ts.forEach((t, i) => addKill(t, i === 15, false));
+  S.vt = 70 * MIN;
+}
+
+function addKill(t, pk, live) {
+  let k;
+  if (pk) {
+    const med = refMedian() || 3000;
+    k = { t, name: '*Ugluk the Orc*', xp: Math.round(med * (4 + rng() * 2) / 10) * 10, pk: true };
+  } else {
+    const [name, base] = pickMob();
+    k = { t, name, xp: Math.max(50, Math.round(base * Math.exp(gauss() * 0.16) / 10) * 10), pk: false };
+  }
+  k.id = ++S.killSeq; k.real = live ? performance.now() : -1e9;
+  k.prevXp = S.xpIn; k.prevLevel = S.level;
+  S.kills.push(k); S.gained += k.xp; S.xpIn += k.xp;
+  S.lvl.push({ id: k.id, xp: k.xp });
+  if (rng() < 0.45) { const [a, b] = BANDS[S.band].tp; S.tpIn += a + Math.floor(rng() * (b - a + 1)); }
+  checkLevel(t, live);
+  return k;
+}
+function checkLevel(t, live) {
+  if (S.xpIn < S.span || S.tpIn < S.tpSpan) return false;
+  S.xpIn -= S.span; S.tpIn -= S.tpSpan; S.level++;
+  S.span = Math.round(S.span * 1.08 / 1000) * 1000; S.tpSpan += 1;
+  // the kill that crossed the line carries its leftover into the new level
+  const last = S.lvl[S.lvl.length - 1];
+  S.lvl = S.xpIn > 0 ? [{ id: last.id, xp: S.xpIn }] : [];
+  if (live) S.levelEvent = performance.now();
+  return true;
+}
+function xpPerHour(winMin) {
+  const from = S.vt - winMin * MIN;
+  return S.kills.filter((k) => k.t > from).reduce((s, k) => s + k.xp, 0) / (winMin / 60);
+}
+function etaMs() {
+  const r = xpPerHour(20) || xpPerHour(70);
+  return r > 0 ? Math.max(0, S.span - S.xpIn) / r * 3600000 : Infinity;
+}
+const xpFrac = () => Math.min(1, S.xpIn / S.span);
+const tpFrac = () => Math.min(1, S.tpIn / S.tpSpan);
+const lastKill = () => S.kills[S.kills.length - 1];
+function fresh(k, cls, dur) {
+  if (!k) return { c: '', s: '' };
+  const el = performance.now() - k.real;
+  return el < dur ? { c: cls, s: `animation-delay:-${Math.round(el)}ms;` } : { c: '', s: '' };
+}
+
+// ------------------------------------------------------------- shared top: last kill card + Earlier
+function topHtml() {
+  const med = refMedian(); const k = lastKill();
+  const R = k.pk ? null : rateOf(k.xp, med); const r = med ? k.xp / med : null;
+  const f = fresh(k, 'a-slide', 450); const fr = fresh(k, 'a-row', 400);
+  const feed = S.kills.slice(-13, -1).reverse();
+  const max = Math.max(med ? med * 3 : 0, ...feed.map((x) => x.xp)) || 1;
+  const rows = feed.map((x, i) => {
+    const Rx = x.pk ? null : rateOf(x.xp, med);
+    const g = x.pk ? 'PK' : Rx ? Rx.grade : '·';
+    const tip = `${x.name} · ${fmtK(x.xp)} XP${Rx ? ' · ' + Rx.label : x.pk ? ' · PvP' : ''}`;
+    return `<div class="fr ${i === 0 ? fr.c : ''}" style="${i === 0 ? fr.s : ''}--c:${colOf(x, med)}" data-tip="${esc(tip)}" data-kid="${x.id}">
+      <span class="t num" data-t="${x.t}">${ago(S.vt - x.t)}</span><span class="ell" style="${x.pk ? 'color:var(--pk)' : ''}">${esc(x.name)}</span>
+      <span class="bar"><span class="trk" style="height:9px"><span class="fill" style="width:${(Math.min(1, x.xp / max) * 100).toFixed(1)}%"></span></span>${med ? `<span class="med" style="left:${(med / max * 100).toFixed(1)}%"></span>` : ''}</span>
+      <span class="x num">${fmtK(x.xp)}</span><span class="g" title="${Rx ? Rx.label : ''}">${g}</span></div>`;
+  }).join('');
+  const heroC = k.pk ? 'var(--pk)' : R ? R.c : 'var(--lamp)';
+  const ratioLine = k.pk ? `<span class="dim">PvP kill · not rated</span>`
+    : r ? `<span>${r >= 1 ? '▲' : '▼'} <b>${r.toFixed(1)}×</b> <span class="dim">typical</span></span>` : `<span class="dim">Rating starts after ${CAL_MIN} kills</span>`;
+  return `
+    <div class="card hero ${f.c}" style="${f.s}--c:${heroC}" data-kid="${k.id}">
+      <div class="hrow"><span class="mob ell" style="${k.pk ? 'color:var(--pk)' : ''}">${esc(k.name)}</span><span class="ago dim js-ago">${ago(S.vt - k.t) === 'now' ? 'just now' : ago(S.vt - k.t) + ' ago'}</span></div>
+      <div class="big"><span class="bigxp">+${fmtK(k.xp)}</span><span class="xpu">XP</span><span class="sp"></span>${k.pk ? `<span class="rc pkc" style="--c:var(--pk)">⚔ PvP</span>` : chip(R)}</div>
+      <div class="ratio">${ratioLine}</div>
+      ${k.pk ? '' : scaleBar(r)}
+    </div>
+    <div class="sec">Earlier</div>
+    <div class="feed">${rows}</div>`;
+}
+
+// ------------------------------------------------------------- panes
+const panes = [];
+function makePane(id, buildBottom) {
+  const hole = $(id);
+  const top = document.createElement('div'); top.className = 'top';
+  const bot = document.createElement('div'); bot.className = 'bot';
+  hole.append(top, bot);
+  const p = { hole, top, bot, ...buildBottom(bot) };
+  panes.push(p);
+  return p;
+}
+const xpLine = () => S.xpIn >= S.span ? `<span class="wait">XP full · needs ${S.tpSpan - S.tpIn} TP</span>` : `<b>${fmtK(S.span - S.xpIn)}</b> left`;
+const tpLine = () => S.tpIn >= S.tpSpan ? `<span class="xpk">ready</span>` : `<b>${S.tpSpan - S.tpIn}</b> left`;
+const pct = (f) => Math.floor(f * 100) + '%';
+function lvToast(host) {
+  if (!S.levelEvent || performance.now() - S.levelEvent > 300) return;
+  const t = document.createElement('span'); t.className = 'lvtoast'; t.textContent = `⇈ Level ${S.level}!`;
+  host.append(t); setTimeout(() => t.remove(), 2700);
+}
+
+// A: rings
+const RO = 47, RI = 34, CO = 2 * Math.PI * RO, CI = 2 * Math.PI * RI;
+makePane('pa', (bot) => {
+  bot.innerHTML = `<div class="card fa">
+    <div class="medal2"><svg viewBox="0 0 112 112" aria-hidden="true">
+      <defs>
+        <linearGradient id="gx" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe8ea"/><stop offset=".55" stop-color="#7cc4c8"/><stop offset="1" stop-color="#4d9599"/></linearGradient>
+        <linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2d4f7"/><stop offset=".55" stop-color="#b59be0"/><stop offset="1" stop-color="#7f66ad"/></linearGradient>
+      </defs>
+      <g transform="rotate(-90 56 56)">
+        <circle cx="56" cy="56" r="${RO}" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="10"/>
+        <circle cx="56" cy="56" r="${RI}" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="8"/>
+        <g class="og"><circle class="arc ox" cx="56" cy="56" r="${RO}" fill="none" stroke="url(#gx)" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 ${CO}"/>
+        <circle class="arc oxh" cx="56" cy="56" r="${RO + 2.2}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="0 ${2 * Math.PI * (RO + 2.2)}"/></g>
+        <g class="ig"><circle class="arc it" cx="56" cy="56" r="${RI}" fill="none" stroke="url(#gt)" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 ${CI}"/>
+        <circle class="arc ith" cx="56" cy="56" r="${RI + 1.6}" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-linecap="round" stroke-dasharray="0 ${2 * Math.PI * (RI + 1.6)}"/></g>
+      </g>
+    </svg><div class="ctr"><span class="ln">LEVEL</span><span class="lv"></span></div></div>
+    <dl>
+      <dt><span class="xpk">XP</span></dt><dd class="dx"></dd>
+      <dt><span class="tpk">TP</span></dt><dd class="dt"></dd>
+      <dt>Next</dt><dd class="de"></dd>
+      <dt>Run</dt><dd><span class="clock js-run"></span></dd>
+    </dl></div>`;
+  const q = (s) => bot.querySelector(s);
+  return {
+    update(kill) {
+      const m = q('.medal2'); const lvl = S.levelEvent && performance.now() - S.levelEvent < 300;
+      m.classList.toggle('nt', !!lvl);
+      const fx = xpFrac(), ft = tpFrac();
+      const set = (sel, r, f) => { const c = 2 * Math.PI * r; q(sel).setAttribute('stroke-dasharray', `${(c * f).toFixed(1)} ${c.toFixed(1)}`); };
+      set('.ox', RO, fx); set('.oxh', RO + 2.2, fx); set('.it', RI, ft); set('.ith', RI + 1.6, ft);
+      q('.lv').textContent = 'L' + S.level;
+      q('.dx').innerHTML = `<b class="hot">${pct(fx)}</b> · ${xpLine()}`;
+      q('.dt').innerHTML = `<b class="hot">${pct(ft)}</b> · ${tpLine()}`;
+      q('.de').innerHTML = `L${S.level + 1} in <b class="hot">≈ ${fmtEta(etaMs())}</b>`;
+      if (kill && !REDUCED) {
+        const og = q('.og'); og.style.setProperty('--c', colOf(kill, refMedian()));
+        og.classList.remove('pulse'); void og.getBoundingClientRect(); og.classList.add('pulse');
+      }
+      if (lvl) { m.classList.remove('lvlup'); void m.offsetWidth; m.classList.add('lvlup'); lvToast(q('.fa')); }
+    },
+  };
+});
+
+// B: tubes
+makePane('pb', (bot) => {
+  bot.innerHTML = `<div class="card fb">
+    <div class="badge"><span class="ln">LEVEL</span><span class="lv"></span></div>
+    <div class="bars">
+      <div class="bl"><div class="lt"><span class="nm xpk">XP</span><span class="dim rx"></span><span class="pc px"></span></div><span class="tube tx"><span class="fill" style="--c:var(--xpc);width:0"></span></span></div>
+      <div class="bl"><div class="lt"><span class="nm tpk">TP</span><span class="dim rt2"></span><span class="pc pt2"></span></div><span class="tube thin tt"><span class="fill" style="--c:var(--tpc);width:0"></span></span></div>
+    </div>
+    <div class="rt"><span class="k9">Run</span><span class="clock js-run"></span></div>
+    <div class="meta"><span>XP/h <b class="xh"></b></span><span>Kills <b class="kc"></b></span><span>L<span class="nl"></span> in <b class="eta"></b></span></div>
+  </div>`;
+  const q = (s) => bot.querySelector(s);
+  return {
+    update(kill) {
+      const lvl = S.levelEvent && performance.now() - S.levelEvent < 300;
+      const fx = xpFrac(), ft = tpFrac();
+      q('.tx').classList.toggle('nt', !!lvl); q('.tt').classList.toggle('nt', !!lvl);
+      q('.tx .fill').style.width = (fx * 100).toFixed(2) + '%';
+      q('.tt .fill').style.width = (ft * 100).toFixed(2) + '%';
+      q('.lv').textContent = S.level; q('.nl').textContent = S.level + 1;
+      q('.px').textContent = pct(fx); q('.pt2').textContent = pct(ft);
+      q('.rx').innerHTML = xpLine(); q('.rt2').innerHTML = tpLine();
+      q('.xh').textContent = fmtK(xpPerHour(20)); q('.kc').textContent = S.kills.length; q('.eta').textContent = '≈ ' + fmtEta(etaMs());
+      if (kill && !lvl && kill.prevLevel === S.level) {
+        const a = Math.min(1, kill.prevXp / S.span), b = fx;
+        if (b > a) {
+          const s = document.createElement('span'); s.className = 'seg';
+          s.style.cssText = `left:${(a * 100).toFixed(2)}%;width:${((b - a) * 100).toFixed(2)}%;--c:${colOf(kill, refMedian())}`;
+          q('.tx').append(s); setTimeout(() => s.remove(), 2100);
+        }
+      }
+      if (lvl) { const b = q('.badge'); b.classList.remove('lvlup'); void b.offsetWidth; b.classList.add('lvlup'); lvToast(q('.fb')); }
+    },
+  };
+});
+
+// C: kill bar
+const MERGE_FRAC = 0.012; // a kill narrower than this share of the level is merged with neighbours of the same rating
+makePane('pc', (bot) => {
+  bot.innerHTML = `<div class="card fc">
+    <div class="hd"><span class="lv"></span><span class="nx dim"></span><span class="clock js-run" title="Run time"></span></div>
+    <div class="kbar" role="img" aria-label="XP toward next level, one segment per kill"></div>
+    <div class="ln2"><span><b class="px"></b> · <span class="rx"></span></span><span>XP/h <b class="xh"></b></span><span>L<span class="nl"></span> in <b class="eta"></b></span></div>
+    <div class="tprow"><span class="tpk" style="font-weight:700">TP</span><span class="tube thin tt"><span class="fill" style="--c:var(--tpc);width:0"></span></span><span class="dim"><b class="hot pt2"></b> · <span class="rt2"></span></span></div>
+    <div class="legendk">${RATINGS.map((R) => `<span><i style="--c:${R.c}"></i>${R.label}</span>`).join('')}<span><i style="--c:var(--pk)"></i>PvP</span></div>
+  </div>`;
+  const q = (s) => bot.querySelector(s);
+  return {
+    update(kill) {
+      const lvl = S.levelEvent && performance.now() - S.levelEvent < 300;
+      const med = refMedian(); const byId = new Map(S.kills.map((k) => [k.id, k]));
+      const total = Math.max(S.span, S.xpIn);
+      // build segments, merging thin consecutive ones with the same rating
+      const segs = [];
+      for (const p of S.lvl) {
+        if (p.pre) { segs.push({ pre: true, xp: p.xp, ids: [] }); continue; }
+        const k = byId.get(p.id); const c = colOf(k, med); const key = k.pk ? 'pk' : (rateOf(k.xp, med) || { k: 'cal' }).k;
+        const prev = segs[segs.length - 1];
+        if (prev && !prev.pre && prev.key === key && (p.xp / total < MERGE_FRAC || prev.xp / total < MERGE_FRAC)) { prev.xp += p.xp; prev.ids.push(k.id); prev.n++; }
+        else segs.push({ key, c, xp: p.xp, ids: [k.id], n: 1 });
+      }
+      const html = segs.map((s) => {
+        const w = (Math.min(s.xp, total) / total * 100).toFixed(2);
+        if (s.pre) return `<span class="s pre" style="width:${w}%" data-tip="Before this session · ${fmtK(s.xp)} XP"></span>`;
+        const k = byId.get(s.ids[s.ids.length - 1]);
+        const isNew = kill && s.ids.includes(kill.id) && !lvl && !REDUCED;
+        const R = k.pk ? null : rateOf(k.xp, med);
+        const tip = s.n > 1 ? `${s.n} kills · ${fmtK(s.xp)} XP · ${R ? R.label : ''}` : `${k.name} · ${fmtK(k.xp)} XP · ${k.pk ? 'PvP' : R ? R.label : ''}`;
+        return `<span class="s ${s.n > 1 ? 'grp' : ''} ${isNew ? 'new' : ''}" style="width:${w}%;--c:${s.c}" data-tip="${esc(tip)}" data-kid="${s.ids.join(' ')}"></span>`;
+      }).join('');
+      q('.kbar').innerHTML = html;
+      const ft = tpFrac();
+      q('.tt').classList.toggle('nt', !!lvl);
+      q('.tt .fill').style.width = (ft * 100).toFixed(2) + '%';
+      q('.lv').textContent = 'L' + S.level; q('.nx').textContent = `→ L${S.level + 1}`; q('.nl').textContent = S.level + 1;
+      q('.px').textContent = pct(xpFrac()); q('.rx').innerHTML = xpLine();
+      q('.pt2').textContent = pct(ft); q('.rt2').innerHTML = tpLine();
+      q('.xh').textContent = fmtK(xpPerHour(20)); q('.eta').textContent = '≈ ' + fmtEta(etaMs());
+      if (lvl) { const b = q('.lv'); b.classList.remove('lvlup'); void b.offsetWidth; b.classList.add('lvlup'); lvToast(q('.fc')); }
+    },
+  };
+});
+
+// linked hover: a kill in the list ↔ its segment in the bar (C), and the hero card
+document.addEventListener('pointerover', (e) => {
+  const t = e.target.closest && e.target.closest('[data-kid]');
+  document.querySelectorAll('.lk').forEach((x) => x.classList.remove('lk'));
+  if (!t) return;
+  const pane = t.closest('.hole'); const ids = t.getAttribute('data-kid').split(' ');
+  pane.querySelectorAll('[data-kid]').forEach((x) => { if (x.getAttribute('data-kid').split(' ').some((i) => ids.includes(i))) x.classList.add('lk'); });
+});
+
+function renderAll(kill) {
+  const html = topHtml();
+  for (const p of panes) { p.top.innerHTML = html; p.update(kill); }
+  tickText();
+}
+function tickText() {
+  const run = fmtRun(S.run);
+  document.querySelectorAll('.js-run').forEach((e) => { e.textContent = run; });
+  const k = lastKill(); const a = ago(S.vt - k.t);
+  document.querySelectorAll('.js-ago').forEach((e) => { e.textContent = a === 'now' ? 'just now' : a + ' ago'; });
+  document.querySelectorAll('.fr .t[data-t]').forEach((e) => { e.textContent = ago(S.vt - Number(e.dataset.t)); });
+}
+
+function liveKill() {
+  S.vt += Math.round((25 + rng() * 30) * 1000);
+  const pk = S.killSeq > 28 && rng() < 0.05;
+  const k = addKill(S.vt, pk, true);
+  renderAll(k);
+}
+
+let paused = false, nextKillAt = 0, lastReal = performance.now(), acc = 0;
+function schedule() { nextKillAt = performance.now() + 4000 + Math.random() * 4000; }
+function loop() {
+  const t = performance.now(); const dt = t - lastReal; lastReal = t;
+  if (paused) return;
+  S.vt += dt; acc += dt;
+  if (acc >= 1000) { S.run += Math.floor(acc / 1000) * 1000; acc %= 1000; tickText(); }
+  if (t >= nextKillAt) { liveKill(); schedule(); }
+}
+function start(band) { newSession(band); S.levelEvent = 0; renderAll(null); schedule(); }
+
+$('pause').addEventListener('click', (e) => { paused = !paused; e.currentTarget.textContent = paused ? 'Play' : 'Pause'; e.currentTarget.setAttribute('aria-pressed', String(paused)); if (!paused) { lastReal = performance.now(); schedule(); } });
+$('killnow').addEventListener('click', () => { liveKill(); if (!paused) schedule(); });
+$('lvl').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('lvl').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  start(Number(b.dataset.l));
+});
+
+const tip = $('tip');
+document.addEventListener('pointermove', (e) => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t) { tip.hidden = true; return; }
+  tip.textContent = t.getAttribute('data-tip'); tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 12, y = e.clientY - h - 10;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 12;
+  if (y < 8) y = e.clientY + 16;
+  tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px';
+});
+document.addEventListener('pointerleave', () => { tip.hidden = true; });
+
+start(34);
+setInterval(loop, 100);
+})();
+</script>

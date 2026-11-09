@@ -1,0 +1,888 @@
+<title>Comm Round Two</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<style>
+/* Layout: three live Comm panes (Samtal, round 2) in the Lykta frame, each beside its Swedish caption; one stacked column on narrow screens. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b0c;
+  --ink: #d9d5cc;
+  --muted: #8e897f;
+  --rule: #23252a;
+  --accent: #d4b67c;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  /* Lykta, Plain tint: candle light */
+  --lamp: #c9b597;
+  --iron: #2a2926;
+  --iron-hi: #504c45;
+  --iron-lo: #141311;
+  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --fg: #d2cdc2;
+  --dim: #8a857b;
+  --hot: #f1ebde;
+  --self: #f3d79e;
+  --mention: #f0b84f;
+  --enemy: #e2685c;
+}
+body { background: var(--page); color: var(--ink); font: 16px/1.5 var(--body); margin: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 31; background: var(--page); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 80px; }
+.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: .05em; color: var(--hot); text-wrap: balance; }
+.intro p { margin: 8px 0 0; color: var(--muted); max-width: 68ch; }
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 0; margin-top: 22px; background: var(--page); border-bottom: 1px solid var(--rule); }
+.btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 5px; border: 1px solid var(--rule); background: #151517; color: var(--ink); font-size: 14px; }
+.btn:hover { border-color: #3c3e44; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: #6fcf7f; box-shadow: 0 0 6px #6fcf7f; }
+.live.paused i { background: #6a6a6a; box-shadow: none; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-left: auto; font-size: 14px; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover, .toc a:focus-visible { color: var(--accent); }
+.toc b { font-family: var(--display); color: var(--accent); margin-right: 4px; }
+section.c { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 22px 36px; padding: 34px 0; border-bottom: 1px solid var(--rule); align-items: start; scroll-margin-top: 64px; }
+.slot { min-width: 0; }
+@media (max-width: 860px) { section.c { grid-template-columns: minmax(0, 1fr); } .slot { justify-self: center; width: 100%; max-width: 420px; } }
+.cap { min-width: 0; }
+.cap h2 { display: flex; align-items: baseline; gap: 12px; margin: 0; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: .05em; color: var(--hot); }
+.cap h2 span { color: var(--accent); font-size: 26px; }
+.cap .lead { margin: 6px 0 12px; max-width: 60ch; }
+.cap ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 15px; max-width: 62ch; }
+.cap li::marker { color: var(--accent); }
+.cap .try { margin: 16px 0 0; padding: 10px 13px; border-radius: 5px; background: #131315; font-size: 15px; max-width: 62ch; }
+.cap .try b { color: var(--accent); }
+.cap code { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+
+/* ---------- Lykta frame */
+.pane { position: relative; box-sizing: border-box; width: min(100%, 420px); height: 580px; padding: 5px; border-radius: 3px; border: 1px solid #000;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo), 0 0 22px -4px color-mix(in srgb, var(--lamp) 22%, transparent); }
+.fx { position: absolute; z-index: 4; width: 13px; height: 13px; pointer-events: none;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat, linear-gradient(135deg, var(--iron-hi), var(--iron) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%); box-shadow: inset 1px 1px 0 rgba(255,255,255,.18); }
+.f1 { top: 0; left: 0; } .f2 { top: 0; right: 0; transform: scaleX(-1); } .f3 { bottom: 0; left: 0; transform: scaleY(-1); } .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+.plate { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 14px; border-radius: 0 0 8px 8px; z-index: 5; display: flex; align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.plate::before { left: 5px; } .plate::after { right: 5px; }
+.pt { font-family: var(--display); font-weight: 700; font-size: 11.5px; letter-spacing: .1em; line-height: 13px; padding-top: 1px; color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+.hole { position: relative; height: 100%; box-sizing: border-box; padding: 17px 7px 7px; border: 1px solid #000; border-radius: 1px; overflow: hidden; display: flex; flex-direction: column; gap: 6px; color: var(--fg); font: 14px/1.38 var(--body);
+  background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%), #000;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 24px rgba(0,0,0,.55); }
+.hole ::selection { background: color-mix(in srgb, var(--lamp) 42%, transparent); color: #fff; }
+.frost { border-radius: 4px; background: linear-gradient(180deg, var(--frost), var(--frost2));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+
+/* ---------- shared pane content */
+.i { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.lw { position: relative; flex: 1; min-height: 0; display: flex; }
+.list { position: relative; flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; user-select: text; padding-right: 3px;
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lamp) 28%, transparent) transparent; display: flex; flex-direction: column; }
+.list > * { flex: none; }
+.list > :first-child { margin-top: auto; }
+.pill { all: unset; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); cursor: pointer; padding: 1px 11px; border-radius: 10px;
+  font: 700 12px/18px var(--body); color: #1a140a; background: var(--lamp); box-shadow: 0 2px 10px rgba(0,0,0,.7), 0 0 10px -2px var(--lamp); z-index: 3; }
+.pill[hidden] { display: none; }
+.nm { color: var(--pc); font-weight: 700; }
+.vb { color: var(--dim); font-size: .92em; }
+.q { color: var(--dim); }
+.tx { color: var(--fg); overflow-wrap: anywhere; }
+.act { font-style: italic; color: color-mix(in srgb, var(--fg) 82%, var(--dim)); }
+mark { background: color-mix(in srgb, var(--mention) 28%, transparent); color: var(--hot); border-radius: 2px; padding: 0 1px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--mention) 50%, transparent); }
+mark.cur { background: var(--mention); color: #1b1205; }
+.ib { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; color: var(--dim); flex: none; }
+.ib:hover { color: var(--hot); background: var(--frost); }
+.hole button:focus-visible { outline: 1px solid var(--lamp); outline-offset: 1px; }
+.hole input { all: unset; flex: 1; min-width: 0; font: 14px var(--body); color: var(--hot); }
+.hole input::placeholder { color: var(--dim); }
+.sbar { display: flex; align-items: center; gap: 4px; padding: 2px 3px 2px 8px; flex: none; color: var(--dim); min-height: 24px; }
+.sbar[hidden] { display: none; }
+.cnt { font: 11px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.badge { display: inline-block; min-width: 15px; height: 15px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--cc, var(--lamp)); color: #0d0b07; font: 700 10px/15px var(--mono); text-align: center; }
+.bump { animation: bump .9s ease-out; }
+@keyframes bump { 0% { transform: scale(1.55); box-shadow: 0 0 0 0 var(--cc, var(--lamp)); } 100% { transform: scale(1); box-shadow: 0 0 0 7px transparent; } }
+.new { animation: arrive 1.2s ease-out; }
+@keyframes arrive { from { background-color: color-mix(in srgb, var(--lamp) 20%, transparent); } }
+.hint { font-size: 12px; color: var(--dim); white-space: nowrap; }
+.empty { padding: 20px 8px; text-align: center; color: var(--dim); font-style: italic; }
+.mention .at { color: var(--mention); width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+/* ---------- 2 Samtal */
+.c2-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 6px; }
+.c2-side { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; scrollbar-width: none; padding: 2px 0; }
+.ent { all: unset; cursor: pointer; display: grid; justify-items: center; gap: 1px; padding: 6px 2px 4px; border-radius: 5px; }
+.ent:hover { background: var(--frost2); }
+.ent[aria-selected="true"] { background: linear-gradient(180deg, var(--frost), var(--frost2)); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2); }
+.av { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 14px/1 var(--display); color: var(--pc);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--pc) 32%, transparent), color-mix(in srgb, var(--pc) 8%, transparent));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pc) 70%, transparent), 0 0 12px -3px color-mix(in srgb, var(--pc) 60%, transparent); }
+.av.pub { --pc: var(--lamp); }
+.av .i { width: 16px; height: 16px; }
+.en { font-size: 12px; color: var(--fg); max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ago { font: 10px var(--mono); color: var(--dim); }
+.ud { position: absolute; top: -4px; right: -7px; --cc: var(--mention); }
+.c2-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
+.c2-head { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 6px; flex: none; }
+.c2-head .av { width: 24px; height: 24px; font-size: 12px; }
+.c2-head .av .i { width: 13px; height: 13px; }
+.ti { display: grid; line-height: 1.2; min-width: 0; flex: 1; }
+.ti b { color: var(--pc); font-size: 14.5px; }
+.ti small { color: var(--dim); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c2-chips { display: flex; gap: 3px; overflow-x: auto; scrollbar-width: none; flex: none; }
+.c2-chips[hidden] { display: none; }
+.chip { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px 1px 5px; border-radius: 10px; font-size: 11.5px; color: var(--dim); box-shadow: inset 0 0 0 1px var(--frost-edge); white-space: nowrap; }
+.chip .i { color: var(--cc); width: 12px; height: 12px; }
+.chip[aria-pressed="true"] { color: var(--fg); background: var(--frost2); }
+.chip[aria-pressed="false"] { opacity: .4; }
+.bb { width: fit-content; max-width: 84%; margin-top: 7px; padding: 4px 10px 3px; border-radius: 12px 12px 12px 3px; box-sizing: border-box;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 22%, transparent), color-mix(in srgb, var(--pc) 10%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pc) 34%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--pc) 16%, transparent); }
+.bb.cont { margin-top: 2px; }
+.bb.me { margin-left: auto; border-radius: 12px 12px 3px 12px; }
+.bb.wh { background: color-mix(in srgb, var(--pc) 7%, transparent); box-shadow: none; border: 1px dashed color-mix(in srgb, var(--pc) 55%, transparent); }
+.bt { color: var(--hot); overflow-wrap: anywhere; }
+.bb.me .bt { color: #fff3dc; }
+.bm { font: 10px var(--mono); color: var(--dim); text-align: right; user-select: none; }
+.tsep { text-align: center; font: 10.5px var(--mono); color: var(--dim); margin: 12px 0 2px; user-select: none; }
+.pr { padding: 2px 5px; border-radius: 3px; }
+.pr > .i { color: var(--cc); width: 12px; height: 12px; vertical-align: -1px; margin-right: 4px; }
+.pr .nm { cursor: pointer; }
+.pr .nm:hover { text-decoration: underline dotted; }
+.pr.self { margin: 3px 0 3px 22px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lamp) 11%, transparent)); box-shadow: inset -2px 0 0 var(--self); }
+.c2-in { display: flex; align-items: center; gap: 7px; padding: 4px 6px; flex: none; }
+.c2-in .pre { font: 600 11.5px var(--mono); color: #17120a; background: var(--pc); padding: 1px 6px; border-radius: 3px; white-space: nowrap; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+kbd { font: 10px var(--mono); color: var(--dim); border: 1px solid var(--frost-edge); border-radius: 3px; padding: 0 4px; }
+
+
+/* ---------- round 2: Samtal, three variants */
+.pane { container-type: inline-size; }
+.cb { flex: 1; min-height: 0; display: grid; gap: 6px; }
+.cb-a { grid-template-columns: 42px minmax(0, 1fr); }
+.cb-b { grid-template-columns: 132px minmax(0, 1fr); }
+.cb-c { grid-template-columns: 62px minmax(0, 1fr); transition: grid-template-columns .2s ease; }
+.cb-c.collapsed { grid-template-columns: 38px minmax(0, 1fr); }
+@container (max-width: 370px) { .cb-c { grid-template-columns: 38px minmax(0, 1fr); } .cb-c .en { display: none; } .cb-c .tog { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cb-c { transition: none; } }
+
+.col { display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
+.col-sep { height: 1px; flex: none; margin: 1px 4px; background: linear-gradient(90deg, transparent, var(--frost-edge), transparent); }
+.scw { position: relative; flex: 1; min-height: 0; display: flex; }
+.scl { position: relative; flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; display: flex; flex-direction: column; gap: 3px; padding: 2px 0; }
+.scl::-webkit-scrollbar { display: none; }
+.scw.fu .scl { -webkit-mask-image: linear-gradient(transparent, #000 22px); mask-image: linear-gradient(transparent, #000 22px); }
+.scw.fd .scl { -webkit-mask-image: linear-gradient(#000 calc(100% - 26px), transparent); mask-image: linear-gradient(#000 calc(100% - 26px), transparent); }
+.scw.fu.fd .scl { -webkit-mask-image: linear-gradient(transparent, #000 22px, #000 calc(100% - 26px), transparent); mask-image: linear-gradient(transparent, #000 22px, #000 calc(100% - 26px), transparent); }
+.more { all: unset; position: absolute; left: 50%; transform: translateX(-50%); z-index: 2; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
+  padding: 0 6px; border-radius: 8px; font: 600 10px/15px var(--mono); color: var(--fg); background: color-mix(in srgb, #000 70%, var(--lamp)); box-shadow: inset 0 0 0 1px var(--frost-edge), 0 1px 4px rgba(0,0,0,.6); }
+.more:hover { color: var(--hot); }
+.more[hidden] { display: none; }
+.more.mu { top: 0; } .more.md { bottom: 0; }
+.more .u { width: 6px; height: 6px; border-radius: 50%; background: var(--mention); box-shadow: 0 0 5px var(--mention); }
+
+/* entries */
+.ent { position: relative; flex: none; }
+.ent .badge.ud { position: absolute; top: -4px; right: -7px; --cc: var(--mention); }
+.cb-a .ent { padding: 5px 0; justify-items: center; }
+.cb-a .av { width: 30px; height: 30px; }
+.cb-a .ent[aria-selected="true"]::before, .cb-c .ent[aria-selected="true"]::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 0 2px 2px 0; background: var(--pc, var(--lamp)); box-shadow: 0 0 6px var(--pc, var(--lamp)); }
+.cb-a .ent[aria-selected="true"] { background: none; box-shadow: none; }
+.cb-a .ent[aria-selected="true"] .av, .cb-c .ent[aria-selected="true"] .av { box-shadow: inset 0 0 0 1.5px var(--pc), 0 0 0 2px #000, 0 0 0 3px color-mix(in srgb, var(--pc) 70%, transparent), 0 0 14px -2px var(--pc); }
+.cb-a .av.pub, .cb-c .av.pub { --pc: var(--lamp); }
+.railbtn { all: unset; cursor: pointer; flex: none; display: grid; place-items: center; height: 32px; border-radius: 5px; color: var(--dim); }
+.railbtn:hover, .railbtn[aria-pressed="true"] { color: var(--hot); background: var(--frost); }
+.railbtn .i { width: 17px; height: 17px; }
+.railbtn kbd { display: none; }
+
+.cb-b .ent { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 6px; align-items: center; justify-items: stretch; padding: 5px 6px 5px 4px; }
+.cb-b .av { width: 24px; height: 24px; font-size: 12px; }
+.cb-b .av .i { width: 13px; height: 13px; }
+.cb-b .av.pub { --pc: var(--lamp); }
+.cb-b .ent .badge.ud { position: static; justify-self: end; }
+.et { display: grid; min-width: 0; line-height: 1.2; }
+.et .r1 { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.et b { color: var(--pc); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.et .ago { flex: none; }
+.et .r2 { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.sn { flex: 1; min-width: 0; font-size: 11.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ent.unr .sn { color: var(--fg); }
+.ent.dim { opacity: .3; }
+.sfield { display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 7px; flex: none; color: var(--dim); }
+.sfield input { font-size: 13px !important; }
+.sfield .ib { width: 18px; height: 18px; }
+
+.cb-c .ent { padding: 5px 0 3px; justify-items: center; gap: 2px; }
+.cb-c .av { width: 28px; height: 28px; font-size: 13px; }
+.cb-c .en { font-size: 11px; max-width: 58px; }
+.cb-c.collapsed .en { display: none; }
+.cb-c.collapsed .tog .i { transform: scaleX(-1); }
+.tog { all: unset; cursor: pointer; flex: none; display: grid; place-items: center; height: 18px; border-radius: 4px; color: var(--dim); }
+.tog:hover { color: var(--hot); background: var(--frost2); }
+
+/* main */
+.main { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
+.chips { display: flex; gap: 3px; overflow-x: auto; scrollbar-width: none; flex: none; padding-top: 1px; }
+.chips[hidden] { display: none; }
+.main.searching > .chips, .main.searching > .lw { display: none; }
+.res { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lamp) 28%, transparent) transparent; display: flex; flex-direction: column; gap: 4px; padding-right: 3px; user-select: text; }
+.res[hidden] { display: none; }
+.rh { display: flex; align-items: center; gap: 6px; margin: 6px 0 1px; font: 700 10.5px var(--body); letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--lamp) 55%, var(--dim)); user-select: none; }
+.rh:first-child { margin-top: 2px; }
+.rh::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--frost-edge), transparent); }
+.rp { all: unset; cursor: pointer; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 7px 5px 5px; border-radius: 6px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 16%, transparent), color-mix(in srgb, var(--pc) 6%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pc) 30%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--pc) 22%, transparent), 0 1px 2px rgba(0,0,0,.45); }
+.rp:hover { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pc) 40%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--pc) 55%, transparent), 0 0 10px -3px var(--pc); }
+.rp .av { width: 26px; height: 26px; font-size: 13px; }
+.rpt { display: grid; min-width: 0; line-height: 1.2; }
+.rpt b { color: var(--pc); font-size: 14px; }
+.rpt small { color: var(--dim); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.go { display: inline-flex; align-items: center; gap: 3px; font: 600 11.5px var(--body); color: var(--hot); white-space: nowrap; }
+.go .i { width: 12px; height: 12px; }
+.rm { padding: 3px 4px 4px 7px; border-left: 2px solid color-mix(in srgb, var(--cc) 70%, transparent); font-size: 13px; line-height: 1.32; }
+.rm + .rm { margin-top: 1px; }
+.rmh { display: flex; align-items: center; gap: 4px; font: 10.5px var(--mono); color: var(--dim); user-select: none; }
+.rmh .i { width: 11px; height: 11px; color: var(--cc); }
+.rmh time { margin-left: auto; }
+.rhint { padding: 14px 8px; color: var(--dim); font-size: 13px; text-align: center; }
+.rhint code { font: 12px var(--mono); color: var(--lamp); }
+
+/* reply / search line */
+.line { display: flex; align-items: center; gap: 6px; padding: 3px 6px; flex: none; min-height: 24px; }
+.line .pre { font: 600 11.5px var(--mono); color: #17120a; background: var(--pc); padding: 1px 6px; border-radius: 3px; white-space: nowrap; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+.line .sico { color: var(--lamp); }
+.main.searching > .line.reply { display: none; }
+
+/* overlay search (A) */
+.ovl { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; gap: 6px; padding: 0 0 2px; border-radius: 4px;
+  background: linear-gradient(180deg, color-mix(in srgb, #000 84%, var(--lamp)), color-mix(in srgb, #000 92%, var(--lamp))); box-shadow: 0 0 0 1px var(--frost-edge), 0 6px 20px rgba(0,0,0,.8); }
+.ovl[hidden] { display: none; }
+.ovl .sbar { margin: 0; }
+@media (prefers-reduced-motion: no-preference) { .ovl:not([hidden]) { animation: ovl .16s ease-out; } }
+@keyframes ovl { from { opacity: 0; transform: translateY(-4px); } }
+
+/* bubbles: near channels */
+.bb .bt .act { font-style: italic; }
+.bb.em { border-radius: 12px; }
+.bb.em .bt { color: color-mix(in srgb, var(--hot) 88%, var(--pc)); }
+.bm .chn { text-transform: lowercase; }
+
+/* overheard: A centred one-liners */
+.oha { align-self: center; max-width: 94%; margin: 7px 0 1px; padding: 0 4px; text-align: center; font-size: 12px; line-height: 1.35; color: var(--dim); }
+.oha .chp { display: inline-flex; align-items: center; gap: 3px; margin-right: 5px; padding: 0 6px 0 4px; border-radius: 8px; font: 600 10px/15px var(--body); letter-spacing: .04em; color: var(--cc); vertical-align: 1px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc) 45%, transparent); background: color-mix(in srgb, var(--cc) 8%, transparent); }
+.oha .chp .i { width: 10px; height: 10px; }
+.oha time { font: 10px var(--mono); margin-left: 5px; opacity: .8; }
+.oha .tx { color: color-mix(in srgb, var(--fg) 70%, var(--dim)); }
+
+/* overheard: B outlined bubbles */
+.ohb { width: fit-content; max-width: 84%; margin-top: 7px; padding: 3px 10px 3px; border-radius: 12px 12px 12px 3px; box-sizing: border-box; background: transparent;
+  border: 1px solid color-mix(in srgb, var(--pc) 34%, transparent); }
+.ohb .bt { color: color-mix(in srgb, var(--fg) 80%, var(--dim)); font-size: 13px; }
+.ohb .bt .i { color: var(--cc); width: 12px; height: 12px; vertical-align: -1px; margin-right: 4px; }
+.ohb .bm { text-align: left; }
+.ohb .bm .chn { color: var(--cc); }
+
+/* overheard: C margin notes */
+.ohc { margin: 6px 26% 0 10px; padding: 1px 0 1px 8px; border-left: 2px solid var(--cc); font-size: 12px; line-height: 1.35; color: color-mix(in srgb, var(--fg) 66%, var(--dim)); }
+.ohc .ml { font: 700 9.5px var(--body); letter-spacing: .13em; text-transform: uppercase; color: var(--cc); margin-right: 5px; }
+.ohc time { font: 10px var(--mono); color: var(--dim); margin-left: 4px; }
+
+/* legend in captions */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 12px 0 0; font-size: 13.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 18px; height: 11px; border-radius: 6px; display: inline-block; }
+.lg-b { background: color-mix(in srgb, #9fb2f5 24%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #9fb2f5 30%, transparent); }
+.lg-o { border: 1px solid #555; }
+.rules { margin: 18px 0 0; padding: 12px 16px; border-radius: 6px; background: #121214; border: 1px solid var(--rule); max-width: 78ch; }
+.rules h2 { margin: 0 0 6px; font: 600 15px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.rules ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+.rules li::marker { color: var(--accent); }
+.rules .ask { color: var(--hot); }
+
+.cb-a .ent .badge.ud, .cb-c .ent .badge.ud { right: -6px; }
+.cb-a .scl, .cb-c .scl { padding-top: 5px; }
+.hole input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Comm, runda 2</h1>
+    <p>Tre vidareutvecklingar av förslag 2, Samtal. Rubrikrutan ovanför meddelandena är borta i alla tre: i Public ligger kanalknapparna överst, och i ett samtal börjar tråden direkt. Förstoringsglaset sitter på ett nytt ställe i varje variant.</p>
+    <p>Rutorna är levande som förra gången: nya meddelanden kommer med några sekunders mellanrum, och Brannoc dyker upp som ny person efter en stund. Namn och repliker är påhittade.</p>
+  </header>
+
+  <section class="rules" aria-label="Regler">
+    <h2>Regler i alla tre</h2>
+    <ul>
+      <li>Ett samtal öppnas när någon skickar en tell eller whisper till dig, säger något i rummet eller gör en emote eller social, riktad eller inte. Samma kanaler styr ordningen i vänsterspalten och räknas som olästa.</li>
+      <li>Prayers öppnar inget samtal. I MUME går böner till valarna och kan inte riktas till en spelare.</li>
+      <li>I ett samtal syns allt personen skrivit, på alla kanaler. Riktat prat (tell, whisper, say, emote, social) visas som pratbubblor. Narrates, yells, songs, questions och prayers visas som annorlunda rader, på ett eget sätt i varje variant.</li>
+      <li>Har du fler samtal än det får plats skrollar spalten. En tonad kant och en liten markering visar att det finns fler, och en gul prick betyder att något doldt samtal har olästa.</li>
+      <li>Sök ger två sorters träffar: personer, som du klickar på för att gå till samtalet, och meddelanden från alla kanaler, som bara visas. Esc stänger sökningen.</li>
+      <li class="ask">Din mening "När en privat chatt väl har öppnats … ska den dock också beakta" slutade mitt i. Jag har tolkat den som att samtalet då också visar personens övriga kanaler, men att de inte flyttar upp samtalet eller räknas som olästa. Säg till om du menade något annat.</li>
+    </ul>
+  </section>
+
+  <div class="ctl">
+    <button class="btn" id="play" type="button" aria-pressed="false">Pausa</button>
+    <button class="btn" id="nextnow" type="button">Nästa meddelande nu</button>
+    <span class="live" id="live"><i></i><span id="livetxt">Live, ett nytt meddelande var 3–5 s</span></span>
+    <nav class="toc" aria-label="Varianter">
+      <a href="#va"><b>A</b>Ikonräls</a><a href="#vb"><b>B</b>Namnlista</a><a href="#vc"><b>C</b>Kompakt</a>
+    </nav>
+  </div>
+
+  <section class="c" id="va">
+    <div class="slot" data-v="a"></div>
+    <div class="cap">
+      <h2><span>A</span>Ikonräls</h2>
+      <p class="lead">En smal räls med bara initialer, så att tråden får nästan hela bredden.</p>
+      <ul>
+        <li>Public ligger fast överst i rälsen och sök fast längst ner. Personerna däremellan skrollar.</li>
+        <li>Valt samtal markeras med en ring och ett ljusstreck i personens färg. Hovra en initial för namn, kanal och tid.</li>
+        <li>Sök öppnas som ett lager över tråden. Överst kommer personer som kort med "Open chat", under dem alla meddelanden som matchar.</li>
+        <li>Prat från andra kanaler visas som dämpade, centrerade rader med en kanaletikett, ungefär som systemrader i en chattapp.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> Klicka på förstoringsglaset längst ner i rälsen, eller hovra rutan och tryck Ctrl+F. Sök på "orc" eller "lantern" och klicka på en person. Skrolla rälsen ner till de äldre samtalen och leta upp Sorchas olästa. Titta på Lindirs samtal, där hennes yell och prayer syns som centrerade rader.</p>
+    </div>
+  </section>
+
+  <section class="c" id="vb">
+    <div class="slot" data-v="b"></div>
+    <div class="cap">
+      <h2><span>B</span>Namnlista</h2>
+      <p class="lead">En bredare lista med namn, senaste repliken och tid, som en inkorg.</p>
+      <ul>
+        <li>Varje rad visar namn, tid och början av senaste meddelandet. Rader med olästa har ljusare text och en siffra.</li>
+        <li>Sökfältet sitter fast längst ner i listan och är alltid synligt. När du skriver filtreras listan till personer som matchar, och tråden byts mot träfflistan.</li>
+        <li>Prat från andra kanaler visas som bubblor med bara en tunn kant och en kanalikon. De ser ut som personens bubblor men ofyllda.</li>
+        <li>Listan tar mer plats, så varianten passar bäst i en bred docka eller som flytande ruta.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> Skriv "ta" i sökfältet och se listan krympa till Tarnil och personer med träffar. Klicka på en person i träfflistan. Töm fältet för att komma tillbaka. Skrolla listan och se "↓ older" längst ner.</p>
+    </div>
+  </section>
+
+  <section class="c" id="vc">
+    <div class="slot" data-v="c"></div>
+    <div class="cap">
+      <h2><span>C</span>Kompakt</h2>
+      <p class="lead">Initialer med korta namn som kan fällas ihop till en räls, och sök där du ändå skriver.</p>
+      <ul>
+        <li>Pilen överst fäller ihop spalten till bara initialer. I en smal ruta sker det automatiskt.</li>
+        <li>Förstoringsglaset sitter till vänster på svarsraden. Klickar du på det blir raden ett sökfält, och träffarna ersätter tråden ovanför.</li>
+        <li>Prat från andra kanaler visas som marginalanteckningar: liten text med kanalens färgstreck och namn, indragen från kanten.</li>
+        <li>Samma ställe för att skriva och söka, och tråden får mest plats när spalten är hopfälld.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> Fäll ihop och fäll ut spalten med pilen. Klicka på förstoringsglaset på svarsraden och sök på "gibur". Tryck Esc för att komma tillbaka till svarsraden. Skriv ett svar till Lindir och tryck Enter.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+// ------------------------------------------------------------ helpers
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const hm = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function rel(ts) { const s = (Date.now() - ts) / 1000; if (s < 10) return 'now'; if (s < 60) return Math.floor(s) + 's'; const m = Math.floor(s / 60); if (m < 60) return m + 'm'; return Math.floor(m / 60) + 'h' + (m % 60) + 'm'; }
+
+const IC = {
+  tales: '<path d="M2.5 6.3v3.4h2.6l5 3.3V3L5.1 6.3z"/><path d="M12 6.2c.8.7.8 2.9 0 3.6M13.7 4.6c1.6 1.7 1.6 5.1 0 6.8"/>',
+  tells: '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/><path d="M5.5 7h4.5M8.5 5.3L10.2 7 8.5 8.7"/>',
+  says: '<path d="M8 3c3.3 0 5.5 1.8 5.5 4s-2.2 4-5.5 4c-.7 0-1.4-.1-2-.3L3 12.5l.9-2.5C3 9.3 2.5 8.2 2.5 7c0-2.2 2.2-4 5.5-4z"/>',
+  yells: '<path d="M8 2.5v6.8M8 12.2v.5"/><path d="M3 4l1.6 1.6M13 4l-1.6 1.6M2.3 9h1.9M13.7 9h-1.9"/>',
+  prayers: '<path d="M8 2.2c1.6 1.8 1.8 3.2 0 4.6-1.8-1.4-1.6-2.8 0-4.6z"/><path d="M6 8.5h4v5H6zM4.5 13.5h7"/>',
+  emotes: '<circle cx="8" cy="8" r="5.5"/><path d="M5.8 9.5c1.2 1.3 3.2 1.3 4.4 0M6 6.3v.4M10 6.3v.4"/>',
+  whispers: '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke-dasharray="1.7 1.5"/>',
+  questions: '<path d="M5.8 5.5c0-1.4 1-2.3 2.3-2.3s2.3.9 2.3 2.1c0 1.8-2.3 1.9-2.3 3.8M8.1 11.8v.5"/>',
+  songs: '<path d="M6 11.5V4l6.5-1.5v7.5"/><circle cx="4.6" cy="11.6" r="1.5"/><circle cx="11.1" cy="10" r="1.5"/>',
+  socials: '<circle cx="5.5" cy="5.5" r="2"/><circle cx="10.8" cy="5.5" r="2"/><path d="M2 13c.4-2.2 1.8-3.4 3.5-3.4S8.6 10.8 9 13M8.3 10.2c.6-.4 1.4-.6 2.5-.6 1.7 0 3.1 1.2 3.5 3.4"/>',
+  search: '<circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2l3.3 3.3"/>',
+  x: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
+  town: '<path d="M2.5 13.5v-6l3-2.5 3 2.5v6M8.5 13.5V5l3-2.5 2.5 2v9M1.5 13.5h13M5 13.5V11h1v2.5"/>',
+  arrow: '<path d="M3 8h9.5M9 4.5L12.5 8 9 11.5"/>',
+  chev: '<path d="M10 3.5L5.5 8l4.5 4.5"/>',
+};
+const ic = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 16 16" aria-hidden="true">${IC[n]}</svg>`;
+
+// ------------------------------------------------------------ channels (brightened variants of src/gmcp/comm.ts CHANNEL_COLORS)
+const CH = {
+  tales: { label: 'Narrates', c: '#d2ca5c', v: ['narrate', 'narrates'], s: 'narrate' },
+  tells: { label: 'Tells', c: '#5dc97c', v: ['tell', 'tells'], s: 'tell' },
+  says: { label: 'Says', c: '#4cc4c4', v: ['say', 'says'], s: 'say' },
+  yells: { label: 'Yells', c: '#d276d2', v: ['yell', 'yells'], s: 'yell' },
+  prayers: { label: 'Prayers', c: '#ddd592', v: ['pray', 'prays'], s: 'prayer' },
+  emotes: { label: 'Emotes', c: '#86b886', v: null, s: 'emote' },
+  whispers: { label: 'Whispers', c: '#dc9c4a', v: ['whisper', 'whispers'], s: 'whisper' },
+  questions: { label: 'Questions', c: '#62b5d6', v: ['ask', 'asks'], s: 'question' },
+  songs: { label: 'Songs', c: '#dab4b4', v: ['sing', 'sings'], s: 'song' },
+  socials: { label: 'Socials', c: '#c475d4', v: null, s: 'social' },
+};
+const ORDER = ['tales', 'tells', 'says', 'yells', 'prayers', 'emotes', 'whispers', 'questions', 'songs', 'socials'];
+const PUBLIC = ORDER.filter((c) => c !== 'tells' && c !== 'whispers');
+/** Channels that open a chat, show as bubbles and count as unread. */
+const NEAR = new Set(['tells', 'whispers', 'says', 'emotes', 'socials']);
+const isPrivate = (m) => m.ch === 'tells' || m.ch === 'whispers';
+const isEnemy = (n) => !!n && n[0] === '*';
+const isAction = (m) => !CH[m.ch].v;
+/** The person whose chat a near message opens or moves up, else null. */
+function chatOf(m) {
+  if (!NEAR.has(m.ch)) return null;
+  if (m.self) return m.to && m.to !== 'you' ? m.to : null;
+  if (isEnemy(m.who)) return null;
+  return m.who;
+}
+/** Does message m belong in P's chat (everything P wrote, plus what you directed at P)? */
+const inChat = (m, p) => (m.self ? m.to === p : m.who === p);
+
+// ------------------------------------------------------------ person colours: stable for the session
+const PAL = ['#e9a07a', '#6fd0a0', '#9fb2f5', '#ef8cb0', '#cdc05e', '#5cc6e0', '#c09cf2', '#a3d36a', '#c9d2dc', '#e88a4a'];
+const COL = {};
+const used = new Set();
+function hash(s) { let h = 5381; for (const ch of s) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0; return h; }
+function assign(name) {
+  if (!name || name === 'Gibur' || name === 'you' || isEnemy(name) || COL[name]) return;
+  let i = hash(name) % PAL.length;
+  if (used.size < PAL.length) while (used.has(i)) i = (i + 1) % PAL.length;
+  COL[name] = PAL[i]; used.add(i);
+}
+function pc(name) {
+  if (!name) return 'var(--dim)';
+  if (name === 'Gibur' || name === 'you') return 'var(--self)';
+  if (isEnemy(name)) return 'var(--enemy)';
+  return COL[name] || PAL[hash(name) % PAL.length];
+}
+
+// ------------------------------------------------------------ formatting
+function reEsc(t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function hl(text, terms) {
+  if (!terms || !terms.length) return esc(text);
+  const re = new RegExp('(' + terms.map(reEsc).join('|') + ')', 'gi');
+  return text.split(re).map((p, i) => (i % 2 ? `<mark>${esc(p)}</mark>` : esc(p))).join('');
+}
+const nm = (m, terms) => `<b class="nm" style="--pc:${pc(m.who)}" data-who="${esc(m.who)}">${hl(m.self ? 'You' : m.who, terms)}</b>`;
+function verb(m) {
+  const c = CH[m.ch];
+  const prep = m.ch === 'whispers' ? 'to ' : '';
+  return m.self ? c.v[0] + (m.to ? ' ' + prep + m.to : '') : c.v[1] + (m.to ? ' ' + prep + (m.to === 'you' ? 'you' : m.to) : '');
+}
+function lineHTML(m, terms) {
+  if (isAction(m)) return `${nm(m, terms)} <span class="tx act">${hl(m.body, terms)}</span>`;
+  return `${nm(m, terms)} <span class="vb">${esc(verb(m))}</span> <span class="q">'</span><span class="tx">${hl(m.body, terms)}</span><span class="q">'</span>`;
+}
+
+// ------------------------------------------------------------ messages
+let nextId = 1;
+function mk(spec, ts) {
+  const [ch, w, to, body] = spec.split('|');
+  const self = w === 'G';
+  return { id: nextId++, ts, ch, who: self ? 'Gibur' : w, to: to || null, body, self };
+}
+// [minutes ago, channel|talker (G = you)|destination|text]
+const SEED = [
+  [88, 'says|Ithilwen||Safe travels, everyone. Off to Rivendell.'],
+  [81, 'emotes|Rowan||stretches and yawns.'],
+  [74, 'says|Bergil||Has anyone seen the smith? His forge is cold.'],
+  [72, 'says|G||He went to Archet this morning.'],
+  [66, 'tells|Aerin|you|Thanks for the rescue at the Barrow-downs!'],
+  [65.6, 'tells|G|Aerin|Any time. Watch out for the wights.'],
+  [58, 'emotes|Calben||yawns sleepily.'],
+  [52, 'socials|Vaelor|you|salutes you.'],
+  [44, 'tales|Calben||Lost a green cloak near the Chetwood. Reward if found.'],
+  [40, 'says|Sorcha||Gibur, the herbs you asked for came in.'],
+  [39.5, 'emotes|Sorcha||hands you a small leather pouch.'],
+  [36, 'says|Orlaith||Is the Pony open late tonight?'],
+  [25.0, 'tales|Fenwick||Anyone up for a run to the Old Forest? Meet at the Prancing Pony.'],
+  [24.6, 'says|Haldis||Evening, all.'],
+  [24.3, 'emotes|Lindir||grins.'],
+  [24.0, 'says|G||Evening Haldis. Who is heading east tonight?'],
+  [23.5, 'tells|Lindir|you|You coming tonight? We need a tank.'],
+  [23.1, 'tells|G|Lindir|Yes. Give me five minutes to rent a horse.'],
+  [22.7, 'tales|Orlaith||Anyone selling a lantern? Paying 40 gold.'],
+  [22.0, 'questions|Duvain||Where do I train parry in Bree?'],
+  [21.6, "tales|Sorcha||Duvain: the warriors' guild, just south of the gate."],
+  [21.0, 'socials|Haldis|you|bows deeply before you.'],
+  [20.5, 'tells|Tarnil|you|Saw orcs at the Brandywine ford. Three of them.'],
+  [20.1, 'tells|G|Tarnil|Thanks. Any trolls?'],
+  [19.8, 'tells|Tarnil|you|Not that I saw. Be careful after dark.'],
+  [19.2, 'yells|*Ugluk*||Die, elf scum!'],
+  [19.0, 'yells|Lindir||Orcs at the ford! Gibur, flee west!'],
+  [18.6, "says|Haldis||Gibur, hold the door, I'll cast."],
+  [18.4, 'says|G||Holding.'],
+  [17.9, 'emotes|Morwen||laughs heartily.'],
+  [17.5, 'whispers|Morwen|you|Keep your sanctuary up, the shaman blinds.'],
+  [17.0, 'tales|Fenwick||Old Forest group is full, sorry!'],
+  [16.4, 'prayers|Haldis||Elbereth, guide us through the dark.'],
+  [16.0, 'tells|Lindir|you|Nice kill. 2k each for us.'],
+  [15.8, 'prayers|Lindir||Varda, thank you for the light at the ford.'],
+  [15.6, 'tells|G|Lindir|Good. Rest at the inn?'],
+  [15.2, 'songs|Morwen||Over the ford the lantern burns, and home again the wanderer turns.'],
+  [14.8, 'says|Duvain||Thanks for the help earlier.'],
+  [14.4, 'tells|Haldis|you|Do you have spare trollbane? Mine broke.'],
+  [14.0, 'tells|G|Haldis|One. Meet me at the stable.'],
+  [13.6, 'tales|Orlaith||Lantern bought, thanks Sorcha!'],
+  [13.2, 'socials|Lindir|you|pats you on the back.'],
+  [13.0, 'socials|G|Lindir|hug Lindir.'],
+  [6.4, 'tales|Vaelor||The ferry at Bucklebury is running again.'],
+  [6.0, 'tells|Morwen|you|Are you still in Bree?'],
+  [5.6, 'tells|G|Morwen|Yes, at the Pony. Come over.'],
+  [5.0, 'questions|Duvain||Does anyone know the way to Tharbad?'],
+  [4.6, 'says|Fenwick||Follow the Greenway south, Duvain.'],
+  [4.0, 'yells|*Grishluk*||We will find you, Gibur!'],
+  [3.6, 'tells|Tarnil|you|Grishluk is hunting you. Stay inside for a bit.'],
+  [3.0, 'emotes|Haldis||sighs.'],
+  [2.4, 'tells|Lindir|you|Group at the west gate in ten?'],
+  [1.8, 'tells|G|Lindir|On my way.'],
+  [1.0, 'tales|Sorcha||Selling herbs: athelas and kingsfoil, cheap.'],
+  [0.5, "whispers|Tarnil|you|Bring a torch, the lantern trick won't work underground."],
+];
+const POOL = [
+  ['tales|Fenwick||Weathertop run tomorrow evening, who is in?'],
+  ['tells|Lindir|you|Where are you now, Gibur?', 'tells|G|Lindir|Bree, west gate.'],
+  ['says|Haldis||Gibur, do you still have my rope?', 'says|G||Here, take it.'],
+  ['emotes|Morwen||smiles happily.'],
+  ['tells|Brannoc|you|Hi Gibur, are you selling that broadsword?', 'tells|G|Brannoc|Not tonight, sorry.', 'tells|Brannoc|you|No worries. Tomorrow then?'],
+  ['yells|*Ugluk*||I smell man-flesh!'],
+  ['tells|Haldis|you|Thanks for the trollbane, I owe you one.'],
+  ['questions|Duvain||How do I get a horse?', 'tales|Orlaith||Duvain: rent one at the stable east of the Pony.'],
+  ['whispers|Morwen|you|Ugluk is outside the gate. Wait a bit.'],
+  ['tells|Tarnil|you|The ford is clear now.', 'tells|G|Tarnil|Great, heading out.'],
+  ['socials|Fenwick|you|waves happily at you.'],
+  ['prayers|Lindir||Varda, light our road tonight.'],
+  ['songs|Haldis||A lantern lit, a road to roam, a cup of ale and then back home.'],
+  ['says|Lindir||Gibur, lead the way.', 'emotes|Lindir||nods solemnly.'],
+  ['tales|Vaelor||Storm over the Misty Mountains. Bring cloaks.'],
+  ['says|Sorcha||Gibur, did the athelas help?'],
+  ['tells|Morwen|you|Meet at the Pony after the run?', 'tells|G|Morwen|Yes, first round is mine.'],
+  ['yells|Tarnil||Orcs at the east gate!'],
+  ['tells|Lindir|you|Sanct is down, recast!', 'tells|G|Lindir|Casting now.'],
+];
+const MSGS = [];
+const t0 = Date.now();
+for (const [min, spec] of SEED) { const m = mk(spec, t0 - min * 60000); assign(m.who); if (m.to && m.to !== 'you') assign(m.to); MSGS.push(m); }
+
+const subs = [];
+function push(m) { assign(m.who); if (m.to && m.to !== 'you') assign(m.to); MSGS.push(m); for (const s of subs) s.add && s.add(m); }
+
+let queue = [], poolIdx = 0, paused = false, timer = null;
+function refill() { if (!queue.length) queue.push(...POOL[poolIdx++ % POOL.length]); }
+function schedule() {
+  clearTimeout(timer); if (paused) return; refill();
+  const reply = queue[0].split('|')[1] === 'G';
+  timer = setTimeout(emitNext, reply ? 1400 + Math.random() * 900 : 2600 + Math.random() * 2400);
+}
+function emitNext() { refill(); push(mk(queue.shift(), Date.now())); schedule(); }
+
+// ------------------------------------------------------------ scrolling list with "↓ N new"
+function listBox(parent) {
+  const lw = el('div', 'lw'), list = el('div', 'list'), pill = el('button', 'pill');
+  pill.type = 'button'; pill.hidden = true; lw.append(list, pill); parent.append(lw);
+  let unseen = 0;
+  const atBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 10;
+  list.addEventListener('scroll', () => { if (atBottom()) { unseen = 0; pill.hidden = true; } });
+  const bottom = () => { list.scrollTop = list.scrollHeight; unseen = 0; pill.hidden = true; };
+  pill.addEventListener('click', bottom);
+  return {
+    lw, list, bottom,
+    append(html) {
+      const was = atBottom();
+      list.insertAdjacentHTML('beforeend', html);
+      const node = list.lastElementChild;
+      if (node && !REDUCED) node.classList.add('new');
+      if (was) list.scrollTop = list.scrollHeight;
+      else { unseen++; pill.textContent = `↓ ${unseen} new`; pill.hidden = false; }
+    },
+  };
+}
+
+// ------------------------------------------------------------ search
+function search(q, people) {
+  const t = q.toLowerCase();
+  const hit = (m) => m.body.toLowerCase().includes(t) || (m.self ? 'you' : m.who).toLowerCase().includes(t);
+  const msgs = MSGS.filter(hit);
+  const ppl = [];
+  for (const p of people) {
+    const name = p.toLowerCase().includes(t);
+    const n = msgs.filter((m) => inChat(m, p)).length;
+    if (name || n) ppl.push({ p, name, n });
+  }
+  ppl.sort((a, b) => (b.name - a.name) || (b.n - a.n));
+  return { ppl, msgs: msgs.slice(-200).reverse() };
+}
+function resultsHTML(q, people) {
+  if (!q) return '<div class="rhint">Search names and every message on every channel.<br>Try <code>orc</code>, <code>lantern</code> or <code>gibur</code>.</div>';
+  const r = search(q, people);
+  const terms = [q];
+  let h = `<div class="rh">People <span class="cnt">${r.ppl.length}</span></div>`;
+  h += r.ppl.length ? r.ppl.map(({ p, name, n }) => {
+    const what = [name ? 'Name matches' : '', n ? `${n} message${n === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+    return `<button class="rp" type="button" data-p="${esc(p)}" style="--pc:${pc(p)}"><span class="av">${esc(p[0])}</span><span class="rpt"><b>${hl(p, terms)}</b><small>${what}</small></span><span class="go">Open chat${ic('arrow')}</span></button>`;
+  }).join('') : '<div class="rhint" style="padding:4px">No one you talk with.</div>';
+  h += `<div class="rh">Messages <span class="cnt">${r.msgs.length}</span></div>`;
+  h += r.msgs.length ? r.msgs.map((m) => `<div class="rm" style="--cc:${CH[m.ch].c}"><div class="rmh">${ic(m.ch)}${CH[m.ch].label}<time>${hm(m.ts)}</time></div><div>${lineHTML(m, terms)}</div></div>`).join('')
+    : '<div class="rhint" style="padding:4px">No messages match.</div>';
+  return h;
+}
+
+// ============================================================ the chat pane, three variants
+function Chat(hole, V) {
+  const st = { sel: 'Lindir', unread: { Tarnil: 1, Sorcha: 2 }, pub: 3, near: {}, pubLast: 0, off: {}, q: '', sOpen: false, prev: null };
+  for (const m of MSGS) { const p = chatOf(m); if (p) st.near[p] = m.ts; if (!isPrivate(m)) st.pubLast = m.ts; }
+  const people = () => Object.keys(st.near).sort((a, b) => st.near[b] - st.near[a]);
+  const lastIn = (p) => { for (let i = MSGS.length - 1; i >= 0; i--) if (inChat(MSGS[i], p) && NEAR.has(MSGS[i].ch)) return MSGS[i]; return null; };
+  const lastPub = () => { for (let i = MSGS.length - 1; i >= 0; i--) if (!isPrivate(MSGS[i])) return MSGS[i]; return null; };
+
+  // ---------- DOM
+  const body = el('div', 'cb cb-' + V); hole.append(body);
+  const col = el('div', 'col'), main = el('div', 'main'); body.append(col, main);
+  let tog = null;
+  if (V === 'c') { tog = el('button', 'tog', ic('chev')); tog.type = 'button'; tog.title = 'Collapse to initials'; col.append(tog); }
+  const pubSlot = el('div'); pubSlot.style.display = 'contents'; col.append(pubSlot, el('div', 'col-sep'));
+  const scw = el('div', 'scw'), scl = el('div', 'scl'), mu = el('button', 'more mu'), md = el('button', 'more md');
+  mu.type = md.type = 'button'; scw.append(scl, mu, md); col.append(scw);
+  let sBtn = null, sField = null, sInput = null;
+  if (V === 'a') {
+    sBtn = el('button', 'railbtn', ic('search')); sBtn.type = 'button'; sBtn.title = 'Search (Ctrl+F)'; sBtn.setAttribute('aria-pressed', 'false');
+    col.append(el('div', 'col-sep'), sBtn);
+  } else if (V === 'b') {
+    sField = el('label', 'sfield frost', `${ic('search')}<input id="b-q" type="search" placeholder="Search" autocomplete="off" spellcheck="false"><button class="ib" type="button" data-a="clear" title="Clear (Esc)" hidden>${ic('x')}</button>`);
+    col.append(sField); sInput = sField.querySelector('input');
+  }
+  const chips = el('div', 'chips'); main.append(chips);
+  const L = listBox(main);
+  const res = el('div', 'res'); res.hidden = true; main.append(res);
+  const line = el('div', 'line reply frost'); main.append(line);
+  let ovl = null;
+  if (V === 'a') {
+    ovl = el('div', 'ovl'); ovl.hidden = true;
+    ovl.innerHTML = `<div class="sbar frost">${ic('search')}<input id="a-q" type="search" placeholder="Search names and messages" autocomplete="off" spellcheck="false"><button class="ib" type="button" data-a="close" title="Close (Esc)">${ic('x')}</button></div>`;
+    const r = el('div', 'res'); ovl.append(r); main.append(ovl);
+    sInput = ovl.querySelector('input');
+  }
+  const resEl = () => (V === 'a' ? ovl.querySelector('.res') : res);
+
+  // ---------- left column
+  function entHTML(p) {
+    const u = st.unread[p] || 0;
+    const badge = u ? `<span class="badge ud">${u}</span>` : '';
+    const lm = lastIn(p);
+    const tip = `${p} · last ${lm ? CH[lm.ch].s : ''} ${rel(st.near[p])} ago`;
+    const sel = st.sel === p;
+    if (V === 'b') {
+      const sn = !lm ? '' : lm.self ? (isAction(lm) ? 'You ' : 'You: ') + lm.body : lm.body;
+      return `<button class="ent${u ? ' unr' : ''}" type="button" data-p="${esc(p)}" data-u="${u}" aria-selected="${sel}" style="--pc:${pc(p)}"><span class="av">${esc(p[0])}</span><span class="et"><span class="r1"><b>${esc(p)}</b><span class="ago" data-rel="${st.near[p]}">${rel(st.near[p])}</span></span><span class="r2"><span class="sn">${esc(sn)}</span>${badge}</span></span></button>`;
+    }
+    return `<button class="ent" type="button" data-p="${esc(p)}" data-u="${u}" aria-selected="${sel}" title="${esc(tip)}" style="--pc:${pc(p)}"><span class="av">${esc(p[0])}${badge}</span>${V === 'c' ? `<span class="en">${esc(p)}</span>` : ''}</button>`;
+  }
+  function pubHTML() {
+    const badge = st.pub ? `<span class="badge ud">${st.pub > 99 ? '99+' : st.pub}</span>` : '';
+    const sel = st.sel === '';
+    if (V === 'b') {
+      const lm = lastPub();
+      const sn = lm ? (lm.self ? 'You: ' : lm.who + ': ') + lm.body : '';
+      return `<button class="ent${st.pub ? ' unr' : ''}" type="button" data-p="" aria-selected="${sel}"><span class="av pub">${ic('town')}</span><span class="et"><span class="r1"><b style="--pc:var(--lamp)">Public</b><span class="ago" data-rel="${st.pubLast}">${rel(st.pubLast)}</span></span><span class="r2"><span class="sn">${esc(sn)}</span>${badge}</span></span></button>`;
+    }
+    return `<button class="ent" type="button" data-p="" aria-selected="${sel}" title="Public channels" style="--pc:var(--lamp)"><span class="av pub">${ic('town')}${badge}</span>${V === 'c' ? '<span class="en">Public</span>' : ''}</button>`;
+  }
+  function renderSide(bump) {
+    const top = scl.scrollTop;
+    pubSlot.innerHTML = pubHTML();
+    const list = V === 'b' && st.q ? search(st.q, people()).ppl.map((x) => x.p) : people();
+    scl.innerHTML = list.map(entHTML).join('') || (V === 'b' ? '<div class="rhint" style="padding:8px 4px;font-size:12px">No one matches.</div>' : '');
+    scl.scrollTop = top;
+    if (bump != null && !REDUCED) col.querySelector(`[data-p="${CSS.escape(bump)}"] .ud`)?.classList.add('bump');
+    moreUpd();
+  }
+  function moreUpd() {
+    const top = scl.scrollTop, bot = top + scl.clientHeight;
+    let up = 0, dn = 0, upU = 0, dnU = 0;
+    for (const it of scl.children) {
+      const t = it.offsetTop, b = t + it.offsetHeight, u = +it.dataset.u || 0;
+      if (t < top - 2) { up++; upU += u; } else if (b > bot + 2) { dn++; dnU += u; }
+    }
+    scw.classList.toggle('fu', up > 0); scw.classList.toggle('fd', dn > 0);
+    const wide = V === 'b';
+    mu.hidden = !up; md.hidden = !dn;
+    mu.innerHTML = `${upU ? '<span class="u"></span>' : ''}↑${wide ? ' ' + up + ' newer' : up}`;
+    md.innerHTML = `${dnU ? '<span class="u"></span>' : ''}↓${wide ? ' ' + dn + ' older' : dn}`;
+    mu.title = `${up} newer chat${up === 1 ? '' : 's'}${upU ? ', unread' : ''}`;
+    md.title = `${dn} older chat${dn === 1 ? '' : 's'}${dnU ? ', unread' : ''}`;
+  }
+  scl.addEventListener('scroll', moreUpd, { passive: true });
+  mu.addEventListener('click', () => scl.scrollBy({ top: -scl.clientHeight * 0.8, behavior: REDUCED ? 'auto' : 'smooth' }));
+  md.addEventListener('click', () => scl.scrollBy({ top: scl.clientHeight * 0.8, behavior: REDUCED ? 'auto' : 'smooth' }));
+
+  // ---------- thread
+  function bubble(m, prev) {
+    let s = '';
+    if (!prev || m.ts - prev.ts > 300000) s += `<div class="tsep">${hm(m.ts)}</div>`;
+    const cont = prev && NEAR.has(prev.ch) && prev.self === m.self && m.ts - prev.ts <= 300000;
+    const act = isAction(m);
+    const txt = act ? `<span class="act">${m.self ? 'You' : esc(m.who)} ${esc(m.body)}</span>` : esc(m.body);
+    s += `<div class="bb ${m.self ? 'me' : 'them'}${cont ? ' cont' : ''}${m.ch === 'whispers' ? ' wh' : ''}${act ? ' em' : ''}" style="--pc:${pc(m.who)}"><div class="bt">${txt}</div><div class="bm"><span class="chn">${CH[m.ch].s}</span> · ${hm(m.ts)}</div></div>`;
+    return s;
+  }
+  function overheard(m, prev) {
+    let s = '';
+    if (!prev || m.ts - prev.ts > 300000) s += `<div class="tsep">${hm(m.ts)}</div>`;
+    const c = CH[m.ch];
+    if (V === 'a') return s + `<div class="oha" style="--cc:${c.c}" title="${c.label} · everyone can hear this"><span class="chp">${ic(m.ch)}${c.label}</span><span class="tx">'${esc(m.body)}'</span><time>${hm(m.ts)}</time></div>`;
+    if (V === 'b') return s + `<div class="ohb" style="--pc:${pc(m.who)};--cc:${c.c}" title="${c.label} · everyone can hear this"><div class="bt">${ic(m.ch)}${esc(m.body)}</div><div class="bm"><span class="chn">${c.s}</span> · ${hm(m.ts)}</div></div>`;
+    return s + `<div class="ohc" style="--cc:${c.c}" title="${c.label} · everyone can hear this"><span class="ml">${c.label}</span>${esc(m.body)}<time>${hm(m.ts)}</time></div>`;
+  }
+  const item = (m, prev) => (NEAR.has(m.ch) ? bubble(m, prev) : overheard(m, prev));
+  const prow = (m) => `<div class="pr${m.self ? ' self' : ''}" style="--cc:${CH[m.ch].c}" title="${CH[m.ch].label} · ${hm(m.ts)}">${ic(m.ch)}${lineHTML(m)}</div>`;
+  function renderThread() {
+    let h = '', prev = null;
+    if (st.sel) { for (const m of MSGS) if (inChat(m, st.sel)) { h += item(m, prev); prev = m; } }
+    else { for (const m of MSGS) if (!isPrivate(m) && !st.off[m.ch]) h += prow(m); }
+    st.prev = prev;
+    L.list.innerHTML = h || '<div class="empty">No messages yet.</div>';
+    L.bottom();
+  }
+  function renderLine() {
+    if (V === 'c' && st.sOpen) {
+      line.className = 'line search frost';
+      line.style.setProperty('--pc', 'var(--lamp)');
+      line.innerHTML = `${ic('search', 'sico')}<input id="c-q" type="search" placeholder="Search names and messages" autocomplete="off" spellcheck="false" value="${esc(st.q)}"><button class="ib" type="button" data-a="close" title="Close (Esc)">${ic('x')}</button>`;
+      sInput = line.querySelector('input');
+      return;
+    }
+    line.className = 'line reply frost';
+    const mag = V === 'c' ? `<button class="ib" type="button" data-a="search" title="Search (Ctrl+F)">${ic('search')}</button>` : '';
+    if (st.sel) { line.style.setProperty('--pc', pc(st.sel)); line.innerHTML = `${mag}<span class="pre">tell ${esc(st.sel)}</span><input id="${V}-in" placeholder="Reply…" autocomplete="off"><kbd>Enter</kbd>`; }
+    else { line.style.setProperty('--pc', 'var(--self)'); line.innerHTML = `${mag}<span class="pre">say</span><input id="${V}-in" placeholder="Say something…" autocomplete="off"><kbd>Enter</kbd>`; }
+  }
+  function renderChips() {
+    chips.hidden = !!st.sel;
+    if (!st.sel) chips.innerHTML = PUBLIC.map((c) => `<button class="chip" type="button" data-ch="${c}" aria-pressed="${!st.off[c]}" style="--cc:${CH[c].c}">${ic(c)}${CH[c].label}</button>`).join('');
+  }
+  function select(p) {
+    st.sel = p;
+    if (p) st.unread[p] = 0; else st.pub = 0;
+    if (p && !st.near[p]) { let t = 0; for (const m of MSGS) if (m.who === p) t = m.ts; st.near[p] = t; }
+    renderSide(); renderChips(); renderLine(); renderThread();
+    const e = scl.querySelector(`[aria-selected="true"]`);
+    if (e && (e.offsetTop < scl.scrollTop || e.offsetTop + e.offsetHeight > scl.scrollTop + scl.clientHeight)) { scl.scrollTop = e.offsetTop - 20; moreUpd(); }
+  }
+
+  // ---------- search
+  function renderResults(keep) {
+    const r = resEl(), top = r.scrollTop;
+    r.innerHTML = resultsHTML(st.q, people());
+    if (keep) r.scrollTop = top;
+  }
+  function setSearching() {
+    const on = V === 'b' ? !!st.q : V === 'c' ? st.sOpen : false;
+    main.classList.toggle('searching', on);
+    res.hidden = !on;
+  }
+  function openSearch() {
+    if (V === 'a') { ovl.hidden = false; sBtn.setAttribute('aria-pressed', 'true'); renderResults(); sInput.focus(); sInput.select(); }
+    else if (V === 'b') { sInput.focus(); sInput.select(); }
+    else { st.sOpen = true; renderLine(); setSearching(); renderResults(); sInput.focus(); sInput.select(); }
+  }
+  function closeSearch() {
+    st.q = '';
+    if (V === 'a') { ovl.hidden = true; sInput.value = ''; sBtn.setAttribute('aria-pressed', 'false'); }
+    else if (V === 'b') { sInput.value = ''; sField.querySelector('[data-a="clear"]').hidden = true; renderSide(); }
+    else { st.sOpen = false; renderLine(); }
+    setSearching();
+  }
+  function onQuery(v) {
+    st.q = v.trim();
+    if (V === 'b') { sField.querySelector('[data-a="clear"]').hidden = !st.q; renderSide(); }
+    setSearching(); renderResults();
+  }
+
+  // ---------- events
+  col.addEventListener('click', (e) => {
+    const b = e.target.closest('.ent'); if (!b) return;
+    select(b.dataset.p);
+  });
+  if (tog) tog.addEventListener('click', () => { body.classList.toggle('collapsed'); tog.title = body.classList.contains('collapsed') ? 'Show names' : 'Collapse to initials'; moreUpd(); });
+  if (sBtn) sBtn.addEventListener('click', () => (ovl.hidden ? openSearch() : closeSearch()));
+  if (ovl) ovl.addEventListener('click', (e) => { if (e.target.closest('[data-a="close"]')) closeSearch(); });
+  if (sField) sField.addEventListener('click', (e) => { if (e.target.closest('[data-a="clear"]')) { e.preventDefault(); closeSearch(); } });
+  hole.addEventListener('input', (e) => { if (e.target.matches('#a-q, #b-q, #c-q')) onQuery(e.target.value); });
+  hole.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && (st.q || st.sOpen || (ovl && !ovl.hidden))) { e.preventDefault(); closeSearch(); return; }
+    if (e.key !== 'Enter' || !e.target.matches('.line.reply input')) return;
+    const text = e.target.value.trim().replace(/\|/g, '/'); if (!text) return;
+    e.target.value = '';
+    push(mk(st.sel ? `tells|G|${st.sel}|${text}` : `says|G||${text}`, Date.now()));
+  });
+  line.addEventListener('click', (e) => {
+    if (e.target.closest('[data-a="search"]')) openSearch();
+    else if (e.target.closest('[data-a="close"]')) closeSearch();
+  });
+  main.addEventListener('click', (e) => {
+    const rp = e.target.closest('.rp');
+    if (rp) { closeSearch(); select(rp.dataset.p); return; }
+    const n = e.target.closest('.list .nm'); if (!n || st.sel) return;
+    if (String(window.getSelection?.() || '').length) return;
+    const w = n.dataset.who; if (!w || w === 'Gibur' || isEnemy(w)) return;
+    select(w);
+  });
+  chips.addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; st.off[b.dataset.ch] = !st.off[b.dataset.ch]; b.setAttribute('aria-pressed', String(!st.off[b.dataset.ch])); renderThread(); });
+
+  renderSide(); renderChips(); renderLine(); renderThread(); setSearching();
+  requestAnimationFrame(moreUpd);
+  return {
+    openSearch,
+    add(m) {
+      let bump = null;
+      const p = chatOf(m);
+      if (p) { st.near[p] = m.ts; if (!m.self && st.sel !== p) { st.unread[p] = (st.unread[p] || 0) + 1; bump = p; } }
+      if (!isPrivate(m)) { st.pubLast = m.ts; if (st.sel !== '') { st.pub++; if (bump == null) bump = ''; } }
+      const show = st.sel === '' ? !isPrivate(m) && !st.off[m.ch] : inChat(m, st.sel);
+      if (show) {
+        L.list.querySelector('.empty')?.remove();
+        if (st.sel) { L.append(item(m, st.prev)); st.prev = m; } else L.append(prow(m));
+      }
+      renderSide(bump);
+      if (st.q && (m.body.toLowerCase().includes(st.q.toLowerCase()) || m.who.toLowerCase().includes(st.q.toLowerCase()))) renderResults(true);
+    },
+    resize: moreUpd,
+  };
+}
+
+// ------------------------------------------------------------ boot
+let hoverC = null;
+document.querySelectorAll('.slot').forEach((slot) => {
+  const pane = el('div', 'pane');
+  pane.innerHTML = '<i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">Comm</span></div>';
+  const hole = el('div', 'hole'); pane.append(hole); slot.append(pane);
+  const api = Chat(hole, slot.dataset.v);
+  pane.addEventListener('mouseenter', () => { hoverC = api; });
+  pane.addEventListener('mouseleave', () => { if (hoverC === api) hoverC = null; });
+  subs.push(api);
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && hoverC) { e.preventDefault(); hoverC.openSearch(); }
+});
+addEventListener('resize', () => { for (const s of subs) s.resize && s.resize(); });
+setInterval(() => {
+  document.querySelectorAll('[data-rel]').forEach((x) => { const v = rel(+x.dataset.rel); if (x.textContent !== v) x.textContent = v; });
+}, 1000);
+
+const playBtn = document.getElementById('play'), live = document.getElementById('live'), liveTxt = document.getElementById('livetxt');
+playBtn.addEventListener('click', () => {
+  paused = !paused;
+  playBtn.textContent = paused ? 'Spela' : 'Pausa';
+  playBtn.setAttribute('aria-pressed', String(paused));
+  live.classList.toggle('paused', paused);
+  liveTxt.textContent = paused ? 'Pausad' : 'Live, ett nytt meddelande var 3–5 s';
+  if (!paused) schedule(); else clearTimeout(timer);
+});
+document.getElementById('nextnow').addEventListener('click', () => { clearTimeout(timer); refill(); push(mk(queue.shift(), Date.now())); schedule(); });
+schedule();
+</script>
