@@ -52,17 +52,17 @@ the merge.
 - [ ] 49b: theming (tints, Paper, border off, clear), reduced motion
 - [ ] 49b: e2e (header, tiles, list anchoring and `↓ N new`, card slide,
       calibrating, Paper)
-- [ ] 49c: column rail/list by pane width, pinned Public and Group, chat
+- [x] 49c: column rail/list by pane width, pinned Public and Group, chat
       list order and fill, edge fade and chevron
-- [ ] 49c: spine (hover, drag snaps, double-click, keys, touch) and fold
+- [x] 49c: spine (hover, drag snaps, double-click, keys, touch) and fold
       with the open-chat chip
-- [ ] 49c: thread: bubbles, overheard lines, own messages "Stilla ton",
+- [x] 49c: thread: bubbles, overheard lines, own messages "Stilla ton",
       bounded DOM, bottom anchoring
-- [ ] 49c: reply line (tell / say), hidden in players, replay and offline
-- [ ] 49c: search (magnifier, Ctrl+F, People and Messages)
-- [ ] 49c: gear popup and Options → Panes → Comm page
-- [ ] 49c: text selection and copy without stealing the game's keys
-- [ ] 49c: theming (tints, Paper, border off, clear)
+- [x] 49c: reply line (tell / say), hidden in players, replay and offline
+- [x] 49c: search (magnifier, Ctrl+F, People and Messages)
+- [x] 49c: gear popup and Options → Panes → Comm page
+- [x] 49c: text selection and copy without stealing the game's keys
+- [x] 49c: theming (tints, Paper, border off, clear)
 - [ ] 49c: e2e (chats open and order, Group roster, search, fold, gear,
       reply sends a tell, selection, Paper)
 - [ ] 49d: performance after, interleaved with `main`; table in this file;

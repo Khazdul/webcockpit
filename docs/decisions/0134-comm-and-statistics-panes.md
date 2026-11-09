@@ -203,3 +203,23 @@ cost is agreed first.
 - **Rating:** the median leaves out kills that gave no XP (a fold without
   an XP change); the Median tile shows the rating's median (the last 30
   mob kills). XP text is `fmtK`, already exact under 1000.
+
+## Addendum: 49c build notes (2026-11-09)
+
+- **Font:** Group and Timers draw in the pane's own font (the cockpit's
+  monospace), not the system UI stack the decision named; Comm does the
+  same, so the three panes match.
+- **Column mode:** from the pane's width in cells × the cell width (the
+  pane re-renders on every size change), not a ResizeObserver: no
+  measuring at all.
+- **Chevrons:** which chats are out of view (and whether one of them has
+  unread) comes from an IntersectionObserver on the rows, so the column
+  reads no layout per message.
+- **Thread:** the newest 200 messages of the open view are built; a scroll
+  near the top adds 200 more (AnchoredList builds only the ones put in
+  front and keeps the view). A gap of more than 5 minutes shows the time.
+- **Search results:** People first, then Messages newest first, at most
+  200, 120 ms after the last keystroke; they replace the thread.
+- **Selection:** a selection in the thread or the results is copied on
+  mouse up, as the output pane does; the game's keys still reach the game.
+- **Group unread:** a dot only, as decided; Public keeps a count.

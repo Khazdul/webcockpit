@@ -5,16 +5,16 @@
 // store at once and the pane follows live (ADR 0010).
 //
 //   Comm                         Timers                                   Group
-//   CHANNELS                     LOOK                                     Show players     [toggle]
+//   PUBLIC SHOWS                 LOOK                                     Show players     [toggle]
 //   ■ Narrates         [toggle]  Style         Bars|Circles               NPC visibility   Off|Labeled|All
 //   …  (ten channels)            Layout        Flow|Grid  · Grid columns  …
 //   ───────────────              Group headers, Time text
-//   Show channel header [toggle] ENDING SOON   Signal, Warn at, Soonest first
-//                                GROUPS        Shown  Colour  Layout (Default|Flow|Grid)
+//   PRIVATE CHATS                ENDING SOON   Signal, Warn at, Soonest first
+//   Active in the last …         GROUPS        Shown  Colour  Layout (Default|Flow|Grid)
 //
 // - Comm: a channel row (its swatch in the channel colour, grey when off)
-//   toggles on a click anywhere in it. A change cancels the pane's solo
-//   (the pane does that when the filters change from outside it).
+//   toggles on a click anywhere in it: the channels Public shows; then
+//   "Show chats active in the last" (ADR 0134).
 // - Timers (ADR 0122): the look (style, layout, grid columns, headers,
 //   time text), ending soon (signal, warn at, soonest first) and a row per
 //   group: shown, colour (ColorPicker; Auto shows the Timers pane's own
