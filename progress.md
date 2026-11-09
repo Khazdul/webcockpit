@@ -67,7 +67,9 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Round 3:** one design each (`comm-r3.html`, `stats-r3.html`).
 - **Round 4:** theming per tint/Paper/border/clear, Comm gear in the
   hover buttons, a Group entry (`comm-r4.html`, `stats-r4.html`).
-- **Next:** owner feedback on round 4; then a stage file for the build.
+- **Round 5:** Statistics r4 approved. Comm r5: three fold variants
+  (`comm-r5.html`).
+- **Next:** owner picks a Comm fold variant; then a stage file for the build.
 - **Open issues:** freeze or re-rate kill ratings; Comm message font.
 - **Commits:** this one.
 

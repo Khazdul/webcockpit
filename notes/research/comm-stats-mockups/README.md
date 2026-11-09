@@ -46,6 +46,13 @@ One design each after the owner's round-2 feedback.
 
 The owner approved `stats-r4.html` as is ("Statistics är perfekt").
 
+## Comm round 5 (2026-11-09)
+
+- `comm-r5.html` — three ways to fold the chat column away: A the owner's
+  idea (search + fold icons above Public), B a draggable spine, C hover
+  buttons and a drawer. Folded, a chip shows the open chat.
+  Artifact: https://claude.ai/artifact/WxL2EFps5GFkzWCRH5pxEb
+
 ## Owner brief
 
 - Comm: total rework. Channel filtering (e.g. the most recently active

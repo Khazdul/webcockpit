@@ -1,0 +1,1609 @@
+<title>Comm Round Five</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<style>
+/* Layout: Samtal round 4: a sticky bar with the live controls and the pane look (tint, Dark/Paper, border, glass/clear, what lies behind),
+   then "stages" that paint what is behind the panes; the Comm pane (resizable) beside a reference Timers pane, then Comm at two fixed widths.
+   The page chrome stays dark; only the stages follow the chosen background. */
+:root {
+  color-scheme: dark;
+  --page: #0b0b0c;
+  --ink: #d9d5cc;
+  --muted: #8e897f;
+  --rule: #23252a;
+  --accent: #d4b67c;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+}
+body { background: var(--page); color: var(--ink); font: 16px/1.5 var(--body); margin: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 31; background: var(--page); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 80px; }
+.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: .05em; color: #f1ebde; text-wrap: balance; }
+.intro p { margin: 8px 0 0; color: var(--muted); max-width: 70ch; }
+.rules { margin: 18px 0 0; padding: 12px 16px; border-radius: 6px; background: #121214; border: 1px solid var(--rule); max-width: 80ch; }
+.rules h2 { margin: 0 0 6px; font: 600 15px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.rules ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+.rules li::marker { color: var(--accent); }
+.rules .ask { color: #f1ebde; }
+
+/* control bar */
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; display: grid; gap: 8px; padding: 10px 0; margin-top: 22px; background: var(--page); border-bottom: 1px solid var(--rule); }
+.crow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 5px; border: 1px solid var(--rule); background: #151517; color: var(--ink); font-size: 14px; }
+.btn:hover { border-color: #3c3e44; }
+.btn:focus-visible, .sw:focus-visible, .seg2 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: #6fcf7f; box-shadow: 0 0 6px #6fcf7f; }
+.live.paused i { background: #6a6a6a; box-shadow: none; }
+.grp { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.sws { display: inline-flex; gap: 4px; }
+.sw { all: unset; cursor: pointer; width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); position: relative; }
+.sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--page), 0 0 0 3.5px var(--accent); }
+.seg2 { display: inline-flex; border: 1px solid var(--rule); border-radius: 5px; overflow: hidden; }
+.seg2 button { all: unset; cursor: pointer; padding: 2px 9px; font-size: 13px; color: var(--muted); }
+.seg2 button + button { border-left: 1px solid var(--rule); }
+.seg2 button[aria-pressed="true"] { background: #24252a; color: #f1ebde; }
+
+/* sections */
+section.c { padding: 30px 0; border-bottom: 1px solid var(--rule); scroll-margin-top: 110px; }
+.cap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 36px; margin-top: 18px; }
+@media (max-width: 860px) { .cap { grid-template-columns: minmax(0, 1fr); } }
+.cap h2 { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 12px; margin: 0; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: .05em; color: #f1ebde; }
+.cap h2 span { color: var(--accent); font-size: 26px; }
+.cap ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 15px; align-content: start; }
+.cap li::marker { color: var(--accent); }
+.cap .try { margin: 0; padding: 10px 13px; border-radius: 5px; background: #131315; font-size: 15px; align-self: start; }
+.cap .try b { color: var(--accent); }
+.sz { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 13px; color: var(--muted); max-width: 520px; }
+.sz input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.sz output { font: 12px var(--mono); color: var(--ink); min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- the stage: what lies behind the panes */
+.stage { --cw: 9px; --ch: 17px; position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 26px 30px; padding: 24px 18px; border-radius: 8px; overflow: hidden;
+  background: #000; box-shadow: inset 0 0 0 1px var(--rule); }
+body[data-light] .stage { background: #f4ecd8; }
+body[data-behind="sky"] .stage { background:
+  radial-gradient(1.2px 1.2px at 12% 18%, #fff 50%, transparent), radial-gradient(1px 1px at 33% 9%, #dfe6ff 50%, transparent), radial-gradient(1.4px 1.4px at 71% 14%, #fff 50%, transparent),
+  radial-gradient(1px 1px at 88% 31%, #fff 50%, transparent), radial-gradient(1px 1px at 52% 27%, #cfd8ff 50%, transparent), radial-gradient(1.2px 1.2px at 22% 46%, #fff 50%, transparent),
+  radial-gradient(60% 50% at 78% 12%, rgba(120,140,220,.28), transparent), linear-gradient(180deg, #0a1030 0%, #1d2a5c 45%, #3b3f73 75%, #6b5476 100%); }
+body[data-light][data-behind="sky"] .stage { background:
+  radial-gradient(40% 30% at 22% 20%, rgba(255,255,255,.75), transparent), radial-gradient(30% 22% at 70% 34%, rgba(255,255,255,.6), transparent),
+  linear-gradient(180deg, #5f9bd6 0%, #8fbde6 45%, #cfe3f1 80%, #f3e9cf 100%); }
+.fw { position: relative; width: var(--w, 440px); max-width: 100%; }
+.grip { position: absolute; top: 50%; right: -9px; z-index: 8; width: 8px; height: 54px; transform: translateY(-50%); border-radius: 4px; cursor: ew-resize; touch-action: none;
+  background: linear-gradient(90deg, #5a554c, #2c2a26); box-shadow: 0 0 0 1px #000; }
+.grip::after { content: ""; position: absolute; inset: 14px 2px; background: repeating-linear-gradient(180deg, rgba(255,230,180,.55) 0 1px, transparent 1px 5px); }
+.ro { display: block; width: fit-content; margin: 10px auto 0; padding: 1px 9px; border-radius: 9px; font: 12px var(--mono); color: #e8e3d8; background: rgba(0,0,0,.6); text-align: center; font-variant-numeric: tabular-nums; }
+.ro b { color: var(--accent); font-weight: 600; }
+figure { margin: 0; max-width: 100%; }
+.reflab { display: block; width: fit-content; margin: 10px auto 0; padding: 1px 9px; border-radius: 9px; font: 12px var(--body); color: #e8e3d8; background: rgba(0,0,0,.6); }
+
+/* =====================================================================
+   Pane tokens, as layout.css derives them from --pane-border (ADR 0123).
+   The stage carries --pane-border, --pane-bg and --pane-fill for the chosen tint (set by the page script, as src/theme/apply.ts does).
+   ===================================================================== */
+.pane {
+  --lamp-w: min(hypot(a, b) * 60, 1);
+  --lamp: oklab(from var(--pane-border) 0.78
+      calc(a / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0291 * (1 - 0.6 * var(--lamp-w)))
+      calc(b / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0799 * (1 - 0.6 * var(--lamp-w))));
+  --iron: oklch(from var(--pane-border) 0.25 min(calc(c * 3), 0.03) h);
+  --iron-hi: oklch(from var(--pane-border) 0.42 min(calc(c * 3), 0.035) h);
+  --iron-lo: oklch(from var(--pane-border) 0.14 min(calc(c * 3), 0.02) h);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --card-back: transparent;
+  --window-base: var(--pane-bg);
+  --vignette: rgb(0 0 0 / 0.55);
+  /* content tokens, dark side: the text takes a breath of the lamp so it sits in the tint */
+  --fg: color-mix(in srgb, #d9d4c9 88%, var(--lamp));
+  --dim: color-mix(in srgb, #8c877d 76%, var(--lamp));
+  --hot: #f4efe5;
+  --self: color-mix(in oklab, var(--lamp) 62%, #fff1cf);
+  --me-ink: #fff4de;
+  --mention: #f0b84f;
+  --enemy: #e2685c;
+  --soon: #ff4a3d;
+  --card: color-mix(in srgb, var(--lamp) 8%, var(--card-back));
+  --card-hi: color-mix(in srgb, var(--lamp) 13%, var(--card-back));
+  --card-lit: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent);
+  --card-drop: 0 1px 2px rgb(0 0 0 / 0.45);
+  --bub-base: var(--card-back);
+  --bub-a: 22%;
+  --bub-b: 10%;
+  --badge-bg: var(--mention);
+  --badge-ink: #170f03;
+  --sel: color-mix(in srgb, var(--lamp) 42%, transparent);
+  --sel-ink: #fff;
+  --rule2: linear-gradient(90deg, transparent, var(--frost-edge), transparent);
+  --btn-ink: color-mix(in srgb, oklch(from var(--pane-border) 0.94 min(calc(c * 3), 0.028) h) 70%, transparent);
+  --btn-hot: #e8c06c;
+  --label-shade: hsl(from var(--pane-border) h s 60%);
+}
+body[data-clear] .pane { --card-back: color-mix(in srgb, var(--pane-fill) 62%, transparent); --window-base: transparent; }
+body[data-behind="sky"]:not([data-clear]) .pane { --window-base: color-mix(in srgb, var(--pane-bg) 55%, transparent); }
+
+/* Paper: pewter and brass (ADR 0123 "Paper") */
+body[data-light] .pane {
+  --iron: oklch(from var(--pane-border) 0.66 min(calc(c * 1.15), 0.07) h);
+  --iron-hi: oklch(from var(--pane-border) 0.88 min(calc(c * 0.8), 0.05) h);
+  --iron-lo: oklch(from var(--pane-border) 0.36 min(calc(c * 0.6), 0.04) h);
+  --engrave: oklch(from var(--pane-border) 0.24 min(calc(c * 0.5), 0.035) h / 0.85);
+  --ink2: oklch(from var(--pane-border) 0.3 min(calc(c * 0.9), 0.06) h);
+  --shade: color-mix(in srgb, color-mix(in oklab, oklch(from var(--pane-border) 0.48 min(calc(c * 1.2), 0.07) h), #7a5a2a) 20%, transparent);
+  --metal: linear-gradient(180deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.05) 55%, rgb(0 0 0 / 0.08)), var(--iron);
+  --metal-drop: 0 1px 3px rgb(50 35 10 / 0.3);
+  --frost2: rgb(0 0 0 / 0.06);
+  --frost-edge: color-mix(in srgb, var(--iron-lo) 45%, transparent);
+  --vignette: transparent;
+  --fg: oklch(from var(--pane-border) 0.27 min(calc(c * 0.6), 0.03) h);
+  --dim: oklch(from var(--pane-border) 0.46 min(calc(c * 0.8), 0.045) h);
+  --hot: oklch(from var(--pane-border) 0.19 min(calc(c * 0.6), 0.03) h);
+  --self: oklch(from var(--pane-border) 0.45 min(calc(c * 1.6), 0.09) h);
+  --me-ink: var(--hot);
+  --mention: #8a5a0e;
+  --enemy: #a8322a;
+  --soon: #b3261e;
+  --card: color-mix(in srgb, #fffdf8 92%, var(--card-back));
+  --card-hi: color-mix(in srgb, #ffffff 96%, var(--card-back));
+  --card-lit: 0 0 transparent;
+  --card-drop: 0 1px 2px rgb(60 40 10 / 0.22);
+  --bub-base: color-mix(in srgb, #fffdf8 90%, var(--card-back));
+  --bub-a: 16%;
+  --bub-b: 9%;
+  --badge-bg: var(--mention);
+  --badge-ink: #fffaf0;
+  --sel: color-mix(in srgb, var(--self) 30%, transparent);
+  --sel-ink: var(--hot);
+  --btn-ink: color-mix(in srgb, var(--ink2) 80%, transparent);
+  --btn-hot: #8a5a0e;
+  --label-shade: hsl(from var(--pane-border) h s 34%);
+}
+
+/* ---------- the frame (dark): iron band, brackets, hood, lamp-lit window */
+.pane { position: relative; box-sizing: border-box; width: 100%; height: 560px; padding: 5px; border-radius: 3px; border: 1px solid #000; container-type: inline-size;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo), 0 0 4px 1px color-mix(in srgb, var(--lamp) 26%, transparent); }
+.pane.small { height: 330px; }
+.fx { position: absolute; z-index: 4; width: 13px; height: 13px; pointer-events: none;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat, linear-gradient(135deg, var(--iron-hi), color-mix(in srgb, var(--iron-hi) 65%, var(--iron)) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%); box-shadow: inset 1px 1px 0 rgba(255,255,255,.18); }
+.f1 { top: 0; left: 0; } .f2 { top: 0; right: 0; transform: scaleX(-1); } .f3 { bottom: 0; left: 0; transform: scaleY(-1); } .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+.plate { position: absolute; top: 0; left: 0; height: 16px; padding: 0 14px; border-radius: 0 0 6px 6px; z-index: 5; display: flex; align-items: center; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 5px rgba(0,0,0,.5); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 6px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.plate::before { left: 5px; } .plate::after { right: 5px; }
+.pt { font-family: var(--display); font-weight: 700; font-size: 11.75px; letter-spacing: .08em; line-height: 13px; padding-top: 1px; color: color-mix(in srgb, var(--lamp) 75%, #fff); transition: opacity .15s;
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+.pane[data-cover]:hover .pt, body[data-btns="on"] .pane[data-cover] .pt { opacity: .15; }
+.hole { position: relative; height: 100%; box-sizing: border-box; padding: 17px 7px 7px; border: 1px solid #000; border-radius: 1px; overflow: hidden; display: flex; flex-direction: column; gap: 6px; color: var(--fg); font: 14px/1.38 var(--body);
+  background: radial-gradient(38% 44px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%), var(--window-base);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 22px var(--vignette); }
+body[data-behind="sky"]:not([data-clear]) .hole { -webkit-backdrop-filter: blur(2.5px) saturate(1.25); backdrop-filter: blur(2.5px) saturate(1.25); }
+.hole ::selection { background: var(--sel); color: var(--sel-ink); }
+/* clear */
+body[data-clear] .pane { box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo), 0 0 5px 1px color-mix(in srgb, var(--lamp) 36%, transparent); }
+body[data-clear] .hole { background: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 22%, transparent), inset 0 0 17px color-mix(in srgb, var(--lamp) 24%, transparent); }
+/* borderless: no iron, hood or brackets; the window light stays on the pane's own background */
+body[data-frame="off"] .pane { padding: 0; border: 0; border-radius: 0; background: var(--window-base); box-shadow: none; }
+body[data-frame="off"] .fx, body[data-frame="off"] .plate { display: none; }
+body[data-frame="off"] .hole { border: 0; padding-top: 7px; background: radial-gradient(38% 44px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%);
+  box-shadow: inset 0 0 17px color-mix(in srgb, var(--vignette) 82%, transparent); }
+body[data-frame="off"][data-clear] .pane, body[data-frame="off"][data-clear] .hole { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Paper frame: light metal, engraved, parchment window, no glow */
+body[data-light] .pane { border-color: var(--engrave); background: var(--iron);
+  box-shadow: inset 1px 1px 0 rgb(255 255 255 / .75), inset -1px -1px 0 color-mix(in srgb, var(--iron-lo) 45%, transparent), var(--metal-drop); }
+body[data-light] .fx { background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--iron-hi) 70%, transparent) 0 .5px, var(--iron-lo) .9px 1.6px, transparent 2.2px) 0 0 / 5px 5px no-repeat, linear-gradient(135deg, var(--iron-hi), color-mix(in srgb, var(--iron-hi) 55%, var(--iron)) 70%);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.5); }
+body[data-light] .plate { background: var(--metal); box-shadow: inset 0 -1px 0 rgb(255 255 255 / .7), 0 0 0 1px var(--engrave), var(--metal-drop); }
+body[data-light] .plate::before, body[data-light] .plate::after { background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.6); }
+body[data-light] .pt { color: var(--ink2); text-shadow: 0 1px 0 rgb(255 255 255 / .7); }
+body[data-light] .hole { border-color: var(--engrave);
+  background: radial-gradient(42% 51px at 50% 0, rgb(255 255 255 / .45), transparent),
+    radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / .42), rgb(255 253 245 / .26) 60%, rgb(255 253 245 / .2)), var(--window-base);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--iron-lo) 35%, transparent), inset 0 0 20px var(--shade); }
+body[data-light][data-clear] .pane { box-shadow: inset 1px 1px 0 rgb(255 255 255 / .75), inset -1px -1px 0 color-mix(in srgb, var(--iron-lo) 45%, transparent), var(--metal-drop); }
+body[data-light][data-clear] .hole { background: none; box-shadow: inset 0 1px 1px color-mix(in srgb, var(--iron-lo) 35%, transparent), inset 0 0 14px color-mix(in srgb, var(--shade) 70%, transparent); }
+body[data-light][data-frame="off"] .pane { background: var(--window-base); box-shadow: none; border: 0; }
+body[data-light][data-frame="off"] .hole { border: 0; background: radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / .4), rgb(255 253 245 / .24) 60%, rgb(255 253 245 / .18));
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--shade) 80%, transparent); }
+body[data-light][data-frame="off"][data-clear] .pane, body[data-light][data-frame="off"][data-clear] .hole { background: none; box-shadow: none; }
+
+/* ---------- the hover set (ADR 0095, layout.css): Gear, Colour, Border, Background, × right of the hood, under the band */
+.pb, .px { all: unset; position: absolute; top: 6px; height: calc(var(--ch) - 6px); right: var(--cw); z-index: 7; display: none; cursor: pointer; box-sizing: border-box;
+  font: 11.5px/1 var(--mono); color: var(--btn-ink); text-shadow: 0 1px 0 rgb(0 0 0 / .6); user-select: none; }
+.pb { right: calc((4 + 2 * var(--slot)) * var(--cw)); width: calc(2 * var(--cw)); align-items: center; justify-content: center; --icon: .66em; }
+.px { width: calc(3 * var(--cw)); text-align: center; line-height: calc(var(--ch) - 6px); }
+.pb > * { filter: drop-shadow(0 1px 0 rgb(0 0 0 / .6)); transform: translateY(.14em); }
+.pane:hover > .pb, body[data-btns="on"] .pane > .pb { display: flex; }
+.pane:hover > .px, body[data-btns="on"] .pane > .px { display: block; }
+.pb:hover, .px:hover, .pb[data-open] { color: var(--btn-hot); }
+.pb:focus-visible, .px:focus-visible { outline: 1px solid var(--btn-hot); outline-offset: 0; }
+.pb svg { width: var(--icon); height: var(--icon); overflow: visible; }
+.pb-border:not([data-on]) svg { opacity: .4; }
+.pb-glass svg .g-glass { fill-opacity: .72; }
+.pb-glass[data-on] svg .g-clear, .pb-glass:not([data-on]) svg .g-glass { display: none; }
+.wheel { --wl: .74; --wc: .075; display: block; width: var(--icon); height: var(--icon); border-radius: 50%; opacity: .8;
+  background: radial-gradient(circle closest-side, oklch(from var(--pane-border) var(--wl) min(calc(c * 8), .12) h) 0 44%, transparent 45%),
+    conic-gradient(oklch(var(--wl) var(--wc) 25), oklch(var(--wl) var(--wc) 85), oklch(var(--wl) var(--wc) 145), oklch(var(--wl) var(--wc) 205), oklch(var(--wl) var(--wc) 265), oklch(var(--wl) var(--wc) 325), oklch(var(--wl) var(--wc) 25));
+  -webkit-mask: radial-gradient(circle closest-side, #000 0 44%, transparent 46% 58%, #000 60% 97%, transparent 100%); mask: radial-gradient(circle closest-side, #000 0 44%, transparent 46% 58%, #000 60% 97%, transparent 100%); }
+body[data-light] .wheel { --wl: .62; --wc: .09; }
+.pb-color:hover .wheel { opacity: 1; --wc: .11; }
+body[data-light] .pb, body[data-light] .px { text-shadow: 0 1px 0 rgb(255 255 255 / .6); }
+body[data-light] .pb > * { filter: drop-shadow(0 1px 0 rgb(255 255 255 / .6)); }
+body[data-frame="off"] .pb, body[data-frame="off"] .px { top: 0; height: var(--ch); color: var(--label-shade); text-shadow: 0 0 2px var(--pane-fill), 0 0 1px var(--pane-fill); }
+body[data-frame="off"] .px { right: 0; line-height: var(--ch); }
+body[data-frame="off"] .pb { right: calc((3 + 2 * var(--slot)) * var(--cw)); }
+body[data-frame="off"] .pb > * { filter: drop-shadow(0 0 1px var(--pane-fill)); transform: none; }
+body[data-frame="off"] .pb:hover, body[data-frame="off"] .px:hover, body[data-frame="off"] .pb[data-open] { color: var(--btn-hot); }
+/* borderless hover outline (ADR 0084) */
+body[data-frame="off"] .pane:hover { outline: 1px solid color-mix(in srgb, var(--label-shade) 45%, transparent); outline-offset: -1px; }
+
+/* ---------- the gear popup: the ghost surface of the real gear popups (ADR 0107, --sf-* from the page background) */
+.gp { position: fixed; z-index: 40; box-sizing: border-box; width: 260px; max-height: calc(100vh - 16px); overflow: auto; border: 1px solid var(--sf-border); border-radius: 5px;
+  background: var(--sf-bg); box-shadow: var(--sf-shadow); color: var(--sf-fg); color-scheme: var(--sf-scheme); font: 13px/1.23 var(--mono); user-select: none; scrollbar-width: thin; }
+.gp[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) { .gp:not([hidden]) { animation: gpin .12s ease-out; } }
+@keyframes gpin { from { opacity: 0; transform: translateY(-3px); } }
+.gp button { all: unset; box-sizing: border-box; cursor: pointer; }
+.gp button:focus-visible, .gp .ck-row:focus-visible { outline: 1px solid var(--sf-focus); }
+.gp-head { display: flex; align-items: center; justify-content: space-between; height: 2.3em; padding: 0 .46em 0 .92em; }
+.gp-title { color: var(--sf-dim); font-size: .846em; letter-spacing: .08em; text-transform: uppercase; }
+.gp-x { display: flex; align-items: center; justify-content: center; width: 1.7em; height: 1.7em; border-radius: 3px; color: var(--sf-dim); }
+.gp-x:hover { background: var(--sf-hover); color: var(--sf-hot); }
+.gp-x svg { width: .846em; height: .846em; }
+.ck-sub { padding: .3em 1.077em .23em; color: var(--sf-faint); font-size: .846em; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.ck-row { display: flex; align-items: center; justify-content: space-between; gap: .92em; min-height: 1.92em; padding: 0 1.077em; cursor: pointer; }
+.ck-row:hover { background: var(--sf-hover); }
+.ck-l { display: flex; align-items: center; gap: .69em; min-width: 0; color: var(--sf-fg); }
+.ck-row.off .ck-l { color: var(--sf-faint); }
+.ck-sw { flex: none; width: .69em; height: .69em; border-radius: 2px; }
+.tg { position: relative; flex: none; box-sizing: border-box; width: 2em; height: 1.077em; border: 1px solid var(--sf-border); border-radius: .54em; background: var(--sf-field); }
+.tg i { position: absolute; top: .154em; left: .154em; width: .615em; height: .615em; border-radius: 50%; background: var(--sf-off); }
+.tg.on { border-color: var(--sf-on-track); background: var(--sf-on-track); }
+.tg.on i { left: 1.077em; background: var(--sf-on-knob); }
+.ck-sep { margin: .31em 0; border-top: 1px solid var(--sf-line); }
+.ck-col { display: grid; gap: .46em; padding: .3em 1.077em .4em; }
+.ck-col .lab { color: color-mix(in srgb, var(--sf-dim) 70%, var(--sf-fg)); }
+.sgs { display: flex; width: fit-content; overflow: hidden; border: 1px solid var(--sf-border); border-radius: 3px; }
+.gp .sg { height: 1.69em; padding: 0 .7em; border-left: 1px solid var(--sf-border); color: var(--sf-dim); line-height: 1.69em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gp .sg:first-child { border-left: 0; }
+.gp .sg:hover { background: var(--sf-hover); color: var(--sf-fg); }
+.gp .sg.on { background: var(--sf-raised); color: var(--sf-hot); }
+.ck-help { padding: .1em 1.077em .9em; color: var(--sf-faint); font-size: .846em; line-height: 1.3; }
+
+/* ---------- Comm content */
+.i { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.cb { position: relative; flex: 1; min-height: 0; display: grid; gap: 6px; }
+.cb { grid-template-columns: var(--colw, 42px) minmax(0, 1fr); transition: grid-template-columns .24s cubic-bezier(.3,.7,.3,1), column-gap .24s; }
+.cb.folded { grid-template-columns: 0px minmax(0, 1fr); column-gap: 0; }
+.cb.v-B { grid-template-columns: var(--colw, 42px) 12px minmax(0, 1fr); column-gap: 0; }
+.cb.v-B.folded { grid-template-columns: 0px 12px minmax(0, 1fr); }
+.cb.dragging { transition: none; }
+.cb > .col { grid-column: 1; grid-row: 1; }
+.cb > .main { grid-column: -2 / -1; grid-row: 1; }
+.cb > .spine { grid-column: 2; grid-row: 1; }
+@media (prefers-reduced-motion: reduce) { .cb { transition: none; } }
+.cb.folded .col { overflow: hidden; }
+.cb.folded:not(.drawer) .col { visibility: hidden; transition: visibility 0s .24s; }
+@media (prefers-reduced-motion: reduce) { .cb.folded:not(.drawer) .col { transition: none; } }
+.cb-b .rail-only, .cb-a .list-only { display: none !important; }
+.col { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
+.col-sep { height: 1px; flex: none; margin: 1px 4px; background: var(--rule2); }
+.scw { position: relative; flex: 1; min-height: 0; display: flex; }
+.scl { position: relative; flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; display: flex; flex-direction: column; gap: 3px; padding: 4px 0 2px; }
+.scl::-webkit-scrollbar { display: none; }
+.scl > :first-child { margin-top: auto; }
+/* the scroll hint: a stronger fade and a quiet chevron inside it, no counts */
+.scw.fu .scl { -webkit-mask-image: linear-gradient(transparent, rgb(0 0 0 / .35) 14px, #000 40px); mask-image: linear-gradient(transparent, rgb(0 0 0 / .35) 14px, #000 40px); }
+.scw.fd .scl { -webkit-mask-image: linear-gradient(#000 calc(100% - 40px), rgb(0 0 0 / .35) calc(100% - 14px), transparent); mask-image: linear-gradient(#000 calc(100% - 40px), rgb(0 0 0 / .35) calc(100% - 14px), transparent); }
+.scw.fu.fd .scl { -webkit-mask-image: linear-gradient(transparent, rgb(0 0 0 / .35) 14px, #000 40px, #000 calc(100% - 40px), rgb(0 0 0 / .35) calc(100% - 14px), transparent);
+  mask-image: linear-gradient(transparent, rgb(0 0 0 / .35) 14px, #000 40px, #000 calc(100% - 40px), rgb(0 0 0 / .35) calc(100% - 14px), transparent); }
+.chv { all: unset; position: absolute; left: 50%; z-index: 2; width: 22px; height: 12px; margin-left: -11px; display: grid; place-items: center; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .2s;
+  color: color-mix(in srgb, var(--lamp) 55%, var(--dim)); }
+body[data-light] .chv { color: color-mix(in srgb, var(--self) 60%, var(--dim)); }
+.chv.on { opacity: .75; pointer-events: auto; }
+.chv:hover { opacity: 1; color: var(--hot); }
+.chv svg { width: 14px; height: 8px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.chv.up { top: 1px; } .chv.dn { bottom: 1px; }
+.chv .u { position: absolute; top: 1px; right: 0; width: 4px; height: 4px; border-radius: 50%; background: var(--mention); box-shadow: 0 0 4px var(--mention); }
+@media (prefers-reduced-motion: no-preference) { .chv.up.on { animation: nudge-u 2.4s ease-in-out 2; } .chv.dn.on { animation: nudge-d 2.4s ease-in-out 2; } }
+@keyframes nudge-u { 0%, 70%, 100% { transform: none; } 82% { transform: translateY(-2px); } }
+@keyframes nudge-d { 0%, 70%, 100% { transform: none; } 82% { transform: translateY(2px); } }
+
+/* entries */
+.ent { all: unset; position: relative; flex: none; cursor: pointer; display: grid; justify-items: center; gap: 1px; padding: 5px 0; border-radius: 5px; background: var(--card-back); }
+.ent:hover { background: color-mix(in srgb, var(--lamp) 5%, var(--card-back)); }
+body[data-light] .ent:hover { background: color-mix(in srgb, #fffdf8 70%, var(--card-back)); }
+.ent:focus-visible { outline: 1px solid var(--lamp); outline-offset: -1px; }
+.ent.dimmed { opacity: .38; }
+.av { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 14px/1 var(--display); color: var(--pc);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--pc) 32%, transparent), color-mix(in srgb, var(--pc) 8%, transparent));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pc) 70%, transparent), 0 0 12px -3px color-mix(in srgb, var(--pc) 60%, transparent); }
+body[data-light] .av { background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--pc) 16%, #fffdf8), color-mix(in srgb, var(--pc) 6%, #fffdf8));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pc) 75%, transparent), 0 1px 2px rgb(60 40 10 / .25); }
+.av.pub, .av.grp { --pc: var(--self); }
+.av .i { width: 16px; height: 16px; }
+.badge { display: inline-block; min-width: 15px; height: 15px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--badge-bg); color: var(--badge-ink); font: 700 10px/15px var(--mono); text-align: center; }
+.ent .badge.ud { position: absolute; top: -4px; right: -6px; }
+.dot { position: absolute; top: -1px; right: -1px; width: 7px; height: 7px; border-radius: 50%; background: var(--badge-bg); box-shadow: 0 0 0 1.5px var(--pane-fill), 0 0 5px var(--badge-bg); }
+.bump { animation: bump .9s ease-out; }
+@keyframes bump { 0% { transform: scale(1.55); } 100% { transform: scale(1); } }
+.ent[aria-selected="true"] .av { box-shadow: inset 0 0 0 1.5px var(--pc), 0 0 0 2px var(--pane-fill), 0 0 0 3px color-mix(in srgb, var(--pc) 70%, transparent), 0 0 14px -2px var(--pc); }
+.cb-a .ent[aria-selected="true"]::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 0 2px 2px 0; background: var(--pc, var(--lamp)); box-shadow: 0 0 6px var(--pc, var(--lamp)); }
+.cb-a .ent.pub-e::before, .cb-a .ent.grp-e::before { --pc: var(--self); }
+.cb-b .ent { grid-template-columns: 24px minmax(0, 1fr); gap: 6px; align-items: center; justify-items: stretch; padding: 5px 6px 5px 4px; }
+.cb-b .av { width: 24px; height: 24px; font-size: 12px; }
+.cb-b .av .i { width: 13px; height: 13px; }
+.cb-b .ent[aria-selected="true"] { background: var(--card); box-shadow: var(--card-lit), inset 0 0 0 1px var(--frost2), var(--card-drop); }
+.cb-b .ent .badge.ud { position: static; justify-self: end; }
+.cb-b .ent .dot { position: static; flex: none; box-shadow: 0 0 5px var(--badge-bg); }
+.cb-b .ent[aria-selected="true"] .av { box-shadow: inset 0 0 0 1.5px var(--pc), 0 0 10px -2px var(--pc); }
+body[data-light] .cb-b .ent[aria-selected="true"] .av { box-shadow: inset 0 0 0 1.5px var(--pc), 0 1px 2px rgb(60 40 10 / .25); }
+.et { display: grid; min-width: 0; line-height: 1.2; }
+.et .r1 { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.et b { color: var(--pc); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.et .r2 { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.sn { flex: 1; min-width: 0; font-size: 11.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ent.unr .sn { color: var(--fg); }
+.ago { flex: none; font: 10px var(--mono); color: var(--dim); }
+
+/* the search button: round when idle, a field when open; always at the bottom of the column */
+.sx { position: relative; z-index: 9; flex: none; box-sizing: border-box; display: flex; align-items: center; width: 28px; height: 28px; border-radius: 14px; overflow: hidden;
+  background: var(--card); box-shadow: var(--card-lit), inset 0 0 0 1px var(--frost-edge), var(--card-drop); transition: width .22s cubic-bezier(.3,.7,.3,1), border-radius .22s; }
+.cb-a .sx { margin: 0 auto; }
+.sx.open { width: var(--sxw, 160px); border-radius: 8px; }
+/* open over the reply line in the rail: an opaque field, as the results' sheet */
+.cb-a .sx.open { background: color-mix(in srgb, var(--pane-fill) 92%, var(--lamp)); }
+body[data-light] .cb-a .sx.open { background: color-mix(in srgb, #fffdf8 96%, var(--pane-fill)); }
+.sxb { all: unset; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; color: var(--dim); }
+.sxb:hover, .sx.open .sxb { color: var(--hot); }
+.sxb:focus-visible { outline: 1px solid var(--lamp); outline-offset: -2px; }
+.sxb .i { width: 15px; height: 15px; }
+.sx input { all: unset; flex: 1; min-width: 0; font: 13px var(--body); color: var(--hot); opacity: 0; transition: opacity .15s .08s; }
+.sx input::placeholder { color: var(--dim); }
+.sx input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.sx .sxc { all: unset; flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-right: 3px; border-radius: 4px; color: var(--dim); cursor: pointer; opacity: 0; }
+.sx .sxc:hover { color: var(--hot); background: var(--frost2); }
+.sx.open input, .sx.open .sxc { opacity: 1; }
+.sx:not(.open) input, .sx:not(.open) .sxc { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .sx, .sx input { transition: none; } }
+
+/* ---------- round 5: fold controls, the "here" chip, the spine, the drawer */
+.fb { all: unset; position: relative; flex: none; box-sizing: border-box; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 14px; cursor: pointer; color: var(--dim);
+  background: var(--card); box-shadow: var(--card-lit), inset 0 0 0 1px var(--frost-edge), var(--card-drop); }
+.fb:hover { color: var(--hot); }
+.fb:focus-visible, .here:focus-visible, .stab:focus-visible { outline: 1px solid var(--lamp); outline-offset: 1px; }
+.fb .i { width: 15px; height: 15px; }
+.udot { position: absolute; top: -1px; right: -1px; width: 6px; height: 6px; border-radius: 50%; background: var(--mention); box-shadow: 0 0 0 1.5px var(--pane-fill), 0 0 5px var(--mention); pointer-events: none; }
+body[data-clear] .udot { box-shadow: 0 0 5px var(--mention); }
+.ctop { flex: none; display: flex; align-items: center; gap: 5px; padding: 0 0 2px; }
+.cb-a .ctop { flex-direction: column; gap: 4px; }
+.ctop .sx { margin: 0; }
+.ctop .sx.open + .fb { display: none; }
+.cb-a .ctop .sx.open { align-self: flex-start; }
+.mtop { flex: none; display: none; align-items: center; gap: 6px; min-height: 26px; }
+.here { all: unset; position: relative; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; height: 24px; padding: 0 10px 0 3px; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 15%, var(--bub-base)), color-mix(in srgb, var(--pc) 6%, var(--bub-base)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 34%, transparent), var(--card-drop); }
+body[data-light] .here { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 45%, transparent), var(--card-drop); }
+.here:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 65%, transparent), var(--card-drop); }
+.here .av { width: 18px; height: 18px; font-size: 10px; }
+.here .av .i { width: 11px; height: 11px; }
+.here b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--pc); font: 700 13px/1 var(--body); letter-spacing: .02em; }
+.here .car { width: 10px; height: 10px; color: var(--dim); margin-left: -2px; }
+.here .udot { top: -2px; right: -2px; }
+@media (prefers-reduced-motion: no-preference) { .cb.folded .here { animation: herein .26s ease-out .08s both; } }
+@keyframes herein { from { opacity: 0; transform: translateX(-6px); } }
+/* A: a slim row of its own when folded */
+.v-A.folded .mtop { display: flex; }
+/* B: floating over the thread's faded top edge */
+.v-B .mtop { display: flex; position: absolute; z-index: 5; top: 0; left: 0; right: 4px; pointer-events: none; }
+.v-B .mtop > * { pointer-events: auto; }
+.v-B .mtop .here { display: none; }
+.v-B.folded .mtop .here { display: inline-flex; }
+.v-B .mtop .sx { margin-left: auto; }
+.v-B .list { padding-top: 40px; -webkit-mask-image: linear-gradient(transparent 0, transparent 22px, rgb(0 0 0 / .35) 30px, #000 42px); mask-image: linear-gradient(transparent 0, transparent 22px, rgb(0 0 0 / .35) 30px, #000 42px); }
+.v-B .res { padding-top: 32px; }
+.v-B .sx.open { background: color-mix(in srgb, var(--pane-fill) 92%, var(--lamp)); }
+body[data-light] .v-B .sx.open { background: color-mix(in srgb, #fffdf8 96%, var(--pane-fill)); }
+.v-B.sopen .mtop .here { display: none; }
+/* B: the spine */
+.spine { position: relative; cursor: col-resize; touch-action: none; display: flex; align-items: center; justify-content: center; }
+.spine::before { content: ""; position: absolute; top: 6px; bottom: 6px; left: 50%; width: 1px; margin-left: -.5px; background: linear-gradient(180deg, transparent, var(--frost-edge) 12%, var(--frost-edge) 88%, transparent); transition: background .15s; }
+.spine:hover::before, .cb.dragging .spine::before { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--lamp) 55%, transparent) 12%, color-mix(in srgb, var(--lamp) 55%, transparent) 88%, transparent); }
+body[data-light] .spine:hover::before, body[data-light] .cb.dragging .spine::before { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--self) 55%, transparent) 12%, color-mix(in srgb, var(--self) 55%, transparent) 88%, transparent); }
+.stab { all: unset; position: relative; z-index: 1; box-sizing: border-box; width: 10px; height: 34px; border-radius: 5px; cursor: pointer; display: grid; place-items: center; color: var(--dim);
+  background: var(--card); box-shadow: var(--card-lit), inset 0 0 0 1px var(--frost-edge), var(--card-drop); }
+body[data-clear] .stab { background: color-mix(in srgb, var(--pane-fill) 80%, var(--lamp)); }
+body[data-light][data-clear] .stab { background: color-mix(in srgb, #fffdf8 92%, var(--pane-fill)); }
+.stab:hover, .cb.dragging .stab { color: var(--hot); }
+.stab svg { width: 6px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.stab .udot { top: -3px; right: -3px; }
+/* C: the bar when folded or searching, the drawer and the peek edge */
+.v-C.folded .mtop, .v-C.sopen .mtop { display: flex; }
+.v-C.sopen .mtop .here { display: none; }
+.v-C .sx:not(.open) { display: none; }
+.v-C .sx.open { background: color-mix(in srgb, var(--pane-fill) 92%, var(--lamp)); }
+body[data-light] .v-C .sx.open { background: color-mix(in srgb, #fffdf8 96%, var(--pane-fill)); }
+@media (prefers-reduced-motion: no-preference) { .v-C .sx.open { animation: sxdown .18s ease-out; } }
+@keyframes sxdown { from { opacity: 0; transform: translateY(-5px); } }
+.peek { display: none; position: absolute; z-index: 7; left: -4px; top: 30px; bottom: 30px; width: 12px; cursor: e-resize; }
+.peek::after { content: ""; position: absolute; left: 3px; top: 30%; bottom: 30%; width: 2px; border-radius: 1px; background: color-mix(in srgb, var(--lamp) 32%, transparent); opacity: .55; transition: opacity .15s; }
+body[data-light] .peek::after { background: color-mix(in srgb, var(--self) 40%, transparent); }
+.peek:hover::after { opacity: 1; }
+.v-C.folded:not(.drawer) .peek { display: block; }
+.cb.drawer .col { position: absolute; z-index: 8; left: -3px; top: 30px; bottom: 0; width: calc(var(--colw) + 8px); box-sizing: border-box; padding: 5px 4px; border-radius: 0 7px 7px 0; overflow: hidden;
+  background: color-mix(in srgb, var(--pane-fill) 94%, var(--lamp)); box-shadow: 0 0 0 1px var(--frost-edge), 6px 0 18px rgba(0,0,0,.55); }
+body[data-light] .cb.drawer .col { background: color-mix(in srgb, #fffdf8 96%, var(--pane-fill)); box-shadow: 0 0 0 1px var(--frost-edge), 6px 0 18px rgb(60 40 10 / .22); }
+@media (prefers-reduced-motion: no-preference) { .cb.drawer .col { animation: drawin .18s cubic-bezier(.3,.7,.3,1); } }
+@keyframes drawin { from { transform: translateX(-24px); opacity: 0; } }
+
+/* main: thread, results, reply */
+.main { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
+.lw { position: relative; flex: 1; min-height: 0; display: flex; }
+.list { position: relative; flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; user-select: text; padding-right: 3px; display: flex; flex-direction: column;
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lamp) 28%, transparent) transparent; }
+body[data-light] .list, body[data-light] .res { scrollbar-color: color-mix(in srgb, var(--iron-lo) 35%, transparent) transparent; }
+.list > * { flex: none; }
+.list > :first-child { margin-top: auto; }
+.pill { all: unset; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); cursor: pointer; padding: 1px 11px; border-radius: 10px; z-index: 3;
+  font: 700 12px/18px var(--body); color: var(--badge-ink); background: var(--self); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+.pill[hidden] { display: none; }
+.main.searching > .lw, .main.searching > .line { display: none; }
+.res { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lamp) 28%, transparent) transparent; display: flex; flex-direction: column; gap: 4px; padding-right: 3px; user-select: text; }
+.res[hidden] { display: none; }
+.ovl { position: absolute; inset: 0 0 36px; z-index: 6; display: flex; flex-direction: column; padding: 4px; border-radius: 6px;
+  background: color-mix(in srgb, var(--pane-fill) 94%, var(--lamp)); box-shadow: 0 0 0 1px var(--frost-edge), 0 6px 18px rgba(0,0,0,.6); }
+body[data-light] .ovl { background: color-mix(in srgb, #fffdf8 96%, var(--pane-fill)); box-shadow: 0 0 0 1px var(--frost-edge), 0 6px 18px rgb(60 40 10 / .25); }
+.ovl[hidden] { display: none; }
+.v-A .ovl { inset: 34px 0 0; }
+@media (prefers-reduced-motion: no-preference) { .ovl:not([hidden]) { animation: gpin .16s ease-out; } }
+
+.nm { color: var(--pc); font-weight: 700; }
+.vb { color: var(--dim); font-size: .92em; }
+.q { color: var(--dim); }
+.tx { color: var(--fg); overflow-wrap: anywhere; }
+.act { font-style: italic; color: color-mix(in srgb, var(--fg) 82%, var(--dim)); }
+mark { background: color-mix(in srgb, var(--mention) 28%, transparent); color: var(--hot); border-radius: 2px; padding: 0 1px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--mention) 50%, transparent); }
+body[data-light] mark { background: color-mix(in srgb, var(--mention) 20%, #fffdf8); }
+.new { animation: arrive 1.2s ease-out; }
+@keyframes arrive { from { background-color: color-mix(in srgb, var(--self) 20%, transparent); } }
+.empty, .rhint { padding: 16px 8px; text-align: center; color: var(--dim); font-size: 13px; }
+.empty { font-style: italic; }
+.rhint code { font: 12px var(--mono); color: var(--self); }
+.rh { display: flex; align-items: center; gap: 6px; margin: 6px 0 1px; font: 700 10.5px var(--body); letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--self) 55%, var(--dim)); user-select: none; }
+.rh:first-child { margin-top: 2px; }
+.rh::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--frost-edge), transparent); }
+.cnt { font: 11px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.rp { all: unset; cursor: pointer; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 7px 5px 5px; border-radius: 6px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 16%, var(--bub-base)), color-mix(in srgb, var(--pc) 6%, var(--bub-base)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 24%, transparent), var(--card-drop); }
+.rp:hover, .rp:focus-visible { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 60%, transparent), var(--card-drop); }
+.rp .av { width: 26px; height: 26px; font-size: 13px; }
+.rpt { display: grid; min-width: 0; line-height: 1.2; }
+.rpt b { color: var(--pc); font-size: 14px; }
+.rpt small { color: var(--dim); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.go { display: inline-flex; align-items: center; gap: 3px; font: 600 11.5px var(--body); color: var(--hot); white-space: nowrap; }
+.go .i { width: 12px; height: 12px; }
+.rm { padding: 3px 5px 4px 7px; border-left: 2px solid color-mix(in srgb, var(--cc) 70%, transparent); border-radius: 0 4px 4px 0; font-size: 13px; line-height: 1.32; background: var(--card-back); }
+.rmh { display: flex; align-items: center; gap: 4px; font: 10.5px var(--mono); color: var(--dim); user-select: none; }
+.rmh .i { width: 11px; height: 11px; color: var(--cc); }
+.rmh time { margin-left: auto; }
+
+/* bubbles: near channels */
+.bb { width: fit-content; max-width: 84%; margin-top: 7px; padding: 4px 10px 3px; border-radius: 12px 12px 12px 3px; box-sizing: border-box;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) var(--bub-a), var(--bub-base)), color-mix(in srgb, var(--pc) var(--bub-b), var(--bub-base)));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pc) 34%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--pc) 16%, transparent); }
+body[data-light] .bb { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 30%, transparent), var(--card-drop); }
+.bb.cont { margin-top: 2px; }
+.bb.me { margin-left: auto; border-radius: 12px 12px 3px 12px; }
+.bb.wh { border: 1px dashed color-mix(in srgb, var(--pc) 55%, transparent); }
+.bt { color: var(--hot); overflow-wrap: anywhere; }
+.bb.me .bt { color: var(--me-ink); }
+.bb.em { border-radius: 12px; }
+.bb.em .bt { color: color-mix(in srgb, var(--hot) 86%, var(--pc)); }
+.bm { font: 10px var(--mono); color: var(--dim); text-align: right; user-select: none; }
+.bm .via { color: color-mix(in srgb, var(--self) 80%, var(--dim)); }
+.bm .via .i { width: 10px; height: 10px; vertical-align: -1px; margin-right: 2px; }
+.tsep { align-self: center; text-align: center; font: 10.5px var(--mono); color: var(--dim); margin: 12px 0 2px; padding: 0 6px; border-radius: 6px; background: var(--card-back); user-select: none; }
+.gsys { align-self: center; display: inline-flex; align-items: center; gap: 5px; margin: 8px 0 2px; padding: 1px 9px; border-radius: 9px; font: 11px var(--body); color: var(--dim);
+  box-shadow: inset 0 0 0 1px var(--frost-edge); background: var(--card-back); user-select: none; }
+.gsys .i { width: 11px; height: 11px; color: var(--self); }
+.gsys b { color: var(--pc); }
+/* overheard: centred dim one-liners with a channel pill */
+.oha { align-self: center; max-width: 94%; margin: 7px 0 1px; padding: 0 6px; border-radius: 8px; text-align: center; font-size: 12px; line-height: 1.35; color: var(--dim); background: var(--card-back); }
+.oha .chp { display: inline-flex; align-items: center; gap: 3px; margin-right: 5px; padding: 0 6px 0 4px; border-radius: 8px; font: 600 10px/15px var(--body); letter-spacing: .04em; color: var(--cc); vertical-align: 1px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc) 45%, transparent); background: color-mix(in srgb, var(--cc) 8%, transparent); }
+.oha .chp .i { width: 10px; height: 10px; }
+.oha time { font: 10px var(--mono); margin-left: 5px; opacity: .8; }
+.oha .tx { color: color-mix(in srgb, var(--fg) 72%, var(--dim)); }
+/* Public and Group rows */
+.pr { padding: 2px 5px; border-radius: 3px; background: var(--card-back); }
+.pr + .pr { margin-top: 1px; }
+.pr > .i { color: var(--cc); width: 12px; height: 12px; vertical-align: -1px; margin-right: 4px; }
+.pr .nm { cursor: pointer; }
+.pr .nm:hover { text-decoration: underline dotted; }
+.pr.self { margin: 3px 0 3px 22px; background: linear-gradient(90deg, var(--card-back), color-mix(in srgb, var(--self) 13%, var(--card-back))); box-shadow: inset -2px 0 0 var(--self); }
+.ib { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; color: var(--dim); flex: none; }
+.ib:hover { color: var(--hot); background: var(--frost2); }
+/* reply line */
+.line { display: flex; align-items: center; gap: 6px; padding: 3px 6px 3px 8px; flex: none; min-height: 22px; border-radius: 4px;
+  background: var(--card); box-shadow: var(--card-lit), inset 0 0 0 1px var(--frost2), var(--card-drop); border-left: 2px solid color-mix(in srgb, var(--pc) 70%, transparent); }
+.line input { all: unset; flex: 1; min-width: 0; font: 14px var(--body); color: var(--hot); }
+.line input::placeholder { color: var(--dim); }
+kbd { font: 10px var(--mono); color: var(--dim); border: 1px solid var(--frost-edge); border-radius: 3px; padding: 0 4px; }
+
+/* ---------- the reference Timers pane (timers.css, ADR 0122/0123) */
+.tm { display: flex; flex-direction: column; gap: 0; font: 13px/1.3 var(--mono); color: var(--fg); white-space: nowrap; overflow: hidden;
+  --tm-tint: 28%; --tm-edge: 45%; --tm-card: color-mix(in srgb, var(--lamp) 8%, var(--card-back)); --tm-lit: inset 0 1px 0 color-mix(in srgb, var(--lamp) 22%, transparent);
+  --tm-drop: 0 1px 2px rgb(0 0 0 / .4); --tm-head: color-mix(in srgb, var(--lamp) 30%, var(--fg)); --tm-rule: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 38%, transparent), transparent 85%); --tm-time: var(--dim); }
+body[data-light] .tm { --tm-tint: 22%; --tm-edge: 50%; --tm-card: color-mix(in srgb, #fffdf8 92%, var(--card-back)); --tm-lit: 0 0 transparent; --tm-drop: 0 1px 2px rgb(60 40 10 / .22);
+  --tm-head: var(--ink2); --tm-rule: linear-gradient(90deg, color-mix(in srgb, var(--iron-lo) 45%, transparent), transparent 85%); --tm-time: color-mix(in srgb, var(--dim) 50%, var(--fg)); }
+.tm-g + .tm-g { margin-top: .35em; }
+.tm-h { display: flex; align-items: center; gap: .45em; height: 1.27em; font-size: .85em; font-weight: 700; letter-spacing: .03em; color: var(--tm-head); }
+.tm-hi { flex: none; width: 1.06em; height: 1.06em; color: var(--c); filter: drop-shadow(0 0 2px color-mix(in srgb, var(--c) 70%, transparent)); }
+body[data-light] .tm-hi { filter: none; }
+.tm-hln { flex: 1 1 auto; height: 1px; margin-left: .2em; background: var(--tm-rule); }
+.tm-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3em .35em; margin-top: .25em; }
+.tm-chip { position: relative; box-sizing: border-box; display: flex; align-items: center; gap: .45em; min-width: 0; height: 1.7em; padding: 0 .6em 0 .5em;
+  border: 1px solid color-mix(in srgb, var(--c) var(--tm-edge), transparent); border-radius: .3em; background: var(--tm-card); box-shadow: var(--tm-lit), var(--tm-drop); }
+.tm-fill { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--c) var(--tm-tint), transparent) calc(var(--p, 0) * 1%), transparent 0); }
+.tm-ic { position: relative; flex: none; width: .95em; height: .95em; color: var(--c); }
+.tm-n { position: relative; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tm-t { position: relative; flex: none; color: var(--tm-time); font-variant-numeric: tabular-nums; }
+.tm-chip.soon .tm-t { color: var(--soon); font-weight: 700; text-shadow: 0 0 5px color-mix(in srgb, var(--soon) 45%, transparent); }
+body[data-light] .tm-chip.soon .tm-t { text-shadow: none; }
+.tm-chip.untimed { border-style: dashed; border-color: color-mix(in srgb, var(--dim) 80%, transparent); background: var(--card-back); box-shadow: none; }
+.tm-chip.untimed .tm-n { color: var(--dim); }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Comm, runda 5</h1>
+    <p>Tre sätt att fälla in den vänstra spalten helt och ge sökningen en naturlig plats: A är din idé rakt av, B och C är två alternativ. Allt annat är som i runda 4, och när spalten är infälld visar en liten etikett i personens färg vilken chatt som är öppen.</p>
+  </header>
+
+  <section class="rules" aria-label="Gemensamt för alla tre">
+    <h2>Gemensamt för alla tre</h2>
+    <ul>
+      <li><b>Infälld spalt:</b> tråden tar hela rutans bredd. En etikett med personens färgade initial och namn (eller Public / Group med sin ikon) visar vilken chatt som är öppen. Den följer med när du byter chatt, till exempel via sökningens "Open chat".</li>
+      <li><b>Olästa när spalten är infälld:</b> en liten gul prick på kontrollen som fäller ut spalten, utan siffra.</li>
+      <li><b>Övrigt som runda 4:</b> färg, Paper, ram och fond följer raden nedan; kugghjulet bland hovringsknapparna; Group under Public; ikonräls under 380 px rutbredd, namnlista från 380 px.</li>
+    </ul>
+  </section>
+
+  <div class="ctl" role="region" aria-label="Kontroller">
+    <div class="crow">
+      <button class="btn" id="play" type="button" aria-pressed="false">Pausa</button>
+      <button class="btn" id="nextnow" type="button">Nästa meddelande nu</button>
+      <button class="btn" id="grpbtn" type="button">Lämna gruppen</button>
+      <span class="live" id="live"><i></i><span id="livetxt">Live, ett nytt meddelande var 3–5 s</span></span>
+    </div>
+    <div class="crow">
+      <span class="grp">Färg <span class="sws" id="tints" role="group" aria-label="Rutans färg"></span></span>
+      <span class="grp">Bakgrund <span class="seg2" data-k="light"><button type="button" data-v="0">Dark</button><button type="button" data-v="1">Paper</button></span></span>
+      <span class="grp">Ram <span class="seg2" data-k="frame"><button type="button" data-v="on">På</button><button type="button" data-v="off">Av</button></span></span>
+      <span class="grp">Rutans fond <span class="seg2" data-k="clear"><button type="button" data-v="0">Glas</button><button type="button" data-v="1">Klar</button></span></span>
+      <span class="grp">Bakom <span class="seg2" data-k="behind"><button type="button" data-v="page">Sidan</button><button type="button" data-v="sky">Himmel</button></span></span>
+      <span class="grp">Knappar <span class="seg2" data-k="btns"><button type="button" data-v="hover">Vid hovring</button><button type="button" data-v="on">Alltid</button></span></span>
+    </div>
+  </div>
+
+  <section class="c" id="va">
+    <div class="sz"><label for="wsl">Bredd på den första rutan</label><input id="wsl" type="range" min="250" max="600" step="1" value="440"><output id="wout" for="wsl">440 px</output></div>
+    <div class="stage">
+      <figure><div class="fw" id="fw" style="--w:440px"><div class="pslot" data-v="A" data-h="560"></div><div class="grip" id="grip" title="Drag to resize" aria-hidden="true"></div></div><span class="ro" data-ro></span></figure>
+      <figure style="width:300px"><div class="pslot" data-v="A" data-h="560"></div><span class="ro" data-ro></span></figure>
+      <figure style="width:300px"><div id="tmslot"></div><span class="reflab">Timers i samma färg, som jämförelse</span></figure>
+    </div>
+    <div class="cap">
+      <h2><span>A</span>Ägarens idé</h2>
+      <ul>
+        <li>Överst i spalten, ovanför Public: förstoringsglaset och till höger om det en fäll-ikon. I den smala ikonrälsen ryms de inte bredvid varandra, så där ligger fäll-ikonen under förstoringsglaset.</li>
+        <li>Förstoringsglaset fäller ut sökfältet där det sitter, och fäll-ikonen döljs medan fältet är öppet. I bred ruta ersätter träffarna tråden; i smal ruta läggs fältet över rutans överkant och träffarna under det.</li>
+        <li>Fäll-ikonen fäller in hela spalten (sökningen följer med). Kvar uppe till vänster blir en fäll-ut-ikon och bredvid den etiketten för den öppna chatten, på en egen smal rad så att de aldrig hamnar över ett meddelande.</li>
+        <li>För: allt sitter på ett ställe och syns utan hovring. Emot: infälld kostar spalten en rad, och sökningen nås bara med Ctrl+F (som fäller ut spalten först).</li>
+      </ul>
+      <p class="try"><b>Prova:</b> Klicka på fäll-ikonen och se spalten glida in. Byt chatt med Ctrl+F, sök "lindir" och välj Open chat: etiketten byter namn och färg. Vänta på ett nytt meddelande från någon annan och se pricken på fäll-ut-ikonen. Dra den första rutan under 380 px och fäll in igen.</p>
+    </div>
+  </section>
+
+  <section class="c" id="vb">
+    <div class="stage">
+      <figure style="width:440px"><div class="pslot" data-v="B" data-h="560"></div><span class="ro" data-ro></span></figure>
+      <figure style="width:300px"><div class="pslot" data-v="B" data-h="560"></div><span class="ro" data-ro></span></figure>
+    </div>
+    <div class="cap">
+      <h2><span>B</span>Ryggrad</h2>
+      <ul>
+        <li>En smal ryggrad mellan spalten och tråden med ett litet handtag. Klick på handtaget fäller in eller ut spalten. Dra i ryggraden så ändrar du bredden, och den snäpper till namnlista, ikonräls eller helt infälld. Dubbelklick återgår till automatiskt läge.</li>
+        <li>Sökningen sitter i trådens övre högra hörn, ovanpå trådens översta, uttonade kant, och fälls ut åt vänster över trådens topp. Den nås alltså även när spalten är infälld.</li>
+        <li>Infälld: etiketten för den öppna chatten svävar i trådens övre vänstra hörn, och pricken för olästa sitter på handtaget.</li>
+        <li>För: ingen extra rad, och du väljer själv bredden. Emot: ryggraden tar 12 px hela tiden, och dragläget behöver upptäckas (handtaget har en tooltip).</li>
+      </ul>
+      <p class="try"><b>Prova:</b> Dra i ryggraden åt vänster i den breda rutan: namnlista, sedan ikonräls, sedan infällt. Klicka på handtaget för att fälla ut igen. Klicka på förstoringsglaset uppe till höger och sök "orc".</p>
+    </div>
+  </section>
+
+  <section class="c" id="vc">
+    <div class="stage">
+      <figure style="width:440px"><div class="pslot" data-v="C" data-h="560"></div><span class="ro" data-ro></span></figure>
+      <figure style="width:300px"><div class="pslot" data-v="C" data-h="560"></div><span class="ro" data-ro></span></figure>
+    </div>
+    <div class="cap">
+      <h2><span>C</span>Hovringsknappar och låda</h2>
+      <ul>
+        <li>Sök och fäll-in sitter bland rutans hovringsknappar, till vänster om kugghjulet. Spalten och tråden har då inga egna knappar alls.</li>
+        <li>Sökningen fälls ner som ett fält överst i tråden, och träffarna ersätter tråden. Ctrl+F gör samma sak.</li>
+        <li>Infälld: etiketten för den öppna chatten ligger överst i tråden. Klick på den, eller musen mot rutans vänsterkant, öppnar spalten som en låda över tråden. Välj en chatt så stängs lådan.</li>
+        <li>För: mest plats för tråden och samma ställe som kugghjulet. Emot: knapparna syns bara vid hovring, så på en pekskärm är etiketten vägen in (och "Knappar: Alltid").</li>
+      </ul>
+      <p class="try"><b>Prova:</b> Hovra rutan och klicka på fäll-ikonen till vänster om kugghjulet. Klicka på etiketten överst i tråden och välj en annan chatt i lådan. För musen mot vänsterkanten för att kika. Hovra och klicka på förstoringsglaset.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+// ------------------------------------------------------------ helpers
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const hm = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function rel(ts) { const s = (Date.now() - ts) / 1000; if (s < 10) return 'now'; if (s < 60) return Math.floor(s) + 's'; const m = Math.floor(s / 60); if (m < 60) return m + 'm'; return Math.floor(m / 60) + 'h' + (m % 60) + 'm'; }
+
+// ------------------------------------------------------------ colour maths (src/theme/color.ts, in brief)
+const hx = (h) => { h = h.replace('#', ''); return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) }; };
+const toHex = ({ r, g, b }) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const mix = (a, b, t) => { const x = hx(a), y = hx(b); return toHex({ r: x.r + (y.r - x.r) * t, g: x.g + (y.g - x.g) * t, b: x.b + (y.b - x.b) * t }); };
+function lum(h) { const { r, g, b } = hx(h); const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); }
+const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+function fitContrast(fg, bg, min, toward) { if (contrast(fg, bg) >= min) return fg; let lo = 0, hi = 1; for (let i = 0; i < 12; i++) { const t = (lo + hi) / 2; if (contrast(mix(fg, toward, t), bg) >= min) hi = t; else lo = t; } return mix(fg, toward, hi); }
+function toHsl(h) { let { r, g, b } = hx(h); r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let H = 0, S = 0; const L = (mx + mn) / 2;
+  if (mx !== mn) { const d = mx - mn; S = L > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); H = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; H *= 60; }
+  return { h: H, s: S * 100, l: L * 100 }; }
+function hsl(H, S, L) { S /= 100; L /= 100; const k = (n) => (n + H / 30) % 12, a = S * Math.min(L, 1 - L); const f = (n) => L - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return toHex({ r: f(0) * 255, g: f(8) * 255, b: f(4) * 255 }); }
+const lightShift = (c) => { const { h, s, l } = toHsl(c); return s < 10 ? c : hsl(h, Math.max(s, 55), Math.min(l, 45)); };
+
+// ------------------------------------------------------------ the pane look (src/theme/presets.ts PANE_TINTS; ADR 0123 "Paper" for the washes)
+const PAPER = '#f4ecd8';
+const TINTS = [
+  { k: 'black', label: 'Plain', fill: '#000000', border: '#292929', hs: null, wash: PAPER },
+  { k: 'red', label: 'Red', fill: '#1a0e0e', border: '#2e2222', hs: [2, 60], wash: '#f5ebe6' },
+  { k: 'green', label: 'Green', fill: '#0e1a0e', border: '#222e22', hs: [130, 42], wash: '#e8eee4' },
+  { k: 'blue', label: 'Blue', fill: '#0e141c', border: '#222830', hs: [210, 58], wash: '#eaedee' },
+  { k: 'grey', label: 'Grey', fill: '#161616', border: '#2a2a2a', hs: [0, 0], wash: '#eeede9' },
+  { k: 'orange', label: 'Orange', fill: '#1c140a', border: '#30281e', hs: [28, 62], wash: '#f3ece2' },
+  { k: 'purple', label: 'Purple', fill: '#16101c', border: '#2a2430', hs: [278, 46], wash: '#f1eaee' },
+];
+const LOOK = { tint: 'black', light: false, frame: 'on', clear: false, behind: 'page', btns: 'hover' };
+try { const s = JSON.parse(localStorage.getItem('comm-r5-look') || 'null'); if (s) Object.assign(LOOK, s); } catch (e) { /* no storage */ }
+
+// person colours: one palette for the dark side; on a light pane each is lightShift'ed and held to 4.5:1 (as Comm's channel colours, ADR 0123)
+const PAL = ['#e9a07a', '#6fd0a0', '#9fb2f5', '#ef8cb0', '#cdc05e', '#5cc6e0', '#c09cf2', '#a3d36a', '#c9d2dc', '#e88a4a'];
+// channels: brightened src/gmcp/comm.ts CHANNEL_COLORS on dark, fitted on light
+const CHX = { tales: '#d2ca5c', tells: '#5dc97c', says: '#4cc4c4', yells: '#d276d2', prayers: '#ddd592', emotes: '#86b886', whispers: '#dc9c4a', questions: '#62b5d6', songs: '#dab4b4', socials: '#c475d4' };
+// timer groups: src/panes/palette.ts DARK_COLORS / LIGHT_COLORS
+const TCD = { sanct: '#f0b6e4', spell: '#66b2ff', buff: '#4cc96a', blind: '#3fd0d0', herb: '#a6c95a' };
+const TCL = { sanct: '#a956b5', spell: '#2a56c8', buff: '#2a6e1a', blind: '#00737e', herb: '#5c7a12' };
+
+// the menu surface (src/theme/surface.ts), for the gear popup
+function surface(bg) {
+  const light = lum(bg) > 0.4;
+  const panel = mix(bg, '#ffffff', light ? 0.5 : 0.04);
+  const ink = light ? mix(bg, '#000000', 0.88) : '#ffffff';
+  const S = light ? { field: .035, raised: .1, hover: .055, line: .09, border: .17, borderHot: .38, hot: .94, fg: .82, dim: .6, faint: .45, off: .26, onTrack: .72 }
+    : { field: .03, raised: .13, hover: .055, line: .075, border: .14, borderHot: .32, hot: .92, fg: .76, dim: .52, faint: .33, off: .24, onTrack: .26, onKnob: .92 };
+  const at = (k) => mix(panel, ink, S[k]);
+  const tw = light ? '#000000' : '#ffffff';
+  const fit = (c, m) => fitContrast(c, panel, m, tw);
+  return { bg: panel, field: light ? mix(bg, '#000000', .035) : at('field'), raised: at('raised'), hover: at('hover'), line: at('line'), border: at('border'), focus: at('borderHot'),
+    hot: fit(at('hot'), 10), fg: fit(at('fg'), 7), dim: fit(at('dim'), 3.8), faint: fit(at('faint'), 2.6), off: at('off'), 'on-track': at('onTrack'), 'on-knob': light ? panel : at('onKnob'),
+    shadow: light ? `0 10px 28px rgba(${Object.values(hx(mix(bg, '#000000', .72))).join(',')}, .22), 0 1px 3px rgba(0,0,0,.12)` : '0 10px 28px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04)',
+    scheme: light ? 'light' : 'dark' };
+}
+
+function applyLook() {
+  const t = TINTS.find((x) => x.k === LOOK.tint) || TINTS[0];
+  const b = document.body;
+  b.toggleAttribute('data-light', LOOK.light);
+  b.toggleAttribute('data-clear', LOOK.clear);
+  b.dataset.frame = LOOK.frame; b.dataset.behind = LOOK.behind; b.dataset.btns = LOOK.btns;
+  const page = LOOK.light ? PAPER : '#000000';
+  const fill = LOOK.light ? t.wash : t.fill;
+  let border;
+  if (LOOK.light) { const hs = t.hs || (() => { const p = toHsl(PAPER); return [p.h, p.s]; })(); border = hsl(hs[0], hs[1], 80); } else border = t.border;
+  const edge = mix(fill, '#000000', 0.06);
+  const fitL = (c) => fitContrast(lightShift(c), edge, 4.5, '#000000');
+  const vars = { '--pane-border': border, '--pane-bg': LOOK.clear ? 'transparent' : fill, '--pane-fill': fill };
+  PAL.forEach((c, i) => { vars['--p' + i] = LOOK.light ? fitL(c) : c; });
+  for (const [k, c] of Object.entries(CHX)) vars['--ch-' + k] = LOOK.light ? fitL(c) : c;
+  for (const k of Object.keys(TCD)) vars['--tc-' + k] = LOOK.light ? TCL[k] : TCD[k];
+  vars['--off-sw'] = LOOK.light ? '#b9b2a2' : '#3a3a3a';
+  const root = document.documentElement;
+  for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
+  for (const [k, v] of Object.entries(surface(page))) root.style.setProperty('--sf-' + k, v);
+  // the bar's state
+  document.querySelectorAll('#tints .sw').forEach((s) => s.setAttribute('aria-pressed', String(s.dataset.k === LOOK.tint)));
+  document.querySelectorAll('.seg2').forEach((g) => { const k = g.dataset.k; const cur = k === 'light' || k === 'clear' ? (LOOK[k] ? '1' : '0') : LOOK[k];
+    g.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === cur))); });
+  document.querySelectorAll('.pb-border').forEach((x) => x.toggleAttribute('data-on', LOOK.frame === 'on'));
+  document.querySelectorAll('.pb-glass').forEach((x) => x.toggleAttribute('data-on', LOOK.clear));
+  try { localStorage.setItem('comm-r5-look', JSON.stringify(LOOK)); } catch (e) { /* no storage */ }
+  requestAnimationFrame(() => { for (const f of placers) f(); });
+}
+
+// ------------------------------------------------------------ icons
+const IC = {
+  tales: '<path d="M2.5 6.3v3.4h2.6l5 3.3V3L5.1 6.3z"/><path d="M12 6.2c.8.7.8 2.9 0 3.6M13.7 4.6c1.6 1.7 1.6 5.1 0 6.8"/>',
+  tells: '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/><path d="M5.5 7h4.5M8.5 5.3L10.2 7 8.5 8.7"/>',
+  says: '<path d="M8 3c3.3 0 5.5 1.8 5.5 4s-2.2 4-5.5 4c-.7 0-1.4-.1-2-.3L3 12.5l.9-2.5C3 9.3 2.5 8.2 2.5 7c0-2.2 2.2-4 5.5-4z"/>',
+  yells: '<path d="M8 2.5v6.8M8 12.2v.5"/><path d="M3 4l1.6 1.6M13 4l-1.6 1.6M2.3 9h1.9M13.7 9h-1.9"/>',
+  prayers: '<path d="M8 2.2c1.6 1.8 1.8 3.2 0 4.6-1.8-1.4-1.6-2.8 0-4.6z"/><path d="M6 8.5h4v5H6zM4.5 13.5h7"/>',
+  emotes: '<circle cx="8" cy="8" r="5.5"/><path d="M5.8 9.5c1.2 1.3 3.2 1.3 4.4 0M6 6.3v.4M10 6.3v.4"/>',
+  whispers: '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke-dasharray="1.7 1.5"/>',
+  questions: '<path d="M5.8 5.5c0-1.4 1-2.3 2.3-2.3s2.3.9 2.3 2.1c0 1.8-2.3 1.9-2.3 3.8M8.1 11.8v.5"/>',
+  songs: '<path d="M6 11.5V4l6.5-1.5v7.5"/><circle cx="4.6" cy="11.6" r="1.5"/><circle cx="11.1" cy="10" r="1.5"/>',
+  socials: '<circle cx="5.5" cy="5.5" r="2"/><circle cx="10.8" cy="5.5" r="2"/><path d="M2 13c.4-2.2 1.8-3.4 3.5-3.4S8.6 10.8 9 13M8.3 10.2c.6-.4 1.4-.6 2.5-.6 1.7 0 3.1 1.2 3.5 3.4"/>',
+  search: '<circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2l3.3 3.3"/>',
+  x: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
+  town: '<path d="M2.5 13.5v-6l3-2.5 3 2.5v6M8.5 13.5V5l3-2.5 2.5 2v9M1.5 13.5h13M5 13.5V11h1v2.5"/>',
+  group: '<circle cx="8" cy="4.6" r="1.9"/><circle cx="3.6" cy="6.4" r="1.5"/><circle cx="12.4" cy="6.4" r="1.5"/><path d="M4.8 13.2c.3-2.6 1.5-3.9 3.2-3.9s2.9 1.3 3.2 3.9M1.2 12.2c.2-1.8 1-2.7 2.3-2.7M14.8 12.2c-.2-1.8-1-2.7-2.3-2.7"/>',
+  arrow: '<path d="M3 8h9.5M9 4.5L12.5 8 9 11.5"/>',
+  join: '<path d="M8 3.5v9M3.5 8h9"/>',
+  leave: '<path d="M3.5 8h9"/>',
+  hour: '<path d="M4.5 2.5h7M4.5 13.5h7M5 2.5c0 3 3 3.5 3 5.5s-3 2.5-3 5.5M11 2.5c0 3-3 3.5-3 5.5s3 2.5 3 5.5"/>',
+  shield: '<path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/>',
+  eye: '<path d="M1.8 8s2.3-4 6.2-4 6.2 4 6.2 4-2.3 4-6.2 4-6.2-4-6.2-4z"/><path d="M3 13L13 3"/>',
+  leaf: '<path d="M3 13c0-6 4-9 10-10-1 6-4 10-10 10z"/><path d="M3 13l5-5"/>',
+  fold: '<rect x="2" y="3" width="12" height="10" rx="1.6"/><path d="M6.2 3v10M11.2 6.2L9.4 8l1.8 1.8"/>',
+  unfold: '<rect x="2" y="3" width="12" height="10" rx="1.6"/><path d="M6.2 3v10M9.4 6.2L11.2 8 9.4 9.8"/>',
+  car: '<path d="M6 3.5L10.5 8 6 12.5"/>',
+  star: '<path d="M8 2.5l1.6 3.4 3.7.4-2.8 2.5.8 3.7L8 10.6l-3.3 1.9.8-3.7-2.8-2.5 3.7-.4z"/>',
+};
+const ic = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 16 16" aria-hidden="true">${IC[n]}</svg>`;
+const CHEV_UP = '<svg viewBox="0 0 14 8" aria-hidden="true"><path d="M1.5 6.5L7 1.5l5.5 5"/></svg>';
+const STAB_L = '<svg viewBox="0 0 6 9" aria-hidden="true"><path d="M4.6 1L1.4 4.5l3.2 3.5"/></svg>';
+const STAB_R = '<svg viewBox="0 0 6 9" aria-hidden="true"><path d="M1.4 1l3.2 3.5L1.4 8"/></svg>';
+const pbIc = (n) => `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${IC[n]}</svg>`;
+const CHEV_DN = '<svg viewBox="0 0 14 8" aria-hidden="true"><path d="M1.5 1.5L7 6.5l5.5-5"/></svg>';
+// the hover set's icons (src/layout/pane-buttons.ts GEAR_ICON, LOOK_ICONS)
+const GEAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="8.2" stroke-width="3.6" stroke-dasharray="3.2 3.24"/><circle cx="12" cy="12" r="5.6" stroke-width="2.4"/><circle cx="12" cy="12" r="1.9" stroke-width="2"/></svg>';
+const BORDER_SVG = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.25"/></svg>';
+const GLASS_SVG = '<svg viewBox="0 0 12 12" aria-hidden="true"><path class="g-glass" fill="currentColor" fill-rule="evenodd" d="M3.5 1h5A2.5 2.5 0 0 1 11 3.5v5A2.5 2.5 0 0 1 8.5 11h-5A2.5 2.5 0 0 1 1 8.5v-5A2.5 2.5 0 0 1 3.5 1zM2.2 3.4 3.4 2.2H5L2.2 5zM2.2 6.2 6.2 2.2H7.2L2.2 7.2z"/><g class="g-clear" fill="currentColor"><path d="M1 3.5A2.5 2.5 0 0 1 3.5 1H6V6H1z"/><path d="M6 6h5v2.5A2.5 2.5 0 0 1 8.5 11H6z"/><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1"/></g></svg>';
+
+// ------------------------------------------------------------ channels
+const CH = {
+  tales: { label: 'Narrates', v: ['narrate', 'narrates'], s: 'narrate' },
+  tells: { label: 'Tells', v: ['tell', 'tells'], s: 'tell' },
+  says: { label: 'Says', v: ['say', 'says'], s: 'say' },
+  yells: { label: 'Yells', v: ['yell', 'yells'], s: 'yell' },
+  prayers: { label: 'Prayers', v: ['pray', 'prays'], s: 'prayer' },
+  emotes: { label: 'Emotes', v: null, s: 'emote' },
+  whispers: { label: 'Whispers', v: ['whisper', 'whispers'], s: 'whisper' },
+  questions: { label: 'Questions', v: ['ask', 'asks'], s: 'question' },
+  songs: { label: 'Songs', v: ['sing', 'sings'], s: 'song' },
+  socials: { label: 'Socials', v: null, s: 'social' },
+};
+const cc = (c) => `var(--ch-${c})`;
+/** Channels that open a chat, show as bubbles and count as unread. */
+const NEAR = new Set(['tells', 'whispers', 'says', 'emotes', 'socials']);
+const isEnemy = (n) => !!n && n[0] === '*';
+const isAction = (m) => !CH[m.ch].v;
+function chatOf(m) {
+  if (!m.ch || !NEAR.has(m.ch)) return null;
+  if (m.self) return m.to && m.to !== 'you' ? m.to : null;
+  if (isEnemy(m.who)) return null;
+  return m.who;
+}
+const inChat = (m, p) => !!m.ch && (m.self ? m.to === p : m.who === p);
+
+// ------------------------------------------------------------ the group (GMCP Group.Set/Add/Remove; players only)
+// Group.Set at load: you, three players and a pack horse (type npc, ignored).
+const GROUP_RAW = [{ id: 1, type: 'you' }, { id: 7, type: 'ally', name: 'Lindir' }, { id: 9, type: 'ally', name: 'Haldis' }, { id: 12, type: 'ally', name: 'Tarnil' }, { id: 14, type: 'npc', name: 'pack horse' }];
+const GROUP = new Set(GROUP_RAW.filter((m) => m.type !== 'npc' && m.type !== 'you' && m.name).map((m) => m.name));
+let inGroup = true;
+const inGroupMsg = (m) => inGroup && (m.grp ? true : m.self ? true : GROUP.has(m.who));
+
+// ------------------------------------------------------------ person colours: stable for the session
+const COL = {};
+const used = new Set();
+function hash(s) { let h = 5381; for (const ch of s) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0; return h; }
+function assign(name) {
+  if (!name || name === 'Gibur' || name === 'you' || isEnemy(name) || COL[name] != null) return;
+  let i = hash(name) % PAL.length;
+  if (used.size < PAL.length) while (used.has(i)) i = (i + 1) % PAL.length;
+  COL[name] = i; used.add(i);
+}
+function pc(name) {
+  if (!name) return 'var(--dim)';
+  if (name === 'Gibur' || name === 'you') return 'var(--self)';
+  if (isEnemy(name)) return 'var(--enemy)';
+  return `var(--p${COL[name] != null ? COL[name] : hash(name) % PAL.length})`;
+}
+
+// ------------------------------------------------------------ formatting
+function reEsc(t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function hl(text, terms) {
+  if (!terms || !terms.length) return esc(text);
+  const re = new RegExp('(' + terms.map(reEsc).join('|') + ')', 'gi');
+  return text.split(re).map((p, i) => (i % 2 ? `<mark>${esc(p)}</mark>` : esc(p))).join('');
+}
+const nm = (m, terms) => `<b class="nm" style="--pc:${pc(m.who)}" data-who="${esc(m.who)}">${hl(m.self ? 'You' : m.who, terms)}</b>`;
+function verb(m) {
+  const c = CH[m.ch];
+  const prep = m.ch === 'whispers' ? 'to ' : '';
+  return m.self ? c.v[0] + (m.to ? ' ' + prep + m.to : '') : c.v[1] + (m.to ? ' ' + prep + (m.to === 'you' ? 'you' : m.to) : '');
+}
+function lineHTML(m, terms) {
+  if (isAction(m)) return `${nm(m, terms)} <span class="tx act">${hl(m.body, terms)}</span>`;
+  return `${nm(m, terms)} <span class="vb">${esc(verb(m))}</span> <span class="q">'</span><span class="tx">${hl(m.body, terms)}</span><span class="q">'</span>`;
+}
+
+// ------------------------------------------------------------ messages
+let nextId = 1;
+function mk(spec, ts) {
+  const [ch, w, to, body] = spec.split('|');
+  if (ch === 'GROUP') return { id: nextId++, ts, grp: w, who: to, body: '' };
+  const self = w === 'G';
+  return { id: nextId++, ts, ch, who: self ? 'Gibur' : w, to: to || null, body, self };
+}
+// [minutes ago, channel|talker (G = you)|destination|text]
+const SEED = [
+  [88, 'says|Ithilwen||Safe travels, everyone. Off to Rivendell.'],
+  [81, 'emotes|Rowan||stretches and yawns.'],
+  [74, 'says|Bergil||Has anyone seen the smith? His forge is cold.'],
+  [72, 'says|G||He went to Archet this morning.'],
+  [66, 'tells|Aerin|you|Thanks for the rescue at the Barrow-downs!'],
+  [65.6, 'tells|G|Aerin|Any time. Watch out for the wights.'],
+  [58, 'emotes|Calben||yawns sleepily.'],
+  [52, 'socials|Vaelor|you|salutes you.'],
+  [44, 'tales|Calben||Lost a green cloak near the Chetwood. Reward if found.'],
+  [40, 'says|Sorcha||Gibur, the herbs you asked for came in.'],
+  [39.5, 'emotes|Sorcha||hands you a small leather pouch.'],
+  [36, 'says|Orlaith||Is the Pony open late tonight?'],
+  [28, 'says|Gwenna||Gibur, are you the one hiring guards for the caravan?'],
+  [27.6, 'says|G||Not me. Try the stable master.'],
+  [26.5, 'emotes|Ruel||waves at you from across the room.'],
+  [25.8, 'tells|Ruel|you|Can you spare a few minutes later? I need help with a quest.'],
+  [25.5, 'tells|Ruel|you|It is in the Old Forest, near the Withywindle.'],
+  [25.0, 'tales|Fenwick||Anyone up for a run to the Old Forest? Meet at the Prancing Pony.'],
+  [24.6, 'says|Haldis||Evening, all.'],
+  [24.3, 'emotes|Lindir||grins.'],
+  [24.0, 'says|G||Evening Haldis. Who is heading east tonight?'],
+  [23.5, 'tells|Lindir|you|You coming tonight? We need a tank.'],
+  [23.1, 'tells|G|Lindir|Yes. Give me five minutes to rent a horse.'],
+  [22.7, 'tales|Orlaith||Anyone selling a lantern? Paying 40 gold.'],
+  [22.0, 'questions|Duvain||Where do I train parry in Bree?'],
+  [21.6, "tales|Sorcha||Duvain: the warriors' guild, just south of the gate."],
+  [21.5, 'socials|Ostric|you|nods at you.'],
+  [21.0, 'socials|Haldis|you|bows deeply before you.'],
+  [20.5, 'tells|Tarnil|you|Saw orcs at the Brandywine ford. Three of them.'],
+  [20.1, 'tells|G|Tarnil|Thanks. Any trolls?'],
+  [19.8, 'tells|Tarnil|you|Not that I saw. Be careful after dark.'],
+  [19.2, 'yells|*Ugluk*||Die, elf scum!'],
+  [19.0, 'yells|Lindir||Orcs at the ford! Gibur, flee west!'],
+  [18.6, "says|Haldis||Gibur, hold the door, I'll cast."],
+  [18.4, 'says|G||Holding.'],
+  [17.9, 'emotes|Morwen||laughs heartily.'],
+  [17.5, 'whispers|Morwen|you|Keep your sanctuary up, the shaman blinds.'],
+  [17.0, 'tales|Fenwick||Old Forest group is full, sorry!'],
+  [16.4, 'prayers|Haldis||Elbereth, guide us through the dark.'],
+  [16.0, 'tells|Lindir|you|Nice kill. 2k each for us.'],
+  [15.8, 'prayers|Lindir||Varda, thank you for the light at the ford.'],
+  [15.6, 'tells|G|Lindir|Good. Rest at the inn?'],
+  [15.2, 'songs|Morwen||Over the ford the lantern burns, and home again the wanderer turns.'],
+  [14.8, 'says|Duvain||Thanks for the help earlier.'],
+  [14.4, 'tells|Haldis|you|Do you have spare trollbane? Mine broke.'],
+  [14.0, 'tells|G|Haldis|One. Meet me at the stable.'],
+  [13.6, 'tales|Orlaith||Lantern bought, thanks Sorcha!'],
+  [13.2, 'socials|Lindir|you|pats you on the back.'],
+  [13.0, 'socials|G|Lindir|hug Lindir.'],
+  [12.5, 'says|Halvar||Anyone know if the Midgewater path is flooded?'],
+  [12.1, 'yells|Halvar||Lost my pack mule near the Midgewater!'],
+  [11, 'emotes|Ysolde||counts her coins carefully.'],
+  [9.5, 'tells|Pellam|you|Do you still need a cleric for tonight?'],
+  [9.2, 'tells|G|Pellam|Ask Lindir, she leads the group.'],
+  [8.2, "says|Brisa||Lovely evening for a walk to the Barrow-downs, isn't it?"],
+  [7, 'socials|Corwin|you|shakes your hand firmly.'],
+  [6.4, 'tales|Vaelor||The ferry at Bucklebury is running again.'],
+  [6.0, 'tells|Morwen|you|Are you still in Bree?'],
+  [5.6, 'tells|G|Morwen|Yes, at the Pony. Come over.'],
+  [5.0, 'questions|Duvain||Does anyone know the way to Tharbad?'],
+  [4.6, 'says|Fenwick||Follow the Greenway south, Duvain.'],
+  [4.0, 'yells|*Grishluk*||We will find you, Gibur!'],
+  [3.6, 'tells|Tarnil|you|Grishluk is hunting you. Stay inside for a bit.'],
+  [3.0, 'emotes|Haldis||sighs.'],
+  [2.4, 'tells|Lindir|you|Group at the west gate in ten?'],
+  [1.8, 'tells|G|Lindir|On my way.'],
+  [1.0, 'tales|Sorcha||Selling herbs: athelas and kingsfoil, cheap.'],
+  [0.5, "whispers|Tarnil|you|Bring a torch, the lantern trick won't work underground."],
+];
+// GROUP|add|Name and GROUP|remove|Name stand for Group.Add / Group.Remove.
+const POOL = [
+  ['tales|Fenwick||Weathertop run tomorrow evening, who is in?'],
+  ['tells|Lindir|you|Where are you now, Gibur?', 'tells|G|Lindir|Bree, west gate.'],
+  ['says|Haldis||Gibur, do you still have my rope?', 'says|G||Here, take it.'],
+  ['GROUP|add|Morwen', 'emotes|Morwen||smiles happily.', 'says|Morwen||Thanks for the invite. Where to?'],
+  ['tells|Brannoc|you|Hi Gibur, are you selling that broadsword?', 'tells|G|Brannoc|Not tonight, sorry.', 'tells|Brannoc|you|No worries. Tomorrow then?'],
+  ['yells|*Ugluk*||I smell man-flesh!'],
+  ['tells|Haldis|you|Thanks for the trollbane, I owe you one.'],
+  ['questions|Duvain||How do I get a horse?', 'tales|Orlaith||Duvain: rent one at the stable east of the Pony.'],
+  ['whispers|Morwen|you|Ugluk is outside the gate. Wait a bit.'],
+  ['tells|Tarnil|you|The ford is clear now.', 'tells|G|Tarnil|Great, heading out.'],
+  ['says|Tarnil||I have to go, my bed calls. Good hunting!', 'GROUP|remove|Tarnil'],
+  ['socials|Fenwick|you|waves happily at you.'],
+  ['prayers|Lindir||Varda, light our road tonight.'],
+  ['songs|Haldis||A lantern lit, a road to roam, a cup of ale and then back home.'],
+  ['says|Lindir||Gibur, lead the way.', 'emotes|Lindir||nods solemnly.'],
+  ['tales|Vaelor||Storm over the Misty Mountains. Bring cloaks.'],
+  ['says|Sorcha||Gibur, did the athelas help?'],
+  ['tells|Morwen|you|Meet at the Pony after the run?', 'tells|G|Morwen|Yes, first round is mine.'],
+  ['yells|Morwen||Orcs at the east gate!', 'GROUP|remove|Morwen'],
+  ['GROUP|add|Tarnil', 'says|Tarnil||Back again. Could not sleep.'],
+  ['tells|Lindir|you|Sanct is down, recast!', 'tells|G|Lindir|Casting now.'],
+];
+const MSGS = [];
+const t0 = Date.now();
+for (const [min, spec] of SEED.slice().sort((a, b) => b[0] - a[0])) { const m = mk(spec, t0 - min * 60000); assign(m.who); if (m.to && m.to !== 'you') assign(m.to); MSGS.push(m); }
+for (const n of GROUP) assign(n);
+
+const subs = [];
+const placers = [];
+function push(m) {
+  if (m.grp) {
+    if (m.grp === 'add') GROUP.add(m.who); else GROUP.delete(m.who);
+    assign(m.who);
+    if (!inGroup) return; // not in a group: no Group.* traffic
+  } else { assign(m.who); if (m.to && m.to !== 'you') assign(m.to); }
+  MSGS.push(m);
+  for (const s of subs) s.add(m);
+}
+let queue = [], poolIdx = 0, paused = false, timer = null;
+function refill() { if (!queue.length) queue.push(...POOL[poolIdx++ % POOL.length]); }
+function schedule() {
+  clearTimeout(timer); if (paused) return; refill();
+  const nx = queue[0].split('|');
+  const fast = nx[1] === 'G' || nx[0] === 'GROUP';
+  timer = setTimeout(emitNext, fast ? 1300 + Math.random() * 900 : 2600 + Math.random() * 2400);
+}
+function emitNext() { refill(); push(mk(queue.shift(), Date.now())); schedule(); }
+
+// ------------------------------------------------------------ the thread list with "↓ N new"
+function listBox(parent) {
+  const lw = el('div', 'lw'), list = el('div', 'list'), pill = el('button', 'pill');
+  pill.type = 'button'; pill.hidden = true; lw.append(list, pill); parent.append(lw);
+  let unseen = 0;
+  const atBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 10;
+  list.addEventListener('scroll', () => { if (atBottom()) { unseen = 0; pill.hidden = true; } });
+  const bottom = () => { list.scrollTop = list.scrollHeight; unseen = 0; pill.hidden = true; };
+  pill.addEventListener('click', bottom);
+  return {
+    lw, list, bottom,
+    append(html) {
+      const was = atBottom();
+      list.insertAdjacentHTML('beforeend', html);
+      const node = list.lastElementChild;
+      if (node && !REDUCED) node.classList.add('new');
+      if (was) list.scrollTop = list.scrollHeight;
+      else { unseen++; pill.textContent = `↓ ${unseen} new`; pill.hidden = false; }
+    },
+  };
+}
+
+// ------------------------------------------------------------ search
+function search(q, people) {
+  const t = q.toLowerCase();
+  const hit = (m) => m.ch && (m.body.toLowerCase().includes(t) || (m.self ? 'you' : m.who).toLowerCase().includes(t));
+  const msgs = MSGS.filter(hit);
+  const ppl = [];
+  for (const p of people) {
+    const name = p.toLowerCase().includes(t);
+    const n = msgs.filter((m) => inChat(m, p)).length;
+    if (name || n) ppl.push({ p, name, n });
+  }
+  ppl.sort((a, b) => (b.name - a.name) || (b.n - a.n));
+  return { ppl, msgs: msgs.slice(-200).reverse() };
+}
+function resultsHTML(q, people) {
+  if (!q) return '<div class="rhint">Search names and every message on every channel.<br>Try <code>orc</code>, <code>lantern</code> or <code>gibur</code>.</div>';
+  const r = search(q, people);
+  const terms = [q];
+  let h = `<div class="rh">People <span class="cnt">${r.ppl.length}</span></div>`;
+  h += r.ppl.length ? r.ppl.map(({ p, name, n }) => {
+    const what = [name ? 'Name matches' : '', n ? `${n} message${n === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+    return `<button class="rp" type="button" data-p="${esc(p)}" style="--pc:${pc(p)}"><span class="av">${esc(p[0])}</span><span class="rpt"><b>${hl(p, terms)}</b><small>${what}</small></span><span class="go">Open chat${ic('arrow')}</span></button>`;
+  }).join('') : '<div class="rhint" style="padding:4px">No one you talk with.</div>';
+  h += `<div class="rh">Messages <span class="cnt">${r.msgs.length}</span></div>`;
+  h += r.msgs.length ? r.msgs.map((m) => `<div class="rm" style="--cc:${cc(m.ch)}"><div class="rmh">${ic(m.ch)}${CH[m.ch].label}<time>${hm(m.ts)}</time></div><div>${lineHTML(m, terms)}</div></div>`).join('')
+    : '<div class="rhint" style="padding:4px">No messages match.</div>';
+  return h;
+}
+
+// ============================================================ settings (one set for every pane, as in the app)
+const SET = {
+  pub: { tales: true, says: true, yells: true, prayers: true, emotes: true, whispers: false, questions: true, songs: true, socials: true, tells: false },
+  win: 30, // minutes; 0 = all
+};
+const PUB_ORDER = ['tales', 'says', 'yells', 'prayers', 'emotes', 'questions', 'songs', 'socials', 'tells', 'whispers'];
+const WINS = [[10, '10m'], [30, '30m'], [60, '60m'], [0, 'All']];
+const pubShows = (m) => !!m.ch && !!SET.pub[m.ch];
+const WIDE_MIN = 380;
+const CW = 9; // cell width in px (the hover set's unit)
+const PUBLIC = '', GRP = '@group';
+
+// one gear popup on the page at a time (the bar's one-popup rule)
+let openPopup = null;
+function closePopup() { if (openPopup) { const p = openPopup; openPopup = null; p.close(); } }
+document.addEventListener('mousedown', (e) => { if (openPopup && !openPopup.el.contains(e.target) && !openPopup.gear.contains(e.target)) closePopup(); });
+addEventListener('scroll', () => { if (openPopup) openPopup.place(); }, { passive: true });
+addEventListener('resize', () => { if (openPopup) openPopup.place(); });
+
+/** The hover set on a pane: [Gear], Colour, Border, Background, ×. Returns the gear (or null). */
+function hoverSet(pane, label, withGear, extras = []) {
+  const mk2 = (cls, slot, html, title) => { const b = el('button', 'pb ' + cls, html); b.type = 'button'; b.style.setProperty('--slot', slot); b.title = title; b.setAttribute('aria-label', title); pane.append(b); return b; };
+  let gear = null;
+  if (withGear) gear = mk2('pb-gear', 3, GEAR_SVG, label + ' settings');
+  const col = mk2('pb-color', 2, '<span class="wheel"></span>', 'Colour (click: next colour in this mockup)');
+  const bor = mk2('pb-border', 1, BORDER_SVG, 'Border');
+  const gls = mk2('pb-glass', 0, GLASS_SVG, 'Background: glass or clear');
+  for (const x of extras) x.btn = mk2(x.cls, x.slot, x.html, x.title);
+  const x = el('button', 'px', '×'); x.type = 'button'; x.title = 'Close pane (does nothing in this mockup)'; x.setAttribute('aria-label', 'Close pane'); pane.append(x);
+  col.addEventListener('click', () => { const i = TINTS.findIndex((t) => t.k === LOOK.tint); LOOK.tint = TINTS[(i + 1) % TINTS.length].k; applyLook(); });
+  bor.addEventListener('click', () => { LOOK.frame = LOOK.frame === 'on' ? 'off' : 'on'; applyLook(); });
+  gls.addEventListener('click', () => { LOOK.clear = !LOOK.clear; applyLook(); });
+  // the hood: centred, moved left when the set would cover it (ADR 0123 "Hood position"), at least from the fourth cell
+  const plate = pane.querySelector('.plate');
+  const place = () => {
+    if (!plate) return;
+    const W = pane.offsetWidth, pw = plate.offsetWidth;
+    const setStart = W - ((withGear ? 12 : 10) + 2 * extras.length) * CW;
+    let x0 = Math.round((W - pw) / 2);
+    if (x0 + pw > setStart - 2) x0 = Math.max(3 * CW, setStart - 2 - pw);
+    plate.style.left = x0 + 'px';
+    pane.toggleAttribute('data-cover', x0 + pw > setStart);
+  };
+  placers.push(place);
+  new ResizeObserver(place).observe(pane);
+  if (document.fonts) document.fonts.ready.then(place);
+  return gear;
+}
+
+// ============================================================ the chat pane
+function Chat(pane, hole, idx, VAR) {
+  const P = 'p' + idx;
+  let V = 'b';
+  let colPx = 150;
+  // fold: the column folded away; drawer: (C) the folded column open over the thread ('click' | 'hover' | false); colw: (B) a width the user dragged
+  const st = { sel: 'Lindir', unread: { Tarnil: 1, Ruel: 2 }, pub: 3, grp: true, near: {}, pubLast: 0, grpLast: 0, q: '', prev: null, open: false, fold: false, drawer: false, colw: null };
+  for (const m of MSGS) { const p = chatOf(m); if (p) st.near[p] = m.ts; if (pubShows(m)) st.pubLast = m.ts; if (inGroupMsg(m)) st.grpLast = m.ts; }
+  const allPeople = () => Object.keys(st.near).sort((a, b) => st.near[a] - st.near[b]);
+  const shown = (p) => !SET.win || st.near[p] >= Date.now() - SET.win * 60000 || p === st.sel || (st.unread[p] || 0) > 0;
+  const people = () => allPeople().filter(shown);
+  const lastIn = (p) => { for (let i = MSGS.length - 1; i >= 0; i--) if (inChat(MSGS[i], p) && NEAR.has(MSGS[i].ch)) return MSGS[i]; return null; };
+  const lastWhere = (f) => { for (let i = MSGS.length - 1; i >= 0; i--) if (MSGS[i].ch && f(MSGS[i])) return MSGS[i]; return null; };
+  const isPerson = (s) => s !== PUBLIC && s !== GRP;
+
+  // ---------- DOM
+  const body = el('div', 'cb cb-b v-' + VAR); hole.append(body);
+  const col = el('div', 'col'), main = el('div', 'main');
+  let spine = null, stab = null;
+  if (VAR === 'B') {
+    spine = el('div', 'spine'); spine.title = 'Click: fold or unfold the chat list. Drag: resize (snaps to names, icons or hidden). Double-click: automatic.';
+    stab = el('button', 'stab'); stab.type = 'button'; spine.append(stab);
+    body.append(col, spine, main);
+  } else body.append(col, main);
+  const peek = el('div', 'peek'); peek.title = 'Show the chat list'; if (VAR === 'C') body.append(peek);
+  const fixedSlot = el('div'); fixedSlot.style.display = 'contents';
+  const scw = el('div', 'scw'), scl = el('div', 'scl');
+  const cu = el('button', 'chv up', CHEV_UP), cd = el('button', 'chv dn', CHEV_DN);
+  cu.type = cd.type = 'button'; cu.title = 'Older chats'; cd.title = 'Newer chats'; cu.setAttribute('aria-label', 'Scroll to older chats'); cd.setAttribute('aria-label', 'Scroll to newer chats');
+  scw.append(scl, cu, cd);
+  const sx = el('div', 'sx', `<button class="sxb" type="button" title="Search (Ctrl+F)" aria-label="Search names and messages">${ic('search')}</button><input id="${P}-q" type="search" placeholder="Search names and messages" autocomplete="off" spellcheck="false" aria-label="Search names and messages" tabindex="-1"><button class="sxc" type="button" title="Close (Esc)" aria-label="Close search" tabindex="-1">${ic('x')}</button>`);
+  const sInput = sx.querySelector('input');
+  // the fold button (A), the "here" chip (all), the top strip of the thread
+  const foldB = el('button', 'fb'); foldB.type = 'button';
+  const unfoldB = el('button', 'fb'); unfoldB.type = 'button';
+  const here = el('button', 'here'); here.type = 'button';
+  const mtop = el('div', 'mtop'); main.append(mtop);
+  if (VAR === 'A') {
+    const ctop = el('div', 'ctop'); ctop.append(sx, foldB);
+    col.append(ctop, fixedSlot, el('div', 'col-sep'), scw);
+    mtop.append(unfoldB, here);
+  } else if (VAR === 'B') {
+    col.append(fixedSlot, el('div', 'col-sep'), scw);
+    mtop.append(here, sx);
+  } else {
+    col.append(fixedSlot, el('div', 'col-sep'), scw);
+    mtop.append(here, sx);
+  }
+  const L = listBox(main);
+  const res = el('div', 'res'); res.hidden = true; main.append(res);
+  const line = el('div', 'line'); main.append(line);
+  const ovl = el('div', 'ovl'); ovl.hidden = true;
+  const ovlRes = el('div', 'res'); ovl.append(ovlRes); main.append(ovl);
+  // A in the rail: the field lies over the pane's top and the results over the thread; otherwise the results replace the thread
+  const usesOvl = () => VAR === 'A' && V === 'a';
+  const resEl = () => (usesOvl() ? ovlRes : res);
+
+  // ---------- gear popup (beside the pane, ADR 0107 placement)
+  const extras = VAR === 'C' ? [
+    { cls: 'pb-fold', slot: 4, html: pbIc('fold'), title: 'Hide the chat list' },
+    { cls: 'pb-search', slot: 5, html: pbIc('search'), title: 'Search (Ctrl+F)' },
+  ] : [];
+  const gear = hoverSet(pane, 'Comm', true, extras);
+  const foldPb = extras[0]?.btn || null;
+  if (VAR === 'C') {
+    foldPb.addEventListener('click', () => setFold(!st.fold));
+    extras[1].btn.addEventListener('click', () => (st.open ? sInput.focus() : openSearch()));
+  }
+  const gp = el('div', 'gp'); gp.hidden = true; gp.id = P + '-gp'; gp.setAttribute('role', 'dialog'); gp.setAttribute('aria-label', 'Comm settings');
+  document.body.append(gp);
+  gear.setAttribute('aria-controls', gp.id); gear.setAttribute('aria-expanded', 'false');
+  const tg = (on) => `<span class="tg${on ? ' on' : ''}" aria-hidden="true"><i></i></span>`;
+  function gpHTML() {
+    const rows = PUB_ORDER.map((c) => `<div class="ck-row${SET.pub[c] ? '' : ' off'}" role="switch" tabindex="0" aria-checked="${SET.pub[c]}" data-ch="${c}"><span class="ck-l"><span class="ck-sw" style="background:${SET.pub[c] ? cc(c) : 'var(--off-sw)'}"></span>${CH[c].label}</span>${tg(SET.pub[c])}</div>`).join('');
+    const seg = WINS.map(([v, t]) => `<button class="sg${SET.win === v ? ' on' : ''}" type="button" data-win="${v}" aria-pressed="${SET.win === v}">${t}</button>`).join('');
+    return `<div class="gp-head"><span class="gp-title">Comm</span><button class="gp-x" type="button" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>`
+      + `<div class="ck-sub">Public shows</div>${rows}<div class="ck-sep"></div>`
+      + `<div class="ck-sub">Private chats</div><div class="ck-col"><span class="lab">Show chats active in the last</span><div class="sgs" role="group" aria-label="Show chats active in the last">${seg}</div></div>`
+      + `<div class="ck-help">The open chat and chats with unread always show. Search finds the rest.</div>`;
+  }
+  function placeGp() {
+    const r = pane.getBoundingClientRect(), w = gp.offsetWidth, h = gp.offsetHeight, vw = innerWidth, vh = innerHeight;
+    let x;
+    if (r.right + 6 + w <= vw - 4) x = r.right + 6;
+    else if (r.left - 6 - w >= 4) x = r.left - 6 - w;
+    else x = Math.max(4, Math.min(vw - 4 - w, r.right - w - 8));
+    const over = !(r.right + 6 + w <= vw - 4) && !(r.left - 6 - w >= 4);
+    let y = over ? r.top + 17 : r.top;
+    y = Math.max(4, Math.min(y, vh - 4 - h));
+    gp.style.left = Math.round(x) + 'px'; gp.style.top = Math.round(y) + 'px';
+  }
+  const popApi = { el: gp, gear, place: placeGp, close() { gp.hidden = true; gear.removeAttribute('data-open'); gear.setAttribute('aria-expanded', 'false'); } };
+  function openGp() { closePopup(); closeSearch(); gp.innerHTML = gpHTML(); gp.hidden = false; gear.setAttribute('data-open', ''); gear.setAttribute('aria-expanded', 'true'); placeGp(); openPopup = popApi; }
+  gear.addEventListener('click', () => (openPopup === popApi ? closePopup() : openGp()));
+  function toggleCh(c) { SET.pub[c] = !SET.pub[c]; applySettings(); }
+  gp.addEventListener('click', (e) => {
+    if (e.target.closest('.gp-x')) { closePopup(); gear.focus(); return; }
+    const r = e.target.closest('[data-ch]'); if (r) { toggleCh(r.dataset.ch); return; }
+    const b = e.target.closest('[data-win]'); if (b) { SET.win = +b.dataset.win; applySettings(); }
+  });
+  gp.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); closePopup(); gear.focus(); return; }
+    if ((e.key === ' ' || e.key === 'Enter') && e.target.dataset.ch) { e.preventDefault(); toggleCh(e.target.dataset.ch); }
+  });
+
+  // ---------- left column
+  function entHTML(p) {
+    const u = st.unread[p] || 0;
+    const badge = u ? `<span class="badge ud">${u}</span>` : '';
+    const lm = lastIn(p);
+    const sel = st.sel === p;
+    if (V === 'b') {
+      const sn = !lm ? '' : lm.self ? (isAction(lm) ? 'You ' : 'You: ') + lm.body : lm.body;
+      return `<button class="ent${u ? ' unr' : ''}" type="button" data-p="${esc(p)}" data-u="${u}" aria-selected="${sel}" style="--pc:${pc(p)}"><span class="av">${esc(p[0])}</span><span class="et"><span class="r1"><b>${esc(p)}</b><span class="ago" data-rel="${st.near[p]}">${rel(st.near[p])}</span></span><span class="r2"><span class="sn">${esc(sn)}</span>${badge}</span></span></button>`;
+    }
+    const tip = `${p} · last ${lm ? CH[lm.ch].s : ''} ${rel(st.near[p])} ago`;
+    return `<button class="ent" type="button" data-p="${esc(p)}" data-u="${u}" aria-selected="${sel}" title="${esc(tip)}" aria-label="${esc(p)}${u ? `, ${u} unread` : ''}" style="--pc:${pc(p)}"><span class="av">${esc(p[0])}${badge}</span></button>`;
+  }
+  function fixedHTML() {
+    // Public: a count; Group: a dot only
+    const pb = st.pub ? `<span class="badge ud">${st.pub > 99 ? '99+' : st.pub}</span>` : '';
+    const gdot = st.grp && inGroup ? '<span class="dot" aria-hidden="true"></span>' : '';
+    const members = [...GROUP];
+    const gtip = inGroup ? 'Group: ' + (members.length ? members.join(', ') : 'only you') : 'Not in a group';
+    const noGrp = !inGroup ? ' dimmed' : '';
+    if (V === 'b') {
+      const lp = lastWhere(pubShows), lg = inGroup ? lastWhere(inGroupMsg) : null;
+      const snp = lp ? (lp.self ? 'You: ' : lp.who + ': ') + lp.body : '';
+      const sng = !inGroup ? 'Not in a group' : lg ? (lg.self ? 'You: ' : lg.who + ': ') + lg.body : members.join(', ');
+      return `<button class="ent pub-e${st.pub ? ' unr' : ''}" type="button" data-p="" aria-selected="${st.sel === PUBLIC}" style="--pc:var(--self)"><span class="av pub">${ic('town')}</span><span class="et"><span class="r1"><b>Public</b><span class="ago" data-rel="${st.pubLast}">${rel(st.pubLast)}</span></span><span class="r2"><span class="sn">${esc(snp)}</span>${pb}</span></span></button>`
+        + `<button class="ent grp-e${st.grp && inGroup ? ' unr' : ''}${noGrp}" type="button" data-p="${GRP}" aria-selected="${st.sel === GRP}" title="${esc(gtip)}" style="--pc:var(--self)"><span class="av grp">${ic('group')}</span><span class="et"><span class="r1"><b>Group${inGroup ? ` <span class="cnt">${members.length + 1}</span>` : ''}</b>${inGroup && st.grpLast ? `<span class="ago" data-rel="${st.grpLast}">${rel(st.grpLast)}</span>` : ''}</span><span class="r2"><span class="sn">${esc(sng)}</span>${gdot}</span></span></button>`;
+    }
+    return `<button class="ent pub-e" type="button" data-p="" aria-selected="${st.sel === PUBLIC}" title="Public channels" aria-label="Public" style="--pc:var(--self)"><span class="av pub">${ic('town')}${pb}</span></button>`
+      + `<button class="ent grp-e${noGrp}" type="button" data-p="${GRP}" aria-selected="${st.sel === GRP}" title="${esc(gtip)}" aria-label="Group${st.grp ? ', unread' : ''}" style="--pc:var(--self)"><span class="av grp">${ic('group')}${gdot}</span></button>`;
+  }
+  function renderSide(bump, toBottom) {
+    const atBot = scl.scrollHeight - scl.scrollTop - scl.clientHeight < 6;
+    const fromBot = scl.scrollHeight - scl.scrollTop;
+    fixedSlot.innerHTML = fixedHTML();
+    const list = V === 'b' && st.q ? search(st.q, allPeople()).ppl.map((x) => x.p).reverse() : people();
+    scl.innerHTML = list.map(entHTML).join('') || (V === 'b' ? '<div class="rhint" style="padding:8px 4px;font-size:12px">No one matches.</div>' : '');
+    scl.scrollTop = toBottom || atBot ? scl.scrollHeight : scl.scrollHeight - fromBot;
+    if (bump != null && !REDUCED) col.querySelector(`[data-p="${CSS.escape(bump)}"] :is(.ud, .dot)`)?.classList.add('bump');
+    hintUpd();
+    renderHere();
+  }
+  /** Unread anywhere but the open chat (the dot on the unfold control while folded). */
+  const othersUnread = () => (st.sel !== PUBLIC && st.pub > 0) || (st.sel !== GRP && st.grp && inGroup)
+    || Object.entries(st.unread).some(([p, u]) => u > 0 && p !== st.sel);
+  let lastDot = false;
+  function renderHere() {
+    const sel = st.sel;
+    let av, name, pcv;
+    if (sel === PUBLIC) { av = `<span class="av pub">${ic('town')}</span>`; name = 'Public'; pcv = 'var(--self)'; }
+    else if (sel === GRP) { av = `<span class="av grp">${ic('group')}</span>`; name = 'Group'; pcv = 'var(--self)'; }
+    else { av = `<span class="av">${esc(sel[0])}</span>`; name = sel; pcv = pc(sel); }
+    const u = st.fold && othersUnread();
+    const dot = u ? '<span class="udot"></span>' : '';
+    here.style.setProperty('--pc', pcv);
+    here.innerHTML = av + `<b>${esc(name)}</b>` + (VAR === 'C' ? ic('car', 'car') + dot : '');
+    const what = VAR === 'C' ? 'show the chat list' : 'unfold the chat list';
+    here.title = `Open: ${name} (click to ${what})`;
+    here.setAttribute('aria-label', `Open chat: ${name}. Click to ${what}${u ? '. Unread in other chats' : ''}`);
+    foldB.innerHTML = ic('fold'); foldB.title = 'Hide the chat list'; foldB.setAttribute('aria-label', 'Hide the chat list');
+    unfoldB.innerHTML = ic('unfold') + dot; unfoldB.title = u ? 'Show the chat list · unread in other chats' : 'Show the chat list'; unfoldB.setAttribute('aria-label', unfoldB.title);
+    if (stab) {
+      stab.innerHTML = (st.fold ? STAB_R : STAB_L) + dot;
+      stab.title = st.fold ? 'Show the chat list' + (u ? ' · unread in other chats' : '') : 'Hide the chat list';
+      stab.setAttribute('aria-label', stab.title); stab.setAttribute('aria-expanded', String(!st.fold));
+    }
+    if (foldPb) { foldPb.innerHTML = pbIc(st.fold ? 'unfold' : 'fold') + dot; foldPb.title = st.fold ? 'Show the chat list' : 'Hide the chat list'; foldPb.setAttribute('aria-label', foldPb.title); }
+    if (u && !lastDot && !REDUCED) (VAR === 'A' ? unfoldB : VAR === 'B' ? stab : here).querySelector('.udot')?.classList.add('bump');
+    lastDot = u;
+  }
+  function hintUpd() {
+    const top = scl.scrollTop, bot = top + scl.clientHeight;
+    let up = 0, dn = 0, upU = 0, dnU = 0;
+    for (const it of scl.children) {
+      const t = it.offsetTop, b = t + it.offsetHeight, u = +it.dataset.u || 0;
+      if (t < top - 2) { up++; upU += u; } else if (b > bot + 2) { dn++; dnU += u; }
+    }
+    scw.classList.toggle('fu', up > 0); scw.classList.toggle('fd', dn > 0);
+    const wasU = cu.classList.contains('on'), wasD = cd.classList.contains('on');
+    cu.classList.toggle('on', up > 0); cd.classList.toggle('on', dn > 0);
+    // replay the little nudge only when a chevron appears
+    if (!wasU && up > 0) { cu.style.animation = 'none'; void cu.offsetWidth; cu.style.animation = ''; }
+    if (!wasD && dn > 0) { cd.style.animation = 'none'; void cd.offsetWidth; cd.style.animation = ''; }
+    cu.innerHTML = CHEV_UP + (upU ? '<span class="u"></span>' : '');
+    cd.innerHTML = CHEV_DN + (dnU ? '<span class="u"></span>' : '');
+    cu.title = upU ? 'Older chats, one has unread' : 'Older chats';
+    cd.title = dnU ? 'Newer chats, one has unread' : 'Newer chats';
+  }
+  scl.addEventListener('scroll', hintUpd, { passive: true });
+  cu.addEventListener('click', () => scl.scrollBy({ top: -scl.clientHeight * 0.8, behavior: REDUCED ? 'auto' : 'smooth' }));
+  cd.addEventListener('click', () => scl.scrollBy({ top: scl.clientHeight * 0.8, behavior: REDUCED ? 'auto' : 'smooth' }));
+
+  // ---------- thread
+  const sep = (m, prev) => (!prev || m.ts - prev.ts > 300000 ? `<div class="tsep">${hm(m.ts)}</div>` : '');
+  function bubble(m, prev) {
+    const cont = prev && prev.ch && NEAR.has(prev.ch) && prev.self === m.self && m.ts - prev.ts <= 300000;
+    const act = isAction(m);
+    const txt = act ? `<span class="act">${m.self ? 'You' : esc(m.who)} ${esc(m.body)}</span>` : esc(m.body);
+    const meta = m.self ? `<span class="chn via">${ic(m.ch)}${CH[m.ch].s}</span>` : `<span class="chn">${CH[m.ch].s}</span>`;
+    return sep(m, prev) + `<div class="bb ${m.self ? 'me' : 'them'}${cont ? ' cont' : ''}${m.ch === 'whispers' ? ' wh' : ''}${act ? ' em' : ''}" style="--pc:${pc(m.who)}"><div class="bt">${txt}</div><div class="bm">${meta} · ${hm(m.ts)}</div></div>`;
+  }
+  function overheard(m, prev) {
+    return sep(m, prev) + `<div class="oha" style="--cc:${cc(m.ch)}" title="${CH[m.ch].label} · everyone can hear this"><span class="chp">${ic(m.ch)}${CH[m.ch].label}</span><span class="tx">'${esc(m.body)}'</span><time>${hm(m.ts)}</time></div>`;
+  }
+  const item = (m, prev) => (NEAR.has(m.ch) ? bubble(m, prev) : overheard(m, prev));
+  const prow = (m) => `<div class="pr${m.self ? ' self' : ''}" style="--cc:${cc(m.ch)}" title="${CH[m.ch].label} · ${hm(m.ts)}">${ic(m.ch)}${lineHTML(m)}</div>`;
+  const gsys = (m) => `<div class="gsys" style="--pc:${pc(m.who)}">${ic(m.grp === 'add' ? 'join' : 'leave')}<b>${esc(m.who)}</b> ${m.grp === 'add' ? 'joined' : 'left'} the group · ${hm(m.ts)}</div>`;
+  function renderThread() {
+    let h = '', prev = null;
+    if (isPerson(st.sel)) { for (const m of MSGS) if (m.ch && inChat(m, st.sel)) { h += item(m, prev); prev = m; } }
+    else if (st.sel === GRP) { if (inGroup) for (const m of MSGS) { if (m.grp) h += gsys(m); else if (inGroupMsg(m)) h += prow(m); } }
+    else { for (const m of MSGS) if (pubShows(m)) h += prow(m); }
+    st.prev = prev;
+    const empty = st.sel === GRP ? (inGroup ? 'No group talk yet.' : 'You are not in a group.') : isPerson(st.sel) ? 'No messages yet.' : 'No channels chosen. Open the gear to pick some.';
+    L.list.innerHTML = h || `<div class="empty">${empty}</div>`;
+    L.bottom();
+  }
+  function renderLine() {
+    const keep = line.querySelector('input')?.value || '';
+    if (isPerson(st.sel)) {
+      line.style.setProperty('--pc', pc(st.sel));
+      line.innerHTML = `<input id="${P}-in" placeholder="Reply to ${esc(st.sel)}…" autocomplete="off" aria-label="Reply to ${esc(st.sel)}, sent as a tell"><kbd>Enter</kbd>`;
+    } else {
+      line.style.setProperty('--pc', 'var(--self)');
+      line.innerHTML = `<input id="${P}-in" placeholder="Say something…" autocomplete="off" aria-label="Say something in the room"><kbd>Enter</kbd>`;
+    }
+    if (keep && st.sel === line.dataset.for) line.querySelector('input').value = keep;
+    line.dataset.for = st.sel;
+  }
+  function select(p) {
+    st.sel = p;
+    if (st.drawer) closeDrawer();
+    if (p === PUBLIC) st.pub = 0; else if (p === GRP) st.grp = false; else st.unread[p] = 0;
+    if (isPerson(p) && !st.near[p]) { let t = 0; for (const m of MSGS) if (m.who === p) t = m.ts; st.near[p] = t; }
+    renderSide(); renderLine(); renderThread();
+    const e = scl.querySelector('[aria-selected="true"]');
+    if (e && (e.offsetTop < scl.scrollTop || e.offsetTop + e.offsetHeight > scl.scrollTop + scl.clientHeight)) { scl.scrollTop = e.offsetTop - scl.clientHeight / 2; hintUpd(); }
+  }
+
+  // ---------- search: a round button that grows into a field
+  function renderResults(keep) { const r = resEl(), top = r.scrollTop; r.innerHTML = resultsHTML(st.q, allPeople()); if (keep) r.scrollTop = top; }
+  function setSearching() { const on = !usesOvl() && !!st.q; main.classList.toggle('searching', on); res.hidden = !on; }
+  function sxWidth() {
+    if (VAR === 'A') return V === 'b' ? colPx : body.clientWidth;
+    return main.clientWidth - (VAR === 'B' ? 4 : 0);
+  }
+  function openSearch() {
+    closePopup();
+    if (st.open) { sInput.focus(); sInput.select(); return; }
+    if (VAR === 'A' && st.fold) { setFold(false); setTimeout(openSearch, REDUCED ? 0 : 250); return; }
+    if (st.drawer) closeDrawer();
+    st.open = true; body.classList.add('sopen');
+    sx.style.setProperty('--sxw', sxWidth() + 'px');
+    sx.classList.add('open');
+    sInput.tabIndex = 0; sx.querySelector('.sxc').tabIndex = 0;
+    if (usesOvl()) { ovl.hidden = false; renderResults(); }
+    sInput.focus({ preventScroll: true });
+  }
+  function closeSearch() {
+    if (!st.open && !st.q) return;
+    const had = !!st.q;
+    st.open = false; st.q = ''; sInput.value = ''; body.classList.remove('sopen');
+    sx.classList.remove('open'); ovl.hidden = true;
+    sInput.tabIndex = -1; sx.querySelector('.sxc').tabIndex = -1;
+    if (had) renderSide(null, true);
+    setSearching();
+  }
+  function onQuery(v) {
+    st.q = v.trim();
+    if (V === 'b' && !st.fold) renderSide(null, true);
+    setSearching(); renderResults();
+  }
+  sx.querySelector('.sxb').addEventListener('click', () => (st.open ? sInput.focus() : openSearch()));
+  sx.querySelector('.sxc').addEventListener('click', () => { closeSearch(); sx.querySelector('.sxb').focus(); });
+  sInput.addEventListener('input', () => onQuery(sInput.value));
+  sx.addEventListener('focusout', (e) => {
+    if (sx.contains(e.relatedTarget)) return;
+    // a blur on an empty field folds it back; with text it stays (the results are being read)
+    setTimeout(() => { if (st.open && !st.q && !sx.contains(document.activeElement)) closeSearch(); }, 120);
+  });
+
+  // ---------- mode by the pane's own width
+  const readouts = [];
+  let dragging = true; // no fold transition until the first layout has settled
+  function applyMode() {
+    const w = pane.offsetWidth, bw = hole.clientWidth - 14;
+    let nv, cw;
+    if (VAR === 'B' && st.colw != null) { cw = st.colw; nv = cw >= 100 ? 'b' : 'a'; }
+    else { nv = w >= WIDE_MIN ? 'b' : 'a'; cw = nv === 'b' ? Math.round(Math.max(124, Math.min(184, bw * 0.34))) : 42; }
+    colPx = cw;
+    body.style.setProperty('--colw', cw + 'px');
+    const changed = nv !== V;
+    if (changed) { closeSearch(); V = nv; }
+    body.className = `cb cb-${V} v-${VAR}` + (st.fold ? ' folded' : '') + (st.drawer ? ' drawer' : '') + (st.open ? ' sopen' : '') + (dragging ? ' dragging' : '');
+    if (changed) renderSide(null, true); else { hintUpd(); renderHere(); }
+    if (st.open) sx.style.setProperty('--sxw', sxWidth() + 'px');
+    const how = st.fold ? 'folded' : V === 'b' ? 'name list' : 'icon rail';
+    for (const r of readouts) r.innerHTML = `${Math.round(w)} px · <b>${how}</b>${VAR === 'B' && st.colw != null && !st.fold ? ' · dragged' : ''}`;
+  }
+  new ResizeObserver(() => applyMode()).observe(pane);
+
+  // ---------- fold and unfold
+  function setFold(on) {
+    if (st.fold === on) return;
+    if (on && VAR !== 'C') closeSearch();
+    st.fold = on; st.drawer = false;
+    applyMode();
+    if (!on) { requestAnimationFrame(() => hintUpd()); setTimeout(() => { hintUpd(); if (st.open) sx.style.setProperty('--sxw', sxWidth() + 'px'); }, 260); }
+  }
+  foldB.addEventListener('click', () => { setFold(true); unfoldB.focus({ preventScroll: true }); });
+  unfoldB.addEventListener('click', () => { setFold(false); foldB.focus({ preventScroll: true }); });
+
+  // ---------- C: the folded column as a drawer over the thread
+  function openDrawer(how) { if (!st.fold || st.drawer) return; closeSearch(); st.drawer = how; applyMode(); renderSide(null, false); const e = scl.querySelector('[aria-selected="true"]'); if (e) { scl.scrollTop = e.offsetTop - scl.clientHeight / 2; hintUpd(); } }
+  function closeDrawer() { if (!st.drawer) return; st.drawer = false; applyMode(); }
+  here.addEventListener('click', () => {
+    if (VAR === 'C') { st.drawer ? closeDrawer() : openDrawer('click'); return; }
+    setFold(false);
+  });
+  if (VAR === 'C') {
+    let peekT = 0;
+    peek.addEventListener('mouseenter', () => { clearTimeout(peekT); peekT = setTimeout(() => openDrawer('hover'), 140); });
+    peek.addEventListener('mouseleave', () => clearTimeout(peekT));
+    peek.addEventListener('click', () => openDrawer('click'));
+    col.addEventListener('mouseleave', () => { if (st.drawer === 'hover') closeDrawer(); });
+    main.addEventListener('pointerdown', (e) => { if (st.drawer && !here.contains(e.target)) closeDrawer(); });
+  }
+
+  // ---------- B: the spine (click folds, drag resizes and snaps, double-click resets)
+  if (VAR === 'B') {
+    const maxW = () => Math.max(110, Math.min(240, Math.round((hole.clientWidth - 26) * 0.55)));
+    const snap = (raw) => (raw < 24 ? 0 : raw < 92 ? 42 : Math.max(110, Math.min(maxW(), Math.round(raw))));
+    spine.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); spine.setPointerCapture(e.pointerId);
+      const x0 = e.clientX, w0 = st.fold ? 0 : colPx;
+      let moved = false;
+      const move = (ev) => {
+        const dx = ev.clientX - x0;
+        if (!moved && Math.abs(dx) < 4) return;
+        if (!moved) { moved = true; dragging = true; closeSearch(); }
+        const w = snap(w0 + dx);
+        if (w === 0) { if (!st.fold) { st.fold = true; applyMode(); } }
+        else if (st.fold || st.colw !== w) { st.fold = false; st.colw = w; applyMode(); }
+      };
+      const up = () => {
+        spine.removeEventListener('pointermove', move); spine.removeEventListener('pointerup', up); spine.removeEventListener('pointercancel', up);
+        if (!moved) { setFold(!st.fold); return; }
+        dragging = false; applyMode(); setTimeout(hintUpd, 30);
+      };
+      spine.addEventListener('pointermove', move); spine.addEventListener('pointerup', up); spine.addEventListener('pointercancel', up);
+    });
+    spine.addEventListener('dblclick', () => { st.colw = null; st.fold = false; applyMode(); });
+    stab.addEventListener('keydown', (e) => {
+      // ← and → step hidden ↔ icon rail ↔ name list
+      const steps = [0, 42, Math.min(170, maxW())];
+      const cur = st.fold ? 0 : colPx < 100 ? 1 : 2;
+      let nx = cur;
+      if (e.key === 'ArrowLeft') nx = Math.max(0, cur - 1); else if (e.key === 'ArrowRight') nx = Math.min(2, cur + 1); else return;
+      e.preventDefault();
+      if (nx === 0) setFold(true); else { st.fold = false; st.colw = steps[nx]; applyMode(); }
+    });
+  }
+
+  // ---------- events
+  col.addEventListener('click', (e) => { const b = e.target.closest('.ent'); if (b) select(b.dataset.p); });
+  pane.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && (st.open || st.q)) { e.preventDefault(); closeSearch(); if (VAR !== 'C') sx.querySelector('.sxb').focus(); return; }
+    if (e.key === 'Escape' && st.drawer) { e.preventDefault(); closeDrawer(); here.focus(); return; }
+    if (e.key !== 'Enter' || !e.target.matches('.line input')) return;
+    const text = e.target.value.trim().replace(/\|/g, '/'); if (!text) return;
+    e.target.value = '';
+    // A reply in a chat goes out as a tell; in Public and Group it is a say.
+    push(mk(isPerson(st.sel) ? `tells|G|${st.sel}|${text}` : `says|G||${text}`, Date.now()));
+  });
+  main.addEventListener('click', (e) => {
+    const rp = e.target.closest('.rp');
+    if (rp) { closeSearch(); select(rp.dataset.p); return; }
+    const n = e.target.closest('.list .nm'); if (!n || isPerson(st.sel)) return;
+    if (String(window.getSelection?.() || '').length) return;
+    const w = n.dataset.who; if (!w || w === 'Gibur' || isEnemy(w)) return;
+    select(w);
+  });
+
+  renderSide(null, true); renderLine(); renderThread(); setSearching();
+  applyMode();
+  requestAnimationFrame(() => requestAnimationFrame(() => { dragging = false; applyMode(); }));
+  return {
+    openSearch, readouts,
+    add(m) {
+      let bump = null;
+      if (m.grp) {
+        if (st.sel === GRP) { L.list.querySelector('.empty')?.remove(); L.append(gsys(m)); }
+        renderSide(); return;
+      }
+      const p = chatOf(m);
+      if (p) { st.near[p] = m.ts; if (!m.self && st.sel !== p) { st.unread[p] = (st.unread[p] || 0) + 1; bump = p; } }
+      if (pubShows(m)) { st.pubLast = m.ts; if (st.sel !== PUBLIC && !m.self) { st.pub++; if (bump == null) bump = PUBLIC; } }
+      if (inGroupMsg(m)) { st.grpLast = m.ts; if (st.sel !== GRP && !m.self) { if (!st.grp && bump == null) bump = GRP; st.grp = true; } }
+      const show = st.sel === PUBLIC ? pubShows(m) : st.sel === GRP ? inGroupMsg(m) : inChat(m, st.sel);
+      if (show) {
+        L.list.querySelector('.empty')?.remove();
+        if (isPerson(st.sel)) { L.append(item(m, st.prev)); st.prev = m; } else L.append(prow(m));
+      }
+      renderSide(bump);
+      if (st.q && (m.body.toLowerCase().includes(st.q.toLowerCase()) || m.who.toLowerCase().includes(st.q.toLowerCase()))) renderResults(true);
+    },
+    refresh() { st.pubLast = lastWhere(pubShows)?.ts || 0; renderSide(); renderThread(); if (openPopup === popApi) { gp.innerHTML = gpHTML(); } },
+    group() { if (!inGroup) st.grp = false; renderSide(); if (st.sel === GRP) renderThread(); },
+    tick() { if (SET.win) renderSide(); },
+  };
+}
+function applySettings() { for (const s of subs) s.refresh(); }
+
+// ============================================================ the reference Timers pane
+function Timers(slot) {
+  const pane = el('div', 'pane small');
+  pane.innerHTML = '<i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">Timers</span></div>';
+  const hole = el('div', 'hole'); pane.append(hole); slot.append(pane);
+  hoverSet(pane, 'Timers', true);
+  const G = [
+    { k: 'sanct', label: 'Sanctuary', ic: 'shield', items: [['sanctuary', 104, 180], ['Lindir', 41, 180]] },
+    { k: 'spell', label: 'Spells', ic: 'star', items: [['armour', 372, 600], ['bless', 9, 240], ['strength', 236, 480], ['detect invis', 0, 0]] },
+    { k: 'blind', label: 'Blinds', ic: 'eye', items: [['Ugluk', 22, 40]] },
+    { k: 'herb', label: 'Herblores', ic: 'leaf', items: [['athelas', 58, 90]] },
+  ];
+  const tm = el('div', 'tm'); hole.append(tm);
+  const chips = [];
+  for (const g of G) {
+    const ge = el('div', 'tm-g');
+    ge.innerHTML = `<div class="tm-h" style="--c:var(--tc-${g.k})"><svg class="tm-hi" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${IC[g.ic]}</svg>${g.label}<span class="tm-hln"></span></div>`;
+    const items = el('div', 'tm-items');
+    for (const [n, left, max] of g.items) {
+      const c = el('div', 'tm-chip' + (max ? '' : ' untimed'));
+      c.style.setProperty('--c', `var(--tc-${g.k})`);
+      c.innerHTML = `<i class="tm-fill"></i><svg class="tm-ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${IC[g.ic]}</svg><span class="tm-n">${n}</span><span class="tm-t"></span>`;
+      items.append(c);
+      if (max) chips.push({ c, left, max });
+      else c.querySelector('.tm-t').textContent = '';
+    }
+    ge.append(items); tm.append(ge);
+  }
+  const fmt = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  const draw = () => { for (const x of chips) { x.c.querySelector('.tm-fill').style.setProperty('--p', (100 * x.left / x.max).toFixed(1)); x.c.querySelector('.tm-t').textContent = fmt(x.left); x.c.classList.toggle('soon', x.left <= 10); } };
+  draw();
+  setInterval(() => { if (paused) return; for (const x of chips) { x.left = x.left > 0 ? x.left - 1 : x.max; } draw(); }, 1000);
+}
+
+// ------------------------------------------------------------ boot
+let hoverC = null;
+document.querySelectorAll('.pslot').forEach((slot, i) => {
+  const pane = el('div', 'pane');
+  pane.style.height = (+slot.dataset.h || 560) + 'px';
+  pane.innerHTML = '<i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">Comm</span></div>';
+  const hole = el('div', 'hole'); pane.append(hole); slot.append(pane);
+  const api = Chat(pane, hole, i, slot.dataset.v || 'A');
+  const ro = slot.closest('figure').querySelector('[data-ro]');
+  if (ro) api.readouts.push(ro);
+  pane.addEventListener('mouseenter', () => { hoverC = api; });
+  pane.addEventListener('mouseleave', () => { if (hoverC === api) hoverC = null; });
+  subs.push(api);
+});
+Timers(document.getElementById('tmslot'));
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && hoverC) { e.preventDefault(); hoverC.openSearch(); }
+});
+let tickN = 0;
+setInterval(() => {
+  document.querySelectorAll('[data-rel]').forEach((x) => { const v = rel(+x.dataset.rel); if (x.textContent !== v) x.textContent = v; });
+  if (++tickN % 10 === 0) for (const s of subs) s.tick();
+}, 1000);
+
+// the bar: tint swatches and the look switches
+const tintsEl = document.getElementById('tints');
+for (const t of TINTS) {
+  const b = el('button', 'sw'); b.type = 'button'; b.dataset.k = t.k; b.title = t.label; b.setAttribute('aria-label', t.label);
+  b.style.background = t.hs ? hsl(t.hs[0], Math.max(t.hs[1], 8), 42) : 'radial-gradient(circle at 40% 35%, #ffd79a, #8a6a3a)';
+  b.addEventListener('click', () => { LOOK.tint = t.k; applyLook(); });
+  tintsEl.append(b);
+}
+document.querySelectorAll('.seg2').forEach((g) => g.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = g.dataset.k, v = b.dataset.v;
+  LOOK[k] = k === 'light' || k === 'clear' ? v === '1' : v;
+  applyLook();
+}));
+applyLook();
+
+// width slider and drag handle for the first pane
+const fw = document.getElementById('fw'), wsl = document.getElementById('wsl'), wout = document.getElementById('wout'), grip = document.getElementById('grip');
+function setW(px) {
+  const max = fw.parentElement.parentElement.clientWidth - 36;
+  const w = Math.max(250, Math.min(600, Math.round(px)));
+  fw.style.setProperty('--w', w + 'px');
+  wsl.value = String(w);
+  wout.textContent = Math.min(w, max) + ' px';
+}
+wsl.addEventListener('input', () => setW(+wsl.value));
+setW(440);
+addEventListener('resize', () => setW(+wsl.value));
+grip.addEventListener('pointerdown', (e) => {
+  e.preventDefault(); grip.setPointerCapture(e.pointerId);
+  const x0 = e.clientX, w0 = fw.getBoundingClientRect().width;
+  const move = (ev) => setW(w0 + ev.clientX - x0);
+  const up = () => { grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); };
+  grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+});
+
+// live controls
+const playBtn = document.getElementById('play'), live = document.getElementById('live'), liveTxt = document.getElementById('livetxt');
+playBtn.addEventListener('click', () => {
+  paused = !paused;
+  playBtn.textContent = paused ? 'Spela' : 'Pausa';
+  playBtn.setAttribute('aria-pressed', String(paused));
+  live.classList.toggle('paused', paused);
+  liveTxt.textContent = paused ? 'Pausad' : 'Live, ett nytt meddelande var 3–5 s';
+  if (!paused) schedule(); else clearTimeout(timer);
+});
+document.getElementById('nextnow').addEventListener('click', () => { clearTimeout(timer); refill(); push(mk(queue.shift(), Date.now())); schedule(); });
+const grpBtn = document.getElementById('grpbtn');
+grpBtn.addEventListener('click', () => {
+  inGroup = !inGroup;
+  grpBtn.textContent = inGroup ? 'Lämna gruppen' : 'Gå med i gruppen igen';
+  for (const s of subs) s.group();
+});
+schedule();
+</script>
