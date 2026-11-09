@@ -1,0 +1,811 @@
+<title>Statistics Round Four</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: a shared control bar (pane colour, background, border, glass/clear, what lies behind), then the Statistics pane beside a reference Timers pane, then the short pane; each is a live Statistics pane in the Lykta frame with its Swedish caption beside it (under it when narrow). */
+:root {
+  color-scheme: dark;
+  /* page */
+  --page: #0c0b0a;
+  --ink: #d8d3c8;
+  --muted: #958e82;
+  --rule: #26231f;
+  --accent: #c9a96a;
+  /* type */
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "DejaVu Sans Mono", "JetBrains Mono", ui-monospace, monospace;
+  /* pane: Plain tint, candle lamp (17 Lykta) */
+  --lamp: #c9b28c;
+  --iron: #2a2826;
+  --iron-hi: #57524a;
+  --iron-lo: #171614;
+  --pane-bg: #050504;
+  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --fg: #cfc9bd;
+  --hot: #f1ece1;
+  --dim: #8a847a;
+  --trk: rgba(0, 0, 0, .55);
+  /* the app's stats colours (history-stats.css) */
+  --teal: #7cc4c8;
+  --pk: #e0915a;
+  --lvl: #7fbf7f;
+  --ach: #e3b341;
+  /* rating ramp, diverging around Good (always with a label, pips or a grade letter) */
+  --r0: #d0442e;  /* Poor */
+  --r1: #e08a2c;  /* Meh */
+  --r2: #7fb0d8;  /* Good */
+  --r3: #4fbf78;  /* Great */
+  --r4: #ffd54a;  /* Superb */
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--page); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 90px; }
+header.intro { display: grid; gap: 10px; margin-bottom: 18px; max-width: 70ch; }
+header.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(24px, 4vw, 32px); letter-spacing: .04em; color: var(--hot); text-wrap: balance; }
+header.intro p { margin: 0; color: var(--muted); }
+header.intro p b { color: var(--ink); font-weight: 500; }
+
+/* control bar */
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 0; margin-bottom: 8px; background: var(--page); border-bottom: 1px solid var(--rule); font-size: 14px; }
+.ctl .cl { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.cg { display: flex; align-items: center; gap: 8px; }
+.btn, .seg button { font: inherit; cursor: pointer; border: 1px solid var(--rule); background: #17150f; color: var(--ink); padding: 3px 11px; border-radius: 5px; }
+.btn:hover, .seg button:hover { color: var(--hot); border-color: #3a352c; }
+.btn:focus-visible, .seg button:focus-visible, .toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn.prim { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--hot); }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: #151410; border: 1px solid var(--rule); }
+.seg button { border: 0; background: none; color: var(--muted); padding: 2px 9px; border-radius: 4px; }
+.seg button[aria-pressed="true"] { background: #2b2822; color: var(--hot); }
+.ctl .hint { color: var(--muted); font-size: 13px; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 0 20px; font-size: 14px; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+.toc b { font-family: var(--display); color: var(--accent); margin-right: 5px; }
+
+/* concept sections */
+section.v { display: grid; grid-template-columns: minmax(0, 470px) minmax(0, 1fr); gap: 20px 32px; align-items: start; padding: 30px 0 34px; border-top: 1px solid var(--rule); scroll-margin-top: 60px; }
+@media (max-width: 880px) { section.v { grid-template-columns: minmax(0, 1fr); } }
+.stage { padding: 12px; border-radius: 6px; background: #000; display: flex; justify-content: center; min-width: 0; }
+.cap { display: grid; gap: 10px; align-content: start; min-width: 0; max-width: 62ch; }
+.cap .hd { display: flex; align-items: baseline; gap: 12px; }
+.cap .num { font-family: var(--display); font-size: 28px; color: var(--accent); line-height: 1; }
+.cap h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: .05em; color: var(--hot); text-wrap: balance; }
+.cap h2 small { display: block; font-family: var(--body); font-size: 14px; letter-spacing: .02em; color: var(--muted); font-weight: 400; }
+.cap ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+.cap li::marker { color: var(--accent); }
+.cap .try { margin: 0; font-size: 15px; color: var(--muted); }
+.cap .try b { color: var(--accent); font-weight: 500; }
+.scaleref { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; font-size: 13px; margin-top: 4px; }
+.scaleref div { padding: 4px 6px; border-radius: 4px; background: #14120e; border-top: 3px solid var(--c); }
+.scaleref b { display: block; color: var(--hot); font-weight: 500; }
+.scaleref span { color: var(--muted); font-size: 12px; }
+@media (max-width: 480px) { .scaleref { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ===================================================== the Lykta pane */
+.pane { position: relative; width: min(100%, 448px); height: 604px; padding: 5px; border-radius: 3px; font-family: var(--mono); font-size: 12.5px; line-height: 17px; color: var(--fg);
+  box-shadow: 0 0 22px -4px color-mix(in srgb, var(--lamp) 22%, transparent); }
+.pane::before { content: ""; position: absolute; inset: 0; padding: 5px; border-radius: 3px; border: 1px solid #000; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo);
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.fx { position: absolute; z-index: 4; width: 13px; height: 13px; pointer-events: none;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--iron-hi), var(--iron) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%); }
+.f1 { top: 0; left: 0; } .f2 { top: 0; right: 0; transform: scaleX(-1); } .f3 { bottom: 0; left: 0; transform: scaleY(-1); } .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+.plate { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); height: 17px; padding: 0 15px; border-radius: 0 0 8px 8px; z-index: 6; display: flex; align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 7px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.plate::before { left: 5px; } .plate::after { right: 5px; }
+.pt { font-family: var(--display); font-weight: 700; font-size: 11.5px; letter-spacing: .12em; line-height: 13px; padding-top: 1px;
+  color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+.hole { position: relative; height: 100%; overflow: hidden; padding: 18px 9px 9px; border: 1px solid #000; border-radius: 1px; display: flex; flex-direction: column; gap: 7px;
+  background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 17%, transparent), color-mix(in srgb, var(--lamp) 5%, transparent) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 24px rgba(0,0,0,.55); }
+.card { border-radius: 4px; padding: 7px 9px;
+  background: linear-gradient(180deg, var(--frost), var(--frost2));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+.sec { display: flex; align-items: baseline; gap: 8px; font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--lamp) 35%, #c8c8c8); }
+.sec::after { content: ""; flex: 1; height: 1px; align-self: center; background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 34%, transparent), transparent 85%); }
+.sec .dim { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.dim { color: var(--dim); }
+.hot { color: var(--hot); }
+.num { font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sp { flex: 1; }
+.ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.trk { display: block; position: relative; height: 7px; border-radius: 3px; background: var(--trk); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+
+/* rating chip: colour + pips + word */
+.rc { --c: var(--dim); display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; height: 16px; border-radius: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 85%, #fff); background: color-mix(in srgb, var(--c) 14%, rgba(0,0,0,.35)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.rc .pp { display: inline-flex; gap: 1.5px; }
+.rc .pp i { width: 3px; height: 8px; border-radius: 1px; background: currentColor; opacity: .22; }
+.rc .pp i.on { opacity: 1; }
+.r-superb { text-shadow: 0 0 6px color-mix(in srgb, var(--r4) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--r4) 60%, transparent), 0 0 8px -1px color-mix(in srgb, var(--r4) 55%, transparent); }
+.rc.cal { --c: var(--dim); font-weight: 400; font-style: italic; }
+.pkc { --c: var(--pk); }
+
+/* the 5-zone scale bar */
+.scale { position: relative; padding-top: 9px; }
+.scale .bands { display: flex; height: 6px; gap: 2px; }
+.scale .bands i { display: block; height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, rgba(0,0,0,.4)); }
+.scale .bands i.here { background: var(--c); box-shadow: 0 0 6px -1px var(--c); }
+.scale .lbl { display: flex; gap: 2px; font-size: 9.5px; line-height: 12px; margin-top: 2px; }
+.scale .lbl span { overflow: hidden; white-space: nowrap; text-align: center; color: var(--dim); }
+.scale .lbl span.here { color: var(--hot); }
+.scale .mk { position: absolute; top: 0; width: 0; height: 0; border: 5px solid transparent; border-top: 7px solid var(--hot); border-bottom: 0; transform: translateX(-5px); filter: drop-shadow(0 0 3px rgba(255,255,255,.4)); transition: left .4s ease; }
+
+/* motion */
+@keyframes slideIn { from { transform: translateY(-14px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rowIn { from { transform: translateY(-6px); opacity: 0; max-height: 0; } to { transform: none; opacity: 1; max-height: 24px; } }
+@keyframes drop { from { transform: translateY(-46px); opacity: 0; } 60% { opacity: 1; } 80% { transform: translateY(3px); } to { transform: none; opacity: 1; } }
+@keyframes glow { from { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 80%, transparent), 0 0 14px -2px var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); } to { box-shadow: inset 0 0 0 1px transparent; background: transparent; } }
+@keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes toast { 0% { transform: translate(-50%, -30px); opacity: 0; } 12% { transform: translate(-50%, 0); opacity: 1; } 85% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -10px); opacity: 0; } }
+@keyframes flash { from { box-shadow: inset 0 0 0 1px var(--r4), 0 0 18px -2px var(--r4); } to { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), 0 1px 2px rgba(0,0,0,.45); } }
+.a-slide { animation: slideIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.a-row { animation: rowIn .4s ease-out both; overflow: hidden; }
+.a-drop { animation: drop .6s cubic-bezier(.3,.7,.3,1) both; transform-box: fill-box; transform-origin: center; }
+.a-glow { animation: glow 2.4s ease-out both; }
+.a-pop { animation: pop .45s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .a-slide, .a-row, .a-drop, .a-pop, .a-glow, .toast, .flash { animation-duration: 1ms !important; } .scale .mk { transition: none; } }
+
+/* ---------------- 1 Kill card */
+.c1-top { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; }
+.hero { padding: 9px 11px 10px; display: grid; gap: 4px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent), inset 0 0 0 1px var(--frost-edge), inset 3px 0 0 -1px var(--c), 0 2px 6px rgba(0,0,0,.5); }
+.hero .mob { color: var(--hot); font-weight: 700; font-size: 13.5px; }
+.hero .big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hero .bigxp { font-size: 30px; line-height: 34px; font-weight: 700; color: color-mix(in srgb, var(--c) 55%, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); font-variant-numeric: tabular-nums; }
+.hero .xpu { color: var(--dim); }
+.hero .rc { height: 20px; font-size: 12px; padding: 0 7px; }
+.hero .ratio { font-size: 12px; }
+.hero .ratio b { color: var(--hot); }
+.feed { display: grid; gap: 1px; }
+.fr { display: grid; grid-template-columns: 30px minmax(0, 1fr) minmax(40px, 30%) 44px; align-items: center; gap: 7px; height: 22px; padding: 0 4px; border-radius: 3px; }
+.fr:nth-child(odd) { background: rgba(255,255,255,.018); }
+.fr .t { color: var(--dim); font-size: 10.5px; text-align: right; }
+.fr .x { text-align: right; color: var(--hot); }
+.fr .bar { position: relative; height: 9px; }
+.fr .bar .fill { top: 1px; bottom: 1px; }
+.fr .bar .med { position: absolute; top: -7px; bottom: -7px; width: 0; border-left: 1px dashed color-mix(in srgb, var(--lamp) 55%, transparent); }
+.fr .g { font-weight: 700; font-size: 10.5px; text-align: center; color: var(--c); }
+.foot4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: auto; }
+.tile { padding: 5px 7px 6px; display: grid; gap: 0; }
+.tile .k { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; }
+.tile .v { font-size: 15px; line-height: 20px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tile .v small { font-size: 10.5px; font-weight: 400; color: var(--dim); }
+
+#tip { position: fixed; z-index: 50; pointer-events: none; padding: 4px 8px; border-radius: 4px; background: #1b1915; border: 1px solid #3a352c; color: var(--ink); font-family: var(--mono); font-size: 11.5px; line-height: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.6); max-width: 260px; }
+
+/* ---------------- round 3: tiles on top, scrolling Earlier list, last-kill card at the bottom */
+.foot4 { margin-top: 0; }
+.listwrap { position: relative; flex: 1 1 auto; min-height: 44px; display: flex; flex-direction: column; }
+.scroller { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 3px; border-radius: 3px;
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lamp) 30%, transparent) transparent;
+  -webkit-mask: linear-gradient(180deg, transparent 0, #000 14px, #000 100%); mask: linear-gradient(180deg, transparent 0, #000 14px, #000 100%); }
+.scroller::-webkit-scrollbar { width: 6px; }
+.scroller::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--lamp) 30%, transparent); border-radius: 3px; }
+.scroller .feed { padding-top: 10px; }
+.fr { user-select: text; grid-template-columns: 40px minmax(0, 1fr) minmax(40px, 30%) 46px; }
+@media (max-width: 480px) { .tile .k { font-size: 9px; letter-spacing: .04em; } }
+.fr.newest { background: color-mix(in srgb, var(--c) 7%, rgba(255,255,255,.02)); }
+.more { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 3; font: inherit; font-size: 11px; line-height: 18px; padding: 0 9px; border-radius: 9px; cursor: pointer;
+  color: var(--hot); border: 1px solid color-mix(in srgb, var(--lamp) 45%, transparent); background: color-mix(in srgb, var(--pane-bg) 80%, var(--lamp) 20%); box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hero { flex: 0 0 auto; }
+.hero .top { display: flex; align-items: baseline; gap: 8px; }
+.hero .top .lk { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+@keyframes riseIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes upIn { from { transform: translateY(30px); opacity: .2; background: color-mix(in srgb, var(--c) 25%, transparent); } 70% { opacity: 1; } to { transform: none; opacity: 1; } }
+.a-rise { animation: riseIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.a-up { animation: upIn .5s cubic-bezier(.2,.8,.2,1) both; }
+.pane.short { height: 360px; }
+.short .hero { padding: 6px 9px 7px; gap: 2px; }
+.short .hero .bigxp { font-size: 24px; line-height: 28px; }
+.short .hero .scale { display: none; }
+.stage.two { flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.stage .lbl2 { width: 100%; text-align: center; font-family: var(--body); font-size: 13px; color: var(--muted); margin-top: -4px; }
+@media (prefers-reduced-motion: reduce) { .a-rise, .a-up { animation-duration: 1ms !important; } }
+
+/* ===================================================== round 4: the pane follows its colour, Paper, border and glass
+   Every pane colour comes from three values the app sets per pane (src/theme/apply.ts): --pane-bg (the fill, or
+   none when clear), --pane-fill (the fill a clear pane's cards are backed with) and --pane-border (the tint's frame
+   colour; on Paper the tint's hue at HSL L80). The lamp, iron and Paper metal are layout.css's formulas (ADR 0123);
+   text is the pane's shade ramp (vtext, label), set from JS as --fg and --dim like the Timers pane's --tm-fg/--tm-dim.
+   Rating colours have a dark and a light set (as palette.ts DARK_COLORS / LIGHT_COLORS). */
+.ctl .seg { flex-wrap: wrap; }
+@media (max-width: 640px) { .ctl { position: static; } }
+.ctl .cg { flex-wrap: wrap; min-width: 0; }
+.ctl .seg.sw button { display: inline-flex; align-items: center; gap: 5px; }
+.ctl .seg.sw i { width: 10px; height: 10px; border-radius: 2px; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+section.v.stack { grid-template-columns: minmax(0, 1fr); }
+section.v.stack .cap { max-width: 78ch; }
+.stage { transition: background .3s; }
+.stage.duo { flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+
+.pane {
+  --lamp-w: min(hypot(a, b) * 60, 1);
+  --lamp: oklab(from var(--pane-border) 0.78
+      calc(a / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0291 * (1 - 0.6 * var(--lamp-w)))
+      calc(b / max(hypot(a, b), 0.0001) * 0.06 * var(--lamp-w) + 0.0799 * (1 - 0.6 * var(--lamp-w))));
+  --iron: oklch(from var(--pane-border) 0.25 min(calc(c * 3), 0.03) h);
+  --iron-hi: oklch(from var(--pane-border) 0.42 min(calc(c * 3), 0.035) h);
+  --iron-lo: oklch(from var(--pane-border) 0.14 min(calc(c * 3), 0.02) h);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --card-back: transparent;
+  --card: color-mix(in srgb, var(--lamp) 8%, var(--card-back));
+  --card-lit: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent);
+  --card-drop: 0 1px 2px rgb(0 0 0 / .45);
+  --hot: color-mix(in srgb, var(--fg) 40%, #fff);
+  --head: color-mix(in srgb, var(--lamp) 30%, var(--fg));
+  --rule-c: color-mix(in srgb, var(--lamp) 34%, transparent);
+  --trk: rgb(0 0 0 / .55);
+  --trk-sh: inset 0 1px 1px rgb(0 0 0 / .7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent);
+  --gloss: linear-gradient(180deg, rgb(255 255 255 / .38), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / .15));
+  --tick: color-mix(in srgb, var(--lamp) 55%, transparent);
+  --halo: 0 0 6px -1px;
+  --on-c: #fff;           /* what a rating colour is mixed toward for text */
+  --row-alt: rgb(255 255 255 / .018);
+  --lift: 0 0 3px rgb(0 0 0 / .9);
+  --r0: #e0553c; --r1: #e8963a; --r2: #86b6dc; --r3: #5cc785; --r4: #ffd54a;
+  --pk: #e0915a; --teal: #7cc4c8;
+  --rf0: var(--r0); --rf1: var(--r1); --rf2: var(--r2); --rf3: var(--r3); --rf4: var(--r4); --pkf: var(--pk);
+  --ending: #ff3b3b;
+  color: var(--fg);
+}
+.pane[data-clear] { --card-back: color-mix(in srgb, var(--pane-fill) 62%, transparent); }
+
+/* the band, the brackets and the hood over the computed iron (dark) */
+.pane .hole { background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 19%, transparent), color-mix(in srgb, var(--lamp) 6%, transparent) 55%, transparent 88%), var(--pane-bg); }
+.pane[data-clear] { box-shadow: 0 0 26px -2px color-mix(in srgb, var(--lamp) 30%, transparent); }
+.pane[data-clear] .hole { background: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 22%, transparent), inset 0 0 18px color-mix(in srgb, var(--lamp) 24%, transparent); }
+
+/* border off: no iron, hood or brackets; the window keeps its light and the cards */
+.pane[data-frame="off"] { padding: 0; box-shadow: none; }
+.pane[data-frame="off"]::before, .pane[data-frame="off"] .fx, .pane[data-frame="off"] .plate { display: none; }
+.pane[data-frame="off"] .hole { border: 0; border-radius: 4px; padding-top: 9px; box-shadow: inset 0 0 18px rgb(0 0 0 / .45); }
+.pane[data-frame="off"][data-clear] .hole { box-shadow: none; }
+
+/* content on the tokens */
+.pane .card { background: var(--card); box-shadow: var(--card-lit), inset 0 0 0 1px var(--frost2), var(--card-drop); }
+.pane .hero { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent), inset 0 0 0 1px var(--frost-edge), inset 3px 0 0 -1px var(--c), 0 2px 6px rgb(0 0 0 / .5); }
+.pane .sec { color: var(--head); }
+.pane .sec::after { background: linear-gradient(90deg, var(--rule-c), transparent 85%); }
+.pane .trk { background: var(--trk); box-shadow: var(--trk-sh); }
+.pane .fill { background: var(--gloss), var(--cf, var(--c)); }
+.pane .fr .bar .med { border-left-color: var(--tick); }
+.pane .fr:nth-child(odd) { background: var(--row-alt); }
+.pane .fr.newest { background: color-mix(in srgb, var(--c) 9%, var(--row-alt)); }
+.pane .rc { color: color-mix(in srgb, var(--c) 85%, var(--on-c)); background: color-mix(in srgb, var(--c) 14%, var(--rc-back, rgb(0 0 0 / .35))); }
+.pane .r-superb { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--r4) 60%, transparent), var(--halo) color-mix(in srgb, var(--r4) 55%, transparent); }
+.pane .hero .bigxp { color: color-mix(in srgb, var(--c) 55%, var(--on-c)); }
+.pane .scale .bands i { background: color-mix(in srgb, var(--c) 55%, rgb(0 0 0 / .4)); }
+.pane .more { background: color-mix(in srgb, var(--pane-fill) 80%, var(--lamp) 20%); }
+/* clear: rows and the bare labels get a little backing / lift so they read on any sky */
+.pane[data-clear] .fr { background: var(--card-back); }
+.pane[data-clear] .fr.newest { background: color-mix(in srgb, var(--c) 12%, var(--card-back)); }
+.pane[data-clear] :is(.c1-top, .sec, .th) { text-shadow: var(--lift); }
+.pane[data-clear] .c1-top { background: var(--card-back); border-radius: 3px; padding: 0 5px; }
+
+/* ----------------------------------------------- Paper: pewter and brass, parchment window, raised paper cards */
+.pane[data-light] {
+  --iron: oklch(from var(--pane-border) 0.66 min(calc(c * 1.15), 0.07) h);
+  --iron-hi: oklch(from var(--pane-border) 0.88 min(calc(c * 0.8), 0.05) h);
+  --iron-lo: oklch(from var(--pane-border) 0.36 min(calc(c * 0.6), 0.04) h);
+  --engrave: oklch(from var(--pane-border) 0.24 min(calc(c * 0.5), 0.035) h / 0.85);
+  --ink: oklch(from var(--pane-border) 0.3 min(calc(c * 0.9), 0.06) h);
+  --shade: color-mix(in srgb, color-mix(in oklab, oklch(from var(--pane-border) 0.48 min(calc(c * 1.2), 0.07) h), #7a5a2a) 20%, transparent);
+  --metal: linear-gradient(180deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.05) 55%, rgb(0 0 0 / 0.08)), var(--iron);
+  --metal-drop: 0 1px 3px rgb(50 35 10 / 0.3);
+  --frost2: rgb(0 0 0 / 0.06);
+  --frost-edge: color-mix(in srgb, var(--iron-lo) 45%, transparent);
+  --card: color-mix(in srgb, #fffdf8 92%, var(--card-back));
+  --card-lit: 0 0 transparent;
+  --card-drop: 0 1px 2px rgb(60 40 10 / .22);
+  --hot: color-mix(in srgb, var(--fg) 75%, #000);
+  --head: var(--ink);
+  --rule-c: color-mix(in srgb, var(--iron-lo) 45%, transparent);
+  --trk: color-mix(in srgb, var(--track) 75%, var(--iron-lo));
+  --trk-sh: inset 0 1px 2px rgb(0 0 0 / .3), 0 1px 0 rgb(255 255 255 / .7);
+  --gloss: linear-gradient(180deg, rgb(255 255 255 / .35), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / .1));
+  --tick: color-mix(in srgb, var(--iron-lo) 60%, transparent);
+  --halo: 0 0 0 0;
+  --on-c: #000;
+  --rc-back: #fffdf8;
+  --row-alt: rgb(0 0 0 / .03);
+  --lift: 0 0 3px rgb(255 253 245 / .95);
+  --r0: #b0301e; --r1: #985200; --r2: #2a56c8; --r3: #256e33; --r4: #7d5c00;
+  --pk: #a5521c; --teal: #2e6f74;
+  /* bar fills on paper: clearer than the text colours (as the app washes gauge fills) */
+  --rf0: #d4553c; --rf1: #e0902e; --rf2: #4a7fd8; --rf3: #3f9a52; --rf4: #e3b21e; --pkf: #d07a3a;
+  --ending: #d0101a;
+  box-shadow: var(--metal-drop);
+}
+.pane[data-light]::before { border-color: var(--engrave);
+  background: linear-gradient(180deg, rgb(255 255 255 / .25), rgb(255 255 255 / 0) 35%, rgb(0 0 0 / .06)), var(--iron);
+  box-shadow: inset 1px 1px 0 rgb(255 255 255 / .75), inset -1px -1px 0 color-mix(in srgb, var(--iron-lo) 45%, transparent); }
+.pane[data-light] .fx { background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--iron-hi) 70%, transparent) 0 .7px, var(--iron-lo) 1.2px 1.9px, transparent 2.3px) 0 0 / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--iron-hi), color-mix(in srgb, var(--iron-hi) 55%, var(--iron)) 70%); }
+.pane[data-light] .plate { background: var(--metal);
+  box-shadow: inset 0 -1px 0 rgb(255 255 255 / .7), 0 0 0 1px var(--engrave), var(--metal-drop); }
+.pane[data-light] .pt { color: var(--ink); text-shadow: 0 1px 0 rgb(255 255 255 / .7); }
+.pane[data-light] .hole { border-color: var(--engrave);
+  background: radial-gradient(42% 54px at 50% 0, rgb(255 255 255 / .45), transparent),
+    radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / .42), rgb(255 253 245 / .26) 60%, rgb(255 253 245 / .2)), var(--pane-bg);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--iron-lo) 35%, transparent), inset 0 0 22px var(--shade); }
+.pane[data-light][data-frame="off"] { box-shadow: none; }
+.pane[data-light][data-frame="off"] .hole { background: radial-gradient(125% 90% at 50% 35%, rgb(255 253 245 / .4), rgb(255 253 245 / .24) 60%, rgb(255 253 245 / .18)), var(--pane-bg);
+  box-shadow: inset 0 0 22px color-mix(in srgb, var(--shade) 80%, transparent); }
+.pane[data-light][data-clear] .hole { background: none;
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--iron-lo) 35%, transparent), inset 0 0 15px color-mix(in srgb, var(--shade) 70%, transparent); }
+.pane[data-light][data-clear][data-frame="off"] .hole { box-shadow: none; }
+.pane[data-light] .hero { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .1), inset 3px 0 0 -1px var(--c), 0 1px 2px rgb(60 40 10 / .25), 0 3px 8px rgb(60 40 10 / .1); }
+.pane[data-light] .hero .bigxp { text-shadow: none; }
+.pane[data-light] .r-superb { text-shadow: none; }
+.pane[data-light] .scale .bands i { background: color-mix(in srgb, var(--c) 45%, #fffdf8); }
+.pane[data-light] .scale .bands i.here { background: var(--c); box-shadow: none; }
+.pane[data-light] .scale .mk { filter: none; }
+.pane[data-light] .tile .k, .pane[data-light] .dim { color: var(--dim); }
+.pane[data-light] .more { color: var(--ink); background: #fffdf8; border-color: color-mix(in srgb, var(--iron-lo) 45%, transparent); box-shadow: 0 1px 3px rgb(60 40 10 / .3); }
+.pane[data-light] .scroller { scrollbar-color: color-mix(in srgb, var(--iron-lo) 40%, transparent) transparent; }
+
+/* ----------------------------------------------- the reference Timers pane (timers.css, lantern look, recreated) */
+.tmpane { width: min(100%, 290px); height: 300px; }
+.tm { display: flex; flex-direction: column; gap: 0; overflow: hidden; padding: 0 1px; color: var(--fg);
+  --tm-tint: 28%; --tm-edge: 45%; --tm-card: color-mix(in srgb, var(--lamp) 8%, var(--card-back));
+  --tm-lit: inset 0 1px 0 color-mix(in srgb, var(--lamp) 22%, transparent); --tm-drop: 0 1px 2px rgb(0 0 0 / .4); --tm-time: var(--dim); }
+.pane[data-light] .tm { --tm-tint: 22%; --tm-edge: 50%; --tm-card: color-mix(in srgb, #fffdf8 92%, var(--card-back));
+  --tm-lit: 0 0 transparent; --tm-drop: 0 1px 2px rgb(60 40 10 / .22); --tm-time: color-mix(in srgb, var(--dim) 50%, var(--fg)); }
+.tm .g + .g { margin-top: .35em; }
+.tm .th { display: flex; align-items: center; gap: .45em; height: 1.27em; font-size: .85em; font-weight: 700; letter-spacing: .03em; color: var(--head); margin-bottom: 2px; }
+.tm svg { display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tm .hi { flex: none; width: 1.06em; height: 1.06em; color: var(--c); filter: drop-shadow(0 0 2px color-mix(in srgb, var(--c) 70%, transparent)); }
+.pane[data-light] .tm .hi { filter: none; }
+.tm .hln { flex: 1 1 auto; height: 1px; margin-left: .2em; background: linear-gradient(90deg, var(--rule-c), transparent 85%); }
+.tm .items { display: flex; flex-wrap: wrap; gap: .3em; font-size: .85em; }
+.tm .chip { position: relative; box-sizing: border-box; display: flex; align-items: center; gap: .45em; min-width: 0; max-width: 100%; height: 1.7em; padding: 0 .6em 0 .5em;
+  border: 1px solid color-mix(in srgb, var(--c) var(--tm-edge), transparent); border-radius: .3em; background: var(--tm-card); box-shadow: var(--tm-lit), var(--tm-drop); }
+.tm .chip .tf { position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) var(--tm-tint), transparent) calc(var(--p, 0) * 1%), transparent 0); }
+.tm .chip .ic { position: relative; flex: none; width: .95em; height: .95em; color: var(--c); }
+.tm .chip .n { position: relative; color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
+.tm .chip .t { position: relative; color: var(--tm-time); font-variant-numeric: tabular-nums; }
+.tm .chip.soon .t { color: var(--ending); font-weight: 700; text-shadow: 0 0 5px color-mix(in srgb, var(--ending) 45%, transparent); }
+.pane[data-light] .tm .chip.soon .t { text-shadow: none; }
+
+</style>
+<div class="wrap">
+  <header class="intro">
+    <h1>Statistics, runda fyra</h1>
+    <p>Raden "× median" på kortet och betygsbokstäverna längst till höger i listan är borta, och XP under 1000 visas som exakt tal (540, inte 0.5k). Nytt är att panelen följer <b>panelfärg, Paper, ram och glas/klar</b> precis som Timers gör i dag, och en liten Timers-panel bredvid visar att de hör ihop.</p>
+  </header>
+
+  <div class="ctl" role="toolbar" aria-label="Demo controls">
+    <div class="cg"><button class="btn" id="pause" aria-pressed="false">Pause</button><button class="btn prim" id="killnow">Kill now</button></div>
+    <div class="cg"><span class="cl">Session</span><div class="seg" id="lvl"><button data-l="12" aria-pressed="false">Level 12</button><button data-l="34" aria-pressed="true">Level 34</button><button data-l="48" aria-pressed="false">Level 48</button></div></div>
+    <div class="cg"><span class="cl">Colour</span><div class="seg sw" id="tint"></div></div>
+    <div class="cg"><span class="cl">Background</span><div class="seg" id="theme"><button data-v="dark" aria-pressed="true">Black</button><button data-v="paper" aria-pressed="false">Paper</button></div></div>
+    <div class="cg"><span class="cl">Border</span><div class="seg" id="frame"><button data-v="on" aria-pressed="true">On</button><button data-v="off" aria-pressed="false">Off</button></div></div>
+    <div class="cg"><span class="cl">Pane bg</span><div class="seg" id="clear"><button data-v="glass" aria-pressed="true">Glass</button><button data-v="clear" aria-pressed="false">Clear</button></div></div>
+    <div class="cg"><span class="cl">Behind</span><div class="seg" id="behind"><button data-v="page" aria-pressed="true">Page</button><button data-v="night" aria-pressed="false">Night sky</button><button data-v="day" aria-pressed="false">Day sky</button></div></div>
+  </div>
+
+  <section class="v stack" id="s1">
+    <div class="stage duo">
+      <div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="pA"></div></div>
+      <div class="pane tmpane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">TIMERS</span></div><div class="hole"><div class="tm" id="tmA"></div></div></div>
+    </div>
+    <div class="cap">
+      <div class="hd"><span class="num">4</span><h2>Senaste fångst i panelens färger<small>Statistics bredvid en Timers-panel med samma inställningar</small></h2></div>
+      <ul>
+        <li>Kortet, rutorna och raderna är samma frostade kort som Timers chips: lampans ljus över panelens färg, en ljus överkant och en tunn skugga. På Paper blir de upphöjt papper.</li>
+        <li>Texten följer panelens nyansskala, som i Timers och Group. En lila panel får lila-grå text och lila lampljus, en blå panel blå.</li>
+        <li>Betygsfärgerna har en mörk och en ljus uppsättning, som Timers gruppfärger. På Paper är de mörkare så att de håller 4.5:1 mot papperet.</li>
+        <li>Utan ram och med klar bakgrund flyter innehållet fritt. Korten och listraderna behåller en svag bakgrund så att texten går att läsa mot himlen.</li>
+        <li>Kortet visar bara betyget och skalan. Raden "× median" är borta, liksom bokstäverna i listan. XP under 1000 står som exakt tal.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> välj Purple och jämför med Timers bredvid. Byt till Paper och prova Red och Blue. Slå av Border, välj Clear och lägg Night sky eller Day sky bakom. Välj Level 12 för att se XP under 1000 och tryck Kill now.</p>
+    </div>
+  </section>
+
+  <section class="v" id="s2">
+    <div class="stage"><div class="pane short"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="pB"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">4b</span><h2>Samma panel, låg<small>360 px hög, till exempel dockad under kartan</small></h2></div>
+      <ul>
+        <li>Raden överst, rutorna och kortet behåller sin plats. Det är listan som krymper.</li>
+        <li>Kortet blir tätare: mindre XP-siffra och ingen skala. Betyget står kvar som märke.</li>
+        <li>Färg, Paper, ram och bakgrund följer samma kontroller som ovan.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> scrolla i den korta listan och byt färg i kontrollraden.</p>
+    </div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+<script>
+(() => {
+'use strict';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPEED = 30;                // game seconds per real second
+const MIN = 60000;
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------- helpers
+function fmtK(n) {
+  const v = Math.round(Math.abs(n)); const sign = n < 0 && v > 0 ? '-' : '';
+  let s;
+  if (v < 1000) s = String(v);
+  else if (v < 99950) s = (v / 1000).toFixed(1) + 'k';
+  else if (v < 999500) s = Math.round(v / 1000) + 'k';
+  else s = (v / 1e6).toFixed(1) + 'M';
+  return sign + s;
+}
+function fmtClock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000)); const p2 = (n) => String(n).padStart(2, '0');
+  const h = Math.floor(s / 3600);
+  return h > 0 ? `${h}:${p2(Math.floor(s / 60) % 60)}:${p2(s % 60)}` : `${p2(Math.floor(s / 60))}:${p2(s % 60)}`;
+}
+function fmtDur(ms) { const m = Math.round(ms / MIN); return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`; }
+function ago(ms) { const m = Math.floor(ms / MIN); return m < 1 ? '0m' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60}m`; }
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function median(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1.5 ? 1.5 : f <= 2 ? 2 : f <= 3 ? 3 : f <= 5 ? 5 : f <= 7.5 ? 7.5 : 10) * p; }
+
+// ------------------------------------------------------------- rating
+const RATINGS = [
+  { k: 'poor', f: 'var(--rf0)', label: 'Poor', grade: 'D', c: 'var(--r0)', lo: 0, hi: 0.45 },
+  { k: 'meh', f: 'var(--rf1)', label: 'Meh', grade: 'C', c: 'var(--r1)', lo: 0.45, hi: 0.8 },
+  { k: 'good', f: 'var(--rf2)', label: 'Good', grade: 'B', c: 'var(--r2)', lo: 0.8, hi: 1.5 },
+  { k: 'great', f: 'var(--rf3)', label: 'Great', grade: 'A', c: 'var(--r3)', lo: 1.5, hi: 2.5 },
+  { k: 'superb', f: 'var(--rf4)', label: 'Superb', grade: 'S', c: 'var(--r4)', lo: 2.5, hi: Infinity },
+];
+const CAL_MIN = 5;
+function rateIdx(r) { return r < 0.45 ? 0 : r < 0.8 ? 1 : r < 1.5 ? 2 : r < 2.5 ? 3 : 4; }
+/** Median of the last 30 mob kills (PK left out), or null while calibrating. */
+function refMedian() { const xs = S.kills.filter((k) => !k.pk).slice(-30).map((k) => k.xp); return xs.length >= CAL_MIN ? median(xs) : null; }
+function rateOf(xp, med) { return med ? RATINGS[rateIdx(xp / med)] : null; }
+function chip(R, extra = '') {
+  if (!R) return `<span class="rc cal">calibrating…</span>`;
+  const i = RATINGS.indexOf(R);
+  const pips = RATINGS.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('');
+  return `<span class="rc r-${R.k}" style="--c:${R.c}"><span class="pp" aria-hidden="true">${pips}</span>${R.label}${extra}</span>`;
+}
+// log2 scale from 0.25× to 4×
+const scalePos = (r) => Math.min(1, Math.max(0, (Math.log2(Math.max(r, 0.01)) + 2) / 4));
+const BOUNDS = [0, scalePos(0.45), scalePos(0.8), scalePos(1.5), scalePos(2.5), 1];
+function scaleBar(r) {
+  const here = r == null ? -1 : rateIdx(r);
+  const bands = RATINGS.map((R, i) => `<i style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)};--c:${R.f}" class="${i === here ? 'here' : ''}"></i>`).join('');
+  const lbl = RATINGS.map((R, i) => `<span style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)}" class="${i === here ? 'here' : ''}">${R.label}</span>`).join('');
+  const mk = r == null ? '' : `<span class="mk" style="left:${(scalePos(r) * 100).toFixed(1)}%"></span>`;
+  return `<div class="scale">${mk}<div class="bands">${bands}</div><div class="lbl">${lbl}</div></div>`;
+}
+
+// ------------------------------------------------------------- session model
+const BANDS = {
+  12: { mobs: [['a rabbit', 380, 2], ['a large rat', 470, 3], ['a wild boar', 950, 3], ['a wolf', 1150, 4], ['a hobbit thief', 1550, 3], ['a goblin scout', 2150, 2], ['a giant spider', 2950, .6]], tp: [1, 1], ach: 'Slew a giant spider' },
+  34: { mobs: [['a black bear', 2250, 3], ['a warg', 2850, 3], ['a dunlending raider', 3400, 3], ['an orc warrior', 4300, 4], ['a barrow-wight', 6300, 2], ['a stone troll', 8400, 1.2]], tp: [1, 3], ach: 'Slew a stone troll' },
+  48: { mobs: [['an easterling soldier', 6500, 3], ['an orc captain', 8300, 3], ['a great spider', 11500, 3], ['a cave troll', 15500, 3], ['a hill giant', 19500, 2], ['a mountain troll', 24500, .8], ['an olog-hai', 39000, .25]], tp: [2, 4], ach: 'Slew an olog-hai' },
+};
+let S, rng;
+
+function pickMob() {
+  const m = BANDS[S.band].mobs; const tot = m.reduce((s, x) => s + x[2], 0);
+  let r = rng() * tot;
+  for (const x of m) { r -= x[2]; if (r <= 0) return x; }
+  return m[m.length - 1];
+}
+function gauss() { return Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng()); }
+
+function newSession(band) {
+  rng = mulberry(band * 7919 + 3);
+  const mobs = BANDS[band].mobs;
+  const wsum = mobs.reduce((s, x) => s + x[2], 0);
+  const est = mobs.reduce((s, x) => s + x[1] * x[2], 0) / wsum;
+  S = { band, level: band, span: Math.round(est * 45 / 1000) * 1000, xpIn: 0, gained: 0, startIn: 0,
+    tpStart: 140 + band * 3, tp: 0, kills: [], tps: [], miles: [], now: 70 * MIN, achDone: false, liveKills: 0, killSeq: 0, bestStreak: 0 };
+  S.startIn = Math.round(S.span * 0.16); S.xpIn = S.startIn; S.tp = S.tpStart; S.levelStart = band;
+  const ts = Array.from({ length: 25 }, () => rng() * 68 * MIN + 1 * MIN).sort((a, b) => a - b);
+  ts.forEach((t, i) => addKill(t, i === 15 ? 'pk' : null, false));
+  S.now = 70 * MIN;
+}
+
+function addKill(t, kind, live) {
+  let k;
+  if (kind === 'pk') {
+    const med = refMedian() || 3000;
+    k = { t, name: '*Ugluk the Orc*', xp: Math.round(med * (4 + rng() * 2) / 10) * 10, pk: true };
+  } else {
+    const [name, base] = pickMob();
+    k = { t, name, xp: Math.max(50, Math.round(base * Math.exp(gauss() * 0.16) / 10) * 10), pk: false };
+  }
+  k.id = ++S.killSeq; k.real = live ? performance.now() : -1e9;
+  S.kills.push(k);
+  S.gained += k.xp; S.xpIn += k.xp;
+  const out = [];
+  if (S.xpIn >= S.span) {
+    S.xpIn -= S.span; S.level++; S.span = Math.round(S.span * 1.08 / 1000) * 1000;
+    S.miles.push({ t, kind: 'level', text: `Level ${S.level}!` }); out.push('level');
+  }
+  if (rng() < 0.32) { const [a, b] = BANDS[S.band].tp; const d = a + Math.floor(rng() * (b - a + 1)); S.tp += d; S.tps.push({ t, d }); }
+  if (live) {
+    S.liveKills++;
+    if (!S.achDone && S.liveKills === 5) { S.achDone = true; S.miles.push({ t, kind: 'ach', text: BANDS[S.band].ach }); out.push('ach'); }
+  }
+  return { k, out };
+}
+
+// derived numbers
+function sessionMs() { return S.now; }
+function xpPerHour(winMin) {
+  if (winMin == null) return S.gained / (sessionMs() / 3600000);
+  const from = S.now - winMin * MIN;
+  const sum = S.kills.filter((k) => k.t > from).reduce((s, k) => s + k.xp, 0);
+  return sum / (winMin / 60);
+}
+function tpPerHour() { return (S.tp - S.tpStart) / (sessionMs() / 3600000); }
+function series(kind, buckets) {
+  const w = 15 * MIN; const out = [];
+  const evs = kind === 'tp' ? S.tps.map((x) => ({ t: x.t, v: x.d })) : S.kills.map((k) => ({ t: k.t, v: k.xp }));
+  for (let i = 0; i < buckets; i++) {
+    const t = (i + 1) / buckets * S.now; const lo = t - w;
+    const sum = evs.filter((e) => e.t > lo && e.t <= t).reduce((s, e) => s + e.v, 0);
+    out.push(sum / (Math.min(w, t) / 3600000));
+  }
+  return out;
+}
+function etaMs() { const r = xpPerHour(20) || xpPerHour(); return r > 0 ? (S.span - S.xpIn) / r * 3600000 : Infinity; }
+function lastKill() { return S.kills[S.kills.length - 1]; }
+function lastMobKill() { for (let i = S.kills.length - 1; i >= 0; i--) if (!S.kills[i].pk) return S.kills[i]; return null; }
+function streak() { let n = 0; const med = refMedian(); if (!med) return 0; for (let i = S.kills.length - 1; i >= 0; i--) { const k = S.kills[i]; if (k.pk) continue; if (k.xp / med >= 0.8) n++; else break; } return n; }
+function bestKill() { return S.kills.filter((k) => !k.pk).reduce((b, k) => (!b || k.xp > b.xp ? k : b), null); }
+/** Animation class for a freshly arrived kill, continued across re-renders by a negative delay. */
+function fresh(k, cls, dur) {
+  if (!k) return { c: '', s: '' };
+  const el = performance.now() - k.real;
+  return el < dur ? { c: cls, s: `animation-delay:-${Math.round(el)}ms;` } : { c: '', s: '' };
+}
+
+// ------------------------------------------------------------- round 3 pane
+// One renderer for both panes; each keeps its own scroll state.
+const panes = [
+  { el: $('pA'), short: false },
+  { el: $('pB'), short: true },
+];
+/** The kill now on the card (it moves into the list when the next one lands). */
+let cardId = null; let movedId = null; let movedAt = -1e9;
+
+function rowHtml(x, med, max, isNewest, anim) {
+  const Rx = x.pk ? null : rateOf(x.xp, med);
+  const c = x.pk ? 'var(--pk)' : Rx ? Rx.c : 'var(--dim)';
+  const cf = x.pk ? 'var(--pkf)' : Rx ? Rx.f : 'var(--dim)';
+  const tip = `${x.name} · ${fmtK(x.xp)} XP${Rx ? ' · ' + Rx.label : x.pk ? ' · PvP' : ''}`;
+  return `<div class="fr${isNewest ? ' newest' : ''} ${anim.c}" style="${anim.s}--c:${c};--cf:${cf}" data-tip="${esc(tip)}">
+    <span class="t num" data-t="${x.t}">${ago(S.now - x.t)}</span><span class="ell" style="${x.pk ? 'color:var(--pk)' : ''}">${esc(x.name)}</span>
+    <span class="bar"><span class="trk" style="height:9px"><span class="fill" style="width:${(Math.min(1, x.xp / max) * 100).toFixed(1)}%"></span></span>${med ? `<span class="med" style="left:${(med / max * 100).toFixed(1)}%"></span>` : ''}</span>
+    <span class="x num">${fmtK(x.xp)}</span></div>`;
+}
+
+function build(p) {
+  p.el.innerHTML = `
+    <div class="c1-top"><span class="hot">Gibur</span><span class="dim">L<span class="js-lv"></span></span><span class="dim">·</span><span class="num js-rt"></span><span class="sp"></span><span class="dim">with</span><span style="color:var(--teal)">Lindir</span></div>
+    <div class="foot4 js-tiles"></div>
+    <div class="sec">Earlier <span class="dim js-cnt"></span></div>
+    <div class="listwrap"><div class="scroller" tabindex="0" aria-label="Earlier kills, newest at the bottom"><div class="feed"></div></div><button class="more" hidden></button></div>
+    <div class="js-card"></div>`;
+  p.scroller = p.el.querySelector('.scroller');
+  p.feed = p.el.querySelector('.feed');
+  p.more = p.el.querySelector('.more');
+  p.pinned = true; p.unseen = 0;
+  new ResizeObserver(() => { if (p.pinned) p.scroller.scrollTop = p.scroller.scrollHeight; }).observe(p.scroller);
+  p.scroller.addEventListener('scroll', () => {
+    const atBottom = p.scroller.scrollHeight - p.scroller.scrollTop - p.scroller.clientHeight < 4;
+    p.pinned = atBottom;
+    if (atBottom) { p.unseen = 0; p.more.hidden = true; }
+  });
+  p.more.addEventListener('click', () => {
+    p.scroller.scrollTo({ top: p.scroller.scrollHeight, behavior: REDUCED ? 'auto' : 'smooth' });
+  });
+}
+
+function render(p, ev) {
+  const med = refMedian(); const k = lastKill();
+  const R = k.pk ? null : rateOf(k.xp, med); const r = med ? k.xp / med : null;
+  p.el.querySelector('.js-lv').textContent = S.level;
+  p.el.querySelector('.js-rt').textContent = fmtClock(S.now);
+  // tiles
+  const kc = S.kills.length; const avg = S.gained / kc;
+  p.el.querySelector('.js-tiles').innerHTML = `
+    <div class="card tile"><span class="k">Avg / kill</span><span class="v">${fmtK(avg)}</span></div>
+    <div class="card tile"><span class="k">Median</span><span class="v">${med ? fmtK(med) : '—'}</span></div>
+    <div class="card tile"><span class="k">XP / h</span><span class="v">${fmtK(xpPerHour())}</span></div>
+    <div class="card tile"><span class="k">Kills</span><span class="v">${kc}</span></div>`;
+  // list: every kill but the one on the card, oldest first
+  const list = S.kills.slice(0, -1);
+  p.el.querySelector('.js-cnt').textContent = `${list.length} kills`;
+  const max = (med ? med * 3 : Math.max(...list.filter((x) => !x.pk).map((x) => x.xp), 1));
+  const up = fresh({ real: movedAt }, 'a-up', 500);
+  const top = p.scroller.scrollTop;
+  p.feed.innerHTML = list.map((x, i) => rowHtml(x, med, max, i === list.length - 1, x.id === movedId ? up : { c: '', s: '' })).join('');
+  if (ev === 'kill' && !p.pinned) { p.unseen++; p.more.textContent = `↓ ${p.unseen} new`; p.more.hidden = false; }
+  // the card
+  const f = fresh(k, 'a-rise', 450);
+  const heroC = k.pk ? 'var(--pk)' : R ? R.c : 'var(--lamp)';
+  p.el.querySelector('.js-card').innerHTML = `
+    <div class="card hero ${f.c}" style="${f.s}--c:${heroC}">
+      <div class="top"><span class="lk">Last kill</span><span class="dim js-ago" style="font-size:10.5px">${ago(S.now - k.t)} ago</span><span class="sp"></span></div>
+      <div class="row"><span class="mob ell" style="${k.pk ? 'color:var(--pk)' : ''}">${esc(k.name)}</span></div>
+      <div class="big"><span class="bigxp">+${fmtK(k.xp)}</span><span class="xpu">XP</span><span class="sp"></span>${k.pk ? `<span class="rc pkc" style="--c:var(--pk)">⚔ PvP</span>` : chip(R)}</div>
+      ${k.pk ? '' : scaleBar(r)}
+    </div>`;
+  // place the list last: the card's height decides the list's
+  if (p.pinned) p.scroller.scrollTop = p.scroller.scrollHeight; else p.scroller.scrollTop = top;
+}
+
+function renderAll(ev) { panes.forEach((p) => render(p, ev)); }
+
+function liveKill(forcePk) {
+  S.now += Math.round((20 + rng() * 40) * 1000);
+  const pk = forcePk || (S.liveKills > 2 && rng() < 0.04);
+  movedId = cardId; movedAt = performance.now();
+  const { k } = addKill(S.now, pk ? 'pk' : null, true);
+  cardId = k.id;
+  renderAll('kill');
+}
+
+let paused = false, nextKillAt = 0, lastReal = performance.now();
+function schedule() { nextKillAt = performance.now() + 4000 + Math.random() * 4000; }
+function tick() {
+  const t = performance.now(); const dt = t - lastReal; lastReal = t;
+  if (!paused) {
+    S.now += dt * SPEED;
+    if (t >= nextKillAt) { liveKill(false); schedule(); }
+  }
+  document.querySelectorAll('.js-rt').forEach((e) => { e.textContent = fmtClock(S.now); });
+  const k = lastKill();
+  document.querySelectorAll('.js-ago').forEach((e) => { e.textContent = ago(S.now - k.t) + ' ago'; });
+  document.querySelectorAll('.fr .t[data-t]').forEach((e) => { const s = ago(S.now - Number(e.dataset.t)); if (e.textContent !== s) e.textContent = s; });
+}
+
+function start(band) {
+  // a longer seed than round 1 so the list really scrolls: about 48 kills over 2h40
+  newSession(band);
+  for (let i = 0; i < 24; i++) { S.now += Math.round((150 + rng() * 120) * 1000); addKill(S.now, null, false); }
+  S.now += 40 * 1000;
+  cardId = lastKill().id; movedId = null; movedAt = -1e9;
+  panes.forEach((p) => { p.pinned = true; p.unseen = 0; p.more.hidden = true; });
+  renderAll('reset'); schedule();
+}
+panes.forEach(build);
+$('pause').addEventListener('click', (e) => { paused = !paused; e.currentTarget.textContent = paused ? 'Play' : 'Pause'; e.currentTarget.setAttribute('aria-pressed', String(paused)); if (!paused) { lastReal = performance.now(); schedule(); } });
+$('killnow').addEventListener('click', () => { liveKill(false); if (!paused) schedule(); });
+$('lvl').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('lvl').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  start(Number(b.dataset.l));
+});
+
+// tooltip
+const tip = $('tip');
+document.addEventListener('pointermove', (e) => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t) { tip.hidden = true; return; }
+  tip.textContent = t.getAttribute('data-tip'); tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 12, y = e.clientY - h - 10;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 12;
+  if (y < 8) y = e.clientY + 16;
+  tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px';
+});
+document.addEventListener('pointerleave', () => { tip.hidden = true; });
+
+// ------------------------------------------------------------- round 4: pane theme
+// The values the app computes (src/theme/color.ts paneEffectiveBg / paneBorder, PANE_TINTS hs), for the Black
+// (#000000) and Paper (#f4ecd8) backgrounds: [fill, border]. Text: the pane's shade ramp (RAMP_DARK / RAMP_LIGHT).
+const TINTS = {
+  black: { label: 'Plain', hs: [0, 0], hsPaper: [43, 56], dark: ['#000000', '#292929'], paper: ['#f4ecd8', '#e9d8af'] },
+  red: { label: 'Red', hs: [2, 60], dark: ['#1a0e0e', '#2e2222'], paper: ['#f5ebe6', '#ebafad'] },
+  green: { label: 'Green', hs: [130, 42], dark: ['#0e1a0e', '#222e22'], paper: ['#e8eee4', '#b7e1be'] },
+  blue: { label: 'Blue', hs: [210, 58], dark: ['#0e141c', '#222830'], paper: ['#eaedee', '#aeccea'] },
+  grey: { label: 'Grey', hs: [0, 0], dark: ['#161616', '#2a2a2a'], paper: ['#eeede9', '#cccccc'] },
+  orange: { label: 'Orange', hs: [28, 62], dark: ['#1c140a', '#30281e'], paper: ['#f3ece2', '#eccaac'] },
+  purple: { label: 'Purple', hs: [278, 46], dark: ['#16101c', '#2a2430'], paper: ['#f1eaee', '#d2b5e3'] },
+};
+const RAMP = { dark: { vtext: [72, -30], label: [60, -22], track: [15, -8] }, paper: { vtext: [22, -18], label: [34, -14], track: [80, -10] } };
+const PAGE = { dark: '#000000', paper: '#f4ecd8' };
+const SKY = {
+  night: 'radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent), radial-gradient(1px 1px at 34% 8%, #dfe8ff 50%, transparent), radial-gradient(1.5px 1.5px at 71% 14%, #fff 50%, transparent), radial-gradient(1px 1px at 88% 30%, #cfd8ff 50%, transparent), radial-gradient(1px 1px at 56% 26%, #fff 50%, transparent), radial-gradient(60% 40% at 80% 100%, rgba(120, 90, 150, .45), transparent), linear-gradient(180deg, #060b1c, #13234a 55%, #2c3260)',
+  day: 'radial-gradient(40% 30% at 22% 30%, rgba(255,255,255,.75), transparent 70%), radial-gradient(35% 22% at 70% 55%, rgba(255,255,255,.6), transparent 70%), linear-gradient(180deg, #4f8fd6, #8dbde8 55%, #d9e6ee)',
+};
+const TH = { tint: 'black', theme: 'dark', frame: 'on', clear: 'glass', behind: 'page' };
+try { Object.assign(TH, JSON.parse(localStorage.getItem('wc-stats-r4-theme') || '{}')); } catch (_) { /* no storage */ }
+const hsl = (h, s, l) => `hsl(${h} ${Math.max(0, Math.min(100, s))}% ${l}%)`;
+
+function applyTheme() {
+  const t = TINTS[TH.tint] || TINTS.black; const side = TH.theme;
+  const [fill, border] = t[side];
+  const [h, s] = side === 'paper' && t.hsPaper ? t.hsPaper : t.hs;
+  const R = RAMP[side];
+  document.querySelectorAll('.pane').forEach((p) => {
+    p.toggleAttribute('data-light', side === 'paper');
+    p.toggleAttribute('data-clear', TH.clear === 'clear');
+    p.setAttribute('data-frame', TH.frame);
+    p.style.setProperty('--pane-bg', TH.clear === 'clear' ? 'transparent' : fill);
+    p.style.setProperty('--pane-fill', TH.clear === 'clear' ? PAGE[side] : fill);
+    p.style.setProperty('--pane-border', border);
+    p.style.setProperty('--fg', hsl(h, s + R.vtext[1], R.vtext[0]));
+    p.style.setProperty('--dim', hsl(h, s + R.label[1], R.label[0]));
+    p.style.setProperty('--track', hsl(h, s + R.track[1], R.track[0]));
+  });
+  document.querySelectorAll('.stage').forEach((st) => { st.style.background = TH.behind === 'page' ? PAGE[side] : SKY[TH.behind]; });
+  for (const id of ['theme', 'frame', 'clear', 'behind']) {
+    $(id).querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === TH[id])));
+  }
+  $('tint').querySelectorAll('button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.v === TH.tint));
+    const tt = TINTS[b.dataset.v]; b.style.setProperty('--sw', side === 'paper' ? tt.paper[1] : (tt.dark[0] === '#000000' ? '#1b1b1b' : tt.dark[1]));
+  });
+  try { localStorage.setItem('wc-stats-r4-theme', JSON.stringify(TH)); } catch (_) { /* no storage */ }
+}
+$('tint').innerHTML = Object.entries(TINTS).map(([k, v]) => `<button data-v="${k}" aria-pressed="false"><i></i>${v.label}</button>`).join('');
+for (const id of ['tint', 'theme', 'frame', 'clear', 'behind']) {
+  $(id).addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; TH[id] = b.dataset.v; applyTheme(); });
+}
+
+// ------------------------------------------------------------- the reference Timers pane
+// Group colours: palette.ts DARK_COLORS / LIGHT_COLORS (Auto), switched by the pane's side.
+const TM_COLORS = { sanct: ['#f0b6e4', '#a956b5'], spell: ['#66b2ff', '#2a56c8'], debuff: ['#c8504f', '#98332f'], herb: ['#a6c95a', '#5c7a12'] };
+const ICON = {
+  sanct: '<path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/>',
+  spell: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>',
+  debuff: '<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><path d="M4 4l16 16"/>',
+  herb: '<path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14z"/><path d="M5 19l7-7"/>',
+};
+const TM = [
+  { g: 'sanct', name: 'Sanctuary', items: [{ n: 'Sanctuary', tot: 240, left: 192 }] },
+  { g: 'spell', name: 'Spells', items: [{ n: 'Armour', tot: 1440, left: 744 }, { n: 'Bless', tot: 360, left: 280 }, { n: 'Strength', tot: 300, left: 14 }, { n: 'Detect invisible', tot: 900, left: 610 }] },
+  { g: 'debuff', name: 'On others', items: [{ n: 'Blind · orc warrior', tot: 60, left: 42 }] },
+  { g: 'herb', name: 'Herblores', items: [{ n: 'Haste', tot: 1500, left: 1020 }] },
+];
+const fmtT = (s) => { s = Math.max(0, Math.ceil(s)); return s >= 600 ? `${Math.round(s / 60)}m` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+function tmBuild() {
+  $('tmA').innerHTML = TM.map((G) => {
+    const [cd, cl] = TM_COLORS[G.g];
+    return `<div class="g tm-${G.g}" style="--c:${cd}" data-cd="${cd}" data-cl="${cl}">
+      <div class="th"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true">${ICON[G.g]}</svg><span>${G.name}</span><span class="hln"></span></div>
+      <div class="items">${G.items.map((it, i) => `<div class="chip" data-g="${G.g}" data-i="${i}"><span class="tf"></span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[G.g]}</svg><span class="n">${it.n}</span><span class="t"></span></div>`).join('')}</div></div>`;
+  }).join('');
+}
+let tmLast = performance.now();
+function tmTick() {
+  const now = performance.now(); const dt = (now - tmLast) / 1000; tmLast = now;
+  const light = TH.theme === 'paper';
+  document.querySelectorAll('#tmA .g').forEach((g) => { g.style.setProperty('--c', light ? g.dataset.cl : g.dataset.cd); });
+  document.querySelectorAll('#tmA .chip').forEach((el) => {
+    const it = TM.find((G) => G.g === el.dataset.g).items[Number(el.dataset.i)];
+    if (!paused) { it.left -= dt; if (it.left <= 0) it.left = it.tot; }
+    el.style.setProperty('--p', (it.left / it.tot * 100).toFixed(1));
+    el.querySelector('.t').textContent = fmtT(it.left);
+    el.classList.toggle('soon', it.left <= 10);
+  });
+}
+tmBuild(); applyTheme(); tmTick();
+
+start(34);
+setInterval(() => { tick(); tmTick(); }, 250);
+})();
+</script>

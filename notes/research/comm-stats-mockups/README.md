@@ -31,6 +31,17 @@ One design each after the owner's round-2 feedback.
   bottom-anchored list, the latest-kill card at the bottom, no level bars.
   Artifact: https://claude.ai/artifact/UMoRDL27oAuhrSjpP8WKcT
 
+## Round 4 (2026-11-09)
+
+- `comm-r4.html` — tint/Paper/border/clear theming like Timers and Group
+  (reference Timers pane beside it), gear in the pane's hover buttons,
+  pinned Group entry (all channels from GMCP group players), round search
+  button that expands, edge fade + chevron instead of "N older".
+  Artifact: https://claude.ai/artifact/UhpAQVpAvtGsse4HySCWcM
+- `stats-r4.html` — no "× median", exact XP under 1000, no grade letters,
+  the same theming controls and reference Timers pane.
+  Artifact: https://claude.ai/artifact/1b8xKqp9seEVe6A3KTuTed
+
 ## Owner brief
 
 - Comm: total rework. Channel filtering (e.g. the most recently active

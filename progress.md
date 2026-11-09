@@ -65,7 +65,9 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Round 2:** owner chose Comm 2 "Samtal" and Stats 1 "Senaste fångst";
   three variants each (`comm-r2.html`, `stats-r2.html`, links in README).
 - **Round 3:** one design each (`comm-r3.html`, `stats-r3.html`).
-- **Next:** owner feedback on round 3; then a stage file for the build.
+- **Round 4:** theming per tint/Paper/border/clear, Comm gear in the
+  hover buttons, a Group entry (`comm-r4.html`, `stats-r4.html`).
+- **Next:** owner feedback on round 4; then a stage file for the build.
 - **Open issues:** freeze or re-rate kill ratings; Comm message font.
 - **Commits:** this one.
 
