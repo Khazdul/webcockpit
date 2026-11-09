@@ -42,6 +42,10 @@ One design each after the owner's round-2 feedback.
   the same theming controls and reference Timers pane.
   Artifact: https://claude.ai/artifact/1b8xKqp9seEVe6A3KTuTed
 
+## Statistics approved (2026-11-09)
+
+The owner approved `stats-r4.html` as is ("Statistics är perfekt").
+
 ## Owner brief
 
 - Comm: total rework. Channel filtering (e.g. the most recently active
