@@ -1,0 +1,567 @@
+/* The Statistics pane (src/chrome/stats-pane.ts, ADR 0134): the run's
+ * header, four tiles, the Earlier list and the last kill's card, in the
+ * lantern look of Group and Timers (ADR 0122, 0123): frosted cards of the
+ * pane's lamp (`--lamp`, layout.css) on `--card-back` (a clear pane's
+ * backing), glossy tube bars, raised paper on a light pane.
+ *
+ * Text is the pane shade ramp (`--st-fg`, `--st-dim`, `--st-track`, set on
+ * the content element by src/panes/statistics.ts, as Timers' `--tm-*`).
+ * The rating colours have a dark and a light set; a rating is always shown
+ * with its word or a bar length too, never by colour alone.
+ *
+ * Cost (ADR 0134 "Performance rules"): the content clips (`contain:
+ * strict`); a bar is a `scaleX` of `--xp / --st-scale`, so a new median
+ * restyles without layout; nothing here animates by itself (the slide-in
+ * is a one-off Web Animation on transform and opacity); one flat colour
+ * per card (no gradients over large areas, as Group and Timers). */
+.wc-st {
+  position: absolute;
+  inset: 0;
+  contain: strict;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  padding: 0.35em 0.4em 0.4em;
+  box-sizing: border-box;
+  font-size: 0.85em;
+  line-height: 1.35;
+  white-space: nowrap;
+  color: var(--st-fg, #c8c8c8);
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  container-type: size;
+
+  --st-hot: color-mix(in srgb, var(--st-fg, #c8c8c8) 40%, #fff);
+  --st-head: color-mix(in srgb, var(--lamp, #c9b28c) 30%, var(--st-fg, #c8c8c8));
+  --st-rule: color-mix(in srgb, var(--lamp, #c9b28c) 34%, transparent);
+  --st-card: color-mix(in srgb, var(--lamp, #c9b28c) 8%, var(--card-back, transparent));
+  --st-card-edge:
+    inset 0 1px 0 color-mix(in srgb, var(--lamp, #c9b28c) 26%, transparent),
+    inset 0 0 0 1px var(--frost2, transparent),
+    0 1px 2px rgb(0 0 0 / 0.45);
+  --st-trk: rgb(0 0 0 / 0.55);
+  --st-trk-edge: inset 0 1px 1px rgb(0 0 0 / 0.7), 0 1px 0 color-mix(in srgb, var(--lamp, #c9b28c) 14%, transparent);
+  --st-gloss: linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.15));
+  --st-tick: color-mix(in srgb, var(--lamp, #c9b28c) 55%, transparent);
+  --st-row-alt: rgb(255 255 255 / 0.018);
+  --st-on: #fff;
+  --st-badge-back: rgb(0 0 0 / 0.35);
+  --st-halo: 0 0 6px -1px;
+  --st-ach: #e3b341;
+  --st-teal: #7cc4c8;
+  --st-pk: #e0915a;
+  --st-pkf: var(--st-pk);
+  --r-poor: #e0553c;
+  --r-meh: #e8963a;
+  --r-good: #86b6dc;
+  --r-great: #5cc785;
+  --r-superb: #ffd54a;
+  --rf-poor: var(--r-poor);
+  --rf-meh: var(--r-meh);
+  --rf-good: var(--r-good);
+  --rf-great: var(--r-great);
+  --rf-superb: var(--r-superb);
+}
+
+/* A light pane (Paper): raised paper cards, the pane's dark ink for the
+ * headers, darker rating text and clearer fills (as the app washes gauge
+ * fills on paper). */
+.wc-stats-host[data-light] > .wc-st {
+  --st-hot: color-mix(in srgb, var(--st-fg, #333) 75%, #000);
+  --st-head: var(--ink, var(--st-fg, #333));
+  --st-rule: color-mix(in srgb, var(--iron-lo, #555) 45%, transparent);
+  --st-card: color-mix(in srgb, #fffdf8 92%, var(--card-back, transparent));
+  --st-card-edge: 0 1px 2px rgb(60 40 10 / 0.22), inset 0 0 0 1px var(--frost2, transparent);
+  --st-trk: color-mix(in srgb, var(--st-track, #ccc) 60%, transparent);
+  --st-trk-edge: inset 0 1px 2px rgb(0 0 0 / 0.25), 0 1px 0 rgb(255 255 255 / 0.7);
+  --st-gloss: linear-gradient(180deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.1));
+  --st-tick: color-mix(in srgb, var(--iron-lo, #555) 60%, transparent);
+  --st-row-alt: rgb(0 0 0 / 0.03);
+  --st-on: #000;
+  --st-badge-back: #fffdf8;
+  --st-halo: 0 0 0 0;
+  --st-ach: #8a5a0e;
+  --st-teal: #2e6f74;
+  --st-pk: #a5521c;
+  --st-pkf: #d07a3a;
+  --r-poor: #b0301e;
+  --r-meh: #985200;
+  --r-good: #2a56c8;
+  --r-great: #256e33;
+  --r-superb: #7d5c00;
+  --rf-poor: #d4553c;
+  --rf-meh: #e0902e;
+  --rf-good: #4a7fd8;
+  --rf-great: #3f9a52;
+  --rf-superb: #e3b21e;
+}
+
+/* The rating colours by word: `--c` text, `--cf` fill. */
+.wc-st [data-r='poor'] { --c: var(--r-poor); --cf: var(--rf-poor); }
+.wc-st [data-r='meh'] { --c: var(--r-meh); --cf: var(--rf-meh); }
+.wc-st [data-r='good'] { --c: var(--r-good); --cf: var(--rf-good); }
+.wc-st [data-r='great'] { --c: var(--r-great); --cf: var(--rf-great); }
+.wc-st [data-r='superb'] { --c: var(--r-superb); --cf: var(--rf-superb); }
+
+.wc-st > * {
+  flex: none;
+  min-width: 0;
+}
+
+.wc-st[data-state='none'] > *,
+.wc-st[data-state='norun'] > :not(.wc-st-norun),
+.wc-st[data-state='run'] > .wc-st-norun {
+  display: none;
+}
+
+.wc-st-norun {
+  margin: auto;
+  color: var(--st-dim, #888);
+}
+
+.wc-st-dim {
+  color: var(--st-dim, #888);
+}
+
+.wc-st-hot {
+  color: var(--st-hot);
+  font-weight: 700;
+}
+
+.wc-st-sp {
+  flex: 1 1 auto;
+}
+
+/* ------------------------------------------------------------ header */
+
+.wc-st-top {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55em;
+  overflow: hidden;
+}
+
+.wc-st-clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-st:not([data-ended]) .wc-st-ended {
+  display: none;
+}
+
+.wc-st-stars {
+  color: var(--st-ach);
+  letter-spacing: 0.05em;
+}
+
+.wc-st-stars:empty,
+.wc-st-allies:empty {
+  display: none;
+}
+
+.wc-st-allies {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--st-teal);
+}
+
+/* ------------------------------------------------------------ tiles */
+
+.wc-st-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35em;
+}
+
+.wc-st-tile,
+.wc-st-card {
+  border-radius: 4px;
+  background: var(--st-card);
+  box-shadow: var(--st-card-edge);
+}
+
+.wc-st-tile {
+  display: grid;
+  padding: 0.3em 0.5em 0.35em;
+  overflow: hidden;
+}
+
+.wc-st-k {
+  font-size: 0.78em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-dim, #888);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-st-v {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: var(--st-hot);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------ Earlier */
+
+.wc-st-sec {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  font-weight: 700;
+  font-size: 0.88em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-head);
+}
+
+.wc-st-sec::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  align-self: center;
+  background: linear-gradient(90deg, var(--st-rule), transparent 85%);
+}
+
+.wc-st-count {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.wc-st-list {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 2.5em;
+  display: flex;
+  flex-direction: column;
+}
+
+.wc-st-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--lamp, #c9b28c) 30%, transparent) transparent;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.wc-st-space {
+  position: relative;
+}
+
+.wc-st-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.7em;
+  display: grid;
+  grid-template-columns: 3.4em minmax(0, 1fr) minmax(3em, 30%) 3.8em;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0 0.3em;
+  box-sizing: border-box;
+  border-radius: 3px;
+  --c: var(--st-dim, #888);
+  --cf: var(--st-dim, #888);
+}
+
+.wc-st-row.is-alt {
+  background: var(--st-row-alt);
+}
+
+.wc-st-row.is-newest {
+  background: color-mix(in srgb, var(--c) 9%, var(--st-row-alt));
+}
+
+/* The probe that gives the row height: laid out, never seen. */
+.wc-st-probe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.wc-st-age {
+  text-align: right;
+  font-size: 0.88em;
+  color: var(--st-dim, #888);
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-st-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-st-row[data-pk] .wc-st-name,
+.wc-st-card[data-pk] .wc-st-mob {
+  color: var(--st-pk);
+}
+
+.wc-st-row[data-pk] {
+  --c: var(--st-pk);
+  --cf: var(--st-pkf);
+}
+
+.wc-st-xp {
+  text-align: right;
+  color: var(--st-hot);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The bar: a recessed track, a glossy fill scaled to XP / scale, the
+ * median tick at a third (scale = 3 × median; none while calibrating). */
+.wc-st-bar {
+  position: relative;
+  height: 0.6em;
+  border-radius: 3px;
+  background: var(--st-trk);
+  box-shadow: var(--st-trk-edge);
+}
+
+.wc-st-fill {
+  position: absolute;
+  inset: 1px auto 1px 0;
+  width: 100%;
+  border-radius: 3px;
+  background: var(--st-gloss), var(--cf);
+  transform-origin: left center;
+  transform: scaleX(min(1, calc(var(--xp, 0) / var(--st-scale, 1))));
+}
+
+.wc-st-bar::after {
+  content: '';
+  position: absolute;
+  top: -0.35em;
+  bottom: -0.35em;
+  left: 33.333%;
+  border-left: 1px dashed var(--st-tick);
+}
+
+.wc-st[data-cal] .wc-st-bar::after {
+  display: none;
+}
+
+.wc-st-more {
+  position: absolute;
+  left: 50%;
+  bottom: 0.4em;
+  transform: translateX(-50%);
+  z-index: 1;
+  font: inherit;
+  font-size: 0.9em;
+  line-height: 1.5;
+  padding: 0 0.7em;
+  border-radius: 1em;
+  cursor: pointer;
+  color: var(--st-hot);
+  border: 1px solid color-mix(in srgb, var(--lamp, #c9b28c) 45%, transparent);
+  background: color-mix(in srgb, var(--pane-fill, var(--pane-bg, #111)) 80%, var(--lamp, #c9b28c) 20%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.5);
+}
+
+.wc-st-more[hidden] {
+  display: none;
+}
+
+/* A clear pane: rows get the card backing, the bare labels a lift. */
+.wc-pane[data-clear] .wc-st-row {
+  background: var(--card-back);
+}
+
+.wc-pane[data-clear] .wc-st-row.is-newest {
+  background: color-mix(in srgb, var(--c) 12%, var(--card-back));
+}
+
+.wc-pane[data-clear] .wc-st :is(.wc-st-top, .wc-st-sec) {
+  text-shadow: 0 0 3px rgb(0 0 0 / 0.9);
+}
+
+.wc-stats-host[data-light] .wc-st :is(.wc-st-top, .wc-st-sec) {
+  text-shadow: none;
+}
+
+.wc-pane[data-clear] .wc-stats-host[data-light] .wc-st :is(.wc-st-top, .wc-st-sec) {
+  text-shadow: 0 0 3px rgb(255 253 245 / 0.95);
+}
+
+/* ------------------------------------------------------------ the card */
+
+.wc-st-card {
+  --c: var(--lamp, #c9b28c);
+  display: grid;
+  gap: 0.2em;
+  padding: 0.5em 0.65em 0.6em;
+  box-shadow: var(--st-card-edge), inset 3px 0 0 -1px var(--c);
+}
+
+.wc-st-card[hidden] {
+  display: none;
+}
+
+.wc-st-card[data-pk] {
+  --c: var(--st-pk);
+}
+
+.wc-st-card-top,
+.wc-st-big {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+}
+
+.wc-st-cage {
+  font-size: 0.88em;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-st-mob {
+  color: var(--st-hot);
+  font-weight: 700;
+  font-size: 1.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-st-bigxp {
+  font-size: 2.2em;
+  line-height: 1.1;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--c) 55%, var(--st-on));
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-st-badge {
+  --c: var(--st-dim, #888);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  align-self: center;
+  padding: 0 0.5em;
+  border-radius: 3px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--c) 85%, var(--st-on));
+  background: color-mix(in srgb, var(--c) 14%, var(--st-badge-back));
+}
+
+.wc-st-badge.is-pk {
+  --c: var(--st-pk);
+}
+
+.wc-st-badge.is-cal {
+  font-weight: 400;
+  font-style: italic;
+  background: none;
+}
+
+.wc-st-badge[data-r='superb'] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), var(--st-halo) color-mix(in srgb, var(--c) 55%, transparent);
+}
+
+.wc-st-pips {
+  display: inline-flex;
+  gap: 1.5px;
+}
+
+.wc-st-pips i {
+  width: 3px;
+  height: 0.65em;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.22;
+}
+
+.wc-st-pips i.on {
+  opacity: 1;
+}
+
+.wc-st-scale {
+  position: relative;
+  padding-top: 0.7em;
+}
+
+.wc-st-bands,
+.wc-st-lbl {
+  display: flex;
+  gap: 2px;
+}
+
+.wc-st-bands i {
+  display: block;
+  height: 0.45em;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--cf) 55%, rgb(0 0 0 / 0.4));
+}
+
+.wc-st-bands i.here {
+  background: var(--cf);
+  box-shadow: var(--st-halo) var(--cf);
+}
+
+.wc-st-lbl {
+  margin-top: 0.15em;
+  font-size: 0.78em;
+}
+
+.wc-st-lbl span {
+  overflow: hidden;
+  text-align: center;
+  color: var(--st-dim, #888);
+}
+
+.wc-st-lbl span.here {
+  color: var(--st-hot);
+}
+
+.wc-st-mk {
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  border: 0.35em solid transparent;
+  border-top: 0.5em solid var(--st-hot);
+  border-bottom: 0;
+  transform: translateX(-0.35em);
+}
+
+/* ------------------------------------------------------------ small panes */
+
+/* Short: the card drops its scale, then the tiles go; the list shrinks first (flex). */
+@container (max-height: 22em) {
+  .wc-st-scale {
+    display: none;
+  }
+
+  .wc-st-bigxp {
+    font-size: 1.6em;
+  }
+}
+
+@container (max-height: 15em) {
+  .wc-st-tiles,
+  .wc-st-sec {
+    display: none;
+  }
+}
+
+/* Narrow: two by two tiles, no age column. */
+@container (max-width: 24em) {
+  .wc-st-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wc-st-row {
+    grid-template-columns: minmax(0, 1fr) minmax(2.5em, 28%) 3.6em;
+  }
+
+  .wc-st-age {
+    display: none;
+  }
+}

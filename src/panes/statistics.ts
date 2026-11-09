@@ -9,9 +9,13 @@
 // - No keys: the pane never takes the focus (the view prevents the
 //   mousedown, the cockpit's mouseup gives the keys to the game input).
 // - Without `ctx.statsView` (the log player, tests) it stays empty.
+// - The pane's colours (ADR 0134): the shade ramp's text, label and track
+//   shades and light or dark on the content element, as Timers sets its
+//   `--tm-*`; the view's CSS reads them.
 
 import type { PaneContext, StatsPaneView } from './context';
 import { PaneShell } from './pane';
+import { paneShade } from './shade';
 
 export class StatsPane extends PaneShell {
   private view: StatsPaneView | null = null;
@@ -21,6 +25,7 @@ export class StatsPane extends PaneShell {
   constructor(ctx: PaneContext) {
     super(ctx, 'statistics');
     this.content.classList.add('wc-stats-host');
+    this.own(ctx.settings.subscribe(() => this.markDirty()));
     this.own(
       this.onResize((cols, rows) => {
         // Hidden: tell the view now (render does not run while hidden).
@@ -30,6 +35,7 @@ export class StatsPane extends PaneShell {
   }
 
   protected override render(): void {
+    this.paint();
     if (this.view) {
       this.view.resize(this.cols, this.rows);
       return;
@@ -51,6 +57,20 @@ export class StatsPane extends PaneShell {
         this.mounting = false;
       },
     );
+  }
+
+  /** The shade of this pane on the content element (written only when it changes). */
+  private shadeKey = '';
+  private paint(): void {
+    const shade = paneShade(this.ctx.settings.get(), 'statistics');
+    const key = `${shade.light ? 1 : 0}|${shade.ramp.vtext}|${shade.ramp.label}|${shade.ramp.track}`;
+    if (key === this.shadeKey) return;
+    this.shadeKey = key;
+    const c = this.content;
+    c.toggleAttribute('data-light', shade.light);
+    c.style.setProperty('--st-fg', shade.ramp.vtext);
+    c.style.setProperty('--st-dim', shade.ramp.label);
+    c.style.setProperty('--st-track', shade.ramp.track);
   }
 
   override dispose(): void {

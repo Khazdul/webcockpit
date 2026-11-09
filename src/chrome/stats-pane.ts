@@ -1,0 +1,553 @@
+// The Statistics pane's view (ADR 0134 "Statistics pane"; ADR 0109 for the
+// mount), drawn by the chrome chunk into the pane's content element
+// (src/panes/statistics.ts) on its first show:
+//
+//   const view = chrome.mountStatsPane(host, services, { runs, status });
+//   view.resize(cols, rows);   // 0 × 0 while the pane is hidden
+//
+//   .wc-st                        [data-state=norun|run] [data-cal] [data-ended]
+//     .wc-st-top                  name · L35 · run clock · stars … with allies
+//     .wc-st-tiles                Avg / kill, Median, XP / h, Kills
+//     .wc-st-sec                  "Earlier" and the count
+//     .wc-st-list
+//       .wc-st-scroll > .wc-st-space > .wc-st-row …   every kill but the last
+//       .wc-st-more               `↓ N new` while scrolled up
+//     .wc-st-card                 the last kill: name, +XP, rating, scale
+//     .wc-st-norun                `No run yet`
+//
+// Direct DOM, no Preact: the work per change is known exactly.
+//
+// - The list is virtual: rows have one height, the space is n rows tall and
+//   only the rows in view (plus a margin) exist, so a run of thousands of
+//   kills costs the same DOM as one of thirty. Bottom-anchored: at the
+//   bottom it follows new kills; scrolled up it stays and counts them.
+// - A new kill appends: the previous card's kill becomes the list's last row
+//   (it slides up from the card), the card shows the new one. Bars are a
+//   transform of `--xp / --st-scale` (scale = 3 × the median), so a new
+//   median restyles the rows in view without laying anything out; their
+//   rating words (`data-r`) are rewritten only where they change.
+// - The 1 Hz tick (a live run only) writes the clock text and the card's
+//   age; the rows' ages once a minute. Nothing reads layout per tick: the
+//   list's height comes from a ResizeObserver, the scroll position from the
+//   scroll event.
+// - No keys: a mousedown outside the list is prevented (the game keeps the
+//   keys); in the list it is not, so rows can be selected and copied.
+
+import type { AppStatusView } from '../app/status';
+import { RATING_LABEL, RATING_ORDER, type Rated, ratingOf } from '../runs/kill-rating';
+import type { LiveRuns } from '../runs/live';
+import type { ChromeServices } from './kit/hooks';
+import { type StatsFeedState, StatsFeed } from './stats-feed';
+import { fmtK } from './frames/stats-layout';
+import { type KillEntry, barScale, extendsKills, fmtAge, fmtRunClock, raterOf, scaleBands, scalePos, tilesOf } from './stats-pane-model';
+import './stats-pane.css';
+
+export interface StatsPaneOptions {
+  runs: LiveRuns;
+  status: AppStatusView;
+}
+
+export interface StatsPaneHandle {
+  /** The pane's content size in cells; 0 × 0 while hidden. */
+  resize(cols: number, rows: number): void;
+  dispose(): void;
+}
+
+const NO_RUN = 'No run yet';
+/** Rows kept beyond the view on each side. */
+const OVERSCAN = 6;
+/** Distance from the bottom (px) that still counts as following. */
+const PIN_SLACK = 4;
+/** Tick and the rows' age refresh (ms). */
+const TICK_MS = 1000;
+const AGE_EVERY = 60;
+
+const prevent = (e: Event): void => e.preventDefault();
+
+function el<K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
+  const e = doc.createElement(tag);
+  e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function setText(e: HTMLElement, t: string): void {
+  if (e.textContent !== t) e.textContent = t;
+}
+
+function setAttr(e: HTMLElement, name: string, v: string | null): void {
+  if (v === null) {
+    if (e.hasAttribute(name)) e.removeAttribute(name);
+  } else if (e.getAttribute(name) !== v) e.setAttribute(name, v);
+}
+
+function reducedMotion(doc: Document): boolean {
+  return doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
+}
+
+export class StatsPaneView implements StatsPaneHandle {
+  private readonly doc: Document;
+  private readonly feed: StatsFeed;
+  private readonly root: HTMLDivElement;
+  private readonly topName: HTMLSpanElement;
+  private readonly topLevel: HTMLSpanElement;
+  private readonly clock: HTMLSpanElement;
+  private readonly endedEl: HTMLSpanElement;
+  private readonly stars: HTMLSpanElement;
+  private readonly allies: HTMLSpanElement;
+  private readonly tileV: HTMLSpanElement[];
+  private readonly count: HTMLSpanElement;
+  private readonly scroll: HTMLDivElement;
+  private readonly space: HTMLDivElement;
+  private readonly more: HTMLButtonElement;
+  private readonly card: HTMLDivElement;
+  private readonly probe: HTMLDivElement;
+  private readonly ro: ResizeObserver | null;
+  private readonly unsub: () => void;
+
+  private st: StatsFeedState;
+  private kills: KillEntry[] = [];
+  private median: number | null = null;
+  private scale = 1;
+  /** Rows in the DOM by list index. */
+  private readonly rows = new Map<number, HTMLDivElement>();
+  private rowH = 0;
+  private viewH = 0;
+  private top = 0;
+  private pinned = true;
+  private unseen = 0;
+  private shown = false;
+  private cols = 0;
+  private rowsN = 0;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private ticks = 0;
+  private frame = 0;
+  /** The kill on the card (its time and name). */
+  private cardKey = '';
+  private cardAge: HTMLElement | null = null;
+  private ageRef = 0;
+
+  constructor(host: HTMLElement, feed: StatsFeed) {
+    const doc = host.ownerDocument;
+    this.doc = doc;
+    this.feed = feed;
+    this.st = feed.state;
+
+    const root = el(doc, 'div', 'wc-st');
+    root.dataset['state'] = 'none';
+    root.addEventListener('mousedown', this.onDown);
+
+    const top = el(doc, 'div', 'wc-st-top');
+    this.topName = el(doc, 'span', 'wc-st-hot');
+    this.topLevel = el(doc, 'span', 'wc-st-dim');
+    this.clock = el(doc, 'span', 'wc-st-clock');
+    this.endedEl = el(doc, 'span', 'wc-st-dim wc-st-ended', 'ended');
+    this.stars = el(doc, 'span', 'wc-st-stars');
+    this.allies = el(doc, 'span', 'wc-st-allies');
+    top.append(this.topName, this.topLevel, el(doc, 'span', 'wc-st-dim', '·'), this.clock, this.endedEl, this.stars, el(doc, 'span', 'wc-st-sp'), this.allies);
+
+    const tiles = el(doc, 'div', 'wc-st-tiles');
+    this.tileV = ['Avg / kill', 'Median', 'XP / h', 'Kills'].map((k) => {
+      const t = el(doc, 'div', 'wc-st-tile');
+      const v = el(doc, 'span', 'wc-st-v', '—');
+      t.append(el(doc, 'span', 'wc-st-k', k), v);
+      tiles.append(t);
+      return v;
+    });
+
+    const sec = el(doc, 'div', 'wc-st-sec', 'Earlier');
+    this.count = el(doc, 'span', 'wc-st-dim wc-st-count');
+    sec.append(this.count);
+
+    const list = el(doc, 'div', 'wc-st-list');
+    this.scroll = el(doc, 'div', 'wc-st-scroll');
+    this.space = el(doc, 'div', 'wc-st-space');
+    this.scroll.append(this.space);
+    this.scroll.addEventListener('scroll', this.onScroll, { passive: true });
+    this.more = el(doc, 'button', 'wc-st-more');
+    this.more.type = 'button';
+    this.more.hidden = true;
+    this.more.tabIndex = -1;
+    this.more.addEventListener('mousedown', this.onMore);
+    list.append(this.scroll, this.more);
+
+    this.card = el(doc, 'div', 'wc-st-card');
+    // A row that is never shown: its height is the list's row height.
+    this.probe = el(doc, 'div', 'wc-st-row wc-st-probe');
+    this.probe.append(el(doc, 'span', 'wc-st-age', '0m'));
+    list.append(this.probe);
+
+    const norun = el(doc, 'div', 'wc-st-norun', NO_RUN);
+    root.append(top, tiles, sec, list, this.card, norun);
+    this.root = root;
+    host.replaceChildren(root);
+
+    const RO = doc.defaultView?.ResizeObserver;
+    this.ro = RO
+      ? new RO((entries) => {
+          for (const e of entries) {
+            this.viewH = e.contentRect.height;
+            if (this.pinned) this.toBottom();
+            this.renderWindow();
+          }
+        })
+      : null;
+    this.ro?.observe(this.scroll);
+    this.unsub = feed.subscribe((s) => this.apply(s));
+  }
+
+  resize(c: number, r: number): void {
+    const shown = c > 0 && r > 0;
+    if (c === this.cols && r === this.rowsN && shown === this.shown) return;
+    const sizeChanged = shown && (c !== this.cols || r !== this.rowsN);
+    this.cols = shown ? c : 0;
+    this.rowsN = shown ? r : 0;
+    if (shown !== this.shown) {
+      this.shown = shown;
+      this.feed.setShown(shown);
+      this.syncTimer();
+    }
+    if (sizeChanged) {
+      // The row height follows the font: measured again after a size change.
+      const old = this.rowH;
+      this.rowH = 0;
+      if (this.measureRow() && this.rowH !== old) {
+        this.clearRows();
+        this.layoutSpace();
+        if (this.pinned) this.toBottom();
+        this.renderWindow();
+      } else if (this.rowH === 0) this.rowH = old;
+    }
+  }
+
+  /** The row height from the probe, once it is laid out (a read on a size change only). */
+  private measureRow(): boolean {
+    if (this.rowH > 0) return true;
+    if (!this.shown || this.root.dataset['state'] !== 'run') return false;
+    this.rowH = this.probe.offsetHeight;
+    return this.rowH > 0;
+  }
+
+  dispose(): void {
+    this.unsub();
+    this.feed.dispose();
+    this.stopTimer();
+    this.ro?.disconnect();
+    if (this.frame) this.doc.defaultView?.cancelAnimationFrame(this.frame);
+    this.root.remove();
+  }
+
+  // ------------------------------------------------------------ state
+
+  private apply(s: StatsFeedState): void {
+    this.st = s;
+    const m = s.model;
+    if (s.noRun || !m) {
+      this.root.dataset['state'] = 'norun';
+      this.kills = [];
+      this.clearRows();
+      this.cardKey = '';
+      this.cardAge = null;
+      this.card.replaceChildren();
+      this.syncTimer();
+      return;
+    }
+    const first = this.root.dataset['state'] !== 'run';
+    this.root.dataset['state'] = 'run';
+    setAttr(this.root, 'data-ended', s.ended ? '' : null);
+
+    // Header.
+    setText(this.topName, m.character ?? '—');
+    setText(this.topLevel, m.level !== null ? `L${m.level}` : '');
+    setText(this.stars, s.rating > 0 ? '★'.repeat(s.rating) : '');
+    setText(this.allies, m.allies.length ? `with ${m.allies.join(', ')}` : '');
+    this.ageRef = s.live ? this.feed.nowUs() : (m.endUs ?? 0);
+    this.writeClock();
+
+    // Kills.
+    const prev = this.kills;
+    const next = s.kills;
+    const appended = !first && extendsKills(prev, next);
+    const added = appended ? next.length - prev.length : 0;
+    this.kills = next;
+    const rater = raterOf(next);
+    this.median = rater.median;
+    this.scale = barScale(this.median, next);
+    this.root.style.setProperty('--st-scale', String(this.scale));
+    setAttr(this.root, 'data-cal', this.median === null ? '' : null);
+
+    const t = tilesOf(next, this.median, m, m.durationUs);
+    setText(this.tileV[0]!, t.avg);
+    setText(this.tileV[1]!, t.median);
+    setText(this.tileV[2]!, t.xpPerHour);
+    setText(this.tileV[3]!, t.kills);
+    const n = this.listLen();
+    setText(this.count, n ? `${n}` : '');
+
+    if (!appended) {
+      this.clearRows();
+      this.pinned = true;
+      this.unseen = 0;
+    }
+    this.layoutSpace();
+    if (this.pinned) this.toBottom();
+    else if (added > 0) {
+      this.unseen += added;
+      this.showMore();
+    }
+    // Rows already shown: their rating against the new median, their age.
+    for (const [i, row] of this.rows) this.updateRow(row, i);
+    this.renderWindow();
+    if (appended && added === 1 && this.pinned) this.slideIn(n - 1);
+
+    this.drawCard(appended && added > 0, rater.rate.bind(rater));
+    this.syncTimer();
+  }
+
+  /** Kills in the list (all but the card's). */
+  private listLen(): number {
+    return Math.max(0, this.kills.length - 1);
+  }
+
+  // ------------------------------------------------------------ list
+
+  private layoutSpace(): void {
+    this.measureRow();
+    this.space.style.height = `${this.listLen() * this.rowH}px`;
+  }
+
+  private clearRows(): void {
+    for (const row of this.rows.values()) row.remove();
+    this.rows.clear();
+    this.more.hidden = true;
+  }
+
+  private toBottom(): void {
+    const h = this.listLen() * this.rowH;
+    this.top = Math.max(0, h - this.viewH);
+    this.scroll.scrollTop = h;
+    this.unseen = 0;
+    this.more.hidden = true;
+  }
+
+  private showMore(): void {
+    this.more.hidden = this.unseen === 0;
+    if (this.unseen > 0) setText(this.more, `↓ ${this.unseen} new`);
+  }
+
+  /** Makes the rows in view (plus the margin) and drops the rest. */
+  private renderWindow(): void {
+    const n = this.listLen();
+    if (n > 0 && this.rowH <= 0 && this.measureRow()) {
+      this.layoutSpace();
+      if (this.pinned) this.toBottom();
+    }
+    if (this.rowH <= 0 || n === 0 || !this.shown) {
+      if (n === 0) this.clearRows();
+      return;
+    }
+    const lo = Math.max(0, Math.floor(this.top / this.rowH) - OVERSCAN);
+    const hi = Math.min(n, Math.ceil((this.top + this.viewH) / this.rowH) + OVERSCAN);
+    for (const [i, row] of this.rows) {
+      if (i < lo || i >= hi) {
+        row.remove();
+        this.rows.delete(i);
+      }
+    }
+    for (let i = lo; i < hi; i++) {
+      if (this.rows.has(i)) continue;
+      const row = this.makeRow(i);
+      this.rows.set(i, row);
+      this.space.append(row);
+    }
+    const last = this.rows.get(n - 1);
+    for (const [i, row] of this.rows) row.classList.toggle('is-newest', i === n - 1 && row === last);
+  }
+
+  private makeRow(i: number): HTMLDivElement {
+    const k = this.kills[i]!;
+    const d = this.doc;
+    const row = el(d, 'div', 'wc-st-row');
+    row.style.top = `${i * this.rowH}px`;
+    row.style.setProperty('--xp', String(Math.max(0, k.xp)));
+    if (k.pk) row.dataset['pk'] = '';
+    // Alternate rows by index (the DOM order of a virtual list is not the list's).
+    if (i % 2) row.classList.add('is-alt');
+    const bar = el(d, 'span', 'wc-st-bar');
+    bar.append(el(d, 'span', 'wc-st-fill'));
+    const name = el(d, 'span', 'wc-st-name', k.name);
+    name.title = k.name;
+    row.append(el(d, 'span', 'wc-st-age'), name, bar, el(d, 'span', 'wc-st-xp', fmtK(k.xp)));
+    this.updateRow(row, i);
+    return row;
+  }
+
+  /** A row's rating word and age (only what changed is written). */
+  private updateRow(row: HTMLDivElement, i: number): void {
+    const k = this.kills[i];
+    if (!k) return;
+    const r = !k.pk && this.median !== null && this.median > 0 ? ratingOf(k.xp / this.median) : null;
+    setAttr(row, 'data-r', r);
+    setText(row.firstChild as HTMLElement, fmtAge(this.ageRef - k.us));
+  }
+
+  /** The row that was on the card slides up into the list. */
+  private slideIn(i: number): void {
+    const row = this.rows.get(i);
+    if (!row || reducedMotion(this.doc) || typeof row.animate !== 'function') return;
+    row.animate(
+      [
+        { transform: `translateY(${Math.round(this.rowH * 1.6)}px)`, opacity: 0.2 },
+        { transform: 'translateY(0)', opacity: 1 },
+      ],
+      { duration: 320, easing: 'cubic-bezier(.2,.7,.2,1)' },
+    );
+  }
+
+  private readonly onScroll = (): void => {
+    this.top = this.scroll.scrollTop;
+    const h = this.listLen() * this.rowH;
+    this.pinned = this.top + this.viewH >= h - PIN_SLACK;
+    if (this.pinned && this.unseen) {
+      this.unseen = 0;
+      this.more.hidden = true;
+    }
+    const win = this.doc.defaultView;
+    if (!win || this.frame) return;
+    this.frame = win.requestAnimationFrame(() => {
+      this.frame = 0;
+      this.renderWindow();
+    });
+  };
+
+  private readonly onMore = (e: MouseEvent): void => {
+    e.preventDefault();
+    if (e.button !== 0) return;
+    this.pinned = true;
+    const h = this.listLen() * this.rowH;
+    this.unseen = 0;
+    this.more.hidden = true;
+    this.scroll.scrollTo({ top: h, behavior: reducedMotion(this.doc) ? 'auto' : 'smooth' });
+  };
+
+  private readonly onDown = (e: MouseEvent): void => {
+    // Rows can be selected; everywhere else the game keeps the keys.
+    if (this.scroll.contains(e.target as Node)) return;
+    prevent(e);
+  };
+
+  // ------------------------------------------------------------ card
+
+  private drawCard(fresh: boolean, rate: (xp: number) => Rated | null): void {
+    const k = this.kills[this.kills.length - 1];
+    if (!k) {
+      this.cardKey = '';
+      this.cardAge = null;
+      this.card.replaceChildren();
+      this.card.hidden = true;
+      return;
+    }
+    this.card.hidden = false;
+    const key = `${k.us}|${k.name}|${k.xp}|${this.median ?? ''}`;
+    if (key === this.cardKey) return;
+    const newKill = !this.cardKey.startsWith(`${k.us}|${k.name}|`);
+    this.cardKey = key;
+    const d = this.doc;
+    const rated = k.pk ? null : rate(k.xp);
+    setAttr(this.card, 'data-r', rated ? rated.rating : null);
+    setAttr(this.card, 'data-pk', k.pk ? '' : null);
+
+    const head = el(d, 'div', 'wc-st-card-top');
+    this.cardAge = el(d, 'span', 'wc-st-dim wc-st-cage', `${fmtAge(this.ageRef - k.us)} ago`);
+    head.append(el(d, 'span', 'wc-st-k', 'Last kill'), this.cardAge);
+    const mob = el(d, 'div', 'wc-st-mob', k.name);
+    mob.title = k.name;
+    const big = el(d, 'div', 'wc-st-big');
+    big.append(el(d, 'span', 'wc-st-bigxp', `+${fmtK(k.xp)}`), el(d, 'span', 'wc-st-dim', 'XP'), el(d, 'span', 'wc-st-sp'), badge(d, k.pk, rated));
+    const parts: HTMLElement[] = [head, mob, big];
+    if (!k.pk) parts.push(scaleEl(d, rated));
+    this.card.replaceChildren(...parts);
+
+    if (fresh && newKill && !reducedMotion(d) && typeof this.card.animate === 'function') {
+      this.card.animate(
+        [
+          { transform: 'translateY(10px)', opacity: 0 },
+          { transform: 'translateY(0)', opacity: 1 },
+        ],
+        { duration: 300, easing: 'cubic-bezier(.2,.7,.2,1)' },
+      );
+    }
+  }
+
+  // ------------------------------------------------------------ the tick
+
+  private syncTimer(): void {
+    const want = this.shown && this.st.live && !this.st.noRun && this.st.model !== null;
+    if (want && this.timer === null) {
+      this.ticks = 0;
+      this.timer = setInterval(this.onTick, TICK_MS);
+    } else if (!want) this.stopTimer();
+  }
+
+  private stopTimer(): void {
+    if (this.timer !== null) clearInterval(this.timer);
+    this.timer = null;
+  }
+
+  private readonly onTick = (): void => {
+    this.ageRef = this.feed.nowUs();
+    this.writeClock();
+    const k = this.kills[this.kills.length - 1];
+    if (k && this.cardAge) setText(this.cardAge, `${fmtAge(this.ageRef - k.us)} ago`);
+    if (++this.ticks % AGE_EVERY === 0) for (const [i, row] of this.rows) this.updateRow(row, i);
+  };
+
+  private writeClock(): void {
+    const m = this.st.model;
+    if (!m || m.startUs === null) return setText(this.clock, '');
+    const us = this.st.live ? Math.max(this.feed.nowUs(), m.endUs ?? 0) - m.startUs : m.durationUs;
+    setText(this.clock, fmtRunClock(us));
+  }
+}
+
+function badge(d: Document, pk: boolean, rated: Rated | null): HTMLElement {
+  if (pk) return el(d, 'span', 'wc-st-badge is-pk', '⚔ PvP');
+  if (!rated) return el(d, 'span', 'wc-st-badge is-cal', 'calibrating…');
+  const b = el(d, 'span', 'wc-st-badge');
+  b.dataset['r'] = rated.rating;
+  const pips = el(d, 'span', 'wc-st-pips');
+  pips.setAttribute('aria-hidden', 'true');
+  const at = RATING_ORDER.indexOf(rated.rating);
+  for (let j = 0; j < RATING_ORDER.length; j++) pips.append(el(d, 'i', j <= at ? 'on' : ''));
+  b.append(pips, d.createTextNode(RATING_LABEL[rated.rating]));
+  return b;
+}
+
+function scaleEl(d: Document, rated: Rated | null): HTMLElement {
+  const s = el(d, 'div', 'wc-st-scale');
+  const bands = el(d, 'div', 'wc-st-bands');
+  const lbl = el(d, 'div', 'wc-st-lbl');
+  for (const b of scaleBands()) {
+    const here = rated?.rating === b.rating;
+    const i = el(d, 'i', here ? 'here' : '');
+    i.dataset['r'] = b.rating;
+    i.style.flex = String(b.frac.toFixed(4));
+    bands.append(i);
+    const t = el(d, 'span', here ? 'here' : '', RATING_LABEL[b.rating]);
+    t.style.flex = String(b.frac.toFixed(4));
+    lbl.append(t);
+  }
+  if (rated) {
+    const mk = el(d, 'span', 'wc-st-mk');
+    mk.style.left = `${(scalePos(rated.ratio) * 100).toFixed(1)}%`;
+    s.append(mk);
+  }
+  s.append(bands, lbl);
+  return s;
+}
+
+/** Mounts the Statistics pane's view into `host` (hidden until `resize` gives it cells). */
+export function mountStatsPane(host: HTMLElement, _services: ChromeServices, opts: StatsPaneOptions): StatsPaneHandle {
+  const feed = new StatsFeed({ runs: opts.runs, replay: () => opts.status.get().replay });
+  return new StatsPaneView(host, feed);
+}

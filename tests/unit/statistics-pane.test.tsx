@@ -1,24 +1,17 @@
 // @vitest-environment happy-dom
-// Stage 30d (ADR 0109): the Statistics pane. Its layout by the pane's
-// cells (wide, narrow, what drops), the shortened header, the auto float,
-// the phone and player exclusions, the data feed (≤ 1 Hz, a tick only
-// while a run is in progress, idle while hidden, Run ended, No run yet),
-// the pane shell's mount on first show, and the view's three states.
+// Stage 30d (ADR 0109) and stage 49 (ADR 0134): the Statistics pane. The
+// view's pure parts (kills, tiles, scale, times), the auto float, the phone
+// and player exclusions, the data feed (≤ 1 Hz, a slow refresh only while a
+// run is in progress, idle while hidden, Run ended, No run yet), the pane
+// shell's mount on first show, and the view (header, tiles, the virtual
+// Earlier list, the card, the clock tick).
 import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { legacyLayout } from './legacy-defaults';
 import { mountStatsPane } from '../../src/chrome';
-import { paneHeader } from '../../src/chrome/frames/statistics';
-import {
-  NARROW_MIN_T,
-  NARROW_RULER_MIN,
-  NARROW_SPARK_MIN,
-  STATS_WIDE_MIN_COLS,
-  fitHeader,
-  statsFit,
-  statsPaneLayout,
-} from '../../src/chrome/frames/stats-layout';
-import { STATS_FEED_MS, StatsFeed, type StatsFeedOptions } from '../../src/chrome/stats-feed';
+import { fitHeader, statsFit } from '../../src/chrome/frames/stats-layout';
+import { STATS_FEED_MS, STATS_REFRESH_MS, StatsFeed, type StatsFeedOptions } from '../../src/chrome/stats-feed';
+import { barScale, extendsKills, fmtAge, fmtRunClock, killEntries, raterOf, scaleBands, scalePos, tilesOf } from '../../src/chrome/stats-pane-model';
 import type { AppStatusView } from '../../src/app/status';
 import { type AllocateInput, allocate, defaultFloatSize, statsAutoFloatRect } from '../../src/layout/allocate';
 import { GAME_TAB, allocatePhone } from '../../src/layout/phone';
@@ -50,39 +43,66 @@ describe('Statistics pane layout (pure)', () => {
     expect(statsFit(5, 10).fitRows).toBe(2);
   });
 
-  it('is wide from 64 cells and 12 rows, with the frame widths; narrow below either', () => {
-    const w = statsPaneLayout(80, 24);
-    expect(w).toEqual({ mode: 'wide', T: 36, total: 80, left: 0, showSpark: true, showRuler: true, fitRows: 2 });
-    expect(statsPaneLayout(STATS_WIDE_MIN_COLS, 12).mode).toBe('wide');
-    expect(statsPaneLayout(STATS_WIDE_MIN_COLS - 1, 40).mode).toBe('narrow');
-    expect(statsPaneLayout(120, 11).mode).toBe('narrow');
-    // Wider than the widest content: centred.
-    expect(statsPaneLayout(100, 30)).toMatchObject({ mode: 'wide', total: 84, left: 8 });
-    // A short wide pane drops the sparklines, then the ruler.
-    expect(statsPaneLayout(80, 16)).toMatchObject({ mode: 'wide', showSpark: false, showRuler: true });
-    expect(statsPaneLayout(80, 13)).toMatchObject({ mode: 'wide', showSpark: false, showRuler: false });
-  });
-
-  it('narrow: the column fills the width less a margin, a gap and the bar; sparklines then ruler drop when narrow', () => {
-    expect(statsPaneLayout(40, 20)).toEqual({ mode: 'narrow', T: 37, total: 37, left: 1, showSpark: true, showRuler: true });
-    expect(statsPaneLayout(NARROW_SPARK_MIN + 3, 20)).toMatchObject({ showSpark: true, showRuler: true });
-    expect(statsPaneLayout(NARROW_SPARK_MIN + 2, 20)).toMatchObject({ showSpark: false, showRuler: true });
-    expect(statsPaneLayout(NARROW_RULER_MIN + 3, 20)).toMatchObject({ showSpark: false, showRuler: true });
-    expect(statsPaneLayout(NARROW_RULER_MIN + 2, 20)).toMatchObject({ showSpark: false, showRuler: false });
-    // Never narrower tables than NARROW_MIN_T: a narrower pane clips them.
-    expect(statsPaneLayout(12, 20).T).toBe(NARROW_MIN_T);
-  });
-
-  it('the header gives way: stars, level, STATISTICS, the run; Run ended stays', () => {
-    const m = buildStats([startEv(), killEv(T0 + 70 * 60e6)]);
-    expect(paneHeader(m, 4, true, 80)).toBe('◆ STATISTICS — Rasta · Lvl 26 · Run 1h 10m · ★★★★ · Run ended');
-    expect(paneHeader(m, 4, true, 60)).toBe('◆ STATISTICS — Rasta · Lvl 26 · Run 1h 10m · Run ended');
-    expect(paneHeader(m, 4, true, 50)).toBe('◆ STATISTICS — Rasta · Run 1h 10m · Run ended');
-    expect(paneHeader(m, 4, true, 40)).toBe('◆ Rasta · Run 1h 10m · Run ended');
-    expect(paneHeader(m, 4, true, 25)).toBe('◆ Rasta · Run ended');
-    expect(paneHeader(m, 0, false, 12)).toBe('◆ Rasta');
-    expect(paneHeader(m, 0, false, 5)).toBe('◆ Ra…');
+  it('fitHeader takes the first candidate that fits', () => {
     expect(fitHeader(['long one', 'short'], 6)).toBe('short');
+  });
+});
+
+describe('Statistics pane model (pure)', () => {
+  const pk = (us: number): RunEvent => ({ type: 'pkill', us, logUs: us, name: 'Ugluk', race: 'Orc', xpDelta: 40_000 });
+  const kill = (us: number, xp: number, name = 'a stone troll'): RunEvent => ({ type: 'kill', us, logUs: us, mobName: name, xpDelta: xp });
+
+  it('killEntries: kills and pkills oldest first, a pkill as *Name*', () => {
+    const k = killEntries([kill(T0 + 3, 100), startEv(), pk(T0 + 2), kill(T0 + 1, 200, 'a wolf')]);
+    expect(k).toEqual([
+      { us: T0 + 1, name: 'a wolf', xp: 200, pk: false },
+      { us: T0 + 2, name: '*Ugluk*', xp: 40_000, pk: true },
+      { us: T0 + 3, name: 'a stone troll', xp: 100, pk: false },
+    ]);
+  });
+
+  it('barScale: 3 × the median, or the largest mob kill while calibrating', () => {
+    const few = killEntries([kill(T0 + 1, 900), kill(T0 + 2, 1200), pk(T0 + 3)]);
+    expect(barScale(raterOf(few).median, few)).toBe(1200);
+    const many = killEntries([1, 2, 3, 4, 5].map((i) => kill(T0 + i, 1000 * i)));
+    expect(raterOf(many).median).toBe(3000);
+    expect(barScale(3000, many)).toBe(9000);
+    expect(barScale(null, [])).toBe(1);
+  });
+
+  it('tilesOf: avg, median, XP / h (not in the first minute), kills; XP under 1000 exact', () => {
+    const k = killEntries([kill(T0 + 1, 400), kill(T0 + 2, 600)]);
+    const gains = { xpGains: [{ us: T0 + 1, delta: 400 }, { us: T0 + 2, delta: 600 }] };
+    expect(tilesOf(k, null, gains, 3600e6)).toEqual({ avg: '500', median: '—', xpPerHour: '1.0k', kills: '2' });
+    expect(tilesOf(k, 2500, gains, 30e6).xpPerHour).toBe('—');
+    expect(tilesOf([], null, null, 0)).toEqual({ avg: '—', median: '—', xpPerHour: '—', kills: '0' });
+  });
+
+  it('the scale: log2 from 0.25× to 4×; five bands that sum to one', () => {
+    expect(scalePos(1)).toBe(0.5);
+    expect(scalePos(0.25)).toBe(0);
+    expect(scalePos(8)).toBe(1);
+    const b = scaleBands();
+    expect(b.map((x) => x.rating)).toEqual(['poor', 'meh', 'good', 'great', 'superb']);
+    expect(b.reduce((a, x) => a + x.frac, 0)).toBeCloseTo(1, 9);
+  });
+
+  it('times: ages and the run clock', () => {
+    expect(fmtAge(40e6)).toBe('40s');
+    expect(fmtAge(12 * 60e6 + 5e6)).toBe('12m');
+    expect(fmtAge(65 * 60e6)).toBe('1h05');
+    expect(fmtAge(-5)).toBe('0s');
+    expect(fmtRunClock(247e6)).toBe('4:07');
+    expect(fmtRunClock((3600 + 12 * 60 + 4) * 1e6)).toBe('1:12:04');
+  });
+
+  it('extendsKills: the same run plus kills at the end', () => {
+    const a = killEntries([kill(T0 + 1, 1), kill(T0 + 2, 2)]);
+    const b = killEntries([kill(T0 + 1, 1), kill(T0 + 2, 2), kill(T0 + 3, 3)]);
+    expect(extendsKills(a, b)).toBe(true);
+    expect(extendsKills([], b)).toBe(true);
+    expect(extendsKills(b, a)).toBe(false);
+    expect(extendsKills(a, killEntries([kill(T0 + 9, 1), kill(T0 + 10, 2), kill(T0 + 11, 3)]))).toBe(false);
   });
 });
 
@@ -218,7 +238,7 @@ describe('StatsFeed', () => {
     expect(feed.loads).toBe(n);
   });
 
-  it('a run in progress: live, a 1 Hz tick, run events at most once a second', async () => {
+  it('a run in progress: live, run events at most once a second, a slow refresh (not a 1 Hz load)', async () => {
     const f = fakeRuns();
     f.live = [startEv(), killEv(T0 + 1e6)];
     f.latest = { runId: 'R/1', events: f.live, ended: false };
@@ -235,10 +255,14 @@ describe('StatsFeed', () => {
     expect(feed.loads).toBe(1);
     await advance(STATS_FEED_MS);
     expect(feed.loads).toBe(2);
-    // The tick: about one load a second.
-    await advance(3 * STATS_FEED_MS);
-    expect(feed.loads).toBeGreaterThanOrEqual(4);
-    expect(feed.loads).toBeLessThanOrEqual(5);
+    expect(feed.state.live).toBe(true);
+    expect(feed.state.kills.map((k) => k.name)).toEqual(['An orc scout']);
+    // No load per second: the clock is the view's text tick.
+    await advance(5 * STATS_FEED_MS);
+    expect(feed.loads).toBe(2);
+    // The slow refresh (XP / h, ages).
+    await advance(STATS_REFRESH_MS);
+    expect(feed.loads).toBe(3);
   });
 
   it('hidden: no subscription, no tick, no loads; shown again it loads at once', async () => {
@@ -353,42 +377,73 @@ describe('mountStatsPane (the view)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
   const status = { get: () => ({ replay: false }) } as unknown as AppStatusView;
+  const k = (us: number, xp: number, name = 'a stone troll'): RunEvent => ({ type: 'kill', us, logUs: us, mobName: name, xpDelta: xp });
 
-  it('No run yet, centred; then the run, wide or narrow by the cells; mousedowns are prevented', async () => {
+  it('No run yet; then the header, tiles, list and card; a new kill appends; the tick writes the clock; mousedowns', async () => {
     const f = fakeRuns();
     const host = document.createElement('div');
     document.body.append(host);
     const v = mountStatsPane(host, {} as never, { runs: f.runs as unknown as LiveRuns, status });
-    await act(async () => v.resize(80, 24));
+    v.resize(80, 24);
     await tick();
-    expect(host.querySelector('.wc-stats-pane')!.getAttribute('data-layout')).toBe('empty');
-    expect(host.querySelector('.wc-stats-norun')!.textContent).toBe('No run yet');
-    // The run starts: the event reloads.
-    f.live = [startEv(), killEv(T0 + 1e6)];
+    const root = host.querySelector<HTMLElement>('.wc-st')!;
+    expect(root.dataset['state']).toBe('norun');
+    expect(host.querySelector('.wc-st-norun')!.textContent).toBe('No run yet');
+
+    // A run with six kills: calibrated after five.
+    f.live = [startEv(), ...[1, 2, 3, 4, 5, 6].map((i) => k(T0 + i * 1e6, 1000 + i * 100))];
     f.latest = { runId: '', events: f.live, ended: false };
     await act(async () => {
       f.emit();
       await vi.advanceTimersByTimeAsync(STATS_FEED_MS);
     });
     await tick();
-    const pane = host.querySelector('.wc-stats-pane')!;
-    expect(pane.getAttribute('data-layout')).toBe('wide');
-    const header = host.querySelector('.wc-stats-header')!.textContent!;
-    expect(header).toMatch(/^◆ STATISTICS — Rasta · Lvl 26 · Run /);
-    expect(header).not.toContain('Run ended');
-    expect(pane.textContent).toContain('An orc scout');
-    expect(pane.textContent).not.toContain('R Refresh');
+    expect(root.dataset['state']).toBe('run');
+    expect(host.querySelector('.wc-st-hot')!.textContent).toBe('Rasta');
+    expect(host.querySelector('.wc-st-top')!.textContent).toContain('L25');
+    expect([...host.querySelectorAll('.wc-st-v')].map((e) => e.textContent)).toEqual(['1.4k', '1.4k', '0', '6']); // XP / h: the fake run is years long on the real clock
+    expect(host.querySelector('.wc-st-count')!.textContent).toBe('5');
+    expect(host.querySelector('.wc-st-mob')!.textContent).toBe('a stone troll');
+    expect(host.querySelector('.wc-st-bigxp')!.textContent).toBe('+1.6k');
+    expect(host.querySelector('.wc-st-badge')!.textContent).toBe('Good');
+    expect(root.style.getPropertyValue('--st-scale')).toBe(String(1350 * 3));
+    expect(root.hasAttribute('data-cal')).toBe(false);
+
+    // The clock ticks once a second without a load.
+    const loads = (v as unknown as { feed: StatsFeed }).feed.loads;
+    const clock = host.querySelector('.wc-st-clock')!;
+    const before = clock.textContent;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect((v as unknown as { feed: StatsFeed }).feed.loads).toBe(loads);
+    expect(clock.textContent).not.toBe(before);
+
+    // A pkill: the card shows PvP, the list grows by one.
+    f.live = [...f.live, { type: 'pkill', us: T0 + 7e6, logUs: T0 + 7e6, name: 'Ugluk', race: 'Orc', xpDelta: 30_000 }];
+    f.latest = { runId: '', events: f.live, ended: false };
+    await act(async () => {
+      f.emit();
+      await vi.advanceTimersByTimeAsync(STATS_FEED_MS);
+    });
+    await tick();
+    expect(host.querySelector('.wc-st-count')!.textContent).toBe('6');
+    expect(host.querySelector('.wc-st-card')!.hasAttribute('data-pk')).toBe(true);
+    expect(host.querySelector('.wc-st-badge')!.textContent).toBe('⚔ PvP');
+    expect(host.querySelector('.wc-st-scale')).toBeNull();
+
+    // Outside the list a mousedown is prevented; in the list it is not (rows can be selected).
     const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
-    host.querySelector('.wc-stat-rows')!.dispatchEvent(md);
+    host.querySelector('.wc-st-tiles')!.dispatchEvent(md);
     expect(md.defaultPrevented).toBe(true);
-    // Narrow: one column that scrolls as a whole.
-    await act(async () => v.resize(40, 20));
-    expect(host.querySelector('.wc-stats-pane')!.getAttribute('data-layout')).toBe('narrow');
-    expect(host.querySelector('.wc-stats-page')).not.toBeNull();
-    // Hidden: nothing drawn, the feed unsubscribed.
-    await act(async () => v.resize(0, 0));
-    expect(host.querySelector('.wc-stats-pane')).toBeNull();
+    const md2 = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    host.querySelector('.wc-st-scroll')!.dispatchEvent(md2);
+    expect(md2.defaultPrevented).toBe(false);
+
+    // Hidden: the feed unsubscribed.
+    v.resize(0, 0);
     expect(f.listeners.size).toBe(0);
     v.dispose();
+    expect(host.querySelector('.wc-st')).toBeNull();
   });
 });
