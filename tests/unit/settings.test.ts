@@ -244,7 +244,7 @@ describe('migrateSettings', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
     expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
-    expect(s.comm).toEqual({ filters: {}, showHeader: true });
+    expect(s.comm).toEqual({ filters: {}, showHeader: true, chatWindow: 30, folded: false, listWidth: null });
     expect(s.profile).toBe('pvp');
   });
 
@@ -257,9 +257,24 @@ describe('migrateSettings', () => {
       },
     });
     expect(s.group).toMatchObject({ showPlayers: true, npcMode: 'labeled' });
-    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, showHeader: false });
+    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, showHeader: false, chatWindow: 30, folded: false, listWidth: null });
     expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toMatchObject({ showPlayers: false, npcMode: 'all' });
     expect(migrateComm({ filters: [false] }).filters).toEqual({});
+  });
+
+  it('comm (ADR 0134): stored filters are kept; window, fold and width are checked', () => {
+    expect(migrateComm({ filters: {} }).filters).toEqual({});
+    expect(migrateSettings({ comm: { filters: { says: false } } }).comm.filters).toEqual({ says: false });
+    expect(migrateComm({ chatWindow: 60 }).chatWindow).toBe(60);
+    expect(migrateComm({ chatWindow: 'all' }).chatWindow).toBe('all');
+    expect(migrateComm({ chatWindow: 45 }).chatWindow).toBe(30);
+    expect(migrateComm({ folded: true }).folded).toBe(true);
+    expect(migrateComm({ folded: 'yes' }).folded).toBe(false);
+    expect(migrateComm({ listWidth: 151.6 }).listWidth).toBe(152);
+    expect(migrateComm({ listWidth: 5 }).listWidth).toBe(40);
+    expect(migrateComm({ listWidth: 9999 }).listWidth).toBe(400);
+    expect(migrateComm({ listWidth: 'wide' }).listWidth).toBeNull();
+    expect(migrateComm({ listWidth: Number.NaN }).listWidth).toBeNull();
     const many = Object.fromEntries(Array.from({ length: 150 }, (_, i) => [`c${i}`, false]));
     expect(Object.keys(migrateComm({ filters: many }).filters)).toHaveLength(100);
   });

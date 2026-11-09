@@ -163,17 +163,40 @@ export const COMM_FILTER_KEY_MAX = 64;
 /** Most entries kept in `CommSettings.filters` (a sanity bound only). */
 export const COMM_FILTERS_MAX = 100;
 
-/** Options → Panes → Communication, and the header's channel filters. */
+/** "Show chats active in the last …" of the Comm pane (ADR 0134): minutes, or every chat. */
+export type CommChatWindow = 10 | 30 | 60 | 'all';
+export const COMM_CHAT_WINDOWS: readonly CommChatWindow[] = [10, 30, 60, 'all'];
+/**
+ * Channels new users have off in Public (ADR 0134: they live in the chats).
+ * Stage 49c puts them into the defaults together with the new pane; the
+ * old pane's filters hide the whole pane's channel, so not before.
+ */
+export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'whispers'];
+/** Narrowest and widest dragged chat column of the Comm pane (CSS px). */
+export const COMM_LIST_WIDTH_MIN = 40;
+export const COMM_LIST_WIDTH_MAX = 400;
+
+/** Options → Panes → Communication and the Comm gear (ADR 0134). */
 export interface CommSettings {
   /**
-   * Channel filters by GMCP channel name, global (not per character).
-   * Sparse: a missing channel is enabled. Only `false` entries are kept, so
-   * enabling a channel is `{ comm: { filters: { tells: true } } }` and the
-   * migration drops the entry.
+   * The channels shown in Public, by GMCP channel name, global (not per
+   * character). Sparse: a missing channel is enabled. Only `false` entries
+   * are kept, so enabling a channel is `{ comm: { filters: { tells: true } } }`
+   * and the migration drops the entry. Stored filters are kept as they are;
+   * from stage 49c new users start with `COMM_PUBLIC_DEFAULT_OFF` off.
    */
   filters: Record<string, boolean>;
-  /** Show the one-row channel header. */
+  /**
+   * Show the one-row channel header (the pane before ADR 0134). Kept until
+   * stage 49c replaces the pane, its gear and the Options page; then dropped.
+   */
   showHeader: boolean;
+  /** Private chats shown: active in the last 10 / 30 / 60 min, or all. */
+  chatWindow: CommChatWindow;
+  /** The chat column is folded away (the spine's fold). */
+  folded: boolean;
+  /** The chat column's dragged width in CSS px, or null for the automatic width. */
+  listWidth: number | null;
 }
 
 /**
@@ -499,7 +522,7 @@ export function defaultSettings(): Settings {
     layout: defaultLayout(),
     profile: 'default',
     group: defaultGroupSettings(),
-    comm: { filters: {}, showHeader: true },
+    comm: { filters: {}, showHeader: true, chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },
