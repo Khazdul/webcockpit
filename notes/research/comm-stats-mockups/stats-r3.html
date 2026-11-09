@@ -1,0 +1,544 @@
+<title>Statistics Round Three</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: one live Statistics pane, full height and short; each is a live Statistics pane in the Lykta frame with its Swedish caption beside it (under it when narrow). */
+:root {
+  color-scheme: dark;
+  /* page */
+  --page: #0c0b0a;
+  --ink: #d8d3c8;
+  --muted: #958e82;
+  --rule: #26231f;
+  --accent: #c9a96a;
+  /* type */
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+  --mono: "DejaVu Sans Mono", "JetBrains Mono", ui-monospace, monospace;
+  /* pane: Plain tint, candle lamp (17 Lykta) */
+  --lamp: #c9b28c;
+  --iron: #2a2826;
+  --iron-hi: #57524a;
+  --iron-lo: #171614;
+  --pane-bg: #050504;
+  --frost: color-mix(in srgb, var(--lamp) 11%, transparent);
+  --frost2: color-mix(in srgb, var(--lamp) 5%, transparent);
+  --frost-edge: color-mix(in srgb, var(--lamp) 24%, transparent);
+  --fg: #cfc9bd;
+  --hot: #f1ece1;
+  --dim: #8a847a;
+  --trk: rgba(0, 0, 0, .55);
+  /* the app's stats colours (history-stats.css) */
+  --teal: #7cc4c8;
+  --pk: #e0915a;
+  --lvl: #7fbf7f;
+  --ach: #e3b341;
+  /* rating ramp, diverging around Good (always with a label, pips or a grade letter) */
+  --r0: #d0442e;  /* Poor */
+  --r1: #e08a2c;  /* Meh */
+  --r2: #7fb0d8;  /* Good */
+  --r3: #4fbf78;  /* Great */
+  --r4: #ffd54a;  /* Superb */
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--page); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 90px; }
+header.intro { display: grid; gap: 10px; margin-bottom: 18px; max-width: 70ch; }
+header.intro h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(24px, 4vw, 32px); letter-spacing: .04em; color: var(--hot); text-wrap: balance; }
+header.intro p { margin: 0; color: var(--muted); }
+header.intro p b { color: var(--ink); font-weight: 500; }
+
+/* control bar */
+.ctl { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 0; margin-bottom: 8px; background: var(--page); border-bottom: 1px solid var(--rule); font-size: 14px; }
+.ctl .cl { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.cg { display: flex; align-items: center; gap: 8px; }
+.btn, .seg button { font: inherit; cursor: pointer; border: 1px solid var(--rule); background: #17150f; color: var(--ink); padding: 3px 11px; border-radius: 5px; }
+.btn:hover, .seg button:hover { color: var(--hot); border-color: #3a352c; }
+.btn:focus-visible, .seg button:focus-visible, .toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn.prim { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--hot); }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: #151410; border: 1px solid var(--rule); }
+.seg button { border: 0; background: none; color: var(--muted); padding: 2px 9px; border-radius: 4px; }
+.seg button[aria-pressed="true"] { background: #2b2822; color: var(--hot); }
+.ctl .hint { color: var(--muted); font-size: 13px; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 0 20px; font-size: 14px; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+.toc b { font-family: var(--display); color: var(--accent); margin-right: 5px; }
+
+/* concept sections */
+section.v { display: grid; grid-template-columns: minmax(0, 470px) minmax(0, 1fr); gap: 20px 32px; align-items: start; padding: 30px 0 34px; border-top: 1px solid var(--rule); scroll-margin-top: 60px; }
+@media (max-width: 880px) { section.v { grid-template-columns: minmax(0, 1fr); } }
+.stage { padding: 12px; border-radius: 6px; background: #000; display: flex; justify-content: center; min-width: 0; }
+.cap { display: grid; gap: 10px; align-content: start; min-width: 0; max-width: 62ch; }
+.cap .hd { display: flex; align-items: baseline; gap: 12px; }
+.cap .num { font-family: var(--display); font-size: 28px; color: var(--accent); line-height: 1; }
+.cap h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: .05em; color: var(--hot); text-wrap: balance; }
+.cap h2 small { display: block; font-family: var(--body); font-size: 14px; letter-spacing: .02em; color: var(--muted); font-weight: 400; }
+.cap ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+.cap li::marker { color: var(--accent); }
+.cap .try { margin: 0; font-size: 15px; color: var(--muted); }
+.cap .try b { color: var(--accent); font-weight: 500; }
+.scaleref { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; font-size: 13px; margin-top: 4px; }
+.scaleref div { padding: 4px 6px; border-radius: 4px; background: #14120e; border-top: 3px solid var(--c); }
+.scaleref b { display: block; color: var(--hot); font-weight: 500; }
+.scaleref span { color: var(--muted); font-size: 12px; }
+@media (max-width: 480px) { .scaleref { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ===================================================== the Lykta pane */
+.pane { position: relative; width: min(100%, 448px); height: 604px; padding: 5px; border-radius: 3px; font-family: var(--mono); font-size: 12.5px; line-height: 17px; color: var(--fg);
+  box-shadow: 0 0 22px -4px color-mix(in srgb, var(--lamp) 22%, transparent); }
+.pane::before { content: ""; position: absolute; inset: 0; padding: 5px; border-radius: 3px; border: 1px solid #000; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 30%, rgba(0,0,0,.18)), var(--iron);
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--iron-hi) 80%, transparent), inset -1px -1px 0 var(--iron-lo);
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.fx { position: absolute; z-index: 4; width: 13px; height: 13px; pointer-events: none;
+  background: radial-gradient(circle at 2.5px 2.5px, color-mix(in srgb, var(--lamp) 70%, #fff) 0 .8px, var(--iron-lo) 1.4px 2px, transparent 2.4px) 0 0 / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--iron-hi), var(--iron) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 5px, 5px 5px, 5px 100%, 0 100%); }
+.f1 { top: 0; left: 0; } .f2 { top: 0; right: 0; transform: scaleX(-1); } .f3 { bottom: 0; left: 0; transform: scaleY(-1); } .f4 { bottom: 0; right: 0; transform: scale(-1, -1); }
+.plate { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); height: 17px; padding: 0 15px; border-radius: 0 0 8px 8px; z-index: 6; display: flex; align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.15)), var(--iron);
+  box-shadow: inset 0 -1px 0 var(--iron-hi), 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.5); }
+.plate::before, .plate::after { content: ""; position: absolute; top: 7px; width: 3px; height: 3px; border-radius: 50%; background: var(--iron-lo); box-shadow: inset 0 1px 0 rgba(0,0,0,.6), 0 1px 0 var(--iron-hi); }
+.plate::before { left: 5px; } .plate::after { right: 5px; }
+.pt { font-family: var(--display); font-weight: 700; font-size: 11.5px; letter-spacing: .12em; line-height: 13px; padding-top: 1px;
+  color: color-mix(in srgb, var(--lamp) 75%, #fff);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--lamp) 85%, transparent), 0 0 10px color-mix(in srgb, var(--lamp) 45%, transparent); }
+.hole { position: relative; height: 100%; overflow: hidden; padding: 18px 9px 9px; border: 1px solid #000; border-radius: 1px; display: flex; flex-direction: column; gap: 7px;
+  background: radial-gradient(38% 46px at 50% 0, color-mix(in srgb, var(--lamp) 16%, transparent), transparent),
+    radial-gradient(120% 80% at 50% 28%, color-mix(in srgb, var(--lamp) 17%, transparent), color-mix(in srgb, var(--lamp) 5%, transparent) 55%, transparent 88%), var(--pane-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 10%, transparent), inset 0 0 24px rgba(0,0,0,.55); }
+.card { border-radius: 4px; padding: 7px 9px;
+  background: linear-gradient(180deg, var(--frost), var(--frost2));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), inset 0 0 0 1px var(--frost2), 0 1px 2px rgba(0,0,0,.45); }
+.sec { display: flex; align-items: baseline; gap: 8px; font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--lamp) 35%, #c8c8c8); }
+.sec::after { content: ""; flex: 1; height: 1px; align-self: center; background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 34%, transparent), transparent 85%); }
+.sec .dim { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.dim { color: var(--dim); }
+.hot { color: var(--hot); }
+.num { font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sp { flex: 1; }
+.ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.trk { display: block; position: relative; height: 7px; border-radius: 3px; background: var(--trk); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 1px 0 color-mix(in srgb, var(--lamp) 14%, transparent); }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--c), #fff 38%), var(--c) 55%, color-mix(in srgb, var(--c), #000 15%)); }
+
+/* rating chip: colour + pips + word */
+.rc { --c: var(--dim); display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; height: 16px; border-radius: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 85%, #fff); background: color-mix(in srgb, var(--c) 14%, rgba(0,0,0,.35)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.rc .pp { display: inline-flex; gap: 1.5px; }
+.rc .pp i { width: 3px; height: 8px; border-radius: 1px; background: currentColor; opacity: .22; }
+.rc .pp i.on { opacity: 1; }
+.r-superb { text-shadow: 0 0 6px color-mix(in srgb, var(--r4) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--r4) 60%, transparent), 0 0 8px -1px color-mix(in srgb, var(--r4) 55%, transparent); }
+.rc.cal { --c: var(--dim); font-weight: 400; font-style: italic; }
+.pkc { --c: var(--pk); }
+
+/* the 5-zone scale bar */
+.scale { position: relative; padding-top: 9px; }
+.scale .bands { display: flex; height: 6px; gap: 2px; }
+.scale .bands i { display: block; height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, rgba(0,0,0,.4)); }
+.scale .bands i.here { background: var(--c); box-shadow: 0 0 6px -1px var(--c); }
+.scale .lbl { display: flex; gap: 2px; font-size: 9.5px; line-height: 12px; margin-top: 2px; }
+.scale .lbl span { overflow: hidden; white-space: nowrap; text-align: center; color: var(--dim); }
+.scale .lbl span.here { color: var(--hot); }
+.scale .mk { position: absolute; top: 0; width: 0; height: 0; border: 5px solid transparent; border-top: 7px solid var(--hot); border-bottom: 0; transform: translateX(-5px); filter: drop-shadow(0 0 3px rgba(255,255,255,.4)); transition: left .4s ease; }
+
+/* motion */
+@keyframes slideIn { from { transform: translateY(-14px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rowIn { from { transform: translateY(-6px); opacity: 0; max-height: 0; } to { transform: none; opacity: 1; max-height: 24px; } }
+@keyframes drop { from { transform: translateY(-46px); opacity: 0; } 60% { opacity: 1; } 80% { transform: translateY(3px); } to { transform: none; opacity: 1; } }
+@keyframes glow { from { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 80%, transparent), 0 0 14px -2px var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); } to { box-shadow: inset 0 0 0 1px transparent; background: transparent; } }
+@keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes toast { 0% { transform: translate(-50%, -30px); opacity: 0; } 12% { transform: translate(-50%, 0); opacity: 1; } 85% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -10px); opacity: 0; } }
+@keyframes flash { from { box-shadow: inset 0 0 0 1px var(--r4), 0 0 18px -2px var(--r4); } to { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 26%, transparent), 0 1px 2px rgba(0,0,0,.45); } }
+.a-slide { animation: slideIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.a-row { animation: rowIn .4s ease-out both; overflow: hidden; }
+.a-drop { animation: drop .6s cubic-bezier(.3,.7,.3,1) both; transform-box: fill-box; transform-origin: center; }
+.a-glow { animation: glow 2.4s ease-out both; }
+.a-pop { animation: pop .45s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .a-slide, .a-row, .a-drop, .a-pop, .a-glow, .toast, .flash { animation-duration: 1ms !important; } .scale .mk { transition: none; } }
+
+/* ---------------- 1 Kill card */
+.c1-top { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; }
+.hero { padding: 9px 11px 10px; display: grid; gap: 4px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lamp) 30%, transparent), inset 0 0 0 1px var(--frost-edge), inset 3px 0 0 -1px var(--c), 0 2px 6px rgba(0,0,0,.5); }
+.hero .mob { color: var(--hot); font-weight: 700; font-size: 13.5px; }
+.hero .big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hero .bigxp { font-size: 30px; line-height: 34px; font-weight: 700; color: color-mix(in srgb, var(--c) 55%, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); font-variant-numeric: tabular-nums; }
+.hero .xpu { color: var(--dim); }
+.hero .rc { height: 20px; font-size: 12px; padding: 0 7px; }
+.hero .ratio { font-size: 12px; }
+.hero .ratio b { color: var(--hot); }
+.feed { display: grid; gap: 1px; }
+.fr { display: grid; grid-template-columns: 30px minmax(0, 1fr) minmax(40px, 30%) 44px 18px; align-items: center; gap: 7px; height: 22px; padding: 0 4px; border-radius: 3px; }
+.fr:nth-child(odd) { background: rgba(255,255,255,.018); }
+.fr .t { color: var(--dim); font-size: 10.5px; text-align: right; }
+.fr .x { text-align: right; color: var(--hot); }
+.fr .bar { position: relative; height: 9px; }
+.fr .bar .fill { top: 1px; bottom: 1px; }
+.fr .bar .med { position: absolute; top: -7px; bottom: -7px; width: 0; border-left: 1px dashed color-mix(in srgb, var(--lamp) 55%, transparent); }
+.fr .g { font-weight: 700; font-size: 10.5px; text-align: center; color: var(--c); }
+.foot4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: auto; }
+.tile { padding: 5px 7px 6px; display: grid; gap: 0; }
+.tile .k { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; }
+.tile .v { font-size: 15px; line-height: 20px; font-weight: 700; color: var(--hot); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tile .v small { font-size: 10.5px; font-weight: 400; color: var(--dim); }
+
+#tip { position: fixed; z-index: 50; pointer-events: none; padding: 4px 8px; border-radius: 4px; background: #1b1915; border: 1px solid #3a352c; color: var(--ink); font-family: var(--mono); font-size: 11.5px; line-height: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.6); max-width: 260px; }
+
+/* ---------------- round 3: tiles on top, scrolling Earlier list, last-kill card at the bottom */
+.foot4 { margin-top: 0; }
+.listwrap { position: relative; flex: 1 1 auto; min-height: 44px; display: flex; flex-direction: column; }
+.scroller { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 3px; border-radius: 3px;
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--lamp) 30%, transparent) transparent;
+  -webkit-mask: linear-gradient(180deg, transparent 0, #000 14px, #000 100%); mask: linear-gradient(180deg, transparent 0, #000 14px, #000 100%); }
+.scroller::-webkit-scrollbar { width: 6px; }
+.scroller::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--lamp) 30%, transparent); border-radius: 3px; }
+.scroller .feed { padding-top: 10px; }
+.fr { user-select: text; grid-template-columns: 40px minmax(0, 1fr) minmax(40px, 28%) 44px 18px; }
+@media (max-width: 480px) { .tile .k { font-size: 9px; letter-spacing: .04em; } }
+.fr.newest { background: color-mix(in srgb, var(--c) 7%, rgba(255,255,255,.02)); }
+.more { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 3; font: inherit; font-size: 11px; line-height: 18px; padding: 0 9px; border-radius: 9px; cursor: pointer;
+  color: var(--hot); border: 1px solid color-mix(in srgb, var(--lamp) 45%, transparent); background: color-mix(in srgb, var(--pane-bg) 80%, var(--lamp) 20%); box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hero { flex: 0 0 auto; }
+.hero .top { display: flex; align-items: baseline; gap: 8px; }
+.hero .top .lk { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+@keyframes riseIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes upIn { from { transform: translateY(30px); opacity: .2; background: color-mix(in srgb, var(--c) 25%, transparent); } 70% { opacity: 1; } to { transform: none; opacity: 1; } }
+.a-rise { animation: riseIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.a-up { animation: upIn .5s cubic-bezier(.2,.8,.2,1) both; }
+.pane.short { height: 360px; }
+.short .hero { padding: 6px 9px 7px; gap: 2px; }
+.short .hero .bigxp { font-size: 24px; line-height: 28px; }
+.short .hero .scale { display: none; }
+.stage.two { flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.stage .lbl2 { width: 100%; text-align: center; font-family: var(--body); font-size: 13px; color: var(--muted); margin-top: -4px; }
+@media (prefers-reduced-motion: reduce) { .a-rise, .a-up { animation-duration: 1ms !important; } }
+</style>
+<div class="wrap">
+  <header class="intro">
+    <h1>Statistics, runda tre</h1>
+    <p>Kortet för senaste killen ligger nu <b>längst ner</b>, och listan "Earlier" står rakt ovanför med den nyaste killen nederst. Listan rymmer hela sessionen och scrollas uppåt mot äldre kills. Raden överst och de fyra rutorna från runda 1 är tillbaka, och level-staplarna från runda 2 är borta.</p>
+  </header>
+
+  <div class="ctl" role="toolbar" aria-label="Demo controls">
+    <div class="cg"><button class="btn" id="pause" aria-pressed="false">Pause</button><button class="btn prim" id="killnow">Kill now</button></div>
+    <div class="cg"><span class="cl">Session</span><div class="seg" id="lvl"><button data-l="12" aria-pressed="false">Level 12</button><button data-l="34" aria-pressed="true">Level 34</button><button data-l="48" aria-pressed="false">Level 48</button></div></div>
+  </div>
+
+  <section class="v" id="s1">
+    <div class="stage"><div class="pane"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="pA"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">3</span><h2>Senaste fångst, nerifrån<small>Nyast längst ner, äldre uppåt</small></h2></div>
+      <ul>
+        <li>Överst raden från runda 1: namn, level, sessionens klocka och gruppen. Direkt under de fyra rutorna Avg / kill, Median, XP / h och Kills.</li>
+        <li>"Earlier" fyller resten av höjden. Den nyaste killen ligger nederst, och hela sessionen finns om man scrollar uppåt.</li>
+        <li>Längst ner kortet för senaste killen med betyget och skalan. När nästa kill kommer glider kortets kill upp som nedersta raden i listan, och det nya kortet tonar in.</li>
+        <li>Har du scrollat upp står listan still, och en knapp "↓ N new" visar hur många som kommit sedan. Ett klick tar dig tillbaka till botten.</li>
+        <li>Staplarna och den svaga medianlinjen i listan är kvar. Level-staplarna från runda 2 är borta.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> tryck Kill now och se kortet glida upp i listan. Scrolla upp i listan, tryck Kill now några gånger och klicka på "↓ N new". Markera en rad med musen: texten går att kopiera.</p>
+    </div>
+  </section>
+
+  <section class="v" id="s2">
+    <div class="stage"><div class="pane short"><i class="fx f1"></i><i class="fx f2"></i><i class="fx f3"></i><i class="fx f4"></i><div class="plate"><span class="pt">STATISTICS</span></div><div class="hole" id="pB"></div></div></div>
+    <div class="cap">
+      <div class="hd"><span class="num">3b</span><h2>Samma panel, låg<small>360 px hög, till exempel dockad under kartan</small></h2></div>
+      <ul>
+        <li>Raden överst, rutorna och kortet behåller sin plats. Det är listan som krymper.</li>
+        <li>Kortet blir lite tätare: mindre XP-siffra och ingen skala. Betyget står kvar som märke.</li>
+        <li>Listan går fortfarande att scrolla genom hela sessionen.</li>
+      </ul>
+      <p class="try"><b>Prova:</b> scrolla i den korta listan och jämför med den stora panelen ovanför. Båda visar samma session.</p>
+    </div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+<script>
+(() => {
+'use strict';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPEED = 30;                // game seconds per real second
+const MIN = 60000;
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------- helpers
+function fmtK(n) {
+  const v = Math.round(Math.abs(n)); const sign = n < 0 && v > 0 ? '-' : '';
+  let s;
+  if (v < 1000) s = String(v);
+  else if (v < 99950) s = (v / 1000).toFixed(1) + 'k';
+  else if (v < 999500) s = Math.round(v / 1000) + 'k';
+  else s = (v / 1e6).toFixed(1) + 'M';
+  return sign + s;
+}
+function fmtClock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000)); const p2 = (n) => String(n).padStart(2, '0');
+  const h = Math.floor(s / 3600);
+  return h > 0 ? `${h}:${p2(Math.floor(s / 60) % 60)}:${p2(s % 60)}` : `${p2(Math.floor(s / 60))}:${p2(s % 60)}`;
+}
+function fmtDur(ms) { const m = Math.round(ms / MIN); return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`; }
+function ago(ms) { const m = Math.floor(ms / MIN); return m < 1 ? '0m' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60}m`; }
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function median(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1.5 ? 1.5 : f <= 2 ? 2 : f <= 3 ? 3 : f <= 5 ? 5 : f <= 7.5 ? 7.5 : 10) * p; }
+
+// ------------------------------------------------------------- rating
+const RATINGS = [
+  { k: 'poor', label: 'Poor', grade: 'D', c: 'var(--r0)', lo: 0, hi: 0.45 },
+  { k: 'meh', label: 'Meh', grade: 'C', c: 'var(--r1)', lo: 0.45, hi: 0.8 },
+  { k: 'good', label: 'Good', grade: 'B', c: 'var(--r2)', lo: 0.8, hi: 1.5 },
+  { k: 'great', label: 'Great', grade: 'A', c: 'var(--r3)', lo: 1.5, hi: 2.5 },
+  { k: 'superb', label: 'Superb', grade: 'S', c: 'var(--r4)', lo: 2.5, hi: Infinity },
+];
+const CAL_MIN = 5;
+function rateIdx(r) { return r < 0.45 ? 0 : r < 0.8 ? 1 : r < 1.5 ? 2 : r < 2.5 ? 3 : 4; }
+/** Median of the last 30 mob kills (PK left out), or null while calibrating. */
+function refMedian() { const xs = S.kills.filter((k) => !k.pk).slice(-30).map((k) => k.xp); return xs.length >= CAL_MIN ? median(xs) : null; }
+function rateOf(xp, med) { return med ? RATINGS[rateIdx(xp / med)] : null; }
+function chip(R, extra = '') {
+  if (!R) return `<span class="rc cal">calibrating…</span>`;
+  const i = RATINGS.indexOf(R);
+  const pips = RATINGS.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('');
+  return `<span class="rc r-${R.k}" style="--c:${R.c}"><span class="pp" aria-hidden="true">${pips}</span>${R.label}${extra}</span>`;
+}
+// log2 scale from 0.25× to 4×
+const scalePos = (r) => Math.min(1, Math.max(0, (Math.log2(Math.max(r, 0.01)) + 2) / 4));
+const BOUNDS = [0, scalePos(0.45), scalePos(0.8), scalePos(1.5), scalePos(2.5), 1];
+function scaleBar(r) {
+  const here = r == null ? -1 : rateIdx(r);
+  const bands = RATINGS.map((R, i) => `<i style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)};--c:${R.c}" class="${i === here ? 'here' : ''}"></i>`).join('');
+  const lbl = RATINGS.map((R, i) => `<span style="flex:${(BOUNDS[i + 1] - BOUNDS[i]).toFixed(3)}" class="${i === here ? 'here' : ''}">${R.label}</span>`).join('');
+  const mk = r == null ? '' : `<span class="mk" style="left:${(scalePos(r) * 100).toFixed(1)}%"></span>`;
+  return `<div class="scale">${mk}<div class="bands">${bands}</div><div class="lbl">${lbl}</div></div>`;
+}
+
+// ------------------------------------------------------------- session model
+const BANDS = {
+  12: { mobs: [['a rabbit', 380, 2], ['a large rat', 470, 3], ['a wild boar', 950, 3], ['a wolf', 1150, 4], ['a hobbit thief', 1550, 3], ['a goblin scout', 2150, 2], ['a giant spider', 2950, .6]], tp: [1, 1], ach: 'Slew a giant spider' },
+  34: { mobs: [['a black bear', 2250, 3], ['a warg', 2850, 3], ['a dunlending raider', 3400, 3], ['an orc warrior', 4300, 4], ['a barrow-wight', 6300, 2], ['a stone troll', 8400, 1.2]], tp: [1, 3], ach: 'Slew a stone troll' },
+  48: { mobs: [['an easterling soldier', 6500, 3], ['an orc captain', 8300, 3], ['a great spider', 11500, 3], ['a cave troll', 15500, 3], ['a hill giant', 19500, 2], ['a mountain troll', 24500, .8], ['an olog-hai', 39000, .25]], tp: [2, 4], ach: 'Slew an olog-hai' },
+};
+let S, rng;
+
+function pickMob() {
+  const m = BANDS[S.band].mobs; const tot = m.reduce((s, x) => s + x[2], 0);
+  let r = rng() * tot;
+  for (const x of m) { r -= x[2]; if (r <= 0) return x; }
+  return m[m.length - 1];
+}
+function gauss() { return Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng()); }
+
+function newSession(band) {
+  rng = mulberry(band * 7919 + 3);
+  const mobs = BANDS[band].mobs;
+  const wsum = mobs.reduce((s, x) => s + x[2], 0);
+  const est = mobs.reduce((s, x) => s + x[1] * x[2], 0) / wsum;
+  S = { band, level: band, span: Math.round(est * 45 / 1000) * 1000, xpIn: 0, gained: 0, startIn: 0,
+    tpStart: 140 + band * 3, tp: 0, kills: [], tps: [], miles: [], now: 70 * MIN, achDone: false, liveKills: 0, killSeq: 0, bestStreak: 0 };
+  S.startIn = Math.round(S.span * 0.16); S.xpIn = S.startIn; S.tp = S.tpStart; S.levelStart = band;
+  const ts = Array.from({ length: 25 }, () => rng() * 68 * MIN + 1 * MIN).sort((a, b) => a - b);
+  ts.forEach((t, i) => addKill(t, i === 15 ? 'pk' : null, false));
+  S.now = 70 * MIN;
+}
+
+function addKill(t, kind, live) {
+  let k;
+  if (kind === 'pk') {
+    const med = refMedian() || 3000;
+    k = { t, name: '*Ugluk the Orc*', xp: Math.round(med * (4 + rng() * 2) / 10) * 10, pk: true };
+  } else {
+    const [name, base] = pickMob();
+    k = { t, name, xp: Math.max(50, Math.round(base * Math.exp(gauss() * 0.16) / 10) * 10), pk: false };
+  }
+  k.id = ++S.killSeq; k.real = live ? performance.now() : -1e9;
+  S.kills.push(k);
+  S.gained += k.xp; S.xpIn += k.xp;
+  const out = [];
+  if (S.xpIn >= S.span) {
+    S.xpIn -= S.span; S.level++; S.span = Math.round(S.span * 1.08 / 1000) * 1000;
+    S.miles.push({ t, kind: 'level', text: `Level ${S.level}!` }); out.push('level');
+  }
+  if (rng() < 0.32) { const [a, b] = BANDS[S.band].tp; const d = a + Math.floor(rng() * (b - a + 1)); S.tp += d; S.tps.push({ t, d }); }
+  if (live) {
+    S.liveKills++;
+    if (!S.achDone && S.liveKills === 5) { S.achDone = true; S.miles.push({ t, kind: 'ach', text: BANDS[S.band].ach }); out.push('ach'); }
+  }
+  return { k, out };
+}
+
+// derived numbers
+function sessionMs() { return S.now; }
+function xpPerHour(winMin) {
+  if (winMin == null) return S.gained / (sessionMs() / 3600000);
+  const from = S.now - winMin * MIN;
+  const sum = S.kills.filter((k) => k.t > from).reduce((s, k) => s + k.xp, 0);
+  return sum / (winMin / 60);
+}
+function tpPerHour() { return (S.tp - S.tpStart) / (sessionMs() / 3600000); }
+function series(kind, buckets) {
+  const w = 15 * MIN; const out = [];
+  const evs = kind === 'tp' ? S.tps.map((x) => ({ t: x.t, v: x.d })) : S.kills.map((k) => ({ t: k.t, v: k.xp }));
+  for (let i = 0; i < buckets; i++) {
+    const t = (i + 1) / buckets * S.now; const lo = t - w;
+    const sum = evs.filter((e) => e.t > lo && e.t <= t).reduce((s, e) => s + e.v, 0);
+    out.push(sum / (Math.min(w, t) / 3600000));
+  }
+  return out;
+}
+function etaMs() { const r = xpPerHour(20) || xpPerHour(); return r > 0 ? (S.span - S.xpIn) / r * 3600000 : Infinity; }
+function lastKill() { return S.kills[S.kills.length - 1]; }
+function lastMobKill() { for (let i = S.kills.length - 1; i >= 0; i--) if (!S.kills[i].pk) return S.kills[i]; return null; }
+function streak() { let n = 0; const med = refMedian(); if (!med) return 0; for (let i = S.kills.length - 1; i >= 0; i--) { const k = S.kills[i]; if (k.pk) continue; if (k.xp / med >= 0.8) n++; else break; } return n; }
+function bestKill() { return S.kills.filter((k) => !k.pk).reduce((b, k) => (!b || k.xp > b.xp ? k : b), null); }
+/** Animation class for a freshly arrived kill, continued across re-renders by a negative delay. */
+function fresh(k, cls, dur) {
+  if (!k) return { c: '', s: '' };
+  const el = performance.now() - k.real;
+  return el < dur ? { c: cls, s: `animation-delay:-${Math.round(el)}ms;` } : { c: '', s: '' };
+}
+
+// ------------------------------------------------------------- round 3 pane
+// One renderer for both panes; each keeps its own scroll state.
+const panes = [
+  { el: $('pA'), short: false },
+  { el: $('pB'), short: true },
+];
+/** The kill now on the card (it moves into the list when the next one lands). */
+let cardId = null; let movedId = null; let movedAt = -1e9;
+
+function rowHtml(x, med, max, isNewest, anim) {
+  const Rx = x.pk ? null : rateOf(x.xp, med);
+  const c = x.pk ? 'var(--pk)' : Rx ? Rx.c : 'var(--dim)';
+  const g = x.pk ? 'PK' : Rx ? Rx.grade : '·';
+  const tip = `${x.name} · ${fmtK(x.xp)} XP${Rx ? ' · ' + Rx.label + ' (' + (x.xp / med).toFixed(1) + '×)' : x.pk ? ' · PvP' : ''}`;
+  return `<div class="fr${isNewest ? ' newest' : ''} ${anim.c}" style="${anim.s}--c:${c}" data-tip="${esc(tip)}">
+    <span class="t num" data-t="${x.t}">${ago(S.now - x.t)}</span><span class="ell" style="${x.pk ? 'color:var(--pk)' : ''}">${esc(x.name)}</span>
+    <span class="bar"><span class="trk" style="height:9px"><span class="fill" style="width:${(Math.min(1, x.xp / max) * 100).toFixed(1)}%"></span></span>${med ? `<span class="med" style="left:${(med / max * 100).toFixed(1)}%"></span>` : ''}</span>
+    <span class="x num">${fmtK(x.xp)}</span><span class="g" title="${Rx ? Rx.label : ''}">${g}</span></div>`;
+}
+
+function build(p) {
+  p.el.innerHTML = `
+    <div class="c1-top"><span class="hot">Gibur</span><span class="dim">L<span class="js-lv"></span></span><span class="dim">·</span><span class="num js-rt"></span><span class="sp"></span><span class="dim">with</span><span style="color:var(--teal)">Lindir</span></div>
+    <div class="foot4 js-tiles"></div>
+    <div class="sec">Earlier <span class="dim js-cnt"></span></div>
+    <div class="listwrap"><div class="scroller" tabindex="0" aria-label="Earlier kills, newest at the bottom"><div class="feed"></div></div><button class="more" hidden></button></div>
+    <div class="js-card"></div>`;
+  p.scroller = p.el.querySelector('.scroller');
+  p.feed = p.el.querySelector('.feed');
+  p.more = p.el.querySelector('.more');
+  p.pinned = true; p.unseen = 0;
+  new ResizeObserver(() => { if (p.pinned) p.scroller.scrollTop = p.scroller.scrollHeight; }).observe(p.scroller);
+  p.scroller.addEventListener('scroll', () => {
+    const atBottom = p.scroller.scrollHeight - p.scroller.scrollTop - p.scroller.clientHeight < 4;
+    p.pinned = atBottom;
+    if (atBottom) { p.unseen = 0; p.more.hidden = true; }
+  });
+  p.more.addEventListener('click', () => {
+    p.scroller.scrollTo({ top: p.scroller.scrollHeight, behavior: REDUCED ? 'auto' : 'smooth' });
+  });
+}
+
+function render(p, ev) {
+  const med = refMedian(); const k = lastKill();
+  const R = k.pk ? null : rateOf(k.xp, med); const r = med ? k.xp / med : null;
+  p.el.querySelector('.js-lv').textContent = S.level;
+  p.el.querySelector('.js-rt').textContent = fmtClock(S.now);
+  // tiles
+  const kc = S.kills.length; const avg = S.gained / kc;
+  p.el.querySelector('.js-tiles').innerHTML = `
+    <div class="card tile"><span class="k">Avg / kill</span><span class="v">${fmtK(avg)}</span></div>
+    <div class="card tile"><span class="k">Median</span><span class="v">${med ? fmtK(med) : '—'}</span></div>
+    <div class="card tile"><span class="k">XP / h</span><span class="v">${fmtK(xpPerHour())}</span></div>
+    <div class="card tile"><span class="k">Kills</span><span class="v">${kc}</span></div>`;
+  // list: every kill but the one on the card, oldest first
+  const list = S.kills.slice(0, -1);
+  p.el.querySelector('.js-cnt').textContent = `${list.length} kills`;
+  const max = (med ? med * 3 : Math.max(...list.filter((x) => !x.pk).map((x) => x.xp), 1));
+  const up = fresh({ real: movedAt }, 'a-up', 500);
+  const top = p.scroller.scrollTop;
+  p.feed.innerHTML = list.map((x, i) => rowHtml(x, med, max, i === list.length - 1, x.id === movedId ? up : { c: '', s: '' })).join('');
+  if (ev === 'kill' && !p.pinned) { p.unseen++; p.more.textContent = `↓ ${p.unseen} new`; p.more.hidden = false; }
+  // the card
+  const f = fresh(k, 'a-rise', 450);
+  const heroC = k.pk ? 'var(--pk)' : R ? R.c : 'var(--lamp)';
+  const ratioLine = k.pk ? `<span class="dim">PvP kill · not rated</span>`
+    : r ? `<span>${r >= 1 ? '▲' : '▼'} <b>${r.toFixed(1)}×</b> <span class="dim">median</span></span>` : `<span class="dim">Rating starts after ${CAL_MIN} kills</span>`;
+  p.el.querySelector('.js-card').innerHTML = `
+    <div class="card hero ${f.c}" style="${f.s}--c:${heroC}">
+      <div class="top"><span class="lk">Last kill</span><span class="dim js-ago" style="font-size:10.5px">${ago(S.now - k.t)} ago</span><span class="sp"></span></div>
+      <div class="row"><span class="mob ell" style="${k.pk ? 'color:var(--pk)' : ''}">${esc(k.name)}</span></div>
+      <div class="big"><span class="bigxp">+${fmtK(k.xp)}</span><span class="xpu">XP</span><span class="sp"></span>${k.pk ? `<span class="rc pkc" style="--c:var(--pk)">⚔ PvP</span>` : chip(R)}</div>
+      <div class="ratio">${ratioLine}</div>
+      ${k.pk ? '' : scaleBar(r)}
+    </div>`;
+  // place the list last: the card's height decides the list's
+  if (p.pinned) p.scroller.scrollTop = p.scroller.scrollHeight; else p.scroller.scrollTop = top;
+}
+
+function renderAll(ev) { panes.forEach((p) => render(p, ev)); }
+
+function liveKill(forcePk) {
+  S.now += Math.round((20 + rng() * 40) * 1000);
+  const pk = forcePk || (S.liveKills > 2 && rng() < 0.04);
+  movedId = cardId; movedAt = performance.now();
+  const { k } = addKill(S.now, pk ? 'pk' : null, true);
+  cardId = k.id;
+  renderAll('kill');
+}
+
+let paused = false, nextKillAt = 0, lastReal = performance.now();
+function schedule() { nextKillAt = performance.now() + 4000 + Math.random() * 4000; }
+function tick() {
+  const t = performance.now(); const dt = t - lastReal; lastReal = t;
+  if (!paused) {
+    S.now += dt * SPEED;
+    if (t >= nextKillAt) { liveKill(false); schedule(); }
+  }
+  document.querySelectorAll('.js-rt').forEach((e) => { e.textContent = fmtClock(S.now); });
+  const k = lastKill();
+  document.querySelectorAll('.js-ago').forEach((e) => { e.textContent = ago(S.now - k.t) + ' ago'; });
+  document.querySelectorAll('.fr .t[data-t]').forEach((e) => { const s = ago(S.now - Number(e.dataset.t)); if (e.textContent !== s) e.textContent = s; });
+}
+
+function start(band) {
+  // a longer seed than round 1 so the list really scrolls: about 48 kills over 2h40
+  newSession(band);
+  for (let i = 0; i < 24; i++) { S.now += Math.round((150 + rng() * 120) * 1000); addKill(S.now, null, false); }
+  S.now += 40 * 1000;
+  cardId = lastKill().id; movedId = null; movedAt = -1e9;
+  panes.forEach((p) => { p.pinned = true; p.unseen = 0; p.more.hidden = true; });
+  renderAll('reset'); schedule();
+}
+panes.forEach(build);
+$('pause').addEventListener('click', (e) => { paused = !paused; e.currentTarget.textContent = paused ? 'Play' : 'Pause'; e.currentTarget.setAttribute('aria-pressed', String(paused)); if (!paused) { lastReal = performance.now(); schedule(); } });
+$('killnow').addEventListener('click', () => { liveKill(false); if (!paused) schedule(); });
+$('lvl').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('lvl').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  start(Number(b.dataset.l));
+});
+
+// tooltip
+const tip = $('tip');
+document.addEventListener('pointermove', (e) => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t) { tip.hidden = true; return; }
+  tip.textContent = t.getAttribute('data-tip'); tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 12, y = e.clientY - h - 10;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 12;
+  if (y < 8) y = e.clientY + 16;
+  tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px';
+});
+document.addEventListener('pointerleave', () => { tip.hidden = true; });
+
+start(34);
+setInterval(tick, 250);
+})();
+</script>

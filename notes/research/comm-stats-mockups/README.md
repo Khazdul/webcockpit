@@ -19,6 +19,18 @@ progress.md).
 - `stats-r2.html` — A Ringar, B Rör, C Fångstbalk.
   Artifact: https://claude.ai/artifact/7EDecVtXnobQDn3yATqXUb
 
+## Round 3 (2026-11-09)
+
+One design each after the owner's round-2 feedback.
+
+- `comm-r3.html` — rail when narrow, name list when wide (380 px pane
+  width), gear with Public channels and "chats active in the last
+  10/30/60 min/All", reply without "tell", newest chat at the bottom.
+  Artifact: https://claude.ai/artifact/S4GteiCXAbWggZToSivVgz
+- `stats-r3.html` — round-1 header, four tiles, all session kills in a
+  bottom-anchored list, the latest-kill card at the bottom, no level bars.
+  Artifact: https://claude.ai/artifact/UMoRDL27oAuhrSjpP8WKcT
+
 ## Owner brief
 
 - Comm: total rework. Channel filtering (e.g. the most recently active
