@@ -265,6 +265,19 @@ describe('StatsFeed', () => {
     expect(feed.loads).toBe(3);
   });
 
+  it('a run that ends without a run event (a replay finishing): seen within a second', async () => {
+    const f = fakeRuns();
+    f.live = [startEv(), killEv(T0 + 1e6)];
+    f.latest = { runId: '', events: f.live, ended: false };
+    const { feed, advance } = feedOf(f);
+    feed.setShown(true);
+    await tick();
+    f.latest = { runId: '', events: [...f.live, { type: 'run_end', us: T0 + 2e6 } as RunEvent], ended: true };
+    f.live = null;
+    await advance(STATS_FEED_MS + 10);
+    expect(feed.state).toMatchObject({ ended: true, live: false });
+  });
+
   it('hidden: no subscription, no tick, no loads; shown again it loads at once', async () => {
     const f = fakeRuns();
     f.live = [startEv()];

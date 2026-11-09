@@ -533,8 +533,10 @@
 
 /* ------------------------------------------------------------ small panes */
 
-/* Short: the card drops its scale, then the tiles go; the list shrinks first (flex). */
-@container (max-height: 22em) {
+/* Short: the list shrinks first (flex); then the card drops its scale, then
+ * the tiles and the section title go. Container lengths are in the view's
+ * own em (its font). */
+@container (max-height: 26em) {
   .wc-st-scale {
     display: none;
   }
@@ -544,14 +546,14 @@
   }
 }
 
-@container (max-height: 15em) {
+@container (max-height: 21em) {
   .wc-st-tiles,
   .wc-st-sec {
     display: none;
   }
 }
 
-/* Narrow: two by two tiles, no age column. */
+/* Narrow: two by two tiles, no age column; narrow and not tall: no tiles. */
 @container (max-width: 24em) {
   .wc-st-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -562,6 +564,12 @@
   }
 
   .wc-st-age {
+    display: none;
+  }
+}
+
+@container (max-width: 24em) and (max-height: 30em) {
+  .wc-st-tiles {
     display: none;
   }
 }

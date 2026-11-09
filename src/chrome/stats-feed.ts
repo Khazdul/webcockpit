@@ -5,6 +5,8 @@
 //   STATS_FEED_MS, and a slow refresh every STATS_REFRESH_MS while a run is
 //   in progress (XP / h and the ages). The running clock is the view's own
 //   text tick (ADR 0134: the 1 Hz tick writes only the clock), not a load.
+//   While a run is in progress a 1 Hz check (no load) looks for its end:
+//   the run's end is not always a run event (a replay that finishes).
 //   Hidden or disposed: no subscription, no timer.
 // - A run in progress: its chain, live (`nowUs`; a replay's events are on
 //   log time, so no running clock).
@@ -199,7 +201,15 @@ export class StatsFeed {
   }
 
   private startTick(): void {
-    this.tick ??= setInterval(() => this.request(), STATS_REFRESH_MS);
+    if (this.tick !== null) return;
+    let n = 0;
+    this.tick = setInterval(() => {
+      n += STATS_FEED_MS;
+      if (n >= STATS_REFRESH_MS || !this.o.runs.current()) {
+        n = 0;
+        this.request();
+      }
+    }, STATS_FEED_MS);
   }
 
   private stopTick(): void {

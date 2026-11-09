@@ -1,6 +1,8 @@
 // ADR 0106: every `░█` scrollbar drags its thumb. A press on the thumb and
 // a drag moves the content in proportion (under pointer capture, so the
 // drag goes on outside the bar), and a press on the track still pages.
+// The desktop's last `░█` bars have gone to native scrollers (the notes
+// below); what is left checks those and the Export editor's strip.
 // Against a mocked MUME WebSocket; nothing reaches the real server.
 import { type Locator, type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
@@ -33,46 +35,6 @@ const lib = (page: Page, fn: string, ...args: unknown[]) =>
   );
 
 const scrollTop = (scroller: Locator) => scroller.evaluate((el) => el.scrollTop);
-
-/**
- * Presses the first thumb cell of `bar`, drags it down `cells` bar cells and
- * expects `scroller` to follow in proportion: the thumb's free travel maps
- * onto the content's. Then drags far below the bar (and off to the side):
- * the capture keeps the drag going to the end. Returns the bar's cell height.
- */
-async function dragThumb(page: Page, bar: Locator, scroller: Locator, cells = 2, cls = { thumb: '.wc-scroll-thumb', track: '.wc-scroll-track' }): Promise<number> {
-  const thumb = bar.locator(cls.thumb).first();
-  await expect(thumb).toBeVisible();
-  const box = (await thumb.boundingBox())!;
-  const n = await bar.locator(`${cls.thumb}, ${cls.track}`).count();
-  const size = await bar.locator(cls.thumb).count();
-  const m0 = await scroller.evaluate((el) => ({ top: el.scrollTop, max: el.scrollHeight - el.clientHeight }));
-  expect(m0.max).toBeGreaterThan(0);
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  const dy = cells * box.height;
-  await page.mouse.move(x, y + dy / 2, { steps: 3 });
-  await page.mouse.move(x, y + dy, { steps: 3 });
-  const want = Math.min(m0.max, m0.top + (dy * m0.max) / ((n - size) * box.height));
-  await expect.poll(() => scrollTop(scroller)).toBeGreaterThan(m0.top);
-  const got = await scrollTop(scroller);
-  // In proportion, within a row or so (CodeMirror measures lines as they come in).
-  expect(Math.abs(got - want)).toBeLessThanOrEqual(Math.max(box.height * 1.5, m0.max * 0.03));
-  // Outside the bar, below it and off to the side (inside the page): still dragging, to the end.
-  const barBox = (await bar.boundingBox())!;
-  const below = Math.min(page.viewportSize()!.height - 2, barBox.y + barBox.height + 3 * box.height);
-  await page.mouse.move(x - 200, below, { steps: 4 });
-  await expect.poll(() => scroller.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThanOrEqual(2);
-  await page.mouse.up();
-  // The button is up: moving no longer scrolls.
-  const end = await scrollTop(scroller);
-  await page.mouse.move(x, y);
-  await page.waitForTimeout(50);
-  expect(await scrollTop(scroller)).toBe(end);
-  return box.height;
-}
 
 // The profile editor's TUI scrollbars (EDITOR's buffer bar, LITE's body box
 // bar) are gone with its new look (stage 43a, ADR 0128): the buffer and
@@ -142,32 +104,9 @@ test('the Scripts window: the help scrolls natively; the game input keeps away',
   expect(errors).toEqual([]);
 });
 
-// About's TuiScrollbar went with its new look (stage 47, ADR 0132: a native
-// scroller). The Statistics pane, narrow, keeps a `░█` bar (a `jump` bar: a
-// press on the track jumps there): its thumb is the drag case here.
-test('the Statistics pane, narrow: the TuiScrollbar drags its thumb; the game keeps the keys', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('/?fixture=gmcp-demo.log&speed=0');
-  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
-  // The pane on, as a float, then narrow and short: one column that scrolls with the bar.
-  await page.locator('.wc-mb[data-mb="panes"]').click();
-  await page.locator('.wc-pop-row[data-pane="statistics"]').click();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-pop')).toHaveCount(0);
-  await page.evaluate(() =>
-    window.__wc!.settings.update((d) => {
-      d.layout.floating = d.layout.floating.map((f) => (f.id === 'statistics' ? { id: 'statistics', x: 4, y: 2, w: 40, h: 14 } : f));
-    }),
-  );
-  const view = page.locator('.wc-pane[data-pane="statistics"] .wc-stats-pane');
-  await expect(view).toHaveAttribute('data-layout', 'narrow');
-  const bar = view.locator('.wc-tui-bar');
-  const scroller = view.locator('.wc-stats-page');
-  await dragThumb(page, bar, scroller, 1, { thumb: '.wc-st-thumb', track: '.wc-st-track' });
-  await expect(page.locator('.wc-input-field')).toBeFocused();
-  expect(errors).toEqual([]);
-});
+// About's TuiScrollbar went with its new look (stage 47, ADR 0132), the
+// Statistics pane's with its (stage 49, ADR 0134: a native scroller): the
+// `░█` bar is left on the phone's ESC → Statistics only.
 
 test('Export editor: the overview strip thumb drags the log; the press that ends the drag does not jump', async ({ page }) => {
   const errors = watchErrors(page);
