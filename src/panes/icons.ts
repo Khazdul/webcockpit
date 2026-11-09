@@ -39,7 +39,13 @@ export type IconName =
   | 'player'
   | 'enemy'
   | 'npc'
-  | 'close';
+  | 'close'
+  | 'town'
+  | 'people'
+  | 'search'
+  | 'unfold'
+  | 'chevUp'
+  | 'chevDown';
 
 /** Path data by name. */
 export const ICONS: Readonly<Record<IconName, string>> = {
@@ -99,6 +105,19 @@ export const ICONS: Readonly<Record<IconName, string>> = {
   npc: 'M12 3l8 9-8 9-8-9z',
   /** Close / forget (the charm ×). */
   close: 'M5 5l14 14 M19 5L5 19',
+  /** Comm (ADR 0134): Public, a few roofs. */
+  town: 'M3.75 20.25v-9l4.5-3.75 4.5 3.75v9 M12.75 20.25V7.5l4.5-3.75 3.75 3v13.5 M2.25 20.25h19.5 M7.5 20.25V16.5h1.5v3.75',
+  /** Comm: Group, three heads. */
+  people:
+    'M9.15 6.9a2.85 2.85 0 1 0 5.7 0a2.85 2.85 0 1 0-5.7 0 M3.15 9.6a2.25 2.25 0 1 0 4.5 0a2.25 2.25 0 1 0-4.5 0 M16.35 9.6a2.25 2.25 0 1 0 4.5 0a2.25 2.25 0 1 0-4.5 0 M7.2 19.8c.45-3.9 2.25-5.85 4.8-5.85s4.35 1.95 4.8 5.85 M1.8 18.3c.3-2.7 1.5-4.05 3.45-4.05 M22.2 18.3c-.3-2.7-1.5-4.05-3.45-4.05',
+  /** Comm: search, a lens. */
+  search: 'M10.5 4a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13 M15.3 15.3L20 20',
+  /** Comm: show the chat column, a panel opening. */
+  unfold: 'M4 5h16v14H4z M9 5v14 M12.5 9.5l2.5 2.5-2.5 2.5',
+  /** Comm: more above (the chat column's edge). */
+  chevUp: 'M7 14l5-5 5 5',
+  /** Comm: more below. */
+  chevDown: 'M7 10l5 5 5-5',
 };
 
 /** The view box every icon is drawn in. */

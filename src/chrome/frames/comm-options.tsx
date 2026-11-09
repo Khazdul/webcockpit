@@ -1,15 +1,15 @@
 // Options → Panes → Communication (Inv §2.7.6, Cockpit ADR 0129): the ten
 // fixed channels as `[X]███ Narrates` rows (checkbox, a swatch in the
-// channel colour, grey when off, the label), then `[X] Show channel header`
-// and Back. Every change goes to the settings store at once, so the Comm
-// pane follows live (ADR 0010); a filter change here cancels the pane's solo.
-// The rows and the toggle are shared with the Comm gear popup
-// (../pane-options-model.ts).
+// channel colour, grey when off, the label): the channels Public shows (ADR
+// 0134); then `Chats: active in the last 30 min` (Enter steps 10, 30, 60
+// min, All) and Back. Every change goes to the settings store at once, so
+// the Comm pane follows live (ADR 0010). The rows are shared with the Comm
+// gear popup (../pane-options-model.ts).
 
 import type { VNode } from 'preact';
 import { useState } from 'preact/hooks';
 import { COMM_CHANNEL_ORDER } from '../../gmcp/comm';
-import { commChannelRows, toggleCommChannel } from '../pane-options-model';
+import { COMM_CHAT_WINDOW_CHOICES, commChannelRows, nextChatWindow, setChatWindow, toggleCommChannel } from '../pane-options-model';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { centreLeft } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
@@ -25,18 +25,20 @@ export function CommOptionsFrame(): VNode {
   const nav = useNav();
   const { cols } = useGrid();
   const n = COMM_CHANNEL_ORDER.length;
-  // Rows 0..n-1: channels; n: show header; n+1: Back.
+  // Rows 0..n-1: channels; n: the chat window; n+1: Back.
   const ROWS = n + 2;
   const [row, setRow] = useState(0);
   const rows = commChannelRows(s.comm.filters);
 
   const toggleChannel = (name: string): void => toggleCommChannel(settings, name);
-  const toggleHeader = (): void => settings.update((d) => void (d.comm.showHeader = !d.comm.showHeader));
+  const stepWindow = (): void => setChatWindow(settings, nextChatWindow(s.comm.chatWindow));
+  const windowLabel = COMM_CHAT_WINDOW_CHOICES.find((c) => c.value === String(s.comm.chatWindow))?.label ?? '30 min';
+  const windowText = `Chats: active in the last ${windowLabel}`.replace('the last All', 'any time');
   const back: MenuItem[] = [{ key: 'back', label: 'Back', activate: () => nav.pop() }];
 
   const activate = (r: number): void => {
     if (r < n) toggleChannel(COMM_CHANNEL_ORDER[r]!);
-    else if (r === n) toggleHeader();
+    else if (r === n) stepWindow();
     else nav.pop();
   };
 
@@ -63,7 +65,7 @@ export function CommOptionsFrame(): VNode {
     return false;
   });
 
-  const at = centreLeft(cols, Math.max(ROW_W, '[X] Show channel header'.length));
+  const at = centreLeft(cols, Math.max(ROW_W, 'Chats: active in the last 30 min'.length));
   return (
     <Page title="Communication" footer={['↑↓ Navigate', 'Enter Toggle', 'ESC Back']}>
       {rows.map(({ name, label, color, on }, r) => {
@@ -97,27 +99,18 @@ export function CommOptionsFrame(): VNode {
       })}
       <Blank />
       <Line at={at} class="wc-grid-row">
-        <CheckCell
-          checked={s.comm.showHeader}
-          cursor={row === n}
-          title="Show channel header"
-          onHover={() => setRow(n)}
-          onClick={() => {
-            setRow(n);
-            toggleHeader();
-          }}
-        />{' '}
         <span
           class={row === n ? 'wc-c-active' : 'wc-c-item'}
-          data-key="show-header"
+          data-key="chat-window"
+          title="Enter steps 10, 30, 60 min, any time"
           onMouseDown={(e) => e.preventDefault()}
           onMouseEnter={() => setRow(n)}
           onClick={() => {
             setRow(n);
-            toggleHeader();
+            stepWindow();
           }}
         >
-          Show channel header
+          {windowText}
         </span>
       </Line>
       <Blank />

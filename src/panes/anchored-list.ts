@@ -174,6 +174,29 @@ export class AnchoredList<T = unknown> {
         }
       }
     }
+    // Older items put in front of the previous ones (a list that shows a
+    // window of its items, grown on a scroll to the top), perhaps with new
+    // ones after: build only those; the view keeps its place.
+    const pre = trim < 0 && key === this.key ? prependedCount(old, items) : -1;
+    if (pre > 0) {
+      const first = this.els[0]!;
+      const before = this._live ? 0 : m.itemTop(first);
+      const front: HTMLElement[] = [];
+      for (let j = 0; j < pre; j++) front.push(build(items[j]!));
+      const back: HTMLElement[] = [];
+      for (let j = pre + old.length; j < items.length; j++) back.push(build(items[j]!));
+      this.stack.prepend(...front);
+      if (back.length) this.stack.append(...back);
+      this.els = front.concat(this.els, back);
+      this.items = items.slice();
+      if (this._live) this.toBottom();
+      else {
+        m.setScrollTop(this.el, this.lastTop + (m.itemTop(first) - before));
+        this.lastTop = m.scrollTop(this.el);
+        this.updateMore();
+      }
+      return;
+    }
     if (trim >= 0) {
       const kept = old.length - trim;
       if (trim === 0 && kept === items.length) {
@@ -281,6 +304,19 @@ export class AnchoredList<T = unknown> {
     this.el.removeEventListener('scroll', this.onScroll);
     this.more.removeEventListener('mousedown', this.onMore);
   }
+}
+
+/**
+ * How many items `items` has in front of all of `old` (which follow them in
+ * order, perhaps with more after): -1 when that is not the shape, 0 when
+ * nothing was put in front.
+ */
+export function prependedCount<T>(old: readonly T[], items: readonly T[]): number {
+  if (old.length === 0) return -1;
+  const k = items.indexOf(old[0]!);
+  if (k < 0 || items.length < k + old.length) return -1;
+  for (let j = 1; j < old.length; j++) if (items[k + j] !== old[j]) return -1;
+  return k;
 }
 
 /**

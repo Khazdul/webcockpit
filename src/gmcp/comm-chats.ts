@@ -34,7 +34,7 @@
 // shift per array at the cap); `chats` sorts the chats (tens); `search`
 // scans at most `max` messages with the lower-case text cached per entry.
 
-import { type CommMessage, cleanName, commPlain, stripAnsi } from './comm';
+import { type CommMessage, GROUP_DEST_RE, GROUP_TELL_IN_RE, GROUP_TELL_OUT_RE, cleanName, commPlain, stripAnsi } from './comm';
 
 /** Channels whose talk is directed at the people near you: they open chats. */
 export const NEAR_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'says', 'emotes', 'socials']);
@@ -100,9 +100,9 @@ export interface CommChatsOptions {
 
 const isYou = (s: string): boolean => s.trim().toLowerCase() === 'you';
 const keyOf = (name: string): string => cleanName(name).toLowerCase();
-const GROUP_DEST = /^(the )?group$/i;
-const GROUP_TELL_IN = / tells the group '/;
-const GROUP_TELL_OUT = /^you tell the group '/i;
+const GROUP_DEST = GROUP_DEST_RE;
+const GROUP_TELL_IN = GROUP_TELL_IN_RE;
+const GROUP_TELL_OUT = GROUP_TELL_OUT_RE;
 
 export class CommChats {
   private readonly max: number;
@@ -254,6 +254,20 @@ export class CommChats {
     this.roster = new Set(next.keys());
     this.rosterKnown = true;
     return { joined, left };
+  }
+
+  /**
+   * Forgets the roster without notes (a disconnect: the next roster is a
+   * first one again, so a reconnect does not say everyone joined).
+   */
+  forgetRoster(): void {
+    this.roster = new Set();
+    this.rosterKnown = false;
+  }
+
+  /** The roster's players now (keys, lower case). */
+  get rosterKeys(): ReadonlySet<string> {
+    return this.roster;
   }
 
   /** A group of at least one other player exists. */

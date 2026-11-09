@@ -148,8 +148,8 @@ describe('player App', () => {
 describe('PlayerHost', () => {
   function chainWithViews() {
     const chain = twoRunChain();
-    // A second VIEW in run 1 at 3 s: the Comm header off.
-    const extra = makeLog(BASE_US, [{ at: 3.1, view: { comm: { filters: {}, showHeader: false } } }]);
+    // A second VIEW in run 1 at 3 s: the Comm chat column folded.
+    const extra = makeLog(BASE_US, [{ at: 3.1, view: { comm: { filters: {}, folded: true } } }]);
     const lines = chain[0]!.text.split('\n');
     lines.splice(8, 0, extra.trimEnd());
     chain[0]!.text = lines.join('\n');
@@ -177,14 +177,14 @@ describe('PlayerHost', () => {
     wall.flush();
     const settings = () => (host.app as unknown as { settings: SettingsStore }).settings.get();
     expect(settings().appearance.size).toBe(14);
-    expect(settings().comm.showHeader).toBe(true);
+    expect(settings().comm.folded).toBe(false);
     eng.seek(3500);
     wall.flush();
-    expect(settings().comm.showHeader).toBe(false);
+    expect(settings().comm.folded).toBe(true);
     eng.seek(1000); // back: a new App from the viewer's settings, VIEWs replayed
     wall.flush();
     expect(eng.buildCount).toBe(2);
-    expect(settings().comm.showHeader).toBe(true);
+    expect(settings().comm.folded).toBe(false);
     expect(settings().appearance.size).toBe(14);
     expect(host.el.querySelectorAll('.wc-app')).toHaveLength(1);
     host.dispose();
@@ -214,7 +214,7 @@ describe('PlayerHost', () => {
     check();
     eng.seek(3500); // past the second VIEW
     wall.flush();
-    expect(store().get().comm.showHeader).toBe(false);
+    expect(store().get().comm.folded).toBe(true);
     check();
     eng.seek(1000); // back: a new App
     wall.flush();

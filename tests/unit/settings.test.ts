@@ -240,11 +240,11 @@ describe('migrateSettings', () => {
     expect(migrateSettings(JSON.parse(JSON.stringify(on))).appearance).toEqual(on.appearance);
   });
 
-  it('adds the group and comm options with defaults (older stored data)', () => {
+  it('adds the group and comm options with defaults (older stored data; Public without tells and whispers, ADR 0134)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
     expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
-    expect(s.comm).toEqual({ filters: {}, showHeader: true, chatWindow: 30, folded: false, listWidth: null });
+    expect(s.comm).toEqual({ filters: { tells: false, whispers: false }, chatWindow: 30, folded: false, listWidth: null });
     expect(s.profile).toBe('pvp');
   });
 
@@ -257,9 +257,9 @@ describe('migrateSettings', () => {
       },
     });
     expect(s.group).toMatchObject({ showPlayers: true, npcMode: 'labeled' });
-    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, showHeader: false, chatWindow: 30, folded: false, listWidth: null });
+    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, chatWindow: 30, folded: false, listWidth: null });
     expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toMatchObject({ showPlayers: false, npcMode: 'all' });
-    expect(migrateComm({ filters: [false] }).filters).toEqual({});
+    expect(migrateComm({ filters: [false] }).filters).toEqual({ tells: false, whispers: false });
   });
 
   it('comm (ADR 0134): stored filters are kept; window, fold and width are checked', () => {
@@ -282,9 +282,9 @@ describe('migrateSettings', () => {
   it('a comm filter is re-enabled by patching it to true', () => {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     store.update({ comm: { filters: { tells: false, says: false } } });
-    expect(store.get().comm.filters).toEqual({ tells: false, says: false });
+    expect(store.get().comm.filters).toEqual({ tells: false, whispers: false, says: false });
     store.update({ comm: { filters: { tells: true } } });
-    expect(store.get().comm.filters).toEqual({ says: false });
+    expect(store.get().comm.filters).toEqual({ whispers: false, says: false });
     store.update({ group: { npcMode: 'all' } });
     expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
   });
