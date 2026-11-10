@@ -167,12 +167,13 @@ export const COMM_FILTERS_MAX = 100;
 export type CommChatWindow = 10 | 30 | 60 | 'all';
 export const COMM_CHAT_WINDOWS: readonly CommChatWindow[] = [10, 30, 60, 'all'];
 /**
- * Channels off in Public by default (ADR 0134, owner's first test): the
- * talk that lives in the chats. In the defaults' filters, and turned off
+ * Channels off in Public by default (ADR 0134, owner's feedback rounds 1
+ * and 2): tells, questions and socials, the talk aimed at you that lives in
+ * the chats. In the defaults' filters, and turned off
  * once in settings stored before version 5 (the old pane's filters hid a
  * channel from the whole pane, so their values do not carry over).
  */
-export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'says', 'emotes', 'whispers', 'questions', 'socials'];
+export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'questions', 'socials'];
 /** Narrowest and widest dragged chat column of the Comm pane (CSS px). */
 export const COMM_LIST_WIDTH_MIN = 40;
 export const COMM_LIST_WIDTH_MAX = 400;

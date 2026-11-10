@@ -244,7 +244,7 @@ describe('migrateSettings', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
     expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
-    expect(s.comm).toEqual({ filters: { tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false }, chatWindow: 30, folded: false, listWidth: null });
+    expect(s.comm).toEqual({ filters: { tells: false, questions: false, socials: false }, chatWindow: 30, folded: false, listWidth: null });
     expect(s.profile).toBe('pvp');
   });
 
@@ -260,7 +260,7 @@ describe('migrateSettings', () => {
     expect(s.group).toMatchObject({ showPlayers: true, npcMode: 'labeled' });
     expect(s.comm).toEqual({ filters: { tells: false, yells: false }, chatWindow: 30, folded: false, listWidth: null });
     expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toMatchObject({ showPlayers: false, npcMode: 'all' });
-    expect(migrateComm({ filters: [false] }).filters).toEqual({ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
+    expect(migrateComm({ filters: [false] }).filters).toEqual({ tells: false, questions: false, socials: false });
   });
 
   it('comm (ADR 0134): stored filters are kept; window, fold and width are checked', () => {
@@ -277,9 +277,9 @@ describe('migrateSettings', () => {
     expect(migrateComm({ listWidth: 'wide' }).listWidth).toBeNull();
     expect(migrateComm({ listWidth: Number.NaN }).listWidth).toBeNull();
     // Stored before v5 (the old pane): the chat channels go off once, the rest is kept.
-    expect(migrateSettings({ version: 4, comm: { filters: { tales: false } } }).comm.filters).toEqual({ tales: false, ...{ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false } });
-    expect(migrateSettings({ version: 4, comm: { filters: {} } }).comm.filters).toEqual({ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
-    expect(migrateComm({ filters: {} }, 4).filters).toEqual({ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
+    expect(migrateSettings({ version: 4, comm: { filters: { tales: false } } }).comm.filters).toEqual({ tales: false, ...{ tells: false, questions: false, socials: false } });
+    expect(migrateSettings({ version: 4, comm: { filters: {} } }).comm.filters).toEqual({ tells: false, questions: false, socials: false });
+    expect(migrateComm({ filters: {} }, 4).filters).toEqual({ tells: false, questions: false, socials: false });
     // Turned on again later (v5 stored): kept on.
     expect(migrateSettings({ version: 5, comm: { filters: { tales: false } } }).comm.filters).toEqual({ tales: false });
     const many = Object.fromEntries(Array.from({ length: 150 }, (_, i) => [`c${i}`, false]));

@@ -64,17 +64,18 @@ test('the UI pane shows the demo lines and keeps them over a reload', async ({ p
   expect(errors).toEqual([]);
 });
 
-test('Comm: Public without the chat channels, a chat per person, and never archives a replay', async ({ page }) => {
+test('Comm: Public without tells, questions and socials, a chat per person, and never archives a replay', async ({ page }) => {
   const errors = watchErrors(page);
   await demo(page);
   const rows = await commRows(page).allTextContents();
-  // Tells, says, emotes, whispers, questions and socials live in the chats
-  // (ADR 0134, owner's first test): not in Public by default.
-  expect(rows.filter((r) => / (tells?|says?|whispers?|asks?) /.test(r))).toEqual([]);
-  expect(rows.slice(-3)).toEqual([
+  // Tells, questions and socials are off in Public by default (ADR 0134,
+  // owner's feedback): they live in the chats.
+  expect(rows.filter((r) => / (tells?|asks?) /.test(r) || r === 'Dori nods solemnly.')).toEqual([]);
+  expect(rows.slice(-4)).toEqual([
     "You narrate 'scout down at the ford'",
     "Dori prays 'Mahal, mend my wounds'",
     "Lindir sings 'A Elbereth Gilthoniel'",
+    "You say 'ready when you are'",
   ]);
   // Public, Group, Gibur, Dori and Ecthel (a question opens a chat).
   await expect(comm(page).locator('.wc-cm-ent')).toHaveCount(5);
@@ -189,7 +190,7 @@ test('the Comm gear sets the Public channels and the chat window live (ADR 0107,
   await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
   const tales = pop.locator('.wc-sp-chan[data-channel="tales"] [role=switch]');
   await tales.click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, questions: false, socials: false });
   await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
   await tales.click();
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
@@ -212,9 +213,9 @@ test('Options → Panes → Communication in the phone\'s ESC menu sets the Publ
   await page.mouse.move(0, 0);
   await page.keyboard.press('Home');
   await page.keyboard.press('Enter');
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, questions: false, socials: false });
   await frame.locator('[data-channel="tales"]').click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false, questions: false, socials: false });
   const win = frame.locator('[data-key="chat-window"]');
   await expect(win).toHaveText('Chats: active in the last 30 min');
   await win.click();

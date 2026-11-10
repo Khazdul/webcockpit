@@ -115,9 +115,9 @@ test('the Gear: leftmost, named after the pane; opens Comm settings beside the p
   await expect(tells.locator('[role=switch]')).toHaveAttribute('aria-checked', 'false');
   await tells.locator('[role=switch]').click();
   await expect(tells.locator('[role=switch]')).toHaveAttribute('aria-checked', 'true');
-  expect((await settings(page)).comm.filters).toEqual({ says: false, emotes: false, whispers: false, questions: false, socials: false });
+  expect((await settings(page)).comm.filters).toEqual({ questions: false, socials: false });
   await tells.click();
-  expect((await settings(page)).comm.filters).toEqual({ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
+  expect((await settings(page)).comm.filters).toEqual({ tells: false, questions: false, socials: false });
   // The chat window.
   await pop.locator('[aria-label="Show chats active in the last"] [data-value="60"]').click();
   expect((await settings(page)).comm.chatWindow).toBe(60);

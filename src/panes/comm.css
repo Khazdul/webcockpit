@@ -767,6 +767,27 @@
   font-style: italic;
 }
 
+/* Under a group tell's bubble in a person's chat: always shown, small and
+ * very quiet, on a little line of its own (it was said to the whole group,
+ * maybe not meant for you). */
+.wc-cm-gt {
+  margin: 0.05em 0 0 0.7em;
+  font-size: 0.66em;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--cm-dim) 65%, transparent);
+  user-select: none;
+}
+
+.wc-comm[data-light] .wc-cm-gt {
+  color: color-mix(in srgb, var(--cm-dim) 75%, transparent);
+}
+
+.wc-cm-gt.is-me {
+  margin: 0.05em 0.7em 0 0;
+  text-align: right;
+}
+
 /* The channel and time: beside the bubble (outside it, in the thread's
  * free side), shown only while that bubble is hovered; it takes no height,
  * so a bubble is one text line tall. Small and quiet, the word over the

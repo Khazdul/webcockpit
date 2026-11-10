@@ -1260,7 +1260,17 @@ export class CommPane extends PaneShell {
     if (open === PUBLIC || open === GROUP) wrap.append(this.buildLine(e));
     // A group tell in the sender's chat is a bubble too (it still opens,
     // raises and counts nothing: the model's rule, ADR 0134).
-    else if (e.near || e.groupTell) wrap.append(this.buildBubble(e, prev ? entryOf(prev) : null));
+    else if (e.near || e.groupTell) {
+      wrap.append(this.buildBubble(e, prev ? entryOf(prev) : null));
+      // Told to the whole group, maybe not meant for you: always marked
+      // under the bubble (owner's feedback, round 2).
+      if (e.groupTell) {
+        const gt = this.ctx.doc.createElement('div');
+        gt.className = `wc-cm-gt${e.mine ? ' is-me' : ''}`;
+        gt.textContent = 'grouptell';
+        wrap.append(gt);
+      }
+    }
     else wrap.append(this.buildOverheard(e));
     return wrap;
   }

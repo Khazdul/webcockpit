@@ -88,8 +88,8 @@ stays `buildStats`; the rating and the kill list are added beside it.
   clickable). Search covers chats hidden by the time window.
 - **Gear** among the pane hover buttons (ADR 0095), as Group and Timers;
   its popup (ADR 0107): the channels shown in Public (checkboxes; Tells,
-  Says, Emotes, Whispers, Questions and Socials off by default, they live
-  in the chats) and "Show chats active in the last 10 / 30 / 60 min / All"
+  Questions and Socials off by default, they live in the chats; owner's
+  feedback round 2) and "Show chats active in the last 10 / 30 / 60 min / All"
   (default 30; the label above the control, no explanation text). The
   open chat and chats with unread always show.
 - **No channel header** and no in-pane channel toggles; `comm.showHeader`
@@ -135,8 +135,9 @@ the focus; Esc gives the keys back to the game.
 destination and the text `<Name> tells the group '…'` (seen in the
 owner's Cockpit comm archives and run logs, 2026-09/10; the current pane
 wrongly shows them as `<Name> tells you`). They go to Group, and into the
-sender's record, shown there as a bubble marked "group" (owner's first
-test); they never open, raise or count in a private chat. Your own `tell group` has not been captured: the model takes
+sender's record, shown there as a bubble marked "group" with a small,
+always visible `grouptell` line under it (owner's feedback, rounds 1 and
+2: in a large group it may not be meant for you); they never open, raise or count in a private chat. Your own `tell group` has not been captured: the model takes
 a `destination` of `group` / `the group`, or a text `You tell the group
 '…'`, as a group tell; check the real form in the first live test.
 
@@ -360,10 +361,23 @@ text above:
 - **Questions are a near channel** (open a chat, bubbles, unread), as
   whispers.
 - **Public defaults:** Tells, Says, Emotes, Whispers, Questions and Socials
-  off (`COMM_PUBLIC_DEFAULT_OFF`). Settings version 5: settings stored
-  before it turn these six off once (the old pane's filters hid a channel
+  off (`COMM_PUBLIC_DEFAULT_OFF`). *Changed in round 2 below: only Tells,
+  Questions and Socials.* Settings version 5: settings stored
+  before it turn these off once (the old pane's filters hid a channel
   from the whole pane; now they shape Public only). Filters changed after
   that are kept.
 - **Gear popup:** the chat-window row puts its label above the
   10 / 30 / 60 / All control, which spans the popup (now 21.5 em wide);
   the explanation text is gone.
+
+## Addendum: owner's feedback, round 2 (2026-11-10)
+
+- **Public defaults:** only Tells, Questions and Socials are off
+  (`COMM_PUBLIC_DEFAULT_OFF`); Says, Emotes and Whispers show in Public.
+  The version 5 migration (not released) turns off only these three in
+  settings stored before it; no version 6. A browser that already ran the
+  earlier, six-channel v5 migration keeps its filters (the owner turns the
+  three back on in the gear).
+- **Group tells in a person's chat** carry an always visible `grouptell`
+  line under the bubble, small and very quiet, on a little line of its own
+  (unlike the hover meta).
