@@ -194,6 +194,8 @@ test('the Comm gear sets the Public channels and the chat window live (ADR 0107,
   await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
   await tales.click();
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
+  await pop.locator('[aria-label="NPCs in Public"]').click();
+  await expect.poll(async () => (await settings(page)).comm.npcs).toBe(true);
   await pop.locator('[aria-label="Show chats active in the last"] [data-value="all"]').click();
   await expect.poll(async () => (await settings(page)).comm.chatWindow).toBe('all');
   await page.evaluate(() => window.__wc!.settings.reset());
@@ -216,6 +218,10 @@ test('Options → Panes → Communication in the phone\'s ESC menu sets the Publ
   await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, questions: false, socials: false });
   await frame.locator('[data-channel="tales"]').click();
   await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false, questions: false, socials: false });
+  // NPCs: off by default; a click shows them in Public.
+  expect((await settings(page)).comm.npcs).toBe(false);
+  await frame.locator('[data-key="npcs"]').click();
+  await expect.poll(async () => (await settings(page)).comm.npcs).toBe(true);
   const win = frame.locator('[data-key="chat-window"]');
   await expect(win).toHaveText('Chats: active in the last 30 min');
   await win.click();

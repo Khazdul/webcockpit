@@ -406,3 +406,21 @@ without a scale.
   when name, level or TNL changed (no per-second work; HP-only vitals
   cost a compare). `fmtK` as all XP in the pane (exact under 1000).
   Unknown XP or the top level: `—`.
+
+## Addendum: NPCs in Public (2026-11-10)
+
+The owner: a switch for whether Public shows NPCs, off by default.
+
+- **Setting:** `comm.npcs` (boolean, default `false`). Additive, no
+  version bump; a stored value that is not `true` reads as off, so every
+  existing user gets the new default.
+- **What counts:** a message whose `talker-type` is `npc` (e.g.
+  Gwaihir's says). Group and the chats are unchanged (NPCs were never in
+  them).
+- **Where:** `publicShows(comm, msg)` in `src/gmcp/comm.ts` is the one
+  test: the Public view, its last-message snippet and the Public unread
+  count all use it. The Public cache rebuilds when `filters` or `npcs`
+  change.
+- **UI:** a `NPCs` row under the channel toggles, both in the Comm gear
+  popup ("Talk from NPCs, such as Gwaihir") and in Options → Panes →
+  Communication (`[ ]    NPCs`, after the ten channels).

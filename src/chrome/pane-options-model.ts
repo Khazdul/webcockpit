@@ -6,7 +6,8 @@
 //
 // - Comm: the ten fixed channels with their label and colour, and the
 //   sparse filter toggle (missing = on, `false` = off). The filters
-//   choose the channels Public shows (ADR 0134).
+//   choose the channels Public shows (ADR 0134); `npcs` whether Public
+//   shows NPCs' talk.
 // - Timers (ADR 0122): the choices of the look and ending-soon settings
 //   and the per-group patch.
 // - Group: the NPC visibility and away labels, the vital colours, and
@@ -75,6 +76,11 @@ export function setCommChannel(settings: SettingsStore, name: string, on: boolea
 /** Flips channel `name`. */
 export function toggleCommChannel(settings: SettingsStore, name: string): void {
   setCommChannel(settings, name, !channelEnabled(settings.get().comm.filters, name));
+}
+
+/** Public shows NPCs' talk (`on`) or not. */
+export function setCommNpcs(settings: SettingsStore, on: boolean): void {
+  settings.update({ comm: { npcs: on } });
 }
 
 /** "Show chats active in the last …" (ADR 0134): the choices and their labels. */

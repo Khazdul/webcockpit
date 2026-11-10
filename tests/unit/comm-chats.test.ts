@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CommMessage } from '../../src/gmcp/comm';
+import { type CommMessage, publicShows } from '../../src/gmcp/comm';
 import { CommChats, PERSON_COLORS } from '../../src/gmcp/comm-chats';
 
 let t = 1_000_000;
@@ -152,10 +152,22 @@ describe('CommChats (ADR 0134)', () => {
   it('public unread follows the filter', () => {
     const c = new CommChats();
     c.setOpen('lindir');
-    c.setPublicFilter((ch) => ch !== 'tells');
+    c.setPublicFilter((m) => m.channel !== 'tells');
     c.add(tell('Lindir'));
     c.add(msg('says', 'Haldis', "Haldis says 'x'"));
     expect(c.publicUnread).toBe(1);
+  });
+
+  it('public unread leaves out NPCs while Public hides them', () => {
+    const c = new CommChats();
+    c.setOpen('lindir');
+    c.setPublicFilter((m) => publicShows({ filters: {}, npcs: false }, m));
+    c.add(msg('says', 'Gwaihir the Windlord', "Gwaihir says 'ride me'", { talkerType: 'npc' }));
+    c.add(msg('says', 'Haldis', "Haldis says 'x'"));
+    expect(c.publicUnread).toBe(1);
+    c.setPublicFilter((m) => publicShows({ filters: {}, npcs: true }, m));
+    c.add(msg('says', 'Gwaihir the Windlord', "Gwaihir says 'again'", { talkerType: 'npc' }));
+    expect(c.publicUnread).toBe(2);
   });
 
   it('colours: slots in order, no repeats until used up; you and enemies fixed', () => {

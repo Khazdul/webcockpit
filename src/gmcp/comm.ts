@@ -510,6 +510,14 @@ export function channelEnabled(filters: Readonly<Record<string, boolean>>, name:
   return filters[name] !== false;
 }
 
+/**
+ * Public shows message `m`: its channel is on and, unless `npcs`, it is not
+ * an NPC's (`talker-type` `npc`).
+ */
+export function publicShows(comm: { readonly filters: Readonly<Record<string, boolean>>; readonly npcs: boolean }, m: CommMessage): boolean {
+  return channelEnabled(comm.filters, m.channel) && (comm.npcs || m.talkerType !== 'npc');
+}
+
 /** Sparse copy: only `false` entries. */
 function sparse(f: Readonly<Record<string, boolean>>): Record<string, boolean> {
   const out: Record<string, boolean> = {};

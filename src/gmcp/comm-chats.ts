@@ -28,7 +28,8 @@
 // caller's (GameState's group model: every member but NPCs). Messages from
 // before the roster was known (an archive load) are not placed in Group.
 //
-// Public: every message; the pane filters by `comm.filters` when drawing.
+// Public: every message; the pane filters by `comm.filters` and `comm.npcs`
+// when drawing.
 //
 // Cost (the performance contract): `add` is O(1) apart from the cap (one
 // shift per array at the cap); `chats` sorts the chats (tens); `search`
@@ -117,7 +118,7 @@ export class CommChats {
   /** Colour slots by chat key, for the session (not cleared by `reset`). */
   private readonly colors = new Map<string, PersonColor>();
   private openKey: string | null = 'public';
-  private publicShows: (channel: string) => boolean = () => true;
+  private publicShows: (m: CommMessage) => boolean = () => true;
   /** Unread in Public and Group while they are not open. */
   publicUnread = 0;
   groupUnread = 0;
@@ -131,8 +132,8 @@ export class CommChats {
     this.self = name.trim().toLowerCase();
   }
 
-  /** Which channels Public shows (`comm.filters`): only they count as Public unread. */
-  setPublicFilter(fn: (channel: string) => boolean): void {
+  /** Which messages Public shows (`comm.filters`, `comm.npcs`): only they count as Public unread. */
+  setPublicFilter(fn: (m: CommMessage) => boolean): void {
     this.publicShows = fn;
   }
 
@@ -214,7 +215,7 @@ export class CommChats {
       this.pushGroup({ kind: 'msg', entry });
       if (!quiet && !mine && this.openKey !== 'group') this.groupUnread++;
     }
-    if (!quiet && !mine && this.openKey !== 'public' && this.publicShows(m.channel)) this.publicUnread++;
+    if (!quiet && !mine && this.openKey !== 'public' && this.publicShows(m)) this.publicUnread++;
     let created = false;
     let raised = false;
     if (person !== null) {

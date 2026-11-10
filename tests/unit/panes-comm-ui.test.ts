@@ -350,6 +350,17 @@ describe('CommPane (ADR 0134)', () => {
     expect(c.rows()).toHaveLength(4);
   });
 
+  it('Public leaves out NPCs by default and shows them with comm.npcs', () => {
+    const c = comm({ cols: 80 });
+    c.emit('says', 'Gwaihir the Windlord', "Gwaihir the Windlord says 'ride me'", { 'talker-type': 'npc' });
+    c.emit('says', 'Gibur', "Gibur says 'hi'");
+    c.flush();
+    expect(c.rows()).toEqual(["Gibur says 'hi'"]);
+    c.settings.update({ comm: { npcs: true } });
+    c.flush();
+    expect(c.rows()).toEqual(["Gwaihir says 'ride me'", "Gibur says 'hi'"]);
+  });
+
   it('a tell opens a chat with an unread count; its bubbles and the overheard lines', () => {
     const c = comm({ cols: 60, rows: 20 });
     c.emit('tales', 'Gibur', "Gibur narrates 'first'");

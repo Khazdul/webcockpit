@@ -334,6 +334,7 @@ export function migrateComm(raw: unknown, fromVersion = SETTINGS_VERSION): CommS
     typeof w === 'number' && Number.isFinite(w) ? Math.round(Math.min(COMM_LIST_WIDTH_MAX, Math.max(COMM_LIST_WIDTH_MIN, w))) : null;
   return {
     filters,
+    npcs: bool(c.npcs, d.npcs),
     chatWindow: oneOf(c.chatWindow, COMM_CHAT_WINDOWS, d.chatWindow),
     folded: bool(c.folded, d.folded),
     listWidth,

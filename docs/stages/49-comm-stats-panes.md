@@ -509,3 +509,9 @@ owner" below.
   values, an empty `LAST KILL` card and the list header with 0.
 - Rename `Earlier` to `Kills`; the right tile `Kills` becomes `TNL`, the
   XP to the next level (`234`, `222k`).
+
+### 2026-11-10, after the release
+
+**Comm**
+- A switch in the Comm settings for NPCs in Public, off by default.
+  Done (ADR 0134 addendum "NPCs in Public").

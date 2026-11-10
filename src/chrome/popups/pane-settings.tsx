@@ -47,6 +47,7 @@ import {
   patchTimerGroup,
   setChatWindow,
   setCommChannel,
+  setCommNpcs,
   setGroup,
   setTimers,
   setVitalColor,
@@ -81,6 +82,9 @@ export function CommSettings(): VNode {
           </span>
         </div>
       ))}
+      <Row label="NPCs" help="Talk from NPCs, such as Gwaihir">
+        <Toggle label="NPCs in Public" on={s.comm.npcs} onChange={(on) => setCommNpcs(settings, on)} />
+      </Row>
       <div class="wc-ck-sep" />
       <div class="wc-ck-sub">Private chats</div>
       <div class="wc-sp-cwin">

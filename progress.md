@@ -59,6 +59,14 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-10 — Comm: NPCs in Public
+
+- **Done:** `comm.npcs` switch (default off): Public, its snippet and its
+  unread leave out `talker-type` `npc` unless on. Row in the Comm gear and
+  in Options → Panes → Communication. ADR 0134 addendum, stage 49 file.
+- **Tests:** unit 3566 passed; e2e `comm-ui` and `pane-gear` 30/30.
+- **Next:** owner test; unreleased on `main`.
+
 ### 2026-11-10 — Stages 49 and 50 merged, release 0.4.0
 
 - **Done:** two owner feedback rounds on stage 49 built (Comm: reply focus,

@@ -244,7 +244,7 @@ describe('migrateSettings', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
     expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
-    expect(s.comm).toEqual({ filters: { tells: false, questions: false, socials: false }, chatWindow: 30, folded: false, listWidth: null });
+    expect(s.comm).toEqual({ filters: { tells: false, questions: false, socials: false }, npcs: false, chatWindow: 30, folded: false, listWidth: null });
     expect(s.profile).toBe('pvp');
   });
 
@@ -258,7 +258,9 @@ describe('migrateSettings', () => {
       },
     });
     expect(s.group).toMatchObject({ showPlayers: true, npcMode: 'labeled' });
-    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, chatWindow: 30, folded: false, listWidth: null });
+    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, npcs: false, chatWindow: 30, folded: false, listWidth: null });
+    expect(migrateSettings({ version: 5, comm: { npcs: true } }).comm.npcs).toBe(true);
+    expect(migrateSettings({ version: 5, comm: { npcs: 'yes' } }).comm.npcs).toBe(false);
     expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toMatchObject({ showPlayers: false, npcMode: 'all' });
     expect(migrateComm({ filters: [false] }).filters).toEqual({ tells: false, questions: false, socials: false });
   });

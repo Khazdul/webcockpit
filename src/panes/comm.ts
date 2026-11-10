@@ -49,7 +49,6 @@ import {
   type ChannelInfo,
   type CommMessage,
   DEFAULT_CAPTIONS,
-  channelEnabled,
   channelLabel,
   cleanName,
   commPlain,
@@ -57,6 +56,7 @@ import {
   parseAnsi,
   parseChannelList,
   parseChannelText,
+  publicShows,
   stripAnsi,
 } from '../gmcp/comm';
 import { type Chat, type ChatEntry, CommChats, type GroupItem, type GroupNote } from '../gmcp/comm-chats';
@@ -90,6 +90,9 @@ import { type PaneTooltip, installPaneTooltip, setTip } from './pane-tooltip';
 import { paneShade } from './shade';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
+
+/** What Public filters by (`comm.filters`, `comm.npcs`). */
+type PublicFilter = { readonly filters: Readonly<Record<string, boolean>>; readonly npcs: boolean };
 
 /** How much darker than the pane the light-pane text colours are fitted against (the window's edge shade). */
 const COMM_EDGE_SHADE = 0.06;
@@ -211,7 +214,13 @@ export class CommPane extends PaneShell {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private searchDirty = false;
   /** Public's filtered messages, kept between renders (`publicItems`). */
-  private publicCache: { src: readonly ChatEntry[]; filters: Readonly<Record<string, boolean>>; lastSeq: number; list: ChatEntry[] } | null = null;
+  private publicCache: {
+    src: readonly ChatEntry[];
+    filters: Readonly<Record<string, boolean>>;
+    npcs: boolean;
+    lastSeq: number;
+    list: ChatEntry[];
+  } | null = null;
   private searchByUser = false;
   /** Removes the deferred-refresh selection listener, while one waits. */
   private selWatch: (() => void) | null = null;
@@ -321,7 +330,7 @@ export class CommPane extends PaneShell {
         if (s.state === 'connecting') this.replay = s.replay === true;
       }),
     );
-    this.chats.setPublicFilter((ch) => channelEnabled(ctx.settings.get().comm.filters, ch));
+    this.chats.setPublicFilter((m) => publicShows(ctx.settings.get().comm, m));
     this.own(
       ctx.settings.subscribe((next, prev) => {
         if (next.comm === prev.comm) return;
@@ -862,11 +871,11 @@ export class CommPane extends PaneShell {
 
     // Thread.
     const open = this.currentView();
-    const items = this.viewItems(open, s.comm.filters);
+    const items = this.viewItems(open, s.comm);
     const shown = items.length > this.limit ? items.slice(-this.limit) : items;
     this.prevOf.clear();
     for (let i = 0; i < shown.length; i++) this.prevOf.set(shown[i]!, shown[i - 1]);
-    const key = `${open}|${light}|${bg}|${open === PUBLIC ? JSON.stringify(s.comm.filters) : ''}`;
+    const key = `${open}|${light}|${bg}|${open === PUBLIC ? `${JSON.stringify(s.comm.filters)}${s.comm.npcs ? '+npc' : ''}` : ''}`;
     if (key !== this.threadView) {
       this.threadView = key;
       this.root.dataset.view = open === PUBLIC || open === GROUP ? open : 'chat';
@@ -889,22 +898,23 @@ export class CommPane extends PaneShell {
     return PUBLIC;
   }
 
-  private viewItems(open: string, filters: Readonly<Record<string, boolean>>): readonly ThreadItem[] {
-    if (open === PUBLIC) return this.publicItems(filters);
+  private viewItems(open: string, comm: PublicFilter): readonly ThreadItem[] {
+    if (open === PUBLIC) return this.publicItems(comm);
     if (open === GROUP) return this.chats.groupView;
     return this.chats.chat(open)?.entries ?? [];
   }
 
   /**
-   * Public's messages through the filters, kept between renders: built
-   * whole when the filters or the model's list change (a rebuild), else
+   * Public's messages through the filters and the NPC switch, kept between
+   * renders: built whole when they or the model's list change (a rebuild), else
    * trimmed at the front and appended to with what came since.
    */
-  private publicItems(filters: Readonly<Record<string, boolean>>): readonly ChatEntry[] {
+  private publicItems(comm: PublicFilter): readonly ChatEntry[] {
+    const { filters, npcs } = comm;
     const src = this.chats.publicEntries;
     let c = this.publicCache;
-    if (!c || c.src !== src || c.filters !== filters) {
-      c = { src, filters, lastSeq: 0, list: [] };
+    if (!c || c.src !== src || c.filters !== filters || c.npcs !== npcs) {
+      c = { src, filters, npcs, lastSeq: 0, list: [] };
       this.publicCache = c;
     }
     const first = src[0]?.seq ?? Infinity;
@@ -915,7 +925,7 @@ export class CommPane extends PaneShell {
     while (i > 0 && src[i - 1]!.seq > c.lastSeq) i--;
     for (; i < src.length; i++) {
       const e = src[i]!;
-      if (channelEnabled(filters, e.msg.channel)) c.list.push(e);
+      if (publicShows(comm, e.msg)) c.list.push(e);
     }
     if (src.length > 0) c.lastSeq = src[src.length - 1]!.seq;
     return c.list;
@@ -923,7 +933,7 @@ export class CommPane extends PaneShell {
 
   private viewSize(): number {
     const open = this.currentView();
-    return this.viewItems(open, this.ctx.settings.get().comm.filters).length;
+    return this.viewItems(open, this.ctx.settings.get().comm).length;
   }
 
   private startAges(): void {
@@ -951,9 +961,9 @@ export class CommPane extends PaneShell {
     if (texts) this.colTextAt = now;
     else this.scheduleColText(COL_TEXT_MS - (now - this.colTextAt));
     const open = this.chats.open;
-    const filters = this.ctx.settings.get().comm.filters;
+    const comm = this.ctx.settings.get().comm;
     // Public and Group.
-    const lastPub = lastWhere(this.chats.publicEntries, (e) => channelEnabled(filters, e.msg.channel));
+    const lastPub = lastWhere(this.chats.publicEntries, (e) => publicShows(comm, e.msg));
     const lastGrp = lastGroupMsg(this.chats.groupView);
     const hasGroup = this.chats.hasGroup;
     const pub = this.pinRow(PUBLIC, 'town', 'Public');

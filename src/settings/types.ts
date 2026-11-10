@@ -188,6 +188,8 @@ export interface CommSettings {
    * new users start with `COMM_PUBLIC_DEFAULT_OFF` off.
    */
   filters: Record<string, boolean>;
+  /** Public shows NPCs' talk (`talker-type` `npc`). Off by default (owner). */
+  npcs: boolean;
   /** Private chats shown: active in the last 10 / 30 / 60 min, or all. */
   chatWindow: CommChatWindow;
   /** The chat column is folded away (the spine's fold). */
@@ -521,7 +523,7 @@ export function defaultSettings(): Settings {
     layout: defaultLayout(),
     profile: 'default',
     group: defaultGroupSettings(),
-    comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), chatWindow: 30, folded: false, listWidth: null },
+    comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), npcs: false, chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },
