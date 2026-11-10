@@ -113,6 +113,15 @@
 // under a pane tab (hidden, not resized), so its scroll position and NAWS
 // stay. Temporary script panes show over the GAME view only. While the
 // on-screen keyboard is up the too-small guard is off.
+//
+// The phone's layout in the live game (ADR 0136, the `phoneGame` option,
+// passed by the live game's shell only and used only with the phone flag):
+// `allocatePhoneGame` (src/layout/phone-game.ts) instead of `allocatePhone`,
+// no tab strip, and the cockpit is marked `data-phone-game` (the scope of
+// src/phone/phone.css). The phone layer (src/phone/) draws its chrome over
+// the cockpit and reads the rectangles from `phoneGameLayout`. Stage 51a:
+// every pane is hidden (the game text and the command row only);
+// temporary script panes still show over the game text.
 
 import { onTitleFont } from '../panes/title-font';
 import './layout.css';
@@ -186,6 +195,7 @@ import {
 import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
+import { type PhoneGameResult, allocatePhoneGame, commandRows } from './phone-game';
 import { keyboardUp } from './phone-viewport';
 import {
   type DockId,
@@ -291,6 +301,11 @@ export interface CockpitOptions {
    * popup). Without it no pane has a Gear.
    */
   onGear?: (id: PaneId) => void;
+  /**
+   * The phone's layout in the live game (ADR 0136): only the live game's
+   * shell passes it. Without the phone flag it does nothing.
+   */
+  phoneGame?: boolean;
 }
 
 /**
@@ -495,6 +510,12 @@ export class Cockpit {
   private tabs: PhoneTab[] = [GAME_TAB];
   /** Phone only: what the strip shows now (redrawn when it changes). */
   private stripKey = '';
+  /** Phone only: the live game's layout (ADR 0136), fixed at construction. */
+  private readonly phoneGame: boolean;
+  /** Phone game layout: a fight is on, the fight card has its rows (`setPhoneFight`). */
+  private pgFight = false;
+  /** Phone game layout: the last allocation. */
+  private pgLast: PhoneGameResult | null = null;
 
   constructor(opts: CockpitOptions) {
     const doc = opts.root.ownerDocument;
@@ -527,7 +548,10 @@ export class Cockpit {
     this.shieldEl = div('wc-drag-shield');
     this.shieldEl.hidden = true;
     this.phone = device().phone;
-    if (this.phone) {
+    this.phoneGame = this.phone && opts.phoneGame === true;
+    // The scope of the phone layer's CSS (src/phone/phone.css).
+    if (this.phoneGame) this.el.dataset.phoneGame = '';
+    if (this.phone && !this.phoneGame) {
       this.stripEl = div('wc-phone-tabs');
       this.stripEl.setAttribute('role', 'tablist');
       this.stripEl.addEventListener('mousedown', (e) => e.preventDefault());
@@ -883,7 +907,8 @@ export class Cockpit {
     const cell: PaneCell = { w: cells.w, h: cells.h, ox: o.left, oy: o.top };
     const s = this.settings.get();
     if (this.phone) {
-      this.relayoutPhone(cell, W, H);
+      if (this.phoneGame) this.relayoutPhoneGame(cell, W, H);
+      else this.relayoutPhone(cell, W, H);
       return;
     }
     const layout = this.preview ?? s.layout;
@@ -961,7 +986,7 @@ export class Cockpit {
 
   /** Phone only: selects the strip's tab at `index` (0 = GAME, ADR 0098); false when there is none. */
   selectTabAt(index: number): boolean {
-    const tab = this.phone ? this.tabs[index] : undefined;
+    const tab = this.phone && !this.phoneGame ? this.tabs[index] : undefined;
     if (tab === undefined) return false;
     this.selectTab(tab);
     return true;
@@ -1020,6 +1045,69 @@ export class Cockpit {
     }
     this.renderStrip(r, cell);
     // Synchronously, before this layout is painted: what a float now covers is clipped out in the same frame.
+    this.holes.sync();
+    for (const fn of [...this.layoutListeners]) fn();
+  }
+
+  /** True with the phone's layout in the live game (ADR 0136). */
+  get isPhoneGame(): boolean {
+    return this.phoneGame;
+  }
+
+  /** Phone game layout: the last allocation (cells), or null before the first layout and elsewhere. */
+  get phoneGameLayout(): PhoneGameResult | null {
+    return this.pgLast;
+  }
+
+  /** Phone game layout: a fight started or ended; the fight card gets or gives back its rows. */
+  setPhoneFight(on: boolean): void {
+    if (!this.phoneGame || on === this.pgFight) return;
+    this.pgFight = on;
+    this.scheduleRelayout();
+  }
+
+  /** Phone game layout: the relayout (allocatePhoneGame, ADR 0136 §2); see the file header. */
+  private relayoutPhoneGame(cell: PaneCell, W: number, H: number): void {
+    const s = this.settings.get();
+    const g = allocatePhoneGame({
+      cols: Math.floor(W / cell.w + 1e-6),
+      rows: Math.floor(H / cell.h + 1e-6),
+      inputRows: commandRows(cell.h),
+      guard: !keyboardUp(),
+      fight: this.pgFight,
+    });
+    this.pgLast = g;
+    const panes: PaneBox[] = [];
+    if (!g.tooSmall && this.temps.size > 0) {
+      // Temporary panes over the game text, kept inside it (as in `relayoutPhone`).
+      const v = g.game;
+      const base: LayoutResult = { ...EMPTY_LAYOUT, cols: g.cols, rows: g.rows, game: g.game, input: g.input };
+      for (const b of this.tempBoxes(base, s.layout)) {
+        const c = clampFloat({ ...b.rect, x: b.rect.x - v.x, y: b.rect.y - v.y }, floatMin(b.id, true), v.w, v.h);
+        const rect = { ...c, x: c.x + v.x, y: c.y + v.y };
+        panes.push({ ...b, rect, content: { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 } });
+      }
+    }
+    const res: LayoutResult = { ...EMPTY_LAYOUT, cols: g.cols, rows: g.rows, tooSmall: g.tooSmall, game: g.game, input: g.input, panes };
+    this.last = res;
+    this.el.dataset.cells = `${g.cols}x${g.rows}`;
+    if (this.el.dataset.cells !== this.lastSize) {
+      this.lastSize = this.el.dataset.cells;
+      this.paneContext.bus.emit('view.size', { cols: g.cols, rows: g.rows });
+    }
+    this.el.dataset.collapsed = '';
+    // As the tab strip layout: marks a phone cockpit, so a borderless pane gets no hover outline (layout.css).
+    this.el.dataset.phoneTab = 'game';
+    this.setTooSmall(res);
+    placeEl(this.gameEl, g.game, cell);
+    placeEl(this.inputEl, g.input, cell);
+    const boxes = new Map(panes.map((p) => [p.id, p]));
+    for (const [id, shell] of this.shells) {
+      shell.applyTheme(s);
+      const b = boxes.get(id);
+      // Stage 51a: every pane but a temporary one is hidden.
+      shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
+    }
     this.holes.sync();
     for (const fn of [...this.layoutListeners]) fn();
   }
@@ -2006,6 +2094,20 @@ function placePx(el: HTMLElement, r: Rect): void {
   st.width = `${r.w}px`;
   st.height = `${r.h}px`;
 }
+
+/** A layout with nothing in it (the phone game layout fills in its own parts). */
+const EMPTY_LAYOUT: LayoutResult = {
+  cols: 0,
+  rows: 0,
+  tooSmall: false,
+  game: { x: 0, y: 0, w: 0, h: 0 },
+  input: { x: 0, y: 0, w: 0, h: 0 },
+  inputSpan: 'game',
+  docks: {},
+  collapsed: [],
+  panes: [],
+  hidden: [],
+};
 
 function placeEl(el: HTMLElement, r: Rect, cell: { w: number; h: number }): void {
   const st = el.style;

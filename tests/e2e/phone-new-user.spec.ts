@@ -1,7 +1,6 @@
 // A new install on a phone (ADR 0081, ADR 0092): Hack 14, no UI pane,
 // Character on, no weather, and the pane
-// bar and Map search scripts are not enabled. The tab strip has no UI,
-// BAR or FIND tab.
+// bar and Map search scripts are not enabled (so no UI, BAR or FIND pane).
 import { expect, test } from '@playwright/test';
 
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -24,10 +23,10 @@ test('new install on a phone: Hack 14, no UI pane, Character on, no weather, no 
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.__wc!.shell.scripts.enabledNames())).toEqual([]);
 
-  const tabs = (await page.locator('.wc-phone-tab').allTextContents()).map((t) => t.trim());
-  expect(tabs).toContain('COMM');
-  expect(tabs).not.toContain('UI');
-  expect(tabs).not.toContain('BAR');
-  expect(tabs).not.toContain('FIND');
+  // The live game has no tab strip since stage 51a (ADR 0136); what the strip showed is in the
+  // settings checked above (Comm on, UI off) and in the scripts (no pane bar, no Map search).
+  expect(s.panes.comm.on).toBe(true);
+  await expect(page.locator('.wc-phone-tab')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__wc!.app.cockpit.scriptPanes())).toEqual([]);
   expect(errors).toEqual([]);
 });

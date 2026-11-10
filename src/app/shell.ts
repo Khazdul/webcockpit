@@ -30,8 +30,12 @@
 // desktop and tablet the menu bar's Disconnected notice takes its place
 // (src/menubar/menubar.ts), and Enter still reconnects.
 //
-// Menu bar (ADR 0099): desktop and tablet (`device().phone` keeps the
-// clock strip and `☰`; a tablet uses the bar by touch, ADR 0112). The
+// Menu bar (ADR 0099): desktop and tablet (a phone has no bar; a tablet
+// uses the bar by touch, ADR 0112). On a phone the live game has its own
+// layout (ADR 0136, stage 51): the App is built with `phoneGame`, the
+// phone layer (src/phone/, a chunk fetched only on a phone) is mounted
+// over its cockpit with the menu key in the command row, and `<html>` is
+// marked `wc-phone-game` while the cockpit is the visible view. The
 // cockpit's `ui` hands it `exitSession`; its popups close when the cockpit
 // is hidden. On the phone `ui.openMenuAt` opens the ESC menu straight at
 // the profile editor, Options → Scripts, Options, Panes or Exit (leaving
@@ -184,6 +188,8 @@ export class Shell {
   private appRef: App | null = null;
   private appWaiters: Array<(app: App) => void> = [];
   private chromeP: Promise<ChromeModule> | null = null;
+  /** Phone only: the phone layer's chunk (src/phone/, ADR 0136). */
+  private phoneP: Promise<typeof import('../phone')> | null = null;
   private startHost: HTMLDivElement;
   private startMount: HTMLDivElement;
   private menuHost: HTMLDivElement;
@@ -261,6 +267,8 @@ export class Shell {
   async boot(): Promise<void> {
     void this.initProfiles();
     void this.newUserScripts();
+    // Phone only (ADR 0136): fetch the phone layer now, so it is there when the game opens.
+    if (device().phone) void this.loadPhone().catch(() => {});
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
       if (!this.opts.probe) this.prefetchChrome();
@@ -398,7 +406,12 @@ export class Shell {
     menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
   }
 
-  /** The phone's menu button (`☰`); a tap opens the ESC menu without focusing the input. */
+  /**
+   * The phone's old menu button (`☰`) at the end of the input row; a tap
+   * opens the ESC menu without focusing the input. Since stage 51 (ADR
+   * 0136) the phone layer has its own menu key: this one is only the way
+   * into the menu when the phone layer's chunk could not be loaded.
+   */
   private menuButton(doc: Document): HTMLSpanElement {
     const b = doc.createElement('span');
     b.className = 'wc-menu-btn';
@@ -640,6 +653,7 @@ export class Shell {
     this.windows?.closeAll();
     this.appRef?.menuBar?.setShown(false);
     if (this.appRef) this.appRef.el.style.display = 'none';
+    this.markPhoneGame(false);
     this.startHost.style.display = '';
     this.start?.show();
     if (!this.swept) {
@@ -657,8 +671,27 @@ export class Shell {
     }
     app.el.style.display = '';
     this.inCockpit = true;
+    this.markPhoneGame(true);
     app.menuBar?.setShown(true);
     app.input.focus();
+  }
+
+  /**
+   * Phone only (ADR 0136 §4): marks `<html>` `wc-phone-game` while the
+   * phone's game layout is the visible view, so the fixed fullscreen
+   * corner button (ADR 0097) is hidden there and stays on the start page
+   * (src/phone/phone.css). Nothing on a desktop or a tablet.
+   */
+  private markPhoneGame(on: boolean): void {
+    if (!device().phone) return;
+    this.opts.root.ownerDocument.documentElement.classList.toggle('wc-phone-game', on);
+  }
+
+  /** Phone only: the phone layer's chunk (ADR 0136); a failed load may be tried again. */
+  private loadPhone(): Promise<typeof import('../phone')> {
+    this.phoneP ??= import('../phone');
+    this.phoneP.catch(() => (this.phoneP = null));
+    return this.phoneP;
   }
 
   private ensureApp(): App {
@@ -693,6 +726,8 @@ export class Shell {
             }),
       },
       weather: installWeather,
+      // Phone only (ADR 0136): the phone's layout in the live game.
+      ...(device().phone ? { phoneGame: true } : {}),
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
     });
     // Keep the menu host last, so the overlay is above the cockpit in DOM order too.
@@ -704,9 +739,44 @@ export class Shell {
       rowEnd.before(new NoticeIndicator(root.ownerDocument, notices, CLIENT_VERSION).el);
       notices.attach(app.bus);
     }
-    // Phone only (ADR 0075, ADR 0112): a `☰` at the end of the input row
-    // opens the ESC menu, as Esc does. Desktop and tablet have the bar.
-    if (device().phone) rowEnd.after(this.menuButton(root.ownerDocument));
+    // Phone only (ADR 0136): the phone layer over the cockpit (fight card,
+    // compass, the menu key in the command row; its chunk is not loaded
+    // elsewhere). The menu key opens the ESC menu, as Esc does (ADR 0112).
+    // Should the chunk be gone, the old `☰` is the way into the menu.
+    // Desktop and tablet have the bar.
+    if (device().phone) {
+      // The old `☰` at once, so there is never a moment without a menu key;
+      // it goes when the layer is up, and stays if the chunk cannot be
+      // loaded or the mount throws.
+      const old = this.menuButton(root.ownerDocument);
+      rowEnd.after(old);
+      this.loadPhone().then(
+        (phone) => {
+          try {
+            phone.mountPhoneLayer({
+              cockpit: app.cockpit,
+              game: app.game,
+              cells,
+              command: (text) => {
+                app.onCommand(text);
+                // As Enter in the command line: a sent command shows the live tail.
+                if (app.output.isScrolled()) app.output.toTail();
+              },
+              // A key sends only in play (src/phone/play-gate.ts).
+              playState: () => {
+                const st = app.status.get();
+                return { conn: app.session.state, replay: st.replay, password: app.input.isPasswordMode() };
+              },
+              openMenu: () => void this.openMenu(),
+            });
+            old.remove();
+          } catch (err) {
+            console.error('WebCockpit: the phone layer could not be mounted', err);
+          }
+        },
+        () => {},
+      );
+    }
     // Phone only (ADR 0075 §3.4): back from the background, check the link
     // at once; a dead one drops with a reason, and onConn opens the menu
     // with Reconnect selected. Desktop installs nothing.

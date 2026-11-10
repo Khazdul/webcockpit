@@ -240,7 +240,7 @@ The owner starts the session and is away until morning. So:
 ## Tasks
 
 - [x] Branch, baseline benchmark recorded here
-- [ ] 51a shell: allocator, command row, compass, fight card
+- [x] 51a shell: allocator, command row, compass, fight card
 - [ ] 51b menu sheet, Text settings
 - [ ] 51c map lens
 - [ ] 51d pane strip and Comm
@@ -289,6 +289,40 @@ cover too much text, Comm's height, anything that feels slow.
   3.8 / 17.4 / 22.2 ms (median / p95 / max), flush script 0.9 / 1.7 / 2.7 ms,
   burst 938 ms for 79 447 lines (84 666 lines/s, longest frame 18.5 ms, no
   long animation frame), key → send 0.050 / 0.080 / 0.115 ms.
+
+### 51a Shell (built)
+
+- `allocatePhoneGame` (`src/layout/phone-game.ts`), the cockpit option
+  `phoneGame` (passed by the live shell only; marker `data-phone-game`),
+  the phone layer `src/phone/` (loaded by a dynamic import on a phone
+  only), command row, compass, fight card, `scripts/phone-shots.ts`.
+- Shared files: `cockpit.ts` (the option, `relayoutPhoneGame` inside the
+  phone branch, additive `isPhoneGame` / `phoneGameLayout` /
+  `setPhoneFight`), `app.ts` (passes the option, never for a player),
+  `shell.ts` (inside `device().phone` only). `input-pane.ts` not edited.
+- Deviations and choices:
+  - **Command row is 3 cell rows** (`ceil(50 px / cell)`), not ADR §2's
+    "1 input row": the field and the menu key are 44 px as in the mockup.
+  - The opponent word `dying` (in `src/gmcp/bands.ts`) gives 0 %; a fight
+    starts at 100 % until a word arrives. A tank outside the group shows
+    its name over an empty track (the group model has no HP for it).
+  - **Keys send only in play** (`src/phone/play-gate.ts`): a compass tap
+    is dropped at the name or password prompt and while the link is
+    down, so a stray tap never types into the login or reconnects. A
+    typed line reconnects as before.
+  - Keys send on `pointerdown` (a sliding thumb does not lose the tap).
+  - No fading ground under the command row (it ended at the last whole
+    cell and showed on Paper).
+  - Ctrl/Alt+1…9 do nothing in the live game until the strip (51d).
+  - No fullscreen control in the game on a phone until the lens (51c).
+- To verify live (ADR "To verify"): `Char.Vitals` `hp`/`maxhp` are numeric
+  in the fixture; the fixture is synthetic, so MUME's real
+  `opponent-hits` words are **not confirmed** (the code uses the list in
+  `src/gmcp/bands.ts`).
+- Tests: 3615 unit; phone 77 passed, 5 fixme (`phone-map.spec.ts`, back
+  in 51c); firefox 434 passed; chromium green except load-sensitive cases
+  that change from run to run and pass alone.
+- Screenshots: `docs/stages/img/51-a-*.png`.
 
 ## Owner feedback
 

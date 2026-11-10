@@ -4,6 +4,12 @@
 // two-finger pinch zooms around the midpoint, a two-finger drag pans.
 // `?replay&phone=1` on the `phone` project (Pixel 7), walking
 // tests/fixtures/map-demo.log (Bree to Hill Road, room 26971).
+//
+// Stage 51a (ADR 0136): the live game on a phone has no tab strip and
+// hides every pane until the map comes back as the lens. Every case here
+// asserts the map pane in the live game, so all are `test.fixme` until
+// step 51c rewrites this spec for the lens (it follows the player from the
+// first room, a tap steps the zoom, no pinch or pan).
 import { type Page, expect, test } from '@playwright/test';
 
 const LAST_ROOM = '26971';
@@ -49,7 +55,8 @@ async function playerCentred(page: Page): Promise<boolean> {
   }, shot.toString('base64'));
 }
 
-test('moves made on the GAME tab: MAP shows the current room, centred', async ({ page }) => {
+// fixme (stage 51a): restored by step 51c, the map lens (see the file header).
+test.fixme('moves made on the GAME tab: MAP shows the current room, centred', async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -66,7 +73,8 @@ test('moves made on the GAME tab: MAP shows the current room, centred', async ({
   expect(errors).toEqual([]);
 });
 
-test('the MAP tab opened first after the moves: the map finds the current room', async ({ page }) => {
+// fixme (stage 51a): restored by step 51c, the map lens (see the file header).
+test.fixme('the MAP tab opened first after the moves: the map finds the current room', async ({ page }) => {
   test.setTimeout(60_000);
   await openCockpit(page);
   await walk(page);
@@ -77,7 +85,8 @@ test('the MAP tab opened first after the moves: the map finds the current room',
   await expect.poll(() => playerCentred(page), { timeout: 15_000 }).toBe(true);
 });
 
-test('moves made on the MAP tab: the map follows', async ({ page }) => {
+// fixme (stage 51a): restored by step 51c, the map lens (see the file header).
+test.fixme('moves made on the MAP tab: the map follows', async ({ page }) => {
   test.setTimeout(60_000);
   await openCockpit(page);
   await tab(page, 'map').tap();
@@ -89,7 +98,8 @@ test('moves made on the MAP tab: the map follows', async ({ page }) => {
 
 type Sent = { t: string; dx?: number; dy?: number; steps?: number; x?: number; y?: number };
 
-test('pinch zooms around the midpoint, a two-finger drag pans, a one-finger drag pans', async ({ page }) => {
+// fixme (stage 51a): restored by step 51c, the map lens (see the file header).
+test.fixme('pinch zooms around the midpoint, a two-finger drag pans, a one-finger drag pans', async ({ page }) => {
   test.setTimeout(60_000);
   // Record the pane's pan/zoom messages to the worker.
   await page.addInitScript(() => {
@@ -151,7 +161,8 @@ test('pinch zooms around the midpoint, a two-finger drag pans, a one-finger drag
   expect(m.filter((x) => x.t === 'pan').reduce((s, x) => s + x.dx!, 0)).toBeCloseTo(40, 0);
 });
 
-test('a long press shows the hover box with the room name; the next tap hides it (ADR 0077)', async ({ page }) => {
+// fixme (stage 51a): restored by step 51c, the map lens (see the file header).
+test.fixme('a long press shows the hover box with the room name; the next tap hides it (ADR 0077)', async ({ page }) => {
   await openCockpit(page);
   await walk(page);
   await tab(page, 'map').tap();

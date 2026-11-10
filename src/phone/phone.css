@@ -1,0 +1,336 @@
+/* The phone layer (src/phone/, ADR 0136): the chrome of the phone's layout
+ * in the live game. Every rule is scoped under `html.wc-phone` AND the
+ * cockpit's `data-phone-game` (set by the cockpit only with its `phoneGame`
+ * option and the phone flag), so nothing here matches on a desktop, on a
+ * tablet or in the run log player. The one exception names the page-level
+ * fullscreen button and is scoped under `html.wc-phone.wc-phone-game`,
+ * the class the shell sets while the phone's game layout is up.
+ *
+ * Laid out in CSS px, not cells: thumb-size targets whatever the text
+ * size. The look is Lykta (ADR 0123): dark iron wells, the candle's light
+ * for edges and ink, frosted keys. Paper (the terminal background is
+ * light: `<html data-light>`) is pewter and brass on paper-white.
+ * Nothing animates (ADR 0044). */
+
+/* ------------------------------------------------------------------ tokens */
+
+html.wc-phone .wc-cockpit[data-phone-game] {
+  /* The candle (the lamp of a Plain pane, layout.css `--lamp`). */
+  --ph-lamp: #e8c48a;
+  /* Ink on a lit key. */
+  --ph-ink: #170f03;
+  /* A lit key's rim. */
+  --ph-lamp-hi: #fff1cf;
+  /* The window's dark base: the fight card, the command row. */
+  --ph-well: #0b0907;
+  /* A sunken field. */
+  --ph-field: #050403;
+  --ph-field-edge: rgb(232 196 138 / 0.3);
+  --ph-field-edge-on: rgb(232 196 138 / 0.6);
+  --ph-rule: rgb(232 196 138 / 0.26);
+  /* A frosted card (the menu key). */
+  --ph-frost: rgb(232 196 138 / 0.06);
+  --ph-frost-edge: rgb(232 196 138 / 0.24);
+  /* The compass keys: partly see-through over the game text. */
+  --ph-key: rgb(22 19 15 / 0.86);
+  --ph-key-edge: rgb(232 196 138 / 0.34);
+  --ph-key-text: #e8c48a;
+  --ph-key-shadow: inset 0 1px 0 rgb(232 196 138 / 0.16), 0 2px 6px rgb(0 0 0 / 0.6);
+  --ph-flee: rgb(48 14 12 / 0.88);
+  --ph-flee-edge: #d75f5f;
+  --ph-flee-text: #ff9a8f;
+  /* Text. */
+  --ph-text: #e8e8e8;
+  --ph-dim: #8a8a8a;
+  /* Bars. */
+  --ph-track: #221f1b;
+  --ph-hp: #45b862;
+  --ph-foe: #d75f5f;
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
+  --ph-lamp: #3a3428;
+  --ph-ink: #fffaf0;
+  --ph-lamp-hi: #5e3d08;
+  --ph-well: #fbf6e8;
+  --ph-field: #fffdf8;
+  --ph-field-edge: #8a8478;
+  --ph-field-edge-on: #8a5a0e;
+  --ph-rule: #8a8478;
+  --ph-frost: #fbf6e8;
+  --ph-frost-edge: #8a8478;
+  --ph-key: rgb(251 246 232 / 0.92);
+  --ph-key-edge: #8a8478;
+  --ph-key-text: #3a3428;
+  --ph-key-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 2px 6px rgb(60 40 10 / 0.25);
+  --ph-flee: #fbe9e4;
+  --ph-flee-edge: #b3261e;
+  --ph-flee-text: #b3261e;
+  --ph-text: #111;
+  --ph-dim: #6a6256;
+  --ph-track: #d9cfb8;
+  --ph-hp: #2f8a47;
+  --ph-foe: #b3261e;
+}
+
+/* On Paper a lit key is brass with pale ink. */
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-key:active,
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-menu:active {
+  background: #8a5a0e;
+  border-color: #5e3d08;
+  color: #fffaf0;
+}
+
+/* ------------------------------------------------------------------- layer */
+
+/* Over the panes (z ≤ 4), under floating script panes (z ≥ 10). The layer
+ * itself takes no taps: only its parts do. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 19px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-layer {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ico {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* -------------------------------------------------------------- fight card */
+
+/* HP against HP in the fight rows (JS sets top and height from the
+ * cockpit's rectangle): You or the tank on the left, the opponent on the
+ * right, its bar filling from the right. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr);
+  align-items: end;
+  align-content: center;
+  column-gap: 8px;
+  padding: 0 10px 1px;
+  overflow: hidden;
+  pointer-events: auto;
+  background: var(--ph-well);
+  border-bottom: 1px solid var(--ph-rule);
+  contain: strict;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight[hidden] {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-name {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 15px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-side.is-right .wc-ph-fight-name {
+  text-align: right;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-vs {
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar {
+  display: block;
+  height: 6px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--ph-track);
+}
+
+/* The fill is scaled, not resized: a round of a fight lays nothing out. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transform-origin: left center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-side.is-right .wc-ph-bar > i {
+  transform-origin: right center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > .is-hp {
+  background: var(--ph-hp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > .is-foe {
+  background: var(--ph-foe);
+}
+
+/* ----------------------------------------------------------------- compass */
+
+/* From the bottom edge, right: 3 × 3 keys of 40 px. The pad takes the taps
+ * in its gaps too, so a near miss never reaches the game text under it. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-pad {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  grid-auto-rows: 40px;
+  gap: 3px;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+/* Typing: the keys step aside (ADR 0136 §9). */
+html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-pad {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ph-key-edge);
+  border-radius: 9px;
+  background: var(--ph-key);
+  color: var(--ph-key-text);
+  box-shadow: var(--ph-key-shadow);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key .wc-ph-ico {
+  width: 18px;
+  height: 18px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-flee {
+  border-color: var(--ph-flee-edge);
+  background: var(--ph-flee);
+  color: var(--ph-flee-text);
+  font-weight: 700;
+}
+
+/* The press shows: a key lit by the lamp. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu:active {
+  background: var(--ph-lamp);
+  border-color: var(--ph-lamp-hi);
+  color: var(--ph-ink);
+}
+
+/* ------------------------------------------------------------- command row */
+
+/* The cockpit gives the command row whole cell rows (`commandRows`,
+ * src/layout/phone-game.ts: what the 44 px targets need); the menu key and
+ * the field are centred in them. The field ends left of the compass
+ * (3 × 40 + 2 × 3 + 8 px, and 8 px of air). The row has no ground of its
+ * own: no game text lies under it, and a ground would end at the last
+ * whole cell, short of the screen's right and bottom edges (seen on
+ * Paper). The input pane itself is unchanged: its prompt and clock strip
+ * are not shown here (ADR 0136 §9). */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 0 142px 0 8px;
+}
+
+/* Typing: the field takes the full width. */
+html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
+  padding-right: 8px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-lamp);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input {
+  flex: 1 1 auto;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 44px;
+  max-height: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--ph-field-edge);
+  border-radius: 10px;
+  background: var(--ph-field);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input:focus-within {
+  border-color: var(--ph-field-edge-on);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-prompt,
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-clock {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::placeholder {
+  color: var(--ph-dim);
+  opacity: 1;
+}
+
+/* Not typing: no hollow caret over the placeholder. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-caret.wc-blurred {
+  display: none;
+}
+
+/* ------------------------------------------------- fullscreen corner button */
+
+/* The fixed corner button (ADR 0097) is not shown while the phone's game
+ * layout is up (ADR 0136 §4); it stays on the start page. */
+html.wc-phone.wc-phone-game .wc-fs-btn {
+  display: none;
+}

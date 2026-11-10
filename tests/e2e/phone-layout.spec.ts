@@ -1,12 +1,16 @@
 // Stage 19 part B (ADR 0075 §3): the phone layout. `?phone=1` on the
 // `phone` project (Pixel 7: touch, mobile viewport), with the offline GMCP
 // demo so the side panes have content.
+//
+// Since stage 51a (ADR 0136) the live game on a phone has no tab strip:
+// what is left here is what still holds there (the guard, the visible
+// area, the menu, landscape, the start page). The new shell has its own
+// spec (phone-game-shell.spec.ts); the tab strip cases moved to the run
+// log player, which keeps the strip (phone-player-tabs.spec.ts).
 import { type Page, expect, test } from '@playwright/test';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0&phone=1';
 
-const tab = (page: Page, id: string) => page.locator(`.wc-phone-tab[data-tab="${id}"]`);
-const pane = (page: Page, id: string) => page.locator(`.wc-pane[data-pane="${id}"]`);
 const tooSmall = (page: Page) => page.locator('.wc-too-small:not([hidden]), .wc-start-too-small');
 
 async function openDemo(page: Page): Promise<void> {
@@ -25,14 +29,11 @@ async function inputVisible(page: Page): Promise<void> {
   expect(box.y + box.height).toBeLessThanOrEqual(h + 0.5);
 }
 
-test('portrait: tab strip, the game full width, the input at the bottom; no arranging', async ({ page }) => {
+test('portrait: the game full width, the input at the bottom; no arranging', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openDemo(page);
   await expect(tooSmall(page)).toHaveCount(0);
-  const tabs = await page.locator('.wc-phone-tab').allTextContents();
-  expect(tabs.map((t) => t.trim()).slice(0, 6)).toEqual(['GAME', 'CHAR', 'TIME', 'GRP', 'COMM', 'UI']);
-  await expect(tab(page, 'game')).toHaveClass(/is-active/);
   // The game view is as wide as the cockpit; no side pane is shown.
   const cockpit = (await page.locator('.wc-cockpit').boundingBox())!;
   const game = (await page.locator('.wc-game').boundingBox())!;
@@ -41,61 +42,16 @@ test('portrait: tab strip, the game full width, the input at the bottom; no arra
   await inputVisible(page);
   // Nothing to drag, resize or close.
   await expect(page.locator('.wc-pane-grip, .wc-pane-close, .wc-float-handle, .wc-handle')).toHaveCount(0);
+  // Nothing here writes the layout.
+  const layout = await page.evaluate(() => JSON.stringify(window.__wc!.settings.get().layout));
+  await page.locator('.wc-output').first().tap();
+  expect(await page.evaluate(() => JSON.stringify(window.__wc!.settings.get().layout))).toBe(layout);
   expect(errors).toEqual([]);
 });
 
-test('tapping COMM shows the comm pane full width; GAME comes back at the same scroll position', async ({ page }) => {
-  await openDemo(page);
-  const scroller = page.locator('.wc-game .wc-scroller');
-  await scroller.evaluate((el) => (el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - 200)));
-  const before = await scroller.evaluate((el) => el.scrollTop);
-  const cols = await page.locator('.wc-cockpit').getAttribute('data-cells');
-  const layoutJson = () => page.evaluate(() => JSON.stringify(window.__wc!.settings.get().layout));
-  const layout = await layoutJson();
-
-  await tab(page, 'comm').tap();
-  await expect(tab(page, 'comm')).toHaveClass(/is-active/);
-  await expect(pane(page, 'comm')).toBeVisible();
-  await expect(pane(page, 'comm')).toContainText("ready when you are");
-  await expect(page.locator('.wc-game')).toBeHidden();
-  const p = (await pane(page, 'comm').boundingBox())!;
-  const c = (await page.locator('.wc-cockpit').boundingBox())!;
-  expect(Math.abs(p.width - c.width)).toBeLessThan(10);
-  await inputVisible(page);
-
-  await tab(page, 'game').tap();
-  await expect(page.locator('.wc-game')).toBeVisible();
-  await expect(pane(page, 'comm')).toBeHidden();
-  expect(await scroller.evaluate((el) => el.scrollTop)).toBe(before);
-  // The cell grid (and with it NAWS) did not change.
-  await expect(page.locator('.wc-cockpit')).toHaveAttribute('data-cells', cols!);
-  // Switching tabs never wrote the layout.
-  expect(await layoutJson()).toBe(layout);
-});
-
-test('Ctrl+1…9 and Alt+1…9 select tabs by position (physical keyboard, ADR 0098)', async ({ page }) => {
-  await openDemo(page);
-  // GAME, CHAR, TIME, GRP, COMM, UI: Ctrl+5 is COMM.
-  await page.keyboard.press('Control+5');
-  await expect(tab(page, 'comm')).toHaveClass(/is-active/);
-  await expect(pane(page, 'comm')).toBeVisible();
-  await page.keyboard.press('Alt+2');
-  await expect(tab(page, 'character')).toHaveClass(/is-active/);
-  await page.keyboard.press('Control+1');
-  await expect(tab(page, 'game')).toHaveClass(/is-active/);
-  await expect(page.locator('.wc-game')).toBeVisible();
-  // A position past the last tab does nothing; the digit is not typed.
-  const n = await page.locator('.wc-phone-tab').count();
-  expect(n).toBeLessThan(9);
-  await page.keyboard.press(`Control+${n + 1}`);
-  await expect(tab(page, 'game')).toHaveClass(/is-active/);
-  await expect(page.locator('.wc-input-slot textarea, .wc-input-slot input').first()).toHaveValue('');
-});
-
-test('the phone keeps the clock strip and ☰: no menu bar (ADR 0099)', async ({ page }) => {
+test('the phone has the menu key and no menu bar (ADR 0099, ADR 0136 §9)', async ({ page }) => {
   await openDemo(page);
   await expect(page.locator('.wc-menubar')).toHaveCount(0);
-  await expect(page.locator('.wc-input-clock')).toBeVisible();
   await expect(page.locator('.wc-menu-btn')).toBeVisible();
   // #panes falls back to the ESC menu's pane page.
   const field = page.locator('.wc-input-slot textarea, .wc-input-slot input').first();
@@ -104,7 +60,7 @@ test('the phone keeps the clock strip and ☰: no menu bar (ADR 0099)', async ({
   await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Pane appearance ───');
 });
 
-test('the ☰ button opens the ESC menu over the whole screen', async ({ page }) => {
+test('the menu key opens the ESC menu over the whole screen', async ({ page }) => {
   await openDemo(page);
   await page.locator('.wc-menu-btn').tap();
   await expect(page.locator('.wc-overlay')).toBeVisible();
@@ -120,7 +76,6 @@ test('a shorter visible area (keyboard) keeps the input visible and never shows 
   await page.waitForTimeout(400);
   await expect(tooSmall(page)).toHaveCount(0);
   await inputVisible(page);
-  await expect(page.locator('.wc-phone-tabs')).toBeVisible();
   // Very short (a landscape keyboard): the guard is off while the keyboard is up.
   await page.setViewportSize({ width: size.width, height: 120 });
   await page.waitForTimeout(400);
@@ -137,14 +92,10 @@ test('a shorter visible area (keyboard) keeps the input visible and never shows 
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('fits without too small; tabs and the input work', async ({ page }) => {
+  test('fits without too small; the game and the input show', async ({ page }) => {
     await openDemo(page);
     await expect(tooSmall(page)).toHaveCount(0);
-    await expect(tab(page, 'game')).toBeVisible();
     await inputVisible(page);
-    await tab(page, 'character').tap();
-    await expect(pane(page, 'character')).toBeVisible();
-    await tab(page, 'game').tap();
     await expect(page.locator('.wc-game')).toBeVisible();
   });
 });

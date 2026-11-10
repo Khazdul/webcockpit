@@ -243,6 +243,12 @@ export interface AppOptions {
    * say they are not available.
    */
   ui?: AppUi;
+  /**
+   * The phone's layout in the live game (ADR 0136): the cockpit's
+   * `phoneGame` option. Only the live game's shell passes it, on a phone;
+   * the phone layer (src/phone/) is mounted by the shell.
+   */
+  phoneGame?: boolean;
   /** Hang-guard storage for the script host (tests; default `localStorage`). */
   scriptStorage?: Storage | null;
   /** The Lua runtime loader for the script host (tests). */
@@ -478,6 +484,7 @@ export class App {
       onFocusInput: () => this.input.focus(),
       paneContext,
       ...(this.appUi?.bar && this.appUi.togglePaneSettings ? { onGear: (id: PaneId) => this.appUi?.togglePaneSettings?.(id) } : {}),
+      ...(opts.phoneGame && !player ? { phoneGame: true } : {}),
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,
