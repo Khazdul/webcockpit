@@ -370,7 +370,7 @@ text above:
   10 / 30 / 60 / All control, which spans the popup (now 21.5 em wide);
   the explanation text is gone.
 
-## Addendum: owner's feedback, round 2 (2026-11-10)
+## Addendum: owner's second test, Comm (2026-11-10)
 
 - **Public defaults:** only Tells, Questions and Socials are off
   (`COMM_PUBLIC_DEFAULT_OFF`); Says, Emotes and Whispers show in Public.
@@ -381,3 +381,28 @@ text above:
 - **Group tells in a person's chat** carry an always visible `grouptell`
   line under the bubble, small and very quiet, on a little line of its own
   (unlike the hover meta).
+
+## Addendum: owner's second test, Statistics (2026-11-10)
+
+Supersedes for the pane: the Kills tile, the `Earlier` title, `No run yet`
+as a centred line, and (from the first test's addendum) a calibrating card
+without a scale.
+
+- **Empty layout:** before the first kill the pane shows its whole
+  layout, empty: the header, the four tiles with `—`, `Kills 0` and the
+  `Last kill` card with its label only, at the height it has with a kill
+  (its lines and scale keep their room, not drawn). With no run at all
+  the layout is the same: the header shows the character from `Char.*`
+  (or `—` before any GMCP) and `no run yet` in place of the clock. One
+  layout for every state, so nothing jumps when the first kill comes.
+- **Calibrating:** the card's scale keeps its room but is not drawn (so
+  the card does not grow when rating starts); still no badge.
+- **`Kills N`** is the list's title, N every kill of the run including
+  the one on the card.
+- **TNL tile** (in place of Kills): the XP left to the next level, from
+  `Char.Vitals` `xp` and the level table (`xpToNextLevel`,
+  `src/gmcp/levels.ts`, the Character pane's source). The pane shell
+  reads it on the game state's `char` change and tells the view only
+  when name, level or TNL changed (no per-second work; HP-only vitals
+  cost a compare). `fmtK` as all XP in the pane (exact under 1000).
+  Unknown XP or the top level: `—`.

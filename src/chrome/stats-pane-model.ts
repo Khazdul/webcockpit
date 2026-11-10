@@ -53,12 +53,11 @@ export function barScale(median: number | null, kills: readonly KillEntry[]): nu
   return max;
 }
 
-/** The four tiles' values (text). */
+/** The first three tiles' values (text); the fourth, TNL, is the character's. */
 export interface Tiles {
   avg: string;
   median: string;
   xpPerHour: string;
-  kills: string;
 }
 
 /** Hours below which XP / h is not shown (a single early kill reads as millions). */
@@ -73,7 +72,6 @@ export function tilesOf(kills: readonly KillEntry[], median: number | null, mode
     avg: kills.length ? fmtK(sum / kills.length) : '—',
     median: median !== null ? fmtK(median) : '—',
     xpPerHour: durationUs >= MIN_RATE_US ? fmtK((gained * 3600e6) / durationUs) : '—',
-    kills: String(kills.length),
   };
 }
 

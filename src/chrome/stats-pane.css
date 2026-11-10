@@ -110,14 +110,8 @@
 }
 
 .wc-st[data-state='none'] > *,
-.wc-st[data-state='norun'] > :not(.wc-st-norun),
-.wc-st[data-state='run'] > .wc-st-norun {
+.wc-st:not([data-state='norun']) .wc-st-norun {
   display: none;
-}
-
-.wc-st-norun {
-  margin: auto;
-  color: var(--st-dim, #888);
 }
 
 .wc-st-dim {
@@ -421,6 +415,21 @@
   gap: 0.2em;
   padding: 0.5em 0.65em 0.6em;
   box-shadow: var(--st-card-edge), inset 3px 0 0 -1px var(--c);
+}
+
+/* A scale with nothing to mark (no kill yet, calibrating): its room only. */
+.wc-st-scale[data-off] {
+  visibility: hidden;
+}
+
+/* No run: no clock (the header says `no run yet`). */
+.wc-st[data-state='norun'] .wc-st-clock {
+  display: none;
+}
+
+/* No kill yet: the label alone; the empty lines keep the card's height. */
+.wc-st-card[data-empty] .wc-st-big > :not(.wc-st-bigxp) {
+  visibility: hidden;
 }
 
 .wc-st-card[hidden] {

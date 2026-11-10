@@ -31,8 +31,18 @@ export interface CellSource {
  * pane's content element. `resize(cols, rows)` follows the content size;
  * 0 × 0 while the pane is hidden (the view stops its work then).
  */
+/** The character as the Statistics pane shows it (from `Char.*`, ADR 0134). */
+export interface StatsChar {
+  name: string | null;
+  level: number | null;
+  /** XP to the next level, or null when unknown (or at the top level). */
+  tnl: number | null;
+}
+
 export interface StatsPaneView {
   resize(cols: number, rows: number): void;
+  /** The character (header before a run, the TNL tile). */
+  setChar?(c: StatsChar): void;
   dispose(): void;
 }
 

@@ -7,15 +7,19 @@
 //
 //   .wc-st                        [data-state=norun|run] [data-cal] [data-ended]
 //     .wc-st-top                  name · L35 · run clock · stars … with allies
-//     .wc-st-tiles                Avg / kill, Median, XP / h, Kills
-//     .wc-st-sec                  "Earlier" and the count
+//     .wc-st-tiles                Avg / kill, Median, XP / h, TNL
+//     .wc-st-sec                  "Kills" and the count
 //     .wc-st-list
 //       .wc-st-scroll > .wc-st-space
 //         .wc-st-medline          the median line, one for the whole list
 //         .wc-st-row …            every kill but the last (those in view)
 //       .wc-st-more               `↓ N new` while scrolled up
 //     .wc-st-card                 the last kill: name, +XP, rating, scale
-//     .wc-st-norun                `No run yet`
+//
+// Before the first kill (and with no run at all) the layout is the same,
+// empty: the header (the character from `Char.*`, `no run yet` in place
+// of the clock), `—` in the tiles (TNL as soon as XP is known), `Kills 0`,
+// and the card with its label only, at its usual height.
 //
 // Direct DOM, no Preact: the work per change is known exactly.
 //
@@ -42,6 +46,7 @@
 import type { AppStatusView } from '../app/status';
 import { RATING_LABEL, RATING_ORDER, type Rated, ratingOf } from '../runs/kill-rating';
 import type { LiveRuns } from '../runs/live';
+import type { StatsChar } from '../panes/context';
 import type { ChromeServices } from './kit/hooks';
 import { type StatsFeedState, StatsFeed } from './stats-feed';
 import { fmtK } from './frames/stats-layout';
@@ -59,7 +64,7 @@ export interface StatsPaneHandle {
   dispose(): void;
 }
 
-const NO_RUN = 'No run yet';
+const NO_RUN = 'no run yet';
 /** Rows kept beyond the view on each side. */
 const OVERSCAN = 6;
 /** Distance from the bottom (px) that still counts as following. */
@@ -158,6 +163,8 @@ export class StatsPaneView implements StatsPaneHandle {
   /** The `--st-scale` written last (a new one is written only when it moved more than SCALE_STEP). */
   private shownScale = 0;
   private ageRef = 0;
+  /** The character from `Char.*` (the shell's `setChar`). */
+  private char: StatsChar = { name: null, level: null, tnl: null };
 
   constructor(host: HTMLElement, feed: StatsFeed) {
     const doc = host.ownerDocument;
@@ -174,12 +181,13 @@ export class StatsPaneView implements StatsPaneHandle {
     this.topLevel = el(doc, 'span', 'wc-st-dim');
     this.clock = el(doc, 'span', 'wc-st-clock');
     this.endedEl = el(doc, 'span', 'wc-st-dim wc-st-ended', 'ended');
+    const norun = el(doc, 'span', 'wc-st-dim wc-st-norun', NO_RUN);
     this.stars = el(doc, 'span', 'wc-st-stars');
     this.allies = el(doc, 'span', 'wc-st-allies');
-    top.append(this.topName, this.topLevel, el(doc, 'span', 'wc-st-dim', '·'), this.clock, this.endedEl, this.stars, el(doc, 'span', 'wc-st-sp'), this.allies);
+    top.append(this.topName, this.topLevel, el(doc, 'span', 'wc-st-dim', '·'), this.clock, norun, this.endedEl, this.stars, el(doc, 'span', 'wc-st-sp'), this.allies);
 
     const tiles = el(doc, 'div', 'wc-st-tiles');
-    this.tileV = ['Avg / kill', 'Median', 'XP / h', 'Kills'].map((k) => {
+    this.tileV = ['Avg / kill', 'Median', 'XP / h', 'TNL'].map((k) => {
       const t = el(doc, 'div', 'wc-st-tile');
       const v = el(doc, 'span', 'wc-st-v', '—');
       t.append(el(doc, 'span', 'wc-st-k', k), v);
@@ -187,7 +195,7 @@ export class StatsPaneView implements StatsPaneHandle {
       return v;
     });
 
-    const sec = el(doc, 'div', 'wc-st-sec', 'Earlier');
+    const sec = el(doc, 'div', 'wc-st-sec', 'Kills');
     this.count = el(doc, 'span', 'wc-st-dim wc-st-count');
     sec.append(this.count);
 
@@ -245,8 +253,7 @@ export class StatsPaneView implements StatsPaneHandle {
     this.probe.append(el(doc, 'span', 'wc-st-age', '0m'));
     list.append(this.probe);
 
-    const norun = el(doc, 'div', 'wc-st-norun', NO_RUN);
-    root.append(top, tiles, sec, list, this.card, norun);
+    root.append(top, tiles, sec, list, this.card);
     this.root = root;
     host.replaceChildren(root);
 
@@ -298,6 +305,12 @@ export class StatsPaneView implements StatsPaneHandle {
     return this.rowH > 0;
   }
 
+  setChar(c: StatsChar): void {
+    this.char = c;
+    setText(this.tileV[3]!, c.tnl !== null ? fmtK(c.tnl) : '—');
+    this.writeHeader();
+  }
+
   dispose(): void {
     this.unsub();
     this.feed.dispose();
@@ -313,11 +326,18 @@ export class StatsPaneView implements StatsPaneHandle {
     this.st = s;
     const m = s.model;
     if (s.noRun || !m) {
+      // No run: the empty layout (see the file header).
       this.root.dataset['state'] = 'norun';
+      setAttr(this.root, 'data-ended', null);
+      setAttr(this.root, 'data-cal', '');
       this.kills = [];
+      this.median = null;
       this.clearRows();
-      this.cardKey = '';
-      this.card.hidden = true;
+      this.layoutSpace();
+      for (let i = 0; i < 3; i++) setText(this.tileV[i]!, '—');
+      setText(this.count, '0');
+      this.writeHeader();
+      this.drawCard(false, () => null);
       this.syncTimer();
       return;
     }
@@ -326,12 +346,8 @@ export class StatsPaneView implements StatsPaneHandle {
     setAttr(this.root, 'data-ended', s.ended ? '' : null);
 
     // Header.
-    setText(this.topName, m.character ?? '—');
-    setText(this.topLevel, m.level !== null ? `L${m.level}` : '');
-    setText(this.stars, s.rating > 0 ? '★'.repeat(s.rating) : '');
-    setText(this.allies, m.allies.length ? `with ${m.allies.join(', ')}` : '');
     this.ageRef = s.live ? this.feed.nowUs() : (m.endUs ?? 0);
-    this.writeClock();
+    this.writeHeader();
 
     // Kills.
     const prev = this.kills;
@@ -354,9 +370,8 @@ export class StatsPaneView implements StatsPaneHandle {
     setText(this.tileV[0]!, t.avg);
     setText(this.tileV[1]!, t.median);
     setText(this.tileV[2]!, t.xpPerHour);
-    setText(this.tileV[3]!, t.kills);
     const n = this.listLen();
-    setText(this.count, n ? `${n}` : '');
+    setText(this.count, String(next.length));
 
     if (!appended) {
       this.clearRows();
@@ -534,12 +549,23 @@ export class StatsPaneView implements StatsPaneHandle {
   /** The card in place: texts, the badge and the scale's marker (no elements made). */
   private drawCard(fresh: boolean, rate: (xp: number) => Rated | null): void {
     const k = this.kills[this.kills.length - 1];
+    this.card.hidden = false;
     if (!k) {
-      this.cardKey = '';
-      this.card.hidden = true;
+      // No kill yet: the label alone, at the card's usual height.
+      if (this.cardKey === 'empty') return;
+      this.cardKey = 'empty';
+      setAttr(this.card, 'data-empty', '');
+      setAttr(this.card, 'data-r', null);
+      setAttr(this.card, 'data-pk', null);
+      setText(this.cardMob, '\u00a0');
+      this.cardMob.title = '';
+      setText(this.cardXp, '\u00a0');
+      this.badge.hidden = true;
+      this.scaleBox.hidden = false;
+      setAttr(this.scaleBox, 'data-off', '');
       return;
     }
-    this.card.hidden = false;
+    setAttr(this.card, 'data-empty', null);
     const key = `${k.us}|${k.name}|${k.xp}|${this.median ?? ''}`;
     if (key === this.cardKey) return;
     const newKill = !this.cardKey.startsWith(`${k.us}|${k.name}|`);
@@ -563,8 +589,11 @@ export class StatsPaneView implements StatsPaneHandle {
     for (let j = 0; j < pips.length; j++) (pips[j] as HTMLElement).classList.toggle('on', j <= at);
 
     // The scale (rated mob kills only): the band and label of the rating,
-    // the marker at its ratio. While calibrating it means nothing: hidden.
-    this.scaleBox.hidden = !rated;
+    // the marker at its ratio.
+    // Calibrating it keeps its room (the card does not jump when the
+    // rating starts) but is not drawn; a pkill has none.
+    this.scaleBox.hidden = k.pk;
+    setAttr(this.scaleBox, 'data-off', rated ? null : '');
     for (let j = 0; j < this.bandEls.length; j++) {
       this.bandEls[j]!.classList.toggle('here', j === at);
       this.lblEls[j]!.classList.toggle('here', j === at);
@@ -602,6 +631,18 @@ export class StatsPaneView implements StatsPaneHandle {
     this.writeClock();
     if (++this.ticks % AGE_EVERY === 0) for (const [i, row] of this.rows) this.updateRow(row, i);
   };
+
+  /** Name, level, stars and allies: the run's, else the character's. */
+  private writeHeader(): void {
+    const m = this.st.noRun ? null : this.st.model;
+    const name = m?.character ?? this.char.name;
+    const level = m?.level ?? this.char.level;
+    setText(this.topName, name ?? '—');
+    setText(this.topLevel, level !== null ? `L${level}` : '');
+    setText(this.stars, m && this.st.rating > 0 ? '★'.repeat(this.st.rating) : '');
+    setText(this.allies, m?.allies.length ? `with ${m.allies.join(', ')}` : '');
+    this.writeClock();
+  }
 
   private writeClock(): void {
     const m = this.st.model;
