@@ -203,3 +203,46 @@ cost is agreed first.
 - **Rating:** the median leaves out kills that gave no XP (a fold without
   an XP change); the Median tile shows the rating's median (the last 30
   mob kills). XP text is `fmtK`, already exact under 1000.
+
+## Addendum: 49b, the Statistics pane as built (2026-11-09)
+
+- **View:** `src/chrome/stats-pane.ts` (direct DOM, no Preact) with its
+  pure parts in `stats-pane-model.ts` and `stats-pane.css`; still mounted
+  by the chrome chunk through `ctx.statsView` (ADR 0109). The pane's text,
+  label and track shades and light / dark are set on the content element
+  by `src/panes/statistics.ts`, as Timers sets its `--tm-*`.
+- **Font:** the pane's own font at em sizes, as Group and Timers (not a
+  system UI stack: the "Font" line of the Comm decision above meant the
+  same face as those panes, which is the pane font).
+- **The list is virtual:** one row height (measured from a probe row on a
+  size change), only the rows in view plus six on each side exist, so a
+  run of any length scrolls through every kill with a few dozen rows in
+  the DOM. Rows alternate by index, not by DOM order.
+- **Bars:** `transform: scaleX(min(1, --xp / --st-scale))` with the scale
+  3 × the median (the median tick sits at a third); while calibrating the
+  scale is the largest mob kill and there is no tick. A new median
+  rewrites one custom property and the rating word of rows that changed.
+- **The feed no longer loads every second.** Main's feed reloaded the
+  whole chain (`chainEvents` + `buildStats`) once a second while a run was
+  live: that was the pane's 1 Hz cost. Now: loads on run events (≤ 1/s),
+  a refresh every 60 s while a run is live (XP / h, ages), and a 1 Hz
+  check without a load for the run's end (a finishing replay sends no run
+  event). The clock and the card's age are the view's own 1 Hz text
+  writes; the rows' ages once a minute.
+- **Per kill:** the card's elements are made once and updated in place;
+  `--st-scale` is rewritten only when it moved more than 3 % (so most
+  kills restyle no row); following the bottom costs one scroll write. A
+  reversed-column scroller (no scroll write) was tried and dropped: no
+  gain in Chromium, about 2 ms slower frames after a kill in Firefox.
+  Reduced motion is read from a kept media query list (a `matchMedia`
+  per kill is avoidable work). The slide and the card's fade take 200 ms;
+  together they cost Chromium about 8 ms of main-thread time per kill
+  (layer changes and extra frames), measured with and without them.
+- **Selection:** rows can be selected (no mousedown prevented in the
+  list); elsewhere the pane keeps the game's keys as before.
+- **Small panes** (container queries in the view's em): below 26 em high
+  the card drops its scale, below 21 em the tiles and the section title
+  go; below 24 em wide the tiles are two by two and the age column goes,
+  and with less than 30 em of height there the tiles go.
+- **Removed:** `statsPaneLayout`, `paneHeader` and the pane's kit CSS; the
+  phone's ESC frame keeps `statsBody` and `TuiScrollbar`.
