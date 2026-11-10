@@ -122,6 +122,19 @@ export class Ring {
     return this[col].slice(0, this.size);
   }
 
+  /**
+   * The values written after time `t0` (a copy, newest first): the
+   * `#perf` overlay's rolling window. Assumes times only grow.
+   */
+  valuesSince(t0: number): Float64Array {
+    const n = this.size;
+    let k = 0;
+    while (k < n && this.t[(this.writes - 1 - k) % this.capacity]! > t0) k++;
+    const out = new Float64Array(k);
+    for (let j = 0; j < k; j++) out[j] = this.v[(this.writes - 1 - j) % this.capacity]!;
+    return out;
+  }
+
   stats(col: RingColumn = 'v'): Stats | null {
     return stats(this.column(col));
   }

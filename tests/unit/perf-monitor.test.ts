@@ -14,6 +14,7 @@ import {
   num,
   parsePerf,
   perfOutput,
+  perfOverlayRow,
   perfSummary,
   perfWorst,
   span,
@@ -179,8 +180,13 @@ describe('#perf formatting', () => {
   const env = { userAgent: 'Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0', ratio: 2, clock: () => '21:03:12' };
 
   it('parses the argument', () => {
-    expect(parsePerf('')).toBe('summary');
-    expect(parsePerf('  ')).toBe('summary');
+    expect(parsePerf('')).toBe('overlay');
+    expect(parsePerf('  ')).toBe('overlay');
+    expect(parsePerf('report')).toBe('summary');
+    expect(parsePerf('rep')).toBe('summary');
+    expect(parsePerf('{Report}')).toBe('summary');
+    expect(parsePerf('r')).toBe('reset');
+    expect(parsePerf('re')).toBe('reset');
     expect(parsePerf('worst')).toBe('worst');
     expect(parsePerf('w')).toBe('worst');
     expect(parsePerf('{Worst}')).toBe('worst');
@@ -289,5 +295,9 @@ describe('#perf formatting', () => {
     expect((perfOutput('reset', m, env) as StyledRow[]).map(text)).toEqual(['#perf cleared']);
     expect(m.rings.sends.size).toBe(0);
     expect(perfOutput('bogus', m, env)).toBe(PERF_USAGE);
+    expect(perfOutput('', m, env)).toBe(PERF_USAGE);
+    expect(PERF_USAGE).toBe('Usage: #perf [report | worst | reset]');
+    expect(perfOverlayRow(true).map(text)).toEqual(['#perf overlay on']);
+    expect(perfOverlayRow(false).map(text)).toEqual(['#perf overlay off']);
   });
 });
