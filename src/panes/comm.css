@@ -140,13 +140,13 @@
  * The scroller runs bottom-up (column-reverse: its scroll origin is the
  * bottom), so an overflowing list starts at the newest chat and keeps to it
  * without a script reading or writing the scroll position; its one child,
- * the list, is pushed to the top while it is short. */
+ * the list, is pushed to the top while it is short by an auto margin (not
+ * justify-content, which would put an overflow out of reach). */
 .wc-cm-chats {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column-reverse;
-  justify-content: flex-end;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -159,9 +159,13 @@
 
 .wc-cm-chatlist {
   flex: none;
+  margin-bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* The newest chat clear of the pane's bottom edge (a dock handle's grip
+   * lies over the last pixels). */
+  padding-bottom: 0.45em;
 }
 
 /* More above or below: the edge fades out (a mask on the box, so it does
