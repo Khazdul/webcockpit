@@ -59,6 +59,20 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-10 — Phone in-game makeover, mockups round 1
+
+- **Done:** owner questions on direction (light play, Lykta look for the
+  thumb, joystick-like movement plus flee, Comm easy to raise, map as a
+  dim background as one idea). Five mockup directions, 20 phone screens,
+  on a design canvas; sources and README in
+  `notes/research/phone-makeover/`. No code changed, no stage opened.
+- **Next:** the owner's reactions to the canvas, then a second round on
+  the chosen mix; after that a stage file and an intent Goal 12 amendment
+  (light play).
+- **Open issues:** the mockups were written without rendering; not
+  checked by eye.
+- **Commits:** 644083e9, plus this one.
+
 ### 2026-11-10 — Release 0.4.2
 
 - **Owner's decisions:** group tells stay marked bubbles; what opens a
