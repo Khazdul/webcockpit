@@ -822,15 +822,13 @@
 }
 
 /* A veil under a see-through or clear float (float-holes.ts, ADR 0135;
- * Firefox): hides the game text and the input line there, as a hole in
- * them would. Above them and below every pane by document order (no
- * z-index); the page colour, and with the weather the back layer's live
- * image (inline `-moz-element`, lined up with the canvas). */
+ * Firefox when its compositor is slow): hides the game text and the input
+ * line there, as a hole in them would, in the page colour. Above them and
+ * below every pane by document order (no z-index). */
 .wc-float-veil {
   position: absolute;
   pointer-events: none;
-  background-color: var(--term-bg);
-  background-repeat: no-repeat;
+  background: var(--term-bg);
 }
 
 /* Floating panes (ADR 0014): stacked by inline z-index from 10 up, over

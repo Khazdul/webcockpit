@@ -17,19 +17,18 @@
 //                  weather (or the page) and the panes under it show, the
 //                  game text does not (owner round 1)
 //
-// Veils (stage 50, ADR 0135): Firefox only (`-moz-element()`), and only
-// once `setVeils(true)` (App's FloatVeilWatch, src/layout/veil-watch.ts:
-// text that keeps reaching the screen late while there are holes). Then
-// the game text and the input line get no hole: a veil, a plain box at the
-// float's place painted right above them and below every pane, shows what
-// a hole would: the weather's back layer as a live image of its canvas
-// (`-moz-element`, the very frame the canvas shows) over the page colour.
-// Why: in Firefox's software WebRender a path clip on the game text costs
-// a re-raster of the masked text under the float on every new line (12–14
+// Veils (stage 50, ADR 0135): in Firefox, once `setVeils(true)` (App's
+// FloatVeilWatch, src/layout/veil-watch.ts: text that keeps reaching the
+// screen late while there are holes), the game text and the input line get
+// no hole. A veil, a plain box in the page colour at the float's place,
+// painted right above them and below every pane, hides the text instead.
+// Why: in Firefox's software WebRender a path clip on the game text costs a
+// re-raster of the masked text under the float on every new line (12–14
 // fps with a large framed float, bench/frame-matrix.ts); a veil is one
-// image rectangle. Why not always: the live image costs a main-thread
-// paint at the canvas' 30 fps, about +6 ms on a key's next frame, which
-// hardware WebRender, where the hole is cheap, need not pay.
+// rectangle. The cost: with the weather on, the weather no longer shows
+// through those floats (they look as with the weather off). A live image of
+// the weather's canvas (`-moz-element`) kept the look but froze Firefox for
+// 10 s now and then when it first painted (ADR 0135).
 //
 // The rest is pure.
 
@@ -79,15 +78,9 @@ export function holeClip(w: number, h: number, holes: readonly Rect[]): string {
   return `path(evenodd, "${rect(box)}${parts.map(rect).join('')}")`;
 }
 
-let veilIds = 0;
-
-/** Firefox's `-moz-element()` (a live image of another element), which the veils need. */
-export function elementImageSupported(): boolean {
-  try {
-    return typeof CSS !== 'undefined' && CSS.supports('background-image', '-moz-element(#a)');
-  } catch {
-    return false;
-  }
+/** Firefox (Gecko): the only engine whose compositor the veils are for. */
+export function geckoEngine(ua: string = typeof navigator === 'undefined' ? '' : navigator.userAgent): boolean {
+  return /\bGecko\/\d/.test(ua);
 }
 
 /**
@@ -129,15 +122,7 @@ export function floatHoles(root: HTMLElement, opts: { veils?: boolean } = {}): F
   /** Last style per veil, to touch the DOM only on a change. */
   const veilKeys: string[] = [];
   const doc = root.ownerDocument;
-  const syncVeils = (rects: readonly { x: number; y: number; w: number; h: number }[], weather: boolean): void => {
-    let image = '';
-    if (weather) {
-      const back = root.querySelector<HTMLElement>(':scope > .wc-weather-back');
-      if (back && !back.hidden) {
-        if (!back.id) back.id = `wc-weather-back-${++veilIds}`;
-        image = `-moz-element(#${back.id})`;
-      }
-    }
+  const syncVeils = (rects: readonly { x: number; y: number; w: number; h: number }[]): void => {
     while (veils.length > rects.length) {
       veils.pop()!.remove();
       veilKeys.pop();
@@ -153,8 +138,9 @@ export function floatHoles(root: HTMLElement, opts: { veils?: boolean } = {}): F
         veils.push(v);
         veilKeys.push('');
       }
-      if (anchor && v.previousElementSibling !== (i === 0 ? anchor : veils[i - 1])) (i === 0 ? anchor : veils[i - 1]!).after(v);
-      const key = `${r.x} ${r.y} ${r.w} ${r.h} ${image}`;
+      const prev = i === 0 ? anchor : veils[i - 1]!;
+      if (prev && v.previousElementSibling !== prev) prev.after(v);
+      const key = `${r.x} ${r.y} ${r.w} ${r.h}`;
       if (veilKeys[i] === key) return;
       veilKeys[i] = key;
       const st = v.style;
@@ -162,9 +148,6 @@ export function floatHoles(root: HTMLElement, opts: { veils?: boolean } = {}): F
       st.top = `${r.y}px`;
       st.width = `${r.w}px`;
       st.height = `${r.h}px`;
-      // The canvas covers the cockpit: its image, placed so it lines up with it.
-      st.backgroundImage = image;
-      st.backgroundPosition = image ? `${-r.x}px ${-r.y}px` : '';
     });
   };
   const unclip = (el: HTMLElement): void => {
@@ -200,7 +183,7 @@ export function floatHoles(root: HTMLElement, opts: { veils?: boolean } = {}): F
       }
       const next = new Map<HTMLElement, string>();
       // Veils in place of the holes in the game text and the input line.
-      syncVeils(useVeils ? floats.map((f) => f.r) : [], weather);
+      syncVeils(useVeils ? floats.map((f) => f.r) : []);
       if (floats.length) {
         for (const el of root.querySelectorAll<HTMLElement>(':scope > .wc-game, :scope > .wc-input-slot, :scope > .wc-pane')) {
           if (el.hidden) continue;

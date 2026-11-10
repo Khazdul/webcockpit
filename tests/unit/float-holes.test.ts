@@ -3,7 +3,7 @@
 // ADR 0095 round 1): glass floats with weather on, clear floats always but
 // only in the game text and the input line.
 import { describe, expect, it } from 'vitest';
-import { floatHoles } from '../../src/layout/float-holes';
+import { floatHoles, geckoEngine } from '../../src/layout/float-holes';
 
 type Box = { x: number; y: number; w: number; h: number };
 
@@ -90,7 +90,7 @@ describe('floatHoles', () => {
     expect(clip(t.fl[1]!)).toBe('');
   });
 
-  it('veils (Firefox): no hole in the game text or the input line; a veil per float right after them, below the panes', () => {
+  it('veils (Firefox, slow compositor): no hole in the game text or the input line; a veil per float right after them, below the panes', () => {
     const t = rig(
       [
         { box: { x: 550, y: 100, w: 100, h: 100 } },
@@ -98,37 +98,48 @@ describe('floatHoles', () => {
       ],
       true,
     );
-    const back = document.createElement('canvas');
-    back.className = 'wc-weather-layer wc-weather-back';
-    t.root.prepend(back);
     t.root.setAttribute('data-weather', '');
     t.holes.sync();
     expect([clip(t.game), clip(t.input)]).toEqual(['', '']);
+    expect(t.holes.textHoles).toBe(false);
     // The panes still get theirs.
     expect(clip(t.docked)).toContain('M-50 100H');
     const veils = [...t.root.querySelectorAll<HTMLElement>(':scope > .wc-float-veil')];
     expect(veils).toHaveLength(2);
     expect(t.input.nextElementSibling).toBe(veils[0]);
     expect(veils[0]!.nextElementSibling).toBe(veils[1]);
-    expect(back.id).toMatch(/^wc-weather-back-\d+$/);
     expect(veils.map((v) => [v.style.left, v.style.top, v.style.width, v.style.height])).toEqual([
       ['550px', '100px', '100px', '100px'],
       ['100px', '300px', '200px', '100px'],
     ]);
-    // The back layer's live image, lined up with the canvas (happy-dom drops `-moz-element` itself).
-    expect(veils[1]!.style.backgroundPosition).toBe('-100px -300px');
     expect(veils[0]!.getAttribute('aria-hidden')).toBe('true');
 
-    // Weather off: the glass float needs none; the clear one keeps its veil, the page colour only.
+    // Weather off: the glass float needs none; the clear one keeps its veil.
     t.root.removeAttribute('data-weather');
     t.holes.sync();
     const left = [...t.root.querySelectorAll<HTMLElement>(':scope > .wc-float-veil')];
     expect(left).toHaveLength(1);
     expect(left[0]!.style.left).toBe('100px');
-    expect(left[0]!.style.backgroundPosition).toBe('');
     expect(clip(t.game)).toBe('');
 
     t.holes.clear();
     expect(t.root.querySelectorAll('.wc-float-veil')).toHaveLength(0);
+  });
+
+  it('switches from holes to veils at the next sync; textHoles says which', () => {
+    const t = rig([{ box: { x: 500, y: 700, w: 200, h: 100 }, clear: true }]);
+    t.holes.sync();
+    expect(t.holes.textHoles).toBe(true);
+    expect(clip(t.game)).not.toBe('');
+    t.holes.setVeils(true);
+    t.holes.sync();
+    expect(t.holes.textHoles).toBe(false);
+    expect([clip(t.game), clip(t.input)]).toEqual(['', '']);
+    expect(t.root.querySelectorAll('.wc-float-veil')).toHaveLength(1);
+  });
+
+  it('knows Firefox by its engine', () => {
+    expect(geckoEngine('Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0')).toBe(true);
+    expect(geckoEngine('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36')).toBe(false);
   });
 });
