@@ -242,10 +242,6 @@
 .wc-st-scroll {
   flex: 1 1 0;
   min-height: 0;
-  /* Reversed: scrollTop 0 is the bottom, so the list stays there as kills
-   * are added without a scroll write. */
-  display: flex;
-  flex-direction: column-reverse;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -258,7 +254,6 @@
 
 .wc-st-space {
   position: relative;
-  flex: none;
 }
 
 .wc-st-row {

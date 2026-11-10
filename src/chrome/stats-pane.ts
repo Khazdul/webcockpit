@@ -19,10 +19,11 @@
 //
 // - The list is virtual: rows have one height, the space is n rows tall and
 //   only the rows in view (plus a margin) exist, so a run of thousands of
-//   kills costs the same DOM as one of thirty. Bottom-anchored by CSS (the
-//   scroller is a reversed column, scrollTop 0 is the bottom), so following
-//   new kills writes no scroll position and forces no layout; scrolled up,
-//   the view is held by one scroll write per change and `↓ N new` counts.
+//   kills costs the same DOM as one of thirty. Bottom-anchored: at the
+//   bottom it follows new kills (one scroll write per change); scrolled up
+//   it stays (the list grows below the view) and `↓ N new` counts them. A
+//   reversed-column scroller (no scroll write) was tried: no gain in
+//   Chromium and slower frames after a kill in Firefox.
 // - A new kill appends: the previous card's kill becomes the list's last row
 //   (it slides up from the card), the card shows the new one. Bars are a
 //   transform of `--xp / --st-scale` (scale = 3 × the median), so a new
@@ -131,7 +132,7 @@ export class StatsPaneView implements StatsPaneHandle {
   private readonly rows = new Map<number, HTMLDivElement>();
   private rowH = 0;
   private viewH = 0;
-  /** Distance of the view from the list's bottom (px; the reversed column's −scrollTop). */
+  /** Distance of the view from the list's bottom (px). */
   private fromBottom = 0;
   private pinned = true;
   private unseen = 0;
@@ -247,6 +248,7 @@ export class StatsPaneView implements StatsPaneHandle {
       ? new RO((entries) => {
           for (const e of entries) {
             this.viewH = e.contentRect.height;
+            if (this.pinned) this.toBottom(true);
             this.renderWindow();
           }
         })
@@ -273,6 +275,7 @@ export class StatsPaneView implements StatsPaneHandle {
       if (this.measureRow() && this.rowH !== old) {
         this.clearRows();
         this.layoutSpace();
+        if (this.pinned) this.toBottom(true);
         this.renderWindow();
       } else if (this.rowH === 0) this.rowH = old;
     }
@@ -352,11 +355,10 @@ export class StatsPaneView implements StatsPaneHandle {
       this.unseen = 0;
     }
     this.layoutSpace();
-    if (!appended) this.toBottom();
-    else if (!this.pinned && added > 0) {
-      // Scrolled up: hold the view where it is (the list grew below it).
+    if (!appended || this.pinned) this.toBottom(added > 0 || !appended);
+    else if (added > 0) {
+      // Scrolled up: the view stays (the list grew below it).
       this.fromBottom += added * this.rowH;
-      this.scroll.scrollTop = -this.fromBottom;
       this.unseen += added;
       this.showMore();
     }
@@ -387,9 +389,9 @@ export class StatsPaneView implements StatsPaneHandle {
     this.more.hidden = true;
   }
 
-  /** Back to the bottom (a scroll write only when not there already). */
-  private toBottom(): void {
-    if (this.fromBottom !== 0) this.scroll.scrollTop = 0;
+  /** Back to the bottom; `write`: the list or the view changed, so the scroll position is written. */
+  private toBottom(write: boolean): void {
+    if (write || this.fromBottom !== 0) this.scroll.scrollTop = this.listLen() * this.rowH;
     this.fromBottom = 0;
     this.pinned = true;
     this.unseen = 0;
@@ -404,7 +406,10 @@ export class StatsPaneView implements StatsPaneHandle {
   /** Makes the rows in view (plus the margin) and drops the rest. */
   private renderWindow(): void {
     const n = this.listLen();
-    if (n > 0 && this.rowH <= 0 && this.measureRow()) this.layoutSpace();
+    if (n > 0 && this.rowH <= 0 && this.measureRow()) {
+      this.layoutSpace();
+      if (this.pinned) this.toBottom(true);
+    }
     if (this.rowH <= 0 || n === 0 || !this.shown) {
       if (n === 0) this.clearRows();
       return;
@@ -469,7 +474,7 @@ export class StatsPaneView implements StatsPaneHandle {
   }
 
   private readonly onScroll = (): void => {
-    this.fromBottom = Math.max(0, -this.scroll.scrollTop);
+    this.fromBottom = Math.max(0, this.listLen() * this.rowH - this.viewH - this.scroll.scrollTop);
     this.pinned = this.fromBottom <= PIN_SLACK;
     if (this.pinned && this.unseen) {
       this.unseen = 0;
@@ -489,7 +494,7 @@ export class StatsPaneView implements StatsPaneHandle {
     this.pinned = true;
     this.unseen = 0;
     this.more.hidden = true;
-    this.scroll.scrollTo({ top: 0, behavior: reducedMotion(this.doc) ? 'auto' : 'smooth' });
+    this.scroll.scrollTo({ top: this.listLen() * this.rowH, behavior: reducedMotion(this.doc) ? 'auto' : 'smooth' });
   };
 
   private readonly onDown = (e: MouseEvent): void => {

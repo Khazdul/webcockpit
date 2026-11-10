@@ -145,7 +145,7 @@ test('during a replay: the live run, a long list that follows and counts `↓ N 
   await expect(view(page).locator('.wc-st-row.is-newest .wc-st-name')).toHaveText('a stone troll 58');
   // Scrolled up: new kills do not move the view; `↓ N new` counts them; a press returns.
   const scroll = view(page).locator('.wc-st-scroll');
-  await scroll.evaluate((el) => (el.scrollTop = -el.scrollHeight)); // a reversed column: 0 is the bottom
+  await scroll.evaluate((el) => (el.scrollTop = 0));
   await expect(view(page).locator('.wc-st-row .wc-st-name').filter({ hasText: /^a stone troll 0$/ })).toHaveCount(1);
   await emit(3, 60);
   const more = view(page).locator('.wc-st-more');
@@ -154,7 +154,7 @@ test('during a replay: the live run, a long list that follows and counts `↓ N 
   await expect(view(page).locator('.wc-st-row .wc-st-name').filter({ hasText: /^a stone troll 0$/ })).toBeInViewport();
   await more.click();
   await expect(more).toBeHidden();
-  await expect.poll(() => scroll.evaluate((el) => Math.abs(el.scrollTop))).toBeLessThan(5);
+  await expect.poll(() => scroll.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(5);
   await expect(field(page)).toBeFocused();
   await expect(view(page)).toHaveAttribute('data-ended', '', { timeout: 40_000 });
   expect(errors).toEqual([]);
