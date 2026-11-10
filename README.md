@@ -76,7 +76,7 @@ pane hides the weather behind it once the client sees the screen lag, so
 the text stays fast.
 
 **Comm and Statistics.** Comm is a conversation pane: Public (the
-channels you pick in its gear), Group (everything your group's players
+channels you pick in its gear, NPCs' talk only if you turn it on), Group (everything your group's players
 say) and one chat per person who talks to you, with search, a reply line
 that sends a tell, and a column that folds away. Statistics follows the
 run live: the last kill rated against the median of your recent kills
