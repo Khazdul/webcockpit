@@ -614,6 +614,95 @@ describe('CommPane (ADR 0134)', () => {
     db.close();
   });
 
+  it('Group: no roster before a Group.* message; the first is a baseline, a later change notes who joined', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.bus.emit('gmcp', text('says', 'you', 'alone'));
+    c.open('group');
+    expect(c.rows()).toEqual([]);
+    // Char.Name, then the group the character was already in: no "joined" for them.
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    c.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 1, name: 'Rasta', type: 'you' }, { id: 2, name: 'Lindir', type: 'ally' }] });
+    c.flush();
+    expect(c.qa('.wc-cm-note')).toHaveLength(0);
+    c.bus.emit('gmcp', { pkg: 'Group.Add', data: { id: 3, name: 'Haldis', type: 'ally' } });
+    c.flush();
+    expect(c.qa('.wc-cm-note').map((e) => e.textContent)).toEqual(['Haldis joined the group']);
+    // Alone in a group of one (only you): your lines stay out of Group.
+    const d = comm({ cols: 60, rows: 20 });
+    d.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 1, name: 'Rasta', type: 'you' }] });
+    d.bus.emit('gmcp', text('says', 'you', 'solo'));
+    d.open('group');
+    expect(d.rows()).toEqual([]);
+  });
+
+  it('an archive load leaves Group empty, makes no "joined" notes, and keeps unread and colours', async () => {
+    const NOW = Date.now();
+    const c = comm({ db: true, state: 'login', now: () => NOW, cols: 60, rows: 20 });
+    const db = await openWebcockpitDb(c.factory!);
+    const arch = new CommArchive(db);
+    await arch.append({ character: 'Rasta', ts: NOW - 60_000, channel: 'says', talker: 'Lindir', talkerType: 'player', destination: null, text: "Lindir says 'archived'" });
+    await c.pane.whenReady();
+    c.setState('connecting');
+    c.setState('playing');
+    c.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 1, name: 'Rasta', type: 'you' }, { id: 2, name: 'Lindir', type: 'ally' }] });
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    await flushAsync();
+    c.emit('tells', 'Gibur', "Gibur tells you 'live'");
+    c.flush();
+    const ink = c.q('.wc-cm-ent[data-key="gibur"]')!.style.getPropertyValue('--pc');
+    await flushAsync();
+    // Char.Name again (a re-login): the archive, now with Gibur's tell, is loaded quietly.
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    await flushAsync();
+    c.flush();
+    expect(c.pane.messages.map((m) => m.text)).toEqual(["Lindir says 'archived'", "Gibur tells you 'live'"]);
+    // The load rebuilt the model: Gibur's unread and colour stay.
+    expect(c.q('.wc-cm-ent[data-key="gibur"] .wc-cm-badge')!.textContent).toBe('1');
+    expect(c.q('.wc-cm-ent[data-key="gibur"]')!.style.getPropertyValue('--pc')).toBe(ink);
+    c.open('group');
+    expect(c.rows()).toEqual([]);
+    expect(c.qa('.wc-cm-note')).toHaveLength(0);
+    db.close();
+  });
+
+  it('the reply line is hidden in a chat with a name a tell cannot reach', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tells', 'a dwarven sergeant', "A dwarven sergeant tells you 'halt'");
+    c.open('a dwarven sergeant');
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(true);
+    c.emit('tells', 'Gibur', "Gibur tells you 'hi'");
+    c.open('gibur');
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(false);
+  });
+
+  it('open search results follow only talk they would show, and keep their place', async () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tales', 'Dori', "Dori narrates 'trolls at the ford'");
+    c.flush();
+    c.q('.wc-cm-sbtn')!.click();
+    const input = c.q<HTMLInputElement>('.wc-cm-sinput')!;
+    input.value = 'troll';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((r) => setTimeout(r, 160));
+    const first = c.q('.wc-cm-rm')!;
+    c.emit('says', 'Bergil', "Bergil says 'hello'");
+    c.flush();
+    await new Promise((r) => setTimeout(r, 160));
+    expect(c.q('.wc-cm-rm')).toBe(first);
+    c.emit('says', 'Bergil', "Bergil says 'a troll!'");
+    c.flush();
+    await new Promise((r) => setTimeout(r, 160));
+    expect(c.qa('.wc-cm-rm .wc-cm-rmt').map((e) => e.textContent)).toEqual(["Bergil says 'a troll!'", "Dori narrates 'trolls at the ford'"]);
+  });
+
+  it('stops the age tick while hidden', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    const timer = () => (c.pane as unknown as { ageTimer: unknown }).ageTimer;
+    expect(timer()).not.toBeNull();
+    c.pane.place(null, { w: 8, h: CELL_H });
+    expect(timer()).toBeNull();
+  });
+
   it('keeps at most 1000 messages and builds only a page of the view', () => {
     const c = comm();
     for (let i = 0; i < 1005; i++) c.bus.emit('gmcp', text('says', 'D', `D says '${i}'`));

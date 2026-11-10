@@ -156,6 +156,21 @@ test('the spine folds the chat list; folded, the chip names the open chat and un
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
+test('a double-click on the spine gives the automatic width and never folds', async ({ page }) => {
+  await demo(page);
+  await page.evaluate(() => window.__wc!.settings.update({ comm: { listWidth: 60 } }));
+  await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-mode', 'rail');
+  const handle = comm(page).locator('.wc-cm-handle');
+  await handle.hover();
+  await handle.dblclick();
+  await expect.poll(async () => (await settings(page)).comm.listWidth).toBeNull();
+  // Past the double-click time: still not folded.
+  await page.waitForTimeout(500);
+  expect((await settings(page)).comm.folded).toBe(false);
+  await expect(comm(page).locator('.wc-comm')).not.toHaveAttribute('data-mode', 'folded');
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
 test('the Comm gear sets the Public channels and the chat window live (ADR 0107, 0134)', async ({ page }) => {
   await demo(page);
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();

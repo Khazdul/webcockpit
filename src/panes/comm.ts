@@ -52,6 +52,7 @@ import {
   channelEnabled,
   channelLabel,
   cleanName,
+  commPlain,
   formatComm,
   parseAnsi,
   parseChannelList,
@@ -101,6 +102,8 @@ export const SEARCH_DEBOUNCE_MS = 120;
 const AGE_TICK_MS = 30_000;
 /** A press that travels less than this (px) on the spine is a click. */
 const SPINE_CLICK_PX = 4;
+/** A click on the spine folds after this long (ms), unless a second press makes it a double-click. */
+export const SPINE_DBL_MS = 300;
 /** Message hits shown at most. */
 const SEARCH_LIMIT = 200;
 /** Under this many cell rows the chat column is one line per entry. */
@@ -181,6 +184,9 @@ export class CommPane extends PaneShell {
   /** The roster's names as last given to the model (a key). */
   private rosterKey = '';
   private rosterNames: string[] = [];
+  /** A `Group.*` message came this connection, and the model has had a roster since. */
+  private rosterSeen = false;
+  private rosterSet = false;
 
   // view state
   private colRows = new Map<string, ColRow>();
@@ -205,6 +211,13 @@ export class CommPane extends PaneShell {
   private query = '';
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private searchDirty = false;
+  /** A spine click's fold, waiting out the double-click time. */
+  private foldTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Public's filtered messages, kept between renders (`publicItems`). */
+  private publicCache: { src: readonly ChatEntry[]; filters: Readonly<Record<string, boolean>>; lastSeq: number; list: ChatEntry[] } | null = null;
+  private searchByUser = false;
+  /** Removes the deferred-refresh selection listener, while one waits. */
+  private selWatch: (() => void) | null = null;
   private hovered = false;
   private ageTimer: ReturnType<typeof setInterval> | null = null;
   /** When the column's texts were last written, and the catch-up timer. */
@@ -318,7 +331,11 @@ export class CommPane extends PaneShell {
       if (this.searchTimer !== null) clearTimeout(this.searchTimer);
       if (this.ageTimer !== null) clearInterval(this.ageTimer);
       if (this.colTextTimer !== null) clearTimeout(this.colTextTimer);
+      this.selWatch?.();
+      this.cancelFold();
     });
+    // Hidden (0 × 0): no age ticks; the next render on show starts them again.
+    this.own(this.onResize((c, r) => c === 0 && r === 0 && this.stopAges()));
     this.syncRoster();
   }
 
@@ -335,6 +352,12 @@ export class CommPane extends PaneShell {
     } else if (p === 'char.name') {
       const n = (data as { name?: unknown } | undefined)?.name;
       if (typeof n === 'string' && n) this.onCharacter(n);
+    } else if (p === 'group.set' || p === 'group.add' || p === 'group.remove' || p === 'group.update') {
+      // A roster is known from here on; the game state may apply the
+      // message before or after this handler, so read it now and again on
+      // its 'group' change.
+      this.rosterSeen = true;
+      this.syncRoster();
     }
   }
 
@@ -342,7 +365,8 @@ export class CommPane extends PaneShell {
     this.history.push(msg);
     if (this.history.length > COMM_HISTORY_MAX) this.history.splice(0, this.history.length - COMM_HISTORY_MAX);
     this.chats.add(msg);
-    this.searchDirty = this.searchOpen;
+    // The results follow only talk they would show.
+    if (this.searchOpen && this.matchesSearch(msg)) this.searchDirty = true;
     if (!this.replay && this.character) {
       if (this.pendingWrites) this.pendingWrites.push(msg);
       else this.write(msg);
@@ -356,15 +380,26 @@ export class CommPane extends PaneShell {
     a.append({ character: this.character, ...msg }).catch(() => undefined);
   }
 
-  /** The model again from `history` (a seed load, a new character): the older part quietly. */
+  /**
+   * The model again from `history` (a seed load, a new character). The
+   * first `quiet` messages (the archive) come back quietly and outside
+   * Group (it starts empty until new talk, ADR 0134 49a addendum); then the
+   * roster, if one has been seen this connection; then the rest (live
+   * messages that came in during the load) as they arrived. Unread counts
+   * carry over; the colours stay (the model keeps them).
+   */
   private rebuild(quiet: number): void {
     const open = this.chats.open;
+    const unread = this.chats.unreadSnapshot();
     this.chats.reset();
     this.chats.setSelf(this.character);
-    this.chats.setRoster(this.rosterNames, this.ctx.now());
-    this.history.forEach((m, i) => this.chats.add(m, i < quiet));
+    for (let i = 0; i < quiet && i < this.history.length; i++) this.chats.add(this.history[i]!, true, true);
+    if (this.rosterSeen) this.chats.setRoster(this.rosterNames, this.ctx.now());
+    for (let i = Math.max(0, quiet); i < this.history.length; i++) this.chats.add(this.history[i]!);
     this.chats.setOpen(open === PUBLIC || open === GROUP || (open && this.chats.chat(open)) ? open : PUBLIC);
+    this.chats.restoreUnread(unread);
     this.threadView = '';
+    this.publicCache = null;
     this.searchDirty = this.searchOpen;
   }
 
@@ -419,17 +454,25 @@ export class CommPane extends PaneShell {
     });
   }
 
-  /** The group's players to the model when they change (NPCs left out). */
+  /**
+   * The group's players to the model when they change (NPCs left out),
+   * once a roster has really been seen this connection (a `Group.*`
+   * message): the first one is the baseline (no "joined" for those already
+   * there), later changes give "joined" / "left". Before it the model has
+   * no roster, so nothing goes to Group but group tells.
+   */
   private syncRoster(): void {
+    if (!this.rosterSeen) return;
     const names = this.ctx.game.group
       .list()
       .filter((m) => m.type !== 'npc')
       .map((m) => m.name)
       .filter((n) => n.trim() !== '');
     const key = names.map((n) => n.toLowerCase()).sort().join('\n');
-    if (key === this.rosterKey) return;
+    if (key === this.rosterKey && this.rosterSet) return;
     this.rosterKey = key;
     this.rosterNames = names;
+    this.rosterSet = true;
     this.chats.setRoster(names, this.ctx.now());
     this.markDirty();
   }
@@ -438,6 +481,8 @@ export class CommPane extends PaneShell {
     if (active) return;
     // A disconnect: the next roster is a first one (no "joined" for all).
     this.chats.forgetRoster();
+    this.rosterSeen = false;
+    this.rosterSet = false;
     this.rosterKey = '';
     this.rosterNames = [];
   }
@@ -495,7 +540,7 @@ export class CommPane extends PaneShell {
     this.searchClear.tabIndex = 0;
     this.root.toggleAttribute('data-search', true);
     this.searchInput.focus({ preventScroll: true });
-    this.runSearch();
+    this.runSearch(true);
   }
 
   closeSearch(): void {
@@ -524,8 +569,8 @@ export class CommPane extends PaneShell {
     else if (open === GROUP) cmd = `tell group ${text}`;
     else {
       const c = this.chats.chat(open);
-      if (!c) return;
-      cmd = `tell ${c.name.split(/\s+/)[0]} ${text}`;
+      if (!c || !tellable(c.name)) return;
+      cmd = `tell ${c.name} ${text}`;
     }
     this.ctx.sender.sendCommand(cmd);
     this.replyInput.value = '';
@@ -547,7 +592,7 @@ export class CommPane extends PaneShell {
     this.searchClear.addEventListener('click', () => this.closeSearch());
     this.searchInput.addEventListener('input', () => {
       this.query = this.searchInput.value;
-      this.scheduleSearch();
+      this.scheduleSearch(true);
     });
     this.searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -678,6 +723,10 @@ export class CommPane extends PaneShell {
     } catch {
       /* synthetic events */
     }
+    // A second press while a click's fold waits: a double-click (the
+    // dblclick handler sets the automatic width); the fold is cancelled.
+    const second = this.foldTimer !== null;
+    this.cancelFold();
     const x0 = e.clientX;
     const w0 = this.layout.mode === 'folded' ? 0 : this.layout.width;
     const paneW = this.paneWidth();
@@ -703,8 +752,11 @@ export class CommPane extends PaneShell {
       this.root.removeAttribute('data-dragging');
       const l = this.dragLayout;
       this.dragLayout = null;
-      if (!moved) this.setFolded(this.layout.mode !== 'folded');
-      else if (l) this.setColumn(l);
+      if (!moved) {
+        // A click folds once the double-click time has passed without a
+        // second press, so a double-click never folds.
+        if (!second) this.foldLater(this.layout.mode !== 'folded');
+      } else if (l) this.setColumn(l);
       this.markDirty();
     };
     target.addEventListener('pointermove', move);
@@ -713,16 +765,67 @@ export class CommPane extends PaneShell {
   };
 
   private readonly onSpineReset = (): void => {
+    this.cancelFold();
     this.ctx.settings.update({ comm: { folded: false, listWidth: null } });
   };
 
-  private scheduleSearch(): void {
+  private foldLater(on: boolean): void {
     const win = this.ctx.doc.defaultView;
+    this.foldTimer = (win ? win.setTimeout.bind(win) : setTimeout)(() => {
+      this.foldTimer = null;
+      this.setFolded(on);
+    }, SPINE_DBL_MS);
+  }
+
+  private cancelFold(): void {
+    if (this.foldTimer === null) return;
+    const win = this.ctx.doc.defaultView;
+    (win ? win.clearTimeout.bind(win) : clearTimeout)(this.foldTimer);
+    this.foldTimer = null;
+  }
+
+  /**
+   * Runs the search after the debounce: `user` (typing) starts the results
+   * at their top; a refresh for new talk or a new ink keeps where they were.
+   */
+  private scheduleSearch(user = false): void {
+    const win = this.ctx.doc.defaultView;
+    this.searchByUser ||= user;
     if (this.searchTimer !== null) (win ? win.clearTimeout.bind(win) : clearTimeout)(this.searchTimer);
     this.searchTimer = (win ? win.setTimeout.bind(win) : setTimeout)(() => {
       this.searchTimer = null;
-      this.runSearch();
+      const byUser = this.searchByUser;
+      this.searchByUser = false;
+      this.runSearch(byUser);
     }, SEARCH_DEBOUNCE_MS);
+  }
+
+  /** New talk that the open search would show (its text or a person matches). */
+  private matchesSearch(m: CommMessage): boolean {
+    const q = this.query.trim().toLowerCase();
+    if (!q) return false;
+    if (commPlain(m).toLowerCase().includes(q)) return true;
+    return [m.talker, m.destination ?? ''].some((n) => n !== '' && cleanName(n).toLowerCase().includes(q));
+  }
+
+  /** Renders again once the selection has left the results (a deferred refresh). */
+  private awaitSelectionEnd(): void {
+    if (this.selWatch) return;
+    const doc = this.ctx.doc;
+    const on = (): void => {
+      if (this.selectingResults()) return;
+      doc.removeEventListener('selectionchange', on);
+      this.selWatch = null;
+      this.markDirty();
+    };
+    this.selWatch = () => doc.removeEventListener('selectionchange', on);
+    doc.addEventListener('selectionchange', on);
+  }
+
+  /** A selection lies in the results (it must not be rebuilt away under the reader). */
+  private selectingResults(): boolean {
+    const sel = this.ctx.doc.getSelection();
+    return sel !== null && !sel.isCollapsed && this.results.contains(sel.anchorNode);
   }
 
   // ---------------------------------------------------------------- render
@@ -749,6 +852,8 @@ export class CommPane extends PaneShell {
     const bg = mix(paneContentBg(color, s.appearance.bg, glass), '#000000', COMM_EDGE_SHADE);
     const inksChanged = light !== this.inks.light || bg !== this.inks.bg;
     this.inks = { light, bg };
+    // The results take the new inks too.
+    if (inksChanged && this.searchOpen && this.query.trim()) this.searchDirty = true;
     toggle(this.root, 'data-light', light);
     toggle(this.root, 'data-compact', this.rows < COMPACT_ROWS);
     setProp(this.root, '--cm-fg', shade.ramp.vtext);
@@ -801,9 +906,35 @@ export class CommPane extends PaneShell {
   }
 
   private viewItems(open: string, filters: Readonly<Record<string, boolean>>): readonly ThreadItem[] {
-    if (open === PUBLIC) return this.chats.publicEntries.filter((e) => channelEnabled(filters, e.msg.channel));
+    if (open === PUBLIC) return this.publicItems(filters);
     if (open === GROUP) return this.chats.groupView;
     return this.chats.chat(open)?.entries ?? [];
+  }
+
+  /**
+   * Public's messages through the filters, kept between renders: built
+   * whole when the filters or the model's list change (a rebuild), else
+   * trimmed at the front and appended to with what came since.
+   */
+  private publicItems(filters: Readonly<Record<string, boolean>>): readonly ChatEntry[] {
+    const src = this.chats.publicEntries;
+    let c = this.publicCache;
+    if (!c || c.src !== src || c.filters !== filters) {
+      c = { src, filters, lastSeq: 0, list: [] };
+      this.publicCache = c;
+    }
+    const first = src[0]?.seq ?? Infinity;
+    let drop = 0;
+    while (drop < c.list.length && c.list[drop]!.seq < first) drop++;
+    if (drop > 0) c.list.splice(0, drop);
+    let i = src.length;
+    while (i > 0 && src[i - 1]!.seq > c.lastSeq) i--;
+    for (; i < src.length; i++) {
+      const e = src[i]!;
+      if (channelEnabled(filters, e.msg.channel)) c.list.push(e);
+    }
+    if (src.length > 0) c.lastSeq = src[src.length - 1]!.seq;
+    return c.list;
   }
 
   private viewSize(): number {
@@ -1072,7 +1203,10 @@ export class CommPane extends PaneShell {
   // ---------------------------------------------------------------- reply
 
   private renderReply(open: string): void {
-    const hide = this.replay || this.ctx.player === true;
+    // A chat with an enemy (`*Name*`) or a name of several words has no
+    // reply line: neither can be told reliably (owner's reviewer, 2026-11-10).
+    const chat = open === PUBLIC || open === GROUP ? null : this.chats.chat(open);
+    const hide = this.replay || this.ctx.player === true || (chat !== null && chat !== undefined && !tellable(chat.name));
     this.reply.hidden = hide;
     if (hide) return;
     let ph: string;
@@ -1229,10 +1363,18 @@ export class CommPane extends PaneShell {
 
   // --------------------------------------------------------------- search
 
-  private runSearch(): void {
+  private runSearch(byUser: boolean): void {
+    // A refresh waits while the reader has a selection in the results; it
+    // runs once the selection is gone.
+    if (!byUser && this.selectingResults()) {
+      this.searchDirty = true;
+      this.awaitSelectionEnd();
+      return;
+    }
     this.searchDirty = false;
     const q = this.query.trim().toLowerCase();
     const doc = this.ctx.doc;
+    const keepTop = byUser ? 0 : this.results.scrollTop;
     if (!q) {
       this.results.hidden = true;
       this.list.el.hidden = false;
@@ -1299,7 +1441,7 @@ export class CommPane extends PaneShell {
     this.results.hidden = false;
     this.list.el.hidden = true;
     this.list.more.hidden = true;
-    this.results.scrollTop = 0;
+    this.results.scrollTop = keepTop;
   }
 }
 
@@ -1391,6 +1533,11 @@ function styleRun(span: HTMLElement, r: StyleRun): void {
   if (r.italic) cls += ' wc-ital';
   if (r.underline) cls += ' wc-ul';
   if (cls) span.className = cls.slice(1);
+}
+
+/** A chat's name a tell can reach: one word, not an enemy's `*Name*`. */
+function tellable(name: string): boolean {
+  return /^[^\s*]+$/.test(name);
 }
 
 /** An item shows the time before it when it starts the view or follows a gap. */
