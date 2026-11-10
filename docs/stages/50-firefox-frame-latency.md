@@ -61,8 +61,12 @@ ADR 0135 holds the decisions. ADR 0047 has an addendum for `#perf`.
 - [x] `#perf` overlay, `#perf report`, help, usage, ADR 0047 addendum;
       unit tests and e2e.
 - [x] Overlay cost measured.
-- [x] Typecheck, unit tests, e2e (layout, pane-buttons, weather, perf,
-      help) in Firefox and Chromium.
+- [x] Typecheck, unit tests (3520 passed), and e2e in Firefox and
+      Chromium. The focused specs (layout, pane-buttons, weather, perf,
+      help) passed 74 of 74. The full run passed 859; three tests failed
+      under full parallel load (pane-buttons script pane in Firefox;
+      look-kit-box and scripts-settings in Chromium). All 52 tests of
+      those three specs passed when rerun with 4 workers.
 
 ## Findings
 
