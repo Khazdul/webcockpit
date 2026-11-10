@@ -1,7 +1,9 @@
-// The `#perf` overlay (stage 50, ADR 0135, ADR 0047 addendum): a small box
-// in the bottom-left corner with live frame rate, the worst frame of the
-// last 5 s, and rolling received -> shown and key -> send. `#perf` alone
-// turns it on and off. Loaded with a dynamic import on the first toggle.
+// The `#perf` overlay (stage 50, ADR 0135, ADR 0047 addendum): a small
+// plain debug box at the game pane's top left, styled like the weather
+// demo's caption box (src/weather/demo.css), with live frame rate, the
+// worst frame of the last 5 s, and rolling received -> shown and key ->
+// send. `#perf` alone turns it on and off. Loaded with a dynamic import on
+// the first toggle.
 //
 // Cost while on: one requestAnimationFrame callback per frame (a
 // subtraction and two typed-array stores, src/app/perf-live.ts) and a
@@ -26,9 +28,17 @@ export class PerfOverlay {
   private readonly win: Window & typeof globalThis;
   private last = '';
 
+  private readonly unLayout: (() => void) | null;
+
+  /**
+   * In `host` (the cockpit), over `anchor` (the game pane)'s top left, moved
+   * with it on every relayout (`onLayout`).
+   */
   constructor(
     host: HTMLElement,
     private readonly rings: Pick<PerfRings, 'shown' | 'keys'>,
+    private readonly anchor: HTMLElement | null = null,
+    onLayout: ((fn: () => void) => () => void) | null = null,
     private readonly now: () => number = () => performance.now(),
   ) {
     const doc = host.ownerDocument;
@@ -39,11 +49,20 @@ export class PerfOverlay {
     this.text = doc.createTextNode('');
     this.el.append(this.text);
     host.append(this.el);
+    this.place();
+    this.unLayout = onLayout ? onLayout(this.place) : null;
     this.raf = this.win.requestAnimationFrame(this.onFrame);
     this.timer = this.win.setInterval(this.update, UPDATE_MS);
     this.win.document.addEventListener('visibilitychange', this.onVisibility);
     this.update();
   }
+
+  /** Over the anchor's top left (a layout read only on a relayout). */
+  private readonly place = (): void => {
+    if (!this.anchor) return;
+    this.el.style.left = `${this.anchor.offsetLeft}px`;
+    this.el.style.top = `${this.anchor.offsetTop}px`;
+  };
 
   private readonly onFrame = (t: number): void => {
     this.frames.tick(t);
@@ -65,6 +84,7 @@ export class PerfOverlay {
     if (this.timer !== null) this.win.clearInterval(this.timer);
     this.timer = null;
     this.win.document.removeEventListener('visibilitychange', this.onVisibility);
+    this.unLayout?.();
     this.el.remove();
   }
 }

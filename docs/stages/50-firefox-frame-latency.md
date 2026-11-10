@@ -342,13 +342,13 @@ Run `npm run dev` on the branch `stage-50-firefox-frame` (not merged to
 1. In Firefox, open `about:support` and note **Compositing** (expected:
    WebRender).
 2. Enter MUME (or replay a run log) and type `#perf` on the input line.
-   A small box appears low in the left corner:
+   A small grey box appears at the top left of the game text, styled
+   like the weather demo's caption:
    - **fps**: frames in the last second (60 on a 60 Hz screen);
-   - **worst frame 5 s**: the longest gap between two frames in the last
-     5 s (about 17 ms is perfect; over 50 ms is a visible hitch);
-   - **received -> shown**: text arrival to drawn, median / p95 over
-     30 s;
-   - **key -> send**: key press to the command leaving, median / p95.
+   - **worst**: the longest gap between two frames in the last 5 s
+     (about 17 ms is perfect; over 50 ms is a visible hitch);
+   - **shown**: text arrival to drawn, median / p95 over 30 s;
+   - **key**: key press to the command leaving, median / p95 over 30 s.
 
    It takes no keys or clicks and stays on in the tab until `#perf`
    again. `#perf report` prints the full table, as `#perf` used to.

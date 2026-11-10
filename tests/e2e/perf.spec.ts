@@ -104,10 +104,13 @@ test('#perf alone turns the live overlay on and off; it stays on in the tab', as
   await expect(rows.filter({ hasText: /^#perf overlay on$/ })).toHaveCount(1);
   await expect(overlay).toBeVisible();
   // Live figures within a few updates: the frame rate is a number.
-  await expect(overlay).toContainText(/^fps +\d+$/m);
-  await expect(overlay).toContainText(/^worst frame 5 s +[\d.]+ ms$/m);
-  await expect(overlay).toContainText(/^received -> shown /m);
-  await expect(overlay).toContainText(/^key -> send /m);
+  await expect(overlay).toContainText(/^fps \d+ {2}worst [\d.]+ ms$/m);
+  await expect(overlay).toContainText(/^shown /m);
+  await expect(overlay).toContainText(/^key /m);
+  // A plain box at the game pane's top left.
+  const [box, game] = await Promise.all([overlay.boundingBox(), page.locator('.wc-game').boundingBox()]);
+  expect(Math.abs(box!.x - game!.x)).toBeLessThan(1);
+  expect(Math.abs(box!.y - game!.y)).toBeLessThan(1);
   // It takes no pointer, focus or keys: the input keeps them.
   await expect(overlay).toHaveCSS('pointer-events', 'none');
   await expect(overlay).toHaveAttribute('aria-hidden', 'true');

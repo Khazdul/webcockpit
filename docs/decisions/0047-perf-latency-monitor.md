@@ -113,8 +113,8 @@ flag. The details are in ADR 0135.
     5 s. It also shows received → shown and key → send as median / p95
     over the last 30 s, read from this monitor's rings
     (`Ring.valuesSince`).
-  - It sits low in the left corner, above everything, in the page's
-    colours (dark and Paper). It takes no pointer, focus or keys.
+  - It is a plain debug box at the game pane's top left, styled like
+    the weather demo's caption box. It takes no pointer, focus or keys.
   - It stays on for the tab's session (`sessionStorage`,
     `wc.perfOverlay`).
 - **`#perf report`** prints the summary table above. It needs `rep` at

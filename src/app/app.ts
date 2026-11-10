@@ -1234,7 +1234,7 @@ export class App {
     if (this.perfOverlay) return true;
     const { PerfOverlay } = await import('./perf-overlay');
     if (this.disposed || this.perfOverlay) return this.perfOverlay !== null;
-    this.perfOverlay = new PerfOverlay(this.el.ownerDocument.body, perf.rings);
+    this.perfOverlay = new PerfOverlay(this.cockpit.el, perf.rings, this.cockpit.gameEl, (fn) => this.cockpit.onLayout(fn));
     return true;
   }
 

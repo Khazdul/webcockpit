@@ -120,19 +120,15 @@ export function ms(v: number): string {
   return v < 10 ? v.toFixed(1) : String(Math.round(v));
 }
 
-const LABEL = 18;
 const pair = (r: Rolling): string => (r.count ? `${ms(r.median)} / ${ms(r.p95)} ms` : '-');
 
 /**
- * The overlay's lines (ASCII `->`, as `#perf`: the bundled fonts need not
- * have an arrow glyph).
+ * The overlay's three lines, compact (ASCII `->`, as `#perf`: the bundled
+ * fonts need not have an arrow glyph). Latencies are median / p95 over the
+ * last 30 s; the worst frame is over the last 5 s.
  */
 export function overlayLines(f: LiveFigures): string[] {
-  return [
-    'fps'.padEnd(LABEL) + (f.fps === f.fps ? String(Math.round(f.fps)) : '-'),
-    'worst frame 5 s'.padEnd(LABEL) + (f.worst === f.worst ? `${ms(f.worst)} ms` : '-'),
-    'received -> shown'.padEnd(LABEL) + pair(f.shown),
-    'key -> send'.padEnd(LABEL) + pair(f.key),
-    ' '.repeat(LABEL) + 'median / p95, 30 s',
-  ];
+  const fps = f.fps === f.fps ? String(Math.round(f.fps)) : '-';
+  const worst = f.worst === f.worst ? `${ms(f.worst)} ms` : '-';
+  return [`fps ${fps}  worst ${worst}`, `shown ${pair(f.shown)}`, `key ${pair(f.key)}`];
 }

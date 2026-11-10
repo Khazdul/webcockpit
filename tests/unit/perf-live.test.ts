@@ -83,19 +83,11 @@ describe('rolling figures', () => {
     expect(f.worst).toBe(48);
     expect(f.shown).toEqual({ count: 5, median: 10, p95: 30 });
     expect(f.key.count).toBe(1);
-    expect(overlayLines(f)).toEqual([
-      `fps               ${Math.round(f.fps)}`,
-      'worst frame 5 s   48 ms',
-      'received -> shown 10 / 30 ms',
-      'key -> send       0.3 / 0.3 ms',
-      '                  median / p95, 30 s',
-    ]);
+    expect(overlayLines(f)).toEqual([`fps ${Math.round(f.fps)}  worst 48 ms`, 'shown 10 / 30 ms', 'key 0.3 / 0.3 ms']);
     expect(overlayLines({ fps: NaN, worst: NaN, shown: { count: 0, median: NaN, p95: NaN }, key: { count: 0, median: NaN, p95: NaN } })).toEqual([
-      'fps               -',
-      'worst frame 5 s   -',
-      'received -> shown -',
-      'key -> send       -',
-      '                  median / p95, 30 s',
+      'fps -  worst -',
+      'shown -',
+      'key -',
     ]);
   });
 

@@ -156,11 +156,19 @@ Owner decision, through the main session: one tool. `#perf` alone turns
 a live overlay on or off, and `#perf report` prints the table. Details
 are in the ADR 0047 addendum.
 
-- The overlay is a small `<pre>` low in the left corner. It is fixed, at
-  z-index 10000, in `--term-fg` on `--term-bg` at 82 % (readable on dark
-  and on Paper). It has `pointer-events: none` and `aria-hidden`, so it
-  takes no tab stop and no keys.
-- It shows:
+- The overlay is a small `<pre>` at the game pane's top left, in the
+  cockpit, moved with every relayout (owner, 2026-11-10).
+  - It is a plain debug box styled like the weather demo's caption
+    (`src/weather/demo.css`): no frame or ornament, a small font (0.82 em),
+    and the page background mixed a quarter toward mid grey. That reads
+    dark grey on a dark page and light grey on Paper.
+  - It sits at z-index 95, above the floats and the front weather layer.
+  - It has `pointer-events: none` and `aria-hidden`, so it takes no tab
+    stop and no keys.
+  - In the default layout it covers the start of the top three rows of
+    old game text, nothing else.
+- It shows three lines (`fps 60  worst 17 ms`, `shown 9.1 / 16 ms`,
+  `key 0.3 / 0.8 ms`):
   - fps over the last second;
   - the worst frame of the last 5 s;
   - received → shown and key → send as median / p95 over 30 s.

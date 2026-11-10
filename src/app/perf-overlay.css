@@ -1,24 +1,21 @@
-/* The `#perf` overlay (stage 50, ADR 0135): a small box low in the left
- * corner, over everything, in the page's own colours so it reads on dark
- * and on Paper. It never takes the pointer, focus or keys. Its own layer
- * and `contain` keep its 4-a-second text change from repainting anything
- * else. */
+/* The `#perf` overlay (stage 50, ADR 0135): a plain debug box at the game
+ * pane's top left (perf-overlay.ts places it), styled like the weather
+ * demo's caption box (src/weather/demo.css): no frame or ornament, the page
+ * background mixed a quarter toward mid grey (dark grey on a dark page,
+ * light grey on Paper), the theme's text colours, a small font. Above the
+ * floats and the front weather layer; no pointer, focus or keys. `contain`
+ * keeps its 4-a-second text change from repainting anything else. */
 .wc-perf-overlay {
-  position: fixed;
-  left: 8px;
-  bottom: calc(2.2 * var(--cell-h, 19px) + 8px);
-  z-index: 10000;
+  position: absolute;
+  z-index: 95;
   margin: 0;
-  padding: 4px 8px;
+  padding: calc(var(--cell-h, 19px) * 0.2) calc(var(--cell-w, 10px) * 0.8);
   font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 0.82em;
+  line-height: 1.25;
   white-space: pre;
-  color: var(--term-fg, #c0c0c0);
-  background: color-mix(in srgb, var(--term-bg, #000) 82%, transparent);
-  border: 1px solid color-mix(in srgb, var(--term-fg, #c0c0c0) 35%, transparent);
-  border-radius: 4px;
-  opacity: 0.9;
+  color: var(--c-item, var(--term-fg));
+  background: color-mix(in srgb, var(--term-bg) 75%, #808080);
   pointer-events: none;
   user-select: none;
   contain: layout paint style;
