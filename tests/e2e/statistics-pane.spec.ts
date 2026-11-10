@@ -152,6 +152,32 @@ test('during a replay: the live run, a long list that follows and counts `↓ N 
   await expect(more).toHaveText(/^↓ [1-3] new$/);
   // The view held: the oldest kill still in view.
   await expect(view(page).locator('.wc-st-row .wc-st-name').filter({ hasText: /^a stone troll 0$/ })).toBeInViewport();
+  // Hidden and shown again while scrolled up (mid-list): the view comes back
+  // where it was (a hidden scroller loses its position), with its rows, not
+  // blank.
+  const mid = await scroll.evaluate((el) => {
+    el.scrollTop = Math.round((el.scrollHeight - el.clientHeight) / 2);
+    return el.scrollTop;
+  });
+  await page.waitForTimeout(100);
+  const inView = () =>
+    scroll.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return [...el.querySelectorAll('.wc-st-row:not(.wc-st-probe)')]
+        .filter((row) => {
+          const b = row.getBoundingClientRect();
+          return b.bottom > r.top + 1 && b.top < r.bottom - 1;
+        })
+        .map((row) => row.querySelector('.wc-st-name')?.textContent ?? '');
+    });
+  const before = await inView();
+  expect(before.length).toBeGreaterThan(3);
+  await page.evaluate(() => window.__wc!.settings.update((d) => void (d.panes.statistics.on = false)));
+  await expect(pane(page)).toBeHidden();
+  await page.evaluate(() => window.__wc!.settings.update((d) => void (d.panes.statistics.on = true)));
+  await expect(pane(page)).toBeVisible();
+  await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(mid - 3);
+  await expect.poll(inView).toEqual(before);
   await more.click();
   await expect(more).toBeHidden();
   await expect.poll(() => scroll.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(5);

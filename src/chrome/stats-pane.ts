@@ -247,8 +247,10 @@ export class StatsPaneView implements StatsPaneHandle {
     this.ro = RO
       ? new RO((entries) => {
           for (const e of entries) {
+            const wasHidden = this.viewH <= 0;
             this.viewH = e.contentRect.height;
             if (this.pinned) this.toBottom(true);
+            else if (wasHidden) this.holdView();
             this.renderWindow();
           }
         })
@@ -389,6 +391,21 @@ export class StatsPaneView implements StatsPaneHandle {
     this.more.hidden = true;
   }
 
+  /**
+   * Scrolled up and shown again: puts the view back at `fromBottom`. A
+   * hidden pane's scroller can lose its scrollTop (0), so without this a
+   * pane shown again could sit at the top while the rows were made for the
+   * old window (a blank list). Only on a show: an ordinary resize keeps the
+   * browser's position (the scroll event then updates `fromBottom`).
+   */
+  private holdView(): void {
+    if (this.viewH <= 0 || this.rowH <= 0) return;
+    const h = this.listLen() * this.rowH;
+    const want = Math.min(Math.max(0, h - this.viewH), Math.max(0, h - this.viewH - this.fromBottom));
+    if (Math.abs(this.scroll.scrollTop - want) > 1) this.scroll.scrollTop = want;
+    this.fromBottom = Math.max(0, h - this.viewH - want);
+  }
+
   /** Back to the bottom; `write`: the list or the view changed, so the scroll position is written. */
   private toBottom(write: boolean): void {
     if (write || this.fromBottom !== 0) this.scroll.scrollTop = this.listLen() * this.rowH;
@@ -474,6 +491,8 @@ export class StatsPaneView implements StatsPaneHandle {
   }
 
   private readonly onScroll = (): void => {
+    // Hidden (no height): a reset scrollTop is not the user's position.
+    if (this.viewH <= 0) return;
     this.fromBottom = Math.max(0, this.listLen() * this.rowH - this.viewH - this.scroll.scrollTop);
     this.pinned = this.fromBottom <= PIN_SLACK;
     if (this.pinned && this.unseen) {

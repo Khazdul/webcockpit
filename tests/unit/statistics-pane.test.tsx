@@ -459,4 +459,73 @@ describe('mountStatsPane (the view)', () => {
     v.dispose();
     expect(host.querySelector('.wc-st')).toBeNull();
   });
+
+  it('scrolled up, hidden and shown again: the view returns to where it was, with its rows (a hidden scroller loses scrollTop)', async () => {
+    // A fake ResizeObserver (happy-dom's never calls back) and a 20 px row.
+    let roCb: ((e: Array<{ contentRect: { height: number } }>) => void) | null = null;
+    const win = window as unknown as { ResizeObserver: unknown };
+    const realRO = win.ResizeObserver;
+    win.ResizeObserver = class {
+      constructor(cb: typeof roCb) {
+        roCb = cb;
+      }
+      observe(): void {}
+      disconnect(): void {}
+    };
+    const realH = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('wc-st-probe') ? 20 : 0;
+      },
+    });
+    try {
+      const f = fakeRuns();
+      f.live = [startEv(), ...Array.from({ length: 60 }, (_, i) => k(T0 + (i + 1) * 1e6, 1000 + (i % 5) * 300, `mob ${i}`))];
+      f.latest = { runId: '', events: f.live, ended: false };
+      const host = document.createElement('div');
+      document.body.append(host);
+      const v = mountStatsPane(host, {} as never, { runs: f.runs as unknown as LiveRuns, status });
+      v.resize(80, 24);
+      await tick();
+      const ro = (h: number) => roCb!([{ contentRect: { height: h } }]);
+      const scroll = host.querySelector<HTMLElement>('.wc-st-scroll')!;
+      const flushFrames = () => act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      ro(200);
+      await flushFrames();
+      // Following: at the bottom of 59 rows of 20 px.
+      expect(scroll.scrollTop).toBe(59 * 20);
+      // The user scrolls up to 300 px.
+      scroll.scrollTop = 300;
+      scroll.dispatchEvent(new Event('scroll'));
+      await flushFrames();
+      const names = () =>
+        [...host.querySelectorAll<HTMLElement>('.wc-st-row:not(.wc-st-probe)')]
+          .filter((r) => {
+            const top = parseFloat(r.style.top);
+            return top + 20 > scroll.scrollTop && top < scroll.scrollTop + 200;
+          })
+          .sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top))
+          .map((r) => r.querySelector('.wc-st-name')!.textContent);
+      const before = names();
+      expect(before[0]).toBe('mob 15');
+      // Hidden: no height, and the scroller's position is lost (a scroll event may say 0).
+      ro(0);
+      scroll.scrollTop = 0;
+      scroll.dispatchEvent(new Event('scroll'));
+      await flushFrames();
+      // Shown again: back at 300 px, the rows in view are there.
+      ro(200);
+      await flushFrames();
+      expect(scroll.scrollTop).toBe(300);
+      expect(names()).toEqual(before);
+      v.dispose();
+    } finally {
+      win.ResizeObserver = realRO;
+      if (realH) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realH);
+      else delete (HTMLElement.prototype as unknown as { offsetHeight?: number }).offsetHeight;
+    }
+  });
 });
