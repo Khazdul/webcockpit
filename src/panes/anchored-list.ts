@@ -52,7 +52,13 @@ export const LIVE_SLACK_PX = 2;
 /** Quiet time (ms) after the last scroll event before `resting` follows. */
 export const SETTLE_MS = 150;
 
-const BOTTOM = Number.MAX_SAFE_INTEGER;
+/**
+ * The bottom is written as the list's `scrollHeight` (the browser clamps
+ * it to the last position), never as a huge constant: WebKit's `scrollTop`
+ * is a WebIDL `long`, so a value over 2^31 wraps (`Number.MAX_SAFE_INTEGER`
+ * becomes -1) and Safari scrolled to the top instead (webkit.org/b/188045).
+ */
+const bottomOf = (m: ListMetrics, list: HTMLElement): number => m.scrollHeight(list);
 
 export class AnchoredList<T = unknown> {
   /** The scrolling list area (flex item). */
@@ -122,7 +128,7 @@ export class AnchoredList<T = unknown> {
   /** Back to the live bottom. */
   toLive(): void {
     this._live = true;
-    this.metrics.setScrollTop(this.el, BOTTOM);
+    this.metrics.setScrollTop(this.el, bottomOf(this.metrics, this.el));
     this.lastTop = this.metrics.scrollTop(this.el);
     this.setMore(0);
     this.settle();
@@ -227,7 +233,7 @@ export class AnchoredList<T = unknown> {
   }
 
   private toBottom(): void {
-    this.metrics.setScrollTop(this.el, BOTTOM);
+    this.metrics.setScrollTop(this.el, bottomOf(this.metrics, this.el));
     this.setMore(0);
   }
 

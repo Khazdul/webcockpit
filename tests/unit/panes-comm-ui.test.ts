@@ -109,6 +109,32 @@ afterEach(() => {
 });
 
 describe('AnchoredList', () => {
+  it('reaches the bottom where scrollTop is a 32-bit long (Safari): no huge value is written', () => {
+    // WebKit's `scrollTop` is a WebIDL `long`: a write is taken modulo 2^32
+    // (`Number.MAX_SAFE_INTEGER` becomes -1, the top).
+    const heights = new Map<HTMLElement, number>();
+    const base = model((el) => heights.get(el)! * CELL_H, () => 5 * CELL_H);
+    const m: ListMetrics = { ...base, setScrollTop: (l, px) => base.setScrollTop(l, px | 0) };
+    const al = new AnchoredList<number>(document, () => {}, { metrics: m, settleMs: 0 });
+    const box = document.createElement('div');
+    box.append(al.el, al.more);
+    const build = (i: number): HTMLElement => {
+      const el = document.createElement('div');
+      el.textContent = `m${i}`;
+      heights.set(el, 1);
+      return el;
+    };
+    const items = Array.from({ length: 30 }, (_, i) => i);
+    al.render(items, build, 'k', (n) => `↓ ${n}`);
+    expect(m.scrollTop(al.el)).toBe(25 * CELL_H);
+    // Another view (a new key), then back to live: still the bottom.
+    al.toLive();
+    al.render(items.concat([30, 31]), build, 'k2', (n) => `↓ ${n}`);
+    expect(m.scrollTop(al.el)).toBe(27 * CELL_H);
+    expect(al.more.hidden).toBe(true);
+    al.dispose();
+  });
+
   function list(count: number, rows: number, height: (i: number) => number = () => 1) {
     const heights = new Map<HTMLElement, number>();
     const doc = document;
