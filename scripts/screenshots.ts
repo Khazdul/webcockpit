@@ -22,12 +22,32 @@
 // with the page's clock pinned, as tests/e2e/demo-clock.ts does. The feed,
 // the mocked login and the weather helpers live in scripts/lib/mume-feed.ts
 // (shared with the presentation film, video/).
+// The `community-*` shots (Comm and Statistics, dark and Paper) are for the
+// 0.4.0 community post; WC_SHOT_OUT them elsewhere too.
 import { devServer } from './lib/dev-server.ts';
 import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { type Browser, type BrowserContext, type Locator, type Page, chromium, firefox as firefoxType } from '@playwright/test';
-import { DAY, type Fight, NIGHT, type Pin, SCENE, gameFeed, jump, live, pinGameMoment, sleep, startMenu, weather } from './lib/mume-feed.ts';
+import {
+  DAY,
+  type Fight,
+  NIGHT,
+  type Pin,
+  SCENE,
+  type Step,
+  fightSteps,
+  gameFeed,
+  gmcpBytes,
+  jump,
+  lineBytes,
+  live,
+  pinGameMoment,
+  sleep,
+  startMenu,
+  weather,
+} from './lib/mume-feed.ts';
+import { PAPER_PALETTE } from '../src/theme/presets.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 /** Output directory (WC_SHOT_OUT, default docs/img/), with a trailing slash. */
@@ -121,11 +141,11 @@ async function gameplay(
   name: string,
   pin: (now: number) => Pin,
   then: (page: Page) => Promise<void | Buffer>,
-  o: { prepare?: (page: Page) => Promise<void>; fight?: Fight; clock?: number } = {},
+  o: { prepare?: (page: Page) => Promise<void>; fight?: Fight; clock?: number; extra?: Step[] } = {},
 ): Promise<void> {
   const { ctx, page } = await newPage(browser);
   if (o.clock !== undefined) await page.clock.setSystemTime(o.clock);
-  await live(page, gameFeed(o.fight), o.prepare);
+  await live(page, [...gameFeed(o.fight), ...(o.extra ?? [])], o.prepare);
   await weather(page);
   await jump(page, { ...SCENE, ...pin(Date.now()) });
   const png = await then(page);
@@ -574,7 +594,161 @@ const SHOTS: Record<string, Shot> = {
           }, KILL_COUNTER),
       },
     ),
+
+  // The Comm pane large over the game, on Gibur's chat (bubbles, your replies, the group tell).
+  'community-comm': (b) => community(b, 'community-comm', { comm: COMM_RECT, open: 'gibur' }),
+  // The same on Paper, on Group.
+  'community-comm-paper': (b) => community(b, 'community-comm-paper', { paper: true, comm: COMM_RECT, open: 'group' }),
+  // The Comm settings (the gear popup) with the NPCs switch, dark and on Paper.
+  'community-comm-settings': (b) => community(b, 'community-comm-settings', { comm: COMM_RECT, open: 'public', gear: true }),
+  'community-comm-settings-paper': (b) =>
+    community(b, 'community-comm-settings-paper', { paper: true, comm: COMM_RECT, open: 'public', gear: true }),
+  // Group alone: the chat column folded away, a narrower pane.
+  'community-comm-group': (b) => community(b, 'community-comm-group', { comm: { x: 40, y: 5, w: 64, h: 26 }, open: 'group', folded: true }),
+  // The Statistics pane beside the map after the whole fight (its ruffian the last kill), Rasta's
+  // demo session behind it.
+  'community-stats': (b) => community(b, 'community-stats', { stats: STATS_RECT }),
+  // The same on Paper.
+  'community-paper': (b) => community(b, 'community-paper', { paper: true, stats: STATS_RECT }),
 };
+
+// ------------------------------------------------------------ the 0.4.0 community post
+
+/** One `Comm.Channel.Text` and its line in the game text (as mume-feed's `comm`, any talker type and destination). */
+function talk(channel: string, talker: string, text: string, o: { type?: string; dest?: string; colour?: string; line?: string } = {}): Step {
+  const body: Record<string, string> = { channel, talker, 'talker-type': o.type ?? 'player', text };
+  if (o.dest) body.destination = o.dest;
+  const g = gmcpBytes(`Comm.Channel.Text ${JSON.stringify(body)}`);
+  const line = o.line ?? text;
+  const shown = o.colour ? `\x1b[${o.colour}m${line}\x1b[0m` : line;
+  return { out: Buffer.concat([g, lineBytes(''), lineBytes(shown), lineBytes(''), lineBytes('*=>')]) };
+}
+
+/** Your tell to `to`: GMCP carries the message only (as MUME sends it), the game text the whole line. */
+const myTell = (to: string, msg: string): Step => talk('tells', 'you', msg, { dest: to, colour: '32', line: `You tell ${to} '${msg}'` });
+
+/**
+ * The talk after the gameplay feed for the Comm shots: a conversation with
+ * Gibur (in the group), group tells, tells from Lindir and Ecthel, the
+ * public channels, an NPC (hidden in Public by default).
+ */
+function communityTalk(): Step[] {
+  return [
+    talk('tales', 'Ecthel', "Ecthel narrates 'trolls seen near the Last Bridge'", { colour: '33' }),
+    myTell('Gibur', 'on my way, where are you?'),
+    talk('tells', 'Gibur', "Gibur tells you 'Hill Road, just north of the gate'", { colour: '32' }),
+    talk('tells', 'Gibur', "Gibur tells you 'bring arrows if you have any'", { colour: '32' }),
+    myTell('Gibur', 'got 40, coming'),
+    talk('tells', 'Dori', "Dori tells the group 'ruffians at the crossroads, careful'", { colour: '32' }),
+    talk('says', 'Bree guard', "The Bree guard says 'Move along now.'", { type: 'npc', colour: '36' }),
+    talk('tells', 'Lindir', "Lindir tells you 'got a spare cloak for you at the Pony'", { colour: '32' }),
+    talk('songs', 'Lindir', "Lindir sings 'A Elbereth Gilthoniel'", { colour: '33' }),
+    talk('yells', 'Haldis', "Haldis yells 'Help! Orcs at the West Gate!'", { colour: '33' }),
+    talk('tells', 'Gibur', "Gibur tells the group 'regroup at the gate, then we go'", { colour: '32' }),
+    talk('whispers', 'Ecthel', "Ecthel whispers to you 'the merc is yours?'", { colour: '32' }),
+    talk('tells', 'Gibur', "Gibur tells you 'see you there :)'", { colour: '32' }),
+  ];
+}
+
+/** Paper (ADR 0123 "Paper"): the background, ink and its palette, as Options → Appearance sets them. */
+const paper = (page: Page): Promise<void> =>
+  page.evaluate((ansi) => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000', ansi } }), [...PAPER_PALETTE]);
+
+/**
+ * The demo runs restored without the PvP kill (its events only) and
+ * without ratings: the owner wants no player as the example and no stars
+ * in the Statistics shots.
+ */
+async function restoreDemoPlain(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__wc !== undefined);
+  await page.evaluate(async () => {
+    const gz = (await fetch('/__fixtures/runs-demo.jsonl.gz')).body!.pipeThrough(new DecompressionStream('gzip'));
+    const text = await new Response(gz).text();
+    const kept = text
+      .split('\n')
+      .filter((l) => !(l.includes('"type":"event"') && l.includes('"type":"pkill"')))
+      .map((l) => (l.startsWith('{"type":"run"') ? l.replace(/,"rating":\d+/, '') : l))
+      .join('\n');
+    const blob = await new Response(new Blob([kept]).stream().pipeThrough(new CompressionStream('gzip'))).blob();
+    const lib = await window.__wc!.runs();
+    await lib.restore(blob);
+  });
+}
+
+/** Rasta's XP before the fight (gmcp-demo.log's login value). */
+const RASTA_XP: Step = { out: gmcpBytes(`Char.Vitals ${JSON.stringify({ xp: 5_770_000, tp: 41_500 })}`) };
+
+type Rect = { x: number; y: number; w: number; h: number };
+/** The Comm pane's float in the community shots (cells). */
+const COMM_RECT: Rect = { x: 30, y: 5, w: 90, h: 28 };
+/** The Statistics pane's: small, at the right of the game text, beside the map. */
+const STATS_RECT: Rect = { x: 60, y: 2, w: 47, h: 26 };
+
+/**
+ * A community shot: the gameplay feed with the fight under way and the
+ * community talk, Rasta's demo session restored (the Statistics chain).
+ * Only the map and the pane shown: `comm` floats the Comm pane at that
+ * rectangle (cells) and `open` opens a view of it; `stats` floats the
+ * Statistics pane.
+ */
+function community(
+  b: Browser,
+  name: string,
+  o: { paper?: boolean; comm?: Rect; open?: string; stats?: Rect; folded?: boolean; gear?: boolean },
+): Promise<void> {
+  return gameplay(
+    b,
+    name,
+    () => ({ ...DAY, weather: ' ' }),
+    async (page) => {
+      if (o.paper) await paper(page);
+      await page.evaluate(
+        ({ comm, stats, folded }) =>
+          window.__wc!.settings.update((d: any) => {
+            d.comm.folded = folded;
+            d.panes.timers.on = false;
+            d.panes.group.on = false;
+            d.panes.comm.on = comm !== null;
+            d.panes.statistics.on = stats !== null;
+            d.layout.docks.right.tail = d.layout.docks.right.tail.filter((p: { id: string }) => p.id !== 'comm');
+            d.layout.floating = d.layout.floating.filter((p: { id: string }) => p.id !== 'comm' && p.id !== 'statistics');
+            if (comm) d.layout.floating.push({ id: 'comm', ...comm });
+            if (stats) d.layout.floating.push({ id: 'statistics', ...stats });
+          }),
+        { comm: o.comm ?? null, stats: o.stats ?? null, folded: o.folded ?? false },
+      );
+      await sleep(800);
+      if (o.open) {
+        // Folded, the column is unfolded for the click and folded again.
+        if (o.folded) await page.evaluate(() => window.__wc!.settings.update({ comm: { folded: false } }));
+        await page.locator(`.wc-cm-ent[data-key="${o.open}"]`).click();
+        if (o.folded) await page.evaluate(() => window.__wc!.settings.update({ comm: { folded: true } }));
+      }
+      await page.mouse.move(5, VIEWPORT.height * 0.5);
+      await sleep(3000);
+      // `gear`: the pane's settings popup (ADR 0107), zoomed on it.
+      if (o.gear) {
+        await page.locator('.wc-pane-comm').hover();
+        await page.locator('.wc-pane-comm > .wc-pane-btn-gear').click();
+        await page.locator('.wc-sp-gear-comm').waitFor();
+        await page.mouse.move(5, VIEWPORT.height * 0.98);
+        await sleep(800);
+      }
+      // `<name>-zoom`: the pane (or the popup) with a 10 % margin of the client around it.
+      const target = o.gear ? '.wc-sp-gear-comm' : `.wc-pane[data-pane="${o.stats ? 'statistics' : 'comm'}"]`;
+      const box = (await page.locator(target).boundingBox())!;
+      const mx = box.width * 0.1, my = box.height * 0.1;
+      const x = Math.max(0, box.x - mx), y = Math.max(0, box.y - my);
+      const clip = { x, y, width: Math.min(VIEWPORT.width, box.x + box.width + mx) - x, height: Math.min(VIEWPORT.height, box.y + box.height + my) - y };
+      await shot(page, `${name}-zoom`, await page.screenshot({ clip }));
+    },
+    // The Statistics shots: the talk, then the whole fight, Rasta's XP sent
+    // first (the login feed has none, so the kill would count +0).
+    o.stats
+      ? { fight: 'none', clock: AFTER_RASTA, prepare: restoreDemoPlain, extra: [...communityTalk(), RASTA_XP, ...fightSteps('full')] }
+      : { fight: 'mid', clock: AFTER_RASTA, prepare: restoreDemo, extra: communityTalk() },
+  );
+}
 
 // ------------------------------------------------------------ main
 
