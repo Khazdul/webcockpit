@@ -52,18 +52,18 @@ the merge.
 - [x] 49b: theming (tints, Paper, border off, clear), reduced motion
 - [x] 49b: e2e (header, tiles, list anchoring and `↓ N new`, card slide,
       calibrating, Paper)
-- [ ] 49c: column rail/list by pane width, pinned Public and Group, chat
+- [x] 49c: column rail/list by pane width, pinned Public and Group, chat
       list order and fill, edge fade and chevron
-- [ ] 49c: spine (hover, drag snaps, double-click, keys, touch) and fold
+- [x] 49c: spine (hover, drag snaps, double-click, keys, touch) and fold
       with the open-chat chip
-- [ ] 49c: thread: bubbles, overheard lines, own messages "Stilla ton",
+- [x] 49c: thread: bubbles, overheard lines, own messages "Stilla ton",
       bounded DOM, bottom anchoring
-- [ ] 49c: reply line (tell / say), hidden in players, replay and offline
-- [ ] 49c: search (magnifier, Ctrl+F, People and Messages)
-- [ ] 49c: gear popup and Options → Panes → Comm page
-- [ ] 49c: text selection and copy without stealing the game's keys
-- [ ] 49c: theming (tints, Paper, border off, clear)
-- [ ] 49c: e2e (chats open and order, Group roster, search, fold, gear,
+- [x] 49c: reply line (tell / say), hidden in players, replay and offline
+- [x] 49c: search (magnifier, Ctrl+F, People and Messages)
+- [x] 49c: gear popup and Options → Panes → Comm page
+- [x] 49c: text selection and copy without stealing the game's keys
+- [x] 49c: theming (tints, Paper, border off, clear)
+- [x] 49c: e2e (chats open and order, Group roster, search, fold, gear,
       reply sends a tell, selection, Paper)
 - [ ] 49d: performance after, interleaved with `main`; table in this file;
       regressions agreed with the owner
@@ -204,9 +204,68 @@ canvas in Firefox's software compositor (ADR 0123 frame, ADR 0091 rim),
 for any pane, not the Statistics content; it needs a check in a headed
 Firefox (49d or a frame stage). Not changed in 49b.
 
-### After (branch, 49d)
+### After 49c (Comm pane, branch `stage-49c`, 2026-11-10)
 
-To be filled in 49d.
+Builds: `main` = 1831d839 (`git archive` into the scratchpad, own
+`vite build`), branch = 69ef4190 (the 49c pane after its performance
+pass). Machine quiet, nothing else running; load at the start of each run
+is in the reports (0.5–1.4 for the headless runs below).
+
+**Pane cost** (`node bench/pane-cost.ts --url main=…:5301,branch=…:5302
+--runs 3`, round-robin, headless; load 0.78 0.54 0.56 at the start;
+ranges over the runs, ms):
+
+| Measure | Firefox main | Firefox branch | Chromium main | Chromium branch |
+|---|---|---|---|---|
+| Comm: message task, median / p95 | 0.58–0.60 / 0.84–0.88 | 0.58–0.60 / 0.84–0.96 | 0.32–0.36 / 0.44–0.62 | 0.33–0.35 / 0.44–0.57 |
+| Comm: frame after a message, median / p95 | 5.62–5.78 / 6.82–6.92 | 6.38–7.40 / 11.62–12.28 | 6.62–7.01 / 9.44–10.64 | 4.44–5.68 / 6.67–8.86 |
+| Comm: pane render script, median | 1.60–1.70 | 2.36–3.20 | 1.51–1.63 | 1.87–2.29 |
+| Comm burst (50 in 1 s): frames median / p95 / max | 4.52–4.88 / 6.98–7.66 / 8.1–9.7 | 5.42–5.86 / 5.96–8.28 / 6.1–9.2 | 4.60–5.63 / 7.80–9.60 / 8.2–10.9 | 0.61–3.51 / 6.36–9.50 / 7.7–11.3 |
+| Comm burst: long frames | 0 | 13–15 | 0 | 0–1 |
+| Comm burst: main-thread per message (trace) | — | — | 2.53–7.38 | 0.10–7.43 |
+
+**Headed Firefox** (`WC_BENCH_HEADED=1 … --browsers firefox --runs 2`, a
+real window; load 1.05 at the start):
+
+| Measure | Firefox main | Firefox branch |
+|---|---|---|
+| Comm: message task, median / p95 | 0.60–0.68 / 0.78–1.24 | 0.60–0.62 / 0.88–1.04 |
+| Comm: frame after a message, median / p95 | 5.62–5.94 / 6.84–7.40 | 7.04–7.16 / 11.48–12.58 |
+| Comm: pane render script, median | 1.68–1.76 | 3.10–3.12 |
+| Comm burst: frames median / p95 / max | 7.48–8.12 / 11.18–11.62 / 12.8–13.2 | 7.54–8.66 / 14.32–15.22 / 14.9–17.3 |
+| Comm burst: long frames | 0–1 | 0 |
+
+The headless Firefox burst gaps (13–15 rAF gaps over 50 ms, frames
+themselves under 10 ms) come from any change in the chat column, even with
+the column contained and its texts at ≤ 1 Hz; they do not happen in a real
+Firefox window. Before the performance pass (ba1b8518 + 1fa395b2) the
+branch measured: Firefox render 4.60–4.98, frame after 8.44–9.06 / 12.76–15.40,
+burst long frames 12; Chromium render 3.68–5.38, frame after
+7.07–9.32 / 10.83–15.39.
+
+**Standard checks** (`WC_BENCH_SETTINGS='{"panes":{"comm":{"on":true},"statistics":{"on":false}}}'
+node bench/browser-bench.ts --only budgets,play,keys,soak --port 4189`,
+3 runs of the branch against 49a's 3 runs of `main` in the same setup;
+load 0.9–1.4 at the start; Firefox · Chromium):
+
+| Measure | main | branch |
+|---|---|---|
+| Frame → paint: receipt → painted median / p95 | 10.7–11.3 / 21.0–21.4 · 11.5–13.1 / 20.2–20.3 | 11.1–11.6 / 20.7–21.3 · 10.0–12.7 / 19.9–20.4 |
+| Burst: longest rAF gap; gaps > 50 ms | 158–194, 4–8 · 17–19, 0 | 162–184, 4–7 · 18–19, 0 |
+| Play with GMCP, text frames with a pane render, median / p95 | 3.0–3.7 / 6.3–6.7 · 4.4–4.6 / 5.9–6.2 | 3.4–3.7 / 6.5–6.8 · 4.7–4.9 / 6.3–6.8 |
+| Comm pane renders per second while playing | 0.7 · 0.7 | 0.9–1.0 · 0.9–1.0 |
+| Keys under play: letter → rendered median / p95 | 5.6–6.4 / 8.8–25.8 · 12.6–16.1 / 18.7–21.3 | 4.6–6.4 / 10.7–19.7 · 13.3–16.9 / 18.9–21.4 |
+| Keys under burst: letter → rendered median / p95 | 33–36 / 58–74 · 21–24 / 35–37 | 31–32 / 47–72 · 18–21 / 32–38 |
+| Soak: small frames first → last checkpoint, median | 2.50–2.70 → 2.52–2.62 · 4.76–5.29 → 3.20–5.63 | 2.56–2.70 → 2.68–3.42 · 5.29–5.30 → 3.67–5.44 |
+
+**Verdict:** Chromium is faster than `main` per message (frame after
+−2 ms median, −2 ms p95). Firefox costs about 1.4 ms more pane script per
+message (render 3.1 vs 1.7 headed) and +1.3 ms on the frame after a
+message (median; p95 +5 ms, burst p95 +3 ms), all within a frame and with
+no long frames in a real window. The standard checks are unchanged within
+noise; the Comm pane renders a little more often (0.9–1.0 vs 0.7 per
+second: the column's catch-up pass after its 1 Hz texts). For the owner
+to agree.
 
 ### Notes for 49b / 49c
 

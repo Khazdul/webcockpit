@@ -168,8 +168,7 @@ export type CommChatWindow = 10 | 30 | 60 | 'all';
 export const COMM_CHAT_WINDOWS: readonly CommChatWindow[] = [10, 30, 60, 'all'];
 /**
  * Channels new users have off in Public (ADR 0134: they live in the chats).
- * Stage 49c puts them into the defaults together with the new pane; the
- * old pane's filters hide the whole pane's channel, so not before.
+ * In the defaults' filters; stored filters are kept as they are.
  */
 export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'whispers'];
 /** Narrowest and widest dragged chat column of the Comm pane (CSS px). */
@@ -183,14 +182,9 @@ export interface CommSettings {
    * character). Sparse: a missing channel is enabled. Only `false` entries
    * are kept, so enabling a channel is `{ comm: { filters: { tells: true } } }`
    * and the migration drops the entry. Stored filters are kept as they are;
-   * from stage 49c new users start with `COMM_PUBLIC_DEFAULT_OFF` off.
+   * new users start with `COMM_PUBLIC_DEFAULT_OFF` off.
    */
   filters: Record<string, boolean>;
-  /**
-   * Show the one-row channel header (the pane before ADR 0134). Kept until
-   * stage 49c replaces the pane, its gear and the Options page; then dropped.
-   */
-  showHeader: boolean;
   /** Private chats shown: active in the last 10 / 30 / 60 min, or all. */
   chatWindow: CommChatWindow;
   /** The chat column is folded away (the spine's fold). */
@@ -522,7 +516,7 @@ export function defaultSettings(): Settings {
     layout: defaultLayout(),
     profile: 'default',
     group: defaultGroupSettings(),
-    comm: { filters: {}, showHeader: true, chatWindow: 30, folded: false, listWidth: null },
+    comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },

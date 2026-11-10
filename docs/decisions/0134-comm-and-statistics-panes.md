@@ -246,3 +246,31 @@ cost is agreed first.
   and with less than 30 em of height there the tiles go.
 - **Removed:** `statsPaneLayout`, `paneHeader` and the pane's kit CSS; the
   phone's ESC frame keeps `statsBody` and `TuiScrollbar`.
+
+## Addendum: 49c build notes (2026-11-09)
+
+- **Font:** Group and Timers draw in the pane's own font (the cockpit's
+  monospace), not the system UI stack the decision named; Comm does the
+  same, so the three panes match.
+- **Column mode:** from the pane's width in cells × the cell width (the
+  pane re-renders on every size change), not a ResizeObserver: no
+  measuring at all.
+- **Chevrons:** which chats are out of view (and whether one of them has
+  unread) comes from an IntersectionObserver on the rows, so the column
+  reads no layout per message.
+- **Thread:** the newest 200 messages of the open view are built; a scroll
+  near the top adds 200 more (AnchoredList builds only the ones put in
+  front and keeps the view). A gap of more than 5 minutes shows the time.
+- **Search results:** People first, then Messages newest first, at most
+  200, 120 ms after the last keystroke; they replace the thread.
+- **Selection:** a selection in the thread or the results is copied on
+  mouse up, as the output pane does; the game's keys still reach the game.
+- **Group unread:** a dot only, as decided; Public keeps a count.
+- **Compact column:** below 14 cell rows each entry is one line (no
+  snippet), so the private chats keep room in the default dock.
+- **Column texts at most once a second:** snippets and ages catch up at
+  ≤ 1 Hz; order and unread change at once; a column write is skipped when
+  nothing changed. The column is contained, so it never lays out the
+  thread, and the thread is block flow (a new message lays out itself).
+- **Chat list order by CSS:** the list keeps to the newest chat without
+  script scroll reads or writes; a raised chat is one DOM move.

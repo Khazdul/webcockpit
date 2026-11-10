@@ -284,7 +284,6 @@ test('Comm pane: the wheel scrolls by pixels; new messages follow only at the bo
   await expect(more).toBeVisible();
   // Scrolled back: new messages land below, the view stays.
   await page.mouse.wheel(0, -200);
-  await expect(pane(page, 'comm').locator('.wc-comm-time').first()).toBeAttached();
   await page.waitForTimeout(400);
   const top = await scrollTop(list);
   const before = await more.textContent();
@@ -295,7 +294,6 @@ test('Comm pane: the wheel scrolls by pixels; new messages follow only at the bo
   // Back to the bottom with the wheel: live again, and it follows.
   for (let i = 0; i < 5; i++) await page.mouse.wheel(0, 1000);
   await expect(more).toBeHidden();
-  await expect(pane(page, 'comm').locator('.wc-comm-time')).toHaveCount(0);
   await addComm(page, 2, 48);
   await expect(rows.last()).toHaveText("Dori says 'line 49'");
   await expect.poll(() => atBottom(list)).toBe(true);

@@ -1,4 +1,5 @@
-// Stage 4 P2: the Comm and UI message panes (Inv §2.4, §2.7, ADR 0016).
+// Stage 4 P2: the Comm and UI message panes (Inv §2.4, §2.7, ADR 0016);
+// the Comm pane's chats, search, fold and gear since stage 49 (ADR 0134).
 // Most tests use the offline GMCP demo (tests/fixtures/gmcp-demo.log) at
 // max speed; the archive test uses a mocked MUME WebSocket.
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
@@ -13,7 +14,8 @@ const GMCP = 201;
 
 const comm = (page: Page) => page.locator('.wc-pane[data-pane="comm"]');
 const commRows = (page: Page) => comm(page).locator('.wc-comm-msg');
-const commCell = (page: Page, ch: string) => comm(page).locator(`.wc-comm-cell[data-channel="${ch}"]`);
+const entry = (page: Page, key: string) => comm(page).locator(`.wc-cm-ent[data-key="${key}"]`);
+const bubbles = (page: Page) => comm(page).locator('.wc-cm-bb .wc-cm-bt');
 const uiRows = (page: Page) => page.locator('.wc-pane[data-pane="ui"] .wc-ui-row');
 const settings = (page: Page) => page.evaluate(() => window.__wc!.settings.get());
 
@@ -62,35 +64,24 @@ test('the UI pane shows the demo lines and keeps them over a reload', async ({ p
   expect(errors).toEqual([]);
 });
 
-test('Comm formats the demo messages and never archives a replay', async ({ page }) => {
+test('Comm: Public without tells, a chat per person, and never archives a replay', async ({ page }) => {
   const errors = watchErrors(page);
   await demo(page);
   const rows = await commRows(page).allTextContents();
-  expect(rows.slice(-6)).toEqual([
+  // Tells and whispers live in the chats (ADR 0134): not in Public by default.
+  expect(rows.filter((r) => / tells? you | whispers? /.test(r))).toEqual([]);
+  expect(rows.slice(-5)).toEqual([
     "You narrate 'scout down at the ford'",
     "Dori prays 'Mahal, mend my wounds'",
     "Ecthel asks 'anyone near Rivendell?'",
     "Lindir sings 'A Elbereth Gilthoniel'",
-    "Gibur tells you 'more coming, 2 trolls'",
     "You say 'ready when you are'",
   ]);
-  // Every message is in the list (it scrolls natively, ADR 0052).
-  const seen = rows;
-  expect(seen).toHaveLength(14);
-  expect(seen.slice(0, 7)).toEqual([
-    "Gibur narrates 'orcs gathering at the ford'",
-    "You tell Gibur 'on my way'",
-    "Gibur tells you 'hurry, bring the merc'",
-    "Dori says 'I can smell them'",
-    "You whisper to Dori 'stay behind me'",
-    'Dori nods solemnly.',
-    "*Throzghul* yells 'kill them all'",
-  ]);
-  // Live view: no timestamps, no indicator.
-  await expect(comm(page).locator('.wc-comm-time')).toHaveCount(0);
-  await expect(comm(page).locator('.wc-alist-more')).toBeHidden();
-  // Header in channel colours; the enemy's red is kept in the message.
-  await expect(commCell(page, 'tells')).toHaveCSS('color', 'rgb(0, 128, 0)');
+  await expect(comm(page).locator('.wc-cm-ent')).toHaveCount(4);
+  await expect(entry(page, 'gibur')).toBeVisible();
+  await expect(entry(page, 'dori')).toBeVisible();
+  // A replay has no reply line.
+  await expect(comm(page).locator('.wc-cm-reply')).toBeHidden();
   // The replay wrote nothing to the comm archive.
   const stored = await page.evaluate(
     () =>
@@ -109,48 +100,63 @@ test('Comm formats the demo messages and never archives a replay', async ({ page
   expect(errors).toEqual([]);
 });
 
-test('header: mouse down toggles, right click solos and restores', async ({ page }) => {
+test('a chat: bubbles for near talk, yours on the right, the unread count cleared', async ({ page }) => {
   await demo(page);
-  const tells = commRows(page).filter({ hasText: /tells? / });
-  await expect(tells).not.toHaveCount(0);
-  await commCell(page, 'tells').dispatchEvent('mousedown', { button: 0 });
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false });
-  await expect(tells).toHaveCount(0);
-  await expect(commCell(page, 'tells')).toHaveCSS('color', 'rgb(58, 58, 58)');
-  await commCell(page, 'tells').click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({});
-  // Right click: solo Says, again: back.
-  await commCell(page, 'says').click({ button: 'right' });
-  await expect(commRows(page)).toHaveText(["Dori says 'I can smell them'", "You say 'ready when you are'"]);
-  await commCell(page, 'says').click({ button: 'right' });
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({});
-  await expect(tells).not.toHaveCount(0);
+  await expect(entry(page, 'gibur').locator('.wc-cm-badge')).toBeVisible();
+  await entry(page, 'gibur').click();
+  await expect(entry(page, 'gibur')).toHaveAttribute('aria-pressed', 'true');
+  await expect(entry(page, 'gibur').locator('.wc-cm-badge')).toBeHidden();
+  await expect(bubbles(page)).toContainText(['on my way', 'hurry, bring the merc', 'more coming, 2 trolls']);
+  await expect(comm(page).locator('.wc-cm-bb.is-me .wc-cm-bt')).toContainText(['on my way']);
+  await expect(comm(page).locator('.wc-cm-bb.is-me .wc-cm-bm').first()).toHaveText(/^tell · \d\d:\d\d$/);
+  // His narrate is in his chat, quietly, with the channel as text.
+  await expect(comm(page).locator('.wc-cm-oh .wc-cm-chp').first()).toHaveText('Narrates');
+  // Text is selectable (no mousedown is taken).
+  const sel = await comm(page)
+    .locator('.wc-cm-bb .wc-cm-bt')
+    .first()
+    .evaluate((el) => getComputedStyle(el).userSelect);
+  expect(sel).not.toBe('none');
 });
 
-test('the wheel scrolls back with timestamps; the indicator returns to live', async ({ page }) => {
+test('search finds messages on every channel and people; Open chat; Esc closes', async ({ page }) => {
   await demo(page);
-  const last = "You say 'ready when you are'";
-  await expect(commRows(page).last()).toHaveText(last);
-  await comm(page).locator('.wc-alist').hover();
-  await page.mouse.wheel(0, -100);
-  const more = comm(page).locator('.wc-alist-more');
-  await expect(more).toHaveText(/^↓ \d+ newer messages?$/);
-  await expect(commRows(page).last()).toHaveText(new RegExp(`^\\d\\d:\\d\\d ${last}`));
-  // Scroll all the way: the oldest message at the top, no blank above.
-  for (let i = 0; i < 10; i++) await page.mouse.wheel(0, -1000);
-  await expect.poll(() => comm(page).locator('.wc-alist').evaluate((el) => el.scrollTop)).toBe(0);
-  const listBox = (await comm(page).locator('.wc-alist').boundingBox())!;
-  const firstBox = (await commRows(page).first().boundingBox())!;
-  await expect(commRows(page).first()).toHaveText(/^\d\d:\d\d Gibur narrates/);
-  expect(Math.abs(firstBox.y - listBox.y)).toBeLessThanOrEqual(1);
-  await more.dispatchEvent('mousedown', { button: 0 });
-  await expect(more).toBeHidden();
-  await expect(commRows(page).last()).toHaveText(last);
-  await expect(commRows(page).last()).toBeInViewport();
-  await expect(comm(page).locator('.wc-comm-time')).toHaveCount(0);
+  await comm(page).hover();
+  await page.keyboard.press('Control+f');
+  await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-search', '');
+  await expect(comm(page).locator('.wc-cm-sinput')).toBeFocused();
+  await page.keyboard.type('troll');
+  await expect(comm(page).locator('.wc-cm-rm .wc-cm-rmt')).toContainText(["Gibur tells you 'more coming, 2 trolls'"]);
+  await expect(comm(page).locator('.wc-cm-rm mark').first()).toHaveText('troll');
+  await page.keyboard.press('Escape');
+  await expect(comm(page).locator('.wc-comm')).not.toHaveAttribute('data-search', '');
+  await comm(page).locator('.wc-cm-sbtn').click();
+  await page.keyboard.type('dor');
+  const person = comm(page).locator('.wc-cm-rp[data-key="dori"]');
+  await expect(person).toContainText('Open chat →');
+  await person.click();
+  await expect(entry(page, 'dori')).toHaveAttribute('aria-pressed', 'true');
+  await expect(comm(page).locator('.wc-cm-results')).toBeHidden();
 });
 
-test('the Comm gear toggles channels and the header live (ADR 0107)', async ({ page }) => {
+test('the spine folds the chat list; folded, the chip names the open chat and unfold brings it back', async ({ page }) => {
+  await demo(page);
+  await entry(page, 'dori').click();
+  const handle = comm(page).locator('.wc-cm-handle');
+  await handle.hover();
+  await expect(handle).toHaveCSS('opacity', '1');
+  await handle.click();
+  await expect.poll(async () => (await settings(page)).comm.folded).toBe(true);
+  await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-mode', 'folded');
+  await expect(comm(page).locator('.wc-cm-col')).toBeHidden();
+  await expect(comm(page).locator('.wc-cm-chip')).toHaveText('DDori');
+  await comm(page).locator('.wc-cm-unfold').click();
+  await expect.poll(async () => (await settings(page)).comm.folded).toBe(false);
+  await expect(comm(page).locator('.wc-cm-col')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
+test('the Comm gear sets the Public channels and the chat window live (ADR 0107, 0134)', async ({ page }) => {
   await demo(page);
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
   // The pane's buttons show on hover (ADR 0095).
@@ -160,22 +166,16 @@ test('the Comm gear toggles channels and the header live (ADR 0107)', async ({ p
   await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
   const tales = pop.locator('.wc-sp-chan[data-channel="tales"] [role=switch]');
   await tales.click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, whispers: false });
   await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
   await tales.click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({});
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
-  // Show channel header off: the header row goes.
-  const header = pop.locator('[data-key="show-header"] [role=switch]');
-  await header.click();
-  await expect.poll(async () => (await settings(page)).comm.showHeader).toBe(false);
-  await expect(comm(page).locator('.wc-comm-header')).toBeHidden();
-  await header.click();
-  await expect(comm(page).locator('.wc-comm-header')).toBeVisible();
+  await pop.locator('[aria-label="Show chats active in the last"] [data-value="all"]').click();
+  await expect.poll(async () => (await settings(page)).comm.chatWindow).toBe('all');
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('Options → Panes → Communication in the phone\'s ESC menu toggles channels and the header', async ({ page }) => {
+test('Options → Panes → Communication in the phone\'s ESC menu sets the Public channels and the chat window', async ({ page }) => {
   // The start page's Options went in stage 32; the phone's ESC menu keeps it.
   const frame = await openEscOptions(page);
   await frame.locator('.wc-mrow[data-key="panes"]').click();
@@ -189,13 +189,14 @@ test('Options → Panes → Communication in the phone\'s ESC menu toggles chann
   await page.mouse.move(0, 0);
   await page.keyboard.press('Home');
   await page.keyboard.press('Enter');
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, whispers: false });
   await frame.locator('[data-channel="tales"]').click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({});
-  await frame.locator('[data-key="show-header"]').click();
-  await expect.poll(async () => (await settings(page)).comm.showHeader).toBe(false);
-  await frame.locator('[data-key="show-header"]').click();
-  await expect.poll(async () => (await settings(page)).comm.showHeader).toBe(true);
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false, whispers: false });
+  const win = frame.locator('[data-key="chat-window"]');
+  await expect(win).toHaveText('Chats: active in the last 30 min');
+  await win.click();
+  await expect.poll(async () => (await settings(page)).comm.chatWindow).toBe(60);
+  await expect(win).toHaveText('Chats: active in the last 60 min');
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
@@ -204,10 +205,11 @@ test('Options → Panes → Communication in the phone\'s ESC menu toggles chann
 const gmcp = (pkg: string, data: unknown): Buffer =>
   Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(`${pkg} ${JSON.stringify(data)}`), Buffer.from([IAC, SE])]);
 
-async function live(page: Page): Promise<() => WebSocketRoute> {
+async function live(page: Page, received: string[] = []): Promise<() => WebSocketRoute> {
   let server: WebSocketRoute | null = null;
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
     server = ws;
+    ws.onMessage((m) => received.push(typeof m === 'string' ? m : m.toString('latin1')));
     ws.send(Buffer.concat([Buffer.from([IAC, WILL, GMCP]), Buffer.from('\r\nBy what name do you wish to be known? ')]));
   });
   return () => server!;
@@ -227,14 +229,48 @@ test('live comm is archived per character and seeded after a reload', async ({ p
   await login();
   await page.evaluate(() => window.__wc!.app.bus.emit('ui.message', { kind: 'system', parts: ['marker.'] }));
   server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'first'" }));
-  await expect(commRows(page)).toHaveText(["Gibur tells you 'first'"]);
+  // A tell opens Gibur's chat (not in Public by default, ADR 0134).
+  await expect(commRows(page)).toHaveCount(0);
+  await expect(entry(page, 'gibur').locator('.wc-cm-badge')).toHaveText('1');
   await expect(uiRows(page).filter({ hasText: 'Testchar logged in.' })).toHaveCount(1);
   await expect(uiRows(page).filter({ hasText: 'Connecting to MUME...' })).toHaveCount(1);
   // Let the archive write land, then reload and log in again.
   await page.waitForTimeout(200);
   await login();
-  await expect(commRows(page)).toHaveText(["Gibur tells you 'first'"]);
+  // Seeded quietly: the chat is there, with no unread.
+  await expect(entry(page, 'gibur')).toBeVisible();
+  await expect(entry(page, 'gibur').locator('.wc-cm-badge')).toBeHidden();
   server().send(gmcp('Comm.Channel.Text', { channel: 'says', talker: 'you', text: 'second' }));
-  await expect(commRows(page)).toHaveText(["Gibur tells you 'first'", "You say 'second'"]);
+  await expect(commRows(page)).toHaveText(["You say 'second'"]);
+  await entry(page, 'gibur').click();
+  await expect(bubbles(page)).toHaveText(['first']);
   expect(errors).toEqual([]);
+});
+
+test('the reply line sends a tell in a chat, a say in Public and a tell to the group in Group', async ({ page }) => {
+  const received: string[] = [];
+  const server = await live(page, received);
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  server().send(gmcp('Char.Name', { name: 'Testchar', fullname: 'Testchar the Tester' }));
+  await expect(comm(page)).toHaveAttribute('data-active', '');
+  server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Lindir', 'talker-type': 'player', text: "Lindir tells you 'there?'" }));
+  const input = comm(page).locator('.wc-cm-rinput');
+  await expect(input).toHaveAttribute('placeholder', 'Say something…');
+  await input.fill('hello all');
+  await input.press('Enter');
+  await entry(page, 'lindir').click();
+  await expect(input).toHaveAttribute('placeholder', 'Reply to Lindir…');
+  await input.fill('yes');
+  await input.press('Enter');
+  await entry(page, 'group').click();
+  await input.fill('wait');
+  await input.press('Enter');
+  await expect.poll(() => received.join('')).toContain('tell group wait');
+  const all = received.join('');
+  expect(all).toContain('say hello all');
+  expect(all).toContain('tell Lindir yes');
+  await expect(input).toHaveValue('');
 });

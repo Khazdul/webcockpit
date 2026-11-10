@@ -308,13 +308,15 @@ export function migrateGroup(raw: unknown): GroupSettings {
 /**
  * Comm pane options from anything. Filters keep only disabled channels
  * (`false`) with a sane name; at most `COMM_FILTERS_MAX` of them; stored
- * filters are kept as they are (only new users get the defaults). The
- * column width is clamped; anything else is the automatic width.
+ * filters are kept as they are (settings without filters, a new user's,
+ * get the defaults). The column width is clamped; anything else is the
+ * automatic width. A stored `showHeader` (the pane before ADR 0134) is
+ * dropped.
  */
 export function migrateComm(raw: unknown): CommSettings {
   const d = defaultSettings().comm;
   const c = isObj(raw) ? raw : {};
-  const filters: Record<string, boolean> = {};
+  const filters: Record<string, boolean> = isObj(c.filters) ? {} : { ...d.filters };
   if (isObj(c.filters)) {
     let n = 0;
     for (const [k, v] of Object.entries(c.filters)) {
@@ -328,7 +330,6 @@ export function migrateComm(raw: unknown): CommSettings {
     typeof w === 'number' && Number.isFinite(w) ? Math.round(Math.min(COMM_LIST_WIDTH_MAX, Math.max(COMM_LIST_WIDTH_MIN, w))) : null;
   return {
     filters,
-    showHeader: bool(c.showHeader, d.showHeader),
     chatWindow: oneOf(c.chatWindow, COMM_CHAT_WINDOWS, d.chatWindow),
     folded: bool(c.folded, d.folded),
     listWidth,
