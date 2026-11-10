@@ -176,6 +176,8 @@
   height: 1em;
   transform: translateX(-50%);
   color: color-mix(in srgb, var(--cm-self) 60%, transparent);
+  /* A hint only: the row under it keeps its clicks (the wheel scrolls). */
+  pointer-events: none;
 }
 
 .wc-cm-chev .wc-cm-i {
@@ -321,6 +323,32 @@
   height: 0.55em;
   padding: 0;
   border-radius: 50%;
+}
+
+/* A short pane (`data-compact`, under 14 cell rows): one line per entry,
+ * a smaller disc, no snippet, so the private chats keep room. */
+.wc-comm[data-compact] .wc-cm-ent {
+  grid-template-columns: 1.45em minmax(0, 1fr) auto;
+  padding-top: 0.1em;
+  padding-bottom: 0.1em;
+}
+
+.wc-comm[data-compact] .wc-cm-av {
+  width: 1.45em;
+  height: 1.45em;
+}
+
+.wc-comm[data-compact] .wc-cm-av .wc-cm-i {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.wc-comm[data-compact] .wc-cm-r2 {
+  display: none;
+}
+
+.wc-comm[data-compact] .wc-cm-gap {
+  margin: 0.25em 0.5em;
 }
 
 /* The rail: discs only (the name in the tooltip), the badge on the disc. */
@@ -576,6 +604,24 @@
  * folded or searching, the top bar has a row of its own. */
 .wc-comm .wc-cm-thread {
   padding: 2.1em 0.1em 0.3em;
+}
+
+/* Borderless, the pane's hover buttons lie over the content's top row
+ * (ADR 0095): the top bar goes under them. */
+.wc-pane:not([data-framed]) .wc-cm-top {
+  top: calc(var(--cell-h, 17px) + 0.1em);
+}
+
+.wc-pane:not([data-framed]) .wc-comm .wc-cm-thread,
+.wc-pane:not([data-framed]) .wc-comm .wc-cm-results {
+  padding-top: calc(var(--cell-h, 17px) + 2.1em);
+}
+
+.wc-pane:not([data-framed]) .wc-comm[data-mode='folded'] .wc-cm-thread,
+.wc-pane:not([data-framed]) .wc-comm[data-mode='folded'] .wc-cm-results,
+.wc-pane:not([data-framed]) .wc-comm[data-search] .wc-cm-results {
+  margin-top: calc(var(--cell-h, 17px) + 2.1em);
+  padding-top: 0.1em;
 }
 
 .wc-comm[data-mode='folded'] .wc-cm-thread,

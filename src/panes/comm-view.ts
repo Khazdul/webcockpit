@@ -99,6 +99,12 @@ export function ago(ts: number, now: number): string {
   return `${Math.floor(h / 24)}d`;
 }
 
+/** `just now` or `5m ago` (tooltips, search). */
+export function agoText(ts: number, now: number): string {
+  const a = ago(ts, now);
+  return a === 'now' ? 'just now' : `${a} ago`;
+}
+
 // ---------------------------------------------------------------- text
 
 /** A bubble's text: the message only (quoted channels) or the whole action. ANSI kept. */

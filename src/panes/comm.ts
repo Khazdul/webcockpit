@@ -70,6 +70,7 @@ import {
   SEP_GAP_MS,
   THREAD_PAGE,
   ago,
+  agoText,
   autoListWidth,
   bubbleText,
   channelInk,
@@ -102,6 +103,8 @@ const AGE_TICK_MS = 30_000;
 const SPINE_CLICK_PX = 4;
 /** Message hits shown at most. */
 const SEARCH_LIMIT = 200;
+/** Under this many cell rows the chat column is one line per entry. */
+const COMPACT_ROWS = 14;
 
 const PUBLIC = 'public';
 const GROUP = 'group';
@@ -140,8 +143,8 @@ export class CommPane extends PaneShell {
   private readonly pins: HTMLDivElement;
   private readonly chatWrap: HTMLDivElement;
   private readonly chatsEl: HTMLDivElement;
-  private readonly chevUp: HTMLButtonElement;
-  private readonly chevDown: HTMLButtonElement;
+  private readonly chevUp: HTMLDivElement;
+  private readonly chevDown: HTMLDivElement;
   private readonly spine: HTMLDivElement;
   private readonly handle: HTMLButtonElement;
   private readonly main: HTMLDivElement;
@@ -183,6 +186,9 @@ export class CommPane extends PaneShell {
   private dragLayout: ColumnLayout | null = null;
   private limit = THREAD_PAGE;
   private threadView = '';
+  /** The key and the first item of the last thread render (`fixSeps`). */
+  private listKey = '';
+  private firstItem: ThreadItem | undefined;
   /** Item → the one before it in the thread (separators, bubble runs), set per render. */
   private prevOf = new Map<ThreadItem, ThreadItem | undefined>();
   private inks = { light: false, bg: '#000000' };
@@ -219,10 +225,15 @@ export class CommPane extends PaneShell {
     this.pins = div('wc-cm-pins');
     this.chatWrap = div('wc-cm-chatwrap');
     this.chatsEl = div('wc-cm-chats');
-    this.chevUp = button('wc-cm-chev is-up', 'chevUp', 'Older chats');
-    this.chevDown = button('wc-cm-chev is-down', 'chevDown', 'Newer chats');
-    this.chevUp.tabIndex = -1;
-    this.chevDown.tabIndex = -1;
+    // A hint only (the wheel scrolls the chats): no button, hidden from readers.
+    const chev = (cls: string, icon: IconName): HTMLDivElement => {
+      const d = div(cls);
+      d.setAttribute('aria-hidden', 'true');
+      d.append(iconSvg(doc, icon, 'wc-cm-i'));
+      return d;
+    };
+    this.chevUp = chev('wc-cm-chev is-up', 'chevUp');
+    this.chevDown = chev('wc-cm-chev is-down', 'chevDown');
     this.chatWrap.append(this.chatsEl, this.chevUp, this.chevDown);
     this.col.append(this.pins, div('wc-cm-gap'), this.chatWrap);
     this.spine = div('wc-cm-spine');
@@ -519,8 +530,6 @@ export class CommPane extends PaneShell {
       if (b?.dataset.key) this.openView(b.dataset.key);
     };
     this.col.addEventListener('click', onCol);
-    this.chevUp.addEventListener('click', () => this.pageChats(-1));
-    this.chevDown.addEventListener('click', () => this.pageChats(1));
     this.chatsEl.addEventListener(
       'scroll',
       () => {
@@ -628,12 +637,6 @@ export class CommPane extends PaneShell {
     if (win && typeof win.IntersectionObserver === 'function') {
       this.io = new win.IntersectionObserver(this.onIntersect, { root: this.chatsEl, threshold: 0.6 });
     }
-  }
-
-  /** Scrolls the chats a page up (-1) or down (1). */
-  private pageChats(dir: -1 | 1): void {
-    const el = this.chatsEl;
-    el.scrollBy({ top: dir * el.clientHeight * 0.8, behavior: reducedMotion(this.ctx.doc) ? 'auto' : 'smooth' });
   }
 
   private readonly onIntersect = (entries: IntersectionObserverEntry[]): void => {
@@ -744,6 +747,7 @@ export class CommPane extends PaneShell {
     const inksChanged = light !== this.inks.light || bg !== this.inks.bg;
     this.inks = { light, bg };
     toggle(this.root, 'data-light', light);
+    toggle(this.root, 'data-compact', this.rows < COMPACT_ROWS);
     setProp(this.root, '--cm-fg', shade.ramp.vtext);
     setProp(this.root, '--cm-dim', shade.ramp.label);
 
@@ -774,7 +778,10 @@ export class CommPane extends PaneShell {
       this.threadView = key;
       this.root.dataset.view = open === PUBLIC || open === GROUP ? open : 'chat';
     }
+    if (this.list.size === 0 || key !== this.listKey) this.firstItem = undefined;
+    this.listKey = key;
     this.list.render(shown, (it) => this.buildItem(it, open, now), key, (n) => `↓ ${n} new`);
+    this.fixSeps(shown, now);
     this.renderReply(open);
 
     if (this.searchOpen && this.searchDirty && this.searchTimer === null) this.scheduleSearch();
@@ -873,7 +880,7 @@ export class CommPane extends PaneShell {
         dot: false,
         selected: open === c.key,
         dim: false,
-        tip: `${c.name} · ${ago(c.lastNear, now)} ago`,
+        tip: `${c.name} · ${agoText(c.lastNear, now)}`,
         list,
         force,
       });
@@ -1041,18 +1048,48 @@ export class CommPane extends PaneShell {
 
   // --------------------------------------------------------------- thread
 
+  /** The time before an item that follows a gap (or starts the view). */
+  private buildSep(it: ThreadItem, now: number): HTMLElement {
+    const sep = this.ctx.doc.createElement('div');
+    sep.className = 'wc-cm-sep';
+    const ts = tsOf(it);
+    sep.textContent = now - ts > 24 * 3600_000 ? new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' + clock(ts) : clock(ts);
+    return sep;
+  }
+
+  /**
+   * After a render whose first item changed (older items trimmed off the
+   * top, or a page put in front), the new first item and the old one get
+   * the separator their place now asks for; the rest kept their neighbours.
+   */
+  private fixSeps(shown: readonly ThreadItem[], now: number): void {
+    const first = shown[0];
+    if (first === this.firstItem) return;
+    const old = this.firstItem;
+    this.firstItem = first;
+    const els = this.list.elements;
+    const fix = (i: number): void => {
+      const el = els[i];
+      const it = shown[i];
+      if (!el || !it) return;
+      const has = el.firstElementChild?.classList.contains('wc-cm-sep') === true;
+      const want = wantsSep(it, shown[i - 1]);
+      if (want && !has) el.prepend(this.buildSep(it, now));
+      else if (!want && has) el.firstElementChild!.remove();
+    };
+    fix(0);
+    if (old !== undefined) {
+      const i = shown.indexOf(old);
+      if (i > 0) fix(i);
+    }
+  }
+
   private buildItem(it: ThreadItem, open: string, now: number): HTMLElement {
     const doc = this.ctx.doc;
     const wrap = doc.createElement('div');
     wrap.className = 'wc-cm-item';
     const prev = this.prevOf.get(it);
-    const ts = tsOf(it);
-    if (!prev || ts - tsOf(prev) > SEP_GAP_MS) {
-      const sep = doc.createElement('div');
-      sep.className = 'wc-cm-sep';
-      sep.textContent = now - ts > 24 * 3600_000 ? new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' + clock(ts) : clock(ts);
-      wrap.append(sep);
-    }
+    if (wantsSep(it, prev)) wrap.append(this.buildSep(it, now));
     if (isGroupItem(it) && it.kind === 'note') {
       wrap.append(this.buildNote(it.note));
       return wrap;
@@ -1185,7 +1222,7 @@ export class CommPane extends PaneShell {
         const name = doc.createElement('b');
         appendHits(doc, name, c.name, q);
         const sub = doc.createElement('small');
-        sub.textContent = `${ago(c.lastNear, now)} ago`;
+        sub.textContent = agoText(c.lastNear, now);
         t.append(name, sub);
         const go = doc.createElement('span');
         go.className = 'wc-cm-go';
@@ -1231,10 +1268,6 @@ function toggle(el: Element, attr: string, on: boolean): void {
 
 function setProp(el: HTMLElement, name: string, value: string): void {
   if (el.style.getPropertyValue(name) !== value) el.style.setProperty(name, value);
-}
-
-function reducedMotion(doc: Document): boolean {
-  return doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
 function lastWhere(list: readonly ChatEntry[], pred: (e: ChatEntry) => boolean): ChatEntry | null {
@@ -1307,5 +1340,10 @@ function styleRun(span: HTMLElement, r: StyleRun): void {
   if (r.italic) cls += ' wc-ital';
   if (r.underline) cls += ' wc-ul';
   if (cls) span.className = cls.slice(1);
+}
+
+/** An item shows the time before it when it starts the view or follows a gap. */
+function wantsSep(it: ThreadItem, prev: ThreadItem | undefined): boolean {
+  return !prev || tsOf(it) - tsOf(prev) > SEP_GAP_MS;
 }
 

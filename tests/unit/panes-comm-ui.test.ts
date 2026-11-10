@@ -622,6 +622,11 @@ describe('CommPane (ADR 0134)', () => {
     expect(c.pane.messages[0]!.text).toBe("D says '5'");
     expect(c.rows()).toHaveLength(200);
     expect(c.rows().at(-1)).toBe("D says '1004'");
+    // The first shown row keeps the time before it after the top was trimmed.
+    c.bus.emit('gmcp', text('says', 'D', "D says 'one more'"));
+    c.flush();
+    expect(c.qa('.wc-cm-sep')).toHaveLength(1);
+    expect(c.q('.wc-cm-item')!.firstElementChild!.classList.contains('wc-cm-sep')).toBe(true);
   });
 });
 
