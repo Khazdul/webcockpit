@@ -143,6 +143,38 @@ test('during a replay: the live run, a long list that follows and counts `↓ N 
   const rows = view(page).locator('.wc-st-row:not(.wc-st-probe)');
   expect(await rows.count()).toBeLessThan(45);
   await expect(view(page).locator('.wc-st-row.is-newest .wc-st-name')).toHaveText('a stone troll 58');
+  // The card: `Last kill` alone, no age, no `calibrating…`.
+  await expect(view(page).locator('.wc-st-card-top')).toHaveText('Last kill');
+  await expect(view(page).locator('.wc-st-card')).not.toContainText('calibrating');
+  // The median line: one element the height of the whole list, at a third
+  // of every row's bar (wide here, then narrow).
+  const medCheck = () =>
+    view(page).evaluate((root) => {
+      const space = root.querySelector('.wc-st-space')!.getBoundingClientRect();
+      const i = root.querySelector('.wc-st-medline > i')!;
+      const line = i.getBoundingClientRect();
+      const x = parseFloat(getComputedStyle(i, '::after').borderLeftWidth) > 0 ? line.left + line.width / 3 : NaN;
+      const bars = [...root.querySelectorAll('.wc-st-row:not(.wc-st-probe) .wc-st-bar')].map((b) => {
+        const r = b.getBoundingClientRect();
+        return r.left + r.width / 3;
+      });
+      return {
+        n: root.querySelectorAll('.wc-st-medline').length,
+        top: line.top - space.top,
+        h: line.height - space.height,
+        off: Math.max(...bars.map((b) => Math.abs(b - x))),
+        bars: bars.length,
+      };
+    });
+  for (const w of [60, 30]) {
+    await placeFloat(page, 4, 2, w, 34);
+    await expect.poll(async () => (await medCheck()).off).toBeLessThan(1);
+    const m = await medCheck();
+    expect(m).toMatchObject({ n: 1 });
+    expect(m.bars).toBeGreaterThan(3);
+    expect(Math.abs(m.top)).toBeLessThan(1);
+    expect(Math.abs(m.h)).toBeLessThan(1);
+  }
   // Scrolled up: new kills do not move the view; `↓ N new` counts them; a press returns.
   const scroll = view(page).locator('.wc-st-scroll');
   await scroll.evaluate((el) => (el.scrollTop = 0));

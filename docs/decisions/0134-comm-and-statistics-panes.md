@@ -303,3 +303,24 @@ A fresh review of the merged branch led to these rules:
   Statistics list restores its scrolled-up position when shown again.
 - Public's filtered list is cached between renders (appended per message,
   rebuilt on a filter change).
+
+## Addendum: owner's first test, Statistics (2026-11-10)
+
+Supersedes for the pane: "Fewer than 5 kills: `calibrating…`" above, the
+card's age, and "a faint median tick" per row.
+
+- **Calibrating** (fewer than 5 mob kills in the window): the card shows
+  the kill's name and XP only. No badge, no `calibrating…` text and no
+  scale (with no median the scale and its marker mean nothing). The list
+  has no median line then. A pkill keeps its `⚔ PvP` badge and has no
+  scale, as before.
+- **The card's label** is `Last kill` alone, without an age. The 1 Hz
+  tick now writes only the run clock (the rows' ages still once a
+  minute).
+- **The median line** is one element over the whole list
+  (`.wc-st-medline` in the virtual list's space, the list's full height,
+  above the rows, no pointer events), laid out on the rows' own grid
+  (same columns, gap and padding, in each width mode), so it sits at a
+  third of the bar column (the bars' scale is 3 × the median) and runs
+  through as one dashed line. It scrolls with the rows. A median change
+  still rewrites only `--st-scale`; the line never moves.

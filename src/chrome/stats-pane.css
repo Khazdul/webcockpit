@@ -256,17 +256,22 @@
   position: relative;
 }
 
-.wc-st-row {
+/* A row and the median line share the grid: columns, gap and padding. */
+.wc-st-row,
+.wc-st-medline {
   position: absolute;
   left: 0;
   right: 0;
-  height: 1.7em;
   display: grid;
   grid-template-columns: 3.4em minmax(0, 1fr) minmax(3em, 30%) 3.8em;
-  align-items: center;
   gap: 0.55em;
   padding: 0 0.3em;
   box-sizing: border-box;
+}
+
+.wc-st-row {
+  height: 1.7em;
+  align-items: center;
   border-radius: 3px;
   --c: var(--st-dim, #888);
   --cf: var(--st-dim, #888);
@@ -335,16 +340,33 @@
   transform: scaleX(min(1, calc(var(--xp, 0) / var(--st-scale, 1))));
 }
 
-.wc-st-bar::after {
+/* The median line: one element the height of the whole list (the virtual
+ * list's space), over the rows, in the bar column at a third (the bars'
+ * scale is 3 × the median, so the median never moves along the bar: a new
+ * median rewrites only `--st-scale`). It scrolls with the rows; none while
+ * calibrating. */
+.wc-st-medline {
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.wc-st-medline > i {
+  grid-column: 3;
+  position: relative;
+}
+
+.wc-st-medline > i::after {
   content: '';
   position: absolute;
-  top: -0.35em;
-  bottom: -0.35em;
+  top: 0;
+  bottom: 0;
   left: 33.333%;
   border-left: 1px dashed var(--st-tick);
 }
 
-.wc-st[data-cal] .wc-st-bar::after {
+.wc-st[data-cal] .wc-st-medline {
   display: none;
 }
 
@@ -416,11 +438,6 @@
   gap: 0.6em;
 }
 
-.wc-st-cage {
-  font-size: 0.88em;
-  font-variant-numeric: tabular-nums;
-}
-
 .wc-st-mob {
   color: var(--st-hot);
   font-weight: 700;
@@ -455,15 +472,9 @@
   --c: var(--st-pk);
 }
 
-.wc-st-badge[data-state='cal'] {
-  font-weight: 400;
-  font-style: italic;
-  background: none;
-}
-
 .wc-st-badge:not([data-state='rated']) > .wc-st-pips,
-.wc-st-scale[hidden],
-.wc-st-mk[hidden] {
+.wc-st-badge[hidden],
+.wc-st-scale[hidden] {
   display: none;
 }
 
@@ -565,8 +576,13 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .wc-st-row {
+  .wc-st-row,
+  .wc-st-medline {
     grid-template-columns: minmax(0, 1fr) minmax(2.5em, 28%) 3.6em;
+  }
+
+  .wc-st-medline > i {
+    grid-column: 2;
   }
 
   .wc-st-age {

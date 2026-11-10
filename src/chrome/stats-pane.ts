@@ -10,7 +10,9 @@
 //     .wc-st-tiles                Avg / kill, Median, XP / h, Kills
 //     .wc-st-sec                  "Earlier" and the count
 //     .wc-st-list
-//       .wc-st-scroll > .wc-st-space > .wc-st-row …   every kill but the last
+//       .wc-st-scroll > .wc-st-space
+//         .wc-st-medline          the median line, one for the whole list
+//         .wc-st-row …            every kill but the last (those in view)
 //       .wc-st-more               `↓ N new` while scrolled up
 //     .wc-st-card                 the last kill: name, +XP, rating, scale
 //     .wc-st-norun                `No run yet`
@@ -28,9 +30,10 @@
 //   (it slides up from the card), the card shows the new one. Bars are a
 //   transform of `--xp / --st-scale` (scale = 3 × the median), so a new
 //   median restyles the rows in view without laying anything out; their
-//   rating words (`data-r`) are rewritten only where they change.
-// - The 1 Hz tick (a live run only) writes the clock text and the card's
-//   age; the rows' ages once a minute. Nothing reads layout per tick: the
+//   rating words (`data-r`) are rewritten only where they change. The
+//   median line is one element at a third of the bar column, never moved.
+// - The 1 Hz tick (a live run only) writes the clock text; the rows' ages
+//   once a minute. Nothing reads layout per tick: the
 //   list's height comes from a ResizeObserver, the scroll position from the
 //   scroll event.
 // - No keys: a mousedown outside the list is prevented (the game keeps the
@@ -144,7 +147,6 @@ export class StatsPaneView implements StatsPaneHandle {
   private frame = 0;
   /** The kill on the card (its time and name). */
   private cardKey = '';
-  private readonly cardAge: HTMLSpanElement;
   private readonly cardMob: HTMLDivElement;
   private readonly cardXp: HTMLSpanElement;
   private readonly badge: HTMLSpanElement;
@@ -192,6 +194,12 @@ export class StatsPaneView implements StatsPaneHandle {
     const list = el(doc, 'div', 'wc-st-list');
     this.scroll = el(doc, 'div', 'wc-st-scroll');
     this.space = el(doc, 'div', 'wc-st-space');
+    // The median line: one element over the whole list, laid out on the
+    // rows' grid so it sits on the bars' median position in every width.
+    const med = el(doc, 'div', 'wc-st-medline');
+    med.setAttribute('aria-hidden', 'true');
+    med.append(el(doc, 'i', ''));
+    this.space.append(med);
     this.scroll.append(this.space);
     this.scroll.addEventListener('scroll', this.onScroll, { passive: true });
     this.more = el(doc, 'button', 'wc-st-more');
@@ -204,8 +212,7 @@ export class StatsPaneView implements StatsPaneHandle {
     this.card = el(doc, 'div', 'wc-st-card');
     this.card.hidden = true;
     const head = el(doc, 'div', 'wc-st-card-top');
-    this.cardAge = el(doc, 'span', 'wc-st-dim wc-st-cage');
-    head.append(el(doc, 'span', 'wc-st-k', 'Last kill'), this.cardAge);
+    head.append(el(doc, 'span', 'wc-st-k', 'Last kill'));
     this.cardMob = el(doc, 'div', 'wc-st-mob');
     const big = el(doc, 'div', 'wc-st-big');
     this.cardXp = el(doc, 'span', 'wc-st-bigxp');
@@ -540,27 +547,28 @@ export class StatsPaneView implements StatsPaneHandle {
     const rated = k.pk ? null : rate(k.xp);
     setAttr(this.card, 'data-r', rated ? rated.rating : null);
     setAttr(this.card, 'data-pk', k.pk ? '' : null);
-    setText(this.cardAge, `${fmtAge(this.ageRef - k.us)} ago`);
     setText(this.cardMob, k.name);
     this.cardMob.title = k.name;
     setText(this.cardXp, `+${fmtK(k.xp)}`);
 
-    // The badge: PvP, calibrating, or the rating with its pips.
-    const state = k.pk ? 'pk' : rated ? 'rated' : 'cal';
+    // The badge: PvP or the rating with its pips; none while calibrating
+    // (the owner, 2026-11-10: no `calibrating…` on the card).
+    const state = k.pk ? 'pk' : rated ? 'rated' : null;
     setAttr(this.badge, 'data-state', state);
     setAttr(this.badge, 'data-r', rated ? rated.rating : null);
-    setText(this.badgeText, k.pk ? '⚔ PvP' : rated ? RATING_LABEL[rated.rating] : 'calibrating…');
+    this.badge.hidden = !k.pk && !rated;
+    setText(this.badgeText, k.pk ? '⚔ PvP' : rated ? RATING_LABEL[rated.rating] : '');
     const at = rated ? RATING_ORDER.indexOf(rated.rating) : -1;
     const pips = this.badge.firstChild!.childNodes;
     for (let j = 0; j < pips.length; j++) (pips[j] as HTMLElement).classList.toggle('on', j <= at);
 
-    // The scale (not for a pkill): the band and label of the rating, the marker at its ratio.
-    this.scaleBox.hidden = k.pk;
+    // The scale (rated mob kills only): the band and label of the rating,
+    // the marker at its ratio. While calibrating it means nothing: hidden.
+    this.scaleBox.hidden = !rated;
     for (let j = 0; j < this.bandEls.length; j++) {
       this.bandEls[j]!.classList.toggle('here', j === at);
       this.lblEls[j]!.classList.toggle('here', j === at);
     }
-    this.scaleMk.hidden = !rated;
     if (rated) this.scaleMk.style.left = `${(scalePos(rated.ratio) * 100).toFixed(1)}%`;
 
     if (fresh && newKill && !reducedMotion(this.doc) && typeof this.card.animate === 'function') {
@@ -592,8 +600,6 @@ export class StatsPaneView implements StatsPaneHandle {
   private readonly onTick = (): void => {
     this.ageRef = this.feed.nowUs();
     this.writeClock();
-    const k = this.kills[this.kills.length - 1];
-    if (k && this.cardAge) setText(this.cardAge, `${fmtAge(this.ageRef - k.us)} ago`);
     if (++this.ticks % AGE_EVERY === 0) for (const [i, row] of this.rows) this.updateRow(row, i);
   };
 

@@ -404,6 +404,20 @@ describe('mountStatsPane (the view)', () => {
     expect(host.querySelector('.wc-st-norun')!.textContent).toBe('No run yet');
 
     // A run with six kills: calibrated after five.
+    // Three kills: calibrating. No badge (no `calibrating…`) and no scale; no median line.
+    f.live = [startEv(), ...[1, 2, 3].map((i) => k(T0 + i * 1e6, 1000 + i * 100))];
+    f.latest = { runId: '', events: f.live, ended: false };
+    await act(async () => {
+      f.emit();
+      await vi.advanceTimersByTimeAsync(STATS_FEED_MS);
+    });
+    await tick();
+    expect(root.hasAttribute('data-cal')).toBe(true);
+    expect(host.querySelector<HTMLElement>('.wc-st-badge')!.hidden).toBe(true);
+    expect(host.querySelector<HTMLElement>('.wc-st-scale')!.hidden).toBe(true);
+    expect(host.querySelector('.wc-st-card')!.textContent).not.toContain('calibrating');
+    expect(host.querySelector('.wc-st-bigxp')!.textContent).toBe('+1.3k');
+
     f.live = [startEv(), ...[1, 2, 3, 4, 5, 6].map((i) => k(T0 + i * 1e6, 1000 + i * 100))];
     f.latest = { runId: '', events: f.live, ended: false };
     await act(async () => {
@@ -419,6 +433,9 @@ describe('mountStatsPane (the view)', () => {
     expect(host.querySelector('.wc-st-mob')!.textContent).toBe('a stone troll');
     expect(host.querySelector('.wc-st-bigxp')!.textContent).toBe('+1.6k');
     expect(host.querySelector('.wc-st-badge')!.textContent).toBe('Good');
+    // The card's label alone (no age); one median line for the list, shown once calibrated.
+    expect(host.querySelector('.wc-st-card-top')!.textContent).toBe('Last kill');
+    expect(host.querySelectorAll('.wc-st-medline')).toHaveLength(1);
     expect(root.style.getPropertyValue('--st-scale')).toBe(String(1350 * 3));
     expect(root.hasAttribute('data-cal')).toBe(false);
 
