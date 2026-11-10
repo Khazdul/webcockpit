@@ -282,6 +282,99 @@ to agree.
 - Group tells: confirm the form of your own `tell group` in the first
   live test (the model accepts `destination` "group" or the text).
 
+### After 49d (merged branch, final)
+
+Builds: `main` = 1831d839 (main's panes plus the bench, its own `vite
+build`), branch = `stage-49-comm-stats` at 7ff444ae (49b, 49c, both review
+rounds). 2026-11-10, machine otherwise idle, the methods above.
+
+**Pane cost, headless** (`node bench/pane-cost.ts --url
+main=…:5301,branch=…:5302 --runs 3`, round-robin; load 0.94 0.66 3.28 at
+the start, the 15-minute figure still falling from an earlier build;
+ranges over the runs, ms):
+
+| Measure | Firefox main | Firefox branch | Chromium main | Chromium branch |
+|---|---|---|---|---|
+| Comm: message task, median / p95 | 0.56–0.58 / 0.78–0.92 | 0.54–0.58 / 0.74–0.92 | 0.33–0.34 / 0.44–0.51 | 0.33–0.35 / 0.44–0.51 |
+| Comm: frame after a message, median / p95 | 5.62–5.84 / 6.42–7.48 | 5.46–6.02 / 12.04–12.70 | 6.65–6.89 / 8.19–10.32 | 4.62–6.25 / 7.34–10.52 |
+| Comm: pane render script, median | 1.62–1.70 | 1.94–2.48 | 1.52–1.56 | 1.84–2.41 |
+| Comm burst: frames median / p95 / max | 4.52–4.70 / 6.66–7.60 / 7.9–8.9 | 5.28–5.40 / 6.00–6.46 / 6.2–7.3 | 4.72–5.81 / 6.82–9.61 / 6.8–12.4 | 3.14–3.90 / 8.03–9.10 / 10.1–11.0 |
+| Comm burst: long frames | 0 | 17 | 0 | 0 |
+| Comm burst: main-thread per message (trace) | — | — | 0.43–7.25 | 6.16–6.85 |
+| Statistics: longest frame after a kill, median / max | 6.94–7.22 / 7.8–8.0 | 7.24–7.62 / 8.7–9.5 | 3.40–3.54 / 3.8–4.5 | 4.03–4.22 / 4.6–6.8 |
+| Statistics: rAF callback time per kill window, median | 0.56–0.58 | 0.64–0.68 | 0.38–0.42 | 0.50–0.51 |
+| Statistics: main-thread per kill (trace) | — | — | 5.74–7.55 | 30.67–32.95 |
+| Statistics tick: worst frame per second, median | 6.36–6.98 | 7.44–7.60 | 2.91–3.36 | 3.40–3.61 |
+| Statistics tick: frames with callbacks per second | 0.1 | 0.1 | 0.0–0.1 | 0.0–0.1 |
+| Statistics tick: main-thread per second (trace) | — | — | 13.04–14.14 | 11.19–12.85 |
+
+**Pane cost, headed Firefox** (`WC_BENCH_HEADED=1 … --browsers firefox
+--runs 2`; load 1.46 1.21 2.39):
+
+| Measure | Firefox main | Firefox branch |
+|---|---|---|
+| Comm: message task, median / p95 | 0.56–0.66 / 0.98–1.20 | 0.62 / 0.90–0.96 |
+| Comm: frame after a message, median / p95 | 5.72–5.90 / 7.30–9.32 | 7.46–7.84 / 11.72–12.18 |
+| Comm: pane render script, median | 1.66–1.72 | 3.34–3.40 |
+| Comm burst: frames median / p95 / max | 6.88–7.94 / 9.92–12.56 / 10.0–13.0 | 7.94–8.44 / 13.54–16.54 / 15.0–17.8 |
+| Comm burst: long frames | 0–1 | 0 |
+| Statistics: longest frame after a kill, median / max | 6.72–7.22 / 9.0–9.3 | 10.06–10.70 / 13.8–14.4 |
+| Statistics: rAF callback time per kill window, median | 0.58–0.64 | 0.70–0.74 |
+| Statistics tick: worst frame per second, median | 6.70–6.94 | 8.08–8.34 |
+
+**Statistics, main-thread per kill (Chromium):** a quick split
+(`--browsers chromium --quick`, branch only, 6 kills) gave 31.3 ms with
+the pane's two slide-in animations (the card and the row it leaves,
+`Element.animate`, 200 ms) and 16.7 ms with them switched off (frame
+after a kill 4.4 → 3.3 ms). The rest is the per-kill load (chain,
+`buildStats`, kill list), which `main` ran once a second whatever
+happened, so its idle window (subtracted in this measure) already held it;
+the idle cost per second is lower on the branch (11.2–12.9 vs 13.0–14.1).
+Not changed here: the animations are part of the approved design (49b's
+pane); taking them out or making them cheaper is the owner's call.
+
+**Standard checks** (`browser-bench --only budgets,play,keys,soak`, main
+and branch interleaved, 3 runs each per setup; load 0.6–2.2 at the
+browsers' starts; Firefox · Chromium, ranges over the runs, ms):
+
+| Measure | Comm on, Statistics off: main | branch | Comm and Statistics on: main | branch |
+|---|---|---|---|---|
+| Frame → paint: receipt → painted median / p95 | 10.5–11.6 / 20.6–21.1 · 10.3–12.8 / 20.0–20.4 | 10.8–11.5 / 21.0–21.8 · 10.9–11.8 / 19.9–20.8 | 45.4–48.5 / 141.5–145.5 · 10.7–12.4 / 19.9–20.4 | 46.8–47.8 / 135.6–144.0 · 10.6–12.4 / 20.0–20.6 |
+| Burst: longest rAF gap; gaps > 50 ms | 143–178, 4–9 · 18–22, 0 | 158–173, 7 · 17–20, 0 | 263–293, 44–47 · 18–21, 0 | 292–414, 43–46 · 17–20, 0 |
+| Play with GMCP, text frames with a pane render, median / p95 | 3.1–3.6 / 5.5–7.1 · 4.4–4.7 / 5.8–6.0 | 3.5–3.6 / 6.7–7.2 · 4.5–4.8 / 6.2–6.8 | 3.5–3.6 / 7.4–8.4 · 4.3–4.7 / 6.1–6.2 | 3.7 / 6.3–6.4 · 4.5–4.6 / 6.1–6.2 |
+| Keys under play: letter → rendered median / p95 | 5.0–6.1 / 10.8–21.9 · 15.1–17.8 / 20.7–21.7 | 4.7–7.0 / 9.8–60.5 · 14.8–16.3 / 20.4–21.2 | 5.0–6.4 / 60–101 · 13.1–17.9 / 20.3–21.3 | 4.3–7.1 / 86–140 · 13.6–15.8 / 20.7–21.6 |
+| Keys under burst: letter → rendered median / p95 | 34–38 / 58–77 · 20–24 / 33–38 | 34–51 / 63–68 · 23–24 / 35–38 | 81–113 / 150–311 · 22–23 / 33–36 | 79–97 / 149–263 · 19–21 / 31–38 |
+| Soak: small frames first → last checkpoint, median | 2.44–2.68 → 2.48–2.60 · 5.09–5.42 → 3.15–5.15 | 2.48–2.76 → 2.60–2.66 · 4.93–5.24 → 3.66–5.60 | 2.80–2.90 → 2.92–3.22 · 5.03–5.06 → 4.96–5.34 | 2.84–3.12 → 3.04–3.18 · 4.98–5.18 → 4.99–5.37 |
+| Comm renders per second while playing | 0.7 · 0.7 | 0.9 · 0.9 | 0.7 · 0.7 | 0.9 · 0.9–1.0 |
+
+(Firefox with Statistics on and the weather: the frame-over-the-weather
+cost of headless Firefox found in 49a, on both sides alike.)
+
+**The review fixes** (against "After 49c", same methods): the Public
+cache took the Comm pane's script in headless Firefox from 2.36–3.20 to
+1.94–2.48 ms and its frame after a message from 6.38–7.40 to 5.46–6.02 ms
+(median); Chromium unchanged within noise (1.87–2.29 → 1.84–2.41). Headed
+Firefox unchanged within noise (render 3.10 → 3.34–3.40, frame after
+7.04–7.16 → 7.46–7.84 ms). The search refresh and the 300 ms spine delay
+are not on the measured paths (no search open, no spine use): no cost
+while idle; the spine delay only defers the fold of a click.
+
+**Verdict:**
+- Comm: Chromium is at or below `main` per message (frame after 4.6–6.3
+  vs 6.7–6.9 ms median). Firefox: headless now matches `main` on the
+  median frame after a message (p95 +5 ms); headed it costs about 1.7 ms
+  more pane script and +1.7 ms on the frame after a message (median),
+  within a frame and with no long frames. The headless-Firefox burst gaps
+  (17) are the known headless artefact (0 in a real window).
+- Statistics: frames after a kill +0.3 (Firefox headless), +0.7
+  (Chromium) and +3.5 ms (headed Firefox); idle tick +0.3–1.4 ms per
+  second's worst frame; main-thread per kill about +25 ms in Chromium,
+  about 15 ms of it the two slide-in animations (see above).
+- Standard checks: unchanged within noise in both setups; the Comm pane
+  renders 0.9 instead of 0.7 times a second (its column's catch-up pass).
+- For the owner to agree: the Firefox Comm cost (+1.7 ms per message,
+  headed) and the Statistics slide-in animations' main-thread cost.
+
 ## Test guide
 
 Run `npm run dev` on the branch `stage-49-comm-stats` (not merged to
