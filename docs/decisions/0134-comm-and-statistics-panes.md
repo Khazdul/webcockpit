@@ -99,7 +99,10 @@ stays `buildStats`; the rating and the kill list are added beside it.
 emotes and socials (directed or not) and questions (MUME's `ask`), from a
 player other than you. Prayers go to the Valar and never open a chat.
 These "near" channels show as bubbles in the person's chat and are the
-only ones that raise its unread count and move it to the bottom. A
+only ones that raise its unread count and move it to the bottom.
+*Changed in the addendum "Bubbles only for talk to you" below: only
+tells, and whispers and questions directed at you, are bubbles; the rest
+of the near talk is drawn as lines. Open, raise and unread are unchanged.* A
 person's chat shows **all** their messages on every channel: the other
 channels (narrates, yells, songs, prayers) as **left-aligned lines,
 whole and formatted as in Public** (the verb in the channel colour), with
@@ -425,3 +428,52 @@ The owner: a switch for whether Public shows NPCs, off by default.
   (owner): `PUBLIC SHOWS NPCs` in the section heading's style, at the
   left edge, its switch at the right on the same row, no help text. In
   Options → Panes → Communication: `[ ]    NPCs` after the ten channels.
+
+## Addendum: Bubbles only for talk to you (2026-11-10)
+
+The owner, after the release: in a private conversation only tells, and
+asks or whispers directed at you, should be speech bubbles. Everything
+else should look as narrates do, so that talk that may not have been to
+you does not look as if it was.
+
+- **Rule:** in a person's chat a message is a bubble only when it is
+  private talk between you and that person, or a group tell. Everything
+  else is a line as in Public (left-aligned, whole, the verb in the
+  channel colour): says, emotes and socials (the whole action text),
+  undirected whispers and questions, the overheard channels as before,
+  and your own emotes and socials placed in the chat. Your own lines
+  there carry Public's faint own tint.
+- **`ChatEntry.direct`** (`src/gmcp/comm-chats.ts`), set in `add`:
+  - Another player's message: a `tells` that is not a group tell; a
+    `whispers` or `questions` whose text says it is to you.
+  - Your own: a `tells`, `whispers` or `questions` with a person as
+    `destination` (not a group tell). An own emote or social placed in a
+    chat by the name heuristic is not direct.
+- **The text heuristic:** `saysToYou(text)` in `src/gmcp/comm.ts`, the
+  one test for both the model and `formatComm`: in the ANSI-stripped
+  text, the part before the first `'` (all of it when there is no quote)
+  holds the whole word `you`, any case. `Dori whispers to you 'hi'` and
+  `Ecthel asks you 'where?'` are to you; `Ecthel asks 'anyone near
+  Rivendell?'` and `A shadow whispers 'I won't allow…'` are not. One
+  string scan per whisper or question; `add` stays O(1).
+- **`near` is unchanged:** which talk opens a chat, raises it and counts
+  as unread is as before (tells, whispers, says, emotes, socials and
+  questions, directed or not). Only the drawing changed.
+- **The group tell bubble is kept**, with its "group" meta and the
+  `grouptell` line under it (owner's first and second test).
+- **A run of bubbles** (`is-cont`, the tighter gap) continues only after
+  a bubble, not after a line. The italic action bubble (`is-act`) is gone:
+  no action is a bubble any more.
+- **`formatComm` follows the text** (Public, Group, the lines in a chat,
+  search): an incoming tell stays `<Name> tells you '…'`; an incoming
+  whisper shows `whispers to you` only when `saysToYou` holds, else
+  `<Name> whispers '…'` (it was always `to you`); an incoming question
+  shows `<Name> asks you '…'` when it holds (the `you` was dropped). Own
+  messages, group tells and the prepositions are as before.
+  `DIRECTED_CHANNELS` had no other use and is removed.
+- **Open:** the real GMCP text of an incoming player whisper and of a
+  directed ask has not been captured. The archives hold only an own
+  whisper with a destination and an undirected `asks '…'`; the forms
+  `<Name> whispers to you '…'` and `<Name> asks you '…'` are assumed. To
+  be checked in the next live test; if MUME words them otherwise, only
+  `saysToYou` needs to change.

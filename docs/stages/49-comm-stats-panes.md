@@ -515,3 +515,8 @@ owner" below.
 **Comm**
 - A switch in the Comm settings for NPCs in Public, off by default.
   Done (ADR 0134 addendum "NPCs in Public").
+- In a private conversation only tells, and asks or whispers directed at
+  you, should be speech bubbles. Everything else should be shown the way
+  narrates are, so that talk that may not have been to you does not look
+  as if it was.
+  Done (ADR 0134 addendum "Bubbles only for talk to you").
