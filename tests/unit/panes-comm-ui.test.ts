@@ -402,6 +402,63 @@ describe('CommPane (ADR 0134)', () => {
     expect(last.parentElement!.lastElementChild!.classList.contains('wc-cm-gt')).toBe(true);
   });
 
+  it('a chat draws bubbles only for talk between the two of you; the rest are lines as in Public', () => {
+    const c = comm({ cols: 60, rows: 30 });
+    c.emit('says', 'Gibur', "Gibur says 'hello all'");
+    c.emit('emotes', 'Gibur', 'Gibur grins at the scout wickedly.');
+    c.emit('socials', 'Gibur', 'Gibur nods solemnly.');
+    c.emit('questions', 'Gibur', "Gibur asks 'anyone near Rivendell?'");
+    c.emit('whispers', 'Gibur', "Gibur whispers 'I won't allow you'");
+    c.emit('tells', 'Gibur', "Gibur tells you 'hi'");
+    c.emit('whispers', 'Gibur', "Gibur whispers to you 'psst'");
+    c.emit('questions', 'Gibur', "Gibur asks you 'where?'");
+    c.emit('tells', 'Gibur', "Gibur tells the group 'regroup'");
+    c.emit('tells', 'you', 'ok', { destination: 'Gibur' });
+    c.emit('emotes', 'you', 'You hug Gibur.');
+    c.emit('tells', 'you', 'coming', { destination: 'Gibur' });
+    c.flush();
+    // Says, emotes, socials and undirected asks still open the chat and count (near is unchanged).
+    expect(c.entries()).toEqual(['public', 'group', 'gibur']);
+    expect(c.q('.wc-cm-ent[data-key="gibur"] .wc-cm-badge')!.textContent).toBe('8');
+    c.open('gibur');
+    const kinds = c.qa('.wc-cm-thread .wc-cm-item').map((it) => {
+      const el = it.querySelector<HTMLElement>('.wc-cm-bb, .wc-cm-oh')!;
+      const bubble = el.classList.contains('wc-cm-bb');
+      return `${bubble ? (el.classList.contains('is-me') ? 'me' : 'them') : 'line'}: ${(bubble ? el.querySelector('.wc-cm-bt')! : el).textContent}`;
+    });
+    expect(kinds).toEqual([
+      "line: Gibur says 'hello all'",
+      'line: Gibur grins at the scout wickedly.',
+      'line: Gibur nods solemnly.',
+      "line: Gibur asks 'anyone near Rivendell?'",
+      "line: Gibur whispers 'I won't allow you'",
+      'them: hi',
+      'them: psst',
+      'them: where?',
+      'them: regroup',
+      'me: ok',
+      'line: You hug Gibur.',
+      'me: coming',
+    ]);
+    // The group tell keeps its mark; no line is a bubble and none is marked.
+    expect(c.qa('.wc-cm-gt').map((e) => e.textContent)).toEqual(['grouptell']);
+    expect(c.qa('.wc-cm-gt')[0]!.previousElementSibling!.querySelector('.wc-cm-bt')!.textContent).toBe('regroup');
+    const bubbles = c.qa('.wc-cm-bb');
+    expect(bubbles.map((b) => b.dataset.channel)).toEqual(['tells', 'whispers', 'questions', 'tells', 'tells', 'tells']);
+    expect(bubbles.map((b) => b.classList.contains('is-wh'))).toEqual([false, true, false, false, false, false]);
+    // A run continues over bubbles only: not after a line (his first, yours after your emote).
+    expect(bubbles.map((b) => b.classList.contains('is-cont'))).toEqual([false, true, true, true, false, false]);
+    // Lines: the verb in the channel colour, yours marked, no bubble meta.
+    const lines = c.qa('.wc-cm-oh');
+    expect(lines.map((l) => l.dataset.channel)).toEqual(['says', 'emotes', 'socials', 'questions', 'whispers', 'emotes']);
+    expect(lines.map((l) => l.hasAttribute('data-mine'))).toEqual([false, false, false, false, false, true]);
+    expect(lines[0]!.querySelector('.wc-cm-vb')!.textContent).toBe(' says');
+    expect(lines[1]!.querySelector('.wc-cm-nm')!.textContent).toBe('Gibur');
+    expect(c.qa('.wc-cm-oh .wc-cm-bm')).toHaveLength(0);
+    // One time separator: the thread's first item (no gaps between the rest).
+    expect(c.qa('.wc-cm-thread .wc-cm-sep')).toHaveLength(1);
+  });
+
   it('group tells read "tells the group", go to Group and never open a chat', () => {
     const c = comm({ cols: 60, rows: 20 });
     c.emit('tells', 'Lindir', "Lindir tells the group 'wait for me'");

@@ -230,8 +230,6 @@ export const QUOTED_CHANNELS: ReadonlySet<string> = new Set([
 ]);
 /** Channels whose text is the whole action (`Gibur grins.`). */
 export const ACTION_CHANNELS: ReadonlySet<string> = new Set(['emotes', 'socials']);
-/** Channels that take a destination; an incoming one without it is to `you`. */
-export const DIRECTED_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers']);
 
 /** Verb per channel: [self, other]. Unknown channels use the channel name. */
 export const CHANNEL_VERBS: Readonly<Record<string, readonly [string, string]>> = {
@@ -335,6 +333,22 @@ export function isGroupTell(m: CommText): boolean {
   return GROUP_TELL_IN_RE.test(plain);
 }
 
+/**
+ * The text says it is to you (ADR 0134 addendum "Bubbles only for talk to
+ * you"): the part before the first `'` (all of it when there is no quote),
+ * ANSI stripped, holds the whole word `you`, any case. `Dori whispers to
+ * you 'hi'` and `Ecthel asks you 'where?'` do; `Ecthel asks 'are you
+ * there?'` and `A shadow whispers 'I won't allow…'` do not. A heuristic on
+ * an incoming whisper or question, the only channels where MUME's text
+ * tells a directed message from an undirected one.
+ */
+export function saysToYou(text: string): boolean {
+  const plain = stripAnsi(text);
+  const q = plain.indexOf("'");
+  return TO_YOU_RE.test(q >= 0 ? plain.slice(0, q) : plain);
+}
+const TO_YOU_RE = /\byou\b/i;
+
 /** The text between the first and the last `'`, or all of it. */
 export function quotedBody(text: string): string {
   const a = text.indexOf("'");
@@ -346,6 +360,8 @@ export function quotedBody(text: string): string {
  * Formats one message (Inv §2.7.3, Cockpit ADR 0013).
  *
  * Quoted channels: `<Talker> <verb> [prep] [Destination] '<message>'`.
+ * An incoming message has no destination: a tell is to `you`; a whisper
+ * or a question is when its text says so (`saysToYou`), else undirected.
  * Action channels: the text as sent, split into a talker part and the
  * body. Spaces go at the start of the following segment.
  */
@@ -365,7 +381,7 @@ export function formatComm(m: CommText): CommSegment[] {
   }
   const prep = DESTINATION_PREPOSITIONS[m.channel];
   let dest = m.destination;
-  if (!dest && !self && DIRECTED_CHANNELS.has(m.channel)) dest = 'you';
+  if (!dest && !self && (m.channel === 'tells' || ((m.channel === 'whispers' || m.channel === 'questions') && saysToYou(m.text)))) dest = 'you';
   let verb = ' ' + (self ? verbs[0] : verbs[1]);
   if (dest && prep) verb += ' ' + prep;
   out.push({ role: 'verb', text: verb });

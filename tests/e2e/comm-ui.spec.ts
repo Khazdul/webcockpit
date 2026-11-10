@@ -102,7 +102,7 @@ test('Comm: Public without tells, questions and socials, a chat per person, and 
   expect(errors).toEqual([]);
 });
 
-test('a chat: bubbles for near talk, yours on the right, the unread count cleared', async ({ page }) => {
+test('a chat: bubbles for talk between you two, yours on the right, the unread count cleared', async ({ page }) => {
   await demo(page);
   await expect(entry(page, 'gibur').locator('.wc-cm-badge')).toBeVisible();
   await entry(page, 'gibur').click();
@@ -119,6 +119,9 @@ test('a chat: bubbles for near talk, yours on the right, the unread count cleare
   await expect(meta).toHaveCSS('opacity', '1');
   // His narrate is in his chat as in Public: left-aligned and whole, no bubble.
   await expect(comm(page).locator('.wc-cm-oh').first()).toHaveText("Gibur narrates 'orcs gathering at the ford'");
+  // So is his emote: only talk to you is a bubble (ADR 0134 addendum "Bubbles only for talk to you").
+  await expect(comm(page).locator('.wc-cm-oh[data-channel="emotes"]')).toHaveText('Gibur grins at the scout wickedly.');
+  await expect(comm(page).locator('.wc-cm-bb[data-channel="emotes"]')).toHaveCount(0);
   // Text is selectable (no mousedown is taken).
   const sel = await comm(page)
     .locator('.wc-cm-bb .wc-cm-bt')

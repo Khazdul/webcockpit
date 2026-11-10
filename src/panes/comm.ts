@@ -1268,9 +1268,11 @@ export class CommPane extends PaneShell {
     }
     const e = entryOf(it)!;
     if (open === PUBLIC || open === GROUP) wrap.append(this.buildLine(e));
-    // A group tell in the sender's chat is a bubble too (it still opens,
-    // raises and counts nothing: the model's rule, ADR 0134).
-    else if (e.near || e.groupTell) {
+    // A chat: a bubble only for talk between you and that person (`direct`,
+    // ADR 0134 addendum "Bubbles only for talk to you"). A group tell in
+    // the sender's chat is a bubble too (it still opens, raises and counts
+    // nothing: the model's rule). Everything else is a line as in Public.
+    else if (e.direct || e.groupTell) {
       wrap.append(this.buildBubble(e, prev ? entryOf(prev) : null));
       // Told to the whole group, maybe not meant for you: always marked
       // under the bubble (owner's feedback, round 2).
@@ -1325,7 +1327,7 @@ export class CommPane extends PaneShell {
     return row;
   }
 
-  /** Near talk in a chat: theirs left in their colour, yours right in the flat lamp tone. */
+  /** Talk to you (or yours to them) and group tells in a chat: theirs left in their colour, yours right in the flat lamp tone. */
   private buildBubble(e: ChatEntry, prev: ChatEntry | null): HTMLElement {
     const doc = this.ctx.doc;
     const m = e.msg;
@@ -1334,10 +1336,10 @@ export class CommPane extends PaneShell {
     bb.dataset.channel = m.channel;
     const ink = e.mine ? 'var(--cm-self)' : personInk(this.chats.colorOf(m.talker), this.inks.light, this.inks.bg, 'var(--cm-self)');
     bb.style.setProperty('--pc', ink);
-    if (prev && (prev.near || prev.groupTell) && prev.mine === e.mine && m.ts - prev.msg.ts <= SEP_GAP_MS) bb.classList.add('is-cont');
+    if (prev && (prev.direct || prev.groupTell) && prev.mine === e.mine && m.ts - prev.msg.ts <= SEP_GAP_MS) bb.classList.add('is-cont');
     if (m.channel === 'whispers') bb.classList.add('is-wh');
+    // Never an action (emotes and socials are lines): the message only.
     const b = bubbleText(m);
-    if (b.action) bb.classList.add('is-act');
     const bt = doc.createElement('div');
     bt.className = 'wc-cm-bt';
     appendStyled(doc, bt, b.text, '', '');
@@ -1357,11 +1359,12 @@ export class CommPane extends PaneShell {
     return bb;
   }
 
-  /** Talk on other channels in a person's chat: a quiet centred line. */
   /**
-   * Talk on other channels in a person's chat (narrate, yell, song,
-   * prayer): left-aligned and whole, formatted as in Public (the verb in
-   * the channel colour), with no bubble: not to you.
+   * Everything in a person's chat that is not talk between the two of you:
+   * says, emotes and socials (the whole action), undirected whispers and
+   * questions, narrates, yells, songs, prayers, and your own emotes and
+   * socials placed there. Left-aligned and whole, formatted as in Public
+   * (the verb in the channel colour), with no bubble: maybe not to you.
    */
   private buildOverheard(e: ChatEntry): HTMLElement {
     const d = this.buildLine(e);

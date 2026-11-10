@@ -15,6 +15,7 @@ import {
   parseChannelList,
   parseChannelText,
   sameFilters,
+  saysToYou,
   soloChannel,
   stripAnsi,
   toggleChannel,
@@ -153,6 +154,52 @@ describe('formatComm: quoted channels', () => {
       { role: 'messageSelf', text: " 'blue mountains'" },
     ]);
     expect(commPlain(m({ channel: 'whispers', talker: 'Dori', text: "Dori whispers to you 'hej'" }))).toBe("Dori whispers to you 'hej'");
+  });
+
+  it('an incoming whisper or question is to you only when its text says so; a tell always', () => {
+    // An undirected whisper is no longer shown as `whispers to you`.
+    expect(formatComm(m({ channel: 'whispers', talker: 'A shadow', text: "A shadow whispers 'I won't allow you'" }))).toEqual([
+      { role: 'talkerOther', text: 'A shadow' },
+      { role: 'verb', text: ' whispers' },
+      { role: 'messageOther', text: " 'I won't allow you'" },
+    ]);
+    expect(formatComm(m({ channel: 'questions', talker: 'Ecthel', text: "Ecthel asks you 'where?'" }))).toEqual([
+      { role: 'talkerOther', text: 'Ecthel' },
+      { role: 'verb', text: ' asks' },
+      { role: 'talkerYou', text: ' you' },
+      { role: 'messageOther', text: " 'where?'" },
+    ]);
+    expect(commPlain(m({ channel: 'questions', talker: 'Ecthel', text: "Ecthel asks 'anyone near Rivendell?'" }))).toBe(
+      "Ecthel asks 'anyone near Rivendell?'",
+    );
+    expect(commPlain(m({ channel: 'whispers', talker: 'Dori', text: `${E}[33mDori whispers to you 'psst'${E}[0m` }))).toBe(
+      "Dori whispers to you 'psst'",
+    );
+    // A tell needs no `you` in its text; other channels never get one.
+    expect(commPlain(m({ channel: 'tells', talker: 'Gibur', text: "'np'" }))).toBe("Gibur tells you 'np'");
+    expect(commPlain(m({ channel: 'says', talker: 'Gibur', text: "Gibur says to you 'np'" }))).toBe("Gibur says 'np'");
+    // Own messages are unchanged.
+    expect(commPlain(m({ channel: 'questions', talker: 'you', text: 'where are you?' }))).toBe("You ask 'where are you?'");
+    expect(commPlain(m({ channel: 'whispers', talker: 'you', text: 'you there?' }))).toBe("You whisper 'you there?'");
+  });
+});
+
+describe('saysToYou', () => {
+  it('finds the whole word you before the first quote, ANSI stripped, any case', () => {
+    expect(saysToYou("Dori whispers to you 'hi'")).toBe(true);
+    expect(saysToYou("Ecthel asks you 'where?'")).toBe(true);
+    expect(saysToYou("Ecthel asks YOU 'where?'")).toBe(true);
+    expect(saysToYou(`${E}[33mDori whispers to ${E}[1myou${E}[0m 'hi'`)).toBe(true);
+    expect(saysToYou('Dori whispers something to you.')).toBe(true);
+  });
+
+  it('not for undirected talk, a you inside the quote or inside a word', () => {
+    expect(saysToYou("Ecthel asks 'anyone near Rivendell?'")).toBe(false);
+    expect(saysToYou("A shadow whispers 'I won't allow you'")).toBe(false);
+    expect(saysToYou("Ecthel asks 'are you there?'")).toBe(false);
+    expect(saysToYou("Young whispers 'hi'")).toBe(false);
+    expect(saysToYou("Dori whispers to Youngblood 'hi'")).toBe(false);
+    expect(saysToYou('')).toBe(false);
   });
 
   it('drops server suffixes and the direction of a yell', () => {

@@ -16,6 +16,14 @@
 //   it (newest last) and, when it is not open, count as unread. The other
 //   channels (narrates, yells, songs, prayers) are "overheard": in the
 //   chat, quiet, no raise, no unread. Prayers go to the Valar, never to you.
+// - `direct` (ADR 0134 addendum "Bubbles only for talk to you"): private
+//   talk between you and that person, the only talk a chat draws as a
+//   bubble (with group tells). Theirs: a tell that is not a group tell; a
+//   whisper or a question whose text says it is to you (`saysToYou`: the
+//   word `you` before the quote, as in `Dori whispers to you '…'`). Yours:
+//   a tell, whisper or question with that person as `destination`. Says,
+//   emotes, socials, undirected whispers and questions are near but not
+//   direct: they open, raise and count as before, drawn as plain lines.
 // - Group tells: MUME sends them on `tells` with no destination and the
 //   text `<Name> tells the group '…'` (the owner's Cockpit archives,
 //   2026-09/10). They go to Group and to the sender's record as overheard:
@@ -35,10 +43,13 @@
 // shift per array at the cap); `chats` sorts the chats (tens); `search`
 // scans at most `max` messages with the lower-case text cached per entry.
 
-import { type CommMessage, GROUP_DEST_RE, GROUP_TELL_IN_RE, GROUP_TELL_OUT_RE, cleanName, commPlain, stripAnsi } from './comm';
+import { type CommMessage, GROUP_DEST_RE, GROUP_TELL_IN_RE, GROUP_TELL_OUT_RE, cleanName, commPlain, saysToYou, stripAnsi } from './comm';
 
 /** Channels whose talk is directed at the people near you: they open chats. */
 export const NEAR_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'says', 'emotes', 'socials', 'questions']);
+
+/** Channels that can be private talk between two people (`ChatEntry.direct`). */
+const DIRECT_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'questions']);
 
 /** Person colour slots (the pane maps them to its palette). */
 export const PERSON_COLORS = 10;
@@ -56,6 +67,13 @@ export interface ChatEntry {
   person: string | null;
   /** Talk that opens a chat (a near channel, not a group tell). */
   near: boolean;
+  /**
+   * Private talk between you and that person: their tell, their whisper or
+   * question that says it is to you, your tell, whisper or question to
+   * them. Never a group tell. A chat draws only this (and group tells) as
+   * bubbles.
+   */
+  direct: boolean;
   /** A group tell (in or out). */
   groupTell: boolean;
   /** Shown in Group. */
@@ -190,16 +208,20 @@ export class CommChats {
     let groupTell = false;
     let person: string | null = null;
     let near = false;
+    let direct = false;
     if (mine) {
       const dest = m.destination?.trim() ?? '';
       if (m.channel === 'tells' && (GROUP_DEST.test(dest) || GROUP_TELL_OUT.test(plain))) groupTell = true;
-      else if (dest && !isYou(dest)) person = keyOf(dest);
-      else if (m.channel === 'emotes' || m.channel === 'socials') person = this.namedChat(plain);
+      else if (dest && !isYou(dest)) {
+        person = keyOf(dest);
+        direct = DIRECT_CHANNELS.has(m.channel);
+      } else if (m.channel === 'emotes' || m.channel === 'socials') person = this.namedChat(plain);
       near = person !== null && NEAR_CHANNELS.has(m.channel);
     } else if (m.talkerType !== 'npc' && talker.trim() !== '') {
       person = keyOf(talker);
       groupTell = m.channel === 'tells' && GROUP_TELL_IN.test(plain);
       near = !groupTell && NEAR_CHANNELS.has(m.channel);
+      direct = m.channel === 'tells' ? !groupTell : DIRECT_CHANNELS.has(m.channel) && saysToYou(plain);
     }
     // Your own lines go to Group only while there is a group (an empty
     // known roster is no group).
@@ -209,7 +231,7 @@ export class CommChats {
         (this.rosterKnown &&
           this.roster.size > 0 &&
           (mine ? person === null || this.roster.has(person) : person !== null && this.roster.has(person))));
-    const entry: ChatEntry = { seq: ++this.seq, msg: m, mine, person, near, groupTell, group: inGroup };
+    const entry: ChatEntry = { seq: ++this.seq, msg: m, mine, person, near, direct, groupTell, group: inGroup };
     this.push(this.all, entry);
     if (inGroup) {
       this.pushGroup({ kind: 'msg', entry });

@@ -716,7 +716,7 @@
   color: var(--cm-fg);
 }
 
-/* A chat's near talk. */
+/* A chat's talk between you and that person (and group tells). */
 .wc-cm-bb {
   position: relative;
   width: fit-content;
@@ -761,10 +761,6 @@
 
 .wc-cm-bb.is-me > .wc-cm-bt {
   color: var(--cm-fg);
-}
-
-.wc-cm-bb.is-act > .wc-cm-bt {
-  font-style: italic;
 }
 
 /* Under a group tell's bubble in a person's chat: always shown, small and
@@ -827,9 +823,10 @@
   }
 }
 
-/* Talk on other channels in a chat (narrate, yell, song, prayer): a line
- * as in Public, left-aligned and whole, with no bubble (not to you): a
- * little smaller and quieter, on the card backing only. */
+/* Everything else in a chat (say, emote, social, an undirected whisper or
+ * question, narrate, yell, song, prayer): a line as in Public, left-aligned
+ * and whole, with no bubble (maybe not to you): a little smaller and
+ * quieter, on the card backing only; your own with Public's faint tint. */
 .wc-cm-oh {
   margin: 0.4em 0 0.05em;
   padding: 0.05em 0.35em;
@@ -839,6 +836,10 @@
   overflow-wrap: anywhere;
   color: var(--cm-dim);
   background: var(--card-back, transparent);
+}
+
+.wc-cm-oh[data-mine] {
+  background: color-mix(in srgb, var(--cm-self) var(--cm-mine), var(--card-back, transparent));
 }
 
 .wc-cm-oh .wc-cm-tx {
