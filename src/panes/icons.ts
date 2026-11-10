@@ -45,7 +45,8 @@ export type IconName =
   | 'search'
   | 'unfold'
   | 'chevUp'
-  | 'chevDown';
+  | 'chevDown'
+  | 'chevLeft';
 
 /** Path data by name. */
 export const ICONS: Readonly<Record<IconName, string>> = {
@@ -118,6 +119,8 @@ export const ICONS: Readonly<Record<IconName, string>> = {
   chevUp: 'M7 14l5-5 5 5',
   /** Comm: more below. */
   chevDown: 'M7 10l5 5 5-5',
+  /** Comm: the spine's fold button. */
+  chevLeft: 'M14 7l-5 5 5 5',
 };
 
 /** The view box every icon is drawn in. */

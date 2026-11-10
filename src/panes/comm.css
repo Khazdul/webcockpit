@@ -416,10 +416,10 @@
     180deg,
     transparent 0,
     var(--cm-spine, var(--frost-edge)) 12%,
-    var(--cm-spine, var(--frost-edge)) calc(50% - 1.6em),
-    transparent calc(50% - 1.6em),
-    transparent calc(50% + 1.6em),
-    var(--cm-spine, var(--frost-edge)) calc(50% + 1.6em),
+    var(--cm-spine, var(--frost-edge)) calc(50% - 1.2em),
+    transparent calc(50% - 1.2em),
+    transparent calc(50% + 1.2em),
+    var(--cm-spine, var(--frost-edge)) calc(50% + 1.2em),
     var(--cm-spine, var(--frost-edge)) 88%,
     transparent 100%
   );
@@ -432,15 +432,30 @@
   top: 50%;
   left: 50%;
   z-index: 1;
-  width: 7px;
-  height: 2.2em;
+  display: grid;
+  place-items: center;
+  width: 1.15em;
+  height: 1.6em;
   transform: translate(-50%, -50%);
-  border-radius: 4px;
-  background: var(--cm-card);
+  border-radius: 0.4em;
+  color: color-mix(in srgb, var(--cm-self) 75%, var(--cm-dim));
+  background: var(--cm-float);
   box-shadow: inset 0 0 0 1px var(--frost-edge), var(--cm-drop);
   opacity: 0;
   transition: opacity 0.18s;
   cursor: pointer;
+}
+
+/* The chevron points the way the column folds. */
+.wc-cm-handle > .wc-cm-i {
+  width: 0.95em;
+  height: 0.95em;
+  stroke-width: 2.4;
+}
+
+.wc-comm .wc-cm-handle:hover {
+  color: var(--cm-self);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-self) 45%, transparent), var(--cm-drop);
 }
 
 .wc-cm-spine:hover,
@@ -600,6 +615,12 @@
   opacity: 1;
 }
 
+/* The reply line's "Reply to …" / "Tell the group…": a step quieter than
+ * the dim text, still about 3:1 on its card (owner's first test). */
+.wc-cm-rinput::placeholder {
+  color: color-mix(in srgb, var(--cm-dim) 72%, var(--cm-float));
+}
+
 .wc-comm:not([data-search]) .wc-cm-sinput,
 .wc-comm:not([data-search]) .wc-cm-sclear {
   visibility: hidden;
@@ -697,10 +718,11 @@
 
 /* A chat's near talk. */
 .wc-cm-bb {
+  position: relative;
   width: fit-content;
-  max-width: 86%;
-  margin-top: 0.45em;
-  padding: 0.2em 0.6em 0.15em;
+  max-width: 80%;
+  margin-top: 0.4em;
+  padding: 0.15em 0.6em;
   box-sizing: border-box;
   border-radius: 0.75em 0.75em 0.75em 0.2em;
   background: color-mix(in srgb, var(--pc) var(--cm-bub), var(--cm-bub-base));
@@ -745,46 +767,61 @@
   font-style: italic;
 }
 
+/* The channel and time: beside the bubble (outside it, in the thread's
+ * free side), shown only while that bubble is hovered; it takes no height,
+ * so a bubble is one text line tall. Small and quiet, the word over the
+ * time. Kept in the DOM (readers, copy excluded). Touch: never shown. */
 .wc-cm-bm {
-  font-size: 0.72em;
-  text-align: right;
-  color: var(--cm-dim);
+  position: absolute;
+  bottom: 0.1em;
+  left: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-left: 0.45em;
+  font-size: 0.62em;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--cm-dim) 75%, transparent);
   font-variant-numeric: tabular-nums;
   user-select: none;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
 }
 
-/* Talk on other channels in a chat: a quiet centred line. */
+.wc-cm-bb.is-me > .wc-cm-bm {
+  left: auto;
+  right: 100%;
+  align-items: flex-end;
+  margin: 0 0.45em 0 0;
+}
+
+.wc-cm-bmsep {
+  display: none;
+}
+
+@media (hover: hover) {
+  .wc-cm-bb:hover > .wc-cm-bm {
+    opacity: 1;
+  }
+}
+
+/* Talk on other channels in a chat (narrate, yell, song, prayer): a line
+ * as in Public, left-aligned and whole, with no bubble (not to you): a
+ * little smaller and quieter, on the card backing only. */
 .wc-cm-oh {
-  width: fit-content;
-  max-width: 94%;
-  margin: 0.45em auto 0.05em;
-  padding: 0 0.45em;
-  border-radius: 0.5em;
-  text-align: center;
-  font-size: 0.85em;
+  margin: 0.4em 0 0.05em;
+  padding: 0.05em 0.35em;
+  border-radius: 0.2em;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--cm-dim);
   background: var(--card-back, transparent);
-  overflow-wrap: anywhere;
 }
 
-.wc-cm-oh > .wc-cm-tx {
+.wc-cm-oh .wc-cm-tx {
   color: color-mix(in srgb, var(--cm-fg) 72%, var(--cm-dim));
-}
-
-.wc-cm-chp {
-  margin-right: 0.45em;
-  font-size: 0.85em;
-  font-weight: bold;
-  letter-spacing: 0.03em;
-  user-select: none;
-}
-
-.wc-cm-oh > time {
-  margin-left: 0.45em;
-  font-size: 0.85em;
-  opacity: 0.8;
-  font-variant-numeric: tabular-nums;
-  user-select: none;
 }
 
 /* Group: joined / left. */
@@ -938,7 +975,8 @@
   .wc-cm-col,
   .wc-cm-search,
   .wc-cm-spine::before,
-  .wc-comm .wc-cm-handle {
+  .wc-comm .wc-cm-handle,
+  .wc-cm-bm {
     transition: none;
   }
 }

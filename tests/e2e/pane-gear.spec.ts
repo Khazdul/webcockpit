@@ -110,14 +110,14 @@ test('the Gear: leftmost, named after the pane; opens Comm settings beside the p
   const p = await insideViewport(page, 'comm');
   expect(p.x + p.width).toBeLessThanOrEqual(pane.x);
   expect(Math.abs(p.y - pane.y) < 1 || p.y + p.height >= page.viewportSize()!.height - 6).toBe(true);
-  // Public starts without Tells and Whispers (ADR 0134); a channel on, live; off again.
+  // Public starts without the chat channels (ADR 0134); a channel on, live; off again.
   const tells = pop.locator('.wc-sp-chan[data-channel="tells"]');
   await expect(tells.locator('[role=switch]')).toHaveAttribute('aria-checked', 'false');
   await tells.locator('[role=switch]').click();
   await expect(tells.locator('[role=switch]')).toHaveAttribute('aria-checked', 'true');
-  expect((await settings(page)).comm.filters).toEqual({ whispers: false });
+  expect((await settings(page)).comm.filters).toEqual({ says: false, emotes: false, whispers: false, questions: false, socials: false });
   await tells.click();
-  expect((await settings(page)).comm.filters).toEqual({ tells: false, whispers: false });
+  expect((await settings(page)).comm.filters).toEqual({ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
   // The chat window.
   await pop.locator('[aria-label="Show chats active in the last"] [data-value="60"]').click();
   expect((await settings(page)).comm.chatWindow).toBe(60);
