@@ -75,6 +75,9 @@ Statuses: Next, In progress, Owner testing, Done.
   (16.5 ms frames, veils); frame → paint 12.6 / 98 ms vs main 45–50 /
   137–150; keys under play p95 158 ms in one run (main 78–128), the
   software-compositing case; hardware WebRender was 60 fps in stage 50.
+- **Released 0.4.0:** 4e5e78e7, tag `v0.4.0`; the first Pages deploy timed
+  out at GitHub (syncing files), the rerun went green; `test:prod` 10/10
+  against mumecockpit.com.
 - **Next:** owner tests 0.4.0 live (stage 49 and 50 test guides; own
   `tell group` form).
 
