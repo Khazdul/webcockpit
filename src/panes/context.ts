@@ -80,6 +80,8 @@ export interface PaneContext {
    * game or profile state (the Timers corner `+` and charm `×` are gone).
    */
   readonly player?: boolean;
+  /** Gives the keys back to the game's input line (a pane field's Esc). */
+  readonly focusGame?: () => void;
   /**
    * The Statistics pane's view (ADR 0109), mounted on its first show.
    * Absent (the log player, the phone, tests): the pane stays empty.
@@ -167,6 +169,7 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     ...(p.mapMarks ? { mapMarks: p.mapMarks } : {}),
     ...(p.mapNotes ? { mapNotes: p.mapNotes } : {}),
     ...(p.player ? { player: true } : {}),
+    ...(p.focusGame ? { focusGame: p.focusGame } : {}),
     ...(p.statsView ? { statsView: p.statsView } : {}),
   };
 }
