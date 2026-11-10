@@ -5,10 +5,11 @@
 // In Firefox's software WebRender (no usable GPU: blocklisted drivers,
 // virtual machines, Mesa's software GL) a path clip on the game text makes
 // every new line re-raster the masked text under a float: with a large
-// framed float, text waits 45–85 ms for the screen (median; p95 140–200)
-// and frames drop to 12–14 a second (bench/frame-matrix.ts). In hardware
-// WebRender the same hole is cheap (about 20 ms median, 40 p95, as with no
-// float at all), and a veil would cost there instead. The browser does not
+// framed float, text waits 55–75 ms for the screen (median; p95 140–160)
+// and frames drop to 9 a second while text arrives (bench/frame-matrix.ts).
+// In hardware WebRender the same hole is cheap (13–17 ms median, 24–27
+// p95, as with no float at all), and a veil would only drop the weather
+// inside the float there. The browser does not
 // say which compositor it uses, so the watch decides from what it sees:
 // while there is a hole in the text, half the quick frames (our script
 // short) late over several seconds means the compositor is behind, and

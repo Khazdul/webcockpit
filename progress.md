@@ -53,10 +53,21 @@ Released 0.3.3 (About cut down for newcomers: Getting started after MUME, about 
 | 47 | Credits and About | Done | `docs/stages/47-credits-about.md` |
 | 48 | Presentation film | Done | `docs/stages/48-presentation-film.md` |
 | 49 | Comm and Statistics panes | In progress | `docs/stages/49-comm-stats-panes.md` |
+| 50 | Firefox frame latency | Owner testing | `docs/stages/50-firefox-frame-latency.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-10 — Stage 50: Firefox frame latency (branch `stage-50-firefox-frame`)
+
+- **Done:** matrix of floats over the weather in real and headless Firefox (`bench/frame-matrix.ts`, compositor read over Marionette). Hardware WebRender (the owner's Firefox): 60 fps, text 15 / 25 ms in every case, no problem. Software WebRender (real window or headless): any large framed float drops to ~9 fps while text arrives, text 55–77 / 140–180 ms.
+- **Cause:** the even-odd clip that cuts the game text under see-through and clear floats (not the Lykta frame's effects); bisected, CPU on WebRender's software Renderer thread.
+- **Fix (ADR 0135):** in Firefox, `FloatVeilWatch` switches to plain veils (page colour) when text stays late for 4 s: software WebRender back to 60 fps and text 10–14 / 20–25 ms; hardware unchanged. With the weather on those users lose the weather inside large floats; the live-image veil (`-moz-element`) kept the look but froze Firefox for 10 s, so dropped. browser-bench `float` section with budgets.
+- **`#perf`:** alone toggles a live overlay (fps, worst frame, received → shown, key → send); `#perf report` prints the table (ADR 0047 addendum).
+- **Next:** owner test (stage file's test guide): overlay numbers in the owner's Firefox, and a decision on the veil trade-off for software-WebRender users.
+- **Open:** small/borderless floats and Paper keep some late frames (p95) in software WebRender. Headed runs were redone on the laptop display after an undock.
+- **Commits:** ca654ddb … (see `git log main..stage-50-firefox-frame`).
 
 ### 2026-11-09 — Comm and Statistics panes: mockups round 1
 
