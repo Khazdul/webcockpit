@@ -171,4 +171,62 @@ describe('CommChats (ADR 0134)', () => {
     expect(c.colorOf('*Ugluk the Orc*')).toBe('enemy');
     expect(typeof c.colorOf('a stranger')).toBe('number');
   });
+
+  it('an empty known roster is no group: none of your lines go to Group', () => {
+    const c = new CommChats();
+    c.setRoster([], t);
+    c.add(msg('says', 'you', 'alone'));
+    expect(c.groupView).toHaveLength(0);
+  });
+
+  it('a re-added history (noGroup) stays out of Group; group tells too', () => {
+    const c = new CommChats();
+    c.setRoster(['Lindir'], t);
+    c.add(msg('says', 'Lindir', "Lindir says 'old'"), true, true);
+    c.add(msg('tells', 'Lindir', "Lindir tells the group 'old'"), true, true);
+    expect(c.groupView).toHaveLength(0);
+    c.add(msg('says', 'Lindir', "Lindir says 'new'"));
+    expect(c.groupView).toHaveLength(1);
+  });
+
+  it('colours: dealt when a chat opens (not to a voice only overheard) and kept over reset', () => {
+    const c = new CommChats();
+    c.add(msg('tales', 'Morwen', "Morwen narrates 'x'"));
+    c.add(tell('Lindir'));
+    expect(c.colorOf('Lindir')).toBe(0);
+    c.reset();
+    c.add(tell('Haldis'));
+    expect(c.colorOf('Haldis')).toBe(1);
+    c.add(tell('Lindir'));
+    expect(c.colorOf('Lindir')).toBe(0);
+    expect(c.chat('lindir')!.color).toBe(0);
+    c.add(tell('Morwen'));
+    expect(c.colorOf('Morwen')).toBe(2);
+  });
+
+  it('unread carries over a rebuild by snapshot and restore', () => {
+    const c = new CommChats();
+    c.setOpen('group');
+    c.add(tell('Lindir'));
+    c.add(msg('says', 'Haldis', "Haldis says 'x'"));
+    const snap = c.unreadSnapshot();
+    c.reset();
+    c.add(tell('Lindir'), true);
+    c.add(msg('says', 'Haldis', "Haldis says 'x'"), true);
+    c.restoreUnread(snap);
+    expect(c.chat('lindir')!.unread).toBe(1);
+    expect(c.publicUnread).toBe(2);
+  });
+
+  it('a chat whose messages were all trimmed goes, unless it has unread or is open', () => {
+    const c = new CommChats({ max: 3 });
+    c.add(tell('Read'));
+    c.setOpen('read');
+    c.add(tell('Unread'));
+    c.setOpen('public');
+    for (let i = 0; i < 3; i++) c.add(msg('tales', 'Morwen', `Morwen narrates '${i}'`));
+    expect(c.chat('read')).toBeUndefined();
+    expect(c.chat('unread')).toBeDefined();
+    expect(keys(c)).toEqual(['unread']);
+  });
 });

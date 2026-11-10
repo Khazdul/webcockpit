@@ -114,6 +114,8 @@ export class CommChats {
   private roster = new Set<string>();
   private rosterKnown = false;
   private colorNext = 0;
+  /** Colour slots by chat key, for the session (not cleared by `reset`). */
+  private readonly colors = new Map<string, PersonColor>();
   private openKey: string | null = 'public';
   private publicShows: (channel: string) => boolean = () => true;
   /** Unread in Public and Group while they are not open. */
@@ -134,25 +136,53 @@ export class CommChats {
     this.publicShows = fn;
   }
 
-  /** Forgets everything (a new character, a replay). */
+  /**
+   * Forgets the messages, chats and roster (a new character, a replay, a
+   * rebuild after an archive load). The colours dealt so far are kept: a
+   * name keeps its colour for the session (ADR 0134).
+   */
   reset(): void {
     this.all = [];
     this.groupItems = [];
     this.people.clear();
     this.roster = new Set();
     this.rosterKnown = false;
-    this.colorNext = 0;
     this.publicUnread = 0;
     this.groupUnread = 0;
+  }
+
+  /** Unread counts by view ('public', 'group', chat keys), to carry over a rebuild. */
+  unreadSnapshot(): Map<string, number> {
+    const out = new Map<string, number>([
+      ['public', this.publicUnread],
+      ['group', this.groupUnread],
+    ]);
+    for (const c of this.people.values()) if (c.unread > 0) out.set(c.key, c.unread);
+    return out;
+  }
+
+  /** Puts back unread counts from `unreadSnapshot` (the higher of the two). */
+  restoreUnread(snap: ReadonlyMap<string, number>): void {
+    for (const [k, n] of snap) {
+      if (k === this.openKey) continue;
+      if (k === 'public') this.publicUnread = Math.max(this.publicUnread, n);
+      else if (k === 'group') this.groupUnread = Math.max(this.groupUnread, n);
+      else {
+        const c = this.people.get(k);
+        if (c && c.lastNear > 0) c.unread = Math.max(c.unread, n);
+      }
+    }
   }
 
   // ------------------------------------------------------------ messages
 
   /**
-   * Adds one message. `quiet` (an archive load): no unread counts. The
-   * message's `ts` is its time for the chat order and the window.
+   * Adds one message. `quiet` (an archive load): no unread counts.
+   * `noGroup` (a history re-added): never placed in Group, which then
+   * starts empty until new talk (ADR 0134 49a addendum). The message's
+   * `ts` is its time for the chat order and the window.
    */
-  add(m: CommMessage, quiet = false): AddResult {
+  add(m: CommMessage, quiet = false, noGroup = false): AddResult {
     const talker = m.talker ?? '';
     const mine = isYou(talker) || (this.self !== '' && talker.trim().toLowerCase() === this.self);
     const plain = stripAnsi(m.text);
@@ -170,9 +200,14 @@ export class CommChats {
       groupTell = m.channel === 'tells' && GROUP_TELL_IN.test(plain);
       near = !groupTell && NEAR_CHANNELS.has(m.channel);
     }
+    // Your own lines go to Group only while there is a group (an empty
+    // known roster is no group).
     const inGroup =
-      groupTell ||
-      (this.rosterKnown && (mine ? person === null || this.roster.has(person) : person !== null && this.roster.has(person)));
+      !noGroup &&
+      (groupTell ||
+        (this.rosterKnown &&
+          this.roster.size > 0 &&
+          (mine ? person === null || this.roster.has(person) : person !== null && this.roster.has(person))));
     const entry: ChatEntry = { seq: ++this.seq, msg: m, mine, person, near, groupTell, group: inGroup };
     this.push(this.all, entry);
     if (inGroup) {
@@ -188,6 +223,8 @@ export class CommChats {
       this.push(c.entries, entry);
       if (near) {
         created = c.lastNear === 0;
+        // A colour is dealt when a chat opens, not for a voice only overheard.
+        if (created) c.color = this.dealColor(c.key, c.name);
         raised = true;
         c.lastNear = Math.max(c.lastNear, m.ts);
         if (!quiet && !mine && this.openKey !== person) c.unread++;
@@ -206,13 +243,17 @@ export class CommChats {
   private chatFor(key: string, name: string): Chat {
     let c = this.people.get(key);
     if (!c) {
-      c = { key, name, color: this.assignColor(name), entries: [], lastNear: 0, unread: 0 };
+      c = { key, name, color: this.colorOf(name), entries: [], lastNear: 0, unread: 0 };
       this.people.set(key, c);
     }
     return c;
   }
 
-  /** Appends with the cap: the oldest entry leaves every list it is in. */
+  /**
+   * Appends with the cap: the oldest entry leaves every list it is in. A
+   * chat left with no messages goes too, unless it has unread or is open
+   * (its colour is kept for when it comes back).
+   */
   private push(list: ChatEntry[], e: ChatEntry): void {
     list.push(e);
     if (list !== this.all || list.length <= this.max) return;
@@ -220,6 +261,7 @@ export class CommChats {
     if (old.person !== null) {
       const c = this.people.get(old.person);
       if (c && c.entries[0] === old) c.entries.shift();
+      if (c && c.entries.length === 0 && c.unread === 0 && c.key !== this.openKey) this.people.delete(c.key);
     }
     const g = this.groupItems;
     while (g.length > 0) {
@@ -352,16 +394,17 @@ export class CommChats {
   // -------------------------------------------------------------- colour
 
   /**
-   * A person's colour slot, stable for the session: slots in order of
-   * first sight (a person's first message), no repeat until all
+   * A person's colour slot, stable for the session (kept over `reset`):
+   * slots are dealt in the order chats open, no repeat until all
    * `PERSON_COLORS` are used, then by a hash of the name. `You` and enemies
-   * (`*Name*`) have fixed roles. Names never seen (an NPC) get the hash.
+   * (`*Name*`) have fixed roles. A name without a chat (only overheard, an
+   * NPC) gets the hash and takes no slot.
    */
   colorOf(name: string): PersonColor {
     const n = cleanName(name);
     const fixed = this.fixedColor(n);
     if (fixed !== null) return fixed;
-    return this.people.get(n.toLowerCase())?.color ?? hashColor(n);
+    return this.colors.get(n.toLowerCase()) ?? hashColor(n);
   }
 
   private fixedColor(n: string): PersonColor | null {
@@ -370,12 +413,17 @@ export class CommChats {
     return null;
   }
 
-  private assignColor(name: string): PersonColor {
+  /** The colour of a chat that opens: its kept one, else the next free slot. */
+  private dealColor(key: string, name: string): PersonColor {
     const n = cleanName(name);
     const fixed = this.fixedColor(n);
     if (fixed !== null) return fixed;
-    if (this.colorNext < PERSON_COLORS) return this.colorNext++;
-    return hashColor(n);
+    let c = this.colors.get(key);
+    if (c === undefined) {
+      c = this.colorNext < PERSON_COLORS ? this.colorNext++ : hashColor(n);
+      this.colors.set(key, c);
+    }
+    return c;
   }
 }
 
