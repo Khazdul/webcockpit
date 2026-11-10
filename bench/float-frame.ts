@@ -7,7 +7,7 @@
 // - idle:  3 s of our own rAF loop with nothing fed: the frame interval
 //          (median / p95) and the frame rate.
 // - text:  isolated fixture frames through the fake socket, 20–80 ms apart
-//          (after 40 unmeasured ones):
+//          (after 60 unmeasured ones):
 //          receipt → painted (the probe's `inject`: delivery until a
 //          MessageChannel message posted from the flush frame runs, i.e.
 //          after that frame's main-thread paint).
@@ -186,8 +186,8 @@ export async function measureCell(t: Target, c: Cell, o: CellOptions): Promise<C
   // Text receipt → painted.
   const N = o.texts ?? 60;
   // A warm-up long enough for App's FloatVeilWatch (ADR 0135) to decide
-  // (24 judged frames): the measured frames are the steady state.
-  const WARM = 40;
+  // (24 judged frames over at least 4 s): the measured frames are the steady state.
+  const WARM = 60;
   const total = await page.evaluate(([text, k]) => window.__wcBench!.loadFrames(text!, 1, k!), [o.logText, N + WARM] as const);
   const text: number[] = [];
   let mark = 0;

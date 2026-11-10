@@ -2,8 +2,10 @@
 // (stage 50): the look before and after a change, on dark and Paper, in
 // every tint, glass and clear.
 //
-//   node bench/frame-shots.ts --url http://localhost:5310 --out <dir> [--browser firefox|chromium] [--headed]
+//   node bench/frame-shots.ts --url http://localhost:5310 --out <dir> [--browser firefox|chromium] [--headed] [--veils]
 //
+// --veils turns the veils under floats on at once (ADR 0135; a build with
+// `Cockpit.useFloatVeils`), so the shots show them whatever the compositor.
 // Each shot is the float and a margin round it, with game text fed under
 // it, the weather pinned to a still, clear night (no rain, no lightning) so
 // two builds give comparable pictures. Writes <dir>/<background>-<tint>-<glass|clear>.png.
@@ -53,6 +55,11 @@ for (const paper of [false, true]) {
         await ctl.engine.ready;
         ctl.pin({ weather: '', fog: '', position: 'standing', clock: 'night', moonUp: true, light: '' } as never);
       });
+      if (argv.includes('--veils'))
+        await page.evaluate(() => {
+          (window.__wcBench!.app!.cockpit as unknown as { useFloatVeils(): void }).useFloatVeils();
+          if (!document.querySelector('.wc-float-veil')) throw new Error('no veil');
+        });
       await page.evaluate(() => window.__wcBench!.connectFake());
       const n = await page.evaluate(([text]) => window.__wcBench!.loadFrames(text!, 1, 80), [logText] as const);
       for (let i = 0; i < n; i++) await page.evaluate((k) => window.__wcBench!.inject(k), i);

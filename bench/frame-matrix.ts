@@ -205,7 +205,7 @@ const md = [
   sep,
   ...rows.map(
     (x) =>
-      `| ${x.mode} | ${x.browser} | ${x.cell} | ${x.run} | ${f1(x.r.fps)} | ${f1(x.r.interval.median)} / ${f1(x.r.interval.p95)} | ${f1(x.r.worst)} | ${f1(x.r.busy.median)} / ${f1(x.r.busy.p95)} | ${f1(x.r.text.median)} / ${f1(x.r.text.p95)} | ${f1(x.r.key.median)} / ${f1(x.r.key.p95)} | ${x.load} |`,
+      `| ${x.mode} | ${x.browser} | ${x.cell}${x.r.veils ? " (veils)" : ""} | ${x.run} | ${f1(x.r.fps)} | ${f1(x.r.interval.median)} / ${f1(x.r.interval.p95)} | ${f1(x.r.worst)} | ${f1(x.r.busy.median)} / ${f1(x.r.busy.p95)} | ${f1(x.r.text.median)} / ${f1(x.r.text.p95)} | ${f1(x.r.key.median)} / ${f1(x.r.key.p95)} | ${x.load} |`,
   ),
   '',
 ];
