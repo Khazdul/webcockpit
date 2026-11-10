@@ -1523,8 +1523,9 @@ export class Cockpit {
     // The windows (ADR 0103) set their own focus on the press: a mouseup that
     // reaches here from inside one (an editor's CodeMirror, `data-wc-native-mouse`)
     // must not hand the keys back to the game.
-    if (t.closest('.wc-output, .wc-input-slot, .wc-spane-field, .wc-windows-host')) return;
-    if ((this.el.ownerDocument.activeElement as HTMLElement | null)?.closest?.('.wc-spane-field')) return;
+    // A pane's own field (`data-wc-own-keys`: the Comm reply and search) keeps the keys too.
+    if (t.closest('.wc-output, .wc-input-slot, .wc-spane-field, .wc-windows-host, [data-wc-own-keys]')) return;
+    if ((this.el.ownerDocument.activeElement as HTMLElement | null)?.closest?.('.wc-spane-field, [data-wc-own-keys]')) return;
     const sel = this.el.ownerDocument.getSelection();
     if (sel && !sel.isCollapsed && this.el.contains(sel.anchorNode)) return;
     this.onFocusInput();

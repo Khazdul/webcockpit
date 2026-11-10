@@ -283,25 +283,30 @@ const key = (el: Element, k: string) =>
   });
 
 describe('gear popup contents', () => {
-  it('Comm: ten channels (swatch, label, toggle) and Show channel header, written live and sparse', () => {
+  it('Comm (ADR 0134): ten Public channels (swatch, label, toggle) and the chat window, written live and sparse', () => {
     const t = mountWith(<CommSettings />);
-    expect(t.host.querySelector('.wc-ck-sub')!.textContent).toBe('Channels');
+    expect(t.host.querySelector('.wc-ck-sub')!.textContent).toBe('Public shows');
     const rows = [...t.host.querySelectorAll<HTMLElement>('.wc-sp-chan[data-channel]')];
     expect(rows.map((r) => r.dataset.channel)).toEqual([...COMM_CHANNEL_ORDER]);
     expect(rows[0]!.textContent).toBe('Narrates');
+    // The chat channels start off in Public (they live in the chats).
+    const base = { tells: false, questions: false, socials: false };
+    expect(t.s().comm.filters).toEqual(base);
     const tg = rows[3]!.querySelector('[role=switch]')!;
     expect(tg.getAttribute('aria-checked')).toBe('true');
     click(tg);
-    expect(t.s().comm.filters).toEqual({ [COMM_CHANNEL_ORDER[3]!]: false });
+    expect(t.s().comm.filters).toEqual({ ...base, [COMM_CHANNEL_ORDER[3]!]: false });
     expect(rows[3]!.classList.contains('is-off')).toBe(true);
     expect(tg.getAttribute('aria-checked')).toBe('false');
     // A click anywhere in the row toggles it back; the filters stay sparse.
     click(rows[3]!.querySelector('.wc-ck-l'));
-    expect(t.s().comm.filters).toEqual({});
-    const header = t.host.querySelector('[data-key="show-header"] [role=switch]')!;
-    const was = t.s().comm.showHeader;
-    click(header);
-    expect(t.s().comm.showHeader).toBe(!was);
+    expect(t.s().comm.filters).toEqual(base);
+    expect(t.host.querySelector('[data-key="show-header"]')).toBeNull();
+    expect(t.s().comm.chatWindow).toBe(30);
+    click(t.host.querySelector('[aria-label="Show chats active in the last"] [data-value="all"]'));
+    expect(t.s().comm.chatWindow).toBe('all');
+    click(t.host.querySelector('[aria-label="Show chats active in the last"] [data-value="10"]'));
+    expect(t.s().comm.chatWindow).toBe(10);
   });
 
   it('Timers: look, ending soon and a row per group (shown, colour, layout)', () => {
@@ -369,8 +374,8 @@ describe('gear popup contents', () => {
 
   it('a change made elsewhere shows', () => {
     const t = mountWith(<CommSettings />);
-    act(() => toggleCommChannel(t.settings, 'tells'));
-    expect(t.host.querySelector('[data-channel="tells"]')!.classList.contains('is-off')).toBe(true);
+    act(() => toggleCommChannel(t.settings, 'yells'));
+    expect(t.host.querySelector('[data-channel="yells"]')!.classList.contains('is-off')).toBe(true);
   });
 });
 

@@ -5,16 +5,16 @@
 // store at once and the pane follows live (ADR 0010).
 //
 //   Comm                         Timers                                   Group
-//   CHANNELS                     LOOK                                     Show players     [toggle]
+//   PUBLIC SHOWS                 LOOK                                     Show players     [toggle]
 //   ■ Narrates         [toggle]  Style         Bars|Circles               NPC visibility   Off|Labeled|All
 //   …  (ten channels)            Layout        Flow|Grid  · Grid columns  …
 //   ───────────────              Group headers, Time text
-//   Show channel header [toggle] ENDING SOON   Signal, Warn at, Soonest first
-//                                GROUPS        Shown  Colour  Layout (Default|Flow|Grid)
+//   PRIVATE CHATS                ENDING SOON   Signal, Warn at, Soonest first
+//   Active in the last …         GROUPS        Shown  Colour  Layout (Default|Flow|Grid)
 //
 // - Comm: a channel row (its swatch in the channel colour, grey when off)
-//   toggles on a click anywhere in it. A change cancels the pane's solo
-//   (the pane does that when the filters change from outside it).
+//   toggles on a click anywhere in it: the channels Public shows; then
+//   "Show chats active in the last" (ADR 0134).
 // - Timers (ADR 0122): the look (style, layout, grid columns, headers,
 //   time text), ending soon (signal, warn at, soonest first) and a row per
 //   group: shown, colour (ColorPicker; Auto shows the Timers pane's own
@@ -32,6 +32,7 @@ import { autoColor } from '../../panes/palette';
 import { paneShade } from '../../panes/shade';
 import {
   AWAY_MODE_CHOICES,
+  COMM_CHAT_WINDOW_CHOICES,
   NPC_MODE_CHOICES,
   TIMER_COLS_CHOICES,
   TIMER_GROUP_LAYOUT_CHOICES,
@@ -40,9 +41,11 @@ import {
   TIMER_STYLE_CHOICES,
   TIMER_WARN_OPTIONS,
   VITAL_COLOR_ROWS,
+  chatWindowOf,
   colsLabel,
   commChannelRows,
   patchTimerGroup,
+  setChatWindow,
   setCommChannel,
   setGroup,
   setTimers,
@@ -59,10 +62,9 @@ export function CommSettings(): VNode {
   const { settings } = useServices();
   const s = useSettings();
   const rows = commChannelRows(s.comm.filters);
-  const header = (on: boolean): void => settings.update({ comm: { showHeader: on } });
   return (
     <div class="wc-sp-comm">
-      <div class="wc-ck-sub">Channels</div>
+      <div class="wc-ck-sub">Public shows</div>
       {rows.map((r) => (
         <div
           key={r.name}
@@ -80,11 +82,15 @@ export function CommSettings(): VNode {
         </div>
       ))}
       <div class="wc-ck-sep" />
-      <div class="wc-ck-row wc-sp-chan" data-key="show-header" onClick={() => header(!s.comm.showHeader)}>
-        <span class="wc-ck-l">Show channel header</span>
-        <span class="wc-ck-ctl">
-          <Toggle label="Show channel header" on={s.comm.showHeader} onChange={header} />
-        </span>
+      <div class="wc-ck-sub">Private chats</div>
+      <div class="wc-sp-cwin">
+        <span class="wc-ck-l">Show chats active in the last</span>
+        <Segmented
+          label="Show chats active in the last"
+          value={String(s.comm.chatWindow)}
+          options={COMM_CHAT_WINDOW_CHOICES}
+          onChange={(v) => setChatWindow(settings, chatWindowOf(v))}
+        />
       </div>
     </div>
   );

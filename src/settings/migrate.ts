@@ -38,7 +38,11 @@ import { INPUT_COLOR_IDS } from '../theme/presets';
 import {
   type AppearanceSettings,
   COMM_FILTERS_MAX,
+  COMM_PUBLIC_DEFAULT_OFF,
+  COMM_CHAT_WINDOWS,
   COMM_FILTER_KEY_MAX,
+  COMM_LIST_WIDTH_MAX,
+  COMM_LIST_WIDTH_MIN,
   type CommSettings,
   CURSOR_STYLES,
   type ColorSetting,
@@ -304,12 +308,16 @@ export function migrateGroup(raw: unknown): GroupSettings {
 
 /**
  * Comm pane options from anything. Filters keep only disabled channels
- * (`false`) with a sane name; at most `COMM_FILTERS_MAX` of them.
+ * (`false`) with a sane name; at most `COMM_FILTERS_MAX` of them; stored
+ * filters are kept as they are (settings without filters, a new user's,
+ * get the defaults). The column width is clamped; anything else is the
+ * automatic width. A stored `showHeader` (the pane before ADR 0134) is
+ * dropped.
  */
-export function migrateComm(raw: unknown): CommSettings {
+export function migrateComm(raw: unknown, fromVersion = SETTINGS_VERSION): CommSettings {
   const d = defaultSettings().comm;
   const c = isObj(raw) ? raw : {};
-  const filters: Record<string, boolean> = {};
+  const filters: Record<string, boolean> = isObj(c.filters) ? {} : { ...d.filters };
   if (isObj(c.filters)) {
     let n = 0;
     for (const [k, v] of Object.entries(c.filters)) {
@@ -318,7 +326,18 @@ export function migrateComm(raw: unknown): CommSettings {
       filters[k] = false;
     }
   }
-  return { filters, showHeader: bool(c.showHeader, d.showHeader) };
+  // Settings from before the conversation view (v5): the chat channels go
+  // off in Public once (ADR 0134, owner's first test).
+  if (isObj(c.filters) && fromVersion < 5) for (const ch of COMM_PUBLIC_DEFAULT_OFF) filters[ch] = false;
+  const w = c.listWidth;
+  const listWidth =
+    typeof w === 'number' && Number.isFinite(w) ? Math.round(Math.min(COMM_LIST_WIDTH_MAX, Math.max(COMM_LIST_WIDTH_MIN, w))) : null;
+  return {
+    filters,
+    chatWindow: oneOf(c.chatWindow, COMM_CHAT_WINDOWS, d.chatWindow),
+    folded: bool(c.folded, d.folded),
+    listWidth,
+  };
 }
 
 /**
@@ -506,7 +525,7 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     layout: migrateLayout(s.layout, retired),
     profile,
     group: migrateGroup(s.group),
-    comm: migrateComm(s.comm),
+    comm: migrateComm(s.comm, fromVersion),
     timers: migrateTimers(s.timers),
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),

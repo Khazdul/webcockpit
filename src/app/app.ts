@@ -451,6 +451,7 @@ export class App {
       ...(opts.map ? { map: opts.map } : {}),
       ...(player ? {} : { mapMarks: this.mapMarks }),
       mapNotes: this.mapNotes,
+      focusGame: () => this.input.focus(),
       // The Statistics pane's view (ADR 0109); `runs` exists by its first show.
       ...(!player && this.appUi?.mountStatsPane
         ? { statsView: (host: HTMLElement) => this.appUi!.mountStatsPane!(host, { runs: this.runs, status: this.status }) }

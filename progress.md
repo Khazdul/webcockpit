@@ -52,11 +52,29 @@ Released 0.3.3 (About cut down for newcomers: Getting started after MUME, about 
 | 46 | Spotlights gallery | Done | `docs/stages/46-spotlights.md` |
 | 47 | Credits and About | Done | `docs/stages/47-credits-about.md` |
 | 48 | Presentation film | Done | `docs/stages/48-presentation-film.md` |
-| 49 | Comm and Statistics panes | In progress | `docs/stages/49-comm-stats-panes.md` |
+| 49 | Comm and Statistics panes | Built, awaiting owner test | `docs/stages/49-comm-stats-panes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-10 — Stage 49 build (Comm and Statistics panes)
+
+- **Done:** 49a baseline, settings and pure models; 49b Statistics pane
+  (live kill feed, rating, virtual list); 49c Comm pane (chats, Public,
+  Group, search, fold-away column, reply line); merged on
+  `stage-49-comm-stats`. Fresh review: 9 findings fixed (roster after a
+  rebuild, search refresh, spine double-click, colours/unread, reply
+  target, hidden timers). Docs: ADR 0134 addenda, ADR 0109, Inv pointers,
+  README, test guide.
+- **Tests:** unit 3545 passed; full e2e 931/936 on a quiet machine, the
+  rest flaky on `main` too (`scripts-settings` double-click 1–3 in 6).
+- **Performance:** after-tables in the stage file. To agree with the
+  owner: Statistics' slide costs Chromium ~15 ms main thread per kill;
+  Comm in Firefox ~1.7 ms more per message; both within a frame.
+- **Open:** owner test; the live form of your own `tell group`; Firefox
+  large framed float over the weather (main, 12–14 fps headless).
+- **Next:** owner feedback, then merge to `main` and release.
 
 ### 2026-11-09 — Comm and Statistics panes: mockups round 1
 

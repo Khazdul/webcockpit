@@ -137,3 +137,12 @@ History → Stats no longer pushes `SessionStatsFrame`: stage 45's
 the same pure model (`buildStats`, `rateSeries`, the sort helpers). The
 pane and the phone's ESC frame keep `statsBody`, unchanged.
 `SessionStatsFrame` has no caller left (wave 3's sweep).
+
+## Addendum: the pane is a live kill feed (2026-11-10, ADR 0134)
+
+Stage 49 replaces the pane's drawing: `src/chrome/stats-pane.ts` (header,
+four tiles, the Earlier list, the latest-kill card with its rating) in
+place of `statsBody`, still mounted by the chrome chunk through
+`ctx.statsView`. This ADR's "Adaptive layout", "Header" and "Keys and
+focus" no longer apply to the pane. The feed loads on run events and once
+a minute instead of every second. The phone's ESC frame keeps `statsBody`.

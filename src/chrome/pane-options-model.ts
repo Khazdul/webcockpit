@@ -16,7 +16,9 @@
 
 import { COMM_CHANNEL_ORDER, DEFAULT_CAPTIONS, channelColor, channelEnabled, channelLabel } from '../gmcp/comm';
 import {
+  COMM_CHAT_WINDOWS,
   type ColorSetting,
+  type CommChatWindow,
   GROUP_AWAY_MODES,
   GROUP_NPC_MODES,
   type GroupAwayMode,
@@ -73,6 +75,28 @@ export function setCommChannel(settings: SettingsStore, name: string, on: boolea
 /** Flips channel `name`. */
 export function toggleCommChannel(settings: SettingsStore, name: string): void {
   setCommChannel(settings, name, !channelEnabled(settings.get().comm.filters, name));
+}
+
+/** "Show chats active in the last …" (ADR 0134): the choices and their labels. */
+export const COMM_CHAT_WINDOW_CHOICES: readonly { value: string; label: string }[] = COMM_CHAT_WINDOWS.map((w) => ({
+  value: String(w),
+  label: w === 'all' ? 'All' : `${w} min`,
+}));
+
+/** The chat window from a choice's value. */
+export function chatWindowOf(v: string): CommChatWindow {
+  return v === 'all' ? 'all' : (COMM_CHAT_WINDOWS.find((w) => String(w) === v) ?? 30);
+}
+
+/** Sets the chat window. */
+export function setChatWindow(settings: SettingsStore, w: CommChatWindow): void {
+  settings.update({ comm: { chatWindow: w } });
+}
+
+/** The next chat window (the TUI page's Enter). */
+export function nextChatWindow(w: CommChatWindow): CommChatWindow {
+  const i = COMM_CHAT_WINDOWS.indexOf(w);
+  return COMM_CHAT_WINDOWS[(i + 1) % COMM_CHAT_WINDOWS.length]!;
 }
 
 // ---------------------------------------------------------------- timers

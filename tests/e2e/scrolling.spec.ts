@@ -225,6 +225,8 @@ async function demoDone(page: Page): Promise<void> {
 async function addComm(page: Page, n: number, from = 0): Promise<void> {
   await page.evaluate(
     ({ n, from }) => {
+      // Says are off in Public by default (ADR 0134): show every channel here.
+      if (from === 0) window.__wc!.settings.update((d) => void (d.comm.filters = {}));
       for (let i = from; i < from + n; i++) {
         window.__wc!.app.bus.emit('gmcp', {
           pkg: 'Comm.Channel.Text',
@@ -284,7 +286,6 @@ test('Comm pane: the wheel scrolls by pixels; new messages follow only at the bo
   await expect(more).toBeVisible();
   // Scrolled back: new messages land below, the view stays.
   await page.mouse.wheel(0, -200);
-  await expect(pane(page, 'comm').locator('.wc-comm-time').first()).toBeAttached();
   await page.waitForTimeout(400);
   const top = await scrollTop(list);
   const before = await more.textContent();
@@ -295,7 +296,6 @@ test('Comm pane: the wheel scrolls by pixels; new messages follow only at the bo
   // Back to the bottom with the wheel: live again, and it follows.
   for (let i = 0; i < 5; i++) await page.mouse.wheel(0, 1000);
   await expect(more).toBeHidden();
-  await expect(pane(page, 'comm').locator('.wc-comm-time')).toHaveCount(0);
   await addComm(page, 2, 48);
   await expect(rows.last()).toHaveText("Dori says 'line 49'");
   await expect.poll(() => atBottom(list)).toBe(true);

@@ -101,7 +101,7 @@ test('the Gear: leftmost, named after the pane; opens Comm settings beside the p
   await expect(pop).toBeVisible();
   await expect(pop).toHaveAttribute('aria-label', 'Comm settings');
   await expect(pop.locator('.wc-pop-title')).toHaveText('Comm');
-  await expect(pop.locator('.wc-ck-sub')).toHaveText('Channels');
+  await expect(pop.locator('.wc-ck-sub')).toHaveText(['Public shows', 'Private chats']);
   await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
   await expect(g).toHaveAttribute('data-open', '');
   // It takes the keys, on its first control (ADR 0108).
@@ -110,15 +110,17 @@ test('the Gear: leftmost, named after the pane; opens Comm settings beside the p
   const p = await insideViewport(page, 'comm');
   expect(p.x + p.width).toBeLessThanOrEqual(pane.x);
   expect(Math.abs(p.y - pane.y) < 1 || p.y + p.height >= page.viewportSize()!.height - 6).toBe(true);
-  // A channel off, live; the pane's filters follow; on again.
+  // Public starts without the chat channels (ADR 0134); a channel on, live; off again.
   const tells = pop.locator('.wc-sp-chan[data-channel="tells"]');
-  await tells.locator('[role=switch]').click();
   await expect(tells.locator('[role=switch]')).toHaveAttribute('aria-checked', 'false');
-  expect((await settings(page)).comm.filters).toEqual({ tells: false });
+  await tells.locator('[role=switch]').click();
+  await expect(tells.locator('[role=switch]')).toHaveAttribute('aria-checked', 'true');
+  expect((await settings(page)).comm.filters).toEqual({ questions: false, socials: false });
   await tells.click();
-  expect((await settings(page)).comm.filters).toEqual({});
-  await pop.locator('[data-key="show-header"] [role=switch]').click();
-  expect((await settings(page)).comm.showHeader).toBe(false);
+  expect((await settings(page)).comm.filters).toEqual({ tells: false, questions: false, socials: false });
+  // The chat window.
+  await pop.locator('[aria-label="Show chats active in the last"] [data-value="60"]').click();
+  expect((await settings(page)).comm.chatWindow).toBe(60);
   // The Gear toggles it.
   await clickGear(page, 'comm');
   await expect(anyPop(page)).toHaveCount(0);

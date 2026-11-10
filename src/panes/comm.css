@@ -1,0 +1,1003 @@
+/* Comm pane (src/panes/comm.ts, ADR 0134): the chat column, the spine, the
+ * thread with its top bar (search; folded: unfold and the open chat's
+ * chip) and the reply line. In the pane's font, sizes in em of it.
+ *
+ * Colours come from the pane tint as in Group and Timers (ADR 0122, 0123):
+ * `--cm-fg` / `--cm-dim` are the pane's shade ramp (set by the pane),
+ * `--lamp`, `--frost2`, `--frost-edge`, `--card-back` the lantern's
+ * (layout.css); a person's or a channel's colour comes per element as
+ * `--pc` / `--cc` (fitted for a light pane by the script). Surfaces are
+ * flat colours (no gradients: cheap to paint with many rows, as the Timers
+ * chips). Nothing animates per message: the column's width, the spine and
+ * the search field ease only on a user's action.
+ *
+ * Your own lines ("Stilla ton", owner 2026-11-09): a flat, faint lamp tone,
+ * no gradient, no edge bar, no indent; your bubbles right in the same tone. */
+
+.wc-comm {
+  position: absolute;
+  inset: 0;
+  contain: strict;
+  display: flex;
+  white-space: normal;
+  line-height: 1.3;
+  color: var(--cm-fg);
+  --cm-self: color-mix(in oklab, var(--lamp) 62%, #fff1cf);
+  --cm-hot: color-mix(in srgb, var(--cm-fg) 55%, #fff);
+  --cm-card: color-mix(in srgb, var(--lamp) 8%, var(--card-back, transparent));
+  --cm-lit: inset 0 1px 0 color-mix(in srgb, var(--lamp) 22%, transparent);
+  --cm-drop: 0 1px 2px rgb(0 0 0 / 0.45);
+  --cm-bub-base: var(--card-back, transparent);
+  --cm-bub: 18%;
+  --cm-mine: 7%;
+  --cm-mine-bub: 10%;
+  --cm-mine-edge: 12%;
+  --cm-sel: color-mix(in srgb, var(--lamp) 15%, transparent);
+  --cm-badge-bg: #f0b84f;
+  --cm-badge-ink: #170f03;
+  /* What floats over the thread (the search, unfold, the chip): opaque, so
+   * text scrolling under it does not show through. */
+  --cm-float: color-mix(in srgb, var(--lamp) 10%, var(--pane-fill, var(--pane-bg, #000)));
+}
+
+/* Paper (ADR 0123 "Paper"): raised paper cards, the pane's dark ink. */
+.wc-comm[data-light] {
+  --cm-self: oklch(from var(--pane-border) 0.45 min(calc(c * 1.6), 0.09) h);
+  --cm-hot: var(--ink, var(--cm-fg));
+  --cm-card: color-mix(in srgb, #fffdf8 92%, var(--card-back, transparent));
+  --cm-lit: 0 0 transparent;
+  --cm-drop: 0 1px 2px rgb(60 40 10 / 0.22);
+  --cm-bub-base: color-mix(in srgb, #fffdf8 90%, var(--card-back, transparent));
+  --cm-bub: 14%;
+  --cm-mine: 9%;
+  --cm-mine-bub: 9%;
+  --cm-mine-edge: 22%;
+  --cm-sel: color-mix(in srgb, var(--cm-self) 14%, transparent);
+  --cm-badge-bg: #8a5a0e;
+  --cm-badge-ink: #fffaf0;
+  --cm-float: #fffdf8;
+}
+
+.wc-comm [hidden] {
+  display: none !important;
+}
+
+.wc-comm button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.wc-comm button:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--cm-self) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.wc-cm-i {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ------------------------------------------------------------- column */
+
+.wc-cm-col {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--cm-colw, 9em);
+  min-height: 0;
+  padding: 0.2em 0 0.2em 0.15em;
+  box-sizing: border-box;
+  user-select: none;
+  transition: width 0.18s ease-out;
+  /* A change in the column (a snippet, a badge, a raised chat) lays out
+   * and paints the column only, never the thread beside it. */
+  contain: strict;
+}
+
+.wc-comm[data-mode='folded'] > .wc-cm-col,
+.wc-comm[data-mode='folded'] > .wc-cm-spine {
+  display: none;
+}
+
+.wc-comm[data-dragging] > .wc-cm-col {
+  transition: none;
+}
+
+.wc-cm-pins {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Between Group and the private chats. */
+.wc-cm-gap {
+  flex: none;
+  height: 1px;
+  margin: 0.45em 0.5em;
+  background: var(--frost-edge);
+  opacity: 0.6;
+}
+
+.wc-cm-chatwrap {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* The private chats fill from the top, newest last; the bar is hidden.
+ * The scroller runs bottom-up (column-reverse: its scroll origin is the
+ * bottom), so an overflowing list starts at the newest chat and keeps to it
+ * without a script reading or writing the scroll position; its one child,
+ * the list, is pushed to the top while it is short by an auto margin (not
+ * justify-content, which would put an overflow out of reach). */
+.wc-cm-chats {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.wc-cm-chats::-webkit-scrollbar {
+  display: none;
+}
+
+.wc-cm-chatlist {
+  flex: none;
+  margin-bottom: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* The newest chat clear of the pane's bottom edge (a dock handle's grip
+   * lies over the last pixels). */
+  padding-bottom: 0.45em;
+}
+
+/* More above or below: the edge fades out (a mask on the box, so it does
+ * not move with the rows) and a small chevron sits in the fade. */
+.wc-cm-chatwrap[data-up] > .wc-cm-chats {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em);
+}
+
+.wc-cm-chatwrap[data-down] > .wc-cm-chats {
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 2.2em);
+  mask-image: linear-gradient(to top, transparent 0, #000 2.2em);
+}
+
+.wc-cm-chatwrap[data-up][data-down] > .wc-cm-chats {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em, #000 calc(100% - 2.2em), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em, #000 calc(100% - 2.2em), transparent 100%);
+}
+
+.wc-comm .wc-cm-chev {
+  position: absolute;
+  left: 50%;
+  z-index: 1;
+  display: none;
+  width: 1.5em;
+  height: 1em;
+  transform: translateX(-50%);
+  color: color-mix(in srgb, var(--cm-self) 60%, transparent);
+  /* A hint only: the row under it keeps its clicks (the wheel scrolls). */
+  pointer-events: none;
+}
+
+.wc-cm-chev .wc-cm-i {
+  width: 100%;
+  height: 100%;
+}
+
+.wc-cm-chev.is-up {
+  top: 0;
+}
+
+.wc-cm-chev.is-down {
+  bottom: 0;
+}
+
+.wc-cm-chatwrap[data-up] > .wc-cm-chev.is-up,
+.wc-cm-chatwrap[data-down] > .wc-cm-chev.is-down {
+  display: block;
+}
+
+.wc-comm .wc-cm-chev:hover {
+  color: var(--cm-self);
+}
+
+/* A hidden chat has unread: a small dot on the chevron, no number. */
+.wc-cm-chev[data-unread]::after,
+.wc-cm-unfold[data-unread]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 50%;
+  background: var(--cm-badge-bg);
+}
+
+/* A chat, Public or Group. */
+.wc-comm .wc-cm-ent {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.9em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45em;
+  flex: none;
+  padding: 0.2em 0.35em 0.2em 0.25em;
+  border-radius: 0.35em;
+  color: var(--cm-fg);
+}
+
+.wc-comm .wc-cm-ent:hover {
+  background: var(--frost2);
+}
+
+.wc-comm .wc-cm-ent[aria-pressed='true'] {
+  background: var(--cm-sel);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 30%, transparent);
+}
+
+.wc-cm-ent[data-dim] {
+  opacity: 0.45;
+}
+
+.wc-cm-av {
+  display: grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  border-radius: 50%;
+  box-sizing: border-box;
+  font-weight: bold;
+  line-height: 1;
+  color: var(--pc);
+  background: color-mix(in srgb, var(--pc) 16%, var(--cm-bub-base));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 45%, transparent);
+}
+
+.wc-cm-av .wc-cm-i {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.wc-cm-et {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.wc-cm-r2 {
+  min-width: 0;
+}
+
+.wc-cm-r1 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  min-width: 0;
+}
+
+.wc-cm-r1 > b {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pc);
+}
+
+.wc-cm-ago {
+  flex: none;
+  font-size: 0.78em;
+  color: var(--cm-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-cm-sn {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82em;
+  color: var(--cm-dim);
+}
+
+.wc-cm-badge {
+  min-width: 1.35em;
+  height: 1.35em;
+  padding: 0 0.3em;
+  box-sizing: border-box;
+  border-radius: 0.7em;
+  font-size: 0.72em;
+  font-weight: bold;
+  line-height: 1.35em;
+  text-align: center;
+  color: var(--cm-badge-ink);
+  background: var(--cm-badge-bg);
+}
+
+.wc-cm-badge[data-dot] {
+  min-width: 0;
+  width: 0.55em;
+  height: 0.55em;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* A short pane (`data-compact`, under 14 cell rows): one line per entry,
+ * a smaller disc, no snippet, so the private chats keep room. */
+.wc-comm[data-compact] .wc-cm-ent {
+  grid-template-columns: 1.45em minmax(0, 1fr) auto;
+  padding-top: 0.1em;
+  padding-bottom: 0.1em;
+}
+
+.wc-comm[data-compact] .wc-cm-av {
+  width: 1.45em;
+  height: 1.45em;
+}
+
+.wc-comm[data-compact] .wc-cm-av .wc-cm-i {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.wc-comm[data-compact] .wc-cm-r2 {
+  display: none;
+}
+
+.wc-comm[data-compact] .wc-cm-gap {
+  margin: 0.25em 0.5em;
+}
+
+/* The rail: discs only (the name in the tooltip), the badge on the disc. */
+.wc-comm[data-mode='rail'] .wc-cm-ent {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0.2em 0;
+}
+
+.wc-comm[data-mode='rail'] .wc-cm-et {
+  display: none;
+}
+
+.wc-comm[data-mode='rail'] .wc-cm-badge {
+  position: absolute;
+  top: 0;
+  right: 0.1em;
+}
+
+/* --------------------------------------------------------------- spine */
+
+/* Between the column and the thread: invisible at rest; on hover, while
+ * dragged or focused its line (with a gap round the handle) and the
+ * handle fade in. A wider hit zone than it looks. */
+.wc-cm-spine {
+  position: relative;
+  flex: none;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.wc-cm-spine::after {
+  content: '';
+  position: absolute;
+  inset: 0 -3px;
+}
+
+.wc-cm-spine::before {
+  content: '';
+  position: absolute;
+  top: 6%;
+  bottom: 6%;
+  left: 3px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent 0,
+    var(--cm-spine, var(--frost-edge)) 12%,
+    var(--cm-spine, var(--frost-edge)) calc(50% - 1.2em),
+    transparent calc(50% - 1.2em),
+    transparent calc(50% + 1.2em),
+    var(--cm-spine, var(--frost-edge)) calc(50% + 1.2em),
+    var(--cm-spine, var(--frost-edge)) 88%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+
+.wc-comm .wc-cm-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 1.15em;
+  height: 1.6em;
+  transform: translate(-50%, -50%);
+  border-radius: 0.4em;
+  color: color-mix(in srgb, var(--cm-self) 75%, var(--cm-dim));
+  background: var(--cm-float);
+  box-shadow: inset 0 0 0 1px var(--frost-edge), var(--cm-drop);
+  opacity: 0;
+  transition: opacity 0.18s;
+  cursor: pointer;
+}
+
+/* The chevron points the way the column folds. */
+.wc-cm-handle > .wc-cm-i {
+  width: 0.95em;
+  height: 0.95em;
+  stroke-width: 2.4;
+}
+
+.wc-comm .wc-cm-handle:hover {
+  color: var(--cm-self);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-self) 45%, transparent), var(--cm-drop);
+}
+
+.wc-cm-spine:hover,
+.wc-comm[data-dragging] > .wc-cm-spine {
+  --cm-spine: color-mix(in srgb, var(--cm-self) 55%, transparent);
+}
+
+.wc-cm-spine:hover::before,
+.wc-cm-spine:focus-within::before,
+.wc-comm[data-dragging] > .wc-cm-spine::before,
+.wc-cm-spine:hover > .wc-cm-handle,
+.wc-cm-spine:focus-within > .wc-cm-handle,
+.wc-comm[data-dragging] > .wc-cm-spine > .wc-cm-handle {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .wc-cm-spine::before,
+  .wc-comm .wc-cm-handle {
+    opacity: 0.6;
+  }
+}
+
+/* -------------------------------------------------------------- thread */
+
+.wc-cm-main {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.25em 0.25em 0.15em;
+  contain: layout paint style;
+}
+
+/* Over the thread's top: folded, unfold and the open chat's chip at the
+ * left; the search at the right. The thread starts below it. */
+.wc-cm-top {
+  position: absolute;
+  top: 0.2em;
+  left: 0.15em;
+  right: 0.25em;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  height: 1.7em;
+  pointer-events: none;
+}
+
+.wc-cm-top > * {
+  pointer-events: auto;
+}
+
+.wc-comm .wc-cm-unfold,
+.wc-comm .wc-cm-sbtn {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--cm-fg) 80%, transparent);
+}
+
+.wc-comm .wc-cm-unfold {
+  background: var(--cm-float);
+  box-shadow: var(--cm-lit), inset 0 0 0 1px var(--frost2), var(--cm-drop);
+}
+
+.wc-cm-unfold .wc-cm-i,
+.wc-cm-sbtn .wc-cm-i {
+  width: 1em;
+  height: 1em;
+}
+
+.wc-comm .wc-cm-unfold:hover,
+.wc-comm .wc-cm-sbtn:hover {
+  color: var(--cm-hot);
+}
+
+.wc-comm .wc-cm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  min-width: 0;
+  max-width: 60%;
+  height: 1.7em;
+  padding: 0 0.65em 0 0.15em;
+  box-sizing: border-box;
+  border-radius: 0.85em;
+  color: var(--pc);
+  background: var(--cm-float);
+  box-shadow: var(--cm-lit), inset 0 0 0 1px color-mix(in srgb, var(--pc) 30%, transparent), var(--cm-drop);
+}
+
+.wc-cm-chip > .wc-cm-av {
+  flex: none;
+  width: 1.4em;
+  height: 1.4em;
+  font-size: 0.9em;
+}
+
+.wc-cm-chip > b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-comm[data-search] .wc-cm-chip {
+  display: none;
+}
+
+/* The search: a round button that grows into a field. */
+.wc-cm-search {
+  display: flex;
+  align-items: center;
+  flex: none;
+  width: 1.7em;
+  height: 1.7em;
+  margin-left: auto;
+  overflow: hidden;
+  border-radius: 0.85em;
+  background: var(--cm-float);
+  box-shadow: var(--cm-lit), inset 0 0 0 1px var(--frost2), var(--cm-drop);
+  transition: width 0.18s ease-out;
+}
+
+.wc-comm[data-search] .wc-cm-search {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.wc-cm-sinput,
+.wc-cm-rinput {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--cm-hot);
+  caret-color: var(--cm-self);
+}
+
+.wc-cm-sinput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.wc-cm-sinput::placeholder,
+.wc-cm-rinput::placeholder {
+  color: var(--cm-dim);
+  opacity: 1;
+}
+
+/* The reply line's "Reply to …" / "Tell the group…": a step quieter than
+ * the dim text, still about 3:1 on its card (owner's first test). */
+.wc-cm-rinput::placeholder {
+  color: color-mix(in srgb, var(--cm-dim) 72%, var(--cm-float));
+}
+
+.wc-comm:not([data-search]) .wc-cm-sinput,
+.wc-comm:not([data-search]) .wc-cm-sclear {
+  visibility: hidden;
+}
+
+.wc-comm .wc-cm-sclear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  color: var(--cm-dim);
+}
+
+.wc-cm-sclear .wc-cm-i {
+  width: 0.75em;
+  height: 0.75em;
+}
+
+/* Unfolded, only the round search button floats over the thread's top;
+ * folded or searching, the top bar has a row of its own. */
+.wc-comm .wc-cm-thread {
+  padding: 2.1em 0.1em 0.3em;
+}
+
+/* Borderless, the pane's hover buttons lie over the content's top row
+ * (ADR 0095): the top bar goes under them. */
+.wc-pane:not([data-framed]) .wc-cm-top {
+  top: calc(var(--cell-h, 17px) + 0.1em);
+}
+
+.wc-pane:not([data-framed]) .wc-comm .wc-cm-thread,
+.wc-pane:not([data-framed]) .wc-comm .wc-cm-results {
+  padding-top: calc(var(--cell-h, 17px) + 2.1em);
+}
+
+.wc-pane:not([data-framed]) .wc-comm[data-mode='folded'] .wc-cm-thread,
+.wc-pane:not([data-framed]) .wc-comm[data-mode='folded'] .wc-cm-results,
+.wc-pane:not([data-framed]) .wc-comm[data-search] .wc-cm-results {
+  margin-top: calc(var(--cell-h, 17px) + 2.1em);
+  padding-top: 0.1em;
+}
+
+.wc-comm[data-mode='folded'] .wc-cm-thread,
+.wc-comm[data-mode='folded'] .wc-cm-results,
+.wc-comm[data-search] .wc-cm-results {
+  margin-top: 2.1em;
+  padding-top: 0.1em;
+}
+
+/* Block flow, not flex: a new message lays out only itself (a flex column
+ * of hundreds of rows lays them all out again on every append). Bubbles
+ * and the centred lines are fit-content boxes placed by their margins. */
+.wc-cm-thread > .wc-alist-stack > div {
+  white-space: normal;
+}
+
+.wc-cm-item {
+  display: flow-root;
+}
+
+/* The time between two messages far apart. */
+.wc-cm-sep {
+  width: fit-content;
+  margin: 0.7em auto 0.15em;
+  padding: 0 0.5em;
+  border-radius: 0.5em;
+  font-size: 0.75em;
+  color: var(--cm-dim);
+  background: var(--card-back, transparent);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* Public and Group: one line per message. */
+.wc-cm-ln {
+  padding: 0.05em 0.35em;
+  border-radius: 0.2em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--card-back, transparent);
+}
+
+.wc-cm-item + .wc-cm-item > .wc-cm-ln:first-child {
+  margin-top: 1px;
+}
+
+.wc-cm-ln[data-mine] {
+  background: color-mix(in srgb, var(--cm-self) var(--cm-mine), var(--card-back, transparent));
+}
+
+.wc-cm-tx {
+  color: var(--cm-fg);
+}
+
+/* A chat's near talk. */
+.wc-cm-bb {
+  position: relative;
+  width: fit-content;
+  max-width: 80%;
+  margin-top: 0.4em;
+  padding: 0.15em 0.6em;
+  box-sizing: border-box;
+  border-radius: 0.75em 0.75em 0.75em 0.2em;
+  background: color-mix(in srgb, var(--pc) var(--cm-bub), var(--cm-bub-base));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 18%, transparent);
+}
+
+.wc-comm[data-light] .wc-cm-bb {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 30%, transparent), var(--cm-drop);
+}
+
+.wc-cm-bb.is-cont {
+  margin-top: 0.12em;
+}
+
+.wc-cm-bb.is-me {
+  margin-left: auto;
+  border-radius: 0.75em 0.75em 0.2em 0.75em;
+  background: color-mix(in srgb, var(--cm-self) var(--cm-mine-bub), var(--cm-bub-base));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-self) var(--cm-mine-edge), transparent);
+}
+
+.wc-comm[data-light] .wc-cm-bb.is-me {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-self) var(--cm-mine-edge), transparent), var(--cm-drop);
+}
+
+.wc-cm-bb.is-wh {
+  outline: 1px dashed color-mix(in srgb, var(--pc) 55%, transparent);
+  outline-offset: -1px;
+}
+
+.wc-cm-bt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--cm-hot);
+}
+
+.wc-cm-bb.is-me > .wc-cm-bt {
+  color: var(--cm-fg);
+}
+
+.wc-cm-bb.is-act > .wc-cm-bt {
+  font-style: italic;
+}
+
+/* Under a group tell's bubble in a person's chat: always shown, small and
+ * very quiet, on a little line of its own (it was said to the whole group,
+ * maybe not meant for you). */
+.wc-cm-gt {
+  margin: 0.05em 0 0 0.7em;
+  font-size: 0.66em;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--cm-dim) 65%, transparent);
+  user-select: none;
+}
+
+.wc-comm[data-light] .wc-cm-gt {
+  color: color-mix(in srgb, var(--cm-dim) 75%, transparent);
+}
+
+.wc-cm-gt.is-me {
+  margin: 0.05em 0.7em 0 0;
+  text-align: right;
+}
+
+/* The channel and time: beside the bubble (outside it, in the thread's
+ * free side), shown only while that bubble is hovered; it takes no height,
+ * so a bubble is one text line tall. Small and quiet, the word over the
+ * time. Kept in the DOM (readers, copy excluded). Touch: never shown. */
+.wc-cm-bm {
+  position: absolute;
+  bottom: 0.1em;
+  left: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-left: 0.45em;
+  font-size: 0.62em;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--cm-dim) 75%, transparent);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.wc-cm-bb.is-me > .wc-cm-bm {
+  left: auto;
+  right: 100%;
+  align-items: flex-end;
+  margin: 0 0.45em 0 0;
+}
+
+.wc-cm-bmsep {
+  display: none;
+}
+
+@media (hover: hover) {
+  .wc-cm-bb:hover > .wc-cm-bm {
+    opacity: 1;
+  }
+}
+
+/* Talk on other channels in a chat (narrate, yell, song, prayer): a line
+ * as in Public, left-aligned and whole, with no bubble (not to you): a
+ * little smaller and quieter, on the card backing only. */
+.wc-cm-oh {
+  margin: 0.4em 0 0.05em;
+  padding: 0.05em 0.35em;
+  border-radius: 0.2em;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--cm-dim);
+  background: var(--card-back, transparent);
+}
+
+.wc-cm-oh .wc-cm-tx {
+  color: color-mix(in srgb, var(--cm-fg) 72%, var(--cm-dim));
+}
+
+/* Group: joined / left. */
+.wc-cm-note {
+  width: fit-content;
+  margin: 0.5em auto 0.1em;
+  padding: 0 0.6em;
+  border-radius: 0.6em;
+  font-size: 0.8em;
+  color: var(--cm-dim);
+  background: var(--card-back, transparent);
+  box-shadow: inset 0 0 0 1px var(--frost-edge);
+  user-select: none;
+}
+
+.wc-comm .wc-cm-more {
+  align-self: center;
+  height: auto;
+  margin-top: 0.2em;
+  padding: 0 0.7em;
+  border-radius: 0.7em;
+  font-size: 0.8em;
+  font-style: normal;
+  line-height: 1.6;
+  color: var(--cm-badge-ink);
+  background: var(--cm-badge-bg);
+}
+
+/* ------------------------------------------------------------- results */
+
+.wc-cm-results {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  padding: 2.1em 0.1em 0.3em;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.wc-cm-results::-webkit-scrollbar {
+  display: none;
+}
+
+.wc-cm-rh {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.4em;
+  font-size: 0.72em;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cm-dim);
+  user-select: none;
+}
+
+.wc-cm-rh::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--frost-edge);
+}
+
+.wc-comm .wc-cm-rp {
+  display: grid;
+  grid-template-columns: 1.9em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5em;
+  flex: none;
+  padding: 0.25em 0.5em 0.25em 0.3em;
+  border-radius: 0.4em;
+  background: color-mix(in srgb, var(--pc) 12%, var(--cm-bub-base));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 24%, transparent), var(--cm-drop);
+}
+
+.wc-comm .wc-cm-rp:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 60%, transparent), var(--cm-drop);
+}
+
+.wc-cm-rpt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.wc-cm-rpt > b {
+  color: var(--pc);
+}
+
+.wc-cm-rpt > small {
+  font-size: 0.8em;
+  color: var(--cm-dim);
+}
+
+.wc-cm-go {
+  font-size: 0.8em;
+  white-space: nowrap;
+  color: var(--cm-hot);
+}
+
+.wc-cm-rm {
+  flex: none;
+  padding: 0.15em 0.35em 0.2em 0.45em;
+  border-left: 2px solid color-mix(in srgb, var(--cc) 70%, transparent);
+  border-radius: 0 0.3em 0.3em 0;
+  background: var(--card-back, transparent);
+}
+
+.wc-cm-rmh {
+  font-size: 0.72em;
+  color: var(--cm-dim);
+  user-select: none;
+}
+
+.wc-cm-rmt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wc-comm mark {
+  border-radius: 2px;
+  color: inherit;
+  background: color-mix(in srgb, var(--cm-badge-bg) 38%, transparent);
+}
+
+.wc-cm-none {
+  font-size: 0.85em;
+  color: var(--cm-dim);
+}
+
+/* --------------------------------------------------------------- reply */
+
+.wc-cm-reply {
+  flex: none;
+  display: flex;
+  align-items: center;
+  margin-top: 0.3em;
+  padding: 0.15em 0.5em;
+  border-left: 2px solid color-mix(in srgb, var(--pc, var(--cm-self)) 70%, transparent);
+  border-radius: 0.35em;
+  background: var(--cm-card);
+  box-shadow: var(--cm-lit), inset 0 0 0 1px var(--frost2), var(--cm-drop);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-cm-col,
+  .wc-cm-search,
+  .wc-cm-spine::before,
+  .wc-comm .wc-cm-handle,
+  .wc-cm-bm {
+    transition: none;
+  }
+}

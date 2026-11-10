@@ -1,10 +1,11 @@
-// Statistics (Inv §7.3, ADR 0018): one renderer for the ESC menu's page
-// and the Statistics pane.
+// Statistics (Inv §7.3, ADR 0018): the ESC menu's page (the phone).
 //
 //   ESC → Statistics   LiveStatsFrame: the live run chain (`app.runs`),
 //                      refreshed at 1 Hz and on R; ` · Run ended` when the
 //                      run ends while it is open (the data stays).
-//   Statistics pane    statsBody (src/chrome/stats-pane.tsx).
+//
+// The in-game Statistics pane has its own view since stage 49 (ADR 0134,
+// src/chrome/stats-pane.ts).
 //
 // History → Stats is stage 45's lantern page (history-stats.tsx); the
 // archived TUI frame is gone (wave 3).
@@ -50,7 +51,6 @@ import {
   fitNum,
   fmtClock,
   fmtK,
-  fitHeader,
   fmtRunDur,
   killCells,
   killCols,
@@ -92,30 +92,6 @@ export function liveHeader(m: StatsModel | null, rating: number, ended: boolean)
   if (rating > 0) parts.push(stars(rating));
   if (ended) parts.push('Run ended');
   return parts.join(' · ');
-}
-
-/**
- * The pane's header for `cols` cells (ADR 0109): the live header, giving
- * way in this order: the stars, the level, `STATISTICS —`, the run's
- * duration; `Run ended` stays as long as anything does.
- */
-export function paneHeader(m: StatsModel | null, rating: number, ended: boolean, cols: number): string {
-  const name = m?.character ?? '—';
-  const lvl = m?.level != null ? [`Lvl ${m.level}`] : [];
-  const run = [`Run ${fmtRunDur(m?.durationUs ?? 0)}`];
-  const star = rating > 0 ? [stars(rating)] : [];
-  const end = ended ? ['Run ended'] : [];
-  const join = (first: string, rest: string[]): string => [first, ...rest].join(' · ');
-  return fitHeader(
-    [
-      join(`◆ STATISTICS — ${name}`, [...lvl, ...run, ...star, ...end]),
-      join(`◆ STATISTICS — ${name}`, [...lvl, ...run, ...end]),
-      join(`◆ STATISTICS — ${name}`, [...run, ...end]),
-      join(`◆ ${name}`, [...run, ...end]),
-      join(`◆ ${name}`, end),
-    ],
-    cols,
-  );
 }
 
 export interface StatsViewProps {

@@ -317,6 +317,24 @@ export function matchVisiblePrefix(raw: string, prefix: string): number {
   return i;
 }
 
+/** A group tell's destination as your own `tell group` may carry it. */
+export const GROUP_DEST_RE = /^(the )?group$/i;
+/** An incoming group tell's text: `<Name> tells the group '…'`. */
+export const GROUP_TELL_IN_RE = / tells the group '/;
+/** Your own group tell's text, if MUME sends it whole: `You tell the group '…'`. */
+export const GROUP_TELL_OUT_RE = /^you tell the group '/i;
+
+/**
+ * A group tell (ADR 0134): on `tells`, an incoming one by its text (MUME
+ * sends no destination), your own by its destination `group` or its text.
+ */
+export function isGroupTell(m: CommText): boolean {
+  if (m.channel !== 'tells') return false;
+  const plain = stripAnsi(m.text);
+  if (isYou(m.talker)) return GROUP_DEST_RE.test(m.destination?.trim() ?? '') || GROUP_TELL_OUT_RE.test(plain);
+  return GROUP_TELL_IN_RE.test(plain);
+}
+
 /** The text between the first and the last `'`, or all of it. */
 export function quotedBody(text: string): string {
   const a = text.indexOf("'");
@@ -337,6 +355,14 @@ export function formatComm(m: CommText): CommSegment[] {
   const verbs = CHANNEL_VERBS[m.channel] ?? [m.channel, m.channel];
   const out: CommSegment[] = [];
   out.push({ role: self ? 'talkerYou' : 'talkerOther', text: self ? 'You' : cleanName(m.talker || 'Someone') });
+  if (isGroupTell(m)) {
+    // `<Name> tells the group '…'` (ADR 0134), not `tells you`.
+    out.push({ role: 'verb', text: self ? ' tell the group' : ' tells the group' });
+    const plain = stripAnsi(m.text);
+    const body = self && !GROUP_TELL_OUT_RE.test(plain) ? m.text : quotedBody(m.text);
+    out.push({ role: self ? 'messageSelf' : 'messageOther', text: ` '${body}'` });
+    return out;
+  }
   const prep = DESTINATION_PREPOSITIONS[m.channel];
   let dest = m.destination;
   if (!dest && !self && DIRECTED_CHANNELS.has(m.channel)) dest = 'you';

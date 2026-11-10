@@ -163,17 +163,37 @@ export const COMM_FILTER_KEY_MAX = 64;
 /** Most entries kept in `CommSettings.filters` (a sanity bound only). */
 export const COMM_FILTERS_MAX = 100;
 
-/** Options → Panes → Communication, and the header's channel filters. */
+/** "Show chats active in the last …" of the Comm pane (ADR 0134): minutes, or every chat. */
+export type CommChatWindow = 10 | 30 | 60 | 'all';
+export const COMM_CHAT_WINDOWS: readonly CommChatWindow[] = [10, 30, 60, 'all'];
+/**
+ * Channels off in Public by default (ADR 0134, owner's feedback rounds 1
+ * and 2): tells, questions and socials, the talk aimed at you that lives in
+ * the chats. In the defaults' filters, and turned off
+ * once in settings stored before version 5 (the old pane's filters hid a
+ * channel from the whole pane, so their values do not carry over).
+ */
+export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'questions', 'socials'];
+/** Narrowest and widest dragged chat column of the Comm pane (CSS px). */
+export const COMM_LIST_WIDTH_MIN = 40;
+export const COMM_LIST_WIDTH_MAX = 400;
+
+/** Options → Panes → Communication and the Comm gear (ADR 0134). */
 export interface CommSettings {
   /**
-   * Channel filters by GMCP channel name, global (not per character).
-   * Sparse: a missing channel is enabled. Only `false` entries are kept, so
-   * enabling a channel is `{ comm: { filters: { tells: true } } }` and the
-   * migration drops the entry.
+   * The channels shown in Public, by GMCP channel name, global (not per
+   * character). Sparse: a missing channel is enabled. Only `false` entries
+   * are kept, so enabling a channel is `{ comm: { filters: { tells: true } } }`
+   * and the migration drops the entry. Stored filters are kept as they are;
+   * new users start with `COMM_PUBLIC_DEFAULT_OFF` off.
    */
   filters: Record<string, boolean>;
-  /** Show the one-row channel header. */
-  showHeader: boolean;
+  /** Private chats shown: active in the last 10 / 30 / 60 min, or all. */
+  chatWindow: CommChatWindow;
+  /** The chat column is folded away (the spine's fold). */
+  folded: boolean;
+  /** The chat column's dragged width in CSS px, or null for the automatic width. */
+  listWidth: number | null;
 }
 
 /**
@@ -438,7 +458,9 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 // 4: Group and Timers redesign (ADR 0122): timer colours became `auto` or a
 //    hex (an old swatch name migrates by value, any version), the per-group
 //    cols/clock/bar and `compact` went.
-export const SETTINGS_VERSION = 4;
+// 5: the Comm pane's conversation view (ADR 0134): `comm.filters` shape
+//    Public only; a stored v4 or older turns `COMM_PUBLIC_DEFAULT_OFF` off.
+export const SETTINGS_VERSION = 5;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu
@@ -499,7 +521,7 @@ export function defaultSettings(): Settings {
     layout: defaultLayout(),
     profile: 'default',
     group: defaultGroupSettings(),
-    comm: { filters: {}, showHeader: true },
+    comm: { filters: Object.fromEntries(COMM_PUBLIC_DEFAULT_OFF.map((c) => [c, false])), chatWindow: 30, folded: false, listWidth: null },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },

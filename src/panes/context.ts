@@ -31,8 +31,18 @@ export interface CellSource {
  * pane's content element. `resize(cols, rows)` follows the content size;
  * 0 × 0 while the pane is hidden (the view stops its work then).
  */
+/** The character as the Statistics pane shows it (from `Char.*`, ADR 0134). */
+export interface StatsChar {
+  name: string | null;
+  level: number | null;
+  /** XP to the next level, or null when unknown (or at the top level). */
+  tnl: number | null;
+}
+
 export interface StatsPaneView {
   resize(cols: number, rows: number): void;
+  /** The character (header before a run, the TNL tile). */
+  setChar?(c: StatsChar): void;
   dispose(): void;
 }
 
@@ -80,6 +90,8 @@ export interface PaneContext {
    * game or profile state (the Timers corner `+` and charm `×` are gone).
    */
   readonly player?: boolean;
+  /** Gives the keys back to the game's input line (a pane field's Esc). */
+  readonly focusGame?: () => void;
   /**
    * The Statistics pane's view (ADR 0109), mounted on its first show.
    * Absent (the log player, the phone, tests): the pane stays empty.
@@ -167,6 +179,7 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     ...(p.mapMarks ? { mapMarks: p.mapMarks } : {}),
     ...(p.mapNotes ? { mapNotes: p.mapNotes } : {}),
     ...(p.player ? { player: true } : {}),
+    ...(p.focusGame ? { focusGame: p.focusGame } : {}),
     ...(p.statsView ? { statsView: p.statsView } : {}),
   };
 }

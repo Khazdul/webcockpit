@@ -345,7 +345,7 @@ for (const dpr of [1, 1.5]) {
       }
     });
 
-    it('accented capitals keep the marks they had before the lift: kit row, input line, output row', async ({ dprPage: page }) => {
+    it('accented capitals keep the marks they had before the lift: input line, output row', async ({ dprPage: page }) => {
       await page.goto(DEMO);
       await expectDpr(page, dpr);
       const setSpan = (loc: Locator) => (t: string) => loc.evaluate((el, t) => void (el.textContent = t + 'xxx'), t);
@@ -380,25 +380,6 @@ for (const dpr of [1, 1.5]) {
         await look(page, font, size);
         await check('input line', input, (t) => input.fill(t + 'xxx'), true, `${font} ${size}`);
         await check('output row', out, setSpan(out), false, `${font} ${size}`);
-      }
-
-      // A kit row on the cell grid: the in-game Statistics pane's (the start
-      // page's lists are new-look DOM: Profiles since stage 41, ADR 0125;
-      // History since stage 45, ADR 0130). Last: its float covers the game text.
-      await page.evaluate(() => window.__wc!.settings.update((d) => void (d.panes.statistics.on = true)));
-      const tableRow = page.locator('.wc-pane[data-pane="statistics"] .wc-stats-pane .wc-line').nth(1);
-      await expect(tableRow).toBeVisible();
-      // Marked: the tests write the text straight into the element. A solid
-      // fill of its own, so it and its twin stand on the same colour (the
-      // pane's lantern frame paints a gradient under its rows).
-      await tableRow.evaluate((el) => {
-        el.setAttribute('data-acc', '');
-        (el as HTMLElement).style.background = 'rgb(0, 0, 0)';
-      });
-      const kitRow = page.locator('.wc-pane[data-pane="statistics"] [data-acc]');
-      for (const [font, size] of LOOKS) {
-        await look(page, font, size);
-        await check('kit list row', kitRow, setSpan(kitRow), true, `${font} ${size}`);
       }
     });
   });

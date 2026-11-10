@@ -138,6 +138,27 @@ export const mapSetting = (on: boolean) => ({
   ...(process.env.WC_BENCH_TILESET ? { mapper: { tileset: process.env.WC_BENCH_TILESET } } : {}),
 });
 
+/** Deep merge of plain objects (`b` wins). */
+function merge(a: unknown, b: unknown): unknown {
+  const plain = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
+  if (!plain(a) || !plain(b)) return b;
+  const out: Record<string, unknown> = { ...a };
+  for (const [k, v] of Object.entries(b)) out[k] = merge(a[k], v);
+  return out;
+}
+
+/**
+ * WC_BENCH_SETTINGS=<json>: a settings patch merged over every page's own
+ * (e.g. `{"panes":{"statistics":{"on":true}}}` to measure with the
+ * Statistics pane shown; stage 49).
+ */
+function withEnvSettings(s: unknown): unknown {
+  const env = process.env.WC_BENCH_SETTINGS;
+  if (!env) return s;
+  const extra = JSON.parse(env) as unknown;
+  return s === undefined ? extra : merge(s, extra);
+}
+
 /** Opens the `?bench` page in a fresh context at the target's geometry. Close with `page.context().close()`. */
 export async function openBench(t: Target, base: string, o: OpenOptions = {}): Promise<Page> {
   const ctx = await t.browser.newContext({
@@ -147,7 +168,8 @@ export async function openBench(t: Target, base: string, o: OpenOptions = {}): P
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('pageerror:', e.message));
   let q = '?bench';
-  if (o.settings !== undefined) q += `&benchSettings=${encodeURIComponent(JSON.stringify(o.settings))}`;
+  const settings = withEnvSettings(o.settings);
+  if (settings !== undefined) q += `&benchSettings=${encodeURIComponent(JSON.stringify(settings))}`;
   if (o.frames) q += '&benchFrames';
   if (o.counters) q += '&benchCounters';
   await page.goto(`${base}/${q}`);

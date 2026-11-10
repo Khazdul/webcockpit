@@ -240,16 +240,17 @@ describe('migrateSettings', () => {
     expect(migrateSettings(JSON.parse(JSON.stringify(on))).appearance).toEqual(on.appearance);
   });
 
-  it('adds the group and comm options with defaults (older stored data)', () => {
+  it('adds the group and comm options with defaults (older stored data; Public without the chat channels, ADR 0134)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
     expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
-    expect(s.comm).toEqual({ filters: {}, showHeader: true });
+    expect(s.comm).toEqual({ filters: { tells: false, questions: false, socials: false }, chatWindow: 30, folded: false, listWidth: null });
     expect(s.profile).toBe('pvp');
   });
 
   it('checks group and comm values; comm filters keep only disabled channels', () => {
     const s = migrateSettings({
+      version: 5,
       group: { showPlayers: 'no', npcMode: 'some' },
       comm: {
         filters: { tells: false, says: true, narrates: 0, '': false, ['x'.repeat(65)]: false, yells: false },
@@ -257,15 +258,37 @@ describe('migrateSettings', () => {
       },
     });
     expect(s.group).toMatchObject({ showPlayers: true, npcMode: 'labeled' });
-    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, showHeader: false });
+    expect(s.comm).toEqual({ filters: { tells: false, yells: false }, chatWindow: 30, folded: false, listWidth: null });
     expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toMatchObject({ showPlayers: false, npcMode: 'all' });
-    expect(migrateComm({ filters: [false] }).filters).toEqual({});
+    expect(migrateComm({ filters: [false] }).filters).toEqual({ tells: false, questions: false, socials: false });
+  });
+
+  it('comm (ADR 0134): stored filters are kept; window, fold and width are checked', () => {
+    expect(migrateComm({ filters: {} }).filters).toEqual({});
+    expect(migrateSettings({ version: 5, comm: { filters: { says: false } } }).comm.filters).toEqual({ says: false });
+    expect(migrateComm({ chatWindow: 60 }).chatWindow).toBe(60);
+    expect(migrateComm({ chatWindow: 'all' }).chatWindow).toBe('all');
+    expect(migrateComm({ chatWindow: 45 }).chatWindow).toBe(30);
+    expect(migrateComm({ folded: true }).folded).toBe(true);
+    expect(migrateComm({ folded: 'yes' }).folded).toBe(false);
+    expect(migrateComm({ listWidth: 151.6 }).listWidth).toBe(152);
+    expect(migrateComm({ listWidth: 5 }).listWidth).toBe(40);
+    expect(migrateComm({ listWidth: 9999 }).listWidth).toBe(400);
+    expect(migrateComm({ listWidth: 'wide' }).listWidth).toBeNull();
+    expect(migrateComm({ listWidth: Number.NaN }).listWidth).toBeNull();
+    // Stored before v5 (the old pane): the chat channels go off once, the rest is kept.
+    expect(migrateSettings({ version: 4, comm: { filters: { tales: false } } }).comm.filters).toEqual({ tales: false, ...{ tells: false, questions: false, socials: false } });
+    expect(migrateSettings({ version: 4, comm: { filters: {} } }).comm.filters).toEqual({ tells: false, questions: false, socials: false });
+    expect(migrateComm({ filters: {} }, 4).filters).toEqual({ tells: false, questions: false, socials: false });
+    // Turned on again later (v5 stored): kept on.
+    expect(migrateSettings({ version: 5, comm: { filters: { tales: false } } }).comm.filters).toEqual({ tales: false });
     const many = Object.fromEntries(Array.from({ length: 150 }, (_, i) => [`c${i}`, false]));
     expect(Object.keys(migrateComm({ filters: many }).filters)).toHaveLength(100);
   });
 
   it('a comm filter is re-enabled by patching it to true', () => {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update((d) => void (d.comm.filters = {}));
     store.update({ comm: { filters: { tells: false, says: false } } });
     expect(store.get().comm.filters).toEqual({ tells: false, says: false });
     store.update({ comm: { filters: { tells: true } } });

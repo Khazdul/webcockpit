@@ -157,6 +157,10 @@ describe('AnchoredList', () => {
         items = items.concat(Array.from({ length: k }, (_, i) => n + i));
       },
       trim: (k: number) => void (items = items.slice(k)),
+      pre: (k: number) => {
+        const f = items[0]!;
+        items = Array.from({ length: k }, (_, i) => f - k + i).concat(items);
+      },
       setKey: (k: string) => void (key = k),
       built: () => built,
       changes: () => changes,
@@ -261,6 +265,19 @@ describe('AnchoredList', () => {
     al.dispose();
   });
 
+  it('older items put in front build only those and keep the view (a page more, ADR 0134)', () => {
+    const t = list(10, 4);
+    t.scroll(-3 * CELL_H);
+    const seen = t.inView();
+    const built = t.built();
+    t.pre(5);
+    t.add(1);
+    t.render();
+    expect(t.built() - built).toBe(6);
+    expect(t.al.elements[0]!.textContent).toBe('m-5');
+    expect(t.inView()).toEqual(seen);
+  });
+
   it('keepView holds the top item while heights change', () => {
     const tall = new Set<number>();
     const l = list(10, 5, (i) => (tall.has(i) ? 2 : 1));
@@ -283,177 +300,263 @@ describe('AnchoredList', () => {
   });
 });
 
-describe('CommPane', () => {
-  function comm(opts: Parameters<typeof setup>[0] = {}) {
+describe('CommPane (ADR 0134)', () => {
+  /** `defaults`: Public with the new users' filters; else every channel shown (most tests). */
+  function comm(opts: Parameters<typeof setup>[0] & { sent?: string[]; player?: boolean; defaults?: boolean } = {}) {
     const env = setup(opts);
-    const pane = new CommPane(env.ctx, { metrics: metrics(() => env.size.cols, () => env.size.rows) });
+    if (!opts.defaults) env.settings.update((d) => void (d.comm.filters = {}));
+    const sent = opts.sent ?? [];
+    const ctx = { ...env.ctx, sender: { sendCommand: (t: string) => void sent.push(t), sendGmcp: () => {} }, ...(opts.player ? { player: true } : {}) };
+    env.ctx.game.attach(env.bus);
+    const pane = new CommPane(ctx, { metrics: metrics(() => env.size.cols, () => env.size.rows), writeClipboard: async () => {} });
     document.body.append(pane.el);
     place(pane, env.size.cols, env.size.rows);
     env.flush();
-    const header = () => [...pane.content.querySelectorAll<HTMLElement>('.wc-comm-cell')];
-    const rows = () => [...pane.content.querySelectorAll<HTMLElement>('.wc-comm-msg')].map((e) => e.textContent);
-    return { ...env, pane, header, rows };
+    const q = <T extends HTMLElement = HTMLElement>(s: string) => pane.content.querySelector<T>(s);
+    const qa = (s: string) => [...pane.content.querySelectorAll<HTMLElement>(s)];
+    const rows = () => qa('.wc-comm-msg').map((e) => e.textContent);
+    const entries = () => qa('.wc-cm-ent').map((e) => e.dataset.key);
+    const open = (key: string) => {
+      env.flush();
+      q(`.wc-cm-ent[data-key="${key}"]`)!.click();
+      env.flush();
+    };
+    const emit = (channel: string, talker: string, t: string, extra: Record<string, unknown> = {}) =>
+      env.bus.emit('gmcp', text(channel, talker, t, { 'talker-type': 'player', ...extra }));
+    return { ...env, pane, q, qa, rows, entries, open, emit, sent };
   }
 
-  it('renders the header and formatted messages, and blanks while inactive', () => {
-    const c = comm({ cols: 80 });
-    expect(c.header().map((e) => e.textContent)).toEqual([
-      'Narrates', 'Tells', 'Says', 'Yells', 'Prayers', 'Emotes', 'Whispers', 'Questions', 'Songs', 'Socials',
-    ]);
-    c.bus.emit('gmcp', text('tells', 'Gibur', "Gibur tells you 'np :)'"));
-    c.bus.emit('gmcp', text('whispers', 'you', 'hej', { destination: 'Dori' }));
-    c.bus.emit('gmcp', text('socials', 'Vit the innkeeper', 'Vit the innkeeper bows before you.'));
+  it('Public shows formatted lines without tells, questions and socials by default, and blanks while inactive', () => {
+    const c = comm({ cols: 80, defaults: true });
+    c.emit('tells', 'Gibur', "Gibur tells you 'np :)'");
+    c.emit('whispers', 'you', 'hej', { destination: 'Dori' });
+    c.emit('socials', 'Vit the innkeeper', 'Vit the innkeeper bows before you.');
+    c.emit('tales', 'Gibur', "Gibur narrates 'orcs!'");
     c.flush();
-    expect(c.rows()).toEqual(["Gibur tells you 'np :)'", "You whisper to Dori 'hej'", 'Vit bows before you.']);
-    const tell = c.pane.content.querySelector('.wc-comm-msg')!.children;
-    expect((tell[0] as HTMLElement).style.color).toBe('#c2a878');
-    expect((tell[1] as HTMLElement).style.color).toBe('#008000');
-    expect((tell[2] as HTMLElement).style.color).toBe('#afd2d2');
-    expect((tell[3] as HTMLElement).style.color).toBe('#91bec1');
+    expect(c.rows()).toEqual(["You whisper to Dori 'hej'", "Gibur narrates 'orcs!'"]);
+    // The verb in the channel colour, the name in the person's.
+    const line = c.q('.wc-comm-msg[data-channel="tales"]')!;
+    expect(line.querySelector<HTMLElement>('.wc-cm-vb')!.style.color).toBe('#d2ca5c');
+    expect(line.querySelector<HTMLElement>('.wc-cm-nm')!.style.color).toMatch(/^#/);
+    c.settings.update((d) => void (d.comm.filters = {}));
+    c.flush();
+    expect(c.rows()).toEqual(["Gibur tells you 'np :)'", "You whisper to Dori 'hej'", 'Vit bows before you.', "Gibur narrates 'orcs!'"]);
+    expect(c.q('.wc-comm-msg[data-channel="whispers"]')!.hasAttribute('data-mine')).toBe(true);
     c.setState('disconnected');
     c.flush();
     expect(c.pane.content.textContent).toBe('');
-    // History survives the disconnect.
     c.setState('playing');
     c.flush();
-    expect(c.rows()).toHaveLength(3);
+    expect(c.rows()).toHaveLength(4);
   });
 
-  it('follows Comm.Channel.List and keeps ANSI in the message', () => {
-    const c = comm({ cols: 80 });
+  it('a tell opens a chat with an unread count; its bubbles and the overheard lines', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tales', 'Gibur', "Gibur narrates 'first'");
+    expect(c.entries()).toEqual(['public', 'group']);
+    c.emit('tells', 'Gibur', "Gibur tells you 'hi'");
+    c.emit('tells', 'Gibur', "Gibur tells you 'there'");
+    c.flush();
+    expect(c.entries()).toEqual(['public', 'group', 'gibur']);
+    const row = c.q('.wc-cm-ent[data-key="gibur"]')!;
+    expect(row.querySelector('.wc-cm-badge')!.textContent).toBe('2');
+    expect(row.querySelector('.wc-cm-sn')!.textContent).toBe('there');
+    c.open('gibur');
+    expect(row.querySelector<HTMLElement>('.wc-cm-badge')!.hidden).toBe(true);
+    expect(row.getAttribute('aria-pressed')).toBe('true');
+    c.emit('tells', 'you', 'ok', { destination: 'Gibur' });
+    c.flush();
+    const bubbles = c.qa('.wc-cm-bb');
+    expect(bubbles.map((b) => b.querySelector('.wc-cm-bt')!.textContent)).toEqual(['hi', 'there', 'ok']);
+    expect(bubbles.map((b) => b.classList.contains('is-me'))).toEqual([false, false, true]);
+    expect(bubbles[1]!.classList.contains('is-cont')).toBe(true);
+    expect(bubbles[2]!.querySelector('.wc-cm-bm')!.textContent).toMatch(/^tell · \d\d:\d\d$/);
+    // The narrate before the chat opened is in it as an overheard line:
+    // whole, as in Public, the verb in the channel colour; no channel icon.
+    const oh = c.q('.wc-cm-oh')!;
+    expect(oh.textContent).toBe("Gibur narrates 'first'");
+    expect(oh.querySelector<HTMLElement>('.wc-cm-vb')!.style.color).toBe('#d2ca5c');
+    expect(c.qa('.wc-cm-thread svg')).toHaveLength(0);
+    // A group tell from him: a bubble marked "group", no unread, no raise.
+    c.open('public');
+    c.emit('tells', 'Gibur', "Gibur tells the group 'regroup'");
+    c.flush();
+    expect(row.querySelector<HTMLElement>('.wc-cm-badge')!.hidden).toBe(true);
+    c.open('gibur');
+    const last = c.qa('.wc-cm-bb').at(-1)!;
+    expect(last.querySelector('.wc-cm-bt')!.textContent).toBe('regroup');
+    expect(last.querySelector('.wc-cm-bm')!.textContent).toMatch(/^group · /);
+    // Always marked under the bubble; other bubbles are not.
+    expect(c.qa('.wc-cm-gt').map((e) => e.textContent)).toEqual(['grouptell']);
+    expect(last.parentElement!.lastElementChild!.classList.contains('wc-cm-gt')).toBe(true);
+  });
+
+  it('group tells read "tells the group", go to Group and never open a chat', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tells', 'Lindir', "Lindir tells the group 'wait for me'");
+    c.flush();
+    expect(c.entries()).toEqual(['public', 'group']);
+    c.open('group');
+    expect(c.rows()).toEqual(["Lindir tells the group 'wait for me'"]);
+  });
+
+  it('Group follows the roster of players: joined and left notes, NPCs left out, dimmed without a group', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    expect(c.q('.wc-cm-ent[data-key="group"]')!.hasAttribute('data-dim')).toBe(true);
     c.bus.emit('gmcp', {
-      pkg: 'Comm.Channel.List',
+      pkg: 'Group.Set',
       data: [
-        { name: 'tells', caption: 'Tells', command: 'tell' },
-        { name: 'tales', caption: 'Tales', command: 'narrate' },
-        { name: 'auction', caption: '', command: 'auction' },
+        { id: 1, name: 'Rasta', type: 'you' },
+        { id: 2, name: 'Lindir', type: 'ally' },
+        { id: 3, name: 'a warg', type: 'npc', label: 'W' },
       ],
     });
-    c.bus.emit('gmcp', text('tells', 'Takhr the warden', "Takhr the warden tells you 'costs \x1b[32m21\x1b[0m gold'"));
     c.flush();
-    expect(c.header().map((e) => e.textContent)).toEqual(['Narrates', 'Tells', 'Auction']);
-    expect(c.header()[2]!.style.color).toBe('#78909c');
-    expect(c.rows()).toEqual(["Takhr tells you 'costs 21 gold'"]);
-    expect(c.pane.content.querySelector('.wc-f2')!.textContent).toBe('21');
+    expect(c.q('.wc-cm-ent[data-key="group"]')!.hasAttribute('data-dim')).toBe(false);
+    c.bus.emit('gmcp', { pkg: 'Group.Add', data: { id: 4, name: 'Haldis', type: 'ally' } });
+    c.emit('says', 'Haldis', "Haldis says 'evening'");
+    c.emit('says', 'Bergil', "Bergil says 'not grouped'");
+    c.open('group');
+    expect(c.qa('.wc-cm-note').map((e) => e.textContent)).toEqual(['Haldis joined the group']);
+    expect(c.rows()).toEqual(["Haldis says 'evening'"]);
+    c.bus.emit('gmcp', { pkg: 'Group.Remove', data: 4 });
+    c.flush();
+    expect(c.qa('.wc-cm-note').map((e) => e.textContent)).toEqual(['Haldis joined the group', 'Haldis left the group']);
   });
 
-  it('left mouse down toggles, right solos and restores; nothing goes to the game', () => {
-    const c = comm({ cols: 80 });
+  it('the column is a rail in a narrow pane and a name list from 380 px; the window hides old chats', () => {
+    let now = 1_000_000_000;
+    const c = comm({ cols: 40, rows: 20, now: () => now });
+    expect(c.q('.wc-comm')!.dataset.mode).toBe('rail');
+    c.emit('tells', 'Dori', "Dori tells you 'old'");
+    now += 40 * 60_000;
+    c.emit('tells', 'Gibur', "Gibur tells you 'new'");
+    c.open('public');
+    // Dori has unread, so she shows though she is past the 30 min.
+    expect(c.entries()).toEqual(['public', 'group', 'dori', 'gibur']);
+    c.open('dori');
+    c.open('gibur');
+    expect(c.entries()).toEqual(['public', 'group', 'gibur']);
+    c.settings.update({ comm: { chatWindow: 'all' } });
+    c.flush();
+    expect(c.entries()).toEqual(['public', 'group', 'dori', 'gibur']);
+    // Wider: the name list.
+    c.size.cols = 48;
+    place(c.pane, 48, 20);
+    c.flush();
+    expect(c.q('.wc-comm')!.dataset.mode).toBe('list');
+  });
+
+  it('folds: the open chat in a chip with unfold beside it; the spine keys step the column', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tells', 'Gibur', "Gibur tells you 'hi'");
+    c.open('gibur');
+    c.settings.update({ comm: { folded: true } });
+    c.flush();
+    expect(c.q('.wc-comm')!.dataset.mode).toBe('folded');
+    expect(c.q('.wc-cm-chip')!.hidden).toBe(false);
+    expect(c.q('.wc-cm-chip b')!.textContent).toBe('Gibur');
+    c.emit('tales', 'Dori', "Dori narrates 'x'");
+    c.flush();
+    expect(c.q('.wc-cm-unfold')!.hasAttribute('data-unread')).toBe(true);
+    c.q('.wc-cm-unfold')!.click();
+    c.flush();
+    expect(c.settings.get().comm.folded).toBe(false);
+    expect(c.q('.wc-comm')!.dataset.mode).toBe('list');
+    const handle = c.q('.wc-cm-handle')!;
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    c.flush();
+    expect(c.settings.get().comm.listWidth).toBeLessThan(100);
+    expect(c.q('.wc-comm')!.dataset.mode).toBe('rail');
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    c.flush();
+    expect(c.settings.get().comm.folded).toBe(true);
+    // A click (Enter on the button) folds at once.
+    c.settings.update({ comm: { folded: false, listWidth: null } });
+    c.flush();
+    handle.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    expect(c.settings.get().comm.folded).toBe(true);
+  });
+
+  it('the reply line sends a tell or a tell to the group; none in Public, a player or a replay', () => {
     const sent: string[] = [];
-    c.bus.on('cmd.sent', (x) => sent.push(x.text));
-    c.bus.emit('gmcp', text('tells', 'Gibur', "Gibur tells you 'a'"));
-    c.bus.emit('gmcp', text('says', 'Dori', "Dori says 'b'"));
-    c.flush();
-    const down = (name: string, button: number) =>
-      c.header().find((e) => e.dataset.channel === name)!.dispatchEvent(new MouseEvent('mousedown', { button, bubbles: true }));
-    down('tells', 0);
-    expect(c.settings.get().comm.filters).toEqual({ tells: false });
-    c.flush();
-    expect(c.rows()).toEqual(["Dori says 'b'"]);
-    expect(c.header().find((e) => e.dataset.channel === 'tells')!.style.color).toBe('#3a3a3a');
-    down('tells', 0);
-    expect(c.settings.get().comm.filters).toEqual({});
-    down('says', 2);
-    expect(c.pane.soloed).toBe('says');
-    expect(Object.keys(c.settings.get().comm.filters).sort()).toEqual(
-      ['emotes', 'prayers', 'questions', 'socials', 'songs', 'tales', 'tells', 'whispers', 'yells'],
-    );
-    c.flush();
-    expect(c.rows()).toEqual(["Dori says 'b'"]);
-    down('says', 2);
-    expect(c.pane.soloed).toBeNull();
-    expect(c.settings.get().comm.filters).toEqual({});
-    expect(sent).toEqual([]);
+    const c = comm({ cols: 60, rows: 20, sent });
+    c.emit('tells', 'Gibur the Dwarf', "Gibur tells you 'hi'");
+    const input = c.q<HTMLInputElement>('.wc-cm-rinput')!;
+    const enter = () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(true);
+    input.value = 'hello room';
+    enter();
+    c.open('gibur');
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(false);
+    expect(input.placeholder).toBe('Reply to Gibur…');
+    input.value = ' on my way ';
+    enter();
+    c.open('group');
+    input.value = 'wait';
+    enter();
+    expect(sent).toEqual(['tell Gibur on my way', 'tell group wait']);
+    expect(input.value).toBe('');
+    const p = comm({ player: true });
+    expect(p.q('.wc-cm-reply')!.hidden).toBe(true);
+    const r = comm();
+    r.setState('connecting', true);
+    r.setState('playing', true);
+    r.flush();
+    expect(r.q('.wc-cm-reply')!.hidden).toBe(true);
   });
 
-  it('an external filter change cancels solo', () => {
-    const c = comm({ cols: 80 });
-    c.pane.soloToggle('tells');
-    expect(c.pane.soloed).toBe('tells');
-    // A change elsewhere in the settings keeps it.
-    c.settings.update({ group: { showPlayers: false } });
-    expect(c.pane.soloed).toBe('tells');
-    c.settings.update((d) => void (d.comm.filters.tells = false));
-    expect(c.pane.soloed).toBeNull();
-  });
-
-  it('hides the header with showHeader off', () => {
-    const c = comm();
-    c.settings.update({ comm: { showHeader: false } });
+  it('search finds people (open chat) and messages on every channel', async () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tells', 'Gibur', "Gibur tells you 'trolls at the ford'");
+    c.emit('tales', 'Dori', "Dori narrates 'no trolls here'");
+    c.emit('says', 'Bergil', "Bergil says 'hello'");
     c.flush();
-    expect(c.pane.content.querySelector<HTMLElement>('.wc-comm-header')!.hidden).toBe(true);
-  });
-
-  it('timestamps only while scrolled back; the top row keeps its place', () => {
-    const t0 = new Date(2026, 8, 27, 14, 5).getTime();
-    const env = setup({ cols: 40, rows: 4, now: () => t0 });
-    const m = metrics(() => env.size.cols, () => env.size.rows);
-    const pane = new CommPane(env.ctx, { metrics: m, settleMs: 0 });
-    document.body.append(pane.el);
-    place(pane, env.size.cols, env.size.rows);
-    env.flush();
-    const rows = () => [...pane.content.querySelectorAll<HTMLElement>('.wc-comm-msg')].map((e) => e.textContent);
-    const list = pane.content.querySelector<HTMLElement>('.wc-alist')!;
-    const more = pane.content.querySelector<HTMLElement>('.wc-alist-more')!;
-    for (let i = 0; i < 10; i++) env.bus.emit('gmcp', text('says', 'Dori', `Dori says 'm${i}'`));
-    env.flush();
-    expect(rows().slice(-1)).toEqual(["Dori says 'm9'"]);
-    // Three rows (header on): a pixel up leaves live; timestamps come in.
-    scrollBy(list, m, -CELL_H);
-    env.flush();
-    expect(rows().slice(-1)).toEqual(["14:05 Dori says 'm9'"]);
-    expect(more.hidden).toBe(false);
-    expect(more.textContent).toBe('↓ 2 newer messages');
-    // New messages land below and count in the indicator.
-    env.bus.emit('gmcp', text('says', 'Dori', "Dori says 'm10'"));
-    env.flush();
-    expect(rows().slice(-1)).toEqual(["14:05 Dori says 'm10'"]);
-    expect(more.textContent).toBe('↓ 3 newer messages');
-    // A message on a filtered channel is not shown (the filter change rebuilds).
-    env.settings.update((d) => void (d.comm.filters.tells = false));
-    env.bus.emit('gmcp', text('tells', 'Gibur', "Gibur tells you 'x'"));
-    env.flush();
-    expect(more.textContent).toBe('↓ 3 newer messages');
-    more.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
-    env.flush();
-    expect(rows().slice(-1)).toEqual(["Dori says 'm10'"]);
-    expect(pane.content.querySelectorAll('.wc-comm-time')).toHaveLength(0);
-    expect(more.hidden).toBe(true);
-  });
-
-  it('recolours content for a light pane', () => {
-    const c = comm({ cols: 80 });
-    c.settings.update({ appearance: { bg: '#f4ecd8' }, panes: { comm: { color: 'black' } } });
-    c.pane.applyTheme(c.settings.get());
-    c.bus.emit('gmcp', text('tells', 'Gibur', "Gibur tells you 'a'"));
+    c.q('.wc-cm-sbtn')!.click();
+    expect(c.q('.wc-comm')!.hasAttribute('data-search')).toBe(true);
+    const input = c.q<HTMLInputElement>('.wc-cm-sinput')!;
+    input.value = 'troll';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((r) => setTimeout(r, 160));
+    expect(c.qa('.wc-cm-rm .wc-cm-rmt').map((e) => e.textContent)).toEqual(["Dori narrates 'no trolls here'", "Gibur tells you 'trolls at the ford'"]);
+    expect(c.qa('.wc-cm-rm mark').map((e) => e.textContent)).toEqual(['troll', 'troll']);
+    expect(c.qa('.wc-cm-rp')).toHaveLength(0);
+    input.value = 'gib';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((r) => setTimeout(r, 160));
+    const person = c.q('.wc-cm-rp')!;
+    expect(person.dataset.key).toBe('gibur');
+    person.click();
     c.flush();
-    const talker = c.pane.content.querySelector('.wc-comm-msg')!.children[0] as HTMLElement;
-    expect(talker.style.color).not.toBe('#c2a878');
-    // The off label does not shift.
-    c.pane.toggle('says');
-    c.flush();
-    expect(c.header().find((e) => e.dataset.channel === 'says')!.style.color).toBe('#3a3a3a');
+    expect(c.q('.wc-comm')!.hasAttribute('data-search')).toBe(false);
+    expect(c.pane.model.open).toBe('gibur');
+    expect(c.q('.wc-cm-results')!.hidden).toBe(true);
   });
 
-  it('holds every channel colour to 4.5:1 on a light pane, plain or tinted (ADR 0123 "Paper")', () => {
+  it('holds person and channel colours to 4.5:1 on a light pane, plain or tinted (ADR 0123 "Paper")', () => {
     for (const color of ['black', 'red', 'green', 'blue', 'grey', 'orange', 'purple'] as const) {
-      const c = comm({ cols: 200 });
+      const c = comm({ cols: 80, rows: 20 });
       c.settings.update({ appearance: { bg: '#f4ecd8' }, panes: { comm: { color } } });
+      c.settings.update((d) => void (d.comm.filters = {}));
       c.pane.applyTheme(c.settings.get());
+      for (const ch of ['tales', 'tells', 'says', 'yells', 'prayers', 'questions', 'songs']) c.emit(ch, `P${ch}`, `P${ch} x 'y'`);
       c.flush();
+      expect(c.q('.wc-comm')!.hasAttribute('data-light')).toBe(true);
       const bg = paneEffectiveBg(color, '#f4ecd8');
-      const on = c.header().filter((e) => e.style.color !== '#3a3a3a');
-      expect(on.length).toBeGreaterThan(5);
-      for (const e of on) {
-        expect(e.style.color).toMatch(/^#[0-9a-f]{6}$/);
-        expect(contrast(e.style.color, bg)).toBeGreaterThanOrEqual(4.5);
+      // 'you' takes the pane's own ink (CSS), the rest are fitted here.
+      const inks = c.qa('.wc-cm-vb, .wc-cm-nm').map((e) => e.style.color).filter((ink) => !ink.startsWith('var('));
+      expect(inks.length).toBeGreaterThan(10);
+      for (const ink of inks) {
+        expect(ink).toMatch(/^#[0-9a-f]{6}$/);
+        expect(contrast(ink, bg)).toBeGreaterThanOrEqual(4.5);
       }
     }
   });
 
-  it('seeds from the archive on a live Char.Name and appends live messages', async () => {
+  it('seeds from the archive on a live Char.Name (quietly) and appends live messages', async () => {
     const NOW = Date.now();
     const c = comm({ db: true, state: 'login', now: () => NOW });
+    c.settings.update((d) => void (d.comm.filters = {}));
     const db = await openWebcockpitDb(c.factory!);
     const arch = new CommArchive(db);
     await arch.append({ character: 'Rasta', ts: NOW - 60_000, channel: 'tells', talker: 'Gibur', talkerType: 'player', destination: null, text: "Gibur tells you 'old'" });
@@ -468,11 +571,13 @@ describe('CommPane', () => {
     await flushAsync();
     c.flush();
     expect(c.rows()).toEqual(["Gibur tells you 'old'", "You say 'new'"]);
+    // The archived tell opened Gibur's chat without unread.
+    expect(c.entries()).toEqual(['public', 'group', 'gibur']);
+    expect(c.q<HTMLElement>('.wc-cm-ent[data-key="gibur"] .wc-cm-badge')!.hidden).toBe(true);
     await flushAsync();
     const stored = await arch.loadRecent('Rasta');
     expect(stored.map((r) => r.text)).toEqual(["Gibur tells you 'old'", 'new']);
     expect(stored[1]).toMatchObject({ character: 'Rasta', talker: 'you', channel: 'says', destination: null, talkerType: null });
-    // Not cleared on disconnect.
     c.setState('disconnected');
     expect(c.pane.messages).toHaveLength(2);
     db.close();
@@ -513,7 +618,6 @@ describe('CommPane', () => {
     const old = (ts: number) =>
       arch.append({ character: 'Rasta', ts, channel: 'says', talker: 'D', talkerType: null, destination: null, text: "D says 'x'" });
     await c.pane.whenReady();
-    // Days later in the same tab: a message from then is now past the 7 days.
     await old(now);
     now += 8 * DAY;
     await old(now - 1000);
@@ -528,11 +632,108 @@ describe('CommPane', () => {
     db.close();
   });
 
-  it('keeps at most 1000 messages', () => {
+  it('Group: no roster before a Group.* message; the first is a baseline, a later change notes who joined', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.bus.emit('gmcp', text('says', 'you', 'alone'));
+    c.open('group');
+    expect(c.rows()).toEqual([]);
+    // Char.Name, then the group the character was already in: no "joined" for them.
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    c.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 1, name: 'Rasta', type: 'you' }, { id: 2, name: 'Lindir', type: 'ally' }] });
+    c.flush();
+    expect(c.qa('.wc-cm-note')).toHaveLength(0);
+    c.bus.emit('gmcp', { pkg: 'Group.Add', data: { id: 3, name: 'Haldis', type: 'ally' } });
+    c.flush();
+    expect(c.qa('.wc-cm-note').map((e) => e.textContent)).toEqual(['Haldis joined the group']);
+    // Alone in a group of one (only you): your lines stay out of Group.
+    const d = comm({ cols: 60, rows: 20 });
+    d.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 1, name: 'Rasta', type: 'you' }] });
+    d.bus.emit('gmcp', text('says', 'you', 'solo'));
+    d.open('group');
+    expect(d.rows()).toEqual([]);
+  });
+
+  it('an archive load leaves Group empty, makes no "joined" notes, and keeps unread and colours', async () => {
+    const NOW = Date.now();
+    const c = comm({ db: true, state: 'login', now: () => NOW, cols: 60, rows: 20 });
+    const db = await openWebcockpitDb(c.factory!);
+    const arch = new CommArchive(db);
+    await arch.append({ character: 'Rasta', ts: NOW - 60_000, channel: 'says', talker: 'Lindir', talkerType: 'player', destination: null, text: "Lindir says 'archived'" });
+    await c.pane.whenReady();
+    c.setState('connecting');
+    c.setState('playing');
+    c.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 1, name: 'Rasta', type: 'you' }, { id: 2, name: 'Lindir', type: 'ally' }] });
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    await flushAsync();
+    c.emit('tells', 'Gibur', "Gibur tells you 'live'");
+    c.flush();
+    const ink = c.q('.wc-cm-ent[data-key="gibur"]')!.style.getPropertyValue('--pc');
+    await flushAsync();
+    // Char.Name again (a re-login): the archive, now with Gibur's tell, is loaded quietly.
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    await flushAsync();
+    c.flush();
+    expect(c.pane.messages.map((m) => m.text)).toEqual(["Lindir says 'archived'", "Gibur tells you 'live'"]);
+    // The load rebuilt the model: Gibur's unread and colour stay.
+    expect(c.q('.wc-cm-ent[data-key="gibur"] .wc-cm-badge')!.textContent).toBe('1');
+    expect(c.q('.wc-cm-ent[data-key="gibur"]')!.style.getPropertyValue('--pc')).toBe(ink);
+    c.open('group');
+    expect(c.rows()).toEqual([]);
+    expect(c.qa('.wc-cm-note')).toHaveLength(0);
+    db.close();
+  });
+
+  it('the reply line is hidden in a chat with a name a tell cannot reach', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tells', 'a dwarven sergeant', "A dwarven sergeant tells you 'halt'");
+    c.open('a dwarven sergeant');
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(true);
+    c.emit('tells', 'Gibur', "Gibur tells you 'hi'");
+    c.open('gibur');
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(false);
+  });
+
+  it('open search results follow only talk they would show, and keep their place', async () => {
+    const c = comm({ cols: 60, rows: 20 });
+    c.emit('tales', 'Dori', "Dori narrates 'trolls at the ford'");
+    c.flush();
+    c.q('.wc-cm-sbtn')!.click();
+    const input = c.q<HTMLInputElement>('.wc-cm-sinput')!;
+    input.value = 'troll';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((r) => setTimeout(r, 160));
+    const first = c.q('.wc-cm-rm')!;
+    c.emit('says', 'Bergil', "Bergil says 'hello'");
+    c.flush();
+    await new Promise((r) => setTimeout(r, 160));
+    expect(c.q('.wc-cm-rm')).toBe(first);
+    c.emit('says', 'Bergil', "Bergil says 'a troll!'");
+    c.flush();
+    await new Promise((r) => setTimeout(r, 160));
+    expect(c.qa('.wc-cm-rm .wc-cm-rmt').map((e) => e.textContent)).toEqual(["Bergil says 'a troll!'", "Dori narrates 'trolls at the ford'"]);
+  });
+
+  it('stops the age tick while hidden', () => {
+    const c = comm({ cols: 60, rows: 20 });
+    const timer = () => (c.pane as unknown as { ageTimer: unknown }).ageTimer;
+    expect(timer()).not.toBeNull();
+    c.pane.place(null, { w: 8, h: CELL_H });
+    expect(timer()).toBeNull();
+  });
+
+  it('keeps at most 1000 messages and builds only a page of the view', () => {
     const c = comm();
     for (let i = 0; i < 1005; i++) c.bus.emit('gmcp', text('says', 'D', `D says '${i}'`));
+    c.flush();
     expect(c.pane.messages).toHaveLength(1000);
     expect(c.pane.messages[0]!.text).toBe("D says '5'");
+    expect(c.rows()).toHaveLength(200);
+    expect(c.rows().at(-1)).toBe("D says '1004'");
+    // The first shown row keeps the time before it after the top was trimmed.
+    c.bus.emit('gmcp', text('says', 'D', "D says 'one more'"));
+    c.flush();
+    expect(c.qa('.wc-cm-sep')).toHaveLength(1);
+    expect(c.q('.wc-cm-item')!.firstElementChild!.classList.contains('wc-cm-sep')).toBe(true);
   });
 });
 

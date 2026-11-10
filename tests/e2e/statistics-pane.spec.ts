@@ -1,15 +1,18 @@
-// Stage 30d (ADR 0109): the Statistics pane. Switched on from the Panes
-// popup it opens as a float over the game text; wide it is the ESC frame's
-// two sides, narrow one column that scrolls; `No run yet` before a run,
-// `Run ended` after one; clicks in it never take the game's keys. Uses the
-// dev-only `window.__wc`.
+// Stage 30d (ADR 0109) and stage 49 (ADR 0134): the Statistics pane.
+// Switched on from the Panes popup it opens as a float over the game text:
+// the header, four tiles (the last is TNL), the Kills list (every kill, newest at the
+// bottom, following until scrolled up, then `↓ N new`) and the last kill's
+// card with its rating; before a run the same layout, empty (`no run
+// yet` in the header), `ended` after one;
+// clicks outside the list never take the game's keys. Uses the dev-only
+// `window.__wc`.
 import { type Page, expect, test } from '@playwright/test';
 
 const SHOTS = process.env.WC_SHOTS;
 
 const field = (page: Page) => page.locator('.wc-input-field');
 const pane = (page: Page) => page.locator('.wc-pane[data-pane="statistics"]');
-const view = (page: Page) => pane(page).locator('.wc-stats-pane');
+const view = (page: Page) => pane(page).locator('.wc-st');
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -38,7 +41,7 @@ async function placeFloat(page: Page, x: number, y: number, w: number, h: number
   );
 }
 
-test('switched on before any run: a centred float over the game text with `No run yet`; off again', async ({ page }) => {
+test('switched on before any run: a centred float over the game text with the empty layout; off again', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/?replay');
@@ -48,8 +51,17 @@ test('switched on before any run: a centred float over the game text with `No ru
   await togglePane(page);
   await expect(pane(page)).toBeVisible();
   await expect(pane(page)).toHaveAttribute('data-floating', '');
-  await expect(view(page)).toHaveAttribute('data-layout', 'empty');
-  await expect(view(page).locator('.wc-stats-norun')).toHaveText(/^\s*No run yet$/);
+  await expect(view(page)).toHaveAttribute('data-state', 'norun');
+  // The empty layout: header, four tiles with `—`, `Kills 0`, the card's label alone.
+  await expect(view(page).locator('.wc-st-norun')).toHaveText('no run yet');
+  await expect(view(page).locator('.wc-st-tile .wc-st-k')).toHaveText(['Avg / kill', 'Median', 'XP / h', 'TNL']);
+  await expect(view(page).locator('.wc-st-tile .wc-st-v')).toHaveText(['—', '—', '—', '—']);
+  await expect(view(page).locator('.wc-st-sec')).toHaveText(/^Kills\s*0$/);
+  await expect(view(page).locator('.wc-st-card')).toBeVisible();
+  await expect(view(page).locator('.wc-st-card-top')).toHaveText('Last kill');
+  await expect(view(page).locator('.wc-st-card .wc-st-mob')).toHaveText(/^\s*$/);
+  expect((await view(page).locator('.wc-st-card').boundingBox())!.height).toBeGreaterThan(40);
+  if (SHOTS) await pane(page).screenshot({ path: `${SHOTS}/statistics-empty-${test.info().project.name}.png` });
   // Inside the game pane, about centred over it.
   const g = (await page.locator('.wc-game').boundingBox())!;
   const p = (await pane(page).boundingBox())!;
@@ -68,69 +80,153 @@ test('switched on before any run: a centred float over the game text with `No ru
   expect(errors).toEqual([]);
 });
 
-test('after a replay: the run, `Run ended`, sorting by a click, the keys stay with the game, narrow stacks and scrolls', async ({ page }) => {
+test('after a replay: header, tiles, list and card, `ended`, the keys stay with the game, small panes', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/?fixture=gmcp-demo.log&speed=0');
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
   await expect(field(page)).toBeFocused();
   await togglePane(page);
-  await expect(view(page)).toHaveAttribute('data-layout', 'wide');
-  const header = view(page).locator('.wc-stats-header');
-  await expect(header).toHaveText(/^\s*◆ STATISTICS — Rasta · Lvl \d+ · Run \d+m · Run ended$/);
-  await expect(view(page)).toContainText('An orc scout');
-  await expect(view(page)).toContainText('★ Defeated an orc scout');
-  // No footer and no keys: the frame's `R Refresh` is not here.
-  await expect(view(page)).not.toContainText('R Refresh');
-  if (SHOTS) await pane(page).screenshot({ path: `${SHOTS}/statistics-wide-${test.info().project.name}.png` });
+  await expect(view(page)).toHaveAttribute('data-state', 'run');
+  await expect(view(page)).toHaveAttribute('data-ended', '');
+  const top = view(page).locator('.wc-st-top');
+  await expect(top.locator('.wc-st-hot')).toHaveText('Rasta');
+  await expect(top).toContainText(/L\d+/);
+  await expect(top.locator('.wc-st-ended')).toBeVisible();
+  await expect(top.locator('.wc-st-clock')).toHaveText(/^\d+:\d\d(:\d\d)?$/);
+  await expect(view(page).locator('.wc-st-tile .wc-st-k')).toHaveText(['Avg / kill', 'Median', 'XP / h', 'TNL']);
+  // TNL from Char.Vitals XP: a number (exact under 1000, else k).
+  await expect(view(page).locator('.wc-st-tile .wc-st-v').nth(3)).toHaveText(/^(\d{1,3}|[\d.]+k)$/);
+  await expect(view(page).locator('.wc-st-card .wc-st-mob')).not.toBeEmpty();
+  await expect(view(page).locator('.wc-st-card .wc-st-bigxp')).toHaveText(/^\+[\d.]+k?$/);
+  if (SHOTS) await pane(page).screenshot({ path: `${SHOTS}/statistics-${test.info().project.name}.png` });
 
-  // A click on a column title sorts; the keys stay with the game input.
-  const name = view(page).locator('.wc-stat-sort[data-sort="name"]').first();
-  await name.click();
-  await expect(name).toHaveText('KILLS ▲');
+  // A press on the tiles or the card: the keys stay with the game input.
+  await view(page).locator('.wc-st-tiles').click();
   await expect(field(page)).toBeFocused();
-  await view(page).locator('.wc-stat-rows').nth(2).click();
+  await view(page).locator('.wc-st-card').click();
   await expect(field(page)).toBeFocused();
   await page.keyboard.type('abc');
   await expect(field(page)).toHaveValue('abc');
 
-  // Narrow: one column (ALLIES, ACHIEVEMENTS, KILLS, PvPs), the whole content scrolls by the wheel.
-  await placeFloat(page, 4, 2, 40, 20);
-  await expect(view(page)).toHaveAttribute('data-layout', 'narrow');
-  await expect(header).toHaveText(/^\s*◆ Rasta · Run \d+m · Run ended$/);
-  const titles = await view(page).evaluate((el) => {
-    const want = ['ALLIES', 'ACHIEVEMENTS', 'KILLS', 'PvPs'];
-    const lines = [...el.querySelectorAll('.wc-line')].map((l) => l.textContent?.trim() ?? '');
-    return want.map((w) => lines.findIndex((t) => t.startsWith(w)));
-  });
-  expect(titles.every((i) => i >= 0)).toBe(true);
-  expect([...titles].sort((a, b) => a - b)).toEqual(titles);
-  const pageBox = view(page).locator('.wc-stats-page');
-  const b = (await pageBox.boundingBox())!;
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.mouse.wheel(0, 400);
-  await expect.poll(() => pageBox.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-  await expect(field(page)).toBeFocused();
-  if (SHOTS) await pane(page).screenshot({ path: `${SHOTS}/statistics-narrow-${test.info().project.name}.png` });
+  // Small: two by two tiles; short: the card without its scale, then no tiles.
+  await placeFloat(page, 4, 2, 34, 30);
+  await expect.poll(() => view(page).locator('.wc-st-tiles').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(2);
+  await placeFloat(page, 4, 2, 60, 9);
+  await expect(view(page).locator('.wc-st-tiles')).toBeHidden();
+  await expect(view(page).locator('.wc-st-card')).toBeVisible();
 
   // Reset layout forgets the place: the auto float again.
   await page.locator('.wc-mb[data-mb="panes"]').click();
   await page.locator('.wc-pop-foot [data-act="reset"]').click();
   await page.locator('.wc-pop-foot [data-act="reset-yes"]').click();
   await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().layout.floating.find((f) => f.id === 'statistics')?.auto)).toBe(true);
-  await expect(view(page)).toHaveAttribute('data-layout', 'wide');
+  await expect(view(page)).toHaveAttribute('data-state', 'run');
   expect(errors).toEqual([]);
 });
 
-test('during a replay: the live run, then `Run ended` without blanking', async ({ page }) => {
+test('during a replay: the live run, a long list that follows and counts `↓ N new` when scrolled up, then `ended`', async ({ page }) => {
+  test.setTimeout(60_000);
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/?fixture=gmcp-demo.log&speed=3');
   await togglePane(page);
-  await expect(view(page)).toContainText('An orc scout', { timeout: 20_000 });
-  const header = view(page).locator('.wc-stats-header');
-  await expect(header).toHaveText(/^\s*◆ STATISTICS — Rasta · Lvl \d+ · Run \d+m$/);
-  await expect(header).toContainText('Run ended', { timeout: 25_000 });
-  await expect(view(page)).toContainText('An orc scout');
+  await expect(view(page)).toHaveAttribute('data-state', 'run', { timeout: 20_000 });
+  await expect(view(page)).not.toHaveAttribute('data-ended', '');
+  // Sixty kills into the live run, as the deriver emits them.
+  const emit = (n: number, from: number) =>
+    page.evaluate(
+      ([n, from]) => {
+        const d = (window.__wc!.app as unknown as { runEvents: { events: readonly { type: string; us: number }[]; emit(e: unknown): void } }).runEvents;
+        const last = d.events.at(-1)?.us ?? Date.now() * 1000;
+        for (let i = 0; i < n; i++) {
+          const us = last + (i + 1) * 1000;
+          d.emit({ type: 'kill', us, logUs: us, mobName: `a stone troll ${from + i}`, xpDelta: 2000 + ((from + i) % 7) * 500 });
+        }
+      },
+      [n, from] as const,
+    );
+  await emit(60, 0);
+  const count = view(page).locator('.wc-st-count');
+  await expect(view(page).locator('.wc-st-sec')).toContainText('Kills');
+  await expect.poll(async () => Number(await count.textContent())).toBeGreaterThanOrEqual(60);
+  await expect(view(page).locator('.wc-st-card .wc-st-mob')).toHaveText('a stone troll 59');
+  await expect(view(page).locator('.wc-st-card .wc-st-badge')).toHaveText(/Poor|Meh|Good|Great|Superb/);
+  // Virtual: far fewer rows in the DOM than kills; the last one is the newest.
+  const rows = view(page).locator('.wc-st-row:not(.wc-st-probe)');
+  expect(await rows.count()).toBeLessThan(45);
+  await expect(view(page).locator('.wc-st-row.is-newest .wc-st-name')).toHaveText('a stone troll 58');
+  // The card: `Last kill` alone, no age, no `calibrating…`.
+  await expect(view(page).locator('.wc-st-card-top')).toHaveText('Last kill');
+  await expect(view(page).locator('.wc-st-card')).not.toContainText('calibrating');
+  // The median line: one element the height of the whole list, at a third
+  // of every row's bar (wide here, then narrow).
+  const medCheck = () =>
+    view(page).evaluate((root) => {
+      const space = root.querySelector('.wc-st-space')!.getBoundingClientRect();
+      const i = root.querySelector('.wc-st-medline > i')!;
+      const line = i.getBoundingClientRect();
+      const x = parseFloat(getComputedStyle(i, '::after').borderLeftWidth) > 0 ? line.left + line.width / 3 : NaN;
+      const bars = [...root.querySelectorAll('.wc-st-row:not(.wc-st-probe) .wc-st-bar')].map((b) => {
+        const r = b.getBoundingClientRect();
+        return r.left + r.width / 3;
+      });
+      return {
+        n: root.querySelectorAll('.wc-st-medline').length,
+        top: line.top - space.top,
+        h: line.height - space.height,
+        off: Math.max(...bars.map((b) => Math.abs(b - x))),
+        bars: bars.length,
+      };
+    });
+  for (const w of [60, 30]) {
+    await placeFloat(page, 4, 2, w, 34);
+    await expect.poll(async () => (await medCheck()).off).toBeLessThan(1);
+    const m = await medCheck();
+    expect(m).toMatchObject({ n: 1 });
+    expect(m.bars).toBeGreaterThan(3);
+    expect(Math.abs(m.top)).toBeLessThan(1);
+    expect(Math.abs(m.h)).toBeLessThan(1);
+  }
+  // Scrolled up: new kills do not move the view; `↓ N new` counts them; a press returns.
+  const scroll = view(page).locator('.wc-st-scroll');
+  await scroll.evaluate((el) => (el.scrollTop = 0));
+  await expect(view(page).locator('.wc-st-row .wc-st-name').filter({ hasText: /^a stone troll 0$/ })).toHaveCount(1);
+  await emit(3, 60);
+  const more = view(page).locator('.wc-st-more');
+  await expect(more).toHaveText(/^↓ [1-3] new$/);
+  // The view held: the oldest kill still in view.
+  await expect(view(page).locator('.wc-st-row .wc-st-name').filter({ hasText: /^a stone troll 0$/ })).toBeInViewport();
+  // Hidden and shown again while scrolled up (mid-list): the view comes back
+  // where it was (a hidden scroller loses its position), with its rows, not
+  // blank.
+  const mid = await scroll.evaluate((el) => {
+    el.scrollTop = Math.round((el.scrollHeight - el.clientHeight) / 2);
+    return el.scrollTop;
+  });
+  await page.waitForTimeout(100);
+  const inView = () =>
+    scroll.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return [...el.querySelectorAll('.wc-st-row:not(.wc-st-probe)')]
+        .filter((row) => {
+          const b = row.getBoundingClientRect();
+          return b.bottom > r.top + 1 && b.top < r.bottom - 1;
+        })
+        .map((row) => row.querySelector('.wc-st-name')?.textContent ?? '');
+    });
+  const before = await inView();
+  expect(before.length).toBeGreaterThan(3);
+  await page.evaluate(() => window.__wc!.settings.update((d) => void (d.panes.statistics.on = false)));
+  await expect(pane(page)).toBeHidden();
+  await page.evaluate(() => window.__wc!.settings.update((d) => void (d.panes.statistics.on = true)));
+  await expect(pane(page)).toBeVisible();
+  await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(mid - 3);
+  await expect.poll(inView).toEqual(before);
+  await more.click();
+  await expect(more).toBeHidden();
+  await expect.poll(() => scroll.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(5);
+  await expect(field(page)).toBeFocused();
+  await expect(view(page)).toHaveAttribute('data-ended', '', { timeout: 40_000 });
   expect(errors).toEqual([]);
 });
