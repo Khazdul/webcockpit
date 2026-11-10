@@ -96,6 +96,13 @@ export function levelFromXp(xp: number): number {
   return lo + 1;
 }
 
+/** XP still needed for the next level ("TNL"), or null at the top level. */
+export function xpToNextLevel(xp: number): number | null {
+  const level = levelFromXp(xp);
+  if (level >= MAX_LEVEL) return null;
+  return Math.max(0, XP_AT[level]! - xp);
+}
+
 /** Fraction 0–1 of `value` through `level` of `table` (level 100 is full). */
 function through(table: readonly number[], level: number, value: number, scale: number): number {
   if (level >= MAX_LEVEL) return 1;

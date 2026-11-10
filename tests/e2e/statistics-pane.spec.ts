@@ -1,8 +1,9 @@
 // Stage 30d (ADR 0109) and stage 49 (ADR 0134): the Statistics pane.
 // Switched on from the Panes popup it opens as a float over the game text:
-// the header, four tiles, the Earlier list (every kill, newest at the
+// the header, four tiles (the last is TNL), the Kills list (every kill, newest at the
 // bottom, following until scrolled up, then `↓ N new`) and the last kill's
-// card with its rating; `No run yet` before a run, `ended` after one;
+// card with its rating; before a run the same layout, empty (`no run
+// yet` in the header), `ended` after one;
 // clicks outside the list never take the game's keys. Uses the dev-only
 // `window.__wc`.
 import { type Page, expect, test } from '@playwright/test';
@@ -40,7 +41,7 @@ async function placeFloat(page: Page, x: number, y: number, w: number, h: number
   );
 }
 
-test('switched on before any run: a centred float over the game text with `No run yet`; off again', async ({ page }) => {
+test('switched on before any run: a centred float over the game text with the empty layout; off again', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/?replay');
@@ -51,7 +52,16 @@ test('switched on before any run: a centred float over the game text with `No ru
   await expect(pane(page)).toBeVisible();
   await expect(pane(page)).toHaveAttribute('data-floating', '');
   await expect(view(page)).toHaveAttribute('data-state', 'norun');
-  await expect(view(page).locator('.wc-st-norun')).toHaveText('No run yet');
+  // The empty layout: header, four tiles with `—`, `Kills 0`, the card's label alone.
+  await expect(view(page).locator('.wc-st-norun')).toHaveText('no run yet');
+  await expect(view(page).locator('.wc-st-tile .wc-st-k')).toHaveText(['Avg / kill', 'Median', 'XP / h', 'TNL']);
+  await expect(view(page).locator('.wc-st-tile .wc-st-v')).toHaveText(['—', '—', '—', '—']);
+  await expect(view(page).locator('.wc-st-sec')).toHaveText(/^Kills\s*0$/);
+  await expect(view(page).locator('.wc-st-card')).toBeVisible();
+  await expect(view(page).locator('.wc-st-card-top')).toHaveText('Last kill');
+  await expect(view(page).locator('.wc-st-card .wc-st-mob')).toHaveText(/^\s*$/);
+  expect((await view(page).locator('.wc-st-card').boundingBox())!.height).toBeGreaterThan(40);
+  if (SHOTS) await pane(page).screenshot({ path: `${SHOTS}/statistics-empty-${test.info().project.name}.png` });
   // Inside the game pane, about centred over it.
   const g = (await page.locator('.wc-game').boundingBox())!;
   const p = (await pane(page).boundingBox())!;
@@ -84,7 +94,9 @@ test('after a replay: header, tiles, list and card, `ended`, the keys stay with 
   await expect(top).toContainText(/L\d+/);
   await expect(top.locator('.wc-st-ended')).toBeVisible();
   await expect(top.locator('.wc-st-clock')).toHaveText(/^\d+:\d\d(:\d\d)?$/);
-  await expect(view(page).locator('.wc-st-tile .wc-st-k')).toHaveText(['Avg / kill', 'Median', 'XP / h', 'Kills']);
+  await expect(view(page).locator('.wc-st-tile .wc-st-k')).toHaveText(['Avg / kill', 'Median', 'XP / h', 'TNL']);
+  // TNL from Char.Vitals XP: a number (exact under 1000, else k).
+  await expect(view(page).locator('.wc-st-tile .wc-st-v').nth(3)).toHaveText(/^(\d{1,3}|[\d.]+k)$/);
   await expect(view(page).locator('.wc-st-card .wc-st-mob')).not.toBeEmpty();
   await expect(view(page).locator('.wc-st-card .wc-st-bigxp')).toHaveText(/^\+[\d.]+k?$/);
   if (SHOTS) await pane(page).screenshot({ path: `${SHOTS}/statistics-${test.info().project.name}.png` });
@@ -136,7 +148,8 @@ test('during a replay: the live run, a long list that follows and counts `↓ N 
     );
   await emit(60, 0);
   const count = view(page).locator('.wc-st-count');
-  await expect.poll(async () => Number(await count.textContent())).toBeGreaterThanOrEqual(59);
+  await expect(view(page).locator('.wc-st-sec')).toContainText('Kills');
+  await expect.poll(async () => Number(await count.textContent())).toBeGreaterThanOrEqual(60);
   await expect(view(page).locator('.wc-st-card .wc-st-mob')).toHaveText('a stone troll 59');
   await expect(view(page).locator('.wc-st-card .wc-st-badge')).toHaveText(/Poor|Meh|Good|Great|Superb/);
   // Virtual: far fewer rows in the DOM than kills; the last one is the newest.

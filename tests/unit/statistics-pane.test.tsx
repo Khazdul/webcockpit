@@ -9,7 +9,8 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { legacyLayout } from './legacy-defaults';
 import { mountStatsPane } from '../../src/chrome';
-import { fitHeader, statsFit } from '../../src/chrome/frames/stats-layout';
+import { fitHeader, fmtK, statsFit } from '../../src/chrome/frames/stats-layout';
+import { xpToNextLevel } from '../../src/gmcp/levels';
 import { STATS_FEED_MS, STATS_REFRESH_MS, StatsFeed, type StatsFeedOptions } from '../../src/chrome/stats-feed';
 import { barScale, extendsKills, fmtAge, fmtRunClock, killEntries, raterOf, scaleBands, scalePos, tilesOf } from '../../src/chrome/stats-pane-model';
 import type { AppStatusView } from '../../src/app/status';
@@ -70,12 +71,12 @@ describe('Statistics pane model (pure)', () => {
     expect(barScale(null, [])).toBe(1);
   });
 
-  it('tilesOf: avg, median, XP / h (not in the first minute), kills; XP under 1000 exact', () => {
+  it('tilesOf: avg, median, XP / h (not in the first minute); XP under 1000 exact', () => {
     const k = killEntries([kill(T0 + 1, 400), kill(T0 + 2, 600)]);
     const gains = { xpGains: [{ us: T0 + 1, delta: 400 }, { us: T0 + 2, delta: 600 }] };
-    expect(tilesOf(k, null, gains, 3600e6)).toEqual({ avg: '500', median: '—', xpPerHour: '1.0k', kills: '2' });
+    expect(tilesOf(k, null, gains, 3600e6)).toEqual({ avg: '500', median: '—', xpPerHour: '1.0k' });
     expect(tilesOf(k, 2500, gains, 30e6).xpPerHour).toBe('—');
-    expect(tilesOf([], null, null, 0)).toEqual({ avg: '—', median: '—', xpPerHour: '—', kills: '0' });
+    expect(tilesOf([], null, null, 0)).toEqual({ avg: '—', median: '—', xpPerHour: '—' });
   });
 
   it('the scale: log2 from 0.25× to 4×; five bands that sum to one', () => {
@@ -85,6 +86,15 @@ describe('Statistics pane model (pure)', () => {
     const b = scaleBands();
     expect(b.map((x) => x.rating)).toEqual(['poor', 'meh', 'good', 'great', 'superb']);
     expect(b.reduce((a, x) => a + x.frac, 0)).toBeCloseTo(1, 9);
+  });
+
+  it('xpToNextLevel: the XP left to the next level; none at the top', () => {
+    expect(xpToNextLevel(1_000)).toBe(2_000); // level 2 starts at 1000, level 3 at 3000
+    expect(xpToNextLevel(2_766)).toBe(234);
+    expect(xpToNextLevel(5_790_000)).toBe(750_000);
+    expect(xpToNextLevel(158_000_000)).toBeNull();
+    expect(fmtK(234)).toBe('234');
+    expect(fmtK(222_000)).toBe('222k');
   });
 
   it('times: ages and the run clock', () => {
@@ -375,6 +385,34 @@ describe('StatsPane (the shell)', () => {
     expect(view.dispose).toHaveBeenCalled();
   });
 
+  it('tells the view the character (name, level, TNL) from Char.*, only when one of them changes', async () => {
+    const chars: unknown[] = [];
+    const view: StatsPaneView = { resize: () => {}, setChar: (c) => chars.push(c), dispose: () => {} };
+    const frames: Array<() => void> = [];
+    const ctx = createPaneContext({ doc: document, statsView: async () => view, requestFrame: (cb) => frames.push(cb) });
+    const pane = new StatsPane(ctx);
+    const flush = () => {
+      for (const f of frames.splice(0)) f();
+    };
+    pane.place(placement(80, 24), cell);
+    flush();
+    await tick();
+    expect(chars).toEqual([{ name: null, level: null, tnl: null }]);
+    ctx.game.onGmcp('Char.Name', { name: 'rasta', fullname: 'Rasta the Bold' });
+    ctx.game.onGmcp('Char.Vitals', { xp: 5_790_000, hp: 100 });
+    flush();
+    expect(chars.at(-1)).toEqual({ name: 'Rasta', level: 26, tnl: 750_000 });
+    const n = chars.length;
+    // HP only: nothing told.
+    ctx.game.onGmcp('Char.Vitals', { hp: 90 });
+    flush();
+    expect(chars).toHaveLength(n);
+    ctx.game.onGmcp('Char.Vitals', { xp: 5_790_500 });
+    flush();
+    expect(chars.at(-1)).toEqual({ name: 'Rasta', level: 26, tnl: 749_500 });
+    pane.dispose();
+  });
+
   it('without a mount hook (the log player) it stays empty and never blanks on a disconnect', () => {
     const ctx = createPaneContext({ doc: document, requestFrame: (cb) => cb() });
     const pane = new StatsPane(ctx);
@@ -392,7 +430,7 @@ describe('mountStatsPane (the view)', () => {
   const status = { get: () => ({ replay: false }) } as unknown as AppStatusView;
   const k = (us: number, xp: number, name = 'a stone troll'): RunEvent => ({ type: 'kill', us, logUs: us, mobName: name, xpDelta: xp });
 
-  it('No run yet; then the header, tiles, list and card; a new kill appends; the tick writes the clock; mousedowns', async () => {
+  it('the empty layout before a run; then the header, tiles, list and card; a new kill appends; the tick writes the clock; mousedowns', async () => {
     const f = fakeRuns();
     const host = document.createElement('div');
     document.body.append(host);
@@ -400,8 +438,32 @@ describe('mountStatsPane (the view)', () => {
     v.resize(80, 24);
     await tick();
     const root = host.querySelector<HTMLElement>('.wc-st')!;
+    // No run: the whole layout, empty. The header says `no run yet`, the
+    // tiles `—`, the list `Kills 0`, the card its label only.
     expect(root.dataset['state']).toBe('norun');
-    expect(host.querySelector('.wc-st-norun')!.textContent).toBe('No run yet');
+    expect(host.querySelector('.wc-st-norun')!.textContent).toBe('no run yet');
+    expect(host.querySelector('.wc-st-hot')!.textContent).toBe('—');
+    expect([...host.querySelectorAll('.wc-st-tile .wc-st-k')].map((e) => e.textContent)).toEqual(['Avg / kill', 'Median', 'XP / h', 'TNL']);
+    expect([...host.querySelectorAll('.wc-st-v')].map((e) => e.textContent)).toEqual(['—', '—', '—', '—']);
+    expect(host.querySelector('.wc-st-sec')!.firstChild!.textContent).toBe('Kills');
+    expect(host.querySelector('.wc-st-count')!.textContent).toBe('0');
+    const card = host.querySelector<HTMLElement>('.wc-st-card')!;
+    expect(card.hidden).toBe(false);
+    expect(card.hasAttribute('data-empty')).toBe(true);
+    expect(card.querySelector('.wc-st-card-top')!.textContent).toBe('Last kill');
+    expect(card.querySelector('.wc-st-mob')!.textContent!.trim()).toBe('');
+    expect(card.querySelector('.wc-st-bigxp')!.textContent!.trim()).toBe('');
+    expect(card.querySelector<HTMLElement>('.wc-st-badge')!.hidden).toBe(true);
+    expect(card.querySelector('.wc-st-scale')!.hasAttribute('data-off')).toBe(true);
+    // The character arrives (the shell's setChar): header and TNL, still no run.
+    (v as unknown as { setChar(c: unknown): void }).setChar({ name: 'Rasta', level: 26, tnl: 234 });
+    expect(host.querySelector('.wc-st-hot')!.textContent).toBe('Rasta');
+    expect(host.querySelector('.wc-st-top')!.textContent).toContain('L26');
+    expect(host.querySelectorAll('.wc-st-v')[3]!.textContent).toBe('234');
+    (v as unknown as { setChar(c: unknown): void }).setChar({ name: 'Rasta', level: 26, tnl: 222_000 });
+    expect(host.querySelectorAll('.wc-st-v')[3]!.textContent).toBe('222k');
+    (v as unknown as { setChar(c: unknown): void }).setChar({ name: 'Rasta', level: 26, tnl: null });
+    expect(host.querySelectorAll('.wc-st-v')[3]!.textContent).toBe('—');
 
     // A run with six kills: calibrated after five.
     // Three kills: calibrating. No badge (no `calibrating…`) and no scale; no median line.
@@ -414,7 +476,7 @@ describe('mountStatsPane (the view)', () => {
     await tick();
     expect(root.hasAttribute('data-cal')).toBe(true);
     expect(host.querySelector<HTMLElement>('.wc-st-badge')!.hidden).toBe(true);
-    expect(host.querySelector<HTMLElement>('.wc-st-scale')!.hidden).toBe(true);
+    expect(host.querySelector('.wc-st-scale')!.hasAttribute('data-off')).toBe(true);
     expect(host.querySelector('.wc-st-card')!.textContent).not.toContain('calibrating');
     expect(host.querySelector('.wc-st-bigxp')!.textContent).toBe('+1.3k');
 
@@ -428,8 +490,9 @@ describe('mountStatsPane (the view)', () => {
     expect(root.dataset['state']).toBe('run');
     expect(host.querySelector('.wc-st-hot')!.textContent).toBe('Rasta');
     expect(host.querySelector('.wc-st-top')!.textContent).toContain('L25');
-    expect([...host.querySelectorAll('.wc-st-v')].map((e) => e.textContent)).toEqual(['1.4k', '1.4k', '0', '6']); // XP / h: the fake run is years long on the real clock
-    expect(host.querySelector('.wc-st-count')!.textContent).toBe('5');
+    expect([...host.querySelectorAll('.wc-st-v')].map((e) => e.textContent)).toEqual(['1.4k', '1.4k', '0', '—']); // XP / h: the fake run is years long on the real clock; TNL: no XP told
+    expect(host.querySelector('.wc-st-count')!.textContent).toBe('6');
+    expect(card.hasAttribute('data-empty')).toBe(false);
     expect(host.querySelector('.wc-st-mob')!.textContent).toBe('a stone troll');
     expect(host.querySelector('.wc-st-bigxp')!.textContent).toBe('+1.6k');
     expect(host.querySelector('.wc-st-badge')!.textContent).toBe('Good');
@@ -457,7 +520,7 @@ describe('mountStatsPane (the view)', () => {
       await vi.advanceTimersByTimeAsync(STATS_FEED_MS);
     });
     await tick();
-    expect(host.querySelector('.wc-st-count')!.textContent).toBe('6');
+    expect(host.querySelector('.wc-st-count')!.textContent).toBe('7');
     expect(host.querySelector('.wc-st-card')!.hasAttribute('data-pk')).toBe(true);
     expect(host.querySelector('.wc-st-badge')!.textContent).toBe('⚔ PvP');
     expect(host.querySelector<HTMLElement>('.wc-st-scale')!.hidden).toBe(true);
