@@ -67,4 +67,35 @@ Owner feedback on round 1, the base for round 2:
 | H | The map | breathing (blooms when quiet), a round lens, hold the eye to peek |
 | I | Thumb reach | Chat and Panes keys bottom left; content still shows at the top |
 
-Next: the owner's reactions to round 2.
+## Round 3 (2026-11-10)
+
+Canvas: "WebCockpit phone makeover, round 3" (claude.ai artifact
+`VQB7oi7qi7TcXhjyqHm8Em`). Sources in `round3/`: `canvas/` (10
+artboards), `brief.md` (holds the settled layout). The map image is
+`round2/bree.png`, uploaded to this canvas as its own asset.
+
+Owner feedback on round 2, now the settled layout:
+
+- The fight card sits right UNDER the top pane strip and follows it down
+  when the strip is pulled.
+- Panes in the strip change by a sideways swipe (from I): no tabs.
+- The map is a round lens (from H3) with a glossy glass shine, like a
+  watch face or compass. A tap steps three fixed zoom levels (very near,
+  middle, far out).
+- No incoming message cards on the screen: they cover the game. The chat
+  icon (top right, as in F) only gets an unread indicator. Comm opens
+  under the fight card; its lower edge is dragged to resize it.
+- Compass: U and D as letters, F for flee. It starts at the bottom edge;
+  the command field is narrower to make room. The history key at the
+  bottom right is removed (risk of hitting it by mistake).
+- Menu: Reconnect, Profile, Scripts, Settings, text size, Black/Paper.
+  Statistics is a pane in the strip, not a menu row. Settings holds a
+  small selection, not everything from the desktop.
+
+Round 3 shows the lens in five looks (iron porthole, brass compass,
+watch dial, seeing stone, corner dial) and the remaining states (strip
+pulled, Comm open, far zoom, menu, settings). Kept by Claude's choice,
+for the owner to confirm: Exit session in the menu.
+
+Next: the owner picks a lens; then a stage file and an intent Goal 12
+amendment (light play).

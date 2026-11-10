@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lens 3 Watch dial</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit, round 3 (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer;background:none;border:0}
+.gt{position:relative;margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}.foe{background:#d75f5f}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f0b84f;color:#170f03;font-size:11px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.s{width:18px;height:18px}
+/* the closed pane strip: a thin iron lip across the top with a grab line; pull it down */
+.lip{position:relative;height:12px;flex:none;background:linear-gradient(#3a342d,#1d1915);border-bottom:1px solid #5a5148;display:block;width:100%}
+.lip::after{content:"";position:absolute;left:50%;top:4px;width:44px;height:3px;margin-left:-22px;border-radius:2px;background:#e8c48a;opacity:.85}
+/* fight card: HP against HP, one slim row, right under the strip; only while fighting */
+.fight{position:relative;flex:none;display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);align-items:end;column-gap:8px;padding:5px 10px 7px;background:#0b0907;border-bottom:1px solid rgba(232,196,138,.26)}
+.fight .n{display:flex;justify-content:space-between;font-size:12px;line-height:15px;white-space:nowrap;overflow:hidden}
+.fight .vs{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:14px;color:#e8c48a;text-align:center}
+.fight .r .bar i{margin-left:auto}
+/* map lens: a round window on a real Bree map; the player's room is the centre of the image */
+.lens{position:absolute;right:8px;top:58px;width:150px;height:150px;border-radius:50%;display:block}
+.map{position:absolute;inset:0;border-radius:50%;background-color:#000;background-image:url(/_blob/d9f90cd95ed390e7e904c0e90b1057ad);background-position:center;background-size:390px 390px;background-repeat:no-repeat}
+.map.near{background-size:820px 820px}
+.map.far{background-size:215px 215px}
+.glass{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:radial-gradient(58% 38% at 32% 20%,rgba(255,255,255,.34),rgba(255,255,255,0) 72%),radial-gradient(40% 22% at 70% 88%,rgba(255,255,255,.10),rgba(255,255,255,0) 75%),radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 58%,rgba(0,0,0,.55) 100%);box-shadow:inset 0 2px 5px rgba(255,255,255,.22),inset 0 -8px 14px rgba(0,0,0,.55)}
+/* zoom pips on the lens: three steps, one lit */
+.pips{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;gap:4px;pointer-events:none}
+.pips i{width:5px;height:5px;border-radius:50%;background:rgba(232,196,138,.35)}
+.pips i.on{background:#e8c48a;box-shadow:0 0 5px #e8c48a}
+/* chat key, top right, sits on the lens rim like a crown; unread count only */
+.chatb{position:absolute;right:2px;top:50px;width:44px;height:44px;border-radius:22px;background:#17130f;border:1px solid rgba(232,196,138,.40);color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.8)}
+.chatb .badge{position:absolute;right:-1px;top:-3px}
+/* compass: starts at the bottom edge; 40 px keys; letters only */
+.pad{position:absolute;right:8px;bottom:8px;display:grid;grid-template-columns:repeat(3,40px);grid-auto-rows:40px;gap:3px}
+.key{display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(22,19,15,.86);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.6)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.88);font-weight:700}
+/* command row: narrower, leaves the bottom right corner to the compass */
+.inrow{position:relative;flex:none;display:flex;align-items:center;gap:8px;padding:6px 142px 6px 8px;background:linear-gradient(90deg,#0b0907 0,#0b0907 62%,rgba(11,9,7,0) 100%)}
+.field{flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{flex:none;width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- lens 3: watch dial ---- */
+.lens.dial{box-shadow:0 0 0 5px #0b0d0f,0 0 16px 6px rgba(140,180,255,.10),0 6px 14px 4px rgba(0,0,0,.8)}
+/* bezel: 4 px of brushed steel around the lens */
+.dial .bz{position:absolute;inset:-4px;border-radius:50%;pointer-events:none;background:repeating-conic-gradient(rgba(255,255,255,.10) 0deg 1deg,rgba(0,0,0,.10) 1deg 2deg),conic-gradient(from -45deg,#c9ced3,#6f767d 25%,#c9ced3 50%,#6f767d 75%,#c9ced3);-webkit-mask:radial-gradient(circle at 50% 50%,transparent 75px,#000 75.5px);mask:radial-gradient(circle at 50% 50%,transparent 75px,#000 75.5px)}
+/* minute ring: 60 fine ticks in a 6 px ring just inside the bezel, every fifth full length */
+.dial .tk{position:absolute;inset:1px;border-radius:50%;pointer-events:none;background:repeating-conic-gradient(from -.5deg,rgba(255,255,255,.7) 0deg 1deg,transparent 1deg 6deg);-webkit-mask:radial-gradient(circle at 50% 50%,transparent 70.5px,#000 71px);mask:radial-gradient(circle at 50% 50%,transparent 70.5px,#000 71px)}
+.dial .tk.l{background:repeating-conic-gradient(from -.8deg,rgba(255,255,255,.7) 0deg 1.6deg,transparent 1.6deg 30deg);-webkit-mask:radial-gradient(circle at 50% 50%,transparent 67.5px,#000 68px,#000 70.5px,transparent 71px);mask:radial-gradient(circle at 50% 50%,transparent 67.5px,#000 68px,#000 70.5px,transparent 71px)}
+/* crosshair: 1 px hairlines from the tick ring inward, clear of the centre and of the zoom bars */
+.dial .xh{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:linear-gradient(90deg,rgba(255,255,255,.25) 52px,transparent 52px,transparent 84px,rgba(255,255,255,.25) 84px) 7px 74px/136px 1px no-repeat,linear-gradient(180deg,rgba(255,255,255,.25) 52px,transparent 52px,transparent 84px,rgba(255,255,255,.25) 84px,rgba(255,255,255,.25) 110px,transparent 110px) 74px 7px/1px 136px no-repeat}
+.glass.dome{background:radial-gradient(92% 46% at 50% 2%,rgba(255,255,255,.24),rgba(255,255,255,0) 72%),linear-gradient(rgba(140,180,255,.06),rgba(140,180,255,.06)),radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 62%,rgba(0,0,0,.42) 100%);box-shadow:inset 0 0 0 1px #0b0d0f,inset 0 -6px 12px rgba(0,0,0,.45)}
+.glass.dome::before{content:"";position:absolute;inset:9px;border-radius:50%;box-shadow:inset 1.5px 1.5px 0 0 rgba(255,255,255,.8);-webkit-mask:conic-gradient(from 270deg,transparent 6deg,#000 28deg,#000 62deg,transparent 84deg,transparent 360deg);mask:conic-gradient(from 270deg,transparent 6deg,#000 28deg,#000 62deg,transparent 84deg,transparent 360deg)}
+/* zoom label: three bars of increasing length, one lit */
+.pips.bars{bottom:14px;gap:3px;align-items:flex-end}
+.pips.bars i{width:3px;height:4px;border-radius:0;background:rgba(255,255,255,.34);box-shadow:0 1px 0 rgba(0,0,0,.7)}
+.pips.bars i:nth-child(2){height:7px}
+.pips.bars i:nth-child(3){height:10px}
+.pips.bars i.on{background:#fff;box-shadow:0 0 5px rgba(170,205,255,.9)}
+/* chat key as the crown: knurled steel rim, dark face */
+.chatb.crown{border:1px solid #0b0d0f;color:#dfe4e8;background:radial-gradient(circle at 50% 50%,#101214 16px,#0b0d0f 16.5px,#0b0d0f 17px,rgba(11,13,15,0) 17.5px),repeating-conic-gradient(rgba(0,0,0,.30) 0deg 5deg,rgba(0,0,0,0) 5deg 10deg),conic-gradient(from -45deg,#c9ced3,#6f767d 25%,#c9ced3 50%,#6f767d 75%,#c9ced3);box-shadow:0 2px 8px rgba(0,0,0,.8)}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- closed pane strip -->
+  <button class="lip" aria-label="Pull down panes"></button>
+
+  <!-- fight card, right under the strip -->
+  <div class="fight">
+    <div class="l"><div class="n"><span class="wh">You</span><span>74%</span></div><span class="bar" style="display:block"><i class="hp" style="width:74%"></i></span></div>
+    <div class="vs">vs</div>
+    <div class="r"><div class="n"><span class="hit">wounded</span><span class="wh">a half-orc ruffian</span></div><span class="bar" style="display:block"><i class="foe" style="width:45%"></i></span></div>
+  </div>
+
+  <!-- game text: full strength everywhere; the first lines are short where they pass the lens -->
+  <div class="gt">
+<pre>*=&gt; <span class="cmd">north</span>
+<span class="room">Hill Road</span>
+The white gravelled road
+bordered with white
+stone blocks flows
+naturally through
+Bree-hill.
+<span class="ex">Exits: north, south,</span>
+<span class="ex">east.</span>
+A half-orc ruffian stands here.
+
+*=&gt; <span class="cmd">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east</span>
+<span class="yell">'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely</span>
+<span class="hit">hard.</span>
+A half-orc ruffian is stunned!
+<span class="yell">Dori narrates 'bashed, hit it now'</span>
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts
+to flee.
+
+*= HP:Fine R:Hurt&gt;
+<span class="dim">A half-orc ruffian slashes Dori.</span>
+<span class="tell">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="hit">You pierce a half-orc ruffian</span>
+<span class="hit">hard.</span>
+
+<span class="hit">You slash a half-orc</span>
+<span class="hit">ruffian hard.</span>
+*= HP:Fine R:Wounded&gt; </pre>
+  </div>
+
+  <!-- map lens: tap to step the zoom (near, middle, far) -->
+  <button class="lens dial" aria-label="Map, middle zoom. Tap to zoom">
+    <span class="map"></span>
+    <span class="xh"></span>
+    <span class="glass dome"></span>
+    <span class="tk"></span>
+    <span class="tk l"></span>
+    <span class="bz"></span>
+    <span class="pips bars"><i></i><i class="on"></i><i></i></span>
+  </button>
+
+  <!-- chat key with unread count -->
+  <button class="chatb crown" aria-label="Open Comm, 2 unread"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg><span class="badge">2</span></button>
+
+  <!-- command row: menu key at the far left, nothing at the right -->
+  <div class="inrow">
+    <button class="ib" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <div class="field">Command</div>
+  </div>
+
+  <!-- compass from the bottom edge: lit keys are the room's exits; the eye is look -->
+  <div class="pad">
+    <span></span>
+    <button class="key" aria-label="North">N</button>
+    <button class="key off" aria-label="Up">U</button>
+    <button class="key off" aria-label="West">W</button>
+    <button class="key" aria-label="Look"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="key" aria-label="East">E</button>
+    <button class="key flee" aria-label="Flee">F</button>
+    <button class="key" aria-label="South">S</button>
+    <button class="key off" aria-label="Down">D</button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -76,7 +76,13 @@ Statuses: Next, In progress, Owner testing, Done.
   and tell card, Comm over the map area, pane strip from the top). 18 new
   screens in four directions on a second canvas, with a real Bree map;
   `notes/research/phone-makeover/round2/`. Next: the owner's reactions.
-- **Commits:** 644083e9 and the two after it.
+- **Round 3 (same day):** the layout is settled by the owner (strip,
+  fight card under it, Comm under that, map as a glass lens with three
+  zoom steps, unread badge only, compass from the bottom edge, small
+  menu and settings). 10 screens on a third canvas, five lens looks;
+  `notes/research/phone-makeover/round3/`. Next: the owner picks a lens,
+  then a stage file and an intent Goal 12 amendment.
+- **Commits:** 644083e9 and the three after it.
 
 ### 2026-11-10 — Release 0.4.2
 

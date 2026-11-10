@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit, round 3 (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer;background:none;border:0}
+.gt{position:relative;margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}.foe{background:#d75f5f}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f0b84f;color:#170f03;font-size:11px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.s{width:18px;height:18px}
+/* the closed pane strip: a thin iron lip across the top with a grab line; pull it down */
+.lip{position:relative;height:12px;flex:none;background:linear-gradient(#3a342d,#1d1915);border-bottom:1px solid #5a5148;display:block;width:100%}
+.lip::after{content:"";position:absolute;left:50%;top:4px;width:44px;height:3px;margin-left:-22px;border-radius:2px;background:#e8c48a;opacity:.85}
+/* fight card: HP against HP, one slim row, right under the strip; only while fighting */
+.fight{position:relative;flex:none;display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);align-items:end;column-gap:8px;padding:5px 10px 7px;background:#0b0907;border-bottom:1px solid rgba(232,196,138,.26)}
+.fight .n{display:flex;justify-content:space-between;font-size:12px;line-height:15px;white-space:nowrap;overflow:hidden}
+.fight .vs{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:14px;color:#e8c48a;text-align:center}
+.fight .r .bar i{margin-left:auto}
+/* map lens: a round window on a real Bree map; the player's room is the centre of the image */
+.lens{position:absolute;right:8px;top:58px;width:150px;height:150px;border-radius:50%;display:block}
+.map{position:absolute;inset:0;border-radius:50%;background-color:#000;background-image:url(/_blob/d9f90cd95ed390e7e904c0e90b1057ad);background-position:center;background-size:390px 390px;background-repeat:no-repeat}
+.map.near{background-size:820px 820px}
+.map.far{background-size:215px 215px}
+.glass{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:radial-gradient(58% 38% at 32% 20%,rgba(255,255,255,.34),rgba(255,255,255,0) 72%),radial-gradient(40% 22% at 70% 88%,rgba(255,255,255,.10),rgba(255,255,255,0) 75%),radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 58%,rgba(0,0,0,.55) 100%);box-shadow:inset 0 2px 5px rgba(255,255,255,.22),inset 0 -8px 14px rgba(0,0,0,.55)}
+/* zoom pips on the lens: three steps, one lit */
+.pips{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;gap:4px;pointer-events:none}
+.pips i{width:5px;height:5px;border-radius:50%;background:rgba(232,196,138,.35)}
+.pips i.on{background:#e8c48a;box-shadow:0 0 5px #e8c48a}
+/* chat key, top right, sits on the lens rim like a crown; unread count only */
+.chatb{position:absolute;right:2px;top:50px;width:44px;height:44px;border-radius:22px;background:#17130f;border:1px solid rgba(232,196,138,.40);color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.8)}
+.chatb .badge{position:absolute;right:-1px;top:-3px}
+/* compass: starts at the bottom edge; 40 px keys; letters only */
+.pad{position:absolute;right:8px;bottom:8px;display:grid;grid-template-columns:repeat(3,40px);grid-auto-rows:40px;gap:3px}
+.key{display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(22,19,15,.86);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.6)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.88);font-weight:700}
+/* command row: narrower, leaves the bottom right corner to the compass */
+.inrow{position:relative;flex:none;display:flex;align-items:center;gap:8px;padding:6px 142px 6px 8px;background:linear-gradient(90deg,#0b0907 0,#0b0907 62%,rgba(11,9,7,0) 100%)}
+.field{flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{flex:none;width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- lens 1: iron porthole ---- */
+.lens.iron1{box-shadow:0 0 0 1px #0e0c0a,0 0 0 5px #2e2923,0 0 0 6px #5a5148,0 0 0 7px #0e0c0a,0 0 18px 6px rgba(232,196,138,.16),0 6px 14px rgba(0,0,0,.8)}
+.rivet{position:absolute;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e8c48a,#5a5148 60%,#0e0c0a);pointer-events:none}
+/* ---- settings: a full-height sheet ---- */
+.sband{position:relative;flex:none;height:48px;display:flex;align-items:center;padding:0 2px}
+.bk{width:44px;height:44px;border-radius:10px;color:#e8c48a;display:flex;align-items:center;justify-content:center}
+.pbody{position:relative;flex:1;min-height:0;overflow:hidden;padding:32px 16px 0}
+.pbody .hood{font-size:12px;line-height:15px;padding:2px 18px 4px}
+.fade{position:absolute;left:0;right:0;bottom:0;height:64px;background:linear-gradient(rgba(11,9,7,0),#0b0907 92%);pointer-events:none}
+.gl{display:block;font-size:10px;line-height:14px;padding:0 4px;margin-bottom:8px;text-shadow:none}
+.grp{margin-bottom:24px}
+.cap{display:block;margin:6px 4px 0;font-size:12px;line-height:16px;color:#8a8a8a}
+.srow{display:flex;align-items:center;gap:8px;width:100%;height:48px;padding:0 12px;font-size:14px;color:#e8e8e8;text-align:left;white-space:nowrap}
+.srow + .srow{border-top:1px solid rgba(232,196,138,.14)}
+.srow .t{flex:1;min-width:0}
+.srow .v{color:#8a8a8a;font-size:13px}
+.srow.pane{padding-left:0;gap:0}
+.srow.pane .t{padding-right:8px}
+.chev{color:#8d7a5c;flex:none}
+.grip{flex:none;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#8d7a5c;cursor:grab}
+/* switch: 44 x 26 track inside a 44 px target; lamp when on */
+.sw{flex:none;width:44px;height:44px;display:flex;align-items:center}
+.sw i{position:relative;display:block;width:44px;height:26px;border-radius:13px;background:#1d1915;border:1px solid rgba(232,196,138,.30)}
+.sw i::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#8d7a5c}
+.sw.on i{background:#e8c48a;border-color:#e8c48a;box-shadow:0 0 10px rgba(232,196,138,.35)}
+.sw.on i::after{left:20px;background:#17130f}
+/* segmented control: a 32 px well, 44 px targets */
+.seg{flex:none;position:relative;isolation:isolate;display:flex;height:44px}
+.seg::before{content:"";position:absolute;left:0;right:0;top:6px;bottom:6px;border-radius:8px;background:#050403;border:1px solid rgba(232,196,138,.30);z-index:-2}
+.seg button{position:relative;height:44px;width:44px;font-size:13px;color:#a8a8a8;text-align:center}
+.seg.w button{width:64px}
+.seg.x button{width:72px}
+.seg button.on{color:#e8c48a;font-weight:700}
+.seg button.on::before{content:"";position:absolute;left:3px;right:3px;top:9px;bottom:9px;border-radius:6px;background:rgba(232,196,138,.20);box-shadow:inset 0 0 0 1px rgba(232,196,138,.50);z-index:-1}
+/* stepper */
+.stp{flex:none;position:relative;isolation:isolate;display:flex;align-items:center;height:44px}
+.stp button{position:relative;width:44px;height:44px;font-size:13px;font-weight:700;color:#e8c48a;text-align:center}
+.stp button::before{content:"";position:absolute;left:0;right:0;top:6px;bottom:6px;border-radius:8px;background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.34);z-index:-1}
+.stp span{width:36px;text-align:center;color:#e8e8e8}
+</style>
+</helmet>
+<div class="ph" style="height: 1340px">
+  <!-- settings: a full-height sheet, opened from the menu's Settings row -->
+  <div class="sband iron">
+    <button class="bk" aria-label="Back to menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+  </div>
+  <div class="pbody win">
+    <span class="hood cz">Settings</span>
+    <div class="col">
+      <section class="grp">
+        <span class="gl cz">Text</span>
+        <div class="card">
+          <div class="srow"><span class="t">Text size</span><div class="stp"><button aria-label="Smaller text">A−</button><span>15</span><button aria-label="Larger text">A+</button></div></div>
+          <div class="srow"><span class="t">Theme</span><div class="seg w" role="group" aria-label="Theme"><button class="on" aria-pressed="true">Black</button><button aria-pressed="false">Paper</button></div></div>
+          <button class="srow"><span class="t">Font</span><span class="v">Hack</span><svg class="ico s chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+      </section>
+      <section class="grp">
+        <span class="gl cz">Compass</span>
+        <div class="card">
+          <div class="srow"><span class="t">Key size</span><div class="seg" role="group" aria-label="Key size"><button class="on" aria-pressed="true">S</button><button aria-pressed="false">M</button><button aria-pressed="false">L</button></div></div>
+          <div class="srow"><span class="t">Left-handed</span><button class="sw" role="switch" aria-checked="false" aria-label="Left-handed"><i></i></button></div>
+          <div class="srow"><span class="t">Vibrate on tap</span><button class="sw on" role="switch" aria-checked="true" aria-label="Vibrate on tap"><i></i></button></div>
+        </div>
+      </section>
+      <section class="grp">
+        <span class="gl cz">Map lens</span>
+        <div class="card">
+          <div class="srow"><span class="t">Show map</span><button class="sw on" role="switch" aria-checked="true" aria-label="Show map"><i></i></button></div>
+          <div class="srow"><span class="t">Size</span><div class="seg" role="group" aria-label="Lens size"><button aria-pressed="false">S</button><button class="on" aria-pressed="true">M</button><button aria-pressed="false">L</button></div></div>
+          <div class="srow"><span class="t">Opens at</span><div class="seg w" role="group" aria-label="Opens at"><button aria-pressed="false">Near</button><button class="on" aria-pressed="true">Middle</button><button aria-pressed="false">Far</button></div></div>
+        </div>
+      </section>
+      <section class="grp">
+        <span class="gl cz">Panes</span>
+        <div class="card">
+          <div class="srow pane"><button class="grip" aria-label="Move Timers"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="2.6"/></svg></button><span class="t">Timers</span><button class="sw on" role="switch" aria-checked="true" aria-label="Timers"><i></i></button></div>
+          <div class="srow pane"><button class="grip" aria-label="Move Group"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="2.6"/></svg></button><span class="t">Group</span><button class="sw on" role="switch" aria-checked="true" aria-label="Group"><i></i></button></div>
+          <div class="srow pane"><button class="grip" aria-label="Move Character"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="2.6"/></svg></button><span class="t">Character</span><button class="sw on" role="switch" aria-checked="true" aria-label="Character"><i></i></button></div>
+          <div class="srow pane"><button class="grip" aria-label="Move Statistics"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="2.6"/></svg></button><span class="t">Statistics</span><button class="sw" role="switch" aria-checked="false" aria-label="Statistics"><i></i></button></div>
+        </div>
+        <span class="cap">Swipe the strip to change pane</span>
+      </section>
+      <section class="grp">
+        <span class="gl cz">Comm</span>
+        <div class="card">
+          <div class="srow"><span class="t">Count unread</span><div class="seg x" role="group" aria-label="Count unread"><button class="on" aria-pressed="true">Private</button><button aria-pressed="false">All</button></div></div>
+          <div class="srow"><span class="t">Show NPCs in Public</span><button class="sw" role="switch" aria-checked="false" aria-label="Show NPCs in Public"><i></i></button></div>
+        </div>
+      </section>
+      <section class="grp">
+        <span class="gl cz">Connection</span>
+        <div class="card">
+          <div class="srow"><span class="t">Keep screen on</span><button class="sw on" role="switch" aria-checked="true" aria-label="Keep screen on"><i></i></button></div>
+          <div class="srow"><span class="t">Reconnect automatically</span><button class="sw on" role="switch" aria-checked="true" aria-label="Reconnect automatically"><i></i></button></div>
+          <div class="srow"><span class="t">Weather effects</span><button class="sw" role="switch" aria-checked="false" aria-label="Weather effects"><i></i></button></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1340}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

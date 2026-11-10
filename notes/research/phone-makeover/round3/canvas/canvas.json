@@ -1,0 +1,31 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-10T16:00:00Z"},
+  "title": "WebCockpit phone makeover, round 3",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "1 Iron porthole (Lykta)"},
+    "K2-brass.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "2 Brass compass"},
+    "K3-dial.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "3 Watch dial"},
+    "K4-crystal.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "4 Seeing stone"},
+    "K5-corner.dc.html": {"x": 1880, "y": 0, "w": 390, "h": 844, "title": "5 Corner dial"},
+
+    "L1-strip.dc.html": {"x": 0, "y": 1164, "w": 390, "h": 844, "title": "Pane strip pulled down, fight card follows"},
+    "L2-comm.dc.html": {"x": 470, "y": 1164, "w": 390, "h": 844, "title": "Comm under the fight card, resizable"},
+    "L3-zoom.dc.html": {"x": 940, "y": 1164, "w": 390, "h": 844, "title": "Lens zoom: tap for near, middle, far"},
+    "L4-menu.dc.html": {"x": 1410, "y": 1164, "w": 390, "h": 844, "title": "Menu"},
+    "L5-settings.dc.html": {"x": 1880, "y": 1164, "w": 390, "h": 1340, "title": "Settings (the whole page, scrolls on the phone)"}
+  },
+  "order": [
+    "Main.dc.html", "K2-brass.dc.html", "K3-dial.dc.html", "K4-crystal.dc.html", "K5-corner.dc.html",
+    "L1-strip.dc.html", "L2-comm.dc.html", "L3-zoom.dc.html", "L4-menu.dc.html", "L5-settings.dc.html"
+  ],
+  "notes": {
+    "tK": {"x": 0, "y": -300, "text": "Five lenses: the same screen, the map lens in five looks", "kind": "title1", "maxW": 2270},
+    "tL": {"x": 0, "y": 864, "text": "The rest of the layout (drawn with lens 1)", "kind": "title1", "maxW": 2270},
+    "sK": {"x": -480, "y": 0, "w": 400, "fill": "orange", "text": "Same moment in all five: fighting, 2 unread.\n\nTop to bottom: the closed pane strip (a thin lip to pull), the fight card right under it, then the game text. The map is a round lens with a glass shine; tap it to step between three zoom levels. Chat key top right with an unread count; no message cards.\n\nBottom: the compass now starts at the bottom edge (U, D and F as letters), the command field is narrower, and the history key is gone."},
+    "sL": {"x": -480, "y": 1164, "w": 400, "fill": "teal", "text": "Pane strip: pulled from the top, swipe sideways to change pane (dots, no tabs). The fight card rides along just under it.\n\nComm: opens under the fight card from the chat key; drag its lower edge to resize.\n\nMenu: Reconnect, Profile, Scripts, Settings, text size, Black / Paper. Statistics is a pane in the strip, not in the menu."}
+  },
+  "designSystems": []
+}
