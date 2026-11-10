@@ -79,6 +79,21 @@ Statuses: Next, In progress, Owner testing, Done.
   browser by the session.
 - **Next:** owner tests the branch; then merge to `main` and release.
 - **Commits:** 6ad20da6, 48463b40, plus this one.
+### 2026-11-10 — Fix: Comm and UI lists at the bottom in Safari (branch `fix-safari-scroll-bottom`)
+
+- **Owner's report:** on an iPad, Public opened scrolled to the top after
+  a chat, with no `↓ N new` row.
+- **Cause:** `AnchoredList` wrote `scrollTop = Number.MAX_SAFE_INTEGER`;
+  WebKit's `scrollTop` is a 32-bit `long`, so it wrapped to -1 (the top).
+  Every overflowing Comm thread and UI list in Safari, since ADR 0052.
+- **Done:** the bottom is written as `scrollHeight`. Unit test with a
+  32-bit `scrollTop` model (fails without the fix). ADR 0052 addendum.
+  Other scroll writes checked: none affected.
+- **Tests:** typecheck clean; unit 3567 passed; `comm-ui` e2e 20/20.
+- **Open issues:** not run in WebKit (no build here); owner checks on the
+  iPad after a release. Branch `comm-directed-bubbles` still waits for
+  the owner's test.
+- **Commits:** this branch, from `main`.
 
 ### 2026-11-10 — Comm: NPCs in Public, release 0.4.1
 

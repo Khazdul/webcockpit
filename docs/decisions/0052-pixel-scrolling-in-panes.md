@@ -78,3 +78,29 @@ No keys scroll these panes (they never take focus).
   screenful; a full rebuild (filter or theme change, archive seed) builds
   them all once.
 - `WHEEL_STEP_PX` and the per-message offset are gone.
+
+## Addendum: the bottom in WebKit (2026-11-10)
+
+The owner saw the Comm pane's Public scrolled to the top on an iPad
+after a switch from a chat, with no `↓ N new` row.
+
+- **Cause:** `AnchoredList` went to the bottom by writing
+  `scrollTop = Number.MAX_SAFE_INTEGER`. WebKit declares `scrollTop` as a
+  WebIDL `long` (webkit.org/b/188045; `Element+CSSOMView.idl`), so the
+  value is taken modulo 2^32 and becomes -1: the top. The list still
+  held itself live, so it showed no indicator. Chromium and Firefox take
+  a double and clamp it, so no test saw it.
+- **Reach:** every overflowing Comm thread and UI pane list in WebKit:
+  every browser on iOS and iPadOS (the owner's was Chrome on an iPad;
+  all of them run WebKit) and Safari on macOS, on every render while
+  live, since ADR 0052.
+- **Fix:** the bottom is written as the list's `scrollHeight` (the
+  browser clamps it). The same layout the write needed anyway; no extra
+  cost.
+- **Checked elsewhere:** the kit's `useScrollBox().end` and About's End
+  key clamp to `scrollHeight - clientHeight` before writing; the
+  Statistics list uses `scrollTo({ top })` (a double). No other huge
+  scroll write in `src`.
+- **Not verified in WebKit:** no WebKit build on the dev machine (the
+  Playwright download timed out). A unit test models the 32-bit write;
+  the owner checks on the iPad.
