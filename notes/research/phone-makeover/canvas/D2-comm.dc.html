@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>D2 Pages: Comm</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer}
+.gt{margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.key{display:flex;align-items:center;justify-content:center;min-width:46px;height:46px;border-radius:10px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f0b84f;color:#170f03;font-size:12px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.inrow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- direction D: pages + bottom rail ---- */
+.pg{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.inrow.d{flex:none;height:56px;padding:3px 8px 8px}
+.rail{flex:none;position:relative;display:flex;height:56px}
+.ph .rb{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;border-right:1px solid #1a1612;color:#b8ad9c}
+.rb .lb{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:12px;letter-spacing:.08em;text-transform:uppercase}
+.ph .rb.on{color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45);background:radial-gradient(70% 90% at 50% 0,rgba(232,196,138,.20),rgba(232,196,138,0) 75%)}
+.rb .tab{position:absolute;left:10px;right:10px;top:-7px;height:7px;background:linear-gradient(#4a4238,#3a342d);border:1px solid #5a5148;border-bottom:0;border-radius:7px 7px 0 0;box-shadow:inset 0 1px 0 rgba(232,196,138,.55),0 -2px 8px rgba(232,196,138,.18)}
+.rb .badge{position:absolute;top:5px;left:50%;margin-left:6px;text-shadow:none}
+.ph .rb.menu{flex:none;width:48px;border-right:0}
+.ph .ib{color:#e8c48a}
+/* ---- Comm page ---- */
+.chats{flex:none;display:flex;gap:4px;height:64px;margin-top:22px;padding:0 8px;border-bottom:1px solid rgba(232,196,138,.14)}
+.ph .chat{flex:none;width:72px;height:64px;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;font-size:11px;line-height:14px;color:#b8b8b8}
+.av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#14110e;border:1px solid rgba(232,196,138,.24);font-size:17px;font-weight:700;color:#e8c48a}
+.ph .chat.on{color:#e8c48a}
+.chat.on .av{border:2px solid #e8c48a;box-shadow:0 0 10px rgba(232,196,138,.45)}
+.thread{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:8px 12px 12px}
+.bub{max-width:300px;padding:6px 12px 8px;align-self:flex-start}
+.bub .who{display:flex;gap:8px;font-size:12px;line-height:16px}
+.bub.me{align-self:flex-end;background:rgba(232,196,138,.14)}
+.bub.me .who{justify-content:flex-end}
+.sep{display:flex;align-items:center;gap:8px;font-size:11px;line-height:16px;color:#8a8a8a}
+.sep::before,.sep::after{content:"";flex:1;height:1px;background:rgba(232,196,138,.14)}
+.sep.new{color:#e8c48a}
+.sep.new::before,.sep.new::after{background:rgba(232,196,138,.34)}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- Comm page -->
+  <div class="pg win" style="position:relative">
+    <div class="iron" style="flex:none;height:12px"></div>
+    <span class="hood cz" style="top:11px">Comm</span>
+
+    <!-- chat strip -->
+    <div class="chats">
+      <button class="chat"><span class="av"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l7 4V6l-7 4z"/><path d="M17.5 9.5a4 4 0 0 1 0 5"/></svg></span>Public</button>
+      <button class="chat"><span class="av"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5"/><circle cx="17" cy="8" r="2.5"/><path d="M17 13.5c2.4.2 4 1.8 4 4.5"/></svg></span>Group</button>
+      <button class="chat on" aria-current="true"><span class="av" style="color:#5faf5f">G</span>Gibur</button>
+      <button class="chat"><span class="av" style="color:#5faf5f">E</span>Elanor</button>
+    </div>
+
+    <!-- fight ticker: newest game line -->
+    <button class="card" aria-label="Go to Game" style="flex:none;display:flex;align-items:center;gap:8px;height:44px;margin:8px 12px 0;padding:0 8px 0 12px;font-size:12px;line-height:16px;text-align:left">
+      <span class="cz" style="font-size:10px;flex:none">Game</span>
+      <span class="hit" style="flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">You pierce a half-orc ruffian hard.</span>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;width:18px;height:18px;color:#e8c48a"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+
+    <!-- Gibur's thread, bottom-anchored -->
+    <div class="thread">
+      <div class="sep">Today 13:52</div>
+      <div class="card bub">
+        <div class="who"><span class="tell" style="font-weight:700">Gibur</span><span class="dim">13:52</span></div>
+        <div class="wh">in bree soon, need anything?</div>
+      </div>
+      <div class="card bub me">
+        <div class="who"><span class="dim">13:53</span></div>
+        <div class="wh">a few arrows</div>
+      </div>
+      <div class="card bub">
+        <div class="who"><span class="tell" style="font-weight:700">Gibur</span><span class="dim">13:58</span></div>
+        <div class="wh">you at hill road?</div>
+      </div>
+      <div class="card bub me">
+        <div class="who"><span class="dim">13:58</span></div>
+        <div class="wh">yes, east of the gate</div>
+      </div>
+      <div class="sep new">New</div>
+      <div class="card bub">
+        <div class="who"><span class="tell" style="font-weight:700">Gibur</span><span class="dim">14:01</span></div>
+        <div class="wh">hold there, on my way</div>
+      </div>
+      <div class="card bub">
+        <div class="who"><span class="tell" style="font-weight:700">Gibur</span><span class="dim">14:02</span></div>
+        <div class="wh">more coming, 2 trolls</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- input row: the reply goes to Gibur -->
+  <div class="inrow d">
+    <div class="field" style="padding:0 12px 0 8px;gap:8px">
+      <span class="card" style="display:flex;align-items:center;height:28px;padding:0 8px;border-radius:6px;font-size:13px;white-space:nowrap"><span class="dim">tell&nbsp;</span><span class="tell" style="font-weight:700">Gibur</span></span>
+      <span>Message</span>
+    </div>
+    <button class="ib" aria-label="Command history"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></button>
+  </div>
+
+  <!-- bottom rail -->
+  <div class="iron rail">
+    <button class="rb on" aria-current="page"><span class="tab"></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span class="lb">Comm</span></button>
+    <button class="rb"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3z"/><path d="M7 10l3 2-3 2"/><path d="M13 15h4"/></svg><span class="lb">Game</span></button>
+    <button class="rb"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg><span class="lb">Status</span></button>
+    <button class="rb menu" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

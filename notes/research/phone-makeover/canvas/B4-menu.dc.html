@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>B4 Map behind: menu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer}
+.gt{margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.key{display:flex;align-items:center;justify-content:center;min-width:46px;height:46px;border-radius:10px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f0b84f;color:#170f03;font-size:12px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.inrow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- direction B: map behind ---- */
+.gt{position:relative;z-index:1;text-shadow:0 1px 1px #000,0 0 1px #000}
+.band{position:relative;z-index:3;flex:none;height:40px;display:flex;align-items:center;padding:0 10px}
+.vit{display:flex;flex-direction:column;gap:4px;width:104px}
+.vit .bar{flex:none;width:100%;height:5px}
+.pull{position:absolute;left:50%;transform:translateX(-50%);top:-1px;width:150px;height:45px;border:0;background:none}
+.hood.big{display:flex;align-items:center;gap:6px;padding:5px 12px 6px;font-size:13px;line-height:20px;white-space:nowrap}
+.hood.in{background:linear-gradient(#1f1b17,#13100d);border-color:rgba(232,196,138,.34)}
+.hood .badge{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0;text-shadow:none}
+.hood .ico{width:16px;height:16px}
+.ph .chip{position:absolute;right:8px;top:-1px;width:44px;height:45px;border-radius:0 0 10px 10px;border:1px solid #0e0c0a;border-top:0;background:linear-gradient(#3a342d,#1d1915);color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 5px rgba(0,0,0,.5),inset 0 -1px 0 rgba(232,196,138,.3)}
+.ph .chip.on{background:#e8c48a;color:#170f03;box-shadow:0 0 12px rgba(232,196,138,.5)}
+.mapbg{position:absolute;left:0;right:0;top:40px;bottom:57px;z-index:0;overflow:hidden}
+.mapbg svg{display:block;width:390px;height:747px}
+.mapbg rect{stroke:#cbbda3;stroke-opacity:.6;stroke-width:1}
+.mapbg .ln{fill:none;stroke:#8f8372;stroke-width:3}
+.mapbg .rd{fill:#6b5d4a}.mapbg .ct{fill:#5a5560}.mapbg .pk{fill:#3f6b3a}.mapbg .wt{fill:#2f5f8a}
+.mapbg .me circle{fill:none;stroke:#e8c48a;stroke-width:2.5}
+.mapbg .me .pt{fill:#e8c48a;stroke:none}
+.mapbg.dimmed .tiles{opacity:.22}
+.mapbg.dimmed .me{opacity:.5}
+.veil{position:absolute;left:0;top:0;right:0;bottom:0;background:radial-gradient(90% 60% at 50% 50%,rgba(0,0,0,0) 40%,rgba(0,0,0,.65) 100%)}
+.stick{position:absolute;z-index:2;width:132px;height:132px;border-radius:50%;background:radial-gradient(circle,rgba(22,19,15,.86) 0,rgba(10,8,6,.86) 70%);border:4px solid #2e2923;box-shadow:0 0 0 1px #5a5148,inset 0 0 0 1px rgba(232,196,138,.4),inset 0 0 18px rgba(0,0,0,.8),0 3px 10px rgba(0,0,0,.7)}
+.stick span{position:absolute;width:14px;font-size:12px;line-height:14px;font-weight:700;text-align:center;color:#e8c48a}
+.stick .n{left:50%;margin-left:-7px;top:6px}.stick .s{left:50%;margin-left:-7px;bottom:6px}
+.stick .e{right:7px;top:50%;margin-top:-7px}.stick .w{left:7px;top:50%;margin-top:-7px;color:#8d7a5c}
+.knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:1px solid #0e0c0a;background:radial-gradient(circle at 50% 35%,#f6e2ba,#e8c48a 45%,#a8854c);box-shadow:0 0 16px rgba(232,196,138,.5),0 3px 6px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.4)}
+.over{position:absolute;z-index:2}
+.solid{background:linear-gradient(rgba(232,196,138,.08),rgba(232,196,138,.08)),rgba(11,9,7,.88)}
+.ph .av{position:relative;flex:none;width:44px;height:44px;border-radius:50%;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);display:flex;align-items:center;justify-content:center;font-weight:700;color:#e8c48a}
+.ph .av.on{border-color:#e8c48a;box-shadow:0 0 0 2px rgba(232,196,138,.25)}
+.dot{position:absolute;top:0;right:0;width:11px;height:11px;border-radius:50%;background:#f0b84f;border:2px solid #0b0907}
+.bub{max-width:256px;padding:7px 10px 8px;align-self:flex-start}
+.bub.me{align-self:flex-end;background:rgba(232,196,138,.15);border-color:rgba(232,196,138,.36)}
+.bub small{display:block;font-size:12px;line-height:16px;color:#8a8a8a}
+.ph .row{display:flex;align-items:center;gap:12px;width:100%;height:60px;padding:0 12px;text-align:left;color:#e8c48a}
+.ph .row b{display:block;font-weight:400;color:#e8e8e8}
+.ph .row small{display:block;font-size:11px;line-height:15px;color:#8a8a8a;white-space:nowrap}
+.ph .row .lb{flex:1;min-width:0}
+.ph .row.danger{border-color:rgba(215,95,95,.5);color:#d75f5f}
+.ph .row.danger b{color:#d75f5f}
+.ph .av.tell{color:#5faf5f}
+.ph .key{color:#e8c48a}.ph .key.off{color:#8d7a5c}.ph .key.flee{color:#ff9a8f}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- top iron band: back and title -->
+  <div class="iron band">
+    <button class="chip" aria-label="Back to the game" style="left:8px;right:auto"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <span class="hood big in cz">Menu</span>
+  </div>
+
+  <!-- menu page -->
+  <div class="win" style="flex:1;min-height:0;padding:176px 12px 0">
+    <div class="card" style="display:flex;align-items:center;gap:8px;height:52px;padding:0 14px;font-size:13px;white-space:nowrap">
+      <span class="wh" style="font-weight:700">Rasta</span><span>&middot; default &middot; Link 38 ms &middot;</span><span style="width:8px;height:8px;border-radius:50%;background:#d75f5f;flex:none"></span><span>Recording</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+      <button class="card row"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M20 11a8 8 0 0 0-14.3-4.3L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.3L20 15.5"/><path d="M20 20v-4.5h-4.5"/></svg><span class="lb"><b>Reconnect</b><small>Drop the link and connect again</small></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;opacity:.7"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="card row"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M5 20V10M11 20V4M17 20v-7M21 20H3"/></svg><span class="lb"><b>Statistics</b><small>This session and the recorded run</small></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;opacity:.7"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="card row"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg><span class="lb"><b>Profile</b><small>default</small></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;opacity:.7"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="card row"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span class="lb"><b>Settings</b><small>Text size, theme, views, weather, input</small></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;opacity:.7"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="card row"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lb"><b>Fullscreen</b><small>Hide the browser bars</small></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;opacity:.7"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    <div style="margin-top:16px">
+      <button class="card row danger"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4M18 12H9"/></svg><span class="lb"><b>Exit session</b><small>Back to the start page</small></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;opacity:.7"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

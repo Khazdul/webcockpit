@@ -1,0 +1,53 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-10T12:00:00Z"},
+  "title": "WebCockpit phone in-game makeover",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "A1 Drawer: game"},
+    "A2-comm.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "A2 Drawer: Comm raised"},
+    "A3-typing.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "A3 Drawer: replying, keyboard up"},
+    "A4-menu.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "A4 Drawer: menu sheet"},
+
+    "B1-game.dc.html": {"x": 0, "y": 1164, "w": 390, "h": 844, "title": "B1 Map behind: game"},
+    "B2-comm.dc.html": {"x": 470, "y": 1164, "w": 390, "h": 844, "title": "B2 Map behind: Comm curtain"},
+    "B3-map.dc.html": {"x": 940, "y": 1164, "w": 390, "h": 844, "title": "B3 Map behind: map brought forward"},
+    "B4-menu.dc.html": {"x": 1410, "y": 1164, "w": 390, "h": 844, "title": "B4 Map behind: menu page"},
+
+    "C1-game.dc.html": {"x": 0, "y": 2328, "w": 390, "h": 844, "title": "C1 Deck: game + pad deck"},
+    "C2-comm.dc.html": {"x": 470, "y": 2328, "w": 390, "h": 844, "title": "C2 Deck: Comm deck"},
+    "C3-status.dc.html": {"x": 940, "y": 2328, "w": 390, "h": 844, "title": "C3 Deck: Status deck"},
+    "C4-menu.dc.html": {"x": 1410, "y": 2328, "w": 390, "h": 844, "title": "C4 Deck: More deck (menu)"},
+
+    "D1-game.dc.html": {"x": 0, "y": 3492, "w": 390, "h": 844, "title": "D1 Pages: game"},
+    "D2-comm.dc.html": {"x": 470, "y": 3492, "w": 390, "h": 844, "title": "D2 Pages: Comm page"},
+    "D3-status.dc.html": {"x": 940, "y": 3492, "w": 390, "h": 844, "title": "D3 Pages: Status + map page"},
+    "D4-menu.dc.html": {"x": 1410, "y": 3492, "w": 390, "h": 844, "title": "D4 Pages: side drawer menu"},
+
+    "E1-game.dc.html": {"x": 0, "y": 4656, "w": 390, "h": 844, "title": "E1 Lantern: game"},
+    "E2-stick.dc.html": {"x": 470, "y": 4656, "w": 390, "h": 844, "title": "E2 Lantern: stick held, moving"},
+    "E3-comm.dc.html": {"x": 940, "y": 4656, "w": 390, "h": 844, "title": "E3 Lantern: tell bubble and Comm window"},
+    "E4-menu.dc.html": {"x": 1410, "y": 4656, "w": 390, "h": 844, "title": "E4 Lantern: ring menu"}
+  },
+  "order": [
+    "Main.dc.html", "A2-comm.dc.html", "A3-typing.dc.html", "A4-menu.dc.html",
+    "B1-game.dc.html", "B2-comm.dc.html", "B3-map.dc.html", "B4-menu.dc.html",
+    "C1-game.dc.html", "C2-comm.dc.html", "C3-status.dc.html", "C4-menu.dc.html",
+    "D1-game.dc.html", "D2-comm.dc.html", "D3-status.dc.html", "D4-menu.dc.html",
+    "E1-game.dc.html", "E2-stick.dc.html", "E3-comm.dc.html", "E4-menu.dc.html"
+  ],
+  "notes": {
+    "tA": {"x": 0, "y": -300, "text": "A · Drawer: Comm rises from the bottom", "kind": "title1", "maxW": 1800},
+    "tB": {"x": 0, "y": 864, "text": "B · Map behind: the map is the text's background", "kind": "title1", "maxW": 1800},
+    "tC": {"x": 0, "y": 2028, "text": "C · Deck: game on top, a switchable deck below", "kind": "title1", "maxW": 1800},
+    "tD": {"x": 0, "y": 3192, "text": "D · Pages: swipe sideways between full views", "kind": "title1", "maxW": 1800},
+    "tE": {"x": 0, "y": 4356, "text": "E · Lantern: one floating control, nothing else", "kind": "title1", "maxW": 1800},
+    "sA": {"x": -480, "y": 0, "w": 400, "fill": "orange", "text": "A · Drawer\n\nThe game fills the screen. Comm sits as a one-line ticker above the input and is pulled up as a sheet (half, then full). The input stays put and becomes the chat field.\n\nMove: a see-through compass over the text, lit by the room's exits. Flee bottom left.\nMenu: bottom sheet."},
+    "sB": {"x": -480, "y": 1164, "w": 400, "fill": "teal", "text": "B · Map behind\n\nThe map is drawn dimmed behind the game text, centred on you. No map view to switch to; a tap on the map chip brings it forward.\n\nMove: a thumb stick (flick N/S/E/W, two keys for up/down). Flee beside it.\nComm: a curtain pulled down from the top hood.\nMenu: a full page in the start-page look."},
+    "sC": {"x": -480, "y": 2328, "w": 400, "fill": "blue", "text": "C · Deck\n\nThe screen is two floors. Game text above; below a deck about as tall as a keyboard that switches between Pad, Comm, Status and More. The keyboard replaces the deck when you type, so the game text never changes size.\n\nMove: a big D-pad in the Pad deck, with Flee and quick buttons.\nMenu: the More deck, no popup."},
+    "sD": {"x": -480, "y": 3492, "w": 400, "fill": "green", "text": "D · Pages\n\nThree full-screen pages side by side: Comm, Game, Status + map. Swipe sideways or tap the bottom rail. Closest to today, done properly.\n\nMove: a key row above the input (N S E W U D, Flee), like the extra row of a terminal app.\nMenu: a drawer from the right edge."},
+    "sE": {"x": -480, "y": 4656, "w": 400, "fill": "purple", "text": "E · Lantern\n\nAlmost all text. One floating lantern button: hold and drag it to walk (a joystick), tap it for a ring with Comm, Map, Status, Flee and Menu.\n\nComm: tells arrive as a bubble over the game; a tap opens Comm as a floating Lykta window.\nMenu: part of the ring."}
+  },
+  "designSystems": []
+}

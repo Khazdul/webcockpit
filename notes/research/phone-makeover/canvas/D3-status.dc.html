@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>D3 Pages: Status</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer}
+.gt{margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.key{display:flex;align-items:center;justify-content:center;min-width:46px;height:46px;border-radius:10px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f0b84f;color:#170f03;font-size:12px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.inrow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- direction D: pages + bottom rail ---- */
+.pg{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.inrow.d{flex:none;height:56px;padding:3px 8px 8px}
+.rail{flex:none;position:relative;display:flex;height:56px}
+.ph .rb{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;border-right:1px solid #1a1612;color:#b8ad9c}
+.rb .lb{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:12px;letter-spacing:.08em;text-transform:uppercase}
+.ph .rb.on{color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45);background:radial-gradient(70% 90% at 50% 0,rgba(232,196,138,.20),rgba(232,196,138,0) 75%)}
+.rb .tab{position:absolute;left:10px;right:10px;top:-7px;height:7px;background:linear-gradient(#4a4238,#3a342d);border:1px solid #5a5148;border-bottom:0;border-radius:7px 7px 0 0;box-shadow:inset 0 1px 0 rgba(232,196,138,.55),0 -2px 8px rgba(232,196,138,.18)}
+.rb .badge{position:absolute;top:5px;left:50%;margin-left:6px;text-shadow:none}
+.ph .rb.menu{flex:none;width:48px;border-right:0}
+.ph .ib{color:#e8c48a}
+/* ---- Status page ---- */
+.sec{flex:none;position:relative;height:28px}
+.sec .iron{height:4px}
+.sec .hood{top:3px}
+.vrow{display:flex;align-items:center;gap:8px;height:24px;font-size:13px}
+.vrow .bar{height:8px;border-radius:4px}
+.vrow .bar i{border-radius:4px}
+.vrow b{flex:none;width:44px;text-align:right;font-weight:400;color:#e8e8e8}
+.mem{padding:6px 0 8px;border-top:1px solid rgba(232,196,138,.12)}
+.mem .top{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:5px}
+.mem .num{margin-left:auto;font-size:12px;color:#8a8a8a;white-space:pre}
+.mem .bars{display:flex;gap:6px}
+.tag{flex:none;padding:0 5px;border:1px solid rgba(232,196,138,.34);border-radius:4px;font-size:10px;line-height:14px;color:#e8c48a}
+.tag.bad{border-color:rgba(215,95,95,.6);color:#ff9a8f}
+.trow{display:flex;align-items:center;gap:6px;height:28px;font-size:12px}
+.trow .lbl{flex:none;width:74px;color:#8a8a8a}
+.chip{display:flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:6px;white-space:nowrap;color:#e8e8e8}
+.chip b{font-weight:700;color:#e8c48a}
+.chip.urgent{border-color:rgba(215,95,95,.7)}
+.chip.urgent b{color:#ff9a8f}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- Status page: one scrolling column, map strip pinned below it -->
+  <div class="pg win">
+    <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column">
+
+      <!-- Character -->
+      <div class="sec"><div class="iron"></div><span class="hood cz">Character</span></div>
+      <div style="padding:4px 16px 12px">
+        <div style="display:flex;align-items:center;gap:8px;height:28px;margin-bottom:4px">
+          <span class="wh" style="font-size:17px;font-weight:700">Rasta</span>
+          <span class="dim" style="font-size:13px">Level 25</span>
+          <span class="tag bad" style="margin-left:auto;font-size:12px;line-height:20px;padding:0 8px">Fighting</span>
+        </div>
+        <div class="vrow"><span class="wh" style="width:36px">HP</span><span class="bar"><i class="hp" style="width:74%"></i></span><b>74 %</b></div>
+        <div class="vrow"><span class="wh" style="width:36px">Mana</span><span class="bar"><i class="mn" style="width:80%"></i></span><b>80 %</b></div>
+        <div class="vrow"><span class="wh" style="width:36px">Move</span><span class="bar"><i class="mv" style="width:90%"></i></span><b>90 %</b></div>
+      </div>
+
+      <!-- Group -->
+      <div class="sec"><div class="iron"></div><span class="hood cz">Group</span></div>
+      <div style="padding:4px 16px 4px">
+        <div class="card" style="display:flex;align-items:center;gap:8px;height:48px;padding:0 12px;margin-bottom:8px;font-size:14px">
+          <span class="wh" style="font-weight:700">Rasta</span>
+          <span class="dim" style="font-size:12px">vs</span>
+          <span class="wh" style="flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">a half-orc ruffian</span>
+          <span class="tag bad" style="font-size:12px;line-height:20px;padding:0 8px">wounded</span>
+        </div>
+        <div class="mem">
+          <div class="top"><span class="wh">Gibur</span><span class="num">85  60  70</span></div>
+          <div class="bars"><span class="bar"><i class="hp" style="width:85%"></i></span><span class="bar"><i class="mn" style="width:60%"></i></span><span class="bar"><i class="mv" style="width:70%"></i></span></div>
+        </div>
+        <div class="mem">
+          <div class="top"><span class="wh">Dori</span><span class="tag bad">hurt</span><span class="num">41   –  55</span></div>
+          <div class="bars"><span class="bar"><i class="hp" style="width:41%"></i></span><span class="bar"></span><span class="bar"><i class="mv" style="width:55%"></i></span></div>
+        </div>
+        <div class="mem">
+          <div class="top"><span class="wh">a citizen mercenary</span><span class="tag">MERC</span><span class="num">90   –   –</span></div>
+          <div class="bars"><span class="bar"><i class="hp" style="width:90%"></i></span><span class="bar"></span><span class="bar"></span></div>
+        </div>
+      </div>
+
+      <!-- Timers -->
+      <div class="sec"><div class="iron"></div><span class="hood cz">Timers</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:4px 16px 12px">
+        <div class="trow"><span class="lbl">Spells</span>
+          <span class="card chip">Armour <b>12m</b></span>
+          <span class="card chip">Bless <b>4m</b></span>
+          <span class="card chip">Strength <b>9m</b></span>
+        </div>
+        <div class="trow"><span class="lbl">Sanctuary</span>
+          <span class="card chip urgent">You <b>1m</b></span>
+        </div>
+        <div class="trow"><span class="lbl">Blinds</span>
+          <span class="card chip">Dori <b>24s</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- map strip -->
+    <div style="flex:none;position:relative;height:150px;background:#070605">
+      <div class="iron" style="height:4px"></div>
+      <span class="hood cz" style="top:3px">Hill Road</span>
+      <svg width="390" height="146" viewBox="0 0 390 146" role="img" aria-label="Map around Hill Road" style="display:block">
+        <!-- links -->
+        <g stroke="#6a5f52" stroke-width="2" stroke-linecap="round">
+          <path d="M118 45h10M154 45h10M190 45h10M226 45h10"/>
+          <path d="M226 81h10M262 81h10"/>
+          <path d="M154 117h10M190 117h10"/>
+          <path d="M213 58v10M213 94v10M141 58v10"/>
+        </g>
+        <!-- ways leading off the strip -->
+        <g stroke="#6a5f52" stroke-width="2" stroke-linecap="round" opacity=".5">
+          <path d="M82 45h10M298 81h10M118 117h10M213 130v8"/>
+        </g>
+        <!-- rooms: city grey, road brown, field green -->
+        <g stroke="#0e0c0a" stroke-width="1">
+          <rect x="92" y="32" width="26" height="26" rx="3" fill="#55555c"/>
+          <rect x="128" y="32" width="26" height="26" rx="3" fill="#7a6a50"/>
+          <rect x="164" y="32" width="26" height="26" rx="3" fill="#7a6a50"/>
+          <rect x="200" y="32" width="26" height="26" rx="3" fill="#7a6a50"/>
+          <rect x="236" y="32" width="26" height="26" rx="3" fill="#55555c"/>
+          <rect x="128" y="68" width="26" height="26" rx="3" fill="#55555c"/>
+          <rect x="200" y="68" width="26" height="26" rx="3" fill="#7a6a50"/>
+          <rect x="236" y="68" width="26" height="26" rx="3" fill="#3d6b3f"/>
+          <rect x="272" y="68" width="26" height="26" rx="3" fill="#3d6b3f"/>
+          <rect x="128" y="104" width="26" height="26" rx="3" fill="#7a6a50"/>
+          <rect x="164" y="104" width="26" height="26" rx="3" fill="#7a6a50"/>
+          <rect x="200" y="104" width="26" height="26" rx="3" fill="#7a6a50"/>
+        </g>
+        <!-- you are here -->
+        <rect x="196" y="64" width="34" height="34" rx="6" fill="none" stroke="#e8c48a" stroke-width="2"/>
+        <circle cx="213" cy="81" r="3" fill="#e8c48a"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- input row -->
+  <div class="inrow d">
+    <div class="field">Command</div>
+    <button class="ib" aria-label="Command history"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></button>
+  </div>
+
+  <!-- bottom rail -->
+  <div class="iron rail">
+    <button class="rb" aria-label="Comm, 2 unread"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span class="lb">Comm</span><span class="badge">2</span></button>
+    <button class="rb"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3z"/><path d="M7 10l3 2-3 2"/><path d="M13 15h4"/></svg><span class="lb">Game</span></button>
+    <button class="rb on" aria-current="page"><span class="tab"></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg><span class="lb">Status</span></button>
+    <button class="rb menu" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

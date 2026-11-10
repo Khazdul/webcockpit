@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>E2 Lantern: stick</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer}
+.gt{margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.key{display:flex;align-items:center;justify-content:center;min-width:46px;height:46px;border-radius:10px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f0b84f;color:#170f03;font-size:12px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.inrow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- direction E "Lantern" ---- */
+.ph .ib{color:#e8c48a}
+.vit{display:flex;gap:2px;height:4px;flex:none;background:#000}
+.vit span{flex:1;background:#221f1b}
+.vit i{display:block;height:100%}
+.lan{position:absolute;right:10px;bottom:67px;width:64px;height:64px;border-radius:50%;border:1px solid #0e0c0a;background:linear-gradient(#5a5148,#231f1a);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 22px rgba(232,196,138,.30),0 4px 10px rgba(0,0,0,.8)}
+.lan .core{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid rgba(232,196,138,.55);background:radial-gradient(circle at 50% 45%,rgba(232,196,138,.42),rgba(232,196,138,.10) 68%),#120d07;color:#f6e3bd;box-shadow:inset 0 0 10px rgba(0,0,0,.6)}
+.lan .ico{width:28px;height:28px;stroke-width:1.6}
+.stick{position:absolute;left:212px;top:609px;width:168px;height:168px;display:block;filter:drop-shadow(0 4px 12px rgba(0,0,0,.8))}
+.stick text{font-family:'Cinzel',serif;font-weight:700;font-size:13px;text-anchor:middle}
+.stick text.sm{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:400;font-size:10px}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- vitals: HP, mana, move -->
+  <div class="vit" role="img" aria-label="HP 74 percent, mana 80 percent, move 90 percent">
+    <span><i class="hp" style="width:74%"></i></span>
+    <span><i class="mn" style="width:80%"></i></span>
+    <span><i class="mv" style="width:90%"></i></span>
+  </div>
+
+  <!-- game text: dimmed and lifted clear of the stick while it is held -->
+  <div class="gt" style="opacity:.7;padding-bottom:224px">
+<pre>You attack a half-orc ruffian.
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="tell">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east</span>
+<span class="yell">'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely</span>
+<span class="hit">hard.</span>
+A half-orc ruffian is stunned!
+Dori narrates 'bashed, hit it now'
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts
+to flee.
+
+*= HP:Fine R:Hurt&gt;
+<span class="dim">A half-orc ruffian slashes Dori.</span>
+<span class="hit">You pierce a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Bad&gt; <span class="cmd">north</span>
+<span class="room">Hill Road</span>
+The road climbs gently between hedges,
+the roofs of Bree spread out below.
+<span class="ex">Exits: north, south, east.</span>
+
+*=&gt; </pre>
+  </div>
+
+  <!-- flee, opposite thumb, only while the stick is held -->
+  <button class="key flee cz" aria-label="Flee" style="position:absolute;left:10px;bottom:67px;width:96px;height:56px;font-size:15px;color:#ff9a8f;text-shadow:none">Flee</button>
+
+  <!-- current direction -->
+  <div class="card" style="position:absolute;left:256px;top:573px;width:80px;height:28px;display:flex;align-items:center;justify-content:center;background:#1a140c;border-color:rgba(232,196,138,.5);color:#e8c48a;font-weight:700">north</div>
+
+  <!-- joystick ring: right edge 10 px from the screen edge -->
+  <svg class="stick" viewBox="0 0 168 168" role="img" aria-label="Walk: north selected. Exits north, east, south. No west, up or down.">
+    <circle cx="84" cy="84" r="63" fill="#0b0907" fill-opacity=".86"/>
+    <circle cx="84" cy="84" r="73" fill="none" stroke="#231f1a" stroke-width="20"/>
+    <path d="M25.31 25.31A83 83 0 0 1 142.69 25.31L128.55 39.45A63 63 0 0 0 39.45 39.45Z" fill="#e8c48a"/>
+    <circle cx="84" cy="84" r="83" fill="none" stroke="#5a5148" stroke-width="1.5"/>
+    <circle cx="84" cy="84" r="63" fill="none" stroke="#e8c48a" stroke-opacity=".45" stroke-width="1"/>
+    <path d="M39.45 39.45L25.31 25.31M128.55 39.45L142.69 25.31M128.55 128.55L142.69 142.69M39.45 128.55L25.31 142.69" fill="none" stroke="#0e0c0a" stroke-width="1.5"/>
+    <text x="84" y="16" fill="#170f03">N</text>
+    <text x="157" y="89" fill="#e8c48a">E</text>
+    <text x="84" y="162" fill="#e8c48a">S</text>
+    <text x="11" y="89" fill="#9a8767">W</text>
+    <!-- up and down: not exits here -->
+    <path d="M29.4 77.3A55 55 0 0 1 50.9 40.1" fill="none" stroke="#8d7a5c" stroke-width="3" stroke-linecap="round"/>
+    <path d="M50.9 127.9A55 55 0 0 1 29.4 90.7" fill="none" stroke="#8d7a5c" stroke-width="3" stroke-linecap="round"/>
+    <text class="sm" x="44" y="73" fill="#9a8767">Up</text>
+    <text class="sm" x="49" y="103" fill="#9a8767">Down</text>
+  </svg>
+
+  <!-- the knob: the lantern, pushed toward N -->
+  <button class="lan" aria-label="Lantern, held: walking north" style="left:264px;top:635px;right:auto;bottom:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 28px rgba(232,196,138,.5),0 4px 10px rgba(0,0,0,.8)">
+    <span class="core"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 4.5a2.5 2.5 0 0 1 5 0"/><path d="M7 6.5h10"/><path d="M8 6.5L7 18h10L16 6.5"/><path d="M6 20.5h12"/><path d="M12 15.5c-1.5 0-2.3-1-2.3-2.1 0-1.3 1.2-1.9 2.3-3.4 1.1 1.5 2.3 2.1 2.3 3.4 0 1.1-.8 2.1-2.3 2.1z"/></svg></span>
+  </button>
+
+  <!-- input row -->
+  <div class="inrow">
+    <div class="field">Command</div>
+    <button class="ib" aria-label="Command history"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

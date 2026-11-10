@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>E4 Lantern: ring menu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer}
+.gt{margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.key{display:flex;align-items:center;justify-content:center;min-width:46px;height:46px;border-radius:10px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f0b84f;color:#170f03;font-size:12px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.inrow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- direction E "Lantern" ---- */
+.ph .ib{color:#e8c48a}
+.vit{display:flex;gap:2px;height:4px;flex:none;background:#000}
+.vit span{flex:1;background:#221f1b}
+.vit i{display:block;height:100%}
+.lan{position:absolute;right:10px;bottom:67px;width:64px;height:64px;border-radius:50%;border:1px solid #0e0c0a;background:linear-gradient(#5a5148,#231f1a);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 22px rgba(232,196,138,.30),0 4px 10px rgba(0,0,0,.8)}
+.lan .core{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid rgba(232,196,138,.55);background:radial-gradient(circle at 50% 45%,rgba(232,196,138,.42),rgba(232,196,138,.10) 68%),#120d07;color:#f6e3bd;box-shadow:inset 0 0 10px rgba(0,0,0,.6)}
+.lan .ico{width:28px;height:28px;stroke-width:1.6}
+.frame{position:absolute;padding:20px 5px 5px;border-radius:7px;background:linear-gradient(#3a342d,#231f1a);border:1px solid #0e0c0a;box-shadow:inset 0 1px 0 #5a5148,0 0 0 1px rgba(232,196,138,.12),0 14px 34px rgba(0,0,0,.9)}
+.brk{position:absolute;width:12px;height:12px;border:2px solid #8a7a63}
+.ph .rb{position:absolute;width:56px;height:56px;border-radius:50%;border:4px solid #2e2923;background:#120e0a;color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px #5a5148,inset 0 0 0 1px rgba(232,196,138,.36),0 4px 10px rgba(0,0,0,.8)}
+.ph .rb.on{background:#e8c48a;color:#170f03;box-shadow:0 0 0 1px #5a5148,0 0 16px rgba(232,196,138,.45),0 4px 10px rgba(0,0,0,.8)}
+.ph .rb.flee{color:#ff9a8f;background:#240c0a;box-shadow:0 0 0 1px #5a5148,inset 0 0 0 1px #d75f5f,0 4px 10px rgba(0,0,0,.8)}
+.rl{position:absolute;width:100px;font-size:11px;line-height:14px}
+.ph .mrow{display:flex;align-items:center;gap:8px;width:100%;height:48px;padding:0 12px;border:0;border-top:1px solid rgba(232,196,138,.14);background:none;text-align:left;color:#e8e8e8}
+.mrow .ico{width:18px;height:18px;color:#e8c48a;flex:none}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- vitals: HP, mana, move -->
+  <div class="vit" role="img" aria-label="HP 74 percent, mana 80 percent, move 90 percent">
+    <span><i class="hp" style="width:74%"></i></span>
+    <span><i class="mn" style="width:80%"></i></span>
+    <span><i class="mv" style="width:90%"></i></span>
+  </div>
+
+  <!-- game text, dimmed under the ring menu -->
+  <div class="gt" style="opacity:.35">
+<pre>Gibur slashes a grim outlaw hard.
+<span class="hit">You slash a grim outlaw very hard.</span>
+A grim outlaw is dead! R.I.P.
+Your blood freezes as you hear a grim
+outlaw's death cry.
+
+*=&gt; <span class="cmd">south</span>
+<span class="room">Hill Road</span>
+The white gravelled road bordered with
+white stone blocks flows naturally
+through Bree-hill, slightly narrowing
+where it intersects with an entrance to
+a large grassy park to the east.
+<span class="ex">Exits: north, south, east.</span>
+
+*=&gt; <span class="cmd">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="tell">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east</span>
+<span class="yell">'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely</span>
+<span class="hit">hard.</span>
+A half-orc ruffian is stunned!
+Dori narrates 'bashed, hit it now'
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts
+to flee.
+
+*= HP:Fine R:Hurt&gt;
+<span class="dim">A half-orc ruffian slashes Dori.</span>
+<span class="hit">You pierce a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Bad&gt; </pre>
+  </div>
+
+  <!-- Menu, chosen from the ring -->
+  <div class="frame" role="dialog" aria-label="Menu" style="left:45px;top:36px;width:300px">
+    <span class="hood cz">Menu</span>
+    <span class="brk" style="left:3px;top:3px;border-right:0;border-bottom:0"></span>
+    <span class="brk" style="right:3px;top:3px;border-left:0;border-bottom:0"></span>
+    <span class="brk" style="left:3px;bottom:3px;border-right:0;border-top:0"></span>
+    <span class="brk" style="right:3px;bottom:3px;border-left:0;border-top:0"></span>
+    <div class="win" style="border:1px solid #0e0c0a;border-radius:3px;overflow:hidden">
+      <div style="height:52px;padding:8px 12px;font-size:13px;line-height:18px">
+        <div class="wh"><span style="font-weight:700">Rasta</span> · default</div>
+        <div style="display:flex;align-items:center;gap:6px">Link 38 ms ·<span style="width:8px;height:8px;border-radius:50%;background:#d75f5f"></span>Recording</div>
+      </div>
+      <button class="mrow"><span style="flex:1">Reconnect</span></button>
+      <button class="mrow"><span style="flex:1">Statistics</span></button>
+      <button class="mrow"><span style="flex:1">Profile</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="mrow"><span style="flex:1;display:flex;flex-direction:column"><span style="line-height:18px">Settings</span><span class="dim" style="font-size:11px;line-height:14px">Text, theme, views, weather, input</span></span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="mrow"><span style="flex:1">Fullscreen</span></button>
+      <button class="mrow" style="color:#e06c6c"><span style="flex:1">Exit session</span></button>
+    </div>
+  </div>
+
+  <!-- ring menu: five buttons fanned around the lantern -->
+  <span class="rl cz" aria-hidden="true" style="left:288px;top:507px;text-align:center">Comm</span>
+  <button class="rb" aria-label="Comm, 2 unread" style="left:320px;top:527px">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
+    <span class="badge" style="position:absolute;top:-10px;right:-8px;box-shadow:0 0 0 2px #000">2</span>
+  </button>
+
+  <span class="rl cz" aria-hidden="true" style="left:225px;top:522px;text-align:center">Map</span>
+  <button class="rb" aria-label="Map" style="left:247px;top:542px">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>
+  </button>
+
+  <span class="rl cz" aria-hidden="true" style="left:78px;top:604px;text-align:right">Status</span>
+  <button class="rb" aria-label="Status" style="left:186px;top:583px">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>
+  </button>
+
+  <span class="rl cz" aria-hidden="true" style="left:37px;top:665px;text-align:right;color:#ff9a8f;text-shadow:none">Flee</span>
+  <button class="rb flee" aria-label="Flee" style="left:145px;top:644px">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M9 12h9"/></svg>
+  </button>
+
+  <span class="rl cz" aria-hidden="true" style="left:22px;top:738px;text-align:right">Menu</span>
+  <button class="rb on" aria-label="Menu, open" aria-expanded="true" style="left:130px;top:717px">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+
+  <!-- the lantern, now the close button -->
+  <button class="lan" aria-label="Close menu">
+    <span class="core"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+  </button>
+
+  <!-- input row -->
+  <div class="inrow">
+    <div class="field">Command</div>
+    <button class="ib" aria-label="Command history"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

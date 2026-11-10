@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>E3 Lantern: Comm</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer}
+.gt{margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.key{display:flex;align-items:center;justify-content:center;min-width:46px;height:46px;border-radius:10px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f0b84f;color:#170f03;font-size:12px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.inrow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- direction E "Lantern" ---- */
+.ph .ib{color:#e8c48a}
+.vit{display:flex;gap:2px;height:4px;flex:none;background:#000}
+.vit span{flex:1;background:#221f1b}
+.vit i{display:block;height:100%}
+.frame{position:absolute;padding:20px 5px 5px;border-radius:7px;background:linear-gradient(#3a342d,#231f1a);border:1px solid #0e0c0a;box-shadow:inset 0 1px 0 #5a5148,0 0 0 1px rgba(232,196,138,.12),0 14px 34px rgba(0,0,0,.9)}
+.brk{position:absolute;width:12px;height:12px;border:2px solid #8a7a63}
+.ph .av{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);display:flex;align-items:center;justify-content:center;font-weight:700;color:#e8c48a}
+.ph .av.on{border:2px solid #e8c48a;background:rgba(232,196,138,.14);box-shadow:0 0 10px rgba(232,196,138,.3)}
+.meta{display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:16px}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- vitals: HP, mana, move -->
+  <div class="vit" role="img" aria-label="HP 74 percent, mana 80 percent, move 90 percent">
+    <span><i class="hp" style="width:74%"></i></span>
+    <span><i class="mn" style="width:80%"></i></span>
+    <span><i class="mv" style="width:90%"></i></span>
+  </div>
+
+  <!-- game text -->
+  <div class="gt">
+<pre>A grim outlaw is dead! R.I.P.
+Your blood freezes as you hear a grim
+outlaw's death cry.
+
+*=&gt; <span class="cmd">south</span>
+<span class="room">Hill Road</span>
+The white gravelled road bordered with
+white stone blocks flows naturally
+through Bree-hill, slightly narrowing
+where it intersects with an entrance to
+a large grassy park to the east.
+<span class="ex">Exits: north, south, east.</span>
+
+*=&gt; <span class="cmd">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="tell">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east</span>
+<span class="yell">'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely</span>
+<span class="hit">hard.</span>
+A half-orc ruffian is stunned!
+Dori narrates 'bashed, hit it now'
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts
+to flee.
+
+*= HP:Fine R:Hurt&gt;
+<span class="dim">A half-orc ruffian slashes Dori.</span>
+<span class="hit">You pierce a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Bad&gt; </pre>
+  </div>
+
+  <!-- tell bubble: arrives by itself at the top -->
+  <div class="card" style="position:absolute;left:10px;right:10px;top:12px;height:56px;display:flex;align-items:center;gap:8px;padding:0 5px 0 8px;background:#17120c;box-shadow:inset 0 1px 0 rgba(232,196,138,.18),0 6px 18px rgba(0,0,0,.8)">
+    <span class="av" style="width:36px;height:36px;color:#5faf5f" aria-hidden="true">G</span>
+    <span style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <span class="meta"><span class="tell" style="font-weight:700;font-size:13px">Gibur</span><span class="dim">14:02</span></span>
+      <span class="wh" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">more coming, 2 trolls</span>
+    </span>
+    <button class="ib" aria-label="Reply to Gibur" style="flex:none"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/></svg></button>
+    <button class="ib" aria-label="Open Comm" style="flex:none;margin-left:-4px"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+  </div>
+
+  <!-- Comm: floating Lykta window over the game -->
+  <div class="frame" role="dialog" aria-label="Comm" style="left:10px;top:347px;width:370px;height:430px;display:flex">
+    <span class="hood cz">Comm</span>
+    <span class="brk" style="left:3px;top:3px;border-right:0;border-bottom:0"></span>
+    <span class="brk" style="left:3px;bottom:3px;border-right:0;border-top:0"></span>
+    <span class="brk" style="right:3px;bottom:3px;border-left:0;border-top:0"></span>
+
+    <div class="win" style="flex:1;min-width:0;display:flex;border:1px solid #0e0c0a;border-radius:3px;overflow:hidden">
+
+      <!-- avatar rail -->
+      <div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0;border-right:1px solid rgba(232,196,138,.14);background:rgba(0,0,0,.25)">
+        <button class="av" aria-label="Public"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c3 3 3 15 0 18"/><path d="M12 3c-3 3-3 15 0 18"/></svg></button>
+        <button class="av" aria-label="Group"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.5 0 4.5 2 4.5 4.5"/></svg></button>
+        <span style="width:28px;height:1px;background:rgba(232,196,138,.24)"></span>
+        <button class="av on" style="color:#5faf5f" aria-label="Gibur, open" aria-current="true">G</button>
+        <button class="av" style="color:#5faf5f" aria-label="Elanor">E</button>
+      </div>
+
+      <!-- thread: Gibur -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 40px 0 12px;border-bottom:1px solid rgba(232,196,138,.14)">
+          <span class="tell" style="font-weight:700">Gibur</span>
+          <span class="dim" style="font-size:12px">tell</span>
+        </div>
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:10px">
+          <div class="dim" style="align-self:center;font-size:12px;line-height:16px">Today</div>
+          <div class="card" style="align-self:flex-start;max-width:248px;padding:6px 10px 7px">
+            <div class="meta"><span class="tell" style="font-weight:700">Gibur</span><span class="dim">13:58</span></div>
+            <div class="wh">you at hill road?</div>
+          </div>
+          <div class="card" style="align-self:flex-end;max-width:248px;padding:6px 10px 7px;background:rgba(232,196,138,.15);border-color:rgba(232,196,138,.38)">
+            <div class="meta" style="justify-content:flex-end"><span style="color:#e8c48a;font-weight:700">You</span><span class="dim" style="color:#a39a8b">13:59</span></div>
+            <div class="wh">yes, east of the gate</div>
+          </div>
+          <div class="card" style="align-self:flex-start;max-width:248px;padding:6px 10px 7px">
+            <div class="meta"><span class="tell" style="font-weight:700">Gibur</span><span class="dim">14:02</span></div>
+            <div class="wh">more coming, 2 trolls</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- close, in the frame's top right -->
+    <button aria-label="Close Comm" style="position:absolute;top:-6px;right:-6px;width:44px;height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center">
+      <span style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(#4a4239,#231f1a);border:1px solid #0e0c0a;color:#e8c48a;box-shadow:inset 0 1px 0 #6b6055,0 0 0 1px rgba(232,196,138,.3),0 2px 6px rgba(0,0,0,.7)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;stroke-width:2.4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+    </button>
+  </div>
+
+  <!-- input row: the reply goes to Gibur -->
+  <div class="inrow">
+    <div class="field" style="padding-left:6px"><span class="card tell" style="display:flex;align-items:center;height:30px;padding:0 8px;margin-right:8px;font-size:13px;font-weight:700">tell Gibur</span>Message</div>
+    <button class="ib" aria-label="Command history"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
