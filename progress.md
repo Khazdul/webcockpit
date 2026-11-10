@@ -82,7 +82,14 @@ Statuses: Next, In progress, Owner testing, Done.
   menu and settings). 10 screens on a third canvas, five lens looks;
   `notes/research/phone-makeover/round3/`. Next: the owner picks a lens,
   then a stage file and an intent Goal 12 amendment.
-- **Commits:** 644083e9 and the three after it.
+- **Round 4 (same day):** five variations of the iron porthole lens;
+  three keys on the lens (panes, fullscreen, Comm) replace the top strip
+  handle; hot keys K1 to K3 in a column at the right edge (K1 lowest),
+  rebound by holding; fight card with names and bars only. 8 screens on a
+  fourth canvas; `notes/research/phone-makeover/round4/`. Next: the owner
+  picks a lens variation, then a stage file and an intent Goal 12
+  amendment.
+- **Commits:** 644083e9 and the four after it.
 
 ### 2026-11-10 — Release 0.4.2
 

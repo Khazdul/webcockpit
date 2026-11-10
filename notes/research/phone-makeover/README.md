@@ -97,5 +97,35 @@ watch dial, seeing stone, corner dial) and the remaining states (strip
 pulled, Comm open, far zoom, menu, settings). Kept by Claude's choice,
 for the owner to confirm: Exit session in the menu.
 
-Next: the owner picks a lens; then a stage file and an intent Goal 12
-amendment (light play).
+## Round 4 (2026-11-10)
+
+Canvas: "WebCockpit phone makeover, round 4" (claude.ai artifact
+`62assXw69FZVhw9fU8dGks`). Sources in `round4/`: `canvas/` (8
+artboards), `brief.md` (the settled layout plus the corrections).
+
+Owner feedback on round 3:
+
+- Lens 1 (iron porthole) is the best. Wanted: five variations of it with
+  more glass-lens effect and a very subtle texture on the ring so it
+  pops.
+- The lens disappears when it would collide with something and returns
+  when there is room.
+- Exit session stays in the menu.
+- No pull-down strip at the top (it costs screen). Three keys on the
+  lens instead: top left opens the pane strip, top right toggles
+  fullscreen, bottom right is Comm with the unread count.
+- Up to three round, see-through hot keys K1, K2, K3 above the compass,
+  each can be switched off and rebound. Defaults: assist, bash, and
+  "change wimpy to 50 % of current HP" (a special: needs a script on
+  GMCP vitals). A key left of N folds them in and out. Holding one opens
+  a box to rebind it.
+- During the round: the fight card shows names and bars only (no
+  condition word, no percent); the hot keys stand in one column along
+  the right edge with K1 at the bottom.
+
+Round 4 shows the porthole in five variations (cast, hammered, turned,
+knurled with a brass hairline, lamp-lit patina) and three states (strip
+open, hold K3 to rebind, Comm tall with the lens hidden).
+
+Next: the owner picks a lens variation; then a stage file and an intent
+Goal 12 amendment (light play).

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lens 1 Cast iron, domed glass</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit, round 4 (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer;background:none;border:0}
+.gt{position:relative;margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.solid{background:#14110d;border:1px solid rgba(232,196,138,.30);border-radius:10px;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 6px 18px rgba(0,0,0,.8)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}.foe{background:#d75f5f}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#f0b84f;color:#170f03;font-size:11px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.s{width:18px;height:18px}
+/* fight card: HP against HP, one slim row at the very top (under the pane strip when that is open); only while fighting */
+.fight{position:relative;flex:none;display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);align-items:end;column-gap:8px;padding:5px 10px 7px;background:#0b0907;border-bottom:1px solid rgba(232,196,138,.26)}
+.fight .n{display:flex;justify-content:space-between;font-size:12px;line-height:15px;white-space:nowrap;overflow:hidden}
+.fight .vs{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:14px;color:#e8c48a;text-align:center}
+.fight .r .bar i{margin-left:auto}
+/* map lens: .lw is the 150 px box, top right; it holds the lens button and three satellite keys on its corners */
+.lw{position:absolute;right:12px;top:50px;width:150px;height:150px}
+.lens{position:absolute;inset:0;border-radius:50%;display:block;box-shadow:0 0 0 8px #0e0c0a,0 0 20px 10px rgba(232,196,138,.14),0 8px 16px 6px rgba(0,0,0,.8)}
+.map{position:absolute;inset:0;border-radius:50%;background-color:#000;background-image:url(/_blob/cda083b9276f8fb882ac259291acb60d);background-position:center;background-size:390px 390px;background-repeat:no-repeat}
+.map.near{background-size:820px 820px}
+.map.far{background-size:215px 215px}
+.glass{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:radial-gradient(58% 38% at 32% 20%,rgba(255,255,255,.34),rgba(255,255,255,0) 72%),radial-gradient(40% 22% at 70% 88%,rgba(255,255,255,.10),rgba(255,255,255,0) 75%),radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 58%,rgba(0,0,0,.55) 100%);box-shadow:inset 0 0 0 1px rgba(232,196,138,.30),inset 0 2px 5px rgba(255,255,255,.22),inset 0 -8px 14px rgba(0,0,0,.55)}
+/* the ring: an 8 px band round the lens (from radius 75 to 83); each look paints its own background on it */
+.ring{position:absolute;inset:-8px;border-radius:50%;pointer-events:none;-webkit-mask-image:radial-gradient(circle,transparent 74.5px,#000 75px);mask-image:radial-gradient(circle,transparent 74.5px,#000 75px);box-shadow:inset 0 0 0 1px #0e0c0a}
+.pips{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;gap:4px;pointer-events:none}
+.pips i{width:5px;height:5px;border-radius:50%;background:rgba(232,196,138,.35)}
+.pips i.on{background:#e8c48a;box-shadow:0 0 5px #e8c48a}
+/* satellite keys on the lens corners: panes (top left), fullscreen (top right), Comm (bottom right) */
+.sat{position:absolute;width:40px;height:40px;border-radius:50%;background:linear-gradient(#2a2520,#15120e);border:1px solid #5a5148;color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(232,196,138,.22),0 2px 8px rgba(0,0,0,.85)}
+.sat.tl{left:-10px;top:-10px}.sat.tr{right:-10px;top:-10px}.sat.br{right:-10px;bottom:-10px}
+.sat.on{background:#e8c48a;color:#170f03;border-color:#fff1cf}
+.sat .badge{position:absolute;right:-4px;top:-4px}
+/* compass: starts at the bottom edge; 40 px keys; letters only */
+.pad{position:absolute;right:8px;bottom:8px;display:grid;grid-template-columns:repeat(3,40px);grid-auto-rows:40px;gap:3px}
+.key{display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(22,19,15,.86);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.6)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.88);font-weight:700}
+.key.tog{background:none;border-color:transparent;box-shadow:none;color:#e8c48a}
+/* hot keys K1 to K3: round, see-through, stacked along the right edge above the compass */
+.hot{position:absolute;right:8px;bottom:142px;display:grid;grid-template-columns:40px;grid-auto-rows:40px;gap:3px}
+.hk{display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(22,19,15,.30);border:1px solid rgba(232,196,138,.55);color:#f3d9ac;font-size:12px;font-weight:700;text-shadow:0 1px 2px #000}
+/* command row: narrower, leaves the bottom right corner to the compass */
+.inrow{position:relative;flex:none;display:flex;align-items:center;gap:8px;padding:6px 142px 6px 8px;background:linear-gradient(90deg,#0b0907 0,#0b0907 62%,rgba(11,9,7,0) 100%)}
+.field{flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{flex:none;width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* ---- lens 1: cast iron, domed glass ---- */
+.ring.cast{background:repeating-radial-gradient(circle,rgba(0,0,0,.16) 0 1px,rgba(0,0,0,0) 1px 2.3px),repeating-conic-gradient(from 0deg,rgba(255,255,255,.055) 0 .7deg,rgba(0,0,0,.09) .7deg 1.9deg,rgba(0,0,0,0) 1.9deg 3.1deg),linear-gradient(145deg,#6f655a 0,#3a342d 34%,#1b1713 68%,#4c443b 100%)}
+.glass.dome{background:radial-gradient(70% 46% at 50% -6%,rgba(255,255,255,.40),rgba(255,255,255,0) 64%),radial-gradient(9% 6% at 30% 22%,rgba(255,255,255,.75),rgba(255,255,255,0) 100%),radial-gradient(44% 24% at 68% 90%,rgba(255,255,255,.12),rgba(255,255,255,0) 75%),radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 54%,rgba(0,0,0,.62) 100%)}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- fight card at the very top; only while fighting -->
+  <div class="fight">
+    <div class="l"><div class="n"><span class="wh">You</span></div><span class="bar" style="display:block"><i class="hp" style="width:74%"></i></span></div>
+    <div class="vs">vs</div>
+    <div class="r"><div class="n" style="justify-content:flex-end"><span class="wh">a half-orc ruffian</span></div><span class="bar" style="display:block"><i class="foe" style="width:45%"></i></span></div>
+  </div>
+
+  <!-- game text: the first 9 lines are short where they pass the lens, the last 7 where they pass the keys -->
+  <div class="gt">
+<pre>*=&gt; <span class="cmd">north</span>
+<span class="room">Hill Road</span>
+The white gravelled
+road bordered with
+white stone blocks
+flows through
+Bree-hill.
+<span class="ex">Exits: north, south,</span>
+<span class="ex">east.</span>
+A half-orc ruffian stands here.
+
+*=&gt; <span class="cmd">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east</span>
+<span class="yell">'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely</span>
+<span class="hit">hard.</span>
+A half-orc ruffian is stunned!
+<span class="yell">Dori narrates 'bashed, hit it now'</span>
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts
+to flee.
+
+*= HP:Fine R:Hurt&gt;
+<span class="tell">Gibur tells you 'more coming, 2</span>
+<span class="tell">trolls'</span>
+<span class="dim">A half-orc ruffian slashes Dori.</span>
+<span class="hit">You pierce a half-orc</span>
+<span class="hit">ruffian hard.</span>
+<span class="hit">You slash a half-orc</span>
+<span class="hit">ruffian hard.</span>
+*= HP:Fine R:Wounded&gt; </pre>
+  </div>
+
+  <!-- map lens with its three keys -->
+  <div class="lw">
+    <button class="lens" aria-label="Map, middle zoom. Tap to zoom">
+      <span class="map"></span>
+      <span class="glass dome"></span>
+      <span class="ring cast"></span>
+      <span class="pips"><i></i><i class="on"></i><i></i></span>
+    </button>
+    <button class="sat tl" aria-label="Show panes"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1.5"/><path d="M5 14h14M5 18h14"/></svg></button>
+    <button class="sat tr" aria-label="Fullscreen"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="sat br" aria-label="Open Comm, 2 unread"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg><span class="badge">2</span></button>
+  </div>
+
+  <!-- command row: menu key at the far left, nothing at the right -->
+  <div class="inrow">
+    <button class="ib" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <div class="field">Command</div>
+  </div>
+
+  <!-- hot keys: tap sends, hold to change -->
+  <div class="hot">
+    <button class="hk" aria-label="K3: wimpy at half of current HP">K3</button>
+    <button class="hk" aria-label="K2: bash">K2</button>
+    <button class="hk" aria-label="K1: assist">K1</button>
+  </div>
+
+  <!-- compass from the bottom edge: lit keys are the room's exits; the eye is look; the key left of N folds the hot keys -->
+  <div class="pad">
+    <button class="key tog" aria-label="Hide hot keys" aria-pressed="true"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/><path d="M6 20h12"/></svg></button>
+    <button class="key" aria-label="North">N</button>
+    <button class="key off" aria-label="Up">U</button>
+    <button class="key off" aria-label="West">W</button>
+    <button class="key" aria-label="Look"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="key" aria-label="East">E</button>
+    <button class="key flee" aria-label="Flee">F</button>
+    <button class="key" aria-label="South">S</button>
+    <button class="key off" aria-label="Down">D</button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-10T18:00:00Z"},
+  "title": "WebCockpit phone makeover, round 4",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "1 Cast iron, domed glass"},
+    "V2-hammered.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "2 Hammered iron, thick glass"},
+    "V3-turned.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "3 Turned iron, window reflection"},
+    "V4-knurled.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "4 Knurled rim, brass hairline"},
+    "V5-lamplit.dc.html": {"x": 1880, "y": 0, "w": 390, "h": 844, "title": "5 Lamp-lit patina, bright glass"},
+
+    "S1-strip.dc.html": {"x": 0, "y": 1164, "w": 390, "h": 844, "title": "Pane strip opened from the lens key"},
+    "S2-rebind.dc.html": {"x": 470, "y": 1164, "w": 390, "h": 844, "title": "Hold K3: change what it does"},
+    "S3-comm.dc.html": {"x": 940, "y": 1164, "w": 390, "h": 844, "title": "Comm tall: the lens steps aside, hot keys folded"}
+  },
+  "order": [
+    "Main.dc.html", "V2-hammered.dc.html", "V3-turned.dc.html", "V4-knurled.dc.html", "V5-lamplit.dc.html",
+    "S1-strip.dc.html", "S2-rebind.dc.html", "S3-comm.dc.html"
+  ],
+  "notes": {
+    "tV": {"x": 0, "y": -300, "text": "The iron porthole in five variations", "kind": "title1", "maxW": 2270},
+    "tS": {"x": 0, "y": 864, "text": "The new controls in use (drawn with lens 1)", "kind": "title1", "maxW": 1330},
+    "sV": {"x": -480, "y": 0, "w": 400, "fill": "orange", "text": "Same moment in all five: fighting, 2 unread, hot keys shown.\n\nNo strip at the top any more. Three small keys sit on the lens: top left opens the pane strip, top right is fullscreen, bottom right is Comm with the unread count.\n\nAbove the compass: K1, K2, K3, round and see-through. The key left of N folds them away.\n\nThe five differ only in the ring's texture and the glass."},
+    "sS": {"x": -480, "y": 1164, "w": 400, "fill": "teal", "text": "Strip: opened by the lens's top left key; swipe sideways to change pane; the fight card sits right under it.\n\nHold a hot key for a second to change it: type a command or pick one. Wimpy at half of current HP is a special pick that reads your HP when pressed.\n\nThe lens hides whenever something would collide with it, and comes back when there is room."}
+  },
+  "designSystems": []
+}
