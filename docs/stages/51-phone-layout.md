@@ -1,6 +1,6 @@
 # Stage 51 — The phone's layout in the game
 
-Status: **Next** (plan written 2026-11-10; nothing built). Branch
+Status: **In progress** (plan written 2026-11-10; build session 2026-11-10/11). Branch
 `stage-51-phone-layout` (from `main`), not to be merged or released by
 the build session.
 
@@ -239,7 +239,7 @@ The owner starts the session and is away until morning. So:
 
 ## Tasks
 
-- [ ] Branch, baseline benchmark recorded here
+- [x] Branch, baseline benchmark recorded here
 - [ ] 51a shell: allocator, command row, compass, fight card
 - [ ] 51b menu sheet, Text settings
 - [ ] 51c map lens
@@ -277,8 +277,18 @@ cover too much text, Comm's height, anything that feels slow.
 
 ## Built
 
-(The build session writes here: per step what was built, numbers,
-deviations from ADR 0136, and what remains.)
+### Baseline (before 51a)
+
+- e2e on the untouched branch: `phone` green; `chromium` green except two
+  load-sensitive cases (`message.spec.ts:37`, `scripts-settings.spec.ts:411`)
+  that pass when run alone. They are not touched by this stage.
+- Text speed on the phone: `bench/browser-bench.ts` has no phone mode, so
+  `bench/phone-bench.ts` was added (Chromium, 390 × 844, ratio 3, mobile +
+  touch, `?bench&phone=1`, the biggest fixture). Before 51a
+  (`bench/results/phone-51-before.md`, commit fb744906): frame → paint
+  3.8 / 17.4 / 22.2 ms (median / p95 / max), flush script 0.9 / 1.7 / 2.7 ms,
+  burst 938 ms for 79 447 lines (84 666 lines/s, longest frame 18.5 ms, no
+  long animation frame), key → send 0.050 / 0.080 / 0.115 ms.
 
 ## Owner feedback
 
