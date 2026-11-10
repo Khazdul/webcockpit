@@ -237,7 +237,7 @@ Mapped to Inv §2.1 and §10.
 | Character | Inv §2.2 | Vitals, XP/TP gains, toggles, gauges. |
 | Timers | Inv §2.6 | The trackers for affects, stored spells, cast queue, blinds, charm and herblore, plus a Sanctuary group (yours and your group's). Needs the game-data tables, rewritten in our own format. Look and options: ADR 0122 (stage 39). |
 | Group | Inv §2.3 | Membership (NPCs room-scoped, players not; ADR 0120), value freshness, NPC label promotion. Look, fight zone, statuses and options: ADR 0122 (stage 39). |
-| Communication | Inv §2.7 | Channel filters (global, as in Cockpit), right-click solo, per-channel colours, history kept across reloads. |
+| Communication | Inv §2.7, ADR 0134 | Public (channel filters, Public's only), Group, one chat per person, search, a reply line in chats and Group, a fold-away chat column, per-channel and per-person colours, history kept across reloads (stage 49). |
 | UI messages | Inv §2.4 | Structured messages from the system and scripts. |
 | Clock | Inv §2.5 | On desktop and tablet at the left end of the menu bar: a sun or moon in a ring of the period left, `~` after it while synced to the hour only, the countdown in its tooltip (stage 31a, ADR 0099). On the phone the input clock strip with the countdown text. Syncs from MSSP and game text. |
 
@@ -781,6 +781,9 @@ what feedback is wanted.
 | 45 | **History and the run log player.** History in the big box (A "Tabell och kort") with Statistics, Rate and Delete; the run log player with Back and h:mm:ss (ADR 0130). | Browse, rate and delete sessions; play a run log. |
 | 46 | **Spotlights: the gallery.** A wall of spotlight cards (B "Galleriet") with the settings as its filter row, and the reel in a viewer that grows out of a card (ADR 0131). | Browse the wall, play one spotlight and the whole reel, change the filter. |
 | 47 | **Credits and About.** Credits as a book (B "Krönikeboken") and About as one long leaf (A "Bladet") (ADR 0132). | Read the chronicle and the About page on desktop and phone. |
+| 48 | **Presentation film.** A three-minute film made as code (Remotion in `video/`) (ADR 0133). | Watch the film. |
+| 49 | **Comm and Statistics panes.** Comm as conversations: Public, Group, a chat per person, search, a reply line; Statistics as a live kill feed with a rating, tiles and a Last kill card (ADR 0134). | Talk, read chats, follow a run's kills. |
+| 50 | **Firefox frame latency.** Veils under floats when Firefox composites in software; `#perf` as a live overlay, `#perf report` for the table (ADR 0135). | Play with a large float in Firefox; try `#perf`. |
 
 ## 6. Open questions for the owner
 

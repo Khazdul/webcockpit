@@ -5,8 +5,8 @@
 // here; every change goes to the settings store at once (ADR 0010).
 //
 // - Comm: the ten fixed channels with their label and colour, and the
-//   sparse filter toggle (missing = on, `false` = off). The Comm pane
-//   cancels its solo by itself when the filters change from outside it.
+//   sparse filter toggle (missing = on, `false` = off). The filters
+//   choose the channels Public shows (ADR 0134).
 // - Timers (ADR 0122): the choices of the look and ending-soon settings
 //   and the per-group patch.
 // - Group: the NPC visibility and away labels, the vital colours, and

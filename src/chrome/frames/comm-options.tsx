@@ -68,6 +68,9 @@ export function CommOptionsFrame(): VNode {
   const at = centreLeft(cols, Math.max(ROW_W, 'Chats: active in the last 30 min'.length));
   return (
     <Page title="Communication" footer={['↑↓ Navigate', 'Enter Toggle', 'ESC Back']}>
+      <Line at={at}>
+        <span class="wc-c-hint">Public shows</span>
+      </Line>
       {rows.map(({ name, label, color, on }, r) => {
         return (
           <Line at={at} class="wc-grid-row">
@@ -75,7 +78,7 @@ export function CommOptionsFrame(): VNode {
               checked={on}
               cursor={row === r}
               swatch={on ? color : 'var(--c-off)'}
-              title={`${label}: ${on ? 'on' : 'off'}`}
+              title={`${label} in Public: ${on ? 'on' : 'off'}`}
               onHover={() => setRow(r)}
               onClick={() => {
                 setRow(r);
