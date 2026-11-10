@@ -1,0 +1,27 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-10T20:00:00Z"},
+  "title": "WebCockpit phone layout, final mockups",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "1 Fighting"},
+    "P2-walking.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "2 Walking (no fight card)"},
+    "P3-strip.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "3 Pane strip open"},
+    "P4-comm.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "4 Comm open (the lens steps aside)"},
+    "P5-rebind.dc.html": {"x": 0, "y": 1164, "w": 390, "h": 844, "title": "5 Hold a hot key to change it"},
+    "P6-keyboard.dc.html": {"x": 470, "y": 1164, "w": 390, "h": 844, "title": "6 Typing, keyboard up"},
+    "P7-menu.dc.html": {"x": 940, "y": 1164, "w": 390, "h": 844, "title": "7 Menu"},
+    "P8-paper.dc.html": {"x": 1410, "y": 1164, "w": 390, "h": 844, "title": "8 Paper theme"}
+  },
+  "order": [
+    "Main.dc.html", "P2-walking.dc.html", "P3-strip.dc.html", "P4-comm.dc.html",
+    "P5-rebind.dc.html", "P6-keyboard.dc.html", "P7-menu.dc.html", "P8-paper.dc.html"
+  ],
+  "notes": {
+    "t1": {"x": 0, "y": -300, "text": "Phone layout in the game: final mockups", "kind": "title1", "maxW": 1800},
+    "s1": {"x": -480, "y": 0, "w": 400, "fill": "orange", "text": "What is on the screen\n\nFight card on top, only while fighting: names and two bars.\n\nMap lens top right (cast iron ring, window reflection). Tap to step three zoom levels. Three keys on it: panes (top left), fullscreen (top right), Comm with unread count (bottom right). The lens hides when something would collide with it; its three keys then stay as a row.\n\nBottom right: the compass from the bottom edge (the eye is look, F is flee). Above it, along the right edge, up to three hot keys with K1 lowest. The K key left of N shows and hides them.\n\nBottom left: menu key and the command field."},
+    "s2": {"x": -480, "y": 1164, "w": 400, "fill": "teal", "text": "Hot keys: tap sends, hold opens the box. A label of at most four letters, a command, or a special. The two specials set wimpy to 50 % or 25 % of your current HP (read from the game data at the press).\n\nKeyboard up: compass and hot keys are hidden, the command field takes the full width, the lens stays.\n\nMenu: Reconnect, Profile, Scripts, Settings, text size, Black / Paper, Exit session."}
+  },
+  "designSystems": []
+}

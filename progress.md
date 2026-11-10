@@ -89,7 +89,12 @@ Statuses: Next, In progress, Owner testing, Done.
   fourth canvas; `notes/research/phone-makeover/round4/`. Next: the owner
   picks a lens variation, then a stage file and an intent Goal 12
   amendment.
-- **Commits:** 644083e9 and the four after it.
+- **Final mockups (same day):** 8 screens on a fifth canvas with every
+  owner decision; the settled design is listed in
+  `notes/research/phone-makeover/README.md` ("The settled design").
+  Next: the owner's verdict, then intent Goal 12, spec §2.12, an ADR and
+  a stage file.
+- **Commits:** 644083e9 and the five after it.
 
 ### 2026-11-10 — Release 0.4.2
 

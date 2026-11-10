@@ -127,5 +127,54 @@ Round 4 shows the porthole in five variations (cast, hammered, turned,
 knurled with a brass hairline, lamp-lit patina) and three states (strip
 open, hold K3 to rebind, Comm tall with the lens hidden).
 
-Next: the owner picks a lens variation; then a stage file and an intent
-Goal 12 amendment (light play).
+## Final mockups (2026-11-10)
+
+Canvas: "WebCockpit phone layout, final mockups" (claude.ai artifact
+`QTvkSUVXC1T4nuBP6hyJCN`). Sources in `final/canvas/` (8 artboards:
+fighting, walking, pane strip, Comm, hold a hot key, keyboard up, menu,
+Paper). Written without rendering; the owner's verdict is pending.
+
+### The settled design (owner decisions, rounds 1 to 4 and after)
+
+Phone only, portrait only. Desktop and tablet are not touched.
+
+- **Fight card** at the very top, only while fighting: "You" (or the
+  tank's name) against the enemy's name, and two bars. No percent, no
+  condition word.
+- **Map lens** top right, round, 150 px: the cast-iron ring of round 4
+  variation 1 with the glass and window reflection of variation 3.
+  Shimrod alternating; zoom and map settings locked for the phone. A tap
+  steps three fixed zoom levels (near, middle, far).
+- **Three keys on the lens:** top left opens the pane strip, top right
+  toggles fullscreen (shown only where the browser supports it), bottom
+  right opens Comm and carries the unread count.
+- **The lens hides** when something would collide with it and returns
+  when there is room; its three keys then stay as a row at the top right.
+- **Pane strip** from the top edge, 15 to 25 % of the height, one pane at
+  a time (Timers, Group, Character, Statistics); a sideways swipe changes
+  pane; page dots, no tabs, no handle. The fight card sits right under
+  it.
+- **Comm** opens under the fight card; its lower edge is dragged to
+  resize; own compose field with a discreet "Type a message". No
+  incoming message cards: unread shows only as the badge.
+- **Compass** in the bottom right corner from the bottom edge, 40 px
+  keys: N, W, the eye (look), E, S, U, D, F (flee). **Every direction is
+  always live**, whether or not the room has that exit (the player may
+  want to spam a direction).
+- **Hot keys** K1 to K3: round, see-through, one column along the right
+  edge above the compass, K1 lowest. Each shows a label of at most four
+  letters, each can be switched off. Tap sends; hold opens a box to
+  change label and command. Defaults: `assist`, `bash`, and a special
+  that sets wimpy to 50 % of CURRENT hit points (from GMCP, as well as it
+  can be read); a second special for 25 %. "Look" is never a hot key
+  pick. A "K" key left of N shows and hides the column.
+- **Command row** bottom left: menu key far left, a narrow field,
+  nothing at the right. No history key.
+- **Keyboard up:** compass and hot keys hidden, the command field at
+  full width, the lens stays.
+- **Menu** (bottom sheet): Reconnect, Profile, Scripts, Settings, text
+  size, Black/Paper, Exit session. Statistics is a pane, not a menu row.
+  Settings holds a small selection (round 3, `round3/canvas/L5-settings`).
+
+Next: the owner's verdict on the final mockups; then intent Goal 12
+(light play), spec §2.12, an ADR and a stage file.
