@@ -274,3 +274,32 @@ cost is agreed first.
   thread, and the thread is block flow (a new message lays out itself).
 - **Chat list order by CSS:** the list keeps to the newest chat without
   script scroll reads or writes; a raised chat is one DOM move.
+
+## Addendum: review fixes (2026-11-10, 49d)
+
+A fresh review of the merged branch led to these rules:
+
+- **Roster:** the pane treats the group roster as known only after a
+  `Group.*` message in this connection; the first is a baseline (no
+  "joined" lines), later changes give joined / left lines; a disconnect
+  forgets it. An empty known roster places none of your own lines in
+  Group. After an archive load Group starts empty (archived group tells
+  too).
+- **Colours** survive a rebuild (reconnect, archive load) for the session;
+  a colour slot is dealt only when a chat opens, never to a voice heard
+  only on narrate and the like. **Unread** is carried over a rebuild by
+  chat key (the higher of old and new).
+- **Trimmed chats:** when the 1000-message cap removes a chat's last
+  message, the chat leaves the list unless it has unread or is open.
+- **Reply line** is hidden in a chat with an enemy (`*Name*`) or a name
+  of more than one word (no reliable tell target); the tell uses the whole
+  name.
+- **Spine:** a click folds after 300 ms (`SPINE_DBL_MS`) so a double-click
+  returns to the automatic width without folding.
+- **Search results** refresh on new talk only when it matches, keep their
+  scroll, wait while a selection sits in them, and re-ink on a tint or
+  Paper change.
+- **Hidden panes:** Comm's age timer stops while the pane is hidden; the
+  Statistics list restores its scrolled-up position when shown again.
+- Public's filtered list is cached between renders (appended per message,
+  rebuilt on a filter change).

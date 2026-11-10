@@ -284,7 +284,59 @@ to agree.
 
 ## Test guide
 
-To be written in 49d.
+Run `npm run dev` on the branch `stage-49-comm-stats` (not merged to
+`main`), log in with a character, and turn the Comm and Statistics panes
+on (Panes menu).
+
+**Statistics**
+
+1. Kill a few mobs. The first four show `calibrating…`; from the fifth the
+   card shows a badge (Poor … Superb) and the marker on the scale.
+2. On each kill the previous card's kill slides into the Earlier list. The
+   tiles (Avg / kill, Median, XP / h, Kills) and the run clock update.
+3. Scroll the list up and kill again: the view stays, a `↓ N new` pill
+   shows; click it to return to the bottom.
+4. Try a few tints, Paper (a light page), border off and clear background;
+   make the pane small and narrow.
+
+**Comm**
+
+1. Get a tell, a say and an emote from someone: their chat opens in the
+   column; the bubbles carry their colour; unread counts show. Their
+   narrates show in their chat as quiet one-liners.
+2. Reply in the chat (sends `tell <name> …`), in Public (`say …`) and in
+   Group (`tell group …`). **Please check** your own `tell group` shows
+   once in Group (its GMCP form has not been seen before).
+3. Join a group: Group fills with your group's players on every channel,
+   with joined / left lines; pets and pack horses are left out.
+4. The gear (pane hover buttons): Public's channels (Tells and Whispers
+   are off for new users) and the chat window 10 / 30 / 60 min / All.
+5. Search: the magnifier at the top right, or Ctrl+F with the pointer over
+   the pane. People hits open a chat; message hits can be selected.
+6. The spine between column and thread: hover it, drag it (list → rail →
+   folded), click to fold, double-click for the automatic width. Folded,
+   the chip at the top left names the open chat.
+7. Select text in the thread: it is copied, and typing still goes to the
+   game.
+8. Narrow the pane below about 380 px: the column becomes an icon rail.
+   Tints, Paper, border off and clear background as for Statistics.
+
+**Feedback wanted:** the look in your own setup, whether the rating feels
+right for your level, and the three performance points under "For the
+owner" below.
+
+### For the owner (performance to agree)
+
+- Statistics: a kill costs about 15 ms more main-thread time in Chromium
+  (about 8 ms of it the slide and fade); no dropped frame, and idle is
+  3 ms per second cheaper. Kept; easy to drop the slide.
+- Comm in Firefox: about 1.4 ms more pane script per message and 1.3 ms
+  more on the frame after (median), within a frame, no long frames in a
+  real window. Chromium is faster than main.
+- Found on `main`, not caused by this stage: in headless Firefox a large
+  framed float over the weather runs at 12–14 fps (border off: 60 fps).
+  Please check whether a large floating pane with its border over the
+  weather feels slow in your Firefox; a separate stage if so.
 
 ## Owner feedback
 
