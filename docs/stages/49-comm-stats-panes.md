@@ -375,6 +375,43 @@ while idle; the spine delay only defers the fold of a click.
 - For the owner to agree: the Firefox Comm cost (+1.7 ms per message,
   headed) and the Statistics slide-in animations' main-thread cost.
 
+### After owner feedback 1
+
+Branch `stage-49-comm-stats` at 5868fe4d (the Comm and Statistics
+feedback) against `main` 1831d839, same methods. Headless: `pane-cost
+--runs 3`, load 0.47 0.56 3.00 at the start; headed Firefox: `--runs 2`,
+load 1.25 1.08 2.18. Ranges over the runs, ms; main → branch.
+
+| Measure | Firefox headless | Firefox headed | Chromium |
+|---|---|---|---|
+| Comm: frame after a message, median | 5.56–5.60 → 5.22–5.30 | 5.50–5.66 → 5.34–5.36 | 6.57–6.96 → 3.25–3.65 |
+| Comm: frame after a message, p95 | 6.86–7.12 → 8.72–10.76 | 7.62–7.88 → 9.38–9.66 | 9.38–9.67 → 5.35–6.29 |
+| Comm: pane render script, median | 1.58–1.66 → 1.48–1.56 | 1.62–1.66 → 1.58–1.60 | 1.50–1.59 → 1.44–1.52 |
+| Comm burst: frames median / p95 | 4.66–4.92 / 7.28–8.26 → 3.60–4.00 / 5.74–7.16 | 7.30–7.44 / 10.38–12.92 → 8.28–8.36 / 11.18–12.88 | 4.63–5.33 / 9.26–10.13 → 2.25–3.45 / 6.21–7.56 |
+| Comm burst: long frames | 0 → 11–13 | 0 → 0 | 0 → 0–1 |
+| Statistics: frame after a kill, median / max | 7.06–7.50 / 7.8–8.3 → 7.24–7.66 / 8.4–10.6 | 6.88–6.94 / 8.8–9.2 → 10.70–11.54 / 14.0–14.5 | 2.98–3.47 / 3.7–4.6 → 3.95–4.22 / 4.9–6.9 |
+| Statistics: main-thread per kill (trace) | — | — | 7.34–12.82 → 30.32–32.56 |
+| Statistics tick: worst frame per second, median | 6.72–7.32 → 7.12–7.22 | 6.94–8.22 → 8.18–8.64 | 3.20–3.47 → 3.17–3.52 |
+
+**Reading it:**
+- Comm is now at or below `main` on the medians in every browser (headed
+  Firefox render 3.34–3.40 → 1.58–1.60 against "After 49d"). This is
+  mostly **the new Public defaults**, not cheaper code: the bench's mix is
+  70 % tells, says, emotes, whispers and socials, which Public no longer
+  shows, so most messages add no thread row (the column still updates).
+  Users who turn those channels back on in Public see the "After 49d"
+  cost. The bubble meta, the overheard lines and the cockpit mouse-up
+  rule are not on the measured path (Public open, no pointer); no row
+  moved because of them. Headless Firefox's burst gaps (11–13) are the
+  known headless artefact (0 headed).
+- Statistics: unchanged within noise against "After 49d" (per kill 30–33
+  vs 31–33 ms in Chromium; headed frame after a kill 10.7–11.5 vs
+  10.1–10.7). Dropping the card's age did not lower the per-kill cost: the
+  age was a 1 Hz text write, not part of the kill path; the slide-in
+  animations remain the main share. The single median line shows no cost.
+- The standard browser-bench was not re-run: nothing moved for the worse
+  beyond noise.
+
 ## Test guide
 
 Run `npm run dev` on the branch `stage-49-comm-stats` (not merged to
