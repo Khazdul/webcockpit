@@ -842,6 +842,20 @@
   padding-top: 0;
 }
 
+/* Comm: the chat window, its label above the segmented control, which
+ * spans the popup's width (ADR 0134, owner's first test). */
+.wc-sp-cwin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.46em;
+  padding: 0.38em 1.077em 0.77em;
+}
+
+.wc-sp-cwin > .wc-ck-seg > .wc-ck-sg {
+  flex: 1 1 0;
+  text-align: center;
+}
+
 /* Timers: a grid of the groups, a column for each control under its heading. */
 .wc-sp-tgrid {
   display: grid;

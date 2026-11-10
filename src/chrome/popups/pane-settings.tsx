@@ -83,14 +83,15 @@ export function CommSettings(): VNode {
       ))}
       <div class="wc-ck-sep" />
       <div class="wc-ck-sub">Private chats</div>
-      <Row label="Show chats active in the last" help="The open chat and chats with unread always show; search finds the rest">
+      <div class="wc-sp-cwin">
+        <span class="wc-ck-l">Show chats active in the last</span>
         <Segmented
           label="Show chats active in the last"
           value={String(s.comm.chatWindow)}
           options={COMM_CHAT_WINDOW_CHOICES}
           onChange={(v) => setChatWindow(settings, chatWindowOf(v))}
         />
-      </Row>
+      </div>
     </div>
   );
 }

@@ -167,10 +167,12 @@ export const COMM_FILTERS_MAX = 100;
 export type CommChatWindow = 10 | 30 | 60 | 'all';
 export const COMM_CHAT_WINDOWS: readonly CommChatWindow[] = [10, 30, 60, 'all'];
 /**
- * Channels new users have off in Public (ADR 0134: they live in the chats).
- * In the defaults' filters; stored filters are kept as they are.
+ * Channels off in Public by default (ADR 0134, owner's first test): the
+ * talk that lives in the chats. In the defaults' filters, and turned off
+ * once in settings stored before version 5 (the old pane's filters hid a
+ * channel from the whole pane, so their values do not carry over).
  */
-export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'whispers'];
+export const COMM_PUBLIC_DEFAULT_OFF: readonly string[] = ['tells', 'says', 'emotes', 'whispers', 'questions', 'socials'];
 /** Narrowest and widest dragged chat column of the Comm pane (CSS px). */
 export const COMM_LIST_WIDTH_MIN = 40;
 export const COMM_LIST_WIDTH_MAX = 400;
@@ -455,7 +457,9 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 // 4: Group and Timers redesign (ADR 0122): timer colours became `auto` or a
 //    hex (an old swatch name migrates by value, any version), the per-group
 //    cols/clock/bar and `compact` went.
-export const SETTINGS_VERSION = 4;
+// 5: the Comm pane's conversation view (ADR 0134): `comm.filters` shape
+//    Public only; a stored v4 or older turns `COMM_PUBLIC_DEFAULT_OFF` off.
+export const SETTINGS_VERSION = 5;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu
