@@ -234,11 +234,12 @@ export class PerfMonitor {
   /** The output pane whose flushes are measured. */
   output: FlushSource | null = null;
   /**
-   * Called with each received → shown measurement (ms) and its flush's
-   * script time (ms), right after it is stored: App's FloatVeilWatch (ADR
-   * 0135). Null: nothing is called.
+   * Called with each received → shown measurement: the flush frame's start
+   * (monitor clock, ms), the latency (ms) and the flush's script time (ms),
+   * right after it is stored: App's FloatVeilWatch (ADR 0135). Null:
+   * nothing is called.
    */
-  onShown: ((ms: number, script: number) => void) | null = null;
+  onShown: ((t: number, ms: number, script: number) => void) | null = null;
 
   private readonly now: Clock;
   private readonly win: (Window & typeof globalThis) | null;
@@ -369,7 +370,7 @@ export class PerfMonitor {
       if (recv === recv) {
         const ms = Math.max(0, t - Math.max(recv, this.shownAt));
         r.shown.push(t0, ms, rows, script);
-        this.onShown?.(ms, script);
+        this.onShown?.(t0, ms, script);
       }
     }
     this.pending = 0;

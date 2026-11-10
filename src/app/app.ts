@@ -504,8 +504,8 @@ export class App {
     // Holes under floats → veils where text keeps reaching the screen late (ADR 0135; Firefox only).
     if (perf && geckoEngine(doc.defaultView?.navigator.userAgent ?? '')) {
       const watch = new FloatVeilWatch();
-      perf.onShown = (ms, script) => {
-        if (!watch.frame(ms, script, this.cockpit.textHoles)) return;
+      perf.onShown = (t, ms, script) => {
+        if (!watch.frame(t, ms, script, this.cockpit.textHoles)) return;
         perf.onShown = null;
         this.cockpit.useFloatVeils();
       };

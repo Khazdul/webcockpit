@@ -26,28 +26,40 @@ export const VEIL_SCRIPT_MAX_MS = 8;
 export const VEIL_WINDOW = 24;
 /** Late frames in the window that switch to veils (two thirds). */
 export const VEIL_LATE_COUNT = 16;
+/**
+ * The window must span at least this long (ms): the first seconds after a
+ * page load or a big relayout are slow on any machine, and a back-to-back
+ * run of lines then must not decide (a false switch on hardware WebRender
+ * in the frame screenshots, stage 50).
+ */
+export const VEIL_MIN_SPAN_MS = 4000;
 
 export class FloatVeilWatch {
   /** Lateness of the last VEIL_WINDOW frames with a hole, as a bit ring. */
   private readonly late = new Uint8Array(VEIL_WINDOW);
+  /** Times of the judged frames, as a ring. */
+  private readonly times = new Float64Array(VEIL_WINDOW);
   private n = 0;
   private lateN = 0;
   private done = false;
 
   /**
-   * One output frame: `shownMs` from receipt to rendered, `scriptMs` of our
-   * flush, `holes` whether the text had a hole under a float. Returns true
-   * once, when the watch decides for veils.
+   * One output frame at time `t` (ms): `shownMs` from receipt to rendered,
+   * `scriptMs` of our flush, `holes` whether the text had a hole under a
+   * float. Returns true once, when the watch decides for veils.
    */
-  frame(shownMs: number, scriptMs: number, holes: boolean): boolean {
+  frame(t: number, shownMs: number, scriptMs: number, holes: boolean): boolean {
     if (this.done || !holes || scriptMs > VEIL_SCRIPT_MAX_MS) return false;
     const i = this.n % VEIL_WINDOW;
     const isLate = shownMs - scriptMs > VEIL_LATE_MS ? 1 : 0;
     if (this.n >= VEIL_WINDOW) this.lateN -= this.late[i]!;
     this.late[i] = isLate;
+    this.times[i] = t;
     this.lateN += isLate;
     this.n++;
-    if (this.n >= VEIL_WINDOW && this.lateN >= VEIL_LATE_COUNT) {
+    // The oldest judged frame in the window is the next one to be overwritten.
+    const span = t - this.times[this.n % VEIL_WINDOW]!;
+    if (this.n >= VEIL_WINDOW && this.lateN >= VEIL_LATE_COUNT && span >= VEIL_MIN_SPAN_MS) {
       this.done = true;
       return true;
     }
