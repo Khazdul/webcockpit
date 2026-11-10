@@ -435,4 +435,25 @@ owner" below.
 
 ## Owner feedback
 
-None yet.
+### 2026-11-10, first test
+
+**Comm**
+- Public needs no reply line at all.
+- Bug: the reply line in a chat cannot take focus; a click sends the
+  caret to the game (only a held mouse button lets you type).
+- The spine's fold handle looks like a scrollbar: show discreetly that it
+  is a fold button. A single click folds at once; drop the double-click
+  reset (a double-click does nothing).
+- The channel and time under each bubble (`social · 09:55`): smaller, a
+  quieter colour, shown only on hover of that bubble, taking no height.
+- A group tell in a person's chat should look like a normal message (a
+  bubble, as a social or say). Other overheard channels: left-aligned
+  with the full text, as in Public.
+- Public's defaults: Tells, Says, Emotes, Whispers, Questions and Socials
+  off (they live in the chats; questions and whispers too).
+- The gear popup's chat-window row is squeezed; drop the explanation text.
+
+**Statistics**
+- No `calibrating…` at the bottom right during the first kills.
+- The card's `LAST KILL 3s ago`: just `LAST KILL`.
+- The median line in the list breaks between rows; it should run through.
