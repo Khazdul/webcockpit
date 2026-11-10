@@ -73,6 +73,14 @@ cross: step its colour, turn its border on or off, and switch its
 background between frosted glass and clear (no fill, so what is behind
 it shows sharp).
 
+**Comm and Statistics.** Comm is a conversation pane: Public (the
+channels you pick in its gear), Group (everything your group's players
+say) and one chat per person who talks to you, with search, a reply line
+that sends a tell, and a column that folds away. Statistics follows the
+run live: the latest kill rated against the session's own median (from
+poor to superb), the average, median and XP per hour, and every kill so
+far.
+
 **Menu bar.** At the right end of the input line: the game clock (a sun
 or moon in a ring that empties as the day or night runs out; hover it for
 the time to the next change), then Profile, Scripts, Panes, Settings,

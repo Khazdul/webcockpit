@@ -1252,6 +1252,10 @@ Right-column pane below Timers (status → timers → comm → ui → dev). Defa
 content rows. Frame header label `Comm`. Shows the GMCP channel history with a
 one-row clickable channel-filter header.
 
+> WebCockpit: the look, the header, solo and the filters below are replaced
+> by ADR 0134 (stage 49: chats per person, Public, Group, search); the
+> data rules (GMCP, archive) still hold.
+
 #### 2.7.1 Data (GMCP)
 
 | Message | Dir | Fields used |
@@ -2756,6 +2760,10 @@ Two surfaces with the same layout (ADR 0073 accepted duplicated rendering): **po
 Statistics** (live current run, 1 Hz refresh, `R` = refresh now) and **History → Stats**
 (`history_detail`, archived chain, no tick). Popup row "Statistics" is shown only while a
 character is known and a `current` run exists.
+
+> WebCockpit: the in-game Statistics pane is drawn by ADR 0134 (stage 49:
+> a live kill feed with a session-relative rating); the phone's frame and
+> History → Stats keep this layout.
 
 ```
             ◆ STATISTICS — Rasta · Lvl 73 · Run 2h 14m · ★★★
