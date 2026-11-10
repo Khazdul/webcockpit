@@ -71,9 +71,11 @@ stays `buildStats`; the rating and the kill list are added beside it.
   unread; no counts).
 - **Spine** between column and thread: invisible at rest, fades in on
   hover (about 5 px each side), while dragging and on keyboard focus; its
-  line has a gap around the handle. Click toggles fold; drag snaps list →
-  rail → folded; double-click returns to the automatic width; arrow keys
-  on the handle step. On touch it shows faintly at rest.
+  line has a gap around the handle, which is a small fold button with a
+  chevron toward the fold (shown on hover and focus). A click folds at
+  once; drag snaps list → rail → folded; a double-click does nothing more;
+  arrow keys on the handle step. On touch it shows faintly at rest.
+  (Owner's first test, see the addendum.)
 - **Folded:** the thread fills the pane; at the top-left an unfold icon
   (with the unread dot) and directly right of it a chip naming the open
   chat (coloured initial + name, or the Public / Group icon). The fold
@@ -85,22 +87,25 @@ stays `buildStats`; the rating and the kill list are added beside it.
   comm message on every channel, match highlighted, selectable, not
   clickable). Search covers chats hidden by the time window.
 - **Gear** among the pane hover buttons (ADR 0095), as Group and Timers;
-  its popup (ADR 0107): the channels shown in Public (checkboxes; Tells
-  and Whispers off by default, they live in the chats) and "Show chats
-  active in the last 10 / 30 / 60 min / All" (default 30). The open chat
-  and chats with unread always show.
+  its popup (ADR 0107): the channels shown in Public (checkboxes; Tells,
+  Says, Emotes, Whispers, Questions and Socials off by default, they live
+  in the chats) and "Show chats active in the last 10 / 30 / 60 min / All"
+  (default 30; the label above the control, no explanation text). The
+  open chat and chats with unread always show.
 - **No channel header** and no in-pane channel toggles; `comm.showHeader`
   goes away (migration drops it).
 
 **Which talk opens a chat:** tells, whispers (directed or not), says,
-emotes and socials (directed or not), from a player other than you.
-Prayers go to the Valar and never open a chat. These "near" channels show
-as bubbles in the person's chat and are the only ones that raise its
-unread count and move it to the bottom. A person's chat shows **all**
-their messages on every channel: the other channels (narrates, yells,
-songs, questions, prayers) as quiet centred "overheard" one-liners with
-the channel name as text. No channel icons anywhere in the thread; in
-Public and Group the verb carries the channel colour.
+emotes and socials (directed or not) and questions (MUME's `ask`), from a
+player other than you. Prayers go to the Valar and never open a chat.
+These "near" channels show as bubbles in the person's chat and are the
+only ones that raise its unread count and move it to the bottom. A
+person's chat shows **all** their messages on every channel: the other
+channels (narrates, yells, songs, prayers) as **left-aligned lines,
+whole and formatted as in Public** (the verb in the channel colour), with
+no bubble: not to you. A bubble's channel and time show beside it only on
+hover, small and quiet, taking no height. No channel icons anywhere in
+the thread.
 
 **Group:** pinned under Public with a group icon. It shows every channel
 from the current group's players (GMCP `Group.*`, `type` player; NPCs
@@ -120,16 +125,18 @@ enemies (`*Name*`) have fixed colours. On Paper colours are refitted for
 contrast (`lightShift` / `fitContrast`, as Comm does today).
 
 **Reply line:** in a chat a plain field `Reply to <Name>…` that sends
-`tell <name> <text>`; your bubble shows a small `tell` mark. In Public it
-sends `say`, in Group `tell group <text>` (owner, 2026-11-09). Hidden in a
-log player, a replay and when not connected.
+`tell <name> <text>`; your bubble shows a small `tell` mark. In Group it
+sends `tell group <text>` (owner, 2026-11-09). **Public has no reply line**
+(owner's first test). Hidden in a log player, a replay and when not
+connected. A click focuses it and typing stays there; after Enter it keeps
+the focus; Esc gives the keys back to the game.
 
 **Group tells:** MUME sends them on the `tells` channel with no
 destination and the text `<Name> tells the group '…'` (seen in the
 owner's Cockpit comm archives and run logs, 2026-09/10; the current pane
 wrongly shows them as `<Name> tells you`). They go to Group, and into the
-sender's record as an overheard line; they never open, raise or count in a
-private chat. Your own `tell group` has not been captured: the model takes
+sender's record, shown there as a bubble marked "group" (owner's first
+test); they never open, raise or count in a private chat. Your own `tell group` has not been captured: the model takes
 a `destination` of `group` / `the group`, or a text `You tell the group
 '…'`, as a group tell; check the real form in the first live test.
 
@@ -295,7 +302,8 @@ A fresh review of the merged branch led to these rules:
   of more than one word (no reliable tell target); the tell uses the whole
   name.
 - **Spine:** a click folds after 300 ms (`SPINE_DBL_MS`) so a double-click
-  returns to the automatic width without folding.
+  returns to the automatic width without folding. *Superseded by the
+  owner's first test below: a click folds at once, no double-click reset.*
 - **Search results** refresh on new talk only when it matches, keep their
   scroll, wait while a selection sits in them, and re-ink on a tint or
   Paper change.
@@ -303,3 +311,37 @@ A fresh review of the merged branch led to these rules:
   Statistics list restores its scrolled-up position when shown again.
 - Public's filtered list is cached between renders (appended per message,
   rebuilt on a filter change).
+
+## Addendum: owner's first test (2026-11-10)
+
+The owner tested the merged branch (feedback in
+`docs/stages/49-comm-stats-panes.md`). Changed rules, now in the decision
+text above:
+
+- **Public has no reply line;** chats and Group keep theirs. The reply
+  field takes the focus on a click (the cockpit no longer hands the keys
+  back to the game on a mouse up in a pane field marked
+  `data-wc-own-keys`); Enter sends and keeps the focus; Esc returns the
+  keys to the game (`PaneContext.focusGame`). Its placeholder is a step
+  quieter than the dim text (about 4:1 dark, 3:1 on Paper).
+- **Spine:** the handle is a small fold button with a chevron (‹), shown
+  on hover and focus; a click folds at once; the double-click reset and
+  the 300 ms delay are gone; drag snapping and the arrow keys stay.
+- **Bubble meta** (`tell · 09:56`): beside the bubble (left of yours,
+  right of theirs), small and quiet, shown only while that bubble is
+  hovered, taking no height; never on touch. It stays in the DOM for
+  readers (not copied).
+- **A group tell in the sender's chat is a bubble** marked "group"; the
+  rule that it opens, raises and counts nothing is kept.
+- **Overheard lines** (narrate, yell, song, prayer) are left-aligned and
+  whole, formatted as in Public, with no bubble.
+- **Questions are a near channel** (open a chat, bubbles, unread), as
+  whispers.
+- **Public defaults:** Tells, Says, Emotes, Whispers, Questions and Socials
+  off (`COMM_PUBLIC_DEFAULT_OFF`). Settings version 5: settings stored
+  before it turn these six off once (the old pane's filters hid a channel
+  from the whole pane; now they shape Public only). Filters changed after
+  that are kept.
+- **Gear popup:** the chat-window row puts its label above the
+  10 / 30 / 60 / All control, which spans the popup (now 21.5 em wide);
+  the explanation text is gone.
