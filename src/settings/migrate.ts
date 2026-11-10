@@ -38,6 +38,7 @@ import { INPUT_COLOR_IDS } from '../theme/presets';
 import {
   type AppearanceSettings,
   COMM_FILTERS_MAX,
+  COMM_PUBLIC_DEFAULT_OFF,
   COMM_CHAT_WINDOWS,
   COMM_FILTER_KEY_MAX,
   COMM_LIST_WIDTH_MAX,
@@ -313,7 +314,7 @@ export function migrateGroup(raw: unknown): GroupSettings {
  * automatic width. A stored `showHeader` (the pane before ADR 0134) is
  * dropped.
  */
-export function migrateComm(raw: unknown): CommSettings {
+export function migrateComm(raw: unknown, fromVersion = SETTINGS_VERSION): CommSettings {
   const d = defaultSettings().comm;
   const c = isObj(raw) ? raw : {};
   const filters: Record<string, boolean> = isObj(c.filters) ? {} : { ...d.filters };
@@ -325,6 +326,9 @@ export function migrateComm(raw: unknown): CommSettings {
       filters[k] = false;
     }
   }
+  // Settings from before the conversation view (v5): the chat channels go
+  // off in Public once (ADR 0134, owner's first test).
+  if (isObj(c.filters) && fromVersion < 5) for (const ch of COMM_PUBLIC_DEFAULT_OFF) filters[ch] = false;
   const w = c.listWidth;
   const listWidth =
     typeof w === 'number' && Number.isFinite(w) ? Math.round(Math.min(COMM_LIST_WIDTH_MAX, Math.max(COMM_LIST_WIDTH_MIN, w))) : null;
@@ -521,7 +525,7 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     layout: migrateLayout(s.layout, retired),
     profile,
     group: migrateGroup(s.group),
-    comm: migrateComm(s.comm),
+    comm: migrateComm(s.comm, fromVersion),
     timers: migrateTimers(s.timers),
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),

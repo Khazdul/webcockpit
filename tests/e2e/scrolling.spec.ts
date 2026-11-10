@@ -225,6 +225,8 @@ async function demoDone(page: Page): Promise<void> {
 async function addComm(page: Page, n: number, from = 0): Promise<void> {
   await page.evaluate(
     ({ n, from }) => {
+      // Says are off in Public by default (ADR 0134): show every channel here.
+      if (from === 0) window.__wc!.settings.update((d) => void (d.comm.filters = {}));
       for (let i = from; i < from + n; i++) {
         window.__wc!.app.bus.emit('gmcp', {
           pkg: 'Comm.Channel.Text',

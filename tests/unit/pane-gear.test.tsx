@@ -289,8 +289,8 @@ describe('gear popup contents', () => {
     const rows = [...t.host.querySelectorAll<HTMLElement>('.wc-sp-chan[data-channel]')];
     expect(rows.map((r) => r.dataset.channel)).toEqual([...COMM_CHANNEL_ORDER]);
     expect(rows[0]!.textContent).toBe('Narrates');
-    // Tells and Whispers start off in Public (they live in the chats).
-    const base = { tells: false, whispers: false };
+    // The chat channels start off in Public (they live in the chats).
+    const base = { tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false };
     expect(t.s().comm.filters).toEqual(base);
     const tg = rows[3]!.querySelector('[role=switch]')!;
     expect(tg.getAttribute('aria-checked')).toBe('true');
@@ -374,8 +374,8 @@ describe('gear popup contents', () => {
 
   it('a change made elsewhere shows', () => {
     const t = mountWith(<CommSettings />);
-    act(() => toggleCommChannel(t.settings, 'says'));
-    expect(t.host.querySelector('[data-channel="says"]')!.classList.contains('is-off')).toBe(true);
+    act(() => toggleCommChannel(t.settings, 'yells'));
+    expect(t.host.querySelector('[data-channel="yells"]')!.classList.contains('is-off')).toBe(true);
   });
 });
 

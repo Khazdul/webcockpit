@@ -31,9 +31,10 @@
   width: 31em;
 }
 
-/* 250 px at a 13 px font (mockup 30a-5). */
+/* 280 px at a 13 px font (mockup 30a-5's 250, widened for the chat-window
+ * row, ADR 0134). */
 .wc-sp-gear-comm {
-  width: 19.23em;
+  width: 21.5em;
 }
 
 .wc-sp-gear-group {
@@ -840,6 +841,26 @@
 
 .wc-sp-comm > .wc-ck-sub {
   padding-top: 0;
+}
+
+/* Comm: the chat window, its label above the segmented control, which
+ * spans the popup's width (ADR 0134, owner's first test). */
+.wc-sp-cwin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.46em;
+  padding: 0.38em 1.077em 0.77em;
+}
+
+.wc-sp-cwin > .wc-ck-l {
+  white-space: normal;
+}
+
+.wc-pop .wc-sp-cwin > .wc-ck-seg > .wc-ck-sg {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 0.35em;
+  text-align: center;
 }
 
 /* Timers: a grid of the groups, a column for each control under its heading. */

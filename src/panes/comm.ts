@@ -63,6 +63,7 @@ import { type Chat, type ChatEntry, CommChats, type GroupItem, type GroupNote } 
 import { paneLight } from '../theme/apply';
 import { mix, paneContentBg } from '../theme/color';
 import { colorToCss } from '../ui/palette';
+import { OWN_KEYS_ATTR } from '../ui/input-pane';
 import { type StyleRun, gmcpKey } from '../core/types';
 import { COMM_LIST_WIDTH_MAX, COMM_LIST_WIDTH_MIN } from '../settings/types';
 import { AnchoredList, type ListMetrics } from './anchored-list';
@@ -102,8 +103,6 @@ export const SEARCH_DEBOUNCE_MS = 120;
 const AGE_TICK_MS = 30_000;
 /** A press that travels less than this (px) on the spine is a click. */
 const SPINE_CLICK_PX = 4;
-/** A click on the spine folds after this long (ms), unless a second press makes it a double-click. */
-export const SPINE_DBL_MS = 300;
 /** Message hits shown at most. */
 const SEARCH_LIMIT = 200;
 /** Under this many cell rows the chat column is one line per entry. */
@@ -211,8 +210,6 @@ export class CommPane extends PaneShell {
   private query = '';
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private searchDirty = false;
-  /** A spine click's fold, waiting out the double-click time. */
-  private foldTimer: ReturnType<typeof setTimeout> | null = null;
   /** Public's filtered messages, kept between renders (`publicItems`). */
   private publicCache: { src: readonly ChatEntry[]; filters: Readonly<Record<string, boolean>>; lastSeq: number; list: ChatEntry[] } | null = null;
   private searchByUser = false;
@@ -260,7 +257,10 @@ export class CommPane extends PaneShell {
     this.chatWrap.append(this.chatsEl, this.chevUp, this.chevDown);
     this.col.append(this.pins, div('wc-cm-gap'), this.chatWrap);
     this.spine = div('wc-cm-spine');
-    this.handle = button('wc-cm-handle', null, 'Chat list: click to hide, drag to resize');
+    // A small fold button on the spine: a chevron toward where the column
+    // folds, shown on hover and focus (owner's first test: not a bar that
+    // reads as a scrollbar).
+    this.handle = button('wc-cm-handle', 'chevLeft', 'Hide the chat list (drag to resize)');
     this.handle.setAttribute('role', 'separator');
     this.handle.setAttribute('aria-orientation', 'vertical');
     this.spine.append(this.handle);
@@ -275,6 +275,7 @@ export class CommPane extends PaneShell {
     this.searchInput.type = 'search';
     this.searchInput.placeholder = 'Search names and messages';
     this.searchInput.setAttribute('aria-label', 'Search names and messages');
+    this.searchInput.setAttribute(OWN_KEYS_ATTR, '');
     this.searchInput.tabIndex = -1;
     this.searchClear = button('wc-cm-sclear', 'close', 'Close the search (Esc)');
     this.searchClear.tabIndex = -1;
@@ -294,6 +295,9 @@ export class CommPane extends PaneShell {
     this.replyInput.type = 'text';
     this.replyInput.autocomplete = 'off';
     this.replyInput.spellcheck = false;
+    // Its own keys: a click focuses it and the cockpit does not hand the
+    // keys back to the game on the mouse up (owner's first test).
+    this.replyInput.setAttribute(OWN_KEYS_ATTR, '');
     this.reply.append(this.replyInput);
     this.main.append(this.top, this.list.el, this.list.more, this.results, this.reply);
     this.root.append(this.col, this.spine, this.main);
@@ -332,7 +336,6 @@ export class CommPane extends PaneShell {
       if (this.ageTimer !== null) clearInterval(this.ageTimer);
       if (this.colTextTimer !== null) clearTimeout(this.colTextTimer);
       this.selWatch?.();
-      this.cancelFold();
     });
     // Hidden (0 × 0): no age ticks; the next render on show starts them again.
     this.own(this.onResize((c, r) => c === 0 && r === 0 && this.stopAges()));
@@ -565,14 +568,16 @@ export class CommPane extends PaneShell {
     if (!text) return;
     const open = this.chats.open ?? PUBLIC;
     let cmd: string;
-    if (open === PUBLIC) cmd = `say ${text}`;
-    else if (open === GROUP) cmd = `tell group ${text}`;
+    // Public has no reply line (owner's first test).
+    if (open === PUBLIC) return;
+    if (open === GROUP) cmd = `tell group ${text}`;
     else {
       const c = this.chats.chat(open);
       if (!c || !tellable(c.name)) return;
       cmd = `tell ${c.name} ${text}`;
     }
     this.ctx.sender.sendCommand(cmd);
+    // The field keeps the keys for the next line.
     this.replyInput.value = '';
   }
 
@@ -617,6 +622,7 @@ export class CommPane extends PaneShell {
       } else if (e.key === 'Escape') {
         e.preventDefault();
         this.replyInput.blur();
+        this.ctx.focusGame?.();
       }
     });
     // A scroll near the top of the thread shows a page more.
@@ -636,8 +642,10 @@ export class CommPane extends PaneShell {
     this.spine.addEventListener('pointerdown', (e) => {
       if (e.target === this.spine) this.onSpineDown(e);
     });
-    this.handle.addEventListener('dblclick', this.onSpineReset);
-    this.spine.addEventListener('dblclick', this.onSpineReset);
+    // A click from the keyboard (Enter, Space) folds too; the pointer's is handled on its press.
+    this.handle.addEventListener('click', (e) => {
+      if (e.detail === 0) this.setFolded(true);
+    });
     this.handle.addEventListener('keydown', (e) => {
       const dir = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
       if (dir === 0) return;
@@ -723,10 +731,6 @@ export class CommPane extends PaneShell {
     } catch {
       /* synthetic events */
     }
-    // A second press while a click's fold waits: a double-click (the
-    // dblclick handler sets the automatic width); the fold is cancelled.
-    const second = this.foldTimer !== null;
-    this.cancelFold();
     const x0 = e.clientX;
     const w0 = this.layout.mode === 'folded' ? 0 : this.layout.width;
     const paneW = this.paneWidth();
@@ -752,37 +756,17 @@ export class CommPane extends PaneShell {
       this.root.removeAttribute('data-dragging');
       const l = this.dragLayout;
       this.dragLayout = null;
-      if (!moved) {
-        // A click folds once the double-click time has passed without a
-        // second press, so a double-click never folds.
-        if (!second) this.foldLater(this.layout.mode !== 'folded');
-      } else if (l) this.setColumn(l);
+      // A click folds at once. The spine shows only while unfolded, so a
+      // click only ever folds: a double-click's second press (perhaps let
+      // go after the fold rendered) does nothing more.
+      if (!moved) this.setFolded(true);
+      else if (l) this.setColumn(l);
       this.markDirty();
     };
     target.addEventListener('pointermove', move);
     target.addEventListener('pointerup', up);
     target.addEventListener('pointercancel', up);
   };
-
-  private readonly onSpineReset = (): void => {
-    this.cancelFold();
-    this.ctx.settings.update({ comm: { folded: false, listWidth: null } });
-  };
-
-  private foldLater(on: boolean): void {
-    const win = this.ctx.doc.defaultView;
-    this.foldTimer = (win ? win.setTimeout.bind(win) : setTimeout)(() => {
-      this.foldTimer = null;
-      this.setFolded(on);
-    }, SPINE_DBL_MS);
-  }
-
-  private cancelFold(): void {
-    if (this.foldTimer === null) return;
-    const win = this.ctx.doc.defaultView;
-    (win ? win.clearTimeout.bind(win) : clearTimeout)(this.foldTimer);
-    this.foldTimer = null;
-  }
 
   /**
    * Runs the search after the debounce: `user` (typing) starts the results
@@ -1205,17 +1189,18 @@ export class CommPane extends PaneShell {
   private renderReply(open: string): void {
     // A chat with an enemy (`*Name*`) or a name of several words has no
     // reply line: neither can be told reliably (owner's reviewer, 2026-11-10).
+    // Public has none (owner's first test): only chats and Group.
     const chat = open === PUBLIC || open === GROUP ? null : this.chats.chat(open);
-    const hide = this.replay || this.ctx.player === true || (chat !== null && chat !== undefined && !tellable(chat.name));
+    const hide =
+      open === PUBLIC || this.replay || this.ctx.player === true || (chat !== null && chat !== undefined && !tellable(chat.name));
     this.reply.hidden = hide;
     if (hide) return;
     let ph: string;
-    if (open === PUBLIC) ph = 'Say something…';
-    else if (open === GROUP) ph = 'Tell the group…';
+    if (open === GROUP) ph = 'Tell the group…';
     else ph = `Reply to ${this.chats.chat(open)?.name ?? ''}…`;
     if (this.replyInput.placeholder !== ph) {
       this.replyInput.placeholder = ph;
-      this.replyInput.setAttribute('aria-label', open === PUBLIC ? 'Say in the room' : open === GROUP ? 'Tell the group' : `${ph} Sent as a tell`);
+      this.replyInput.setAttribute('aria-label', open === GROUP ? 'Tell the group' : `${ph} Sent as a tell`);
     }
     if (open !== PUBLIC && open !== GROUP) {
       const c = this.chats.chat(open);
@@ -1273,7 +1258,9 @@ export class CommPane extends PaneShell {
     }
     const e = entryOf(it)!;
     if (open === PUBLIC || open === GROUP) wrap.append(this.buildLine(e));
-    else if (e.near) wrap.append(this.buildBubble(e, prev ? entryOf(prev) : null));
+    // A group tell in the sender's chat is a bubble too (it still opens,
+    // raises and counts nothing: the model's rule, ADR 0134).
+    else if (e.near || e.groupTell) wrap.append(this.buildBubble(e, prev ? entryOf(prev) : null));
     else wrap.append(this.buildOverheard(e));
     return wrap;
   }
@@ -1327,39 +1314,41 @@ export class CommPane extends PaneShell {
     bb.dataset.channel = m.channel;
     const ink = e.mine ? 'var(--cm-self)' : personInk(this.chats.colorOf(m.talker), this.inks.light, this.inks.bg, 'var(--cm-self)');
     bb.style.setProperty('--pc', ink);
-    if (prev && prev.near && prev.mine === e.mine && m.ts - prev.msg.ts <= SEP_GAP_MS) bb.classList.add('is-cont');
+    if (prev && (prev.near || prev.groupTell) && prev.mine === e.mine && m.ts - prev.msg.ts <= SEP_GAP_MS) bb.classList.add('is-cont');
     if (m.channel === 'whispers') bb.classList.add('is-wh');
     const b = bubbleText(m);
     if (b.action) bb.classList.add('is-act');
     const bt = doc.createElement('div');
     bt.className = 'wc-cm-bt';
     appendStyled(doc, bt, b.text, '', '');
-    const bm = doc.createElement('div');
+    // The channel and time: beside the bubble on hover only, taking no
+    // height (owner's first test); in the DOM for readers and copy.
+    const bm = doc.createElement('span');
     bm.className = 'wc-cm-bm';
-    bm.textContent = `${channelWord(m.channel)} · ${clock(m.ts)}`;
+    const w = doc.createElement('span');
+    w.textContent = e.groupTell ? 'group' : channelWord(m.channel);
+    const sep = doc.createElement('span');
+    sep.className = 'wc-cm-bmsep';
+    sep.textContent = ' · ';
+    const t = doc.createElement('span');
+    t.textContent = clock(m.ts);
+    bm.append(w, sep, t);
     bb.append(bt, bm);
     return bb;
   }
 
   /** Talk on other channels in a person's chat: a quiet centred line. */
+  /**
+   * Talk on other channels in a person's chat (narrate, yell, song,
+   * prayer): left-aligned and whole, formatted as in Public (the verb in
+   * the channel colour), with no bubble: not to you.
+   */
   private buildOverheard(e: ChatEntry): HTMLElement {
-    const doc = this.ctx.doc;
-    const m = e.msg;
-    const d = doc.createElement('div');
+    const d = this.buildLine(e);
     d.className = 'wc-cm-oh';
-    const chp = doc.createElement('span');
-    chp.className = 'wc-cm-chp';
-    chp.textContent = e.groupTell ? 'Group' : channelLabel({ name: m.channel, caption: DEFAULT_CAPTIONS[m.channel] ?? '' });
-    chp.style.color = channelInk(m.channel, this.inks.light, this.inks.bg);
-    const tx = doc.createElement('span');
-    tx.className = 'wc-cm-tx';
-    const b = bubbleText(m);
-    appendStyled(doc, tx, b.action ? b.text : `'${b.text}'`, '', '');
-    const t = doc.createElement('time');
-    t.textContent = clock(m.ts);
-    d.append(chp, tx, t);
     return d;
   }
+
 
   // --------------------------------------------------------------- search
 

@@ -64,20 +64,21 @@ test('the UI pane shows the demo lines and keeps them over a reload', async ({ p
   expect(errors).toEqual([]);
 });
 
-test('Comm: Public without tells, a chat per person, and never archives a replay', async ({ page }) => {
+test('Comm: Public without the chat channels, a chat per person, and never archives a replay', async ({ page }) => {
   const errors = watchErrors(page);
   await demo(page);
   const rows = await commRows(page).allTextContents();
-  // Tells and whispers live in the chats (ADR 0134): not in Public by default.
-  expect(rows.filter((r) => / tells? you | whispers? /.test(r))).toEqual([]);
-  expect(rows.slice(-5)).toEqual([
+  // Tells, says, emotes, whispers, questions and socials live in the chats
+  // (ADR 0134, owner's first test): not in Public by default.
+  expect(rows.filter((r) => / (tells?|says?|whispers?|asks?) /.test(r))).toEqual([]);
+  expect(rows.slice(-3)).toEqual([
     "You narrate 'scout down at the ford'",
     "Dori prays 'Mahal, mend my wounds'",
-    "Ecthel asks 'anyone near Rivendell?'",
     "Lindir sings 'A Elbereth Gilthoniel'",
-    "You say 'ready when you are'",
   ]);
-  await expect(comm(page).locator('.wc-cm-ent')).toHaveCount(4);
+  // Public, Group, Gibur, Dori and Ecthel (a question opens a chat).
+  await expect(comm(page).locator('.wc-cm-ent')).toHaveCount(5);
+  await expect(entry(page, 'ecthel')).toBeVisible();
   await expect(entry(page, 'gibur')).toBeVisible();
   await expect(entry(page, 'dori')).toBeVisible();
   // A replay has no reply line.
@@ -108,9 +109,15 @@ test('a chat: bubbles for near talk, yours on the right, the unread count cleare
   await expect(entry(page, 'gibur').locator('.wc-cm-badge')).toBeHidden();
   await expect(bubbles(page)).toContainText(['on my way', 'hurry, bring the merc', 'more coming, 2 trolls']);
   await expect(comm(page).locator('.wc-cm-bb.is-me .wc-cm-bt')).toContainText(['on my way']);
-  await expect(comm(page).locator('.wc-cm-bb.is-me .wc-cm-bm').first()).toHaveText(/^tell · \d\d:\d\d$/);
-  // His narrate is in his chat, quietly, with the channel as text.
-  await expect(comm(page).locator('.wc-cm-oh .wc-cm-chp').first()).toHaveText('Narrates');
+  // The channel and time: beside the bubble, shown on hover only, no height of its own.
+  const meta = comm(page).locator('.wc-cm-bb.is-me .wc-cm-bm').first();
+  await expect(meta).toHaveText(/^tell · \d\d:\d\d$/);
+  await expect(meta).toHaveCSS('opacity', '0');
+  await expect(meta).toHaveCSS('position', 'absolute');
+  await comm(page).locator('.wc-cm-bb.is-me').first().hover();
+  await expect(meta).toHaveCSS('opacity', '1');
+  // His narrate is in his chat as in Public: left-aligned and whole, no bubble.
+  await expect(comm(page).locator('.wc-cm-oh').first()).toHaveText("Gibur narrates 'orcs gathering at the ford'");
   // Text is selectable (no mousedown is taken).
   const sel = await comm(page)
     .locator('.wc-cm-bb .wc-cm-bt')
@@ -156,18 +163,19 @@ test('the spine folds the chat list; folded, the chip names the open chat and un
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('a double-click on the spine gives the automatic width and never folds', async ({ page }) => {
+test('the spine is a fold button: a chevron on hover, a click folds at once, a double-click does nothing more', async ({ page }) => {
   await demo(page);
-  await page.evaluate(() => window.__wc!.settings.update({ comm: { listWidth: 60 } }));
-  await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-mode', 'rail');
   const handle = comm(page).locator('.wc-cm-handle');
+  await expect(handle).toHaveCSS('opacity', '0');
   await handle.hover();
+  await expect(handle).toHaveCSS('opacity', '1');
+  await expect(handle.locator('svg')).toBeVisible();
   await handle.dblclick();
-  await expect.poll(async () => (await settings(page)).comm.listWidth).toBeNull();
-  // Past the double-click time: still not folded.
-  await page.waitForTimeout(500);
-  expect((await settings(page)).comm.folded).toBe(false);
-  await expect(comm(page).locator('.wc-comm')).not.toHaveAttribute('data-mode', 'folded');
+  // Folded by the first click, no waiting; the second lands on the thread.
+  await expect.poll(async () => (await settings(page)).comm.folded).toBe(true);
+  expect((await settings(page)).comm.listWidth).toBeNull();
+  await comm(page).locator('.wc-cm-unfold').click();
+  await expect.poll(async () => (await settings(page)).comm.folded).toBe(false);
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
@@ -181,7 +189,7 @@ test('the Comm gear sets the Public channels and the chat window live (ADR 0107,
   await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
   const tales = pop.locator('.wc-sp-chan[data-channel="tales"] [role=switch]');
   await tales.click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, whispers: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
   await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
   await tales.click();
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
@@ -204,9 +212,9 @@ test('Options → Panes → Communication in the phone\'s ESC menu sets the Publ
   await page.mouse.move(0, 0);
   await page.keyboard.press('Home');
   await page.keyboard.press('Enter');
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, whispers: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
   await frame.locator('[data-channel="tales"]').click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false, whispers: false });
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false, says: false, emotes: false, whispers: false, questions: false, socials: false });
   const win = frame.locator('[data-key="chat-window"]');
   await expect(win).toHaveText('Chats: active in the last 30 min');
   await win.click();
@@ -255,14 +263,14 @@ test('live comm is archived per character and seeded after a reload', async ({ p
   // Seeded quietly: the chat is there, with no unread.
   await expect(entry(page, 'gibur')).toBeVisible();
   await expect(entry(page, 'gibur').locator('.wc-cm-badge')).toBeHidden();
-  server().send(gmcp('Comm.Channel.Text', { channel: 'says', talker: 'you', text: 'second' }));
-  await expect(commRows(page)).toHaveText(["You say 'second'"]);
+  server().send(gmcp('Comm.Channel.Text', { channel: 'tales', talker: 'you', text: 'second' }));
+  await expect(commRows(page)).toHaveText(["You narrate 'second'"]);
   await entry(page, 'gibur').click();
   await expect(bubbles(page)).toHaveText(['first']);
   expect(errors).toEqual([]);
 });
 
-test('the reply line sends a tell in a chat, a say in Public and a tell to the group in Group', async ({ page }) => {
+test('the reply line: none in Public; a click focuses it, typing stays there, Enter sends a tell (or a tell to the group), Esc gives the keys back', async ({ page }) => {
   const received: string[] = [];
   const server = await live(page, received);
   await page.goto('/');
@@ -273,19 +281,32 @@ test('the reply line sends a tell in a chat, a say in Public and a tell to the g
   await expect(comm(page)).toHaveAttribute('data-active', '');
   server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Lindir', 'talker-type': 'player', text: "Lindir tells you 'there?'" }));
   const input = comm(page).locator('.wc-cm-rinput');
-  await expect(input).toHaveAttribute('placeholder', 'Say something…');
-  await input.fill('hello all');
-  await input.press('Enter');
+  await expect(comm(page).locator('.wc-cm-reply')).toBeHidden();
   await entry(page, 'lindir').click();
   await expect(input).toHaveAttribute('placeholder', 'Reply to Lindir…');
-  await input.fill('yes');
-  await input.press('Enter');
+  // A real click (press and release): the field keeps the focus.
+  await input.click();
+  await page.waitForTimeout(100);
+  await expect(input).toBeFocused();
+  await page.keyboard.type('yes');
+  await expect(input).toHaveValue('yes');
+  await page.keyboard.press('Enter');
+  await expect(input).toHaveValue('');
+  await expect(input).toBeFocused();
+  await page.keyboard.type('again');
+  await page.keyboard.press('Enter');
   await entry(page, 'group').click();
-  await input.fill('wait');
-  await input.press('Enter');
+  await input.click();
+  await page.keyboard.type('wait');
+  await page.keyboard.press('Enter');
   await expect.poll(() => received.join('')).toContain('tell group wait');
   const all = received.join('');
-  expect(all).toContain('say hello all');
   expect(all).toContain('tell Lindir yes');
-  await expect(input).toHaveValue('');
+  expect(all).toContain('tell Lindir again');
+  expect(all).not.toContain('say ');
+  // Esc: the keys go back to the game's input line.
+  await input.click();
+  await page.keyboard.press('Escape');
+  await expect(input).not.toBeFocused();
+  await expect(page.locator('.wc-input-slot textarea, .wc-input-slot input').first()).toBeFocused();
 });

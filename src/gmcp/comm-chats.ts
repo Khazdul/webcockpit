@@ -12,10 +12,10 @@
 //   and the rest are in Public only (and Group).
 // - Another player's (any `talker-type` but `npc`): kept in that person's
 //   record on every channel. The "near" channels (tells, whispers, says,
-//   emotes, socials) open the person's chat, raise it (newest last) and,
-//   when it is not open, count as unread. The other channels (narrates,
-//   yells, songs, questions, prayers) are "overheard": in the chat, quiet,
-//   no raise, no unread. Prayers go to the Valar, never to you.
+//   emotes, socials, questions: MUME's `ask`) open the person's chat, raise
+//   it (newest last) and, when it is not open, count as unread. The other
+//   channels (narrates, yells, songs, prayers) are "overheard": in the
+//   chat, quiet, no raise, no unread. Prayers go to the Valar, never to you.
 // - Group tells: MUME sends them on `tells` with no destination and the
 //   text `<Name> tells the group '…'` (the owner's Cockpit archives,
 //   2026-09/10). They go to Group and to the sender's record as overheard:
@@ -37,7 +37,7 @@
 import { type CommMessage, GROUP_DEST_RE, GROUP_TELL_IN_RE, GROUP_TELL_OUT_RE, cleanName, commPlain, stripAnsi } from './comm';
 
 /** Channels whose talk is directed at the people near you: they open chats. */
-export const NEAR_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'says', 'emotes', 'socials']);
+export const NEAR_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'says', 'emotes', 'socials', 'questions']);
 
 /** Person colour slots (the pane maps them to its palette). */
 export const PERSON_COLORS = 10;

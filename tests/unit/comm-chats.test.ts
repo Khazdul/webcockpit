@@ -32,7 +32,7 @@ describe('CommChats (ADR 0134)', () => {
       ['tales', false],
       ['tells', true],
     ]);
-    for (const ch of ['whispers', 'socials']) {
+    for (const ch of ['whispers', 'socials', 'questions']) {
       const k = new CommChats();
       k.add(msg(ch, 'Ruel', 'Ruel whispers to you something'));
       expect(keys(k)).toEqual(['ruel']);

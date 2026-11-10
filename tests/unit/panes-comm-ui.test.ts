@@ -301,8 +301,10 @@ describe('AnchoredList', () => {
 });
 
 describe('CommPane (ADR 0134)', () => {
-  function comm(opts: Parameters<typeof setup>[0] & { sent?: string[]; player?: boolean } = {}) {
+  /** `defaults`: Public with the new users' filters; else every channel shown (most tests). */
+  function comm(opts: Parameters<typeof setup>[0] & { sent?: string[]; player?: boolean; defaults?: boolean } = {}) {
     const env = setup(opts);
+    if (!opts.defaults) env.settings.update((d) => void (d.comm.filters = {}));
     const sent = opts.sent ?? [];
     const ctx = { ...env.ctx, sender: { sendCommand: (t: string) => void sent.push(t), sendGmcp: () => {} }, ...(opts.player ? { player: true } : {}) };
     env.ctx.game.attach(env.bus);
@@ -324,14 +326,14 @@ describe('CommPane (ADR 0134)', () => {
     return { ...env, pane, q, qa, rows, entries, open, emit, sent };
   }
 
-  it('Public shows formatted lines without tells and whispers by default, and blanks while inactive', () => {
-    const c = comm({ cols: 80 });
+  it('Public shows formatted lines without the chat channels by default, and blanks while inactive', () => {
+    const c = comm({ cols: 80, defaults: true });
     c.emit('tells', 'Gibur', "Gibur tells you 'np :)'");
     c.emit('whispers', 'you', 'hej', { destination: 'Dori' });
     c.emit('socials', 'Vit the innkeeper', 'Vit the innkeeper bows before you.');
     c.emit('tales', 'Gibur', "Gibur narrates 'orcs!'");
     c.flush();
-    expect(c.rows()).toEqual(['Vit bows before you.', "Gibur narrates 'orcs!'"]);
+    expect(c.rows()).toEqual(["Gibur narrates 'orcs!'"]);
     // The verb in the channel colour, the name in the person's.
     const line = c.q('.wc-comm-msg[data-channel="tales"]')!;
     expect(line.querySelector<HTMLElement>('.wc-cm-vb')!.style.color).toBe('#d2ca5c');
@@ -369,11 +371,21 @@ describe('CommPane (ADR 0134)', () => {
     expect(bubbles.map((b) => b.classList.contains('is-me'))).toEqual([false, false, true]);
     expect(bubbles[1]!.classList.contains('is-cont')).toBe(true);
     expect(bubbles[2]!.querySelector('.wc-cm-bm')!.textContent).toMatch(/^tell · \d\d:\d\d$/);
-    // The narrate before the chat opened is in it as an overheard line, no channel icon.
+    // The narrate before the chat opened is in it as an overheard line:
+    // whole, as in Public, the verb in the channel colour; no channel icon.
     const oh = c.q('.wc-cm-oh')!;
-    expect(oh.querySelector('.wc-cm-chp')!.textContent).toBe('Narrates');
-    expect(oh.querySelector('.wc-cm-tx')!.textContent).toBe("'first'");
+    expect(oh.textContent).toBe("Gibur narrates 'first'");
+    expect(oh.querySelector<HTMLElement>('.wc-cm-vb')!.style.color).toBe('#d2ca5c');
     expect(c.qa('.wc-cm-thread svg')).toHaveLength(0);
+    // A group tell from him: a bubble marked "group", no unread, no raise.
+    c.open('public');
+    c.emit('tells', 'Gibur', "Gibur tells the group 'regroup'");
+    c.flush();
+    expect(row.querySelector<HTMLElement>('.wc-cm-badge')!.hidden).toBe(true);
+    c.open('gibur');
+    const last = c.qa('.wc-cm-bb').at(-1)!;
+    expect(last.querySelector('.wc-cm-bt')!.textContent).toBe('regroup');
+    expect(last.querySelector('.wc-cm-bm')!.textContent).toMatch(/^group · /);
   });
 
   it('group tells read "tells the group", go to Group and never open a chat', () => {
@@ -456,28 +468,31 @@ describe('CommPane (ADR 0134)', () => {
     handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
     c.flush();
     expect(c.settings.get().comm.folded).toBe(true);
-    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    // A click (Enter on the button) folds at once.
+    c.settings.update({ comm: { folded: false, listWidth: null } });
     c.flush();
-    expect(c.settings.get().comm).toMatchObject({ folded: false, listWidth: null });
+    handle.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    expect(c.settings.get().comm.folded).toBe(true);
   });
 
-  it('the reply line sends a tell, a say or a tell to the group; hidden in a player and a replay', () => {
+  it('the reply line sends a tell or a tell to the group; none in Public, a player or a replay', () => {
     const sent: string[] = [];
     const c = comm({ cols: 60, rows: 20, sent });
     c.emit('tells', 'Gibur the Dwarf', "Gibur tells you 'hi'");
     const input = c.q<HTMLInputElement>('.wc-cm-rinput')!;
     const enter = () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    expect(input.placeholder).toBe('Say something…');
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(true);
     input.value = 'hello room';
     enter();
     c.open('gibur');
+    expect(c.q('.wc-cm-reply')!.hidden).toBe(false);
     expect(input.placeholder).toBe('Reply to Gibur…');
     input.value = ' on my way ';
     enter();
     c.open('group');
     input.value = 'wait';
     enter();
-    expect(sent).toEqual(['say hello room', 'tell Gibur on my way', 'tell group wait']);
+    expect(sent).toEqual(['tell Gibur on my way', 'tell group wait']);
     expect(input.value).toBe('');
     const p = comm({ player: true });
     expect(p.q('.wc-cm-reply')!.hidden).toBe(true);
