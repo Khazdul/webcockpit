@@ -103,6 +103,8 @@ import { LineAssembler } from '../text/assembler';
 import { InputPane } from '../ui/input-pane';
 import { CellMetrics } from '../theme/cells';
 import { Cockpit } from '../layout/cockpit';
+import { geckoEngine } from '../layout/float-holes';
+import { FloatVeilWatch } from '../layout/veil-watch';
 import type { WeatherHook, WeatherHookDeps } from '../weather/hook';
 import { type Settings, SettingsStore, viewSnapshot } from '../settings';
 import { MapMarkHub } from '../map/marks';
@@ -128,6 +130,16 @@ import { GmcpCache } from '../scripts/gmcp-cache';
 import { device } from '../core/device';
 import { phoneNawsCols } from '../layout/phone';
 import type { PaneId } from '../layout/types';
+
+/** sessionStorage key: the `#perf` overlay is on in this tab (ADR 0135). */
+const PERF_OVERLAY_KEY = 'wc.perfOverlay';
+function perfOverlayRemembered(win: Window | null): boolean {
+  try {
+    return win?.sessionStorage.getItem(PERF_OVERLAY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /** UI pane warnings for capture states that mean runs are not recorded. */
 const CAPTURE_WARNINGS: Readonly<Record<string, string>> = {
@@ -348,6 +360,8 @@ export class App {
   quietLogin = false;
   private readonly unsubs: Array<() => void> = [];
   private disposed = false;
+  /** The `#perf` overlay while it is on (ADR 0135). */
+  private perfOverlay: import('./perf-overlay').PerfOverlay | null = null;
   /** Pending `#help` and `#perf` output, in typed order (see `help`). */
   private helpChain: Promise<void> = Promise.resolve();
   private readonly scriptLib: ScriptLibrary | null;
@@ -488,6 +502,17 @@ export class App {
         : {}),
     });
     if (perf) perf.output = this.output;
+    // Holes under floats → veils where text keeps reaching the screen late (ADR 0135; Firefox only).
+    if (perf && geckoEngine(doc.defaultView?.navigator.userAgent ?? '')) {
+      const watch = new FloatVeilWatch();
+      perf.onShown = (t, ms, script) => {
+        if (!watch.frame(t, ms, script, this.cockpit.textHoles)) return;
+        perf.onShown = null;
+        this.cockpit.useFloatVeils();
+      };
+    }
+    // The `#perf` overlay stays on for the tab's session (ADR 0135).
+    if (perf && perfOverlayRemembered(doc.defaultView)) void this.perfOverlayOn(true);
     this.unsubs.push(this.mapNotes.attach(bus, this.output));
     this.input = new InputPane(bus, this.cockpit.inputEl, {
       sender: this.session,
@@ -637,6 +662,8 @@ export class App {
     void this.scriptLib?.flush();
     this.script.dispose();
     this.perf?.dispose();
+    this.perfOverlay?.dispose();
+    this.perfOverlay = null;
     this.runEvents.dispose();
     this.game.dispose();
     this.recorder.dispose();
@@ -1161,16 +1188,22 @@ export class App {
   }
 
   /**
-   * `#perf [worst | reset]` (ADR 0047): the latency monitor's summary as
-   * rows, like `#help` (not on the bus: not recorded, no rule fires).
+   * `#perf [report | worst | reset]` (ADR 0047): the latency monitor's
+   * tables as rows, like `#help` (not on the bus: not recorded, no rule
+   * fires). `#perf` alone turns the live overlay on or off (ADR 0135).
    */
   private perfCommand(argText: string): void {
     const perf = this.perf;
     if (!perf) return;
     this.helpChain = this.helpChain
       .then(() => import('./perf-command'))
-      .then((m) => {
+      .then(async (m) => {
         if (this.disposed) return;
+        if (m.parsePerf(argText) === 'overlay') {
+          const on = await this.perfOverlayOn(!this.perfOverlay);
+          if (!this.disposed) this.output.pushStyled(m.perfOverlayRow(on, this.output.measureCells().cols));
+          return;
+        }
         const win = this.el.ownerDocument.defaultView;
         const env = { userAgent: win?.navigator.userAgent ?? '', ratio: win?.devicePixelRatio ?? 1 };
         const out = m.perfOutput(argText, perf, env, this.output.measureCells().cols);
@@ -1178,6 +1211,32 @@ export class App {
         else this.output.pushStyled(out);
       })
       .catch((err: unknown) => this.sys(`#perf failed: ${err instanceof Error ? err.message : String(err)}`));
+  }
+
+  /**
+   * Turns the `#perf` overlay on or off (ADR 0135), loading its chunk the
+   * first time, and remembers it for the tab's session (sessionStorage).
+   * Returns whether it is on.
+   */
+  private async perfOverlayOn(on: boolean): Promise<boolean> {
+    const perf = this.perf;
+    if (!perf) return false;
+    try {
+      if (on) this.el.ownerDocument.defaultView?.sessionStorage.setItem(PERF_OVERLAY_KEY, '1');
+      else this.el.ownerDocument.defaultView?.sessionStorage.removeItem(PERF_OVERLAY_KEY);
+    } catch {
+      /* no storage: on for this page only */
+    }
+    if (!on) {
+      this.perfOverlay?.dispose();
+      this.perfOverlay = null;
+      return false;
+    }
+    if (this.perfOverlay) return true;
+    const { PerfOverlay } = await import('./perf-overlay');
+    if (this.disposed || this.perfOverlay) return this.perfOverlay !== null;
+    this.perfOverlay = new PerfOverlay(this.cockpit.el, perf.rings, this.cockpit.gameEl, (fn) => this.cockpit.onLayout(fn));
+    return true;
   }
 
   private async runlog(): Promise<void> {

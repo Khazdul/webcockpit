@@ -1,0 +1,22 @@
+/* The `#perf` overlay (stage 50, ADR 0135): a plain debug box at the game
+ * pane's top left (perf-overlay.ts places it), styled like the weather
+ * demo's caption box (src/weather/demo.css): no frame or ornament, the page
+ * background mixed a quarter toward mid grey (dark grey on a dark page,
+ * light grey on Paper), the theme's text colours, a small font. Above the
+ * floats and the front weather layer; no pointer, focus or keys. `contain`
+ * keeps its 4-a-second text change from repainting anything else. */
+.wc-perf-overlay {
+  position: absolute;
+  z-index: 95;
+  margin: 0;
+  padding: calc(var(--cell-h, 19px) * 0.2) calc(var(--cell-w, 10px) * 0.8);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82em;
+  line-height: 1.25;
+  white-space: pre;
+  color: var(--c-item, var(--term-fg));
+  background: color-mix(in srgb, var(--term-bg) 75%, #808080);
+  pointer-events: none;
+  user-select: none;
+  contain: layout paint style;
+}

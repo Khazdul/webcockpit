@@ -166,7 +166,7 @@ import {
   lookPatch,
   togglePatch,
 } from './model';
-import { floatHoles } from './float-holes';
+import { type FloatHoles, floatHoles } from './float-holes';
 import {
   CROSS_CELLS_BORDERLESS,
   CROSS_CELLS_FRAMED,
@@ -444,7 +444,7 @@ export class Cockpit {
   /** Close crosses by pane (their tooltip follows the label). */
   private readonly closers = new Map<PaneId, HTMLDivElement>();
   /** The holes under floating panes (float-holes.ts), recut after every layout. */
-  private readonly holes: { sync(): void; clear(): void };
+  private readonly holes: FloatHoles;
   /** Hover buttons by pane (the Gear, Colour, Border, Background, ADR 0095), from the left; none on temporary panes. */
   private readonly lookers = new Map<PaneId, { what: PaneButton; el: HTMLDivElement }[]>();
   private readonly onGear: ((id: PaneId) => void) | null;
@@ -929,6 +929,22 @@ export class Cockpit {
    */
   syncHoles(): void {
     if (!this.disposed) this.holes.sync();
+  }
+
+  /** True while a float cuts a hole in the game text or the input line (float-holes.ts). */
+  get textHoles(): boolean {
+    return this.holes.textHoles;
+  }
+
+  /**
+   * Veils instead of holes in the game text and the input line from now on
+   * (ADR 0135, float-holes.ts): App's FloatVeilWatch switches when text
+   * keeps reaching the screen late under them.
+   */
+  useFloatVeils(): void {
+    if (this.disposed) return;
+    this.holes.setVeils(true);
+    this.holes.sync();
   }
 
   /** Phone only: the selected tab (GAME or a pane id). */

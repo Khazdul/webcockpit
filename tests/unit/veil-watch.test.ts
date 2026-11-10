@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import { FloatVeilWatch, VEIL_LATE_COUNT, VEIL_LATE_MS, VEIL_MIN_SPAN_MS, VEIL_SCRIPT_MAX_MS, VEIL_WINDOW } from '../../src/layout/veil-watch';
+
+/** A watch fed with a clock: each frame `gap` ms after the last. */
+function fed(gap = 250) {
+  const w = new FloatVeilWatch();
+  let t = 0;
+  return { w, frame: (shown: number, script: number, holes: boolean, step = gap) => w.frame((t += step), shown, script, holes) };
+}
+
+describe('FloatVeilWatch', () => {
+  it('switches once half a window of quick frames with a hole are late', () => {
+    const { w, frame } = fed(100);
+    const late = VEIL_LATE_MS + 20;
+    let fired = 0;
+    // A fast start: on time.
+    for (let i = 0; i < VEIL_WINDOW; i++) fired += Number(frame(18, 1, true));
+    expect(fired).toBe(0);
+    for (let i = 0; i < VEIL_LATE_COUNT - 1; i++) fired += Number(frame(late, 1, true));
+    expect(fired).toBe(0);
+    // Half late from here: it decides once that has held for VEIL_MIN_SPAN_MS.
+    let n = 0;
+    while (!frame(late, 1, true)) n++;
+    expect(n).toBe(VEIL_MIN_SPAN_MS / 100);
+    expect(w.decided).toBe(true);
+    // Once only.
+    expect(frame(late, 1, true)).toBe(false);
+  });
+
+  it('judges late from what our own script does not explain', () => {
+    const { frame } = fed();
+    for (let i = 0; i < VEIL_WINDOW * 2; i++) expect(frame(VEIL_LATE_MS + 5, 6, true)).toBe(false);
+  });
+
+  it('ignores frames without a hole and frames with a long script (a burst)', () => {
+    const { w, frame } = fed();
+    for (let i = 0; i < VEIL_WINDOW * 2; i++) expect(frame(200, 1, false)).toBe(false);
+    for (let i = 0; i < VEIL_WINDOW * 2; i++) expect(frame(300, VEIL_SCRIPT_MAX_MS + 1, true)).toBe(false);
+    expect(w.decided).toBe(false);
+  });
+
+  it('a few late frames now and then (hardware compositing, p95) never switch', () => {
+    const { frame } = fed();
+    for (let i = 0; i < 2000; i++) expect(frame(i % 20 === 0 ? 80 : 20, 1, true)).toBe(false);
+    // Even one in three late (a noisy machine) does not.
+    for (let i = 0; i < 2000; i++) expect(frame(i % 3 === 0 ? 60 : 20, 1, true)).toBe(false);
+  });
+
+  it('a back-to-back run of late frames (a page load) does not decide; the same lateness over seconds does', () => {
+    const { frame } = fed();
+    // Two seconds of late lines back to back, then on time again: no decision.
+    for (let i = 0; i < 40; i++) expect(frame(120, 1, true, 50)).toBe(false);
+    for (let i = 0; i < VEIL_WINDOW * 2; i++) expect(frame(18, 1, true, 50)).toBe(false);
+    // Late for seconds: it decides.
+    let fired = false;
+    for (let i = 0; i < 200 && !fired; i++) fired = frame(120, 1, true, 50);
+    expect(fired).toBe(true);
+  });
+});

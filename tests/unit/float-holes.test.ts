@@ -3,12 +3,12 @@
 // ADR 0095 round 1): glass floats with weather on, clear floats always but
 // only in the game text and the input line.
 import { describe, expect, it } from 'vitest';
-import { floatHoles } from '../../src/layout/float-holes';
+import { floatHoles, geckoEngine } from '../../src/layout/float-holes';
 
 type Box = { x: number; y: number; w: number; h: number };
 
 /** A cockpit with the game pane, the input line, a docked pane and floats, each at `box` (stubbed rects). */
-function rig(floats: { box: Box; clear?: boolean; z?: number }[]) {
+function rig(floats: { box: Box; clear?: boolean; z?: number }[], veils = false) {
   const root = document.createElement('div');
   const place = (el: HTMLElement, b: Box) => {
     el.getBoundingClientRect = () => ({ left: b.x, top: b.y, width: b.w, height: b.h, right: b.x + b.w, bottom: b.y + b.h, x: b.x, y: b.y, toJSON() {} }) as DOMRect;
@@ -31,7 +31,7 @@ function rig(floats: { box: Box; clear?: boolean; z?: number }[]) {
     if (f.clear) el.setAttribute('data-clear', '');
     return el;
   });
-  return { root, game, input, docked, fl, holes: floatHoles(root) };
+  return { root, game, input, docked, fl, holes: floatHoles(root, { veils }) };
 }
 
 const clip = (el: HTMLElement) => el.style.getPropertyValue('clip-path');
@@ -88,5 +88,58 @@ describe('floatHoles', () => {
     expect(clip(t.fl[0]!)).toContain('M50 50H');
     expect(clip(t.fl[0]!)).not.toContain('M20 20H');
     expect(clip(t.fl[1]!)).toBe('');
+  });
+
+  it('veils (Firefox, slow compositor): no hole in the game text or the input line; a veil per float right after them, below the panes', () => {
+    const t = rig(
+      [
+        { box: { x: 550, y: 100, w: 100, h: 100 } },
+        { box: { x: 100, y: 300, w: 200, h: 100 }, clear: true },
+      ],
+      true,
+    );
+    t.root.setAttribute('data-weather', '');
+    t.holes.sync();
+    expect([clip(t.game), clip(t.input)]).toEqual(['', '']);
+    expect(t.holes.textHoles).toBe(false);
+    // The panes still get theirs.
+    expect(clip(t.docked)).toContain('M-50 100H');
+    const veils = [...t.root.querySelectorAll<HTMLElement>(':scope > .wc-float-veil')];
+    expect(veils).toHaveLength(2);
+    expect(t.input.nextElementSibling).toBe(veils[0]);
+    expect(veils[0]!.nextElementSibling).toBe(veils[1]);
+    expect(veils.map((v) => [v.style.left, v.style.top, v.style.width, v.style.height])).toEqual([
+      ['550px', '100px', '100px', '100px'],
+      ['100px', '300px', '200px', '100px'],
+    ]);
+    expect(veils[0]!.getAttribute('aria-hidden')).toBe('true');
+
+    // Weather off: the glass float needs none; the clear one keeps its veil.
+    t.root.removeAttribute('data-weather');
+    t.holes.sync();
+    const left = [...t.root.querySelectorAll<HTMLElement>(':scope > .wc-float-veil')];
+    expect(left).toHaveLength(1);
+    expect(left[0]!.style.left).toBe('100px');
+    expect(clip(t.game)).toBe('');
+
+    t.holes.clear();
+    expect(t.root.querySelectorAll('.wc-float-veil')).toHaveLength(0);
+  });
+
+  it('switches from holes to veils at the next sync; textHoles says which', () => {
+    const t = rig([{ box: { x: 500, y: 700, w: 200, h: 100 }, clear: true }]);
+    t.holes.sync();
+    expect(t.holes.textHoles).toBe(true);
+    expect(clip(t.game)).not.toBe('');
+    t.holes.setVeils(true);
+    t.holes.sync();
+    expect(t.holes.textHoles).toBe(false);
+    expect([clip(t.game), clip(t.input)]).toEqual(['', '']);
+    expect(t.root.querySelectorAll('.wc-float-veil')).toHaveLength(1);
+  });
+
+  it('knows Firefox by its engine', () => {
+    expect(geckoEngine('Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0')).toBe(true);
+    expect(geckoEngine('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36')).toBe(false);
   });
 });

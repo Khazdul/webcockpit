@@ -98,3 +98,41 @@ harmless.
   for.
 - `Socketish` gains an optional `bufferedAmount`; Session an `onSend`
   hook; the output pane a `flushStats` object.
+
+## Addendum (2026-11-10, stage 50): the live overlay and `#perf report`
+
+Owner decision, through the main session: one tool, `#perf`, and no URL
+flag. The details are in ADR 0135.
+
+- **`#perf` alone** now turns a small live overlay on or off. It prints
+  `#perf overlay on` or `#perf overlay off`; before, it printed the
+  summary.
+  - The overlay is `src/app/perf-overlay.ts`, a lazy chunk. Its figures
+    come from `src/app/perf-live.ts`.
+  - It shows fps over the last second and the worst frame of the last
+    5 s. It also shows received → shown and key → send as median / p95
+    over the last 30 s, read from this monitor's rings
+    (`Ring.valuesSince`).
+  - It is a plain debug box at the game pane's top left, styled like
+    the weather demo's caption box. It takes no pointer, focus or keys.
+  - It stays on for the tab's session (`sessionStorage`,
+    `wc.perfOverlay`).
+- **`#perf report`** prints the summary table above. It needs `rep` at
+  least: `r` and `re` stay `reset`. `#perf worst` and `#perf reset` are
+  unchanged. The usage line is `Usage: #perf [report | worst | reset]`.
+- **Overhead.** The rules above hold whenever the overlay is off: it adds
+  nothing (no listener, no loop, no chunk loaded). While it is on it runs:
+  - one `requestAnimationFrame` callback per frame (two typed-array
+    stores);
+  - a 250 ms interval that computes the figures and writes one text
+    node, so at most four updates a second.
+- **What received → shown does not see.** It ends with a MessageChannel
+  message after the flush frame's main-thread paint. In Firefox
+  (WebRender), the scene build, rasterisation and composite run after
+  that, on other threads. So a slow compositor does not show in the figure
+  itself.
+  - It does show in the frame intervals. Firefox's refresh driver holds
+    back the next tick while the compositor is behind, so the intervals
+    stretch, and so does the next text's wait.
+  - That is why the overlay shows fps and the worst frame next to the
+    latency. No web API gives a frame's presentation time in Firefox.

@@ -5,7 +5,9 @@
 // not on the start-up path. The rows go to the output pane like `#help`
 // rows: not on the bus, so nothing records them and no rule fires on them.
 //
-//   #perf          a summary per measure: count, median, p95, p99, max
+//   #perf          turns the live overlay on or off (stage 50, ADR 0135;
+//                  src/app/perf-overlay.ts, toggled by App)
+//   #perf report   a summary per measure: count, median, p95, p99, max
 //   #perf worst    the ten worst moments, slowest first
 //   #perf reset    empties the rings
 
@@ -39,18 +41,27 @@ export interface PerfEnv {
   clock?: (epochMs: number) => string;
 }
 
-export type PerfAction = 'summary' | 'worst' | 'reset';
+export type PerfAction = 'overlay' | 'summary' | 'worst' | 'reset';
 
-/** The action `#perf <arg>` asks for; null for anything else. */
+/**
+ * The action `#perf <arg>` asks for; null for anything else. `report`
+ * needs `rep` at least: `r` and `re` stay `reset`, as before `report`.
+ */
 export function parsePerf(arg: string): PerfAction | null {
   const w = arg.trim().replace(/^\{\s*(.*?)\s*\}$/, '$1').toLowerCase();
-  if (w === '') return 'summary';
+  if (w === '') return 'overlay';
   if ('worst'.startsWith(w)) return 'worst';
+  if (w.length >= 3 && 'report'.startsWith(w)) return 'summary';
   if ('reset'.startsWith(w)) return 'reset';
   return null;
 }
 
-export const PERF_USAGE = 'Usage: #perf [worst | reset]';
+export const PERF_USAGE = 'Usage: #perf [report | worst | reset]';
+
+/** The row `#perf` prints when it turns the overlay on or off. */
+export function perfOverlayRow(on: boolean, cols = 0): StyledRow[] {
+  return [row([{ text: '#perf', cls: CMD }, { text: on ? ' overlay on' : ' overlay off', cls: DIM }], messageWidth(cols))];
+}
 
 /** `firefox 132`, `chrome 129` … from a user agent string. */
 export function browserName(ua: string): string {
@@ -222,7 +233,8 @@ export function perfWorst(v: PerfView, env: PerfEnv, cols = 0): StyledRow[] {
  */
 export function perfOutput(arg: string, v: PerfView, env: PerfEnv, cols = 0): StyledRow[] | string {
   const action = parsePerf(arg);
-  if (action === null) return PERF_USAGE;
+  // The overlay is App's (it needs the page); here `#perf` alone is not a table.
+  if (action === null || action === 'overlay') return PERF_USAGE;
   if (action === 'reset') {
     v.reset();
     return [row([{ text: '#perf', cls: CMD }, { text: ' cleared', cls: DIM }], messageWidth(cols))];

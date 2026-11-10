@@ -1,6 +1,8 @@
 // `#perf`, the latency monitor (ADR 0047), on the live path against a
 // mocked MUME WebSocket (as live-mock.spec.ts): keys that send, output
-// frames, then the summary, the worst moments and a reset.
+// frames, then the report, the worst moments and a reset; the live
+// overlay (`#perf` alone, ADR 0135): on, its figures, kept over a reload,
+// off.
 import { type Page, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -19,7 +21,7 @@ async function enterMume(page: Page): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-test('#perf summarises key -> send and output frames; worst; reset', async ({ page, browserName }) => {
+test('#perf report summarises key -> send and output frames; worst; reset', async ({ page, browserName }) => {
   const received: Buffer[] = [];
   let server: { send(b: Buffer): void } | null = null;
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
@@ -52,7 +54,7 @@ test('#perf summarises key -> send and output frames; worst; reset', async ({ pa
   await page.keyboard.press('F2');
   await expect.poll(sentText).toContain('say hi\r\n');
 
-  await type('#perf');
+  await type('#perf report');
   const head = rows.filter({ hasText: /^#perf last \d+s, (firefox|chrome) \d+, pixel ratio [\d.]+$/ });
   await expect(head).toHaveCount(1);
   await expect(head).toHaveClass(/wc-msg/);
@@ -74,10 +76,55 @@ test('#perf summarises key -> send and output frames; worst; reset', async ({ pa
 
   await type('#perf reset');
   await expect(rows.filter({ hasText: /^#perf cleared$/ })).toHaveCount(1);
-  await type('#perf');
+  await type('#perf rep');
   await expect(rows.filter({ hasText: /^#perf last/ })).toHaveCount(2);
   await expect(rows.filter({ hasText: /^ {2}key -> send +0 / })).toHaveCount(1);
   await type('#perf bogus');
-  await expect(rows.filter({ hasText: '[SYSTEM] Usage: #perf [worst | reset]' })).toHaveCount(1);
+  await expect(rows.filter({ hasText: '[SYSTEM] Usage: #perf [report | worst | reset]' })).toHaveCount(1);
   expect(sentText()).not.toContain('#perf');
+});
+
+test('#perf alone turns the live overlay on and off; it stays on in the tab', async ({ page }) => {
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    ws.onMessage(() => undefined);
+    ws.send(bytes([IAC, WILL, GMCP]));
+  });
+  const rows = page.locator('.wc-rows .wc-row');
+  const field = page.locator('.wc-input-field');
+  const overlay = page.locator('.wc-perf-overlay');
+  const type = async (text: string): Promise<void> => {
+    await field.fill(text);
+    await page.keyboard.press('Enter');
+  };
+  await enterMume(page);
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await expect(overlay).toHaveCount(0);
+
+  await type('#perf');
+  await expect(rows.filter({ hasText: /^#perf overlay on$/ })).toHaveCount(1);
+  await expect(overlay).toBeVisible();
+  // Live figures within a few updates: the frame rate is a number.
+  await expect(overlay).toContainText(/^fps \d+ {2}worst [\d.]+ ms$/m);
+  await expect(overlay).toContainText(/^shown /m);
+  await expect(overlay).toContainText(/^key /m);
+  // A plain box at the game pane's top left.
+  const [box, game] = await Promise.all([overlay.boundingBox(), page.locator('.wc-game').boundingBox()]);
+  expect(Math.abs(box!.x - game!.x)).toBeLessThan(1);
+  expect(Math.abs(box!.y - game!.y)).toBeLessThan(1);
+  // It takes no pointer, focus or keys: the input keeps them.
+  await expect(overlay).toHaveCSS('pointer-events', 'none');
+  await expect(overlay).toHaveAttribute('aria-hidden', 'true');
+  await expect(field).toBeFocused();
+
+  // Remembered for the tab's session.
+  await page.reload();
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await expect(overlay).toBeVisible();
+
+  await type('#perf');
+  await expect(rows.filter({ hasText: /^#perf overlay off$/ })).toHaveCount(1);
+  await expect(overlay).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('wc.perfOverlay'))).toBeNull();
 });

@@ -122,6 +122,19 @@ export class Ring {
     return this[col].slice(0, this.size);
   }
 
+  /**
+   * The values written after time `t0` (a copy, newest first): the
+   * `#perf` overlay's rolling window. Assumes times only grow.
+   */
+  valuesSince(t0: number): Float64Array {
+    const n = this.size;
+    let k = 0;
+    while (k < n && this.t[(this.writes - 1 - k) % this.capacity]! > t0) k++;
+    const out = new Float64Array(k);
+    for (let j = 0; j < k; j++) out[j] = this.v[(this.writes - 1 - j) % this.capacity]!;
+    return out;
+  }
+
   stats(col: RingColumn = 'v'): Stats | null {
     return stats(this.column(col));
   }
@@ -220,6 +233,13 @@ export class PerfMonitor {
   since: number;
   /** The output pane whose flushes are measured. */
   output: FlushSource | null = null;
+  /**
+   * Called with each received → shown measurement: the flush frame's start
+   * (monitor clock, ms), the latency (ms) and the flush's script time (ms),
+   * right after it is stored: App's FloatVeilWatch (ADR 0135). Null:
+   * nothing is called.
+   */
+  onShown: ((t: number, ms: number, script: number) => void) | null = null;
 
   private readonly now: Clock;
   private readonly win: (Window & typeof globalThis) | null;
@@ -347,7 +367,11 @@ export class PerfMonitor {
       const rows = this.pend[o + 2]!;
       r.frames.push(t0, script, rows, this.pend[o + 3]!);
       const recv = this.pend[o + 4]!;
-      if (recv === recv) r.shown.push(t0, Math.max(0, t - Math.max(recv, this.shownAt)), rows, script);
+      if (recv === recv) {
+        const ms = Math.max(0, t - Math.max(recv, this.shownAt));
+        r.shown.push(t0, ms, rows, script);
+        this.onShown?.(t0, ms, script);
+      }
     }
     this.pending = 0;
   }
