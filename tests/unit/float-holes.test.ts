@@ -8,7 +8,7 @@ import { floatHoles } from '../../src/layout/float-holes';
 type Box = { x: number; y: number; w: number; h: number };
 
 /** A cockpit with the game pane, the input line, a docked pane and floats, each at `box` (stubbed rects). */
-function rig(floats: { box: Box; clear?: boolean; z?: number }[]) {
+function rig(floats: { box: Box; clear?: boolean; z?: number }[], veils = false) {
   const root = document.createElement('div');
   const place = (el: HTMLElement, b: Box) => {
     el.getBoundingClientRect = () => ({ left: b.x, top: b.y, width: b.w, height: b.h, right: b.x + b.w, bottom: b.y + b.h, x: b.x, y: b.y, toJSON() {} }) as DOMRect;
@@ -31,7 +31,7 @@ function rig(floats: { box: Box; clear?: boolean; z?: number }[]) {
     if (f.clear) el.setAttribute('data-clear', '');
     return el;
   });
-  return { root, game, input, docked, fl, holes: floatHoles(root) };
+  return { root, game, input, docked, fl, holes: floatHoles(root, { veils }) };
 }
 
 const clip = (el: HTMLElement) => el.style.getPropertyValue('clip-path');
@@ -88,5 +88,47 @@ describe('floatHoles', () => {
     expect(clip(t.fl[0]!)).toContain('M50 50H');
     expect(clip(t.fl[0]!)).not.toContain('M20 20H');
     expect(clip(t.fl[1]!)).toBe('');
+  });
+
+  it('veils (Firefox): no hole in the game text or the input line; a veil per float right after them, below the panes', () => {
+    const t = rig(
+      [
+        { box: { x: 550, y: 100, w: 100, h: 100 } },
+        { box: { x: 100, y: 300, w: 200, h: 100 }, clear: true },
+      ],
+      true,
+    );
+    const back = document.createElement('canvas');
+    back.className = 'wc-weather-layer wc-weather-back';
+    t.root.prepend(back);
+    t.root.setAttribute('data-weather', '');
+    t.holes.sync();
+    expect([clip(t.game), clip(t.input)]).toEqual(['', '']);
+    // The panes still get theirs.
+    expect(clip(t.docked)).toContain('M-50 100H');
+    const veils = [...t.root.querySelectorAll<HTMLElement>(':scope > .wc-float-veil')];
+    expect(veils).toHaveLength(2);
+    expect(t.input.nextElementSibling).toBe(veils[0]);
+    expect(veils[0]!.nextElementSibling).toBe(veils[1]);
+    expect(back.id).toMatch(/^wc-weather-back-\d+$/);
+    expect(veils.map((v) => [v.style.left, v.style.top, v.style.width, v.style.height])).toEqual([
+      ['550px', '100px', '100px', '100px'],
+      ['100px', '300px', '200px', '100px'],
+    ]);
+    // The back layer's live image, lined up with the canvas (happy-dom drops `-moz-element` itself).
+    expect(veils[1]!.style.backgroundPosition).toBe('-100px -300px');
+    expect(veils[0]!.getAttribute('aria-hidden')).toBe('true');
+
+    // Weather off: the glass float needs none; the clear one keeps its veil, the page colour only.
+    t.root.removeAttribute('data-weather');
+    t.holes.sync();
+    const left = [...t.root.querySelectorAll<HTMLElement>(':scope > .wc-float-veil')];
+    expect(left).toHaveLength(1);
+    expect(left[0]!.style.left).toBe('100px');
+    expect(left[0]!.style.backgroundPosition).toBe('');
+    expect(clip(t.game)).toBe('');
+
+    t.holes.clear();
+    expect(t.root.querySelectorAll('.wc-float-veil')).toHaveLength(0);
   });
 });

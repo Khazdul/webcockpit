@@ -220,6 +220,12 @@ export class PerfMonitor {
   since: number;
   /** The output pane whose flushes are measured. */
   output: FlushSource | null = null;
+  /**
+   * Called with each received → shown measurement (ms) and its flush's
+   * script time (ms), right after it is stored: App's FloatVeilWatch (ADR
+   * 0135). Null: nothing is called.
+   */
+  onShown: ((ms: number, script: number) => void) | null = null;
 
   private readonly now: Clock;
   private readonly win: (Window & typeof globalThis) | null;
@@ -347,7 +353,11 @@ export class PerfMonitor {
       const rows = this.pend[o + 2]!;
       r.frames.push(t0, script, rows, this.pend[o + 3]!);
       const recv = this.pend[o + 4]!;
-      if (recv === recv) r.shown.push(t0, Math.max(0, t - Math.max(recv, this.shownAt)), rows, script);
+      if (recv === recv) {
+        const ms = Math.max(0, t - Math.max(recv, this.shownAt));
+        r.shown.push(t0, ms, rows, script);
+        this.onShown?.(ms, script);
+      }
     }
     this.pending = 0;
   }

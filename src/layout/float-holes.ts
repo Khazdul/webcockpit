@@ -17,6 +17,20 @@
 //                  weather (or the page) and the panes under it show, the
 //                  game text does not (owner round 1)
 //
+// Veils (stage 50, ADR 0135): Firefox only (`-moz-element()`), and only
+// once `setVeils(true)` (App's FloatVeilWatch, src/layout/veil-watch.ts:
+// text that keeps reaching the screen late while there are holes). Then
+// the game text and the input line get no hole: a veil, a plain box at the
+// float's place painted right above them and below every pane, shows what
+// a hole would: the weather's back layer as a live image of its canvas
+// (`-moz-element`, the very frame the canvas shows) over the page colour.
+// Why: in Firefox's software WebRender a path clip on the game text costs
+// a re-raster of the masked text under the float on every new line (12–14
+// fps with a large framed float, bench/frame-matrix.ts); a veil is one
+// image rectangle. Why not always: the live image costs a main-thread
+// paint at the canvas' 30 fps, about +6 ms on a key's next frame, which
+// hardware WebRender, where the hole is cheap, need not pay.
+//
 // The rest is pure.
 
 import type { Rect } from './allocate';
@@ -65,6 +79,17 @@ export function holeClip(w: number, h: number, holes: readonly Rect[]): string {
   return `path(evenodd, "${rect(box)}${parts.map(rect).join('')}")`;
 }
 
+let veilIds = 0;
+
+/** Firefox's `-moz-element()` (a live image of another element), which the veils need. */
+export function elementImageSupported(): boolean {
+  try {
+    return typeof CSS !== 'undefined' && CSS.supports('background-image', '-moz-element(#a)');
+  } catch {
+    return false;
+  }
+}
+
 /**
  * See-through floating panes (owner feedback 3, 13, 18, item 57; ADR 0091
  * "Engine"). With weather on a glass float has no fill of its own
@@ -82,10 +107,66 @@ export function holeClip(w: number, h: number, holes: readonly Rect[]): string {
  * holes in the game text and the input line only: what else lies under it
  * shows through it, the game text does not.
  */
-export function floatHoles(root: HTMLElement): { sync(): void; clear(): void } {
+export interface FloatHoles {
+  /** Recuts the holes (and moves the veils) for the current layout. */
+  sync(): void;
+  /** Undoes every hole, mark and veil. */
+  clear(): void;
+  /** Veils instead of holes in the game text and the input line (ADR 0135); takes effect at the next `sync`. */
+  setVeils(on: boolean): void;
+  /** True while the game text or the input line has a hole (not a veil). */
+  readonly textHoles: boolean;
+}
+
+export function floatHoles(root: HTMLElement, opts: { veils?: boolean } = {}): FloatHoles {
   /** The clip each element got from here (to leave it alone when unchanged and to undo it). */
   const clips = new Map<HTMLElement, string>();
   const see = new Set<HTMLElement>();
+  let useVeils = opts.veils ?? false;
+  let textHoles = false;
+  /** The veils shown, in float order (reused while the floats stay). */
+  const veils: HTMLElement[] = [];
+  /** Last style per veil, to touch the DOM only on a change. */
+  const veilKeys: string[] = [];
+  const doc = root.ownerDocument;
+  const syncVeils = (rects: readonly { x: number; y: number; w: number; h: number }[], weather: boolean): void => {
+    let image = '';
+    if (weather) {
+      const back = root.querySelector<HTMLElement>(':scope > .wc-weather-back');
+      if (back && !back.hidden) {
+        if (!back.id) back.id = `wc-weather-back-${++veilIds}`;
+        image = `-moz-element(#${back.id})`;
+      }
+    }
+    while (veils.length > rects.length) {
+      veils.pop()!.remove();
+      veilKeys.pop();
+    }
+    // Right after the input line: above the game text and the input line, below every pane.
+    const anchor = root.querySelector<HTMLElement>(':scope > .wc-input-slot') ?? root.querySelector<HTMLElement>(':scope > .wc-game');
+    rects.forEach((r, i) => {
+      let v = veils[i];
+      if (!v) {
+        v = doc.createElement('div');
+        v.className = 'wc-float-veil';
+        v.setAttribute('aria-hidden', 'true');
+        veils.push(v);
+        veilKeys.push('');
+      }
+      if (anchor && v.previousElementSibling !== (i === 0 ? anchor : veils[i - 1])) (i === 0 ? anchor : veils[i - 1]!).after(v);
+      const key = `${r.x} ${r.y} ${r.w} ${r.h} ${image}`;
+      if (veilKeys[i] === key) return;
+      veilKeys[i] = key;
+      const st = v.style;
+      st.left = `${r.x}px`;
+      st.top = `${r.y}px`;
+      st.width = `${r.w}px`;
+      st.height = `${r.h}px`;
+      // The canvas covers the cockpit: its image, placed so it lines up with it.
+      st.backgroundImage = image;
+      st.backgroundPosition = image ? `${-r.x}px ${-r.y}px` : '';
+    });
+  };
   const unclip = (el: HTMLElement): void => {
     el.style.removeProperty('clip-path');
     el.removeAttribute('data-weather-under');
@@ -118,10 +199,13 @@ export function floatHoles(root: HTMLElement): { sync(): void; clear(): void } {
         see.add(f.el);
       }
       const next = new Map<HTMLElement, string>();
+      // Veils in place of the holes in the game text and the input line.
+      syncVeils(useVeils ? floats.map((f) => f.r) : [], weather);
       if (floats.length) {
         for (const el of root.querySelectorAll<HTMLElement>(':scope > .wc-game, :scope > .wc-input-slot, :scope > .wc-pane')) {
           if (el.hidden) continue;
           const text = !el.classList.contains('wc-pane');
+          if (text && useVeils) continue;
           const self = floats.find((f) => f.el === el);
           const r = self?.r ?? rel(el);
           if (r.w <= 0 || r.h <= 0) continue;
@@ -135,6 +219,7 @@ export function floatHoles(root: HTMLElement): { sync(): void; clear(): void } {
           if (clip) next.set(el, clip);
         }
       }
+      textHoles = [...next.keys()].some((el) => !el.classList.contains('wc-pane'));
       for (const el of [...clips.keys()]) if (!next.has(el)) unclip(el);
       for (const [el, clip] of next) {
         if (clips.get(el) === clip) continue;
@@ -143,8 +228,17 @@ export function floatHoles(root: HTMLElement): { sync(): void; clear(): void } {
         clips.set(el, clip);
       }
     },
+    setVeils(on: boolean) {
+      useVeils = on;
+    },
+    get textHoles() {
+      return textHoles;
+    },
     clear() {
       for (const el of [...clips.keys()]) unclip(el);
+      textHoles = false;
+      for (const v of veils.splice(0)) v.remove();
+      veilKeys.length = 0;
       for (const el of see) el.removeAttribute('data-weather-see');
       see.clear();
     },

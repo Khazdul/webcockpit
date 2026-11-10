@@ -103,6 +103,8 @@ import { LineAssembler } from '../text/assembler';
 import { InputPane } from '../ui/input-pane';
 import { CellMetrics } from '../theme/cells';
 import { Cockpit } from '../layout/cockpit';
+import { elementImageSupported } from '../layout/float-holes';
+import { FloatVeilWatch } from '../layout/veil-watch';
 import type { WeatherHook, WeatherHookDeps } from '../weather/hook';
 import { type Settings, SettingsStore, viewSnapshot } from '../settings';
 import { MapMarkHub } from '../map/marks';
@@ -487,6 +489,15 @@ export class App {
         : {}),
     });
     if (perf) perf.output = this.output;
+    // Holes under floats → veils where text keeps reaching the screen late (ADR 0135; Firefox only).
+    if (perf && elementImageSupported()) {
+      const watch = new FloatVeilWatch();
+      perf.onShown = (ms, script) => {
+        if (!watch.frame(ms, script, this.cockpit.textHoles)) return;
+        perf.onShown = null;
+        this.cockpit.useFloatVeils();
+      };
+    }
     this.unsubs.push(this.mapNotes.attach(bus, this.output));
     this.input = new InputPane(bus, this.cockpit.inputEl, {
       sender: this.session,
