@@ -59,6 +59,24 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-10 — Comm: bubbles only for talk to you (branch `comm-directed-bubbles`)
+
+- **Done:** in a person's chat only private talk is a bubble
+  (`ChatEntry.direct`): their tell, their whisper or question whose text
+  says it is to you (`saysToYou`), your tell / whisper / question to
+  them; group tells keep their marked bubble. Says, emotes, socials and
+  undirected whispers and questions are lines as narrates. `formatComm`
+  follows the text (`whispers to you` / `asks you` only when said). What
+  opens, raises and counts in a chat is unchanged. ADR 0134 addendum.
+- **Tests:** typecheck clean; unit 3572 passed; Comm e2e specs 107/108
+  (one Firefox pane-buttons test failed once, passed alone; not Comm).
+- **Open issues:** the GMCP text of an incoming player whisper and a
+  directed ask is not captured: check live. Owner to decide: group tells
+  as lines too? should only direct talk open a chat and count unread?
+  Not looked at in a browser by the session.
+- **Next:** owner tests the branch; then merge to `main` and release.
+- **Commits:** 6ad20da6, 48463b40, plus this one.
+
 ### 2026-11-10 — Comm: NPCs in Public, release 0.4.1
 
 - **Done:** `comm.npcs` switch (default off): Public, its snippet and its
