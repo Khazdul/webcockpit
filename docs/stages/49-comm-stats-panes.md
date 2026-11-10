@@ -1,6 +1,6 @@
 # Stage 49 — Comm and Statistics panes
 
-Status: **In progress** (2026-11-09).
+Status: **Built, awaiting owner test** (2026-11-10).
 
 ## Goal
 
@@ -65,10 +65,10 @@ the merge.
 - [x] 49c: theming (tints, Paper, border off, clear)
 - [x] 49c: e2e (chats open and order, Group roster, search, fold, gear,
       reply sends a tell, selection, Paper)
-- [ ] 49d: performance after, interleaved with `main`; table in this file;
+- [x] 49d: performance after, interleaved with `main`; table in this file;
       regressions agreed with the owner
-- [ ] 49d: code review (fresh reviewer), fixes
-- [ ] 49d: docs (Inv §2.7 and §7.3 pointers, ADR 0109 addendum, manual),
+- [x] 49d: code review (fresh reviewer), fixes
+- [x] 49d: docs (Inv §2.7 and §7.3 pointers, ADR 0109 addendum, manual),
       test guide, progress.md
 
 ## Performance
@@ -420,12 +420,14 @@ owner" below.
 
 ### For the owner (performance to agree)
 
-- Statistics: a kill costs about 15 ms more main-thread time in Chromium
-  (about 8 ms of it the slide and fade); no dropped frame, and idle is
-  3 ms per second cheaper. Kept; easy to drop the slide.
-- Comm in Firefox: about 1.4 ms more pane script per message and 1.3 ms
-  more on the frame after (median), within a frame, no long frames in a
-  real window. Chromium is faster than main.
+- Statistics: a kill costs Chromium about 31 ms of main-thread time
+  (main: 6–8 ms, net of its every-second load); about 15 ms of it is the
+  200 ms slide and fade. The frame after a kill stays short (Chromium
+  ≤ 4.2 ms, headed Firefox 10.7 vs 7.2 ms); idle is about 2 ms per second
+  cheaper. Kept for now; dropping the slide is a small change.
+- Comm in Firefox: about 1.7 ms more per message in a real window (pane
+  script 3.3 vs 1.7 ms, frame after 7.5–7.8 vs 5.7–5.9 ms median), within
+  a frame, no long frames. Chromium is faster than main.
 - Found on `main`, not caused by this stage: in headless Firefox a large
   framed float over the weather runs at 12–14 fps (border off: 60 fps).
   Please check whether a large floating pane with its border over the
