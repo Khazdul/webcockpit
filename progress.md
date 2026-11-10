@@ -71,7 +71,12 @@ Statuses: Next, In progress, Owner testing, Done.
   (light play).
 - **Open issues:** the mockups were written without rendering; not
   checked by eye.
-- **Commits:** 644083e9, plus this one.
+- **Round 2 (same day):** the owner chose the base (A1 compass with Flee
+  left of S, map in the top third behind the text, fight card, chat icon
+  and tell card, Comm over the map area, pane strip from the top). 18 new
+  screens in four directions on a second canvas, with a real Bree map;
+  `notes/research/phone-makeover/round2/`. Next: the owner's reactions.
+- **Commits:** 644083e9 and the two after it.
 
 ### 2026-11-10 — Release 0.4.2
 

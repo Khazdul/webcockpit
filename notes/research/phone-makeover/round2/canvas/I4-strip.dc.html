@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>I4 Thumb reach, pane strip from the Panes key</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit, round 2 (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer;background:none;border:0}
+/* the map: a real Bree map, player's room in the centre of the image */
+.map{position:absolute;left:0;right:0;top:0;height:330px;background-color:#000;background-image:url(/_blob/f1a6ca8872e484a805d4dc5f4cafc11e);background-position:center;background-size:390px 390px;background-repeat:no-repeat;opacity:.85;-webkit-mask-image:linear-gradient(#000 0,#000 52%,rgba(0,0,0,.45) 78%,transparent 100%);mask-image:linear-gradient(#000 0,#000 52%,rgba(0,0,0,.45) 78%,transparent 100%);pointer-events:none}
+.here{position:absolute;left:50%;top:165px;width:30px;height:30px;margin:-15px 0 0 -15px;border:2px solid #e8c48a;border-radius:5px;box-shadow:0 0 10px rgba(232,196,138,.8);pointer-events:none}
+/* game text; .fade lets the top lines sink away over the map */
+.gt{position:relative;margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;text-shadow:0 1px 0 #000,0 0 3px #000}
+.gt.fade{-webkit-mask-image:linear-gradient(transparent 0,rgba(0,0,0,.10) 70px,rgba(0,0,0,.42) 200px,#000 330px);mask-image:linear-gradient(transparent 0,rgba(0,0,0,.10) 70px,rgba(0,0,0,.42) 200px,#000 330px)}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.solid{background:#14110d;border:1px solid rgba(232,196,138,.30);border-radius:10px;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 4px 14px rgba(0,0,0,.7)}
+/* compass: 40 px keys, the smallest that a thumb still hits */
+.pad{position:absolute;right:8px;bottom:64px;display:grid;grid-template-columns:repeat(3,40px);grid-auto-rows:40px;gap:3px}
+.key{display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}.foe{background:#d75f5f}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f0b84f;color:#170f03;font-size:11px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.s{width:18px;height:18px}
+.inrow{position:relative;display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* top-right chat key and top-centre pull handle for the pane strip */
+.chatb{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:22px;background:rgba(22,19,15,.82);border:1px solid rgba(232,196,138,.34);color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.7)}
+.chatb .badge{position:absolute;right:-3px;top:-3px}
+.pull{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:44px;display:flex;justify-content:center}
+.pull i{display:block;width:64px;height:14px;border-radius:0 0 8px 8px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #5a5148;border-top:0;position:relative}
+.pull i::after{content:"";position:absolute;left:18px;right:18px;top:5px;height:2px;border-radius:1px;background:#e8c48a;opacity:.8}
+/* fight card: HP against HP, one slim row; only while fighting */
+.fight{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);align-items:end;column-gap:8px;padding:5px 10px 7px;background:linear-gradient(rgba(11,9,7,.94),rgba(11,9,7,.80));border-bottom:1px solid rgba(232,196,138,.26)}
+.fight .n{display:flex;justify-content:space-between;font-size:12px;line-height:15px;white-space:nowrap;overflow:hidden}
+.fight .vs{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:14px;color:#e8c48a;text-align:center}
+.fight .r .bar i{margin-left:auto}
+/* tell card: slim, one line, truncates */
+.toast{display:flex;align-items:center;gap:8px;height:44px;padding:0 10px 0 6px;font-size:13px;line-height:16px;text-align:left}
+.toast .t{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.av{flex:none;width:30px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;background:rgba(95,175,95,.18);border:1px solid #5faf5f;color:#8fd08f}
+/* ---- direction I, thumb reach: everything you touch is at the bottom ---- */
+/* left-hand cluster mirrors the compass: Chat on top, Panes below */
+.lc{position:absolute;left:8px;bottom:64px;display:grid;grid-template-columns:44px;grid-auto-rows:44px;gap:4px}
+.lc .key{position:relative;border-radius:10px}
+.lc .badge{position:absolute;right:-5px;top:-6px}
+.key.on{background:#e8c48a;border-color:#e8c48a;color:#170f03;box-shadow:0 0 10px rgba(232,196,138,.45),0 2px 6px rgba(0,0,0,.6)}
+/* the newest lines run in the channel between the cluster and the compass */
+.gt pre.mid{padding-left:48px}
+.gt pre.gap{margin-top:19px}
+/* pane strip at the top, 186 px: fight card 34, band 6, pane 138, edge 8 */
+.strip{position:relative;flex:none;height:186px;display:flex;flex-direction:column}
+.strip .band{flex:none;height:6px}
+.strip .edge{flex:none;height:8px}
+.pane{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.pane .rows{padding:16px 10px 0}
+.grow{display:grid;grid-template-columns:minmax(0,1fr) 54px 54px 54px;column-gap:8px;align-items:center;height:24px;font-size:12px;line-height:15px}
+.grow .nm{display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.grow .bar{display:block}
+.grow .bar.none{opacity:.45}
+.tag{padding:0 4px;border:1px solid rgba(232,196,138,.34);border-radius:4px;font-size:10px;line-height:13px;color:#e8c48a}
+.dots{display:flex;align-items:center;justify-content:center;gap:7px;height:20px}
+.dots i{display:block;width:6px;height:6px;border-radius:3px;background:#5a5148}
+.dots i.on{background:#e8c48a;box-shadow:0 0 6px rgba(232,196,138,.7)}
+/* the map moves down below the strip */
+.map.low{top:186px}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- the map, shifted down below the strip -->
+  <div class="map low"></div>
+
+  <!-- pane strip, opened from the Panes key: fight card first, then one pane -->
+  <div class="strip win">
+    <div class="fight">
+      <div class="l"><div class="n"><span class="wh">You</span><span>74%</span></div><span class="bar" style="display:block"><i class="hp" style="width:74%"></i></span></div>
+      <div class="vs">vs</div>
+      <div class="r"><div class="n"><span class="hit">wounded</span><span class="wh">a half-orc ruffian</span></div><span class="bar" style="display:block"><i class="foe" style="width:45%"></i></span></div>
+    </div>
+    <div class="pane">
+      <div class="band iron"></div>
+      <div class="hood cz">Group</div>
+      <div class="rows">
+        <div class="grow"><span class="nm"><span class="wh">Rasta</span></span><span class="bar"><i class="hp" style="width:74%"></i></span><span class="bar"><i class="mn" style="width:80%"></i></span><span class="bar"><i class="mv" style="width:90%"></i></span></div>
+        <div class="grow"><span class="nm"><span class="wh">Gibur</span></span><span class="bar"><i class="hp" style="width:85%"></i></span><span class="bar"><i class="mn" style="width:60%"></i></span><span class="bar"><i class="mv" style="width:70%"></i></span></div>
+        <div class="grow"><span class="nm"><span class="wh">Dori</span><span class="hit">hurt</span></span><span class="bar"><i class="foe" style="width:41%"></i></span><span class="bar none"></span><span class="bar"><i class="mv" style="width:55%"></i></span></div>
+        <div class="grow"><span class="nm"><span class="wh">a citizen mercenary</span><span class="tag">MERC</span></span><span class="bar"><i class="hp" style="width:90%"></i></span><span class="bar none"></span><span class="bar none"></span></div>
+      </div>
+      <div class="dots" role="img" aria-label="Pane 2 of 4: Group">
+        <i></i><i class="on"></i><i></i><i></i>
+      </div>
+    </div>
+    <div class="edge iron"></div>
+  </div>
+
+  <!-- game text; its top lines fade out over the map -->
+  <div class="gt fade">
+<pre>*=&gt; <span class="cmd">north</span>
+<span class="room">Hill Road</span>
+Almost twelve feet wide, this road
+naturally follows the hills and is made
+from an almost white gravel.
+<span class="ex">Exits: north, south, east, west.</span>
+
+*=&gt; <span class="cmd">north</span>
+<span class="room">Hill Road</span>
+The white gravelled road bordered with
+white stone blocks flows naturally
+through Bree-hill, slightly narrowing
+where it intersects with an entrance to
+a large grassy park to the east.
+<span class="ex">Exits: north, south, east.</span>
+A hobbit farmer walks in from the south.
+<span class="yell">Thalion narrates 'anyone seen the warg</span>
+<span class="yell">pack near Fornost?'</span>
+
+*=&gt; <span class="cmd">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east</span>
+<span class="yell">'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely</span>
+<span class="hit">hard.</span>
+A half-orc ruffian is stunned!
+<span class="yell">Dori narrates 'bashed, hit it now'</span>
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts
+to flee.</pre><pre class="mid gap">*= HP:Fine R:Hurt&gt;
+<span class="dim">A half-orc ruffian</span>
+<span class="dim">slashes Dori.</span>
+<span class="hit">You pierce a half-orc</span>
+<span class="hit">ruffian hard.</span>
+
+*= HP:Fine R:Bad&gt;</pre>
+  </div>
+
+  <!-- left cluster: Panes is active; tapping it again steps to the next pane -->
+  <div class="lc">
+    <button class="key" aria-label="Open Comm"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg></button>
+    <button class="key on" aria-label="Next pane" aria-pressed="true"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></button>
+  </div>
+
+  <!-- compass -->
+  <div class="pad">
+    <span></span>
+    <button class="key" aria-label="North">N</button>
+    <button class="key off" aria-label="Up"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14l6-6 6 6"/><path d="M6 19h12"/></svg></button>
+    <button class="key off" aria-label="West">W</button>
+    <button class="key" aria-label="Look"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="key" aria-label="East">E</button>
+    <button class="key flee" aria-label="Flee"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="14" cy="4.5" r="1.8"/><path d="M8 10l4-2 3 3 3 1"/><path d="M12 8l-1 6 3 3v4"/><path d="M11 14l-3 2-3 0"/></svg></button>
+    <button class="key" aria-label="South">S</button>
+    <button class="key off" aria-label="Down"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10l6 6 6-6"/><path d="M6 5h12"/></svg></button>
+  </div>
+
+  <!-- input row -->
+  <div class="inrow">
+    <button class="ib" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <div class="field">Command</div>
+    <button class="ib" aria-label="Command history"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

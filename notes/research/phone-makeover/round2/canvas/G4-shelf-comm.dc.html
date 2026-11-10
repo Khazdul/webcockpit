@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>G4 Shelf at tall height, Comm tab, fighting</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* ---- shared kit, round 2 (same block in every artboard) ---- */
+.ph{width:390px;height:844px;overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:19px;display:flex;flex-direction:column}
+.ph *{box-sizing:border-box}
+:where(.ph) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer;background:none;border:0}
+/* the map: a real Bree map, player's room in the centre of the image */
+.map{position:absolute;left:0;right:0;top:0;height:330px;background-color:#000;background-image:url(/_blob/f1a6ca8872e484a805d4dc5f4cafc11e);background-position:center;background-size:390px 390px;background-repeat:no-repeat;opacity:.85;-webkit-mask-image:linear-gradient(#000 0,#000 52%,rgba(0,0,0,.45) 78%,transparent 100%);mask-image:linear-gradient(#000 0,#000 52%,rgba(0,0,0,.45) 78%,transparent 100%);pointer-events:none}
+.here{position:absolute;left:50%;top:165px;width:30px;height:30px;margin:-15px 0 0 -15px;border:2px solid #e8c48a;border-radius:5px;box-shadow:0 0 10px rgba(232,196,138,.8);pointer-events:none}
+/* game text; .fade lets the top lines sink away over the map */
+.gt{position:relative;margin:0;padding:8px 10px;white-space:pre;font:inherit;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;text-shadow:0 1px 0 #000,0 0 3px #000}
+.gt.fade{-webkit-mask-image:linear-gradient(transparent 0,rgba(0,0,0,.10) 70px,rgba(0,0,0,.42) 200px,#000 330px);mask-image:linear-gradient(transparent 0,rgba(0,0,0,.10) 70px,rgba(0,0,0,.42) 200px,#000 330px)}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#87afd7}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.iron{background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:1px 16px 3px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 7px 7px;font-size:11px;line-height:14px;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.win{background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.solid{background:#14110d;border:1px solid rgba(232,196,138,.30);border-radius:10px;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 4px 14px rgba(0,0,0,.7)}
+/* compass: 40 px keys, the smallest that a thumb still hits */
+.pad{position:absolute;right:8px;bottom:64px;display:grid;grid-template-columns:repeat(3,40px);grid-auto-rows:40px;gap:3px}
+.key{display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(22,19,15,.80);border:1px solid rgba(232,196,138,.34);color:#e8c48a;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.off{color:#8d7a5c;border-color:rgba(232,196,138,.14);background:rgba(22,19,15,.55)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.84)}
+.bar{height:6px;border-radius:3px;background:#221f1b;overflow:hidden;flex:1}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}.foe{background:#d75f5f}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f0b84f;color:#170f03;font-size:11px;font-weight:700;line-height:1}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.s{width:18px;height:18px}
+.inrow{position:relative;display:flex;align-items:center;gap:8px;padding:6px 8px;background:#0b0907;border-top:1px solid #2a2520}
+.field{flex:1;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.30);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a}
+.ib{width:44px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center}
+/* top-right chat key and top-centre pull handle for the pane strip */
+.chatb{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:22px;background:rgba(22,19,15,.82);border:1px solid rgba(232,196,138,.34);color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.7)}
+.chatb .badge{position:absolute;right:-3px;top:-3px}
+.pull{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:44px;display:flex;justify-content:center}
+.pull i{display:block;width:64px;height:14px;border-radius:0 0 8px 8px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #5a5148;border-top:0;position:relative}
+.pull i::after{content:"";position:absolute;left:18px;right:18px;top:5px;height:2px;border-radius:1px;background:#e8c48a;opacity:.8}
+/* fight card: HP against HP, one slim row; only while fighting */
+.fight{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);align-items:end;column-gap:8px;padding:5px 10px 7px;background:linear-gradient(rgba(11,9,7,.94),rgba(11,9,7,.80));border-bottom:1px solid rgba(232,196,138,.26)}
+.fight .n{display:flex;justify-content:space-between;font-size:12px;line-height:15px;white-space:nowrap;overflow:hidden}
+.fight .vs{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:14px;color:#e8c48a;text-align:center}
+.fight .r .bar i{margin-left:auto}
+/* tell card: slim, one line, truncates */
+.toast{display:flex;align-items:center;gap:8px;height:44px;padding:0 10px 0 6px;font-size:13px;line-height:16px;text-align:left}
+.toast .t{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.av{flex:none;width:30px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;background:rgba(95,175,95,.18);border:1px solid #5faf5f;color:#8fd08f}
+/* ---- direction G: one shelf, one handle ---- */
+.shelf{position:absolute;left:0;right:0;top:0;z-index:3;display:flex;flex-direction:column;background:#100d0a}
+.grab{position:absolute;left:50%;top:100%;transform:translateX(-50%);width:120px;height:44px;display:flex;justify-content:center;align-items:flex-start}
+.grab i{display:block;position:relative;width:96px;height:16px;border-radius:0 0 9px 9px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #5a5148;border-top:0;box-shadow:0 2px 6px rgba(0,0,0,.6)}
+.grab i::after{content:"";position:absolute;left:30px;right:30px;top:6px;height:2px;border-radius:1px;background:#e8c48a;opacity:.85}
+/* open shelf: fight row while fighting, tab row, one pane, iron band; two snap heights */
+.shelf.open{box-shadow:0 8px 18px rgba(0,0,0,.75)}
+.shelf.tall{height:355px}
+.shelf .fight{flex:none;background:none;border-bottom:0}
+.tabs{flex:none;display:grid;grid-template-columns:repeat(5,1fr);height:44px}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:100%;font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:12px;letter-spacing:.03em;text-transform:uppercase;color:#a8987c}
+.tab .ico{width:16px;height:16px}
+.tab.on{color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.55);background:radial-gradient(80% 100% at 50% 100%,rgba(232,196,138,.20),rgba(232,196,138,0) 75%)}
+.tab.on::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:2px;border-radius:1px;background:#e8c48a;box-shadow:0 0 8px rgba(232,196,138,.8)}
+.band{flex:none;height:14px}
+/* Comm: avatar rail, thread, its own compose field */
+.comm{flex:1;min-height:0;display:flex}
+.rail{flex:none;width:52px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;border-right:1px solid rgba(232,196,138,.14)}
+.rb{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.rb .av{width:34px;height:34px;border-radius:17px}
+.rb .av .ico{width:18px;height:18px}
+.rb.on .av{box-shadow:0 0 0 2px #0b0907,0 0 0 4px #e8c48a,0 0 10px 4px rgba(232,196,138,.35)}
+.rb .dot{position:absolute;right:3px;top:3px;width:10px;height:10px;border-radius:5px;background:#f0b84f;border:2px solid #0b0907}
+.av.nu{background:rgba(232,196,138,.08);border-color:rgba(232,196,138,.34);color:#e8c48a}
+.av.pu{background:rgba(175,135,215,.18);border-color:#af87d7;color:#c9aee6}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 8px 6px}
+.th{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:8px 0;font-size:13px;line-height:17px}
+.bub{align-self:flex-start;max-width:88%;padding:5px 10px 6px;color:#e8e8e8}
+.bub .h{display:flex;justify-content:space-between;gap:12px;font-size:12px;line-height:15px}
+.bub .h b{font-weight:700;color:#5faf5f}
+.bub.me{align-self:flex-end;display:flex;align-items:baseline;gap:10px;background:rgba(232,196,138,.16);border-color:rgba(232,196,138,.42);color:#f4e7cf}
+.bub .tm{font-size:12px;color:#8a8a8a}
+.bub.me .tm{color:#b9a888}
+.newl{display:flex;align-items:center;gap:8px;font-size:10px;line-height:12px;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a}
+.newl::before,.newl::after{content:"";flex:1;height:1px;background:rgba(232,196,138,.24)}
+.compose{flex:none;display:flex;align-items:center;height:44px;padding-left:12px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:#050403;font-size:13px;line-height:16px;color:#8a8a8a}
+.compose span{flex:1}
+.send{flex:none;width:44px;height:44px;margin:-1px 0;display:flex;align-items:center;justify-content:center;color:#e8c48a}
+</style>
+</helmet>
+<div class="ph">
+
+  <!-- fight text at full strength below the shelf -->
+  <div class="gt">
+<pre>*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east</span>
+<span class="yell">'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely</span>
+<span class="hit">hard.</span>
+A half-orc ruffian is stunned!
+<span class="yell">Dori narrates 'bashed, hit it now'</span>
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts
+to flee.
+
+*= HP:Fine R:Hurt&gt;
+<span class="dim">A half-orc ruffian slashes</span>
+<span class="dim">Dori.</span>
+<span class="hit">You pierce a half-orc</span>
+<span class="hit">ruffian hard.</span>
+
+*= HP:Fine R:Bad&gt; </pre>
+  </div>
+
+  <!-- the shelf at its tall snap height: fight row, tabs with Comm selected, Comm, iron band with the handle -->
+  <div class="shelf open tall">
+    <div class="fight">
+      <div class="l"><div class="n"><span class="wh">You</span><span>74%</span></div><span class="bar" style="display:block"><i class="hp" style="width:74%"></i></span></div>
+      <div class="vs">vs</div>
+      <div class="r"><div class="n"><span class="hit">wounded</span><span class="wh">a half-orc ruffian</span></div><span class="bar" style="display:block"><i class="foe" style="width:45%"></i></span></div>
+    </div>
+    <div class="tabs iron" role="tablist" aria-label="Shelf panes">
+      <button class="tab on" role="tab" aria-selected="true"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg><span>Comm</span></button>
+      <button class="tab" role="tab" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10M7 21h10"/><path d="M8 3c0 5 8 5 8 9s-8 4-8 9"/><path d="M16 3c0 5-8 5-8 9s8 4 8 9"/></svg><span>Timers</span></button>
+      <button class="tab" role="tab" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.700 6 6"/><circle cx="17" cy="9" r="2.500"/><path d="M16 14.500c3 0 5 2.200 5 5.500"/></svg><span>Group</span></button>
+      <button class="tab" role="tab" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.500" r="3.500"/><path d="M5 21c0-3.900 3.100-7 7-7s7 3.100 7 7"/></svg><span>Character</span></button>
+      <button class="tab" role="tab" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span>Stats</span></button>
+    </div>
+    <div class="comm win" role="tabpanel" aria-label="Comm">
+      <div class="rail">
+        <button class="rb" aria-label="Public"><span class="av nu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c3 3.200 3 14.800 0 18M12 3c-3 3.200-3 14.800 0 18"/></svg></span></button>
+        <button class="rb" aria-label="Group, unread"><span class="av nu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.700 6 6"/><circle cx="17" cy="9" r="2.500"/><path d="M16 14.500c3 0 5 2.200 5 5.500"/></svg></span><i class="dot"></i></button>
+        <button class="rb on" aria-label="Gibur" aria-current="true"><span class="av">G</span></button>
+        <button class="rb" aria-label="Elanor"><span class="av pu">E</span></button>
+      </div>
+      <div class="col">
+        <div class="th">
+          <div class="bub card"><div class="h"><b>Gibur</b><span class="tm">14:01</span></div>you at hill road?</div>
+          <div class="bub card me"><span>yes, east of the gate</span><span class="tm">14:01</span></div>
+          <div class="newl">New</div>
+          <div class="bub card"><div class="h"><b>Gibur</b><span class="tm">14:02</span></div>more coming, 2 trolls, get to the gate and hold it with Dori</div>
+        </div>
+        <div class="compose"><span>Type a message</span><button class="send" aria-label="Send message"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7z"/><path d="M11 13l9-9"/></svg></button></div>
+      </div>
+    </div>
+    <div class="band iron"></div>
+    <button class="grab" aria-label="Drag to resize or close the shelf"><i></i></button>
+  </div>
+
+  <!-- compass: lit keys are the room's exits; the eye is look; Flee left of S -->
+  <div class="pad">
+    <span></span>
+    <button class="key" aria-label="North">N</button>
+    <button class="key off" aria-label="Up"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14l6-6 6 6"/><path d="M6 19h12"/></svg></button>
+    <button class="key off" aria-label="West">W</button>
+    <button class="key" aria-label="Look"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="key" aria-label="East">E</button>
+    <button class="key flee" aria-label="Flee"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="14" cy="4.5" r="1.8"/><path d="M8 10l4-2 3 3 3 1"/><path d="M12 8l-1 6 3 3v4"/><path d="M11 14l-3 2-3 0"/></svg></button>
+    <button class="key" aria-label="South">S</button>
+    <button class="key off" aria-label="Down"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10l6 6 6-6"/><path d="M6 5h12"/></svg></button>
+  </div>
+
+  <!-- input row -->
+  <div class="inrow">
+    <button class="ib" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <div class="field">Command</div>
+    <button class="ib" aria-label="Command history"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

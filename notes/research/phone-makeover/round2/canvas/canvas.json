@@ -1,0 +1,47 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-10T14:00:00Z"},
+  "title": "WebCockpit phone makeover, round 2",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "F1 Your brief: walking, map in the top third"},
+    "F2-fight.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "F2 Your brief: fight card and a tell"},
+    "F3-comm.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "F3 Your brief: Comm unfolded"},
+    "F4-strip.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "F4 Your brief: pane strip, Timers"},
+    "F5-strip-group.dc.html": {"x": 1880, "y": 0, "w": 390, "h": 844, "title": "F5 Your brief: pane strip, Group"},
+    "F6-menu.dc.html": {"x": 2350, "y": 0, "w": 390, "h": 844, "title": "F6 Your brief: menu"},
+
+    "G1-rest.dc.html": {"x": 0, "y": 1164, "w": 390, "h": 844, "title": "G1 One shelf: walking"},
+    "G2-fight.dc.html": {"x": 470, "y": 1164, "w": 390, "h": 844, "title": "G2 One shelf: fight and a tell"},
+    "G3-shelf-pane.dc.html": {"x": 940, "y": 1164, "w": 390, "h": 844, "title": "G3 One shelf: low, Timers"},
+    "G4-shelf-comm.dc.html": {"x": 1410, "y": 1164, "w": 390, "h": 844, "title": "G4 One shelf: tall, Comm"},
+
+    "H1-quiet.dc.html": {"x": 0, "y": 2328, "w": 390, "h": 844, "title": "H1 Breathing map: quiet, map blooms"},
+    "H2-busy.dc.html": {"x": 470, "y": 2328, "w": 390, "h": 844, "title": "H2 Breathing map: fight, map recedes"},
+    "H3-lens.dc.html": {"x": 940, "y": 2328, "w": 390, "h": 844, "title": "H3 Lens: a round map window"},
+    "H4-peek.dc.html": {"x": 1410, "y": 2328, "w": 390, "h": 844, "title": "H4 Peek: hold the eye for the whole map"},
+
+    "I1-rest.dc.html": {"x": 0, "y": 3492, "w": 390, "h": 844, "title": "I1 Thumb reach: walking"},
+    "I2-tell.dc.html": {"x": 470, "y": 3492, "w": 390, "h": 844, "title": "I2 Thumb reach: a tell arrives low"},
+    "I3-comm.dc.html": {"x": 940, "y": 3492, "w": 390, "h": 844, "title": "I3 Thumb reach: Comm from the bottom key"},
+    "I4-strip.dc.html": {"x": 1410, "y": 3492, "w": 390, "h": 844, "title": "I4 Thumb reach: pane strip, swipe to change"}
+  },
+  "order": [
+    "Main.dc.html", "F2-fight.dc.html", "F3-comm.dc.html", "F4-strip.dc.html", "F5-strip-group.dc.html", "F6-menu.dc.html",
+    "G1-rest.dc.html", "G2-fight.dc.html", "G3-shelf-pane.dc.html", "G4-shelf-comm.dc.html",
+    "H1-quiet.dc.html", "H2-busy.dc.html", "H3-lens.dc.html", "H4-peek.dc.html",
+    "I1-rest.dc.html", "I2-tell.dc.html", "I3-comm.dc.html", "I4-strip.dc.html"
+  ],
+  "notes": {
+    "tF": {"x": 0, "y": -300, "text": "F · Your brief, as written", "kind": "title1", "maxW": 2740},
+    "tG": {"x": 0, "y": 864, "text": "G · One shelf: Comm and the panes share one pull-down", "kind": "title1", "maxW": 1800},
+    "tH": {"x": 0, "y": 2028, "text": "H · The map: three other ways to show it", "kind": "title1", "maxW": 1800},
+    "tI": {"x": 0, "y": 3192, "text": "I · Thumb reach: open from the bottom, show at the top", "kind": "title1", "maxW": 1800},
+    "sF": {"x": -480, "y": 0, "w": 400, "fill": "orange", "text": "F · Your brief\n\nSmall compass from A1 (40 px keys), the eye is look, Flee left of S. The map (Shimrod, about 6 to 7 rooms each way, locked zoom) is drawn in the top third and fades in as the text fades out.\n\nFight card on top only while fighting: HP against HP, or the tank's name against the enemy.\n\nChat icon top right. A private message drops in as a slim card; tap it or the icon and Comm unfolds over the map area. The compose field just says Type a message.\n\nOther panes: a strip pulled down from the top, one pane at a time, tabs to switch."},
+    "sG": {"x": -480, "y": 1164, "w": 400, "fill": "teal", "text": "G · One shelf (challenge)\n\nIn F the top edge has three things that come down: the tell card, Comm, and the pane strip. Here they are one shelf with one handle. Comm is simply the first tab; the chat icon jumps to it.\n\nThe shelf has two heights: low (about 22 %) for Timers, Group, Character, Statistics, tall (about 40 %) for Comm. Drag for anything between.\n\nThe fight card is the shelf's closed state."},
+    "sH": {"x": -480, "y": 2328, "w": 400, "fill": "blue", "text": "H · The map (challenge)\n\nH1/H2 Breathing: the map is strong when nothing happens and steps back by itself when text pours in (a fight), so it never competes with what you read.\n\nH3 Lens: instead of a full-width fade, a round window on the map around your room, in the top right corner. Text keeps full strength everywhere else.\n\nH4 Peek: hold the eye key and the whole map comes forward for as long as you hold."},
+    "sI": {"x": -480, "y": 3492, "w": 400, "fill": "green", "text": "I · Thumb reach (challenge)\n\nYou noted that the old Flee could not be reached by the thumb. A chat icon in the top right corner and a pull from the top edge have the same problem on a tall phone.\n\nHere the things you look at stay at the top, but everything you touch is at the bottom: a small left-hand cluster (Chat, Panes) mirrors the compass. A tell shows just above the input. The strip changes pane by a sideways swipe or by tapping Panes again."}
+  },
+  "designSystems": []
+}
