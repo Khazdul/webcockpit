@@ -281,10 +281,13 @@ Mapped to Inv §4.
   topmost window and otherwise opens the Exit popup, as the Exit icon
   does; `#menu` prints a hint naming
   the bar and its `#` commands.
-- **Phone** (until its own stage): the ESC menu, opened by Esc, `☰` or
-  `#menu`. **Entries:** Continue/Reconnect, Statistics, Options, Profile
-  (live editing with Apply, Discard or Keep editing), and Exit with a run
-  rating. **Status header** with the `Link:` round-trip time.
+- **Phone** (stage 51, ADR 0136): a bottom sheet, opened by the menu
+  key, Esc or `#menu`. **Entries:** Reconnect, Profile (live editing
+  with Apply, Discard or Keep editing), Scripts, Settings (the phone's
+  own page), text size, Black / Paper, and Exit with a run rating.
+  **Status line** with the `Link:` round-trip time. Statistics is a pane
+  in the phone's pane strip. The run log player on a phone keeps the ESC
+  menu.
 
 ### 2.7 Profile editor
 
@@ -692,11 +695,37 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
   Esc footer becomes tappable; taps do not pull focus to the input (no
   keyboard pop-up); whole menu rows are tap targets; menu bodies scroll
   by swipe; no double-tap zoom on controls.
-- **Phone layout (part B):** the 60×18 guard is lowered for phones; the
-  cockpit is the game output and input at full width, with a tab strip
-  that shows one pane at a time instead of docks; no dragging or
-  resizing; the input stays above the on-screen keyboard; safe-area
-  insets in landscape and on notched screens.
+- **Phone layout (part B):** the 60×18 guard is lowered for phones; no
+  dragging or resizing of panes; the input stays above the on-screen
+  keyboard; safe-area insets in landscape and on notched screens. The
+  run log player and the Spotlights viewer show the game output at full
+  width with a tab strip, one pane at a time (ADR 0075 §3).
+- **The phone's layout in the live game** (stage 51, ADR 0136; light
+  play, Goal 12). Portrait is the design; landscape uses it as it is.
+  - *Top:* a fight card only while fighting (two names, two bars, no
+    numbers or condition words); under it, when opened, Comm (the Comm
+    pane in rail mode, its reply line as the compose field, the lower
+    edge dragged to resize). A pane strip can be opened above the fight
+    card: one pane at a time (Timers, Group, Character, Statistics,
+    script panes), a sideways swipe changes pane.
+  - *Map lens:* the map as a round lens top right (iron ring, glass
+    shine), Shimrod, locked settings, a tap steps three zoom levels.
+    Three keys on it: panes, fullscreen (where supported), Comm with the
+    unread count. No incoming message cards. The lens hides when it
+    would collide with something; its keys stay as a row.
+  - *Bottom right:* a compass from the bottom edge (N, W, look, E, S, U,
+    D, flee; every direction always live) and above it up to three hot
+    keys along the right edge (K1 lowest; label of at most four
+    characters; tap sends, hold rebinds; quick picks, Custom, and two
+    specials that set wimpy to 50 % or 25 % of current HP). A K key
+    shows and hides them. Stored in the phone's settings, not in the
+    profile.
+  - *Bottom left:* the menu key and the command field. With the
+    keyboard up the compass and hot keys are hidden and the field takes
+    the full width.
+  - *Menu:* a bottom sheet with Reconnect, Profile, Scripts, Settings (a
+    small phone page), text size, Black / Paper and Exit session.
+  - *Weather* (off by default on a phone) fills the whole width when on.
 - **Desktop-only on a phone:** arranging panes and macro key capture
   (the export editor works on a phone since stages 43 and 45).
 
@@ -784,6 +813,7 @@ what feedback is wanted.
 | 48 | **Presentation film.** A three-minute film made as code (Remotion in `video/`) (ADR 0133). | Watch the film. |
 | 49 | **Comm and Statistics panes.** Comm as conversations: Public, Group, a chat per person, search, a reply line; Statistics as a live kill feed with a rating, tiles and a Last kill card (ADR 0134). | Talk, read chats, follow a run's kills. |
 | 50 | **Firefox frame latency.** Veils under floats when Firefox composites in software; `#perf` as a live overlay, `#perf report` for the table (ADR 0135). | Play with a large float in Firefox; try `#perf`. |
+| 51 | **The phone's layout in the game.** Fight card, map lens with its three keys, pane strip, Comm under the fight card, compass and hot keys, the menu sheet and the phone settings page, weather in full width, Paper (§2.12, ADR 0136, `docs/stages/51-phone-layout.md`, steps 51a–g). | Play lightly on your phone: walk, flee, chat, read the panes. |
 
 ## 6. Open questions for the owner
 

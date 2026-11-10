@@ -166,8 +166,9 @@ Phone only, portrait only. Desktop and tablet are not touched.
   letters, each can be switched off. Tap sends; hold opens a box to
   change label and command. Defaults: `assist`, `bash`, and a special
   that sets wimpy to 50 % of CURRENT hit points (from GMCP, as well as it
-  can be read); a second special for 25 %. "Look" is never a hot key
-  pick. A "K" key left of N shows and hides the column.
+  can be read); a second special for 25 %. Quick picks: assist, bash,
+  rescue, shoot, recover, and Custom (type your own). "Look" is never a
+  hot key pick. A "K" key left of N shows and hides the column.
 - **Command row** bottom left: menu key far left, a narrow field,
   nothing at the right. No history key.
 - **Keyboard up:** compass and hot keys hidden, the command field at
@@ -176,5 +177,15 @@ Phone only, portrait only. Desktop and tablet are not touched.
   size, Black/Paper, Exit session. Statistics is a pane, not a menu row.
   Settings holds a small selection (round 3, `round3/canvas/L5-settings`).
 
-Next: the owner's verdict on the final mockups; then intent Goal 12
-(light play), spec §2.12, an ADR and a stage file.
+- **Comm's compose field:** a private chat sends a tell, Group sends
+  `tell group`, Public has no field.
+- **Weather** (off by default): when on it works as on desktop but fills
+  the whole width; harder to read text at the top is accepted.
+- **Settings:** the round 3 page without "Left-handed". Hot keys are
+  stored in the phone's settings, not in the profile.
+- **Landscape:** the same layout as it is. The enemy's bar goes in steps
+  from MUME's condition word.
+
+The owner approved the design on 2026-11-10. It is now recorded in ADR
+0136 and planned as stage 51 (`docs/stages/51-phone-layout.md`); those
+two win over this note.

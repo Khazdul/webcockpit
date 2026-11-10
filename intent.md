@@ -3,7 +3,7 @@
 > Status: APPROVED by owner 2026-09-27. Goal 10 (user scripts) approved
 > 2026-10-01. Goal 11 (foreign profile import) approved 2026-10-04.
 > Goal 12 (phone access) approved 2026-10-04. Mudlet added to Goal 11
-> 2026-10-05.
+> 2026-10-05. Goal 12 widened to light play on a phone 2026-11-10.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
@@ -97,10 +97,14 @@ reference only.
       the report names WebCockpit's built-in replacement where there is
       one.
 
-12. **Phone access** (owner decision 2026-10-04). WebCockpit can be
-    opened on a phone to log in, read and chat. Real play on a phone is
-    not a goal. Menus work by touch, and a phone gets a simple layout
-    that fits its screen.
+12. **Phone access** (owner decision 2026-10-04, widened 2026-11-10).
+    WebCockpit can be opened on a phone to log in, read, chat and play
+    lightly: walk in every direction, look, flee, and send up to three
+    commands of the player's choice from on-screen keys, without the
+    keyboard. The phone is mostly for communication; full play (real
+    fights, PvP) on a phone is still not a goal. A phone gets its own
+    layout in the game, made for the thumb, in the same look as the
+    desktop.
     - **Desktop is not affected.** Everything for phones is switched on
       only when a phone (or touch screen) is detected. Desktop is 99 % of
       the use; any change that would also reach desktop is put to the
@@ -111,8 +115,9 @@ reference only.
 ## Non-goals
 
 - Generic MUD client: MUME only.
-- Play on mobile and tablet. Desktop Firefox and Chrome are the target;
-  phones get the limited access of Goal 12, tablets only its touch fixes.
+- Full play on mobile and tablet. Desktop Firefox and Chrome are the
+  target; phones get the light play of Goal 12, tablets only its touch
+  fixes.
 - Import from zMUD/CMUD or other clients than those in Goal 11,
   and of Cockpit's Lua modules.
 - Byte-for-byte tt++ compatibility. tt++ syntax is used in the editor
