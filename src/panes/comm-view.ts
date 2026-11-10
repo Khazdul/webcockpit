@@ -2,7 +2,7 @@
 // column's mode and width, the spine's snaps, times, bubble text, search
 // highlights and the person and channel inks. No DOM.
 
-import { ACTION_CHANNELS, type CommText, channelColor, cleanName, formatComm, quotedBody, stripAnsi } from '../gmcp/comm';
+import { ACTION_CHANNELS, type CommText, channelColor, cleanName, formatComm, messageBody, stripAnsi } from '../gmcp/comm';
 import type { PersonColor } from '../gmcp/comm-chats';
 import { fitContrast, lightShift } from '../theme/color';
 
@@ -118,7 +118,7 @@ export function bubbleText(m: CommText): BubbleText {
     return { action: true, text: formatComm(m).map((s) => s.text).join('') };
   }
   const self = m.talker.trim().toLowerCase() === 'you';
-  return { action: false, text: self ? m.text : quotedBody(m.text) };
+  return { action: false, text: self ? m.text : messageBody(m) };
 }
 
 /**

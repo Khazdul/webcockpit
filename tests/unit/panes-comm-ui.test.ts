@@ -410,8 +410,8 @@ describe('CommPane (ADR 0134)', () => {
     c.emit('questions', 'Gibur', "Gibur asks 'anyone near Rivendell?'");
     c.emit('whispers', 'Gibur', "Gibur whispers 'I won't allow you'");
     c.emit('tells', 'Gibur', "Gibur tells you 'hi'");
-    c.emit('whispers', 'Gibur', "Gibur whispers to you 'psst'");
-    c.emit('questions', 'Gibur', "Gibur asks you 'where?'");
+    c.emit('whispers', 'Gibur', 'psst');
+    c.emit('questions', 'Gibur', "where's the inn?");
     c.emit('tells', 'Gibur', "Gibur tells the group 'regroup'");
     c.emit('tells', 'you', 'ok', { destination: 'Gibur' });
     c.emit('emotes', 'you', 'You hug Gibur.');
@@ -434,7 +434,7 @@ describe('CommPane (ADR 0134)', () => {
       "line: Gibur whispers 'I won't allow you'",
       'them: hi',
       'them: psst',
-      'them: where?',
+      "them: where's the inn?",
       'them: regroup',
       'me: ok',
       'line: You hug Gibur.',

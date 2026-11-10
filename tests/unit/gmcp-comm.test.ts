@@ -15,9 +15,11 @@ import {
   parseChannelList,
   parseChannelText,
   sameFilters,
-  saysToYou,
   soloChannel,
   stripAnsi,
+  toYou,
+  isFramed,
+  messageBody,
   toggleChannel,
 } from '../../src/gmcp/comm';
 import { rgb } from '../../src/core/types';
@@ -184,22 +186,35 @@ describe('formatComm: quoted channels', () => {
   });
 });
 
-describe('saysToYou', () => {
-  it('finds the whole word you before the first quote, ANSI stripped, any case', () => {
-    expect(saysToYou("Dori whispers to you 'hi'")).toBe(true);
-    expect(saysToYou("Ecthel asks you 'where?'")).toBe(true);
-    expect(saysToYou("Ecthel asks YOU 'where?'")).toBe(true);
-    expect(saysToYou(`${E}[33mDori whispers to ${E}[1myou${E}[0m 'hi'`)).toBe(true);
-    expect(saysToYou('Dori whispers something to you.')).toBe(true);
+describe('toYou', () => {
+  const w = (text: string, talker = 'Dori', channel = 'whispers'): CommText => m({ channel, talker, 'talker-type': 'player', text });
+
+  it('a bare whisper or question is to you (the form MUME sends, owner run log 2026-11-10)', () => {
+    expect(toYou(w('test'))).toBe(true);
+    expect(toYou(w('test', 'Domon', 'questions'))).toBe(true);
+    expect(toYou(w("don't go, it's a trap"))).toBe(true);
+    expect(toYou(w('are they there?'))).toBe(true);
+    expect(isFramed(w('test'))).toBe(false);
+    expect(messageBody(w("don't go, it's a trap"))).toBe("don't go, it's a trap");
+    expect(commPlain(w("don't go, it's a trap"))).toBe("Dori whispers to you 'don't go, it's a trap'");
+    expect(commPlain(w('where?', 'Domon', 'questions'))).toBe("Domon asks you 'where?'");
   });
 
-  it('not for undirected talk, a you inside the quote or inside a word', () => {
-    expect(saysToYou("Ecthel asks 'anyone near Rivendell?'")).toBe(false);
-    expect(saysToYou("A shadow whispers 'I won't allow you'")).toBe(false);
-    expect(saysToYou("Ecthel asks 'are you there?'")).toBe(false);
-    expect(saysToYou("Young whispers 'hi'")).toBe(false);
-    expect(saysToYou("Dori whispers to Youngblood 'hi'")).toBe(false);
-    expect(saysToYou('')).toBe(false);
+  it('a whole line is to you only when it says you before the quote, ANSI stripped, any case', () => {
+    expect(toYou(w("Dori whispers to you 'hi'"))).toBe(true);
+    expect(toYou(w("Ecthel asks YOU 'where?'", 'Ecthel', 'questions'))).toBe(true);
+    expect(toYou(w(`${E}[33mDori whispers to ${E}[1myou${E}[0m 'hi'`))).toBe(true);
+    expect(toYou(w("Ecthel asks 'anyone near Rivendell?'", 'Ecthel', 'questions'))).toBe(false);
+    expect(toYou(w("Ecthel asks 'are you there?'", 'Ecthel', 'questions'))).toBe(false);
+    expect(toYou(w("Dori whispers to Youngblood 'hi'"))).toBe(false);
+    expect(messageBody(w("Dori whispers to you 'hi'"))).toBe('hi');
+    expect(commPlain(w("Ecthel asks 'anyone near Rivendell?'", 'Ecthel', 'questions'))).toBe("Ecthel asks 'anyone near Rivendell?'");
+  });
+
+  it('never for your own messages or other channels', () => {
+    expect(toYou(m({ channel: 'whispers', talker: 'you', destination: 'Domon', text: 'test' }))).toBe(false);
+    expect(toYou(w('test', 'Dori', 'says'))).toBe(false);
+    expect(toYou(w("Dori tells you 'hi'", 'Dori', 'tells'))).toBe(false);
   });
 
   it('drops server suffixes and the direction of a yell', () => {
@@ -257,7 +272,7 @@ describe('saysToYou', () => {
     ];
     for (const [ch, self, other] of cases) {
       expect(commPlain(m({ channel: ch, talker: 'you', text: 'x' }))).toBe(`You ${self} 'x'`);
-      expect(commPlain(m({ channel: ch, talker: 'Bo', text: "Bo foo 'x'" }))).toBe(`Bo ${other} 'x'`);
+      expect(commPlain(m({ channel: ch, talker: 'Bo', text: `Bo ${other} 'x'` }))).toBe(`Bo ${other} 'x'`);
     }
   });
 });

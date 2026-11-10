@@ -333,21 +333,47 @@ export function isGroupTell(m: CommText): boolean {
   return GROUP_TELL_IN_RE.test(plain);
 }
 
-/**
- * The text says it is to you (ADR 0134 addendum "Bubbles only for talk to
- * you"): the part before the first `'` (all of it when there is no quote),
- * ANSI stripped, holds the whole word `you`, any case. `Dori whispers to
- * you 'hi'` and `Ecthel asks you 'where?'` do; `Ecthel asks 'are you
- * there?'` and `A shadow whispers 'I won't allow…'` do not. A heuristic on
- * an incoming whisper or question, the only channels where MUME's text
- * tells a directed message from an undirected one.
- */
-export function saysToYou(text: string): boolean {
-  const plain = stripAnsi(text);
-  const q = plain.indexOf("'");
-  return TO_YOU_RE.test(q >= 0 ? plain.slice(0, q) : plain);
-}
+/** Channels whose incoming text MUME sends bare when it is to you. */
+const BARE_CHANNELS: ReadonlySet<string> = new Set(['whispers', 'questions']);
 const TO_YOU_RE = /\byou\b/i;
+
+/**
+ * An incoming message's text is the whole line (`<Talker> <verb> … '…'`),
+ * not the bare message: it starts with the talker and the channel's verb
+ * and holds a quote. ANSI stripped, any case.
+ */
+export function isFramed(m: CommText): boolean {
+  const talker = m.talker.trim().toLowerCase();
+  const verb = CHANNEL_VERBS[m.channel]?.[1];
+  if (!talker || !verb) return false;
+  const plain = stripAnsi(m.text).trimStart().toLowerCase();
+  return plain.startsWith(`${talker} ${verb}`) && plain.includes("'");
+}
+
+/**
+ * An incoming whisper or question is to you (ADR 0134 addendum "Bubbles
+ * only for talk to you"). MUME sends a whisper or an ask to you with the
+ * bare message as `text` and no destination (screen: `Domon whispers to
+ * you 'test'`, GMCP text: `test`; the owner's run log, 2026-11-10): a bare
+ * text is to you. A whole line (a form not captured yet) is to you when
+ * the word `you` stands before its quote (`Ecthel asks you 'where?'`), not
+ * otherwise (`Ecthel asks 'anyone near Rivendell?'`). False for your own
+ * messages and for other channels.
+ */
+export function toYou(m: CommText): boolean {
+  if (!BARE_CHANNELS.has(m.channel) || isYou(m.talker)) return false;
+  if (!isFramed(m)) return true;
+  const plain = stripAnsi(m.text);
+  return TO_YOU_RE.test(plain.slice(0, plain.indexOf("'")));
+}
+
+/**
+ * An incoming message's own words: a bare whisper or question whole (its
+ * apostrophes are the speaker's), else the text between the quotes.
+ */
+export function messageBody(m: CommText): string {
+  return BARE_CHANNELS.has(m.channel) && !isFramed(m) ? m.text : quotedBody(m.text);
+}
 
 /** The text between the first and the last `'`, or all of it. */
 export function quotedBody(text: string): string {
@@ -361,7 +387,7 @@ export function quotedBody(text: string): string {
  *
  * Quoted channels: `<Talker> <verb> [prep] [Destination] '<message>'`.
  * An incoming message has no destination: a tell is to `you`; a whisper
- * or a question is when its text says so (`saysToYou`), else undirected.
+ * or a question is when `toYou` says so, else undirected.
  * Action channels: the text as sent, split into a talker part and the
  * body. Spaces go at the start of the following segment.
  */
@@ -381,7 +407,7 @@ export function formatComm(m: CommText): CommSegment[] {
   }
   const prep = DESTINATION_PREPOSITIONS[m.channel];
   let dest = m.destination;
-  if (!dest && !self && (m.channel === 'tells' || ((m.channel === 'whispers' || m.channel === 'questions') && saysToYou(m.text)))) dest = 'you';
+  if (!dest && !self && (m.channel === 'tells' || toYou(m))) dest = 'you';
   let verb = ' ' + (self ? verbs[0] : verbs[1]);
   if (dest && prep) verb += ' ' + prep;
   out.push({ role: 'verb', text: verb });
@@ -389,7 +415,7 @@ export function formatComm(m: CommText): CommSegment[] {
     const toYou = isYou(dest);
     out.push({ role: toYou ? 'talkerYou' : 'talkerOther', text: ' ' + (toYou ? 'you' : cleanName(dest)) });
   }
-  const body = self ? m.text : quotedBody(m.text);
+  const body = self ? m.text : messageBody(m);
   out.push({ role: self ? 'messageSelf' : 'messageOther', text: ` '${body}'` });
   return out;
 }

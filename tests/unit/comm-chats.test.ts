@@ -84,6 +84,9 @@ describe('CommChats (ADR 0134)', () => {
     expect(flags(msg('whispers', 'Dori', "Dori whispers to you 'hi'"))).toEqual([true, true]);
     expect(flags(msg('whispers', 'Dori', "\x1b[33mDori whispers to you 'hi'\x1b[0m"))).toEqual([true, true]);
     expect(flags(msg('questions', 'Ecthel', "Ecthel asks you 'where?'"))).toEqual([true, true]);
+    // The form MUME sends (owner's run log, 2026-11-10): the bare message.
+    expect(flags(msg('whispers', 'Domon', 'test'))).toEqual([true, true]);
+    expect(flags(msg('questions', 'Domon', "don't you know?"))).toEqual([true, true]);
     // Undirected: still near (opens, raises, counts), not direct.
     expect(flags(msg('questions', 'Ecthel', "Ecthel asks 'anyone near Rivendell?'"))).toEqual([true, false]);
     expect(flags(msg('questions', 'Ecthel', "Ecthel asks 'are you there?'"))).toEqual([true, false]);

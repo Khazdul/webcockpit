@@ -19,8 +19,8 @@
 // - `direct` (ADR 0134 addendum "Bubbles only for talk to you"): private
 //   talk between you and that person, the only talk a chat draws as a
 //   bubble (with group tells). Theirs: a tell that is not a group tell; a
-//   whisper or a question whose text says it is to you (`saysToYou`: the
-//   word `you` before the quote, as in `Dori whispers to you '…'`). Yours:
+//   whisper or a question to you (`toYou`: MUME sends those with the bare
+//   message as text; a whole line counts when it says `you`). Yours:
 //   a tell, whisper or question with that person as `destination`. Says,
 //   emotes, socials, undirected whispers and questions are near but not
 //   direct: they open, raise and count as before, drawn as plain lines.
@@ -43,7 +43,7 @@
 // shift per array at the cap); `chats` sorts the chats (tens); `search`
 // scans at most `max` messages with the lower-case text cached per entry.
 
-import { type CommMessage, GROUP_DEST_RE, GROUP_TELL_IN_RE, GROUP_TELL_OUT_RE, cleanName, commPlain, saysToYou, stripAnsi } from './comm';
+import { type CommMessage, GROUP_DEST_RE, GROUP_TELL_IN_RE, GROUP_TELL_OUT_RE, cleanName, commPlain, stripAnsi, toYou } from './comm';
 
 /** Channels whose talk is directed at the people near you: they open chats. */
 export const NEAR_CHANNELS: ReadonlySet<string> = new Set(['tells', 'whispers', 'says', 'emotes', 'socials', 'questions']);
@@ -221,7 +221,7 @@ export class CommChats {
       person = keyOf(talker);
       groupTell = m.channel === 'tells' && GROUP_TELL_IN.test(plain);
       near = !groupTell && NEAR_CHANNELS.has(m.channel);
-      direct = m.channel === 'tells' ? !groupTell : DIRECT_CHANNELS.has(m.channel) && saysToYou(plain);
+      direct = m.channel === 'tells' ? !groupTell : toYou(m);
     }
     // Your own lines go to Group only while there is a group (an empty
     // known roster is no group).

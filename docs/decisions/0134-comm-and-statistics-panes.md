@@ -449,13 +449,23 @@ you does not look as if it was.
   - Your own: a `tells`, `whispers` or `questions` with a person as
     `destination` (not a group tell). An own emote or social placed in a
     chat by the name heuristic is not direct.
-- **The text heuristic:** `saysToYou(text)` in `src/gmcp/comm.ts`, the
-  one test for both the model and `formatComm`: in the ANSI-stripped
-  text, the part before the first `'` (all of it when there is no quote)
-  holds the whole word `you`, any case. `Dori whispers to you 'hi'` and
-  `Ecthel asks you 'where?'` are to you; `Ecthel asks 'anyone near
-  Rivendell?'` and `A shadow whispers 'I won't allow…'` are not. One
-  string scan per whisper or question; `add` stays O(1).
+- **What MUME sends** (the owner's run log with a whisper and an ask
+  each way, 2026-11-10): an incoming whisper or ask to you has no
+  `destination` and only the bare message as `text` (screen `Domon
+  whispers to you 'test'` and `Domon asks you 'test'`; GMCP text `test`
+  for both). Your own carry the `destination` and the bare message. A
+  tell to you carries the whole line (`<Name> tells you '…'`).
+- **The test:** `toYou(m)` in `src/gmcp/comm.ts`, used by both the model
+  and `formatComm`, for incoming `whispers` and `questions`: a bare text
+  is to you. A whole line (`isFramed`: it starts with the talker and the
+  channel's verb and holds a quote; a form not captured, kept for an
+  overheard or undirected one) is to you only when the word `you` stands
+  before its quote. One string scan per whisper or question; `add` stays
+  O(1).
+- **A bare message is shown whole** (`messageBody`): its apostrophes are
+  the speaker's. Before, the text between the first and the last `'` was
+  taken, which cut a whisper such as `don't go, it's a trap` to `t go,
+  it`.
 - **`near` is unchanged:** which talk opens a chat, raises it and counts
   as unread is as before (tells, whispers, says, emotes, socials and
   questions, directed or not). Only the drawing changed.
@@ -466,14 +476,12 @@ you does not look as if it was.
   no action is a bubble any more.
 - **`formatComm` follows the text** (Public, Group, the lines in a chat,
   search): an incoming tell stays `<Name> tells you '…'`; an incoming
-  whisper shows `whispers to you` only when `saysToYou` holds, else
+  whisper shows `whispers to you` only when `toYou` holds, else
   `<Name> whispers '…'` (it was always `to you`); an incoming question
   shows `<Name> asks you '…'` when it holds (the `you` was dropped). Own
   messages, group tells and the prepositions are as before.
   `DIRECTED_CHANNELS` had no other use and is removed.
-- **Open:** the real GMCP text of an incoming player whisper and of a
-  directed ask has not been captured. The archives hold only an own
-  whisper with a destination and an undirected `asks '…'`; the forms
-  `<Name> whispers to you '…'` and `<Name> asks you '…'` are assumed. To
-  be checked in the next live test; if MUME words them otherwise, only
-  `saysToYou` needs to change.
+- **Open:** whether MUME sends a whisper or an ask between two other
+  players at all, and in what form, has not been seen (none in the
+  owner's archives and run logs). If one comes as a bare text it would
+  be taken as to you; `toYou` is the one place to change.
