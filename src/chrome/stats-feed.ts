@@ -2,8 +2,12 @@
 // (`app.runs`) as a StatsModel, kept current while the pane is shown.
 //
 // - Shown: a load at once, then on every run event at most once per
-//   LIVE_TICK_MS, and a tick at that rate while a run is in progress (the
-//   running clock). Hidden or disposed: no subscription, no timer.
+//   STATS_FEED_MS, and a slow refresh every STATS_REFRESH_MS while a run is
+//   in progress (XP / h and the ages). The running clock is the view's own
+//   text tick (ADR 0134: the 1 Hz tick writes only the clock), not a load.
+//   While a run is in progress a 1 Hz check (no load) looks for its end:
+//   the run's end is not always a run event (a replay that finishes).
+//   Hidden or disposed: no subscription, no timer.
 // - A run in progress: its chain, live (`nowUs`; a replay's events are on
 //   log time, so no running clock).
 // - No run in progress: the latest run of this tab (`LiveRuns.latest()`),
@@ -18,9 +22,12 @@
 import { nowUs as clockUs } from '../core/types';
 import type { LiveRuns } from '../runs/live';
 import { type StatsModel, buildStats } from '../runs/stats';
+import { type KillEntry, killEntries } from './stats-pane-model';
 
-/** Refresh interval (Inv §7.3: 1 Hz). */
+/** Shortest time between two loads (Inv §7.3: at most 1 Hz). */
 export const STATS_FEED_MS = 1000;
+/** A load without a run event while a run is in progress (XP / h, ages). */
+export const STATS_REFRESH_MS = 60_000;
 
 export interface StatsFeedState {
   model: StatsModel | null;
@@ -32,6 +39,10 @@ export interface StatsFeedState {
   note?: string;
   /** No run has started in this tab yet. */
   noRun: boolean;
+  /** The run's kills and pkills, oldest first. */
+  kills: KillEntry[];
+  /** A run in progress on the wall clock (not a replay): the clock runs. */
+  live: boolean;
 }
 
 export interface StatsFeedOptions {
@@ -45,7 +56,7 @@ export interface StatsFeedOptions {
 }
 
 export class StatsFeed {
-  private st: StatsFeedState = { model: null, ended: false, rating: 0, noRun: false };
+  private st: StatsFeedState = { model: null, ended: false, rating: 0, noRun: false, kills: [], live: false };
   private readonly o: StatsFeedOptions;
   private readonly now: () => number;
   private readonly us: () => number;
@@ -72,6 +83,11 @@ export class StatsFeed {
 
   get state(): Readonly<StatsFeedState> {
     return this.st;
+  }
+
+  /** The µs clock the running clock is read on. */
+  nowUs(): number {
+    return this.us();
   }
 
   /** Calls `fn` on every change. Returns the unsubscribe. */
@@ -134,20 +150,28 @@ export class StatsFeed {
       if (runs.current()) {
         this.running = true;
         const events = await runs.chainEvents();
-        this.set({ model: buildStats(events, this.o.replay() ? {} : { nowUs: this.us() }), ended: false, noRun: false, note: undefined });
+        const replay = this.o.replay();
+        this.set({ model: buildStats(events, replay ? {} : { nowUs: this.us() }), kills: killEntries(events), live: !replay, ended: false, noRun: false, note: undefined });
       } else {
         this.running = false;
         const latest = runs.latest();
         let model: StatsModel | null = null;
+        let kills: KillEntry[] = [];
         // A recorded run: its chain from the store (pending writes flushed
         // first). One that is not recorded: its events from memory.
         if (latest?.runId && latest.runId === runs.anchor()) {
           await runs.chain();
           const events = await runs.chainEvents();
-          if (events.length > 0) model = buildStats(events);
+          if (events.length > 0) {
+            model = buildStats(events);
+            kills = killEntries(events);
+          }
         }
-        if (!model && latest) model = buildStats(latest.events);
-        this.set({ model, ended: model !== null, noRun: model === null, note: undefined });
+        if (!model && latest) {
+          model = buildStats(latest.events);
+          kills = killEntries(latest.events);
+        }
+        this.set({ model, kills, live: false, ended: model !== null, noRun: model === null, note: undefined });
       }
     } catch (e) {
       this.set({ note: `Could not read the run: ${e instanceof Error ? e.message : String(e)}` });
@@ -177,7 +201,15 @@ export class StatsFeed {
   }
 
   private startTick(): void {
-    this.tick ??= setInterval(() => this.request(), STATS_FEED_MS);
+    if (this.tick !== null) return;
+    let n = 0;
+    this.tick = setInterval(() => {
+      n += STATS_FEED_MS;
+      if (n >= STATS_REFRESH_MS || !this.o.runs.current()) {
+        n = 0;
+        this.request();
+      }
+    }, STATS_FEED_MS);
   }
 
   private stopTick(): void {

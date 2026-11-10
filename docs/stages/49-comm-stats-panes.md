@@ -47,10 +47,10 @@ the merge.
       channels per person, unread, order, window filter, Group from the
       roster with players only, joined/left, search people + messages,
       per-person colours); unit tests
-- [ ] 49b: Statistics pane renderer per ADR 0134 (replaces `statsBody` in
+- [x] 49b: Statistics pane renderer per ADR 0134 (replaces `statsBody` in
       the pane only; phone ESC frame and History untouched)
-- [ ] 49b: theming (tints, Paper, border off, clear), reduced motion
-- [ ] 49b: e2e (header, tiles, list anchoring and `↓ N new`, card slide,
+- [x] 49b: theming (tints, Paper, border off, clear), reduced motion
+- [x] 49b: e2e (header, tiles, list anchoring and `↓ N new`, card slide,
       calibrating, Paper)
 - [ ] 49c: column rail/list by pane width, pinned Public and Group, chat
       list order and fill, edge fade and chevron
@@ -141,14 +141,78 @@ still did (72.6 ms); a run with the weather off did not (16.6 ms,
 software, so the real browser may differ; 49b must not inherit this and
 should check it in a headed Firefox.
 
-### After (branch)
+### After 49b (Statistics pane; Comm still main's), 2026-11-10
+
+Quiet machine (load 0.4–0.6 at the start and end of the pane-cost run,
+0.5–1.8 during the standard checks); the Comm rows, the same code on both
+sides, land in the same ranges, which bounds the noise. Builds of
+1831d839 (main's panes) and fd2cd074 (branch), interleaved.
+
+**Pane cost** (`bench/pane-cost.ts --runs 3`, ranges over the runs, ms):
+
+| Measure | Firefox main → branch | Chromium main → branch |
+|---|---|---|
+| Statistics: longest frame after a kill, median / max | 6.78–7.28 / 7.8–8.5 → 7.24–7.74 / 8.7–9.2 | 3.02–3.50 / 3.9–4.5 → 3.71–3.91 / 4.5–4.9 |
+| Statistics: app rAF callback per kill window, median | 0.54–0.58 → 0.56–0.62 | 0.38–0.44 → 0.41–0.53 |
+| Statistics: main-thread per kill (trace) | — | 6.68–12.30 → 22.18–27.70 |
+| Statistics tick (20 s idle): worst frame per second, median | 6.48–7.22 → 7.48–7.80 | 3.21–3.42 → 3.34–3.50 |
+| Statistics tick: main-thread per second (trace) | — | 14.55–15.07 → 11.37–11.94 |
+| (Comm, unchanged code: frame after a message, median) | 5.80–5.82 → 5.58–5.78 | 6.57–7.13 → 6.56–6.93 |
+
+Reading:
+
+- **Idle is cheaper:** main reloaded the whole chain every second while a
+  run was live; the branch writes the clock text. Chromium −3 ms of
+  main-thread time per second, every second of a run.
+- **A kill costs more:** Chromium about +15 ms of main-thread time per
+  kill, once per kill (no long task; the frame after a kill +0.5 ms in
+  both browsers). About 8 ms of it is the slide and the card's fade
+  (measured with them off: 18 vs 25.5 ms); the rest is that the branch
+  loads on the kill only, where main's per-kill figure is net of the
+  load it did every second anyway (its idle window has one too). At
+  fewer than about 12 kills a minute the branch spends less main-thread
+  time than main overall.
+- Firefox's frame after a kill +0.4 ms median, +0.7 ms max; its idle worst
+  frame +0.5 ms (ranges overlap with the run-to-run noise of earlier runs:
+  4.40–7.26 in the first branch run).
+
+**Standard checks** (`browser-bench --only budgets,play,keys,soak`, Comm
+and Statistics on, weather on; 3 runs; Firefox / Chromium), against the
+baseline's "Comm and Statistics on" column:
+
+| Measure | Branch |
+|---|---|
+| Frame → paint: receipt → painted median / p95 | 44.0–48.7 / 141–155 · 10.6–11.6 / 20.0–20.4 |
+| Frame interval during frame → paint | 74.1–84.6 · 16.6 |
+| Burst: longest rAF gap; gaps > 50 ms | 293–419, 45–46 · 17–19, 0 |
+| Play with GMCP, text frames without / with a pane render, median / p95 | 2.9–3.4 / 6.2–7.9, 4.1–4.3 / 7.4–7.7 · 3.4–3.5 / 4.7–5.0, 4.3–4.7 / 5.9–6.3 |
+| Keys under play: letter → rendered median / p95 | 4.4–8.3 / 122–163 · 13.9–16.0 / 19.6–22.3 |
+| Keys under burst: letter → rendered median / p95 | 50–73 / 144–200 · 22 / 32–40 |
+| Soak: small frames first → last checkpoint, median | 2.80–2.92 → 2.92–3.52 · 4.78–5.43 → 4.93–5.12 |
+
+Every row is within the baseline's ranges or their noise, except Firefox
+keys under play p95 (122–163 vs 78–128), which sits on the Firefox
+weather case below and is as noisy there (its median 4.4–8.3 vs 7.5–9.6).
+
+**The Firefox weather case (main's finding) is the frame, not the
+content:** headless Firefox at 12–14 fps with the weather and the
+Statistics float is unchanged by the new pane (frame interval 74–85 ms).
+With the pane's border off it runs at 60 fps (16.8 ms, receipt → painted
+11.9 ms median), and so does a small float (14 × 6) with the border on
+(16.7 ms). So it is the Lykta frame of a large float over the weather
+canvas in Firefox's software compositor (ADR 0123 frame, ADR 0091 rim),
+for any pane, not the Statistics content; it needs a check in a headed
+Firefox (49d or a frame stage). Not changed in 49b.
+
+### After (branch, 49d)
 
 To be filled in 49d.
 
 ### Notes for 49b / 49c
 
 - 49b: the Statistics float with the weather on is the costly case above;
-  measure the new pane against it headed and headless.
+  measure the new pane against it headed and headless. Done headless (see
+  "After 49b": the frame, not the content); headed Firefox still to do.
 - 49c: put `COMM_PUBLIC_DEFAULT_OFF` into the defaults (new users only)
   and drop `comm.showHeader` (migration ignores it; old VIEW records may
   carry it) when the old header, gear rows and Options row go.
