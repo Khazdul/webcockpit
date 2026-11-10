@@ -14,6 +14,7 @@
 //
 // Writes a Markdown report (default bench/results/frame-matrix.md).
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 
@@ -137,6 +138,20 @@ const CELLS = opt('cells', 'stats-large,stats-large-noweather,stats-large-nobord
     return c;
   });
 
+/** The monitors as the desktop reports them (Hyprland's `hyprctl`, else xrandr), for headed runs. */
+function display(): string {
+  for (const [cmd, args] of [['hyprctl', ['monitors']], ['xrandr', ['--current']]] as const) {
+    try {
+      const out = execFileSync(cmd, [...args], { encoding: 'utf8', timeout: 3000 });
+      const lines = out.split('\n').map((l) => l.trim()).filter((l) => /^Monitor |@|\bscale:|\*/.test(l));
+      if (lines.length) return lines.join(' ').replace(/\s+/g, ' ');
+    } catch {
+      /* not this desktop */
+    }
+  }
+  return 'unknown';
+}
+
 const fixture = listFixtures().at(-1);
 const logText = readFileSync(fixture ? fixture.path : new URL('../tests/fixtures/map-demo.log', import.meta.url).pathname, 'utf8');
 
@@ -174,7 +189,8 @@ for (let run = 1; run <= RUNS; run++) {
         // The `gfx.webrender.software` pref does not take here (still hardware); no GL does, as on a machine without a usable GPU.
         ...(mode === 'headed-sw' ? { env: { LIBGL_ALWAYS_SOFTWARE: '1' } } : {}),
       });
-      const compositor = b === 'firefox' ? await F.firefoxCompositor(t.browser) : `${await L.glRenderer(t.browser)}`;
+      const gfx = b === 'firefox' ? await F.firefoxCompositor(t.browser) : `${await L.glRenderer(t.browser)}`;
+      const compositor = mode === 'headless' ? gfx : `${gfx}; display ${display()}`;
       console.log(`run ${run} ${mode} ${b}: ${compositor}`);
       for (const c of CELLS) {
         const load = loadavg();
