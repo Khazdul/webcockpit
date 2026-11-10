@@ -1,6 +1,6 @@
 # Stage 49 — Comm and Statistics panes
 
-Status: **Built, awaiting owner test** (2026-11-10).
+Status: **Owner testing** (released in 0.4.0, 2026-11-10).
 
 ## Goal
 
