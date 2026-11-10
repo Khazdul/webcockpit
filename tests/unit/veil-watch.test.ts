@@ -9,8 +9,8 @@ function fed(gap = 250) {
 }
 
 describe('FloatVeilWatch', () => {
-  it('switches once two thirds of a window of quick frames with a hole are late', () => {
-    const { w, frame } = fed();
+  it('switches once half a window of quick frames with a hole are late', () => {
+    const { w, frame } = fed(100);
     const late = VEIL_LATE_MS + 20;
     let fired = 0;
     // A fast start: on time.
@@ -18,8 +18,10 @@ describe('FloatVeilWatch', () => {
     expect(fired).toBe(0);
     for (let i = 0; i < VEIL_LATE_COUNT - 1; i++) fired += Number(frame(late, 1, true));
     expect(fired).toBe(0);
-    expect(w.decided).toBe(false);
-    expect(frame(late, 1, true)).toBe(true);
+    // Half late from here: it decides once that has held for VEIL_MIN_SPAN_MS.
+    let n = 0;
+    while (!frame(late, 1, true)) n++;
+    expect(n).toBe(VEIL_MIN_SPAN_MS / 100);
     expect(w.decided).toBe(true);
     // Once only.
     expect(frame(late, 1, true)).toBe(false);
@@ -40,17 +42,18 @@ describe('FloatVeilWatch', () => {
   it('a few late frames now and then (hardware compositing, p95) never switch', () => {
     const { frame } = fed();
     for (let i = 0; i < 2000; i++) expect(frame(i % 20 === 0 ? 80 : 20, 1, true)).toBe(false);
+    // Even one in three late (a noisy machine) does not.
+    for (let i = 0; i < 2000; i++) expect(frame(i % 3 === 0 ? 60 : 20, 1, true)).toBe(false);
   });
 
   it('a back-to-back run of late frames (a page load) does not decide; the same lateness over seconds does', () => {
     const { frame } = fed();
-    // A window's worth of late lines within half the span: no decision.
-    const quick = VEIL_MIN_SPAN_MS / VEIL_WINDOW / 2;
-    for (let i = 0; i < VEIL_WINDOW * 2; i++) expect(frame(120, 1, true, quick)).toBe(false);
-    // Still late as the seconds pass: it decides once the window spans enough.
-    let n = 0;
-    while (!frame(120, 1, true, 250)) n++;
-    expect(n).toBeGreaterThan(0);
-    expect(n).toBeLessThan(VEIL_WINDOW);
+    // Two seconds of late lines back to back, then on time again: no decision.
+    for (let i = 0; i < 40; i++) expect(frame(120, 1, true, 50)).toBe(false);
+    for (let i = 0; i < VEIL_WINDOW * 2; i++) expect(frame(18, 1, true, 50)).toBe(false);
+    // Late for seconds: it decides.
+    let fired = false;
+    for (let i = 0; i < 200 && !fired; i++) fired = frame(120, 1, true, 50);
+    expect(fired).toBe(true);
   });
 });

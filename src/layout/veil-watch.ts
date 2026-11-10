@@ -10,12 +10,16 @@
 // WebRender the same hole is cheap (about 20 ms median, 40 p95, as with no
 // float at all), and a veil would cost there instead. The browser does not
 // say which compositor it uses, so the watch decides from what it sees:
-// while there is a hole in the text, most quick frames (our script short)
-// still late means the compositor is behind, and veils are cheaper. It
-// decides once per page and never switches back.
+// while there is a hole in the text, half the quick frames (our script
+// short) late over several seconds means the compositor is behind, and
+// veils are cheaper. It decides once per page and never switches back.
 
-/** A frame is late when received → shown less its own script exceeds this (ms): about three frames at 60 Hz. */
-export const VEIL_LATE_MS = 45;
+/**
+ * A frame is late when received → shown less its own script exceeds this
+ * (ms): two frames at 60 Hz. Hardware WebRender's p95 is about 26 ms;
+ * software WebRender's median under a large float 55–75 ms.
+ */
+export const VEIL_LATE_MS = 35;
 /**
  * Frames whose own flush took longer than this (ms) are not judged: a burst
  * of text is late from our script and the frames queued behind it, not
@@ -24,21 +28,21 @@ export const VEIL_LATE_MS = 45;
 export const VEIL_SCRIPT_MAX_MS = 8;
 /** The frames judged together. */
 export const VEIL_WINDOW = 24;
-/** Late frames in the window that switch to veils (two thirds). */
-export const VEIL_LATE_COUNT = 16;
+/** Late frames in the window that switch to veils (half). */
+export const VEIL_LATE_COUNT = 12;
 /**
- * The window must span at least this long (ms): the first seconds after a
- * page load or a big relayout are slow on any machine, and a back-to-back
- * run of lines then must not decide (a false switch on hardware WebRender
- * in the frame screenshots, stage 50).
+ * The window must stay that late for this long (ms): the first seconds
+ * after a page load or a big relayout are slow on any machine, and a
+ * back-to-back run of lines then must not decide (a false switch on
+ * hardware WebRender in the frame screenshots, stage 50).
  */
 export const VEIL_MIN_SPAN_MS = 4000;
 
 export class FloatVeilWatch {
   /** Lateness of the last VEIL_WINDOW frames with a hole, as a bit ring. */
   private readonly late = new Uint8Array(VEIL_WINDOW);
-  /** Times of the judged frames, as a ring. */
-  private readonly times = new Float64Array(VEIL_WINDOW);
+  /** When the window last became late (NaN: it is not). */
+  private lateSince = NaN;
   private n = 0;
   private lateN = 0;
   private done = false;
@@ -54,12 +58,14 @@ export class FloatVeilWatch {
     const isLate = shownMs - scriptMs > VEIL_LATE_MS ? 1 : 0;
     if (this.n >= VEIL_WINDOW) this.lateN -= this.late[i]!;
     this.late[i] = isLate;
-    this.times[i] = t;
     this.lateN += isLate;
     this.n++;
-    // The oldest judged frame in the window is the next one to be overwritten.
-    const span = t - this.times[this.n % VEIL_WINDOW]!;
-    if (this.n >= VEIL_WINDOW && this.lateN >= VEIL_LATE_COUNT && span >= VEIL_MIN_SPAN_MS) {
+    if (this.n < VEIL_WINDOW || this.lateN < VEIL_LATE_COUNT) {
+      this.lateSince = NaN;
+      return false;
+    }
+    if (this.lateSince !== this.lateSince) this.lateSince = t;
+    if (t - this.lateSince >= VEIL_MIN_SPAN_MS) {
       this.done = true;
       return true;
     }
