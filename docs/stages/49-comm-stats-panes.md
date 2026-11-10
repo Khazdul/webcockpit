@@ -494,3 +494,18 @@ owner" below.
 - No `calibrating…` at the bottom right during the first kills.
 - The card's `LAST KILL 3s ago`: just `LAST KILL`.
 - The median line in the list breaks between rows; it should run through.
+
+### 2026-11-10, second round
+
+**Comm**
+- A group tell in a private chat must be marked visibly (in a large group
+  it may not be meant for you): a small, very quiet `grouptell` line under
+  the message, always shown.
+- Public's defaults: Emotes, Whispers and Says on (Tells, Questions and
+  Socials stay off).
+
+**Statistics**
+- Before the first kill the pane feels empty: show the tiles without
+  values, an empty `LAST KILL` card and the list header with 0.
+- Rename `Earlier` to `Kills`; the right tile `Kills` becomes `TNL`, the
+  XP to the next level (`234`, `222k`).
