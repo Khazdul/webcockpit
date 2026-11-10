@@ -105,6 +105,8 @@ const SPINE_CLICK_PX = 4;
 const SEARCH_LIMIT = 200;
 /** Under this many cell rows the chat column is one line per entry. */
 const COMPACT_ROWS = 14;
+/** The chat column's snippets and ages are rewritten at most this often (ms). */
+const COL_TEXT_MS = 1000;
 
 const PUBLIC = 'public';
 const GROUP = 'group';
@@ -134,6 +136,8 @@ interface ColRow {
   snip: HTMLElement;
   badge: HTMLElement;
   sig: string;
+  /** The snippet, age and tooltip as last written (part of `sig`). */
+  text: string;
   unread: number;
 }
 
@@ -143,6 +147,7 @@ export class CommPane extends PaneShell {
   private readonly pins: HTMLDivElement;
   private readonly chatWrap: HTMLDivElement;
   private readonly chatsEl: HTMLDivElement;
+  private readonly chatList: HTMLDivElement;
   private readonly chevUp: HTMLDivElement;
   private readonly chevDown: HTMLDivElement;
   private readonly spine: HTMLDivElement;
@@ -192,7 +197,7 @@ export class CommPane extends PaneShell {
   /** Item → the one before it in the thread (separators, bubble runs), set per render. */
   private prevOf = new Map<ThreadItem, ThreadItem | undefined>();
   private inks = { light: false, bg: '#000000' };
-  private chatsAtBottom = true;
+  private orderKeys: string[] = [];
   private hiddenUp = new Set<Element>();
   private hiddenDown = new Set<Element>();
   private io: IntersectionObserver | null = null;
@@ -202,6 +207,9 @@ export class CommPane extends PaneShell {
   private searchDirty = false;
   private hovered = false;
   private ageTimer: ReturnType<typeof setInterval> | null = null;
+  /** When the column's texts were last written, and the catch-up timer. */
+  private colTextAt = -Infinity;
+  private colTextTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: PaneContext, opts: CommPaneOptions = {}) {
     super(ctx, 'comm');
@@ -225,6 +233,8 @@ export class CommPane extends PaneShell {
     this.pins = div('wc-cm-pins');
     this.chatWrap = div('wc-cm-chatwrap');
     this.chatsEl = div('wc-cm-chats');
+    this.chatList = div('wc-cm-chatlist');
+    this.chatsEl.append(this.chatList);
     // A hint only (the wheel scrolls the chats): no button, hidden from readers.
     const chev = (cls: string, icon: IconName): HTMLDivElement => {
       const d = div(cls);
@@ -307,6 +317,7 @@ export class CommPane extends PaneShell {
       this.io?.disconnect();
       if (this.searchTimer !== null) clearTimeout(this.searchTimer);
       if (this.ageTimer !== null) clearInterval(this.ageTimer);
+      if (this.colTextTimer !== null) clearTimeout(this.colTextTimer);
     });
     this.syncRoster();
   }
@@ -530,14 +541,6 @@ export class CommPane extends PaneShell {
       if (b?.dataset.key) this.openView(b.dataset.key);
     };
     this.col.addEventListener('click', onCol);
-    this.chatsEl.addEventListener(
-      'scroll',
-      () => {
-        const el = this.chatsEl;
-        this.chatsAtBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
-      },
-      { passive: true },
-    );
     this.unfoldBtn.addEventListener('click', () => this.setFolded(false));
     this.chip.addEventListener('click', () => this.setFolded(false));
     this.searchBtn.addEventListener('click', () => this.openSearch());
@@ -655,7 +658,7 @@ export class CommPane extends PaneShell {
 
   private updateChevrons(): void {
     const unread = (set: Set<Element>): boolean => {
-      for (const el of set) if ((el as HTMLElement).dataset.unread) return true;
+      for (const el of set) if (el.hasAttribute('data-unread')) return true;
       return false;
     };
     const up = this.hiddenUp.size > 0;
@@ -758,6 +761,7 @@ export class CommPane extends PaneShell {
       if (this.root.dataset.mode !== l.mode) {
         this.root.dataset.mode = l.mode;
         this.order = '';
+        this.orderKeys = [];
       }
       setProp(this.root, '--cm-colw', `${l.width}px`);
     }
@@ -824,6 +828,13 @@ export class CommPane extends PaneShell {
 
   private renderColumn(windowMin: 10 | 30 | 60 | 'all', now: number, force: boolean): void {
     const list = this.layout.mode === 'list';
+    // The snippets and ages follow at most once a second (a burst of talk
+    // rewrites them once); order, unread and selection follow at once.
+    // Measured: a snippet rewritten on every message cost headless Firefox
+    // a dropped frame or more per burst (stage 49c).
+    const texts = force || now - this.colTextAt >= COL_TEXT_MS;
+    if (texts) this.colTextAt = now;
+    else this.scheduleColText(COL_TEXT_MS - (now - this.colTextAt));
     const open = this.chats.open;
     const filters = this.ctx.settings.get().comm.filters;
     // Public and Group.
@@ -844,6 +855,7 @@ export class CommPane extends PaneShell {
       dim: false,
       tip: 'Public channels',
       list,
+      texts,
       force,
     });
     const roster = [...this.chats.rosterKeys].map((k) => this.chats.chat(k)?.name ?? cleanName(k));
@@ -859,6 +871,7 @@ export class CommPane extends PaneShell {
       dim: !hasGroup,
       tip: hasGroup ? `Group: ${roster.join(', ')}` : 'Not in a group',
       list,
+      texts,
       force,
     });
     if (pub.el.parentNode !== this.pins) this.pins.append(pub.el, grp.el);
@@ -882,6 +895,7 @@ export class CommPane extends PaneShell {
         dim: false,
         tip: `${c.name} · ${agoText(c.lastNear, now)}`,
         list,
+        texts,
         force,
       });
     }
@@ -896,9 +910,21 @@ export class CommPane extends PaneShell {
     const order = chats.map((c) => c.key).join('\n');
     if (order !== this.order) {
       this.order = order;
-      this.chatsEl.replaceChildren(...chats.map((c) => this.colRows.get(c.key)!.el));
-      // Newest at the bottom: follow it unless the user scrolled up.
-      if (this.chatsAtBottom) this.chatsEl.scrollTop = this.chatsEl.scrollHeight;
+      // Move only what is out of place (a raised chat: one move). The
+      // scroller keeps to the newest by itself (comm.css).
+      const keys = chats.map((c) => c.key);
+      const els = keys.map((k) => this.colRows.get(k)!.el);
+      const list = this.chatList;
+      const last = keys[keys.length - 1];
+      const prev = this.orderKeys;
+      const raised =
+        last !== undefined &&
+        keys.length >= prev.length &&
+        prev.filter((k) => k !== last).join('\n') === keys.slice(0, -1).join('\n') &&
+        list.childElementCount === prev.length;
+      if (raised) list.append(els[els.length - 1]!);
+      else list.replaceChildren(...els);
+      this.orderKeys = keys;
     }
     this.updateChevrons();
   }
@@ -951,7 +977,7 @@ export class CommPane extends PaneShell {
     badge.className = 'wc-cm-badge';
     badge.hidden = true;
     el.append(av, et, badge);
-    return { el, av, name, age, snip, badge, sig: '', unread: 0 };
+    return { el, av, name, age, snip, badge, sig: '', text: '', unread: 0 };
   }
 
   private updateRow(
@@ -968,29 +994,46 @@ export class CommPane extends PaneShell {
       dim: boolean;
       tip: string;
       list: boolean;
+      /** The snippet, age and tooltip may be written now. */
+      texts: boolean;
       force: boolean;
     },
   ): void {
-    const sig = `${v.name}|${v.ink}|${v.initial}|${v.list ? `${v.age}|${v.snip}` : ''}|${v.unread}|${v.selected}|${v.dim}|${v.tip}|${v.list}`;
+    const texts = v.texts || r.sig === '';
+    const text = texts ? `${v.list ? `${v.age}|${v.snip}` : ''}|${v.tip}` : r.text;
+    const sig = `${v.name}|${v.ink}|${v.initial}|${text}|${v.unread}|${v.selected}|${v.dim}|${v.list}`;
     if (sig === r.sig && !v.force) return;
     r.sig = sig;
-    r.el.style.setProperty('--pc', v.ink);
-    if (v.initial !== null && r.av.textContent !== v.initial) r.av.textContent = v.initial;
-    if (r.name.textContent !== v.name) r.name.textContent = v.name;
-    if (v.list) {
-      if (r.age.textContent !== v.age) r.age.textContent = v.age;
-      if (r.snip.textContent !== v.snip) r.snip.textContent = v.snip;
+    r.text = text;
+    // Only what changed is written (an unchanged write still restyles in Firefox).
+    setProp(r.el, '--pc', v.ink);
+    if (v.initial !== null) setText(r.av, v.initial);
+    setText(r.name, v.name);
+    if (texts) {
+      if (v.list) {
+        setText(r.age, v.age);
+        setText(r.snip, v.snip);
+      }
+      setTip(r.el, v.list ? null : v.tip, null, `cm:${r.el.dataset.key}`);
     }
     const badge = v.unread > 0 ? (v.dot ? '' : v.unread > 99 ? '99+' : String(v.unread)) : null;
-    r.badge.hidden = badge === null;
-    if (badge !== null && r.badge.textContent !== badge) r.badge.textContent = badge;
+    if (r.badge.hidden !== (badge === null)) r.badge.hidden = badge === null;
+    if (badge !== null) setText(r.badge, badge);
     toggle(r.badge, 'data-dot', v.dot);
-    r.el.setAttribute('aria-pressed', String(v.selected));
+    setAttr(r.el, 'aria-pressed', String(v.selected));
     toggle(r.el, 'data-dim', v.dim);
-    if (v.unread > 0) r.el.dataset.unread = '';
-    else delete r.el.dataset.unread;
-    r.el.setAttribute('aria-label', `${v.name}${v.unread > 0 ? (v.dot ? ', unread' : `, ${v.unread} unread`) : ''}`);
-    setTip(r.el, v.list ? null : v.tip, null, `cm:${r.el.dataset.key}`);
+    toggle(r.el, 'data-unread', v.unread > 0);
+    setAttr(r.el, 'aria-label', `${v.name}${v.unread > 0 ? (v.dot ? ', unread' : `, ${v.unread} unread`) : ''}`);
+  }
+
+  /** A column text pass after `ms` (the snippets catch up after a burst). */
+  private scheduleColText(ms: number): void {
+    if (this.colTextTimer !== null) return;
+    const win = this.ctx.doc.defaultView;
+    this.colTextTimer = (win ? win.setTimeout.bind(win) : setTimeout)(() => {
+      this.colTextTimer = null;
+      this.markDirty();
+    }, Math.max(0, ms));
   }
 
   // ------------------------------------------------------------------ top
@@ -1268,6 +1311,14 @@ function toggle(el: Element, attr: string, on: boolean): void {
 
 function setProp(el: HTMLElement, name: string, value: string): void {
   if (el.style.getPropertyValue(name) !== value) el.style.setProperty(name, value);
+}
+
+function setAttr(el: Element, name: string, value: string): void {
+  if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+}
+
+function setText(el: Element, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
 }
 
 function lastWhere(list: readonly ChatEntry[], pred: (e: ChatEntry) => boolean): ChatEntry | null {

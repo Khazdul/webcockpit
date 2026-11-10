@@ -100,6 +100,9 @@
   box-sizing: border-box;
   user-select: none;
   transition: width 0.18s ease-out;
+  /* A change in the column (a snippet, a badge, a raised chat) lays out
+   * and paints the column only, never the thread beside it. */
+  contain: strict;
 }
 
 .wc-comm[data-mode='folded'] > .wc-cm-col,
@@ -133,13 +136,17 @@
   min-height: 0;
 }
 
-/* The private chats fill from the top, newest last; the bar is hidden. */
+/* The private chats fill from the top, newest last; the bar is hidden.
+ * The scroller runs bottom-up (column-reverse: its scroll origin is the
+ * bottom), so an overflowing list starts at the newest chat and keeps to it
+ * without a script reading or writing the scroll position; its one child,
+ * the list, is pushed to the top while it is short. */
 .wc-cm-chats {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -148,6 +155,13 @@
 
 .wc-cm-chats::-webkit-scrollbar {
   display: none;
+}
+
+.wc-cm-chatlist {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 /* More above or below: the edge fades out (a mask on the box, so it does
@@ -455,6 +469,7 @@
   display: flex;
   flex-direction: column;
   padding: 0 0.25em 0.25em 0.15em;
+  contain: layout paint style;
 }
 
 /* Over the thread's top: folded, unfold and the open chat's chip at the
@@ -631,24 +646,21 @@
   padding-top: 0.1em;
 }
 
-.wc-cm-thread > .wc-alist-stack {
-  display: flex;
-  flex-direction: column;
-}
-
+/* Block flow, not flex: a new message lays out only itself (a flex column
+ * of hundreds of rows lays them all out again on every append). Bubbles
+ * and the centred lines are fit-content boxes placed by their margins. */
 .wc-cm-thread > .wc-alist-stack > div {
   white-space: normal;
 }
 
 .wc-cm-item {
-  display: flex;
-  flex-direction: column;
+  display: flow-root;
 }
 
 /* The time between two messages far apart. */
 .wc-cm-sep {
-  align-self: center;
-  margin: 0.7em 0 0.15em;
+  width: fit-content;
+  margin: 0.7em auto 0.15em;
   padding: 0 0.5em;
   border-radius: 0.5em;
   font-size: 0.75em;
@@ -681,7 +693,7 @@
 
 /* A chat's near talk. */
 .wc-cm-bb {
-  align-self: flex-start;
+  width: fit-content;
   max-width: 86%;
   margin-top: 0.45em;
   padding: 0.2em 0.6em 0.15em;
@@ -700,7 +712,7 @@
 }
 
 .wc-cm-bb.is-me {
-  align-self: flex-end;
+  margin-left: auto;
   border-radius: 0.75em 0.75em 0.2em 0.75em;
   background: color-mix(in srgb, var(--cm-self) var(--cm-mine-bub), var(--cm-bub-base));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-self) var(--cm-mine-edge), transparent);
@@ -739,9 +751,9 @@
 
 /* Talk on other channels in a chat: a quiet centred line. */
 .wc-cm-oh {
-  align-self: center;
+  width: fit-content;
   max-width: 94%;
-  margin: 0.45em 0 0.05em;
+  margin: 0.45em auto 0.05em;
   padding: 0 0.45em;
   border-radius: 0.5em;
   text-align: center;
@@ -773,8 +785,8 @@
 
 /* Group: joined / left. */
 .wc-cm-note {
-  align-self: center;
-  margin: 0.5em 0 0.1em;
+  width: fit-content;
+  margin: 0.5em auto 0.1em;
   padding: 0 0.6em;
   border-radius: 0.6em;
   font-size: 0.8em;
