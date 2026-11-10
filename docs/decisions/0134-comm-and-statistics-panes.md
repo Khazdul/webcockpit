@@ -421,6 +421,7 @@ The owner: a switch for whether Public shows NPCs, off by default.
   test: the Public view, its last-message snippet and the Public unread
   count all use it. The Public cache rebuilds when `filters` or `npcs`
   change.
-- **UI:** a `NPCs` row under the channel toggles, both in the Comm gear
-  popup ("Talk from NPCs, such as Gwaihir") and in Options → Panes →
-  Communication (`[ ]    NPCs`, after the ten channels).
+- **UI:** in the Comm gear popup its own section after the channels
+  (owner): `PUBLIC SHOWS NPCs` in the section heading's style, at the
+  left edge, its switch at the right on the same row, no help text. In
+  Options → Panes → Communication: `[ ]    NPCs` after the ten channels.

@@ -194,7 +194,7 @@ test('the Comm gear sets the Public channels and the chat window live (ADR 0107,
   await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
   await tales.click();
   await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
-  await pop.locator('[aria-label="NPCs in Public"]').click();
+  await pop.locator('[aria-label="Public shows NPCs"]').click();
   await expect.poll(async () => (await settings(page)).comm.npcs).toBe(true);
   await pop.locator('[aria-label="Show chats active in the last"] [data-value="all"]').click();
   await expect.poll(async () => (await settings(page)).comm.chatWindow).toBe('all');

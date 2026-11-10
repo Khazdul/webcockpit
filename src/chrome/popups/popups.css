@@ -843,6 +843,21 @@
   padding-top: 0;
 }
 
+/* Comm: "Public shows NPCs", a heading with its switch on the same row. */
+.wc-sp-npcs {
+  /* The heading's left inset, in the row's em (the heading is 0.846em). */
+  padding-left: calc(1.077em * 0.846);
+}
+
+.wc-sp-npcs > .wc-ck-sub {
+  padding: 0;
+}
+
+/* `NPCs` keeps its lower-case s (the heading is upper case). */
+.wc-sp-npcs-n {
+  text-transform: none;
+}
+
 /* Comm: the chat window, its label above the segmented control, which
  * spans the popup's width (ADR 0134, owner's first test). */
 .wc-sp-cwin {

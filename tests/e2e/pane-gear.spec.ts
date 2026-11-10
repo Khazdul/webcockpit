@@ -101,7 +101,7 @@ test('the Gear: leftmost, named after the pane; opens Comm settings beside the p
   await expect(pop).toBeVisible();
   await expect(pop).toHaveAttribute('aria-label', 'Comm settings');
   await expect(pop.locator('.wc-pop-title')).toHaveText('Comm');
-  await expect(pop.locator('.wc-ck-sub')).toHaveText(['Public shows', 'Private chats']);
+  await expect(pop.locator('.wc-ck-sub')).toHaveText(['Public shows', 'Public shows NPCs', 'Private chats']);
   await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
   await expect(g).toHaveAttribute('data-open', '');
   // It takes the keys, on its first control (ADR 0108).

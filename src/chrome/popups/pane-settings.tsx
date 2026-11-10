@@ -82,9 +82,16 @@ export function CommSettings(): VNode {
           </span>
         </div>
       ))}
-      <Row label="NPCs" help="Talk from NPCs, such as Gwaihir">
-        <Toggle label="NPCs in Public" on={s.comm.npcs} onChange={(on) => setCommNpcs(settings, on)} />
-      </Row>
+      <div class="wc-ck-sep" />
+      {/* Its own section, not a channel: the heading's look, the switch at the right. */}
+      <div class="wc-ck-row wc-sp-npcs" data-key="npcs">
+        <span class="wc-ck-sub">
+          Public shows <span class="wc-sp-npcs-n">NPCs</span>
+        </span>
+        <span class="wc-ck-ctl">
+          <Toggle label="Public shows NPCs" on={s.comm.npcs} onChange={(on) => setCommNpcs(settings, on)} />
+        </span>
+      </div>
       <div class="wc-ck-sep" />
       <div class="wc-ck-sub">Private chats</div>
       <div class="wc-sp-cwin">
