@@ -39,13 +39,18 @@
 //                   over 50 ms
 // - soak:           30× playback with all panes: counters flat after a
 //                   warm-up (DOM elements per area), frames within 1.2× + 1 ms
+// - float:          a large framed float (Statistics, 80 × 24) over the
+//                   weather against the same pane docked (stage 50, ADR
+//                   0135, bench/float-frame.ts): frame interval while text
+//                   arrives p95 ≤ 34 ms (no sustained drop below 30 fps);
+//                   receipt → painted p95 ≤ docked p95 + 15 ms
 //
 // Flags (or environment variables):
 //   --quick            WC_BENCH_QUICK=1   ~¼ of the samples (a smoke run)
 //   --browsers a,b     WC_BENCH_BROWSERS  default firefox,chromium
 //   --only a,b         WC_BENCH_ONLY      sections: budgets, map, script,
 //                                         caret, play, colour, scroll, rules,
-//                                         keys, ws, soak (default all)
+//                                         keys, ws, soak, float (default all)
 //   --legacy           WC_BENCH_LEGACY=1  also the stage 1–9 set (budgets and
 //                                         map) at 1280 × 720, ratio 1, in
 //                                         chromium (SwiftShader),
@@ -91,6 +96,7 @@ const O = await import('./owner');
 const I = await import('./input-load');
 const S = await import('./soak');
 const { synthBatch } = await import('./feeds');
+const FF = await import('./float-frame');
 const { build, preview } = await import('vite');
 type Target = import('./lib').Target;
 type TargetName = import('./lib').TargetName;
@@ -151,6 +157,16 @@ const SCROLLBACK_ABS_MS = 8;
 const scrollbackPass = (s: { emptyFrame: number; fullFrame: number }): boolean =>
   s.fullFrame <= s.emptyFrame * 1.5 + 0.5 || s.fullFrame <= SCROLLBACK_ABS_MS;
 const IDLE_BUDGET_PER_S = 5;
+/**
+ * A large framed float over the weather (stage 50, ADR 0135): the frame
+ * interval while text arrives, p95 (ms), and receipt → painted p95 at most
+ * the docked pane's + this (ms). Firefox's software WebRender with a hole
+ * in the game text under the float ran 110–120 ms / 150–200 ms there.
+ */
+const FLOAT_INTERVAL_P95_MS = 34;
+const FLOAT_TEXT_OVER_DOCK_MS = 15;
+const floatPass = (f: { framed: import('./float-frame').CellResult; dock: import('./float-frame').CellResult }): boolean =>
+  f.framed.busy.p95 <= FLOAT_INTERVAL_P95_MS && f.framed.text.p95 <= f.dock.text.p95 + FLOAT_TEXT_OVER_DOCK_MS;
 
 // ---------------------------------------------------------------- fixture
 
@@ -511,11 +527,15 @@ interface Row {
   keys?: Partial<Record<import('./input-load').KeyLoad, import('./input-load').KeysLoadResult>>;
   ws?: Partial<Record<import('./input-load').WsLoad, import('./input-load').WsResult>>;
   soak?: import('./soak').SoakResult;
+  float?: { framed: import('./float-frame').CellResult; dock: import('./float-frame').CellResult };
 }
 const results: Row[] = [];
 const legacy: Row[] = [];
 
 /** Runs `fn` with a log line (and the load average) around it. */
+const floatShow = (r: import('./float-frame').CellResult) =>
+  `frame interval idle ${f1(r.interval.median)} / ${f1(r.interval.p95)}, under text ${f1(r.busy.median)} / ${f1(r.busy.p95)}; receipt → painted ${fd(r.text)}; letter → rendered ${fd(r.key)}${r.veils ? '; veils' : ''}`;
+
 async function step<T>(label: string, fn: () => Promise<T>, show: (r: T) => string): Promise<T> {
   const la = loadavg();
   const t0 = Date.now();
@@ -588,6 +608,12 @@ try {
         row.ws = {};
         for (const load of ['burst', 'play'] as const)
           row.ws[load] = await step(`ws / ${load}`, () => ws!.run(t, ctx, load), (w) => `${w.keys} keys; key → wire ${fd(w.keyToWire)}; ws task max ${f1(w.wsTaskMax)}; rAF max ${f1(w.rafMax)}, gaps > 50 ms ${w.rafOver50}; ${w.tasks ? `tasks ${w.tasks.slice(0, 3).map((x) => `${f1(x.ms)} [${x.label}]`).join('; ')}` : ''}; ${w.state}, ${w.recorder}; bursts ${w.bursts}`);
+      }
+      if (want('float')) {
+        const o = { base, logText, texts: scaled(60, 20), keys: scaled(40, 15) };
+        const dock = await step('float / docked', () => FF.measureCell(t, FF.cell({ name: 'dock', place: 'dock' }), o), floatShow);
+        const framed = await step('float / framed over the weather', () => FF.measureCell(t, FF.cell({ name: 'framed' }), o), floatShow);
+        row.float = { framed, dock };
       }
       if (want('soak'))
         row.soak = await step(`soak (${SOAK_LONG ? 'long' : `${SOAK_S} s`})`, () => S.benchSoak(t, ctx, soakLogs, SOAK_LONG, SOAK_S), (s) => `${s.delivered} frames, ${s.typed} commands in ${f1(s.wallS)} s; ${s.checkpoints.map((c) => `${c.label}: ${c.elements} el, frame ${f2(c.frame.median)}`).join(' → ')}; ${JSON.stringify(S.soakPass(s))}`);
@@ -809,6 +835,19 @@ if (soaked.length) {
   ]);
 }
 
+if (results.some((r) => r.float)) {
+  out.push('## Large framed float over the weather (stage 50)', '');
+  table(results, 'Budget', [
+    [`Frame interval while text arrives p95 ≤ ${FLOAT_INTERVAL_P95_MS} ms`, 'Statistics float 82 × 26 cells, framed, glass, weather on: rAF interval median / p95 (ms)', (r) =>
+      opt1(r.float, (f) => `${f1(f.framed.busy.median)} / ${f1(f.framed.busy.p95)} ${pass(f.framed.busy.p95 <= FLOAT_INTERVAL_P95_MS)}`)],
+    [`Receipt → painted p95 ≤ docked + ${FLOAT_TEXT_OVER_DOCK_MS} ms`, 'float / the pane docked: median / p95 (ms)', (r) =>
+      opt1(r.float, (f) => `${f1(f.framed.text.median)} / ${f1(f.framed.text.p95)} vs ${f1(f.dock.text.median)} / ${f1(f.dock.text.p95)} ${pass(floatPass(f))}`)],
+    ['', 'typed letter → rendered, float / docked: median / p95 (ms)', (r) =>
+      opt1(r.float, (f) => `${f1(f.framed.key.median)} / ${f1(f.framed.key.p95)} vs ${f1(f.dock.key.median)} / ${f1(f.dock.key.p95)}`)],
+    ['', 'veils under the float (ADR 0135: Firefox once text keeps arriving late)', (r) => opt1(r.float, (f) => (f.framed.veils ? 'yes' : 'no'))],
+  ]);
+}
+
 if (legacy.length) {
   out.push(`## Legacy geometry (${L.geometryText(L.LEGACY)}, the stage 1–9 set)`, '');
   budgetsTable(legacy);
@@ -842,13 +881,18 @@ out.push(
   '|---|---|---|',
   '| `--quick` | `WC_BENCH_QUICK=1` | about a quarter of the samples (smoke run, ~5 min) |',
   '| `--browsers firefox,chromium` | `WC_BENCH_BROWSERS` | browsers, in order (chromium = with the GPU flags unless `WC_BENCH_GPU=0`) |',
-  '| `--only a,b` | `WC_BENCH_ONLY` | sections: budgets, map, script, caret, play, colour, scroll, rules, keys, ws, soak |',
+  '| `--only a,b` | `WC_BENCH_ONLY` | sections: budgets, map, script, caret, play, colour, scroll, rules, keys, ws, soak, float |',
   '| `--legacy` | `WC_BENCH_LEGACY=1` | also the stage 1–9 set (budgets, map) at 1280 × 720, ratio 1, in chromium, chromium-gpu and firefox (~8 min more) |',
   '| `--soak-long` | `WC_BENCH_SOAK_LONG=1` | the long soak: the owner\'s three biggest logs to their ends at 30× (tests/fixtures without them) |',
   '| `--soak-s N` | `WC_BENCH_SOAK_S` | the short soak\'s length in s (default 60) |',
   '| `--port N` | `WC_BENCH_PORT` | preview port (default 4179; the WebSocket server uses N + 1) |',
   '| `--out file` | `WC_BENCH_OUT` | report path (default bench/results/latest.md) |',
   '| | `WC_BENCH_GPU=0`, `WC_BENCH_GPU_ARGS` | Chromium without / with other GPU flags |',
+  '',
+);
+out.push('## Stage 50 notes', '');
+out.push(
+  "- **Large framed float over the weather (`float`), 2026-11-10.** `bench/float-frame.ts` (the matrix: `bench/frame-matrix.ts`). One page per case, the map off: the Statistics pane floating at 82 × 26 cells, framed, glass, weather on, against it docked. 3 s idle, then 60 unmeasured and 60 measured fixture frames 20–80 ms apart (receipt → painted, and the rAF interval while they arrive), then 40 letters typed 40–120 ms apart (keydown → the frame after the `input` event). Headless Firefox composites with software WebRender, which is where the float used to fail (busy interval p95 ~200 ms, text p95 150–175 ms); a real window with hardware WebRender never did. ADR 0135.",
   '',
 );
 out.push('## Fixes made because of this benchmark (stage 1)', '');
