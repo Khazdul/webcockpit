@@ -5,7 +5,8 @@
 // stands 8 px above it with keys of the same size; the command field ends
 // 8 px left of the compass. phone.css lays all of it out from `--ph-ck`
 // with the same sums; the lens's room and the hot key box's place are
-// computed here.
+// computed here. Stage 52: a second hot key column stands left of the first,
+// one gap apart.
 
 import type { PhoneCompassSize } from '../settings/types';
 
@@ -39,4 +40,25 @@ export function hotStep(px: number): number {
 /** The column's top above the bottom edge with `n` keys (n ≥ 1). */
 export function hotTop(px: number, n: number): number {
   return hotBottom(px) + n * hotStep(px) - KEY_GAP;
+}
+
+/** What the hot key columns take sideways from the right margin: `cols` keys and the gaps between them. */
+export function hotWidth(px: number, cols: number): number {
+  return cols * px + (cols - 1) * KEY_GAP;
+}
+
+/**
+ * The right offset of the lens's key row (the lens hidden: the row stands
+ * at the top right, where the hot key columns are). `rowFoot` is the row's
+ * lower edge with its air, from the top of a layer `height` high; `rows`
+ * the keys in the first column (along the edge) and in the second (left of
+ * it), 0 for a column that is not there. The row is wider than both
+ * columns, so it stands left of the leftmost column it would reach into:
+ * a column lower than the row's foot is passed over.
+ */
+export function keyRowRight(rowFoot: number, height: number, px: number, rows: readonly [number, number], air: number): number {
+  const reached = (n: number): boolean => n > 0 && rowFoot > height - hotTop(px, n);
+  if (reached(rows[1])) return PAD_MARGIN + hotWidth(px, 2) + air;
+  if (reached(rows[0])) return PAD_MARGIN + px + air;
+  return PAD_MARGIN;
 }

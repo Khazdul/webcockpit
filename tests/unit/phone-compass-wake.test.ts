@@ -1,8 +1,9 @@
 // Stage 51f (ADR 0136 §7, §10, §13): the compass key sizes and what follows
-// from them, the vibration, the wake lock, and the settings keys.
+// from them, the wake lock, and the settings keys. Stage 52: the vibration
+// is gone (the setting is dropped by the migration), the group is "Quick
+// buttons" with the number of K keys, and the second column's sums.
 import { describe, expect, it, vi } from 'vitest';
-import { compassHeight, compassPx, hotBottom, hotStep, hotTop } from '../../src/phone/compass-size';
-import { TAP_PULSE_MS, canVibrate, pulse } from '../../src/phone/haptics';
+import { PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight } from '../../src/phone/compass-size';
 import { COMPASS_GROUP, CONNECTION_GROUP, SETTINGS_GROUPS, rowsShown } from '../../src/phone/settings-page';
 import { WakeLock, type WakeSentinel, canWakeLock, wakeWanted } from '../../src/phone/wake-lock';
 import { migratePhone, migrateSettings } from '../../src/settings/migrate';
@@ -36,24 +37,29 @@ describe('compass size', () => {
   });
 });
 
-describe('vibration', () => {
-  it('a short pulse where the browser can; nothing, and no error, where it cannot or refuses', () => {
-    const vibrate = vi.fn(() => true);
-    expect(canVibrate({ vibrate })).toBe(true);
-    pulse({ vibrate });
-    expect(vibrate).toHaveBeenCalledTimes(1);
-    expect(vibrate).toHaveBeenCalledWith(TAP_PULSE_MS);
-    expect(canVibrate({})).toBe(false);
-    expect(canVibrate(undefined)).toBe(false);
-    expect(() => pulse({})).not.toThrow();
-    expect(() => pulse(undefined)).not.toThrow();
-    expect(() =>
-      pulse({
-        vibrate: () => {
-          throw new Error('refused');
-        },
-      }),
-    ).not.toThrow();
+describe('two hot key columns (stage 52)', () => {
+  it('the columns take one key, or two and their gap, from the right margin', () => {
+    expect(hotWidth(40, 1)).toBe(40);
+    expect(hotWidth(40, 2)).toBe(83);
+    expect(hotWidth(44, 2)).toBe(91);
+  });
+
+  it('the lens\'s key row stands left of the leftmost column it would reach into', () => {
+    // 844 px high, M keys: a column of three tops out at 844 − 268 = 576.
+    const h = 844;
+    // The row ends above both: at the edge's margin.
+    expect(keyRowRight(56, h, 40, [3, 3], 8)).toBe(PAD_MARGIN);
+    // No column at all.
+    expect(keyRowRight(700, h, 40, [0, 0], 8)).toBe(PAD_MARGIN);
+    // Into the first column only (the second is lower, or not there): left of the first.
+    expect(keyRowRight(600, h, 40, [3, 0], 8)).toBe(PAD_MARGIN + 40 + 8);
+    expect(keyRowRight(600, h, 40, [3, 1], 8)).toBe(PAD_MARGIN + 40 + 8);
+    // Into the second too: left of both.
+    expect(keyRowRight(600, h, 40, [3, 3], 8)).toBe(PAD_MARGIN + 83 + 8);
+    // Into the second only (the first has fewer keys): still left of both, the row is wider than a column.
+    expect(keyRowRight(600, h, 40, [1, 3], 8)).toBe(PAD_MARGIN + 83 + 8);
+    // Exactly at a column's top is not into it.
+    expect(keyRowRight(h - hotTop(40, 3), h, 40, [3, 3], 8)).toBe(PAD_MARGIN);
   });
 });
 
@@ -153,50 +159,59 @@ describe('wake lock', () => {
 });
 
 describe('phone settings of stage 51f', () => {
-  it('defaults: M keys, no vibration (it is optional), the screen kept on, no automatic reconnect', () => {
+  it('defaults: M keys, the screen kept on, no automatic reconnect; no vibration setting any more', () => {
     const d = defaultPhoneSettings();
     expect(d.compassSize).toBe('m');
-    expect(d.vibrate).toBe(false);
+    expect('vibrate' in d).toBe(false);
     expect(d.wakeLock).toBe(true);
     expect(d.autoReconnect).toBe(false);
   });
 
   it('settings stored before 51f get the defaults; no version bump', () => {
     const old = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown> };
-    for (const k of ['compassSize', 'vibrate', 'wakeLock', 'autoReconnect']) delete old.phone[k];
+    for (const k of ['compassSize', 'wakeLock', 'autoReconnect']) delete old.phone[k];
     const s = migrateSettings(old);
     expect(s.version).toBe(SETTINGS_VERSION);
     expect(s).toEqual(defaultSettings());
   });
 
   it('stored values are kept; malformed ones fall back', () => {
-    const p = migratePhone({ compassSize: 'l', vibrate: true, wakeLock: false, autoReconnect: true });
-    expect([p.compassSize, p.vibrate, p.wakeLock, p.autoReconnect]).toEqual(['l', true, false, true]);
-    const bad = migratePhone({ compassSize: 44, vibrate: 'yes', wakeLock: 1, autoReconnect: 'true' });
-    expect([bad.compassSize, bad.vibrate, bad.wakeLock, bad.autoReconnect]).toEqual(['m', false, true, false]);
+    const p = migratePhone({ compassSize: 'l', wakeLock: false, autoReconnect: true });
+    expect([p.compassSize, p.wakeLock, p.autoReconnect]).toEqual(['l', false, true]);
+    const bad = migratePhone({ compassSize: 44, wakeLock: 1, autoReconnect: 'true' });
+    expect([bad.compassSize, bad.wakeLock, bad.autoReconnect]).toEqual(['m', true, false]);
     expect(migratePhone({ compassSize: 'xl' }).compassSize).toBe('m');
+  });
+
+  it('a stored vibrate (0.5.0) is tolerated and dropped', () => {
+    for (const vibrate of [true, false, 'yes']) {
+      const p = migratePhone({ compassSize: 'l', vibrate });
+      expect('vibrate' in p).toBe(false);
+      expect(p.compassSize).toBe('l');
+    }
+    const stored = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown> };
+    stored.phone.vibrate = true;
+    expect(migrateSettings(stored)).toEqual(defaultSettings());
   });
 });
 
-describe('the settings page\'s Compass and Connection groups', () => {
+describe('the settings page\'s Quick buttons and Connection groups', () => {
   it('the groups in the ADR\'s order', () => {
     expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
   });
 
   it('rows whose browser API is missing are absent, not dimmed', () => {
     const nav = globalThis.navigator as unknown as Record<string, unknown>;
-    const had = { vibrate: Object.getOwnPropertyDescriptor(nav, 'vibrate'), wakeLock: Object.getOwnPropertyDescriptor(nav, 'wakeLock') };
+    const had = { wakeLock: Object.getOwnPropertyDescriptor(nav, 'wakeLock') };
     try {
-      Object.defineProperty(nav, 'vibrate', { value: undefined, configurable: true });
       Object.defineProperty(nav, 'wakeLock', { value: undefined, configurable: true });
-      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['compass-size']);
+      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['compass-size', 'hotkey-count']);
       expect(rowsShown(CONNECTION_GROUP).map((r) => r.id)).toEqual(['auto-reconnect', 'weather']);
-      Object.defineProperty(nav, 'vibrate', { value: () => true, configurable: true });
       Object.defineProperty(nav, 'wakeLock', { value: { request: async () => ({ release: async () => {} }) }, configurable: true });
-      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['compass-size', 'compass-vibrate']);
+      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['compass-size', 'hotkey-count']);
       expect(rowsShown(CONNECTION_GROUP).map((r) => r.id)).toEqual(['wake-lock', 'auto-reconnect', 'weather']);
     } finally {
-      for (const k of ['vibrate', 'wakeLock'] as const) {
+      for (const k of ['wakeLock'] as const) {
         if (had[k]) Object.defineProperty(nav, k, had[k]!);
         else delete nav[k];
       }
@@ -208,8 +223,10 @@ describe('the settings page\'s Compass and Connection groups', () => {
     const row = (g: typeof COMPASS_GROUP, id: string) => g.rows.find((r) => r.id === id)!;
     const size = row(COMPASS_GROUP, 'compass-size');
     expect(size.kind === 'seg' && size.set('l', s)).toEqual({ phone: { compassSize: 'l' } });
-    const vib = row(COMPASS_GROUP, 'compass-vibrate');
-    expect(vib.kind === 'toggle' && vib.set(true, s)).toEqual({ phone: { vibrate: true } });
+    expect(COMPASS_GROUP.title).toBe('Quick buttons');
+    const count = row(COMPASS_GROUP, 'hotkey-count');
+    expect(count.kind === 'stepper' && [count.get(s), count.step(3, 1), count.step(6, 1), count.step(1, -1)]).toEqual([3, 4, 6, 1]);
+    expect(count.kind === 'stepper' && count.set(5, s)).toEqual({ phone: { hotkeyCount: 5 } });
     const wake = row(CONNECTION_GROUP, 'wake-lock');
     expect(wake.kind === 'toggle' && wake.set(false, s)).toEqual({ phone: { wakeLock: false } });
     const auto = row(CONNECTION_GROUP, 'auto-reconnect');

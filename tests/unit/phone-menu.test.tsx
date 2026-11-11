@@ -10,8 +10,37 @@ import { PHONE_KIT } from '../../src/app/phone-kit';
 import { Seg, Toggle } from '../../src/chrome/kit/look-controls';
 import { setPhoneControls, setPhoneKit } from '../../src/phone/kit';
 import { PhoneMenu, statusText } from '../../src/phone/menu-sheet';
-import { LENS_GROUP, SETTINGS_GROUPS, TEXT_GROUP } from '../../src/phone/settings-page';
+import {
+  GROUP_AWAY_OPTIONS,
+  GROUP_GROUP,
+  GROUP_NPC_OPTIONS,
+  LENS_GROUP,
+  PANES_GROUP,
+  SETTINGS_GROUPS,
+  SETTINGS_PAGES,
+  TEXT_GROUP,
+  TIMERS_GROUP,
+  TIMER_COLS_OPTIONS,
+  TIMER_GROUPS_GROUP,
+  TIMER_GROUP_NAMES,
+  TIMER_LAYOUT_OPTIONS,
+  TIMER_SIGNAL_OPTIONS,
+  TIMER_STYLE_OPTIONS,
+  TIMER_WARN_OPTIONS,
+} from '../../src/phone/settings-page';
+import {
+  AWAY_MODE_CHOICES,
+  NPC_MODE_CHOICES,
+  TIMER_COLS_CHOICES,
+  TIMER_LAYOUT_CHOICES,
+  TIMER_SIGNAL_CHOICES,
+  TIMER_STYLE_CHOICES,
+  TIMER_WARN_OPTIONS as DESKTOP_WARN_OPTIONS,
+  colsLabel,
+} from '../../src/chrome/pane-options-model';
+import { TIMER_GROUPS, TIMER_GROUP_LABELS } from '../../src/timers/entry';
 import { SettingsStore } from '../../src/settings';
+import { migrateSettings } from '../../src/settings/migrate';
 import { defaultSettings } from '../../src/settings/types';
 
 setPhoneKit(PHONE_KIT);
@@ -38,10 +67,10 @@ function statusView(s: AppStatusState): AppStatusView & { set(next: AppStatusSta
 /** Every menu of a test, disposed after it (an open menu holds the window's keys). */
 const menus: PhoneMenu[] = [];
 
-function setup(status = STATUS) {
+function setup(status = STATUS, runs?: { anchor: string | null; chain: { saved: boolean; rating: number } | null }) {
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
   const view = statusView(status);
-  const calls = { reconnect: 0, frames: [] as string[], closed: 0 };
+  const calls = { reconnect: 0, frames: [] as string[], closed: 0, exits: 0, saved: [] as number[] };
   const menu = new PhoneMenu({
     parent: document.body,
     settings,
@@ -49,6 +78,8 @@ function setup(status = STATUS) {
     scriptsOn: () => 2,
     reconnect: () => calls.reconnect++,
     openFrame: (f) => calls.frames.push(f),
+    exit: () => calls.exits++,
+    ...(runs ? { runs: { anchor: () => runs.anchor, chain: async () => runs.chain as never, saveChain: async (r: number) => void calls.saved.push(r) } } : {}),
     onClose: () => calls.closed++,
   });
   menus.push(menu);
@@ -142,16 +173,30 @@ describe('PhoneMenu', () => {
     expect(menu.showing).toBe('sheet');
   });
 
-  it('the rows call the shell: Reconnect, and the frames of Profile, Scripts and Exit', () => {
+  it('the rows call the shell: Reconnect, and the frames of Profile and Scripts; Exit session opens the confirmation', () => {
     const { menu, calls } = setup();
     act(() => menu.open());
     tap(menu.host.querySelector('[data-row="reconnect"]'));
     tap(menu.host.querySelector('[data-row="profile"]'));
     tap(menu.host.querySelector('[data-row="scripts"]'));
+    expect(menu.host.querySelector('[data-row="scripts"] .wc-ph-row-v')?.textContent).toBe('2 on');
     tap(menu.host.querySelector('[data-row="exit"]'));
     expect(calls.reconnect).toBe(1);
-    expect(calls.frames).toEqual(['profile', 'scripts', 'exit']);
-    expect(menu.host.querySelector('[data-row="scripts"] .wc-ph-row-v')?.textContent).toBe('2 on');
+    expect(calls.frames).toEqual(['profile', 'scripts']);
+    expect(menu.showing).toBe('exit');
+    expect(calls.exits).toBe(0);
+  });
+
+  it('the sheet has no grip, and a close key left of Exit session that folds it down', () => {
+    const { menu, calls } = setup();
+    act(() => menu.open());
+    expect(menu.host.querySelector('.wc-ph-sheet-top')!.childElementCount).toBe(0);
+    const foot = menu.host.querySelector('.wc-ph-foot')!;
+    expect([...foot.children].map((c) => (c as HTMLElement).dataset.row)).toEqual(['close', 'exit']);
+    expect(foot.querySelector('[data-row="close"]')!.getAttribute('aria-label')).toBe('Close menu');
+    tap(foot.querySelector('[data-row="close"]'));
+    expect(menu.isOpen).toBe(false);
+    expect(calls.closed).toBe(1);
   });
 
   it('Reconnect is lit while the link is down, and follows the status while open', () => {
@@ -230,6 +275,7 @@ describe('PhoneMenu', () => {
       scriptsOn: () => 0,
       reconnect: () => {},
       openFrame: () => {},
+      exit: () => {},
       fits: (next) => next <= size + 1,
     });
     menus.push(menu);
@@ -250,7 +296,7 @@ describe('PhoneMenu', () => {
     const settings = new SettingsStore({ factory: null, storage: null, win: null });
     const view = statusView(STATUS);
     const sub = vi.spyOn(view, 'subscribe');
-    const menu = new PhoneMenu({ parent: document.body, settings, status: view, scriptsOn: () => 0, reconnect: () => {}, openFrame: () => {} });
+    const menu = new PhoneMenu({ parent: document.body, settings, status: view, scriptsOn: () => 0, reconnect: () => {}, openFrame: () => {}, exit: () => {} });
     menus.push(menu);
     expect(sub).not.toHaveBeenCalled();
     act(() => menu.open());
@@ -279,16 +325,145 @@ describe('PhoneMenu', () => {
   });
 });
 
+describe('the Exit session confirmation (stage 52)', () => {
+  const key = (k: string, init: KeyboardEventInit = {}): void => {
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
+    });
+  };
+  const flush = async (): Promise<void> => {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  };
+  const rating = (menu: PhoneMenu): string | undefined => (menu.host.querySelector('.wc-ph-stars') as HTMLElement | null)?.dataset.rating;
+
+  it('no run to rate: the warning, Cancel and Exit; Exit exits once', async () => {
+    const { menu, calls } = setup();
+    act(() => menu.openExit('sheet'));
+    expect(menu.host.querySelector('[role="alertdialog"]')!.getAttribute('aria-label')).toBe('Exit session');
+    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Exit session');
+    expect(menu.host.querySelector('.wc-ph-exit-warn')!.textContent).toBe('Attention! This terminates the current session.');
+    expect(menu.host.querySelector('.wc-ph-stars')).toBeNull();
+    tap(menu.host.querySelector('[data-act="exit"]'));
+    tap(menu.host.querySelector('[data-act="exit"]'));
+    await flush();
+    expect(calls.exits).toBe(1);
+    expect(calls.saved).toEqual([]);
+  });
+
+  it('Cancel, Esc and a tap outside go back to where it came from: the sheet, or the game', () => {
+    const { menu, calls } = setup();
+    act(() => menu.openExit('sheet'));
+    tap(menu.host.querySelector('[data-act="cancel"]'));
+    expect(menu.showing).toBe('sheet');
+    act(() => menu.openExit('sheet'));
+    key('Escape');
+    expect(menu.showing).toBe('sheet');
+    act(() => menu.close());
+    calls.closed = 0;
+    // `#exit`: from the game.
+    act(() => menu.openExit());
+    tap(menu.host.querySelector('.wc-ph-scrim'));
+    expect(menu.isOpen).toBe(false);
+    expect(calls.closed).toBe(1);
+    expect(calls.exits).toBe(0);
+  });
+
+  it('a run to rate: five stars, prefilled with the saved rating; a tap rates, Clear clears; Exit saves the rating, then exits', async () => {
+    const { menu, calls } = setup(STATUS, { anchor: 'run-1', chain: { saved: true, rating: 2 } });
+    act(() => menu.openExit('sheet'));
+    expect(menu.host.querySelector('.wc-ph-rate-t')!.textContent).toBe('Rate & save this run (optional)');
+    expect(menu.host.querySelectorAll('.wc-ph-star')).toHaveLength(5);
+    expect(rating(menu)).toBe('0');
+    await flush();
+    expect(rating(menu)).toBe('2');
+    tap(menu.host.querySelector('[data-star="4"]'));
+    expect(rating(menu)).toBe('4');
+    expect(menu.host.querySelectorAll('.wc-ph-star.is-on')).toHaveLength(4);
+    tap(menu.host.querySelector('[data-act="clear"]'));
+    expect(rating(menu)).toBe('0');
+    tap(menu.host.querySelector('[data-star="5"]'));
+    tap(menu.host.querySelector('[data-act="exit"]'));
+    tap(menu.host.querySelector('[data-act="exit"]'));
+    await flush();
+    expect(calls.saved).toEqual([5]);
+    expect(calls.exits).toBe(1);
+  });
+
+  it('a rating the player touched is not overwritten by the saved one; an unsaved chain prefills nothing', async () => {
+    const a = setup(STATUS, { anchor: 'run-1', chain: { saved: true, rating: 2 } });
+    act(() => a.menu.openExit());
+    tap(a.menu.host.querySelector('[data-star="1"]'));
+    await flush();
+    expect(rating(a.menu)).toBe('1');
+    const b = setup(STATUS, { anchor: 'run-1', chain: { saved: false, rating: 3 } });
+    act(() => b.menu.openExit());
+    await flush();
+    expect(rating(b.menu)).toBe('0');
+    // No anchor: nothing to rate.
+    const c = setup(STATUS, { anchor: null, chain: null });
+    act(() => c.menu.openExit());
+    expect(c.menu.host.querySelector('.wc-ph-stars')).toBeNull();
+  });
+
+  it('a physical keyboard: 0 to 5 and the arrows rate, Y exits; with a modifier they do nothing', async () => {
+    const { menu, calls } = setup(STATUS, { anchor: 'run-1', chain: null });
+    act(() => menu.openExit());
+    key('3');
+    expect(rating(menu)).toBe('3');
+    key('ArrowRight');
+    key('ArrowRight');
+    key('ArrowRight');
+    expect(rating(menu)).toBe('5');
+    key('ArrowLeft');
+    expect(rating(menu)).toBe('4');
+    key('0');
+    expect(rating(menu)).toBe('0');
+    key('2');
+    key('y', { ctrlKey: true });
+    await flush();
+    expect(calls.exits).toBe(0);
+    key('Y');
+    await flush();
+    expect(calls.saved).toEqual([2]);
+    expect(calls.exits).toBe(1);
+    // The sheet itself has no such keys.
+    const other = setup();
+    act(() => other.menu.open());
+    key('y');
+    await flush();
+    expect(other.calls.exits).toBe(0);
+  });
+
+  it('a failed save never stops the exit', async () => {
+    const settings = new SettingsStore({ factory: null, storage: null, win: null });
+    let exits = 0;
+    const menu = new PhoneMenu({
+      parent: document.body,
+      settings,
+      status: statusView(STATUS),
+      scriptsOn: () => 0,
+      reconnect: () => {},
+      openFrame: () => {},
+      exit: () => exits++,
+      runs: { anchor: () => 'run-1', chain: async () => null, saveChain: async () => Promise.reject(new Error('no disk')) },
+    });
+    menus.push(menu);
+    act(() => menu.openExit());
+    tap(menu.host.querySelector('[data-act="exit"]'));
+    await flush();
+    expect(exits).toBe(1);
+  });
+});
+
 describe('the Map lens group', () => {
   it('reads and patches phone.lens only', () => {
     const s = defaultSettings();
-    const [show, size, opens] = LENS_GROUP.rows;
-    if (show?.kind !== 'toggle' || size?.kind !== 'seg' || opens?.kind !== 'seg') throw new Error('row kinds');
+    const [show, opens] = LENS_GROUP.rows;
+    if (show?.kind !== 'toggle' || opens?.kind !== 'seg') throw new Error('row kinds');
     expect(show.get(s)).toBe(true);
     expect(show.set(false, s)).toEqual({ phone: { lens: { show: false } } });
-    expect(size.get(s)).toBe('m');
-    expect(size.options.map((o) => o.value)).toEqual(['s', 'm', 'l']);
-    expect(size.set('l', s)).toEqual({ phone: { lens: { size: 'l' } } });
     expect(opens.get(s)).toBe('middle');
     expect(opens.options.map((o) => o.value)).toEqual(['near', 'middle', 'far']);
     expect(opens.set('far', s)).toEqual({ phone: { lens: { opensAt: 'far' } } });
@@ -298,12 +473,13 @@ describe('the Map lens group', () => {
     const { menu, settings } = setup();
     act(() => menu.openSettings());
     const row = (id: string): Element => menu.host.querySelector(`[data-row="${id}"]`)!;
-    tap(row('lens-size').querySelector('[data-opt="s"]'));
-    expect(settings.get().phone.lens.size).toBe('s');
+    // No size row since stage 52; the stored size stays as it is.
+    expect(menu.host.querySelector('[data-row="lens-size"]')).toBeNull();
     tap(row('lens-opens').querySelector('[data-opt="far"]'));
     expect(settings.get().phone.lens.opensAt).toBe('far');
     tap(row('lens-show').querySelector('[role="switch"]'));
     expect(settings.get().phone.lens.show).toBe(false);
+    expect(settings.get().phone.lens.size).toBe('m');
     expect(row('lens-show').querySelector('[role="switch"]')!.getAttribute('aria-checked')).toBe('false');
     // The desktop's Mapper settings are not touched.
     expect(settings.get().mapper).toEqual(defaultSettings().mapper);
@@ -327,6 +503,9 @@ describe('the Panes and Comm groups', () => {
     tap(item('timers').querySelector('[data-move="down"]'));
     expect(order()).toEqual(['character', 'timers', 'group', 'statistics']);
     tap(item('group').querySelector('[role="switch"]'));
+    // Character is off by default (stage 52); its switch brings it in.
+    expect(settings.get().phone.strip.panes[0]).toEqual({ id: 'character', on: false });
+    tap(item('character').querySelector('[role="switch"]'));
     expect(settings.get().phone.strip.panes).toEqual([
       { id: 'character', on: true },
       { id: 'timers', on: true },
@@ -353,9 +532,11 @@ describe('the Panes and Comm groups', () => {
 });
 
 describe('the settings page as data', () => {
-  it('has the ADR\'s groups and no other (stage 51 rule 3): Text, Compass, Map lens, Panes, Comm, Connection', () => {
+  it('has the ADR\'s groups and no other (stage 51 rule 3): Text, Quick buttons, Map lens, Panes, Comm, Connection', () => {
     expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
-    expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-size', 'seg:lens-opens']);
+    expect(SETTINGS_GROUPS.map((g) => g.title)).toEqual(['Text', 'Quick buttons', 'Map lens', 'Panes', 'Comm', 'Connection']);
+    expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-opens']);
+    expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'link:timers-group']);
     expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font']);
   });
 
@@ -371,5 +552,124 @@ describe('the settings page as data', () => {
     expect(font.set('hack', s)).toEqual({ appearance: { font: 'hack' } });
     expect(font.options().some((o) => o.value === 'hack' && o.label === 'Hack')).toBe(true);
     expect(font.options().map((o) => o.value)).toContain(font.get(s));
+  });
+});
+
+describe('the Timers and Group sub-page (stage 52)', () => {
+  it('its choices and names are the desktop gears\' (the phone chunk repeats them)', () => {
+    expect(TIMER_STYLE_OPTIONS).toEqual(TIMER_STYLE_CHOICES);
+    expect(TIMER_LAYOUT_OPTIONS).toEqual(TIMER_LAYOUT_CHOICES);
+    expect(TIMER_SIGNAL_OPTIONS).toEqual(TIMER_SIGNAL_CHOICES);
+    expect(TIMER_WARN_OPTIONS).toEqual(DESKTOP_WARN_OPTIONS);
+    expect(TIMER_COLS_OPTIONS).toEqual(TIMER_COLS_CHOICES.map((c) => ({ value: String(c), label: colsLabel(c) })));
+    expect(GROUP_NPC_OPTIONS).toEqual(NPC_MODE_CHOICES);
+    expect(GROUP_AWAY_OPTIONS).toEqual(AWAY_MODE_CHOICES);
+    expect(TIMER_GROUP_NAMES).toEqual(TIMER_GROUPS.map((id) => ({ id, label: TIMER_GROUP_LABELS[id] })));
+  });
+
+  it('its groups and rows', () => {
+    const page = SETTINGS_PAGES['timers-group']!;
+    expect(page.title).toBe('Timers and Group');
+    expect(page.groups.map((g) => g.title)).toEqual(['Timers', 'Timer groups', 'Group']);
+    expect(TIMERS_GROUP.rows.map((r) => `${r.kind}:${r.label}`)).toEqual([
+      'seg:Style',
+      'seg:Layout',
+      'pick:Grid columns',
+      'toggle:Group headers',
+      'toggle:Time text',
+      'pick:Signal',
+      'pick:Warn at',
+      'toggle:Soonest first',
+    ]);
+    expect(TIMER_GROUPS_GROUP.rows.map((r) => r.label)).toEqual(['Herblores', 'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Stored', 'Blinds', 'Charmies']);
+    expect(GROUP_GROUP.rows.map((r) => `${r.kind}:${r.label}`)).toEqual(['toggle:Show players', 'pick:NPC visibility', 'pick:Away members', 'toggle:Fight card in the pane']);
+  });
+
+  it('every row reads and writes the desktop gear\'s key, with a value of its set', () => {
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    const d = defaultSettings();
+    const set = (g: typeof TIMERS_GROUP, id: string, v: string | boolean): void => {
+      const r = g.rows.find((x) => x.id === id)!;
+      if (r.kind === 'toggle') store.update(r.set(v as boolean, store.get()));
+      else if (r.kind === 'seg' || r.kind === 'pick') store.update(r.set(v as string, store.get()));
+      else throw new Error(r.kind);
+    };
+    const get = (g: typeof TIMERS_GROUP, id: string): unknown => {
+      const r = g.rows.find((x) => x.id === id)!;
+      if (r.kind === 'toggle' || r.kind === 'seg' || r.kind === 'pick') return r.get(store.get());
+      throw new Error(r.kind);
+    };
+    expect([get(TIMERS_GROUP, 'timers-style'), get(TIMERS_GROUP, 'timers-layout'), get(TIMERS_GROUP, 'timers-cols'), get(TIMERS_GROUP, 'timers-signal'), get(TIMERS_GROUP, 'timers-warn')]).toEqual(['bars', 'flow', 'auto', 'text', '20']);
+    set(TIMERS_GROUP, 'timers-style', 'circles');
+    set(TIMERS_GROUP, 'timers-layout', 'grid');
+    set(TIMERS_GROUP, 'timers-cols', '4');
+    set(TIMERS_GROUP, 'timers-headers', false);
+    set(TIMERS_GROUP, 'timers-time', false);
+    set(TIMERS_GROUP, 'timers-signal', 'pulse');
+    set(TIMERS_GROUP, 'timers-warn', '60');
+    set(TIMERS_GROUP, 'timers-soonest', false);
+    set(TIMER_GROUPS_GROUP, 'timers-group-herb', false);
+    set(TIMER_GROUPS_GROUP, 'timers-group-sanct', false);
+    expect(store.get().timers).toEqual({
+      ...d.timers,
+      style: 'circles',
+      layout: 'grid',
+      cols: 4,
+      headers: false,
+      timeText: false,
+      signal: 'pulse',
+      warnAt: 60,
+      soonestFirst: false,
+      groups: { ...d.timers.groups, herb: { ...d.timers.groups.herb, enabled: false }, sanct: { ...d.timers.groups.sanct, enabled: false } },
+    });
+    set(TIMERS_GROUP, 'timers-cols', 'auto');
+    expect(store.get().timers.cols).toBe('auto');
+    expect(get(TIMER_GROUPS_GROUP, 'timers-group-herb')).toBe(false);
+    set(GROUP_GROUP, 'group-players', false);
+    set(GROUP_GROUP, 'group-npcs', 'all');
+    set(GROUP_GROUP, 'group-away', 'dim');
+    set(GROUP_GROUP, 'group-fight', true);
+    expect(store.get().group).toEqual({ ...d.group, showPlayers: false, npcMode: 'all', away: 'dim', fight: true });
+    // What was written is what the migration keeps: values of the settings' own sets.
+    expect(migrateSettings(JSON.parse(JSON.stringify(store.get()))).timers).toEqual(store.get().timers);
+    expect(migrateSettings(JSON.parse(JSON.stringify(store.get()))).group).toEqual(store.get().group);
+    // Nothing else moved.
+    expect({ ...store.get(), timers: null, group: null }).toEqual({ ...d, timers: null, group: null });
+  });
+
+  it('opens from the Panes group\'s row; Back returns to the settings page at the same scroll position, then on to the sheet', () => {
+    const { menu, settings } = setup();
+    act(() => menu.openSettings('sheet'));
+    const page = (): string | undefined => (menu.host.querySelector('.wc-ph-page') as HTMLElement).dataset.page;
+    const col = (): HTMLElement => menu.host.querySelector('.wc-ph-col')!;
+    const link = menu.host.querySelector('[data-group="panes"] [data-row="timers-group"]')!;
+    expect(link.querySelector('.wc-ph-chev')).not.toBeNull();
+    col().scrollTop = 321;
+    tap(link);
+    expect(page()).toBe('sub:timers-group');
+    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Timers and Group');
+    expect(menu.host.querySelector('.wc-ph-back')!.getAttribute('aria-label')).toBe('Back to settings');
+    expect(col().scrollTop).toBe(0);
+    expect([...menu.host.querySelectorAll('.wc-ph-grp')].map((g) => (g as HTMLElement).dataset.group)).toEqual(['timers', 'timer-groups', 'group']);
+    // A switch on the sub-page writes the shared key.
+    tap(menu.host.querySelector('[data-row="timers-group-herb"] [role="switch"]'));
+    expect(settings.get().timers.groups.herb.enabled).toBe(false);
+    // A pick list on the sub-page: Back returns to the sub-page where it was.
+    col().scrollTop = 77;
+    tap(menu.host.querySelector('[data-row="timers-warn"]'));
+    expect(page()).toBe('pick:timers-warn');
+    expect(menu.host.querySelector('.wc-ph-back')!.getAttribute('aria-label')).toBe('Back to Timers and Group');
+    tap(menu.host.querySelector('[data-opt="30"]'));
+    expect(settings.get().timers.warnAt).toBe(30);
+    expect(page()).toBe('sub:timers-group');
+    expect(col().scrollTop).toBe(77);
+    // Back (Esc, the back gesture): the settings page, where it was scrolled.
+    act(() => void menu.back());
+    expect(page()).toBe('settings');
+    expect(menu.showing).toBe('settings');
+    expect(menu.host.querySelector('.wc-ph-hood')!.textContent).toBe('Settings');
+    expect(col().scrollTop).toBe(321);
+    act(() => void menu.back());
+    expect(menu.showing).toBe('sheet');
   });
 });

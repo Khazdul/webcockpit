@@ -747,20 +747,36 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on .wc-ph-kk {
   text-shadow: none;
 }
 
-/* The column: along the right edge above the compass, K1 lowest. It takes
- * the taps in its gaps too. */
+/* The columns: from the right edge above the compass, the lowest number
+ * lowest; a second column (K4 to K6, stage 52) stands left of the first,
+ * same keys, same gap. Each column takes the taps in its own gaps too; the
+ * box round them takes none, so the corner a shorter column leaves free
+ * stays the game's. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot {
   position: absolute;
   right: 8px;
   /* Above the compass: its three keys, two gaps and margin, and 8 px of air (compass-size.ts). */
   bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot-col {
   display: grid;
   grid-template-columns: var(--ph-ck, 40px);
   grid-auto-rows: var(--ph-ck, 40px);
   gap: 3px;
+  /* An empty first column keeps its width, so the second one keeps its place. */
+  min-width: var(--ph-ck, 40px);
   pointer-events: auto;
   touch-action: none;
   -webkit-touch-callout: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot-col:empty {
+  pointer-events: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot[hidden],
@@ -800,17 +816,18 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk.is-held {
   text-shadow: none;
 }
 
-/* The box a held key opens: left of the column, its foot level with the
- * column's (the layer sets `bottom` and `max-height`; with the keyboard up
- * it stands over the command row). */
+/* The box a held key opens: left of the columns (`--ph-hot-w`: what they
+ * take from the right edge's margin, set by the layer: one key, or two and
+ * their gap), its foot level with theirs (the layer sets `bottom` and
+ * `max-height`; with the keyboard up it stands over the command row). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb {
   position: absolute;
-  right: calc(var(--ph-ck, 40px) + 16px);
+  right: calc(var(--ph-hot-w, var(--ph-ck, 40px)) + 16px);
   bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(286px, calc(100% - var(--ph-ck, 40px) - 24px));
+  width: min(286px, calc(100% - var(--ph-hot-w, var(--ph-ck, 40px)) - 24px));
   border: 1px solid var(--ph-solid-edge);
   border-radius: 10px;
   background: var(--ph-solid);
@@ -1288,26 +1305,16 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet {
   box-shadow: var(--ph-sheet-shadow);
 }
 
-/* The top band: iron with a lit grip; a swipe down on it closes the sheet. */
+/* The top band: plain iron. The sheet is not dragged, so the band carries
+ * no grip (stage 52: the lit bar read as a handle); the close key in the
+ * sheet's last row folds it down. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top {
   flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 14px;
+  height: 10px;
   border-radius: 12px 12px 0 0;
   background: var(--ph-iron);
   border-top: 1px solid var(--ph-iron-hi);
   border-bottom: 1px solid var(--ph-iron-lo);
-  touch-action: none;
-}
-
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top > i {
-  display: block;
-  width: 40px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ph-grip);
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-body {
@@ -1542,27 +1549,136 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-
   box-shadow: 0 0 0 2px var(--ph-well), 0 0 0 4px var(--ph-grip);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit {
+/* The sheet's last row: the close key (folds the sheet down), then Exit
+ * session over the rest of the width. The Exit confirmation's row is the
+ * same: Cancel, then Exit. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-foot {
   flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  height: 48px;
+  margin-top: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-fold,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-cancel {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 48px;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-cancel {
+  flex: 1 1 0;
+  width: auto;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit {
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   box-sizing: border-box;
-  width: 100%;
-  height: 48px;
-  margin-top: 16px;
+  min-width: 0;
   border: 1px solid var(--ph-danger);
   border-radius: 10px;
   color: var(--ph-danger);
   font-weight: 700;
 }
 
+/* The Exit session confirmation (exit-sheet.tsx): the sheet's band, hood
+ * and buttons round one frosted card with the warning and the run's rating. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-exit-card {
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 12px;
+  text-align: center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-exit-warn {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ph-danger);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding-top: 16px;
+  border-top: 1px solid var(--ph-row-rule);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rate-t {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-stars {
+  display: flex;
+  justify-content: center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  color: var(--ph-chev);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-star .wc-ph-ico {
+  width: 30px;
+  height: 30px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-star.is-on {
+  color: var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-star.is-on .wc-ph-ico {
+  fill: currentColor;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear {
+  min-width: 88px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--ph-lamp);
+}
+
+/* Nothing to clear: the key keeps its place (the stars do not jump) but is not there. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear[aria-disabled="true"] {
+  visibility: hidden;
+}
+
 /* The pressed key shows (rows, keys, Exit). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row:active,
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-pick:active,
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key:not([aria-disabled="true"]):active,
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit:active {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-fold:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-cancel:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-star:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear:active {
   background: var(--ph-row-rule);
 }
 

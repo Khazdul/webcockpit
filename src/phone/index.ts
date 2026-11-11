@@ -52,8 +52,8 @@ import { CommBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
-import { PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop } from './compass-size';
-import { pulse } from './haptics';
+import { compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight } from './compass-size';
+import { phoneDefaultsPatch } from './phone-defaults';
 import { WakeLock, wakeWanted } from './wake-lock';
 import { HotkeysView } from './hotkeys';
 import { hotkeyPress, knownHp, withHotkey } from './hotkey-model';
@@ -62,6 +62,7 @@ import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhone
 export type { PhoneControls, PhoneKit } from './kit';
 import type { AppStatusView } from '../app/status';
 import type { SettingsStore } from '../settings';
+import type { LiveRuns } from '../runs/live';
 
 export type { MenuFrame } from './menu-sheet';
 
@@ -105,6 +106,9 @@ export interface PhoneLayerDeps {
   scriptsOn(): number;
   reconnect(): void;
   openFrame(frame: MenuFrame): void;
+  /** Exit session, confirmed (the shell's `exitSession`), and the live run for its rating. */
+  exit(): void;
+  runs?: Pick<LiveRuns, 'anchor' | 'chain' | 'saveChain'> | undefined;
   /** The menu closed back to the game. */
   onMenuClose?(): void;
 }
@@ -151,6 +155,9 @@ export class PhoneLayer {
   private lensClear = 0;
   /** A compass key's side in px (the setting); the hot keys follow it. */
   private keyPx = 40;
+  /** `--ph-hot-w` as last set: the hot key columns' width. */
+  private hotW = '';
+  private disposed = false;
   private readonly wake: WakeLock;
   /** Connected to MUME, as the wake lock last saw it. */
   private wakeConn = false;
@@ -194,7 +201,6 @@ export class PhoneLayer {
       save: (i, key) => deps.settings.update({ phone: { hotkeys: withHotkey(deps.settings.get().phone.hotkeys, i, key) } }),
       toggle: () => deps.settings.update({ phone: { hotkeysOpen: !deps.settings.get().phone.hotkeysOpen } }),
       hp: () => knownHp(deps.game.char.vitals.get('hp')),
-      split: (text) => kit.splitCommands(text),
       onBox: () => this.syncBox(),
     });
     // The K key takes the compass's free cell, left of N.
@@ -208,6 +214,8 @@ export class PhoneLayer {
       scriptsOn: () => deps.scriptsOn(),
       reconnect: () => deps.reconnect(),
       openFrame: (f) => deps.openFrame(f),
+      exit: () => deps.exit(),
+      runs: deps.runs,
       onClose: () => deps.onMenuClose?.(),
       // The menu lies over the box (also when a dropped link opens it): the box gives way, unsaved.
       onOpen: () => this.hot.closeBox(),
@@ -236,7 +244,13 @@ export class PhoneLayer {
         if (sectionChanged(next.phone.strip, prev.phone.strip)) this.syncPages();
         if (next.phone.commRows !== prev.phone.commRows && this.commOpen) cockpit.setPhoneComm({ rows: next.phone.commRows });
         if (next.phone.unread !== prev.phone.unread) this.syncKeys();
-        if (sectionChanged(next.phone.hotkeys, prev.phone.hotkeys) || next.phone.hotkeysOpen !== prev.phone.hotkeysOpen || next.phone.compassSize !== prev.phone.compassSize) this.syncHotkeys();
+        if (
+          sectionChanged(next.phone.hotkeys, prev.phone.hotkeys) ||
+          next.phone.hotkeyCount !== prev.phone.hotkeyCount ||
+          next.phone.hotkeysOpen !== prev.phone.hotkeysOpen ||
+          next.phone.compassSize !== prev.phone.compassSize
+        )
+          this.syncHotkeys();
         if (next.phone.wakeLock !== prev.phone.wakeLock) this.wake.sync();
       }),
       // A script pane came, went or was renamed: the strip's pages follow.
@@ -277,6 +291,16 @@ export class PhoneLayer {
     );
     this.wakeConn = this.connected();
     this.wake.sync();
+    this.watchKeyboard(doc);
+    // The one-time phone defaults (phone-defaults.ts): once per device, judged on the STORED
+    // settings (before the load the store holds a new phone's defaults, which carry the mark).
+    // `load()` is the store's one load, long done here as a rule. The subscriber above follows
+    // the change like any other.
+    void deps.settings.load().then(() => {
+      if (this.disposed) return;
+      const once = phoneDefaultsPatch(deps.settings.get());
+      if (once) deps.settings.update(once);
+    });
     this.syncPages();
     this.syncHotkeys();
     this.syncLens();
@@ -293,8 +317,45 @@ export class PhoneLayer {
   send(cmd: string): void {
     if (!keysLive(this.deps.playState())) return;
     this.deps.command(cmd);
-    // Felt only when the tap did send (ADR 0136 §7).
-    if (this.deps.settings.get().phone.vibrate) pulse(this.el.ownerDocument.defaultView?.navigator);
+  }
+
+  /**
+   * The on-screen keyboard went down while a field still had the focus:
+   * the field lets go (stage 52).
+   *
+   * Android does not blur a field when its keyboard is folded away with
+   * the back key: the command field stays focused and looks selected, and
+   * the owner saw a hot key tap bring the keyboard back. Nothing in the
+   * phone layer or on a key's path calls `focus()` (the input pane's own
+   * `focus()` returns at once after a touch, and does nothing for a field
+   * that has the focus already). The likely cause, NOT VERIFIED ON A
+   * DEVICE: Chrome on Android shows the keyboard again for a tap the page
+   * does not cancel while an editable element has the focus. Either way
+   * the remedy is here: with no focused field no tap can raise it.
+   *
+   * The keyboard's state is `html.wc-kbd` (src/layout/phone-viewport.ts
+   * sets it once the viewport has been quiet, so never in the middle of
+   * the keyboard's opening). Only the settled change from up to down
+   * blurs, and only a text field of the cockpit (the command field,
+   * Comm's reply, a field of the hot key box). The observer runs on a
+   * change of `<html>`'s class only: nothing per frame or per line.
+   */
+  private watchKeyboard(doc: Document): void {
+    const root = doc.documentElement;
+    const MO = doc.defaultView?.MutationObserver;
+    if (!MO) return;
+    let up = root.classList.contains('wc-kbd');
+    const mo = new MO(() => {
+      const now = root.classList.contains('wc-kbd');
+      if (now === up) return;
+      up = now;
+      if (now) return;
+      const active = doc.activeElement as HTMLElement | null;
+      if (!active || !this.deps.cockpit.el.contains(active)) return;
+      if (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT') active.blur();
+    });
+    mo.observe(root, { attributes: true, attributeFilter: ['class'] });
+    this.unsubs.push(() => mo.disconnect());
   }
 
   /** Connected to MUME (not a replay): what the wake lock and nothing else asks. */
@@ -385,16 +446,18 @@ export class PhoneLayer {
   // --------------------------------------------------------------- hot keys
 
   /**
-   * A tap on a hot key (ADR 0136 §8): its command as a typed line, through
-   * the keys' gate (`send`). A key that has nothing to send (a special with
-   * the hit points unknown; a stored line of several commands) says so in
-   * the game text, also only in play.
+   * A tap on a hot key (ADR 0136 §8): its line as typed, through the keys'
+   * gate (`send`); the engine splits a line of several commands as it does
+   * a typed one. A special with nothing to send (the hit points unknown)
+   * says so in the game text, also only in play.
    */
   private pressHotkey(index: number): void {
     const { settings, game } = this.deps;
-    const key = settings.get().phone.hotkeys[index];
-    if (!key) return;
-    const p = hotkeyPress(key, knownHp(game.char.vitals.get('hp')), (text) => phoneKit().splitCommands(text));
+    const ph = settings.get().phone;
+    const key = ph.hotkeys[index];
+    // A slot above the count is not in use (it has no key on screen either).
+    if (!key || index >= ph.hotkeyCount) return;
+    const p = hotkeyPress(key, knownHp(game.char.vitals.get('hp')));
     if (p.kind === 'send') this.send(p.command);
     else if (p.kind === 'notice' && keysLive(this.deps.playState())) this.deps.notice(p.text);
   }
@@ -402,15 +465,22 @@ export class PhoneLayer {
   /** The column follows the settings; the lens keeps clear of it (ADR 0136 §4). */
   private syncHotkeys(): void {
     const p = this.deps.settings.get().phone;
-    // The keys' size (the Compass setting): phone.css lays the compass, the column, the box and
+    // The keys' size (Quick buttons → Key size): phone.css lays the compass, the column, the box and
     // the command field out from it (compass-size.ts has the same sums).
     const px = compassPx(p.compassSize);
     if (px !== this.keyPx || !this.deps.cockpit.el.style.getPropertyValue('--ph-ck')) {
       this.keyPx = px;
       this.deps.cockpit.el.style.setProperty('--ph-ck', `${px}px`);
     }
-    this.hot.set(p.hotkeys, p.hotkeysOpen, hotStep(px));
-    const n = p.hotkeysOpen ? this.hot.count : 0;
+    this.hot.set(p.hotkeys, p.hotkeyCount, p.hotkeysOpen, hotStep(px));
+    // The box stands left of the columns there are (phone.css).
+    const hotW = `${hotWidth(px, this.hot.cols)}px`;
+    if (hotW !== this.hotW) {
+      this.hotW = hotW;
+      this.deps.cockpit.el.style.setProperty('--ph-hot-w', hotW);
+    }
+    // The lens is wider than both columns: it keeps clear of the taller one.
+    const n = p.hotkeysOpen ? this.hot.rows : 0;
     this.lensClear = n === 0 ? compassHeight(px) : hotTop(px, n) + LENS_CLEAR;
     if (this.hot.boxOpen) this.syncBox();
     this.askLens();
@@ -618,10 +688,9 @@ export class PhoneLayer {
     const pending = size > 0 && !g.tooSmall && g.lens === null && !g.lensHidden;
     const rowTop = g.game.y * h + SATROW_GAP;
     // The keys' row is at the right edge, where the hot key column is: on a low screen (landscape
-    // with the strip or a fight card) the row would reach into the column, and then stands left of it.
-    const n = this.deps.settings.get().phone.hotkeysOpen && !phoneKit().keyboardUp() ? this.hot.count : 0;
-    const colTop = n > 0 ? this.el.clientHeight - hotTop(this.keyPx, n) : Infinity;
-    const rowRight = rowTop + SAT_PX + SATROW_GAP > colTop ? PAD_MARGIN + this.keyPx + SATROW_GAP : PAD_MARGIN;
+    // with the strip or a fight card) the row would reach into a column, and then stands left of it.
+    const cols = this.deps.settings.get().phone.hotkeysOpen && !phoneKit().keyboardUp();
+    const rowRight = keyRowRight(rowTop + SAT_PX + SATROW_GAP, this.el.clientHeight, this.keyPx, cols ? [this.hot.rowsIn(0), this.hot.rowsIn(1)] : [0, 0], SATROW_GAP);
     this.lens.place(
       r && size > 0 ? { left: (r.x + r.w / 2) * w - size / 2, top: (r.y + r.h / 2) * h - size / 2, size } : null,
       pending || g.tooSmall ? null : rowTop,
@@ -630,6 +699,7 @@ export class PhoneLayer {
   }
 
   dispose(): void {
+    this.disposed = true;
     for (const u of this.unsubs.splice(0)) u();
     this.flingOff?.();
     this.menu.dispose();

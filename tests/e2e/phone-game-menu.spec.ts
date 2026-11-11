@@ -4,7 +4,7 @@
 // lead to existing pages (Reconnect, Profile, Scripts, Exit) are in
 // phone-esc-menu.spec.ts. Offline cockpit on the `phone` project,
 // `?phone=1`; nothing reaches MUME.
-import { type Locator, type Page, expect, test } from '@playwright/test';
+import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 
 const sheet = (page: Page) => page.locator('.wc-ph-sheet');
 const pageEl = (page: Page) => page.locator('.wc-ph-page');
@@ -14,11 +14,20 @@ const field = (page: Page) => page.locator('.wc-input-slot .wc-input-field');
 const appearance = (page: Page) => page.evaluate(() => window.__wc!.settings.get().appearance);
 const inputFocused = (page: Page) => page.evaluate(() => document.activeElement?.classList.contains('wc-input-field') ?? false);
 
-async function openSheet(page: Page): Promise<void> {
+async function openPhone(page: Page): Promise<void> {
   await page.goto('/?replay&phone=1');
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
+}
+
+/** The menu key: the sheet, on the page as it is. */
+async function tapMenu(page: Page): Promise<void> {
   await page.locator('.wc-ph-menu').tap();
   await expect(sheet(page)).toBeVisible();
+}
+
+async function openSheet(page: Page): Promise<void> {
+  await openPhone(page);
+  await tapMenu(page);
 }
 
 async function openSettings(page: Page): Promise<void> {
@@ -67,6 +76,17 @@ test('the sheet: a dialog from the bottom edge with every entry in order, thumb-
   const quick = (await sheet(page).locator('.wc-ph-quick').boundingBox())!;
   const exit = (await row(page, 'exit').boundingBox())!;
   expect(exit.y).toBeGreaterThanOrEqual(quick.y + quick.height);
+  // The close key (stage 52): directly left of Exit session in the same row, a thumb-size target.
+  const fold = sheet(page).getByRole('button', { name: 'Close menu' }).and(page.locator('.wc-ph-fold'));
+  await thumb(page, fold);
+  const f = (await fold.boundingBox())!;
+  expect(f.y).toBeCloseTo(exit.y, 0);
+  expect(f.height).toBeCloseTo(exit.height, 0);
+  expect(f.x + f.width).toBeLessThanOrEqual(exit.x);
+  expect(exit.x - (f.x + f.width)).toBeLessThan(16);
+  expect(await sheet(page).locator('.wc-ph-foot > *').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row))).toEqual(['close', 'exit']);
+  // Nothing reads as a drag handle: the top band is bare (the sheet is not dragged).
+  expect(await sheet(page).locator('.wc-ph-sheet-top').evaluate((el) => el.childElementCount)).toBe(0);
   // It fits the screen without scrolling in portrait.
   const body = sheet(page).locator('.wc-ph-sheet-body');
   expect(await body.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
@@ -78,6 +98,147 @@ test('the sheet: a dialog from the bottom edge with every entry in order, thumb-
   expect(scrim.width).toBeCloseTo(c.width, 0);
   expect(scrim.height).toBeCloseTo(c.height, 0);
   expect(errors).toEqual([]);
+});
+
+test('the close key folds the sheet down, as a tap outside it and Esc do; the field is not focused', async ({ page }) => {
+  await openSheet(page);
+  await sheet(page).locator('.wc-ph-fold').tap();
+  await expect(sheet(page)).toBeHidden();
+  await expect(page.locator('.wc-ph-menu-host')).toBeHidden();
+  expect(await inputFocused(page)).toBe(false);
+  // The game is back: a compass key is there to tap, and the menu opens again.
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  await tapMenu(page);
+  await page.touchscreen.tap(195, 40);
+  await expect(sheet(page)).toBeHidden();
+  await tapMenu(page);
+  await page.keyboard.press('Escape');
+  await expect(sheet(page)).toBeHidden();
+});
+
+// ------------------------------------------ Exit session, confirmed (stage 52)
+
+const exitSheet = (page: Page) => page.locator('.wc-ph-exitsheet');
+
+test('Exit session asks in the phone\'s own sheet: Cancel returns to the menu, Exit leaves for the start page', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await openSheet(page);
+  await row(page, 'exit').tap();
+  const ex = exitSheet(page);
+  await expect(ex).toBeVisible();
+  await expect(ex).toHaveAttribute('role', 'alertdialog');
+  await expect(ex).toHaveAttribute('aria-label', 'Exit session');
+  await expect(ex.locator('.wc-ph-hood')).toHaveText('Exit session');
+  await expect(ex.locator('.wc-ph-exit-warn')).toHaveText('Attention! This terminates the current session.');
+  // The old-look frame is not used here.
+  await expect(page.locator('.wc-overlay .wc-frame:not([hidden])')).toHaveCount(0);
+  // Dressed as the menu sheet: from the bottom edge, the iron band, the lamp's window, Cinzel.
+  const c = (await page.locator('.wc-cockpit').boundingBox())!;
+  const b = (await ex.boundingBox())!;
+  expect(b.y + b.height).toBeCloseTo(c.y + c.height, 0);
+  expect(b.width).toBeCloseTo(c.width, 0);
+  expect(await ex.locator('.wc-ph-hood').evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Cinzel');
+  expect(await ex.locator('.wc-ph-sheet-top').evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('gradient');
+  for (const act of ['cancel', 'exit']) await thumb(page, ex.locator(`[data-act="${act}"]`));
+  // An offline replay has no run to rate: no rating row.
+  await expect(ex.locator('.wc-ph-stars')).toHaveCount(0);
+  expect(await inputFocused(page)).toBe(false);
+  // Cancel: back to the menu it came from. Esc and a tap outside do the same.
+  await ex.locator('[data-act="cancel"]').tap();
+  await expect(ex).toHaveCount(0);
+  await expect(sheet(page).locator('.wc-ph-hood')).toHaveText('Menu');
+  await row(page, 'exit').tap();
+  await page.keyboard.press('Escape');
+  await expect(sheet(page).locator('.wc-ph-hood')).toHaveText('Menu');
+  await row(page, 'exit').tap();
+  await page.touchscreen.tap(195, 40);
+  await expect(sheet(page).locator('.wc-ph-hood')).toHaveText('Menu');
+  // Exit: the start page.
+  await row(page, 'exit').tap();
+  await exitSheet(page).locator('[data-act="exit"]').tap();
+  await expect(page.locator('.wc-start')).toBeVisible();
+  await expect(page.locator('.wc-ph-menu-host')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('#exit opens the same confirmation from the game; Cancel returns to the game, Y exits', async ({ page }) => {
+  await openPhone(page);
+  await field(page).fill('#exit');
+  await field(page).press('Enter');
+  await expect(exitSheet(page)).toBeVisible();
+  await expect(page.locator('.wc-overlay .wc-frame:not([hidden])')).toHaveCount(0);
+  await exitSheet(page).locator('[data-act="cancel"]').tap();
+  await expect(page.locator('.wc-ph-menu-host')).toBeHidden();
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  // The confirmation has the keys while it is up: nothing is typed into the command line, Y exits.
+  await field(page).fill('#exit');
+  await field(page).press('Enter');
+  await expect(exitSheet(page)).toBeVisible();
+  const kept = await field(page).inputValue();
+  await page.keyboard.press('x');
+  await expect(field(page)).toHaveValue(kept);
+  await expect(exitSheet(page)).toBeVisible();
+  await page.keyboard.press('y');
+  await expect(page.locator('.wc-start')).toBeVisible();
+});
+
+test('Exit session with a run to rate: five stars, prefilled by nothing, a tap rates, Clear clears; Exit saves the rating first', async ({ page }) => {
+  const IAC = 255, WILL = 251, SB = 250, SE = 240, GMCP = 201;
+  const gmcp = (payload: string): Buffer => Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(payload, 'utf8'), Buffer.from([IAC, SE])]);
+  let server: WebSocketRoute | null = null;
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+  });
+  await page.goto('/?phone=1');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  server!.send(gmcp('Char.Name {"name":"Phonerater","fullname":"Phonerater the Mock"}'));
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);
+  server!.send(gmcp('Char.Vitals {"hp":100,"maxhp":100,"xp":5770000,"tp":41500}'));
+  server!.send(Buffer.from('An orc scout is dead! R.I.P.\r\n'));
+  server!.send(gmcp('Char.Vitals {"xp":5860000}'));
+  await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
+  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'An orc scout is dead' })).toHaveCount(1);
+  // What Exit saves, recorded (the run store itself is covered by history.spec.ts).
+  await page.evaluate(() => {
+    const runs = window.__wc!.app.runs;
+    const saved: number[] = ((window as unknown as { __saved: number[] }).__saved = []);
+    const orig = runs.saveChain.bind(runs);
+    runs.saveChain = (r: number) => {
+      saved.push(r);
+      return orig(r);
+    };
+  });
+  await page.locator('.wc-ph-menu').tap();
+  await row(page, 'exit').tap();
+  const ex = exitSheet(page);
+  await expect(ex.locator('.wc-ph-rate-t')).toHaveText('Rate & save this run (optional)');
+  const stars = ex.locator('.wc-ph-star');
+  await expect(stars).toHaveCount(5);
+  for (const st of await stars.all()) await thumb(page, st);
+  await expect(ex.locator('.wc-ph-star.is-on')).toHaveCount(0);
+  await expect(ex.locator('[data-act="clear"]')).toBeHidden();
+  await ex.getByRole('button', { name: '4 stars' }).tap();
+  await expect(ex.locator('.wc-ph-star.is-on')).toHaveCount(4);
+  await expect(ex.getByRole('button', { name: '4 stars' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(ex.getByRole('button', { name: '5 stars' })).toHaveAttribute('aria-pressed', 'false');
+  await ex.locator('[data-act="clear"]').tap();
+  await expect(ex.locator('.wc-ph-star.is-on')).toHaveCount(0);
+  await ex.getByRole('button', { name: '3 stars' }).tap();
+  expect(await inputFocused(page)).toBe(false);
+  // Cancel keeps the session; asked again, the rating starts over from what is saved (nothing).
+  await ex.locator('[data-act="cancel"]').tap();
+  await row(page, 'exit').tap();
+  await expect(ex.locator('.wc-ph-star.is-on')).toHaveCount(0);
+  await ex.getByRole('button', { name: '3 stars' }).tap();
+  await ex.locator('[data-act="exit"]').tap();
+  await expect(page.locator('.wc-start')).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __saved: number[] }).__saved)).toEqual([3]);
+  // The run is saved with the rating: the next session's confirmation of the same chain would prefill it.
+  expect(await page.evaluate(async () => (await window.__wc!.app.runs.chain())?.rating ?? null)).toBe(3);
 });
 
 test('text size: A− and A+ step the font size and the game text follows; taps never focus the field', async ({ page }) => {
@@ -334,8 +495,34 @@ test.describe('landscape', () => {
     expect(b.y).toBeGreaterThanOrEqual(c.y - 0.5);
     expect(b.y + b.height).toBeLessThanOrEqual(c.y + c.height + 0.5);
     await row(page, 'exit').scrollIntoViewIfNeeded();
+    // The close key is in the same row, reachable too.
+    const vh = page.viewportSize()!.height;
+    const fold = (await sheet(page).locator('.wc-ph-fold').boundingBox())!;
+    expect(fold.y + fold.height).toBeLessThanOrEqual(vh + 0.5);
     await row(page, 'exit').tap();
+    // The confirmation: the phone's own sheet, whole on the low screen.
+    const ex = page.locator('.wc-ph-exitsheet');
+    await expect(ex).toBeVisible();
+    for (const act of ['cancel', 'exit']) {
+      await ex.locator(`[data-act="${act}"]`).scrollIntoViewIfNeeded();
+      const k = (await ex.locator(`[data-act="${act}"]`).boundingBox())!;
+      expect(k.y).toBeGreaterThanOrEqual(0);
+      expect(k.y + k.height).toBeLessThanOrEqual(vh + 0.5);
+    }
+  });
+});
+
+test.describe('a phone flag forced in a wide window (the old phone layout)', () => {
+  test.use({ viewport: { width: 1000, height: 700 } });
+
+  test('keeps the old Exit session frame: #exit opens the ESC menu\'s confirm, not the phone\'s sheet', async ({ page }) => {
+    await page.goto('/?replay&phone=1');
+    await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
+    await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
+    await page.locator('.wc-input-field').fill('#exit');
+    await page.locator('.wc-input-field').press('Enter');
     await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Exit session ───');
+    await expect(page.locator('.wc-ph-exitsheet, .wc-ph-sheet')).toHaveCount(0);
   });
 });
 

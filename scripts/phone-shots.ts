@@ -1,11 +1,13 @@
-// The phone layout's screenshots for stage 51 (docs/stages/51-phone-layout.md):
+// The phone layout's screenshots for stages 51 and 52
+// (docs/stages/51-phone-layout.md, 52-phone-round-2.md):
 //
 //   node scripts/phone-shots.ts 51a              every state built by step 51a
 //   node scripts/phone-shots.ts 51a fighting     only these states
+//   node scripts/phone-shots.ts 52a              the states of round 52a (stage 52's own only)
 //
-// Writes docs/stages/img/51-<step>-<state>.png (dark) and
-// docs/stages/img/51-<step>-<state>-paper.png (Paper), where <step> is the
-// step's letter (`51a` → `a`). WC_SHOT_OUT=<dir> writes them elsewhere.
+// Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
+// docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
+// the step's letter (`51a` → `a`). WC_SHOT_OUT=<dir> writes them elsewhere.
 //
 // Starts the dev server on WC_SHOT_PORT (default 5188) unless one answers
 // there already, and drives Chromium as a phone: 390 × 844 CSS px (a state
@@ -59,6 +61,8 @@ interface State {
   live?: boolean;
   /** The step that built it (`a` … `g`). */
   step: string;
+  /** The stage that built it; absent: 51. A run takes the states of its own stage only. */
+  stage?: number;
   /** Another screen than 390 × 844 (landscape, a narrow phone). */
   viewport?: { width: number; height: number };
   /** Brings the opened cockpit to the state. */
@@ -147,6 +151,26 @@ async function keyboardUp(page: Page): Promise<void> {
   await page.setViewportSize({ width: VIEWPORT.width, height: VIEWPORT.height - KEYBOARD_PX });
   await page.locator('html.wc-kbd').waitFor();
 }
+
+/** Every built-in pane a page of the strip (Character is out by default since stage 52). */
+const allPanes = (page: Page): Promise<void> =>
+  page.evaluate(() => {
+    const s = window.__wc!.settings;
+    s.update({ phone: { strip: { panes: s.get().phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
+  });
+
+/** Six hot keys: two columns. */
+const sixKeys = async (page: Page): Promise<void> => {
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
+  await page.locator('.wc-ph-hk[data-hk="5"]').waitFor();
+};
+
+/** The settings page, from the menu sheet. */
+const openSettings = async (page: Page): Promise<void> => {
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet .wc-ph-row[data-row="settings"]').tap();
+  await page.locator('.wc-ph-page').waitFor();
+};
 
 const STATES: State[] = [
   {
@@ -290,6 +314,8 @@ const STATES: State[] = [
     step: 'g',
     run: async (page) => {
       await play(page, CUT.fight);
+      // Character is out of the strip by default since stage 52: in, for its shot.
+      await allPanes(page);
       await page.keyboard.press('Control+3');
       await page.locator('.wc-pane[data-pane="character"][data-phone-strip]').waitFor();
       await page.waitForTimeout(1000);
@@ -300,6 +326,7 @@ const STATES: State[] = [
     step: 'g',
     run: async (page) => {
       await play(page);
+      await allPanes(page);
       await page.keyboard.press('Control+4');
       await page.locator('.wc-pane[data-pane="statistics"][data-phone-strip]').waitFor();
       await page.waitForTimeout(1000);
@@ -339,7 +366,7 @@ const STATES: State[] = [
     },
   },
   {
-    // The hot key box refusing a line of two commands.
+    // The hot key box refusing a key with nothing to send (a line of two commands is accepted since stage 52).
     name: 'rebind-error',
     step: 'g',
     run: async (page) => {
@@ -347,7 +374,7 @@ const STATES: State[] = [
       const key = page.locator('.wc-ph-hk[data-hk="1"]');
       await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
       await page.locator('.wc-ph-rb').waitFor();
-      await page.locator('#wc-ph-rb-command').fill('stand;bash');
+      await page.locator('#wc-ph-rb-command').fill('  ');
       await page.locator('.wc-ph-rb .wc-ph-bt.is-go').tap();
       await page.locator('.wc-ph-rb-err').waitFor();
     },
@@ -411,6 +438,149 @@ const STATES: State[] = [
         c.pin({ weather: '"', fog: '-', clock: 'day', sunU: 0.5 });
       });
       await page.waitForTimeout(6000);
+    },
+  },
+  // ------------------------------------------------------------ stage 52, round a
+  {
+    // The menu sheet: no grip on its band, the close key left of Exit session.
+    name: 'menu',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet').waitFor();
+    },
+  },
+  {
+    // Exit session's confirmation in the sheet's look, with a run to rate (three stars given).
+    name: 'exit',
+    stage: 52,
+    step: 'a',
+    live: true,
+    run: async (page) => {
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="exit"]').tap();
+      await page.locator('.wc-ph-exitsheet .wc-ph-stars').waitFor();
+      await page.locator('.wc-ph-exitsheet [data-star="3"]').tap();
+    },
+  },
+  {
+    // The same without a run to rate (a replay): the warning, Cancel and Exit.
+    name: 'exit-plain',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="exit"]').tap();
+      await page.locator('.wc-ph-exitsheet').waitFor();
+    },
+  },
+  {
+    // The settings page: the Quick buttons group (no vibrate row; the number of K keys), Map lens without Size.
+    name: 'settings-quick',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page);
+      await openSettings(page);
+      await page.locator('.wc-ph-page [data-group="compass"]').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    },
+  },
+  {
+    // The Panes group with the row that opens the sub-page.
+    name: 'settings-panes',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page);
+      await openSettings(page);
+      await page.locator('.wc-ph-page [data-group="panes"]').evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    },
+  },
+  {
+    name: 'timers-group',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page);
+      await openSettings(page);
+      await page.locator('.wc-ph-page [data-row="timers-group"]').tap();
+      await page.locator('.wc-ph-page[data-page="sub:timers-group"]').waitFor();
+    },
+  },
+  {
+    // The sub-page scrolled to its end: the timer groups (Herblores off by default) and Group.
+    name: 'timers-group-end',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page);
+      await openSettings(page);
+      await page.locator('.wc-ph-page [data-row="timers-group"]').tap();
+      await page.locator('.wc-ph-page[data-page="sub:timers-group"]').waitFor();
+      await page.locator('.wc-ph-page [data-group="group"]').evaluate((el) => el.scrollIntoView({ block: 'end' }));
+    },
+  },
+  {
+    // A list of the sub-page (NPC visibility).
+    name: 'timers-group-list',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page);
+      await openSettings(page);
+      await page.locator('.wc-ph-page [data-row="timers-group"]').tap();
+      await page.locator('.wc-ph-page [data-row="group-npcs"]').tap();
+      await page.locator('.wc-ph-page[data-page="pick:group-npcs"]').waitFor();
+    },
+  },
+  {
+    // Six K keys: the second column left of the first, K4 lowest.
+    name: 'six-keys',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await sixKeys(page);
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+    },
+  },
+  {
+    name: 'six-keys-landscape',
+    stage: 52,
+    step: 'a',
+    viewport: { width: 844, height: 390 },
+    run: async (page) => {
+      await sixKeys(page);
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+    },
+  },
+  {
+    // The box of a key of the second column: left of both columns.
+    name: 'six-keys-rebind',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await sixKeys(page);
+      await play(page);
+      const key = page.locator('.wc-ph-hk[data-hk="4"]');
+      await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+      await page.locator('.wc-ph-rb').waitFor();
+    },
+  },
+  {
+    // The phone's default strip: Timers without the Herblores group; three pages (no Character).
+    name: 'strip-default',
+    stage: 52,
+    step: 'a',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-pane="timers"][data-phone-strip]').waitFor();
+      await page.waitForTimeout(1500);
     },
   },
 ];
@@ -478,10 +648,13 @@ async function warmUp(browser: Browser): Promise<void> {
 }
 
 const [stepArg, ...wanted] = process.argv.slice(2);
-const step = /^(?:51)?([a-g])$/.exec(stepArg ?? '')?.[1];
-if (!step) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a> [state …]');
-for (const w of wanted) if (!STATES.some((s) => s.name === w)) throw new Error(`unknown state ${w}; known: ${STATES.map((s) => s.name).join(' ')}`);
-const states = STATES.filter((s) => s.step <= step && (wanted.length === 0 || wanted.includes(s.name)));
+const arg = /^(5[12])?([a-g])$/.exec(stepArg ?? '');
+if (!arg) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a or 52a> [state …]');
+const stage = Number(arg[1] ?? 51);
+const step = arg[2]!;
+const ofStage = STATES.filter((s) => (s.stage ?? 51) === stage);
+for (const w of wanted) if (!ofStage.some((s) => s.name === w)) throw new Error(`unknown state ${w}; known: ${ofStage.map((s) => s.name).join(' ')}`);
+const states = ofStage.filter((s) => s.step <= step && (wanted.length === 0 || wanted.includes(s.name)));
 
 mkdirSync(OUT, { recursive: true });
 const server = await devServer(PORT);
@@ -492,7 +665,7 @@ try {
   for (const state of states) {
     console.log(state.name);
     for (const light of [false, true]) {
-      const file = `${OUT}51-${step}-${state.name}${light ? '-paper' : ''}.png`;
+      const file = `${OUT}${stage}-${step}-${state.name}${light ? '-paper' : ''}.png`;
       try {
         await shoot(browser, state, file, light);
       } catch (err) {

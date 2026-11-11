@@ -10,6 +10,12 @@
 //   desktop's `comm.folded` / `comm.listWidth` are never written.
 // - The lens hides while Comm is open and its keys stay as a row.
 //
+// Stage 52: Character is out of the strip and the Herblores timers are off
+// by default on a phone (applied once to stored 0.5.0 settings), and the
+// Timers and Group sub-page of the settings sets what those two panes show.
+// The strip cases written for stage 51 put all four panes and the
+// Herblores back first (`fullStrip`), so they still walk every page.
+//
 // `phone` project (Pixel 7). The strip cases replay tests/fixtures in the
 // offline cockpit; the Comm cases play against a `page.routeWebSocket` mock
 // (a replay has no reply line). Nothing reaches MUME.
@@ -44,10 +50,20 @@ function watchErrors(page: Page): string[] {
 
 // ------------------------------------------------------------ the strip
 
-async function openPhone(page: Page): Promise<void> {
+/** All four built-in panes in the strip and the Herblores timers on, as before stage 52's phone defaults. */
+async function fullStrip(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const s = window.__wc!.settings;
+    s.update({ timers: { groups: { herb: { enabled: true } } }, phone: { strip: { panes: s.get().phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
+  });
+}
+
+/** The offline cockpit on a phone. `full` (the default): with `fullStrip`; false: the phone's own defaults. */
+async function openPhone(page: Page, full = true): Promise<void> {
   await page.goto('/?replay&phone=1');
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  if (full) await fullStrip(page);
 }
 
 /** Replays the GMCP demo, whole or up to the line before the first one holding `cut`. */
@@ -385,6 +401,7 @@ test('a script\'s pane is a page of the strip after the built-in ones, named by 
   // The script runs: its pane exists, hidden like every pane outside the strip.
   await expect.poll(() => page.evaluate(() => window.__wc!.app.cockpit.scriptPanes().map((p) => p.id))).toEqual(['kills/main']);
   await expect(pane(page, 'kills/main')).toBeHidden();
+  await fullStrip(page);
   await sat(page, 'panes').tap();
   await expect(dots(page)).toHaveCount(5);
   expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(['timers', 'group', 'character', 'statistics', 'kills/main']);
@@ -429,7 +446,8 @@ test('Statistics shows the live run of a replay, as a page of the strip', async 
   await page.goto('/?fixture=gmcp-demo.log&speed=3&phone=1');
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'An orc scout is dead! R.I.P.' }).first()).toBeAttached({ timeout: 20_000 });
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
-  await page.keyboard.press('Control+4');
+  // The phone's default strip: Timers, Group, Statistics (Character is out since stage 52).
+  await page.keyboard.press('Control+3');
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'statistics');
   const stats = stripPane(page).locator('.wc-st');
   await expect(stats).toBeVisible();
@@ -450,6 +468,134 @@ test('Statistics shows the live run of a replay, as a page of the strip', async 
   // Hidden again (another page), it is not drawn.
   await page.keyboard.press('Control+1');
   await expect(pane(page, 'statistics')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+// ------------------------------------------- the phone's defaults (stage 52)
+
+const herbOn = (page: Page) => page.evaluate(() => window.__wc!.settings.get().timers.groups.herb.enabled);
+const stripOn = (page: Page) => page.evaluate(() => window.__wc!.settings.get().phone.strip.panes.filter((e) => e.on).map((e) => e.id));
+const herbGroup = (page: Page) => pane(page, 'timers').locator('.wc-tm-g[data-group="herb"], .wc-tm-g').filter({ hasText: /Herblore/i });
+
+test('a new phone: Character is not a page of the strip and the Herblores timers are off; both can be switched on', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, false);
+  await play(page);
+  expect(await stripOn(page)).toEqual(['timers', 'group', 'statistics']);
+  expect(await herbOn(page)).toBe(false);
+  expect((await phone(page)).defaults).toBe(1);
+  await sat(page, 'panes').tap();
+  await expect(dots(page)).toHaveCount(3);
+  expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(['timers', 'group', 'statistics']);
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
+  await expect(herbGroup(page)).toHaveCount(0);
+  // The player's own choice: both on, and they stay on over a reload (the defaults are not applied again).
+  await fullStrip(page);
+  await expect(dots(page)).toHaveCount(4);
+  await expect(herbGroup(page)).not.toHaveCount(0);
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await page.reload();
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(await stripOn(page)).toEqual(['timers', 'group', 'character', 'statistics']);
+  expect(await herbOn(page)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('settings stored by 0.5.0 (no mark): Herblores and Character are switched off once at the start, then the player\'s choice wins', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, false);
+  // What 0.5.0 left in storage: every pane in the strip, in an order of the player's, Herblores on, no mark.
+  await page.evaluate(async () => {
+    const s = window.__wc!.settings;
+    const order = ['statistics', 'character', 'timers', 'group'] as const;
+    s.update({ timers: { groups: { herb: { enabled: true } } }, phone: { defaults: 0, strip: { panes: order.map((id) => ({ id, on: true })) } } });
+    await s.flush();
+  });
+  await page.reload();
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  await expect.poll(async () => (await phone(page)).defaults).toBe(1);
+  expect(await herbOn(page)).toBe(false);
+  // Only Character went; the order and the other panes are the player's.
+  expect((await phone(page)).strip.panes.map((e) => `${e.id}:${e.on}`)).toEqual(['statistics:true', 'character:false', 'timers:true', 'group:true']);
+  // Switched back on: kept over the next start.
+  await fullStrip(page);
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await page.reload();
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(await herbOn(page)).toBe(true);
+  expect(await stripOn(page)).toEqual(['statistics', 'character', 'timers', 'group']);
+  expect((await phone(page)).defaults).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('Settings → Panes → Timers and Group: the two panes\' settings, written to the desktop gears\' keys and seen in the strip; Back keeps the scroll', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page);
+  await play(page);
+  const before = await page.evaluate(() => window.__wc!.settings.get());
+  await field(page).fill('#panes');
+  await field(page).press('Enter');
+  const pg = page.locator('.wc-ph-page');
+  const col = pg.locator('.wc-ph-col');
+  const link = pg.locator('[data-group="panes"] [data-row="timers-group"]');
+  await expect(link).toHaveText('Timers and Group');
+  await expect(link.locator('.wc-ph-chev')).toBeVisible();
+  expect((await box(link)).height).toBeGreaterThanOrEqual(44);
+  const scrolled = await col.evaluate((el) => el.scrollTop);
+  expect(scrolled).toBeGreaterThan(0);
+  await link.tap();
+  await expect(pg).toHaveAttribute('data-page', 'sub:timers-group');
+  await expect(pg.locator('.wc-ph-hood')).toHaveText('Timers and Group');
+  expect(await col.evaluate((el) => el.scrollTop)).toBe(0);
+  expect(await pg.locator('[data-group] .wc-ph-grp-t').allTextContents()).toEqual(['Timers', 'Timer groups', 'Group']);
+  // Every row is a thumb-size target inside the screen; nothing overflows sideways.
+  for (const r of await pg.locator('.wc-ph-srow').all()) {
+    const b = await box(r);
+    expect(b.height).toBeGreaterThanOrEqual(44);
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(page.viewportSize()!.width + 0.5);
+  }
+  expect(await col.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const sw = (id: string, name: string) => pg.locator(`[data-row="${id}"]`).getByRole('switch', { name });
+  // Timers: circles, no headers, Herblores off.
+  await pg.locator('[data-row="timers-style"]').getByRole('radio', { name: 'Circles' }).tap();
+  await sw('timers-headers', 'Group headers').tap();
+  await expect(sw('timers-group-herb', 'Herblores')).toHaveAttribute('aria-checked', 'true');
+  await sw('timers-group-herb', 'Herblores').tap();
+  // A list of its own, and back to the sub-page.
+  await pg.locator('[data-row="timers-warn"]').tap();
+  await expect(pg).toHaveAttribute('data-page', 'pick:timers-warn');
+  await pg.getByRole('radio', { name: '60s' }).tap();
+  await expect(pg).toHaveAttribute('data-page', 'sub:timers-group');
+  await expect(pg.locator('[data-row="timers-warn"] .wc-ph-srow-v')).toHaveText('60s');
+  // Group: no players' room names, NPCs all.
+  await pg.locator('[data-row="group-npcs"]').tap();
+  await pg.getByRole('radio', { name: 'All' }).tap();
+  await pg.locator('[data-row="group-away"]').tap();
+  await pg.getByRole('radio', { name: 'Dim only' }).tap();
+  const after = await page.evaluate(() => window.__wc!.settings.get());
+  expect(after.timers).toEqual({ ...before.timers, style: 'circles', headers: false, warnAt: 60, groups: { ...before.timers.groups, herb: { ...before.timers.groups.herb, enabled: false } } });
+  expect(after.group).toEqual({ ...before.group, npcMode: 'all', away: 'dim' });
+  expect({ ...after, timers: null, group: null }).toEqual({ ...before, timers: null, group: null });
+  // Back: the settings page where it was; Esc again leaves it (opened by a command: to the game).
+  await pg.locator('.wc-ph-back').tap();
+  await expect(pg).toHaveAttribute('data-page', 'settings');
+  await expect(pg.locator('.wc-ph-hood')).toHaveText('Settings');
+  expect(await col.evaluate((el) => el.scrollTop)).toBe(scrolled);
+  // Esc steps the same way.
+  await link.tap();
+  await expect(pg).toHaveAttribute('data-page', 'sub:timers-group');
+  await page.keyboard.press('Escape');
+  await expect(pg).toHaveAttribute('data-page', 'settings');
+  expect(await col.evaluate((el) => el.scrollTop)).toBe(scrolled);
+  await page.keyboard.press('Escape');
+  await expect(pg).toBeHidden();
+  // The strip's Timers pane drew it: no Herblores group, rings instead of bars.
+  await sat(page, 'panes').tap();
+  await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
+  await expect(herbGroup(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -628,6 +774,67 @@ test('unread: a tell raises the Comm key\'s count while Comm is closed; reading 
   await sat(page, 'comm').tap();
   await expect(badge(page)).toBeHidden();
   await expect(sat(page, 'comm')).toHaveAttribute('aria-label', 'Open Comm');
+});
+
+test('unread with the lens hidden (stage 52): a private tell received while Comm is closed counts on the Comm key of the key row', async ({ page }) => {
+  const m = await enterMock(page);
+  // The lens switched off: its keys stand as a row at the top right.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { show: false } } }));
+  await expect(lens(page)).toBeHidden();
+  await expect(row(page)).toBeVisible();
+  const rowKey = row(page).locator('.wc-ph-sat[data-sat="comm"]');
+  const rowBadge = rowKey.locator('.wc-ph-badge');
+  await expect(rowKey).toBeVisible();
+  await expect(rowBadge).toBeHidden();
+  m.server().send(tell('Gibur', 'you at the ford?'));
+  await expect(rowBadge).toBeVisible();
+  await expect(rowBadge).toHaveText('1');
+  await expect(rowKey).toHaveAttribute('aria-label', 'Open Comm, 1 unread');
+  // The badge is on the key, inside the screen.
+  const k = await box(rowKey);
+  const b = await box(rowBadge);
+  expect(b.x + b.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect(Math.abs(b.x + b.width / 2 - (k.x + k.width)) + Math.abs(b.y + b.height / 2 - k.y)).toBeLessThan(40);
+  m.server().send(tell('Dori', 'wait for me'));
+  await expect(rowBadge).toHaveText('2');
+  // The lens back: the same count is on its Comm key; off again, on the row's.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { show: true } } }));
+  await expect(lens(page)).toBeVisible();
+  await expect(badge(page)).toHaveText('2');
+  m.server().send(tell('Gibur', 'hurry'));
+  await expect(badge(page)).toHaveText('3');
+  // Opened from the row's key and read: the count goes.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { show: false } } }));
+  await rowKey.tap();
+  await expect(comm(page)).toBeVisible();
+  await expect(rowBadge).toBeHidden();
+  await chat(page, 'Gibur').tap();
+  await chat(page, 'Dori').tap();
+  await rowKey.tap();
+  await expect(comm(page)).toBeHidden();
+  await expect(rowBadge).toBeHidden();
+  await expect(rowKey).toHaveAttribute('aria-label', 'Open Comm');
+});
+
+test.describe('landscape', () => {
+  test.use({ viewport: { width: 844, height: 390 } });
+
+  test('unread with the lens hidden by the layout (no room above the hot keys): the row\'s Comm key counts a private tell', async ({ page }) => {
+    const m = await enterMock(page);
+    // Wanted but not shown: the three hot keys reach its place on this screen.
+    expect((await phone(page)).lens.show).toBe(true);
+    await expect(lens(page)).toBeHidden();
+    await expect(row(page)).toBeVisible();
+    const rowBadge = row(page).locator('.wc-ph-sat[data-sat="comm"] .wc-ph-badge');
+    await expect(rowBadge).toBeHidden();
+    m.server().send(tell('Gibur', 'you at the ford?'));
+    await expect(rowBadge).toHaveText('1');
+    await expect(row(page).locator('.wc-ph-sat[data-sat="comm"]')).toHaveAttribute('aria-label', 'Open Comm, 1 unread');
+    // Group talk does not count by default; the next tell does.
+    m.server().send(groupTell('Gibur', 'two trolls'));
+    m.server().send(tell('Dori', 'coming'));
+    await expect(rowBadge).toHaveText('2');
+  });
 });
 
 test('phone.unread = all counts Group and Public too; the Comm settings group sets it and NPCs in Public', async ({ page }) => {

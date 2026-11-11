@@ -60,6 +60,7 @@ import {
   PHONE_COMM_ROWS_MIN,
   PHONE_COMPASS_SIZES,
   PHONE_HOTKEY_COMMAND_MAX,
+  PHONE_DEFAULTS_MARK,
   PHONE_HOTKEY_COUNT,
   PHONE_HOTKEY_LABEL_MAX,
   PHONE_HOTKEY_SPECIALS,
@@ -533,22 +534,24 @@ export function migratePhone(raw: unknown): PhoneSettings {
       size: oneOf(l.size, PHONE_LENS_SIZES, d.lens.size),
       opensAt: oneOf(l.opensAt, PHONE_LENS_LEVELS, d.lens.opensAt),
     },
-    strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined) },
+    strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined, d.strip.panes) },
     commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
     unread: oneOf(p.unread, PHONE_UNREAD_MODES, d.unread),
     hotkeys: migrateHotkeys(p.hotkeys, d.hotkeys),
+    hotkeyCount: int(p.hotkeyCount, 1, PHONE_HOTKEY_COUNT, d.hotkeyCount),
     hotkeysOpen: bool(p.hotkeysOpen, d.hotkeysOpen),
     compassSize: oneOf(p.compassSize, PHONE_COMPASS_SIZES, d.compassSize),
-    vibrate: bool(p.vibrate, d.vibrate),
     wakeLock: bool(p.wakeLock, d.wakeLock),
     autoReconnect: bool(p.autoReconnect, d.autoReconnect),
+    // Absent (settings from 0.5.0, or a computer's): none had yet. A stored `vibrate` (0.5.0) is dropped.
+    defaults: int(p.defaults, 0, PHONE_DEFAULTS_MARK, 0),
   };
 }
 
 /**
  * The hot keys from anything: always `PHONE_HOTKEY_COUNT`, slot by slot (a
- * short list is filled with the defaults of the missing slots, a long one
- * is cut). A label is cut to its length and a command to one line; a key
+ * short list, such as the three of 0.5.0, is filled with the defaults of
+ * the missing slots; a long one is cut). A label is cut to its length and a command to one line; a key
  * that would send nothing (no command and no known special) or show
  * nothing (no label) is the slot's default instead, so a stored key is
  * never a dead control.
@@ -559,7 +562,7 @@ export function migratePhone(raw: unknown): PhoneSettings {
  * `characters`, which the phone's own chunk keeps for itself).
  */
 function labelChars(text: string): string[] {
-  // Every settings write on every device passes here (three labels): the common label, a few
+  // Every settings write on every device passes here (six labels): the common label, a few
   // ASCII letters, needs no segmenter, and the one for the rest is made once.
   if (/^[\x20-\x7e]*$/.test(text)) return text.split('');
   const Seg = (Intl as { Segmenter?: SegmenterCtor }).Segmenter;
@@ -602,9 +605,9 @@ function migrateHotkeys(raw: unknown, dflt: PhoneHotkey[]): PhoneHotkey[] {
 /**
  * The strip's panes from anything: every known pane exactly once, the
  * stored ones first in their stored order (a repeat or an unknown id is
- * dropped), then the missing ones in the default order, on.
+ * dropped), then the missing ones in the default order, on or off as by default.
  */
-function migrateStripPanes(raw: unknown): PhoneStripEntry[] {
+function migrateStripPanes(raw: unknown, dflt: PhoneStripEntry[]): PhoneStripEntry[] {
   const out: PhoneStripEntry[] = [];
   const seen = new Set<string>();
   for (const e of Array.isArray(raw) ? raw : []) {
@@ -613,7 +616,7 @@ function migrateStripPanes(raw: unknown): PhoneStripEntry[] {
     seen.add(e.id);
     out.push({ id: e.id as PhoneStripPane, on: bool(e.on, true) });
   }
-  for (const id of PHONE_STRIP_PANES) if (!seen.has(id)) out.push({ id, on: true });
+  for (const id of PHONE_STRIP_PANES) if (!seen.has(id)) out.push({ id, on: dflt.find((e) => e.id === id)?.on ?? true });
   return out;
 }
 

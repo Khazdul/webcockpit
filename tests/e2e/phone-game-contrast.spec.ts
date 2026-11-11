@@ -287,7 +287,8 @@ for (const theme of THEMES) {
       await holdKey(page, 3);
       judge(await audit(page, ['.wc-ph-rb', '.wc-ph-hot']), 'box (special)', theme, info, 14);
       await page.locator('.wc-ph-rb .wc-ph-chip[data-pick="custom"]').tap();
-      await page.locator('#wc-ph-rb-command').fill('stand;bash');
+      // Nothing to send: Save refuses (the error line).
+      await page.locator('#wc-ph-rb-command').fill('   ');
       await page.locator('.wc-ph-rb .wc-ph-bt.is-go').tap();
       await expect(page.locator('.wc-ph-rb-err')).toBeVisible();
       judge(await audit(page, ['.wc-ph-rb']), 'box (error)', theme, info, 14);
@@ -307,6 +308,64 @@ for (const theme of THEMES) {
       // The stepper at the smallest size: A− is disabled (reported, not failed); the rest still holds.
       await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 6 } }));
       judge(await audit(page, ['.wc-ph-menu-host']), 'sheet (smallest text)', theme, info, 8);
+    });
+
+    test('the Exit session confirmation: the hood, the warning, the rating, Cancel and Exit', async ({ page }, info) => {
+      // A live session against a mock: it has a run to rate (a replay has none).
+      const IAC = 255, WILL = 251, SB = 250, SE = 240, GMCP = 201;
+      const gmcp = (pkg: string, data: unknown): Buffer => Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(`${pkg} ${JSON.stringify(data)}`, 'utf8'), Buffer.from([IAC, SE])]);
+      let server: WebSocketRoute | null = null;
+      await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+        server = ws;
+        ws.send(Buffer.from([IAC, WILL, GMCP]));
+      });
+      await page.goto('/?phone=1');
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+      await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+      await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+      server!.send(gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Mock' }));
+      await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);
+      server!.send(gmcp('Char.Vitals', { hp: 100, maxhp: 100, xp: 5770000, tp: 41500 }));
+      await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
+      await setTheme(page, theme);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="exit"]').tap();
+      await expect(page.locator('.wc-ph-exitsheet')).toBeVisible();
+      await expect(page.locator('.wc-ph-exitsheet .wc-ph-stars')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'exit', theme, info, 5);
+      await page.locator('.wc-ph-exitsheet [data-star="3"]').tap();
+      await expect(page.locator('.wc-ph-exitsheet [data-act="clear"]')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'exit (rated)', theme, info, 6);
+    });
+
+    test('six hot keys in two columns', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page, FIGHT);
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
+      await expect(page.locator('.wc-ph-hk')).toHaveCount(6);
+      judge(await audit(page, ['.wc-ph-hot']), 'six hot keys', theme, info, 6);
+    });
+
+    test('the Timers and Group sub-page, top to bottom, and one of its lists', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
+      await page.locator('.wc-ph-page [data-row="timers-group"]').tap();
+      await expect(page.locator('.wc-ph-page[data-page="sub:timers-group"]')).toBeVisible();
+      let total = 0;
+      for (const g of ['timers', 'timer-groups', 'group']) {
+        await page.locator(`.wc-ph-page [data-group="${g}"]`).evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        const found = await audit(page, ['.wc-ph-menu-host']);
+        total += found.length;
+        judge(found, `timers and group, ${g}`, theme, info, 4);
+      }
+      expect(total).toBeGreaterThan(20);
+      await page.locator('.wc-ph-page [data-row="group-npcs"]').tap();
+      await expect(page.locator('.wc-ph-page[data-page="pick:group-npcs"]')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'timers and group, NPC list', theme, info, 3);
     });
 
     test('the settings page: every group and row kind, top to bottom, and the font list', async ({ page }, info) => {
@@ -336,6 +395,11 @@ for (const theme of THEMES) {
       await openPhone(page);
       await setTheme(page, theme);
       await play(page, FIGHT);
+      // Character is out of the strip by default (stage 52): in, so its page is measured too.
+      await page.evaluate(() => {
+        const s = window.__wc!.settings;
+        s.update({ phone: { strip: { panes: s.get().phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
+      });
       for (const n of [1, 2, 3, 4]) {
         await page.keyboard.press(`Control+${n}`);
         await expect(page.locator('.wc-ph-strip')).toHaveAttribute('aria-label', new RegExp(`${n} of 4$`));

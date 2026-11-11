@@ -6,7 +6,14 @@
 // of a few kinds (stepper, segmented, switch, pick from a list). A stage
 // adds its group to the list when what it sets works (stage 51 rule 3: no
 // row before its feature): Text (51b), Map lens (51c), Panes and Comm
-// (51d); Compass and Connection (51f) follow.
+// (51d); Quick buttons (the compass and the hot keys) and Connection (51f).
+// Stage 52: a `link` row opens a sub-page of the same kind of groups
+// (`SETTINGS_PAGES`): "Timers and Group", the settings of those two panes
+// that show in the pane strip. They are the desktop gear popups' keys and
+// value sets (src/chrome/popups/pane-settings.tsx, ADR 0122); the labels
+// repeat src/chrome/pane-options-model.ts and src/timers/entry.ts, which
+// this chunk may not import as values (kit.ts): a unit test holds them
+// equal.
 //
 // The Text group changes the same keys the desktop does (`appearance.size`,
 // the background with its ink and palette, `appearance.font`). The theme
@@ -19,11 +26,25 @@
 // too). Nothing takes the DOM focus: a tap never raises the keyboard.
 
 import type { ComponentChildren, VNode } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
-import { canVibrate } from './haptics';
 import { canWakeLock } from './wake-lock';
-import type { FontId, PhoneCompassSize, PhoneLensLevel, PhoneLensSize, PhoneUnread, Settings, SettingsPatch } from '../settings/types';
+import type {
+  FontId,
+  GroupAwayMode,
+  GroupNpcMode,
+  PhoneCompassSize,
+  PhoneLensLevel,
+  PhoneUnread,
+  Settings,
+  SettingsPatch,
+  TimerLayout,
+  TimerSignal,
+  TimerStyle,
+  TimerWarnAt,
+} from '../settings/types';
+import type { TimerGroup } from '../timers/entry';
+import { hotkeyCount, stepHotkeyCount } from './hotkey-model';
 import { moveEntry, setEntry } from './strip-model';
 import { phoneControls, phoneKit } from './kit';
 import { PHONE_THEMES, type PhoneTheme, stepSize, themeBg, themeOf } from './text-settings';
@@ -85,6 +106,14 @@ export type SettingsRow =
       options(): { value: string; label: string }[];
       get(s: S): string;
       set(value: string, s: S): SettingsPatch;
+    }
+  | {
+      /** A row that opens a sub-page (`SETTINGS_PAGES`). */
+      kind: 'link';
+      id: string;
+      label: string;
+      /** The sub-page's id. */
+      page: string;
     };
 
 export interface SettingsGroup {
@@ -134,7 +163,11 @@ export const TEXT_GROUP: SettingsGroup = {
   ],
 };
 
-/** Map lens: show, size, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13). */
+/**
+ * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13).
+ * No size row since stage 52: the lens is sized from the screen
+ * (`phone.lens.size` keeps its stored value until that is built).
+ */
 export const LENS_GROUP: SettingsGroup = {
   id: 'lens',
   title: 'Map lens',
@@ -145,18 +178,6 @@ export const LENS_GROUP: SettingsGroup = {
       label: 'Show map',
       get: (s) => s.phone.lens.show,
       set: (show) => ({ phone: { lens: { show } } }),
-    },
-    {
-      kind: 'seg',
-      id: 'lens-size',
-      label: 'Size',
-      options: [
-        { value: 's', label: 'S' },
-        { value: 'm', label: 'M' },
-        { value: 'l', label: 'L' },
-      ],
-      get: (s) => s.phone.lens.size,
-      set: (size) => ({ phone: { lens: { size: size as PhoneLensSize } } }),
     },
     {
       kind: 'seg',
@@ -189,6 +210,7 @@ export const PANES_GROUP: SettingsGroup = {
       toggle: (id, on, s) => ({ phone: { strip: { panes: setEntry(s.phone.strip.panes, id, on) } } }),
       move: (id, dir, s) => ({ phone: { strip: { panes: moveEntry(s.phone.strip.panes, id, dir) } } }),
     },
+    { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
   ],
   caption: 'Swipe the strip to change pane',
 };
@@ -219,10 +241,14 @@ export const COMM_GROUP: SettingsGroup = {
   ],
 };
 
-/** Compass: the keys' size and the vibration on a tap (`phone.compassSize`, `phone.vibrate`; ADR 0136 §7). */
+/**
+ * Quick buttons: the size of the compass keys and the hot keys, and how
+ * many hot keys there are (`phone.compassSize`, `phone.hotkeyCount`; ADR
+ * 0136 §7, §8; stage 52). The group's id stays `compass` (`data-group`).
+ */
 export const COMPASS_GROUP: SettingsGroup = {
   id: 'compass',
-  title: 'Compass',
+  title: 'Quick buttons',
   rows: [
     {
       kind: 'seg',
@@ -237,14 +263,17 @@ export const COMPASS_GROUP: SettingsGroup = {
       set: (compassSize) => ({ phone: { compassSize: compassSize as PhoneCompassSize } }),
     },
     {
-      kind: 'toggle',
-      id: 'compass-vibrate',
-      label: 'Vibrate on tap',
-      get: (s) => s.phone.vibrate,
-      set: (vibrate) => ({ phone: { vibrate } }),
-      available: () => canVibrate(globalThis.navigator),
+      kind: 'stepper',
+      id: 'hotkey-count',
+      label: 'Number of K keys',
+      get: (s) => hotkeyCount(s.phone.hotkeyCount),
+      step: stepHotkeyCount,
+      set: (n) => ({ phone: { hotkeyCount: n } }),
+      less: { text: '−', label: 'Fewer K keys' },
+      more: { text: '+', label: 'More K keys' },
     },
   ],
+  caption: 'More than three stand in a second column. Hold a K key to change it.',
 };
 
 /**
@@ -284,6 +313,177 @@ export const CONNECTION_GROUP: SettingsGroup = {
 
 /** The page's groups, top to bottom (ADR 0136 §10). */
 export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, COMPASS_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP, CONNECTION_GROUP];
+
+// ------------------------------------------------- Timers and Group (stage 52)
+
+/** A switch row of the Timers settings (not the groups). */
+const timersToggle = (id: string, label: string, key: 'headers' | 'timeText' | 'soonestFirst'): SettingsRow => ({
+  kind: 'toggle',
+  id,
+  label,
+  get: (s) => s.timers[key],
+  set: (on) => ({ timers: { [key]: on } }),
+});
+
+/** The Timers pane's style choices, as the desktop gear's (pane-options-model.ts). */
+export const TIMER_STYLE_OPTIONS: readonly { value: TimerStyle; label: string }[] = [
+  { value: 'bars', label: 'Bars' },
+  { value: 'circles', label: 'Circles' },
+];
+export const TIMER_LAYOUT_OPTIONS: readonly { value: TimerLayout; label: string }[] = [
+  { value: 'flow', label: 'Flow' },
+  { value: 'grid', label: 'Grid' },
+];
+export const TIMER_SIGNAL_OPTIONS: readonly { value: TimerSignal; label: string }[] = [
+  { value: 'text', label: 'Time text' },
+  { value: 'pulse', label: 'Pulse' },
+  { value: 'none', label: 'None' },
+];
+/** Grid columns: Auto, then 1 to 6 (`TIMER_COLS_MIN` … `TIMER_COLS_MAX`). */
+export const TIMER_COLS_OPTIONS: readonly { value: string; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
+  ...[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) })),
+];
+export const TIMER_WARN_OPTIONS: readonly { value: string; label: string }[] = [10, 20, 30, 60].map((n) => ({ value: String(n), label: `${n}s` }));
+
+/** Timers: how the pane draws (the desktop gear's `timers.*` keys). Colours are left to a computer. */
+export const TIMERS_GROUP: SettingsGroup = {
+  id: 'timers',
+  title: 'Timers',
+  rows: [
+    {
+      kind: 'seg',
+      id: 'timers-style',
+      label: 'Style',
+      options: TIMER_STYLE_OPTIONS,
+      get: (s) => s.timers.style,
+      set: (style) => ({ timers: { style: style as TimerStyle } }),
+    },
+    {
+      kind: 'seg',
+      id: 'timers-layout',
+      label: 'Layout',
+      options: TIMER_LAYOUT_OPTIONS,
+      get: (s) => s.timers.layout,
+      set: (layout) => ({ timers: { layout: layout as TimerLayout } }),
+    },
+    {
+      kind: 'pick',
+      id: 'timers-cols',
+      label: 'Grid columns',
+      options: () => TIMER_COLS_OPTIONS.map((o) => ({ ...o })),
+      get: (s) => String(s.timers.cols),
+      set: (v) => ({ timers: { cols: v === 'auto' ? 'auto' : Number(v) } }),
+    },
+    timersToggle('timers-headers', 'Group headers', 'headers'),
+    timersToggle('timers-time', 'Time text', 'timeText'),
+    {
+      kind: 'pick',
+      id: 'timers-signal',
+      label: 'Signal',
+      options: () => TIMER_SIGNAL_OPTIONS.map((o) => ({ ...o })),
+      get: (s) => s.timers.signal,
+      set: (signal) => ({ timers: { signal: signal as TimerSignal } }),
+    },
+    {
+      kind: 'pick',
+      id: 'timers-warn',
+      label: 'Warn at',
+      options: () => TIMER_WARN_OPTIONS.map((o) => ({ ...o })),
+      get: (s) => String(s.timers.warnAt),
+      set: (v) => ({ timers: { warnAt: Number(v) as TimerWarnAt } }),
+    },
+    timersToggle('timers-soonest', 'Soonest first', 'soonestFirst'),
+  ],
+  caption: 'Grid columns apply to the Grid layout. Signal is how a timer that ends soon shows.',
+};
+
+/** The timer groups in the pane's order with their names (src/timers/entry.ts `TIMER_GROUPS`, `TIMER_GROUP_LABELS`). */
+export const TIMER_GROUP_NAMES: readonly { id: TimerGroup; label: string }[] = [
+  { id: 'herb', label: 'Herblores' },
+  { id: 'sanct', label: 'Sanctuary' },
+  { id: 'spell', label: 'Spells' },
+  { id: 'buff', label: 'Buffs' },
+  { id: 'debuff', label: 'Debuffs' },
+  { id: 'stored', label: 'Stored' },
+  { id: 'blind', label: 'Blinds' },
+  { id: 'charm', label: 'Charmies' },
+];
+
+/** Timer groups: each shown or not (`timers.groups.<g>.enabled`, the desktop gear's switch). */
+export const TIMER_GROUPS_GROUP: SettingsGroup = {
+  id: 'timer-groups',
+  title: 'Timer groups',
+  rows: TIMER_GROUP_NAMES.map(
+    (g): SettingsRow => ({
+      kind: 'toggle',
+      id: `timers-group-${g.id}`,
+      label: g.label,
+      get: (s) => s.timers.groups[g.id].enabled,
+      set: (enabled) => ({ timers: { groups: { [g.id]: { enabled } } } }),
+    }),
+  ),
+};
+
+export const GROUP_NPC_OPTIONS: readonly { value: GroupNpcMode; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'labeled', label: 'Labeled' },
+  { value: 'all', label: 'All' },
+];
+export const GROUP_AWAY_OPTIONS: readonly { value: GroupAwayMode; label: string }[] = [
+  { value: 'room', label: 'Room name' },
+  { value: 'dim', label: 'Dim only' },
+];
+
+/** Group: who the pane lists and how (the desktop gear's `group.*` keys). Colours are left to a computer. */
+export const GROUP_GROUP: SettingsGroup = {
+  id: 'group',
+  title: 'Group',
+  rows: [
+    {
+      kind: 'toggle',
+      id: 'group-players',
+      label: 'Show players',
+      get: (s) => s.group.showPlayers,
+      set: (showPlayers) => ({ group: { showPlayers } }),
+    },
+    {
+      kind: 'pick',
+      id: 'group-npcs',
+      label: 'NPC visibility',
+      options: () => GROUP_NPC_OPTIONS.map((o) => ({ ...o })),
+      get: (s) => s.group.npcMode,
+      set: (npcMode) => ({ group: { npcMode: npcMode as GroupNpcMode } }),
+    },
+    {
+      kind: 'pick',
+      id: 'group-away',
+      label: 'Away members',
+      options: () => GROUP_AWAY_OPTIONS.map((o) => ({ ...o })),
+      get: (s) => s.group.away,
+      set: (away) => ({ group: { away: away as GroupAwayMode } }),
+    },
+    {
+      kind: 'toggle',
+      id: 'group-fight',
+      // The pane's own card; the phone's fight card over the game is always there (ADR 0136 §3).
+      label: 'Fight card in the pane',
+      get: (s) => s.group.fight,
+      set: (fight) => ({ group: { fight } }),
+    },
+  ],
+};
+
+export interface SettingsSubPage {
+  id: string;
+  title: string;
+  groups: readonly SettingsGroup[];
+}
+
+/** The sub-pages a `link` row opens, by id. */
+export const SETTINGS_PAGES: Readonly<Record<string, SettingsSubPage>> = {
+  'timers-group': { id: 'timers-group', title: 'Timers and Group', groups: [TIMERS_GROUP, TIMER_GROUPS_GROUP, GROUP_GROUP] },
+};
 
 /** The rows of a group that are there on this device. */
 export function rowsShown(g: SettingsGroup): SettingsRow[] {
@@ -351,6 +551,8 @@ function Row(p: {
   s: S;
   update(patch: SettingsPatch): void;
   pick(row: SettingsRow): void;
+  /** Opens a sub-page (a `link` row). */
+  open(page: string): void;
   fits(size: number): boolean;
 }): VNode {
   const { row, s } = p;
@@ -417,6 +619,23 @@ function Row(p: {
         </>
       );
     }
+    case 'link':
+      return (
+        <button
+          type="button"
+          class="wc-ph-srow is-pick"
+          data-row={row.id}
+          tabIndex={-1}
+          onMouseDown={keepFocus}
+          onClick={(e) => {
+            e.stopPropagation();
+            p.open(row.page);
+          }}
+        >
+          <span class="wc-ph-srow-t">{row.label}</span>
+          <PhIcon d={ICON_CHEVRON} small class="wc-ph-chev" />
+        </button>
+      );
     case 'pick': {
       const cur = row.get(s);
       return (
@@ -486,38 +705,88 @@ export interface SettingsPageProps {
   backRef: { current: (() => boolean) | null };
 }
 
+/** What the column shows over the page itself: a sub-page, or a pick list. */
+type Level = { at: 'sub'; page: SettingsSubPage } | { at: 'pick'; row: Extract<SettingsRow, { kind: 'pick' }> };
+
 /**
  * The settings page: an iron band with Back, the hood, and the groups in a
- * column that scrolls. A `pick` row swaps the column for its list; Back
- * (the key, Esc) returns from the list first.
+ * column that scrolls. A `link` row swaps the column for its sub-page and a
+ * `pick` row for its list; Back (the key, Esc) returns one level, to where
+ * the column was scrolled when the level was opened.
  */
 export function SettingsPage(p: SettingsPageProps): VNode {
-  const [pick, setPick] = useState<Extract<SettingsRow, { kind: 'pick' }> | null>(null);
+  const [levels, setLevels] = useState<readonly Level[]>([]);
   const groups = p.groups ?? SETTINGS_GROUPS;
   const col = useRef<HTMLDivElement>(null);
+  /** The column's scroll position at each level left behind, and the one to put back after the next render. */
+  const scrolls = useRef<number[]>([]);
+  const restore = useRef<number | null>(null);
   useEffect(() => {
     if (!p.focus) return;
     col.current?.querySelector(`[data-group="${p.focus}"]`)?.scrollIntoView({ block: 'start' });
   }, [p.focus]);
+  // After the column's content changed, before it is painted: a new level starts at its top, a
+  // level returned to stands where it was left.
+  useLayoutEffect(() => {
+    if (restore.current === null || !col.current) return;
+    col.current.scrollTop = restore.current;
+    restore.current = null;
+  }, [levels]);
   const update = (patch: SettingsPatch): void => p.settings.update(patch);
+  const push = (l: Level): void => {
+    scrolls.current.push(col.current?.scrollTop ?? 0);
+    restore.current = 0;
+    setLevels([...levels, l]);
+  };
+  const pop = (): void => {
+    restore.current = scrolls.current.pop() ?? 0;
+    setLevels(levels.slice(0, -1));
+  };
+  const top = levels[levels.length - 1] ?? null;
+  const sub = [...levels].reverse().find((l): l is Extract<Level, { at: 'sub' }> => l.at === 'sub')?.page ?? null;
   // Esc and the back gesture ask here first.
   p.backRef.current = () => {
-    if (!pick) return false;
-    setPick(null);
+    if (!top) return false;
+    pop();
     return true;
   };
   const back = (): void => {
-    if (pick) setPick(null);
+    if (top) pop();
     else p.onBack();
   };
+  const section = (g: SettingsGroup): VNode => (
+    <section key={g.id} class="wc-ph-grp" data-group={g.id}>
+      <span class="wc-ph-grp-t">{g.title}</span>
+      <div class="wc-ph-card">
+        {rowsShown(g).map((row) => (
+          <Row
+            key={row.id}
+            row={row}
+            s={p.s}
+            update={update}
+            pick={(r) => r.kind === 'pick' && push({ at: 'pick', row: r })}
+            open={(id) => {
+              const page = SETTINGS_PAGES[id];
+              if (page) push({ at: 'sub', page });
+            }}
+            fits={(size) => p.fits?.(size) ?? true}
+          />
+        ))}
+      </div>
+      {g.caption && <span class="wc-ph-cap">{g.caption}</span>}
+    </section>
+  );
+  const title = sub ? sub.title : 'Settings';
+  // Where Back leads: out of a list to its page, out of a sub-page to the settings.
+  const backTo = !top ? 'Back' : levels.length > 1 && sub ? `Back to ${sub.title}` : 'Back to settings';
   return (
-    <div class="wc-ph-page" role="dialog" aria-label="Settings" data-page={pick ? `pick:${pick.id}` : 'settings'}>
+    <div class="wc-ph-page" role="dialog" aria-label={title} data-page={!top ? 'settings' : top.at === 'pick' ? `pick:${top.row.id}` : `sub:${top.page.id}`}>
       <div class="wc-ph-band">
         <button
           type="button"
           class="wc-ph-back"
           tabIndex={-1}
-          aria-label={pick ? 'Back to settings' : 'Back'}
+          aria-label={backTo}
           onMouseDown={keepFocus}
           onClick={(e) => {
             e.stopPropagation();
@@ -528,36 +797,19 @@ export function SettingsPage(p: SettingsPageProps): VNode {
         </button>
       </div>
       <div class="wc-ph-page-body">
-        <span class="wc-ph-hood">Settings</span>
+        <span class="wc-ph-hood">{title}</span>
         <div class="wc-ph-col" ref={col}>
-          {pick ? (
+          {top?.at === 'pick' ? (
             <PickList
-              row={pick}
+              row={top.row}
               s={p.s}
               choose={(v) => {
-                update(pick.set(v, p.s));
-                setPick(null);
+                update(top.row.set(v, p.s));
+                pop();
               }}
             />
           ) : (
-            groups.map((g) => (
-              <section key={g.id} class="wc-ph-grp" data-group={g.id}>
-                <span class="wc-ph-grp-t">{g.title}</span>
-                <div class="wc-ph-card">
-                  {rowsShown(g).map((row) => (
-                    <Row
-                      key={row.id}
-                      row={row}
-                      s={p.s}
-                      update={update}
-                      pick={(r) => r.kind === 'pick' && setPick(r)}
-                      fits={(size) => p.fits?.(size) ?? true}
-                    />
-                  ))}
-                </div>
-                {g.caption && <span class="wc-ph-cap">{g.caption}</span>}
-              </section>
-            ))
+            (top?.at === 'sub' ? top.page.groups : groups).map(section)
           )}
         </div>
       </div>

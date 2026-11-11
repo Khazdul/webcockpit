@@ -481,7 +481,7 @@ test('no fullscreen key where the browser cannot (iPhone): the lens alone, and n
   await expect(page.locator('.wc-ph-satrow .wc-ph-sat')).toHaveCount(2);
 });
 
-test('the Map lens settings: show, size and opens at, from the settings page; kept over a reload', async ({ page }) => {
+test('the Map lens settings: show and opens at, from the settings page (no size row since stage 52; the stored size still works); kept over a reload', async ({ page }) => {
   test.setTimeout(60_000);
   await recordWorker(page);
   await openCockpit(page);
@@ -495,12 +495,12 @@ test('the Map lens settings: show, size and opens at, from the settings page; ke
   await openSettings();
   await expect(page.locator('.wc-ph-page [data-group="lens"] .wc-ph-grp-t')).toHaveText('Map lens');
   const rows = await page.locator('.wc-ph-page [data-group="lens"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
-  expect(rows).toEqual(['lens-show', 'lens-size', 'lens-opens']);
+  expect(rows).toEqual(['lens-show', 'lens-opens']);
+  await expect(page.locator('.wc-ph-page [data-group="lens"]').getByText('Size', { exact: true })).toHaveCount(0);
   await expect(srow('lens-show').getByRole('switch', { name: 'Show map' })).toHaveAttribute('aria-checked', 'true');
-  await expect(srow('lens-size').getByRole('radio', { name: 'M' })).toHaveAttribute('aria-checked', 'true');
   await expect(srow('lens-opens').getByRole('radio', { name: 'Middle' })).toHaveAttribute('aria-checked', 'true');
-  // Size L, opens at Far.
-  await srow('lens-size').getByRole('radio', { name: 'L' }).tap();
+  // Opens at Far; the size as a stored value (L).
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { size: 'l' } } }));
   await srow('lens-opens').getByRole('radio', { name: 'Far' }).tap();
   const lensSet = () => page.evaluate(() => window.__wc!.settings.get().phone.lens);
   expect(await lensSet()).toEqual({ show: true, size: 'l', opensAt: 'far' });

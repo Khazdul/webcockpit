@@ -3,16 +3,17 @@
 // - the weather effects use the whole width (no left band), stay behind
 //   the phone's chrome, keep their mask over the command row, and are off
 //   by default;
-// - the Compass settings: the key size (36 / 40 / 44 px, the hot keys, the
-//   command field and the lens's room follow) and the vibration on a tap
-//   that sends;
+// - the Quick buttons settings (named Compass before stage 52): the key
+//   size (36 / 40 / 44 px, the hot keys, the command field and the lens's
+//   room follow); the vibration on a tap is gone since stage 52;
 // - the Connection settings: the screen kept on while connected and
 //   visible (Screen Wake Lock), and the automatic reconnect: a dead link
 //   found on resume reconnects once, never after the user's own
 //   disconnect, never twice.
 //
 // `phone` project (Pixel 7). `navigator.vibrate` and `navigator.wakeLock`
-// are replaced by recorders in the page. The connection cases play against
+// are replaced by recorders in the page (the first to show it is never
+// called). The connection cases play against
 // a `page.routeWebSocket` mock; nothing reaches MUME. The background is
 // simulated: the page's `visibilityState` is overridden and
 // `visibilitychange` dispatched.
@@ -253,7 +254,7 @@ test.describe('a tablet-size window with the phone flag', () => {
 
 // ----------------------------------------------------------------- compass
 
-test('Compass → Key size: the keys measure 36, 40 and 44 px; the column, the K key and the command field follow; kept over a reload', async ({ page }) => {
+test('Quick buttons → Key size: the keys measure 36, 40 and 44 px; the column, the K key and the command field follow; kept over a reload', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page);
   const measure = async (px: number): Promise<void> => {
@@ -350,64 +351,33 @@ const recordVibrate = (page: Page) =>
   });
 const vibs = (page: Page) => page.evaluate(() => (window as unknown as { __vib: number[] }).__vib);
 
-test('Vibrate on tap (off by default): on, one short pulse for a compass or hot key tap that sends; none when nothing is sent', async ({ page }) => {
+test('no vibration (removed in stage 52): no setting, no row, and no pulse on a tap that sends', async ({ page }) => {
   await recordVibrate(page);
   const m = await mock(page);
   await enter(page);
   await m.login();
-  // Off by default: a tap sends and nothing is felt.
-  expect((await phone(page)).vibrate).toBe(false);
+  expect('vibrate' in (await phone(page))).toBe(false);
   await key(page, 'east').tap();
-  await expect.poll(() => m.sent).toEqual(['east']);
-  expect(await vibs(page)).toEqual([]);
-  // The switch is there (the browser can vibrate) and turns it on.
-  await openSettings(page);
-  const sw = srow(page, 'compass-vibrate').getByRole('switch', { name: 'Vibrate on tap' });
-  await expect(sw).toHaveAttribute('aria-checked', 'false');
-  await sw.tap();
-  await expect(sw).toHaveAttribute('aria-checked', 'true');
-  expect((await phone(page)).vibrate).toBe(true);
-  await pageEl(page).locator('.wc-ph-back').tap();
-  await page.keyboard.press('Escape');
-  await expect(sheet(page)).toBeHidden();
-  // The switch and the menu's own taps send nothing: no pulse so far.
-  expect(await vibs(page)).toEqual([]);
-  await key(page, 'north').tap();
-  await expect.poll(() => m.sent).toEqual(['east', 'north']);
-  expect(await vibs(page)).toEqual([10]);
   await hk(page, 2).tap();
-  await expect.poll(() => m.sent).toEqual(['east', 'north', 'bash']);
-  expect(await vibs(page)).toEqual([10, 10]);
-  // The wimpy key with the hit points unknown says so and sends nothing: no pulse.
-  await hk(page, 3).tap();
-  await expect(rows(page).filter({ hasText: 'Hot key:' })).toHaveCount(1);
-  expect(await vibs(page)).toEqual([10, 10]);
-  // The K key sends nothing either.
-  await kKey(page).tap();
-  await kKey(page).tap();
-  expect(await vibs(page)).toEqual([10, 10]);
-  // A password prompt: nothing sent, no pulse; after it the next tap is felt again (the sentinel).
-  m.server().send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, ECHO])]));
-  await expect.poll(() => page.evaluate(() => window.__wc!.app.input.isPasswordMode())).toBe(true);
-  await key(page, 'south').tap();
-  await hk(page, 1).tap();
-  m.server().send(Buffer.from([IAC, 252, ECHO]));
-  await expect.poll(() => page.evaluate(() => window.__wc!.app.input.isPasswordMode())).toBe(false);
-  await key(page, 'west').tap();
-  await expect.poll(() => m.sent).toEqual(['east', 'north', 'bash', 'west']);
-  expect(await vibs(page)).toEqual([10, 10, 10]);
+  await expect.poll(() => m.sent).toEqual(['east', 'bash']);
+  expect(await vibs(page)).toEqual([]);
+  // The group is "Quick buttons" and has no vibrate row, though the browser can vibrate.
+  await openSettings(page);
+  await expect(pageEl(page).locator('[data-group="compass"] .wc-ph-grp-t')).toHaveText('Quick buttons');
+  await expect(pageEl(page).getByText('Compass', { exact: true })).toHaveCount(0);
+  await expect(pageEl(page).getByText(/vibrat/i)).toHaveCount(0);
+  expect(await pageEl(page).locator('[data-group="compass"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row))).toEqual(['compass-size', 'hotkey-count']);
 });
 
-test('where the browser cannot vibrate or hold a wake lock, their rows are absent', async ({ page }) => {
+test('where the browser cannot hold a wake lock, its row is absent', async ({ page }) => {
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'vibrate', { configurable: true, value: undefined });
     Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: undefined });
   });
   const errors = watchErrors(page);
   await openPhone(page);
   await openSettings(page);
   const ids = (group: string) => pageEl(page).locator(`[data-group="${group}"] [data-row]`).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
-  expect(await ids('compass')).toEqual(['compass-size']);
+  expect(await ids('compass')).toEqual(['compass-size', 'hotkey-count']);
   expect(await ids('connection')).toEqual(['auto-reconnect', 'weather']);
   // A tap still sends without the API.
   await pageEl(page).locator('.wc-ph-back').tap();

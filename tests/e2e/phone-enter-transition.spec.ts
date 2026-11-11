@@ -3,7 +3,6 @@
 import { type Page, expect, test } from '@playwright/test';
 
 const startSel = (page: Page) => page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label');
-const overlay = (page: Page) => page.locator('.wc-overlay');
 
 test('a tap on Enter MUME plays the transition; Exit session resets the page', async ({ page }) => {
   let opened = 0;
@@ -29,10 +28,11 @@ test('a tap on Enter MUME plays the transition; Exit session resets the page', a
   expect(opened).toBe(1);
 
   // Exit session: the start page as it was, with its keys.
-  // (The menu sheet's Exit session since stage 51b, ADR 0136 §10.)
+  // (The menu sheet's Exit session since stage 51b, ADR 0136 §10; its confirmation is the phone's own
+  // sheet since stage 52.)
   await page.locator('.wc-ph-menu').tap();
   await page.locator('.wc-ph-sheet [data-row="exit"]').tap();
-  await expect(overlay(page)).toBeVisible();
+  await expect(page.locator('.wc-ph-exitsheet')).toBeVisible();
   await page.keyboard.press('y');
   await expect(startSel(page)).toHaveText('Enter MUME');
   const back = await page.evaluate(() => {
