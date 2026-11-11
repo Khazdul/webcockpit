@@ -240,7 +240,7 @@ test('the settings page: the groups built so far; Back returns to the sheet, Esc
   await expect(pageEl(page).locator('.wc-ph-hood')).toHaveText('Settings');
   // Stage 51 rule 3: no group before its feature.
   const groups = await pageEl(page).locator('[data-group]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.group));
-  expect(groups).toEqual(['text', 'lens']);
+  expect(groups).toEqual(['text', 'lens', 'panes', 'comm']);
   const rows = await pageEl(page).locator('[data-group="text"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
   expect(rows).toEqual(['size', 'theme', 'font']);
   await expect(pageEl(page)).not.toContainText('Left-handed');

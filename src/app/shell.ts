@@ -138,6 +138,7 @@ import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
+import { PHONE_MAX_SHORT_SIDE } from '../core/device';
 import { device } from '../core/device';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
@@ -183,6 +184,18 @@ export interface ShellOptions {
   fontsReady?: Promise<void>;
 }
 
+/**
+ * True when `win` is as small as a phone's screen: its short side is under
+ * `PHONE_MAX_SHORT_SIDE` CSS px. An unknown size (no window, a 0 × 0 one)
+ * counts as a phone's.
+ */
+export function phoneSizeWindow(win: Pick<Window, 'innerWidth' | 'innerHeight'> | null | undefined): boolean {
+  const w = win?.innerWidth ?? 0;
+  const h = win?.innerHeight ?? 0;
+  if (!(w > 0 && h > 0)) return true;
+  return Math.min(w, h) < PHONE_MAX_SHORT_SIDE;
+}
+
 export class Shell {
   private readonly opts: ShellOptions;
   readonly profiles: ProfileStore;
@@ -191,6 +204,16 @@ export class Shell {
   private chromeP: Promise<ChromeModule> | null = null;
   /** Phone only: the phone layer's chunk (src/phone/, ADR 0136). */
   private phoneP: Promise<typeof import('../phone')> | null = null;
+  /**
+   * The phone's layout in the live game is used (ADR 0136 §1): the phone
+   * flag is on and the window is a phone's (its short side under 600 CSS
+   * px, as the flag's own rule). A phone flag forced with `?phone=1` on a
+   * desktop-size window keeps the old phone layout (the tab strip, `☰` and
+   * the ESC menu, ADR 0075): that is what the desktop projects' specs of
+   * the Options frames open, and a phone's layout is not made for it.
+   * Decided once, when the shell is built.
+   */
+  private readonly phoneGame: boolean;
   /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
   private phoneLayer: import('../phone').PhoneLayer | null = null;
   private startHost: HTMLDivElement;
@@ -228,6 +251,7 @@ export class Shell {
     this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
+    this.phoneGame = device().phone && phoneSizeWindow(doc.defaultView);
     // index.html's first paint draws the banner in a start page host of its
     // own (ADR 0083): the start page is mounted beside it, in the same box.
     const first = doc.getElementById('wc-start-host');
@@ -271,7 +295,7 @@ export class Shell {
     void this.initProfiles();
     void this.newUserScripts();
     // Phone only (ADR 0136): fetch the phone layer now, so it is there when the game opens.
-    if (device().phone) void this.loadPhone().catch(() => {});
+    if (this.phoneGame) void this.loadPhone().catch(() => {});
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
       if (!this.opts.probe) this.prefetchChrome();
@@ -406,7 +430,7 @@ export class Shell {
    * With the phone layer up (ADR 0136 §10) the menu is its bottom sheet:
    * no target opens the sheet (a dropped link lights its Reconnect by
    * itself, from the status), `settings` and `panes` open the phone's
-   * settings page (the Panes group comes in stage 51d), and `profile`,
+   * settings page (`panes` at its Panes group), and `profile`,
    * `scripts` and `exit` open the existing pages straight at their frame in
    * the ESC menu's overlay, as before. Without the layer (its chunk could
    * not be loaded) everything is the ESC menu, as before stage 51.
@@ -422,7 +446,8 @@ export class Shell {
         return;
       }
       if (target === 'settings' || target === 'panes') {
-        sheet.openSettings(sheet.showing === 'sheet' ? 'sheet' : 'game');
+        // `#panes`: the page at its Panes group (the strip's panes and their order).
+        sheet.openSettings(sheet.showing === 'sheet' ? 'sheet' : 'game', target === 'panes' ? 'panes' : undefined);
         return;
       }
       sheet.close(true);
@@ -721,7 +746,7 @@ export class Shell {
    * (src/phone/phone.css). Nothing on a desktop or a tablet.
    */
   private markPhoneGame(on: boolean): void {
-    if (!device().phone) return;
+    if (!this.phoneGame) return;
     this.opts.root.ownerDocument.documentElement.classList.toggle('wc-phone-game', on);
   }
 
@@ -752,7 +777,16 @@ export class Shell {
         exit: () => void this.exitSession(),
         // The windows (ADR 0103) and popups where the bar exists.
         ...(device().phone
-          ? { openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target) }
+          ? {
+              openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target),
+              // The Statistics pane is a page of the phone's pane strip (ADR 0136 §5): its view, as on the desktop.
+              ...(this.phoneGame
+                ? {
+                    mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
+                      this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
+                  }
+                : {}),
+            }
           : {
               toggleWindow: (id: WindowId) => void this.toggleWindow(id),
               toggleSettings: () => void this.toggleSettings(),
@@ -765,7 +799,7 @@ export class Shell {
       },
       weather: installWeather,
       // Phone only (ADR 0136): the phone's layout in the live game.
-      ...(device().phone ? { phoneGame: true } : {}),
+      ...(this.phoneGame ? { phoneGame: true } : {}),
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
     });
     // Keep the menu host last, so the overlay is above the cockpit in DOM order too.
@@ -781,8 +815,11 @@ export class Shell {
     // compass, the menu key in the command row; its chunk is not loaded
     // elsewhere). The menu key opens the ESC menu, as Esc does (ADR 0112).
     // Should the chunk be gone, the old `☰` is the way into the menu.
-    // Desktop and tablet have the bar.
-    if (device().phone) {
+    // Desktop and tablet have the bar. A phone flag forced on a
+    // desktop-size window (`phoneGame` false) keeps the old layout: its `☰`
+    // and the ESC menu, as before stage 51.
+    if (device().phone && !this.phoneGame) rowEnd.after(this.menuButton(root.ownerDocument));
+    if (this.phoneGame) {
       // The old `☰` at once, so there is never a moment without a menu key;
       // it goes when the layer is up, and stays if the chunk cannot be
       // loaded or the mount throws.

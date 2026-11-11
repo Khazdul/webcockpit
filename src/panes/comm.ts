@@ -41,6 +41,17 @@
 // thread or the results is copied on mouse up, as the output pane does; the
 // game's keys still reach the game (the input pane routes keystrokes typed
 // elsewhere).
+//
+// Phone (ADR 0136 §6, `setPhoneMode`): the phone's layout in the live game
+// shows this pane full width under the fight card. In that mode the chat
+// column is always the rail and the pane never writes `comm.folded` or
+// `comm.listWidth` (they are the desktop's); the reply line says "Type a
+// message". While the phone has Comm closed (`setPhoneOpen(false)`) no
+// view counts as open, so every message that would be unread on a hidden
+// pane is counted; opening it again opens the view it had, read. The
+// unread counts are told through `onUnread` (the Comm key's badge). On a
+// phone the reply line is a one-row <textarea> (no autofill bar above the
+// keyboard), as the command line is.
 
 import './panes.css';
 import './comm.css';
@@ -59,7 +70,8 @@ import {
   publicShows,
   stripAnsi,
 } from '../gmcp/comm';
-import { type Chat, type ChatEntry, CommChats, type GroupItem, type GroupNote } from '../gmcp/comm-chats';
+import { type Chat, type ChatEntry, CommChats, type GroupItem, type GroupNote, type UnreadCounts } from '../gmcp/comm-chats';
+import { device } from '../core/device';
 import { paneLight } from '../theme/apply';
 import { mix, paneContentBg } from '../theme/color';
 import { colorToCss } from '../ui/palette';
@@ -81,6 +93,7 @@ import {
   columnLayout,
   personInk,
   snippet,
+  railWidth,
   spineSnap,
   spineStep,
   splitHits,
@@ -90,6 +103,9 @@ import { type PaneTooltip, installPaneTooltip, setTip } from './pane-tooltip';
 import { paneShade } from './shade';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
+
+/** `text` as one line: every run of line breaks is a space. */
+const flatLine = (text: string): string => text.replace(/[\r\n]+/g, ' ');
 
 /** What Public filters by (`comm.filters`, `comm.npcs`). */
 type PublicFilter = { readonly filters: Readonly<Record<string, boolean>>; readonly npcs: boolean };
@@ -167,7 +183,9 @@ export class CommPane extends PaneShell {
   private readonly searchClear: HTMLButtonElement;
   private readonly results: HTMLDivElement;
   private readonly reply: HTMLDivElement;
-  private readonly replyInput: HTMLInputElement;
+  private readonly replyInput: HTMLInputElement | HTMLTextAreaElement;
+  /** The phone's layout (ADR 0136 §6): whether Comm is open there, and the view to open it at. Null elsewhere. */
+  private phone: { open: boolean; last: string; live: () => boolean; off: () => void } | null = null;
   private readonly list: AnchoredList<ThreadItem>;
   private readonly tip: PaneTooltip;
   private readonly writeClipboard: (text: string) => Promise<void>;
@@ -299,9 +317,34 @@ export class CommPane extends PaneShell {
     this.results = div('wc-cm-results');
     this.results.hidden = true;
     this.reply = div('wc-cm-reply');
-    this.replyInput = doc.createElement('input');
+    if (device().phone) {
+      // A one-row textarea: a phone's keyboard shows no autofill bar for it (as the command line, ADR 0075 §3.2).
+      const ta = doc.createElement('textarea');
+      ta.setAttribute('rows', '1');
+      ta.setAttribute('wrap', 'off');
+      ta.setAttribute('enterkeyhint', 'send');
+      ta.setAttribute('autocapitalize', 'off');
+      ta.setAttribute('autocorrect', 'off');
+      // Android keyboards may send Enter as a line break (or a paragraph) only.
+      ta.addEventListener('beforeinput', (e) => {
+        if (e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph') return;
+        e.preventDefault();
+        this.sendReply();
+      });
+      // One line, as the command line: a pasted or dictated line break becomes a space.
+      ta.addEventListener('input', () => {
+        if (!/[\r\n]/.test(ta.value)) return;
+        const at = flatLine(ta.value.slice(0, ta.selectionStart ?? ta.value.length)).length;
+        ta.value = flatLine(ta.value);
+        ta.setSelectionRange(at, at);
+      });
+      this.replyInput = ta;
+    } else {
+      const input = doc.createElement('input');
+      input.type = 'text';
+      this.replyInput = input;
+    }
     this.replyInput.className = 'wc-cm-rinput';
-    this.replyInput.type = 'text';
     this.replyInput.autocomplete = 'off';
     this.replyInput.spellcheck = false;
     // Its own keys: a click focuses it and the cockpit does not hand the
@@ -408,7 +451,9 @@ export class CommPane extends PaneShell {
     for (let i = 0; i < quiet && i < this.history.length; i++) this.chats.add(this.history[i]!, true, true);
     if (this.rosterSeen) this.chats.setRoster(this.rosterNames, this.ctx.now());
     for (let i = Math.max(0, quiet); i < this.history.length; i++) this.chats.add(this.history[i]!);
-    this.chats.setOpen(open === PUBLIC || open === GROUP || (open && this.chats.chat(open)) ? open : PUBLIC);
+    // (The phone with Comm closed: no view is open, so nothing is read by this.)
+    if (this.phone && !this.phone.open) this.chats.setOpen(null);
+    else this.chats.setOpen(open === PUBLIC || open === GROUP || (open && this.chats.chat(open)) ? open : PUBLIC);
     this.chats.restoreUnread(unread);
     this.threadView = '';
     this.publicCache = null;
@@ -529,13 +574,77 @@ export class CommPane extends PaneShell {
     this.markDirty();
   }
 
+  /**
+   * The phone's layout in the live game (ADR 0136 §6; see the file header).
+   * Comm starts closed there. Never set on a desktop or a tablet, nor in
+   * the player.
+   */
+  setPhoneMode(on: boolean, opts: { live?: () => boolean } = {}): void {
+    if (on === (this.phone !== null)) return;
+    if (on) {
+      // The reply line follows the play gate (`live`): it is told again when the link or the password prompt changes.
+      const again = (): void => this.markDirty();
+      const offs = [this.ctx.bus.on('conn.state', again), this.ctx.bus.on('telnet.echo', again)];
+      this.phone = {
+        open: false,
+        last: this.chats.open ?? PUBLIC,
+        live: opts.live ?? (() => true),
+        off: () => {
+          for (const off of offs) off();
+        },
+      };
+      this.chats.setOpen(null);
+    } else {
+      const { last, off } = this.phone!;
+      off();
+      this.phone = null;
+      this.replyInput.disabled = false;
+      if (this.chats.open === null) this.chats.setOpen(last);
+    }
+    toggle(this.root, 'data-phone', on);
+    this.markDirty();
+  }
+
+  /** Phone mode: Comm was opened (the view it had opens, read) or closed (no view is open any more). */
+  setPhoneOpen(open: boolean): void {
+    const p = this.phone;
+    if (!p || p.open === open) return;
+    p.open = open;
+    if (open) {
+      const key = p.last;
+      this.chats.setOpen(key === PUBLIC || key === GROUP || this.chats.chat(key) ? key : PUBLIC);
+      this.limit = THREAD_PAGE;
+      this.list.toLive();
+    } else {
+      p.last = this.chats.open ?? p.last;
+      if (this.searchOpen) this.closeSearch();
+      this.chats.setOpen(null);
+      // Nothing is drawn while it is closed (`render`): no view is opened behind the phone's back.
+      return;
+    }
+    this.markDirty();
+  }
+
+  /** The unread counts now (private chats together, Group, Public). */
+  unreadCounts(): UnreadCounts {
+    return this.chats.unreadCounts();
+  }
+
+  /** Calls `fn` when the unread counts change (the phone's Comm key); null removes it. One listener. */
+  onUnread(fn: ((u: UnreadCounts) => void) | null): void {
+    this.chats.onUnread(fn);
+  }
+
   /** Folds the chat column away (or back). */
   setFolded(on: boolean): void {
+    // The phone's Comm is always the rail and never writes the desktop's column settings.
+    if (this.phone) return;
     if (this.ctx.settings.get().comm.folded === on) return;
     this.ctx.settings.update({ comm: { folded: on } });
   }
 
   private setColumn(l: ColumnLayout): void {
+    if (this.phone) return;
     if (l.mode === 'folded') return this.setFolded(true);
     const w = Math.max(COMM_LIST_WIDTH_MIN, Math.min(COMM_LIST_WIDTH_MAX, Math.round(l.width)));
     this.ctx.settings.update({ comm: { folded: false, listWidth: w } });
@@ -573,8 +682,11 @@ export class CommPane extends PaneShell {
 
   /** Sends the reply line's text (Enter). */
   private sendReply(): void {
-    const text = this.replyInput.value.trim();
+    // One line: a line break that got into the field (a paste) is a space.
+    const text = flatLine(this.replyInput.value).trim();
     if (!text) return;
+    // The phone's reply line sends only in play: never into a login or password prompt, never on a dead link.
+    if (this.phone && !this.phone.live()) return;
     const open = this.chats.open ?? PUBLIC;
     let cmd: string;
     // Public has no reply line (owner's first test).
@@ -585,7 +697,14 @@ export class CommPane extends PaneShell {
       if (!c || !tellable(c.name)) return;
       cmd = `tell ${c.name} ${text}`;
     }
-    this.ctx.sender.sendCommand(cmd);
+    if (this.phone) {
+      // The typed line is kept unless it really went out (`cmd.sent` comes with the send, at once).
+      let sent = false;
+      const off = this.ctx.bus.on('cmd.sent', () => (sent = true));
+      this.ctx.sender.sendCommand(cmd);
+      off();
+      if (!sent) return;
+    } else this.ctx.sender.sendCommand(cmd);
     // The field keeps the keys for the next line.
     this.replyInput.value = '';
   }
@@ -624,7 +743,7 @@ export class CommPane extends PaneShell {
       const b = (e.target as Element).closest<HTMLElement>('.wc-cm-rp');
       if (b?.dataset.key) this.openView(b.dataset.key);
     });
-    this.replyInput.addEventListener('keydown', (e) => {
+    (this.replyInput as HTMLElement).addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter' && !e.isComposing) {
         e.preventDefault();
         this.sendReply();
@@ -837,6 +956,8 @@ export class CommPane extends PaneShell {
   }
 
   protected override render(): void {
+    // The phone with Comm closed: nothing to draw, and drawing would mark a view as open (read).
+    if (this.phone && !this.phone.open) return;
     if (this.root.parentNode !== this.content) this.content.replaceChildren(this.root);
     const s = this.ctx.settings.get();
     const shade = paneShade(s, 'comm');
@@ -853,7 +974,9 @@ export class CommPane extends PaneShell {
     setProp(this.root, '--cm-dim', shade.ramp.label);
 
     // Column layout.
-    const l = this.dragLayout ?? columnLayout(this.paneWidth(), s.comm.listWidth, s.comm.folded, this.cellH());
+    const l: ColumnLayout = this.phone
+      ? { mode: 'rail', width: railWidth(this.cellH()) }
+      : (this.dragLayout ?? columnLayout(this.paneWidth(), s.comm.listWidth, s.comm.folded, this.cellH()));
     if (l.mode !== this.layout.mode || l.width !== this.layout.width) {
       this.layout = l;
       if (this.root.dataset.mode !== l.mode) {
@@ -1205,12 +1328,21 @@ export class CommPane extends PaneShell {
       open === PUBLIC || this.replay || this.ctx.player === true || (chat !== null && chat !== undefined && !tellable(chat.name));
     this.reply.hidden = hide;
     if (hide) return;
+    // The phone's reply line follows the play gate: no typing into a prompt or a dead link.
+    const live = !this.phone || this.phone.live();
+    if (this.replyInput.disabled === live) this.replyInput.disabled = !live;
     let ph: string;
-    if (open === GROUP) ph = 'Tell the group…';
+    if (this.phone) ph = live ? 'Type a message' : 'Not connected';
+    else if (open === GROUP) ph = 'Tell the group…';
     else ph = `Reply to ${this.chats.chat(open)?.name ?? ''}…`;
     if (this.replyInput.placeholder !== ph) {
       this.replyInput.placeholder = ph;
       this.replyInput.setAttribute('aria-label', open === GROUP ? 'Tell the group' : `${ph} Sent as a tell`);
+    }
+    if (this.phone) {
+      // The phone's placeholder is the same for every chat: the name says where the line goes.
+      const label = open === GROUP ? 'Tell the group' : `Tell ${this.chats.chat(open)?.name ?? ''}`;
+      if (this.replyInput.getAttribute('aria-label') !== label) this.replyInput.setAttribute('aria-label', label);
     }
     if (open !== PUBLIC && open !== GROUP) {
       const c = this.chats.chat(open);

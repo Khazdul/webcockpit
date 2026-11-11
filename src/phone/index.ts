@@ -20,6 +20,10 @@
 //                   fullscreen key on its corner
 //   menu-sheet.tsx  the menu: a bottom sheet, and the settings page
 //                   (settings-page.tsx) it leads to
+//   strip.ts        the pane strip's hood and dots, and its swipe
+//                   (strip-model.ts, swipe.ts); the pane is the cockpit's
+//   comm-chrome.ts  Comm's resize band; Comm is the cockpit's Comm pane,
+//                   in its phone mode, and the Comm key's badge (unread.ts)
 //   here            the menu key in the command row, and the wiring
 //
 // Cost (stage 51 rule 4): nothing runs per frame or per incoming line. The
@@ -40,6 +44,12 @@ import { sectionChanged } from './changed';
 import { LensView } from './lens';
 import { type LensLevel, lensLevel, lensPx, lensZoom } from './lens-zoom';
 import type { MapPane } from '../panes/map';
+import type { CommPane } from '../panes/comm';
+import type { PaneId } from '../layout/types';
+import { CommBand } from './comm-chrome';
+import { StripView, holdFling, watchSwipes } from './strip';
+import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
+import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
 import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
 
 export type { PhoneControls, PhoneKit } from './kit';
@@ -107,6 +117,23 @@ export class PhoneLayer {
   private lensOpensAt: LensLevel | null = null;
   /** The zoom last sent to the map, as `size:level` (nothing is sent again for the same). */
   private lensZoomKey = '';
+  private readonly strip: StripView;
+  /** The strip's pages now, whether it is open, and its page (kept in memory while it is closed). */
+  private pages: StripPage[] = [];
+  private stripOpen = false;
+  private stripPage: string | null = null;
+  /** The pane the fling guard is on (the strip's shown pane), and its uninstaller. */
+  private flingOn: string | null = null;
+  private flingOff: (() => void) | null = null;
+  /** The cockpit's Comm pane, in its phone mode. */
+  private readonly comm: CommPane;
+  private readonly commBand: CommBand;
+  /** Comm is wanted open (the key); it shows when the screen has the rows. */
+  private commOpen = false;
+  /** What the last layout really gave the strip and Comm rows for (the keys are lit by these). */
+  private stripShown = false;
+  private commShown = false;
+  private unread: Unread = { private: 0, group: 0, public: 0, all: 0 };
   private readonly unsubs: Array<() => void> = [];
   /** The card on screen (null: no fight) and its signature. */
   private card: FightCard | null = null;
@@ -125,9 +152,23 @@ export class PhoneLayer {
     this.lens = new LensView(doc, {
       onLevel: () => this.zoomLens(),
       fullscreen: kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : null,
+      panes: () => this.toggleStrip(),
+      comm: () => this.toggleComm(),
     });
     this.unsubs.push(kit.onFullscreenRefused(() => this.lens.dropFullscreen()));
-    this.el.append(this.fight.el, this.lens.el, this.lens.rowEl, compass.el);
+    this.strip = new StripView(doc);
+    this.comm = cockpit.pane('comm') as unknown as CommPane;
+    // The reply line sends only in play, as the keys do (play-gate.ts).
+    this.comm.setPhoneMode(true, { live: () => keysLive(deps.playState()) });
+    this.unread = this.comm.unreadCounts();
+    // The model tells when a count changes; nothing is polled or counted per line.
+    this.comm.onUnread((u) => {
+      this.unread = u;
+      this.syncKeys();
+    });
+    this.unsubs.push(() => this.comm.onUnread(null));
+    this.commBand = new CommBand(doc, { onRows: (rows) => deps.settings.update({ phone: { commRows: rows } }) });
+    this.el.append(this.strip.el, this.fight.el, this.commBand.el, this.lens.el, this.lens.rowEl, compass.el);
     cockpit.el.append(this.el);
     this.menu = new PhoneMenu({
       parent: cockpit.el,
@@ -159,8 +200,27 @@ export class PhoneLayer {
       deps.settings.subscribe((next, prev) => {
         // By value: the store hands out a fresh copy on every update (changed.ts).
         if (sectionChanged(next.phone.lens, prev.phone.lens)) this.syncLens();
+        if (sectionChanged(next.phone.strip, prev.phone.strip)) this.syncPages();
+        if (next.phone.commRows !== prev.phone.commRows && this.commOpen) cockpit.setPhoneComm({ rows: next.phone.commRows });
+        if (next.phone.unread !== prev.phone.unread) this.syncKeys();
       }),
+      // A script pane came, went or was renamed: the strip's pages follow.
+      cockpit.onScriptPanes(() => this.syncPages()),
+      watchSwipes(
+        cockpit.el,
+        (t) => t.closest('.wc-pane[data-phone-strip], .wc-ph-strip') !== null,
+        (step) => this.stepStrip(step),
+      ),
     );
+    // Ctrl/Alt+1…9 (a physical keyboard): the strip's page at that place, opening the strip for it.
+    cockpit.setPhonePageKey((index) => {
+      const page = this.pages[index];
+      if (!page) return false;
+      this.showStrip(page.id);
+      return true;
+    });
+    this.unsubs.push(() => cockpit.setPhonePageKey(null));
+    this.syncPages();
     this.syncLens();
     this.syncFight();
     this.place();
@@ -244,6 +304,101 @@ export class PhoneLayer {
     cockpit.setPhoneLens({ size, gapTop: LENS_GAP_TOP, gapRight: LENS_GAP_RIGHT, clearBottom: COMPASS_HEIGHT });
   }
 
+  // ------------------------------------------------------------------ strip
+
+  /**
+   * The strip's pages from the setting and the script panes present. An
+   * open strip keeps its page while it is still there, takes its neighbour
+   * when it went, and closes when no page is left.
+   */
+  private syncPages(): void {
+    const { cockpit, settings } = this.deps;
+    const was = this.pages;
+    this.pages = stripPages(
+      settings.get().phone.strip.panes,
+      cockpit.scriptPanes().map((p) => ({ id: p.id, label: p.title })),
+      (id) => cockpit.pane(id as PaneId).label,
+    );
+    if (this.stripPage !== null && !this.pages.some((p) => p.id === this.stripPage)) {
+      this.stripPage = keepPage(this.pages, this.stripPage, was);
+    }
+    if (this.stripOpen) {
+      if (this.stripPage === null) this.stripOpen = false;
+      cockpit.setPhoneStrip(this.stripOpen ? (this.stripPage as PaneId) : null);
+    }
+    this.strip.set(this.pages, this.stripPage);
+    this.guardStrip();
+    this.syncKeys();
+  }
+
+  /** The fling guard follows the strip's shown pane (strip.ts `holdFling`); none while it is closed. */
+  private guardStrip(): void {
+    const id = this.stripOpen ? this.stripPage : null;
+    if (id === this.flingOn) return;
+    this.flingOff?.();
+    this.flingOff = null;
+    this.flingOn = id;
+    if (id !== null) this.flingOff = holdFling(this.deps.cockpit.pane(id as PaneId).el);
+  }
+
+  /** Opens the strip on page `id`, or changes its page. */
+  private showStrip(id: string): void {
+    if (!this.pages.some((p) => p.id === id)) return;
+    this.stripOpen = true;
+    this.stripPage = id;
+    this.deps.cockpit.setPhoneStrip(id as PaneId);
+    this.strip.set(this.pages, id);
+    this.guardStrip();
+    this.syncKeys();
+  }
+
+  /** The panes key: opens the strip on the page it had (the first, the first time), or closes it. */
+  private toggleStrip(): void {
+    if (this.stripOpen) {
+      this.stripOpen = false;
+      this.deps.cockpit.setPhoneStrip(null);
+      this.guardStrip();
+      this.syncKeys();
+      return;
+    }
+    const page = stepPage(this.pages, this.stripPage, 0);
+    if (page !== null) this.showStrip(page);
+  }
+
+  /** A swipe: the next page, or the one before (the strip does not wrap). */
+  private stepStrip(step: -1 | 1): void {
+    if (!this.stripOpen) return;
+    const page = stepPage(this.pages, this.stripPage, step);
+    if (page !== null && page !== this.stripPage) this.showStrip(page);
+  }
+
+  // ------------------------------------------------------------------- Comm
+
+  /** The Comm key: opens Comm under the fight card at its stored height, or closes it. */
+  private toggleComm(): void {
+    const { cockpit, settings } = this.deps;
+    this.commOpen = !this.commOpen;
+    cockpit.setPhoneComm(this.commOpen ? { rows: settings.get().phone.commRows } : null);
+    // Closing reads nothing more at once; opening is told to the pane when its rows are laid out (`place`).
+    if (!this.commOpen) this.comm.setPhoneOpen(false);
+    this.syncKeys();
+  }
+
+  /** The lens's keys: lit while their feature is open, the Comm key's badge and name. */
+  private syncKeys(): void {
+    const n = unreadCount(this.unread, this.deps.settings.get().phone.unread);
+    // Lit by what is on screen, not by what was asked for: on a screen too short for it the
+    // allocator leaves Comm (or the strip) out, and then the key is not lit and the badge counts on.
+    this.lens.setKeys({
+      panes: this.pages.length > 0,
+      stripOpen: this.stripShown,
+      commOpen: this.commShown,
+      // Shown, Comm has its own unread marks.
+      badge: this.commShown ? '' : badgeText(n),
+      commLabel: commKeyLabel(this.commShown, n),
+    });
+  }
+
   /** Sends the lens's zoom for its level and size to the map, when either changed. */
   private zoomLens(): void {
     const level = this.lens.zoomLevel;
@@ -293,16 +448,36 @@ export class PhoneLayer {
     const { w, h } = this.deps.cells.get();
     this.fight.place(g.fight.y * h, g.fight.h * h, this.card !== null && !g.tooSmall);
     // The lens's circle is centred on the map pane's rectangle (whole cells, a little larger).
+    // The strip's chrome over its rows; Comm's band on its last row. Comm is "open" for the
+    // pane (its view read) only while it really has rows on this screen.
+    const stripShown = this.stripOpen && !g.tooSmall && g.strip.h > 0;
+    this.strip.place(g.strip.y * h, stripShown ? g.strip.h * h : 0);
+    const commShown = this.commOpen && !g.tooSmall && g.comm.h > 0;
+    this.comm.setPhoneOpen(commShown);
+    if (stripShown !== this.stripShown || commShown !== this.commShown) {
+      this.stripShown = stripShown;
+      this.commShown = commShown;
+      this.syncKeys();
+    }
+    this.commBand.place(
+      commShown && g.commRange
+        ? { commTop: g.comm.y * h, bandTop: (g.comm.y + g.comm.h - 1) * h, rowH: h, rows: g.comm.h, min: g.commRange.min, max: g.commRange.max }
+        : null,
+    );
     const r = g.tooSmall ? null : g.lens;
     const size = this.lensSize;
+    // The keys' row stands in for a lens that is off or has no room; not for one the cockpit has
+    // not laid out yet (asked for, the relayout pending).
+    const pending = size > 0 && !g.tooSmall && g.lens === null && !g.lensHidden;
     this.lens.place(
       r && size > 0 ? { left: (r.x + r.w / 2) * w - size / 2, top: (r.y + r.h / 2) * h - size / 2, size } : null,
-      g.game.y * h + SATROW_GAP,
+      pending || g.tooSmall ? null : g.game.y * h + SATROW_GAP,
     );
   }
 
   dispose(): void {
     for (const u of this.unsubs.splice(0)) u();
+    this.flingOff?.();
     this.menu.dispose();
     this.rescueKey.remove();
     this.el.remove();

@@ -65,7 +65,7 @@ export interface PhoneMenuDeps {
   fits?(size: number): boolean;
 }
 
-type View = { at: 'closed' } | { at: 'sheet' } | { at: 'settings'; from: 'sheet' | 'game' };
+type View = { at: 'closed' } | { at: 'sheet' } | { at: 'settings'; from: 'sheet' | 'game'; focus?: string };
 
 /** Presses never move the DOM focus. */
 const keepFocus = (e: MouseEvent): void => e.preventDefault();
@@ -254,7 +254,7 @@ function Surface(p: { view: View; deps: PhoneMenuDeps; menu: PhoneMenu; backRef:
       {view.at === 'sheet' ? (
         <MenuSheet s={s} st={st} deps={deps} close={() => p.menu.close()} openSettings={() => p.menu.openSettings('sheet')} />
       ) : (
-        <SettingsPage s={s} settings={deps.settings} fits={deps.fits} onBack={() => p.menu.back()} backRef={p.backRef} />
+        <SettingsPage s={s} settings={deps.settings} fits={deps.fits} focus={view.focus} onBack={() => p.menu.back()} backRef={p.backRef} />
       )}
     </div>
   );
@@ -290,9 +290,12 @@ export class PhoneMenu {
     this.show({ at: 'sheet' });
   }
 
-  /** Opens the settings page; Back returns to the sheet (`from` it) or to the game. */
-  openSettings(from: 'sheet' | 'game' = 'game'): void {
-    this.show({ at: 'settings', from });
+  /**
+   * Opens the settings page; Back returns to the sheet (`from` it) or to
+   * the game. `focus`: the group to bring into view (`#panes`: `panes`).
+   */
+  openSettings(from: 'sheet' | 'game' = 'game', focus?: string): void {
+    this.show({ at: 'settings', from, ...(focus ? { focus } : {}) });
   }
 
   /**

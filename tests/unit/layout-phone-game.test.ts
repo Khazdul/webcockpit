@@ -160,11 +160,33 @@ describe('allocatePhoneGame', () => {
       expectStacked(r);
     });
 
+    it('a lower gameKeep (the keyboard is up) lets Comm stay where it would have closed', () => {
+      // 16 rows: 13 above the command row, 2 for the fight card.
+      expect(run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false }).comm.h).toBe(0);
+      const r = run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false, gameKeep: 2 });
+      expect(r.comm.h).toBe(9);
+      expect(r.game.h).toBe(2);
+      expect(r.commRange).toEqual({ min: COMM_MIN_ROWS, max: 9 });
+      expectStacked(r);
+      // And the strip with it, while it has the rows for a pane.
+      expect(run({ rows: 13, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(0);
+      expect(run({ rows: 18, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(4);
+      // With the strip, the fight card and Comm on 20 rows: the strip stays only with the lower keep.
+      expect(run({ rows: 20, strip: true, fight: true, comm: { rows: 6 }, guard: false }).strip.h).toBe(0);
+      const all = run({ rows: 20, strip: true, fight: true, comm: { rows: 6 }, guard: false, gameKeep: 2 });
+      expect([all.strip.h, all.fight.h, all.comm.h, all.game.h]).toEqual([4, 2, 6, 5]);
+      // Not a number: the default.
+      expect(run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false, gameKeep: Number.NaN }).comm.h).toBe(0);
+    });
+
     it('the strip alone closes when the game would lose its rows', () => {
       const r = run({ rows: 13, strip: true, guard: false });
       expect(r.strip.h).toBe(0);
       expect(r.game.h).toBe(10);
-      expect(run({ rows: 14, strip: true, guard: false }).strip.h).toBe(3);
+      // Under four rows (its hood, its dots, two rows of pane) the strip is not shown at all.
+      expect(run({ rows: 14, strip: true, guard: false }).strip.h).toBe(0);
+      expect(run({ rows: 8, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(0);
+      expect(run({ rows: 20, strip: true, guard: false }).strip.h).toBe(4);
     });
 
     it('the fight card is the last to give way', () => {

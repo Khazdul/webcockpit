@@ -310,9 +310,51 @@ describe('the Map lens group', () => {
   });
 });
 
+describe('the Panes and Comm groups', () => {
+  it('Panes: a list of the strip\'s panes, switched and moved; only phone.strip is patched', () => {
+    const { menu, settings } = setup();
+    act(() => menu.openSettings('game', 'panes'));
+    const item = (id: string): Element => menu.host.querySelector(`[data-group="panes"] [data-item="${id}"]`)!;
+    const order = (): string[] => [...menu.host.querySelectorAll('[data-group="panes"] [data-item]')].map((e) => (e as HTMLElement).dataset.item!);
+    expect(order()).toEqual(['timers', 'group', 'character', 'statistics']);
+    expect(item('timers').querySelector('[data-move="up"]')!.getAttribute('aria-disabled')).toBe('true');
+    expect(item('statistics').querySelector('[data-move="down"]')!.getAttribute('aria-disabled')).toBe('true');
+    // A key at its end does nothing.
+    tap(item('timers').querySelector('[data-move="up"]'));
+    expect(order()).toEqual(['timers', 'group', 'character', 'statistics']);
+    tap(item('character').querySelector('[data-move="up"]'));
+    expect(order()).toEqual(['timers', 'character', 'group', 'statistics']);
+    tap(item('timers').querySelector('[data-move="down"]'));
+    expect(order()).toEqual(['character', 'timers', 'group', 'statistics']);
+    tap(item('group').querySelector('[role="switch"]'));
+    expect(settings.get().phone.strip.panes).toEqual([
+      { id: 'character', on: true },
+      { id: 'timers', on: true },
+      { id: 'group', on: false },
+      { id: 'statistics', on: true },
+    ]);
+    // The desktop's pane toggles and layout are not touched.
+    expect(settings.get().panes).toEqual(defaultSettings().panes);
+    expect(settings.get().layout).toEqual(defaultSettings().layout);
+  });
+
+  it('Comm: count unread is phone.unread; NPCs in Public is the desktop gear\'s comm.npcs', () => {
+    const { menu, settings } = setup();
+    act(() => menu.openSettings());
+    const row = (id: string): Element => menu.host.querySelector(`[data-row="${id}"]`)!;
+    expect(settings.get().phone.unread).toBe('private');
+    tap(row('comm-unread').querySelector('[data-opt="all"]'));
+    expect(settings.get().phone.unread).toBe('all');
+    const npcs = settings.get().comm.npcs;
+    tap(row('comm-npcs').querySelector('[role="switch"]'));
+    expect(settings.get().comm.npcs).toBe(!npcs);
+    expect({ ...settings.get().comm, npcs: null }).toEqual({ ...defaultSettings().comm, npcs: null });
+  });
+});
+
 describe('the settings page as data', () => {
-  it('has the groups built so far and no other (stage 51 rule 3): Text, Map lens', () => {
-    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'lens']);
+  it('has the groups built so far and no other (stage 51 rule 3): Text, Map lens, Panes, Comm', () => {
+    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'lens', 'panes', 'comm']);
     expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-size', 'seg:lens-opens']);
     expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font']);
   });

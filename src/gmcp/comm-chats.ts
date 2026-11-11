@@ -104,6 +104,23 @@ export interface Chat {
   unread: number;
 }
 
+/** Unread messages by kind of view (`CommChats.unreadCounts`). */
+export interface UnreadCounts {
+  /** In every private chat together. */
+  private: number;
+  group: number;
+  public: number;
+  /**
+   * Distinct unread messages over all views: a message that is unread in
+   * Public, in Group and in a chat is one here (the three counts above
+   * would add up to three). It stops counting once any view that holds it
+   * is opened. Counted only while there is an `onUnread` listener.
+   */
+  all: number;
+}
+
+const sigOf = (u: UnreadCounts): string => `${u.private}|${u.group}|${u.public}|${u.all}`;
+
 export interface AddResult {
   entry: ChatEntry;
   /** The person's chat was opened by this message. */
@@ -140,9 +157,75 @@ export class CommChats {
   /** Unread in Public and Group while they are not open. */
   publicUnread = 0;
   groupUnread = 0;
+  /** Told when the unread counts change (`onUnread`); the counts it was last told. */
+  private unreadFn: ((u: UnreadCounts) => void) | null = null;
+  private unreadSig = '';
+  /**
+   * For `UnreadCounts.all`, kept only while there is a listener: the unread
+   * messages (by `seq`), which of them each view holds, and a remainder of
+   * unread messages whose identity is not known (those counted before the
+   * listener came, or carried over a rebuild), dropped when a view is read.
+   */
+  private readonly unreadSeqs = new Set<number>();
+  private readonly unreadByView = new Map<string, number[]>();
+  private unreadCarried = 0;
 
   constructor(opts: CommChatsOptions = {}) {
     this.max = opts.max ?? 1000;
+  }
+
+  /**
+   * The unread counts now: every private chat's together, Group's, Public's
+   * (the phone's Comm key counts them, ADR 0136 §6).
+   */
+  unreadCounts(): UnreadCounts {
+    return { private: this.unreadTotal, group: this.groupUnread, public: this.publicUnread, all: this.unreadSeqs.size + this.unreadCarried };
+  }
+
+  /** A message became unread in `view` (`all`: once per message, whatever the number of views). */
+  private trackUnread(view: string, seq: number): void {
+    if (!this.unreadFn) return;
+    this.unreadSeqs.add(seq);
+    const list = this.unreadByView.get(view);
+    if (list) list.push(seq);
+    else this.unreadByView.set(view, [seq]);
+  }
+
+  /** `view` was read: its messages stop counting in `all`, and so does the remainder of unknown ones. */
+  private readView(view: string): void {
+    for (const seq of this.unreadByView.get(view) ?? []) this.unreadSeqs.delete(seq);
+    this.unreadByView.delete(view);
+    this.unreadCarried = 0;
+  }
+
+  private forgetUnread(): void {
+    this.unreadSeqs.clear();
+    this.unreadByView.clear();
+    this.unreadCarried = 0;
+  }
+
+  /**
+   * Calls `fn` with the counts whenever they change (a message that counts,
+   * a view opened, a reset or restore): never for a message that changes
+   * none of them. One listener; null removes it. Without a listener nothing
+   * is counted here.
+   */
+  onUnread(fn: ((u: UnreadCounts) => void) | null): void {
+    this.unreadFn = fn;
+    this.forgetUnread();
+    // What was unread before anyone listened is not known message by message: at least the largest count.
+    if (fn) this.unreadCarried = Math.max(this.unreadTotal, this.groupUnread, this.publicUnread);
+    this.unreadSig = sigOf(this.unreadCounts());
+  }
+
+  private noteUnread(): void {
+    const fn = this.unreadFn;
+    if (!fn) return;
+    const u = this.unreadCounts();
+    const sig = sigOf(u);
+    if (sig === this.unreadSig) return;
+    this.unreadSig = sig;
+    fn(u);
   }
 
   /** Your character's name (`Char.Name`): its messages count as yours. */
@@ -168,6 +251,8 @@ export class CommChats {
     this.rosterKnown = false;
     this.publicUnread = 0;
     this.groupUnread = 0;
+    this.forgetUnread();
+    this.noteUnread();
   }
 
   /** Unread counts by view ('public', 'group', chat keys), to carry over a rebuild. */
@@ -191,6 +276,12 @@ export class CommChats {
         if (c && c.lastNear > 0) c.unread = Math.max(c.unread, n);
       }
     }
+    // Unread carried over a rebuild is not known message by message: `all` is at least the largest count.
+    if (this.unreadFn) {
+      const most = Math.max(this.unreadTotal, this.groupUnread, this.publicUnread);
+      this.unreadCarried = Math.max(this.unreadCarried, most - this.unreadSeqs.size, 0);
+    }
+    this.noteUnread();
   }
 
   // ------------------------------------------------------------ messages
@@ -235,9 +326,15 @@ export class CommChats {
     this.push(this.all, entry);
     if (inGroup) {
       this.pushGroup({ kind: 'msg', entry });
-      if (!quiet && !mine && this.openKey !== 'group') this.groupUnread++;
+      if (!quiet && !mine && this.openKey !== 'group') {
+        this.groupUnread++;
+        this.trackUnread('group', entry.seq);
+      }
     }
-    if (!quiet && !mine && this.openKey !== 'public' && this.publicShows(m)) this.publicUnread++;
+    if (!quiet && !mine && this.openKey !== 'public' && this.publicShows(m)) {
+      this.publicUnread++;
+      this.trackUnread('public', entry.seq);
+    }
     let created = false;
     let raised = false;
     if (person !== null) {
@@ -250,9 +347,14 @@ export class CommChats {
         if (created) c.color = this.dealColor(c.key, c.name);
         raised = true;
         c.lastNear = Math.max(c.lastNear, m.ts);
-        if (!quiet && !mine && this.openKey !== person) c.unread++;
+        if (!quiet && !mine && this.openKey !== person) {
+          c.unread++;
+          this.trackUnread(person, entry.seq);
+        }
       }
     }
+    // (A quiet or own message changes no count: nothing to tell.)
+    if (!quiet && !mine) this.noteUnread();
     return { entry, created, raised };
   }
 
@@ -369,6 +471,8 @@ export class CommChats {
       const c = this.people.get(key);
       if (c) c.unread = 0;
     }
+    if (key !== null && this.unreadFn) this.readView(key);
+    this.noteUnread();
   }
 
   /**

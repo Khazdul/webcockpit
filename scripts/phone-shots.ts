@@ -21,6 +21,7 @@ import { mkdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, type Page, chromium } from '@playwright/test';
 import { devServer } from './lib/dev-server.ts';
+import { GMCP, IAC, WILL, fixture, gmcpBytes, toSteps } from './lib/mume-feed.ts';
 import { PAPER_PALETTE } from '../src/theme/presets.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -43,6 +44,12 @@ const CUT = {
 
 interface State {
   name: string;
+  /**
+   * The state needs a connection (Comm's reply line is not shown in a
+   * replay): the page enters MUME against a mocked WebSocket that plays the
+   * fixtures (`live`), instead of the offline cockpit.
+   */
+  live?: boolean;
   /** The step that built it (`a` … `g`). */
   step: string;
   /** Brings the opened cockpit to the state. */
@@ -80,6 +87,43 @@ async function lensDrawn(page: Page): Promise<void> {
   const map = page.locator('.wc-pane-map .wc-pane-content');
   await map.and(page.locator('[data-map-state="loaded"][data-map-located="1"][data-map-drawn-ms]')).waitFor({ timeout: 30_000 });
   await page.waitForTimeout(400);
+}
+
+/**
+ * A mocked MUME for the `live` states: the walk and the GMCP demo sent
+ * down the socket at once (nothing reaches the real server), then a fight
+ * (the demo's own ends before its tells), so Comm has chats and the fight
+ * card shows. Returns once the last line is on screen.
+ */
+async function live(page: Page): Promise<void> {
+  const feed = Buffer.concat([
+    ...toSteps(fixture(WALK)).flatMap((st) => ('out' in st ? [st.out] : [])),
+    ...toSteps(fixture(FIXTURE)).flatMap((st) => ('out' in st ? [st.out] : [])),
+    gmcpBytes('Char.Vitals {"position":"fighting","opponent":"an orc scout","buffer":"Rasta","opponent-hits":"wounded","buffer-hits":"fine"}'),
+  ]);
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    ws.onMessage((m) => {
+      if (Buffer.from(m).includes('Core.Ping')) ws.send(gmcpBytes('Core.Ping'));
+    });
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+    ws.send(feed);
+  });
+  await page.goto('/?phone=1');
+  await page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label').waitFor();
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+  await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
+  await page.locator('.wc-rows .wc-row').filter({ hasText: 'A crow caws somewhere to the north.' }).waitFor();
+  await page.locator('.wc-ph-fight').waitFor();
+  // The start page has left (it fades away over the cockpit).
+  await page.locator('.wc-start').waitFor({ state: 'hidden', timeout: 20_000 });
+}
+
+/** Opens Comm on the chat with `name` (the rail's entry). */
+async function openChat(page: Page, name: string): Promise<void> {
+  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+  await page.locator('.wc-pane[data-pane="comm"]').waitFor();
+  await page.locator(`.wc-pane[data-pane="comm"] .wc-cm-ent[aria-label^="${name}"]`).tap();
+  await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').waitFor();
 }
 
 /** The on-screen keyboard comes up: the visible area shrinks, as the app detects it (phone-viewport.ts). */
@@ -152,6 +196,57 @@ const STATES: State[] = [
     },
   },
   {
+    name: 'strip',
+    step: 'd',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-pane="timers"][data-phone-strip]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    name: 'strip-group',
+    step: 'd',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-pane="timers"][data-phone-strip]').waitFor();
+      // A swipe to the left: the next page.
+      const box = (await page.locator('.wc-ph-strip').boundingBox())!;
+      const y = box.y + box.height / 2;
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y, id: 0 }] });
+      for (const x of [250, 200, 150]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y, id: 0 }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.locator('.wc-pane[data-pane="group"][data-phone-strip]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    name: 'comm',
+    step: 'd',
+    live: true,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.waitForTimeout(500);
+    },
+  },
+  {
+    name: 'comm-keyboard',
+    step: 'd',
+    live: true,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
+      await keyboardUp(page);
+      await page.keyboard.type('on my way');
+      await page.waitForTimeout(500);
+    },
+  },
+  {
     name: 'settings',
     step: 'b',
     run: async (page) => {
@@ -172,8 +267,11 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
   try {
-    await page.goto('/?replay&phone=1');
-    await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
+    if (state.live) await live(page);
+    else {
+      await page.goto('/?replay&phone=1');
+      await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
+    }
     if (light) await paper(page);
     await state.run(page);
     await page.evaluate(() => document.fonts.ready);

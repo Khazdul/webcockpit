@@ -431,11 +431,48 @@ export interface PhoneLensSettings {
  */
 export interface PhoneSettings {
   lens: PhoneLensSettings;
+  /** The pane strip (ADR 0136 §5): which built-in panes are pages, in their order. */
+  strip: PhoneStripSettings;
+  /** Comm's height in rows on the phone (ADR 0136 §6); null: the default share of the screen. */
+  commRows: number | null;
+  /** What the Comm key's badge counts (ADR 0136 §6): private chats, or Group and Public too. */
+  unread: PhoneUnread;
 }
 
-/** Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4). */
+/** The built-in panes that can be pages of the phone's pane strip, in the default order (ADR 0136 §5). */
+export const PHONE_STRIP_PANES = ['timers', 'group', 'character', 'statistics'] as const;
+export type PhoneStripPane = (typeof PHONE_STRIP_PANES)[number];
+
+/** One built-in page of the strip: shown or not; its place in the list is its order. */
+export interface PhoneStripEntry {
+  id: PhoneStripPane;
+  on: boolean;
+}
+
+export interface PhoneStripSettings {
+  /** Every pane of `PHONE_STRIP_PANES` exactly once, in page order. Script panes follow them. */
+  panes: PhoneStripEntry[];
+}
+
+export const PHONE_UNREAD_MODES = ['private', 'all'] as const;
+export type PhoneUnread = (typeof PHONE_UNREAD_MODES)[number];
+
+/** The limits of a stored Comm height (the allocator fits it to the screen). */
+export const PHONE_COMM_ROWS_MIN = 1;
+export const PHONE_COMM_ROWS_MAX = 200;
+
+/**
+ * Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4);
+ * the strip's four panes in their order, all on (§5); Comm at its default
+ * height, the badge counting private chats (§6).
+ */
 export function defaultPhoneSettings(): PhoneSettings {
-  return { lens: { show: true, size: 'm', opensAt: 'middle' } };
+  return {
+    lens: { show: true, size: 'm', opensAt: 'middle' },
+    strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: true })) },
+    commRows: null,
+    unread: 'private',
+  };
 }
 
 /** The ids of the movable windows (ADR 0103). */

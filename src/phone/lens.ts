@@ -12,11 +12,12 @@
 // - A tap on the lens steps the zoom (near → middle → far → near); the
 //   level is kept in memory and starts at the setting's "Opens at". The
 //   lens button covers the map, so the map takes no pan or pinch.
-// - The fullscreen key sits on the lens's top right corner, only where the
-//   browser can put the page in fullscreen (none otherwise; gone for good
-//   once a request was refused). While the lens is hidden (the setting, or
-//   no room for it) the key stays as a row at the top right.
-// - The panes key and the Comm key come with their features (stage 51d).
+// - Three round keys sit on the lens's corners: top left **panes** (opens
+//   and closes the pane strip; only while the strip has a page), top right
+//   **fullscreen** (only where the browser can put the page in fullscreen;
+//   gone for good once a request was refused), bottom right **Comm** with
+//   the unread count. While the lens is hidden (the setting, or something
+//   it would collide with) the keys stay as a row at the top right.
 
 import { type LensLevel, LENS_LEVELS, lensLabel, nextLevel } from './lens-zoom';
 
@@ -35,12 +36,26 @@ const REFLECTION =
   '<path d="M139.6 88.7A66 66 0 0 1 88.7 139.6" fill="none" stroke="url(#wc-ph-refl-arc)" stroke-width="1.8" stroke-linecap="round"/>';
 
 const FULLSCREEN_ICON = 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5';
+const PANES_ICON = 'M5 14h14M5 18h14';
+const COMM_ICON = 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z';
+
+/** The keys, in the row's order (the lens's corners: top left, top right, bottom right). */
+export type SatName = 'panes' | 'fullscreen' | 'comm';
+const SATS: readonly { name: SatName; corner: string; icon: string; label: string }[] = [
+  { name: 'panes', corner: 'is-tl', icon: PANES_ICON, label: 'Show panes' },
+  { name: 'fullscreen', corner: 'is-tr', icon: FULLSCREEN_ICON, label: 'Fullscreen' },
+  { name: 'comm', corner: 'is-br', icon: COMM_ICON, label: 'Open Comm' },
+];
 
 export interface LensDeps {
   /** The level stepped to: the caller zooms the map. */
   onLevel(level: LensLevel): void;
   /** The fullscreen key: null where the browser cannot (no key then). */
   fullscreen: (() => void) | null;
+  /** The panes key: opens or closes the pane strip. */
+  panes(): void;
+  /** The Comm key: opens or closes Comm. */
+  comm(): void;
 }
 
 /** Where the lens is drawn: its circle's box in px relative to the layer, or null (hidden). */
@@ -60,7 +75,10 @@ export class LensView {
   private level: LensLevel = 'middle';
   private placeKey = '';
   private rowKey = '';
-  private keys: HTMLButtonElement[] = [];
+  /** Each key twice: on the lens's corner, and in the row. Only one of the two hosts shows. */
+  private readonly sats = new Map<SatName, HTMLButtonElement[]>();
+  private readonly badges: HTMLSpanElement[] = [];
+  private satKey = '';
 
   constructor(doc: Document, deps: LensDeps) {
     this.el = doc.createElement('div');
@@ -101,18 +119,33 @@ export class LensView {
     this.rowEl = doc.createElement('div');
     this.rowEl.className = 'wc-ph-satrow';
     this.rowEl.hidden = true;
-    if (deps.fullscreen) {
-      const go = deps.fullscreen;
-      // One key on the lens's corner, one in the row: only one of the two shows.
+    const acts: Record<SatName, (() => void) | null> = { panes: () => deps.panes(), fullscreen: deps.fullscreen, comm: () => deps.comm() };
+    for (const sat of SATS) {
+      const act = acts[sat.name];
+      if (!act) continue;
+      const pair: HTMLButtonElement[] = [];
       for (const [host, cls] of [
-        [this.el, 'wc-ph-sat is-tr'],
+        [this.el, `wc-ph-sat ${sat.corner}`],
         [this.rowEl, 'wc-ph-sat'],
       ] as const) {
-        const k = satKey(doc, cls, 'Fullscreen', FULLSCREEN_ICON, go);
-        k.dataset.sat = 'fullscreen';
+        const k = satKey(doc, cls, sat.label, sat.icon, act);
+        k.dataset.sat = sat.name;
+        if (sat.name === 'panes') {
+          const r = doc.createElementNS(SVG_NS, 'rect');
+          for (const [a, v] of Object.entries({ x: '3', y: '4', width: '18', height: '6', rx: '1.5' })) r.setAttribute(a, v);
+          k.querySelector('svg')!.prepend(r);
+        }
+        if (sat.name === 'comm') {
+          const badge = doc.createElement('span');
+          badge.className = 'wc-ph-badge';
+          badge.hidden = true;
+          k.append(badge);
+          this.badges.push(badge);
+        }
         host.append(k);
-        this.keys.push(k);
+        pair.push(k);
       }
+      this.sats.set(sat.name, pair);
     }
     this.setLevel(this.level);
   }
@@ -131,15 +164,36 @@ export class LensView {
 
   /** The browser refused fullscreen: the key goes for good. */
   dropFullscreen(): void {
-    for (const k of this.keys.splice(0)) k.remove();
-    this.rowEl.hidden = true;
+    for (const k of this.sats.get('fullscreen') ?? []) k.remove();
+    this.sats.delete('fullscreen');
+  }
+
+  /**
+   * The keys' state: whether the strip has a page (no panes key without
+   * one), whether the strip and Comm are open (their keys lit), and the
+   * Comm key's badge and name. Written only when something changed.
+   */
+  setKeys(o: { panes: boolean; stripOpen: boolean; commOpen: boolean; badge: string; commLabel: string }): void {
+    const key = `${o.panes}|${o.stripOpen}|${o.commOpen}|${o.badge}|${o.commLabel}`;
+    if (key === this.satKey) return;
+    this.satKey = key;
+    for (const k of this.sats.get('panes') ?? []) {
+      k.hidden = !o.panes;
+      lit(k, o.stripOpen, o.stripOpen ? 'Hide panes' : 'Show panes');
+    }
+    for (const k of this.sats.get('comm') ?? []) lit(k, o.commOpen, o.commLabel);
+    for (const b of this.badges) {
+      b.textContent = o.badge;
+      b.hidden = o.badge === '';
+    }
   }
 
   /**
    * Draws the lens at `place`, or hides it and shows the key row `rowTop`
-   * px from the layer's top (when there is a key to show).
+   * px from the layer's top (when there is a key to show). `rowTop` null:
+   * neither (the lens is wanted and not laid out yet: no row for a frame).
    */
-  place(place: LensPlace | null, rowTop: number): void {
+  place(place: LensPlace | null, rowTop: number | null): void {
     const key = place ? `${place.left},${place.top},${place.size}` : '';
     if (key !== this.placeKey) {
       this.placeKey = key;
@@ -151,13 +205,21 @@ export class LensView {
       }
       this.el.hidden = !place;
     }
-    const row = !place && this.keys.length > 0 ? String(rowTop) : '';
+    const row = !place && rowTop !== null && this.sats.size > 0 ? String(rowTop) : '';
     if (row !== this.rowKey) {
       this.rowKey = row;
       if (row) this.rowEl.style.top = `${rowTop}px`;
       this.rowEl.hidden = !row;
     }
   }
+}
+
+/** A key lit (its feature is open) or not, with its name. */
+function lit(k: HTMLButtonElement, on: boolean, label: string): void {
+  k.classList.toggle('is-on', on);
+  k.setAttribute('aria-pressed', on ? 'true' : 'false');
+  k.setAttribute('aria-label', label);
+  k.title = label;
 }
 
 /** A round key on the lens's corner (or in the row): 40 px, an icon. */

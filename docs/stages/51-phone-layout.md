@@ -243,7 +243,7 @@ The owner starts the session and is away until morning. So:
 - [x] 51a shell: allocator, command row, compass, fight card
 - [x] 51b menu sheet, Text settings
 - [x] 51c map lens
-- [ ] 51d pane strip and Comm
+- [x] 51d pane strip and Comm
 - [ ] 51e hot keys
 - [ ] 51f weather, compass and connection settings
 - [ ] 51g Paper, polish, full verification, docs
@@ -405,6 +405,56 @@ cover too much text, Comm's height, anything that feels slow.
   `phone-player-map.spec.ts` keeps the player's MAP tab touch cases.
   Preload list still identical to `main`.
 - Screenshots: `docs/stages/img/51-c-*.png`.
+
+### 51d Pane strip and Comm (built)
+
+- `src/phone/strip.ts`, `strip-model.ts`, `swipe.ts`, `comm-chrome.ts`,
+  `unread.ts`; the lens's three keys and the key row; the **Panes** and
+  **Comm** settings groups; `phone.strip`, `phone.commRows`,
+  `phone.unread`. `#panes` opens the settings page at Panes.
+- Shared files: `layout/cockpit.ts` (additive `setPhoneStrip`,
+  `setPhoneComm`, `setPhonePageKey`; placing inside `relayoutPhoneGame`;
+  `selectTabAt` hands Ctrl/Alt+digits to the strip in the phone game
+  layout only), `layout/phone-game.ts`, `gmcp/comm-chats.ts` (additive
+  `unreadCounts()` / `onUnread()`, nothing computed without a listener),
+  `panes/comm.ts` (phone mode behind `this.phone`; on a phone the reply
+  is a one-row textarea; `sendReply` flattens line breaks, a no-op for
+  the desktop's `<input>`), `panes/comm.css` (`textarea.wc-cm-rinput`),
+  `settings/types.ts` + `migrate.ts`, `app/shell.ts`.
+- **Deviation from ADR §1 (found by Firefox):** the phone game layout is
+  used when the phone flag is on **and the window's short side is under
+  600 CSS px** (`phoneSizeWindow()`, decided once at startup). Several
+  desktop e2e specs open `?replay&phone=1` in a desktop-size window and
+  expect the old phone menu; since 51b they passed only by winning a race
+  against the phone layer's mount. A real phone is always under 600 px.
+  **So `?phone=1` in a wide desktop window shows the old phone layout;
+  test in a 390 × 844 window or with device emulation.**
+- Choices and deviations:
+  - Strip: the first row holds the hood and the last the dots, so a pane
+    gets the strip's rows minus two. A strip that would get fewer than 4
+    rows is not shown (`STRIP_MIN_ROWS`, not in the ADR).
+  - Swipe: at least 48 px sideways and 1.5 × the vertical travel within
+    800 ms; no wrap at the ends. Ctrl/Alt+1…9 select the page and open the
+    strip when it is closed.
+  - Unread: while Comm is closed no chat counts as read. "All" counts
+    each message once (a group member's tell stops counting when Group
+    or the chat is read). The badge is hidden while Comm is open.
+  - Comm resize: only the band moves while dragging; one relayout and at
+    most one NAWS on release. Opening or closing the strip or Comm sends
+    exactly one window size (rows only; the width never changes).
+  - Keyboard up: Comm keeps the short screen (the game keeps 2 rows);
+    under about 11 rows in all Comm cannot fit and closes (the stored
+    height is kept).
+  - The reply line follows the keys' gate: disabled with "Not connected"
+    outside play, and a failed send keeps the text.
+  - Not built from the mockup: the send button in the compose field
+    (Enter sends, `enterkeyhint="send"`); the mockup's own Timers chips
+    (the real Timers pane is shown).
+  - Statistics uses the desktop view unchanged in the small strip.
+- Tests: 3709 unit; phone 131 passed, none skipped; firefox green except
+  load-sensitive cases that pass alone. Preload list identical to `main`.
+- Screenshots: `docs/stages/img/51-d-*.png` (the Comm shots predate the
+  last grip and margin tweak; 51g re-shoots everything).
 
 ## Owner feedback
 

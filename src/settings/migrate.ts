@@ -56,9 +56,15 @@ import {
   MAP_HOVER_MODES,
   MAP_HOVER_SIZES,
   type MapperSettings,
+  PHONE_COMM_ROWS_MAX,
+  PHONE_COMM_ROWS_MIN,
   PHONE_LENS_LEVELS,
   PHONE_LENS_SIZES,
+  PHONE_STRIP_PANES,
+  PHONE_UNREAD_MODES,
   type PhoneSettings,
+  type PhoneStripEntry,
+  type PhoneStripPane,
   defaultPhoneSettings,
   PADDING_MAX,
   PADDING_MIN,
@@ -521,7 +527,28 @@ export function migratePhone(raw: unknown): PhoneSettings {
       size: oneOf(l.size, PHONE_LENS_SIZES, d.lens.size),
       opensAt: oneOf(l.opensAt, PHONE_LENS_LEVELS, d.lens.opensAt),
     },
+    strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined) },
+    commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
+    unread: oneOf(p.unread, PHONE_UNREAD_MODES, d.unread),
   };
+}
+
+/**
+ * The strip's panes from anything: every known pane exactly once, the
+ * stored ones first in their stored order (a repeat or an unknown id is
+ * dropped), then the missing ones in the default order, on.
+ */
+function migrateStripPanes(raw: unknown): PhoneStripEntry[] {
+  const out: PhoneStripEntry[] = [];
+  const seen = new Set<string>();
+  for (const e of Array.isArray(raw) ? raw : []) {
+    if (!isObj(e) || typeof e.id !== 'string' || seen.has(e.id)) continue;
+    if (!(PHONE_STRIP_PANES as readonly string[]).includes(e.id)) continue;
+    seen.add(e.id);
+    out.push({ id: e.id as PhoneStripPane, on: bool(e.on, true) });
+  }
+  for (const id of PHONE_STRIP_PANES) if (!seen.has(id)) out.push({ id, on: true });
+  return out;
 }
 
 /** Options for `migrateSettings`. */

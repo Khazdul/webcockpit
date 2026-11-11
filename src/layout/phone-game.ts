@@ -26,7 +26,8 @@
 //   corner. It floats (the game pane keeps its full width) and is left out
 //   (`lens: null`, `lensHidden`) when it would collide with Comm or would
 //   reach into the rows the keys at the bottom right need.
-// - Short screens (the keyboard is up): the game keeps `GAME_KEEP_ROWS`.
+// - Short screens (the keyboard is up): the game keeps `GAME_KEEP_ROWS`
+//   (or `gameKeep`, which the cockpit lowers while the keyboard is up).
 //   Comm shrinks to its minimum first, then the strip closes, then Comm,
 //   and last the fight card gives way. The result's rectangles say what is
 //   shown; an empty one (h = 0) is closed.
@@ -45,6 +46,8 @@ export const FIGHT_ROWS = 2;
 export const STRIP_SHARE = 0.2;
 export const STRIP_MIN_SHARE = 0.15;
 export const STRIP_MAX_SHARE = 0.25;
+/** The least rows of an open strip: its hood, its dots and two rows of pane. Lower, it closes. */
+export const STRIP_MIN_ROWS = 4;
 /** Comm's default share of the rows and its least height (ADR 0136 §2). */
 export const COMM_DEFAULT_SHARE = 0.4;
 export const COMM_MIN_ROWS = 6;
@@ -98,6 +101,12 @@ export interface PhoneGameInput {
   fight?: boolean;
   /** Comm is open, at `rows` (null: the default share); absent or null: closed. */
   comm?: { rows: number | null } | null;
+  /**
+   * Rows the game text keeps under an open strip or Comm. Default
+   * `GAME_KEEP_ROWS`. The cockpit lowers it while the on-screen keyboard is
+   * up, so Comm's reply line stays on the short screen while it is typed in.
+   */
+  gameKeep?: number;
   /** The lens is wanted; absent or null: no lens. */
   lens?: PhoneGameLens | null;
 }
@@ -157,21 +166,24 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
     return res;
   }
 
+  const keep = Math.max(1, whole(input.gameKeep ?? GAME_KEEP_ROWS, GAME_KEEP_ROWS));
   let fightH = input.fight ? FIGHT_ROWS : 0;
   let stripH = input.strip ? stripRows(rows) : 0;
+  // A strip with no room for its pane is none.
+  if (stripH < STRIP_MIN_ROWS) stripH = 0;
   let commH = 0;
   let commRange: PhoneGameResult['commRange'] = null;
   const comm = input.comm ?? null;
   // The fight card gives way only when the text would all but vanish.
   if (avail - fightH < GAME_MIN_ROWS) fightH = 0;
   // The strip alone must leave the game its rows.
-  if (stripH > 0 && avail - fightH - stripH < GAME_KEEP_ROWS) stripH = 0;
+  if (stripH > 0 && avail - fightH - stripH < keep) stripH = 0;
   if (comm) {
-    let max = avail - fightH - stripH - GAME_KEEP_ROWS;
+    let max = avail - fightH - stripH - keep;
     // Not even the least Comm fits under the strip: the strip closes.
     if (max < COMM_MIN_ROWS && stripH > 0) {
       stripH = 0;
-      max = avail - fightH - GAME_KEEP_ROWS;
+      max = avail - fightH - keep;
     }
     if (max >= COMM_MIN_ROWS) {
       // A stored height that is not a number (a damaged setting) is the default.

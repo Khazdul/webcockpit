@@ -112,8 +112,6 @@ test('the lens: the one map pane, borderless, clipped to a 150 px circle at the 
   // (neither the map pane nor any part of the lens does), and a tap there steps no zoom.
   for (const [x, y] of [
     [l.x + 4, l.y + l.height - 4],
-    [l.x + 4, l.y + 4],
-    [l.x + l.width - 4, l.y + l.height - 4],
     [p.x + 3, p.y + p.height - 3],
   ]) {
     const hit = await page.evaluate(([px, py]) => {
@@ -431,8 +429,8 @@ test('the fullscreen key sits on the lens\'s top right corner where the browser 
   const key = lens(page).locator('.wc-ph-sat[data-sat="fullscreen"]');
   await expect(key).toBeVisible();
   await expect(key).toHaveAttribute('aria-label', 'Fullscreen');
-  // Only this key in stage 51c: the panes key and the Comm key come with their features.
-  await expect(page.locator('.wc-ph-lens .wc-ph-sat')).toHaveCount(1);
+  // (The panes key and the Comm key came in stage 51d: phone-game-panes.spec.ts.)
+  await expect(page.locator('.wc-ph-lens .wc-ph-sat')).toHaveCount(3);
   const l = (await lens(page).boundingBox())!;
   const k = (await key.boundingBox())!;
   expect(k.width).toBeCloseTo(40, 0);
@@ -459,12 +457,12 @@ test('the fullscreen key sits on the lens\'s top right corner where the browser 
   await expect(pane(page)).toBeHidden();
   const row = page.locator('.wc-ph-satrow');
   await expect(row).toBeVisible();
-  await expect(row.locator('.wc-ph-sat')).toHaveCount(1);
+  await expect(row.locator('.wc-ph-sat')).toHaveCount(3);
   const c = (await page.locator('.wc-cockpit').boundingBox())!;
-  const r = (await row.locator('.wc-ph-sat').boundingBox())!;
+  const r = (await row.boundingBox())!;
   expect(c.x + c.width - (r.x + r.width)).toBeCloseTo(8, 0);
   expect(r.y - c.y).toBeCloseTo(8, 0);
-  await row.locator('.wc-ph-sat').tap();
+  await row.locator('.wc-ph-sat[data-sat="fullscreen"]').tap();
   expect(await page.evaluate(() => (window as unknown as { __fs: number }).__fs)).toBe(2);
 });
 
@@ -474,10 +472,13 @@ test('no fullscreen key where the browser cannot (iPhone): the lens alone, and n
   });
   await openCockpit(page);
   await expect(lens(page)).toBeVisible();
-  await expect(page.locator('.wc-ph-sat')).toHaveCount(0);
+  await expect(page.locator('.wc-ph-sat[data-sat="fullscreen"]')).toHaveCount(0);
+  // The other two keys are there, on the lens and (the lens off) in the row.
+  expect(await lens(page).locator('.wc-ph-sat').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.sat))).toEqual(['panes', 'comm']);
   await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { show: false } } }));
   await expect(lens(page)).toBeHidden();
-  await expect(page.locator('.wc-ph-satrow')).toBeHidden();
+  await expect(page.locator('.wc-ph-satrow')).toBeVisible();
+  await expect(page.locator('.wc-ph-satrow .wc-ph-sat')).toHaveCount(2);
 });
 
 test('the Map lens settings: show, size and opens at, from the settings page; kept over a reload', async ({ page }) => {

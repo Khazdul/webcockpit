@@ -257,27 +257,8 @@ test('Exit session asks first, returns to the start page and closes the connecti
   await expect.poll(() => closed).toBe(true);
 });
 
-// fixme (stage 51b): the menu has no Statistics row any more (ADR 0136 §10: Statistics is a pane
-// in the phone's pane strip). Step 51d restores this against the strip's Statistics page.
-test.fixme('Statistics shows the live run of a replay', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.goto('/?fixture=gmcp-demo.log&speed=3&phone=1');
-  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'An orc scout is dead! R.I.P.' }).first()).toBeAttached({
-    timeout: 20_000,
-  });
-  await page.locator('.wc-menu-btn').tap();
-  await frame(page).locator('.wc-mrow[data-key="stats"]').tap();
-  const stats = frame(page).locator('.wc-stats');
-  await expect(stats.locator('.wc-stats-header').first()).toContainText('STATISTICS');
-  await expect(stats).toContainText('An orc scout');
-  await expect(stats).toContainText('★ Defeated an orc scout');
-  // The replay ends while it is open: the data stays.
-  await expect(stats).toContainText('Run ended', { timeout: 25_000 });
-  await expect(stats).toContainText('An orc scout');
-  await page.keyboard.press('Escape');
-  await expect(frame(page).locator('.wc-mrow[data-key="stats"]')).toHaveCount(0);
-  expect(errors).toEqual([]);
-});
+// (The old menu's Statistics row became a page of the pane strip in stage 51d: its case, the live run of a
+// replay, is in phone-game-panes.spec.ts.)
 
 test('Profile and Scripts open their pages from the sheet, full screen, not windows; Back returns to the game', async ({ page }) => {
   const errors = watchErrors(page);

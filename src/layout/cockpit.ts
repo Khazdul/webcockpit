@@ -122,8 +122,11 @@
 // the cockpit and reads the rectangles from `phoneGameLayout`. Every pane
 // is hidden (the game text and the command row only) but the map pane,
 // which is the layer's map lens when it asks for one (`setPhoneLens`, ADR
-// 0136 §4: borderless in a rectangle of whole cells); temporary script
-// panes still show over the game text.
+// 0136 §4: borderless in a rectangle of whole cells), the one pane of the
+// open pane strip (`setPhoneStrip`, §5) and Comm when it is open
+// (`setPhoneComm`, §6), both borderless in the allocator's rows; temporary
+// script panes still show over the game text. Ctrl/Alt+1…9 go to the
+// strip (`setPhonePageKey`).
 
 import { onTitleFont } from '../panes/title-font';
 import './layout.css';
@@ -531,6 +534,12 @@ export class Cockpit {
   private pgLast: PhoneGameResult | null = null;
   /** Phone game layout: the map lens as the phone layer wants it, px (`setPhoneLens`); null: no lens. */
   private pgLens: PhoneLensPx | null = null;
+  /** Phone game layout: the pane the strip shows (`setPhoneStrip`); null: the strip is closed. */
+  private pgStrip: PaneId | null = null;
+  /** Phone game layout: Comm open at these rows (null: the default share), or null: closed (`setPhoneComm`). */
+  private pgComm: { rows: number | null } | null = null;
+  /** Phone game layout: Ctrl/Alt+1…9 (`setPhonePageKey`). */
+  private pgPageKey: ((index: number) => boolean) | null = null;
 
   constructor(opts: CockpitOptions) {
     const doc = opts.root.ownerDocument;
@@ -1001,7 +1010,9 @@ export class Cockpit {
 
   /** Phone only: selects the strip's tab at `index` (0 = GAME, ADR 0098); false when there is none. */
   selectTabAt(index: number): boolean {
-    const tab = this.phone && !this.phoneGame ? this.tabs[index] : undefined;
+    // The phone's game layout has no tabs: the keys are its pane strip's (ADR 0136 §5).
+    if (this.phoneGame) return this.pgPageKey?.(index) ?? false;
+    const tab = this.phone ? this.tabs[index] : undefined;
     if (tab === undefined) return false;
     this.selectTab(tab);
     return true;
@@ -1095,6 +1106,46 @@ export class Cockpit {
     this.scheduleRelayout();
   }
 
+  /**
+   * Phone game layout: opens the pane strip on pane `id` (one pane at a
+   * time, borderless, from the top edge; ADR 0136 §5), changes its page, or
+   * closes it (null). The phone layer decides the pages and their order;
+   * the cockpit places the pane. A pane that is not there shows nothing
+   * (the strip's rows stay).
+   */
+  setPhoneStrip(id: PaneId | null): void {
+    if (!this.phoneGame || id === this.pgStrip) return;
+    this.pgStrip = id;
+    this.scheduleRelayout();
+  }
+
+  /** Phone game layout: the pane the strip shows, or null (closed). */
+  get phoneStrip(): PaneId | null {
+    return this.pgStrip;
+  }
+
+  /**
+   * Phone game layout: opens Comm full width under the fight card at `rows`
+   * (null: the default share of the screen), or closes it (null; ADR 0136
+   * §6). The allocator fits the height to the screen (`phoneGameLayout`
+   * `comm`, `commRange`).
+   */
+  setPhoneComm(comm: { rows: number | null } | null): void {
+    if (!this.phoneGame) return;
+    const a = this.pgComm;
+    if (a === comm || (a && comm && a.rows === comm.rows)) return;
+    this.pgComm = comm && { rows: comm.rows };
+    this.scheduleRelayout();
+  }
+
+  /**
+   * Phone game layout: who answers Ctrl/Alt+1…9 (`selectTabAt`: the index
+   * is 0 for the first key). The phone layer's pane strip; null: no one.
+   */
+  setPhonePageKey(fn: ((index: number) => boolean) | null): void {
+    if (this.phoneGame) this.pgPageKey = fn;
+  }
+
   /** The lens in cells for a cell of `cell` px and a command row `inputPx` high. */
   private lensCells(cell: { w: number; h: number }, inputPx: number, kbd: boolean): PhoneGameLens | null {
     const l = this.pgLens;
@@ -1120,7 +1171,11 @@ export class Cockpit {
       rows: Math.floor(H / cell.h + 1e-6),
       inputRows,
       guard: !kbd,
+      strip: this.pgStrip !== null,
       fight: this.pgFight,
+      comm: this.pgComm,
+      // Typing with the keyboard up: Comm (and its reply line) keeps the short screen, the game text two rows.
+      ...(kbd ? { gameKeep: PHONE_KBD_GAME_ROWS } : {}),
       lens: this.lensCells(cell, inputRows * cell.h, kbd),
     });
     this.pgLast = g;
@@ -1152,9 +1207,15 @@ export class Cockpit {
     for (const [id, shell] of this.shells) {
       shell.applyTheme(s);
       const b = boxes.get(id);
-      // The map pane is the lens (ADR 0136 §4): borderless in the lens's cells. Every other
-      // pane but a temporary one is hidden (the pane strip and Comm come in stage 51d).
+      // The map pane is the lens (ADR 0136 §4): borderless in the lens's cells. The strip's
+      // pane and Comm lie in their rows (§5, §6), borderless, with a row (or two) of them left
+      // to the phone layer's chrome: the hood above and the dots below the strip's pane, the
+      // resize band under Comm. Every other pane but a temporary one is hidden.
+      const strip = id === this.pgStrip && g.strip.h > 0 && !g.tooSmall;
+      shell.el.toggleAttribute('data-phone-strip', strip);
       if (id === 'map' && g.lens && !g.tooSmall) shell.place({ rect: g.lens, content: g.lens, framed: false }, cell);
+      else if (strip) shell.place({ rect: g.strip, content: inset(g.strip, PHONE_STRIP_HOOD_ROWS, PHONE_STRIP_FOOT_ROWS), framed: false }, cell);
+      else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall) shell.place({ rect: g.comm, content: inset(g.comm, 0, PHONE_COMM_BAND_ROWS), framed: false }, cell);
       else shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
     }
     this.holes.sync();
@@ -2142,6 +2203,20 @@ function placePx(el: HTMLElement, r: Rect): void {
   st.top = `${r.y}px`;
   st.width = `${r.w}px`;
   st.height = `${r.h}px`;
+}
+
+/** Phone game layout: rows of the strip the phone layer's hood (above the pane) and dots (below it) take. */
+export const PHONE_STRIP_HOOD_ROWS = 1;
+export const PHONE_STRIP_FOOT_ROWS = 1;
+/** Phone game layout: the row under Comm that is the phone layer's resize band. */
+export const PHONE_COMM_BAND_ROWS = 1;
+/** Phone game layout: rows the game text keeps under Comm or the strip while the keyboard is up. */
+const PHONE_KBD_GAME_ROWS = 2;
+
+/** `r` without `top` rows at its top and `bottom` rows at its bottom (at least one row stays). */
+function inset(r: Rect, top: number, bottom: number): Rect {
+  const h = Math.max(1, r.h - top - bottom);
+  return { x: r.x, y: r.y + Math.min(top, r.h - h), w: r.w, h };
 }
 
 /** A layout with nothing in it (the phone game layout fills in its own parts). */

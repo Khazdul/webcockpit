@@ -5,8 +5,8 @@
 // The page is data: `SETTINGS_GROUPS` lists the groups, each a list of rows
 // of a few kinds (stepper, segmented, switch, pick from a list). A stage
 // adds its group to the list when what it sets works (stage 51 rule 3: no
-// row before its feature): Text (51b), Map lens (51c); Panes and Comm
-// (51d), Compass and Connection (51f) follow.
+// row before its feature): Text (51b), Map lens (51c), Panes and Comm
+// (51d); Compass and Connection (51f) follow.
 //
 // The Text group changes the same keys the desktop does (`appearance.size`,
 // the background with its ink and palette, `appearance.font`). The theme
@@ -19,9 +19,10 @@
 // too). Nothing takes the DOM focus: a tap never raises the keyboard.
 
 import type { ComponentChildren, VNode } from 'preact';
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
-import type { FontId, PhoneLensLevel, PhoneLensSize, Settings, SettingsPatch } from '../settings/types';
+import type { FontId, PhoneLensLevel, PhoneLensSize, PhoneUnread, Settings, SettingsPatch } from '../settings/types';
+import { moveEntry, setEntry } from './strip-model';
 import { phoneControls, phoneKit } from './kit';
 import { PHONE_THEMES, type PhoneTheme, stepSize, themeBg, themeOf } from './text-settings';
 
@@ -56,6 +57,16 @@ export type SettingsRow =
       set(value: string, s: S): SettingsPatch;
     }
   | { kind: 'toggle'; id: string; label: string; get(s: S): boolean; set(on: boolean, s: S): SettingsPatch }
+  | {
+      /** A list whose items are switched on or off and moved up or down (one row each). */
+      kind: 'order';
+      id: string;
+      /** What the list is, for the keys' names (`Move Timers up`). */
+      label: string;
+      items(s: S): { id: string; label: string; on: boolean }[];
+      toggle(id: string, on: boolean, s: S): SettingsPatch;
+      move(id: string, dir: -1 | 1, s: S): SettingsPatch;
+    }
   | {
       /** A value picked from a list on a page of its own. */
       kind: 'pick';
@@ -152,8 +163,54 @@ export const LENS_GROUP: SettingsGroup = {
   ],
 };
 
+/** The names of the strip's built-in panes (the panes' own labels). */
+const STRIP_LABELS: Readonly<Record<string, string>> = { timers: 'Timers', group: 'Group', character: 'Character', statistics: 'Statistics' };
+
+/** Panes: which built-in panes are pages of the strip, and their order (`phone.strip`, ADR 0136 §5, §13). */
+export const PANES_GROUP: SettingsGroup = {
+  id: 'panes',
+  title: 'Panes',
+  rows: [
+    {
+      kind: 'order',
+      id: 'strip-panes',
+      label: 'Panes',
+      items: (s) => s.phone.strip.panes.map((e) => ({ id: e.id, label: STRIP_LABELS[e.id] ?? e.id, on: e.on })),
+      toggle: (id, on, s) => ({ phone: { strip: { panes: setEntry(s.phone.strip.panes, id, on) } } }),
+      move: (id, dir, s) => ({ phone: { strip: { panes: moveEntry(s.phone.strip.panes, id, dir) } } }),
+    },
+  ],
+  caption: 'Swipe the strip to change pane',
+};
+
+/** Comm: what the Comm key counts, and NPCs in Public (`phone.unread`; `comm.npcs`, the desktop gear's switch). */
+export const COMM_GROUP: SettingsGroup = {
+  id: 'comm',
+  title: 'Comm',
+  rows: [
+    {
+      kind: 'seg',
+      id: 'comm-unread',
+      label: 'Count unread',
+      options: [
+        { value: 'private', label: 'Private' },
+        { value: 'all', label: 'All' },
+      ],
+      get: (s) => s.phone.unread,
+      set: (unread) => ({ phone: { unread: unread as PhoneUnread } }),
+    },
+    {
+      kind: 'toggle',
+      id: 'comm-npcs',
+      label: 'Show NPCs in Public',
+      get: (s) => s.comm.npcs,
+      set: (npcs) => ({ comm: { npcs } }),
+    },
+  ],
+};
+
 /** The page's groups, top to bottom. */
-export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, LENS_GROUP];
+export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP];
 
 // ------------------------------------------------------------------ pieces
 
@@ -173,6 +230,8 @@ export function PhIcon(p: { d: string; small?: boolean; class?: string; children
 export const ICON_CHEVRON = 'M9 6l6 6-6 6';
 export const ICON_BACK = 'M15 6l-6 6 6 6';
 const ICON_CHECK = 'M5 12.5l4.5 4.5L19 7.5';
+const ICON_UP = 'M6 15l6-6 6 6';
+const ICON_DOWN = 'M6 9l6 6 6-6';
 
 /** Two 44 px keys round a value. A key at its end is dimmed and does nothing. */
 export function Stepper(p: {
@@ -248,6 +307,38 @@ function Row(p: {
           <Toggle label={row.label} on={row.get(s)} only="switch" onChange={(on) => p.update(row.set(on, s))} />
         </div>
       );
+    case 'order': {
+      const items = row.items(s);
+      const key = (id: string, name: string, dir: -1 | 1, on: boolean): VNode => (
+        <button
+          type="button"
+          class="wc-ph-move"
+          data-move={dir < 0 ? 'up' : 'down'}
+          tabIndex={-1}
+          aria-label={`Move ${name} ${dir < 0 ? 'up' : 'down'}`}
+          aria-disabled={on ? undefined : 'true'}
+          onMouseDown={keepFocus}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (on) p.update(row.move(id, dir, s));
+          }}
+        >
+          <PhIcon d={dir < 0 ? ICON_UP : ICON_DOWN} small />
+        </button>
+      );
+      return (
+        <>
+          {items.map((it, i) => (
+            <div key={it.id} class="wc-ph-srow is-order" data-row={row.id} data-item={it.id}>
+              {key(it.id, it.label, -1, i > 0)}
+              {key(it.id, it.label, 1, i < items.length - 1)}
+              <span class="wc-ph-srow-t">{it.label}</span>
+              <Toggle label={it.label} on={it.on} only="switch" onChange={(on) => p.update(row.toggle(it.id, on, s))} />
+            </div>
+          ))}
+        </>
+      );
+    }
     case 'pick': {
       const cur = row.get(s);
       return (
@@ -309,6 +400,8 @@ export interface SettingsPageProps {
   groups?: readonly SettingsGroup[];
   /** Whether the game still fits the screen at a text size (a larger one is not offered otherwise). */
   fits?(size: number): boolean;
+  /** The group to bring into view when the page opens (`#panes` opens at Panes). */
+  focus?: string;
   /** Back: to the menu sheet, or to the game when the page was opened by a command. */
   onBack(): void;
   /** Tells the caller how Back is handled now: a pick list open takes it first. */
@@ -323,6 +416,11 @@ export interface SettingsPageProps {
 export function SettingsPage(p: SettingsPageProps): VNode {
   const [pick, setPick] = useState<Extract<SettingsRow, { kind: 'pick' }> | null>(null);
   const groups = p.groups ?? SETTINGS_GROUPS;
+  const col = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!p.focus) return;
+    col.current?.querySelector(`[data-group="${p.focus}"]`)?.scrollIntoView({ block: 'start' });
+  }, [p.focus]);
   const update = (patch: SettingsPatch): void => p.settings.update(patch);
   // Esc and the back gesture ask here first.
   p.backRef.current = () => {
@@ -353,7 +451,7 @@ export function SettingsPage(p: SettingsPageProps): VNode {
       </div>
       <div class="wc-ph-page-body">
         <span class="wc-ph-hood">Settings</span>
-        <div class="wc-ph-col">
+        <div class="wc-ph-col" ref={col}>
           {pick ? (
             <PickList
               row={pick}
