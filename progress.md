@@ -79,8 +79,12 @@ Statuses: Next, In progress, Owner testing, Done.
   `.claude/worktrees/agent-a9709118f0a72c8e6`, main merged in): a rough
   keyboard for the command field behind `?kbd=1`. Unit 3866, phone e2e
   274.
-- **Next:** the owner's device test of 53a (test guide in the stage
-  file) decides go / no-go; then 53b.
+- **53a go** on the S21 (owner). **53b + 53c built** (63074c79…): model,
+  layouts `sv` / `en`, digit row, symbols, history, the look, compass
+  and K keys beside the keyboard (owner's additions). Unit 3904, phone
+  e2e 301.
+- **Next:** the owner's test of 53b + 53c (guide in the stage file) and
+  the review's findings; then 53d (other fields, settings, vibration).
 - **Open issues:** the review of 53a; in landscape a hot key raises the
   device's keyboard after a send (left for stage 53).
 - **Commits:** 89ec5749, e4b456e6, 82fdb0a6, db8150bb, 3d914a29,

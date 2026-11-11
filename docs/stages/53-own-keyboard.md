@@ -204,6 +204,22 @@ moves the caret), script pane fields, key sound.
     stopping on cancel or close, none for the password swap with the
     keyboard open.
 
+- **53b + 53c** (63074c79…b1478621, one subagent; a fresh review
+  follows): `keyboard-model.ts` (pure: layouts `sv` / `en`, symbols,
+  digit row, shift, sizes, the landscape band, degrade rules), the view
+  in the phone's look (dark and Paper), `deleteBackward` by grapheme
+  cluster, history through the target interface (`OkbTarget`),
+  `phone.keyboard.digits`, the gate takes `?kbd=1|sv|en`, the 53a
+  review findings. Unit 3904, phone e2e 301, typecheck clean.
+  Decisions made in the build: ADR 0138 addendum. Screenshots
+  `docs/stages/img/53-c-*`.
+- **Owner's additions during 53c:** in portrait the compass and the K
+  keys stay with the keyboard up, lifted by its height (nothing is
+  hidden); in landscape K1–K3 stand left of the block, K4–K6 right, the
+  compass at the far right.
+- Game rows kept (Swedish, new phone defaults): 360 × 800 40 of 53
+  (digit row up 37); 800 × 360 11 of 21 (9); 800 × 280 7 of 16.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
@@ -229,6 +245,34 @@ open), `wc-kbd` (the device's keyboard detected), `vv` / `inner`.
 Wanted: go or no-go on the technique, and how typing feels (key size
 32 × 44 px in portrait, speed). The look, Swedish, digits and symbols
 come in the next rounds.
+
+## Test guide 53b + 53c (for the owner, S21)
+
+`?kbd=1` (layout by the browser's language), or `?kbd=sv` / `?kbd=en`.
+Still the command field only: Comm's reply and the hot key box use the
+device's keyboard until 53d (ours closes when you tap them).
+
+1. **Typing:** å ä ö, shift once, shift twice quickly (lock), hold
+   backspace. Are the keys (about 32 px wide) hit reliably?
+2. **Digit row:** the `123` key folds it up and down; reload: it is
+   remembered. **Symbols:** the `!#?` key; are the right characters
+   there and easy to find? Which do you miss on the first page?
+3. **History:** ↑ and ↓ (bottom row in portrait; on the digit row in
+   landscape).
+4. **Portrait with the keyboard up:** compass and K keys above the
+   keyboard, the field left of the compass. Tap them while text stands
+   in the field: sent, and the text and caret stay. Does the lens keep
+   clear? Open Comm and the strip.
+5. **Hold a K key** with the keyboard up: our keyboard closes and the
+   box opens; a tap on the command field brings the keyboard back.
+6. **Landscape:** the block in the middle, K1–K3 left, K4–K6 right, the
+   compass far right. Is the key width (at most 46 px) right for fast
+   typing? In and out of fullscreen. Try 6, 3 and hidden K keys.
+7. **Long press** on the field: paste is offered and our keyboard opens.
+8. **Look:** dark and Paper; is the pressed key seen at once?
+
+Wanted: key sizes, the symbol set and its order, where ↑ ↓ should
+live, the landscape arrangement, anything that jumps.
 
 ## Owner feedback
 
