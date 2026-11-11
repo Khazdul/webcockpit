@@ -127,6 +127,25 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-sw-edge: #5a5148;
   --ph-sw-knob: #8a8a8a;
   --ph-tok: rgb(232 196 138 / 0.1);
+  /* The own keyboard (ADR 0138): an iron ground, keys of lighter iron, the rest darker, Enter lit. */
+  --ph-okb-ground: #0e0c0a;
+  --ph-okb-rim: #5a5148;
+  --ph-okb-key: linear-gradient(#39332c, #2a2520);
+  --ph-okb-key-edge: #5a5148;
+  --ph-okb-key-text: #f6e2bd;
+  --ph-okb-lip: inset 0 1px 0 rgb(232 196 138 / 0.18);
+  --ph-okb-mod: linear-gradient(#211d18, #17140f);
+  --ph-okb-mod-edge: #3d362e;
+  --ph-okb-mod-text: #e8c48a;
+  --ph-okb-space-mark: #8d7a5c;
+  --ph-okb-on: #e8c48a;
+  --ph-okb-on-edge: #fff1cf;
+  --ph-okb-on-text: #170f03;
+  --ph-okb-lit-text: #fff1cf;
+  --ph-okb-lamp-off: #4a4238;
+  --ph-okb-down: #fff1cf;
+  --ph-okb-down-edge: #fff1cf;
+  --ph-okb-down-text: #170f03;
 }
 
 html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
@@ -204,6 +223,24 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-sw-edge: #8a8478;
   --ph-sw-knob: #6a6256;
   --ph-tok: rgb(138 90 14 / 0.1);
+  --ph-okb-ground: #bdb8ac;
+  --ph-okb-rim: #8a8478;
+  --ph-okb-key: linear-gradient(#fffdf8, #f1eee6);
+  --ph-okb-key-edge: #8a8478;
+  --ph-okb-key-text: #2e2618;
+  --ph-okb-lip: inset 0 1px 0 rgb(255 255 255 / 0.8);
+  --ph-okb-mod: linear-gradient(#ded8c9, #cdc6b5);
+  --ph-okb-mod-edge: #8a8478;
+  --ph-okb-mod-text: #3a3428;
+  --ph-okb-space-mark: #8a8478;
+  --ph-okb-on: #8a5a0e;
+  --ph-okb-on-edge: #5e3d08;
+  --ph-okb-on-text: #fffaf0;
+  --ph-okb-lit-text: #6b4708;
+  --ph-okb-lamp-off: #a39c8c;
+  --ph-okb-down: #8a5a0e;
+  --ph-okb-down-edge: #5e3d08;
+  --ph-okb-down-text: #fffaf0;
 }
 
 /* On Paper a lit key is brass with pale ink. */
@@ -1247,26 +1284,28 @@ html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
   padding-right: 8px;
 }
 
-/* ------------------------------------------- own keyboard (ADR 0138, 53a) */
+/* ------------------------------------------------ own keyboard (ADR 0138) */
 
-/* A keyboard of our own (keyboard.ts), round 53a: rough, for the device
- * test behind `?kbd=1`. One solid block over the full width from under the
- * command row to the bottom edge (the layer sets `top` after each layout;
- * the allocator kept the rows free). The four rows share the height. Its
- * state is `html.wc-okb`, never `wc-kbd` (the device's keyboard). */
+/* A keyboard of our own (keyboard.ts; behind `?kbd=` until the stage is
+ * released). A solid band over the full width from under the command row to
+ * the bottom edge (the layer sets `top` after each layout; the allocator
+ * kept the rows free), and in it one block of keys (the layer sets its
+ * `left` and `width`: the full width in portrait, compressed towards the
+ * middle in landscape). The rows share the block's height. Its state is
+ * `html.wc-okb`, never `wc-kbd` (the device's keyboard).
+ *
+ * The look is Lykta's: an iron ground, character keys of lighter iron with
+ * the candle's ink, the keys that are not characters darker, Enter lit.
+ * Solid, not see-through; nothing animates and nothing is filtered. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
   z-index: 3;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   box-sizing: border-box;
-  padding: 4px 3px;
-  border-top: 1px solid var(--ph-rule);
-  background: var(--ph-well);
+  border-top: 1px solid var(--ph-okb-rim);
+  background: var(--ph-okb-ground);
   pointer-events: auto;
   touch-action: none;
   user-select: none;
@@ -1279,30 +1318,44 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[hidden] {
   display: none;
 }
 
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* (keyboard-model.ts `OKB_PAD_X`, `OKB_PAD_Y`.) */
+  padding: 2px;
+}
+
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-row {
   display: flex;
   flex: 1 1 0;
-  gap: 4px;
   box-sizing: border-box;
   min-height: 0;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k {
+/* A key is its whole cell: the touch target has no gaps. The cap drawn in
+ * it stands 2 px in. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-gap {
   display: flex;
   flex: 1 1 0;
-  align-items: center;
-  justify-content: center;
   box-sizing: border-box;
   min-width: 0;
   margin: 0;
-  padding: 0;
-  border: 1px solid var(--ph-key-edge);
-  border-radius: 6px;
-  background: var(--ph-track);
-  color: var(--ph-key-text);
+  padding: 2px;
+  border: 0;
+  background: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k {
+  color: var(--ph-okb-key-text);
   font: inherit;
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1;
+  cursor: pointer;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -1310,25 +1363,183 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k {
   -webkit-tap-highlight-color: transparent;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb.is-shift .wc-ph-okb-k[data-ch] {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-cap {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ph-okb-key-edge);
+  border-radius: 6px;
+  background: var(--ph-okb-key);
+  box-shadow: var(--ph-okb-lip);
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k .wc-ph-ico {
+  width: 20px;
+  height: 20px;
+}
+
+/* Shift: the letters show what the next one will be. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb:not([data-shift="off"]) .wc-ph-okb-k[data-letter] {
   text-transform: uppercase;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-down,
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb.is-shift .wc-ph-okb-k.is-shift {
-  border-color: var(--ph-lamp-hi);
-  background: var(--ph-lamp);
-  color: var(--ph-ink);
+/* The keys that are not characters: darker iron, the lamp's own colour. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k[data-act] {
+  color: var(--ph-okb-mod-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-/* Typing on it: the keys at the bottom right step aside and the field
- * takes the full width, as with the device's keyboard (`html.wc-kbd`). */
-html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-pad,
-html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-hot {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k[data-act] .wc-ph-okb-cap {
+  border-color: var(--ph-okb-mod-edge);
+  background: var(--ph-okb-mod);
+}
+
+/* Space is a character: a key of the letters' iron with a quiet mark. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-space {
+  color: var(--ph-okb-space-mark);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-space .wc-ph-okb-cap {
+  border-color: var(--ph-okb-key-edge);
+  background: var(--ph-okb-key);
+}
+
+/* Enter: lit. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-enter {
+  color: var(--ph-okb-on-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-enter .wc-ph-okb-cap {
+  border-color: var(--ph-okb-on-edge);
+  background: var(--ph-okb-on);
+}
+
+/* Shift once: the key's edge and arrow are lit. Locked: the whole key (and its arrow stands on a bar). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift {
+  color: var(--ph-okb-lit-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift .wc-ph-okb-cap {
+  border-color: var(--ph-okb-on);
+  box-shadow: inset 0 0 0 1px var(--ph-okb-on);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift .wc-ph-ico {
+  fill: currentColor;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift {
+  color: var(--ph-okb-on-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift .wc-ph-okb-cap {
+  border-color: var(--ph-okb-on-edge);
+  background: var(--ph-okb-on);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift .wc-ph-ico {
+  fill: currentColor;
+}
+
+/* The digit row's toggle: a lamp under its label, lit while the row is up. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits .wc-ph-okb-cap {
+  flex-direction: column;
+  gap: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits .wc-ph-okb-cap::after {
+  content: "";
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ph-okb-lamp-off);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits[aria-pressed="true"] {
+  color: var(--ph-okb-lit-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits[aria-pressed="true"] .wc-ph-okb-cap {
+  border-color: var(--ph-okb-on);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits[aria-pressed="true"] .wc-ph-okb-cap::after {
+  background: var(--ph-okb-on);
+}
+
+/* Arrows of a field without a history. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k[aria-disabled="true"] {
+  color: var(--ph-key-off);
+}
+
+/* Pressed: lit at once (the class comes with the press; no `:active`, which waits on some phones). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb .wc-ph-okb-k.is-down {
+  color: var(--ph-okb-down-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb .wc-ph-okb-k.is-down .wc-ph-okb-cap {
+  border-color: var(--ph-okb-down-edge);
+  background: var(--ph-okb-down);
+  box-shadow: none;
+}
+
+/* Portrait (`data-okb="up"`, set by the layer while the keyboard is open):
+ * the compass and the hot key columns stand as with the keyboard down,
+ * lifted by the keyboard's height (`--okb-lift`), so the compass starts at
+ * the command row and the field ends left of it as ever. */
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="up"] .wc-ph-pad {
+  bottom: calc(8px + var(--okb-lift, 0px));
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="up"] .wc-ph-hot {
+  bottom: calc(var(--ph-ck, 40px) * 3 + 22px + var(--okb-lift, 0px));
+}
+
+/* Landscape (`data-okb="band"`): they stand in the keyboard's band, in the
+ * middle of its height: K1 to K3 in a column left of the block
+ * (`--okb-k1-x`), K4 to K6 right of it (`--okb-k4-x`), the compass at the
+ * far right. A column with no key takes no place. */
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-pad {
+  bottom: calc((var(--okb-lift, 0px) - var(--ph-ck, 40px) * 3 - 6px) / 2);
+  z-index: 4;
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"]:not([data-okb-nok]) .wc-ph-hot:not([hidden]) {
+  position: static;
+  display: block;
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-hot-col {
+  position: absolute;
+  bottom: calc((var(--okb-lift, 0px) - var(--ph-ck, 40px) * 3 - 6px) / 2);
+  left: var(--okb-k1-x, 0px);
+  z-index: 4;
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-hot-col.is-second {
+  left: var(--okb-k4-x, 0px);
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-hot-col:empty {
   display: none;
 }
 
-html.wc-phone.wc-okb .wc-cockpit[data-phone-game] > .wc-input-slot {
+/* No room (keyboard-model.ts: a narrow landscape screen, a very low portrait one): the columns
+ * give way first, then the compass. */
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nok] .wc-ph-hot,
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nopad] .wc-ph-pad {
+  display: none;
+}
+
+/* The compass is not at the command row's end (landscape; no room): the field takes the full width. */
+html.wc-phone.wc-okb.wc-okb-wide .wc-cockpit[data-phone-game] > .wc-input-slot {
   padding-right: 8px;
 }
 

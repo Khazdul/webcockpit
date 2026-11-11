@@ -261,12 +261,12 @@ export function okbRows(input: OkbRowsInput): OkbRow[] {
     : [
         // Narrow: the arrows are here, and the keys used least (fold, the digit row's toggle) are the narrow ones.
         act('fold', 'Hide keyboard', 0.9),
-        act('sym', input.page === 'letters' ? 'Symbols' : 'Letters', 1.1),
-        act('digits', 'Digit row', 0.9),
-        ...chars(';'),
+        act('sym', input.page === 'letters' ? 'Symbols' : 'Letters', 1.05),
+        act('digits', 'Digit row', 1.05),
+        { ...chars(';')[0]!, w: 0.9 },
         act('space', 'Space', 2.6),
-        ...chars('.'),
-        ...arrows,
+        { ...chars('.')[0]!, w: 0.9 },
+        ...arrows.map((k) => ({ ...k, w: 0.9 })),
         act('enter', 'Enter', 1.5),
       ];
   rows.push({ kind: 'bottom', keys: bottom, units: weight(bottom) });

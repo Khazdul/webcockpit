@@ -458,6 +458,14 @@ export interface PhoneSettings {
    * never acts on it.
    */
   defaults: number;
+  /** The phone's own keyboard (ADR 0138). */
+  keyboard: PhoneKeyboardSettings;
+}
+
+/** The phone's own on-screen keyboard (ADR 0138 "Settings keys"; the layout's key comes with its setting in round 53d). */
+export interface PhoneKeyboardSettings {
+  /** The digit row is shown (its toggle key folds it up and down). */
+  digits: boolean;
 }
 
 /** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off with the Pulse signal, and Character out of the strip. */
@@ -517,7 +525,8 @@ export const PHONE_COMM_ROWS_MAX = 200;
  * six hot key slots (assist, bash, wimpy at half of the current hit points,
  * rescue, shoot, recover) of which three are in use, shown (§8, stage 52);
  * the landscape column at its default width; the screen kept on while connected, and no
- * automatic reconnect (§10). The one-time defaults are not marked as had:
+ * automatic reconnect (§10); the own keyboard's digit row folded away
+ * (ADR 0138). The one-time defaults are not marked as had:
  * only `phoneDefaultSettings()` (a new phone) marks them.
  */
 export function defaultPhoneSettings(): PhoneSettings {
@@ -541,6 +550,7 @@ export function defaultPhoneSettings(): PhoneSettings {
     wakeLock: true,
     autoReconnect: false,
     defaults: 0,
+    keyboard: { digits: false },
   };
 }
 

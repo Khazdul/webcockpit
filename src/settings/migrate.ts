@@ -546,6 +546,8 @@ export function migratePhone(raw: unknown): PhoneSettings {
     autoReconnect: bool(p.autoReconnect, d.autoReconnect),
     // Absent (settings from 0.5.0, or a computer's): none had yet. A stored `vibrate` (0.5.0) is dropped.
     defaults: int(p.defaults, 0, PHONE_DEFAULTS_MARK, 0),
+    // Additive (ADR 0138): absent is the digit row folded away.
+    keyboard: { digits: bool(isObj(p.keyboard) ? p.keyboard.digits : undefined, d.keyboard.digits) },
   };
 }
 

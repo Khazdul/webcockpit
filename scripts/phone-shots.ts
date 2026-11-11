@@ -7,6 +7,7 @@
 //   node scripts/phone-shots.ts 52b lens-full    one state of round 52b
 //   node scripts/phone-shots.ts 52c land-plain keys-three …   states of round 52c
 //   node scripts/phone-shots.ts 53a              the own keyboard of round 53a (`?kbd=1`)
+//   node scripts/phone-shots.ts 53c sv land-six  states of round 53c (the keyboard in the phone's look)
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -235,6 +236,10 @@ const openSettings = async (page: Page): Promise<void> => {
   await page.locator('.wc-ph-sheet .wc-ph-row[data-row="settings"]').tap();
   await page.locator('.wc-ph-page').waitFor();
 };
+
+/** The owner's phone (Samsung S21), CSS px. */
+const S21 = { width: 360, height: 800 };
+const S21_LAND = { width: 800, height: 360 };
 
 const STATES: State[] = [
   {
@@ -810,6 +815,75 @@ const STATES: State[] = [
   // Stage 53a (ADR 0138): the rough keyboard of our own, open, at the owner's phone's size (S21).
   { name: 'portrait', stage: 53, step: 'a', query: 'kbd=1', viewport: { width: 360, height: 800 }, run: (page) => ownKeyboard(page) },
   { name: 'landscape', stage: 53, step: 'a', query: 'kbd=1', viewport: { width: 800, height: 360 }, run: (page) => ownKeyboard(page) },
+  // Stage 53c: the keyboard in the phone's look. Portrait at the owner's phone's size, Swedish:
+  // the compass and three hot keys above it; the digit row up; six hot keys; the symbols.
+  { name: 'sv', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page) },
+  { name: 'sv-digits', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, digitsUp) },
+  { name: 'sv-six', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, sixKeys) },
+  { name: 'sv-symbols', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, undefined, (key) => key('sym').tap()) },
+  { name: 'sv-symbols-digits', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, digitsUp, (key) => key('sym').tap()) },
+  // Shift locked (a double tap).
+  {
+    name: 'sv-shift-lock',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21,
+    run: (page) =>
+      ownKeyboard(page, undefined, async (key) => {
+        await key('shift').tap();
+        await key('shift').tap();
+      }),
+  },
+  { name: 'en', stage: 53, step: 'c', query: 'kbd=en', viewport: S21, run: (page) => ownKeyboard(page) },
+  { name: 'small', stage: 53, step: 'c', query: 'kbd=sv', viewport: { width: 320, height: 640 }, run: (page) => ownKeyboard(page, digitsUp) },
+  // Landscape: the block in the middle, K1 to K3 left of it, K4 to K6 right, the compass at the far right.
+  { name: 'land-six', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownKeyboard(page, sixKeys) },
+  { name: 'land-three', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownKeyboard(page) },
+  { name: 'land-digits', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownKeyboard(page, async (p) => { await sixKeys(p); await digitsUp(p); }) },
+  { name: 'land-en', stage: 53, step: 'c', query: 'kbd=en', viewport: S21_LAND, run: (page) => ownKeyboard(page, sixKeys) },
+  {
+    name: 'land-k-hidden',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21_LAND,
+    run: (page) => ownKeyboard(page, (p) => p.evaluate(() => window.__wc!.settings.update({ phone: { hotkeysOpen: false } }))),
+  },
+  { name: 'land-low', stage: 53, step: 'c', query: 'kbd=sv', viewport: { width: 800, height: 280 }, run: (page) => ownKeyboard(page, sixKeys) },
+  // A narrow landscape screen: the hot key columns gave way, the compass stays.
+  { name: 'land-narrow', stage: 53, step: 'c', query: 'kbd=sv', viewport: { width: 568, height: 320 }, run: (page) => ownKeyboard(page, sixKeys) },
+  {
+    // The left column (the strip and Comm) open: it ends above the keyboard's band.
+    name: 'land-column',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21_LAND,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await sixKeys(p);
+        await p.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+        await p.locator('.wc-pane[data-phone-strip]').waitFor();
+        await p.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+        await p.locator('.wc-pane[data-pane="comm"]').waitFor();
+      }),
+  },
+  {
+    // Portrait with the strip and Comm open above the keyboard.
+    name: 'sv-comm',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await p.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+        await p.locator('.wc-pane[data-phone-strip]').waitFor();
+        await p.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+        await p.locator('.wc-pane[data-pane="comm"]').waitFor();
+      }),
+  },
   {
     name: 'keys-six',
     stage: 52,
@@ -821,14 +895,23 @@ const STATES: State[] = [
   },
 ];
 
-/** Stage 53a: game text, then a tap on the command field opens the keyboard of our own, and a line is typed on its keys. */
-async function ownKeyboard(page: Page): Promise<void> {
+/**
+ * Stage 53: game text, then a tap on the command field opens the keyboard of
+ * our own, and a line is typed on its keys. `before` runs first (settings
+ * for the state); `after` with the keyboard open (its key taps the keys).
+ */
+async function ownKeyboard(page: Page, before?: (page: Page) => Promise<void>, after?: (key: (k: string) => ReturnType<Page['locator']>) => Promise<void>): Promise<void> {
   await busy(page);
+  await before?.(page);
   await page.locator('.wc-input-slot .wc-input-field').tap();
   await page.locator('.wc-ph-okb').waitFor();
   const key = (k: string) => page.locator(k.length === 1 ? `.wc-ph-okb-k[data-ch="${k}"]` : `.wc-ph-okb-k[data-act="${k}"]`);
   for (const k of ['shift', 'k', 'i', 'l', 'l', 'space', 'o', 'r', 'c']) await key(k).tap();
+  await after?.(key);
+  await settle(page);
 }
+
+const digitsUp = (page: Page): Promise<void> => page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { digits: true } } }));
 
 /** Paper: the background, ink and its palette, as the Appearance settings set them. */
 const paper = (page: Page): Promise<void> =>

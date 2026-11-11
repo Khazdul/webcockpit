@@ -1185,9 +1185,11 @@ export class Cockpit {
    * asks at every layout, so a rotation is one layout, with the height for
    * the new shape. The cockpit's own size does not change, and the game
    * text reports its new rows once (the output pane tells a size only when
-   * it differs from the last). While it is open the keys at the bottom
-   * right are hidden (phone.css), so the limit of `setPhoneLimit` and the
-   * lens's `clearBottom` do not apply, as with the device's keyboard.
+   * it differs from the last). A new function is a new height (the digit
+   * row folded up or down): one more layout. In portrait the keys at the
+   * bottom right stand on the keyboard's top edge, and the limit of
+   * `setPhoneLimit` and the lens's `clearBottom` are counted from there; in
+   * landscape they stand beside the keyboard and neither applies.
    */
   setPhoneBottom(px: ((landscape: boolean, height: number) => number) | null): void {
     if (!this.phoneGame || px === this.pgBottom) return;
@@ -1302,7 +1304,8 @@ export class Cockpit {
       gapRight: up(l.gapRight, cell.w),
       gapLeft: up(l.gapLeft ?? 0, cell.w),
       // The keys at the bottom right step aside with the keyboard up (ADR 0136 §9). Above a keyboard
-      // of our own the lens's corner keys stay off the command field (`PHONE_OWN_KBD_LENS_PX`).
+      // of our own in landscape (`own`: the keys stand beside it) the lens's corner keys stay off
+      // the command field (`PHONE_OWN_KBD_LENS_PX`); in portrait the keys stand above it as ever.
       clearBottom: Math.max(kbd ? 0 : own ? up(PHONE_OWN_KBD_LENS_PX, cell.h) : up(l.clearBottom - inputPx, cell.h), up((l.clearAlways ?? 0) - inputPx, cell.h)),
     };
   }
@@ -1318,10 +1321,15 @@ export class Cockpit {
     const win = this.el.ownerDocument.defaultView;
     if (!kbd) this.pgLandscape = landscapeLayout(W, H, win ? screenLandscape(win) : null);
     const land = this.pgLandscape;
-    // A keyboard of our own (`setPhoneBottom`): whole rows from the bottom edge.
+    // A keyboard of our own (`setPhoneBottom`): whole rows from the bottom edge. What the screen
+    // has under its last whole row is the keyboard's too, so it counts towards its height.
     const ownPx = this.pgBottom ? this.pgBottom(land, H) : 0;
-    const bottom = ownPx > 0 ? Math.ceil(ownPx / cell.h - 1e-6) : 0;
-    const typing = kbd || bottom > 0;
+    const under = H - Math.floor(H / cell.h + 1e-6) * cell.h;
+    const bottom = ownPx > 0 ? Math.max(1, Math.ceil((ownPx - under) / cell.h - 1e-6)) : 0;
+    // Portrait: the compass and the hot keys stand on the keyboard's top edge (the phone layer lifts
+    // them), so the limit and the lens's clearance are counted from there. Landscape: they stand
+    // beside the keyboard in its band, and the lens only stays off the command field.
+    const lift = bottom > 0 ? H - (Math.floor(H / cell.h + 1e-6) - bottom) * cell.h : 0;
     const g = allocatePhoneGame({
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
@@ -1330,12 +1338,12 @@ export class Cockpit {
       strip: this.pgStrip !== null,
       stripRows: this.pgStripRows,
       // Portrait, the keyboard down (`setPhoneLimit`): whole rows from the top down to the limit.
-      ...(this.pgLimit !== null && !typing && W <= H ? { maxTop: Math.max(0, Math.floor((H - this.pgLimit) / cell.h + 1e-6)) } : {}),
+      ...(this.pgLimit !== null && !kbd && W <= H ? { maxTop: Math.max(0, Math.floor((H - lift - this.pgLimit) / cell.h + 1e-6)) } : {}),
       fight: this.pgFight,
       comm: this.pgComm,
       // Typing with the keyboard up: Comm (and its reply line) keeps the short screen, the game text two rows.
       ...(kbd ? { gameKeep: PHONE_KBD_GAME_ROWS } : {}),
-      lens: this.lensCells(cell, inputRows * cell.h, kbd, bottom > 0),
+      lens: this.lensCells(cell, inputRows * cell.h, kbd, bottom > 0 && land),
       ...(bottom > 0 ? { bottom } : {}),
       // Landscape: the strip and Comm are one column from the left.
       ...(land

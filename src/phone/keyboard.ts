@@ -1,112 +1,88 @@
-// A keyboard of our own for the phone's game layout (ADR 0138), round 53a:
-// a rough one for the device test, behind `?kbd=1`, for the command field
-// only. The look, the Swedish layout, digits, symbols and the other fields
-// come in later rounds.
+// A keyboard of our own for the phone's game layout (ADR 0138): the view.
+// Behind `?kbd=` until the stage is released, and for the command field
+// only until round 53d. What the keys are, how shift works and every size
+// are the model's (keyboard-model.ts); this file draws them and takes the
+// presses.
 //
-//   [q][w][e][r][t][y][u][i][o][p]
-//    [a][s][d][f][g][h][j][k][l]
-//   [shift][z][x][c][v][b][n][m][back]
-//   [fold][;][      space      ][.][Enter]
-//
-// - One block over the full width, in portrait and in landscape; never
-//   split. The cockpit's allocator keeps its rows free under the command
-//   row (`Cockpit.setPhoneBottom`), the layer gives the block its top edge
-//   after each layout (`place`), and the four rows share the height.
+// - A solid band over the full width from under the command row to the
+//   bottom edge (the cockpit's allocator keeps its rows free:
+//   `Cockpit.setPhoneBottom`), and in it one block of keys, never split.
+//   Portrait: the block over the full width (a letter key at most 48 px
+//   wide, so a tablet gets no huge keys). Landscape: the block compressed
+//   towards the middle, with the hot keys and the compass beside it in the
+//   band (the layer places those; `okbBand`).
 // - A key never pretends to be a physical key (ADR 0138 §3): it calls the
-//   command line's editing API (`PhoneCommandLine`). No keyboard event is
-//   made up: macros match on a physical key's code, and the input pane
-//   follows every Enter keydown.
+//   target's editing interface (`OkbTarget`; the command line now). No
+//   keyboard event is made up: macros match on a physical key's code, and
+//   the input pane follows every Enter keydown.
 // - A key acts on the press (pointerdown), as the compass's keys do, and
 //   the press is prevented from becoming a mouse press: the focus stays in
-//   the field, so its caret keeps showing. Each pointer is followed on its
-//   own (two thumbs overlap). A click without a pointer (a screen reader's
-//   activation) acts too.
+//   the field, so its caret keeps showing. A press with the field blurred
+//   (after a tap on the game text) gives it the focus back first. Each
+//   pointer is followed on its own (two thumbs overlap). A click without a
+//   pointer (a screen reader's activation) acts too.
+// - The keys that change what is under the finger act on the click, not on
+//   the press: the fold key and the digit row's toggle (the rows move), and
+//   the two page keys (the keys are drawn anew). A press that acted at once
+//   could end as a tap on what then lies there.
 // - Backspace repeats while it is held: a timer, stopped when the finger
-//   lifts, is cancelled or leaves the key. Nothing runs per frame.
-// - Shift: one tap gives one capital (no lock in this round).
-// - The fold key acts on the click, not on the press: closing moves the
-//   command row down under the finger, and a press that closed at once
-//   could end as a tap on what then lies there (the menu key).
+//   lifts, is cancelled or leaves the key, and when the page is hidden or
+//   the window loses the focus. Nothing runs per frame.
+// - A key's element is its whole cell (the touch target has no gaps); the
+//   cap drawn in it stands 2 px in from the cell's edges (phone.css).
 
-/** What the keys do to the command line (the input pane's public editing API, handed in by the shell). */
-export interface PhoneCommandLine {
+import {
+  type OkbAct,
+  type OkbKey,
+  type OkbLayout,
+  type OkbPage,
+  type OkbShiftState,
+  type OkbTarget,
+  OKB_REPEAT_DELAY_MS,
+  OKB_REPEAT_MS,
+  OKB_SHIFT_OFF,
+  okbArrowsOnDigitRow,
+  okbChar,
+  okbRows,
+  okbSymbolPages,
+  shiftTap,
+  shiftUsed,
+} from './keyboard-model';
+
+export type { OkbTarget } from './keyboard-model';
+
+/** The command line as the keys' target, and the mark that keeps the device's keyboard down (handed in by the shell). */
+export interface PhoneCommandLine extends OkbTarget {
   /** Marks the line's fields so the device's keyboard stays down (`inputmode="none"`), or unmarks them. */
   setOwnKeyboard(on: boolean): void;
-  /** Types `text` at the caret, over the selection if there is one. */
-  insert(text: string): void;
-  /** Deletes the selection, or the character before the caret. */
-  deleteBack(): void;
-  /** Enter in the line: sends it, with history, as the key does. */
-  submit(): void;
-  /** Gives the field in place the focus (the tap did, as a rule), and takes it away. */
-  focus(): void;
-  blur(): void;
 }
-
-/** Rows of keys, the gap between keys and rows, and the block's padding, px (phone.css has the same). */
-export const OKB_ROWS = 4;
-export const OKB_GAP = 4;
-export const OKB_PAD = 4;
-/** Backspace held: the first repeat, then every repeat, ms. */
-export const OKB_REPEAT_DELAY_MS = 400;
-export const OKB_REPEAT_MS = 60;
-
-/**
- * A key's height in px. Portrait: a thumb's 44. Landscape is low: the
- * keys are wide there (a tenth of the width), so they can be lower and
- * leave the game its rows; lower still on a screen under 300 px (a phone
- * in landscape outside fullscreen).
- */
-export function okbKeyPx(landscape: boolean, height: number): number {
-  if (!landscape) return 44;
-  return height >= 300 ? 32 : 28;
-}
-
-/** The height the block needs from the cockpit's bottom edge, px. */
-export function okbHeightPx(landscape: boolean, height: number): number {
-  return OKB_ROWS * okbKeyPx(landscape, height) + (OKB_ROWS - 1) * OKB_GAP + 2 * OKB_PAD;
-}
-
-type Act = 'shift' | 'back' | 'fold' | 'space' | 'enter';
-
-interface KeySpec {
-  /** A character key's character, or a special key. */
-  ch?: string;
-  act?: Act;
-  label: string;
-  /** The key's width in letter keys (default 1). */
-  w?: number;
-}
-
-const letters = (s: string): KeySpec[] => [...s].map((ch) => ({ ch, label: ch }));
-
-/** The rows of round 53a: English QWERTY. */
-export const OKB_KEYS: readonly (readonly KeySpec[])[] = [
-  letters('qwertyuiop'),
-  letters('asdfghjkl'),
-  [{ act: 'shift', label: 'Shift', w: 1.5 }, ...letters('zxcvbnm'), { act: 'back', label: 'Backspace', w: 1.5 }],
-  [
-    { act: 'fold', label: 'Hide keyboard', w: 1.5 },
-    { ch: ';', label: 'Semicolon' },
-    { act: 'space', label: 'Space', w: 4.5 },
-    { ch: '.', label: 'Period' },
-    { act: 'enter', label: 'Enter', w: 2 },
-  ],
-];
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 /** The special keys' icons, 24 × 24, stroked (no font is trusted to have the glyphs). */
-const ICONS: Partial<Record<Act, string[]>> = {
-  shift: ['M12 4l7 8h-4v7H9v-7H5z'],
+const ICONS: Partial<Record<OkbAct | 'lock', string[]>> = {
+  shift: ['M12 4l7 8h-4v6H9v-6H5z'],
+  // Locked: the same arrow on a bar.
+  lock: ['M12 3l7 8h-4v5H9v-5H5z', 'M8 20h8'],
   back: ['M9 6h11v12H9l-5-6z', 'M12.5 9.5l4 5M16.5 9.5l-4 5'],
-  fold: ['M6 9l6 6 6-6'],
+  // A keyboard going down: its outline, and a chevron under it.
+  fold: ['M4 5h16v9H4z', 'M9 18l3 3 3-3'],
   enter: ['M19 6v7H7', 'M10 9l-4 4 4 4'],
+  older: ['M12 19V6', 'M6 11l6-6 6 6'],
+  newer: ['M12 5v13', 'M6 13l6 6 6-6'],
+  space: ['M6 10v4h12v-4'],
 };
+/** The keys that act on the click (see the file header). */
+const ON_CLICK: ReadonlySet<string> = new Set(['fold', 'digits', 'sym', 'alt']);
 
 export interface OwnKeyboardDeps {
-  line: Pick<PhoneCommandLine, 'insert' | 'deleteBack' | 'submit'>;
+  /** What the keys type into now, or null (no key does anything). */
+  target(): OkbTarget | null;
   /** The fold key: the layer closes the keyboard and blurs the field. */
   fold(): void;
+  /** The digit row's toggle: the layer stores it and tells the keyboard and the cockpit (`setDigits`). */
+  toggleDigits(): void;
+  /** The clock for shift's double tap, ms (tests). Default `performance.now()`. */
+  now?(): number;
 }
 
 interface Down {
@@ -117,50 +93,43 @@ interface Down {
 }
 
 export class OwnKeyboard {
+  /** The band: the keyboard's solid ground over the full width. */
   readonly el: HTMLDivElement;
+  /** The block of keys in it. */
+  readonly blockEl: HTMLDivElement;
+  private readonly doc: Document;
   private readonly deps: OwnKeyboardDeps;
-  private readonly shiftKey: HTMLElement;
-  private shift = false;
+  private layout: OkbLayout;
+  private page: OkbPage = 'letters';
+  private symbolPage = 0;
+  private digits = false;
+  private arrowsOnDigitRow = false;
+  private shift: OkbShiftState = OKB_SHIFT_OFF;
+  /** What the rows on screen were drawn from. */
+  private drawn = '';
+  /** The keys on screen, by element. */
+  private readonly specs = new Map<HTMLElement, OkbKey>();
   /** The keys held now, by pointer. */
   private readonly downs = new Map<number, Down>();
   private top = NaN;
+  private left = NaN;
+  private width = NaN;
+  private readonly unsubs: Array<() => void> = [];
 
-  constructor(doc: Document, deps: OwnKeyboardDeps) {
+  constructor(doc: Document, deps: OwnKeyboardDeps, layout: OkbLayout, digits: boolean) {
+    this.doc = doc;
     this.deps = deps;
+    this.layout = layout;
+    this.digits = digits;
     this.el = doc.createElement('div');
     this.el.className = 'wc-ph-okb';
-    this.el.setAttribute('role', 'group');
-    this.el.setAttribute('aria-label', 'Keyboard');
     this.el.hidden = true;
-    let shiftKey: HTMLElement | null = null;
-    for (const row of OKB_KEYS) {
-      const r = doc.createElement('div');
-      r.className = 'wc-ph-okb-row';
-      // The row of nine stands half a key in from both edges.
-      const units = row.reduce((n, k) => n + (k.w ?? 1), 0);
-      if (units < 10) r.style.padding = `0 ${((10 - units) / 2) * 10}%`;
-      for (const k of row) {
-        const b = doc.createElement('button');
-        b.type = 'button';
-        b.className = k.act ? `wc-ph-okb-k is-${k.act}` : 'wc-ph-okb-k';
-        if (k.ch !== undefined) b.dataset.ch = k.ch;
-        if (k.act) b.dataset.act = k.act;
-        b.setAttribute('aria-label', k.label);
-        // Not in the Tab order (ADR 0108): Tab belongs to the command line.
-        b.tabIndex = -1;
-        b.style.flexGrow = String(k.w ?? 1);
-        const icon = k.act ? ICONS[k.act] : undefined;
-        if (icon) b.append(svg(doc, icon));
-        else if (k.ch !== undefined) b.textContent = k.ch;
-        if (k.act === 'shift') {
-          b.setAttribute('aria-pressed', 'false');
-          shiftKey = b;
-        }
-        r.append(b);
-      }
-      this.el.append(r);
-    }
-    this.shiftKey = shiftKey!;
+    this.blockEl = doc.createElement('div');
+    this.blockEl.className = 'wc-ph-okb-block';
+    this.blockEl.setAttribute('role', 'group');
+    this.blockEl.setAttribute('aria-label', 'Keyboard');
+    this.el.append(this.blockEl);
+    this.el.dataset.layout = layout;
 
     const keyOf = (e: Event): HTMLElement | null => (e.target as Element | null)?.closest<HTMLElement>('.wc-ph-okb-k') ?? null;
     this.el.addEventListener('pointerdown', (e) => {
@@ -173,9 +142,10 @@ export class OwnKeyboard {
       const d: Down = { key, delay: null, repeat: null };
       this.downs.set(e.pointerId, d);
       key.classList.add('is-down');
-      if (key.dataset.act === 'fold') return;
+      const a = key.dataset.act;
+      if (a !== undefined && ON_CLICK.has(a)) return;
       this.press(key);
-      if (key.dataset.act === 'back') {
+      if (a === 'back') {
         d.delay = setTimeout(() => {
           d.delay = null;
           d.repeat = setInterval(() => this.press(key), OKB_REPEAT_MS);
@@ -197,79 +167,223 @@ export class OwnKeyboard {
       e.stopPropagation();
       const key = keyOf(e);
       if (!key) return;
-      // The fold key acts here (see the header); the others acted on the press, and
-      // `detail` 0 is an activation without a pointer.
-      if (key.dataset.act === 'fold') this.deps.fold();
-      else if (e.detail === 0) this.press(key);
+      // The keys of `ON_CLICK` act here; the others acted on the press, and `detail` 0 is an
+      // activation without a pointer.
+      const a = key.dataset.act;
+      if ((a !== undefined && ON_CLICK.has(a)) || e.detail === 0) this.press(key);
     });
     // A long press on a key is not a text selection or a context menu.
     this.el.addEventListener('contextmenu', (e) => e.preventDefault());
+    // The page went to the background, or the window lost the focus, with a key held: the
+    // release may never come, and a held backspace must not go on deleting.
+    const drop = (): void => this.releaseAll();
+    const win = doc.defaultView;
+    doc.addEventListener('visibilitychange', drop);
+    win?.addEventListener('blur', drop);
+    win?.addEventListener('pagehide', drop);
+    this.unsubs.push(() => {
+      doc.removeEventListener('visibilitychange', drop);
+      win?.removeEventListener('blur', drop);
+      win?.removeEventListener('pagehide', drop);
+    });
   }
 
-  /** True while the next letter is a capital. */
-  get shifted(): boolean {
-    return this.shift;
+  /** Shift now: off, once (the next letter is a capital) or locked. */
+  get shiftMode(): OkbShiftState['mode'] {
+    return this.shift.mode;
+  }
+
+  /** The digit row is shown or folded away (the caller's stored state). */
+  setDigits(on: boolean): void {
+    if (on === this.digits) return;
+    this.digits = on;
+    this.symbolPage = 0;
+    if (!this.el.hidden) this.draw();
+  }
+
+  /** Another layout (round 53d's setting). */
+  setLayout(layout: OkbLayout): void {
+    if (layout === this.layout) return;
+    this.layout = layout;
+    this.el.dataset.layout = layout;
+    this.symbolPage = 0;
+    if (!this.el.hidden) this.draw();
   }
 
   /**
-   * Shows the block from `top` px (the command row's bottom edge, from the
-   * layer's top) down to the bottom edge, or hides it (null). Hidden, no
-   * key is held and shift is off.
+   * Shows the band from `top` px (the command row's bottom edge, from the
+   * layer's top) down to the bottom edge, with the block `width` px wide
+   * from `left`; or hides it (null). Hidden, no key is held, shift is off
+   * and the page is the letters'.
    */
-  place(top: number | null): void {
-    if (top === null) {
+  place(at: { top: number; left: number; width: number } | null): void {
+    if (at === null) {
       if (this.el.hidden) return;
       this.el.hidden = true;
-      this.top = NaN;
+      this.top = this.left = this.width = NaN;
       this.releaseAll();
-      this.setShift(false);
+      this.shift = OKB_SHIFT_OFF;
+      this.page = 'letters';
+      this.symbolPage = 0;
       return;
     }
-    if (top !== this.top) {
-      this.top = top;
-      this.el.style.top = `${top}px`;
+    if (at.top !== this.top) {
+      this.top = at.top;
+      this.el.style.top = `${at.top}px`;
     }
+    if (at.left !== this.left || at.width !== this.width) {
+      this.left = at.left;
+      this.width = at.width;
+      this.blockEl.style.left = `${at.left}px`;
+      this.blockEl.style.width = `${at.width}px`;
+      this.arrowsOnDigitRow = okbArrowsOnDigitRow(at.width);
+    }
+    this.draw();
     if (this.el.hidden) this.el.hidden = false;
   }
 
   dispose(): void {
     this.releaseAll();
+    for (const u of this.unsubs.splice(0)) u();
     this.el.remove();
+  }
+
+  /** Draws the rows when what they are made from changed, and marks shift and the toggles. */
+  private draw(): void {
+    const sig = `${this.layout}|${this.page}|${this.symbolPage}|${this.digits}|${this.arrowsOnDigitRow}`;
+    if (sig !== this.drawn) {
+      this.drawn = sig;
+      // The keys are made anew: none of the old ones is held any more.
+      this.releaseAll();
+      this.specs.clear();
+      const rows = okbRows({ layout: this.layout, page: this.page, symbolPage: this.symbolPage, digits: this.digits, arrowsOnDigitRow: this.arrowsOnDigitRow });
+      this.blockEl.replaceChildren(
+        ...rows.map((row) => {
+          const r = this.doc.createElement('div');
+          r.className = `wc-ph-okb-row is-${row.kind}`;
+          // A row with fewer keys than its units stands in from both edges.
+          const used = row.keys.reduce((n, k) => n + k.w, 0);
+          if (used < row.units) r.style.padding = `0 ${((row.units - used) / 2 / row.units) * 100}%`;
+          r.append(...row.keys.map((k) => this.key(k)));
+          return r;
+        }),
+      );
+      this.el.dataset.page = this.page;
+    }
+    this.mark();
+  }
+
+  private key(k: OkbKey): HTMLElement {
+    const doc = this.doc;
+    if (k.ch === undefined && k.act === undefined) {
+      // A place kept empty (no further page of symbols; a short last page).
+      const gap = doc.createElement('span');
+      gap.className = 'wc-ph-okb-gap';
+      gap.style.flexGrow = String(k.w);
+      return gap;
+    }
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = k.act ? `wc-ph-okb-k is-${k.act}` : 'wc-ph-okb-k';
+    if (k.ch !== undefined) b.dataset.ch = k.ch;
+    if (k.act) b.dataset.act = k.act;
+    if (k.letter) b.dataset.letter = '';
+    b.setAttribute('aria-label', k.label);
+    // Not in the Tab order (ADR 0108): Tab belongs to the command line.
+    b.tabIndex = -1;
+    b.style.flexGrow = String(k.w);
+    const cap = doc.createElement('span');
+    cap.className = 'wc-ph-okb-cap';
+    const icon = k.act ? ICONS[k.act] : undefined;
+    if (icon) cap.append(svg(doc, icon));
+    else if (k.ch !== undefined) cap.textContent = k.ch;
+    else if (k.act === 'sym') cap.textContent = this.page === 'letters' ? '!#?' : 'abc';
+    else if (k.act === 'alt') cap.textContent = `${this.symbolPage + 1}/${okbSymbolPages(this.layout, this.digits)}`;
+    else if (k.act === 'digits') cap.textContent = '123';
+    b.append(cap);
+    this.specs.set(b, k);
+    return b;
+  }
+
+  /** Shift's three states, the digit row's toggle, and arrows without a history. */
+  private mark(): void {
+    const mode = this.shift.mode;
+    this.el.dataset.shift = mode;
+    const t = this.deps.target();
+    for (const [b, k] of this.specs) {
+      if (k.act === 'shift') {
+        b.setAttribute('aria-pressed', mode === 'off' ? 'false' : 'true');
+        b.setAttribute('aria-label', mode === 'lock' ? 'Shift, locked' : 'Shift');
+        const want = mode === 'lock' ? 'lock' : 'shift';
+        if (b.dataset.icon !== want) {
+          b.dataset.icon = want;
+          b.firstElementChild?.replaceChildren(svg(this.doc, ICONS[want]!));
+        }
+      } else if (k.act === 'digits') {
+        b.setAttribute('aria-pressed', this.digits ? 'true' : 'false');
+      } else if (k.act === 'older' || k.act === 'newer') {
+        const none = t !== null && (k.act === 'older' ? t.historyUp : t.historyDown) === undefined;
+        if (none) b.setAttribute('aria-disabled', 'true');
+        else b.removeAttribute('aria-disabled');
+      }
+    }
   }
 
   /** What a key does. */
   private press(key: HTMLElement): void {
-    const { line } = this.deps;
-    const ch = key.dataset.ch;
-    if (ch !== undefined) {
-      line.insert(this.shift ? ch.toUpperCase() : ch);
-      this.setShift(false);
-      return;
-    }
-    switch (key.dataset.act as Act) {
+    const k = this.specs.get(key);
+    if (!k) return;
+    switch (k.act) {
       case 'shift':
-        this.setShift(!this.shift);
-        break;
-      case 'back':
-        line.deleteBack();
-        break;
-      case 'space':
-        line.insert(' ');
-        break;
-      case 'enter':
-        line.submit();
-        break;
+        this.shift = shiftTap(this.shift, this.deps.now?.() ?? this.doc.defaultView?.performance.now() ?? Date.now());
+        this.mark();
+        return;
       case 'fold':
         this.deps.fold();
-        break;
+        return;
+      case 'digits':
+        this.deps.toggleDigits();
+        return;
+      case 'sym':
+        this.page = this.page === 'letters' ? 'symbols' : 'letters';
+        this.symbolPage = 0;
+        this.draw();
+        return;
+      case 'alt':
+        this.symbolPage = (this.symbolPage + 1) % okbSymbolPages(this.layout, this.digits);
+        this.draw();
+        return;
+      default:
     }
-  }
-
-  private setShift(on: boolean): void {
-    if (on === this.shift) return;
-    this.shift = on;
-    this.el.classList.toggle('is-shift', on);
-    this.shiftKey.setAttribute('aria-pressed', String(on));
+    const t = this.deps.target();
+    if (!t) return;
+    // The field lost the focus (a tap on the game text): the key gives it back, so the caret shows.
+    t.focus();
+    switch (k.act) {
+      case 'back':
+        // (Shift stays: a correction is not the letter it waits for.)
+        t.deleteBack();
+        return;
+      case 'older':
+        t.historyUp?.();
+        return;
+      case 'newer':
+        t.historyDown?.();
+        return;
+      case 'enter':
+        t.submit();
+        break;
+      case 'space':
+        t.insert(' ');
+        break;
+      default:
+        t.insert(okbChar(k, this.shift));
+    }
+    const next = shiftUsed(this.shift);
+    if (next !== this.shift) {
+      this.shift = next;
+      this.mark();
+    }
   }
 
   /** The pointer let go of its key: the key is up and its repeat stops. */
