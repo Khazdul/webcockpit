@@ -105,8 +105,9 @@ export class OwnKeyboard {
   private digits = false;
   private arrowsOnDigitRow = false;
   private shift: OkbShiftState = OKB_SHIFT_OFF;
-  /** What the rows on screen were drawn from. */
+  /** What the rows on screen were drawn from, and what their marks (shift, the toggle, the arrows) were set from. */
   private drawn = '';
+  private marked = '';
   /** The keys on screen, by element. */
   private readonly specs = new Map<HTMLElement, OkbKey>();
   /** The keys held now, by pointer. */
@@ -308,8 +309,12 @@ export class OwnKeyboard {
   /** Shift's three states, the digit row's toggle, and arrows without a history. */
   private mark(): void {
     const mode = this.shift.mode;
-    this.el.dataset.shift = mode;
     const t = this.deps.target();
+    // (Asked at every layout: nothing is written for the same state.)
+    const sig = `${this.drawn}|${mode}|${t === null}|${t?.historyUp === undefined}|${t?.historyDown === undefined}`;
+    if (sig === this.marked) return;
+    this.marked = sig;
+    this.el.dataset.shift = mode;
     for (const [b, k] of this.specs) {
       if (k.act === 'shift') {
         b.setAttribute('aria-pressed', mode === 'off' ? 'false' : 'true');

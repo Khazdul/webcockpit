@@ -1322,10 +1322,12 @@ export class Cockpit {
     if (!kbd) this.pgLandscape = landscapeLayout(W, H, win ? screenLandscape(win) : null);
     const land = this.pgLandscape;
     // A keyboard of our own (`setPhoneBottom`): whole rows from the bottom edge. What the screen
-    // has under its last whole row is the keyboard's too, so it counts towards its height.
+    // has under its last whole row is the keyboard's too, so it counts towards its height; and the
+    // keyboard gives a little of its height (`PHONE_OWN_KBD_GIVE`: its rows share what it gets)
+    // rather than take one more row from the game text for a few px.
     const ownPx = this.pgBottom ? this.pgBottom(land, H) : 0;
     const under = H - Math.floor(H / cell.h + 1e-6) * cell.h;
-    const bottom = ownPx > 0 ? Math.max(1, Math.ceil((ownPx - under) / cell.h - 1e-6)) : 0;
+    const bottom = ownPx > 0 ? Math.max(1, Math.ceil((ownPx * (1 - PHONE_OWN_KBD_GIVE) - under) / cell.h - 1e-6)) : 0;
     // Portrait: the compass and the hot keys stand on the keyboard's top edge (the phone layer lifts
     // them), so the limit and the lens's clearance are counted from there. Landscape: they stand
     // beside the keyboard in its band, and the lens only stays off the command field.
@@ -2417,6 +2419,8 @@ export function phoneSideBandCols(cellW: number): number {
 }
 /** Phone game layout: rows the game text keeps under Comm or the strip while the keyboard is up. */
 const PHONE_KBD_GAME_ROWS = 2;
+/** Phone game layout, a keyboard of our own: the share of its height it gives up before it takes one more row of game text. */
+const PHONE_OWN_KBD_GIVE = 0.06;
 /** Phone game layout: what the lens keeps clear above the command row while a keyboard of our own is open, px (its corner keys' overhang). */
 const PHONE_OWN_KBD_LENS_PX = 12;
 

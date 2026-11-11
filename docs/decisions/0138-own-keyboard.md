@@ -241,7 +241,9 @@ owner, after the device test of 53a and during 53c)
   the middle whatever is open.
 - The reserve follows the keyboard's real height: the digit row folded up
   or down is one relayout and one window size. What the screen has under
-  its last whole row counts towards the keyboard's height.
+  its last whole row counts towards the keyboard's height, and the
+  keyboard gives up to 6 % of its height (its rows share what it gets)
+  before it takes one more row from the game text.
 - `gameKeep` is the layout's usual eight rows; the too-small guard stays
   on (the page's size does not change). A reserve the screen cannot give
   (rows under 24 px) closes the keyboard.
