@@ -5,6 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RESIZE_SETTLE_MS, WeatherEngine, paneFills } from '../../src/weather/worker/engine';
+import { leftBandOn, setLeftBand } from '../../src/weather/worker/band';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_SMOOTH, FPS_STILL, type Module } from '../../src/weather/worker/env';
 import { weatherModule } from '../../src/weather/worker/weather';
 import { Glints } from '../../src/weather/worker/glint';
@@ -525,5 +526,44 @@ describe('frame glints', () => {
       for (const [x, y] of [[104.5, 50.5], [100.5, 54.5], [104.5, 249.5], [499.5, 54.5]] as const) expect(covers(bs, x, y)).toBe(true);
     }
     g.dpr = 1;
+  });
+});
+
+describe('the left band follows the layout the worker is told (ADR 0136 §11)', () => {
+  afterEach(() => setLeftBand(true));
+
+  /** The real engine (a test module in it) initialised with `g`, as the worker does on `init`. */
+  function init(g: Geometry): WeatherEngine {
+    const engine = new WeatherEngine({ post: () => {}, requestFrame: () => {}, setTimeout: () => {}, now: () => 1000 }, [mod('m', FPS_FAST)]);
+    engine.handle({
+      t: 'init',
+      back: new FakeCanvas(g.W, g.H) as unknown as OffscreenCanvas,
+      front: new FakeCanvas(g.W, g.H) as unknown as OffscreenCanvas,
+      geom: g,
+      theme: { bg: '#000000', fg: '#c0c0c0' },
+      cats: { ...ALL_CATEGORIES },
+      state: { ...DEFAULT_STATE },
+      moonSpeed: 1,
+    } as MainToWorker);
+    return engine;
+  }
+
+  it('init with noBand switches the band off; an init without the key has it on (the flag does not stick)', () => {
+    expect(leftBandOn()).toBe(true);
+    init({ ...geom, W: 390, H: 844, noBand: true });
+    expect(leftBandOn()).toBe(false);
+    init(geom);
+    expect(leftBandOn()).toBe(true);
+    init({ ...geom, noBand: false });
+    expect(leftBandOn()).toBe(true);
+  });
+
+  it('a later layout message carries it too', () => {
+    const engine = init(geom);
+    expect(leftBandOn()).toBe(true);
+    engine.handle({ t: 'geom', g: { ...geom, noBand: true } });
+    expect(leftBandOn()).toBe(false);
+    engine.handle({ t: 'geom', g: { ...geom } });
+    expect(leftBandOn()).toBe(true);
   });
 });

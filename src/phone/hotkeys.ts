@@ -70,6 +70,8 @@ export class HotkeysView {
   private keys: PhoneHotkey[] = [];
   private open = false;
   private sig = '';
+  /** From one key's foot to the next, px (the keys' size and their gap). */
+  private step = 43;
   /** The press in progress: its key, pointer and place, and the hold's timer. */
   private down: { index: number; id: number; x: number; y: number; timer: ReturnType<typeof setTimeout> } | null = null;
   /** The key whose box is open, and what the box holds now. */
@@ -138,7 +140,8 @@ export class HotkeysView {
   }
 
   /** The keys and whether the column is open. Redraws only on a change. */
-  set(keys: readonly PhoneHotkey[], open: boolean): void {
+  set(keys: readonly PhoneHotkey[], open: boolean, step = 43): void {
+    this.step = step;
     const sig = JSON.stringify([keys, open]);
     if (sig === this.sig) return;
     this.sig = sig;
@@ -261,12 +264,14 @@ export class HotkeysView {
     b.label.value = key.label;
     b.command.value = key.command;
     b.error.hidden = true;
-    // The notch points at the key: its place in the column from the foot (40 px keys, 3 px gaps).
+    // The notch points at the key: its place in the column from the foot.
     // None for a key that is not in the column (the K key opened the box).
     const slots = columnKeys(this.keys);
     const at = slots.indexOf(index);
     b.notch.hidden = at < 0 || this.el.hidden;
-    b.notch.style.bottom = `${(slots.length - 1 - at) * 43 + 15}px`;
+    // (The notch is a 10 px square with a 1 px border, turned 45°, placed from inside the box's
+    // own 1 px border: its middle at the key's.)
+    b.notch.style.bottom = `${(slots.length - 1 - at) * this.step + (this.step - 3) / 2 - 6.5}px`;
     this.boxEl.hidden = false;
     b.body.scrollTop = 0;
     this.syncBox();

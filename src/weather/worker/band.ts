@@ -9,6 +9,24 @@
 
 import { clamp } from './env';
 
+/**
+ * Whether there is a left band at all. Off on the phone's layout in the
+ * live game (ADR 0136 §11: a narrow screen, the effects use its whole
+ * width): the curve is then nowhere (`leftDark` 0, `bandK` 1) and the band
+ * has no width (`bandSolid` and `bandEnd` 0), so everything that reads the
+ * band here draws over the whole width. Set by the engine from the layout
+ * (`Geometry.noBand`) before its modules size themselves; it is the same
+ * for the whole life of a cockpit, so nothing built from the band (cached
+ * gradients, the stars' brightness) is ever stale.
+ */
+let on = true;
+export function setLeftBand(v: boolean): void {
+  on = v;
+}
+export function leftBandOn(): boolean {
+  return on;
+}
+
 /** The sky starts this far in from the left (share of the width): from the background to the sky over it. */
 export const LEFT_DARK = 0.70;
 /** It stays fully the background up to this share of LEFT_DARK, then comes in smoothly. */
@@ -16,6 +34,7 @@ export const LEFT_SOLID = 0.57;
 
 /** How much of the sky the left fade takes back at `x` (share of LEFT_DARK): all up to LEFT_SOLID, then a smootherstep down to none (no kink at either end). */
 export function leftDark(x: number): number {
+  if (!on) return 0;
   const u = clamp((x - LEFT_SOLID) / (1 - LEFT_SOLID), 0, 1);
   return 1 - u * u * u * (u * (u * 6 - 15) + 10);
 }
@@ -27,12 +46,12 @@ export function bandK(x: number, W: number): number {
 
 /** Where the solid band ends (nothing shows left of it), CSS px. */
 export function bandSolid(W: number): number {
-  return W * LEFT_DARK * LEFT_SOLID;
+  return on ? W * LEFT_DARK * LEFT_SOLID : 0;
 }
 
 /** Where the band ends (everything shows right of it), CSS px. */
 export function bandEnd(W: number): number {
-  return W * LEFT_DARK;
+  return on ? W * LEFT_DARK : 0;
 }
 
 /**

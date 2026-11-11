@@ -124,7 +124,7 @@ import type { ChainRun } from '../player/timeline';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
-import { REASON_USER_DISCONNECT, REASON_USER_RECONNECT } from '../net/session';
+import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, RESUME_PING_TIMEOUT_MS } from '../net/session';
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
 import type { CellMetrics } from '../theme/cells';
@@ -140,6 +140,7 @@ import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
 import { PHONE_MAX_SHORT_SIDE } from '../core/device';
 import { device } from '../core/device';
+import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from './auto-reconnect';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
 import { REVEAL_FADE_MS, bootDone, bootStep, revealStart } from './boot-progress';
@@ -216,6 +217,8 @@ export class Shell {
   private readonly phoneGame: boolean;
   /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
   private phoneLayer: import('../phone').PhoneLayer | null = null;
+  /** Phone game layout: the automatic reconnect's memory (auto-reconnect.ts). */
+  private autoState = AUTO_RECONNECT_IDLE;
   private startHost: HTMLDivElement;
   private startMount: HTMLDivElement;
   private menuHost: HTMLDivElement;
@@ -875,7 +878,14 @@ export class Shell {
     // with Reconnect selected. Desktop installs nothing.
     if (device().phone) {
       const doc = root.ownerDocument;
-      watchResume(doc, doc.defaultView ?? window, () => app.session.checkAlive());
+      watchResume(doc, doc.defaultView ?? window, () => {
+        // First what the rule remembers (a link that dropped out of view), then the check of a link still held.
+        const st = app.session.state;
+        const up = (st === 'login' || st === 'playing') && !app.status.get().replay;
+        const link = up ? 'up' : st === 'disconnected' || st === 'idle' ? 'down' : 'other';
+        this.autoReconnect(app, { type: 'resume', link, now: Date.now(), checkMs: RESUME_PING_TIMEOUT_MS });
+        app.session.checkAlive();
+      });
     }
     app.bus.on('conn.state', (s) => this.onConn(s.state, s.reason ?? ''));
     this.appRef = app;
@@ -889,9 +899,24 @@ export class Shell {
     this.prevConn = state;
     if (state === 'connecting') this.connIsReplay = app.status.get().replay;
     if ((state === 'login' || state === 'playing') && !this.connIsReplay) this.everUp = true;
+    if (state === 'connecting') this.autoReconnect(app, { type: 'connecting' });
+    if (state === 'login') this.autoReconnect(app, { type: 'up' });
     if (state !== 'disconnected') return;
     const wasUp = prev === 'login' || prev === 'playing';
-    if (!wasUp || !this.everUp || this.connIsReplay || QUIET_REASONS.has(reason)) return;
+    const quiet = this.connIsReplay || QUIET_REASONS.has(reason);
+    // Phone game layout, "Reconnect automatically" on (ADR 0136 §10): a dead link found on resume
+    // reconnects once instead of opening the sheet. Off (and everywhere else) nothing changes here.
+    const auto = this.autoReconnect(app, {
+      type: 'drop',
+      wasUp: wasUp && this.everUp,
+      quiet,
+      foundOnResume: reason === REASON_BACKGROUND_LOST,
+      hidden: this.opts.root.ownerDocument.visibilityState === 'hidden',
+      now: Date.now(),
+    });
+    if (auto === 'reconnect') return;
+    // The automatic connection never came up: the sheet with Reconnect, as for any drop (below).
+    if (auto !== 'sheet' && (!wasUp || !this.everUp || quiet)) return;
     // Phone only (ADR 0136 §10): the link dropped while the settings page was up: the sheet, with Reconnect lit.
     const sheet = this.phoneLayer?.menu;
     if (this.inCockpit && sheet?.showing === 'settings') {
@@ -902,6 +927,35 @@ export class Shell {
     // Desktop and tablet: the menu bar's Disconnected notice instead (ADR 0100).
     if (!device().phone) return;
     void this.openMenu('reconnect');
+  }
+
+  /**
+   * Feeds the automatic reconnect's rule (auto-reconnect.ts) and, when it
+   * says so, reconnects as the sheet's Reconnect does: no saved login, MUME
+   * asks as usual. Only on the phone's game layout and in the cockpit;
+   * everywhere else it answers null and remembers nothing. `reconnect`: a
+   * reconnect was started (the sheet is then not opened for the drop);
+   * `sheet`: the automatic connection failed, the drop opens the sheet.
+   */
+  private autoReconnect(app: App, ev: AutoReconnectEvent): 'reconnect' | 'sheet' | null {
+    if (!this.phoneGame) return null;
+    const step = autoReconnectStep(this.autoState, ev, this.opts.settings.get().phone.autoReconnect && this.inCockpit);
+    this.autoState = step.state;
+    if (step.sheet) return 'sheet';
+    if (!step.reconnect) return null;
+    // After the drop's own listeners have run: the new connection is not opened in the middle of the old one's end.
+    queueMicrotask(() => {
+      const st = app.session.state;
+      if (!this.inCockpit || (st !== 'disconnected' && st !== 'idle')) return;
+      // The sheet that the drop opened while the page was hidden gives way: only the sheet itself.
+      // A page the player has open (the phone's Settings; Profile, Scripts or Exit in the overlay)
+      // stays, with what is typed in it, and the reconnect happens behind it. Not `closeMenu`
+      // either: that gives the command line the focus, and nobody tapped anything (no keyboard).
+      const sheet = this.phoneLayer?.menu;
+      if (sheet?.showing === 'sheet') sheet.close(true);
+      app.onCommand('#reconnect');
+    });
+    return 'reconnect';
   }
 
   // ----------------------------------------------------------------- chrome

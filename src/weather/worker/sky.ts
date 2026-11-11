@@ -40,7 +40,7 @@ import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
 import { TURN_RAY_N, TURN_S, type TurnKind, glimpseBlocked, turnBeamOn, turnDusk, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
-import { LEFT_DARK, bandEnd, bandGradient, bandK, bandSolid } from './band';
+import { LEFT_DARK, bandEnd, bandGradient, bandK, bandSolid, leftBandOn } from './band';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_SMOOTH, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -414,7 +414,8 @@ export interface MoonPath {
  * is gone.
  */
 export function moonPath(W: number, H: number, R: number): MoonPath {
-  return { x0: W + R, x1: bandSolid(W), yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
+  // Without a left band (band.ts: the phone's game layout) the moon sets beyond the left edge, as it rises beyond the right.
+  return { x0: W + R, x1: leftBandOn() ? bandSolid(W) : -R, yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
 }
 /** The game's u at `nowMs` for a time up from `riseAt` to `setAt` (unix ms): negative before the rise, above 1 after the set. */
 export function moonClockU(nowMs: number, riseAt: number, setAt: number): number {
@@ -443,6 +444,8 @@ export function moonGlide(u: number, tu: number, n: number, dt: number): number 
  */
 export function moonBandK(x: number, W: number): number {
   const s = bandSolid(W), e = bandEnd(W);
+  // No band: nothing to fade into (the moon leaves over the edge, `moonPath`).
+  if (e <= s) return 1;
   return Math.sqrt(clamp((x - s) / (e - s), 0, 1));
 }
 
@@ -1214,7 +1217,8 @@ class Sky {
     let su = SUN_U;
     // The cool glow follows the moon, but not into the top-left corner as it
     // sets in the west (owner feedback 28, 38): it stops a third of the way in.
-    if (this.mVisNow > 0.05) su = lerp(su, clamp(this.mx / env.W, LEFT_DARK, 1), clamp(this.mVisNow * 1.5, 0, 1));
+    // (Without a left band, the phone's game layout, the moon crosses the whole width and so does its glow.)
+    if (this.mVisNow > 0.05) su = lerp(su, clamp(this.mx / env.W, leftBandOn() ? LEFT_DARK : 0, 1), clamp(this.mVisNow * 1.5, 0, 1));
     if (mI > 0.002) su = lerp(su, clamp(this.S[0]! / env.W, 0, 1), clamp(mI * 2, 0, 1));
     this.sideU = ease(this.sideU, su, dt, 0.5);
     s[7] = this.sideU * 100;
@@ -1271,7 +1275,7 @@ class Sky {
         const x0 = Math.max(xs, cx - R), x1 = Math.min(W, cx + R);
         if (x1 > x0) C.fillRect(x0, 0, x1 - x0, sh);
       }
-      if (lk > 0.003) {
+      if (lk > 0.003 && leftBandOn()) {
         // Left to right from the page background to the sky over the first
         // LEFT_DARK of the width; with the vertical fade the top-left corner
         // stays the background (dark, grey or paper alike). A smootherstep
@@ -1469,10 +1473,12 @@ class Sky {
     C.drawImage(this.dN, 0, 0);
     // the left band stays the background under the clouds too (owner item 96)
     C.globalAlpha = 1;
-    C.globalCompositeOperation = 'destination-out';
-    C.fillStyle = this.deckLeft!;
-    C.fillRect(0, 0, Math.ceil((env.W * LEFT_DARK) / DS), this.dh);
-    C.globalCompositeOperation = 'source-over';
+    if (leftBandOn()) {
+      C.globalCompositeOperation = 'destination-out';
+      C.fillStyle = this.deckLeft!;
+      C.fillRect(0, 0, Math.ceil((env.W * LEFT_DARK) / DS), this.dh);
+      C.globalCompositeOperation = 'source-over';
+    }
     C.globalAlpha = 1;
     const dW = this.dw * DS, dH = this.dh * DS;
     b.globalAlpha = fA;

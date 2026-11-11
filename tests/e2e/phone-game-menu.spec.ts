@@ -231,16 +231,16 @@ test('a background set on a computer is neither theme; a tap picks one, as the d
   expect({ ...a, bg: '', fg: '', ansi: [] }).toEqual({ ...black, bg: '', fg: '', ansi: [] });
 });
 
-test('the settings page: the groups built so far; Back returns to the sheet, Esc steps back to the game', async ({ page }) => {
+test('the settings page: its groups; Back returns to the sheet, Esc steps back to the game', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openSettings(page);
   await expect(sheet(page)).toBeHidden();
   await expect(pageEl(page)).toHaveAttribute('aria-label', 'Settings');
   await expect(pageEl(page).locator('.wc-ph-hood')).toHaveText('Settings');
-  // Stage 51 rule 3: no group before its feature.
+  // The ADR's groups, in its order (stage 51 rule 3: no group before its feature; 51f built the last two).
   const groups = await pageEl(page).locator('[data-group]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.group));
-  expect(groups).toEqual(['text', 'lens', 'panes', 'comm']);
+  expect(groups).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
   const rows = await pageEl(page).locator('[data-group="text"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
   expect(rows).toEqual(['size', 'theme', 'font']);
   await expect(pageEl(page)).not.toContainText('Left-handed');

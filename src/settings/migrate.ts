@@ -58,6 +58,7 @@ import {
   type MapperSettings,
   PHONE_COMM_ROWS_MAX,
   PHONE_COMM_ROWS_MIN,
+  PHONE_COMPASS_SIZES,
   PHONE_HOTKEY_COMMAND_MAX,
   PHONE_HOTKEY_COUNT,
   PHONE_HOTKEY_LABEL_MAX,
@@ -537,6 +538,10 @@ export function migratePhone(raw: unknown): PhoneSettings {
     unread: oneOf(p.unread, PHONE_UNREAD_MODES, d.unread),
     hotkeys: migrateHotkeys(p.hotkeys, d.hotkeys),
     hotkeysOpen: bool(p.hotkeysOpen, d.hotkeysOpen),
+    compassSize: oneOf(p.compassSize, PHONE_COMPASS_SIZES, d.compassSize),
+    vibrate: bool(p.vibrate, d.vibrate),
+    wakeLock: bool(p.wakeLock, d.wakeLock),
+    autoReconnect: bool(p.autoReconnect, d.autoReconnect),
   };
 }
 

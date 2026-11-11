@@ -441,7 +441,18 @@ export interface PhoneSettings {
   hotkeys: PhoneHotkey[];
   /** The hot key column is shown (the K key). */
   hotkeysOpen: boolean;
+  /** The compass keys' size (ADR 0136 §7): 36, 40 or 44 px; the hot keys follow. */
+  compassSize: PhoneCompassSize;
+  /** A short vibration on a compass or hot key tap that sends (where the browser can). */
+  vibrate: boolean;
+  /** Keep the screen on while connected and visible (ADR 0136 §10; where the browser can). */
+  wakeLock: boolean;
+  /** A dead link found on resume reconnects once, with no saved login (ADR 0136 §10). */
+  autoReconnect: boolean;
 }
+
+export const PHONE_COMPASS_SIZES = ['s', 'm', 'l'] as const;
+export type PhoneCompassSize = (typeof PHONE_COMPASS_SIZES)[number];
 
 /** How many hot keys the phone has (ADR 0136 §8). */
 export const PHONE_HOTKEY_COUNT = 3;
@@ -491,7 +502,9 @@ export const PHONE_COMM_ROWS_MAX = 200;
  * Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4);
  * the strip's four panes in their order, all on (§5); Comm at its default
  * height, the badge counting private chats (§6); the three hot keys assist,
- * bash and wimpy at half of the current hit points, their column shown (§8).
+ * bash and wimpy at half of the current hit points, their column shown (§8);
+ * 40 px compass keys, no vibration (§7: it is optional); the screen kept on while
+ * connected, and no automatic reconnect (§10).
  */
 export function defaultPhoneSettings(): PhoneSettings {
   return {
@@ -505,6 +518,10 @@ export function defaultPhoneSettings(): PhoneSettings {
       { label: 'wimp', command: '', special: 'wimpy50', shown: true },
     ],
     hotkeysOpen: true,
+    compassSize: 'm',
+    vibrate: false,
+    wakeLock: true,
+    autoReconnect: false,
   };
 }
 

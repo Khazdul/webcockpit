@@ -639,8 +639,8 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-pad {
   right: 8px;
   bottom: 8px;
   display: grid;
-  grid-template-columns: repeat(3, 40px);
-  grid-auto-rows: 40px;
+  grid-template-columns: repeat(3, var(--ph-ck, 40px));
+  grid-auto-rows: var(--ph-ck, 40px);
   gap: 3px;
   pointer-events: auto;
   touch-action: manipulation;
@@ -731,10 +731,11 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on .wc-ph-kk {
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot {
   position: absolute;
   right: 8px;
-  bottom: 142px;
+  /* Above the compass: its three keys, two gaps and margin, and 8 px of air (compass-size.ts). */
+  bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
   display: grid;
-  grid-template-columns: 40px;
-  grid-auto-rows: 40px;
+  grid-template-columns: var(--ph-ck, 40px);
+  grid-auto-rows: var(--ph-ck, 40px);
   gap: 3px;
   pointer-events: auto;
   touch-action: none;
@@ -783,12 +784,12 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk.is-held {
  * it stands over the command row). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb {
   position: absolute;
-  right: 56px;
-  bottom: 142px;
+  right: calc(var(--ph-ck, 40px) + 16px);
+  bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(286px, calc(100% - 64px));
+  width: min(286px, calc(100% - var(--ph-ck, 40px) - 24px));
   border: 1px solid var(--ph-solid-edge);
   border-radius: 10px;
   background: var(--ph-solid);
@@ -1097,7 +1098,7 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot {
   align-items: center;
   gap: 8px;
   box-sizing: border-box;
-  padding: 0 142px 0 8px;
+  padding: 0 calc(var(--ph-ck, 40px) * 3 + 22px) 0 8px;
 }
 
 /* Typing: the field takes the full width. */
@@ -1680,4 +1681,14 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow .wc-lk-opt {
  * layout is up (ADR 0136 §4); it stays on the start page. */
 html.wc-phone.wc-phone-game .wc-fs-btn {
   display: none;
+}
+
+/* ----------------------------------------------------------------- weather */
+
+/* The weather's front layer (src/weather/weather.css puts it over every
+ * pane, z 90) lies under the phone's chrome here: over the game text and
+ * the panes, as on a computer, but behind the fight card, the lens, the
+ * keys, the strip's hood and the menu (the layer, z 8). ADR 0136 §11. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-weather-front {
+  z-index: 5;
 }

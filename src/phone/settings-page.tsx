@@ -21,7 +21,9 @@
 import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
-import type { FontId, PhoneLensLevel, PhoneLensSize, PhoneUnread, Settings, SettingsPatch } from '../settings/types';
+import { canVibrate } from './haptics';
+import { canWakeLock } from './wake-lock';
+import type { FontId, PhoneCompassSize, PhoneLensLevel, PhoneLensSize, PhoneUnread, Settings, SettingsPatch } from '../settings/types';
 import { moveEntry, setEntry } from './strip-model';
 import { phoneControls, phoneKit } from './kit';
 import { PHONE_THEMES, type PhoneTheme, stepSize, themeBg, themeOf } from './text-settings';
@@ -56,7 +58,15 @@ export type SettingsRow =
       get(s: S): string;
       set(value: string, s: S): SettingsPatch;
     }
-  | { kind: 'toggle'; id: string; label: string; get(s: S): boolean; set(on: boolean, s: S): SettingsPatch }
+  | {
+      kind: 'toggle';
+      id: string;
+      label: string;
+      get(s: S): boolean;
+      set(on: boolean, s: S): SettingsPatch;
+      /** False where the browser lacks what the row switches: the row is then absent, not dimmed. Absent: always there. */
+      available?(): boolean;
+    }
   | {
       /** A list whose items are switched on or off and moved up or down (one row each). */
       kind: 'order';
@@ -209,8 +219,76 @@ export const COMM_GROUP: SettingsGroup = {
   ],
 };
 
-/** The page's groups, top to bottom. */
-export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP];
+/** Compass: the keys' size and the vibration on a tap (`phone.compassSize`, `phone.vibrate`; ADR 0136 §7). */
+export const COMPASS_GROUP: SettingsGroup = {
+  id: 'compass',
+  title: 'Compass',
+  rows: [
+    {
+      kind: 'seg',
+      id: 'compass-size',
+      label: 'Key size',
+      options: [
+        { value: 's', label: 'S' },
+        { value: 'm', label: 'M' },
+        { value: 'l', label: 'L' },
+      ],
+      get: (s) => s.phone.compassSize,
+      set: (compassSize) => ({ phone: { compassSize: compassSize as PhoneCompassSize } }),
+    },
+    {
+      kind: 'toggle',
+      id: 'compass-vibrate',
+      label: 'Vibrate on tap',
+      get: (s) => s.phone.vibrate,
+      set: (vibrate) => ({ phone: { vibrate } }),
+      available: () => canVibrate(globalThis.navigator),
+    },
+  ],
+};
+
+/**
+ * Connection: the screen kept on, the automatic reconnect, and the weather
+ * effects (`phone.wakeLock`, `phone.autoReconnect`; `weather.enabled`, the
+ * desktop's Options → Weather effects switch). ADR 0136 §10, §11.
+ */
+export const CONNECTION_GROUP: SettingsGroup = {
+  id: 'connection',
+  title: 'Connection',
+  rows: [
+    {
+      kind: 'toggle',
+      id: 'wake-lock',
+      label: 'Keep screen on while connected',
+      get: (s) => s.phone.wakeLock,
+      set: (wakeLock) => ({ phone: { wakeLock } }),
+      available: () => canWakeLock(globalThis.navigator),
+    },
+    {
+      kind: 'toggle',
+      id: 'auto-reconnect',
+      label: 'Reconnect automatically',
+      get: (s) => s.phone.autoReconnect,
+      set: (autoReconnect) => ({ phone: { autoReconnect } }),
+    },
+    {
+      kind: 'toggle',
+      id: 'weather',
+      label: 'Weather effects',
+      get: (s) => s.weather.enabled,
+      set: (enabled) => ({ weather: { enabled } }),
+    },
+  ],
+  caption: 'Reconnects once when you come back to a lost link. MUME asks for your name and password as usual.',
+};
+
+/** The page's groups, top to bottom (ADR 0136 §10). */
+export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, COMPASS_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP, CONNECTION_GROUP];
+
+/** The rows of a group that are there on this device. */
+export function rowsShown(g: SettingsGroup): SettingsRow[] {
+  return g.rows.filter((r) => r.kind !== 'toggle' || (r.available?.() ?? true));
+}
 
 // ------------------------------------------------------------------ pieces
 
@@ -466,7 +544,7 @@ export function SettingsPage(p: SettingsPageProps): VNode {
               <section key={g.id} class="wc-ph-grp" data-group={g.id}>
                 <span class="wc-ph-grp-t">{g.title}</span>
                 <div class="wc-ph-card">
-                  {g.rows.map((row) => (
+                  {rowsShown(g).map((row) => (
                     <Row
                       key={row.id}
                       row={row}

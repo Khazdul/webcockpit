@@ -35,7 +35,7 @@ import { cutRects, paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
 import { glassBlurCheap } from '../support';
 import type { FrameStats, Geometry, MainToWorker, PaneGeom, Rect, WorkerToMain } from '../protocol';
-import { LEFT_DARK, bandGradient, bandSolid } from './band';
+import { LEFT_DARK, bandGradient, bandSolid, leftBandOn, setLeftBand } from './band';
 import { bodyModule } from './body';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
@@ -383,6 +383,8 @@ export class WeatherEngine {
   /** Applies a layout; returns true when a pane's tint moved (a float's). */
   private applyGeometry(g: Geometry): boolean {
     const env = this.env!;
+    // Before any module sizes itself: the phone's game layout has no left band (band.ts).
+    setLeftBand(!g.noBand);
     if (g.W !== env.W || g.H !== env.H || g.dpr !== env.dpr) {
       for (const [cv, c] of [
         [this.back!, env.back],
@@ -676,6 +678,8 @@ export class WeatherEngine {
 
   /** Takes the left band out of a cache's drawn layers, along the sky's curve (owner item 99; at the cache's resolution, at the module's rate). */
   private bandOut(c: Cache): void {
+    // No band (the phone's game layout): nothing to take out, and no fill spent on it.
+    if (!leftBandOn()) return;
     const env = this.env!, lw = env.W * LEFT_DARK;
     c.band ??= bandGradient(c.back.ctx, lw);
     for (let i = 0; i < 2; i++) {

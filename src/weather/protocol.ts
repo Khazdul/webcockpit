@@ -195,6 +195,12 @@ export interface Geometry {
   protect: { solidTop: number; fadeTop: number; left: number };
   /** Cell width/height, font size and CSS font. */
   cell: { w: number; h: number; size: number; font: string };
+  /**
+   * No left band (worker/band.ts): the effects use the whole width. Set on
+   * the phone's layout in the live game (ADR 0136 §11); absent everywhere
+   * else, where the band is as it was.
+   */
+  noBand?: boolean;
 }
 
 export interface ThemeColors {

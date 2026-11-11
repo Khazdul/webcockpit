@@ -52,6 +52,9 @@ import { CommBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
+import { compassHeight, compassPx, hotBottom, hotStep, hotTop } from './compass-size';
+import { pulse } from './haptics';
+import { WakeLock, wakeWanted } from './wake-lock';
 import { HotkeysView } from './hotkeys';
 import { hotkeyPress, knownHp, withHotkey } from './hotkey-model';
 import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
@@ -67,12 +70,6 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 /** The lens's place (the mockups): 16 px under the fight card or the top edge, 12 px from the right edge. */
 const LENS_GAP_TOP = 16;
 const LENS_GAP_RIGHT = 12;
-/** What the compass takes from the bottom edge: three 40 px keys, two 3 px gaps and its 8 px margin. */
-const COMPASS_HEIGHT = 134;
-/** The hot key column (phone.css): its foot above the bottom edge, a key with its gap, and the gap. */
-const HOT_BOTTOM = 142;
-const HOT_STEP = 43;
-const HOT_GAP = 3;
 /** What the lens keeps clear above the column or the box: its ring and shadow, and a little air. */
 const LENS_CLEAR = 16;
 /** The box's air to the command row (the keyboard up) and to the top edge. */
@@ -149,7 +146,12 @@ export class PhoneLayer {
   private commShown = false;
   private readonly hot: HotkeysView;
   /** What the lens must stay out of from the bottom edge, as last asked of the cockpit. */
-  private lensClear = COMPASS_HEIGHT;
+  private lensClear = 0;
+  /** A compass key's side in px (the setting); the hot keys follow it. */
+  private keyPx = 40;
+  private readonly wake: WakeLock;
+  /** Connected to MUME, as the wake lock last saw it. */
+  private wakeConn = false;
   private unread: Unread = { private: 0, group: 0, public: 0, all: 0 };
   private readonly unsubs: Array<() => void> = [];
   /** The card on screen (null: no fight) and its signature. */
@@ -232,7 +234,8 @@ export class PhoneLayer {
         if (sectionChanged(next.phone.strip, prev.phone.strip)) this.syncPages();
         if (next.phone.commRows !== prev.phone.commRows && this.commOpen) cockpit.setPhoneComm({ rows: next.phone.commRows });
         if (next.phone.unread !== prev.phone.unread) this.syncKeys();
-        if (sectionChanged(next.phone.hotkeys, prev.phone.hotkeys) || next.phone.hotkeysOpen !== prev.phone.hotkeysOpen) this.syncHotkeys();
+        if (sectionChanged(next.phone.hotkeys, prev.phone.hotkeys) || next.phone.hotkeysOpen !== prev.phone.hotkeysOpen || next.phone.compassSize !== prev.phone.compassSize) this.syncHotkeys();
+        if (next.phone.wakeLock !== prev.phone.wakeLock) this.wake.sync();
       }),
       // A script pane came, went or was renamed: the strip's pages follow.
       cockpit.onScriptPanes(() => this.syncPages()),
@@ -251,6 +254,27 @@ export class PhoneLayer {
     });
     this.unsubs.push(() => cockpit.setPhonePageKey(null));
     this.unsubs.push(() => this.hot.dispose());
+    // Keep the screen on (ADR 0136 §10): while the setting is on, the session is connected and
+    // the page is visible. Settled on a change of any of the three, never polled.
+    const win = doc.defaultView;
+    this.wake = new WakeLock(win?.navigator, () =>
+      wakeWanted({ setting: deps.settings.get().phone.wakeLock, connected: this.connected(), visible: doc.visibilityState === 'visible' }),
+    );
+    const onVisible = (): void => this.wake.sync();
+    doc.addEventListener('visibilitychange', onVisible);
+    this.unsubs.push(
+      () => doc.removeEventListener('visibilitychange', onVisible),
+      // The status also changes with every link sample: only a change of "connected" reaches the lock.
+      deps.status.subscribe(() => {
+        const c = this.connected();
+        if (c === this.wakeConn) return;
+        this.wakeConn = c;
+        this.wake.sync();
+      }),
+      () => this.wake.dispose(),
+    );
+    this.wakeConn = this.connected();
+    this.wake.sync();
     this.syncPages();
     this.syncHotkeys();
     this.syncLens();
@@ -265,7 +289,16 @@ export class PhoneLayer {
    * connection.
    */
   send(cmd: string): void {
-    if (keysLive(this.deps.playState())) this.deps.command(cmd);
+    if (!keysLive(this.deps.playState())) return;
+    this.deps.command(cmd);
+    // Felt only when the tap did send (ADR 0136 §7).
+    if (this.deps.settings.get().phone.vibrate) pulse(this.el.ownerDocument.defaultView?.navigator);
+  }
+
+  /** Connected to MUME (not a replay): what the wake lock and nothing else asks. */
+  private connected(): boolean {
+    const s = this.deps.playState();
+    return !s.replay && (s.conn === 'login' || s.conn === 'playing');
   }
 
   /**
@@ -367,16 +400,24 @@ export class PhoneLayer {
   /** The column follows the settings; the lens keeps clear of it (ADR 0136 §4). */
   private syncHotkeys(): void {
     const p = this.deps.settings.get().phone;
-    this.hot.set(p.hotkeys, p.hotkeysOpen);
+    // The keys' size (the Compass setting): phone.css lays the compass, the column, the box and
+    // the command field out from it (compass-size.ts has the same sums).
+    const px = compassPx(p.compassSize);
+    if (px !== this.keyPx || !this.deps.cockpit.el.style.getPropertyValue('--ph-ck')) {
+      this.keyPx = px;
+      this.deps.cockpit.el.style.setProperty('--ph-ck', `${px}px`);
+    }
+    this.hot.set(p.hotkeys, p.hotkeysOpen, hotStep(px));
     const n = p.hotkeysOpen ? this.hot.count : 0;
-    this.lensClear = n === 0 ? COMPASS_HEIGHT : HOT_BOTTOM + n * HOT_STEP - HOT_GAP + LENS_CLEAR;
+    this.lensClear = n === 0 ? compassHeight(px) : hotTop(px, n) + LENS_CLEAR;
+    if (this.hot.boxOpen) this.syncBox();
     this.askLens();
   }
 
   /** The box's foot above the layer's bottom edge: beside the column, or over the command row with the keyboard up. */
   private boxBottom(): number {
     const g = this.deps.cockpit.phoneGameLayout;
-    if (!g || !phoneKit().keyboardUp()) return HOT_BOTTOM;
+    if (!g || !phoneKit().keyboardUp()) return hotBottom(this.keyPx);
     return this.el.clientHeight - g.input.y * this.deps.cells.get().h + BOX_GAP;
   }
 

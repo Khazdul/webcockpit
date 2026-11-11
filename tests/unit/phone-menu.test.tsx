@@ -353,8 +353,8 @@ describe('the Panes and Comm groups', () => {
 });
 
 describe('the settings page as data', () => {
-  it('has the groups built so far and no other (stage 51 rule 3): Text, Map lens, Panes, Comm', () => {
-    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'lens', 'panes', 'comm']);
+  it('has the ADR\'s groups and no other (stage 51 rule 3): Text, Compass, Map lens, Panes, Comm, Connection', () => {
+    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
     expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-size', 'seg:lens-opens']);
     expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font']);
   });

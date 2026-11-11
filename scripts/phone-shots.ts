@@ -267,6 +267,37 @@ const STATES: State[] = [
       await page.locator('.wc-ph-page').waitFor();
     },
   },
+  {
+    // The settings page scrolled to its end: Comm and Connection (the page no longer fits one screen).
+    name: 'settings-end',
+    step: 'f',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet .wc-ph-row[data-row="settings"]').tap();
+      await page.locator('.wc-ph-page').waitFor();
+      await page.locator('.wc-ph-page [data-group="connection"]').evaluate((el) => el.scrollIntoView({ block: 'end' }));
+    },
+  },
+  {
+    // Weather on (ADR 0136 §11): rain by day with a little fog, pinned as the weather specs pin a
+    // state, the build-up run fast; the effects reach the left edge (no left band here).
+    name: 'weather',
+    step: 'f',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));
+      await page.locator('.wc-cockpit[data-weather]').waitFor();
+      await page.waitForFunction(() => !!window.__wc!.app.weather?.controller);
+      await page.evaluate(async () => {
+        const c = window.__wc!.app.weather!.controller!;
+        await c.engine.ready;
+        c.engine.setSpeed(40);
+        c.pin({ weather: '"', fog: '-', clock: 'day', sunU: 0.5 });
+      });
+      await page.waitForTimeout(6000);
+    },
+  },
 ];
 
 /** Paper: the background, ink and its palette, as the Appearance settings set them. */
