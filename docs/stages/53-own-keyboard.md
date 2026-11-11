@@ -1,7 +1,7 @@
 # Stage 53 — An on-screen keyboard of our own (investigation first)
 
-Status: **Next** (written 2026-11-11 as the handoff from stage 52;
-nothing investigated or built, no plan yet).
+Status: **In progress** (investigated and decided with the owner
+2026-11-11: ADR 0138; branch `stage-53-own-keyboard`).
 
 ## Goal
 
@@ -82,10 +82,93 @@ perhaps with some adaptation.
 - The hot keys and compass (`src/phone/hotkeys.ts`, `compass.ts`) are
   the model for keys that send without taking focus.
 
+## Investigation and decisions (2026-11-11)
+
+- Findings with sources: `notes/research/own-keyboard.md`.
+- The owner's answers are ADR 0138. In short: our keyboard for every
+  field in the phone's game layout (also name and password), start
+  pages and editors keep the device's; Swedish and English; digit row
+  with history arrows; shift once / double tap locks; compass and K
+  keys hidden while it is up; opened by a tap on the field, closed by
+  its fold key, stays after Enter; full width and never split, in
+  landscape too; **no setting for the device's keyboard** (ours for
+  everyone, or the stage is dropped); vibration back as a setting;
+  tablet is its own stage; device tests on the S21 first (the owner
+  also has an iPhone and an iPad).
+- The owner's first use of 0.6.0 (stage 52 file, Owner feedback) found
+  the fullscreen fix broken in portrait: taken out in 0.6.1.
+
+## Plan
+
+Rules of stages 51 and 52 hold (desktop and tablet unchanged; chunk
+rule; keys send only in play; nothing per frame or per line; never the
+real MUME from tests). Each round: one building subagent, checks and
+screenshots by the main session, a fresh reviewer, fixes, commit. The
+owner tests on the phone with `npm run dev:tailnet` on the branch.
+
+### 53a Device test (go / no-go)
+
+Behind `?kbd=1`, command field only, portrait and landscape:
+
+- the field gets `inputmode="none"` and `virtualkeyboardpolicy="manual"`
+  and the focus on a tap;
+- a minimal public editing API on `InputPane` (insert, delete back,
+  submit), reached through the phone layer's deps;
+- a rough keyboard (English letters, shift, space, backspace, Enter,
+  fold) in fixed rows from the allocator, with its own state class;
+  compass and K keys hidden while it is up;
+- a readout line in `?kbd=1` (focus, `activeElement`, `wc-kbd`) for the
+  owner's screenshots.
+
+Not in 53a: the look, layouts, digits and symbols, other fields.
+
+### 53b Model and editing API
+
+- The keyboard as a pure model: layouts `sv` / `en`, pages (letters,
+  symbols), shift states, the digit row, key sizes from the width (with
+  a cap per key), all unit-tested.
+- The full editing API (caret left / right, history, password mode) on
+  `InputPane`, and the adapter interface for other fields.
+
+### 53c The keyboard in the game layout
+
+- The view in the phone's look (dark and Paper), portrait and landscape,
+  one block; key repeat; two-thumb presses.
+- Allocator reserve, one NAWS on open and on close; lens, strip, Comm
+  and the fight card with the keyboard up; `gameKeep` and limits.
+- The game layout's `keyboardUp()` / `wc-kbd` uses moved to the new
+  state; the `?kbd=1` gate stays until the release decision.
+
+### 53d Other fields, settings, vibration
+
+- Comm reply and search, the hot key box, script pane fields; the
+  password prompt (and whether the `type="password"` swap stays).
+- Settings: Keyboard (layout), vibration on keys (`phone.vibrate`, also
+  compass and hot keys; no row without `navigator.vibrate`).
+
+### 53e Finish
+
+- Key to echo measured against the device keyboard path.
+- e2e and screenshots (`scripts/phone-shots.ts` states), contrast, small
+  screens (320 px wide, 800 × 280).
+- The gate removed: ours is the only keyboard in the game layout; what
+  is then dead in the game layout's device keyboard path is removed
+  (`watchKeyboard`'s blur and the like). Spec §2.12, README, About.
+- Test guide; the owner's verdict on the S21 and one test on an iPhone.
+
+### Can be cut
+
+Long-press alternatives (not planned), caret keys (a tap in the field
+moves the caret), script pane fields, key sound.
+
 ## Tasks
 
-- [ ] Investigation with the owner; decisions recorded as an ADR
-- [ ] (plan to be written after the decision)
+- [x] Investigation with the owner; decisions recorded as ADR 0138
+- [ ] 53a device test behind `?kbd=1` (go / no-go on the S21)
+- [ ] 53b model and editing API
+- [ ] 53c the keyboard in the game layout
+- [ ] 53d other fields, settings, vibration
+- [ ] 53e finish, test guide, release decision
 
 ## Owner feedback
 
