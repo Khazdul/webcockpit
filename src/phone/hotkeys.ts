@@ -1,7 +1,9 @@
-// The phone's hot keys (ADR 0136 §8): the column of up to three round,
-// see-through keys along the right edge above the compass (K1 lowest), the
-// K key in the compass's free cell that shows and hides the column, and the
-// box a held key opens to change it. The rules are in hotkey-model.ts.
+// The phone's hot keys (ADR 0136 §8; stage 52): up to six round,
+// see-through keys above the compass, in columns of three from the right
+// edge (K1 to K3 along the edge, K4 to K6 in a second column left of it,
+// the lowest number lowest), the K key in the compass's free cell that
+// shows and hides all of them, and the box a held key opens to change it.
+// The rules are in hotkey-model.ts.
 //
 // - A tap sends on the RELEASE, unlike the compass (which sends on the
 //   press): a press may become a hold, and a hold must not send. A press
@@ -11,7 +13,7 @@
 // - A press never moves the focus (no keyboard): the pointer's press is
 //   prevented from becoming a mouse press, as on the compass. A click
 //   without a pointer (a screen reader's activation) sends too.
-// - The box is a small form left of the column. It owns its keys
+// - The box is a small form left of the columns. It owns its keys
 //   (`data-wc-own-keys`, the input pane's rule): what is typed in its
 //   fields never reaches the command line or a macro. Esc cancels, Enter
 //   in a field saves. A press outside it closes it without saving, and
@@ -23,14 +25,13 @@ import type { PhoneHotkey, PhoneHotkeySpecial } from '../settings/types';
 import {
   HOTKEY_HOLD_MS,
   HOTKEY_LABEL_MAX,
-  type Split,
   HOTKEY_COMMAND_MAX,
   HOTKEY_PICKS,
   HOTKEY_SLOP_PX,
   HOTKEY_SPECIALS,
   checkHotkey,
   cleanCommand,
-  columnKeys,
+  hotkeyColumns,
   hotkeyName,
   pickHotkey,
   sendsNow,
@@ -52,14 +53,12 @@ export interface HotkeysDeps {
   toggle(): void;
   /** The current hit points for the box's "Sends now" line; null: unknown. */
   hp(): number | null;
-  /** The engine's command split (the kit's): a key holds one command. */
-  split: Split;
   /** The box opened or closed (the layer makes room: the lens). */
   onBox(open: boolean): void;
 }
 
 export class HotkeysView {
-  /** The column. */
+  /** The columns' box: one column element per column that has a key (the second, left, first in it). */
   readonly el: HTMLDivElement;
   /** The K key; the layer puts it in the compass's free cell. */
   readonly kEl: HTMLButtonElement;
@@ -68,7 +67,8 @@ export class HotkeysView {
   private readonly doc: Document;
   private readonly deps: HotkeysDeps;
   private keys: PhoneHotkey[] = [];
-  private open = false;
+  /** The shown keys' slots per column (hotkey-model.ts `hotkeyColumns`). */
+  private columns: number[][] = [[], []];
   private sig = '';
   /** From one key's foot to the next, px (the keys' size and their gap). */
   private step = 43;
@@ -134,41 +134,67 @@ export class HotkeysView {
     return this.boxIndex !== null;
   }
 
-  /** How many keys the column holds (shown keys; whether or not the column is open). */
+  /** How many keys are shown in all (whether or not the columns are open). */
   get count(): number {
-    return columnKeys(this.keys).length;
+    return this.columns[0]!.length + this.columns[1]!.length;
   }
 
-  /** The keys and whether the column is open. Redraws only on a change. */
-  set(keys: readonly PhoneHotkey[], open: boolean, step = 43): void {
+  /** The keys of the tallest column: what the columns take in height. */
+  get rows(): number {
+    return Math.max(this.columns[0]!.length, this.columns[1]!.length);
+  }
+
+  /** How many columns stand side by side from the right edge: 2 when the second one has a key (the first keeps its place also when empty), else 1. */
+  get cols(): number {
+    return this.columns[1]!.length > 0 ? 2 : 1;
+  }
+
+  /** The keys of column `col` (0: along the edge). */
+  rowsIn(col: number): number {
+    return this.columns[col]?.length ?? 0;
+  }
+
+  /** The keys, how many slots are in use, and whether the columns are open. Redraws only on a change. */
+  set(keys: readonly PhoneHotkey[], count: number, open: boolean, step = 43): void {
     this.step = step;
-    const sig = JSON.stringify([keys, open]);
+    const sig = JSON.stringify([keys, count, open]);
     if (sig === this.sig) return;
     this.sig = sig;
     this.keys = keys.map((k) => ({ ...k }));
-    this.open = open;
+    this.columns = hotkeyColumns(this.keys, count);
     this.dropPress();
-    const slots = columnKeys(this.keys);
-    this.el.replaceChildren(
-      ...slots.map((i) => {
-        const k = this.keys[i]!;
-        const b = this.doc.createElement('button');
-        b.type = 'button';
-        b.className = 'wc-ph-hk';
-        b.dataset.hk = String(i);
-        b.textContent = k.label;
-        b.setAttribute('aria-label', hotkeyName(i, k));
-        b.setAttribute('aria-haspopup', 'dialog');
-        // Not in the Tab order (ADR 0108): Tab belongs to the command line.
-        b.tabIndex = -1;
-        return b;
-      }),
-    );
-    this.el.hidden = !open || slots.length === 0;
-    const lit = open && slots.length > 0;
+    // A box for a slot that is no longer in use has nothing to change.
+    if (this.boxIndex !== null && this.boxIndex >= count) this.closeBox();
+    const column = (slots: number[], second: boolean): HTMLDivElement => {
+      const c = this.doc.createElement('div');
+      c.className = second ? 'wc-ph-hot-col is-second' : 'wc-ph-hot-col';
+      c.append(
+        ...slots.map((i) => {
+          const k = this.keys[i]!;
+          const b = this.doc.createElement('button');
+          b.type = 'button';
+          b.className = 'wc-ph-hk';
+          b.dataset.hk = String(i);
+          b.textContent = k.label;
+          b.setAttribute('aria-label', hotkeyName(i, k));
+          b.setAttribute('aria-haspopup', 'dialog');
+          // Not in the Tab order (ADR 0108): Tab belongs to the command line.
+          b.tabIndex = -1;
+          return b;
+        }),
+      );
+      return c;
+    };
+    const [first, second] = this.columns as [number[], number[]];
+    // Left to right: the second column, then the first. The first keeps its place when it is
+    // empty and the second is not, so K4 to K6 never move under a thumb that learned them.
+    this.el.replaceChildren(...(second.length > 0 ? [column(second, true)] : []), ...(first.length > 0 || second.length > 0 ? [column(first, false)] : []));
+    const any = this.count > 0;
+    this.el.hidden = !open || !any;
+    const lit = open && any;
     this.kEl.classList.toggle('is-on', lit);
     this.kEl.setAttribute('aria-pressed', lit ? 'true' : 'false');
-    this.kEl.setAttribute('aria-label', slots.length === 0 ? 'Set up hot keys' : lit ? 'Hide hot keys' : 'Show hot keys');
+    this.kEl.setAttribute('aria-label', !any ? 'Set up hot keys' : lit ? 'Hide hot keys' : 'Show hot keys');
     this.markHeld();
   }
 
@@ -264,9 +290,12 @@ export class HotkeysView {
     b.label.value = key.label;
     b.command.value = key.command;
     b.error.hidden = true;
-    // The notch points at the key: its place in the column from the foot.
-    // None for a key that is not in the column (the K key opened the box).
-    const slots = columnKeys(this.keys);
+    // The notch points at the key: its place in its column from the foot.
+    // None for a key that is not shown (the K key opened the box), and none
+    // for a key of the first column while the second stands between it and
+    // the box (the notch would point at the wrong key; the held key is lit).
+    const col = this.cols - 1;
+    const slots = this.columns[col]!;
     const at = slots.indexOf(index);
     b.notch.hidden = at < 0 || this.el.hidden;
     // (The notch is a 10 px square with a 1 px border, turned 45°, placed from inside the box's
@@ -321,7 +350,7 @@ export class HotkeysView {
     const index = this.boxIndex;
     const b = this.box;
     if (index === null || !b) return;
-    const res = checkHotkey({ ...this.draft, label: b.label.value, command: b.command.value }, this.deps.split);
+    const res = checkHotkey({ ...this.draft, label: b.label.value, command: b.command.value });
     if (!res.ok) {
       b.error.textContent = res.error;
       b.error.hidden = false;
@@ -342,7 +371,7 @@ export class HotkeysView {
     b.tokenText.textContent = sp?.text ?? '';
     b.command.hidden = sp !== null;
     const cmd = cleanCommand(b.command.value);
-    b.says.textContent = sendsNow({ command: b.command.value, special: d.special }, this.deps.hp(), this.deps.split);
+    b.says.textContent = sendsNow({ command: b.command.value, special: d.special }, this.deps.hp());
     const picked = sp === null && (HOTKEY_PICKS as readonly string[]).includes(cmd);
     for (const c of b.picks) {
       const on = sp === null && (c.dataset.pick === 'custom' ? !picked : c.dataset.pick === cmd);

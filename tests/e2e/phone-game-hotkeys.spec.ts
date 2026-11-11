@@ -10,6 +10,11 @@
 // - Hidden with the keyboard up, except an open box; the lens hides while
 //   the box would collide with it.
 //
+// Stage 52: one to six keys (a setting), above three in a second column
+// left of the first; a key's line may hold several commands; and the
+// on-screen keyboard: no key raises it, and a field lets go of the focus
+// when the keyboard goes down.
+//
 // `phone` project (Pixel 7). The sending cases play against a
 // `page.routeWebSocket` mock; the rest use the offline cockpit. Nothing
 // reaches MUME.
@@ -17,7 +22,7 @@ import { type Locator, type Page, type WebSocketRoute, expect, test } from '@pla
 
 const pad = (page: Page) => page.locator('.wc-ph-pad');
 const hot = (page: Page) => page.locator('.wc-ph-hot');
-const hk = (page: Page, n: 1 | 2 | 3) => page.locator(`.wc-ph-hk[data-hk="${n - 1}"]`);
+const hk = (page: Page, n: 1 | 2 | 3 | 4 | 5 | 6) => page.locator(`.wc-ph-hk[data-hk="${n - 1}"]`);
 const kKey = (page: Page) => page.locator('.wc-ph-key.is-tog');
 const rb = (page: Page) => page.locator('.wc-ph-rb');
 const label = (page: Page) => rb(page).locator('#wc-ph-rb-label');
@@ -154,22 +159,28 @@ test('defaults: wimp, bash and asst in a column above the compass, K1 lowest; th
   await expect(hk(page, 1)).toHaveAttribute('aria-label', 'K1: assist');
   await expect(hk(page, 2)).toHaveAttribute('aria-label', 'K2: bash');
   await expect(hk(page, 3)).toHaveAttribute('aria-label', 'K3: wimpy at half of current HP');
+  // Six slots are stored; three are in use.
   expect(await hotkeys(page)).toEqual([
     { label: 'asst', command: 'assist', special: null, shown: true },
     { label: 'bash', command: 'bash', special: null, shown: true },
     { label: 'wimp', command: '', special: 'wimpy50', shown: true },
+    { label: 'resc', command: 'rescue', special: null, shown: true },
+    { label: 'shot', command: 'shoot', special: null, shown: true },
+    { label: 'rcvr', command: 'recover', special: null, shown: true },
   ]);
-  // The mockup's geometry: 40 px round keys, 3 px apart, 8 px from the right edge, the foot 142 px up.
+  expect(await page.evaluate(() => window.__wc!.settings.get().phone.hotkeyCount)).toBe(3);
+  await expect(page.locator('.wc-ph-hot-col')).toHaveCount(1);
+  // The mockup's geometry at portrait's 36 px keys: round, 3 px apart, 8 px from the right edge, the foot 130 px up.
   const c = await box(page.locator('.wc-cockpit'));
   const k1 = await box(hk(page, 1));
   const k2 = await box(hk(page, 2));
   const k3 = await box(hk(page, 3));
   for (const k of [k1, k2, k3]) {
-    expect(k.width).toBeCloseTo(40, 0);
-    expect(k.height).toBeCloseTo(40, 0);
+    expect(k.width).toBeCloseTo(36, 0);
+    expect(k.height).toBeCloseTo(36, 0);
     expect(c.x + c.width - (k.x + k.width)).toBeCloseTo(8, 0);
   }
-  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(142, 0);
+  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(130, 0);
   expect(k1.y - (k2.y + k2.height)).toBeCloseTo(3, 0);
   expect(k2.y - (k3.y + k3.height)).toBeCloseTo(3, 0);
   expect(await hk(page, 1).evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
@@ -180,7 +191,7 @@ test('defaults: wimp, bash and asst in a column above the compass, K1 lowest; th
   const k = await box(kKey(page));
   expect(k.x - p.x).toBeCloseTo(0, 0);
   expect(k.y - p.y).toBeCloseTo(0, 0);
-  expect(k.width).toBeCloseTo(40, 0);
+  expect(k.width).toBeCloseTo(36, 0);
   const ring = await box(kKey(page).locator('.wc-ph-kk'));
   expect(ring.width).toBeCloseTo(24, 0);
   expect(ring.height).toBeCloseTo(24, 0);
@@ -252,47 +263,312 @@ test('a tap sends the key\'s command once, as typed and echoed, and never focuse
   expect(errors).toEqual([]);
 });
 
-test('one command per tap: the box refuses a line with the separator, and a stored one sends nothing', async ({ page }) => {
+test('several commands on one key (stage 52): the box saves a line with the separator, and a tap sends it as typed', async ({ page }) => {
+  const errors = watchErrors(page);
   const m = await enterMock(page);
   await m.login();
-  // The box: a line the command line would split into two is not saved.
   await hold(page, hk(page, 2));
   await command(page).fill('stand;bash');
-  await expect(rb(page).locator('.wc-ph-rb-say')).toHaveText('Would send nothing: more than one command');
-  await bt(page, 'Save').tap();
-  await expect(rb(page).locator('.wc-ph-rb-err')).toHaveText('One command per key. Use an alias for more.');
-  await expect(rb(page)).toBeVisible();
-  expect((await hotkeys(page))[1]!.command).toBe('bash');
-  // One command is: an escaped separator does not split.
-  await command(page).fill('say a\\;b');
-  await expect(rb(page).locator('.wc-ph-rb-err')).toBeHidden();
+  // No refusal: the line says what goes, Save stores it as written.
+  await expect(rb(page).locator('.wc-ph-rb-say')).toHaveText('Would send now: stand;bash');
+  await label(page).fill('sb');
   await bt(page, 'Save').tap();
   await expect(rb(page)).toBeHidden();
-  expect((await hotkeys(page))[1]!.command).toBe('say a\\;b');
-  // A stored value with the separator (edited by hand, or older): the tap sends nothing and says so, once per tap.
-  await page.evaluate(() => {
-    const s = window.__wc!.settings;
-    const keys = s.get().phone.hotkeys;
-    s.update({ phone: { hotkeys: [keys[0]!, { label: 'sb', command: 'stand;bash', special: null, shown: true }, keys[2]!] } });
-  });
+  await expect(rb(page).locator('.wc-ph-rb-err')).toBeHidden();
+  expect((await hotkeys(page))[1]).toEqual({ label: 'sb', command: 'stand;bash', special: null, shown: true });
   await expect(hk(page, 2)).toHaveText('sb');
+  await expect(hk(page, 2)).toHaveAttribute('aria-label', 'K2: stand;bash');
+  // One tap: the line goes through the command line's path once, and the engine splits it there.
   const typed = await watchTyped(page);
   await hk(page, 2).tap();
-  await expect(rows(page).filter({ hasText: 'Hot key: one command per key, so nothing was sent. Use an alias for more.' })).toHaveCount(1);
-  expect(m.sent).toEqual([]);
-  expect(await typed()).toEqual([]);
-  // The notice is gated like the keys: none at a password prompt.
+  await expect.poll(() => m.sent).toEqual(['stand', 'bash']);
+  expect(await typed()).toEqual(['stand;bash']);
+  await expect(rows(page).filter({ hasText: 'Hot key:' })).toHaveCount(0);
+  // An escaped separator is still one command.
+  await hold(page, hk(page, 1));
+  await command(page).fill('say a\\;b');
+  await bt(page, 'Save').tap();
+  await expect(rb(page)).toBeHidden();
+  await hk(page, 1).tap();
+  await expect.poll(() => m.sent.length).toBe(3);
+  expect(m.sent[2]).toContain('say a');
+  // Gated like every key: nothing at a password prompt.
   m.server().send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, ECHO])]));
   await expect.poll(() => page.evaluate(() => window.__wc!.app.input.isPasswordMode())).toBe(true);
   await hk(page, 2).tap();
-  await hk(page, 1).tap();
   m.server().send(Buffer.from([IAC, WONT, ECHO]));
   await expect.poll(() => page.evaluate(() => window.__wc!.app.input.isPasswordMode())).toBe(false);
-  // The other keys are untouched: a single command still goes as typed.
+  await hk(page, 2).tap();
+  await expect.poll(() => m.sent.length).toBe(5);
+  expect(m.sent.slice(3)).toEqual(['stand', 'bash']);
+  expect(await inputFocused(page)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+// ------------------------------------------------- one to six keys (stage 52)
+
+const count = (page: Page) => page.evaluate(() => window.__wc!.settings.get().phone.hotkeyCount);
+
+test('Settings → Quick buttons → Number of K keys: 1 to 6; above three a second column directly left of the first, K4 lowest', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page);
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
+  const row = page.locator('.wc-ph-page [data-group="compass"] [data-row="hotkey-count"]');
+  await expect(row.locator('.wc-ph-srow-t')).toHaveText('Number of K keys');
+  await expect(row.locator('.wc-ph-step-val')).toHaveText('3');
+  const more = row.getByRole('button', { name: 'More K keys' });
+  const less = row.getByRole('button', { name: 'Fewer K keys' });
+  for (const k of [more, less]) expect((await box(k)).height).toBeGreaterThanOrEqual(44);
+  for (let i = 0; i < 3; i++) await more.tap();
+  await expect(row.locator('.wc-ph-step-val')).toHaveText('6');
+  await expect(more).toHaveAttribute('aria-disabled', 'true');
+  expect(await count(page)).toBe(6);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-ph-sheet')).toBeHidden();
+  // Two columns: the second (K6, K5, K4 from the top) left of the first, one gap apart.
+  await expect(page.locator('.wc-ph-hot-col')).toHaveCount(2);
+  await expect(page.locator('.wc-ph-hot-col.is-second .wc-ph-hk')).toHaveText(['rcvr', 'shot', 'resc']);
+  await expect(page.locator('.wc-ph-hot-col:not(.is-second) .wc-ph-hk')).toHaveText(['wimp', 'bash', 'asst']);
+  await expect(hk(page, 4)).toHaveAttribute('aria-label', 'K4: rescue');
+  await expect(hk(page, 5)).toHaveAttribute('aria-label', 'K5: shoot');
+  await expect(hk(page, 6)).toHaveAttribute('aria-label', 'K6: recover');
+  const c = await box(page.locator('.wc-cockpit'));
+  const p = await box(pad(page));
+  for (const [right, left] of [[1, 4], [2, 5], [3, 6]] as const) {
+    const a = await box(hk(page, right));
+    const b = await box(hk(page, left));
+    expect(b.width).toBeCloseTo(36, 0);
+    expect(b.height).toBeCloseTo(36, 0);
+    expect(b.y).toBeCloseTo(a.y, 0);
+    expect(a.x - (b.x + b.width)).toBeCloseTo(3, 0);
+    expect(c.x + c.width - (a.x + a.width)).toBeCloseTo(8, 0);
+    // Above the compass, and not left of it (the command field's room is untouched).
+    expect(b.y + b.height).toBeLessThanOrEqual(p.y);
+    expect(b.x).toBeGreaterThanOrEqual(p.x - 0.5);
+  }
+  const k4 = await box(hk(page, 4));
+  expect(c.y + c.height - (k4.y + k4.height)).toBeCloseTo(130, 0);
+  expect(await hk(page, 4).evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
+  // The lens keeps clear of both columns.
+  const l = await box(page.locator('.wc-ph-lens'));
+  expect(l.y + l.height).toBeLessThanOrEqual((await box(hk(page, 6))).y);
+  // The K key shows and hides all of them.
+  await kKey(page).tap();
+  await expect(hot(page)).toBeHidden();
+  await expect(page.locator('.wc-ph-hk:visible')).toHaveCount(0);
+  await kKey(page).tap();
+  await expect(page.locator('.wc-ph-hk:visible')).toHaveCount(6);
+  // Kept over a reload.
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await page.reload();
+  await expect(pad(page)).toBeVisible();
+  await expect(page.locator('.wc-ph-hk')).toHaveCount(6);
+  // Fewer: the slots above the count are neither shown nor reachable, and keep what they hold.
+  for (const [n, labels] of [[5, ['shot', 'resc']], [4, ['resc']]] as const) {
+    await page.evaluate((n) => window.__wc!.settings.update({ phone: { hotkeyCount: n } }), n);
+    await expect(page.locator('.wc-ph-hot-col.is-second .wc-ph-hk')).toHaveText([...labels]);
+    await expect(page.locator('.wc-ph-hk')).toHaveCount(n);
+  }
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 1 } }));
+  await expect(page.locator('.wc-ph-hot-col')).toHaveCount(1);
+  await expect(page.locator('.wc-ph-hk')).toHaveText(['asst']);
+  expect((await hotkeys(page)).map((k) => k.label)).toEqual(['asst', 'bash', 'wimp', 'resc', 'shot', 'rcvr']);
+  expect(errors).toEqual([]);
+});
+
+test('six keys: a key of the second column sends its command; held, its box stands left of both columns and saves that slot', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await enterMock(page);
+  await m.login();
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
+  await expect(page.locator('.wc-ph-hk')).toHaveCount(6);
+  await hk(page, 4).tap();
+  await hk(page, 6).tap();
   await hk(page, 1).tap();
-  await expect.poll(() => m.sent).toEqual(['assist']);
-  expect(await typed()).toEqual(['assist']);
-  await expect(rows(page).filter({ hasText: 'Hot key:' })).toHaveCount(1);
+  await expect.poll(() => m.sent).toEqual(['rescue', 'recover', 'assist']);
+  expect(await inputFocused(page)).toBe(false);
+  // The box of K5: left of both columns, its notch at K5's height.
+  await hold(page, hk(page, 5));
+  await expect(rb(page).locator('.wc-ph-rb-k')).toHaveText('K5');
+  await expect(hk(page, 5)).toHaveClass(/\bis-held\b/);
+  const b = await box(rb(page));
+  for (const n of [1, 2, 3, 4, 5, 6] as const) expect(b.x + b.width).toBeLessThanOrEqual((await box(hk(page, n))).x);
+  const notch = await box(rb(page).locator('.wc-ph-rb-n'));
+  const k5 = await box(hk(page, 5));
+  expect(Math.abs(notch.y + notch.height / 2 - (k5.y + k5.height / 2))).toBeLessThan(3);
+  await chip(page, 'bash').tap();
+  await bt(page, 'Save').tap();
+  await expect(rb(page)).toBeHidden();
+  expect((await hotkeys(page))[4]).toEqual({ label: 'bash', command: 'bash', special: null, shown: true });
+  await expect(hk(page, 5)).toHaveText('bash');
+  // A key of the first column while the second stands between: no notch (it would point at the wrong key).
+  await hold(page, hk(page, 2));
+  await expect(rb(page).locator('.wc-ph-rb-k')).toHaveText('K2');
+  await expect(rb(page).locator('.wc-ph-rb-n')).toBeHidden();
+  // Hidden by its own switch: K5 leaves no hole (K6 moves down), the first column stays.
+  await bt(page, 'Cancel').tap();
+  await hold(page, hk(page, 5));
+  await shown(page).tap();
+  await bt(page, 'Save').tap();
+  await expect(page.locator('.wc-ph-hot-col.is-second .wc-ph-hk')).toHaveText(['rcvr', 'resc']);
+  expect((await box(hk(page, 6))).y).toBeCloseTo((await box(hk(page, 2))).y, 0);
+  expect(errors).toEqual([]);
+});
+
+// ------------------------------------- the on-screen keyboard and the focus (stage 52)
+
+/** The simulated keyboard: the visible area shrinks (up) or is whole again (down); settled when `wc-kbd` follows. */
+async function keyboard(page: Page, up: boolean, size: { width: number; height: number }): Promise<void> {
+  await page.setViewportSize(up ? { width: size.width, height: size.height - 320 } : size);
+  if (up) await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
+  else await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
+}
+
+test('the keyboard folded down while the command field has the focus: the field lets go, and a hot key tap sends without taking the focus back', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await enterMock(page);
+  await m.login();
+  const size = page.viewportSize()!;
+  // Type and send a command with the keyboard up.
+  await field(page).tap();
+  expect(await inputFocused(page)).toBe(true);
+  await keyboard(page, true, size);
+  // Coming up does not blur: the field is being typed in.
+  expect(await inputFocused(page)).toBe(true);
+  await page.keyboard.type('look');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => m.sent).toEqual(['look']);
+  expect(await inputFocused(page)).toBe(true);
+  // Android's back key folds the keyboard and leaves the focus where it was: the layer takes it out.
+  await keyboard(page, false, size);
+  await expect.poll(() => inputFocused(page)).toBe(false);
+  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+  // A tap on each kind of key: sent, and the field is not focused afterwards.
+  await hk(page, 1).tap();
+  await expect.poll(() => m.sent).toEqual(['look', 'assist']);
+  expect(await inputFocused(page)).toBe(false);
+  await page.locator('.wc-ph-key[data-cmd="north"]').tap();
+  await expect.poll(() => m.sent).toEqual(['look', 'assist', 'north']);
+  expect(await inputFocused(page)).toBe(false);
+  await kKey(page).tap();
+  await kKey(page).tap();
+  await lens(page).locator('.wc-ph-lens-glass').tap();
+  expect(await inputFocused(page)).toBe(false);
+  for (const name of ['panes', 'comm']) {
+    const sat = page.locator(`.wc-ph-sat[data-sat="${name}"]:visible`);
+    await sat.tap();
+    await expect(sat).toHaveAttribute('aria-pressed', 'true');
+    expect(await inputFocused(page)).toBe(false);
+    await sat.tap();
+    await expect(sat).toHaveAttribute('aria-pressed', 'false');
+  }
+  await page.locator('.wc-ph-menu').tap();
+  await expect(page.locator('.wc-ph-sheet')).toBeVisible();
+  await page.locator('.wc-ph-sheet [data-row="close"]').tap();
+  await expect(page.locator('.wc-ph-sheet')).toBeHidden();
+  expect(await inputFocused(page)).toBe(false);
+  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
+  // The field still works: a tap focuses it again.
+  await field(page).tap();
+  expect(await inputFocused(page)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('a rotation with the keyboard up is not the keyboard folding: the field keeps the focus (stage 52)', async ({ page }) => {
+  const m = await enterMock(page);
+  await m.login();
+  const size = page.viewportSize()!;
+  await field(page).tap();
+  await keyboard(page, true, size);
+  expect(await inputFocused(page)).toBe(true);
+  // Rotated, the keyboard still up: at the new width the viewport's baseline starts again and
+  // `wc-kbd` drops. The width changed with it, so the layer does not take the focus (which
+  // would fold the keyboard under the player's fingers).
+  await page.setViewportSize({ width: size.height, height: 240 });
+  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  expect(await inputFocused(page)).toBe(true);
+  await page.keyboard.type('look');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => m.sent).toEqual(['look']);
+  // Back upright with the keyboard up, then folded at that width: now the field lets go.
+  await page.setViewportSize({ width: size.width, height: size.height });
+  // (The viewport module takes the full height at this width in before the keyboard comes: its settle time.)
+  await expect.poll(async () => (await box(page.locator('.wc-cockpit'))).height).toBeGreaterThan(size.height - 60);
+  await page.waitForTimeout(400);
+  await keyboard(page, true, size);
+  expect(await inputFocused(page)).toBe(true);
+  await keyboard(page, false, size);
+  await expect.poll(() => inputFocused(page)).toBe(false);
+});
+
+test('fullscreen entered or left with the keyboard up: folding the keyboard afterwards still takes the focus out (52b review)', async ({ page }) => {
+  // A fake fullscreen state, as tests/e2e/phone-viewport-fullscreen.spec.ts has it.
+  await page.addInitScript(() => {
+    let full = false;
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => (full ? document.documentElement : null) });
+    (window as unknown as { __fs: (on: boolean) => void }).__fs = (on) => {
+      full = on;
+      document.dispatchEvent(new Event('fullscreenchange'));
+    };
+  });
+  const m = await enterMock(page);
+  await m.login();
+  const size = page.viewportSize()!;
+  for (const on of [true, false]) {
+    await field(page).tap();
+    await keyboard(page, true, size);
+    expect(await inputFocused(page)).toBe(true);
+    // The fullscreen state flips while the keyboard stays up: the field keeps the focus through
+    // the change and the viewport's re-measuring after it.
+    await page.evaluate((on) => (window as unknown as { __fs: (on: boolean) => void }).__fs(on), on);
+    await page.waitForTimeout(1000);
+    await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
+    expect(await inputFocused(page)).toBe(true);
+    // Folded now: the field lets go, so no later tap on a key can raise the keyboard again.
+    await keyboard(page, false, size);
+    await expect.poll(() => inputFocused(page)).toBe(false);
+    await hk(page, 1).tap();
+    expect(await inputFocused(page)).toBe(false);
+  }
+  await expect.poll(() => m.sent).toEqual(['assist', 'assist']);
+});
+
+test('the keyboard going down blurs whichever field of the phone layout has the focus: Comm\'s reply, the hot key box', async ({ page }) => {
+  const m = await enterMock(page);
+  await m.login();
+  const size = page.viewportSize()!;
+  const active = () => page.evaluate(() => `${document.activeElement?.tagName}.${document.activeElement?.className ?? ''}#${document.activeElement?.id ?? ''}`);
+  // The box's Command field.
+  await hold(page, hk(page, 2));
+  await chip(page, 'custom').tap();
+  await expect(command(page)).toBeFocused();
+  await keyboard(page, true, size);
+  await expect(command(page)).toBeFocused();
+  await page.keyboard.type(' orc');
+  await keyboard(page, false, size);
+  await expect.poll(active).not.toContain('wc-ph-rb-command');
+  // The box stays, with what was typed; nothing was saved or sent.
+  await expect(rb(page)).toBeVisible();
+  await expect(command(page)).toHaveValue('bash orc');
+  await bt(page, 'Cancel').tap();
+  // Comm's reply line.
+  m.server().send(Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(`Comm.Channel.Text ${JSON.stringify({ channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'ford?'" })}`), Buffer.from([IAC, SE])]));
+  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+  const comm = page.locator('.wc-cockpit > .wc-pane[data-pane="comm"]');
+  await comm.locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
+  const reply = comm.locator('.wc-cm-rinput');
+  await reply.tap();
+  await expect(reply).toBeFocused();
+  await keyboard(page, true, size);
+  await expect(reply).toBeFocused();
+  await page.keyboard.type('yes');
+  await keyboard(page, false, size);
+  await expect(reply).not.toBeFocused();
+  await expect(reply).toHaveValue('yes');
+  expect(m.sent).toEqual([]);
 });
 
 test('the special: unknown hp sends nothing and says so; then wimpy at half of the CURRENT hp', async ({ page }) => {
@@ -535,7 +811,7 @@ test('Shown off removes a key; with none shown the K key opens the box for K1', 
   const c = await box(page.locator('.wc-cockpit'));
   const k1 = await box(hk(page, 1));
   const k3 = await box(hk(page, 3));
-  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(142, 0);
+  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(130, 0);
   expect(k1.y - (k3.y + k3.height)).toBeCloseTo(3, 0);
   // The hidden key keeps what it was set to.
   expect((await hotkeys(page))[1]).toEqual({ label: 'bash', command: 'bash', special: null, shown: false });
@@ -646,43 +922,52 @@ test('a short screen: the box scrolls inside the visible area and its buttons ca
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('the column shown and the strip open: the lens stays hidden, its keys a row clear of the column; the strip takes an open box\'s place', async ({ page }) => {
+  // Stage 52c: the lens stands left of the column (tests/e2e/phone-game-landscape.spec.ts has the
+  // layout); here the hot keys' own part of it.
+  test('the lens shows beside the column, with or without it; an open box hides the lens and its key row, and stays right of the strip\'s column', async ({ page }) => {
     const errors = watchErrors(page);
     await openPhone(page);
-    // 390 px high: three hot keys reach into the lens's place (ADR 0136 §4).
     await expect(hot(page)).toBeVisible();
-    await expect(lens(page)).toBeHidden();
-    await expect(satrow(page)).toBeVisible();
-    await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
-    const strip = page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
-    await expect(strip).toHaveAttribute('data-pane', 'timers');
-    await expect(lens(page)).toBeHidden();
-    await expect(satrow(page)).toBeVisible();
-    await expect(hot(page)).toBeVisible();
-    await expect(hot(page).locator('.wc-ph-hk')).toHaveCount(3);
-    // Nothing overlaps: the strip above, the key row under it, the column under the row.
-    const s = await box(strip);
-    const r = await box(satrow(page));
-    const col = await box(hot(page));
-    expect(r.y).toBeGreaterThanOrEqual(s.y + s.height);
-    expect(col.y).toBeGreaterThanOrEqual(s.y + s.height);
-    expect(r.y + r.height <= col.y + 1 || r.x + r.width <= col.x).toBe(true);
-    // With the K key the column goes; the 150 px lens still has no room under the strip.
+    // 44 px keys; the lens at its full size (163 px on a 390 px short side), left of the column.
+    expect((await box(hk(page, 1))).width).toBeCloseTo(44, 0);
+    await expect(lens(page)).toBeVisible();
+    await expect(satrow(page)).toBeHidden();
+    const l = await box(lens(page));
+    expect(l.width).toBeCloseTo(163, 0);
+    expect(l.x + l.width).toBeLessThanOrEqual((await box(hot(page))).x);
+    // K: the column goes, the lens stays where it is.
     await kKey(page).tap();
     await expect(hot(page)).toBeHidden();
-    await expect(lens(page)).toBeHidden();
-    // The strip closed and the column hidden: the lens is back.
-    await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
-    await expect(strip).toHaveCount(0);
     await expect(lens(page)).toBeVisible();
+    expect((await box(lens(page))).x).toBeCloseTo(l.x, 0);
     await kKey(page).tap();
-    await expect(lens(page)).toBeHidden();
-    // An open box (it fills the short screen) gives way when the strip opens into its place.
+    await expect(hot(page)).toBeVisible();
+    // The box fills the short screen's height: the lens gives way, and no key row lies on the box.
     await hold(page, hk(page, 1));
     await expect(rb(page)).toBeVisible();
+    await expect(lens(page)).toBeHidden();
+    await expect(satrow(page)).toBeHidden();
+    // The strip opens as a column from the left: the box has room right of it and stays.
     await page.keyboard.press('Control+1');
+    const strip = page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
     await expect(strip).toHaveCount(1);
+    await expect(rb(page)).toBeVisible();
+    const s = await box(strip);
+    const b = await box(rb(page));
+    expect(b.x).toBeGreaterThanOrEqual(s.x + s.width - 0.5);
+    expect(b.x + b.width).toBeLessThanOrEqual((await box(hot(page))).x);
+    // At the column's greatest width too (the box narrows to what is left).
+    await page.evaluate(() => window.__wc!.settings.update({ phone: { sideCols: 200 } }));
+    await expect.poll(async () => (await box(strip)).width).toBeGreaterThan(s.width);
+    const s2 = await box(strip);
+    const b2 = await box(rb(page));
+    await expect(rb(page)).toBeVisible();
+    expect(b2.x).toBeGreaterThanOrEqual(s2.x + s2.width - 0.5);
+    expect(b2.width).toBeGreaterThanOrEqual(200);
+    await bt(page, 'Cancel').scrollIntoViewIfNeeded();
+    await bt(page, 'Cancel').tap();
     await expect(rb(page)).toBeHidden();
+    await expect(lens(page)).toBeVisible();
     expect(errors).toEqual([]);
   });
 });

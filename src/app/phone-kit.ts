@@ -11,7 +11,6 @@ import { keyboardUp } from '../layout/phone-viewport';
 import { fightView } from '../panes/group-model';
 import { GROUP_DARK } from '../panes/palette';
 import type { PhoneKit } from '../phone/kit';
-import { splitCommands } from '../script/engine/text';
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from '../settings/types';
 import { isLight } from '../theme/color';
 import { FONTS, effectiveFont, fontChoices } from '../theme/fonts';
@@ -38,5 +37,4 @@ export const PHONE_KIT: PhoneKit = {
   canFullscreen,
   toggleFullscreen: (doc) => void toggleFullscreen(doc),
   onFullscreenRefused,
-  splitCommands,
 };

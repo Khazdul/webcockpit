@@ -22,8 +22,9 @@
 //                   (settings-page.tsx) it leads to
 //   strip.ts        the pane strip's hood and dots, and its swipe
 //                   (strip-model.ts, swipe.ts); the pane is the cockpit's
-//   comm-chrome.ts  Comm's resize band; Comm is the cockpit's Comm pane,
-//                   in its phone mode, and the Comm key's badge (unread.ts)
+//   comm-chrome.ts  the resize bands of the strip and of Comm; Comm is the
+//                   cockpit's Comm pane, in its phone mode, and the Comm
+//                   key's badge (unread.ts)
 //   hotkeys.ts      the hot key column, the K key in the compass's free
 //                   cell, and the box a held key opens (hotkey-model.ts)
 //   here            the menu key in the command row, and the wiring
@@ -31,7 +32,16 @@
 // Cost (stage 51 rule 4): nothing runs per frame or per incoming line. The
 // fight card follows the game state's change notifications (GMCP `Char.*`
 // and `Group.*` that changed something) and redraws only when its
-// signature changes; the geometry follows the cockpit's layouts.
+// signature changes; the geometry follows the cockpit's layouts. A band's
+// drag lays out when the finger reaches another row (the cockpit at most
+// once per frame), and MUME gets one window size for it, on the release.
+//
+// Landscape (stage 52c; the cockpit's layout says which, `landscape`): the
+// strip and Comm are one column from the left with one band along its
+// right edge, dragged sideways; the fight card, the game text and the
+// command row are what is right of it; the lens and its key row stand left
+// of the hot key columns. The keys are 36 px in portrait and 44 px in
+// landscape (compass-size.ts).
 
 import './phone.css';
 import type { GameState } from '../gmcp/state';
@@ -44,16 +54,16 @@ import { type PlayState, keysLive } from './play-gate';
 import { sizeFits } from './text-settings';
 import { sectionChanged } from './changed';
 import { LensView } from './lens';
-import { type LensLevel, lensLevel, lensPx, lensZoom } from './lens-zoom';
+import { type LensLevel, LENS_MIN_PX, lensFullPx, lensLevel, lensZoom } from './lens-zoom';
 import type { MapPane } from '../panes/map';
 import type { CommPane } from '../panes/comm';
 import type { PaneId } from '../layout/types';
-import { CommBand } from './comm-chrome';
+import { CommHead, ResizeBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
-import { PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop } from './compass-size';
-import { pulse } from './haptics';
+import { HOT_TOP_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from './compass-size';
+import { phoneDefaultsAtStart } from './phone-defaults';
 import { WakeLock, wakeWanted } from './wake-lock';
 import { HotkeysView } from './hotkeys';
 import { hotkeyPress, knownHp, withHotkey } from './hotkey-model';
@@ -62,6 +72,7 @@ import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhone
 export type { PhoneControls, PhoneKit } from './kit';
 import type { AppStatusView } from '../app/status';
 import type { SettingsStore } from '../settings';
+import type { LiveRuns } from '../runs/live';
 
 export type { MenuFrame } from './menu-sheet';
 
@@ -70,14 +81,28 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 /** The lens's place (the mockups): 16 px under the fight card or the top edge, 12 px from the right edge. */
 const LENS_GAP_TOP = 16;
 const LENS_GAP_RIGHT = 12;
+/** Landscape: the lens's air to the left column: its corner key's overhang and the band's grip. */
+const LENS_GAP_LEFT = 20;
+/** A lens key's overhang over the lens's box (phone.css), and the key row's width: three keys and two gaps. */
+const SAT_OVER = 10;
+const SATROW_W = 3 * 40 + 2 * 6;
 /** What the lens keeps clear above the column or the box: its ring and shadow, and a little air. */
 const LENS_CLEAR = 16;
+/**
+ * Landscape: the same two, tighter (the corner keys' 10 px overhang and a little air). A phone
+ * outside fullscreen has some 270 to 280 px of height there, and at 16 px the whole rows left
+ * for the lens came out under its least size.
+ */
+const LENS_GAP_TOP_LAND = 12;
+const LENS_CLEAR_LAND = 12;
 /** The box's air to the command row (the keyboard up) and to the top edge. */
 const BOX_GAP = 8;
 /** A lens key's side, px (phone.css). */
 const SAT_PX = 40;
 /** The key row's air under what is above it (the lens hidden). */
 const SATROW_GAP = 8;
+/** After a rotation or a fullscreen change: how long a drop of `wc-kbd` is taken for the change's own (phone-viewport.ts settles within 500 ms). */
+const SHAPE_SETTLE_MS = 800;
 /** What the lens fixes on the map pane (ADR 0136 §4): Shimrod, alternating with MUME's season, on black. */
 const LENS_LOOK = { tileset: 'shimrod', background: '#000000' } as const;
 
@@ -105,6 +130,9 @@ export interface PhoneLayerDeps {
   scriptsOn(): number;
   reconnect(): void;
   openFrame(frame: MenuFrame): void;
+  /** Exit session, confirmed (the shell's `exitSession`), and the live run for its rating. */
+  exit(): void;
+  runs?: Pick<LiveRuns, 'anchor' | 'chain' | 'saveChain'> | undefined;
   /** The menu closed back to the game. */
   onMenuClose?(): void;
 }
@@ -125,12 +153,17 @@ export class PhoneLayer {
   private readonly lens: LensView;
   /** The cockpit's map pane: the lens's map (the one worker and canvas). */
   private readonly map: MapPane;
-  /** The lens as last applied: its diameter (0: not shown) and the "Opens at" it started from. */
-  private lensSize = 0;
+  /** The lens's full diameter as asked of the cockpit (0: not shown) and the "Opens at" it started from. */
+  private lensFull = 0;
   private lensOpensAt: LensLevel | null = null;
+  /** The lens's diameter on screen now, from the last layout (0: hidden): the clip, the dressing and the zoom follow it. */
+  private lensSize = 0;
+  /** The map pane's own element (the clip's diameter is set on it, not on the cockpit: nothing else restyles). */
+  private readonly mapEl: HTMLElement;
   /** The zoom last sent to the map, as `size:level` (nothing is sent again for the same). */
   private lensZoomKey = '';
   private readonly strip: StripView;
+  private readonly stripBand: ResizeBand;
   /** The strip's pages now, whether it is open, and its page (kept in memory while it is closed). */
   private pages: StripPage[] = [];
   private stripOpen = false;
@@ -140,7 +173,17 @@ export class PhoneLayer {
   private flingOff: (() => void) | null = null;
   /** The cockpit's Comm pane, in its phone mode. */
   private readonly comm: CommPane;
-  private readonly commBand: CommBand;
+  private readonly commBand: ResizeBand;
+  /** Landscape: Comm's hood in the left column, under a divider when the strip is above it. */
+  private readonly commHead: CommHead;
+  /** The cockpit's height the landscape key size was last judged at (not taken while the keyboard is up). */
+  private landH = Infinity;
+  /** Landscape: the band along the left column's right edge. */
+  private readonly sideBand: ResizeBand;
+  /** The landscape arrangement, as of the cockpit's last layout (the keys' size and the lens's place follow it). */
+  private landscape = false;
+  /** `--ph-side-w` as last set on the layer: the left column's width (the hot key box stays right of it). */
+  private sideW = '';
   /** Comm is wanted open (the key); it shows when the screen has the rows. */
   private commOpen = false;
   /** What the last layout really gave the strip and Comm rows for (the keys are lit by these). */
@@ -149,8 +192,11 @@ export class PhoneLayer {
   private readonly hot: HotkeysView;
   /** What the lens must stay out of from the bottom edge, as last asked of the cockpit. */
   private lensClear = 0;
-  /** A compass key's side in px (the setting); the hot keys follow it. */
-  private keyPx = 40;
+  /** A compass key's side in px (portrait or landscape); the hot keys follow it. */
+  private keyPx = 0;
+  /** `--ph-hot-w` as last set: the hot key columns' width. */
+  private hotW = '';
+  private disposed = false;
   private readonly wake: WakeLock;
   /** Connected to MUME, as the wake lock last saw it. */
   private wakeConn = false;
@@ -170,6 +216,7 @@ export class PhoneLayer {
     const compass = new Compass(doc, (cmd) => this.send(cmd));
     const kit = phoneKit();
     this.map = cockpit.pane('map') as unknown as MapPane;
+    this.mapEl = cockpit.pane('map').el;
     this.lens = new LensView(doc, {
       onLevel: () => this.zoomLens(),
       fullscreen: kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : null,
@@ -178,6 +225,35 @@ export class PhoneLayer {
     });
     this.unsubs.push(kit.onFullscreenRefused(() => this.lens.dropFullscreen()));
     this.strip = new StripView(doc);
+    // A band's drag (comm-chrome.ts): the cockpit lays out at each new row and keeps the window
+    // size for MUME back until the release; the height is stored once, on the release.
+    // After it (released, or cancelled) the cockpit has the stored heights again, not the drag's.
+    // While one band is dragged the other part keeps the height it shows now, whatever is
+    // stored for it: a part squeezed by the fight card would else grow back as the dragged one
+    // gives it room, and take that room from the finger's way back.
+    const hold = (on: boolean, band?: 'strip' | 'comm'): void => {
+      cockpit.holdPhoneSize(on);
+      const g = cockpit.phoneGameLayout;
+      if (on) {
+        if (!g || g.landscape) return;
+        if (band === 'strip' && this.commOpen && g.comm.h > 0) cockpit.setPhoneComm({ rows: g.comm.h });
+        if (band === 'comm' && g.strip.h > 0) cockpit.setPhoneStripRows(g.strip.h);
+        return;
+      }
+      const p = deps.settings.get().phone;
+      cockpit.setPhoneStripRows(p.stripRows);
+      cockpit.setPhoneSideCols(p.sideCols);
+      if (this.commOpen) cockpit.setPhoneComm({ rows: p.commRows });
+    };
+    this.stripBand = new ResizeBand(doc, {
+      className: 'wc-ph-rband wc-ph-strip-band',
+      gripClass: 'wc-ph-rgrip wc-ph-strip-grip',
+      label: 'Drag to resize the panes',
+      onDrag: (on) => hold(on, 'strip'),
+      onLive: (rows) => cockpit.setPhoneStripRows(rows),
+      onRows: (rows) => deps.settings.update({ phone: { stripRows: rows } }),
+    });
+    this.stripBand.el.append(this.strip.dots);
     this.comm = cockpit.pane('comm') as unknown as CommPane;
     // The reply line sends only in play, as the keys do (play-gate.ts).
     this.comm.setPhoneMode(true, { live: () => keysLive(deps.playState()) });
@@ -188,18 +264,41 @@ export class PhoneLayer {
       this.syncKeys();
     });
     this.unsubs.push(() => this.comm.onUnread(null));
-    this.commBand = new CommBand(doc, { onRows: (rows) => deps.settings.update({ phone: { commRows: rows } }) });
+    this.commBand = new ResizeBand(doc, {
+      className: 'wc-ph-rband wc-ph-comm-band',
+      gripClass: 'wc-ph-rgrip wc-ph-comm-grip',
+      label: 'Drag to resize Comm',
+      onDrag: (on) => hold(on, 'comm'),
+      onLive: (rows) => {
+        if (this.commOpen) cockpit.setPhoneComm({ rows });
+      },
+      onRows: (rows) => deps.settings.update({ phone: { commRows: rows } }),
+    });
+    this.commHead = new CommHead(doc);
+    this.sideBand = new ResizeBand(doc, {
+      className: 'wc-ph-rband wc-ph-side-band',
+      gripClass: 'wc-ph-rgrip wc-ph-side-grip',
+      label: 'Drag to resize the panes and Comm',
+      axis: 'x',
+      onDrag: (on) => hold(on),
+      onLive: (cols) => cockpit.setPhoneSideCols(cols),
+      onRows: (cols) => deps.settings.update({ phone: { sideCols: cols } }),
+    });
     this.hot = new HotkeysView(doc, {
       press: (i) => this.pressHotkey(i),
       save: (i, key) => deps.settings.update({ phone: { hotkeys: withHotkey(deps.settings.get().phone.hotkeys, i, key) } }),
       toggle: () => deps.settings.update({ phone: { hotkeysOpen: !deps.settings.get().phone.hotkeysOpen } }),
       hp: () => knownHp(deps.game.char.vitals.get('hp')),
-      split: (text) => kit.splitCommands(text),
-      onBox: () => this.syncBox(),
+      onBox: () => {
+        this.syncBox();
+        // Landscape: the lens's key row gives way to an open box (`place`), also when the lens was
+        // hidden already and the cockpit has nothing new to lay out.
+        if (this.landscape) this.place();
+      },
     });
     // The K key takes the compass's free cell, left of N.
     compass.el.prepend(this.hot.kEl);
-    this.el.append(this.strip.el, this.fight.el, this.commBand.el, this.lens.el, this.lens.rowEl, this.hot.el, this.hot.boxEl, compass.el);
+    this.el.append(this.strip.el, this.stripBand.el, this.fight.el, this.commBand.el, this.commHead.el, this.sideBand.el, this.lens.el, this.lens.rowEl, this.hot.el, this.hot.boxEl, compass.el);
     cockpit.el.append(this.el);
     this.menu = new PhoneMenu({
       parent: cockpit.el,
@@ -208,6 +307,8 @@ export class PhoneLayer {
       scriptsOn: () => deps.scriptsOn(),
       reconnect: () => deps.reconnect(),
       openFrame: (f) => deps.openFrame(f),
+      exit: () => deps.exit(),
+      runs: deps.runs,
       onClose: () => deps.onMenuClose?.(),
       // The menu lies over the box (also when a dropped link opens it): the box gives way, unsaved.
       onOpen: () => this.hot.closeBox(),
@@ -235,8 +336,15 @@ export class PhoneLayer {
         if (sectionChanged(next.phone.lens, prev.phone.lens)) this.syncLens();
         if (sectionChanged(next.phone.strip, prev.phone.strip)) this.syncPages();
         if (next.phone.commRows !== prev.phone.commRows && this.commOpen) cockpit.setPhoneComm({ rows: next.phone.commRows });
+        if (next.phone.stripRows !== prev.phone.stripRows) cockpit.setPhoneStripRows(next.phone.stripRows);
+        if (next.phone.sideCols !== prev.phone.sideCols) cockpit.setPhoneSideCols(next.phone.sideCols);
         if (next.phone.unread !== prev.phone.unread) this.syncKeys();
-        if (sectionChanged(next.phone.hotkeys, prev.phone.hotkeys) || next.phone.hotkeysOpen !== prev.phone.hotkeysOpen || next.phone.compassSize !== prev.phone.compassSize) this.syncHotkeys();
+        if (
+          sectionChanged(next.phone.hotkeys, prev.phone.hotkeys) ||
+          next.phone.hotkeyCount !== prev.phone.hotkeyCount ||
+          next.phone.hotkeysOpen !== prev.phone.hotkeysOpen
+        )
+          this.syncHotkeys();
         if (next.phone.wakeLock !== prev.phone.wakeLock) this.wake.sync();
       }),
       // A script pane came, went or was renamed: the strip's pages follow.
@@ -277,6 +385,25 @@ export class PhoneLayer {
     );
     this.wakeConn = this.connected();
     this.wake.sync();
+    this.watchKeyboard(doc);
+    // The lens's full size follows the screen's short side: a rotation (or a resized window) asks again.
+    const onResize = (): void => this.syncLens();
+    win?.addEventListener('resize', onResize);
+    this.unsubs.push(() => win?.removeEventListener('resize', onResize));
+    cockpit.setPhoneStripRows(deps.settings.get().phone.stripRows);
+    cockpit.setPhoneSideCols(deps.settings.get().phone.sideCols);
+    // Before the cockpit's first layout: the window's shape (the cockpit judges the same way).
+    this.setShape(cockpit.phoneGameLayout?.landscape ?? cockpit.el.clientWidth > cockpit.el.clientHeight, cockpit.el.clientHeight);
+    // The one-time phone defaults (phone-defaults.ts): once per device, judged on the STORED
+    // settings (before the load the store holds a new phone's defaults, which carry the mark).
+    // `load()` is the store's one load, long done here as a rule. The subscriber above follows
+    // the change like any other.
+    void deps.settings.load().then(() => {
+      if (this.disposed) return;
+      // Never in safe mode (`?safe`): this automatic write would save the default appearance.
+      const once = phoneDefaultsAtStart(deps.settings.get(), deps.settings.isSafe);
+      if (once) deps.settings.update(once);
+    });
     this.syncPages();
     this.syncHotkeys();
     this.syncLens();
@@ -293,8 +420,81 @@ export class PhoneLayer {
   send(cmd: string): void {
     if (!keysLive(this.deps.playState())) return;
     this.deps.command(cmd);
-    // Felt only when the tap did send (ADR 0136 §7).
-    if (this.deps.settings.get().phone.vibrate) pulse(this.el.ownerDocument.defaultView?.navigator);
+  }
+
+  /**
+   * The on-screen keyboard went down while a field still had the focus:
+   * the field lets go (stage 52).
+   *
+   * Android does not blur a field when its keyboard is folded away with
+   * the back key: the command field stays focused and looks selected, and
+   * the owner saw a hot key tap bring the keyboard back. Nothing in the
+   * phone layer or on a key's path calls `focus()` (the input pane's own
+   * `focus()` returns at once after a touch, and does nothing for a field
+   * that has the focus already). The likely cause, NOT VERIFIED ON A
+   * DEVICE: Chrome on Android shows the keyboard again for a tap the page
+   * does not cancel while an editable element has the focus. Either way
+   * the remedy is here: with no focused field no tap can raise it.
+   *
+   * The keyboard's state is `html.wc-kbd` (src/layout/phone-viewport.ts
+   * sets it once the viewport has been quiet, so never in the middle of
+   * the keyboard's opening). Only the settled change from up to down
+   * blurs, and only a text field of the cockpit (the command field,
+   * Comm's reply, a field of the hot key box). A change that comes with a
+   * rotation or a fullscreen change is not the keyboard folding: no blur. The observer runs on a
+   * change of `<html>`'s class only: nothing per frame or per line.
+   */
+  private watchKeyboard(doc: Document): void {
+    const root = doc.documentElement;
+    const MO = doc.defaultView?.MutationObserver;
+    if (!MO) return;
+    // A rotation or a fullscreen change with the keyboard up makes the viewport module start its
+    // baseline again, and `wc-kbd` drops although the keyboard is still there: a blur would then
+    // fold it. So the blur needs the same width and fullscreen state as when it was last seen up.
+    //
+    // The shape can also change while `wc-kbd` stays set (fullscreen entered or left with the
+    // keyboard up): it is then taken anew, with the time. A drop within the viewport module's
+    // settling after that change (its last measurement comes 500 ms after a fullscreen change)
+    // belongs to the change; a later one is the keyboard folding, and blurs. Without this the
+    // shape from before the fullscreen change stayed, and no fold after it ever blurred.
+    const win = doc.defaultView;
+    const shape = (): string => `${win?.innerWidth ?? 0}|${doc.fullscreenElement !== null}`;
+    const clock = (): number => win?.performance.now() ?? Date.now();
+    let up = root.classList.contains('wc-kbd');
+    let upShape = shape();
+    let shapeAt = -Infinity;
+    const onShape = (): void => {
+      const now = shape();
+      if (now === upShape) return;
+      upShape = now;
+      shapeAt = clock();
+    };
+    doc.addEventListener('fullscreenchange', onShape);
+    doc.addEventListener('webkitfullscreenchange', onShape);
+    win?.addEventListener('resize', onShape);
+    this.unsubs.push(() => {
+      doc.removeEventListener('fullscreenchange', onShape);
+      doc.removeEventListener('webkitfullscreenchange', onShape);
+      win?.removeEventListener('resize', onShape);
+    });
+    const mo = new MO(() => {
+      const now = root.classList.contains('wc-kbd');
+      if (now === up) return;
+      up = now;
+      if (now) {
+        // Up anew: this is the shape it is up in, whatever changed before it came.
+        upShape = shape();
+        shapeAt = -Infinity;
+        return;
+      }
+      // (The shape's own event may not have come yet: compared here too.)
+      if (shape() !== upShape || clock() - shapeAt < SHAPE_SETTLE_MS) return;
+      const active = doc.activeElement as HTMLElement | null;
+      if (!active || !this.deps.cockpit.el.contains(active)) return;
+      if (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT') active.blur();
+    });
+    mo.observe(root, { attributes: true, attributeFilter: ['class'] });
+    this.unsubs.push(() => mo.disconnect());
   }
 
   /** Connected to MUME (not a replay): what the wake lock and nothing else asks. */
@@ -345,28 +545,33 @@ export class PhoneLayer {
 
   /**
    * Applies the Map lens settings (ADR 0136 §4): the cockpit places the
-   * map pane for a lens of that size (or not at all), the pane draws the
-   * lens's fixed look, and the zoom is the level's for that size. The
-   * level starts at "Opens at" and is kept through a size change; a new
-   * "Opens at" sets it. The stored Mapper settings are never written.
+   * map pane for a lens (or not at all) and the pane draws the lens's
+   * fixed look. The full size is a share of the screen's short side
+   * (stage 52); the layout gives the size it has room for, and `place`
+   * follows that with the clip, the dressing and the zoom. The level
+   * starts at "Opens at" and is kept through a size change; a new "Opens
+   * at" sets it. The stored Mapper settings are never written.
    */
   private syncLens(): void {
     const { cockpit, settings } = this.deps;
     const l = settings.get().phone.lens;
-    const size = l.show ? lensPx(l.size) : 0;
+    // The layout viewport's short side: the on-screen keyboard shrinks the visual viewport (and
+    // the cockpit with it), not this, so the lens keeps its size while typing.
+    const win = cockpit.el.ownerDocument.defaultView;
+    const size = l.show ? lensFullPx(Math.min(win?.innerWidth ?? 0, win?.innerHeight ?? 0)) : 0;
     const opensAt = lensLevel(l.opensAt);
     if (opensAt !== this.lensOpensAt) {
       this.lensOpensAt = opensAt;
       this.lens.setLevel(opensAt);
     }
-    this.lensSize = size;
+    this.lensFull = size;
     if (size === 0) {
+      this.lensSize = 0;
       cockpit.setPhoneLens(null);
       return;
     }
-    // The pane's clip (phone.css) and the dressing share the diameter.
-    cockpit.el.style.setProperty('--ph-lens-size', `${size}px`);
     this.map.setLens(LENS_LOOK);
+    // A new level at the size on screen (a size not laid out yet is zoomed for in `sizeLens`).
     this.zoomLens();
     this.askLens();
   }
@@ -378,23 +583,34 @@ export class PhoneLayer {
    * out again only when something of it changed.
    */
   private askLens(): void {
-    if (this.lensSize === 0) return;
-    this.deps.cockpit.setPhoneLens({ size: this.lensSize, gapTop: LENS_GAP_TOP, gapRight: LENS_GAP_RIGHT, clearBottom: this.lensClear, clearAlways: this.boxClear() });
+    if (this.lensFull === 0) return;
+    this.deps.cockpit.setPhoneLens({
+      size: this.lensFull,
+      min: LENS_MIN_PX,
+      gapTop: this.landscape ? LENS_GAP_TOP_LAND : LENS_GAP_TOP,
+      // Landscape: left of the hot key columns there are, shown or not (it does not jump when K is tapped).
+      gapRight: this.landscape ? leftOfHot(this.keyPx, this.hot.cols, LENS_GAP_RIGHT) : LENS_GAP_RIGHT,
+      ...(this.landscape ? { gapLeft: LENS_GAP_LEFT } : {}),
+      clearBottom: this.lensClear,
+      clearAlways: this.boxClear(),
+    });
   }
 
   // --------------------------------------------------------------- hot keys
 
   /**
-   * A tap on a hot key (ADR 0136 §8): its command as a typed line, through
-   * the keys' gate (`send`). A key that has nothing to send (a special with
-   * the hit points unknown; a stored line of several commands) says so in
-   * the game text, also only in play.
+   * A tap on a hot key (ADR 0136 §8): its line as typed, through the keys'
+   * gate (`send`); the engine splits a line of several commands as it does
+   * a typed one. A special with nothing to send (the hit points unknown)
+   * says so in the game text, also only in play.
    */
   private pressHotkey(index: number): void {
     const { settings, game } = this.deps;
-    const key = settings.get().phone.hotkeys[index];
-    if (!key) return;
-    const p = hotkeyPress(key, knownHp(game.char.vitals.get('hp')), (text) => phoneKit().splitCommands(text));
+    const ph = settings.get().phone;
+    const key = ph.hotkeys[index];
+    // A slot above the count is not in use (it has no key on screen either).
+    if (!key || index >= ph.hotkeyCount) return;
+    const p = hotkeyPress(key, knownHp(game.char.vitals.get('hp')));
     if (p.kind === 'send') this.send(p.command);
     else if (p.kind === 'notice' && keysLive(this.deps.playState())) this.deps.notice(p.text);
   }
@@ -402,20 +618,52 @@ export class PhoneLayer {
   /** The column follows the settings; the lens keeps clear of it (ADR 0136 §4). */
   private syncHotkeys(): void {
     const p = this.deps.settings.get().phone;
-    // The keys' size (the Compass setting): phone.css lays the compass, the column, the box and
-    // the command field out from it (compass-size.ts has the same sums).
-    const px = compassPx(p.compassSize);
+    // The keys' size (small in portrait, large in landscape): phone.css lays the compass, the column,
+    // the box and the command field out from it (compass-size.ts has the same sums).
+    const px = compassPx(this.landscape, this.landH);
     if (px !== this.keyPx || !this.deps.cockpit.el.style.getPropertyValue('--ph-ck')) {
       this.keyPx = px;
       this.deps.cockpit.el.style.setProperty('--ph-ck', `${px}px`);
     }
-    this.hot.set(p.hotkeys, p.hotkeysOpen, hotStep(px));
-    const n = p.hotkeysOpen ? this.hot.count : 0;
-    this.lensClear = n === 0 ? compassHeight(px) : hotTop(px, n) + LENS_CLEAR;
+    this.hot.set(p.hotkeys, p.hotkeyCount, p.hotkeysOpen, hotStep(px));
+    // The box stands left of the columns there are (phone.css).
+    const hotW = `${hotWidth(px, this.hot.cols)}px`;
+    if (hotW !== this.hotW) {
+      this.hotW = hotW;
+      this.deps.cockpit.el.style.setProperty('--ph-hot-w', hotW);
+    }
+    // The lens is wider than both columns: it keeps clear of the taller one.
+    const n = p.hotkeysOpen ? this.hot.rows : 0;
+    // Landscape: the lens stands left of the columns and above the compass only.
+    this.lensClear = this.landscape ? compassHeight(px) + LENS_CLEAR_LAND : n === 0 ? compassHeight(px) : hotTop(px, n) + LENS_CLEAR;
+    // The strip, the fight card and Comm end above the place of three keys, shown or not (stage 52).
+    this.deps.cockpit.setPhoneLimit(topLimit(px));
+    // Landscape: the left column ends left of the lens's least place (or its key row) and the columns.
+    this.deps.cockpit.setPhoneSideClear(sideClear(px, this.hot.cols, LENS_MIN_PX + SAT_OVER, SATROW_W, LENS_GAP_RIGHT));
     if (this.hot.boxOpen) this.syncBox();
     this.askLens();
     // The lens's key row stands clear of the column (`place`), also when the column came or went without a relayout.
     this.place();
+  }
+
+  /**
+   * The screen's shape (the cockpit's layout says whether it is landscape;
+   * `height` is the cockpit's with the keyboard down): the keys' size, the
+   * lens's place and the strip's page dots follow. The dots sit on the
+   * strip's band in portrait; landscape has no such band, and they sit at
+   * the right end of the hood's row. A low landscape screen keeps the small
+   * keys (compass-size.ts).
+   */
+  private setShape(landscape: boolean, height: number): void {
+    const first = this.keyPx === 0;
+    if (!first && landscape === this.landscape && compassPx(landscape, height) === this.keyPx) return;
+    this.landH = height;
+    if (first || landscape !== this.landscape) {
+      this.landscape = landscape;
+      this.el.toggleAttribute('data-land', landscape);
+      (landscape ? this.strip.el : this.stripBand.el).append(this.strip.dots);
+    }
+    if (!first) this.syncHotkeys();
   }
 
   /** The box's foot above the layer's bottom edge: beside the column, or over the command row with the keyboard up. */
@@ -534,6 +782,21 @@ export class PhoneLayer {
     });
   }
 
+  /**
+   * The lens's diameter on screen changed (the layout: full, shrunk, or 0
+   * for hidden): the pane's clip and the ring's cut-out (phone.css read
+   * `--ph-lens-size` on those two elements) and the zoom follow, so the
+   * same rooms stay in view. Once per change of size, never per frame.
+   */
+  private sizeLens(px: number): void {
+    if (px === this.lensSize) return;
+    this.lensSize = px;
+    if (px === 0) return;
+    this.mapEl.style.setProperty('--ph-lens-size', `${px}px`);
+    this.lens.el.style.setProperty('--ph-lens-size', `${px}px`);
+    this.zoomLens();
+  }
+
   /** Sends the lens's zoom for its level and size to the map, when either changed. */
   private zoomLens(): void {
     const level = this.lens.zoomLevel;
@@ -580,13 +843,35 @@ export class PhoneLayer {
   private place(): void {
     const g = this.deps.cockpit.phoneGameLayout;
     if (!g) return;
+    // The keys' size and the lens's room follow the screen's shape: `setShape` asks the cockpit
+    // again and places. (The height with the keyboard up is not the screen's: the last one stays.)
+    const H = phoneKit().keyboardUp() ? this.landH : this.el.clientHeight;
+    if (this.keyPx !== 0 && (g.landscape !== this.landscape || compassPx(g.landscape, H) !== this.keyPx)) {
+      this.setShape(g.landscape, H);
+      return;
+    }
     const { w, h } = this.deps.cells.get();
-    this.fight.place(g.fight.y * h, g.fight.h * h, this.card !== null && !g.tooSmall);
+    const land = g.landscape;
+    // The left column's width: the hot key box stays right of it (phone.css). On the layer, not
+    // the cockpit: a drag changes it at every column, and nothing but the layer's parts reads it.
+    const sideW = land && g.side.w > 0 ? `${g.side.w * w}px` : '';
+    if (sideW !== this.sideW) {
+      this.sideW = sideW;
+      if (sideW) this.el.style.setProperty('--ph-side-w', sideW);
+      else this.el.style.removeProperty('--ph-side-w');
+    }
+    // Landscape on a low screen: the hot key columns (shown or not) reach up into the fight
+    // card's rows, and the card then ends left of them.
+    const fightRight = land && g.fight.h > 0 && g.fight.h * h > H - hotTop(this.keyPx, 3) - HOT_TOP_MARGIN / 2 ? leftOfHot(this.keyPx, this.hot.cols, SATROW_GAP) : 0;
+    this.fight.place(g.fight.y * h, g.fight.h * h, this.card !== null && !g.tooSmall, g.fight.x * w, fightRight);
     // The lens's circle is centred on the map pane's rectangle (whole cells, a little larger).
     // The strip's chrome over its rows; Comm's band on its last row. Comm is "open" for the
     // pane (its view read) only while it really has rows on this screen.
     const stripShown = this.stripOpen && !g.tooSmall && g.strip.h > 0;
-    this.strip.place(g.strip.y * h, stripShown ? g.strip.h * h : 0);
+    this.strip.place(g.strip.y * h, stripShown ? g.strip.h * h : 0, land ? (g.strip.w - g.sideBand) * w : undefined);
+    this.stripBand.place(
+      stripShown && g.stripRange && !land ? { bandTop: (g.strip.y + g.strip.h - 1) * h, rowH: h, rows: g.strip.h, min: g.stripRange.min, max: g.stripRange.max } : null,
+    );
     const commShown = this.commOpen && !g.tooSmall && g.comm.h > 0;
     this.comm.setPhoneOpen(commShown);
     if (stripShown !== this.stripShown || commShown !== this.commShown) {
@@ -595,8 +880,15 @@ export class PhoneLayer {
       this.syncKeys();
     }
     this.commBand.place(
-      commShown && g.commRange
-        ? { commTop: g.comm.y * h, bandTop: (g.comm.y + g.comm.h - 1) * h, rowH: h, rows: g.comm.h, min: g.commRange.min, max: g.commRange.max }
+      commShown && g.commRange && !land
+        ? { bandTop: (g.comm.y + g.comm.h - 1) * h, rowH: h, rows: g.comm.h, min: g.commRange.min, max: g.commRange.max }
+        : null,
+    );
+    this.commHead.place(land && commShown ? { top: g.comm.y * h, width: (g.comm.w - g.sideBand) * w, divided: g.strip.h > 0 } : null);
+    // Landscape: the one band, the column's last columns, from top to bottom.
+    this.sideBand.place(
+      land && (stripShown || commShown) && g.sideRange
+        ? { bandTop: (g.side.w - g.sideBand) * w, rowH: w, thick: g.sideBand * w, rows: g.side.w, min: g.sideRange.min, max: g.sideRange.max }
         : null,
     );
     if (this.hot.boxOpen) {
@@ -608,28 +900,34 @@ export class PhoneLayer {
         // Placed first: its height on this screen is known only then.
         this.syncBox();
         const boxTop = this.el.clientHeight - this.boxBottom() - this.hot.boxEl.offsetHeight;
-        if (g.game.y * h > boxTop) this.hot.closeBox();
+        // (Landscape: the column grew into it sideways; the fight card is all there is above the game.)
+        if (land ? g.side.w * w > this.hot.boxEl.offsetLeft : g.game.y * h > boxTop) this.hot.closeBox();
       }
     }
     const r = g.tooSmall ? null : g.lens;
-    const size = this.lensSize;
+    const size = r ? g.lensPx : 0;
+    this.sizeLens(size);
     // The keys' row stands in for a lens that is off or has no room; not for one the cockpit has
     // not laid out yet (asked for, the relayout pending).
-    const pending = size > 0 && !g.tooSmall && g.lens === null && !g.lensHidden;
+    const pending = this.lensFull > 0 && !g.tooSmall && g.lens === null && !g.lensHidden;
     const rowTop = g.game.y * h + SATROW_GAP;
     // The keys' row is at the right edge, where the hot key column is: on a low screen (landscape
-    // with the strip or a fight card) the row would reach into the column, and then stands left of it.
-    const n = this.deps.settings.get().phone.hotkeysOpen && !phoneKit().keyboardUp() ? this.hot.count : 0;
-    const colTop = n > 0 ? this.el.clientHeight - hotTop(this.keyPx, n) : Infinity;
-    const rowRight = rowTop + SAT_PX + SATROW_GAP > colTop ? PAD_MARGIN + this.keyPx + SATROW_GAP : PAD_MARGIN;
+    // with the strip or a fight card) the row would reach into a column, and then stands left of it.
+    const cols = this.deps.settings.get().phone.hotkeysOpen && !phoneKit().keyboardUp();
+    // Landscape: the row takes the lens's place, left of the columns there are, shown or not. Not
+    // while the box is open: the box reaches up to the top there, and the row would lie on it.
+    const rowRight = land
+      ? leftOfHot(this.keyPx, this.hot.cols, SATROW_GAP)
+      : keyRowRight(rowTop + SAT_PX + SATROW_GAP, this.el.clientHeight, this.keyPx, cols ? [this.hot.rowsIn(0), this.hot.rowsIn(1)] : [0, 0], SATROW_GAP);
     this.lens.place(
       r && size > 0 ? { left: (r.x + r.w / 2) * w - size / 2, top: (r.y + r.h / 2) * h - size / 2, size } : null,
-      pending || g.tooSmall ? null : rowTop,
+      pending || g.tooSmall || (land && this.hot.boxOpen) ? null : rowTop,
       rowRight,
     );
   }
 
   dispose(): void {
+    this.disposed = true;
     for (const u of this.unsubs.splice(0)) u();
     this.flingOff?.();
     this.menu.dispose();

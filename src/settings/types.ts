@@ -406,10 +406,6 @@ export interface WindowRect {
   h: number;
 }
 
-/** The map lens's sizes on the phone's game layout (ADR 0136 §4): 120, 150 and 180 px across. */
-export const PHONE_LENS_SIZES = ['s', 'm', 'l'] as const;
-export type PhoneLensSize = (typeof PHONE_LENS_SIZES)[number];
-
 /** The lens's three fixed zoom levels (ADR 0136 §4). */
 export const PHONE_LENS_LEVELS = ['near', 'middle', 'far'] as const;
 export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
@@ -418,7 +414,6 @@ export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
 export interface PhoneLensSettings {
   /** Show the lens (off: no map on the phone's game layout, and no map load). */
   show: boolean;
-  size: PhoneLensSize;
   /** The zoom level the lens starts at. */
   opensAt: PhoneLensLevel;
 }
@@ -435,27 +430,43 @@ export interface PhoneSettings {
   strip: PhoneStripSettings;
   /** Comm's height in rows on the phone (ADR 0136 §6); null: the default share of the screen. */
   commRows: number | null;
+  /** The pane strip's height in rows (stage 52: its band is dragged); null: the default share of the screen. */
+  stripRows: number | null;
   /** What the Comm key's badge counts (ADR 0136 §6): private chats, or Group and Public too. */
   unread: PhoneUnread;
-  /** The hot keys K1 to K3, in that order (ADR 0136 §8): always `PHONE_HOTKEY_COUNT` of them. */
+  /** The hot keys' slots K1 to K6, in that order (ADR 0136 §8, stage 52): always `PHONE_HOTKEY_COUNT` of them. */
   hotkeys: PhoneHotkey[];
+  /** How many of the slots are in use (1 to `PHONE_HOTKEY_COUNT`): the slots above it are neither shown nor reachable. */
+  hotkeyCount: number;
   /** The hot key column is shown (the K key). */
   hotkeysOpen: boolean;
-  /** The compass keys' size (ADR 0136 §7): 36, 40 or 44 px; the hot keys follow. */
-  compassSize: PhoneCompassSize;
-  /** A short vibration on a compass or hot key tap that sends (where the browser can). */
-  vibrate: boolean;
+  /**
+   * Landscape (stage 52c): the width in columns of the left column that
+   * holds the strip and Comm; null: the default share of the screen. The
+   * heights above are portrait's only.
+   */
+  sideCols: number | null;
   /** Keep the screen on while connected and visible (ADR 0136 §10; where the browser can). */
   wakeLock: boolean;
   /** A dead link found on resume reconnects once, with no saved login (ADR 0136 §10). */
   autoReconnect: boolean;
+  /**
+   * Which of the phone's one-time defaults this device has had (stage 52):
+   * 0 none, `PHONE_DEFAULTS_MARK` all. Stored settings from before the mark
+   * read as 0; the phone's game layout applies what is missing once at its
+   * start and writes the mark (src/phone/phone-defaults.ts). A computer
+   * never acts on it.
+   */
+  defaults: number;
 }
 
-export const PHONE_COMPASS_SIZES = ['s', 'm', 'l'] as const;
-export type PhoneCompassSize = (typeof PHONE_COMPASS_SIZES)[number];
+/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off with the Pulse signal, and Character out of the strip. */
+export const PHONE_DEFAULTS_MARK = 1;
 
-/** How many hot keys the phone has (ADR 0136 §8). */
-export const PHONE_HOTKEY_COUNT = 3;
+/** How many hot key slots the phone stores (stage 52: two columns of three). */
+export const PHONE_HOTKEY_COUNT = 6;
+/** How many of them are in use by default (ADR 0136 §8: one column). */
+export const PHONE_HOTKEY_COUNT_DEFAULT = 3;
 /** The longest label of a hot key, in characters. */
 export const PHONE_HOTKEY_LABEL_MAX = 4;
 /** The longest stored command of a hot key (a line of commands; far above any real one). */
@@ -494,34 +505,42 @@ export interface PhoneStripSettings {
 export const PHONE_UNREAD_MODES = ['private', 'all'] as const;
 export type PhoneUnread = (typeof PHONE_UNREAD_MODES)[number];
 
-/** The limits of a stored Comm height (the allocator fits it to the screen). */
+/** The limits of a stored Comm or strip height (the allocator fits it to the screen). */
 export const PHONE_COMM_ROWS_MIN = 1;
 export const PHONE_COMM_ROWS_MAX = 200;
 
 /**
- * Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4);
- * the strip's four panes in their order, all on (§5); Comm at its default
- * height, the badge counting private chats (§6); the three hot keys assist,
- * bash and wimpy at half of the current hit points, their column shown (§8);
- * 40 px compass keys, no vibration (§7: it is optional); the screen kept on while
- * connected, and no automatic reconnect (§10).
+ * Phone defaults: the lens shown, at the middle zoom (ADR 0136 §4; its
+ * size follows the screen, stage 52); the strip's four panes in their
+ * order, all on but Character (§5, stage 52), at its default height; Comm
+ * at its default height, the badge counting private chats (§6);
+ * six hot key slots (assist, bash, wimpy at half of the current hit points,
+ * rescue, shoot, recover) of which three are in use, shown (§8, stage 52);
+ * the landscape column at its default width; the screen kept on while connected, and no
+ * automatic reconnect (§10). The one-time defaults are not marked as had:
+ * only `phoneDefaultSettings()` (a new phone) marks them.
  */
 export function defaultPhoneSettings(): PhoneSettings {
   return {
-    lens: { show: true, size: 'm', opensAt: 'middle' },
-    strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: true })) },
+    lens: { show: true, opensAt: 'middle' },
+    strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: id !== 'character' })) },
     commRows: null,
+    stripRows: null,
     unread: 'private',
     hotkeys: [
       { label: 'asst', command: 'assist', special: null, shown: true },
       { label: 'bash', command: 'bash', special: null, shown: true },
       { label: 'wimp', command: '', special: 'wimpy50', shown: true },
+      { label: 'resc', command: 'rescue', special: null, shown: true },
+      { label: 'shot', command: 'shoot', special: null, shown: true },
+      { label: 'rcvr', command: 'recover', special: null, shown: true },
     ],
+    hotkeyCount: PHONE_HOTKEY_COUNT_DEFAULT,
     hotkeysOpen: true,
-    compassSize: 'm',
-    vibrate: false,
+    sideCols: null,
     wakeLock: true,
     autoReconnect: false,
+    defaults: 0,
   };
 }
 
@@ -671,6 +690,14 @@ export function phoneDefaultSettings(): Settings {
   // ADR 0092 is desktop only: a phone keeps its Character tab and no weather (battery).
   s.panes.character.on = true;
   s.weather.enabled = false;
+  // Stage 52 (the owner's phone defaults): no Herblores timers, no time text; Character is out of the strip
+  // (`defaultPhoneSettings`). A new phone has them from the start, so nothing is applied later.
+  s.timers.groups.herb.enabled = false;
+  // The Timers pane's countdown text is off too: bars only, in the strip's few columns.
+  s.timers.timeText = false;
+  // Without the text the "Time text" signal would show nothing: ending soon pulses instead.
+  s.timers.signal = 'pulse';
+  s.phone.defaults = PHONE_DEFAULTS_MARK;
   return s;
 }
 

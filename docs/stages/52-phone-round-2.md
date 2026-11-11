@@ -1,7 +1,7 @@
 # Stage 52 — The phone's layout, round 2
 
-Status: **Next** (written 2026-11-11 as the handoff from stage 51; nothing
-built, no plan yet).
+Status: **Owner testing** (plan written 2026-11-11 from the owner's list;
+branch `stage-52-phone-round-2`).
 
 ## Goal
 
@@ -26,7 +26,124 @@ ending with something to test on the phone.
 
 ## The owner's proposals
 
-(To be filled in at the start of the session.)
+Given 2026-11-11 after using 0.5.0 on a Samsung S21 (360 × 800 CSS px),
+with answers to four follow-up questions. Everything here is the phone's
+game layout only.
+
+### Answers to A (decisions)
+
+- A1 theme swatch: OK as built.
+- A2 lens in landscape: **changed**, see "Landscape" below.
+- A3 defaults: wake lock on is OK. Vibrate is **removed** (see below).
+- A4 hot keys: `#3 north` is OK, and **several commands with `;` are
+  allowed** on one key. This replaces ADR 0136 §8 "one command per key".
+- A5 `rescue`: fine as a quick pick.
+- A6 map mark with focus: leave as it is for now.
+- A7 fullscreen map: skipped.
+
+### Answers to B (live checks)
+
+- B2: `change wimpy 0` sets wimpy to 0, which is the same as off. The
+  specials keep never sending 0.
+- B5: weather runs well on the owner's phone.
+- B1, B3 (wake lock only), B4, B6: still open; the owner asked what to
+  confirm for B3 (answer: that the screen does not dim or lock while
+  connected).
+
+### C, D, E
+
+- C (scrap the old phone layout): a separate pass after the fine tuning.
+  **Now:** the "are you sure" screen of Exit session is still the old
+  look on the phone; give it the new look.
+- D and E: no comment; they stay as listed.
+
+### New requests
+
+1. **Keyboard in fullscreen (Android).** Without fullscreen the command
+   field sits just above the keyboard. Entering fullscreen with the
+   keyboard up leaves the field far above it (stale size). In fullscreen
+   the keyboard's top row covers the field (about 44 CSS px too low).
+   Wanted: as without fullscreen.
+2. **The pane strip is resizable** like Comm.
+3. **Live resize.** Dragging Comm's (and the strip's) band redraws while
+   dragging, not only on release.
+4. **Height limit in portrait.** The strip and Comm together can never
+   reach under the quick buttons: the limit is the top of the place of
+   three K keys, whether they are shown or not.
+5. **Dynamic lens.** Opening Comm no longer hides the lens. With room it
+   has its full size; as the strip and Comm take room it shrinks, down
+   to the smallest sensible size, and only then hides. The size setting
+   goes. Full size is 150 px on the owner's 360 px wide phone and should
+   feel the same on other phones (so: a share of the screen's short
+   side).
+6. **Landscape.** The lens shows at the top right with its three keys,
+   moved left so it stands left of the K keys. The strip and Comm open
+   from the **left** as one column (strip above, Comm below), full
+   height, resized sideways; the menu key and the command field move
+   right to make room.
+7. **K keys: 1–6**, chosen in settings. Above three, a second column to
+   the left of the first.
+8. **Settings sub-page for Timers and Group** with the relevant
+   settings. Herblores off by default (phone only; the owner's phone is
+   set once too).
+9. **Character off by default** in the strip (phone only, set once on
+   the owner's phone too).
+10. **Unread on the lens's Comm key:** asked whether it shows missed
+    private messages; it must.
+11. **Menu sheet:** no grab handle look above MENU (it is not
+    draggable); a "close" key left of EXIT SESSION.
+12. **Settings names:** "Compass" becomes "Quick buttons". The vibrate
+    row and feature are removed.
+
+## Plan
+
+Rules of stage 51 hold (see Goal). Each round: one building subagent,
+checks and screenshots by the main session, a fresh reviewer, fixes,
+commit. Decisions of this stage go in ADR 0137.
+
+### 52a Menu, settings, hot keys, defaults
+
+- Sheet: handle removed, close key left of Exit session (11).
+- Exit session's confirmation in the phone's look (C).
+- Settings: Compass → Quick buttons; vibrate removed with
+  `phone.vibrate` and `haptics.ts` (12); number of K keys 1–6
+  (`phone.hotkeyCount`, default 3), second column left of the first, K4
+  lowest (7); lens size row removed (5, the sizing itself is 52b).
+- Timers and Group sub-page (8), writing the same keys the desktop gears
+  write.
+- Phone defaults: Herblores off, Character off in the strip; applied
+  once to an existing phone (a `phone.defaults` mark) (8, 9).
+- Hot keys accept `;` (A4).
+- Unread badge: verify with a test that a private tell counts (10).
+
+### 52b Portrait: resize, limit, dynamic lens
+
+- Strip resizable by a band at its lower edge (`phone.stripRows`).
+- Live resize for both bands: relayout while dragging, at most once per
+  frame and only when the row count changes; one NAWS on release.
+- Limit: strip + fight card + Comm end above the place of three K keys.
+- Lens: full size `round(short side × 150 / 360)` clamped to 130–190 px;
+  shrinks in whole cells to 96 px; hides below that (its keys then show
+  as the row, as today). Comm open no longer hides it.
+
+### 52c Landscape
+
+- Left column for the strip (above) and Comm (below), full height
+  including the command row's rows; a band at its right edge is dragged
+  sideways (`phone.sideCols`), live. Both open: the strip takes about
+  40 % of the rows. The game, fight card, menu key and command field use
+  what is left.
+- Lens at the top right, left of the K columns, with its three keys;
+  same shrink and hide rule.
+
+### 52d Keyboard in fullscreen
+
+- Re-measure on `fullscreenchange` (fixes the stale size).
+- In fullscreen, where the VirtualKeyboard API exists, take the
+  keyboard's own rectangle into account (Chrome's visual viewport seems
+  to be short by the system bar there). Cannot be verified without the
+  device: a readout (`?vv=1`) shows the numbers so the owner can report
+  them if the field is still covered.
 
 ## Carried over from stage 51
 
@@ -135,9 +252,112 @@ and `phone-player-map.spec.ts`.
 
 ## Tasks
 
-- [ ] The owner's list taken in and sorted with A–E into rounds
-- [ ] (rounds to be written)
+- [x] The owner's list taken in and sorted with A–E into rounds
+- [x] 52a menu, settings, hot keys, defaults, exit confirmation
+- [x] 52b portrait: strip resize, live resize, limit, dynamic lens
+- [x] 52c landscape: left column, lens left of the K keys
+- [x] 52d keyboard in fullscreen
+- [x] ADR 0137, test guide, session log
+- [ ] Later pass: C (scrap the old phone layout), D, E
+
+## Built
+
+Decisions: ADR 0137. Commits on `stage-52-phone-round-2`: 52d 377dd86f,
+52a 1e86eaf3, 52b e2d95904, 52c ce707234, 52e (the commit after it). Each round was built by a
+subagent, its screenshots looked at, and its commit read by a fresh
+reviewer whose confirmed findings were fixed in the next round.
+
+- **52a:** sheet without grip and with a close key; `exit-sheet.tsx`;
+  Quick buttons group, vibrate gone, lens size row gone; 1–6 K keys in
+  two columns; the Timers and Group sub-page; once-only phone defaults
+  (`phone-defaults.ts`); `;` on a hot key; fields blur when the keyboard
+  goes down (`watchKeyboard` in `src/phone/index.ts`). The unread count
+  on the Comm key already worked; two tests added. Hot key raising the
+  keyboard: nothing on the key's path calls `focus()`; the likely cause
+  is Chrome re-showing the keyboard while the field keeps focus, hence
+  the blur. Unverified on the device.
+- **52b:** strip band; live relayout with one NAWS on release
+  (`holdPhoneSize`, `phoneSizeGate` in the cockpit); `maxTop` in
+  `allocatePhoneGame`; the dynamic lens. Live cost at 4× CPU throttle:
+  5–7 ms per row step. The limit is portrait only and off with the
+  keyboard up.
+- **52c:** the landscape branch of the allocator and the sideways band;
+  lens left of the K columns; see-through keys and fixed sizes; time
+  text off. A live sideways drag re-wraps only on-screen rows
+  (16.7 ms frames at 4× throttle with 20 000 rows of scrollback).
+- **52e** (owner requests and the 52c review): timer signal Pulse on a
+  phone; Comm's hood and an iron divider in the landscape column; 36 px
+  keys in landscape under 300 px of height (tested at 800 × 280 and
+  800 × 270); orientation from the screen, so a keyboard-shrunk portrait
+  window is not taken for landscape; key label outlines from
+  `text-shadow` only; the lens's landscape gaps 12 px instead of 16.
+- **Full e2e run after 52c:** 1116 passed, 5 failed: three firefox cases
+  that pass alone (`comm-ui:35`, `layout:432`, `windows:199`) and
+  `scripts-settings:411` in chromium and firefox (E1). After 52e only
+  typecheck, unit (3849), the phone project (256) and the chromium specs
+  near the shared edits (74) were run.
+- **52d:** `phone-viewport.ts` (fullscreen re-measure, VirtualKeyboard
+  rectangle in fullscreen) and the `?vv=1` readout.
+- Added during the session by the owner: the keyboard raised by a hot
+  key (52a), see-through keys and fixed key sizes (52c), time text off
+  (52c). The `#lua` notice on his phone came from an old copy of the
+  bundled `khazdul` profile (a `#TICKER {clock}` line); he removed the
+  line, nothing changed in the client.
+- Shared files touched (all behind the phone game path or additive):
+  `layout/cockpit.ts`, `layout/phone-game.ts`, `layout/phone-viewport.ts`,
+  `app/app.ts` (`onResize` through `phoneSizeGate`), `app/shell.ts`,
+  `app/phone-kit.ts`, `settings/types.ts`, `settings/migrate.ts`.
+- Review finding left as it is: the once-only patch got the time text
+  and the signal under the same mark 1, so a phone that ran a 52a or 52b
+  build keeps them (nothing with the mark was released).
+- Limits left: at 800 × 270 with a fight card the lens hides (key row
+  instead); the start page's Enter item could not be tapped at 800 × 280
+  in a mocked session (not looked into); with the column at its widest on 844 px the command field
+  is about 105 px; on a very low landscape screen (568 × 320) three K
+  keys reach a fight card's rows; at the lens's smallest sizes its keys
+  cover part of the map's exit label; a K key hidden by its own Shown
+  switch is hard to bring back; `phone-game-panes.spec.ts` "a sideways
+  swipe changes the page" is flaky under heavy load (on HEAD before this
+  stage too).
+- Screenshots: `docs/stages/img/52-a-*`, `52-b-*`, `52-c-*`.
+
+## Test guide (for the owner)
+
+On the phone, on the released version or `npm run dev:tailnet` on this
+branch.
+
+1. **Keyboard.** Type a command, fold the keyboard down: the field is no
+   longer marked. Tap a hot key and a compass key: no keyboard.
+2. **Fullscreen.** With the keyboard up, tap the lens's fullscreen key:
+   the field stays just above the keyboard. Fold it down and up again:
+   same. If the field is covered, open the page with `?vv=1` and send
+   three screenshots with the keyboard up (no fullscreen; right after
+   entering fullscreen; in fullscreen after down and up).
+3. **Keys.** Compass and K keys are see-through; is the text behind them
+   readable, and the labels too? Small in portrait, large in landscape.
+4. **Lens.** Open Comm: the lens stays under it. Drag Comm's band down:
+   the lens shrinks, then gives way to a row of keys; drag up: it
+   returns. Any hitch while it changes size?
+5. **Bands.** Drag Comm's band and the strip's band: everything follows
+   the finger. Neither can go under the K keys' place.
+6. **Landscape.** Turn the phone. Lens at the top right, left of the K
+   keys. Open the strip and Comm: one column from the left, full height;
+   drag its right edge sideways.
+7. **Settings.** Quick buttons: number of K keys 1–6 (try 6 in both
+   orientations). Panes → Timers and Group. Herblores, Character and the
+   timers' time text are off after the first start.
+8. **Menu.** No grip above MENU; the close key left of Exit session;
+   Exit session's confirmation in the new look.
+9. **Hot key.** Hold a key, set a command with `;` (for example
+   `stand;bash`): both are sent.
+
+Feedback wanted: transparency of the keys, the lens's smallest size
+(96 px), the column's default width in landscape, anything that jumps or
+lags while dragging.
 
 ## Owner feedback
+
+- 2026-11-11: automatic reconnect and keep the screen on both confirmed
+  working on the owner's phone (B3 and B4 closed).
 
 (After each round.)

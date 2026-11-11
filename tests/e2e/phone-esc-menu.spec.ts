@@ -42,7 +42,7 @@ async function enterMume(page: Page): Promise<{ server: () => WebSocketRoute; op
   return { server: () => server!, opened: () => opened };
 }
 
-test('Esc opens the sheet with its status line; Esc, a tap outside and a swipe down close it; #menu opens it', async ({ page }) => {
+test('Esc opens the sheet with its status line; Esc, a tap outside and the close key close it; #menu opens it', async ({ page }) => {
   const errors = watchErrors(page);
   await enterMume(page);
   await field(page).press('Escape');
@@ -73,7 +73,8 @@ test('Esc opens the sheet with its status line; Esc, a tap outside and a swipe d
   await expect(sheet(page)).toBeVisible();
   await page.touchscreen.tap(100, 60);
   await expect(sheet(page)).toBeHidden();
-  // A swipe down on the top band closes it.
+  // The close key in its last row folds it down (stage 52; the sheet is not dragged, so a swipe on
+  // its top band does nothing any more).
   await menuKey(page).tap();
   await expect(sheet(page)).toBeVisible();
   const top = (await sheet(page).locator('.wc-ph-sheet-top').boundingBox())!;
@@ -81,6 +82,8 @@ test('Esc opens the sheet with its status line; Esc, a tap outside and a swipe d
   const y = top.y + top.height / 2;
   await sheet(page).locator('.wc-ph-sheet-top').dispatchEvent('pointerdown', { clientX: x, clientY: y, pointerType: 'touch', isPrimary: true });
   await sheet(page).locator('.wc-ph-sheet-top').dispatchEvent('pointerup', { clientX: x, clientY: y + 80, pointerType: 'touch', isPrimary: true });
+  await expect(sheet(page)).toBeVisible();
+  await sheet(page).getByRole('button', { name: 'Close menu' }).and(page.locator('.wc-ph-fold')).tap();
   await expect(sheet(page)).toBeHidden();
   // #menu opens it too, and the command field lets go of the focus (the on-screen keyboard closes).
   await field(page).tap();
@@ -237,17 +240,19 @@ test('Exit session asks first, returns to the start page and closes the connecti
   await field(page).press('Escape');
   await expect(sheet(page)).toBeVisible();
   await row(page, 'exit').tap();
-  // The Exit dialog as before, in the ESC menu's overlay; the sheet is gone.
-  await expect(sheet(page)).toBeHidden();
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── Exit session ───');
-  await expect(frame(page).locator('.wc-body')).toContainText('Attention! This terminates the current');
-  // Esc: back to the game (the dialog was opened straight from the sheet).
-  await page.keyboard.press('Escape');
+  // The confirmation in the phone's own sheet (stage 52): the ESC menu's overlay is not used.
+  const ex = page.locator('.wc-ph-exitsheet');
+  await expect(ex).toBeVisible();
+  await expect(ex.locator('.wc-ph-hood')).toHaveText('Exit session');
+  await expect(ex).toContainText('Attention! This terminates the current');
   await expect(overlay(page)).toBeHidden();
+  // Esc: back to the menu it was opened from; the session is untouched.
+  await page.keyboard.press('Escape');
+  await expect(ex).toHaveCount(0);
+  await expect(sheet(page).locator('.wc-ph-hood')).toHaveText('Menu');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await menuKey(page).tap();
   await row(page, 'exit').tap();
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── Exit session ───');
+  await expect(ex).toBeVisible();
   await page.keyboard.press('y');
   await expect(page.locator('.wc-start')).toBeVisible();
   await expect(startSel(page)).toHaveText('Enter MUME');
@@ -310,10 +315,12 @@ test('#profile, #scripts and #exit open their pages; #settings and #panes open t
   await expect(frame(page).locator('.wc-scr')).toBeVisible();
   await frame(page).locator('.wc-lk-back').first().tap();
   await expect(overlay(page)).toBeHidden();
+  // `#exit`: the phone's own confirmation (stage 52); Esc returns to the game.
   await type('#exit');
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── Exit session ───');
-  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-ph-exitsheet')).toBeVisible();
   await expect(overlay(page)).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-ph-menu-host')).toBeHidden();
   // The phone's own settings page; opened by a command, Esc returns to the game.
   for (const cmd of ['#settings', '#panes']) {
     await type(cmd);

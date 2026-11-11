@@ -2,8 +2,9 @@
 // the strip's rows. The pane itself is the cockpit's (`setPhoneStrip`
 // places it borderless in the strip's rows, leaving the first row and the
 // last to this chrome): here are the pane's name in a small Cinzel hood at
-// the top, the page dots at the bottom, and an iron edge under them. No
-// tabs, no handle.
+// the top and the page dots. The strip's last row is its resize band
+// (comm-chrome.ts, stage 52); the phone layer puts the dots (`dots`) on
+// the band's right end. No tabs.
 //
 // A sideways swipe anywhere on the strip changes the page (swipe.ts); a
 // vertical drag is the pane's own scrolling and a tap its own tap. The
@@ -15,10 +16,11 @@ import { stripLabel } from './strip-model';
 import { swipeStep } from './swipe';
 
 export class StripView {
-  /** The hood, the dots and the edge, over the strip's rows. */
+  /** The hood, over the strip's rows. */
   readonly el: HTMLDivElement;
+  /** The page dots: the phone layer puts them on the strip's resize band. */
+  readonly dots: HTMLDivElement;
   private readonly hood: HTMLSpanElement;
-  private readonly dots: HTMLDivElement;
   private key = '';
   private placeKey = '';
 
@@ -32,9 +34,7 @@ export class StripView {
     this.dots = doc.createElement('div');
     this.dots.className = 'wc-ph-strip-dots';
     this.dots.setAttribute('aria-hidden', 'true');
-    const edge = doc.createElement('div');
-    edge.className = 'wc-ph-strip-edge';
-    this.el.append(this.hood, this.dots, edge);
+    this.el.append(this.hood);
   }
 
   /** The pages and the open one: the hood's name and the dots (written only when they change). */
@@ -58,14 +58,19 @@ export class StripView {
     this.dots.hidden = pages.length < 2;
   }
 
-  /** Over the strip's rows: `top` and `height` px; 0 hides it. */
-  place(top: number, height: number): void {
-    const key = height > 0 ? `${top},${height}` : '';
+  /**
+   * Over the strip's rows: `top` and `height` px; 0 hides it. `width`
+   * (landscape, where the strip is the left column's upper part): its
+   * width in px; absent: the full width.
+   */
+  place(top: number, height: number, width?: number): void {
+    const key = height > 0 ? `${top},${height},${width ?? ''}` : '';
     if (key === this.placeKey) return;
     this.placeKey = key;
     if (height > 0) {
       this.el.style.top = `${top}px`;
       this.el.style.height = `${height}px`;
+      this.el.style.width = width === undefined ? '' : `${width}px`;
     }
     this.el.hidden = height <= 0;
   }

@@ -488,7 +488,9 @@ export class App {
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,
-      onResize: (cols, rows) => this.session.setWindowSize(device().phone ? phoneNawsCols(cols) : cols, rows),
+      // The phone's game layout keeps the size back while a band is dragged (one NAWS on release);
+      // everywhere else the gate is the function itself.
+      onResize: this.cockpit.phoneSizeGate((cols, rows) => this.session.setWindowSize(device().phone ? phoneNawsCols(cols) : cols, rows)),
       onFocusInput: () => this.input.focus(),
       ...(perf
         ? { requestFrame: perf.frames(opts.requestFrame ?? ((cb) => void requestAnimationFrame(() => cb()))) }

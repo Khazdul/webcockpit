@@ -31,13 +31,17 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   /* A frosted card (the menu key). */
   --ph-frost: rgb(232 196 138 / 0.06);
   --ph-frost-edge: rgb(232 196 138 / 0.24);
-  /* The compass keys: partly see-through over the game text. */
-  --ph-key: rgb(22 19 15 / 0.86);
-  --ph-key-edge: rgb(232 196 138 / 0.34);
-  --ph-key-text: #e8c48a;
-  --ph-key-shadow: inset 0 1px 0 rgb(232 196 138 / 0.16), 0 2px 6px rgb(0 0 0 / 0.6);
-  --ph-flee: rgb(48 14 12 / 0.88);
-  --ph-flee-edge: #d75f5f;
+  /* The compass keys and the hot keys (stage 52): see-through, so the game text is read through
+   * them. At rest a key is a faint veil and a thin ring; its label is kept readable by a tight
+   * outline in the page's colour round every glyph (`--ph-halo`), not by a backing. Pressed, a key
+   * is solid (the lamp). */
+  --ph-halo: var(--term-bg, #000);
+  --ph-key: rgb(22 19 15 / 0.12);
+  --ph-key-edge: rgb(232 196 138 / 0.3);
+  --ph-key-text: #f0cf98;
+  /* Flee: the same veil; the red is in its ring and its letter. */
+  --ph-flee: rgb(22 19 15 / 0.12);
+  --ph-flee-edge: rgb(215 95 95 / 0.55);
   --ph-flee-text: #ff9a8f;
   /* Text. */
   --ph-text: #e8e8e8;
@@ -95,11 +99,25 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   /* The strip's page dots (the lens's pips lie on the dark map on every theme; these on the pane). */
   --ph-dot: rgb(232 196 138 / 0.35);
   --ph-dot-on: #e8c48a;
-  /* The hot keys: see-through, so the game text shows under them; the label's dark halo keeps it readable. */
-  --ph-hk: rgb(22 19 15 / 0.3);
-  --ph-hk-edge: rgb(232 196 138 / 0.55);
+  /* The hot keys: the same look, round. (`--ph-hk-edge` is also the K key's ring.) */
+  --ph-hk: rgb(22 19 15 / 0.12);
+  --ph-hk-edge: rgb(232 196 138 / 0.4);
   --ph-hk-text: #f3d9ac;
-  --ph-hk-halo: 0 1px 2px #000, 0 0 3px #000, 0 0 3px #000;
+  /* The labels' outline: the page's colour set round every glyph by shadows without blur in
+   * eight directions (twice for the compass's larger letters), and a soft one beyond. Not
+   * `-webkit-text-stroke`: without `paint-order` (Chromium before 123, old WebViews) a stroke
+   * is painted over the glyph and eats the letter. */
+  --ph-hk-halo:
+    1.5px 0 0 var(--ph-halo), -1.5px 0 0 var(--ph-halo), 0 1.5px 0 var(--ph-halo), 0 -1.5px 0 var(--ph-halo),
+    1.1px 1.1px 0 var(--ph-halo), -1.1px 1.1px 0 var(--ph-halo), 1.1px -1.1px 0 var(--ph-halo), -1.1px -1.1px 0 var(--ph-halo),
+    0 0 3px var(--ph-halo);
+  --ph-key-halo:
+    2px 0 0 var(--ph-halo), -2px 0 0 var(--ph-halo), 0 2px 0 var(--ph-halo), 0 -2px 0 var(--ph-halo),
+    1.4px 1.4px 0 var(--ph-halo), -1.4px 1.4px 0 var(--ph-halo), 1.4px -1.4px 0 var(--ph-halo), -1.4px -1.4px 0 var(--ph-halo),
+    1px 0 0 var(--ph-halo), -1px 0 0 var(--ph-halo), 0 1px 0 var(--ph-halo), 0 -1px 0 var(--ph-halo),
+    1.8px 0.8px 0 var(--ph-halo), -1.8px 0.8px 0 var(--ph-halo), 1.8px -0.8px 0 var(--ph-halo), -1.8px -0.8px 0 var(--ph-halo),
+    0.8px 1.8px 0 var(--ph-halo), -0.8px 1.8px 0 var(--ph-halo), 0.8px -1.8px 0 var(--ph-halo), -0.8px -1.8px 0 var(--ph-halo),
+    0 0 4px var(--ph-halo);
   /* The hot key box: a solid card over the game text. */
   --ph-solid: #14110d;
   --ph-solid-edge: rgb(232 196 138 / 0.3);
@@ -122,13 +140,13 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-rule: #8a8478;
   --ph-frost: #fbf6e8;
   --ph-frost-edge: #8a8478;
-  --ph-key: rgb(251 246 232 / 0.92);
-  --ph-key-edge: #8a8478;
-  --ph-key-text: #3a3428;
-  --ph-key-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 2px 6px rgb(60 40 10 / 0.25);
-  --ph-flee: #fbe9e4;
-  --ph-flee-edge: #b3261e;
-  --ph-flee-text: #b3261e;
+  --ph-halo: var(--term-bg, #f4ecd8);
+  --ph-key: rgb(251 246 232 / 0.12);
+  --ph-key-edge: rgb(90 78 56 / 0.45);
+  --ph-key-text: #2e2618;
+  --ph-flee: rgb(251 246 232 / 0.12);
+  --ph-flee-edge: rgb(179 38 30 / 0.55);
+  --ph-flee-text: #a31f18;
   --ph-text: #111;
   --ph-dim: #6a6256;
   --ph-track: #d9cfb8;
@@ -175,10 +193,9 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-badge-text: #fffaf0;
   --ph-dot: rgb(138 90 14 / 0.45);
   --ph-dot-on: #8a5a0e;
-  --ph-hk: rgb(251 246 232 / 0.55);
-  --ph-hk-edge: rgb(138 90 14 / 0.7);
-  --ph-hk-text: #3a3428;
-  --ph-hk-halo: 0 0 2px #fbf6e8, 0 0 3px #fbf6e8, 0 0 4px #fbf6e8;
+  --ph-hk: rgb(251 246 232 / 0.12);
+  --ph-hk-edge: rgb(110 72 12 / 0.5);
+  --ph-hk-text: #2e2618;
   --ph-solid: #fbf6e8;
   --ph-solid-edge: #8a8478;
   --ph-solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 6px 18px rgb(60 40 10 / 0.35);
@@ -520,7 +537,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip {
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip[hidden],
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots[hidden],
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band[hidden] {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband[hidden] {
   display: none;
 }
 
@@ -534,14 +551,16 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-hood {
   line-height: 14px;
 }
 
+/* The page dots: on the strip's resize band (below), at its right end, so the grip keeps the
+ * middle as on Comm's band. They take no taps: the grip under them does. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots {
   position: absolute;
-  left: 50%;
-  /* Dots and edge together stay inside the 16 px under the pane's last line. */
-  bottom: 8px;
-  transform: translateX(-50%);
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   gap: 6px;
+  pointer-events: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i {
@@ -554,18 +573,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i {
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i.is-on {
   background: var(--ph-dot-on);
   box-shadow: var(--ph-pip-glow);
-}
-
-/* The strip's lower edge: a thin iron band over the game text's top. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-edge {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 5px;
-  background: var(--ph-iron);
-  border-top: 1px solid var(--ph-iron-hi);
-  border-bottom: 1px solid var(--ph-iron-lo);
 }
 
 /* ------------------------------------------------------------------- Comm */
@@ -605,9 +612,9 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply:has
   outline-offset: -1px;
 }
 
-/* The resize band on Comm's last row (src/phone/comm-chrome.ts; JS sets top
- * and height): iron with a lit bar. Its grip reaches below it for a thumb. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band {
+/* The resize band on Comm's last row and on the pane strip's (src/phone/comm-chrome.ts; JS sets
+ * top and height): iron with a lit bar. Its grip reaches above and below it for a thumb. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband {
   position: absolute;
   left: 0;
   right: 0;
@@ -621,7 +628,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band {
   pointer-events: auto;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band > i {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband > i {
   display: block;
   width: 44px;
   height: 3px;
@@ -629,14 +636,15 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band > i {
   background: var(--ph-grip);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band[data-dragging] {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband[data-dragging] {
   z-index: 1;
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.6);
 }
 
-/* The grip: the band, the 16 px of Comm above it (the reply line's margin) and 10 px of the game
- * text below it, no more: the first game line under the band still scrolls the output. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-grip {
+/* The grip: the band, the 16 px above it (Comm's reply line's margin; the strip pane's last line)
+ * and 10 px of what is below it, no more: the first game line under the band still scrolls the
+ * output. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip {
   position: absolute;
   left: 0;
   right: 0;
@@ -651,9 +659,87 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-grip {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Landscape (stage 52c): the one band, along the right edge of the left column that holds the
+ * strip and Comm, from top to bottom (JS sets left and width): the same iron and lit bar, turned,
+ * dragged sideways. Its grip reaches 16 px into the column and 10 px into the game text. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband.wc-ph-side-band {
+  top: 0;
+  bottom: 0;
+  right: auto;
+  background: linear-gradient(90deg, #3a342d, #231f1a);
+  border: 0;
+  border-left: 1px solid var(--ph-iron-hi);
+  border-right: 1px solid var(--ph-iron-lo);
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-rband.wc-ph-side-band {
+  background: linear-gradient(90deg, #f1eee6, #c9c5ba);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > i {
+  width: 3px;
+  height: 44px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band[data-dragging] {
+  box-shadow: 2px 0 10px rgb(0 0 0 / 0.6);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip.wc-ph-side-grip {
+  top: 0;
+  bottom: 0;
+  left: -16px;
+  right: -10px;
+  cursor: ew-resize;
+}
+
+/* Landscape (stage 52e): Comm's head in the left column (src/phone/comm-chrome.ts; JS sets top and
+ * width). Its hood is the strip's, reading COMM. With the strip open above it an iron divider in
+ * the bands' look lies along Comm's top edge (6 px, cockpit.ts `PHONE_SIDE_DIVIDER_PX`; no lit
+ * bar: it is not dragged) and the hood hangs from it, as the strip's hangs from the top edge. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head {
+  position: absolute;
+  left: 0;
+  height: 22px;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head:not([data-divided]) > .wc-ph-side-rule {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-rule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  box-sizing: border-box;
+  height: 6px;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-side-rule {
+  box-shadow: 0 1px 3px rgb(60 40 10 / 0.25);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head[data-divided] > .wc-ph-hood {
+  top: 5px;
+}
+
+/* Landscape: the strip's page dots at the right end of the hood's row (no band under the strip there). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip > .wc-ph-strip-dots {
+  top: 8px;
+  right: 12px;
+}
+
 /* ----------------------------------------------------------------- compass */
 
-/* From the bottom edge, right: 3 × 3 keys of 40 px. The pad takes the taps
+/* From the bottom edge, right: 3 × 3 keys (`--ph-ck`: 36 px in portrait, 44 px in landscape,
+ * set by the layer). The pad takes the taps
  * in its gaps too, so a near miss never reaches the game text under it. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-pad {
   position: absolute;
@@ -684,8 +770,12 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
   border-radius: 9px;
   background: var(--ph-key);
   color: var(--ph-key-text);
-  box-shadow: var(--ph-key-shadow);
   font: inherit;
+  font-weight: 700;
+  /* The label's outline in the page's colour (`--ph-key-halo`): shadows, which lie under the
+   * glyph in every browser, so the letter keeps its weight. Static paint (no filter, no
+   * backdrop filter): text scrolling under a key repaints nothing of it. */
+  text-shadow: var(--ph-key-halo);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -694,13 +784,23 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key .wc-ph-ico {
   width: 18px;
   height: 18px;
+  overflow: visible;
+}
+
+/* The eye's outline: the same shapes once more under it, wider, in the page's colour (compass.ts). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key .wc-ph-ico-halo {
+  stroke: var(--ph-halo);
+  stroke-width: 6.2;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key:active .wc-ph-ico-halo {
+  display: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-flee {
   border-color: var(--ph-flee-edge);
   background: var(--ph-flee);
   color: var(--ph-flee-text);
-  font-weight: 700;
 }
 
 /* The press shows: a key lit by the lamp. */
@@ -710,6 +810,7 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
   background: var(--ph-lamp);
   border-color: var(--ph-lamp-hi);
   color: var(--ph-ink);
+  text-shadow: none;
 }
 
 /* ---------------------------------------------------------------- hot keys */
@@ -740,6 +841,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-kk {
   text-shadow: var(--ph-hk-halo);
 }
 
+
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on .wc-ph-kk {
   border-color: var(--ph-sat-on-edge);
   background: var(--ph-sat-on);
@@ -747,20 +849,36 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on .wc-ph-kk {
   text-shadow: none;
 }
 
-/* The column: along the right edge above the compass, K1 lowest. It takes
- * the taps in its gaps too. */
+/* The columns: from the right edge above the compass, the lowest number
+ * lowest; a second column (K4 to K6, stage 52) stands left of the first,
+ * same keys, same gap. Each column takes the taps in its own gaps too; the
+ * box round them takes none, so the corner a shorter column leaves free
+ * stays the game's. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot {
   position: absolute;
   right: 8px;
   /* Above the compass: its three keys, two gaps and margin, and 8 px of air (compass-size.ts). */
   bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot-col {
   display: grid;
   grid-template-columns: var(--ph-ck, 40px);
   grid-auto-rows: var(--ph-ck, 40px);
   gap: 3px;
+  /* An empty first column keeps its width, so the second one keeps its place. */
+  min-width: var(--ph-ck, 40px);
   pointer-events: auto;
   touch-action: none;
   -webkit-touch-callout: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot-col:empty {
+  pointer-events: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot[hidden],
@@ -784,7 +902,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk {
   font-size: 10px;
   line-height: 12px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.01em;
   text-shadow: var(--ph-hk-halo);
   cursor: pointer;
   touch-action: none;
@@ -800,17 +918,19 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk.is-held {
   text-shadow: none;
 }
 
-/* The box a held key opens: left of the column, its foot level with the
- * column's (the layer sets `bottom` and `max-height`; with the keyboard up
- * it stands over the command row). */
+/* The box a held key opens: left of the columns (`--ph-hot-w`: what they
+ * take from the right edge's margin, set by the layer: one key, or two and
+ * their gap), its foot level with theirs (the layer sets `bottom` and
+ * `max-height`; with the keyboard up it stands over the command row). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb {
   position: absolute;
-  right: calc(var(--ph-ck, 40px) + 16px);
+  right: calc(var(--ph-hot-w, var(--ph-ck, 40px)) + 16px);
   bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(286px, calc(100% - var(--ph-ck, 40px) - 24px));
+  /* (`--ph-side-w`: landscape's left column, which the box stays right of.) */
+  width: min(286px, calc(100% - var(--ph-side-w, 0px) - var(--ph-hot-w, var(--ph-ck, 40px)) - 24px));
   border: 1px solid var(--ph-solid-edge);
   border-radius: 10px;
   background: var(--ph-solid);
@@ -1288,26 +1408,16 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet {
   box-shadow: var(--ph-sheet-shadow);
 }
 
-/* The top band: iron with a lit grip; a swipe down on it closes the sheet. */
+/* The top band: plain iron. The sheet is not dragged, so the band carries
+ * no grip (stage 52: the lit bar read as a handle); the close key in the
+ * sheet's last row folds it down. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top {
   flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 14px;
+  height: 10px;
   border-radius: 12px 12px 0 0;
   background: var(--ph-iron);
   border-top: 1px solid var(--ph-iron-hi);
   border-bottom: 1px solid var(--ph-iron-lo);
-  touch-action: none;
-}
-
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top > i {
-  display: block;
-  width: 40px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ph-grip);
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-body {
@@ -1542,27 +1652,136 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-
   box-shadow: 0 0 0 2px var(--ph-well), 0 0 0 4px var(--ph-grip);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit {
+/* The sheet's last row: the close key (folds the sheet down), then Exit
+ * session over the rest of the width. The Exit confirmation's row is the
+ * same: Cancel, then Exit. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-foot {
   flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  height: 48px;
+  margin-top: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-fold,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-cancel {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 48px;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-cancel {
+  flex: 1 1 0;
+  width: auto;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit {
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   box-sizing: border-box;
-  width: 100%;
-  height: 48px;
-  margin-top: 16px;
+  min-width: 0;
   border: 1px solid var(--ph-danger);
   border-radius: 10px;
   color: var(--ph-danger);
   font-weight: 700;
 }
 
+/* The Exit session confirmation (exit-sheet.tsx): the sheet's band, hood
+ * and buttons round one frosted card with the warning and the run's rating. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-exit-card {
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 12px;
+  text-align: center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-exit-warn {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ph-danger);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding-top: 16px;
+  border-top: 1px solid var(--ph-row-rule);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rate-t {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-stars {
+  display: flex;
+  justify-content: center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  color: var(--ph-chev);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-star .wc-ph-ico {
+  width: 30px;
+  height: 30px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-star.is-on {
+  color: var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-star.is-on .wc-ph-ico {
+  fill: currentColor;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear {
+  min-width: 88px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--ph-lamp);
+}
+
+/* Nothing to clear: the key keeps its place (the stars do not jump) but is not there. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear[aria-disabled="true"] {
+  visibility: hidden;
+}
+
 /* The pressed key shows (rows, keys, Exit). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row:active,
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-pick:active,
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key:not([aria-disabled="true"]):active,
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit:active {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-fold:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-cancel:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-star:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear:active {
   background: var(--ph-row-rule);
 }
 

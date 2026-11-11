@@ -4,13 +4,15 @@
 import { describe, expect, it } from 'vitest';
 import { SettingsStore } from '../../src/settings';
 import { migratePhone, migrateSettings } from '../../src/settings/migrate';
-import { SETTINGS_VERSION, defaultPhoneSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings/types';
+import { PHONE_DEFAULTS_MARK, SETTINGS_VERSION, defaultPhoneSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings/types';
+import { DEFAULTS_MARK, phoneDefaultsAtStart, phoneDefaultsPatch } from '../../src/phone/phone-defaults';
 
 describe('phone settings', () => {
-  it('defaults: the lens shown, medium, opening at the middle zoom, on a computer and on a phone', () => {
-    expect(defaultPhoneSettings().lens).toEqual({ show: true, size: 'm', opensAt: 'middle' });
+  it('defaults: the lens shown, opening at the middle zoom, on a computer and on a phone', () => {
+    expect(defaultPhoneSettings().lens).toEqual({ show: true, opensAt: 'middle' });
     expect(defaultSettings().phone).toEqual(defaultPhoneSettings());
-    expect(phoneDefaultSettings().phone).toEqual(defaultPhoneSettings());
+    // A new phone has had the one-time defaults (the mark); nothing else differs.
+    expect(phoneDefaultSettings().phone).toEqual({ ...defaultPhoneSettings(), defaults: PHONE_DEFAULTS_MARK });
   });
 
   it('settings stored before stage 51 get the defaults, with no version bump', () => {
@@ -25,7 +27,7 @@ describe('phone settings', () => {
   });
 
   it('stored values are kept', () => {
-    const lens = { show: false, size: 'l', opensAt: 'far' };
+    const lens = { show: false, opensAt: 'far' };
     expect(migratePhone({ lens }).lens).toEqual(lens);
     expect(migrateSettings({ ...defaultSettings(), phone: { lens } }).phone.lens).toEqual(lens);
   });
@@ -34,8 +36,23 @@ describe('phone settings', () => {
     expect(migratePhone(null)).toEqual(defaultPhoneSettings());
     expect(migratePhone('x')).toEqual(defaultPhoneSettings());
     expect(migratePhone({ lens: 7 })).toEqual(defaultPhoneSettings());
-    expect(migratePhone({ lens: { show: 'no', size: 'xl', opensAt: 'near' } }).lens).toEqual({ show: true, size: 'm', opensAt: 'near' });
-    expect(migratePhone({ lens: { show: false, size: 's', opensAt: 3 } }).lens).toEqual({ show: false, size: 's', opensAt: 'middle' });
+    expect(migratePhone({ lens: { show: 'no', opensAt: 'near' } }).lens).toEqual({ show: true, opensAt: 'near' });
+    expect(migratePhone({ lens: { show: false, opensAt: 3 } }).lens).toEqual({ show: false, opensAt: 'middle' });
+  });
+
+  it('a stored lens size (0.5.0) is dropped: the size follows the screen (stage 52)', () => {
+    expect(migratePhone({ lens: { show: false, size: 's', opensAt: 'far' } }).lens).toEqual({ show: false, opensAt: 'far' });
+    expect('size' in migratePhone({ lens: { size: 'l' } }).lens).toBe(false);
+  });
+
+  it('the strip\'s height: null by default, a stored number kept within limits, junk is null (stage 52)', () => {
+    expect(defaultPhoneSettings().stripRows).toBeNull();
+    expect(migratePhone({ stripRows: 12 }).stripRows).toBe(12);
+    expect(migratePhone({ stripRows: 12.7 }).stripRows).toBe(13);
+    expect(migratePhone({ stripRows: -3 }).stripRows).toBe(1);
+    expect(migratePhone({ stripRows: 9999 }).stripRows).toBe(200);
+    expect(migratePhone({ stripRows: 'tall' }).stripRows).toBeNull();
+    expect(migratePhone({ stripRows: Number.NaN }).stripRows).toBeNull();
   });
 
   it('unknown keys of the section are dropped', () => {
@@ -45,9 +62,9 @@ describe('phone settings', () => {
   it('a patch of the lens changes nothing else, least of all the desktop\'s Mapper settings', () => {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     const before = store.get();
-    store.update({ phone: { lens: { size: 's' } } });
+    store.update({ phone: { lens: { opensAt: 'near' } } });
     const after = store.get();
-    expect(after.phone.lens).toEqual({ show: true, size: 's', opensAt: 'middle' });
+    expect(after.phone.lens).toEqual({ show: true, opensAt: 'near' });
     expect(after.mapper).toEqual(before.mapper);
     expect(after.panes).toEqual(before.panes);
     expect({ ...after, phone: null }).toEqual({ ...before, phone: null });
@@ -55,12 +72,12 @@ describe('phone settings', () => {
 });
 
 describe('phone settings of stage 51d: the strip, Comm, unread', () => {
-  it('defaults: the four panes in order, all on; Comm at its default height; private unread', () => {
+  it('defaults: the four panes in order, all on but Character (stage 52); Comm at its default height; private unread', () => {
     const d = defaultPhoneSettings();
     expect(d.strip.panes).toEqual([
       { id: 'timers', on: true },
       { id: 'group', on: true },
-      { id: 'character', on: true },
+      { id: 'character', on: false },
       { id: 'statistics', on: true },
     ]);
     expect(d.commRows).toBeNull();
@@ -69,7 +86,7 @@ describe('phone settings of stage 51d: the strip, Comm, unread', () => {
 
   it('settings stored in stage 51c (the lens only) get the new defaults and keep the lens', () => {
     const p = migratePhone({ lens: { show: false, size: 's', opensAt: 'near' } });
-    expect(p.lens).toEqual({ show: false, size: 's', opensAt: 'near' });
+    expect(p.lens).toEqual({ show: false, opensAt: 'near' });
     expect({ ...p, lens: null }).toEqual({ ...defaultPhoneSettings(), lens: null });
   });
 
@@ -82,7 +99,8 @@ describe('phone settings of stage 51d: the strip, Comm, unread', () => {
       { id: 'statistics', on: false },
       { id: 'timers', on: true },
       { id: 'group', on: true },
-      { id: 'character', on: true },
+      // A pane the stored list lacks comes as by default: Character off.
+      { id: 'character', on: false },
     ]);
     // Repeats, unknown ids and junk are dropped.
     const junk = [{ id: 'group', on: false }, { id: 'group', on: true }, { id: 'map', on: true }, 7, null, { on: true }, { id: 'character', on: 'yes' }];
@@ -119,5 +137,116 @@ describe('phone settings of stage 51d: the strip, Comm, unread', () => {
     expect(store.get().phone.commRows).toBe(12);
     expect(store.get().phone.strip.panes[0]).toEqual({ id: 'group', on: false });
     expect(store.get().phone.strip.panes).toHaveLength(4);
+  });
+});
+
+describe('the phone\'s one-time defaults (stage 52)', () => {
+  const stored050 = (): Record<string, unknown> => {
+    // What 0.5.0 stored on a phone: every strip pane on, Herblores on, three hot keys, vibrate, no mark.
+    const s = JSON.parse(JSON.stringify(phoneDefaultSettings())) as { phone: Record<string, unknown>; timers: { groups: { herb: { enabled: boolean } } } };
+    delete s.phone.defaults;
+    delete s.phone.hotkeyCount;
+    s.phone.hotkeys = (s.phone.hotkeys as unknown[]).slice(0, 3);
+    s.phone.vibrate = false;
+    s.phone.strip = { panes: ['timers', 'group', 'character', 'statistics'].map((id) => ({ id, on: true })) };
+    s.timers.groups.herb.enabled = true;
+    (s.timers as unknown as { timeText: boolean; signal: string }).timeText = true;
+    (s.timers as unknown as { timeText: boolean; signal: string }).signal = 'text';
+    return s;
+  };
+
+  it('the mark is the settings\' (the phone chunk cannot import it as a value)', () => {
+    expect(DEFAULTS_MARK).toBe(PHONE_DEFAULTS_MARK);
+  });
+
+  it('safe mode (`?safe`): nothing is applied at the start, so nothing is written; a normal start applies it', () => {
+    const s = defaultSettings();
+    expect(s.phone.defaults).toBe(0);
+    expect(phoneDefaultsAtStart(s, true)).toBeNull();
+    expect(phoneDefaultsAtStart(s, false)).toEqual(phoneDefaultsPatch(s));
+    expect(phoneDefaultsAtStart(s, false)).not.toBeNull();
+  });
+
+  it('a new phone starts with them and is marked: Herblores off, the time text off, Character out of the strip; nothing to apply', () => {
+    const s = phoneDefaultSettings();
+    expect(s.timers.groups.herb.enabled).toBe(false);
+    expect(s.timers.timeText).toBe(false);
+    // Without the text the "Time text" signal would show nothing: Pulse.
+    expect(s.timers.signal).toBe('pulse');
+    // Nothing else of the Timers settings differs from a computer's.
+    expect({ ...s.timers, groups: null, timeText: null, signal: null }).toEqual({ ...defaultSettings().timers, groups: null, timeText: null, signal: null });
+    expect(s.phone.strip.panes.find((e) => e.id === 'character')!.on).toBe(false);
+    expect(s.phone.defaults).toBe(PHONE_DEFAULTS_MARK);
+    expect(phoneDefaultsPatch(s)).toBeNull();
+    // The other timer groups and strip panes are as on a computer.
+    expect({ ...s.timers.groups, herb: null }).toEqual({ ...defaultSettings().timers.groups, herb: null });
+    expect(s.phone.strip.panes.filter((e) => e.on).map((e) => e.id)).toEqual(['timers', 'group', 'statistics']);
+  });
+
+  it('a computer\'s defaults are not changed: Herblores on, and no mark', () => {
+    const d = defaultSettings();
+    expect(d.timers.groups.herb.enabled).toBe(true);
+    expect(d.timers.timeText).toBe(true);
+    expect(d.timers.signal).toBe('text');
+    expect(d.phone.defaults).toBe(0);
+  });
+
+  it('settings stored by 0.5.0 have no mark: migrated they read 0, with what was stored untouched', () => {
+    for (const phone of [true, false]) {
+      const s = migrateSettings(stored050(), { phone });
+      expect(s.phone.defaults).toBe(0);
+      expect(s.timers.groups.herb.enabled).toBe(true);
+      expect(s.timers.timeText).toBe(true);
+      expect(s.phone.strip.panes.every((e) => e.on)).toBe(true);
+    }
+    expect([migratePhone({ defaults: 1 }).defaults, migratePhone({ defaults: 7 }).defaults, migratePhone({ defaults: -1 }).defaults, migratePhone({ defaults: 'x' }).defaults]).toEqual([1, 1, 0, 0]);
+  });
+
+  it('applied once: Herblores off, the time text off, Character off in the strip, the mark; the order and the other panes are kept', () => {
+    const raw = stored050();
+    (raw.phone as { strip: unknown }).strip = { panes: [{ id: 'statistics', on: false }, { id: 'character', on: true }, { id: 'timers', on: true }, { id: 'group', on: true }] };
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update(() => migrateSettings(raw, { phone: true }));
+    const before = store.get();
+    const patch = phoneDefaultsPatch(before);
+    expect(patch).toEqual({
+      timers: { groups: { herb: { enabled: false } }, timeText: false, signal: 'pulse' },
+      phone: {
+        strip: { panes: [{ id: 'statistics', on: false }, { id: 'character', on: false }, { id: 'timers', on: true }, { id: 'group', on: true }] },
+        defaults: 1,
+      },
+    });
+    store.update(patch!);
+    const after = store.get();
+    expect(after.timers.groups.herb.enabled).toBe(false);
+    expect(after.timers.timeText).toBe(false);
+    expect(after.timers.signal).toBe('pulse');
+    expect(after.phone.defaults).toBe(1);
+    // Nothing else moved.
+    expect({ ...after, timers: null, phone: null }).toEqual({ ...before, timers: null, phone: null });
+    expect({ ...after.timers, timeText: null, signal: null, groups: { ...after.timers.groups, herb: null } }).toEqual({ ...before.timers, timeText: null, signal: null, groups: { ...before.timers.groups, herb: null } });
+    expect({ ...after.phone, strip: null, defaults: null }).toEqual({ ...before.phone, strip: null, defaults: null });
+    // Marked: never again, so the player's own choice wins from here on.
+    expect(phoneDefaultsPatch(after)).toBeNull();
+    store.update({ timers: { groups: { herb: { enabled: true } }, timeText: true }, phone: { strip: { panes: after.phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
+    expect(phoneDefaultsPatch(store.get())).toBeNull();
+    expect(store.get().timers.groups.herb.enabled).toBe(true);
+    expect(store.get().timers.timeText).toBe(true);
+    // And it survives a round through storage.
+    expect(phoneDefaultsPatch(migrateSettings(JSON.parse(JSON.stringify(store.get())), { phone: true }))).toBeNull();
+  });
+
+  it('the signal becomes Pulse only where it still is "Time text": a chosen signal is kept', () => {
+    for (const [stored, want] of [['text', 'pulse'], ['pulse', undefined], ['none', undefined]] as const) {
+      const s = migrateSettings(stored050(), { phone: true });
+      s.timers.signal = stored;
+      const patch = phoneDefaultsPatch(s)!;
+      expect((patch.timers as { signal?: string }).signal, stored).toBe(want);
+      expect((patch.timers as { timeText?: boolean }).timeText).toBe(false);
+      const store = new SettingsStore({ factory: null, storage: null, win: null });
+      store.update(() => s);
+      store.update(patch);
+      expect(store.get().timers.signal).toBe(want ?? stored);
+    }
   });
 });

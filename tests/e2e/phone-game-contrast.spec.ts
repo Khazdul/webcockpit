@@ -15,12 +15,21 @@
 // - the ratio is WCAG 2's, and must be at least 4.5 (3.0 for text of 24 px,
 //   or 18.66 px bold, and more).
 //
-// Text over the game text (the see-through hot keys, the K ring): the
-// background is the key's own backing blended over the PAGE background, as
-// if no game text passed under it. What a letter of game text does under a
-// label cannot be bounded (it can be any colour); the label's halo
-// (`--ph-hk-halo`, the page's colour round every glyph) is what keeps it
-// readable there, and the first case below holds that the halo is set.
+// Text over the game text (stage 52: the compass keys and the hot keys are
+// see-through, a faint veil and a ring; the K ring). Two things are
+// measured for these labels:
+//
+// - as for any text: the label against the key's own veil blended over the
+//   PAGE background, as if no game text passed under it (the audit);
+// - against its outline (`haloOf`): every glyph is outlined in the page's
+//   colour by `text-shadow`s without blur in at least eight directions,
+//   with a soft one beyond (shadows lie under the glyph in every browser;
+//   no `-webkit-text-stroke`, which old Chromium paints over the letter).
+//   The eye icon has the same shapes once more, wider, in that colour. Whatever game text passes under a key, the glyph's
+//   nearest surround is that outline, so the label must reach 4.5:1 against
+//   the outline's colour, the outline must be at least 1.5 px wide, and its
+//   colour must be the page's. What a letter of game text does beyond the
+//   outline cannot be bounded (it can be any colour) and is not measured.
 //
 // Disabled controls are reported (the test's annotations) and not failed.
 // There is no other exemption.
@@ -189,6 +198,57 @@ function audit(page: Page, roots: string[]): Promise<Finding[]> {
   }, roots);
 }
 
+/**
+ * The outline of a see-through key's label (see the file header): its
+ * width in px, whether its colour is the page's, and the label's contrast
+ * against it. For the eye icon: the wider copy under it (`wc-ph-ico-halo`)
+ * against the icon's stroke.
+ */
+function haloOf(page: Page, sel: string): Promise<{ width: number; isPage: boolean; ratio: number; shadow: string }[]> {
+  return page.evaluate((sel) => {
+    const rgb = (c: string): [number, number, number] => {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      const x = cv.getContext('2d', { willReadFrequently: true })!;
+      x.fillStyle = c;
+      x.fillRect(0, 0, 1, 1);
+      const d = x.getImageData(0, 0, 1, 1).data;
+      return [d[0]!, d[1]!, d[2]!];
+    };
+    const lum = (c: [number, number, number]): number => {
+      const f = (v: number): number => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+    };
+    const ratio = (a: [number, number, number], b: [number, number, number]): number => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    const cockpit = document.querySelector<HTMLElement>('.wc-cockpit')!;
+    const pageBg = rgb(getComputedStyle(cockpit).backgroundColor === 'rgba(0, 0, 0, 0)' ? getComputedStyle(document.body).backgroundColor : getComputedStyle(cockpit).backgroundColor);
+    return [...document.querySelectorAll<HTMLElement>(sel)].map((el) => {
+      const cs = getComputedStyle(el);
+      const icon = el.querySelector('svg');
+      if (icon) {
+        const halo = getComputedStyle(icon.querySelector('.wc-ph-ico-halo')!);
+        const line = getComputedStyle(icon.querySelector(':not(.wc-ph-ico-halo)')!);
+        const h = rgb(halo.stroke);
+        // (The copy is wider than the line on both sides; in the icon's own 24 px units, drawn at 18 px.)
+        return { width: ((parseFloat(halo.strokeWidth) - parseFloat(line.strokeWidth)) / 2) * (18 / 24), isPage: ratio(h, pageBg) < 1.02, ratio: ratio(rgb(line.stroke), h), shadow: 'icon' };
+      }
+      // The computed shadows: `<colour> <x>px <y>px <blur>px`, comma-separated.
+      const shadows = [...cs.textShadow.matchAll(/(rgba?\([^)]*\)|color\([^)]*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px/g)].map((m) => ({ c: rgb(m[1]!), x: Number(m[2]), y: Number(m[3]), blur: Number(m[4]) }));
+      const hard = shadows.filter((sh) => sh.blur === 0 && (sh.x !== 0 || sh.y !== 0));
+      // Eight directions: one hard shadow at least in each 45° sector.
+      const sectors = new Set(hard.map((sh) => Math.round((Math.atan2(sh.y, sh.x) * 4) / Math.PI + 8) % 8));
+      // The outline is as wide as the farthest hard shadows reach, where every sector has one.
+      const reach = sectors.size === 8 ? Math.min(...[...sectors].map((k) => Math.max(...hard.filter((sh) => Math.round((Math.atan2(sh.y, sh.x) * 4) / Math.PI + 8) % 8 === k).map((sh) => Math.hypot(sh.x, sh.y))))) : 0;
+      const worst = shadows.length ? Math.min(...shadows.map((sh) => ratio(rgb(cs.color), sh.c))) : 0;
+      const stroke = parseFloat(cs.webkitTextStrokeWidth) || 0;
+      return { width: reach, isPage: shadows.length > 0 && shadows.every((sh) => ratio(sh.c, pageBg) < 1.02), ratio: worst, shadow: `${shadows.some((sh) => sh.blur > 0) ? 'soft' : 'none'}|${stroke}` };
+    });
+  }, sel);
+}
+
 type Theme = 'black' | 'paper';
 const THEMES: Theme[] = ['black', 'paper'];
 
@@ -254,16 +314,34 @@ for (const theme of THEMES) {
       await play(page, FIGHT);
       await expect(page.locator('.wc-ph-fight')).toBeVisible();
       judge(await audit(page, MAIN), 'main', theme, info, 12);
-      // The see-through keys' labels carry a halo of the page's colour (the file header: text over game text).
-      for (const sel of ['.wc-ph-hk', '.wc-ph-key.is-tog:not(.is-on) .wc-ph-kk']) {
-        const el = page.locator(sel).first();
-        if ((await el.count()) === 0) continue;
-        expect(await el.evaluate((e) => getComputedStyle(e).textShadow), `${sel} has its halo`).not.toBe('none');
+      // The see-through keys (the file header: text over game text): hardly any backing, and every
+      // label outlined in the page's colour, against which it reaches 4.5:1.
+      for (const sel of ['.wc-ph-hk', '.wc-ph-key[data-cmd]']) {
+        const alphas = await page.locator(sel).evaluateAll((els) => els.map((e) => Number(/[\d.]+\)$/.exec(getComputedStyle(e).backgroundColor.replace(/^rgb\(.*$/, '1)'))![0].slice(0, -1))));
+        expect(alphas.length, `${sel}: keys`).toBeGreaterThanOrEqual(3);
+        for (const a of alphas) expect(a, `${sel}: the veil's alpha`).toBeLessThanOrEqual(0.15);
+        expect(await page.locator(sel).first().evaluate((e) => getComputedStyle(e).backdropFilter), `${sel}: no backdrop filter`).toBe('none');
       }
+      const halos = [...(await haloOf(page, '.wc-ph-hk')), ...(await haloOf(page, '.wc-ph-key[data-cmd]'))];
+      // Three hot keys and the eight compass keys (seven letters and the eye).
+      expect(halos).toHaveLength(11);
+      for (const h of halos) {
+        expect(h.isPage, 'the outline is the page\'s colour').toBe(true);
+        expect(h.width, 'the outline\'s width').toBeGreaterThanOrEqual(1.5);
+        expect(h.ratio, 'a label against its outline').toBeGreaterThanOrEqual(4.5);
+        if (h.shadow !== 'icon') {
+          expect(h.shadow.split('|')[0], 'the soft shadow round the outline').toBe('soft');
+          // No text stroke (old Chromium paints it over the glyph): the shadows are the outline.
+          expect(Number(h.shadow.split('|')[1]), 'no text stroke').toBe(0);
+        }
+      }
+      info.annotations.push({ type: 'contrast', description: `see-through keys (${theme}): lowest label against its outline ${Math.min(...halos.map((h) => Math.floor(h.ratio * 100) / 100))}` });
       // K unlit (the column hidden).
       await page.locator('.wc-ph-key.is-tog').tap();
       await expect(page.locator('.wc-ph-hot')).toBeHidden();
       judge(await audit(page, ['.wc-ph-pad']), 'compass, K unlit', theme, info, 8);
+      // Unlit, the K ring is see-through as well: its letter keeps the halo.
+      expect(await page.locator('.wc-ph-key.is-tog:not(.is-on) .wc-ph-kk').evaluate((e) => getComputedStyle(e).textShadow)).not.toBe('none');
       await page.locator('.wc-ph-key.is-tog').tap();
       // Pressed keys: the lit look (`:active`), held by a finger that stays down.
       const cdp = await page.context().newCDPSession(page);
@@ -287,7 +365,8 @@ for (const theme of THEMES) {
       await holdKey(page, 3);
       judge(await audit(page, ['.wc-ph-rb', '.wc-ph-hot']), 'box (special)', theme, info, 14);
       await page.locator('.wc-ph-rb .wc-ph-chip[data-pick="custom"]').tap();
-      await page.locator('#wc-ph-rb-command').fill('stand;bash');
+      // Nothing to send: Save refuses (the error line).
+      await page.locator('#wc-ph-rb-command').fill('   ');
       await page.locator('.wc-ph-rb .wc-ph-bt.is-go').tap();
       await expect(page.locator('.wc-ph-rb-err')).toBeVisible();
       judge(await audit(page, ['.wc-ph-rb']), 'box (error)', theme, info, 14);
@@ -307,6 +386,64 @@ for (const theme of THEMES) {
       // The stepper at the smallest size: A− is disabled (reported, not failed); the rest still holds.
       await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 6 } }));
       judge(await audit(page, ['.wc-ph-menu-host']), 'sheet (smallest text)', theme, info, 8);
+    });
+
+    test('the Exit session confirmation: the hood, the warning, the rating, Cancel and Exit', async ({ page }, info) => {
+      // A live session against a mock: it has a run to rate (a replay has none).
+      const IAC = 255, WILL = 251, SB = 250, SE = 240, GMCP = 201;
+      const gmcp = (pkg: string, data: unknown): Buffer => Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(`${pkg} ${JSON.stringify(data)}`, 'utf8'), Buffer.from([IAC, SE])]);
+      let server: WebSocketRoute | null = null;
+      await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+        server = ws;
+        ws.send(Buffer.from([IAC, WILL, GMCP]));
+      });
+      await page.goto('/?phone=1');
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+      await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+      await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+      server!.send(gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Mock' }));
+      await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);
+      server!.send(gmcp('Char.Vitals', { hp: 100, maxhp: 100, xp: 5770000, tp: 41500 }));
+      await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
+      await setTheme(page, theme);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="exit"]').tap();
+      await expect(page.locator('.wc-ph-exitsheet')).toBeVisible();
+      await expect(page.locator('.wc-ph-exitsheet .wc-ph-stars')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'exit', theme, info, 5);
+      await page.locator('.wc-ph-exitsheet [data-star="3"]').tap();
+      await expect(page.locator('.wc-ph-exitsheet [data-act="clear"]')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'exit (rated)', theme, info, 6);
+    });
+
+    test('six hot keys in two columns', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page, FIGHT);
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
+      await expect(page.locator('.wc-ph-hk')).toHaveCount(6);
+      judge(await audit(page, ['.wc-ph-hot']), 'six hot keys', theme, info, 6);
+    });
+
+    test('the Timers and Group sub-page, top to bottom, and one of its lists', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
+      await page.locator('.wc-ph-page [data-row="timers-group"]').tap();
+      await expect(page.locator('.wc-ph-page[data-page="sub:timers-group"]')).toBeVisible();
+      let total = 0;
+      for (const g of ['timers', 'timer-groups', 'group']) {
+        await page.locator(`.wc-ph-page [data-group="${g}"]`).evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        const found = await audit(page, ['.wc-ph-menu-host']);
+        total += found.length;
+        judge(found, `timers and group, ${g}`, theme, info, 4);
+      }
+      expect(total).toBeGreaterThan(20);
+      await page.locator('.wc-ph-page [data-row="group-npcs"]').tap();
+      await expect(page.locator('.wc-ph-page[data-page="pick:group-npcs"]')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'timers and group, NPC list', theme, info, 3);
     });
 
     test('the settings page: every group and row kind, top to bottom, and the font list', async ({ page }, info) => {
@@ -336,6 +473,11 @@ for (const theme of THEMES) {
       await openPhone(page);
       await setTheme(page, theme);
       await play(page, FIGHT);
+      // Character is out of the strip by default (stage 52): in, so its page is measured too.
+      await page.evaluate(() => {
+        const s = window.__wc!.settings;
+        s.update({ phone: { strip: { panes: s.get().phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
+      });
       for (const n of [1, 2, 3, 4]) {
         await page.keyboard.press(`Control+${n}`);
         await expect(page.locator('.wc-ph-strip')).toHaveAttribute('aria-label', new RegExp(`${n} of 4$`));

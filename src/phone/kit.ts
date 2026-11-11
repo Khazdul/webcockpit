@@ -55,12 +55,6 @@ export interface PhoneKit {
   canFullscreen(doc: Document): boolean;
   toggleFullscreen(doc: Document): void;
   onFullscreenRefused(fn: () => void): () => void;
-  /**
-   * A typed line as the commands the script engine would run it as: split
-   * at its command separator the way the command line's input is
-   * (src/script/engine/text.ts `splitCommands`). A hot key holds one.
-   */
-  splitCommands(text: string): string[];
 }
 
 /** The look kit's controls of the settings page (src/chrome/kit/look-controls.tsx). */

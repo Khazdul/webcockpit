@@ -201,7 +201,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
 import { type PhoneGameLens, type PhoneGameResult, allocatePhoneGame, commandRows } from './phone-game';
-import { keyboardUp } from './phone-viewport';
+import { keyboardUp, landscapeLayout, screenLandscape } from './phone-viewport';
 import {
   type DockId,
   defaultDockSize,
@@ -288,11 +288,19 @@ interface TempGroup {
 
 /** The phone's map lens as the phone layer asks for it, in CSS px (`Cockpit.setPhoneLens`). */
 export interface PhoneLensPx {
-  /** The lens's diameter. */
+  /** The lens's full diameter. */
   size: number;
+  /**
+   * Its least diameter (stage 52): with less room than `size` the lens
+   * shrinks in whole rows down to this, and hides below it. Absent: it
+   * never shrinks.
+   */
+  min?: number;
   /** Air above it (under the fight card, or the top edge) and right of it. */
   gapTop: number;
   gapRight: number;
+  /** Landscape (stage 52c): air between the left column (or the left edge) and the lens. Absent: none. */
+  gapLeft?: number;
   /** The height from the cockpit's bottom edge the lens must stay out of (the keys there). */
   clearBottom: number;
   /**
@@ -544,6 +552,23 @@ export class Cockpit {
   private pgStrip: PaneId | null = null;
   /** Phone game layout: Comm open at these rows (null: the default share), or null: closed (`setPhoneComm`). */
   private pgComm: { rows: number | null } | null = null;
+  /** Phone game layout: the strip's stored rows (`setPhoneStripRows`); null: the default share. */
+  private pgStripRows: number | null = null;
+  /** Phone game layout: the height from the bottom edge the strip, fight card and Comm stay above, px (`setPhoneLimit`). */
+  private pgLimit: number | null = null;
+  /** Phone game layout, landscape: the left column's stored width in columns (`setPhoneSideCols`); null: the default share. */
+  private pgSideCols: number | null = null;
+  /** Phone game layout, landscape: the width from the right edge the left column never reaches, px (`setPhoneSideClear`). */
+  private pgSideClear = 0;
+  /** Phone game layout: the window is wider than tall, as of the last layout with the keyboard down. */
+  private pgLandscape = false;
+  /** Phone game layout: a band is being dragged (`holdPhoneSize`): the game's size is not reported until it ends. */
+  private pgHold = false;
+  /** Phone game layout: counts the calls of `holdPhoneSize`, so a late end knows it was overtaken. */
+  private pgHoldTurn = 0;
+  /** Phone game layout: the size kept back while `pgHold`, and who gets it. */
+  private pgHeld: { cols: number; rows: number } | null = null;
+  private pgSizeSend: ((cols: number, rows: number) => void) | null = null;
   /** Phone game layout: Ctrl/Alt+1…9 (`setPhonePageKey`). */
   private pgPageKey: ((index: number) => boolean) | null = null;
 
@@ -1107,7 +1132,7 @@ export class Cockpit {
   setPhoneLens(lens: PhoneLensPx | null): void {
     if (!this.phoneGame) return;
     const a = this.pgLens;
-    if (a === lens || (a && lens && a.size === lens.size && a.gapTop === lens.gapTop && a.gapRight === lens.gapRight && a.clearBottom === lens.clearBottom && (a.clearAlways ?? 0) === (lens.clearAlways ?? 0))) return;
+    if (a === lens || (a && lens && a.size === lens.size && (a.min ?? a.size) === (lens.min ?? lens.size) && a.gapTop === lens.gapTop && a.gapRight === lens.gapRight && (a.gapLeft ?? 0) === (lens.gapLeft ?? 0) && a.clearBottom === lens.clearBottom && (a.clearAlways ?? 0) === (lens.clearAlways ?? 0))) return;
     this.pgLens = lens && { ...lens };
     this.scheduleRelayout();
   }
@@ -1123,6 +1148,97 @@ export class Cockpit {
     if (!this.phoneGame || id === this.pgStrip) return;
     this.pgStrip = id;
     this.scheduleRelayout();
+  }
+
+  /**
+   * Phone game layout: the strip's height in rows (stage 52: its band is
+   * dragged like Comm's), or null for the default share of the screen. The
+   * allocator fits it to the screen (`phoneGameLayout` `strip`, `stripRange`).
+   */
+  setPhoneStripRows(rows: number | null): void {
+    if (!this.phoneGame || rows === this.pgStripRows) return;
+    this.pgStripRows = rows;
+    if (this.pgStrip !== null) this.scheduleRelayout();
+  }
+
+  /**
+   * Phone game layout: the height from the cockpit's bottom edge, px, that
+   * the strip, the fight card and Comm together stay above (stage 52: the
+   * top of the place of three hot keys, so they never reach under the quick
+   * buttons), or null for none. Applied in portrait with the keyboard down
+   * only: with the keyboard up the keys are hidden and the screen is short,
+   * and landscape has its own arrangement (stage 52c).
+   */
+  setPhoneLimit(px: number | null): void {
+    if (!this.phoneGame || px === this.pgLimit) return;
+    this.pgLimit = px;
+    this.scheduleRelayout();
+  }
+
+  /**
+   * Phone game layout, landscape (stage 52c): the width in columns of the
+   * left column that holds the strip and Comm (its band is dragged
+   * sideways), or null for the default share of the screen. The allocator
+   * fits it to the screen (`phoneGameLayout` `side`, `sideRange`). Not used
+   * in portrait.
+   */
+  setPhoneSideCols(cols: number | null): void {
+    if (!this.phoneGame || cols === this.pgSideCols) return;
+    this.pgSideCols = cols;
+    if (this.pgLandscape && (this.pgStrip !== null || this.pgComm !== null)) this.scheduleRelayout();
+  }
+
+  /**
+   * Phone game layout, landscape: the width from the cockpit's right edge,
+   * px, that the left column never reaches (the lens at its least size or
+   * its key row, the hot key columns, the compass).
+   */
+  setPhoneSideClear(px: number): void {
+    if (!this.phoneGame || px === this.pgSideClear) return;
+    this.pgSideClear = px;
+    if (this.pgLandscape && (this.pgStrip !== null || this.pgComm !== null)) this.scheduleRelayout();
+  }
+
+  /**
+   * Phone game layout: wraps the game text's size report (NAWS) so that
+   * `holdPhoneSize` can keep it back while a band is dragged. Without the
+   * phone game layout it returns `send` itself: nothing is wrapped.
+   */
+  phoneSizeGate(send: (cols: number, rows: number) => void): (cols: number, rows: number) => void {
+    if (!this.phoneGame) return send;
+    this.pgSizeSend = send;
+    return (cols, rows) => {
+      if (this.pgHold) this.pgHeld = { cols, rows };
+      else send(cols, rows);
+    };
+  }
+
+  /**
+   * Phone game layout: a band's drag began (true) or ended (false). While
+   * it lasts the layout follows the finger, and the game text's size is
+   * kept back: MUME gets one window size for the whole drag, the last one,
+   * after the release. The end waits two frames, so the release's own
+   * relayout (next frame) and the size its resize reports (after that
+   * frame's layout) are in.
+   */
+  holdPhoneSize(on: boolean): void {
+    if (!this.phoneGame) return;
+    // A new drag before the last one's end has run takes the hold over: that end then does nothing.
+    const turn = ++this.pgHoldTurn;
+    if (on) {
+      this.pgHold = true;
+      return;
+    }
+    if (!this.pgHold) return;
+    this.requestFrame(() =>
+      this.requestFrame(() => {
+        if (turn !== this.pgHoldTurn) return;
+        this.pgHold = false;
+        const held = this.pgHeld;
+        this.pgHeld = null;
+        if (held && !this.disposed) this.pgSizeSend?.(held.cols, held.rows);
+      }),
+    );
   }
 
   /** Phone game layout: the pane the strip shows, or null (closed). */
@@ -1152,16 +1268,19 @@ export class Cockpit {
     if (this.phoneGame) this.pgPageKey = fn;
   }
 
-  /** The lens in cells for a cell of `cell` px and a command row `inputPx` high. */
+  /** The lens for the allocator, at a cell of `cell` px and a command row `inputPx` high. */
   private lensCells(cell: { w: number; h: number }, inputPx: number, kbd: boolean): PhoneGameLens | null {
     const l = this.pgLens;
     if (!l) return null;
     const up = (px: number, unit: number): number => Math.max(0, Math.ceil(px / unit - 1e-6));
     return {
-      cols: Math.max(1, up(l.size, cell.w)),
-      rows: Math.max(1, up(l.size, cell.h)),
+      fullPx: l.size,
+      minPx: l.min ?? l.size,
+      cellW: cell.w,
+      cellH: cell.h,
       gapTop: up(l.gapTop, cell.h),
       gapRight: up(l.gapRight, cell.w),
+      gapLeft: up(l.gapLeft ?? 0, cell.w),
       // The keys at the bottom right step aside with the keyboard up (ADR 0136 §9).
       clearBottom: Math.max(kbd ? 0 : up(l.clearBottom - inputPx, cell.h), up((l.clearAlways ?? 0) - inputPx, cell.h)),
     };
@@ -1172,17 +1291,30 @@ export class Cockpit {
     const s = this.settings.get();
     const inputRows = commandRows(cell.h);
     const kbd = keyboardUp();
+    // Landscape (stage 52c) is the window's shape with the keyboard down (the keyboard makes a
+    // small portrait screen wider than tall, and that is still portrait), unless the screen
+    // itself says portrait: after a rotation or a start with the keyboard up `kbd` is not known yet.
+    const win = this.el.ownerDocument.defaultView;
+    if (!kbd) this.pgLandscape = landscapeLayout(W, H, win ? screenLandscape(win) : null);
+    const land = this.pgLandscape;
     const g = allocatePhoneGame({
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
       inputRows,
       guard: !kbd,
       strip: this.pgStrip !== null,
+      stripRows: this.pgStripRows,
+      // Portrait, the keyboard down (`setPhoneLimit`): whole rows from the top down to the limit.
+      ...(this.pgLimit !== null && !kbd && W <= H ? { maxTop: Math.max(0, Math.floor((H - this.pgLimit) / cell.h + 1e-6)) } : {}),
       fight: this.pgFight,
       comm: this.pgComm,
       // Typing with the keyboard up: Comm (and its reply line) keeps the short screen, the game text two rows.
       ...(kbd ? { gameKeep: PHONE_KBD_GAME_ROWS } : {}),
       lens: this.lensCells(cell, inputRows * cell.h, kbd),
+      // Landscape: the strip and Comm are one column from the left.
+      ...(land
+        ? { side: { cols: this.pgSideCols, clearRight: Math.max(0, Math.ceil(this.pgSideClear / cell.w - 1e-6)), band: phoneSideBandCols(cell.w), keyboard: kbd } }
+        : {}),
     });
     this.pgLast = g;
     const panes: PaneBox[] = [];
@@ -1215,13 +1347,16 @@ export class Cockpit {
       const b = boxes.get(id);
       // The map pane is the lens (ADR 0136 §4): borderless in the lens's cells. The strip's
       // pane and Comm lie in their rows (§5, §6), borderless, with a row (or two) of them left
-      // to the phone layer's chrome: the hood above and the dots below the strip's pane, the
-      // resize band under Comm. Every other pane but a temporary one is hidden.
+      // to the phone layer's chrome: the hood above the strip's pane and the resize band under
+      // it, and the resize band under Comm. Every other pane but a temporary one is hidden.
       const strip = id === this.pgStrip && g.strip.h > 0 && !g.tooSmall;
       shell.el.toggleAttribute('data-phone-strip', strip);
       if (id === 'map' && g.lens && !g.tooSmall) shell.place({ rect: g.lens, content: g.lens, framed: false }, cell);
-      else if (strip) shell.place({ rect: g.strip, content: inset(g.strip, phoneStripChromeRows(cell.h), phoneStripChromeRows(cell.h)), framed: false }, cell);
-      else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall) shell.place({ rect: g.comm, content: inset(g.comm, 0, PHONE_COMM_BAND_ROWS), framed: false }, cell);
+      // (Landscape: the band is the column's last columns instead of a part's last row.)
+      else if (strip) shell.place({ rect: g.strip, content: inset(g.strip, phoneStripChromeRows(cell.h), g.landscape ? 0 : PHONE_STRIP_FOOT_ROWS, g.sideBand), framed: false }, cell);
+      // (Landscape: Comm has a hood of its own, under a divider when the strip is above it.)
+      else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall)
+        shell.place({ rect: g.comm, content: inset(g.comm, g.landscape ? phoneCommHeadRows(cell.h, g.strip.h > 0) : 0, g.landscape ? 0 : PHONE_COMM_BAND_ROWS, g.sideBand), framed: false }, cell);
       else shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
     }
     this.holes.sync();
@@ -2211,29 +2346,48 @@ function placePx(el: HTMLElement, r: Rect): void {
   st.height = `${r.h}px`;
 }
 
-/** Phone game layout: rows of the strip the phone layer's hood (above the pane) and dots (below it) take. */
+/**
+ * Phone game layout: rows of the strip the phone layer's hood (above the
+ * pane) and its resize band with the page dots (below it, one row as
+ * Comm's band) take.
+ */
 export const PHONE_STRIP_HOOD_ROWS = 1;
 export const PHONE_STRIP_FOOT_ROWS = 1;
 /**
- * What the hood and the dots with the strip's edge really take, px
- * (phone.css): at a small text size one row is lower than that, and the
- * pane then leaves them two rows, so neither ever lies over the pane's
- * first or last line.
+ * What the hood really takes, px (phone.css): at a small text size one row
+ * is lower than that, and the pane then leaves it two rows, so it never
+ * lies over the pane's first line.
  */
 export const PHONE_STRIP_CHROME_PX = 16;
-/** The rows the strip's hood (or foot) takes at a cell `cellH` px high. */
+/** The rows the strip's hood takes at a cell `cellH` px high. */
 export function phoneStripChromeRows(cellH: number): number {
   return cellH > 0 ? Math.max(PHONE_STRIP_HOOD_ROWS, Math.ceil(PHONE_STRIP_CHROME_PX / cellH - 1e-6)) : PHONE_STRIP_HOOD_ROWS;
 }
 /** Phone game layout: the row under Comm that is the phone layer's resize band. */
 export const PHONE_COMM_BAND_ROWS = 1;
+/**
+ * Phone game layout, landscape: the iron divider between the strip and Comm
+ * in the left column, px (phone.css). Comm's hood hangs from it.
+ */
+export const PHONE_SIDE_DIVIDER_PX = 6;
+/** The rows of Comm the phone layer's hood takes in landscape: the hood, and the divider above it when the strip is open too. */
+export function phoneCommHeadRows(cellH: number, divided: boolean): number {
+  const px = PHONE_STRIP_CHROME_PX + (divided ? PHONE_SIDE_DIVIDER_PX : 0);
+  return cellH > 0 ? Math.max(1, Math.ceil(px / cellH - 1e-6)) : 1;
+}
+/** Phone game layout, landscape: the least width in px of the left column's resize band (a row's height in portrait). */
+export const PHONE_SIDE_BAND_PX = 14;
+/** The columns the left column's band takes at a cell `cellW` px wide. */
+export function phoneSideBandCols(cellW: number): number {
+  return cellW > 0 ? Math.max(1, Math.ceil(PHONE_SIDE_BAND_PX / cellW - 1e-6)) : 1;
+}
 /** Phone game layout: rows the game text keeps under Comm or the strip while the keyboard is up. */
 const PHONE_KBD_GAME_ROWS = 2;
 
 /** `r` without `top` rows at its top and `bottom` rows at its bottom (at least one row stays). */
-function inset(r: Rect, top: number, bottom: number): Rect {
+function inset(r: Rect, top: number, bottom: number, right = 0): Rect {
   const h = Math.max(1, r.h - top - bottom);
-  return { x: r.x, y: r.y + Math.min(top, r.h - h), w: r.w, h };
+  return { x: r.x, y: r.y + Math.min(top, r.h - h), w: Math.max(1, r.w - right), h };
 }
 
 /** A layout with nothing in it (the phone game layout fills in its own parts). */

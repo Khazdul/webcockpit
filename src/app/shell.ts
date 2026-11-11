@@ -433,10 +433,11 @@ export class Shell {
    * With the phone layer up (ADR 0136 §10) the menu is its bottom sheet:
    * no target opens the sheet (a dropped link lights its Reconnect by
    * itself, from the status), `settings` and `panes` open the phone's
-   * settings page (`panes` at its Panes group), and `profile`,
-   * `scripts` and `exit` open the existing pages straight at their frame in
-   * the ESC menu's overlay, as before. Without the layer (its chunk could
-   * not be loaded) everything is the ESC menu, as before stage 51.
+   * settings page (`panes` at its Panes group), `exit` the phone's own
+   * Exit session confirmation (stage 52), and `profile` and `scripts` open
+   * the existing pages straight at their frame in the ESC menu's overlay,
+   * as before. Without the layer (its chunk could not be loaded)
+   * everything is the ESC menu, as before stage 51.
    */
   async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
     if (!this.inCockpit || !this.appRef || this.appRef.menuBar) return;
@@ -451,6 +452,11 @@ export class Shell {
       if (target === 'settings' || target === 'panes') {
         // `#panes`: the page at its Panes group (the strip's panes and their order).
         sheet.openSettings(sheet.showing === 'sheet' ? 'sheet' : 'game', target === 'panes' ? 'panes' : undefined);
+        return;
+      }
+      if (target === 'exit') {
+        // The sheet's Exit session, and `#exit`: Cancel goes back to where it came from.
+        sheet.openExit(sheet.showing === 'sheet' ? 'sheet' : 'game');
         return;
       }
       sheet.close(true);
@@ -859,8 +865,11 @@ export class Shell {
                 this.closeMenu();
                 app.onCommand('#reconnect');
               },
-              // Profile, Scripts and Exit: the existing pages, at their frame.
+              // Profile and Scripts: the existing pages, at their frame.
               openFrame: (frame) => void this.openMenu(undefined, frame),
+              // Exit session, confirmed in the phone's own sheet (stage 52), with the run's rating.
+              exit: () => void this.exitSession(),
+              runs: app.runs,
               onMenuClose: () => {
                 if (this.inCockpit) app.input.focus();
               },

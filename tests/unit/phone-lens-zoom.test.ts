@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { ZOOM_MAX, ZOOM_MIN, pxPerRoom } from '../../src/map/view';
-import { LENS_LEVELS, LENS_PX, LENS_ROOMS, PX_PER_ROOM, lensLabel, lensLevel, lensPx, lensZoom, nextLevel } from '../../src/phone/lens-zoom';
-import { PHONE_LENS_LEVELS, PHONE_LENS_SIZES } from '../../src/settings/types';
+import { LENS_FULL_MAX_PX, LENS_FULL_MIN_PX, LENS_LEVELS, LENS_MIN_PX, LENS_ROOMS, PX_PER_ROOM, lensFullPx, lensLabel, lensLevel, lensZoom, nextLevel } from '../../src/phone/lens-zoom';
+import { PHONE_LENS_LEVELS } from '../../src/settings/types';
+
+/** Every diameter the lens can have: from its least, shrunk, to the largest full size. */
+const SIZES = [LENS_MIN_PX, 102, 119, 136, 150, 163, LENS_FULL_MAX_PX];
 
 describe('the lens zoom levels', () => {
-  it('are the settings\' levels and sizes', () => {
+  it('are the settings\' levels', () => {
     expect([...LENS_LEVELS]).toEqual([...PHONE_LENS_LEVELS]);
-    expect(Object.keys(LENS_PX)).toEqual([...PHONE_LENS_SIZES]);
   });
 
   it('a room is 44 px wide at zoom 1 on the player\'s layer, as the worker draws it', () => {
@@ -15,7 +17,7 @@ describe('the lens zoom levels', () => {
 
   it('show about 3, 5 and 10 rooms across the lens, whatever its size', () => {
     expect(LENS_ROOMS).toEqual({ near: 3, middle: 5, far: 10 });
-    for (const px of Object.values(LENS_PX)) {
+    for (const px of SIZES) {
       for (const level of LENS_LEVELS) {
         expect(px / pxPerRoom(lensZoom(level, px), 0)).toBeCloseTo(LENS_ROOMS[level], 9);
       }
@@ -29,7 +31,7 @@ describe('the lens zoom levels', () => {
   });
 
   it('every level of every size is inside the worker\'s zoom limits', () => {
-    for (const px of Object.values(LENS_PX)) {
+    for (const px of SIZES) {
       for (const level of LENS_LEVELS) {
         const z = lensZoom(level, px);
         expect(z).toBeGreaterThan(ZOOM_MIN);
@@ -44,12 +46,24 @@ describe('the lens zoom levels', () => {
     expect(nextLevel('far')).toBe('near');
   });
 
-  it('sizes: S 120, M 150, L 180; an unknown size is M', () => {
-    expect(lensPx('s')).toBe(120);
-    expect(lensPx('m')).toBe(150);
-    expect(lensPx('l')).toBe(180);
-    expect(lensPx('xl')).toBe(150);
-    expect(lensPx('constructor')).toBe(150);
+  it('the full size is a share of the short side: 150 at 360, 163 at 390, within 130 to 190', () => {
+    expect(lensFullPx(360)).toBe(150);
+    expect(lensFullPx(390)).toBe(163);
+    expect(lensFullPx(412)).toBe(172);
+    expect(lensFullPx(320)).toBe(133);
+    expect(lensFullPx(300)).toBe(LENS_FULL_MIN_PX);
+    expect(lensFullPx(200)).toBe(130);
+    expect(lensFullPx(456)).toBe(190);
+    expect(lensFullPx(600)).toBe(LENS_FULL_MAX_PX);
+    // Nothing to go by: the mockups' 150.
+    expect(lensFullPx(0)).toBe(150);
+    expect(lensFullPx(Number.NaN)).toBe(150);
+    expect(lensFullPx(Number.POSITIVE_INFINITY)).toBe(150);
+    expect(LENS_MIN_PX).toBe(96);
+  });
+
+  it('the zoom follows the diameter: the same rooms across at every size', () => {
+    expect(lensZoom('middle', 96) / lensZoom('middle', 150)).toBeCloseTo(96 / 150, 9);
   });
 
   it('an unknown level is middle; the label names the level', () => {
