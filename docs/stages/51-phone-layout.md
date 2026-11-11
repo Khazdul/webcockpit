@@ -1,6 +1,6 @@
 # Stage 51 — The phone's layout in the game
 
-Status: **In progress** (plan written 2026-11-10; build session 2026-11-10/11). Branch
+Status: **Owner testing** (plan written 2026-11-10; built 2026-11-10/11, steps 51a–51g). Branch
 `stage-51-phone-layout` (from `main`), not to be merged or released by
 the build session.
 
@@ -246,34 +246,73 @@ The owner starts the session and is away until morning. So:
 - [x] 51d pane strip and Comm
 - [x] 51e hot keys
 - [x] 51f weather, compass and connection settings
-- [ ] 51g Paper, polish, full verification, docs
+- [x] 51g Paper, polish, full verification, docs
 
-## Test guide (for the owner; the build session makes it exact)
+## Test guide (for the owner)
 
-On the computer: `git switch stage-51-phone-layout`, start the dev server
-so the phone can reach it (README, "dev server over Tailscale", ADR
-0096), and open it on the phone in the normal browser. Without a phone:
-desktop Chrome at 390×844 with `?phone=1`.
+**Set up.** On the computer: `git switch stage-51-phone-layout`, then
+`npm run dev:tailnet` (README, "dev server over Tailscale", ADR 0096) and
+open the address on the phone in its normal browser. Without a phone:
+desktop Chrome with device emulation or a window of 390 × 844 and
+`?phone=1`. **The new layout needs a phone-size window** (short side
+under 600 px); `?phone=1` in a wide window shows the old phone layout.
+To look around without logging in: `?fixture=gmcp-demo.log&speed=0&phone=1`
+(a replay: Comm has no reply line and keys answer "replay").
 
-1. **Walk.** Log in. No fight card; the lens at the top right follows
-   you. Tap N, S, E, W, U, D, the eye and F. Tap a direction with no
-   exit several times: every tap is sent.
-2. **Lens.** Tap it: near, middle, far. Tap the fullscreen key.
-3. **Fight.** Attack something: the fight card shows your name and the
-   opponent's with two bars, and goes away after the fight.
+**Good to know before you start.**
+- Going back to `main` or the released version in the same browser drops
+  the phone's settings (hot keys, strip order, lens) at the first
+  settings write there. Nothing else is lost.
+- The keys (compass, hot keys, Comm's reply) only send while you are in
+  the game: not at the name or password prompt and not with the link
+  down.
+
+1. **Walk.** Log in. No fight card; the lens is at the top right and
+   follows you. Tap N, S, E, W, U, D, the eye and F. Tap a direction with
+   no exit several times: every tap is sent.
+2. **Lens.** Tap it: near, middle, far (three pips). Tap the fullscreen
+   key at its top right (Android; iPhone Safari has none).
+3. **Fight.** Attack something: the fight card shows "You" and the
+   opponent with two bars and goes away after the fight. Check that the
+   opponent's bar steps down as it gets hurt (MUME's real condition
+   words are not confirmed, see "To verify").
 4. **Panes.** Tap the lens's top left key; swipe through Timers, Group,
-   Character, Statistics. Close it.
+   Character, Statistics; close with the same key.
 5. **Comm.** Have someone tell you: only the count on the lens's Comm
-   key changes. Open Comm, answer, drag its lower edge, close it.
-6. **Hot keys.** Tap `asst`, `bash`, `wimp` (check the wimpy it set).
-   Hold one, change it to Custom, save. Hide the column with K.
-7. **Typing.** Tap the command field: compass and hot keys step aside.
-8. **Menu.** Text size, Paper and back, Settings, Reconnect, Exit.
-9. **Weather** on in Settings: effects over the whole width.
-10. **Desktop:** open the same branch on the computer: nothing changed.
+   key changes. Open Comm (the lens gives way to a row of keys), answer
+   in "Type a message", drag the iron band at its lower edge, close it.
+6. **Hot keys.** Tap `asst`, `bash`, `wimp`; after `wimp` check the
+   wimpy MUME reports (half of your current hit points). Hold one for
+   half a second, pick Custom, type a command, Save. Hide the column
+   with K.
+7. **Typing.** Tap the command field: compass and hot keys step aside
+   and the field takes the full width.
+8. **Menu.** The key at the bottom left: text size, Paper and back,
+   Settings (six groups), Reconnect, Exit session.
+9. **Weather.** Settings → Connection → Weather effects: effects over
+   the whole width, behind the keys.
+10. **Away and back.** With Settings → Connection → Reconnect
+    automatically on: switch app for a few minutes, come back to a dead
+    link: it reconnects once and MUME asks for name and password. With it
+    off: the menu opens with Reconnect lit. Check that the screen stays
+    on while connected (Keep screen on).
+11. **Landscape.** Turn the phone: same layout; with three hot keys
+    shown the lens gives way to its key row (K brings it back).
+12. **Desktop.** Open the same branch on the computer: nothing changed.
 
 Feedback wanted: reach and size of the keys, whether the lens and keys
 cover too much text, Comm's height, anything that feels slow.
+
+**To verify on the live game (could not be checked from fixtures):**
+MUME's exact opponent condition words; that `change wimpy 0` would turn
+wimpy off (the key never sends 0); that the wake lock holds and the
+vibration is felt on your phone.
+
+**Decisions waiting for you** (each is noted under "Built"):
+the theme swatch replacing a hand-tuned palette (51b); the lens hidden
+in landscape while three hot keys show (51e); wake lock on and vibrate
+off by default (51f); `#3 north` allowed on a hot key (51e); a script's
+map mark with focus can still override the lens's zoom (51g).
 
 ## Built
 
@@ -528,6 +567,68 @@ cover too much text, Comm's height, anything that feels slow.
   `scripts-settings.spec.ts:411` (chromium) now fails alone, 3 of 3 on an
   untouched `main` worktree as well: not this stage.
 - Screenshots: `docs/stages/img/51-f-*.png`.
+
+### 51g Paper, polish, full verification (built)
+
+- Paper pass over every phone surface; fixed: the chosen segment of the
+  segmented controls (white on white on Paper, now a brass ring), the
+  rescue key's pressed look, page dots, the disabled reply field.
+- Contrast (`tests/e2e/phone-game-contrast.spec.ts`, 775 measurements on
+  Black and Paper): lowest 5.00 on Black, 5.02 on Paper. Tokens changed:
+  `--ph-dim` `#979797`, `--ph-danger` `#e26d6d`, Comm's placeholder on the
+  phone. Disabled controls are reported, not failed. Labels of the
+  see-through hot keys are measured against the key's backing; what game
+  text does under a label cannot be bounded (they keep a halo).
+- Small screens (`tests/e2e/phone-game-small.spec.ts`): 844 × 390,
+  360 × 740 and 320 × 568 pass (reach, 36 px targets, no overlap, strip
+  and Comm open, sheet and settings to the last row, the box, keyboard
+  up). Fixed: the lens's key row now stands left of the hot key column
+  when they would collide. **Limit left:** in landscape Comm's resize
+  band passes under the hot key column at the right edge (the keys are
+  on top; the band is dragged left of them).
+- The strip's hood is 16 px and the pane keeps `ceil(16 / cell)` rows
+  clear of it, so nothing is covered.
+- From the whole-branch review (no behaviour change found on desktop,
+  tablet, or the player on a phone):
+  - Comm's reply is a textarea only in the phone game layout; the old
+    phone layout has the `<input>` as on `main`.
+  - **Exports no longer carry the `phone` section** (`share/payload.ts`
+    deletes it), so hot key commands never travel in an HTML replay.
+  - `migratePhone` no longer builds text segmenters on every settings
+    write.
+  - Noted, not changed: Preact is now its own small lazy chunk shared by
+    the chrome and phone chunks (same bytes, one more request);
+    eager JS grew by about 15 kB raw.
+- **Text speed (rule 4).** A fair comparison (alternating runs, quiet
+  machine) first showed the branch 10–12 % slower in the burst. Cause:
+  the lens draws Shimrod, which alternates with the season; the first
+  clock sync swapped the whole tileset (about 120 files) in the middle
+  of the login text. Nothing in `src/phone` runs during a burst (0
+  layouts, 0 DOM changes). Fix: on the lens only, a season swap waits
+  five seconds after the clock change (`LENS_SEASON_DELAY_MS` in
+  `panes/map.ts`; a computer's Map pane swaps at once as before). After
+  (`bench/results/phone-51-compare.md`, medians of six rounds): `main`
+  1271 ms, branch 1297 ms (+2.1 %), branch with the lens off 1287 ms;
+  frame → paint, flush script and key → send equal to `main`. Left: the
+  single longest burst frame is 31–35 ms against 27–30 ms; the swap's
+  own work is unchanged and can still overlap a login burst longer than
+  five seconds. The numbers of `phone-51-before.md` are from another
+  machine state (938 ms) and are not comparable with the later runs.
+- Seen in the code, left alone (owner question): a script's map mark
+  with `focus` makes the worker fit the view and can override the lens's
+  three levels until it ends.
+- **Final verification (2026-11-11):** typecheck clean; 3773 unit tests;
+  phone 188 passed; chromium 427 passed and 5 failed in a loaded full
+  run, of which 4 pass alone and `scripts-settings.spec.ts:411` fails
+  alone on an untouched `main` too; firefox 432 passed and 2 failed in
+  the full run, both pass alone. No non-`phone*` e2e file was edited.
+  The `index.html` preload list is identical to `main`.
+- Screenshots: the final set is `docs/stages/img/51-g-*.png` (48 files,
+  4.4 MB, device scale 2, 256 colours); the per-step sets were removed.
+- Mockup differences that remain: box fields are 16 px (iOS zoom); the
+  Paper box and sheet are derived (no mockup); the lens's place is
+  quantised to cells; no blur on the reflection; no send button in
+  Comm's field.
 
 ## Owner feedback
 

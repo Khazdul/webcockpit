@@ -248,3 +248,71 @@ No settings version bump.
 - The exact text of MUME's opponent condition words in `opponent-hits`.
 - That one `MapPane` can be clipped to a circle without a second
   canvas, and what the three zoom values are in the worker's units.
+
+## Addendum: as built (stage 51, 2026-11-11)
+
+Built on the branch `stage-51-phone-layout` in steps 51a–51g. The details
+per step are in `docs/stages/51-phone-layout.md` ("Built"). Where the
+build departs from the decision above, this addendum is what the code
+does.
+
+**Answers to "To verify in the build"**
+
+- `Char.Vitals` `hp` and `maxhp` are numeric in the fixture. The fixture
+  is synthetic, so MUME's real `opponent-hits` words are still
+  unconfirmed; the code uses the list in `src/gmcp/bands.ts` (the ADR's
+  six plus `dying` → 0 %).
+- One `MapPane` can be clipped to a circle (`clip-path: circle()` on the
+  cockpit's one map pane): one canvas, one worker, nothing re-parented.
+- The worker's zoom is a factor, one room = 44 CSS px at zoom 1 on layer
+  0: `zoom = lens px / (rooms × 44)`. Near 3 rooms, middle 5, far 10
+  (1.136, 0.682, 0.341 at 150 px). Other layers show somewhat fewer or
+  more rooms.
+
+**Departures**
+
+- §1 Gating: the layout is used when the phone flag is on **and** the
+  window's short side is under 600 CSS px. A phone flag forced in a
+  desktop-size window keeps the old phone layout (desktop e2e specs rely
+  on it). If the phone chunk fails to load, the old `☰` and ESC menu
+  remain as the fallback.
+- §2 Command row: as many whole rows as a 44 px field needs (3 at the
+  default size), not one.
+- §2 Chunking rule (new): `src/phone/*` imports app modules as types
+  only and gets values through `PhoneKit` (`src/app/phone-kit.ts`);
+  a value import re-cuts the eager chunk graph for every device.
+- §4 Lens: placed in a rectangle of whole cells, so its position is
+  quantised; no blur on the reflection; sizes S 120 / M 150 / L 180. The
+  lens also hides when it would reach the hot key column (landscape
+  with three keys shown). On the lens a season swap of the tileset waits
+  five seconds after a clock change, so it does not land in the login
+  text. Lens off means no map worker.
+- §5 Strip: a pane gets the strip's rows minus the hood and the dots; a
+  strip under 4 rows is not shown. Ctrl/Alt+1…9 also open the strip.
+- §6 Comm: no send button (Enter sends). The reply line is disabled
+  outside play. Unread "all" counts each message once. With the
+  keyboard up Comm keeps the screen and the game keeps 2 rows.
+- §7, §8 Keys send only in play: never at the name or password prompt
+  and never with the link down (a tap cannot reconnect). Compass keys
+  send on press; hot keys on release (a hold must be told apart).
+- §8 Hot keys: one command per key (a line the engine would split at `;`
+  is refused; aliases and a single `#` command behave as typed). The
+  wimpy specials never send 0 (assumed to turn wimpy off; unverified).
+  Labels are four graphemes. With no key shown, K opens the box for K1.
+- §10 Menu: leaving Profile, Scripts or Exit returns to the game. The
+  sheet swallows keys while open. A+ stops before "Window too small"
+  and a rescue menu key shows over that notice. Automatic reconnect:
+  "found on resume" also covers a close during the resume ping and a
+  drop while hidden; a failed attempt opens the sheet; it never closes
+  an open page. Defaults: keep the screen on **on**, vibrate **off**.
+- §11 Weather: the canvas sits behind the phone chrome (z 5) on this
+  layout; the moon sets beyond the left edge.
+- §13 Settings: as listed, plus the specials stored as `wimpy50` /
+  `wimpy25`. The `phone` section is removed from exported replays.
+  `main` and released versions drop the section when they write
+  settings.
+
+**Open for the owner:** the theme swatch replaces a hand-tuned palette
+(as the desktop's Background cycle does); the lens in landscape; the two
+defaults above; `#3 north` on a hot key; a script's map mark with focus
+overriding the lens's zoom.
