@@ -437,6 +437,32 @@ export interface PhoneSettings {
   commRows: number | null;
   /** What the Comm key's badge counts (ADR 0136 §6): private chats, or Group and Public too. */
   unread: PhoneUnread;
+  /** The hot keys K1 to K3, in that order (ADR 0136 §8): always `PHONE_HOTKEY_COUNT` of them. */
+  hotkeys: PhoneHotkey[];
+  /** The hot key column is shown (the K key). */
+  hotkeysOpen: boolean;
+}
+
+/** How many hot keys the phone has (ADR 0136 §8). */
+export const PHONE_HOTKEY_COUNT = 3;
+/** The longest label of a hot key, in characters. */
+export const PHONE_HOTKEY_LABEL_MAX = 4;
+/** The longest stored command of a hot key (a line of commands; far above any real one). */
+export const PHONE_HOTKEY_COMMAND_MAX = 200;
+
+/** A hot key's special: a command computed at the press (wimpy at a share of the current hit points). */
+export const PHONE_HOTKEY_SPECIALS = ['wimpy50', 'wimpy25'] as const;
+export type PhoneHotkeySpecial = (typeof PHONE_HOTKEY_SPECIALS)[number];
+
+/** One hot key. It lives in the phone's settings, not in the profile (ADR 0136 §8). */
+export interface PhoneHotkey {
+  /** What the key shows: one to `PHONE_HOTKEY_LABEL_MAX` characters. */
+  label: string;
+  /** The line the key sends as if typed; unused while `special` is set. */
+  command: string;
+  special: PhoneHotkeySpecial | null;
+  /** In the column; off, the key keeps what it is set to. */
+  shown: boolean;
 }
 
 /** The built-in panes that can be pages of the phone's pane strip, in the default order (ADR 0136 §5). */
@@ -464,7 +490,8 @@ export const PHONE_COMM_ROWS_MAX = 200;
 /**
  * Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4);
  * the strip's four panes in their order, all on (§5); Comm at its default
- * height, the badge counting private chats (§6).
+ * height, the badge counting private chats (§6); the three hot keys assist,
+ * bash and wimpy at half of the current hit points, their column shown (§8).
  */
 export function defaultPhoneSettings(): PhoneSettings {
   return {
@@ -472,6 +499,12 @@ export function defaultPhoneSettings(): PhoneSettings {
     strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: true })) },
     commRows: null,
     unread: 'private',
+    hotkeys: [
+      { label: 'asst', command: 'assist', special: null, shown: true },
+      { label: 'bash', command: 'bash', special: null, shown: true },
+      { label: 'wimp', command: '', special: 'wimpy50', shown: true },
+    ],
+    hotkeysOpen: true,
   };
 }
 

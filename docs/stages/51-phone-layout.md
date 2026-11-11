@@ -244,7 +244,7 @@ The owner starts the session and is away until morning. So:
 - [x] 51b menu sheet, Text settings
 - [x] 51c map lens
 - [x] 51d pane strip and Comm
-- [ ] 51e hot keys
+- [x] 51e hot keys
 - [ ] 51f weather, compass and connection settings
 - [ ] 51g Paper, polish, full verification, docs
 
@@ -455,6 +455,42 @@ cover too much text, Comm's height, anything that feels slow.
   load-sensitive cases that pass alone. Preload list identical to `main`.
 - Screenshots: `docs/stages/img/51-d-*.png` (the Comm shots predate the
   last grip and margin tweak; 51g re-shoots everything).
+
+### 51e Hot keys (built)
+
+- `src/phone/hotkeys.ts` (column, K key, the box), `hotkey-model.ts`
+  (pure); `phone.hotkeys` and `phone.hotkeysOpen` in the settings.
+- Shared files: `layout/cockpit.ts` (`PhoneLensPx.clearAlways`, phone
+  game lens path only), `app/shell.ts` (a `notice` dep at the phone
+  mount), `app/phone-kit.ts` (`splitCommands`), `settings/types.ts` +
+  `migrate.ts`.
+- Choices and deviations:
+  - A tap sends on release (so a hold can be told apart); a 500 ms hold
+    opens the box and sends nothing; sliding more than 12 px off does
+    neither.
+  - **One command per key:** Save refuses a line the engine would split
+    (`;`), and a stored one sends nothing and prints a notice. Aliases
+    and a `#` command behave as typed (so `#3 north` still sends three,
+    as on the command line).
+  - **Wimpy is never 0** (hp 1 at 50 % sends `change wimpy 1`); hp unknown
+    or ≤ 0 sends nothing and prints `[SYSTEM] Hot key: …` in the game
+    text. **Not verified against MUME** that `change wimpy 0` turns wimpy
+    off; that is the assumption.
+  - With no key shown, K stays (unlit) and opens the box for K1.
+  - A press outside the box closes it without saving and still does its
+    own work. The box closes when the menu opens, when the layout is too
+    small, or when the strip, fight card or Comm reaches it.
+  - The box's fields use 16 px text (iOS zooms the page under that). The
+    labels have a slightly stronger halo than the mockup. The Paper box
+    is derived from the Paper tokens (no mockup).
+  - Labels are cut at four graphemes.
+  - **Landscape (owner question):** three hot keys reach the lens's place
+    on a 390 px high screen, so the lens hides and its keys show as a
+    row; K (hiding the column) brings it back. Follows ADR §4, but the
+    lens is off by default in landscape.
+- Tests: 3734 unit; phone 146 passed. Preload list identical to `main`.
+- Screenshots: `docs/stages/img/51-e-*.png` (the rebind shot still says
+  "Sends now"; 51g re-shoots).
 
 ## Owner feedback
 

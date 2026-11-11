@@ -247,6 +247,17 @@ const STATES: State[] = [
     },
   },
   {
+    // The hot key box, open on K3 (the mockup's P5): a hold on the key.
+    name: 'rebind',
+    step: 'e',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      const key = page.locator('.wc-ph-hk[data-hk="2"]');
+      await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+      await page.locator('.wc-ph-rb').waitFor();
+    },
+  },
+  {
     name: 'settings',
     step: 'b',
     run: async (page) => {

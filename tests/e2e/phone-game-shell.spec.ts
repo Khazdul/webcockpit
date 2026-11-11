@@ -115,7 +115,7 @@ test('the command row: the menu key far left, the field ending left of the compa
   await expect(page.locator('.wc-input-slot button')).toHaveCount(1);
 });
 
-test('the compass: a 3 × 3 grid of 40 px keys from the bottom edge, right; the cell left of N is empty', async ({ page }) => {
+test('the compass: a 3 × 3 grid of 40 px keys from the bottom edge, right; the cell left of N is the K key', async ({ page }) => {
   await openPhone(page);
   const c = await box(page, '.wc-cockpit');
   const p = await box(page, '.wc-ph-pad');
@@ -123,7 +123,8 @@ test('the compass: a 3 × 3 grid of 40 px keys from the bottom edge, right; the 
   expect(p.height).toBeCloseTo(126, 0);
   expect(c.x + c.width - (p.x + p.width)).toBeCloseTo(8, 0);
   expect(c.y + c.height - (p.y + p.height)).toBeCloseTo(8, 0);
-  // N, U / W, eye, E / F, S, D at the mockup's places; no ninth key.
+  // N, U / W, eye, E / F, S, D at the mockup's places; the ninth cell is the hot keys' K key
+  // (tests/e2e/phone-game-hotkeys.spec.ts), which sends nothing.
   const places: Record<string, [number, number]> = {
     north: [1, 0],
     up: [2, 0],
@@ -134,7 +135,8 @@ test('the compass: a 3 × 3 grid of 40 px keys from the bottom edge, right; the 
     south: [1, 2],
     down: [2, 2],
   };
-  await expect(page.locator('.wc-ph-pad > *')).toHaveCount(8);
+  await expect(page.locator('.wc-ph-pad > *')).toHaveCount(9);
+  await expect(page.locator('.wc-ph-pad > [data-cmd]')).toHaveCount(8);
   for (const [cmd, [col, row]] of Object.entries(places)) {
     const k = (await key(page, cmd).boundingBox())!;
     expect(k.width).toBeCloseTo(40, 0);

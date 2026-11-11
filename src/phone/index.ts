@@ -24,6 +24,8 @@
 //                   (strip-model.ts, swipe.ts); the pane is the cockpit's
 //   comm-chrome.ts  Comm's resize band; Comm is the cockpit's Comm pane,
 //                   in its phone mode, and the Comm key's badge (unread.ts)
+//   hotkeys.ts      the hot key column, the K key in the compass's free
+//                   cell, and the box a held key opens (hotkey-model.ts)
 //   here            the menu key in the command row, and the wiring
 //
 // Cost (stage 51 rule 4): nothing runs per frame or per incoming line. The
@@ -50,6 +52,8 @@ import { CommBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
+import { HotkeysView } from './hotkeys';
+import { hotkeyPress, knownHp, withHotkey } from './hotkey-model';
 import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
 
 export type { PhoneControls, PhoneKit } from './kit';
@@ -65,6 +69,14 @@ const LENS_GAP_TOP = 16;
 const LENS_GAP_RIGHT = 12;
 /** What the compass takes from the bottom edge: three 40 px keys, two 3 px gaps and its 8 px margin. */
 const COMPASS_HEIGHT = 134;
+/** The hot key column (phone.css): its foot above the bottom edge, a key with its gap, and the gap. */
+const HOT_BOTTOM = 142;
+const HOT_STEP = 43;
+const HOT_GAP = 3;
+/** What the lens keeps clear above the column or the box: its ring and shadow, and a little air. */
+const LENS_CLEAR = 16;
+/** The box's air to the command row (the keyboard up) and to the top edge. */
+const BOX_GAP = 8;
 /** The key row's air under what is above it (the lens hidden). */
 const SATROW_GAP = 8;
 /** What the lens fixes on the map pane (ADR 0136 §4): Shimrod, alternating with MUME's season, on black. */
@@ -82,6 +94,8 @@ export interface PhoneLayerDeps {
   cells: { get(): { w: number; h: number } };
   /** A key's command, as if typed (`App.onCommand`: aliases, the echo). Called only in play (`send`). */
   command(text: string): void;
+  /** A client notice in the game text (`[SYSTEM] …`), as the app's own. */
+  notice(text: string): void;
   /** Where the session is now: a key sends only in play (play-gate.ts). */
   playState(): PlayState;
   /** The menu key: the shell opens the menu (`PhoneLayer.menu`), as Esc and `#menu` do. */
@@ -133,6 +147,9 @@ export class PhoneLayer {
   /** What the last layout really gave the strip and Comm rows for (the keys are lit by these). */
   private stripShown = false;
   private commShown = false;
+  private readonly hot: HotkeysView;
+  /** What the lens must stay out of from the bottom edge, as last asked of the cockpit. */
+  private lensClear = COMPASS_HEIGHT;
   private unread: Unread = { private: 0, group: 0, public: 0, all: 0 };
   private readonly unsubs: Array<() => void> = [];
   /** The card on screen (null: no fight) and its signature. */
@@ -168,7 +185,17 @@ export class PhoneLayer {
     });
     this.unsubs.push(() => this.comm.onUnread(null));
     this.commBand = new CommBand(doc, { onRows: (rows) => deps.settings.update({ phone: { commRows: rows } }) });
-    this.el.append(this.strip.el, this.fight.el, this.commBand.el, this.lens.el, this.lens.rowEl, compass.el);
+    this.hot = new HotkeysView(doc, {
+      press: (i) => this.pressHotkey(i),
+      save: (i, key) => deps.settings.update({ phone: { hotkeys: withHotkey(deps.settings.get().phone.hotkeys, i, key) } }),
+      toggle: () => deps.settings.update({ phone: { hotkeysOpen: !deps.settings.get().phone.hotkeysOpen } }),
+      hp: () => knownHp(deps.game.char.vitals.get('hp')),
+      split: (text) => kit.splitCommands(text),
+      onBox: () => this.syncBox(),
+    });
+    // The K key takes the compass's free cell, left of N.
+    compass.el.prepend(this.hot.kEl);
+    this.el.append(this.strip.el, this.fight.el, this.commBand.el, this.lens.el, this.lens.rowEl, this.hot.el, this.hot.boxEl, compass.el);
     cockpit.el.append(this.el);
     this.menu = new PhoneMenu({
       parent: cockpit.el,
@@ -178,6 +205,8 @@ export class PhoneLayer {
       reconnect: () => deps.reconnect(),
       openFrame: (f) => deps.openFrame(f),
       onClose: () => deps.onMenuClose?.(),
+      // The menu lies over the box (also when a dropped link opens it): the box gives way, unsaved.
+      onOpen: () => this.hot.closeBox(),
       fits: (size) => this.sizeFits(size),
     });
     // The way to the menu while the cockpit shows "Window too small" (the
@@ -203,6 +232,7 @@ export class PhoneLayer {
         if (sectionChanged(next.phone.strip, prev.phone.strip)) this.syncPages();
         if (next.phone.commRows !== prev.phone.commRows && this.commOpen) cockpit.setPhoneComm({ rows: next.phone.commRows });
         if (next.phone.unread !== prev.phone.unread) this.syncKeys();
+        if (sectionChanged(next.phone.hotkeys, prev.phone.hotkeys) || next.phone.hotkeysOpen !== prev.phone.hotkeysOpen) this.syncHotkeys();
       }),
       // A script pane came, went or was renamed: the strip's pages follow.
       cockpit.onScriptPanes(() => this.syncPages()),
@@ -220,7 +250,9 @@ export class PhoneLayer {
       return true;
     });
     this.unsubs.push(() => cockpit.setPhonePageKey(null));
+    this.unsubs.push(() => this.hot.dispose());
     this.syncPages();
+    this.syncHotkeys();
     this.syncLens();
     this.syncFight();
     this.place();
@@ -301,7 +333,65 @@ export class PhoneLayer {
     cockpit.el.style.setProperty('--ph-lens-size', `${size}px`);
     this.map.setLens(LENS_LOOK);
     this.zoomLens();
-    cockpit.setPhoneLens({ size, gapTop: LENS_GAP_TOP, gapRight: LENS_GAP_RIGHT, clearBottom: COMPASS_HEIGHT });
+    this.askLens();
+  }
+
+  /**
+   * Asks the cockpit for the lens's place with what it must keep clear of
+   * now: the compass and the hot key column (not with the keyboard up, when
+   * they are hidden), and an open hot key box (always). The cockpit lays
+   * out again only when something of it changed.
+   */
+  private askLens(): void {
+    if (this.lensSize === 0) return;
+    this.deps.cockpit.setPhoneLens({ size: this.lensSize, gapTop: LENS_GAP_TOP, gapRight: LENS_GAP_RIGHT, clearBottom: this.lensClear, clearAlways: this.boxClear() });
+  }
+
+  // --------------------------------------------------------------- hot keys
+
+  /**
+   * A tap on a hot key (ADR 0136 §8): its command as a typed line, through
+   * the keys' gate (`send`). A key that has nothing to send (a special with
+   * the hit points unknown; a stored line of several commands) says so in
+   * the game text, also only in play.
+   */
+  private pressHotkey(index: number): void {
+    const { settings, game } = this.deps;
+    const key = settings.get().phone.hotkeys[index];
+    if (!key) return;
+    const p = hotkeyPress(key, knownHp(game.char.vitals.get('hp')), (text) => phoneKit().splitCommands(text));
+    if (p.kind === 'send') this.send(p.command);
+    else if (p.kind === 'notice' && keysLive(this.deps.playState())) this.deps.notice(p.text);
+  }
+
+  /** The column follows the settings; the lens keeps clear of it (ADR 0136 §4). */
+  private syncHotkeys(): void {
+    const p = this.deps.settings.get().phone;
+    this.hot.set(p.hotkeys, p.hotkeysOpen);
+    const n = p.hotkeysOpen ? this.hot.count : 0;
+    this.lensClear = n === 0 ? COMPASS_HEIGHT : HOT_BOTTOM + n * HOT_STEP - HOT_GAP + LENS_CLEAR;
+    this.askLens();
+  }
+
+  /** The box's foot above the layer's bottom edge: beside the column, or over the command row with the keyboard up. */
+  private boxBottom(): number {
+    const g = this.deps.cockpit.phoneGameLayout;
+    if (!g || !phoneKit().keyboardUp()) return HOT_BOTTOM;
+    return this.el.clientHeight - g.input.y * this.deps.cells.get().h + BOX_GAP;
+  }
+
+  /** What an open box takes from the bottom edge (0: closed): the lens hides while it would collide. */
+  private boxClear(): number {
+    return this.hot.boxOpen ? this.boxBottom() + this.hot.boxEl.offsetHeight + LENS_CLEAR : 0;
+  }
+
+  /** The box opened, closed or moved: its place, then the lens's room (one layout read, on those events only). */
+  private syncBox(): void {
+    if (this.hot.boxOpen) {
+      const bottom = this.boxBottom();
+      this.hot.placeBox(bottom, this.el.clientHeight - bottom - BOX_GAP);
+    }
+    this.askLens();
   }
 
   // ------------------------------------------------------------------ strip
@@ -464,6 +554,18 @@ export class PhoneLayer {
         ? { commTop: g.comm.y * h, bandTop: (g.comm.y + g.comm.h - 1) * h, rowH: h, rows: g.comm.h, min: g.commRange.min, max: g.commRange.max }
         : null,
     );
+    if (this.hot.boxOpen) {
+      // The strip or Comm opened into the box's place, or the screen is too small for the
+      // layout: the box gives way, unsaved. Else it follows the keyboard (over the command
+      // row, or back beside the column).
+      if (g.tooSmall) this.hot.closeBox();
+      else {
+        // Placed first: its height on this screen is known only then.
+        this.syncBox();
+        const boxTop = this.el.clientHeight - this.boxBottom() - this.hot.boxEl.offsetHeight;
+        if (g.game.y * h > boxTop) this.hot.closeBox();
+      }
+    }
     const r = g.tooSmall ? null : g.lens;
     const size = this.lensSize;
     // The keys' row stands in for a lens that is off or has no room; not for one the cockpit has

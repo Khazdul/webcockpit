@@ -58,10 +58,15 @@ import {
   type MapperSettings,
   PHONE_COMM_ROWS_MAX,
   PHONE_COMM_ROWS_MIN,
+  PHONE_HOTKEY_COMMAND_MAX,
+  PHONE_HOTKEY_COUNT,
+  PHONE_HOTKEY_LABEL_MAX,
+  PHONE_HOTKEY_SPECIALS,
   PHONE_LENS_LEVELS,
   PHONE_LENS_SIZES,
   PHONE_STRIP_PANES,
   PHONE_UNREAD_MODES,
+  type PhoneHotkey,
   type PhoneSettings,
   type PhoneStripEntry,
   type PhoneStripPane,
@@ -530,7 +535,51 @@ export function migratePhone(raw: unknown): PhoneSettings {
     strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined) },
     commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
     unread: oneOf(p.unread, PHONE_UNREAD_MODES, d.unread),
+    hotkeys: migrateHotkeys(p.hotkeys, d.hotkeys),
+    hotkeysOpen: bool(p.hotkeysOpen, d.hotkeysOpen),
   };
+}
+
+/**
+ * The hot keys from anything: always `PHONE_HOTKEY_COUNT`, slot by slot (a
+ * short list is filled with the defaults of the missing slots, a long one
+ * is cut). A label is cut to its length and a command to one line; a key
+ * that would send nothing (no command and no known special) or show
+ * nothing (no label) is the slot's default instead, so a stored key is
+ * never a dead control.
+ */
+/**
+ * A label's characters as a reader counts them: grapheme clusters where
+ * `Intl.Segmenter` exists, else code points (as src/phone/hotkey-model.ts
+ * `characters`, which the phone's own chunk keeps for itself).
+ */
+function labelChars(text: string): string[] {
+  const Seg = (Intl as { Segmenter?: new (l?: string, o?: { granularity: 'grapheme' }) => { segment(t: string): Iterable<{ segment: string }> } }).Segmenter;
+  if (!Seg) return [...text];
+  return Array.from(new Seg(undefined, { granularity: 'grapheme' }).segment(text), (s) => s.segment);
+}
+
+function migrateHotkeys(raw: unknown, dflt: PhoneHotkey[]): PhoneHotkey[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const out: PhoneHotkey[] = [];
+  for (let i = 0; i < PHONE_HOTKEY_COUNT; i++) {
+    const d = dflt[i]!;
+    const e: unknown = list[i];
+    if (!isObj(e)) {
+      out.push(d);
+      continue;
+    }
+    const special = oneOf(e.special, [...PHONE_HOTKEY_SPECIALS, null], null);
+    const command = typeof e.command === 'string' ? e.command.replace(/[\r\n]+/g, ' ').trim().slice(0, PHONE_HOTKEY_COMMAND_MAX) : '';
+    const label = typeof e.label === 'string' ? labelChars(e.label.replace(/\s+/g, ' ').trim()).slice(0, PHONE_HOTKEY_LABEL_MAX).join('').trim() : '';
+    if (label === '' || (special === null && command === '')) {
+      // The stored choice to hide the key is kept.
+      out.push({ ...d, shown: bool(e.shown, d.shown) });
+      continue;
+    }
+    out.push({ label, command: special === null ? command : '', special, shown: bool(e.shown, true) });
+  }
+  return out;
 }
 
 /**

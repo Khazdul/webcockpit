@@ -1,7 +1,7 @@
 // The phone's compass (ADR 0136 §7): a 3 × 3 grid of keys in the bottom
 // right corner, from the bottom edge.
 //
-//   [   ] [ N ] [ U ]
+//   [ K ] [ N ] [ U ]
 //   [ W ] [eye] [ E ]
 //   [ F ] [ S ] [ D ]
 //
@@ -13,7 +13,8 @@
 //   stays where it is: a tap never moves it to the command field and
 //   never raises the keyboard. A click without a pointer (a screen
 //   reader's or a keyboard's activation) sends too.
-// - The cell left of N is empty until the hot keys' K key (stage 51e).
+// - The cell left of N is the hot keys' K key (hotkeys.ts puts it there; it
+//   has no command, so nothing here sends for it).
 // - Hidden while the on-screen keyboard is up (phone.css, `html.wc-kbd`).
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

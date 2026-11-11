@@ -57,6 +57,8 @@ export interface PhoneMenuDeps {
   openFrame(frame: MenuFrame): void;
   /** The menu closed back to the game. */
   onClose?(): void;
+  /** The menu opened (the sheet or the settings page, from closed). */
+  onOpen?(): void;
   /**
    * Whether the game still fits the screen at a text size: A+ is dimmed
    * where the next size would bring the "Window too small" notice.
@@ -350,6 +352,7 @@ export class PhoneMenu {
       }
     }
     if (open && !was) {
+      this.deps.onOpen?.();
       // A focused text field (the command line) lets go: the on-screen keyboard closes.
       const active = this.host.ownerDocument.activeElement as HTMLElement | null;
       if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) active.blur();

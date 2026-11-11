@@ -295,6 +295,12 @@ export interface PhoneLensPx {
   gapRight: number;
   /** The height from the cockpit's bottom edge the lens must stay out of (the keys there). */
   clearBottom: number;
+  /**
+   * A height from the bottom edge the lens stays out of also with the
+   * on-screen keyboard up, when `clearBottom` is void (the hot key box,
+   * which stays while it is typed in). Absent: none.
+   */
+  clearAlways?: number;
 }
 
 export interface CockpitOptions {
@@ -1101,7 +1107,7 @@ export class Cockpit {
   setPhoneLens(lens: PhoneLensPx | null): void {
     if (!this.phoneGame) return;
     const a = this.pgLens;
-    if (a === lens || (a && lens && a.size === lens.size && a.gapTop === lens.gapTop && a.gapRight === lens.gapRight && a.clearBottom === lens.clearBottom)) return;
+    if (a === lens || (a && lens && a.size === lens.size && a.gapTop === lens.gapTop && a.gapRight === lens.gapRight && a.clearBottom === lens.clearBottom && (a.clearAlways ?? 0) === (lens.clearAlways ?? 0))) return;
     this.pgLens = lens && { ...lens };
     this.scheduleRelayout();
   }
@@ -1157,7 +1163,7 @@ export class Cockpit {
       gapTop: up(l.gapTop, cell.h),
       gapRight: up(l.gapRight, cell.w),
       // The keys at the bottom right step aside with the keyboard up (ADR 0136 §9).
-      clearBottom: kbd ? 0 : up(l.clearBottom - inputPx, cell.h),
+      clearBottom: Math.max(kbd ? 0 : up(l.clearBottom - inputPx, cell.h), up((l.clearAlways ?? 0) - inputPx, cell.h)),
     };
   }
 

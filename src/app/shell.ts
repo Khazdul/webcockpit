@@ -840,6 +840,8 @@ export class Shell {
                 // As Enter in the command line: a sent command shows the live tail.
                 if (app.output.isScrolled()) app.output.toTail();
               },
+              // A hot key with nothing to send says so where the game's own notices are.
+              notice: (text) => app.bus.emit('sys.message', { text }),
               // A key sends only in play (src/phone/play-gate.ts).
               playState: () => {
                 const st = app.status.get();

@@ -572,9 +572,18 @@ test('the keyboard up: the lens stays; a very short screen hides it and it retur
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('the lens fits above the compass and shows', async ({ page }) => {
+  test('the lens gives way to the hot key column (stage 51e); with the column hidden it fits above the compass and shows', async ({ page }) => {
     await openCockpit(page);
+    // 390 px high: three hot keys above the compass reach into the lens's place (ADR 0136 §4:
+    // the lens shows only while it fits above the hot keys). Its keys stay as a row.
+    await expect(page.locator('.wc-ph-hot')).toBeVisible();
+    await expect(lens(page)).toBeHidden();
+    await expect(page.locator('.wc-ph-satrow')).toBeVisible();
+    // The K key hides the column: the lens is back.
+    await page.locator('.wc-ph-key.is-tog').tap();
+    await expect(page.locator('.wc-ph-hot')).toBeHidden();
     await expect(lens(page)).toBeVisible();
+    await expect(page.locator('.wc-ph-satrow')).toBeHidden();
     const l = (await lens(page).boundingBox())!;
     const p = (await page.locator('.wc-ph-pad').boundingBox())!;
     expect(l.y + l.height).toBeLessThanOrEqual(p.y);

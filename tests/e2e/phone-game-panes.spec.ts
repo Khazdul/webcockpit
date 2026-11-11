@@ -987,6 +987,10 @@ test.describe('landscape', () => {
 
   test('the strip open: the lens moves under it while it fits above the compass, else it hides; the keys stay', async ({ page }) => {
     await openPhone(page);
+    // The hot key column hidden (the K key): on this height the lens does not fit above it
+    // (tests/e2e/phone-map.spec.ts, landscape), and this case is about the compass.
+    await page.locator('.wc-ph-key.is-tog').tap();
+    await expect(page.locator('.wc-ph-hot')).toBeHidden();
     await expect(lens(page)).toBeVisible();
     await sat(page, 'panes').tap();
     await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
