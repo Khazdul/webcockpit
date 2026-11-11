@@ -76,6 +76,14 @@
 //   edge (the caller puts it left of the hot key columns) and also shrinks
 //   to the columns between the column and there (`gapLeft` of air).
 //
+// A keyboard of our own (ADR 0138, `bottom`): the last `bottom` rows are
+// its, in both arrangements. Everything above is laid out as on a screen
+// that many rows lower (the command row directly above the keyboard, the
+// landscape column ending there too); the too-small guard and the result's
+// `rows` are still the whole screen's. The reserve gives way before the
+// command row and `GAME_MIN_ROWS` of game text do (`bottom` in the result
+// is what was really kept).
+//
 // The chrome over these rectangles (fight card, lens ring, keys, compass)
 // is the phone layer's (src/phone/), laid out in pixels.
 
@@ -176,6 +184,8 @@ export interface PhoneGameInput {
   gameKeep?: number;
   /** The lens is wanted; absent or null: no lens. */
   lens?: PhoneGameLens | null;
+  /** Whole rows kept free at the bottom edge, under the command row (a keyboard of our own, ADR 0138). Default 0. */
+  bottom?: number;
   /**
    * Landscape (stage 52c): the strip and Comm open from the left as one
    * column (see the file header). Absent or null: portrait, as above.
@@ -210,6 +220,8 @@ export interface PhoneGameResult {
   game: Rect;
   /** The command row. */
   input: Rect;
+  /** The rows kept free under the command row (`bottom` as given, or less on a screen too low for it). */
+  bottom: number;
   /** The lens's rectangle of whole cells, or null (not wanted, or hidden). */
   lens: Rect | null;
   /** The lens's diameter in px inside `lens` (full, or shrunk to the room); 0 without a lens. */
@@ -238,15 +250,19 @@ const whole = (n: number, fallback: number): number => (Number.isFinite(n) ? Mat
 /** Lays out the phone's game screen (see the file header). */
 export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
   const cols = Math.max(0, Math.floor(input.cols));
-  const rows = Math.max(0, Math.floor(input.rows));
-  // The command row never takes the last row from the game text.
+  /** The whole screen's rows, and the ones above the bottom reserve: all that follows is laid out in those. */
+  const screenRows = Math.max(0, Math.floor(input.rows));
   const wantIn = Math.max(1, whole(input.inputRows ?? 1, 1));
+  const bottom = Math.max(0, Math.min(whole(input.bottom ?? 0, 0), screenRows - wantIn - GAME_MIN_ROWS));
+  const rows = screenRows - bottom;
+  // The command row never takes the last row from the game text.
   const inH = Math.min(rows, Math.max(1, Math.min(wantIn, rows - 1)));
   const inputRect: Rect = { x: 0, y: rows - inH, w: cols, h: inH };
   const avail = rows - inH;
   const res: PhoneGameResult = {
     cols,
-    rows,
+    rows: screenRows,
+    bottom,
     tooSmall: false,
     strip: EMPTY,
     fight: EMPTY,
@@ -263,14 +279,14 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
     sideBand: 0,
     sideRange: null,
   };
-  if ((input.guard ?? true) && (cols < PHONE_MIN_COLS || rows < PHONE_MIN_ROWS)) {
+  if ((input.guard ?? true) && (cols < PHONE_MIN_COLS || screenRows < PHONE_MIN_ROWS)) {
     res.tooSmall = true;
     return res;
   }
 
   const side = input.side ?? null;
   // The game text's first row: the lens stands under it.
-  const top = side ? layoutSide(input, side, res, avail) : layoutStack(input, res, avail);
+  const top = side ? layoutSide(input, side, res, rows, avail) : layoutStack(input, res, rows, avail);
 
   const lens = input.lens ?? null;
   if (lens && lens.fullPx > 0 && lens.cellW > 0 && lens.cellH > 0) {
@@ -305,8 +321,8 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
 }
 
 /** Portrait: the strip, the fight card and Comm stacked from the top (see the file header). Returns the game text's first row. */
-function layoutStack(input: PhoneGameInput, res: PhoneGameResult, avail: number): number {
-  const { cols, rows } = res;
+function layoutStack(input: PhoneGameInput, res: PhoneGameResult, rows: number, avail: number): number {
+  const { cols } = res;
   const keep = Math.max(1, whole(input.gameKeep ?? GAME_KEEP_ROWS, GAME_KEEP_ROWS));
   let fightH = input.fight ? FIGHT_ROWS : 0;
   // The fight card gives way only when the text would all but vanish.
@@ -351,8 +367,8 @@ function layoutStack(input: PhoneGameInput, res: PhoneGameResult, avail: number)
 }
 
 /** Landscape: the strip and Comm as one column from the left (see the file header). Returns the game text's first row. */
-function layoutSide(input: PhoneGameInput, side: PhoneGameSide, res: PhoneGameResult, avail: number): number {
-  const { cols, rows } = res;
+function layoutSide(input: PhoneGameInput, side: PhoneGameSide, res: PhoneGameResult, rows: number, avail: number): number {
+  const { cols } = res;
   res.landscape = true;
   const band = Math.max(1, whole(side.band ?? 1, 1));
   res.sideBand = band;

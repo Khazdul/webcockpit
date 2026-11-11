@@ -613,3 +613,85 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
     });
   });
 });
+
+describe('the bottom reserve: a keyboard of our own (ADR 0138, stage 53a)', () => {
+  it('none by default: the result is as before', () => {
+    const r = run({ strip: true, fight: true });
+    expect(r.bottom).toBe(0);
+    expect(r).toEqual(run({ strip: true, fight: true, bottom: 0 }));
+    expectStacked(r);
+  });
+
+  it('portrait: the command row sits directly above the reserve and the game text gives the rows', () => {
+    const open = run({ bottom: 12 });
+    const closed = run();
+    expect(open.bottom).toBe(12);
+    // The screen is the same size: only the game text is shorter.
+    expect([open.rows, open.cols]).toEqual([closed.rows, closed.cols]);
+    expect(open.input).toEqual({ x: 0, y: 44 - 12 - 3, w: 43, h: 3 });
+    expect(open.game).toEqual({ x: 0, y: 0, w: 43, h: closed.game.h - 12 });
+    expect(open.input.y + open.input.h + open.bottom).toBe(open.rows);
+  });
+
+  it('the strip, the fight card and Comm share what is above the reserve; the game keeps its rows', () => {
+    const r = run({ bottom: 12, strip: true, fight: true, comm: { rows: 20 } });
+    expect(r.fight.h).toBe(FIGHT_ROWS);
+    expect(r.game.h).toBeGreaterThanOrEqual(GAME_KEEP_ROWS);
+    expect(r.strip.h + r.fight.h + r.comm.h + r.game.h + r.input.h + r.bottom).toBe(r.rows);
+    expect(r.game.y + r.game.h).toBe(r.input.y);
+    // A band's drag ends above the reserve too.
+    expect(r.commRange).not.toBeNull();
+    expect(r.strip.h + FIGHT_ROWS + r.commRange!.max + GAME_KEEP_ROWS + r.input.h + r.bottom).toBeLessThanOrEqual(r.rows);
+  });
+
+  it('the lens keeps to the shorter game text, shrinks, and is left out under its least size', () => {
+    const lens = { fullPx: 153, minPx: 96, cellW: 8.4, cellH: 17, gapTop: 1, gapRight: 2 };
+    const closed = run({ lens });
+    expect(closed.lensPx).toBe(153);
+    const open = run({ lens, bottom: 12 });
+    expect(open.lensPx).toBe(153);
+    expect(open.lens!.y + open.lens!.h).toBeLessThanOrEqual(open.input.y);
+    // 44 rows, 3 of command row, 34 of reserve: seven rows of game text, six under the gap: 102 px.
+    const low = run({ lens, bottom: 34 });
+    expect(low.game.h).toBe(7);
+    expect(low.lensPx).toBe(102);
+    const none = run({ lens, bottom: 36 });
+    expect([none.lens, none.lensHidden]).toEqual([null, true]);
+  });
+
+  it('the too-small guard judges the whole screen, not what the reserve leaves', () => {
+    const r = allocatePhoneGame({ cols: 43, rows: 12, inputRows: 3, bottom: 5 });
+    expect(r.tooSmall).toBe(false);
+    expect(r.game.h).toBe(4);
+    expect(allocatePhoneGame({ cols: 43, rows: PHONE_MIN_ROWS - 1, inputRows: 3, bottom: 2 }).tooSmall).toBe(true);
+  });
+
+  it('gives way before the command row and the least game text do', () => {
+    const r = allocatePhoneGame({ cols: 43, rows: 12, inputRows: 3, bottom: 20 });
+    expect(r.bottom).toBe(6);
+    expect(r.game.h).toBe(3);
+    expect(r.input).toEqual({ x: 0, y: 3, w: 43, h: 3 });
+    // A reserve that is not a whole positive number.
+    expect(run({ bottom: Number.NaN }).bottom).toBe(0);
+    expect(run({ bottom: -3 }).bottom).toBe(0);
+    expect(run({ bottom: 2.7 }).bottom).toBe(2);
+  });
+
+  it('landscape: the column ends above the reserve too, and the command row is right of it', () => {
+    // 800 × 360 at the default cell: 95 × 21.
+    const land = (o: Partial<PhoneGameInput> = {}): PhoneGameResult =>
+      allocatePhoneGame({ cols: 95, rows: 21, inputRows: 3, ...o, side: { cols: null, band: 2 } });
+    const plain = land({ bottom: 9 });
+    expect(plain.game).toEqual({ x: 0, y: 0, w: 95, h: 9 });
+    expect(plain.input).toEqual({ x: 0, y: 9, w: 95, h: 3 });
+    const r = land({ bottom: 9, strip: true, comm: { rows: null }, fight: true });
+    expect(r.rows).toBe(21);
+    expect(r.side.h).toBe(12);
+    expect(r.strip.h + r.comm.h).toBe(12);
+    expect(r.strip.h).toBeGreaterThanOrEqual(STRIP_MIN_ROWS);
+    expect(r.comm.h).toBeGreaterThanOrEqual(COMM_MIN_ROWS);
+    expect(r.input).toEqual({ x: r.side.w, y: 9, w: 95 - r.side.w, h: 3 });
+    expect(r.fight).toEqual({ x: r.side.w, y: 0, w: 95 - r.side.w, h: FIGHT_ROWS });
+    expect(r.game).toEqual({ x: r.side.w, y: FIGHT_ROWS, w: 95 - r.side.w, h: 9 - FIGHT_ROWS });
+  });
+});
