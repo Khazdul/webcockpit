@@ -374,6 +374,10 @@ lags while dragging.
     landscape.
   - Landscape with the keyboard up is usable but shows about one row of
     text; in fullscreen a few more, still cramped.
+- 2026-11-11, 0.6.1 on the S21: portrait fullscreen with the keyboard
+  up keeps the layout; the keyboard's top row covers the command field
+  (as in 0.5.0), so what is typed is not seen. "Much better"; no more
+  time on it unless it helps stage 53.
 
 (After each round.)
 - 2026-11-11, after the build summary: merge and release (0.6.0), before
