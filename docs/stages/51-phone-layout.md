@@ -492,6 +492,46 @@ cover too much text, Comm's height, anything that feels slow.
 - Screenshots: `docs/stages/img/51-e-*.png` (the rebind shot still says
   "Sends now"; 51g re-shoots).
 
+### 51f Weather, compass and connection settings (built, NOT committed)
+
+State when the session stopped (usage limit, 2026-11-11): 51f is in the
+**working tree, uncommitted**. The first build passed every check
+(3764 unit, phone 158, chromium 435, firefox green but one
+load-sensitive case). A review then found seven points and the builder
+was part-way through them when the session ended, so **the tree is
+unverified**: run typecheck, `npm test` and the phone project before
+trusting it.
+
+- Built: weather over the whole width (`Geometry.noBand`, set only under
+  `data-phone-game`; the worker's left band is switched off; the weather
+  canvas sits at z 5 behind the phone chrome), `phone.compassSize`
+  (S 36 / M 40 / L 44), `phone.vibrate`, `phone.wakeLock` (default on),
+  `phone.autoReconnect` (default off, `src/app/auto-reconnect.ts`), the
+  **Compass** and **Connection** settings groups.
+- Shared files: `weather/geometry.ts`, `protocol.ts`,
+  `worker/band.ts`, `engine.ts`, `sky.ts` (a switch that defaults to the
+  old behaviour; reviewed as pixel-identical with `noBand` absent),
+  `app/shell.ts`, `settings/types.ts` + `migrate.ts`.
+- Review fixes that were in progress (check each is done):
+  1. a failed automatic reconnect must end in the sheet with Reconnect;
+  2. a socket close during the resume ping counts as found on resume;
+  3. the automatic reconnect must never close an open page (Profile,
+     Scripts, Settings), only the bottom sheet;
+  4. a test that fails if the worker ignores `noBand`;
+  5. the moon glow's `LEFT_DARK` bound gated on the band;
+  6. fixed sleeps and the wake-lock mock in
+     `phone-game-connection.spec.ts`;
+  7. vibrate default **off** (the builder had chosen on).
+
+### Not built: 51g
+
+Paper pass and contrast, landscape and 360 px, the full suite on all
+three projects, the benchmark comparison against
+`bench/results/phone-51-before.md` (`node bench/phone-bench.ts --out
+bench/results/phone-51-after.md`), the whole-branch review for desktop
+impact, re-shot screenshots, the ADR 0136 "Built" addendum and the exact
+test guide.
+
 ## Owner feedback
 
 (After the owner's test.)
