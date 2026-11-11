@@ -306,5 +306,9 @@ live, the landscape arrangement, anything that jumps.
   - Landscape, for the fine tuning: the keyboard is too wide to type
     fast on. Compress it towards the middle, with the hot keys beside
     it (K1–K3 left, K4–K6 right) and the compass at the far right.
+- 2026-11-12, 53b + 53c on the S21: everything in the test guide tried,
+  all OK (typing, digit row, symbols, history, compass and K keys with
+  the keyboard up in portrait, the landscape band, hold on a K key,
+  long press, the look). No changes asked for.
 
 (After each round.)
