@@ -361,3 +361,7 @@ lags while dragging.
   working on the owner's phone (B3 and B4 closed).
 
 (After each round.)
+- 2026-11-11, after the build summary: merge and release (0.6.0), before
+  his own test on the phone. Cleanup of merged branches later. Next he
+  wants a pass on a keyboard of our own (`docs/stages/53-own-keyboard.md`),
+  ahead of pass C.
