@@ -201,6 +201,16 @@ export function codePointStartBefore(s: string, pos: number): number {
   return lo >= 0xdc00 && lo <= 0xdfff && hi >= 0xd800 && hi <= 0xdbff ? pos - 2 : pos - 1;
 }
 
+/** Cells before `pos`: code points, so a surrogate pair is one cell. */
+function cellsBefore(s: string, pos: number): number {
+  let col = pos;
+  for (let k = 0; k < pos; k++) {
+    const cc = s.charCodeAt(k);
+    if (cc >= 0xd800 && cc <= 0xdbff) col--;
+  }
+  return col;
+}
+
 /** Marks (or unmarks) a field as typed in from our own keyboard: the device's stays down. */
 function markOwnKeyboard(f: HTMLElement, on: boolean): void {
   if (on) {
@@ -273,6 +283,8 @@ export class InputPane {
   private password = false;
   /** The fields are marked for a keyboard of our own (`setOwnKeyboard`). */
   private ownKeyboard = false;
+  /** An edit through the editing API: the next caret update scrolls the caret into view first. */
+  private revealCaret = false;
   /** Options → Auto-clear input (ADR 0063). */
   private autoClear = false;
   /** Options → Input autosuggest (ADR 0063). */
@@ -492,12 +504,33 @@ export class InputPane {
   insertText(text: string): void {
     const i = this.input;
     const n = i.value.length;
+    this.revealCaret = true;
     this.edit(i.selectionStart ?? n, i.selectionEnd ?? n, normalizePaste(text));
   }
 
   /** Backspace: deletes the selection, or the character before the caret (a surrogate pair is one). */
   deleteBackward(): void {
+    this.revealCaret = true;
     this.deleteBack(codePointStartBefore);
+    this.scheduleCaret();
+  }
+
+  /**
+   * Scrolls a long line so the caret is in view, as the browser does for a
+   * typed key (it does not for `setRangeText`). In the caret's animation
+   * frame, never in a key's handler; the caret is at `col` cells.
+   */
+  private scrollToCaret(col: number): void {
+    const i = this.input;
+    if (i.scrollWidth <= i.clientWidth) return;
+    const cw = this.cellWidth();
+    const x = col * cw;
+    // A few cells of margin stand in for the field's padding.
+    const lo = Math.max(0, x - cw);
+    const hi = x + 3 * cw - i.clientWidth;
+    if (i.selectionEnd === i.value.length) i.scrollLeft = i.scrollWidth;
+    else if (i.scrollLeft > lo) i.scrollLeft = lo;
+    else if (i.scrollLeft < hi) i.scrollLeft = hi;
   }
 
   /** Enter in the line: `submit`, and the caret follows (as after the key). */
@@ -1074,6 +1107,10 @@ export class InputPane {
     const c = this.caretEl;
     const start = i.selectionStart ?? 0;
     const end = i.selectionEnd ?? 0;
+    if (this.revealCaret) {
+      this.revealCaret = false;
+      if (start === end) this.scrollToCaret(cellsBefore(i.value, start));
+    }
     const scroll = i.scrollLeft;
     if (this.password) this.mask.style.transform = scroll ? `translateX(${-scroll}px)` : '';
     // Nothing to do with the option off and no ghost left on screen.
