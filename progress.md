@@ -55,7 +55,7 @@ Next: stage 52, the phone's layout round 2 (`docs/stages/52-phone-round-2.md`): 
 | 49 | Comm and Statistics panes | Owner testing | `docs/stages/49-comm-stats-panes.md` |
 | 50 | Firefox frame latency | Owner testing | `docs/stages/50-firefox-frame-latency.md` |
 | 51 | The phone's layout in the game | Done | `docs/stages/51-phone-layout.md` |
-| 52 | The phone's layout, round 2 | Next | `docs/stages/52-phone-round-2.md` |
+| 52 | The phone's layout, round 2 | In progress | `docs/stages/52-phone-round-2.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
