@@ -220,6 +220,28 @@ moves the caret), script pane fields, key sound.
 - Game rows kept (Swedish, new phone defaults): 360 × 800 40 of 53
   (digit row up 37); 800 × 360 11 of 21 (9); 800 × 280 7 of 16.
 
+- **Review of 53b + 53c** (fresh subagent; diff read, unit and the
+  keyboard spec run, edge sizes probed): nothing changes without
+  `?kbd`; the 53a findings are fixed; no must-fix. For 53d:
+  - A. a low portrait window (about 320 × 480, six K keys, Comm open)
+    gets two window sizes on a digit toggle: `arrangeOwnKeyboard` calls
+    `setPhoneLimit(null)` inside the layout callback; decide the
+    columns before the reserve is laid out;
+  - B. on short portrait screens (360 × 520 and lower) the lifted limit
+    squeezes Comm to 0 rows;
+  - C. landscape at 300–312 px of height: the 44 px compass overhangs
+    the band by 1–3 px; use 36 px keys when the lift is lower than the
+    compass;
+  - D. ↑ ↓ are not dimmed at the password prompt (silent no-ops);
+  - E. English: about 18 px left of `a` and right of `l` take no tap;
+    widen the two keys' hit areas;
+  - F. the block moves 4 px sideways in landscape when K toggles the
+    columns; one closure per hold left in `unsubs`; one extra layout
+    after a rotation with dropped columns; no safe-area inset on the
+    band (matters for the iPhone test);
+  - tests: no case for A, no unit test for the reserve's rounding in
+    the cockpit, the lens check is still conditional.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
