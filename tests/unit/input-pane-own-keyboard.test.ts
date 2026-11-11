@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { Sender } from '../../src/core/types';
-import { InputPane, codePointStartBefore } from '../../src/ui/input-pane';
+import { InputPane, codePointStartBefore, graphemeStartBefore } from '../../src/ui/input-pane';
 
 function setup(opts: { onCommand?: (t: string) => boolean; phone?: boolean } = {}) {
   document.body.innerHTML = '';
@@ -181,5 +181,84 @@ describe('InputPane editing API for the own keyboard (ADR 0138)', () => {
     expect(text.hasAttribute('inputmode')).toBe(false);
     expect(text.hasAttribute('virtualkeyboardpolicy')).toBe(false);
     t.pane.dispose();
+  });
+  it('graphemeStartBefore steps over a whole cluster, and over a code point without Intl.Segmenter', () => {
+    expect(graphemeStartBefore('ab', 2)).toBe(1);
+    expect(graphemeStartBefore('', 0)).toBe(0);
+    expect(graphemeStartBefore('aå', 2)).toBe(1);
+    // A letter with a combining mark, a flag (two regional indicators), an emoji with a skin tone and joiners.
+    expect(graphemeStartBefore('aé', 3)).toBe(1);
+    expect(graphemeStartBefore('a🇸🇪', 5)).toBe(1);
+    expect(graphemeStartBefore('a👍🏽', 5)).toBe(1);
+    expect(graphemeStartBefore('x👨‍👩‍👧', 9)).toBe(1);
+    // Only what is before the caret counts.
+    expect(graphemeStartBefore('éé', 2)).toBe(0);
+    const intl = Intl as { Segmenter?: unknown };
+    const seg = intl.Segmenter;
+    try {
+      intl.Segmenter = undefined;
+      expect(graphemeStartBefore('aé', 3)).toBe(2);
+      expect(graphemeStartBefore('a😀', 3)).toBe(1);
+    } finally {
+      intl.Segmenter = seg;
+    }
+  });
+
+  it('deleteBackward removes a whole grapheme cluster', () => {
+    const t = setup();
+    t.type('gé🇸🇪');
+    t.pane.deleteBackward();
+    expect(t.i.value).toBe('gé');
+    t.pane.deleteBackward();
+    expect(t.i.value).toBe('g');
+    t.pane.deleteBackward();
+    expect(t.i.value).toBe('');
+  });
+
+  it('historyStep browses as the Up and Down keys do, and an own-keyboard edit ends it', () => {
+    const t = setup();
+    for (const c of ['one', 'two']) {
+      t.pane.insertText(c);
+      t.pane.submitLine();
+    }
+    // Just sent: `two` is on screen, so Up goes one further.
+    t.pane.historyStep('up');
+    expect(t.i.value).toBe('one');
+    t.pane.historyStep('down');
+    expect(t.i.value).toBe('two');
+    // Past the newest: the draft (empty), then nothing more.
+    t.pane.historyStep('down');
+    expect(t.i.value).toBe('');
+    t.pane.historyStep('down');
+    expect(t.i.value).toBe('');
+    // A draft is kept while browsing and comes back.
+    t.pane.insertText('dra');
+    t.pane.historyStep('up');
+    expect(t.i.value).toBe('two');
+    t.pane.historyStep('up');
+    expect(t.i.value).toBe('one');
+    t.pane.historyStep('up');
+    expect(t.i.value).toBe('one');
+    t.pane.historyStep('down');
+    t.pane.historyStep('down');
+    expect(t.i.value).toBe('dra');
+    // A recalled line is selected: the next key replaces it.
+    t.pane.historyStep('up');
+    t.pane.insertText('x');
+    expect(t.i.value).toBe('x');
+    expect(t.pane.getHistory()).toEqual(['one', 'two']);
+  });
+
+  it('historyStep does nothing in password mode', () => {
+    const t = setup();
+    t.pane.insertText('secretcommand');
+    t.pane.submitLine();
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    expect(t.pane.isPasswordMode()).toBe(true);
+    t.pane.insertText('pw');
+    t.pane.historyStep('up');
+    expect(t.i.value).toBe('pw');
+    t.pane.historyStep('down');
+    expect(t.i.value).toBe('pw');
   });
 });

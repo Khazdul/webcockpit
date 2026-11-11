@@ -69,11 +69,13 @@
 //   bar's popups, the windows) keeps the keys typed and the clicks made
 //   inside it, as another text field does: no refocus, no macro, no key
 //   handling here.
-// - Own keyboard (ADR 0138, stage 53a): the phone's on-screen keyboard of
-//   our own edits the line through `insertText`, `deleteBackward` and
-//   `submitLine`, which use the same `edit` / `afterEdit` path as the
-//   pane's own keys. No keyboard event is made up for it. `setOwnKeyboard`
-//   marks the fields (`inputmode="none"`, `virtualkeyboardpolicy="manual"`)
+// - Own keyboard (ADR 0138, stage 53): the phone's on-screen keyboard of
+//   our own edits the line through `insertText`, `deleteBackward` (a whole
+//   grapheme cluster) and `submitLine`, which use the same `edit` /
+//   `afterEdit` path as the pane's own keys, and browses the history with
+//   `historyStep` (the Up and Down keys' `historyUp` / `historyDown`;
+//   nothing in password mode). No keyboard event is made up for it.
+//   `setOwnKeyboard` marks the fields (`inputmode="none"`, `virtualkeyboardpolicy="manual"`)
 //   so the device's keyboard stays down.
 
 import { device, touchInteraction } from '../core/device';
@@ -199,6 +201,34 @@ export function codePointStartBefore(s: string, pos: number): number {
   const lo = s.charCodeAt(pos - 1);
   const hi = pos >= 2 ? s.charCodeAt(pos - 2) : 0;
   return lo >= 0xdc00 && lo <= 0xdfff && hi >= 0xd800 && hi <= 0xdbff ? pos - 2 : pos - 1;
+}
+
+type GraphemeSegmenter = { segment(t: string): Iterable<{ segment: string; index: number }> };
+type GraphemeSegmenterCtor = new (l?: string, o?: { granularity: 'grapheme' }) => GraphemeSegmenter;
+/** The one grapheme segmenter, made at its first use (again only if `Intl.Segmenter` itself was replaced: tests). */
+let graphemes: GraphemeSegmenter | null = null;
+let graphemesCtor: GraphemeSegmenterCtor | null = null;
+
+/**
+ * Start of the character before `pos` as a reader counts it: a whole
+ * grapheme cluster (a letter with its combining marks, a flag, an emoji
+ * with its joiners) where `Intl.Segmenter` exists, else a code point.
+ */
+export function graphemeStartBefore(s: string, pos: number): number {
+  if (pos <= 0) return 0;
+  const before = pos >= s.length ? s : s.slice(0, pos);
+  // The common case, a plain ASCII character, needs no segmenter.
+  const last = before.charCodeAt(before.length - 1);
+  if (last >= 0x20 && last < 0x7f) return pos - 1;
+  const Seg = (Intl as { Segmenter?: GraphemeSegmenterCtor }).Segmenter;
+  if (!Seg) return codePointStartBefore(s, pos);
+  if (graphemes === null || graphemesCtor !== Seg) {
+    graphemesCtor = Seg;
+    graphemes = new Seg(undefined, { granularity: 'grapheme' });
+  }
+  let start = 0;
+  for (const g of graphemes.segment(before)) start = g.index;
+  return start;
 }
 
 /** Cells before `pos`: code points, so a surrogate pair is one cell. */
@@ -508,10 +538,10 @@ export class InputPane {
     this.edit(i.selectionStart ?? n, i.selectionEnd ?? n, normalizePaste(text));
   }
 
-  /** Backspace: deletes the selection, or the character before the caret (a surrogate pair is one). */
+  /** Backspace: deletes the selection, or the character before the caret (a whole grapheme cluster: `graphemeStartBefore`). */
   deleteBackward(): void {
     this.revealCaret = true;
-    this.deleteBack(codePointStartBefore);
+    this.deleteBack(graphemeStartBefore);
     this.scheduleCaret();
   }
 
@@ -531,6 +561,18 @@ export class InputPane {
     if (i.selectionEnd === i.value.length) i.scrollLeft = i.scrollWidth;
     else if (i.scrollLeft > lo) i.scrollLeft = lo;
     else if (i.scrollLeft < hi) i.scrollLeft = hi;
+  }
+
+  /**
+   * The history from the own keyboard's arrows: one entry older or newer,
+   * as the Up and Down keys (`historyUp` / `historyDown`), and the caret
+   * follows. Nothing in password mode: a password prompt has no history.
+   */
+  historyStep(dir: 'up' | 'down'): void {
+    if (this.password) return;
+    if (dir === 'up') this.historyUp();
+    else this.historyDown();
+    this.scheduleCaret();
   }
 
   /** Enter in the line: `submit`, and the caret follows (as after the key). */
