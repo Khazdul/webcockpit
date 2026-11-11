@@ -1,11 +1,12 @@
-// The phone layout's screenshots for stages 51 and 52
-// (docs/stages/51-phone-layout.md, 52-phone-round-2.md):
+// The phone layout's screenshots for stages 51, 52 and 53
+// (docs/stages/51-phone-layout.md, 52-phone-round-2.md, 53-own-keyboard.md):
 //
 //   node scripts/phone-shots.ts 51a              every state built by step 51a
 //   node scripts/phone-shots.ts 51a fighting     only these states
 //   node scripts/phone-shots.ts 52a              the states of round 52a (stage 52's own only)
 //   node scripts/phone-shots.ts 52b lens-full    one state of round 52b
 //   node scripts/phone-shots.ts 52c land-plain keys-three …   states of round 52c
+//   node scripts/phone-shots.ts 53a              the own keyboard of round 53a (`?kbd=1`)
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -67,6 +68,8 @@ interface State {
   stage?: number;
   /** Another screen than 390 × 844 (landscape, a narrow phone). */
   viewport?: { width: number; height: number };
+  /** More of the page's query (`kbd=1`: the own keyboard of stage 53a). Not with `live`. */
+  query?: string;
   /** Brings the opened cockpit to the state. */
   run(page: Page): Promise<void>;
 }
@@ -804,6 +807,9 @@ const STATES: State[] = [
   },
   // Portrait: the see-through keys over busy game text (36 px keys).
   { name: 'keys-three', stage: 52, step: 'c', run: (page) => busy(page) },
+  // Stage 53a (ADR 0138): the rough keyboard of our own, open, at the owner's phone's size (S21).
+  { name: 'portrait', stage: 53, step: 'a', query: 'kbd=1', viewport: { width: 360, height: 800 }, run: (page) => ownKeyboard(page) },
+  { name: 'landscape', stage: 53, step: 'a', query: 'kbd=1', viewport: { width: 800, height: 360 }, run: (page) => ownKeyboard(page) },
   {
     name: 'keys-six',
     stage: 52,
@@ -814,6 +820,15 @@ const STATES: State[] = [
     },
   },
 ];
+
+/** Stage 53a: game text, then a tap on the command field opens the keyboard of our own, and a line is typed on its keys. */
+async function ownKeyboard(page: Page): Promise<void> {
+  await busy(page);
+  await page.locator('.wc-input-slot .wc-input-field').tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  const key = (k: string) => page.locator(k.length === 1 ? `.wc-ph-okb-k[data-ch="${k}"]` : `.wc-ph-okb-k[data-act="${k}"]`);
+  for (const k of ['shift', 'k', 'i', 'l', 'l', 'space', 'o', 'r', 'c']) await key(k).tap();
+}
 
 /** Paper: the background, ink and its palette, as the Appearance settings set them. */
 const paper = (page: Page): Promise<void> =>
@@ -841,7 +856,7 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
   try {
     if (state.live) await live(page);
     else {
-      await page.goto('/?replay&phone=1');
+      await page.goto(`/?replay&phone=1${state.query ? `&${state.query}` : ''}`);
       await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
     }
     if (light) await paper(page);
@@ -878,7 +893,7 @@ async function warmUp(browser: Browser): Promise<void> {
 }
 
 const [stepArg, ...wanted] = process.argv.slice(2);
-const arg = /^(5[12])?([a-g])$/.exec(stepArg ?? '');
+const arg = /^(5[123])?([a-g])$/.exec(stepArg ?? '');
 if (!arg) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a or 52a> [state …]');
 const stage = Number(arg[1] ?? 51);
 const step = arg[2]!;
