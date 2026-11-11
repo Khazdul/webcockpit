@@ -164,11 +164,54 @@ moves the caret), script pane fields, key sound.
 ## Tasks
 
 - [x] Investigation with the owner; decisions recorded as ADR 0138
-- [ ] 53a device test behind `?kbd=1` (go / no-go on the S21)
+- [x] 53a built behind `?kbd=1` (go / no-go on the S21: owner's test open)
 - [ ] 53b model and editing API
 - [ ] 53c the keyboard in the game layout
 - [ ] 53d other fields, settings, vibration
 - [ ] 53e finish, test guide, release decision
+
+## Built
+
+- **53a** (31392f2d…cd5326a8, by a subagent; reviewed by a fresh one):
+  `src/phone/keyboard.ts` (rough English keyboard, one block, keys on
+  `pointerdown`, backspace repeat), `keyboard-readout.ts`; `InputPane`
+  `insertText` / `deleteBackward` / `submitLine` / `setOwnKeyboard`
+  (through `edit` / `afterEdit`); `bottom` reserve in
+  `allocatePhoneGame`, `Cockpit.setPhoneBottom`; state class `wc-okb`;
+  gate in `shell.ts`. Unit 3866, phone e2e 274, typecheck clean.
+  Screenshots `docs/stages/img/53-a-*`.
+- Game text rows with the keyboard open (new phone defaults): 39 of 53
+  at 360 × 800, 10 of 21 at 800 × 360, 6 at 800 × 280.
+- As built, beyond the ADR: the fold key acts on the click (the row
+  under the finger moves); the keyboard opens on a tap on the field,
+  not on focus from a physical key; opening the menu closes it; a
+  rotation sends the window sizes it sends without the keyboard.
+
+## Test guide 53a (for the owner, S21)
+
+Open the dev server's address with `?kbd=1` (the session runs
+`npm run dev:tailnet` on the branch). Two blue lines at the top left
+show: the focused element and its `inputmode`, `okb` (our keyboard
+open), `wc-kbd` (the device's keyboard detected), `vv` / `inner`.
+
+1. Tap the command field. Our keyboard comes up; **the device's must
+   not**. Is the caret seen in the field?
+2. Type, use shift, hold backspace, send with Enter. Does it keep up
+   with fast typing with two thumbs? Any missed or doubled letters?
+3. Tap in the middle of typed text: does the caret move there? Long
+   press the field: is paste offered, and does anything else come up?
+4. Fold it down with the key at the bottom left; tap a hot key and a
+   compass key: no keyboard of either kind.
+5. With our keyboard up: rotate; switch to another app and back; enter
+   and leave fullscreen (lens key); lock and unlock. Does the device's
+   keyboard ever come up? If it does: a screenshot with the blue lines.
+6. Landscape, in and out of fullscreen: enough rows of text?
+7. The bottom edge: are the lowest keys clear of Android's gesture bar,
+   and do taps near the edge work?
+
+Wanted: go or no-go on the technique, and how typing feels (key size
+32 × 44 px in portrait, speed). The look, Swedish, digits and symbols
+come in the next rounds.
 
 ## Owner feedback
 
