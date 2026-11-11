@@ -269,9 +269,9 @@ test('a tap while disconnected sends nothing and opens no connection', async ({ 
   // The link drops: the menu opens with Reconnect; close it without reconnecting.
   await m.server().close();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
-  await expect(page.locator('.wc-overlay')).toBeVisible();
-  await page.locator('.wc-overlay .wc-footer .wc-esc-btn', { hasText: 'ESC Close' }).tap();
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await expect(page.locator('.wc-ph-sheet')).toBeVisible();
+  await page.touchscreen.tap(100, 60);
+  await expect(page.locator('.wc-ph-sheet')).toBeHidden();
   for (const cmd of ['north', 'look', 'flee']) await key(page, cmd).tap();
   await page.waitForTimeout(500);
   expect(m.opened()).toBe(1);
@@ -296,13 +296,13 @@ test('taps on the game text, a key and the fight card do not focus the field; a 
   await expect(field(page)).toBeFocused();
 });
 
-test('the menu key opens the ESC menu without focusing the field', async ({ page }) => {
+test('the menu key opens the menu sheet without focusing the field', async ({ page }) => {
   await openPhone(page);
   await menuKey(page).tap();
-  await expect(page.locator('.wc-overlay')).toBeVisible();
-  await expect(page.locator('.wc-overlay .wc-mrow[data-key="options"]')).toBeVisible();
-  await page.locator('.wc-overlay .wc-footer .wc-esc-btn', { hasText: 'ESC Close' }).tap();
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await expect(page.locator('.wc-ph-sheet')).toBeVisible();
+  expect(await inputFocused(page)).toBe(false);
+  await page.touchscreen.tap(100, 60);
+  await expect(page.locator('.wc-ph-sheet')).toBeHidden();
   expect(await inputFocused(page)).toBe(false);
 });
 

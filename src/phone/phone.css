@@ -46,6 +46,30 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-track: #221f1b;
   --ph-hp: #45b862;
   --ph-foe: #d75f5f;
+  /* The menu sheet and the settings page (ADR 0136 §10). */
+  --ph-scrim: rgb(0 0 0 / 0.65);
+  /* The window lit from the top by the lamp, on its dark base. */
+  --ph-window: radial-gradient(120% 70% at 50% 0, rgb(232 196 138 / 0.11), rgb(232 196 138 / 0) 70%), #0b0907;
+  --ph-window-in: inset 0 0 28px rgb(0 0 0 / 0.7);
+  --ph-sheet-shadow: 0 -8px 24px rgb(0 0 0 / 0.8);
+  /* The iron band and the hood. */
+  --ph-iron: linear-gradient(#3a342d, #231f1a);
+  --ph-iron-hi: #5a5148;
+  --ph-iron-lo: #0e0c0a;
+  --ph-hood: linear-gradient(#3a342d, #1d1915);
+  --ph-hood-text: #e8c48a;
+  --ph-hood-glow: 0 0 8px rgb(232 196 138 / 0.45);
+  --ph-grip: #e8c48a;
+  /* A frosted card of rows. */
+  --ph-card: rgb(232 196 138 / 0.06);
+  --ph-card-edge: rgb(232 196 138 / 0.24);
+  --ph-card-lip: inset 0 1px 0 rgb(232 196 138 / 0.18);
+  --ph-row-rule: rgb(232 196 138 / 0.14);
+  --ph-chev: #8d7a5c;
+  --ph-body: #c6c6c6;
+  --ph-danger: #d75f5f;
+  --ph-rec: #d75f5f;
+  --ph-key-off: #6d6252;
 }
 
 html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
@@ -71,6 +95,27 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-track: #d9cfb8;
   --ph-hp: #2f8a47;
   --ph-foe: #b3261e;
+  /* Paper: a paper-white window, a pewter band, brass for the hood's letters. */
+  --ph-scrim: rgb(40 30 10 / 0.45);
+  --ph-window: #fbf6e8;
+  --ph-window-in: none;
+  --ph-sheet-shadow: 0 -6px 18px rgb(60 40 10 / 0.35);
+  --ph-iron: linear-gradient(#f1eee6, #c9c5ba);
+  --ph-iron-hi: #fbf8f0;
+  --ph-iron-lo: #8a8478;
+  --ph-hood: linear-gradient(#f1eee6, #d8d2c4);
+  --ph-hood-text: #6b4708;
+  --ph-hood-glow: none;
+  --ph-grip: #8a5a0e;
+  --ph-card: #fffdf8;
+  --ph-card-edge: #8a8478;
+  --ph-card-lip: inset 0 1px 0 rgb(255 255 255 / 0.8);
+  --ph-row-rule: #d9cfb8;
+  --ph-chev: #8a8478;
+  --ph-body: #2b2b2b;
+  --ph-danger: #b3261e;
+  --ph-rec: #b3261e;
+  --ph-key-off: #a39c8c;
 }
 
 /* On Paper a lit key is brass with pale ink. */
@@ -102,6 +147,7 @@ html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-layer {
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ico {
+  flex: none;
   width: 22px;
   height: 22px;
   fill: none;
@@ -244,7 +290,8 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-flee {
 
 /* The press shows: a key lit by the lamp. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key:active,
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu:active {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu:active,
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
   background: var(--ph-lamp);
   border-color: var(--ph-lamp-hi);
   color: var(--ph-ink);
@@ -273,7 +320,23 @@ html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
   padding-right: 8px;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu {
+/* "Window too small" (letters too large for the screen): the command row
+ * is hidden and inert, so a second menu key stands over the notice, where
+ * the first one is. The menu's A− is the way out. Not shown otherwise. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-rescue {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 350;
+  visibility: visible;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu,
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-rescue {
   flex: 0 0 44px;
   display: flex;
   align-items: center;
@@ -325,6 +388,475 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::pla
 /* Not typing: no hollow caret over the placeholder. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-caret.wc-blurred {
   display: none;
+}
+
+/* -------------------------------------------------------------------- menu */
+
+/* The menu's host (src/phone/menu-sheet.tsx): over the phone layer, the
+ * floating script panes and the cockpit's too-small notice (z 300): with
+ * letters too large for the screen the menu's A− is the way out. Hidden
+ * (and empty) while the menu is closed. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-host {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 19px;
+  letter-spacing: normal;
+  white-space: normal;
+  color: var(--ph-text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-host[hidden] {
+  display: none;
+}
+
+/* The too-small notice hides everything else in the cockpit (layout.css); not the open menu. */
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-host {
+  visibility: visible;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface {
+  position: absolute;
+  inset: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ico.is-small {
+  width: 18px;
+  height: 18px;
+}
+
+/* A tap outside the sheet closes the menu. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--ph-scrim);
+  cursor: default;
+}
+
+/* The sheet: from the bottom edge, as high as its rows; it scrolls where
+ * the screen is lower (landscape, the keyboard up). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  border-radius: 12px 12px 0 0;
+  box-shadow: var(--ph-sheet-shadow);
+}
+
+/* The top band: iron with a lit grip; a swipe down on it closes the sheet. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+  border-radius: 12px 12px 0 0;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+  touch-action: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top > i {
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ph-window);
+  box-shadow: var(--ph-window-in);
+}
+
+/* The hood: a small iron tab under the band, the title in Cinzel. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hood {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  padding: 2px 18px 4px;
+  border: 1px solid var(--ph-iron-lo);
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  background: var(--ph-hood);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.3);
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ph-hood-text);
+  text-shadow: var(--ph-hood-glow);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-status-t {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rec {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rec > i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ph-rec);
+}
+
+/* A frosted card of rows. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ph-card-edge);
+  border-radius: 8px;
+  background: var(--ph-card);
+  box-shadow: var(--ph-card-lip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rows {
+  flex: none;
+  margin-top: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 56px;
+  padding: 0 12px;
+  text-align: left;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row + .wc-ph-row,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow + .wc-ph-srow {
+  border-top: 1px solid var(--ph-row-rule);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row > .wc-ph-ico {
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row-t,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row-v,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow-v {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-chev {
+  color: var(--ph-chev);
+}
+
+/* The link is down: Reconnect is the lit row. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row.is-lit {
+  border-radius: 7px 7px 0 0;
+  background: var(--ph-lamp);
+  color: var(--ph-ink);
+  font-weight: 700;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row.is-lit > .wc-ph-ico,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row.is-lit > .wc-ph-row-v {
+  color: var(--ph-ink);
+}
+
+/* The quick row: text size on the left, the two themes on the right. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-quick {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-tiny {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-tiny.is-on {
+  color: var(--ph-lamp);
+}
+
+/* The stepper: two 44 px keys round the value. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-step {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-lamp);
+  font-weight: 700;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key.is-less {
+  font-size: 12px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key.is-more {
+  font-size: 17px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key[aria-disabled="true"] {
+  color: var(--ph-key-off);
+  cursor: default;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-step-val {
+  width: 36px;
+  text-align: center;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-themes {
+  display: flex;
+  gap: 16px;
+  padding-right: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch {
+  display: block;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #5a5148;
+  border-radius: 50%;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-black {
+  background: #000;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-paper {
+  background: #f4ecd8;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-on {
+  box-shadow: 0 0 0 2px var(--ph-well), 0 0 0 4px var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  margin-top: 16px;
+  border: 1px solid var(--ph-danger);
+  border-radius: 10px;
+  color: var(--ph-danger);
+  font-weight: 700;
+}
+
+/* The pressed key shows (rows, keys, Exit). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-pick:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key:not([aria-disabled="true"]):active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit:active {
+  background: var(--ph-row-rule);
+}
+
+/* ----------------------------------------------------------- settings page */
+
+/* A full-height page over the game: an iron band with Back, the hood, and
+ * the groups in a column that scrolls. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ph-well);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-band {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 2px;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--ph-hood-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-page-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 0 0;
+  background: var(--ph-window);
+  box-shadow: var(--ph-window-in);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-col {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-grp {
+  margin-bottom: 24px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-grp-t {
+  display: block;
+  margin-bottom: 8px;
+  padding: 0 4px;
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ph-hood-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-cap {
+  display: block;
+  margin: 6px 4px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-on {
+  color: var(--ph-lamp);
+  font-weight: 700;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-check {
+  color: var(--ph-lamp);
+}
+
+/* The kit's segmented control in a row: one line, never wrapped. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow .wc-lk-seg {
+  flex: none;
+  flex-wrap: nowrap;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow .wc-lk-opt {
+  justify-content: center;
+  min-width: 64px;
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+  letter-spacing: 0;
 }
 
 /* ------------------------------------------------- fullscreen corner button */

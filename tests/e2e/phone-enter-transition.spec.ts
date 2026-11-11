@@ -29,10 +29,10 @@ test('a tap on Enter MUME plays the transition; Exit session resets the page', a
   expect(opened).toBe(1);
 
   // Exit session: the start page as it was, with its keys.
-  await page.locator('.wc-menu-btn').tap();
+  // (The menu sheet's Exit session since stage 51b, ADR 0136 §10.)
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="exit"]').tap();
   await expect(overlay(page)).toBeVisible();
-  await page.keyboard.press('End');
-  await page.keyboard.press('Enter');
   await page.keyboard.press('y');
   await expect(startSel(page)).toHaveText('Enter MUME');
   const back = await page.evaluate(() => {

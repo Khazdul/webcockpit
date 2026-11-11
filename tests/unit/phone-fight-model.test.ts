@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { GroupModel } from '../../src/gmcp/group';
+import { PHONE_KIT } from '../../src/app/phone-kit';
 import { FOE_START, FOE_STEPS, type SelfVitals, fightCard, fightSig, foeStep } from '../../src/phone/fight-model';
+import { setPhoneKit } from '../../src/phone/kit';
+
+setPhoneKit(PHONE_KIT);
 
 const SELF: SelfVitals = { name: 'Rasta', hp: 158, maxhp: 172, word: 'Fine' };
 

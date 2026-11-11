@@ -12,11 +12,11 @@
 //
 // Who tanks and how the opponent is named come from `fightView`
 // (src/panes/group-model.ts), the Group pane's own fight card, so the two
-// never disagree. No GMCP is parsed here.
+// never disagree. No GMCP is parsed here. `fightView` and the vital share
+// come through the phone kit (kit.ts), not by import.
 
-import { type GroupFight, type Member, type Vital, vitalPct } from '../gmcp/group';
-import { fightView } from '../panes/group-model';
-import { GROUP_DARK } from '../panes/palette';
+import type { GroupFight, Member, Vital } from '../gmcp/group';
+import { phoneKit } from './kit';
 
 /** The opponent's bar (%) by MUME's condition word, lower case. */
 export const FOE_STEPS: Readonly<Record<string, number>> = {
@@ -58,8 +58,6 @@ export interface FightCard {
   right: { name: string; pct: number };
 }
 
-/** What `fightView` wants of a pane's colours; the card has its own (phone.css). */
-const NO_COLORS = { light: false, colors: GROUP_DARK, vitals: { hp: '', mana: '', mp: '' } } as const;
 
 /** A whole percent 0–100 from a share 0–1. */
 const pct = (share: number | null): number | null => (share === null ? null : Math.round(share * 100));
@@ -70,7 +68,9 @@ const pct = (share: number | null): number | null => (share === null ? null : Ma
  * bar of the card shown before, in the same fight (null: none).
  */
 export function fightCard(f: GroupFight, tankMember: Member | null, self: SelfVitals, lastStep: number | null): FightCard | null {
-  const v = fightView(f, tankMember, self.name, NO_COLORS);
+  const { fightView, vitalPct, groupColors } = phoneKit();
+  // What `fightView` wants of a pane's colours; the card has its own (phone.css).
+  const v = fightView(f, tankMember, self.name, { light: false, colors: groupColors, vitals: { hp: '', mana: '', mp: '' } });
   if (!v) return null;
   let left: FightCard['left'];
   if (v.tank === null) {

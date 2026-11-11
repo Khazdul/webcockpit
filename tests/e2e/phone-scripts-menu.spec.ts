@@ -1,5 +1,7 @@
-// Stage 44d (ADR 0129): the Scripts pages in the phone's ESC menu (ESC →
-// Options → Scripts; no windows on a phone, ADR 0112). The look frames
+// Stage 44d (ADR 0129): the Scripts pages in the phone's menu (no windows
+// on a phone, ADR 0112). Since stage 51b (ADR 0136 §10) the way in is the
+// menu sheet's Scripts row (ESC → Options → Scripts before), and Back from
+// the index returns to the game. The look frames
 // render in the `menu` place: the full-screen box with its Back. The index
 // alone, a tap opens a script's panel, its settings change by tap and the
 // running script sees the new value at once; Edit and the Manual open in the
@@ -69,17 +71,20 @@ async function enterMume(page: Page): Promise<() => WebSocketRoute> {
   return () => server!;
 }
 
-/** ☰ → Options → Scripts, all by taps. */
+/** The menu key → Scripts, all by taps. */
 async function openScripts(page: Page): Promise<Locator> {
-  await page.locator('.wc-menu-btn').tap();
-  await menu(page).locator('.wc-mrow[data-key="options"]').tap();
-  await menu(page).locator('.wc-mrow[data-key="scripts"]').tap();
+  await page.locator('.wc-ph-menu').tap();
+  const row = page.locator('.wc-ph-sheet [data-row="scripts"]');
+  // The row says how many scripts are on, and is a finger high.
+  await expect(row.locator('.wc-ph-row-v')).toHaveText('1 on');
+  await tappable(page, row);
+  await row.tap();
   const f = menuLook(page);
   await expect(f.locator('.wc-scr')).toBeVisible();
   return f;
 }
 
-test('ESC → Options → Scripts: the index, a panel by tap, a setting the running script sees; Edit, Manual and Back', async ({ page }) => {
+test('the menu sheet → Scripts: the index, a panel by tap, a setting the running script sees; Edit, Manual and Back', async ({ page }) => {
   const errors = watchErrors(page);
   const server = await enterMume(page);
   const f = await openScripts(page);
@@ -130,12 +135,13 @@ test('ESC → Options → Scripts: the index, a panel by tap, a setting the runn
   await back(page).tap();
   await expect(ed).toHaveCount(0);
 
-  // The page again on the panel; All scripts goes to the index, Back to Options.
+  // The page again on the panel; All scripts goes to the index, Back to the game.
   await expect(f.locator('.wc-scr-panel .wc-scr-title')).toHaveText('phonemenu');
   await f.locator('.wc-scr-panel [data-btn="LIST"]').tap();
   await expect(f.locator('.wc-scr-idx')).toBeVisible();
   await back(page).tap();
-  await expect(menu(page).locator('.wc-mrow[data-key="scripts"]')).toBeVisible();
+  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await expect(page.locator('.wc-ph-sheet')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

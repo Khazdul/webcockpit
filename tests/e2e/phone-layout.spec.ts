@@ -52,21 +52,27 @@ test('portrait: the game full width, the input at the bottom; no arranging', asy
 test('the phone has the menu key and no menu bar (ADR 0099, ADR 0136 §9)', async ({ page }) => {
   await openDemo(page);
   await expect(page.locator('.wc-menubar')).toHaveCount(0);
-  await expect(page.locator('.wc-menu-btn')).toBeVisible();
-  // #panes falls back to the ESC menu's pane page.
+  await expect(page.locator('.wc-ph-menu')).toBeVisible();
+  await expect(page.locator('.wc-menu-btn')).toHaveCount(1);
+  // #panes opens the phone's settings page (its Panes group comes in stage 51d).
   const field = page.locator('.wc-input-slot textarea, .wc-input-slot input').first();
   await field.fill('#panes');
   await field.press('Enter');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Pane appearance ───');
+  await expect(page.locator('.wc-ph-page')).toBeVisible();
 });
 
-test('the menu key opens the ESC menu over the whole screen', async ({ page }) => {
+test('the menu key opens the menu sheet from the bottom edge, over the whole width', async ({ page }) => {
   await openDemo(page);
-  await page.locator('.wc-menu-btn').tap();
-  await expect(page.locator('.wc-overlay')).toBeVisible();
-  await expect(page.locator('.wc-overlay .wc-mrow[data-key="options"]')).toBeVisible();
-  await page.locator('.wc-overlay .wc-footer .wc-esc-btn', { hasText: 'ESC Close' }).tap();
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await page.locator('.wc-ph-menu').tap();
+  const sheet = page.locator('.wc-ph-sheet');
+  await expect(sheet).toBeVisible();
+  const c = (await page.locator('.wc-cockpit').boundingBox())!;
+  const b = (await sheet.boundingBox())!;
+  expect(Math.abs(b.width - c.width)).toBeLessThan(1);
+  expect(Math.abs(b.y + b.height - (c.y + c.height))).toBeLessThan(1);
+  expect(b.y).toBeGreaterThanOrEqual(c.y);
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
 });
 
 test('a shorter visible area (keyboard) keeps the input visible and never shows too small', async ({ page }) => {

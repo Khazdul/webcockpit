@@ -45,12 +45,12 @@ async function backClears(page: Page, box: Locator, row: Locator): Promise<void>
   expect(hit).toBe(false);
 }
 
-test('ESC menu → Options → Scripts: Back clears the first row; New lies over the page, which stays drawn', async ({ page }) => {
+test('the menu sheet → Scripts: Back clears the first row; New lies over the page, which stays drawn', async ({ page }) => {
   const errors = watchErrors(page);
   await enterMume(page);
-  await page.locator('.wc-menu-btn').tap();
-  await menu(page).locator('.wc-mrow[data-key="options"]').tap();
-  await menu(page).locator('.wc-mrow[data-key="scripts"]').tap();
+  // Since stage 51b (ADR 0136 §10) the Scripts page opens from the menu sheet, in the ESC menu's overlay as before.
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="scripts"]').tap();
   const f = menuLook(page);
   await expect(f.locator('.wc-scr')).toBeVisible();
   await backClears(page, f, f.locator('.wc-scr-row').first());

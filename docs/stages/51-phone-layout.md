@@ -241,7 +241,7 @@ The owner starts the session and is away until morning. So:
 
 - [x] Branch, baseline benchmark recorded here
 - [x] 51a shell: allocator, command row, compass, fight card
-- [ ] 51b menu sheet, Text settings
+- [x] 51b menu sheet, Text settings
 - [ ] 51c map lens
 - [ ] 51d pane strip and Comm
 - [ ] 51e hot keys
@@ -323,6 +323,50 @@ cover too much text, Comm's height, anything that feels slow.
   in 51c); firefox 434 passed; chromium green except load-sensitive cases
   that change from run to run and pass alone.
 - Screenshots: `docs/stages/img/51-a-*.png`.
+
+### 51b Menu sheet and Text settings (built)
+
+- `src/phone/menu-sheet.tsx` (the sheet and its host), `settings-page.tsx`
+  (groups as data; only **Text** so far), `text-settings.ts`, `kit.ts`.
+  The menu key, Esc, `#menu`, the disconnect auto-open and the resume
+  watch open the sheet; `#profile`, `#scripts`, `#exit` open the existing
+  pages straight at their frame; `#settings` (and `#panes` until 51d) the
+  phone settings page. A link drop while the settings page is up switches
+  to the sheet with Reconnect lit.
+- Shared files: `shell.ts` (phone-only paths: `phoneLayer`, `openMenu` /
+  `closeMenu` / `menuOpen` / `exitSession` through `phoneLayer?.`,
+  `onConn`); `src/theme/presets.ts` gets `backgroundPatch` (moved, pure;
+  `chrome/frames/options.tsx` re-exports it); `chrome/index.tsx` re-exports
+  `Seg` and `Toggle`; new eager `src/app/phone-kit.ts` (about 0.5 kB,
+  values the phone chunk needs from modules desktop already loads).
+- **Chunk rule found in review:** a value import of an eager module from
+  `src/phone` re-cuts the eager chunk graph for every device (desktop got
+  four extra preloads). The phone chunk therefore imports app modules as
+  types only and gets values through `PhoneKit`. Checked by building the
+  branch and `main`: the `index.html` preload list and stylesheet links
+  are identical (34 entries); eager JS 850 256 → 855 502 bytes. Left: one
+  small lazy chunk with Preact's JSX runtime, shared by chrome and phone.
+- Choices and deviations:
+  - Leaving Profile, Scripts or Exit returns to the game, not the sheet.
+  - While the menu is open it swallows keys (no typing, macros or sends
+    behind the scrim) and drops the on-screen keyboard.
+  - A+ stops before "Window too small"; if a stored size is too large a
+    rescue menu key shows over the notice.
+  - Black / Paper are the terminal presets and replace font colour and the
+    16-colour palette, as the desktop's Background cycle does (**owner
+    question:** fine for a one-tap swatch when the palette was hand-tuned
+    on a computer?).
+  - The status line does not carry the update / storage notice.
+  - The old `☰` and ESC menu remain as the fallback when the phone chunk
+    fails to load (tested).
+  - Between 51b and 51d Statistics is not reachable on a phone (it moves
+    to the strip); its e2e case is `fixme` until 51d.
+  - `phone-profile-window.spec.ts` needed no rewrite (`#profile` and Back
+    behave as before).
+- Tests: 3640 unit; phone 93 passed, 6 fixme; chromium green except
+  load-sensitive cases. `script-panes.spec.ts:177` fails when run alone on
+  untouched `main` too (order-dependent, not this stage).
+- Screenshots: `docs/stages/img/51-b-*.png`.
 
 ## Owner feedback
 

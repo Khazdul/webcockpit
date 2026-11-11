@@ -1,12 +1,12 @@
 // Stage 19 part A (ADR 0075 §2): touch fixes, on a touch-emulating mobile
 // browser. The menu button is the phone's only since stage 30f (ADR 0112):
 // a tablet (a desktop-size viewport with `?touch=1`) has the menu bar and
-// no `☰`.
+// no `☰`. Since stage 51b (ADR 0136 §10) the phone's menu in the live game
+// is the bottom sheet: the two phone cases are asserted against it.
 import { type Page, expect, test } from '@playwright/test';
 
 const overlay = (page: Page) => page.locator('.wc-overlay');
-const frame = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden])');
-const menuTitle = (page: Page) => frame(page).locator('.wc-title-row .wc-c-section');
+const sheet = (page: Page) => page.locator('.wc-ph-sheet');
 const inputFocused = (page: Page) =>
   page.evaluate(() => document.activeElement?.classList.contains('wc-input-field') ?? false);
 
@@ -16,27 +16,32 @@ async function openPhone(page: Page): Promise<void> {
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
 }
 
-test('the menu button opens the ESC menu by tap, without focusing the input', async ({ page }) => {
+test('the menu button opens the menu sheet by tap, without focusing the input', async ({ page }) => {
   await openPhone(page);
   // Nothing has focused the input at start (no keyboard pops up).
-  await page.locator('.wc-menu-btn').tap();
-  await expect(overlay(page)).toBeVisible();
-  // Continue/back closes without the input taking the focus.
-  await frame(page).locator('.wc-footer .wc-esc-btn', { hasText: 'ESC Close' }).tap();
-  await expect(overlay(page)).toBeHidden();
+  await page.locator('.wc-ph-menu').tap();
+  await expect(sheet(page)).toBeVisible();
+  expect(await inputFocused(page)).toBe(false);
+  // A tap outside closes it without the input taking the focus.
+  await page.touchscreen.tap(100, 60);
+  await expect(sheet(page)).toBeHidden();
   expect(await inputFocused(page)).toBe(false);
 });
 
-test('a tap on a whole menu row selects it; a tap on ESC Back closes the frame', async ({ page }) => {
+test('a tap on a whole sheet row opens it; a tap on Back returns to the sheet', async ({ page }) => {
   await openPhone(page);
-  await page.locator('.wc-menu-btn').tap();
-  await expect(overlay(page)).toBeVisible();
-  // Tap the row's blank area, left of the label.
-  const row = frame(page).locator('.wc-line', { has: page.locator('.wc-mrow[data-key="options"]') });
-  await row.tap({ position: { x: 5, y: 5 } });
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await frame(page).locator('.wc-footer .wc-esc-btn', { hasText: 'ESC Back' }).tap();
-  await expect(frame(page).locator('.wc-mrow[data-key="options"]')).toBeVisible();
+  await page.locator('.wc-ph-menu').tap();
+  await expect(sheet(page)).toBeVisible();
+  // Tap the row's blank area, right of the label; the row is a finger high.
+  const row = sheet(page).locator('[data-row="settings"]');
+  const b = (await row.boundingBox())!;
+  expect(b.height).toBeGreaterThanOrEqual(44);
+  await row.tap({ position: { x: b.width * 0.6, y: 5 } });
+  await expect(page.locator('.wc-ph-page')).toBeVisible();
+  await page.locator('.wc-ph-page .wc-ph-back').tap();
+  await expect(sheet(page)).toBeVisible();
+  await expect(sheet(page).locator('[data-row="settings"]')).toBeVisible();
+  expect(await inputFocused(page)).toBe(false);
 });
 
 test.describe('a tablet', () => {

@@ -51,6 +51,7 @@ import {
   type NamedColor,
   TERMINAL_BG_PRESETS,
   TERMINAL_FG_PRESETS,
+  backgroundPatch,
   backgroundTheme,
   presetName,
 } from '../../theme/presets';
@@ -337,19 +338,9 @@ export function colorChoices(presets: readonly NamedColor[], cur: string): strin
   return hexes.includes(cur.toLowerCase()) ? hexes : [cur.toLowerCase(), ...hexes];
 }
 
-/**
- * The appearance change for a new background. Landing on a preset also sets
- * its font colour and palette (BACKGROUND_THEMES, ADR 0058, 0061); leaving
- * `paper` for an off-palette colour puts the default font colour and DOS
- * palette back, since ink is invisible on a dark background. Either can be
- * changed after.
- */
-export function backgroundPatch(from: string, to: string): Partial<AppearanceSettings> {
-  const theme = backgroundTheme(to);
-  if (theme) return { bg: to, fg: theme.fg, ansi: theme.ansi.slice() };
-  if (presetName(TERMINAL_BG_PRESETS, from) === 'paper') return { bg: to, fg: DEFAULT_TERM_FG, ansi: DOS_PALETTE.slice() };
-  return { bg: to };
-}
+// `backgroundPatch` lives with the presets (src/theme/presets.ts: pure, and the phone layer uses it
+// without this page); re-exported here for its users.
+export { backgroundPatch };
 
 const colorName = (presets: readonly NamedColor[], hex: string): string => presetName(presets, hex) ?? hex;
 

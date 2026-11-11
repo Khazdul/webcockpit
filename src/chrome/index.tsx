@@ -48,6 +48,9 @@ export {
   mountSettingsPopups,
 } from './popups/surface';
 export { type StatsPaneHandle, type StatsPaneOptions, mountStatsPane } from './stats-pane';
+// The look kit's controls the phone layer's settings page uses (ADR 0136 §10): handed to it by the
+// shell, so the phone chunk does not import the kit and split it out of this chunk.
+export { Seg, Toggle } from './kit/look-controls';
 
 // ------------------------------------------------------------ start page
 

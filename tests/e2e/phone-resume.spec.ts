@@ -1,6 +1,7 @@
 // Stage 19 (ADR 0075 §3.4): back from the background on a phone, the app
 // checks the MUME link at once. A link that does not answer a Core.Ping
-// within 3 s is dropped, and the ESC menu opens with Reconnect selected.
+// within 3 s is dropped, and the menu sheet opens with Reconnect lit
+// (the ESC menu before stage 51b; ADR 0136 §10).
 // The background is simulated by dispatching `visibilitychange`.
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 
@@ -38,15 +39,16 @@ async function play(page: Page, answer: () => boolean): Promise<{ pings: () => n
 }
 
 const resume = (page: Page) => page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-const menuSel = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
+const sheet = (page: Page) => page.locator('.wc-ph-sheet');
 
-test('a dead link on resume: dropped within seconds, menu with Reconnect selected', async ({ page }) => {
+test('a dead link on resume: dropped within seconds, the menu sheet with Reconnect lit', async ({ page }) => {
   const m = await play(page, () => false);
   await resume(page);
   await expect.poll(m.pings).toBe(1);
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'Connection closed: connection lost while in the background' })).toHaveCount(1, { timeout: 6_000 });
-  await expect(page.locator('.wc-overlay')).toBeVisible();
-  await expect(menuSel(page)).toHaveText('<< Reconnect >>');
+  await expect(sheet(page)).toBeVisible();
+  await expect(sheet(page).locator('[data-row="reconnect"]')).toHaveClass(/\bis-lit\b/);
+  await expect(page.locator('.wc-overlay')).toBeHidden();
 });
 
 test('a live link on resume is kept', async ({ page }) => {
@@ -55,5 +57,6 @@ test('a live link on resume is kept', async ({ page }) => {
   await expect.poll(m.pings).toBe(1);
   await page.waitForTimeout(4_000);
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);
+  await expect(sheet(page)).toBeHidden();
   await expect(page.locator('.wc-overlay')).toBeHidden();
 });

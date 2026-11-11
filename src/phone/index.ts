@@ -5,7 +5,9 @@
 // rectangles after each layout and never re-parents a pane.
 //
 // Loaded only on a phone: the shell imports this module (and phone.css)
-// after it built the live game's App with the phone flag on. Every rule of
+// after it built the live game's App with the phone flag on. It imports
+// nothing of the app but types; what it uses of the app comes in as the
+// kit (kit.ts), so the desktop's start-up chunks stay as they were. Every rule of
 // phone.css is scoped under `html.wc-phone` and the cockpit's
 // `data-phone-game`, so nothing here can match on a desktop or a tablet,
 // nor in the run log player.
@@ -13,6 +15,8 @@
 // Parts (one module each):
 //   fight-card.ts   two names and two bars while fighting (model: fight-model.ts)
 //   compass.ts      the 3 × 3 keys in the bottom right corner
+//   menu-sheet.tsx  the menu: a bottom sheet, and the settings page
+//                   (settings-page.tsx) it leads to
 //   here            the menu key in the command row, and the wiring
 //
 // Cost (stage 51 rule 4): nothing runs per frame or per incoming line. The
@@ -26,11 +30,24 @@ import type { Cockpit } from '../layout/cockpit';
 import { Compass } from './compass';
 import { FightCardView } from './fight-card';
 import { type FightCard, type SelfVitals, fightCard, fightSig } from './fight-model';
+import { type MenuFrame, PhoneMenu } from './menu-sheet';
 import { type PlayState, keysLive } from './play-gate';
+import { sizeFits } from './text-settings';
+import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
+
+export type { PhoneControls, PhoneKit } from './kit';
+import type { AppStatusView } from '../app/status';
+import type { SettingsStore } from '../settings';
+
+export type { MenuFrame } from './menu-sheet';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export interface PhoneLayerDeps {
+  /** What the layer uses of the app, handed in so this chunk imports none of it (kit.ts). */
+  kit: PhoneKit;
+  /** The look kit's controls, from the chrome chunk (kit.ts). */
+  controls: PhoneControls;
   /** The live game's cockpit, built with `phoneGame`. */
   cockpit: Cockpit;
   game: GameState;
@@ -40,8 +57,16 @@ export interface PhoneLayerDeps {
   command(text: string): void;
   /** Where the session is now: a key sends only in play (play-gate.ts). */
   playState(): PlayState;
-  /** The menu key (the ESC menu until the sheet of stage 51b). */
+  /** The menu key: the shell opens the menu (`PhoneLayer.menu`), as Esc and `#menu` do. */
   openMenu(): void;
+  /** What the menu sheet shows and does (menu-sheet.tsx). */
+  settings: SettingsStore;
+  status: AppStatusView;
+  scriptsOn(): number;
+  reconnect(): void;
+  openFrame(frame: MenuFrame): void;
+  /** The menu closed back to the game. */
+  onMenuClose?(): void;
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -51,6 +76,10 @@ export class PhoneLayer {
   readonly el: HTMLDivElement;
   /** The menu key, first in the command row. */
   readonly menuKey: HTMLButtonElement;
+  /** The menu sheet and the settings page (closed until the shell opens it). */
+  readonly menu: PhoneMenu;
+  /** A second menu key, shown only over the too-small notice. */
+  readonly rescueKey: HTMLButtonElement;
   private readonly deps: PhoneLayerDeps;
   private readonly fight: FightCardView;
   private readonly unsubs: Array<() => void> = [];
@@ -68,6 +97,22 @@ export class PhoneLayer {
     const compass = new Compass(doc, (cmd) => this.send(cmd));
     this.el.append(this.fight.el, compass.el);
     cockpit.el.append(this.el);
+    this.menu = new PhoneMenu({
+      parent: cockpit.el,
+      settings: deps.settings,
+      status: deps.status,
+      scriptsOn: () => deps.scriptsOn(),
+      reconnect: () => deps.reconnect(),
+      openFrame: (f) => deps.openFrame(f),
+      onClose: () => deps.onMenuClose?.(),
+      fits: (size) => this.sizeFits(size),
+    });
+    // The way to the menu while the cockpit shows "Window too small" (the
+    // command row with the menu key is hidden and inert then): shown by
+    // phone.css only in that state.
+    this.rescueKey = menuKey(doc, () => deps.openMenu());
+    this.rescueKey.className = 'wc-ph-menu-rescue';
+    cockpit.el.append(this.rescueKey);
 
     this.menuKey = menuKey(doc, () => deps.openMenu());
     cockpit.inputEl.prepend(this.menuKey);
@@ -118,6 +163,22 @@ export class PhoneLayer {
     this.unsubs.push(() => mo.disconnect());
   }
 
+  /** Whether the game keeps its least columns and rows at text size `size` on this screen. */
+  private sizeFits(size: number): boolean {
+    const el = this.deps.cockpit.el;
+    const cell = this.deps.cells.get();
+    return sizeFits(size, {
+      width: el.clientWidth,
+      // The too-small guard is off while the keyboard is up (the rows are not judged then).
+      height: phoneKit().keyboardUp() ? Infinity : el.clientHeight,
+      cellW: cell.w,
+      cellH: cell.h,
+      size: this.deps.settings.get().appearance.size,
+      minCols: phoneKit().minCols,
+      minRows: phoneKit().minRows,
+    });
+  }
+
   /** Recomputes the fight card; the DOM and the cockpit hear of it only on a change. */
   private syncFight(): void {
     const { game, cockpit } = this.deps;
@@ -161,6 +222,8 @@ export class PhoneLayer {
 
   dispose(): void {
     for (const u of this.unsubs.splice(0)) u();
+    this.menu.dispose();
+    this.rescueKey.remove();
     this.el.remove();
     this.menuKey.remove();
   }
@@ -195,5 +258,7 @@ function menuKey(doc: Document, open: () => void): HTMLButtonElement {
 
 /** Mounts the phone layer over `deps.cockpit` (the live game on a phone). */
 export function mountPhoneLayer(deps: PhoneLayerDeps): PhoneLayer {
+  setPhoneKit(deps.kit);
+  setPhoneControls(deps.controls);
   return new PhoneLayer(deps);
 }

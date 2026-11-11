@@ -137,6 +137,7 @@ import { NEW_USER_SCRIPTS, ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
+import { PHONE_KIT } from './phone-kit';
 import { device } from '../core/device';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
@@ -190,6 +191,8 @@ export class Shell {
   private chromeP: Promise<ChromeModule> | null = null;
   /** Phone only: the phone layer's chunk (src/phone/, ADR 0136). */
   private phoneP: Promise<typeof import('../phone')> | null = null;
+  /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
+  private phoneLayer: import('../phone').PhoneLayer | null = null;
   private startHost: HTMLDivElement;
   private startMount: HTMLDivElement;
   private menuHost: HTMLDivElement;
@@ -391,16 +394,39 @@ export class Shell {
       this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter() });
     }
     this.menu?.close();
+    this.phoneLayer?.menu.close(true);
     this.showStart();
   }
 
   /**
-   * Opens the ESC menu over the cockpit (no-op elsewhere or when open), at
-   * `target`'s frame when given. The phone only: where the menu bar exists
-   * there is no ESC menu (ADR 0112).
+   * Opens the menu over the cockpit (no-op elsewhere), at `target` when
+   * given. The phone only: where the menu bar exists there is no menu
+   * (ADR 0112).
+   *
+   * With the phone layer up (ADR 0136 §10) the menu is its bottom sheet:
+   * no target opens the sheet (a dropped link lights its Reconnect by
+   * itself, from the status), `settings` and `panes` open the phone's
+   * settings page (the Panes group comes in stage 51d), and `profile`,
+   * `scripts` and `exit` open the existing pages straight at their frame in
+   * the ESC menu's overlay, as before. Without the layer (its chunk could
+   * not be loaded) everything is the ESC menu, as before stage 51.
    */
   async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
     if (!this.inCockpit || !this.appRef || this.appRef.menuBar) return;
+    const sheet = this.phoneLayer?.menu;
+    if (sheet) {
+      // A page of the overlay is up: it has the screen (and its own Esc).
+      if (this.menu?.isOpen) return;
+      if (!target) {
+        sheet.open();
+        return;
+      }
+      if (target === 'settings' || target === 'panes') {
+        sheet.openSettings(sheet.showing === 'sheet' ? 'sheet' : 'game');
+        return;
+      }
+      sheet.close(true);
+    }
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
     menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
@@ -430,11 +456,23 @@ export class Shell {
   /** Closes the ESC menu and gives the input its focus back. */
   closeMenu(): void {
     this.menu?.close();
+    this.phoneLayer?.menu.close(true);
     if (this.inCockpit) this.appRef?.input.focus();
   }
 
+  /** True while the ESC menu's overlay or the phone's menu sheet (or its settings page) is open. */
   get menuOpen(): boolean {
-    return this.menu?.isOpen ?? false;
+    return (this.menu?.isOpen ?? false) || (this.phoneLayer?.menu.isOpen ?? false);
+  }
+
+  /**
+   * Phone only: Esc in the command line and `#menu`. With the phone's menu
+   * open it goes one step back (a list to its page, the settings page to
+   * the sheet, the sheet closed); otherwise the menu opens.
+   */
+  private escapeMenu(): void {
+    if (this.phoneLayer?.menu.back()) return;
+    void this.openMenu();
   }
 
   // -------------------------------------------------------------- windows
@@ -708,7 +746,7 @@ export class Shell {
       scripts: this.scripts,
       map: this.maps.host({ persistIds: true }),
       // The ESC menu is the phone's only (ADR 0112): Esc, `#menu` and the menu targets.
-      ...(device().phone ? { onEscape: () => void this.openMenu() } : {}),
+      ...(device().phone ? { onEscape: () => this.escapeMenu() } : {}),
       ui: {
         bar: !device().phone,
         exit: () => void this.exitSession(),
@@ -750,10 +788,13 @@ export class Shell {
       // loaded or the mount throws.
       const old = this.menuButton(root.ownerDocument);
       rowEnd.after(old);
-      this.loadPhone().then(
-        (phone) => {
+      // With the chrome chunk: the settings page's controls are the look kit's.
+      Promise.all([this.loadPhone(), this.loadChrome()]).then(
+        ([phone, chrome]) => {
           try {
-            phone.mountPhoneLayer({
+            this.phoneLayer = phone.mountPhoneLayer({
+              kit: PHONE_KIT,
+              controls: { Seg: chrome.Seg, Toggle: chrome.Toggle },
               cockpit: app.cockpit,
               game: app.game,
               cells,
@@ -768,6 +809,19 @@ export class Shell {
                 return { conn: app.session.state, replay: st.replay, password: app.input.isPasswordMode() };
               },
               openMenu: () => void this.openMenu(),
+              // The menu sheet (ADR 0136 §10).
+              settings,
+              status: app.status,
+              scriptsOn: () => this.scripts.enabledNames().length,
+              reconnect: () => {
+                this.closeMenu();
+                app.onCommand('#reconnect');
+              },
+              // Profile, Scripts and Exit: the existing pages, at their frame.
+              openFrame: (frame) => void this.openMenu(undefined, frame),
+              onMenuClose: () => {
+                if (this.inCockpit) app.input.focus();
+              },
             });
             old.remove();
           } catch (err) {
@@ -799,6 +853,12 @@ export class Shell {
     if (state !== 'disconnected') return;
     const wasUp = prev === 'login' || prev === 'playing';
     if (!wasUp || !this.everUp || this.connIsReplay || QUIET_REASONS.has(reason)) return;
+    // Phone only (ADR 0136 §10): the link dropped while the settings page was up: the sheet, with Reconnect lit.
+    const sheet = this.phoneLayer?.menu;
+    if (this.inCockpit && sheet?.showing === 'settings') {
+      sheet.open();
+      return;
+    }
     if (!this.inCockpit || this.menuOpen) return;
     // Desktop and tablet: the menu bar's Disconnected notice instead (ADR 0100).
     if (!device().phone) return;

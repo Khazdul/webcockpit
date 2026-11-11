@@ -1,6 +1,7 @@
 // Colour data (Inv §10.2, §10.3, §10.4). Pure data, no DOM.
 
 import type { PaneColor } from '../layout/types';
+import type { AppearanceSettings } from '../settings/types';
 
 /** A named colour choice. */
 export interface NamedColor {
@@ -427,3 +428,17 @@ export const INPUT_COLORS: Readonly<Record<InputColor, InputColorPreset>> = {
   cyan: { label: 'Cyan', mix: { pct: 15, dark: '#00d7d7', light: '#007a8a' } },
   amber: { label: 'Amber', mix: { pct: 15, dark: '#ffaf00', light: '#9a5a00' } },
 };
+
+/**
+ * The appearance change for a new background. Landing on a preset also sets
+ * its font colour and palette (BACKGROUND_THEMES, ADR 0058, 0061); leaving
+ * `paper` for an off-palette colour puts the default font colour and DOS
+ * palette back, since ink is invisible on a dark background. Either can be
+ * changed after.
+ */
+export function backgroundPatch(from: string, to: string): Partial<AppearanceSettings> {
+  const theme = backgroundTheme(to);
+  if (theme) return { bg: to, fg: theme.fg, ansi: theme.ansi.slice() };
+  if (presetName(TERMINAL_BG_PRESETS, from) === 'paper') return { bg: to, fg: DEFAULT_TERM_FG, ansi: DOS_PALETTE.slice() };
+  return { bg: to };
+}

@@ -92,6 +92,26 @@ const STATES: State[] = [
       await page.keyboard.type('kill scout');
     },
   },
+  {
+    name: 'menu',
+    step: 'b',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet').waitFor();
+    },
+  },
+  {
+    name: 'settings',
+    step: 'b',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet .wc-ph-row[data-row="settings"]').tap();
+      await page.locator('.wc-ph-page').waitFor();
+    },
+  },
 ];
 
 /** Paper: the background, ink and its palette, as the Appearance settings set them. */
