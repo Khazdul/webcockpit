@@ -460,7 +460,7 @@ export interface PhoneSettings {
   defaults: number;
 }
 
-/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off and Character out of the strip. */
+/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off with the Pulse signal, and Character out of the strip. */
 export const PHONE_DEFAULTS_MARK = 1;
 
 /** How many hot key slots the phone stores (stage 52: two columns of three). */
@@ -695,6 +695,8 @@ export function phoneDefaultSettings(): Settings {
   s.timers.groups.herb.enabled = false;
   // The Timers pane's countdown text is off too: bars only, in the strip's few columns.
   s.timers.timeText = false;
+  // Without the text the "Time text" signal would show nothing: ending soon pulses instead.
+  s.timers.signal = 'pulse';
   s.phone.defaults = PHONE_DEFAULTS_MARK;
   return s;
 }

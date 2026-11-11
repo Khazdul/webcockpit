@@ -506,15 +506,19 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
     expect([s.strip.h, s.side.w]).toEqual([0, 0]);
   });
 
-  it('the keyboard up: Comm stays down to four rows (its reply line is typed in), and the strip gives way first', () => {
-    const r = land({ rows: 9, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
-    expect([r.strip.h, r.comm.h]).toEqual([4, 5]);
+  it('the keyboard up: Comm stays down to five rows (its reply line is typed in), and the strip gives way first', () => {
+    // Beside the strip Comm needs nine rows there (its head, chat and the whole reply line).
+    const r = land({ rows: 13, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
+    expect([r.strip.h, r.comm.h]).toEqual([4, 9]);
+    const tight = land({ rows: 12, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
+    expect([tight.strip.h, tight.comm.h]).toEqual([0, 12]);
     const low = land({ rows: 7, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
     expect([low.strip.h, low.comm.h]).toEqual([0, 7]);
-    expect(land({ rows: SIDE_COMM_KBD_ROWS, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(4);
-    expect(land({ rows: 3, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(0);
+    expect(SIDE_COMM_KBD_ROWS).toBe(5);
+    expect(land({ rows: 5, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(5);
+    expect(land({ rows: 4, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(0);
     // The game text keeps every row beside the column.
-    expect(r.game).toEqual({ x: 40, y: 0, w: 60, h: 6 });
+    expect(r.game).toEqual({ x: 40, y: 0, w: 60, h: 10 });
   });
 
   it('the width: a stored one within the least and what leaves the game text 40 columns', () => {

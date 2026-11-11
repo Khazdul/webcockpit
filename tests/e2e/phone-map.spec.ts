@@ -738,30 +738,23 @@ test.describe('landscape', () => {
     expect((await lens(page).boundingBox())!.x).toBeCloseTo(l.x, 0);
   });
 
-  test('a lower screen: the lens shrinks to its room above the compass, and hides with its keys as a row when a fight card leaves it under its least size', async ({ page }) => {
+  // (Its hiding under 96 px, with the key row in its place: tests/e2e/phone-game-landscape.spec.ts, 800 × 270.)
+  test('a lower screen: the lens shrinks in whole rows to its room above the compass, and the map pane with it', async ({ page }) => {
     await openCockpit(page);
     await expect(lens(page)).toBeVisible();
     expect((await lens(page).boundingBox())!.width).toBeCloseTo(163, 0);
     // (Lower, but not so low that it counts as the keyboard being up.)
     await page.setViewportSize({ width: 844, height: 320 });
     await expect(lens(page)).toBeVisible();
-    await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeLessThan(130);
+    await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeLessThan(150);
     const small = (await lens(page).boundingBox())!;
     expect(small.width).toBeGreaterThanOrEqual(96);
     expect(small.y + small.height).toBeLessThanOrEqual((await page.locator('.wc-ph-pad').boundingBox())!.y);
-    // A fight card takes two rows above it: the whole rows left above the compass are under 96 px.
-    await page.evaluate(async () => {
-      const lines = (await (await fetch('/__fixtures/gmcp-demo.log')).text()).split('\n');
-      window.__wc!.app.startReplay(lines.slice(0, lines.findIndex((l) => l.includes('Group.Update {"id":3,"hp":61}'))).join('\n') + '\n', 'gmcp-demo.log', 0);
-    });
-    await expect(page.locator('.wc-ph-fight')).toBeVisible();
-    await expect.poll(() => page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!.lensHidden)).toBe(true);
-    await expect(lens(page)).toBeHidden();
-    await expect(page.locator('.wc-pane-map')).toBeHidden();
-    const row = page.locator('.wc-ph-satrow');
-    await expect(row).toBeVisible();
-    // The row stands where the lens did: left of the hot key column.
-    const r = (await row.boundingBox())!;
-    expect(r.x + r.width).toBeLessThanOrEqual((await page.locator('.wc-ph-hot').boundingBox())!.x);
+    expect(await page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!.lensPx)).toBe(Math.round(small.width));
+    // The map pane is the square of cells that holds the smaller circle.
+    const m = (await page.locator('.wc-pane-map').boundingBox())!;
+    expect(m.width).toBeGreaterThanOrEqual(small.width - 0.5);
+    expect(m.width).toBeLessThan(small.width + 12);
+    await expect(page.locator('.wc-ph-satrow')).toBeHidden();
   });
 });

@@ -66,8 +66,12 @@ export class FightCardView {
     }
   }
 
-  /** Places the card at `top` px, `height` px high (the fight rows); 0 hides it. `left` (landscape): right of the left column, px. */
-  place(top: number, height: number, on: boolean, left = 0): void {
+  /**
+   * Places the card at `top` px, `height` px high (the fight rows); 0 hides
+   * it. Landscape: `left`, right of the left column, px; `right`, short of
+   * the hot key columns where a low screen has them reach up into its rows.
+   */
+  place(top: number, height: number, on: boolean, left = 0, right = 0): void {
     const show = on && height > 0;
     if (show) {
       const st = this.el.style;
@@ -75,6 +79,8 @@ export class FightCardView {
       const h = `${height}px`;
       const l = left > 0 ? `${left}px` : '';
       if (st.left !== l) st.left = l;
+      const r = right > 0 ? `${right}px` : '';
+      if (st.right !== r) st.right = r;
       if (st.top !== t) st.top = t;
       if (st.height !== h) st.height = h;
     }

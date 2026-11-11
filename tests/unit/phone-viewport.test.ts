@@ -6,10 +6,37 @@ import {
   VV_SETTLE_MS,
   installPhoneViewport,
   keyboardUp,
+  landscapeLayout,
   nextBaseline,
+  screenLandscape,
   onPhoneViewportApplied,
   visibleArea,
 } from '../../src/layout/phone-viewport';
+
+describe('the screen\'s orientation and the landscape layout (stage 52e)', () => {
+  const win = (type: unknown, angle?: unknown) => ({ screen: (type === undefined ? {} : { orientation: { type } }) as Screen, ...(angle === undefined ? {} : { orientation: angle }) });
+
+  it('`screen.orientation.type` decides; without it the old `window.orientation` angle; else unknown', () => {
+    expect(screenLandscape(win('landscape-primary'))).toBe(true);
+    expect(screenLandscape(win('landscape-secondary'))).toBe(true);
+    expect(screenLandscape(win('portrait-primary'))).toBe(false);
+    expect(screenLandscape(win('portrait-secondary', 90))).toBe(false);
+    expect([screenLandscape(win(undefined, 90)), screenLandscape(win(undefined, -90)), screenLandscape(win(undefined, 0)), screenLandscape(win(undefined, 180))]).toEqual([true, true, false, false]);
+    expect(screenLandscape(win(undefined))).toBeNull();
+    expect(screenLandscape(win(7, 'x'))).toBeNull();
+    expect(screenLandscape({ screen: undefined as unknown as Screen })).toBeNull();
+  });
+
+  it('landscape is a window wider than tall whose screen does not say portrait', () => {
+    expect(landscapeLayout(844, 390, true)).toBe(true);
+    expect(landscapeLayout(844, 390, null)).toBe(true);
+    // The keyboard up on an upright phone, not yet known to be up (a start or a rotation with it up).
+    expect(landscapeLayout(360, 300, false)).toBe(false);
+    // A phone flag in a computer's narrow window: the monitor lies on its side, the window does not.
+    expect(landscapeLayout(390, 844, true)).toBe(false);
+    expect(landscapeLayout(400, 400, true)).toBe(false);
+  });
+});
 
 describe('visibleArea (pure)', () => {
   const m = { height: 800, top: 0, tallest: 800, fullscreen: false, keyboard: null };

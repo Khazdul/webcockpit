@@ -103,7 +103,21 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-hk: rgb(22 19 15 / 0.12);
   --ph-hk-edge: rgb(232 196 138 / 0.4);
   --ph-hk-text: #f3d9ac;
-  --ph-hk-halo: 0 0 1px var(--ph-halo), 0 0 2px var(--ph-halo), 0 0 3px var(--ph-halo);
+  /* The labels' outline: the page's colour set round every glyph by shadows without blur in
+   * eight directions (twice for the compass's larger letters), and a soft one beyond. Not
+   * `-webkit-text-stroke`: without `paint-order` (Chromium before 123, old WebViews) a stroke
+   * is painted over the glyph and eats the letter. */
+  --ph-hk-halo:
+    1.5px 0 0 var(--ph-halo), -1.5px 0 0 var(--ph-halo), 0 1.5px 0 var(--ph-halo), 0 -1.5px 0 var(--ph-halo),
+    1.1px 1.1px 0 var(--ph-halo), -1.1px 1.1px 0 var(--ph-halo), 1.1px -1.1px 0 var(--ph-halo), -1.1px -1.1px 0 var(--ph-halo),
+    0 0 3px var(--ph-halo);
+  --ph-key-halo:
+    2px 0 0 var(--ph-halo), -2px 0 0 var(--ph-halo), 0 2px 0 var(--ph-halo), 0 -2px 0 var(--ph-halo),
+    1.4px 1.4px 0 var(--ph-halo), -1.4px 1.4px 0 var(--ph-halo), 1.4px -1.4px 0 var(--ph-halo), -1.4px -1.4px 0 var(--ph-halo),
+    1px 0 0 var(--ph-halo), -1px 0 0 var(--ph-halo), 0 1px 0 var(--ph-halo), 0 -1px 0 var(--ph-halo),
+    1.8px 0.8px 0 var(--ph-halo), -1.8px 0.8px 0 var(--ph-halo), 1.8px -0.8px 0 var(--ph-halo), -1.8px -0.8px 0 var(--ph-halo),
+    0.8px 1.8px 0 var(--ph-halo), -0.8px 1.8px 0 var(--ph-halo), 0.8px -1.8px 0 var(--ph-halo), -0.8px -1.8px 0 var(--ph-halo),
+    0 0 4px var(--ph-halo);
   /* The hot key box: a solid card over the game text. */
   --ph-solid: #14110d;
   --ph-solid-edge: rgb(232 196 138 / 0.3);
@@ -679,6 +693,43 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip.wc-ph-side-grip {
   cursor: ew-resize;
 }
 
+/* Landscape (stage 52e): Comm's head in the left column (src/phone/comm-chrome.ts; JS sets top and
+ * width). Its hood is the strip's, reading COMM. With the strip open above it an iron divider in
+ * the bands' look lies along Comm's top edge (6 px, cockpit.ts `PHONE_SIDE_DIVIDER_PX`; no lit
+ * bar: it is not dragged) and the hood hangs from it, as the strip's hangs from the top edge. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head {
+  position: absolute;
+  left: 0;
+  height: 22px;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head:not([data-divided]) > .wc-ph-side-rule {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-rule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  box-sizing: border-box;
+  height: 6px;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-side-rule {
+  box-shadow: 0 1px 3px rgb(60 40 10 / 0.25);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head[data-divided] > .wc-ph-hood {
+  top: 5px;
+}
+
 /* Landscape: the strip's page dots at the right end of the hood's row (no band under the strip there). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip > .wc-ph-strip-dots {
   top: 8px;
@@ -721,12 +772,10 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
   color: var(--ph-key-text);
   font: inherit;
   font-weight: 700;
-  /* The label's outline in the page's colour: drawn under the glyph's fill, so the letter keeps
-   * its weight; the soft shadow round it fades the game text nearest the letter. Static paint
-   * (no filter, no backdrop filter): text scrolling under a key repaints nothing of it. */
-  -webkit-text-stroke: 4px var(--ph-halo);
-  paint-order: stroke fill;
-  text-shadow: var(--ph-hk-halo);
+  /* The label's outline in the page's colour (`--ph-key-halo`): shadows, which lie under the
+   * glyph in every browser, so the letter keeps its weight. Static paint (no filter, no
+   * backdrop filter): text scrolling under a key repaints nothing of it. */
+  text-shadow: var(--ph-key-halo);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -761,7 +810,6 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
   background: var(--ph-lamp);
   border-color: var(--ph-lamp-hi);
   color: var(--ph-ink);
-  -webkit-text-stroke: 0;
   text-shadow: none;
 }
 
@@ -793,10 +841,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-kk {
   text-shadow: var(--ph-hk-halo);
 }
 
-/* Lit, the K ring is solid: no outline round its letter. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on {
-  -webkit-text-stroke: 0;
-}
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on .wc-ph-kk {
   border-color: var(--ph-sat-on-edge);
@@ -859,8 +903,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk {
   line-height: 12px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  -webkit-text-stroke: 3px var(--ph-halo);
-  paint-order: stroke fill;
   text-shadow: var(--ph-hk-halo);
   cursor: pointer;
   touch-action: none;
@@ -873,7 +915,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk.is-held {
   border-color: var(--ph-sat-on-edge);
   background: var(--ph-sat-on);
   color: var(--ph-sat-on-text);
-  -webkit-text-stroke: 0;
   text-shadow: none;
 }
 

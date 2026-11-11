@@ -261,8 +261,8 @@ for (const viewport of SCREENS) {
       await expect(page.locator('.wc-ph-strip-band')).toBeHidden();
       await expect(page.locator('.wc-ph-comm-band')).toBeHidden();
       // The hood and the page dots, over the strip's first row; the pane's lines begin under them and end left of the band.
-      const hood = (await page.locator('.wc-ph-strip-hood').boundingBox())!;
-      await expect(page.locator('.wc-ph-strip-hood')).toHaveText('Timers');
+      const hood = (await page.locator('.wc-ph-strip > .wc-ph-strip-hood').boundingBox())!;
+      await expect(page.locator('.wc-ph-strip > .wc-ph-strip-hood')).toHaveText('Timers');
       const content = (await stripPane(page).locator('.wc-pane-content').boundingBox())!;
       expect(hood.y + hood.height).toBeLessThanOrEqual(content.y + 0.5);
       expect(content.x + content.width).toBeLessThanOrEqual(b.x + 0.5);
@@ -280,7 +280,7 @@ for (const viewport of SCREENS) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await cdp.detach();
       await expect(stripPane(page)).toHaveAttribute('data-pane', 'group');
-      await expect(page.locator('.wc-ph-strip-hood')).toHaveText('Group');
+      await expect(page.locator('.wc-ph-strip > .wc-ph-strip-hood')).toHaveText('Group');
       // Closed again: everything back at the left edge.
       await page.waitForTimeout(450);
       await sat(page, 'panes').tap();
@@ -312,6 +312,24 @@ for (const viewport of SCREENS) {
       expect(cb.x).toBeLessThan(1);
       expect(cb.y).toBeLessThan(1);
       expect(cb.height).toBeCloseTo(g.rows * c.h, 0);
+      // Its hood, as the strip has one: COMM over its first row; the rail and the search key begin under it.
+      const head = page.locator('.wc-ph-comm-head');
+      await expect(head).toBeVisible();
+      await expect(head.locator('.wc-ph-comm-hood')).toHaveText('Comm');
+      expect(await head.locator('.wc-ph-comm-hood').evaluate((e) => getComputedStyle(e).textTransform)).toBe(await page.evaluate(() => getComputedStyle(document.querySelector('.wc-ph-strip > .wc-ph-strip-hood')!).textTransform));
+      // Alone in the column: no divider, the hood hangs from the top edge.
+      await expect(head.locator('.wc-ph-side-rule')).toBeHidden();
+      const hb = (await head.locator('.wc-ph-comm-hood').boundingBox())!;
+      expect(hb.y).toBeLessThan(1);
+      const under = async (): Promise<void> => {
+        const foot = (await head.locator('.wc-ph-comm-hood').boundingBox())!;
+        const cc = (await comm(page).locator('.wc-pane-content').boundingBox())!;
+        expect(foot.y + foot.height, 'the hood ends above Comm\'s content').toBeLessThanOrEqual(cc.y + 0.5);
+        for (const sel of ['.wc-cm-ent', '.wc-cm-search']) {
+          for (const b of await boxes(page, { part: `.wc-cockpit > .wc-pane[data-pane="comm"] ${sel}` })) expect(b.y, `${sel} under the hood`).toBeGreaterThanOrEqual(foot.y + foot.height - 0.5);
+        }
+      };
+      await under();
       // Rail mode, the reply line as in portrait.
       await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-mode', 'rail');
       await comm(page).locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
@@ -335,6 +353,23 @@ for (const viewport of SCREENS) {
       expect(cp.y + cp.height).toBeCloseTo(g.rows * c.h, 0);
       await expect(sat(page, 'panes')).toHaveAttribute('aria-pressed', 'true');
       await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'true');
+      // Two panes: an iron divider along Comm's top edge, from the left edge to the band, and
+      // Comm's hood hanging from it, centred like the strip's.
+      const rule = head.locator('.wc-ph-side-rule');
+      await expect(rule).toBeVisible();
+      const rr = (await rule.boundingBox())!;
+      expect(rr.y).toBeCloseTo(cp.y, 0);
+      expect(rr.x).toBeLessThan(1);
+      expect(rr.x + rr.width).toBeCloseTo((await sideBand(page).boundingBox())!.x, 0);
+      expect(rr.height).toBeGreaterThanOrEqual(5);
+      expect(await rule.evaluate((e) => getComputedStyle(e).backgroundImage)).toBe(await sideBand(page).evaluate((e) => getComputedStyle(e).backgroundImage.replace('90deg, ', '')));
+      const ch = (await head.locator('.wc-ph-comm-hood').boundingBox())!;
+      const sh = (await page.locator('.wc-ph-strip > .wc-ph-strip-hood').boundingBox())!;
+      expect(ch.y).toBeGreaterThanOrEqual(rr.y + rr.height - 1.5);
+      expect(ch.y).toBeLessThanOrEqual(rr.y + rr.height + 0.5);
+      expect(ch.x + ch.width / 2).toBeCloseTo(sh.x + sh.width / 2, 0);
+      expect(ch.height).toBeCloseTo(sh.height, 0);
+      await under();
       await expectClear(page, 'both open');
       // A fight: the card over the game's part only; the column keeps its rows.
       server().send(gmcp('Char.Vitals', { hp: 150, maxhp: 172, opponent: 'an orc scout', buffer: 'Rasta', 'opponent-hits': 'hurt' }));
@@ -564,7 +599,8 @@ for (const viewport of SCREENS) {
       await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
       await frames(page);
       const g = await layout(page);
-      // Still the landscape arrangement, and Comm is there with its reply line on screen.
+      // Still the landscape arrangement, and Comm is there with its reply line on screen (the strip
+      // gave way to it: beside the strip Comm would not hold its head, chat and reply line here).
       expect(g.landscape).toBe(true);
       expect(g.comm.h).toBeGreaterThanOrEqual(4);
       await expect(reply).toBeVisible();
@@ -585,8 +621,8 @@ for (const viewport of SCREENS) {
   });
 }
 
-test.describe('landscape, a low screen (844 × 320)', () => {
-  test.use({ viewport: { width: 844, height: 320 } });
+test.describe('landscape, a low screen (800 × 270)', () => {
+  test.use({ viewport: { width: 800, height: 270 } });
 
   test('too little room for the lens (a fight card over the rows above the compass): its key row stands in its place, left of the hot key columns', async ({ page }) => {
     await openPhone(page);
@@ -596,7 +632,7 @@ test.describe('landscape, a low screen (844 × 320)', () => {
     const calm = await layout(page);
     expect(calm.lensHidden).toBe(false);
     expect(calm.lensPx).toBeGreaterThanOrEqual(96);
-    expect(calm.lensPx).toBeLessThan(142);
+    expect(calm.lensPx).toBeLessThan(130);
     await expect(page.locator('.wc-ph-lens')).toBeVisible();
     await play(page, FIGHT);
     await expect(page.locator('.wc-ph-fight')).toBeVisible();
@@ -623,6 +659,116 @@ test.describe('landscape, a low screen (844 × 320)', () => {
   });
 });
 
+// Stage 52e: a phone outside fullscreen keeps some 270 to 280 px of height in landscape (the
+// status bar and the browser's toolbar take the rest of a 360 px short side).
+for (const viewport of [
+  { width: 800, height: 280 },
+  { width: 800, height: 270 },
+]) {
+  test.describe(`a low landscape screen, ${viewport.width} × ${viewport.height}`, () => {
+    test.use({ viewport });
+
+    test('the keys are the small ones and whole; the lens shows; the column and the fight card fit', async ({ page }) => {
+      const errors = watchErrors(page);
+      // (The offline cockpit: the start page's own layout on so low a screen is not this stage's.)
+      await openPhone(page);
+      await play(page);
+      await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
+      expect((await layout(page)).landscape).toBe(true);
+      // 36 px keys: three hot keys of 44 px would reach above the top edge here.
+      await expect.poll(async () => Math.round((await page.locator('.wc-ph-key[data-cmd="north"]').boundingBox())!.width)).toBe(36);
+      const hot = await boxes(page, { hot: '.wc-ph-hk' });
+      expect(hot).toHaveLength(3);
+      for (const k of hot) {
+        expect([Math.round(k.w), Math.round(k.h)]).toEqual([36, 36]);
+        expect(k.y).toBeGreaterThanOrEqual(4);
+      }
+      // The lens has room above the compass: shown, at 96 px or more, with its keys.
+      await frames(page);
+      const g0 = await layout(page);
+      expect(g0.lensHidden).toBe(false);
+      expect(g0.lensPx).toBeGreaterThanOrEqual(96);
+      await expect(page.locator('.wc-ph-lens')).toBeVisible();
+      expect(await page.locator('.wc-ph-lens .wc-ph-sat:visible').count()).toBeGreaterThanOrEqual(2);
+      await expectClear(page, 'plain');
+      // Six keys: two whole columns, the lens left of both.
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
+      await expect(page.locator('.wc-ph-hk')).toHaveCount(6);
+      await expectClear(page, 'six keys');
+      expect((await layout(page)).lensPx).toBeGreaterThanOrEqual(96);
+      // The column: the strip and Comm, each with its hood and its rows; Comm's reply line on screen.
+      await sat(page, 'panes').tap();
+      await expect(stripPane(page)).toHaveCount(1);
+      await sat(page, 'comm').tap();
+      await expect(comm(page)).toBeVisible();
+      const g = await layout(page);
+      expect(g.strip.h).toBeGreaterThanOrEqual(4);
+      expect(g.comm.h).toBeGreaterThanOrEqual(6);
+      expect(g.strip.h + g.comm.h).toBe(g.rows);
+      // Comm's rail and its last entry are on screen under its hood.
+      const ents = await boxes(page, { ent: '.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-ent' });
+      expect(ents.length).toBeGreaterThanOrEqual(2);
+      const hood = (await page.locator('.wc-ph-comm-hood').boundingBox())!;
+      for (const e of ents) {
+        expect(e.y).toBeGreaterThanOrEqual(hood.y + hood.height - 0.5);
+        expect(e.y + e.h).toBeLessThanOrEqual(viewport.height + 0.5);
+      }
+      await expect(page.locator('.wc-ph-comm-head .wc-ph-side-rule')).toBeVisible();
+      await expectClear(page, 'both open');
+      // A fight: the card and the hot keys do not lie on each other (the card ends left of the
+      // columns where they reach up into its rows); the lens or its key row is clear of both.
+      await play(page, FIGHT);
+      await expect(page.locator('.wc-ph-fight')).toBeVisible();
+      await expectClear(page, 'both open, fighting');
+      const fight = (await page.locator('.wc-ph-fight').boundingBox())!;
+      expect(fight.width).toBeGreaterThan(200);
+      const f = await layout(page);
+      if (f.lensHidden) await expect(page.locator('.wc-ph-satrow')).toBeVisible();
+      else await expect(page.locator('.wc-ph-lens')).toBeVisible();
+      await sat(page, 'comm').tap();
+      await sat(page, 'panes').tap();
+      await expect(stripPane(page)).toHaveCount(0);
+      await expectClear(page, 'fighting');
+      expect(errors).toEqual([]);
+    });
+  });
+}
+
+test.describe('a phone held upright whose visible area is wider than tall (the keyboard up at the start)', () => {
+  // 360 px wide with 300 px left above the keyboard. On a device the SCREEN is still upright;
+  // Playwright's emulated screen follows the viewport, so the device's answer is put in its place.
+  test.use({ viewport: { width: 360, height: 300 } });
+
+  test('the screen says portrait: the layout is portrait, with the small keys, though the keyboard is not known to be up', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(screen, 'orientation', { configurable: true, value: { type: 'portrait-primary', angle: 0, addEventListener() {}, removeEventListener() {} } });
+    });
+    await openPhone(page);
+    // Nothing told the app the keyboard is up: this height is the tallest it has seen at this width.
+    await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
+    await frames(page);
+    const g = await layout(page);
+    expect(g.landscape).toBe(false);
+    expect(Math.round((await page.locator('.wc-ph-key[data-cmd="north"]').boundingBox())!.width)).toBe(36);
+    // The strip opens from the top over the full width, not as a column from the left.
+    await page.evaluate(() => window.__wc!.app.cockpit.setPhoneStrip('timers'));
+    await frames(page);
+    const s = await layout(page);
+    if (s.strip.h > 0) expect([s.strip.w, s.side.w]).toEqual([s.cols, 0]);
+    await expect(sideBand(page)).toBeHidden();
+    // The keyboard folds (the full height shows): still portrait, of course.
+    await page.setViewportSize({ width: 360, height: 740 });
+    await expect.poll(async () => (await layout(page)).rows).toBeGreaterThan(g.rows);
+    expect((await layout(page)).landscape).toBe(false);
+  });
+
+  test('where the screen says landscape (or nothing), the window wider than tall is landscape as before', async ({ page }) => {
+    await openPhone(page);
+    await frames(page);
+    expect((await layout(page)).landscape).toBe(true);
+  });
+});
+
 test.describe('turning the phone', () => {
   const PORTRAIT = { width: 390, height: 844 };
   const LANDSCAPE = { width: 844, height: 390 };
@@ -644,6 +790,8 @@ test.describe('turning the phone', () => {
     // The dots sit on the strip's band in portrait.
     await expect(page.locator('.wc-ph-strip-band .wc-ph-strip-dots')).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip-band')).toBeVisible();
+    // No Comm hood in portrait.
+    await expect(page.locator('.wc-ph-comm-head')).toBeHidden();
     // Turned: both still open, now the column at its own stored width.
     await page.setViewportSize(LANDSCAPE);
     await expect.poll(async () => (await layout(page)).landscape).toBe(true);
@@ -671,6 +819,7 @@ test.describe('turning the phone', () => {
     await expect.poll(keySize).toBe(36);
     await expect(sideBand(page)).toBeHidden();
     await expect(page.locator('.wc-ph-comm-band')).toBeVisible();
+    await expect(page.locator('.wc-ph-comm-head')).toBeHidden();
     const p = await phone(page);
     expect([p.commRows, p.stripRows, p.sideCols]).toEqual([9, 7, 33]);
     expect(errors).toEqual([]);

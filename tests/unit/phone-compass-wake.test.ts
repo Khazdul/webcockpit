@@ -3,7 +3,7 @@
 // is gone (the setting is dropped by the migration), the group is "Quick
 // buttons" with the number of K keys, and the second column's sums.
 import { describe, expect, it, vi } from 'vitest';
-import { KEY_PX_LANDSCAPE, KEY_PX_PORTRAIT, PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from '../../src/phone/compass-size';
+import { KEY_PX_LANDSCAPE, KEY_PX_PORTRAIT, PAD_MARGIN, landscapeFits, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from '../../src/phone/compass-size';
 import { COMPASS_GROUP, CONNECTION_GROUP, SETTINGS_GROUPS, rowsShown } from '../../src/phone/settings-page';
 import { WakeLock, type WakeSentinel, canWakeLock, wakeWanted } from '../../src/phone/wake-lock';
 import { migratePhone, migrateSettings } from '../../src/settings/migrate';
@@ -16,6 +16,19 @@ describe('compass size', () => {
     expect(compassPx(false)).toBe(36);
     expect(compassPx(true)).toBe(44);
     expect([KEY_PX_PORTRAIT, KEY_PX_LANDSCAPE]).toEqual([36, 44]);
+  });
+
+  it('a low landscape screen keeps the small keys: the large ones need room for three hot keys and for the lens above the compass', () => {
+    // Three 44 px hot keys reach 292 px above the bottom edge; with their margin, 300.
+    expect(hotTop(44, 3)).toBe(292);
+    expect([landscapeFits(44, 300), landscapeFits(44, 299)]).toEqual([true, false]);
+    expect([compassPx(true, 390), compassPx(true, 360), compassPx(true, 300)]).toEqual([44, 44, 44]);
+    expect([compassPx(true, 299), compassPx(true, 280), compassPx(true, 270)]).toEqual([36, 36, 36]);
+    // The small ones fit a phone outside fullscreen (about 270 px): 244 px of column and its margin; 122 px of compass and the lens's 120.
+    expect([hotTop(36, 3), compassHeight(36)]).toEqual([244, 122]);
+    expect([landscapeFits(36, 270), landscapeFits(36, 252), landscapeFits(36, 251)]).toEqual([true, true, false]);
+    // Portrait is never the large size, whatever the height.
+    expect([compassPx(false, 900), compassPx(false, 200)]).toEqual([36, 36]);
   });
 
   it('landscape: the lens and its key row stand left of the hot key columns there are', () => {

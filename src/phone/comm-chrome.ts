@@ -23,6 +23,44 @@
 // height, read column, left and width. The two bands above are not shown
 // there.
 
+/**
+ * Landscape (stage 52e): Comm's head in the left column. A hood with its
+ * name, as the strip has one, so the column's lower pane reads as a pane;
+ * and, when the strip is open above it, an iron divider in the bands' look
+ * that the hood hangs from (no grip: it is not dragged). The cockpit leaves
+ * Comm's first rows to it (`phoneCommHeadRows`). Not shown in portrait.
+ */
+export class CommHead {
+  readonly el: HTMLDivElement;
+  private key = '';
+
+  constructor(doc: Document) {
+    this.el = doc.createElement('div');
+    this.el.className = 'wc-ph-comm-head';
+    this.el.hidden = true;
+    this.el.setAttribute('aria-hidden', 'true');
+    const rule = doc.createElement('i');
+    rule.className = 'wc-ph-side-rule';
+    const hood = doc.createElement('span');
+    hood.className = 'wc-ph-hood wc-ph-strip-hood wc-ph-comm-hood';
+    hood.textContent = 'Comm';
+    this.el.append(rule, hood);
+  }
+
+  /** At `top` px, `width` px wide; `divided`: the strip is above (the divider shows). Null hides it. */
+  place(at: { top: number; width: number; divided: boolean } | null): void {
+    const key = at ? `${at.top},${at.width},${at.divided}` : '';
+    if (key === this.key) return;
+    this.key = key;
+    if (at) {
+      this.el.style.top = `${at.top}px`;
+      this.el.style.width = `${at.width}px`;
+      this.el.toggleAttribute('data-divided', at.divided);
+    }
+    this.el.hidden = !at;
+  }
+}
+
 export interface ResizeBandDeps {
   /** The band's class and its grip's (phone.css), and the grip's name. */
   className: string;

@@ -201,7 +201,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
 import { type PhoneGameLens, type PhoneGameResult, allocatePhoneGame, commandRows } from './phone-game';
-import { keyboardUp } from './phone-viewport';
+import { keyboardUp, landscapeLayout, screenLandscape } from './phone-viewport';
 import {
   type DockId,
   defaultDockSize,
@@ -1291,9 +1291,11 @@ export class Cockpit {
     const s = this.settings.get();
     const inputRows = commandRows(cell.h);
     const kbd = keyboardUp();
-    // Landscape (stage 52c) is the window's shape with the keyboard down: the keyboard makes a
-    // small portrait screen wider than tall, and that is still portrait.
-    if (!kbd) this.pgLandscape = W > H;
+    // Landscape (stage 52c) is the window's shape with the keyboard down (the keyboard makes a
+    // small portrait screen wider than tall, and that is still portrait), unless the screen
+    // itself says portrait: after a rotation or a start with the keyboard up `kbd` is not known yet.
+    const win = this.el.ownerDocument.defaultView;
+    if (!kbd) this.pgLandscape = landscapeLayout(W, H, win ? screenLandscape(win) : null);
     const land = this.pgLandscape;
     const g = allocatePhoneGame({
       cols: Math.floor(W / cell.w + 1e-6),
@@ -1352,7 +1354,9 @@ export class Cockpit {
       if (id === 'map' && g.lens && !g.tooSmall) shell.place({ rect: g.lens, content: g.lens, framed: false }, cell);
       // (Landscape: the band is the column's last columns instead of a part's last row.)
       else if (strip) shell.place({ rect: g.strip, content: inset(g.strip, phoneStripChromeRows(cell.h), g.landscape ? 0 : PHONE_STRIP_FOOT_ROWS, g.sideBand), framed: false }, cell);
-      else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall) shell.place({ rect: g.comm, content: inset(g.comm, 0, g.landscape ? 0 : PHONE_COMM_BAND_ROWS, g.sideBand), framed: false }, cell);
+      // (Landscape: Comm has a hood of its own, under a divider when the strip is above it.)
+      else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall)
+        shell.place({ rect: g.comm, content: inset(g.comm, g.landscape ? phoneCommHeadRows(cell.h, g.strip.h > 0) : 0, g.landscape ? 0 : PHONE_COMM_BAND_ROWS, g.sideBand), framed: false }, cell);
       else shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
     }
     this.holes.sync();
@@ -2361,6 +2365,16 @@ export function phoneStripChromeRows(cellH: number): number {
 }
 /** Phone game layout: the row under Comm that is the phone layer's resize band. */
 export const PHONE_COMM_BAND_ROWS = 1;
+/**
+ * Phone game layout, landscape: the iron divider between the strip and Comm
+ * in the left column, px (phone.css). Comm's hood hangs from it.
+ */
+export const PHONE_SIDE_DIVIDER_PX = 6;
+/** The rows of Comm the phone layer's hood takes in landscape: the hood, and the divider above it when the strip is open too. */
+export function phoneCommHeadRows(cellH: number, divided: boolean): number {
+  const px = PHONE_STRIP_CHROME_PX + (divided ? PHONE_SIDE_DIVIDER_PX : 0);
+  return cellH > 0 ? Math.max(1, Math.ceil(px / cellH - 1e-6)) : 1;
+}
 /** Phone game layout, landscape: the least width in px of the left column's resize band (a row's height in portrait). */
 export const PHONE_SIDE_BAND_PX = 14;
 /** The columns the left column's band takes at a cell `cellW` px wide. */

@@ -104,8 +104,10 @@ export const SIDE_MIN_COLS = 24;
 export const SIDE_GAME_MIN_COLS = 40;
 /** Landscape, the strip and Comm both open: the strip's share of the rows. */
 export const SIDE_STRIP_SHARE = 0.4;
-/** Landscape, the keyboard up: Comm's least rows (its reply line and a line of chat), so it stays while it is typed in. */
-export const SIDE_COMM_KBD_ROWS = 4;
+/** Landscape, the keyboard up: Comm's least rows (its hood, a line of chat and its reply line), so it stays while it is typed in. */
+export const SIDE_COMM_KBD_ROWS = 5;
+/** Landscape, the keyboard up, the strip open too: the rows Comm needs under it for its head, some chat and the whole reply line; with fewer the strip gives way. */
+export const SIDE_COMM_KBD_BESIDE_ROWS = 9;
 /**
  * The least height in CSS px of the command row: the 44 px field and menu
  * key with 3 px above and below. (The mockups' row is 56 px: three 19 px
@@ -358,11 +360,13 @@ function layoutSide(input: PhoneGameInput, side: PhoneGameSide, res: PhoneGameRe
   const commMin = side.keyboard ? Math.min(COMM_MIN_ROWS, SIDE_COMM_KBD_ROWS) : COMM_MIN_ROWS;
   let stripOn = input.strip === true;
   const commOn = (input.comm ?? null) !== null;
-  if (stripOn && commOn && rows < STRIP_MIN_ROWS + commMin) stripOn = false;
+  // (Typing on the short screen above the keyboard: Comm keeps room for its reply line.)
+  const commBeside = side.keyboard ? SIDE_COMM_KBD_BESIDE_ROWS : COMM_MIN_ROWS;
+  if (stripOn && commOn && rows < STRIP_MIN_ROWS + commBeside) stripOn = false;
   let stripH = 0;
   let commH = 0;
   if (stripOn && commOn) {
-    stripH = Math.max(STRIP_MIN_ROWS, Math.min(rows - commMin, Math.round(rows * SIDE_STRIP_SHARE)));
+    stripH = Math.max(STRIP_MIN_ROWS, Math.min(rows - commBeside, Math.round(rows * SIDE_STRIP_SHARE)));
     commH = rows - stripH;
   } else if (stripOn) stripH = rows >= STRIP_MIN_ROWS ? rows : 0;
   else if (commOn) commH = rows >= commMin ? rows : 0;

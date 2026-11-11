@@ -1,7 +1,8 @@
 // The phone's one-time defaults (stage 52). Pure.
 //
 // The owner's defaults for a phone changed after 0.5.0 was in use: no
-// Herblores timers, no time text in the Timers pane, and Character is not
+// Herblores timers, no time text in the Timers pane (and so the Pulse
+// signal instead of "Time text"), and Character is not
 // a page of the pane strip. A new
 // phone starts with them (`phoneDefaultSettings()`, which also sets the
 // mark). A phone with stored settings from before gets them ONCE: when the
@@ -19,6 +20,9 @@
 
 import type { Settings, SettingsPatch } from '../settings/types';
 
+/** What the patch reads of the settings. */
+type Stored = Pick<Readonly<Settings>, 'phone'> & { timers?: Pick<Readonly<Settings>['timers'], 'signal'> };
+
 /** The newest set of one-time defaults. */
 export const DEFAULTS_MARK = 1;
 
@@ -28,7 +32,7 @@ export const DEFAULTS_MARK = 1;
  * one would write the default appearance over the stored one. The mark
  * stays unset, so the defaults come at the next normal start.
  */
-export function phoneDefaultsAtStart(s: Pick<Readonly<Settings>, 'phone'>, safe: boolean): SettingsPatch | null {
+export function phoneDefaultsAtStart(s: Stored, safe: boolean): SettingsPatch | null {
   return safe ? null : phoneDefaultsPatch(s);
 }
 
@@ -36,12 +40,14 @@ export function phoneDefaultsAtStart(s: Pick<Readonly<Settings>, 'phone'>, safe:
  * The patch that gives `s` the one-time defaults it has not had, with the
  * mark; null when it has had them all (nothing is written then).
  */
-export function phoneDefaultsPatch(s: Pick<Readonly<Settings>, 'phone'>): SettingsPatch | null {
+export function phoneDefaultsPatch(s: Stored): SettingsPatch | null {
   if (s.phone.defaults >= DEFAULTS_MARK) return null;
   return {
     // The Timers pane's Herblores group (the desktop gear's switch, the same key).
-    // And its countdown text (the "Time text" switch): bars only.
-    timers: { groups: { herb: { enabled: false } }, timeText: false },
+    // And its countdown text (the "Time text" switch): bars only. The "Time text" signal marks
+    // an ending timer by its text and would then show nothing, so it becomes Pulse; a signal
+    // the player chose (Pulse, None) is kept.
+    timers: { groups: { herb: { enabled: false } }, timeText: false, ...(s.timers?.signal === 'text' ? { signal: 'pulse' as const } : {}) },
     phone: {
       // Arrays are replaced whole: every pane as it is, Character off.
       strip: { panes: s.phone.strip.panes.map((e) => (e.id === 'character' ? { ...e, on: false } : { ...e })) },

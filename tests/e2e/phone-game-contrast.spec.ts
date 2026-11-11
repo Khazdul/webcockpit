@@ -22,9 +22,10 @@
 // - as for any text: the label against the key's own veil blended over the
 //   PAGE background, as if no game text passed under it (the audit);
 // - against its outline (`haloOf`): every glyph is outlined in the page's
-//   colour (`-webkit-text-stroke`, drawn under the fill, with a soft shadow
-//   of the same colour; the eye icon has the same shapes once more, wider,
-//   in that colour). Whatever game text passes under a key, the glyph's
+//   colour by `text-shadow`s without blur in at least eight directions,
+//   with a soft one beyond (shadows lie under the glyph in every browser;
+//   no `-webkit-text-stroke`, which old Chromium paints over the letter).
+//   The eye icon has the same shapes once more, wider, in that colour. Whatever game text passes under a key, the glyph's
 //   nearest surround is that outline, so the label must reach 4.5:1 against
 //   the outline's colour, the outline must be at least 1.5 px wide, and its
 //   colour must be the page's. What a letter of game text does beyond the
@@ -234,9 +235,16 @@ function haloOf(page: Page, sel: string): Promise<{ width: number; isPage: boole
         // (The copy is wider than the line on both sides; in the icon's own 24 px units, drawn at 18 px.)
         return { width: ((parseFloat(halo.strokeWidth) - parseFloat(line.strokeWidth)) / 2) * (18 / 24), isPage: ratio(h, pageBg) < 1.02, ratio: ratio(rgb(line.stroke), h), shadow: 'icon' };
       }
-      const stroke = rgb(cs.webkitTextStrokeColor);
-      // The stroke is centred on the glyph's edge and painted under the fill: half of it shows.
-      return { width: parseFloat(cs.webkitTextStrokeWidth) / 2, isPage: ratio(stroke, pageBg) < 1.02, ratio: ratio(rgb(cs.color), stroke), shadow: `${cs.textShadow}|${cs.paintOrder}` };
+      // The computed shadows: `<colour> <x>px <y>px <blur>px`, comma-separated.
+      const shadows = [...cs.textShadow.matchAll(/(rgba?\([^)]*\)|color\([^)]*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px/g)].map((m) => ({ c: rgb(m[1]!), x: Number(m[2]), y: Number(m[3]), blur: Number(m[4]) }));
+      const hard = shadows.filter((sh) => sh.blur === 0 && (sh.x !== 0 || sh.y !== 0));
+      // Eight directions: one hard shadow at least in each 45° sector.
+      const sectors = new Set(hard.map((sh) => Math.round((Math.atan2(sh.y, sh.x) * 4) / Math.PI + 8) % 8));
+      // The outline is as wide as the farthest hard shadows reach, where every sector has one.
+      const reach = sectors.size === 8 ? Math.min(...[...sectors].map((k) => Math.max(...hard.filter((sh) => Math.round((Math.atan2(sh.y, sh.x) * 4) / Math.PI + 8) % 8 === k).map((sh) => Math.hypot(sh.x, sh.y))))) : 0;
+      const worst = shadows.length ? Math.min(...shadows.map((sh) => ratio(rgb(cs.color), sh.c))) : 0;
+      const stroke = parseFloat(cs.webkitTextStrokeWidth) || 0;
+      return { width: reach, isPage: shadows.length > 0 && shadows.every((sh) => ratio(sh.c, pageBg) < 1.02), ratio: worst, shadow: `${shadows.some((sh) => sh.blur > 0) ? 'soft' : 'none'}|${stroke}` };
     });
   }, sel);
 }
@@ -322,8 +330,9 @@ for (const theme of THEMES) {
         expect(h.width, 'the outline\'s width').toBeGreaterThanOrEqual(1.5);
         expect(h.ratio, 'a label against its outline').toBeGreaterThanOrEqual(4.5);
         if (h.shadow !== 'icon') {
-          expect(h.shadow.split('|')[0], 'the soft shadow round the outline').not.toBe('none');
-          expect(h.shadow.split('|')[1], 'the outline is drawn under the glyph').toMatch(/^stroke/);
+          expect(h.shadow.split('|')[0], 'the soft shadow round the outline').toBe('soft');
+          // No text stroke (old Chromium paints it over the glyph): the shadows are the outline.
+          expect(Number(h.shadow.split('|')[1]), 'no text stroke').toBe(0);
         }
       }
       info.annotations.push({ type: 'contrast', description: `see-through keys (${theme}): lowest label against its outline ${Math.min(...halos.map((h) => Math.floor(h.ratio * 100) / 100))}` });

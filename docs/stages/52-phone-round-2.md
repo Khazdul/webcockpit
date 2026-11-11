@@ -1,6 +1,6 @@
 # Stage 52 — The phone's layout, round 2
 
-Status: **In progress** (plan written 2026-11-11 from the owner's list;
+Status: **Owner testing** (plan written 2026-11-11 from the owner's list;
 branch `stage-52-phone-round-2`).
 
 ## Goal
@@ -253,12 +253,107 @@ and `phone-player-map.spec.ts`.
 ## Tasks
 
 - [x] The owner's list taken in and sorted with A–E into rounds
-- [ ] 52a menu, settings, hot keys, defaults, exit confirmation
-- [ ] 52b portrait: strip resize, live resize, limit, dynamic lens
-- [ ] 52c landscape: left column, lens left of the K keys
-- [ ] 52d keyboard in fullscreen
-- [ ] ADR 0137, test guide, session log
+- [x] 52a menu, settings, hot keys, defaults, exit confirmation
+- [x] 52b portrait: strip resize, live resize, limit, dynamic lens
+- [x] 52c landscape: left column, lens left of the K keys
+- [x] 52d keyboard in fullscreen
+- [x] ADR 0137, test guide, session log
 - [ ] Later pass: C (scrap the old phone layout), D, E
+
+## Built
+
+Decisions: ADR 0137. Commits on `stage-52-phone-round-2`: 52d 377dd86f,
+52a 1e86eaf3, 52b e2d95904, 52c ce707234, 52e (the commit after it). Each round was built by a
+subagent, its screenshots looked at, and its commit read by a fresh
+reviewer whose confirmed findings were fixed in the next round.
+
+- **52a:** sheet without grip and with a close key; `exit-sheet.tsx`;
+  Quick buttons group, vibrate gone, lens size row gone; 1–6 K keys in
+  two columns; the Timers and Group sub-page; once-only phone defaults
+  (`phone-defaults.ts`); `;` on a hot key; fields blur when the keyboard
+  goes down (`watchKeyboard` in `src/phone/index.ts`). The unread count
+  on the Comm key already worked; two tests added. Hot key raising the
+  keyboard: nothing on the key's path calls `focus()`; the likely cause
+  is Chrome re-showing the keyboard while the field keeps focus, hence
+  the blur. Unverified on the device.
+- **52b:** strip band; live relayout with one NAWS on release
+  (`holdPhoneSize`, `phoneSizeGate` in the cockpit); `maxTop` in
+  `allocatePhoneGame`; the dynamic lens. Live cost at 4× CPU throttle:
+  5–7 ms per row step. The limit is portrait only and off with the
+  keyboard up.
+- **52c:** the landscape branch of the allocator and the sideways band;
+  lens left of the K columns; see-through keys and fixed sizes; time
+  text off. A live sideways drag re-wraps only on-screen rows
+  (16.7 ms frames at 4× throttle with 20 000 rows of scrollback).
+- **52e** (owner requests and the 52c review): timer signal Pulse on a
+  phone; Comm's hood and an iron divider in the landscape column; 36 px
+  keys in landscape under 300 px of height (tested at 800 × 280 and
+  800 × 270); orientation from the screen, so a keyboard-shrunk portrait
+  window is not taken for landscape; key label outlines from
+  `text-shadow` only; the lens's landscape gaps 12 px instead of 16.
+- **Full e2e run after 52c:** 1116 passed, 5 failed: three firefox cases
+  that pass alone (`comm-ui:35`, `layout:432`, `windows:199`) and
+  `scripts-settings:411` in chromium and firefox (E1). After 52e only
+  typecheck, unit (3849), the phone project (256) and the chromium specs
+  near the shared edits (74) were run.
+- **52d:** `phone-viewport.ts` (fullscreen re-measure, VirtualKeyboard
+  rectangle in fullscreen) and the `?vv=1` readout.
+- Added during the session by the owner: the keyboard raised by a hot
+  key (52a), see-through keys and fixed key sizes (52c), time text off
+  (52c). The `#lua` notice on his phone came from an old copy of the
+  bundled `khazdul` profile (a `#TICKER {clock}` line); he removed the
+  line, nothing changed in the client.
+- Shared files touched (all behind the phone game path or additive):
+  `layout/cockpit.ts`, `layout/phone-game.ts`, `layout/phone-viewport.ts`,
+  `app/app.ts` (`onResize` through `phoneSizeGate`), `app/shell.ts`,
+  `app/phone-kit.ts`, `settings/types.ts`, `settings/migrate.ts`.
+- Review finding left as it is: the once-only patch got the time text
+  and the signal under the same mark 1, so a phone that ran a 52a or 52b
+  build keeps them (nothing with the mark was released).
+- Limits left: at 800 × 270 with a fight card the lens hides (key row
+  instead); the start page's Enter item could not be tapped at 800 × 280
+  in a mocked session (not looked into); with the column at its widest on 844 px the command field
+  is about 105 px; on a very low landscape screen (568 × 320) three K
+  keys reach a fight card's rows; at the lens's smallest sizes its keys
+  cover part of the map's exit label; a K key hidden by its own Shown
+  switch is hard to bring back; `phone-game-panes.spec.ts` "a sideways
+  swipe changes the page" is flaky under heavy load (on HEAD before this
+  stage too).
+- Screenshots: `docs/stages/img/52-a-*`, `52-b-*`, `52-c-*`.
+
+## Test guide (for the owner)
+
+On the phone, on the released version or `npm run dev:tailnet` on this
+branch.
+
+1. **Keyboard.** Type a command, fold the keyboard down: the field is no
+   longer marked. Tap a hot key and a compass key: no keyboard.
+2. **Fullscreen.** With the keyboard up, tap the lens's fullscreen key:
+   the field stays just above the keyboard. Fold it down and up again:
+   same. If the field is covered, open the page with `?vv=1` and send
+   three screenshots with the keyboard up (no fullscreen; right after
+   entering fullscreen; in fullscreen after down and up).
+3. **Keys.** Compass and K keys are see-through; is the text behind them
+   readable, and the labels too? Small in portrait, large in landscape.
+4. **Lens.** Open Comm: the lens stays under it. Drag Comm's band down:
+   the lens shrinks, then gives way to a row of keys; drag up: it
+   returns. Any hitch while it changes size?
+5. **Bands.** Drag Comm's band and the strip's band: everything follows
+   the finger. Neither can go under the K keys' place.
+6. **Landscape.** Turn the phone. Lens at the top right, left of the K
+   keys. Open the strip and Comm: one column from the left, full height;
+   drag its right edge sideways.
+7. **Settings.** Quick buttons: number of K keys 1–6 (try 6 in both
+   orientations). Panes → Timers and Group. Herblores, Character and the
+   timers' time text are off after the first start.
+8. **Menu.** No grip above MENU; the close key left of Exit session;
+   Exit session's confirmation in the new look.
+9. **Hot key.** Hold a key, set a command with `;` (for example
+   `stand;bash`): both are sent.
+
+Feedback wanted: transparency of the keys, the lens's smallest size
+(96 px), the column's default width in landscape, anything that jumps or
+lags while dragging.
 
 ## Owner feedback
 

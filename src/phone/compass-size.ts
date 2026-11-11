@@ -18,9 +18,27 @@ export const PAD_MARGIN = 8;
 /** Between the compass and the hot key column. */
 export const HOT_ABOVE = 8;
 
-/** A key's side in px for the screen's shape. */
-export function compassPx(landscape: boolean): number {
-  return landscape ? KEY_PX_LANDSCAPE : KEY_PX_PORTRAIT;
+/**
+ * A key's side in px for the screen's shape. Landscape has the large keys
+ * only where the screen is high enough for them (`landscapeFits`): a phone
+ * outside fullscreen keeps some 270 to 280 px under its bars, and there
+ * three large hot keys would be cut off at the top.
+ */
+export function compassPx(landscape: boolean, height = Infinity): number {
+  return landscape && landscapeFits(KEY_PX_LANDSCAPE, height) ? KEY_PX_LANDSCAPE : KEY_PX_PORTRAIT;
+}
+
+/** Air above the hot key column's third key, and the room the lens needs above the compass in landscape (its least size with the air above and below). */
+export const HOT_TOP_MARGIN = 8;
+export const LAND_LENS_ROOM = 96 + 12 + 12;
+
+/**
+ * Whether a landscape screen `height` px high holds keys of `px`: a column
+ * of three hot keys with a margin above it, and the lens at its least size
+ * above the compass.
+ */
+export function landscapeFits(px: number, height: number): boolean {
+  return height >= hotTop(px, 3) + HOT_TOP_MARGIN && height >= compassHeight(px) + LAND_LENS_ROOM;
 }
 
 /** What the compass takes from the bottom edge. */

@@ -71,6 +71,36 @@ export function keyboardUp(): boolean {
   return kbd;
 }
 
+/**
+ * Whether the SCREEN lies on its side, from what the on-screen keyboard
+ * does not change (pure of the viewport): `screen.orientation.type`, else
+ * the old `window.orientation` angle (iOS before 16.4, where `screen.width`
+ * and `height` do not turn with the device). Null where neither is known.
+ */
+export function screenLandscape(win: Pick<Window, 'screen'> & { orientation?: unknown }): boolean | null {
+  const type = (win.screen as (Screen & { orientation?: { type?: unknown } }) | undefined)?.orientation?.type;
+  if (typeof type === 'string') {
+    if (type.startsWith('landscape')) return true;
+    if (type.startsWith('portrait')) return false;
+  }
+  const angle = win.orientation;
+  if (typeof angle === 'number' && Number.isFinite(angle)) return Math.abs(angle) % 180 === 90;
+  return null;
+}
+
+/**
+ * The phone's game layout in landscape (stage 52c)? A window wider than
+ * tall whose screen does not say portrait. The window alone is not enough:
+ * the on-screen keyboard leaves a small portrait phone a visible area wider
+ * than tall, and after a rotation or a start with the keyboard up
+ * `keyboardUp()` does not know it yet. The screen alone is not enough
+ * either: a phone flag in a computer's narrow window is portrait on a
+ * screen that is not.
+ */
+export function landscapeLayout(width: number, height: number, screen: boolean | null): boolean {
+  return width > height && screen !== false;
+}
+
 /** Calls `fn` after every published update (the `?vv=1` readout); returns the unsubscribe. */
 export function onPhoneViewportApplied(fn: () => void): () => void {
   appliedFns.add(fn);

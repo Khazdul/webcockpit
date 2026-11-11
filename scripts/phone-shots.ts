@@ -784,6 +784,24 @@ const STATES: State[] = [
       await page.waitForTimeout(1500);
     },
   },
+  {
+    // A phone outside fullscreen: some 280 px of height. Small keys, the lens above the compass, both panes open.
+    name: 'land-low',
+    stage: 52,
+    step: 'c',
+    viewport: { width: 800, height: 280 },
+    run: async (page) => {
+      // (The offline cockpit: the start page is not laid out for so low a screen.)
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+      await page.evaluate(() => window.__wc!.settings.update({ timers: { groups: { herb: { enabled: true } } } }));
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-phone-strip]').waitFor();
+      await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+      await page.locator('.wc-pane[data-pane="comm"]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
   // Portrait: the see-through keys over busy game text (36 px keys).
   { name: 'keys-three', stage: 52, step: 'c', run: (page) => busy(page) },
   {

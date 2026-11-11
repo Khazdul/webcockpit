@@ -150,7 +150,8 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     s.phone.vibrate = false;
     s.phone.strip = { panes: ['timers', 'group', 'character', 'statistics'].map((id) => ({ id, on: true })) };
     s.timers.groups.herb.enabled = true;
-    (s.timers as unknown as { timeText: boolean }).timeText = true;
+    (s.timers as unknown as { timeText: boolean; signal: string }).timeText = true;
+    (s.timers as unknown as { timeText: boolean; signal: string }).signal = 'text';
     return s;
   };
 
@@ -170,8 +171,10 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     const s = phoneDefaultSettings();
     expect(s.timers.groups.herb.enabled).toBe(false);
     expect(s.timers.timeText).toBe(false);
+    // Without the text the "Time text" signal would show nothing: Pulse.
+    expect(s.timers.signal).toBe('pulse');
     // Nothing else of the Timers settings differs from a computer's.
-    expect({ ...s.timers, groups: null, timeText: null }).toEqual({ ...defaultSettings().timers, groups: null, timeText: null });
+    expect({ ...s.timers, groups: null, timeText: null, signal: null }).toEqual({ ...defaultSettings().timers, groups: null, timeText: null, signal: null });
     expect(s.phone.strip.panes.find((e) => e.id === 'character')!.on).toBe(false);
     expect(s.phone.defaults).toBe(PHONE_DEFAULTS_MARK);
     expect(phoneDefaultsPatch(s)).toBeNull();
@@ -184,6 +187,7 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     const d = defaultSettings();
     expect(d.timers.groups.herb.enabled).toBe(true);
     expect(d.timers.timeText).toBe(true);
+    expect(d.timers.signal).toBe('text');
     expect(d.phone.defaults).toBe(0);
   });
 
@@ -206,7 +210,7 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     const before = store.get();
     const patch = phoneDefaultsPatch(before);
     expect(patch).toEqual({
-      timers: { groups: { herb: { enabled: false } }, timeText: false },
+      timers: { groups: { herb: { enabled: false } }, timeText: false, signal: 'pulse' },
       phone: {
         strip: { panes: [{ id: 'statistics', on: false }, { id: 'character', on: false }, { id: 'timers', on: true }, { id: 'group', on: true }] },
         defaults: 1,
@@ -216,10 +220,11 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     const after = store.get();
     expect(after.timers.groups.herb.enabled).toBe(false);
     expect(after.timers.timeText).toBe(false);
+    expect(after.timers.signal).toBe('pulse');
     expect(after.phone.defaults).toBe(1);
     // Nothing else moved.
     expect({ ...after, timers: null, phone: null }).toEqual({ ...before, timers: null, phone: null });
-    expect({ ...after.timers, timeText: null, groups: { ...after.timers.groups, herb: null } }).toEqual({ ...before.timers, timeText: null, groups: { ...before.timers.groups, herb: null } });
+    expect({ ...after.timers, timeText: null, signal: null, groups: { ...after.timers.groups, herb: null } }).toEqual({ ...before.timers, timeText: null, signal: null, groups: { ...before.timers.groups, herb: null } });
     expect({ ...after.phone, strip: null, defaults: null }).toEqual({ ...before.phone, strip: null, defaults: null });
     // Marked: never again, so the player's own choice wins from here on.
     expect(phoneDefaultsPatch(after)).toBeNull();
@@ -229,5 +234,19 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     expect(store.get().timers.timeText).toBe(true);
     // And it survives a round through storage.
     expect(phoneDefaultsPatch(migrateSettings(JSON.parse(JSON.stringify(store.get())), { phone: true }))).toBeNull();
+  });
+
+  it('the signal becomes Pulse only where it still is "Time text": a chosen signal is kept', () => {
+    for (const [stored, want] of [['text', 'pulse'], ['pulse', undefined], ['none', undefined]] as const) {
+      const s = migrateSettings(stored050(), { phone: true });
+      s.timers.signal = stored;
+      const patch = phoneDefaultsPatch(s)!;
+      expect((patch.timers as { signal?: string }).signal, stored).toBe(want);
+      expect((patch.timers as { timeText?: boolean }).timeText).toBe(false);
+      const store = new SettingsStore({ factory: null, storage: null, win: null });
+      store.update(() => s);
+      store.update(patch);
+      expect(store.get().timers.signal).toBe(want ?? stored);
+    }
   });
 });
