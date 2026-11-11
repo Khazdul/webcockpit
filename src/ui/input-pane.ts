@@ -69,6 +69,12 @@
 //   bar's popups, the windows) keeps the keys typed and the clicks made
 //   inside it, as another text field does: no refocus, no macro, no key
 //   handling here.
+// - Own keyboard (ADR 0138, stage 53a): the phone's on-screen keyboard of
+//   our own edits the line through `insertText`, `deleteBackward` and
+//   `submitLine`, which use the same `edit` / `afterEdit` path as the
+//   pane's own keys. No keyboard event is made up for it. `setOwnKeyboard`
+//   marks the fields (`inputmode="none"`, `virtualkeyboardpolicy="manual"`)
+//   so the device's keyboard stays down.
 
 import { device, touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
@@ -187,6 +193,25 @@ function isWordChar(c: number): boolean {
   );
 }
 
+/** Start of the code point before `pos` (a surrogate pair is one). */
+export function codePointStartBefore(s: string, pos: number): number {
+  if (pos <= 0) return 0;
+  const lo = s.charCodeAt(pos - 1);
+  const hi = pos >= 2 ? s.charCodeAt(pos - 2) : 0;
+  return lo >= 0xdc00 && lo <= 0xdfff && hi >= 0xd800 && hi <= 0xdbff ? pos - 2 : pos - 1;
+}
+
+/** Marks (or unmarks) a field as typed in from our own keyboard: the device's stays down. */
+function markOwnKeyboard(f: HTMLElement, on: boolean): void {
+  if (on) {
+    f.setAttribute('inputmode', 'none');
+    f.setAttribute('virtualkeyboardpolicy', 'manual');
+  } else {
+    f.removeAttribute('inputmode');
+    f.removeAttribute('virtualkeyboardpolicy');
+  }
+}
+
 /** Paste normalisation: one line, newlines become spaces. */
 export function normalizePaste(text: string): string {
   return text
@@ -246,6 +271,8 @@ export class InputPane {
   private draftRestored = false;
 
   private password = false;
+  /** The fields are marked for a keyboard of our own (`setOwnKeyboard`). */
+  private ownKeyboard = false;
   /** Options → Auto-clear input (ADR 0063). */
   private autoClear = false;
   /** Options → Input autosuggest (ADR 0063). */
@@ -338,6 +365,7 @@ export class InputPane {
     f.setAttribute('aria-label', kind === 'password' ? 'Password' : 'Command');
     // A random name keeps form-history/autofill heuristics from matching.
     f.name = 'wc-cmd-' + Math.random().toString(36).slice(2);
+    if (this.ownKeyboard) markOwnKeyboard(f, true);
     const ev: HTMLElement = f;
     ev.addEventListener('input', this.onInput);
     ev.addEventListener('compositionstart', this.onComposition);
@@ -444,6 +472,38 @@ export class InputPane {
 
   isPasswordMode(): boolean {
     return this.password;
+  }
+
+  // ------------------------------------------- own keyboard (ADR 0138 §2, §3)
+
+  /**
+   * The line is typed in from an on-screen keyboard of our own: its fields
+   * (the one in place, the phone's other one, and any made later) ask the
+   * device for no keyboard. Caret, selection, paste and a physical
+   * keyboard work as before.
+   */
+  setOwnKeyboard(on: boolean): void {
+    if (on === this.ownKeyboard) return;
+    this.ownKeyboard = on;
+    for (const f of new Set([this.field, this.textField, this.passField])) if (f) markOwnKeyboard(f, on);
+  }
+
+  /** Types `text` at the caret, over the selection if there is one (one line: as a paste). */
+  insertText(text: string): void {
+    const i = this.input;
+    const n = i.value.length;
+    this.edit(i.selectionStart ?? n, i.selectionEnd ?? n, normalizePaste(text));
+  }
+
+  /** Backspace: deletes the selection, or the character before the caret (a surrogate pair is one). */
+  deleteBackward(): void {
+    this.deleteBack(codePointStartBefore);
+  }
+
+  /** Enter in the line: `submit`, and the caret follows (as after the key). */
+  submitLine(): void {
+    this.submit();
+    this.scheduleCaret();
   }
 
   /** Asks "Leave page?" on unload while `on` (i.e. while connected). */
