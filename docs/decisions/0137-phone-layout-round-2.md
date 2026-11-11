@@ -124,3 +124,17 @@ Added under `phone`: `hotkeyCount`, `stripRows`, `sideCols`, `defaults`;
   if so the zoom is sent on release only.
 - The landscape layout outside fullscreen (about 280 px high on a
   360 px phone): tested at 800 × 280 and 800 × 270 in emulation only.
+
+## Addendum: the keyboard rectangle is taken out (0.6.1, 2026-11-11)
+
+On the owner's S21, 0.6.0 in fullscreen and portrait collapsed the whole
+layout to a strip at the top when the keyboard came up (landscape and
+the page outside fullscreen were right). §5's second point is withdrawn:
+`overlaysContent` is never set and the VirtualKeyboard rectangle is not
+used; the visual viewport alone decides, in fullscreen too. The
+re-measure on a fullscreen change stays. Known again: in fullscreen the
+keyboard's top row may cover the command field by about 44 px, as in
+0.5.0. Not worked on further: stage 53 (ADR 0138) replaces the device's
+keyboard in the game layout. Also found in that test and left for stage
+53: in landscape, after something was sent with the keyboard up, every
+hot key raises the keyboard again.
