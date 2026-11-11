@@ -873,6 +873,19 @@ export class Shell {
               onMenuClose: () => {
                 if (this.inCockpit) app.input.focus();
               },
+              // Stage 53a (ADR 0138): a keyboard of our own for the command field, only with `?kbd=1`.
+              ...(new URLSearchParams(root.ownerDocument.defaultView?.location.search ?? '').get('kbd') === '1'
+                ? {
+                    ownKeyboard: {
+                      setOwnKeyboard: (on: boolean) => app.input.setOwnKeyboard(on),
+                      insert: (text: string) => app.input.insertText(text),
+                      deleteBack: () => app.input.deleteBackward(),
+                      submit: () => app.input.submitLine(),
+                      focus: () => app.input.input.focus({ preventScroll: true }),
+                      blur: () => app.input.input.blur(),
+                    },
+                  }
+                : {}),
             });
             old.remove();
           } catch (err) {

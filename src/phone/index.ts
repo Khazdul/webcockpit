@@ -27,6 +27,9 @@
 //                   key's badge (unread.ts)
 //   hotkeys.ts      the hot key column, the K key in the compass's free
 //                   cell, and the box a held key opens (hotkey-model.ts)
+//   keyboard.ts     a keyboard of our own for the command field (ADR 0138;
+//                   round 53a: only with `?kbd=1`), and its readout
+//                   (keyboard-readout.ts)
 //   here            the menu key in the command row, and the wiring
 //
 // Cost (stage 51 rule 4): nothing runs per frame or per incoming line. The
@@ -68,8 +71,11 @@ import { WakeLock, wakeWanted } from './wake-lock';
 import { HotkeysView } from './hotkeys';
 import { hotkeyPress, knownHp, withHotkey } from './hotkey-model';
 import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
+import { type PhoneCommandLine, OwnKeyboard, okbHeightPx } from './keyboard';
+import { installKeyboardReadout } from './keyboard-readout';
 
 export type { PhoneControls, PhoneKit } from './kit';
+export type { PhoneCommandLine } from './keyboard';
 import type { AppStatusView } from '../app/status';
 import type { SettingsStore } from '../settings';
 import type { LiveRuns } from '../runs/live';
@@ -135,6 +141,12 @@ export interface PhoneLayerDeps {
   runs?: Pick<LiveRuns, 'anchor' | 'chain' | 'saveChain'> | undefined;
   /** The menu closed back to the game. */
   onMenuClose?(): void;
+  /**
+   * Stage 53a (ADR 0138): the command line as a keyboard of our own types
+   * in it. The shell passes it only with `?kbd=1`; absent, there is no such
+   * keyboard and nothing of it runs.
+   */
+  ownKeyboard?: PhoneCommandLine | undefined;
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -205,6 +217,10 @@ export class PhoneLayer {
   /** The card on screen (null: no fight) and its signature. */
   private card: FightCard | null = null;
   private sig = '';
+  /** The keyboard of our own (ADR 0138; null without `?kbd=1`), whether it is open, and its readout's redraw. */
+  private okb: OwnKeyboard | null = null;
+  private okbOpen = false;
+  private okbReadout: (() => void) | null = null;
 
   constructor(deps: PhoneLayerDeps) {
     this.deps = deps;
@@ -311,7 +327,11 @@ export class PhoneLayer {
       runs: deps.runs,
       onClose: () => deps.onMenuClose?.(),
       // The menu lies over the box (also when a dropped link opens it): the box gives way, unsaved.
-      onOpen: () => this.hot.closeBox(),
+      // So does a keyboard of our own (the sheet would lie over it).
+      onOpen: () => {
+        this.hot.closeBox();
+        this.closeOwnKeyboard();
+      },
       fits: (size) => this.sizeFits(size),
     });
     // The way to the menu while the cockpit shows "Window too small" (the
@@ -386,6 +406,7 @@ export class PhoneLayer {
     this.wakeConn = this.connected();
     this.wake.sync();
     this.watchKeyboard(doc);
+    if (deps.ownKeyboard) this.mountOwnKeyboard(doc, deps.ownKeyboard);
     // The lens's full size follows the screen's short side: a rotation (or a resized window) asks again.
     const onResize = (): void => this.syncLens();
     win?.addEventListener('resize', onResize);
@@ -491,10 +512,82 @@ export class PhoneLayer {
       if (shape() !== upShape || clock() - shapeAt < SHAPE_SETTLE_MS) return;
       const active = doc.activeElement as HTMLElement | null;
       if (!active || !this.deps.cockpit.el.contains(active)) return;
+      // A field typed in from our own keyboard (ADR 0138) never had the device's: it keeps the focus.
+      if (active.getAttribute('inputmode') === 'none') return;
       if (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT') active.blur();
     });
     mo.observe(root, { attributes: true, attributeFilter: ['class'] });
     this.unsubs.push(() => mo.disconnect());
+  }
+
+  // ---------------------------------------------- own keyboard (ADR 0138, 53a)
+
+  /** True while the keyboard of our own is open (`html.wc-okb`); never `html.wc-kbd`, which is the device's. */
+  get ownKeyboardOpen(): boolean {
+    return this.okbOpen;
+  }
+
+  /**
+   * The keyboard of our own for the command field (round 53a, `?kbd=1`).
+   * The field asks the device for no keyboard; a tap on it opens ours. The
+   * tap is taken at its click, the last event of the tap: the field has the
+   * focus by then, and the relayout that moves the row cannot change what
+   * the rest of the tap hits. A focus without a tap (a physical keyboard's
+   * key) opens nothing.
+   */
+  private mountOwnKeyboard(doc: Document, line: PhoneCommandLine): void {
+    const { cockpit } = this.deps;
+    const okb = new OwnKeyboard(doc, { line, fold: () => this.closeOwnKeyboard() });
+    this.okb = okb;
+    this.el.append(okb.el);
+    line.setOwnKeyboard(true);
+    const wrap = cockpit.inputEl.querySelector<HTMLElement>('.wc-input-wrap');
+    const onTap = (): void => this.openOwnKeyboard();
+    wrap?.addEventListener('click', onTap);
+    const win = doc.defaultView;
+    const readout = win ? installKeyboardReadout(win, () => this.okbOpen) : null;
+    this.okbReadout = readout?.draw ?? null;
+    this.unsubs.push(() => {
+      wrap?.removeEventListener('click', onTap);
+      this.closeOwnKeyboard(false);
+      line.setOwnKeyboard(false);
+      readout?.dispose();
+      okb.dispose();
+      this.okb = null;
+    });
+  }
+
+  /**
+   * Opens the keyboard of our own (a tap on the command field) and leaves
+   * the field focused, so its caret shows. It takes fixed rows at the
+   * bottom from the cockpit's allocator: the page keeps its size, the
+   * command row moves up to stand on the keyboard, and MUME gets one new
+   * window size. The compass and the hot keys are hidden meanwhile
+   * (phone.css, `html.wc-okb`); the block itself shows once the cockpit has
+   * laid its rows out (`place`).
+   */
+  private openOwnKeyboard(): void {
+    const line = this.deps.ownKeyboard;
+    if (!this.okb || !line || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
+    line.focus();
+    if (this.okbOpen) return;
+    this.okbOpen = true;
+    this.el.ownerDocument.documentElement.classList.add('wc-okb');
+    // The box's place is beside the hidden column: it gives way, unsaved.
+    this.hot.closeBox();
+    this.deps.cockpit.setPhoneBottom(okbHeightPx);
+    this.okbReadout?.();
+  }
+
+  /** Closes it (the fold key, the menu, a screen too small) and, as a rule, blurs the field. One new window size for MUME. */
+  private closeOwnKeyboard(blur = true): void {
+    if (!this.okbOpen) return;
+    this.okbOpen = false;
+    this.el.ownerDocument.documentElement.classList.remove('wc-okb');
+    this.okb?.place(null);
+    this.deps.cockpit.setPhoneBottom(null);
+    if (blur) this.deps.ownKeyboard?.blur();
+    this.okbReadout?.();
   }
 
   /** Connected to MUME (not a replay): what the wake lock and nothing else asks. */
@@ -852,6 +945,12 @@ export class PhoneLayer {
     }
     const { w, h } = this.deps.cells.get();
     const land = g.landscape;
+    // Our own keyboard stands on the rows the allocator kept for it, from under the command row
+    // to the bottom edge. On a screen now too small for the layout it closes.
+    if (this.okb && this.okbOpen) {
+      if (g.tooSmall) this.closeOwnKeyboard();
+      else if (g.bottom > 0) this.okb.place((g.input.y + g.input.h) * h);
+    }
     // The left column's width: the hot key box stays right of it (phone.css). On the layer, not
     // the cockpit: a drag changes it at every column, and nothing but the layer's parts reads it.
     const sideW = land && g.side.w > 0 ? `${g.side.w * w}px` : '';
@@ -913,7 +1012,7 @@ export class PhoneLayer {
     const rowTop = g.game.y * h + SATROW_GAP;
     // The keys' row is at the right edge, where the hot key column is: on a low screen (landscape
     // with the strip or a fight card) the row would reach into a column, and then stands left of it.
-    const cols = this.deps.settings.get().phone.hotkeysOpen && !phoneKit().keyboardUp();
+    const cols = this.deps.settings.get().phone.hotkeysOpen && !phoneKit().keyboardUp() && !this.okbOpen;
     // Landscape: the row takes the lens's place, left of the columns there are, shown or not. Not
     // while the box is open: the box reaches up to the top there, and the row would lie on it.
     const rowRight = land

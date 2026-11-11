@@ -1247,6 +1247,91 @@ html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
   padding-right: 8px;
 }
 
+/* ------------------------------------------- own keyboard (ADR 0138, 53a) */
+
+/* A keyboard of our own (keyboard.ts), round 53a: rough, for the device
+ * test behind `?kbd=1`. One solid block over the full width from under the
+ * command row to the bottom edge (the layer sets `top` after each layout;
+ * the allocator kept the rows free). The four rows share the height. Its
+ * state is `html.wc-okb`, never `wc-kbd` (the device's keyboard). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 4px 3px;
+  border-top: 1px solid var(--ph-rule);
+  background: var(--ph-well);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[hidden] {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-row {
+  display: flex;
+  flex: 1 1 0;
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ph-key-edge);
+  border-radius: 6px;
+  background: var(--ph-track);
+  color: var(--ph-key-text);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb.is-shift .wc-ph-okb-k[data-ch] {
+  text-transform: uppercase;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-down,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb.is-shift .wc-ph-okb-k.is-shift {
+  border-color: var(--ph-lamp-hi);
+  background: var(--ph-lamp);
+  color: var(--ph-ink);
+}
+
+/* Typing on it: the keys at the bottom right step aside and the field
+ * takes the full width, as with the device's keyboard (`html.wc-kbd`). */
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-pad,
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-hot {
+  display: none;
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] > .wc-input-slot {
+  padding-right: 8px;
+}
+
 /* "Window too small" (letters too large for the screen): the command row
  * is hidden and inert, so a second menu key stands over the notice, where
  * the first one is. The menu's A− is the way out. Not shown otherwise. */
