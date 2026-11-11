@@ -5,6 +5,7 @@
 //   node scripts/phone-shots.ts 51a fighting     only these states
 //   node scripts/phone-shots.ts 52a              the states of round 52a (stage 52's own only)
 //   node scripts/phone-shots.ts 52b lens-full    one state of round 52b
+//   node scripts/phone-shots.ts 52c land-plain keys-three …   states of round 52c
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -200,6 +201,29 @@ async function commForLens(page: Page, want: 'full' | 'mid' | 'min' | 'limit'): 
   if (want !== 'limit') await lensDrawn(page);
   else await page.locator('.wc-ph-satrow').waitFor();
   await page.waitForTimeout(500);
+}
+
+/** Landscape (stage 52c): a phone on its side. */
+const LAND = { width: 844, height: 390 };
+
+/**
+ * Stage 52c: game text under every key. The fixture, then long lines of
+ * several colours down to the command row, so each compass key and hot key
+ * has letters behind it.
+ */
+async function busy(page: Page): Promise<void> {
+  await play(page);
+  await page.evaluate(() => {
+    const E = String.fromCharCode(27);
+    const cols = ['37', '1;33', '32', '1;36', '31', '1;37', '35'];
+    const words = 'The orc scout slashes your left arm hard and shatters it while a grey wolf circles behind the old oak';
+    const lines: string[] = [];
+    // (The log's lines begin with a timestamp in microseconds.)
+    for (let i = 0; i < 30; i++) lines.push(`${1790449300000000 + i} ${E}[${cols[i % cols.length]}m${words.slice((i * 7) % 30)} ${words}${E}[0m`);
+    window.__wc!.app.startReplay(lines.join('\n') + '\n', 'busy', 0);
+  });
+  await page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' }).last().waitFor();
+  await page.waitForTimeout(800);
 }
 
 /** The settings page, from the menu sheet. */
@@ -665,6 +689,110 @@ const STATES: State[] = [
       await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
       await page.locator('.wc-pane[data-pane="timers"][data-phone-strip]').waitFor();
       await page.waitForTimeout(1500);
+    },
+  },
+  // ---- stage 52c: landscape (the left column, the lens left of the K columns) and the see-through keys
+  { name: 'land-plain', stage: 52, step: 'c', viewport: LAND, run: (page) => play(page) },
+  {
+    // The strip alone: the column's whole height, the command row's rows too.
+    name: 'land-strip',
+    stage: 52,
+    step: 'c',
+    viewport: LAND,
+    run: async (page) => {
+      await play(page);
+      await page.evaluate(() => window.__wc!.settings.update({ timers: { groups: { herb: { enabled: true } } } }));
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-pane="timers"][data-phone-strip]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    // Comm alone, the whole height (the mocked session is in a fight: the card over the game's part).
+    name: 'land-comm',
+    stage: 52,
+    step: 'c',
+    live: true,
+    viewport: LAND,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await lensDrawn(page);
+    },
+  },
+  {
+    // Both: the strip about 40 % of the rows, Comm the rest; the fight card over the game's part only.
+    name: 'land-both',
+    stage: 52,
+    step: 'c',
+    live: true,
+    viewport: LAND,
+    run: async (page) => {
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-phone-strip]').waitFor();
+      await openChat(page, 'Gibur');
+      await lensDrawn(page);
+    },
+  },
+  {
+    // The column dragged as wide as it goes: the game text keeps 40 columns.
+    name: 'land-wide',
+    stage: 52,
+    step: 'c',
+    live: true,
+    viewport: LAND,
+    run: async (page) => {
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { sideCols: 200 } }));
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-phone-strip]').waitFor();
+      await openChat(page, 'Gibur');
+      await lensDrawn(page);
+    },
+  },
+  {
+    // Six hot keys: the lens left of both columns.
+    name: 'land-lens-two-k',
+    stage: 52,
+    step: 'c',
+    viewport: LAND,
+    run: async (page) => {
+      await sixKeys(page);
+      await play(page);
+    },
+  },
+  {
+    // A lower screen with a fight card: the lens shrunk to the rows left above the compass.
+    name: 'land-lens-shrunk',
+    stage: 52,
+    step: 'c',
+    viewport: { width: 800, height: 360 },
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+    },
+  },
+  {
+    // The fight card with the strip's column open: it spans the game's part.
+    name: 'land-fight-strip',
+    stage: 52,
+    step: 'c',
+    viewport: LAND,
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-phone-strip]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  // Portrait: the see-through keys over busy game text (36 px keys).
+  { name: 'keys-three', stage: 52, step: 'c', run: (page) => busy(page) },
+  {
+    name: 'keys-six',
+    stage: 52,
+    step: 'c',
+    run: async (page) => {
+      await sixKeys(page);
+      await busy(page);
     },
   },
 ];

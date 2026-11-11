@@ -15,12 +15,20 @@
 // - the ratio is WCAG 2's, and must be at least 4.5 (3.0 for text of 24 px,
 //   or 18.66 px bold, and more).
 //
-// Text over the game text (the see-through hot keys, the K ring): the
-// background is the key's own backing blended over the PAGE background, as
-// if no game text passed under it. What a letter of game text does under a
-// label cannot be bounded (it can be any colour); the label's halo
-// (`--ph-hk-halo`, the page's colour round every glyph) is what keeps it
-// readable there, and the first case below holds that the halo is set.
+// Text over the game text (stage 52: the compass keys and the hot keys are
+// see-through, a faint veil and a ring; the K ring). Two things are
+// measured for these labels:
+//
+// - as for any text: the label against the key's own veil blended over the
+//   PAGE background, as if no game text passed under it (the audit);
+// - against its outline (`haloOf`): every glyph is outlined in the page's
+//   colour (`-webkit-text-stroke`, drawn under the fill, with a soft shadow
+//   of the same colour; the eye icon has the same shapes once more, wider,
+//   in that colour). Whatever game text passes under a key, the glyph's
+//   nearest surround is that outline, so the label must reach 4.5:1 against
+//   the outline's colour, the outline must be at least 1.5 px wide, and its
+//   colour must be the page's. What a letter of game text does beyond the
+//   outline cannot be bounded (it can be any colour) and is not measured.
 //
 // Disabled controls are reported (the test's annotations) and not failed.
 // There is no other exemption.
@@ -189,6 +197,50 @@ function audit(page: Page, roots: string[]): Promise<Finding[]> {
   }, roots);
 }
 
+/**
+ * The outline of a see-through key's label (see the file header): its
+ * width in px, whether its colour is the page's, and the label's contrast
+ * against it. For the eye icon: the wider copy under it (`wc-ph-ico-halo`)
+ * against the icon's stroke.
+ */
+function haloOf(page: Page, sel: string): Promise<{ width: number; isPage: boolean; ratio: number; shadow: string }[]> {
+  return page.evaluate((sel) => {
+    const rgb = (c: string): [number, number, number] => {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      const x = cv.getContext('2d', { willReadFrequently: true })!;
+      x.fillStyle = c;
+      x.fillRect(0, 0, 1, 1);
+      const d = x.getImageData(0, 0, 1, 1).data;
+      return [d[0]!, d[1]!, d[2]!];
+    };
+    const lum = (c: [number, number, number]): number => {
+      const f = (v: number): number => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+    };
+    const ratio = (a: [number, number, number], b: [number, number, number]): number => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    const cockpit = document.querySelector<HTMLElement>('.wc-cockpit')!;
+    const pageBg = rgb(getComputedStyle(cockpit).backgroundColor === 'rgba(0, 0, 0, 0)' ? getComputedStyle(document.body).backgroundColor : getComputedStyle(cockpit).backgroundColor);
+    return [...document.querySelectorAll<HTMLElement>(sel)].map((el) => {
+      const cs = getComputedStyle(el);
+      const icon = el.querySelector('svg');
+      if (icon) {
+        const halo = getComputedStyle(icon.querySelector('.wc-ph-ico-halo')!);
+        const line = getComputedStyle(icon.querySelector(':not(.wc-ph-ico-halo)')!);
+        const h = rgb(halo.stroke);
+        // (The copy is wider than the line on both sides; in the icon's own 24 px units, drawn at 18 px.)
+        return { width: ((parseFloat(halo.strokeWidth) - parseFloat(line.strokeWidth)) / 2) * (18 / 24), isPage: ratio(h, pageBg) < 1.02, ratio: ratio(rgb(line.stroke), h), shadow: 'icon' };
+      }
+      const stroke = rgb(cs.webkitTextStrokeColor);
+      // The stroke is centred on the glyph's edge and painted under the fill: half of it shows.
+      return { width: parseFloat(cs.webkitTextStrokeWidth) / 2, isPage: ratio(stroke, pageBg) < 1.02, ratio: ratio(rgb(cs.color), stroke), shadow: `${cs.textShadow}|${cs.paintOrder}` };
+    });
+  }, sel);
+}
+
 type Theme = 'black' | 'paper';
 const THEMES: Theme[] = ['black', 'paper'];
 
@@ -254,16 +306,33 @@ for (const theme of THEMES) {
       await play(page, FIGHT);
       await expect(page.locator('.wc-ph-fight')).toBeVisible();
       judge(await audit(page, MAIN), 'main', theme, info, 12);
-      // The see-through keys' labels carry a halo of the page's colour (the file header: text over game text).
-      for (const sel of ['.wc-ph-hk', '.wc-ph-key.is-tog:not(.is-on) .wc-ph-kk']) {
-        const el = page.locator(sel).first();
-        if ((await el.count()) === 0) continue;
-        expect(await el.evaluate((e) => getComputedStyle(e).textShadow), `${sel} has its halo`).not.toBe('none');
+      // The see-through keys (the file header: text over game text): hardly any backing, and every
+      // label outlined in the page's colour, against which it reaches 4.5:1.
+      for (const sel of ['.wc-ph-hk', '.wc-ph-key[data-cmd]']) {
+        const alphas = await page.locator(sel).evaluateAll((els) => els.map((e) => Number(/[\d.]+\)$/.exec(getComputedStyle(e).backgroundColor.replace(/^rgb\(.*$/, '1)'))![0].slice(0, -1))));
+        expect(alphas.length, `${sel}: keys`).toBeGreaterThanOrEqual(3);
+        for (const a of alphas) expect(a, `${sel}: the veil's alpha`).toBeLessThanOrEqual(0.15);
+        expect(await page.locator(sel).first().evaluate((e) => getComputedStyle(e).backdropFilter), `${sel}: no backdrop filter`).toBe('none');
       }
+      const halos = [...(await haloOf(page, '.wc-ph-hk')), ...(await haloOf(page, '.wc-ph-key[data-cmd]'))];
+      // Three hot keys and the eight compass keys (seven letters and the eye).
+      expect(halos).toHaveLength(11);
+      for (const h of halos) {
+        expect(h.isPage, 'the outline is the page\'s colour').toBe(true);
+        expect(h.width, 'the outline\'s width').toBeGreaterThanOrEqual(1.5);
+        expect(h.ratio, 'a label against its outline').toBeGreaterThanOrEqual(4.5);
+        if (h.shadow !== 'icon') {
+          expect(h.shadow.split('|')[0], 'the soft shadow round the outline').not.toBe('none');
+          expect(h.shadow.split('|')[1], 'the outline is drawn under the glyph').toMatch(/^stroke/);
+        }
+      }
+      info.annotations.push({ type: 'contrast', description: `see-through keys (${theme}): lowest label against its outline ${Math.min(...halos.map((h) => Math.floor(h.ratio * 100) / 100))}` });
       // K unlit (the column hidden).
       await page.locator('.wc-ph-key.is-tog').tap();
       await expect(page.locator('.wc-ph-hot')).toBeHidden();
       judge(await audit(page, ['.wc-ph-pad']), 'compass, K unlit', theme, info, 8);
+      // Unlit, the K ring is see-through as well: its letter keeps the halo.
+      expect(await page.locator('.wc-ph-key.is-tog:not(.is-on) .wc-ph-kk').evaluate((e) => getComputedStyle(e).textShadow)).not.toBe('none');
       await page.locator('.wc-ph-key.is-tog').tap();
       // Pressed keys: the lit look (`:active`), held by a finger that stays down.
       const cdp = await page.context().newCDPSession(page);

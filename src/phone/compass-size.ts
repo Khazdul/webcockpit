@@ -1,6 +1,7 @@
 // The compass keys' size (ADR 0136 §7) and what follows from it. Pure.
 //
-// S, M and L are 36, 40 and 44 px keys. The compass is three keys and two
+// The keys are 36 px in portrait and 44 px in landscape (stage 52: the
+// owner's choice from play, no longer a setting). The compass is three keys and two
 // 3 px gaps from the bottom edge with an 8 px margin; the hot key column
 // stands 8 px above it with keys of the same size; the command field ends
 // 8 px left of the compass. phone.css lays all of it out from `--ph-ck`
@@ -8,18 +9,18 @@
 // computed here. Stage 52: a second hot key column stands left of the first,
 // one gap apart.
 
-import type { PhoneCompassSize } from '../settings/types';
-
-const PX: Readonly<Record<PhoneCompassSize, number>> = { s: 36, m: 40, l: 44 };
+/** A key's side in px: portrait, landscape. */
+export const KEY_PX_PORTRAIT = 36;
+export const KEY_PX_LANDSCAPE = 44;
 /** Between two keys, and the compass's margin to the screen's edges. */
 export const KEY_GAP = 3;
 export const PAD_MARGIN = 8;
 /** Between the compass and the hot key column. */
 export const HOT_ABOVE = 8;
 
-/** A key's side in px; an unknown size is the middle one. */
-export function compassPx(size: string): number {
-  return PX[size as PhoneCompassSize] ?? PX.m;
+/** A key's side in px for the screen's shape. */
+export function compassPx(landscape: boolean): number {
+  return landscape ? KEY_PX_LANDSCAPE : KEY_PX_PORTRAIT;
 }
 
 /** What the compass takes from the bottom edge. */
@@ -70,4 +71,24 @@ export function keyRowRight(rowFoot: number, height: number, px: number, rows: r
   if (reached(rows[1])) return PAD_MARGIN + hotWidth(px, 2) + air;
   if (reached(rows[0])) return PAD_MARGIN + px + air;
   return PAD_MARGIN;
+}
+
+/**
+ * Landscape (stage 52c): the lens and its key row stand left of the hot
+ * key columns, whether the columns are shown or not (so neither jumps when
+ * K is tapped). The offset from the right edge of what stands there: the
+ * margin, `cols` columns of keys, and `air`.
+ */
+export function leftOfHot(px: number, cols: number, air: number): number {
+  return PAD_MARGIN + hotWidth(px, cols) + air;
+}
+
+/**
+ * Landscape: the width from the right edge the left column never reaches:
+ * the hot key columns, and left of them the wider of the lens at its least
+ * size with its overhanging keys and the key row, with `air` on both sides.
+ * The compass (three keys) is never wider than that.
+ */
+export function sideClear(px: number, cols: number, lensMin: number, rowWidth: number, air: number): number {
+  return Math.max(leftOfHot(px, cols, air) + Math.max(lensMin, rowWidth) + air, 3 * px + 2 * KEY_GAP + PAD_MARGIN + air);
 }

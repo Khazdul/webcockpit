@@ -839,21 +839,18 @@ test('unread with the lens hidden (stage 52): a private tell received while Comm
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('unread with the lens hidden by the layout (no room above the hot keys): the row\'s Comm key counts a private tell', async ({ page }) => {
+  test('unread in landscape (stage 52c: the lens stands left of the hot keys): the lens\'s Comm key counts a private tell', async ({ page }) => {
     const m = await enterMock(page);
-    // Wanted but not shown: the three hot keys reach its place on this screen.
-    expect((await phone(page)).lens.show).toBe(true);
-    await expect(lens(page)).toBeHidden();
-    await expect(row(page)).toBeVisible();
-    const rowBadge = row(page).locator('.wc-ph-sat[data-sat="comm"] .wc-ph-badge');
-    await expect(rowBadge).toBeHidden();
+    await expect(lens(page)).toBeVisible();
+    await expect(row(page)).toBeHidden();
+    await expect(badge(page)).toBeHidden();
     m.server().send(tell('Gibur', 'you at the ford?'));
-    await expect(rowBadge).toHaveText('1');
-    await expect(row(page).locator('.wc-ph-sat[data-sat="comm"]')).toHaveAttribute('aria-label', 'Open Comm, 1 unread');
+    await expect(badge(page)).toHaveText('1');
+    await expect(sat(page, 'comm')).toHaveAttribute('aria-label', 'Open Comm, 1 unread');
     // Group talk does not count by default; the next tell does.
     m.server().send(groupTell('Gibur', 'two trolls'));
     m.server().send(tell('Dori', 'coming'));
-    await expect(rowBadge).toHaveText('2');
+    await expect(badge(page)).toHaveText('2');
   });
 });
 
@@ -1140,7 +1137,7 @@ const layoutOf = (page: Page) =>
   });
 
 /** The row the strip, the fight card and Comm must end at or above: the top of the place of three hot keys of `key` px. */
-async function limitRow(page: Page, key = 40): Promise<number> {
+async function limitRow(page: Page, key = 36): Promise<number> {
   const h = await cellH(page);
   const H = (await box(page.locator('.wc-cockpit'))).height;
   // The compass (three keys, two gaps, the margin), 8 px, three keys with their gaps.
@@ -1250,6 +1247,47 @@ test('the band resizes Comm live in whole rows, inside its limits, with one wind
   await sat(page, 'comm').tap();
   await expect(comm(page)).toBeVisible();
   await expect.poll(rowsOf).toBe(10);
+  expect(errors).toEqual([]);
+});
+
+test('a band dragged while the other part is squeezed: the other keeps the height it shows, and the finger can go back where it began (52b review)', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page);
+  await play(page, FIGHT);
+  await expect(fight(page)).toBeVisible();
+  // Both stored tall: together with the fight card they want more than the limit, so Comm is squeezed.
+  await sat(page, 'panes').tap();
+  await expect(stripPane(page)).toHaveCount(1);
+  await frames(page);
+  await sat(page, 'comm').tap();
+  await expect(comm(page)).toBeVisible();
+  const limit = await limitRow(page);
+  const strip0 = limit - 2 - 8;
+  await page.evaluate((strip) => window.__wc!.settings.update({ phone: { stripRows: strip, commRows: 30 } }), strip0);
+  await expect.poll(async () => (await layoutOf(page)).strip).toBe(strip0);
+  const g = await layoutOf(page);
+  expect(g.comm).toBe(8);
+  expect(g.top).toBe(limit);
+  const h = await cellH(page);
+  const f = await finger(page, page.locator('.wc-ph-strip-grip'));
+  await f.start();
+  // Up two rows: the strip follows, and Comm does not grow into the room (it would take the way back).
+  await f.move(-2 * h);
+  await expect.poll(async () => (await layoutOf(page)).strip).toBe(strip0 - 2);
+  expect((await layoutOf(page)).comm).toBe(8);
+  // Back down to where it began, in the same drag.
+  await f.move(0);
+  await expect.poll(async () => (await layoutOf(page)).strip).toBe(strip0);
+  expect((await layoutOf(page)).comm).toBe(8);
+  // Up again and released there: stored; Comm then has its stored height's share of the room again.
+  await f.move(-2 * h);
+  await expect.poll(async () => (await layoutOf(page)).strip).toBe(strip0 - 2);
+  await f.end();
+  await frames(page);
+  await frames(page);
+  expect(await phone(page)).toMatchObject({ stripRows: strip0 - 2, commRows: 30 });
+  const after = await layoutOf(page);
+  expect([after.strip, after.comm, after.top]).toEqual([strip0 - 2, 10, limit]);
   expect(errors).toEqual([]);
 });
 
@@ -1367,7 +1405,7 @@ for (const size of [
       expect(await phone(page)).toMatchObject({ stripRows: 14, commRows: 30 });
       // In px: their lower edge is at or above the top of the place of three keys (the first column's top).
       const edge = cockpit.y + g.top * h;
-      const three = cockpit.y + cockpit.height - (3 * 40 + 6 + 8 + 8 + 3 * 43 - 3);
+      const three = cockpit.y + cockpit.height - (3 * 36 + 6 + 8 + 8 + 3 * 39 - 3);
       expect(edge).toBeLessThanOrEqual(three + 0.5);
       expect(three - edge).toBeLessThan(h);
       const k3 = await box(page.locator('.wc-ph-hk[data-hk="2"]'));
@@ -1391,12 +1429,7 @@ for (const size of [
         expect(dragged.strip).toBe(g.strip);
         await f.end();
       }
-      // Larger keys: the place is higher, the limit lower; Comm (then the strip) gives way again.
-      await page.evaluate(() => window.__wc!.settings.update({ phone: { compassSize: 'l' } }));
-      const limitL = await limitRow(page, 44);
-      await expect.poll(async () => (await layoutOf(page)).top).toBeLessThanOrEqual(limitL);
       // The fight over: the same stored heights have two more rows.
-      await page.evaluate(() => window.__wc!.settings.update({ phone: { compassSize: 'm' } }));
       await play(page);
       await expect(fight(page)).toBeHidden();
       await expect.poll(async () => (await layoutOf(page)).fight).toBe(0);
@@ -1448,42 +1481,29 @@ test('on the phone Comm never writes comm.folded or comm.listWidth', async ({ pa
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('the strip open: the lens moves under it and shrinks to its room above the compass; without room it hides; the keys stay', async ({ page }) => {
+  // Stage 52c: the strip opens as a column from the left (tests/e2e/phone-game-landscape.spec.ts).
+  test('the strip open: it takes no row from the lens, which keeps its place and its full size; the keys stay', async ({ page }) => {
     await openPhone(page);
-    // The hot key column hidden (the K key): on this height the lens does not fit above it
-    // (tests/e2e/phone-map.spec.ts, landscape), and this case is about the compass.
-    await page.locator('.wc-ph-key.is-tog').tap();
-    await expect(page.locator('.wc-ph-hot')).toBeHidden();
     await expect(lens(page)).toBeVisible();
     const full = await box(lens(page));
     // 163 px on a 390 px short side.
     expect(full.width).toBeCloseTo(163, 0);
+    // A tall stored portrait height does not matter here.
+    await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 18 } }));
     await sat(page, 'panes').tap();
     await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
-    // 390 px high, 21 rows of 18.4 px: the strip takes four, and the lens shrinks to the whole rows
-    // left between it and the compass (stage 52): it stays, smaller, and no key row shows.
-    await expect(page.locator('.wc-cockpit')).toHaveAttribute('data-cells', '92x21');
+    await frames(page);
     await expect(lens(page)).toBeVisible();
     await expect(row(page)).toBeHidden();
-    const s = await box(stripPane(page));
-    await expect.poll(async () => (await box(lens(page))).width).toBeLessThan(full.width);
     const l = await box(lens(page));
+    expect([l.x, l.y, l.width]).toEqual([full.x, full.y, full.width]);
+    const s = await box(stripPane(page));
+    expect(l.x).toBeGreaterThanOrEqual(s.x + s.width);
     const p = await box(page.locator('.wc-ph-pad'));
-    expect(l.width).toBeGreaterThanOrEqual(96);
-    expect(l.y).toBeGreaterThanOrEqual(s.y + s.height);
     expect(l.y + l.height).toBeLessThanOrEqual(p.y + 1);
-    // The strip dragged taller: under 96 px of room the lens hides and its keys stand as the row.
-    await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 8 } }));
-    await expect(lens(page)).toBeHidden();
-    await expect(row(page)).toBeVisible();
-    const s2 = await box(stripPane(page));
-    const r = await box(row(page));
-    expect(r.y).toBeGreaterThanOrEqual(s2.y + s2.height);
-    // Closed: the lens is back at its full size.
     await sat(page, 'panes').tap();
+    await expect(stripPane(page)).toHaveCount(0);
     await expect(lens(page)).toBeVisible();
-    await expect(row(page)).toBeHidden();
-    await expect.poll(async () => (await box(lens(page))).width).toBeCloseTo(full.width, 0);
   });
 });
 

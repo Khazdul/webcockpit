@@ -33,7 +33,6 @@ import type {
   FontId,
   GroupAwayMode,
   GroupNpcMode,
-  PhoneCompassSize,
   PhoneLensLevel,
   PhoneUnread,
   Settings,
@@ -242,26 +241,15 @@ export const COMM_GROUP: SettingsGroup = {
 };
 
 /**
- * Quick buttons: the size of the compass keys and the hot keys, and how
- * many hot keys there are (`phone.compassSize`, `phone.hotkeyCount`; ADR
- * 0136 §7, §8; stage 52). The group's id stays `compass` (`data-group`).
+ * Quick buttons: how many hot keys there are (`phone.hotkeyCount`; ADR
+ * 0136 §8; stage 52). The keys' size is not a setting: small in portrait,
+ * large in landscape (compass-size.ts). The group's id stays `compass`
+ * (`data-group`).
  */
 export const COMPASS_GROUP: SettingsGroup = {
   id: 'compass',
   title: 'Quick buttons',
   rows: [
-    {
-      kind: 'seg',
-      id: 'compass-size',
-      label: 'Key size',
-      options: [
-        { value: 's', label: 'S' },
-        { value: 'm', label: 'M' },
-        { value: 'l', label: 'L' },
-      ],
-      get: (s) => s.phone.compassSize,
-      set: (compassSize) => ({ phone: { compassSize: compassSize as PhoneCompassSize } }),
-    },
     {
       kind: 'stepper',
       id: 'hotkey-count',

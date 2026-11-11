@@ -46,6 +46,36 @@
 // - Below PHONE_MIN_COLS × PHONE_MIN_ROWS the result is `tooSmall`, unless
 //   `guard` is false (the on-screen keyboard is up), as in `allocatePhone`.
 //
+// Landscape (stage 52c, `side` given): the strip and Comm open from the
+// left as one column instead, the strip above and Comm below, one width:
+//
+//   +-----------+--------------------------------+
+//   | strip    ||  fight card                    |  0, or 2 while fighting
+//   |          |+--------------------------------+
+//   +----------||                 +------+       |
+//   | Comm     ||  game text      | lens | K K   |
+//   |          ||                 +------+ pad   |
+//   |          |+--------------------------------+
+//   |          ||  command row                   |
+//   +-----------+--------------------------------+
+//
+// - The column takes the whole height, the command row's rows too: the game
+//   text, the fight card and the command row are what is right of it. Its
+//   last columns (`side.band`) are the phone layer's resize band.
+// - Its width is the stored one, or about 40 % of the columns, from
+//   `SIDE_MIN_COLS` up to what leaves the game text `SIDE_GAME_MIN_COLS`
+//   and stays left of `side.clearRight` (the lens's least place, the hot
+//   key columns and the compass). `sideRange` is what a drag may give it.
+//   Where not even the least width fits, the column does not open.
+// - One of the two open: it has every row. Both: the strip about 40 % of
+//   the rows, Comm the rest, each at least its minimum; when both minimums
+//   do not fit the strip closes. The stored portrait heights are not used,
+//   and `maxTop` and `gameKeep` do not apply: the column takes no row from
+//   the game text.
+// - The lens stands under the fight card `gapRight` columns from the right
+//   edge (the caller puts it left of the hot key columns) and also shrinks
+//   to the columns between the column and there (`gapLeft` of air).
+//
 // The chrome over these rectangles (fight card, lens ring, keys, compass)
 // is the phone layer's (src/phone/), laid out in pixels.
 
@@ -67,6 +97,15 @@ export const COMM_MIN_ROWS = 6;
 export const GAME_KEEP_ROWS = 8;
 /** Rows the game text keeps before the fight card gives way. */
 export const GAME_MIN_ROWS = 3;
+/** Landscape (stage 52c): the column's default share of the columns, and its least width (Comm's rail and a line of chat; a Timers row). */
+export const SIDE_SHARE = 0.4;
+export const SIDE_MIN_COLS = 24;
+/** Landscape: columns the game text keeps beside the column; on a screen too narrow for that, the phone's least columns. */
+export const SIDE_GAME_MIN_COLS = 40;
+/** Landscape, the strip and Comm both open: the strip's share of the rows. */
+export const SIDE_STRIP_SHARE = 0.4;
+/** Landscape, the keyboard up: Comm's least rows (its reply line and a line of chat), so it stays while it is typed in. */
+export const SIDE_COMM_KBD_ROWS = 4;
 /**
  * The least height in CSS px of the command row: the 44 px field and menu
  * key with 3 px above and below. (The mockups' row is 56 px: three 19 px
@@ -100,6 +139,8 @@ export interface PhoneGameLens {
   gapTop?: number;
   /** Columns between the lens and the right edge. Default 0. */
   gapRight?: number;
+  /** Landscape: columns between the game text's left edge and the lens. Default 0. */
+  gapLeft?: number;
   /** Rows above the command row the lens must stay out of (the hot keys, the compass). Default 0. */
   clearBottom?: number;
 }
@@ -133,6 +174,23 @@ export interface PhoneGameInput {
   gameKeep?: number;
   /** The lens is wanted; absent or null: no lens. */
   lens?: PhoneGameLens | null;
+  /**
+   * Landscape (stage 52c): the strip and Comm open from the left as one
+   * column (see the file header). Absent or null: portrait, as above.
+   */
+  side?: PhoneGameSide | null;
+}
+
+/** The landscape column as the caller wants it. */
+export interface PhoneGameSide {
+  /** The stored width in columns; null: the default share (`SIDE_SHARE`). */
+  cols: number | null;
+  /** Columns from the right edge the column never reaches (the lens's least place, the hot keys, the compass). Default 0. */
+  clearRight?: number;
+  /** Columns of the column's right edge that are its resize band. Default 1. */
+  band?: number;
+  /** The on-screen keyboard is up: Comm stays down to `SIDE_COMM_KBD_ROWS`. */
+  keyboard?: boolean;
 }
 
 export interface PhoneGameResult {
@@ -160,6 +218,14 @@ export interface PhoneGameResult {
   stripRange: { min: number; max: number } | null;
   /** While Comm shows: the heights a resize may give it (the strip keeping its height). */
   commRange: { min: number; max: number } | null;
+  /** The landscape arrangement (`side` was given). */
+  landscape: boolean;
+  /** Landscape: the column that holds the strip and Comm (w = 0: closed, or no room for it). */
+  side: Rect;
+  /** Landscape: the columns at the column's right edge that are its resize band. */
+  sideBand: number;
+  /** Landscape, while the column shows: the widths a resize may give it. */
+  sideRange: { min: number; max: number } | null;
 }
 
 const EMPTY: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -190,12 +256,55 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
     lensHidden: false,
     stripRange: null,
     commRange: null,
+    landscape: false,
+    side: EMPTY,
+    sideBand: 0,
+    sideRange: null,
   };
   if ((input.guard ?? true) && (cols < PHONE_MIN_COLS || rows < PHONE_MIN_ROWS)) {
     res.tooSmall = true;
     return res;
   }
 
+  const side = input.side ?? null;
+  // The game text's first row: the lens stands under it.
+  const top = side ? layoutSide(input, side, res, avail) : layoutStack(input, res, avail);
+
+  const lens = input.lens ?? null;
+  if (lens && lens.fullPx > 0 && lens.cellW > 0 && lens.cellH > 0) {
+    const up = (px: number, unit: number): number => Math.max(1, Math.ceil(px / unit - 1e-6));
+    const y = top + Math.max(0, Math.floor(lens.gapTop ?? 0));
+    const floor = avail - Math.max(0, Math.floor(lens.clearBottom ?? 0));
+    const room = floor - y;
+    const fullRows = up(lens.fullPx, lens.cellH);
+    // With room: the full size. With less: the largest square of whole rows that fits.
+    let px = room >= fullRows ? lens.fullPx : Math.min(lens.fullPx, Math.floor(room * lens.cellH + 1e-6));
+    let h = room >= fullRows ? fullRows : room;
+    const right = Math.max(0, Math.floor(lens.gapRight ?? 0));
+    if (side) {
+      // Landscape: also no wider than the whole columns between the column (and its air) and its place at the right.
+      const roomW = cols - right - res.game.x - Math.max(0, Math.floor(lens.gapLeft ?? 0));
+      const pxW = Math.floor(roomW * lens.cellW + 1e-6);
+      if (pxW < px) {
+        px = pxW;
+        h = px > 0 ? up(px, lens.cellH) : 0;
+      }
+    }
+    const w = px > 0 ? up(px, lens.cellW) : 0;
+    const x = cols - w - right;
+    const min = Math.min(lens.fullPx, lens.minPx ?? lens.fullPx);
+    if (px < min || h < 1 || x < res.game.x) res.lensHidden = true;
+    else {
+      res.lens = { x, y, w, h };
+      res.lensPx = px;
+    }
+  }
+  return res;
+}
+
+/** Portrait: the strip, the fight card and Comm stacked from the top (see the file header). Returns the game text's first row. */
+function layoutStack(input: PhoneGameInput, res: PhoneGameResult, avail: number): number {
+  const { cols, rows } = res;
   const keep = Math.max(1, whole(input.gameKeep ?? GAME_KEEP_ROWS, GAME_KEEP_ROWS));
   let fightH = input.fight ? FIGHT_ROWS : 0;
   // The fight card gives way only when the text would all but vanish.
@@ -236,25 +345,48 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
   res.game = { x: 0, y: top, w: cols, h: avail - top };
   if (stripH > 0) res.stripRange = { min: STRIP_MIN_ROWS, max: budget - commH };
   if (commH > 0) res.commRange = { min: COMM_MIN_ROWS, max: budget - stripH };
+  return top;
+}
 
-  const lens = input.lens ?? null;
-  if (lens && lens.fullPx > 0 && lens.cellW > 0 && lens.cellH > 0) {
-    const up = (px: number, unit: number): number => Math.max(1, Math.ceil(px / unit - 1e-6));
-    const y = top + Math.max(0, Math.floor(lens.gapTop ?? 0));
-    const floor = avail - Math.max(0, Math.floor(lens.clearBottom ?? 0));
-    const room = floor - y;
-    const fullRows = up(lens.fullPx, lens.cellH);
-    // With room: the full size. With less: the largest square of whole rows that fits.
-    const px = room >= fullRows ? lens.fullPx : Math.min(lens.fullPx, Math.floor(room * lens.cellH + 1e-6));
-    const h = room >= fullRows ? fullRows : room;
-    const w = px > 0 ? up(px, lens.cellW) : 0;
-    const x = cols - w - Math.max(0, Math.floor(lens.gapRight ?? 0));
-    const min = Math.min(lens.fullPx, lens.minPx ?? lens.fullPx);
-    if (px < min || h < 1 || x < 0) res.lensHidden = true;
-    else {
-      res.lens = { x, y, w, h };
-      res.lensPx = px;
-    }
+/** Landscape: the strip and Comm as one column from the left (see the file header). Returns the game text's first row. */
+function layoutSide(input: PhoneGameInput, side: PhoneGameSide, res: PhoneGameResult, avail: number): number {
+  const { cols, rows } = res;
+  res.landscape = true;
+  const band = Math.max(1, whole(side.band ?? 1, 1));
+  res.sideBand = band;
+  // The rows: one of them has all, both share them; when both minimums do not fit the strip closes.
+  const commMin = side.keyboard ? Math.min(COMM_MIN_ROWS, SIDE_COMM_KBD_ROWS) : COMM_MIN_ROWS;
+  let stripOn = input.strip === true;
+  const commOn = (input.comm ?? null) !== null;
+  if (stripOn && commOn && rows < STRIP_MIN_ROWS + commMin) stripOn = false;
+  let stripH = 0;
+  let commH = 0;
+  if (stripOn && commOn) {
+    stripH = Math.max(STRIP_MIN_ROWS, Math.min(rows - commMin, Math.round(rows * SIDE_STRIP_SHARE)));
+    commH = rows - stripH;
+  } else if (stripOn) stripH = rows >= STRIP_MIN_ROWS ? rows : 0;
+  else if (commOn) commH = rows >= commMin ? rows : 0;
+
+  // The width: the game text keeps its columns (the phone's least ones on a narrow screen), and
+  // the column ends left of what stands at the right. No room for the least width: no column.
+  const clear = Math.max(0, whole(side.clearRight ?? 0, 0));
+  const max = Math.min(cols - clear, Math.max(cols - SIDE_GAME_MIN_COLS, Math.min(SIDE_MIN_COLS, cols - PHONE_MIN_COLS)));
+  let w = 0;
+  if (stripH + commH > 0 && max >= SIDE_MIN_COLS) {
+    const dflt = Math.round(cols * SIDE_SHARE);
+    w = Math.max(SIDE_MIN_COLS, Math.min(max, side.cols === null ? dflt : whole(side.cols, dflt)));
+    res.sideRange = { min: SIDE_MIN_COLS, max };
+  } else {
+    stripH = 0;
+    commH = 0;
   }
-  return res;
+  let fightH = input.fight ? FIGHT_ROWS : 0;
+  if (avail - fightH < GAME_MIN_ROWS) fightH = 0;
+  res.side = { x: 0, y: 0, w, h: w > 0 ? rows : 0 };
+  res.strip = { x: 0, y: 0, w: stripH > 0 ? w : 0, h: stripH };
+  res.comm = { x: 0, y: stripH, w: commH > 0 ? w : 0, h: commH };
+  res.fight = { x: w, y: 0, w: cols - w, h: fightH };
+  res.game = { x: w, y: fightH, w: cols - w, h: avail - fightH };
+  res.input = { ...res.input, x: w, w: cols - w };
+  return fightH;
 }

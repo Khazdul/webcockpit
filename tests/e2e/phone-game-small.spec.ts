@@ -9,7 +9,8 @@
 //   field do not overlap each other;
 // - the lens's keys (on the lens, or as a row) do not overlap the compass,
 //   the hot key column or the fight card; the same with the strip open and
-//   with Comm open;
+//   with Comm open (landscape, stage 52c: both open as a column from the
+//   left, tests/e2e/phone-game-landscape.spec.ts);
 // - the menu sheet and the settings page scroll to their last row;
 // - the hot key box fits or scrolls, and Save can be reached;
 // - with the keyboard up (a shrunken visible area) the command field is
@@ -134,6 +135,7 @@ for (const sc of SCREENS) {
       await playFight(page);
       await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
       await checkMain(page, 'main');
+      const { width: vw, height: vh } = sc.viewport;
       // The strip.
       const panes = page.locator('.wc-ph-sat[data-sat="panes"]:visible');
       await panes.tap();
@@ -146,10 +148,13 @@ for (const sc of SCREENS) {
         const g = await page.evaluate(() => {
           const r = (sel: string): DOMRect => document.querySelector(sel)!.getBoundingClientRect();
           const c = r('.wc-pane[data-phone-strip] .wc-pane-content');
-          return { top: c.top, bottom: c.bottom, hood: r('.wc-ph-strip-hood').bottom, dots: r('.wc-ph-strip-dots').top };
+          const d = r('.wc-ph-strip-dots');
+          return { top: c.top, bottom: c.bottom, hood: r('.wc-ph-strip-hood').bottom, dotsTop: d.top, dotsBottom: d.bottom };
         });
         expect(g.hood).toBeLessThanOrEqual(g.top + 0.5);
-        expect(g.dots).toBeGreaterThanOrEqual(g.bottom - 0.5);
+        // (Portrait: on the band under the pane. Landscape: in the hood's row above it.)
+        if (vw > vh) expect(g.dotsBottom).toBeLessThanOrEqual(g.top + 0.5);
+        else expect(g.dotsTop).toBeGreaterThanOrEqual(g.bottom - 0.5);
       } else {
         await expect(strip).toHaveCount(0);
         await expect(panes).toHaveAttribute('aria-pressed', 'false');
@@ -164,20 +169,15 @@ for (const sc of SCREENS) {
         await expect(comm).toBeVisible();
         await checkMain(page, 'Comm open');
         // The resize band's grip is on screen and does not lie on a key.
-        const band = await boxes(page, { band: '.wc-ph-comm-band' });
+        // (Landscape, stage 52c: Comm is a column from the left, and the band is its right edge.)
+        const landscape = vw > vh;
+        const band = await boxes(page, { band: landscape ? '.wc-ph-side-band' : '.wc-ph-comm-band' });
         expect(band).toHaveLength(1);
         const keys = (await boxes(page, CONTROLS)).filter((b) => !b.name.startsWith('field'));
-        const hit = overlaps(band, keys).concat(overlaps(keys, band));
-        // LIMIT (landscape): Comm is the full width and as high as the screen allows, so its band can
-        // pass under the hot key column at the right edge. The keys are then on top and take their
-        // taps; the band is dragged anywhere left of them. It never lies on the compass or the menu key.
-        expect(hit.filter((h) => !/hot#/.test(h))).toEqual([]);
-        for (const k of keys.filter((b) => b.name.startsWith('hot#'))) {
-          const top = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.className ?? '', [k.x + k.w / 2, k.y + k.h / 2]);
-          expect(top, `${k.name} is on top`).toContain('wc-ph-hk');
-        }
+        // It lies on no key: not on the hot keys, the compass or the menu key.
+        expect(overlaps(band, keys).concat(overlaps(keys, band))).toEqual([]);
         const b0 = band[0]!;
-        const free = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.wc-ph-comm-band') !== null, [b0.x + b0.w / 2, b0.y + b0.h / 2]);
+        const free = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.wc-ph-rband') !== null, [b0.x + b0.w / 2, b0.y + b0.h / 2]);
         expect(free, 'the band can be grabbed at its middle').toBe(true);
       } else {
         await expect(comm).toBeHidden();

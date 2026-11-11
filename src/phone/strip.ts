@@ -58,14 +58,19 @@ export class StripView {
     this.dots.hidden = pages.length < 2;
   }
 
-  /** Over the strip's rows: `top` and `height` px; 0 hides it. */
-  place(top: number, height: number): void {
-    const key = height > 0 ? `${top},${height}` : '';
+  /**
+   * Over the strip's rows: `top` and `height` px; 0 hides it. `width`
+   * (landscape, where the strip is the left column's upper part): its
+   * width in px; absent: the full width.
+   */
+  place(top: number, height: number, width?: number): void {
+    const key = height > 0 ? `${top},${height},${width ?? ''}` : '';
     if (key === this.placeKey) return;
     this.placeKey = key;
     if (height > 0) {
       this.el.style.top = `${top}px`;
       this.el.style.height = `${height}px`;
+      this.el.style.width = width === undefined ? '' : `${width}px`;
     }
     this.el.hidden = height <= 0;
   }

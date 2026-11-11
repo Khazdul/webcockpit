@@ -115,12 +115,12 @@ test('the command row: the menu key far left, the field ending left of the compa
   await expect(page.locator('.wc-input-slot button')).toHaveCount(1);
 });
 
-test('the compass: a 3 × 3 grid of 40 px keys from the bottom edge, right; the cell left of N is the K key', async ({ page }) => {
+test('the compass: a 3 × 3 grid of 36 px keys (portrait) from the bottom edge, right; the cell left of N is the K key', async ({ page }) => {
   await openPhone(page);
   const c = await box(page, '.wc-cockpit');
   const p = await box(page, '.wc-ph-pad');
-  expect(p.width).toBeCloseTo(126, 0);
-  expect(p.height).toBeCloseTo(126, 0);
+  expect(p.width).toBeCloseTo(114, 0);
+  expect(p.height).toBeCloseTo(114, 0);
   expect(c.x + c.width - (p.x + p.width)).toBeCloseTo(8, 0);
   expect(c.y + c.height - (p.y + p.height)).toBeCloseTo(8, 0);
   // N, U / W, eye, E / F, S, D at the mockup's places; the ninth cell is the hot keys' K key
@@ -139,10 +139,10 @@ test('the compass: a 3 × 3 grid of 40 px keys from the bottom edge, right; the 
   await expect(page.locator('.wc-ph-pad > [data-cmd]')).toHaveCount(8);
   for (const [cmd, [col, row]] of Object.entries(places)) {
     const k = (await key(page, cmd).boundingBox())!;
-    expect(k.width).toBeCloseTo(40, 0);
-    expect(k.height).toBeCloseTo(40, 0);
-    expect(k.x - p.x).toBeCloseTo(col * 43, 0);
-    expect(k.y - p.y).toBeCloseTo(row * 43, 0);
+    expect(k.width).toBeCloseTo(36, 0);
+    expect(k.height).toBeCloseTo(36, 0);
+    expect(k.x - p.x).toBeCloseTo(col * 39, 0);
+    expect(k.y - p.y).toBeCloseTo(row * 39, 0);
     await expect(key(page, cmd)).toBeEnabled();
   }
   expect((await key(page, 'north').textContent())!.trim()).toBe('N');

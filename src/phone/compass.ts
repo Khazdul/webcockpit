@@ -95,15 +95,22 @@ function eye(doc: Document): SVGSVGElement {
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('class', 'wc-ph-ico');
   svg.setAttribute('aria-hidden', 'true');
-  for (const d of EYE) {
-    const p = doc.createElementNS(SVG_NS, 'path');
-    p.setAttribute('d', d);
-    svg.append(p);
+  // Drawn twice: first wide in the page's colour (`wc-ph-ico-halo`, phone.css), then the eye
+  // itself. The key is see-through (stage 52), and this outline is what keeps the eye readable
+  // over the game text, as the letters' own outline does (an SVG takes no text outline).
+  for (const halo of [true, false]) {
+    for (const d of EYE) {
+      const p = doc.createElementNS(SVG_NS, 'path');
+      p.setAttribute('d', d);
+      if (halo) p.setAttribute('class', 'wc-ph-ico-halo');
+      svg.append(p);
+    }
+    const c = doc.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('cx', '12');
+    c.setAttribute('cy', '12');
+    c.setAttribute('r', '3');
+    if (halo) c.setAttribute('class', 'wc-ph-ico-halo');
+    svg.append(c);
   }
-  const c = doc.createElementNS(SVG_NS, 'circle');
-  c.setAttribute('cx', '12');
-  c.setAttribute('cy', '12');
-  c.setAttribute('r', '3');
-  svg.append(c);
   return svg;
 }

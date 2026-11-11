@@ -58,7 +58,6 @@ import {
   type MapperSettings,
   PHONE_COMM_ROWS_MAX,
   PHONE_COMM_ROWS_MIN,
-  PHONE_COMPASS_SIZES,
   PHONE_HOTKEY_COMMAND_MAX,
   PHONE_DEFAULTS_MARK,
   PHONE_HOTKEY_COUNT,
@@ -540,7 +539,9 @@ export function migratePhone(raw: unknown): PhoneSettings {
     hotkeys: migrateHotkeys(p.hotkeys, d.hotkeys),
     hotkeyCount: int(p.hotkeyCount, 1, PHONE_HOTKEY_COUNT, d.hotkeyCount),
     hotkeysOpen: bool(p.hotkeysOpen, d.hotkeysOpen),
-    compassSize: oneOf(p.compassSize, PHONE_COMPASS_SIZES, d.compassSize),
+    // (The same limits as the heights: the allocator fits it to the screen.) A stored `compassSize`
+    // (0.5.0's S/M/L) is dropped: the keys are small in portrait and large in landscape (stage 52).
+    sideCols: typeof p.sideCols === 'number' && Number.isFinite(p.sideCols) ? int(p.sideCols, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
     wakeLock: bool(p.wakeLock, d.wakeLock),
     autoReconnect: bool(p.autoReconnect, d.autoReconnect),
     // Absent (settings from 0.5.0, or a computer's): none had yet. A stored `vibrate` (0.5.0) is dropped.

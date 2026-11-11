@@ -170,17 +170,17 @@ test('defaults: wimp, bash and asst in a column above the compass, K1 lowest; th
   ]);
   expect(await page.evaluate(() => window.__wc!.settings.get().phone.hotkeyCount)).toBe(3);
   await expect(page.locator('.wc-ph-hot-col')).toHaveCount(1);
-  // The mockup's geometry: 40 px round keys, 3 px apart, 8 px from the right edge, the foot 142 px up.
+  // The mockup's geometry at portrait's 36 px keys: round, 3 px apart, 8 px from the right edge, the foot 130 px up.
   const c = await box(page.locator('.wc-cockpit'));
   const k1 = await box(hk(page, 1));
   const k2 = await box(hk(page, 2));
   const k3 = await box(hk(page, 3));
   for (const k of [k1, k2, k3]) {
-    expect(k.width).toBeCloseTo(40, 0);
-    expect(k.height).toBeCloseTo(40, 0);
+    expect(k.width).toBeCloseTo(36, 0);
+    expect(k.height).toBeCloseTo(36, 0);
     expect(c.x + c.width - (k.x + k.width)).toBeCloseTo(8, 0);
   }
-  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(142, 0);
+  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(130, 0);
   expect(k1.y - (k2.y + k2.height)).toBeCloseTo(3, 0);
   expect(k2.y - (k3.y + k3.height)).toBeCloseTo(3, 0);
   expect(await hk(page, 1).evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
@@ -191,7 +191,7 @@ test('defaults: wimp, bash and asst in a column above the compass, K1 lowest; th
   const k = await box(kKey(page));
   expect(k.x - p.x).toBeCloseTo(0, 0);
   expect(k.y - p.y).toBeCloseTo(0, 0);
-  expect(k.width).toBeCloseTo(40, 0);
+  expect(k.width).toBeCloseTo(36, 0);
   const ring = await box(kKey(page).locator('.wc-ph-kk'));
   expect(ring.width).toBeCloseTo(24, 0);
   expect(ring.height).toBeCloseTo(24, 0);
@@ -339,8 +339,8 @@ test('Settings → Quick buttons → Number of K keys: 1 to 6; above three a sec
   for (const [right, left] of [[1, 4], [2, 5], [3, 6]] as const) {
     const a = await box(hk(page, right));
     const b = await box(hk(page, left));
-    expect(b.width).toBeCloseTo(40, 0);
-    expect(b.height).toBeCloseTo(40, 0);
+    expect(b.width).toBeCloseTo(36, 0);
+    expect(b.height).toBeCloseTo(36, 0);
     expect(b.y).toBeCloseTo(a.y, 0);
     expect(a.x - (b.x + b.width)).toBeCloseTo(3, 0);
     expect(c.x + c.width - (a.x + a.width)).toBeCloseTo(8, 0);
@@ -349,7 +349,7 @@ test('Settings → Quick buttons → Number of K keys: 1 to 6; above three a sec
     expect(b.x).toBeGreaterThanOrEqual(p.x - 0.5);
   }
   const k4 = await box(hk(page, 4));
-  expect(c.y + c.height - (k4.y + k4.height)).toBeCloseTo(142, 0);
+  expect(c.y + c.height - (k4.y + k4.height)).toBeCloseTo(130, 0);
   expect(await hk(page, 4).evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
   // The lens keeps clear of both columns.
   const l = await box(page.locator('.wc-ph-lens'));
@@ -502,6 +502,38 @@ test('a rotation with the keyboard up is not the keyboard folding: the field kee
   expect(await inputFocused(page)).toBe(true);
   await keyboard(page, false, size);
   await expect.poll(() => inputFocused(page)).toBe(false);
+});
+
+test('fullscreen entered or left with the keyboard up: folding the keyboard afterwards still takes the focus out (52b review)', async ({ page }) => {
+  // A fake fullscreen state, as tests/e2e/phone-viewport-fullscreen.spec.ts has it.
+  await page.addInitScript(() => {
+    let full = false;
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => (full ? document.documentElement : null) });
+    (window as unknown as { __fs: (on: boolean) => void }).__fs = (on) => {
+      full = on;
+      document.dispatchEvent(new Event('fullscreenchange'));
+    };
+  });
+  const m = await enterMock(page);
+  await m.login();
+  const size = page.viewportSize()!;
+  for (const on of [true, false]) {
+    await field(page).tap();
+    await keyboard(page, true, size);
+    expect(await inputFocused(page)).toBe(true);
+    // The fullscreen state flips while the keyboard stays up: the field keeps the focus through
+    // the change and the viewport's re-measuring after it.
+    await page.evaluate((on) => (window as unknown as { __fs: (on: boolean) => void }).__fs(on), on);
+    await page.waitForTimeout(1000);
+    await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
+    expect(await inputFocused(page)).toBe(true);
+    // Folded now: the field lets go, so no later tap on a key can raise the keyboard again.
+    await keyboard(page, false, size);
+    await expect.poll(() => inputFocused(page)).toBe(false);
+    await hk(page, 1).tap();
+    expect(await inputFocused(page)).toBe(false);
+  }
+  await expect.poll(() => m.sent).toEqual(['assist', 'assist']);
 });
 
 test('the keyboard going down blurs whichever field of the phone layout has the focus: Comm\'s reply, the hot key box', async ({ page }) => {
@@ -779,7 +811,7 @@ test('Shown off removes a key; with none shown the K key opens the box for K1', 
   const c = await box(page.locator('.wc-cockpit'));
   const k1 = await box(hk(page, 1));
   const k3 = await box(hk(page, 3));
-  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(142, 0);
+  expect(c.y + c.height - (k1.y + k1.height)).toBeCloseTo(130, 0);
   expect(k1.y - (k3.y + k3.height)).toBeCloseTo(3, 0);
   // The hidden key keeps what it was set to.
   expect((await hotkeys(page))[1]).toEqual({ label: 'bash', command: 'bash', special: null, shown: false });
@@ -890,49 +922,52 @@ test('a short screen: the box scrolls inside the visible area and its buttons ca
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('the column shown and the strip open: the lens stays hidden, its keys a row clear of the column; without the column it shrinks under the strip; the strip takes an open box\'s place', async ({ page }) => {
+  // Stage 52c: the lens stands left of the column (tests/e2e/phone-game-landscape.spec.ts has the
+  // layout); here the hot keys' own part of it.
+  test('the lens shows beside the column, with or without it; an open box hides the lens and its key row, and stays right of the strip\'s column', async ({ page }) => {
     const errors = watchErrors(page);
     await openPhone(page);
-    // 390 px high: three hot keys reach into the lens's place (ADR 0136 §4).
     await expect(hot(page)).toBeVisible();
-    await expect(lens(page)).toBeHidden();
-    await expect(satrow(page)).toBeVisible();
-    await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
-    const strip = page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
-    await expect(strip).toHaveAttribute('data-pane', 'timers');
-    await expect(lens(page)).toBeHidden();
-    await expect(satrow(page)).toBeVisible();
-    await expect(hot(page)).toBeVisible();
-    await expect(hot(page).locator('.wc-ph-hk')).toHaveCount(3);
-    // Nothing overlaps: the strip above, the key row under it, the column under the row.
-    const s = await box(strip);
-    const r = await box(satrow(page));
-    const col = await box(hot(page));
-    expect(r.y).toBeGreaterThanOrEqual(s.y + s.height);
-    expect(col.y).toBeGreaterThanOrEqual(s.y + s.height);
-    expect(r.y + r.height <= col.y + 1 || r.x + r.width <= col.x).toBe(true);
-    // With the K key the column goes: the lens has room under the strip down to the compass, shrunk (stage 52).
+    // 44 px keys; the lens at its full size (163 px on a 390 px short side), left of the column.
+    expect((await box(hk(page, 1))).width).toBeCloseTo(44, 0);
+    await expect(lens(page)).toBeVisible();
+    await expect(satrow(page)).toBeHidden();
+    const l = await box(lens(page));
+    expect(l.width).toBeCloseTo(163, 0);
+    expect(l.x + l.width).toBeLessThanOrEqual((await box(hot(page))).x);
+    // K: the column goes, the lens stays where it is.
     await kKey(page).tap();
     await expect(hot(page)).toBeHidden();
     await expect(lens(page)).toBeVisible();
-    await expect(satrow(page)).toBeHidden();
-    const shrunk = await box(lens(page));
-    expect(shrunk.width).toBeGreaterThanOrEqual(96);
-    expect(shrunk.y).toBeGreaterThanOrEqual(s.y + s.height);
-    // The strip closed and the column hidden: the lens has its full size (163 px on a 390 px short side).
-    await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
-    await expect(strip).toHaveCount(0);
-    await expect(lens(page)).toBeVisible();
-    await expect.poll(async () => (await box(lens(page))).width).toBeCloseTo(163, 0);
-    expect(shrunk.width).toBeLessThan(163);
+    expect((await box(lens(page))).x).toBeCloseTo(l.x, 0);
     await kKey(page).tap();
-    await expect(lens(page)).toBeHidden();
-    // An open box (it fills the short screen) gives way when the strip opens into its place.
+    await expect(hot(page)).toBeVisible();
+    // The box fills the short screen's height: the lens gives way, and no key row lies on the box.
     await hold(page, hk(page, 1));
     await expect(rb(page)).toBeVisible();
+    await expect(lens(page)).toBeHidden();
+    await expect(satrow(page)).toBeHidden();
+    // The strip opens as a column from the left: the box has room right of it and stays.
     await page.keyboard.press('Control+1');
+    const strip = page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
     await expect(strip).toHaveCount(1);
+    await expect(rb(page)).toBeVisible();
+    const s = await box(strip);
+    const b = await box(rb(page));
+    expect(b.x).toBeGreaterThanOrEqual(s.x + s.width - 0.5);
+    expect(b.x + b.width).toBeLessThanOrEqual((await box(hot(page))).x);
+    // At the column's greatest width too (the box narrows to what is left).
+    await page.evaluate(() => window.__wc!.settings.update({ phone: { sideCols: 200 } }));
+    await expect.poll(async () => (await box(strip)).width).toBeGreaterThan(s.width);
+    const s2 = await box(strip);
+    const b2 = await box(rb(page));
+    await expect(rb(page)).toBeVisible();
+    expect(b2.x).toBeGreaterThanOrEqual(s2.x + s2.width - 0.5);
+    expect(b2.width).toBeGreaterThanOrEqual(200);
+    await bt(page, 'Cancel').scrollIntoViewIfNeeded();
+    await bt(page, 'Cancel').tap();
     await expect(rb(page)).toBeHidden();
+    await expect(lens(page)).toBeVisible();
     expect(errors).toEqual([]);
   });
 });

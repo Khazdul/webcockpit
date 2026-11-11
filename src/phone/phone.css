@@ -31,13 +31,17 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   /* A frosted card (the menu key). */
   --ph-frost: rgb(232 196 138 / 0.06);
   --ph-frost-edge: rgb(232 196 138 / 0.24);
-  /* The compass keys: partly see-through over the game text. */
-  --ph-key: rgb(22 19 15 / 0.86);
-  --ph-key-edge: rgb(232 196 138 / 0.34);
-  --ph-key-text: #e8c48a;
-  --ph-key-shadow: inset 0 1px 0 rgb(232 196 138 / 0.16), 0 2px 6px rgb(0 0 0 / 0.6);
-  --ph-flee: rgb(48 14 12 / 0.88);
-  --ph-flee-edge: #d75f5f;
+  /* The compass keys and the hot keys (stage 52): see-through, so the game text is read through
+   * them. At rest a key is a faint veil and a thin ring; its label is kept readable by a tight
+   * outline in the page's colour round every glyph (`--ph-halo`), not by a backing. Pressed, a key
+   * is solid (the lamp). */
+  --ph-halo: var(--term-bg, #000);
+  --ph-key: rgb(22 19 15 / 0.12);
+  --ph-key-edge: rgb(232 196 138 / 0.3);
+  --ph-key-text: #f0cf98;
+  /* Flee: the same veil; the red is in its ring and its letter. */
+  --ph-flee: rgb(22 19 15 / 0.12);
+  --ph-flee-edge: rgb(215 95 95 / 0.55);
   --ph-flee-text: #ff9a8f;
   /* Text. */
   --ph-text: #e8e8e8;
@@ -95,11 +99,11 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   /* The strip's page dots (the lens's pips lie on the dark map on every theme; these on the pane). */
   --ph-dot: rgb(232 196 138 / 0.35);
   --ph-dot-on: #e8c48a;
-  /* The hot keys: see-through, so the game text shows under them; the label's dark halo keeps it readable. */
-  --ph-hk: rgb(22 19 15 / 0.3);
-  --ph-hk-edge: rgb(232 196 138 / 0.55);
+  /* The hot keys: the same look, round. (`--ph-hk-edge` is also the K key's ring.) */
+  --ph-hk: rgb(22 19 15 / 0.12);
+  --ph-hk-edge: rgb(232 196 138 / 0.4);
   --ph-hk-text: #f3d9ac;
-  --ph-hk-halo: 0 1px 2px #000, 0 0 3px #000, 0 0 3px #000;
+  --ph-hk-halo: 0 0 1px var(--ph-halo), 0 0 2px var(--ph-halo), 0 0 3px var(--ph-halo);
   /* The hot key box: a solid card over the game text. */
   --ph-solid: #14110d;
   --ph-solid-edge: rgb(232 196 138 / 0.3);
@@ -122,13 +126,13 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-rule: #8a8478;
   --ph-frost: #fbf6e8;
   --ph-frost-edge: #8a8478;
-  --ph-key: rgb(251 246 232 / 0.92);
-  --ph-key-edge: #8a8478;
-  --ph-key-text: #3a3428;
-  --ph-key-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 2px 6px rgb(60 40 10 / 0.25);
-  --ph-flee: #fbe9e4;
-  --ph-flee-edge: #b3261e;
-  --ph-flee-text: #b3261e;
+  --ph-halo: var(--term-bg, #f4ecd8);
+  --ph-key: rgb(251 246 232 / 0.12);
+  --ph-key-edge: rgb(90 78 56 / 0.45);
+  --ph-key-text: #2e2618;
+  --ph-flee: rgb(251 246 232 / 0.12);
+  --ph-flee-edge: rgb(179 38 30 / 0.55);
+  --ph-flee-text: #a31f18;
   --ph-text: #111;
   --ph-dim: #6a6256;
   --ph-track: #d9cfb8;
@@ -175,10 +179,9 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-badge-text: #fffaf0;
   --ph-dot: rgb(138 90 14 / 0.45);
   --ph-dot-on: #8a5a0e;
-  --ph-hk: rgb(251 246 232 / 0.55);
-  --ph-hk-edge: rgb(138 90 14 / 0.7);
-  --ph-hk-text: #3a3428;
-  --ph-hk-halo: 0 0 2px #fbf6e8, 0 0 3px #fbf6e8, 0 0 4px #fbf6e8;
+  --ph-hk: rgb(251 246 232 / 0.12);
+  --ph-hk-edge: rgb(110 72 12 / 0.5);
+  --ph-hk-text: #2e2618;
   --ph-solid: #fbf6e8;
   --ph-solid-edge: #8a8478;
   --ph-solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 6px 18px rgb(60 40 10 / 0.35);
@@ -642,9 +645,50 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Landscape (stage 52c): the one band, along the right edge of the left column that holds the
+ * strip and Comm, from top to bottom (JS sets left and width): the same iron and lit bar, turned,
+ * dragged sideways. Its grip reaches 16 px into the column and 10 px into the game text. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband.wc-ph-side-band {
+  top: 0;
+  bottom: 0;
+  right: auto;
+  background: linear-gradient(90deg, #3a342d, #231f1a);
+  border: 0;
+  border-left: 1px solid var(--ph-iron-hi);
+  border-right: 1px solid var(--ph-iron-lo);
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-rband.wc-ph-side-band {
+  background: linear-gradient(90deg, #f1eee6, #c9c5ba);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > i {
+  width: 3px;
+  height: 44px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band[data-dragging] {
+  box-shadow: 2px 0 10px rgb(0 0 0 / 0.6);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip.wc-ph-side-grip {
+  top: 0;
+  bottom: 0;
+  left: -16px;
+  right: -10px;
+  cursor: ew-resize;
+}
+
+/* Landscape: the strip's page dots at the right end of the hood's row (no band under the strip there). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip > .wc-ph-strip-dots {
+  top: 8px;
+  right: 12px;
+}
+
 /* ----------------------------------------------------------------- compass */
 
-/* From the bottom edge, right: 3 × 3 keys of 40 px. The pad takes the taps
+/* From the bottom edge, right: 3 × 3 keys (`--ph-ck`: 36 px in portrait, 44 px in landscape,
+ * set by the layer). The pad takes the taps
  * in its gaps too, so a near miss never reaches the game text under it. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-pad {
   position: absolute;
@@ -675,8 +719,14 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
   border-radius: 9px;
   background: var(--ph-key);
   color: var(--ph-key-text);
-  box-shadow: var(--ph-key-shadow);
   font: inherit;
+  font-weight: 700;
+  /* The label's outline in the page's colour: drawn under the glyph's fill, so the letter keeps
+   * its weight; the soft shadow round it fades the game text nearest the letter. Static paint
+   * (no filter, no backdrop filter): text scrolling under a key repaints nothing of it. */
+  -webkit-text-stroke: 4px var(--ph-halo);
+  paint-order: stroke fill;
+  text-shadow: var(--ph-hk-halo);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -685,13 +735,23 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key .wc-ph-ico {
   width: 18px;
   height: 18px;
+  overflow: visible;
+}
+
+/* The eye's outline: the same shapes once more under it, wider, in the page's colour (compass.ts). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key .wc-ph-ico-halo {
+  stroke: var(--ph-halo);
+  stroke-width: 6.2;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key:active .wc-ph-ico-halo {
+  display: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-flee {
   border-color: var(--ph-flee-edge);
   background: var(--ph-flee);
   color: var(--ph-flee-text);
-  font-weight: 700;
 }
 
 /* The press shows: a key lit by the lamp. */
@@ -701,6 +761,8 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
   background: var(--ph-lamp);
   border-color: var(--ph-lamp-hi);
   color: var(--ph-ink);
+  -webkit-text-stroke: 0;
+  text-shadow: none;
 }
 
 /* ---------------------------------------------------------------- hot keys */
@@ -729,6 +791,11 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-kk {
   line-height: 1;
   font-weight: 700;
   text-shadow: var(--ph-hk-halo);
+}
+
+/* Lit, the K ring is solid: no outline round its letter. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on {
+  -webkit-text-stroke: 0;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on .wc-ph-kk {
@@ -791,7 +858,9 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk {
   font-size: 10px;
   line-height: 12px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.01em;
+  -webkit-text-stroke: 3px var(--ph-halo);
+  paint-order: stroke fill;
   text-shadow: var(--ph-hk-halo);
   cursor: pointer;
   touch-action: none;
@@ -804,6 +873,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk.is-held {
   border-color: var(--ph-sat-on-edge);
   background: var(--ph-sat-on);
   color: var(--ph-sat-on-text);
+  -webkit-text-stroke: 0;
   text-shadow: none;
 }
 
@@ -818,7 +888,8 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(286px, calc(100% - var(--ph-hot-w, var(--ph-ck, 40px)) - 24px));
+  /* (`--ph-side-w`: landscape's left column, which the box stays right of.) */
+  width: min(286px, calc(100% - var(--ph-side-w, 0px) - var(--ph-hot-w, var(--ph-ck, 40px)) - 24px));
   border: 1px solid var(--ph-solid-edge);
   border-radius: 10px;
   background: var(--ph-solid);

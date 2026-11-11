@@ -440,8 +440,12 @@ export interface PhoneSettings {
   hotkeyCount: number;
   /** The hot key column is shown (the K key). */
   hotkeysOpen: boolean;
-  /** The compass keys' size (ADR 0136 §7): 36, 40 or 44 px; the hot keys follow. */
-  compassSize: PhoneCompassSize;
+  /**
+   * Landscape (stage 52c): the width in columns of the left column that
+   * holds the strip and Comm; null: the default share of the screen. The
+   * heights above are portrait's only.
+   */
+  sideCols: number | null;
   /** Keep the screen on while connected and visible (ADR 0136 §10; where the browser can). */
   wakeLock: boolean;
   /** A dead link found on resume reconnects once, with no saved login (ADR 0136 §10). */
@@ -456,11 +460,8 @@ export interface PhoneSettings {
   defaults: number;
 }
 
-/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off and Character out of the strip. */
+/** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off and Character out of the strip. */
 export const PHONE_DEFAULTS_MARK = 1;
-
-export const PHONE_COMPASS_SIZES = ['s', 'm', 'l'] as const;
-export type PhoneCompassSize = (typeof PHONE_COMPASS_SIZES)[number];
 
 /** How many hot key slots the phone stores (stage 52: two columns of three). */
 export const PHONE_HOTKEY_COUNT = 6;
@@ -515,7 +516,7 @@ export const PHONE_COMM_ROWS_MAX = 200;
  * at its default height, the badge counting private chats (§6);
  * six hot key slots (assist, bash, wimpy at half of the current hit points,
  * rescue, shoot, recover) of which three are in use, shown (§8, stage 52);
- * 40 px compass keys (§7); the screen kept on while connected, and no
+ * the landscape column at its default width; the screen kept on while connected, and no
  * automatic reconnect (§10). The one-time defaults are not marked as had:
  * only `phoneDefaultSettings()` (a new phone) marks them.
  */
@@ -536,7 +537,7 @@ export function defaultPhoneSettings(): PhoneSettings {
     ],
     hotkeyCount: PHONE_HOTKEY_COUNT_DEFAULT,
     hotkeysOpen: true,
-    compassSize: 'm',
+    sideCols: null,
     wakeLock: true,
     autoReconnect: false,
     defaults: 0,
@@ -689,9 +690,11 @@ export function phoneDefaultSettings(): Settings {
   // ADR 0092 is desktop only: a phone keeps its Character tab and no weather (battery).
   s.panes.character.on = true;
   s.weather.enabled = false;
-  // Stage 52 (the owner's phone defaults): no Herblores timers; Character is out of the strip
+  // Stage 52 (the owner's phone defaults): no Herblores timers, no time text; Character is out of the strip
   // (`defaultPhoneSettings`). A new phone has them from the start, so nothing is applied later.
   s.timers.groups.herb.enabled = false;
+  // The Timers pane's countdown text is off too: bars only, in the strip's few columns.
+  s.timers.timeText = false;
   s.phone.defaults = PHONE_DEFAULTS_MARK;
   return s;
 }

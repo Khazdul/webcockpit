@@ -715,39 +715,53 @@ test.describe('the lens and Comm, 390 × 844', () => {
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('the lens gives way to the hot key column (stage 51e); with the column hidden it fits above the compass and shows', async ({ page }) => {
+  // Stage 52c: in landscape the lens stands left of the hot key column instead of giving way to it.
+  test('the lens shows left of the hot key column, above the compass; with the column hidden it stays where it is', async ({ page }) => {
     await openCockpit(page);
-    // 390 px high: three hot keys above the compass reach into the lens's place (ADR 0136 §4:
-    // the lens shows only while it fits above the hot keys). Its keys stay as a row.
     await expect(page.locator('.wc-ph-hot')).toBeVisible();
-    await expect(lens(page)).toBeHidden();
-    await expect(page.locator('.wc-ph-satrow')).toBeVisible();
-    // The K key hides the column: the lens is back.
-    await page.locator('.wc-ph-key.is-tog').tap();
-    await expect(page.locator('.wc-ph-hot')).toBeHidden();
     await expect(lens(page)).toBeVisible();
     await expect(page.locator('.wc-ph-satrow')).toBeHidden();
     const l = (await lens(page).boundingBox())!;
+    // 163 px on a 390 px short side.
+    expect(l.width).toBeCloseTo(163, 0);
+    const col = (await page.locator('.wc-ph-hot').boundingBox())!;
     const p = (await page.locator('.wc-ph-pad').boundingBox())!;
+    expect(l.x + l.width).toBeLessThanOrEqual(col.x);
     expect(l.y + l.height).toBeLessThanOrEqual(p.y);
-  });
-
-  test('a lower screen: the lens shrinks to its room above the compass, and hides with its key as a row when that is under its least size', async ({ page }) => {
-    await openCockpit(page);
+    // The map pane is the lens's square of cells, clipped to the circle.
+    const m = (await page.locator('.wc-pane-map').boundingBox())!;
+    expect(m.x).toBeLessThanOrEqual(l.x + 0.5);
+    expect(m.x + m.width).toBeGreaterThanOrEqual(l.x + l.width - 0.5);
     await page.locator('.wc-ph-key.is-tog').tap();
     await expect(page.locator('.wc-ph-hot')).toBeHidden();
     await expect(lens(page)).toBeVisible();
-    // 163 px on a 390 px short side.
+    expect((await lens(page).boundingBox())!.x).toBeCloseTo(l.x, 0);
+  });
+
+  test('a lower screen: the lens shrinks to its room above the compass, and hides with its keys as a row when a fight card leaves it under its least size', async ({ page }) => {
+    await openCockpit(page);
+    await expect(lens(page)).toBeVisible();
     expect((await lens(page).boundingBox())!.width).toBeCloseTo(163, 0);
-    // (Lower, but not so low that it counts as the keyboard being up.) With a fight card's rows gone
-    // to the strip, the room above the compass is under 96 px.
+    // (Lower, but not so low that it counts as the keyboard being up.)
     await page.setViewportSize({ width: 844, height: 320 });
     await expect(lens(page)).toBeVisible();
-    await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 6 } }));
-    await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
-    await expect(page.locator('.wc-cockpit > .wc-pane[data-phone-strip]')).toHaveCount(1);
+    await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeLessThan(130);
+    const small = (await lens(page).boundingBox())!;
+    expect(small.width).toBeGreaterThanOrEqual(96);
+    expect(small.y + small.height).toBeLessThanOrEqual((await page.locator('.wc-ph-pad').boundingBox())!.y);
+    // A fight card takes two rows above it: the whole rows left above the compass are under 96 px.
+    await page.evaluate(async () => {
+      const lines = (await (await fetch('/__fixtures/gmcp-demo.log')).text()).split('\n');
+      window.__wc!.app.startReplay(lines.slice(0, lines.findIndex((l) => l.includes('Group.Update {"id":3,"hp":61}'))).join('\n') + '\n', 'gmcp-demo.log', 0);
+    });
+    await expect(page.locator('.wc-ph-fight')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!.lensHidden)).toBe(true);
     await expect(lens(page)).toBeHidden();
     await expect(page.locator('.wc-pane-map')).toBeHidden();
-    await expect(page.locator('.wc-ph-satrow')).toBeVisible();
+    const row = page.locator('.wc-ph-satrow');
+    await expect(row).toBeVisible();
+    // The row stands where the lens did: left of the hot key column.
+    const r = (await row.boundingBox())!;
+    expect(r.x + r.width).toBeLessThanOrEqual((await page.locator('.wc-ph-hot').boundingBox())!.x);
   });
 });

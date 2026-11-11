@@ -150,6 +150,7 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     s.phone.vibrate = false;
     s.phone.strip = { panes: ['timers', 'group', 'character', 'statistics'].map((id) => ({ id, on: true })) };
     s.timers.groups.herb.enabled = true;
+    (s.timers as unknown as { timeText: boolean }).timeText = true;
     return s;
   };
 
@@ -165,9 +166,12 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     expect(phoneDefaultsAtStart(s, false)).not.toBeNull();
   });
 
-  it('a new phone starts with them and is marked: Herblores off, Character out of the strip; nothing to apply', () => {
+  it('a new phone starts with them and is marked: Herblores off, the time text off, Character out of the strip; nothing to apply', () => {
     const s = phoneDefaultSettings();
     expect(s.timers.groups.herb.enabled).toBe(false);
+    expect(s.timers.timeText).toBe(false);
+    // Nothing else of the Timers settings differs from a computer's.
+    expect({ ...s.timers, groups: null, timeText: null }).toEqual({ ...defaultSettings().timers, groups: null, timeText: null });
     expect(s.phone.strip.panes.find((e) => e.id === 'character')!.on).toBe(false);
     expect(s.phone.defaults).toBe(PHONE_DEFAULTS_MARK);
     expect(phoneDefaultsPatch(s)).toBeNull();
@@ -179,6 +183,7 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
   it('a computer\'s defaults are not changed: Herblores on, and no mark', () => {
     const d = defaultSettings();
     expect(d.timers.groups.herb.enabled).toBe(true);
+    expect(d.timers.timeText).toBe(true);
     expect(d.phone.defaults).toBe(0);
   });
 
@@ -187,12 +192,13 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
       const s = migrateSettings(stored050(), { phone });
       expect(s.phone.defaults).toBe(0);
       expect(s.timers.groups.herb.enabled).toBe(true);
+      expect(s.timers.timeText).toBe(true);
       expect(s.phone.strip.panes.every((e) => e.on)).toBe(true);
     }
     expect([migratePhone({ defaults: 1 }).defaults, migratePhone({ defaults: 7 }).defaults, migratePhone({ defaults: -1 }).defaults, migratePhone({ defaults: 'x' }).defaults]).toEqual([1, 1, 0, 0]);
   });
 
-  it('applied once: Herblores off, Character off in the strip, the mark; the order and the other panes are kept', () => {
+  it('applied once: Herblores off, the time text off, Character off in the strip, the mark; the order and the other panes are kept', () => {
     const raw = stored050();
     (raw.phone as { strip: unknown }).strip = { panes: [{ id: 'statistics', on: false }, { id: 'character', on: true }, { id: 'timers', on: true }, { id: 'group', on: true }] };
     const store = new SettingsStore({ factory: null, storage: null, win: null });
@@ -200,7 +206,7 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     const before = store.get();
     const patch = phoneDefaultsPatch(before);
     expect(patch).toEqual({
-      timers: { groups: { herb: { enabled: false } } },
+      timers: { groups: { herb: { enabled: false } }, timeText: false },
       phone: {
         strip: { panes: [{ id: 'statistics', on: false }, { id: 'character', on: false }, { id: 'timers', on: true }, { id: 'group', on: true }] },
         defaults: 1,
@@ -209,16 +215,18 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     store.update(patch!);
     const after = store.get();
     expect(after.timers.groups.herb.enabled).toBe(false);
+    expect(after.timers.timeText).toBe(false);
     expect(after.phone.defaults).toBe(1);
     // Nothing else moved.
     expect({ ...after, timers: null, phone: null }).toEqual({ ...before, timers: null, phone: null });
-    expect({ ...after.timers, groups: { ...after.timers.groups, herb: null } }).toEqual({ ...before.timers, groups: { ...before.timers.groups, herb: null } });
+    expect({ ...after.timers, timeText: null, groups: { ...after.timers.groups, herb: null } }).toEqual({ ...before.timers, timeText: null, groups: { ...before.timers.groups, herb: null } });
     expect({ ...after.phone, strip: null, defaults: null }).toEqual({ ...before.phone, strip: null, defaults: null });
     // Marked: never again, so the player's own choice wins from here on.
     expect(phoneDefaultsPatch(after)).toBeNull();
-    store.update({ timers: { groups: { herb: { enabled: true } } }, phone: { strip: { panes: after.phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
+    store.update({ timers: { groups: { herb: { enabled: true } }, timeText: true }, phone: { strip: { panes: after.phone.strip.panes.map((e) => ({ ...e, on: true })) } } });
     expect(phoneDefaultsPatch(store.get())).toBeNull();
     expect(store.get().timers.groups.herb.enabled).toBe(true);
+    expect(store.get().timers.timeText).toBe(true);
     // And it survives a round through storage.
     expect(phoneDefaultsPatch(migrateSettings(JSON.parse(JSON.stringify(store.get())), { phone: true }))).toBeNull();
   });

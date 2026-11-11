@@ -29,7 +29,7 @@ describe('replaySettings and the phone section', () => {
 
   it('the replay reads it back with the defaults', () => {
     const s = defaultSettings();
-    s.phone.compassSize = 'l';
+    s.phone.sideCols = 31;
     const back = migrateSettings(JSON.parse(JSON.stringify(replaySettings(s))));
     expect(back.phone).toEqual(defaultPhoneSettings());
   });

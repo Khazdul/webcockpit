@@ -3,7 +3,7 @@
 // is gone (the setting is dropped by the migration), the group is "Quick
 // buttons" with the number of K keys, and the second column's sums.
 import { describe, expect, it, vi } from 'vitest';
-import { PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, topLimit } from '../../src/phone/compass-size';
+import { KEY_PX_LANDSCAPE, KEY_PX_PORTRAIT, PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from '../../src/phone/compass-size';
 import { COMPASS_GROUP, CONNECTION_GROUP, SETTINGS_GROUPS, rowsShown } from '../../src/phone/settings-page';
 import { WakeLock, type WakeSentinel, canWakeLock, wakeWanted } from '../../src/phone/wake-lock';
 import { migratePhone, migrateSettings } from '../../src/settings/migrate';
@@ -12,11 +12,25 @@ import { SETTINGS_VERSION, defaultPhoneSettings, defaultSettings } from '../../s
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 describe('compass size', () => {
-  it('S, M and L are 36, 40 and 44 px; anything else is M', () => {
-    expect(compassPx('s')).toBe(36);
-    expect(compassPx('m')).toBe(40);
-    expect(compassPx('l')).toBe(44);
-    expect(compassPx('xl')).toBe(40);
+  it('the keys are 36 px in portrait and 44 px in landscape (stage 52: not a setting)', () => {
+    expect(compassPx(false)).toBe(36);
+    expect(compassPx(true)).toBe(44);
+    expect([KEY_PX_PORTRAIT, KEY_PX_LANDSCAPE]).toEqual([36, 44]);
+  });
+
+  it('landscape: the lens and its key row stand left of the hot key columns there are', () => {
+    // The margin, one 44 px column (or two and their gap), and the air.
+    expect(leftOfHot(44, 1, 12)).toBe(8 + 44 + 12);
+    expect(leftOfHot(44, 2, 12)).toBe(8 + 91 + 12);
+    expect(leftOfHot(44, 2, 8)).toBe(8 + 91 + 8);
+  });
+
+  it('landscape: the left column stays clear of the columns and the wider of the least lens and the key row', () => {
+    // Two columns, a 106 px lens with its key, a 132 px row, 12 px of air on both sides.
+    expect(sideClear(44, 2, 106, 132, 12)).toBe(8 + 91 + 12 + 132 + 12);
+    expect(sideClear(44, 1, 140, 132, 12)).toBe(8 + 44 + 12 + 140 + 12);
+    // Never less than the compass and the air.
+    expect(sideClear(44, 1, 10, 10, 4)).toBe(3 * 44 + 6 + 8 + 4);
   });
 
   it('at M the sums are the mockup\'s: 134 px of compass, the column from 142 px, 43 px a key', () => {
@@ -162,9 +176,10 @@ describe('wake lock', () => {
 });
 
 describe('phone settings of stage 51f', () => {
-  it('defaults: M keys, the screen kept on, no automatic reconnect; no vibration setting any more', () => {
+  it('defaults: the screen kept on, no automatic reconnect; no vibration or key size setting any more', () => {
     const d = defaultPhoneSettings();
-    expect(d.compassSize).toBe('m');
+    expect('compassSize' in d).toBe(false);
+    expect(d.sideCols).toBeNull();
     expect('vibrate' in d).toBe(false);
     expect(d.wakeLock).toBe(true);
     expect(d.autoReconnect).toBe(false);
@@ -172,25 +187,42 @@ describe('phone settings of stage 51f', () => {
 
   it('settings stored before 51f get the defaults; no version bump', () => {
     const old = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown> };
-    for (const k of ['compassSize', 'wakeLock', 'autoReconnect']) delete old.phone[k];
+    for (const k of ['sideCols', 'wakeLock', 'autoReconnect']) delete old.phone[k];
     const s = migrateSettings(old);
     expect(s.version).toBe(SETTINGS_VERSION);
     expect(s).toEqual(defaultSettings());
   });
 
   it('stored values are kept; malformed ones fall back', () => {
-    const p = migratePhone({ compassSize: 'l', wakeLock: false, autoReconnect: true });
-    expect([p.compassSize, p.wakeLock, p.autoReconnect]).toEqual(['l', false, true]);
-    const bad = migratePhone({ compassSize: 44, wakeLock: 1, autoReconnect: 'true' });
-    expect([bad.compassSize, bad.wakeLock, bad.autoReconnect]).toEqual(['m', true, false]);
-    expect(migratePhone({ compassSize: 'xl' }).compassSize).toBe('m');
+    const p = migratePhone({ sideCols: 31, wakeLock: false, autoReconnect: true });
+    expect([p.sideCols, p.wakeLock, p.autoReconnect]).toEqual([31, false, true]);
+    const bad = migratePhone({ sideCols: '31', wakeLock: 1, autoReconnect: 'true' });
+    expect([bad.sideCols, bad.wakeLock, bad.autoReconnect]).toEqual([null, true, false]);
+    // The landscape column's width: whole columns within the stored limits (the allocator fits it to the screen).
+    expect([migratePhone({ sideCols: 30.7 }).sideCols, migratePhone({ sideCols: 0 }).sideCols, migratePhone({ sideCols: 9999 }).sideCols, migratePhone({ sideCols: NaN }).sideCols]).toEqual([
+      migratePhone({ commRows: 30.7 }).commRows,
+      1,
+      200,
+      null,
+    ]);
+  });
+
+  it('a stored key size (0.5.0\'s S/M/L) is tolerated and dropped', () => {
+    for (const compassSize of ['s', 'l', 44]) {
+      const p = migratePhone({ compassSize, wakeLock: false });
+      expect('compassSize' in p).toBe(false);
+      expect(p.wakeLock).toBe(false);
+    }
+    const stored = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown> };
+    stored.phone.compassSize = 'l';
+    expect(migrateSettings(stored)).toEqual(defaultSettings());
   });
 
   it('a stored vibrate (0.5.0) is tolerated and dropped', () => {
     for (const vibrate of [true, false, 'yes']) {
-      const p = migratePhone({ compassSize: 'l', vibrate });
+      const p = migratePhone({ autoReconnect: true, vibrate });
       expect('vibrate' in p).toBe(false);
-      expect(p.compassSize).toBe('l');
+      expect(p.autoReconnect).toBe(true);
     }
     const stored = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown> };
     stored.phone.vibrate = true;
@@ -208,10 +240,10 @@ describe('the settings page\'s Quick buttons and Connection groups', () => {
     const had = { wakeLock: Object.getOwnPropertyDescriptor(nav, 'wakeLock') };
     try {
       Object.defineProperty(nav, 'wakeLock', { value: undefined, configurable: true });
-      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['compass-size', 'hotkey-count']);
+      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['hotkey-count']);
       expect(rowsShown(CONNECTION_GROUP).map((r) => r.id)).toEqual(['auto-reconnect', 'weather']);
       Object.defineProperty(nav, 'wakeLock', { value: { request: async () => ({ release: async () => {} }) }, configurable: true });
-      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['compass-size', 'hotkey-count']);
+      expect(rowsShown(COMPASS_GROUP).map((r) => r.id)).toEqual(['hotkey-count']);
       expect(rowsShown(CONNECTION_GROUP).map((r) => r.id)).toEqual(['wake-lock', 'auto-reconnect', 'weather']);
     } finally {
       for (const k of ['wakeLock'] as const) {
@@ -224,8 +256,8 @@ describe('the settings page\'s Quick buttons and Connection groups', () => {
   it('the rows write their keys and nothing else', () => {
     const s = defaultSettings();
     const row = (g: typeof COMPASS_GROUP, id: string) => g.rows.find((r) => r.id === id)!;
-    const size = row(COMPASS_GROUP, 'compass-size');
-    expect(size.kind === 'seg' && size.set('l', s)).toEqual({ phone: { compassSize: 'l' } });
+    // The key size is not a setting any more (stage 52): no such row.
+    expect(COMPASS_GROUP.rows.some((r) => r.id === 'compass-size')).toBe(false);
     expect(COMPASS_GROUP.title).toBe('Quick buttons');
     const count = row(COMPASS_GROUP, 'hotkey-count');
     expect(count.kind === 'stepper' && [count.get(s), count.step(3, 1), count.step(6, 1), count.step(1, -1)]).toEqual([3, 4, 6, 1]);

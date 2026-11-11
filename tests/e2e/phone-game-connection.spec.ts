@@ -254,7 +254,7 @@ test.describe('a tablet-size window with the phone flag', () => {
 
 // ----------------------------------------------------------------- compass
 
-test('Quick buttons → Key size: the keys measure 36, 40 and 44 px; the column, the K key and the command field follow; kept over a reload', async ({ page }) => {
+test('the keys are 36 px in portrait and 44 px in landscape, not a setting; the column, the K key and the command field follow', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page);
   const measure = async (px: number): Promise<void> => {
@@ -285,23 +285,19 @@ test('Quick buttons → Key size: the keys measure 36, 40 and 44 px; the column,
     const f = await box(page.locator('.wc-input-slot > .wc-input'));
     expect(f.x + f.width).toBeLessThanOrEqual(p.x - 7);
   };
-  expect((await phone(page)).compassSize).toBe('m');
-  await measure(40);
-  for (const [name, px] of [['S', 36], ['L', 44]] as const) {
-    await openSettings(page);
-    await srow(page, 'compass-size').getByRole('radio', { name }).tap();
-    await expect(srow(page, 'compass-size').getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
-    await pageEl(page).locator('.wc-ph-back').tap();
-    await page.keyboard.press('Escape');
-    await expect(sheet(page)).toBeHidden();
-    await expect.poll(async () => Math.round((await box(key(page, 'north'))).width)).toBe(px);
-    await measure(px);
-  }
-  expect((await phone(page)).compassSize).toBe('l');
-  // The hot key box stands left of the larger column, its notch at the held key.
+  // No key size setting any more (stage 52): the phone's shape decides.
+  expect('compassSize' in (await phone(page))).toBe(false);
+  await measure(36);
+  await openSettings(page);
+  await expect(srow(page, 'compass-size')).toHaveCount(0);
+  await expect(pageEl(page).getByText('Key size')).toHaveCount(0);
+  await pageEl(page).locator('.wc-ph-back').tap();
+  await page.keyboard.press('Escape');
+  await expect(sheet(page)).toBeHidden();
+  // The hot key box stands left of the column, its notch at the held key.
   const cdp = await page.context().newCDPSession(page);
   const k3 = await box(hk(page, 3));
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: k3.x + 22, y: k3.y + 22, id: 0 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: k3.x + 18, y: k3.y + 18, id: 0 }] });
   await expect(page.locator('.wc-ph-rb')).toBeVisible();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
@@ -312,17 +308,28 @@ test('Quick buttons → Key size: the keys measure 36, 40 and 44 px; the column,
   const notch = await box(page.locator('.wc-ph-rb-n'));
   expect(notch.y + notch.height / 2).toBeCloseTo(k3.y + k3.height / 2, 0);
   await page.keyboard.press('Escape');
-  await page.evaluate(() => window.__wc!.settings.flush());
-  await openPhone(page);
+  await expect(page.locator('.wc-ph-rb')).toBeHidden();
+  // Turned on its side: large keys, everything laid out from them. Turned back: small again.
+  const size = page.viewportSize()!;
+  // (The cockpit follows the visible area a moment after the window: wait for its new height.)
+  const cockpitH = async (): Promise<number> => Math.round((await box(page.locator('.wc-cockpit'))).height);
+  const portraitH = await cockpitH();
+  await page.setViewportSize({ width: size.height, height: size.width });
+  await expect.poll(cockpitH).toBeLessThanOrEqual(size.width);
+  await expect.poll(async () => Math.round((await box(key(page, 'north'))).width)).toBe(44);
   await measure(44);
+  await page.setViewportSize(size);
+  await expect.poll(cockpitH).toBe(portraitH);
+  await expect.poll(async () => Math.round((await box(key(page, 'north'))).width)).toBe(36);
+  await measure(36);
   expect(errors).toEqual([]);
 });
 
 test.describe('a short screen', () => {
-  // High enough for the full lens above three 40 px hot keys, not above three 44 px ones.
+  // High enough for the full lens above three 36 px hot keys.
   test.use({ viewport: { width: 412, height: 490 } });
 
-  test('the lens\'s room follows the key size: full above M keys, shrunk above L keys, hidden when the room is under its least size', async ({ page }) => {
+  test('the lens\'s room is what the keys leave: full above the column, shrunk on a lower screen, full again with the column hidden', async ({ page }) => {
     await openPhone(page);
     await expect(hot(page)).toBeVisible();
     await expect(lens(page)).toBeVisible();
@@ -330,23 +337,19 @@ test.describe('a short screen', () => {
     // 412 px wide: 172 px.
     expect(l.width).toBeCloseTo(172, 0);
     expect(l.y + l.height).toBeLessThanOrEqual((await box(hot(page))).y);
-    await page.evaluate(() => window.__wc!.settings.update({ phone: { compassSize: 'l' } }));
-    await expect.poll(async () => Math.round((await box(key(page, 'north'))).width)).toBe(44);
-    // Stage 52: it shrinks to the whole rows left above the taller column.
+    // A lower screen (still portrait): it shrinks to the whole rows left above the column.
+    await page.setViewportSize({ width: 412, height: 430 });
     await expect(lens(page)).toBeVisible();
     await expect.poll(async () => (await box(lens(page))).width).toBeLessThan(172);
     const small = await box(lens(page));
     expect(small.width).toBeGreaterThanOrEqual(96);
     expect(small.y + small.height).toBeLessThanOrEqual((await box(hot(page))).y);
     await expect(page.locator('.wc-ph-satrow')).toBeHidden();
-    // A fight card and a lower screen take the rest of its room: the key row.
-    await page.setViewportSize({ width: 412, height: 430 });
-    await expect(lens(page)).toBeHidden();
-    await expect(page.locator('.wc-ph-satrow')).toBeVisible();
-    await page.setViewportSize({ width: 412, height: 490 });
-    await page.evaluate(() => window.__wc!.settings.update({ phone: { compassSize: 's' } }));
-    await expect(lens(page)).toBeVisible();
+    // The column hidden (K): the room down to the compass holds the full lens.
+    await kKey(page).tap();
+    await expect(hot(page)).toBeHidden();
     await expect.poll(async () => (await box(lens(page))).width).toBeCloseTo(172, 0);
+    expect((await box(lens(page))).y + 172).toBeLessThanOrEqual((await box(pad(page))).y);
   });
 });
 
@@ -379,7 +382,7 @@ test('no vibration (removed in stage 52): no setting, no row, and no pulse on a 
   await expect(pageEl(page).locator('[data-group="compass"] .wc-ph-grp-t')).toHaveText('Quick buttons');
   await expect(pageEl(page).getByText('Compass', { exact: true })).toHaveCount(0);
   await expect(pageEl(page).getByText(/vibrat/i)).toHaveCount(0);
-  expect(await pageEl(page).locator('[data-group="compass"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row))).toEqual(['compass-size', 'hotkey-count']);
+  expect(await pageEl(page).locator('[data-group="compass"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row))).toEqual(['hotkey-count']);
 });
 
 test('where the browser cannot hold a wake lock, its row is absent', async ({ page }) => {
@@ -390,7 +393,7 @@ test('where the browser cannot hold a wake lock, its row is absent', async ({ pa
   await openPhone(page);
   await openSettings(page);
   const ids = (group: string) => pageEl(page).locator(`[data-group="${group}"] [data-row]`).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
-  expect(await ids('compass')).toEqual(['compass-size', 'hotkey-count']);
+  expect(await ids('compass')).toEqual(['hotkey-count']);
   expect(await ids('connection')).toEqual(['auto-reconnect', 'weather']);
   // A tap still sends without the API.
   await pageEl(page).locator('.wc-ph-back').tap();
