@@ -621,6 +621,19 @@
   color: color-mix(in srgb, var(--cm-dim) 72%, var(--cm-float));
 }
 
+/* A phone's reply line is a one-row <textarea> (no autofill bar; src/panes/comm.ts): it behaves as
+ * the <input> it stands in for. Only a phone has the textarea; the desktop's is an <input>. */
+textarea.wc-cm-rinput {
+  display: block;
+  height: 1.4em;
+  line-height: 1.4;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  overflow-wrap: normal;
+  scrollbar-width: none;
+}
+
 .wc-comm:not([data-search]) .wc-cm-sinput,
 .wc-comm:not([data-search]) .wc-cm-sclear {
   visibility: hidden;

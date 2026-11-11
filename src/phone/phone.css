@@ -1,0 +1,1736 @@
+/* The phone layer (src/phone/, ADR 0136): the chrome of the phone's layout
+ * in the live game. Every rule is scoped under `html.wc-phone` AND the
+ * cockpit's `data-phone-game` (set by the cockpit only with its `phoneGame`
+ * option and the phone flag), so nothing here matches on a desktop, on a
+ * tablet or in the run log player. The one exception names the page-level
+ * fullscreen button and is scoped under `html.wc-phone.wc-phone-game`,
+ * the class the shell sets while the phone's game layout is up.
+ *
+ * Laid out in CSS px, not cells: thumb-size targets whatever the text
+ * size. The look is Lykta (ADR 0123): dark iron wells, the candle's light
+ * for edges and ink, frosted keys. Paper (the terminal background is
+ * light: `<html data-light>`) is pewter and brass on paper-white.
+ * Nothing animates (ADR 0044). */
+
+/* ------------------------------------------------------------------ tokens */
+
+html.wc-phone .wc-cockpit[data-phone-game] {
+  /* The candle (the lamp of a Plain pane, layout.css `--lamp`). */
+  --ph-lamp: #e8c48a;
+  /* Ink on a lit key. */
+  --ph-ink: #170f03;
+  /* A lit key's rim. */
+  --ph-lamp-hi: #fff1cf;
+  /* The window's dark base: the fight card, the command row. */
+  --ph-well: #0b0907;
+  /* A sunken field. */
+  --ph-field: #050403;
+  --ph-field-edge: rgb(232 196 138 / 0.3);
+  --ph-field-edge-on: rgb(232 196 138 / 0.6);
+  --ph-rule: rgb(232 196 138 / 0.26);
+  /* A frosted card (the menu key). */
+  --ph-frost: rgb(232 196 138 / 0.06);
+  --ph-frost-edge: rgb(232 196 138 / 0.24);
+  /* The compass keys: partly see-through over the game text. */
+  --ph-key: rgb(22 19 15 / 0.86);
+  --ph-key-edge: rgb(232 196 138 / 0.34);
+  --ph-key-text: #e8c48a;
+  --ph-key-shadow: inset 0 1px 0 rgb(232 196 138 / 0.16), 0 2px 6px rgb(0 0 0 / 0.6);
+  --ph-flee: rgb(48 14 12 / 0.88);
+  --ph-flee-edge: #d75f5f;
+  --ph-flee-text: #ff9a8f;
+  /* Text. */
+  --ph-text: #e8e8e8;
+  /* 4.5:1 also on a card in the lamp's glow at the top of the sheet (the lightest ground it stands on). */
+  --ph-dim: #979797;
+  /* Bars. */
+  --ph-track: #221f1b;
+  --ph-hp: #45b862;
+  --ph-foe: #d75f5f;
+  /* The menu sheet and the settings page (ADR 0136 §10). */
+  --ph-scrim: rgb(0 0 0 / 0.65);
+  /* The window lit from the top by the lamp, on its dark base. */
+  --ph-window: radial-gradient(120% 70% at 50% 0, rgb(232 196 138 / 0.11), rgb(232 196 138 / 0) 70%), #0b0907;
+  --ph-window-in: inset 0 0 28px rgb(0 0 0 / 0.7);
+  --ph-sheet-shadow: 0 -8px 24px rgb(0 0 0 / 0.8);
+  /* The iron band and the hood. */
+  --ph-iron: linear-gradient(#3a342d, #231f1a);
+  --ph-iron-hi: #5a5148;
+  --ph-iron-lo: #0e0c0a;
+  --ph-hood: linear-gradient(#3a342d, #1d1915);
+  --ph-hood-text: #e8c48a;
+  --ph-hood-glow: 0 0 8px rgb(232 196 138 / 0.45);
+  --ph-grip: #e8c48a;
+  /* A frosted card of rows. */
+  --ph-card: rgb(232 196 138 / 0.06);
+  --ph-card-edge: rgb(232 196 138 / 0.24);
+  --ph-card-lip: inset 0 1px 0 rgb(232 196 138 / 0.18);
+  --ph-row-rule: rgb(232 196 138 / 0.14);
+  --ph-chev: #8d7a5c;
+  --ph-body: #c6c6c6;
+  --ph-danger: #e26d6d;
+  --ph-rec: #d75f5f;
+  --ph-key-off: #6d6252;
+  /* The map lens (ADR 0136 §4): the cast-iron ring with a fine grain, the lamp's glow round it, the
+   * glass's rim and edge darkening, the pips, the keys on its corners. */
+  --ph-lens-outer: 0 0 0 8px #0e0c0a, 0 0 20px 10px rgb(232 196 138 / 0.14), 0 8px 16px 6px rgb(0 0 0 / 0.8);
+  --ph-lens-ring:
+    repeating-radial-gradient(circle, rgb(0 0 0 / 0.16) 0 1px, rgb(0 0 0 / 0) 1px 2.3px),
+    repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0.055) 0 0.7deg, rgb(0 0 0 / 0.09) 0.7deg 1.9deg, rgb(0 0 0 / 0) 1.9deg 3.1deg),
+    linear-gradient(145deg, #6f655a 0, #3a342d 34%, #1b1713 68%, #4c443b 100%);
+  --ph-lens-ring-edge: inset 0 0 0 1px #0e0c0a;
+  --ph-lens-glass-in: inset 0 0 0 1px rgb(232 196 138 / 0.3), inset 0 2px 5px rgb(255 255 255 / 0.22), inset 0 -8px 14px rgb(0 0 0 / 0.55);
+  --ph-pip: rgb(232 196 138 / 0.35);
+  --ph-pip-on: #e8c48a;
+  --ph-pip-glow: 0 0 5px #e8c48a;
+  --ph-sat: linear-gradient(#2a2520, #15120e);
+  --ph-sat-edge: #5a5148;
+  --ph-sat-text: #e8c48a;
+  --ph-sat-shadow: inset 0 1px 0 rgb(232 196 138 / 0.22), 0 2px 8px rgb(0 0 0 / 0.85);
+  --ph-sat-on: #e8c48a;
+  --ph-sat-on-edge: #fff1cf;
+  --ph-sat-on-text: #170f03;
+  --ph-badge: #f0b84f;
+  --ph-badge-text: #170f03;
+  /* The strip's page dots (the lens's pips lie on the dark map on every theme; these on the pane). */
+  --ph-dot: rgb(232 196 138 / 0.35);
+  --ph-dot-on: #e8c48a;
+  /* The hot keys: see-through, so the game text shows under them; the label's dark halo keeps it readable. */
+  --ph-hk: rgb(22 19 15 / 0.3);
+  --ph-hk-edge: rgb(232 196 138 / 0.55);
+  --ph-hk-text: #f3d9ac;
+  --ph-hk-halo: 0 1px 2px #000, 0 0 3px #000, 0 0 3px #000;
+  /* The hot key box: a solid card over the game text. */
+  --ph-solid: #14110d;
+  --ph-solid-edge: rgb(232 196 138 / 0.3);
+  --ph-solid-shadow: inset 0 1px 0 rgb(232 196 138 / 0.16), 0 6px 18px rgb(0 0 0 / 0.8);
+  --ph-sel-text: #f3d9ac;
+  --ph-sw: #2a2520;
+  --ph-sw-edge: #5a5148;
+  --ph-sw-knob: #8a8a8a;
+  --ph-tok: rgb(232 196 138 / 0.1);
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
+  --ph-lamp: #3a3428;
+  --ph-ink: #fffaf0;
+  --ph-lamp-hi: #5e3d08;
+  --ph-well: #fbf6e8;
+  --ph-field: #fffdf8;
+  --ph-field-edge: #8a8478;
+  --ph-field-edge-on: #8a5a0e;
+  --ph-rule: #8a8478;
+  --ph-frost: #fbf6e8;
+  --ph-frost-edge: #8a8478;
+  --ph-key: rgb(251 246 232 / 0.92);
+  --ph-key-edge: #8a8478;
+  --ph-key-text: #3a3428;
+  --ph-key-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 2px 6px rgb(60 40 10 / 0.25);
+  --ph-flee: #fbe9e4;
+  --ph-flee-edge: #b3261e;
+  --ph-flee-text: #b3261e;
+  --ph-text: #111;
+  --ph-dim: #6a6256;
+  --ph-track: #d9cfb8;
+  --ph-hp: #2f8a47;
+  --ph-foe: #b3261e;
+  /* Paper: a paper-white window, a pewter band, brass for the hood's letters. */
+  --ph-scrim: rgb(40 30 10 / 0.45);
+  --ph-window: #fbf6e8;
+  --ph-window-in: none;
+  --ph-sheet-shadow: 0 -6px 18px rgb(60 40 10 / 0.35);
+  --ph-iron: linear-gradient(#f1eee6, #c9c5ba);
+  --ph-iron-hi: #fbf8f0;
+  --ph-iron-lo: #8a8478;
+  --ph-hood: linear-gradient(#f1eee6, #d8d2c4);
+  --ph-hood-text: #6b4708;
+  --ph-hood-glow: none;
+  --ph-grip: #8a5a0e;
+  --ph-card: #fffdf8;
+  --ph-card-edge: #8a8478;
+  --ph-card-lip: inset 0 1px 0 rgb(255 255 255 / 0.8);
+  --ph-row-rule: #d9cfb8;
+  --ph-chev: #8a8478;
+  --ph-body: #2b2b2b;
+  --ph-danger: #b3261e;
+  --ph-rec: #b3261e;
+  --ph-key-off: #a39c8c;
+  /* Paper: a pewter ring, a brass hairline at the glass, a warm drop shadow and no glow; the map stays dark. */
+  --ph-lens-outer: 0 0 0 8px #a9a59b, 0 6px 16px 4px rgb(60 40 10 / 0.35);
+  --ph-lens-ring:
+    repeating-radial-gradient(circle, rgb(0 0 0 / 0.07) 0 1px, rgb(0 0 0 / 0) 1px 2.3px),
+    repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0.05) 0 0.7deg, rgb(0 0 0 / 0.04) 0.7deg 1.9deg, rgb(0 0 0 / 0) 1.9deg 3.1deg),
+    linear-gradient(145deg, #f1eee6 0, #a9a59b 36%, #7c786f 70%, #c9c5ba 100%);
+  --ph-lens-ring-edge: inset 0 0 0 1px #4a463e;
+  --ph-lens-glass-in: inset 0 0 0 1px #b08a3a, inset 0 2px 5px rgb(255 255 255 / 0.22), inset 0 -8px 14px rgb(0 0 0 / 0.55);
+  --ph-pip-glow: none;
+  --ph-sat: linear-gradient(#fbf8f0, #d8d2c4);
+  --ph-sat-edge: #8a8478;
+  --ph-sat-text: #3a3428;
+  --ph-sat-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 2px 6px rgb(60 40 10 / 0.3);
+  --ph-sat-on: #8a5a0e;
+  --ph-sat-on-edge: #5e3d08;
+  --ph-sat-on-text: #fffaf0;
+  --ph-badge: #8a5a0e;
+  --ph-badge-text: #fffaf0;
+  --ph-dot: rgb(138 90 14 / 0.45);
+  --ph-dot-on: #8a5a0e;
+  --ph-hk: rgb(251 246 232 / 0.55);
+  --ph-hk-edge: rgb(138 90 14 / 0.7);
+  --ph-hk-text: #3a3428;
+  --ph-hk-halo: 0 0 2px #fbf6e8, 0 0 3px #fbf6e8, 0 0 4px #fbf6e8;
+  --ph-solid: #fbf6e8;
+  --ph-solid-edge: #8a8478;
+  --ph-solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 6px 18px rgb(60 40 10 / 0.35);
+  --ph-sel-text: #6b4708;
+  --ph-sw: #d9cfb8;
+  --ph-sw-edge: #8a8478;
+  --ph-sw-knob: #6a6256;
+  --ph-tok: rgb(138 90 14 / 0.1);
+}
+
+/* On Paper a lit key is brass with pale ink. */
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-key:active,
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-menu:active,
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
+  background: #8a5a0e;
+  border-color: #5e3d08;
+  color: #fffaf0;
+}
+
+/* ------------------------------------------------------------------- layer */
+
+/* Over the panes (z ≤ 4), under floating script panes (z ≥ 10). The layer
+ * itself takes no taps: only its parts do. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 19px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-layer {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ico {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* -------------------------------------------------------------- fight card */
+
+/* HP against HP in the fight rows (JS sets top and height from the
+ * cockpit's rectangle): You or the tank on the left, the opponent on the
+ * right, its bar filling from the right. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr);
+  align-items: end;
+  align-content: center;
+  column-gap: 8px;
+  padding: 0 10px 1px;
+  overflow: hidden;
+  pointer-events: auto;
+  background: var(--ph-well);
+  border-bottom: 1px solid var(--ph-rule);
+  contain: strict;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight[hidden] {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-name {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 15px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-side.is-right .wc-ph-fight-name {
+  text-align: right;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-vs {
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar {
+  display: block;
+  height: 6px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--ph-track);
+}
+
+/* The fill is scaled, not resized: a round of a fight lays nothing out. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transform-origin: left center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-fight-side.is-right .wc-ph-bar > i {
+  transform-origin: right center;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > .is-hp {
+  background: var(--ph-hp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > .is-foe {
+  background: var(--ph-foe);
+}
+
+/* ---------------------------------------------------------------- map lens */
+
+/* The map itself is the cockpit's map pane, placed borderless in a
+ * rectangle of whole cells that holds the lens's circle (`--ph-lens-size`,
+ * set by the phone layer). It is clipped to that circle here: one pane,
+ * one canvas, nothing re-parented. The map draws on black on every theme. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-pane-map {
+  clip-path: circle(calc(var(--ph-lens-size, 150px) / 2) at 50% 50%);
+  background: #000;
+}
+
+/* The dressing over it (src/phone/lens.ts; JS sets left, top and the
+ * size): all static paint, no filter. */
+/* The square box takes no taps: only the round glass and the keys do, so the
+ * game text in the square's corners keeps its taps and its scrolling. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens {
+  position: absolute;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-satrow[hidden] {
+  display: none;
+}
+
+/* The tap target: the whole glass. Its outer shadow is the ring's dark bed, the lamp's glow and the drop shadow. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-glass {
+  position: absolute;
+  inset: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: var(--ph-lens-outer);
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-refl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The glass: a soft light from above, the edge darkening, the rim. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 40% at 50% -8%, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0) 64%),
+    radial-gradient(circle at 50% 50%, rgb(0 0 0 / 0) 58%, rgb(0 0 0 / 0.55) 100%);
+  box-shadow: var(--ph-lens-glass-in);
+}
+
+/* The ring: an 8 px band round the glass, cut out of a disc by a mask. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--ph-lens-ring);
+  box-shadow: var(--ph-lens-ring-edge);
+  -webkit-mask-image: radial-gradient(circle, transparent calc(var(--ph-lens-size, 150px) / 2 - 0.5px), #000 calc(var(--ph-lens-size, 150px) / 2));
+  mask-image: radial-gradient(circle, transparent calc(var(--ph-lens-size, 150px) / 2 - 0.5px), #000 calc(var(--ph-lens-size, 150px) / 2));
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-pips {
+  position: absolute;
+  left: 50%;
+  bottom: 9px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-pips > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ph-pip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-pips > i.is-on {
+  background: var(--ph-pip-on);
+  box-shadow: var(--ph-pip-glow);
+}
+
+/* The round keys on the lens's corners (40 px; they overhang by 10 px). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ph-sat-edge);
+  border-radius: 50%;
+  background: var(--ph-sat);
+  color: var(--ph-sat-text);
+  box-shadow: var(--ph-sat-shadow);
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat.is-tr {
+  right: -10px;
+  top: -10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat.is-tl {
+  left: -10px;
+  top: -10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat.is-br {
+  right: -10px;
+  bottom: -10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat[hidden] {
+  display: none;
+}
+
+/* A key whose feature is open (the strip, Comm): lit by the lamp. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat.is-on {
+  background: var(--ph-sat-on);
+  border-color: var(--ph-sat-on-edge);
+  color: var(--ph-sat-on-text);
+}
+
+/* The Comm key's unread count. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-badge {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--ph-badge);
+  color: var(--ph-badge-text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-badge[hidden] {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat:active {
+  background: var(--ph-pip-on);
+  border-color: var(--ph-lamp-hi);
+  color: var(--ph-ink);
+}
+
+/* The lens hidden: its keys stay as a row at the top right (JS sets top). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-satrow {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-satrow > .wc-ph-sat {
+  position: relative;
+}
+
+/* ------------------------------------------------------------- pane strip */
+
+/* The strip's pane is the cockpit's (borderless, in the strip's rows, its
+ * first and last row left to the chrome below). A sideways drag on it is
+ * the strip's swipe; a vertical one scrolls its content. Nothing of the
+ * pane's own look is changed. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-pane[data-phone-strip] {
+  touch-action: pan-y;
+}
+
+/* The chrome over the strip's rows (src/phone/strip.ts; JS sets top and
+ * height): it takes no taps itself, the pane under it does. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band[hidden] {
+  display: none;
+}
+
+/* The pane's name: the hood of the menu sheet, smaller: 16 px high in all, the room the cockpit
+ * leaves it above the pane's first line (cockpit.ts `PHONE_STRIP_CHROME_PX`). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-hood {
+  box-sizing: border-box;
+  height: 16px;
+  padding: 0 16px 1px;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots {
+  position: absolute;
+  left: 50%;
+  /* Dots and edge together stay inside the 16 px under the pane's last line. */
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ph-dot);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i.is-on {
+  background: var(--ph-dot-on);
+  box-shadow: var(--ph-pip-glow);
+}
+
+/* The strip's lower edge: a thin iron band over the game text's top. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+}
+
+/* ------------------------------------------------------------------- Comm */
+
+/* Comm is the cockpit's Comm pane in its phone mode (`data-phone` on its
+ * root): always the rail, no spine to drag (the column settings are the
+ * desktop's), and a reply line a thumb can hit. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] > .wc-cm-spine {
+  display: none;
+}
+
+/* (The textarea's one-row behaviour is comm.css's: it holds wherever the phone's Comm shows.) The
+ * margin under it is the resize band's grip (below). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply {
+  box-sizing: border-box;
+  min-height: 40px;
+  margin: 4px 8px 16px;
+  padding: 0 12px;
+}
+
+/* The placeholder at the command field's strength (the pane's own is a faint mix, under 4.5:1). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput::placeholder {
+  color: var(--ph-dim);
+  opacity: 1;
+}
+
+/* Not in play (a password prompt): plainly off. The row loses its ground and its lit edge for a dashed one. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput:disabled {
+  opacity: 0.6;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply:has(.wc-cm-rinput:disabled) {
+  border-left-style: dashed;
+  background: none;
+  box-shadow: none;
+  outline: 1px dashed var(--ph-field-edge);
+  outline-offset: -1px;
+}
+
+/* The resize band on Comm's last row (src/phone/comm-chrome.ts; JS sets top
+ * and height): iron with a lit bar. Its grip reaches below it for a thumb. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+  pointer-events: auto;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band > i {
+  display: block;
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band[data-dragging] {
+  z-index: 1;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.6);
+}
+
+/* The grip: the band, the 16 px of Comm above it (the reply line's margin) and 10 px of the game
+ * text below it, no more: the first game line under the band still scrolls the output. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-grip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -16px;
+  bottom: -10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: ns-resize;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ----------------------------------------------------------------- compass */
+
+/* From the bottom edge, right: 3 × 3 keys of 40 px. The pad takes the taps
+ * in its gaps too, so a near miss never reaches the game text under it. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-pad {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, var(--ph-ck, 40px));
+  grid-auto-rows: var(--ph-ck, 40px);
+  gap: 3px;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+/* Typing: the keys step aside (ADR 0136 §9). */
+html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-pad {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ph-key-edge);
+  border-radius: 9px;
+  background: var(--ph-key);
+  color: var(--ph-key-text);
+  box-shadow: var(--ph-key-shadow);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key .wc-ph-ico {
+  width: 18px;
+  height: 18px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-flee {
+  border-color: var(--ph-flee-edge);
+  background: var(--ph-flee);
+  color: var(--ph-flee-text);
+  font-weight: 700;
+}
+
+/* The press shows: a key lit by the lamp. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu:active,
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
+  background: var(--ph-lamp);
+  border-color: var(--ph-lamp-hi);
+  color: var(--ph-ink);
+}
+
+/* ---------------------------------------------------------------- hot keys */
+
+/* The K key: the compass's cell left of N. No key face; a 24 px ring that
+ * is lit while the column shows. The cell is the 40 px target. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog:active,
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-key.is-tog:active {
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-kk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ph-hk-edge);
+  border-radius: 50%;
+  color: var(--ph-grip);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  text-shadow: var(--ph-hk-halo);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog.is-on .wc-ph-kk {
+  border-color: var(--ph-sat-on-edge);
+  background: var(--ph-sat-on);
+  color: var(--ph-sat-on-text);
+  text-shadow: none;
+}
+
+/* The column: along the right edge above the compass, K1 lowest. It takes
+ * the taps in its gaps too. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot {
+  position: absolute;
+  right: 8px;
+  /* Above the compass: its three keys, two gaps and margin, and 8 px of air (compass-size.ts). */
+  bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
+  display: grid;
+  grid-template-columns: var(--ph-ck, 40px);
+  grid-auto-rows: var(--ph-ck, 40px);
+  gap: 3px;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot[hidden],
+html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-hot {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ph-hk-edge);
+  border-radius: 50%;
+  background: var(--ph-hk);
+  color: var(--ph-hk-text);
+  font: inherit;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-shadow: var(--ph-hk-halo);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Pressed, and while its box is open: lit. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hk.is-held {
+  border-color: var(--ph-sat-on-edge);
+  background: var(--ph-sat-on);
+  color: var(--ph-sat-on-text);
+  text-shadow: none;
+}
+
+/* The box a held key opens: left of the column, its foot level with the
+ * column's (the layer sets `bottom` and `max-height`; with the keyboard up
+ * it stands over the command row). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb {
+  position: absolute;
+  right: calc(var(--ph-ck, 40px) + 16px);
+  bottom: calc(var(--ph-ck, 40px) * 3 + 22px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(286px, calc(100% - var(--ph-ck, 40px) - 24px));
+  border: 1px solid var(--ph-solid-edge);
+  border-radius: 10px;
+  background: var(--ph-solid);
+  box-shadow: var(--ph-solid-shadow);
+  color: var(--ph-body);
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb [hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-fin[hidden] {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-in {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-n {
+  position: absolute;
+  right: -6px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid var(--ph-solid-edge);
+  border-right: 1px solid var(--ph-solid-edge);
+  background: var(--ph-solid);
+  transform: rotate(45deg);
+}
+
+html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-rb-n {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-t {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-k,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-h {
+  flex: none;
+  color: var(--ph-hood-text);
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: var(--ph-hood-glow);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-k {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-h {
+  display: block;
+  font-size: 10px;
+  line-height: 12px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb button {
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sw {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  margin: -8px 0;
+  padding: 0;
+  color: var(--ph-text);
+  font-size: 12px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sw i {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 44px;
+  height: 26px;
+  border: 1px solid var(--ph-sw-edge);
+  border-radius: 13px;
+  background: var(--ph-sw);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sw i::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ph-sw-knob);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sw[aria-checked="true"] i {
+  border-color: var(--ph-sat-on-edge);
+  background: var(--ph-sat-on);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sw[aria-checked="true"] i::after {
+  left: 20px;
+  background: var(--ph-sat-on-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-f {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-f .wc-ph-rb-h {
+  margin-bottom: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-fl {
+  flex: none;
+  width: 64px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-fc {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 16 px in the fields: below that iOS zooms the page when one takes the focus. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-fin {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--ph-field-edge);
+  border-radius: 8px;
+  background: var(--ph-field);
+  color: var(--ph-text);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb input.wc-ph-fin:focus {
+  border-color: var(--ph-field-edge-on);
+  outline: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-rb-tok {
+  height: 56px;
+  text-align: left;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-tok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--ph-grip);
+  border-radius: 6px;
+  background: var(--ph-tok);
+  color: var(--ph-sel-text);
+  font-size: 12px;
+  line-height: 15px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-ico {
+  width: 14px;
+  height: 14px;
+  color: var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--ph-dim);
+  font-size: 10px;
+  line-height: 12px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-say {
+  flex: none;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-err {
+  flex: none;
+  color: var(--ph-danger);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-chips {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 12px 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-spec {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 32 px high to the eye; the tap reaches 6 px above and below (44 px). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-chip {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--ph-card-edge);
+  border-radius: 16px;
+  background: var(--ph-card);
+  box-shadow: var(--ph-card-lip);
+  color: var(--ph-text);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-chip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -6px;
+  bottom: -6px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-chip.is-wide {
+  flex: none;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 0 10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-chip.is-sel {
+  border-color: var(--ph-grip);
+  box-shadow: 0 0 0 1px var(--ph-grip), var(--ph-card-lip);
+  color: var(--ph-sel-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-a {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-bt {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  color: var(--ph-body);
+  font-size: 13px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb .wc-ph-bt.is-go {
+  background: var(--ph-sat-on);
+  color: var(--ph-sat-on-text);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------- command row */
+
+/* The cockpit gives the command row whole cell rows (`commandRows`,
+ * src/layout/phone-game.ts: what the 44 px targets need); the menu key and
+ * the field are centred in them. The field ends left of the compass
+ * (3 × 40 + 2 × 3 + 8 px, and 8 px of air). The row has no ground of its
+ * own: no game text lies under it, and a ground would end at the last
+ * whole cell, short of the screen's right and bottom edges (seen on
+ * Paper). The input pane itself is unchanged: its prompt and clock strip
+ * are not shown here (ADR 0136 §9). */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 0 calc(var(--ph-ck, 40px) * 3 + 22px) 0 8px;
+}
+
+/* Typing: the field takes the full width. */
+html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
+  padding-right: 8px;
+}
+
+/* "Window too small" (letters too large for the screen): the command row
+ * is hidden and inert, so a second menu key stands over the notice, where
+ * the first one is. The menu's A− is the way out. Not shown otherwise. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-rescue {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 350;
+  visibility: visible;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu,
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-rescue {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-lamp);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input {
+  flex: 1 1 auto;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 44px;
+  max-height: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--ph-field-edge);
+  border-radius: 10px;
+  background: var(--ph-field);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input:focus-within {
+  border-color: var(--ph-field-edge-on);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-prompt,
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-clock {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::placeholder {
+  color: var(--ph-dim);
+  opacity: 1;
+}
+
+/* The old `☰` (src/app/shell.ts keeps it when the phone layer could not be mounted): it sits at
+ * the field's end, inside its edge. A key of its own there, not a glyph over the text. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input > .wc-menu-btn:not(.wc-ph-menu) {
+  flex: 0 0 44px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  margin: 0 -12px 0 8px;
+  border-left: 1px solid var(--ph-field-edge);
+  color: var(--ph-lamp);
+  text-align: center;
+}
+
+/* Not typing: no hollow caret over the placeholder. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-caret.wc-blurred {
+  display: none;
+}
+
+/* -------------------------------------------------------------------- menu */
+
+/* The menu's host (src/phone/menu-sheet.tsx): over the phone layer, the
+ * floating script panes and the cockpit's too-small notice (z 300): with
+ * letters too large for the screen the menu's A− is the way out. Hidden
+ * (and empty) while the menu is closed. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-host {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 19px;
+  letter-spacing: normal;
+  white-space: normal;
+  color: var(--ph-text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-host[hidden] {
+  display: none;
+}
+
+/* The too-small notice hides everything else in the cockpit (layout.css); not the open menu. */
+html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-host {
+  visibility: visible;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface {
+  position: absolute;
+  inset: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ico.is-small {
+  width: 18px;
+  height: 18px;
+}
+
+/* A tap outside the sheet closes the menu. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--ph-scrim);
+  cursor: default;
+}
+
+/* The sheet: from the bottom edge, as high as its rows; it scrolls where
+ * the screen is lower (landscape, the keyboard up). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  border-radius: 12px 12px 0 0;
+  box-shadow: var(--ph-sheet-shadow);
+}
+
+/* The top band: iron with a lit grip; a swipe down on it closes the sheet. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+  border-radius: 12px 12px 0 0;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+  touch-action: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-top > i {
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ph-window);
+  box-shadow: var(--ph-window-in);
+}
+
+/* The hood: a small iron tab under the band, the title in Cinzel. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hood {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  padding: 2px 18px 4px;
+  border: 1px solid var(--ph-iron-lo);
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  background: var(--ph-hood);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.3);
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ph-hood-text);
+  text-shadow: var(--ph-hood-glow);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-status-t {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rec {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rec > i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ph-rec);
+}
+
+/* A frosted card of rows. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ph-card-edge);
+  border-radius: 8px;
+  background: var(--ph-card);
+  box-shadow: var(--ph-card-lip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rows {
+  flex: none;
+  margin-top: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 56px;
+  padding: 0 12px;
+  text-align: left;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row + .wc-ph-row,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow + .wc-ph-srow {
+  border-top: 1px solid var(--ph-row-rule);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row > .wc-ph-ico {
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row-t,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row-v,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow-v {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-chev {
+  color: var(--ph-chev);
+}
+
+/* The link is down: Reconnect is the lit row. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row.is-lit {
+  border-radius: 7px 7px 0 0;
+  background: var(--ph-lamp);
+  color: var(--ph-ink);
+  font-weight: 700;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row.is-lit > .wc-ph-ico,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-row.is-lit > .wc-ph-row-v {
+  color: var(--ph-ink);
+}
+
+/* The quick row: text size on the left, the two themes on the right. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-quick {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-tiny {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-tiny.is-on {
+  color: var(--ph-lamp);
+}
+
+/* The stepper: two 44 px keys round the value. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-step {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-lamp);
+  font-weight: 700;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key.is-less {
+  font-size: 12px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key.is-more {
+  font-size: 17px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key[aria-disabled="true"] {
+  color: var(--ph-key-off);
+  cursor: default;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-step-val {
+  width: 36px;
+  text-align: center;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-themes {
+  display: flex;
+  gap: 16px;
+  padding-right: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch {
+  display: block;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #5a5148;
+  border-radius: 50%;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-black {
+  background: #000;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-paper {
+  background: #f4ecd8;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-swatch.is-on {
+  box-shadow: 0 0 0 2px var(--ph-well), 0 0 0 4px var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  margin-top: 16px;
+  border: 1px solid var(--ph-danger);
+  border-radius: 10px;
+  color: var(--ph-danger);
+  font-weight: 700;
+}
+
+/* The pressed key shows (rows, keys, Exit). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-pick:active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key:not([aria-disabled="true"]):active,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-exit:active {
+  background: var(--ph-row-rule);
+}
+
+/* ----------------------------------------------------------- settings page */
+
+/* A full-height page over the game: an iron band with Back, the hood, and
+ * the groups in a column that scrolls. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ph-well);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-band {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 2px;
+  background: var(--ph-iron);
+  border-top: 1px solid var(--ph-iron-hi);
+  border-bottom: 1px solid var(--ph-iron-lo);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--ph-hood-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-page-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 0 0;
+  background: var(--ph-window);
+  box-shadow: var(--ph-window-in);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-col {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-grp {
+  margin-bottom: 24px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-grp-t {
+  display: block;
+  margin-bottom: 8px;
+  padding: 0 4px;
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ph-hood-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-cap {
+  display: block;
+  margin: 6px 4px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ph-dim);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-on {
+  color: var(--ph-lamp);
+  font-weight: 700;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-check {
+  color: var(--ph-lamp);
+}
+
+/* The chosen option of a segmented control: the kit's lit glass is faint at this size (on Paper
+ * white on white), so it also gets a fine brass ring. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-lk-seg .wc-lk-opt.is-on {
+  box-shadow: inset 0 0 0 1px var(--ph-grip);
+}
+
+/* The kit's segmented control in a row: one line, never wrapped. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow .wc-lk-seg {
+  flex: none;
+  flex-wrap: nowrap;
+}
+
+/* A list whose rows move up and down (Panes): the two keys, the name, the switch. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-order {
+  padding-left: 2px;
+  gap: 2px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow.is-order > .wc-ph-srow-t {
+  padding-left: 6px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-move {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-move[aria-disabled="true"] {
+  color: var(--ph-key-off);
+  cursor: default;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-move:not([aria-disabled="true"]):active {
+  background: var(--ph-row-rule);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-srow .wc-lk-opt {
+  justify-content: center;
+  min-width: 64px;
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+/* ------------------------------------------------- fullscreen corner button */
+
+/* The fixed corner button (ADR 0097) is not shown while the phone's game
+ * layout is up (ADR 0136 §4); it stays on the start page. */
+html.wc-phone.wc-phone-game .wc-fs-btn {
+  display: none;
+}
+
+/* ----------------------------------------------------------------- weather */
+
+/* The weather's front layer (src/weather/weather.css puts it over every
+ * pane, z 90) lies under the phone's chrome here: over the game text and
+ * the panes, as on a computer, but behind the fight card, the lens, the
+ * keys, the strip's hood and the menu (the layer, z 8). ADR 0136 §11. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-weather-front {
+  z-index: 5;
+}

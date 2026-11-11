@@ -16,7 +16,7 @@ const rectEq = (a: Rect, b: Rect): boolean => near(a.x, b.x) && near(a.y, b.y) &
 export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'layout' {
   if (!a) return 'layout';
   if (!near(a.W, b.W) || !near(a.H, b.H) || a.dpr !== b.dpr) return 'layout';
-  if (!rectEq(a.out, b.out)) return 'layout';
+  if (!rectEq(a.out, b.out) || !a.noBand !== !b.noBand) return 'layout';
   const pa = a.protect, pb = b.protect;
   if (!near(pa.solidTop, pb.solidTop) || !near(pa.fadeTop, pb.fadeTop) || !near(pa.left, pb.left)) return 'layout';
   const ca = a.cell, cb = b.cell;
@@ -165,5 +165,7 @@ export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
     panes,
     protect: protectFor(W, out.y + out.h, cell.h, cell.size),
     cell,
+    // The phone's layout in the live game (the cockpit's `phoneGame`): no left band there (ADR 0136 §11).
+    ...(root.hasAttribute('data-phone-game') ? { noBand: true } : {}),
   };
 }

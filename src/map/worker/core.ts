@@ -208,6 +208,14 @@ export class MapWorkerCore {
         this.touch();
         this.setView(zoomAt(this.view, m.steps, m.x, m.y, this.css.w, this.css.h));
         return;
+      case 'zoomTo': {
+        // The centre stays: the lens keeps the player in the middle.
+        const zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, m.zoom));
+        if (!Number.isFinite(zoom) || zoom === this.view.zoom) return;
+        this.touch();
+        this.setView({ ...this.view, zoom });
+        return;
+      }
       case 'visible':
         this.visible = m.visible;
         if (m.visible) {

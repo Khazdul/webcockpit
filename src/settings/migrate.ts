@@ -56,6 +56,22 @@ import {
   MAP_HOVER_MODES,
   MAP_HOVER_SIZES,
   type MapperSettings,
+  PHONE_COMM_ROWS_MAX,
+  PHONE_COMM_ROWS_MIN,
+  PHONE_COMPASS_SIZES,
+  PHONE_HOTKEY_COMMAND_MAX,
+  PHONE_HOTKEY_COUNT,
+  PHONE_HOTKEY_LABEL_MAX,
+  PHONE_HOTKEY_SPECIALS,
+  PHONE_LENS_LEVELS,
+  PHONE_LENS_SIZES,
+  PHONE_STRIP_PANES,
+  PHONE_UNREAD_MODES,
+  type PhoneHotkey,
+  type PhoneSettings,
+  type PhoneStripEntry,
+  type PhoneStripPane,
+  defaultPhoneSettings,
   PADDING_MAX,
   PADDING_MIN,
   PADDING_STEP,
@@ -506,6 +522,101 @@ export function migrateWindows(raw: unknown): WindowSettings {
   return out;
 }
 
+/** The phone's settings from anything (additive in stage 51, ADR 0136 §13: absent is the defaults). */
+export function migratePhone(raw: unknown): PhoneSettings {
+  const d = defaultPhoneSettings();
+  const p = isObj(raw) ? raw : {};
+  const l = isObj(p.lens) ? p.lens : {};
+  return {
+    lens: {
+      show: bool(l.show, d.lens.show),
+      size: oneOf(l.size, PHONE_LENS_SIZES, d.lens.size),
+      opensAt: oneOf(l.opensAt, PHONE_LENS_LEVELS, d.lens.opensAt),
+    },
+    strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined) },
+    commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
+    unread: oneOf(p.unread, PHONE_UNREAD_MODES, d.unread),
+    hotkeys: migrateHotkeys(p.hotkeys, d.hotkeys),
+    hotkeysOpen: bool(p.hotkeysOpen, d.hotkeysOpen),
+    compassSize: oneOf(p.compassSize, PHONE_COMPASS_SIZES, d.compassSize),
+    vibrate: bool(p.vibrate, d.vibrate),
+    wakeLock: bool(p.wakeLock, d.wakeLock),
+    autoReconnect: bool(p.autoReconnect, d.autoReconnect),
+  };
+}
+
+/**
+ * The hot keys from anything: always `PHONE_HOTKEY_COUNT`, slot by slot (a
+ * short list is filled with the defaults of the missing slots, a long one
+ * is cut). A label is cut to its length and a command to one line; a key
+ * that would send nothing (no command and no known special) or show
+ * nothing (no label) is the slot's default instead, so a stored key is
+ * never a dead control.
+ */
+/**
+ * A label's characters as a reader counts them: grapheme clusters where
+ * `Intl.Segmenter` exists, else code points (as src/phone/hotkey-model.ts
+ * `characters`, which the phone's own chunk keeps for itself).
+ */
+function labelChars(text: string): string[] {
+  // Every settings write on every device passes here (three labels): the common label, a few
+  // ASCII letters, needs no segmenter, and the one for the rest is made once.
+  if (/^[\x20-\x7e]*$/.test(text)) return text.split('');
+  const Seg = (Intl as { Segmenter?: SegmenterCtor }).Segmenter;
+  if (!Seg) return [...text];
+  if (segmenter === null || segmenterCtor !== Seg) {
+    segmenterCtor = Seg;
+    segmenter = new Seg(undefined, { granularity: 'grapheme' });
+  }
+  return Array.from(segmenter.segment(text), (s) => s.segment);
+}
+
+type SegmenterCtor = new (l?: string, o?: { granularity: 'grapheme' }) => { segment(t: string): Iterable<{ segment: string }> };
+/** The one grapheme segmenter, made at its first use (and again only if `Intl.Segmenter` itself was replaced: tests). */
+let segmenter: InstanceType<SegmenterCtor> | null = null;
+let segmenterCtor: SegmenterCtor | null = null;
+
+function migrateHotkeys(raw: unknown, dflt: PhoneHotkey[]): PhoneHotkey[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const out: PhoneHotkey[] = [];
+  for (let i = 0; i < PHONE_HOTKEY_COUNT; i++) {
+    const d = dflt[i]!;
+    const e: unknown = list[i];
+    if (!isObj(e)) {
+      out.push(d);
+      continue;
+    }
+    const special = oneOf(e.special, [...PHONE_HOTKEY_SPECIALS, null], null);
+    const command = typeof e.command === 'string' ? e.command.replace(/[\r\n]+/g, ' ').trim().slice(0, PHONE_HOTKEY_COMMAND_MAX) : '';
+    const label = typeof e.label === 'string' ? labelChars(e.label.replace(/\s+/g, ' ').trim()).slice(0, PHONE_HOTKEY_LABEL_MAX).join('').trim() : '';
+    if (label === '' || (special === null && command === '')) {
+      // The stored choice to hide the key is kept.
+      out.push({ ...d, shown: bool(e.shown, d.shown) });
+      continue;
+    }
+    out.push({ label, command: special === null ? command : '', special, shown: bool(e.shown, true) });
+  }
+  return out;
+}
+
+/**
+ * The strip's panes from anything: every known pane exactly once, the
+ * stored ones first in their stored order (a repeat or an unknown id is
+ * dropped), then the missing ones in the default order, on.
+ */
+function migrateStripPanes(raw: unknown): PhoneStripEntry[] {
+  const out: PhoneStripEntry[] = [];
+  const seen = new Set<string>();
+  for (const e of Array.isArray(raw) ? raw : []) {
+    if (!isObj(e) || typeof e.id !== 'string' || seen.has(e.id)) continue;
+    if (!(PHONE_STRIP_PANES as readonly string[]).includes(e.id)) continue;
+    seen.add(e.id);
+    out.push({ id: e.id as PhoneStripPane, on: bool(e.on, true) });
+  }
+  for (const id of PHONE_STRIP_PANES) if (!seen.has(id)) out.push({ id, on: true });
+  return out;
+}
+
 /** Options for `migrateSettings`. */
 export interface MigrateOptions {
   /** A phone (ADR 0081): sections that default differently there (the weather, ADR 0092). */
@@ -534,5 +645,6 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     mapper: migrateMapper(s.mapper, fromVersion),
     weather: migrateWeather(s.weather, opts.phone ?? false),
     windows: migrateWindows(s.windows),
+    phone: migratePhone(s.phone),
   };
 }

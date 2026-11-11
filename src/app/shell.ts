@@ -30,8 +30,12 @@
 // desktop and tablet the menu bar's Disconnected notice takes its place
 // (src/menubar/menubar.ts), and Enter still reconnects.
 //
-// Menu bar (ADR 0099): desktop and tablet (`device().phone` keeps the
-// clock strip and `☰`; a tablet uses the bar by touch, ADR 0112). The
+// Menu bar (ADR 0099): desktop and tablet (a phone has no bar; a tablet
+// uses the bar by touch, ADR 0112). On a phone the live game has its own
+// layout (ADR 0136, stage 51): the App is built with `phoneGame`, the
+// phone layer (src/phone/, a chunk fetched only on a phone) is mounted
+// over its cockpit with the menu key in the command row, and `<html>` is
+// marked `wc-phone-game` while the cockpit is the visible view. The
 // cockpit's `ui` hands it `exitSession`; its popups close when the cockpit
 // is hidden. On the phone `ui.openMenuAt` opens the ESC menu straight at
 // the profile editor, Options → Scripts, Options, Panes or Exit (leaving
@@ -120,7 +124,7 @@ import type { ChainRun } from '../player/timeline';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
-import { REASON_USER_DISCONNECT, REASON_USER_RECONNECT } from '../net/session';
+import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, RESUME_PING_TIMEOUT_MS } from '../net/session';
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
 import type { CellMetrics } from '../theme/cells';
@@ -133,7 +137,10 @@ import { NEW_USER_SCRIPTS, ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
+import { PHONE_KIT } from './phone-kit';
+import { PHONE_MAX_SHORT_SIDE } from '../core/device';
 import { device } from '../core/device';
+import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from './auto-reconnect';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
 import { REVEAL_FADE_MS, bootDone, bootStep, revealStart } from './boot-progress';
@@ -178,12 +185,40 @@ export interface ShellOptions {
   fontsReady?: Promise<void>;
 }
 
+/**
+ * True when `win` is as small as a phone's screen: its short side is under
+ * `PHONE_MAX_SHORT_SIDE` CSS px. An unknown size (no window, a 0 × 0 one)
+ * counts as a phone's.
+ */
+export function phoneSizeWindow(win: Pick<Window, 'innerWidth' | 'innerHeight'> | null | undefined): boolean {
+  const w = win?.innerWidth ?? 0;
+  const h = win?.innerHeight ?? 0;
+  if (!(w > 0 && h > 0)) return true;
+  return Math.min(w, h) < PHONE_MAX_SHORT_SIDE;
+}
+
 export class Shell {
   private readonly opts: ShellOptions;
   readonly profiles: ProfileStore;
   private appRef: App | null = null;
   private appWaiters: Array<(app: App) => void> = [];
   private chromeP: Promise<ChromeModule> | null = null;
+  /** Phone only: the phone layer's chunk (src/phone/, ADR 0136). */
+  private phoneP: Promise<typeof import('../phone')> | null = null;
+  /**
+   * The phone's layout in the live game is used (ADR 0136 §1): the phone
+   * flag is on and the window is a phone's (its short side under 600 CSS
+   * px, as the flag's own rule). A phone flag forced with `?phone=1` on a
+   * desktop-size window keeps the old phone layout (the tab strip, `☰` and
+   * the ESC menu, ADR 0075): that is what the desktop projects' specs of
+   * the Options frames open, and a phone's layout is not made for it.
+   * Decided once, when the shell is built.
+   */
+  private readonly phoneGame: boolean;
+  /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
+  private phoneLayer: import('../phone').PhoneLayer | null = null;
+  /** Phone game layout: the automatic reconnect's memory (auto-reconnect.ts). */
+  private autoState = AUTO_RECONNECT_IDLE;
   private startHost: HTMLDivElement;
   private startMount: HTMLDivElement;
   private menuHost: HTMLDivElement;
@@ -219,6 +254,7 @@ export class Shell {
     this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
+    this.phoneGame = device().phone && phoneSizeWindow(doc.defaultView);
     // index.html's first paint draws the banner in a start page host of its
     // own (ADR 0083): the start page is mounted beside it, in the same box.
     const first = doc.getElementById('wc-start-host');
@@ -261,6 +297,8 @@ export class Shell {
   async boot(): Promise<void> {
     void this.initProfiles();
     void this.newUserScripts();
+    // Phone only (ADR 0136): fetch the phone layer now, so it is there when the game opens.
+    if (this.phoneGame) void this.loadPhone().catch(() => {});
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
       if (!this.opts.probe) this.prefetchChrome();
@@ -383,22 +421,51 @@ export class Shell {
       this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter() });
     }
     this.menu?.close();
+    this.phoneLayer?.menu.close(true);
     this.showStart();
   }
 
   /**
-   * Opens the ESC menu over the cockpit (no-op elsewhere or when open), at
-   * `target`'s frame when given. The phone only: where the menu bar exists
-   * there is no ESC menu (ADR 0112).
+   * Opens the menu over the cockpit (no-op elsewhere), at `target` when
+   * given. The phone only: where the menu bar exists there is no menu
+   * (ADR 0112).
+   *
+   * With the phone layer up (ADR 0136 §10) the menu is its bottom sheet:
+   * no target opens the sheet (a dropped link lights its Reconnect by
+   * itself, from the status), `settings` and `panes` open the phone's
+   * settings page (`panes` at its Panes group), and `profile`,
+   * `scripts` and `exit` open the existing pages straight at their frame in
+   * the ESC menu's overlay, as before. Without the layer (its chunk could
+   * not be loaded) everything is the ESC menu, as before stage 51.
    */
   async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
     if (!this.inCockpit || !this.appRef || this.appRef.menuBar) return;
+    const sheet = this.phoneLayer?.menu;
+    if (sheet) {
+      // A page of the overlay is up: it has the screen (and its own Esc).
+      if (this.menu?.isOpen) return;
+      if (!target) {
+        sheet.open();
+        return;
+      }
+      if (target === 'settings' || target === 'panes') {
+        // `#panes`: the page at its Panes group (the strip's panes and their order).
+        sheet.openSettings(sheet.showing === 'sheet' ? 'sheet' : 'game', target === 'panes' ? 'panes' : undefined);
+        return;
+      }
+      sheet.close(true);
+    }
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
     menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
   }
 
-  /** The phone's menu button (`☰`); a tap opens the ESC menu without focusing the input. */
+  /**
+   * The phone's old menu button (`☰`) at the end of the input row; a tap
+   * opens the ESC menu without focusing the input. Since stage 51 (ADR
+   * 0136) the phone layer has its own menu key: this one is only the way
+   * into the menu when the phone layer's chunk could not be loaded.
+   */
   private menuButton(doc: Document): HTMLSpanElement {
     const b = doc.createElement('span');
     b.className = 'wc-menu-btn';
@@ -417,11 +484,23 @@ export class Shell {
   /** Closes the ESC menu and gives the input its focus back. */
   closeMenu(): void {
     this.menu?.close();
+    this.phoneLayer?.menu.close(true);
     if (this.inCockpit) this.appRef?.input.focus();
   }
 
+  /** True while the ESC menu's overlay or the phone's menu sheet (or its settings page) is open. */
   get menuOpen(): boolean {
-    return this.menu?.isOpen ?? false;
+    return (this.menu?.isOpen ?? false) || (this.phoneLayer?.menu.isOpen ?? false);
+  }
+
+  /**
+   * Phone only: Esc in the command line and `#menu`. With the phone's menu
+   * open it goes one step back (a list to its page, the settings page to
+   * the sheet, the sheet closed); otherwise the menu opens.
+   */
+  private escapeMenu(): void {
+    if (this.phoneLayer?.menu.back()) return;
+    void this.openMenu();
   }
 
   // -------------------------------------------------------------- windows
@@ -640,6 +719,7 @@ export class Shell {
     this.windows?.closeAll();
     this.appRef?.menuBar?.setShown(false);
     if (this.appRef) this.appRef.el.style.display = 'none';
+    this.markPhoneGame(false);
     this.startHost.style.display = '';
     this.start?.show();
     if (!this.swept) {
@@ -657,8 +737,27 @@ export class Shell {
     }
     app.el.style.display = '';
     this.inCockpit = true;
+    this.markPhoneGame(true);
     app.menuBar?.setShown(true);
     app.input.focus();
+  }
+
+  /**
+   * Phone only (ADR 0136 §4): marks `<html>` `wc-phone-game` while the
+   * phone's game layout is the visible view, so the fixed fullscreen
+   * corner button (ADR 0097) is hidden there and stays on the start page
+   * (src/phone/phone.css). Nothing on a desktop or a tablet.
+   */
+  private markPhoneGame(on: boolean): void {
+    if (!this.phoneGame) return;
+    this.opts.root.ownerDocument.documentElement.classList.toggle('wc-phone-game', on);
+  }
+
+  /** Phone only: the phone layer's chunk (ADR 0136); a failed load may be tried again. */
+  private loadPhone(): Promise<typeof import('../phone')> {
+    this.phoneP ??= import('../phone');
+    this.phoneP.catch(() => (this.phoneP = null));
+    return this.phoneP;
   }
 
   private ensureApp(): App {
@@ -675,13 +774,22 @@ export class Shell {
       scripts: this.scripts,
       map: this.maps.host({ persistIds: true }),
       // The ESC menu is the phone's only (ADR 0112): Esc, `#menu` and the menu targets.
-      ...(device().phone ? { onEscape: () => void this.openMenu() } : {}),
+      ...(device().phone ? { onEscape: () => this.escapeMenu() } : {}),
       ui: {
         bar: !device().phone,
         exit: () => void this.exitSession(),
         // The windows (ADR 0103) and popups where the bar exists.
         ...(device().phone
-          ? { openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target) }
+          ? {
+              openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target),
+              // The Statistics pane is a page of the phone's pane strip (ADR 0136 §5): its view, as on the desktop.
+              ...(this.phoneGame
+                ? {
+                    mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
+                      this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
+                  }
+                : {}),
+            }
           : {
               toggleWindow: (id: WindowId) => void this.toggleWindow(id),
               toggleSettings: () => void this.toggleSettings(),
@@ -693,6 +801,8 @@ export class Shell {
             }),
       },
       weather: installWeather,
+      // Phone only (ADR 0136): the phone's layout in the live game.
+      ...(this.phoneGame ? { phoneGame: true } : {}),
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
     });
     // Keep the menu host last, so the overlay is above the cockpit in DOM order too.
@@ -704,15 +814,78 @@ export class Shell {
       rowEnd.before(new NoticeIndicator(root.ownerDocument, notices, CLIENT_VERSION).el);
       notices.attach(app.bus);
     }
-    // Phone only (ADR 0075, ADR 0112): a `☰` at the end of the input row
-    // opens the ESC menu, as Esc does. Desktop and tablet have the bar.
-    if (device().phone) rowEnd.after(this.menuButton(root.ownerDocument));
+    // Phone only (ADR 0136): the phone layer over the cockpit (fight card,
+    // compass, the menu key in the command row; its chunk is not loaded
+    // elsewhere). The menu key opens the ESC menu, as Esc does (ADR 0112).
+    // Should the chunk be gone, the old `☰` is the way into the menu.
+    // Desktop and tablet have the bar. A phone flag forced on a
+    // desktop-size window (`phoneGame` false) keeps the old layout: its `☰`
+    // and the ESC menu, as before stage 51.
+    if (device().phone && !this.phoneGame) rowEnd.after(this.menuButton(root.ownerDocument));
+    if (this.phoneGame) {
+      // The old `☰` at once, so there is never a moment without a menu key;
+      // it goes when the layer is up, and stays if the chunk cannot be
+      // loaded or the mount throws.
+      const old = this.menuButton(root.ownerDocument);
+      rowEnd.after(old);
+      // With the chrome chunk: the settings page's controls are the look kit's.
+      Promise.all([this.loadPhone(), this.loadChrome()]).then(
+        ([phone, chrome]) => {
+          try {
+            this.phoneLayer = phone.mountPhoneLayer({
+              kit: PHONE_KIT,
+              controls: { Seg: chrome.Seg, Toggle: chrome.Toggle },
+              cockpit: app.cockpit,
+              game: app.game,
+              cells,
+              command: (text) => {
+                app.onCommand(text);
+                // As Enter in the command line: a sent command shows the live tail.
+                if (app.output.isScrolled()) app.output.toTail();
+              },
+              // A hot key with nothing to send says so where the game's own notices are.
+              notice: (text) => app.bus.emit('sys.message', { text }),
+              // A key sends only in play (src/phone/play-gate.ts).
+              playState: () => {
+                const st = app.status.get();
+                return { conn: app.session.state, replay: st.replay, password: app.input.isPasswordMode() };
+              },
+              openMenu: () => void this.openMenu(),
+              // The menu sheet (ADR 0136 §10).
+              settings,
+              status: app.status,
+              scriptsOn: () => this.scripts.enabledNames().length,
+              reconnect: () => {
+                this.closeMenu();
+                app.onCommand('#reconnect');
+              },
+              // Profile, Scripts and Exit: the existing pages, at their frame.
+              openFrame: (frame) => void this.openMenu(undefined, frame),
+              onMenuClose: () => {
+                if (this.inCockpit) app.input.focus();
+              },
+            });
+            old.remove();
+          } catch (err) {
+            console.error('WebCockpit: the phone layer could not be mounted', err);
+          }
+        },
+        () => {},
+      );
+    }
     // Phone only (ADR 0075 §3.4): back from the background, check the link
     // at once; a dead one drops with a reason, and onConn opens the menu
     // with Reconnect selected. Desktop installs nothing.
     if (device().phone) {
       const doc = root.ownerDocument;
-      watchResume(doc, doc.defaultView ?? window, () => app.session.checkAlive());
+      watchResume(doc, doc.defaultView ?? window, () => {
+        // First what the rule remembers (a link that dropped out of view), then the check of a link still held.
+        const st = app.session.state;
+        const up = (st === 'login' || st === 'playing') && !app.status.get().replay;
+        const link = up ? 'up' : st === 'disconnected' || st === 'idle' ? 'down' : 'other';
+        this.autoReconnect(app, { type: 'resume', link, now: Date.now(), checkMs: RESUME_PING_TIMEOUT_MS });
+        app.session.checkAlive();
+      });
     }
     app.bus.on('conn.state', (s) => this.onConn(s.state, s.reason ?? ''));
     this.appRef = app;
@@ -726,13 +899,63 @@ export class Shell {
     this.prevConn = state;
     if (state === 'connecting') this.connIsReplay = app.status.get().replay;
     if ((state === 'login' || state === 'playing') && !this.connIsReplay) this.everUp = true;
+    if (state === 'connecting') this.autoReconnect(app, { type: 'connecting' });
+    if (state === 'login') this.autoReconnect(app, { type: 'up' });
     if (state !== 'disconnected') return;
     const wasUp = prev === 'login' || prev === 'playing';
-    if (!wasUp || !this.everUp || this.connIsReplay || QUIET_REASONS.has(reason)) return;
+    const quiet = this.connIsReplay || QUIET_REASONS.has(reason);
+    // Phone game layout, "Reconnect automatically" on (ADR 0136 §10): a dead link found on resume
+    // reconnects once instead of opening the sheet. Off (and everywhere else) nothing changes here.
+    const auto = this.autoReconnect(app, {
+      type: 'drop',
+      wasUp: wasUp && this.everUp,
+      quiet,
+      foundOnResume: reason === REASON_BACKGROUND_LOST,
+      hidden: this.opts.root.ownerDocument.visibilityState === 'hidden',
+      now: Date.now(),
+    });
+    if (auto === 'reconnect') return;
+    // The automatic connection never came up: the sheet with Reconnect, as for any drop (below).
+    if (auto !== 'sheet' && (!wasUp || !this.everUp || quiet)) return;
+    // Phone only (ADR 0136 §10): the link dropped while the settings page was up: the sheet, with Reconnect lit.
+    const sheet = this.phoneLayer?.menu;
+    if (this.inCockpit && sheet?.showing === 'settings') {
+      sheet.open();
+      return;
+    }
     if (!this.inCockpit || this.menuOpen) return;
     // Desktop and tablet: the menu bar's Disconnected notice instead (ADR 0100).
     if (!device().phone) return;
     void this.openMenu('reconnect');
+  }
+
+  /**
+   * Feeds the automatic reconnect's rule (auto-reconnect.ts) and, when it
+   * says so, reconnects as the sheet's Reconnect does: no saved login, MUME
+   * asks as usual. Only on the phone's game layout and in the cockpit;
+   * everywhere else it answers null and remembers nothing. `reconnect`: a
+   * reconnect was started (the sheet is then not opened for the drop);
+   * `sheet`: the automatic connection failed, the drop opens the sheet.
+   */
+  private autoReconnect(app: App, ev: AutoReconnectEvent): 'reconnect' | 'sheet' | null {
+    if (!this.phoneGame) return null;
+    const step = autoReconnectStep(this.autoState, ev, this.opts.settings.get().phone.autoReconnect && this.inCockpit);
+    this.autoState = step.state;
+    if (step.sheet) return 'sheet';
+    if (!step.reconnect) return null;
+    // After the drop's own listeners have run: the new connection is not opened in the middle of the old one's end.
+    queueMicrotask(() => {
+      const st = app.session.state;
+      if (!this.inCockpit || (st !== 'disconnected' && st !== 'idle')) return;
+      // The sheet that the drop opened while the page was hidden gives way: only the sheet itself.
+      // A page the player has open (the phone's Settings; Profile, Scripts or Exit in the overlay)
+      // stays, with what is typed in it, and the reconnect happens behind it. Not `closeMenu`
+      // either: that gives the command line the focus, and nobody tapped anything (no keyboard).
+      const sheet = this.phoneLayer?.menu;
+      if (sheet?.showing === 'sheet') sheet.close(true);
+      app.onCommand('#reconnect');
+    });
+    return 'reconnect';
   }
 
   // ----------------------------------------------------------------- chrome

@@ -1,0 +1,383 @@
+// Stage 51g (ADR 0136 §12): text contrast on every surface of the phone's
+// layout in the live game, on Black and on Paper.
+//
+// Method. Each surface is opened as a player opens it, and every visible
+// element that holds text of its own (a text node; a field's value or
+// placeholder) inside the phone's chrome is measured:
+//
+// - the text colour is the computed `color` (the placeholder's for an empty
+//   field), its alpha multiplied by every `opacity` up the tree;
+// - the background is what lies under it: the elements up the tree, from
+//   the first opaque one, each background colour blended over the one
+//   below. A gradient counts as its stop that gives the LEAST contrast (the
+//   worst place the text could stand on). Under everything is the page's
+//   terminal background;
+// - the ratio is WCAG 2's, and must be at least 4.5 (3.0 for text of 24 px,
+//   or 18.66 px bold, and more).
+//
+// Text over the game text (the see-through hot keys, the K ring): the
+// background is the key's own backing blended over the PAGE background, as
+// if no game text passed under it. What a letter of game text does under a
+// label cannot be bounded (it can be any colour); the label's halo
+// (`--ph-hk-halo`, the page's colour round every glyph) is what keeps it
+// readable there, and the first case below holds that the halo is set.
+//
+// Disabled controls are reported (the test's annotations) and not failed.
+// There is no other exemption.
+//
+// `phone` project (Pixel 7). Offline cockpit and a `page.routeWebSocket`
+// mock for Comm; nothing reaches MUME.
+import { type Page, type TestInfo, type WebSocketRoute, expect, test } from '@playwright/test';
+
+interface Finding {
+  text: string;
+  where: string;
+  ratio: number;
+  need: number;
+  fg: string;
+  bg: string;
+  disabled: boolean;
+}
+
+/** Measures every text element under the `roots` selectors (see the file header). Runs in the page. */
+function audit(page: Page, roots: string[]): Promise<Finding[]> {
+  return page.evaluate((roots) => {
+    type RGBA = [number, number, number, number];
+    const parse = (c: string): RGBA | null => {
+      let m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/.exec(c.trim());
+      if (m) return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : Number(m[4])];
+      m = /^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\)$/.exec(c.trim());
+      if (m) return [Number(m[1]) * 255, Number(m[2]) * 255, Number(m[3]) * 255, m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : Number(m[4])];
+      if (c.trim() === 'transparent') return [0, 0, 0, 0];
+      // Any other notation (`oklch()` from a `color-mix`): painted, and read back as sRGB.
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      const x = cv.getContext('2d', { willReadFrequently: true });
+      if (!x) return null;
+      x.fillStyle = '#010203';
+      x.fillStyle = c;
+      if (x.fillStyle === '#010203') return null;
+      x.fillRect(0, 0, 1, 1);
+      const d = x.getImageData(0, 0, 1, 1).data;
+      if (d[3] === 0) return [0, 0, 0, 0];
+      // Un-premultiplied by the canvas already; alpha 0–255.
+      return [d[0]!, d[1]!, d[2]!, d[3]! / 255];
+    };
+    const over = (top: RGBA, under: RGBA): RGBA => {
+      const a = top[3];
+      return [top[0] * a + under[0] * (1 - a), top[1] * a + under[1] * (1 - a), top[2] * a + under[2] * (1 - a), 1];
+    };
+    const lum = (c: RGBA): number => {
+      const f = (v: number): number => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+    };
+    const ratio = (a: RGBA, b: RGBA): number => {
+      const x = lum(a), y = lum(b);
+      return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+    };
+    const hex = (c: RGBA): string => `#${[0, 1, 2].map((i) => Math.round(c[i]!).toString(16).padStart(2, '0')).join('')}`;
+    /** The colours named in a `background-image` (gradient stops). */
+    const stops = (image: string): RGBA[] => {
+      const out: RGBA[] = [];
+      for (const m of image.matchAll(/rgba?\([^)]*\)|color\(srgb[^)]*\)/g)) {
+        const c = parse(m[0]);
+        if (c) out.push(c);
+      }
+      return out;
+    };
+    const cockpit = document.querySelector<HTMLElement>('.wc-cockpit')!;
+    const page: RGBA = parse(getComputedStyle(cockpit).backgroundColor) ?? [0, 0, 0, 1];
+    const pageBg: RGBA = page[3] < 1 ? (parse(getComputedStyle(document.body).backgroundColor) ?? [0, 0, 0, 1]) : page;
+
+    /**
+     * The background under `el` for text of colour `fg`: the layers up the
+     * tree blended from the first opaque one; of a gradient, the stop that
+     * leaves the least contrast.
+     */
+    const backgroundOf = (el: Element, fg: RGBA): RGBA => {
+      const layers: RGBA[][] = [];
+      for (let e: Element | null = el; e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        const here: RGBA[][] = [];
+        // A layer's images lie over its colour.
+        const img = cs.backgroundImage;
+        if (img && img !== 'none') {
+          const s = stops(img);
+          if (s.length) here.push(s);
+        }
+        const col = parse(cs.backgroundColor);
+        if (col && col[3] > 0) here.push([col]);
+        layers.push(...here);
+        if (col && col[3] >= 1) break;
+        if (e === cockpit) break;
+      }
+      // Bottom up; for a gradient, every stop is tried and the worst kept.
+      let under: RGBA[] = [pageBg];
+      for (const layer of layers.reverse()) {
+        const next: RGBA[] = [];
+        for (const u of under) for (const c of layer) next.push(over(c, u));
+        // Keep the candidates few: the two extremes by luminance are enough for "worst".
+        next.sort((a, b) => lum(a) - lum(b));
+        under = next.length > 2 ? [next[0]!, next[next.length - 1]!] : next;
+      }
+      return under.reduce((worst, b) => (ratio(over(fg, b), b) < ratio(over(fg, worst), worst) ? b : worst));
+    };
+
+    const visible = (el: Element): boolean => {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return false;
+      // On screen (a scrolled page's rows above or below its viewport are judged when scrolled to).
+      if (r.bottom <= 0 || r.top >= window.innerHeight || r.right <= 0 || r.left >= window.innerWidth) return false;
+      for (let e: Element | null = el; e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.display === 'none' || cs.visibility !== 'visible') return false;
+      }
+      return true;
+    };
+    const opacityOf = (el: Element): number => {
+      let o = 1;
+      for (let e: Element | null = el; e; e = e.parentElement) o *= Number(getComputedStyle(e).opacity) || (getComputedStyle(e).opacity === '0' ? 0 : 1);
+      return o;
+    };
+    const disabledOf = (el: Element): boolean => el.closest(':disabled, [aria-disabled="true"]') !== null;
+    const path = (el: Element): string => {
+      const parts: string[] = [];
+      for (let e: Element | null = el; e && parts.length < 3; e = e.parentElement) {
+        const cls = typeof e.className === 'string' ? e.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join('.') : '';
+        parts.unshift(`${e.tagName.toLowerCase()}${cls ? `.${cls}` : ''}`);
+      }
+      return parts.join(' > ');
+    };
+
+    const out: Finding[] = [];
+    const seen = new Set<Element>();
+    const measure = (el: Element, text: string, colour: string): void => {
+      const c = parse(colour);
+      if (!c) throw new Error(`contrast: a colour that cannot be read: ${colour} on ${path(el)}`);
+      const fgRaw: RGBA = [c[0], c[1], c[2], c[3] * opacityOf(el)];
+      const bg = backgroundOf(el, fgRaw);
+      const fg = over(fgRaw, bg);
+      const cs = getComputedStyle(el);
+      const size = parseFloat(cs.fontSize);
+      const bold = Number(cs.fontWeight) >= 700;
+      const large = size >= 24 || (bold && size >= 18.66);
+      out.push({ text: text.trim().slice(0, 40), where: path(el), ratio: Math.floor(ratio(fg, bg) * 100) / 100, need: large ? 3 : 4.5, fg: hex(fg), bg: hex(bg), disabled: disabledOf(el) });
+    };
+    for (const sel of roots) {
+      for (const root of document.querySelectorAll(sel)) {
+        const all = [root, ...root.querySelectorAll('*')];
+        for (const el of all) {
+          if (seen.has(el) || !visible(el)) continue;
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            seen.add(el);
+            if (el instanceof HTMLInputElement && el.type === 'password') continue;
+            if (el.value !== '') measure(el, el.value, getComputedStyle(el).color);
+            else if (el.placeholder) measure(el, el.placeholder, getComputedStyle(el, '::placeholder').color);
+            continue;
+          }
+          const own = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '');
+          if (own.length === 0) continue;
+          seen.add(el);
+          measure(el, own.map((n) => n.textContent).join(' '), getComputedStyle(el).color);
+        }
+      }
+    }
+    return out;
+  }, roots);
+}
+
+type Theme = 'black' | 'paper';
+const THEMES: Theme[] = ['black', 'paper'];
+
+/** Paper as the Appearance settings set it (the phone's Theme switch does the same). */
+async function setTheme(page: Page, theme: Theme): Promise<void> {
+  if (theme === 'black') return;
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet').waitFor();
+  await page.locator('.wc-ph-sheet .wc-ph-swatch.is-paper').tap();
+  await expect(page.locator('html')).toHaveAttribute('data-light', '');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-ph-sheet')).toBeHidden();
+}
+
+/** The phone's chrome on the main screen. */
+const MAIN = ['.wc-ph-layer', '.wc-cockpit > .wc-input-slot'];
+
+/** Fails on any enabled text under its ratio; the lowest ratios and the disabled ones go to the report. */
+function judge(found: Finding[], surface: string, theme: Theme, info: TestInfo, least = 1): void {
+  expect(found.length, `${surface} (${theme}): text was measured`).toBeGreaterThanOrEqual(least);
+  const enabled = found.filter((f) => !f.disabled);
+  const lowest = [...enabled].sort((a, b) => a.ratio / a.need - b.ratio / b.need)[0];
+  if (lowest) info.annotations.push({ type: 'contrast', description: `${surface} (${theme}): ${found.length} texts, lowest ${lowest.ratio} ("${lowest.text}", ${lowest.fg} on ${lowest.bg})` });
+  for (const f of found.filter((x) => x.disabled && x.ratio < x.need))
+    info.annotations.push({ type: 'contrast-disabled', description: `${surface} (${theme}): disabled "${f.text}" ${f.ratio} (${f.fg} on ${f.bg}), not failed` });
+  const bad = enabled.filter((f) => f.ratio < f.need).map((f) => `${f.ratio} < ${f.need}  "${f.text}"  ${f.fg} on ${f.bg}  ${f.where}`);
+  expect(bad, `${surface} (${theme}): text under its contrast`).toEqual([]);
+}
+
+async function openPhone(page: Page): Promise<void> {
+  await page.goto('/?replay&phone=1');
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+}
+
+/** Replays the GMCP demo up to the line before the first one holding `cut` (whole without it). */
+async function play(page: Page, cut?: string): Promise<void> {
+  await page.evaluate(async (cut) => {
+    let text = await (await fetch('/__fixtures/gmcp-demo.log')).text();
+    if (cut !== undefined) {
+      const lines = text.split('\n');
+      text = lines.slice(0, lines.findIndex((l) => l.includes(cut))).join('\n') + '\n';
+    }
+    window.__wc!.app.startReplay(text, 'gmcp-demo.log', 0);
+  }, cut);
+  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
+}
+const FIGHT = 'Group.Update {"id":3,"hp":61}';
+
+async function holdKey(page: Page, n: number): Promise<void> {
+  const b = (await page.locator(`.wc-ph-hk[data-hk="${n - 1}"]`).boundingBox())!;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + b.width / 2, y: b.y + b.height / 2, id: 0 }] });
+  await expect(page.locator('.wc-ph-rb')).toBeVisible();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+}
+
+for (const theme of THEMES) {
+  test.describe(theme, () => {
+    test('the main screen: fight card, lens keys and badge, compass, K, hot keys, command field; pressed and held keys', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page, FIGHT);
+      await expect(page.locator('.wc-ph-fight')).toBeVisible();
+      judge(await audit(page, MAIN), 'main', theme, info, 12);
+      // The see-through keys' labels carry a halo of the page's colour (the file header: text over game text).
+      for (const sel of ['.wc-ph-hk', '.wc-ph-key.is-tog:not(.is-on) .wc-ph-kk']) {
+        const el = page.locator(sel).first();
+        if ((await el.count()) === 0) continue;
+        expect(await el.evaluate((e) => getComputedStyle(e).textShadow), `${sel} has its halo`).not.toBe('none');
+      }
+      // K unlit (the column hidden).
+      await page.locator('.wc-ph-key.is-tog').tap();
+      await expect(page.locator('.wc-ph-hot')).toBeHidden();
+      judge(await audit(page, ['.wc-ph-pad']), 'compass, K unlit', theme, info, 8);
+      await page.locator('.wc-ph-key.is-tog').tap();
+      // Pressed keys: the lit look (`:active`), held by a finger that stays down.
+      const cdp = await page.context().newCDPSession(page);
+      for (const sel of ['.wc-ph-key[data-cmd="north"]', '.wc-ph-key[data-cmd="flee"]']) {
+        const b = (await page.locator(sel).boundingBox())!;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 0 }] });
+        judge(await audit(page, [sel]), `pressed ${sel}`, theme, info);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      }
+      await cdp.detach();
+      // The lens hidden: the keys' row (the Comm key's badge on it).
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { show: false } } }));
+      await expect(page.locator('.wc-ph-satrow')).toBeVisible();
+      judge(await audit(page, MAIN), 'main, key row', theme, info, 12);
+    });
+
+    test('the hot key box: every part, a special\'s token, the error line; the held key', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page, FIGHT);
+      await holdKey(page, 3);
+      judge(await audit(page, ['.wc-ph-rb', '.wc-ph-hot']), 'box (special)', theme, info, 14);
+      await page.locator('.wc-ph-rb .wc-ph-chip[data-pick="custom"]').tap();
+      await page.locator('#wc-ph-rb-command').fill('stand;bash');
+      await page.locator('.wc-ph-rb .wc-ph-bt.is-go').tap();
+      await expect(page.locator('.wc-ph-rb-err')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-rb']), 'box (error)', theme, info, 14);
+      // An empty field: its placeholder, if it has one, and the unselected chips.
+      await page.locator('#wc-ph-rb-command').fill('');
+      await page.locator('#wc-ph-rb-label').fill('');
+      judge(await audit(page, ['.wc-ph-rb']), 'box (empty)', theme, info, 10);
+    });
+
+    test('the menu sheet: status, rows, the stepper at its end, the themes, Exit', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await expect(page.locator('.wc-ph-sheet')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'sheet', theme, info, 8);
+      // The stepper at the smallest size: A− is disabled (reported, not failed); the rest still holds.
+      await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 6 } }));
+      judge(await audit(page, ['.wc-ph-menu-host']), 'sheet (smallest text)', theme, info, 8);
+    });
+
+    test('the settings page: every group and row kind, top to bottom, and the font list', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
+      await expect(page.locator('.wc-ph-page')).toBeVisible();
+      const groups = await page.locator('.wc-ph-page [data-group]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.group!));
+      expect(groups).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
+      let total = 0;
+      for (const g of groups) {
+        await page.locator(`.wc-ph-page [data-group="${g}"]`).evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        const found = await audit(page, ['.wc-ph-menu-host']);
+        total += found.length;
+        judge(found, `settings, ${g}`, theme, info, 3);
+      }
+      expect(total).toBeGreaterThan(40);
+      await page.locator('.wc-ph-page [data-group="text"]').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await page.locator('.wc-ph-page [data-row="font"]').tap();
+      await expect(page.locator('.wc-ph-page[data-page="pick:font"]')).toBeVisible();
+      judge(await audit(page, ['.wc-ph-menu-host']), 'settings, font list', theme, info, 2);
+    });
+
+    test('the strip\'s chrome over each pane, and the fight card under it', async ({ page }, info) => {
+      await openPhone(page);
+      await setTheme(page, theme);
+      await play(page, FIGHT);
+      for (const n of [1, 2, 3, 4]) {
+        await page.keyboard.press(`Control+${n}`);
+        await expect(page.locator('.wc-ph-strip')).toHaveAttribute('aria-label', new RegExp(`${n} of 4$`));
+        judge(await audit(page, ['.wc-ph-strip', '.wc-ph-fight']), `strip page ${n}`, theme, info, 2);
+      }
+    });
+
+    test('Comm\'s reply line (enabled, typed in, and at a password prompt) and its band', async ({ page }, info) => {
+      const IAC = 255, WILL = 251, SB = 250, SE = 240, GMCP = 201;
+      const gmcp = (pkg: string, data: unknown): Buffer => Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(`${pkg} ${JSON.stringify(data)}`, 'utf8'), Buffer.from([IAC, SE])]);
+      let server: WebSocketRoute | null = null;
+      await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+        server = ws;
+        ws.send(Buffer.from([IAC, WILL, GMCP]));
+      });
+      await page.goto('/?phone=1');
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+      await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+      await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+      server!.send(gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Mock' }));
+      await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);
+      await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
+      await setTheme(page, theme);
+      server!.send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'you at the ford?'" }));
+      await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+      const comm = page.locator('.wc-cockpit > .wc-pane[data-pane="comm"]');
+      await comm.locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
+      const reply = comm.locator('.wc-cm-rinput');
+      await expect(reply).toBeEnabled();
+      // The phone-styled parts: the reply row, and the band; the lens's keys as a row over it.
+      const parts = ['.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-reply', '.wc-ph-layer'];
+      judge(await audit(page, parts), 'Comm, empty reply (placeholder)', theme, info, 3);
+      await reply.tap();
+      await page.keyboard.type('on my way');
+      judge(await audit(page, parts), 'Comm, typed reply', theme, info, 3);
+      await reply.fill('');
+      // A password prompt: the reply line is disabled (reported, not failed).
+      server!.send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, 1])]));
+      await expect(reply).toBeDisabled();
+      const found = await audit(page, parts);
+      expect(found.some((f) => f.disabled && f.text === 'Not connected')).toBe(true);
+      judge(found, 'Comm, reply disabled', theme, info, 3);
+    });
+  });
+}

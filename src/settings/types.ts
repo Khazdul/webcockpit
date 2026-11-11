@@ -406,6 +406,125 @@ export interface WindowRect {
   h: number;
 }
 
+/** The map lens's sizes on the phone's game layout (ADR 0136 §4): 120, 150 and 180 px across. */
+export const PHONE_LENS_SIZES = ['s', 'm', 'l'] as const;
+export type PhoneLensSize = (typeof PHONE_LENS_SIZES)[number];
+
+/** The lens's three fixed zoom levels (ADR 0136 §4). */
+export const PHONE_LENS_LEVELS = ['near', 'middle', 'far'] as const;
+export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
+
+/** The map lens of the phone's game layout (ADR 0136 §4, §13). */
+export interface PhoneLensSettings {
+  /** Show the lens (off: no map on the phone's game layout, and no map load). */
+  show: boolean;
+  size: PhoneLensSize;
+  /** The zoom level the lens starts at. */
+  opensAt: PhoneLensLevel;
+}
+
+/**
+ * The phone's own settings (ADR 0136 §13): what the phone's layout in the
+ * live game keeps. Read only there; a computer ignores the section and
+ * keeps it as stored, so a settings file moved between the two behaves on
+ * each as before.
+ */
+export interface PhoneSettings {
+  lens: PhoneLensSettings;
+  /** The pane strip (ADR 0136 §5): which built-in panes are pages, in their order. */
+  strip: PhoneStripSettings;
+  /** Comm's height in rows on the phone (ADR 0136 §6); null: the default share of the screen. */
+  commRows: number | null;
+  /** What the Comm key's badge counts (ADR 0136 §6): private chats, or Group and Public too. */
+  unread: PhoneUnread;
+  /** The hot keys K1 to K3, in that order (ADR 0136 §8): always `PHONE_HOTKEY_COUNT` of them. */
+  hotkeys: PhoneHotkey[];
+  /** The hot key column is shown (the K key). */
+  hotkeysOpen: boolean;
+  /** The compass keys' size (ADR 0136 §7): 36, 40 or 44 px; the hot keys follow. */
+  compassSize: PhoneCompassSize;
+  /** A short vibration on a compass or hot key tap that sends (where the browser can). */
+  vibrate: boolean;
+  /** Keep the screen on while connected and visible (ADR 0136 §10; where the browser can). */
+  wakeLock: boolean;
+  /** A dead link found on resume reconnects once, with no saved login (ADR 0136 §10). */
+  autoReconnect: boolean;
+}
+
+export const PHONE_COMPASS_SIZES = ['s', 'm', 'l'] as const;
+export type PhoneCompassSize = (typeof PHONE_COMPASS_SIZES)[number];
+
+/** How many hot keys the phone has (ADR 0136 §8). */
+export const PHONE_HOTKEY_COUNT = 3;
+/** The longest label of a hot key, in characters. */
+export const PHONE_HOTKEY_LABEL_MAX = 4;
+/** The longest stored command of a hot key (a line of commands; far above any real one). */
+export const PHONE_HOTKEY_COMMAND_MAX = 200;
+
+/** A hot key's special: a command computed at the press (wimpy at a share of the current hit points). */
+export const PHONE_HOTKEY_SPECIALS = ['wimpy50', 'wimpy25'] as const;
+export type PhoneHotkeySpecial = (typeof PHONE_HOTKEY_SPECIALS)[number];
+
+/** One hot key. It lives in the phone's settings, not in the profile (ADR 0136 §8). */
+export interface PhoneHotkey {
+  /** What the key shows: one to `PHONE_HOTKEY_LABEL_MAX` characters. */
+  label: string;
+  /** The line the key sends as if typed; unused while `special` is set. */
+  command: string;
+  special: PhoneHotkeySpecial | null;
+  /** In the column; off, the key keeps what it is set to. */
+  shown: boolean;
+}
+
+/** The built-in panes that can be pages of the phone's pane strip, in the default order (ADR 0136 §5). */
+export const PHONE_STRIP_PANES = ['timers', 'group', 'character', 'statistics'] as const;
+export type PhoneStripPane = (typeof PHONE_STRIP_PANES)[number];
+
+/** One built-in page of the strip: shown or not; its place in the list is its order. */
+export interface PhoneStripEntry {
+  id: PhoneStripPane;
+  on: boolean;
+}
+
+export interface PhoneStripSettings {
+  /** Every pane of `PHONE_STRIP_PANES` exactly once, in page order. Script panes follow them. */
+  panes: PhoneStripEntry[];
+}
+
+export const PHONE_UNREAD_MODES = ['private', 'all'] as const;
+export type PhoneUnread = (typeof PHONE_UNREAD_MODES)[number];
+
+/** The limits of a stored Comm height (the allocator fits it to the screen). */
+export const PHONE_COMM_ROWS_MIN = 1;
+export const PHONE_COMM_ROWS_MAX = 200;
+
+/**
+ * Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4);
+ * the strip's four panes in their order, all on (§5); Comm at its default
+ * height, the badge counting private chats (§6); the three hot keys assist,
+ * bash and wimpy at half of the current hit points, their column shown (§8);
+ * 40 px compass keys, no vibration (§7: it is optional); the screen kept on while
+ * connected, and no automatic reconnect (§10).
+ */
+export function defaultPhoneSettings(): PhoneSettings {
+  return {
+    lens: { show: true, size: 'm', opensAt: 'middle' },
+    strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: true })) },
+    commRows: null,
+    unread: 'private',
+    hotkeys: [
+      { label: 'asst', command: 'assist', special: null, shown: true },
+      { label: 'bash', command: 'bash', special: null, shown: true },
+      { label: 'wimp', command: '', special: 'wimpy50', shown: true },
+    ],
+    hotkeysOpen: true,
+    compassSize: 'm',
+    vibrate: false,
+    wakeLock: true,
+    autoReconnect: false,
+  };
+}
+
 /** The ids of the movable windows (ADR 0103). */
 export const WINDOW_IDS = ['profile', 'scripts'] as const;
 export type WindowId = (typeof WINDOW_IDS)[number];
@@ -433,6 +552,8 @@ export interface Settings {
   mapper: MapperSettings;
   weather: WeatherSettings;
   windows: WindowSettings;
+  /** The phone's layout in the live game (ADR 0136 §13); ignored on a computer. */
+  phone: PhoneSettings;
 }
 
 /**
@@ -531,6 +652,7 @@ export function defaultSettings(): Settings {
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
     weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
     windows: { profile: null, scripts: null },
+    phone: defaultPhoneSettings(),
   };
 }
 
