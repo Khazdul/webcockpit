@@ -164,7 +164,7 @@ moves the caret), script pane fields, key sound.
 ## Tasks
 
 - [x] Investigation with the owner; decisions recorded as ADR 0138
-- [x] 53a built behind `?kbd=1` (go / no-go on the S21: owner's test open)
+- [x] 53a built behind `?kbd=1`; the owner's test on the S21: go
 - [ ] 53b model and editing API
 - [ ] 53c the keyboard in the game layout
 - [ ] 53d other fields, settings, vibration
@@ -231,5 +231,14 @@ Wanted: go or no-go on the technique, and how typing feels (key size
 come in the next rounds.
 
 ## Owner feedback
+
+- 2026-11-11, 53a on the S21 (`?kbd=1`): **go.** Our keyboard comes up
+  and the device's never does (focus, rotation, app switch, lock and
+  unlock); the caret shows and a tap moves it; a long press offers
+  paste, copy, cut, translate and more; typing keeps up; the bottom
+  edge is fine; nothing odd from hot keys and compass.
+  - Landscape, for the fine tuning: the keyboard is too wide to type
+    fast on. Compress it towards the middle, with the hot keys beside
+    it (K1–K3 left, K4–K6 right) and the compass at the far right.
 
 (After each round.)
