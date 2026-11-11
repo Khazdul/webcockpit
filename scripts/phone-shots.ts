@@ -32,6 +32,8 @@ const SCALE = 3;
 /** The on-screen keyboard's height in the mockup (P6). */
 const KEYBOARD_PX = 300;
 const FIXTURE = 'gmcp-demo.log';
+/** A walk with map positions, played before the fixture (see `play`). */
+const WALK = 'map-demo.log';
 
 /** Lines of the fixture a state is cut before (the first line holding the text). */
 const CUT = {
@@ -47,10 +49,16 @@ interface State {
   run(page: Page): Promise<void>;
 }
 
-/** Replays the fixture in the offline cockpit, whole or up to the line before `cut`. */
+/**
+ * Replays the fixture in the offline cockpit, whole or up to the line
+ * before `cut`. The walk of tests/fixtures/map-demo.log (Bree to Hill Road,
+ * with its Room.Info) is played first in the same replay, so the map lens
+ * has a place to show; then the lens is waited for (the map loaded, the
+ * player's room found, the frame drawn).
+ */
 async function play(page: Page, cut?: string): Promise<void> {
   await page.evaluate(
-    async ({ rel, cut }) => {
+    async ({ rel, walk, cut }) => {
       let text = await (await fetch(`/__fixtures/${rel}`)).text();
       if (cut !== undefined) {
         const lines = text.split('\n');
@@ -58,11 +66,20 @@ async function play(page: Page, cut?: string): Promise<void> {
         if (at < 0) throw new Error(`the fixture has no line with ${cut}`);
         text = lines.slice(0, at).join('\n') + '\n';
       }
-      window.__wc!.app.startReplay(text, rel, 0);
+      const before = await (await fetch(`/__fixtures/${walk}`)).text();
+      window.__wc!.app.startReplay(before.replace(/\n?$/, '\n') + text, rel, 0);
     },
-    { rel: FIXTURE, cut },
+    { rel: FIXTURE, walk: WALK, cut },
   );
   await page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' }).waitFor();
+  if (await page.evaluate(() => window.__wc!.settings.get().phone.lens.show)) await lensDrawn(page);
+}
+
+/** The lens shows the player's room: the map loaded, the room located, the frame with its tiles drawn. */
+async function lensDrawn(page: Page): Promise<void> {
+  const map = page.locator('.wc-pane-map .wc-pane-content');
+  await map.and(page.locator('[data-map-state="loaded"][data-map-located="1"][data-map-drawn-ms]')).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(400);
 }
 
 /** The on-screen keyboard comes up: the visible area shrinks, as the app detects it (phone-viewport.ts). */
@@ -100,6 +117,38 @@ const STATES: State[] = [
       await page.locator('.wc-ph-fight').waitFor();
       await page.locator('.wc-ph-menu').tap();
       await page.locator('.wc-ph-sheet').waitFor();
+    },
+  },
+  {
+    name: 'lens-near',
+    step: 'c',
+    run: async (page) => {
+      await play(page);
+      // Middle → far → near.
+      await page.locator('.wc-ph-lens-glass').tap();
+      await page.locator('.wc-ph-lens-glass').tap();
+      await page.locator('.wc-ph-lens[data-level="near"]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    name: 'lens-far',
+    step: 'c',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-ph-lens-glass').tap();
+      await page.locator('.wc-ph-lens[data-level="far"]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    name: 'lens-off',
+    step: 'c',
+    run: async (page) => {
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { show: false } } }));
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+      await page.locator('.wc-ph-lens').waitFor({ state: 'hidden' });
     },
   },
   {

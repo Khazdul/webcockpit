@@ -406,6 +406,38 @@ export interface WindowRect {
   h: number;
 }
 
+/** The map lens's sizes on the phone's game layout (ADR 0136 §4): 120, 150 and 180 px across. */
+export const PHONE_LENS_SIZES = ['s', 'm', 'l'] as const;
+export type PhoneLensSize = (typeof PHONE_LENS_SIZES)[number];
+
+/** The lens's three fixed zoom levels (ADR 0136 §4). */
+export const PHONE_LENS_LEVELS = ['near', 'middle', 'far'] as const;
+export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
+
+/** The map lens of the phone's game layout (ADR 0136 §4, §13). */
+export interface PhoneLensSettings {
+  /** Show the lens (off: no map on the phone's game layout, and no map load). */
+  show: boolean;
+  size: PhoneLensSize;
+  /** The zoom level the lens starts at. */
+  opensAt: PhoneLensLevel;
+}
+
+/**
+ * The phone's own settings (ADR 0136 §13): what the phone's layout in the
+ * live game keeps. Read only there; a computer ignores the section and
+ * keeps it as stored, so a settings file moved between the two behaves on
+ * each as before.
+ */
+export interface PhoneSettings {
+  lens: PhoneLensSettings;
+}
+
+/** Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4). */
+export function defaultPhoneSettings(): PhoneSettings {
+  return { lens: { show: true, size: 'm', opensAt: 'middle' } };
+}
+
 /** The ids of the movable windows (ADR 0103). */
 export const WINDOW_IDS = ['profile', 'scripts'] as const;
 export type WindowId = (typeof WINDOW_IDS)[number];
@@ -433,6 +465,8 @@ export interface Settings {
   mapper: MapperSettings;
   weather: WeatherSettings;
   windows: WindowSettings;
+  /** The phone's layout in the live game (ADR 0136 §13); ignored on a computer. */
+  phone: PhoneSettings;
 }
 
 /**
@@ -531,6 +565,7 @@ export function defaultSettings(): Settings {
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
     weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
     windows: { profile: null, scripts: null },
+    phone: defaultPhoneSettings(),
   };
 }
 

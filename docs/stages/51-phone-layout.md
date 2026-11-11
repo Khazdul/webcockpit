@@ -242,7 +242,7 @@ The owner starts the session and is away until morning. So:
 - [x] Branch, baseline benchmark recorded here
 - [x] 51a shell: allocator, command row, compass, fight card
 - [x] 51b menu sheet, Text settings
-- [ ] 51c map lens
+- [x] 51c map lens
 - [ ] 51d pane strip and Comm
 - [ ] 51e hot keys
 - [ ] 51f weather, compass and connection settings
@@ -367,6 +367,44 @@ cover too much text, Comm's height, anything that feels slow.
   load-sensitive cases. `script-panes.spec.ts:177` fails when run alone on
   untouched `main` too (order-dependent, not this stage).
 - Screenshots: `docs/stages/img/51-b-*.png`.
+
+### 51c Map lens (built)
+
+- `src/phone/lens.ts` (ring, glass, reflection, pips, tap target, the
+  fullscreen key and the key row), `lens-zoom.ts`, `changed.ts` (settings
+  compared by value: the store clones on every write). The **Map lens**
+  settings group (show, size, opens at); `phone.lens` in the settings.
+- **One `MapPane` clipped to a circle: confirmed** (`clip-path: circle()`
+  on the cockpit's one map pane; one canvas, one worker, nothing
+  re-parented; asserted in e2e).
+- Shared files (all additive or behind a null lens): `map/protocol.ts`
+  and `map/client.ts` (`zoomTo`), `map/worker/core.ts` (the `zoomTo`
+  case), `panes/map.ts` (`setLens`, `zoomTo`, `keepsForwarding()`; every
+  guard is `if (this.lens)`), `layout/cockpit.ts` (`setPhoneLens`, inside
+  the phone-game path), `settings/types.ts` + `migrate.ts` (the `phone`
+  section, no version bump).
+- Numbers: the worker's zoom is a factor (one room = 44 CSS px at zoom 1
+  on layer 0), so `zoom = lens px / (rooms × 44)`: near 3 rooms (1.136 at
+  150 px), middle 5 (0.682), far 10 (0.341). "About": other layers show
+  somewhat fewer or more rooms. Sizes S 120, M 150, L 180 px.
+- Choices and deviations:
+  - The lens sits in a rectangle of whole cells, so its place is
+    quantised: about one row under the fight card (or the top edge) and
+    two columns from the right edge, not the mockup's exact 16 / 12 px.
+  - Shimrod, black, no hover, no pan, no pinch are applied at run time
+    only; `mapper`, `panes.map` and `layout` are never written. The lens
+    shows whatever the desktop's `panes.map.on` says.
+  - Lens off: no map worker and no map load; off mid-session stops the
+    forwarding to the worker.
+  - No blur on the reflection (no filter over the scrolling text).
+  - A long press on the lens released without moving is a tap (one zoom
+    step).
+  - Only the fullscreen key in 51c (where `canFullscreen`); removed for
+    good after a refusal.
+- Tests: 3670 unit; phone 110 passed, 1 fixme (Statistics, 51d);
+  `phone-player-map.spec.ts` keeps the player's MAP tab touch cases.
+  Preload list still identical to `main`.
+- Screenshots: `docs/stages/img/51-c-*.png`.
 
 ## Owner feedback
 

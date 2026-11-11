@@ -110,6 +110,11 @@ export class MapClient {
     this.post({ t: 'zoom', steps, x, y });
   }
 
+  /** An absolute zoom around the canvas centre (the phone's map lens, ADR 0136 §4). */
+  zoomTo(zoom: number): void {
+    this.post({ t: 'zoomTo', zoom });
+  }
+
   visible(visible: boolean): void {
     this.post({ t: 'visible', visible });
   }

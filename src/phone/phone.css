@@ -70,6 +70,22 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-danger: #d75f5f;
   --ph-rec: #d75f5f;
   --ph-key-off: #6d6252;
+  /* The map lens (ADR 0136 §4): the cast-iron ring with a fine grain, the lamp's glow round it, the
+   * glass's rim and edge darkening, the pips, the keys on its corners. */
+  --ph-lens-outer: 0 0 0 8px #0e0c0a, 0 0 20px 10px rgb(232 196 138 / 0.14), 0 8px 16px 6px rgb(0 0 0 / 0.8);
+  --ph-lens-ring:
+    repeating-radial-gradient(circle, rgb(0 0 0 / 0.16) 0 1px, rgb(0 0 0 / 0) 1px 2.3px),
+    repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0.055) 0 0.7deg, rgb(0 0 0 / 0.09) 0.7deg 1.9deg, rgb(0 0 0 / 0) 1.9deg 3.1deg),
+    linear-gradient(145deg, #6f655a 0, #3a342d 34%, #1b1713 68%, #4c443b 100%);
+  --ph-lens-ring-edge: inset 0 0 0 1px #0e0c0a;
+  --ph-lens-glass-in: inset 0 0 0 1px rgb(232 196 138 / 0.3), inset 0 2px 5px rgb(255 255 255 / 0.22), inset 0 -8px 14px rgb(0 0 0 / 0.55);
+  --ph-pip: rgb(232 196 138 / 0.35);
+  --ph-pip-on: #e8c48a;
+  --ph-pip-glow: 0 0 5px #e8c48a;
+  --ph-sat: linear-gradient(#2a2520, #15120e);
+  --ph-sat-edge: #5a5148;
+  --ph-sat-text: #e8c48a;
+  --ph-sat-shadow: inset 0 1px 0 rgb(232 196 138 / 0.22), 0 2px 8px rgb(0 0 0 / 0.85);
 }
 
 html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
@@ -116,6 +132,19 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-danger: #b3261e;
   --ph-rec: #b3261e;
   --ph-key-off: #a39c8c;
+  /* Paper: a pewter ring, a brass hairline at the glass, a warm drop shadow and no glow; the map stays dark. */
+  --ph-lens-outer: 0 0 0 8px #a9a59b, 0 6px 16px 4px rgb(60 40 10 / 0.35);
+  --ph-lens-ring:
+    repeating-radial-gradient(circle, rgb(0 0 0 / 0.07) 0 1px, rgb(0 0 0 / 0) 1px 2.3px),
+    repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0.05) 0 0.7deg, rgb(0 0 0 / 0.04) 0.7deg 1.9deg, rgb(0 0 0 / 0) 1.9deg 3.1deg),
+    linear-gradient(145deg, #f1eee6 0, #a9a59b 36%, #7c786f 70%, #c9c5ba 100%);
+  --ph-lens-ring-edge: inset 0 0 0 1px #4a463e;
+  --ph-lens-glass-in: inset 0 0 0 1px #b08a3a, inset 0 2px 5px rgb(255 255 255 / 0.22), inset 0 -8px 14px rgb(0 0 0 / 0.55);
+  --ph-pip-glow: none;
+  --ph-sat: linear-gradient(#fbf8f0, #d8d2c4);
+  --ph-sat-edge: #8a8478;
+  --ph-sat-text: #3a3428;
+  --ph-sat-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 2px 6px rgb(60 40 10 / 0.3);
 }
 
 /* On Paper a lit key is brass with pale ink. */
@@ -234,6 +263,151 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > .is-hp {
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-bar > .is-foe {
   background: var(--ph-foe);
+}
+
+/* ---------------------------------------------------------------- map lens */
+
+/* The map itself is the cockpit's map pane, placed borderless in a
+ * rectangle of whole cells that holds the lens's circle (`--ph-lens-size`,
+ * set by the phone layer). It is clipped to that circle here: one pane,
+ * one canvas, nothing re-parented. The map draws on black on every theme. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-pane-map {
+  clip-path: circle(calc(var(--ph-lens-size, 150px) / 2) at 50% 50%);
+  background: #000;
+}
+
+/* The dressing over it (src/phone/lens.ts; JS sets left, top and the
+ * size): all static paint, no filter. */
+/* The square box takes no taps: only the round glass and the keys do, so the
+ * game text in the square's corners keeps its taps and its scrolling. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens {
+  position: absolute;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-satrow[hidden] {
+  display: none;
+}
+
+/* The tap target: the whole glass. Its outer shadow is the ring's dark bed, the lamp's glow and the drop shadow. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-glass {
+  position: absolute;
+  inset: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: var(--ph-lens-outer);
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-refl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The glass: a soft light from above, the edge darkening, the rim. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 40% at 50% -8%, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0) 64%),
+    radial-gradient(circle at 50% 50%, rgb(0 0 0 / 0) 58%, rgb(0 0 0 / 0.55) 100%);
+  box-shadow: var(--ph-lens-glass-in);
+}
+
+/* The ring: an 8 px band round the glass, cut out of a disc by a mask. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--ph-lens-ring);
+  box-shadow: var(--ph-lens-ring-edge);
+  -webkit-mask-image: radial-gradient(circle, transparent calc(var(--ph-lens-size, 150px) / 2 - 0.5px), #000 calc(var(--ph-lens-size, 150px) / 2));
+  mask-image: radial-gradient(circle, transparent calc(var(--ph-lens-size, 150px) / 2 - 0.5px), #000 calc(var(--ph-lens-size, 150px) / 2));
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-pips {
+  position: absolute;
+  left: 50%;
+  bottom: 9px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-pips > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ph-pip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-pips > i.is-on {
+  background: var(--ph-pip-on);
+  box-shadow: var(--ph-pip-glow);
+}
+
+/* The round keys on the lens's corners (40 px; they overhang by 10 px). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ph-sat-edge);
+  border-radius: 50%;
+  background: var(--ph-sat);
+  color: var(--ph-sat-text);
+  box-shadow: var(--ph-sat-shadow);
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat.is-tr {
+  right: -10px;
+  top: -10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sat:active {
+  background: var(--ph-pip-on);
+  border-color: var(--ph-lamp-hi);
+  color: var(--ph-ink);
+}
+
+/* The lens hidden: its keys stay as a row at the top right (JS sets top). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-satrow {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-satrow > .wc-ph-sat {
+  position: relative;
 }
 
 /* ----------------------------------------------------------------- compass */

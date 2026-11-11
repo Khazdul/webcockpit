@@ -4,7 +4,7 @@ import { writeMm2 } from '../../src/map/mm2-write';
 import type { MapData } from '../../src/map/model';
 import { MAP_PROTOCOL_VERSION, type WorkerToMain } from '../../src/map/protocol';
 import type { Renderer } from '../../src/map/render/renderer';
-import { centreOn, defaultView, pan, pxPerRoom, zoomAt, ZOOM_MAX } from '../../src/map/view';
+import { centreOn, defaultView, pan, pxPerRoom, zoomAt, ZOOM_MAX, ZOOM_MIN } from '../../src/map/view';
 import { MapWorkerCore, PROGRESS_MS } from '../../src/map/worker/core';
 import { readMm2 } from '../../src/map/mm2';
 import { migrateLayout } from '../../src/settings/migrate';
@@ -239,6 +239,57 @@ describe('map worker core', () => {
     const canvas = { getContext: () => null } as unknown as OffscreenCanvas;
     core.handle({ t: 'init', protocol: MAP_PROTOCOL_VERSION, canvas, width: 1, height: 1, dpr: 1, assets: { kind: 'base', url: '/' } });
     expect(out).toEqual([{ t: 'error', stage: 'init', message: 'WebGL2 is not available' }]);
+  });
+});
+
+describe('map worker zoomTo (stage 51c, ADR 0136 §4)', () => {
+  /** A harness whose renderer records every view drawn. */
+  function viewHarness() {
+    const h = harness();
+    const views: { x: number; y: number; zoom: number; layer: number }[] = [];
+    h.renderer.render = (v) => void views.push({ x: v.x, y: v.y, zoom: v.zoom, layer: v.layer });
+    const draw = (): { x: number; y: number; zoom: number; layer: number } | undefined => {
+      const n = views.length;
+      h.runFrames();
+      return views.length > n ? views.at(-1) : undefined;
+    };
+    return { ...h, views, draw };
+  }
+
+  it('sets an absolute zoom and keeps the centre and the layer', () => {
+    const h = viewHarness();
+    h.core.handle({ t: 'pan', dx: 30, dy: -10 });
+    const before = h.draw()!;
+    h.core.handle({ t: 'zoomTo', zoom: 0.5 });
+    const after = h.draw()!;
+    expect(after).toEqual({ ...before, zoom: 0.5 });
+    // Absolute, not relative: the same value again from another zoom.
+    h.core.handle({ t: 'zoom', steps: 3, x: 100, y: 50 });
+    h.draw();
+    h.core.handle({ t: 'zoomTo', zoom: 0.5 });
+    expect(h.draw()!.zoom).toBe(0.5);
+  });
+
+  it('clamps to the view\'s zoom limits', () => {
+    const h = viewHarness();
+    h.core.handle({ t: 'zoomTo', zoom: 99 });
+    expect(h.draw()!.zoom).toBe(ZOOM_MAX);
+    h.core.handle({ t: 'zoomTo', zoom: 0 });
+    expect(h.draw()!.zoom).toBe(ZOOM_MIN);
+    h.core.handle({ t: 'zoomTo', zoom: -3 });
+    expect(h.draw()).toBeUndefined();
+  });
+
+  it('ignores a zoom that is not a number, and draws nothing for the zoom it already has', () => {
+    const h = viewHarness();
+    h.core.handle({ t: 'zoomTo', zoom: 0.7 });
+    expect(h.draw()!.zoom).toBe(0.7);
+    h.core.handle({ t: 'zoomTo', zoom: Number.NaN });
+    expect(h.draw()).toBeUndefined();
+    h.core.handle({ t: 'zoomTo', zoom: 0.7 });
+    expect(h.draw()).toBeUndefined();
+    h.core.handle({ t: 'zoomTo', zoom: Number.POSITIVE_INFINITY });
+    expect(h.draw()!.zoom).toBe(ZOOM_MAX);
   });
 });
 

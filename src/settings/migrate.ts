@@ -56,6 +56,10 @@ import {
   MAP_HOVER_MODES,
   MAP_HOVER_SIZES,
   type MapperSettings,
+  PHONE_LENS_LEVELS,
+  PHONE_LENS_SIZES,
+  type PhoneSettings,
+  defaultPhoneSettings,
   PADDING_MAX,
   PADDING_MIN,
   PADDING_STEP,
@@ -506,6 +510,20 @@ export function migrateWindows(raw: unknown): WindowSettings {
   return out;
 }
 
+/** The phone's settings from anything (additive in stage 51, ADR 0136 §13: absent is the defaults). */
+export function migratePhone(raw: unknown): PhoneSettings {
+  const d = defaultPhoneSettings();
+  const p = isObj(raw) ? raw : {};
+  const l = isObj(p.lens) ? p.lens : {};
+  return {
+    lens: {
+      show: bool(l.show, d.lens.show),
+      size: oneOf(l.size, PHONE_LENS_SIZES, d.lens.size),
+      opensAt: oneOf(l.opensAt, PHONE_LENS_LEVELS, d.lens.opensAt),
+    },
+  };
+}
+
 /** Options for `migrateSettings`. */
 export interface MigrateOptions {
   /** A phone (ADR 0081): sections that default differently there (the weather, ADR 0092). */
@@ -534,5 +552,6 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     mapper: migrateMapper(s.mapper, fromVersion),
     weather: migrateWeather(s.weather, opts.phone ?? false),
     windows: migrateWindows(s.windows),
+    phone: migratePhone(s.phone),
   };
 }

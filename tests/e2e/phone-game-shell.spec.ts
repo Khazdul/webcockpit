@@ -53,14 +53,16 @@ const fill = (page: Page, side: 'left' | 'right') =>
     .locator(`.wc-ph-fight-side.is-${side} .wc-ph-bar > i`)
     .evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).a);
 
-test('the live game on a phone: the game text and the command row only; no tab strip, no panes, no clock', async ({ page }) => {
+test('the live game on a phone: the game text and the command row; no tab strip, no pane but the map lens, no clock', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openPhone(page);
   await play(page);
   await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
   await expect(page.locator('.wc-phone-tabs')).toHaveCount(0);
-  await expect(page.locator('.wc-pane:not([hidden])')).toHaveCount(0);
+  // The one pane shown is the map, as the lens (stage 51c).
+  await expect(page.locator('.wc-pane:not([hidden])')).toHaveCount(1);
+  await expect(page.locator('.wc-pane-map')).toBeVisible();
   await expect(page.locator('.wc-menubar')).toHaveCount(0);
   await expect(page.locator('.wc-input-clock')).toBeHidden();
   await expect(page.locator('.wc-input-prompt')).toBeHidden();

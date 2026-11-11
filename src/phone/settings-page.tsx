@@ -5,7 +5,7 @@
 // The page is data: `SETTINGS_GROUPS` lists the groups, each a list of rows
 // of a few kinds (stepper, segmented, switch, pick from a list). A stage
 // adds its group to the list when what it sets works (stage 51 rule 3: no
-// row before its feature): Text here (51b); Map lens (51c), Panes and Comm
+// row before its feature): Text (51b), Map lens (51c); Panes and Comm
 // (51d), Compass and Connection (51f) follow.
 //
 // The Text group changes the same keys the desktop does (`appearance.size`,
@@ -21,7 +21,7 @@
 import type { ComponentChildren, VNode } from 'preact';
 import { useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
-import type { FontId, Settings, SettingsPatch } from '../settings/types';
+import type { FontId, PhoneLensLevel, PhoneLensSize, Settings, SettingsPatch } from '../settings/types';
 import { phoneControls, phoneKit } from './kit';
 import { PHONE_THEMES, type PhoneTheme, stepSize, themeBg, themeOf } from './text-settings';
 
@@ -113,8 +113,47 @@ export const TEXT_GROUP: SettingsGroup = {
   ],
 };
 
+/** Map lens: show, size, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13). */
+export const LENS_GROUP: SettingsGroup = {
+  id: 'lens',
+  title: 'Map lens',
+  rows: [
+    {
+      kind: 'toggle',
+      id: 'lens-show',
+      label: 'Show map',
+      get: (s) => s.phone.lens.show,
+      set: (show) => ({ phone: { lens: { show } } }),
+    },
+    {
+      kind: 'seg',
+      id: 'lens-size',
+      label: 'Size',
+      options: [
+        { value: 's', label: 'S' },
+        { value: 'm', label: 'M' },
+        { value: 'l', label: 'L' },
+      ],
+      get: (s) => s.phone.lens.size,
+      set: (size) => ({ phone: { lens: { size: size as PhoneLensSize } } }),
+    },
+    {
+      kind: 'seg',
+      id: 'lens-opens',
+      label: 'Opens at',
+      options: [
+        { value: 'near', label: 'Near' },
+        { value: 'middle', label: 'Middle' },
+        { value: 'far', label: 'Far' },
+      ],
+      get: (s) => s.phone.lens.opensAt,
+      set: (opensAt) => ({ phone: { lens: { opensAt: opensAt as PhoneLensLevel } } }),
+    },
+  ],
+};
+
 /** The page's groups, top to bottom. */
-export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP];
+export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, LENS_GROUP];
 
 // ------------------------------------------------------------------ pieces
 

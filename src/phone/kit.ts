@@ -51,6 +51,10 @@ export interface PhoneKit {
   minRows: number;
   /** True while the on-screen keyboard is up (src/layout/phone-viewport.ts). */
   keyboardUp(): boolean;
+  /** Page fullscreen (src/core/fullscreen.ts): whether the browser can, the toggle, and the refusal notice. */
+  canFullscreen(doc: Document): boolean;
+  toggleFullscreen(doc: Document): void;
+  onFullscreenRefused(fn: () => void): () => void;
 }
 
 /** The look kit's controls of the settings page (src/chrome/kit/look-controls.tsx). */

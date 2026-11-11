@@ -48,11 +48,16 @@ test('tapping COMM shows the comm pane full width; GAME comes back at the same s
   for (let i = 0; i < 8; i++) await forward.tap();
   await expect(player(page).locator('.wc-rows .wc-row').filter({ hasText: 'A crow caws somewhere to the north.' })).toHaveCount(1);
   const scroller = player(page).locator('.wc-game .wc-scroller');
-  // Let the jumps' last lines land (they snap the text to its tail), then scroll back.
-  await page.waitForTimeout(700);
-  await scroller.evaluate((el) => (el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - 200)));
-  const before = await scroller.evaluate((el) => el.scrollTop);
-  expect(before).toBeGreaterThan(0);
+  // The jumps' last lines snap the text to its tail: scroll back until it stays (no line lands any more).
+  let before = 0;
+  await expect
+    .poll(async () => {
+      const want = await scroller.evaluate((el) => (el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - 200)));
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      before = await scroller.evaluate((el) => el.scrollTop);
+      return before > 0 && before === want;
+    })
+    .toBe(true);
   const cells = await player(page).locator('.wc-cockpit').getAttribute('data-cells');
   const layoutJson = () => page.evaluate(() => JSON.stringify(window.__wc!.settings.get().layout));
   const layout = await layoutJson();

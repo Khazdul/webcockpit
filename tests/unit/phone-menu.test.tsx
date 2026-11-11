@@ -10,7 +10,7 @@ import { PHONE_KIT } from '../../src/app/phone-kit';
 import { Seg, Toggle } from '../../src/chrome/kit/look-controls';
 import { setPhoneControls, setPhoneKit } from '../../src/phone/kit';
 import { PhoneMenu, statusText } from '../../src/phone/menu-sheet';
-import { SETTINGS_GROUPS, TEXT_GROUP } from '../../src/phone/settings-page';
+import { LENS_GROUP, SETTINGS_GROUPS, TEXT_GROUP } from '../../src/phone/settings-page';
 import { SettingsStore } from '../../src/settings';
 import { defaultSettings } from '../../src/settings/types';
 
@@ -279,9 +279,41 @@ describe('PhoneMenu', () => {
   });
 });
 
+describe('the Map lens group', () => {
+  it('reads and patches phone.lens only', () => {
+    const s = defaultSettings();
+    const [show, size, opens] = LENS_GROUP.rows;
+    if (show?.kind !== 'toggle' || size?.kind !== 'seg' || opens?.kind !== 'seg') throw new Error('row kinds');
+    expect(show.get(s)).toBe(true);
+    expect(show.set(false, s)).toEqual({ phone: { lens: { show: false } } });
+    expect(size.get(s)).toBe('m');
+    expect(size.options.map((o) => o.value)).toEqual(['s', 'm', 'l']);
+    expect(size.set('l', s)).toEqual({ phone: { lens: { size: 'l' } } });
+    expect(opens.get(s)).toBe('middle');
+    expect(opens.options.map((o) => o.value)).toEqual(['near', 'middle', 'far']);
+    expect(opens.set('far', s)).toEqual({ phone: { lens: { opensAt: 'far' } } });
+  });
+
+  it('its switch and segments change the stored settings from the page', () => {
+    const { menu, settings } = setup();
+    act(() => menu.openSettings());
+    const row = (id: string): Element => menu.host.querySelector(`[data-row="${id}"]`)!;
+    tap(row('lens-size').querySelector('[data-opt="s"]'));
+    expect(settings.get().phone.lens.size).toBe('s');
+    tap(row('lens-opens').querySelector('[data-opt="far"]'));
+    expect(settings.get().phone.lens.opensAt).toBe('far');
+    tap(row('lens-show').querySelector('[role="switch"]'));
+    expect(settings.get().phone.lens.show).toBe(false);
+    expect(row('lens-show').querySelector('[role="switch"]')!.getAttribute('aria-checked')).toBe('false');
+    // The desktop's Mapper settings are not touched.
+    expect(settings.get().mapper).toEqual(defaultSettings().mapper);
+  });
+});
+
 describe('the settings page as data', () => {
-  it('has only the Text group until later steps add theirs (stage 51 rule 3)', () => {
-    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text']);
+  it('has the groups built so far and no other (stage 51 rule 3): Text, Map lens', () => {
+    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'lens']);
+    expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-size', 'seg:lens-opens']);
     expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font']);
   });
 

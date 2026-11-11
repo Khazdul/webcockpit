@@ -71,6 +71,13 @@
 //   from a tileset change to `tilesDrawn`, a small centred progress bar fed by the
 //   worker's `progress`; shown only after 200 ms, faded out at the end;
 //   an error hides it and shows the notice.
+// - Lens (ADR 0136 §4, `setLens`): the phone's layout in the live game
+//   shows this pane as its round map lens. While a lens is set the pane
+//   draws Shimrod (alternating) on black, shows no hover box and takes no
+//   pan, pinch or wheel, whatever the Mapper settings say; the settings
+//   themselves are never written, so the desktop keeps its own. `zoomTo`
+//   sets an absolute zoom (kept and sent again when the worker starts or
+//   loads a map). Never set on a desktop or a tablet, nor in the player.
 
 import { device } from '../core/device';
 import { type BusEvents, gmcpKey } from '../core/types';
@@ -109,6 +116,18 @@ export function mapUnsupported(win: (Window & typeof globalThis) | null): string
     return 'OffscreenCanvas is not available';
   }
   return null;
+}
+
+/**
+ * What the phone's map lens fixes on the pane while it is set (ADR 0136
+ * §4). Applied at run time only: the stored Mapper settings stay as they
+ * are.
+ */
+export interface MapLens {
+  /** The tileset drawn (a setting value of `mapper.tileset`, e.g. `shimrod`). */
+  tileset: string;
+  /** The background, `#rrggbb` (never transparent). */
+  background: string;
 }
 
 /** How often the pane checks whether MUME's season (and so an alternating tileset) changed. */
@@ -150,6 +169,10 @@ export class MapPane extends PaneShell {
   private placeKey = '';
   /** The pane's box size in CSS px as last placed (null while hidden). */
   private boxPx: { w: number; h: number } | null = null;
+  /** The phone's map lens (ADR 0136 §4): fixed look, no hover, no pan or zoom by hand. Null elsewhere. */
+  private lens: MapLens | null = null;
+  /** The lens's absolute zoom, sent to the worker when it starts and after a map load. */
+  private lensZoom: number | null = null;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -170,7 +193,7 @@ export class MapPane extends PaneShell {
       host: () => this.el.parentElement,
       frame: () => this.canvas.getBoundingClientRect(),
       size: () => this.ctx.settings.get().mapper.hoverSize,
-      enabled: () => this.ctx.settings.get().mapper.hover !== 'off',
+      enabled: () => this.lens === null && this.ctx.settings.get().mapper.hover !== 'off',
       ask: (x, y) => {
         const c = this.client;
         if (!c || !this.loaded || !this.visible || this.drag || this.touches.size > 1) return null;
@@ -253,6 +276,27 @@ export class MapPane extends PaneShell {
     });
   }
 
+  /**
+   * Sets or clears the phone's map lens (ADR 0136 §4; see the file header).
+   * The tileset and the background follow at once, also in a running worker.
+   */
+  setLens(lens: MapLens | null): void {
+    if (lens?.tileset === this.lens?.tileset && lens?.background === this.lens?.background && (lens === null) === (this.lens === null)) return;
+    this.lens = lens;
+    if (lens === null) this.lensZoom = null;
+    this.hover.cancel();
+    this.content.toggleAttribute('data-map-lens', lens !== null);
+    this.applyBackground(true);
+    if (this.host.assets.kind === 'base') this.syncTileset();
+  }
+
+  /** The lens's zoom (the worker's absolute `zoom`); kept for a worker that starts later. Only with a lens. */
+  zoomTo(zoom: number): void {
+    if (this.lens === null) return;
+    this.lensZoom = zoom;
+    this.client?.zoomTo(zoom);
+  }
+
   /** A pane moved, resized or hidden by the layout takes the hover box with it. */
   override place(p: Parameters<PaneShell['place']>[0], cell: Parameters<PaneShell['place']>[1]): void {
     const r = p?.rect;
@@ -326,9 +370,20 @@ export class MapPane extends PaneShell {
     }
   }
 
-  /** Forwarding follows "shown and loaded" (phone: "loaded"). */
+  /**
+   * Whether game events go to the worker while the pane is hidden: on a
+   * phone's tab strip (the MAP tab keeps tracking, ADR 0075 §3.3), not for
+   * the lens (ADR 0136 §4: a lens that is off or has no room costs nothing
+   * per line; shown again, the last room is replayed and it finds the
+   * player).
+   */
+  private keepsForwarding(): boolean {
+    return this.forwardHidden && this.lens === null;
+  }
+
+  /** Forwarding follows "shown and loaded" (phone tab strip: "loaded"). */
   private syncForward(): void {
-    this.forward((this.visible || this.forwardHidden) && this.loaded && this.client !== null);
+    this.forward((this.visible || this.keepsForwarding()) && this.loaded && this.client !== null);
   }
 
   private win(): (Window & typeof globalThis) | null {
@@ -361,7 +416,7 @@ export class MapPane extends PaneShell {
         this.hover.cancel();
         this.client?.visible(false);
         this.watchDpr(false);
-        if (!this.forwardHidden) this.forward(false);
+        if (!this.keepsForwarding()) this.forward(false);
       }
       return;
     }
@@ -415,6 +470,7 @@ export class MapPane extends PaneShell {
         transparent: this.transparent(),
         onMessage: this.onWorker,
       });
+      if (this.lensZoom !== null) this.client.zoomTo(this.lensZoom);
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
       const notes = this.ctx.mapNotes;
       if (notes) this.forwarder.stampRooms = () => notes.wanted();
@@ -434,6 +490,7 @@ export class MapPane extends PaneShell {
    * Transparent the pane's own background (its tint, else the terminal's).
    */
   private background(): string {
+    if (this.lens) return this.lens.background;
     const s = this.ctx.settings.get();
     const p = paneSettingsOf(s.panes, 'map');
     return mapBgEffective(s.mapper.background, paneContentBg(p.color, s.appearance.bg, p.glass));
@@ -441,6 +498,7 @@ export class MapPane extends PaneShell {
 
   /** Whether the map leaves its empty space clear (Transparent, ADR 0085 Transparent addendum 2). */
   private transparent(): boolean {
+    if (this.lens) return false;
     return this.ctx.settings.get().mapper.background === MAP_BG_TRANSPARENT;
   }
 
@@ -460,7 +518,7 @@ export class MapPane extends PaneShell {
   /** The set the Mapper option draws now (null: the default pixmaps). */
   private tileset(): Tileset | null {
     const month = mumeMonth(this.ctx.game.clock.state.epoch, this.ctx.now());
-    return resolveTileset(this.ctx.settings.get().mapper.tileset, month);
+    return resolveTileset(this.lens?.tileset ?? this.ctx.settings.get().mapper.tileset, month);
   }
 
   /** The asset source with the current tileset (ADR 0082). */
@@ -537,6 +595,7 @@ export class MapPane extends PaneShell {
         this.notice.hidden = true;
         this.loading.loaded();
         this.loaded = true;
+        if (this.lensZoom !== null) this.client?.zoomTo(this.lensZoom);
         this.syncForward();
         this.attachMarks();
         return;
@@ -620,7 +679,7 @@ export class MapPane extends PaneShell {
 
   private readonly onPointerDown = (e: PointerEvent): void => {
     this.hover.cancel();
-    if (e.button !== 0 || !this.client) return;
+    if (e.button !== 0 || !this.client || this.lens) return;
     this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
     this.canvas.dataset.dragging = '';
     try {
@@ -672,7 +731,8 @@ export class MapPane extends PaneShell {
   // Touch (ADR 0075 §3.3): one finger pans, two pan and pinch-zoom.
 
   private readonly onTouchDown = (e: PointerEvent): void => {
-    if (!this.client) return;
+    // The lens takes no pan or pinch (ADR 0136 §4).
+    if (!this.client || this.lens) return;
     this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = this.local(e);
     this.hover.press(p.x, p.y, this.touches.size === 1);
@@ -727,7 +787,7 @@ export class MapPane extends PaneShell {
   private readonly onWheel = (e: WheelEvent): void => {
     e.preventDefault();
     this.hover.cancel();
-    if (!this.client || e.deltaY === 0) return;
+    if (!this.client || this.lens || e.deltaY === 0) return;
     // A notch is 100 px, 3 lines or 1/3 page. A trackpad pinch (Ctrl, small
     // pixel deltas, about -100·ln(scale) in total) uses 40 px so that
     // spreading the fingers to 2× zooms about 1.33×; a Ctrl+mouse notch

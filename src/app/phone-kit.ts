@@ -4,6 +4,7 @@
 // not, and imports none of it (see kit.ts for why).
 
 import { STATUS as CAPTURE_STATUS } from '../capture/recorder';
+import { canFullscreen, onFullscreenRefused, toggleFullscreen } from '../core/fullscreen';
 import { vitalPct } from '../gmcp/group';
 import { PHONE_MIN_COLS, PHONE_MIN_ROWS } from '../layout/phone';
 import { keyboardUp } from '../layout/phone-viewport';
@@ -33,4 +34,7 @@ export const PHONE_KIT: PhoneKit = {
   minCols: PHONE_MIN_COLS,
   minRows: PHONE_MIN_ROWS,
   keyboardUp,
+  canFullscreen,
+  toggleFullscreen: (doc) => void toggleFullscreen(doc),
+  onFullscreenRefused,
 };

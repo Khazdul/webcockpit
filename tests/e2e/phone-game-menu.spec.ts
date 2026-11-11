@@ -231,7 +231,7 @@ test('a background set on a computer is neither theme; a tap picks one, as the d
   expect({ ...a, bg: '', fg: '', ansi: [] }).toEqual({ ...black, bg: '', fg: '', ansi: [] });
 });
 
-test('the settings page: only the Text group; Back returns to the sheet, Esc steps back to the game', async ({ page }) => {
+test('the settings page: the groups built so far; Back returns to the sheet, Esc steps back to the game', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openSettings(page);
@@ -240,7 +240,7 @@ test('the settings page: only the Text group; Back returns to the sheet, Esc ste
   await expect(pageEl(page).locator('.wc-ph-hood')).toHaveText('Settings');
   // Stage 51 rule 3: no group before its feature.
   const groups = await pageEl(page).locator('[data-group]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.group));
-  expect(groups).toEqual(['text']);
+  expect(groups).toEqual(['text', 'lens']);
   const rows = await pageEl(page).locator('[data-group="text"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
   expect(rows).toEqual(['size', 'theme', 'font']);
   await expect(pageEl(page)).not.toContainText('Left-handed');

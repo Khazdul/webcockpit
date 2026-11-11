@@ -222,6 +222,12 @@ export type MainToWorker =
   | { t: 'pan'; dx: number; dy: number }
   /** Wheel: `steps` notches (positive = zoom in) around (x, y) CSS px. */
   | { t: 'zoom'; steps: number; x: number; y: number }
+  /**
+   * An absolute zoom (the view's `zoom`, clamped to its limits) around the
+   * canvas centre: the phone's map lens steps three fixed levels (ADR 0136
+   * §4). The relative `zoom` stays the wheel's and the pinch's.
+   */
+  | { t: 'zoomTo'; zoom: number }
   /** A batch of game events, in order. */
   | { t: 'events'; events: MapEvent[] }
   /** The pane was hidden or shown (the worker skips rendering while hidden). */

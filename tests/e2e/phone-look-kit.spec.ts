@@ -78,6 +78,11 @@ test('the start page: a large box hides the fullscreen button; Back clears the S
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   // The fullscreen button (src/ui/fullscreen-button.ts) where the browser allows page
   // fullscreen; a stand-in with its class where the test browser does not (the CSS is under test).
+  // (The real one is installed a moment after the start page shows: wait for it before standing in.)
+  await page
+    .locator('.wc-fs-btn')
+    .waitFor({ state: 'attached', timeout: 2000 })
+    .catch(() => {});
   await page.evaluate(() => {
     if (document.querySelector('.wc-fs-btn')) return;
     const b = document.createElement('button');

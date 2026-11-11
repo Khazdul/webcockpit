@@ -119,9 +119,11 @@
 // `allocatePhoneGame` (src/layout/phone-game.ts) instead of `allocatePhone`,
 // no tab strip, and the cockpit is marked `data-phone-game` (the scope of
 // src/phone/phone.css). The phone layer (src/phone/) draws its chrome over
-// the cockpit and reads the rectangles from `phoneGameLayout`. Stage 51a:
-// every pane is hidden (the game text and the command row only);
-// temporary script panes still show over the game text.
+// the cockpit and reads the rectangles from `phoneGameLayout`. Every pane
+// is hidden (the game text and the command row only) but the map pane,
+// which is the layer's map lens when it asks for one (`setPhoneLens`, ADR
+// 0136 §4: borderless in a rectangle of whole cells); temporary script
+// panes still show over the game text.
 
 import { onTitleFont } from '../panes/title-font';
 import './layout.css';
@@ -195,7 +197,7 @@ import {
 import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
-import { type PhoneGameResult, allocatePhoneGame, commandRows } from './phone-game';
+import { type PhoneGameLens, type PhoneGameResult, allocatePhoneGame, commandRows } from './phone-game';
 import { keyboardUp } from './phone-viewport';
 import {
   type DockId,
@@ -279,6 +281,17 @@ interface TempGroup {
   origin: { x: number; y: number } | null;
   /** The last layout (for a drop). */
   laid: { cols: number; h: number } | null;
+}
+
+/** The phone's map lens as the phone layer asks for it, in CSS px (`Cockpit.setPhoneLens`). */
+export interface PhoneLensPx {
+  /** The lens's diameter. */
+  size: number;
+  /** Air above it (under the fight card, or the top edge) and right of it. */
+  gapTop: number;
+  gapRight: number;
+  /** The height from the cockpit's bottom edge the lens must stay out of (the keys there). */
+  clearBottom: number;
 }
 
 export interface CockpitOptions {
@@ -516,6 +529,8 @@ export class Cockpit {
   private pgFight = false;
   /** Phone game layout: the last allocation. */
   private pgLast: PhoneGameResult | null = null;
+  /** Phone game layout: the map lens as the phone layer wants it, px (`setPhoneLens`); null: no lens. */
+  private pgLens: PhoneLensPx | null = null;
 
   constructor(opts: CockpitOptions) {
     const doc = opts.root.ownerDocument;
@@ -1066,15 +1081,47 @@ export class Cockpit {
     this.scheduleRelayout();
   }
 
+  /**
+   * Phone game layout: the map lens (ADR 0136 §4), or null for none. The
+   * map pane is then placed borderless in a rectangle of whole cells that
+   * holds a circle `size` px across (the phone layer clips and dresses it),
+   * and is hidden when the allocator says it would collide.
+   */
+  setPhoneLens(lens: PhoneLensPx | null): void {
+    if (!this.phoneGame) return;
+    const a = this.pgLens;
+    if (a === lens || (a && lens && a.size === lens.size && a.gapTop === lens.gapTop && a.gapRight === lens.gapRight && a.clearBottom === lens.clearBottom)) return;
+    this.pgLens = lens && { ...lens };
+    this.scheduleRelayout();
+  }
+
+  /** The lens in cells for a cell of `cell` px and a command row `inputPx` high. */
+  private lensCells(cell: { w: number; h: number }, inputPx: number, kbd: boolean): PhoneGameLens | null {
+    const l = this.pgLens;
+    if (!l) return null;
+    const up = (px: number, unit: number): number => Math.max(0, Math.ceil(px / unit - 1e-6));
+    return {
+      cols: Math.max(1, up(l.size, cell.w)),
+      rows: Math.max(1, up(l.size, cell.h)),
+      gapTop: up(l.gapTop, cell.h),
+      gapRight: up(l.gapRight, cell.w),
+      // The keys at the bottom right step aside with the keyboard up (ADR 0136 §9).
+      clearBottom: kbd ? 0 : up(l.clearBottom - inputPx, cell.h),
+    };
+  }
+
   /** Phone game layout: the relayout (allocatePhoneGame, ADR 0136 §2); see the file header. */
   private relayoutPhoneGame(cell: PaneCell, W: number, H: number): void {
     const s = this.settings.get();
+    const inputRows = commandRows(cell.h);
+    const kbd = keyboardUp();
     const g = allocatePhoneGame({
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
-      inputRows: commandRows(cell.h),
-      guard: !keyboardUp(),
+      inputRows,
+      guard: !kbd,
       fight: this.pgFight,
+      lens: this.lensCells(cell, inputRows * cell.h, kbd),
     });
     this.pgLast = g;
     const panes: PaneBox[] = [];
@@ -1105,8 +1152,10 @@ export class Cockpit {
     for (const [id, shell] of this.shells) {
       shell.applyTheme(s);
       const b = boxes.get(id);
-      // Stage 51a: every pane but a temporary one is hidden.
-      shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
+      // The map pane is the lens (ADR 0136 §4): borderless in the lens's cells. Every other
+      // pane but a temporary one is hidden (the pane strip and Comm come in stage 51d).
+      if (id === 'map' && g.lens && !g.tooSmall) shell.place({ rect: g.lens, content: g.lens, framed: false }, cell);
+      else shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
     }
     this.holes.sync();
     for (const fn of [...this.layoutListeners]) fn();

@@ -15,6 +15,9 @@
 // Parts (one module each):
 //   fight-card.ts   two names and two bars while fighting (model: fight-model.ts)
 //   compass.ts      the 3 × 3 keys in the bottom right corner
+//   lens.ts         the map lens: ring, glass and pips over the cockpit's
+//                   map pane, a tap steps the zoom (lens-zoom.ts), and the
+//                   fullscreen key on its corner
 //   menu-sheet.tsx  the menu: a bottom sheet, and the settings page
 //                   (settings-page.tsx) it leads to
 //   here            the menu key in the command row, and the wiring
@@ -33,6 +36,10 @@ import { type FightCard, type SelfVitals, fightCard, fightSig } from './fight-mo
 import { type MenuFrame, PhoneMenu } from './menu-sheet';
 import { type PlayState, keysLive } from './play-gate';
 import { sizeFits } from './text-settings';
+import { sectionChanged } from './changed';
+import { LensView } from './lens';
+import { type LensLevel, lensLevel, lensPx, lensZoom } from './lens-zoom';
+import type { MapPane } from '../panes/map';
 import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
 
 export type { PhoneControls, PhoneKit } from './kit';
@@ -42,6 +49,16 @@ import type { SettingsStore } from '../settings';
 export type { MenuFrame } from './menu-sheet';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** The lens's place (the mockups): 16 px under the fight card or the top edge, 12 px from the right edge. */
+const LENS_GAP_TOP = 16;
+const LENS_GAP_RIGHT = 12;
+/** What the compass takes from the bottom edge: three 40 px keys, two 3 px gaps and its 8 px margin. */
+const COMPASS_HEIGHT = 134;
+/** The key row's air under what is above it (the lens hidden). */
+const SATROW_GAP = 8;
+/** What the lens fixes on the map pane (ADR 0136 §4): Shimrod, alternating with MUME's season, on black. */
+const LENS_LOOK = { tileset: 'shimrod', background: '#000000' } as const;
 
 export interface PhoneLayerDeps {
   /** What the layer uses of the app, handed in so this chunk imports none of it (kit.ts). */
@@ -82,6 +99,14 @@ export class PhoneLayer {
   readonly rescueKey: HTMLButtonElement;
   private readonly deps: PhoneLayerDeps;
   private readonly fight: FightCardView;
+  private readonly lens: LensView;
+  /** The cockpit's map pane: the lens's map (the one worker and canvas). */
+  private readonly map: MapPane;
+  /** The lens as last applied: its diameter (0: not shown) and the "Opens at" it started from. */
+  private lensSize = 0;
+  private lensOpensAt: LensLevel | null = null;
+  /** The zoom last sent to the map, as `size:level` (nothing is sent again for the same). */
+  private lensZoomKey = '';
   private readonly unsubs: Array<() => void> = [];
   /** The card on screen (null: no fight) and its signature. */
   private card: FightCard | null = null;
@@ -95,7 +120,14 @@ export class PhoneLayer {
     this.el.className = 'wc-ph-layer';
     this.fight = new FightCardView(doc);
     const compass = new Compass(doc, (cmd) => this.send(cmd));
-    this.el.append(this.fight.el, compass.el);
+    const kit = phoneKit();
+    this.map = cockpit.pane('map') as unknown as MapPane;
+    this.lens = new LensView(doc, {
+      onLevel: () => this.zoomLens(),
+      fullscreen: kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : null,
+    });
+    this.unsubs.push(kit.onFullscreenRefused(() => this.lens.dropFullscreen()));
+    this.el.append(this.fight.el, this.lens.el, this.lens.rowEl, compass.el);
     cockpit.el.append(this.el);
     this.menu = new PhoneMenu({
       parent: cockpit.el,
@@ -124,7 +156,12 @@ export class PhoneLayer {
         if (part === 'group' || (part === 'char' && this.card !== null)) this.syncFight();
       }),
       cockpit.onLayout(() => this.place()),
+      deps.settings.subscribe((next, prev) => {
+        // By value: the store hands out a fresh copy on every update (changed.ts).
+        if (sectionChanged(next.phone.lens, prev.phone.lens)) this.syncLens();
+      }),
     );
+    this.syncLens();
     this.syncFight();
     this.place();
   }
@@ -179,6 +216,43 @@ export class PhoneLayer {
     });
   }
 
+  /**
+   * Applies the Map lens settings (ADR 0136 §4): the cockpit places the
+   * map pane for a lens of that size (or not at all), the pane draws the
+   * lens's fixed look, and the zoom is the level's for that size. The
+   * level starts at "Opens at" and is kept through a size change; a new
+   * "Opens at" sets it. The stored Mapper settings are never written.
+   */
+  private syncLens(): void {
+    const { cockpit, settings } = this.deps;
+    const l = settings.get().phone.lens;
+    const size = l.show ? lensPx(l.size) : 0;
+    const opensAt = lensLevel(l.opensAt);
+    if (opensAt !== this.lensOpensAt) {
+      this.lensOpensAt = opensAt;
+      this.lens.setLevel(opensAt);
+    }
+    this.lensSize = size;
+    if (size === 0) {
+      cockpit.setPhoneLens(null);
+      return;
+    }
+    // The pane's clip (phone.css) and the dressing share the diameter.
+    cockpit.el.style.setProperty('--ph-lens-size', `${size}px`);
+    this.map.setLens(LENS_LOOK);
+    this.zoomLens();
+    cockpit.setPhoneLens({ size, gapTop: LENS_GAP_TOP, gapRight: LENS_GAP_RIGHT, clearBottom: COMPASS_HEIGHT });
+  }
+
+  /** Sends the lens's zoom for its level and size to the map, when either changed. */
+  private zoomLens(): void {
+    const level = this.lens.zoomLevel;
+    const key = `${this.lensSize}:${level}`;
+    if (this.lensSize === 0 || key === this.lensZoomKey) return;
+    this.lensZoomKey = key;
+    this.map.zoomTo(lensZoom(level, this.lensSize));
+  }
+
   /** Recomputes the fight card; the DOM and the cockpit hear of it only on a change. */
   private syncFight(): void {
     const { game, cockpit } = this.deps;
@@ -216,8 +290,15 @@ export class PhoneLayer {
   private place(): void {
     const g = this.deps.cockpit.phoneGameLayout;
     if (!g) return;
-    const h = this.deps.cells.get().h;
+    const { w, h } = this.deps.cells.get();
     this.fight.place(g.fight.y * h, g.fight.h * h, this.card !== null && !g.tooSmall);
+    // The lens's circle is centred on the map pane's rectangle (whole cells, a little larger).
+    const r = g.tooSmall ? null : g.lens;
+    const size = this.lensSize;
+    this.lens.place(
+      r && size > 0 ? { left: (r.x + r.w / 2) * w - size / 2, top: (r.y + r.h / 2) * h - size / 2, size } : null,
+      g.game.y * h + SATROW_GAP,
+    );
   }
 
   dispose(): void {

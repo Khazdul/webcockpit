@@ -38,7 +38,8 @@ test('portrait: the game full width, the input at the bottom; no arranging', asy
   const cockpit = (await page.locator('.wc-cockpit').boundingBox())!;
   const game = (await page.locator('.wc-game').boundingBox())!;
   expect(Math.abs(game.width - cockpit.width)).toBeLessThan(10);
-  await expect(page.locator('.wc-pane:not([hidden])')).toHaveCount(0);
+  // (The map pane is the lens since stage 51c; no side pane is shown.)
+  await expect(page.locator('.wc-pane:not([hidden]):not(.wc-pane-map)')).toHaveCount(0);
   await inputVisible(page);
   // Nothing to drag, resize or close.
   await expect(page.locator('.wc-pane-grip, .wc-pane-close, .wc-float-handle, .wc-handle')).toHaveCount(0);
