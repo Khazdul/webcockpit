@@ -1,6 +1,6 @@
 # Stage 51 — The phone's layout in the game
 
-Status: **Owner testing** (plan written 2026-11-10; built 2026-11-10/11, steps 51a–51g). Branch
+Status: **Done** (built 2026-11-10/11, steps 51a–51g; merged and released as 0.5.0 on 2026-11-11; improvements continue in stage 52). Branch
 `stage-51-phone-layout` (from `main`), not to be merged or released by
 the build session.
 
@@ -632,4 +632,12 @@ map mark with focus can still override the lens's zoom (51g).
 
 ## Owner feedback
 
-(After the owner's test.)
+- 2026-11-11, after the build summary: merge and release as 0.5.0. The
+  lens's fullscreen key is to be the page's fullscreen (as built). A
+  tablet should get the desktop layout (it does). The old phone layout
+  is to be scrapped (stage 52, C). Asked for `rescue` as a quick pick
+  (already there; question carried to stage 52, A5).
+- 2026-11-11, quick test of 0.5.0 on the phone: nothing found that does
+  not work. A list of improvements follows, to be worked through
+  iteratively in a new session: `docs/stages/52-phone-round-2.md`, which
+  also holds everything known to need a look.
