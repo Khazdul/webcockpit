@@ -187,6 +187,23 @@ moves the caret), script pane fields, key sound.
   not on focus from a physical key; opening the menu closes it; a
   rotation sends the window sizes it sends without the keyboard.
 
+- **Review of 53a** (fresh subagent): nothing changes without `?kbd=1`
+  (allocator compared with `main` on 200 000 random inputs); no
+  must-fix. For the next round:
+  - the backspace repeat is not stopped on `visibilitychange`;
+  - with our keyboard open, a tap on Comm's reply or search raises the
+    device's keyboard too (those fields are not ours until 53d), the
+    reserve is clamped and the block can stand at a stale place: close
+    ours when the focus enters a field that is not ours, until 53d;
+  - keys type into a blurred field (after a tap on the game text)
+    without refocusing it;
+  - backspace removes one code point, not a grapheme cluster;
+  - shift survives space, backspace and Enter;
+  - a long press on the field focuses it without opening our keyboard;
+  - test gaps: the lens check is conditional, no test for the repeat
+    stopping on cancel or close, none for the password swap with the
+    keyboard open.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
