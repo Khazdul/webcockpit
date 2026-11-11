@@ -521,5 +521,55 @@ for (const theme of THEMES) {
       expect(found.some((f) => f.disabled && f.text === 'Not connected')).toBe(true);
       judge(found, 'Comm, reply disabled', theme, info, 3);
     });
+    test('the own keyboard (?kbd=sv): letters, the digit row, symbols, shift once and locked, a pressed key; solid keys', async ({ page }, info) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.goto('/?replay&phone=1&kbd=sv');
+      await expect(page.locator('.wc-ph-pad')).toBeVisible();
+      await setTheme(page, theme);
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { digits: true } } }));
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      const okb = page.locator('.wc-ph-okb');
+      await expect(okb).toBeVisible();
+      const key = (k: string) => okb.locator(k.length === 1 ? `.wc-ph-okb-k[data-ch="${k}"]` : `.wc-ph-okb-k[data-act="${k}"]`);
+      // Letters, digits and the labelled keys (the symbols' key, the digit row's lit toggle).
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, letters', theme, info, 29 + 10 + 2);
+      // Shift once, then locked: the capitals.
+      await key('shift').tap();
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, shift', theme, info, 41);
+      await key('shift').tap();
+      await expect(okb).toHaveAttribute('data-shift', 'lock');
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, shift locked', theme, info, 41);
+      await key('shift').tap();
+      // The digit row's toggle unlit.
+      await key('digits').tap();
+      await expect(key('digits')).toHaveAttribute('aria-pressed', 'false');
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, digit row folded', theme, info, 31);
+      // Symbols, both pages.
+      await key('sym').tap();
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, symbols 1', theme, info, 30);
+      await key('alt').tap();
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, symbols 2', theme, info, 20);
+      await key('sym').tap();
+      // A pressed key (the class the press sets), a letter and a labelled one.
+      await okb.evaluate((el) => {
+        el.querySelector('.wc-ph-okb-k[data-ch="q"]')!.classList.add('is-down');
+        el.querySelector('.wc-ph-okb-k[data-act="sym"]')!.classList.add('is-down');
+      });
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, pressed', theme, info, 31);
+      // Solid: the band and every cap are opaque, and nothing is filtered.
+      const paint = await okb.evaluate((el) => {
+        // Computed colours: `rgb(r, g, b)` is opaque, `rgba(r, g, b, a)` has its alpha last.
+        const alpha = (c: string): number => (c.startsWith('rgba(') ? Number(c.slice(5, -1).split(',')[3]) : c.startsWith('rgb(') ? 1 : 0);
+        const caps = [...el.querySelectorAll('.wc-ph-okb-cap')].map((c) => getComputedStyle(c));
+        return {
+          band: alpha(getComputedStyle(el).backgroundColor),
+          // A cap's ground is a gradient of opaque stops, or an opaque colour.
+          caps: caps.every((cs) => (cs.backgroundImage !== 'none' ? /rgb\(/.test(cs.backgroundImage) && !cs.backgroundImage.includes('rgba(') : alpha(cs.backgroundColor) === 1)),
+          filters: [getComputedStyle(el), ...caps].every((cs) => cs.backdropFilter === 'none' && cs.filter === 'none'),
+          animated: [getComputedStyle(el), ...caps].some((cs) => cs.animationName !== 'none' || parseFloat(cs.transitionDuration) > 0),
+        };
+      });
+      expect(paint).toEqual({ band: 1, caps: true, filters: true, animated: false });
+    });
   });
 }

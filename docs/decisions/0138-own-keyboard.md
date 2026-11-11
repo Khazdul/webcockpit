@@ -149,3 +149,99 @@ shown), `vibrate`. No settings version bump.
   paste.
 - The bottom edge: the gesture bar and the safe area on Android; later
   Safari's toolbar on an iPhone (no fullscreen there).
+
+## Addendum: as built in rounds 53b and 53c (2026-11-11)
+
+Where this differs from the decision above, this is what the code does.
+Still behind `?kbd=` (`1`: the layout of the browser's language; `sv`,
+`en`: that layout), and for the command field only; the other fields,
+the layout's setting and vibration are round 53d.
+
+**§4 Layouts, rows and keys** (`src/phone/keyboard-model.ts`, pure)
+
+- A key's element is its whole cell, so the touch targets have no gaps;
+  the cap drawn in it stands 2 px in. A letter key is the block's width
+  shared by the row's keys (eleven in Swedish, ten in English), at most
+  48 px in portrait and 46 px in landscape. A row is 46 px high in
+  portrait (less on a low screen, down to 38) and 36 px in landscape (32
+  at 800 × 280), from the screen's height.
+- **History arrows:** on the digit row where its twelve keys are at
+  least 30 px wide; else on the bottom row, where they stay whether the
+  digit row is up or not. At 360 px they are on the bottom row (twelve
+  keys would be 29.7 px); at 412 px and in landscape they are on the
+  digit row, and so are gone while it is folded away.
+- **Symbols:** one list in order of use,
+  `' " , - ! ? : # @ $ % & * ( ) / _ \ { } [ ] + = < > ~ ^ |`; the third
+  row takes the first seven, then the second row, then the first. `.`
+  and `;` keep their bottom-row keys on every page. **With the digit row
+  folded away the page's first row is the digits** (and the arrows where
+  the digit row would carry them), so the page is usable on its own and
+  the block never changes height with the page: no relayout and no
+  window size for MUME when the page is changed. What then does not fit
+  is on a second page, reached with the key in shift's place (`1/2`).
+  With the digit row up Swedish holds every symbol on one page; English
+  is two short (`^ |` on a second page).
+- **Shift:** a second tap within 350 ms locks. A single shift is used up
+  by the next character of any kind (a letter, a digit, a symbol, a
+  space) and by Enter; not by backspace. A lock survives all of them.
+  Shift, the lock and the symbols page end when the keyboard closes.
+- **Backspace** removes a whole grapheme cluster (`Intl.Segmenter`, else
+  a code point). Its repeat also stops when the page is hidden or the
+  window loses the focus.
+- The fold key, the digit row's toggle and the two page keys act on the
+  click, not on the press: what is under the finger changes.
+- The digit row's state is `phone.keyboard.digits` (default: folded).
+  The key `phone.keyboard.layout` comes with its setting in 53d.
+
+**§3 The target interface** `OkbTarget`: `insert`, `deleteBack`,
+`submit`, `focus`, `blur`, and optional `historyUp` / `historyDown`
+(absent: the arrows are dimmed). The command line implements it over
+`InputPane` (`insertText`, `deleteBackward`, `submitLine`, `historyStep`;
+no history at a password prompt). A key pressed while the field is
+blurred gives it the focus back.
+
+**§5 Opening and closing**
+
+- Opens on a tap (at its click), and on a focus of the field that comes
+  while a pointer is on it or within 700 ms after (a long press). A
+  focus without a pointer opens nothing.
+- Closes, besides the fold key and the menu: when a text field that is
+  not ours takes the focus (Comm's reply and search, the hot key box, a
+  script pane's field; until 53d those have the device's keyboard), and
+  **when a held hot key opens its box** (the box and the keyboard never
+  stand together; the release of that finger is not taken for a tap on
+  what moved under it). A tap on the command field closes the box and
+  opens the keyboard again.
+
+**§5 Layout: replaces "while it is up the compass and the K keys are
+hidden" and, for landscape, "one block over the full width"** (the
+owner, after the device test of 53a and during 53c)
+
+- **Portrait:** the block over the full width. The compass and the hot
+  key columns are **not hidden**: they stand exactly as with the keyboard
+  down, lifted by the keyboard's height, so the compass starts at the
+  command row and the field ends left of it. The lens's clearance and the
+  limit for the strip, the fight card and Comm ("above the place of
+  three K keys") are counted from the keyboard's top edge. On a screen
+  too low (less than 48 px left above them) the columns give way first,
+  then the compass; the field then takes the full width.
+- **Landscape:** the block is compressed towards the middle, with K1 to
+  K3 in a column left of it, K4 to K6 in a column right of it and the
+  compass at the far right, all in the keyboard's band and in the middle
+  of its height. The block and its columns stand as one group in the
+  middle of what the compass leaves; an empty column takes no width; the
+  K key hides the columns as ever. The field takes the row's full
+  width; the lens keeps its place. A letter key is as wide as fits, at
+  most 46 px. When everything together would leave it under 36 px, the
+  parts give way in this order: **both hot key columns, then the
+  compass; only then do the keys get narrower.** (At 568 × 320 with
+  Swedish: no columns, the compass stays.)
+- The band is always the full width and lies **under** the landscape left
+  column of ADR 0137 §1: the column ends above it, so the block stays in
+  the middle whatever is open.
+- The reserve follows the keyboard's real height: the digit row folded up
+  or down is one relayout and one window size. What the screen has under
+  its last whole row counts towards the keyboard's height.
+- `gameKeep` is the layout's usual eight rows; the too-small guard stays
+  on (the page's size does not change). A reserve the screen cannot give
+  (rows under 24 px) closes the keyboard.

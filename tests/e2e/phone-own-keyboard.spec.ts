@@ -981,3 +981,440 @@ test('the strip and Comm open with the keyboard up end above it (portrait and la
     expect(p.y + p.height).toBeLessThanOrEqual(k2.y + 0.5);
   }
 });
+
+// ------------------------------------------------- layouts, pages, the keys
+
+test('Swedish (?kbd=sv): å ä ö and their capitals, shift once and locked', async ({ page }) => {
+  await openPhone(page, '&kbd=sv');
+  await setScreen(page, S21);
+  await openKeyboard(page);
+  await expect(okb(page)).toHaveAttribute('data-layout', 'sv');
+  await type(page, 'å', 'ä', 'ö');
+  await expect(field(page)).toHaveValue('åäö');
+  // One capital, then small again.
+  await type(page, 'shift');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'once');
+  expect(await key(page, 'å').evaluate((el) => getComputedStyle(el).textTransform)).toBe('uppercase');
+  await type(page, 'å', 'ä');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'off');
+  await expect(field(page)).toHaveValue('åäöÅä');
+  // A double tap locks: every letter a capital until the next tap on shift.
+  await type(page, 'shift', 'shift');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'lock');
+  await expect(key(page, 'shift')).toHaveAttribute('aria-label', 'Shift, locked');
+  await expect(key(page, 'shift')).toHaveAttribute('aria-pressed', 'true');
+  await type(page, 'ö', 'ä', 'å', 'space', 'k', ';', 'back', '.');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'lock');
+  await expect(field(page)).toHaveValue('åäöÅäÖÄÅ K.');
+  await type(page, 'shift');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'off');
+  await type(page, 'ö');
+  await expect(field(page)).toHaveValue('åäöÅäÖÄÅ K.ö');
+});
+
+test('a single shift is used up by any character and by Enter, not by backspace', async ({ page }) => {
+  await openPhone(page, '&kbd=en');
+  await setScreen(page, S21);
+  await openKeyboard(page);
+  const once = async (): Promise<void> => {
+    await page.waitForTimeout(AFTER_DOUBLE_TAP_MS);
+    await type(page, 'shift');
+    await expect(okb(page)).toHaveAttribute('data-shift', 'once');
+  };
+  await type(page, 'a', 'b');
+  await once();
+  await type(page, 'back');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'once');
+  await type(page, 'c');
+  await expect(field(page)).toHaveValue('aC');
+  for (const k of ['space', ';', '.']) {
+    await once();
+    await type(page, k);
+    await expect(okb(page)).toHaveAttribute('data-shift', 'off');
+  }
+  await once();
+  await type(page, 'enter');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'off');
+  // A symbol and a digit use it up too.
+  await once();
+  await type(page, 'sym', '#');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'off');
+  await type(page, 'sym');
+  await once();
+  await type(page, 'sym', '1', 'sym');
+  await expect(okb(page)).toHaveAttribute('data-shift', 'off');
+  await type(page, 'x');
+  await expect(field(page)).toHaveValue('#1x');
+});
+
+test('?kbd=1 follows the browser\'s language', async ({ browser }) => {
+  for (const [locale, lay] of [['sv-SE', 'sv'], ['en-GB', 'en'], ['de-DE', 'en']] as const) {
+    const ctx = await browser.newContext({ locale, viewport: S21, hasTouch: true, isMobile: true, baseURL: test.info().project.use.baseURL! });
+    const page = await ctx.newPage();
+    await openPhone(page);
+    await openKeyboard(page);
+    await expect(okb(page)).toHaveAttribute('data-layout', lay);
+    await expect(key(page, 'å')).toHaveCount(lay === 'sv' ? 1 : 0);
+    await ctx.close();
+  }
+});
+
+test('the symbols page: the same rows, every symbol typed, the digits as its first row while the digit row is folded away', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, '&kbd=sv');
+  await setScreen(page, S21);
+  await openKeyboard(page);
+  const sizes = await watchSizes(page);
+  const band = await box(okb(page));
+  await key(page, 'sym').tap();
+  await expect(okb(page)).toHaveAttribute('data-page', 'symbols');
+  await expect(key(page, 'sym')).toHaveAttribute('aria-label', 'Letters');
+  expect(await rowsOf(page)).toEqual(['1234567890', '#@$%&*()/_\\', '<alt>\'",-!?:<back>', '<fold><sym><digits>;<space>.<older><newer><enter>']);
+  // The block keeps its height: nothing is laid out anew, and MUME hears nothing.
+  expect(await box(okb(page))).toEqual(band);
+  const typed = ['#', '2', "'", '"', '\\', '/', '(', ')', '_', '-', ';', '.'];
+  await type(page, ...typed);
+  await expect(field(page)).toHaveValue(typed.join(''));
+  // The next page of symbols, and round again.
+  await expect(key(page, 'alt')).toHaveText('1/2');
+  await key(page, 'alt').tap();
+  await expect(key(page, 'alt')).toHaveText('2/2');
+  expect((await rowsOf(page)).slice(0, 3)).toEqual(['1234567890', '>~^|', '<alt>{}[]+=<<back>']);
+  await type(page, '{', '}', '|', '<', '>');
+  await expect(field(page)).toHaveValue(`${typed.join('')}{}|<>`);
+  await key(page, 'alt').tap();
+  await expect(key(page, 'alt')).toHaveText('1/2');
+  // Backspace and Enter work here as on the letters; the page stays until its key is tapped.
+  await type(page, 'back');
+  await expect(field(page)).toHaveValue(`${typed.join('')}{}|<`);
+  await expect(okb(page)).toHaveAttribute('data-page', 'symbols');
+  await key(page, 'sym').tap();
+  await expect(okb(page)).toHaveAttribute('data-page', 'letters');
+  await expect(key(page, 'q')).toBeVisible();
+  expect(await inputFocused(page)).toBe(true);
+  await frames(page);
+  expect(await sizes()).toEqual([]);
+  // Every symbol asked for is on some page (the digit row up: Swedish has them all on one).
+  await key(page, 'digits').tap();
+  await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(5);
+  await key(page, 'sym').tap();
+  await expect(key(page, 'alt')).toHaveCount(0);
+  const onPage = (await rowsOf(page)).join('');
+  for (const ch of '\'",-_!?:/\\#@$%&*(){}[]+=<>~^|.;1234567890') expect(onPage, ch).toContain(ch);
+  expect(errors).toEqual([]);
+});
+
+test('the digit row: its key folds it up and down, one window size each, and it is remembered across a reload', async ({ page }) => {
+  await openPhone(page, '&kbd=sv');
+  await setScreen(page, S21);
+  expect(await digitsStored(page)).toBe(false);
+  await openKeyboard(page);
+  const folded = await layout(page);
+  const appBox = await box(page.locator('#app'));
+  await expect(key(page, 'digits')).toHaveAttribute('aria-pressed', 'false');
+  await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(4);
+  await frames(page);
+  const sizes = await watchSizes(page);
+
+  await key(page, 'digits').tap();
+  await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(5);
+  await expect(key(page, 'digits')).toHaveAttribute('aria-pressed', 'true');
+  expect((await rowsOf(page))[0]).toBe('1234567890');
+  await expect.poll(async () => (await layout(page)).bottom).toBeGreaterThan(folded.bottom);
+  const up = await layout(page);
+  // One more row of keys: the game text gives exactly those rows, the page keeps its size.
+  expect(up.game.h + up.bottom).toBe(folded.game.h + folded.bottom);
+  expect(await box(page.locator('#app'))).toEqual(appBox);
+  const k = await box(okb(page));
+  const row = await box(slot(page));
+  expect(k.y).toBeCloseTo(row.y + row.height, 0);
+  const keys = await keyBoxes(page);
+  expect(new Set(keys.map((b) => Math.round(b.top))).size).toBe(5);
+  for (const b of keys) expect(b.height).toBeGreaterThanOrEqual(44);
+  await frames(page);
+  expect(await sizes()).toHaveLength(1);
+  expect(await digitsStored(page)).toBe(true);
+  expect(await inputFocused(page)).toBe(true);
+  // The compass follows the taller keyboard.
+  const p = await box(pad(page));
+  expect(p.y + p.height).toBeLessThanOrEqual(k.y);
+  expect(p.y + p.height).toBeGreaterThan(k.y - 12);
+  await type(page, 'g', 'space', '2', '.', 'k');
+  await expect(field(page)).toHaveValue('g 2.k');
+
+  // Down again: one more size, the layout as before.
+  await key(page, 'digits').tap();
+  await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(4);
+  await expect.poll(() => layout(page)).toEqual(folded);
+  await frames(page);
+  expect(await sizes()).toHaveLength(2);
+
+  // Up, and remembered: after a reload the keyboard opens with it.
+  await key(page, 'digits').tap();
+  await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(5);
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await page.reload();
+  await expect(pad(page)).toBeVisible();
+  await expect.poll(() => digitsStored(page)).toBe(true);
+  await openKeyboard(page);
+  await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(5);
+  await expect(key(page, 'digits')).toHaveAttribute('aria-pressed', 'true');
+  expect((await layout(page)).bottom).toBe(up.bottom);
+});
+
+test('where the arrows stand: on the bottom row at 360 px, on the digit row where its keys are wide enough', async ({ page }) => {
+  await openPhone(page, '&kbd=en');
+  await setScreen(page, S21);
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { digits: true } } }));
+  await openKeyboard(page);
+  expect(await rowsOf(page)).toEqual(['1234567890', 'qwertyuiop', 'asdfghjkl', '<shift>zxcvbnm<back>', '<fold><sym><digits>;<space>.<older><newer><enter>']);
+  for (const b of await rects(okb(page).locator('.wc-ph-okb-row.is-digits .wc-ph-okb-k'))) expect(b.width).toBeGreaterThanOrEqual(30);
+  // 412 px (a Pixel 7): twelve keys of 34 px.
+  await setScreen(page, { width: 412, height: 839 });
+  expect(await rowsOf(page)).toEqual(['1234567890<older><newer>', 'qwertyuiop', 'asdfghjkl', '<shift>zxcvbnm<back>', '<fold><sym><digits>;<space>.<enter>']);
+  for (const b of await rects(okb(page).locator('.wc-ph-okb-row.is-digits .wc-ph-okb-k'))) expect(b.width).toBeGreaterThanOrEqual(30);
+  // Landscape: the compressed block's digit row holds them too.
+  await setScreen(page, S21_LAND);
+  expect((await rowsOf(page))[0]).toBe('1234567890<older><newer>');
+  const g = await layout(page);
+  console.log(`800 × 360 with the digit row: game rows ${g.game.h} of ${g.rows}`);
+});
+
+test('the arrows recall the history, as the Up and Down keys do', async ({ page }) => {
+  const m = await enterMock(page);
+  await m.login();
+  await setScreen(page, S21);
+  await openKeyboard(page);
+  await type(page, 'l', 'enter', 'n', 'enter', 'e', 'enter');
+  await expect.poll(() => m.sent).toEqual(['l', 'n', 'e']);
+  // Just sent: `e` stands selected, so the first arrow goes one further back.
+  await type(page, 'older');
+  await expect(field(page)).toHaveValue('n');
+  await type(page, 'older');
+  await expect(field(page)).toHaveValue('l');
+  await type(page, 'older');
+  await expect(field(page)).toHaveValue('l');
+  await type(page, 'newer');
+  await expect(field(page)).toHaveValue('n');
+  expect(await inputFocused(page)).toBe(true);
+  // Enter sends the recalled line; a key replaces it (it stands selected).
+  await type(page, 'enter');
+  await expect.poll(() => m.sent).toEqual(['l', 'n', 'e', 'n']);
+  await type(page, 'older', 'w');
+  await expect(field(page)).toHaveValue('w');
+  // A draft is kept while browsing.
+  await type(page, 'older', 'older', 'newer', 'newer');
+  await expect(field(page)).toHaveValue('w');
+  // No keyboard event was made up, and nothing was sent by the arrows.
+  expect(m.sent).toEqual(['l', 'n', 'e', 'n']);
+});
+
+test('the password prompt: the arrows recall nothing', async ({ page }) => {
+  const m = await enterMock(page);
+  await setScreen(page, S21);
+  await openKeyboard(page);
+  await type(page, 'shift', 'r', 'a', 'enter');
+  await expect.poll(() => m.sent).toEqual(['Ra']);
+  m.server().send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, ECHO])]));
+  await expect(field(page)).toHaveAttribute('type', 'password');
+  await expect(okb(page)).toBeVisible();
+  await type(page, 'p', 'w', 'older');
+  await expect(field(page)).toHaveValue('pw');
+  await type(page, 'newer');
+  await expect(field(page)).toHaveValue('pw');
+  // Shift and the symbols work in the masked line.
+  await type(page, 'shift', 'x', 'sym', '#');
+  await expect(field(page)).toHaveValue('pwX#');
+  await expect(page.locator('.wc-input-mask')).toHaveText('••••');
+  await type(page, 'enter');
+  await expect.poll(() => m.sent).toEqual(['Ra', 'pwX#']);
+  expect(await history(page)).toEqual(['Ra']);
+});
+
+// ------------------------------------------------- the review's findings (53a)
+
+test('a held backspace stops when the page is hidden, when the window loses the focus, and when the keyboard closes', async ({ page }) => {
+  await openPhone(page);
+  await openKeyboard(page);
+  const fill = () => page.evaluate(() => window.__wc!.app.input.insertText('x'.repeat(200)));
+  const len = async (): Promise<number> => (await field(page).inputValue()).length;
+  const stops = async (how: () => Promise<void>): Promise<void> => {
+    await fill();
+    await touches(page, [key(page, 'back')], async () => {
+      const start = await len();
+      await expect.poll(len, { timeout: 3000 }).toBeLessThan(start - 5);
+      await how();
+      await expect(okb(page).locator('.is-down')).toHaveCount(0);
+      const at = await len();
+      // The finger is still down: nothing more goes.
+      await page.waitForTimeout(300);
+      expect(await len()).toBe(at);
+      expect(at).toBeGreaterThan(0);
+    });
+  };
+  await stops(() => page.evaluate(() => void document.dispatchEvent(new Event('visibilitychange'))));
+  await stops(() => page.evaluate(() => void window.dispatchEvent(new Event('blur'))));
+  // Closed with the key held (the menu opens over it).
+  await stops(async () => {
+    await page.evaluate(() => (window.__wc!.shell as unknown as { phoneLayer: { menu: { open(): void } } }).phoneLayer.menu.open());
+    await expect(okb(page)).toBeHidden();
+  });
+});
+
+test('a touch that is cancelled stops the repeat', async ({ page }) => {
+  await openPhone(page);
+  await openKeyboard(page);
+  await page.evaluate(() => window.__wc!.app.input.insertText('x'.repeat(200)));
+  const len = async (): Promise<number> => (await field(page).inputValue()).length;
+  const b = await box(key(page, 'back'));
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + b.width / 2, y: b.y + b.height / 2, id: 0 }] });
+  await expect.poll(len, { timeout: 3000 }).toBeLessThan(190);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await cdp.detach();
+  await expect(okb(page).locator('.is-down')).toHaveCount(0);
+  const at = await len();
+  await page.waitForTimeout(300);
+  expect(await len()).toBe(at);
+});
+
+test('a text field that is not ours closes our keyboard: Comm\'s reply line', async ({ page }) => {
+  const m = await enterMock(page);
+  await m.login();
+  await setScreen(page, S21);
+  m.server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'you at the ford?'" }));
+  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+  const comm = page.locator('.wc-pane[data-pane="comm"]');
+  await expect(comm).toBeVisible();
+  await comm.locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
+  const reply = comm.locator('.wc-cm-rinput');
+  await expect(reply).toBeVisible();
+  await openKeyboard(page);
+  await type(page, 'h', 'i');
+  expect((await layout(page)).bottom).toBeGreaterThan(0);
+  // The reply line takes the focus (it has the device's keyboard until round 53d).
+  await reply.tap();
+  await expect(reply).toBeFocused();
+  await expect(okb(page)).toBeHidden();
+  await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
+  await expect.poll(async () => (await layout(page)).bottom).toBe(0);
+  // The command line keeps its text, and nothing of the keyboard's arrangement is left behind.
+  await expect(field(page)).toHaveValue('hi');
+  await expect(reply).not.toHaveAttribute('inputmode');
+  expect(await page.locator('.wc-ph-layer').evaluate((el) => [el.getAttribute('data-okb'), el.style.getPropertyValue('--okb-lift')])).toEqual([null, '']);
+  await expect(pad(page)).toBeVisible();
+  // A tap on the command field brings ours back.
+  await openKeyboard(page);
+  expect(await inputFocused(page)).toBe(true);
+  // A control that is not a text field leaves it open.
+  await page.evaluate(() => {
+    const b = document.createElement('input');
+    b.type = 'checkbox';
+    b.id = 'okb-test-box';
+    document.querySelector('.wc-cockpit')!.append(b);
+    b.focus();
+  });
+  await expect(okb(page)).toBeVisible();
+  await page.evaluate(() => document.getElementById('okb-test-box')!.remove());
+  expect(m.sent).toEqual([]);
+});
+
+test('a held hot key folds our keyboard and opens its box; a tap on the command field closes the box and opens ours', async ({ page }) => {
+  for (const size of [S21, S21_LAND]) {
+    await openPhone(page);
+    await setScreen(page, size);
+    await openKeyboard(page);
+    await type(page, 'h', 'i');
+    await touches(page, [hk(page, 1)], async () => {
+      await expect(page.locator('.wc-ph-rb')).toBeVisible();
+    });
+    await expect(okb(page)).toBeHidden();
+    await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
+    await expect(page.locator('.wc-ph-rb')).toBeVisible();
+    await expect.poll(async () => (await layout(page)).bottom).toBe(0);
+    await expect(field(page)).toHaveValue('hi');
+    // The release did not end as a tap on what moved under the finger: nothing came back up, no menu.
+    await frames(page);
+    await expect(okb(page)).toBeHidden();
+    expect(await inputFocused(page)).toBe(false);
+    await expect(page.locator('.wc-ph-sheet')).toHaveCount(0);
+    // The box stands where it does with the keyboard down, on screen.
+    const rb = await box(page.locator('.wc-ph-rb'));
+    expect(rb.y).toBeGreaterThanOrEqual(0);
+    expect(rb.y + rb.height).toBeLessThanOrEqual(size.height + 0.5);
+    await field(page).tap();
+    await expect(okb(page)).toBeVisible();
+    await expect(page.locator('.wc-ph-rb')).toBeHidden();
+    expect(await inputFocused(page)).toBe(true);
+  }
+});
+
+test('a key pressed with the field blurred gives it the focus back', async ({ page }) => {
+  await openPhone(page);
+  await setScreen(page, S21);
+  await openKeyboard(page);
+  await type(page, 'a');
+  await field(page).evaluate((el: HTMLElement) => el.blur());
+  expect(await inputFocused(page)).toBe(false);
+  await expect(okb(page)).toBeVisible();
+  await type(page, 'b');
+  expect(await inputFocused(page)).toBe(true);
+  await expect(field(page)).toHaveValue('ab');
+  // Backspace, an arrow and Enter too; shift alone does not need the field.
+  for (const k of ['back', 'older', 'enter']) {
+    await field(page).evaluate((el: HTMLElement) => el.blur());
+    await type(page, k);
+    expect(await inputFocused(page), k).toBe(true);
+  }
+  // No device keyboard was asked for on the way.
+  await expect(field(page)).toHaveAttribute('inputmode', 'none');
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
+});
+
+test('a long press that focuses the field opens our keyboard; a focus without a pointer does not', async ({ page }) => {
+  await openPhone(page);
+  // No pointer: a script's (or a physical key's) focus.
+  await field(page).evaluate((el: HTMLElement) => el.focus());
+  expect(await inputFocused(page)).toBe(true);
+  await frames(page);
+  await expect(okb(page)).toBeHidden();
+  await field(page).evaluate((el: HTMLElement) => el.blur());
+  // A finger held on the field: the browser focuses it during the hold, and no click follows.
+  const b = await box(field(page));
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + b.width / 2, y: b.y + b.height / 2, id: 0 }] });
+  await field(page).evaluate((el: HTMLElement) => el.focus());
+  await expect(okb(page)).toBeVisible();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await cdp.detach();
+  await expect(okb(page)).toBeVisible();
+  expect(await inputFocused(page)).toBe(true);
+  // Long after a pointer, a focus without one opens nothing again.
+  await key(page, 'fold').tap();
+  await page.waitForTimeout(900);
+  await field(page).evaluate((el: HTMLElement) => el.focus());
+  await frames(page);
+  await expect(okb(page)).toBeHidden();
+});
+
+test('landscape with the left column open: the column ends above the band, the block stays in the middle', async ({ page }) => {
+  await openPhone(page, '&kbd=sv');
+  await setScreen(page, S21_LAND);
+  await openKeyboard(page);
+  const plain = await box(block(page));
+  await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+  await expect(page.locator('.wc-pane[data-phone-strip]')).toBeVisible();
+  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+  await expect.poll(async () => (await layout(page)).side.w).toBeGreaterThan(0);
+  const g = await layout(page);
+  expect(g.side.h).toBe(g.rows - g.bottom);
+  const band = await box(okb(page));
+  expect(band.x).toBe(0);
+  expect(band.width).toBe(800);
+  for (const pane of await rects(page.locator('.wc-pane[data-phone-strip], .wc-pane[data-pane="comm"]'))) if (pane.height > 0) expect(pane.bottom).toBeLessThanOrEqual(band.y + 0.5);
+  expect(await box(block(page))).toEqual(plain);
+  await expect(okb(page)).toBeVisible();
+  // The fight card too.
+  await type(page, 'ä');
+  await expect(field(page)).toHaveValue('ä');
+});

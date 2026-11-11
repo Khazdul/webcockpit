@@ -229,7 +229,6 @@ export class PhoneLayer {
   private okbLift = 0;
   /** While it is open: the hot key columns, and the compass, have no room beside or above it. */
   private okbNoK = false;
-  private okbNoPad = false;
   /** How the layer's parts were last arranged for it (nothing is restyled for the same). */
   private okbSig = '';
 
@@ -319,7 +318,10 @@ export class PhoneLayer {
       onBox: (open) => {
         // The box and our keyboard never stand together (the box's fields are not typed in from
         // ours until round 53d, and its place is the keyboard's): a held key folds the keyboard.
-        if (open) this.closeOwnKeyboard();
+        if (open && this.okbOpen) {
+          this.closeOwnKeyboard();
+          this.swallowClick();
+        }
         this.syncBox();
         // Landscape: the lens's key row gives way to an open box (`place`), also when the lens was
         // hidden already and the cockpit has nothing new to lay out.
@@ -738,9 +740,31 @@ export class PhoneLayer {
     el.ownerDocument.documentElement.classList.toggle('wc-okb-wide', a !== null && (a.band || !a.pad));
     this.okbLift = a && !a.band ? a.lift : 0;
     this.okbNoK = a !== null && !a.k;
-    this.okbNoPad = a !== null && !a.pad;
     // Portrait: the strip, the fight card and Comm end above the place of three keys only while the columns are there.
     if (this.keyPx !== 0) this.deps.cockpit.setPhoneLimit(a && !a.band && !a.k ? null : topLimit(this.keyPx));
+  }
+
+  /**
+   * The keyboard closed under a finger that is still down (a held hot key):
+   * the rows moved, and the finger's release must not end as a tap on what
+   * now lies under it (the command field, which would open the keyboard
+   * again; the menu key). The click that follows is dropped; the next press
+   * ends the wait, so no later tap is lost.
+   */
+  private swallowClick(): void {
+    const doc = this.el.ownerDocument;
+    const stop = (e: Event): void => {
+      e.stopPropagation();
+      e.preventDefault();
+      done();
+    };
+    const done = (): void => {
+      doc.removeEventListener('click', stop, true);
+      doc.removeEventListener('pointerdown', done, true);
+    };
+    doc.addEventListener('click', stop, true);
+    doc.addEventListener('pointerdown', done, true);
+    this.unsubs.push(done);
   }
 
   /** Connected to MUME (not a replay): what the wake lock and nothing else asks. */
