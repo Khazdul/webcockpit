@@ -360,6 +360,21 @@ lags while dragging.
 - 2026-11-11: automatic reconnect and keep the screen on both confirmed
   working on the owner's phone (B3 and B4 closed).
 
+- 2026-11-11, first use of 0.6.0 on the S21 (given at the start of
+  stage 53; keyboard items only, the rest of the test guide "is OK"):
+  - Folding the keyboard down unmarks the field. **But in landscape**,
+    after the keyboard has been up and something was sent, every hot
+    key raises the keyboard again.
+  - **Portrait with the keyboard up: the whole layout disappears** and
+    what is typed shows at the very top of the screen. Landscape: the
+    keyboard and the layout land right. Not yet known whether portrait
+    fails outside fullscreen too (asked; `?vv=1` numbers wanted).
+  - The jumping he reacted to before was the rearranging running
+    choppily during the keyboard's animation; hardly noticed in
+    landscape.
+  - Landscape with the keyboard up is usable but shows about one row of
+    text; in fullscreen a few more, still cramped.
+
 (After each round.)
 - 2026-11-11, after the build summary: merge and release (0.6.0), before
   his own test on the phone. Cleanup of merged branches later. Next he
