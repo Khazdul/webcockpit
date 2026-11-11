@@ -65,7 +65,6 @@ import {
   PHONE_HOTKEY_LABEL_MAX,
   PHONE_HOTKEY_SPECIALS,
   PHONE_LENS_LEVELS,
-  PHONE_LENS_SIZES,
   PHONE_STRIP_PANES,
   PHONE_UNREAD_MODES,
   type PhoneHotkey,
@@ -531,11 +530,12 @@ export function migratePhone(raw: unknown): PhoneSettings {
   return {
     lens: {
       show: bool(l.show, d.lens.show),
-      size: oneOf(l.size, PHONE_LENS_SIZES, d.lens.size),
+      // A stored `size` (0.5.0's S/M/L) is dropped: the size follows the screen (stage 52).
       opensAt: oneOf(l.opensAt, PHONE_LENS_LEVELS, d.lens.opensAt),
     },
     strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined, d.strip.panes) },
     commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
+    stripRows: typeof p.stripRows === 'number' && Number.isFinite(p.stripRows) ? int(p.stripRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
     unread: oneOf(p.unread, PHONE_UNREAD_MODES, d.unread),
     hotkeys: migrateHotkeys(p.hotkeys, d.hotkeys),
     hotkeyCount: int(p.hotkeyCount, 1, PHONE_HOTKEY_COUNT, d.hotkeyCount),

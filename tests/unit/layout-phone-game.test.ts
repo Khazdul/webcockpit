@@ -5,6 +5,7 @@ import {
   COMM_MIN_ROWS,
   FIGHT_ROWS,
   GAME_KEEP_ROWS,
+  STRIP_MIN_ROWS,
   type PhoneGameInput,
   type PhoneGameResult,
   allocatePhoneGame,
@@ -68,8 +69,10 @@ describe('allocatePhoneGame', () => {
     expect(r.fight.h).toBe(0);
     expect(r.comm.h).toBe(0);
     expect(r.lens).toBeNull();
+    expect(r.lensPx).toBe(0);
     expect(r.lensHidden).toBe(false);
     expect(r.commRange).toBeNull();
+    expect(r.stripRange).toBeNull();
     expectStacked(r);
   });
 
@@ -212,7 +215,7 @@ describe('allocatePhoneGame', () => {
 
   describe('too small', () => {
     it('below the phone limit only the game and the command row are laid out', () => {
-      const r = run({ cols: PHONE_MIN_COLS - 1, fight: true, strip: true, comm: { rows: null }, lens: { cols: 16, rows: 8 } });
+      const r = run({ cols: PHONE_MIN_COLS - 1, fight: true, strip: true, comm: { rows: null }, lens: { fullPx: 150, cellW: 9, cellH: 19 } });
       expect(r.tooSmall).toBe(true);
       expect(r.fight.h).toBe(0);
       expect(r.strip.h).toBe(0);
@@ -229,32 +232,162 @@ describe('allocatePhoneGame', () => {
     });
   });
 
-  describe('the lens', () => {
-    const lens = { cols: 16, rows: 8, gapTop: 1, gapRight: 1, clearBottom: 14 };
+  describe('the strip\'s stored height (stage 52)', () => {
+    it('null is the default share; a stored height is kept, at least the minimum', () => {
+      expect(run({ strip: true, stripRows: null }).strip.h).toBe(9);
+      expect(run({ strip: true, stripRows: 14 }).strip.h).toBe(14);
+      expect(run({ strip: true, stripRows: 1 }).strip.h).toBe(STRIP_MIN_ROWS);
+      // Not a number: the default.
+      expect(run({ strip: true, stripRows: Number.NaN }).strip.h).toBe(9);
+      // Closed is closed, whatever is stored.
+      expect(run({ stripRows: 14 }).strip.h).toBe(0);
+    });
 
-    it('walking: a square of whole cells at the top right of the game text', () => {
+    it('it leaves the game its rows, and says how far a drag may go', () => {
+      const r = run({ strip: true, stripRows: 99 });
+      expect(r.strip.h).toBe(44 - 3 - GAME_KEEP_ROWS);
+      expect(r.game.h).toBe(GAME_KEEP_ROWS);
+      expect(r.stripRange).toEqual({ min: STRIP_MIN_ROWS, max: 33 });
+      expectStacked(r);
+      // With the fight card and Comm: each band's range leaves the other its height.
+      const all = run({ strip: true, stripRows: 10, fight: true, comm: { rows: 12 } });
+      expect([all.strip.h, all.fight.h, all.comm.h, all.game.h]).toEqual([10, 2, 12, 17]);
+      expect(all.stripRange).toEqual({ min: STRIP_MIN_ROWS, max: 31 - 12 });
+      expect(all.commRange).toEqual({ min: COMM_MIN_ROWS, max: 31 - 10 });
+    });
+
+    it('a stored strip too tall for a short screen shrinks to its minimum before it closes', () => {
+      const r = run({ rows: 20, strip: true, stripRows: 12, guard: false });
+      // 20 − 3 input − 8 game = 9.
+      expect(r.strip.h).toBe(9);
+      expect(run({ rows: 15, strip: true, stripRows: 12, guard: false }).strip.h).toBe(4);
+      expect(run({ rows: 14, strip: true, stripRows: 12, guard: false }).strip.h).toBe(0);
+    });
+  });
+
+  describe('the limit above the quick buttons (maxTop, stage 52)', () => {
+    it('strip, fight card and Comm together end at or above it', () => {
+      const r = run({ strip: true, stripRows: 12, fight: true, comm: { rows: 20 }, maxTop: 28 });
+      expect(r.game.y).toBe(28);
+      // Comm gives way first: the strip keeps its stored height.
+      expect([r.strip.h, r.fight.h, r.comm.h]).toEqual([12, 2, 14]);
+      expectStacked(r);
+    });
+
+    it('nothing changes while they end above it anyway', () => {
+      const free = run({ strip: true, fight: true, comm: { rows: 10 } });
+      // Only the ranges (how far a drag may go) differ.
+      expect(run({ strip: true, fight: true, comm: { rows: 10 }, maxTop: 30 })).toEqual({ ...free, stripRange: { min: 4, max: 18 }, commRange: { min: 6, max: 19 } });
+      expect(run({ strip: true, fight: true, comm: { rows: 10 }, maxTop: 21 })).toEqual({ ...free, stripRange: { min: 4, max: 9 }, commRange: { min: 6, max: 10 } });
+    });
+
+    it('a drag stops at it: each range is what the limit leaves beside the other', () => {
+      const r = run({ strip: true, stripRows: 8, fight: true, comm: { rows: 10 }, maxTop: 28 });
+      expect(r.stripRange).toEqual({ min: STRIP_MIN_ROWS, max: 28 - 2 - 10 });
+      expect(r.commRange).toEqual({ min: COMM_MIN_ROWS, max: 28 - 2 - 8 });
+      // Dragged to its range's end, the other has not shrunk.
+      const s = run({ strip: true, stripRows: r.stripRange!.max, fight: true, comm: { rows: 10 }, maxTop: 28 });
+      expect([s.strip.h, s.comm.h, s.game.y]).toEqual([16, 10, 28]);
+      const c = run({ strip: true, stripRows: 8, fight: true, comm: { rows: r.commRange!.max }, maxTop: 28 });
+      expect([c.strip.h, c.comm.h, c.game.y]).toEqual([8, 18, 28]);
+    });
+
+    it('the limit shrinks (a fight begins, larger keys): Comm gives way to its minimum, then the strip to its own', () => {
+      const o = { strip: true, stripRows: 12, comm: { rows: 14 } };
+      expect(run({ ...o, maxTop: 26 }).game.y).toBe(26);
+      const fight = run({ ...o, fight: true, maxTop: 26 });
+      expect([fight.strip.h, fight.fight.h, fight.comm.h]).toEqual([12, 2, 12]);
+      const low = run({ ...o, fight: true, maxTop: 18 });
+      expect([low.strip.h, low.fight.h, low.comm.h]).toEqual([10, 2, 6]);
+      expect(low.game.y).toBe(18);
+      const least = run({ ...o, fight: true, maxTop: 12 });
+      expect([least.strip.h, least.fight.h, least.comm.h]).toEqual([4, 2, 6]);
+      expectStacked(least);
+    });
+
+    it('not even the minimums fit: the strip closes, then Comm; the fight card stays', () => {
+      const o = { strip: true, stripRows: 12, fight: true, comm: { rows: 14 } };
+      const a = run({ ...o, maxTop: 11 });
+      expect([a.strip.h, a.fight.h, a.comm.h]).toEqual([0, 2, 9]);
+      expect(a.stripRange).toBeNull();
+      const b = run({ ...o, maxTop: 7 });
+      expect([b.strip.h, b.fight.h, b.comm.h]).toEqual([0, 2, 0]);
+      expect(b.commRange).toBeNull();
+      // The strip alone: it stays while its minimum fits.
+      expect(run({ strip: true, fight: true, maxTop: 6 }).strip.h).toBe(4);
+      expect(run({ strip: true, fight: true, maxTop: 5 }).strip.h).toBe(0);
+      const c = run({ ...o, maxTop: 0 });
+      expect([c.strip.h, c.fight.h, c.comm.h, c.game.h]).toEqual([0, 2, 0, 39]);
+      expectStacked(c);
+    });
+
+    it('the rows the game keeps still hold when the limit is lower down', () => {
+      const r = run({ comm: { rows: 99 }, maxTop: 40 });
+      expect(r.comm.h).toBe(44 - 3 - GAME_KEEP_ROWS);
+    });
+
+    it('a limit that is not a number is none', () => {
+      expect(run({ comm: { rows: 20 }, maxTop: Number.NaN }).comm.h).toBe(20);
+    });
+  });
+
+  describe('the lens', () => {
+    // A 9 × 19 px cell: 150 px is 17 columns and 8 rows.
+    const lens = { fullPx: 150, minPx: 96, cellW: 9, cellH: 19, gapTop: 1, gapRight: 1, clearBottom: 14 };
+
+    it('walking: a square of whole cells at the top right of the game text, at its full size', () => {
       const r = run({ lens });
-      expect(r.lens).toEqual({ x: 43 - 16 - 1, y: 1, w: 16, h: 8 });
+      expect(r.lens).toEqual({ x: 43 - 17 - 1, y: 1, w: 17, h: 8 });
+      expect(r.lensPx).toBe(150);
       expect(r.lensHidden).toBe(false);
       // It floats: the game text keeps its full width.
       expect(r.game.w).toBe(43);
     });
 
-    it('moves down under the fight card and the strip', () => {
+    it('moves down under the fight card, the strip and Comm', () => {
       expect(run({ lens, fight: true }).lens!.y).toBe(3);
       expect(run({ lens, fight: true, strip: true }).lens!.y).toBe(12);
+      // Comm no longer hides it (stage 52).
+      const r = run({ lens, comm: { rows: 10 } });
+      expect(r.lens).toEqual({ x: 25, y: 11, w: 17, h: 8 });
+      expect(r.lensPx).toBe(150);
     });
 
-    it('hides while Comm is open', () => {
-      const r = run({ lens, comm: { rows: null } });
+    it('shrinks in whole rows as its room goes, down to its least size, then hides, and returns', () => {
+      // 44 − 3 input − 14 for the keys: row 27 is the floor. Comm of n rows leaves 27 − n − 1.
+      const at = (n: number): PhoneGameResult => run({ lens, comm: { rows: n } });
+      expect(at(18).lensPx).toBe(150);
+      expect(at(19).lens).toEqual({ x: 43 - 15 - 1, y: 20, w: 15, h: 7 });
+      expect(at(19).lensPx).toBe(7 * 19);
+      expect(at(20).lensPx).toBe(6 * 19);
+      // Five rows are 95 px: under 96.
+      const gone = at(21);
+      expect(gone.lens).toBeNull();
+      expect(gone.lensPx).toBe(0);
+      expect(gone.lensHidden).toBe(true);
+      expect(at(20).lensHidden).toBe(false);
+      expect(at(18).lens).toEqual({ x: 25, y: 19, w: 17, h: 8 });
+    });
+
+    it('a fractional cell: whole px, never more than the room', () => {
+      const r = run({ lens: { ...lens, cellH: 17.5 }, comm: { rows: 19 } });
+      // Seven rows of 17.5 px.
+      expect(r.lensPx).toBe(122);
+      expect(r.lens!.h).toBe(7);
+    });
+
+    it('without a least size it never shrinks: full, or hidden', () => {
+      const fixed = { fullPx: 150, cellW: 9, cellH: 19, gapTop: 1, gapRight: 1, clearBottom: 14 };
+      expect(run({ lens: fixed, comm: { rows: 18 } }).lensPx).toBe(150);
+      const r = run({ lens: fixed, comm: { rows: 19 } });
       expect(r.lens).toBeNull();
       expect(r.lensHidden).toBe(true);
     });
 
-    it('hides when it would reach into the rows the keys need', () => {
-      // 44 − 3 input − 14 for the keys = row 27 is the floor.
-      expect(run({ lens: { ...lens, clearBottom: 20 }, strip: true, fight: true }).lens).not.toBeNull();
-      const r = run({ lens: { ...lens, clearBottom: 22 }, strip: true, fight: true });
+    it('hides when the keys leave it no room', () => {
+      // Under the strip and the fight card (row 12): floor 21 leaves 9 rows, floor 16 five.
+      expect(run({ lens: { ...lens, clearBottom: 20 }, strip: true, fight: true }).lensPx).toBe(150);
+      const r = run({ lens: { ...lens, clearBottom: 25 }, strip: true, fight: true });
       expect(r.lens).toBeNull();
       expect(r.lensHidden).toBe(true);
     });
@@ -265,8 +398,12 @@ describe('allocatePhoneGame', () => {
       expect(r.lensHidden).toBe(true);
     });
 
-    it('defaults: no gaps', () => {
-      expect(run({ lens: { cols: 16, rows: 8 } }).lens).toEqual({ x: 27, y: 0, w: 16, h: 8 });
+    it('defaults: no gaps; a lens without a size or a cell is none', () => {
+      expect(run({ lens: { fullPx: 150, cellW: 9, cellH: 19 } }).lens).toEqual({ x: 26, y: 0, w: 17, h: 8 });
+      const none = run({ lens: { fullPx: 0, cellW: 9, cellH: 19 } });
+      expect(none.lens).toBeNull();
+      expect(none.lensHidden).toBe(false);
+      expect(run({ lens: { fullPx: 150, cellW: 0, cellH: 19 } }).lens).toBeNull();
     });
   });
 });

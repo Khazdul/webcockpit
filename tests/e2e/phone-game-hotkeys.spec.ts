@@ -476,6 +476,34 @@ test('the keyboard folded down while the command field has the focus: the field 
   expect(errors).toEqual([]);
 });
 
+test('a rotation with the keyboard up is not the keyboard folding: the field keeps the focus (stage 52)', async ({ page }) => {
+  const m = await enterMock(page);
+  await m.login();
+  const size = page.viewportSize()!;
+  await field(page).tap();
+  await keyboard(page, true, size);
+  expect(await inputFocused(page)).toBe(true);
+  // Rotated, the keyboard still up: at the new width the viewport's baseline starts again and
+  // `wc-kbd` drops. The width changed with it, so the layer does not take the focus (which
+  // would fold the keyboard under the player's fingers).
+  await page.setViewportSize({ width: size.height, height: 240 });
+  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  expect(await inputFocused(page)).toBe(true);
+  await page.keyboard.type('look');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => m.sent).toEqual(['look']);
+  // Back upright with the keyboard up, then folded at that width: now the field lets go.
+  await page.setViewportSize({ width: size.width, height: size.height });
+  // (The viewport module takes the full height at this width in before the keyboard comes: its settle time.)
+  await expect.poll(async () => (await box(page.locator('.wc-cockpit'))).height).toBeGreaterThan(size.height - 60);
+  await page.waitForTimeout(400);
+  await keyboard(page, true, size);
+  expect(await inputFocused(page)).toBe(true);
+  await keyboard(page, false, size);
+  await expect.poll(() => inputFocused(page)).toBe(false);
+});
+
 test('the keyboard going down blurs whichever field of the phone layout has the focus: Comm\'s reply, the hot key box', async ({ page }) => {
   const m = await enterMock(page);
   await m.login();
@@ -862,7 +890,7 @@ test('a short screen: the box scrolls inside the visible area and its buttons ca
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test('the column shown and the strip open: the lens stays hidden, its keys a row clear of the column; the strip takes an open box\'s place', async ({ page }) => {
+  test('the column shown and the strip open: the lens stays hidden, its keys a row clear of the column; without the column it shrinks under the strip; the strip takes an open box\'s place', async ({ page }) => {
     const errors = watchErrors(page);
     await openPhone(page);
     // 390 px high: three hot keys reach into the lens's place (ADR 0136 §4).
@@ -883,14 +911,20 @@ test.describe('landscape', () => {
     expect(r.y).toBeGreaterThanOrEqual(s.y + s.height);
     expect(col.y).toBeGreaterThanOrEqual(s.y + s.height);
     expect(r.y + r.height <= col.y + 1 || r.x + r.width <= col.x).toBe(true);
-    // With the K key the column goes; the 150 px lens still has no room under the strip.
+    // With the K key the column goes: the lens has room under the strip down to the compass, shrunk (stage 52).
     await kKey(page).tap();
     await expect(hot(page)).toBeHidden();
-    await expect(lens(page)).toBeHidden();
-    // The strip closed and the column hidden: the lens is back.
+    await expect(lens(page)).toBeVisible();
+    await expect(satrow(page)).toBeHidden();
+    const shrunk = await box(lens(page));
+    expect(shrunk.width).toBeGreaterThanOrEqual(96);
+    expect(shrunk.y).toBeGreaterThanOrEqual(s.y + s.height);
+    // The strip closed and the column hidden: the lens has its full size (163 px on a 390 px short side).
     await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
     await expect(strip).toHaveCount(0);
     await expect(lens(page)).toBeVisible();
+    await expect.poll(async () => (await box(lens(page))).width).toBeCloseTo(163, 0);
+    expect(shrunk.width).toBeLessThan(163);
     await kKey(page).tap();
     await expect(lens(page)).toBeHidden();
     // An open box (it fills the short screen) gives way when the strip opens into its place.

@@ -319,21 +319,34 @@ test('Quick buttons → Key size: the keys measure 36, 40 and 44 px; the column,
 });
 
 test.describe('a short screen', () => {
-  // High enough for the lens above three 40 px hot keys, not above three 44 px ones.
+  // High enough for the full lens above three 40 px hot keys, not above three 44 px ones.
   test.use({ viewport: { width: 412, height: 490 } });
 
-  test('the lens\'s room follows the key size: it shows above M keys and gives way to L keys', async ({ page }) => {
+  test('the lens\'s room follows the key size: full above M keys, shrunk above L keys, hidden when the room is under its least size', async ({ page }) => {
     await openPhone(page);
     await expect(hot(page)).toBeVisible();
     await expect(lens(page)).toBeVisible();
     const l = await box(lens(page));
+    // 412 px wide: 172 px.
+    expect(l.width).toBeCloseTo(172, 0);
     expect(l.y + l.height).toBeLessThanOrEqual((await box(hot(page))).y);
     await page.evaluate(() => window.__wc!.settings.update({ phone: { compassSize: 'l' } }));
     await expect.poll(async () => Math.round((await box(key(page, 'north'))).width)).toBe(44);
+    // Stage 52: it shrinks to the whole rows left above the taller column.
+    await expect(lens(page)).toBeVisible();
+    await expect.poll(async () => (await box(lens(page))).width).toBeLessThan(172);
+    const small = await box(lens(page));
+    expect(small.width).toBeGreaterThanOrEqual(96);
+    expect(small.y + small.height).toBeLessThanOrEqual((await box(hot(page))).y);
+    await expect(page.locator('.wc-ph-satrow')).toBeHidden();
+    // A fight card and a lower screen take the rest of its room: the key row.
+    await page.setViewportSize({ width: 412, height: 430 });
     await expect(lens(page)).toBeHidden();
     await expect(page.locator('.wc-ph-satrow')).toBeVisible();
+    await page.setViewportSize({ width: 412, height: 490 });
     await page.evaluate(() => window.__wc!.settings.update({ phone: { compassSize: 's' } }));
     await expect(lens(page)).toBeVisible();
+    await expect.poll(async () => (await box(lens(page))).width).toBeCloseTo(172, 0);
   });
 });
 

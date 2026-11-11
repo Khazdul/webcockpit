@@ -166,7 +166,7 @@ export const TEXT_GROUP: SettingsGroup = {
 /**
  * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13).
  * No size row since stage 52: the lens is sized from the screen
- * (`phone.lens.size` keeps its stored value until that is built).
+ * (lens-zoom.ts `lensFullPx`) and shrinks with its room.
  */
 export const LENS_GROUP: SettingsGroup = {
   id: 'lens',

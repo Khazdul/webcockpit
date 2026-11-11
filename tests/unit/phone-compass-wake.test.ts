@@ -3,7 +3,7 @@
 // is gone (the setting is dropped by the migration), the group is "Quick
 // buttons" with the number of K keys, and the second column's sums.
 import { describe, expect, it, vi } from 'vitest';
-import { PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight } from '../../src/phone/compass-size';
+import { PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, topLimit } from '../../src/phone/compass-size';
 import { COMPASS_GROUP, CONNECTION_GROUP, SETTINGS_GROUPS, rowsShown } from '../../src/phone/settings-page';
 import { WakeLock, type WakeSentinel, canWakeLock, wakeWanted } from '../../src/phone/wake-lock';
 import { migratePhone, migrateSettings } from '../../src/settings/migrate';
@@ -25,6 +25,9 @@ describe('compass size', () => {
     expect(hotStep(40)).toBe(43);
     expect(hotTop(40, 3)).toBe(142 + 126);
     expect(hotTop(40, 1)).toBe(182);
+    // The strip, the fight card and Comm stay above the place of three keys, whatever is shown (stage 52).
+    expect(topLimit(40)).toBe(268);
+    expect(topLimit(44)).toBe(hotTop(44, 3));
   });
 
   it('the column and the lens\'s room follow the size', () => {

@@ -22,6 +22,16 @@ import type { Settings, SettingsPatch } from '../settings/types';
 export const DEFAULTS_MARK = 1;
 
 /**
+ * `phoneDefaultsPatch` for a start of the app: nothing in safe mode
+ * (`?safe`), where the store saves on the first change and this automatic
+ * one would write the default appearance over the stored one. The mark
+ * stays unset, so the defaults come at the next normal start.
+ */
+export function phoneDefaultsAtStart(s: Pick<Readonly<Settings>, 'phone'>, safe: boolean): SettingsPatch | null {
+  return safe ? null : phoneDefaultsPatch(s);
+}
+
+/**
  * The patch that gives `s` the one-time defaults it has not had, with the
  * mark; null when it has had them all (nothing is written then).
  */

@@ -473,13 +473,12 @@ describe('the Map lens group', () => {
     const { menu, settings } = setup();
     act(() => menu.openSettings());
     const row = (id: string): Element => menu.host.querySelector(`[data-row="${id}"]`)!;
-    // No size row since stage 52; the stored size stays as it is.
+    // No size row since stage 52: the lens is sized from the screen.
     expect(menu.host.querySelector('[data-row="lens-size"]')).toBeNull();
     tap(row('lens-opens').querySelector('[data-opt="far"]'));
     expect(settings.get().phone.lens.opensAt).toBe('far');
     tap(row('lens-show').querySelector('[role="switch"]'));
     expect(settings.get().phone.lens.show).toBe(false);
-    expect(settings.get().phone.lens.size).toBe('m');
     expect(row('lens-show').querySelector('[role="switch"]')!.getAttribute('aria-checked')).toBe('false');
     // The desktop's Mapper settings are not touched.
     expect(settings.get().mapper).toEqual(defaultSettings().mapper);

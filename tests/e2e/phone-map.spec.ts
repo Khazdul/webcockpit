@@ -43,6 +43,9 @@ async function recordWorker(page: Page): Promise<void> {
 }
 const sent = (page: Page) => page.evaluate(() => (window as unknown as { __mapSent: Sent[] }).__mapSent.slice());
 
+/** The lens's full size on the `phone` project's screen (Pixel 7, 412 px wide): round(412 × 150 / 360), stage 52. */
+const FULL = 172;
+
 async function openCockpit(page: Page, query = ''): Promise<void> {
   await page.goto(`/?replay&phone=1${query}`);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
@@ -81,7 +84,7 @@ async function playerCentred(page: Page): Promise<boolean> {
   }, shot.toString('base64'));
 }
 
-test('the lens: the one map pane, borderless, clipped to a 150 px circle at the top right, dressed by the phone layer', async ({ page }) => {
+test('the lens: the one map pane, borderless, clipped to a circle at the top right (its size a share of the screen), dressed by the phone layer', async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -98,16 +101,16 @@ test('the lens: the one map pane, borderless, clipped to a 150 px circle at the 
   const cell = await page.evaluate(() => window.__wc!.cells.get());
   const p = (await pane(page).boundingBox())!;
   const l = (await lens(page).boundingBox())!;
-  expect(l.width).toBeCloseTo(150, 0);
-  expect(l.height).toBeCloseTo(150, 0);
-  expect(p.width / cell.w).toBeCloseTo(Math.ceil(150 / cell.w), 1);
-  expect(p.height / cell.h).toBeCloseTo(Math.ceil(150 / cell.h), 1);
-  expect(p.width).toBeGreaterThanOrEqual(150);
-  expect(p.height).toBeGreaterThanOrEqual(150);
+  expect(l.width).toBeCloseTo(FULL, 0);
+  expect(l.height).toBeCloseTo(FULL, 0);
+  expect(p.width / cell.w).toBeCloseTo(Math.ceil(FULL / cell.w), 1);
+  expect(p.height / cell.h).toBeCloseTo(Math.ceil(FULL / cell.h), 1);
+  expect(p.width).toBeGreaterThanOrEqual(FULL);
+  expect(p.height).toBeGreaterThanOrEqual(FULL);
   // The dressing is centred on the pane.
   expect(l.x + l.width / 2).toBeCloseTo(p.x + p.width / 2, 0);
   expect(l.y + l.height / 2).toBeCloseTo(p.y + p.height / 2, 0);
-  expect(await pane(page).evaluate((el) => getComputedStyle(el).clipPath)).toBe('circle(75px at 50% 50%)');
+  expect(await pane(page).evaluate((el) => getComputedStyle(el).clipPath)).toBe(`circle(${FULL / 2}px at 50% 50%)`);
   // The corners of the lens's square are outside the circle: the game text there takes the tap
   // (neither the map pane nor any part of the lens does), and a tap there steps no zoom.
   for (const [x, y] of [
@@ -137,7 +140,7 @@ test('the lens: the one map pane, borderless, clipped to a 150 px circle at the 
   await expect(lens(page).locator('.wc-ph-lens-pips > i')).toHaveCount(3);
   await expect(lens(page).locator('.wc-ph-lens-pips > i.is-on')).toHaveAttribute('data-level', 'middle');
   const ring = (await lens(page).locator('.wc-ph-lens-ring').boundingBox())!;
-  expect(ring.width).toBeCloseTo(166, 0);
+  expect(ring.width).toBeCloseTo(FULL + 16, 0);
   // Static paint only: nothing in the dressing animates or filters.
   const live = await lens(page).evaluate((el) =>
     [el, ...el.querySelectorAll('*')].filter((n) => {
@@ -224,21 +227,21 @@ test('a tap steps the zoom near → middle → far → near, shown by the pips; 
   await expect(content(page)).toHaveAttribute('data-map-state', 'loaded', { timeout: 20_000 });
   const zooms = async (): Promise<number[]> => (await sent(page)).filter((m) => m.t === 'zoomTo').map((m) => m.zoom!);
   const on = lens(page).locator('.wc-ph-lens-pips > i.is-on');
-  // Opens at the middle: about 5 rooms across 150 px (44 px a room at zoom 1).
+  // Opens at the middle: about 5 rooms across the lens (44 px a room at zoom 1).
   await expect(lens(page)).toHaveAttribute('data-level', 'middle');
   await expect(glass(page)).toHaveAttribute('aria-label', 'Map, middle zoom. Tap to zoom');
-  expect((await zooms()).at(-1)).toBeCloseTo(150 / (5 * 44), 4);
+  expect((await zooms()).at(-1)).toBeCloseTo(FULL / (5 * 44), 4);
   await glass(page).tap();
   await expect(lens(page)).toHaveAttribute('data-level', 'far');
   await expect(on).toHaveAttribute('data-level', 'far');
-  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(150 / (10 * 44), 4);
+  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(FULL / (10 * 44), 4);
   await glass(page).tap();
   await expect(on).toHaveAttribute('data-level', 'near');
   await expect(glass(page)).toHaveAttribute('aria-label', 'Map, near zoom. Tap to zoom');
-  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(150 / (3 * 44), 4);
+  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(FULL / (3 * 44), 4);
   await glass(page).tap();
   await expect(on).toHaveAttribute('data-level', 'middle');
-  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(150 / (5 * 44), 4);
+  await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(FULL / (5 * 44), 4);
   await expect(on).toHaveCount(1);
   expect(await inputFocused(page)).toBe(false);
   await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
@@ -373,13 +376,13 @@ test('a settings write that is not the lens\'s sends the map nothing and moves n
     const s = window.__wc!.settings;
     s.update({ input: { autoClear: !s.get().input.autoClear } });
     s.update({ group: { showPlayers: !s.get().group.showPlayers } });
-    s.update({ phone: { lens: { size: s.get().phone.lens.size } } });
+    s.update({ phone: { lens: { opensAt: s.get().phone.lens.opensAt } } });
   });
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   expect(await zooms()).toBe(n);
   expect(await lens(page).boundingBox()).toEqual(box);
-  // The lens's own setting does: a new size, a new zoom for it.
-  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { size: 's' } } }));
+  // The lens's own setting does: a new level, a new zoom for it.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { opensAt: 'far' } } }));
   await expect.poll(zooms).toBe(n + 1);
 });
 
@@ -408,8 +411,8 @@ test('Shimrod on black whatever the Mapper settings say, and they are never writ
   expect(JSON.stringify(init.assets)).toContain('shimrod-');
   // Stepping the zoom and changing the lens's own settings write nothing of the desktop's.
   await glass(page).tap();
-  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { size: 'l', opensAt: 'near' } } }));
-  await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(180, 0);
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { opensAt: 'near' } } }));
+  await expect(lens(page)).toHaveAttribute('data-level', 'near');
   expect(await stored()).toBe(before);
   // (An `assets` message so far is the alternating set following MUME's season, as the clock settles.)
   const looks = async (): Promise<number> => (await sent(page)).filter((m) => m.t === 'assets' || m.t === 'background').length;
@@ -481,7 +484,7 @@ test('no fullscreen key where the browser cannot (iPhone): the lens alone, and n
   await expect(page.locator('.wc-ph-satrow .wc-ph-sat')).toHaveCount(2);
 });
 
-test('the Map lens settings: show and opens at, from the settings page (no size row since stage 52; the stored size still works); kept over a reload', async ({ page }) => {
+test('the Map lens settings: show and opens at, from the settings page (no size row since stage 52: the size follows the screen); kept over a reload', async ({ page }) => {
   test.setTimeout(60_000);
   await recordWorker(page);
   await openCockpit(page);
@@ -499,34 +502,26 @@ test('the Map lens settings: show and opens at, from the settings page (no size 
   await expect(page.locator('.wc-ph-page [data-group="lens"]').getByText('Size', { exact: true })).toHaveCount(0);
   await expect(srow('lens-show').getByRole('switch', { name: 'Show map' })).toHaveAttribute('aria-checked', 'true');
   await expect(srow('lens-opens').getByRole('radio', { name: 'Middle' })).toHaveAttribute('aria-checked', 'true');
-  // Opens at Far; the size as a stored value (L).
-  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { size: 'l' } } }));
+  // Opens at Far.
   await srow('lens-opens').getByRole('radio', { name: 'Far' }).tap();
   const lensSet = () => page.evaluate(() => window.__wc!.settings.get().phone.lens);
-  expect(await lensSet()).toEqual({ show: true, size: 'l', opensAt: 'far' });
+  expect(await lensSet()).toEqual({ show: true, opensAt: 'far' });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-ph-sheet')).toBeHidden();
-  await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(180, 0);
-  expect(await pane(page).evaluate((el) => getComputedStyle(el).clipPath)).toBe('circle(90px at 50% 50%)');
   await expect(lens(page)).toHaveAttribute('data-level', 'far');
-  await expect.poll(async () => (await sent(page)).filter((m) => m.t === 'zoomTo').at(-1)?.zoom).toBeCloseTo(180 / (10 * 44), 4);
-  // S: 120 px; the level is kept through a size change.
-  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { size: 's' } } }));
-  await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(120, 0);
-  await expect(lens(page)).toHaveAttribute('data-level', 'far');
-  await expect.poll(async () => (await sent(page)).filter((m) => m.t === 'zoomTo').at(-1)?.zoom).toBeCloseTo(120 / (10 * 44), 4);
+  await expect.poll(async () => (await sent(page)).filter((m) => m.t === 'zoomTo').at(-1)?.zoom).toBeCloseTo(FULL / (10 * 44), 4);
+  // A size stored by 0.5.0 is not read: the lens keeps the screen's size.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { size: 's' } } } as never));
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  expect((await lens(page).boundingBox())!.width).toBeCloseTo(FULL, 0);
   // Kept over a reload (the settings are stored).
-  await page.evaluate(async () => {
-    window.__wc!.settings.update({ phone: { lens: { size: 'l' } } });
-    // The settings are written before the page goes.
-    await window.__wc!.settings.flush();
-  });
+  await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
   await expect(lens(page)).toBeVisible();
-  expect(await lensSet()).toEqual({ show: true, size: 'l', opensAt: 'far' });
-  await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(180, 0);
+  expect(await lensSet()).toEqual({ show: true, opensAt: 'far' });
+  await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(FULL, 0);
   await expect(lens(page)).toHaveAttribute('data-level', 'far');
   // Show map off: no lens, no map pane.
   await openSettings();
@@ -569,6 +564,154 @@ test('the keyboard up: the lens stays; a very short screen hides it and it retur
   await expect(page.locator('.wc-ph-satrow')).toBeHidden();
 });
 
+for (const [width, height, want, size] of [
+  [360, 800, 150, 0],
+  [390, 844, 163, 0],
+  // Clamped: a narrow screen (a smaller text size, so the layout is not "too small"), and a wide one.
+  [300, 650, 130, 10],
+  [480, 900, 190, 0],
+] as const) {
+  test.describe(`the lens's full size on ${width} × ${height}`, () => {
+    test.use({ viewport: { width, height } });
+
+    test(`is ${want} px: 150 px at 360 px of short side, in proportion, within 130 to 190`, async ({ page }) => {
+      await openCockpit(page);
+      if (size) await page.evaluate((size) => window.__wc!.settings.update({ appearance: { size } }), size);
+      await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
+      await expect(lens(page)).toBeVisible();
+      await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(want, 0);
+      expect((await lens(page).boundingBox())!.height).toBeCloseTo(want, 0);
+      expect(await pane(page).evaluate((el) => getComputedStyle(el).clipPath)).toBe(`circle(${want / 2}px at 50% 50%)`);
+      // The keyboard up (a shorter visible area): the size is the screen's, not the visible area's.
+      await field(page).tap();
+      await page.evaluate((h) => {
+        // The layout viewport keeps its height on a phone; only the visual viewport shrinks.
+        Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => h });
+      }, height);
+      await page.setViewportSize({ width, height: height - 300 });
+      await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
+      await expect(lens(page)).toBeVisible();
+      expect((await lens(page).boundingBox())!.width).toBeCloseTo(want, 0);
+    });
+  });
+}
+
+test.describe('the lens and Comm, 390 × 844', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('Comm open: the lens stays under it and shrinks row by row as Comm grows (live, during the drag), hides under 96 px with its keys as the row, and returns; the zoom follows its size', async ({ page }) => {
+    test.setTimeout(60_000);
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await recordWorker(page);
+    await openCockpit(page);
+    await walk(page);
+    await expect(content(page)).toHaveAttribute('data-map-state', 'loaded', { timeout: 20_000 });
+    const zooms = async (): Promise<number[]> => (await sent(page)).filter((m) => m.t === 'zoomTo').map((m) => m.zoom!);
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const h = await page.evaluate(() => window.__wc!.cells.get().h);
+    const layout = () =>
+      page.evaluate(() => {
+        const g = window.__wc!.app.cockpit.phoneGameLayout!;
+        return { comm: g.comm.h, top: g.game.y, lens: g.lensPx, rows: g.lens?.h ?? 0, hidden: g.lensHidden };
+      });
+    await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(163, 0);
+    // Comm at its least height: the lens is right under it, at its full size.
+    await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 6 } }));
+    await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+    const comm = page.locator('.wc-cockpit > .wc-pane[data-pane="comm"]');
+    await expect(comm).toBeVisible();
+    await expect(lens(page)).toBeVisible();
+    await frames();
+    const c0 = (await comm.boundingBox())!;
+    const l0 = (await lens(page).boundingBox())!;
+    expect(l0.width).toBeCloseTo(163, 0);
+    expect(l0.y).toBeGreaterThanOrEqual(c0.y + c0.height);
+    expect(l0.y - (c0.y + c0.height)).toBeLessThan(2 * h);
+    const z0 = await zooms();
+    expect(z0.at(-1)).toBeCloseTo(163 / (5 * 44), 4);
+    // The band dragged down a row at a time, the finger staying down.
+    const grip = (await page.locator('.wc-ph-comm-grip').boundingBox())!;
+    const x = grip.x + grip.width / 2;
+    const y0 = grip.y + 12;
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', y?: number) =>
+      cdp.send('Input.dispatchTouchEvent', { type, touchPoints: y === undefined ? [] : [{ x, y, id: 0 }] });
+    await touch('touchStart', y0);
+    const seen: { comm: number; lens: number; width: number; rows: number; hidden: boolean }[] = [];
+    let step = 0;
+    for (; step < 40; step++) {
+      await touch('touchMove', y0 + (step + 1) * h);
+      // The layout follows within a frame; at the limit above the quick buttons Comm stays where it is.
+      await frames();
+      await frames();
+      const g = await layout();
+      const box = g.lens > 0 ? (await lens(page).boundingBox())! : null;
+      seen.push({ comm: g.comm, lens: g.lens, width: box ? box.width : 0, rows: g.rows, hidden: g.hidden });
+      if (g.comm < 6 + step + 1) break; // the limit above the quick buttons: Comm goes no further
+    }
+    // What the finger saw: full, then smaller in whole rows, then gone.
+    const sizes = [...new Set(seen.map((s) => s.lens))];
+    expect(sizes[0]).toBe(163);
+    expect(sizes.at(-1)).toBe(0);
+    expect(sizes.length).toBeGreaterThanOrEqual(4);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]!).toBeLessThan(sizes[i - 1]!);
+    for (const s of seen) {
+      // On screen as laid out; shrunk, it is whole rows of the cell; never under 96 px.
+      expect(s.width).toBeCloseTo(s.lens, 0);
+      if (s.lens > 0 && s.lens < 163) expect(s.lens).toBe(Math.floor(s.rows * h + 1e-6));
+      if (s.lens > 0) expect(s.lens).toBeGreaterThanOrEqual(96);
+      expect(s.hidden).toBe(s.lens === 0);
+    }
+    // A shrunk step: each row of Comm takes a row of the lens.
+    const shrunk = seen.filter((s) => s.lens > 0 && s.lens < 163);
+    for (let i = 1; i < shrunk.length; i++) expect(shrunk[i]!.rows).toBe(shrunk[i - 1]!.rows - (shrunk[i]!.comm - shrunk[i - 1]!.comm));
+    // Hidden at the limit: the keys stand as the row, the map pane is not shown.
+    await expect(lens(page)).toBeHidden();
+    await expect(pane(page)).toBeHidden();
+    await expect(page.locator('.wc-ph-satrow')).toBeVisible();
+    // The zoom: one message per size the lens had (none for the hidden state), each the middle level's for that size.
+    const sent1 = (await zooms()).slice(z0.length);
+    expect(sent1.length).toBe(sizes.length - 2);
+    sizes.slice(1, -1).forEach((px, i) => expect(sent1[i]).toBeCloseTo(px / (5 * 44), 4));
+    // Back up, still the same drag: the lens returns and grows to its full size.
+    for (let up = step; up >= 0; up--) await touch('touchMove', y0 + up * h);
+    await expect.poll(async () => (await layout()).comm).toBe(6);
+    await expect(lens(page)).toBeVisible();
+    await expect(page.locator('.wc-ph-satrow')).toBeHidden();
+    await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(163, 0);
+    expect((await zooms()).at(-1)).toBeCloseTo(163 / (5 * 44), 4);
+    await touch('touchEnd');
+    await cdp.detach();
+    // The same rooms in view at a smaller size: a stored height that leaves the least lens.
+    const least = shrunk.at(-1)!;
+    await page.evaluate((rows) => window.__wc!.settings.update({ phone: { commRows: rows } }), least.comm);
+    await expect.poll(async () => (await layout()).lens).toBe(least.lens);
+    expect(await pane(page).evaluate((el) => getComputedStyle(el).clipPath)).toBe(`circle(${least.lens / 2}px at 50% 50%)`);
+    // Its three keys stand clear of each other at this size, and the pips are inside the glass.
+    const keys = await lens(page).locator('.wc-ph-sat').evaluateAll((els) => els.filter((e) => !(e as HTMLElement).hidden).map((e) => e.getBoundingClientRect().toJSON() as { x: number; y: number; width: number; height: number }));
+    expect(keys.length).toBeGreaterThanOrEqual(2);
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const a = keys[i]!;
+        const b = keys[j]!;
+        const apart = a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+        expect(apart, `keys ${i} and ${j}`).toBe(true);
+      }
+    }
+    const l = (await lens(page).boundingBox())!;
+    const pips = (await lens(page).locator('.wc-ph-lens-pips').boundingBox())!;
+    expect(pips.y + pips.height).toBeLessThan(l.y + l.height);
+    expect(pips.x).toBeGreaterThan(l.x);
+    for (const k of keys) expect(pips.x + pips.width <= k.x || k.x + k.width <= pips.x || pips.y + pips.height <= k.y || k.y + k.height <= pips.y).toBe(true);
+    // A tap still steps the zoom, at this size.
+    await glass(page).tap();
+    await expect(lens(page)).toHaveAttribute('data-level', 'far');
+    await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(least.lens / (10 * 44), 4);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
@@ -589,11 +732,20 @@ test.describe('landscape', () => {
     expect(l.y + l.height).toBeLessThanOrEqual(p.y);
   });
 
-  test('a large lens that would reach the compass hides; its key stays as a row', async ({ page }) => {
+  test('a lower screen: the lens shrinks to its room above the compass, and hides with its key as a row when that is under its least size', async ({ page }) => {
     await openCockpit(page);
-    // (Lower, but not so low that it counts as the keyboard being up.)
+    await page.locator('.wc-ph-key.is-tog').tap();
+    await expect(page.locator('.wc-ph-hot')).toBeHidden();
+    await expect(lens(page)).toBeVisible();
+    // 163 px on a 390 px short side.
+    expect((await lens(page).boundingBox())!.width).toBeCloseTo(163, 0);
+    // (Lower, but not so low that it counts as the keyboard being up.) With a fight card's rows gone
+    // to the strip, the room above the compass is under 96 px.
     await page.setViewportSize({ width: 844, height: 320 });
-    await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { size: 'l' } } }));
+    await expect(lens(page)).toBeVisible();
+    await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 6 } }));
+    await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+    await expect(page.locator('.wc-cockpit > .wc-pane[data-phone-strip]')).toHaveCount(1);
     await expect(lens(page)).toBeHidden();
     await expect(page.locator('.wc-pane-map')).toBeHidden();
     await expect(page.locator('.wc-ph-satrow')).toBeVisible();

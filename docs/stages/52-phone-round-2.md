@@ -262,4 +262,7 @@ and `phone-player-map.spec.ts`.
 
 ## Owner feedback
 
+- 2026-11-11: automatic reconnect and keep the screen on both confirmed
+  working on the owner's phone (B3 and B4 closed).
+
 (After each round.)

@@ -4,6 +4,7 @@
 //   node scripts/phone-shots.ts 51a              every state built by step 51a
 //   node scripts/phone-shots.ts 51a fighting     only these states
 //   node scripts/phone-shots.ts 52a              the states of round 52a (stage 52's own only)
+//   node scripts/phone-shots.ts 52b lens-full    one state of round 52b
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -164,6 +165,42 @@ const sixKeys = async (page: Page): Promise<void> => {
   await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
   await page.locator('.wc-ph-hk[data-hk="5"]').waitFor();
 };
+
+/** Two frames: the cockpit's relayout and what follows it. */
+const settle = (page: Page): Promise<void> => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+
+/**
+ * Stage 52b: Comm open on Gibur's chat at the height that leaves the lens
+ * `want`: its full size (the tallest such Comm), its least size, a size
+ * between the two, or no room (Comm at the limit above the quick buttons:
+ * the key row). The heights are found on the screen at hand, not assumed.
+ */
+async function commForLens(page: Page, want: 'full' | 'mid' | 'min' | 'limit'): Promise<void> {
+  const set = (rows: number): Promise<void> => page.evaluate((rows) => window.__wc!.settings.update({ phone: { commRows: rows } }), rows);
+  // (Opened at its default height: at the least one the band's grip lies over the rail's last entries.)
+  await openChat(page, 'Gibur');
+  await settle(page);
+  const lensAt = async (rows: number): Promise<number> => {
+    await set(rows);
+    await settle(page);
+    return page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!.lensPx);
+  };
+  const full = await lensAt(6);
+  let lastFull = 6;
+  let lastShown = 6;
+  for (let rows = 7; rows <= 60; rows++) {
+    const px = await lensAt(rows);
+    if (px === full) lastFull = rows;
+    if (px > 0) lastShown = rows;
+    else break;
+  }
+  const rows = { full: lastFull, mid: Math.round((lastFull + lastShown) / 2), min: lastShown, limit: 99 }[want];
+  await set(rows);
+  await settle(page);
+  if (want !== 'limit') await lensDrawn(page);
+  else await page.locator('.wc-ph-satrow').waitFor();
+  await page.waitForTimeout(500);
+}
 
 /** The settings page, from the menu sheet. */
 const openSettings = async (page: Page): Promise<void> => {
@@ -578,6 +615,53 @@ const STATES: State[] = [
     step: 'a',
     run: async (page) => {
       await play(page, CUT.fight);
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-pane="timers"][data-phone-strip]').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  // ---- stage 52b: the strip's band, live resize, the limit above the quick buttons, the dynamic lens
+  {
+    // Nothing open: the lens at its full size (163 px on this 390 px wide screen).
+    name: 'lens-full',
+    stage: 52,
+    step: 'b',
+    run: (page) => play(page),
+  },
+  { name: 'comm-lens-full', stage: 52, step: 'b', live: true, run: (page) => commForLens(page, 'full') },
+  { name: 'comm-lens-mid', stage: 52, step: 'b', live: true, run: (page) => commForLens(page, 'mid') },
+  { name: 'comm-lens-min', stage: 52, step: 'b', live: true, run: (page) => commForLens(page, 'min') },
+  {
+    // Comm dragged as far as it goes: it ends above the place of three hot keys; the lens's keys as the row.
+    name: 'comm-limit',
+    stage: 52,
+    step: 'b',
+    live: true,
+    run: (page) => commForLens(page, 'limit'),
+  },
+  {
+    // The strip, the fight card and Comm together at the limit, six hot keys in use.
+    name: 'all-limit-six-keys',
+    stage: 52,
+    step: 'b',
+    live: true,
+    run: async (page) => {
+      await sixKeys(page);
+      await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 9 } }));
+      await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+      await page.locator('.wc-pane[data-phone-strip]').waitFor();
+      await settle(page);
+      await commForLens(page, 'limit');
+    },
+  },
+  {
+    // The strip dragged tall by its band (the page dots sit on the band).
+    name: 'strip-tall',
+    stage: 52,
+    step: 'b',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.evaluate(() => window.__wc!.settings.update({ timers: { groups: { herb: { enabled: true } } }, phone: { stripRows: 18 } }));
       await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
       await page.locator('.wc-pane[data-pane="timers"][data-phone-strip]').waitFor();
       await page.waitForTimeout(1500);

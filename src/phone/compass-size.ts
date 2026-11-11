@@ -42,6 +42,15 @@ export function hotTop(px: number, n: number): number {
   return hotBottom(px) + n * hotStep(px) - KEY_GAP;
 }
 
+/**
+ * The height from the bottom edge the pane strip, the fight card and Comm
+ * stay above (stage 52): the top of the place of three hot keys, whether
+ * they are shown or not and however many are in use.
+ */
+export function topLimit(px: number): number {
+  return hotTop(px, 3);
+}
+
 /** What the hot key columns take sideways from the right margin: `cols` keys and the gaps between them. */
 export function hotWidth(px: number, cols: number): number {
   return cols * px + (cols - 1) * KEY_GAP;

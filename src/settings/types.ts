@@ -406,10 +406,6 @@ export interface WindowRect {
   h: number;
 }
 
-/** The map lens's sizes on the phone's game layout (ADR 0136 §4): 120, 150 and 180 px across. */
-export const PHONE_LENS_SIZES = ['s', 'm', 'l'] as const;
-export type PhoneLensSize = (typeof PHONE_LENS_SIZES)[number];
-
 /** The lens's three fixed zoom levels (ADR 0136 §4). */
 export const PHONE_LENS_LEVELS = ['near', 'middle', 'far'] as const;
 export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
@@ -418,7 +414,6 @@ export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
 export interface PhoneLensSettings {
   /** Show the lens (off: no map on the phone's game layout, and no map load). */
   show: boolean;
-  size: PhoneLensSize;
   /** The zoom level the lens starts at. */
   opensAt: PhoneLensLevel;
 }
@@ -435,6 +430,8 @@ export interface PhoneSettings {
   strip: PhoneStripSettings;
   /** Comm's height in rows on the phone (ADR 0136 §6); null: the default share of the screen. */
   commRows: number | null;
+  /** The pane strip's height in rows (stage 52: its band is dragged); null: the default share of the screen. */
+  stripRows: number | null;
   /** What the Comm key's badge counts (ADR 0136 §6): private chats, or Group and Public too. */
   unread: PhoneUnread;
   /** The hot keys' slots K1 to K6, in that order (ADR 0136 §8, stage 52): always `PHONE_HOTKEY_COUNT` of them. */
@@ -507,14 +504,15 @@ export interface PhoneStripSettings {
 export const PHONE_UNREAD_MODES = ['private', 'all'] as const;
 export type PhoneUnread = (typeof PHONE_UNREAD_MODES)[number];
 
-/** The limits of a stored Comm height (the allocator fits it to the screen). */
+/** The limits of a stored Comm or strip height (the allocator fits it to the screen). */
 export const PHONE_COMM_ROWS_MIN = 1;
 export const PHONE_COMM_ROWS_MAX = 200;
 
 /**
- * Phone defaults: the lens shown, 150 px, at the middle zoom (ADR 0136 §4);
- * the strip's four panes in their order, all on but Character (§5, stage
- * 52); Comm at its default height, the badge counting private chats (§6);
+ * Phone defaults: the lens shown, at the middle zoom (ADR 0136 §4; its
+ * size follows the screen, stage 52); the strip's four panes in their
+ * order, all on but Character (§5, stage 52), at its default height; Comm
+ * at its default height, the badge counting private chats (§6);
  * six hot key slots (assist, bash, wimpy at half of the current hit points,
  * rescue, shoot, recover) of which three are in use, shown (§8, stage 52);
  * 40 px compass keys (§7); the screen kept on while connected, and no
@@ -523,9 +521,10 @@ export const PHONE_COMM_ROWS_MAX = 200;
  */
 export function defaultPhoneSettings(): PhoneSettings {
   return {
-    lens: { show: true, size: 'm', opensAt: 'middle' },
+    lens: { show: true, opensAt: 'middle' },
     strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: id !== 'character' })) },
     commRows: null,
+    stripRows: null,
     unread: 'private',
     hotkeys: [
       { label: 'asst', command: 'assist', special: null, shown: true },

@@ -520,7 +520,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip {
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip[hidden],
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots[hidden],
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band[hidden] {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband[hidden] {
   display: none;
 }
 
@@ -534,14 +534,16 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-hood {
   line-height: 14px;
 }
 
+/* The page dots: on the strip's resize band (below), at its right end, so the grip keeps the
+ * middle as on Comm's band. They take no taps: the grip under them does. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots {
   position: absolute;
-  left: 50%;
-  /* Dots and edge together stay inside the 16 px under the pane's last line. */
-  bottom: 8px;
-  transform: translateX(-50%);
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   gap: 6px;
+  pointer-events: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i {
@@ -554,18 +556,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i {
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots > i.is-on {
   background: var(--ph-dot-on);
   box-shadow: var(--ph-pip-glow);
-}
-
-/* The strip's lower edge: a thin iron band over the game text's top. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-edge {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 5px;
-  background: var(--ph-iron);
-  border-top: 1px solid var(--ph-iron-hi);
-  border-bottom: 1px solid var(--ph-iron-lo);
 }
 
 /* ------------------------------------------------------------------- Comm */
@@ -605,9 +595,9 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply:has
   outline-offset: -1px;
 }
 
-/* The resize band on Comm's last row (src/phone/comm-chrome.ts; JS sets top
- * and height): iron with a lit bar. Its grip reaches below it for a thumb. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band {
+/* The resize band on Comm's last row and on the pane strip's (src/phone/comm-chrome.ts; JS sets
+ * top and height): iron with a lit bar. Its grip reaches above and below it for a thumb. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband {
   position: absolute;
   left: 0;
   right: 0;
@@ -621,7 +611,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band {
   pointer-events: auto;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band > i {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband > i {
   display: block;
   width: 44px;
   height: 3px;
@@ -629,14 +619,15 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band > i {
   background: var(--ph-grip);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band[data-dragging] {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband[data-dragging] {
   z-index: 1;
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.6);
 }
 
-/* The grip: the band, the 16 px of Comm above it (the reply line's margin) and 10 px of the game
- * text below it, no more: the first game line under the band still scrolls the output. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-grip {
+/* The grip: the band, the 16 px above it (Comm's reply line's margin; the strip pane's last line)
+ * and 10 px of what is below it, no more: the first game line under the band still scrolls the
+ * output. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip {
   position: absolute;
   left: 0;
   right: 0;
