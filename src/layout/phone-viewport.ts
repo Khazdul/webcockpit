@@ -14,10 +14,39 @@
 //   tallest seen at this width (the keyboard is open); the cockpit skips
 //   the too-small guard then.
 //
+// Fullscreen (stage 52d). On Android Chrome the visual viewport alone put
+// the input line in the wrong place in fullscreen (owner's Samsung S21):
+//
+// 1. Entering fullscreen with the keyboard up left the height from before
+//    fullscreen published: Android delivers the viewport resize and the
+//    fullscreen change in no fixed order, and the resize may come before
+//    the page has its fullscreen size (or not at all). So a fullscreen
+//    change measures again at once, after the settle time, and once more
+//    at FS_RECHECK_MS.
+// 2. In fullscreen with the keyboard up, the visual viewport was about
+//    44 CSS px too tall, so the keyboard's top row covered the input line.
+//    HYPOTHESIS, NOT VERIFIED ON A DEVICE: in immersive fullscreen the page
+//    reaches under the system navigation bar; the keyboard brings the bar
+//    back, and Chrome computes the visual viewport from the keyboard inset
+//    minus the bar, so it is too tall by about the bar's height (48 dp).
+//    So in fullscreen, where the VirtualKeyboard API exists, the keyboard's
+//    own rectangle decides: `overlaysContent = true` (the viewport then no
+//    longer shrinks for the keyboard at all) and the visible area ends at
+//    `boundingRect.top`. Outside fullscreen `overlaysContent` stays false
+//    and the visual viewport alone decides, as before.
+//
+// `?vv=1` shows the measured numbers on screen (phone-viewport-debug.ts,
+// loaded only with the parameter), for a screenshot from the device.
+//
 // Nothing here runs on desktop: src/main.ts calls it only with the flag.
+// Everything is event-driven; nothing runs per frame.
+
+import { isFullscreen } from '../core/fullscreen';
 
 /** Quiet time (ms) after the last visualViewport event before the update. */
 export const VV_SETTLE_MS = 150;
+/** A second measurement this long (ms) after a fullscreen change: the transition may outlast the settle time. */
+export const FS_RECHECK_MS = 500;
 /** The keyboard counts as up below this share of the tallest visible height at this width. */
 const KEYBOARD_SHARE = 0.8;
 
@@ -35,10 +64,17 @@ export function phoneViewportMeta(doc: Document = document): void {
 }
 
 let kbd = false;
+const appliedFns = new Set<() => void>();
 
 /** True while the on-screen keyboard is up (phone only; always false on desktop). */
 export function keyboardUp(): boolean {
   return kbd;
+}
+
+/** Calls `fn` after every published update (the `?vv=1` readout); returns the unsubscribe. */
+export function onPhoneViewportApplied(fn: () => void): () => void {
+  appliedFns.add(fn);
+  return () => appliedFns.delete(fn);
 }
 
 /** The keyboard state from the visible height `h` and the tallest seen at this width (pure). */
@@ -46,45 +82,171 @@ export function isKeyboardUp(h: number, tallest: number): boolean {
   return tallest > 0 && h < tallest * KEYBOARD_SHARE;
 }
 
+/**
+ * The tallest visual viewport height seen at `width`, kept apart for the
+ * page as it normally is (`plain`) and in fullscreen (`full`): the two
+ * differ by the system bars, so one must not be judged against the other.
+ */
+export interface Baseline {
+  width: number;
+  plain: number;
+  full: number;
+}
+
+export const NO_BASELINE: Baseline = { width: -1, plain: 0, full: 0 };
+
+/**
+ * The baseline after a measurement (pure). A new width is a rotation (or a
+ * new window): both start over. The fullscreen page is never shorter than
+ * the plain one, so `plain` is a floor for `full`: entering fullscreen
+ * with the keyboard already up still reads as keyboard up.
+ */
+export function nextBaseline(b: Baseline, width: number, height: number, fullscreen: boolean): Baseline {
+  const w = Math.round(width);
+  const from = w === b.width ? b : { width: w, plain: 0, full: 0 };
+  return fullscreen
+    ? { ...from, full: Math.max(from.full, from.plain, height) }
+    : { ...from, plain: Math.max(from.plain, height) };
+}
+
+/** What was measured, for `visibleArea`. */
+export interface ViewportMeasure {
+  /** `visualViewport.height` (or `innerHeight`). */
+  height: number;
+  /** `visualViewport.offsetTop` (or 0). */
+  top: number;
+  /** The tallest height seen at this width in this mode (`Baseline`). */
+  tallest: number;
+  fullscreen: boolean;
+  /** `navigator.virtualKeyboard.boundingRect` (client coordinates), or null without the API. */
+  keyboard: { top: number; height: number } | null;
+}
+
+export interface VisibleArea {
+  height: number;
+  top: number;
+  keyboardUp: boolean;
+}
+
+/**
+ * The visible area from the measured numbers (pure). Outside fullscreen,
+ * without the VirtualKeyboard API, or while its rectangle is empty: the
+ * visual viewport alone. In fullscreen with a keyboard rectangle: the area
+ * ends at the rectangle's top (never below the visual viewport's bottom),
+ * and the keyboard is up because the rectangle says so.
+ */
+export function visibleArea(m: ViewportMeasure): VisibleArea {
+  const k = m.keyboard;
+  if (m.fullscreen && k && k.height > 0) {
+    // #app is fixed at `top` in the layout viewport, the rectangle is in
+    // the same coordinates. A rectangle at or above the top is nonsense:
+    // keep the viewport's height rather than publish nothing.
+    const above = k.top - m.top;
+    return { height: above > 0 ? Math.min(m.height, above) : m.height, top: m.top, keyboardUp: true };
+  }
+  return { height: m.height, top: m.top, keyboardUp: isKeyboardUp(m.height, m.tallest) };
+}
+
+/** The part of the VirtualKeyboard API used here (Chrome on Android). */
+interface VirtualKeyboardLike extends EventTarget {
+  overlaysContent: boolean;
+  readonly boundingRect: { top: number; height: number };
+}
+
+/** `navigator.virtualKeyboard`, or null where the API is missing (iOS, Firefox). */
+export function virtualKeyboardOf(win: Window): VirtualKeyboardLike | null {
+  const k = (win.navigator as (Navigator & { virtualKeyboard?: VirtualKeyboardLike }) | undefined)?.virtualKeyboard;
+  return k && typeof k.addEventListener === 'function' ? k : null;
+}
+
 /** Starts following the visual viewport (phone only). Returns the stop function. */
 export function installPhoneViewport(win: Window = window): () => void {
   const vv = win.visualViewport;
-  const root = win.document.documentElement;
+  const doc = win.document;
+  const root = doc.documentElement;
+  const vk = virtualKeyboardOf(win);
   let timer: ReturnType<typeof setTimeout> | null = null;
-  let width = -1;
-  let tallest = 0;
-  const apply = (): void => {
-    timer = null;
-    const h = vv ? vv.height : win.innerHeight;
-    const top = vv ? vv.offsetTop : 0;
-    const w = vv ? vv.width : win.innerWidth;
-    // A new width is a rotation (or a new window): start over.
-    if (Math.round(w) !== width) {
-      width = Math.round(w);
-      tallest = 0;
+  let recheck: ReturnType<typeof setTimeout> | null = null;
+  let base = NO_BASELINE;
+  let overlaying = false;
+  // The keyboard overlays the page only in fullscreen: outside it the
+  // browser's own resize is right and must stay as it is.
+  const overlay = (on: boolean): void => {
+    if (!vk || overlaying === on) return;
+    overlaying = on;
+    try {
+      vk.overlaysContent = on;
+    } catch {
+      /* refused: the visual viewport decides */
     }
-    tallest = Math.max(tallest, h);
-    kbd = isKeyboardUp(h, tallest);
+  };
+  const apply = (): void => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    const fullscreen = isFullscreen(doc);
+    overlay(fullscreen);
+    const h = vv ? vv.height : win.innerHeight;
+    const w = vv ? vv.width : win.innerWidth;
+    base = nextBaseline(base, w, h, fullscreen);
+    const rect = vk ? vk.boundingRect : null;
+    const area = visibleArea({
+      height: h,
+      top: vv ? vv.offsetTop : 0,
+      tallest: fullscreen ? base.full : base.plain,
+      fullscreen,
+      keyboard: rect ? { top: rect.top, height: rect.height } : null,
+    });
+    kbd = area.keyboardUp;
     root.classList.toggle('wc-kbd', kbd);
-    root.style.setProperty('--wc-vv-h', `${h}px`);
-    root.style.setProperty('--wc-vv-top', `${top}px`);
+    root.style.setProperty('--wc-vv-h', `${area.height}px`);
+    root.style.setProperty('--wc-vv-top', `${area.top}px`);
     // iOS pans the layout viewport to show a focused input; the app
     // follows the visual viewport instead, so keep the page itself at 0.
-    if (win.scrollY !== 0 && top === 0) win.scrollTo(0, 0);
+    if (win.scrollY !== 0 && area.top === 0) win.scrollTo(0, 0);
+    for (const fn of appliedFns) fn();
   };
   const later = (): void => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(apply, VV_SETTLE_MS);
+  };
+  // Bug 1 above: measure now (the height from the other mode is stale),
+  // at the settle time, and once more when the transition is surely over.
+  const onFullscreen = (): void => {
+    apply();
+    later();
+    if (recheck) clearTimeout(recheck);
+    recheck = setTimeout(() => {
+      recheck = null;
+      apply();
+    }, FS_RECHECK_MS);
   };
   apply();
   const target: EventTarget = vv ?? win;
   target.addEventListener('resize', later);
   target.addEventListener('scroll', later);
   if (vv) win.addEventListener('resize', later);
+  doc.addEventListener('fullscreenchange', onFullscreen);
+  doc.addEventListener('webkitfullscreenchange', onFullscreen);
+  vk?.addEventListener('geometrychange', later);
+  // The owner's readout (`?vv=1`): loaded only when asked for.
+  let stopReadout: (() => void) | null = null;
+  let stopped = false;
+  if (new URLSearchParams(win.location?.search ?? '').get('vv') === '1') {
+    void import('./phone-viewport-debug').then((m) => {
+      if (!stopped) stopReadout = m.installViewportReadout(win);
+    });
+  }
   return () => {
+    stopped = true;
     if (timer) clearTimeout(timer);
+    if (recheck) clearTimeout(recheck);
     target.removeEventListener('resize', later);
     target.removeEventListener('scroll', later);
     if (vv) win.removeEventListener('resize', later);
+    doc.removeEventListener('fullscreenchange', onFullscreen);
+    doc.removeEventListener('webkitfullscreenchange', onFullscreen);
+    vk?.removeEventListener('geometrychange', later);
+    overlay(false);
+    stopReadout?.();
   };
 }
