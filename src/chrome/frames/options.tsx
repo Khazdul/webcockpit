@@ -30,7 +30,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { ScriptPaneInfo } from '../../layout/cockpit';
 import { forgetTempPlaces } from '../../layout/temp-places';
 import { NOT_ON_PHONE, PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
-import { type AppearanceSettings, paneSettingsOf } from '../../settings/types';
+import { paneSettingsOf } from '../../settings/types';
 import {
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
@@ -44,7 +44,6 @@ import { isLight } from '../../theme/color';
 import { FONTS, effectiveFont, fontChoices } from '../../theme/fonts';
 import {
   ANSI_NAMES,
-  DEFAULT_TERM_FG,
   DOS_PALETTE,
   INPUT_COLORS,
   INPUT_COLOR_IDS,

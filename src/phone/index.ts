@@ -52,7 +52,7 @@ import { CommBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
-import { compassHeight, compassPx, hotBottom, hotStep, hotTop } from './compass-size';
+import { PAD_MARGIN, compassHeight, compassPx, hotBottom, hotStep, hotTop } from './compass-size';
 import { pulse } from './haptics';
 import { WakeLock, wakeWanted } from './wake-lock';
 import { HotkeysView } from './hotkeys';
@@ -74,6 +74,8 @@ const LENS_GAP_RIGHT = 12;
 const LENS_CLEAR = 16;
 /** The box's air to the command row (the keyboard up) and to the top edge. */
 const BOX_GAP = 8;
+/** A lens key's side, px (phone.css). */
+const SAT_PX = 40;
 /** The key row's air under what is above it (the lens hidden). */
 const SATROW_GAP = 8;
 /** What the lens fixes on the map pane (ADR 0136 §4): Shimrod, alternating with MUME's season, on black. */
@@ -412,6 +414,8 @@ export class PhoneLayer {
     this.lensClear = n === 0 ? compassHeight(px) : hotTop(px, n) + LENS_CLEAR;
     if (this.hot.boxOpen) this.syncBox();
     this.askLens();
+    // The lens's key row stands clear of the column (`place`), also when the column came or went without a relayout.
+    this.place();
   }
 
   /** The box's foot above the layer's bottom edge: beside the column, or over the command row with the keyboard up. */
@@ -612,9 +616,16 @@ export class PhoneLayer {
     // The keys' row stands in for a lens that is off or has no room; not for one the cockpit has
     // not laid out yet (asked for, the relayout pending).
     const pending = size > 0 && !g.tooSmall && g.lens === null && !g.lensHidden;
+    const rowTop = g.game.y * h + SATROW_GAP;
+    // The keys' row is at the right edge, where the hot key column is: on a low screen (landscape
+    // with the strip or a fight card) the row would reach into the column, and then stands left of it.
+    const n = this.deps.settings.get().phone.hotkeysOpen && !phoneKit().keyboardUp() ? this.hot.count : 0;
+    const colTop = n > 0 ? this.el.clientHeight - hotTop(this.keyPx, n) : Infinity;
+    const rowRight = rowTop + SAT_PX + SATROW_GAP > colTop ? PAD_MARGIN + this.keyPx + SATROW_GAP : PAD_MARGIN;
     this.lens.place(
       r && size > 0 ? { left: (r.x + r.w / 2) * w - size / 2, top: (r.y + r.h / 2) * h - size / 2, size } : null,
-      pending || g.tooSmall ? null : g.game.y * h + SATROW_GAP,
+      pending || g.tooSmall ? null : rowTop,
+      rowRight,
     );
   }
 

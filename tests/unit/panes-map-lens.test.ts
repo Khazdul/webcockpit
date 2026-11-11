@@ -13,7 +13,8 @@ import { setDeviceForTest } from '../../src/core/device';
 import type { MainToWorker, WorkerToMain } from '../../src/map/protocol';
 import { createPaneContext } from '../../src/panes/context';
 import { LONG_PRESS_MS } from '../../src/panes/map-hover';
-import { MapPane } from '../../src/panes/map';
+import { LENS_SEASON_DELAY_MS, MapPane } from '../../src/panes/map';
+import { type Tileset, resolveTileset } from '../../src/map/tilesets';
 import { SettingsStore } from '../../src/settings';
 
 interface FakeWorker {
@@ -286,5 +287,38 @@ describe('MapPane as the lens', () => {
     await settle();
     expect(t.of('events').length).toBeGreaterThan(base);
     t.pane.dispose();
+  });
+
+  it('a game clock change swaps the lens\'s season a while later, not at once; without a lens at once', async () => {
+    vi.useFakeTimers();
+    const h = setup({ touch: true });
+    h.pane.setLens(LENS);
+    h.show();
+    await vi.advanceTimersByTimeAsync(50);
+    h.w().emit({ t: 'loaded', req: 1, info: { rooms: 1, ms: 1, stages: {} } } as unknown as WorkerToMain);
+    const p = h.pane as unknown as { onClock(): void; tileset(): Tileset | null };
+    const before = h.of('assets').length;
+    // The season is another (the clock was synced): what the pane resolves changes.
+    const real = p.tileset.bind(p);
+    const was = real()!.id;
+    const next = [0, 3, 6, 9].map((m) => resolveTileset('shimrod', m)!).find((t) => t.id !== was)!;
+    const other = next.id;
+    p.tileset = () => next;
+    p.onClock();
+    p.onClock();
+    expect(h.of('assets')).toHaveLength(before);
+    await vi.advanceTimersByTimeAsync(LENS_SEASON_DELAY_MS - 10);
+    expect(h.of('assets')).toHaveLength(before);
+    await vi.advanceTimersByTimeAsync(20);
+    // One swap for the two changes.
+    expect(h.of('assets')).toHaveLength(before + 1);
+    expect(h.pane.content.dataset.mapTileset).toBe(other);
+    // Without the lens (a computer's pane): at once.
+    h.pane.setLens(null);
+    const n = h.of('assets').length;
+    p.tileset = () => resolveTileset('desert', 0);
+    p.onClock();
+    expect(h.of('assets')).toHaveLength(n + 1);
+    h.pane.dispose();
   });
 });

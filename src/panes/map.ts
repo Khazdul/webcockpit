@@ -130,6 +130,16 @@ export interface MapLens {
   background: string;
 }
 
+/**
+ * The phone's lens (ADR 0136 §4) waits this long after the game clock
+ * changed before it swaps an alternating tileset's season. The clock is
+ * synced at login, when the most text arrives at once, and a swap is some
+ * 120 tile files fetched, decoded and uploaded: on the phone bench that
+ * work made a burst of text take about 13 % longer
+ * (bench/results/phone-51-compare.md). A season is in no hurry.
+ */
+export const LENS_SEASON_DELAY_MS = 5000;
+
 /** How often the pane checks whether MUME's season (and so an alternating tileset) changed. */
 const TILESET_CHECK_MS = 60_000;
 
@@ -152,6 +162,8 @@ export class MapPane extends PaneShell {
   private drag: { id: number; x: number; y: number } | null = null;
   /** Touch only: the pointers down on the canvas (client px), in down order. */
   private readonly touches = new Map<number, PinchPoint>();
+  /** The lens's pending season swap (`onClock`), or null. */
+  private seasonTimer: ReturnType<typeof setTimeout> | null = null;
   /** Phone only: keep forwarding while hidden (ADR 0075 §3.3). */
   private readonly forwardHidden: boolean;
   /** Phone only: the last map-relevant state messages, replayed when forwarding starts. */
@@ -231,7 +243,11 @@ export class MapPane extends PaneShell {
     if (this.host.assets.kind === 'base') {
       this.content.dataset.mapTileset = this.tileset()?.id ?? 'default';
       this.own(ctx.settings.subscribe((next, prev) => next.mapper.tileset !== prev.mapper.tileset && this.syncTileset()));
-      this.own(ctx.game.subscribe((part) => part === 'clock' && this.syncTileset()));
+      this.own(ctx.game.subscribe((part) => part === 'clock' && this.onClock()));
+      this.own(() => {
+        if (this.seasonTimer !== null) clearTimeout(this.seasonTimer);
+        this.seasonTimer = null;
+      });
       const timer = setInterval(() => this.syncTileset(), TILESET_CHECK_MS);
       this.own(() => clearInterval(timer));
     }
@@ -527,6 +543,23 @@ export class MapPane extends PaneShell {
     if (a.kind !== 'base') return a;
     const overlay = tilesetOverlay(this.tileset());
     return overlay ? { ...a, tileset: overlay } : a;
+  }
+
+  /**
+   * The game clock changed (a sync): the season of an alternating tileset
+   * may be another. A computer's pane swaps at once, as ever. The phone's
+   * lens swaps `LENS_SEASON_DELAY_MS` later (one timer; see the constant).
+   */
+  private onClock(): void {
+    if (this.lens === null) {
+      this.syncTileset();
+      return;
+    }
+    if (this.seasonTimer !== null) return;
+    this.seasonTimer = setTimeout(() => {
+      this.seasonTimer = null;
+      this.syncTileset();
+    }, LENS_SEASON_DELAY_MS);
   }
 
   /** Sends the tileset to a running worker when it changed. */

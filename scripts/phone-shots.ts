@@ -8,8 +8,10 @@
 // step's letter (`51a` → `a`). WC_SHOT_OUT=<dir> writes them elsewhere.
 //
 // Starts the dev server on WC_SHOT_PORT (default 5188) unless one answers
-// there already, and drives Chromium as a phone: 390 × 844 CSS px, device
-// scale 3, mobile and touch, `?phone=1`. Every shot starts from an empty
+// there already, and drives Chromium as a phone: 390 × 844 CSS px (a state
+// may name another size), device scale 2, mobile and touch, `?phone=1`.
+// The files are written with a 256-colour palette (`shrink`) to keep the
+// set small. Every shot starts from an empty
 // browser profile (a new phone's defaults, ADR 0081). Nothing connects to
 // MUME: the states are played from tests/fixtures/gmcp-demo.log in the
 // offline cockpit (`?replay`), cut where the state is (a fight is shown by
@@ -17,6 +19,7 @@
 //
 // A later step adds its states to STATES with its own letter; a run for a
 // step takes every state built by then.
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, type Page, chromium } from '@playwright/test';
@@ -29,7 +32,11 @@ const OUT = process.env.WC_SHOT_OUT ? `${process.env.WC_SHOT_OUT.replace(/\/+$/,
 const PORT = Number(process.env.WC_SHOT_PORT ?? 5188);
 const BASE = `http://localhost:${PORT}`;
 const VIEWPORT = { width: 390, height: 844 };
-const SCALE = 3;
+/**
+ * Device scale 2: at 3 the set was some 15 MB a step; at 2 the text and the
+ * 1 px hairlines are still sharp and the files are less than half the size.
+ */
+const SCALE = 2;
 /** The on-screen keyboard's height in the mockup (P6). */
 const KEYBOARD_PX = 300;
 const FIXTURE = 'gmcp-demo.log';
@@ -52,6 +59,8 @@ interface State {
   live?: boolean;
   /** The step that built it (`a` … `g`). */
   step: string;
+  /** Another screen than 390 × 844 (landscape, a narrow phone). */
+  viewport?: { width: number; height: number };
   /** Brings the opened cockpit to the state. */
   run(page: Page): Promise<void>;
 }
@@ -79,14 +88,21 @@ async function play(page: Page, cut?: string): Promise<void> {
     { rel: FIXTURE, walk: WALK, cut },
   );
   await page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' }).waitFor();
-  if (await page.evaluate(() => window.__wc!.settings.get().phone.lens.show)) await lensDrawn(page);
+  // (Not where the lens has no room, landscape: the map is not drawn there.)
+  if (!(await page.evaluate(() => window.__wc!.settings.get().phone.lens.show))) return;
+  const shown = await page.locator('.wc-ph-lens').waitFor({ state: 'visible', timeout: 2500 }).then(
+    () => true,
+    () => false,
+  );
+  if (shown) await lensDrawn(page);
 }
 
 /** The lens shows the player's room: the map loaded, the room located, the frame with its tiles drawn. */
 async function lensDrawn(page: Page): Promise<void> {
   const map = page.locator('.wc-pane-map .wc-pane-content');
   await map.and(page.locator('[data-map-state="loaded"][data-map-located="1"][data-map-drawn-ms]')).waitFor({ timeout: 30_000 });
-  await page.waitForTimeout(400);
+  // The tiles come in over a few frames after the first drawn one.
+  await page.waitForTimeout(1500);
 }
 
 /**
@@ -172,7 +188,8 @@ const STATES: State[] = [
       await page.locator('.wc-ph-lens-glass').tap();
       await page.locator('.wc-ph-lens-glass').tap();
       await page.locator('.wc-ph-lens[data-level="near"]').waitFor();
-      await page.waitForTimeout(1500);
+      // Headless Chromium draws the map in software: the frame of the new zoom can be seconds late.
+      await page.waitForTimeout(4000);
     },
   },
   {
@@ -182,7 +199,7 @@ const STATES: State[] = [
       await play(page);
       await page.locator('.wc-ph-lens-glass').tap();
       await page.locator('.wc-ph-lens[data-level="far"]').waitFor();
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(4000);
     },
   },
   {
@@ -268,6 +285,104 @@ const STATES: State[] = [
     },
   },
   {
+    // The strip's other two built-in pages (Timers and Group are `strip` and `strip-group`).
+    name: 'strip-character',
+    step: 'g',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.keyboard.press('Control+3');
+      await page.locator('.wc-pane[data-pane="character"][data-phone-strip]').waitFor();
+      await page.waitForTimeout(1000);
+    },
+  },
+  {
+    name: 'strip-statistics',
+    step: 'g',
+    run: async (page) => {
+      await play(page);
+      await page.keyboard.press('Control+4');
+      await page.locator('.wc-pane[data-pane="statistics"][data-phone-strip]').waitFor();
+      await page.waitForTimeout(1000);
+    },
+  },
+  {
+    // The settings page's font list (a pick row's own page).
+    name: 'settings-font',
+    step: 'g',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet .wc-ph-row[data-row="settings"]').tap();
+      await page.locator('.wc-ph-page [data-row="font"]').tap();
+      await page.locator('.wc-ph-page[data-page="pick:font"]').waitFor();
+    },
+  },
+  {
+    // The link dropped: the sheet with Reconnect lit (the status line says so).
+    name: 'menu-dropped',
+    step: 'g',
+    live: true,
+    run: async (page) => {
+      await page.evaluate(() => window.__wc!.app.session.disconnect('connection lost'));
+      await page.locator('.wc-ph-sheet [data-row="reconnect"].is-lit').waitFor();
+    },
+  },
+  {
+    // Comm at a password prompt: the reply line disabled.
+    name: 'comm-disabled',
+    step: 'g',
+    live: true,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: true }));
+      await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput:disabled').waitFor();
+    },
+  },
+  {
+    // The hot key box refusing a line of two commands.
+    name: 'rebind-error',
+    step: 'g',
+    run: async (page) => {
+      await play(page, CUT.fight);
+      const key = page.locator('.wc-ph-hk[data-hk="1"]');
+      await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+      await page.locator('.wc-ph-rb').waitFor();
+      await page.locator('#wc-ph-rb-command').fill('stand;bash');
+      await page.locator('.wc-ph-rb .wc-ph-bt.is-go').tap();
+      await page.locator('.wc-ph-rb-err').waitFor();
+    },
+  },
+  {
+    // Letters too large for the screen: the notice, and the second menu key over it.
+    name: 'too-small',
+    step: 'g',
+    run: async (page) => {
+      await play(page);
+      await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 32 } }));
+      await page.locator('.wc-cockpit[data-too-small] > .wc-ph-menu-rescue').waitFor();
+    },
+  },
+  {
+    name: 'landscape',
+    step: 'g',
+    viewport: { width: 844, height: 390 },
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+    },
+  },
+  {
+    name: 'w360',
+    step: 'g',
+    viewport: { width: 360, height: 740 },
+    run: async (page) => {
+      await play(page, CUT.fight);
+      await page.locator('.wc-ph-fight').waitFor();
+      // (The map's frame can be late in headless Chromium, as in the lens states.)
+      await page.waitForTimeout(3000);
+    },
+  },
+  {
     // The settings page scrolled to its end: Comm and Connection (the page no longer fits one screen).
     name: 'settings-end',
     step: 'f',
@@ -304,8 +419,23 @@ const STATES: State[] = [
 const paper = (page: Page): Promise<void> =>
   page.evaluate((ansi) => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000', ansi } }), [...PAPER_PALETTE]);
 
+/**
+ * The PNG with a 256-colour palette (ImageMagick, where it is installed):
+ * about 40 % of the size, the text as sharp; only the soft gradients (the
+ * lens's glow, the weather) show a little banding. Without ImageMagick the
+ * file stays as Chromium wrote it.
+ */
+function shrink(file: string): void {
+  try {
+    // No dither: the flat grounds (black, paper) keep their exact colour; a dither tints them.
+    execFileSync('magick', [file, '-dither', 'None', '-colors', '256', '-define', 'png:compression-level=9', `PNG8:${file}`], { stdio: 'ignore' });
+  } catch {
+    // No ImageMagick here: the full-colour file is kept.
+  }
+}
+
 async function shoot(browser: Browser, state: State, file: string, light: boolean): Promise<void> {
-  const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, isMobile: true, hasTouch: true, baseURL: BASE });
+  const ctx = await browser.newContext({ viewport: state.viewport ?? VIEWPORT, deviceScaleFactor: SCALE, isMobile: true, hasTouch: true, baseURL: BASE });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
   try {
@@ -322,6 +452,7 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
     // The page must still be the one the state was built on (no reload in between).
     if ((await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').count()) !== 1) throw new Error('the page reloaded');
     await page.screenshot({ path: file });
+    shrink(file);
     console.log(`  ${file.slice(OUT.length)}  ${(statSync(file).size / 1024).toFixed(0)} kB`);
   } finally {
     await ctx.close();

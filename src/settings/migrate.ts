@@ -559,10 +559,22 @@ export function migratePhone(raw: unknown): PhoneSettings {
  * `characters`, which the phone's own chunk keeps for itself).
  */
 function labelChars(text: string): string[] {
-  const Seg = (Intl as { Segmenter?: new (l?: string, o?: { granularity: 'grapheme' }) => { segment(t: string): Iterable<{ segment: string }> } }).Segmenter;
+  // Every settings write on every device passes here (three labels): the common label, a few
+  // ASCII letters, needs no segmenter, and the one for the rest is made once.
+  if (/^[\x20-\x7e]*$/.test(text)) return text.split('');
+  const Seg = (Intl as { Segmenter?: SegmenterCtor }).Segmenter;
   if (!Seg) return [...text];
-  return Array.from(new Seg(undefined, { granularity: 'grapheme' }).segment(text), (s) => s.segment);
+  if (segmenter === null || segmenterCtor !== Seg) {
+    segmenterCtor = Seg;
+    segmenter = new Seg(undefined, { granularity: 'grapheme' });
+  }
+  return Array.from(segmenter.segment(text), (s) => s.segment);
 }
+
+type SegmenterCtor = new (l?: string, o?: { granularity: 'grapheme' }) => { segment(t: string): Iterable<{ segment: string }> };
+/** The one grapheme segmenter, made at its first use (and again only if `Intl.Segmenter` itself was replaced: tests). */
+let segmenter: InstanceType<SegmenterCtor> | null = null;
+let segmenterCtor: SegmenterCtor | null = null;
 
 function migrateHotkeys(raw: unknown, dflt: PhoneHotkey[]): PhoneHotkey[] {
   const list = Array.isArray(raw) ? raw : [];

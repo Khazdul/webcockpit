@@ -193,7 +193,8 @@ export class LensView {
    * px from the layer's top (when there is a key to show). `rowTop` null:
    * neither (the lens is wanted and not laid out yet: no row for a frame).
    */
-  place(place: LensPlace | null, rowTop: number | null): void {
+  /** `rowRight`: the row's air to the right edge, px (more when it must stand left of the hot keys). */
+  place(place: LensPlace | null, rowTop: number | null, rowRight = 8): void {
     const key = place ? `${place.left},${place.top},${place.size}` : '';
     if (key !== this.placeKey) {
       this.placeKey = key;
@@ -205,10 +206,13 @@ export class LensView {
       }
       this.el.hidden = !place;
     }
-    const row = !place && rowTop !== null && this.sats.size > 0 ? String(rowTop) : '';
+    const row = !place && rowTop !== null && this.sats.size > 0 ? `${rowTop},${rowRight}` : '';
     if (row !== this.rowKey) {
       this.rowKey = row;
-      if (row) this.rowEl.style.top = `${rowTop}px`;
+      if (row) {
+        this.rowEl.style.top = `${rowTop}px`;
+        this.rowEl.style.right = `${rowRight}px`;
+      }
       this.rowEl.hidden = !row;
     }
   }

@@ -193,14 +193,50 @@ describe('CommPane phone mode', () => {
     h.pane.dispose();
   });
 
-  it('the reply line is a one-row textarea on a phone, an input elsewhere', () => {
+  it('the reply line is a one-row textarea in phone mode only: without it an input, also with the phone flag on', () => {
     const phone = setup();
+    // Before the phone's game layout turns the mode on, an input here too.
+    expect(phone.reply().tagName).toBe('INPUT');
+    phone.pane.setPhoneMode(true);
     expect(phone.reply().tagName).toBe('TEXTAREA');
     expect(phone.reply().getAttribute('rows')).toBe('1');
+    expect(phone.reply().parentElement!.querySelectorAll('.wc-cm-rinput')).toHaveLength(1);
     phone.pane.dispose();
-    const desk = setup({ phone: false });
-    expect(desk.reply().tagName).toBe('INPUT');
-    desk.pane.dispose();
+    // The phone flag is on here too (beforeEach): the old phone layout, "Desktop site", the player.
+    const old = setup();
+    old.tell('Gibur', 'one');
+    old.show();
+    old.flush();
+    old.open('Gibur');
+    old.flush();
+    expect(old.reply().tagName).toBe('INPUT');
+    expect(old.reply().placeholder).toBe('Reply to Gibur…');
+    expect((old.reply() as HTMLInputElement).type).toBe('text');
+    expect(old.reply().parentElement!.querySelector('textarea')).toBeNull();
+    old.pane.dispose();
+  });
+
+  it('phone mode off again: the input is back, with what was typed, and sends as on a computer', () => {
+    const h = setup();
+    h.pane.setPhoneMode(true);
+    h.pane.setPhoneOpen(true);
+    h.tell('Gibur', 'one');
+    h.show();
+    h.flush();
+    h.open('Gibur');
+    h.flush();
+    expect(h.reply().tagName).toBe('TEXTAREA');
+    (h.reply() as HTMLTextAreaElement).value = 'half a line';
+    h.pane.setPhoneMode(false);
+    h.flush();
+    const r = h.reply() as HTMLInputElement;
+    expect(r.tagName).toBe('INPUT');
+    expect(r.value).toBe('half a line');
+    expect(r.disabled).toBe(false);
+    expect(r.parentElement!.querySelectorAll('.wc-cm-rinput')).toHaveLength(1);
+    r.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(h.sent).toEqual(['tell Gibur half a line']);
+    h.pane.dispose();
   });
 
   it('the reply is one line: a pasted line break is a space, in the field and in what is sent', () => {

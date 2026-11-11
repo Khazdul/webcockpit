@@ -413,6 +413,8 @@ export function buildReplayPayload(
 export function replaySettings(settings: Settings): Settings {
   const s = JSON.parse(JSON.stringify(settings)) as Settings;
   s.mapper = { ...s.mapper, ...chooseTileset(s.mapper, 'default') };
+  // The phone's own settings (hot key labels and commands among them) are not a replay's: left out, as before they existed.
+  delete (s as Partial<Settings>).phone;
   return s;
 }
 

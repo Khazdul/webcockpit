@@ -1220,7 +1220,7 @@ export class Cockpit {
       const strip = id === this.pgStrip && g.strip.h > 0 && !g.tooSmall;
       shell.el.toggleAttribute('data-phone-strip', strip);
       if (id === 'map' && g.lens && !g.tooSmall) shell.place({ rect: g.lens, content: g.lens, framed: false }, cell);
-      else if (strip) shell.place({ rect: g.strip, content: inset(g.strip, PHONE_STRIP_HOOD_ROWS, PHONE_STRIP_FOOT_ROWS), framed: false }, cell);
+      else if (strip) shell.place({ rect: g.strip, content: inset(g.strip, phoneStripChromeRows(cell.h), phoneStripChromeRows(cell.h)), framed: false }, cell);
       else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall) shell.place({ rect: g.comm, content: inset(g.comm, 0, PHONE_COMM_BAND_ROWS), framed: false }, cell);
       else shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
     }
@@ -2214,6 +2214,17 @@ function placePx(el: HTMLElement, r: Rect): void {
 /** Phone game layout: rows of the strip the phone layer's hood (above the pane) and dots (below it) take. */
 export const PHONE_STRIP_HOOD_ROWS = 1;
 export const PHONE_STRIP_FOOT_ROWS = 1;
+/**
+ * What the hood and the dots with the strip's edge really take, px
+ * (phone.css): at a small text size one row is lower than that, and the
+ * pane then leaves them two rows, so neither ever lies over the pane's
+ * first or last line.
+ */
+export const PHONE_STRIP_CHROME_PX = 16;
+/** The rows the strip's hood (or foot) takes at a cell `cellH` px high. */
+export function phoneStripChromeRows(cellH: number): number {
+  return cellH > 0 ? Math.max(PHONE_STRIP_HOOD_ROWS, Math.ceil(PHONE_STRIP_CHROME_PX / cellH - 1e-6)) : PHONE_STRIP_HOOD_ROWS;
+}
 /** Phone game layout: the row under Comm that is the phone layer's resize band. */
 export const PHONE_COMM_BAND_ROWS = 1;
 /** Phone game layout: rows the game text keeps under Comm or the strip while the keyboard is up. */

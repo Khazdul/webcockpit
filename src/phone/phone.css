@@ -41,7 +41,8 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-flee-text: #ff9a8f;
   /* Text. */
   --ph-text: #e8e8e8;
-  --ph-dim: #8a8a8a;
+  /* 4.5:1 also on a card in the lamp's glow at the top of the sheet (the lightest ground it stands on). */
+  --ph-dim: #979797;
   /* Bars. */
   --ph-track: #221f1b;
   --ph-hp: #45b862;
@@ -67,7 +68,7 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-row-rule: rgb(232 196 138 / 0.14);
   --ph-chev: #8d7a5c;
   --ph-body: #c6c6c6;
-  --ph-danger: #d75f5f;
+  --ph-danger: #e26d6d;
   --ph-rec: #d75f5f;
   --ph-key-off: #6d6252;
   /* The map lens (ADR 0136 §4): the cast-iron ring with a fine grain, the lamp's glow round it, the
@@ -172,7 +173,7 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
   --ph-sat-on-text: #fffaf0;
   --ph-badge: #8a5a0e;
   --ph-badge-text: #fffaf0;
-  --ph-dot: rgb(138 90 14 / 0.3);
+  --ph-dot: rgb(138 90 14 / 0.45);
   --ph-dot-on: #8a5a0e;
   --ph-hk: rgb(251 246 232 / 0.55);
   --ph-hk-edge: rgb(138 90 14 / 0.7);
@@ -190,7 +191,8 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
 
 /* On Paper a lit key is brass with pale ink. */
 html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-key:active,
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-menu:active {
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-menu:active,
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
   background: #8a5a0e;
   border-color: #5e3d08;
   color: #fffaf0;
@@ -522,17 +524,21 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-band[hidden] {
   display: none;
 }
 
-/* The pane's name: the hood of the menu sheet, a little smaller. */
+/* The pane's name: the hood of the menu sheet, smaller: 16 px high in all, the room the cockpit
+ * leaves it above the pane's first line (cockpit.ts `PHONE_STRIP_CHROME_PX`). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-hood {
-  padding: 1px 16px 3px;
-  font-size: 11px;
+  box-sizing: border-box;
+  height: 16px;
+  padding: 0 16px 1px;
+  font-size: 10px;
   line-height: 14px;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots {
   position: absolute;
   left: 50%;
-  bottom: 9px;
+  /* Dots and edge together stay inside the 16 px under the pane's last line. */
+  bottom: 8px;
   transform: translateX(-50%);
   display: flex;
   gap: 6px;
@@ -580,8 +586,23 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply {
   padding: 0 12px;
 }
 
+/* The placeholder at the command field's strength (the pane's own is a faint mix, under 4.5:1). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput::placeholder {
+  color: var(--ph-dim);
+  opacity: 1;
+}
+
+/* Not in play (a password prompt): plainly off. The row loses its ground and its lit edge for a dashed one. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput:disabled {
   opacity: 0.6;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply:has(.wc-cm-rinput:disabled) {
+  border-left-style: dashed;
+  background: none;
+  box-shadow: none;
+  outline: 1px dashed var(--ph-field-edge);
+  outline-offset: -1px;
 }
 
 /* The resize band on Comm's last row (src/phone/comm-chrome.ts; JS sets top
@@ -1171,6 +1192,21 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::pla
   opacity: 1;
 }
 
+/* The old `☰` (src/app/shell.ts keeps it when the phone layer could not be mounted): it sits at
+ * the field's end, inside its edge. A key of its own there, not a glyph over the text. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input > .wc-menu-btn:not(.wc-ph-menu) {
+  flex: 0 0 44px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  margin: 0 -12px 0 8px;
+  border-left: 1px solid var(--ph-field-edge);
+  color: var(--ph-lamp);
+  text-align: center;
+}
+
 /* Not typing: no hollow caret over the placeholder. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-caret.wc-blurred {
   display: none;
@@ -1628,6 +1664,12 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-on
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-check {
   color: var(--ph-lamp);
+}
+
+/* The chosen option of a segmented control: the kit's lit glass is faint at this size (on Paper
+ * white on white), so it also gets a fine brass ring. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-lk-seg .wc-lk-opt.is-on {
+  box-shadow: inset 0 0 0 1px var(--ph-grip);
 }
 
 /* The kit's segmented control in a row: one line, never wrapped. */
