@@ -1,4 +1,4 @@
-// Stage 52d: the phone's visible area, in fullscreen and out of it.
+// Stage 52d (cut back in 0.6.1): the phone's visible area, in fullscreen and out of it.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   FS_RECHECK_MS,
@@ -39,35 +39,11 @@ describe('the screen\'s orientation and the landscape layout (stage 52e)', () =>
 });
 
 describe('visibleArea (pure)', () => {
-  const m = { height: 800, top: 0, tallest: 800, fullscreen: false, keyboard: null };
-
-  it('without the VirtualKeyboard API the visual viewport alone decides', () => {
-    expect(visibleArea(m)).toEqual({ height: 800, top: 0, keyboardUp: false });
-    expect(visibleArea({ ...m, height: 480 })).toEqual({ height: 480, top: 0, keyboardUp: true });
-    expect(visibleArea({ ...m, height: 480, top: 12, fullscreen: true })).toEqual({ height: 480, top: 12, keyboardUp: true });
-  });
-
-  it('an empty keyboard rectangle changes nothing, in fullscreen too', () => {
-    const keyboard = { top: 0, height: 0 };
-    expect(visibleArea({ ...m, fullscreen: true, keyboard })).toEqual({ height: 800, top: 0, keyboardUp: false });
-    expect(visibleArea({ ...m, height: 480, fullscreen: true, keyboard })).toEqual({ height: 480, top: 0, keyboardUp: true });
-  });
-
-  it('in fullscreen the area ends at the keyboard rectangle and the keyboard is up', () => {
-    // overlaysContent: the viewport did not shrink at all.
-    expect(visibleArea({ ...m, fullscreen: true, keyboard: { top: 456, height: 344 } })).toEqual({ height: 456, top: 0, keyboardUp: true });
-    // The viewport shrank, but 44 px too little (the owner's bug 2).
-    expect(visibleArea({ ...m, height: 500, fullscreen: true, keyboard: { top: 456, height: 344 } }).height).toBe(456);
-    // Never below the visual viewport's own bottom.
-    expect(visibleArea({ ...m, height: 400, fullscreen: true, keyboard: { top: 456, height: 344 } }).height).toBe(400);
-    // The rectangle is measured from the layout viewport, the area starts at `top`.
-    expect(visibleArea({ ...m, top: 20, fullscreen: true, keyboard: { top: 456, height: 344 } })).toEqual({ height: 436, top: 20, keyboardUp: true });
-    // A rectangle at the very top is not believed for the height.
-    expect(visibleArea({ ...m, fullscreen: true, keyboard: { top: 0, height: 300 } })).toEqual({ height: 800, top: 0, keyboardUp: true });
-  });
-
-  it('outside fullscreen the keyboard rectangle is ignored', () => {
-    expect(visibleArea({ ...m, keyboard: { top: 456, height: 344 } })).toEqual({ height: 800, top: 0, keyboardUp: false });
+  it('the visual viewport alone decides; the keyboard is up well below the tallest height', () => {
+    expect(visibleArea({ height: 800, top: 0, tallest: 800 })).toEqual({ height: 800, top: 0, keyboardUp: false });
+    expect(visibleArea({ height: 480, top: 0, tallest: 800 })).toEqual({ height: 480, top: 0, keyboardUp: true });
+    expect(visibleArea({ height: 480, top: 12, tallest: 800 })).toEqual({ height: 480, top: 12, keyboardUp: true });
+    expect(visibleArea({ height: 480, top: 0, tallest: 0 })).toEqual({ height: 480, top: 0, keyboardUp: false });
   });
 });
 
@@ -181,7 +157,7 @@ describe('installPhoneViewport', () => {
     expect(f.kbd()).toBe(true);
   });
 
-  it('bug 1: a fullscreen change measures at once, at the settle time and at the recheck', () => {
+  it('a fullscreen change measures at once, at the settle time and at the recheck; overlaysContent stays off', () => {
     const f = fakeWindow();
     stop = installPhoneViewport(f.win);
     f.resize(372);
@@ -189,22 +165,21 @@ describe('installPhoneViewport', () => {
     expect(f.kbd()).toBe(true);
     // The fullscreen change arrives; the viewport has not followed yet.
     f.fullscreen(true);
-    expect(f.vk.overlaysContent).toBe(true);
+    expect(f.vk.overlaysContent).toBe(false);
     expect(f.height()).toBe('372px');
     expect(f.kbd()).toBe(true); // the plain baseline is the floor
-    // The viewport and the rectangle change without any event reaching us.
-    f.vv.height = 700;
-    f.vk.boundingRect = { top: 470, height: 330 };
+    // The viewport changes without any event reaching us.
+    f.vv.height = 430;
     settle();
-    expect(f.height()).toBe('470px');
-    f.vv.height = 800;
-    f.vk.boundingRect = { top: 456, height: 344 };
+    expect(f.height()).toBe('430px');
+    f.vv.height = 456;
     vi.advanceTimersByTime(FS_RECHECK_MS - VV_SETTLE_MS);
     expect(f.height()).toBe('456px');
     expect(f.kbd()).toBe(true);
+    expect(f.vk.overlaysContent).toBe(false);
   });
 
-  it('bug 2: in fullscreen the keyboard rectangle is the bottom; leaving fullscreen goes back to the viewport', () => {
+  it('in fullscreen the keyboard rectangle is ignored (removed in 0.6.1): the viewport decides, overlaysContent stays off', () => {
     const f = fakeWindow();
     const applied = vi.fn();
     const off = onPhoneViewportApplied(applied);
@@ -214,16 +189,23 @@ describe('installPhoneViewport', () => {
     vi.advanceTimersByTime(FS_RECHECK_MS);
     expect(f.height()).toBe('800px');
     expect(f.kbd()).toBe(false);
-    f.keyboard(456, 344);
-    settle();
-    expect(f.height()).toBe('456px');
-    expect(f.kbd()).toBe(true);
-    f.keyboard(0, 0);
-    settle();
+    // The rectangle the owner's S21 collapsed on: near the top of the screen.
+    f.keyboard(80, 720);
+    vi.advanceTimersByTime(FS_RECHECK_MS);
     expect(f.height()).toBe('800px');
     expect(f.kbd()).toBe(false);
-    // Out of fullscreen with a (stale) rectangle: the viewport alone again.
-    f.vk.boundingRect = { top: 456, height: 344 };
+    expect(f.vk.overlaysContent).toBe(false);
+    // A geometry change alone publishes nothing.
+    applied.mockClear();
+    f.keyboard(456, 344);
+    vi.advanceTimersByTime(FS_RECHECK_MS);
+    expect(applied).not.toHaveBeenCalled();
+    // The viewport shrinks for the keyboard: that is what counts.
+    f.resize(500);
+    settle();
+    expect(f.height()).toBe('500px');
+    expect(f.kbd()).toBe(true);
+    // Out of fullscreen with the rectangle still there: the plain viewport.
     f.vv.height = 686;
     f.fullscreen(false);
     expect(f.vk.overlaysContent).toBe(false);
@@ -245,16 +227,16 @@ describe('installPhoneViewport', () => {
     expect(f.kbd()).toBe(true);
   });
 
-  it('stopping turns overlaysContent off and removes the listeners', () => {
+  it('stopping removes the listeners and the pending measurements', () => {
     const f = fakeWindow();
     stop = installPhoneViewport(f.win);
     f.fullscreen(true);
-    expect(f.vk.overlaysContent).toBe(true);
+    f.vv.height = 300;
     stop();
     stop = () => {};
     expect(f.vk.overlaysContent).toBe(false);
     f.resize(300);
-    f.keyboard(200, 100);
+    f.fullscreen(false);
     vi.advanceTimersByTime(FS_RECHECK_MS);
     expect(f.height()).toBe('686px');
   });
