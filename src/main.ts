@@ -19,10 +19,12 @@
 //                           (a way back from a setting that breaks the page)
 //   ?touch=1, ?phone=1      force the touch / phone flags on (ADR 0075,
 //                           src/core/device.ts)
-//   ?tablet=phone           a development trial (stage 54): the phone flag
-//                           on and the phone's game layout with our own
-//                           keyboard on a window of any size, to look at
-//                           the phone layout on a tablet (src/core/device.ts)
+//   ?tablet=phone           force the tablet flag on (ADR 0140): the
+//                           phone's game layout with our own keyboard on a
+//                           window of any size, which a tablet gets by
+//                           default (src/core/device.ts)
+//   ?tablet=desktop         a tablet gets the desktop cockpit and the
+//                           device's keyboard, as before ADR 0140
 //   ?kit[=<section>]        dev server (or a `VITE_KIT=1` build) only: opens
 //                           the lantern kit's gallery over the start menu
 //                           (src/chrome/kit/gallery, ADR 0127)
@@ -59,7 +61,7 @@ import { FONT_GATE_MS, bootDone, bootStep, gate } from './app/boot-progress';
 
 // The boot loader in index.html (ADR 0083): the entry script is running.
 bootStep(20, 'Reading settings');
-// Touch / phone flags and the `wc-touch` / `wc-phone` classes, before anything renders.
+// Touch / phone / tablet flags and the `wc-touch` / `wc-phone` classes, before anything renders.
 const device = initDevice();
 // Phone only (ADR 0075 §3): no input zoom, safe areas, the keyboard-aware visible area.
 if (device.phone) {

@@ -25,30 +25,36 @@ describe('phoneSizeWindow', () => {
   });
 });
 
-// Stage 54: the development trial flag `?tablet=phone` asks for the phone's
-// game layout on a window of any size; `?phone=1` alone keeps the 600 px rule.
+// ADR 0140: a tablet uses the phone's game layout on a window of any size;
+// the phone flag alone (`?phone=1`) keeps the 600 px rule.
+
 describe('phoneGameWanted', () => {
-  const win = (innerWidth: number, innerHeight: number, search = '') => ({ innerWidth, innerHeight, location: { search } });
+  const win = (innerWidth: number, innerHeight: number) => ({ innerWidth, innerHeight });
+  const phone = { touch: true, phone: true, tablet: false };
+  const tablet = { touch: true, phone: true, tablet: true };
 
   it('the phone flag on a phone-size window', () => {
-    expect(phoneGameWanted(true, win(390, 844))).toBe(true);
-    expect(phoneGameWanted(true, win(844, 390, '?phone=1'))).toBe(true);
-    expect(phoneGameWanted(true, null)).toBe(true);
+    expect(phoneGameWanted(phone, win(390, 844))).toBe(true);
+    expect(phoneGameWanted(phone, win(844, 390))).toBe(true);
+    expect(phoneGameWanted(phone, null)).toBe(true);
+    expect(phoneGameWanted({ phone: true }, win(390, 844))).toBe(true);
   });
 
-  it('`?phone=1` on a desktop- or tablet-size window keeps the old phone layout', () => {
-    expect(phoneGameWanted(true, win(1280, 720, '?phone=1'))).toBe(false);
-    expect(phoneGameWanted(true, win(820, 1180, '?replay&phone=1'))).toBe(false);
-    expect(phoneGameWanted(true, win(820, 1180, '?phone=1&tablet=1'))).toBe(false);
+  it('the phone flag alone (`?phone=1`) on a desktop- or tablet-size window keeps the old phone layout', () => {
+    expect(phoneGameWanted(phone, win(1280, 720))).toBe(false);
+    expect(phoneGameWanted(phone, win(820, 1180))).toBe(false);
+    expect(phoneGameWanted({ phone: true }, win(600, 600))).toBe(false);
   });
 
-  it('`?tablet=phone` uses it on a tablet in portrait and landscape', () => {
-    expect(phoneGameWanted(true, win(820, 1180, '?tablet=phone'))).toBe(true);
-    expect(phoneGameWanted(true, win(1180, 820, '?replay&tablet=phone'))).toBe(true);
+  it('a tablet uses it whatever the window\'s size: portrait, landscape, a narrow split window', () => {
+    expect(phoneGameWanted(tablet, win(820, 1180))).toBe(true);
+    expect(phoneGameWanted(tablet, win(1180, 820))).toBe(true);
+    expect(phoneGameWanted(tablet, win(320, 1180))).toBe(true);
+    expect(phoneGameWanted(tablet, win(1920, 1080))).toBe(true);
   });
 
-  it('never without the phone flag', () => {
-    expect(phoneGameWanted(false, win(390, 844))).toBe(false);
-    expect(phoneGameWanted(false, win(820, 1180, '?tablet=phone'))).toBe(false);
+  it('never without the phone flag (a desktop; a tablet sent back with `?tablet=desktop`)', () => {
+    expect(phoneGameWanted({ phone: false, tablet: false }, win(390, 844))).toBe(false);
+    expect(phoneGameWanted({ phone: false, tablet: false }, win(820, 1180))).toBe(false);
   });
 });
