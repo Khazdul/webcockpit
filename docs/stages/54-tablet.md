@@ -152,7 +152,9 @@ fullscreen is a little buggy. The mockups of rounds 1 and 2
 - [x] 54a: tablet gate (the phone's layout by default on a tablet), ADR 0140
 - [x] 54a: keyboard width on a tablet
 - [ ] 54a: "a tap in the script editor's text does not bring up our keyboard" (owner, phone and iPad): not reproduced in emulation, not fixed; see "54a as built"
-- [ ] 54b: fullscreen on the iPad: investigation, then fix or note
+- [x] 54b: fullscreen on the iPad: investigated (`notes/research/tablet/ipad-fullscreen.md`); owner: left as it is
+- [ ] 54c: automatic login for the session (ADR 0141)
+- [ ] Script editor: a tap in the text does not open our keyboard (owner, phone and iPad; not reproduced in emulation)
 - [ ] Review, owner test, release
 
 ## 54a as built (2026-11-12)
@@ -306,3 +308,25 @@ too small: 72 × 56 px), the same question for landscape, and anything
 that looks wrong at the keyboard's edges (the hot keys left of it and
 the compass right of it in landscape). Fullscreen is a separate round
 (54b).
+
+### Owner decisions and reports, 2026-11-12 (evening)
+
+- **Fullscreen on the iPad stays as it is.** The key is kept; nothing
+  is changed for now. It mostly works, above all when fullscreen is not
+  switched on with the keyboard up, and it is switched on seldom. The
+  iPad is not a prioritised target. Background: iPadOS shows a "typing
+  is not allowed in full screen" alert after a few fast taps and leaves
+  fullscreen when a text field takes the focus; a site cannot turn
+  either off (`notes/research/tablet/ipad-fullscreen.md`). Add to Home
+  Screen and calming our relayout are noted there as later options.
+- **Bug:** a tap in the script editor's text does not fold our keyboard
+  up. Seen on his phone (S21) and on the iPad.
+- **Wanted: automatic login for the session** on phone and tablet.
+  After a login a box asks whether to log in automatically as that
+  character for the rest of the session. Name and password are then
+  kept for a while in the browser, safely; when the client finds
+  itself disconnected on coming back to the window (common on a phone
+  or tablet) it connects and types the name and then the password.
+  Agreed way to start, to be judged over time: kept in the page's
+  memory only, never written to storage.
+
