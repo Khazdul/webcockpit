@@ -44,8 +44,8 @@ the report). Unthrottled these are a few tenths of a millisecond.
 **End to end, in this emulation, a touch on our key is painted later than
 text committed by `Input.insertText`:** median 13.6 ms against 2.8 ms
 idle, 29.6 ms against 10.9 ms while text arrives (p95 27.4 / 11.5 and
-35.7 / 18.3). The difference is not in the app. It is how Chromium
-handles a touch, and the three `diag` rows show it:
+35.7 / 18.3). The three `diag` rows place the difference in how Chromium
+handles a touch, not in the app's handler:
 
 - The same key of ours pressed with a mouse pointer is painted in 4.9 ms
   idle and 11.1 ms under the burst: the device path's numbers plus our
@@ -83,9 +83,23 @@ the owner's fingers: "typing keeps up", 53a).
 everything the app does (within about 1 ms at 4× throttle, no layout, no
 per-key work beyond the key and the field); not shown end to end, where
 this emulation has our touch 11 ms (idle) to 19 ms (under a burst) behind
-a text commit that has no touch in it. Nothing in the app was found that
-would shorten the touch's path: a key already acts in the first
-`pointerdown` listener and changes the field synchronously.
+a text commit that has no touch in it. What was shown about that gap is
+this much, and no more: the same key pressed with a mouse pointer is
+level with the device path (the `diag` row: 4.9 and 11.1 ms), and the
+app's handler is synchronous (a key acts in the first `pointerdown`
+listener and changes the field there, 1.0–1.2 ms). That places the gap
+in the touch's way to the page and the frame after it; it does not prove
+that nothing in the app could shorten it (the listener's options, the
+element's `touch-action`, and what else listens for touches were not
+varied).
+
+Not all of the gap under the burst is accounted for. Against the mouse
+row (11.1 ms) the touch row is 18.5 ms later: about 13 ms is the
+`pointerdown` reaching its listener late (item 2), and the rest is a
+longer wait for the frame after the field changed, 12.4 ms against
+6.9 ms (8.1 ms on the device path). Item 1 explains that wait when idle
+(a frame at once against the 60 Hz grid); under the burst every row
+already paints on the grid, so these 3 to 5 ms are unexplained.
 
 One sample of 210 in the idle row has an event timestamp 1.2 s before its
 listener ran (the row's max); its handler → painted time is ordinary. Not

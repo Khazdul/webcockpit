@@ -90,6 +90,44 @@ test('connects, logs in, and masks the password', async ({ page }) => {
   await expect(page.locator('.wc-output')).not.toContainText('hunter2');
 });
 
+test.describe('forced colours (a high contrast mode)', () => {
+  test.use({ forcedColors: 'active' });
+
+  test('the masked password line paints no password, selected or not', async ({ page }) => {
+    await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+      ws.send(bytes([IAC, WILL, GMCP, IAC, WILL, ECHO], '\r\nBy what name do you wish to be known? '));
+    });
+    await enterMume(page);
+    const field = page.locator('.wc-input-field');
+    await expect(field).toHaveClass(/wc-masked/);
+    expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true);
+    // What is painted of the line itself: the bullets' overlay and our caret are taken away, so
+    // only the field's own text and selection are left. Two passwords of one length must then
+    // give the same picture, or the text can be read.
+    await page.addStyleTag({ content: '.wc-input-mask, .wc-caret { visibility: hidden !important; }' });
+    const shot = () => page.locator('.wc-input-wrap').screenshot({ animations: 'disabled', caret: 'hide' });
+    const shots: Record<string, Buffer> = {};
+    for (const word of ['hunter2', 'WWWWWWW']) {
+      await page.keyboard.press('ControlOrMeta+a');
+      await page.keyboard.type(word);
+      await expect(field).toHaveValue(word);
+      shots[`${word} plain`] = await shot();
+      await page.keyboard.press('ControlOrMeta+a');
+      expect(await field.evaluate((e: HTMLInputElement) => e.selectionEnd! - e.selectionStart!)).toBe(7);
+      shots[`${word} selected`] = await shot();
+    }
+    expect(shots['hunter2 plain']!.equals(shots['WWWWWWW plain']!)).toBe(true);
+    expect(shots['hunter2 selected']!.equals(shots['WWWWWWW selected']!)).toBe(true);
+    // (The selection itself is painted: the two states differ, so the pictures do show the line.)
+    expect(shots['hunter2 plain']!.equals(shots['hunter2 selected']!)).toBe(false);
+    // The bullets are still what the player sees, in a colour the mode gives or keeps.
+    await page.addStyleTag({ content: '.wc-input-mask { visibility: visible !important; }' });
+    await expect(page.locator('.wc-input-mask')).toHaveText('•••••••');
+    await expect(page.locator('.wc-input-mask')).toBeVisible();
+    expect(await page.locator('.wc-input-mask').evaluate((e) => getComputedStyle(e).color)).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  });
+});
+
 test('reaches playing on Char.Name and sends the width commands', async ({ page }) => {
   const received: Buffer[] = [];
   let server: { send(b: Buffer): void; close(): Promise<void> } | null = null;

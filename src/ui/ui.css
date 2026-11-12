@@ -369,9 +369,13 @@ textarea.wc-input-field {
   scrollbar-width: none;
 }
 
-/* Password mode: the real text is transparent, bullets are drawn over it. */
+/* Password mode: the real text is transparent, bullets are drawn over it.
+ * Forced colours (a high contrast mode) would paint the text in a system
+ * colour, selected or not, and the password could be read: the masked line
+ * keeps its own colours there. The bullets' overlay follows the mode. */
 .wc-input-field.wc-masked {
   color: transparent;
+  forced-color-adjust: none;
 }
 
 /* A selection in the masked line (stage 53e): the selected text is never
@@ -380,6 +384,7 @@ textarea.wc-input-field {
  * ground is a tint, so the bullets drawn over the line stay readable on it. */
 .wc-input-field.wc-masked::selection {
   color: transparent;
+  forced-color-adjust: none;
   background: color-mix(in srgb, var(--term-fg) 30%, transparent);
 }
 
