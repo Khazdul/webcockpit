@@ -134,6 +134,29 @@ export const BAND_ROWS = 1;
 /** Comm's default share of the rows and its least height (ADR 0136 §2). */
 export const COMM_DEFAULT_SHARE = 0.4;
 export const COMM_MIN_ROWS = 6;
+/**
+ * Comm's least height is a floor in px, not only a count of rows (round
+ * 53k): its reply line is 40 px high whatever the text size, so at a small
+ * text size six rows cut it off and it could not be tapped. What Comm's
+ * pane holds at its least: the thread's top air under the search key
+ * (`COMM_MIN_TOP_EM` of the text size, comm.css) with one line of chat, and
+ * the reply line with the air above it (`COMM_MIN_REPLY_PX`, phone.css:
+ * 4 px and the 40 px line).
+ */
+export const COMM_MIN_REPLY_PX = 44;
+export const COMM_MIN_TOP_EM = 2.4;
+
+/**
+ * Comm's least rows at a cell `cellH` px high and a text size of `fontPx`:
+ * the whole rows that hold one line of chat and the whole reply line, and
+ * the band's row; never under `COMM_MIN_ROWS`. (At the phone's default text
+ * size this is seven rows: six cut the reply line's lower edge by 4 px.)
+ */
+export function commMinRows(cellH: number, fontPx: number): number {
+  if (!(cellH > 0) || !(fontPx > 0)) return COMM_MIN_ROWS;
+  const px = COMM_MIN_TOP_EM * fontPx + cellH + COMM_MIN_REPLY_PX;
+  return Math.max(COMM_MIN_ROWS, Math.ceil(px / cellH - 1e-6) + BAND_ROWS);
+}
 /** Rows the game text keeps under an open strip or Comm (ADR 0136 §2). */
 export const GAME_KEEP_ROWS = 8;
 /** Rows the game text keeps before the fight card gives way. */
@@ -234,6 +257,8 @@ export interface PhoneGameInput {
   fight?: boolean;
   /** Comm is open, at `rows` (null: the default share); absent or null: closed. */
   comm?: { rows: number | null } | null;
+  /** Comm's least rows on this screen (`commMinRows`); absent: `COMM_MIN_ROWS`. Never under that. */
+  commMin?: number;
   /** The lens is wanted; absent or null: no lens. */
   lens?: PhoneGameLens | null;
   /** Whole rows kept free at the bottom edge, under the command row (a keyboard of our own, ADR 0138). Default 0. */
@@ -412,6 +437,11 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
 }
 
 /** Portrait: the strip, the fight card and Comm stacked from the top (see the file header). Returns the game text's first row. */
+/** Comm's least rows for this layout: the caller's px floor in rows (`commMin`), never under `COMM_MIN_ROWS`. */
+function commMinOf(input: PhoneGameInput): number {
+  return Math.max(COMM_MIN_ROWS, whole(input.commMin ?? COMM_MIN_ROWS, COMM_MIN_ROWS));
+}
+
 function layoutStack(input: PhoneGameInput, res: PhoneGameResult, rows: number, avail: number): number {
   const { cols } = res;
   let fightH = input.fight ? FIGHT_ROWS : 0;
@@ -430,8 +460,9 @@ function layoutStack(input: PhoneGameInput, res: PhoneGameResult, rows: number, 
     if (stripWant < STRIP_MIN_ROWS) stripWant = 0;
   }
   const comm = input.comm ?? null;
+  const COMM_MIN = commMinOf(input);
   const commDflt = Math.round(rows * COMM_DEFAULT_SHARE);
-  const commWant = comm ? Math.max(COMM_MIN_ROWS, comm.rows === null ? commDflt : whole(comm.rows, commDflt)) : 0;
+  const commWant = comm ? Math.max(COMM_MIN, comm.rows === null ? commDflt : whole(comm.rows, commDflt)) : 0;
   /** The two heights within `budget` rows. */
   const fit = (budget: number): { stripH: number; commH: number } => {
     let stripH = stripWant;
@@ -439,11 +470,11 @@ function layoutStack(input: PhoneGameInput, res: PhoneGameResult, rows: number, 
     // More than the budget: Comm gives way first, then the strip, each down to its minimum;
     // then the strip closes, and last Comm.
     if (stripH + commH > budget) {
-      if (commH > 0) commH = Math.max(COMM_MIN_ROWS, budget - stripH);
+      if (commH > 0) commH = Math.max(COMM_MIN, budget - stripH);
       if (stripH > 0 && stripH + commH > budget) stripH = Math.max(STRIP_MIN_ROWS, budget - commH);
       if (stripH > 0 && stripH + commH > budget) {
         stripH = 0;
-        commH = comm ? Math.max(COMM_MIN_ROWS, Math.min(commWant, budget)) : 0;
+        commH = comm ? Math.max(COMM_MIN, Math.min(commWant, budget)) : 0;
       }
       if (commH > budget) commH = 0;
     }
@@ -476,7 +507,7 @@ function layoutStack(input: PhoneGameInput, res: PhoneGameResult, rows: number, 
   res.fight = { x: 0, y: stripH + commH, w: cols, h: fightH };
   res.game = { x: 0, y: top, w: cols, h: avail - top };
   if (stripH > 0) res.stripRange = { min: STRIP_MIN_ROWS, max: budget - commH };
-  if (commH > 0) res.commRange = { min: COMM_MIN_ROWS, max: budget - stripH };
+  if (commH > 0) res.commRange = { min: COMM_MIN, max: budget - stripH };
   return top;
 }
 
@@ -489,14 +520,15 @@ function layoutSide(input: PhoneGameInput, side: PhoneGameSide, res: PhoneGameRe
   // The rows: one of them has all, both share them; when both minimums do not fit the strip closes.
   let stripOn = input.strip === true;
   const commOn = (input.comm ?? null) !== null;
-  if (stripOn && commOn && rows < STRIP_MIN_ROWS + COMM_MIN_ROWS) stripOn = false;
+  const COMM_MIN = commMinOf(input);
+  if (stripOn && commOn && rows < STRIP_MIN_ROWS + COMM_MIN) stripOn = false;
   let stripH = 0;
   let commH = 0;
   if (stripOn && commOn) {
-    stripH = Math.max(STRIP_MIN_ROWS, Math.min(rows - COMM_MIN_ROWS, Math.round(rows * SIDE_STRIP_SHARE)));
+    stripH = Math.max(STRIP_MIN_ROWS, Math.min(rows - COMM_MIN, Math.round(rows * SIDE_STRIP_SHARE)));
     commH = rows - stripH;
   } else if (stripOn) stripH = rows >= STRIP_MIN_ROWS ? rows : 0;
-  else if (commOn) commH = rows >= COMM_MIN_ROWS ? rows : 0;
+  else if (commOn) commH = rows >= COMM_MIN ? rows : 0;
 
   // The width: the game text keeps its columns (the phone's least ones on a narrow screen), and
   // the column ends left of what stands at the right. No room for the least width: no column.

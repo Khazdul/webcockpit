@@ -17,6 +17,7 @@ import {
   OWN_KBD_GIVE,
   ownKeyboardReserve,
   BAND_ROWS,
+  commMinRows,
   phonePaneRect,
 } from '../../src/layout/phone-game';
 
@@ -874,5 +875,42 @@ describe('hide: open parts left out of a layout for now (round 53j)', () => {
     expect(none.side.w).toBe(0);
     expect(none.game.x).toBe(0);
     expect(none.game.w).toBe(95);
+  });
+});
+
+describe('Comm\'s least height is a floor in px (round 53k)', () => {
+  it('commMinRows: one line of chat and the whole 40 px reply line, and the band; never under six', () => {
+    // The phone's default text size (17 px, cells 20.19 px high): 2.4 em + a line + 44 px is 105.2 px, six rows, and the band.
+    expect(commMinRows(20.190476, 17.084463)).toBe(7);
+    // The smallest text size (8 px, cells 9.52 px high): 73.3 px is eight rows, and the band. Six cut the reply line off.
+    expect(commMinRows(9.52381, 8.225853)).toBe(9);
+    expect(commMinRows(11.809524, 10.124126)).toBe(8);
+    // A large text: the row count is the floor again.
+    expect(commMinRows(40, 34)).toBe(COMM_MIN_ROWS);
+    // Nothing to go by: the row count.
+    expect(commMinRows(0, 0)).toBe(COMM_MIN_ROWS);
+    expect(commMinRows(Number.NaN, 8)).toBe(COMM_MIN_ROWS);
+    // Whatever the size, the pane's rows (without the band's) hold the floor.
+    for (let px = 8; px <= 30; px++) {
+      const h = px * 1.18;
+      expect((commMinRows(h, px) - 1) * h).toBeGreaterThanOrEqual(2.4 * px + h + 44 - 1e-6);
+    }
+  });
+
+  it('the allocator keeps Comm at the caller\'s least rows: a stored height under it, the squeeze, the drag\'s range', () => {
+    expect(run({ comm: { rows: 2 }, commMin: 9 }).comm.h).toBe(9);
+    expect(run({ comm: { rows: 2 }, commMin: 9 }).commRange!.min).toBe(9);
+    // Never under the row count, whatever is asked.
+    expect(run({ comm: { rows: 2 }, commMin: 3 }).comm.h).toBe(COMM_MIN_ROWS);
+    expect(run({ comm: { rows: 2 }, commMin: Number.NaN }).comm.h).toBe(COMM_MIN_ROWS);
+    // Squeezed by the limit: Comm stops at its floor and the strip gives way next.
+    const r = run({ strip: true, stripRows: 12, fight: true, comm: { rows: 14 }, maxTop: 22, commMin: 9 });
+    expect([r.strip.h, r.comm.h, r.fight.h]).toEqual([11, 9, 2]);
+    // No room for the floor: Comm closes rather than show a cut reply line.
+    expect(run({ rows: 18, comm: { rows: 12 }, commMin: 9, guard: false }).comm.h).toBe(0);
+    expect(run({ rows: 18, comm: { rows: 12 }, guard: false }).comm.h).toBeGreaterThan(0);
+    // Landscape: both parts need their minimums, or the strip closes.
+    const land = allocatePhoneGame({ cols: 90, rows: 12, inputRows: 3, strip: true, comm: { rows: null }, commMin: 9, side: { cols: null } });
+    expect([land.strip.h, land.comm.h]).toEqual([0, 12]);
   });
 });
