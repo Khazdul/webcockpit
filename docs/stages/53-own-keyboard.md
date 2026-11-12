@@ -789,5 +789,12 @@ Wanted: the look of the plates above all; then release or not.
      the content. In landscape something alike so headers take no row
      (perhaps the text written vertically in the swipe frame), done so
      it fits the theme and shows which header belongs to which pane.
+- 2026-11-12, 53j on the S21: the vertical names in landscape are the
+  best; the rest looks good. One more thing (round 53k): in portrait
+  with both Comm and the strip's pane open the fight card does not lie
+  under the lowest pane (Comm) but between the two. The rule is to be:
+  the fight card always lies under the panes at the top in portrait.
+  And showing the fight card like this must be possible to turn off
+  somewhere in the settings.
 
 (After each round.)
