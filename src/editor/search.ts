@@ -48,6 +48,7 @@ import { EditorSelection, type Extension } from '@codemirror/state';
 import { EditorView, type Panel, type ViewUpdate } from '@codemirror/view';
 import { h, render } from 'preact';
 import { Field, GlassButton, Seg } from '../chrome/kit/look-controls';
+import { ownFieldAttrs } from '../core/own-keyboard';
 import { FIND_HINT, RULE, TOGGLES, type Toggle, formatCount } from './manual-search';
 
 export interface SearchOptions {
@@ -275,6 +276,8 @@ class TuiSearchPanel extends SearchPanel {
       input.spellcheck = false;
       input.autocomplete = 'off';
       input.setAttribute('aria-label', aria);
+      // A phone: typed in from our own keyboard, as the lantern row's fields (nothing elsewhere).
+      for (const [k, v] of Object.entries(ownFieldAttrs())) input.setAttribute(k, v);
       row.appendChild(input);
       this.dom.appendChild(row);
       return [row, input];

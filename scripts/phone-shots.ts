@@ -996,14 +996,15 @@ const STATES: State[] = [
       }),
   },
   // Stage 53h (ADR 0139 §6): our keyboard in the two code editors. The script editor with a Lua
-  // function typed on our keys and the completion list open (dark and Paper), a narrow phone,
-  // landscape (the head and the status line step aside), and its Find and Replace row.
-  { name: 'script', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, run: (page) => pageScript(page, 'list') },
+  // function typed on our keys and the completion list open, a narrow phone, landscape (the head
+  // and the status line step aside), and its Find and Replace row. Dark only: the start page is
+  // always dark (Paper is shown by the profile editor over the game, below).
+  { name: 'script', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
   { name: 'script-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 320, height: 568 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
-  { name: 'script-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, run: (page) => pageScript(page, 'code') },
+  { name: 'script-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'code') },
   { name: 'script-land-list', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
   { name: 'script-land-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 640, height: 360 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'code') },
-  { name: 'script-find', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-find', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
   { name: 'script-find-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
   { name: 'script-find-land-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 640, height: 360 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
   { name: 'script-find-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 320, height: 568 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
