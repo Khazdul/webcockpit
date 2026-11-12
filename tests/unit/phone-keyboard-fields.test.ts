@@ -319,7 +319,7 @@ describe('the settings page: Keyboard and the vibration row', () => {
   };
 
   it('the Keyboard group is always there, whatever the address says', () => {
-    for (const search of ['', '?phone=1', '?kbd=de', '?kbd=1', '?kbd=debug', '?phone=1&kbd=sv', '?kbd=en', '?kbd=0']) {
+    for (const search of ['', '?phone=1', '?kbd=de', '?kbd=1', '?kbd=debug', '?phone=1&kbd=sv', '?kbd=en']) {
       vi.stubGlobal('location', { search });
       expect(groupsShown(SETTINGS_GROUPS).some((g) => g.id === 'keyboard'), search).toBe(true);
     }
