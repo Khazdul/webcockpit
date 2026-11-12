@@ -379,15 +379,16 @@ two screenshot states of stage 51 that show the device's keyboard too.
 **§2 A browser that raises its keyboard all the same** (it ignores
 `inputmode="none"`; none is known, and the iPhone is not tested yet).
 Until §2's fallback is decided for such a browser, it gets what it had
-before stage 53: when `wc-kbd` comes while our keyboard is open, ours
-closes and the field keeps the focus; ours does not open while the
+before stage 53: when the visible area shrinks (`wc-kbd`) within 2.5 s
+of a tap on one of our fields, that is taken for the device's keyboard:
+ours closes and the field keeps the focus; ours does not open while the
 device's is up; when the device's folds, the field is blurred as on the
-old path (the exemption for `inputmode="none"` fields is gone, since
-`wc-kbd` shows the device's keyboard was there). The two keyboards never
-stand together, and in landscape there is no loop of ours closing for
-lack of room and blurring the field. So part of the old path (the
-`wc-kbd` layout of the game) stays reachable without `?kbd=0`; whether
-it can go with the gate is settled by the iPhone test.
+old path. The two keyboards never stand together, and in landscape there
+is no loop of ours closing for lack of room and blurring the field. A
+shrink at any other time (a split screen, a window made lower) is not a
+keyboard, and ours keeps working. So part of the old path (the `wc-kbd`
+layout of the game) stays reachable without `?kbd=0`; whether it can go
+with the gate is settled by the iPhone test.
 
 **Review findings of 53d.**
 

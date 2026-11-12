@@ -259,7 +259,7 @@ for (const [name, size, kb] of [
     await m.login();
     await setScreen(page, size);
     await openKeyboard(page);
-    // The device's keyboard comes up anyway: the visible area shrinks under the page.
+    // The device's keyboard comes up anyway, right after the tap: the visible area shrinks under the page.
     const short = size.height - kb;
     await page.setViewportSize({ width: size.width, height: short });
     await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
@@ -300,6 +300,40 @@ for (const [name, size, kb] of [
     expect(errors).toEqual([]);
   });
 }
+
+test('a visible area that shrinks with no field just tapped (a split screen) is not the device\'s keyboard: ours opens, and an open one stays', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, '');
+  await setScreen(page, S21);
+  // The window is made lower with nothing tapped: `wc-kbd` comes (the app cannot tell why), and
+  // a tap on the field still opens our keyboard.
+  await page.setViewportSize({ width: 360, height: 560 });
+  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await openKeyboard(page);
+  await type(page, 'l');
+  await expect(field(page)).toHaveValue('l');
+  await key(page, 'fold').tap();
+  await expect(okb(page)).toBeHidden();
+  await page.setViewportSize(S21);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
+  // Open for a while, then the window is made lower: ours stays, and the field keeps the focus.
+  await openKeyboard(page);
+  await page.waitForTimeout(2700);
+  await page.setViewportSize({ width: 360, height: 560 });
+  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await frames(page);
+  await expect(okb(page)).toBeVisible();
+  expect(await inputFocused(page)).toBe(true);
+  await type(page, 'o');
+  await expect(field(page)).toHaveValue('lo');
+  // Whole again: the field is not blurred (no device keyboard folded), and ours is still there.
+  await page.setViewportSize(S21);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
+  await frames(page);
+  await expect(okb(page)).toBeVisible();
+  expect(await inputFocused(page)).toBe(true);
+  expect(errors).toEqual([]);
+});
 
 test('?kbd=1 on a desktop does nothing: no keyboard, no inputmode', async ({ page }) => {
   await page.goto('/?replay&phone=0&kbd=1');

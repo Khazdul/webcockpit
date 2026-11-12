@@ -117,6 +117,11 @@ const OKB_POINTER_FOCUS_MS = 700;
 const SAT_PX = 40;
 /** The key row's air under what is above it (the lens hidden). */
 const SATROW_GAP = 8;
+/**
+ * After a tap on one of our fields: how long a shrink of the visible area (`wc-kbd`) is taken for
+ * the device's keyboard coming up for it, ms (its animation, and phone-viewport.ts's settling).
+ */
+const OKB_DEVICE_KBD_MS = 2500;
 /** After a rotation or a fullscreen change: how long a drop of `wc-kbd` is taken for the change's own (phone-viewport.ts settles within 500 ms). */
 const SHAPE_SETTLE_MS = 800;
 /** What the lens fixes on the map pane (ADR 0136 §4): Shimrod, alternating with MUME's season, on black. */
@@ -247,6 +252,9 @@ export class PhoneLayer {
   private okbFieldTarget: OkbTarget | null = null;
   /** The command line as a target without a history (a password prompt: the arrows are dimmed). */
   private okbLineBare: OkbTarget | null = null;
+  /** When one of our fields was last asked for (a tap; `openOwnKeyboard`), and whether the device's keyboard came up for it all the same (`watchKeyboard`). */
+  private okbAskedAt = -Infinity;
+  private okbDevice = false;
   /** While a field other than the command line is the target: the observer that tells when it goes away (`watchOkbField`). */
   private okbFieldWatch: MutationObserver | null = null;
   /** The layout named in `?kbd=sv|en` (it wins over the setting), or null. */
@@ -532,10 +540,11 @@ export class PhoneLayer {
    *
    * Since stage 53 the game layout's fields ask the device for no keyboard
    * (ADR 0138), so `wc-kbd` comes here only with `?kbd=0`, or in a browser
-   * that ignores `inputmode="none"`. For that browser: our keyboard closes
-   * when the device's comes up and does not open while it is up
-   * (`openOwnKeyboard`), so the player types with the device's, as before
-   * stage 53.
+   * that ignores `inputmode="none"`. For that browser: when the visible
+   * area shrinks within `OKB_DEVICE_KBD_MS` of a tap on one of our fields,
+   * that is the device's keyboard; ours closes and does not open while the
+   * device's is up (`openOwnKeyboard`), so the player types with the
+   * device's, as before stage 53.
    */
   private watchKeyboard(doc: Document): void {
     const root = doc.documentElement;
@@ -578,18 +587,26 @@ export class PhoneLayer {
         // Up anew: this is the shape it is up in, whatever changed before it came.
         upShape = shape();
         shapeAt = -Infinity;
-        // The device's keyboard came up although our fields ask for none (a browser that ignores
-        // `inputmode="none"`): ours gives way to it, and the field keeps the focus. The layout is
-        // then the one the device's keyboard has always had here; the two never stand together.
-        if (this.okbOpen) this.closeOwnKeyboard(false);
+        // The visible area shrank just after one of our fields was asked for: the device's keyboard
+        // came up although the field asks for none (a browser that ignores `inputmode="none"`).
+        // Ours gives way to it, and the field keeps the focus. The layout is then the one the
+        // device's keyboard has always had here; the two never stand together. A shrink at any
+        // other time (a split screen, a window made lower) is not a keyboard: ours stays.
+        if (this.okb && clock() - this.okbAskedAt < OKB_DEVICE_KBD_MS) {
+          this.okbDevice = true;
+          if (this.okbOpen) this.closeOwnKeyboard(false);
+        }
         return;
       }
+      const device = this.okbDevice;
+      this.okbDevice = false;
       // (The shape's own event may not have come yet: compared here too.)
       if (shape() !== upShape || clock() - shapeAt < SHAPE_SETTLE_MS) return;
       const active = doc.activeElement as HTMLElement | null;
       if (!active || !this.deps.cockpit.el.contains(active)) return;
-      // (Also a field of our own keyboard, ADR 0138: `wc-kbd` was up, so the device's keyboard
-      // came for it all the same, and ours closed when it did.)
+      // A field typed in from our own keyboard (ADR 0138) never had the device's: it keeps the
+      // focus. Unless the device's keyboard came for it all the same (above).
+      if (active.getAttribute('inputmode') === 'none' && !device) return;
       if (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT') active.blur();
     });
     mo.observe(root, { attributes: true, attributeFilter: ['class'] });
@@ -896,9 +913,11 @@ export class PhoneLayer {
    */
   private openOwnKeyboard(field: TextField | null = null): void {
     const line = this.deps.ownKeyboard;
-    if (!this.okb || !line || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
+    if (!this.okb || !line) return;
+    // (When a field of ours was last asked for: `watchKeyboard` tells a device keyboard by it.)
+    this.okbAskedAt = this.el.ownerDocument.defaultView?.performance.now() ?? Date.now();
     // The device's keyboard is up (a browser that ignores `inputmode="none"`): it is the keyboard.
-    if (phoneKit().keyboardUp()) return;
+    if (this.okbDevice || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
     this.setOkbField(field);
     // The hot key box stays while one of its fields is typed in; for any other field it gives
     // way, unsaved. (After the target: its closing then asks nothing of the keyboard.)

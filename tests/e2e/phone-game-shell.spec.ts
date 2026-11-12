@@ -405,8 +405,13 @@ test('a very short visible area (a landscape keyboard) never shows too small; th
   await page.setViewportSize({ width: size.width, height: 120 });
   await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
   await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
-  const slot = await box(page, '.wc-input-slot');
   const h = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
+  // (Polled: the class comes a frame before the cockpit has laid the rows out for it.)
+  await expect.poll(async () => {
+    const s = await box(page, '.wc-input-slot');
+    return s.y + s.height;
+  }).toBeLessThanOrEqual(h + 0.5);
+  const slot = await box(page, '.wc-input-slot');
   expect(slot.y).toBeGreaterThan(0);
   expect(slot.y + slot.height).toBeLessThanOrEqual(h + 0.5);
   await expect(page.locator('.wc-game')).toBeVisible();
