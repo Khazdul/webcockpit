@@ -15,8 +15,9 @@
 //   are blocks: over the columns of a block the lens's floor is the block's
 //   top, so it is pushed up by one, never laid over it.
 // - Where its size does not fit between the top and its floor, or between
-//   the sides, it shrinks to what fits, down to the least size; below that
-//   it is not shown (null: the caller hides it and its keys stand as a row).
+//   the sides, it shrinks to the largest size that fits at its centre, down
+//   to the least size; below that it is not shown (null: the caller hides
+//   it and its keys stand as a row).
 // - Pushed or shrunk, nothing is stored: when the room comes back, the same
 //   wanted values give the old place and size again.
 //
@@ -90,21 +91,39 @@ function floorAt(room: LensRoom, left: number, size: number): number {
 
 /**
  * The lens as shown for `want` in `room`: clamped into the room, pushed up
- * by a block under it, shrunk to what fits (never under `min`), or null
- * when not even `min` fits. Whole px.
+ * by a block under it, or shrunk: the largest size up to the wanted one
+ * that fits at the wanted centre (as near to it as the room's sides put the
+ * box). Never under `min`: null when not even `min` fits there. Whole px.
+ *
+ * A smaller box at the same centre lies inside a larger one, so it stands
+ * over no block the larger one did not: what fits is every size up to a
+ * limit, and the limit is found by halving (some eight rounds on a phone).
+ * It is not simply the height under the wanted width: a narrower box may no
+ * longer reach over a block, and then has more height than that.
  */
 export function fitLens(want: LensWant, room: LensRoom, min: number): LensSpot | null {
-  const width = Math.floor(room.right - room.left);
-  let size = Math.min(Math.round(want.size), width);
-  // (Each round shrinks the box, so its columns reach over no new block: two rounds settle it.)
-  for (let i = 0; i < 4 && size >= min; i++) {
+  const at = (size: number): LensSpot | null => {
     const left = Math.round(clamp(want.cx - size / 2, room.left, room.right - size));
     const floor = floorAt(room, left, size);
-    const height = Math.floor(floor - room.top);
-    if (height >= size) return { left, top: Math.round(clamp(want.cy - size / 2, room.top, floor - size)), size };
-    size = height;
+    if (Math.floor(floor - room.top) < size) return null;
+    return { left, top: Math.round(clamp(want.cy - size / 2, room.top, floor - size)), size };
+  };
+  let hi = Math.min(Math.round(want.size), Math.floor(room.right - room.left));
+  let lo = Math.ceil(min);
+  if (hi < lo) return hi >= min ? at(hi) : null;
+  const whole = at(hi);
+  if (whole) return whole;
+  let best = at(lo);
+  // From here `lo` fits and `hi` does not.
+  while (best && hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    const spot = at(mid);
+    if (spot) {
+      lo = mid;
+      best = spot;
+    } else hi = mid;
   }
-  return null;
+  return best;
 }
 
 /** The largest diameter the room holds at all (its rectangle; blocks only shorten it where the lens stands over them). */

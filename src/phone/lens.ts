@@ -155,9 +155,11 @@ export class LensView {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       // The click of a pointer the glass has read itself (`watchDrag`): its tap has stepped the
-      // zoom already, and the release of a drag or of an armed hold is no tap.
+      // zoom already, and the release of a drag or of an armed hold is no tap. Only a click that a
+      // pointer made is passed over: one with no pointer of its own (`detail` 0: a screen reader's
+      // activation, a script's `click()`) is a tap whenever it comes.
       const win = doc.defaultView;
-      if (this.pointerAt !== null && (win?.performance.now() ?? 0) - this.pointerAt < LENS_CLICK_MS) {
+      if (e.detail !== 0 && this.pointerAt !== null && (win?.performance.now() ?? 0) - this.pointerAt < LENS_CLICK_MS) {
         this.pointerAt = null;
         return;
       }
