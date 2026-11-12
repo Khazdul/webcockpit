@@ -4023,6 +4023,12 @@ Newest first.
   the owner's go / no-go on the editors (test guide 53h), the 53h
   review, then 53i (remove the device keyboard code and `?kbd=0`) and
   the release decision.
+- **53i built and merged; the owner's go on the editors:** `?kbd=0`
+  and the game layout's device keyboard code are gone (what the old
+  phone layout needs is kept and listed in the stage file); Comm has
+  its hood in portrait. **Next:** the 53i review, the owner's test
+  (test guide 53i) and his release decision; then merge to main and
+  release. Open: three window sizes on turning back to portrait.
 - **Commits:** 1336f54…(this commit).
 
 ### 2026-09-27 — Intent and spec

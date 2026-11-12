@@ -190,7 +190,8 @@ moves the caret), script pane fields, key sound.
 - [x] 53g multi-line fields and the new keys (built; owner test open)
 - [x] 53h CodeMirror editors built
 - [x] 53h the owner's go / no-go on the editors: go
-- [ ] 53i device keyboard code removed; release decision
+- [x] 53i device keyboard code removed (built)
+- [ ] 53i review; the owner's release decision
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
 
@@ -454,30 +455,35 @@ moves the caret), script pane fields, key sound.
   (handles, paste, app switch), a chunk that fails to load with an
   editor already marked.
 
-## After the release decision (not deleted yet)
-
-Dead when `?kbd=0` goes:
-
-- `src/app/shell.ts`: the `get('kbd') !== '0'` condition;
-  `okbFromQuery`'s `0` branch and its unit test; the Keyboard settings
-  group's `available`; `ownKeyboard` being optional in `PhoneLayerDeps`
-  and the `if (!this.okb)` guards.
-- `InputPane`'s `type="password"` swap (`passField`, `swapField`): only
-  if the old phone layout (stage 52 C) no longer needs it.
-- Every `?kbd=0` e2e case (in `phone-game-{shell,small,hotkeys,
-  landscape,panes}`, `phone-layout`, `phone-map`, `phone-frames`,
-  `phone-own-keyboard*`, half of `phone-viewport-fullscreen`) and the
-  shots states `keyboard` and `comm-keyboard`.
-- `keyboard-readout.ts`, if the readout is dropped (not tied to
-  `?kbd=0`).
-
-Not dead with the gate: `watchKeyboard`, `keyboardUp()` in the phone
-kit, the `html.wc-kbd` rules of the game layout, the `kbd` branches of
-`relayoutPhoneGame` and `SIDE_COMM_KBD_*` are still reached with our
-keyboard when the visible area shrinks for another reason (a split
-screen). What a shrink should then do is its own decision.
-
-Stays: `src/layout/phone-viewport.ts` (start pages and editors).
+- **53i** (branch `stage-53i`, merged; ADR 0139 "as built in round
+  53i", ADR 0138 "as released", ADR 0137 addendum): **`?kbd=0` is
+  gone**; our keyboard is the only one in the phone's game layout, on
+  its pages and in the editors. Removed: the gate, `watchKeyboard` and
+  `PhoneKit.keyboardUp`, the `kbd` branches of the cockpit and the
+  allocator, the game layout's `wc-kbd` rules, every `?kbd=0` test and
+  shot state. The device keyboard state is switched, not deleted: the
+  shell turns it off once our keyboard is mounted, and an old-layout
+  cockpit holds it on (the run log player and Spotlights on a phone
+  are the old tab layout, and Comm's search there still raises the
+  device's keyboard). **Kept for the old phone layout** (to go with
+  it, stage 52 file C): `phone-viewport.ts` `KEYBOARD_SHARE`,
+  `keyboardUp`, `isKeyboardUp` and the class toggle; `cockpit.ts`
+  `relayoutPhone`'s guard and the shape pin; `ui.css` and `start.css`
+  `wc-kbd` rules; `InputPane` `passField` / `swapField`; `TextField`'s
+  textarea in `widgets.tsx`. Kept on purpose: the keyboard inset hooks
+  (a tablet's own keyboard), Comm's reply textarea, the "not ours
+  closes ours" guard (a read-only code buffer). Also: a tap in a
+  window too low for the keyboard opens nothing; a refused K hold
+  leaves the keyboard up; the editors' digit key no longer writes the
+  setting. **Comm has its hood in portrait too** (owner; ADR 0137 §1
+  said "Portrait has neither"; left out where Comm would keep under
+  104 px). Unit 4046, phone e2e 400 of 400, three projects 1282 of
+  1287 before the last test-only commits (the failures pass alone
+  except `phone-game-landscape.spec.ts:637`, about one in four
+  alone). Bench: burst main 955, closed 957, open 957 ms. Open:
+  turning back to portrait sends three window sizes to MUME in
+  emulation (cause not found; for the review); nothing device-tested.
+  Screenshots `docs/stages/img/53-i-*`.
 
 ## Test guide 53a (for the owner, S21)
 
@@ -642,6 +648,27 @@ lands on the wrong thing.
 Wanted: are the editors usable this way (go), or should the two
 editors keep the device's keyboard (no-go)? Which symbols are too far
 away?
+
+## Test guide 53i (for the owner, S21): the whole, before the release
+
+The ordinary address; there is no `?kbd=0` any more.
+
+1. Play as usual for a while: log in, move, fight, Comm, K keys,
+   rotate, fullscreen in and out. Anything that jumps, any keyboard
+   but ours?
+2. Comm in portrait: the COMM hood is there; with the keyboard up while
+   you type a reply too.
+3. Hold a K key with Comm and the keyboard open in portrait: nothing
+   happens, and the keyboard stays.
+4. A script editor: the 123 key folds and unfolds the digit row there,
+   and the game's keyboard keeps its own setting.
+5. Pages once more in outline: a new profile, a script name, Lite, the
+   export comment.
+6. The run log player (History → a run) and Spotlights: these are the
+   old layout and still use Samsung's keyboard in Comm's search; is
+   anything broken there?
+
+Wanted: release or not.
 
 ## Owner feedback
 
