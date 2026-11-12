@@ -113,3 +113,34 @@ that gives the device's keyboard back.
 - https://developer.chrome.com/docs/css-ui/edge-to-edge
 - https://bugs.webkit.org/show_bug.cgi?id=247410 (iPad visualViewport with a hardware keyboard)
 - https://developer.apple.com/forums/thread/800125 (iOS 26 visualViewport)
+
+## 6. Our keyboard on the menu pages too (survey 2026-11-12, code read only)
+
+The owner's wish after 53e: our keyboard everywhere on the phone. Not
+decided or planned yet.
+
+- **Typed-in surfaces outside the game layout:** new / rename profile
+  (`TextField`), new / rename script, export title, Lite pattern,
+  manual find (look kit `Field`), script setting tile and the two
+  CodeMirror search fields (raw `<input>`), export comment and Lite
+  body (`TextArea`, the body multi-line), and the two CodeMirror
+  buffers (profile Editor, script editor; `@codemirror/view` 6.43).
+  The start page itself, Import, History, Spotlights and the phone's
+  settings page have no text fields.
+- **Shared components:** `Field` / `TextArea`
+  (`chrome/kit/look-controls.tsx`), `TextField`
+  (`chrome/kit/widgets.tsx`): marking the fields there covers most.
+- **Hard parts:** the keyboard is tied to the game layout's allocator
+  (needs a second mount and a bottom reserve on `.wc-chrome` /
+  `.wc-overlay`); the frame stack takes Enter / Esc / Tab as keydown
+  events, so ADR 0138 §3 ("no synthetic KeyboardEvent", made for the
+  game's macros) needs a ruling for the pages; multi-line insert and a
+  newline key; Tab, Esc and caret keys are missing, and the backtick;
+  CodeMirror needs an adapter (input handlers, keymaps, completion
+  popups above the keyboard; `contentAttributes` can set
+  `inputmode="none"`); `useKeyboardInset` / `useFieldEl` read the
+  visual viewport.
+- **Rounds, roughly:** simple one-line fields; multi-line and the extra
+  keys; CodeMirror; then removal of the device keyboard code
+  (`wc-kbd`, `keyboardUp`, the phone-only textarea; `--wc-vv-h` stays
+  for the address bar and fullscreen).
