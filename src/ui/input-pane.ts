@@ -7,7 +7,9 @@
 // - Password mode keeps type="text" (a type="password" field makes Firefox
 //   and Chrome offer to save the password) and masks by making the text
 //   transparent and drawing one bullet per character over it. Copy and cut
-//   are blocked while masked.
+//   are blocked while masked. The bullets' element (`.wc-input-mask`) lies
+//   on the field and clips to it; a line longer than the field scrolls the
+//   bullets inside it (a text indent of −scrollLeft, as the suggestion's).
 // - Paste: CRLF/CR become LF, trailing newlines are dropped, and remaining
 //   newlines become single spaces. Nothing is ever sent by a paste.
 // - Ctrl+W: handled (delete word back) where the browser lets the page see
@@ -310,6 +312,8 @@ export class InputPane {
   readonly ghostEl: HTMLSpanElement;
   private ghostText = '';
   private ghostX = NaN;
+  /** The field's scroll the bullets were last drawn at (`updateCaret`). */
+  private maskScroll = 0;
   /** The custom caret element. */
   readonly caretEl: HTMLSpanElement;
   /**
@@ -1344,7 +1348,13 @@ export class InputPane {
       if (start === end) this.scrollToCaret(cellsBefore(i.value, start));
     }
     const scroll = i.scrollLeft;
-    if (this.password) this.mask.style.transform = scroll ? `translateX(${-scroll}px)` : '';
+    // The bullets follow a long line's scroll inside the mask, which stays on the field and clips
+    // them there, as the suggestion does (a mask moved as a whole took its clip along: the
+    // bullets left the field at its start and the last ones were cut off at its end).
+    if (this.password && scroll !== this.maskScroll) {
+      this.maskScroll = scroll;
+      this.mask.style.textIndent = scroll ? `${-scroll}px` : '';
+    }
     // Nothing to do with the option off and no ghost left on screen.
     const ghost = this.autosuggest || this.ghostText !== '' ? this.updateGhost(scroll) : '';
     if (start !== end) {
