@@ -186,7 +186,7 @@ moves the caret), script pane fields, key sound.
 - [x] 53e built: the gate flipped (`?kbd=0` keeps the old path), the 53d
   review findings, key to echo and text speed measured, tests,
   screenshots, spec §2.12, README, About
-- [ ] 53f page mount, one-line fields
+- [x] 53f page mount, one-line fields (built; owner test open)
 - [ ] 53g multi-line fields and the new keys
 - [ ] 53h CodeMirror editors (owner: go / no-go)
 - [ ] 53i device keyboard code removed; release decision
@@ -343,6 +343,23 @@ moves the caret), script pane fields, key sound.
   keyboard (800 × 150) a tap opens it and the next layout closes it
   (two window sizes per tap; since 53d). Not checked: WebKit, devices.
 
+- **53f** (branch `stage-53f`, merged; ADR 0139 "as built in round
+  53f"): our keyboard on the phone's pages outside the game layout
+  (`src/phone/keyboard-pages.ts`, the same view and model; the page
+  gets a fixed bottom reserve, `--wc-okb-page-h` on `#app`; the cockpit
+  is untouched and no window size is sent for it). One-line fields
+  marked in `Field`, `TextField` and the script setting input (a
+  numeric field brings the digit row). Enter is a marked `keydown`
+  (`src/core/own-keyboard.ts`) that the script engine's key handling
+  and `enterDown` ignore; it acts on the click, since it may close the
+  dialog under the finger. Multi-line fields and the CodeMirror
+  buffers still take the device's keyboard (53g, 53h); the two never
+  stand together. Unit 3969, phone e2e 358 of 360
+  (`phone-game-landscape.spec.ts:672` twice, passes alone), desktop
+  868 of 871 (pass alone), typecheck and build clean. Open: no Esc key
+  yet; a Paper keyboard under the always-dark start page; nothing
+  tried on a device. Screenshots `docs/stages/img/53-f-*`.
+
 ## After the release decision (not deleted yet)
 
 Dead when `?kbd=0` goes:
@@ -477,6 +494,26 @@ release).
 
 Wanted: your verdict on the whole (release or not), and anything on
 the iPhone.
+
+## Test guide 53f (for the owner, S21)
+
+The ordinary address. One-line fields on the pages now use our
+keyboard; the big text boxes and the code editors still use the
+device's until the next rounds.
+
+1. Start page → Profile → New and Rename: our keyboard comes up with
+   the prompt; Enter confirms once.
+2. Scripts → New and Rename: the buttons stay reachable above the
+   keys; fold the keyboard, tap the field again. Also in landscape.
+3. A script's number setting: the digit row is up.
+4. History → Export → Title.
+5. In the game: menu → Profile → an alias's Pattern (ours), then tap
+   Commands (the device's replaces ours, never both); Back: the game's
+   keyboard still works.
+6. Script editor → Find.
+
+Wanted: anything that jumps or is covered, and any field that raises
+the wrong keyboard.
 
 ## Owner feedback
 

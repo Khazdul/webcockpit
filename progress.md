@@ -4011,6 +4011,12 @@ Newest first.
   to main, release, and delete the old path ("After the release
   decision" in the stage file). Open: the owner's 53d feedback; Goal 12
   wording in `intent.md`.
+- **2026-11-12, owner:** 53d and 53e OK on the S21; the iPhone test
+  waits; our keyboard on the menu pages too, before the release (ADR
+  0139, rounds 53f–53i). Fixed: the lens flicker on a refused K hold.
+  **53f built and merged** (page mount, one-line fields). Next: 53f
+  review, 53g (multi-line, new keys), 53h (CodeMirror, go / no-go),
+  53i (device keyboard code removed), then the release decision.
 - **Commits:** 1336f54…(this commit).
 
 ### 2026-09-27 — Intent and spec
