@@ -115,6 +115,7 @@ import type {
   WindowsHandle,
 } from '../chrome';
 import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
+import { watchDeviceKeyboard } from '../layout/phone-viewport';
 import type { PaneId } from '../layout/types';
 import type { PlayerHost, PlayerInfo, PlayerOpenOptions } from './player-host';
 import type { PlayerOpenResult, RunLogOpenResult } from '../chrome/kit/hooks';
@@ -789,6 +790,8 @@ export class Shell {
           });
           // (A load that failed first and came later: the fields drawn from now on are ours again.)
           setPageKeyboard(true);
+          // Our keyboard is the phone's only one from here: a shrunken visible area is no keyboard.
+          watchDeviceKeyboard(false, root.ownerDocument);
         } catch (err) {
           console.error('WebCockpit: the pages\' keyboard could not be mounted', err);
           // No keyboard of ours: fields drawn from now on ask the device for its own again.
@@ -934,6 +937,8 @@ export class Shell {
             old.remove();
           } catch (err) {
             console.error('WebCockpit: the phone layer could not be mounted', err);
+            // The command line has the device's keyboard then (kept for the old phone layout).
+            watchDeviceKeyboard(true);
           }
         },
         () => {},
