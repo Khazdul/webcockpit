@@ -55,8 +55,9 @@ has been hard to control on an iPad.
 - [x] Owner's answers recorded; `intent.md` reworded
 - [x] Mockup round 1 published and its sources kept
 - [x] Trial flag `?tablet=phone`, screenshots and notes (branch `stage-54-tablet`; unit 4126 passed, phone e2e 118, desktop gating e2e 34; full e2e not run)
-- [ ] Owner: verdict on round 1
-- [ ] Owner: the trial on the iPad
+- [x] Owner: verdict on round 1 (A, with changes; see feedback)
+- [x] Owner: the trial on the iPad (keyboard stays down; fullscreen flaky)
+- [ ] Mockup round 2 (A refined: toggles, swipe, keys above the compass)
 - [ ] ADR 0140 and the build rounds
 
 ## Test guide (for now)
@@ -84,4 +85,21 @@ has been hard to control on an iPad.
 
 ## Owner feedback
 
-(none yet)
+### Mockup round 1 and the trial on the iPad (2026-11-12)
+
+- **A** (panes always in view) feels best in landscape and in portrait.
+- The borders and details can be made finer, from our theme and how the
+  desktop draws panes (frosted glass, glow and so on).
+- Map, Comm and the pane box can each be **toggled** on and off.
+- The pane box changes pane by a **sideways swipe**, as on the phone (no
+  tabs).
+- The map zooms by **pinch**.
+- The hot keys go **above the compass**, as on the phone.
+- All hot keys and the compass can be **hidden and shown** together. The
+  room they had is then filled: by panel space in landscape, by the
+  command field in portrait. The control for it is always visible;
+  perhaps Map, Comm, panes and keys as a group of icons somewhere.
+- **Trial on the iPad:** iPadOS's own keyboard stays down. Fullscreen
+  with our keyboard up is unreliable: sometimes it works, sometimes it
+  jumps back out; it flickers and things seem to be redrawn on the way
+  into fullscreen. To investigate in the build.
