@@ -536,7 +536,7 @@ describe('the settings page as data', () => {
     expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
     expect(SETTINGS_GROUPS.map((g) => g.title)).toEqual(['Text', 'Quick buttons', 'Keyboard', 'Map lens', 'Panes', 'Comm', 'Connection']);
     expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-opens']);
-    expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'link:timers-group']);
+    expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'toggle:fight-card', 'link:timers-group']);
     expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font']);
   });
 

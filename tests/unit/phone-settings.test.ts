@@ -6,6 +6,43 @@ import { SettingsStore } from '../../src/settings';
 import { migratePhone, migrateSettings } from '../../src/settings/migrate';
 import { PHONE_DEFAULTS_MARK, SETTINGS_VERSION, defaultPhoneSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings/types';
 import { DEFAULTS_MARK, phoneDefaultsAtStart, phoneDefaultsPatch } from '../../src/phone/phone-defaults';
+import { PANES_GROUP } from '../../src/phone/settings-page';
+
+/** What 0.6.1 stored under `phone` (its keys, no later ones). */
+function stored061(): Record<string, unknown> {
+  const p = JSON.parse(JSON.stringify(defaultPhoneSettings())) as Record<string, unknown>;
+  delete p.fightCard;
+  p.lens = { show: true, opensAt: 'middle' };
+  return p;
+}
+
+describe('phone settings of round 53k: the fight card\'s switch', () => {
+  it('on by default, on a computer and on a new phone', () => {
+    expect(defaultPhoneSettings().fightCard).toBe(true);
+    expect(phoneDefaultSettings().phone.fightCard).toBe(true);
+  });
+
+  it('additive: an object stored by 0.6.1 reads as on, with no version bump', () => {
+    const old: Record<string, unknown> = { ...(JSON.parse(JSON.stringify(defaultSettings())) as Record<string, unknown>), phone: stored061() };
+    const s = migrateSettings(old);
+    expect(s.phone.fightCard).toBe(true);
+    expect(s.version).toBe(SETTINGS_VERSION);
+    expect(SETTINGS_VERSION).toBe(old.version);
+  });
+
+  it('a stored value is kept; junk is the default', () => {
+    expect(migratePhone({ fightCard: false }).fightCard).toBe(false);
+    expect(migratePhone({ fightCard: 'no' }).fightCard).toBe(true);
+  });
+
+  it('the switch is a row of Panes and its patch changes nothing else', () => {
+    const row = PANES_GROUP.rows.find((r) => r.id === 'fight-card')!;
+    expect(row.kind).toBe('toggle');
+    if (row.kind !== 'toggle') return;
+    expect(row.get(defaultSettings())).toBe(true);
+    expect(row.set(false, defaultSettings())).toEqual({ phone: { fightCard: false } });
+  });
+});
 
 describe('phone settings', () => {
   it('defaults: the lens shown, opening at the middle zoom, on a computer and on a phone', () => {

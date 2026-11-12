@@ -466,6 +466,12 @@ export interface PhoneSettings {
    * `navigator.vibrate`). Off by default.
    */
   vibrate: boolean;
+  /**
+   * The fight card over the game text while fighting (ADR 0136 §3; the
+   * switch: round 53k). Off: no card, its rows are the game text's, and
+   * nothing of it is computed.
+   */
+  fightCard: boolean;
 }
 
 /** The layouts of the phone's own keyboard: by the browser's language, Swedish, English. */
@@ -538,7 +544,7 @@ export const PHONE_COMM_ROWS_MAX = 200;
  * rescue, shoot, recover) of which three are in use, shown (§8, stage 52);
  * the landscape column at its default width; the screen kept on while connected, and no
  * automatic reconnect (§10); the own keyboard's digit row folded away
- * (ADR 0138). The one-time defaults are not marked as had:
+ * (ADR 0138); the fight card shown (round 53k). The one-time defaults are not marked as had:
  * only `phoneDefaultSettings()` (a new phone) marks them.
  */
 export function defaultPhoneSettings(): PhoneSettings {
@@ -564,6 +570,7 @@ export function defaultPhoneSettings(): PhoneSettings {
     defaults: 0,
     keyboard: { digits: false, layout: 'auto' },
     vibrate: false,
+    fightCard: true,
   };
 }
 

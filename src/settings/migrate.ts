@@ -555,6 +555,8 @@ export function migratePhone(raw: unknown): PhoneSettings {
     },
     // Additive (ADR 0138 §7; the key of 0.5.0, gone in 0.6.0, is read again): absent is off.
     vibrate: bool(p.vibrate, d.vibrate),
+    // Additive (round 53k): absent (settings from 0.6.1) is the card shown, as it always was.
+    fightCard: bool(p.fightCard, d.fightCard),
   };
 }
 

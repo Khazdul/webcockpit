@@ -202,7 +202,12 @@ export const LENS_GROUP: SettingsGroup = {
 /** The names of the strip's built-in panes (the panes' own labels). */
 const STRIP_LABELS: Readonly<Record<string, string>> = { timers: 'Timers', group: 'Group', character: 'Character', statistics: 'Statistics' };
 
-/** Panes: which built-in panes are pages of the strip, and their order (`phone.strip`, ADR 0136 §5, §13). */
+/**
+ * Panes: which built-in panes are pages of the strip, and their order
+ * (`phone.strip`, ADR 0136 §5, §13), and the fight card over the game text
+ * (`phone.fightCard`, round 53k: it is what the Group pane's card is on a
+ * computer, so its switch stands with the panes).
+ */
 export const PANES_GROUP: SettingsGroup = {
   id: 'panes',
   title: 'Panes',
@@ -214,6 +219,13 @@ export const PANES_GROUP: SettingsGroup = {
       items: (s) => s.phone.strip.panes.map((e) => ({ id: e.id, label: STRIP_LABELS[e.id] ?? e.id, on: e.on })),
       toggle: (id, on, s) => ({ phone: { strip: { panes: setEntry(s.phone.strip.panes, id, on) } } }),
       move: (id, dir, s) => ({ phone: { strip: { panes: moveEntry(s.phone.strip.panes, id, dir) } } }),
+    },
+    {
+      kind: 'toggle',
+      id: 'fight-card',
+      label: 'Fight card while fighting',
+      get: (s) => s.phone.fightCard,
+      set: (fightCard) => ({ phone: { fightCard } }),
     },
     { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
   ],
@@ -504,7 +516,7 @@ export const GROUP_GROUP: SettingsGroup = {
     {
       kind: 'toggle',
       id: 'group-fight',
-      // The pane's own card; the phone's fight card over the game is always there (ADR 0136 §3).
+      // The pane's own card; the phone's fight card over the game has its own switch (Panes, `phone.fightCard`).
       label: 'Fight card in the pane',
       get: (s) => s.group.fight,
       set: (fight) => ({ group: { fight } }),

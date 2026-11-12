@@ -226,6 +226,8 @@ export class PhoneLayer {
   private readonly unsubs: Array<() => void> = [];
   /** A key was pressed: the vibration, while it is on. */
   private readonly buzz: () => void;
+  /** The fight card is wanted (`phone.fightCard`): off, nothing of the card is computed or shown. */
+  private fightOn = true;
   /** The card on screen (null: no fight) and its signature. */
   private card: FightCard | null = null;
   private sig = '';
@@ -264,6 +266,7 @@ export class PhoneLayer {
     this.el = doc.createElement('div');
     this.el.className = 'wc-ph-layer';
     this.fight = new FightCardView(doc);
+    this.fightOn = deps.settings.get().phone.fightCard;
     // A press on a key (ADR 0138 §7): one short vibration while the setting is on. Called in the
     // pointer's own handler only.
     const buzz = (): void => {
@@ -409,7 +412,9 @@ export class PhoneLayer {
 
     this.unsubs.push(
       deps.game.subscribe((part) => {
-        // Your HP comes with `char`, the fight and the members with `group`.
+        // Your HP comes with `char`, the fight and the members with `group`. With the card
+        // switched off (`phone.fightCard`) nothing of it runs.
+        if (!this.fightOn) return;
         if (part === 'group' || (part === 'char' && this.card !== null)) this.syncFight();
       }),
       cockpit.onLayout(() => this.place()),
@@ -428,6 +433,10 @@ export class PhoneLayer {
         )
           this.syncHotkeys();
         if (next.phone.wakeLock !== prev.phone.wakeLock) this.wake.sync();
+        if (next.phone.fightCard !== prev.phone.fightCard) {
+          this.fightOn = next.phone.fightCard;
+          this.syncFight();
+        }
         if (next.phone.keyboard.digits !== prev.phone.keyboard.digits) this.syncOwnDigits();
         if (next.phone.keyboard.layout !== prev.phone.keyboard.layout) this.syncOwnLayout();
       }),
@@ -1513,12 +1522,16 @@ export class PhoneLayer {
     this.map.zoomTo(lensZoom(level, this.lensSize));
   }
 
-  /** Recomputes the fight card; the DOM and the cockpit hear of it only on a change. */
+  /**
+   * Recomputes the fight card; the DOM and the cockpit hear of it only on a
+   * change. Switched off (`phone.fightCard`): no card, as with no fight
+   * (called then only for the switch itself).
+   */
   private syncFight(): void {
     const { game, cockpit } = this.deps;
-    const f = game.group.fight();
+    const f = this.fightOn ? game.group.fight() : null;
     let next: FightCard | null = null;
-    if (f.opponent !== null) {
+    if (f && f.opponent !== null) {
       const v = game.char.vitals;
       const hpWord = v.get('hp-string');
       const self: SelfVitals = {
