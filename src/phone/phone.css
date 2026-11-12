@@ -4,7 +4,9 @@
  * option and the phone flag), so nothing here matches on a desktop, on a
  * tablet or in the run log player. The one exception names the page-level
  * fullscreen button and is scoped under `html.wc-phone.wc-phone-game`,
- * the class the shell sets while the phone's game layout is up.
+ * the class the shell sets while the phone's game layout is up. The
+ * keyboard's own rules also match in the pages' mount (`.wc-okb-page`,
+ * ADR 0139), which exists only on a phone with our keyboard.
  *
  * Laid out in CSS px, not cells: thumb-size targets whatever the text
  * size. The look is Lykta (ADR 0123): dark iron wells, the candle's light
@@ -1297,7 +1299,7 @@ html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
  * The look is Lykta's: an iron ground, character keys of lighter iron with
  * the candle's ink, the keys that are not characters darker, Enter lit.
  * Solid, not see-through; nothing animates and nothing is filtered. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -1314,11 +1316,11 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb {
   -webkit-tap-highlight-color: transparent;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[hidden] {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[hidden] {
   display: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-block {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-block {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -1329,7 +1331,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-block {
   padding: 2px;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-row {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-row {
   display: flex;
   flex: 1 1 0;
   box-sizing: border-box;
@@ -1338,8 +1340,8 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-row {
 
 /* A key is its whole cell: the touch target has no gaps. The cap drawn in
  * it stands 2 px in. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k,
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-gap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k,
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-gap {
   display: flex;
   flex: 1 1 0;
   box-sizing: border-box;
@@ -1350,7 +1352,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-gap {
   background: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k {
   color: var(--ph-okb-key-text);
   font: inherit;
   font-size: 19px;
@@ -1363,7 +1365,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k {
   -webkit-tap-highlight-color: transparent;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-cap {
   display: flex;
   flex: 1 1 0;
   align-items: center;
@@ -1378,83 +1380,83 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-cap {
   pointer-events: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k .wc-ph-ico {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k .wc-ph-ico {
   width: 20px;
   height: 20px;
 }
 
 /* Shift: the letters show what the next one will be. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb:not([data-shift="off"]) .wc-ph-okb-k[data-letter] {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb:not([data-shift="off"]) .wc-ph-okb-k[data-letter] {
   text-transform: uppercase;
 }
 
 /* The keys that are not characters: darker iron, the lamp's own colour. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k[data-act] {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k[data-act] {
   color: var(--ph-okb-mod-text);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k[data-act] .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k[data-act] .wc-ph-okb-cap {
   border-color: var(--ph-okb-mod-edge);
   background: var(--ph-okb-mod);
 }
 
 /* Space is a character: a key of the letters' iron with a quiet mark. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-space {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-space {
   color: var(--ph-okb-space-mark);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-space .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-space .wc-ph-okb-cap {
   border-color: var(--ph-okb-key-edge);
   background: var(--ph-okb-key);
 }
 
 /* Enter: lit. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-enter {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-enter {
   color: var(--ph-okb-on-text);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-enter .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-enter .wc-ph-okb-cap {
   border-color: var(--ph-okb-on-edge);
   background: var(--ph-okb-on);
 }
 
 /* Shift once: the key's edge and arrow are lit. Locked: the whole key (and its arrow stands on a bar). */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift {
   color: var(--ph-okb-lit-text);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift .wc-ph-okb-cap {
   border-color: var(--ph-okb-on);
   box-shadow: inset 0 0 0 1px var(--ph-okb-on);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift .wc-ph-ico {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-shift="once"] .wc-ph-okb-k.is-shift .wc-ph-ico {
   fill: currentColor;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift {
   color: var(--ph-okb-on-text);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift .wc-ph-okb-cap {
   border-color: var(--ph-okb-on-edge);
   background: var(--ph-okb-on);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift .wc-ph-ico {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-shift="lock"] .wc-ph-okb-k.is-shift .wc-ph-ico {
   fill: currentColor;
 }
 
 /* The digit row's toggle: a lamp under its label, lit while the row is up. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-digits .wc-ph-okb-cap {
   flex-direction: column;
   gap: 4px;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits .wc-ph-okb-cap::after {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-digits .wc-ph-okb-cap::after {
   content: "";
   width: 12px;
   height: 3px;
@@ -1462,29 +1464,29 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits .wc-ph-okb-cap
   background: var(--ph-okb-lamp-off);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits[aria-pressed="true"] {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-digits[aria-pressed="true"] {
   color: var(--ph-okb-lit-text);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits[aria-pressed="true"] .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-digits[aria-pressed="true"] .wc-ph-okb-cap {
   border-color: var(--ph-okb-on);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k.is-digits[aria-pressed="true"] .wc-ph-okb-cap::after {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-digits[aria-pressed="true"] .wc-ph-okb-cap::after {
   background: var(--ph-okb-on);
 }
 
 /* Arrows of a field without a history. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb-k[aria-disabled="true"] {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k[aria-disabled="true"] {
   color: var(--ph-key-off);
 }
 
 /* Pressed: lit at once (the class comes with the press; no `:active`, which waits on some phones). */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb .wc-ph-okb-k.is-down {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb .wc-ph-okb-k.is-down {
   color: var(--ph-okb-down-text);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-okb .wc-ph-okb-k.is-down .wc-ph-okb-cap {
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb .wc-ph-okb-k.is-down .wc-ph-okb-cap {
   border-color: var(--ph-okb-down-edge);
   background: var(--ph-okb-down);
   box-shadow: none;
@@ -1549,6 +1551,93 @@ html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nok] .wc
 html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-rb {
   right: 8px;
   width: min(286px, calc(100% - var(--ph-side-w, 0px) - 16px));
+}
+
+/* The pages' keyboard (keyboard-pages.ts, ADR 0139): the same keys on the
+ * start menu's pages and on the pages opened over the game. Its host
+ * stands at the bottom of the app box, above the start page and the menu's
+ * overlay, as high as the keyboard (`--wc-okb-page-h`, set on the app box
+ * while it is up) plus the safe area under it, which its ground covers.
+ * The page ends above it: a fixed bottom reserve, nothing measured or
+ * animated. Dark by default; Paper where the terminal background is light,
+ * as the game's keyboard. */
+html.wc-phone .wc-okb-page {
+  /* The keyboard's tokens, as the cockpit's (the tokens above). */
+  --ph-key-off: #6d6252;
+  --ph-okb-ground: #0e0c0a;
+  --ph-okb-rim: #5a5148;
+  --ph-okb-key: linear-gradient(#39332c, #2a2520);
+  --ph-okb-key-edge: #5a5148;
+  --ph-okb-key-text: #f6e2bd;
+  --ph-okb-lip: inset 0 1px 0 rgb(232 196 138 / 0.18);
+  --ph-okb-mod: linear-gradient(#211d18, #17140f);
+  --ph-okb-mod-edge: #3d362e;
+  --ph-okb-mod-text: #e8c48a;
+  --ph-okb-space-mark: #8d7a5c;
+  --ph-okb-on: #e8c48a;
+  --ph-okb-on-edge: #fff1cf;
+  --ph-okb-on-text: #170f03;
+  --ph-okb-lit-text: #fff1cf;
+  --ph-okb-lamp-off: #4a4238;
+  --ph-okb-down: #fff1cf;
+  --ph-okb-down-edge: #fff1cf;
+  --ph-okb-down-text: #170f03;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 200;
+  height: calc(var(--wc-okb-page-h, 0px) + env(safe-area-inset-bottom, 0px));
+  background: var(--ph-okb-ground);
+  font-family: var(--font-mono);
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+html.wc-phone .wc-okb-page[hidden] {
+  display: none;
+}
+
+html.wc-phone[data-light] .wc-okb-page {
+  --ph-key-off: #a39c8c;
+  --ph-okb-ground: #bdb8ac;
+  --ph-okb-rim: #8a8478;
+  --ph-okb-key: linear-gradient(#fffdf8, #f1eee6);
+  --ph-okb-key-edge: #8a8478;
+  --ph-okb-key-text: #2e2618;
+  --ph-okb-lip: inset 0 1px 0 rgb(255 255 255 / 0.8);
+  --ph-okb-mod: linear-gradient(#ded8c9, #cdc6b5);
+  --ph-okb-mod-edge: #8a8478;
+  --ph-okb-mod-text: #3a3428;
+  --ph-okb-space-mark: #8a8478;
+  --ph-okb-on: #8a5a0e;
+  --ph-okb-on-edge: #5e3d08;
+  --ph-okb-on-text: #fffaf0;
+  --ph-okb-lit-text: #6b4708;
+  --ph-okb-lamp-off: #a39c8c;
+  --ph-okb-down: #8a5a0e;
+  --ph-okb-down-edge: #5e3d08;
+  --ph-okb-down-text: #fffaf0;
+}
+html.wc-phone .wc-okb-page-in {
+  position: relative;
+  height: var(--wc-okb-page-h, 0px);
+  margin: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+}
+
+html.wc-phone .wc-okb-page .wc-ph-ico {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The reserve: the start page and the menu's overlay end at the keyboard's top edge. */
+html.wc-phone.wc-okb-pg .wc-chrome,
+html.wc-phone.wc-okb-pg .wc-overlay {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--wc-okb-page-h, 0px));
 }
 
 /* The safe area (an iPhone's home indicator; a notch at the side in

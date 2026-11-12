@@ -27,6 +27,7 @@ import { useFlash } from './stack';
 import { TuiScrollbar, useScrollBox } from './scroll';
 import { EscToken, escHints, isEscToken } from './esc';
 import { device } from '../../core/device';
+import { ownFieldAttrs } from '../../core/own-keyboard';
 
 // ------------------------------------------------------------------- lines
 
@@ -655,6 +656,7 @@ export function TextField(p: TextFieldProps): VNode {
           autocapitalize="off"
           autocorrect="off"
           enterkeyhint="done"
+          {...ownFieldAttrs()}
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return;
             // The frame's own key handler (window capture) has seen it.

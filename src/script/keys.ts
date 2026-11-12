@@ -6,6 +6,12 @@
 // Canonical name: modifiers in the order Ctrl+Alt+Shift+Meta, then the key
 // from `KeyboardEvent.code` with the `Key`/`Digit` prefix dropped:
 // `F5`, `Numpad0`, `NumpadAdd`, `Alt+A`, `Ctrl+Shift+F1`, `Alt+1`.
+//
+// A key event made by our own on-screen keyboard on a phone's page (ADR
+// 0139 §4, src/core/own-keyboard.ts) is no physical key: it has no name
+// here (so no macro matches it and it cannot be bound) and teaches no label.
+
+import { isOwnKey } from '../core/own-keyboard';
 
 export interface KeyEventLike {
   code: string;
@@ -159,6 +165,8 @@ function parseCanonical(name: string): Parsed | null {
 
 /** The canonical name for a keydown, or null for bare modifiers and unknown codes. */
 export function keyNameFromEvent(e: KeyEventLike): string | null {
+  // A key of our own on-screen keyboard (ADR 0139 §4) is no physical key: no macro matches it.
+  if (isOwnKey(e)) return null;
   if (MODIFIER_CODES.has(e.code)) return null;
   const key = keyPartFromCode(e.code);
   if (!key) return null;
@@ -387,6 +395,7 @@ function learn(code: string, ch: string): boolean {
  * keys (`key` = `Dead`) teach nothing. Returns true when a label changed.
  */
 export function learnKeyLabel(e: KeyEventLike & { getModifierState?: (k: string) => boolean }): boolean {
+  if (isOwnKey(e)) return false;
   if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return false;
   if (e.getModifierState?.('AltGraph')) return false;
   return learn(e.code, e.key);

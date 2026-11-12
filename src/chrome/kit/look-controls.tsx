@@ -25,6 +25,7 @@
 
 import type { ComponentChildren, Ref, VNode } from 'preact';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { ownFieldAttrs } from '../../core/own-keyboard';
 import { type IconDraw, type IconName, Icon } from './look-icons';
 import { KeyLabel } from './look-keys';
 import { FLASH_MS, type Flash, type FlashKind, useFlash } from './stack';
@@ -345,6 +346,7 @@ export function Field(p: FieldProps): VNode {
         spellcheck={false}
         autocomplete="off"
         autocapitalize="off"
+        {...ownFieldAttrs()}
         aria-invalid={p.error ? 'true' : undefined}
         aria-describedby={p.error || p.hint ? noteId : undefined}
         onInput={(e) => p.onInput(e.currentTarget.value)}

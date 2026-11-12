@@ -93,6 +93,12 @@ export interface OwnKeyboardDeps {
   toggleDigits(): void;
   /** A pointer went down on a key (the layer: a short vibration, when that is on). */
   onPress?(): void;
+  /**
+   * Enter acts on the click, not on the press (a page's keyboard, ADR 0139:
+   * Enter may close the dialog and the keyboard under the finger, whose
+   * release must not end as a tap on what then lies there).
+   */
+  enterOnClick?: boolean;
   /** The clock for shift's double tap, ms (tests). Default `performance.now()`. */
   now?(): number;
 }
@@ -157,7 +163,7 @@ export class OwnKeyboard {
       this.downs.set(e.pointerId, d);
       key.classList.add('is-down');
       const a = key.dataset.act;
-      if (a !== undefined && ON_CLICK.has(a)) return;
+      if (this.onClick(a)) return;
       this.press(key);
       if (a === 'back') {
         d.delay = setTimeout(() => {
@@ -185,7 +191,7 @@ export class OwnKeyboard {
       // The keys of `ON_CLICK` act here; the others acted on the press, and `detail` 0 is an
       // activation without a pointer.
       const a = key.dataset.act;
-      if ((a !== undefined && ON_CLICK.has(a)) || e.detail === 0) this.press(key);
+      if (this.onClick(a) || e.detail === 0) this.press(key);
     });
     // A long press on a key is not a text selection or a context menu.
     this.el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -201,6 +207,11 @@ export class OwnKeyboard {
       win?.removeEventListener('blur', drop);
       win?.removeEventListener('pagehide', drop);
     });
+  }
+
+  /** Whether the key of this act acts on the click (`ON_CLICK`; Enter where the owner asks). */
+  private onClick(act: string | undefined): boolean {
+    return act !== undefined && (ON_CLICK.has(act) || (act === 'enter' && this.deps.enterOnClick === true));
   }
 
   /** Shift now: off, once (the next letter is a capital) or locked. */

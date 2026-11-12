@@ -140,6 +140,7 @@ import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
 import { PHONE_MAX_SHORT_SIDE } from '../core/device';
 import { device } from '../core/device';
+import { sendOwnKey, setPageKeyboard, setPageKeyboardUp } from '../core/own-keyboard';
 import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from './auto-reconnect';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
@@ -215,6 +216,14 @@ export class Shell {
    * Decided once, when the shell is built.
    */
   private readonly phoneGame: boolean;
+  /**
+   * Our own keyboard is the phone's (ADR 0138, ADR 0139): the phone's game
+   * layout is used and the address does not say `?kbd=0` (the device's
+   * keyboard, kept until the owner's release decision).
+   */
+  private readonly ownKeyboard: boolean;
+  /** Phone only: our keyboard on the pages outside the game layout (ADR 0139; src/phone/keyboard-pages.ts). */
+  private pageKeyboard: import('../phone').PageKeyboardHandle | null = null;
   /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
   private phoneLayer: import('../phone').PhoneLayer | null = null;
   /** Phone game layout: the automatic reconnect's memory (auto-reconnect.ts). */
@@ -255,6 +264,9 @@ export class Shell {
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
     this.phoneGame = device().phone && phoneSizeWindow(doc.defaultView);
+    this.ownKeyboard = this.phoneGame && new URLSearchParams(doc.defaultView?.location.search ?? '').get('kbd') !== '0';
+    // Before any page is drawn: the shared field components mark their fields by it.
+    setPageKeyboard(this.ownKeyboard);
     // index.html's first paint draws the banner in a start page host of its
     // own (ADR 0083): the start page is mounted beside it, in the same box.
     const first = doc.getElementById('wc-start-host');
@@ -299,6 +311,7 @@ export class Shell {
     void this.newUserScripts();
     // Phone only (ADR 0136): fetch the phone layer now, so it is there when the game opens.
     if (this.phoneGame) void this.loadPhone().catch(() => {});
+    if (this.ownKeyboard) this.mountPageKeyboard();
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
       if (!this.opts.probe) this.prefetchChrome();
@@ -759,6 +772,35 @@ export class Shell {
     this.opts.root.ownerDocument.documentElement.classList.toggle('wc-phone-game', on);
   }
 
+  /**
+   * Phone only (ADR 0139): our keyboard on the pages outside the game
+   * layout, mounted on the app box once the phone chunk is there. It closes
+   * the game layout's own keyboard when it comes up over the game.
+   */
+  private mountPageKeyboard(): void {
+    const { root, settings } = this.opts;
+    this.loadPhone().then(
+      (phone) => {
+        try {
+          this.pageKeyboard ??= phone.mountPageKeyboard({
+            root,
+            settings,
+            sendKey: (target, key) => sendOwnKey(target, key),
+            onUp: (up) => {
+              setPageKeyboardUp(up);
+              if (up) this.phoneLayer?.foldOwnKeyboard();
+            },
+          });
+        } catch (err) {
+          console.error('WebCockpit: the pages\' keyboard could not be mounted', err);
+          // No keyboard of ours: fields drawn from now on ask the device for its own again.
+          setPageKeyboard(false);
+        }
+      },
+      () => setPageKeyboard(false),
+    );
+  }
+
   /** Phone only: the phone layer's chunk (ADR 0136); a failed load may be tried again. */
   private loadPhone(): Promise<typeof import('../phone')> {
     this.phoneP ??= import('../phone');
@@ -877,7 +919,7 @@ export class Shell {
               // layout's keyboard by default; `?kbd=0` keeps the device's (the old path, until the
               // owner's release decision). The phone layer reads the rest of the value
               // (`okbFromQuery`); here it only decides whether the command line is handed over.
-              ...(new URLSearchParams(root.ownerDocument.defaultView?.location.search ?? '').get('kbd') !== '0'
+              ...(this.ownKeyboard
                 ? {
                     ownKeyboard: {
                       setOwnKeyboard: (on: boolean) => app.input.setOwnKeyboard(on),
