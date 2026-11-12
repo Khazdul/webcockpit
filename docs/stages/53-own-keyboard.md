@@ -485,6 +485,18 @@ moves the caret), script pane fields, key sound.
   emulation (cause not found; for the review); nothing device-tested.
   Screenshots `docs/stages/img/53-i-*`.
 
+- **Review of 53i** (fresh subagent, the review before the release):
+  would release; nothing blocking. The three window sizes on a turn
+  are older than this stage (the same on main): `phone-viewport.ts`
+  publishes the height 150 ms after the width, and the phone layer's
+  key size change asks for one more layout. Being fixed with: two
+  window sizes when the keyboard closes for lack of room; the Comm
+  hood costing two rows at the default text size; a test race in
+  `phone-game-landscape.spec.ts`; the device state after a failed
+  layer mount. Whole stage against main: every change that reaches a
+  desktop or tablet is gated or intended. Not checked: devices, real
+  fullscreen, forced colours.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
