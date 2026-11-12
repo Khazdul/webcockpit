@@ -501,5 +501,10 @@ the iPhone.
   condition is lifted by the owner). Goal 12 in `intent.md` reworded as
   proposed. New wish: our keyboard everywhere on the phone, the start
   menu's pages included.
+  - Fixed (9743c577): a held K key asks whether its box has room
+    before anything is shown or hidden; a refused hold changes
+    nothing. Left: with our keyboard and Comm both open in portrait a
+    refused hold still folds the keyboard (room is only known on the
+    layout without it).
 
 (After each round.)
