@@ -1,6 +1,8 @@
-// Stage 53 (ADR 0138): an on-screen keyboard of our own for the command
-// field of the phone's game layout, behind `?kbd=1` (the layout of the
-// browser's language), `?kbd=sv` or `?kbd=en`.
+// Stage 53 (ADR 0138): an on-screen keyboard of our own for the phone's
+// game layout, behind `?kbd=1` (the layout of the browser's language),
+// `?kbd=sv` or `?kbd=en`. This file: the keyboard itself and the command
+// field. The other fields (Comm, the hot key box, script panes), the
+// settings and the vibration: phone-own-keyboard-fields.spec.ts.
 //
 // - Without `?kbd=` nothing differs: no `inputmode`, no keyboard, no
 //   readout, no state class.
@@ -390,31 +392,58 @@ test('Enter sends the line as the Enter key does, with history, and the keyboard
   expect(errors).toEqual([]);
 });
 
-test('the password prompt: the swapped field asks for no keyboard either, our keys type the masked line, nothing is recorded', async ({ page }) => {
+test('the password prompt: the same field, masked with bullets and no password field; our keys type it, nothing is recorded, the arrows are dimmed', async ({ page }) => {
   const m = await enterMock(page);
+  await setScreen(page, S21);
   await openKeyboard(page);
   await type(page, 'shift', 'r', 'a', 's', 't', 'a', 'enter');
   await expect.poll(() => m.sent).toEqual(['Rasta']);
+  await expect(key(page, 'older')).not.toHaveAttribute('aria-disabled');
+  // Half a line typed when the prompt comes: it does not become the password.
+  await type(page, 'l', 'o');
   m.server().send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, ECHO])]));
-  await expect(field(page)).toHaveAttribute('type', 'password');
+  await expect(field(page)).toHaveClass(/\bwc-masked\b/);
+  await expect(field(page)).toHaveValue('');
+  // The desktop's way: the textarea stays, with the bullets over it. No `type="password"` element anywhere.
+  expect(await field(page).evaluate((el) => el.tagName)).toBe('TEXTAREA');
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await expect(field(page)).toHaveAttribute('inputmode', 'none');
   await expect(field(page)).toHaveAttribute('virtualkeyboardpolicy', 'manual');
-  // The swap kept the focus and the keyboard.
+  // The focus and the keyboard stayed.
   expect(await inputFocused(page)).toBe(true);
   await expect(okb(page)).toBeVisible();
-  await expect(readout(page)).toContainText('ae INPUT im=none | okb 1');
+  await expect(readout(page)).toContainText('ae TEXTAREA im=none | okb 1');
+  // No history at the prompt: the arrows are dimmed (review finding D), and do nothing.
+  await expect(key(page, 'older')).toHaveAttribute('aria-disabled', 'true');
+  await expect(key(page, 'newer')).toHaveAttribute('aria-disabled', 'true');
   await type(page, 's', 'e', 'c', 'x', 'back', 'r', 'e', 't');
   await expect(field(page)).toHaveValue('secret');
   await expect(page.locator('.wc-input-mask')).toHaveText('••••••');
+  await expect(page.locator('.wc-input-mask')).toBeVisible();
+  // The typed text itself is not painted.
+  expect(await field(page).evaluate((el) => getComputedStyle(el).color)).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  await key(page, 'older').tap({ force: true });
+  await expect(field(page)).toHaveValue('secret');
+  // A range selected in the masked line is collapsed at once (no selection toolbar is offered the password).
+  await field(page).evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 6));
+  await expect.poll(() => field(page).evaluate((el: HTMLTextAreaElement) => [el.selectionStart, el.selectionEnd])).toEqual([6, 6]);
   await type(page, 'enter');
   await expect.poll(() => m.sent).toEqual(['Rasta', 'secret']);
   await expect(field(page)).toHaveValue('');
   expect(await history(page)).toEqual(['Rasta']);
+  // The prompt goes while the next try is half typed: the line is shown again, empty, and has its history back.
+  await type(page, 'h', 'a', 'l');
   m.server().send(Buffer.from([IAC, WONT, ECHO]));
-  await expect(field(page)).not.toHaveAttribute('type', 'password');
+  await expect(field(page)).not.toHaveClass(/\bwc-masked\b/);
+  await expect(field(page)).toHaveValue('');
+  await expect(page.locator('.wc-input-mask')).toBeHidden();
+  await expect(key(page, 'older')).not.toHaveAttribute('aria-disabled');
   await expect(field(page)).toHaveAttribute('inputmode', 'none');
   await expect(okb(page)).toBeVisible();
   expect(await inputFocused(page)).toBe(true);
+  await type(page, 'older');
+  await expect(field(page)).toHaveValue('Rasta');
+  expect(m.sent).toEqual(['Rasta', 'secret']);
 });
 
 // ---------------------------------------------------------------- the layout
@@ -652,17 +681,27 @@ test('portrait, six hot keys: both columns above the compass, lifted, clear of t
     expect(b.top).toBeCloseTo(before[i]!.top - k.height, 0);
     expect(b.width).toBe(before[i]!.width);
   }
-  // The lens (or, with no room, its key row) keeps clear of the columns.
+  // The lens has its room on this screen, and keeps clear of the columns.
   const g = await layout(page);
   const top = Math.min(...after.map((b) => b.top));
+  expect(g.lens).not.toBeNull();
+  expect(g.lensHidden).toBe(false);
   const lens = page.locator('.wc-ph-lens');
-  if (g.lens) {
-    const l = await box(lens);
-    expect(l.y + l.height).toBeLessThanOrEqual(top + 0.5);
-  } else {
-    expect(g.lensHidden).toBe(true);
-    for (const sat of await rects(page.locator('.wc-ph-satrow .wc-ph-sat'))) expect(sat.bottom <= top + 0.5 || sat.right <= Math.min(...after.map((b) => b.left)) + 0.5).toBe(true);
-  }
+  await expect(lens).toBeVisible();
+  const l = await box(lens);
+  expect(l.y + l.height).toBeLessThanOrEqual(top + 0.5);
+  // With the digit row up there is less room: the lens shrinks or gives way to its key row, and
+  // either way nothing reaches into the columns.
+  await key(page, 'digits').tap();
+  await expect.poll(() => rowsOf(page).then((r) => r.length)).toBe(5);
+  await frames(page);
+  const up = await rects(page.locator('.wc-ph-hk'));
+  const upTop = Math.min(...up.map((b) => b.top));
+  const upLeft = Math.min(...up.map((b) => b.left));
+  const g2 = await layout(page);
+  expect(g2.lens !== null || g2.lensHidden).toBe(true);
+  for (const part of await rects(page.locator('.wc-ph-lens:visible, .wc-ph-satrow:visible .wc-ph-sat'))) expect(part.bottom <= upTop + 0.5 || part.right <= upLeft + 0.5).toBe(true);
+  expect(await page.locator('.wc-ph-lens:visible, .wc-ph-satrow:visible .wc-ph-sat').count()).toBeGreaterThan(0);
 });
 
 test('portrait: the strip, the fight card and Comm end above the lifted hot keys', async ({ page }) => {
@@ -808,7 +847,7 @@ test('landscape (800 × 360, six hot keys): the block in the middle, K1 to K3 le
   // The block and its columns stand in the middle of what the compass leaves.
   const groupLeft = Math.min(...left.map((b) => b.left));
   const groupRight = Math.max(...right.map((b) => b.right));
-  expect(groupLeft - 8).toBeCloseTo(p.x - 8 - groupRight, 0);
+  expect(groupLeft).toBeCloseTo(p.x - 8 - groupRight, 0);
   // The field takes the row's full width.
   const f = await box(field(page));
   expect(f.x + f.width).toBeGreaterThan(cockpit.x + cockpit.width - 32);
@@ -975,11 +1014,12 @@ test('the strip and Comm open with the keyboard up end above it (portrait and la
   // The column, when it has the rows, ends above the keyboard too.
   expect(land.side.h).toBeLessThanOrEqual(land.rows - land.bottom);
   const k2 = await box(okb(page));
+  // (800 x 360: the column has the rows above the keyboard for the strip.)
+  expect(land.strip.h).toBeGreaterThan(0);
   const pane = page.locator('.wc-pane[data-phone-strip]');
-  if (await pane.isVisible()) {
-    const p = await box(pane);
-    expect(p.y + p.height).toBeLessThanOrEqual(k2.y + 0.5);
-  }
+  await expect(pane).toBeVisible();
+  const p = await box(pane);
+  expect(p.y + p.height).toBeLessThanOrEqual(k2.y + 0.5);
 });
 
 // ------------------------------------------------- layouts, pages, the keys
@@ -1216,11 +1256,13 @@ test('the password prompt: the arrows recall nothing', async ({ page }) => {
   await type(page, 'shift', 'r', 'a', 'enter');
   await expect.poll(() => m.sent).toEqual(['Ra']);
   m.server().send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, ECHO])]));
-  await expect(field(page)).toHaveAttribute('type', 'password');
+  await expect(field(page)).toHaveClass(/\bwc-masked\b/);
   await expect(okb(page)).toBeVisible();
-  await type(page, 'p', 'w', 'older');
+  // (Dimmed: Playwright taps them only when forced. A press still does nothing.)
+  await type(page, 'p', 'w');
+  await key(page, 'older').tap({ force: true });
   await expect(field(page)).toHaveValue('pw');
-  await type(page, 'newer');
+  await key(page, 'newer').tap({ force: true });
   await expect(field(page)).toHaveValue('pw');
   // Shift and the symbols work in the masked line.
   await type(page, 'shift', 'x', 'sym', '#');
@@ -1278,31 +1320,30 @@ test('a touch that is cancelled stops the repeat', async ({ page }) => {
   expect(await len()).toBe(at);
 });
 
-test('a text field that is not ours closes our keyboard: Comm\'s reply line', async ({ page }) => {
-  const m = await enterMock(page);
-  await m.login();
+test('a text field that is not ours closes our keyboard; a control that is no text field leaves it', async ({ page }) => {
+  await openPhone(page);
   await setScreen(page, S21);
-  m.server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'you at the ford?'" }));
-  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
-  const comm = page.locator('.wc-pane[data-pane="comm"]');
-  await expect(comm).toBeVisible();
-  await comm.locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
-  const reply = comm.locator('.wc-cm-rinput');
-  await expect(reply).toBeVisible();
   await openKeyboard(page);
   await type(page, 'h', 'i');
   expect((await layout(page)).bottom).toBeGreaterThan(0);
-  // The reply line takes the focus (it has the device's keyboard until round 53d).
-  await reply.tap();
-  await expect(reply).toBeFocused();
+  // No such field is in the game layout itself since round 53d; one put there (outside every pane and the box) stands for it.
+  await page.evaluate(() => {
+    const f = document.createElement('input');
+    f.type = 'text';
+    f.id = 'okb-test-foreign';
+    document.querySelector('.wc-cockpit')!.append(f);
+    f.focus();
+  });
   await expect(okb(page)).toBeHidden();
   await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
   await expect.poll(async () => (await layout(page)).bottom).toBe(0);
-  // The command line keeps its text, and nothing of the keyboard's arrangement is left behind.
+  // It keeps its focus and is not marked; the command line keeps its text; nothing of the arrangement is left behind.
+  await expect(page.locator('#okb-test-foreign')).toBeFocused();
+  await expect(page.locator('#okb-test-foreign')).not.toHaveAttribute('inputmode');
   await expect(field(page)).toHaveValue('hi');
-  await expect(reply).not.toHaveAttribute('inputmode');
-  expect(await page.locator('.wc-ph-layer').evaluate((el) => [el.getAttribute('data-okb'), el.style.getPropertyValue('--okb-lift')])).toEqual([null, '']);
+  expect(await page.locator('.wc-ph-layer').evaluate((el) => [el.getAttribute('data-okb'), el.style.getPropertyValue('--okb-lift'), document.documentElement.style.getPropertyValue('--wc-okb-h')])).toEqual([null, '', '']);
   await expect(pad(page)).toBeVisible();
+  await page.evaluate(() => document.getElementById('okb-test-foreign')!.remove());
   // A tap on the command field brings ours back.
   await openKeyboard(page);
   expect(await inputFocused(page)).toBe(true);
@@ -1316,7 +1357,6 @@ test('a text field that is not ours closes our keyboard: Comm\'s reply line', as
   });
   await expect(okb(page)).toBeVisible();
   await page.evaluate(() => document.getElementById('okb-test-box')!.remove());
-  expect(m.sent).toEqual([]);
 });
 
 test('a held hot key folds our keyboard and opens its box; a tap on the command field closes the box and opens ours', async ({ page }) => {
