@@ -466,9 +466,9 @@ page is laid out at the new width and the old height. Turning to
 landscape that has always meant one layout at a too tall size; turning
 back to portrait it now shows as two layouts at the old low height
 (three window sizes to MUME for the turn, in emulation). Before the
-hood a 350 ms pause of the page after the turn (Comm laying itself out
-again as its content moved a row) hid them: the first frame came after
-the height. Whether a phone shows the same is not known; the settle
+hood a 350 ms pause of the page after the turn hid them (the first
+frame came after the height); with the hood in both shapes the pause is
+not there. Why was not looked into. Whether a phone shows the same is not known; the settle
 time is the place to look.
 
 **Not verified on a device:** everything of this round. In emulation
