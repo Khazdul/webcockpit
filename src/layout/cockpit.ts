@@ -1485,7 +1485,7 @@ export class Cockpit {
    * whether Comm is kept for it, and the open parts left out. Changes
    * nothing: `refused` says that the keyboard was wanted and left out.
    */
-  private allocPhoneGame(cell: { w: number; h: number; px?: number }, W: number, H: number, land: boolean, kbd: boolean, ask: PhoneAsk): { g: PhoneGameResult; refused: boolean } {
+  private allocPhoneGame(cell: { w: number; h: number }, W: number, H: number, land: boolean, kbd: boolean, ask: PhoneAsk): { g: PhoneGameResult; refused: boolean } {
     const inputRows = commandRows(cell.h);
     // A keyboard of our own (`setPhoneBottom`): whole rows from the bottom edge, and what they are
     // on screen (`ownKeyboardReserve`). Portrait: the compass and the hot keys stand on the keyboard's
@@ -1512,7 +1512,7 @@ export class Cockpit {
       fight: this.pgFight,
       comm: this.pgComm,
       // Comm's least height holds its 40 px reply line at every text size (round 53k).
-      commMin: commMinRows(cell.h, cell.px ?? 0),
+      commMin: commMinRows(cell.h, (this.cells.get() as { px?: number }).px ?? 0),
       lens: this.lensCells(cell, inputRows * cell.h, bottom > 0 && land),
       ...(bottom > 0 ? { bottom, ...(ask.commKeep ? { commKeep: true } : {}) } : {}),
       ...(ask.hide ? { hide: ask.hide } : {}),

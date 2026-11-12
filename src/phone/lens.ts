@@ -277,10 +277,8 @@ export class LensView {
         timer = null;
         this.el.classList.add('is-drag');
       } else if (mode === 'armed' && far > LENS_SIZE_SLOP) {
-        // The resize counts from where the finger is now, so the lens does not jump by the slop.
+        // (Counted from where the finger went down: the slop is a few px of size, not a jump.)
         mode = 'size';
-        x0 = x;
-        y0 = y;
         this.el.classList.add('is-drag');
       }
       if ((mode === 'move' || mode === 'size') && !frame) frame = win.requestAnimationFrame(tell);
@@ -288,6 +286,10 @@ export class LensView {
     b.addEventListener('pointerup', (e) => {
       if (e.pointerId === id) finish(false);
     });
+    // The finger's moves are ours: the browser makes no scroll or fling of them. (With
+    // `touch-action: none` alone nothing scrolls either, but a flick still counts as a fling to
+    // Chrome, which then drops the next tap anywhere on the page as the one that stops it.)
+    b.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     b.addEventListener('pointercancel', (e) => {
       if (e.pointerId === id) finish(true);
     });
