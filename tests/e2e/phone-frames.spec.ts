@@ -146,13 +146,14 @@ test('Profile: a tap highlights a profile and shows its buttons; they fit and ar
     expect(b.right).toBeLessThanOrEqual(rb.x + rb.width);
     expect(b.top).toBe(boxes[0]!.top);
   }
-  // Select, then Rename: the old-look prompt; Esc back with the row still highlighted.
+  // Select, then Rename: its dialog over the list; Esc back with the row still highlighted.
   await row.locator('[data-btn="SELECT"]').tap();
   await expect.poll(profile).toBe('phoneprof');
   await expect(btns).toHaveText([/Edit/, /Rename/, /Delete/]);
   await row.locator('[data-btn="RENAME"]').tap();
-  await expect(f.locator('.wc-title-row')).toContainText('Rename Profile');
+  await expect(page.locator('.wc-lk-dialog[data-dlg="rename"] .wc-lk-hood-t')).toHaveText('Rename Profile');
   await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-lk-dialog')).toHaveCount(0);
   await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await expect(row).toHaveClass(/is-on/);
 });

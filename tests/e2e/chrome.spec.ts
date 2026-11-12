@@ -35,7 +35,6 @@ const startRow = (page: Page, key: string) => page.locator(`.wc-start .wc-sm-ite
 const plist = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-pl');
 const plCursor = (page: Page) => plist(page).locator('.wc-pl-row.is-on');
 const plFlash = (page: Page) => plist(page).locator('.wc-lk-flash');
-const startTitle = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 const settings = (page: Page) => page.evaluate(() => window.__wc!.settings.get());
 
 function watchErrors(page: Page): string[] {
@@ -557,14 +556,14 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
   await page.keyboard.press('Tab');
   await expect(plist(page).locator('.wc-lk-btn.is-sel')).toHaveText(/New/);
   await page.keyboard.press('Enter');
-  await expect(startTitle(page)).toHaveText('─── Create New Profile ───');
+  await expect(page.locator('.wc-lk-dialog[data-dlg="new"] .wc-lk-hood-t')).toHaveText('New Profile');
   await page.keyboard.type('9lives');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-start .wc-c-danger')).toHaveText('The name must start with a letter.');
+  await expect(page.locator('.wc-lk-dialog[data-dlg="new"] [role="alert"]')).toHaveText('The name must start with a letter.');
   await page.keyboard.press('Control+a');
   await page.keyboard.type('ranger');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden])')).toContainText('Name: ranger');
+  await expect(page.locator('.wc-lk-dialog[data-dlg="new-how"]')).toContainText('How should ranger start?');
   await page.keyboard.press('b');
   await expect(plFlash(page)).toHaveText('Created "ranger".');
   await expect.poll(async () => (await settings(page)).profile).toBe('ranger');
@@ -573,7 +572,7 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
 
   // RENAME (its letter).
   await page.keyboard.press('r');
-  await expect(startTitle(page)).toHaveText('─── Rename Profile ───');
+  await expect(page.locator('.wc-lk-dialog[data-dlg="rename"] .wc-lk-hood-t')).toHaveText('Rename Profile');
   await page.keyboard.press('Control+a');
   await page.keyboard.type('hunter');
   await page.keyboard.press('Enter');
@@ -589,8 +588,9 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
 
   // DELETE: any other key cancels, y deletes.
   await page.locator('.wc-start [data-btn="DELETE"]').click();
-  await expect(page.locator('.wc-start .wc-frame:not([hidden])')).toContainText("Delete profile 'hunter'?  (y/N)");
+  await expect(page.locator('.wc-lk-dialog[data-dlg="delete"]')).toContainText('Delete profile hunter?');
   await page.keyboard.press('x');
+  await expect(page.locator('.wc-lk-dialog')).toHaveCount(0);
   await expect(plist(page).locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await page.locator('.wc-start [data-btn="DELETE"]').click();
   await page.keyboard.press('y');
