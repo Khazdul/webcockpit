@@ -273,6 +273,28 @@ test('portrait: Comm has its hood (COMM), alone, while its reply is typed in and
   await type(page, 'o', 'r');
   await whole();
   await key(page, 'fold').tap();
+  // A new phone's text size (14: a cell of about 15 px, a little under the 16 px hood): the hood
+  // still costs one row, not two (review F3), and lies over nothing of the conversation.
+  const sizeWas = await page.evaluate(() => window.__wc!.settings.get().appearance.size);
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 14 } }));
+  await frames(page);
+  const cell14 = await page.evaluate(() => window.__wc!.cells.get().h);
+  expect(cell14).toBeGreaterThan(15);
+  expect(cell14).toBeLessThan(16);
+  expect(await headRows()).toBe(1);
+  await expect(hood).toBeVisible();
+  {
+    const h = await box(hood);
+    // Whole on screen, hanging from Comm's top edge; the search key and the first line are clear of it.
+    expect(Math.abs(h.height - 16)).toBeLessThanOrEqual(0.5);
+    const c = await box(comm(page).locator('.wc-pane-content'));
+    expect(c.y).toBeGreaterThanOrEqual(h.y + h.height - 1.5);
+    expect(c.y).toBeLessThan(h.y + h.height);
+    const sb = await box(comm(page).locator('.wc-cm-sbtn'));
+    expect(sb.x >= h.x + h.width || sb.y >= h.y + h.height - 1.5).toBe(true);
+  }
+  await page.evaluate((size) => window.__wc!.settings.update({ appearance: { size } }), sizeWas);
+  await frames(page);
   // A small phone, the reply typed in: Comm is at its least rows above the keyboard. The hood
   // gives way there, and the reply line is whole above the band, as before the hood came.
   await setScreen(page, { width: 320, height: 568 });

@@ -454,7 +454,11 @@ long press in the code; a script edited from the game's menu.
 landscape Comm has a hood reading COMM … Portrait has neither"). The
 missing title was that decision, not a fault. Comm now has the same
 hood in portrait, on rows of its own as the strip's hood
-(`phoneCommHeadRows`: one row at the default text size). Where Comm's
+(`phoneCommHeadRows`). The hood is 16 px: it takes one row wherever a
+row is at least 15 px (it may reach 1 px into Comm's own top air,
+`PHONE_COMM_HOOD_SLACK_PX`), so also at a new phone's text size 14 (a
+15.24 px cell), where the first build of this round took two (review
+F3); smaller text takes two rows. Where Comm's
 content would keep less than 104 px under it (a small phone, typing
 above the keyboard) the hood is left out and the rows are the
 conversation's (`PHONE_COMM_HOOD_KEEP_PX`, `Cockpit.phoneCommHead`).

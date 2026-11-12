@@ -991,6 +991,21 @@ const STATES: State[] = [
       await page.waitForTimeout(500);
     },
   },
+  {
+    // Text size 14 (a cell of about 15 px): the 16 px hood on one row.
+    name: 'comm-portrait-14',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    darkOnly: true,
+    run: async (page) => {
+      await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 14 } }));
+      await openChat(page, 'Gibur');
+      await page.waitForTimeout(500);
+    },
+  },
   { name: 'comm-portrait-keyboard', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: S21, run: (page) => ownReply(page) },
   {
     name: 'comm-portrait-search',

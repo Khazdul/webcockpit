@@ -1417,7 +1417,7 @@ export class Cockpit {
     // `PHONE_COMM_HOOD_KEEP_PX` under the hood and above its band (a line of chat and the whole
     // reply line): on a short screen, typing above the keyboard, the rows are the conversation's,
     // and the hood gives way.
-    const headRows = phoneCommHeadRows(cell.h, g.landscape && g.strip.h > 0);
+    const headRows = phoneCommHeadRows(cell.h, g.landscape && g.strip.h > 0, g.landscape ? 0 : PHONE_COMM_HOOD_SLACK_PX);
     const hooded = g.landscape || (g.comm.h - headRows - PHONE_COMM_BAND_ROWS) * cell.h >= PHONE_COMM_HOOD_KEEP_PX;
     this.pgCommHead = g.comm.h > 0 && !g.tooSmall && hooded ? headRows : 0;
     for (const [id, shell] of this.shells) {
@@ -2511,10 +2511,15 @@ export const PHONE_SIDE_DIVIDER_PX = 6;
  */
 export const PHONE_COMM_HOOD_KEEP_PX = 104;
 /** The rows of Comm the phone layer's hood takes: the hood, and in landscape the divider above it when the strip is open too. */
-export function phoneCommHeadRows(cellH: number, divided: boolean): number {
-  const px = PHONE_STRIP_CHROME_PX + (divided ? PHONE_SIDE_DIVIDER_PX : 0);
+export function phoneCommHeadRows(cellH: number, divided: boolean, slack = 0): number {
+  const px = PHONE_STRIP_CHROME_PX + (divided ? PHONE_SIDE_DIVIDER_PX : 0) - slack;
   return cellH > 0 ? Math.max(1, Math.ceil(px / cellH - 1e-6)) : 1;
 }
+/**
+ * Portrait: the px the 16 px hood may reach into Comm's content (its own top air) rather than take
+ * a second row: at a new phone's text size (14, a 15.24 px cell) the hood is one row, not two.
+ */
+export const PHONE_COMM_HOOD_SLACK_PX = 1;
 /** Phone game layout, landscape: the least width in px of the left column's resize band (a row's height in portrait). */
 export const PHONE_SIDE_BAND_PX = 14;
 /** The columns the left column's band takes at a cell `cellW` px wide. */
