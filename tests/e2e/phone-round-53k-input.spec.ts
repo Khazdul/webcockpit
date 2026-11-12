@@ -204,3 +204,41 @@ test('Comm\'s search is open with its query when Comm comes back from the hot ke
   await expect(root).not.toHaveAttribute('data-search');
   expect(errors).toEqual([]);
 });
+
+// ------------------------------------------- 5. the kept line, disconnected
+
+test('the kept line is emptied by a disconnect: Enter at the next login prompt sends nothing of the last session', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await play(page);
+  await setScreen(page, S21);
+  await field(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await type(page, 'l', 'o', 'o', 'k', 'enter');
+  await expect.poll(() => m.sent).toEqual(['look']);
+  await key(page, 'fold').tap();
+  await expect(okb(page)).toBeHidden();
+  expect(await kept(page)).toBe(true);
+  await expect(field(page)).toHaveValue('look');
+  // The link drops.
+  const first = m.server();
+  await first.close();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
+  await expect(field(page)).toHaveValue('');
+  expect(await kept(page)).toBe(false);
+  await expect(field(page)).not.toHaveClass(/\bwc-input-kept\b/);
+  // Connected again, at the login prompt: Enter sends an empty line, not the last command (what
+  // is typed next is the first line MUME gets after it).
+  await page.locator('.wc-ph-sheet [data-row="reconnect"]').tap();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await expect.poll(() => m.server() !== first).toBe(true);
+  await field(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await expect(field(page)).toHaveValue('');
+  await type(page, 'enter');
+  await type(page, 'r', 'a', 's', 't', 'a', 'enter');
+  await expect.poll(() => m.sent).toEqual(['look', 'rasta']);
+  // The history still has the line of before.
+  await type(page, 'older', 'older');
+  await expect(field(page)).toHaveValue('look');
+  expect(errors).toEqual([]);
+});

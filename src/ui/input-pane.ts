@@ -100,8 +100,10 @@
 //   the desktop treats the selected sent line: Ctrl+A selects it natively,
 //   Ctrl+E, Alt+B and Alt+F place the caret (from the line's end) and
 //   leave ordinary text, Alt+Backspace and Ctrl+W delete it whole. The tap that brings the focus back leaves it kept, with
-//   the caret at the end. Never at a password prompt. Desktop and tablet
-//   keep the native selection as ever.
+//   the caret at the end. Never at a password prompt. A disconnect empties
+//   the sent line there, kept or still selected (`dropSentLine`): Enter at
+//   the login prompt that follows must not send it as a name. Desktop and
+//   tablet keep the native selection as ever, through a disconnect too.
 // - Own font (stage 53, round 53j): `setOwnFont` gives the line a text
 //   size of its own (the phone's game layout: a fixed size in a field of
 //   fixed height). The caret, the suggestion and the bullets then use the
@@ -423,6 +425,11 @@ export class InputPane {
     doc.defaultView?.addEventListener('focus', this.onWindowFocus);
 
     this.unsubs.push(bus.on('telnet.echo', (e) => this.setPasswordMode(e.serverEchoes)));
+    this.unsubs.push(
+      bus.on('conn.state', (s) => {
+        if (s.state === 'disconnected') this.dropSentLine();
+      }),
+    );
 
     const MO = doc.defaultView?.MutationObserver;
     this.blinkObserver = MO ? new MO(() => this.restartBlink()) : null;
@@ -578,6 +585,27 @@ export class InputPane {
     const i = this.input;
     if (this.kept && i.selectionStart !== i.selectionEnd) this.setKept(false);
   };
+
+  /**
+   * The connection is gone (a phone with our own keyboard only): the sent
+   * line that stayed to be sent again is emptied, kept or still selected.
+   * The next thing asked is the login's name, and Enter there (one tap on
+   * our keyboard) would answer it with the last command. The history has
+   * the line. A line being typed stays, and so does everything on a
+   * desktop and a tablet, where the sent line is a selection one sees.
+   */
+  private dropSentLine(): void {
+    if (!this.phone || !this.ownKeyboard || this.password) return;
+    const i = this.input;
+    const n = i.value.length;
+    if (n === 0) return;
+    const selected = i.selectionStart === 0 && i.selectionEnd === n && i.value === this.history[this.history.length - 1];
+    if (!this.kept && !selected) return;
+    this.setKept(false);
+    i.value = '';
+    this.endBrowsing();
+    this.scheduleCaret();
+  }
 
   /** Masks the input and sends without history (server echo = password). */
   setPasswordMode(on: boolean): void {

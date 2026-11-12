@@ -528,6 +528,63 @@ describe('InputPane kept line (stage 53, round 53j)', () => {
     expect(u.pane.isKept()).toBe(true);
   });
 
+  it('a disconnect empties the kept line: Enter at the next login prompt sends nothing of it', () => {
+    const drop = (t: ReturnType<typeof setup>): void => t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing' });
+    const t = sentAndFolded();
+    drop(t);
+    expect(t.pane.isKept()).toBe(false);
+    expect(t.pane.input.classList.contains('wc-input-kept')).toBe(false);
+    expect(t.pane.input.value).toBe('');
+    t.bus.emit('conn.state', { state: 'connecting', prev: 'disconnected' });
+    t.bus.emit('conn.state', { state: 'login', prev: 'connecting' });
+    t.pane.input.focus();
+    t.pane.submitLine();
+    expect(t.sent.map((s) => s.text)).toEqual(['look', '']);
+    // The history still has it.
+    t.pane.historyStep('up');
+    expect(t.pane.input.value).toBe('look');
+
+    // The keyboard up at the drop: the sent line stands selected, and goes the same way.
+    const f = setup({ phone: true });
+    f.pane.setOwnKeyboard(true);
+    f.pane.input.focus();
+    f.pane.insertText('look');
+    f.pane.submitLine();
+    expect(f.selected()).toEqual([0, 4]);
+    drop(f);
+    expect(f.pane.input.value).toBe('');
+
+    // A line being typed is not a sent one: it stays, also selected whole.
+    const d = setup({ phone: true });
+    d.pane.setOwnKeyboard(true);
+    d.pane.input.focus();
+    d.pane.insertText('look');
+    d.pane.submitLine();
+    d.pane.insertText('tell gibur wait');
+    drop(d);
+    expect(d.pane.input.value).toBe('tell gibur wait');
+    d.pane.input.setSelectionRange(0, d.pane.input.value.length);
+    drop(d);
+    expect(d.pane.input.value).toBe('tell gibur wait');
+  });
+
+  it('a disconnect leaves the line alone on a desktop and on a phone without our keyboard: the sent line stays selected', () => {
+    for (const phone of [false, true]) {
+      const t = setup({ phone });
+      t.pane.input.focus();
+      t.pane.insertText('look');
+      t.pane.submitLine();
+      t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing' });
+      expect(t.pane.input.value).toBe('look');
+      expect(t.selected()).toEqual([0, 4]);
+      expect(t.pane.isKept()).toBe(false);
+      t.pane.input.blur();
+      t.bus.emit('conn.state', { state: 'disconnected', prev: 'login' });
+      expect(t.pane.input.value).toBe('look');
+      expect(t.selected()).toEqual([0, 4]);
+    }
+  });
+
   it('nothing is kept at a password prompt, with auto-clear, on a desktop, or without our keyboard', () => {
     const t = sentAndFolded();
     t.bus.emit('telnet.echo', { serverEchoes: true });
