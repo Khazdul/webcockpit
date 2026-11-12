@@ -817,5 +817,9 @@ Wanted: the look of the plates above all; then release or not.
   - The most zoomed-in level is too zoomed in for the lens: the middle
     level becomes the most zoomed-in one (the steps move up), and a
     new fourth level is extremely zoomed out.
+- 2026-11-12: 53j item 2 (the kept line, no pop-up) is OK on the S21.
+  One more for 53k: the command field's text has the light blue
+  default colour; gold (the one that can be chosen on desktop) is to
+  be the default instead.
 
 (After each round.)
