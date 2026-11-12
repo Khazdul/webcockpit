@@ -242,6 +242,8 @@ export class PhoneLayer {
   /** What the last layout really gave the strip and Comm rows for (the keys are lit by these). */
   private stripShown = false;
   private commShown = false;
+  /** Which open parts the last layout left out for the hot key box, as `strip|comm` (their keys stay lit). */
+  private outSig = 'false|false';
   private readonly hot: HotkeysView;
   /** What the lens must stay out of from the bottom edge, as last asked of the cockpit. */
   private lensClear = 0;
@@ -390,6 +392,14 @@ export class PhoneLayer {
       keepsBox: (t) => this.okb?.el.contains(t) ?? false,
       boxFits: () => this.boxFits(),
       onBox: (open, by) => {
+        // Closed by a press on the key of a part the box has out (Comm's key, the panes' key): that
+        // press only closes the box. The part comes back, still open; the key's own action (which
+        // would close it for real) is passed over.
+        if (!open) {
+          const out = cockpit.phoneGameLayout?.hidden;
+          const key = by?.target instanceof Element ? by.target.closest<HTMLElement>('.wc-ph-sat')?.dataset.sat : undefined;
+          if (out && ((key === 'comm' && out.comm) || (key === 'panes' && out.strip))) this.swallowClick();
+        }
         // What was taken out of the layout for the box comes back with its closing (`planBox`),
         // in the one layout that also folds the keyboard below.
         if (!open) cockpit.setPhoneHide(null);
@@ -863,6 +873,16 @@ export class PhoneLayer {
     if (!this.okbOpen && !this.ownKeyboardFits()) {
       // (As when a layout closes it: the field does not stay focused with no keyboard to type with.)
       (field ?? line).blur();
+      return;
+    }
+    // One of the box's fields on a screen where the box has no room above our keyboard whatever is
+    // taken out (below the target sizes: 320 × 480 in a fight, where the card and the game text
+    // stay): the box stays as it is and the keyboard is refused, with nothing laid out. (Opening it
+    // would close the box in the next layout and the keyboard with it: two window sizes for nothing.)
+    if (!this.okbOpen && field !== null && this.hot.ownsField(field) && this.hot.boxOpen && this.boxPlan(true) === null) {
+      // (`boxPlan` laid the box out where it tried: back to where it stands.)
+      this.syncBox();
+      field.blur();
       return;
     }
     this.setOkbField(field);
@@ -1688,10 +1708,12 @@ export class PhoneLayer {
     const n = unreadCount(this.unread, this.deps.settings.get().phone.unread);
     // Lit by what is on screen, not by what was asked for: on a screen too short for it the
     // allocator leaves Comm (or the strip) out, and then the key is not lit and the badge counts on.
+    // A part the hot key box has out for now is still open, and its key stays lit (round 53k).
+    const out = this.deps.cockpit.phoneGameLayout?.hidden;
     this.lens.setKeys({
       panes: this.pages.length > 0,
-      stripOpen: this.stripShown,
-      commOpen: this.commShown,
+      stripOpen: this.stripShown || (this.stripOpen && out?.strip === true),
+      commOpen: this.commShown || (this.commOpen && out?.comm === true),
       // Shown, Comm has its own unread marks.
       badge: this.commShown ? '' : badgeText(n),
       commLabel: commKeyLabel(this.commShown, n),
@@ -1797,9 +1819,11 @@ export class PhoneLayer {
     );
     const commShown = this.commOpen && !g.tooSmall && g.comm.h > 0;
     this.comm.setPhoneOpen(commShown, { keep: g.hidden.comm });
-    if (stripShown !== this.stripShown || commShown !== this.commShown) {
+    const out = `${g.hidden.strip}|${g.hidden.comm}`;
+    if (stripShown !== this.stripShown || commShown !== this.commShown || out !== this.outSig) {
       this.stripShown = stripShown;
       this.commShown = commShown;
+      this.outSig = out;
       this.syncKeys();
     }
     this.commBand.place(
