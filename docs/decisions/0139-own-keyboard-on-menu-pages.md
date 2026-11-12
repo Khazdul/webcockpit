@@ -351,7 +351,7 @@ high there.
 ## Addendum: as built in round 53i (2026-11-12)
 
 Point 7, the leftovers of the 53h review, and one addition from the
-owner's phone. Line numbers are those of the round's last commit.
+owner's phone. Line numbers are those of the round's last commit (after the review's fixes).
 
 **Removed** (the device keyboard on a phone with the phone layer)
 
@@ -374,10 +374,11 @@ owner's phone. Line numbers are those of the round's last commit.
 **The device keyboard state is switched, not deleted.**
 `src/layout/phone-viewport.ts` still computes `keyboardUp()` and sets
 `html.wc-kbd`, but only while someone needs it: the shell turns it off
-when the pages' keyboard is mounted (`watchDeviceKeyboard(false)`,
-`src/app/shell.ts:794`) and on again if the phone layer cannot be
-mounted (`:941`); a cockpit in the old phone layout holds it on while
-it lives (`holdDeviceKeyboard`, `src/layout/cockpit.ts:617`). So with
+while the pages' keyboard is mounted and the phone layer did not fail
+to mount, whichever of the two finished last (`syncDeviceKeyboard`,
+`src/app/shell.ts:813`; review F5); a cockpit in the old phone layout
+holds it on while it lives (`holdDeviceKeyboard`,
+`src/layout/cockpit.ts:621`). So with
 the phone layer and no old-layout cockpit on the page, a shrunken
 visible area never sets it. `--wc-vv-h`, the viewport meta and the
 fullscreen re-measure are untouched.
@@ -388,14 +389,14 @@ Spotlights on a phone, which are the old tab layout and whose pane
 fields, such as Comm's search, still get the device's keyboard). To be
 removed with that layout (stage 52 file, section C):
 
-- `src/layout/phone-viewport.ts`: `KEYBOARD_SHARE` (:62),
-  `watchDeviceKeyboard` (:87), `holdDeviceKeyboard` (:99),
-  `keyboardUp` (:118), `isKeyboardUp` (:159), the class toggle (:248);
+- `src/layout/phone-viewport.ts`: `KEYBOARD_SHARE` (:63),
+  `watchDeviceKeyboard` (:88), `holdDeviceKeyboard` (:100),
+  `keyboardUp` (:119), `isKeyboardUp` (:160), the class toggle (:249);
   `phone-viewport-debug.ts:32` (`kbd` in the `?vv=1` readout).
-- `src/layout/cockpit.ts`: the hold (:617); `guard: !keyboardUp()` in
-  `relayoutPhone` (:1077); in `relayoutPhoneGame` the `kbd` that turns
-  the guard off and pins the shape (:1368, a phone without the layer);
-  `phoneGameLayoutClosed` passes it on (:1476). The allocators' `guard`
+- `src/layout/cockpit.ts`: the hold (:621); `guard: !keyboardUp()` in
+  `relayoutPhone` (:1081); in `relayoutPhoneGame` the `kbd` that turns
+  the guard off and pins the shape (:1382, a phone without the layer);
+  `phoneGameLayoutClosed` passes it on (:1498). The allocators' `guard`
   option.
 - `src/ui/ui.css:568` and `:590` (`#app` padding, `.wc-chrome` /
   `.wc-overlay` bottom), `src/chrome/start.css:542` (the almanac
@@ -430,6 +431,11 @@ lower). Nothing special: the layout uses the smaller area as any small
 screen (the too-small guard is on), our keyboard stays while the
 allocator has rows for it and closes once when it has not.
 
+- An open keyboard on a screen made too low for it closes with one
+  window size: the layer tells the cockpit what lift is enough, and the
+  layout that finds the rows too low leaves the reserve out at once
+  (`setPhoneBottom`'s `fits`, `phoneBottomRefused`; review F2). Before:
+  one size with the useless rows, one without.
 - A tap on a screen too low for the keyboard opens nothing: the layer
   asks the cockpit for the room first (`Cockpit.phoneBottomLift`, the
   same sum the layout closes it by), and the field does not keep the

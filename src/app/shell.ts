@@ -221,6 +221,8 @@ export class Shell {
   private pageKeyboard: import('../phone').PageKeyboardHandle | null = null;
   /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
   private phoneLayer: import('../phone').PhoneLayer | null = null;
+  /** Phone only: the phone layer's mount threw (the old `☰` and the device's keyboard on the command line stay). */
+  private phoneLayerFailed = false;
   /** Phone game layout: the automatic reconnect's memory (auto-reconnect.ts). */
   private autoState = AUTO_RECONNECT_IDLE;
   private startHost: HTMLDivElement;
@@ -790,8 +792,7 @@ export class Shell {
           });
           // (A load that failed first and came later: the fields drawn from now on are ours again.)
           setPageKeyboard(true);
-          // Our keyboard is the phone's only one from here: a shrunken visible area is no keyboard.
-          watchDeviceKeyboard(false, root.ownerDocument);
+          this.syncDeviceKeyboard();
         } catch (err) {
           console.error('WebCockpit: the pages\' keyboard could not be mounted', err);
           // No keyboard of ours: fields drawn from now on ask the device for its own again.
@@ -800,6 +801,17 @@ export class Shell {
       },
       () => setPageKeyboard(false),
     );
+  }
+
+  /**
+   * Phone only: whether a shrunken visible area is taken for the device's
+   * keyboard (phone-viewport.ts). Not where our keyboard is the phone's
+   * only one: the pages' keyboard is mounted and the phone layer did not
+   * fail to mount. Where the layer failed the command line has the
+   * device's keyboard, whatever order the two mounts finished in.
+   */
+  private syncDeviceKeyboard(): void {
+    watchDeviceKeyboard(this.pageKeyboard === null || this.phoneLayerFailed, this.opts.root.ownerDocument);
   }
 
   /** Phone only: the phone layer's chunk (ADR 0136); a failed load may be tried again. */
@@ -935,10 +947,12 @@ export class Shell {
               },
             });
             old.remove();
+            this.phoneLayerFailed = false;
+            this.syncDeviceKeyboard();
           } catch (err) {
             console.error('WebCockpit: the phone layer could not be mounted', err);
-            // The command line has the device's keyboard then (kept for the old phone layout).
-            watchDeviceKeyboard(true);
+            this.phoneLayerFailed = true;
+            this.syncDeviceKeyboard();
           }
         },
         () => {},
