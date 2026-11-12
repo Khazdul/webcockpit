@@ -1,6 +1,6 @@
 # Tablet layout — mockups
 
-Status: **exploring, nothing decided.** Stage 54
+Status: **shelved** (owner, 2026-11-12: the tablet keeps the phone's layout with minor improvements; none of this is built). Stage 54
 (`docs/stages/54-tablet.md`). Throwaway HTML, written without
 rendering; re-derive the look from the real pane code.
 

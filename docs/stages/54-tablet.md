@@ -1,6 +1,6 @@
 # Stage 54 — The tablet's layout
 
-Status: **In progress** (design; started 2026-11-12).
+Status: **In progress** (started 2026-11-12; direction changed the same day: the tablet keeps the phone's layout, see "Direction" below).
 
 ## Goal
 
@@ -126,4 +126,31 @@ has been hard to control on an iPad.
 The canvas of round 2 was revised in place for the last two items
 (shared `kit.css`: one frame, hairlines, grips on the dividers that
 can be dragged, corner labels).
+
+### Direction changed (2026-11-12, after round 2)
+
+The owner: the mockups are not moving in the right direction. The
+phone's layout as it is, seen on the iPad behind `?tablet=phone`, feels
+very good. **The tablet keeps the phone's layout as it is, with minor
+improvements only.** What chafes: our keyboard is too narrow, and
+fullscreen is a little buggy. The mockups of rounds 1 and 2
+(`notes/research/tablet/`) are shelved, not built.
+
+## Direction (replaces "Plan" above from step 2 on)
+
+1. **A tablet gets the phone's game layout and our keyboard by
+   default** (today only behind the trial flag). ADR 0140.
+2. **The keyboard uses the width of a tablet:** wider keys, and rows
+   to suit, on a tablet-size window. The phone's sizes do not change.
+3. **Fullscreen on the iPad:** find out why it flickers and sometimes
+   jumps back out with our keyboard up; fix what is ours, and say
+   plainly what is iPadOS's.
+4. Owner test on the iPad over the tailnet, then merge and release.
+
+### Tasks (new direction)
+
+- [ ] 54a: tablet gate (the phone's layout by default on a tablet), ADR 0140
+- [ ] 54a: keyboard width on a tablet
+- [ ] 54b: fullscreen on the iPad: investigation, then fix or note
+- [ ] Review, owner test, release
 
