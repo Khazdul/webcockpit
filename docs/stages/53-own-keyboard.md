@@ -393,6 +393,18 @@ moves the caret), script pane fields, key sound.
   CodeMirror (device keyboard until 53h). Screenshots
   `docs/stages/img/53-g-*`.
 
+- **Review of 53g** (fresh subagent; 115 desktop and tablet states
+  compared with the round before: identical; marked keys over a live
+  mock game sent nothing to MUME; the game layout's keys identical but
+  for the backtick): nothing blocking. Handed to 53h: the keyboard
+  still opens before the click for a field the page does not focus on
+  pointerdown (the manual's find; a lost click, a keyboard raised by a
+  tap on blank page); several guards have no failing test (the Esc
+  guards in `hotkeys.ts`, `timers.ts`, `player/view.ts`, the rotation
+  classes, the `.wc-menu-look` bottom rule); New in Lite with the
+  keyboard folded opens none; `scrollTop` 9 at the first line. Not
+  checked: devices, touch selection handles, native undo.
+
 - **Profile prompts in the new look** (branch
   `stage-53-profile-dialogs`, merged; ADR 0128 addendum; on the
   owner's word after 53f): New / Rename (name), Blank or Copy, the copy
