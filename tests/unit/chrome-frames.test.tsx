@@ -1,12 +1,17 @@
 // @vitest-environment happy-dom
 import { IDBFactory } from 'fake-indexeddb';
+import { type VNode, render } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AppStatusState, AppStatusView } from '../../src/app/status';
 import { ABOUT_NAV, ABOUT_TEXT, aboutSections, aboutTokens } from '../../src/chrome/frames/about';
 import { headerParts, linkClass } from '../../src/chrome/frames/esc-main';
-import { colorChoices, gridToggle, parseHex } from '../../src/chrome/frames/options';
+import { OptionsHub, colorChoices, gridToggle, parseHex } from '../../src/chrome/frames/options';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
+import { ServicesCtx } from '../../src/chrome/kit/hooks';
+import { lookFrame } from '../../src/chrome/kit/look';
+import { useKeys, useNav } from '../../src/chrome/kit/stack';
+import { StartSurface } from '../../src/chrome/start-surface';
 import { Notices } from '../../src/app/notices';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
@@ -326,9 +331,28 @@ describe('start page', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const notices = new Notices();
-    const page = mountStartPage(host, { ...startServices(), notices }, { onEnter: () => {} });
-    cleanup.push(() => page.dispose());
-    await act(() => page.show());
+    // No page of the start menu is old-look any more (the Profile list's
+    // prompts moved to the look kit, ADR 0128 addendum 2026-11-12): the
+    // surface is mounted with a look frame that pushes an ESC menu Options
+    // page, which still is on the cell grid.
+    const Probe = lookFrame(function Probe(): VNode {
+      const nav = useNav();
+      useKeys((e) => {
+        if (e.key !== 'o') return false;
+        nav.push(<OptionsHub />);
+        return true;
+      });
+      return <div class="probe" />;
+    });
+    await act(() =>
+      render(
+        <ServicesCtx.Provider value={{ ...startServices(), notices }}>
+          <StartSurface visible epoch={1} root={<Probe />} />
+        </ServicesCtx.Provider>,
+        host,
+      ),
+    );
+    cleanup.push(() => render(null, host));
     expect(host.querySelector('.wc-start-pills')).toBeNull();
     await act(() => {
       notices.newVersion({ version: '9.9.10', commit: 'abc' });
@@ -338,12 +362,11 @@ describe('start page', () => {
       'Update 9.9.10 available: reload',
       'Storage: not saved',
     ]);
-    // An old-look frame: the Profile list's name prompt (New).
-    await key('p');
+    expect(host.querySelector('.wc-start-gridtop .wc-start-notices')).toBeNull();
+    // An old-look frame: the ESC menu's Options page.
+    await key('o');
     await act(async () => new Promise((r) => setTimeout(r, 0)));
-    expect(host.querySelector('.wc-start-pills')).not.toBeNull();
-    await key('n');
-    expect(title(host)).toBe('─── Create New Profile ───');
+    expect(title(host)).toBe('─── Options ───');
     expect(host.querySelector('.wc-start-pills')).toBeNull();
     expect(host.querySelector('.wc-start-gridtop .wc-start-notices')?.textContent).toBe(
       'Update 9.9.10 available: reload  Storage: not saved',
@@ -488,10 +511,12 @@ describe('start page', () => {
     expect(keyed()).toBeNull();
     expect(f().querySelector('.wc-lk-flash')?.textContent).toBe('Deleted "scout".');
     expect(svc.settings.get().profile).toBe('default');
-    // N: the old-look name prompt; Esc back to the list.
+    // N: the name dialog over the list (which stays drawn under it); Esc back to the list.
     await key('n');
-    expect(title(host)).toBe('─── Create New Profile ───');
+    expect(host.querySelector('.wc-lk-dialog[data-dlg="new"] .wc-lk-hood-t')?.textContent).toBe('New Profile');
+    expect(host.querySelector('.wc-pl-row.is-on')?.textContent).toContain('khazdul');
     await key('Escape');
+    expect(host.querySelector('.wc-lk-dialog')).toBeNull();
     expect(f().querySelector('.wc-lk-hood-t')?.textContent).toBe('Profiles');
     // Back (and Esc) return to the menu.
     await act(() => f().querySelector<HTMLElement>('.wc-lk-back')!.click());

@@ -87,6 +87,7 @@ import {
 import { SPEEDS } from './engine';
 import { playAtLogUs } from './timeline';
 import { OWN_KEYS_ATTR } from '../ui/input-pane';
+import { isOwnKey } from '../core/own-keyboard';
 import { closeButton, focusPopup, popupKey, pressPopup } from '../menubar/popup';
 import { LETTER_KIND, type PlayerIconName, kindIcon, playerIcon, tenIcon } from './icons';
 import type { ViewerFont, ViewerTheme } from './viewer';
@@ -1077,6 +1078,8 @@ export class PlayerView {
     if (!this.rootShown()) return;
     // A popup's keys are its own (the box's popups, the Spotlights card).
     if ((e.target as Element | null)?.closest?.(`[${OWN_KEYS_ATTR}]`)) return;
+    // A key our keyboard sent to a field of a page (ADR 0139 §4) acts on that page only.
+    if (isOwnKey(e) && !this.o.root.contains(e.target as Node | null)) return;
     // The player owns the keyboard (see the file header).
     e.stopPropagation();
     this.quiet = false;

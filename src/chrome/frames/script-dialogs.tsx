@@ -28,7 +28,7 @@ const plural = (n: number, one: string): string => `${n} ${one}${n === 1 ? '' : 
  * the top frame: Esc during the await has already popped it, and a second pop would take the
  * Scripts page (or close the window at its root).
  */
-function popper(nav: ReturnType<typeof useNav>): { stillTop(): boolean; pop(): void } {
+export function popper(nav: ReturnType<typeof useNav>): { stillTop(): boolean; pop(): void } {
   const depth = nav.depth();
   const stillTop = (): boolean => nav.depth() === depth;
   return { stillTop, pop: () => void (stillTop() && nav.pop()) };

@@ -47,8 +47,8 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
-async function openPhone(page: Page): Promise<void> {
-  await page.goto('/?replay&phone=1');
+async function openPhone(page: Page, query = ''): Promise<void> {
+  await page.goto(`/?replay&phone=1${query}`);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(pad(page)).toBeVisible();
 }
@@ -104,7 +104,7 @@ interface Mock {
 }
 
 /** Enters MUME on `?phone=1` against a mock, up to the login prompt. No `Char.Vitals` yet. */
-async function enterMock(page: Page): Promise<Mock> {
+async function enterMock(page: Page, query = ''): Promise<Mock> {
   let server: WebSocketRoute | null = null;
   let opened = 0;
   const sent: string[] = [];
@@ -117,7 +117,7 @@ async function enterMock(page: Page): Promise<Mock> {
     });
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
-  await page.goto('/?phone=1');
+  await page.goto(`/?phone=1${query}`);
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
@@ -222,20 +222,6 @@ test('the K key hides and shows the column, and the choice is kept over a reload
   await expect(kKey(page)).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('the keyboard up: the column and the K key step aside, and come back', async ({ page }) => {
-  await openPhone(page);
-  const size = page.viewportSize()!;
-  await field(page).tap();
-  await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-  await expect(hot(page)).toBeHidden();
-  await expect(kKey(page)).toBeHidden();
-  await page.setViewportSize(size);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  await expect(hot(page)).toBeVisible();
-  await expect(kKey(page)).toBeVisible();
-});
-
 // ---------------------------------------------------------------- sending
 
 test('a tap sends the key\'s command once, as typed and echoed, and never focuses the field', async ({ page }) => {
@@ -259,7 +245,6 @@ test('a tap sends the key\'s command once, as typed and echoed, and never focuse
   await expect(rb(page)).toBeHidden();
   expect(await inputFocused(page)).toBe(false);
   await expect(field(page)).toHaveValue('');
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
   expect(errors).toEqual([]);
 });
 
@@ -417,160 +402,6 @@ test('six keys: a key of the second column sends its command; held, its box stan
   expect(errors).toEqual([]);
 });
 
-// ------------------------------------- the on-screen keyboard and the focus (stage 52)
-
-/** The simulated keyboard: the visible area shrinks (up) or is whole again (down); settled when `wc-kbd` follows. */
-async function keyboard(page: Page, up: boolean, size: { width: number; height: number }): Promise<void> {
-  await page.setViewportSize(up ? { width: size.width, height: size.height - 320 } : size);
-  if (up) await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-  else await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-}
-
-test('the keyboard folded down while the command field has the focus: the field lets go, and a hot key tap sends without taking the focus back', async ({ page }) => {
-  const errors = watchErrors(page);
-  const m = await enterMock(page);
-  await m.login();
-  const size = page.viewportSize()!;
-  // Type and send a command with the keyboard up.
-  await field(page).tap();
-  expect(await inputFocused(page)).toBe(true);
-  await keyboard(page, true, size);
-  // Coming up does not blur: the field is being typed in.
-  expect(await inputFocused(page)).toBe(true);
-  await page.keyboard.type('look');
-  await page.keyboard.press('Enter');
-  await expect.poll(() => m.sent).toEqual(['look']);
-  expect(await inputFocused(page)).toBe(true);
-  // Android's back key folds the keyboard and leaves the focus where it was: the layer takes it out.
-  await keyboard(page, false, size);
-  await expect.poll(() => inputFocused(page)).toBe(false);
-  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
-  // A tap on each kind of key: sent, and the field is not focused afterwards.
-  await hk(page, 1).tap();
-  await expect.poll(() => m.sent).toEqual(['look', 'assist']);
-  expect(await inputFocused(page)).toBe(false);
-  await page.locator('.wc-ph-key[data-cmd="north"]').tap();
-  await expect.poll(() => m.sent).toEqual(['look', 'assist', 'north']);
-  expect(await inputFocused(page)).toBe(false);
-  await kKey(page).tap();
-  await kKey(page).tap();
-  await lens(page).locator('.wc-ph-lens-glass').tap();
-  expect(await inputFocused(page)).toBe(false);
-  for (const name of ['panes', 'comm']) {
-    const sat = page.locator(`.wc-ph-sat[data-sat="${name}"]:visible`);
-    await sat.tap();
-    await expect(sat).toHaveAttribute('aria-pressed', 'true');
-    expect(await inputFocused(page)).toBe(false);
-    await sat.tap();
-    await expect(sat).toHaveAttribute('aria-pressed', 'false');
-  }
-  await page.locator('.wc-ph-menu').tap();
-  await expect(page.locator('.wc-ph-sheet')).toBeVisible();
-  await page.locator('.wc-ph-sheet [data-row="close"]').tap();
-  await expect(page.locator('.wc-ph-sheet')).toBeHidden();
-  expect(await inputFocused(page)).toBe(false);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  // The field still works: a tap focuses it again.
-  await field(page).tap();
-  expect(await inputFocused(page)).toBe(true);
-  expect(errors).toEqual([]);
-});
-
-test('a rotation with the keyboard up is not the keyboard folding: the field keeps the focus (stage 52)', async ({ page }) => {
-  const m = await enterMock(page);
-  await m.login();
-  const size = page.viewportSize()!;
-  await field(page).tap();
-  await keyboard(page, true, size);
-  expect(await inputFocused(page)).toBe(true);
-  // Rotated, the keyboard still up: at the new width the viewport's baseline starts again and
-  // `wc-kbd` drops. The width changed with it, so the layer does not take the focus (which
-  // would fold the keyboard under the player's fingers).
-  await page.setViewportSize({ width: size.height, height: 240 });
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-  expect(await inputFocused(page)).toBe(true);
-  await page.keyboard.type('look');
-  await page.keyboard.press('Enter');
-  await expect.poll(() => m.sent).toEqual(['look']);
-  // Back upright with the keyboard up, then folded at that width: now the field lets go.
-  await page.setViewportSize({ width: size.width, height: size.height });
-  // (The viewport module takes the full height at this width in before the keyboard comes: its settle time.)
-  await expect.poll(async () => (await box(page.locator('.wc-cockpit'))).height).toBeGreaterThan(size.height - 60);
-  await page.waitForTimeout(400);
-  await keyboard(page, true, size);
-  expect(await inputFocused(page)).toBe(true);
-  await keyboard(page, false, size);
-  await expect.poll(() => inputFocused(page)).toBe(false);
-});
-
-test('fullscreen entered or left with the keyboard up: folding the keyboard afterwards still takes the focus out (52b review)', async ({ page }) => {
-  // A fake fullscreen state, as tests/e2e/phone-viewport-fullscreen.spec.ts has it.
-  await page.addInitScript(() => {
-    let full = false;
-    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => (full ? document.documentElement : null) });
-    (window as unknown as { __fs: (on: boolean) => void }).__fs = (on) => {
-      full = on;
-      document.dispatchEvent(new Event('fullscreenchange'));
-    };
-  });
-  const m = await enterMock(page);
-  await m.login();
-  const size = page.viewportSize()!;
-  for (const on of [true, false]) {
-    await field(page).tap();
-    await keyboard(page, true, size);
-    expect(await inputFocused(page)).toBe(true);
-    // The fullscreen state flips while the keyboard stays up: the field keeps the focus through
-    // the change and the viewport's re-measuring after it.
-    await page.evaluate((on) => (window as unknown as { __fs: (on: boolean) => void }).__fs(on), on);
-    await page.waitForTimeout(1000);
-    await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-    expect(await inputFocused(page)).toBe(true);
-    // Folded now: the field lets go, so no later tap on a key can raise the keyboard again.
-    await keyboard(page, false, size);
-    await expect.poll(() => inputFocused(page)).toBe(false);
-    await hk(page, 1).tap();
-    expect(await inputFocused(page)).toBe(false);
-  }
-  await expect.poll(() => m.sent).toEqual(['assist', 'assist']);
-});
-
-test('the keyboard going down blurs whichever field of the phone layout has the focus: Comm\'s reply, the hot key box', async ({ page }) => {
-  const m = await enterMock(page);
-  await m.login();
-  const size = page.viewportSize()!;
-  const active = () => page.evaluate(() => `${document.activeElement?.tagName}.${document.activeElement?.className ?? ''}#${document.activeElement?.id ?? ''}`);
-  // The box's Command field.
-  await hold(page, hk(page, 2));
-  await chip(page, 'custom').tap();
-  await expect(command(page)).toBeFocused();
-  await keyboard(page, true, size);
-  await expect(command(page)).toBeFocused();
-  await page.keyboard.type(' orc');
-  await keyboard(page, false, size);
-  await expect.poll(active).not.toContain('wc-ph-rb-command');
-  // The box stays, with what was typed; nothing was saved or sent.
-  await expect(rb(page)).toBeVisible();
-  await expect(command(page)).toHaveValue('bash orc');
-  await bt(page, 'Cancel').tap();
-  // Comm's reply line.
-  m.server().send(Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(`Comm.Channel.Text ${JSON.stringify({ channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'ford?'" })}`), Buffer.from([IAC, SE])]));
-  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
-  const comm = page.locator('.wc-cockpit > .wc-pane[data-pane="comm"]');
-  await comm.locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
-  const reply = comm.locator('.wc-cm-rinput');
-  await reply.tap();
-  await expect(reply).toBeFocused();
-  await keyboard(page, true, size);
-  await expect(reply).toBeFocused();
-  await page.keyboard.type('yes');
-  await keyboard(page, false, size);
-  await expect(reply).not.toBeFocused();
-  await expect(reply).toHaveValue('yes');
-  expect(m.sent).toEqual([]);
-});
-
 test('the special: unknown hp sends nothing and says so; then wimpy at half of the CURRENT hp', async ({ page }) => {
   const m = await enterMock(page);
   await m.login();
@@ -679,7 +510,6 @@ test('a hold opens the box left of the column and sends nothing; a press that sl
   expect(b.y).toBeGreaterThanOrEqual(0);
   await expect(rb(page).locator(':focus')).toHaveCount(0);
   expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
   // A press on another hot key while it is open closes it (no save) and sends nothing.
   await hk(page, 2).tap();
   await expect(rb(page)).toBeHidden();
@@ -749,20 +579,8 @@ test('Custom puts the cursor in Command; what is typed in the box never reaches 
   await expect(rb(page).locator('.wc-ph-rb-tok')).toBeHidden();
   await expect(special(page, 'wimpy50')).toHaveAttribute('aria-pressed', 'false');
   await expect(chip(page, 'custom')).toHaveAttribute('aria-pressed', 'true');
-  // The keyboard comes up: the box stays, whole, in the visible area; the column and the K key go.
-  const size = page.viewportSize()!;
-  await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
+  // (Our keyboard comes up for the field, the box staying whole above it: phone-own-keyboard-fields.spec.ts.)
   await expect(rb(page)).toBeVisible();
-  await expect(hot(page)).toBeHidden();
-  await expect(kKey(page)).toBeHidden();
-  await expect
-    .poll(async () => {
-      const b = await box(rb(page));
-      const f = await box(page.locator('.wc-input-slot'));
-      return b.y >= 0 && b.y + b.height <= f.y + 1;
-    })
-    .toBe(true);
   await expect(command(page)).toBeFocused();
   // Typing goes to the box's field: not to the command line, and no macro or page key runs.
   await page.keyboard.type('kill orc');
@@ -784,7 +602,6 @@ test('Custom puts the cursor in Command; what is typed in the box never reaches 
   // Enter in a field saves.
   await page.keyboard.press('Enter');
   await expect(rb(page)).toBeHidden();
-  await page.setViewportSize(size);
   await expect(hot(page)).toBeVisible();
   await expect(hk(page, 3)).toHaveText('kill');
   expect((await hotkeys(page))[2]).toEqual({ label: 'kill', command: 'kill orc', special: null, shown: true });
@@ -879,23 +696,19 @@ test('the lens hides while the box would collide with it, and returns when the b
   await expect(rb(page)).toBeVisible();
   expect((await box(rb(page))).y).toBeGreaterThan(l.y + l.height);
   await expect(lens(page)).toBeVisible();
-  // The keyboard up (Custom): the box moves up over the command row, into the lens's place.
+  // Custom: our keyboard comes up for the Command field, and the box stands above it, in the lens's place.
   await chip(page, 'custom').tap();
-  const size = page.viewportSize()!;
-  await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
+  await expect(page.locator('html')).toHaveClass(/\bwc-okb\b/);
   await expect(lens(page)).toBeHidden();
   await expect(page.locator('.wc-cockpit > .wc-pane[data-pane="map"]')).toBeHidden();
   // Its keys stay, as a row.
   await expect(satrow(page)).toBeVisible();
   await expect(rb(page)).toBeVisible();
-  // The box closes (the keyboard still up): the lens is back.
+  // The box closes (and the keyboard with it): the lens is back.
   await bt(page, 'Cancel').tap();
   await expect(rb(page)).toBeHidden();
   await expect(lens(page)).toBeVisible();
   await expect(satrow(page)).toBeHidden();
-  await page.setViewportSize(size);
-  await expect(lens(page)).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -968,6 +781,147 @@ test.describe('landscape', () => {
     await bt(page, 'Cancel').tap();
     await expect(rb(page)).toBeHidden();
     await expect(lens(page)).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
+// ------------------------------------------------- a hold with no room
+
+/**
+ * Records, from now on, every change of what a box makes way with (the lens,
+ * its key row, the map's pane, the hot keys' lit state), each layout and
+ * each window size sent to MUME.
+ */
+async function watchScreen(page: Page): Promise<() => Promise<string[]>> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __seen: string[] };
+    w.__seen = [];
+    const mo = new MutationObserver((ms) => {
+      for (const m of ms) {
+        const t = m.target as HTMLElement;
+        w.__seen.push(`${t.classList[0] ?? t.tagName} ${m.attributeName}=${t.getAttribute(m.attributeName!)}`);
+      }
+    });
+    for (const el of document.querySelectorAll('.wc-ph-lens, .wc-ph-satrow, .wc-cockpit > .wc-pane[data-pane="map"]')) mo.observe(el, { attributes: true });
+    mo.observe(document.querySelector('.wc-ph-hot')!, { attributes: true, subtree: true });
+    window.__wc!.app.cockpit.onLayout(() => w.__seen.push('layout'));
+    const s = window.__wc!.app.session;
+    const orig = s.setWindowSize.bind(s);
+    s.setWindowSize = (c: number, r: number) => {
+      w.__seen.push(`naws ${c}x${r}`);
+      return orig(c, r);
+    };
+  });
+  return () => page.evaluate(() => (window as unknown as { __seen: string[] }).__seen.slice());
+}
+
+/** A press that stays down well past the hold's time (a fixed wait: the box may not come). */
+const longPress = (page: Page, l: Locator) => finger(page, l, () => page.waitForTimeout(900));
+
+// Round 53j: what is above the game text and would lie under the box is taken out of the layout
+// for the box (Comm first, then the strip's pane) and comes back when the box closes. Before
+// that round such a hold was refused (stage 53d, 53e, 53i). A hold is still refused, with nothing
+// changed, where the box has no room whatever is taken out.
+const pgLayout = (page: Page) => page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!);
+
+test.describe('a hold with panes above the game text: they give way to the box', () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  for (const [what, open, part] of [
+    ['Comm', async (page: Page) => page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap(), 'comm'],
+    [
+      'a tall strip pane',
+      async (page: Page) => {
+        await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+        await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 16 } }));
+      },
+      'strip',
+    ],
+  ] as const) {
+    test(`portrait, ${what} open: the box opens and ${what} is out of the layout meanwhile; one window size out and one back`, async ({ page }) => {
+      const errors = watchErrors(page);
+      await openPhone(page);
+      await expect(lens(page)).toBeVisible();
+      await open(page);
+      await expect(page.locator('.wc-ph-comm-band, .wc-ph-strip').locator('visible=true').first()).toBeVisible();
+      await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+      const was = await pgLayout(page);
+      expect(was[part].h).toBeGreaterThan(0);
+      expect(was.hidden).toEqual({ strip: false, comm: false });
+      const seen = await watchScreen(page);
+      await hold(page, hk(page, 1));
+      await expect(rb(page)).toBeVisible();
+      await expect(hk(page, 1)).toHaveClass(/\bis-held\b/);
+      const g = await pgLayout(page);
+      expect(g.hidden[part]).toBe(true);
+      expect(g[part].h).toBe(0);
+      expect(g.game.h).toBe(was.game.h + was[part].h);
+      // The box is whole on screen, clear of what is above the game text.
+      const b = await box(rb(page));
+      expect(b.y).toBeGreaterThanOrEqual(0);
+      expect((await seen()).filter((e) => e.startsWith('naws'))).toHaveLength(1);
+      // Cancel: everything back as it was, in one layout.
+      await bt(page, 'Cancel').tap();
+      await expect(rb(page)).toBeHidden();
+      await expect.poll(async () => (await pgLayout(page)).hidden).toEqual({ strip: false, comm: false });
+      const back = await pgLayout(page);
+      expect([back.strip, back.comm, back.game]).toEqual([was.strip, was.comm, was.game]);
+      expect((await seen()).filter((e) => e.startsWith('naws'))).toHaveLength(2);
+      await expect(page.locator(part === 'comm' ? '.wc-ph-sat[data-sat="comm"]:visible' : '.wc-ph-sat[data-sat="panes"]:visible')).toHaveAttribute('aria-pressed', 'true');
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test('portrait, Comm and our keyboard open: the hold folds the keyboard and opens the box, Comm out of the layout; one window size', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openPhone(page);
+    await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+    await field(page).tap();
+    await expect(page.locator('.wc-ph-okb')).toBeVisible();
+    await expect(hk(page, 1)).toBeVisible();
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    const seen = await watchScreen(page);
+    await hold(page, hk(page, 1));
+    await expect(rb(page)).toBeVisible();
+    await expect(page.locator('.wc-ph-okb')).toBeHidden();
+    await expect(page.locator('html')).not.toHaveClass(/\bwc-okb\b/);
+    const g = await pgLayout(page);
+    expect([g.bottom, g.hidden.comm, g.comm.h]).toEqual([0, true, 0]);
+    expect((await seen()).filter((e) => e.startsWith('naws'))).toHaveLength(1);
+    // The finger's release did not open the keyboard again, and Cancel brings Comm back.
+    await page.waitForTimeout(300);
+    await expect(page.locator('.wc-ph-okb')).toBeHidden();
+    await bt(page, 'Cancel').tap();
+    await expect.poll(async () => (await pgLayout(page)).comm.h).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('a hold with no room for the box', () => {
+  // A screen so low that the box would be under its least height beside the columns, though the
+  // layout itself still fits (a split screen): nothing above the game text to take out helps.
+  test.use({ viewport: { width: 300, height: 310 } });
+
+  test('portrait, a low screen: no box, and nothing on screen changes (the lens does not blink); nothing is sent', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openPhone(page);
+    await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 10 } }));
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    expect((await pgLayout(page)).tooSmall).toBe(false);
+    await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    const was = await pgLayout(page);
+    const sent = await page.evaluate(() => window.__wc!.app.output.measureCells().rows);
+    const seen = await watchScreen(page);
+    await longPress(page, hk(page, 1));
+    await expect(rb(page)).toBeHidden();
+    expect(await seen()).toEqual([]);
+    expect(await pgLayout(page)).toEqual(was);
+    expect(await page.evaluate(() => window.__wc!.app.output.measureCells().rows)).toBe(sent);
+    // The key is as it was: the K key still folds the column.
+    await expect(hk(page, 1)).not.toHaveClass(/\bis-held\b/);
+    await kKey(page).tap();
+    await expect(hot(page)).toBeHidden();
     expect(errors).toEqual([]);
   });
 });

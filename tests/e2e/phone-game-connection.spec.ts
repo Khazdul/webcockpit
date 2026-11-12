@@ -367,22 +367,31 @@ const recordVibrate = (page: Page) =>
   });
 const vibs = (page: Page) => page.evaluate(() => (window as unknown as { __vib: number[] }).__vib);
 
-test('no vibration (removed in stage 52): no setting, no row, and no pulse on a tap that sends', async ({ page }) => {
+test('vibration is a choice again (stage 53, off by default): no pulse on a tap that sends until it is switched on', async ({ page }) => {
   await recordVibrate(page);
   const m = await mock(page);
   await enter(page);
   await m.login();
-  expect('vibrate' in (await phone(page))).toBe(false);
+  expect((await phone(page)).vibrate).toBe(false);
   await key(page, 'east').tap();
   await hk(page, 2).tap();
   await expect.poll(() => m.sent).toEqual(['east', 'bash']);
   expect(await vibs(page)).toEqual([]);
-  // The group is "Quick buttons" and has no vibrate row, though the browser can vibrate.
+  // The group is "Quick buttons"; its vibration row is there where the browser can vibrate, off.
   await openSettings(page);
   await expect(pageEl(page).locator('[data-group="compass"] .wc-ph-grp-t')).toHaveText('Quick buttons');
   await expect(pageEl(page).getByText('Compass', { exact: true })).toHaveCount(0);
-  await expect(pageEl(page).getByText(/vibrat/i)).toHaveCount(0);
-  expect(await pageEl(page).locator('[data-group="compass"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row))).toEqual(['hotkey-count']);
+  expect(await pageEl(page).locator('[data-group="compass"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row))).toEqual(['hotkey-count', 'vibrate']);
+  const row = pageEl(page).locator('[data-row="vibrate"]');
+  await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+  await row.getByRole('switch').tap();
+  expect((await phone(page)).vibrate).toBe(true);
+  await pageEl(page).locator('.wc-ph-back').tap();
+  await page.keyboard.press('Escape');
+  await key(page, 'west').tap();
+  await hk(page, 2).tap();
+  await expect.poll(() => m.sent).toEqual(['east', 'bash', 'west', 'bash']);
+  expect(await vibs(page)).toHaveLength(2);
 });
 
 test('where the browser cannot hold a wake lock, its row is absent', async ({ page }) => {
@@ -393,7 +402,8 @@ test('where the browser cannot hold a wake lock, its row is absent', async ({ pa
   await openPhone(page);
   await openSettings(page);
   const ids = (group: string) => pageEl(page).locator(`[data-group="${group}"] [data-row]`).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
-  expect(await ids('compass')).toEqual(['hotkey-count']);
+  // (The vibration row is there or not by `navigator.vibrate`: phone-own-keyboard-fields.spec.ts.)
+  expect((await ids('compass')).filter((id) => id !== 'vibrate')).toEqual(['hotkey-count']);
   expect(await ids('connection')).toEqual(['auto-reconnect', 'weather']);
   // A tap still sends without the API.
   await pageEl(page).locator('.wc-ph-back').tap();

@@ -1118,7 +1118,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     <Box size="large" title="Profile" onBack={() => !modal && !capture && void close()} winClass="wc-pe-win">
       <div
         ref={rootRef}
-        class={cx('wc-pe', `is-${place}`, sheet && narrow && 'is-sheet')}
+        class={cx('wc-pe', `is-${place}`, sheet && narrow && 'is-sheet', sheet && 'has-sheet')}
         data-view={view}
         data-mode={mode}
         data-zone={zone}

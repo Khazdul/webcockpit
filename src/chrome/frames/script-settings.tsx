@@ -16,6 +16,7 @@
 
 import type { VNode } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';
+import { ownFieldAttrs, pageKeyboard } from '../../core/own-keyboard';
 import type { SettingDecl, SettingValue } from '../../scripts/header';
 import { GlassButton, Seg, Toggle } from '../kit/look';
 import { defaultText, valueText } from './scripts-model';
@@ -74,7 +75,7 @@ function SettingInput(p: { edit: SettingEdit; kind: 'number' | 'string'; onInput
       spellcheck={false}
       autocomplete="off"
       autocapitalize="off"
-      inputMode={p.kind === 'number' ? 'decimal' : undefined}
+      {...(pageKeyboard() ? ownFieldAttrs(p.kind === 'number' ? 'digits' : undefined) : { inputMode: p.kind === 'number' ? 'decimal' : undefined })}
       onInput={(e) => p.onInput(e.currentTarget.value)}
       onBlur={p.onBlur}
     />

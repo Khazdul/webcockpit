@@ -15,7 +15,6 @@
 //   reader's or a keyboard's activation) sends too.
 // - The cell left of N is the hot keys' K key (hotkeys.ts puts it there; it
 //   has no command, so nothing here sends for it).
-// - Hidden while the on-screen keyboard is up (phone.css, `html.wc-kbd`).
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 /** The eye (look): the mockups' icon, 24 × 24. */
@@ -48,8 +47,8 @@ export const COMPASS_KEYS: readonly CompassKey[] = [
 export class Compass {
   readonly el: HTMLDivElement;
 
-  /** `send` gets the key's command (the App's typed-command path). */
-  constructor(doc: Document, send: (cmd: string) => void) {
+  /** `send` gets the key's command (the App's typed-command path); `onPress` is told of a pointer's press on a key (the layer's vibration). */
+  constructor(doc: Document, send: (cmd: string) => void, onPress?: () => void) {
     this.el = doc.createElement('div');
     this.el.className = 'wc-ph-pad';
     this.el.setAttribute('role', 'group');
@@ -74,6 +73,7 @@ export class Compass {
       if (cmd === null || (e.pointerType === 'mouse' && e.button !== 0)) return;
       // No mouse press follows: the focus (and the keyboard) stays as it is.
       e.preventDefault();
+      onPress?.();
       send(cmd);
     });
     // Browsers that still send the mouse press: it must not move the focus either.

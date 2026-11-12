@@ -20,8 +20,8 @@ type Box = { x: number; y: number; width: number; height: number };
 const box = async (page: Page, sel: string): Promise<Box> => (await page.locator(sel).first().boundingBox())!;
 
 /** The offline cockpit on a phone, the phone layer mounted. */
-async function openPhone(page: Page): Promise<void> {
-  await page.goto('/?replay&phone=1');
+async function openPhone(page: Page, query = ''): Promise<void> {
+  await page.goto(`/?replay&phone=1${query}`);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(cockpit(page)).toBeVisible();
   await expect(pad(page)).toBeVisible();
@@ -235,7 +235,6 @@ test('each compass key sends its command to the game as typed, echoed; a tap nev
   // Nothing was typed into the field, and it never got the focus.
   await expect(field(page)).toHaveValue('');
   expect(await inputFocused(page)).toBe(false);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
 });
 
 test('a tap at the login and password prompts sends nothing; in play it sends', async ({ page }) => {
@@ -353,61 +352,6 @@ test('the fight card shows with the fight and goes with it: two names, two bars,
   await expect.poll(async () => (await box(page, '.wc-game')).height).toBeCloseTo(walking.height, 0);
   expect((await box(page, '.wc-game')).y).toBeCloseTo(walking.y, 0);
   expect(errors).toEqual([]);
-});
-
-test('the keyboard up: the compass steps aside and the field takes the full width', async ({ page }) => {
-  await openPhone(page);
-  await play(page, YOU_TANK);
-  const size = page.viewportSize()!;
-  const narrow = await box(page, '.wc-input-slot > .wc-input');
-  await field(page).tap();
-  await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-  await expect(pad(page)).toBeHidden();
-  const c = await box(page, '.wc-cockpit');
-  await expect.poll(async () => (await box(page, '.wc-input-slot > .wc-input')).width).toBeGreaterThan(narrow.width + 100);
-  const f = await box(page, '.wc-input-slot > .wc-input');
-  const m = await box(page, '.wc-ph-menu');
-  expect(f.x).toBeGreaterThanOrEqual(m.x + m.width + 7);
-  expect(c.x + c.width - (f.x + f.width)).toBeLessThan(cellGap(c.width));
-  expect(f.height).toBeCloseTo(44, 0);
-  // The row sits in the visible area, the fight card stays.
-  const h = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
-  expect(f.y + f.height).toBeLessThanOrEqual(h + 0.5);
-  await expect(fight(page)).toBeVisible();
-  await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
-  // Typing works as before: the line is sent on Enter and recalled by history.
-  await page.keyboard.type('look');
-  await expect(field(page)).toHaveValue('look');
-  await page.keyboard.press('Enter');
-  await page.keyboard.type('x');
-  await page.keyboard.press('ArrowUp');
-  await expect(field(page)).toHaveValue('look');
-  // Keyboard down: the compass is back and the field ends left of it again.
-  await page.setViewportSize(size);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  await expect(pad(page)).toBeVisible();
-  const p = await box(page, '.wc-ph-pad');
-  await expect.poll(async () => {
-    const b = await box(page, '.wc-input-slot > .wc-input');
-    return b.x + b.width <= p.x - 7;
-  }).toBe(true);
-});
-
-/** The field's right edge may stop short of the cockpit's by the 8 px gutter and the last part cell. */
-const cellGap = (width: number): number => 8 + (width % 20) + 20;
-
-test('a very short visible area (a landscape keyboard) never shows too small; the row stays visible', async ({ page }) => {
-  await openPhone(page);
-  const size = page.viewportSize()!;
-  await page.setViewportSize({ width: size.width, height: 120 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-  await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
-  const slot = await box(page, '.wc-input-slot');
-  const h = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
-  expect(slot.y).toBeGreaterThan(0);
-  expect(slot.y + slot.height).toBeLessThanOrEqual(h + 0.5);
-  await expect(page.locator('.wc-game')).toBeVisible();
 });
 
 test.describe('landscape', () => {

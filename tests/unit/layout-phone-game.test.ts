@@ -5,7 +5,6 @@ import {
   COMM_MIN_ROWS,
   FIGHT_ROWS,
   GAME_KEEP_ROWS,
-  SIDE_COMM_KBD_ROWS,
   SIDE_GAME_MIN_COLS,
   SIDE_MIN_COLS,
   STRIP_MIN_ROWS,
@@ -14,14 +13,20 @@ import {
   allocatePhoneGame,
   commandRows,
   stripRows,
+  GAME_MIN_ROWS,
+  OWN_KBD_GIVE,
+  ownKeyboardReserve,
+  BAND_ROWS,
+  commMinRows,
+  phonePaneRect,
 } from '../../src/layout/phone-game';
 
 const run = (o: Partial<PhoneGameInput> = {}): PhoneGameResult => allocatePhoneGame({ cols: 43, rows: 44, inputRows: 3, ...o });
 
-/** Strip, fight, Comm, game and the command row stack without gaps or overlap and fill the screen. */
+/** Strip, Comm, fight card, game and the command row stack without gaps or overlap and fill the screen (the card under the panes: round 53k). */
 function expectStacked(r: PhoneGameResult): void {
   let y = 0;
-  for (const part of [r.strip, r.fight, r.comm, r.game, r.input]) {
+  for (const part of [r.strip, r.comm, r.fight, r.game, r.input]) {
     if (part.h === 0 && part.w === 0) continue;
     expect(part.x).toBe(0);
     expect(part.w).toBe(r.cols);
@@ -101,10 +106,11 @@ describe('allocatePhoneGame', () => {
     expectStacked(r);
   });
 
-  it('Comm opens under the fight card at its default share', () => {
+  it('Comm opens above the fight card at its default share', () => {
     const r = run({ fight: true, comm: { rows: null } });
-    // 40 % of 44 rows.
-    expect(r.comm).toEqual({ x: 0, y: 2, w: 43, h: 18 });
+    // 40 % of 44 rows; the card lies under it (round 53k).
+    expect(r.comm).toEqual({ x: 0, y: 0, w: 43, h: 18 });
+    expect(r.fight).toEqual({ x: 0, y: 18, w: 43, h: 2 });
     expect(r.game).toEqual({ x: 0, y: 20, w: 43, h: 21 });
     expect(r.commRange).toEqual({ min: COMM_MIN_ROWS, max: 44 - 3 - 2 - GAME_KEEP_ROWS });
     expectStacked(r);
@@ -130,13 +136,20 @@ describe('allocatePhoneGame', () => {
     }
   });
 
-  it('strip, fight card and Comm together stack in that order', () => {
+  it('the strip, Comm and the fight card stack in that order: the card always under the panes (round 53k)', () => {
     const r = run({ strip: true, fight: true, comm: { rows: 10 } });
     expect(r.strip.h).toBe(9);
-    expect(r.fight.y).toBe(9);
-    expect(r.comm).toEqual({ x: 0, y: 11, w: 43, h: 10 });
+    expect(r.comm).toEqual({ x: 0, y: 9, w: 43, h: 10 });
+    expect(r.fight).toEqual({ x: 0, y: 19, w: 43, h: 2 });
     expect(r.game).toEqual({ x: 0, y: 21, w: 43, h: 20 });
     expectStacked(r);
+    // One of the two open: under that one. Neither: at the very top.
+    expect(run({ strip: true, fight: true }).fight.y).toBe(9);
+    expect(run({ fight: true, comm: { rows: 10 } }).fight.y).toBe(10);
+    expect(run({ fight: true }).fight.y).toBe(0);
+    // A part that gave way or is left out for now counts as closed: the card moves up under what is left.
+    expect(run({ strip: true, fight: true, comm: { rows: 10 }, hide: { strip: false, comm: true } }).fight.y).toBe(9);
+    expect(run({ strip: true, fight: true, comm: { rows: 10 }, hide: { strip: true, comm: true } }).fight.y).toBe(0);
   });
 
   describe('short screens (the keyboard is up)', () => {
@@ -166,32 +179,12 @@ describe('allocatePhoneGame', () => {
       expectStacked(r);
     });
 
-    it('a lower gameKeep (the keyboard is up) lets Comm stay where it would have closed', () => {
-      // 16 rows: 13 above the command row, 2 for the fight card.
-      expect(run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false }).comm.h).toBe(0);
-      const r = run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false, gameKeep: 2 });
-      expect(r.comm.h).toBe(9);
-      expect(r.game.h).toBe(2);
-      expect(r.commRange).toEqual({ min: COMM_MIN_ROWS, max: 9 });
-      expectStacked(r);
-      // And the strip with it, while it has the rows for a pane.
-      expect(run({ rows: 13, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(0);
-      expect(run({ rows: 18, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(4);
-      // With the strip, the fight card and Comm on 20 rows: the strip stays only with the lower keep.
-      expect(run({ rows: 20, strip: true, fight: true, comm: { rows: 6 }, guard: false }).strip.h).toBe(0);
-      const all = run({ rows: 20, strip: true, fight: true, comm: { rows: 6 }, guard: false, gameKeep: 2 });
-      expect([all.strip.h, all.fight.h, all.comm.h, all.game.h]).toEqual([4, 2, 6, 5]);
-      // Not a number: the default.
-      expect(run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false, gameKeep: Number.NaN }).comm.h).toBe(0);
-    });
-
     it('the strip alone closes when the game would lose its rows', () => {
       const r = run({ rows: 13, strip: true, guard: false });
       expect(r.strip.h).toBe(0);
       expect(r.game.h).toBe(10);
-      // Under four rows (its hood, its dots, two rows of pane) the strip is not shown at all.
+      // Under four rows (three rows of pane and its band) the strip is not shown at all.
       expect(run({ rows: 14, strip: true, guard: false }).strip.h).toBe(0);
-      expect(run({ rows: 8, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(0);
       expect(run({ rows: 20, strip: true, guard: false }).strip.h).toBe(4);
     });
 
@@ -506,21 +499,6 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
     expect([s.strip.h, s.side.w]).toEqual([0, 0]);
   });
 
-  it('the keyboard up: Comm stays down to five rows (its reply line is typed in), and the strip gives way first', () => {
-    // Beside the strip Comm needs nine rows there (its head, chat and the whole reply line).
-    const r = land({ rows: 13, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
-    expect([r.strip.h, r.comm.h]).toEqual([4, 9]);
-    const tight = land({ rows: 12, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
-    expect([tight.strip.h, tight.comm.h]).toEqual([0, 12]);
-    const low = land({ rows: 7, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
-    expect([low.strip.h, low.comm.h]).toEqual([0, 7]);
-    expect(SIDE_COMM_KBD_ROWS).toBe(5);
-    expect(land({ rows: 5, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(5);
-    expect(land({ rows: 4, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(0);
-    // The game text keeps every row beside the column.
-    expect(r.game).toEqual({ x: 40, y: 0, w: 60, h: 10 });
-  });
-
   it('the width: a stored one within the least and what leaves the game text 40 columns', () => {
     expect(land({ strip: true }, { cols: 50 }).side.w).toBe(50);
     expect(land({ strip: true }, { cols: 10 }).side.w).toBe(SIDE_MIN_COLS);
@@ -562,8 +540,8 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
     expect(land({ fight: true }).fight).toEqual({ x: 0, y: 0, w: 100, h: 2 });
   });
 
-  it('the portrait limit and the game\'s kept rows do not apply', () => {
-    const r = land({ strip: true, comm: { rows: null }, maxTop: 3, gameKeep: 30 });
+  it('the portrait limit does not apply', () => {
+    const r = land({ strip: true, comm: { rows: null }, maxTop: 3 });
     expect(r.strip.h + r.comm.h).toBe(22);
     expect(r.game.h).toBe(19);
   });
@@ -611,5 +589,328 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
       // Ten columns are 84 px: under 96.
       expect([none.lens, none.lensHidden]).toEqual([null, true]);
     });
+  });
+});
+
+describe('the bottom reserve: a keyboard of our own (ADR 0138, stage 53a)', () => {
+  it('none by default: the result is as before', () => {
+    const r = run({ strip: true, fight: true });
+    expect(r.bottom).toBe(0);
+    expect(r).toEqual(run({ strip: true, fight: true, bottom: 0 }));
+    expectStacked(r);
+  });
+
+  it('portrait: the command row sits directly above the reserve and the game text gives the rows', () => {
+    const open = run({ bottom: 12 });
+    const closed = run();
+    expect(open.bottom).toBe(12);
+    // The screen is the same size: only the game text is shorter.
+    expect([open.rows, open.cols]).toEqual([closed.rows, closed.cols]);
+    expect(open.input).toEqual({ x: 0, y: 44 - 12 - 3, w: 43, h: 3 });
+    expect(open.game).toEqual({ x: 0, y: 0, w: 43, h: closed.game.h - 12 });
+    expect(open.input.y + open.input.h + open.bottom).toBe(open.rows);
+  });
+
+  it('the strip, the fight card and Comm share what is above the reserve; the game keeps its rows', () => {
+    const r = run({ bottom: 12, strip: true, fight: true, comm: { rows: 20 } });
+    expect(r.fight.h).toBe(FIGHT_ROWS);
+    expect(r.game.h).toBeGreaterThanOrEqual(GAME_KEEP_ROWS);
+    expect(r.strip.h + r.fight.h + r.comm.h + r.game.h + r.input.h + r.bottom).toBe(r.rows);
+    expect(r.game.y + r.game.h).toBe(r.input.y);
+    // A band's drag ends above the reserve too.
+    expect(r.commRange).not.toBeNull();
+    expect(r.strip.h + FIGHT_ROWS + r.commRange!.max + GAME_KEEP_ROWS + r.input.h + r.bottom).toBeLessThanOrEqual(r.rows);
+  });
+
+  it('the lens keeps to the shorter game text, shrinks, and is left out under its least size', () => {
+    const lens = { fullPx: 153, minPx: 96, cellW: 8.4, cellH: 17, gapTop: 1, gapRight: 2 };
+    const closed = run({ lens });
+    expect(closed.lensPx).toBe(153);
+    const open = run({ lens, bottom: 12 });
+    expect(open.lensPx).toBe(153);
+    expect(open.lens!.y + open.lens!.h).toBeLessThanOrEqual(open.input.y);
+    // 44 rows, 3 of command row, 34 of reserve: seven rows of game text, six under the gap: 102 px.
+    const low = run({ lens, bottom: 34 });
+    expect(low.game.h).toBe(7);
+    expect(low.lensPx).toBe(102);
+    const none = run({ lens, bottom: 36 });
+    expect([none.lens, none.lensHidden]).toEqual([null, true]);
+  });
+
+  it('the too-small guard judges the whole screen, not what the reserve leaves', () => {
+    const r = allocatePhoneGame({ cols: 43, rows: 12, inputRows: 3, bottom: 5 });
+    expect(r.tooSmall).toBe(false);
+    expect(r.game.h).toBe(4);
+    expect(allocatePhoneGame({ cols: 43, rows: PHONE_MIN_ROWS - 1, inputRows: 3, bottom: 2 }).tooSmall).toBe(true);
+  });
+
+  it('gives way before the command row and the least game text do', () => {
+    const r = allocatePhoneGame({ cols: 43, rows: 12, inputRows: 3, bottom: 20 });
+    expect(r.bottom).toBe(6);
+    expect(r.game.h).toBe(3);
+    expect(r.input).toEqual({ x: 0, y: 3, w: 43, h: 3 });
+    // A reserve that is not a whole positive number.
+    expect(run({ bottom: Number.NaN }).bottom).toBe(0);
+    expect(run({ bottom: -3 }).bottom).toBe(0);
+    expect(run({ bottom: 2.7 }).bottom).toBe(2);
+  });
+
+  it('landscape: the column ends above the reserve too, and the command row is right of it', () => {
+    // 800 × 360 at the default cell: 95 × 21.
+    const land = (o: Partial<PhoneGameInput> = {}): PhoneGameResult =>
+      allocatePhoneGame({ cols: 95, rows: 21, inputRows: 3, ...o, side: { cols: null, band: 2 } });
+    const plain = land({ bottom: 9 });
+    expect(plain.game).toEqual({ x: 0, y: 0, w: 95, h: 9 });
+    expect(plain.input).toEqual({ x: 0, y: 9, w: 95, h: 3 });
+    const r = land({ bottom: 9, strip: true, comm: { rows: null }, fight: true });
+    expect(r.rows).toBe(21);
+    expect(r.side.h).toBe(12);
+    expect(r.strip.h + r.comm.h).toBe(12);
+    expect(r.strip.h).toBeGreaterThanOrEqual(STRIP_MIN_ROWS);
+    expect(r.comm.h).toBeGreaterThanOrEqual(COMM_MIN_ROWS);
+    expect(r.input).toEqual({ x: r.side.w, y: 9, w: 95 - r.side.w, h: 3 });
+    expect(r.fight).toEqual({ x: r.side.w, y: 0, w: 95 - r.side.w, h: FIGHT_ROWS });
+    expect(r.game).toEqual({ x: r.side.w, y: FIGHT_ROWS, w: 95 - r.side.w, h: 9 - FIGHT_ROWS });
+  });
+});
+
+describe('Comm holds the own keyboard\'s target (commKeep, stage 53d; review finding B)', () => {
+  // 360 x 520 at a 17 px cell: 30 rows; the keyboard takes 9, the command row 3; the lifted limit leaves 5 rows.
+  const short = { cols: 43, rows: 30, inputRows: 3, bottom: 9, comm: { rows: null }, maxTop: 5 } as const;
+
+  it('without it Comm is squeezed out by the limit, as before', () => {
+    const r = allocatePhoneGame(short);
+    expect(r.comm.h).toBe(0);
+    expect(r.overLimit).toBe(false);
+  });
+
+  it('with it the limit gives way first: Comm keeps its minimum and reaches under the hot keys\' place', () => {
+    const r = allocatePhoneGame({ ...short, commKeep: true });
+    expect(r.comm.h).toBeGreaterThanOrEqual(COMM_MIN_ROWS);
+    expect(r.overLimit).toBe(true);
+    expect(r.game.h).toBeGreaterThanOrEqual(GAME_KEEP_ROWS);
+    expect(r.strip.h + r.fight.h + r.comm.h + r.game.h + r.input.h + r.bottom).toBe(r.rows);
+    expect(r.commRange!.min).toBe(COMM_MIN_ROWS);
+  });
+
+  it('it changes nothing where Comm fits anyway', () => {
+    const roomy = { cols: 43, rows: 47, inputRows: 3, bottom: 11, comm: { rows: 10 }, maxTop: 20, strip: true, fight: true } as const;
+    expect(allocatePhoneGame({ ...roomy, commKeep: true })).toEqual(allocatePhoneGame(roomy));
+    expect(allocatePhoneGame({ ...roomy, commKeep: true }).overLimit).toBe(false);
+  });
+
+  it('then the game text goes down to its least rows, then the fight card gives way; at each step the strip shrinks and closes as ever', () => {
+    // 18 rows above the keyboard and the command row: without the limit both fit at their least heights.
+    const a = allocatePhoneGame({ cols: 43, rows: 30, inputRows: 3, bottom: 9, comm: { rows: null }, maxTop: 2, strip: true, stripRows: 6, commKeep: true });
+    expect([a.strip.h, a.comm.h, a.game.h]).toEqual([4, COMM_MIN_ROWS, GAME_KEEP_ROWS]);
+    // 15 rows: the strip closes rather than the game text going under its usual rows.
+    const a2 = allocatePhoneGame({ cols: 43, rows: 27, inputRows: 3, bottom: 9, comm: { rows: null }, maxTop: 2, strip: true, stripRows: 6, commKeep: true });
+    expect([a2.strip.h, a2.comm.h, a2.game.h]).toEqual([0, 7, GAME_KEEP_ROWS]);
+    // 11 rows above: Comm's 6 leave the game 5, under the usual 8.
+    const b = allocatePhoneGame({ cols: 43, rows: 23, inputRows: 3, bottom: 9, comm: { rows: null }, maxTop: 0, commKeep: true });
+    expect(b.comm.h).toBe(COMM_MIN_ROWS);
+    expect(b.game.h).toBe(5);
+    expect(b.overLimit).toBe(true);
+    // With a fight on, 11 rows: the card's 2 and Comm's 6 leave 3.
+    const c = allocatePhoneGame({ cols: 43, rows: 23, inputRows: 3, bottom: 9, comm: { rows: null }, fight: true, commKeep: true });
+    expect([c.fight.h, c.comm.h, c.game.h]).toEqual([FIGHT_ROWS, COMM_MIN_ROWS, GAME_MIN_ROWS]);
+    // 10 rows: the card gives way.
+    const d = allocatePhoneGame({ cols: 43, rows: 22, inputRows: 3, bottom: 9, comm: { rows: null }, fight: true, commKeep: true });
+    expect([d.fight.h, d.comm.h, d.game.h]).toEqual([0, COMM_MIN_ROWS, 4]);
+  });
+
+  it('a screen with no room even then closes Comm', () => {
+    const r = allocatePhoneGame({ cols: 43, rows: 20, inputRows: 3, bottom: 9, comm: { rows: null }, commKeep: true });
+    expect(r.comm.h).toBe(0);
+    expect(r.overLimit).toBe(false);
+    expect(r.game.h).toBe(8);
+  });
+
+  it('landscape is as without it: the column has every row above the keyboard, which always hold Comm', () => {
+    const side = { cols: null, band: 2 };
+    for (const rows of [16, 21]) {
+      const o = { cols: 95, rows, inputRows: 3, bottom: 12, comm: { rows: null }, strip: true, side } as const;
+      expect(allocatePhoneGame({ ...o, commKeep: true })).toEqual(allocatePhoneGame(o));
+      expect(allocatePhoneGame({ ...o, strip: false, commKeep: true }).comm.h).toBeGreaterThanOrEqual(COMM_MIN_ROWS);
+    }
+  });
+});
+
+describe('ownKeyboardReserve: the rows a keyboard of our own gets (stage 53d: the cockpit\'s rounding, on its own)', () => {
+  it('nothing wanted, or nothing to measure with: nothing', () => {
+    expect(ownKeyboardReserve(800, 17, 0, 3)).toEqual({ bottom: 0, lift: 0 });
+    expect(ownKeyboardReserve(800, 0, 188, 3)).toEqual({ bottom: 0, lift: 0 });
+    expect(ownKeyboardReserve(0, 17, 188, 3)).toEqual({ bottom: 0, lift: 0 });
+    expect(ownKeyboardReserve(800, 17, Number.NaN, 3)).toEqual({ bottom: 0, lift: 0 });
+  });
+
+  it('whole rows that hold the height, and what they are on screen', () => {
+    // 800 px at 20 px: 40 rows, nothing under the last. 188 px less 6 % is 176.7: nine rows.
+    expect(ownKeyboardReserve(800, 20, 188, 3)).toEqual({ bottom: 9, lift: 180 });
+    // Exactly whole rows: no row more.
+    expect(ownKeyboardReserve(800, 20, 180, 3, 0)).toEqual({ bottom: 9, lift: 180 });
+    expect(ownKeyboardReserve(800, 20, 181, 3, 0)).toEqual({ bottom: 10, lift: 200 });
+  });
+
+  it('what the screen has under its last whole row counts towards the keyboard', () => {
+    // 800 px at 17 px: 47 rows and 1 px under them.
+    const r = ownKeyboardReserve(800, 17, 188, 3);
+    expect(r.bottom).toBe(Math.ceil((188 * (1 - OWN_KBD_GIVE) - 1) / 17));
+    expect(r.lift).toBe(r.bottom * 17 + 1);
+    // 13 px under the last row are worth most of a row: one row fewer than without them.
+    expect(ownKeyboardReserve(810, 20, 190, 3, 0)).toEqual({ bottom: 9, lift: 190 });
+    expect(ownKeyboardReserve(800, 20, 190, 3, 0)).toEqual({ bottom: 10, lift: 200 });
+  });
+
+  it('the keyboard gives up to 6 % of its height before it takes one more row', () => {
+    // 191 px want ten rows of 20; less 6 % (179.5) nine hold it.
+    expect(ownKeyboardReserve(800, 20, 191, 3).bottom).toBe(9);
+    expect(ownKeyboardReserve(800, 20, 192, 3).bottom).toBe(10);
+    expect(ownKeyboardReserve(800, 20, 191, 3, 0).bottom).toBe(10);
+  });
+
+  it('at least one row; never more than leaves the command row and the least game text, as the allocator has it', () => {
+    expect(ownKeyboardReserve(800, 20, 1, 3)).toEqual({ bottom: 1, lift: 20 });
+    // 12 rows: 3 of command row and 3 of game text leave 6.
+    const r = ownKeyboardReserve(240, 20, 400, 3);
+    expect(r).toEqual({ bottom: 6, lift: 120 });
+    expect(allocatePhoneGame({ cols: 43, rows: 12, inputRows: 3, bottom: 20 }).bottom).toBe(r.bottom);
+    expect(ownKeyboardReserve(100, 20, 400, 3)).toEqual({ bottom: 0, lift: 0 });
+  });
+
+  it('the lift is where the allocator puts the command row\'s foot', () => {
+    for (const [h, cell, px] of [[800, 17, 188], [520, 17, 156], [360, 17, 148], [280, 17, 132], [640, 19, 234]] as const) {
+      const r = ownKeyboardReserve(h, cell, px, 3);
+      const g = allocatePhoneGame({ cols: 43, rows: Math.floor(h / cell), inputRows: 3, bottom: r.bottom, guard: false });
+      expect(h - (g.input.y + g.input.h) * cell).toBe(r.lift);
+    }
+  });
+});
+
+// Round 53j: a pane's header takes no row on a phone (its name is on its band).
+describe('phonePaneRect: the pane has every row of its part but the band\'s (round 53j)', () => {
+  it('portrait: the strip and Comm each lose only their last row, the band', () => {
+    const r = run({ strip: true, stripRows: 9, comm: { rows: 12 } });
+    expect(r.strip).toEqual({ x: 0, y: 0, w: 43, h: 9 });
+    expect(phonePaneRect(r.strip, r)).toEqual({ x: 0, y: 0, w: 43, h: 9 - BAND_ROWS });
+    expect(r.comm).toEqual({ x: 0, y: 9, w: 43, h: 12 });
+    expect(phonePaneRect(r.comm, r)).toEqual({ x: 0, y: 9, w: 43, h: 12 - BAND_ROWS });
+    expect(BAND_ROWS).toBe(1);
+  });
+
+  it('at the least heights the panes keep three and five rows', () => {
+    const r = run({ strip: true, stripRows: STRIP_MIN_ROWS, comm: { rows: COMM_MIN_ROWS } });
+    expect(phonePaneRect(r.strip, r).h).toBe(STRIP_MIN_ROWS - 1);
+    expect(phonePaneRect(r.comm, r).h).toBe(COMM_MIN_ROWS - 1);
+  });
+
+  it('landscape: every row, without the band\'s columns at the column\'s right edge', () => {
+    const r = allocatePhoneGame({ cols: 95, rows: 21, inputRows: 3, strip: true, comm: { rows: null }, side: { cols: null, band: 2 } });
+    expect(r.landscape).toBe(true);
+    expect(phonePaneRect(r.strip, r)).toEqual({ x: 0, y: 0, w: r.side.w - 2, h: r.strip.h });
+    expect(phonePaneRect(r.comm, r)).toEqual({ x: 0, y: r.strip.h, w: r.side.w - 2, h: r.comm.h });
+    expect(r.strip.h + r.comm.h).toBe(21);
+  });
+
+  it('a part of one row or one column keeps it', () => {
+    expect(phonePaneRect({ x: 0, y: 0, w: 10, h: 1 }, { landscape: false, sideBand: 0 }).h).toBe(1);
+    expect(phonePaneRect({ x: 0, y: 0, w: 1, h: 5 }, { landscape: true, sideBand: 2 }).w).toBe(1);
+  });
+});
+
+// Round 53j: the hot key box, with our keyboard typing in it, needs the rows of what is above the game text.
+describe('hide: open parts left out of a layout for now (round 53j)', () => {
+  const open = { strip: true, stripRows: 9, comm: { rows: 12 }, fight: true } as const;
+
+  it('nothing hidden is the layout as ever', () => {
+    const r = run(open);
+    expect(r.hidden).toEqual({ strip: false, comm: false });
+    expect(run({ ...open, hide: null })).toEqual(r);
+    expect(run({ ...open, hide: { strip: false, comm: false } })).toEqual(r);
+  });
+
+  it('Comm hidden: its rows are the game text\'s; the strip and the fight card stay', () => {
+    const base = run(open);
+    const r = run({ ...open, hide: { strip: false, comm: true } });
+    expect(r.hidden).toEqual({ strip: false, comm: true });
+    expect(r.comm.h).toBe(0);
+    expect(r.commRange).toBeNull();
+    expect(r.strip).toEqual(base.strip);
+    // The card moves up under the strip (round 53k: it lies under the panes that are there).
+    expect(r.fight).toEqual({ ...base.fight, y: base.strip.h });
+    expect(r.game.y).toBe(base.game.y - base.comm.h);
+    expect(r.game.h).toBe(base.game.h + base.comm.h);
+    expectStacked(r);
+  });
+
+  it('both hidden: only the fight card is above the game text', () => {
+    const r = run({ ...open, hide: { strip: true, comm: true } });
+    expect(r.hidden).toEqual({ strip: true, comm: true });
+    expect([r.strip.h, r.comm.h, r.fight.h]).toEqual([0, 0, FIGHT_ROWS]);
+    expect(r.game.y).toBe(FIGHT_ROWS);
+    expect(r).toEqual({ ...run({ fight: true }), hidden: { strip: true, comm: true } });
+    expectStacked(r);
+  });
+
+  it('with the keyboard\'s rows in the same layout: one layout for both', () => {
+    const r = run({ ...open, bottom: 14, hide: { strip: true, comm: true } });
+    expect(r.bottom).toBe(14);
+    expect([r.strip.h, r.comm.h]).toEqual([0, 0]);
+    expect(r.game).toEqual({ x: 0, y: FIGHT_ROWS, w: 43, h: 44 - 14 - 3 - FIGHT_ROWS });
+  });
+
+  it('a part that is not open is not "hidden", and laying out without `hide` brings everything back', () => {
+    const r = run({ strip: true, stripRows: 9, hide: { strip: false, comm: true } });
+    expect(r.hidden).toEqual({ strip: false, comm: false });
+    expect(r.strip.h).toBe(9);
+    expect(run(open).strip.h + run(open).comm.h).toBe(21);
+  });
+
+  it('landscape: the column without Comm is the strip\'s alone; without both there is no column', () => {
+    const land = { cols: 95, rows: 21, inputRows: 3, strip: true, comm: { rows: null }, side: { cols: null } } as const;
+    const one = allocatePhoneGame({ ...land, hide: { strip: false, comm: true } });
+    expect([one.strip.h, one.comm.h]).toEqual([21, 0]);
+    expect(one.side.w).toBeGreaterThan(0);
+    const none = allocatePhoneGame({ ...land, hide: { strip: true, comm: true } });
+    expect(none.side.w).toBe(0);
+    expect(none.game.x).toBe(0);
+    expect(none.game.w).toBe(95);
+  });
+});
+
+describe('Comm\'s least height is a floor in px (round 53k)', () => {
+  it('commMinRows: one line of chat and the whole 40 px reply line, and the band; never under six', () => {
+    // The phone's default text size (17 px, cells 20.19 px high): 2.4 em + a line + 44 px is 105.2 px, six rows, and the band.
+    expect(commMinRows(20.190476, 17.084463)).toBe(7);
+    // The smallest text size (8 px, cells 9.52 px high): 73.3 px is eight rows, and the band. Six cut the reply line off.
+    expect(commMinRows(9.52381, 8.225853)).toBe(9);
+    expect(commMinRows(11.809524, 10.124126)).toBe(8);
+    // A large text: the row count is the floor again.
+    expect(commMinRows(40, 34)).toBe(COMM_MIN_ROWS);
+    // Nothing to go by: the row count.
+    expect(commMinRows(0, 0)).toBe(COMM_MIN_ROWS);
+    expect(commMinRows(Number.NaN, 8)).toBe(COMM_MIN_ROWS);
+    // Whatever the size, the pane's rows (without the band's) hold the floor.
+    for (let px = 8; px <= 30; px++) {
+      const h = px * 1.18;
+      expect((commMinRows(h, px) - 1) * h).toBeGreaterThanOrEqual(2.4 * px + h + 44 - 1e-6);
+    }
+  });
+
+  it('the allocator keeps Comm at the caller\'s least rows: a stored height under it, the squeeze, the drag\'s range', () => {
+    expect(run({ comm: { rows: 2 }, commMin: 9 }).comm.h).toBe(9);
+    expect(run({ comm: { rows: 2 }, commMin: 9 }).commRange!.min).toBe(9);
+    // Never under the row count, whatever is asked.
+    expect(run({ comm: { rows: 2 }, commMin: 3 }).comm.h).toBe(COMM_MIN_ROWS);
+    expect(run({ comm: { rows: 2 }, commMin: Number.NaN }).comm.h).toBe(COMM_MIN_ROWS);
+    // Squeezed by the limit: Comm stops at its floor and the strip gives way next.
+    const r = run({ strip: true, stripRows: 12, fight: true, comm: { rows: 14 }, maxTop: 22, commMin: 9 });
+    expect([r.strip.h, r.comm.h, r.fight.h]).toEqual([11, 9, 2]);
+    // No room for the floor: Comm closes rather than show a cut reply line.
+    expect(run({ rows: 18, comm: { rows: 12 }, commMin: 9, guard: false }).comm.h).toBe(0);
+    expect(run({ rows: 18, comm: { rows: 12 }, guard: false }).comm.h).toBeGreaterThan(0);
+    // Landscape: both parts need their minimums, or the strip closes.
+    const land = allocatePhoneGame({ cols: 90, rows: 12, inputRows: 3, strip: true, comm: { rows: null }, commMin: 9, side: { cols: null } });
+    expect([land.strip.h, land.comm.h]).toEqual([0, 12]);
   });
 });

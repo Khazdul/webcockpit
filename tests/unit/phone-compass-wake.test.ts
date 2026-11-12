@@ -4,7 +4,7 @@
 // buttons" with the number of K keys, and the second column's sums.
 import { describe, expect, it, vi } from 'vitest';
 import { KEY_PX_LANDSCAPE, KEY_PX_PORTRAIT, PAD_MARGIN, landscapeFits, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from '../../src/phone/compass-size';
-import { COMPASS_GROUP, CONNECTION_GROUP, SETTINGS_GROUPS, rowsShown } from '../../src/phone/settings-page';
+import { COMPASS_GROUP, CONNECTION_GROUP, SETTINGS_GROUPS, rowsShown, groupsShown } from '../../src/phone/settings-page';
 import { WakeLock, type WakeSentinel, canWakeLock, wakeWanted } from '../../src/phone/wake-lock';
 import { migratePhone, migrateSettings } from '../../src/settings/migrate';
 import { SETTINGS_VERSION, defaultPhoneSettings, defaultSettings } from '../../src/settings/types';
@@ -189,11 +189,12 @@ describe('wake lock', () => {
 });
 
 describe('phone settings of stage 51f', () => {
-  it('defaults: the screen kept on, no automatic reconnect; no vibration or key size setting any more', () => {
+  it('defaults: the screen kept on, no automatic reconnect, no vibration; no key size setting any more', () => {
     const d = defaultPhoneSettings();
     expect('compassSize' in d).toBe(false);
     expect(d.sideCols).toBeNull();
-    expect('vibrate' in d).toBe(false);
+    // Back as a choice in stage 53 (ADR 0138 §7), off until it is made.
+    expect(d.vibrate).toBe(false);
     expect(d.wakeLock).toBe(true);
     expect(d.autoReconnect).toBe(false);
   });
@@ -231,21 +232,25 @@ describe('phone settings of stage 51f', () => {
     expect(migrateSettings(stored)).toEqual(defaultSettings());
   });
 
-  it('a stored vibrate (0.5.0) is tolerated and dropped', () => {
-    for (const vibrate of [true, false, 'yes']) {
-      const p = migratePhone({ autoReconnect: true, vibrate });
-      expect('vibrate' in p).toBe(false);
-      expect(p.autoReconnect).toBe(true);
-    }
-    const stored = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown> };
+  it('a stored vibrate is read again (stage 53; 0.6.0 dropped the key of 0.5.0); absent or broken it is off', () => {
+    expect(migratePhone({ autoReconnect: true, vibrate: true }).vibrate).toBe(true);
+    expect(migratePhone({ vibrate: false }).vibrate).toBe(false);
+    for (const bad of ['yes', 1, null, {}]) expect(migratePhone({ vibrate: bad }).vibrate).toBe(false);
+    expect(migratePhone({}).vibrate).toBe(false);
+    // A stored file with the key keeps it; one without it (0.6.x) reads as the defaults, with no version bump.
+    const stored = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown>; version: number };
     stored.phone.vibrate = true;
+    expect(migrateSettings(stored).phone.vibrate).toBe(true);
+    expect({ ...migrateSettings(stored), phone: null }).toEqual({ ...defaultSettings(), phone: null });
+    delete stored.phone.vibrate;
     expect(migrateSettings(stored)).toEqual(defaultSettings());
   });
 });
 
 describe('the settings page\'s Quick buttons and Connection groups', () => {
   it('the groups in the ADR\'s order', () => {
-    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
+    expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
+    expect(groupsShown(SETTINGS_GROUPS).map((g) => g.id)).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
   });
 
   it('rows whose browser API is missing are absent, not dimmed', () => {

@@ -34,7 +34,7 @@ import { defaultFloatSize } from '../layout/allocate';
 import { MAP_BG_TRANSPARENT, isNamedMapBg } from '../map/backgrounds';
 import { TILESET_IDS } from '../map/tilesets';
 import { normalizeHex } from '../theme/color';
-import { INPUT_COLOR_IDS } from '../theme/presets';
+import { DEFAULT_INPUT_COLOR, INPUT_COLOR_IDS, LEGACY_INPUT_COLOR } from '../theme/presets';
 import {
   type AppearanceSettings,
   COMM_FILTERS_MAX,
@@ -63,10 +63,15 @@ import {
   PHONE_HOTKEY_COUNT,
   PHONE_HOTKEY_LABEL_MAX,
   PHONE_HOTKEY_SPECIALS,
+  PHONE_KEYBOARD_LAYOUTS,
   PHONE_LENS_LEVELS,
   PHONE_STRIP_PANES,
   PHONE_UNREAD_MODES,
   type PhoneHotkey,
+  type PhoneLensLevel,
+  type PhoneLensWant,
+  PHONE_LENS_SIZE_MAX,
+  PHONE_LENS_SIZE_MIN,
   type PhoneSettings,
   type PhoneStripEntry,
   type PhoneStripPane,
@@ -158,8 +163,19 @@ function hex(v: unknown, dflt: string): string {
 /** The pre-ADR 0078 appearance defaults (src/settings/types.ts). */
 export { LEGACY_APPEARANCE };
 
-/** A complete, valid appearance from anything (see `LEGACY_APPEARANCE`). */
-export function migrateAppearance(raw: unknown): AppearanceSettings {
+/** The settings version whose stored Steel input colour is a choice, not the old default (ADR 0035). */
+const INPUT_COLOR_SWITCH_VERSION = 6;
+
+/**
+ * A complete, valid appearance from anything (see `LEGACY_APPEARANCE`).
+ *
+ * `fromVersion` is the version of the stored settings the appearance came
+ * with. Before version 6 the input colour's default was Steel and it was
+ * stored with every appearance, so a stored Steel moves to today's default
+ * (Amber) once (ADR 0035, addendum "the one-time switch"). Without a
+ * version (the localStorage mirror, a recording's VIEW) nothing is switched.
+ */
+export function migrateAppearance(raw: unknown, fromVersion = SETTINGS_VERSION): AppearanceSettings {
   const d = isObj(raw) ? { ...defaultSettings().appearance, ...LEGACY_APPEARANCE } : defaultSettings().appearance;
   const a = isObj(raw) ? raw : {};
   const ansiRaw = Array.isArray(a.ansi) ? a.ansi : [];
@@ -174,7 +190,8 @@ export function migrateAppearance(raw: unknown): AppearanceSettings {
     ansi: d.ansi.map((c, i) => hex(ansiRaw[i], c)),
     cursorStyle: oneOf(a.cursorStyle, CURSOR_STYLES, d.cursorStyle),
     cursorBlink: bool(a.cursorBlink, d.cursorBlink),
-    inputColor: oneOf(a.inputColor, INPUT_COLOR_IDS, d.inputColor),
+    inputColor:
+      fromVersion < INPUT_COLOR_SWITCH_VERSION && a.inputColor === LEGACY_INPUT_COLOR ? DEFAULT_INPUT_COLOR : oneOf(a.inputColor, INPUT_COLOR_IDS, d.inputColor),
     boldBright: bool(a.boldBright, d.boldBright),
   };
 }
@@ -526,11 +543,15 @@ export function migratePhone(raw: unknown): PhoneSettings {
   const d = defaultPhoneSettings();
   const p = isObj(raw) ? raw : {};
   const l = isObj(p.lens) ? p.lens : {};
+  const k = isObj(p.keyboard) ? p.keyboard : {};
   return {
     lens: {
       show: bool(l.show, d.lens.show),
       // A stored `size` (0.5.0's S/M/L) is dropped: the size follows the screen (stage 52).
-      opensAt: oneOf(l.opensAt, PHONE_LENS_LEVELS, d.lens.opensAt),
+      opensAt: migrateLensLevel(l.opensAt, d.lens.opensAt),
+      // Additive (round 53k): absent (settings from 0.6.1) is a lens never moved or resized.
+      portrait: migrateLensWant(l.portrait),
+      landscape: migrateLensWant(l.landscape),
     },
     strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined, d.strip.panes) },
     commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
@@ -544,8 +565,47 @@ export function migratePhone(raw: unknown): PhoneSettings {
     sideCols: typeof p.sideCols === 'number' && Number.isFinite(p.sideCols) ? int(p.sideCols, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
     wakeLock: bool(p.wakeLock, d.wakeLock),
     autoReconnect: bool(p.autoReconnect, d.autoReconnect),
-    // Absent (settings from 0.5.0, or a computer's): none had yet. A stored `vibrate` (0.5.0) is dropped.
+    // Absent (settings from 0.5.0, or a computer's): none had yet.
     defaults: int(p.defaults, 0, PHONE_DEFAULTS_MARK, 0),
+    // Additive (ADR 0138): absent is the digit row folded away and the layout of the browser's language.
+    keyboard: {
+      digits: bool(k.digits, d.keyboard.digits),
+      layout: oneOf(k.layout, PHONE_KEYBOARD_LAYOUTS, d.keyboard.layout),
+    },
+    // Additive (ADR 0138 §7; the key of 0.5.0, gone in 0.6.0, is read again): absent is off.
+    vibrate: bool(p.vibrate, d.vibrate),
+    // Additive (round 53k): absent (settings from 0.6.1) is the card shown, as it always was.
+    fightCard: bool(p.fightCard, d.fightCard),
+  };
+}
+
+/**
+ * The lens's zoom level from anything (round 53k). 0.6.1 stored `near`,
+ * `middle` or `far`; its nearest level is gone and the others moved up one
+ * place: `near` and `middle` are the new nearest (`z1`, the same scale as
+ * the old middle), `far` is `z2` (the same scale as the old far).
+ */
+export function migrateLensLevel(raw: unknown, dflt: PhoneLensLevel): PhoneLensLevel {
+  if (raw === 'near' || raw === 'middle') return 'z1';
+  if (raw === 'far') return 'z2';
+  return oneOf(raw, PHONE_LENS_LEVELS, dflt);
+}
+
+/**
+ * The lens's wanted place and size in one orientation from anything (round
+ * 53k): the centre's two shares within 0 to 1, both or neither; the
+ * diameter a whole number of px within its limits; anything else is unset.
+ */
+export function migrateLensWant(raw: unknown): PhoneLensWant {
+  const w = isObj(raw) ? raw : {};
+  const share = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : null);
+  const x = share(w.x);
+  const y = share(w.y);
+  const at = x !== null && y !== null;
+  return {
+    x: at ? x : null,
+    y: at ? y : null,
+    size: typeof w.size === 'number' && Number.isFinite(w.size) ? int(w.size, PHONE_LENS_SIZE_MIN, PHONE_LENS_SIZE_MAX, PHONE_LENS_SIZE_MIN) : null,
   };
 }
 
@@ -625,6 +685,12 @@ function migrateStripPanes(raw: unknown, dflt: PhoneStripEntry[]): PhoneStripEnt
 export interface MigrateOptions {
   /** A phone (ADR 0081): sections that default differently there (the weather, ADR 0092). */
   phone?: boolean;
+  /**
+   * Settings recorded at a moment (a replay's payload), not a user's stored
+   * ones: one-time switches of a stored look (the input colour, ADR 0035)
+   * do not apply, so the recording keeps the look it was made with.
+   */
+  recorded?: boolean;
 }
 
 /** A complete, valid `Settings` from anything (stored data of any version). */
@@ -636,7 +702,7 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
   const retired = retiredPanes(fromVersion);
   return {
     version: SETTINGS_VERSION,
-    appearance: migrateAppearance(s.appearance),
+    appearance: migrateAppearance(s.appearance, opts.recorded ? SETTINGS_VERSION : fromVersion),
     panes: migratePanes(s.panes, retired),
     layout: migrateLayout(s.layout, retired),
     profile,

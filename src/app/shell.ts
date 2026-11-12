@@ -115,6 +115,7 @@ import type {
   WindowsHandle,
 } from '../chrome';
 import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
+import { watchDeviceKeyboard } from '../layout/phone-viewport';
 import type { PaneId } from '../layout/types';
 import type { PlayerHost, PlayerInfo, PlayerOpenOptions } from './player-host';
 import type { PlayerOpenResult, RunLogOpenResult } from '../chrome/kit/hooks';
@@ -140,6 +141,7 @@ import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
 import { PHONE_MAX_SHORT_SIDE } from '../core/device';
 import { device } from '../core/device';
+import { ownEditorOf, sendOwnKey, setPageKeyboard, setPageKeyboardUp } from '../core/own-keyboard';
 import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from './auto-reconnect';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
@@ -215,8 +217,12 @@ export class Shell {
    * Decided once, when the shell is built.
    */
   private readonly phoneGame: boolean;
+  /** Phone only: our keyboard on the pages outside the game layout (ADR 0139; src/phone/keyboard-pages.ts). */
+  private pageKeyboard: import('../phone').PageKeyboardHandle | null = null;
   /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
   private phoneLayer: import('../phone').PhoneLayer | null = null;
+  /** Phone only: the phone layer's mount threw (the old `☰` and the device's keyboard on the command line stay). */
+  private phoneLayerFailed = false;
   /** Phone game layout: the automatic reconnect's memory (auto-reconnect.ts). */
   private autoState = AUTO_RECONNECT_IDLE;
   private startHost: HTMLDivElement;
@@ -255,6 +261,9 @@ export class Shell {
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
     this.phoneGame = device().phone && phoneSizeWindow(doc.defaultView);
+    // Our own keyboard is the phone's (ADR 0138, ADR 0139). Before any page is drawn: the shared
+    // field components mark their fields by it.
+    setPageKeyboard(this.phoneGame);
     // index.html's first paint draws the banner in a start page host of its
     // own (ADR 0083): the start page is mounted beside it, in the same box.
     const first = doc.getElementById('wc-start-host');
@@ -299,6 +308,7 @@ export class Shell {
     void this.newUserScripts();
     // Phone only (ADR 0136): fetch the phone layer now, so it is there when the game opens.
     if (this.phoneGame) void this.loadPhone().catch(() => {});
+    if (this.phoneGame) this.mountPageKeyboard();
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
       if (!this.opts.probe) this.prefetchChrome();
@@ -759,6 +769,51 @@ export class Shell {
     this.opts.root.ownerDocument.documentElement.classList.toggle('wc-phone-game', on);
   }
 
+  /**
+   * Phone only (ADR 0139): our keyboard on the pages outside the game
+   * layout, mounted on the app box once the phone chunk is there. It closes
+   * the game layout's own keyboard when it comes up over the game.
+   */
+  private mountPageKeyboard(): void {
+    const { root, settings } = this.opts;
+    if (this.pageKeyboard) return;
+    this.loadPhone().then(
+      (phone) => {
+        try {
+          this.pageKeyboard ??= phone.mountPageKeyboard({
+            root,
+            settings,
+            sendKey: (target, key, mods) => sendOwnKey(target, key, mods),
+            editorOf: ownEditorOf,
+            onUp: (up) => {
+              setPageKeyboardUp(up);
+              if (up) this.phoneLayer?.foldOwnKeyboard();
+            },
+          });
+          // (A load that failed first and came later: the fields drawn from now on are ours again.)
+          setPageKeyboard(true);
+          this.syncDeviceKeyboard();
+        } catch (err) {
+          console.error('WebCockpit: the pages\' keyboard could not be mounted', err);
+          // No keyboard of ours: fields drawn from now on ask the device for its own again.
+          setPageKeyboard(false);
+        }
+      },
+      () => setPageKeyboard(false),
+    );
+  }
+
+  /**
+   * Phone only: whether a shrunken visible area is taken for the device's
+   * keyboard (phone-viewport.ts). Not where our keyboard is the phone's
+   * only one: the pages' keyboard is mounted and the phone layer did not
+   * fail to mount. Where the layer failed the command line has the
+   * device's keyboard, whatever order the two mounts finished in.
+   */
+  private syncDeviceKeyboard(): void {
+    watchDeviceKeyboard(this.pageKeyboard === null || this.phoneLayerFailed, this.opts.root.ownerDocument);
+  }
+
   /** Phone only: the phone layer's chunk (ADR 0136); a failed load may be tried again. */
   private loadPhone(): Promise<typeof import('../phone')> {
     this.phoneP ??= import('../phone');
@@ -837,6 +892,8 @@ export class Shell {
       // With the chrome chunk: the settings page's controls are the look kit's.
       Promise.all([this.loadPhone(), this.loadChrome()]).then(
         ([phone, chrome]) => {
+          // The chunk is here (perhaps on a second try): the pages' keyboard too, if it is not yet.
+          this.mountPageKeyboard();
           try {
             this.phoneLayer = phone.mountPhoneLayer({
               kit: PHONE_KIT,
@@ -873,10 +930,30 @@ export class Shell {
               onMenuClose: () => {
                 if (this.inCockpit) app.input.focus();
               },
+              // Stage 53 (ADR 0138): the command line, as the layout's own keyboard types in it.
+              ownKeyboard: {
+                setOwnKeyboard: (on: boolean) => app.input.setOwnKeyboard(on),
+                setOwnFont: (on: boolean) => app.input.setOwnFont(on),
+                insert: (text: string) => app.input.insertText(text),
+                deleteBack: () => app.input.deleteBackward(),
+                submit: () => app.input.submitLine(),
+                // (Nothing in password mode: the input pane's own rule, and the arrows are dimmed.)
+                historyUp: () => app.input.historyStep('up'),
+                historyDown: () => app.input.historyStep('down'),
+                hasHistory: () => !app.input.isPasswordMode(),
+                // (The input pane heard the same event first: it was made before this.)
+                onChange: (fn: () => void) => app.bus.on('telnet.echo', () => fn()),
+                focus: () => app.input.input.focus({ preventScroll: true }),
+                blur: () => app.input.input.blur(),
+              },
             });
             old.remove();
+            this.phoneLayerFailed = false;
+            this.syncDeviceKeyboard();
           } catch (err) {
             console.error('WebCockpit: the phone layer could not be mounted', err);
+            this.phoneLayerFailed = true;
+            this.syncDeviceKeyboard();
           }
         },
         () => {},

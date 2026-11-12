@@ -406,8 +406,14 @@ export interface WindowRect {
   h: number;
 }
 
-/** The lens's three fixed zoom levels (ADR 0136 §4). */
-export const PHONE_LENS_LEVELS = ['near', 'middle', 'far'] as const;
+/**
+ * The lens's four fixed zoom levels, from the nearest out (round 53k; ADR
+ * 0137's addendum of that round). 0.6.1 had three, `near`, `middle` and
+ * `far`: its nearest is gone, and `z1` is its middle, `z2` its far. The new
+ * names share none with the old ones, so a stored old level is told from a
+ * new one without a settings version (`migrateLensLevel`).
+ */
+export const PHONE_LENS_LEVELS = ['z1', 'z2', 'z3', 'z4'] as const;
 export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
 
 /** The map lens of the phone's game layout (ADR 0136 §4, §13). */
@@ -416,6 +422,36 @@ export interface PhoneLensSettings {
   show: boolean;
   /** The zoom level the lens starts at. */
   opensAt: PhoneLensLevel;
+  /**
+   * Where the user dragged the lens and how large he made it (round 53k),
+   * in portrait and in landscape, each with its own. Only a drag writes
+   * them: what the layout shows is derived from them and the room there is
+   * (src/phone/lens-place.ts).
+   */
+  portrait: PhoneLensWant;
+  landscape: PhoneLensWant;
+}
+
+/**
+ * The wanted place and size of the lens in one orientation: its centre as
+ * shares of the screen's width and height (0 to 1), its diameter in CSS px.
+ * Null: not set (the place: top right under what is above the game text;
+ * the size: a share of the screen's short side). `x` and `y` are set
+ * together.
+ */
+export interface PhoneLensWant {
+  x: number | null;
+  y: number | null;
+  size: number | null;
+}
+
+/** The limits of a stored lens diameter, px (the layout fits it to the screen; the least is the least size the lens is shown at). */
+export const PHONE_LENS_SIZE_MIN = 96;
+export const PHONE_LENS_SIZE_MAX = 2000;
+
+/** A lens that was never moved or resized. */
+export function defaultPhoneLensWant(): PhoneLensWant {
+  return { x: null, y: null, size: null };
 }
 
 /**
@@ -458,6 +494,32 @@ export interface PhoneSettings {
    * never acts on it.
    */
   defaults: number;
+  /** The phone's own keyboard (ADR 0138). */
+  keyboard: PhoneKeyboardSettings;
+  /**
+   * A short vibration on the press of a key of the phone's own keyboard, of
+   * the compass and of a hot key (ADR 0138 §7; where the browser has
+   * `navigator.vibrate`). Off by default.
+   */
+  vibrate: boolean;
+  /**
+   * The fight card over the game text while fighting (ADR 0136 §3; the
+   * switch: round 53k). Off: no card, its rows are the game text's, and
+   * nothing of it is computed.
+   */
+  fightCard: boolean;
+}
+
+/** The layouts of the phone's own keyboard: by the browser's language, Swedish, English. */
+export const PHONE_KEYBOARD_LAYOUTS = ['auto', 'sv', 'en'] as const;
+export type PhoneKeyboardLayout = (typeof PHONE_KEYBOARD_LAYOUTS)[number];
+
+/** The phone's own on-screen keyboard (ADR 0138 "Settings keys"). */
+export interface PhoneKeyboardSettings {
+  /** The digit row is shown (its toggle key folds it up and down). */
+  digits: boolean;
+  /** The layout: `auto` follows the browser's language (Swedish for `sv`, else English). */
+  layout: PhoneKeyboardLayout;
 }
 
 /** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off with the Pulse signal, and Character out of the strip. */
@@ -510,19 +572,20 @@ export const PHONE_COMM_ROWS_MIN = 1;
 export const PHONE_COMM_ROWS_MAX = 200;
 
 /**
- * Phone defaults: the lens shown, at the middle zoom (ADR 0136 §4; its
+ * Phone defaults: the lens shown, at its nearest zoom (0.6.1's middle; ADR 0136 §4; its
  * size follows the screen, stage 52); the strip's four panes in their
  * order, all on but Character (§5, stage 52), at its default height; Comm
  * at its default height, the badge counting private chats (§6);
  * six hot key slots (assist, bash, wimpy at half of the current hit points,
  * rescue, shoot, recover) of which three are in use, shown (§8, stage 52);
  * the landscape column at its default width; the screen kept on while connected, and no
- * automatic reconnect (§10). The one-time defaults are not marked as had:
+ * automatic reconnect (§10); the own keyboard's digit row folded away
+ * (ADR 0138); the fight card shown (round 53k). The one-time defaults are not marked as had:
  * only `phoneDefaultSettings()` (a new phone) marks them.
  */
 export function defaultPhoneSettings(): PhoneSettings {
   return {
-    lens: { show: true, opensAt: 'middle' },
+    lens: { show: true, opensAt: 'z1', portrait: defaultPhoneLensWant(), landscape: defaultPhoneLensWant() },
     strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: id !== 'character' })) },
     commRows: null,
     stripRows: null,
@@ -541,6 +604,9 @@ export function defaultPhoneSettings(): PhoneSettings {
     wakeLock: true,
     autoReconnect: false,
     defaults: 0,
+    keyboard: { digits: false, layout: 'auto' },
+    vibrate: false,
+    fightCard: true,
   };
 }
 
@@ -602,7 +668,10 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 //    cols/clock/bar and `compact` went.
 // 5: the Comm pane's conversation view (ADR 0134): `comm.filters` shape
 //    Public only; a stored v4 or older turns `COMM_PUBLIC_DEFAULT_OFF` off.
-export const SETTINGS_VERSION = 5;
+// 6: the input colour's default became Amber (ADR 0035, addenda of 2026-11-12):
+//    a stored v5 or older that says Steel (the old default, stored with every
+//    appearance) moves to Amber, once. Steel stored at v6 or newer is a choice.
+export const SETTINGS_VERSION = 6;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu

@@ -21,6 +21,7 @@ import type { Seg, Toggle } from '../chrome/kit/look-controls';
 import type { GroupFight, Member, Vital, VitalPct } from '../gmcp/group';
 import type { FightView, MemberEnv } from '../panes/group-model';
 import type { AppearanceSettings, FontId } from '../settings/types';
+import type { InputColor } from '../theme/presets';
 
 export interface PhoneKit {
   /** The Group pane's fight card view (src/panes/group-model.ts). */
@@ -46,11 +47,12 @@ export interface PhoneKit {
   fontLabel(id: FontId): string;
   effectiveFont(id: FontId): FontId;
   fontChoices(): FontId[];
+  /** The input colours in the desktop's order (src/theme/presets.ts), and one's CSS colour on a terminal background (src/theme/apply.ts). */
+  inputColors(): { id: InputColor; label: string }[];
+  inputColor(id: InputColor, termBg: string): string;
   /** The phone's too-small limit (src/layout/phone.ts). */
   minCols: number;
   minRows: number;
-  /** True while the on-screen keyboard is up (src/layout/phone-viewport.ts). */
-  keyboardUp(): boolean;
   /** Page fullscreen (src/core/fullscreen.ts): whether the browser can, the toggle, and the refusal notice. */
   canFullscreen(doc: Document): boolean;
   toggleFullscreen(doc: Document): void;

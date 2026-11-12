@@ -6,7 +6,8 @@
 // of a few kinds (stepper, segmented, switch, pick from a list). A stage
 // adds its group to the list when what it sets works (stage 51 rule 3: no
 // row before its feature): Text (51b), Map lens (51c), Panes and Comm
-// (51d); Quick buttons (the compass and the hot keys) and Connection (51f).
+// (51d); Quick buttons (the compass and the hot keys) and Connection (51f);
+// Keyboard (53d: our own keyboard's layout).
 // Stage 52: a `link` row opens a sub-page of the same kind of groups
 // (`SETTINGS_PAGES`): "Timers and Group", the settings of those two panes
 // that show in the pane strip. They are the desktop gear popups' keys and
@@ -16,8 +17,8 @@
 // equal.
 //
 // The Text group changes the same keys the desktop does (`appearance.size`,
-// the background with its ink and palette, `appearance.font`). The theme
-// and font helpers come through the phone kit (kit.ts), not by import.
+// the background with its ink and palette, `appearance.font`,
+// `appearance.inputColor`). The theme, font and input colour helpers come through the phone kit (kit.ts), not by import.
 //
 // Controls: the segmented control and the switch are the look kit's (`Seg`,
 // `Toggle`, src/chrome/kit/look-controls.tsx, handed in with the phone
@@ -29,10 +30,13 @@ import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
 import { canWakeLock } from './wake-lock';
+import { canVibrate } from './haptics';
+import { okbLayout } from './keyboard-model';
 import type {
   FontId,
   GroupAwayMode,
   GroupNpcMode,
+  PhoneKeyboardLayout,
   PhoneLensLevel,
   PhoneUnread,
   Settings,
@@ -42,6 +46,7 @@ import type {
   TimerStyle,
   TimerWarnAt,
 } from '../settings/types';
+import type { InputColor } from '../theme/presets';
 import type { TimerGroup } from '../timers/entry';
 import { hotkeyCount, stepHotkeyCount } from './hotkey-model';
 import { moveEntry, setEntry } from './strip-model';
@@ -102,9 +107,21 @@ export type SettingsRow =
       kind: 'pick';
       id: string;
       label: string;
-      options(): { value: string; label: string }[];
+      /** The choices; `swatch` (a CSS colour) puts a colour chip by the option's name. */
+      options(s: S): { value: string; label: string; swatch?: string }[];
       get(s: S): string;
       set(value: string, s: S): SettingsPatch;
+    }
+  | {
+      /** A row that does one thing when tapped (a reset). Dimmed while there is nothing to do. */
+      kind: 'action';
+      id: string;
+      label: string;
+      /** The state shown at the row's end. */
+      value(s: S): string;
+      /** Whether a tap would change anything. */
+      enabled(s: S): boolean;
+      run(s: S): SettingsPatch;
     }
   | {
       /** A row that opens a sub-page (`SETTINGS_PAGES`). */
@@ -121,9 +138,11 @@ export interface SettingsGroup {
   rows: SettingsRow[];
   /** A line under the group's card. */
   caption?: string;
+  /** False where the group's feature is not there: the group is then absent. Absent: always there. */
+  available?(): boolean;
 }
 
-/** Text: size, theme, font (the desktop's Appearance keys). */
+/** Text: size, theme, font, input colour (the desktop's Appearance keys). */
 export const TEXT_GROUP: SettingsGroup = {
   id: 'text',
   title: 'Text',
@@ -159,14 +178,41 @@ export const TEXT_GROUP: SettingsGroup = {
       get: (s) => phoneKit().effectiveFont(s.appearance.font),
       set: (font) => ({ appearance: { font: font as FontId } }),
     },
+    {
+      // The desktop's Appearance → Input colour (ADR 0035): the same options, each with its colour
+      // on the current background.
+      kind: 'pick',
+      id: 'input-color',
+      label: 'Input colour',
+      options: (s) =>
+        phoneKit()
+          .inputColors()
+          .map((c) => ({ value: c.id, label: c.label, swatch: phoneKit().inputColor(c.id, s.appearance.bg) })),
+      get: (s) => s.appearance.inputColor,
+      set: (inputColor) => ({ appearance: { inputColor: inputColor as InputColor } }),
+    },
   ],
 };
 
 /**
- * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13).
- * No size row since stage 52: the lens is sized from the screen
- * (lens-zoom.ts `lensFullPx`) and shrinks with its room.
+ * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13),
+ * and the way back to its default place and size (round 53k: it is moved
+ * and resized by dragging it, not here). No size row since stage 52: the
+ * default size follows the screen (lens-zoom.ts `lensFullPx`).
  */
+/** Whether the lens was moved or resized in either orientation (`phone.lens.portrait`, `.landscape`). */
+function lensMoved(s: S): boolean {
+  const l = s.phone.lens;
+  return [l.portrait, l.landscape].some((w) => w.x !== null || w.y !== null || w.size !== null);
+}
+
+export const LENS_LEVEL_OPTIONS: readonly { value: PhoneLensLevel; label: string }[] = [
+  { value: 'z1', label: 'Near' },
+  { value: 'z2', label: 'Mid' },
+  { value: 'z3', label: 'Far' },
+  { value: 'z4', label: 'Area' },
+];
+
 export const LENS_GROUP: SettingsGroup = {
   id: 'lens',
   title: 'Map lens',
@@ -182,21 +228,33 @@ export const LENS_GROUP: SettingsGroup = {
       kind: 'seg',
       id: 'lens-opens',
       label: 'Opens at',
-      options: [
-        { value: 'near', label: 'Near' },
-        { value: 'middle', label: 'Middle' },
-        { value: 'far', label: 'Far' },
-      ],
+      // Four levels since round 53k: 0.6.1's middle is the nearest.
+      options: LENS_LEVEL_OPTIONS,
       get: (s) => s.phone.lens.opensAt,
       set: (opensAt) => ({ phone: { lens: { opensAt: opensAt as PhoneLensLevel } } }),
     },
+    {
+      // The way back from a lens dragged somewhere or resized (round 53k), in both orientations.
+      kind: 'action',
+      id: 'lens-reset',
+      label: 'Reset place and size',
+      value: (s) => (lensMoved(s) ? 'Moved' : 'Default'),
+      enabled: lensMoved,
+      run: () => ({ phone: { lens: { portrait: { x: null, y: null, size: null }, landscape: { x: null, y: null, size: null } } } }),
+    },
   ],
+  caption: 'Drag the lens to move it. Hold it still, then drag, to resize it.',
 };
 
 /** The names of the strip's built-in panes (the panes' own labels). */
 const STRIP_LABELS: Readonly<Record<string, string>> = { timers: 'Timers', group: 'Group', character: 'Character', statistics: 'Statistics' };
 
-/** Panes: which built-in panes are pages of the strip, and their order (`phone.strip`, ADR 0136 §5, §13). */
+/**
+ * Panes: which built-in panes are pages of the strip, and their order
+ * (`phone.strip`, ADR 0136 §5, §13), and the fight card over the game text
+ * (`phone.fightCard`, round 53k: it is what the Group pane's card is on a
+ * computer, so its switch stands with the panes).
+ */
 export const PANES_GROUP: SettingsGroup = {
   id: 'panes',
   title: 'Panes',
@@ -208,6 +266,13 @@ export const PANES_GROUP: SettingsGroup = {
       items: (s) => s.phone.strip.panes.map((e) => ({ id: e.id, label: STRIP_LABELS[e.id] ?? e.id, on: e.on })),
       toggle: (id, on, s) => ({ phone: { strip: { panes: setEntry(s.phone.strip.panes, id, on) } } }),
       move: (id, dir, s) => ({ phone: { strip: { panes: moveEntry(s.phone.strip.panes, id, dir) } } }),
+    },
+    {
+      kind: 'toggle',
+      id: 'fight-card',
+      label: 'Fight card while fighting',
+      get: (s) => s.phone.fightCard,
+      set: (fightCard) => ({ phone: { fightCard } }),
     },
     { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
   ],
@@ -260,8 +325,47 @@ export const COMPASS_GROUP: SettingsGroup = {
       less: { text: '−', label: 'Fewer K keys' },
       more: { text: '+', label: 'More K keys' },
     },
+    {
+      // One switch for every key that is pressed: the compass, the hot keys and our own keyboard
+      // (ADR 0138 §7). Only where the browser can vibrate (not on an iPhone).
+      kind: 'toggle',
+      id: 'vibrate',
+      label: 'Vibrate on key press',
+      get: (s) => s.phone.vibrate,
+      set: (vibrate) => ({ phone: { vibrate } }),
+      available: () => canVibrate(globalThis.navigator),
+    },
   ],
   caption: 'More than three stand in a second column. Hold a K key to change it.',
+};
+
+/** The browser's languages, for the layout that `auto` stands for. */
+const browserLanguages = (): readonly string[] | string | undefined => {
+  const nav = globalThis.navigator as Navigator | undefined;
+  return nav?.languages?.length ? nav.languages : nav?.language;
+};
+
+/**
+ * Keyboard: the layout of our own keyboard (`phone.keyboard.layout`; ADR
+ * 0138 §4). Stored as `auto` until one is chosen: the row then shows the
+ * layout of the browser's language, which is the one in use.
+ */
+export const KEYBOARD_GROUP: SettingsGroup = {
+  id: 'keyboard',
+  title: 'Keyboard',
+  rows: [
+    {
+      kind: 'seg',
+      id: 'keyboard-layout',
+      label: 'Layout',
+      options: [
+        { value: 'sv', label: 'Swedish' },
+        { value: 'en', label: 'English' },
+      ],
+      get: (s) => okbLayout(s.phone.keyboard.layout === 'auto' ? null : s.phone.keyboard.layout, browserLanguages()),
+      set: (layout) => ({ phone: { keyboard: { layout: layout as PhoneKeyboardLayout } } }),
+    },
+  ],
 };
 
 /**
@@ -300,7 +404,12 @@ export const CONNECTION_GROUP: SettingsGroup = {
 };
 
 /** The page's groups, top to bottom (ADR 0136 §10). */
-export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, COMPASS_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP, CONNECTION_GROUP];
+export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, COMPASS_GROUP, KEYBOARD_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP, CONNECTION_GROUP];
+
+/** The groups that are there on this device. */
+export function groupsShown(groups: readonly SettingsGroup[]): SettingsGroup[] {
+  return groups.filter((g) => g.available?.() ?? true);
+}
 
 // ------------------------------------------------- Timers and Group (stage 52)
 
@@ -454,7 +563,7 @@ export const GROUP_GROUP: SettingsGroup = {
     {
       kind: 'toggle',
       id: 'group-fight',
-      // The pane's own card; the phone's fight card over the game is always there (ADR 0136 §3).
+      // The pane's own card; the phone's fight card over the game has its own switch (Panes, `phone.fightCard`).
       label: 'Fight card in the pane',
       get: (s) => s.group.fight,
       set: (fight) => ({ group: { fight } }),
@@ -607,6 +716,26 @@ function Row(p: {
         </>
       );
     }
+    case 'action': {
+      const on = row.enabled(s);
+      return (
+        <button
+          type="button"
+          class="wc-ph-srow is-pick is-action"
+          data-row={row.id}
+          tabIndex={-1}
+          aria-disabled={on ? undefined : 'true'}
+          onMouseDown={keepFocus}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (on) p.update(row.run(s));
+          }}
+        >
+          <span class="wc-ph-srow-t">{row.label}</span>
+          <span class="wc-ph-srow-v">{row.value(s)}</span>
+        </button>
+      );
+    }
     case 'link':
       return (
         <button
@@ -626,6 +755,7 @@ function Row(p: {
       );
     case 'pick': {
       const cur = row.get(s);
+      const chosen = row.options(s).find((o) => o.value === cur);
       return (
         <button
           type="button"
@@ -639,12 +769,18 @@ function Row(p: {
           }}
         >
           <span class="wc-ph-srow-t">{row.label}</span>
-          <span class="wc-ph-srow-v">{row.options().find((o) => o.value === cur)?.label ?? cur}</span>
+          {chosen?.swatch !== undefined && <Swatch color={chosen.swatch} />}
+          <span class="wc-ph-srow-v">{chosen?.label ?? cur}</span>
           <PhIcon d={ICON_CHEVRON} small class="wc-ph-chev" />
         </button>
       );
     }
   }
+}
+
+/** A pick option's colour chip (the input colour's options). */
+function Swatch(p: { color: string }): VNode {
+  return <span class="wc-ph-tint" style={{ '--ph-tint': p.color }} aria-hidden="true" />;
 }
 
 /** The list a `pick` row opens: one option per row, the chosen one checked. */
@@ -654,7 +790,7 @@ function PickList(p: { row: Extract<SettingsRow, { kind: 'pick' }>; s: S; choose
     <section class="wc-ph-grp" data-pick={p.row.id}>
       <span class="wc-ph-grp-t">{p.row.label}</span>
       <div class="wc-ph-card" role="radiogroup" aria-label={p.row.label}>
-        {p.row.options().map((o) => (
+        {p.row.options(p.s).map((o) => (
           <button
             key={o.value}
             type="button"
@@ -669,6 +805,7 @@ function PickList(p: { row: Extract<SettingsRow, { kind: 'pick' }>; s: S; choose
               p.choose(o.value);
             }}
           >
+            {o.swatch !== undefined && <Swatch color={o.swatch} />}
             <span class="wc-ph-srow-t">{o.label}</span>
             {o.value === cur && <PhIcon d={ICON_CHECK} small class="wc-ph-check" />}
           </button>
@@ -797,7 +934,7 @@ export function SettingsPage(p: SettingsPageProps): VNode {
               }}
             />
           ) : (
-            (top?.at === 'sub' ? top.page.groups : groups).map(section)
+            groupsShown(top?.at === 'sub' ? top.page.groups : groups).map(section)
           )}
         </div>
       </div>

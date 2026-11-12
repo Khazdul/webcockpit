@@ -43,7 +43,7 @@
 // elsewhere).
 //
 // Phone (ADR 0136 §6, `setPhoneMode`): the phone's layout in the live game
-// shows this pane full width under the fight card. In that mode the chat
+// shows this pane full width above the fight card. In that mode the chat
 // column is always the rail and the pane never writes `comm.folded` or
 // `comm.listWidth` (they are the desktop's); the reply line says "Type a
 // message". While the phone has Comm closed (`setPhoneOpen(false)`) no
@@ -576,7 +576,9 @@ export class CommPane extends PaneShell {
    * phone's keyboard shows no autofill bar (as the command line, ADR 0075
    * §3.2). Only the phone's layout in the live game has it; everywhere
    * else (a computer, a tablet, the old phone layout, the player) the reply
-   * line is the <input>.
+   * line is the <input>. (Since stage 53 the field has our own keyboard
+   * there and the device's bar never shows; the element is kept as it was
+   * approved on a device, ADR 0139 "as built in round 53i".)
    */
   private phoneReply(): HTMLTextAreaElement {
     const ta = this.root.ownerDocument.createElement('textarea');
@@ -651,10 +653,18 @@ export class CommPane extends PaneShell {
     this.markDirty();
   }
 
-  /** Phone mode: Comm was opened (the view it had opens, read) or closed (no view is open any more). */
-  setPhoneOpen(open: boolean): void {
+  /**
+   * Phone mode: Comm was opened (the view it had opens, read) or closed (no
+   * view is open any more). A close ends the search; `keep` says the close
+   * is a temporary one (the hot key box took Comm out of the layout for its
+   * room, and Comm comes back as it was): the search stays open with its
+   * query. A close without it ends a search kept so, too.
+   */
+  setPhoneOpen(open: boolean, o: { keep?: boolean } = {}): void {
     const p = this.phone;
-    if (!p || p.open === open) return;
+    if (!p) return;
+    if (!open && !o.keep && this.searchOpen) this.closeSearch();
+    if (p.open === open) return;
     p.open = open;
     if (open) {
       const key = p.last;
@@ -663,7 +673,6 @@ export class CommPane extends PaneShell {
       this.list.toLive();
     } else {
       p.last = this.chats.open ?? p.last;
-      if (this.searchOpen) this.closeSearch();
       this.chats.setOpen(null);
       // Nothing is drawn while it is closed (`render`): no view is opened behind the phone's back.
       return;
@@ -724,6 +733,14 @@ export class CommPane extends PaneShell {
     this.results.replaceChildren();
     this.list.el.hidden = false;
     this.markDirty();
+  }
+
+  /**
+   * Enter in the reply line, for a keyboard that makes no key events (the
+   * phone's own, ADR 0138 §3): what the Enter key does there.
+   */
+  submitReply(): void {
+    this.sendReply();
   }
 
   /** Sends the reply line's text (Enter). */

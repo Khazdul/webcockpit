@@ -6,7 +6,8 @@
 // app loads: a fake `navigator.virtualKeyboard` (a settable rectangle and
 // a `geometrychange` event) and a fake fullscreen state (an override of
 // `document.fullscreenElement` and a dispatched `fullscreenchange`). The
-// specs then check what the app publishes: `--wc-vv-h` and `wc-kbd`.
+// specs then check what the app publishes: `--wc-vv-h` (and that `wc-kbd`,
+// the old phone layout's device keyboard state, stays off).
 //
 // Since 0.6.1 the app no longer uses the VirtualKeyboard rectangle (it
 // collapsed the layout on the owner's S21 in portrait fullscreen): the
@@ -56,8 +57,13 @@ async function open(page: Page, extra = ''): Promise<void> {
   await page.goto(`/?replay&phone=1${extra}`);
   await expect(html(page)).toHaveClass(/\bwc-phone\b/);
   await expect(page.locator('.wc-cockpit')).toBeVisible();
+  // The phone layer is up (its keyboard is in the page): from here a shrink is no keyboard.
+  await expect(page.locator('.wc-ph-okb')).toHaveCount(1);
 }
 
+// A phone has our own keyboard on every text field (ADR 0138, ADR 0139), so the device's never
+// comes up and a shrunken visible area (a split screen, a browser's bars) is never taken for one:
+// `wc-kbd` stays off (it is the old phone layout's state only), and the page follows the area.
 test('without fullscreen the keyboard rectangle is ignored and overlaysContent stays off', async ({ page }) => {
   await stub(page);
   await open(page);
@@ -68,14 +74,14 @@ test('without fullscreen the keyboard rectangle is ignored and overlaysContent s
   expect(await published(page)).toBe(full);
   await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await page.evaluate(() => window.__vvFake.overlays())).toBe(false);
-  // The path that works today: the visual viewport shrinks for the keyboard.
+  // The visual viewport shrinks (a split screen, a browser's bars): the page follows it.
   const size = page.viewportSize()!;
   await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect.poll(() => published(page)).toBeLessThan(full);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await published(page)).toBe(full - 320);
   await page.setViewportSize(size);
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
-  expect(await published(page)).toBe(full);
+  await expect.poll(() => published(page)).toBe(full);
 });
 
 test('in fullscreen the keyboard rectangle is ignored too: overlaysContent stays off and the visual viewport decides', async ({ page }) => {
@@ -94,27 +100,28 @@ test('in fullscreen the keyboard rectangle is ignored too: overlaysContent stays
   expect(await appBottom(page)).toBe(full);
   await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await page.evaluate(() => window.__vvFake.overlays())).toBe(false);
-  // The visual viewport shrinks for the keyboard: that is what counts.
+  // The visual viewport shrinks: that is what counts.
   await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect.poll(() => published(page)).toBeLessThan(full);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await published(page)).toBe(full - 320);
   expect(await appBottom(page)).toBe(full - 320);
-  // Keyboard down, then out of fullscreen.
+  // Whole again, then out of fullscreen.
   await page.setViewportSize(size);
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
-  expect(await published(page)).toBe(full);
+  await expect.poll(() => published(page)).toBe(full);
   await page.evaluate(() => window.__vvFake.fullscreen(false));
   expect(await page.evaluate(() => window.__vvFake.overlays())).toBe(false);
   expect(await published(page)).toBe(full);
 });
 
-test('entering fullscreen with the keyboard up: measured again after the change, without any further event', async ({ page }) => {
+test('entering fullscreen with a shrunken visible area: measured again after the change, without any further event', async ({ page }) => {
   await stub(page);
   await open(page);
   const size = page.viewportSize()!;
   const full = await viewHeight(page);
   await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect.poll(() => published(page)).toBeLessThan(full);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await published(page)).toBe(full - 320);
   // The viewport's height changes with no event at all, as when Android
   // delivers none: only the measurements after the fullscreen change see it.
@@ -123,7 +130,7 @@ test('entering fullscreen with the keyboard up: measured again after the change,
   expect(await published(page)).toBe(full - 320);
   await page.evaluate(() => window.__vvFake.fullscreen(true));
   await expect.poll(() => published(page)).toBe(full - 280);
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await page.evaluate(() => window.__vvFake.overlays())).toBe(false);
 });
 
@@ -134,7 +141,8 @@ test('without the VirtualKeyboard API fullscreen follows the visual viewport as 
   const full = await viewHeight(page);
   await page.evaluate(() => window.__vvFake.fullscreen(true));
   await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect.poll(() => published(page)).toBeLessThan(full);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await published(page)).toBe(full - 320);
 });
 

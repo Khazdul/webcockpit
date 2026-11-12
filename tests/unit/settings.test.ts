@@ -4,6 +4,7 @@ import { CaptureStore } from '../../src/capture/store';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
 import { DEFAULT_SHARE, PANE_IDS, defaultMapFloat, defaultStatsFloat, dockPanes } from '../../src/layout/types';
 import { legacyLayout } from './legacy-defaults';
+import { INPUT_COLOR_IDS } from '../../src/theme/presets';
 import {
   DEFAULT_SETTINGS,
   MIRROR_KEY,
@@ -11,6 +12,7 @@ import {
   PHONE_FONT_SIZE,
   defaultSettings,
   phoneDefaultSettings,
+  migrateAppearance,
   migrateComm,
   migrateTimers,
   migrateSpotlights,
@@ -173,9 +175,9 @@ describe('migrateSettings', () => {
     expect(JSON.stringify(migrateSettings(JSON.parse(JSON.stringify(defaultSettings()))))).toBe(JSON.stringify(defaultSettings()));
   });
 
-  it('appearance defaults (ADR 0078): Hack 17, bold brightens; padding, colours, input colour and scrollback as before', () => {
+  it('appearance defaults (ADR 0078): Hack 17, bold brightens; padding, colours and scrollback as before; the input colour Amber (2026-11-12)', () => {
     const a = DEFAULT_SETTINGS.appearance;
-    expect(a).toMatchObject({ font: 'hack', size: 17, boldBright: true, padding: 0, fg: '#c0c0c0', bg: '#000000', inputColor: 'steel' });
+    expect(a).toMatchObject({ font: 'hack', size: 17, boldBright: true, padding: 0, fg: '#c0c0c0', bg: '#000000', inputColor: 'amber' });
     expect(DEFAULT_SETTINGS.output.scrollback).toBe(20000);
   });
 
@@ -221,14 +223,94 @@ describe('migrateSettings', () => {
     });
   });
 
-  it('input colour: Steel by default and for older data, kept when valid (ADR 0035)', () => {
-    expect(DEFAULT_SETTINGS.appearance.inputColor).toBe('steel');
-    expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance.inputColor).toBe('steel');
-    expect(migrateSettings({}).appearance.inputColor).toBe('steel');
-    expect(migrateSettings({ appearance: { inputColor: 'amber' } }).appearance.inputColor).toBe('amber');
+  it('input colour: Amber (the gold) by default and where none is stored; a stored colour is kept, Steel too (ADR 0035, addendum of 2026-11-12)', () => {
+    expect(DEFAULT_SETTINGS.appearance.inputColor).toBe('amber');
+    expect(phoneDefaultSettings().appearance.inputColor).toBe('amber');
+    // Never chosen (no value stored, or an unreadable one): the gold.
+    expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance.inputColor).toBe('amber');
+    expect(migrateSettings({}).appearance.inputColor).toBe('amber');
+    expect(migrateSettings({ appearance: { inputColor: 'pink' } }).appearance.inputColor).toBe('amber');
+    expect(migrateSettings({ appearance: { inputColor: 3 } }).appearance.inputColor).toBe('amber');
+    // A stored value is kept.
+    expect(migrateSettings({ appearance: { inputColor: 'sand' } }).appearance.inputColor).toBe('sand');
     expect(migrateSettings({ appearance: { inputColor: 'none' } }).appearance.inputColor).toBe('none');
-    expect(migrateSettings({ appearance: { inputColor: 'pink' } }).appearance.inputColor).toBe('steel');
-    expect(migrateSettings({ appearance: { inputColor: 3 } }).appearance.inputColor).toBe('steel');
+  });
+
+  it('the one-time switch: Steel stored before version 6 becomes Amber; any other colour, and Steel since, is kept (ADR 0035)', () => {
+    expect(SETTINGS_VERSION).toBeGreaterThanOrEqual(6);
+    const at = (version: number | undefined, inputColor: string) =>
+      migrateSettings({ ...(version === undefined ? {} : { version }), appearance: { font: 'dejavu', size: 15, inputColor } });
+    // Old settings that say Steel (the default of that time, stored with every appearance): the gold.
+    for (const v of [undefined, 1, 4, 5]) {
+      const s = at(v, 'steel');
+      expect(s.appearance.inputColor, String(v)).toBe('amber');
+      expect(s.version).toBe(SETTINGS_VERSION);
+      // Nothing else of the stored look moves.
+      expect(s.appearance).toMatchObject({ font: 'dejavu', size: 15, boldBright: false });
+    }
+    // Old settings with another colour: a choice, kept.
+    for (const c of INPUT_COLOR_IDS.filter((c) => c !== 'steel')) expect(at(5, c).appearance.inputColor).toBe(c);
+    // This version or newer: Steel is a choice, kept.
+    expect(at(6, 'steel').appearance.inputColor).toBe('steel');
+    expect(at(SETTINGS_VERSION, 'steel').appearance.inputColor).toBe('steel');
+    expect(at(SETTINGS_VERSION + 1, 'steel').appearance.inputColor).toBe('steel');
+    // Once: the migrated settings carry the new version, so picking Steel afterwards holds.
+    const switched = at(5, 'steel');
+    const back = migrateSettings({ ...JSON.parse(JSON.stringify(switched)), appearance: { ...switched.appearance, inputColor: 'steel' } });
+    expect(back.appearance.inputColor).toBe('steel');
+    expect(migrateSettings(JSON.parse(JSON.stringify(back))).appearance.inputColor).toBe('steel');
+  });
+
+  it('the one-time switch leaves what is not a stored setting alone: the mirror, a VIEW, a replay payload', () => {
+    // An appearance with no version (the localStorage mirror, a recording's VIEW appearance).
+    expect(migrateAppearance({ inputColor: 'steel' }).inputColor).toBe('steel');
+    expect(migrateAppearance({ inputColor: 'steel' }, 5).inputColor).toBe('amber');
+    // A replay's embedded settings (src/replay/page.ts): recorded, never switched.
+    expect(migrateSettings({ version: 5, appearance: { inputColor: 'steel' } }, { recorded: true }).appearance.inputColor).toBe('steel');
+    expect(migrateSettings({ appearance: { inputColor: 'steel' } }, { recorded: true }).appearance.inputColor).toBe('steel');
+    // The other version steps still apply to a recorded payload.
+    expect(migrateSettings({ version: 1, mapper: { hover: 'minimal' } }, { recorded: true }).mapper.hover).toBe('full');
+  });
+
+  it('SettingsStore: a stored version-5 Steel loads as Amber, and Steel picked afterwards is saved and kept', async () => {
+    const factory = new IDBFactory();
+    const put = async (value: unknown) => {
+      const db = await openWebcockpitDb(factory);
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('settings', 'readwrite');
+        tx.objectStore('settings').put(value, 'main');
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    };
+    const old = JSON.parse(JSON.stringify(defaultSettings())) as ReturnType<typeof defaultSettings>;
+    old.version = 5;
+    old.appearance.inputColor = 'steel';
+    await put(old);
+    const storage = new MemStorage();
+    storage.setItem(MIRROR_KEY, JSON.stringify(old.appearance));
+    const a = new SettingsStore({ factory, storage, win: null, debounceMs: 0 });
+    // Before the load: the mirror's look (no version there), Steel for one paint.
+    expect(a.get().appearance.inputColor).toBe('steel');
+    await a.load();
+    expect(a.get().appearance.inputColor).toBe('amber');
+    expect(a.get().version).toBe(SETTINGS_VERSION);
+    // The mirror follows, so the next first paint is gold.
+    expect((JSON.parse(storage.getItem(MIRROR_KEY)!) as { inputColor: string }).inputColor).toBe('amber');
+    await a.dispose();
+    // Nothing changed, nothing written: the next load switches the same way.
+    const b = new SettingsStore({ factory, storage, win: null, debounceMs: 0 });
+    await b.load();
+    expect(b.get().appearance.inputColor).toBe('amber');
+    // The user picks Steel: stored with the new version, and kept from then on.
+    b.update({ appearance: { inputColor: 'steel' } });
+    await b.dispose();
+    const c = new SettingsStore({ factory, storage, win: null });
+    await c.load();
+    expect(c.get().version).toBe(SETTINGS_VERSION);
+    expect(c.get().appearance.inputColor).toBe('steel');
+    await c.dispose();
   });
 
   it('bold brightens: on by default, off for older data, kept when a boolean (ADR 0060, ADR 0078)', () => {

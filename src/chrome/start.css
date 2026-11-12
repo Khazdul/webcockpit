@@ -538,6 +538,7 @@ html.wc-phone .wc-alm-v {
   line-height: 1.5;
 }
 
+/* (The device's keyboard: the old phone layout only, phone-viewport.ts.) */
 html.wc-phone.wc-kbd .wc-start-almanac {
   display: none;
 }

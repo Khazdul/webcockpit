@@ -66,8 +66,8 @@ function overlaps(list: Box[], against: Box[] = list): string[] {
 
 const inside = (b: Box, vw: number, vh: number): boolean => b.x >= -0.5 && b.y >= -0.5 && b.x + b.w <= vw + 0.5 && b.y + b.h <= vh + 0.5;
 
-async function openPhone(page: Page): Promise<void> {
-  await page.goto('/?replay&phone=1');
+async function openPhone(page: Page, query = ''): Promise<void> {
+  await page.goto(`/?replay&phone=1${query}`);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad')).toBeVisible();
 }
@@ -144,17 +144,24 @@ for (const sc of SCREENS) {
         await expect(strip).toHaveCount(1);
         await expect(panes).toHaveAttribute('aria-pressed', 'true');
         await checkMain(page, 'strip open');
-        // The strip's chrome does not cover its pane's lines: the hood ends above them, the dots start below.
+        // The strip's chrome does not cover its pane's lines (round 53j: no hood; the name and the
+        // dots are on the band): in portrait the band under the pane, in landscape the column's
+        // band right of it, the name's plate reaching at most 4 px into the pane.
         const g = await page.evaluate(() => {
-          const r = (sel: string): DOMRect => document.querySelector(sel)!.getBoundingClientRect();
+          const r = (sel: string): DOMRect => [...document.querySelectorAll(sel)].map((e) => e.getBoundingClientRect()).find((b) => b.width > 0)!;
           const c = r('.wc-pane[data-phone-strip] .wc-pane-content');
           const d = r('.wc-ph-strip-dots');
-          return { top: c.top, bottom: c.bottom, hood: r('.wc-ph-strip-hood').bottom, dotsTop: d.top, dotsBottom: d.bottom };
+          const p = r('.wc-ph-plate-run[data-plate="strip"] .wc-ph-plate');
+          return { top: c.top, bottom: c.bottom, right: c.right, hoods: document.querySelectorAll('.wc-ph-strip-hood, .wc-ph-comm-hood').length, dotsTop: d.top, dotsLeft: d.left, plateTop: p.top, plateLeft: p.left };
         });
-        expect(g.hood).toBeLessThanOrEqual(g.top + 0.5);
-        // (Portrait: on the band under the pane. Landscape: in the hood's row above it.)
-        if (vw > vh) expect(g.dotsBottom).toBeLessThanOrEqual(g.top + 0.5);
-        else expect(g.dotsTop).toBeGreaterThanOrEqual(g.bottom - 0.5);
+        expect(g.hoods).toBe(0);
+        if (vw > vh) {
+          expect(g.dotsLeft).toBeGreaterThanOrEqual(g.right - 0.5);
+          expect(g.plateLeft).toBeGreaterThanOrEqual(g.right - 4.5);
+        } else {
+          expect(g.dotsTop).toBeGreaterThanOrEqual(g.bottom - 0.5);
+          expect(g.plateTop).toBeGreaterThanOrEqual(g.bottom - 0.5);
+        }
       } else {
         await expect(strip).toHaveCount(0);
         await expect(panes).toHaveAttribute('aria-pressed', 'false');
@@ -396,35 +403,5 @@ for (const sc of SCREENS) {
       await expect(key).toHaveText('resc');
     });
 
-    test('the keyboard up: the command field is visible and takes the full width', async ({ page }) => {
-      await openPhone(page);
-      await playFight(page);
-      await page.locator('.wc-input-slot .wc-input-field').tap();
-      await page.setViewportSize({ width: sc.viewport.width, height: sc.keyboard });
-      await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-      await expect(page.locator('.wc-ph-pad')).toBeHidden();
-      await expect(page.locator('.wc-ph-hot')).toBeHidden();
-      await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
-      const vw = sc.viewport.width;
-      await expect
-        .poll(async () => {
-          const f = (await page.locator('.wc-cockpit > .wc-input-slot > .wc-input').boundingBox())!;
-          return f.y >= 0 && f.y + f.height <= sc.keyboard + 0.5 && f.x + f.width >= vw - 8 - 12;
-        })
-        .toBe(true);
-      const f = (await page.locator('.wc-cockpit > .wc-input-slot > .wc-input').boundingBox())!;
-      const m = (await page.locator('.wc-ph-menu').boundingBox())!;
-      // From the menu key to the right edge (less the row's 8 px and a cell's slack).
-      expect(f.x).toBeGreaterThanOrEqual(m.x + m.width + 7);
-      expect(f.height).toBeGreaterThanOrEqual(36);
-      expect(m.y + m.height).toBeLessThanOrEqual(sc.keyboard + 0.5);
-      // What is typed shows in it.
-      await page.keyboard.type('kill scout');
-      await expect(page.locator('.wc-input-slot .wc-input-field')).toHaveValue('kill scout');
-      // The game text keeps rows above the field.
-      const game = (await page.locator('.wc-cockpit > .wc-game').boundingBox())!;
-      expect(game.height).toBeGreaterThan(30);
-      expect(game.y + game.height).toBeLessThanOrEqual(f.y + 1);
-    });
   });
 }

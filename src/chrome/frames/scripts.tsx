@@ -905,7 +905,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   return (
     <Box size="large" title="Scripts" onBack={() => nav.pop()} winClass="wc-scr-win">
       <div class={`wc-scr is-${width}` + (inPanel ? ' is-panel' : '')} ref={rootRef} data-w={width}>
-        <BoxBody scroll={false} class={'wc-scr-main' + (drill ? ' is-drill' : '')}>
+        <BoxBody scroll={false} class={'wc-scr-main' + (drill ? ' is-drill' : '') + (effZone === 'panel' ? ' is-keys' : '')}>
           <nav class="wc-scr-idx wc-lk-scroll" aria-label="Scripts" ref={idxRef}>
             {list.length === 0 ? (
               <p class="wc-lk-empty wc-scr-none">{ready ? 'No scripts yet.' : ''}</p>

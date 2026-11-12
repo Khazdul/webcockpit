@@ -8,8 +8,9 @@
 // - A tap sends on the RELEASE, unlike the compass (which sends on the
 //   press): a press may become a hold, and a hold must not send. A press
 //   that leaves the key (further than a small slop) is neither.
-// - A hold (500 ms) opens the box for that key. One timer per press;
-//   nothing runs per frame.
+// - A hold (500 ms) opens the box for that key, when the box has room
+//   (`boxFits`: asked first; a refused hold shows nothing and sends
+//   nothing). One timer per press; nothing runs per frame.
 // - A press never moves the focus (no keyboard): the pointer's press is
 //   prevented from becoming a mouse press, as on the compass. A click
 //   without a pointer (a screen reader's activation) sends too.
@@ -53,8 +54,21 @@ export interface HotkeysDeps {
   toggle(): void;
   /** The current hit points for the box's "Sends now" line; null: unknown. */
   hp(): number | null;
-  /** The box opened or closed (the layer makes room: the lens). */
-  onBox(open: boolean): void;
+  /**
+   * The box opened or closed (the layer makes room: the lens). `by`: the
+   * press outside it that closed it, when one did.
+   */
+  onBox(open: boolean, by?: Event | null): void;
+  /**
+   * Asked before a closed box opens, with the box filled and laid out but
+   * not yet visible (the layer places it and reads its height): false when
+   * it has no room. The hold is then refused, and nothing on screen changes.
+   */
+  boxFits?(): boolean;
+  /** A pointer went down on a hot key (the layer's vibration). */
+  onPress?(): void;
+  /** A press outside the box that still leaves it open: on what belongs to it (our own keyboard while it types in the box). */
+  keepsBox?(target: Node): boolean;
 }
 
 export class HotkeysView {
@@ -222,6 +236,7 @@ export class HotkeysView {
     if (i === null || (e.pointerType === 'mouse' && e.button !== 0)) return;
     // No mouse press follows: the focus (and the keyboard) stays as it is.
     e.preventDefault();
+    this.deps.onPress?.();
     this.dropPress();
     // The press that closed the box did its work already; with the box open (another pointer) a key waits.
     if (e === this.closedBy || this.boxIndex !== null) return;
@@ -283,7 +298,7 @@ export class HotkeysView {
     const key = this.keys[index];
     if (!key) return;
     const b = this.box ?? (this.box = this.buildBox());
-    this.boxIndex = index;
+    const was = this.boxIndex;
     this.draft = { ...key };
     b.title.textContent = `K${index + 1}`;
     this.boxEl.setAttribute('aria-label', `Change hot key K${index + 1}`);
@@ -301,9 +316,21 @@ export class HotkeysView {
     // (The notch is a 10 px square with a 1 px border, turned 45°, placed from inside the box's
     // own 1 px border: its middle at the key's.)
     b.notch.style.bottom = `${(slots.length - 1 - at) * this.step + (this.step - 3) / 2 - 6.5}px`;
+    this.syncBox();
+    if (was === null && this.deps.boxFits) {
+      // Room first, before the layer hides anything for the box: laid out as it will stand, not painted.
+      this.boxEl.style.visibility = 'hidden';
+      this.boxEl.hidden = false;
+      const fits = this.deps.boxFits();
+      this.boxEl.style.visibility = '';
+      if (!fits) {
+        this.boxEl.hidden = true;
+        return;
+      }
+    }
+    this.boxIndex = index;
     this.boxEl.hidden = false;
     b.body.scrollTop = 0;
-    this.syncBox();
     this.markHeld();
     this.doc.addEventListener('pointerdown', this.onOutside, true);
     // On the window, ahead of the input pane's listener on the document: Esc closes the box, not opens the menu.
@@ -312,7 +339,7 @@ export class HotkeysView {
   }
 
   /** Closes the box without saving (Cancel; the layer, when another surface takes its place). */
-  closeBox(): void {
+  closeBox(by: Event | null = null): void {
     if (this.boxIndex === null) return;
     this.boxIndex = null;
     this.doc.removeEventListener('pointerdown', this.onOutside, true);
@@ -322,7 +349,7 @@ export class HotkeysView {
     if (active instanceof HTMLElement && this.boxEl.contains(active)) active.blur();
     this.boxEl.hidden = true;
     this.markHeld();
-    this.deps.onBox(false);
+    this.deps.onBox(false, by);
   }
 
   /** Where the box stands: px from the layer's bottom edge, and the tallest it may be. */
@@ -333,18 +360,31 @@ export class HotkeysView {
 
   private readonly onOutside = (e: Event): void => {
     const t = e.target as Node | null;
-    if (t && (this.boxEl.contains(t) || this.kEl.contains(t))) return;
+    if (t && (this.boxEl.contains(t) || this.kEl.contains(t) || this.deps.keepsBox?.(t))) return;
     this.closedBy = e;
-    this.closeBox();
+    this.closeBox(e);
   };
 
   /** Esc with the box open, wherever the focus is: Cancel. */
   private readonly onEsc = (e: KeyboardEvent): void => {
     if (e.key !== 'Escape') return;
+    // A key aimed at a field of a page over the game (the start menu's pages, the menu's overlay) is
+    // the page's: so is the Esc our keyboard sends there (ADR 0139 §4).
+    if ((e.target as Element | null)?.closest?.('.wc-chrome, .wc-overlay')) return;
     e.preventDefault();
     e.stopPropagation();
     this.closeBox();
   };
+
+  /** The box's Save (its key; Enter in a field, also from a keyboard that makes no key events). */
+  saveBox(): void {
+    this.save();
+  }
+
+  /** Whether `el` is one of the box's two text fields. */
+  ownsField(el: Element): boolean {
+    return this.box !== null && (el === this.box.label || el === this.box.command);
+  }
 
   private save(): void {
     const index = this.boxIndex;

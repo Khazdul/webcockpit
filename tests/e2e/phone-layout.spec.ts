@@ -13,8 +13,8 @@ const DEMO = '/?fixture=gmcp-demo.log&speed=0&phone=1';
 
 const tooSmall = (page: Page) => page.locator('.wc-too-small:not([hidden]), .wc-start-too-small');
 
-async function openDemo(page: Page): Promise<void> {
-  await page.goto(DEMO);
+async function openDemo(page: Page, query = ''): Promise<void> {
+  await page.goto(DEMO + query);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
 }
@@ -74,26 +74,6 @@ test('the menu key opens the menu sheet from the bottom edge, over the whole wid
   expect(b.y).toBeGreaterThanOrEqual(c.y);
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
-});
-
-test('a shorter visible area (keyboard) keeps the input visible and never shows too small', async ({ page }) => {
-  await openDemo(page);
-  const size = page.viewportSize()!;
-  await page.setViewportSize({ width: size.width, height: 400 });
-  await page.waitForTimeout(400);
-  await expect(tooSmall(page)).toHaveCount(0);
-  await inputVisible(page);
-  // Very short (a landscape keyboard): the guard is off while the keyboard is up.
-  await page.setViewportSize({ width: size.width, height: 120 });
-  await page.waitForTimeout(400);
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-  await expect(tooSmall(page)).toHaveCount(0);
-  await inputVisible(page);
-  // Keyboard down again.
-  await page.setViewportSize(size);
-  await page.waitForTimeout(400);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  await inputVisible(page);
 });
 
 test.describe('landscape', () => {

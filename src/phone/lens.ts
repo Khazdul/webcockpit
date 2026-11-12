@@ -5,13 +5,23 @@
 // cells (`Cockpit.setPhoneLens`) and phone.css clips it to a circle
 // (`clip-path` on the pane; no second canvas). This module draws what lies
 // over it, as static DOM painted once: the cast-iron ring, the glass with
-// its window reflection and edge darkening, the outer shadow, and three
-// pips for the zoom level. No filter, no backdrop filter, no animation:
+// its window reflection and edge darkening, the outer shadow, and a pip
+// for each zoom level. No filter, no backdrop filter, no animation:
 // the game text scrolling under it repaints nothing here.
 //
-// - A tap on the lens steps the zoom (near → middle → far → near); the
-//   level is kept in memory and starts at the setting's "Opens at". The
-//   lens button covers the map, so the map takes no pan or pinch.
+// - A tap on the lens steps the zoom one level out, and from the furthest
+//   back to the nearest (four levels, lens-zoom.ts); the level is kept in
+//   memory and starts at the setting's "Opens at". The lens button covers
+//   the map, so the map takes no pan or pinch.
+// - The lens is moved and resized by touch (round 53k; `LensDrag`): a
+//   finger that moves on the glass carries the lens along; a finger held
+//   still for `LENS_HOLD_MS` arms the resize (the rim lights up), and a
+//   drag after that changes its size. This module only reads the pointer
+//   (what kind of gesture, where the finger is, once per frame) and keeps
+//   the tap apart from a drag; the geometry is the caller's
+//   (lens-place.ts). A drag's release steps no zoom. The tap itself is
+//   taken at the pointer's release, not at the click: a browser drops the
+//   click of a tap that follows a flick, and the lens is flicked about.
 // - Three round keys sit on the lens's corners: top left **panes** (opens
 //   and closes the pane strip; only while the strip has a page), top right
 //   **fullscreen** (only where the browser can put the page in fullscreen;
@@ -47,7 +57,31 @@ const SATS: readonly { name: SatName; corner: string; icon: string; label: strin
   { name: 'comm', corner: 'is-br', icon: COMM_ICON, label: 'Open Comm' },
 ];
 
+/** A finger held still on the glass this long arms the resize, ms. */
+export const LENS_HOLD_MS = 400;
+/** A click this soon after a pointer lifted from the glass is that pointer's own, ms. */
+const LENS_CLICK_MS = 700;
+/** A finger that moved this far before the hold is a move, px; an armed finger that moved this far resizes. */
+export const LENS_MOVE_SLOP = 8;
+export const LENS_SIZE_SLOP = 4;
+
+/**
+ * The lens's drag as the caller hears it. All points are client px. A
+ * gesture is `arm` (optional), then `drag` at most once per frame, then
+ * `drop`; a tap calls none of them.
+ */
+export interface LensDrag {
+  /** The hold ran out with the finger still: the resize is armed. */
+  arm(): void;
+  /** The finger is at `x`, `y`, having started this kind of drag at `x0`, `y0`. */
+  drag(kind: 'move' | 'size', x0: number, y0: number, x: number, y: number): void;
+  /** The finger lifted (`kind`: what it had been dragging; null: an armed hold released in place), or the gesture was cancelled. */
+  drop(kind: 'move' | 'size' | null, cancelled: boolean): void;
+}
+
 export interface LensDeps {
+  /** The drag (round 53k); absent: the glass only takes taps. */
+  drag?: LensDrag;
   /** The level stepped to: the caller zooms the map. */
   onLevel(level: LensLevel): void;
   /** The fullscreen key: null where the browser cannot (no key then). */
@@ -72,13 +106,19 @@ export class LensView {
   readonly rowEl: HTMLDivElement;
   private readonly button: HTMLButtonElement;
   private readonly pips: HTMLElement[] = [];
-  private level: LensLevel = 'middle';
+  private level: LensLevel = 'z1';
   private placeKey = '';
   private rowKey = '';
   /** Each key twice: on the lens's corner, and in the row. Only one of the two hosts shows. */
   private readonly sats = new Map<SatName, HTMLButtonElement[]>();
   private readonly badges: HTMLSpanElement[] = [];
   private satKey = '';
+  /** When the glass last saw a pointer lift (null: none since the last click): the click that follows it is that pointer's. */
+  private pointerAt: number | null = null;
+  /** A tap: one zoom level on. */
+  private step: () => void = () => {};
+  /** Ends the gesture that is on, as cancelled (null: none is). */
+  private endDrag: (() => void) | null = null;
 
   constructor(doc: Document, deps: LensDeps) {
     this.el = doc.createElement('div');
@@ -108,11 +148,24 @@ export class LensView {
     b.append(refl, shine, ring, pips);
     // The press keeps the focus (and the keyboard) where it is.
     b.addEventListener('mousedown', (e) => e.preventDefault());
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
+    this.step = () => {
       this.setLevel(nextLevel(this.level));
       deps.onLevel(this.level);
+    };
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // The click of a pointer the glass has read itself (`watchDrag`): its tap has stepped the
+      // zoom already, and the release of a drag or of an armed hold is no tap. Only a click that a
+      // pointer made is passed over: one with no pointer of its own (`detail` 0: a screen reader's
+      // activation, a script's `click()`) is a tap whenever it comes.
+      const win = doc.defaultView;
+      if (e.detail !== 0 && this.pointerAt !== null && (win?.performance.now() ?? 0) - this.pointerAt < LENS_CLICK_MS) {
+        this.pointerAt = null;
+        return;
+      }
+      this.step();
     });
+    if (deps.drag) this.watchDrag(b, deps.drag);
     b.addEventListener('contextmenu', (e) => e.preventDefault());
     this.el.append(b);
 
@@ -148,6 +201,108 @@ export class LensView {
       this.sats.set(sat.name, pair);
     }
     this.setLevel(this.level);
+  }
+
+  /**
+   * Reads a finger on the glass (see the file header). One pointer at a
+   * time, captured, so its moves and its release come here wherever it
+   * goes. The moves are told once per frame, the last place only.
+   */
+  private watchDrag(b: HTMLButtonElement, drag: LensDrag): void {
+    const win = b.ownerDocument.defaultView;
+    if (!win) return;
+    let id: number | null = null;
+    let mode: 'wait' | 'armed' | 'move' | 'size' = 'wait';
+    let x0 = 0;
+    let y0 = 0;
+    let x = 0;
+    let y = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let frame = 0;
+    const tell = (): void => {
+      frame = 0;
+      if (id !== null && (mode === 'move' || mode === 'size')) drag.drag(mode, x0, y0, x, y);
+    };
+    const finish = (cancelled: boolean): void => {
+      if (id === null) return;
+      const was = mode;
+      const pid = id;
+      id = null;
+      this.endDrag = null;
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      if (frame) win.cancelAnimationFrame(frame);
+      frame = 0;
+      // The last place the finger was at, before the drop.
+      if (!cancelled && (was === 'move' || was === 'size')) drag.drag(was, x0, y0, x, y);
+      this.el.classList.remove('is-armed', 'is-drag');
+      try {
+        b.releasePointerCapture(pid);
+      } catch {
+        // Not captured (any more).
+      }
+      // A click may follow (a mouse always clicks; a finger's tap may not: the browser drops the
+      // tap that follows a flick). So the tap is taken here, and that click is passed over.
+      this.pointerAt = cancelled ? null : win.performance.now();
+      if (was !== 'wait') drag.drop(was === 'armed' ? null : was, cancelled);
+      else if (!cancelled) this.step();
+    };
+    b.addEventListener('pointerdown', (e) => {
+      if (id !== null || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      this.pointerAt = null;
+      id = e.pointerId;
+      mode = 'wait';
+      x0 = x = e.clientX;
+      y0 = y = e.clientY;
+      this.endDrag = () => finish(true);
+      try {
+        b.setPointerCapture(e.pointerId);
+      } catch {
+        // A pointer that is gone already: its moves then come only while it is over the glass.
+      }
+      timer = setTimeout(() => {
+        timer = null;
+        if (id === null || mode !== 'wait') return;
+        mode = 'armed';
+        this.el.classList.add('is-armed');
+        drag.arm();
+      }, LENS_HOLD_MS);
+    });
+    b.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id) return;
+      x = e.clientX;
+      y = e.clientY;
+      const far = Math.hypot(x - x0, y - y0);
+      if (mode === 'wait' && far > LENS_MOVE_SLOP) {
+        mode = 'move';
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        this.el.classList.add('is-drag');
+      } else if (mode === 'armed' && far > LENS_SIZE_SLOP) {
+        // (Counted from where the finger went down: the slop is a few px of size, not a jump.)
+        mode = 'size';
+        this.el.classList.add('is-drag');
+      }
+      if ((mode === 'move' || mode === 'size') && !frame) frame = win.requestAnimationFrame(tell);
+    });
+    b.addEventListener('pointerup', (e) => {
+      if (e.pointerId === id) finish(false);
+    });
+    // The finger's moves are ours: the browser makes no scroll or fling of them. (With
+    // `touch-action: none` alone nothing scrolls either, but a flick still counts as a fling to
+    // Chrome, which then drops the next tap anywhere on the page as the one that stops it.)
+    b.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    b.addEventListener('pointercancel', (e) => {
+      if (e.pointerId === id) finish(true);
+    });
+    b.addEventListener('lostpointercapture', (e) => {
+      if (e.pointerId === id) finish(true);
+    });
+  }
+
+  /** Ends a gesture that is on, as cancelled (the layout changed under the finger; the layer goes away). */
+  cancelDrag(): void {
+    this.endDrag?.();
   }
 
   /** The zoom level the pips and the name show. */

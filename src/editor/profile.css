@@ -930,11 +930,15 @@
     padding-left: 0;
   }
 
-  .wc-pe.is-sheet .wc-pe-detail {
+  /* (`has-sheet`: an entry is open, whatever width the script has measured
+   * so far. The container query is narrow one frame before the script
+   * knows, and a detail hidden for that frame would drop the focus of a
+   * field being typed in: a phone turned upright with an entry open.) */
+  .wc-pe:is(.is-sheet, .has-sheet) .wc-pe-detail {
     display: flex;
   }
 
-  .wc-pe.is-sheet .wc-pe-main {
+  .wc-pe:is(.is-sheet, .has-sheet) .wc-pe-main {
     display: none;
   }
 

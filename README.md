@@ -14,8 +14,10 @@ aims for tt++-level features and latency.
 ## Run it
 
 Open <https://mumecockpit.com/> in a desktop Chrome or
-Firefox. Nothing to install. On a phone you can log in and chat; real
-play needs a keyboard.
+Firefox. Nothing to install. On a phone you can log in, chat and play
+lightly: the game gets a layout made for the thumb, with an on-screen
+keyboard of its own (Swedish or English) in place of the phone's. Real
+play needs a computer.
 
 WebCockpit is a static site. To run it locally you need
 [Node.js](https://nodejs.org) 24 or newer:

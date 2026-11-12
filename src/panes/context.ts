@@ -20,9 +20,9 @@ import type { MapNotesPort } from '../map/notes';
 import type { MapPaneHost } from '../map/protocol';
 import { SettingsStore } from '../settings';
 
-/** The cell size source (src/theme/cells.ts `CellMetrics` fits). */
+/** The cell size source (src/theme/cells.ts `CellMetrics` fits). `px`: the font size that gives the cell (absent from a test's plain source). */
 export interface CellSource {
-  get(): { w: number; h: number };
+  get(): { w: number; h: number; px?: number };
   subscribe(fn: (c: { w: number; h: number }) => void): () => void;
 }
 

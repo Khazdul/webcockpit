@@ -146,13 +146,14 @@ test('Profile: a tap highlights a profile and shows its buttons; they fit and ar
     expect(b.right).toBeLessThanOrEqual(rb.x + rb.width);
     expect(b.top).toBe(boxes[0]!.top);
   }
-  // Select, then Rename: the old-look prompt; Esc back with the row still highlighted.
+  // Select, then Rename: its dialog over the list; Esc back with the row still highlighted.
   await row.locator('[data-btn="SELECT"]').tap();
   await expect.poll(profile).toBe('phoneprof');
   await expect(btns).toHaveText([/Edit/, /Rename/, /Delete/]);
   await row.locator('[data-btn="RENAME"]').tap();
-  await expect(f.locator('.wc-title-row')).toContainText('Rename Profile');
+  await expect(page.locator('.wc-lk-dialog[data-dlg="rename"] .wc-lk-hood-t')).toHaveText('Rename Profile');
   await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-lk-dialog')).toHaveCount(0);
   await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
   await expect(row).toHaveClass(/is-on/);
 });
@@ -220,17 +221,17 @@ test('the command line is a textarea: Enter sends, no newline; the password prom
   });
   await expect(field).toHaveValue(/say one two$/);
 
-  // The password prompt: an <input type=password>, masked, sent on Enter.
+  // The password prompt: masked in place (the same textarea, as on a desktop; ADR 0138 §6), sent on Enter.
   server!.send(bytes([IAC, WILL, ECHO], 'Password: '));
   await expect(field).toHaveClass(/wc-masked/);
-  expect(await field.evaluate((e) => `${e.tagName}:${(e as HTMLInputElement).type}`)).toBe('INPUT:password');
+  expect(await field.evaluate((e) => e.tagName)).toBe('TEXTAREA');
   await expect(field).toBeFocused();
   await page.keyboard.type('hunter2');
   await expect(page.locator('.wc-input-mask')).toHaveText('•••••••');
   await page.keyboard.press('Enter');
   await expect.poll(sentText).toContain('hunter2\r\n');
   await expect(page.locator('.wc-output')).not.toContainText('hunter2');
-  // Echo back on: the textarea returns, empty.
+  // Echo back on: the line shows again, empty.
   server!.send(bytes([IAC, WONT, ECHO], '\r\nWelcome.\r\n'));
   await expect(field).not.toHaveClass(/wc-masked/);
   expect(await field.evaluate((e) => e.tagName)).toBe('TEXTAREA');

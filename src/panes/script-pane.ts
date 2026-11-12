@@ -636,15 +636,34 @@ export class ScriptPane extends PaneShell {
     }
   }
 
+  /**
+   * Enter in the field `el` of this pane, for a keyboard that makes no key
+   * events (the phone's own, ADR 0138 §3): what the Enter key does there.
+   * False when the field is not this pane's.
+   */
+  submitField(el: HTMLElement): boolean {
+    for (const [id, input] of this.inputs) {
+      if (input !== el) continue;
+      this.submitInput(id, input);
+      return true;
+    }
+    return false;
+  }
+
+  /** Enter in a field: the focus goes back to the input line and the script hears the text. */
+  private submitInput(id: number, el: HTMLInputElement): void {
+    const text = el.value;
+    this.leave(el);
+    this.onField?.(id, { type: 'submit', text });
+  }
+
   private onFieldKey(id: number, el: HTMLInputElement, e: KeyboardEvent): void {
     if (e.isComposing || e.key === 'Dead') return;
     const name = keyNameFromEvent(e);
     if (!name) return;
     if (name === 'Enter' || name === 'NumpadEnter') {
       e.preventDefault();
-      const text = el.value;
-      this.leave(el);
-      this.onField?.(id, { type: 'submit', text });
+      this.submitInput(id, el);
       return;
     }
     if (name === 'Escape') {

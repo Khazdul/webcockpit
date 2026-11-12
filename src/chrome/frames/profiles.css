@@ -290,3 +290,76 @@ html.wc-phone .wc-pl-list {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------ dialogs */
+
+/* New, Rename and Delete (profile-dialogs.tsx): the kit's `Dialog`. New
+ * walks its steps inside one overlay frame; a later step keeps the veil
+ * that is already there (only the small box comes in again). */
+.wc-pd-steps {
+  display: contents;
+}
+
+.wc-pd-steps.is-moved > .wc-lk-veil {
+  animation: none;
+}
+
+/* A profile's name inside a question: its real spelling, in the plain face. */
+.wc-pd-name {
+  font-size: 0.85em;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.wc-pd-rows {
+  margin: 8px 0 2px;
+  text-align: left;
+}
+
+.wc-pd-rows > .wc-lk-row {
+  justify-content: space-between;
+}
+
+.wc-pd-title {
+  font: 600 14px/1.15 var(--lk-display);
+  letter-spacing: 0.08em;
+}
+
+.wc-pd-note {
+  flex: none;
+  font-style: italic;
+}
+
+.wc-pd-pname {
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The profiles to copy from: six rows and half of the next (so it shows that
+ * there are more), then the list scrolls. In a low room (the dialog is never
+ * higher than the page's box) the list gives way first, down to two rows,
+ * so the question and Back stay in view. */
+.wc-lk-dialog[data-dlg="new-copy"] .wc-lk-dialog-b {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wc-lk-dialog[data-dlg="new-copy"] .wc-lk-dialog-b > .wc-lk-q,
+.wc-lk-dialog[data-dlg="new-copy"] .wc-lk-dialog-btns {
+  flex: none;
+}
+
+.wc-pd-copy {
+  flex: 0 1 auto;
+  max-height: calc(6.5 * 40px);
+  min-height: 80px;
+  overflow-x: hidden;
+}
+
+.wc-pd-copy > .wc-lk-row {
+  flex: none;
+}

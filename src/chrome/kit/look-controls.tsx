@@ -25,6 +25,7 @@
 
 import type { ComponentChildren, Ref, VNode } from 'preact';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { onPageKeyboardUp, ownFieldAttrs, pageKeyboardUp } from '../../core/own-keyboard';
 import { type IconDraw, type IconName, Icon } from './look-icons';
 import { KeyLabel } from './look-keys';
 import { FLASH_MS, type Flash, type FlashKind, useFlash } from './stack';
@@ -263,6 +264,12 @@ export interface FieldProps {
 export interface TextAreaProps extends Omit<FieldProps, 'inputRef'> {
   rows?: number;
   inputRef?: Ref<HTMLTextAreaElement>;
+  /**
+   * Enter is the owner's (it saves; the text is one paragraph), not a line
+   * break. Only our own keyboard on a phone asks (its Enter key's face and
+   * action, ADR 0139 §5); the owner still handles the key itself.
+   */
+  enterSubmits?: boolean;
 }
 
 function FieldShell(p: {
@@ -345,6 +352,7 @@ export function Field(p: FieldProps): VNode {
         spellcheck={false}
         autocomplete="off"
         autocapitalize="off"
+        {...ownFieldAttrs()}
         aria-invalid={p.error ? 'true' : undefined}
         aria-describedby={p.error || p.hint ? noteId : undefined}
         onInput={(e) => p.onInput(e.currentTarget.value)}
@@ -372,6 +380,7 @@ export function TextArea(p: TextAreaProps): VNode {
         placeholder={p.placeholder}
         maxLength={p.maxLength}
         spellcheck={false}
+        {...ownFieldAttrs(p.enterSubmits ? undefined : 'lines')}
         aria-invalid={p.error ? 'true' : undefined}
         aria-describedby={p.error || p.hint ? noteId : undefined}
         onInput={(e) => p.onInput(e.currentTarget.value)}
@@ -800,6 +809,20 @@ export function keyboardInset(win: Pick<Window, 'innerHeight' | 'visualViewport'
   if (!win || !vv) return 0;
   const covered = vv.scale > 1.01 ? win.innerHeight - vv.height * vv.scale : win.innerHeight - vv.height - vv.offsetTop;
   return covered > 1 ? Math.round(covered) : 0;
+}
+
+/**
+ * True while our own keyboard stands on a phone's page (ADR 0139). The page
+ * already ends at its top edge (a fixed reserve), so `useKeyboardInset` is
+ * 0 under it: a page that also rearranges itself for a keyboard asks this.
+ */
+export function useOwnKeyboardUp(): boolean {
+  const [up, setUp] = useState(() => pageKeyboardUp());
+  useEffect(() => {
+    setUp(pageKeyboardUp());
+    return onPageKeyboardUp(setUp);
+  }, []);
+  return up;
 }
 
 /** The px the soft keyboard covers now (`keyboardInset`), updated as it opens and closes (one update per frame). */

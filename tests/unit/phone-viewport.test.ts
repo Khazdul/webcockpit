@@ -5,7 +5,9 @@ import {
   NO_BASELINE,
   VV_SETTLE_MS,
   installPhoneViewport,
+  holdDeviceKeyboard,
   keyboardUp,
+  watchDeviceKeyboard,
   landscapeLayout,
   nextBaseline,
   screenLandscape,
@@ -141,6 +143,64 @@ describe('installPhoneViewport', () => {
     expect(f.vk.overlaysContent).toBe(false);
     f.resize(686);
     settle();
+    expect(f.height()).toBe('686px');
+    expect(f.kbd()).toBe(false);
+  });
+
+  it('with the device keyboard state off (a phone with our own keyboard) a shrink is no keyboard; the height is still published', () => {
+    const f = fakeWindow();
+    stop = installPhoneViewport(f.win);
+    f.resize(372);
+    settle();
+    expect(f.kbd()).toBe(true);
+    try {
+      // Turned off while it is set: dropped at once.
+      watchDeviceKeyboard(false, f.doc as unknown as Document);
+      expect(f.kbd()).toBe(false);
+      expect(keyboardUp()).toBe(false);
+      f.resize(300);
+      settle();
+      expect(f.height()).toBe('300px');
+      expect(f.kbd()).toBe(false);
+      expect(keyboardUp()).toBe(false);
+      // An old-layout cockpit on the page (the log player on a phone) holds the state on.
+      const release = holdDeviceKeyboard(f.doc as unknown as Document);
+      f.resize(299);
+      settle();
+      expect(f.kbd()).toBe(true);
+      release();
+      release();
+      expect(f.kbd()).toBe(false);
+      expect(keyboardUp()).toBe(false);
+    } finally {
+      watchDeviceKeyboard(true);
+    }
+    // On again (the phone layer could not be mounted): the next measurement says so.
+    f.resize(301);
+    settle();
+    expect(f.kbd()).toBe(true);
+  });
+
+  it('a new width (a turn) is published at once, and is no keyboard; the same width still waits for the events to be quiet', () => {
+    const f = fakeWindow();
+    stop = installPhoneViewport(f.win);
+    // Turned to landscape: lower, but at a new width.
+    f.resize(360, 800);
+    expect(f.height()).toBe('360px');
+    expect(f.kbd()).toBe(false);
+    // A height that comes after the width, with no event of its own, is taken by the trailing measurement.
+    f.vv.height = 340;
+    settle();
+    expect(f.height()).toBe('340px');
+    expect(f.kbd()).toBe(false);
+    // At the same width a shrink waits (the device keyboard's animation), and is the keyboard.
+    f.resize(150);
+    expect(f.height()).toBe('340px');
+    settle();
+    expect(f.height()).toBe('150px');
+    expect(f.kbd()).toBe(true);
+    // Turned back with it "up": the new width starts over at once.
+    f.resize(686, 360);
     expect(f.height()).toBe('686px');
     expect(f.kbd()).toBe(false);
   });

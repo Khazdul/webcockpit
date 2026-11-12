@@ -2,7 +2,7 @@
 // layout in the live game, and the lens's keys and hide rule.
 //
 // - The strip: the panes key opens it from the top edge with one pane at a
-//   time (hood, dots), a sideways swipe changes page, Ctrl/Alt+1…9 select a
+//   time (its name on the band's plate, dots), a sideways swipe changes page, Ctrl/Alt+1…9 select a
 //   page, the Panes settings choose and order the pages; Statistics is a
 //   page (the live run).
 // - Comm: the Comm key with its unread count, Comm under the fight card in
@@ -29,6 +29,8 @@ const pane = (page: Page, id: string) => page.locator(`.wc-cockpit > .wc-pane[da
 const stripPane = (page: Page) => page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
 const strip = (page: Page) => page.locator('.wc-ph-strip');
 const dots = (page: Page) => page.locator('.wc-ph-strip-band .wc-ph-strip-dots > i');
+/** The strip's name on its band (portrait; round 53j). */
+const plate = (page: Page) => page.locator('.wc-ph-strip-band .wc-ph-plate');
 const sat = (page: Page, name: string) => page.locator(`.wc-ph-sat[data-sat="${name}"]:visible`);
 const lens = (page: Page) => page.locator('.wc-ph-lens');
 const row = (page: Page) => page.locator('.wc-ph-satrow');
@@ -105,7 +107,7 @@ async function swipe(page: Page, to: 'left' | 'right'): Promise<void> {
   await drag(page, to === 'left' ? b.x + b.width * 0.75 : b.x + b.width * 0.25, y, to === 'left' ? -160 : 160, 4);
 }
 
-test('the panes key opens the strip from the top edge: one pane, its name in a hood, page dots; the fight card under it', async ({ page }) => {
+test('the panes key opens the strip from the top edge: one pane, its name on the band (no hood row), page dots; the fight card under it', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page);
   await play(page, FIGHT);
@@ -134,9 +136,10 @@ test('the panes key opens the strip from the top edge: one pane, its name in a h
   expect(stripRows).toBeGreaterThanOrEqual(Math.ceil(rows * 0.15));
   expect(stripRows).toBeLessThanOrEqual(Math.floor(rows * 0.25));
   expect(stripRows).toBe(Math.round(rows * 0.2));
-  // The chrome: the pane's name in the hood, four dots with the first lit; no tabs, no handle.
+  // The chrome: the pane's name on the band's plate (round 53j: no hood), four dots with the first lit; no tabs, no handle.
   await expect(strip(page)).toBeVisible();
-  await expect(strip(page).locator('.wc-ph-strip-hood')).toHaveText('Timers');
+  await expect(page.locator('.wc-ph-strip-hood')).toHaveCount(0);
+  await expect(plate(page)).toHaveText('Timers');
   await expect(strip(page)).toHaveAttribute('aria-label', 'Panes: Timers, 1 of 4');
   await expect(dots(page)).toHaveCount(4);
   await expect(page.locator('.wc-ph-strip-dots > i.is-on')).toHaveAttribute('data-page', 'timers');
@@ -144,10 +147,26 @@ test('the panes key opens the strip from the top edge: one pane, its name in a h
   const s = await box(strip(page));
   expect(s.y).toBeCloseTo(p.y, 0);
   expect(s.height).toBeCloseTo(p.height, 0);
-  // The pane's content keeps a row clear for the hood and one for the resize band with the dots.
+  // The pane's content has every row but the last, which is the resize band's (the name and the dots on it).
   const content = await box(stripPane(page).locator('.wc-pane-content'));
-  expect(content.y - p.y).toBeCloseTo(h, 0);
+  expect(content.y - p.y).toBeLessThan(0.5);
   expect(p.y + p.height - (content.y + content.height)).toBeCloseTo(h, 0);
+  // The plate: on the band, in its middle, cast with it (Cinzel capitals in the hood's colours), a
+  // little taller than the band: its lower 3 px float over what is under it (here the fight card).
+  const sb = await box(page.locator('.wc-ph-strip-band'));
+  const pl = await box(plate(page));
+  expect(Math.abs(pl.x + pl.width / 2 - (sb.x + sb.width / 2))).toBeLessThanOrEqual(1);
+  expect(pl.y).toBeCloseTo(sb.y, 0);
+  expect(pl.y + pl.height - (sb.y + sb.height)).toBeGreaterThanOrEqual(2);
+  expect(pl.y + pl.height - (sb.y + sb.height)).toBeLessThanOrEqual(4);
+  const look = await plate(page).evaluate((e) => {
+    const st = getComputedStyle(e);
+    return { font: st.fontFamily, size: parseFloat(st.fontSize), upper: st.textTransform, events: st.pointerEvents };
+  });
+  expect(look.font).toContain('Cinzel');
+  expect(look.size).toBeLessThanOrEqual(10);
+  expect(look.upper).toBe('uppercase');
+  expect(look.events).toBe('none');
   // The fight card sits right under it, the game text under the card.
   const card = await box(fight(page));
   expect(card.y).toBeCloseTo(p.y + p.height, 0);
@@ -178,7 +197,8 @@ test('a sideways swipe changes the page and shows each pane with the fixture\'s 
   await play(page);
   await sat(page, 'panes').tap();
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
-  const hood = strip(page).locator('.wc-ph-strip-hood');
+  // (The name on the band's plate follows the page.)
+  const hood = plate(page);
   const on = page.locator('.wc-ph-strip-dots > i.is-on');
   // Left: Group, with the demo's members.
   await swipe(page, 'left');
@@ -411,7 +431,7 @@ test('a script\'s pane is a page of the strip after the built-in ones, named by 
   expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(['timers', 'group', 'character', 'statistics', 'kills/main']);
   await page.keyboard.press('Control+5');
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'kills/main');
-  await expect(strip(page).locator('.wc-ph-strip-hood')).toHaveText('Kills');
+  await expect(plate(page)).toHaveText('Kills');
   await expect(strip(page)).toHaveAttribute('aria-label', 'Panes: Kills, 5 of 5');
   await expect(stripPane(page)).toContainText('Kills so far: 7');
   await expect(stripPane(page)).not.toHaveAttribute('data-framed', '');
@@ -621,7 +641,7 @@ interface Mock {
 }
 
 /** Enters MUME on `?phone=1` against a mock: logged in as Rasta, grouped with Gibur and Dori. */
-async function enterMock(page: Page): Promise<Mock> {
+async function enterMock(page: Page, query = ''): Promise<Mock> {
   let server: WebSocketRoute | null = null;
   const sent: string[] = [];
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
@@ -632,7 +652,7 @@ async function enterMock(page: Page): Promise<Mock> {
     });
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
-  await page.goto('/?phone=1');
+  await page.goto(`/?phone=1${query}`);
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
@@ -681,32 +701,36 @@ test('the Comm key opens Comm under the fight card in rail mode; the lens stays 
   const h = await cellH(page);
   const rows = Number((await page.locator('.wc-cockpit').getAttribute('data-cells'))!.split('x')[1]);
   await sat(page, 'comm').tap();
-  // Comm: full width, right under the fight card, at 40 % of the rows by default.
+  // Comm: full width, from the top edge, at 40 % of the rows by default; the fight card lies under it
+  // (round 53k: the card is always under the panes at the top).
   await expect(comm(page)).toBeVisible();
   const card = await box(fight(page));
   const c = await box(comm(page));
   const cockpit = await box(page.locator('.wc-cockpit'));
-  expect(c.y).toBeCloseTo(card.y + card.height, 0);
+  expect(c.y).toBeCloseTo(cockpit.y, 0);
+  expect(card.y).toBeGreaterThanOrEqual(c.y + c.height - 0.5);
+  expect(card.y - (c.y + c.height)).toBeLessThan(h + 1);
   expect(Math.abs(c.width - cockpit.width)).toBeLessThan(10);
   expect(Math.round(c.height / h)).toBe(Math.round(rows * 0.4));
   await expect(comm(page)).not.toHaveAttribute('data-framed', '');
   // Rail mode, with nothing to drag the column by.
   await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-mode', 'rail');
   await expect(comm(page).locator('.wc-cm-spine')).toBeHidden();
-  // The game text under it; the band on Comm's last row.
+  // The card under it, the game text under the card; the band on Comm's last row.
   const game = await box(page.locator('.wc-game'));
-  expect(game.y).toBeCloseTo(c.y + c.height, 0);
+  expect(card.y).toBeCloseTo(c.y + c.height, 0);
+  expect(game.y).toBeCloseTo(card.y + card.height, 0);
   expect(game.height).toBeCloseTo(gameBefore.height - c.height, 0);
   const b = await box(band(page));
   expect(b.y + b.height).toBeCloseTo(c.y + c.height, 0);
   expect(b.height).toBeCloseTo(h, 0);
   expect(await page.evaluate(() => window.__wc!.app.output.isScrolled())).toBe(false);
-  // The lens stays (stage 52): right under Comm, as large as its room down to the hot keys allows.
+  // The lens stays (stage 52): right under Comm and the card, as large as its room down to the hot keys allows.
   await expect(lens(page)).toBeVisible();
   await expect(row(page)).toBeHidden();
   const under = await box(lens(page));
-  expect(under.y).toBeGreaterThanOrEqual(c.y + c.height);
-  expect(under.y - (c.y + c.height)).toBeLessThan(2 * h);
+  expect(under.y).toBeGreaterThanOrEqual(card.y + card.height);
+  expect(under.y - (card.y + card.height)).toBeLessThan(2 * h);
   expect(under.width).toBeLessThanOrEqual(l.width);
   expect(under.width).toBeGreaterThanOrEqual(96);
   expect(under.y + under.height).toBeLessThanOrEqual((await box(page.locator('.wc-ph-hot'))).y);
@@ -722,15 +746,18 @@ test('the Comm key opens Comm under the fight card in rail mode; the lens stays 
   const s = await box(stripPane(page));
   const card2 = await box(fight(page));
   const c2 = await box(comm(page));
-  expect(card2.y).toBeCloseTo(s.y + s.height, 0);
-  expect(c2.y).toBeCloseTo(card2.y + card2.height, 0);
+  // The strip, Comm, the card (each part's last row is its band's).
+  expect(c2.y - (s.y + s.height)).toBeGreaterThanOrEqual(-0.5);
+  expect(c2.y - (s.y + s.height)).toBeLessThan(h + 1);
+  expect(card2.y - (c2.y + c2.height)).toBeGreaterThanOrEqual(-0.5);
+  expect(card2.y - (c2.y + c2.height)).toBeLessThan(h + 1);
   const r = await box(row(page));
   // This low (near the limit above the quick buttons) the row stands left of the hot key column.
   const hot = await box(page.locator('.wc-ph-hot'));
   if (r.y + r.height + 8 > hot.y) expect(r.x + r.width).toBeLessThanOrEqual(hot.x);
   else expect(cockpit.x + cockpit.width - (r.x + r.width)).toBeCloseTo(8, 0);
-  expect(r.y).toBeGreaterThanOrEqual(c2.y + c2.height);
-  expect(r.y - (c2.y + c2.height)).toBeLessThan(12);
+  expect(r.y).toBeGreaterThanOrEqual(card2.y + card2.height);
+  expect(r.y - (card2.y + card2.height)).toBeLessThan(12);
   await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'true');
   await expect(sat(page, 'comm')).toHaveAttribute('aria-label', 'Close Comm');
   expect(await inputFocused(page)).toBe(false);
@@ -997,10 +1024,9 @@ test('a screen too short for Comm: the key is not lit and its badge counts on; w
   await chat(page, 'Gibur').tap();
   await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'true');
   await expect(badge(page)).toBeHidden();
-  // A very short visible area (a landscape keyboard): the allocator leaves Comm out.
+  // A very short visible area (a split screen): the allocator leaves Comm out.
   const size = page.viewportSize()!;
   await page.setViewportSize({ width: size.width, height: 150 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
   await expect(comm(page)).toBeHidden();
   await expect(band(page)).toBeHidden();
   await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'false');
@@ -1052,37 +1078,6 @@ test('the resize grip reaches at most 10 px into the game text: the first line u
   expect(await at(60, b.y + b.height + 12)).toBe('game');
   // A reply line, when there is one, is clear of the grip.
   await page.evaluate(() => 0);
-});
-
-test('typing a reply with the keyboard up: the reply line stays in view above the keyboard', async ({ page }) => {
-  const m = await enterMock(page);
-  m.server().send(tell('Gibur', 'you at the ford?'));
-  await sat(page, 'comm').tap();
-  await chat(page, 'Gibur').tap();
-  await reply(page).tap();
-  await expect(reply(page)).toBeFocused();
-  const size = page.viewportSize()!;
-  for (const height of [size.height - 320, 380, 300]) {
-    await page.setViewportSize({ width: size.width, height });
-    await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-    await expect(comm(page)).toBeVisible();
-    await expect(reply(page)).toBeVisible();
-    await expect.poll(async () => {
-      const r = await box(comm(page).locator('.wc-cm-reply'));
-      const vh = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
-      return r.y > 0 && r.y + r.height <= vh;
-    }).toBe(true);
-    // Still the field with the keys; the command row is under it.
-    await expect(reply(page)).toBeFocused();
-    const slot = await box(page.locator('.wc-input-slot'));
-    expect((await box(comm(page))).y + (await box(comm(page))).height).toBeLessThanOrEqual(slot.y + 0.5);
-  }
-  await page.keyboard.type('here');
-  await page.keyboard.press('Enter');
-  await expect.poll(() => m.sent).toEqual(['tell Gibur here']);
-  await page.setViewportSize(size);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  await expect(comm(page)).toBeVisible();
 });
 
 /** Counts the layouts and the window sizes sent to MUME from now on. */
@@ -1211,10 +1206,10 @@ test('the band resizes Comm live in whole rows, inside its limits, with one wind
   expect(max).toBe(limit);
   expect((await phone(page)).commRows).toBe(max);
   expect((await layoutOf(page)).game).toBeGreaterThan(8);
-  // Far up: six rows at the least.
+  // Far up: its least rows, which hold the whole reply line (seven at this text size: round 53k).
   await drag2(-900);
-  await expect.poll(rowsOf).toBe(6);
-  expect((await phone(page)).commRows).toBe(6);
+  await expect.poll(rowsOf).toBe(7);
+  expect((await phone(page)).commRows).toBe(7);
   // A press without a move changes nothing and sends nothing.
   await frames(page);
   await frames(page);
@@ -1222,31 +1217,31 @@ test('the band resizes Comm live in whole rows, inside its limits, with one wind
   await drag2(0);
   await frames(page);
   await frames(page);
-  expect(await rowsOf()).toBe(6);
+  expect(await rowsOf()).toBe(7);
   expect((await counts()).naws).toBe(quiet.naws);
   // A drag away and back to where it began: nothing is stored, and no window size is sent for it.
   await f.start();
   await f.move(3 * h);
-  await expect.poll(rowsOf).toBe(9);
+  await expect.poll(rowsOf).toBe(10);
   await f.move(0);
-  await expect.poll(rowsOf).toBe(6);
+  await expect.poll(rowsOf).toBe(7);
   await f.end();
   await frames(page);
   await frames(page);
-  expect((await phone(page)).commRows).toBe(6);
-  // Ten rows, kept over a reload.
+  expect((await phone(page)).commRows).toBe(7);
+  // Eleven rows, kept over a reload.
   await drag2(4 * h);
-  await expect.poll(rowsOf).toBe(10);
+  await expect.poll(rowsOf).toBe(11);
   await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  expect((await phone(page)).commRows).toBe(10);
+  expect((await phone(page)).commRows).toBe(11);
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
   await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
   await sat(page, 'comm').tap();
   await expect(comm(page)).toBeVisible();
-  await expect.poll(rowsOf).toBe(10);
+  await expect.poll(rowsOf).toBe(11);
   expect(errors).toEqual([]);
 });
 
@@ -1313,9 +1308,9 @@ test('the strip\'s band resizes the strip live in whole rows; its height is stor
   const d = await box(page.locator('.wc-ph-strip-dots'));
   expect(d.y).toBeGreaterThanOrEqual(b0.y);
   expect(d.y + d.height).toBeLessThanOrEqual(b0.y + b0.height);
-  // Clear of the grip's bar in the middle.
-  const bar = await box(sband.locator('> i'));
-  expect(d.x).toBeGreaterThan(bar.x + bar.width);
+  // Clear of the name's plate and its grip marks in the middle (22 px and 7 px of air each side).
+  const bar = await box(plate(page));
+  expect(d.x).toBeGreaterThan(bar.x + bar.width + 29);
   await frames(page);
   const counts = await countLayouts(page);
   const game0 = await box(page.locator('.wc-game'));
@@ -1335,7 +1330,7 @@ test('the strip\'s band resizes the strip live in whole rows; its height is stor
   await frames(page);
   await frames(page);
   expect((await counts()).naws).toBe(1);
-  // Far up: four rows at the least (the hood, the band, two rows of pane).
+  // Far up: four rows at the least (three rows of pane and the band).
   await f.start();
   await f.move(-900, 5);
   await f.end();
@@ -1400,8 +1395,9 @@ for (const size of [
       // Comm gave way first (to its minimum before the strip loses a row); the stored heights are untouched.
       expect(g.fight).toBe(2);
       expect(g.strip + g.fight + g.comm).toBe(g.top);
-      if (g.strip > 0 && g.comm > 6) expect(g.strip).toBe(14);
-      if (g.strip > 0 && g.strip < 14) expect(g.comm).toBe(6);
+      // (Comm's minimum is the rows of its whole reply line, round 53k: seven at this text size.)
+      if (g.strip > 0 && g.comm > 7) expect(g.strip).toBe(14);
+      if (g.strip > 0 && g.strip < 14) expect(g.comm).toBe(7);
       expect(await phone(page)).toMatchObject({ stripRows: 14, commRows: 30 });
       // In px: their lower edge is at or above the top of the place of three keys (the first column's top).
       const edge = cockpit.y + g.top * h;

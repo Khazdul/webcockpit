@@ -401,9 +401,10 @@ test('the settings page: its groups; Back returns to the sheet, Esc steps back t
   await expect(pageEl(page).locator('.wc-ph-hood')).toHaveText('Settings');
   // The ADR's groups, in its order (stage 51 rule 3: no group before its feature; 51f built the last two).
   const groups = await pageEl(page).locator('[data-group]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.group));
-  expect(groups).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
+  // (Keyboard: stage 53, our own keyboard's layout.)
+  expect(groups).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
   const rows = await pageEl(page).locator('[data-group="text"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
-  expect(rows).toEqual(['size', 'theme', 'font']);
+  expect(rows).toEqual(['size', 'theme', 'font', 'input-color']);
   await expect(pageEl(page)).not.toContainText('Left-handed');
   // The page covers the game.
   const c = (await page.locator('.wc-cockpit').boundingBox())!;

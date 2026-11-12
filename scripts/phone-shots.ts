@@ -1,11 +1,30 @@
-// The phone layout's screenshots for stages 51 and 52
-// (docs/stages/51-phone-layout.md, 52-phone-round-2.md):
+// The phone layout's screenshots for stages 51, 52 and 53
+// (docs/stages/51-phone-layout.md, 52-phone-round-2.md, 53-own-keyboard.md):
 //
 //   node scripts/phone-shots.ts 51a              every state built by step 51a
 //   node scripts/phone-shots.ts 51a fighting     only these states
 //   node scripts/phone-shots.ts 52a              the states of round 52a (stage 52's own only)
 //   node scripts/phone-shots.ts 52b lens-full    one state of round 52b
 //   node scripts/phone-shots.ts 52c land-plain keys-three …   states of round 52c
+//   node scripts/phone-shots.ts 53a              the own keyboard of round 53a (`?kbd=1`)
+//   node scripts/phone-shots.ts 53c sv land-six  states of round 53c (the keyboard in the phone's look)
+//   node scripts/phone-shots.ts 53d comm box password settings …   states of round 53d (name them:
+//                                                the other fields, the password prompt, the settings)
+//   node scripts/phone-shots.ts 53e final-portrait final-landscape   the keyboard as released (the
+//                                                default gate, no `?kbd=`)
+//   node scripts/phone-shots.ts 53f profile-rename script-name …   states of round 53f (name them:
+//                                                our keyboard on the menu's pages, ADR 0139)
+//   node scripts/phone-shots.ts 53g lite-body export-comment …   states of round 53g (name them:
+//                                                the multi-line fields and the page keys)
+//   node scripts/phone-shots.ts 53h script script-land …   states of round 53h (name them: our
+//                                                keyboard in the two code editors)
+//   node scripts/phone-shots.ts 53j plates plates-land-built box-panes-hidden field-small …   states
+//                                                of round 53j (name them: the panes' names on the
+//                                                bands, the hot key box with panes out, the fields)
+//
+// Our own keyboard is the phone's only one (ADR 0138 as released): the two states of stage 51
+// that showed the device's keyboard (`keyboard`, `comm-keyboard`) went with `?kbd=0` in round
+// 53i; their pictures (51-a-keyboard, 51-d-comm-keyboard) stay as history.
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -41,8 +60,6 @@ const VIEWPORT = { width: 390, height: 844 };
  * 1 px hairlines are still sharp and the files are less than half the size.
  */
 const SCALE = 2;
-/** The on-screen keyboard's height in the mockup (P6). */
-const KEYBOARD_PX = 300;
 const FIXTURE = 'gmcp-demo.log';
 /** A walk with map positions, played before the fixture (see `play`). */
 const WALK = 'map-demo.log';
@@ -61,12 +78,20 @@ interface State {
    * fixtures (`live`), instead of the offline cockpit.
    */
   live?: boolean;
-  /** The step that built it (`a` … `g`). */
+  /** The step that built it (`a` … `h`). */
   step: string;
   /** The stage that built it; absent: 51. A run takes the states of its own stage only. */
   stage?: number;
   /** Another screen than 390 × 844 (landscape, a narrow phone). */
   viewport?: { width: number; height: number };
+  /** More of the page's query (`kbd=sv`: our keyboard with that layout). */
+  query?: string;
+  /** The state is on the start page, before any game (stage 53f): the page opens there, not in the offline cockpit. */
+  start?: boolean;
+  /** The page's clock starts the day after the demo backup's runs (they are swept when older than 14 days). */
+  demoClock?: boolean;
+  /** Dark only (no Paper file). */
+  darkOnly?: boolean;
   /** Brings the opened cockpit to the state. */
   run(page: Page): Promise<void>;
 }
@@ -117,7 +142,7 @@ async function lensDrawn(page: Page): Promise<void> {
  * (the demo's own ends before its tells), so Comm has chats and the fight
  * card shows. Returns once the last line is on screen.
  */
-async function live(page: Page): Promise<void> {
+async function live(page: Page, query = ''): Promise<void> {
   const feed = Buffer.concat([
     ...toSteps(fixture(WALK)).flatMap((st) => ('out' in st ? [st.out] : [])),
     ...toSteps(fixture(FIXTURE)).flatMap((st) => ('out' in st ? [st.out] : [])),
@@ -130,7 +155,7 @@ async function live(page: Page): Promise<void> {
     ws.send(Buffer.from([IAC, WILL, GMCP]));
     ws.send(feed);
   });
-  await page.goto('/?phone=1');
+  await page.goto(`/?phone=1${query ? `&${query}` : ''}`);
   await page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label').waitFor();
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
@@ -146,12 +171,6 @@ async function openChat(page: Page, name: string): Promise<void> {
   await page.locator('.wc-pane[data-pane="comm"]').waitFor();
   await page.locator(`.wc-pane[data-pane="comm"] .wc-cm-ent[aria-label^="${name}"]`).tap();
   await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').waitFor();
-}
-
-/** The on-screen keyboard comes up: the visible area shrinks, as the app detects it (phone-viewport.ts). */
-async function keyboardUp(page: Page): Promise<void> {
-  await page.setViewportSize({ width: VIEWPORT.width, height: VIEWPORT.height - KEYBOARD_PX });
-  await page.locator('html.wc-kbd').waitFor();
 }
 
 /** Every built-in pane a page of the strip (Character is out by default since stage 52). */
@@ -233,6 +252,10 @@ const openSettings = async (page: Page): Promise<void> => {
   await page.locator('.wc-ph-page').waitFor();
 };
 
+/** The owner's phone (Samsung S21), CSS px. */
+const S21 = { width: 360, height: 800 };
+const S21_LAND = { width: 800, height: 360 };
+
 const STATES: State[] = [
   {
     name: 'fighting',
@@ -243,17 +266,6 @@ const STATES: State[] = [
     },
   },
   { name: 'walking', step: 'a', run: (page) => play(page) },
-  {
-    name: 'keyboard',
-    step: 'a',
-    run: async (page) => {
-      await play(page, CUT.fight);
-      await page.locator('.wc-ph-fight').waitFor();
-      await page.locator('.wc-input-field').tap();
-      await keyboardUp(page);
-      await page.keyboard.type('kill scout');
-    },
-  },
   {
     name: 'menu',
     step: 'b',
@@ -333,18 +345,6 @@ const STATES: State[] = [
     live: true,
     run: async (page) => {
       await openChat(page, 'Gibur');
-      await page.waitForTimeout(500);
-    },
-  },
-  {
-    name: 'comm-keyboard',
-    step: 'd',
-    live: true,
-    run: async (page) => {
-      await openChat(page, 'Gibur');
-      await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
-      await keyboardUp(page);
-      await page.keyboard.type('on my way');
       await page.waitForTimeout(500);
     },
   },
@@ -804,6 +804,263 @@ const STATES: State[] = [
   },
   // Portrait: the see-through keys over busy game text (36 px keys).
   { name: 'keys-three', stage: 52, step: 'c', run: (page) => busy(page) },
+  // Stage 53a (ADR 0138): the rough keyboard of our own, open, at the owner's phone's size (S21).
+  { name: 'portrait', stage: 53, step: 'a', query: 'kbd=1', viewport: { width: 360, height: 800 }, run: (page) => ownKeyboard(page) },
+  { name: 'landscape', stage: 53, step: 'a', query: 'kbd=1', viewport: { width: 800, height: 360 }, run: (page) => ownKeyboard(page) },
+  // Stage 53c: the keyboard in the phone's look. Portrait at the owner's phone's size, Swedish:
+  // the compass and three hot keys above it; the digit row up; six hot keys; the symbols.
+  { name: 'sv', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page) },
+  { name: 'sv-digits', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, digitsUp) },
+  { name: 'sv-six', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, sixKeys) },
+  { name: 'sv-symbols', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, undefined, (key) => key('sym').tap()) },
+  { name: 'sv-symbols-digits', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21, run: (page) => ownKeyboard(page, digitsUp, (key) => key('sym').tap()) },
+  // Shift locked (a double tap).
+  {
+    name: 'sv-shift-lock',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21,
+    run: (page) =>
+      ownKeyboard(page, undefined, async (key) => {
+        await key('shift').tap();
+        await key('shift').tap();
+      }),
+  },
+  { name: 'en', stage: 53, step: 'c', query: 'kbd=en', viewport: S21, run: (page) => ownKeyboard(page) },
+  { name: 'small', stage: 53, step: 'c', query: 'kbd=sv', viewport: { width: 320, height: 640 }, run: (page) => ownKeyboard(page, digitsUp) },
+  // Landscape: the block in the middle, K1 to K3 left of it, K4 to K6 right, the compass at the far right.
+  { name: 'land-six', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownKeyboard(page, sixKeys) },
+  { name: 'land-three', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownKeyboard(page) },
+  { name: 'land-digits', stage: 53, step: 'c', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownKeyboard(page, async (p) => { await sixKeys(p); await digitsUp(p); }) },
+  { name: 'land-en', stage: 53, step: 'c', query: 'kbd=en', viewport: S21_LAND, run: (page) => ownKeyboard(page, sixKeys) },
+  {
+    name: 'land-k-hidden',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21_LAND,
+    run: (page) => ownKeyboard(page, (p) => p.evaluate(() => window.__wc!.settings.update({ phone: { hotkeysOpen: false } }))),
+  },
+  { name: 'land-low', stage: 53, step: 'c', query: 'kbd=sv', viewport: { width: 800, height: 280 }, run: (page) => ownKeyboard(page, sixKeys) },
+  // A narrow landscape screen: the hot key columns gave way, the compass stays.
+  { name: 'land-narrow', stage: 53, step: 'c', query: 'kbd=sv', viewport: { width: 568, height: 320 }, run: (page) => ownKeyboard(page, sixKeys) },
+  {
+    // The left column (the strip and Comm) open: it ends above the keyboard's band.
+    name: 'land-column',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21_LAND,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await sixKeys(p);
+        await p.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+        await p.locator('.wc-pane[data-phone-strip]').waitFor();
+        await p.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+        await p.locator('.wc-pane[data-pane="comm"]').waitFor();
+      }),
+  },
+  {
+    // Portrait with the strip and Comm open above the keyboard.
+    name: 'sv-comm',
+    stage: 53,
+    step: 'c',
+    query: 'kbd=sv',
+    viewport: S21,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await p.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+        await p.locator('.wc-pane[data-phone-strip]').waitFor();
+        await p.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+        await p.locator('.wc-pane[data-pane="comm"]').waitFor();
+      }),
+  },
+  // Stage 53d: the other fields typed in from our keyboard. Comm's reply line, portrait and landscape.
+  { name: 'comm', stage: 53, step: 'd', live: true, query: 'kbd=sv', viewport: S21, run: (page) => ownReply(page) },
+  { name: 'land-comm', stage: 53, step: 'd', live: true, query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownReply(page) },
+  // The hot key box with the keyboard typing in its Command field.
+  { name: 'box', stage: 53, step: 'd', query: 'kbd=sv', viewport: S21, run: (page) => ownBox(page) },
+  { name: 'land-box', stage: 53, step: 'd', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownBox(page) },
+  {
+    // The password prompt: the line masked with bullets, the arrows dimmed.
+    name: 'password',
+    stage: 53,
+    step: 'd',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    run: async (page) => {
+      await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: true }));
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      for (const k of ['h', 'e', 'm', 'l', 'i', 'g']) await okbKey(page, k).tap();
+      await settle(page);
+    },
+  },
+  {
+    // The settings page: Quick buttons with the vibration row, and the Keyboard group.
+    name: 'settings',
+    stage: 53,
+    step: 'd',
+    query: 'kbd=sv',
+    viewport: S21,
+    run: async (page) => {
+      await busy(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
+      await page.locator('.wc-ph-page [data-group="keyboard"]').waitFor();
+      await page.locator('.wc-ph-page [data-row="vibrate"]').waitFor();
+      await page.locator('.wc-ph-page [data-group="compass"]').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await settle(page);
+    },
+  },
+  // Stage 53e: the keyboard as it is released, with the default gate (no `?kbd=`); the layout is
+  // the setting's (Swedish chosen, as the owner has it). Portrait and landscape at the S21's size.
+  { name: 'final-portrait', stage: 53, step: 'e', viewport: S21, run: (page) => ownKeyboard(page, swedish) },
+  {
+    name: 'final-landscape',
+    stage: 53,
+    step: 'e',
+    viewport: S21_LAND,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await swedish(p);
+        await sixKeys(p);
+      }),
+  },
+  // Stage 53f (ADR 0139): our keyboard on the pages outside the game layout, one-line fields.
+  // Before the game (the start menu's pages), at the S21's size, Swedish.
+  { name: 'profile-rename', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageProfileRename(page) },
+  { name: 'script-name', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, run: (page) => pageScriptName(page) },
+  { name: 'script-name-land', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScriptName(page) },
+  { name: 'export-title', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, demoClock: true, run: (page) => pageExportTitle(page) },
+  { name: 'setting-number', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageSettingNumber(page) },
+  // Over the game: the profile editor from the game's menu, a new alias's Pattern.
+  { name: 'lite-pattern', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => pageLitePattern(page) },
+  // Stage 53g (ADR 0139 §4–§5): the multi-line fields and the page keys (Esc, Tab, the carets).
+  // Lite's body over the game: three lines typed, the caret moved up; portrait (dark and Paper),
+  // a narrow phone, and landscape, where the page keys stand beside the block.
+  { name: 'lite-body', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21, run: (page) => pageLiteBody(page) },
+  { name: 'lite-body-narrow', stage: 53, step: 'g', query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => pageLiteBody(page, true) },
+  { name: 'lite-body-land', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21_LAND, run: (page) => pageLiteBody(page) },
+  { name: 'lite-pattern-land', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21_LAND, darkOnly: true, run: (page) => pageLitePattern(page) },
+  // The export comment (one paragraph: Enter saves), its composer above the keyboard.
+  { name: 'export-comment', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, demoClock: true, run: (page) => pageExportComment(page) },
+  { name: 'export-comment-land', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, demoClock: true, run: (page) => pageExportComment(page) },
+  // The symbols page with the backtick (Swedish: in shift's place), on a page with the digit row up.
+  { name: 'symbols', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageSymbols(page) },
+  // The game layout's keyboard, unchanged (no page keys there).
+  { name: 'game', stage: 53, step: 'g', viewport: S21, darkOnly: true, run: (page) => ownKeyboard(page, swedish) },
+  {
+    name: 'game-land',
+    stage: 53,
+    step: 'g',
+    viewport: S21_LAND,
+    darkOnly: true,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await swedish(p);
+        await sixKeys(p);
+      }),
+  },
+  // Stage 53h (ADR 0139 §6): our keyboard in the two code editors. The script editor with a Lua
+  // function typed on our keys and the completion list open, a narrow phone, landscape (the head
+  // and the status line step aside), and its Find and Replace row. Dark only: the start page is
+  // always dark (Paper is shown by the profile editor over the game, below).
+  { name: 'script', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
+  { name: 'script-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 320, height: 568 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
+  { name: 'script-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'code') },
+  { name: 'script-land-list', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
+  { name: 'script-land-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 640, height: 360 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'code') },
+  { name: 'script-find', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-find-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-find-land-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 640, height: 360 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-find-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 320, height: 568 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-symbols', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageScript(page, 'symbols') },
+  // The profile editor's Editor view, over the game: a line typed in the tt++ text.
+  { name: 'profile-editor', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, run: (page) => pageProfileEditor(page) },
+  { name: 'profile-editor-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, darkOnly: true, run: (page) => pageProfileEditor(page) },
+  // Round 53i: Comm's hood in portrait (alone, typed in with our keyboard, the search open, a small phone).
+  {
+    name: 'comm-portrait',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.waitForTimeout(500);
+    },
+  },
+  {
+    // Text size 14 (a cell of about 15 px): the 16 px hood on one row.
+    name: 'comm-portrait-14',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    darkOnly: true,
+    run: async (page) => {
+      await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 14 } }));
+      await openChat(page, 'Gibur');
+      await page.waitForTimeout(500);
+    },
+  },
+  { name: 'comm-portrait-keyboard', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: S21, run: (page) => ownReply(page) },
+  {
+    name: 'comm-portrait-search',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    darkOnly: true,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.locator('.wc-pane[data-pane="comm"] .wc-cm-sbtn').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      for (const k of ['o', 'r', 'c']) await okbKey(page, k).tap();
+      await settle(page);
+    },
+  },
+  { name: 'comm-portrait-narrow', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => ownReply(page) },
+  // Round 53j. The fields' text at the smallest and at a large font size setting: the command
+  // field, Comm's reply line and its search keep 16 px.
+  { name: 'field-small', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => fieldsAt(page, 6) },
+  { name: 'field-large', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => fieldsAt(page, 20) },
+  // Round 53j. The panes' names on their bands (no hood on a row of its own): the strip and Comm
+  // both open, in a fight; with our keyboard; a narrow phone; landscape (the names written along
+  // the column's band), and landscape's other variant, kept for comparison only (`alt`: not built).
+  { name: 'plates', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => plates(page, false) },
+  { name: 'plates-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => plates(page, true) },
+  { name: 'plates-narrow', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, run: (page) => plates(page, false) },
+  { name: 'plates-narrow-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, run: (page) => plates(page, true) },
+  { name: 'plates-land-built', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21_LAND, run: (page) => plates(page, false) },
+  { name: 'plates-land-built-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21_LAND, run: (page) => plates(page, true) },
+  { name: 'plates-land-built-narrow', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 640, height: 360 }, run: (page) => plates(page, false) },
+  { name: 'plates-land-built-narrow-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 640, height: 360 }, run: (page) => plates(page, true) },
+  {
+    name: 'plates-land-alternative-not-built',
+    stage: 53,
+    step: 'j',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21_LAND,
+    run: async (page) => {
+      await plates(page, false);
+      await page.addStyleTag({ content: PLATES_ALT_CSS });
+      await settle(page);
+    },
+  },
+  // Round 53j. The hot key box with the strip and Comm open in portrait: held, Comm (and the
+  // strip, where the box needs its rows too) is taken out of the layout for it; with Custom
+  // typed in on our keyboard both are out, the fight card and the game text stay.
+  { name: 'box-held', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => boxOverPanes(page, false) },
+  { name: 'box-panes-hidden', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => boxOverPanes(page, true) },
+  { name: 'box-panes-hidden-narrow', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => boxOverPanes(page, true) },
   {
     name: 'keys-six',
     stage: 52,
@@ -814,6 +1071,334 @@ const STATES: State[] = [
     },
   },
 ];
+
+/**
+ * Stage 53: game text, then a tap on the command field opens the keyboard of
+ * our own, and a line is typed on its keys. `before` runs first (settings
+ * for the state); `after` with the keyboard open (its key taps the keys).
+ */
+async function ownKeyboard(page: Page, before?: (page: Page) => Promise<void>, after?: (key: (k: string) => ReturnType<Page['locator']>) => Promise<void>): Promise<void> {
+  await busy(page);
+  await before?.(page);
+  await page.locator('.wc-input-slot .wc-input-field').tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  const key = (k: string) => page.locator(k.length === 1 ? `.wc-ph-okb-k[data-ch="${k}"]` : `.wc-ph-okb-k[data-act="${k}"]`);
+  for (const k of ['shift', 'k', 'i', 'l', 'l', 'space', 'o', 'r', 'c']) await key(k).tap();
+  await after?.(key);
+  await settle(page);
+}
+
+/** A key of our own keyboard. */
+const okbKey = (page: Page, k: string) => page.locator(k.length === 1 ? `.wc-ph-okb-k[data-ch="${k}"]` : `.wc-ph-okb-k[data-act="${k}"]`);
+
+/** Stage 53d: Comm on Gibur's chat, a tap on its reply line opens our keyboard for it, and a tell is typed. */
+async function ownReply(page: Page): Promise<void> {
+  await openChat(page, 'Gibur');
+  await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/** Round 53j: the strip and Comm both open (Gibur's chat), and with `typing` a reply half typed on our keyboard. */
+async function plates(page: Page, typing: boolean): Promise<void> {
+  await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+  await page.locator('.wc-pane[data-phone-strip]').waitFor();
+  await openChat(page, 'Gibur');
+  if (typing) {
+    await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
+    await page.locator('.wc-ph-okb').waitFor();
+    for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  }
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/**
+ * Round 53j, landscape's other variant, for the owner to compare (not built: the style is only
+ * here). The names read level on small flags that stick out of the band over each pane's upper
+ * right corner, instead of along the band.
+ */
+const PLATES_ALT_CSS = `
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > .wc-ph-plate-run { display: block; clip-path: none; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-run .wc-ph-plate {
+  position: absolute; top: 8px; right: calc(100% - 1px); flex-direction: row; width: auto; min-width: 0; max-width: none; height: 17px; max-height: none; margin: 0; padding: 0 9px 0 5px;
+  border: 1px solid var(--ph-iron-lo); border-right: 0; border-radius: 7px 0 0 7px;
+  background: var(--ph-hood); gap: 6px;
+  box-shadow: inset 0 1px 0 var(--ph-iron-hi), -2px 2px 4px rgb(0 0 0 / 0.5);
+}
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-t { writing-mode: horizontal-tb; transform: none; margin: 0 -0.14em 0 0; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate::before, html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-rv:last-child { display: none; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-run .wc-ph-plate::after { display: block; top: 30px; left: calc(100% + 7px); width: 3px; height: 30px; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-run > .wc-ph-strip-dots { position: absolute; top: 80px; left: 50%; margin: 0; transform: translateX(-50%); }
+`;
+
+/** Round 53j: the strip and Comm open, a hold on K2 opens its box, and with `typing` Custom is tapped and a command typed on our keyboard. */
+async function boxOverPanes(page: Page, typing: boolean): Promise<void> {
+  await plates(page, false);
+  const key = page.locator('.wc-ph-hk[data-hk="1"]');
+  await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  await page.locator('.wc-ph-rb').waitFor();
+  await key.dispatchEvent('pointerup', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  if (typing) {
+    await page.locator('.wc-ph-rb .wc-ph-chip[data-pick="custom"]').tap();
+    await page.locator('.wc-ph-okb').waitFor();
+    for (const k of [';', 'k', 'i', 'c', 'k']) await okbKey(page, k).tap();
+  }
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/** Round 53j: text size `size`, Comm open with a reply half typed, and a command typed in the command field with our keyboard. */
+async function fieldsAt(page: Page, size: number): Promise<void> {
+  await page.evaluate((n) => window.__wc!.settings.update({ appearance: { size: n } }), size);
+  await settle(page);
+  await openChat(page, 'Gibur');
+  await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  await page.locator('.wc-input-slot .wc-input-field').tap();
+  for (const k of ['k', 'i', 'l', 'l', 'space', 'o', 'r', 'c']) await okbKey(page, k).tap();
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/** Stage 53d: a hold on K2 opens its box, a tap in the Command field opens our keyboard for it, and a command is typed. */
+async function ownBox(page: Page): Promise<void> {
+  await busy(page);
+  const key = page.locator('.wc-ph-hk[data-hk="1"]');
+  await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  await page.locator('.wc-ph-rb').waitFor();
+  await key.dispatchEvent('pointerup', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  const command = page.locator('#wc-ph-rb-command');
+  await command.tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  await command.evaluate((el: HTMLInputElement) => el.setSelectionRange(el.value.length, el.value.length));
+  for (const k of [';', 'k', 'i', 'c', 'k']) await okbKey(page, k).tap();
+  await settle(page);
+}
+
+// ---- Stage 53f: our keyboard on the pages (keyboard-pages.ts). A key of it:
+const pageKey = (page: Page, k: string) => page.locator(k.length === 1 ? `.wc-okb-page .wc-ph-okb-k[data-ch="${k}"]` : `.wc-okb-page .wc-ph-okb-k[data-act="${k}"]`);
+const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
+
+async function pageType(page: Page, keys: string[]): Promise<void> {
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  for (const k of keys) await pageKey(page, k).tap();
+  // The page has laid itself out above the keyboard and the field is in view; the start page's
+  // morph into its box (the first look frame opened) has run out.
+  await settle(page);
+  await page.waitForTimeout(1800);
+}
+
+/** Profiles → a profile → Rename: the old-look prompt, a new name typed. */
+async function pageProfileRename(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.create('gimli', '');
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="profile"]').tap();
+  const row = f.locator('.wc-pl-row[data-name="gimli"]');
+  await row.tap();
+  await row.locator('[data-btn="RENAME"]').tap();
+  await pageType(page, ['back', 'back', 'back', 'back', 'back', 'shift', 'g', 'l', 'o', 'i', 'n']);
+}
+
+/** Scripts → New: the look kit's name dialog, a name typed. */
+async function pageScriptName(page: Page): Promise<void> {
+  await page.evaluate(() => window.__wc!.shell.scripts!.init());
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('[data-btn="NEW"]').tap();
+  await page.locator('.wc-lk-dialog[data-dlg="new"] input').waitFor();
+  await pageType(page, ['v', 'ä', 'g', 'v', 'i', 's', 'a', 'r', 'e']);
+}
+
+/** History → a session → Export → Title: the title typed in the foot. */
+async function pageExportTitle(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const lib = await window.__wc!.runs();
+    await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="history"]').tap();
+  const hist = f.locator('.wc-hist');
+  await hist.locator('.wc-lk-tr').nth(1).tap();
+  await hist.locator('.wc-hist-card [data-btn="EXPORT"]').tap();
+  await f.locator('.wc-exp').waitFor();
+  await f.locator('[data-btn="TITLE"]').tap();
+  await f.locator('.wc-exp-file.is-edit input').waitFor();
+  await pageType(page, ['shift', 'm', 'o', 'r', 'i', 'a']);
+}
+
+/** Scripts → a script → a number setting: the value typed, the digit row up for it. */
+async function pageSettingNumber(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const l = window.__wc!.shell.scripts!;
+    await l.init();
+    await l.create('varning', '-- @name     varning\n-- @version  1\n-- @api      1\n-- @setting  warn number 5 0..30 unit min "Warn before the end"\n-- @setting  word string hello "What to say"\n');
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('.wc-scr-row[data-name="varning"] .wc-scr-name').tap();
+  await f.locator('.wc-scr-set[data-set="warn"] .wc-scr-val').tap();
+  await f.locator('.wc-scr-set[data-set="warn"] input.wc-scr-input').waitFor();
+  await pageType(page, ['1', '2']);
+}
+
+/** Over the game: the menu → Profile → Aliases → New, its Pattern typed. */
+async function pageLitePattern(page: Page): Promise<void> {
+  await busy(page);
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="profile"]').tap();
+  const pe = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-pe');
+  await pe.waitFor();
+  await pe.locator('[data-rail="alias"]').tap();
+  await pe.locator('[data-btn="NEW"]').tap();
+  await pe.locator('[data-field="pattern"] input').waitFor();
+  await pageType(page, ['d', 'r', 'ä', 'p', 'space', 'sym', '%', '1']);
+}
+
+/** Stage 53g. Over the game: the menu → Profile → Aliases → New, three lines typed in the body, the caret moved up a line. */
+async function pageLiteBody(page: Page, byTab = false): Promise<void> {
+  await busy(page);
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="profile"]').tap();
+  const pe = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-pe');
+  await pe.waitFor();
+  await pe.locator('[data-rail="alias"]').tap();
+  await pe.locator('[data-btn="NEW"]').tap();
+  await pe.locator('[data-field="pattern"] input').waitFor();
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  for (const k of ['d', 'r']) await pageKey(page, k).tap();
+  // (On a narrow phone the body lies under the keyboard: our Tab key goes there.)
+  if (byTab) await pageKey(page, 'tab').tap();
+  else await pe.locator('[data-field="body"] textarea').tap();
+  await pe.locator('[data-field="body"] textarea:focus').waitFor();
+  await pageType(page, ['d', 'r', 'a', 'enter', 'ä', 't', 'enter', 's', 'o', 'v', 'up', 'left']);
+}
+
+/** Stage 53g. History → a session → Export → Comment: a comment typed in the composer. */
+async function pageExportComment(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const lib = await window.__wc!.runs();
+    await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="history"]').tap();
+  const hist = f.locator('.wc-hist');
+  await hist.locator('.wc-lk-tr').nth(1).tap();
+  await hist.locator('.wc-hist-card [data-btn="EXPORT"]').tap();
+  await f.locator('.wc-exp').waitFor();
+  await f.locator('[data-btn="COMMENT"]').tap();
+  await f.locator('.wc-exp-comp textarea').waitFor();
+  await pageType(page, ['shift', 'h', 'ä', 'r', 'space', 'd', 'o', 'g', 'space', 'o', 'r', 'c', 'h', 'e', 'n']);
+}
+
+/** Types `text` on the page's keyboard: a capital with shift, a symbol from the symbols' pages (and back to the letters). */
+async function pageTypeText(page: Page, text: string): Promise<void> {
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  const at = (ch: string) => page.locator(`.wc-okb-page .wc-ph-okb-k[data-ch=${JSON.stringify(ch)}]`);
+  for (const ch of text) {
+    if (ch === ' ' || ch === '\n') {
+      await pageKey(page, ch === ' ' ? 'space' : 'enter').tap();
+      continue;
+    }
+    const lower = ch.toLowerCase();
+    let moved = false;
+    if ((await at(lower).count()) === 0) {
+      moved = true;
+      await pageKey(page, 'sym').tap();
+      for (let i = 0; i < 3 && (await at(lower).count()) === 0; i++) await pageKey(page, 'alt').tap();
+    }
+    if (lower !== ch) await pageKey(page, 'shift').tap();
+    await at(lower).tap();
+    if (moved) await pageKey(page, 'sym').tap();
+  }
+}
+
+/** A tap on a line of the buffer in view (our keyboard comes up), and the caret to the text's end. */
+async function tapCode(page: Page, scope: ReturnType<Page['locator']>): Promise<void> {
+  const sc = (await scope.locator('.cm-scroller').boundingBox())!;
+  await page.touchscreen.tap(sc.x + sc.width / 2, sc.y + Math.min(sc.height / 2, 60));
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  // (The shot's short cut for a long run of the caret keys; it goes the way a physical key goes.)
+  await page.keyboard.press('ControlOrMeta+End');
+}
+
+/**
+ * Stage 53h. Scripts → a script → Edit, a tap in the code, and a Lua
+ * function typed on our keys. `list`: the completion list is open;
+ * `find`: the Find and Replace row, a word looked for; `symbols`: the
+ * keyboard's symbols page; `code`: the code alone.
+ */
+async function pageScript(page: Page, what: 'list' | 'code' | 'find' | 'symbols'): Promise<void> {
+  await page.evaluate(async () => {
+    const l = window.__wc!.shell.scripts!;
+    await l.init();
+    await l.create(
+      'vakt',
+      '-- @name     vakt\n-- @version  1\n-- @api      1\n\n-- Says who came, and counts them.\nlocal seen = 0\n\non("arrive", function(who)\n  seen = seen + 1\n  echo("Here: " .. who)\nend)\n',
+    );
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('.wc-scr-row[data-name="vakt"] .wc-scr-name').tap();
+  await f.locator('[data-btn="EDIT"]:visible').first().tap();
+  const ed = page.locator('.wc-frame:not([hidden]) > .wc-sed');
+  await ed.waitFor();
+  await page.waitForTimeout(1800);
+  await tapCode(page, ed);
+  await pageTypeText(page, '\nlocal function warn(n)\nif n > 3 then\nse');
+  await page.locator('.cm-tooltip-autocomplete').waitFor();
+  if (what !== 'list') {
+    await pageKey(page, 'tab').tap();
+    await pageTypeText(page, '("flee")');
+    if (what === 'find') {
+      await ed.locator('.wc-sed-tools [data-btn="FIND"]').tap();
+      await ed.locator('.wc-lk-search [data-field="find"] input:focus').waitFor();
+      await pageTypeText(page, 'seen');
+    } else if (what === 'symbols') await pageKey(page, 'sym').tap();
+  }
+  await settle(page);
+  await page.waitForTimeout(400);
+}
+
+/** Stage 53h. Over the game: the menu → Profile → Editor, a tap in the text, an alias typed. */
+async function pageProfileEditor(page: Page): Promise<void> {
+  await busy(page);
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+  });
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="profile"]').tap();
+  const pe = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-pe');
+  await pe.waitFor();
+  await pe.locator('.wc-pe-views [data-opt="editor"]').tap();
+  await pe.locator('.cm-content').waitFor();
+  await tapCode(page, pe);
+  await pageTypeText(page, '#alias {dr} {drink %1');
+  await settle(page);
+  await page.waitForTimeout(600);
+}
+
+/** Stage 53g. Scripts → New, the digit row up, the symbols page (the backtick). */
+async function pageSymbols(page: Page): Promise<void> {
+  await page.evaluate(() => window.__wc!.shell.scripts!.init());
+  await digitsUp(page);
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('[data-btn="NEW"]').tap();
+  await page.locator('.wc-lk-dialog[data-dlg="new"] input').waitFor();
+  await pageType(page, ['a', 'sym']);
+}
+
+/** Settings → Keyboard → Layout: Swedish (the default gate has no `?kbd=sv`). */
+const swedish = (page: Page): Promise<void> => page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { layout: 'sv' } } }));
+
+const digitsUp = (page: Page): Promise<void> => page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { digits: true } } }));
 
 /** Paper: the background, ink and its palette, as the Appearance settings set them. */
 const paper = (page: Page): Promise<void> =>
@@ -839,9 +1424,14 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
   try {
-    if (state.live) await live(page);
-    else {
-      await page.goto('/?replay&phone=1');
+    if (state.live) await live(page, state.query);
+    else if (state.start) {
+      // The demo backup's runs are kept only near their own dates (tests/e2e/demo-clock.ts).
+      if (state.demoClock) await page.clock.setSystemTime(new Date(2026, 8, 28, 12, 0, 0));
+      await page.goto(`/?phone=1${state.query ? `&${state.query}` : ''}`);
+      await page.locator('.wc-start .wc-sm-item.is-sel').waitFor();
+    } else {
+      await page.goto(`/?replay&phone=1${state.query ? `&${state.query}` : ''}`);
       await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
     }
     if (light) await paper(page);
@@ -850,7 +1440,7 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
     // Two frames: the cockpit's relayout, then its paint.
     await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
     // The page must still be the one the state was built on (no reload in between).
-    if ((await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').count()) !== 1) throw new Error('the page reloaded');
+    if (!state.start && (await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').count()) !== 1) throw new Error('the page reloaded');
     await page.screenshot({ path: file });
     shrink(file);
     console.log(`  ${file.slice(OUT.length)}  ${(statSync(file).size / 1024).toFixed(0)} kB`);
@@ -878,7 +1468,7 @@ async function warmUp(browser: Browser): Promise<void> {
 }
 
 const [stepArg, ...wanted] = process.argv.slice(2);
-const arg = /^(5[12])?([a-g])$/.exec(stepArg ?? '');
+const arg = /^(5[123])?([a-j])$/.exec(stepArg ?? '');
 if (!arg) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a or 52a> [state …]');
 const stage = Number(arg[1] ?? 51);
 const step = arg[2]!;
@@ -894,7 +1484,7 @@ try {
   await warmUp(browser);
   for (const state of states) {
     console.log(state.name);
-    for (const light of [false, true]) {
+    for (const light of state.darkOnly ? [false] : [false, true]) {
       const file = `${OUT}${stage}-${step}-${state.name}${light ? '-paper' : ''}.png`;
       try {
         await shoot(browser, state, file, light);
