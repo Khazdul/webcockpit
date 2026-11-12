@@ -414,8 +414,8 @@ removed with that layout (stage 52 file, section C):
   and their users (the export editor, the kit gallery): they follow
   `visualViewport` on any device, so a tablet's own keyboard uses them.
   Not phone code; removing them would change the tablet.
-- Comm's one-row textarea in the phone mode (`src/panes/comm.ts:581`,
-  `:607`). Its reason (the device keyboard's autofill bar) is gone,
+- Comm's one-row textarea in the phone mode (`src/panes/comm.ts:583`,
+  `:609`). Its reason (the device keyboard's autofill bar) is gone,
   but an `<input>` there has not been seen on a device (Chrome's own
   suggestions on a focused input), and the owner approved the field as
   it is. Left for a device test.
@@ -459,6 +459,17 @@ content would keep less than 104 px under it (a small phone, typing
 above the keyboard) the hood is left out and the rows are the
 conversation's (`PHONE_COMM_HOOD_KEEP_PX`, `Cockpit.phoneCommHead`).
 Landscape is unchanged.
+
+**Seen on the way, not changed.** After a turn the visible area's new
+height is published 150 ms late (`VV_SETTLE_MS`), so for that time the
+page is laid out at the new width and the old height. Turning to
+landscape that has always meant one layout at a too tall size; turning
+back to portrait it now shows as two layouts at the old low height
+(three window sizes to MUME for the turn, in emulation). Before the
+hood a 350 ms pause of the page after the turn (Comm laying itself out
+again as its content moved a row) hid them: the first frame came after
+the height. Whether a phone shows the same is not known; the settle
+time is the place to look.
 
 **Not verified on a device:** everything of this round. In emulation
 only: the split screen, the low window, the player's Comm search with
