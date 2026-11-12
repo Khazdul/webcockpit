@@ -255,6 +255,28 @@ moves the caret), script pane fields, key sound.
   known flaky swipe test), typecheck clean. Decisions: ADR 0138, "as
   built in round 53d". Screenshots `docs/stages/img/53-d-*`.
 
+- **Review of 53d** (fresh subagent; allocator compared with the
+  round before on 400 000 random inputs, slow-tap and selection
+  probes): without `?kbd` only the vibration row differs; no must-fix.
+  For 53e:
+  - the masked password line: `.wc-input-field::selection` paints the
+    selected text opaque, so secrecy rests on the async collapse of the
+    selection (a one-frame flash is possible on a device; on desktop a
+    selection in the masked line is readable, older than this stage):
+    `.wc-masked::selection { color: transparent }`;
+  - Enter as Save in the hot key box acts on the press and closes box
+    and keyboard with no click swallow: with a real finger in
+    landscape the click lands on the command field and reopens the
+    keyboard (two window sizes); the test uses `tap()` and misses it;
+  - a target that disappears (Comm or its search closed) is dropped
+    only at the next key press: arrows stay dimmed, `commKeep` stays,
+    possibly two window sizes on a short portrait screen;
+  - notes: a stored `vibrate: true` from 0.5.0 is honoured again (only
+    a file never rewritten by 0.6.x, or an old export); exports carry
+    the two new keys; a slow press on a compass key with box and
+    keyboard open closes both and sends the direction;
+  - test gaps: the slow tap, the selection paint, a vanishing target.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
