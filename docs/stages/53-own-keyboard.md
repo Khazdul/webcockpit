@@ -680,5 +680,7 @@ away?
 - 2026-11-12, 53g on the S21: feels OK (tested in outline only).
 - 2026-11-12, 53h on the S21: looks OK (tested in outline). **Go on
   the editors.**
+- 2026-11-12: the Comm pane has no header text in portrait on the
+  phone (it has one in landscape): to be fixed too (handed to 53i).
 
 (After each round.)
