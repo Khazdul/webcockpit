@@ -547,6 +547,25 @@ describe('mountPageKeyboard, round 53g', () => {
     expect(g.value).toBe('g');
   });
 
+  it('a finger lifted on a field whose focus comes only afterwards, and with no click, still opens it (a real phone\'s order)', () => {
+    const f = mk('input');
+    f.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    f.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    expect(kb.open).toBe(false);
+    f.focus();
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS);
+    expect(kb.open).toBe(true);
+    press('fold');
+    // A field that has the focus already (the page gave it long ago, with no keyboard): a tap with no click.
+    f.focus();
+    vi.advanceTimersByTime(5000);
+    expect(kb.open).toBe(false);
+    f.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    f.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS);
+    expect(kb.open).toBe(true);
+  });
+
   it('landscape: no row of page keys; they stand in two columns beside the block', () => {
     root.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 800, bottom: 360, width: 800, height: 360, toJSON: () => ({}) });
     tap(mk('input'));

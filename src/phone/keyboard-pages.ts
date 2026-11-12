@@ -474,6 +474,10 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     if (e.target instanceof Node && host.contains(e.target)) return;
     if (down) at = clock();
     down = false;
+    // A finger lifted on a field of ours: the keyboard is for it, whenever its focus comes (a phone
+    // gives the focus after the finger lifts, with the mouse press it makes up; some give no click).
+    const on = e.target instanceof Element ? pageField(e.target) : null;
+    if (on && e.type === 'pointerup') pending = on;
     // The click, if one follows, comes first (`onClick`); a press that ends without one opens here.
     if (pending && pendingTimer === null && win) pendingTimer = win.setTimeout(flush, PAGE_AFTER_POINTER_MS);
   };
