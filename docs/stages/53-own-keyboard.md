@@ -288,11 +288,9 @@ moves the caret), script pane fields, key sound.
   review findings fixed (a masked selection is painted as a tint over
   the bullets, on desktop too; the click after Enter as Save is
   swallowed; a field that goes away hands the keys back at once, one
-  `MutationObserver` only while such a field is typed in). New: a
-  **fallback for a browser that ignores `inputmode="none"`**: a shrink
-  of the visible area within 2.5 s of a tap on one of our fields is
-  taken for the device's keyboard; ours closes and stays closed while
-  it is up (untried on a device). Unit 3938, phone e2e 339 of 339,
+  `MutationObserver` only while such a field is typed in). (A timing
+  fallback for a browser that ignores `inputmode="none"` was also
+  built; removed after the review, below.) Unit 3938, phone e2e 339 of 339,
   Chromium 434 of 435 and Firefox 432 of 434 (the failures pass alone;
   `import.spec.ts:148` and `keymanager.spec.ts:319` are new to the
   flaky list), typecheck and build clean. Decisions: ADR 0138, "as
@@ -314,6 +312,18 @@ moves the caret), script pane fields, key sound.
     keyboard": six since stage 52, and "the keyboard" now means the
     device's. For the owner to reword at the release.
 
+- **Review of 53e** (fresh subagent, reproduced in emulation): the
+  fallback misfired on a browser that honours `inputmode="none"` (a
+  split screen, or leaving fullscreen in landscape, within 2.5 s of a
+  tap left the phone with no keyboard). **The fallback is removed**
+  (ADR 0138 §2 already covers a browser that raises its keyboard: per
+  browser, from device tests). Also fixed: the masked line under
+  forced colours (`forced-color-adjust: none`; in Chromium older than
+  this stage); tests that did not test their fix; the bench wording.
+  Phone e2e 342 of 342, unit 3938. Left: at a window too low for the
+  keyboard (800 × 150) a tap opens it and the next layout closes it
+  (two window sizes per tap; since 53d). Not checked: WebKit, devices.
+
 ## After the release decision (not deleted yet)
 
 Dead when `?kbd=0` goes:
@@ -331,13 +341,11 @@ Dead when `?kbd=0` goes:
 - `keyboard-readout.ts`, if the readout is dropped (not tied to
   `?kbd=0`).
 
-Still reached through the fallback for a browser that ignores
-`inputmode="none"`; dead only if the fallback goes too (decide after
-the iPhone test): `watchKeyboard` and its constants, `keyboardUp()` in
-the phone kit, the `html.wc-kbd` rules of the game layout in
-`phone.css`, the `kbd` branches of `relayoutPhoneGame` and
-`PHONE_KBD_GAME_ROWS` in `cockpit.ts`, `SIDE_COMM_KBD_*` and
-`side.keyboard` in `phone-game.ts`.
+Not dead with the gate: `watchKeyboard`, `keyboardUp()` in the phone
+kit, the `html.wc-kbd` rules of the game layout, the `kbd` branches of
+`relayoutPhoneGame` and `SIDE_COMM_KBD_*` are still reached with our
+keyboard when the visible area shrinks for another reason (a split
+screen). What a shrink should then do is its own decision.
 
 Stays: `src/layout/phone-viewport.ts` (start pages and editors).
 

@@ -4003,8 +4003,9 @@ Newest first.
   answers on a ~250 ms pulse). Idle timeout still untested.
 - **53e built and merged into the stage branch (2026-11-12):** our
   keyboard is the default in the phone's game layout (`?kbd=0` keeps
-  the old path), review fixes, a fallback for a browser that ignores
-  `inputmode="none"`, benches (key to echo not settled by emulation:
+  the old path), review fixes (a timing fallback for a browser that
+  ignores `inputmode="none"` was built, misfired in review and was
+  removed), benches (key to echo not settled by emulation:
   the owner's feel on the device decides), docs. **Next:** the owner's
   verdict on the S21 and one iPhone test (test guide 53e), then merge
   to main, release, and delete the old path ("After the release
