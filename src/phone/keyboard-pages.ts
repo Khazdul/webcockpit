@@ -280,10 +280,12 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   inner.className = 'wc-okb-page-in';
   host.append(inner);
 
+  /** The editor that is typed in: its box (the buffer and its find row), else the field itself. */
+  const codeHome = (): Element | null => home ?? field;
   /** The digit row is the editor's to show now, whatever the stored state (portrait, with the room). */
   const codeForced = (): boolean => code && !landscape && roomy;
   /** The editors' digit row is up now (not stored: `toggleDigits` folds it and brings it back). */
-  const codeDigits = (): boolean => codeForced() && !(codeFoldedFor !== null && codeFoldedFor === home);
+  const codeDigits = (): boolean => codeForced() && !(codeFoldedFor !== null && codeFoldedFor === codeHome());
   const digitsWanted = (): boolean => settings.get().phone.keyboard.digits || forceDigits || codeDigits();
 
   const okb = new OwnKeyboard(
@@ -305,7 +307,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
           place();
         } else if (codeForced() && !settings.get().phone.keyboard.digits) {
           // (The editors' row likewise: folded for this editor or back up, the stored state as it was.)
-          codeFoldedFor = codeDigits() ? home : null;
+          codeFoldedFor = codeDigits() ? codeHome() : null;
           place();
         } else settings.update({ phone: { keyboard: { digits: !settings.get().phone.keyboard.digits } } });
       },
