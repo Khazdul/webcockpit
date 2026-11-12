@@ -820,7 +820,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate::after {
 
 /* Landscape: the names on the column's one band, written along it (read from below, the letters'
  * heads towards the pane they name), each plate centred on its pane's stretch of the band (JS
- * sets a stretch's top and height). The plate reaches 3 px out of the band into its pane. Where
+ * sets a stretch's top and height). The plate reaches 4 px out of the band into its pane. Where
  * the strip ends and Comm begins the band has a lit joint, and an iron hairline runs from it
  * across the column: the divider between the two panes, on no row of its own. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > .wc-ph-plate-run {
@@ -831,7 +831,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > .wc-ph-plate-run {
   align-items: stretch;
   justify-content: center;
   max-width: none;
-  /* A plate ends where its stretch does (a long name in a low strip), its 3 px out of the band kept. */
+  /* A plate ends where its stretch does (a long name in a low strip), its 4 px out of the band kept. */
   clip-path: inset(2px 0 2px -6px);
 }
 

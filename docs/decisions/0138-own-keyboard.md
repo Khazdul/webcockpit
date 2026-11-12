@@ -462,3 +462,68 @@ blurs the field, and opens again only at a tap). A field with
 - **§8** as measured in round 53e; the comparison rows against the
   device keyboard's path needed `?kbd=0` and can no longer be run
   (`bench/results/phone-53-keyboard.md` keeps them as history).
+
+## Addendum: as built in round 53j (2026-11-12)
+
+The owner's points from his S21 after 53i (the fourth, the panes'
+names, is ADR 0137's addendum of the same round).
+
+**The hot key box makes room for itself (amends §5 and the 53d and 53e
+notes on the box).** With panes open at the top in portrait, a tap on
+Custom (or on Label or Command) could not keep the box: the keyboard
+lifts the box, the box met the strip or Comm, and closed. Now what is
+above the game text and would lie under the box is left out of the
+layout while the box needs the room (`allocatePhoneGame` `hide`,
+`Cockpit.setPhoneHide`; the layer's `boxPlan`):
+
+- The order: **Comm first, then the strip's pane**; the fight card and
+  the game text always stay. Comm is the one that tells of itself while
+  it is out (its key's badge counts what comes in, as for a closed
+  Comm), the strip's pane is what one glances at (the group's health,
+  the timers), and Comm is the taller, so it alone is often enough.
+- The parts go in the very layout that opens the keyboard, found
+  beforehand on layouts that would be (`Cockpit.phoneGameLayoutIf`,
+  which replaces `phoneGameLayoutClosed`): one window size. They come
+  back when the box closes (one layout with the keyboard's folding) or,
+  as far as the box then leaves them room, when the keyboard folds.
+- Nothing of the panes is touched: the strip keeps its page, Comm its
+  conversation; Comm is "closed" for its unread counts meanwhile.
+- **A held key does the same** (the owner had accepted that the box did
+  not open; it came out simple, and one rule is easier to learn): where
+  the box has no room beside the columns, Comm, then the strip, go for
+  it. With our keyboard up the hold folds it, as before; the room is
+  judged first, so a refused hold still changes nothing. A hold is now
+  refused only where the box would be under 180 px high whatever is
+  taken out (a split screen), or the layout is too small.
+- The box ends under the fight card (its content scrolls) instead of
+  closing for it.
+- Landscape: the box stands right of the column whatever the column's
+  width (its own width gives way), so nothing is taken out there, and
+  Custom worked already (e2e).
+
+**The sent line without a selection (amends §3).** After Enter the line
+stays, selected, so that Enter sends it again and a key replaces it.
+Folded and tapped again, the field still held that range, and Android
+showed its selection pop-up. On a phone with our keyboard the range is
+now collapsed when the field loses the focus, and the state is
+remembered instead (`InputPane`, "Kept line"; the line is dimmed as the
+placeholder is): Enter sends it again, a key or a paste replaces it,
+Backspace clears it; a caret key, a tap in the focused field or a
+selection the user makes (a long press) turns it into ordinary text.
+The tap that brings the focus back leaves it kept, the caret at its
+end. While the field has the focus the native selection is as before.
+Never at a password prompt. Desktop, tablet and the old phone layout:
+unchanged (the native selection stays through a blur).
+
+**The fields' text is 16 px.** The command field is 44 px high whatever
+the font size setting, and its text followed the setting (tiny at a
+small one). It now has 16 px (never less: iOS zooms the page for a
+smaller field), as the hot key box's fields had, and so have Comm's
+reply line and its search: one family. The input pane places its caret,
+its suggestion and the password's bullets by the cell width measured in
+that font (`InputPane.setOwnFont`; one observed run of text, so a font
+that loads late is followed without polling).
+
+**Not verified on a device:** everything of this round. The selection
+pop-up cannot be seen in emulation: the tests assert that no range is
+selected when the keyboard opens by a tap.

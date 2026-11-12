@@ -18,6 +18,9 @@
 //                                                the multi-line fields and the page keys)
 //   node scripts/phone-shots.ts 53h script script-land …   states of round 53h (name them: our
 //                                                keyboard in the two code editors)
+//   node scripts/phone-shots.ts 53j plates plates-land-built box-panes-hidden field-small …   states
+//                                                of round 53j (name them: the panes' names on the
+//                                                bands, the hot key box with panes out, the fields)
 //
 // Our own keyboard is the phone's only one (ADR 0138 as released): the two states of stage 51
 // that showed the device's keyboard (`keyboard`, `comm-keyboard`) went with `?kbd=0` in round
