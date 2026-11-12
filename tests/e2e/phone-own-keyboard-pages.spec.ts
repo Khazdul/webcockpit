@@ -10,14 +10,12 @@
 //   number: the digit row is up), the editors' Find row.
 // - The page ends above the keyboard (a fixed reserve): the field and the
 //   dialog's buttons stay visible and reachable.
-// - A CodeMirror buffer keeps the device's keyboard until round 53h; ours
-//   closes when one takes the focus. (The multi-line fields are ours since
-//   round 53g: phone-own-keyboard-multiline.spec.ts.)
+// - (The multi-line fields: phone-own-keyboard-multiline.spec.ts; the code
+//   editors: phone-own-keyboard-editors.spec.ts.)
 // - A page over the game: the page's keyboard, not the game's; closing the
 //   page returns to the game with no reserve left and no extra window size,
 //   and the game's keyboard still works.
-// - `?kbd=0`: nothing of this (the device's keyboard, as before). A
-//   desktop-size and a tablet-size window: nothing either.
+// - A desktop-size and a tablet-size window: nothing of this.
 //
 // `phone` project; most cases name the layout (`?kbd=en`) so they do not
 // depend on the browser's language. Nothing reaches MUME.
@@ -524,36 +522,6 @@ test.describe('portrait 360 × 800, before the game', () => {
     await expectAbove(page, page.locator('.wc-lk-dialog[data-dlg="new"] [data-btn="OK"]'));
   });
 
-  test('`?kbd=0`: the device\'s keyboard as before: no field is marked and ours never opens', async ({ page }) => {
-    await openStart(page, '&kbd=0');
-    await addProfile(page, 'hero');
-    await page.evaluate(() => window.__wc!.shell.scripts!.init());
-    const f = startFrame(page);
-    await f.locator('.wc-sm-item[data-key="scripts"]').tap();
-    await f.locator('[data-btn="NEW"]').tap();
-    const field = page.locator('.wc-lk-dialog[data-dlg="new"] input');
-    await expect(field).toBeFocused();
-    expect(await field.getAttribute('inputmode')).toBeNull();
-    expect(await field.getAttribute('virtualkeyboardpolicy')).toBeNull();
-    await field.tap();
-    await frames(page);
-    await expect(page.locator('.wc-okb-page')).toHaveCount(0);
-    await expect(html(page)).not.toHaveClass(/\bwc-okb-pg\b/);
-    await page.keyboard.type('dev');
-    await expect(field).toHaveValue('dev');
-    await page.keyboard.press('Escape');
-    await expect(field).toHaveCount(0);
-    // The Profile list's dialog too.
-    await f.locator('.wc-lk-back').first().tap();
-    await startFrame(page).locator('.wc-sm-item[data-key="profile"]').tap();
-    const row = startFrame(page).locator('.wc-pl-row[data-name="hero"]');
-    await row.tap();
-    await row.locator('[data-btn="RENAME"]').tap();
-    const old = page.locator('.wc-lk-dialog[data-dlg="rename"] input');
-    await expect(old).toBeFocused();
-    expect(await old.getAttribute('inputmode')).toBeNull();
-    await expect(page.locator('.wc-okb-page')).toHaveCount(0);
-  });
 });
 
 // ------------------------------------------------------------------ landscape

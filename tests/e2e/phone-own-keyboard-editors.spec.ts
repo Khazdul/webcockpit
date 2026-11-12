@@ -15,7 +15,7 @@
 // - Landscape: the editor's head and foot step aside, the code is hittable.
 // - A rotation keeps the keyboard and the caret's line.
 // - A read-only (bundled) script is marked and opens nothing.
-// - `?kbd=0`, a desktop-size and a tablet-size window: nothing of this.
+// - A desktop-size and a tablet-size window: nothing of this.
 //
 // `phone` project. Nothing reaches MUME.
 import { type Locator, type Page, expect, test } from '@playwright/test';
@@ -545,19 +545,6 @@ test.describe('portrait 360 × 800', () => {
     expect(errors).toEqual([]);
   });
 
-  test('`?kbd=0`: the buffers are not marked and ours never opens', async ({ page }) => {
-    const ed = await openScript(page, '&kbd=0');
-    const content = ed.locator('.cm-content');
-    expect(await content.getAttribute('inputmode')).toBeNull();
-    expect(await content.getAttribute('virtualkeyboardpolicy')).toBeNull();
-    expect(await content.getAttribute('data-okb-kind')).toBeNull();
-    await tapEnd(page, ed);
-    await frames(page);
-    await expect(page.locator('.wc-okb-page')).toHaveCount(0);
-    await page.keyboard.press('Enter');
-    await page.keyboard.type('x = (');
-    expect((await lines(ed)).at(-1)).toBe('x = ()');
-  });
 });
 
 // ------------------------------------------------------------ a narrow phone

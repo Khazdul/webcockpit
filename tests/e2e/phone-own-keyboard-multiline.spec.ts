@@ -15,7 +15,7 @@
 // - A rotation with the keyboard up keeps it up and the field in view; a
 //   field focused before the phone chunk came gets the keyboard when it
 //   comes.
-// - `?kbd=0`, a desktop-size and a tablet-size window: nothing of this.
+// - A desktop-size and a tablet-size window: nothing of this.
 //
 // `phone` project. Nothing reaches MUME.
 import { type Locator, type Page, expect, test } from '@playwright/test';
@@ -510,29 +510,6 @@ test.describe('portrait 360 × 800', () => {
     expect(errors).toEqual([]);
   });
 
-  test('`?kbd=0`: the multi-line fields are not marked and ours never opens', async ({ page }) => {
-    await openStart(page, '&kbd=0');
-    await page.evaluate(async () => {
-      await window.__wc!.shell.profiles.init();
-      await window.__wc!.shell.profiles.save('default', '#alias {k} {kill}\n');
-    });
-    const f = startFrame(page);
-    await f.locator('.wc-sm-item[data-key="profile"]').tap();
-    await f.locator('[data-btn="EDIT"]').tap();
-    const pe = page.locator('.wc-frame:not([hidden]) .wc-pe');
-    await pe.locator('[data-rail="alias"]').tap();
-    await pe.locator('[data-btn="NEW"]').tap();
-    const body = pe.locator('[data-field="body"] textarea');
-    expect(await body.getAttribute('inputmode')).toBeNull();
-    expect(await body.getAttribute('data-okb-kind')).toBeNull();
-    await body.tap();
-    await frames(page);
-    await expect(page.locator('.wc-okb-page')).toHaveCount(0);
-    await page.keyboard.type('a');
-    await page.keyboard.press('Enter');
-    await page.keyboard.type('b');
-    await expect(body).toHaveValue('a\nb');
-  });
 });
 
 // ------------------------------------------------------------------ landscape

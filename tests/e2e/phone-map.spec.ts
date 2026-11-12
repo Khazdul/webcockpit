@@ -244,7 +244,6 @@ test('a tap steps the zoom near → middle → far → near, shown by the pips; 
   await expect.poll(async () => (await zooms()).at(-1)).toBeCloseTo(FULL / (5 * 44), 4);
   await expect(on).toHaveCount(1);
   expect(await inputFocused(page)).toBe(false);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
   // The zoom really changes what is drawn: far shows more rooms than near.
   await walk(page);
   await expect(content(page)).toHaveAttribute('data-map-located', '1', { timeout: 10_000 });
@@ -539,32 +538,6 @@ test('the Map lens settings: show and opens at, from the settings page (no size 
   expect((await lensSet()).show).toBe(false);
 });
 
-test('the keyboard up: the lens stays; a very short screen hides it and it returns', async ({ page }) => {
-  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
-  await openCockpit(page, '&kbd=0');
-  await expect(lens(page)).toBeVisible();
-  const size = page.viewportSize()!;
-  await field(page).tap();
-  await page.setViewportSize({ width: size.width, height: size.height - 320 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-  await expect(lens(page)).toBeVisible();
-  await expect(pane(page)).toBeVisible();
-  const l = (await lens(page).boundingBox())!;
-  const slot = (await page.locator('.wc-input-slot').boundingBox())!;
-  expect(l.y + l.height).toBeLessThanOrEqual(slot.y);
-  // Too short for it (a landscape keyboard): hidden, the key row instead; no too-small notice.
-  await page.setViewportSize({ width: size.width, height: 150 });
-  await expect(lens(page)).toBeHidden();
-  await expect(pane(page)).toBeHidden();
-  await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
-  await expect(page.locator('.wc-ph-satrow')).toBeVisible();
-  // Room again: it returns.
-  await page.setViewportSize(size);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  await expect(lens(page)).toBeVisible();
-  await expect(page.locator('.wc-ph-satrow')).toBeHidden();
-});
-
 for (const [width, height, want, size] of [
   [360, 800, 150, 0],
   [390, 844, 163, 0],
@@ -576,24 +549,13 @@ for (const [width, height, want, size] of [
     test.use({ viewport: { width, height } });
 
     test(`is ${want} px: 150 px at 360 px of short side, in proportion, within 130 to 190`, async ({ page }) => {
-      // (`?kbd=0`: the second half is the device's keyboard, the old path; the lens's size itself is the same on both.)
-      await openCockpit(page, '&kbd=0');
+      await openCockpit(page);
       if (size) await page.evaluate((size) => window.__wc!.settings.update({ appearance: { size } }), size);
       await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
       await expect(lens(page)).toBeVisible();
       await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(want, 0);
       expect((await lens(page).boundingBox())!.height).toBeCloseTo(want, 0);
       expect(await pane(page).evaluate((el) => getComputedStyle(el).clipPath)).toBe(`circle(${want / 2}px at 50% 50%)`);
-      // The keyboard up (a shorter visible area): the size is the screen's, not the visible area's.
-      await field(page).tap();
-      await page.evaluate((h) => {
-        // The layout viewport keeps its height on a phone; only the visual viewport shrinks.
-        Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => h });
-      }, height);
-      await page.setViewportSize({ width, height: height - 300 });
-      await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-      await expect(lens(page)).toBeVisible();
-      expect((await lens(page).boundingBox())!.width).toBeCloseTo(want, 0);
     });
   });
 }

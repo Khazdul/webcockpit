@@ -1,16 +1,13 @@
 // Stage 53 (ADR 0138): an on-screen keyboard of our own for the phone's
-// game layout. Since round 53e it is the layout's keyboard by default;
-// `?kbd=0` keeps the device's (the old path, until the release decision),
-// `?kbd=1` or `?kbd=debug` adds the readout, `?kbd=sv` / `?kbd=en` name the
+// game layout. It is the layout's only keyboard (`?kbd=0` went in round
+// 53i); `?kbd=1` or `?kbd=debug` adds the readout, `?kbd=sv` / `?kbd=en` name the
 // layout whatever the setting says (most cases here use one of them, so
 // they do not depend on the browser's language). This file: the keyboard
 // itself and the command field. The other fields (Comm, the hot key box,
 // script panes), the settings and the vibration:
 // phone-own-keyboard-fields.spec.ts.
 //
-// - With `?kbd=0` nothing of it is there: no `inputmode`, no keyboard, no
-//   readout, no state class.
-// - Else: the field asks the device for no keyboard
+// - The field asks the device for no keyboard
 //   (`inputmode="none"`, `virtualkeyboardpolicy="manual"`); a pointer on it
 //   opens ours and leaves the field focused; the keys type through the
 //   input pane's editing API (Swedish and English, shift once and locked,
@@ -24,7 +21,9 @@
 //   with the keyboard down. Landscape: the block in the middle, K1 to K3
 //   left of it, K4 to K6 right of it, the compass at the far right.
 // - A visible area that shrinks (a split screen, a lower window, fullscreen
-//   left) is no keyboard: ours stays, and opens, while it has room.
+//   left) is nothing special: the layout uses the smaller area as on any
+//   small screen (`wc-kbd`, the old phone layout's device keyboard state,
+//   is never set here), and ours stays, and opens, while it has room.
 //
 // `phone` project (Pixel 7; the owner's S21 sizes are set where the numbers
 // matter). The sending cases play against a `page.routeWebSocket` mock; the
@@ -172,28 +171,6 @@ async function enterMock(page: Page, kbd = '1'): Promise<Mock> {
 
 // ------------------------------------------------------------------ the gate
 
-for (const query of ['&kbd=0']) test(`with ?kbd=0 nothing of it is there: no inputmode, no keyboard, no readout, no state ("${query}")`, async ({ page }) => {
-  const errors = watchErrors(page);
-  await openPhone(page, query);
-  await expect(field(page)).not.toHaveAttribute('inputmode');
-  await expect(field(page)).not.toHaveAttribute('virtualkeyboardpolicy');
-  await expect(okb(page)).toHaveCount(0);
-  await expect(readout(page)).toHaveCount(0);
-  const before = await layout(page);
-  await field(page).tap();
-  await expect.poll(() => inputFocused(page)).toBe(true);
-  await frames(page);
-  await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
-  await expect(okb(page)).toHaveCount(0);
-  await expect(pad(page)).toBeVisible();
-  const after = await layout(page);
-  expect(after.bottom).toBe(0);
-  expect(after).toEqual(before);
-  // Nothing of the keyboard's arrangement on the layer or the page.
-  expect(await page.locator('.wc-ph-layer').evaluate((el) => [el.getAttribute('data-okb'), el.style.getPropertyValue('--okb-lift'), document.documentElement.className.includes('okb')])).toEqual([null, '', false]);
-  expect(errors).toEqual([]);
-});
-
 for (const query of ['', '&kbd=de']) test(`by default our keyboard is the game layout's: the field asks the device for none, a tap opens ours, no readout ("${query}")`, async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page, query);
@@ -203,7 +180,6 @@ for (const query of ['', '&kbd=de']) test(`by default our keyboard is the game l
   await expect(readout(page)).toHaveCount(0);
   await openKeyboard(page);
   await expect(html(page)).toHaveClass(/\bwc-okb\b/);
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await inputFocused(page)).toBe(true);
   await type(page, 'l', 'o', 'o', 'k');
   await expect(field(page)).toHaveValue('look');
@@ -221,7 +197,7 @@ test('the readout is a diagnostic: only with ?kbd=1 or ?kbd=debug', async ({ pag
   ] as const) {
     await openPhone(page, query);
     await expect(readout(page), query).toHaveCount(shown ? 1 : 0);
-    if (shown) await expect(readout(page)).toContainText('okb 0 | wc-kbd 0');
+    if (shown) await expect(readout(page)).toContainText('| okb 0\n');
     // The keyboard is there either way.
     await expect(field(page)).toHaveAttribute('inputmode', 'none');
   }
@@ -249,9 +225,10 @@ test.describe('a tablet-size window with the phone flag forced', () => {
 });
 
 // The visible area can shrink for reasons that are no keyboard (a split screen, a window made
-// lower, fullscreen left): `wc-kbd` comes then, and the app cannot tell why. Round 53e took a
-// shrink right after a field tap for the device's keyboard and locked ours out; that guess is
-// gone (ADR 0138, addendum 53e). What decides is the allocator's room (`tooSmall`), nothing else.
+// lower, fullscreen left). Round 53e took a shrink right after a field tap for the device's
+// keyboard and locked ours out; that guess is gone (ADR 0138, addendum 53e), and since round 53i
+// the device keyboard state (`wc-kbd`) is not set at all on a phone with the phone layer. What
+// decides is the allocator's room (`tooSmall`), nothing else.
 
 test('a split screen within a second of the field tap: our keyboard stays, the next tap finds it, and typing works', async ({ page }) => {
   const errors = watchErrors(page);
@@ -261,7 +238,9 @@ test('a split screen within a second of the field tap: our keyboard stays, the n
   await openKeyboard(page);
   await page.setViewportSize({ width: 360, height: 560 });
   expect(Date.now() - t0).toBeLessThan(1000);
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect.poll(async () => (await box(page.locator('#app'))).height).toBe(560);
+  await page.waitForTimeout(400);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   await frames(page);
   // Ours is still the keyboard, and the field kept the focus.
   await expect(html(page)).toHaveClass(/\bwc-okb\b/);
@@ -281,7 +260,6 @@ test('a split screen within a second of the field tap: our keyboard stays, the n
   expect((await box(field(page))).y).toBeGreaterThanOrEqual(0);
   // Whole again: nothing folded, so the field is not blurred and ours is still there.
   await page.setViewportSize(S21);
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   await frames(page);
   await expect(okb(page)).toBeVisible();
   expect(await inputFocused(page)).toBe(true);
@@ -357,14 +335,17 @@ test('a window too low for our keyboard: it closes once, the field lets go, and 
   await expect(okb(page)).toBeHidden();
   expect(await inputFocused(page)).toBe(false);
   expect(await page.evaluate(() => (window as unknown as { __opens: number }).__opens)).toBe(0);
-  // A tap with no room leaves nothing open: the keyboard is tried against the next layout and
-  // closed by it (`placeOwnKeyboard`), the field blurred; it takes a new tap to try again.
+  // A tap with no room opens nothing (the room is asked before anything moves: no layout, no
+  // window size for MUME), and the field does not stay focused; it takes a new tap to try again.
+  const sizesBefore = await page.evaluate(() => document.querySelector<HTMLElement>('.wc-cockpit')!.dataset.cells);
   await field(page).tap();
   await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
   await expect(okb(page)).toBeHidden();
   await expect.poll(() => inputFocused(page)).toBe(false);
   await page.waitForTimeout(600);
   await expect(okb(page)).toBeHidden();
+  expect(await page.evaluate(() => (window as unknown as { __opens: number }).__opens)).toBe(0);
+  expect(await page.evaluate(() => document.querySelector<HTMLElement>('.wc-cockpit')!.dataset.cells)).toBe(sizesBefore);
   // Room again: the tap opens it and the keys type.
   await setScreen(page, S21_LAND);
   await openKeyboard(page);
@@ -375,26 +356,28 @@ test('a window too low for our keyboard: it closes once, the field lets go, and 
   expect(errors).toEqual([]);
 });
 
-test('a visible area that shrinks with no field tapped (a split screen) is not the device\'s keyboard: ours opens, and an open one stays', async ({ page }) => {
+test('a visible area that shrinks with no field tapped (a split screen) is nothing special: ours opens, and an open one stays', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page, '');
   await setScreen(page, S21);
-  // The window is made lower with nothing tapped: `wc-kbd` comes (the app cannot tell why), and
-  // a tap on the field still opens our keyboard.
+  // The window is made lower with nothing tapped: a tap on the field still opens our keyboard.
   await page.setViewportSize({ width: 360, height: 560 });
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect.poll(async () => (await box(page.locator('#app'))).height).toBe(560);
+  // (Past the viewport module's settling: the shrink is not taken for a keyboard.)
+  await page.waitForTimeout(400);
   await openKeyboard(page);
   await type(page, 'l');
   await expect(field(page)).toHaveValue('l');
   await key(page, 'fold').tap();
   await expect(okb(page)).toBeHidden();
   await page.setViewportSize(S21);
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   // Open for a while, then the window is made lower: ours stays, and the field keeps the focus.
   await openKeyboard(page);
   await page.waitForTimeout(2700);
   await page.setViewportSize({ width: 360, height: 560 });
-  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await expect.poll(async () => (await box(page.locator('#app'))).height).toBe(560);
+  // (Past the viewport module's settling: the shrink is not taken for a keyboard.)
+  await page.waitForTimeout(400);
   await frames(page);
   await expect(okb(page)).toBeVisible();
   expect(await inputFocused(page)).toBe(true);
@@ -402,7 +385,6 @@ test('a visible area that shrinks with no field tapped (a split screen) is not t
   await expect(field(page)).toHaveValue('lo');
   // Whole again: the field is not blurred (no device keyboard folded), and ours is still there.
   await page.setViewportSize(S21);
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   await frames(page);
   await expect(okb(page)).toBeVisible();
   expect(await inputFocused(page)).toBe(true);
@@ -432,11 +414,10 @@ test('a tap on the field opens our keyboard, the field focused and asking the de
   await openKeyboard(page);
   await expect(html(page)).toHaveClass(/\bwc-okb\b/);
   // Never the device keyboard's state.
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   expect(await inputFocused(page)).toBe(true);
   expect(await page.evaluate(() => (window.__wc!.shell as unknown as { phoneLayer: { ownKeyboardOpen: boolean } }).phoneLayer.ownKeyboardOpen)).toBe(true);
   // The readout: the focused field with its inputmode, our keyboard open, the device's not seen.
-  await expect(readout(page)).toContainText('ae TEXTAREA im=none | okb 1 | wc-kbd 0');
+  await expect(readout(page)).toContainText('ae TEXTAREA im=none | okb 1\n');
   await expect(readout(page)).toContainText(/vv [\d.]+ \/ inner [\d.]+ \| VK api [01]/);
   expect(await readout(page).evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
 
@@ -1702,7 +1683,6 @@ test('a key pressed with the field blurred gives it the focus back', async ({ pa
   }
   // No device keyboard was asked for on the way.
   await expect(field(page)).toHaveAttribute('inputmode', 'none');
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
 });
 
 test('a long press that focuses the field opens our keyboard; a focus without a pointer does not', async ({ page }) => {
