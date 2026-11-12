@@ -242,6 +242,19 @@ moves the caret), script pane fields, key sound.
   - tests: no case for A, no unit test for the reserve's rounding in
     the cockpit, the lens check is still conditional.
 
+- **53d** (3fa45aa0…761ebb66, one subagent, resumed once after a usage
+  limit; a fresh review follows): `keyboard-fields.ts` (an `OkbTarget`
+  over any text field of the game layout: Comm's reply and search, the
+  hot key box, script pane fields; no field is left on the device's
+  keyboard), the target follows the focus with no relayout; the
+  password masked the desktop way with the gate on (no
+  `type="password"` element); `phone.keyboard.layout`
+  (`auto` | `sv` | `en`) and `phone.vibrate` with their settings rows;
+  `haptics.ts` (30 ms pulse on the press of a keyboard, compass or hot
+  key); review findings A–F fixed. Unit 3938, phone e2e 319 of 320 (the
+  known flaky swipe test), typecheck clean. Decisions: ADR 0138, "as
+  built in round 53d". Screenshots `docs/stages/img/53-d-*`.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
@@ -295,6 +308,34 @@ device's keyboard until 53d (ours closes when you tap them).
 
 Wanted: key sizes, the symbol set and its order, where ↑ ↓ should
 live, the landscape arrangement, anything that jumps.
+
+## Test guide 53d (for the owner, S21)
+
+`?kbd=1` as before. New in this round:
+
+1. **Comm:** open Comm, tap the reply line of a chat: our keyboard
+   types there; Enter sends the tell and the keyboard stays. Tap the
+   command field: the keys move there with nothing jumping. The search
+   key: our keyboard, never the device's (also no flash of it).
+2. **Hot key box:** hold a K key, tap Label or Command: our keyboard
+   comes up and the box stays whole above it (landscape: the box stands
+   at the right over the band, its lower part scrolls). Enter saves;
+   does anything under your finger fire when the box and keyboard go?
+3. **Password:** reconnect and log in with our keyboard. The password
+   shows as bullets; long press and double tap in it: no toolbar with
+   share or translate may show the password; paste still works. ↑ ↓ are
+   dimmed.
+4. **Settings → Keyboard:** Swedish / English, changes at once (use
+   `?kbd=1`, not `?kbd=sv`).
+5. **Settings → Quick buttons → Vibrate on key press:** on; do the
+   keyboard, the compass and the K keys vibrate (30 ms now, 10 ms in
+   0.5.0)? If not: is "touch vibration" on in Android's sound settings,
+   and is the phone out of silent and Do not disturb?
+6. **Script pane fields** (if a script pane of yours has one in the
+   strip): our keyboard, Enter submits to the script.
+
+Wanted: anything that still raises the device's keyboard in the game
+layout; the password prompt; whether vibration works.
 
 ## Owner feedback
 

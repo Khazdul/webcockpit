@@ -83,8 +83,13 @@ Statuses: Next, In progress, Owner testing, Done.
   layouts `sv` / `en`, digit row, symbols, history, the look, compass
   and K keys beside the keyboard (owner's additions). Unit 3904, phone
   e2e 301.
-- **Next:** the owner's test of 53b + 53c (guide in the stage file) and
-  the review's findings; then 53d (other fields, settings, vibration).
+- **53b + 53c OK** on the S21 (owner, no changes). **53d built** and
+  merged into the stage branch (3fa45aa0…, 4f7aa376): every field of
+  the game layout on our keyboard, password masked the desktop way,
+  layout and vibration settings. Unit 3938, phone e2e 319 of 320.
+- **Next:** the owner's test of 53d (guide in the stage file) and its
+  review; then 53e (key to echo, the gate removed, cleanup, docs, the
+  release decision with an iPhone test).
 - **Open issues:** the review of 53a; in landscape a hot key raises the
   device's keyboard after a send (left for stage 53).
 - **Commits:** 89ec5749, e4b456e6, 82fdb0a6, db8150bb, 3d914a29,
