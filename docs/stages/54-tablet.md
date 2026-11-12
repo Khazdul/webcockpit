@@ -149,8 +149,160 @@ fullscreen is a little buggy. The mockups of rounds 1 and 2
 
 ### Tasks (new direction)
 
-- [ ] 54a: tablet gate (the phone's layout by default on a tablet), ADR 0140
-- [ ] 54a: keyboard width on a tablet
+- [x] 54a: tablet gate (the phone's layout by default on a tablet), ADR 0140
+- [x] 54a: keyboard width on a tablet
+- [ ] 54a: "a tap in the script editor's text does not bring up our keyboard" (owner, phone and iPad): not reproduced in emulation, not fixed; see "54a as built"
 - [ ] 54b: fullscreen on the iPad: investigation, then fix or note
 - [ ] Review, owner test, release
 
+## 54a as built (2026-11-12)
+
+ADR 0140 has the decision; this is the short version.
+
+- **The gate.** A third device flag, `tablet` (`src/core/device.ts`): a
+  touch device, as the browser reports it, whose screen's short side is
+  600 CSS px or more. It turns the phone flag on, and the shell then
+  uses the phone's game layout and our keyboard whatever the window's
+  size (`phoneGameWanted`, `src/app/shell.ts`), in the game and on the
+  menu pages. Desktop, phones, `?touch=1` and `?phone=1` on a desktop
+  are as before.
+- **Flags.** `?tablet=desktop`: the desktop cockpit and the device's
+  keyboard, as a tablet had until now. `?tablet=phone`: forces the
+  tablet on any device (tests, a desktop).
+- **Stored settings are kept as they are.** A tablet that has never
+  opened WebCockpit starts from the phone's defaults (text size 14 and
+  so on). A tablet that has stored settings (from the desktop cockpit)
+  keeps all of them, the text size too, and the phone's one-time
+  defaults (Herblores off, time text off, Character out of the strip)
+  are not applied to them.
+- **The keyboard** on a window whose short side is 600 px or more
+  (`src/phone/keyboard-model.ts`, `tablet`): letter keys up to 72 px
+  (a phone: 48 / 46), rows 48 to 56 px in both shapes (a phone: up to
+  46, and 36 in landscape), larger key faces. Measured in Chromium:
+
+  | | 820 × 1180 | 1180 × 820 |
+  | --- | --- | --- |
+  | Key block | 796 px wide, 12 px margins | 796 px wide, between the hot keys and the compass |
+  | Letter key (Swedish, 11 a row) | 72 × 56 | 72 × 53 |
+  | Space | 282 px | 282 px |
+  | Keyboard height | 228 px (270 with the digit row) | 218 px (274 with the digit row) |
+  | English (10 a row) | 72 px keys, block 724 px, centred | 72 px keys, block 724 px |
+  | Page keyboard | 72 × 56, Esc/Tab/arrows as a row on top (284 px) | 72 × 56, Esc/Tab/arrows in 72 px columns beside the block (228 px) |
+
+  The model asks for 56 px rows at both sizes; in the game the
+  allocator keeps whole rows of game text free, which gives 53 to 56.
+  The compass, the hot keys, the lens, the strip, Comm and the menu
+  are untouched.
+- **Tests.** Unit 4141 passed (2 skipped), `tsc --noEmit` clean. Phone
+  e2e project: 448 tests, 447 passed and 1 failed in the full run
+  (`phone-game-panes.spec.ts:194`, the strip's swipe at phone size;
+  it passed 3 of 3 alone and in the run before, and another script was
+  loading the same dev server during the full run: taken as flaky, not
+  looked into further). Desktop specs that touch the device flags
+  (`input-font`, `output`, `chrome`, `esc-click`; Chromium and
+  Firefox): 76 passed. The full e2e suite was not run. New:
+  `tests/e2e/phone-tablet.spec.ts` (13 cases). In the phone project a
+  wide window is now a tablet, so its 16 cases of "the old phone layout
+  in a wide window" and "a tablet has the desktop cockpit" say
+  `tablet=desktop`.
+- **Bundle.** A production build before and after: the same 98 files;
+  the desktop's first load is 7 bytes larger; the phone chunk +0.6 kB,
+  its CSS +0.5 kB.
+- **Screenshots**, with no flag, Chromium as an iPad
+  (`node scripts/tablet-shots.ts`): `docs/stages/img/54-a-*.png`
+  (portrait) and `54-a-land-*.png` (landscape): `rest`, `keyboard`,
+  `digits`, `symbols`, `symbols-digits`, `keyboard-en`, `comm`,
+  `comm-keyboard`, `strip`, `strip-group`, `menu`, `settings`, `start`,
+  `start-profile-keyboard`, `start-script-keyboard`, and `desktop`
+  (`?tablet=desktop`). Sizes: `notes/research/tablet/54a-measures.json`.
+  In the two `desktop` pictures the map shows another area than the
+  player's room, as in the trial's; not looked into.
+- **Not seen on a device.** Everything above is Chromium's emulation.
+  Whether iPadOS Safari is found as a tablet without the flag (it
+  should be: a coarse pointer, a screen 820 wide), and how the keys
+  feel, is for the test below.
+
+### The script editor and our keyboard (owner's report, not solved)
+
+The owner: a tap in the script editor's text does not bring up our
+keyboard, on the phone (Samsung S21) and on the iPad.
+
+**Not reproduced** in Chromium's touch emulation, on the dev server and
+on a production build. Tried, at 360 × 800 and 820 × 1180 (and 800 ×
+360, 1180 × 820 for some), always with the keyboard coming up: start
+menu → Scripts → an existing script → Edit; a script made with New and
+our keyboard (Enter and the OK button); from the game, menu → Scripts →
+Edit, with the game's keyboard down and up; the profile editor's Editor
+view from the start menu and from the game; a tap in a line's text, at
+its end, right of a short line, in the empty room under the last line;
+again after the fold key; after a drag that scrolled the code; touches
+held 80 to 350 ms and moved 2 to 8 px. (A tap on the line numbers
+opens nothing, and a bundled read-only script opens nothing: both as
+designed.)
+
+**One case that does fail, on a phone in landscape only:** a window
+800 px wide and 280 px high or lower (an S21 on its side in a browser
+tab with the address bar showing is about that; 285 px and up works).
+The page keyboard needs 150 px of page above it (`PAGE_KEEP_PX`,
+`src/phone/keyboard-pages.ts:194`); below that `place()` gives up and
+blurs the buffer (`:373`), so the tap seems to do nothing. This is
+ADR 0139's floor working as written, not a regression, and it cannot
+be what happens on the iPad. Whether it is what the owner saw on the
+phone is not known: **ask which orientation, and whether in fullscreen.**
+Nothing was changed.
+
+**Suspects, if it is something else** (all in
+`src/phone/keyboard-pages.ts`):
+
+- `:640` `onFocus` / `:657`: a code editor never opens the keyboard on
+  a focus alone, only on the tap's `click` (`:680` `onClick`) or, where
+  no click comes, 60 ms after `pointerup` if the buffer has the focus
+  by then (`:612` `flush`, `:617`). A device that ends the touch with
+  `pointercancel` (`:634` counts only `pointerup`) and sends no click
+  would open nothing. Emulation always sends both.
+- `:337` `editorOf` → `src/editor/own-keyboard-cm.ts:57` `editable()`:
+  a buffer that reports itself not editable is not a field of ours.
+- `:456` `gone`: closes the keyboard at once when the buffer is not
+  shown or has lost the focus just after it opened.
+- The dev server itself: on 2026-11-12 the files of this round were
+  edited under the running dev server, and for about a minute
+  `keyboard-pages.ts` called two functions it did not yet import; a
+  page loaded then would open no page keyboard at all. A reload cures
+  that. Only relevant if the report was made on the dev server during
+  that time.
+
+## Test guide, 54a (the iPad)
+
+The dev server runs from this branch's worktree (ADR 0096). On the iPad
+open `https://<machine>.<tailnet>.ts.net:5173/` with **no flag**:
+
+- `/` — the start page; Enter MUME for the live game.
+- `/?fixture=gmcp-demo.log&speed=0` — the game filled from a log, no
+  login.
+
+**Stored settings:** in a normal tab the iPad keeps the settings it
+already has, so the text may be larger than in the screenshots (the
+desktop cockpit's size). That is intended, nothing is lost. To see it
+as a new tablet gets it (text size 14, the phone's panes), use a
+**private tab**. The text size can be changed in the menu (A− / A+).
+
+Try, in both orientations:
+
+1. The game opens in the phone's layout (compass, lens, menu key), not
+   the desktop cockpit.
+2. Tap the command field: our keyboard, now across the screen. Type a
+   line, Enter. The `123` key (digit row), `!#?` (symbols).
+3. Comm: open a chat, tap its reply line, type.
+4. Start page → Profile → a profile → Rename, and Scripts → New: the
+   keyboard under the dialog, with Esc, Tab and arrows.
+5. Scripts → a script → Edit, tap in the code: does the keyboard come
+   up? (See the note above. If not: which orientation, which script,
+   and does it come on a second tap?)
+6. `?tablet=desktop` in the address: the old tablet (desktop cockpit),
+   to compare or to go back.
+
+Wanted: are the keys the right size now (too large is as possible as
+too small: 72 × 56 px), the same question for landscape, and anything
+that looks wrong at the keyboard's edges (the hot keys left of it and
+the compass right of it in landscape). Fullscreen is a separate round
+(54b).
