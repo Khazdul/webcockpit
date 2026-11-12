@@ -1,0 +1,100 @@
+/* Shared kit for the tablet mockups, round 1. The look is the phone's final mockups (Lykta), sized for a tablet. */
+.tb{overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:16px;line-height:20px;display:flex}
+.tb.land{width:1180px;height:820px;flex-direction:row}
+.tb.port{width:820px;height:1180px;flex-direction:column}
+.tb *{box-sizing:border-box}
+:where(.tb) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer;background:none;border:0}
+.col{display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+.rowx{display:flex;flex-direction:row;min-width:0;min-height:0;position:relative}
+.gt{position:relative;margin:0;padding:8px 12px;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#e8c48a}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.s{width:20px;height:20px}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f0b84f;color:#170f03;font-size:11px;font-weight:700;line-height:1}
+.bar{height:7px;border-radius:4px;background:#221f1b;overflow:hidden;flex:1;display:block}
+.bar i{display:block;height:100%;border-radius:4px}
+.hp{background:#45b862}.mn{background:#4a80e8}.mv{background:#d79a4a}.foe{background:#d75f5f}
+
+/* Lykta pane: iron band with a centred hood, lamp-lit window */
+.pane{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid #0e0c0a;background:#0b0907}
+.band{position:relative;flex:none;height:22px;background:linear-gradient(#3a342d,#231f1a);border-top:1px solid #5a5148;border-bottom:1px solid #0e0c0a}
+.hood{position:absolute;left:50%;transform:translateX(-50%);top:0;padding:2px 18px 4px;background:linear-gradient(#3a342d,#1d1915);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 8px 8px;font-size:12px;line-height:15px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,.5);z-index:2}
+.win{position:relative;flex:1;min-height:0;overflow:hidden;background:radial-gradient(120% 70% at 50% 0,rgba(232,196,138,.11),rgba(232,196,138,0) 70%),#0b0907;box-shadow:inset 0 0 28px rgba(0,0,0,.7)}
+.mapfill{position:absolute;inset:0;background:#000 url(/_blob/294070bccad8a30a76c42d809149f61e) center/520px 520px no-repeat}
+.here{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border:2px solid #f5e342;box-shadow:0 0 6px #000}
+.zoom{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
+.zb{width:44px;height:44px;border-radius:50%;background:rgba(22,19,15,.82);border:1px solid rgba(232,196,138,.45);color:#e8c48a;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1}
+/* tabs in a band: the pane's name plates */
+.tabs{position:absolute;left:0;right:0;top:0;display:flex;justify-content:center;gap:4px;z-index:2}
+.tab{padding:2px 12px 4px;height:auto;background:linear-gradient(#2a2520,#1a1612);border:1px solid #0e0c0a;border-top:0;border-radius:0 0 8px 8px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px;line-height:15px;color:#a8946f}
+.tab.on{background:linear-gradient(#3a342d,#1d1915);color:#e8c48a;text-shadow:0 0 8px rgba(232,196,138,.45)}
+.tabhit{position:absolute;left:0;right:0;top:0;height:44px}
+
+/* group and timer cards */
+.card{background:rgba(232,196,138,.06);border:1px solid rgba(232,196,138,.24);border-radius:8px;box-shadow:inset 0 1px 0 rgba(232,196,138,.18)}
+.gm{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;column-gap:10px;padding:5px 10px;font-size:13px;line-height:16px}
+.gm .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e8e8e8}
+.gm .bars{display:flex;flex-direction:column;gap:3px}
+.gm .bar{height:5px;flex:none}
+.plist{display:flex;flex-direction:column;gap:5px;padding:26px 8px 8px}
+/* Comm */
+.comm{display:flex;flex-direction:column;height:100%;padding:26px 0 0}
+.chips{flex:none;display:flex;gap:6px;padding:0 8px 6px}
+.chip{height:30px;padding:0 12px;border-radius:15px;border:1px solid rgba(232,196,138,.28);color:#c9b48e;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+.chip.on{background:#e8c48a;color:#170f03;border-color:#fff1cf;font-weight:700}
+.msgs{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;padding:0 10px 6px;font-size:13px;line-height:17px}
+.msgs p{margin:0}
+.msgs b{color:#e8c48a;font-weight:700}
+.reply{flex:none;margin:0 8px 8px;height:44px;border-radius:10px;border:1px solid rgba(232,196,138,.26);background:#050403;display:flex;align-items:center;padding:0 12px;color:#8a8a8a;font-size:13px}
+
+/* fight card */
+.fight{position:relative;flex:none;display:grid;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);align-items:end;column-gap:10px;padding:6px 12px 8px;background:#0b0907;border-bottom:1px solid rgba(232,196,138,.26)}
+.fight .n{display:flex;justify-content:space-between;font-size:13px;line-height:16px;white-space:nowrap;overflow:hidden}
+.fight .vs{font-family:'Cinzel',serif;font-weight:700;font-size:11px;line-height:14px;color:#e8c48a;text-align:center}
+.fight .r .bar i{margin-left:auto}
+
+/* command row */
+.inrow{position:relative;flex:none;display:flex;align-items:center;gap:10px;padding:8px 10px;background:#0b0907;border-top:1px solid rgba(232,196,138,.18)}
+.field{flex:1;min-width:0;height:48px;border-radius:10px;border:1px solid rgba(232,196,138,.34);background:#050403;display:flex;align-items:center;padding:0 14px;color:#8a8a8a}
+.field.live{color:#e8c48a;border-color:rgba(232,196,138,.6)}
+.caret{display:inline-block;width:1px;height:20px;background:#e8c48a;margin-left:1px}
+.ib{flex:none;width:48px;height:48px;border-radius:10px;border:1px solid rgba(232,196,138,.24);background:rgba(232,196,138,.06);color:#e8c48a;display:flex;align-items:center;justify-content:center;position:relative}
+.ib .badge{position:absolute;right:-5px;top:-5px}
+
+/* compass and hot keys: 54 px on a tablet */
+.pad{display:grid;grid-template-columns:repeat(3,54px);grid-auto-rows:54px;gap:4px}
+.key{display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(22,19,15,.86);border:1px solid rgba(232,196,138,.34);color:#e8c48a;font-weight:700;font-size:18px;box-shadow:inset 0 1px 0 rgba(232,196,138,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:rgba(48,14,12,.88)}
+.key.tog{background:none;border-color:transparent;box-shadow:none}
+.kk{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#e8c48a;color:#170f03;font-size:13px;font-weight:700}
+.hot{display:grid;grid-template-columns:repeat(2,54px);grid-auto-rows:54px;gap:4px}
+.hot.one{grid-template-columns:54px}
+.hk{display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(22,19,15,.45);border:1px solid rgba(232,196,138,.55);color:#f3d9ac;font-size:12px;line-height:14px;font-weight:700;text-shadow:0 1px 2px #000}
+.deck{flex:none;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:10px;background:#0b0907;border-top:1px solid rgba(232,196,138,.18)}
+.float{position:absolute;display:flex;align-items:flex-end;gap:12px}
+
+/* our keyboard */
+.kb{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px;background:#14110d;border-top:1px solid #3a342d}
+.kr{display:flex;gap:6px;height:52px}
+.k{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:linear-gradient(#3a352e,#2a2621);border:1px solid #0e0c0a;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);color:#ece6da;font-size:22px}
+.k.fn{background:linear-gradient(#211e1a,#171411);color:#e8c48a;font-size:15px;font-weight:700}
+.k.w15{flex-grow:1.6}.k.sp{flex-grow:4.2}
+.k.ent{flex-grow:1.8;background:#e8c48a;color:#170f03;border-color:#fff1cf}
+
+/* B: the lens */
+.lw{position:absolute;width:230px;height:230px}
+.lens{position:absolute;inset:0;border-radius:50%;display:block;box-shadow:0 0 0 10px #0e0c0a,0 0 22px 12px rgba(232,196,138,.14),0 8px 16px 6px rgba(0,0,0,.8)}
+.lens .map{position:absolute;inset:0;border-radius:50%;background:#000 url(/_blob/294070bccad8a30a76c42d809149f61e) center/560px 560px no-repeat}
+.lens .glass{position:absolute;inset:0;border-radius:50%;background:radial-gradient(70% 40% at 50% -8%,rgba(255,255,255,.14),rgba(255,255,255,0) 64%),radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 58%,rgba(0,0,0,.55) 100%);box-shadow:inset 0 0 0 1px rgba(232,196,138,.30),inset 0 2px 5px rgba(255,255,255,.22),inset 0 -8px 14px rgba(0,0,0,.55)}
+.lens .ring{position:absolute;inset:-10px;border-radius:50%;border:10px solid #3a342d;border-top-color:#6f655a;border-bottom-color:#1b1713;box-shadow:inset 0 0 0 1px #0e0c0a,0 0 0 1px #0e0c0a}
+.sat{position:absolute;width:48px;height:48px;border-radius:50%;background:linear-gradient(#2a2520,#15120e);border:1px solid #5a5148;color:#e8c48a;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(232,196,138,.22),0 2px 8px rgba(0,0,0,.85)}
+.sat.tl{left:-8px;top:-8px}.sat.tr{right:-8px;top:-8px}.sat.br{right:-8px;bottom:-8px}
+.sat.on{background:#e8c48a;color:#170f03;border-color:#fff1cf}
+.sat .badge{position:absolute;right:-4px;top:-4px}
+.ghost{position:absolute;background:rgba(11,9,7,.72);border:1px solid rgba(232,196,138,.22);border-radius:10px;padding:6px 2px}
+.sheet{position:absolute;background:#0b0907;border-left:1px solid #5a5148;box-shadow:-12px 0 30px rgba(0,0,0,.85);display:flex;flex-direction:column}
+.dots{display:flex;justify-content:center;gap:6px;padding:6px 0}
+.dots i{width:6px;height:6px;border-radius:50%;background:rgba(232,196,138,.35)}
+.dots i.on{background:#e8c48a}
