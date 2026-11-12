@@ -145,9 +145,9 @@ test('reaches playing on Char.Name and sends the width commands', async ({ page 
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Tester logged in.' })).toHaveCount(1);
   await expect.poll(sentText).toContain('change width all 500\r\n');
 
-  // The command echo and the input line are steel on an existing install
-  // (the default until 2026-11-12, ADR 0034, 0035; a new install has Amber:
-  // input-color-default.spec.ts): the fg mixed with a light blue.
+  // The command echo and the input line are steel in the suite's stored
+  // settings (Steel kept at today's settings version, ADR 0034, 0035; a new
+  // install has Amber: input-color-default.spec.ts): the fg mixed with a light blue.
   await page.keyboard.type('look');
   await page.keyboard.press('Enter');
   await expect.poll(sentText).toContain('look\r\n');

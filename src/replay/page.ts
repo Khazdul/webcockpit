@@ -98,7 +98,7 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
   // In memory only: no IndexedDB, no localStorage mirror, no pagehide flush.
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
   void settings.load();
-  const s: Settings = migrateSettings(payload.settings);
+  const s: Settings = migrateSettings(payload.settings, { recorded: true });
   settings.update(() => s as never);
   applyTheme(settings.get());
   root.textContent = '';

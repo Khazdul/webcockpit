@@ -34,7 +34,7 @@ import { defaultFloatSize } from '../layout/allocate';
 import { MAP_BG_TRANSPARENT, isNamedMapBg } from '../map/backgrounds';
 import { TILESET_IDS } from '../map/tilesets';
 import { normalizeHex } from '../theme/color';
-import { INPUT_COLOR_IDS } from '../theme/presets';
+import { DEFAULT_INPUT_COLOR, INPUT_COLOR_IDS, LEGACY_INPUT_COLOR } from '../theme/presets';
 import {
   type AppearanceSettings,
   COMM_FILTERS_MAX,
@@ -163,8 +163,19 @@ function hex(v: unknown, dflt: string): string {
 /** The pre-ADR 0078 appearance defaults (src/settings/types.ts). */
 export { LEGACY_APPEARANCE };
 
-/** A complete, valid appearance from anything (see `LEGACY_APPEARANCE`). */
-export function migrateAppearance(raw: unknown): AppearanceSettings {
+/** The settings version whose stored Steel input colour is a choice, not the old default (ADR 0035). */
+const INPUT_COLOR_SWITCH_VERSION = 6;
+
+/**
+ * A complete, valid appearance from anything (see `LEGACY_APPEARANCE`).
+ *
+ * `fromVersion` is the version of the stored settings the appearance came
+ * with. Before version 6 the input colour's default was Steel and it was
+ * stored with every appearance, so a stored Steel moves to today's default
+ * (Amber) once (ADR 0035, addendum "the one-time switch"). Without a
+ * version (the localStorage mirror, a recording's VIEW) nothing is switched.
+ */
+export function migrateAppearance(raw: unknown, fromVersion = SETTINGS_VERSION): AppearanceSettings {
   const d = isObj(raw) ? { ...defaultSettings().appearance, ...LEGACY_APPEARANCE } : defaultSettings().appearance;
   const a = isObj(raw) ? raw : {};
   const ansiRaw = Array.isArray(a.ansi) ? a.ansi : [];
@@ -179,7 +190,8 @@ export function migrateAppearance(raw: unknown): AppearanceSettings {
     ansi: d.ansi.map((c, i) => hex(ansiRaw[i], c)),
     cursorStyle: oneOf(a.cursorStyle, CURSOR_STYLES, d.cursorStyle),
     cursorBlink: bool(a.cursorBlink, d.cursorBlink),
-    inputColor: oneOf(a.inputColor, INPUT_COLOR_IDS, d.inputColor),
+    inputColor:
+      fromVersion < INPUT_COLOR_SWITCH_VERSION && a.inputColor === LEGACY_INPUT_COLOR ? DEFAULT_INPUT_COLOR : oneOf(a.inputColor, INPUT_COLOR_IDS, d.inputColor),
     boldBright: bool(a.boldBright, d.boldBright),
   };
 }
@@ -673,6 +685,12 @@ function migrateStripPanes(raw: unknown, dflt: PhoneStripEntry[]): PhoneStripEnt
 export interface MigrateOptions {
   /** A phone (ADR 0081): sections that default differently there (the weather, ADR 0092). */
   phone?: boolean;
+  /**
+   * Settings recorded at a moment (a replay's payload), not a user's stored
+   * ones: one-time switches of a stored look (the input colour, ADR 0035)
+   * do not apply, so the recording keeps the look it was made with.
+   */
+  recorded?: boolean;
 }
 
 /** A complete, valid `Settings` from anything (stored data of any version). */
@@ -684,7 +702,7 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
   const retired = retiredPanes(fromVersion);
   return {
     version: SETTINGS_VERSION,
-    appearance: migrateAppearance(s.appearance),
+    appearance: migrateAppearance(s.appearance, opts.recorded ? SETTINGS_VERSION : fromVersion),
     panes: migratePanes(s.panes, retired),
     layout: migrateLayout(s.layout, retired),
     profile,

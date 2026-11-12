@@ -2375,6 +2375,19 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-chev {
   color: var(--ph-chev);
 }
 
+/* A pick option's colour chip (the input colour): the colour itself on the terminal's ground, as
+ * it is typed, so a pale choice shows on Paper and a dark one on black. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-tint {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 4px solid var(--term-bg);
+  outline: 1px solid var(--ph-row-rule);
+  background: var(--ph-tint);
+}
+
 /* The link is down: Reconnect is the lit row. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-row.is-lit {
   border-radius: 7px 7px 0 0;

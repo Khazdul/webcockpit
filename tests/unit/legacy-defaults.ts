@@ -43,7 +43,9 @@ export function legacyLayout(): LayoutModel {
 /** The default settings before ADR 0078. */
 export function legacySettings(): Settings {
   const s = adr0078Settings();
-  // (The input colour was Steel until 2026-11-12, ADR 0035's addendum: an existing install has it stored.)
+  // The input colour is Steel, the default until 2026-11-12. These settings carry today's version,
+  // so it reads as a choice of Steel and is kept (settings stored before version 6 move to Amber
+  // once: ADR 0035's addendum, tests/unit/settings.test.ts).
   s.appearance = { ...s.appearance, font: 'dejavu', size: 15, boldBright: false, inputColor: 'steel' };
   const panes = {} as Settings['panes'];
   for (const id of PANE_IDS) panes[id] = { ...s.panes[id], border: true };
