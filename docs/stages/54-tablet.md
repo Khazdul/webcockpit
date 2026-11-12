@@ -58,7 +58,8 @@ has been hard to control on an iPad.
 - [x] Owner: verdict on round 1 (A, with changes; see feedback)
 - [x] Owner: the trial on the iPad (keyboard stays down; fullscreen flaky)
 - [x] Mockup round 2 published (A refined: switches, swipe, keys above the compass)
-- [ ] Owner: verdict on round 2
+- [x] Owner: verdict on round 2; canvas revised (one frame, draggable dividers)
+- [ ] Owner: verdict on the revision; which dividers lock while the keys are on
 - [ ] ADR 0140 and the build rounds
 
 ## Test guide (for now)
@@ -104,3 +105,25 @@ has been hard to control on an iPad.
   with our keyboard up is unreliable: sometimes it works, sometimes it
   jumps back out; it flickers and things seem to be redrawn on the way
   into fullscreen. To investigate in the build.
+
+### Mockup round 2 (2026-11-12)
+
+- The switches sit in the command row (the top bar, X1, is not chosen).
+- The column's order in landscape is right: Map, Comm, then the pane
+  box beside the keys.
+- In portrait the keys ride above the keyboard while typing.
+- Six hot keys in two rows of three above the compass: yes.
+- **One thick frame round all the panes:** Map, Comm and the pane box
+  lie visually in the same floating box, with more discreet dividers
+  between them. The pane headers are redone to suit (they can be more
+  discreet).
+- **The dividers can be dragged** between Map, Comm and the pane box.
+  His words: "in portrait only between Map and Comm if the hot keys are
+  on". Drawn as: in **landscape** only Map / Comm while the keys are
+  on (the keys' row has a fixed height), all dividers otherwise; put
+  to him to confirm which orientation he meant.
+
+The canvas of round 2 was revised in place for the last two items
+(shared `kit.css`: one frame, hairlines, grips on the dividers that
+can be dragged, corner labels).
+

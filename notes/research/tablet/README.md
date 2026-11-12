@@ -70,3 +70,10 @@ What round 2 draws:
 Questions put to the owner: switches in the command row or the top
 bar; the column's order; keys while typing in portrait; two rows of
 three hot keys.
+
+**Revised the same day** after the owner's verdict (stage file): one
+iron frame round all the panes with hairlines between them, pane names
+as quiet corner labels, grips on the dividers that can be dragged; in
+landscape the keys stand inside the frame in their own cell. The four
+questions are settled (command row, order right, keys ride, two rows
+of three).
