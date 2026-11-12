@@ -243,8 +243,112 @@ describe('mountPageKeyboard', () => {
     page.append(b);
     b.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     b.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    b.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
     f.focus();
     expect(kb.open).toBe(true);
+  });
+
+  it('never before the click (53g review): a field that takes the focus on the mouse press a phone makes up after the lift opens with the click', () => {
+    const f = mk('input');
+    // A real touch: pointerdown, pointerup, then mousedown (the focus), mouseup, click.
+    f.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    f.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    f.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    f.focus();
+    expect(kb.open).toBe(false);
+    expect(document.documentElement.classList.contains('wc-okb-pg')).toBe(false);
+    f.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(kb.open).toBe(false);
+    f.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    expect(kb.open).toBe(true);
+    // The timer that waited for a press without a click is done with: nothing more happens.
+    kb.close(true);
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    expect(kb.open).toBe(false);
+  });
+
+  it('never before the click: a focus that comes between the lift and the click of a tap beside the field waits too, and opens with it (or a moment later without one)', () => {
+    const f = mk('input');
+    const label = document.createElement('label');
+    page.append(label);
+    for (const withClick of [true, false]) {
+      label.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      label.dispatchEvent(new Event('pointerup', { bubbles: true }));
+      f.focus();
+      expect(kb.open).toBe(false);
+      if (withClick) label.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      else vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 1);
+      expect(kb.open).toBe(true);
+      kb.close(true);
+      vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    }
+  });
+
+  it('a keyboard that is up does not change for another field before the click either (its height may differ)', () => {
+    const a = mk('input');
+    const n = mk('input', true, 'digits');
+    tap(a);
+    const h = root.style.getPropertyValue('--wc-okb-page-h');
+    n.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    n.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    n.focus();
+    vi.advanceTimersByTime(1);
+    // Still up, still as high: the digit row comes with the click.
+    expect(kb.open).toBe(true);
+    expect(root.style.getPropertyValue('--wc-okb-page-h')).toBe(h);
+    n.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    expect(root.style.getPropertyValue('--wc-okb-page-h')).not.toBe(h);
+  });
+
+  it('a field that has the focus already, the keyboard folded: a tap on the page that leaves the focus there brings the keyboard back (Lite\'s New reuses the field)', () => {
+    const f = mk('input');
+    const other = mk('input');
+    const button = document.createElement('button');
+    page.append(button);
+    tap(f);
+    press('fold');
+    expect(kb.open).toBe(false);
+    // The page gives the field the focus back by itself: nothing opens.
+    f.focus();
+    vi.advanceTimersByTime(100);
+    expect(kb.open).toBe(false);
+    // A tap on a button; the page keeps the focus in the same field (no focus event).
+    const click = (): void => {
+      button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      button.dispatchEvent(new Event('pointerup', { bubbles: true }));
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    };
+    click();
+    expect(kb.open).toBe(false);
+    vi.advanceTimersByTime(100);
+    expect(kb.open).toBe(true);
+    expect(document.activeElement).toBe(f);
+    // A tap that takes the focus away from the fields brings nothing.
+    press('fold');
+    f.focus();
+    button.addEventListener('click', () => f.blur(), { once: true });
+    click();
+    vi.advanceTimersByTime(100);
+    expect(kb.open).toBe(false);
+    void other;
+  });
+
+  it('Enter, Esc and Tab are not sent to a field that has lost the focus and cannot take it back (the keyboard is about to close)', () => {
+    for (const k of ['enter', 'esc', 'tab']) {
+      const f = mk('input');
+      tap(f);
+      // The focus left a moment ago for something that keeps it (the page went inert under a prompt);
+      // the keyboard closes on the next turn, and a key lands before that.
+      f.blur();
+      f.focus = () => {};
+      expect(kb.open).toBe(true);
+      press(k);
+      expect(sent).toEqual([]);
+      vi.advanceTimersByTime(5);
+      expect(kb.open).toBe(false);
+      f.remove();
+      vi.advanceTimersByTime(PAGE_KEY_AGAIN_MS + PAGE_AFTER_POINTER_MS);
+    }
   });
 
   it('an unmarked field, and a field outside the pages, are not ours', () => {

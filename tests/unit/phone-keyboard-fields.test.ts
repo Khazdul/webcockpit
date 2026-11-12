@@ -555,3 +555,20 @@ describe('round 53g: a multi-line field and the caret keys', () => {
     expect(view.boxOpen).toBe(false);
   });
 });
+
+describe('scrollToShow (a field\'s own scroll follows its caret)', () => {
+  it('moves as little as it must, with the margin; a line that shows stays where it is', () => {
+    expect(scrollToShow(0, 100, 20, 40, 2)).toBe(0);
+    expect(scrollToShow(50, 100, 20, 40, 2)).toBe(18);
+    expect(scrollToShow(0, 100, 120, 140, 2)).toBe(42);
+  });
+
+  it('the first line shows with the field\'s own air above it: the scroll is 0, not the line\'s top less the margin (53g review)', () => {
+    // A body with 11 px of padding, scrolled down; the caret goes to position 0.
+    expect(scrollToShow(60, 100, 11, 31, 2, 11)).toBe(0);
+    // Without the padding told, the old answer (9): the guard is the `lead`.
+    expect(scrollToShow(60, 100, 11, 31, 2)).toBe(9);
+    // The second line is no first line.
+    expect(scrollToShow(60, 100, 31, 51, 2, 11)).toBe(29);
+  });
+});

@@ -52,12 +52,21 @@
 //   Esc for the same field within `PAGE_KEY_AGAIN_MS` is dropped (a double
 //   tap must not act on what the first one opened or closed).
 // - A tap on a field opens the keyboard for it; so does a focus that comes
-//   with a pointer or just after one (a dialog opened by a tap focuses its
-//   field). While the finger is still down nothing is opened or scrolled:
-//   the page would move under it, and the tap's click would land on what
-//   then lies there (found in round 53g: a tap on Lite's body pressed the
-//   page's Delete). The keyboard comes with the click, or just after the
-//   finger lifts. A focus without a pointer (a physical keyboard) opens nothing.
+//   just after a pointer (a dialog opened by a tap focuses its field). The
+//   keyboard never comes before the tap's click: while the finger is down,
+//   and from its lift until the click (or `PAGE_AFTER_POINTER_MS` where no
+//   click follows), a focus is only noted (`pending`), and nothing is
+//   opened or scrolled. The page would shrink under the finger, and the
+//   mouse release and the click a phone makes up after the lift would be
+//   hit-tested on the shrunk page: a tap on Lite's body pressed the page's
+//   Delete (round 53g), and a field that takes its focus on that made-up
+//   mouse press, after the lift, lost its click to one of our keys (the
+//   review of 53g; fixed in 53h). The same holds for a keyboard that is up
+//   and would change height for the new field. A focus without a pointer
+//   (a physical keyboard) opens nothing.
+// - A field that already has the focus with the keyboard folded gets it
+//   back when a tap on the page leaves the focus there (Lite's New reuses
+//   the focused Pattern field: no focus event comes). Not a code editor.
 //   The target follows the focus between fields. The fold key closes and
 //   blurs. A field that goes away (the page closed, the dialog dismissed)
 //   or loses the focus to something that is no field of ours closes the
@@ -451,7 +460,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     forceDigits = f.getAttribute('data-okb-kind') === 'digits';
     follow(f);
     const ed = isEditor(f) ? editorOf(f) : null;
-    code = ed !== null;
+    // (An editor's own find row counts as the editor: the keyboard keeps its height and its symbols
+    // when the focus moves between the code and Find.)
+    code = ed !== null || f.closest('.cm-editor')?.querySelector(EDITOR_SEL) != null;
     okb.setSymbols(code ? 'code' : 'text');
     if (ed) {
       target = editorTarget(f, ed);
@@ -590,7 +601,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     const on = e.target instanceof Element ? pageField(e.target) : null;
     if (on && e.type === 'pointerup') pending = on;
     // The click, if one follows, comes first (`onClick`); a press that ends without one opens here.
-    if (pending && pendingTimer === null && win) pendingTimer = win.setTimeout(flush, PAGE_AFTER_POINTER_MS);
+    // The timer runs after every lift, on a field or not: until it or the click, a focus is only
+    // noted (`onFocus`), since the made-up mouse press that follows the lift may bring it.
+    if ((pending || e.type === 'pointerup') && pendingTimer === null && win) pendingTimer = win.setTimeout(flush, PAGE_AFTER_POINTER_MS);
   };
   const onFocus = (e: FocusEvent): void => {
     const t = e.target as HTMLElement | null;
@@ -602,9 +615,10 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
       // another field of ours (the keyboard is up) or from our Tab key; not a focus its frame gives
       // it after a tap elsewhere (see the file header).
       const ed = isEditor(f);
-      // The finger is still down: nothing moves under it (see the file header).
-      if (down) {
-        if (!ed || downOn === f) pending = f;
+      // The finger is still down, or has lifted and its click is still to come: nothing moves under
+      // it (see the file header). The click, or the timer, opens for the field noted.
+      if (down || pendingTimer !== null) {
+        if (!ed || open || downOn === f || pending === f) pending = f;
       } else if (open || now - tabAt < PAGE_POINTER_FOCUS_MS || (!ed && now - at < PAGE_POINTER_FOCUS_MS)) openFor(f);
       return;
     }
@@ -630,9 +644,23 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   const onClick = (e: Event): void => {
     const f = e.target instanceof Element ? pageField(e.target) : null;
     if (f) {
+      if (pendingTimer !== null) win?.clearTimeout(pendingTimer);
+      pendingTimer = null;
       pending = null;
       openFor(f);
-    } else flush();
+      return;
+    }
+    flush();
+    // A tap beside the fields with the keyboard down: if the page leaves the focus in a field of
+    // ours (it was there already, folded: no focus event comes), the keyboard is for it. Asked
+    // once the click's own handlers and the page's next drawing are done.
+    if (open || !win || (e.target instanceof Node && host.contains(e.target))) return;
+    win.requestAnimationFrame(() =>
+      win.setTimeout(() => {
+        const a = pageField(doc.activeElement);
+        if (!open && !down && a && !isEditor(a) && usable(a)) openFor(a);
+      }, 0),
+    );
   };
   doc.addEventListener('pointerdown', onDown, true);
   doc.addEventListener('pointerup', onUp, true);

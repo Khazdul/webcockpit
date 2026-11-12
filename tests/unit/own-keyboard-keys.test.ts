@@ -18,6 +18,8 @@ import {
   setPageKeyboardUp,
 } from '../../src/core/own-keyboard';
 import { HerbMenu } from '../../src/panes/timers';
+import type { PlayerEngine } from '../../src/player/engine';
+import { PlayerView } from '../../src/player/view';
 import type { Sender } from '../../src/core/types';
 import { bindability, displayKey, keyNameFromEvent, learnKeyLabel, resetKeyLabels } from '../../src/script/keys';
 import { InputPane } from '../../src/ui/input-pane';
@@ -220,5 +222,56 @@ describe('round 53g: Esc, Tab, the multi-line mark, and who hears the keyboard c
     // A real Esc closes it, as ever.
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     expect(menu.open).toBe(false);
+  });
+});
+
+describe('the log player and the keys our keyboard sends to a page (53f review)', () => {
+  it('leaves a marked key aimed at a page\'s field to the page; a physical key, and a marked one inside the player, are the player\'s', () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const engine = {
+      playing: false,
+      seeking: false,
+      speed: 1,
+      duration: 0,
+      position: 0,
+      run: 0,
+      subscribe: () => () => {},
+      play: () => {},
+      pause: () => {},
+      seek: () => {},
+      setSpeed: () => {},
+    } as unknown as PlayerEngine;
+    let escs = 0;
+    const view = new PlayerView({
+      root,
+      engine,
+      header: () => ({}) as never,
+      marks: [],
+      output: () => null,
+      cells: () => ({ w: 8, h: 16 }),
+      onEsc: () => escs++,
+      bare: true,
+    });
+    try {
+      // A field of a page beside the player (not inside its root).
+      const el = field();
+      let reached = 0;
+      el.addEventListener('keydown', () => reached++);
+      sendOwnKey(el, 'Escape');
+      expect(escs).toBe(0);
+      expect(reached).toBe(1);
+      // A physical Esc from the same place is the player's, as ever (it owns the keyboard).
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      expect(escs).toBe(1);
+      expect(reached).toBe(1);
+      // And so is a marked key aimed at something inside the player.
+      const inside = document.createElement('input');
+      root.append(inside);
+      sendOwnKey(inside, 'Escape');
+      expect(escs).toBe(2);
+    } finally {
+      view.dispose();
+    }
   });
 });
