@@ -314,7 +314,9 @@ describe('own keyboard: landscape, the band', () => {
     // The group stands in the middle of what the compass leaves.
     const groupLeft = b.kLeftX!;
     const groupRight = b.kRightX! + 44;
-    expect(groupLeft - OKB_BAND_MARGIN).toBeCloseTo(compassLeft - OKB_BAND_GAP - groupRight);
+    expect(groupLeft).toBeCloseTo(compassLeft - OKB_BAND_GAP - groupRight);
+    // So the block does not move when the K key hides the columns (review finding F).
+    expect(b.x).toBeCloseTo(band(800, 0, 0).x);
   });
 
   it('a column with no key takes no width, and the block moves into the middle', () => {

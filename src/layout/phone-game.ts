@@ -84,6 +84,18 @@
 // command row and `GAME_MIN_ROWS` of game text do (`bottom` in the result
 // is what was really kept).
 //
+// Comm holds that keyboard's target (`commKeep`: its reply line or its
+// search field is typed in): Comm then never goes under its minimum while
+// anything else can give way. Portrait only (in landscape the column has
+// every row above the keyboard, and those always hold Comm's minimum).
+// Where the usual order (Comm down to its minimum, the strip down to its
+// own, the strip closed) ends with no Comm, it is tried again with more
+// room, in this order: `maxTop` is dropped (`overLimit` in the result:
+// Comm reaches under the place of the hot keys, and the phone layer hides
+// their columns), then the game text goes down to `GAME_MIN_ROWS`, then
+// the fight card gives way. Only a screen with no room even then closes
+// Comm.
+//
 // The chrome over these rectangles (fight card, lens ring, keys, compass)
 // is the phone layer's (src/phone/), laid out in pixels.
 
@@ -122,6 +134,35 @@ export const SIDE_COMM_KBD_BESIDE_ROWS = 9;
  * lines. Three rows of a phone's default 17 px cell are 51 px.)
  */
 export const COMMAND_ROW_PX = 50;
+
+/**
+ * The rows a keyboard of our own gets (ADR 0138 §5; the cockpit asks at
+ * every layout, the phone layer to know its height before one): the
+ * keyboard wants `ownPx` px from the bottom edge of a screen `height` px
+ * high with cells `cellH` px high.
+ *
+ * - `bottom`: whole rows. What the screen has under its last whole row is
+ *   the keyboard's too, so it counts towards its height; and the keyboard
+ *   gives up to `give` of its height (its rows share what it gets) rather
+ *   than take one more row from the game text for a few px. Never more
+ *   than leaves the command row (`inputRows`) and `GAME_MIN_ROWS` of game
+ *   text, as the allocator has it.
+ * - `lift`: what that is on screen, px from the bottom edge to the command
+ *   row's foot (the rows and what is under the last whole row).
+ *
+ * Nothing wanted: both 0.
+ */
+export function ownKeyboardReserve(height: number, cellH: number, ownPx: number, inputRows = 1, give = OWN_KBD_GIVE): { bottom: number; lift: number } {
+  if (!(ownPx > 0) || !(cellH > 0) || !(height > 0)) return { bottom: 0, lift: 0 };
+  const rows = Math.floor(height / cellH + 1e-6);
+  const under = height - rows * cellH;
+  const want = Math.max(1, Math.ceil((ownPx * (1 - give) - under) / cellH - 1e-6));
+  const bottom = Math.max(0, Math.min(want, rows - Math.max(1, Math.floor(inputRows)) - GAME_MIN_ROWS));
+  return { bottom, lift: bottom > 0 ? height - (rows - bottom) * cellH : 0 };
+}
+
+/** The share of its height a keyboard of our own gives before it takes one more row (`ownKeyboardReserve`). */
+export const OWN_KBD_GIVE = 0.06;
 
 /** Whole rows the command row takes at a cell `cellH` px high (at least one). */
 export function commandRows(cellH: number): number {
@@ -186,6 +227,8 @@ export interface PhoneGameInput {
   lens?: PhoneGameLens | null;
   /** Whole rows kept free at the bottom edge, under the command row (a keyboard of our own, ADR 0138). Default 0. */
   bottom?: number;
+  /** Comm holds the keyboard's target: it keeps its minimum while anything else can give way (see the file header). */
+  commKeep?: boolean;
   /**
    * Landscape (stage 52c): the strip and Comm open from the left as one
    * column (see the file header). Absent or null: portrait, as above.
@@ -222,6 +265,8 @@ export interface PhoneGameResult {
   input: Rect;
   /** The rows kept free under the command row (`bottom` as given, or less on a screen too low for it). */
   bottom: number;
+  /** Portrait, `commKeep`: Comm ends below `maxTop` (the hot key columns' place is under it). */
+  overLimit: boolean;
   /** The lens's rectangle of whole cells, or null (not wanted, or hidden). */
   lens: Rect | null;
   /** The lens's diameter in px inside `lens` (full, or shrunk to the room); 0 without a lens. */
@@ -269,6 +314,7 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
     comm: EMPTY,
     game: { x: 0, y: 0, w: cols, h: avail },
     input: inputRect,
+    overLimit: false,
     lens: null,
     lensPx: 0,
     lensHidden: false,
@@ -329,31 +375,54 @@ function layoutStack(input: PhoneGameInput, res: PhoneGameResult, rows: number, 
   if (avail - fightH < GAME_MIN_ROWS) fightH = 0;
   // What the strip and Comm may take together: the game keeps its rows, and they end at or above `maxTop`.
   const maxTop = input.maxTop === undefined ? Infinity : whole(input.maxTop, Infinity);
-  const budget = Math.min(avail - keep, maxTop) - fightH;
 
   // A stored height that is not a number (a damaged setting) is the default.
   const stripDflt = stripRows(rows);
   const storedStrip = input.stripRows ?? null;
-  let stripH = 0;
+  let stripWant = 0;
   if (input.strip) {
     // The default share on a low screen has no room for a pane: no strip. A stored height is at least the minimum.
-    stripH = storedStrip === null ? stripDflt : Math.max(STRIP_MIN_ROWS, whole(storedStrip, stripDflt));
-    if (stripH < STRIP_MIN_ROWS) stripH = 0;
+    stripWant = storedStrip === null ? stripDflt : Math.max(STRIP_MIN_ROWS, whole(storedStrip, stripDflt));
+    if (stripWant < STRIP_MIN_ROWS) stripWant = 0;
   }
   const comm = input.comm ?? null;
   const commDflt = Math.round(rows * COMM_DEFAULT_SHARE);
   const commWant = comm ? Math.max(COMM_MIN_ROWS, comm.rows === null ? commDflt : whole(comm.rows, commDflt)) : 0;
-  let commH = commWant;
-  // More than the budget: Comm gives way first, then the strip, each down to its minimum;
-  // then the strip closes, and last Comm.
-  if (stripH + commH > budget) {
-    if (commH > 0) commH = Math.max(COMM_MIN_ROWS, budget - stripH);
-    if (stripH > 0 && stripH + commH > budget) stripH = Math.max(STRIP_MIN_ROWS, budget - commH);
-    if (stripH > 0 && stripH + commH > budget) {
-      stripH = 0;
-      commH = comm ? Math.max(COMM_MIN_ROWS, Math.min(commWant, budget)) : 0;
+  /** The two heights within `budget` rows. */
+  const fit = (budget: number): { stripH: number; commH: number } => {
+    let stripH = stripWant;
+    let commH = commWant;
+    // More than the budget: Comm gives way first, then the strip, each down to its minimum;
+    // then the strip closes, and last Comm.
+    if (stripH + commH > budget) {
+      if (commH > 0) commH = Math.max(COMM_MIN_ROWS, budget - stripH);
+      if (stripH > 0 && stripH + commH > budget) stripH = Math.max(STRIP_MIN_ROWS, budget - commH);
+      if (stripH > 0 && stripH + commH > budget) {
+        stripH = 0;
+        commH = comm ? Math.max(COMM_MIN_ROWS, Math.min(commWant, budget)) : 0;
+      }
+      if (commH > budget) commH = 0;
     }
-    if (commH > budget) commH = 0;
+    return { stripH, commH };
+  };
+  let budget = Math.min(avail - keep, maxTop) - fightH;
+  let { stripH, commH } = fit(budget);
+  if (comm && commH === 0 && input.commKeep) {
+    // Comm is typed in: it stays while anything else can give way (see the file header).
+    const tries: Array<{ budget: number; fight: number }> = [
+      { budget: avail - keep - fightH, fight: fightH },
+      { budget: avail - Math.min(keep, GAME_MIN_ROWS) - fightH, fight: fightH },
+      { budget: avail - Math.min(keep, GAME_MIN_ROWS), fight: 0 },
+    ];
+    for (const t of tries) {
+      const f = fit(t.budget);
+      if (f.commH === 0) continue;
+      ({ stripH, commH } = f);
+      budget = t.budget;
+      fightH = t.fight;
+      res.overLimit = stripH + fightH + commH > maxTop;
+      break;
+    }
   }
 
   const top = stripH + fightH + commH;

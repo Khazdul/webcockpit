@@ -247,3 +247,100 @@ owner, after the device test of 53a and during 53c)
 - `gameKeep` is the layout's usual eight rows; the too-small guard stays
   on (the page's size does not change). A reserve the screen cannot give
   (rows under 24 px) closes the keyboard.
+
+## Addendum: as built in round 53d (2026-11-12)
+
+Still behind `?kbd=`, except the vibration of the compass and the hot
+keys, which is its own feature.
+
+**§1, §3 The other fields** (`src/phone/keyboard-fields.ts`, the layer)
+
+- Every plain text field in a pane or in the hot key box is ours: Comm's
+  reply line and search field, the box's Label and Command, a script
+  pane's fields. Found by a delegated handler in the phone layer (the
+  panes import nothing of the phone); marked `inputmode="none"` +
+  `virtualkeyboardpolicy="manual"` at mount, when the box opens, when a
+  script pane comes, and at a press in their pane.
+- Each is an `OkbTarget` through one adapter over the element: it
+  changes the value at the selection and dispatches the `input` event a
+  typed key ends with (so the label's cleaning, the search and a
+  script's change report run as when typed); `maxLength` holds; no key
+  event is made up. No history: the arrows are dimmed.
+- **Enter per field:** Comm's reply sends (`CommPane.submitReply`, the
+  Enter key's own path) and keeps the focus and the keyboard; Comm's
+  search has no Enter action (nor has the Enter key there); the box
+  saves (`HotkeysView.saveBox`); a script pane's field is submitted to
+  its script (`ScriptPane.submitField`) and the keys go back to the
+  command line, as the focus does on a computer.
+- **Target:** a tap on a field opens the keyboard for it, or moves an
+  open keyboard to it (no relayout, no window size). While open, the
+  target follows the focus among our fields. A field that leaves the
+  screen (the search closed, the box closed, Comm closed) hands the keys
+  back to the command line. A pointer anywhere in the cockpit followed
+  by a focus of one of these fields opens it too (Comm's search key).
+- **Fields in the game layout that still use the device's keyboard:
+  none.** The rule "a text field that is not ours closes ours" stays for
+  anything else that may take the focus; the menu's sheet, pages and
+  frames close ours when they open, as before.
+
+**§5 Layout while those fields are typed in**
+
+- **Comm** (review finding B): while its reply or search holds the
+  target, Comm never goes under its least rows (6) as long as something
+  else can give way. After the usual order (Comm to its minimum, the
+  strip to its own, the strip closed): the hot key columns give way
+  (Comm may reach under their place; they are hidden), then the game
+  text goes down to 3 rows, then the fight card. Only then does Comm
+  close, and the keys go back to the command line. Landscape needs no
+  rule: the column has every row above the band.
+- **The hot key box:** a hold on a K key still folds the keyboard and
+  opens the box. A tap in one of its fields opens the keyboard for that
+  field with the box staying: in portrait beside the lifted column as
+  ever (whole above the keyboard); in landscape on the band at the right
+  edge, over the command row's end, without its notch. Save, Cancel and
+  a press outside close the box **and the keyboard** (back to how the
+  screen was before the box); when that press is on the command field or
+  another field of ours, the keyboard stays and types there.
+- **One layout per change** (finding A): the cockpit asks the layer for
+  the limit at each layout with the keyboard's lift
+  (`setPhoneLimit(fn)`), so whether the columns stand above the keyboard
+  is decided before the reserve is laid out. The reserve's rounding is
+  `ownKeyboardReserve` (pure, unit-tested).
+
+**§6 Password prompt:** with our keyboard the phone masks as the desktop
+does (the same textarea, transparent text, bullets over it, our own
+caret); the swap to `<input type="password">` stays for the device's
+keyboard only (gate off). Why: the swap was made so the device's
+keyboard would treat the text as a password, which no longer applies; a
+password field brings the browser's password manager ("save
+password?") and the device's secure input with it. Kept from the swap:
+the line is emptied when the prompt comes and when it goes. New: a
+range selected in the masked line is collapsed at once, so a phone's
+selection toolbar (share, translate, search) is never offered the
+password; the caret and paste stay. The arrows are dimmed (finding D).
+
+**§7 Vibration:** `phone.vibrate` (off; the key of 0.5.0 is read again).
+One row, "Vibrate on key press", in Quick buttons (it governs the
+compass, the hot keys and the keyboard; Quick buttons is there without
+the gate), absent without `navigator.vibrate`. One pulse of **30 ms** on
+the pointer's press of a key (a held backspace pulses once). Why 30:
+0.5.0 asked for 10 ms from the press's own handler in the top frame,
+which is a valid call; phones such as the S21 are known not to render a
+pulse shorter than their motor's start-up (20 to 30 ms), and Android
+gives none while touch vibration is off or the phone is silent or in Do
+not disturb. Not verified on a device.
+
+**Settings:** `phone.keyboard.layout` is `auto` | `sv` | `en` (`auto`:
+the browser's language; the row "Layout: Swedish / English" in a
+Keyboard group shows the one in use and stores the one chosen).
+`?kbd=sv|en` still wins, for tests.
+
+**Review findings C to F:** in a band lower than three large keys (a
+landscape screen 300 to about 312 px high) the compass and hot keys are
+36 px (`--ph-ck` on the layer only: no relayout). The block has no dead
+zone: the room beside English `a` and `l` belongs to those keys, and a
+press on the rim or an empty place goes to the nearest key of that row.
+With a column on each side the block stands where it does without them
+(the K key no longer moves it 4 px). The keyboard's ground continues
+under the safe-area padding to the screen's edge (`#app::after`); the
+keys were inside the safe area already, since `#app` is padded by it.

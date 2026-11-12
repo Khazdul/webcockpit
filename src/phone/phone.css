@@ -1538,6 +1538,41 @@ html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nopad] .
   display: none;
 }
 
+/* The hot key box with the keyboard typing in it. Landscape: the keys are in
+ * the band, so the box has no key to point at and stands at the right
+ * edge, on the band. Portrait without the columns: no notch either. */
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-rb-n,
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb-nok] .wc-ph-rb-n {
+  display: none;
+}
+
+html.wc-phone.wc-okb .wc-cockpit[data-phone-game] .wc-ph-layer[data-okb="band"] .wc-ph-rb {
+  right: 8px;
+  width: min(286px, calc(100% - var(--ph-side-w, 0px) - 16px));
+}
+
+/* The safe area (an iPhone's home indicator; a notch at the side in
+ * landscape): the cockpit, and so the keys, end inside it (ui.css pads
+ * `#app`). The keyboard's ground goes on to the screen's edges, under the
+ * padding, as high as the keyboard (`--wc-okb-h`, set by the layer). Behind
+ * the cockpit: on a screen without insets nothing of it shows. (The
+ * colours are `--ph-okb-ground`'s, which is scoped to the cockpit.) */
+html.wc-phone.wc-okb #app::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  height: calc(var(--wc-okb-h, 0px) + var(--pad, 0px) + env(safe-area-inset-bottom, 0px));
+  background: #0e0c0a;
+  pointer-events: none;
+}
+
+html.wc-phone.wc-okb[data-light] #app::after {
+  background: #bdb8ac;
+}
+
 /* The compass is not at the command row's end (landscape; no room): the field takes the full width. */
 html.wc-phone.wc-okb.wc-okb-wide .wc-cockpit[data-phone-game] > .wc-input-slot {
   padding-right: 8px;

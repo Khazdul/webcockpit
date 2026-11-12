@@ -27,9 +27,12 @@
 //                   key's badge (unread.ts)
 //   hotkeys.ts      the hot key column, the K key in the compass's free
 //                   cell, and the box a held key opens (hotkey-model.ts)
-//   keyboard.ts     a keyboard of our own for the command field (ADR 0138;
-//                   only with `?kbd=` until the stage is released; model:
-//                   keyboard-model.ts), and its readout (keyboard-readout.ts)
+//   keyboard.ts     a keyboard of our own for the game layout's text fields
+//                   (ADR 0138; only with `?kbd=` until the stage is
+//                   released; model: keyboard-model.ts; the fields other
+//                   than the command line: keyboard-fields.ts), and its
+//                   readout (keyboard-readout.ts)
+//   haptics.ts      the keys' vibration (`phone.vibrate`)
 //   here            the menu key in the command row, and the wiring
 //
 // Cost (stage 51 rule 4): nothing runs per frame or per incoming line. The
@@ -48,7 +51,7 @@
 
 import './phone.css';
 import type { GameState } from '../gmcp/state';
-import type { Cockpit } from '../layout/cockpit';
+import type { Cockpit, PhoneLimit } from '../layout/cockpit';
 import { Compass } from './compass';
 import { FightCardView } from './fight-card';
 import { type FightCard, type SelfVitals, fightCard, fightSig } from './fight-model';
@@ -65,7 +68,7 @@ import { CommHead, ResizeBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
-import { HOT_TOP_MARGIN, KEY_GAP, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from './compass-size';
+import { HOT_TOP_MARGIN, KEY_GAP, KEY_PX_PORTRAIT, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from './compass-size';
 import { phoneDefaultsAtStart } from './phone-defaults';
 import { WakeLock, wakeWanted } from './wake-lock';
 import { HotkeysView } from './hotkeys';
@@ -74,6 +77,10 @@ import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhone
 import { type PhoneCommandLine, OwnKeyboard } from './keyboard';
 import { type OkbLayout, OKB_PAD_Y, OKB_ROW_LEAST, okbBand, okbBlockWidth, okbFromQuery, okbHeightPx, okbLayout, okbPortraitSide, okbRowCount } from './keyboard-model';
 import { installKeyboardReadout } from './keyboard-readout';
+import { type TextField, fieldTarget, fieldUsable, isMarked, isOwnableField, isTextField, markField } from './keyboard-fields';
+import { pulse } from './haptics';
+import type { OkbTarget } from './keyboard-model';
+import type { ScriptPane } from '../panes/script-pane';
 
 export type { PhoneControls, PhoneKit } from './kit';
 export type { PhoneCommandLine } from './keyboard';
@@ -217,6 +224,8 @@ export class PhoneLayer {
   private wakeConn = false;
   private unread: Unread = { private: 0, group: 0, public: 0, all: 0 };
   private readonly unsubs: Array<() => void> = [];
+  /** A key was pressed: the vibration, while it is on. */
+  private readonly buzz: () => void;
   /** The card on screen (null: no fight) and its signature. */
   private card: FightCard | null = null;
   private sig = '';
@@ -227,8 +236,22 @@ export class PhoneLayer {
   private okbLayout: OkbLayout = 'en';
   /** While it is open: what it takes from the bottom edge on screen, px (the compass and the hot keys stand on it in portrait). */
   private okbLift = 0;
-  /** While it is open: the hot key columns, and the compass, have no room beside or above it. */
+  /** While it is open: the hot key columns have no room beside or above it, and (portrait) the compass stands above it. */
   private okbNoK = false;
+  private okbPad = false;
+  /** While it is open: its height on screen in either shape, px (the hot key box stands above it). */
+  private okbBandLift = 0;
+  /** The field it types in, other than the command line (Comm's reply or search, the hot key box, a script pane's); null: the command line. */
+  private okbField: TextField | null = null;
+  private okbFieldTarget: OkbTarget | null = null;
+  /** The command line as a target without a history (a password prompt: the arrows are dimmed). */
+  private okbLineBare: OkbTarget | null = null;
+  /** The layout named in `?kbd=sv|en` (it wins over the setting), or null. */
+  private okbAsked: OkbLayout | null = null;
+  /** Ends the wait of `swallowClick`, when one is on. */
+  private swallowOff: (() => void) | null = null;
+  /** The key size the limit of `setPhoneLimit` was last made for. */
+  private limitPx = 0;
   /** How the layer's parts were last arranged for it (nothing is restyled for the same). */
   private okbSig = '';
 
@@ -239,7 +262,13 @@ export class PhoneLayer {
     this.el = doc.createElement('div');
     this.el.className = 'wc-ph-layer';
     this.fight = new FightCardView(doc);
-    const compass = new Compass(doc, (cmd) => this.send(cmd));
+    // A press on a key (ADR 0138 §7): one short vibration while the setting is on. Called in the
+    // pointer's own handler only.
+    const buzz = (): void => {
+      if (deps.settings.get().phone.vibrate) pulse(doc.defaultView?.navigator);
+    };
+    this.buzz = buzz;
+    const compass = new Compass(doc, (cmd) => this.send(cmd), buzz);
     const kit = phoneKit();
     this.map = cockpit.pane('map') as unknown as MapPane;
     this.mapEl = cockpit.pane('map').el;
@@ -315,12 +344,24 @@ export class PhoneLayer {
       save: (i, key) => deps.settings.update({ phone: { hotkeys: withHotkey(deps.settings.get().phone.hotkeys, i, key) } }),
       toggle: () => deps.settings.update({ phone: { hotkeysOpen: !deps.settings.get().phone.hotkeysOpen } }),
       hp: () => knownHp(deps.game.char.vitals.get('hp')),
-      onBox: (open) => {
-        // The box and our keyboard never stand together (the box's fields are not typed in from
-        // ours until round 53d, and its place is the keyboard's): a held key folds the keyboard.
+      onPress: buzz,
+      // A key of our keyboard is outside the box, and types in it.
+      keepsBox: (t) => this.okb?.el.contains(t) ?? false,
+      onBox: (open, by) => {
+        // A held key folds the keyboard (the box opens where the keys stood); a tap in one of the
+        // box's fields then opens it again for that field, with the box staying.
         if (open && this.okbOpen) {
           this.closeOwnKeyboard();
           this.swallowClick();
+        }
+        if (open) this.markOwnFields();
+        // The box closed (Save, Cancel, a press outside it) while the keyboard typed in it: the
+        // keyboard closes with it, back to how the screen was before the box. Not when the press
+        // that closed it is on another field of ours: that field takes the keyboard over.
+        if (!open && this.okbOpen && this.okbField !== null && this.hot.ownsField(this.okbField)) {
+          const on = by?.target instanceof Element ? by.target : null;
+          if (on && this.ownTapTarget(on)) this.setOkbField(null);
+          else this.closeOwnKeyboard();
         }
         this.syncBox();
         // Landscape: the lens's key row gives way to an open box (`place`), also when the lens was
@@ -383,9 +424,13 @@ export class PhoneLayer {
           this.syncHotkeys();
         if (next.phone.wakeLock !== prev.phone.wakeLock) this.wake.sync();
         if (next.phone.keyboard.digits !== prev.phone.keyboard.digits) this.syncOwnDigits();
+        if (next.phone.keyboard.layout !== prev.phone.keyboard.layout) this.syncOwnLayout();
       }),
       // A script pane came, went or was renamed: the strip's pages follow.
-      cockpit.onScriptPanes(() => this.syncPages()),
+      cockpit.onScriptPanes(() => {
+        this.syncPages();
+        this.markOwnFields();
+      }),
       watchSwipes(
         cockpit.el,
         (t) => t.closest('.wc-pane[data-phone-strip], .wc-ph-strip') !== null,
@@ -545,31 +590,41 @@ export class PhoneLayer {
   }
 
   /**
-   * The keyboard of our own for the command field (`?kbd=`). The field
-   * asks the device for no keyboard; a pointer on it opens ours:
+   * The keyboard of our own for the game layout's text fields (`?kbd=`).
+   * The fields ask the device for no keyboard; a pointer on one opens ours
+   * for it:
    *
    * - a tap, at its click (the last event of the tap: the field has the
-   *   focus by then, and the relayout that moves the row cannot change what
-   *   the rest of the tap hits);
-   * - a focus that comes while a pointer is on the field or just after (a
-   *   long press focuses the field and offers paste, with no click).
+   *   focus by then, and the relayout that moves the rows cannot change
+   *   what the rest of the tap hits);
+   * - a focus that comes while a pointer is down or just after (a long
+   *   press focuses the field and offers paste, with no click; a key that
+   *   focuses a field, as Comm's search key does).
    *
+   * The fields are the command line (its own target, from the shell) and
+   * every text field in a pane or in the hot key box (`ownField`: Comm's
+   * reply and search, the box's Label and Command, a script pane's
+   * fields), each through an adapter over its element (keyboard-fields.ts).
+   * While the keyboard is open its target follows the focus among them.
    * A focus without a pointer (a physical keyboard's key) opens nothing.
-   * A text field that is not ours taking the focus (Comm's reply or search,
-   * the hot key box, a script pane's field: until round 53d those have the
-   * device's keyboard) closes ours, so the two never stand together.
+   * A text field that is none of them taking the focus closes ours, so it
+   * never stands together with the device's; no such field is in the game
+   * layout itself (the menu's pages and frames are outside it and close
+   * ours when they open).
    */
   private mountOwnKeyboard(doc: Document, line: PhoneCommandLine): void {
     const { cockpit, settings } = this.deps;
     const win = doc.defaultView;
-    const asked = okbFromQuery(new URLSearchParams(win?.location?.search ?? '').get('kbd'));
-    this.okbLayout = okbLayout(asked?.layout, win?.navigator?.languages?.length ? win.navigator.languages : win?.navigator?.language);
+    this.okbAsked = okbFromQuery(new URLSearchParams(win?.location?.search ?? '').get('kbd'))?.layout ?? null;
+    this.okbLayout = this.wantedLayout();
+    this.okbLineBare = { insert: (t) => line.insert(t), deleteBack: () => line.deleteBack(), submit: () => line.submit(), focus: () => line.focus(), blur: () => line.blur() };
     const okb = new OwnKeyboard(
       doc,
       {
-        target: () => line,
+        target: () => this.okbTarget(),
         fold: () => this.closeOwnKeyboard(),
         toggleDigits: () => settings.update({ phone: { keyboard: { digits: !settings.get().phone.keyboard.digits } } }),
+        onPress: this.buzz,
       },
       this.okbLayout,
       settings.get().phone.keyboard.digits,
@@ -577,65 +632,193 @@ export class PhoneLayer {
     this.okb = okb;
     this.el.append(okb.el);
     line.setOwnKeyboard(true);
+    this.markOwnFields();
     const wrap = cockpit.inputEl.querySelector<HTMLElement>('.wc-input-wrap');
     const clock = (): number => win?.performance.now() ?? Date.now();
-    let pointerDown = false;
-    let pointerAt = -Infinity;
+    // A pointer on the command field, and one anywhere in the cockpit (the other fields: a key
+    // may focus them), each with when it was last seen.
+    let lineDown = false;
+    let lineAt = -Infinity;
+    let anyDown = false;
+    let anyAt = -Infinity;
     const onTap = (): void => this.openOwnKeyboard();
-    const onDown = (): void => {
-      pointerDown = true;
-      pointerAt = clock();
+    const onLineDown = (): void => {
+      lineDown = true;
+      lineAt = clock();
+    };
+    const onDown = (e: Event): void => {
+      anyDown = true;
+      anyAt = clock();
+      // Before the focus the press brings: the field under it, and the fields of its pane (a
+      // script pane's link may focus one of them), ask for no keyboard.
+      const t = e.target instanceof Element ? e.target : null;
+      const pane = t?.closest('.wc-pane');
+      if (pane) for (const f of pane.querySelectorAll<HTMLElement>('input, textarea')) if (this.ownField(f)) markField(f);
     };
     const onUp = (): void => {
-      if (!pointerDown) return;
-      pointerDown = false;
-      pointerAt = clock();
+      const now = clock();
+      if (lineDown) lineAt = now;
+      if (anyDown) anyAt = now;
+      lineDown = anyDown = false;
     };
     const onFocus = (e: FocusEvent): void => {
       const t = e.target as HTMLElement | null;
       if (!t) return;
       if (wrap?.contains(t)) {
-        if (pointerDown || clock() - pointerAt < OKB_POINTER_FOCUS_MS) this.openOwnKeyboard();
+        if (lineDown || clock() - lineAt < OKB_POINTER_FOCUS_MS) this.openOwnKeyboard();
+        // Open for another field: the keys follow the focus to the line.
+        else if (this.okbOpen) this.setOkbField(null);
+        return;
+      }
+      const f = this.ownField(t);
+      if (f) {
+        markField(f);
+        if (this.okbOpen) this.setOkbField(f);
+        else if (anyDown || clock() - anyAt < OKB_POINTER_FOCUS_MS) this.openOwnKeyboard(f);
         return;
       }
       // Not ours: the field keeps its focus (and gets the device's keyboard); ours gives way.
-      if (this.okbOpen && isTextField(t) && t.getAttribute('inputmode') !== 'none') this.closeOwnKeyboard(false);
+      if (this.okbOpen && isTextField(t) && !isMarked(t)) this.closeOwnKeyboard(false);
+    };
+    // A tap on a field of ours that has the focus already (in the capture phase: the box keeps its clicks).
+    const onClick = (e: Event): void => {
+      const f = e.target instanceof HTMLElement ? this.ownField(e.target) : null;
+      if (f) this.openOwnKeyboard(f);
     };
     wrap?.addEventListener('click', onTap);
-    wrap?.addEventListener('pointerdown', onDown);
+    wrap?.addEventListener('pointerdown', onLineDown);
+    cockpit.el.addEventListener('pointerdown', onDown, true);
+    cockpit.el.addEventListener('click', onClick, true);
     doc.addEventListener('pointerup', onUp, true);
     doc.addEventListener('pointercancel', onUp, true);
     doc.addEventListener('focusin', onFocus);
+    // The password prompt came or went: the arrows are dimmed there.
+    const offMode = line.onChange(() => this.okb?.sync());
     const readout = win ? installKeyboardReadout(win, () => this.okbOpen) : null;
     this.okbReadout = readout?.draw ?? null;
     this.unsubs.push(() => {
       wrap?.removeEventListener('click', onTap);
-      wrap?.removeEventListener('pointerdown', onDown);
+      wrap?.removeEventListener('pointerdown', onLineDown);
+      cockpit.el.removeEventListener('pointerdown', onDown, true);
+      cockpit.el.removeEventListener('click', onClick, true);
       doc.removeEventListener('pointerup', onUp, true);
       doc.removeEventListener('pointercancel', onUp, true);
       doc.removeEventListener('focusin', onFocus);
+      offMode();
+      this.swallowOff?.();
       this.closeOwnKeyboard(false);
       line.setOwnKeyboard(false);
+      for (const f of cockpit.el.querySelectorAll<HTMLElement>('.wc-pane [inputmode="none"], .wc-ph-rb [inputmode="none"]')) {
+        f.removeAttribute('inputmode');
+        f.removeAttribute('virtualkeyboardpolicy');
+      }
       readout?.dispose();
       okb.dispose();
       this.okb = null;
     });
   }
 
+  /** The layout now: the one named in `?kbd=`, else the setting, where `auto` is the browser's language. */
+  private wantedLayout(): OkbLayout {
+    const nav = this.el.ownerDocument.defaultView?.navigator;
+    const set = this.deps.settings.get().phone.keyboard.layout;
+    return okbLayout(this.okbAsked ?? (set === 'auto' ? null : set), nav?.languages?.length ? nav.languages : nav?.language);
+  }
+
+  /** The layout's setting changed: the keys, and their place (Swedish has a key more per row). */
+  private syncOwnLayout(): void {
+    if (!this.okb) return;
+    const next = this.wantedLayout();
+    if (next === this.okbLayout) return;
+    this.okbLayout = next;
+    this.okb.setLayout(next);
+    if (this.okbOpen) this.place();
+  }
+
   /**
-   * Opens the keyboard of our own (a pointer on the command field) and
-   * leaves the field focused, so its caret shows. It takes fixed rows at
-   * the bottom from the cockpit's allocator: the page keeps its size, the
-   * command row moves up to stand on the keyboard, and MUME gets one new
-   * window size. The band and what stands beside or above it are placed
-   * once the cockpit has laid its rows out (`placeOwnKeyboard`).
+   * `el` as a field of the game layout our keyboard types in, or null: a
+   * plain text field in a pane (Comm, a script pane) or in the hot key box.
+   * Not the command line (it has its own target), and nothing of the menu's
+   * sheet and pages.
    */
-  private openOwnKeyboard(): void {
+  private ownField(el: Element): TextField | null {
+    if (!this.okb || !isOwnableField(el)) return null;
+    if (!this.deps.cockpit.el.contains(el) || this.deps.cockpit.inputEl.contains(el)) return null;
+    return el.closest('.wc-pane, .wc-ph-rb') ? el : null;
+  }
+
+  /** Whether a press on `el` is one that gives the keyboard a target of ours (the command field, or a field of `ownField`). */
+  private ownTapTarget(el: Element): boolean {
+    return this.deps.cockpit.inputEl.querySelector('.wc-input-wrap')?.contains(el) === true || this.ownField(el) !== null;
+  }
+
+  /** Marks the fields of `ownField` there are now (at mount, when the box opens, when a script pane comes): they ask the device for no keyboard. */
+  private markOwnFields(): void {
+    if (!this.okb) return;
+    for (const f of this.deps.cockpit.el.querySelectorAll<HTMLElement>('.wc-pane input, .wc-pane textarea, .wc-ph-rb input')) if (this.ownField(f)) markField(f);
+  }
+
+  /** What the keys type into now: the field it was opened for while that is still on screen, else the command line (without a history at a password prompt). */
+  private okbTarget(): OkbTarget | null {
+    const line = this.deps.ownKeyboard;
+    if (!line) return null;
+    if (this.okbField !== null && !fieldUsable(this.okbField)) this.setOkbField(null);
+    if (this.okbFieldTarget) return this.okbFieldTarget;
+    return line.hasHistory() ? line : this.okbLineBare;
+  }
+
+  /** Points the keys at `field` (null: the command line). Comm keeps its rows while one of its fields is typed in. */
+  private setOkbField(field: TextField | null): void {
+    if (field === this.okbField) return;
+    this.okbField = field;
+    this.okbFieldTarget = field ? fieldTarget(field, this.fieldSubmit(field)) : null;
+    this.deps.cockpit.setPhoneCommKeep(field !== null && this.deps.cockpit.pane('comm').el.contains(field));
+    this.okb?.sync();
+    this.okbReadout?.();
+  }
+
+  /**
+   * Enter in a field, as its owner has it: Comm's reply line sends; the hot
+   * key box saves; a script pane's field is submitted to its script, and
+   * the keys go back to the command line (as the focus does on a computer).
+   * Comm's search has no Enter action, nor has a field we do not know.
+   */
+  private fieldSubmit(field: TextField): { submit?: () => void } {
+    if (field.classList.contains('wc-cm-rinput')) return { submit: () => this.comm.submitReply() };
+    if (this.hot.ownsField(field)) return { submit: () => this.hot.saveBox() };
+    if (field.classList.contains('wc-spane-field')) {
+      return {
+        submit: () => {
+          for (const p of this.deps.cockpit.scriptPanes()) {
+            const pane = this.deps.cockpit.pane(p.id as PaneId) as unknown as ScriptPane;
+            if (pane.el.contains(field) && pane.submitField(field)) break;
+          }
+          if (this.okbField !== field) return;
+          this.setOkbField(null);
+          this.deps.ownKeyboard?.focus();
+        },
+      };
+    }
+    return {};
+  }
+
+  /**
+   * Opens the keyboard of our own for `field` (null: the command line; a
+   * pointer on the field) and leaves the field focused, so its caret shows.
+   * It takes fixed rows at the bottom from the cockpit's allocator: the
+   * page keeps its size, the command row moves up to stand on the keyboard,
+   * and MUME gets one new window size. The band and what stands beside or
+   * above it are placed once the cockpit has laid its rows out
+   * (`placeOwnKeyboard`). Open already, only the target changes.
+   */
+  private openOwnKeyboard(field: TextField | null = null): void {
     const line = this.deps.ownKeyboard;
     if (!this.okb || !line || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
-    // The box's place is the keyboard's: it gives way, unsaved. (Before `okbOpen`: its closing asks nothing of the keyboard.)
-    this.hot.closeBox();
-    line.focus();
+    this.setOkbField(field);
+    // The hot key box stays while one of its fields is typed in; for any other field it gives
+    // way, unsaved. (After the target: its closing then asks nothing of the keyboard.)
+    if (field === null || !this.hot.ownsField(field)) this.hot.closeBox();
+    (this.okbFieldTarget ?? line).focus();
     if (this.okbOpen) return;
     this.okbOpen = true;
     this.el.ownerDocument.documentElement.classList.add('wc-okb');
@@ -656,7 +839,7 @@ export class PhoneLayer {
     if (this.okbOpen) this.reserveOwnKeyboard();
   }
 
-  /** Closes it (the fold key, the menu, the hot key box, a field that is not ours, a screen too small) and, as a rule, blurs the field. One new window size for MUME. */
+  /** Closes it (the fold key, the menu, the hot key box, a field that is not ours, a screen too small) and, as a rule, blurs the field it typed in. One new window size for MUME. */
   private closeOwnKeyboard(blur = true): void {
     if (!this.okbOpen) return;
     this.okbOpen = false;
@@ -664,7 +847,12 @@ export class PhoneLayer {
     this.okb?.place(null);
     this.arrangeOwnKeyboard(null);
     this.deps.cockpit.setPhoneBottom(null);
-    if (blur) this.deps.ownKeyboard?.blur();
+    const typed = this.okbFieldTarget ?? this.deps.ownKeyboard;
+    // The next opening starts from the field that is tapped then.
+    this.setOkbField(null);
+    if (blur) typed?.blur();
+    // An open box stands beside the keys again.
+    if (this.hot.boxOpen) this.syncBox();
     this.okbReadout?.();
   }
 
@@ -696,19 +884,37 @@ export class PhoneLayer {
       this.closeOwnKeyboard();
       return;
     }
-    const px = this.keyPx;
     // The columns the K key shows (hidden: none, and no width for them).
     const kOn = !this.hot.el.hidden;
     if (g.landscape) {
+      // A band lower than three large keys and their gaps (a screen 300 to some 312 px high): the
+      // small keys in it, so the compass does not stand out over the band's top edge.
+      const px = lift < 3 * this.keyPx + 2 * KEY_GAP ? Math.min(this.keyPx, KEY_PX_PORTRAIT) : this.keyPx;
       const band = okbBand({ width: W, layout: this.okbLayout, keyPx: px, keyGap: KEY_GAP, kLeft: kOn ? this.hot.rowsIn(0) : 0, kRight: kOn ? this.hot.rowsIn(1) : 0 });
       okb.place({ top, left: band.x, width: band.w });
-      this.arrangeOwnKeyboard({ lift, band: true, pad: band.pad, k: !band.droppedK, kLeftX: band.kLeftX, kRightX: band.kRightX });
+      this.arrangeOwnKeyboard({ lift, band: true, pad: band.pad, k: !band.droppedK, kLeftX: band.kLeftX, kRightX: band.kRightX, ck: px === this.keyPx ? null : px });
     } else {
+      const px = this.keyPx;
       const width = okbBlockWidth(W, this.okbLayout);
       okb.place({ top, left: (W - width) / 2, width });
+      // (The same sum as the limit the cockpit laid these rows out with: `limitFor`.)
       const side = okbPortraitSide(top, compassHeight(px), hotTop(px, 3));
-      this.arrangeOwnKeyboard({ lift, band: false, pad: side.pad, k: side.k, kLeftX: null, kRightX: null });
+      // Comm typed in on a short screen reaches under the columns' place (`overLimit`): they give way.
+      this.arrangeOwnKeyboard({ lift, band: false, pad: side.pad, k: side.k && !g.overLimit, kLeftX: null, kRightX: null, ck: null });
     }
+  }
+
+  /**
+   * The limit the strip, the fight card and Comm stay above, for keys of
+   * `px` (`Cockpit.setPhoneLimit`): the top of the place of three hot keys,
+   * counted from the keyboard's top edge while it is open. The cockpit asks
+   * at each layout with the keyboard's lift, so whether the columns have
+   * room above the keyboard (`okbPortraitSide`: none on a low screen, and
+   * then no limit) is settled before the rows are laid out: the keyboard's
+   * opening, and its digit row, are one layout and one window size.
+   */
+  private limitFor(px: number): PhoneLimit {
+    return (lift, height) => (lift > 0 && !okbPortraitSide(height - lift, compassHeight(px), hotTop(px, 3)).k ? null : topLimit(px));
   }
 
   /**
@@ -716,11 +922,13 @@ export class PhoneLayer {
    * without it (null): `--okb-lift` (the keyboard's height on screen),
    * `data-okb` (`up`: portrait, the keys lifted; `band`: landscape, the keys
    * beside the block at `--okb-k1-x` / `--okb-k4-x`), `data-okb-nopad` and
-   * `data-okb-nok` (no room), and `html.wc-okb-wide` while the compass is
-   * not at the command row's end (the field then takes the full width).
-   * Restyled only on a change.
+   * `data-okb-nok` (no room), `html.wc-okb-wide` while the compass is
+   * not at the command row's end (the field then takes the full width),
+   * `--ph-ck` on the layer for a low band's small keys, and `--wc-okb-h` on
+   * the page for the ground under the safe area. Restyled only on a change;
+   * nothing here asks the cockpit for a layout.
    */
-  private arrangeOwnKeyboard(a: { lift: number; band: boolean; pad: boolean; k: boolean; kLeftX: number | null; kRightX: number | null } | null): void {
+  private arrangeOwnKeyboard(a: { lift: number; band: boolean; pad: boolean; k: boolean; kLeftX: number | null; kRightX: number | null; ck: number | null } | null): void {
     const sig = a ? JSON.stringify(a) : '';
     if (sig === this.okbSig) return;
     this.okbSig = sig;
@@ -733,15 +941,21 @@ export class PhoneLayer {
     set('--okb-lift', a ? px(a.lift) : '');
     set('--okb-k1-x', a ? px(a.kLeftX) : '');
     set('--okb-k4-x', a ? px(a.kRightX) : '');
+    // The keys' size in a low band (on the layer: only its own parts follow; the cockpit's stays).
+    set('--ph-ck', a ? px(a.ck) : '');
+    // The keyboard's ground reaches out into the screen's safe area (phone.css, on `#app`).
+    const root = el.ownerDocument.documentElement;
+    if (a) root.style.setProperty('--wc-okb-h', px(a.lift));
+    else root.style.removeProperty('--wc-okb-h');
     if (a) el.dataset.okb = a.band ? 'band' : 'up';
     else delete el.dataset.okb;
     el.toggleAttribute('data-okb-nopad', a !== null && !a.pad);
     el.toggleAttribute('data-okb-nok', a !== null && !a.k);
     el.ownerDocument.documentElement.classList.toggle('wc-okb-wide', a !== null && (a.band || !a.pad));
     this.okbLift = a && !a.band ? a.lift : 0;
+    this.okbBandLift = a ? a.lift : 0;
     this.okbNoK = a !== null && !a.k;
-    // Portrait: the strip, the fight card and Comm end above the place of three keys only while the columns are there.
-    if (this.keyPx !== 0) this.deps.cockpit.setPhoneLimit(a && !a.band && !a.k ? null : topLimit(this.keyPx));
+    this.okbPad = a !== null && a.pad;
   }
 
   /**
@@ -752,6 +966,8 @@ export class PhoneLayer {
    * ends the wait, so no later tap is lost.
    */
   private swallowClick(): void {
+    // (One wait at a time; the layer's end takes the one that is on: `swallowOff`.)
+    this.swallowOff?.();
     const doc = this.el.ownerDocument;
     const stop = (e: Event): void => {
       e.stopPropagation();
@@ -761,10 +977,11 @@ export class PhoneLayer {
     const done = (): void => {
       doc.removeEventListener('click', stop, true);
       doc.removeEventListener('pointerdown', done, true);
+      if (this.swallowOff === done) this.swallowOff = null;
     };
     doc.addEventListener('click', stop, true);
     doc.addEventListener('pointerdown', done, true);
-    this.unsubs.push(done);
+    this.swallowOff = done;
   }
 
   /** Connected to MUME (not a replay): what the wake lock and nothing else asks. */
@@ -907,8 +1124,11 @@ export class PhoneLayer {
     // Landscape: the lens stands left of the columns and above the compass only.
     this.lensClear = this.landscape ? compassHeight(px) + LENS_CLEAR_LAND : n === 0 ? compassHeight(px) : hotTop(px, n) + LENS_CLEAR;
     // The strip, the fight card and Comm end above the place of three keys, shown or not (stage 52).
-    // (Not while our keyboard stands where the columns have no room: `arrangeOwnKeyboard`.)
-    this.deps.cockpit.setPhoneLimit(this.okbOpen && this.okbNoK && !this.landscape ? null : topLimit(px));
+    // (With our keyboard open: from its top edge, and not where the columns have no room: `limitFor`.)
+    if (px !== this.limitPx) {
+      this.limitPx = px;
+      this.deps.cockpit.setPhoneLimit(this.limitFor(px));
+    }
     // Landscape: the left column ends left of the lens's least place (or its key row) and the columns.
     this.deps.cockpit.setPhoneSideClear(sideClear(px, this.hot.cols, LENS_MIN_PX + SAT_OVER, SATROW_W, LENS_GAP_RIGHT));
     if (this.hot.boxOpen) this.syncBox();
@@ -937,9 +1157,20 @@ export class PhoneLayer {
     if (!first) this.syncHotkeys();
   }
 
-  /** The box's foot above the layer's bottom edge: beside the column, or over the command row with the keyboard up. */
+  /**
+   * The box's foot above the layer's bottom edge: beside the column, or
+   * over the command row with the device's keyboard up. With our own
+   * keyboard open (one of the box's fields is typed in): portrait, beside
+   * the column as ever, which stands lifted by the keyboard (over the
+   * command row where the compass has no room); landscape, on the
+   * keyboard's band, over the command row's end (the keys are in the band).
+   */
   private boxBottom(): number {
     const g = this.deps.cockpit.phoneGameLayout;
+    if (g && this.okbOpen && this.okbBandLift > 0) {
+      if (g.landscape) return this.okbBandLift + BOX_GAP;
+      return this.okbLift + (this.okbPad ? hotBottom(this.keyPx) : g.input.h * this.deps.cells.get().h + BOX_GAP);
+    }
     if (!g || !phoneKit().keyboardUp()) return hotBottom(this.keyPx);
     return this.el.clientHeight - g.input.y * this.deps.cells.get().h + BOX_GAP;
   }
@@ -1237,13 +1468,6 @@ function menuKey(doc: Document, open: () => void): HTMLButtonElement {
     open();
   });
   return b;
-}
-
-/** A field text is typed in (not a checkbox, a button or the like). */
-function isTextField(el: HTMLElement): boolean {
-  if (el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
-  if (el.tagName !== 'INPUT') return false;
-  return !['button', 'checkbox', 'radio', 'range', 'color', 'file', 'submit', 'reset', 'image', 'hidden'].includes((el as HTMLInputElement).type);
 }
 
 /** Mounts the phone layer over `deps.cockpit` (the live game on a phone). */

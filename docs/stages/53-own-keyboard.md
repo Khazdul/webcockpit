@@ -167,7 +167,7 @@ moves the caret), script pane fields, key sound.
 - [x] 53a built behind `?kbd=1`; the owner's test on the S21: go
 - [x] 53b model and editing API
 - [x] 53c the keyboard in the game layout
-- [ ] 53d other fields, settings, vibration
+- [x] 53d other fields, settings, vibration
 - [ ] 53e finish, test guide, release decision
 
 ## Built

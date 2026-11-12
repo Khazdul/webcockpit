@@ -63,6 +63,7 @@ import {
   PHONE_HOTKEY_COUNT,
   PHONE_HOTKEY_LABEL_MAX,
   PHONE_HOTKEY_SPECIALS,
+  PHONE_KEYBOARD_LAYOUTS,
   PHONE_LENS_LEVELS,
   PHONE_STRIP_PANES,
   PHONE_UNREAD_MODES,
@@ -526,6 +527,7 @@ export function migratePhone(raw: unknown): PhoneSettings {
   const d = defaultPhoneSettings();
   const p = isObj(raw) ? raw : {};
   const l = isObj(p.lens) ? p.lens : {};
+  const k = isObj(p.keyboard) ? p.keyboard : {};
   return {
     lens: {
       show: bool(l.show, d.lens.show),
@@ -544,10 +546,15 @@ export function migratePhone(raw: unknown): PhoneSettings {
     sideCols: typeof p.sideCols === 'number' && Number.isFinite(p.sideCols) ? int(p.sideCols, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
     wakeLock: bool(p.wakeLock, d.wakeLock),
     autoReconnect: bool(p.autoReconnect, d.autoReconnect),
-    // Absent (settings from 0.5.0, or a computer's): none had yet. A stored `vibrate` (0.5.0) is dropped.
+    // Absent (settings from 0.5.0, or a computer's): none had yet.
     defaults: int(p.defaults, 0, PHONE_DEFAULTS_MARK, 0),
-    // Additive (ADR 0138): absent is the digit row folded away.
-    keyboard: { digits: bool(isObj(p.keyboard) ? p.keyboard.digits : undefined, d.keyboard.digits) },
+    // Additive (ADR 0138): absent is the digit row folded away and the layout of the browser's language.
+    keyboard: {
+      digits: bool(k.digits, d.keyboard.digits),
+      layout: oneOf(k.layout, PHONE_KEYBOARD_LAYOUTS, d.keyboard.layout),
+    },
+    // Additive (ADR 0138 §7; the key of 0.5.0, gone in 0.6.0, is read again): absent is off.
+    vibrate: bool(p.vibrate, d.vibrate),
   };
 }
 
