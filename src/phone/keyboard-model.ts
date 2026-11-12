@@ -41,9 +41,14 @@
 //   Lua and the profile syntax use most nearest the thumbs and on the first
 //   page. The game layout and every other field keep `OKB_SYMBOLS`.
 // - Sizes come from the screen: a key's width is the block's width shared
-//   by the row's keys, with a cap per key (a tablet or a landscape screen
-//   gets no huge keys); the rows' height is a share of the screen's height
-//   within limits.
+//   by the row's keys, with a cap per key (a landscape screen gets no huge
+//   keys); the rows' height is a share of the screen's height within
+//   limits.
+// - A tablet-size window (ADR 0140; `okbTabletSize`: its short side is
+//   600 px or more) has its own, larger caps and limits (`*_TABLET`), the
+//   same in both shapes, and a margin at each side of a portrait block.
+//   Every function here that sizes something takes `tablet` (default
+//   false); with it false nothing differs from the phone's sizes.
 // - Landscape (`okbBand`; the owner after 53a): the block is compressed
 //   towards the middle, with the hot keys K1 to K3 in a column left of it,
 //   K4 to K6 right of it and the compass at the far right, all in the
@@ -136,9 +141,19 @@ export const OKB_REPEAT_MS = 60;
 /** The block's padding above and below its rows, and at its sides, px. */
 export const OKB_PAD_Y = 2;
 export const OKB_PAD_X = 2;
-/** The widest a letter key gets, px: portrait (and a tablet), landscape. */
+/** The widest a letter key gets on a phone-size window, px: portrait, landscape. */
 export const OKB_UNIT_MAX = 48;
 export const OKB_UNIT_MAX_LAND = 46;
+/**
+ * A tablet-size window (ADR 0140): its short side is at least this, px
+ * (src/core/device.ts `PHONE_MAX_SHORT_SIDE`, which this chunk may not
+ * import as a value, kit.ts; a unit test holds them equal).
+ */
+export const OKB_TABLET_MIN_SHORT = 600;
+/** Tablet: the widest a letter key gets, px, in both shapes. */
+export const OKB_UNIT_MAX_TABLET = 72;
+/** Tablet, portrait: what the block keeps free at each side of the screen, px. */
+export const OKB_SIDE_MARGIN_TABLET = 12;
 /** Landscape: the narrowest a letter key gets before the hot key columns, and then the compass, give way. */
 export const OKB_UNIT_MIN_LAND = 36;
 /** The arrows stand on the digit row when its twelve keys are at least this wide, px. */
@@ -150,6 +165,14 @@ export const OKB_ROW_SHARE = 0.3;
 export const OKB_ROW_MAX_LAND = 36;
 export const OKB_ROW_MIN_LAND = 30;
 export const OKB_ROW_SHARE_LAND = 0.46;
+/**
+ * Tablet: a row's limits, px, and its share of the screen's height (for
+ * four rows), the same in both shapes: landscape's low rows are for a
+ * phone on its side (some 360 px high), which a tablet never is.
+ */
+export const OKB_ROW_MAX_TABLET = 56;
+export const OKB_ROW_MIN_TABLET = 48;
+export const OKB_ROW_SHARE_TABLET = 0.3;
 /** Rows squeezed under this (the allocator had no room for the block) are no keyboard: it closes. */
 export const OKB_ROW_LEAST = 24;
 /** Landscape: between the block, a hot key column and the compass, and the compass's margin to the edge, px. */
@@ -413,12 +436,29 @@ export function okbRowCount(digits: boolean, navRow = false): number {
 }
 
 /**
+ * Whether a window (or a page) `width` × `height` px is a tablet's
+ * (ADR 0140): its short side is `OKB_TABLET_MIN_SHORT` or more. By the
+ * size alone, so a tablet's window made narrow (Split View) gets the
+ * phone's sizes. An unknown size is a phone's.
+ */
+export function okbTabletSize(width: number, height: number): boolean {
+  return Number.isFinite(width) && Number.isFinite(height) && Math.min(width, height) >= OKB_TABLET_MIN_SHORT;
+}
+
+/** The widest a letter key gets, px, for the shape and the window's kind. */
+export function okbUnitMax(landscape: boolean, tablet = false): number {
+  return tablet ? OKB_UNIT_MAX_TABLET : landscape ? OKB_UNIT_MAX_LAND : OKB_UNIT_MAX;
+}
+
+/**
  * A row's height in px for the screen: a share of its height (judged for
  * four rows, so the digit row adds a row and does not shrink the others),
- * within the shape's limits. Landscape is low: the keys are lower there and
- * leave the game its rows.
+ * within the shape's limits. Landscape is low on a phone: the keys are
+ * lower there and leave the game its rows. A tablet-size window (`tablet`)
+ * has one, higher set of limits for both shapes.
  */
-export function okbRowPx(landscape: boolean, height: number): number {
+export function okbRowPx(landscape: boolean, height: number, tablet = false): number {
+  if (tablet) return Number.isFinite(height) ? clamp(Math.floor((height * OKB_ROW_SHARE_TABLET) / 4), OKB_ROW_MIN_TABLET, OKB_ROW_MAX_TABLET) : OKB_ROW_MAX_TABLET;
   if (!Number.isFinite(height)) return landscape ? OKB_ROW_MAX_LAND : OKB_ROW_MAX;
   return landscape
     ? clamp(Math.floor((height * OKB_ROW_SHARE_LAND) / 4), OKB_ROW_MIN_LAND, OKB_ROW_MAX_LAND)
@@ -426,13 +466,21 @@ export function okbRowPx(landscape: boolean, height: number): number {
 }
 
 /** The height the block needs from the cockpit's bottom edge, px. */
-export function okbHeightPx(landscape: boolean, height: number, digits: boolean, navRow = false): number {
-  return okbRowCount(digits, navRow) * okbRowPx(landscape, height) + 2 * OKB_PAD_Y;
+export function okbHeightPx(landscape: boolean, height: number, digits: boolean, navRow = false, tablet = false): number {
+  return okbRowCount(digits, navRow) * okbRowPx(landscape, height, tablet) + 2 * OKB_PAD_Y;
 }
 
-/** The block's width for a screen (or a band's room) `width` px wide: its letter keys at most `cap` px each. */
-export function okbBlockWidth(width: number, layout: OkbLayout, cap = OKB_UNIT_MAX): number {
-  return Math.max(0, Math.min(width, okbCols(layout) * cap + 2 * OKB_PAD_X));
+/**
+ * The block's width for a screen (or a band's room) `width` px wide: its
+ * letter keys at most `cap` px each, and `margin` px kept free at each side.
+ */
+export function okbBlockWidth(width: number, layout: OkbLayout, cap = OKB_UNIT_MAX, margin = 0): number {
+  return Math.max(0, Math.min(width - 2 * margin, okbCols(layout) * cap + 2 * OKB_PAD_X));
+}
+
+/** Portrait: the block's width on a screen `width` px wide, for a phone-size or a tablet-size window. */
+export function okbPortraitWidth(width: number, layout: OkbLayout, tablet = false): number {
+  return okbBlockWidth(width, layout, okbUnitMax(false, tablet), tablet ? OKB_SIDE_MARGIN_TABLET : 0);
 }
 
 /** Whether the arrows stand on the digit row of a block `blockW` px wide: its twelve keys are wide enough. */
@@ -453,6 +501,8 @@ export interface OkbBandInput {
   /** Hot keys shown in the first column (K1 to K3) and in the second (K4 to K6); 0 for none, or for columns the K key hid. */
   kLeft: number;
   kRight: number;
+  /** A tablet-size window (`okbTabletSize`): the letter keys' cap is the tablet's. Default false. */
+  tablet?: boolean;
 }
 
 export interface OkbBand {
@@ -479,7 +529,8 @@ export interface OkbBand {
  * stands exactly where it does without them: the K key, which hides and
  * shows them, does not move it.)
  *
- * A letter key is as wide as fits, at most `OKB_UNIT_MAX_LAND`. When
+ * A letter key is as wide as fits, at most `OKB_UNIT_MAX_LAND`
+ * (`OKB_UNIT_MAX_TABLET` on a tablet-size window). When
  * everything together would leave it under `OKB_UNIT_MIN_LAND`, the parts
  * give way in this order: first both hot key columns, then the compass;
  * only then does the key get narrower than that.
@@ -490,6 +541,7 @@ export function okbBand(input: OkbBandInput): OkbBand {
   const padW = 3 * keyPx + 2 * input.keyGap;
   const col = keyPx + OKB_BAND_GAP;
   const wantK = input.kLeft > 0 || input.kRight > 0;
+  const cap = okbUnitMax(true, input.tablet === true);
   const fit = (k: boolean, pad: boolean): OkbBand => {
     const kl = k && input.kLeft > 0;
     const kr = k && input.kRight > 0;
@@ -497,7 +549,7 @@ export function okbBand(input: OkbBandInput): OkbBand {
     const right = pad ? OKB_BAND_MARGIN + padW + OKB_BAND_GAP : 0;
     const left = kl ? OKB_BAND_MARGIN : 0;
     const room = width - left - right - (kl ? col : 0) - (kr ? col : 0);
-    const unit = Math.max(0, Math.min(OKB_UNIT_MAX_LAND, (room - 2 * OKB_PAD_X) / cols));
+    const unit = Math.max(0, Math.min(cap, (room - 2 * OKB_PAD_X) / cols));
     const w = Math.min(Math.max(0, room), unit * cols + 2 * OKB_PAD_X);
     // The block and its columns stand as one group in the middle of what the compass leaves (the
     // left margin only keeps the group off the edge: it does not move the middle, so with a

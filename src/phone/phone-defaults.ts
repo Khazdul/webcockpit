@@ -12,7 +12,8 @@
 // on is never undone.
 //
 // Only the phone's game layout asks (src/phone/index.ts), so a computer's
-// settings are never changed by this, whatever their mark says.
+// settings are never changed by this, whatever their mark says. A tablet's
+// are not either (`phoneDefaultsAtStart`, ADR 0140).
 //
 // The mark's value repeats src/settings/types.ts `PHONE_DEFAULTS_MARK`,
 // which this chunk may not import as a value (kit.ts); a unit test holds
@@ -31,9 +32,14 @@ export const DEFAULTS_MARK = 1;
  * (`?safe`), where the store saves on the first change and this automatic
  * one would write the default appearance over the stored one. The mark
  * stays unset, so the defaults come at the next normal start.
+ *
+ * Nothing on a tablet either (ADR 0140): settings stored there below the
+ * mark are the desktop cockpit's, which the tablet had before it got the
+ * phone's layout, and they are kept exactly as they are (a new tablet
+ * starts from `phoneDefaultSettings()`, which carries the mark).
  */
-export function phoneDefaultsAtStart(s: Stored, safe: boolean): SettingsPatch | null {
-  return safe ? null : phoneDefaultsPatch(s);
+export function phoneDefaultsAtStart(s: Stored, safe: boolean, tablet = false): SettingsPatch | null {
+  return safe || tablet ? null : phoneDefaultsPatch(s);
 }
 
 /**

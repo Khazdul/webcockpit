@@ -14,7 +14,7 @@ import {
   mountPageKeyboard,
   pageKeyboardPlan,
 } from '../../src/phone/keyboard-pages';
-import { OKB_PAD_X, OKB_UNIT_MAX, OKB_UNIT_MAX_LAND, OKB_UNIT_MIN_LAND, okbHeightPx } from '../../src/phone/keyboard-model';
+import { OKB_PAD_X, OKB_SIDE_MARGIN_TABLET, OKB_UNIT_MAX, OKB_UNIT_MAX_LAND, OKB_UNIT_MAX_TABLET, OKB_UNIT_MIN_LAND, okbHeightPx } from '../../src/phone/keyboard-model';
 import { defaultSettings } from '../../src/settings/types';
 import type { SettingsStore } from '../../src/settings';
 import type { Settings } from '../../src/settings/types';
@@ -65,9 +65,45 @@ describe('pageKeyboardPlan', () => {
   });
 
   it('a wide portrait page: the keys keep their largest width and the block stands in the middle', () => {
-    const p = pageKeyboardPlan(700, 1000, 'en', false)!;
+    // (The widest a phone-size page gets: from 600 px it is a tablet's, below.)
+    const p = pageKeyboardPlan(580, 1000, 'en', false)!;
+    expect(p.tablet).toBe(false);
     expect(p.width).toBe(10 * OKB_UNIT_MAX + 2 * OKB_PAD_X);
-    expect(p.left).toBe((700 - p.width) / 2);
+    expect(p.left).toBe((580 - p.width) / 2);
+  });
+
+  // ADR 0140: a tablet-size page gets the game layout's tablet sizes.
+  it('a tablet-size page, portrait 820 × 1180: the block across the page with a margin, 72 px keys, 56 px rows, the page keys in a row', () => {
+    const p = pageKeyboardPlan(820, 1180, 'sv', false)!;
+    expect(p).toMatchObject({ landscape: false, tablet: true, digits: false, nav: 'row' });
+    expect(p.width).toBe(820 - 2 * OKB_SIDE_MARGIN_TABLET);
+    expect((p.width - 2 * OKB_PAD_X) / 11).toBe(72);
+    expect(p.left).toBe(OKB_SIDE_MARGIN_TABLET);
+    expect(p.height).toBe(5 * 56 + 4);
+    expect(p.height).toBe(okbHeightPx(false, 1180, false, true, true));
+    expect(pageKeyboardPlan(820, 1180, 'sv', true)!.height).toBe(6 * 56 + 4);
+    // English: ten keys at the cap, centred.
+    const en = pageKeyboardPlan(820, 1180, 'en', false)!;
+    expect(en.width).toBe(10 * OKB_UNIT_MAX_TABLET + 2 * OKB_PAD_X);
+    expect(en.left).toBe((820 - en.width) / 2);
+  });
+
+  it('a tablet-size page, landscape 1180 × 820: 72 px keys, 56 px rows, the page keys in columns as wide as a key', () => {
+    const p = pageKeyboardPlan(1180, 820, 'sv', false)!;
+    expect(p).toMatchObject({ landscape: true, tablet: true, digits: false, nav: 'sides' });
+    expect(p.width).toBe(11 * OKB_UNIT_MAX_TABLET + 2 * OKB_PAD_X);
+    expect(p.left).toBe((1180 - p.width) / 2);
+    expect(p.height).toBe(4 * 56 + 4);
+    expect(p.sides).toEqual({ left: p.left - PAGE_SIDE_GAP - OKB_UNIT_MAX_TABLET, right: p.left + p.width + PAGE_SIDE_GAP, width: OKB_UNIT_MAX_TABLET });
+    expect(p.sides!.left).toBeGreaterThanOrEqual(0);
+    expect(p.sides!.right + p.sides!.width).toBeLessThanOrEqual(1180);
+  });
+
+  it('the limit is the short side at 600 px: a tablet\'s window made narrow gets the phone\'s sizes', () => {
+    expect(pageKeyboardPlan(599, 1180, 'sv', false)).toMatchObject({ tablet: false, width: 11 * OKB_UNIT_MAX + 2 * OKB_PAD_X, height: okbHeightPx(false, 1180, false, true) });
+    expect(pageKeyboardPlan(600, 1180, 'sv', false)).toMatchObject({ tablet: true, width: 600 - 2 * OKB_SIDE_MARGIN_TABLET });
+    expect(pageKeyboardPlan(1180, 599, 'sv', false)).toMatchObject({ tablet: false, height: okbHeightPx(true, 599, false), width: 11 * OKB_UNIT_MAX_LAND + 2 * OKB_PAD_X });
+    expect(pageKeyboardPlan(1180, 600, 'sv', false)).toMatchObject({ tablet: true, height: okbHeightPx(true, 600, false, false, true) });
   });
 
   it('landscape 800 × 360: the low rows, the block compressed towards the middle', () => {

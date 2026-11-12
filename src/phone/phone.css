@@ -1569,6 +1569,26 @@ html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k[data-
   background: var(--ph-okb-mod);
 }
 
+/* A tablet-size window (ADR 0140; keyboard.ts sets `data-tablet` from the
+ * model's `okbTabletSize`): the keys are larger (72 × 56 px at most), and
+ * their faces grow with them. A phone-size window never has the mark. */
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-k {
+  font-size: 25px;
+}
+
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-k[data-act] {
+  font-size: 15px;
+}
+
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-k .wc-ph-ico {
+  width: 26px;
+  height: 26px;
+}
+
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-cap {
+  border-radius: 8px;
+}
+
 /* Space is a character: a key of the letters' iron with a quiet mark. */
 html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-space {
   color: var(--ph-okb-space-mark);

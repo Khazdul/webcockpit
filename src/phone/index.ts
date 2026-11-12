@@ -77,7 +77,7 @@ import { HotkeysView } from './hotkeys';
 import { hotkeyPress, knownHp, withHotkey } from './hotkey-model';
 import { type PhoneControls, type PhoneKit, phoneKit, setPhoneControls, setPhoneKit } from './kit';
 import { type PhoneCommandLine, OwnKeyboard } from './keyboard';
-import { type OkbLayout, OKB_PAD_Y, OKB_ROW_LEAST, okbBand, okbBlockWidth, okbFromQuery, okbHeightPx, okbLayout, okbPortraitSide, okbRowCount } from './keyboard-model';
+import { type OkbLayout, OKB_PAD_Y, OKB_ROW_LEAST, okbBand, okbFromQuery, okbHeightPx, okbLayout, okbPortraitSide, okbPortraitWidth, okbRowCount, okbTabletSize } from './keyboard-model';
 import { installKeyboardReadout } from './keyboard-readout';
 import { type TextField, fieldTarget, fieldUsable, isMarked, isOwnableField, isTextField, markField } from './keyboard-fields';
 import { pulse } from './haptics';
@@ -160,6 +160,12 @@ export interface PhoneLayerDeps {
    * types in it. That keyboard is the layout's only one.
    */
   ownKeyboard: PhoneCommandLine;
+  /**
+   * The device is a tablet (ADR 0140; `device().tablet`, handed in as the
+   * rest of the app is): its stored settings are never given the phone's
+   * one-time defaults. Absent: a phone.
+   */
+  tablet?: boolean;
 }
 
 /** A drag of the lens while the finger is down (`PhoneLayer.dragLens`). */
@@ -554,7 +560,8 @@ export class PhoneLayer {
     void deps.settings.load().then(() => {
       if (this.disposed) return;
       // Never in safe mode (`?safe`): this automatic write would save the default appearance.
-      const once = phoneDefaultsAtStart(deps.settings.get(), deps.settings.isSafe);
+      // Never on a tablet (ADR 0140): what it has stored is kept as it is.
+      const once = phoneDefaultsAtStart(deps.settings.get(), deps.settings.isSafe, deps.tablet === true);
       if (once) deps.settings.update(once);
     });
     this.syncPages();
@@ -910,10 +917,19 @@ export class PhoneLayer {
     this.okbReadout?.();
   }
 
+  /**
+   * The keyboard's height for a shape and a height of the cockpit, as the
+   * cockpit asks for it: at a tablet's sizes on a tablet-size window
+   * (ADR 0140; the cockpit's width as it is now is the other side).
+   */
+  private okbHeight(digits: boolean): (landscape: boolean, height: number) => number {
+    return (landscape, height) => okbHeightPx(landscape, height, digits, false, okbTabletSize(this.deps.cockpit.el.clientWidth, height));
+  }
+
   /** Whether the screen as it is now has the rows for the keyboard: each of its rows at least `OKB_ROW_LEAST` high. */
   private ownKeyboardFits(): boolean {
     const digits = this.deps.settings.get().phone.keyboard.digits;
-    const lift = this.deps.cockpit.phoneBottomLift((landscape, height) => okbHeightPx(landscape, height, digits));
+    const lift = this.deps.cockpit.phoneBottomLift(this.okbHeight(digits));
     return lift > 0 && (lift - 2 * OKB_PAD_Y) / okbRowCount(digits) >= OKB_ROW_LEAST;
   }
 
@@ -921,7 +937,7 @@ export class PhoneLayer {
   private okbAsk(): { bottom: (landscape: boolean, height: number) => number; fits: (lift: number) => boolean } {
     const digits = this.deps.settings.get().phone.keyboard.digits;
     return {
-      bottom: (landscape, height) => okbHeightPx(landscape, height, digits),
+      bottom: this.okbHeight(digits),
       // (The same sum as `ownKeyboardFits`: the cockpit leaves the rows out in the layout that finds them too low.)
       fits: (lift) => (lift - 2 * OKB_PAD_Y) / okbRowCount(digits) >= OKB_ROW_LEAST,
     };
@@ -966,7 +982,8 @@ export class PhoneLayer {
    * allocator kept, from under the command row to the bottom edge, and the
    * block in it.
    *
-   * - Portrait: the block over the full width (capped per key). The compass
+   * - Portrait: the block over the full width (capped per key; on a
+   *   tablet-size window with a margin at each side). The compass
    *   and the hot key columns stand as with the keyboard down, lifted to the
    *   keyboard's top edge; on a screen too low the columns go first, then
    *   the compass (`okbPortraitSide`).
@@ -991,17 +1008,19 @@ export class PhoneLayer {
     }
     // The columns the K key shows (hidden: none, and no width for them).
     const kOn = !this.hot.el.hidden;
+    // A tablet-size window (ADR 0140): the block uses the width, with larger keys.
+    const tablet = okbTabletSize(W, H);
     if (g.landscape) {
       // A band lower than three large keys and their gaps (a screen 300 to some 312 px high): the
       // small keys in it, so the compass does not stand out over the band's top edge.
       const px = lift < 3 * this.keyPx + 2 * KEY_GAP ? Math.min(this.keyPx, KEY_PX_PORTRAIT) : this.keyPx;
-      const band = okbBand({ width: W, layout: this.okbLayout, keyPx: px, keyGap: KEY_GAP, kLeft: kOn ? this.hot.rowsIn(0) : 0, kRight: kOn ? this.hot.rowsIn(1) : 0 });
-      okb.place({ top, left: band.x, width: band.w });
+      const band = okbBand({ width: W, layout: this.okbLayout, keyPx: px, keyGap: KEY_GAP, kLeft: kOn ? this.hot.rowsIn(0) : 0, kRight: kOn ? this.hot.rowsIn(1) : 0, tablet });
+      okb.place({ top, left: band.x, width: band.w, tablet });
       this.arrangeOwnKeyboard({ lift, band: true, pad: band.pad, k: !band.droppedK, kLeftX: band.kLeftX, kRightX: band.kRightX, ck: px === this.keyPx ? null : px });
     } else {
       const px = this.keyPx;
-      const width = okbBlockWidth(W, this.okbLayout);
-      okb.place({ top, left: (W - width) / 2, width });
+      const width = okbPortraitWidth(W, this.okbLayout, tablet);
+      okb.place({ top, left: (W - width) / 2, width, tablet });
       // (The same sum as the limit the cockpit laid these rows out with: `limitFor`.)
       const side = okbPortraitSide(top, compassHeight(px), hotTop(px, 3));
       // Comm typed in on a short screen reaches under the columns' place (`overLimit`): they give way.

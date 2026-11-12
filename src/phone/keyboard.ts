@@ -328,10 +328,10 @@ export class OwnKeyboard {
   /**
    * Shows the band from `top` px (the command row's bottom edge, from the
    * layer's top) down to the bottom edge, with the block `width` px wide
-   * from `left`; or hides it (null). Hidden, no key is held, shift is off
+   * from `left` (`tablet`: at a tablet's sizes); or hides it (null). Hidden, no key is held, shift is off
    * and the page is the letters'.
    */
-  place(at: { top: number; left: number; width: number; sides?: { left: number; right: number; width: number } | undefined } | null): void {
+  place(at: { top: number; left: number; width: number; sides?: { left: number; right: number; width: number } | undefined; tablet?: boolean | undefined } | null): void {
     if (at === null) {
       if (this.el.hidden) return;
       this.el.hidden = true;
@@ -342,6 +342,8 @@ export class OwnKeyboard {
       this.symbolPage = 0;
       return;
     }
+    // A tablet-size window (ADR 0140): the keys are larger, and phone.css sets their faces to suit.
+    this.el.toggleAttribute('data-tablet', at.tablet === true);
     if (at.top !== this.top) {
       this.top = at.top;
       this.el.style.top = `${at.top}px`;
