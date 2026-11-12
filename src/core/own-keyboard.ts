@@ -15,11 +15,16 @@
 //   a code editor also Backspace and the caret keys, §6) are
 //   sent as a synthetic `keydown` + `keyup` aimed at
 //   the focused field, because the frame stack and the fields' own handlers
-//   take them that way. Such an event is remembered here; the script
-//   engine's key handling (macro matching, key label learning,
-//   src/script/keys.ts) and the input pane ignore it (`isOwnKey`). Text
-//   never goes this way, and nothing of this is used in the game layout
-//   (ADR 0138 §3).
+//   take them that way. Such an event is remembered here (`isOwnKey`);
+//   the script engine's key handling (macro matching, key label learning,
+//   src/script/keys.ts) and the input pane ignore it, and the listeners
+//   that take Esc ahead of the page (the Timers pane's herb menu, the log
+//   player; the hot key box by the key's target) leave it to the page. A
+//   key is sent only to the field that has the focus. Text never goes
+//   this way, and nothing of this is used in the game layout (ADR 0138
+//   §3).
+// - When the keyboard opens is the mount's rule (keyboard-pages.ts): with
+//   the tap's click, never before it; this module only says that it is up.
 // - The code editors (ADR 0139 §6, round 53h): a CodeMirror buffer's content
 //   element is registered here by the editor chunk with the little the
 //   keyboard needs of it (`OwnEditor`: typing text, bringing the caret into
