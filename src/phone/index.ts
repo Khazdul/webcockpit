@@ -350,6 +350,7 @@ export class PhoneLayer {
       onPress: buzz,
       // A key of our keyboard is outside the box, and types in it.
       keepsBox: (t) => this.okb?.el.contains(t) ?? false,
+      boxFits: () => this.boxFits(),
       onBox: (open, by) => {
         // A held key folds the keyboard (the box opens where the keys stood); a tap in one of the
         // box's fields then opens it again for that field, with the box staying.
@@ -1264,6 +1265,53 @@ export class PhoneLayer {
     this.askLens();
   }
 
+  /**
+   * Whether the box, laid out with its foot `bottom` px above the layer's
+   * bottom edge, is clear of what is above the game text (portrait: the
+   * strip, the fight card, Comm) or beside it (landscape: the left column).
+   * Reads the box's laid-out size.
+   */
+  private boxHasRoom(g: NonNullable<Cockpit['phoneGameLayout']>, bottom: number): boolean {
+    const { w, h } = this.deps.cells.get();
+    if (g.landscape) return g.side.w * w <= this.hot.boxEl.offsetLeft;
+    return g.game.y * h <= this.el.clientHeight - bottom - this.hot.boxEl.offsetHeight;
+  }
+
+  /** Places the box (laid out, shown or not) with its foot at `bottom` and says whether it has room there. */
+  private boxFitsAt(g: NonNullable<Cockpit['phoneGameLayout']>, bottom: number): boolean {
+    this.hot.placeBox(bottom, this.el.clientHeight - bottom - BOX_GAP);
+    return this.boxHasRoom(g, bottom);
+  }
+
+  /**
+   * A held key asks before its box opens (`HotkeysDeps.boxFits`; the box is
+   * laid out, not visible): no room, no box, and nothing is asked to give
+   * way for it (the lens, our keyboard). One layout read, on a hold only.
+   *
+   * With our keyboard open the box would fold it and stand beside the
+   * columns, on a screen laid out anew. Portrait: what is above the game
+   * text only grows when the keyboard goes, so no room there as the rows
+   * are now is no room, and the keyboard stays. Else the keyboard folds, as
+   * it does for the box, and the room is judged on the new layout (at once,
+   * not in the next frame: the box must not show first).
+   */
+  private boxFits(): boolean {
+    const { cockpit } = this.deps;
+    let g = cockpit.phoneGameLayout;
+    if (!g) return true;
+    if (g.tooSmall) return false;
+    if (this.okbOpen) {
+      if (!g.landscape && !this.boxFitsAt(g, hotBottom(this.keyPx))) return false;
+      this.closeOwnKeyboard();
+      this.swallowClick();
+      cockpit.relayoutNow();
+      g = cockpit.phoneGameLayout;
+      if (!g) return true;
+      if (g.tooSmall) return false;
+    }
+    return this.boxFitsAt(g, this.boxBottom());
+  }
+
   // ------------------------------------------------------------------ strip
 
   /**
@@ -1479,9 +1527,8 @@ export class PhoneLayer {
       else {
         // Placed first: its height on this screen is known only then.
         this.syncBox();
-        const boxTop = this.el.clientHeight - this.boxBottom() - this.hot.boxEl.offsetHeight;
         // (Landscape: the column grew into it sideways; the fight card is all there is above the game.)
-        if (land ? g.side.w * w > this.hot.boxEl.offsetLeft : g.game.y * h > boxTop) this.hot.closeBox();
+        if (!this.boxHasRoom(g, this.boxBottom())) this.hot.closeBox();
       }
     }
     const r = g.tooSmall ? null : g.lens;

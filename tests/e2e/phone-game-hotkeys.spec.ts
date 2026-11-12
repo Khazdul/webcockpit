@@ -978,3 +978,110 @@ test.describe('landscape', () => {
     expect(errors).toEqual([]);
   });
 });
+
+// ------------------------------------------------- a hold with no room
+
+/**
+ * Records, from now on, every change of what a box makes way with (the lens,
+ * its key row, the map's pane, the hot keys' lit state), each layout and
+ * each window size sent to MUME.
+ */
+async function watchScreen(page: Page): Promise<() => Promise<string[]>> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __seen: string[] };
+    w.__seen = [];
+    const mo = new MutationObserver((ms) => {
+      for (const m of ms) {
+        const t = m.target as HTMLElement;
+        w.__seen.push(`${t.classList[0] ?? t.tagName} ${m.attributeName}=${t.getAttribute(m.attributeName!)}`);
+      }
+    });
+    for (const el of document.querySelectorAll('.wc-ph-lens, .wc-ph-satrow, .wc-cockpit > .wc-pane[data-pane="map"]')) mo.observe(el, { attributes: true });
+    mo.observe(document.querySelector('.wc-ph-hot')!, { attributes: true, subtree: true });
+    window.__wc!.app.cockpit.onLayout(() => w.__seen.push('layout'));
+    const s = window.__wc!.app.session;
+    const orig = s.setWindowSize.bind(s);
+    s.setWindowSize = (c: number, r: number) => {
+      w.__seen.push(`naws ${c}x${r}`);
+      return orig(c, r);
+    };
+  });
+  return () => page.evaluate(() => (window as unknown as { __seen: string[] }).__seen.slice());
+}
+
+/** A press that stays down well past the hold's time (a fixed wait: the box may not come). */
+const longPress = (page: Page, l: Locator) => finger(page, l, () => page.waitForTimeout(900));
+
+test.describe('a hold with no room for the box', () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  for (const [what, open] of [
+    ['Comm', async (page: Page) => page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap()],
+    [
+      'a tall strip pane',
+      async (page: Page) => {
+        await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+        await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 16 } }));
+      },
+    ],
+  ] as const) {
+    test(`portrait, ${what} open: no box, and nothing on screen changes (the lens does not blink); nothing is sent`, async ({ page }) => {
+      const errors = watchErrors(page);
+      await openPhone(page);
+      await expect(lens(page)).toBeVisible();
+      await open(page);
+      await expect(page.locator('.wc-ph-comm-band, .wc-ph-strip').locator('visible=true').first()).toBeVisible();
+      await expect(lens(page)).toBeVisible();
+      // No room: what is open reaches below where the box's top would be.
+      const sent = await page.evaluate(() => window.__wc!.app.output.measureCells().rows);
+      const seen = await watchScreen(page);
+      await longPress(page, hk(page, 1));
+      await expect(rb(page)).toBeHidden();
+      expect(await seen()).toEqual([]);
+      await expect(lens(page)).toBeVisible();
+      await expect(satrow(page)).toBeHidden();
+      expect(await page.evaluate(() => window.__wc!.app.output.measureCells().rows)).toBe(sent);
+      // The key is as it was: a tap still works on it, and the K key still folds the column.
+      await expect(hk(page, 1)).not.toHaveClass(/\bis-held\b/);
+      await kKey(page).tap();
+      await expect(hot(page)).toBeHidden();
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test('portrait, the panel closed again: the hold opens the box as ever', async ({ page }) => {
+    await openPhone(page);
+    const comm = page.locator('.wc-ph-sat[data-sat="comm"]:visible');
+    await comm.tap();
+    await longPress(page, hk(page, 2));
+    await expect(rb(page)).toBeHidden();
+    await comm.tap();
+    await hold(page, hk(page, 2));
+    await expect(rb(page)).toBeVisible();
+    await expect(rb(page)).toHaveCSS('visibility', 'visible');
+    await expect(hk(page, 2)).toHaveClass(/\bis-held\b/);
+    await bt(page, 'Cancel').tap();
+    await expect(rb(page)).toBeHidden();
+  });
+
+  // Our keyboard folds for a box; whether the box then has room is known only on the screen
+  // without the keyboard (Comm takes its rows back). The box never shows, and no key lights.
+  test('portrait, Comm and our keyboard open: the keyboard folds, no box shows, no key lights, and the lens changes once', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openPhone(page);
+    await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+    await field(page).tap();
+    await expect(page.locator('.wc-ph-okb')).toBeVisible();
+    await expect(hk(page, 1)).toBeVisible();
+    const seen = await watchScreen(page);
+    await longPress(page, hk(page, 1));
+    await expect(rb(page)).toBeHidden();
+    await expect(page.locator('.wc-ph-okb')).toBeHidden();
+    await expect(lens(page)).toBeVisible();
+    const all = await seen();
+    expect(all.filter((x) => x.includes('is-held') || x.includes('aria-expanded=true'))).toEqual([]);
+    expect(all.filter((x) => x.startsWith('wc-ph-lens hidden='))).toEqual(['wc-ph-lens hidden=null']);
+    expect(all.filter((x) => x.startsWith('naws')).length).toBeLessThanOrEqual(1);
+    expect(errors).toEqual([]);
+  });
+});
