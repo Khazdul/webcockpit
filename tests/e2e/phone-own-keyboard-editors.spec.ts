@@ -536,10 +536,14 @@ test.describe('portrait 360 × 800', () => {
     await typeOn(page, '\nwhil');
     const list = page.locator('.cm-tooltip-autocomplete');
     await expect(list).toBeVisible();
+    await page.waitForTimeout(200);
     // The snippet is listed under the plain keyword: our caret key walks the list.
     const picked = list.locator('li[aria-selected="true"]');
     for (let i = 0; i < 6 && !(await picked.textContent())?.includes('do … end'); i++) await press(page, 'down');
     await expect(picked).toContainText('while … do … end');
+    // (CodeMirror takes no completion in the first 75 ms after its list changed, for a physical
+    // Tab too: a finger is slower than that.)
+    await page.waitForTimeout(200);
     await press(page, 'tab');
     await expect(list).toHaveCount(0);
     expect((await lines(ed)).slice(-3)).toEqual(['while cond do', '  ', 'end']);

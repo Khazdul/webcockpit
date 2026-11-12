@@ -219,6 +219,8 @@ test.describe('in the game, a script edited from the menu (360 × 800)', () => {
     await page.exposeFunction('__size', (v: string) => void sizes.push(v));
     await page.locator('.wc-ph-menu').tap();
     await expect(page.locator('.wc-cockpit .wc-ph-okb')).toBeHidden();
+    // (The game's keyboard closing is one window size, told a frame or two later: counted from after it.)
+    await page.waitForTimeout(500);
     await page.evaluate(() => {
       const s = window.__wc!.app.session;
       const set = s.setWindowSize.bind(s);

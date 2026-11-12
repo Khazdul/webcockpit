@@ -576,7 +576,9 @@ export class CommPane extends PaneShell {
    * phone's keyboard shows no autofill bar (as the command line, ADR 0075
    * §3.2). Only the phone's layout in the live game has it; everywhere
    * else (a computer, a tablet, the old phone layout, the player) the reply
-   * line is the <input>.
+   * line is the <input>. (Since stage 53 the field has our own keyboard
+   * there and the device's bar never shows; the element is kept as it was
+   * approved on a device, ADR 0139 "as built in round 53i".)
    */
   private phoneReply(): HTMLTextAreaElement {
     const ta = this.root.ownerDocument.createElement('textarea');
