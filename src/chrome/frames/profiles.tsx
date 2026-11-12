@@ -1,8 +1,8 @@
 // The Profile list (Inv §3.4; stage 41e, ADR 0125): the first sub-page in
 // the new look (src/chrome/kit/look.tsx), a lantern box under the smaller
-// wordmark with Back at its top left. Its sub-frames (the New / Rename
-// name prompt, Blank or Copy, the Delete confirm, the profile editor)
-// still open in the old look on the cell grid. Import pushes the import
+// wordmark with Back at its top left. New, Rename and Delete open small
+// look dialogs over it (profile-dialogs.tsx); Edit opens the profile
+// editor. Import pushes the import
 // page (stage 43c, import-page.tsx), which picks or takes dropped files
 // and shows the receipt; after its OK the list highlights the new profile
 // and flashes `Imported "x" from y.`.
@@ -40,36 +40,14 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import {
-  DEFAULT_PROFILE,
-  NAME_HINT,
-  NAME_MAX,
-  type ProfileRecord,
-  caseTwins,
-  compareNames,
-  downloadProfile,
-  nameError,
-} from '../../profiles';
-import { useGrid, useServices, useSettings } from '../kit/hooks';
+import { DEFAULT_PROFILE, type ProfileRecord, caseTwins, downloadProfile } from '../../profiles';
+import { useServices, useSettings } from '../kit/hooks';
 import { Box, GlassButton, type IconName, LookFlash, letterOf, lookFrame } from '../kit/look';
 import { editProfile } from './profile-edit';
 import { ImportFrame } from './import-page';
-import { centreLeft } from '../kit/nav';
+import { type ProfileDone, ProfileDeleteDialog, ProfileNameDialog } from './profile-dialogs';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
-import {
-  Blank,
-  Centered,
-  FlashRow,
-  type MenuItem,
-  MenuRows,
-  Page,
-  TextField,
-  menuKey,
-  useMenuCursor,
-} from '../kit/widgets';
 import './profiles.css';
-
-type Done = (name: string, message: string) => void;
 
 /** The highlighted row's buttons. */
 const ROW_BUTTONS = ['SELECT', 'EDIT', 'RENAME', 'DELETE'] as const;
@@ -205,7 +183,7 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
     reveal.current = true;
   }, [cursor, rows.length, isTop]);
 
-  const done: Done = (name, message) => {
+  const done: ProfileDone = (name, message) => {
     setCursorName(name);
     setStop('ROW');
     nav.flash(message);
@@ -249,16 +227,16 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
         if (cur) settings.update({ profile: cur.name });
         return;
       case 'NEW':
-        return nav.push(<NameFrame mode="create" done={done} />);
+        return nav.push(<ProfileNameDialog mode="create" done={done} />, { overlay: true });
       case 'EDIT':
         if (cur) edit(cur.name);
         return;
       case 'RENAME':
-        return nav.push(<NameFrame mode="rename" from={curName} done={done} />);
+        return nav.push(<ProfileNameDialog mode="rename" from={curName} done={done} />, { overlay: true });
       case 'DELETE': {
         // Afterwards the highlight goes to the row below (above at the end), in the order shown.
         const next = rows[cursor + 1]?.name ?? rows[cursor - 1]?.name;
-        return nav.push(<DeleteFrame name={curName} next={next} done={done} />);
+        return nav.push(<ProfileDeleteDialog name={curName} next={next} done={done} />, { overlay: true });
       }
       case 'IMPORT':
         // The import page (stage 43c): one or more files (a foreign entry
@@ -403,200 +381,3 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
     </Box>
   );
 });
-
-// ------------------------------------------------------------ name input
-
-interface NameFrameProps {
-  mode: 'create' | 'rename';
-  from?: string;
-  done: Done;
-}
-
-/** NEW (then Blank/Copy) and RENAME: a validated name prompt. */
-function NameFrame(p: NameFrameProps): VNode {
-  const { profiles, settings } = useServices();
-  const nav = useNav();
-  const { cols } = useGrid();
-  const [value, setValue] = useState(p.mode === 'rename' ? (p.from ?? '') : '');
-  const [error, setError] = useState('');
-  const busy = useRef(false);
-
-  const confirm = async (): Promise<void> => {
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      const names = (await profiles.list()).map((r) => r.name);
-      const name = value.trim();
-      if (p.mode === 'rename' && name === p.from) return nav.pop();
-      const err = nameError(name, names, p.mode === 'rename' ? p.from : undefined);
-      if (err) return setError(err);
-      if (p.mode === 'create') return nav.replace(<ChooseFrame name={name} done={p.done} />);
-      await profiles.rename(p.from!, name);
-      if (settings.get().profile === p.from) settings.update({ profile: name });
-      p.done(name, `Renamed to "${name}".`);
-      nav.pop();
-    } catch (e) {
-      setError(errText(e));
-    } finally {
-      busy.current = false;
-    }
-  };
-
-  useKeys((_e, nk) => {
-    if (nk === 'activate' && _e.key === 'Enter') {
-      void confirm();
-      return true;
-    }
-    return false;
-  });
-
-  const w = Math.min(cols - 4, NAME_MAX + 4);
-  const at = centreLeft(cols, w);
-  return (
-    <Page
-      title={p.mode === 'create' ? 'Create New Profile' : 'Rename Profile'}
-      footer={[
-        { text: 'Enter Confirm', onClick: () => void confirm() },
-        { text: 'ESC Cancel', onClick: () => nav.pop() },
-      ]}
-    >
-      {p.mode === 'rename' && <Centered text={`Rename "${p.from}" to:`} class="wc-c-active" />}
-      <TextField
-        value={value}
-        onInput={(v) => {
-          setValue(v);
-          setError('');
-        }}
-        width={w}
-        at={at}
-        maxLength={NAME_MAX + 8}
-        label="Profile name"
-      />
-      <Centered text={NAME_HINT} class="wc-c-hint" />
-      {error ? <Centered text={error} class="wc-c-danger" /> : <Blank />}
-    </Page>
-  );
-}
-
-/** After the name: B blank profile, C copy from an existing one. */
-function ChooseFrame(p: { name: string; done: Done }): VNode {
-  const { profiles, settings } = useServices();
-  const nav = useNav();
-  const create = async (text?: string): Promise<void> => {
-    try {
-      await profiles.create(p.name, text);
-      settings.update({ profile: p.name });
-      p.done(p.name, `Created "${p.name}".`);
-      nav.pop();
-    } catch (e) {
-      nav.flash(errText(e), 'fail');
-    }
-  };
-  const copy = (): void => nav.replace(<CopyFrame name={p.name} create={create} />);
-  const items: MenuItem[] = [
-    { key: 'blank', label: 'Blank profile', activate: () => void create() },
-    { key: 'copy', label: 'Copy from existing', activate: copy },
-  ];
-  const [cursor, setCursor] = useMenuCursor(items);
-  useKeys((e, nk) => {
-    const k = e.key.toLowerCase();
-    if (!e.ctrlKey && !e.altKey && !e.metaKey && k === 'b') {
-      void create();
-      return true;
-    }
-    if (!e.ctrlKey && !e.altKey && !e.metaKey && k === 'c') {
-      copy();
-      return true;
-    }
-    return menuKey(items, cursor, setCursor, nk);
-  });
-  return (
-    <Page title="Create New Profile" footer={['B Blank profile', 'C Copy from existing', 'ESC Cancel']}>
-      <Centered text={`Name: ${p.name}`} class="wc-c-active" />
-      <Blank />
-      <MenuRows items={items} cursor={cursor} setCursor={setCursor} />
-      <Blank />
-      <FlashRow />
-    </Page>
-  );
-}
-
-/** Copy picker: the new profile starts as a copy of the chosen one. */
-function CopyFrame(p: { name: string; create: (text?: string) => Promise<void> }): VNode {
-  const { profiles } = useServices();
-  const nav = useNav();
-  const [list, setList] = useState<ProfileRecord[] | null>(null);
-  useEffect(() => {
-    void profiles.list().then(setList, () => setList([]));
-  }, []);
-  const items: MenuItem[] = (list ?? []).map((r) => ({
-    key: r.name,
-    label: r.name,
-    activate: () => void p.create(r.text),
-  }));
-  const [cursor, setCursor] = useMenuCursor(items);
-  useKeys((_e, nk) => {
-    if (list && list.length === 0 && nk !== null) {
-      nav.pop();
-      return true;
-    }
-    return menuKey(items, cursor, setCursor, nk);
-  });
-  return (
-    <Page title="Create New Profile" footer={['↑↓ Navigate', 'Enter Select', 'ESC Cancel']}>
-      <Centered text={`Copy from:`} class="wc-c-body" />
-      <Blank />
-      {list && list.length === 0 ? (
-        <Centered text="No profiles available to copy from." class="wc-c-hint" />
-      ) : (
-        <MenuRows items={items} cursor={cursor} setCursor={setCursor} />
-      )}
-      <Blank />
-      <FlashRow />
-    </Page>
-  );
-}
-
-/**
- * DELETE: `Delete profile 'name'?  (y/N)`; any other key cancels. The
- * highlight then goes to `next` (the neighbour in the list's order) when
- * it is still there, else the next name A–Z.
- */
-function DeleteFrame(p: { name: string; next?: string | undefined; done: Done }): VNode {
-  const { profiles, settings } = useServices();
-  const nav = useNav();
-  const confirm = async (): Promise<void> => {
-    try {
-      await profiles.remove(p.name);
-      const names = (await profiles.list()).map((r) => r.name);
-      if (settings.get().profile === p.name) settings.update({ profile: DEFAULT_PROFILE });
-      const next =
-        (p.next !== undefined && names.includes(p.next) ? p.next : undefined) ??
-        names.find((n) => compareNames(n, p.name) > 0) ??
-        names[names.length - 1] ??
-        DEFAULT_PROFILE;
-      p.done(next, `Deleted "${p.name}".`);
-      nav.pop();
-    } catch (e) {
-      nav.pop();
-      nav.flash(errText(e), 'fail');
-    }
-  };
-  useKeys((e) => {
-    if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return true;
-    if (e.key === 'y' || e.key === 'Y') void confirm();
-    else nav.pop();
-    return true;
-  });
-  return (
-    <Page
-      title="Delete Profile"
-      footer={[
-        { text: 'Y Confirm', onClick: () => void confirm() },
-        { text: 'any other key Cancel', onClick: () => nav.pop() },
-      ]}
-    >
-      <Centered text={`Delete profile '${p.name}'?  (y/N)`} class="wc-c-active" />
-    </Page>
-  );
-}

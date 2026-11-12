@@ -680,3 +680,49 @@ flip. Lite (Kinds) and Help (Sections) keep their rails.
   test, the editor's `railCur`, and the CSS only Editor's rail used
   (`.wc-pe-rit.is-small`, `.is-note`, `.wc-pe-rempty`). The paragraphs
   above about Editor's rail are superseded.
+
+## Addendum (2026-11-12): the Profile list's prompts in the look kit
+
+On the owner's word: the four prompts of the Profile list (the New /
+Rename name prompt, Blank or Copy, the copy picker, the Delete confirm)
+were the last old-look frames of the start menu, drawn on the cell grid
+between look pages. They are now kit dialogs
+(`src/chrome/frames/profile-dialogs.tsx`), pushed as overlay frames over
+the list like the Scripts page's (ADR 0129), on every device. This
+supersedes ADR 0125's "Sub-frames … are unchanged old-look frames" and
+ADR 0132's note that the name prompt "stays on the cell grid after wave
+2".
+
+- **New** is one overlay frame walking three steps, each a `Dialog` of
+  its own (`data-dlg`): `new` (the name, a `Field`; Next), `new-how`
+  (Blank profile / Copy from existing: rows; B, C, ↑ ↓ + Enter, a click)
+  and `new-copy` (the profiles as a scrolling list; ↑ ↓ wrap, PgUp / PgDn,
+  Home / End, Enter, a click). One frame, so the veil stays while the
+  small box changes. **Rename** is the name step alone (`rename`).
+  **Delete** (`delete`) is y/N as the Scripts page's: Y deletes; N, Enter
+  and any other key, Cancel and a click on the veil cancel.
+- **Changed behaviour:** Esc (and the Back button) in Blank / Copy and in
+  the copy list goes one step back with the typed name kept, instead of
+  leaving the whole flow; Esc at the name cancels. Nothing is created
+  before the last step. While a name check or a create runs, keys are held
+  (a key typed ahead cannot change an already checked name).
+- Unchanged: the keys that open them (N, R, D), Enter confirms, the name
+  rules and their messages (now the dialog's error line), the flashes
+  (`Created "x".`, `Renamed to "x".`, `Deleted "x".`) on the list's flash
+  line, the highlight afterwards, and the keys returning to the list.
+- The name's field is the kit's `Field`, so on a phone it gets the
+  keyboard of our own (ADR 0139) and the dialog stands above it; the list
+  steps and Delete need no keyboard. The copy list gives way first in a
+  low room (the dialog is never higher than the page's box), so the
+  question and Back stay in view.
+- Paper does not apply: the Profile list lives on the start page only,
+  whose sky and boxes stay dark.
+- No start-menu page is old-look any more. The start surface's grid path
+  (`GridFrame`, the TUI notices row) stays for now; the client-notices
+  unit test reaches it by mounting `StartSurface` with a look frame that
+  pushes an ESC menu Options page. The old-look kit's `TextField` is left
+  with one user (the ANSI colour prompt in Options → Appearance).
+- Tests: `profile-dialogs.spec.ts` (Chromium, Firefox),
+  `phone-profile-dialogs.spec.ts` (360 × 800, 320 × 568, 800 × 360), the
+  profile cases of `phone-own-keyboard-pages.spec.ts`. Screenshots:
+  `docs/stages/img/53-p-*.png`.

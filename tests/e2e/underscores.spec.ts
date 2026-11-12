@@ -10,12 +10,11 @@
 // Pixel ratios come from tests/e2e/dpr.ts (Firefox needs a pref for them).
 import { type Locator, type Page, expect, test } from '@playwright/test';
 import { dprTest, expectDpr } from './dpr';
+import { menuFrame, menuTitle, openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 /** Underscores in cells 1 and 3; cell 2 (`h`, no descender) is the background sample. */
 const NAME = 'x_h_two';
-const ABOVE = 'x_h_one';
-const BELOW = 'x_h_zed';
 
 /** DejaVu 15 is the default; Firefox lost the underscores at all four DejaVu sizes before the fix. */
 const LOOKS = [
@@ -74,7 +73,7 @@ async function underscoreInk(page: Page, loc: Locator, needle = 'x_h_'): Promise
   // Text and box in one step: a pane may redraw its rows at any time.
   const { text, x, y } = await loc.evaluate((el) => {
     const r = el.getBoundingClientRect();
-    return { text: el instanceof HTMLInputElement ? el.value : (el.textContent ?? ''), x: r.left, y: r.top };
+    return { text: el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.value : (el.textContent ?? ''), x: r.left, y: r.top };
   });
   const at = text.toLowerCase().indexOf(needle);
   expect(at, `"${needle}" in "${text}"`).toBeGreaterThanOrEqual(0);
@@ -122,50 +121,33 @@ async function expectInk(page: Page, targets: Array<[string, Locator]>, where: s
   }
 }
 
-async function openProfiles(page: Page): Promise<void> {
-  await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await page.evaluate(
-    async ([a, b, c]) => {
-      const p = window.__wc!.shell.profiles;
-      await p.init();
-      for (const n of [a, b, c]) await p.create(n!, '');
-      window.__wc!.settings.update({ profile: b! });
-    },
-    [ABOVE, NAME, BELOW],
-  );
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-hood-t')).toHaveText('Profiles');
-}
-
 for (const dpr of [1, 1.5]) {
   it.describe(`underscores at device pixel ratio ${dpr}`, () => {
     useDpr(dpr);
 
-    // The Profiles list itself is new-look DOM in Cinzel since stage 41
-    // (ADR 0125), not cell-grid rows; the name prompt still is.
-    it('a profile name keeps its underscores in the rename prompt and the name field', async ({ dprPage: page }) => {
-      await openProfiles(page);
+    // The start menu's pages are new-look DOM (the Profile list since stage
+    // 41, ADR 0125; its name prompt since ADR 0128's addendum of 2026-11-12),
+    // not cell-grid rows. The old-look text field that is left is the ANSI
+    // colour prompt of the ESC menu's Options (a phone's): the name is typed
+    // into it (it is no colour; only how the field draws it is tested).
+    it('the old-look text field keeps its underscores', async ({ dprPage: page }) => {
+      await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
+      await openEscOptions(page);
       await expectDpr(page, dpr);
-      await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-pl-row.is-on')).toContainText(NAME);
-      // RENAME: the name in the text field and in the line above it.
-      await page.locator('.wc-start [data-btn="RENAME"]').click();
-      const frame = page.locator('.wc-start .wc-frame:not([hidden])');
-      const field = frame.locator('input.wc-field');
+      await menuFrame(page).locator('.wc-mrow[data-key="appearance"] .wc-label').click();
+      const swatch = menuFrame(page).locator('.wc-pal[data-ansi="9"]');
+      await swatch.click();
+      await expect(swatch).toHaveClass(/is-cursor/);
+      await swatch.click();
+      await expect(menuTitle(page)).toHaveText('─── ANSI 9: bright red ───');
+      const field = menuFrame(page).locator('.wc-field');
+      await field.fill(NAME);
       await expect(field).toHaveValue(NAME);
-      const prompt = frame.locator('.wc-line > span', { hasText: `Rename "${NAME}" to:` });
+      // (The caret would light pixels of its own.)
+      await page.addStyleTag({ content: '.wc-field { caret-color: transparent !important; }' });
       for (const [font, size] of LOOKS) {
         await look(page, font, size);
-        await expectInk(
-          page,
-          [
-            ['name field', field],
-            ['rename prompt', prompt],
-          ],
-          `${font} ${size}`,
-        );
+        await expectInk(page, [['text field', field]], `${font} ${size}`);
       }
       expect(await field.evaluate((el) => el.getBoundingClientRect().height)).toBe(
         await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h'))),
