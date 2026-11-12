@@ -1512,7 +1512,7 @@ export class Cockpit {
       fight: this.pgFight,
       comm: this.pgComm,
       // Comm's least height holds its 40 px reply line at every text size (round 53k).
-      commMin: commMinRows(cell.h, (this.cells.get() as { px?: number }).px ?? 0),
+      commMin: commMinRows(cell.h, this.cells.get().px ?? 0),
       lens: this.lensCells(cell, inputRows * cell.h, bottom > 0 && land),
       ...(bottom > 0 ? { bottom, ...(ask.commKeep ? { commKeep: true } : {}) } : {}),
       ...(ask.hide ? { hide: ask.hide } : {}),
