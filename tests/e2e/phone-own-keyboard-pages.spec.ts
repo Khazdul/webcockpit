@@ -5,7 +5,7 @@
 // - Each kind of one-line field asks the device for no keyboard, a tap (or
 //   the focus a tapped dialog gives it) opens ours, the keys type through
 //   the field's adapter and Enter does what a real Enter does there: new
-//   and rename profile (`TextField`), new and rename script, the export
+//   and rename profile, new and rename script (the look kit's `Field`), the export
 //   title, Lite's pattern, the manual's find, a script setting's value (a
 //   number: the digit row is up), the editors' Find row.
 // - The page ends above the keyboard (a fixed reserve): the field and the
@@ -132,7 +132,7 @@ const scriptNames = (page: Page) => page.evaluate(() => window.__wc!.shell.scrip
 test.describe('portrait 360 × 800, before the game', () => {
   test.use({ viewport: S21 });
 
-  test('rename a profile (the old-look text field): typed on our keys, Enter confirms, the keyboard goes with the field', async ({ page }) => {
+  test('rename a profile (the look kit\'s dialog): typed on our keys, Enter confirms, the keyboard goes with the field', async ({ page }) => {
     const errors = watchErrors(page);
     await openStart(page);
     await addProfile(page, 'hero');
@@ -143,23 +143,27 @@ test.describe('portrait 360 × 800, before the game', () => {
     await row.tap();
     await expectDown(page);
     await row.locator('[data-btn="RENAME"]').tap();
-    await expect(f.locator('.wc-title-row')).toContainText('Rename Profile');
-    const field = f.locator('textarea.wc-field');
+    const dlg = page.locator('.wc-lk-dialog[data-dlg="rename"]');
+    await expect(dlg.locator('.wc-lk-hood-t')).toHaveText('Rename Profile');
+    const field = dlg.locator('input');
     await expectMarked(field);
     // The tap that opened the prompt focused its field: the keyboard is up for it.
     await expect(field).toBeFocused();
     await expectUp(page);
     await expectAbove(page, field);
-    await expectAbove(page, f.locator('.wc-footer-btn', { hasText: 'Enter Confirm' }));
+    for (const b of ['CANCEL', 'OK']) await expectAbove(page, dlg.locator(`[data-btn="${b}"]`));
     await expect(field).toHaveValue('hero');
+    // The whole name is selected (a rename): the first key replaces it.
     // No history here: the keyboard has no history arrows (round 53g).
     for (const a of ['older', 'newer']) await expect(key(page, a)).toHaveCount(0);
-    await type(page, 'back', 'back', 'back', 'back', 'shift', 'b', 'i', 'l', 'b', 'o');
+    await type(page, 'shift', 'b', 'i', 'l', 'b', 'x', 'back', 'o');
     await expect(field).toHaveValue('Bilbo');
     // Text made no key event; Enter is one made-up keydown, taken by the frame as a real one.
     expect(await keys()).toEqual([]);
     await key(page, 'enter').tap();
+    await expect(dlg).toHaveCount(0);
     await expect(f.locator('.wc-lk-hood-t')).toHaveText('Profiles');
+    await expect(f.locator('.wc-lk-flash')).toHaveText('Renamed to "Bilbo".');
     await expect.poll(async () => (await profileNames(page)).filter((n) => n === 'Bilbo' || n === 'hero')).toEqual(['Bilbo']);
     expect(await keys()).toEqual(['Enter:made']);
     // The field is gone: so is the keyboard, at once, with its reserve.
@@ -174,19 +178,41 @@ test.describe('portrait 360 × 800, before the game', () => {
     const f = startFrame(page);
     await f.locator('.wc-sm-item[data-key="profile"]').tap();
     await f.locator('[data-btn="NEW"]').tap();
-    await expect(f.locator('.wc-title-row')).toContainText('Create New Profile');
-    const field = f.locator('textarea.wc-field');
+    const dlg = page.locator('.wc-lk-dialog[data-dlg="new"]');
+    const field = dlg.locator('input');
+    await expectMarked(field);
+    await expect(field).toBeFocused();
     await expectUp(page);
-    await type(page, 'o', 'r', 'c');
+    await expectAbove(page, field);
+    for (const b of ['CANCEL', 'OK']) await expectAbove(page, dlg.locator(`[data-btn="${b}"]`));
+    // A bad name: the message stands above the keys too, and the keyboard stays.
+    await type(page, 'sym', '9', 'sym', 'o');
+    await expect(field).toHaveValue('9o');
+    await key(page, 'enter').tap();
+    await expectAbove(page, dlg.locator('[role="alert"]'));
+    await expect(dlg.locator('[role="alert"]')).toHaveText('The name must start with a letter.');
+    await expectUp(page);
+    await type(page, 'back', 'back', 'o', 'r', 'c');
     await expect(field).toHaveValue('orc');
     await key(page, 'enter').tap();
     // One step on: how the profile starts (blank, or a copy). A second Enter would have gone on from there.
-    await expect(f.getByText('Blank profile').first()).toBeVisible();
+    const how = page.locator('.wc-lk-dialog[data-dlg="new-how"]');
+    await expect(how.getByText('Blank profile')).toBeVisible();
     await expect(field).toHaveCount(0);
     await expectDown(page);
     await frames(page);
-    await expect(f.getByText('Blank profile').first()).toBeVisible();
+    await expect(how.getByText('Blank profile')).toBeVisible();
     expect(await profileNames(page)).not.toContain('orc');
+    // Back: the name again, kept, with the keyboard up for it; then on, and Blank by tap.
+    await how.locator('[data-btn="BACK"]').tap();
+    await expect(field).toHaveValue('orc');
+    await expectUp(page);
+    await key(page, 'enter').tap();
+    await how.locator('.wc-lk-row[data-k="blank"]').tap();
+    await expect(page.locator('.wc-lk-dialog')).toHaveCount(0);
+    await expect(f.locator('.wc-lk-flash')).toHaveText('Created "orc".');
+    expect(await profileNames(page)).toContain('orc');
+    await expectDown(page);
     expect(errors).toEqual([]);
   });
 
@@ -517,13 +543,13 @@ test.describe('portrait 360 × 800, before the game', () => {
     await expect(field).toHaveValue('dev');
     await page.keyboard.press('Escape');
     await expect(field).toHaveCount(0);
-    // The old-look field too.
+    // The Profile list's dialog too.
     await f.locator('.wc-lk-back').first().tap();
     await startFrame(page).locator('.wc-sm-item[data-key="profile"]').tap();
     const row = startFrame(page).locator('.wc-pl-row[data-name="hero"]');
     await row.tap();
     await row.locator('[data-btn="RENAME"]').tap();
-    const old = startFrame(page).locator('textarea.wc-field');
+    const old = page.locator('.wc-lk-dialog[data-dlg="rename"] input');
     await expect(old).toBeFocused();
     expect(await old.getAttribute('inputmode')).toBeNull();
     await expect(page.locator('.wc-okb-page')).toHaveCount(0);
@@ -563,7 +589,7 @@ test.describe('landscape 800 × 360, before the game', () => {
     expect(errors).toEqual([]);
   });
 
-  test('rename a profile: the old-look prompt fits above the keyboard and is not "too small"', async ({ page }) => {
+  test('rename a profile: the dialog, its field and its buttons fit above the keyboard', async ({ page }) => {
     await openStart(page);
     await addProfile(page, 'hero');
     const f = startFrame(page);
@@ -571,12 +597,16 @@ test.describe('landscape 800 × 360, before the game', () => {
     const row = f.locator('.wc-pl-row[data-name="hero"]');
     await row.tap();
     await row.locator('[data-btn="RENAME"]').tap();
-    const field = f.locator('textarea.wc-field');
+    const dlg = page.locator('.wc-lk-dialog[data-dlg="rename"]');
+    const field = dlg.locator('input');
     await expect(field).toBeFocused();
     await expectUp(page);
-    await expect(page.locator('.wc-start')).not.toHaveClass(/is-grid-small/);
+    await expectAbove(page, dlg);
     await expectAbove(page, field);
+    for (const b of ['CANCEL', 'OK']) await expectAbove(page, dlg.locator(`[data-btn="${b}"]`));
     // (The digit row is folded: the symbols' page has the digits as its first row.)
+    // The name is selected: End of the text first (a tap on the field's end would do the same).
+    await field.evaluate((el: HTMLInputElement) => el.setSelectionRange(el.value.length, el.value.length));
     await type(page, 'sym', '2');
     await expect(field).toHaveValue('hero2');
     await key(page, 'enter').tap();

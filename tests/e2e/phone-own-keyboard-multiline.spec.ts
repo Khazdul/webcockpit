@@ -406,12 +406,12 @@ test.describe('portrait 360 × 800', () => {
     await expect(m).toBeVisible();
     await m.locator(':scope > .wc-lk-back').tap();
     await page.locator('.wc-frame:not([hidden]) .wc-lk-back').first().tap();
-    // The old-look prompt (rename a profile).
+    // The rename prompt of a profile (the look kit's dialog since 2026-11-12).
     await startFrame(page).locator('.wc-sm-item[data-key="profile"]').tap();
     const row = startFrame(page).locator('.wc-pl-row[data-name="hero"]');
     await row.tap();
     await row.locator('[data-btn="RENAME"]').tap();
-    const old = startFrame(page).locator('textarea.wc-field');
+    const old = page.locator('.wc-lk-dialog[data-dlg="rename"] input');
     await expect(old).toBeFocused();
     await expectUp(page);
     await key(page, 'esc').tap();

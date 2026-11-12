@@ -393,6 +393,31 @@ moves the caret), script pane fields, key sound.
   CodeMirror (device keyboard until 53h). Screenshots
   `docs/stages/img/53-g-*`.
 
+- **Review of 53g** (fresh subagent; 115 desktop and tablet states
+  compared with the round before: identical; marked keys over a live
+  mock game sent nothing to MUME; the game layout's keys identical but
+  for the backtick): nothing blocking. Handed to 53h: the keyboard
+  still opens before the click for a field the page does not focus on
+  pointerdown (the manual's find; a lost click, a keyboard raised by a
+  tap on blank page); several guards have no failing test (the Esc
+  guards in `hotkeys.ts`, `timers.ts`, `player/view.ts`, the rotation
+  classes, the `.wc-menu-look` bottom rule); New in Lite with the
+  keyboard folded opens none; `scrollTop` 9 at the first line. Not
+  checked: devices, touch selection handles, native undo.
+
+- **Profile prompts in the new look** (branch
+  `stage-53-profile-dialogs`, merged; ADR 0128 addendum; on the
+  owner's word after 53f): New / Rename (name), Blank or Copy, the copy
+  list and Delete are look kit dialogs
+  (`src/chrome/frames/profile-dialogs.tsx`) on every device; the four
+  cell-grid frames are gone from `profiles.tsx`. Changed behaviour: Esc
+  in Blank / Copy and in the copy list goes one step back with the
+  name kept (it left the whole flow before). The other old-look pages
+  (the ESC menu, its Options, Statistics, Exit) are reached only in the
+  old phone layout and go with it (stage 52 file, C). Open: the error
+  line touches the buttons on a landscape phone with the keyboard up
+  (handed to 53h). Screenshots `docs/stages/img/53-p-*`.
+
 ## After the release decision (not deleted yet)
 
 Dead when `?kbd=0` goes:
