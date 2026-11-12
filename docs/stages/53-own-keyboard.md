@@ -168,7 +168,11 @@ moves the caret), script pane fields, key sound.
 - [x] 53b model and editing API
 - [x] 53c the keyboard in the game layout
 - [x] 53d other fields, settings, vibration
-- [ ] 53e finish, test guide, release decision
+- [x] 53e built: the gate flipped (`?kbd=0` keeps the old path), the 53d
+  review findings, key to echo and text speed measured, tests,
+  screenshots, spec §2.12, README, About
+- [ ] 53e test guide, the owner's verdict on the S21, one test on an
+  iPhone, release decision (then the old path is removed)
 
 ## Built
 

@@ -70,6 +70,7 @@ run log player and the old phone layout do not change.
   holds three K keys and the smallest lens (300 px and up), else 36 px.
   The key size setting (`phone.compassSize`) is gone.
 - **Vibration is removed** (`phone.vibrate`, `haptics.ts`).
+  (Superseded by ADR 0138 §7: it is back as a setting, off by default.)
 - The wimpy specials still never send 0 (`change wimpy 0` is wimpy off,
   confirmed by the owner).
 
