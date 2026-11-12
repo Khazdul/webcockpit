@@ -5,7 +5,8 @@
 // mount.
 //
 // - It stands at the bottom of the app box (`deps.root`), in a host of its
-//   own above the start page and the menu's overlay. While it is up the
+//   own above the start page and the menu's overlay (in the page only
+//   while the keyboard is up). While it is up the
 //   page ends above it: `html.wc-okb-pg` and `--wc-okb-page-h` (the
 //   keyboard's height, on the app box) give `.wc-chrome` and `.wc-overlay`
 //   a fixed bottom reserve (phone.css). The page lays itself out in what is
@@ -54,6 +55,9 @@ export const PAGE_POINTER_FOCUS_MS = 700;
 /** What the page must keep above the keyboard, px: under it the digit row gives way, and then the keyboard does not open. */
 export const PAGE_KEEP_PX = 150;
 
+/** The air kept between a revealed field and the edges of what scrolls it, px. */
+const REVEAL_MARGIN_PX = 8;
+
 /** Where a page's fields live: the start page and the menu's overlay (not the cockpit, whose keyboard is the layer's). */
 const PAGE_SCOPE = '.wc-chrome, .wc-overlay';
 
@@ -96,7 +100,7 @@ export interface PageKeyboardDeps {
 }
 
 export interface PageKeyboardHandle {
-  /** The host element (hidden while the keyboard is down). */
+  /** The host element (in the app box only while the keyboard is up). */
   readonly el: HTMLElement;
   readonly open: boolean;
   /** Closes the keyboard; the field keeps the focus unless `blur`. */
@@ -124,6 +128,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   /** A numeric field shows the digit row whatever the stored state, until its key folds it away. */
   let forceDigits = false;
   let reserve = -1;
+  /** A pointer is down anywhere now, and when one was last seen (a focus that follows it is that pointer's). */
+  let down = false;
+  let at = -Infinity;
   // The app box changed size while the keyboard is up (a rotation, the address bar): placed anew.
   // Only the box is watched, and only while open; the reserve does not change its size.
   const RO = win?.ResizeObserver;
@@ -162,7 +169,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     digitsWanted(),
   );
   inner.append(okb.el);
-  root.append(host);
+  // (The host is in the page only while the keyboard is up: `place`, `close`.)
 
   const pageField = (el: Element | null | undefined): TextField | null => {
     if (!el || !isOwnableField(el) || !isMarked(el)) return null;
@@ -172,6 +179,8 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   /** Places the open keyboard for the app box as it is now; closes it where the page has no room for it. */
   function place(): void {
     if (!open) return;
+    if (host.parentNode !== root) root.append(host);
+    host.hidden = false;
     const box = root.getBoundingClientRect();
     const st = win?.getComputedStyle(inner);
     // (The host's inner box keeps out of the safe area at the sides: its width is the keys' room.)
@@ -189,19 +198,41 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
       reserve = plan.height;
       root.style.setProperty('--wc-okb-page-h', `${plan.height}px`);
     }
-    host.hidden = false;
     okb.place({ top: 0, left: plan.left, width: plan.width });
   }
 
-  /** The field is brought into view above the keyboard, once, after the page has laid itself out in what is left. */
+  /**
+   * The field is brought into view above the keyboard, once, after the page
+   * has laid itself out in what is left. Only a scrolling box the page made
+   * (`overflow-y: auto | scroll`) is moved: `scrollIntoView` would also
+   * scroll the clipped boxes around it (the page itself), and the whole
+   * page would slide away under the keyboard.
+   */
   function reveal(f: TextField): void {
     if (!win) return;
     win.requestAnimationFrame(() =>
       win.setTimeout(() => {
         if (!open || field !== f || !f.isConnected) return;
+        const limit = host.getBoundingClientRect().top;
         const r = f.getBoundingClientRect();
-        const top = host.getBoundingClientRect().top;
-        if (r.bottom > top || r.top < 0) f.scrollIntoView({ block: 'nearest' });
+        let top = r.top;
+        let bottom = r.bottom;
+        if (bottom <= limit - REVEAL_MARGIN_PX && top >= 0) return;
+        for (let el = f.parentElement; el && el !== root; el = el.parentElement) {
+          if (el.scrollHeight <= el.clientHeight) continue;
+          const oy = win.getComputedStyle(el).overflowY;
+          if (oy !== 'auto' && oy !== 'scroll') continue;
+          const b = el.getBoundingClientRect();
+          const lo = Math.max(b.top, 0) + REVEAL_MARGIN_PX;
+          const hi = Math.min(b.bottom, limit) - REVEAL_MARGIN_PX;
+          const d = bottom > hi ? bottom - hi : top < lo ? top - lo : 0;
+          if (d === 0) continue;
+          const before = el.scrollTop;
+          el.scrollTop = before + d;
+          const moved = el.scrollTop - before;
+          top -= moved;
+          bottom -= moved;
+        }
       }, 0),
     );
   }
@@ -262,16 +293,18 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     sized?.disconnect();
     okb.place(null);
     host.hidden = true;
+    host.remove();
     html.classList.remove('wc-okb-pg');
     root.style.removeProperty('--wc-okb-page-h');
     reserve = -1;
+    // A focus the page gives a field right after this (a frame taking its focus back) opens nothing: only a new press does.
+    at = -Infinity;
+    down = false;
     deps.onUp?.(false);
     if (blur && typed && doc.activeElement === typed) typed.blur();
   }
 
   const clock = (): number => win?.performance.now() ?? Date.now();
-  let down = false;
-  let at = -Infinity;
   const onDown = (): void => {
     down = true;
     at = clock();

@@ -12,6 +12,8 @@
 //                                                the other fields, the password prompt, the settings)
 //   node scripts/phone-shots.ts 53e final-portrait final-landscape   the keyboard as released (the
 //                                                default gate, no `?kbd=`)
+//   node scripts/phone-shots.ts 53f profile-rename script-name …   states of round 53f (name them:
+//                                                our keyboard on the menu's pages, ADR 0139)
 //
 // Since round 53e our own keyboard is the game layout's by default; the two states that show the
 // device's keyboard (`keyboard`, `comm-keyboard` of stage 51) say `?kbd=0`.
@@ -78,6 +80,12 @@ interface State {
   viewport?: { width: number; height: number };
   /** More of the page's query (`kbd=sv`: our keyboard with that layout; `kbd=0`: the device's keyboard). */
   query?: string;
+  /** The state is on the start page, before any game (stage 53f): the page opens there, not in the offline cockpit. */
+  start?: boolean;
+  /** The page's clock starts the day after the demo backup's runs (they are swept when older than 14 days). */
+  demoClock?: boolean;
+  /** Dark only (no Paper file). */
+  darkOnly?: boolean;
   /** Brings the opened cockpit to the state. */
   run(page: Page): Promise<void>;
 }
@@ -948,6 +956,15 @@ const STATES: State[] = [
         await sixKeys(p);
       }),
   },
+  // Stage 53f (ADR 0139): our keyboard on the pages outside the game layout, one-line fields.
+  // Before the game (the start menu's pages), at the S21's size, Swedish.
+  { name: 'profile-rename', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageProfileRename(page) },
+  { name: 'script-name', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, run: (page) => pageScriptName(page) },
+  { name: 'script-name-land', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScriptName(page) },
+  { name: 'export-title', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, demoClock: true, run: (page) => pageExportTitle(page) },
+  { name: 'setting-number', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageSettingNumber(page) },
+  // Over the game: the profile editor from the game's menu, a new alias's Pattern.
+  { name: 'lite-pattern', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => pageLitePattern(page) },
   {
     name: 'keys-six',
     stage: 52,
@@ -1003,6 +1020,88 @@ async function ownBox(page: Page): Promise<void> {
   await settle(page);
 }
 
+// ---- Stage 53f: our keyboard on the pages (keyboard-pages.ts). A key of it:
+const pageKey = (page: Page, k: string) => page.locator(k.length === 1 ? `.wc-okb-page .wc-ph-okb-k[data-ch="${k}"]` : `.wc-okb-page .wc-ph-okb-k[data-act="${k}"]`);
+const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
+
+async function pageType(page: Page, keys: string[]): Promise<void> {
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  for (const k of keys) await pageKey(page, k).tap();
+  // The page has laid itself out above the keyboard and the field is in view; the start page's
+  // morph into its box (the first look frame opened) has run out.
+  await settle(page);
+  await page.waitForTimeout(1800);
+}
+
+/** Profiles → a profile → Rename: the old-look prompt, a new name typed. */
+async function pageProfileRename(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.create('gimli', '');
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="profile"]').tap();
+  const row = f.locator('.wc-pl-row[data-name="gimli"]');
+  await row.tap();
+  await row.locator('[data-btn="RENAME"]').tap();
+  await pageType(page, ['back', 'back', 'back', 'back', 'back', 'shift', 'g', 'l', 'o', 'i', 'n']);
+}
+
+/** Scripts → New: the look kit's name dialog, a name typed. */
+async function pageScriptName(page: Page): Promise<void> {
+  await page.evaluate(() => window.__wc!.shell.scripts!.init());
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('[data-btn="NEW"]').tap();
+  await page.locator('.wc-lk-dialog[data-dlg="new"] input').waitFor();
+  await pageType(page, ['v', 'ä', 'g', 'v', 'i', 's', 'a', 'r', 'e']);
+}
+
+/** History → a session → Export → Title: the title typed in the foot. */
+async function pageExportTitle(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const lib = await window.__wc!.runs();
+    await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="history"]').tap();
+  const hist = f.locator('.wc-hist');
+  await hist.locator('.wc-lk-tr').nth(1).tap();
+  await hist.locator('.wc-hist-card [data-btn="EXPORT"]').tap();
+  await f.locator('.wc-exp').waitFor();
+  await f.locator('[data-btn="TITLE"]').tap();
+  await f.locator('.wc-exp-file.is-edit input').waitFor();
+  await pageType(page, ['shift', 'm', 'o', 'r', 'i', 'a']);
+}
+
+/** Scripts → a script → a number setting: the value typed, the digit row up for it. */
+async function pageSettingNumber(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const l = window.__wc!.shell.scripts!;
+    await l.init();
+    await l.create('varning', '-- @name     varning\n-- @version  1\n-- @api      1\n-- @setting  warn number 5 0..30 unit min "Warn before the end"\n-- @setting  word string hello "What to say"\n');
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('.wc-scr-row[data-name="varning"] .wc-scr-name').tap();
+  await f.locator('.wc-scr-set[data-set="warn"] .wc-scr-val').tap();
+  await f.locator('.wc-scr-set[data-set="warn"] input.wc-scr-input').waitFor();
+  await pageType(page, ['1', '2']);
+}
+
+/** Over the game: the menu → Profile → Aliases → New, its Pattern typed. */
+async function pageLitePattern(page: Page): Promise<void> {
+  await busy(page);
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="profile"]').tap();
+  const pe = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-pe');
+  await pe.waitFor();
+  await pe.locator('[data-rail="alias"]').tap();
+  await pe.locator('[data-btn="NEW"]').tap();
+  await pe.locator('[data-field="pattern"] input').waitFor();
+  await pageType(page, ['d', 'r', 'ä', 'p', 'space', 'sym', '%', '1']);
+}
+
 /** Settings → Keyboard → Layout: Swedish (the default gate has no `?kbd=sv`). */
 const swedish = (page: Page): Promise<void> => page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { layout: 'sv' } } }));
 
@@ -1033,7 +1132,12 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
   try {
     if (state.live) await live(page, state.query);
-    else {
+    else if (state.start) {
+      // The demo backup's runs are kept only near their own dates (tests/e2e/demo-clock.ts).
+      if (state.demoClock) await page.clock.setSystemTime(new Date(2026, 8, 28, 12, 0, 0));
+      await page.goto(`/?phone=1${state.query ? `&${state.query}` : ''}`);
+      await page.locator('.wc-start .wc-sm-item.is-sel').waitFor();
+    } else {
       await page.goto(`/?replay&phone=1${state.query ? `&${state.query}` : ''}`);
       await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
     }
@@ -1043,7 +1147,7 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
     // Two frames: the cockpit's relayout, then its paint.
     await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
     // The page must still be the one the state was built on (no reload in between).
-    if ((await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').count()) !== 1) throw new Error('the page reloaded');
+    if (!state.start && (await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').count()) !== 1) throw new Error('the page reloaded');
     await page.screenshot({ path: file });
     shrink(file);
     console.log(`  ${file.slice(OUT.length)}  ${(statSync(file).size / 1024).toFixed(0)} kB`);
@@ -1087,7 +1191,7 @@ try {
   await warmUp(browser);
   for (const state of states) {
     console.log(state.name);
-    for (const light of [false, true]) {
+    for (const light of state.darkOnly ? [false] : [false, true]) {
       const file = `${OUT}${stage}-${step}-${state.name}${light ? '-paper' : ''}.png`;
       try {
         await shoot(browser, state, file, light);

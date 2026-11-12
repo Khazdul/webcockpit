@@ -1634,6 +1634,47 @@ html.wc-phone .wc-okb-page .wc-ph-ico {
   stroke-linejoin: round;
 }
 
+/* The start page's almanac stands at the page's bottom edge: hidden while a
+ * field is typed in, as under the device's keyboard (start.css). */
+html.wc-phone.wc-okb-pg .wc-start-almanac {
+  display: none;
+}
+
+/* A low page above the keyboard (a phone on its side): the look kit's
+ * dialog is drawn tighter, so its field and its buttons stand whole above
+ * the keys. The hint under the field gives way; an error still shows. */
+@media (max-height: 480px) {
+  html.wc-phone.wc-okb-pg .wc-lk-dslot {
+    padding: 4px 16px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dwin {
+    padding: 20px 16px 6px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dialog-b .wc-lk-q {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dialog-b .wc-lk-field {
+    margin: 4px 0 0;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dialog-b .wc-lk-fhint {
+    display: none;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dialog-err {
+    min-height: 0;
+    margin: 2px 0 0;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dialog-btns {
+    margin: 6px 0 0;
+  }
+}
+
 /* The reserve: the start page and the menu's overlay end at the keyboard's top edge. */
 html.wc-phone.wc-okb-pg .wc-chrome,
 html.wc-phone.wc-okb-pg .wc-overlay {
