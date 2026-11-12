@@ -685,11 +685,23 @@ Research: `notes/research/import/`. Design: ADR 0073.
 
 Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
 
-- **Gating.** Two flags, decided once at startup: *touch*
-  (`(pointer: coarse) and (hover: none)`) and *phone* (touch and the
-  short screen side under 600 CSS px). `?touch=1` / `?phone=1` force them
-  for development and tests. With both off, no phone code runs and no
+- **Gating.** Three flags, decided once at startup: *touch*
+  (`(pointer: coarse) and (hover: none)`), *phone* (touch and the
+  short screen side under 600 CSS px) and *tablet* (touch and the short
+  side 600 px or more). `?touch=1` / `?phone=1` force the first two
+  for development and tests. With all off, no phone code runs and no
   phone CSS matches: desktop is unchanged.
+- **A tablet uses the phone's layout** (stage 54, ADR 0140): the
+  tablet flag turns the phone flag on, and the phone's game layout and
+  keyboard are used whatever the window's size. Everything this
+  section says of "the phone" holds for a tablet; what this spec says
+  of "desktop and tablet" holds for a tablet only behind
+  `?tablet=desktop` (the desktop cockpit and the device's keyboard, as
+  before). `?tablet=phone` forces the tablet flag on any device.
+  Settings already stored on a tablet are kept as they are. On a
+  window whose short side is 600 px or more the keyboard's keys are
+  larger (letter keys up to 72 px, rows up to 56 px) and its block
+  spans the width.
 - **Touch (part A):** an on-screen menu button replaces Esc (on the phone
   only since stage 30f: a tablet has the menu bar, ADR 0112); every Back /
   Esc footer becomes tappable; taps do not pull focus to the input (no
