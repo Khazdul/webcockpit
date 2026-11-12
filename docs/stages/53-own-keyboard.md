@@ -191,7 +191,9 @@ moves the caret), script pane fields, key sound.
 - [x] 53h CodeMirror editors built
 - [x] 53h the owner's go / no-go on the editors: go
 - [x] 53i device keyboard code removed (built)
-- [ ] 53i review; the owner's release decision
+- [x] 53i review and its fixes; 53j built and reviewed
+- [x] 53k built (fight card, movable lens, four zooms, gold, 53j review)
+- [ ] 53k review; the owner's test and release decision
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
 
@@ -538,6 +540,34 @@ moves the caret), script pane fields, key sound.
   `phone-game-menu` failures are load. Not checked: Android's real
   selection pop-up, IME composition on a kept line, iOS.
 
+- **53k** (owner's items after 53j, plus the 53j review's eight):
+  - *Fight card:* in portrait the order is strip pane, Comm, fight
+    card, game text, so the card always lies under whatever is open at
+    the top. `phone.fightCard` (default on; Settings → Panes) turns it
+    off; off, its updates are not followed.
+  - *Lens:* a finger that travels more than 8 px carries the lens and
+    its keys; a 400 ms hold arms a resize (the rim lights, one
+    vibration if on), dragging away from the centre grows it. 96 px up
+    to the free area. `phone.lens.portrait` / `.landscape` hold the
+    wanted `{x, y, size}`, written only by a drop; what is shown comes
+    each layout from the pure `fitLens` (`src/phone/lens-place.ts`):
+    clamp, shrink, hide under 96 px, and back when the room returns.
+    Settings → Map lens → "Reset place and size". A never-moved lens
+    keeps the old allocator path. The tap is taken at pointer release.
+  - *Zoom:* four levels, 5 / 10 / 20 / 44 rooms across (`z1`…`z4`;
+    stored `near` and `middle` become `z1`, `far` becomes `z2`). The
+    desktop map is unchanged.
+  - *Gold:* `DEFAULT_INPUT_COLOR` is Amber for desktop, tablet and
+    phone (ADR 0035 addendum). Old recordings still play Steel.
+  - *53j review:* all eight fixed. Comm's least height is a pixel
+    floor (7 rows at the default size); at 320 × 480 in a fight the
+    keyboard is refused and the box stays (ADR 0137).
+  - Checks: tsc, vitest 4106, build; phone e2e 429 of 430
+    (`phone-game-panes:194` fails in full runs, passes alone);
+    desktop 893 of 897, the four pass alone. During a lens drag: no
+    layouts, no window sizes. Not exercised: fullscreen; the gesture
+    reader has e2e tests only. Screenshots `img/53-k-*`.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
@@ -739,6 +769,25 @@ Wanted: release or not.
    `docs/stages/img/53-j-plates-land-alternative-not-built.png`.
 
 Wanted: the look of the plates above all; then release or not.
+
+## Test guide 53k (for the owner, S21)
+
+1. Portrait, in a fight, strip pane and Comm both open: the fight card
+   lies under Comm. Settings → Panes → "Fight card while fighting"
+   off: no card.
+2. Drag the lens to a new place. Hold still on it until the rim
+   lights, then drag out and in: larger, smaller. Does the hold time
+   and the direction feel right? A tap still steps the zoom.
+3. Open Comm and drag it down over the lens: the lens shrinks, then
+   hides; close Comm: it is back where and as large as it was dropped.
+4. Rotate: each orientation keeps its own place and size.
+5. Tap through the four zooms, with a small and a large lens.
+6. Settings → Map lens → "Reset place and size".
+7. Type a long password: the bullets stay in the field.
+8. The command text is gold.
+
+Wanted: the feel of moving and resizing, the four zoom steps, then
+release or not.
 
 ## Owner feedback
 
