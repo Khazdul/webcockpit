@@ -17,7 +17,8 @@
 //   section C: both go in a later pass, and this state with them). A
 //   phone with the phone layer has a keyboard of our own on every text
 //   field (ADR 0138, ADR 0139) and the device's never comes up: the shell
-//   turns the state off there (`watchDeviceKeyboard(false)`), so a visible
+//   turns the state off there (`watchDeviceKeyboard(false)`; an old-layout
+//   cockpit on the page holds it on, `holdDeviceKeyboard`), so a visible
 //   area that shrinks for another reason (a split screen, a window made
 //   lower) is laid out as any small screen and is never taken for a
 //   keyboard. `--wc-vv-h` / `--wc-vv-top` are published either way.
@@ -75,6 +76,7 @@ export function phoneViewportMeta(doc: Document = document): void {
 
 let kbd = false;
 let watched = true;
+let holds = 0;
 const appliedFns = new Set<() => void>();
 
 /**
@@ -84,7 +86,30 @@ const appliedFns = new Set<() => void>();
  */
 export function watchDeviceKeyboard(on: boolean, doc: Document | undefined = typeof document === 'undefined' ? undefined : document): void {
   watched = on;
-  if (on || !kbd) return;
+  dropUnwatched(doc);
+}
+
+/**
+ * A cockpit in the old phone layout (the tab strip: the run log player and
+ * Spotlights on a phone, a phone flag forced in a wide window) is on the
+ * page: its pane fields (Comm's search) still get the device's keyboard,
+ * so the state is followed while it lives, whatever the shell said.
+ * Returns the release.
+ */
+export function holdDeviceKeyboard(doc: Document | undefined = typeof document === 'undefined' ? undefined : document): () => void {
+  holds++;
+  let held = true;
+  return () => {
+    if (!held) return;
+    held = false;
+    holds--;
+    dropUnwatched(doc);
+  };
+}
+
+/** No longer followed while set: dropped at once. */
+function dropUnwatched(doc: Document | undefined): void {
+  if (watched || holds > 0 || !kbd) return;
   kbd = false;
   doc?.documentElement.classList.toggle('wc-kbd', false);
 }
@@ -219,7 +244,7 @@ export function installPhoneViewport(win: Window = window): () => void {
       top: vv ? vv.offsetTop : 0,
       tallest: fullscreen ? base.full : base.plain,
     });
-    kbd = watched && area.keyboardUp;
+    kbd = (watched || holds > 0) && area.keyboardUp;
     root.classList.toggle('wc-kbd', kbd);
     root.style.setProperty('--wc-vv-h', `${area.height}px`);
     root.style.setProperty('--wc-vv-top', `${area.top}px`);

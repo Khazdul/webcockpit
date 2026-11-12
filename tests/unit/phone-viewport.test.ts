@@ -5,6 +5,7 @@ import {
   NO_BASELINE,
   VV_SETTLE_MS,
   installPhoneViewport,
+  holdDeviceKeyboard,
   keyboardUp,
   watchDeviceKeyboard,
   landscapeLayout,
@@ -160,6 +161,15 @@ describe('installPhoneViewport', () => {
       f.resize(300);
       settle();
       expect(f.height()).toBe('300px');
+      expect(f.kbd()).toBe(false);
+      expect(keyboardUp()).toBe(false);
+      // An old-layout cockpit on the page (the log player on a phone) holds the state on.
+      const release = holdDeviceKeyboard(f.doc as unknown as Document);
+      f.resize(299);
+      settle();
+      expect(f.kbd()).toBe(true);
+      release();
+      release();
       expect(f.kbd()).toBe(false);
       expect(keyboardUp()).toBe(false);
     } finally {
