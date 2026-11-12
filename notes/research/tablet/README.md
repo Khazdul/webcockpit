@@ -37,3 +37,36 @@ keyboard (ADR 0138), never the device's.
 Questions put to the owner: A or B (or A in landscape and B in
 portrait); the pane set in A; keyboard under the text or full width;
 size and place of the compass and hot keys.
+
+## Round 2 (2026-11-12)
+
+Canvas: "WebCockpit tablet layout, round 2" (claude.ai artifact
+`YHZrfVfDzqD34mtZfY9o7G`). Sources in `round2/canvas/` (8 artboards,
+`canvas.json`, `kit.css`). Written without rendering.
+
+Owner feedback on round 1, the base for round 2 (in full in
+`docs/stages/54-tablet.md`): A in both orientations; a finer look from
+the desktop's panes; Map, Comm and the pane box toggled; the pane box
+swiped, no tabs; pinch zoom on the map; hot keys above the compass;
+compass and hot keys hidden and shown together, their room filled; the
+control always in view, perhaps a group of icons.
+
+What round 2 draws:
+
+- **Five switches** in the command row, right of the field: Map, Panes,
+  Comm, Keys, and fullscreen. A lit icon is on; Comm's carries the
+  unread count while Comm is hidden. Alternative X1: the same group in
+  a slim top bar with the menu key and the clock.
+- **Landscape column:** Map, Comm, then the pane box beside the keys
+  (six hot keys in two rows of three above the compass, 54 px). Keys
+  hidden: the pane box takes the full width. All three panes off: no
+  column, text over the full width, keys over its corner.
+- **Portrait band:** Map, pane box, Comm (rail as icons only). Keys
+  over the text's bottom right corner; hidden: the field runs the full
+  width. Keyboard up: full width, the keys ride above it.
+- **Look:** Lykta frames (iron ring with corner rivets, hood plate,
+  lamp-lit window, glow in the gap), frosted cards.
+
+Questions put to the owner: switches in the command row or the top
+bar; the column's order; keys while typing in portrait; two rows of
+three hot keys.

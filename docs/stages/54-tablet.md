@@ -57,7 +57,8 @@ has been hard to control on an iPad.
 - [x] Trial flag `?tablet=phone`, screenshots and notes (branch `stage-54-tablet`; unit 4126 passed, phone e2e 118, desktop gating e2e 34; full e2e not run)
 - [x] Owner: verdict on round 1 (A, with changes; see feedback)
 - [x] Owner: the trial on the iPad (keyboard stays down; fullscreen flaky)
-- [ ] Mockup round 2 (A refined: toggles, swipe, keys above the compass)
+- [x] Mockup round 2 published (A refined: switches, swipe, keys above the compass)
+- [ ] Owner: verdict on round 2
 - [ ] ADR 0140 and the build rounds
 
 ## Test guide (for now)
