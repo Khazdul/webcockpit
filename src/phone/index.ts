@@ -84,6 +84,8 @@ import type { ScriptPane } from '../panes/script-pane';
 
 export type { PhoneControls, PhoneKit } from './kit';
 export type { PhoneCommandLine } from './keyboard';
+export { mountPageKeyboard } from './keyboard-pages';
+export type { PageKeyboardDeps, PageKeyboardHandle } from './keyboard-pages';
 import type { AppStatusView } from '../app/status';
 import type { SettingsStore } from '../settings';
 import type { LiveRuns } from '../runs/live';
@@ -733,6 +735,11 @@ export class PhoneLayer {
       okb.dispose();
       this.okb = null;
     });
+  }
+
+  /** Closes the game layout's keyboard (the shell: the pages' keyboard came up over the game, ADR 0139 §2). */
+  foldOwnKeyboard(): void {
+    this.closeOwnKeyboard(false);
   }
 
   /** The layout now: the one named in `?kbd=`, else the setting, where `auto` is the browser's language. */

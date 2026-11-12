@@ -43,6 +43,7 @@ import { createContext } from 'preact';
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { noticeIndicators } from '../app/notices';
 import { CLIENT_VERSION } from '../core/build-info';
+import { pageKeyboardUp } from '../core/own-keyboard';
 import { gameTimeAt } from '../gmcp/gametime';
 import { startGameMinutes } from '../start/clock';
 import '../start/geometry.css';
@@ -402,8 +403,11 @@ export function StartSurface(p: StartSurfaceProps): VNode {
     return () => ro.disconnect();
   }, []);
 
-  const lookSmall = size.w > 0 && (size.w < LOOK_MIN.w || size.h < LOOK_MIN.h);
-  const gridSmall = g.cols > 0 && tooSmall(g.cols, g.rows);
+  // Not under our own keyboard (ADR 0139): its reserve is no small window, as the cockpit's guard
+  // is off under the game layout's keyboard. (Never up on a desktop or a tablet.)
+  const kbd = pageKeyboardUp();
+  const lookSmall = !kbd && size.w > 0 && (size.w < LOOK_MIN.w || size.h < LOOK_MIN.h);
+  const gridSmall = !kbd && g.cols > 0 && tooSmall(g.cols, g.rows);
   const paused = covered ? gridSmall : lookSmall;
   // The wordmark's sheen: not while hidden, covered, leaving (Enter MUME) or with reduced motion.
   const run = p.visible && !docHidden && !covered && scenery !== 'large' && !p.leaving && !reducedMotion();

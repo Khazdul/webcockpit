@@ -88,6 +88,7 @@
 import { device, touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
 import type { Sender } from '../core/types';
+import { isOwnKey } from '../core/own-keyboard';
 import { keyNameFromEvent, learnKeyLabel } from '../script/keys';
 
 /** What the input pane needs from the output pane. */
@@ -773,6 +774,8 @@ export class InputPane {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
+    // A key our own keyboard sent to a field of a page (ADR 0139 §4): not the line's, and no physical Enter.
+    if (isOwnKey(e)) return;
     if (e.key === 'Enter') this.enterDown = true;
     // A line taken off the page handles no keys.
     if (e.defaultPrevented || !this.input.isConnected) return;
@@ -857,6 +860,7 @@ export class InputPane {
   }
 
   private readonly onKeyUp = (e: KeyboardEvent): void => {
+    if (isOwnKey(e)) return;
     if (e.key === 'Enter') this.enterDown = false;
     if (e.code === this.deadEcho) this.deadEcho = null;
   };
