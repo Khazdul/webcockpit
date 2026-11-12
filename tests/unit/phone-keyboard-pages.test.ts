@@ -853,9 +853,28 @@ describe('a code editor (round 53h)', () => {
     expect(ups).toEqual([]);
   });
 
-  it('the focus moves between the buffer and a find field of ours with the keyboard up all the way: the target follows, nothing closes', () => {
+  it('the keyboard up for a field elsewhere (the dialog that opens the editor) does not pass to the buffer the frame then focuses', () => {
+    const f = mk('input');
+    tap(f);
+    expect(kb.open).toBe(true);
+    const { content } = mkEditor();
+    // Enter in the dialog: it goes, the editor opens and its frame focuses the buffer.
+    f.remove();
+    content.focus();
+    vi.advanceTimersByTime(100);
+    expect(kb.open).toBe(false);
+    expect(root.style.getPropertyValue('--wc-okb-page-h')).toBe('');
+  });
+
+  it('the focus moves between the buffer and its own find row with the keyboard up all the way: the target follows, nothing closes', () => {
     const { content, line, ed } = mkEditor();
+    // (As CodeMirror has them: the content and the find row inside one `.cm-editor`.)
+    const cm = document.createElement('div');
+    cm.className = 'cm-editor';
+    page.append(cm);
+    cm.append(content);
     const find = mk('input') as HTMLInputElement;
+    cm.append(find);
     tapIn(content, line);
     ups.length = 0;
     // The Find tool: the panel's field takes the focus.
@@ -917,21 +936,17 @@ describe('a code editor (round 53h)', () => {
     expect(code.endsWith('(){}=",')).toBe(true);
     for (const c of '{}[]()="\'#%:,-_+*/\\<>~^|&`') expect(code).toContain(c);
     // Back in a plain field: its own order and no forced row.
-    f.focus();
-    vi.advanceTimersByTime(5);
+    tap(f);
     expect(rows()).toBe(plainRows);
     expect(symbols()).toBe(plain);
     // The row's key folds it for the editors, and it stays folded when the editor is come back to.
-    content.focus();
-    vi.advanceTimersByTime(5);
+    tapIn(content, line);
     expect(rows()).toBe(plainRows + 1);
     press('digits');
     expect(rows()).toBe(plainRows);
     expect(settings.get().phone.keyboard.digits).toBe(false);
-    f.focus();
-    vi.advanceTimersByTime(5);
-    content.focus();
-    vi.advanceTimersByTime(5);
+    tap(f);
+    tapIn(content, line);
     expect(rows()).toBe(plainRows);
     // Its key again is the stored state's, as everywhere.
     press('digits');

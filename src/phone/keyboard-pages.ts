@@ -34,9 +34,10 @@
 //   tap, but Esc. The editor scrolls its own caret into view; this file
 //   only asks it to when the room changed (the keyboard came up, a
 //   rotation). An editor opens the keyboard on a tap in its text, or when
-//   the focus comes to it from another field of ours with the keyboard up
+//   the focus comes to it from its own find row with the keyboard up
 //   (Esc in Find); never because a frame gave it the focus after a tap
-//   elsewhere (opening the editor, Save), so the code can be read first. A
+//   elsewhere (opening the editor, from a dialog with the keyboard up or
+//   not; Save), so the code can be read first. A
 //   read-only buffer is marked (no device keyboard) and opens nothing.
 //   What code needs of the keys: the symbols stand in a code order
 //   (`OKB_SYMBOLS_CODE`), and in portrait the digit row is up for an editor
@@ -232,6 +233,8 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
 
   let open = false;
   let field: PageField | null = null;
+  /** The code editor the field typed in belongs to (its own content, or its find row), or null: kept when the field is gone. */
+  let home: Element | null = null;
   let target: OkbTarget | null = null;
   let watch: MutationObserver | null = null;
   /** A numeric field shows the digit row whatever the stored state, until its key folds it away. */
@@ -466,6 +469,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   function setField(f: PageField): void {
     if (f === field) return;
     field = f;
+    home = f.closest('.cm-editor');
     forceDigits = f.getAttribute('data-okb-kind') === 'digits';
     follow(f);
     const ed = isEditor(f) ? editorOf(f) : null;
@@ -624,11 +628,15 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
       // another field of ours (the keyboard is up) or from our Tab key; not a focus its frame gives
       // it after a tap elsewhere (see the file header).
       const ed = isEditor(f);
+      // (The keyboard is up for the editor's own find row: it stays for the code. Up for a field
+      // elsewhere, a dialog that opened the editor, it does not.)
+      const follows = open && (!ed || (home !== null && home === f.closest('.cm-editor')));
       // The finger is still down, or has lifted and its click is still to come: nothing moves under
       // it (see the file header). The click, or the timer, opens for the field noted.
       if (down || pendingTimer !== null) {
-        if (!ed || open || downOn === f || pending === f) pending = f;
-      } else if (open || now - tabAt < PAGE_POINTER_FOCUS_MS || (!ed && now - at < PAGE_POINTER_FOCUS_MS)) openFor(f);
+        if (!ed || follows || downOn === f || pending === f) pending = f;
+      } else if (follows || now - tabAt < PAGE_POINTER_FOCUS_MS || (!ed && now - at < PAGE_POINTER_FOCUS_MS)) openFor(f);
+      else if (open) close(false);
       return;
     }
     // A text field that is not ours (a multi-line field, an editor's buffer, the game's command

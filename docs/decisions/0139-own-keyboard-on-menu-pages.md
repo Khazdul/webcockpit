@@ -227,3 +227,123 @@ padding.
   when the digit row and the row of page keys give way.
 - `.wc-ck-hex` (the settings popup's colour field) is not marked: the
   popup hangs on the menu bar, which a phone does not have.
+
+## Addendum: as built in round 53h (2026-11-12)
+
+Point 6, and the findings of the review of round 53g. After this round
+no text field a phone user can reach asks the device for its keyboard
+while the gate is on.
+
+**§6 The two CodeMirror buffers** (the script editor, the profile
+editor's Editor view)
+
+- **Marking and registering** (`src/editor/own-keyboard-cm.ts`, in the
+  editor chunk): one extension, empty unless `pageKeyboard()`. On a
+  phone it marks the content element through `contentAttributes`
+  (`inputmode="none"`, `virtualkeyboardpolicy="manual"`,
+  `data-okb-kind="editor"`) and registers the view for that element
+  (`registerOwnEditor`, `src/core/own-keyboard.ts`). The shell hands the
+  pages' mount `ownEditorOf`; the phone chunk imports no CodeMirror and
+  the editor chunk nothing of the phone.
+- **Text** (`typeText`): the `EditorView.inputHandler` handlers first
+  (Lua's bracket and quote closing, the profile editor's `{`), else one
+  transaction, `replaceSelection` with `userEvent: "input.type"` and
+  `scrollIntoView`: completion opens, `indentOnInput` and the case
+  correction run, the caret's line is kept in view by CodeMirror.
+- **Keys:** Enter, Backspace, Tab, Shift+Tab, Esc and the four caret
+  keys are marked key events at the content element (`OwnKey` grew
+  `Backspace` and the arrows). The frame stack hands them to the
+  frame's handler, which runs the buffer's bindings as for a physical
+  key: `closeBlock`, indent and dedent, bracket pair delete and
+  `pairDelete`, completion accept, move and dismiss, snippet fields, the
+  search keys. Backspace and the carets repeat while held. Enter is the
+  newline key (on the press, never held back as a double tap); Esc is
+  still held back for 300 ms after an Enter or Esc to the same field.
+  What a physical key does, ours does: Esc with nothing open closes the
+  script editor (it asks when there are changes) and leaves the profile
+  editor's buffer; Tab in the profile editor's buffer goes to its other
+  zones, and the keyboard goes with the focus.
+- **Opening.** A tap in the text opens it; so does a focus that comes
+  from another field of ours with the keyboard up (Esc in Find) or from
+  our Tab key. A focus the frame gives the buffer after a tap elsewhere
+  (the editor opened, Save, back from the manual) opens nothing: the
+  code is read first. A read-only buffer (a bundled script) is marked
+  and opens nothing. A drag that scrolls the code opens and closes
+  nothing. Selection, the touch handles and paste are the browser's and
+  CodeMirror's.
+- **The find row** is the editor's as far as the keyboard goes: moving
+  between the code and Find or Replace keeps the keyboard, its height
+  and its symbols; Esc in Find returns to the code with it up.
+- **Layout.** The page ends at the keyboard as in 53f, so the buffer's
+  scroller does; the mount only asks the editor to bring its caret into
+  view when the room changed (the keyboard came up, a rotation), and
+  moves nothing of the page for an editor. On a low page (a phone on its
+  side, `max-height: 480px`) what is not code steps aside while the
+  keyboard is up: the box's hood and Back, the script editor's status
+  line, the profile editor's views and foot (eight lines of code show at
+  800 × 360 where four did; the fold key brings them back). The
+  completion list stands alone under our keyboard (its info box had no
+  room and lay over the list); on a low page it shows two rows at a time
+  so it fits above or below the caret's line. A doc plate is never
+  higher than the page. The find row on a phone is three rows instead of
+  five (the arrows and Close beside the field), and on a low page one
+  row each for Find and Replace without their labels.
+- **Characters for code.** For an editor (and its find row) the symbols
+  stand in a code order (`OKB_SYMBOLS_CODE`: `( ) { } = " ,` nearest the
+  thumbs, then `[ ] # % : - _ < > +`), and in portrait the digit row is
+  up whatever the stored state, where the page keeps 360 px above it
+  (not on a 320 × 568 phone): with the row up one symbols page holds
+  everything Lua and the profile syntax need, two taps away (English
+  keeps `@ ! ?` for a second page). The row's key folds it for the
+  editors. In landscape the row follows the stored state, and with it
+  folded `' * / \ ~ ^ $ & |` and the backtick are a third tap away. The
+  game layout and every other field keep their order.
+
+**The sweep.** Reached on a phone and marked: every look kit `Field`
+and `TextArea`, `TextField`, the script setting's input, both
+CodeMirror buffers, and now also the old-look find panel's two inputs
+(`search.ts`, used by no page today). Not marked: the settings popup's
+hex field (`.wc-ck-hex`: the popup hangs on the menu bar, which a phone
+does not have). `<select>`, file and colour inputs stay native.
+
+**When the keyboard opens (corrects the 53g addendum).** Never before
+the tap's click. 53g deferred the opening only while the finger was
+down; a field that takes its focus on the mouse press a phone makes up
+after the lift (every plain field) still opened at once, and the made-up
+release and click were hit-tested on the shrunk page (a lost click, a
+key of ours hit). Now a focus that comes while the finger is down, or
+between its lift and the click, is only noted; the click opens, or
+60 ms after the lift where no click follows. The same holds with the
+keyboard up when the new field would change its height. Checked with a
+finger's real timing (touch start, 90 ms, touch end through CDP).
+
+**Also from the review of 53g.**
+
+- A field that has the focus with the keyboard folded gets the keyboard
+  back when a tap on the page leaves the focus there (Lite's New reuses
+  the focused Pattern field, so no focus event comes). Not for an
+  editor.
+- The first line of a multi-line field shows with the field's own top
+  air: its scroll is 0 (it was 9).
+- Tests for the guards that had none: the log player and a marked key
+  (`player/view.ts`), the `.wc-menu-look` bottom rule, keys to a field
+  that lost the focus (`once()`, Tab). The guards in `hotkeys.ts` and
+  `timers.ts` and the two rotation classes had tests already; each was
+  checked by taking the guard out.
+- Our Tab key's claim on the next focus ends at the fold key.
+
+**A dialog's error line on a low page** (the profile and script name
+dialogs, a phone on its side): it keeps its height (the dialog's window
+is a column that squeezed it under the buttons); the buttons are 34 px
+high there.
+
+**Open.**
+
+- With Paper chosen, the script editor on the start page (always dark)
+  takes Paper's pop-up and tool colours on the dark box: low contrast.
+  Older than this stage and the same on a desktop; not touched here.
+- Undo and redo have no key. Caret up and down in the two editors
+  follow CodeMirror (visual lines), in Lite the text's own lines.
+- Not tried on a device: the touch handles and the paste bubble over a
+  marked CodeMirror, and whether the device's keyboard stays down on a
+  marked `contenteditable` after an app switch.

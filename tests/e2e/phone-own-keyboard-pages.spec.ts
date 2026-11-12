@@ -245,7 +245,7 @@ test.describe('portrait 360 × 800, before the game', () => {
     await key(page, 'enter').tap();
     await expect(page.locator('.wc-frame:not([hidden]) .wc-sed')).toHaveAttribute('data-script', 'my_1a');
     expect(await scriptNames(page)).toContain('my_1a');
-    // The editor's buffer is not ours in this round: our keyboard is down.
+    // The editor opens with its code to be read: our keyboard is down until a tap in the text.
     await expectDown(page);
     expect(errors).toEqual([]);
   });
@@ -363,7 +363,7 @@ test.describe('portrait 360 × 800, before the game', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the script editor: its Find row is ours; the buffer keeps the device\'s keyboard, and the two never stand together', async ({ page }) => {
+  test('the script editor: its Find row is ours, and so is the buffer since round 53h (the keyboard stays up between them)', async ({ page }) => {
     const errors = watchErrors(page);
     await openStart(page);
     await addScript(page, 'phoneed', 'local alpha = 1\nlocal beta = alpha\n');
@@ -374,8 +374,8 @@ test.describe('portrait 360 × 800, before the game', () => {
     const ed = page.locator('.wc-frame:not([hidden]) .wc-sed');
     await expect(ed).toHaveAttribute('data-script', 'phoneed');
     const content = ed.locator('.cm-content');
-    // The buffer is not marked in this round.
-    await expect(content).not.toHaveAttribute('inputmode', 'none');
+    // The buffer is marked too (round 53h; its own flows are in phone-own-keyboard-editors.spec.ts).
+    await expectMarked(content);
     await ed.locator('.wc-sed-tools [data-btn="FIND"], [data-btn="FIND"]').first().tap();
     const find = ed.locator('.wc-lk-search');
     const field = find.locator('input').first();
@@ -390,11 +390,11 @@ test.describe('portrait 360 × 800, before the game', () => {
     await key(page, 'enter').tap();
     await expect.poll(sel).toBe('alpha');
     await expect(field).toBeFocused();
-    // A tap in the buffer: it takes the focus (the device's keyboard), and ours is down at once.
+    // A tap in the buffer: it takes the focus, and our keyboard stays up for it.
     await content.tap();
     await expect(content).toBeFocused();
-    await expectDown(page);
-    // Back in the find field: ours again.
+    await expectUp(page);
+    // Back in the find field: still ours.
     await field.tap();
     await expectUp(page);
     expect(errors).toEqual([]);
