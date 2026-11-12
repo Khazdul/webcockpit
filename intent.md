@@ -118,8 +118,12 @@ reference only.
 
 - Generic MUD client: MUME only.
 - Full play on mobile and tablet. Desktop Firefox and Chrome are the
-  target; phones get the light play of Goal 12, tablets only its touch
-  fixes.
+  target; phones get the light play of Goal 12. Tablets get play in
+  between (owner decision 2026-11-12): better than the phone and clearly
+  below desktop, good enough for an XP session, probably not for PvP,
+  in portrait and landscape alike, with no physical keyboard assumed.
+  iPad is the device it is tested on; Android tablets should work but
+  are not tested by the owner.
 - Import from zMUD/CMUD or other clients than those in Goal 11,
   and of Cockpit's Lua modules.
 - Byte-for-byte tt++ compatibility. tt++ syntax is used in the editor

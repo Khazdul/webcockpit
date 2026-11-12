@@ -1,0 +1,28 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-12T12:00:00Z"},
+  "title": "WebCockpit tablet layout, round 1",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1180, "h": 820, "title": "A1 Fixed column, landscape, fighting"},
+    "A2-land-keyboard.dc.html": {"x": 1260, "y": 0, "w": 1180, "h": 820, "title": "A2 Fixed column, landscape, keyboard up"},
+    "A3-port.dc.html": {"x": 2520, "y": 0, "w": 820, "h": 1180, "title": "A3 Fixed band, portrait, fighting"},
+    "A4-port-keyboard.dc.html": {"x": 3420, "y": 0, "w": 820, "h": 1180, "title": "A4 Fixed band, portrait, keyboard up"},
+    "B1-land.dc.html": {"x": 0, "y": 1620, "w": 1180, "h": 820, "title": "B1 On demand, landscape, walking"},
+    "B2-land-sheet.dc.html": {"x": 1260, "y": 1620, "w": 1180, "h": 820, "title": "B2 On demand, landscape, side sheet open"},
+    "B3-port.dc.html": {"x": 2520, "y": 1620, "w": 820, "h": 1180, "title": "B3 On demand, portrait, pane strip open"}
+  },
+  "order": [
+    "Main.dc.html", "A2-land-keyboard.dc.html", "A3-port.dc.html", "A4-port-keyboard.dc.html",
+    "B1-land.dc.html", "B2-land-sheet.dc.html", "B3-port.dc.html"
+  ],
+  "notes": {
+    "t1": {"x": 0, "y": -320, "text": "A: panes always in view", "kind": "title1", "maxW": 4240},
+    "t2": {"x": 0, "y": 1300, "text": "B: the phone grown up, panes on demand", "kind": "title1", "maxW": 3340},
+    "s1": {"x": -500, "y": 0, "w": 420, "fill": "orange", "text": "A: fixed column (landscape) or fixed band (portrait)\n\nMap, one tabbed pane (Group, Timers, Character, Statistics) and Comm are always on screen in the Lykta frames. Nothing is dragged or floated; a tap on a tab changes the pane.\n\nThe game text keeps about 80 columns. The compass and six hot keys sit bottom right in both orientations, larger than on the phone (54 px).\n\nKeyboard up: the panes do not move, only the text gets shorter. In landscape our keyboard sits under the text only and the compass stays in its corner. In portrait it takes the full width and the compass rides on top of it, as on the phone."},
+    "s2": {"x": -500, "y": 1620, "w": 420, "fill": "teal", "text": "B: the phone layout, grown up\n\nThe text owns the screen. The round map lens (bigger, 230 px) floats over the empty right margin of the text, with its three keys.\n\nLandscape: Group shows as a see-through card under the lens. The pane key opens a side sheet with full panes; Comm opens in the same sheet.\n\nPortrait: as the phone, with the pane strip from the top showing two panes side by side.\n\nMore rows of text than A, but panes cost a tap."},
+    "s3": {"x": -500, "y": 760, "w": 420, "fill": "blue", "text": "Questions for the owner\n\n1. A or B, or A in landscape and B in portrait?\n2. In A: is Map + one tabbed pane + Comm the right set, or should Group and Timers both show at once?\n3. Keyboard: under the text only (as drawn), or the full width of the screen?\n4. Compass and hot keys bottom right: right size, right place for how you hold the iPad?"}
+  },
+  "designSystems": []
+}

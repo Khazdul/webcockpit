@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fixed column, landscape, keyboard up</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kit.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.mapfill,.lens .map{background-image:url(/_blob/294070bccad8a30a76c42d809149f61e)}
+</style>
+</helmet>
+<div class="tb land">
+
+  <!-- left: fight card, game text, command row, our keyboard under the text only -->
+  <div class="col" style="flex: 1">
+    <div class="fight">
+      <div class="l"><div class="n"><span class="wh">You</span></div><span class="bar"><i class="hp" style="width: 74%"></i></span></div>
+      <div class="vs">vs</div>
+      <div class="r"><div class="n" style="justify-content: flex-end"><span class="wh">a half-orc ruffian</span></div><span class="bar"><i class="foe" style="width: 45%"></i></span></div>
+    </div>
+    <div class="gt">
+<pre>The white gravelled road bordered with white stone blocks flows through
+Bree-hill. Round doors of hobbit-holes look out between the hedges, and the
+smoke of many chimneys drifts over the slope.
+<span class="ex">Exits: north, south, east.</span>
+A half-orc ruffian stands here, eyeing your purse.
+Dori the Dwarf arrives from the south.
+Gibur the Dwarf arrives from the south.
+
+*=&gt; <span class="cmd">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="hit">*Throzghul*</span><span class="yell"> yells loudly from the east 'kill them all' in Orkish.</span>
+A citizen mercenary (MERC) heroically rescues Dori.
+<span class="hit">You cleave a half-orc ruffian extremely hard.</span>
+A half-orc ruffian is stunned!
+<span class="yell">Dori narrates 'bashed, hit it now'</span>
+<span class="hit">You slash a half-orc ruffian very hard.</span>
+A half-orc ruffian panics, and attempts to flee.
+
+*= HP:Fine R:Hurt&gt;
+<span class="tell">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="dim">A half-orc ruffian slashes Dori.</span>
+<span class="hit">You pierce a half-orc ruffian hard.</span>
+<span class="hit">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Wounded&gt; </pre>
+    </div>
+    <div class="inrow">
+      <button class="ib" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="field live">tell gibur where are they<span class="caret"></span></div>
+      <button class="ib" aria-label="Fullscreen"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    </div>
+    <div class="kb">
+      <div class="kr"><button class="k">q</button><button class="k">w</button><button class="k">e</button><button class="k">r</button><button class="k">t</button><button class="k">y</button><button class="k">u</button><button class="k">i</button><button class="k">o</button><button class="k">p</button><button class="k">å</button></div>
+      <div class="kr"><button class="k">a</button><button class="k">s</button><button class="k">d</button><button class="k">f</button><button class="k">g</button><button class="k">h</button><button class="k">j</button><button class="k">k</button><button class="k">l</button><button class="k">ö</button><button class="k">ä</button></div>
+      <div class="kr"><button class="k fn w15" aria-label="Shift"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l7 8h-4v7H9v-7H5z"/></svg></button><button class="k">z</button><button class="k">x</button><button class="k">c</button><button class="k">v</button><button class="k">b</button><button class="k">n</button><button class="k">m</button><button class="k fn w15" aria-label="Backspace"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h11v14H9l-6-7zM12 9l5 6M17 9l-5 6"/></svg></button></div>
+      <div class="kr"><button class="k fn" aria-label="Fold the keyboard down"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="11" rx="2"/><path d="M9 19l3 2 3-2"/></svg></button><button class="k fn">!#?</button><button class="k fn">123</button><button class="k">;</button><button class="k sp" aria-label="Space"></button><button class="k">.</button><button class="k fn" aria-label="Older command"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button><button class="k fn" aria-label="Newer command"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button><button class="k ent" aria-label="Enter"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6v7H6M10 9l-4 4 4 4"/></svg></button></div>
+    </div>
+  </div>
+
+  <!-- right: the pane column does not move when the keyboard comes up -->
+  <div class="col" style="width: 380px; flex: none; border-left: 1px solid #5a5148">
+
+    <section class="pane" style="height: 262px; flex: none">
+      <div class="band"><span class="hood cz">Map</span></div>
+      <div class="win">
+        <div class="mapfill"></div>
+        <div class="here"></div>
+        <div class="zoom">
+          <button class="zb" aria-label="Zoom out">&minus;</button>
+          <button class="zb" aria-label="Zoom in">+</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" style="flex: 1">
+      <div class="band">
+        <div class="tabs">
+          <button class="tab on">Group</button>
+          <button class="tab">Timers</button>
+          <button class="tab">Char</button>
+          <button class="tab">Stats</button>
+        </div>
+      </div>
+      <div class="win">
+        <div class="plist" style="padding-top: 10px">
+          <div class="card gm"><span class="nm">You</span><span class="bars"><span class="bar"><i class="hp" style="width: 74%"></i></span><span class="bar"><i class="mn" style="width: 90%"></i></span><span class="bar"><i class="mv" style="width: 62%"></i></span></span></div>
+          <div class="card gm"><span class="nm">Dori</span><span class="bars"><span class="bar"><i class="hp" style="width: 48%"></i></span><span class="bar"><i class="mn" style="width: 100%"></i></span><span class="bar"><i class="mv" style="width: 80%"></i></span></span></div>
+          <div class="card gm"><span class="nm">Gibur</span><span class="bars"><span class="bar"><i class="hp" style="width: 95%"></i></span><span class="bar"><i class="mn" style="width: 35%"></i></span><span class="bar"><i class="mv" style="width: 71%"></i></span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" style="height: 178px; flex: none">
+      <div class="band"><span class="hood cz">Comm</span></div>
+      <div class="win">
+        <div class="comm" style="padding-top: 10px">
+          <div class="chips">
+            <button class="chip">Public</button>
+            <button class="chip on">Group</button>
+            <button class="chip">Gibur <span class="badge">2</span></button>
+          </div>
+          <div class="msgs">
+            <p><b>Dori</b> bashed, hit it now</p>
+            <p><b>Gibur</b> more coming from east</p>
+            <p><b>Dori</b> i can tank one troll</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="deck">
+      <div class="hot">
+        <button class="hk">rcvr</button><button class="hk">wimp</button>
+        <button class="hk">shot</button><button class="hk">bash</button>
+        <button class="hk">resc</button><button class="hk">asst</button>
+      </div>
+      <div class="pad">
+        <button class="key tog" aria-label="Hide hot keys"><span class="kk">K</span></button>
+        <button class="key" aria-label="North">N</button>
+        <button class="key" aria-label="Up">U</button>
+        <button class="key" aria-label="West">W</button>
+        <button class="key" aria-label="Look"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="key" aria-label="East">E</button>
+        <button class="key flee" aria-label="Flee">F</button>
+        <button class="key" aria-label="South">S</button>
+        <button class="key" aria-label="Down">D</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1180,"height":820}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

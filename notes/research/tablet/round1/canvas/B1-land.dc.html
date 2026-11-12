@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>On demand, landscape, walking</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kit.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.mapfill,.lens .map{background-image:url(/_blob/294070bccad8a30a76c42d809149f61e)}
+</style>
+</helmet>
+<div class="tb land" style="flex-direction: column">
+
+  <!-- the text owns the screen; 80 columns leave the right margin free for the lens and the keys -->
+  <div class="gt">
+<pre>*=&gt; <span class="cmd">look</span>
+<span class="room">The Prancing Pony</span>
+The common room of the inn is large and warm. A great fire of logs burns on
+the wide hearth, and the low beams are dark with the smoke of many years.
+Barliman Butterbur hurries between the tables with a tray of mugs.
+<span class="ex">Exits: east, south, up.</span>
+A long oak bench stands by the fire.
+Barliman Butterbur, the innkeeper, is here.
+
+*=&gt; <span class="cmd">east</span>
+<span class="room">The Yard of the Pony</span>
+A cobbled yard lies between the inn and its stables. A lamp swings over the
+arch that leads out to the road.
+<span class="ex">Exits: east, west.</span>
+
+*=&gt; <span class="cmd">east</span>
+<span class="room">Bree Crossroads</span>
+The Great East Road meets the Greenway here, under the shadow of Bree-hill.
+A weathered signpost points in four directions.
+<span class="ex">Exits: north, east, south, west.</span>
+Dori the Dwarf is standing here.
+Gibur the Dwarf is standing here.
+<span class="yell">Dori narrates 'grouping at crossroads, come'</span>
+
+*=&gt; <span class="cmd">follow dori</span>
+You now follow Dori.
+<span class="tell">Gibur tells you 'ready when you are'</span>
+
+*=&gt; <span class="cmd">north</span>
+<span class="room">Hill Road</span>
+The white gravelled road bordered with white stone blocks flows through
+Bree-hill. Round doors of hobbit-holes look out between the hedges, and the
+smoke of many chimneys drifts over the slope.
+<span class="ex">Exits: north, south, east.</span>
+Dori the Dwarf arrives from the south.
+Gibur the Dwarf arrives from the south.
+
+*= HP:Fine&gt; </pre>
+  </div>
+
+  <div class="inrow" style="padding-right: 316px; border-top: 0; background: none">
+    <button class="ib" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <div class="field">Command</div>
+  </div>
+
+  <!-- the lens, bigger than the phone's, with its three keys -->
+  <div class="lw" style="right: 34px; top: 30px">
+    <button class="lens" aria-label="Map. Tap to zoom">
+      <span class="map"></span>
+      <span class="glass"></span>
+      <span class="ring"></span>
+    </button>
+    <button class="sat tl" aria-label="Show panes"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1.5"/><path d="M5 14h14M5 18h14"/></svg></button>
+    <button class="sat tr" aria-label="Fullscreen"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="sat br" aria-label="Open Comm, 2 unread"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg><span class="badge">2</span></button>
+  </div>
+
+  <!-- Group as a see-through card under the lens (landscape only) -->
+  <div class="ghost" style="right: 16px; top: 296px; width: 276px">
+    <div class="gm"><span class="nm">You</span><span class="bars"><span class="bar"><i class="hp" style="width: 100%"></i></span><span class="bar"><i class="mv" style="width: 62%"></i></span></span></div>
+    <div class="gm"><span class="nm">Dori</span><span class="bars"><span class="bar"><i class="hp" style="width: 88%"></i></span><span class="bar"><i class="mv" style="width: 80%"></i></span></span></div>
+    <div class="gm"><span class="nm">Gibur</span><span class="bars"><span class="bar"><i class="hp" style="width: 95%"></i></span><span class="bar"><i class="mv" style="width: 71%"></i></span></span></div>
+  </div>
+
+  <div class="float" style="right: 10px; bottom: 10px">
+    <div class="hot">
+      <button class="hk">rcvr</button><button class="hk">wimp</button>
+      <button class="hk">shot</button><button class="hk">bash</button>
+      <button class="hk">resc</button><button class="hk">asst</button>
+    </div>
+    <div class="pad">
+      <button class="key tog" aria-label="Hide hot keys"><span class="kk">K</span></button>
+      <button class="key" aria-label="North">N</button>
+      <button class="key" aria-label="Up">U</button>
+      <button class="key" aria-label="West">W</button>
+      <button class="key" aria-label="Look"><svg class="ico s" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <button class="key" aria-label="East">E</button>
+      <button class="key flee" aria-label="Flee">F</button>
+      <button class="key" aria-label="South">S</button>
+      <button class="key" aria-label="Down">D</button>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1180,"height":820}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
