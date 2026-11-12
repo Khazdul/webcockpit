@@ -189,7 +189,7 @@ moves the caret), script pane fields, key sound.
 - [x] 53f page mount, one-line fields (built; owner test open)
 - [x] 53g multi-line fields and the new keys (built; owner test open)
 - [x] 53h CodeMirror editors built
-- [ ] 53h the owner's go / no-go on the editors
+- [x] 53h the owner's go / no-go on the editors: go
 - [ ] 53i device keyboard code removed; release decision
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
@@ -678,5 +678,7 @@ away?
   still in the old TUI look, for example creating a new profile; they
   are to be moved to the new graphical look (surveyed; its own work).
 - 2026-11-12, 53g on the S21: feels OK (tested in outline only).
+- 2026-11-12, 53h on the S21: looks OK (tested in outline). **Go on
+  the editors.**
 
 (After each round.)
