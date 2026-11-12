@@ -278,6 +278,66 @@ function judge(found: Finding[], surface: string, theme: Theme, info: TestInfo, 
   expect(bad, `${surface} (${theme}): text under its contrast`).toEqual([]);
 }
 
+/**
+ * The own keyboard's icon keys (shift, backspace, fold, Enter, the history
+ * arrows, space's mark): the icon's colour (the key's `color`, which its
+ * strokes take) against the cap it is drawn on (of a gradient, the stop
+ * that leaves the least contrast). Graphics, not text: WCAG 2's 3:1 for
+ * what is needed to tell a control (1.4.11). `disabled`: a dimmed key
+ * (`aria-disabled`), reported and not failed, as disabled text is.
+ */
+function iconsOf(page: Page): Promise<{ act: string; ratio: number; fg: string; bg: string; disabled: boolean }[]> {
+  return page.evaluate(() => {
+    const rgb = (c: string): [number, number, number] => {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      const x = cv.getContext('2d', { willReadFrequently: true })!;
+      x.fillStyle = c;
+      x.fillRect(0, 0, 1, 1);
+      const d = x.getImageData(0, 0, 1, 1).data;
+      return [d[0]!, d[1]!, d[2]!];
+    };
+    const lum = (c: [number, number, number]): number => {
+      const f = (v: number): number => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+    };
+    const ratio = (a: [number, number, number], b: [number, number, number]): number => {
+      const x = lum(a), y = lum(b);
+      return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+    };
+    const hex = (c: [number, number, number]): string => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    const out: { act: string; ratio: number; fg: string; bg: string; disabled: boolean }[] = [];
+    for (const key of document.querySelectorAll<HTMLElement>('.wc-ph-okb .wc-ph-okb-k')) {
+      const ico = key.querySelector('svg.wc-ph-ico');
+      const cap = key.querySelector('.wc-ph-okb-cap');
+      if (!ico || !cap || key.getBoundingClientRect().width < 1) continue;
+      // The strokes are the key's colour (`currentColor`).
+      const stroke = getComputedStyle(ico).stroke;
+      const fg = rgb(stroke && stroke !== 'none' ? stroke : getComputedStyle(key).color);
+      const cs = getComputedStyle(cap);
+      const stops = cs.backgroundImage !== 'none' ? [...cs.backgroundImage.matchAll(/rgba?\([^)]*\)|color\(srgb[^)]*\)/g)].map((m) => rgb(m[0])) : [];
+      const grounds = stops.length ? stops : [rgb(cs.backgroundColor)];
+      const bg = grounds.reduce((worst, b) => (ratio(fg, b) < ratio(fg, worst) ? b : worst));
+      out.push({ act: key.dataset.act ?? '?', ratio: Math.floor(ratio(fg, bg) * 100) / 100, fg: hex(fg), bg: hex(bg), disabled: key.getAttribute('aria-disabled') === 'true' });
+    }
+    return out;
+  });
+}
+
+/** Fails on an enabled icon key under 3:1; the lowest and the dimmed ones go to the report. */
+function judgeIcons(found: Awaited<ReturnType<typeof iconsOf>>, surface: string, theme: Theme, info: TestInfo, least: number): void {
+  expect(found.length, `${surface} (${theme}): icon keys were measured`).toBeGreaterThanOrEqual(least);
+  const enabled = found.filter((f) => !f.disabled);
+  const lowest = [...enabled].sort((a, b) => a.ratio - b.ratio)[0];
+  if (lowest) info.annotations.push({ type: 'contrast', description: `${surface} (${theme}): ${found.length} icon keys, lowest ${lowest.ratio} (${lowest.act}, ${lowest.fg} on ${lowest.bg})` });
+  for (const f of found.filter((x) => x.disabled))
+    info.annotations.push({ type: 'contrast-disabled', description: `${surface} (${theme}): dimmed key ${f.act} ${f.ratio} (${f.fg} on ${f.bg}), not failed` });
+  expect(enabled.filter((f) => f.ratio < 3).map((f) => `${f.ratio} < 3  ${f.act}  ${f.fg} on ${f.bg}`), `${surface} (${theme}): an icon key under its contrast`).toEqual([]);
+}
+
 async function openPhone(page: Page): Promise<void> {
   await page.goto('/?replay&phone=1');
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
@@ -521,7 +581,7 @@ for (const theme of THEMES) {
       expect(found.some((f) => f.disabled && f.text === 'Not connected')).toBe(true);
       judge(found, 'Comm, reply disabled', theme, info, 3);
     });
-    test('the own keyboard (?kbd=sv): letters, the digit row, symbols, shift once and locked, a pressed key; solid keys', async ({ page }, info) => {
+    test('the own keyboard (?kbd=sv): letters, the digit row, symbols, shift once and locked, a pressed key, the icon keys lit and dimmed; solid keys', async ({ page }, info) => {
       await page.setViewportSize({ width: 360, height: 800 });
       await page.goto('/?replay&phone=1&kbd=sv');
       await expect(page.locator('.wc-ph-pad')).toBeVisible();
@@ -556,6 +616,36 @@ for (const theme of THEMES) {
         el.querySelector('.wc-ph-okb-k[data-act="sym"]')!.classList.add('is-down');
       });
       judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, pressed', theme, info, 31);
+      await okb.evaluate((el) => el.querySelectorAll('.is-down').forEach((k) => k.classList.remove('is-down')));
+      // The icon keys (53e): shift, backspace, the fold key, Enter, space's mark and the two history
+      // arrows (on the bottom row at this width). Lit, in every state of shift.
+      const acts = (f: { act: string }[]): string[] => f.map((x) => x.act).sort();
+      const plain = await iconsOf(page);
+      expect(acts(plain)).toEqual(['back', 'enter', 'fold', 'newer', 'older', 'shift', 'space']);
+      expect(plain.some((f) => f.disabled)).toBe(false);
+      judgeIcons(plain, 'own keyboard, icon keys', theme, info, 7);
+      await key('shift').tap();
+      judgeIcons(await iconsOf(page), 'own keyboard, icon keys, shift', theme, info, 7);
+      await key('shift').tap();
+      await expect(okb).toHaveAttribute('data-shift', 'lock');
+      judgeIcons(await iconsOf(page), 'own keyboard, icon keys, shift locked', theme, info, 7);
+      await key('shift').tap();
+      // Dimmed keys: at a password prompt the line has no history and the arrows are dimmed
+      // (reported, not failed, as every disabled control here). The others stay lit.
+      await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: true }));
+      await expect(key('older')).toHaveAttribute('aria-disabled', 'true');
+      const dimmed = await iconsOf(page);
+      expect(acts(dimmed.filter((f) => f.disabled))).toEqual(['newer', 'older']);
+      judgeIcons(dimmed, 'own keyboard, arrows dimmed', theme, info, 7);
+      // A dimmed arrow is still told from its cap, and from a lit one.
+      for (const f of dimmed.filter((x) => x.disabled)) {
+        expect(f.ratio, `dimmed ${f.act} against its cap`).toBeGreaterThan(1.5);
+        expect(f.fg, `dimmed ${f.act} against the lit colour`).not.toBe(plain.find((x) => x.act === f.act)!.fg);
+      }
+      // The keyboard's texts with the arrows dimmed (the same letters; nothing else changed).
+      judge(await audit(page, ['.wc-ph-okb']), 'own keyboard, arrows dimmed', theme, info, 31);
+      await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: false }));
+      await expect(key('older')).not.toHaveAttribute('aria-disabled');
       // Solid: the band and every cap are opaque, and nothing is filtered.
       const paint = await okb.evaluate((el) => {
         // Computed colours: `rgb(r, g, b)` is opaque, `rgba(r, g, b, a)` has its alpha last.

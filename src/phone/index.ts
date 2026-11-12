@@ -809,11 +809,13 @@ export class PhoneLayer {
    * Follows the field the keys type in, so one that goes away is dropped at
    * once (`dropGoneField`), not at the next key press: Comm or its search
    * closed, the strip's page changed, a script pane's field taken away.
-   * One observer while such a field is the target, on the field's place in
-   * its parent and on its ancestors' own attributes up to the cockpit
-   * (`hidden`, a pane's placing, Comm's `data-search`). Those change when a
-   * surface opens, closes or is laid out; nothing of it runs per line or
-   * per frame, and nothing at all while the command line is the target.
+   * One observer while such a field is the target, on its ancestors up to
+   * the cockpit: their own attributes (`hidden`, a pane's placing, Comm's
+   * `data-search`) and their own children (the field, or the part it is
+   * in, taken out). Those change when a surface opens, closes or is laid
+   * out; the game text is no ancestor of such a field, so nothing of it
+   * runs per line or per frame, and nothing at all while the command line
+   * is the target.
    */
   private watchOkbField(field: TextField | null): void {
     this.okbFieldWatch?.disconnect();
@@ -822,9 +824,11 @@ export class PhoneLayer {
     if (!field || !MO) return;
     const mo = new MO(() => this.dropGoneField());
     const top = this.deps.cockpit.el;
-    if (field.parentNode) mo.observe(field.parentNode, { childList: true });
     mo.observe(field, { attributes: true, attributeFilter: ['hidden', 'disabled', 'readonly', 'style', 'class'] });
-    for (let el = field.parentElement; el && el !== top; el = el.parentElement) mo.observe(el, { attributes: true });
+    // (One `observe` per node: a second one on the same node would replace the first's options.)
+    for (let el = field.parentElement; el && el !== top; el = el.parentElement) mo.observe(el, { attributes: true, childList: true });
+    // A pane taken out of the cockpit whole (a script switched off).
+    mo.observe(top, { childList: true });
     this.okbFieldWatch = mo;
   }
 
