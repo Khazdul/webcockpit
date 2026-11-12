@@ -173,9 +173,9 @@ describe('migrateSettings', () => {
     expect(JSON.stringify(migrateSettings(JSON.parse(JSON.stringify(defaultSettings()))))).toBe(JSON.stringify(defaultSettings()));
   });
 
-  it('appearance defaults (ADR 0078): Hack 17, bold brightens; padding, colours, input colour and scrollback as before', () => {
+  it('appearance defaults (ADR 0078): Hack 17, bold brightens; padding, colours and scrollback as before; the input colour Amber (2026-11-12)', () => {
     const a = DEFAULT_SETTINGS.appearance;
-    expect(a).toMatchObject({ font: 'hack', size: 17, boldBright: true, padding: 0, fg: '#c0c0c0', bg: '#000000', inputColor: 'steel' });
+    expect(a).toMatchObject({ font: 'hack', size: 17, boldBright: true, padding: 0, fg: '#c0c0c0', bg: '#000000', inputColor: 'amber' });
     expect(DEFAULT_SETTINGS.output.scrollback).toBe(20000);
   });
 
@@ -221,14 +221,19 @@ describe('migrateSettings', () => {
     });
   });
 
-  it('input colour: Steel by default and for older data, kept when valid (ADR 0035)', () => {
-    expect(DEFAULT_SETTINGS.appearance.inputColor).toBe('steel');
-    expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance.inputColor).toBe('steel');
-    expect(migrateSettings({}).appearance.inputColor).toBe('steel');
-    expect(migrateSettings({ appearance: { inputColor: 'amber' } }).appearance.inputColor).toBe('amber');
+  it('input colour: Amber (the gold) by default and where none is stored; a stored colour is kept, Steel too (ADR 0035, addendum of 2026-11-12)', () => {
+    expect(DEFAULT_SETTINGS.appearance.inputColor).toBe('amber');
+    expect(phoneDefaultSettings().appearance.inputColor).toBe('amber');
+    // Never chosen (no value stored, or an unreadable one): the gold.
+    expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance.inputColor).toBe('amber');
+    expect(migrateSettings({}).appearance.inputColor).toBe('amber');
+    expect(migrateSettings({ appearance: { inputColor: 'pink' } }).appearance.inputColor).toBe('amber');
+    expect(migrateSettings({ appearance: { inputColor: 3 } }).appearance.inputColor).toBe('amber');
+    // A stored value is kept. Stored Steel cannot be told from a choice of Steel (the whole
+    // appearance is stored with its defaults), so it stays, as every stored look does (ADR 0078).
+    expect(migrateSettings({ appearance: { inputColor: 'steel' } }).appearance.inputColor).toBe('steel');
+    expect(migrateSettings({ appearance: { inputColor: 'sand' } }).appearance.inputColor).toBe('sand');
     expect(migrateSettings({ appearance: { inputColor: 'none' } }).appearance.inputColor).toBe('none');
-    expect(migrateSettings({ appearance: { inputColor: 'pink' } }).appearance.inputColor).toBe('steel');
-    expect(migrateSettings({ appearance: { inputColor: 3 } }).appearance.inputColor).toBe('steel');
   });
 
   it('bold brightens: on by default, off for older data, kept when a boolean (ADR 0060, ADR 0078)', () => {
