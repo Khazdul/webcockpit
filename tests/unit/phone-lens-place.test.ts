@@ -73,6 +73,73 @@ describe('fitLens: the shown lens from the wanted one and the room', () => {
     expect(fitLens(want, land(12), MIN)).toEqual({ left: 100, top: 50, size: 200 });
   });
 
+  // 320 × 568 with our keyboard up (the review of round 53k): the compass's block from x = 186 with
+  // its top at 260, the hot key column's from x = 264 with its top at 134, the command row at 284.
+  const SMALL = (top: number): LensRoom => ({
+    left: 12,
+    top,
+    right: 308,
+    bottom: 272,
+    blocks: [
+      { left: 186, right: 320, top: 260 },
+      { left: 264, right: 320, top: 134 },
+    ],
+  });
+  const BIG = { cx: 0.5422 * 320, cy: 0.5097 * 568, size: 296 };
+
+  it('shrinks no further than it must: a box too narrow to reach a block is not held to that block\'s height', () => {
+    // At the wanted width it reaches the hot keys (118 px of height); at 181 px it ends where their
+    // columns begin, and has the height above the compass (244 px).
+    expect(fitLens(BIG, SMALL(16), MIN)).toEqual({ left: 83, top: 79, size: 181 });
+    // One px wider would reach the hot keys again.
+    expect(fitLens({ ...BIG, size: 182 }, SMALL(16), MIN)).toEqual({ left: 83, top: 79, size: 181 });
+    expect(fitLens({ ...BIG, size: 181 }, SMALL(16), MIN)).toEqual({ left: 83, top: 79, size: 181 });
+    // Left of the hot keys' columns altogether: the whole height above the compass.
+    expect(fitLens({ ...BIG, cx: 130 }, SMALL(16), MIN)).toEqual({ left: 12, top: 16, size: 244 });
+  });
+
+  it('hides only when not even the least size fits: with the strip open the lens above is shown at what fits', () => {
+    // The strip open (the room's top at 88): 172 px above the compass, clear of the hot keys.
+    expect(fitLens(BIG, SMALL(88), MIN)).toEqual({ left: 88, top: 88, size: 172 });
+    // Down to the least size above the compass, and hidden one px later.
+    expect(fitLens(BIG, SMALL(260 - MIN), MIN)).toEqual({ left: 126, top: 260 - MIN, size: MIN });
+    expect(fitLens(BIG, SMALL(260 - MIN + 1), MIN)).toBeNull();
+  });
+
+  it('a size asked for past the limit (a resize) lands on the largest that fits, at 320 × 480 with our keyboard up', () => {
+    // The command row at 196: the compass's top at 172, the hot keys gone (no room for them).
+    const room: LensRoom = { left: 12, top: 16, right: 308, bottom: 184, blocks: [{ left: 186, right: 320, top: 172 }] };
+    for (const size of [157, 200, 296]) expect(fitLens({ cx: 150, cy: 100, size }, room, MIN)).toEqual({ left: 72, top: 16, size: 156 });
+    // Over the hot keys (their top at 100) nothing of the least size fits; the box narrowed to end
+    // left of them does.
+    const hot: LensRoom = { ...room, blocks: [...room.blocks, { left: 264, right: 320, top: 100 }] };
+    expect(fitLens({ cx: 200, cy: 100, size: 200 }, hot, MIN)).toEqual({ left: 136, top: 36, size: 128 });
+  });
+
+  it('the answer is the largest size that fits: one px more does not, at any centre and any room top', () => {
+    const fits = (cx: number, size: number, room: LensRoom): boolean => {
+      const left = Math.round(Math.max(room.left, Math.min(room.right - size, cx - size / 2)));
+      let floor = room.bottom;
+      for (const b of room.blocks) if (b.left < left + size && b.right > left) floor = Math.min(floor, b.top);
+      return size <= room.right - room.left && floor - room.top >= size;
+    };
+    for (let top = 16; top < 200; top += 23) {
+      for (let cx = 0; cx <= 320; cx += 9) {
+        for (const size of [100, 150, 181, 244, 296, 600]) {
+          const room = SMALL(top);
+          const r = fitLens({ cx, cy: 290, size }, room, MIN);
+          let most = 0;
+          for (let s = Math.min(size, 296); s >= MIN && !most; s--) if (fits(cx, s, room)) most = s;
+          expect(r?.size ?? 0, `top ${top} cx ${cx} size ${size}`).toBe(most);
+          if (r) {
+            expect(r.top).toBeGreaterThanOrEqual(room.top);
+            for (const b of room.blocks) if (b.left < r.left + r.size && b.right > r.left) expect(r.top + r.size).toBeLessThanOrEqual(b.top);
+          }
+        }
+      }
+    }
+  });
+
   it('whole px, and never under the least size', () => {
     const s = fitLens({ cx: 100.4, cy: 99.6, size: 150.3 }, open({ top: 16.5 }), MIN)!;
     expect([s.left, s.top, s.size].every(Number.isInteger)).toBe(true);
