@@ -1458,3 +1458,138 @@ test('landscape with the left column open: the column ends above the band, the b
   await type(page, 'ä');
   await expect(field(page)).toHaveValue('ä');
 });
+
+// ------------------------------------------- the review's findings (53b + 53c)
+
+test('no dead zone in the block: the edges of the English second row are `a` and `l`, and a press on the rim or an empty place goes to the nearest key of that row', async ({ page }) => {
+  await openPhone(page, '&kbd=en');
+  await setScreen(page, S21);
+  await openKeyboard(page);
+  const b = await box(block(page));
+  const a = await box(key(page, 'a'));
+  const l = await box(key(page, 'l'));
+  const q = await box(key(page, 'q'));
+  // The caps stand in from the edges as before (half a key), but the keys reach them.
+  expect(a.x).toBeLessThanOrEqual(b.x + 2.5);
+  expect(l.x + l.width).toBeGreaterThanOrEqual(b.x + b.width - 2.5);
+  const cap = await box(key(page, 'a').locator('.wc-ph-okb-cap'));
+  expect(cap.x).toBeGreaterThan(q.x + q.width / 2 - 1);
+  expect(cap.width).toBeCloseTo((await box(key(page, 's').locator('.wc-ph-okb-cap'))).width, 0);
+  const y = a.y + a.height / 2;
+  await page.touchscreen.tap(b.x + 5, y);
+  await expect(field(page)).toHaveValue('a');
+  await page.touchscreen.tap(b.x + b.width - 5, y);
+  await expect(field(page)).toHaveValue('al');
+  // The block's rim (its 2 px of padding): the nearest key of the row at that height.
+  await page.touchscreen.tap(b.x + 0.5, q.y + q.height / 2);
+  await expect(field(page)).toHaveValue('alq');
+  await page.touchscreen.tap(q.x + q.width / 2 + q.width, b.y + 0.5);
+  await expect(field(page)).toHaveValue('alqw');
+  // The symbols' second page has empty places: a press there types the nearest key of its row.
+  // (With the digit row up English has two symbols on its second page: five places are empty.)
+  await type(page, 'digits', 'sym', 'alt');
+  const rows = await rowsOf(page);
+  expect(rows).toHaveLength(5);
+  const third = rows[3]!;
+  const last = [...third.replace(/<[a-z]+>/g, '')].at(-1)!;
+  const lastBox = await box(key(page, last));
+  const back = await box(key(page, 'back'));
+  // (The page is short: its last key is not next to backspace.)
+  expect(back.x - (lastBox.x + lastBox.width)).toBeGreaterThan(8);
+  await page.touchscreen.tap(lastBox.x + lastBox.width + 6, lastBox.y + lastBox.height / 2);
+  await expect(field(page)).toHaveValue(`alqw${last}`);
+  // A press on the band beside the block is no key's (`nearest` answers inside the block only).
+  await setScreen(page, S21_LAND);
+  await expect(okb(page)).toBeVisible();
+  const before = await field(page).inputValue();
+  await okb(page).evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 77, pointerType: 'touch', clientX: r.left + 2, clientY: r.top + r.height / 2 }));
+    el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 77, pointerType: 'touch', clientX: r.left + 2, clientY: r.top + r.height / 2 }));
+  });
+  await frames(page);
+  await expect(field(page)).toHaveValue(before);
+});
+
+test('landscape, 300 to 312 px high: the compass and the hot keys stay inside the band (small keys there)', async ({ page }) => {
+  await openPhone(page, '&kbd=en');
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
+  for (const height of [300, 304, 308, 312, 320, 360]) {
+    await setScreen(page, { width: 800, height });
+    if (!(await okb(page).isVisible())) await openKeyboard(page);
+    await frames(page);
+    const k = await box(okb(page));
+    const p = await box(pad(page));
+    expect(p.y, `${height}: the compass's top`).toBeGreaterThanOrEqual(k.y - 0.5);
+    expect(p.y + p.height, `${height}: the compass's foot`).toBeLessThanOrEqual(height + 0.5);
+    for (const b of await rects(page.locator('.wc-ph-hk'))) {
+      expect(b.top, `${height}: a hot key's top`).toBeGreaterThanOrEqual(k.y - 0.5);
+      expect(b.bottom).toBeLessThanOrEqual(height + 0.5);
+    }
+    // The compass, the columns and the block do not overlap.
+    apart([...(await rects(pad(page))), ...(await rects(page.locator('.wc-ph-hot-col'))), ...(await rects(block(page)))], `${height}: band part`);
+  }
+  // Closed, the keys have the screen's own size again.
+  await setScreen(page, { width: 800, height: 304 });
+  const open = (await box(compass(page, 'north'))).width;
+  await key(page, 'fold').tap();
+  await expect(okb(page)).toBeHidden();
+  const closed = (await box(compass(page, 'north'))).width;
+  expect(closed).toBeGreaterThanOrEqual(open);
+  expect(await page.locator('.wc-ph-layer').evaluate((el) => el.style.getPropertyValue('--ph-ck'))).toBe('');
+});
+
+test('landscape: the block does not move when the K key hides and shows both columns', async ({ page }) => {
+  await openPhone(page, '&kbd=sv');
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
+  await setScreen(page, S21_LAND);
+  await openKeyboard(page);
+  await frames(page);
+  const sizes = await watchSizes(page);
+  const shown = await box(block(page));
+  await expect(hot(page).locator('.wc-ph-hk')).toHaveCount(6);
+  await pad(page).locator('.wc-ph-key.is-tog').tap();
+  await expect(page.locator('.wc-ph-hk:visible')).toHaveCount(0);
+  await frames(page);
+  const hidden = await box(block(page));
+  expect(hidden.x).toBeCloseTo(shown.x, 1);
+  expect(hidden.width).toBeCloseTo(shown.width, 1);
+  await pad(page).locator('.wc-ph-key.is-tog').tap();
+  await expect(page.locator('.wc-ph-hk:visible')).toHaveCount(6);
+  await frames(page);
+  expect((await box(block(page))).x).toBeCloseTo(shown.x, 1);
+  expect(await sizes()).toEqual([]);
+});
+
+test('the safe area: the keys end inside it, and the keyboard\'s ground goes on to the screen\'s edge under it', async ({ page }) => {
+  await openPhone(page, '&kbd=en');
+  await setScreen(page, S21);
+  // An iPhone's home indicator, through CDP (where this Chromium can emulate it).
+  const cdp = await page.context().newCDPSession(page);
+  const ok = await cdp.send('Emulation.setSafeAreaInsetsOverride' as never, { insets: { bottom: 34 } } as never).then(
+    () => true,
+    () => false,
+  );
+  test.skip(!ok, 'this browser cannot emulate safe-area insets');
+  await expect.poll(async () => (await box(page.locator('.wc-cockpit'))).height).toBeLessThan(800);
+  await frames(page);
+  await openKeyboard(page);
+  await frames(page);
+  const k = await box(okb(page));
+  expect(k.y + k.height).toBeCloseTo(800 - 34, 0);
+  for (const b of await keyBoxes(page)) expect(b.bottom).toBeLessThanOrEqual(800 - 34 + 0.5);
+  // The ground behind: from the keyboard's top to the screen's bottom edge, in the keyboard's colour.
+  const ground = await page.evaluate(() => {
+    const cs = getComputedStyle(document.getElementById('app')!, '::after');
+    return { height: parseFloat(cs.height), bottom: cs.bottom, bg: cs.backgroundColor, content: cs.content };
+  });
+  expect(ground.content).not.toBe('none');
+  expect(ground.bottom).toBe('0px');
+  expect(ground.height).toBeCloseTo(k.height + 34, 0);
+  expect(ground.bg).toBe(await okb(page).evaluate((el) => getComputedStyle(el).backgroundColor));
+  // Closed: no ground.
+  await key(page, 'fold').tap();
+  await expect(okb(page)).toBeHidden();
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById('app')!, '::after').content)).toBe('none');
+  await cdp.detach();
+});
