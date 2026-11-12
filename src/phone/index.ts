@@ -1796,7 +1796,7 @@ export class PhoneLayer {
       stripShown && g.stripRange && !land ? { bandTop: (g.strip.y + g.strip.h - 1) * h, rowH: h, rows: g.strip.h, min: g.stripRange.min, max: g.stripRange.max } : null,
     );
     const commShown = this.commOpen && !g.tooSmall && g.comm.h > 0;
-    this.comm.setPhoneOpen(commShown);
+    this.comm.setPhoneOpen(commShown, { keep: g.hidden.comm });
     if (stripShown !== this.stripShown || commShown !== this.commShown) {
       this.stripShown = stripShown;
       this.commShown = commShown;

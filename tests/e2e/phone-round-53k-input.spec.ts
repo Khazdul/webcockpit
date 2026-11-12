@@ -158,3 +158,49 @@ test('a 30 character password at 360x800: the bullets stay in the field, the las
   expect(await kept(page)).toBe(false);
   expect(errors).toEqual([]);
 });
+
+// ------------------------------------------------------- 2. Comm's search
+
+test('Comm\'s search is open with its query when Comm comes back from the hot key box\'s hiding; the Comm key\'s close ends it', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await play(page);
+  await setScreen(page, S21);
+  m.server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'you at the ford?'" }));
+  await sat(page, 'comm').tap();
+  await expect(comm(page)).toBeVisible();
+  const search = comm(page).locator('.wc-cm-sinput');
+  const root = comm(page).locator('.wc-comm');
+  await comm(page).locator('.wc-cm-sbtn').tap();
+  await expect(okb(page)).toBeVisible();
+  await expect(search).toBeFocused();
+  await type(page, 'f', 'o', 'r', 'd');
+  await expect(search).toHaveValue('ford');
+  await expect(comm(page).locator('.wc-cm-results')).toContainText('ford');
+  await key(page, 'fold').tap();
+  await expect(okb(page)).toBeHidden();
+  await expect(search).toHaveValue('ford');
+  // The box takes Comm out for its room; typed in and saved, Comm is back with the search as it was.
+  await hold(page, hk(page, 2));
+  await frames(page);
+  expect((await layout(page)).hidden.comm).toBe(true);
+  await expect(comm(page)).toBeHidden();
+  await command(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await command(page).evaluate((el: HTMLInputElement) => el.setSelectionRange(el.value.length, el.value.length));
+  await type(page, ';', 'k');
+  await key(page, 'enter').tap();
+  await expect(rb(page)).toBeHidden();
+  await expect.poll(async () => (await layout(page)).hidden).toEqual(NONE);
+  await expect(comm(page)).toBeVisible();
+  await expect(search).toHaveValue('ford');
+  await expect(root).toHaveAttribute('data-search', '');
+  await expect(comm(page).locator('.wc-cm-results')).toContainText('ford');
+  // The user's own close (the Comm key) ends the search, as before.
+  await sat(page, 'comm').tap();
+  await expect(comm(page)).toBeHidden();
+  await sat(page, 'comm').tap();
+  await expect(comm(page)).toBeVisible();
+  await expect(search).toHaveValue('');
+  await expect(root).not.toHaveAttribute('data-search');
+  expect(errors).toEqual([]);
+});

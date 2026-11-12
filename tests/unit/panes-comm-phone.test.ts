@@ -171,6 +171,48 @@ describe('CommPane phone mode', () => {
     h.pane.dispose();
   });
 
+  it('a close ends the search; a temporary one (the hot key box took Comm out) keeps it open with its query', () => {
+    const h = setup();
+    h.pane.setPhoneMode(true);
+    h.tell('Gibur', 'at the ford');
+    h.pane.setPhoneOpen(true);
+    h.show();
+    h.flush();
+    const search = h.pane.content.querySelector<HTMLInputElement>('.wc-cm-sinput')!;
+    const ask = (q: string): void => {
+      h.pane.openSearch();
+      search.value = q;
+      search.dispatchEvent(new Event('input'));
+    };
+    ask('ford');
+    expect(h.root().hasAttribute('data-search')).toBe(true);
+    // Taken out for the box's room, and back: the search is as it was, and no view was open meanwhile.
+    h.pane.setPhoneOpen(false, { keep: true });
+    h.hide();
+    expect(search.value).toBe('ford');
+    expect(h.root().hasAttribute('data-search')).toBe(true);
+    const unread = h.pane.unreadCounts().private;
+    h.tell('Gibur', 'still at the ford');
+    expect(h.pane.unreadCounts().private).toBe(unread + 1);
+    h.pane.setPhoneOpen(true, { keep: false });
+    h.show();
+    h.flush();
+    expect(search.value).toBe('ford');
+    expect(h.root().hasAttribute('data-search')).toBe(true);
+    // The user's own close ends it, as before.
+    h.pane.setPhoneOpen(false);
+    expect(search.value).toBe('');
+    expect(h.root().hasAttribute('data-search')).toBe(false);
+    // Closed for good while it was out for the box (the Comm key): the kept search ends too.
+    h.pane.setPhoneOpen(true);
+    ask('ford');
+    h.pane.setPhoneOpen(false, { keep: true });
+    h.pane.setPhoneOpen(false);
+    expect(search.value).toBe('');
+    expect(h.root().hasAttribute('data-search')).toBe(false);
+    h.pane.dispose();
+  });
+
   it('a message in the frame of the close does not mark Public read: nothing is drawn while closed', () => {
     const h = setup();
     h.pane.setPhoneMode(true);
