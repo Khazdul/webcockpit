@@ -1206,6 +1206,23 @@ export class Cockpit {
   }
 
   /**
+   * Phone game layout: what a keyboard that asks for `px(landscape, height)`
+   * would be given on the screen as it is now, px from the bottom edge to
+   * the command row's foot (`ownKeyboardReserve`'s `lift`; 0: no row). The
+   * phone layer asks before it opens its keyboard, so a tap on a screen too
+   * low for it opens nothing (no layout, no window size).
+   */
+  phoneBottomLift(px: (landscape: boolean, height: number) => number): number {
+    if (!this.phoneGame) return 0;
+    const cellH = this.cells.get().h;
+    const W = this.el.clientWidth;
+    const H = this.el.clientHeight;
+    if (!(W > 0 && H > 0 && cellH > 0)) return 0;
+    const win = this.el.ownerDocument.defaultView;
+    return ownKeyboardReserve(H, cellH, px(landscapeLayout(W, H, win ? screenLandscape(win) : null), H), commandRows(cellH)).lift;
+  }
+
+  /**
    * Phone game layout: Comm holds the target of a keyboard of our own (its
    * reply line or its search field is typed in). While the keyboard is
    * open Comm then keeps its least rows as long as anything else can give
@@ -1346,31 +1363,7 @@ export class Cockpit {
     const win = this.el.ownerDocument.defaultView;
     if (!kbd) this.pgLandscape = landscapeLayout(W, H, win ? screenLandscape(win) : null);
     const land = this.pgLandscape;
-    // A keyboard of our own (`setPhoneBottom`): whole rows from the bottom edge, and what they are
-    // on screen (`ownKeyboardReserve`). Portrait: the compass and the hot keys stand on the keyboard's
-    // top edge (the phone layer lifts them), so the limit and the lens's clearance are counted from
-    // there. Landscape: they stand beside the keyboard in its band, and the lens only stays off the
-    // command field.
-    const { bottom, lift } = ownKeyboardReserve(H, cell.h, this.pgBottom ? this.pgBottom(land, H) : 0, inputRows);
-    const limit = typeof this.pgLimit === 'function' ? this.pgLimit(lift, H) : this.pgLimit;
-    const g = allocatePhoneGame({
-      cols: Math.floor(W / cell.w + 1e-6),
-      rows: Math.floor(H / cell.h + 1e-6),
-      inputRows,
-      guard: !kbd,
-      strip: this.pgStrip !== null,
-      stripRows: this.pgStripRows,
-      // Portrait (`setPhoneLimit`): whole rows from the top down to the limit.
-      ...(limit !== null && W <= H ? { maxTop: Math.max(0, Math.floor((H - lift - limit) / cell.h + 1e-6)) } : {}),
-      fight: this.pgFight,
-      comm: this.pgComm,
-      lens: this.lensCells(cell, inputRows * cell.h, bottom > 0 && land),
-      ...(bottom > 0 ? { bottom, ...(this.pgCommKeep ? { commKeep: true } : {}) } : {}),
-      // Landscape: the strip and Comm are one column from the left.
-      ...(land
-        ? { side: { cols: this.pgSideCols, clearRight: Math.max(0, Math.ceil(this.pgSideClear / cell.w - 1e-6)), band: phoneSideBandCols(cell.w) } }
-        : {}),
-    });
+    const g = this.allocPhoneGame(cell, W, H, land, kbd, true);
     this.pgLast = g;
     const panes: PaneBox[] = [];
     if (!g.tooSmall && this.temps.size > 0) {
@@ -1416,6 +1409,55 @@ export class Cockpit {
     }
     this.holes.sync();
     for (const fn of [...this.layoutListeners]) fn();
+  }
+
+  /**
+   * Phone game layout: the allocation for a cockpit of `W` × `H` px, with
+   * the rows of a keyboard of our own (`own`) or as it would be with that
+   * keyboard closed (no reserve, and Comm not kept for it).
+   */
+  private allocPhoneGame(cell: { w: number; h: number }, W: number, H: number, land: boolean, kbd: boolean, own: boolean): PhoneGameResult {
+    const inputRows = commandRows(cell.h);
+    // A keyboard of our own (`setPhoneBottom`): whole rows from the bottom edge, and what they are
+    // on screen (`ownKeyboardReserve`). Portrait: the compass and the hot keys stand on the keyboard's
+    // top edge (the phone layer lifts them), so the limit and the lens's clearance are counted from
+    // there. Landscape: they stand beside the keyboard in its band, and the lens only stays off the
+    // command field.
+    const { bottom, lift } = ownKeyboardReserve(H, cell.h, own && this.pgBottom ? this.pgBottom(land, H) : 0, inputRows);
+    const limit = typeof this.pgLimit === 'function' ? this.pgLimit(lift, H) : this.pgLimit;
+    return allocatePhoneGame({
+      cols: Math.floor(W / cell.w + 1e-6),
+      rows: Math.floor(H / cell.h + 1e-6),
+      inputRows,
+      guard: !kbd,
+      strip: this.pgStrip !== null,
+      stripRows: this.pgStripRows,
+      // Portrait (`setPhoneLimit`): whole rows from the top down to the limit.
+      ...(limit !== null && W <= H ? { maxTop: Math.max(0, Math.floor((H - lift - limit) / cell.h + 1e-6)) } : {}),
+      fight: this.pgFight,
+      comm: this.pgComm,
+      lens: this.lensCells(cell, inputRows * cell.h, bottom > 0 && land),
+      ...(bottom > 0 ? { bottom, ...(this.pgCommKeep ? { commKeep: true } : {}) } : {}),
+      // Landscape: the strip and Comm are one column from the left.
+      ...(land
+        ? { side: { cols: this.pgSideCols, clearRight: Math.max(0, Math.ceil(this.pgSideClear / cell.w - 1e-6)), band: phoneSideBandCols(cell.w) } }
+        : {}),
+    });
+  }
+
+  /**
+   * Phone game layout: the layout as it would be now with the keyboard of
+   * our own closed (nothing is laid out or changed). The phone layer asks
+   * before it folds the keyboard for something that then needs room (the
+   * hot key box). Null before the first layout.
+   */
+  phoneGameLayoutClosed(): PhoneGameResult | null {
+    if (!this.phoneGame || !this.pgLast) return null;
+    const cell = this.cells.get();
+    const W = this.el.clientWidth;
+    const H = this.el.clientHeight;
+    if (!(W > 0 && H > 0 && cell.w > 0 && cell.h > 0)) return null;
+    return this.allocPhoneGame(cell, W, H, this.pgLandscape, keyboardUp(), false);
   }
 
   /** Phone only: the tab strip's label for `tab`. */

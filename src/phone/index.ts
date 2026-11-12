@@ -805,6 +805,13 @@ export class PhoneLayer {
   private openOwnKeyboard(field: TextField | null = null): void {
     const line = this.deps.ownKeyboard;
     if (!this.okb || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
+    // A screen too low for it (a split screen, a window made lower): the tap opens nothing. The
+    // same sum the layout would close it by (`placeOwnKeyboard`), asked before anything moves.
+    if (!this.okbOpen && !this.ownKeyboardFits()) {
+      // (As when a layout closes it: the field does not stay focused with no keyboard to type with.)
+      (field ?? line).blur();
+      return;
+    }
     this.setOkbField(field);
     // The hot key box stays while one of its fields is typed in; for any other field it gives
     // way, unsaved. (After the target: its closing then asks nothing of the keyboard.)
@@ -815,6 +822,13 @@ export class PhoneLayer {
     this.el.ownerDocument.documentElement.classList.add('wc-okb');
     this.reserveOwnKeyboard();
     this.okbReadout?.();
+  }
+
+  /** Whether the screen as it is now has the rows for the keyboard: each of its rows at least `OKB_ROW_LEAST` high. */
+  private ownKeyboardFits(): boolean {
+    const digits = this.deps.settings.get().phone.keyboard.digits;
+    const lift = this.deps.cockpit.phoneBottomLift((landscape, height) => okbHeightPx(landscape, height, digits));
+    return lift > 0 && (lift - 2 * OKB_PAD_Y) / okbRowCount(digits) >= OKB_ROW_LEAST;
   }
 
   /** Asks the cockpit for the keyboard's rows as it stands now (a new function is a new height: one layout). */
@@ -1201,11 +1215,13 @@ export class PhoneLayer {
    * way for it (the lens, our keyboard). One layout read, on a hold only.
    *
    * With our keyboard open the box would fold it and stand beside the
-   * columns, on a screen laid out anew. Portrait: what is above the game
-   * text only grows when the keyboard goes, so no room there as the rows
-   * are now is no room, and the keyboard stays. Else the keyboard folds, as
-   * it does for the box, and the room is judged on the new layout (at once,
-   * not in the next frame: the box must not show first).
+   * columns, on a screen laid out anew. Portrait: the room is judged on
+   * the layout as it would be with the keyboard closed
+   * (`phoneGameLayoutClosed`: Comm and the strip get their rows back
+   * there), so a refused hold leaves the keyboard up. Landscape: the
+   * keyboard folds, as it does for the box, and the room is judged on the
+   * new layout (at once, not in the next frame: the box must not show
+   * first).
    */
   private boxFits(): boolean {
     const { cockpit } = this.deps;
@@ -1213,7 +1229,10 @@ export class PhoneLayer {
     if (!g) return true;
     if (g.tooSmall) return false;
     if (this.okbOpen) {
-      if (!g.landscape && !this.boxFitsAt(g, hotBottom(this.keyPx))) return false;
+      if (!g.landscape) {
+        const closed = cockpit.phoneGameLayoutClosed();
+        if (closed && (closed.tooSmall || !this.boxFitsAt(closed, hotBottom(this.keyPx)))) return false;
+      }
       this.closeOwnKeyboard();
       this.swallowClick();
       cockpit.relayoutNow();
