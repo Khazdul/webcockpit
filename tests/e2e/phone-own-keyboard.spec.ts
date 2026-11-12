@@ -1413,13 +1413,13 @@ test('the symbols page: the same rows, every symbol typed, the digits as its fir
   await expect(key(page, 'alt')).toHaveText('1/2');
   await key(page, 'alt').tap();
   await expect(key(page, 'alt')).toHaveText('2/2');
-  expect((await rowsOf(page)).slice(0, 3)).toEqual(['1234567890', '>~^|', '<alt>{}[]+=<<back>']);
-  await type(page, '{', '}', '|', '<', '>');
-  await expect(field(page)).toHaveValue(`${typed.join('')}{}|<>`);
+  expect((await rowsOf(page)).slice(0, 3)).toEqual(['1234567890', '>~^|`', '<alt>{}[]+=<<back>']);
+  await type(page, '{', '}', '|', '<', '>', '`');
+  await expect(field(page)).toHaveValue(`${typed.join('')}{}|<>\``);
   await key(page, 'alt').tap();
   await expect(key(page, 'alt')).toHaveText('1/2');
   // Backspace and Enter work here as on the letters; the page stays until its key is tapped.
-  await type(page, 'back');
+  await type(page, 'back', 'back');
   await expect(field(page)).toHaveValue(`${typed.join('')}{}|<`);
   await expect(okb(page)).toHaveAttribute('data-page', 'symbols');
   await key(page, 'sym').tap();

@@ -187,9 +187,9 @@ padding.
 - **Esc:** a marked `Escape` key event at the field, on the click. It
   does what a real Esc does there: one press closes the look kit's dialog
   and the old-look prompt, cancels the export title and comment and a
-  script setting's edit; in a look frame's own field (the manual's find,
-  Lite's fields) it leaves the field, as the frame stack's rule says, and
-  a second Esc would go back. The keyboard goes with the field (it was
+  script setting's edit; in the manual's find it leaves the field (the
+  frame stack's rule; a second Esc would go back), and in Lite's fields
+  it goes back to the list. The keyboard goes with the field (it was
   removed, or lost the focus) and leaves no reserve.
 - **Tab:** a marked `Tab` key event (`shiftKey` when shift is on, which
   is then used up). The profile editor cycles its zones: pattern to body
