@@ -15,7 +15,6 @@
 //   reader's or a keyboard's activation) sends too.
 // - The cell left of N is the hot keys' K key (hotkeys.ts puts it there; it
 //   has no command, so nothing here sends for it).
-// - Hidden while the on-screen keyboard is up (phone.css, `html.wc-kbd`).
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 /** The eye (look): the mockups' icon, 24 × 24. */

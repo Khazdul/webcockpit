@@ -584,41 +584,6 @@ for (const viewport of SCREENS) {
       expect(errors).toEqual([]);
     });
 
-    test('the keyboard up: the command field and the game text stay; Comm keeps its column while its reply is typed in', async ({ page }) => {
-      // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
-      const server = await enterMock(page, '&kbd=0');
-      server().send(tell('Gibur', 'you at the ford?'));
-      await sat(page, 'panes').tap();
-      await expect(stripPane(page)).toHaveCount(1);
-      await sat(page, 'comm').tap();
-      await expect(comm(page)).toBeVisible();
-      await comm(page).locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
-      const reply = comm(page).locator('.wc-cm-rinput');
-      await reply.tap();
-      const kb = 170;
-      await page.setViewportSize({ width: viewport.width, height: kb });
-      await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-      await frames(page);
-      const g = await layout(page);
-      // Still the landscape arrangement, and Comm is there with its reply line on screen (the strip
-      // gave way to it: beside the strip Comm would not hold its head, chat and reply line here).
-      expect(g.landscape).toBe(true);
-      expect(g.comm.h).toBeGreaterThanOrEqual(4);
-      await expect(reply).toBeVisible();
-      const rb = (await reply.boundingBox())!;
-      expect(rb.y + rb.height).toBeLessThanOrEqual(kb + 0.5);
-      // The command field and at least two rows of game text beside it.
-      const field = (await page.locator('.wc-cockpit > .wc-input-slot > .wc-input').boundingBox())!;
-      expect(field.y + field.height).toBeLessThanOrEqual(kb + 0.5);
-      expect(g.game.h).toBeGreaterThanOrEqual(2);
-      // Nothing stored changed, and all is back when the keyboard goes.
-      const p = await phone(page);
-      expect([p.sideCols, p.commRows, p.stripRows]).toEqual([null, null, null]);
-      await page.setViewportSize(viewport);
-      await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-      await expect(stripPane(page)).toHaveCount(1);
-      await expect(comm(page)).toBeVisible();
-    });
   });
 }
 
@@ -740,13 +705,11 @@ test.describe('a phone held upright whose visible area is wider than tall (the k
   // Playwright's emulated screen follows the viewport, so the device's answer is put in its place.
   test.use({ viewport: { width: 360, height: 300 } });
 
-  test('the screen says portrait: the layout is portrait, with the small keys, though the keyboard is not known to be up', async ({ page }) => {
+  test('the screen says portrait: the layout is portrait, with the small keys, in a window wider than tall (a split screen)', async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(screen, 'orientation', { configurable: true, value: { type: 'portrait-primary', angle: 0, addEventListener() {}, removeEventListener() {} } });
     });
     await openPhone(page);
-    // Nothing told the app the keyboard is up: this height is the tallest it has seen at this width.
-    await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
     await frames(page);
     const g = await layout(page);
     expect(g.landscape).toBe(false);
@@ -791,8 +754,9 @@ test.describe('turning the phone', () => {
     // The dots sit on the strip's band in portrait.
     await expect(page.locator('.wc-ph-strip-band .wc-ph-strip-dots')).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip-band')).toBeVisible();
-    // No Comm hood in portrait.
-    await expect(page.locator('.wc-ph-comm-head')).toBeHidden();
+    // Comm's hood in portrait too (round 53i), without the landscape divider.
+    await expect(page.locator('.wc-ph-comm-head')).toBeVisible();
+    await expect(page.locator('.wc-ph-comm-head')).not.toHaveAttribute('data-divided');
     // Turned: both still open, now the column at its own stored width.
     await page.setViewportSize(LANDSCAPE);
     await expect.poll(async () => (await layout(page)).landscape).toBe(true);
@@ -815,12 +779,16 @@ test.describe('turning the phone', () => {
     await expect.poll(async () => (await layout(page)).landscape).toBe(false);
     await expect(stripPane(page)).toHaveCount(0);
     await expect(comm(page)).toBeVisible();
+    // (Polled: until the visible area's new height is published, 150 ms after the turn, the page
+    // is laid out at the new width and the old height, where Comm has fewer rows.)
+    await expect.poll(async () => (await layout(page)).comm.h).toBe(9);
     g = await layout(page);
     expect([g.comm.h, g.comm.w, g.comm.x, g.game.x]).toEqual([9, g.cols, 0, 0]);
     await expect.poll(keySize).toBe(36);
     await expect(sideBand(page)).toBeHidden();
     await expect(page.locator('.wc-ph-comm-band')).toBeVisible();
-    await expect(page.locator('.wc-ph-comm-head')).toBeHidden();
+    await expect(page.locator('.wc-ph-comm-head')).toBeVisible();
+    await expect(page.locator('.wc-ph-comm-head .wc-ph-side-rule')).toBeHidden();
     const p = await phone(page);
     expect([p.commRows, p.stripRows, p.sideCols]).toEqual([9, 7, 33]);
     expect(errors).toEqual([]);

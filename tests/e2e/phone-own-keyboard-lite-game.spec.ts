@@ -195,3 +195,83 @@ for (const [name, viewport] of [
     });
   });
 }
+
+// Round 53i (a test gap of the 53h review): a code editor opened from the game's menu.
+test.describe('in the game, a script edited from the menu (360 × 800)', () => {
+  test.use({ viewport: S21 });
+
+  test('menu → Scripts → Edit: the page\'s keyboard types in the code, nothing reaches MUME, and the game\'s keyboard works after', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    const server = await play(page);
+    const got: string[] = [];
+    server().onMessage((m) => got.push(typeof m === 'string' ? m : m.toString('latin1')));
+    await page.evaluate(async () => {
+      const l = window.__wc!.shell.scripts!;
+      await l.init();
+      await l.create('gameed', '-- @name     gameed\n-- @version  1\n-- @api      1\n');
+    });
+    // The game's own keyboard is up when the menu is opened: the menu folds it.
+    const line = page.locator('.wc-input-slot .wc-input-field');
+    await line.tap();
+    await expect(page.locator('.wc-cockpit .wc-ph-okb')).toBeVisible();
+    const sizes: string[] = [];
+    await page.exposeFunction('__size', (v: string) => void sizes.push(v));
+    await page.locator('.wc-ph-menu').tap();
+    await expect(page.locator('.wc-cockpit .wc-ph-okb')).toBeHidden();
+    // (The game's keyboard closing is one window size, told a frame or two later: counted from after it.)
+    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const s = window.__wc!.app.session;
+      const set = s.setWindowSize.bind(s);
+      s.setWindowSize = (c: number, r: number) => {
+        void (window as unknown as { __size(v: string): void }).__size(`${c}x${r}`);
+        set(c, r);
+      };
+    });
+    await page.locator('.wc-ph-sheet [data-row="scripts"]').tap();
+    const f = page.locator('.wc-overlay .wc-frame:not([hidden])');
+    await f.locator('.wc-scr-row[data-name="gameed"] .wc-scr-name').tap();
+    await f.locator('[data-btn="EDIT"]:visible').first().tap();
+    const sed = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-sed');
+    await expect(sed).toHaveAttribute('data-script', 'gameed');
+    const content = sed.locator('.cm-content');
+    await expect(content).toHaveAttribute('inputmode', 'none');
+    // Opened: no keyboard yet. A tap in the code brings the page's.
+    await expectDown(page);
+    const last = await sed.locator('.cm-content .cm-line').last().boundingBox();
+    await page.touchscreen.tap(last!.x + last!.width - 4, last!.y + last!.height / 2);
+    await expectUp(page);
+    await expect(content).toBeFocused();
+    for (const k of ['enter', 'l', 'o', 'o', 'k', 'enter']) await key(page, k).tap();
+    await expect(sed.locator('.cm-content .cm-line', { hasText: /^look$/ })).toHaveCount(1);
+    // Enter in the code is a line break, not a command: nothing went to MUME, the line is empty.
+    await page.waitForTimeout(300);
+    expect(got.join('')).not.toContain('look');
+    await expect(line).toHaveValue('');
+    // The caret's line is above the keyboard.
+    const k = (await host(page).boundingBox())!;
+    const a = (await sed.locator('.cm-activeLine').boundingBox())!;
+    expect(a.y + a.height).toBeLessThanOrEqual(k.y + 0.5);
+    // Save, then Esc on our keys: back to the list (no changes left), the keyboard gone with the buffer.
+    await sed.locator('.wc-sed-tools [data-btn="SAVE"]').tap();
+    await expect.poll(() => page.evaluate(() => window.__wc!.shell.scripts!.get('gameed')!.source)).toContain('look');
+    await key(page, 'esc').tap();
+    await expect(sed).toHaveCount(0);
+    await expectDown(page);
+    // No window size was sent for the page's keyboard.
+    expect(sizes).toEqual([]);
+    // Back in the game: its own keyboard opens and sends.
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.wc-overlay .wc-frame:not([hidden])')).toHaveCount(0);
+    if (await page.locator('.wc-ph-sheet').isVisible()) await page.keyboard.press('Escape');
+    await line.tap();
+    const own = page.locator('.wc-cockpit .wc-ph-okb');
+    await expect(own).toBeVisible();
+    await own.locator('.wc-ph-okb-k[data-ch="l"]').tap();
+    await own.locator('.wc-ph-okb-k[data-act="enter"]').tap();
+    await expect.poll(() => got.join('')).toContain('l\r\n');
+    expect(errors).toEqual([]);
+  });
+});

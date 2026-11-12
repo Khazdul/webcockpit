@@ -24,11 +24,12 @@
 // there.
 
 /**
- * Landscape (stage 52e): Comm's head in the left column. A hood with its
- * name, as the strip has one, so the column's lower pane reads as a pane;
- * and, when the strip is open above it, an iron divider in the bands' look
- * that the hood hangs from (no grip: it is not dragged). The cockpit leaves
- * Comm's first rows to it (`phoneCommHeadRows`). Not shown in portrait.
+ * Comm's head (landscape: stage 52e; portrait: round 53i, on the owner's
+ * word). A hood with its name, as the strip has one, so Comm reads as a
+ * pane; and in landscape, when the strip is open above it in the left
+ * column, an iron divider in the bands' look that the hood hangs from (no
+ * grip: it is not dragged). The cockpit leaves Comm's first rows to it
+ * (`phoneCommHeadRows`), as it leaves the strip's first rows to its hood.
  */
 export class CommHead {
   readonly el: HTMLDivElement;

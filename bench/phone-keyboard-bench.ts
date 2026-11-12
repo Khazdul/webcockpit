@@ -11,19 +11,21 @@
 // ratio 3, mobile + touch, `?bench&phone=1`) with the CPU throttled 4×
 // (CDP `Emulation.setCPUThrottlingRate`; `--throttle 1` turns it off).
 //
-// Three ways a character reaches the field:
+// Our keyboard is the phone's only one since round 53i (`?kbd=0` is gone),
+// so the rows that measured the device keyboard's path on a page without
+// ours (`Input.insertText` and a key event with `?kbd=0`, and the diag row
+// with a finger on a compass key) can no longer be run: their numbers of
+// round 53e stay in bench/results/phone-53-keyboard.md as history. What is
+// left:
 //
 // - **own**: a real touch (CDP `Input.dispatchTouchEvent`) on a letter key
 //   of our keyboard. Start: the `pointerdown`.
-// - **device (insertText)**: `?kbd=0`, the field focused, the text committed
-//   as an IME does it (CDP `Input.insertText`: a native `beforeinput` and
-//   `input`). Start: the `beforeinput`. What the device's keyboard itself
-//   takes before it commits (its own touch handling, prediction, the IPC to
-//   the browser) is NOT in this number and cannot be had here: the row is a
-//   lower bound for the device's path.
-// - **key event**: `?kbd=0`, a physical key (CDP `Input.dispatchKeyEvent`:
-//   `keydown`, `beforeinput`, `input`). Start: the `keydown`. The path of a
-//   hardware keyboard, for reference.
+// - **key event**: a physical key (CDP `Input.dispatchKeyEvent`: `keydown`,
+//   `beforeinput`, `input`) with our keyboard open. Start: the `keydown`.
+//   The path of a hardware keyboard, for reference.
+// - `--diag`: the same key of ours pressed with a mouse pointer, and text
+//   committed as an IME does it (CDP `Input.insertText`) with our keyboard
+//   open (in round 53e level with the device path's row).
 //
 // For each, per key:
 //
@@ -97,21 +99,17 @@ const flagsText = argv.length ? argv.join(' ') : '(none)';
 const PHONE: Geometry = { width: 360, height: 800, dpr: 3 };
 const TARGET = process.env.WC_BENCH_GPU === '0' ? 'chromium' : 'chromium-gpu';
 
-type Mode = 'own' | 'insert' | 'key' | 'own-mouse' | 'own-insert' | 'touch-insert';
+type Mode = 'own' | 'key' | 'own-mouse' | 'own-insert';
 type Cond = 'idle' | 'burst';
-/** `--diag`: three more rows that tell the page's part from the input pipeline's (see the report). */
+/** `--diag`: two more rows that tell the page's part from the input pipeline's (see the report). */
 const DIAG = argv.includes('--diag');
-const MODES: Mode[] = ['own', 'insert', 'key', ...(DIAG ? (['own-mouse', 'own-insert', 'touch-insert'] as Mode[]) : [])];
+const MODES: Mode[] = ['own', 'key', ...(DIAG ? (['own-mouse', 'own-insert'] as Mode[]) : [])];
 const MODE_NAME: Record<Mode, string> = {
   own: 'our keyboard (touch on a key)',
-  insert: 'device path (`Input.insertText`, `?kbd=0`)',
-  key: 'key event (`Input.dispatchKeyEvent`, `?kbd=0`)',
+  key: 'key event (`Input.dispatchKeyEvent`, our keyboard open)',
   'own-mouse': 'diag: our keyboard, the key pressed with a mouse pointer',
   'own-insert': 'diag: our keyboard open, the text by `Input.insertText`',
-  'touch-insert': 'diag: `?kbd=0`, `Input.insertText` 3 ms after a finger went down on a compass key',
 };
-/** The page has our keyboard (else `?kbd=0`). */
-const ours = (m: Mode): boolean => m === 'own' || m === 'own-mouse' || m === 'own-insert';
 /** The character comes from a press on one of our keys (else from an input event). */
 const pressed = (m: Mode): boolean => m === 'own' || m === 'own-mouse';
 
@@ -144,7 +142,7 @@ async function open(t: Target, base: string, mode: Mode): Promise<{ page: Page; 
   const ctx = await t.browser.newContext({ viewport: { width: PHONE.width, height: PHONE.height }, deviceScaleFactor: PHONE.dpr, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('pageerror:', e.message));
-  await page.goto(`${base}/?bench&phone=1${ours(mode) ? '' : '&kbd=0'}`);
+  await page.goto(`${base}/?bench&phone=1`);
   await page.waitForFunction(() => window.__wcBench !== undefined && window.__wcBench.app !== null);
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await page.waitForFunction(() => document.querySelector('.wc-cockpit[data-phone-game] > .wc-ph-layer') !== null, undefined, { timeout: 15_000 });
@@ -168,8 +166,7 @@ async function open(t: Target, base: string, mode: Mode): Promise<{ page: Page; 
   const pt = { x: f.x + f.width / 2, y: f.y + f.height / 2, id: 0 };
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  if (ours(mode)) await page.locator('.wc-ph-okb').waitFor({ state: 'visible' });
-  else if (await page.evaluate(() => document.querySelector('.wc-ph-okb') !== null)) throw new Error('?kbd=0 still has our keyboard');
+  await page.locator('.wc-ph-okb').waitFor({ state: 'visible' });
   await page.waitForFunction(() => document.activeElement?.classList.contains('wc-input-field') === true);
   await page.evaluate(() => window.__wcBench!.connectFake());
   await page.evaluate(
@@ -247,12 +244,6 @@ async function typeKeys(page: Page, cdp: CDPSession, mode: Mode, cond: Cond, n: 
     kb.pending = null;
   });
   const boxes = new Map<string, { x: number; y: number }>();
-  // (`touch-insert`: the finger goes down on a compass key, which keeps the focus where it is and sends nothing outside play.)
-  let kPt = { x: 0, y: 0 };
-  if (mode === 'touch-insert') {
-    const b = (await page.locator('.wc-ph-pad .wc-ph-key[data-cmd="north"]').boundingBox())!;
-    kPt = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-  }
   if (pressed(mode)) {
     for (const ch of LETTERS) {
       const b = (await page.locator(`.wc-ph-okb-k[data-ch="${ch}"]`).boundingBox())!;
@@ -279,16 +270,9 @@ async function typeKeys(page: Page, cdp: CDPSession, mode: Mode, cond: Cond, n: 
       await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
       await pause(25);
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
-    } else if (mode === 'insert' || mode === 'own-insert') {
+    } else if (mode === 'own-insert') {
       await cdp.send('Input.insertText', { text: ch });
       await pause(25);
-    } else if (mode === 'touch-insert') {
-      // A finger goes down elsewhere, and the text is committed while it is down.
-      void cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...kPt, id: 0 }] });
-      await pause(3);
-      await cdp.send('Input.insertText', { text: ch });
-      await pause(25);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     } else {
       const code = `Key${ch.toUpperCase()}`;
       const vk = ch.toUpperCase().charCodeAt(0);
@@ -440,13 +424,13 @@ const table = (cond: Cond): string[] => [
 ];
 
 const md = [
-  '# Key → echo on the phone: our keyboard against the device keyboard\'s path',
+  '# Key → echo on the phone: our keyboard',
   '',
   `- Date: ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`,
   `- Commit: ${commit}`,
   `- Script: \`node bench/phone-keyboard-bench.ts\`, flags ${flagsText}${QUICK ? ' — a quick run: a smoke test, not numbers to compare' : ''}`,
   `- Browser: Chromium ${version}, headless${TARGET === 'chromium-gpu' ? ` (\`${L.gpuArgs().join(' ')}\`)` : ''}; WebGL: ${gl}; CPU throttled ${THROTTLE}×`,
-  `- Page: production build, \`?bench&phone=1\` (our keyboard) and \`?bench&phone=1&kbd=0\` (the device path), ${PHONE.width} × ${PHONE.height} at ratio ${PHONE.dpr}, mobile + touch, default settings`,
+  `- Page: production build, \`?bench&phone=1\` (our keyboard; the device path's rows went with \`?kbd=0\` in round 53i), ${PHONE.width} × ${PHONE.height} at ratio ${PHONE.dpr}, mobile + touch, default settings`,
   `- Keys: ${KEYS} per cell and round (the first ${WARM} dropped), ${ROUNDS} rounds, the modes alternating; about 8 keys a second`,
   `- Burst fixture: \`${fixture.name}\`, its first 400 frames in a loop`,
   `- Load average: ${loadStart} at the start, ${loadavg()} at the end`,

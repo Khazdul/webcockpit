@@ -211,17 +211,14 @@ export function okbLayout(asked: string | null | undefined, languages: readonly 
 }
 
 /**
- * What `?kbd=` asks of the phone's game layout (ADR 0138, as built in
- * round 53e). Our keyboard is the layout's keyboard by default:
+ * What `?kbd=` asks of our keyboard (ADR 0138, as released). It is the
+ * phone's only keyboard; the address can only say how it shows:
  *
- * - absent, or a value not listed here: on, the layout from the setting;
- * - `0`: off (null). The device's keyboard as before stage 53, kept until
- *   the owner's release decision and an iPhone test;
- * - `1` or `debug`: on, with the readout (keyboard-readout.ts);
- * - `sv` or `en`: on, with that layout whatever the setting says (tests).
+ * - absent, or a value not listed here: the layout from the setting;
+ * - `1` or `debug`: with the readout (keyboard-readout.ts);
+ * - `sv` or `en`: that layout whatever the setting says (tests).
  */
-export function okbFromQuery(kbd: string | null | undefined): { layout: OkbLayout | null; readout: boolean } | null {
-  if (kbd === '0') return null;
+export function okbFromQuery(kbd: string | null | undefined): { layout: OkbLayout | null; readout: boolean } {
   if (kbd === 'sv' || kbd === 'en') return { layout: kbd, readout: false };
   return { layout: null, readout: kbd === '1' || kbd === 'debug' };
 }

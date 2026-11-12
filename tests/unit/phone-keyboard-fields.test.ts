@@ -318,10 +318,10 @@ describe('the settings page: Keyboard and the vibration row', () => {
     return row;
   };
 
-  it('the Keyboard group is there with our own keyboard: by default, and not with ?kbd=0', () => {
-    for (const [search, on] of [['', true], ['?phone=1', true], ['?kbd=de', true], ['?kbd=1', true], ['?kbd=debug', true], ['?phone=1&kbd=sv', true], ['?kbd=en', true], ['?kbd=0', false], ['?phone=1&kbd=0', false]] as const) {
+  it('the Keyboard group is always there, whatever the address says', () => {
+    for (const search of ['', '?phone=1', '?kbd=de', '?kbd=1', '?kbd=debug', '?phone=1&kbd=sv', '?kbd=en', '?kbd=0']) {
       vi.stubGlobal('location', { search });
-      expect(groupsShown(SETTINGS_GROUPS).some((g) => g.id === 'keyboard'), search).toBe(on);
+      expect(groupsShown(SETTINGS_GROUPS).some((g) => g.id === 'keyboard'), search).toBe(true);
     }
     expect(SETTINGS_GROUPS.indexOf(KEYBOARD_GROUP)).toBe(SETTINGS_GROUPS.indexOf(COMPASS_GROUP) + 1);
   });

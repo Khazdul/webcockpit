@@ -15,7 +15,7 @@
 // - Landscape: the editor's head and foot step aside, the code is hittable.
 // - A rotation keeps the keyboard and the caret's line.
 // - A read-only (bundled) script is marked and opens nothing.
-// - `?kbd=0`, a desktop-size and a tablet-size window: nothing of this.
+// - A desktop-size and a tablet-size window: nothing of this.
 //
 // `phone` project. Nothing reaches MUME.
 import { type Locator, type Page, expect, test } from '@playwright/test';
@@ -487,6 +487,111 @@ test.describe('portrait 360 × 800', () => {
     expect(errors).toEqual([]);
   });
 
+  // Round 53i (the test gaps of the 53h review).
+  test('a double tap on Esc with unsaved changes never discards: the editor asks, and the text is kept', async ({ page }) => {
+    const errors = watchErrors(page);
+    const ed = await openScript(page);
+    const dialog = page.locator('.wc-lk-dialog[data-dlg="unsaved"]');
+    const stored = () => page.evaluate(() => window.__wc!.shell.scripts!.get('phoneed')!.source);
+    const cdp = await page.context().newCDPSession(page);
+    /** Two real touches on the Esc key's place, `gap` ms apart (the second lands on whatever lies there by then). */
+    const twice = async (gap: number): Promise<void> => {
+      const b = await box(key(page, 'esc'));
+      const pt = { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2), id: 0 };
+      for (let i = 0; i < 2; i++) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        if (i === 0) await page.waitForTimeout(gap);
+      }
+    };
+    for (const gap of [0, 120, 280, 450]) {
+      await tapEnd(page, ed);
+      await expectUp(page);
+      await typeOn(page, 'x');
+      const typed = await text(ed);
+      expect(typed).toContain('x');
+      await twice(gap);
+      await page.waitForTimeout(500);
+      // Still the editor, with what was typed; nothing was written or thrown away.
+      await expect(sed(page), `gap ${gap}`).toHaveAttribute('data-script', 'phoneed');
+      expect(await text(ed), `gap ${gap}`).toBe(typed);
+      expect(await stored()).toBe(HEADER);
+      // Asked (the first Esc), or asked and answered "keep editing" by the second: never discarded.
+      if (await dialog.isVisible()) {
+        await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+      }
+      await expect(sed(page)).toHaveAttribute('data-script', 'phoneed');
+      expect(await text(ed)).toBe(typed);
+    }
+    await cdp.detach();
+    expect(errors).toEqual([]);
+  });
+
+  test('a snippet: Tab takes it from the list, the first field is typed over, Tab goes to the next stop', async ({ page }) => {
+    const errors = watchErrors(page);
+    const ed = await openScript(page);
+    await tapEnd(page, ed);
+    await expectUp(page);
+    await typeOn(page, '\nwhil');
+    const list = page.locator('.cm-tooltip-autocomplete');
+    await expect(list).toBeVisible();
+    await page.waitForTimeout(200);
+    // The snippet is listed under the plain keyword: our caret key walks the list.
+    const picked = list.locator('li[aria-selected="true"]');
+    for (let i = 0; i < 6 && !(await picked.textContent())?.includes('do … end'); i++) await press(page, 'down');
+    await expect(picked).toContainText('while … do … end');
+    // (CodeMirror takes no completion in the first 75 ms after its list changed, for a physical
+    // Tab too: a finger is slower than that.)
+    await page.waitForTimeout(200);
+    await press(page, 'tab');
+    await expect(list).toHaveCount(0);
+    expect((await lines(ed)).slice(-3)).toEqual(['while cond do', '  ', 'end']);
+    await expect(ed.locator('.cm-snippetField').first()).toBeVisible();
+    // The first field is selected: typing replaces it.
+    await typeOn(page, 'ok');
+    expect((await lines(ed)).slice(-3)).toEqual(['while ok do', '  ', 'end']);
+    // (Typing a name opened the list again: Esc puts it away, the snippet stays.)
+    if (await list.isVisible()) await press(page, 'esc');
+    // Tab: the next stop, the body line; what is typed lands there, indented.
+    await press(page, 'tab');
+    await typeOn(page, 'n');
+    if (await list.isVisible()) await press(page, 'esc');
+    expect((await lines(ed)).slice(-3)).toEqual(['while ok do', '  n', 'end']);
+    await expect(ed.locator('.cm-content')).toBeFocused();
+    await expectUp(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('a long press in the code: the keyboard comes when the finger lifts, nothing is typed, and the keys then type at the caret', async ({ page }) => {
+    const errors = watchErrors(page);
+    const ed = await openScript(page, '&kbd=en', `${HEADER}local word = 1\n`);
+    const before = await text(ed);
+    const line = ed.locator('.cm-content .cm-line', { hasText: 'local word' });
+    const b = await box(line);
+    const cdp = await page.context().newCDPSession(page);
+    const pt = { x: Math.round(b.x + 60), y: Math.round(b.y + b.height / 2), id: 0 };
+    await watchUps(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+    await page.waitForTimeout(800);
+    // Nothing moves under a finger that is still down.
+    await expectDown(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+    await expectUp(page);
+    await expect(ed.locator('.cm-content')).toBeFocused();
+    // It came up once, and the press typed nothing.
+    expect(await ups(page)).toEqual([1]);
+    expect(await text(ed)).toBe(before);
+    // The keys type where the caret (or the word the press selected) is: on that line, once.
+    await typeOn(page, 'z');
+    const after = await lines(ed);
+    expect(after.filter((l) => l.includes('z'))).toHaveLength(1);
+    expect(after.find((l) => l.includes('z'))).toMatch(/^local .*= 1$/);
+    expect(after).toHaveLength((before.match(/\n/g) ?? []).length + 1);
+    expect(errors).toEqual([]);
+  });
+
   test('a bundled script (read-only): marked, and a tap opens nothing; its Find row is ours', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/?phone=1&kbd=en');
@@ -545,19 +650,6 @@ test.describe('portrait 360 × 800', () => {
     expect(errors).toEqual([]);
   });
 
-  test('`?kbd=0`: the buffers are not marked and ours never opens', async ({ page }) => {
-    const ed = await openScript(page, '&kbd=0');
-    const content = ed.locator('.cm-content');
-    expect(await content.getAttribute('inputmode')).toBeNull();
-    expect(await content.getAttribute('virtualkeyboardpolicy')).toBeNull();
-    expect(await content.getAttribute('data-okb-kind')).toBeNull();
-    await tapEnd(page, ed);
-    await frames(page);
-    await expect(page.locator('.wc-okb-page')).toHaveCount(0);
-    await page.keyboard.press('Enter');
-    await page.keyboard.type('x = (');
-    expect((await lines(ed)).at(-1)).toBe('x = ()');
-  });
 });
 
 // ------------------------------------------------------------ a narrow phone

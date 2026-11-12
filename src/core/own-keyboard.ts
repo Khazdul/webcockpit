@@ -5,8 +5,8 @@
 // phone.
 //
 // - `pageKeyboard()`: our keyboard is the one on the pages. Decided once
-//   by the shell at start (a phone, a phone-size window, and not
-//   `?kbd=0`); false on a desktop and a tablet, and in unit tests. The
+//   by the shell at start (a phone and a phone-size window);
+//   false on a desktop and a tablet, and in unit tests. The
 //   shared field components mark their fields by it (`ownFieldAttrs`).
 // - `pageKeyboardUp()`: it stands on a page now (the phone chunk's mount
 //   tells the shell, which sets it). The start page's too-small guard is
@@ -42,7 +42,7 @@ export function setPageKeyboard(on: boolean): void {
   if (!on) setPageKeyboardUp(false);
 }
 
-/** True where the pages' text fields use our keyboard (a phone, `?kbd=0` not asked). */
+/** True where the pages' text fields use our keyboard (a phone). */
 export function pageKeyboard(): boolean {
   return pages;
 }

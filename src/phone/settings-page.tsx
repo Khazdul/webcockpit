@@ -7,8 +7,7 @@
 // adds its group to the list when what it sets works (stage 51 rule 3: no
 // row before its feature): Text (51b), Map lens (51c), Panes and Comm
 // (51d); Quick buttons (the compass and the hot keys) and Connection (51f);
-// Keyboard (53d: our own keyboard's layout; a group has `available`, and
-// this one is there only while that keyboard is: not with `?kbd=0`).
+// Keyboard (53d: our own keyboard's layout).
 // Stage 52: a `link` row opens a sub-page of the same kind of groups
 // (`SETTINGS_PAGES`): "Timers and Group", the settings of those two panes
 // that show in the pane strip. They are the desktop gear popups' keys and
@@ -32,7 +31,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
 import { canWakeLock } from './wake-lock';
 import { canVibrate } from './haptics';
-import { okbFromQuery, okbLayout } from './keyboard-model';
+import { okbLayout } from './keyboard-model';
 import type {
   FontId,
   GroupAwayMode,
@@ -290,8 +289,7 @@ const browserLanguages = (): readonly string[] | string | undefined => {
 /**
  * Keyboard: the layout of our own keyboard (`phone.keyboard.layout`; ADR
  * 0138 §4). Stored as `auto` until one is chosen: the row then shows the
- * layout of the browser's language, which is the one in use. Only while
- * that keyboard is there (not with `?kbd=0`, the device's keyboard).
+ * layout of the browser's language, which is the one in use.
  */
 export const KEYBOARD_GROUP: SettingsGroup = {
   id: 'keyboard',
@@ -309,7 +307,6 @@ export const KEYBOARD_GROUP: SettingsGroup = {
       set: (layout) => ({ phone: { keyboard: { layout: layout as PhoneKeyboardLayout } } }),
     },
   ],
-  available: () => okbFromQuery(new URLSearchParams(globalThis.location?.search ?? '').get('kbd')) !== null,
 };
 
 /**

@@ -396,36 +396,5 @@ for (const sc of SCREENS) {
       await expect(key).toHaveText('resc');
     });
 
-    test('the keyboard up: the command field is visible and takes the full width', async ({ page }) => {
-      // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
-      await openPhone(page, '&kbd=0');
-      await playFight(page);
-      await page.locator('.wc-input-slot .wc-input-field').tap();
-      await page.setViewportSize({ width: sc.viewport.width, height: sc.keyboard });
-      await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-      await expect(page.locator('.wc-ph-pad')).toBeHidden();
-      await expect(page.locator('.wc-ph-hot')).toBeHidden();
-      await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
-      const vw = sc.viewport.width;
-      await expect
-        .poll(async () => {
-          const f = (await page.locator('.wc-cockpit > .wc-input-slot > .wc-input').boundingBox())!;
-          return f.y >= 0 && f.y + f.height <= sc.keyboard + 0.5 && f.x + f.width >= vw - 8 - 12;
-        })
-        .toBe(true);
-      const f = (await page.locator('.wc-cockpit > .wc-input-slot > .wc-input').boundingBox())!;
-      const m = (await page.locator('.wc-ph-menu').boundingBox())!;
-      // From the menu key to the right edge (less the row's 8 px and a cell's slack).
-      expect(f.x).toBeGreaterThanOrEqual(m.x + m.width + 7);
-      expect(f.height).toBeGreaterThanOrEqual(36);
-      expect(m.y + m.height).toBeLessThanOrEqual(sc.keyboard + 0.5);
-      // What is typed shows in it.
-      await page.keyboard.type('kill scout');
-      await expect(page.locator('.wc-input-slot .wc-input-field')).toHaveValue('kill scout');
-      // The game text keeps rows above the field.
-      const game = (await page.locator('.wc-cockpit > .wc-game').boundingBox())!;
-      expect(game.height).toBeGreaterThan(30);
-      expect(game.y + game.height).toBeLessThanOrEqual(f.y + 1);
-    });
   });
 }

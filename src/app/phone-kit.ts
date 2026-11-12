@@ -7,7 +7,6 @@ import { STATUS as CAPTURE_STATUS } from '../capture/recorder';
 import { canFullscreen, onFullscreenRefused, toggleFullscreen } from '../core/fullscreen';
 import { vitalPct } from '../gmcp/group';
 import { PHONE_MIN_COLS, PHONE_MIN_ROWS } from '../layout/phone';
-import { keyboardUp } from '../layout/phone-viewport';
 import { fightView } from '../panes/group-model';
 import { GROUP_DARK } from '../panes/palette';
 import type { PhoneKit } from '../phone/kit';
@@ -33,7 +32,6 @@ export const PHONE_KIT: PhoneKit = {
   fontChoices,
   minCols: PHONE_MIN_COLS,
   minRows: PHONE_MIN_ROWS,
-  keyboardUp,
   canFullscreen,
   toggleFullscreen: (doc) => void toggleFullscreen(doc),
   onFullscreenRefused,

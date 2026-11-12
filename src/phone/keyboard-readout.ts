@@ -3,18 +3,17 @@
 // phone. Two small lines at the top left that say whether the device's
 // keyboard stayed down:
 //
-//   ae TEXTAREA im=none | okb 1 | wc-kbd 0
+//   ae TEXTAREA im=none | okb 1
 //   vv 800 / inner 800 | VK api 1
 //
 // - `ae`: the focused element and its `inputmode`.
-// - `okb`: our keyboard is open. `wc-kbd`: the device's keyboard was
-//   detected (src/layout/phone-viewport.ts); it should stay 0.
+// - `okb`: our keyboard is open.
 // - `vv` / `inner`: the visual viewport's height against the window's (a
 //   device keyboard that came up anyway shows as a lower `vv`).
 // - `VK api`: `navigator.virtualKeyboard` exists (Chromium).
 //
-// It only reads, and redraws on focus, blur and resize events and on a
-// change of `<html>`'s class: nothing per frame.
+// It only reads, and redraws on focus, blur and resize events: nothing per
+// frame.
 
 /** A number for the readout: one decimal at most. */
 const n = (v: number | undefined): string => (typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v * 10) / 10) : '?');
@@ -28,7 +27,6 @@ export function keyboardReadoutText(win: Window, open: boolean): string {
     [
       `ae ${ae ? ae.tagName : '-'}${ae?.hasAttribute('inputmode') ? ` im=${ae.getAttribute('inputmode')}` : ''}`,
       `okb ${open ? 1 : 0}`,
-      `wc-kbd ${doc.documentElement.classList.contains('wc-kbd') ? 1 : 0}`,
     ].join(' | ') +
     '\n' +
     [`vv ${vv ? n(vv.height) : '?'} / inner ${n(win.innerHeight)}`, `VK api ${'virtualKeyboard' in win.navigator ? 1 : 0}`].join(' | ')
@@ -54,10 +52,6 @@ export function installKeyboardReadout(win: Window, open: () => boolean): { draw
   doc.addEventListener('focusout', draw);
   win.addEventListener('resize', draw);
   vv?.addEventListener('resize', draw);
-  // `wc-kbd` is set a moment after the viewport settled, without an event of its own.
-  const MO = (win as Window & typeof globalThis).MutationObserver;
-  const mo = MO ? new MO(draw) : null;
-  mo?.observe(doc.documentElement, { attributes: true, attributeFilter: ['class'] });
   doc.body.append(el);
   draw();
   return {
@@ -67,7 +61,6 @@ export function installKeyboardReadout(win: Window, open: () => boolean): { draw
       doc.removeEventListener('focusout', draw);
       win.removeEventListener('resize', draw);
       vv?.removeEventListener('resize', draw);
-      mo?.disconnect();
       el.remove();
     },
   };

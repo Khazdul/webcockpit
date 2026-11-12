@@ -990,18 +990,16 @@ test('the reply line follows the play gate: at a password prompt it is disabled,
 });
 
 test('a screen too short for Comm: the key is not lit and its badge counts on; with room again Comm is back', async ({ page }) => {
-  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
-  const m = await enterMock(page, '&kbd=0');
+  const m = await enterMock(page);
   m.server().send(tell('Gibur', 'one'));
   await sat(page, 'comm').tap();
   await expect(comm(page)).toBeVisible();
   await chat(page, 'Gibur').tap();
   await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'true');
   await expect(badge(page)).toBeHidden();
-  // A very short visible area (a landscape keyboard): the allocator leaves Comm out.
+  // A very short visible area (a split screen): the allocator leaves Comm out.
   const size = page.viewportSize()!;
   await page.setViewportSize({ width: size.width, height: 150 });
-  await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
   await expect(comm(page)).toBeHidden();
   await expect(band(page)).toBeHidden();
   await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'false');
@@ -1053,38 +1051,6 @@ test('the resize grip reaches at most 10 px into the game text: the first line u
   expect(await at(60, b.y + b.height + 12)).toBe('game');
   // A reply line, when there is one, is clear of the grip.
   await page.evaluate(() => 0);
-});
-
-test('typing a reply with the keyboard up: the reply line stays in view above the keyboard', async ({ page }) => {
-  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
-  const m = await enterMock(page, '&kbd=0');
-  m.server().send(tell('Gibur', 'you at the ford?'));
-  await sat(page, 'comm').tap();
-  await chat(page, 'Gibur').tap();
-  await reply(page).tap();
-  await expect(reply(page)).toBeFocused();
-  const size = page.viewportSize()!;
-  for (const height of [size.height - 320, 380, 300]) {
-    await page.setViewportSize({ width: size.width, height });
-    await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
-    await expect(comm(page)).toBeVisible();
-    await expect(reply(page)).toBeVisible();
-    await expect.poll(async () => {
-      const r = await box(comm(page).locator('.wc-cm-reply'));
-      const vh = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
-      return r.y > 0 && r.y + r.height <= vh;
-    }).toBe(true);
-    // Still the field with the keys; the command row is under it.
-    await expect(reply(page)).toBeFocused();
-    const slot = await box(page.locator('.wc-input-slot'));
-    expect((await box(comm(page))).y + (await box(comm(page))).height).toBeLessThanOrEqual(slot.y + 0.5);
-  }
-  await page.keyboard.type('here');
-  await page.keyboard.press('Enter');
-  await expect.poll(() => m.sent).toEqual(['tell Gibur here']);
-  await page.setViewportSize(size);
-  await expect(page.locator('html')).not.toHaveClass(/\bwc-kbd\b/);
-  await expect(comm(page)).toBeVisible();
 });
 
 /** Counts the layouts and the window sizes sent to MUME from now on. */

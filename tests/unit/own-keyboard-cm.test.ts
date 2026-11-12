@@ -60,7 +60,7 @@ function key(v: EditorView, k: 'Enter' | 'Backspace' | 'Tab' | 'ArrowLeft' | 'Ar
 }
 
 describe('ownKeyboardExtension', () => {
-  it('is nothing where the device\'s keyboard is the pages\' (a desktop, a tablet, `?kbd=0`): no mark, no editor registered', () => {
+  it('is nothing where the device\'s keyboard is the pages\' (a desktop, a tablet): no mark, no editor registered', () => {
     expect(ownKeyboardExtension()).toEqual([]);
     for (const v of [lua('x = 1'), profile('#alias {a} {b}')]) {
       expect(v.contentDOM.hasAttribute('inputmode')).toBe(false);

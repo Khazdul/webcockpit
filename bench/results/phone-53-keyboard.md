@@ -140,3 +140,74 @@ Most of the 0.3 ms comes with the focused field (its caret is on screen and pain
 ## What it means
 
 Incoming text is as fast with the keyboard open as with it closed and as on `main`: the burst and the flush script are equal within the spread of the rounds; a frame of text is painted 0.2–0.4 ms later at the median while the command field has the focus, with the p95 unchanged.
+
+---
+
+# Round 53i (2026-11-12): after the device keyboard path was removed
+
+Everything above is round 53e and stays as history. `?kbd=0` is gone, so
+the rows "device path (`Input.insertText`, `?kbd=0`)", "key event
+(`?kbd=0`)" and "diag: `?kbd=0`, `Input.insertText` 3 ms after a finger
+went down" **can no longer be run**: there is no page without our
+keyboard to measure them on. The comparison against the device
+keyboard's path rests on the numbers above. The script
+(`bench/phone-keyboard-bench.ts`) now measures our keyboard, a physical
+key with our keyboard open, and the two `diag` rows that have our
+keyboard.
+
+## Key → echo, our keyboard
+
+- Date: 2026-11-12 16:43 UTC
+- Commit: e0cf58bf (branch `stage-53i`; a docs-only change uncommitted)
+- Script: `node bench/phone-keyboard-bench.ts --no-build --diag`, Chromium 153.0.8010.12 headless, CPU throttled 4×, 360 × 800 at ratio 3, 120 keys per cell and round, 2 rounds
+- Load average: 1.25 at the start, 1.06 at the end
+
+All times in ms, median / p95 / max.
+
+| idle | n | event → painted | handler → painted | script (handler → value changed) | wait for the frame (value changed → its callback) | the frame (callback → rendered) | event → painted, median per round |
+|---|---|---|---|---|---|---|---|
+| our keyboard (touch on a key) | 210 | 13.8 / 27.6 / 36.1 | 11.7 / 18.4 / 19.1 | 1.10 / 1.63 / 1.93 | 8.6 / 15.3 / 15.7 | 2.1 / 2.8 / 3.1 | 13.8, 13.8 |
+| key event (`Input.dispatchKeyEvent`, our keyboard open) | 210 | 3.9 / 5.6 / 19.0 | 3.4 / 4.7 / 18.4 | 0.97 / 1.42 / 1.93 | 0.7 / 1.3 / 15.1 | 1.7 / 2.4 / 2.8 | 3.8, 3.9 |
+| diag: our keyboard, the key pressed with a mouse pointer | 210 | 4.8 / 7.5 / 21.2 | 4.2 / 6.3 / 19.9 | 1.18 / 1.82 / 2.17 | 0.7 / 1.2 / 15.5 | 2.3 / 3.0 / 4.4 | 4.8, 4.8 |
+| diag: our keyboard open, the text by `Input.insertText` | 206 | 2.9 / 4.2 / 23.8 | 2.8 / 4.1 / 23.8 | 0.93 / 1.57 / 2.42 | 0.6 / 1.3 / 20.3 | 1.3 / 1.8 / 2.3 | 2.9, 2.9 |
+
+| while text arrives (a frame every 25 ms) | n | event → painted | handler → painted | script (handler → value changed) | wait for the frame (value changed → its callback) | the frame (callback → rendered) | event → painted, median per round |
+|---|---|---|---|---|---|---|---|
+| our keyboard (touch on a key) | 210 | 28.1 / 35.5 / 38.1 | 15.7 / 18.7 / 19.4 | 0.96 / 1.35 / 1.61 | 12.4 / 15.3 / 15.8 | 2.4 / 3.1 / 3.7 | 28.4, 27.6 |
+| key event (`Input.dispatchKeyEvent`, our keyboard open) | 210 | 11.2 / 18.6 / 20.3 | 10.7 / 17.4 / 18.3 | 0.77 / 1.13 / 1.87 | 7.7 / 14.2 / 16.0 | 2.1 / 3.1 / 4.9 | 11.2, 11.1 |
+| diag: our keyboard, the key pressed with a mouse pointer | 210 | 12.2 / 18.7 / 19.2 | 11.5 / 17.2 / 18.5 | 1.01 / 1.38 / 3.15 | 7.9 / 13.6 / 15.4 | 2.6 / 3.9 / 5.7 | 11.8, 12.3 |
+| diag: our keyboard open, the text by `Input.insertText` | 207 | 10.2 / 16.9 / 19.4 | 10.2 / 16.9 / 19.4 | 0.70 / 1.14 / 1.86 | 6.9 / 13.5 / 15.6 | 2.3 / 3.5 / 4.1 | 9.3, 10.5 |
+
+What 20 keys of ours touched: 0 cockpit layouts; 59 style recalculations (3.0 per key: the press, the release, the caret); DOM mutations: `button.wc-ph-okb-k.is-down [attributes class]` × 20, `span.wc-caret [attributes style]` × 18, `button.wc-ph-okb-k [attributes class]` × 20.
+
+Against round 53e: our keyboard's touch row is 13.8 ms idle (13.6 then)
+and 28.1 ms while text arrives (29.6); the script per key 1.10 and
+0.96 ms (1.15, 0.99); still no cockpit layout per key. Text committed
+by `Input.insertText` with our keyboard open (2.9 and 10.2 ms) is where
+the removed device path row stood (2.8 and 10.9 ms). Unchanged within
+the rounds' spread.
+
+## Text speed: `main`, the branch with the keyboard closed, and open
+
+- Date: 2026-11-12 16:35–16:39 UTC
+- Commits: `main` c6058579 (0.6.1); branch e0cf58bf
+- Script: `node bench/phone-bench.ts --no-build --rounds 3` (the same script, in a copy of `main`), production builds, the same fixture (`Rasta/2026-09-26T21-00-45.log`, 79 447 lines), no CPU throttle. Keyboard open: `--eval "document.querySelector('.wc-input-wrap').click()"`, checked after each burst (`html.wc-okb`: true in all six)
+- Order: main, closed, open; then the same again
+- Page: `?bench&phone=1`, 390 × 844 at ratio 3, mobile + touch, the phone's game layout with the lens
+
+| measure | main 1 | closed 1 | open 1 | main 2 | closed 2 | open 2 |
+|---|---|---|---|---|---|---|
+| burst total ms, median of 3 (each round) | 956 (962, 946, 956) | 959 (959, 954, 967) | 958 (966, 955, 958) | 953 (953, 938, 969) | 954 (968, 939, 954) | 956 (965, 954, 956) |
+| burst longest frame ms (max of 3; median p95) | 19.0; 16.9 | 18.9; 17.0 | 18.1; 17.0 | 21.3; 17.1 | 18.3; 16.9 | 19.5; 17.0 |
+| frame → paint ms, median / p95 | 3.8 / 18.9 | 3.9 / 17.6 | 4.1 / 18.6 | 3.8 / 17.2 | 3.9 / 17.6 | 4.1 / 17.6 |
+| flush script ms, median / p95 | 0.88 / 1.78 | 0.89 / 1.47 | 0.88 / 1.65 | 0.86 / 1.65 | 0.91 / 1.78 | 0.85 / 1.66 |
+| key → send ms, median / p95 | 0.050 / 0.080 | 0.055 / 0.085 | 0.055 / 0.075 | 0.055 / 0.080 | 0.030 / 0.065 | 0.055 / 0.080 |
+| load average (1 min) at the start | 7.13 | 4.49 | 2.74 | 1.85 | 1.41 | 1.12 |
+
+Burst, median of the six rounds of each: `main` 955 ms, keyboard closed
+957 ms, keyboard open 957 ms. The rounds of one configuration spread by
+12–31 ms, so the three are the same, as in round 53e (956 / 959 / 963).
+Frame → paint with the keyboard open is 4.1 ms at the median against
+3.8 ms on `main`, as then (the focused field's caret). The first pass
+started under load from the test runs before it (7.1 falling to 2.7);
+the second pass was quiet and says the same.

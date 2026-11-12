@@ -912,7 +912,7 @@ describe('a code editor (round 53h)', () => {
     expect(scroller.scrollTop).toBe(0);
   });
 
-  it('what code needs of the keys: the symbols in the code order, and in portrait the digit row up until its key folds it', () => {
+  it('what code needs of the keys: the symbols in the code order, and in portrait the digit row up until its key folds it for that editor', () => {
     const { content, line } = mkEditor();
     const f = mk('input');
     const symbols = (): string => {
@@ -948,7 +948,23 @@ describe('a code editor (round 53h)', () => {
     tap(f);
     tapIn(content, line);
     expect(rows()).toBe(plainRows);
-    // Its key again is the stored state's, as everywhere.
+    // Its key again brings the row back for the editor, and folds it again: the stored state is
+    // never written while the row is the editor's (round 53i).
+    press('digits');
+    expect(rows()).toBe(plainRows + 1);
+    expect(settings.get().phone.keyboard.digits).toBe(false);
+    press('digits');
+    expect(rows()).toBe(plainRows);
+    expect(settings.get().phone.keyboard.digits).toBe(false);
+    // The fold is that editor's: one opened anew (the first is gone from the page) has the row up.
+    tap(f);
+    content.remove();
+    const again = mkEditor();
+    tapIn(again.content, again.line);
+    expect(rows()).toBe(plainRows + 1);
+    expect(settings.get().phone.keyboard.digits).toBe(false);
+    // In a plain field the key is the stored state's, as everywhere.
+    tap(f);
     press('digits');
     expect(settings.get().phone.keyboard.digits).toBe(true);
     expect(rows()).toBe(plainRows + 1);

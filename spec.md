@@ -721,13 +721,14 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
     shows and hides them. Stored in the phone's settings, not in the
     profile.
   - *Bottom left:* the menu key and the command field.
-  - *Keyboard* (stage 53, ADR 0138): the game layout has an on-screen
-    keyboard of its own, and the device's keyboard stays down (the
-    fields ask for none: `inputmode="none"`). It is used by every text
-    field of the layout: the command field (also at the name and
-    password prompts), Comm's reply and search, the hot key box, script
-    pane fields. A tap on a field opens it, its fold key closes it, and
-    it stays up after Enter. It takes fixed rows at the bottom from the
+  - *Keyboard* (stage 53, ADR 0138 and ADR 0139): a phone has an
+    on-screen keyboard of its own, and the device's keyboard stays down
+    (the fields ask for none: `inputmode="none"`). **It is the phone's
+    only keyboard**, used by every text field a phone user reaches. In
+    the game layout: the command field (also at the name and password
+    prompts), Comm's reply and search, the hot key box, script pane
+    fields. A tap on a field opens it, its fold key closes it, and it
+    stays up after Enter. It takes fixed rows at the bottom from the
     layout's allocator, so the page never changes size and MUME gets one
     window size when it opens and one when it closes.
     - *Layouts:* Swedish and English, chosen in Settings → Keyboard
@@ -752,12 +753,33 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
     - *Vibration:* Settings → Quick buttons → Vibrate on key press (off
       by default; not shown where the browser has no vibration): one
       short pulse on a key of the keyboard, the compass and the K keys.
-    - The start page, the pages and frames opened from the menu, the run
-      log player and Spotlights keep the device's keyboard
-      (`src/layout/phone-viewport.ts` follows it there). `?kbd=0` gives
-      the game layout the device's keyboard too, until the old path is
-      removed. A browser that raises its keyboard although the fields
-      ask for none: ours gives way to it.
+    - *On the pages* (ADR 0139): the start page and every page and
+      frame opened from a menu (profiles, scripts, export, Lite, the two
+      code editors and their find row) use the same keyboard, standing
+      at the bottom of the app box with the page ending at its top edge
+      (no window size is sent for it). It has more keys there: Esc, Tab
+      and four caret keys (a row above the letters in portrait, a column
+      at each side in landscape); Enter is a line break in a multi-line
+      field and in code. Enter, Esc, Tab (and in code Backspace and the
+      carets) are sent to the focused field as marked key events that
+      macros and key label learning ignore; text never is. For code the
+      symbols stand in a code order and the digit row is up in portrait.
+    - *A smaller visible area* (a split screen, a window made lower, the
+      browser's bars): nothing special. The layout uses the area as on
+      any small screen (`--wc-vv-h`); the keyboard stays while the
+      allocator has rows for it and closes, once, when it has not. A
+      tap on a screen too low for it opens nothing.
+    - *No device keyboard, no switch:* there is no setting or address
+      parameter for the device's keyboard (`?kbd=0` was removed at the
+      release; `?kbd=sv|en` names the layout for tests, `?kbd=1|debug`
+      shows a readout). Lost with it, by decision: prediction, swipe
+      typing, dictation, other layouts, password managers at the
+      password prompt. iPhone and iPad are not verified yet. The run log
+      player and Spotlights have no command line; a pane field there (a
+      search in Comm) and the old phone layout (a phone flag forced in a
+      wide window, or a phone whose phone chunk could not be loaded)
+      still get the device's keyboard, and `src/layout/phone-viewport.ts`
+      keeps its keyboard state for them only.
   - *Menu:* a bottom sheet with Reconnect, Profile, Scripts, Settings (a
     small phone page), text size, Black / Paper and Exit session.
   - *Weather* (off by default on a phone) fills the whole width when on.
@@ -850,7 +872,7 @@ what feedback is wanted.
 | 50 | **Firefox frame latency.** Veils under floats when Firefox composites in software; `#perf` as a live overlay, `#perf report` for the table (ADR 0135). | Play with a large float in Firefox; try `#perf`. |
 | 51 | **The phone's layout in the game.** Fight card, map lens with its three keys, pane strip, Comm under the fight card, compass and hot keys, the menu sheet and the phone settings page, weather in full width, Paper (§2.12, ADR 0136, `docs/stages/51-phone-layout.md`, steps 51a–g). | Play lightly on your phone: walk, flee, chat, read the panes. |
 | 52 | **The phone's layout, round 2.** Landscape with its own arrangement (the strip and Comm as a left column), resizable strip and Comm, a lens that shrinks before it hides, up to six hot keys in two columns, see-through keys, the menu and settings reworked (§2.12, ADR 0137, `docs/stages/52-phone-round-2.md`). | Play in portrait and landscape on your phone; resize the panes and Comm. |
-| 53 | **An on-screen keyboard of our own.** The phone's game layout types with a keyboard that is part of the client: Swedish and English, a digit row, symbols, the compass and K keys beside it, vibration as a setting; the device's keyboard stays down (§2.12, ADR 0138, `docs/stages/53-own-keyboard.md`, rounds 53a–e). | Type commands, tells and the password on your phone without the device's keyboard. |
+| 53 | **An on-screen keyboard of our own.** The phone's game layout types with a keyboard that is part of the client: Swedish and English, a digit row, symbols, the compass and K keys beside it, vibration as a setting; the device's keyboard stays down. It is the phone's only keyboard, on the menu's pages and in both code editors too (Esc, Tab and caret keys there); no device keyboard and no switch for one (§2.12, ADR 0138, ADR 0139, `docs/stages/53-own-keyboard.md`, rounds 53a–i). | Type commands, tells, the password, profiles and scripts on your phone without the device's keyboard. |
 
 ## 6. Open questions for the owner
 

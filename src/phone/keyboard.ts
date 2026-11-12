@@ -1,5 +1,5 @@
 // A keyboard of our own for the phone's game layout (ADR 0138): the view.
-// The layout's keyboard unless the address says `?kbd=0`. What the keys are, how shift works and every size
+// The layout's only keyboard. What the keys are, how shift works and every size
 // are the model's (keyboard-model.ts); this file draws them and takes the
 // presses.
 //

@@ -19,8 +19,9 @@
 //   node scripts/phone-shots.ts 53h script script-land …   states of round 53h (name them: our
 //                                                keyboard in the two code editors)
 //
-// Since round 53e our own keyboard is the game layout's by default; the two states that show the
-// device's keyboard (`keyboard`, `comm-keyboard` of stage 51) say `?kbd=0`.
+// Our own keyboard is the phone's only one (ADR 0138 as released): the two states of stage 51
+// that showed the device's keyboard (`keyboard`, `comm-keyboard`) went with `?kbd=0` in round
+// 53i; their pictures (51-a-keyboard, 51-d-comm-keyboard) stay as history.
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -56,8 +57,6 @@ const VIEWPORT = { width: 390, height: 844 };
  * 1 px hairlines are still sharp and the files are less than half the size.
  */
 const SCALE = 2;
-/** The on-screen keyboard's height in the mockup (P6). */
-const KEYBOARD_PX = 300;
 const FIXTURE = 'gmcp-demo.log';
 /** A walk with map positions, played before the fixture (see `play`). */
 const WALK = 'map-demo.log';
@@ -82,7 +81,7 @@ interface State {
   stage?: number;
   /** Another screen than 390 × 844 (landscape, a narrow phone). */
   viewport?: { width: number; height: number };
-  /** More of the page's query (`kbd=sv`: our keyboard with that layout; `kbd=0`: the device's keyboard). */
+  /** More of the page's query (`kbd=sv`: our keyboard with that layout). */
   query?: string;
   /** The state is on the start page, before any game (stage 53f): the page opens there, not in the offline cockpit. */
   start?: boolean;
@@ -169,12 +168,6 @@ async function openChat(page: Page, name: string): Promise<void> {
   await page.locator('.wc-pane[data-pane="comm"]').waitFor();
   await page.locator(`.wc-pane[data-pane="comm"] .wc-cm-ent[aria-label^="${name}"]`).tap();
   await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').waitFor();
-}
-
-/** The on-screen keyboard comes up: the visible area shrinks, as the app detects it (phone-viewport.ts). */
-async function keyboardUp(page: Page): Promise<void> {
-  await page.setViewportSize({ width: VIEWPORT.width, height: VIEWPORT.height - KEYBOARD_PX });
-  await page.locator('html.wc-kbd').waitFor();
 }
 
 /** Every built-in pane a page of the strip (Character is out by default since stage 52). */
@@ -271,19 +264,6 @@ const STATES: State[] = [
   },
   { name: 'walking', step: 'a', run: (page) => play(page) },
   {
-    // The device's keyboard (stage 51's picture): the old path, `?kbd=0` (ADR 0138 §9).
-    name: 'keyboard',
-    step: 'a',
-    query: 'kbd=0',
-    run: async (page) => {
-      await play(page, CUT.fight);
-      await page.locator('.wc-ph-fight').waitFor();
-      await page.locator('.wc-input-field').tap();
-      await keyboardUp(page);
-      await page.keyboard.type('kill scout');
-    },
-  },
-  {
     name: 'menu',
     step: 'b',
     run: async (page) => {
@@ -362,20 +342,6 @@ const STATES: State[] = [
     live: true,
     run: async (page) => {
       await openChat(page, 'Gibur');
-      await page.waitForTimeout(500);
-    },
-  },
-  {
-    // (The device's keyboard, as `keyboard`: `?kbd=0`.)
-    name: 'comm-keyboard',
-    step: 'd',
-    live: true,
-    query: 'kbd=0',
-    run: async (page) => {
-      await openChat(page, 'Gibur');
-      await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
-      await keyboardUp(page);
-      await page.keyboard.type('on my way');
       await page.waitForTimeout(500);
     },
   },
@@ -1012,6 +978,37 @@ const STATES: State[] = [
   // The profile editor's Editor view, over the game: a line typed in the tt++ text.
   { name: 'profile-editor', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, run: (page) => pageProfileEditor(page) },
   { name: 'profile-editor-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, darkOnly: true, run: (page) => pageProfileEditor(page) },
+  // Round 53i: Comm's hood in portrait (alone, typed in with our keyboard, the search open, a small phone).
+  {
+    name: 'comm-portrait',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.waitForTimeout(500);
+    },
+  },
+  { name: 'comm-portrait-keyboard', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: S21, run: (page) => ownReply(page) },
+  {
+    name: 'comm-portrait-search',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    darkOnly: true,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.locator('.wc-pane[data-pane="comm"] .wc-cm-sbtn').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      for (const k of ['o', 'r', 'c']) await okbKey(page, k).tap();
+      await settle(page);
+    },
+  },
+  { name: 'comm-portrait-narrow', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => ownReply(page) },
   {
     name: 'keys-six',
     stage: 52,
@@ -1356,7 +1353,7 @@ async function warmUp(browser: Browser): Promise<void> {
 }
 
 const [stepArg, ...wanted] = process.argv.slice(2);
-const arg = /^(5[123])?([a-h])$/.exec(stepArg ?? '');
+const arg = /^(5[123])?([a-i])$/.exec(stepArg ?? '');
 if (!arg) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a or 52a> [state …]');
 const stage = Number(arg[1] ?? 51);
 const step = arg[2]!;

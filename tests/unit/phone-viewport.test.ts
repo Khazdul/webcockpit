@@ -5,7 +5,9 @@ import {
   NO_BASELINE,
   VV_SETTLE_MS,
   installPhoneViewport,
+  holdDeviceKeyboard,
   keyboardUp,
+  watchDeviceKeyboard,
   landscapeLayout,
   nextBaseline,
   screenLandscape,
@@ -143,6 +145,40 @@ describe('installPhoneViewport', () => {
     settle();
     expect(f.height()).toBe('686px');
     expect(f.kbd()).toBe(false);
+  });
+
+  it('with the device keyboard state off (a phone with our own keyboard) a shrink is no keyboard; the height is still published', () => {
+    const f = fakeWindow();
+    stop = installPhoneViewport(f.win);
+    f.resize(372);
+    settle();
+    expect(f.kbd()).toBe(true);
+    try {
+      // Turned off while it is set: dropped at once.
+      watchDeviceKeyboard(false, f.doc as unknown as Document);
+      expect(f.kbd()).toBe(false);
+      expect(keyboardUp()).toBe(false);
+      f.resize(300);
+      settle();
+      expect(f.height()).toBe('300px');
+      expect(f.kbd()).toBe(false);
+      expect(keyboardUp()).toBe(false);
+      // An old-layout cockpit on the page (the log player on a phone) holds the state on.
+      const release = holdDeviceKeyboard(f.doc as unknown as Document);
+      f.resize(299);
+      settle();
+      expect(f.kbd()).toBe(true);
+      release();
+      release();
+      expect(f.kbd()).toBe(false);
+      expect(keyboardUp()).toBe(false);
+    } finally {
+      watchDeviceKeyboard(true);
+    }
+    // On again (the phone layer could not be mounted): the next measurement says so.
+    f.resize(301);
+    settle();
+    expect(f.kbd()).toBe(true);
   });
 
   it('without the VirtualKeyboard API fullscreen still follows the visual viewport', () => {

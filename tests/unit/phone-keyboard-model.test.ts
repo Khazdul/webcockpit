@@ -57,9 +57,8 @@ describe('own keyboard: the layout', () => {
     expect(okbLayout('de', ['sv-SE'])).toBe('sv');
   });
 
-  it('the ?kbd= gate: on by default, 0 is off, 1 and debug show the readout, sv and en name the layout', () => {
-    for (const v of [null, undefined, '', 'true', 'SV', 'de']) expect(okbFromQuery(v)).toEqual({ layout: null, readout: false });
-    expect(okbFromQuery('0')).toBeNull();
+  it('?kbd=: 1 and debug show the readout, sv and en name the layout; nothing turns the keyboard off', () => {
+    for (const v of [null, undefined, '', 'true', 'SV', 'de', '0']) expect(okbFromQuery(v)).toEqual({ layout: null, readout: false });
     expect(okbFromQuery('1')).toEqual({ layout: null, readout: true });
     expect(okbFromQuery('debug')).toEqual({ layout: null, readout: true });
     expect(okbFromQuery('sv')).toEqual({ layout: 'sv', readout: false });

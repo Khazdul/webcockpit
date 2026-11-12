@@ -16,7 +16,6 @@
 // - A field that goes away while it is typed in (Comm or its search
 //   closed, the strip's page changed, a script's pane gone) hands the keys
 //   back to the command line at once (53e).
-// - With `?kbd=0` none of those fields is marked and nothing opens.
 //
 // `phone` project. The sending cases play against a `page.routeWebSocket`
 // mock; nothing reaches MUME.
@@ -190,7 +189,6 @@ test('Comm\'s reply line: a tap opens our keyboard for it, a tell is typed with 
   await reply(page).tap();
   await expect(okb(page)).toBeVisible();
   await expect(reply(page)).toBeFocused();
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   // One window size for the opening.
   await frames(page);
   expect(await sizes()).toHaveLength(1);
@@ -234,6 +232,73 @@ test('Comm\'s reply line: a tap opens our keyboard for it, a tell is typed with 
   expect(errors).toEqual([]);
 });
 
+// Round 53i (the owner, on the S21): Comm had no header text in portrait (ADR 0137 §1 gave it
+// a hood in landscape only). It has the strip's kind of hood there now, on a row of its own.
+test('portrait: Comm has its hood (COMM), alone, while its reply is typed in and with the search open; at its least rows the hood gives way to the reply line', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await play(page);
+  await setScreen(page, S21);
+  await openTell(page, m);
+  const head = page.locator('.wc-ph-comm-head');
+  const hood = head.locator('.wc-ph-comm-hood');
+  const band = page.locator('.wc-ph-comm-band');
+  const headRows = () => page.evaluate(() => window.__wc!.app.cockpit.phoneCommHead);
+  const whole = async (): Promise<void> => {
+    await frames(page);
+    await expect(hood).toBeVisible();
+    await expect(hood).toHaveText('Comm');
+    const g = await layout(page);
+    const cell = await page.evaluate(() => window.__wc!.cells.get());
+    const h = await box(hood);
+    // It hangs from Comm's top edge, in the middle of the full width, without the landscape divider.
+    expect(Math.abs(h.y - g.comm.y * cell.h)).toBeLessThanOrEqual(1);
+    expect(Math.abs(h.x + h.width / 2 - (g.comm.w * cell.w) / 2)).toBeLessThanOrEqual(1.5);
+    await expect(head).not.toHaveAttribute('data-divided');
+    // On rows of its own: the pane's content starts under it, and the reply line is whole above the band.
+    expect(await headRows()).toBeGreaterThan(0);
+    const c = await box(comm(page).locator('.wc-pane-content'));
+    expect(c.y).toBeGreaterThanOrEqual(h.y + h.height - 0.5);
+    const r = await box(comm(page).locator('.wc-cm-reply'));
+    expect(r.y + r.height).toBeLessThanOrEqual((await box(band)).y + 0.5);
+  };
+  // The strip's hood is the same thing: one look.
+  await whole();
+  // While the reply line is typed in.
+  await reply(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await whole();
+  // With the search open.
+  await comm(page).locator('.wc-cm-sbtn').tap();
+  await expect(search(page)).toBeFocused();
+  await type(page, 'o', 'r');
+  await whole();
+  await key(page, 'fold').tap();
+  // A small phone, the reply typed in: Comm is at its least rows above the keyboard. The hood
+  // gives way there, and the reply line is whole above the band, as before the hood came.
+  await setScreen(page, { width: 320, height: 568 });
+  await reply(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await frames(page);
+  // (Six rows: under the hood less than a reply line and a line of chat need, so no hood, and the
+  // content has every row but the band's.)
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 6 } }));
+  await frames(page);
+  expect((await layout(page)).comm.h).toBe(6);
+  expect(await headRows()).toBe(0);
+  await expect(head).toBeHidden();
+  const c = await box(comm(page).locator('.wc-pane-content'));
+  expect(Math.abs(c.y - (await layout(page)).comm.y * (await page.evaluate(() => window.__wc!.cells.get().h)))).toBeLessThanOrEqual(1);
+  // With more rows it is back.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 9 } }));
+  await frames(page);
+  expect((await layout(page)).comm.h).toBeGreaterThanOrEqual(8);
+  await expect(hood).toBeVisible();
+  const r = await box(comm(page).locator('.wc-cm-reply'));
+  expect(r.y + r.height).toBeLessThanOrEqual((await box(band)).y + 0.5);
+  await expect(comm(page)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('Comm\'s search: its key opens our keyboard for the field, typing filters as when typed, Enter does nothing', async ({ page }) => {
   const m = await play(page);
   await setScreen(page, S21);
@@ -244,7 +309,6 @@ test('Comm\'s search: its key opens our keyboard for the field, typing filters a
   await comm(page).locator('.wc-cm-sbtn').tap();
   await expect(search(page)).toBeFocused();
   await expect(okb(page)).toBeVisible();
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   await type(page, 'a', 'r', 'r', 'o', 'w');
   await expect(search(page)).toHaveValue('arrow');
   // The field's own `input` listener ran: the results list the message.
@@ -386,7 +450,6 @@ for (const size of [S21, S21_LAND]) {
     await expect(okb(page)).toBeVisible();
     await expect(rb(page)).toBeVisible();
     await expect(command(page)).toBeFocused();
-    await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
     await frames(page);
     const b = await box(rb(page));
     const k = await box(okb(page));
@@ -549,7 +612,6 @@ test('a script pane\'s field: typed with our keys, the script hears each change 
   await expect(f).toHaveAttribute('inputmode', 'none');
   await expect(okb(page)).toBeVisible();
   await expect(f).toBeFocused();
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   await type(page, 'c', 'a', 'v', 'x', 'back', 'e');
   await expect(f).toHaveValue('cave');
   // The script's onChange ran for what was typed.
@@ -869,23 +931,6 @@ test('a held backspace pulses once, not at every repeat', async ({ page }) => {
   expect((await vib()).length - before).toBe(1);
 });
 
-test('with ?kbd=0 the vibration works for the compass and the hot keys, and its row is there; the Keyboard group is not', async ({ page }) => {
-  const vib = await stubVibrate(page);
-  await openPhone(page, '&kbd=0');
-  await setScreen(page, S21);
-  await openSettings(page);
-  await expect(pageEl(page).locator('[data-group="keyboard"]')).toHaveCount(0);
-  await expect(srow(page, 'vibrate')).toBeVisible();
-  await srow(page, 'vibrate').getByRole('switch').tap();
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await expect(pageEl(page)).toHaveCount(0);
-  await compass(page, 'east').tap();
-  await hk(page, 2).tap();
-  expect(await vib()).toHaveLength(2);
-  await expect(okb(page)).toHaveCount(0);
-});
-
 test('a browser without navigator.vibrate: no row, and the keys work without a pulse', async ({ page }) => {
   const errors = watchErrors(page);
   await stubVibrate(page, false);
@@ -904,49 +949,3 @@ test('a browser without navigator.vibrate: no row, and the keys work without a p
   expect(errors).toEqual([]);
 });
 
-// ------------------------------------------------------------------ the gate
-
-test('with ?kbd=0 nothing of this is there: no field is marked, nothing opens, the password prompt swaps in its password field', async ({ page }) => {
-  const errors = watchErrors(page);
-  let server: WebSocketRoute | null = null;
-  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
-    server = ws;
-    ws.send(Buffer.from([IAC, WILL, GMCP]));
-  });
-  await page.goto('/?phone=1&kbd=0');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
-  await expect(pad(page)).toBeVisible();
-  // The password prompt: the phone's swapped-in password field, as before.
-  server!.send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, 1])]));
-  await expect(field(page)).toHaveAttribute('type', 'password');
-  await expect(field(page)).not.toHaveAttribute('inputmode');
-  server!.send(Buffer.from([IAC, 252, 1]));
-  await expect(field(page)).not.toHaveAttribute('type', 'password');
-  server!.send(gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Mock' }));
-  await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
-  await setScreen(page, S21);
-  server!.send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'you at the ford?'" }));
-  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
-  await comm(page).locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
-  await expect(reply(page)).toBeVisible();
-  for (const f of [reply(page), search(page)]) {
-    await expect(f).not.toHaveAttribute('inputmode');
-    await expect(f).not.toHaveAttribute('virtualkeyboardpolicy');
-  }
-  await reply(page).tap();
-  await expect(reply(page)).toBeFocused();
-  await frames(page);
-  await expect(okb(page)).toHaveCount(0);
-  await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
-  expect((await layout(page)).bottom).toBe(0);
-  await reply(page).evaluate((el: HTMLElement) => el.blur());
-  // (Comm closed: the box has its place.)
-  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
-  await expect(comm(page)).toBeHidden();
-  await hold(page, hk(page, 1));
-  await expect(label(page)).not.toHaveAttribute('inputmode');
-  await expect(command(page)).not.toHaveAttribute('inputmode');
-  expect(await page.evaluate(() => document.querySelectorAll('[inputmode="none"]').length)).toBe(0);
-  expect(errors).toEqual([]);
-});

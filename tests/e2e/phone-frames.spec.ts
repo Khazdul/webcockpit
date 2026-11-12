@@ -195,9 +195,7 @@ test('the command line is a textarea: Enter sends, no newline; the password prom
     ws.send(bytes([IAC, WILL, GMCP], '\r\nBy what name do you wish to be known? '));
   });
   const sentText = () => Buffer.concat(received).toString('latin1');
-  // `?kbd=0`: the device's keyboard, where the password prompt swaps in a real password field
-  // (with our own keyboard the line is masked in place: phone-own-keyboard.spec.ts).
-  await page.goto('/?phone=1&kbd=0');
+  await page.goto('/?phone=1');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await tapRow(page, 'enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
@@ -223,17 +221,17 @@ test('the command line is a textarea: Enter sends, no newline; the password prom
   });
   await expect(field).toHaveValue(/say one two$/);
 
-  // The password prompt: an <input type=password>, masked, sent on Enter.
+  // The password prompt: masked in place (the same textarea, as on a desktop; ADR 0138 §6), sent on Enter.
   server!.send(bytes([IAC, WILL, ECHO], 'Password: '));
   await expect(field).toHaveClass(/wc-masked/);
-  expect(await field.evaluate((e) => `${e.tagName}:${(e as HTMLInputElement).type}`)).toBe('INPUT:password');
+  expect(await field.evaluate((e) => e.tagName)).toBe('TEXTAREA');
   await expect(field).toBeFocused();
   await page.keyboard.type('hunter2');
   await expect(page.locator('.wc-input-mask')).toHaveText('•••••••');
   await page.keyboard.press('Enter');
   await expect.poll(sentText).toContain('hunter2\r\n');
   await expect(page.locator('.wc-output')).not.toContainText('hunter2');
-  // Echo back on: the textarea returns, empty.
+  // Echo back on: the line shows again, empty.
   server!.send(bytes([IAC, WONT, ECHO], '\r\nWelcome.\r\n'));
   await expect(field).not.toHaveClass(/wc-masked/);
   expect(await field.evaluate((e) => e.tagName)).toBe('TEXTAREA');

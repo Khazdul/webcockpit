@@ -732,8 +732,8 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip.wc-ph-side-grip {
   cursor: ew-resize;
 }
 
-/* Landscape (stage 52e): Comm's head in the left column (src/phone/comm-chrome.ts; JS sets top and
- * width). Its hood is the strip's, reading COMM. With the strip open above it an iron divider in
+/* Comm's head (src/phone/comm-chrome.ts; JS sets top and width; landscape since stage 52e, portrait
+ * since round 53i). Its hood is the strip's, reading COMM. In landscape, with the strip open above it in the left column, an iron divider in
  * the bands' look lies along Comm's top edge (6 px, cockpit.ts `PHONE_SIDE_DIVIDER_PX`; no lit
  * bar: it is not dragged) and the hood hangs from it, as the strip's hangs from the top edge. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head {
@@ -791,11 +791,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-pad {
   pointer-events: auto;
   touch-action: manipulation;
   -webkit-touch-callout: none;
-}
-
-/* Typing: the keys step aside (ADR 0136 §9). */
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-pad {
-  display: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
@@ -920,8 +915,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot-col:empty {
   pointer-events: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot[hidden],
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-hot {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot[hidden] {
   display: none;
 }
 
@@ -1008,10 +1002,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-n {
   border-right: 1px solid var(--ph-solid-edge);
   background: var(--ph-solid);
   transform: rotate(45deg);
-}
-
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-rb-n {
-  display: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-t {
@@ -1281,20 +1271,14 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot {
   padding: 0 calc(var(--ph-ck, 40px) * 3 + 22px) 0 8px;
 }
 
-/* Typing: the field takes the full width. */
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
-  padding-right: 8px;
-}
-
 /* ------------------------------------------------ own keyboard (ADR 0138) */
 
-/* A keyboard of our own (keyboard.ts; the layout's keyboard unless the
- * address says `?kbd=0`). A solid band over the full width from under the command row to
+/* A keyboard of our own (keyboard.ts; the layout's only keyboard). A solid band over the full width from under the command row to
  * the bottom edge (the layer sets `top` after each layout; the allocator
  * kept the rows free), and in it one block of keys (the layer sets its
  * `left` and `width`: the full width in portrait, compressed towards the
  * middle in landscape). The rows share the block's height. Its state is
- * `html.wc-okb`, never `wc-kbd` (the device's keyboard).
+ * `html.wc-okb`.
  *
  * The look is Lykta's: an iron ground, character keys of lighter iron with
  * the candle's ink, the keys that are not characters darker, Enter lit.

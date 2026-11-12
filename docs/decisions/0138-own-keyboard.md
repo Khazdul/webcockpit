@@ -1,8 +1,10 @@
 # 0138 — An on-screen keyboard of our own on the phone
 
-- Status: Accepted (decisions by the owner, 2026-11-11; built in stage
-  53). The technique in §2 is confirmed or replaced after the device
-  test of round 53a; the stage has two go / no-go points (§9).
+- Status: Accepted and released (decisions by the owner, 2026-11-11;
+  built in stage 53, rounds 53a–53i). Both go / no-go points of §9 were
+  passed on the owner's Samsung S21; the iPhone condition was lifted by
+  the owner on 2026-11-12 (see "as released" at the end). Extended to
+  every page of the phone by ADR 0139.
 - Date: 2026-11-11
 - Related: amends ADR 0136 §9 (command row and keyboard) and ADR 0137
   §3 (vibration) and §5 (keyboard). Investigation with sources:
@@ -435,3 +437,28 @@ blurs the field, and opens again only at a tap). A field with
   `main` (burst 956 / 959 / 963 ms, within the rounds' spread; a frame of
   text 0.2–0.4 ms later at the median while the command field has the
   focus, p95 unchanged).
+
+## Addendum: as released (round 53i, 2026-11-12)
+
+- **§9 is closed.** The owner's verdict on the S21 is go for the whole:
+  the game layout (53a–53e), the menu's pages (53f, 53g) and both code
+  editors (53h). The second condition, one test on an iPhone, was
+  **lifted by the owner on 2026-11-12**: iPhone and iPad are looked at
+  together later. Nothing is known about our keyboard on iOS (whether
+  `inputmode="none"` keeps Safari's keyboard down in every case, the
+  safe area under the band, no fullscreen there).
+- **`?kbd=0` is removed**, and with it the device keyboard path of the
+  game layout: §1's "no setting to use the device's keyboard instead"
+  now holds for the address too. `?kbd=sv|en` (the layout, for tests)
+  and `?kbd=1|debug` (the readout) stay. The Keyboard settings group is
+  always there on a phone. What was deleted and what was kept for the
+  old phone layout: ADR 0139, "as built in round 53i".
+- **§5 "its own state":** `html.wc-kbd` / `keyboardUp()` no longer mean
+  anything in the game layout. With the phone layer mounted the state
+  is never set (the shell turns it off); it remains for the old phone
+  layout only.
+- **§6:** the swap to `<input type="password">` is not reached with the
+  phone layer. It stays in `InputPane` for a phone without the layer.
+- **§8** as measured in round 53e; the comparison rows against the
+  device keyboard's path needed `?kbd=0` and can no longer be run
+  (`bench/results/phone-53-keyboard.md` keeps them as history).
