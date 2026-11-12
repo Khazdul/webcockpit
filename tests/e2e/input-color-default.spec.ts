@@ -116,7 +116,7 @@ for (const theme of ['dark', 'paper'] as const) {
     expect(await colorOf(page, mask)).toEqual(gold);
     await page.keyboard.press('ControlOrMeta+a');
     const tint = await resolve(page, await field.evaluate((el) => getComputedStyle(el, '::selection').backgroundColor), bg);
-    // (Bullets are marks, not letters: 3 : 1. On Paper the tint is a third ink, and the gold is 3.1 : 1 on it; 8.9 : 1 on dark.)
+    // (Bullets are marks, not letters: 3 : 1. On Paper the tint is a third ink, and the gold is 3.1 : 1 on it; about 6 : 1 on dark.)
     expect(ratio(gold, tint)).toBeGreaterThanOrEqual(3);
     server!.send(bytes([IAC, WONT, ECHO]));
   });

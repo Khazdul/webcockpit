@@ -640,7 +640,7 @@ test.describe('the lens and Comm, 390 × 844', () => {
     sizes.slice(1, -1).forEach((px, i) => expect(sent1[i]).toBeCloseTo(px / (5 * 44), 4));
     // Back up, still the same drag: the lens returns and grows to its full size.
     for (let up = step; up >= 0; up--) await touch('touchMove', y0 + up * h);
-    await expect.poll(async () => (await layout()).comm).toBe(6);
+    await expect.poll(async () => (await layout()).comm).toBe(7);
     await expect(lens(page)).toBeVisible();
     await expect(page.locator('.wc-ph-satrow')).toBeHidden();
     await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(163, 0);

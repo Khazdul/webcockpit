@@ -293,9 +293,9 @@ test('portrait: Comm has no hood row; COMM is on its band, alone, while its repl
   await expect(okb(page)).toBeVisible();
   await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 6 } }));
   await frames(page);
-  expect((await layout(page)).comm.h).toBe(6);
-  // (Six rows of this cell hold the plate but not the whole 40 px reply line and its air, as before this round.)
-  await whole(false);
+  // (Asked for six rows: its least is seven here, the rows that hold the whole 40 px reply line, round 53k.)
+  expect((await layout(page)).comm.h).toBe(7);
+  await whole();
   await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 9 } }));
   await frames(page);
   expect((await layout(page)).comm.h).toBeGreaterThanOrEqual(8);

@@ -82,4 +82,4 @@ default everywhere."
   inverse and does not depend on it; the suggestion stays the muted
   grey; the phone's kept line and placeholder stay the field's dim
   text; the password's bullets are gold, 3.1 : 1 on the tint of a
-  selected password on Paper (marks, not letters) and 8.9 : 1 on dark.
+  selected password on Paper (marks, not letters) and about 6 : 1 on dark.
