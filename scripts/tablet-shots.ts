@@ -1,18 +1,20 @@
-// The tablet trial's screenshots (stage 54, notes/research/tablet/trial.md):
-// the phone's game layout with our own keyboard, unchanged, on a tablet-size
-// screen (`?tablet=phone`, src/core/device.ts), and today's tablet (the
-// desktop cockpit, `?touch=1`) beside it.
+// The tablet's screenshots (stage 54, round 54a; ADR 0140): the phone's game
+// layout with our own keyboard as a tablet gets it by default, with NO flag
+// in the address, and the desktop cockpit behind `?tablet=desktop` beside it.
+// (It began as the trial's script, notes/research/tablet/trial.md, whose
+// pictures in notes/research/tablet/trial-shots/ were made with
+// `?tablet=phone` before the keyboard was widened.)
 //
-//   node scripts/tablet-trial-shots.ts              every state, both orientations
-//   node scripts/tablet-trial-shots.ts rest menu    only these states
+//   node scripts/tablet-shots.ts                 every state, both orientations
+//   node scripts/tablet-shots.ts rest keyboard   only these states
 //
-// Writes notes/research/tablet/trial-shots/<state>-<portrait|landscape>.png
-// and measures.json (the px sizes of the main parts in each shot). Starts the
-// dev server on WC_SHOT_PORT (default 5189) unless one answers there, and
-// drives Chromium as an iPad (10th generation): 820 × 1180 CSS px, device
-// scale 2, mobile and touch. Nothing connects to MUME (the fixtures are
-// replayed, or sent down a mocked socket). A throwaway of the trial, as the
-// flag is.
+// Writes docs/stages/img/54-a-<state>.png (portrait) and
+// 54-a-land-<state>.png (landscape), and the px sizes of the main parts in
+// each shot to notes/research/tablet/54a-measures.json. Starts the dev
+// server on WC_SHOT_PORT (default 5189) unless one answers there, and drives
+// Chromium as an iPad (10th generation): 820 × 1180 CSS px, device scale 2,
+// mobile and touch, a Swedish browser (the eleven-key rows). Nothing
+// connects to MUME (the fixtures are replayed, or sent down a mocked socket).
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -21,20 +23,24 @@ import { devServer } from './lib/dev-server.ts';
 import { GMCP, IAC, WILL, fixture, gmcpBytes, toSteps } from './lib/mume-feed.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const OUT = `${ROOT}notes/research/tablet/trial-shots/`;
+const OUT = `${ROOT}docs/stages/img/`;
+const MEASURES = `${ROOT}notes/research/tablet/54a-measures.json`;
 const PORT = Number(process.env.WC_SHOT_PORT ?? 5189);
 const BASE = `http://localhost:${PORT}`;
 const SIZES = { portrait: { width: 820, height: 1180 }, landscape: { width: 1180, height: 820 } } as const;
 const FIXTURE = 'gmcp-demo.log';
 const WALK = 'map-demo.log';
-const TRIAL = 'tablet=phone';
+/** A tablet needs no flag (ADR 0140). */
+const PLAIN = '';
 
 interface State {
   name: string;
   /** How the page opens: the offline cockpit (default), the start page, or a mocked connection. */
   open?: 'start' | 'live';
-  /** The page's query in place of the trial flag (today's tablet). */
+  /** A query flag for the page (the escape hatch, a keyboard layout); none by default. */
   query?: string;
+  /** The page is the desktop cockpit (`?tablet=desktop`), not the phone's layout. */
+  desktop?: boolean;
   run(page: Page): Promise<void>;
 }
 
@@ -79,7 +85,7 @@ async function live(page: Page): Promise<void> {
     ws.send(Buffer.from([IAC, WILL, GMCP]));
     ws.send(feed);
   });
-  await page.goto(`/?${TRIAL}`);
+  await page.goto('/');
   await page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label').waitFor();
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
@@ -94,6 +100,53 @@ const STATES: State[] = [
   { name: 'rest', run: (page) => play(page) },
   {
     name: 'keyboard',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      for (const k of ['k', 'i', 'l', 'l', 'space', 'o', 'r', 'c']) await okbKey(page, k).tap();
+      await page.waitForTimeout(2500);
+    },
+  },
+  {
+    // The digit row folded up (its key), with the history's arrows on it.
+    name: 'digits',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      await okbKey(page, 'digits').tap();
+      for (const k of ['g', 'e', 't', 'space', '2', 'space', 'b', 'r', 'e', 'a', 'd']) await okbKey(page, k).tap();
+      await page.waitForTimeout(2500);
+    },
+  },
+  {
+    // The symbols page (the digit row folded away: the digits are its first row).
+    name: 'symbols',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      await okbKey(page, 'sym').tap();
+      await page.waitForTimeout(2500);
+    },
+  },
+  {
+    // The symbols page with the digit row up: five rows.
+    name: 'symbols-digits',
+    run: async (page) => {
+      await play(page);
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      await okbKey(page, 'digits').tap();
+      await okbKey(page, 'sym').tap();
+      await page.waitForTimeout(2500);
+    },
+  },
+  {
+    // The English layout: ten keys a row.
+    name: 'keyboard-en',
+    query: 'kbd=en',
     run: async (page) => {
       await play(page);
       await page.locator('.wc-input-slot .wc-input-field').tap();
@@ -207,8 +260,8 @@ const STATES: State[] = [
       await page.waitForTimeout(2500);
     },
   },
-  // Today's tablet, for comparison: touch but not phone, the desktop cockpit.
-  { name: 'today-rest', query: 'touch=1', run: (page) => play(page, false) },
+  // The escape hatch: the desktop cockpit and the device's keyboard, as a tablet had before ADR 0140.
+  { name: 'desktop', query: 'tablet=desktop', desktop: true, run: (page) => play(page, false) },
 ];
 
 /** The px boxes of the main parts on the page (null: not there or not shown). */
@@ -243,7 +296,11 @@ async function measure(page: Page): Promise<Record<string, unknown>> {
       menuButton: box('.wc-ph-menu'),
       sat: box('.wc-ph-sat'),
       keyboard: box('.wc-ph-okb'),
+      keyBlock: box('.wc-ph-okb-block'),
+      keyRow: box('.wc-ph-okb-row'),
       key: box('.wc-ph-okb-k[data-ch="k"]'),
+      enter: box('.wc-ph-okb-k[data-act="enter"]'),
+      keyTablet: document.querySelector('.wc-ph-okb[data-tablet]') !== null,
       space: box('.wc-ph-okb-k[data-act="space"]'),
       strip: box('.wc-pane[data-phone-strip]'),
       comm: box('.wc-pane[data-pane="comm"]'),
@@ -265,27 +322,28 @@ function shrink(file: string): void {
 }
 
 async function shoot(browser: Browser, state: State, orient: keyof typeof SIZES): Promise<Record<string, unknown>> {
-  const ctx = await browser.newContext({ viewport: SIZES[orient], deviceScaleFactor: 2, isMobile: true, hasTouch: true, baseURL: BASE });
+  const ctx = await browser.newContext({ viewport: SIZES[orient], deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'sv-SE', baseURL: BASE });
   const page = await ctx.newPage();
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   try {
-    const query = state.query ?? TRIAL;
+    const query = state.query ?? PLAIN;
     if (state.open === 'live') await live(page);
     else if (state.open === 'start') {
-      await page.goto(`/?${query}`);
+      await page.goto(`/${query && `?${query}`}`);
       await page.locator('.wc-start .wc-sm-item.is-sel').waitFor();
     } else {
-      await page.goto(`/?replay&${query}`);
-      await page.locator(state.query ? '.wc-cockpit' : '.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
+      await page.goto(`/?replay${query && `&${query}`}`);
+      await page.locator(state.desktop ? '.wc-cockpit' : '.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
     }
     await state.run(page);
     await page.evaluate(() => document.fonts.ready);
     await settle(page);
-    const file = `${OUT}${state.name}-${orient}.png`;
+    const name = `54-a-${orient === 'landscape' ? 'land-' : ''}${state.name}.png`;
+    const file = `${OUT}${name}`;
     await page.screenshot({ path: file });
     shrink(file);
-    console.log(`  ${state.name}-${orient}.png`);
+    console.log(`  ${name}`);
     return { ...(await measure(page)), pageErrors: errors };
   } finally {
     await ctx.close();
@@ -297,7 +355,7 @@ async function warmUp(browser: Browser): Promise<void> {
   const ctx = await browser.newContext({ viewport: SIZES.portrait, isMobile: true, hasTouch: true, baseURL: BASE });
   const page = await ctx.newPage();
   try {
-    await page.goto(`/?replay&${TRIAL}`);
+    await page.goto('/?replay');
     await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
@@ -333,7 +391,7 @@ try {
   server?.kill();
 }
 // A run of some states keeps the other states' numbers.
-const file = `${OUT}measures.json`;
+const file = MEASURES;
 const before: Record<string, unknown> = wanted.length > 0 && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
 writeFileSync(file, `${JSON.stringify({ ...before, ...measures }, null, 1)}\n`);
 if (failed.length) {

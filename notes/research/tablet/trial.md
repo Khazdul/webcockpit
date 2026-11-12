@@ -6,6 +6,14 @@ layout (ADR 0136/0137) with our own keyboard (ADR 0138/0139) runs
 Nothing was tuned for tablets. This note says how to open it and what was
 seen. Not an ADR, not a decision.
 
+**Afterwards (2026-11-12):** the owner chose this layout for the tablet
+(ADR 0140). A tablet now gets it with no flag, the keyboard was widened
+for tablet-size windows, and "today's tablet" below is behind
+`?tablet=desktop` (on a touch device `?touch=1` no longer gives it). The
+script became `scripts/tablet-shots.ts` and now writes
+`docs/stages/img/54-a-*.png`; the pictures in `trial-shots/` are the
+trial as it was and are not remade. The rest of this note is unchanged.
+
 ## How to open it
 
 Dev server (`npm run dev`, or `npm run dev:tailnet` for the iPad), then:
