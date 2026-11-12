@@ -527,6 +527,17 @@ moves the caret), script pane fields, key sound.
   of 891 (pass alone). Android's selection pop-up cannot be seen in
   emulation. Screenshots `docs/stages/img/53-j-*`.
 
+- **Review of 53j** (fresh subagent): releasable; the command line
+  never sent an unmeant command or lost one. Handed to 53k: a long
+  password's bullets slide out of the field (older); Comm at its least
+  rows with a small font cuts the reply line (older); the box still
+  closes on a field tap in a fight at 320 × 480; the Comm key tapped
+  while the box has Comm out closes both; Comm's search query is lost
+  when the box takes Comm out; the kept line with hardware caret
+  chords, `historyDown`, and across a disconnect. The five
+  `phone-game-menu` failures are load. Not checked: Android's real
+  selection pop-up, IME composition on a kept line, iOS.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
