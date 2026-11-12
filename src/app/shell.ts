@@ -139,7 +139,7 @@ import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
-import { PHONE_MAX_SHORT_SIDE } from '../core/device';
+import { PHONE_MAX_SHORT_SIDE, tabletPhoneTrial } from '../core/device';
 import { device } from '../core/device';
 import { ownEditorOf, sendOwnKey, setPageKeyboard, setPageKeyboardUp } from '../core/own-keyboard';
 import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from './auto-reconnect';
@@ -199,6 +199,18 @@ export function phoneSizeWindow(win: Pick<Window, 'innerWidth' | 'innerHeight'> 
   return Math.min(w, h) < PHONE_MAX_SHORT_SIDE;
 }
 
+/**
+ * The phone's game layout is used (ADR 0136 §1): the phone flag is on and
+ * the window is a phone's, or the trial flag `?tablet=phone` (stage 54, a
+ * development trial; src/core/device.ts) asks for it on a window of any size.
+ */
+export function phoneGameWanted(
+  phone: boolean,
+  win: (Pick<Window, 'innerWidth' | 'innerHeight'> & { location?: { search?: string } }) | null | undefined,
+): boolean {
+  return phone && (phoneSizeWindow(win) || tabletPhoneTrial(win?.location?.search));
+}
+
 export class Shell {
   private readonly opts: ShellOptions;
   readonly profiles: ProfileStore;
@@ -214,7 +226,8 @@ export class Shell {
    * desktop-size window keeps the old phone layout (the tab strip, `☰` and
    * the ESC menu, ADR 0075): that is what the desktop projects' specs of
    * the Options frames open, and a phone's layout is not made for it.
-   * Decided once, when the shell is built.
+   * Decided once, when the shell is built. The trial flag `?tablet=phone`
+   * (stage 54, src/core/device.ts) uses it whatever the window's size.
    */
   private readonly phoneGame: boolean;
   /** Phone only: our keyboard on the pages outside the game layout (ADR 0139; src/phone/keyboard-pages.ts). */
@@ -260,7 +273,7 @@ export class Shell {
     this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
-    this.phoneGame = device().phone && phoneSizeWindow(doc.defaultView);
+    this.phoneGame = phoneGameWanted(device().phone, doc.defaultView);
     // Our own keyboard is the phone's (ADR 0138, ADR 0139). Before any page is drawn: the shared
     // field components mark their fields by it.
     setPageKeyboard(this.phoneGame);

@@ -19,6 +19,10 @@
 //                           (a way back from a setting that breaks the page)
 //   ?touch=1, ?phone=1      force the touch / phone flags on (ADR 0075,
 //                           src/core/device.ts)
+//   ?tablet=phone           a development trial (stage 54): the phone flag
+//                           on and the phone's game layout with our own
+//                           keyboard on a window of any size, to look at
+//                           the phone layout on a tablet (src/core/device.ts)
 //   ?kit[=<section>]        dev server (or a `VITE_KIT=1` build) only: opens
 //                           the lantern kit's gallery over the start menu
 //                           (src/chrome/kit/gallery, ADR 0127)

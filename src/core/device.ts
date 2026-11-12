@@ -14,6 +14,13 @@
 // development on a desktop and for the e2e tests. With both flags off no
 // phone code path runs: every touch/phone branch reads these flags, and
 // all touch/phone CSS is scoped under `html.wc-touch` / `html.wc-phone`.
+//
+// `?tablet=phone` is a development TRIAL flag (stage 54, no ADR; to be
+// removed or replaced when the tablet stage is designed): it forces the
+// phone flag on as `?phone=1` does, and the shell then uses the phone's
+// game layout with our own keyboard whatever the window's size
+// (`tabletPhoneTrial`, src/app/shell.ts), so the phone layout can be looked
+// at unchanged on a tablet. Without it nothing differs.
 
 export interface DeviceFlags {
   readonly touch: boolean;
@@ -41,10 +48,18 @@ const forced = (params: URLSearchParams, name: string): boolean => {
   return v !== null && v !== '0' && v !== 'false';
 };
 
+/**
+ * The trial flag `?tablet=phone` is in the query string `search` (pure).
+ * A development trial (stage 54), not a decided behaviour: see the header.
+ */
+export function tabletPhoneTrial(search: string | null | undefined): boolean {
+  return new URLSearchParams(search ?? '').get('tablet') === 'phone';
+}
+
 /** The flags for these inputs (pure). */
 export function decideDevice(i: DeviceInputs): DeviceFlags {
   const params = new URLSearchParams(i.search);
-  const forcePhone = forced(params, 'phone');
+  const forcePhone = forced(params, 'phone') || tabletPhoneTrial(i.search);
   const small = Math.min(i.screenWidth, i.screenHeight) < PHONE_MAX_SHORT_SIDE;
   const touchScreen = i.touchPoints > 0 && (small || /Android/i.test(i.userAgent));
   const touch = forcePhone || forced(params, 'touch') || i.coarse || touchScreen;
