@@ -460,16 +460,18 @@ above the keyboard) the hood is left out and the rows are the
 conversation's (`PHONE_COMM_HOOD_KEEP_PX`, `Cockpit.phoneCommHead`).
 Landscape is unchanged.
 
-**Seen on the way, not changed.** After a turn the visible area's new
-height is published 150 ms late (`VV_SETTLE_MS`), so for that time the
-page is laid out at the new width and the old height. Turning to
-landscape that has always meant one layout at a too tall size; turning
-back to portrait it now shows as two layouts at the old low height
-(three window sizes to MUME for the turn, in emulation). Before the
-hood a 350 ms pause of the page after the turn hid them (the first
-frame came after the height); with the hood in both shapes the pause is
-not there. Why was not looked into. Whether a phone shows the same is not known; the settle
-time is the place to look.
+**Seen on the way, and fixed after the review (F1).** After a turn the
+visible area's new height was published 150 ms late (`VV_SETTLE_MS`)
+while the page's width followed at once, so the first layout was at the
+new width and the old height; the phone layer then changed the keys'
+size for the shape and asked for one more layout. MUME was told window
+sizes that never were. This is older than the round (stage 52, the same
+on `main`); the first note here blamed a pause of the page, which was
+wrong. Now a viewport event with a new width is published at once
+(`later()` in `phone-viewport.ts`; the trailing measurement stays): a
+turn is one window size, both ways, with the strip and Comm open and
+with our keyboard up (e2e). A width change is never taken for a
+keyboard: the baseline starts over at a new width, as before.
 
 **Not verified on a device:** everything of this round. In emulation
 only: the split screen, the low window, the player's Comm search with

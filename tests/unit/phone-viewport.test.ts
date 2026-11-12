@@ -181,6 +181,30 @@ describe('installPhoneViewport', () => {
     expect(f.kbd()).toBe(true);
   });
 
+  it('a new width (a turn) is published at once, and is no keyboard; the same width still waits for the events to be quiet', () => {
+    const f = fakeWindow();
+    stop = installPhoneViewport(f.win);
+    // Turned to landscape: lower, but at a new width.
+    f.resize(360, 800);
+    expect(f.height()).toBe('360px');
+    expect(f.kbd()).toBe(false);
+    // A height that comes after the width, with no event of its own, is taken by the trailing measurement.
+    f.vv.height = 340;
+    settle();
+    expect(f.height()).toBe('340px');
+    expect(f.kbd()).toBe(false);
+    // At the same width a shrink waits (the device keyboard's animation), and is the keyboard.
+    f.resize(150);
+    expect(f.height()).toBe('340px');
+    settle();
+    expect(f.height()).toBe('150px');
+    expect(f.kbd()).toBe(true);
+    // Turned back with it "up": the new width starts over at once.
+    f.resize(686, 360);
+    expect(f.height()).toBe('686px');
+    expect(f.kbd()).toBe(false);
+  });
+
   it('without the VirtualKeyboard API fullscreen still follows the visual viewport', () => {
     const f = fakeWindow({ vk: false });
     stop = installPhoneViewport(f.win);

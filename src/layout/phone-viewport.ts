@@ -9,7 +9,8 @@
 //   ui.css sizes #app by them, so the cockpit fits above the keyboard and
 //   the input line sits just over it. The update waits until the events
 //   have been quiet for VV_SETTLE_MS, so the relayout and NAWS run once at
-//   the end of the keyboard animation, not on every step.
+//   the end of the keyboard animation, not on every step. An event with a
+//   new width (a turn) is published at once: one layout and one NAWS.
 // - `keyboardUp()` is true while the visible height is well below the
 //   tallest seen at this width (the device's keyboard is open); the
 //   cockpit skips the too-small guard then. ONLY FOR THE OLD PHONE LAYOUT
@@ -254,6 +255,12 @@ export function installPhoneViewport(win: Window = window): () => void {
     for (const fn of appliedFns) fn();
   };
   const later = (): void => {
+    // A new width is a turn (or a new window), never a keyboard's animation: the page's width
+    // follows at once, so the height is published at once too. Else the first layout after a
+    // turn is at the new width and the old height, and MUME is told window sizes that never
+    // were. The trailing measurement stays, for a height that comes after the width.
+    const w = vv ? vv.width : win.innerWidth;
+    if (Math.round(w) !== base.width) apply();
     if (timer) clearTimeout(timer);
     timer = setTimeout(apply, VV_SETTLE_MS);
   };
