@@ -464,9 +464,9 @@ describe('the Map lens group', () => {
     if (show?.kind !== 'toggle' || opens?.kind !== 'seg') throw new Error('row kinds');
     expect(show.get(s)).toBe(true);
     expect(show.set(false, s)).toEqual({ phone: { lens: { show: false } } });
-    expect(opens.get(s)).toBe('middle');
-    expect(opens.options.map((o) => o.value)).toEqual(['near', 'middle', 'far']);
-    expect(opens.set('far', s)).toEqual({ phone: { lens: { opensAt: 'far' } } });
+    expect(opens.get(s)).toBe('z1');
+    expect(opens.options.map((o) => o.value)).toEqual(['z1', 'z2', 'z3', 'z4']);
+    expect(opens.set('z3', s)).toEqual({ phone: { lens: { opensAt: 'z3' } } });
   });
 
   it('its switch and segments change the stored settings from the page', () => {
@@ -475,8 +475,8 @@ describe('the Map lens group', () => {
     const row = (id: string): Element => menu.host.querySelector(`[data-row="${id}"]`)!;
     // No size row since stage 52: the lens is sized from the screen.
     expect(menu.host.querySelector('[data-row="lens-size"]')).toBeNull();
-    tap(row('lens-opens').querySelector('[data-opt="far"]'));
-    expect(settings.get().phone.lens.opensAt).toBe('far');
+    tap(row('lens-opens').querySelector('[data-opt="z3"]'));
+    expect(settings.get().phone.lens.opensAt).toBe('z3');
     tap(row('lens-show').querySelector('[role="switch"]'));
     expect(settings.get().phone.lens.show).toBe(false);
     expect(row('lens-show').querySelector('[role="switch"]')!.getAttribute('aria-checked')).toBe('false');
@@ -535,8 +535,8 @@ describe('the settings page as data', () => {
     // (Keyboard: stage 53d; shown only with our own keyboard, phone-keyboard-fields.test.ts.)
     expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
     expect(SETTINGS_GROUPS.map((g) => g.title)).toEqual(['Text', 'Quick buttons', 'Keyboard', 'Map lens', 'Panes', 'Comm', 'Connection']);
-    expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-opens']);
-    expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'link:timers-group']);
+    expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-opens', 'action:lens-reset']);
+    expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'toggle:fight-card', 'link:timers-group']);
     expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font']);
   });
 

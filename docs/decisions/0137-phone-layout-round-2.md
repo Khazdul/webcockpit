@@ -196,3 +196,112 @@ in portrait too").
 Details of the same round's other three points (the hot key box hiding
 panes for the keyboard, the kept line, the fields' text size): ADR 0138,
 "as built in round 53j".
+
+## Addendum: round 53k (stage 53, 2026-11-12)
+
+The owner, on his S21 after 53j. Everything here is the phone's game
+layout; a computer and a tablet do not change.
+
+### The fight card's place, and its switch
+
+- **Portrait: the card always lies under the panes at the top**: the
+  strip, Comm, the fight card, the game text (it lay between the strip
+  and Comm). Under the one that is open when only one is; at the very top
+  when none is; a part that gave way or is left out for the hot key box
+  counts as closed. Landscape had no such oddity (the card is at the top
+  of the game text, right of the column) and is unchanged.
+- **`phone.fightCard`** (default on; Settings → Panes → "Fight card while
+  fighting"). Off: no card, its rows are the game text's, and the game
+  state's notifications are not followed for it.
+
+### The lens is moved and resized by touch
+
+- **Gestures, on the glass:** a finger that moves more than 8 px carries
+  the lens along (a move). A finger held still for **400 ms** arms the
+  resize: the rim lights up, and the phone vibrates once while
+  `phone.vibrate` is on; a drag after that changes the diameter by twice
+  what the finger moved **away from the lens's centre (larger) or towards
+  it (smaller)**, so the rim moves with the finger. An armed hold released
+  in place does nothing. A tap still steps the zoom; a drag's release
+  does not. The tap is taken at the pointer's release, not at the click
+  (Chrome drops the click of a tap that follows a flick), and the glass
+  cancels the touch's moves so no fling is made of them.
+- **Wanted and shown.** A drop stores the wanted place (the centre, as
+  shares of the screen's width and height) or the wanted size (px), for
+  the orientation it was made in: `phone.lens.portrait` and
+  `phone.lens.landscape`, each `{ x, y, size }`, null where not set. A
+  move never writes the size and a resize never the place, also when the
+  lens was shown pushed or shrunk. Nothing else writes them.
+- **What is shown** is derived at every layout (`lens-place.ts`
+  `fitLens`, asked by the cockpit through `setPhoneLensFit`): the lens's
+  box is kept inside the free area (12 px inside the screen's sides,
+  16 px under the strip, Comm and the fight card (12 in landscape), 12 px
+  above the command row, right of the landscape column, above an open hot
+  key box); the compass and the shown hot key columns are blocks on the
+  bottom edge (standing on our keyboard's top edge in portrait), and over
+  a block's columns the lens's floor is the block's top; where the wanted
+  size does not fit it shrinks, and under 96 px it is hidden, its keys as
+  the row at the top right. With the room back the same wanted values
+  give the old place and size. In landscape the area ends left of the hot
+  key columns, shown or not, as the default lens does.
+- **Limits:** 96 px to the smaller side of the free area (336 px at
+  360 × 800 with nothing open). A stored size is 96 to 2000.
+- **The default lens** (never moved or resized in that orientation) keeps
+  §2's rules and the allocator's place in whole cells. A wanted size with
+  no wanted place stands in the free area's top right corner.
+- **Cost:** while the finger is down nothing is laid out and no window
+  size goes out: the dressing and the map pane follow by `translate`, a
+  resize scales the map's picture (`scale`), and the map is drawn at the
+  new size once, after the drop, in the one layout the drop asks for. A
+  layout that comes under the finger for another reason ends the drag,
+  with nothing stored.
+- **The zoom follows the size**, also a size the user set: a larger lens
+  shows the same rooms larger; the level decides how much of the map is
+  in view. (The other reading, a larger lens showing more rooms at the
+  same scale, would make the resize's preview differ from its result.)
+- **The way back:** Settings → Map lens → "Reset place and size" (both
+  orientations).
+
+### Four zoom levels
+
+0.6.1's nearest level (three rooms across) was too close for a lens.
+The levels are `z1` 5 rooms (0.6.1's middle, the default), `z2` 10
+(0.6.1's far), `z3` 20 (one more step of the same ratio) and `z4` 44
+(the whole neighbourhood: a room is 3.4 px on a 150 px lens, 10 device
+px on the S21). The settings page calls them Near, Mid, Far, Area. A
+stored `near` or `middle` reads as `z1` and `far` as `z2`; the new names
+share none with the old, so no settings version is needed. Measured in
+headless Chromium at 360 × 800: a tap to the first new picture takes
+650 ms at `z1` and 700 ms at `z4`, at 150 px and at 330 px alike (the
+map worker's zoom change, as before; the furthest level adds some
+50 ms).
+
+### Review findings on round 53j
+
+- **Comm's least height is a floor in px** (`commMinRows`): the rows that
+  hold one line of chat and the whole 40 px reply line, plus the band,
+  never under six. Seven rows at the default text size (six cut the
+  line's edge by 4 px), nine at size 8.
+- **The hot key box's floor.** With our keyboard open the box needs
+  180 px between the fight card and its foot. Where it has not even with
+  the strip and Comm taken out (320 × 480 in a fight), a tap on one of
+  its fields opens no keyboard and the box stays: no layout, no window
+  size. The label and command of a key cannot be typed on such a screen
+  during a fight; the quick picks still work.
+- The key of a part the box has out stays lit, and a tap on it only
+  closes the box.
+- Comm's open search survives the box's hiding; the kept line ends on
+  the line's own caret and word keys, on the history's Down where it
+  writes, and on a disconnect; a long password's bullets stay in the
+  field (ADR 0138).
+
+### Settings keys
+
+Added under `phone`: `fightCard`, `lens.portrait`, `lens.landscape`.
+`lens.opensAt` takes `z1` to `z4`. No settings version bump.
+
+### To verify on a device
+
+- Whether a hold is told from a slow move by 8 px and 400 ms under a
+  real thumb, and whether the resize's direction feels right.
+- The lens in fullscreen (the shares are of the screen as it is then).

@@ -141,7 +141,7 @@ describe('input colour (ADR 0034, 0035)', () => {
   it('covers every fg × bg preset, following the bg lightness', () => {
     for (const bg of TERMINAL_BG_PRESETS) {
       for (const fg of TERMINAL_FG_PRESETS) {
-        const t = rootTokens(migrateSettings({ appearance: { bg: bg.hex, fg: fg.hex } }));
+        const t = rootTokens(migrateSettings({ appearance: { bg: bg.hex, fg: fg.hex, inputColor: 'steel' } }));
         expect(t['--term-fg']).toBe(fg.hex);
         expect(t['--term-echo']).toBe(bg.name === 'paper' ? LIGHT : DARK);
       }
@@ -150,8 +150,13 @@ describe('input colour (ADR 0034, 0035)', () => {
 
   it('is set on the element applyTheme themes', () => {
     const root = document.createElement('div');
-    applyTheme(migrateSettings({ appearance: { bg: '#f4ecd8', fg: '#000000' } }), root);
+    applyTheme(migrateSettings({ appearance: { bg: '#f4ecd8', fg: '#000000', inputColor: 'steel' } }), root);
     expect(root.style.getPropertyValue('--term-echo')).toBe(LIGHT);
+    // With no colour stored: the default, Amber (2026-11-12), by the same rule.
+    applyTheme(migrateSettings({ appearance: { bg: '#f4ecd8', fg: '#000000' } }), root);
+    expect(root.style.getPropertyValue('--term-echo')).toBe('color-mix(in oklab, var(--term-fg) 15%, #9a5a00)');
+    applyTheme(migrateSettings({}), root);
+    expect(root.style.getPropertyValue('--term-echo')).toBe('color-mix(in oklab, var(--term-fg) 15%, #ffaf00)');
   });
 });
 

@@ -402,9 +402,27 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-glass {
   box-shadow: var(--ph-lens-outer);
   pointer-events: auto;
   cursor: pointer;
-  touch-action: manipulation;
+  /* A finger on the glass moves or resizes the lens (round 53k): the browser pans and zooms nothing from here. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+}
+
+/* The resize is armed (a finger held still on the glass): the rim is lit by the lamp, outside the
+ * iron ring and through its inner edge. Static paint, on for the hold and the drag only. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens.is-armed .wc-ph-lens-glass {
+  box-shadow:
+    0 0 0 10px var(--ph-pip-on),
+    0 0 16px 12px rgb(232 196 138 / 0.45),
+    var(--ph-lens-outer);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens.is-armed .wc-ph-lens-shine {
+  box-shadow:
+    inset 0 0 0 2px var(--ph-pip-on),
+    var(--ph-lens-glass-in);
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-lens-refl {
@@ -2425,6 +2443,15 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key.i
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key[aria-disabled="true"] {
   color: var(--ph-key-off);
   cursor: default;
+}
+
+/* An action row with nothing to do (the lens at its default place and size): its name dimmed, no press. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-action[aria-disabled="true"] {
+  cursor: default;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-action[aria-disabled="true"] > .wc-ph-srow-t {
+  color: var(--ph-key-off);
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-step-val {

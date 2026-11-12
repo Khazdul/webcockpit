@@ -55,3 +55,31 @@ while playing, not the viewer's.
   shows the change where it happened.
 - HTML replays exported before this change keep their embedded bundle and
   look as before.
+
+## Addendum: Amber is the default (2026-11-12)
+
+The owner: "We now have the light blue default colour on the input
+text. Change this to the golden colour instead. Gold is to be the
+default", and, asked about computers and tablets: "Yes, make gold the
+default everywhere."
+
+- `DEFAULT_INPUT_COLOR` is `amber` (15 % of the text colour mixed with
+  `#ffaf00` on a dark ground, `#9a5a00` on a light one): on black with
+  the default text colour `rgb(246, 179, 69)`, 11.4 : 1; on Paper
+  `rgb(123, 71, 0)`, 6.5 : 1 (7.5 : 1 on the phone's command field). Of
+  the two warm options Amber is the gold; Sand is a pale tan.
+- It applies to new installs on a computer, a tablet and a phone, and to
+  stored settings that hold no input colour (never chosen).
+- **A stored colour is kept, Steel too.** The appearance is stored whole,
+  defaults included, so a stored Steel cannot be told from a choice of
+  Steel, and a stored look never changes with the new-user defaults (ADR
+  0078, `LEGACY_APPEARANCE`). An existing install therefore stays Steel
+  until its user picks Amber (Settings → Appearance → Input colour; on a
+  phone the setting has no row yet).
+- Recordings: a VIEW without the setting, or no VIEW, still plays with
+  Steel (`LEGACY_INPUT_COLOR`), as when it was recorded.
+- Checked against gold: the selection after a send is the text colour's
+  inverse and does not depend on it; the suggestion stays the muted
+  grey; the phone's kept line and placeholder stay the field's dim
+  text; the password's bullets are gold, 3.1 : 1 on the tint of a
+  selected password on Paper (marks, not letters) and about 6 : 1 on dark.

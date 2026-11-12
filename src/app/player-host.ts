@@ -74,7 +74,7 @@ import { PaneContent, type PaneSnapshot } from '../panes/script-content';
 import { ScriptPane } from '../panes/script-pane';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
 import { applyTheme } from '../theme/apply';
-import { DEFAULT_INPUT_COLOR } from '../theme/presets';
+import { LEGACY_INPUT_COLOR } from '../theme/presets';
 import { CellMetrics, devicePixelRatioOf, textGridOf } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { kindTokens } from '../player/icons';
@@ -380,8 +380,8 @@ export class PlayerHost {
     const base = JSON.parse(JSON.stringify(this.opts.settings.get())) as Settings;
     // The input colour is the player's, never the viewer's (ADR 0035): the
     // recorded VIEW appearance carries it, and a log with no VIEW, or one
-    // recorded before the setting existed, plays with the default (Steel).
-    base.appearance.inputColor = DEFAULT_INPUT_COLOR;
+    // recorded before the setting existed, plays with the default of that time (Steel).
+    base.appearance.inputColor = LEGACY_INPUT_COLOR;
     this.base = base;
     this.store = store;
     this.compose();
@@ -484,6 +484,10 @@ export class PlayerHost {
         const v = parseView(json);
         if (!v) return;
         overlayView(base, v as Partial<ViewSnapshot>);
+        // A VIEW recorded before the input colour was a setting (ADR 0035): it was Steel then,
+        // whatever today's default is (Amber since 2026-11-12).
+        const look = (v as { appearance?: Record<string, unknown> }).appearance;
+        if (look && !('inputColor' in look)) base.appearance.inputColor = LEGACY_INPUT_COLOR;
         if (this.base === base) this.compose();
       },
       // The recorded size is not used: the player fills the viewer's window.

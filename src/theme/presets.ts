@@ -405,8 +405,17 @@ export const STATS_MIN_CONTRAST: Readonly<Record<string, number>> = {
 /** Input color choices (ADR 0035), in the Appearance cycle order. */
 export type InputColor = 'none' | 'steel' | 'bright' | 'sand' | 'sage' | 'cyan' | 'amber';
 export const INPUT_COLOR_IDS: readonly InputColor[] = ['none', 'steel', 'bright', 'sand', 'sage', 'cyan', 'amber'];
-/** The default for new users, and for recordings made before ADR 0035. */
-export const DEFAULT_INPUT_COLOR: InputColor = 'steel';
+/**
+ * The default for new users: Amber, the gold (the owner, 2026-11-12; ADR
+ * 0035's addendum). Until then it was Steel.
+ */
+export const DEFAULT_INPUT_COLOR: InputColor = 'amber';
+/**
+ * The default before 2026-11-12, and what a recording plays with when it
+ * carries no input colour (made before ADR 0035): Steel. Stored settings
+ * that say Steel keep it (a stored default cannot be told from a choice).
+ */
+export const LEGACY_INPUT_COLOR: InputColor = 'steel';
 
 /**
  * One input colour: `color-mix(in oklab, <terminal fg> pct%, tint)`, the

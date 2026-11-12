@@ -200,7 +200,7 @@ import {
 import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
-import { type PhoneGameHide, type PhoneGameLens, type PhoneGameResult, allocatePhoneGame, commandRows, ownKeyboardReserve, phonePaneRect } from './phone-game';
+import { type PhoneGameHide, type PhoneGameLens, type PhoneGameResult, allocatePhoneGame, commMinRows, commandRows, ownKeyboardReserve, phonePaneRect } from './phone-game';
 import { holdDeviceKeyboard, keyboardUp, landscapeLayout, screenLandscape } from './phone-viewport';
 import {
   type DockId,
@@ -310,6 +310,21 @@ export interface PhoneLensPx {
    */
   clearAlways?: number;
 }
+
+/** A lens's box as the phone layer wants it shown, px from the cockpit's top left corner (`Cockpit.setPhoneLensFit`). */
+export interface PhoneLensSpot {
+  left: number;
+  top: number;
+  size: number;
+}
+
+/**
+ * Phone game layout: the phone layer's answer for a lens the user moved or
+ * resized, asked at every layout with the allocation `g`, the cell's size
+ * and the cockpit's size in px: the lens's box, null (no room: hidden), or
+ * undefined (not moved or resized: the allocator's place stands).
+ */
+export type PhoneLensFit = (g: PhoneGameResult, cell: { w: number; h: number }, W: number, H: number) => PhoneLensSpot | null | undefined;
 
 export interface CockpitOptions {
   /** Parent element; the cockpit fills it. */
@@ -548,6 +563,8 @@ export class Cockpit {
   private pgLast: PhoneGameResult | null = null;
   /** Phone game layout: the map lens as the phone layer wants it, px (`setPhoneLens`); null: no lens. */
   private pgLens: PhoneLensPx | null = null;
+  /** Phone game layout: the place of a lens the user moved or resized (`setPhoneLensFit`); null: no one to ask. */
+  private pgLensFit: PhoneLensFit | null = null;
   /** Phone game layout: the pane the strip shows (`setPhoneStrip`); null: the strip is closed. */
   private pgStrip: PaneId | null = null;
   /** Phone game layout: Comm open at these rows (null: the default share), or null: closed (`setPhoneComm`). */
@@ -1150,6 +1167,23 @@ export class Cockpit {
   }
 
   /**
+   * Phone game layout: who places a lens the user moved or resized (round
+   * 53k), or null. Asked at every layout after the allocation, so the
+   * lens's box in px follows the room there is (the panes above, the
+   * keyboard); the map pane is placed in the whole cells that hold the box
+   * (`phoneGameLayout` `lens`, `lensPx`, `lensAt`), and the phone layer
+   * shifts it by the part of a cell that is left. Setting it (again) lays
+   * out once: the phone layer does so when what its answer depends on
+   * changed. The game text's size is not touched by the lens, so no window
+   * size goes out for it.
+   */
+  setPhoneLensFit(fit: PhoneLensFit | null): void {
+    if (!this.phoneGame || (fit === null && this.pgLensFit === null)) return;
+    this.pgLensFit = fit;
+    this.scheduleRelayout();
+  }
+
+  /**
    * Phone game layout: opens the pane strip on pane `id` (one pane at a
    * time, borderless, from the top edge; ADR 0136 §5), changes its page, or
    * closes it (null). The phone layer decides the pages and their order;
@@ -1341,7 +1375,7 @@ export class Cockpit {
   }
 
   /**
-   * Phone game layout: opens Comm full width under the fight card at `rows`
+   * Phone game layout: opens Comm full width above the fight card at `rows`
    * (null: the default share of the screen), or closes it (null; ADR 0136
    * §6). The allocator fits the height to the screen (`phoneGameLayout`
    * `comm`, `commRange`).
@@ -1477,6 +1511,8 @@ export class Cockpit {
       ...(limit !== null && W <= H ? { maxTop: Math.max(0, Math.floor((H - lift - limit) / cell.h + 1e-6)) } : {}),
       fight: this.pgFight,
       comm: this.pgComm,
+      // Comm's least height holds its 40 px reply line at every text size (round 53k).
+      commMin: commMinRows(cell.h, (this.cells.get() as { px?: number }).px ?? 0),
       lens: this.lensCells(cell, inputRows * cell.h, bottom > 0 && land),
       ...(bottom > 0 ? { bottom, ...(ask.commKeep ? { commKeep: true } : {}) } : {}),
       ...(ask.hide ? { hide: ask.hide } : {}),
@@ -1485,6 +1521,24 @@ export class Cockpit {
         ? { side: { cols: this.pgSideCols, clearRight: Math.max(0, Math.ceil(this.pgSideClear / cell.w - 1e-6)), band: phoneSideBandCols(cell.w) } }
         : {}),
     });
+    // A lens the user moved or resized: the phone layer's box instead of the allocator's.
+    if (this.pgLensFit && this.pgLens && !g.tooSmall) {
+      const spot = this.pgLensFit(g, cell, W, H);
+      if (spot === null) {
+        g.lens = null;
+        g.lensPx = 0;
+        g.lensHidden = true;
+      } else if (spot !== undefined) {
+        const x = Math.max(0, Math.floor(spot.left / cell.w + 1e-6));
+        const y = Math.max(0, Math.floor(spot.top / cell.h + 1e-6));
+        const x1 = Math.max(x + 1, Math.min(g.cols, Math.ceil((spot.left + spot.size) / cell.w - 1e-6)));
+        const y1 = Math.max(y + 1, Math.min(g.rows, Math.ceil((spot.top + spot.size) / cell.h - 1e-6)));
+        g.lens = { x, y, w: x1 - x, h: y1 - y };
+        g.lensPx = spot.size;
+        g.lensHidden = false;
+        g.lensAt = { left: spot.left, top: spot.top };
+      }
+    }
     return { g, refused };
   }
 

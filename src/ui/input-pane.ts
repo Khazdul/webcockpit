@@ -7,7 +7,9 @@
 // - Password mode keeps type="text" (a type="password" field makes Firefox
 //   and Chrome offer to save the password) and masks by making the text
 //   transparent and drawing one bullet per character over it. Copy and cut
-//   are blocked while masked.
+//   are blocked while masked. The bullets' element (`.wc-input-mask`) lies
+//   on the field and clips to it; a line longer than the field scrolls the
+//   bullets inside it (a text indent of −scrollLeft, as the suggestion's).
 // - Paste: CRLF/CR become LF, trailing newlines are dropped, and remaining
 //   newlines become single spaces. Nothing is ever sent by a paste.
 // - Ctrl+W: handled (delete word back) where the browser lets the page see
@@ -94,9 +96,14 @@
 //   Enter sends the line again, an inserted character or a paste replaces
 //   it, Backspace or Delete clears it; a caret key, a tap in the focused
 //   field or a selection the user makes (a long press) turns it into
-//   ordinary text. The tap that brings the focus back leaves it kept, with
-//   the caret at the end. Never at a password prompt. Desktop and tablet
-//   keep the native selection as ever.
+//   ordinary text. The line's own keys (a hardware keyboard) treat it as
+//   the desktop treats the selected sent line: Ctrl+A selects it natively,
+//   Ctrl+E, Alt+B and Alt+F place the caret (from the line's end) and
+//   leave ordinary text, Alt+Backspace and Ctrl+W delete it whole. The tap that brings the focus back leaves it kept, with
+//   the caret at the end. Never at a password prompt. A disconnect empties
+//   the sent line there, kept or still selected (`dropSentLine`): Enter at
+//   the login prompt that follows must not send it as a name. Desktop and
+//   tablet keep the native selection as ever, through a disconnect too.
 // - Own font (stage 53, round 53j): `setOwnFont` gives the line a text
 //   size of its own (the phone's game layout: a fixed size in a field of
 //   fixed height). The caret, the suggestion and the bullets then use the
@@ -185,7 +192,11 @@ export const MAX_HISTORY = 1000;
 
 /** Half a blink cycle: the caret is on 500 ms, off 500 ms. */
 export const BLINK_MS = 500;
-/** The keys that turn a kept line into ordinary text (file header: "Kept line"). */
+/**
+ * The keys that turn a kept line into ordinary text (file header: "Kept
+ * line"). The line's own caret keys do too (`handleKey`: Ctrl+A, Ctrl+E,
+ * Alt+B, Alt+F, Shift+Up, Shift+Down).
+ */
 const KEPT_CARET_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 /** Characters in the run `setOwnFont` measures the line's own cell width with. */
 const OWN_FONT_RUN = 40;
@@ -310,6 +321,8 @@ export class InputPane {
   readonly ghostEl: HTMLSpanElement;
   private ghostText = '';
   private ghostX = NaN;
+  /** The field's scroll the bullets were last drawn at (`updateCaret`). */
+  private maskScroll = 0;
   /** The custom caret element. */
   readonly caretEl: HTMLSpanElement;
   /**
@@ -412,6 +425,11 @@ export class InputPane {
     doc.defaultView?.addEventListener('focus', this.onWindowFocus);
 
     this.unsubs.push(bus.on('telnet.echo', (e) => this.setPasswordMode(e.serverEchoes)));
+    this.unsubs.push(
+      bus.on('conn.state', (s) => {
+        if (s.state === 'disconnected') this.dropSentLine();
+      }),
+    );
 
     const MO = doc.defaultView?.MutationObserver;
     this.blinkObserver = MO ? new MO(() => this.restartBlink()) : null;
@@ -567,6 +585,27 @@ export class InputPane {
     const i = this.input;
     if (this.kept && i.selectionStart !== i.selectionEnd) this.setKept(false);
   };
+
+  /**
+   * The connection is gone (a phone with our own keyboard only): the sent
+   * line that stayed to be sent again is emptied, kept or still selected.
+   * The next thing asked is the login's name, and Enter there (one tap on
+   * our keyboard) would answer it with the last command. The history has
+   * the line. A line being typed stays, and so does everything on a
+   * desktop and a tablet, where the sent line is a selection one sees.
+   */
+  private dropSentLine(): void {
+    if (!this.phone || !this.ownKeyboard || this.password) return;
+    const i = this.input;
+    const n = i.value.length;
+    if (n === 0) return;
+    const selected = i.selectionStart === 0 && i.selectionEnd === n && i.value === this.history[this.history.length - 1];
+    if (!this.kept && !selected) return;
+    this.setKept(false);
+    i.value = '';
+    this.endBrowsing();
+    this.scheduleCaret();
+  }
 
   /** Masks the input and sends without history (server echo = password). */
   setPasswordMode(on: boolean): void {
@@ -863,7 +902,11 @@ export class InputPane {
   /** Down: one newer entry, then the draft, then an empty line. */
   historyDown(): void {
     if (this.password) return;
+    // What Down writes is never the kept line (an entry goes through `show`; the empty line and
+    // the draft are written here). Not browsing, Down does nothing and a kept line stays kept,
+    // as the selected sent line stays selected.
     if (this.draftRestored) {
+      this.setKept(false);
       this.input.value = '';
       this.endBrowsing();
       return;
@@ -876,6 +919,7 @@ export class InputPane {
     }
     const draft = this.draft;
     this.endBrowsing();
+    this.setKept(false);
     this.input.value = draft;
     this.input.setSelectionRange(draft.length, draft.length);
     this.draftRestored = true;
@@ -1116,13 +1160,17 @@ export class InputPane {
         return true;
       case 'ArrowUp':
         if (!plain) return false;
-        if (e.shiftKey) this.selectToStart();
-        else this.historyUp();
+        if (e.shiftKey) {
+          this.setKept(false);
+          this.selectToStart();
+        } else this.historyUp();
         return true;
       case 'ArrowDown':
         if (!plain) return false;
-        if (e.shiftKey) this.selectToEnd();
-        else this.historyDown();
+        if (e.shiftKey) {
+          this.setKept(false);
+          this.selectToEnd();
+        } else this.historyDown();
         return true;
       case 'ArrowRight':
       case 'End':
@@ -1147,6 +1195,8 @@ export class InputPane {
       }
       case 'Backspace':
         if (alt) {
+          // (A kept line goes whole, as the selected sent line does.)
+          this.takeKept();
           this.deleteBack(wordStartBefore);
           return true;
         }
@@ -1156,14 +1206,17 @@ export class InputPane {
     if (ctrl && !e.shiftKey) {
       switch (e.code) {
         case 'KeyA':
+          this.setKept(false);
           this.input.setSelectionRange(0, this.input.value.length);
           return true;
         case 'KeyE': {
+          this.setKept(false);
           const n = this.input.value.length;
           this.input.setSelectionRange(n, n);
           return true;
         }
         case 'KeyW':
+          this.takeKept();
           this.deleteBack(spaceWordStartBefore);
           return true;
         case 'KeyD':
@@ -1177,11 +1230,13 @@ export class InputPane {
       const caret = this.caret();
       switch (e.code) {
         case 'KeyB': {
+          this.setKept(false);
           const p = wordStartBefore(v, caret);
           this.input.setSelectionRange(p, p);
           return true;
         }
         case 'KeyF': {
+          this.setKept(false);
           const p = wordEndAfter(v, caret);
           this.input.setSelectionRange(p, p);
           return true;
@@ -1344,7 +1399,13 @@ export class InputPane {
       if (start === end) this.scrollToCaret(cellsBefore(i.value, start));
     }
     const scroll = i.scrollLeft;
-    if (this.password) this.mask.style.transform = scroll ? `translateX(${-scroll}px)` : '';
+    // The bullets follow a long line's scroll inside the mask, which stays on the field and clips
+    // them there, as the suggestion does (a mask moved as a whole took its clip along: the
+    // bullets left the field at its start and the last ones were cut off at its end).
+    if (this.password && scroll !== this.maskScroll) {
+      this.maskScroll = scroll;
+      this.mask.style.textIndent = scroll ? `${-scroll}px` : '';
+    }
     // Nothing to do with the option off and no ghost left on screen.
     const ghost = this.autosuggest || this.ghostText !== '' ? this.updateGhost(scroll) : '';
     if (start !== end) {

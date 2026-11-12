@@ -681,6 +681,25 @@ describe('InputPane custom caret', () => {
     expect(t.c.style.transform).toBe('translateX(25px)');
   });
 
+  it('a long password: the bullets scroll inside the mask, which stays on the field (no transform moves it)', () => {
+    const t = caretSetup();
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    const mask = t.pane.el.querySelector<HTMLElement>('.wc-input-mask')!;
+    t.type('x'.repeat(30));
+    t.run();
+    expect(mask.style.textIndent).toBe('');
+    let scroll = 120;
+    Object.defineProperty(t.i, 'scrollLeft', { configurable: true, get: () => scroll });
+    t.pane.updateCaret();
+    expect(mask.style.textIndent).toBe('-120px');
+    expect(mask.style.transform).toBe('');
+    expect(mask.textContent).toBe('•'.repeat(30));
+    // Scrolled back to the start: no indent is left.
+    scroll = 0;
+    t.pane.updateCaret();
+    expect(mask.style.textIndent).toBe('');
+  });
+
   it('hides for a selection, is hollow when blurred', () => {
     const t = caretSetup();
     t.type('look');

@@ -391,6 +391,94 @@ describe('InputPane kept line (stage 53, round 53j)', () => {
     expect(v.selected()).toEqual([0, 2]);
   });
 
+  // A hardware keyboard at the phone: the line's own keys treat the kept line as the desktop
+  // treats the selected sent line.
+  describe('the readline keys in a kept line (a hardware keyboard)', () => {
+    function keptLine(text = 'kill orc') {
+      const t = setup({ phone: true });
+      t.pane.setOwnKeyboard(true);
+      t.pane.input.focus();
+      t.pane.insertText(text);
+      t.pane.submitLine();
+      t.pane.input.blur();
+      expect(t.pane.isKept()).toBe(true);
+      const chord = (key: string, code: string, mods: { ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) =>
+        t.pane.input.dispatchEvent(new KeyboardEvent('keydown', { key, code, bubbles: true, cancelable: true, ...mods }));
+      return { ...t, chord };
+    }
+
+    it('Alt+B: the caret at the last word\'s start, ordinary text', () => {
+      const t = keptLine();
+      t.chord('b', 'KeyB', { altKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.classList.contains('wc-input-kept')).toBe(false);
+      expect(t.pane.input.value).toBe('kill orc');
+      expect(t.selected()).toEqual([5, 5]);
+    });
+
+    it('Alt+F: the caret at the end, ordinary text', () => {
+      const t = keptLine();
+      t.chord('f', 'KeyF', { altKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('kill orc');
+      expect(t.selected()).toEqual([8, 8]);
+      // Typed into, not replaced.
+      t.pane.insertText('s');
+      expect(t.pane.input.value).toBe('kill orcs');
+    });
+
+    it('Ctrl+E: the caret at the end, ordinary text', () => {
+      const t = keptLine();
+      t.chord('e', 'KeyE', { ctrlKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('kill orc');
+      expect(t.selected()).toEqual([8, 8]);
+      t.pane.insertText('s');
+      expect(t.pane.input.value).toBe('kill orcs');
+    });
+
+    it('Ctrl+A: the whole line selected natively, no longer "kept"', () => {
+      const t = keptLine();
+      t.chord('a', 'KeyA', { ctrlKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.classList.contains('wc-input-kept')).toBe(false);
+      expect(t.selected()).toEqual([0, 8]);
+      expect(t.pane.isRecallState()).toBe(true);
+    });
+
+    it('Alt+Backspace deletes the whole kept line, as it does the selected one', () => {
+      const t = keptLine();
+      t.chord('Backspace', 'Backspace', { altKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('');
+      // The desktop, for comparison: the selected sent line goes whole.
+      const d = setup();
+      d.pane.insertText('kill orc');
+      d.pane.submitLine();
+      d.i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', altKey: true, bubbles: true, cancelable: true }));
+      expect(d.i.value).toBe('');
+    });
+
+    it('Ctrl+W deletes the whole kept line, as it does the selected one', () => {
+      const t = keptLine();
+      t.chord('w', 'KeyW', { ctrlKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('');
+      const d = setup();
+      d.pane.insertText('kill orc');
+      d.pane.submitLine();
+      d.i.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', ctrlKey: true, bubbles: true, cancelable: true }));
+      expect(d.i.value).toBe('');
+    });
+
+    it('Shift+Up selects to the start: the user\'s own selection, no longer "kept"', () => {
+      const t = keptLine();
+      t.chord('ArrowUp', 'ArrowUp', { shiftKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.selected()).toEqual([0, 8]);
+    });
+  });
+
   it('the history from a kept line goes one further back, as from the selected one', () => {
     const t = setup({ phone: true });
     t.pane.setOwnKeyboard(true);
@@ -404,6 +492,97 @@ describe('InputPane kept line (stage 53, round 53j)', () => {
     t.pane.historyStep('up');
     expect(t.pane.input.value).toBe('north');
     expect(t.pane.isKept()).toBe(false);
+  });
+
+  it('the history\'s Down past the newest entry ends the kept state: the draft and the empty line are ordinary text', () => {
+    const t = setup({ phone: true });
+    t.pane.setOwnKeyboard(true);
+    const i = t.pane.input;
+    i.focus();
+    t.pane.insertText('north');
+    t.pane.submitLine();
+    t.pane.insertText('dra');
+    // Browsed with the field blurred: the entry shown is kept.
+    i.blur();
+    t.pane.historyStep('up');
+    expect(i.value).toBe('north');
+    expect(t.pane.isKept()).toBe(true);
+    // Down: the draft is back, and it is not a kept line.
+    t.pane.historyStep('down');
+    expect(i.value).toBe('dra');
+    expect(t.pane.isKept()).toBe(false);
+    expect(i.classList.contains('wc-input-kept')).toBe(false);
+    // The restored draft, selected whole and blurred, is kept; one more Down empties the line.
+    i.focus();
+    i.setSelectionRange(0, 3);
+    i.blur();
+    expect(t.pane.isKept()).toBe(true);
+    t.pane.historyStep('down');
+    expect(i.value).toBe('');
+    expect(t.pane.isKept()).toBe(false);
+    expect(i.classList.contains('wc-input-kept')).toBe(false);
+    // Not browsing, Down does nothing: the sent line stays kept (as the selected one stays selected).
+    const u = sentAndFolded();
+    u.pane.historyStep('down');
+    expect(u.pane.input.value).toBe('look');
+    expect(u.pane.isKept()).toBe(true);
+  });
+
+  it('a disconnect empties the kept line: Enter at the next login prompt sends nothing of it', () => {
+    const drop = (t: ReturnType<typeof setup>): void => t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing' });
+    const t = sentAndFolded();
+    drop(t);
+    expect(t.pane.isKept()).toBe(false);
+    expect(t.pane.input.classList.contains('wc-input-kept')).toBe(false);
+    expect(t.pane.input.value).toBe('');
+    t.bus.emit('conn.state', { state: 'connecting', prev: 'disconnected' });
+    t.bus.emit('conn.state', { state: 'login', prev: 'connecting' });
+    t.pane.input.focus();
+    t.pane.submitLine();
+    expect(t.sent.map((s) => s.text)).toEqual(['look', '']);
+    // The history still has it.
+    t.pane.historyStep('up');
+    expect(t.pane.input.value).toBe('look');
+
+    // The keyboard up at the drop: the sent line stands selected, and goes the same way.
+    const f = setup({ phone: true });
+    f.pane.setOwnKeyboard(true);
+    f.pane.input.focus();
+    f.pane.insertText('look');
+    f.pane.submitLine();
+    expect(f.selected()).toEqual([0, 4]);
+    drop(f);
+    expect(f.pane.input.value).toBe('');
+
+    // A line being typed is not a sent one: it stays, also selected whole.
+    const d = setup({ phone: true });
+    d.pane.setOwnKeyboard(true);
+    d.pane.input.focus();
+    d.pane.insertText('look');
+    d.pane.submitLine();
+    d.pane.insertText('tell gibur wait');
+    drop(d);
+    expect(d.pane.input.value).toBe('tell gibur wait');
+    d.pane.input.setSelectionRange(0, d.pane.input.value.length);
+    drop(d);
+    expect(d.pane.input.value).toBe('tell gibur wait');
+  });
+
+  it('a disconnect leaves the line alone on a desktop and on a phone without our keyboard: the sent line stays selected', () => {
+    for (const phone of [false, true]) {
+      const t = setup({ phone });
+      t.pane.input.focus();
+      t.pane.insertText('look');
+      t.pane.submitLine();
+      t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing' });
+      expect(t.pane.input.value).toBe('look');
+      expect(t.selected()).toEqual([0, 4]);
+      expect(t.pane.isKept()).toBe(false);
+      t.pane.input.blur();
+      t.bus.emit('conn.state', { state: 'disconnected', prev: 'login' });
+      expect(t.pane.input.value).toBe('look');
+      expect(t.selected()).toEqual([0, 4]);
+    }
   });
 
   it('nothing is kept at a password prompt, with auto-clear, on a desktop, or without our keyboard', () => {

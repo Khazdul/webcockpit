@@ -43,7 +43,7 @@
 // elsewhere).
 //
 // Phone (ADR 0136 §6, `setPhoneMode`): the phone's layout in the live game
-// shows this pane full width under the fight card. In that mode the chat
+// shows this pane full width above the fight card. In that mode the chat
 // column is always the rail and the pane never writes `comm.folded` or
 // `comm.listWidth` (they are the desktop's); the reply line says "Type a
 // message". While the phone has Comm closed (`setPhoneOpen(false)`) no
@@ -653,10 +653,18 @@ export class CommPane extends PaneShell {
     this.markDirty();
   }
 
-  /** Phone mode: Comm was opened (the view it had opens, read) or closed (no view is open any more). */
-  setPhoneOpen(open: boolean): void {
+  /**
+   * Phone mode: Comm was opened (the view it had opens, read) or closed (no
+   * view is open any more). A close ends the search; `keep` says the close
+   * is a temporary one (the hot key box took Comm out of the layout for its
+   * room, and Comm comes back as it was): the search stays open with its
+   * query. A close without it ends a search kept so, too.
+   */
+  setPhoneOpen(open: boolean, o: { keep?: boolean } = {}): void {
     const p = this.phone;
-    if (!p || p.open === open) return;
+    if (!p) return;
+    if (!open && !o.keep && this.searchOpen) this.closeSearch();
+    if (p.open === open) return;
     p.open = open;
     if (open) {
       const key = p.last;
@@ -665,7 +673,6 @@ export class CommPane extends PaneShell {
       this.list.toLive();
     } else {
       p.last = this.chats.open ?? p.last;
-      if (this.searchOpen) this.closeSearch();
       this.chats.setOpen(null);
       // Nothing is drawn while it is closed (`render`): no view is opened behind the phone's back.
       return;

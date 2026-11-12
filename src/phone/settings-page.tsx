@@ -111,6 +111,17 @@ export type SettingsRow =
       set(value: string, s: S): SettingsPatch;
     }
   | {
+      /** A row that does one thing when tapped (a reset). Dimmed while there is nothing to do. */
+      kind: 'action';
+      id: string;
+      label: string;
+      /** The state shown at the row's end. */
+      value(s: S): string;
+      /** Whether a tap would change anything. */
+      enabled(s: S): boolean;
+      run(s: S): SettingsPatch;
+    }
+  | {
       /** A row that opens a sub-page (`SETTINGS_PAGES`). */
       kind: 'link';
       id: string;
@@ -169,10 +180,24 @@ export const TEXT_GROUP: SettingsGroup = {
 };
 
 /**
- * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13).
- * No size row since stage 52: the lens is sized from the screen
- * (lens-zoom.ts `lensFullPx`) and shrinks with its room.
+ * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13),
+ * and the way back to its default place and size (round 53k: it is moved
+ * and resized by dragging it, not here). No size row since stage 52: the
+ * default size follows the screen (lens-zoom.ts `lensFullPx`).
  */
+/** Whether the lens was moved or resized in either orientation (`phone.lens.portrait`, `.landscape`). */
+function lensMoved(s: S): boolean {
+  const l = s.phone.lens;
+  return [l.portrait, l.landscape].some((w) => w.x !== null || w.y !== null || w.size !== null);
+}
+
+export const LENS_LEVEL_OPTIONS: readonly { value: PhoneLensLevel; label: string }[] = [
+  { value: 'z1', label: 'Near' },
+  { value: 'z2', label: 'Mid' },
+  { value: 'z3', label: 'Far' },
+  { value: 'z4', label: 'Area' },
+];
+
 export const LENS_GROUP: SettingsGroup = {
   id: 'lens',
   title: 'Map lens',
@@ -188,21 +213,33 @@ export const LENS_GROUP: SettingsGroup = {
       kind: 'seg',
       id: 'lens-opens',
       label: 'Opens at',
-      options: [
-        { value: 'near', label: 'Near' },
-        { value: 'middle', label: 'Middle' },
-        { value: 'far', label: 'Far' },
-      ],
+      // Four levels since round 53k: 0.6.1's middle is the nearest.
+      options: LENS_LEVEL_OPTIONS,
       get: (s) => s.phone.lens.opensAt,
       set: (opensAt) => ({ phone: { lens: { opensAt: opensAt as PhoneLensLevel } } }),
     },
+    {
+      // The way back from a lens dragged somewhere or resized (round 53k), in both orientations.
+      kind: 'action',
+      id: 'lens-reset',
+      label: 'Reset place and size',
+      value: (s) => (lensMoved(s) ? 'Moved' : 'Default'),
+      enabled: lensMoved,
+      run: () => ({ phone: { lens: { portrait: { x: null, y: null, size: null }, landscape: { x: null, y: null, size: null } } } }),
+    },
   ],
+  caption: 'Drag the lens to move it. Hold it still, then drag, to resize it.',
 };
 
 /** The names of the strip's built-in panes (the panes' own labels). */
 const STRIP_LABELS: Readonly<Record<string, string>> = { timers: 'Timers', group: 'Group', character: 'Character', statistics: 'Statistics' };
 
-/** Panes: which built-in panes are pages of the strip, and their order (`phone.strip`, ADR 0136 §5, §13). */
+/**
+ * Panes: which built-in panes are pages of the strip, and their order
+ * (`phone.strip`, ADR 0136 §5, §13), and the fight card over the game text
+ * (`phone.fightCard`, round 53k: it is what the Group pane's card is on a
+ * computer, so its switch stands with the panes).
+ */
 export const PANES_GROUP: SettingsGroup = {
   id: 'panes',
   title: 'Panes',
@@ -214,6 +251,13 @@ export const PANES_GROUP: SettingsGroup = {
       items: (s) => s.phone.strip.panes.map((e) => ({ id: e.id, label: STRIP_LABELS[e.id] ?? e.id, on: e.on })),
       toggle: (id, on, s) => ({ phone: { strip: { panes: setEntry(s.phone.strip.panes, id, on) } } }),
       move: (id, dir, s) => ({ phone: { strip: { panes: moveEntry(s.phone.strip.panes, id, dir) } } }),
+    },
+    {
+      kind: 'toggle',
+      id: 'fight-card',
+      label: 'Fight card while fighting',
+      get: (s) => s.phone.fightCard,
+      set: (fightCard) => ({ phone: { fightCard } }),
     },
     { kind: 'link', id: 'timers-group', label: 'Timers and Group', page: 'timers-group' },
   ],
@@ -504,7 +548,7 @@ export const GROUP_GROUP: SettingsGroup = {
     {
       kind: 'toggle',
       id: 'group-fight',
-      // The pane's own card; the phone's fight card over the game is always there (ADR 0136 §3).
+      // The pane's own card; the phone's fight card over the game has its own switch (Panes, `phone.fightCard`).
       label: 'Fight card in the pane',
       get: (s) => s.group.fight,
       set: (fight) => ({ group: { fight } }),
@@ -655,6 +699,26 @@ function Row(p: {
             </div>
           ))}
         </>
+      );
+    }
+    case 'action': {
+      const on = row.enabled(s);
+      return (
+        <button
+          type="button"
+          class="wc-ph-srow is-pick is-action"
+          data-row={row.id}
+          tabIndex={-1}
+          aria-disabled={on ? undefined : 'true'}
+          onMouseDown={keepFocus}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (on) p.update(row.run(s));
+          }}
+        >
+          <span class="wc-ph-srow-t">{row.label}</span>
+          <span class="wc-ph-srow-v">{row.value(s)}</span>
+        </button>
       );
     }
     case 'link':

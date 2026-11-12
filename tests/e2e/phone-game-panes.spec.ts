@@ -701,32 +701,36 @@ test('the Comm key opens Comm under the fight card in rail mode; the lens stays 
   const h = await cellH(page);
   const rows = Number((await page.locator('.wc-cockpit').getAttribute('data-cells'))!.split('x')[1]);
   await sat(page, 'comm').tap();
-  // Comm: full width, right under the fight card, at 40 % of the rows by default.
+  // Comm: full width, from the top edge, at 40 % of the rows by default; the fight card lies under it
+  // (round 53k: the card is always under the panes at the top).
   await expect(comm(page)).toBeVisible();
   const card = await box(fight(page));
   const c = await box(comm(page));
   const cockpit = await box(page.locator('.wc-cockpit'));
-  expect(c.y).toBeCloseTo(card.y + card.height, 0);
+  expect(c.y).toBeCloseTo(cockpit.y, 0);
+  expect(card.y).toBeGreaterThanOrEqual(c.y + c.height - 0.5);
+  expect(card.y - (c.y + c.height)).toBeLessThan(h + 1);
   expect(Math.abs(c.width - cockpit.width)).toBeLessThan(10);
   expect(Math.round(c.height / h)).toBe(Math.round(rows * 0.4));
   await expect(comm(page)).not.toHaveAttribute('data-framed', '');
   // Rail mode, with nothing to drag the column by.
   await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-mode', 'rail');
   await expect(comm(page).locator('.wc-cm-spine')).toBeHidden();
-  // The game text under it; the band on Comm's last row.
+  // The card under it, the game text under the card; the band on Comm's last row.
   const game = await box(page.locator('.wc-game'));
-  expect(game.y).toBeCloseTo(c.y + c.height, 0);
+  expect(card.y).toBeCloseTo(c.y + c.height, 0);
+  expect(game.y).toBeCloseTo(card.y + card.height, 0);
   expect(game.height).toBeCloseTo(gameBefore.height - c.height, 0);
   const b = await box(band(page));
   expect(b.y + b.height).toBeCloseTo(c.y + c.height, 0);
   expect(b.height).toBeCloseTo(h, 0);
   expect(await page.evaluate(() => window.__wc!.app.output.isScrolled())).toBe(false);
-  // The lens stays (stage 52): right under Comm, as large as its room down to the hot keys allows.
+  // The lens stays (stage 52): right under Comm and the card, as large as its room down to the hot keys allows.
   await expect(lens(page)).toBeVisible();
   await expect(row(page)).toBeHidden();
   const under = await box(lens(page));
-  expect(under.y).toBeGreaterThanOrEqual(c.y + c.height);
-  expect(under.y - (c.y + c.height)).toBeLessThan(2 * h);
+  expect(under.y).toBeGreaterThanOrEqual(card.y + card.height);
+  expect(under.y - (card.y + card.height)).toBeLessThan(2 * h);
   expect(under.width).toBeLessThanOrEqual(l.width);
   expect(under.width).toBeGreaterThanOrEqual(96);
   expect(under.y + under.height).toBeLessThanOrEqual((await box(page.locator('.wc-ph-hot'))).y);
@@ -742,15 +746,18 @@ test('the Comm key opens Comm under the fight card in rail mode; the lens stays 
   const s = await box(stripPane(page));
   const card2 = await box(fight(page));
   const c2 = await box(comm(page));
-  expect(card2.y).toBeCloseTo(s.y + s.height, 0);
-  expect(c2.y).toBeCloseTo(card2.y + card2.height, 0);
+  // The strip, Comm, the card (each part's last row is its band's).
+  expect(c2.y - (s.y + s.height)).toBeGreaterThanOrEqual(-0.5);
+  expect(c2.y - (s.y + s.height)).toBeLessThan(h + 1);
+  expect(card2.y - (c2.y + c2.height)).toBeGreaterThanOrEqual(-0.5);
+  expect(card2.y - (c2.y + c2.height)).toBeLessThan(h + 1);
   const r = await box(row(page));
   // This low (near the limit above the quick buttons) the row stands left of the hot key column.
   const hot = await box(page.locator('.wc-ph-hot'));
   if (r.y + r.height + 8 > hot.y) expect(r.x + r.width).toBeLessThanOrEqual(hot.x);
   else expect(cockpit.x + cockpit.width - (r.x + r.width)).toBeCloseTo(8, 0);
-  expect(r.y).toBeGreaterThanOrEqual(c2.y + c2.height);
-  expect(r.y - (c2.y + c2.height)).toBeLessThan(12);
+  expect(r.y).toBeGreaterThanOrEqual(card2.y + card2.height);
+  expect(r.y - (card2.y + card2.height)).toBeLessThan(12);
   await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'true');
   await expect(sat(page, 'comm')).toHaveAttribute('aria-label', 'Close Comm');
   expect(await inputFocused(page)).toBe(false);
@@ -1199,10 +1206,10 @@ test('the band resizes Comm live in whole rows, inside its limits, with one wind
   expect(max).toBe(limit);
   expect((await phone(page)).commRows).toBe(max);
   expect((await layoutOf(page)).game).toBeGreaterThan(8);
-  // Far up: six rows at the least.
+  // Far up: its least rows, which hold the whole reply line (seven at this text size: round 53k).
   await drag2(-900);
-  await expect.poll(rowsOf).toBe(6);
-  expect((await phone(page)).commRows).toBe(6);
+  await expect.poll(rowsOf).toBe(7);
+  expect((await phone(page)).commRows).toBe(7);
   // A press without a move changes nothing and sends nothing.
   await frames(page);
   await frames(page);
@@ -1210,31 +1217,31 @@ test('the band resizes Comm live in whole rows, inside its limits, with one wind
   await drag2(0);
   await frames(page);
   await frames(page);
-  expect(await rowsOf()).toBe(6);
+  expect(await rowsOf()).toBe(7);
   expect((await counts()).naws).toBe(quiet.naws);
   // A drag away and back to where it began: nothing is stored, and no window size is sent for it.
   await f.start();
   await f.move(3 * h);
-  await expect.poll(rowsOf).toBe(9);
+  await expect.poll(rowsOf).toBe(10);
   await f.move(0);
-  await expect.poll(rowsOf).toBe(6);
+  await expect.poll(rowsOf).toBe(7);
   await f.end();
   await frames(page);
   await frames(page);
-  expect((await phone(page)).commRows).toBe(6);
-  // Ten rows, kept over a reload.
+  expect((await phone(page)).commRows).toBe(7);
+  // Eleven rows, kept over a reload.
   await drag2(4 * h);
-  await expect.poll(rowsOf).toBe(10);
+  await expect.poll(rowsOf).toBe(11);
   await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-  expect((await phone(page)).commRows).toBe(10);
+  expect((await phone(page)).commRows).toBe(11);
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
   await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
   await sat(page, 'comm').tap();
   await expect(comm(page)).toBeVisible();
-  await expect.poll(rowsOf).toBe(10);
+  await expect.poll(rowsOf).toBe(11);
   expect(errors).toEqual([]);
 });
 
@@ -1388,8 +1395,9 @@ for (const size of [
       // Comm gave way first (to its minimum before the strip loses a row); the stored heights are untouched.
       expect(g.fight).toBe(2);
       expect(g.strip + g.fight + g.comm).toBe(g.top);
-      if (g.strip > 0 && g.comm > 6) expect(g.strip).toBe(14);
-      if (g.strip > 0 && g.strip < 14) expect(g.comm).toBe(6);
+      // (Comm's minimum is the rows of its whole reply line, round 53k: seven at this text size.)
+      if (g.strip > 0 && g.comm > 7) expect(g.strip).toBe(14);
+      if (g.strip > 0 && g.strip < 14) expect(g.comm).toBe(7);
       expect(await phone(page)).toMatchObject({ stripRows: 14, commRows: 30 });
       // In px: their lower edge is at or above the top of the place of three keys (the first column's top).
       const edge = cockpit.y + g.top * h;

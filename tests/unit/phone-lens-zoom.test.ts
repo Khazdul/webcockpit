@@ -3,8 +3,8 @@ import { ZOOM_MAX, ZOOM_MIN, pxPerRoom } from '../../src/map/view';
 import { LENS_FULL_MAX_PX, LENS_FULL_MIN_PX, LENS_LEVELS, LENS_MIN_PX, LENS_ROOMS, PX_PER_ROOM, lensFullPx, lensLabel, lensLevel, lensZoom, nextLevel } from '../../src/phone/lens-zoom';
 import { PHONE_LENS_LEVELS } from '../../src/settings/types';
 
-/** Every diameter the lens can have: from its least, shrunk, to the largest full size. */
-const SIZES = [LENS_MIN_PX, 102, 119, 136, 150, 163, LENS_FULL_MAX_PX];
+/** Diameters the lens can have: from its least, shrunk, to the largest full size, and sizes a user sets (round 53k). */
+const SIZES = [LENS_MIN_PX, 102, 119, 136, 150, 163, LENS_FULL_MAX_PX, 336, 700];
 
 describe('the lens zoom levels', () => {
   it('are the settings\' levels', () => {
@@ -15,8 +15,11 @@ describe('the lens zoom levels', () => {
     expect(pxPerRoom(1, 0)).toBe(PX_PER_ROOM);
   });
 
-  it('show about 3, 5 and 10 rooms across the lens, whatever its size', () => {
-    expect(LENS_ROOMS).toEqual({ near: 3, middle: 5, far: 10 });
+  it('show about 5, 10, 20 and 44 rooms across the lens, whatever its size (round 53k: four levels)', () => {
+    expect(LENS_ROOMS).toEqual({ z1: 5, z2: 10, z3: 20, z4: 44 });
+    // The first three keep one ratio; the fourth is far more than one such step.
+    expect(LENS_ROOMS.z2 / LENS_ROOMS.z1).toBe(LENS_ROOMS.z3 / LENS_ROOMS.z2);
+    expect(LENS_ROOMS.z4 / LENS_ROOMS.z3).toBeGreaterThan(LENS_ROOMS.z3 / LENS_ROOMS.z2);
     for (const px of SIZES) {
       for (const level of LENS_LEVELS) {
         expect(px / pxPerRoom(lensZoom(level, px), 0)).toBeCloseTo(LENS_ROOMS[level], 9);
@@ -24,10 +27,11 @@ describe('the lens zoom levels', () => {
     }
   });
 
-  it('the 150 px lens: 1.136, 0.682 and 0.341', () => {
-    expect(lensZoom('near', 150)).toBeCloseTo(1.1364, 4);
-    expect(lensZoom('middle', 150)).toBeCloseTo(0.6818, 4);
-    expect(lensZoom('far', 150)).toBeCloseTo(0.3409, 4);
+  it('the 150 px lens: 0.682 and 0.341 as 0.6.1\'s middle and far, then 0.170 and 0.077', () => {
+    expect(lensZoom('z1', 150)).toBeCloseTo(0.6818, 4);
+    expect(lensZoom('z2', 150)).toBeCloseTo(0.3409, 4);
+    expect(lensZoom('z3', 150)).toBeCloseTo(0.1705, 4);
+    expect(lensZoom('z4', 150)).toBeCloseTo(0.0775, 4);
   });
 
   it('every level of every size is inside the worker\'s zoom limits', () => {
@@ -40,10 +44,11 @@ describe('the lens zoom levels', () => {
     }
   });
 
-  it('a tap steps near → middle → far → near', () => {
-    expect(nextLevel('near')).toBe('middle');
-    expect(nextLevel('middle')).toBe('far');
-    expect(nextLevel('far')).toBe('near');
+  it('a tap steps one level out, and from the furthest back to the nearest', () => {
+    expect(nextLevel('z1')).toBe('z2');
+    expect(nextLevel('z2')).toBe('z3');
+    expect(nextLevel('z3')).toBe('z4');
+    expect(nextLevel('z4')).toBe('z1');
   });
 
   it('the full size is a share of the short side: 150 at 360, 163 at 390, within 130 to 190', () => {
@@ -63,12 +68,15 @@ describe('the lens zoom levels', () => {
   });
 
   it('the zoom follows the diameter: the same rooms across at every size', () => {
-    expect(lensZoom('middle', 96) / lensZoom('middle', 150)).toBeCloseTo(96 / 150, 9);
+    expect(lensZoom('z1', 96) / lensZoom('z1', 150)).toBeCloseTo(96 / 150, 9);
   });
 
-  it('an unknown level is middle; the label names the level', () => {
-    expect(lensLevel('far')).toBe('far');
-    expect(lensLevel('closest')).toBe('middle');
-    expect(lensLabel('near')).toBe('Map, near zoom. Tap to zoom');
+  it('an unknown level is the nearest; the label names the level and its place', () => {
+    expect(lensLevel('z3')).toBe('z3');
+    expect(lensLevel('closest')).toBe('z1');
+    // (0.6.1's names are no levels here: the settings' migration maps them.)
+    expect(lensLevel('far')).toBe('z1');
+    expect(lensLabel('z1')).toBe('Map, near zoom (1 of 4). Tap to zoom');
+    expect(lensLabel('z4')).toBe('Map, area zoom (4 of 4). Tap to zoom');
   });
 });
