@@ -281,6 +281,66 @@ moves the caret), script pane fields, key sound.
     keyboard open closes both and sends the direction;
   - test gaps: the slow tap, the selection paint, a vanishing target.
 
+- **53e** (branch `stage-53e`, merged): **our keyboard is the default**
+  in the phone's game layout; `?kbd=0` keeps the device keyboard path
+  until the release decision; the readout only with `?kbd=1` or
+  `?kbd=debug`; `?kbd=sv|en` still names the layout. The three 53d
+  review findings fixed (a masked selection is painted as a tint over
+  the bullets, on desktop too; the click after Enter as Save is
+  swallowed; a field that goes away hands the keys back at once, one
+  `MutationObserver` only while such a field is typed in). New: a
+  **fallback for a browser that ignores `inputmode="none"`**: a shrink
+  of the visible area within 2.5 s of a tap on one of our fields is
+  taken for the device's keyboard; ours closes and stays closed while
+  it is up (untried on a device). Unit 3938, phone e2e 339 of 339,
+  Chromium 434 of 435 and Firefox 432 of 434 (the failures pass alone;
+  `import.spec.ts:148` and `keymanager.spec.ts:319` are new to the
+  flaky list), typecheck and build clean. Decisions: ADR 0138, "as
+  built in round 53e". Screenshots `docs/stages/img/53-e-final-*`.
+  - **Benches** (`bench/results/phone-53-keyboard.md`, headless
+    Chromium, CPU 4×): the app's own work per key is level with the
+    device path (about 1 ms script, 0 cockpit layouts per key). End to
+    end the emulation puts our touch key 11 ms (idle) to 19 ms (during
+    a burst) behind the device row, and the diagnostic rows place that
+    in Chromium's touch handling, not in the app; the device row is a
+    lower bound, since the device keyboard's own touch handling cannot
+    be measured there. **ADR 0138 §8 ("not slower") is therefore not
+    shown by measurement; it rests on the owner's verdict on the
+    device** (53a: "typing keeps up"). Text speed with the keyboard
+    open equals main (burst 956 / 959 / 963 ms, within the spread).
+  - Bundle, the whole stage against main: phone chunk JS 63.5 → 88.5 kB
+    (gzip 20.1 → 28.2), phone CSS 39.0 → 46.3 kB; eager JS +4 kB.
+  - `intent.md` Goal 12 says "up to three commands ... without the
+    keyboard": six since stage 52, and "the keyboard" now means the
+    device's. For the owner to reword at the release.
+
+## After the release decision (not deleted yet)
+
+Dead when `?kbd=0` goes:
+
+- `src/app/shell.ts`: the `get('kbd') !== '0'` condition;
+  `okbFromQuery`'s `0` branch and its unit test; the Keyboard settings
+  group's `available`; `ownKeyboard` being optional in `PhoneLayerDeps`
+  and the `if (!this.okb)` guards.
+- `InputPane`'s `type="password"` swap (`passField`, `swapField`): only
+  if the old phone layout (stage 52 C) no longer needs it.
+- Every `?kbd=0` e2e case (in `phone-game-{shell,small,hotkeys,
+  landscape,panes}`, `phone-layout`, `phone-map`, `phone-frames`,
+  `phone-own-keyboard*`, half of `phone-viewport-fullscreen`) and the
+  shots states `keyboard` and `comm-keyboard`.
+- `keyboard-readout.ts`, if the readout is dropped (not tied to
+  `?kbd=0`).
+
+Still reached through the fallback for a browser that ignores
+`inputmode="none"`; dead only if the fallback goes too (decide after
+the iPhone test): `watchKeyboard` and its constants, `keyboardUp()` in
+the phone kit, the `html.wc-kbd` rules of the game layout in
+`phone.css`, the `kbd` branches of `relayoutPhoneGame` and
+`PHONE_KBD_GAME_ROWS` in `cockpit.ts`, `SIDE_COMM_KBD_*` and
+`side.keyboard` in `phone-game.ts`.
+
+Stays: `src/layout/phone-viewport.ts` (start pages and editors).
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
@@ -362,6 +422,34 @@ live, the landscape arrangement, anything that jumps.
 
 Wanted: anything that still raises the device's keyboard in the game
 layout; the password prompt; whether vibration works.
+
+## Test guide 53e (for the owner: S21, then one iPhone)
+
+The ordinary address now, **without `?kbd`**: our keyboard is the one
+in the game layout. `?kbd=0` gives the device's back (until the
+release).
+
+1. **The whole, as you play:** log in (name, password), move, fight,
+   talk in Comm, edit a K key, rotate, fullscreen in and out. Does the
+   device's keyboard ever come up in the game layout? Does anything
+   jump?
+2. **Typing speed:** type fast with two thumbs. Is any key slower to
+   show than with the device's keyboard (`?kbd=0` to compare)? The
+   measurement could not settle this; your feel decides.
+3. **Password:** select in the masked field (long press, double tap):
+   only bullets under a tint, never the word.
+4. **Hot key box, landscape:** Enter as Save with a slow finger: the
+   keyboard must not come back up.
+5. **Comm:** type in the reply line, then close Comm (its key), or its
+   search: the keys go to the command field at once, ↑ ↓ lit again.
+6. **Start pages and editors** (Profile, Scripts): the device's
+   keyboard as before.
+7. **iPhone (Safari), once:** does the device's keyboard stay down?
+   Does Safari's bottom toolbar cover our bottom row? Rotate once. A
+   screenshot of each is enough. (No vibration row there, by design.)
+
+Wanted: your verdict on the whole (release or not), and anything on
+the iPhone.
 
 ## Owner feedback
 
