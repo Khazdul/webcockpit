@@ -821,5 +821,7 @@ Wanted: the look of the plates above all; then release or not.
   One more for 53k: the command field's text has the light blue
   default colour; gold (the one that can be chosen on desktop) is to
   be the default instead.
+- 2026-11-12: gold is to be the default for the command text
+  everywhere (desktop and tablet too).
 
 (After each round.)
