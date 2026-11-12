@@ -344,3 +344,84 @@ With a column on each side the block stands where it does without them
 (the K key no longer moves it 4 px). The keyboard's ground continues
 under the safe-area padding to the screen's edge (`#app::after`); the
 keys were inside the safe area already, since `#app` is padded by it.
+
+## Addendum: as built in round 53e (2026-11-12)
+
+**§9 The gate flips.** Our keyboard is the keyboard of the phone's game
+layout by default. What the address can still say (`okbFromQuery`):
+
+- `?kbd=0`: the device's keyboard, the path of before stage 53. Kept
+  until the owner's verdict on the S21 and one test on an iPhone; then
+  it is deleted (not in this round).
+- `?kbd=1` or `?kbd=debug`: ours, with the readout (keyboard-readout.ts).
+  Without one of them there is no readout.
+- `?kbd=sv`, `?kbd=en`: ours with that layout whatever the setting says.
+  Kept because the tests name the layout that way (they do not depend on
+  the browser's language); a player uses the setting.
+
+The Keyboard settings group shows whenever our keyboard is there (not
+with `?kbd=0`). Desktop and tablet are untouched: the keyboard lives in
+the phone layer, which is mounted only for the game layout (the phone
+flag and a short side under 600 px, as before). The start page, the
+menu's pages and frames, the run log player and Spotlights keep the
+device's keyboard and `phone-viewport.ts`.
+
+**What remains of the old path, and why.** All of it, because `?kbd=0`
+still needs it: the layer's `watchKeyboard` (the blur when the device's
+keyboard folds), the `wc-kbd` rules of the game layout in phone.css
+(compass and hot keys hidden, the field full width), the cockpit's
+`keyboardUp()` branches (the guard off, two game rows kept, Comm's
+least rows in the landscape column), the box's place over the command
+row, and the input pane's swap to a `type="password"` field. The specs
+that shrink the visible area and wait for `wc-kbd` say `?kbd=0`; the
+two screenshot states of stage 51 that show the device's keyboard too.
+
+**§2 A browser that raises its keyboard all the same** (it ignores
+`inputmode="none"`; none is known, and the iPhone is not tested yet).
+Until §2's fallback is decided for such a browser, it gets what it had
+before stage 53: when the visible area shrinks (`wc-kbd`) within 2.5 s
+of a tap on one of our fields, that is taken for the device's keyboard:
+ours closes and the field keeps the focus; ours does not open while the
+device's is up; when the device's folds, the field is blurred as on the
+old path. The two keyboards never stand together, and in landscape there
+is no loop of ours closing for lack of room and blurring the field. A
+shrink at any other time (a split screen, a window made lower) is not a
+keyboard, and ours keeps working. So part of the old path (the `wc-kbd`
+layout of the game) stays reachable without `?kbd=0`; whether it can go
+with the gate is settled by the iPhone test.
+
+**Review findings of 53d.**
+
+- A selection in the masked password line has no text colour
+  (`.wc-input-field.wc-masked::selection`), on the desktop too, where a
+  selected password could be read before; its ground is a tint the
+  bullets stay readable on.
+- Enter as Save in the hot key box: the box and the keyboard close at
+  the press, so the click that follows that finger's release is dropped
+  (`swallowClick`, only when a pointer is down on a key).
+- A target that goes away is dropped at once, not at the next key: one
+  `MutationObserver` while a field other than the command line is typed
+  in (its place in its parent, and its ancestors' own attributes up to
+  the cockpit), and a check after each layout. Comm closed with its key
+  hands the keys back first, so Comm's rows and what it kept for the
+  reply go in one layout and one window size. The caret goes to the
+  command line with the keys.
+
+**§8 Performance** (`bench/phone-keyboard-bench.ts`,
+`bench/results/phone-53-keyboard.md`; Chromium as a phone, CPU 4×).
+
+- Key → echo: the app's own work for a key is the same as on the device
+  keyboard's path to about a millisecond (script 1.0–1.2 ms against
+  0.7–1.0 ms, the frame 2.2–2.4 ms against 1.1–2.2 ms; no cockpit layout,
+  only the key's class and the field change). End to end the emulation
+  has a touch on our key painted 11 ms (idle) to 19 ms (while text
+  arrives) after text committed by `Input.insertText`, all of it in how
+  Chromium schedules a touch (the same key pressed with a mouse pointer
+  is level with the device path); the device keyboard's own handling of
+  its touch is not in that number and cannot be measured here. So "not
+  slower" holds for what the app does and is not shown end to end: a
+  matter for a device.
+- Incoming text is as fast with the keyboard open as closed and as on
+  `main` (burst 956 / 959 / 963 ms, within the rounds' spread; a frame of
+  text 0.2–0.4 ms later at the median while the command field has the
+  focus, p95 unchanged).

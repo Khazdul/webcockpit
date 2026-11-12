@@ -167,14 +167,19 @@ export function okbLayout(asked: string | null | undefined, languages: readonly 
 }
 
 /**
- * The `?kbd=` gate of stage 53 (it goes when the stage is released): `1`
- * turns the keyboard on with the layout of the browser's language, `sv` or
- * `en` with that layout. Anything else: off (null).
+ * What `?kbd=` asks of the phone's game layout (ADR 0138, as built in
+ * round 53e). Our keyboard is the layout's keyboard by default:
+ *
+ * - absent, or a value not listed here: on, the layout from the setting;
+ * - `0`: off (null). The device's keyboard as before stage 53, kept until
+ *   the owner's release decision and an iPhone test;
+ * - `1` or `debug`: on, with the readout (keyboard-readout.ts);
+ * - `sv` or `en`: on, with that layout whatever the setting says (tests).
  */
-export function okbFromQuery(kbd: string | null | undefined): { layout: OkbLayout | null } | null {
-  if (kbd === '1') return { layout: null };
-  if (kbd === 'sv' || kbd === 'en') return { layout: kbd };
-  return null;
+export function okbFromQuery(kbd: string | null | undefined): { layout: OkbLayout | null; readout: boolean } | null {
+  if (kbd === '0') return null;
+  if (kbd === 'sv' || kbd === 'en') return { layout: kbd, readout: false };
+  return { layout: null, readout: kbd === '1' || kbd === 'debug' };
 }
 
 /** Letter keys per row: what a key's width is a share of. */

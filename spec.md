@@ -720,9 +720,44 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
     specials that set wimpy to 50 % or 25 % of current HP). A K key
     shows and hides them. Stored in the phone's settings, not in the
     profile.
-  - *Bottom left:* the menu key and the command field. With the
-    keyboard up the compass and hot keys are hidden and the field takes
-    the full width.
+  - *Bottom left:* the menu key and the command field.
+  - *Keyboard* (stage 53, ADR 0138): the game layout has an on-screen
+    keyboard of its own, and the device's keyboard stays down (the
+    fields ask for none: `inputmode="none"`). It is used by every text
+    field of the layout: the command field (also at the name and
+    password prompts), Comm's reply and search, the hot key box, script
+    pane fields. A tap on a field opens it, its fold key closes it, and
+    it stays up after Enter. It takes fixed rows at the bottom from the
+    layout's allocator, so the page never changes size and MUME gets one
+    window size when it opens and one when it closes.
+    - *Layouts:* Swedish and English, chosen in Settings → Keyboard
+      (default: the browser's language). Three letter rows with shift
+      (one tap: one capital; a double tap locks) and backspace (repeats
+      while held), and a bottom row: fold, symbols, the digit row's
+      toggle, `;`, space, `.`, Enter.
+    - *Digit row:* `1`–`0` above the letters, folded up and down with
+      its toggle and remembered; history ↑ ↓ stand on it where the keys
+      are wide enough, else on the bottom row.
+    - *Symbols:* a second page of the same rows, in order of use; with
+      the digit row folded its first row is the digits.
+    - *Beside it:* in portrait the block spans the width and the compass
+      and the K keys stand above it as with the keyboard down, lifted by
+      its height; in landscape the block is compressed towards the
+      middle with K1–K3 left of it, K4–K6 right of it and the compass at
+      the far right. On a screen with no room the K keys give way first,
+      then the compass.
+    - A key acts on the press and calls the field's editing interface;
+      no keyboard event is made up (macros never see these keys). The
+      password is masked in place, with no password field.
+    - *Vibration:* Settings → Quick buttons → Vibrate on key press (off
+      by default; not shown where the browser has no vibration): one
+      short pulse on a key of the keyboard, the compass and the K keys.
+    - The start page, the pages and frames opened from the menu, the run
+      log player and Spotlights keep the device's keyboard
+      (`src/layout/phone-viewport.ts` follows it there). `?kbd=0` gives
+      the game layout the device's keyboard too, until the old path is
+      removed. A browser that raises its keyboard although the fields
+      ask for none: ours gives way to it.
   - *Menu:* a bottom sheet with Reconnect, Profile, Scripts, Settings (a
     small phone page), text size, Black / Paper and Exit session.
   - *Weather* (off by default on a phone) fills the whole width when on.
@@ -814,6 +849,8 @@ what feedback is wanted.
 | 49 | **Comm and Statistics panes.** Comm as conversations: Public, Group, a chat per person, search, a reply line; Statistics as a live kill feed with a rating, tiles and a Last kill card (ADR 0134). | Talk, read chats, follow a run's kills. |
 | 50 | **Firefox frame latency.** Veils under floats when Firefox composites in software; `#perf` as a live overlay, `#perf report` for the table (ADR 0135). | Play with a large float in Firefox; try `#perf`. |
 | 51 | **The phone's layout in the game.** Fight card, map lens with its three keys, pane strip, Comm under the fight card, compass and hot keys, the menu sheet and the phone settings page, weather in full width, Paper (§2.12, ADR 0136, `docs/stages/51-phone-layout.md`, steps 51a–g). | Play lightly on your phone: walk, flee, chat, read the panes. |
+| 52 | **The phone's layout, round 2.** Landscape with its own arrangement (the strip and Comm as a left column), resizable strip and Comm, a lens that shrinks before it hides, up to six hot keys in two columns, see-through keys, the menu and settings reworked (§2.12, ADR 0137, `docs/stages/52-phone-round-2.md`). | Play in portrait and landscape on your phone; resize the panes and Comm. |
+| 53 | **An on-screen keyboard of our own.** The phone's game layout types with a keyboard that is part of the client: Swedish and English, a digit row, symbols, the compass and K keys beside it, vibration as a setting; the device's keyboard stays down (§2.12, ADR 0138, `docs/stages/53-own-keyboard.md`, rounds 53a–e). | Type commands, tells and the password on your phone without the device's keyboard. |
 
 ## 6. Open questions for the owner
 

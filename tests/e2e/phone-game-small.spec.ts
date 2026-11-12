@@ -66,8 +66,8 @@ function overlaps(list: Box[], against: Box[] = list): string[] {
 
 const inside = (b: Box, vw: number, vh: number): boolean => b.x >= -0.5 && b.y >= -0.5 && b.x + b.w <= vw + 0.5 && b.y + b.h <= vh + 0.5;
 
-async function openPhone(page: Page): Promise<void> {
-  await page.goto('/?replay&phone=1');
+async function openPhone(page: Page, query = ''): Promise<void> {
+  await page.goto(`/?replay&phone=1${query}`);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad')).toBeVisible();
 }
@@ -397,7 +397,8 @@ for (const sc of SCREENS) {
     });
 
     test('the keyboard up: the command field is visible and takes the full width', async ({ page }) => {
-      await openPhone(page);
+      // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+      await openPhone(page, '&kbd=0');
       await playFight(page);
       await page.locator('.wc-input-slot .wc-input-field').tap();
       await page.setViewportSize({ width: sc.viewport.width, height: sc.keyboard });

@@ -73,6 +73,18 @@ test('connects, logs in, and masks the password', async ({ page }) => {
   expect(await page.locator('.wc-input-field').evaluate((e) => `${e.tagName}:${(e as HTMLInputElement).type}`)).toBe('INPUT:text');
   await page.keyboard.type('hunter2');
   await expect(page.locator('.wc-input-mask')).toHaveText('•••••••');
+  // Selected (Ctrl+A), the password is still not painted (stage 53e): the selection of the masked
+  // line has no text colour, and a tinted ground the bullets stay readable on.
+  await page.keyboard.press('ControlOrMeta+a');
+  const paint = await page.locator('.wc-input-field').evaluate((e: HTMLInputElement) => {
+    const sel = getComputedStyle(e, '::selection');
+    return { selected: e.selectionEnd! - e.selectionStart!, text: getComputedStyle(e).color, color: sel.color, background: sel.backgroundColor };
+  });
+  expect(paint.selected).toBe(7);
+  expect(paint.text).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  expect(paint.color).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  expect(paint.background).not.toMatch(/^rgb\(/);
+  await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await expect.poll(sentText).toContain('hunter2\r\n');
   await expect(page.locator('.wc-output')).not.toContainText('hunter2');

@@ -1,5 +1,5 @@
 // The own keyboard's readout (stage 53a, ADR 0138 "To verify on a
-// device"): shown only with `?kbd=1`, for the owner's screenshots from the
+// device"): shown only with `?kbd=1` or `?kbd=debug`, for screenshots from a
 // phone. Two small lines at the top left that say whether the device's
 // keyboard stayed down:
 //

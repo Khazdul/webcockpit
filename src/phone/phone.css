@@ -1286,8 +1286,8 @@ html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
 
 /* ------------------------------------------------ own keyboard (ADR 0138) */
 
-/* A keyboard of our own (keyboard.ts; behind `?kbd=` until the stage is
- * released). A solid band over the full width from under the command row to
+/* A keyboard of our own (keyboard.ts; the layout's keyboard unless the
+ * address says `?kbd=0`). A solid band over the full width from under the command row to
  * the bottom edge (the layer sets `top` after each layout; the allocator
  * kept the rows free), and in it one block of keys (the layer sets its
  * `left` and `width`: the full width in portrait, compressed towards the

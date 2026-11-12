@@ -621,7 +621,7 @@ interface Mock {
 }
 
 /** Enters MUME on `?phone=1` against a mock: logged in as Rasta, grouped with Gibur and Dori. */
-async function enterMock(page: Page): Promise<Mock> {
+async function enterMock(page: Page, query = ''): Promise<Mock> {
   let server: WebSocketRoute | null = null;
   const sent: string[] = [];
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
@@ -632,7 +632,7 @@ async function enterMock(page: Page): Promise<Mock> {
     });
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
-  await page.goto('/?phone=1');
+  await page.goto(`/?phone=1${query}`);
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
@@ -990,7 +990,8 @@ test('the reply line follows the play gate: at a password prompt it is disabled,
 });
 
 test('a screen too short for Comm: the key is not lit and its badge counts on; with room again Comm is back', async ({ page }) => {
-  const m = await enterMock(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  const m = await enterMock(page, '&kbd=0');
   m.server().send(tell('Gibur', 'one'));
   await sat(page, 'comm').tap();
   await expect(comm(page)).toBeVisible();
@@ -1055,7 +1056,8 @@ test('the resize grip reaches at most 10 px into the game text: the first line u
 });
 
 test('typing a reply with the keyboard up: the reply line stays in view above the keyboard', async ({ page }) => {
-  const m = await enterMock(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  const m = await enterMock(page, '&kbd=0');
   m.server().send(tell('Gibur', 'you at the ford?'));
   await sat(page, 'comm').tap();
   await chat(page, 'Gibur').tap();

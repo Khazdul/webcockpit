@@ -1,12 +1,16 @@
 // Stage 53 (ADR 0138): an on-screen keyboard of our own for the phone's
-// game layout, behind `?kbd=1` (the layout of the browser's language),
-// `?kbd=sv` or `?kbd=en`. This file: the keyboard itself and the command
-// field. The other fields (Comm, the hot key box, script panes), the
-// settings and the vibration: phone-own-keyboard-fields.spec.ts.
+// game layout. Since round 53e it is the layout's keyboard by default;
+// `?kbd=0` keeps the device's (the old path, until the release decision),
+// `?kbd=1` or `?kbd=debug` adds the readout, `?kbd=sv` / `?kbd=en` name the
+// layout whatever the setting says (most cases here use one of them, so
+// they do not depend on the browser's language). This file: the keyboard
+// itself and the command field. The other fields (Comm, the hot key box,
+// script panes), the settings and the vibration:
+// phone-own-keyboard-fields.spec.ts.
 //
-// - Without `?kbd=` nothing differs: no `inputmode`, no keyboard, no
+// - With `?kbd=0` nothing of it is there: no `inputmode`, no keyboard, no
 //   readout, no state class.
-// - With it: the field asks the device for no keyboard
+// - Else: the field asks the device for no keyboard
 //   (`inputmode="none"`, `virtualkeyboardpolicy="manual"`); a pointer on it
 //   opens ours and leaves the field focused; the keys type through the
 //   input pane's editing API (Swedish and English, shift once and locked,
@@ -19,6 +23,9 @@
 //   block over the full width, the compass and the hot keys above it as
 //   with the keyboard down. Landscape: the block in the middle, K1 to K3
 //   left of it, K4 to K6 right of it, the compass at the far right.
+// - A browser that raises its keyboard all the same (it ignores
+//   `inputmode="none"`): ours gives way, and the line is typed in with the
+//   device's as before stage 53.
 //
 // `phone` project (Pixel 7; the owner's S21 sizes are set where the numbers
 // matter). The sending cases play against a `page.routeWebSocket` mock; the
@@ -166,7 +173,7 @@ async function enterMock(page: Page, kbd = '1'): Promise<Mock> {
 
 // ------------------------------------------------------------------ the gate
 
-for (const query of ['', '&kbd=0', '&kbd=de']) test(`without ?kbd=1 nothing differs: no inputmode, no keyboard, no readout, no state ("${query}")`, async ({ page }) => {
+for (const query of ['&kbd=0']) test(`with ?kbd=0 nothing of it is there: no inputmode, no keyboard, no readout, no state ("${query}")`, async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page, query);
   await expect(field(page)).not.toHaveAttribute('inputmode');
@@ -185,6 +192,146 @@ for (const query of ['', '&kbd=0', '&kbd=de']) test(`without ?kbd=1 nothing diff
   expect(after).toEqual(before);
   // Nothing of the keyboard's arrangement on the layer or the page.
   expect(await page.locator('.wc-ph-layer').evaluate((el) => [el.getAttribute('data-okb'), el.style.getPropertyValue('--okb-lift'), document.documentElement.className.includes('okb')])).toEqual([null, '', false]);
+  expect(errors).toEqual([]);
+});
+
+for (const query of ['', '&kbd=de']) test(`by default our keyboard is the game layout's: the field asks the device for none, a tap opens ours, no readout ("${query}")`, async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, query);
+  await expect(field(page)).toHaveAttribute('inputmode', 'none');
+  await expect(field(page)).toHaveAttribute('virtualkeyboardpolicy', 'manual');
+  await expect(okb(page)).toBeHidden();
+  await expect(readout(page)).toHaveCount(0);
+  await openKeyboard(page);
+  await expect(html(page)).toHaveClass(/\bwc-okb\b/);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
+  expect(await inputFocused(page)).toBe(true);
+  await type(page, 'l', 'o', 'o', 'k');
+  await expect(field(page)).toHaveValue('look');
+  expect((await layout(page)).bottom).toBeGreaterThan(0);
+  await expect(readout(page)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('the readout is a diagnostic: only with ?kbd=1 or ?kbd=debug', async ({ page }) => {
+  for (const [query, shown] of [
+    ['&kbd=debug', true],
+    ['&kbd=1', true],
+    ['&kbd=en', false],
+    ['&kbd=sv', false],
+  ] as const) {
+    await openPhone(page, query);
+    await expect(readout(page), query).toHaveCount(shown ? 1 : 0);
+    if (shown) await expect(readout(page)).toContainText('okb 0 | wc-kbd 0');
+    // The keyboard is there either way.
+    await expect(field(page)).toHaveAttribute('inputmode', 'none');
+  }
+});
+
+test.describe('a tablet-size window with the phone flag forced', () => {
+  test.use({ viewport: { width: 1000, height: 700 } });
+
+  test('gets neither the game layout nor our keyboard (the gating by size is unchanged)', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('/?replay&phone=1');
+    await expect(html(page)).toHaveClass(/\bwc-phone\b/);
+    await expect(page.locator('.wc-cockpit')).toBeVisible();
+    await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
+    await expect(html(page)).not.toHaveClass(/\bwc-phone-game\b/);
+    await expect(page.locator('.wc-ph-layer')).toHaveCount(0);
+    await expect(okb(page)).toHaveCount(0);
+    await expect(page.locator('.wc-input-field')).not.toHaveAttribute('inputmode');
+    await page.locator('.wc-input-field').tap();
+    await frames(page);
+    await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
+    expect(await page.evaluate(() => document.querySelectorAll('[inputmode="none"]').length)).toBe(0);
+    expect(errors).toEqual([]);
+  });
+});
+
+for (const [name, size, kb] of [
+  ['portrait', { width: 360, height: 800 }, 320],
+  ['landscape', { width: 800, height: 360 }, 200],
+] as const) {
+  test(`a browser that ignores inputmode="none" (${name}): the device's keyboard comes up, ours gives way, and the line is typed in as before stage 53`, async ({ page }) => {
+    const errors = watchErrors(page);
+    const m = await enterMock(page);
+    await m.login();
+    await setScreen(page, size);
+    await openKeyboard(page);
+    // The device's keyboard comes up anyway, right after the tap: the visible area shrinks under the page.
+    const short = size.height - kb;
+    await page.setViewportSize({ width: size.width, height: short });
+    await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+    // Ours closed without taking the focus from the field: the two never stand together.
+    await expect(okb(page)).toBeHidden();
+    await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
+    expect(await inputFocused(page)).toBe(true);
+    // The page follows the visible area (phone-viewport.ts), with the command field in it.
+    await expect.poll(async () => (await box(page.locator('#app'))).height).toBe(short);
+    await frames(page);
+    expect((await layout(page)).bottom).toBe(0);
+    await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
+    await expect(field(page)).toBeVisible();
+    const f = await box(field(page));
+    expect(f.y).toBeGreaterThanOrEqual(0);
+    expect(f.y + f.height).toBeLessThanOrEqual(short + 0.5);
+    // Typed and sent with the device's keyboard.
+    await page.keyboard.type('look');
+    await expect(field(page)).toHaveValue('look');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => m.sent).toEqual(['look']);
+    // A tap on the field while the device's keyboard is up opens nothing of ours.
+    await field(page).tap();
+    await frames(page);
+    await expect(okb(page)).toBeHidden();
+    expect(await inputFocused(page)).toBe(true);
+    // It folds: the field lets go (stage 52), the page is whole, and the next tap opens ours again.
+    await page.setViewportSize(size);
+    await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
+    await expect.poll(() => inputFocused(page)).toBe(false);
+    await expect.poll(async () => (await box(page.locator('#app'))).height).toBe(size.height);
+    await expect(pad(page)).toBeVisible();
+    await openKeyboard(page);
+    await expect(html(page)).toHaveClass(/\bwc-okb\b/);
+    // (The sent line is still in the field, as after any Enter: the key types at the caret.)
+    await type(page, 'n');
+    await expect(field(page)).toHaveValue(/n/);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('a visible area that shrinks with no field just tapped (a split screen) is not the device\'s keyboard: ours opens, and an open one stays', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, '');
+  await setScreen(page, S21);
+  // The window is made lower with nothing tapped: `wc-kbd` comes (the app cannot tell why), and
+  // a tap on the field still opens our keyboard.
+  await page.setViewportSize({ width: 360, height: 560 });
+  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await openKeyboard(page);
+  await type(page, 'l');
+  await expect(field(page)).toHaveValue('l');
+  await key(page, 'fold').tap();
+  await expect(okb(page)).toBeHidden();
+  await page.setViewportSize(S21);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
+  // Open for a while, then the window is made lower: ours stays, and the field keeps the focus.
+  await openKeyboard(page);
+  await page.waitForTimeout(2700);
+  await page.setViewportSize({ width: 360, height: 560 });
+  await expect(html(page)).toHaveClass(/\bwc-kbd\b/);
+  await frames(page);
+  await expect(okb(page)).toBeVisible();
+  expect(await inputFocused(page)).toBe(true);
+  await type(page, 'o');
+  await expect(field(page)).toHaveValue('lo');
+  // Whole again: the field is not blurred (no device keyboard folded), and ours is still there.
+  await page.setViewportSize(S21);
+  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
+  await frames(page);
+  await expect(okb(page)).toBeVisible();
+  expect(await inputFocused(page)).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -422,6 +569,14 @@ test('the password prompt: the same field, masked with bullets and no password f
   await expect(page.locator('.wc-input-mask')).toBeVisible();
   // The typed text itself is not painted.
   expect(await field(page).evaluate((el) => getComputedStyle(el).color)).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  // Nor is a selection of it (53d review): the selected text has no colour either, so the frame
+  // before the selection is collapsed shows nothing readable. Its ground is a tint, not solid.
+  const sel = await field(page).evaluate((el) => {
+    const c = getComputedStyle(el, '::selection');
+    return { color: c.color, background: c.backgroundColor };
+  });
+  expect(sel.color).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  expect(sel.background).not.toMatch(/^rgb\(/);
   await key(page, 'older').tap({ force: true });
   await expect(field(page)).toHaveValue('secret');
   // A range selected in the masked line is collapsed at once (no selection toolbar is offered the password).
@@ -602,6 +757,44 @@ test('320 px wide: every key on screen, none overlapping, with the digit row up'
   expect(p.y + p.height).toBeLessThanOrEqual(k.y);
   await type(page, 'å', '1');
   await expect(field(page)).toHaveValue('å1');
+});
+
+test('320 × 568 (the smallest phone), the default gate: every key on screen, the command field on the keyboard, the game keeps its rows', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, '');
+  await setScreen(page, { width: 320, height: 568 });
+  await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
+  for (const digits of [false, true]) {
+    if (!(await okb(page).isVisible())) await openKeyboard(page);
+    if (digits) await key(page, 'digits').tap();
+    await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(digits ? 5 : 4);
+    await frames(page);
+    await expect(okb(page)).toBeVisible();
+    const k = await box(okb(page));
+    const keys = await keyBoxes(page);
+    apart(keys, `keys, digits ${digits}`);
+    for (const b of keys) {
+      expect(b.left).toBeGreaterThanOrEqual(0);
+      expect(b.right).toBeLessThanOrEqual(320.5);
+      expect(b.top).toBeGreaterThanOrEqual(k.y);
+      expect(b.bottom).toBeLessThanOrEqual(568.5);
+      expect(b.width).toBeGreaterThanOrEqual(25);
+      expect(b.height).toBeGreaterThanOrEqual(36);
+    }
+    const g = await layout(page);
+    console.log(`320 × 568, digits ${digits}: game rows ${g.game.h} of ${g.rows} (keyboard ${g.bottom} rows)`);
+    expect(g.tooSmall).toBe(false);
+    expect(g.game.h).toBeGreaterThanOrEqual(8);
+    // The field stands on the keyboard, whole and on screen.
+    const f = await box(field(page));
+    expect(f.y + f.height).toBeLessThanOrEqual(k.y + 0.5);
+    expect(f.x + f.width).toBeLessThanOrEqual(320.5);
+    expect(await inputFocused(page)).toBe(true);
+  }
+  await type(page, 'l', '1');
+  await expect(field(page)).toHaveValue('l1');
+  await key(page, 'digits').tap();
+  expect(errors).toEqual([]);
 });
 
 test('the fold key closes and blurs; the text stays; a tap opens again', async ({ page }) => {
@@ -946,8 +1139,8 @@ test('a narrow landscape screen (568 × 320): the hot key columns give way, the 
   expect((await box(key(page, 'q'))).width).toBeGreaterThanOrEqual(36);
 });
 
-test('landscape at 800 × 280 (outside fullscreen): lower rows, everything in the band', async ({ page }) => {
-  await openPhone(page, '&kbd=sv');
+for (const query of ['&kbd=sv', '']) test(`landscape at 800 × 280 (outside fullscreen): lower rows, everything in the band ("${query}")`, async ({ page }) => {
+  await openPhone(page, query);
   await setScreen(page, { width: 800, height: 280 });
   await page.evaluate(() => window.__wc!.settings.update({ phone: { hotkeyCount: 6 } }));
   await openKeyboard(page);

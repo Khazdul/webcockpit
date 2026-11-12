@@ -10,6 +10,11 @@
 //   node scripts/phone-shots.ts 53c sv land-six  states of round 53c (the keyboard in the phone's look)
 //   node scripts/phone-shots.ts 53d comm box password settings …   states of round 53d (name them:
 //                                                the other fields, the password prompt, the settings)
+//   node scripts/phone-shots.ts 53e final-portrait final-landscape   the keyboard as released (the
+//                                                default gate, no `?kbd=`)
+//
+// Since round 53e our own keyboard is the game layout's by default; the two states that show the
+// device's keyboard (`keyboard`, `comm-keyboard` of stage 51) say `?kbd=0`.
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -71,7 +76,7 @@ interface State {
   stage?: number;
   /** Another screen than 390 × 844 (landscape, a narrow phone). */
   viewport?: { width: number; height: number };
-  /** More of the page's query (`kbd=1`: the own keyboard of stage 53a). */
+  /** More of the page's query (`kbd=sv`: our keyboard with that layout; `kbd=0`: the device's keyboard). */
   query?: string;
   /** Brings the opened cockpit to the state. */
   run(page: Page): Promise<void>;
@@ -254,8 +259,10 @@ const STATES: State[] = [
   },
   { name: 'walking', step: 'a', run: (page) => play(page) },
   {
+    // The device's keyboard (stage 51's picture): the old path, `?kbd=0` (ADR 0138 §9).
     name: 'keyboard',
     step: 'a',
+    query: 'kbd=0',
     run: async (page) => {
       await play(page, CUT.fight);
       await page.locator('.wc-ph-fight').waitFor();
@@ -347,9 +354,11 @@ const STATES: State[] = [
     },
   },
   {
+    // (The device's keyboard, as `keyboard`: `?kbd=0`.)
     name: 'comm-keyboard',
     step: 'd',
     live: true,
+    query: 'kbd=0',
     run: async (page) => {
       await openChat(page, 'Gibur');
       await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
@@ -925,6 +934,20 @@ const STATES: State[] = [
       await settle(page);
     },
   },
+  // Stage 53e: the keyboard as it is released, with the default gate (no `?kbd=`); the layout is
+  // the setting's (Swedish chosen, as the owner has it). Portrait and landscape at the S21's size.
+  { name: 'final-portrait', stage: 53, step: 'e', viewport: S21, run: (page) => ownKeyboard(page, swedish) },
+  {
+    name: 'final-landscape',
+    stage: 53,
+    step: 'e',
+    viewport: S21_LAND,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await swedish(p);
+        await sixKeys(p);
+      }),
+  },
   {
     name: 'keys-six',
     stage: 52,
@@ -979,6 +1002,9 @@ async function ownBox(page: Page): Promise<void> {
   for (const k of [';', 'k', 'i', 'c', 'k']) await okbKey(page, k).tap();
   await settle(page);
 }
+
+/** Settings → Keyboard → Layout: Swedish (the default gate has no `?kbd=sv`). */
+const swedish = (page: Page): Promise<void> => page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { layout: 'sv' } } }));
 
 const digitsUp = (page: Page): Promise<void> => page.evaluate(() => window.__wc!.settings.update({ phone: { keyboard: { digits: true } } }));
 

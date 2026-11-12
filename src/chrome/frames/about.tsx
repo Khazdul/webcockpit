@@ -84,7 +84,7 @@ WHAT IS INSIDE
   Map             Reads MMapper maps and follows you as you move.
   Weather         The sky and weather of Middle-earth over the whole client, driven by the game.
   Runs            Every login is recorded in this browser. History, Spotlights and Credits on the start page look back at your runs, and Export turns one into an HTML replay anyone can open.
-  Phone           Log in and chat from a phone. Real play is for a keyboard.
+  Phone           Log in, chat and play lightly from a phone, with a layout for the thumb and its own on-screen keyboard. Real play is for a computer.
 
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.

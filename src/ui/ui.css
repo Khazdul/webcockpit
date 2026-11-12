@@ -374,6 +374,15 @@ textarea.wc-input-field {
   color: transparent;
 }
 
+/* A selection in the masked line (stage 53e): the selected text is never
+ * painted either. The usual selection (`.wc-input-field::selection` above)
+ * gives it an opaque colour, which made a selected password readable. The
+ * ground is a tint, so the bullets drawn over the line stay readable on it. */
+.wc-input-field.wc-masked::selection {
+  color: transparent;
+  background: color-mix(in srgb, var(--term-fg) 30%, transparent);
+}
+
 .wc-input-mask {
   position: absolute;
   left: 0;

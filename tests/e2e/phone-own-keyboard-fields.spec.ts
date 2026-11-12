@@ -1,8 +1,8 @@
 // Stage 53d (ADR 0138 §1, §3, §6, §7): our own keyboard in the other text
 // fields of the phone's game layout, its layout setting, and the keys'
-// vibration. Behind `?kbd=1|sv|en`, as the keyboard itself
-// (phone-own-keyboard.spec.ts); the vibration of the compass and the hot
-// keys is not behind it.
+// vibration. The keyboard is the layout's by default since round 53e
+// (phone-own-keyboard.spec.ts has the gate); most cases here name the
+// layout (`?kbd=en`) so they do not depend on the browser's language.
 //
 // - Comm's reply line and search field, the hot key box's Label and
 //   Command, a script pane's field: each asks the device for no keyboard, a
@@ -13,7 +13,10 @@
 // - The layout with the keyboard up: Comm keeps its rows while it is typed
 //   in (a short screen: the hot key columns give way to it); the hot key
 //   box stands whole above the keyboard.
-// - Without `?kbd=` none of those fields is marked and nothing opens.
+// - A field that goes away while it is typed in (Comm or its search
+//   closed, the strip's page changed, a script's pane gone) hands the keys
+//   back to the command line at once (53e).
+// - With `?kbd=0` none of those fields is marked and nothing opens.
 //
 // `phone` project. The sending cases play against a `page.routeWebSocket`
 // mock; nothing reaches MUME.
@@ -109,6 +112,23 @@ async function hold(page: Page, l: Locator): Promise<void> {
     await cdp.detach();
   }
 }
+
+/** A slow tap on `l` through CDP (a real finger): down at `fy` of its height, `ms` later up at the same place; the browser then makes its click on what lies there by then. */
+async function slowTap(page: Page, l: Locator, ms = 150, fy = 0.5): Promise<void> {
+  const b = await box(l);
+  const pt = { x: b.x + b.width / 2, y: b.y + b.height * fy, id: 0 };
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+    await page.waitForTimeout(ms);
+  } finally {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+  }
+}
+
+/** Whether Comm is told to keep its rows for the keyboard's target (`Cockpit.setPhoneCommKeep`). */
+const commKeep = (page: Page) => page.evaluate(() => (window.__wc!.app.cockpit as unknown as { pgCommKeep: boolean }).pgCommKeep);
 
 const IAC = 255;
 const WILL = 251;
@@ -421,6 +441,44 @@ for (const size of [S21, S21_LAND]) {
   });
 }
 
+for (const size of [S21, S21_LAND]) {
+  test(`Enter as Save with a slow finger (${size.width} × ${size.height}): the release does not end as a tap on what moved under it (53d review)`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await openPhone(page);
+    await setScreen(page, size);
+    await hold(page, hk(page, 1));
+    await command(page).tap();
+    await expect(okb(page)).toBeVisible();
+    await expect(rb(page)).toBeVisible();
+    await type(page, 'x');
+    await frames(page);
+    const sizes = await watchSizes(page);
+    // The finger rests on Enter: the box is saved and closes with the keyboard at the press,
+    // the rows move, and the finger lifts over whatever stands there now.
+    // (On the key's upper part: in landscape the command field's line lies there once the
+    // keyboard is gone, and without the swallow the click opened the keyboard again. In portrait
+    // the compass lies there, which acts on a press only.)
+    await slowTap(page, key(page, 'enter'), 150, 0.2);
+    await expect(rb(page)).toBeHidden();
+    await expect(okb(page)).toBeHidden();
+    // Nothing comes back: no keyboard, no focus in the command field, no menu, one window size.
+    await page.waitForTimeout(350);
+    await frames(page);
+    await expect(okb(page)).toBeHidden();
+    await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
+    await expect(field(page)).not.toBeFocused();
+    await expect(sheet(page)).toHaveCount(0);
+    expect((await layout(page)).bottom).toBe(0);
+    expect(await sizes()).toHaveLength(1);
+    expect(await page.evaluate(() => window.__wc!.settings.get().phone.hotkeys[0]!.command)).toMatch(/x/);
+    // The next tap is not lost.
+    await field(page).tap();
+    await expect(okb(page)).toBeVisible();
+    await expect(field(page)).toBeFocused();
+    expect(errors).toEqual([]);
+  });
+}
+
 test('the hot key box and the keyboard: Cancel and a press outside close both; a tap on the command field hands the keyboard over', async ({ page }) => {
   await openPhone(page);
   await setScreen(page, S21);
@@ -505,6 +563,136 @@ test('a script pane\'s field: typed with our keys, the script hears each change 
   await type(page, 'l');
   await expect(field(page)).toHaveValue('l');
   await expect(f).toHaveValue('cave');
+  expect(errors).toEqual([]);
+});
+
+// ------------------------------------------- a target that goes away (53e)
+
+test('Comm closed with its key while the reply is typed in, on a short portrait screen: the keys are the command line\'s at once, and MUME gets one window size', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await play(page);
+  await setScreen(page, { width: 360, height: 520 });
+  await openTell(page, m);
+  await reply(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await frames(page);
+  await frames(page);
+  expect(await commKeep(page)).toBe(true);
+  await expect(key(page, 'older')).toHaveAttribute('aria-disabled', 'true');
+  const before = await layout(page);
+  expect(before.comm.h).toBeGreaterThanOrEqual(6);
+  const sizes = await watchSizes(page);
+  await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+  await expect(comm(page)).toBeHidden();
+  // With no key pressed: the arrows are lit, Comm keeps nothing, the caret is in the command line.
+  await expect(key(page, 'older')).not.toHaveAttribute('aria-disabled');
+  await expect(key(page, 'newer')).not.toHaveAttribute('aria-disabled');
+  expect(await commKeep(page)).toBe(false);
+  await expect(field(page)).toBeFocused();
+  await expect(okb(page)).toBeVisible();
+  await frames(page);
+  await frames(page);
+  await page.waitForTimeout(200);
+  const after = await layout(page);
+  expect(after.comm.h).toBe(0);
+  expect(after.overLimit).toBe(false);
+  expect(after.game.h).toBeGreaterThan(before.game.h);
+  // One layout took Comm's rows and what it kept for the reply: never two sizes.
+  expect(await sizes()).toHaveLength(1);
+  await type(page, 'l');
+  await expect(field(page)).toHaveValue('l');
+  expect(await sizes()).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+for (const size of [S21, { width: 360, height: 520 }]) {
+  test(`Comm's search closed while it is typed in (${size.width} × ${size.height}): the keys are the command line's at once, at most one window size`, async ({ page }) => {
+    const m = await play(page);
+    await setScreen(page, size);
+    await openTell(page, m);
+    await comm(page).locator('.wc-cm-sbtn').tap();
+    await expect(search(page)).toBeFocused();
+    await expect(okb(page)).toBeVisible();
+    await type(page, 'f', 'o');
+    await frames(page);
+    await frames(page);
+    expect(await commKeep(page)).toBe(true);
+    await expect(key(page, 'older')).toHaveAttribute('aria-disabled', 'true');
+    const sizes = await watchSizes(page);
+    await comm(page).locator('.wc-cm-sclear').tap();
+    await expect(search(page)).toBeHidden();
+    await expect(key(page, 'older')).not.toHaveAttribute('aria-disabled');
+    expect(await commKeep(page)).toBe(false);
+    await expect(field(page)).toBeFocused();
+    await expect(okb(page)).toBeVisible();
+    await frames(page);
+    await frames(page);
+    await page.waitForTimeout(200);
+    expect((await sizes()).length).toBeLessThanOrEqual(1);
+    await type(page, 'n');
+    await expect(field(page)).toHaveValue('n');
+    await expect(search(page)).toHaveValue('');
+  });
+}
+
+test('a script pane\'s field that goes away while it is typed in (the strip\'s page changed; the script switched off): the keys are the command line\'s at once', async ({ page }) => {
+  const errors = watchErrors(page);
+  await play(page, '&kbd=en', async () => {
+    await page.evaluate(async (src) => {
+      const l = window.__wc!.shell.scripts!;
+      await l.init();
+      await l.create('ask', src);
+      await l.setEnabled('ask', true);
+    }, `-- @name ask\n-- @api 1\nlocal p = createPane{id = "main", title = "Ask", dock = "right", rows = 3, cols = 24}\np:setLine(1, " Name: ")\np:setInput(1, 8, 12, { value = "", placeholder = "name" })\n`);
+  });
+  await setScreen(page, S21);
+  await expect.poll(() => page.evaluate(() => window.__wc!.app.cockpit.scriptPanes().map((p) => p.id))).toEqual(['ask/main']);
+  await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 8 } }));
+  const dots = page.locator('.wc-ph-strip-band .wc-ph-strip-dots > i');
+  await expect.poll(() => dots.count()).toBeGreaterThan(1);
+  const last = await dots.count();
+  const pane = page.locator('.wc-pane[data-pane="ask/main"]');
+  const f = pane.locator('input.wc-spane-field');
+  const openField = async (): Promise<void> => {
+    await page.keyboard.press(`Control+${last}`);
+    await expect(f).toBeVisible();
+    await f.tap();
+    await expect(okb(page)).toBeVisible();
+    await expect(f).toBeFocused();
+    await expect(key(page, 'older')).toHaveAttribute('aria-disabled', 'true');
+  };
+  // Another page of the strip: the field's pane is no longer shown.
+  await openField();
+  await frames(page);
+  const sizes = await watchSizes(page);
+  // (A swipe to the right, under the field: the page before.)
+  const pb = await box(pane);
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x?: number) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: x === undefined ? [] : [{ x, y: pb.y + pb.height * 0.6, id: 0 }] });
+  await touch('touchStart', pb.x + pb.width * 0.25);
+  for (let i = 1; i <= 4; i++) await touch('touchMove', pb.x + pb.width * 0.25 + 40 * i);
+  await touch('touchEnd');
+  await cdp.detach();
+  await expect(pane).toBeHidden();
+  await expect(key(page, 'older')).not.toHaveAttribute('aria-disabled');
+  await expect(field(page)).toBeFocused();
+  await expect(okb(page)).toBeVisible();
+  await frames(page);
+  await frames(page);
+  expect(await sizes()).toEqual([]);
+  await type(page, 'l');
+  await expect(field(page)).toHaveValue('l');
+  // The script is switched off: its pane, and the field with it, is taken away.
+  await openField();
+  await page.evaluate(() => window.__wc!.shell.scripts!.setEnabled('ask', false));
+  await expect(pane).toHaveCount(0);
+  await expect(key(page, 'older')).not.toHaveAttribute('aria-disabled');
+  await expect(okb(page)).toBeVisible();
+  await expect(field(page)).toBeFocused();
+  await type(page, 'o');
+  await expect(field(page)).toHaveValue('lo');
   expect(errors).toEqual([]);
 });
 
@@ -653,9 +841,9 @@ test('a held backspace pulses once, not at every repeat', async ({ page }) => {
   expect((await vib()).length - before).toBe(1);
 });
 
-test('without ?kbd the vibration works for the compass and the hot keys, and its row is there; the Keyboard group is not', async ({ page }) => {
+test('with ?kbd=0 the vibration works for the compass and the hot keys, and its row is there; the Keyboard group is not', async ({ page }) => {
   const vib = await stubVibrate(page);
-  await openPhone(page, '');
+  await openPhone(page, '&kbd=0');
   await setScreen(page, S21);
   await openSettings(page);
   await expect(pageEl(page).locator('[data-group="keyboard"]')).toHaveCount(0);
@@ -690,14 +878,14 @@ test('a browser without navigator.vibrate: no row, and the keys work without a p
 
 // ------------------------------------------------------------------ the gate
 
-test('without ?kbd nothing of this differs: no field is marked, nothing opens, the password prompt swaps in its password field', async ({ page }) => {
+test('with ?kbd=0 nothing of this is there: no field is marked, nothing opens, the password prompt swaps in its password field', async ({ page }) => {
   const errors = watchErrors(page);
   let server: WebSocketRoute | null = null;
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
     server = ws;
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
-  await page.goto('/?phone=1');
+  await page.goto('/?phone=1&kbd=0');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(pad(page)).toBeVisible();
