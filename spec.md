@@ -702,17 +702,28 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
   width with a tab strip, one pane at a time (ADR 0075 §3).
 - **The phone's layout in the live game** (stage 51, ADR 0136; light
   play, Goal 12). Portrait is the design; landscape uses it as it is.
-  - *Top:* a fight card only while fighting (two names, two bars, no
-    numbers or condition words); under it, when opened, Comm (the Comm
+  - *Top:* a pane strip can be opened from the top edge: one pane at a
+    time (Timers, Group, Character, Statistics, script panes), a
+    sideways swipe changes pane. Under it, when opened, Comm (the Comm
     pane in rail mode, its reply line as the compose field, the lower
-    edge dragged to resize). A pane strip can be opened above the fight
-    card: one pane at a time (Timers, Group, Character, Statistics,
-    script panes), a sideways swipe changes pane.
+    edge dragged to resize; never lower than its whole reply line and
+    one line of chat). Under the panes that are open, and at the very
+    top when none is, a fight card only while fighting (two names, two
+    bars, no numbers or condition words); Settings → Panes turns the
+    card off (round 53k).
   - *Map lens:* the map as a round lens top right (iron ring, glass
-    shine), Shimrod, locked settings, a tap steps three zoom levels.
-    Three keys on it: panes, fullscreen (where supported), Comm with the
-    unread count. No incoming message cards. The lens hides when it
-    would collide with something; its keys stay as a row.
+    shine), Shimrod, locked settings, a tap steps four zoom levels
+    (about 5, 10, 20 and 44 rooms across; the zoom follows the lens's
+    size). Three keys on it: panes, fullscreen (where supported), Comm
+    with the unread count. No incoming message cards. A finger that
+    drags the lens moves it; held still for 0.4 s and then dragged, it
+    resizes it (from 96 px to what the free area holds). The place and
+    size wanted are stored per orientation; what is shown follows the
+    room: under the panes and the fight card, above the command row and
+    the keys, shrunk where it does not fit, hidden with its keys as a
+    row where not even 96 px fit, and back where it was dropped when the
+    room returns. Settings → Map lens resets it (round 53k; ADR 0137's
+    addendum).
   - *Bottom right:* a compass from the bottom edge (N, W, look, E, S, U,
     D, flee; every direction always live) and above it up to three hot
     keys along the right edge (K1 lowest; label of at most four
