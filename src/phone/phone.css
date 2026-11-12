@@ -1672,11 +1672,11 @@ html.wc-phone.wc-okb-pg .wc-start-almanac {
  * the keys. The hint under the field gives way; an error still shows. */
 @media (max-height: 480px) {
   html.wc-phone.wc-okb-pg .wc-lk-dslot {
-    padding: 4px 16px;
+    padding: 2px 16px;
   }
 
   html.wc-phone.wc-okb-pg .wc-lk-dwin {
-    padding: 20px 16px 6px;
+    padding: 20px 16px 4px;
   }
 
   html.wc-phone.wc-okb-pg .wc-lk-dialog-b .wc-lk-q {
@@ -1692,13 +1692,23 @@ html.wc-phone.wc-okb-pg .wc-start-almanac {
     display: none;
   }
 
+  /* The error line keeps its own height (the window is a column that would
+   * squeeze it under the buttons: round 53h); with no error it takes none.
+   * Lower buttons make its room, and a message of two lines scrolls the
+   * window instead of lying over them. */
   html.wc-phone.wc-okb-pg .wc-lk-dialog-err {
+    flex: none;
     min-height: 0;
     margin: 2px 0 0;
   }
 
   html.wc-phone.wc-okb-pg .wc-lk-dialog-btns {
-    margin: 6px 0 0;
+    flex: none;
+    margin: 5px 0 0;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dialog-btns .wc-lk-btn {
+    min-height: 34px;
   }
 
   /* The export editor's comment: the composer whole above the keys (its
