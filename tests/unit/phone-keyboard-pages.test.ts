@@ -117,6 +117,8 @@ let kb: PageKeyboardHandle;
 let sent: Array<[Element, string]>;
 let ups: boolean[];
 let settings: ReturnType<typeof store>;
+/** The code editors registered (round 53h): what the shell's `ownEditorOf` would answer. */
+let editors: Map<Element, { editable: boolean; typed: string[]; reveals: number }>;
 
 function mk(tag: 'input' | 'textarea', marked = true, kind?: string): HTMLInputElement | HTMLTextAreaElement {
   const el = document.createElement(tag);
@@ -162,10 +164,15 @@ beforeEach(() => {
   document.body.append(root);
   sent = [];
   ups = [];
+  editors = new Map();
   settings = store();
   kb = mountPageKeyboard({
     root,
     settings,
+    editorOf: (el) => {
+      const e = editors.get(el);
+      return e ? { editable: () => e.editable, insert: (t) => void e.typed.push(t), reveal: () => void e.reveals++ } : null;
+    },
     sendKey: (t, k, mods) => {
       sent.push([t, mods?.shift ? `Shift+${k}` : k]);
       return true;
@@ -598,5 +605,274 @@ describe('mountPageKeyboard: a field focused before the mount (the phone chunk c
     f.focus();
     kb = mountPageKeyboard({ root, settings, sendKey: () => true });
     expect(kb.open).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------- round 53h
+
+/** A code editor's content element as the editor chunk marks and registers it (a line of text in it). */
+function mkEditor(editable = true): { content: HTMLElement; line: HTMLElement; ed: { editable: boolean; typed: string[]; reveals: number } } {
+  const content = document.createElement('div');
+  content.setAttribute('contenteditable', 'true');
+  content.tabIndex = 0;
+  content.setAttribute('inputmode', 'none');
+  content.setAttribute('virtualkeyboardpolicy', 'manual');
+  content.setAttribute('data-okb-kind', 'editor');
+  const line = document.createElement('div');
+  line.textContent = 'x = 1';
+  content.append(line);
+  page.append(content);
+  const ed = { editable, typed: [] as string[], reveals: 0 };
+  editors.set(content, ed);
+  return { content, line, ed };
+}
+
+/** A tap on a line of an editor: the pointer lands on the line, the focus on the content element. */
+function tapIn(content: HTMLElement, line: HTMLElement): void {
+  line.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  content.focus();
+  line.dispatchEvent(new Event('pointerup', { bubbles: true }));
+  line.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+}
+
+describe('a code editor (round 53h)', () => {
+  it('a tap in its text opens the keyboard for it: Enter is a line break, the caret keys and the page keys are lit', () => {
+    const { content, line } = mkEditor();
+    tapIn(content, line);
+    expect(kb.open).toBe(true);
+    expect(keyEl('.wc-ph-okb-k[data-act="enter"]').dataset.enter).toBe('newline');
+    for (const a of ['left', 'right', 'up', 'down', 'esc', 'tab']) expect(keyEl(`.wc-ph-okb-k[data-act="${a}"]`).hasAttribute('aria-disabled')).toBe(false);
+  });
+
+  it('text goes to the editor; every other key is a marked key event at its content element', () => {
+    const { content, line, ed } = mkEditor();
+    tapIn(content, line);
+    press('h');
+    press('shift');
+    press('i');
+    press('space');
+    expect(ed.typed).toEqual(['h', 'I', ' ']);
+    expect(sent).toEqual([]);
+    for (const k of ['back', 'left', 'right', 'up', 'down', 'tab']) press(k);
+    press('shift');
+    press('tab');
+    expect(sent.map(([t, k]) => [t === content, k])).toEqual([
+      [true, 'Backspace'],
+      [true, 'ArrowLeft'],
+      [true, 'ArrowRight'],
+      [true, 'ArrowUp'],
+      [true, 'ArrowDown'],
+      [true, 'Tab'],
+      [true, 'Shift+Tab'],
+    ]);
+  });
+
+  it('Enter acts on the press and is never held back as a double tap; Esc is (it may close the editor)', () => {
+    const { content, line } = mkEditor();
+    tapIn(content, line);
+    const enter = keyEl('.wc-ph-okb-k[data-act="enter"]');
+    enter.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+    expect(sent).toEqual([[content, 'Enter']]);
+    enter.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    enter.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    press('enter');
+    press('enter');
+    expect(sent.map(([, k]) => k)).toEqual(['Enter', 'Enter', 'Enter']);
+    sent.length = 0;
+    press('esc');
+    press('esc');
+    expect(sent.map(([, k]) => k)).toEqual(['Escape']);
+    vi.advanceTimersByTime(PAGE_KEY_AGAIN_MS + 1);
+    press('esc');
+    expect(sent.map(([, k]) => k)).toEqual(['Escape', 'Escape']);
+  });
+
+  it('a held backspace repeats as key events, and stops when the finger lifts', () => {
+    const { content, line } = mkEditor();
+    tapIn(content, line);
+    const back = keyEl('.wc-ph-okb-k[data-act="back"]');
+    back.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+    vi.advanceTimersByTime(700);
+    back.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    expect(sent.length).toBeGreaterThan(3);
+    expect(sent.every(([t, k]) => t === content && k === 'Backspace')).toBe(true);
+    const n = sent.length;
+    vi.advanceTimersByTime(500);
+    expect(sent.length).toBe(n);
+  });
+
+  it('a focus its frame gives it after a tap elsewhere opens nothing (the editor opened, Save): only a tap in the text does', () => {
+    const { content, line } = mkEditor();
+    const button = document.createElement('button');
+    page.append(button);
+    // A tap on a button, and the frame focuses the buffer.
+    button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    button.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    content.focus();
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    expect(kb.open).toBe(false);
+    // The same with the finger still down on the button.
+    content.blur();
+    button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    content.focus();
+    button.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    expect(kb.open).toBe(false);
+    tapIn(content, line);
+    expect(kb.open).toBe(true);
+  });
+
+  it('a press in the text that ends without a click opens it once the finger has lifted; a drag the browser took (a scroll) opens and closes nothing', () => {
+    const { content, line } = mkEditor();
+    line.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    content.focus();
+    expect(kb.open).toBe(false);
+    line.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    expect(kb.open).toBe(false);
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 1);
+    expect(kb.open).toBe(true);
+    kb.close(true);
+    // A scroll by drag: the pointer is cancelled, no focus comes.
+    line.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    line.dispatchEvent(new Event('pointercancel', { bubbles: true }));
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    expect(kb.open).toBe(false);
+    // The same with the keyboard up and the focus in the text: it stays as it is.
+    tapIn(content, line);
+    expect(kb.open).toBe(true);
+    ups.length = 0;
+    line.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    line.dispatchEvent(new Event('pointercancel', { bubbles: true }));
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    expect(kb.open).toBe(true);
+    expect(ups).toEqual([]);
+  });
+
+  it('the focus moves between the buffer and a find field of ours with the keyboard up all the way: the target follows, nothing closes', () => {
+    const { content, line, ed } = mkEditor();
+    const find = mk('input') as HTMLInputElement;
+    tapIn(content, line);
+    ups.length = 0;
+    // The Find tool: the panel's field takes the focus.
+    find.focus();
+    vi.advanceTimersByTime(5);
+    expect(kb.open).toBe(true);
+    press('o');
+    expect(find.value).toBe('o');
+    expect(ed.typed).toEqual([]);
+    // Enter there is the field's (a submit, on the click), not a line break.
+    expect(keyEl('.wc-ph-okb-k[data-act="enter"]').dataset.enter).toBe('submit');
+    // Esc in Find: the panel gives the buffer the focus back.
+    press('esc');
+    expect(sent).toEqual([[find, 'Escape']]);
+    content.focus();
+    vi.advanceTimersByTime(5);
+    expect(kb.open).toBe(true);
+    press('x');
+    expect(ed.typed).toEqual(['x']);
+    expect(keyEl('.wc-ph-okb-k[data-act="enter"]').dataset.enter).toBe('newline');
+    expect(ups).toEqual([]);
+  });
+
+  it('the editor scrolls its own caret into view: asked when the keyboard comes up, and nothing of the page is moved for it', () => {
+    const { content, line, ed } = mkEditor();
+    const scroller = document.createElement('div');
+    scroller.style.overflowY = 'auto';
+    page.append(scroller);
+    scroller.append(content);
+    Object.defineProperty(scroller, 'scrollHeight', { value: 900 });
+    Object.defineProperty(scroller, 'clientHeight', { value: 300 });
+    tapIn(content, line);
+    vi.advanceTimersByTime(50);
+    expect(ed.reveals).toBe(1);
+    expect(scroller.scrollTop).toBe(0);
+  });
+
+  it('what code needs of the keys: the symbols in the code order, and in portrait the digit row up until its key folds it', () => {
+    const { content, line } = mkEditor();
+    const f = mk('input');
+    const symbols = (): string => {
+      press('sym');
+      const got = [...kb.el.querySelectorAll<HTMLElement>('.wc-ph-okb-row.is-chars')].map((r) => [...r.querySelectorAll<HTMLElement>('[data-ch]')].map((k) => k.dataset.ch).join('')).join(' ');
+      press('sym');
+      return got;
+    };
+    tap(f);
+    const plainRows = rows();
+    expect(kb.el.querySelector('.wc-ph-okb-row.is-digits')).toBeNull();
+    const plain = symbols();
+    tapIn(content, line);
+    // One more row for the editor: the digits, with the stored state untouched.
+    expect(rows()).toBe(plainRows + 1);
+    expect(kb.el.querySelector('.wc-ph-okb-row.is-digits')).not.toBeNull();
+    expect(settings.get().phone.keyboard.digits).toBe(false);
+    expect(root.style.getPropertyValue('--wc-okb-page-h')).toBe(`${okbHeightPx(false, 800, true, true)}px`);
+    const code = symbols();
+    expect(code).not.toBe(plain);
+    expect(code.endsWith('(){}=",')).toBe(true);
+    for (const c of '{}[]()="\'#%:,-_+*/\\<>~^|&`') expect(code).toContain(c);
+    // Back in a plain field: its own order and no forced row.
+    f.focus();
+    vi.advanceTimersByTime(5);
+    expect(rows()).toBe(plainRows);
+    expect(symbols()).toBe(plain);
+    // The row's key folds it for the editors, and it stays folded when the editor is come back to.
+    content.focus();
+    vi.advanceTimersByTime(5);
+    expect(rows()).toBe(plainRows + 1);
+    press('digits');
+    expect(rows()).toBe(plainRows);
+    expect(settings.get().phone.keyboard.digits).toBe(false);
+    f.focus();
+    vi.advanceTimersByTime(5);
+    content.focus();
+    vi.advanceTimersByTime(5);
+    expect(rows()).toBe(plainRows);
+    // Its key again is the stored state's, as everywhere.
+    press('digits');
+    expect(settings.get().phone.keyboard.digits).toBe(true);
+    expect(rows()).toBe(plainRows + 1);
+  });
+
+  it('landscape: no row is forced for an editor (the page has no height to give)', () => {
+    root.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 800, bottom: 360, width: 800, height: 360, toJSON: () => ({}) });
+    const { content, line } = mkEditor();
+    tapIn(content, line);
+    expect(kb.open).toBe(true);
+    expect(kb.el.querySelector('.wc-ph-okb-row.is-digits')).toBeNull();
+    expect(root.style.getPropertyValue('--wc-okb-page-h')).toBe(`${okbHeightPx(true, 360, false)}px`);
+  });
+
+  it('a read-only buffer opens nothing, and ours closes when it takes the focus', () => {
+    const { content, line } = mkEditor(false);
+    tapIn(content, line);
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    expect(kb.open).toBe(false);
+    const f = mk('input');
+    tap(f);
+    expect(kb.open).toBe(true);
+    content.focus();
+    vi.advanceTimersByTime(5);
+    expect(kb.open).toBe(false);
+  });
+
+  it('an editor that is not registered (its view is gone) is no field of ours', () => {
+    const { content, line } = mkEditor();
+    editors.delete(content);
+    tapIn(content, line);
+    vi.advanceTimersByTime(PAGE_AFTER_POINTER_MS + 10);
+    expect(kb.open).toBe(false);
+  });
+
+  it('the buffer goes away (the editor closed): the keyboard closes and leaves no reserve', async () => {
+    const { content, line } = mkEditor();
+    tapIn(content, line);
+    expect(kb.open).toBe(true);
+    content.remove();
+    await Promise.resolve();
+    vi.advanceTimersByTime(50);
+    expect(kb.open).toBe(false);
+    expect(root.style.getPropertyValue('--wc-okb-page-h')).toBe('');
   });
 });

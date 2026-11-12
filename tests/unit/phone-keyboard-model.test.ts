@@ -17,6 +17,7 @@ import {
   OKB_SHIFT_OFF,
   OKB_SIDE_TOP_MIN,
   OKB_SYMBOLS,
+  OKB_SYMBOLS_CODE,
   OKB_UNIT_MAX,
   OKB_UNIT_MAX_LAND,
   OKB_UNIT_MIN_LAND,
@@ -498,5 +499,49 @@ describe('own keyboard: the page keys', () => {
     }
     // The number of pages did not grow with it.
     expect([okbSymbolPages('sv', true), okbSymbolPages('sv', false), okbSymbolPages('en', true), okbSymbolPages('en', false)]).toEqual([1, 2, 2, 2]);
+  });
+});
+
+describe('own keyboard: the symbols in a code editor (round 53h)', () => {
+  /** What Lua and the profile syntax need (`;` and `.` keep their keys on the bottom row). */
+  const CODE = [...'{}[]()="\'#%:,-_+*/\\<>~^|&`'];
+  const symbolsOf = (layout: 'sv' | 'en', digits: boolean, page: number): string[] =>
+    okbRows({ layout, page: 'symbols', symbolPage: page, digits, arrowsOnDigitRow: true, history: false, symbols: 'code' })
+      .filter((r) => r.kind === 'chars')
+      .flatMap((r) => r.keys.map((k) => k.ch ?? ''))
+      .filter((c) => c !== '');
+
+  it('the code order is the same symbols, each once', () => {
+    expect([...OKB_SYMBOLS_CODE].sort()).toEqual([...OKB_SYMBOLS].sort());
+    expect(new Set(OKB_SYMBOLS_CODE).size).toBe([...OKB_SYMBOLS_CODE].length);
+  });
+
+  it('the rows nearest the thumbs: brackets, =, the quote and the comma; then what code uses most', () => {
+    const rows = okbRows({ layout: 'en', page: 'symbols', digits: false, arrowsOnDigitRow: true, history: false, symbols: 'code' });
+    const chars = rows.filter((r) => r.kind === 'chars').map((r) => r.keys.map((k) => k.ch ?? '').join(''));
+    expect(chars).toEqual(['[]#%:-_<>+', '(){}=",']);
+  });
+
+  it('with the digit row up everything code needs is on the first page (two taps), in both layouts', () => {
+    for (const layout of ['sv', 'en'] as const) {
+      const first = symbolsOf(layout, true, 0);
+      for (const c of CODE) expect(first, `${c} in ${layout}`).toContain(c);
+    }
+    // English keeps three for a second page, none of them code's.
+    expect(symbolsOf('en', true, 1)).toEqual(['@', '!', '?']);
+    expect(okbSymbolPages('sv', true)).toBe(1);
+  });
+
+  it('with the digit row folded the first page holds the most used, the second the rest', () => {
+    const first = symbolsOf('en', false, 0);
+    for (const c of '(){}[]=",-_#%:<>+') expect(first).toContain(c);
+    expect([...symbolsOf('en', false, 0), ...symbolsOf('en', false, 1)].sort()).toEqual([...OKB_SYMBOLS].sort());
+  });
+
+  it('the game layout and every plain field keep their order', () => {
+    const plain = okbRows({ layout: 'en', page: 'symbols', digits: false, arrowsOnDigitRow: true });
+    const text = okbRows({ layout: 'en', page: 'symbols', digits: false, arrowsOnDigitRow: true, symbols: 'text' });
+    expect(plain).toEqual(text);
+    expect(plain.find((r) => r.kind === 'chars' && r.keys.some((k) => k.act === 'alt'))!.keys.filter((k) => k.ch).map((k) => k.ch).join('')).toBe([...OKB_SYMBOLS].slice(0, 7).join(''));
   });
 });

@@ -52,6 +52,7 @@ import {
   type OkbNav,
   type OkbPage,
   type OkbShiftState,
+  type OkbSymbolSet,
   type OkbTarget,
   OKB_REPEAT_DELAY_MS,
   OKB_REPEAT_MS,
@@ -144,6 +145,7 @@ export class OwnKeyboard {
   private digits = false;
   private arrowsOnDigitRow = false;
   private nav: OkbNav = 'none';
+  private symbols: OkbSymbolSet = 'text';
   /** The columns of page keys beside the block (`nav` is `sides`), made when first needed. */
   private sideEls: [HTMLDivElement, HTMLDivElement] | null = null;
   private sidesAt = '';
@@ -246,6 +248,14 @@ export class OwnKeyboard {
   setNav(nav: OkbNav): void {
     if (nav === this.nav) return;
     this.nav = nav;
+    if (!this.el.hidden) this.draw();
+  }
+
+  /** The symbols' order: `code` while a code editor is typed in (the game layout: `text`, the default). */
+  setSymbols(set: OkbSymbolSet): void {
+    if (set === this.symbols) return;
+    this.symbols = set;
+    this.symbolPage = 0;
     if (!this.el.hidden) this.draw();
   }
 
@@ -365,7 +375,7 @@ export class OwnKeyboard {
 
   /** Draws the rows when what they are made from changed, and marks shift and the toggles. */
   private draw(): void {
-    const sig = `${this.layout}|${this.page}|${this.symbolPage}|${this.digits}|${this.arrowsOnDigitRow}|${this.nav}`;
+    const sig = `${this.layout}|${this.page}|${this.symbolPage}|${this.digits}|${this.arrowsOnDigitRow}|${this.nav}|${this.symbols}`;
     if (sig !== this.drawn) {
       this.drawn = sig;
       // The keys are made anew: none of the old ones is held any more.
@@ -379,6 +389,7 @@ export class OwnKeyboard {
         arrowsOnDigitRow: this.arrowsOnDigitRow,
         history: this.deps.history !== false,
         nav: this.nav,
+        symbols: this.symbols,
       });
       this.el.dataset.nav = this.nav;
       if (this.nav === 'sides') {

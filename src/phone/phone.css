@@ -1744,6 +1744,93 @@ html.wc-phone.wc-okb-pg .wc-start-almanac {
   }
 }
 
+/* ---- The two code editors under our keyboard (round 53h, ADR 0139 §6) ---- */
+
+/* The completion list stands alone while our keyboard is up: beside the list
+ * a phone has no room for the info box, and CodeMirror then lays it over the
+ * list's other rows (its "narrow" place). The manual's tool opens the same
+ * text at the name under the caret. */
+html.wc-phone.wc-okb-pg .cm-tooltip.cm-completionInfo.cm-completionInfo-left-narrow,
+html.wc-phone.wc-okb-pg .cm-tooltip.cm-completionInfo.cm-completionInfo-right-narrow {
+  display: none;
+}
+
+/* A doc plate (a name pressed) is never higher than the page above the keys. */
+html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-hover {
+  box-sizing: border-box;
+  max-height: calc(100dvh - var(--wc-okb-page-h, 0px) - 44px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A low page above the keyboard (a phone on its side, about 212 px): what
+ * is not the code steps aside, as Lite's head and foot do: the box's hood
+ * and Back, the script editor's status line, the profile editor's views
+ * and foot. The fold key brings them back; Esc is on the keyboard. */
+@media (max-height: 480px) {
+  html.wc-phone.wc-okb-pg .wc-sed .wc-lk-box > .wc-lk-hood,
+  html.wc-phone.wc-okb-pg .wc-sed .wc-lk-box > .wc-lk-back,
+  html.wc-phone.wc-okb-pg .wc-sed .wc-sed-line,
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="editor"] .wc-pe-head,
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="editor"] .wc-pe-foot {
+    display: none;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-sed .wc-lk-win.wc-sed-win {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  /* (The profile editor is inside its box's window: its hood is found from the box.) */
+  html.wc-phone.wc-okb-pg .wc-lk-box:has(.wc-pe[data-view="editor"]) > .wc-lk-hood,
+  html.wc-phone.wc-okb-pg .wc-lk-box:has(.wc-pe[data-view="editor"]) > .wc-lk-back {
+    display: none;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-win.wc-pe-win:has(.wc-pe[data-view="editor"]) {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  /* The completion list: two rows at a time (it scrolls), so it fits above
+   * or below the caret's line wherever that is in the few lines shown; no
+   * info box beside it. */
+  html.wc-phone.wc-okb-pg .cm-tooltip.cm-completionInfo {
+    display: none;
+  }
+
+  html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-autocomplete > ul {
+    max-height: 76px;
+  }
+
+  html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+    height: 36px;
+    line-height: 36px;
+  }
+
+  /* The find row: lower fields and buttons, less air, so code lines show under it. */
+  html.wc-phone.wc-okb-pg .wc-search.wc-lk-search {
+    padding: 4px 6px 0 4px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-sin {
+    gap: 4px;
+    padding: 4px 8px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-srow > .wc-lk-field input {
+    height: 34px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-btn {
+    min-height: 34px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-search-count {
+    min-width: 0;
+  }
+}
+
 /* The reserve: the start page and the menu's overlay end at the keyboard's top edge. */
 html.wc-phone.wc-okb-pg .wc-chrome,
 html.wc-phone.wc-okb-pg .wc-overlay {

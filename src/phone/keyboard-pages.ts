@@ -38,6 +38,12 @@
 //   (Esc in Find); never because a frame gave it the focus after a tap
 //   elsewhere (opening the editor, Save), so the code can be read first. A
 //   read-only buffer is marked (no device keyboard) and opens nothing.
+//   What code needs of the keys: the symbols stand in a code order
+//   (`OKB_SYMBOLS_CODE`), and in portrait the digit row is up for an editor
+//   whatever the stored state (digits are code, and with the row up one
+//   symbols page holds everything Lua and the profile syntax need, two taps
+//   away); its key folds it for the editors until the page is left. In
+//   landscape the row follows the stored state: the page has no height.
 // - The page keys (53g): Esc, Tab and the caret keys, in a row at the top
 //   of the block in portrait and in a column at each side of it in
 //   landscape (`pageKeyboardPlan`), where the page has no height to give.
@@ -218,6 +224,11 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   let watch: MutationObserver | null = null;
   /** A numeric field shows the digit row whatever the stored state, until its key folds it away. */
   let forceDigits = false;
+  /** A code editor is typed in: the digit row is up in portrait, until its key folds it (`codeFolded`, kept while the mount lives). */
+  let code = false;
+  let codeFolded = false;
+  /** The page is wider than high, as last placed. */
+  let landscape = false;
   let reserve = -1;
   /** A pointer is down anywhere now, and when one was last seen (a focus that follows it is that pointer's). */
   let down = false;
@@ -250,7 +261,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   inner.className = 'wc-okb-page-in';
   host.append(inner);
 
-  const digitsWanted = (): boolean => settings.get().phone.keyboard.digits || forceDigits;
+  /** The editors' digit row is up now (not stored: `toggleDigits` folds it). */
+  const codeDigits = (): boolean => code && !codeFolded && !landscape;
+  const digitsWanted = (): boolean => settings.get().phone.keyboard.digits || forceDigits || codeDigits();
 
   const okb = new OwnKeyboard(
     doc,
@@ -264,6 +277,10 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
         // A numeric field's forced row: its key folds it away for this field; the stored state is not touched.
         if (forceDigits && !settings.get().phone.keyboard.digits) {
           forceDigits = false;
+          place();
+        } else if (codeDigits() && !settings.get().phone.keyboard.digits) {
+          // (The editors' row likewise: folded for them, the stored state as it was.)
+          codeFolded = true;
           place();
         } else settings.update({ phone: { keyboard: { digits: !settings.get().phone.keyboard.digits } } });
       },
@@ -312,6 +329,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     // (The host's inner box keeps out of the safe area at the sides: its width is the keys' room.)
     const sideL = parseFloat(st?.marginLeft ?? '') || 0;
     const sideR = parseFloat(st?.marginRight ?? '') || 0;
+    landscape = box.width - sideL - sideR > box.height;
     const layout = wanted();
     const plan = pageKeyboardPlan(box.width - sideL - sideR, box.height, layout, digitsWanted());
     if (!plan) {
@@ -433,6 +451,8 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     forceDigits = f.getAttribute('data-okb-kind') === 'digits';
     follow(f);
     const ed = isEditor(f) ? editorOf(f) : null;
+    code = ed !== null;
+    okb.setSymbols(code ? 'code' : 'text');
     if (ed) {
       target = editorTarget(f, ed);
       okb.sync();
@@ -527,6 +547,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     field = null;
     target = null;
     forceDigits = false;
+    code = false;
     follow(null);
     sized?.disconnect();
     okb.place(null);

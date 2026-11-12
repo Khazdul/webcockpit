@@ -16,6 +16,8 @@
 //                                                our keyboard on the menu's pages, ADR 0139)
 //   node scripts/phone-shots.ts 53g lite-body export-comment …   states of round 53g (name them:
 //                                                the multi-line fields and the page keys)
+//   node scripts/phone-shots.ts 53h script script-land …   states of round 53h (name them: our
+//                                                keyboard in the two code editors)
 //
 // Since round 53e our own keyboard is the game layout's by default; the two states that show the
 // device's keyboard (`keyboard`, `comm-keyboard` of stage 51) say `?kbd=0`.
@@ -74,7 +76,7 @@ interface State {
    * fixtures (`live`), instead of the offline cockpit.
    */
   live?: boolean;
-  /** The step that built it (`a` … `g`). */
+  /** The step that built it (`a` … `h`). */
   step: string;
   /** The stage that built it; absent: 51. A run takes the states of its own stage only. */
   stage?: number;
@@ -993,6 +995,20 @@ const STATES: State[] = [
         await sixKeys(p);
       }),
   },
+  // Stage 53h (ADR 0139 §6): our keyboard in the two code editors. The script editor with a Lua
+  // function typed on our keys and the completion list open (dark and Paper), a narrow phone,
+  // landscape (the head and the status line step aside), and its Find and Replace row.
+  { name: 'script', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, run: (page) => pageScript(page, 'list') },
+  { name: 'script-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 320, height: 568 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
+  { name: 'script-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, run: (page) => pageScript(page, 'code') },
+  { name: 'script-land-list', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'list') },
+  { name: 'script-land-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 640, height: 360 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'code') },
+  { name: 'script-find', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-find-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-symbols', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageScript(page, 'symbols') },
+  // The profile editor's Editor view, over the game: a line typed in the tt++ text.
+  { name: 'profile-editor', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, run: (page) => pageProfileEditor(page) },
+  { name: 'profile-editor-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, darkOnly: true, run: (page) => pageProfileEditor(page) },
   {
     name: 'keys-six',
     stage: 52,
@@ -1166,6 +1182,93 @@ async function pageExportComment(page: Page): Promise<void> {
   await pageType(page, ['shift', 'h', 'ä', 'r', 'space', 'd', 'o', 'g', 'space', 'o', 'r', 'c', 'h', 'e', 'n']);
 }
 
+/** Types `text` on the page's keyboard: a capital with shift, a symbol from the symbols' pages (and back to the letters). */
+async function pageTypeText(page: Page, text: string): Promise<void> {
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  const at = (ch: string) => page.locator(`.wc-okb-page .wc-ph-okb-k[data-ch=${JSON.stringify(ch)}]`);
+  for (const ch of text) {
+    if (ch === ' ' || ch === '\n') {
+      await pageKey(page, ch === ' ' ? 'space' : 'enter').tap();
+      continue;
+    }
+    const lower = ch.toLowerCase();
+    let moved = false;
+    if ((await at(lower).count()) === 0) {
+      moved = true;
+      await pageKey(page, 'sym').tap();
+      for (let i = 0; i < 3 && (await at(lower).count()) === 0; i++) await pageKey(page, 'alt').tap();
+    }
+    if (lower !== ch) await pageKey(page, 'shift').tap();
+    await at(lower).tap();
+    if (moved) await pageKey(page, 'sym').tap();
+  }
+}
+
+/** A tap on a line of the buffer in view (our keyboard comes up), and the caret to the text's end. */
+async function tapCode(page: Page, scope: ReturnType<Page['locator']>): Promise<void> {
+  const sc = (await scope.locator('.cm-scroller').boundingBox())!;
+  await page.touchscreen.tap(sc.x + sc.width / 2, sc.y + Math.min(sc.height / 2, 60));
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  // (The shot's short cut for a long run of the caret keys; it goes the way a physical key goes.)
+  await page.keyboard.press('ControlOrMeta+End');
+}
+
+/**
+ * Stage 53h. Scripts → a script → Edit, a tap in the code, and a Lua
+ * function typed on our keys. `list`: the completion list is open;
+ * `find`: the Find and Replace row, a word looked for; `symbols`: the
+ * keyboard's symbols page; `code`: the code alone.
+ */
+async function pageScript(page: Page, what: 'list' | 'code' | 'find' | 'symbols'): Promise<void> {
+  await page.evaluate(async () => {
+    const l = window.__wc!.shell.scripts!;
+    await l.init();
+    await l.create(
+      'vakt',
+      '-- @name     vakt\n-- @version  1\n-- @api      1\n\n-- Says who came, and counts them.\nlocal seen = 0\n\non("arrive", function(who)\n  seen = seen + 1\n  echo("Here: " .. who)\nend)\n',
+    );
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('.wc-scr-row[data-name="vakt"] .wc-scr-name').tap();
+  await f.locator('[data-btn="EDIT"]:visible').first().tap();
+  const ed = page.locator('.wc-frame:not([hidden]) > .wc-sed');
+  await ed.waitFor();
+  await page.waitForTimeout(1800);
+  await tapCode(page, ed);
+  await pageTypeText(page, '\nlocal function warn(n)\nif n > 3 then\nse');
+  if (what === 'list') await page.locator('.cm-tooltip-autocomplete').waitFor();
+  else {
+    await pageKey(page, 'tab').tap();
+    await pageTypeText(page, '("flee")');
+    if (what === 'find') {
+      await ed.locator('.wc-sed-tools [data-btn="FIND"]').tap();
+      await ed.locator('.wc-lk-search [data-field="find"] input:focus').waitFor();
+      await pageTypeText(page, 'seen');
+    } else if (what === 'symbols') await pageKey(page, 'sym').tap();
+  }
+  await settle(page);
+  await page.waitForTimeout(400);
+}
+
+/** Stage 53h. Over the game: the menu → Profile → Editor, a tap in the text, an alias typed. */
+async function pageProfileEditor(page: Page): Promise<void> {
+  await busy(page);
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+  });
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="profile"]').tap();
+  const pe = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-pe');
+  await pe.waitFor();
+  await pe.locator('.wc-pe-views [data-opt="editor"]').tap();
+  await pe.locator('.cm-content').waitFor();
+  await tapCode(page, pe);
+  await pageTypeText(page, '#alias {dr} {drink %1');
+  await settle(page);
+  await page.waitForTimeout(600);
+}
+
 /** Stage 53g. Scripts → New, the digit row up, the symbols page (the backtick). */
 async function pageSymbols(page: Page): Promise<void> {
   await page.evaluate(() => window.__wc!.shell.scripts!.init());
@@ -1250,7 +1353,7 @@ async function warmUp(browser: Browser): Promise<void> {
 }
 
 const [stepArg, ...wanted] = process.argv.slice(2);
-const arg = /^(5[123])?([a-g])$/.exec(stepArg ?? '');
+const arg = /^(5[123])?([a-h])$/.exec(stepArg ?? '');
 if (!arg) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a or 52a> [state …]');
 const stage = Number(arg[1] ?? 51);
 const step = arg[2]!;
