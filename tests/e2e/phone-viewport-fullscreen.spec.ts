@@ -59,8 +59,8 @@ async function open(page: Page, extra = ''): Promise<void> {
 }
 
 // The module measures the same with either keyboard of the game layout, so every case runs
-// twice: with our own keyboard (the default; the device's can then come up only in a browser
-// that ignores `inputmode="none"`, and the page must still follow it) and on the old path
+// twice: with our own keyboard (the default; the visible area can
+// still shrink then, for a split screen or a browser's bars, and the page must follow it) and on the old path
 // (`?kbd=0`).
 for (const gate of ['', '&kbd=0']) {
   test.describe(gate ? 'the device keyboard path (?kbd=0)' : 'our own keyboard (the default)', () => {

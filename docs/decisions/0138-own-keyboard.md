@@ -376,19 +376,23 @@ row, and the input pane's swap to a `type="password"` field. The specs
 that shrink the visible area and wait for `wc-kbd` say `?kbd=0`; the
 two screenshot states of stage 51 that show the device's keyboard too.
 
-**§2 A browser that raises its keyboard all the same** (it ignores
-`inputmode="none"`; none is known, and the iPhone is not tested yet).
-Until §2's fallback is decided for such a browser, it gets what it had
-before stage 53: when the visible area shrinks (`wc-kbd`) within 2.5 s
-of a tap on one of our fields, that is taken for the device's keyboard:
-ours closes and the field keeps the focus; ours does not open while the
-device's is up; when the device's folds, the field is blurred as on the
-old path. The two keyboards never stand together, and in landscape there
-is no loop of ours closing for lack of room and blurring the field. A
-shrink at any other time (a split screen, a window made lower) is not a
-keyboard, and ours keeps working. So part of the old path (the `wc-kbd`
-layout of the game) stays reachable without `?kbd=0`; whether it can go
-with the gate is settled by the iPhone test.
+**§2 A browser that raises its keyboard all the same: no guess in the
+app.** Round 53e first had a stopgap for a browser that ignores
+`inputmode="none"` (none is known; the iPhone is not tested yet): a
+shrink of the visible area (`wc-kbd`) within 2.5 s of a tap on one of
+our fields was taken for the device's keyboard, and ours closed and
+stayed shut while `wc-kbd` was set. It was removed in the same round.
+The app cannot tell a keyboard from any other shrink, and the guess
+misfired on browsers that do honour the attribute: a split screen, a
+window made lower, or fullscreen left in landscape just after a field
+tap locked our keyboard out for as long as the window stayed lower, so
+the phone had no keyboard at all; the password would also have gone
+into a plain text field. §2 stands as written: what such a browser
+gets is decided per browser from a device test, not from timing. A
+shrink of the visible area never closes or locks our keyboard; only
+the allocator's room does (it closes on a screen with no rows for it,
+blurs the field, and opens again only at a tap). A field with
+`inputmode="none"` keeps the focus when `wc-kbd` drops.
 
 **Review findings of 53d.**
 
