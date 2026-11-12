@@ -1028,6 +1028,36 @@ const STATES: State[] = [
   // field, Comm's reply line and its search keep 16 px.
   { name: 'field-small', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => fieldsAt(page, 6) },
   { name: 'field-large', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => fieldsAt(page, 20) },
+  // Round 53j. The panes' names on their bands (no hood on a row of its own): the strip and Comm
+  // both open, in a fight; with our keyboard; a narrow phone; landscape (the names written along
+  // the column's band), and landscape's other variant, kept for comparison only (`alt`: not built).
+  { name: 'plates', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => plates(page, false) },
+  { name: 'plates-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => plates(page, true) },
+  { name: 'plates-narrow', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, run: (page) => plates(page, false) },
+  { name: 'plates-narrow-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, run: (page) => plates(page, true) },
+  { name: 'plates-land-built', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21_LAND, run: (page) => plates(page, false) },
+  { name: 'plates-land-built-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21_LAND, run: (page) => plates(page, true) },
+  { name: 'plates-land-built-narrow', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 640, height: 360 }, run: (page) => plates(page, false) },
+  { name: 'plates-land-built-narrow-keyboard', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 640, height: 360 }, run: (page) => plates(page, true) },
+  {
+    name: 'plates-land-alternative-not-built',
+    stage: 53,
+    step: 'j',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21_LAND,
+    run: async (page) => {
+      await plates(page, false);
+      await page.addStyleTag({ content: PLATES_ALT_CSS });
+      await settle(page);
+    },
+  },
+  // Round 53j. The hot key box with the strip and Comm open in portrait: held, Comm (and the
+  // strip, where the box needs its rows too) is taken out of the layout for it; with Custom
+  // typed in on our keyboard both are out, the fight card and the game text stay.
+  { name: 'box-held', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => boxOverPanes(page, false) },
+  { name: 'box-panes-hidden', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => boxOverPanes(page, true) },
+  { name: 'box-panes-hidden-narrow', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => boxOverPanes(page, true) },
   {
     name: 'keys-six',
     stage: 52,
@@ -1064,6 +1094,55 @@ async function ownReply(page: Page): Promise<void> {
   await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
   await page.locator('.wc-ph-okb').waitFor();
   for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/** Round 53j: the strip and Comm both open (Gibur's chat), and with `typing` a reply half typed on our keyboard. */
+async function plates(page: Page, typing: boolean): Promise<void> {
+  await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
+  await page.locator('.wc-pane[data-phone-strip]').waitFor();
+  await openChat(page, 'Gibur');
+  if (typing) {
+    await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
+    await page.locator('.wc-ph-okb').waitFor();
+    for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  }
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/**
+ * Round 53j, landscape's other variant, for the owner to compare (not built: the style is only
+ * here). The names read level on small flags that stick out of the band over each pane's upper
+ * right corner, instead of along the band.
+ */
+const PLATES_ALT_CSS = `
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > .wc-ph-plate-run { display: block; clip-path: none; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-run .wc-ph-plate {
+  position: absolute; top: 8px; right: calc(100% - 1px); flex-direction: row; width: auto; min-width: 0; max-width: none; height: 17px; max-height: none; margin: 0; padding: 0 9px 0 5px;
+  border: 1px solid var(--ph-iron-lo); border-right: 0; border-radius: 7px 0 0 7px;
+  background: var(--ph-hood); gap: 6px;
+  box-shadow: inset 0 1px 0 var(--ph-iron-hi), -2px 2px 4px rgb(0 0 0 / 0.5);
+}
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-t { writing-mode: horizontal-tb; transform: none; margin: 0 -0.14em 0 0; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate::before, html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-rv:last-child { display: none; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-run .wc-ph-plate::after { display: block; top: 30px; left: calc(100% + 7px); width: 3px; height: 30px; }
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-run > .wc-ph-strip-dots { position: absolute; top: 80px; left: 50%; margin: 0; transform: translateX(-50%); }
+`;
+
+/** Round 53j: the strip and Comm open, a hold on K2 opens its box, and with `typing` Custom is tapped and a command typed on our keyboard. */
+async function boxOverPanes(page: Page, typing: boolean): Promise<void> {
+  await plates(page, false);
+  const key = page.locator('.wc-ph-hk[data-hk="1"]');
+  await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  await page.locator('.wc-ph-rb').waitFor();
+  await key.dispatchEvent('pointerup', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  if (typing) {
+    await page.locator('.wc-ph-rb .wc-ph-chip[data-pick="custom"]').tap();
+    await page.locator('.wc-ph-okb').waitFor();
+    for (const k of [';', 'k', 'i', 'c', 'k']) await okbKey(page, k).tap();
+  }
   await page.waitForTimeout(400);
   await settle(page);
 }

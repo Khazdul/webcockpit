@@ -20,11 +20,12 @@
 //                   fullscreen key on its corner
 //   menu-sheet.tsx  the menu: a bottom sheet, and the settings page
 //                   (settings-page.tsx) it leads to
-//   strip.ts        the pane strip's hood and dots, and its swipe
+//   strip.ts        the pane strip's page name and dots, and its swipe
 //                   (strip-model.ts, swipe.ts); the pane is the cockpit's
-//   comm-chrome.ts  the resize bands of the strip and of Comm; Comm is the
-//                   cockpit's Comm pane, in its phone mode, and the Comm
-//                   key's badge (unread.ts)
+//   comm-chrome.ts  the resize bands of the strip and of Comm, with the
+//                   panes' names on them (no pane has a hood on a row of
+//                   its own: round 53j); Comm is the cockpit's Comm pane,
+//                   in its phone mode, and the Comm key's badge (unread.ts)
 //   hotkeys.ts      the hot key column, the K key in the compass's free
 //                   cell, and the box a held key opens (hotkey-model.ts)
 //   keyboard.ts     a keyboard of our own for the game layout's text fields
@@ -51,6 +52,7 @@
 import './phone.css';
 import type { GameState } from '../gmcp/state';
 import type { Cockpit, PhoneLimit } from '../layout/cockpit';
+import type { PhoneGameHide } from '../layout/phone-game';
 import { Compass } from './compass';
 import { FightCardView } from './fight-card';
 import { type FightCard, type SelfVitals, fightCard, fightSig } from './fight-model';
@@ -63,7 +65,7 @@ import { type LensLevel, LENS_MIN_PX, lensFullPx, lensLevel, lensZoom } from './
 import type { MapPane } from '../panes/map';
 import type { CommPane } from '../panes/comm';
 import type { PaneId } from '../layout/types';
-import { CommHead, ResizeBand } from './comm-chrome';
+import { ResizeBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
@@ -194,8 +196,6 @@ export class PhoneLayer {
   /** The cockpit's Comm pane, in its phone mode. */
   private readonly comm: CommPane;
   private readonly commBand: ResizeBand;
-  /** Landscape: Comm's hood in the left column, under a divider when the strip is above it. */
-  private readonly commHead: CommHead;
   /** The cockpit's height the landscape key size was last judged at (not taken while the keyboard is up). */
   private landH = Infinity;
   /** Landscape: the band along the left column's right edge. */
@@ -329,7 +329,6 @@ export class PhoneLayer {
       },
       onRows: (rows) => deps.settings.update({ phone: { commRows: rows } }),
     });
-    this.commHead = new CommHead(doc);
     this.sideBand = new ResizeBand(doc, {
       className: 'wc-ph-rband wc-ph-side-band',
       gripClass: 'wc-ph-rgrip wc-ph-side-grip',
@@ -349,6 +348,9 @@ export class PhoneLayer {
       keepsBox: (t) => this.okb?.el.contains(t) ?? false,
       boxFits: () => this.boxFits(),
       onBox: (open, by) => {
+        // What was taken out of the layout for the box comes back with its closing (`planBox`),
+        // in the one layout that also folds the keyboard below.
+        if (!open) cockpit.setPhoneHide(null);
         // A held key folds the keyboard (the box opens where the keys stood); a tap in one of the
         // box's fields then opens it again for that field, with the box staying.
         if (open && this.okbOpen) {
@@ -372,7 +374,7 @@ export class PhoneLayer {
     });
     // The K key takes the compass's free cell, left of N.
     compass.el.prepend(this.hot.kEl);
-    this.el.append(this.strip.el, this.stripBand.el, this.fight.el, this.commBand.el, this.commHead.el, this.sideBand.el, this.lens.el, this.lens.rowEl, this.hot.el, this.hot.boxEl, compass.el);
+    this.el.append(this.strip.el, this.stripBand.el, this.fight.el, this.commBand.el, this.sideBand.el, this.lens.el, this.lens.rowEl, this.hot.el, this.hot.boxEl, compass.el);
     cockpit.el.append(this.el);
     this.menu = new PhoneMenu({
       parent: cockpit.el,
@@ -821,6 +823,9 @@ export class PhoneLayer {
     if (field === null || !this.hot.ownsField(field)) this.hot.closeBox();
     (this.okbFieldTarget ?? line).focus();
     if (this.okbOpen) return;
+    // One of the box's fields: what is above the game text and would lie under the box, once the
+    // keyboard has lifted it, is taken out in the same layout that opens the keyboard (`planBox`).
+    if (field !== null && this.hot.ownsField(field) && this.hot.boxOpen) this.planBox(true);
     this.okbOpen = true;
     this.el.ownerDocument.documentElement.classList.add('wc-okb');
     this.reserveOwnKeyboard();
@@ -834,14 +839,20 @@ export class PhoneLayer {
     return lift > 0 && (lift - 2 * OKB_PAD_Y) / okbRowCount(digits) >= OKB_ROW_LEAST;
   }
 
+  /** What the keyboard asks of the cockpit as it stands now: its height for a shape, and whether the px it is given are enough. */
+  private okbAsk(): { bottom: (landscape: boolean, height: number) => number; fits: (lift: number) => boolean } {
+    const digits = this.deps.settings.get().phone.keyboard.digits;
+    return {
+      bottom: (landscape, height) => okbHeightPx(landscape, height, digits),
+      // (The same sum as `ownKeyboardFits`: the cockpit leaves the rows out in the layout that finds them too low.)
+      fits: (lift) => (lift - 2 * OKB_PAD_Y) / okbRowCount(digits) >= OKB_ROW_LEAST,
+    };
+  }
+
   /** Asks the cockpit for the keyboard's rows as it stands now (a new function is a new height: one layout). */
   private reserveOwnKeyboard(): void {
-    const digits = this.deps.settings.get().phone.keyboard.digits;
-    this.deps.cockpit.setPhoneBottom(
-      (landscape, height) => okbHeightPx(landscape, height, digits),
-      // (The same sum as `ownKeyboardFits`: the cockpit leaves the rows out in the layout that finds them too low.)
-      (lift) => (lift - 2 * OKB_PAD_Y) / okbRowCount(digits) >= OKB_ROW_LEAST,
-    );
+    const ask = this.okbAsk();
+    this.deps.cockpit.setPhoneBottom(ask.bottom, ask.fits);
   }
 
   /** The digit row was folded up or down (its key; the stored setting): the keys, and one new height for the cockpit. */
@@ -863,8 +874,12 @@ export class PhoneLayer {
     // The next opening starts from the field that is tapped then.
     this.setOkbField(null);
     if (blur) typed?.blur();
-    // An open box stands beside the keys again.
-    if (this.hot.boxOpen) this.syncBox();
+    // An open box stands beside the keys again, and what was taken out for it with the keyboard
+    // up comes back where the box leaves it room (in this same layout).
+    if (this.hot.boxOpen) {
+      this.planBox(false);
+      this.syncBox();
+    }
     this.okbReadout?.();
   }
 
@@ -1152,9 +1167,10 @@ export class PhoneLayer {
    * The screen's shape (the cockpit's layout says whether it is landscape;
    * `height` is the cockpit's with the keyboard down): the keys' size, the
    * lens's place and the strip's page dots follow. The dots sit on the
-   * strip's band in portrait; landscape has no such band, and they sit at
-   * the right end of the hood's row. A low landscape screen keeps the small
-   * keys (compass-size.ts).
+   * strip's band in portrait; landscape has no such band, and they sit on
+   * the column's band, where the strip's stretch of it begins
+   * (`placePlates`). A low landscape screen keeps the small keys
+   * (compass-size.ts).
    */
   private setShape(landscape: boolean, height: number): void {
     const first = this.keyPx === 0;
@@ -1163,7 +1179,7 @@ export class PhoneLayer {
     if (first || landscape !== this.landscape) {
       this.landscape = landscape;
       this.el.toggleAttribute('data-land', landscape);
-      (landscape ? this.strip.el : this.stripBand.el).append(this.strip.dots);
+      if (!landscape) this.stripBand.el.append(this.strip.dots);
     }
     if (!first) this.syncHotkeys();
   }
@@ -1184,6 +1200,76 @@ export class PhoneLayer {
     return hotBottom(this.keyPx);
   }
 
+  /**
+   * The box's foot above the layer's bottom edge on the layout `g`, which
+   * is not the one on screen (`boxPlan`): beside the column, or with our
+   * keyboard open (`kbd`) where `boxBottom` has it once that layout is
+   * placed (the same sums as `placeOwnKeyboard`).
+   */
+  private boxBottomOn(g: NonNullable<Cockpit['phoneGameLayout']>, kbd: boolean): number {
+    const px = this.keyPx;
+    if (!kbd || g.bottom === 0) return hotBottom(px);
+    const cellH = this.deps.cells.get().h;
+    const top = (g.input.y + g.input.h) * cellH;
+    const lift = this.el.clientHeight - top;
+    if (g.landscape) return lift + BOX_GAP;
+    return lift + (okbPortraitSide(top, compassHeight(px), hotTop(px, 3)).pad ? hotBottom(px) : g.input.h * cellH + BOX_GAP);
+  }
+
+  /**
+   * What must be taken out of the layout for the box to have room (round
+   * 53j), with our keyboard open for one of its fields (`kbd`) or closed:
+   * nothing, Comm, or Comm and the strip's pane; null when it has no room
+   * even then (the fight card and the game text always stay). Portrait
+   * only: in landscape the box stands right of the column whatever its
+   * width (phone.css), and nothing is taken out for it.
+   *
+   * The order, Comm first: it is the one that tells of itself while it is
+   * out (its key's badge counts what comes in), and the strip's pane (the
+   * group's health, the timers) is what one glances at; Comm is also the
+   * taller, so it alone is often enough.
+   *
+   * Asked of the cockpit as layouts that would be (`phoneGameLayoutIf`),
+   * so the parts go in the very layout that opens the keyboard, and one
+   * window size is sent. Lays the box out at each place it tries (the last
+   * one is where it then stands).
+   */
+  private boxPlan(kbd: boolean): PhoneGameHide | null {
+    const { cockpit } = this.deps;
+    const now = cockpit.phoneGameLayout;
+    const none: PhoneGameHide = { strip: false, comm: false };
+    if (!now || now.landscape) return none;
+    const tries: PhoneGameHide[] = [none];
+    if (this.commOpen) tries.push({ strip: false, comm: true });
+    if (this.stripOpen) tries.push({ strip: true, comm: this.commOpen });
+    const ask = kbd ? this.okbAsk() : { bottom: null };
+    for (const hide of tries) {
+      const g = cockpit.phoneGameLayoutIf({ ...ask, hide });
+      if (!g || g.tooSmall) return null;
+      if (this.boxFitsAt(g, this.boxBottomOn(g, kbd))) return hide;
+    }
+    return null;
+  }
+
+  /**
+   * Takes out of the layout what the box needs gone (`boxPlan`), and brings
+   * back what it no longer needs gone. False when the box has no room
+   * whatever is taken out: nothing is then hidden.
+   */
+  private planBox(kbd: boolean): boolean {
+    const plan = this.boxPlan(kbd);
+    this.deps.cockpit.setPhoneHide(plan);
+    return plan !== null;
+  }
+
+  /** The open box lost its room on the layout `g`: takes out what `boxPlan` now finds; false when that is what is out already, or nothing helps. */
+  private replanBox(g: NonNullable<Cockpit['phoneGameLayout']>): boolean {
+    const plan = this.boxPlan(this.okbOpen && g.bottom > 0);
+    if (plan === null || (plan.strip === g.hidden.strip && plan.comm === g.hidden.comm)) return false;
+    this.deps.cockpit.setPhoneHide(plan);
+    return true;
+  }
+
   /** What an open box takes from the bottom edge (0: closed): the lens hides while it would collide. */
   private boxClear(): number {
     return this.hot.boxOpen ? this.boxBottom() + this.hot.boxEl.offsetHeight + LENS_CLEAR : 0;
@@ -1191,11 +1277,19 @@ export class PhoneLayer {
 
   /** The box opened, closed or moved: its place, then the lens's room (one layout read, on those events only). */
   private syncBox(): void {
-    if (this.hot.boxOpen) {
-      const bottom = this.boxBottom();
-      this.hot.placeBox(bottom, this.el.clientHeight - bottom - BOX_GAP);
-    }
+    const g = this.deps.cockpit.phoneGameLayout;
+    if (this.hot.boxOpen && g) this.placeBoxOn(g, this.boxBottom());
     this.askLens();
+  }
+
+  /**
+   * Places the box with its foot at `bottom` on the layout `g`: as tall as
+   * it is, or as the room up to the fight card (portrait; the card always
+   * stays) or the top edge allows; its content scrolls in a lower one.
+   */
+  private placeBoxOn(g: NonNullable<Cockpit['phoneGameLayout']>, bottom: number): void {
+    const fight = g.landscape ? 0 : g.fight.h * this.deps.cells.get().h;
+    this.hot.placeBox(bottom, this.el.clientHeight - bottom - BOX_GAP - fight);
   }
 
   /**
@@ -1212,7 +1306,7 @@ export class PhoneLayer {
 
   /** Places the box (laid out, shown or not) with its foot at `bottom` and says whether it has room there. */
   private boxFitsAt(g: NonNullable<Cockpit['phoneGameLayout']>, bottom: number): boolean {
-    this.hot.placeBox(bottom, this.el.clientHeight - bottom - BOX_GAP);
+    this.placeBoxOn(g, bottom);
     return this.boxHasRoom(g, bottom);
   }
 
@@ -1221,25 +1315,42 @@ export class PhoneLayer {
    * laid out, not visible): no room, no box, and nothing is asked to give
    * way for it (the lens, our keyboard). One layout read, on a hold only.
    *
-   * With our keyboard open the box would fold it and stand beside the
-   * columns, on a screen laid out anew. Portrait: the room is judged on
-   * the layout as it would be with the keyboard closed
-   * (`phoneGameLayoutClosed`: Comm and the strip get their rows back
-   * there), so a refused hold leaves the keyboard up. Landscape: the
-   * keyboard folds, as it does for the box, and the room is judged on the
-   * new layout (at once, not in the next frame: the box must not show
-   * first).
+   * Portrait: the room is judged on the layout as it would be with our
+   * keyboard closed (the box folds it and stands beside the columns), and
+   * with Comm, or Comm and the strip's pane, taken out where the box would
+   * else have none (`boxPlan`, round 53j: they come back when the box
+   * closes). Only a screen with no room even then refuses the hold, and a
+   * refused hold changes nothing: an open keyboard stays up.
+   *
+   * Landscape: the keyboard folds, as it does for the box, and the room is
+   * judged on the new layout (at once, not in the next frame: the box must
+   * not show first).
    */
   private boxFits(): boolean {
     const { cockpit } = this.deps;
     let g = cockpit.phoneGameLayout;
     if (!g) return true;
     if (g.tooSmall) return false;
-    if (this.okbOpen) {
-      if (!g.landscape) {
-        const closed = cockpit.phoneGameLayoutClosed();
-        if (closed && (closed.tooSmall || !this.boxFitsAt(closed, hotBottom(this.keyPx)))) return false;
+    if (!g.landscape) {
+      const plan = this.boxPlan(false);
+      if (plan === null) return false;
+      const moved = this.okbOpen || plan.strip || plan.comm;
+      cockpit.setPhoneHide(plan);
+      if (this.okbOpen) {
+        this.closeOwnKeyboard();
+        this.swallowClick();
       }
+      // (At once: the box shows on the layout it was judged on.)
+      if (moved) cockpit.relayoutNow();
+      g = cockpit.phoneGameLayout;
+      if (!g) return true;
+      if (g.tooSmall || !this.boxFitsAt(g, this.boxBottom())) {
+        cockpit.setPhoneHide(null);
+        return false;
+      }
+      return true;
+    }
+    if (this.okbOpen) {
       this.closeOwnKeyboard();
       this.swallowClick();
       cockpit.relayoutNow();
@@ -1275,6 +1386,35 @@ export class PhoneLayer {
     this.strip.set(this.pages, this.stripPage);
     this.guardStrip();
     this.syncKeys();
+    // (A script pane renamed: the name on the band follows without a layout.)
+    this.placePlates();
+  }
+
+  /**
+   * The panes' names on their bands (round 53j; comm-chrome.ts `plates`):
+   * the strip's open page and COMM. Portrait: each on its own band.
+   * Landscape: both on the column's band, each centred on its pane's
+   * stretch of it, the strip's dots where its stretch begins. Written only
+   * when something changed.
+   */
+  private placePlates(): void {
+    const g = this.deps.cockpit.phoneGameLayout;
+    if (!g) return;
+    const h = this.deps.cells.get().h;
+    const strip = this.stripShown ? { id: 'strip', text: this.strip.label } : null;
+    const comm = this.commShown ? { id: 'comm', text: 'Comm' } : null;
+    if (!g.landscape) {
+      this.stripBand.plates(strip ? [strip] : []);
+      this.commBand.plates(comm ? [comm] : []);
+      this.sideBand.plates([]);
+      return;
+    }
+    this.stripBand.plates([]);
+    this.commBand.plates([]);
+    this.sideBand.plates([
+      ...(strip ? [{ ...strip, from: g.strip.y * h, size: g.strip.h * h, extra: this.strip.dots }] : []),
+      ...(comm ? [{ ...comm, from: g.comm.y * h, size: g.comm.h * h }] : []),
+    ]);
   }
 
   /** The fling guard follows the strip's shown pane (strip.ts `holdFling`); none while it is closed. */
@@ -1450,15 +1590,13 @@ export class PhoneLayer {
         ? { bandTop: (g.comm.y + g.comm.h - 1) * h, rowH: h, rows: g.comm.h, min: g.commRange.min, max: g.commRange.max }
         : null,
     );
-    // (Portrait: Comm is the full width and has no divider; the hood alone, as the strip's, and
-    // none while Comm is at its least rows: `Cockpit.phoneCommHead`.)
-    this.commHead.place(commShown && this.deps.cockpit.phoneCommHead > 0 ? { top: g.comm.y * h, width: (land ? g.comm.w - g.sideBand : g.comm.w) * w, divided: land && g.strip.h > 0 } : null);
     // Landscape: the one band, the column's last columns, from top to bottom.
     this.sideBand.place(
       land && (stripShown || commShown) && g.sideRange
         ? { bandTop: (g.side.w - g.sideBand) * w, rowH: w, thick: g.sideBand * w, rows: g.side.w, min: g.sideRange.min, max: g.sideRange.max }
         : null,
     );
+    this.placePlates();
     if (this.hot.boxOpen) {
       // The strip or Comm opened into the box's place, or the screen is too small for the
       // layout: the box gives way, unsaved. Else it follows the keyboard (over the command
@@ -1467,8 +1605,12 @@ export class PhoneLayer {
       else {
         // Placed first: its height on this screen is known only then.
         this.syncBox();
-        // (Landscape: the column grew into it sideways; the fight card is all there is above the game.)
-        if (!this.boxHasRoom(g, this.boxBottom())) this.hot.closeBox();
+        // (Landscape: the column grew into it sideways; the fight card is all there is above the
+        // game. Nothing is kept out of the layout for the box there: a rotation brings it back.)
+        if (land && (g.hidden.strip || g.hidden.comm)) this.deps.cockpit.setPhoneHide(null);
+        // No room any more (a fight began, the screen changed): what can give way for it does, in
+        // one more layout; only where that changes nothing the box closes.
+        else if (!this.boxHasRoom(g, this.boxBottom()) && !this.replanBox(g)) this.hot.closeBox();
       }
     }
     const r = g.tooSmall ? null : g.lens;

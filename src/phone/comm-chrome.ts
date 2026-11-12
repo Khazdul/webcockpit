@@ -22,45 +22,34 @@
 // (`axis: 'x'`). The same band turned: where this file says row, top and
 // height, read column, left and width. The two bands above are not shown
 // there.
+//
+// The panes' names (round 53j, ADR 0137's addendum of that round): a pane
+// has no hood on a row of its own on a phone. Its name stands on its band
+// instead, on a small plate cast in one piece with the band (`plates`):
+// in the band's middle in portrait, hanging a few px below the band over
+// what is under it; in landscape written along the band, one plate centred
+// on each pane's stretch of it, with a joint in the band where the strip
+// ends and Comm begins. The lit grip marks stand on both sides of a plate.
+// A plate takes no press: the grip under it does, so the band is dragged
+// from its plate as from anywhere else on it.
 
 /**
- * Comm's head (landscape: stage 52e; portrait: round 53i, on the owner's
- * word). A hood with its name, as the strip has one, so Comm reads as a
- * pane; and in landscape, when the strip is open above it in the left
- * column, an iron divider in the bands' look that the hood hangs from (no
- * grip: it is not dragged). The cockpit leaves Comm's first rows to it
- * (`phoneCommHeadRows`), as it leaves the strip's first rows to its hood.
+ * A pane's name on its band (round 53j: a pane's header takes no row on a
+ * phone). `from` and `size`, px along a sideways band: the stretch of the
+ * band beside that pane, where its plate is centred; absent on a band that
+ * is one pane's. `extra`: what stands at the stretch's start with it (the
+ * strip's page dots, in landscape).
  */
-export class CommHead {
-  readonly el: HTMLDivElement;
-  private key = '';
-
-  constructor(doc: Document) {
-    this.el = doc.createElement('div');
-    this.el.className = 'wc-ph-comm-head';
-    this.el.hidden = true;
-    this.el.setAttribute('aria-hidden', 'true');
-    const rule = doc.createElement('i');
-    rule.className = 'wc-ph-side-rule';
-    const hood = doc.createElement('span');
-    hood.className = 'wc-ph-hood wc-ph-strip-hood wc-ph-comm-hood';
-    hood.textContent = 'Comm';
-    this.el.append(rule, hood);
-  }
-
-  /** At `top` px, `width` px wide; `divided`: the strip is above (the divider shows). Null hides it. */
-  place(at: { top: number; width: number; divided: boolean } | null): void {
-    const key = at ? `${at.top},${at.width},${at.divided}` : '';
-    if (key === this.key) return;
-    this.key = key;
-    if (at) {
-      this.el.style.top = `${at.top}px`;
-      this.el.style.width = `${at.width}px`;
-      this.el.toggleAttribute('data-divided', at.divided);
-    }
-    this.el.hidden = !at;
-  }
+export interface BandPlate {
+  id: string;
+  text: string;
+  from?: number;
+  size?: number;
+  extra?: HTMLElement;
 }
+
+/** Sideways: the least length of a stretch, px, that holds a name and what stands with it (the strip's dots). */
+const PLATE_ROOMY_PX = 120;
 
 export interface ResizeBandDeps {
   /** The band's class and its grip's (phone.css), and the grip's name. */
@@ -105,6 +94,12 @@ export class ResizeBand {
   private at: BandPlace | null = null;
   private placeKey = '';
   private readonly x: boolean;
+  private readonly grip: HTMLButtonElement;
+  /** The plates' stretches by id (made once, hidden while not listed), and what they show now. */
+  private readonly runs = new Map<string, { run: HTMLSpanElement; text: HTMLSpanElement }>();
+  private platesKey = '';
+  /** Sideways: the joint in the band where one pane's stretch ends and the next begins (made when first needed). */
+  private joint: HTMLSpanElement | null = null;
   /** The drag: where it was pressed, the rows it began at, and the rows last asked for. */
   private drag: { id: number; y: number; from: number; rows: number } | null = null;
 
@@ -115,13 +110,13 @@ export class ResizeBand {
     this.el = doc.createElement('div');
     this.el.className = deps.className;
     this.el.hidden = true;
-    const bar = doc.createElement('i');
     const g = doc.createElement('button');
     g.type = 'button';
     g.className = deps.gripClass;
     g.tabIndex = -1;
     g.setAttribute('aria-label', deps.label);
-    this.el.append(bar, g);
+    this.grip = g;
+    this.el.append(g);
     g.addEventListener('mousedown', (e) => e.preventDefault());
     g.addEventListener('contextmenu', (e) => e.preventDefault());
     g.addEventListener('pointerdown', (e) => {
@@ -177,6 +172,74 @@ export class ResizeBand {
   /** True while the band is dragged. */
   get dragging(): boolean {
     return this.drag !== null;
+  }
+
+  /**
+   * The names on the band (see the file header), in order along it. Written
+   * only when something changed; a plate not listed any more is hidden.
+   */
+  plates(list: readonly BandPlate[]): void {
+    // (What stands with a plate may have been put elsewhere since: the dots, on a rotation.)
+    for (const p of list) {
+      const run = this.runs.get(p.id)?.run;
+      if (p.extra && run && p.extra.parentElement !== run) run.append(p.extra);
+    }
+    const key = list.map((p) => `${p.id}=${p.text}@${p.from ?? ''}+${p.size ?? ''}`).join('|');
+    if (key === this.platesKey) return;
+    this.platesKey = key;
+    const doc = this.el.ownerDocument;
+    const shown = new Set<string>();
+    let first = true;
+    let jointed = false;
+    for (const p of list) {
+      shown.add(p.id);
+      let r = this.runs.get(p.id);
+      if (!r) {
+        const run = doc.createElement('span');
+        run.className = 'wc-ph-plate-run';
+        run.dataset.plate = p.id;
+        // The name is the grip's to tell (its label says what the band resizes); the plate is for the eye.
+        run.setAttribute('aria-hidden', 'true');
+        const plate = doc.createElement('span');
+        plate.className = 'wc-ph-plate';
+        const text = doc.createElement('span');
+        text.className = 'wc-ph-plate-t';
+        // A rivet each side of the name (elements of their own: the plate's ground stays one plain gradient).
+        const rivet = (): HTMLElement => {
+          const i = doc.createElement('i');
+          i.className = 'wc-ph-plate-rv';
+          return i;
+        };
+        plate.append(rivet(), text, rivet());
+        run.append(plate);
+        r = { run, text };
+        this.runs.set(p.id, r);
+      }
+      if (r.text.textContent !== p.text) r.text.textContent = p.text;
+      const st = r.run.style;
+      st[this.x ? 'top' : 'left'] = p.from === undefined ? '' : `${p.from}px`;
+      st[this.x ? 'height' : 'width'] = p.size === undefined ? '' : `${p.size}px`;
+      // A stretch too low for more than the name: what stands with it gives way (phone.css).
+      r.run.toggleAttribute('data-tight', p.size !== undefined && p.size < PLATE_ROOMY_PX);
+      // A stretch that follows another begins with a joint in the band.
+      if (!first && p.from !== undefined) {
+        if (!this.joint) {
+          this.joint = doc.createElement('span');
+          this.joint.className = 'wc-ph-plate-joint';
+          this.joint.setAttribute('aria-hidden', 'true');
+          this.el.insertBefore(this.joint, this.grip);
+        }
+        this.joint.style[this.x ? 'top' : 'left'] = `${p.from}px`;
+        jointed = true;
+      }
+      first = false;
+      if (p.extra && p.extra.parentElement !== r.run) r.run.append(p.extra);
+      r.run.hidden = false;
+      // In the order given, under the grip (which takes the presses).
+      this.el.insertBefore(r.run, this.grip);
+    }
+    for (const [id, r] of this.runs) if (!shown.has(id)) r.run.hidden = true;
+    if (this.joint) this.joint.hidden = !jointed;
   }
 
   /** Puts the band on its part's last row; null hides it. */

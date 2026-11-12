@@ -2,7 +2,7 @@
 // layout in the live game, and the lens's keys and hide rule.
 //
 // - The strip: the panes key opens it from the top edge with one pane at a
-//   time (hood, dots), a sideways swipe changes page, Ctrl/Alt+1…9 select a
+//   time (its name on the band's plate, dots), a sideways swipe changes page, Ctrl/Alt+1…9 select a
 //   page, the Panes settings choose and order the pages; Statistics is a
 //   page (the live run).
 // - Comm: the Comm key with its unread count, Comm under the fight card in
@@ -29,6 +29,8 @@ const pane = (page: Page, id: string) => page.locator(`.wc-cockpit > .wc-pane[da
 const stripPane = (page: Page) => page.locator('.wc-cockpit > .wc-pane[data-phone-strip]');
 const strip = (page: Page) => page.locator('.wc-ph-strip');
 const dots = (page: Page) => page.locator('.wc-ph-strip-band .wc-ph-strip-dots > i');
+/** The strip's name on its band (portrait; round 53j). */
+const plate = (page: Page) => page.locator('.wc-ph-strip-band .wc-ph-plate');
 const sat = (page: Page, name: string) => page.locator(`.wc-ph-sat[data-sat="${name}"]:visible`);
 const lens = (page: Page) => page.locator('.wc-ph-lens');
 const row = (page: Page) => page.locator('.wc-ph-satrow');
@@ -105,7 +107,7 @@ async function swipe(page: Page, to: 'left' | 'right'): Promise<void> {
   await drag(page, to === 'left' ? b.x + b.width * 0.75 : b.x + b.width * 0.25, y, to === 'left' ? -160 : 160, 4);
 }
 
-test('the panes key opens the strip from the top edge: one pane, its name in a hood, page dots; the fight card under it', async ({ page }) => {
+test('the panes key opens the strip from the top edge: one pane, its name on the band (no hood row), page dots; the fight card under it', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page);
   await play(page, FIGHT);
@@ -134,9 +136,10 @@ test('the panes key opens the strip from the top edge: one pane, its name in a h
   expect(stripRows).toBeGreaterThanOrEqual(Math.ceil(rows * 0.15));
   expect(stripRows).toBeLessThanOrEqual(Math.floor(rows * 0.25));
   expect(stripRows).toBe(Math.round(rows * 0.2));
-  // The chrome: the pane's name in the hood, four dots with the first lit; no tabs, no handle.
+  // The chrome: the pane's name on the band's plate (round 53j: no hood), four dots with the first lit; no tabs, no handle.
   await expect(strip(page)).toBeVisible();
-  await expect(strip(page).locator('.wc-ph-strip-hood')).toHaveText('Timers');
+  await expect(page.locator('.wc-ph-strip-hood')).toHaveCount(0);
+  await expect(plate(page)).toHaveText('Timers');
   await expect(strip(page)).toHaveAttribute('aria-label', 'Panes: Timers, 1 of 4');
   await expect(dots(page)).toHaveCount(4);
   await expect(page.locator('.wc-ph-strip-dots > i.is-on')).toHaveAttribute('data-page', 'timers');
@@ -144,10 +147,26 @@ test('the panes key opens the strip from the top edge: one pane, its name in a h
   const s = await box(strip(page));
   expect(s.y).toBeCloseTo(p.y, 0);
   expect(s.height).toBeCloseTo(p.height, 0);
-  // The pane's content keeps a row clear for the hood and one for the resize band with the dots.
+  // The pane's content has every row but the last, which is the resize band's (the name and the dots on it).
   const content = await box(stripPane(page).locator('.wc-pane-content'));
-  expect(content.y - p.y).toBeCloseTo(h, 0);
+  expect(content.y - p.y).toBeLessThan(0.5);
   expect(p.y + p.height - (content.y + content.height)).toBeCloseTo(h, 0);
+  // The plate: on the band, in its middle, cast with it (Cinzel capitals in the hood's colours), a
+  // little taller than the band: its lower 3 px float over what is under it (here the fight card).
+  const sb = await box(page.locator('.wc-ph-strip-band'));
+  const pl = await box(plate(page));
+  expect(Math.abs(pl.x + pl.width / 2 - (sb.x + sb.width / 2))).toBeLessThanOrEqual(1);
+  expect(pl.y).toBeCloseTo(sb.y, 0);
+  expect(pl.y + pl.height - (sb.y + sb.height)).toBeGreaterThanOrEqual(2);
+  expect(pl.y + pl.height - (sb.y + sb.height)).toBeLessThanOrEqual(4);
+  const look = await plate(page).evaluate((e) => {
+    const st = getComputedStyle(e);
+    return { font: st.fontFamily, size: parseFloat(st.fontSize), upper: st.textTransform, events: st.pointerEvents };
+  });
+  expect(look.font).toContain('Cinzel');
+  expect(look.size).toBeLessThanOrEqual(10);
+  expect(look.upper).toBe('uppercase');
+  expect(look.events).toBe('none');
   // The fight card sits right under it, the game text under the card.
   const card = await box(fight(page));
   expect(card.y).toBeCloseTo(p.y + p.height, 0);
@@ -178,7 +197,8 @@ test('a sideways swipe changes the page and shows each pane with the fixture\'s 
   await play(page);
   await sat(page, 'panes').tap();
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
-  const hood = strip(page).locator('.wc-ph-strip-hood');
+  // (The name on the band's plate follows the page.)
+  const hood = plate(page);
   const on = page.locator('.wc-ph-strip-dots > i.is-on');
   // Left: Group, with the demo's members.
   await swipe(page, 'left');
@@ -411,7 +431,7 @@ test('a script\'s pane is a page of the strip after the built-in ones, named by 
   expect(await dots(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.page))).toEqual(['timers', 'group', 'character', 'statistics', 'kills/main']);
   await page.keyboard.press('Control+5');
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'kills/main');
-  await expect(strip(page).locator('.wc-ph-strip-hood')).toHaveText('Kills');
+  await expect(plate(page)).toHaveText('Kills');
   await expect(strip(page)).toHaveAttribute('aria-label', 'Panes: Kills, 5 of 5');
   await expect(stripPane(page)).toContainText('Kills so far: 7');
   await expect(stripPane(page)).not.toHaveAttribute('data-framed', '');
@@ -1281,9 +1301,9 @@ test('the strip\'s band resizes the strip live in whole rows; its height is stor
   const d = await box(page.locator('.wc-ph-strip-dots'));
   expect(d.y).toBeGreaterThanOrEqual(b0.y);
   expect(d.y + d.height).toBeLessThanOrEqual(b0.y + b0.height);
-  // Clear of the grip's bar in the middle.
-  const bar = await box(sband.locator('> i'));
-  expect(d.x).toBeGreaterThan(bar.x + bar.width);
+  // Clear of the name's plate and its grip marks in the middle (22 px and 7 px of air each side).
+  const bar = await box(plate(page));
+  expect(d.x).toBeGreaterThan(bar.x + bar.width + 29);
   await frames(page);
   const counts = await countLayouts(page);
   const game0 = await box(page.locator('.wc-game'));
@@ -1303,7 +1323,7 @@ test('the strip\'s band resizes the strip live in whole rows; its height is stor
   await frames(page);
   await frames(page);
   expect((await counts()).naws).toBe(1);
-  // Far up: four rows at the least (the hood, the band, two rows of pane).
+  // Far up: four rows at the least (three rows of pane and the band).
   await f.start();
   await f.move(-900, 5);
   await f.end();
