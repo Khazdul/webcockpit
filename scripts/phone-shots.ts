@@ -14,6 +14,8 @@
 //                                                default gate, no `?kbd=`)
 //   node scripts/phone-shots.ts 53f profile-rename script-name …   states of round 53f (name them:
 //                                                our keyboard on the menu's pages, ADR 0139)
+//   node scripts/phone-shots.ts 53g lite-body export-comment …   states of round 53g (name them:
+//                                                the multi-line fields and the page keys)
 //
 // Since round 53e our own keyboard is the game layout's by default; the two states that show the
 // device's keyboard (`keyboard`, `comm-keyboard` of stage 51) say `?kbd=0`.
@@ -965,6 +967,32 @@ const STATES: State[] = [
   { name: 'setting-number', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageSettingNumber(page) },
   // Over the game: the profile editor from the game's menu, a new alias's Pattern.
   { name: 'lite-pattern', stage: 53, step: 'f', query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => pageLitePattern(page) },
+  // Stage 53g (ADR 0139 §4–§5): the multi-line fields and the page keys (Esc, Tab, the carets).
+  // Lite's body over the game: three lines typed, the caret moved up; portrait (dark and Paper),
+  // a narrow phone, and landscape, where the page keys stand beside the block.
+  { name: 'lite-body', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21, run: (page) => pageLiteBody(page) },
+  { name: 'lite-body-narrow', stage: 53, step: 'g', query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => pageLiteBody(page, true) },
+  { name: 'lite-body-land', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21_LAND, run: (page) => pageLiteBody(page) },
+  { name: 'lite-pattern-land', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21_LAND, darkOnly: true, run: (page) => pageLitePattern(page) },
+  // The export comment (one paragraph: Enter saves), its composer above the keyboard.
+  { name: 'export-comment', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, demoClock: true, run: (page) => pageExportComment(page) },
+  { name: 'export-comment-land', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, demoClock: true, run: (page) => pageExportComment(page) },
+  // The symbols page with the backtick (Swedish: in shift's place), on a page with the digit row up.
+  { name: 'symbols', stage: 53, step: 'g', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageSymbols(page) },
+  // The game layout's keyboard, unchanged (no page keys there).
+  { name: 'game', stage: 53, step: 'g', viewport: S21, darkOnly: true, run: (page) => ownKeyboard(page, swedish) },
+  {
+    name: 'game-land',
+    stage: 53,
+    step: 'g',
+    viewport: S21_LAND,
+    darkOnly: true,
+    run: (page) =>
+      ownKeyboard(page, async (p) => {
+        await swedish(p);
+        await sixKeys(p);
+      }),
+  },
   {
     name: 'keys-six',
     stage: 52,
@@ -1100,6 +1128,53 @@ async function pageLitePattern(page: Page): Promise<void> {
   await pe.locator('[data-btn="NEW"]').tap();
   await pe.locator('[data-field="pattern"] input').waitFor();
   await pageType(page, ['d', 'r', 'ä', 'p', 'space', 'sym', '%', '1']);
+}
+
+/** Stage 53g. Over the game: the menu → Profile → Aliases → New, three lines typed in the body, the caret moved up a line. */
+async function pageLiteBody(page: Page, byTab = false): Promise<void> {
+  await busy(page);
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="profile"]').tap();
+  const pe = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-pe');
+  await pe.waitFor();
+  await pe.locator('[data-rail="alias"]').tap();
+  await pe.locator('[data-btn="NEW"]').tap();
+  await pe.locator('[data-field="pattern"] input').waitFor();
+  await page.locator('.wc-okb-page .wc-ph-okb').waitFor();
+  for (const k of ['d', 'r']) await pageKey(page, k).tap();
+  // (On a narrow phone the body lies under the keyboard: our Tab key goes there.)
+  if (byTab) await pageKey(page, 'tab').tap();
+  else await pe.locator('[data-field="body"] textarea').tap();
+  await pe.locator('[data-field="body"] textarea:focus').waitFor();
+  await pageType(page, ['d', 'r', 'a', 'enter', 'ä', 't', 'enter', 's', 'o', 'v', 'up', 'left']);
+}
+
+/** Stage 53g. History → a session → Export → Comment: a comment typed in the composer. */
+async function pageExportComment(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const lib = await window.__wc!.runs();
+    await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
+  });
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="history"]').tap();
+  const hist = f.locator('.wc-hist');
+  await hist.locator('.wc-lk-tr').nth(1).tap();
+  await hist.locator('.wc-hist-card [data-btn="EXPORT"]').tap();
+  await f.locator('.wc-exp').waitFor();
+  await f.locator('[data-btn="COMMENT"]').tap();
+  await f.locator('.wc-exp-comp textarea').waitFor();
+  await pageType(page, ['shift', 'h', 'ä', 'r', 'space', 'd', 'o', 'g', 'space', 'o', 'r', 'c', 'h', 'e', 'n']);
+}
+
+/** Stage 53g. Scripts → New, the digit row up, the symbols page (the backtick). */
+async function pageSymbols(page: Page): Promise<void> {
+  await page.evaluate(() => window.__wc!.shell.scripts!.init());
+  await digitsUp(page);
+  const f = startFrame(page);
+  await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+  await f.locator('[data-btn="NEW"]').tap();
+  await page.locator('.wc-lk-dialog[data-dlg="new"] input').waitFor();
+  await pageType(page, ['a', 'sym']);
 }
 
 /** Settings → Keyboard → Layout: Swedish (the default gate has no `?kbd=sv`). */

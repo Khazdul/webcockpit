@@ -10,8 +10,9 @@
 //   number: the digit row is up), the editors' Find row.
 // - The page ends above the keyboard (a fixed reserve): the field and the
 //   dialog's buttons stay visible and reachable.
-// - A multi-line field and a CodeMirror buffer keep the device's keyboard
-//   in this round; ours closes when one of them takes the focus.
+// - A CodeMirror buffer keeps the device's keyboard until round 53h; ours
+//   closes when one takes the focus. (The multi-line fields are ours since
+//   round 53g: phone-own-keyboard-multiline.spec.ts.)
 // - A page over the game: the page's keyboard, not the game's; closing the
 //   page returns to the game with no reserve left and no extra window size,
 //   and the game's keyboard still works.
@@ -151,8 +152,8 @@ test.describe('portrait 360 × 800, before the game', () => {
     await expectAbove(page, field);
     await expectAbove(page, f.locator('.wc-footer-btn', { hasText: 'Enter Confirm' }));
     await expect(field).toHaveValue('hero');
-    // No history here: the arrows are dimmed.
-    for (const a of ['older', 'newer']) await expect(key(page, a)).toHaveAttribute('aria-disabled', 'true');
+    // No history here: the keyboard has no history arrows (round 53g).
+    for (const a of ['older', 'newer']) await expect(key(page, a)).toHaveCount(0);
     await type(page, 'back', 'back', 'back', 'back', 'shift', 'b', 'i', 'l', 'b', 'o');
     await expect(field).toHaveValue('Bilbo');
     // Text made no key event; Enter is one made-up keydown, taken by the frame as a real one.
@@ -282,7 +283,7 @@ test.describe('portrait 360 × 800, before the game', () => {
     await expectAbove(page, num);
     // The digit row is up for the number, though the stored state is folded.
     expect(await page.evaluate(() => window.__wc!.settings.get().phone.keyboard.digits)).toBe(false);
-    await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(5);
+    await expect(okb(page).locator('.wc-ph-okb-row:not(.is-nav)')).toHaveCount(5);
     await type(page, '1', '2');
     await expect(num).toHaveValue('12');
     await key(page, 'enter').tap();
@@ -295,7 +296,7 @@ test.describe('portrait 360 × 800, before the game', () => {
     const str = word.locator('input.wc-scr-input');
     await expect(str).toBeFocused();
     await expectUp(page);
-    await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(4);
+    await expect(okb(page).locator('.wc-ph-okb-row:not(.is-nav)')).toHaveCount(4);
     await type(page, 'space', 'y', 'o', 'u');
     await expect(str).toHaveValue('hello you');
     // Left by a tap elsewhere: the typed text is kept (the tile's own rule) and the keyboard goes.
@@ -373,7 +374,7 @@ test.describe('portrait 360 × 800, before the game', () => {
     expect(errors).toEqual([]);
   });
 
-  test('Lite: the pattern is ours and typed on our keys; the body (multi-line) keeps the device\'s keyboard and closes ours', async ({ page }) => {
+  test('Lite: the pattern is ours and typed on our keys; so is the body (round 53g), and a physical keyboard still types in it', async ({ page }) => {
     const errors = watchErrors(page);
     await openStart(page);
     await page.evaluate(async () => {
@@ -395,12 +396,13 @@ test.describe('portrait 360 × 800, before the game', () => {
     await expectAbove(page, pattern);
     await type(page, 'z', 'z');
     await expect(pattern).toHaveValue('zz');
-    // The body is a multi-line field: not marked in this round; its focus closes ours.
+    // The body is a multi-line field: ours since round 53g (phone-own-keyboard-multiline.spec.ts);
+    // the keyboard stays up for it, and a physical keyboard types in it as ever.
     const body = pe.locator('[data-field="body"] textarea');
-    await expect(body).not.toHaveAttribute('inputmode', 'none');
+    await expectMarked(body);
     await body.tap();
     await expect(body).toBeFocused();
-    await expectDown(page);
+    await expectUp(page);
     await page.keyboard.type('sleep');
     await expect(body).toHaveValue('sleep');
     // And back.
@@ -415,7 +417,7 @@ test.describe('portrait 360 × 800, before the game', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the export title: typed on our keys in the foot, Enter saves it; the comment (multi-line) is not ours', async ({ page }) => {
+  test('the export title: typed on our keys in the foot, Enter saves it; the comment is ours too (round 53g)', async ({ page }) => {
     const errors = watchErrors(page);
     await pinDemoClock(page);
     await openStart(page);
@@ -445,13 +447,12 @@ test.describe('portrait 360 × 800, before the game', () => {
     await expect(f.locator('.wc-exp-file.is-edit')).toHaveCount(0);
     await expect(f.locator('.wc-exp-file')).toContainText('Moria');
     await expectDown(page);
-    // The comment's composer is a multi-line field: the device's keyboard, as before.
+    // The comment's composer: ours since round 53g (phone-own-keyboard-multiline.spec.ts).
     await f.locator('[data-btn="COMMENT"]').tap();
     const area = f.locator('.wc-exp-comp textarea');
-    await expect(area).toBeVisible();
-    await expect(area).not.toHaveAttribute('inputmode', 'none');
-    await area.tap();
-    await expectDown(page);
+    await expect(area).toBeFocused();
+    await expectMarked(area);
+    await expectUp(page);
     expect(errors).toEqual([]);
   });
 
@@ -485,13 +486,13 @@ test.describe('portrait 360 × 800, before the game', () => {
     const field = page.locator('.wc-lk-dialog[data-dlg="new"] input');
     await expectUp(page);
     await expect(okb(page)).toHaveAttribute('data-layout', 'sv');
-    await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(5);
+    await expect(okb(page).locator('.wc-ph-okb-row:not(.is-nav)')).toHaveCount(5);
     await type(page, 'å', '1');
     await expect(field).toHaveValue('å1');
     // The row's key folds it away and stores that: the reserve follows, the dialog stays above.
     const before = (await box(host(page))).height;
     await key(page, 'digits').tap();
-    await expect(okb(page).locator('.wc-ph-okb-row')).toHaveCount(4);
+    await expect(okb(page).locator('.wc-ph-okb-row:not(.is-nav)')).toHaveCount(4);
     expect(await page.evaluate(() => window.__wc!.settings.get().phone.keyboard.digits)).toBe(false);
     await expect.poll(async () => (await box(host(page))).height).toBeLessThan(before);
     await expectAbove(page, page.locator('.wc-lk-dialog[data-dlg="new"] [data-btn="OK"]'));

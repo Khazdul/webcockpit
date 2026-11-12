@@ -6,7 +6,18 @@
 // bookkeeping must not.
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import { OWN_FIELD_KIND_ATTR, isOwnKey, ownFieldAttrs, pageKeyboard, pageKeyboardUp, sendOwnKey, setPageKeyboard, setPageKeyboardUp } from '../../src/core/own-keyboard';
+import {
+  OWN_FIELD_KIND_ATTR,
+  isOwnKey,
+  onPageKeyboardUp,
+  ownFieldAttrs,
+  pageKeyboard,
+  pageKeyboardUp,
+  sendOwnKey,
+  setPageKeyboard,
+  setPageKeyboardUp,
+} from '../../src/core/own-keyboard';
+import { HerbMenu } from '../../src/panes/timers';
 import type { Sender } from '../../src/core/types';
 import { bindability, displayKey, keyNameFromEvent, learnKeyLabel, resetKeyLabels } from '../../src/script/keys';
 import { InputPane } from '../../src/ui/input-pane';
@@ -158,5 +169,56 @@ describe('the pages\' keyboard flag and the fields\' mark', () => {
     expect(pageKeyboardUp()).toBe(true);
     setPageKeyboard(false);
     expect(pageKeyboardUp()).toBe(false);
+  });
+});
+
+// Round 53g: Esc and Tab are sent too; a multi-line field says so; a page can follow the keyboard.
+describe('round 53g: Esc, Tab, the multi-line mark, and who hears the keyboard come and go', () => {
+  it('Tab is sent with Shift when asked, Escape without; both marked', () => {
+    const el = field();
+    const seen: string[] = [];
+    el.addEventListener('keydown', (e) => seen.push(`${e.key}:${e.shiftKey}:${isOwnKey(e)}`));
+    sendOwnKey(el, 'Tab');
+    sendOwnKey(el, 'Tab', { shift: true });
+    sendOwnKey(el, 'Escape');
+    expect(seen).toEqual(['Tab:false:true', 'Tab:true:true', 'Escape:false:true']);
+  });
+
+  it('a multi-line field is marked with its kind; nothing where the keyboard is not ours', () => {
+    expect(ownFieldAttrs('lines')).toEqual({});
+    setPageKeyboard(true);
+    expect(ownFieldAttrs('lines')).toEqual({ inputmode: 'none', virtualkeyboardpolicy: 'manual', [OWN_FIELD_KIND_ATTR]: 'lines' });
+  });
+
+  it('`onPageKeyboardUp` tells of each change once, and of the fall with the flag', () => {
+    setPageKeyboard(true);
+    const seen: boolean[] = [];
+    const off = onPageKeyboardUp((up) => seen.push(up));
+    setPageKeyboardUp(true);
+    setPageKeyboardUp(true);
+    setPageKeyboardUp(false);
+    setPageKeyboardUp(true);
+    setPageKeyboard(false);
+    expect(seen).toEqual([true, false, true, false]);
+    off();
+    setPageKeyboard(true);
+    setPageKeyboardUp(true);
+    expect(seen).toHaveLength(4);
+  });
+
+  it('the Timers pane\'s herb menu does not take the Esc our keyboard sends to a page (53f review)', () => {
+    const anchor = document.createElement('button');
+    document.body.append(anchor);
+    let closed = 0;
+    const menu = new HerbMenu(document, () => {}, () => closed++);
+    menu.show(anchor, [{ key: 'a', name: 'Athelas', active: false }]);
+    expect(menu.open).toBe(true);
+    const el = field();
+    const free = sendOwnKey(el, 'Escape');
+    expect(menu.open).toBe(true);
+    expect(free).toBe(true);
+    // A real Esc closes it, as ever.
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(menu.open).toBe(false);
   });
 });

@@ -7,7 +7,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TAP_PULSE_MS, canVibrate, pulse } from '../../src/phone/haptics';
 import { HotkeysView } from '../../src/phone/hotkeys';
 import { HOTKEY_COMMAND_MAX, HOTKEY_LABEL_MAX } from '../../src/phone/hotkey-model';
-import { charStartBefore, fieldTarget, isMarked, isOwnableField, isTextField, markField } from '../../src/phone/keyboard-fields';
+import {
+  caretLineMove,
+  charEndAfter,
+  charStartBefore,
+  fieldTarget,
+  isMarked,
+  isOwnableField,
+  isTextField,
+  markField,
+  scrollToShow,
+} from '../../src/phone/keyboard-fields';
 import { COMPASS_GROUP, KEYBOARD_GROUP, SETTINGS_GROUPS, groupsShown, rowsShown } from '../../src/phone/settings-page';
 import { defaultPhoneSettings, defaultSettings } from '../../src/settings/types';
 import type { PhoneHotkey, Settings } from '../../src/settings/types';
@@ -346,5 +356,202 @@ describe('the settings page: Keyboard and the vibration row', () => {
     expect(row.get(s())).toBe(false);
     expect(row.get(s((x) => (x.phone.vibrate = true)))).toBe(true);
     expect(row.set(true, s())).toEqual({ phone: { vibrate: true } });
+  });
+});
+
+// Round 53g (ADR 0139 §1, §5): the multi-line adapter and the caret keys.
+describe('round 53g: a multi-line field and the caret keys', () => {
+  function area(value = ''): HTMLTextAreaElement {
+    const el = document.createElement('textarea');
+    el.value = value;
+    document.body.append(el);
+    el.setSelectionRange(value.length, value.length);
+    return el;
+  }
+  const caret = (el: HTMLTextAreaElement | HTMLInputElement): number[] => [el.selectionStart!, el.selectionEnd!];
+
+  it('`lines`: text goes in at the caret with its line breaks, and Enter is a line break (an input event, no key event)', () => {
+    const el = area('eat');
+    const seen = watch(el);
+    const t = fieldTarget(el, { lines: true });
+    expect(t.newline).toBeTypeOf('function');
+    t.newline!();
+    t.insert('rest');
+    expect(el.value).toBe('eat\nrest');
+    el.setSelectionRange(3, 3);
+    t.insert(' now\r\nand\rthen');
+    expect(el.value).toBe('eat now\nand\nthen\nrest');
+    expect(caret(el)).toEqual([16, 16]);
+    expect(seen).toEqual(['insertLineBreak:', 'insertText:rest', 'insertText: now\nand\nthen']);
+  });
+
+  it('`lines`: backspace deletes back across a line break, one step, and a selection over several lines at once', () => {
+    const el = area('ab\ncd');
+    const t = fieldTarget(el, { lines: true });
+    el.setSelectionRange(3, 3);
+    t.deleteBack();
+    expect(el.value).toBe('abcd');
+    expect(caret(el)).toEqual([2, 2]);
+    el.value = 'one\ntwo\nthree';
+    el.setSelectionRange(2, 9);
+    t.deleteBack();
+    expect(el.value).toBe('onhree');
+    expect(caret(el)).toEqual([2, 2]);
+  });
+
+  it('a text area whose Enter is its owner\'s (not `lines`): one paragraph, Enter is `submit`, no up and down', () => {
+    const el = area('a');
+    let enters = 0;
+    const t = fieldTarget(el, { submit: () => enters++ });
+    expect(t.newline).toBeUndefined();
+    expect(t.caretUp).toBeUndefined();
+    expect(t.caretDown).toBeUndefined();
+    t.insert('b\nc');
+    expect(el.value).toBe('ab c');
+    t.submit();
+    expect(enters).toBe(1);
+    // An input never gets them either, whatever is asked.
+    const one = fieldTarget(input('text', 'x'), { lines: true });
+    expect(one.newline).toBeUndefined();
+    expect(one.caretUp).toBeUndefined();
+  });
+
+  it('caret left and right: one whole character; a selection collapses to that end; nothing is typed', () => {
+    const el = input('text', 'a👍🏽b');
+    const seen = watch(el);
+    const t = fieldTarget(el);
+    t.caretLeft!();
+    expect(caret(el)).toEqual([5, 5]);
+    t.caretLeft!();
+    expect(caret(el)).toEqual([1, 1]);
+    t.caretLeft!();
+    t.caretLeft!();
+    expect(caret(el)).toEqual([0, 0]);
+    t.caretRight!();
+    t.caretRight!();
+    expect(caret(el)).toEqual([5, 5]);
+    t.caretRight!();
+    t.caretRight!();
+    expect(caret(el)).toEqual([6, 6]);
+    el.setSelectionRange(1, 5);
+    t.caretLeft!();
+    expect(caret(el)).toEqual([1, 1]);
+    el.setSelectionRange(1, 5);
+    t.caretRight!();
+    expect(caret(el)).toEqual([5, 5]);
+    expect(seen).toEqual([]);
+    expect(el.value).toBe('a👍🏽b');
+  });
+
+  it('caret left and right cross a line break in a multi-line field', () => {
+    const el = area('ab\ncd');
+    const t = fieldTarget(el, { lines: true });
+    el.setSelectionRange(3, 3);
+    t.caretLeft!();
+    expect(caret(el)).toEqual([2, 2]);
+    t.caretRight!();
+    t.caretRight!();
+    expect(caret(el)).toEqual([4, 4]);
+  });
+
+  it('caret up and down: by the text\'s lines, keeping the column wanted through short lines; the ends at the first and last line', () => {
+    const el = area('alpha\nhi\n\ngamma!');
+    const t = fieldTarget(el, { lines: true });
+    el.setSelectionRange(4, 4);
+    t.caretDown!();
+    expect(caret(el)).toEqual([8, 8]); // "hi" is short: its end
+    t.caretDown!();
+    expect(caret(el)).toEqual([9, 9]); // the empty line
+    t.caretDown!();
+    expect(caret(el)).toEqual([14, 14]); // column 4 again
+    t.caretDown!();
+    expect(caret(el)).toEqual([16, 16]); // the last line: the text's end
+    t.caretUp!();
+    t.caretUp!();
+    t.caretUp!();
+    expect(caret(el)).toEqual([4, 4]);
+    t.caretUp!();
+    expect(caret(el)).toEqual([0, 0]); // the first line: the text's start
+    // A left or right, or typing, forgets the column.
+    el.setSelectionRange(4, 4);
+    t.caretDown!();
+    t.caretLeft!();
+    t.caretDown!();
+    expect(caret(el)).toEqual([9, 9]);
+    t.caretDown!();
+    expect(caret(el)).toEqual([11, 11]);
+  });
+
+  it('`caretLineMove` (pure)', () => {
+    const s = 'ab\ncdef\ng';
+    expect(caretLineMove(s, 5, -1)).toBe(2);
+    expect(caretLineMove(s, 5, 1)).toBe(9);
+    expect(caretLineMove(s, 1, -1)).toBe(0);
+    expect(caretLineMove(s, 8, 1)).toBe(9);
+    expect(caretLineMove(s, 9, 1)).toBe(9);
+    expect(caretLineMove(s, 9, -1, 3)).toBe(6);
+    expect(caretLineMove('', 0, 1)).toBe(0);
+    expect(caretLineMove('\n\n', 1, -1)).toBe(0);
+    expect(caretLineMove('\n\n', 1, 1)).toBe(2);
+  });
+
+  it('`charEndAfter` (pure): a code point, a whole cluster, the end', () => {
+    expect(charEndAfter('abc', 1)).toBe(2);
+    expect(charEndAfter('a👍🏽b', 1)).toBe(5);
+    expect(charEndAfter('abc', 3)).toBe(3);
+    expect(charEndAfter('a\nb', 1)).toBe(2);
+    expect(charEndAfter('e\u0301x', 0)).toBe(2);
+    expect(charStartBefore('a\nb', 2)).toBe(1);
+  });
+
+  it('`scrollToShow` (pure): as it is when the line shows, else moved as little as possible', () => {
+    expect(scrollToShow(0, 100, 20, 40)).toBe(0);
+    expect(scrollToShow(0, 100, 90, 110)).toBe(10);
+    expect(scrollToShow(50, 100, 20, 40)).toBe(20);
+    expect(scrollToShow(0, 100, 90, 110, 4)).toBe(14);
+    expect(scrollToShow(50, 100, 2, 22, 4)).toBe(0);
+    expect(scrollToShow(30, 100, 30, 130)).toBe(30);
+  });
+
+  it('every edit and caret move tells the owner (`onCaret`), which keeps the caret\'s line in view', () => {
+    const el = area('a\nb');
+    let n = 0;
+    const t = fieldTarget(el, { lines: true, onCaret: () => n++ });
+    t.insert('x');
+    t.newline!();
+    t.deleteBack();
+    t.caretLeft!();
+    t.caretRight!();
+    t.caretUp!();
+    t.caretDown!();
+    expect(n).toBe(7);
+  });
+
+  it('Esc and Tab are the owner\'s (`pageKey`): a field of the game layout has none', () => {
+    const el = input('text', '');
+    const got: string[] = [];
+    const t = fieldTarget(el, { pageKey: (k, shift) => got.push(`${k}:${shift}`) });
+    t.pageKey!('Escape', false);
+    t.pageKey!('Tab', true);
+    expect(got).toEqual(['Escape:false', 'Tab:true']);
+    expect(fieldTarget(el).pageKey).toBeUndefined();
+  });
+
+  it('the hot key box leaves an Esc aimed at a page\'s field to the page (53f review)', () => {
+    const view = new HotkeysView(document, { press: () => {}, save: () => {}, toggle: () => {}, hp: () => 100, onBox: () => {}, onPress: () => {}, keepsBox: () => false });
+    document.body.append(view.el, view.boxEl);
+    view.set([{ label: 'a', command: 'b' }] as PhoneHotkey[], 3, true);
+    view.openBox(0);
+    expect(view.boxOpen).toBe(true);
+    const overlay = document.createElement('div');
+    overlay.className = 'wc-overlay';
+    const f = document.createElement('input');
+    overlay.append(f);
+    document.body.append(overlay);
+    f.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(view.boxOpen).toBe(true);
+    // From the game (or anywhere else) Esc cancels the box, as before.
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(view.boxOpen).toBe(false);
   });
 });
