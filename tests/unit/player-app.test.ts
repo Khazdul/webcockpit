@@ -453,6 +453,13 @@ describe('PlayerHost input colour (ADR 0035)', () => {
     host.dispose();
   });
 
+  it('a recorded Steel plays Steel: the one-time switch of stored settings is not a recording’s', () => {
+    const { host, s } = open({ size: 14, inputColor: 'steel' }, 'amber');
+    expect(s().appearance.inputColor).toBe('steel');
+    expect(host.el.style.getPropertyValue('--term-echo')).toBe(mix(55, '#7fb2e6'));
+    host.dispose();
+  });
+
   it('plays a log recorded before the setting (or with no VIEW) with Steel', () => {
     for (const recorded of [{ size: 14 }, null]) {
       const { host, s } = open(recorded, 'amber');

@@ -941,11 +941,58 @@ test.describe('F. gold is the default input colour', () => {
   });
 });
 
-test('F. an existing install keeps the colour it has stored: Steel stays Steel', async ({ page }) => {
+test('F. Steel stored at this settings version is a choice: it stays Steel', async ({ page }) => {
   const m = await play(page);
   await setScreen(page, S21);
   chatter(m);
   expect(await page.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('steel');
   const c = await rgbOf(field(page));
   expect(c[2]).toBeGreaterThan(c[0]);
+});
+
+test('F2. the one-time switch: an install stored before version 6 with Steel types in gold, and Steel picked afterwards holds', async ({ page }) => {
+  // The suite's stored settings, rewritten as an older version's (Steel was the default then, stored with every appearance).
+  await page.goto('/?phone=1&kbd=en');
+  await page.waitForFunction(() => window.__wc !== undefined);
+  const rewritten = await page.evaluate(async () => {
+    await window.__wc!.settings.load();
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const r = indexedDB.open('webcockpit');
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    const got = await new Promise<{ version: number; appearance: { inputColor: string } }>((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      const os = tx.objectStore('settings');
+      const r = os.get('main');
+      r.onsuccess = () => {
+        const v = r.result as { version: number; appearance: { inputColor: string } };
+        v.version = 5;
+        os.put(v, 'main');
+      };
+      tx.oncomplete = () => resolve(r.result as { version: number; appearance: { inputColor: string } });
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    return { version: got.version, color: got.appearance.inputColor };
+  });
+  expect(rewritten).toEqual({ version: 5, color: 'steel' });
+
+  const m = await play(page);
+  await setScreen(page, S21);
+  chatter(m);
+  expect(await page.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('amber');
+  const gold = await rgbOf(field(page));
+  expect(gold[0]).toBeGreaterThan(gold[2]);
+
+  // Steel chosen after the switch is stored with the new version and survives a reload.
+  await page.evaluate(async () => {
+    window.__wc!.settings.update({ appearance: { inputColor: 'steel' } });
+    await window.__wc!.settings.flush();
+  });
+  await play(page);
+  await setScreen(page, S21);
+  expect(await page.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('steel');
+  const blue = await rgbOf(field(page));
+  expect(blue[2]).toBeGreaterThan(blue[0]);
 });

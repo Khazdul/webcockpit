@@ -3,8 +3,8 @@
 // command's echo and the password's bullets have it; it reads at 4.5 : 1 on
 // the terminal's ground, dark and Paper (the bullets at 3 : 1 on the tint a
 // selected password stands on); the suggestion's grey and the selection's inverted look are
-// apart from it. An existing install keeps the colour it has stored
-// (live-mock.spec.ts: Steel). Against a mocked MUME: nothing reaches the
+// apart from it. An install that stored Steel at this settings version keeps it
+// (live-mock.spec.ts); one stored before it moves to Amber once (phone-round-53k.spec.ts F). Against a mocked MUME: nothing reaches the
 // real server.
 import { type Locator, type Page, expect, test } from '@playwright/test';
 

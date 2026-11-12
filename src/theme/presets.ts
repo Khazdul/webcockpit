@@ -412,8 +412,9 @@ export const INPUT_COLOR_IDS: readonly InputColor[] = ['none', 'steel', 'bright'
 export const DEFAULT_INPUT_COLOR: InputColor = 'amber';
 /**
  * The default before 2026-11-12, and what a recording plays with when it
- * carries no input colour (made before ADR 0035): Steel. Stored settings
- * that say Steel keep it (a stored default cannot be told from a choice).
+ * carries no input colour (made before ADR 0035): Steel. Settings stored
+ * before version 6 that say Steel move to the default once
+ * (`migrateAppearance`); a recording never does.
  */
 export const LEGACY_INPUT_COLOR: InputColor = 'steel';
 

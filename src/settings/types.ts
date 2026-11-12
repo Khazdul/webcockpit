@@ -668,7 +668,10 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 //    cols/clock/bar and `compact` went.
 // 5: the Comm pane's conversation view (ADR 0134): `comm.filters` shape
 //    Public only; a stored v4 or older turns `COMM_PUBLIC_DEFAULT_OFF` off.
-export const SETTINGS_VERSION = 5;
+// 6: the input colour's default became Amber (ADR 0035, addenda of 2026-11-12):
+//    a stored v5 or older that says Steel (the old default, stored with every
+//    appearance) moves to Amber, once. Steel stored at v6 or newer is a choice.
+export const SETTINGS_VERSION = 6;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu
