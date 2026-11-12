@@ -96,7 +96,10 @@
 //   Enter sends the line again, an inserted character or a paste replaces
 //   it, Backspace or Delete clears it; a caret key, a tap in the focused
 //   field or a selection the user makes (a long press) turns it into
-//   ordinary text. The tap that brings the focus back leaves it kept, with
+//   ordinary text. The line's own keys (a hardware keyboard) treat it as
+//   the desktop treats the selected sent line: Ctrl+A selects it natively,
+//   Ctrl+E, Alt+B and Alt+F place the caret (from the line's end) and
+//   leave ordinary text, Alt+Backspace and Ctrl+W delete it whole. The tap that brings the focus back leaves it kept, with
 //   the caret at the end. Never at a password prompt. Desktop and tablet
 //   keep the native selection as ever.
 // - Own font (stage 53, round 53j): `setOwnFont` gives the line a text
@@ -187,7 +190,11 @@ export const MAX_HISTORY = 1000;
 
 /** Half a blink cycle: the caret is on 500 ms, off 500 ms. */
 export const BLINK_MS = 500;
-/** The keys that turn a kept line into ordinary text (file header: "Kept line"). */
+/**
+ * The keys that turn a kept line into ordinary text (file header: "Kept
+ * line"). The line's own caret keys do too (`handleKey`: Ctrl+A, Ctrl+E,
+ * Alt+B, Alt+F, Shift+Up, Shift+Down).
+ */
 const KEPT_CARET_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 /** Characters in the run `setOwnFont` measures the line's own cell width with. */
 const OWN_FONT_RUN = 40;
@@ -1120,13 +1127,17 @@ export class InputPane {
         return true;
       case 'ArrowUp':
         if (!plain) return false;
-        if (e.shiftKey) this.selectToStart();
-        else this.historyUp();
+        if (e.shiftKey) {
+          this.setKept(false);
+          this.selectToStart();
+        } else this.historyUp();
         return true;
       case 'ArrowDown':
         if (!plain) return false;
-        if (e.shiftKey) this.selectToEnd();
-        else this.historyDown();
+        if (e.shiftKey) {
+          this.setKept(false);
+          this.selectToEnd();
+        } else this.historyDown();
         return true;
       case 'ArrowRight':
       case 'End':
@@ -1151,6 +1162,8 @@ export class InputPane {
       }
       case 'Backspace':
         if (alt) {
+          // (A kept line goes whole, as the selected sent line does.)
+          this.takeKept();
           this.deleteBack(wordStartBefore);
           return true;
         }
@@ -1160,14 +1173,17 @@ export class InputPane {
     if (ctrl && !e.shiftKey) {
       switch (e.code) {
         case 'KeyA':
+          this.setKept(false);
           this.input.setSelectionRange(0, this.input.value.length);
           return true;
         case 'KeyE': {
+          this.setKept(false);
           const n = this.input.value.length;
           this.input.setSelectionRange(n, n);
           return true;
         }
         case 'KeyW':
+          this.takeKept();
           this.deleteBack(spaceWordStartBefore);
           return true;
         case 'KeyD':
@@ -1181,11 +1197,13 @@ export class InputPane {
       const caret = this.caret();
       switch (e.code) {
         case 'KeyB': {
+          this.setKept(false);
           const p = wordStartBefore(v, caret);
           this.input.setSelectionRange(p, p);
           return true;
         }
         case 'KeyF': {
+          this.setKept(false);
           const p = wordEndAfter(v, caret);
           this.input.setSelectionRange(p, p);
           return true;

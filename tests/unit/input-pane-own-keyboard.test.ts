@@ -391,6 +391,94 @@ describe('InputPane kept line (stage 53, round 53j)', () => {
     expect(v.selected()).toEqual([0, 2]);
   });
 
+  // A hardware keyboard at the phone: the line's own keys treat the kept line as the desktop
+  // treats the selected sent line.
+  describe('the readline keys in a kept line (a hardware keyboard)', () => {
+    function keptLine(text = 'kill orc') {
+      const t = setup({ phone: true });
+      t.pane.setOwnKeyboard(true);
+      t.pane.input.focus();
+      t.pane.insertText(text);
+      t.pane.submitLine();
+      t.pane.input.blur();
+      expect(t.pane.isKept()).toBe(true);
+      const chord = (key: string, code: string, mods: { ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }) =>
+        t.pane.input.dispatchEvent(new KeyboardEvent('keydown', { key, code, bubbles: true, cancelable: true, ...mods }));
+      return { ...t, chord };
+    }
+
+    it('Alt+B: the caret at the last word\'s start, ordinary text', () => {
+      const t = keptLine();
+      t.chord('b', 'KeyB', { altKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.classList.contains('wc-input-kept')).toBe(false);
+      expect(t.pane.input.value).toBe('kill orc');
+      expect(t.selected()).toEqual([5, 5]);
+    });
+
+    it('Alt+F: the caret at the end, ordinary text', () => {
+      const t = keptLine();
+      t.chord('f', 'KeyF', { altKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('kill orc');
+      expect(t.selected()).toEqual([8, 8]);
+      // Typed into, not replaced.
+      t.pane.insertText('s');
+      expect(t.pane.input.value).toBe('kill orcs');
+    });
+
+    it('Ctrl+E: the caret at the end, ordinary text', () => {
+      const t = keptLine();
+      t.chord('e', 'KeyE', { ctrlKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('kill orc');
+      expect(t.selected()).toEqual([8, 8]);
+      t.pane.insertText('s');
+      expect(t.pane.input.value).toBe('kill orcs');
+    });
+
+    it('Ctrl+A: the whole line selected natively, no longer "kept"', () => {
+      const t = keptLine();
+      t.chord('a', 'KeyA', { ctrlKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.classList.contains('wc-input-kept')).toBe(false);
+      expect(t.selected()).toEqual([0, 8]);
+      expect(t.pane.isRecallState()).toBe(true);
+    });
+
+    it('Alt+Backspace deletes the whole kept line, as it does the selected one', () => {
+      const t = keptLine();
+      t.chord('Backspace', 'Backspace', { altKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('');
+      // The desktop, for comparison: the selected sent line goes whole.
+      const d = setup();
+      d.pane.insertText('kill orc');
+      d.pane.submitLine();
+      d.i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', altKey: true, bubbles: true, cancelable: true }));
+      expect(d.i.value).toBe('');
+    });
+
+    it('Ctrl+W deletes the whole kept line, as it does the selected one', () => {
+      const t = keptLine();
+      t.chord('w', 'KeyW', { ctrlKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.pane.input.value).toBe('');
+      const d = setup();
+      d.pane.insertText('kill orc');
+      d.pane.submitLine();
+      d.i.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', ctrlKey: true, bubbles: true, cancelable: true }));
+      expect(d.i.value).toBe('');
+    });
+
+    it('Shift+Up selects to the start: the user\'s own selection, no longer "kept"', () => {
+      const t = keptLine();
+      t.chord('ArrowUp', 'ArrowUp', { shiftKey: true });
+      expect(t.pane.isKept()).toBe(false);
+      expect(t.selected()).toEqual([0, 8]);
+    });
+  });
+
   it('the history from a kept line goes one further back, as from the selected one', () => {
     const t = setup({ phone: true });
     t.pane.setOwnKeyboard(true);
