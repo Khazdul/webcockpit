@@ -671,7 +671,10 @@ for (const viewport of [
       expect(g.strip.h).toBeGreaterThanOrEqual(4);
       expect(g.comm.h).toBeGreaterThanOrEqual(6);
       expect(g.strip.h + g.comm.h).toBe(g.rows);
-      // Comm's rail and its last entry are on screen under its hood.
+      // Comm's rail and its last entry are on screen under its hood. (The rail is drawn a frame
+      // after Comm opens: waited for before it is measured.)
+      await expect.poll(() => page.locator('.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-ent').count()).toBeGreaterThanOrEqual(2);
+      await frames(page);
       const ents = await boxes(page, { ent: '.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-ent' });
       expect(ents.length).toBeGreaterThanOrEqual(2);
       const hood = (await page.locator('.wc-ph-comm-hood').boundingBox())!;
