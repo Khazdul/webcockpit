@@ -793,11 +793,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-pad {
   -webkit-touch-callout: none;
 }
 
-/* Typing: the keys step aside (ADR 0136 §9). */
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-pad {
-  display: none;
-}
-
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key {
   display: flex;
   align-items: center;
@@ -920,8 +915,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot-col:empty {
   pointer-events: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot[hidden],
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-hot {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-hot[hidden] {
   display: none;
 }
 
@@ -1008,10 +1002,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-n {
   border-right: 1px solid var(--ph-solid-edge);
   background: var(--ph-solid);
   transform: rotate(45deg);
-}
-
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] .wc-ph-rb-n {
-  display: none;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rb-t {
@@ -1279,11 +1269,6 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot {
   gap: 8px;
   box-sizing: border-box;
   padding: 0 calc(var(--ph-ck, 40px) * 3 + 22px) 0 8px;
-}
-
-/* Typing: the field takes the full width. */
-html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
-  padding-right: 8px;
 }
 
 /* ------------------------------------------------ own keyboard (ADR 0138) */

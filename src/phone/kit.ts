@@ -49,8 +49,6 @@ export interface PhoneKit {
   /** The phone's too-small limit (src/layout/phone.ts). */
   minCols: number;
   minRows: number;
-  /** True while the on-screen keyboard is up (src/layout/phone-viewport.ts). */
-  keyboardUp(): boolean;
   /** Page fullscreen (src/core/fullscreen.ts): whether the browser can, the toggle, and the refusal notice. */
   canFullscreen(doc: Document): boolean;
   toggleFullscreen(doc: Document): void;

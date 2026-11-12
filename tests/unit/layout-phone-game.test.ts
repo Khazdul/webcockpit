@@ -5,7 +5,6 @@ import {
   COMM_MIN_ROWS,
   FIGHT_ROWS,
   GAME_KEEP_ROWS,
-  SIDE_COMM_KBD_ROWS,
   SIDE_GAME_MIN_COLS,
   SIDE_MIN_COLS,
   STRIP_MIN_ROWS,
@@ -169,32 +168,12 @@ describe('allocatePhoneGame', () => {
       expectStacked(r);
     });
 
-    it('a lower gameKeep (the keyboard is up) lets Comm stay where it would have closed', () => {
-      // 16 rows: 13 above the command row, 2 for the fight card.
-      expect(run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false }).comm.h).toBe(0);
-      const r = run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false, gameKeep: 2 });
-      expect(r.comm.h).toBe(9);
-      expect(r.game.h).toBe(2);
-      expect(r.commRange).toEqual({ min: COMM_MIN_ROWS, max: 9 });
-      expectStacked(r);
-      // And the strip with it, while it has the rows for a pane.
-      expect(run({ rows: 13, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(0);
-      expect(run({ rows: 18, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(4);
-      // With the strip, the fight card and Comm on 20 rows: the strip stays only with the lower keep.
-      expect(run({ rows: 20, strip: true, fight: true, comm: { rows: 6 }, guard: false }).strip.h).toBe(0);
-      const all = run({ rows: 20, strip: true, fight: true, comm: { rows: 6 }, guard: false, gameKeep: 2 });
-      expect([all.strip.h, all.fight.h, all.comm.h, all.game.h]).toEqual([4, 2, 6, 5]);
-      // Not a number: the default.
-      expect(run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false, gameKeep: Number.NaN }).comm.h).toBe(0);
-    });
-
     it('the strip alone closes when the game would lose its rows', () => {
       const r = run({ rows: 13, strip: true, guard: false });
       expect(r.strip.h).toBe(0);
       expect(r.game.h).toBe(10);
       // Under four rows (its hood, its dots, two rows of pane) the strip is not shown at all.
       expect(run({ rows: 14, strip: true, guard: false }).strip.h).toBe(0);
-      expect(run({ rows: 8, strip: true, guard: false, gameKeep: 2 }).strip.h).toBe(0);
       expect(run({ rows: 20, strip: true, guard: false }).strip.h).toBe(4);
     });
 
@@ -509,21 +488,6 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
     expect([s.strip.h, s.side.w]).toEqual([0, 0]);
   });
 
-  it('the keyboard up: Comm stays down to five rows (its reply line is typed in), and the strip gives way first', () => {
-    // Beside the strip Comm needs nine rows there (its head, chat and the whole reply line).
-    const r = land({ rows: 13, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
-    expect([r.strip.h, r.comm.h]).toEqual([4, 9]);
-    const tight = land({ rows: 12, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
-    expect([tight.strip.h, tight.comm.h]).toEqual([0, 12]);
-    const low = land({ rows: 7, guard: false, strip: true, comm: { rows: null } }, { keyboard: true });
-    expect([low.strip.h, low.comm.h]).toEqual([0, 7]);
-    expect(SIDE_COMM_KBD_ROWS).toBe(5);
-    expect(land({ rows: 5, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(5);
-    expect(land({ rows: 4, guard: false, comm: { rows: null } }, { keyboard: true }).comm.h).toBe(0);
-    // The game text keeps every row beside the column.
-    expect(r.game).toEqual({ x: 40, y: 0, w: 60, h: 10 });
-  });
-
   it('the width: a stored one within the least and what leaves the game text 40 columns', () => {
     expect(land({ strip: true }, { cols: 50 }).side.w).toBe(50);
     expect(land({ strip: true }, { cols: 10 }).side.w).toBe(SIDE_MIN_COLS);
@@ -565,8 +529,8 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
     expect(land({ fight: true }).fight).toEqual({ x: 0, y: 0, w: 100, h: 2 });
   });
 
-  it('the portrait limit and the game\'s kept rows do not apply', () => {
-    const r = land({ strip: true, comm: { rows: null }, maxTop: 3, gameKeep: 30 });
+  it('the portrait limit does not apply', () => {
+    const r = land({ strip: true, comm: { rows: null }, maxTop: 3 });
     expect(r.strip.h + r.comm.h).toBe(22);
     expect(r.game.h).toBe(19);
   });
