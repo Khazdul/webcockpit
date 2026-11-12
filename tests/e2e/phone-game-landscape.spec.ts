@@ -754,8 +754,9 @@ test.describe('turning the phone', () => {
     // The dots sit on the strip's band in portrait.
     await expect(page.locator('.wc-ph-strip-band .wc-ph-strip-dots')).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip-band')).toBeVisible();
-    // No Comm hood in portrait.
-    await expect(page.locator('.wc-ph-comm-head')).toBeHidden();
+    // Comm's hood in portrait too (round 53i), without the landscape divider.
+    await expect(page.locator('.wc-ph-comm-head')).toBeVisible();
+    await expect(page.locator('.wc-ph-comm-head')).not.toHaveAttribute('data-divided');
     // Turned: both still open, now the column at its own stored width.
     await page.setViewportSize(LANDSCAPE);
     await expect.poll(async () => (await layout(page)).landscape).toBe(true);
@@ -778,12 +779,16 @@ test.describe('turning the phone', () => {
     await expect.poll(async () => (await layout(page)).landscape).toBe(false);
     await expect(stripPane(page)).toHaveCount(0);
     await expect(comm(page)).toBeVisible();
+    // (Polled: until the visible area's new height is published, 150 ms after the turn, the page
+    // is laid out at the new width and the old height, where Comm has fewer rows.)
+    await expect.poll(async () => (await layout(page)).comm.h).toBe(9);
     g = await layout(page);
     expect([g.comm.h, g.comm.w, g.comm.x, g.game.x]).toEqual([9, g.cols, 0, 0]);
     await expect.poll(keySize).toBe(36);
     await expect(sideBand(page)).toBeHidden();
     await expect(page.locator('.wc-ph-comm-band')).toBeVisible();
-    await expect(page.locator('.wc-ph-comm-head')).toBeHidden();
+    await expect(page.locator('.wc-ph-comm-head')).toBeVisible();
+    await expect(page.locator('.wc-ph-comm-head .wc-ph-side-rule')).toBeHidden();
     const p = await phone(page);
     expect([p.commRows, p.stripRows, p.sideCols]).toEqual([9, 7, 33]);
     expect(errors).toEqual([]);
