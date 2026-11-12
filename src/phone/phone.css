@@ -1481,6 +1481,33 @@ html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k[aria-
   color: var(--ph-key-off);
 }
 
+/* Enter in a multi-line field is a line break: a key like the others that
+ * are not characters, not lit (nothing is sent). */
+html.wc-phone .wc-okb-page .wc-ph-okb-k.is-enter[data-enter="newline"] {
+  color: var(--ph-okb-mod-text);
+}
+
+html.wc-phone .wc-okb-page .wc-ph-okb-k.is-enter[data-enter="newline"] .wc-ph-okb-cap {
+  border-color: var(--ph-okb-mod-edge);
+  background: var(--ph-okb-mod);
+}
+
+/* A page's extra keys in landscape (keyboard.ts `sides`): a column at each
+ * side of the block, as high as it; the view sets `left` and `width`. */
+html.wc-phone .wc-okb-page .wc-ph-okb-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 2px 0;
+}
+
+html.wc-phone .wc-okb-page .wc-ph-okb-side[hidden] {
+  display: none;
+}
+
 /* Pressed: lit at once (the class comes with the press; no `:active`, which waits on some phones). */
 html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb .wc-ph-okb-k.is-down {
   color: var(--ph-okb-down-text);
@@ -1673,12 +1700,65 @@ html.wc-phone.wc-okb-pg .wc-start-almanac {
   html.wc-phone.wc-okb-pg .wc-lk-dialog-btns {
     margin: 6px 0 0;
   }
+
+  /* The export editor's comment: the composer whole above the keys (its
+   * field, Cancel and Save); the page's bar, the counter and the preview
+   * step aside. */
+  html.wc-phone.wc-okb-pg .wc-exp.is-composing .wc-exp-bar,
+  html.wc-phone.wc-okb-pg .wc-exp.is-composing .wc-exp-count,
+  html.wc-phone.wc-okb-pg .wc-exp.is-composing .wc-exp-preview {
+    display: none;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-exp.is-composing .wc-exp-comp-in {
+    padding: 6px 12px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-exp.is-composing .wc-exp-comp textarea.wc-lk-input {
+    height: 40px;
+    min-height: 40px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-exp.is-composing .wc-exp-cbtns {
+    margin-top: 6px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-fields {
+    gap: 6px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-fields > .wc-lk-field.is-area textarea.wc-lk-input {
+    min-height: 64px;
+  }
+}
+
+/* The profile editor's Lite on a screen where the keyboard leaves it
+ * little (a phone on its side, a short phone): what is not the entry typed
+ * in steps aside (the head with the views, the kinds, the foot), so the
+ * Pattern and the Commands stand above the keys. */
+@media (max-height: 640px) {
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-head,
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-rail,
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-foot {
+    display: none;
+  }
 }
 
 /* The reserve: the start page and the menu's overlay end at the keyboard's top edge. */
 html.wc-phone.wc-okb-pg .wc-chrome,
 html.wc-phone.wc-okb-pg .wc-overlay {
   bottom: calc(env(safe-area-inset-bottom, 0px) + var(--wc-okb-page-h, 0px));
+}
+
+/* A look page of the game's menu covers the whole screen on its own
+ * (`position: fixed`, kit/window.css), whatever the overlay's box is: it
+ * ends at the keyboard's top edge too (found in round 53g: its lower
+ * fields lay under the keys). */
+html.wc-phone.wc-okb-pg .wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--wc-okb-page-h, 0px));
+  /* (The kit gives a frame `height: 100%`, which would win over `bottom`.) */
+  height: auto;
+  padding-bottom: 0;
 }
 
 /* The safe area (an iPhone's home indicator; a notch at the side in

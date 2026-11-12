@@ -99,6 +99,7 @@ import {
   lookFrame,
   useButtonZone,
   useKeyboardInset,
+  useOwnKeyboardUp,
   useWindowChrome,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
@@ -218,6 +219,8 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
   /** False for one cursor change that must not scroll the log (a pointer press, a map jump). */
   const revealNext = useRef(true);
   const inset = useKeyboardInset();
+  // Our own keyboard on a phone: the page ends above it already (no inset), and steps aside as for the device's.
+  const kbd = useOwnKeyboardUp() || inset > 0;
 
   useEffect(() => {
     let live = true;
@@ -889,7 +892,7 @@ export const ExportEditorFrame = lookFrame(function ExportEditorFrame(p: { sessi
 
   return box(
     <div
-      class={'wc-exp' + (editing ? ' is-editing' : '') + (comp ? ' is-composing' : '') + (editing && inset > 0 ? ' is-kbd' : '')}
+      class={'wc-exp' + (editing ? ' is-editing' : '') + (comp ? ' is-composing' : '') + (editing && kbd ? ' is-kbd' : '')}
       data-format={doc.format}
       style={editing && inset > 0 ? { paddingBottom: `${inset}px` } : undefined}
     >
@@ -1042,6 +1045,7 @@ function CommentComposer(p: {
           rows={2}
           maxLength={COMMENT_MAX}
           placeholder="What happened here…"
+          enterSubmits
           autoFocus
         />
         <div class={'wc-exp-count' + (flat.length >= COMMENT_MAX ? ' is-full' : '')}>{`${flat.length} / ${COMMENT_MAX}`}</div>

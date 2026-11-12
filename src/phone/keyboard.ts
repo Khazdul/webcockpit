@@ -34,6 +34,14 @@
 //   `a` to `l`) gives that room to its first and last key, and a press on
 //   the block's rim or on an empty place goes to the nearest key of that
 //   row (`nearest`).
+// - On a page (ADR 0139, round 53g) the keyboard also has Esc, Tab and the
+//   caret keys: a row at the top of the block, or a column at each side of
+//   it (`setNav`, `place`'s `sides`). The caret keys move the field's caret
+//   through the target and repeat while held, as backspace does; Esc and
+//   Tab are the target's `pageKey` (a marked key event, sent by the page's
+//   mount) and act on the click, since they may take the keyboard away.
+//   Enter in a multi-line field is a line break: its key is drawn as one
+//   (`data-enter="newline"`, not lit) and acts on the press.
 // - `onPress` (the layer's vibration) is told of a pointer's press on a
 //   key, never of a repeat.
 
@@ -41,6 +49,7 @@ import {
   type OkbAct,
   type OkbKey,
   type OkbLayout,
+  type OkbNav,
   type OkbPage,
   type OkbShiftState,
   type OkbTarget,
@@ -49,6 +58,7 @@ import {
   OKB_SHIFT_OFF,
   okbArrowsOnDigitRow,
   okbChar,
+  okbNavSides,
   okbRows,
   okbSymbolPages,
   shiftTap,
@@ -80,9 +90,18 @@ const ICONS: Partial<Record<OkbAct | 'lock', string[]>> = {
   older: ['M12 19V6', 'M6 11l6-6 6 6'],
   newer: ['M12 5v13', 'M6 13l6 6 6-6'],
   space: ['M6 10v4h12v-4'],
+  left: ['M19 12H6', 'M11 6l-6 6 6 6'],
+  right: ['M5 12h13', 'M13 6l6 6-6 6'],
+  up: ['M12 19V6', 'M6 11l6-6 6 6'],
+  down: ['M12 5v13', 'M6 13l6 6 6-6'],
 };
 /** The keys that act on the click (see the file header). */
-const ON_CLICK: ReadonlySet<string> = new Set(['fold', 'digits', 'sym', 'alt']);
+const ON_CLICK: ReadonlySet<string> = new Set(['fold', 'digits', 'sym', 'alt', 'esc', 'tab']);
+/** The keys that repeat while held. */
+const REPEATS: ReadonlySet<string> = new Set(['back', 'left', 'right', 'up', 'down']);
+/** The caret keys and the target's method each one calls. */
+const CARETS = { left: 'caretLeft', right: 'caretRight', up: 'caretUp', down: 'caretDown' } as const;
+const isCaret = (a: string | undefined): a is keyof typeof CARETS => a !== undefined && a in CARETS;
 
 export interface OwnKeyboardDeps {
   /** What the keys type into now, or null (no key does anything). */
@@ -99,6 +118,8 @@ export interface OwnKeyboardDeps {
    * release must not end as a tap on what then lies there).
    */
   enterOnClick?: boolean;
+  /** False: the target never has a history, and its arrows are left out (a page's keyboard). Default true. */
+  history?: boolean;
   /** The clock for shift's double tap, ms (tests). Default `performance.now()`. */
   now?(): number;
 }
@@ -122,6 +143,10 @@ export class OwnKeyboard {
   private symbolPage = 0;
   private digits = false;
   private arrowsOnDigitRow = false;
+  private nav: OkbNav = 'none';
+  /** The columns of page keys beside the block (`nav` is `sides`), made when first needed. */
+  private sideEls: [HTMLDivElement, HTMLDivElement] | null = null;
+  private sidesAt = '';
   private shift: OkbShiftState = OKB_SHIFT_OFF;
   /** What the rows on screen were drawn from, and what their marks (shift, the toggle, the arrows) were set from. */
   private drawn = '';
@@ -165,7 +190,7 @@ export class OwnKeyboard {
       const a = key.dataset.act;
       if (this.onClick(a)) return;
       this.press(key);
-      if (a === 'back') {
+      if (a !== undefined && REPEATS.has(a)) {
         d.delay = setTimeout(() => {
           d.delay = null;
           d.repeat = setInterval(() => this.press(key), OKB_REPEAT_MS);
@@ -211,7 +236,17 @@ export class OwnKeyboard {
 
   /** Whether the key of this act acts on the click (`ON_CLICK`; Enter where the owner asks). */
   private onClick(act: string | undefined): boolean {
-    return act !== undefined && (ON_CLICK.has(act) || (act === 'enter' && this.deps.enterOnClick === true));
+    if (act === undefined) return false;
+    if (ON_CLICK.has(act)) return true;
+    // (A line break changes nothing under the finger: it acts on the press, in step with the letters.)
+    return act === 'enter' && this.deps.enterOnClick === true && this.deps.target()?.newline === undefined;
+  }
+
+  /** Where a page's extra keys stand (the game layout: `none`, the default). */
+  setNav(nav: OkbNav): void {
+    if (nav === this.nav) return;
+    this.nav = nav;
+    if (!this.el.hidden) this.draw();
   }
 
   /** Shift now: off, once (the next letter is a capital) or locked. */
@@ -284,7 +319,7 @@ export class OwnKeyboard {
    * from `left`; or hides it (null). Hidden, no key is held, shift is off
    * and the page is the letters'.
    */
-  place(at: { top: number; left: number; width: number } | null): void {
+  place(at: { top: number; left: number; width: number; sides?: { left: number; right: number; width: number } | undefined } | null): void {
     if (at === null) {
       if (this.el.hidden) return;
       this.el.hidden = true;
@@ -307,6 +342,18 @@ export class OwnKeyboard {
       this.arrowsOnDigitRow = okbArrowsOnDigitRow(at.width);
     }
     this.draw();
+    const sd = this.nav === 'sides' ? at.sides : undefined;
+    const sig = sd ? `${sd.left}|${sd.right}|${sd.width}` : '';
+    if (this.sideEls && sig !== this.sidesAt) {
+      this.sidesAt = sig;
+      const [l, r] = this.sideEls;
+      l.hidden = r.hidden = !sd;
+      if (sd) {
+        l.style.left = `${sd.left}px`;
+        r.style.left = `${sd.right}px`;
+        l.style.width = r.style.width = `${sd.width}px`;
+      }
+    }
     if (this.el.hidden) this.el.hidden = false;
   }
 
@@ -318,13 +365,41 @@ export class OwnKeyboard {
 
   /** Draws the rows when what they are made from changed, and marks shift and the toggles. */
   private draw(): void {
-    const sig = `${this.layout}|${this.page}|${this.symbolPage}|${this.digits}|${this.arrowsOnDigitRow}`;
+    const sig = `${this.layout}|${this.page}|${this.symbolPage}|${this.digits}|${this.arrowsOnDigitRow}|${this.nav}`;
     if (sig !== this.drawn) {
       this.drawn = sig;
       // The keys are made anew: none of the old ones is held any more.
       this.releaseAll();
       this.specs.clear();
-      const rows = okbRows({ layout: this.layout, page: this.page, symbolPage: this.symbolPage, digits: this.digits, arrowsOnDigitRow: this.arrowsOnDigitRow });
+      const rows = okbRows({
+        layout: this.layout,
+        page: this.page,
+        symbolPage: this.symbolPage,
+        digits: this.digits,
+        arrowsOnDigitRow: this.arrowsOnDigitRow,
+        history: this.deps.history !== false,
+        nav: this.nav,
+      });
+      this.el.dataset.nav = this.nav;
+      if (this.nav === 'sides') {
+        if (!this.sideEls) {
+          const mk = (side: string): HTMLDivElement => {
+            const c = this.doc.createElement('div');
+            c.className = `wc-ph-okb-side is-${side}`;
+            c.hidden = true;
+            return c;
+          };
+          this.sideEls = [mk('left'), mk('right')];
+          this.sidesAt = '';
+          this.el.append(...this.sideEls);
+        }
+        const { left, right } = okbNavSides();
+        this.sideEls[0].replaceChildren(...left.map((k) => this.key(k)));
+        this.sideEls[1].replaceChildren(...right.map((k) => this.key(k)));
+      } else if (this.sideEls) {
+        for (const c of this.sideEls) c.remove();
+        this.sideEls = null;
+      }
       this.blockEl.replaceChildren(
         ...rows.map((row) => {
           const r = this.doc.createElement('div');
@@ -358,7 +433,8 @@ export class OwnKeyboard {
     }
     const b = doc.createElement('button');
     b.type = 'button';
-    b.className = k.act ? `wc-ph-okb-k is-${k.act}` : 'wc-ph-okb-k';
+    // (A caret key is `is-caret`: `is-down` is the pressed state.)
+    b.className = k.act ? `wc-ph-okb-k ${isCaret(k.act) ? 'is-caret' : `is-${k.act}`}` : 'wc-ph-okb-k';
     if (k.ch !== undefined) b.dataset.ch = k.ch;
     if (k.act) b.dataset.act = k.act;
     if (k.letter) b.dataset.letter = '';
@@ -374,17 +450,20 @@ export class OwnKeyboard {
     else if (k.act === 'sym') cap.textContent = this.page === 'letters' ? '!#?' : 'abc';
     else if (k.act === 'alt') cap.textContent = `${this.symbolPage + 1}/${okbSymbolPages(this.layout, this.digits)}`;
     else if (k.act === 'digits') cap.textContent = '123';
+    else if (k.act === 'esc') cap.textContent = 'esc';
+    else if (k.act === 'tab') cap.textContent = 'tab';
     b.append(cap);
     this.specs.set(b, k);
     return b;
   }
 
-  /** Shift's three states, the digit row's toggle, and arrows without a history. */
+  /** Shift's three states, the digit row's toggle, Enter's face, and the keys the target has nothing for (dimmed). */
   private mark(): void {
     const mode = this.shift.mode;
     const t = this.deps.target();
     // (Asked at every layout: nothing is written for the same state.)
-    const sig = `${this.drawn}|${mode}|${t === null}|${t?.historyUp === undefined}|${t?.historyDown === undefined}`;
+    const has = (m: keyof OkbTarget): string => (t?.[m] === undefined ? '0' : '1');
+    const sig = `${this.drawn}|${mode}|${t === null}|${has('historyUp')}${has('historyDown')}${has('newline')}${has('caretLeft')}${has('caretRight')}${has('caretUp')}${has('caretDown')}${has('pageKey')}`;
     if (sig === this.marked) return;
     this.marked = sig;
     this.el.dataset.shift = mode;
@@ -403,6 +482,15 @@ export class OwnKeyboard {
         const none = t !== null && (k.act === 'older' ? t.historyUp : t.historyDown) === undefined;
         if (none) b.setAttribute('aria-disabled', 'true');
         else b.removeAttribute('aria-disabled');
+      } else if (isCaret(k.act) || k.act === 'esc' || k.act === 'tab') {
+        const none = t !== null && t[isCaret(k.act) ? CARETS[k.act] : 'pageKey'] === undefined;
+        if (none) b.setAttribute('aria-disabled', 'true');
+        else b.removeAttribute('aria-disabled');
+      } else if (k.act === 'enter') {
+        // A multi-line field: the key is a line break, and looks like one (not lit).
+        const nl = t?.newline !== undefined;
+        b.dataset.enter = nl ? 'newline' : 'submit';
+        b.setAttribute('aria-label', nl ? 'New line' : 'Enter');
       }
     }
   }
@@ -448,8 +536,23 @@ export class OwnKeyboard {
       case 'newer':
         t.historyDown?.();
         return;
+      case 'left':
+      case 'right':
+      case 'up':
+      case 'down':
+        // (Shift stays, as for backspace.)
+        t[CARETS[k.act]]?.();
+        return;
+      case 'esc':
+        t.pageKey?.('Escape', false);
+        return;
+      case 'tab':
+        // Shift and Tab: back the other way.
+        t.pageKey?.('Tab', this.shift.mode !== 'off');
+        break;
       case 'enter':
-        t.submit();
+        if (t.newline) t.newline();
+        else t.submit();
         break;
       case 'space':
         t.insert(' ');

@@ -29,6 +29,13 @@
 //   `OKB_SHIFT_DOUBLE_MS` locks until the next tap. A single shift is used up
 //   by the next character typed, of any kind (a letter, a digit, a symbol,
 //   a space) and by Enter; never by backspace. A lock survives all of them.
+// - On a page (ADR 0139 §5, round 53g) the keyboard also carries Esc, Tab
+//   and the caret keys. Portrait: one more row at the top of the block
+//   (`nav: 'row'`): [esc][tab][←][→][↑][↓]. Landscape, where the page has
+//   no height to give: a column at each side of the block (`okbNavSides`:
+//   esc, tab, ← left of it; ↑, ↓, → right of it), so the keyboard is no
+//   higher. A page has no history: its arrows are left out
+//   (`history: false`). The game layout has none of these keys.
 // - Sizes come from the screen: a key's width is the block's width shared
 //   by the row's keys, with a cap per key (a tablet or a landscape screen
 //   gets no huge keys); the rows' height is a share of the screen's height
@@ -44,8 +51,30 @@
 
 export type OkbLayout = 'sv' | 'en';
 export type OkbPage = 'letters' | 'symbols';
-/** A special key. `alt`: the next page of symbols, in shift's place. `older` / `newer`: the history's arrows. */
-export type OkbAct = 'shift' | 'back' | 'fold' | 'sym' | 'alt' | 'digits' | 'space' | 'enter' | 'older' | 'newer';
+/**
+ * A special key. `alt`: the next page of symbols, in shift's place. `older`
+ * / `newer`: the history's arrows. `esc`, `tab` and the four caret keys
+ * (`left`, `right`, `up`, `down`) stand on a page's keyboard only.
+ */
+export type OkbAct =
+  | 'shift'
+  | 'back'
+  | 'fold'
+  | 'sym'
+  | 'alt'
+  | 'digits'
+  | 'space'
+  | 'enter'
+  | 'older'
+  | 'newer'
+  | 'esc'
+  | 'tab'
+  | 'left'
+  | 'right'
+  | 'up'
+  | 'down';
+/** Where a page's extra keys stand: nowhere (the game), a row at the top of the block, or a column at each side of it. */
+export type OkbNav = 'none' | 'row' | 'sides';
 
 export interface OkbKey {
   /** A character key's character (lower case for a letter). */
@@ -60,7 +89,7 @@ export interface OkbKey {
 }
 
 export interface OkbRow {
-  kind: 'digits' | 'chars' | 'bottom';
+  kind: 'nav' | 'digits' | 'chars' | 'bottom';
   keys: OkbKey[];
   /**
    * What the row's width is shared by: the keys' weights, or more when the
@@ -80,7 +109,7 @@ export const OKB_DIGITS = '1234567890';
  * first seven stand on the third row, then the second row, then the first.
  * `.` and `;` are on the bottom row of every page.
  */
-export const OKB_SYMBOLS = '\'",-!?:#@$%&*()/_\\{}[]+=<>~^|';
+export const OKB_SYMBOLS = '\'",-!?:#@$%&*()/_\\{}[]+=<>~^|`';
 /** Character keys of the third row, between shift and backspace. */
 export const OKB_THIRD_ROW_KEYS = 7;
 
@@ -147,6 +176,7 @@ const NAMES: Readonly<Record<string, string>> = {
   '~': 'Tilde',
   '^': 'Caret',
   '|': 'Bar',
+  '`': 'Backtick',
 };
 
 const chars = (s: string, letter = false): OkbKey[] => [...s].map((ch) => ({ ch, label: NAMES[ch] ?? ch, w: 1, ...(letter ? { letter: true } : {}) }));
@@ -189,9 +219,21 @@ export function okbCols(layout: OkbLayout): number {
 
 // -------------------------------------------------------------------- rows
 
-/** How many pages the symbols take: with the digit row folded away the first row is the digits'. */
+/**
+ * How many pages the symbols take: with the digit row folded away the first
+ * row is the digits'. A list that is only a key or two longer than one page
+ * is still one page: the last ones stand in the place the page key would
+ * have had (`symbolSpare`; the backtick in the Swedish layout).
+ */
 export function okbSymbolPages(layout: OkbLayout, digits: boolean): number {
-  return Math.ceil(OKB_SYMBOLS.length / symbolsPerPage(layout, digits));
+  const per = symbolsPerPage(layout, digits);
+  const n = [...OKB_SYMBOLS].length;
+  return n - symbolSpare(layout) <= per ? 1 : Math.ceil(n / per);
+}
+
+/** Whole keys that fit in shift's place on a symbols page that needs no page key. */
+function symbolSpare(layout: OkbLayout): number {
+  return Math.floor((okbCols(layout) - OKB_THIRD_ROW_KEYS) / 2);
 }
 
 function symbolsPerPage(layout: OkbLayout, digits: boolean): number {
@@ -207,6 +249,36 @@ export interface OkbRowsInput {
   digits: boolean;
   /** The arrows stand on the digit row (`okbArrowsOnDigitRow`); else on the bottom row. */
   arrowsOnDigitRow: boolean;
+  /** The history's arrows are there at all (default true; false on a page, which has no history). */
+  history?: boolean;
+  /** `'row'`: the page keys are the block's first row. Default none (`'sides'` is drawn beside the block: `okbNavSides`). */
+  nav?: OkbNav;
+}
+
+const NAV = {
+  esc: (): OkbKey => act('esc', 'Escape', 1),
+  tab: (): OkbKey => act('tab', 'Tab', 1),
+  left: (): OkbKey => act('left', 'Caret left', 1),
+  right: (): OkbKey => act('right', 'Caret right', 1),
+  up: (): OkbKey => act('up', 'Caret up', 1),
+  down: (): OkbKey => act('down', 'Caret down', 1),
+};
+
+/**
+ * A page's extra keys as one row (portrait): the two that always act first,
+ * then the carets; up and down, which only a multi-line field has, last.
+ */
+export function okbNavRow(): OkbRow {
+  const keys = [NAV.esc(), NAV.tab(), NAV.left(), NAV.right(), NAV.up(), NAV.down()];
+  return { kind: 'nav', keys, units: weight(keys) };
+}
+
+/**
+ * A page's extra keys as two columns beside the block (landscape), top to
+ * bottom: caret left at the left column's foot, caret right at the right's.
+ */
+export function okbNavSides(): { left: OkbKey[]; right: OkbKey[] } {
+  return { left: [NAV.esc(), NAV.tab(), NAV.left()], right: [NAV.up(), NAV.down(), NAV.right()] };
 }
 
 const UP = (): OkbKey => act('older', 'History up', 1);
@@ -223,12 +295,17 @@ function digitRow(arrows: boolean): OkbRow {
  * page.
  */
 export function okbRows(input: OkbRowsInput): OkbRow[] {
-  const { layout, digits, arrowsOnDigitRow } = input;
+  const { layout, digits } = input;
+  const history = input.history !== false;
+  // (Without the arrows the bottom row is the wide one, whatever the block's width.)
+  const arrowsOnDigitRow = history ? input.arrowsOnDigitRow : true;
+  const digitArrows = history && arrowsOnDigitRow;
   const cols = okbCols(layout);
   // Shift and backspace share what the third row's seven keys leave.
   const side = (cols - OKB_THIRD_ROW_KEYS) / 2;
   const rows: OkbRow[] = [];
-  if (digits) rows.push(digitRow(arrowsOnDigitRow));
+  if (input.nav === 'row') rows.push(okbNavRow());
+  if (digits) rows.push(digitRow(digitArrows));
   const back = act('back', 'Backspace', side);
   if (input.page === 'letters') {
     const [a, b, c] = OKB_LETTERS[layout];
@@ -239,18 +316,24 @@ export function okbRows(input: OkbRowsInput): OkbRow[] {
     const per = symbolsPerPage(layout, digits);
     const pages = okbSymbolPages(layout, digits);
     const at = Math.max(0, Math.min(pages - 1, Math.floor(input.symbolPage ?? 0)));
-    const list = [...OKB_SYMBOLS].slice(at * per, (at + 1) * per).join('');
-    const third = list.slice(0, OKB_THIRD_ROW_KEYS);
-    const second = list.slice(OKB_THIRD_ROW_KEYS, OKB_THIRD_ROW_KEYS + cols);
-    const first = list.slice(OKB_THIRD_ROW_KEYS + cols);
+    const all = [...OKB_SYMBOLS];
+    const list = all.slice(at * per, (at + 1) * per);
+    // One page that is a key or two short: the last symbols stand in shift's place.
+    const extra = pages === 1 ? all.slice(per) : [];
+    const third = list.slice(0, OKB_THIRD_ROW_KEYS).join('');
+    const second = list.slice(OKB_THIRD_ROW_KEYS, OKB_THIRD_ROW_KEYS + cols).join('');
+    const first = list.slice(OKB_THIRD_ROW_KEYS + cols).join('');
     // The digit row folded away: the digits are the page's first row, as the digit row would be.
-    rows.push(digits ? { kind: 'chars', keys: chars(first), units: cols } : digitRow(arrowsOnDigitRow));
+    rows.push(digits ? { kind: 'chars', keys: chars(first), units: cols } : digitRow(digitArrows));
     rows.push({ kind: 'chars', keys: chars(second), units: cols });
-    // In shift's place: the next page of symbols, or nothing where one page holds them all.
-    const alt = pages > 1 ? act('alt', `Symbols ${at + 1} of ${pages}`, side) : { label: '', w: side };
+    // In shift's place: the next page of symbols; or, where one page holds them all, nothing (or the last few).
+    const alt: OkbKey[] =
+      pages > 1
+        ? [act('alt', `Symbols ${at + 1} of ${pages}`, side)]
+        : [...chars(extra.join('')), ...(side - extra.length > 0 ? [{ label: '', w: side - extra.length }] : [])];
     // A short last page keeps its keys' places: the row is filled out.
     const fill = OKB_THIRD_ROW_KEYS - [...third].length;
-    rows.push({ kind: 'chars', keys: [alt, ...chars(third), ...(fill > 0 ? [{ label: '', w: fill }] : []), back], units: cols });
+    rows.push({ kind: 'chars', keys: [...alt, ...chars(third), ...(fill > 0 ? [{ label: '', w: fill }] : []), back], units: cols });
   }
   const arrows = arrowsOnDigitRow ? [] : [UP(), DOWN()];
   const bottom: OkbKey[] = arrowsOnDigitRow
@@ -311,9 +394,9 @@ export function shiftUsed(s: OkbShiftState): OkbShiftState {
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 
-/** Rows of keys: three of characters and the bottom row, and the digit row when it is shown. */
-export function okbRowCount(digits: boolean): number {
-  return digits ? 5 : 4;
+/** Rows of keys: three of characters and the bottom row, the digit row when it is shown, and a page's row of extra keys. */
+export function okbRowCount(digits: boolean, navRow = false): number {
+  return 4 + (digits ? 1 : 0) + (navRow ? 1 : 0);
 }
 
 /**
@@ -330,8 +413,8 @@ export function okbRowPx(landscape: boolean, height: number): number {
 }
 
 /** The height the block needs from the cockpit's bottom edge, px. */
-export function okbHeightPx(landscape: boolean, height: number, digits: boolean): number {
-  return okbRowCount(digits) * okbRowPx(landscape, height) + 2 * OKB_PAD_Y;
+export function okbHeightPx(landscape: boolean, height: number, digits: boolean, navRow = false): number {
+  return okbRowCount(digits, navRow) * okbRowPx(landscape, height) + 2 * OKB_PAD_Y;
 }
 
 /** The block's width for a screen (or a band's room) `width` px wide: its letter keys at most `cap` px each. */
@@ -446,6 +529,20 @@ export interface OkbTarget {
   deleteBack(): void;
   /** Enter in the field. */
   submit(): void;
+  /** A multi-line field: Enter is a line break (and its key says so). Absent: Enter is `submit`. */
+  newline?(): void;
+  /** The caret one character left or right (a selection collapses to that end). Absent: the keys are dimmed. */
+  caretLeft?(): void;
+  caretRight?(): void;
+  /** The caret one line up or down: a multi-line field only. */
+  caretUp?(): void;
+  caretDown?(): void;
+  /**
+   * Esc or Tab (Shift+Tab with `shift`) for the page's own handlers: a
+   * marked key event (ADR 0139 §4). A page's fields only; never in the game
+   * layout (ADR 0138 §3).
+   */
+  pageKey?(key: 'Escape' | 'Tab', shift: boolean): void;
   /** History: one entry older, one newer. Absent: the field has none (the arrows are dimmed). */
   historyUp?(): void;
   historyDown?(): void;
