@@ -423,9 +423,11 @@ blurs the field, and opens again only at a tap). A field with
   0.7–1.0 ms, the frame 2.2–2.4 ms against 1.1–2.2 ms; no cockpit layout,
   only the key's class and the field change). End to end the emulation
   has a touch on our key painted 11 ms (idle) to 19 ms (while text
-  arrives) after text committed by `Input.insertText`, all of it in how
-  Chromium schedules a touch (the same key pressed with a mouse pointer
-  is level with the device path); the device keyboard's own handling of
+  arrives) after text committed by `Input.insertText`. The same key
+  pressed with a mouse pointer is level with the device path and the
+  handler is synchronous, which places the gap in how Chromium brings a
+  touch to the page and frames it (3 to 5 ms of it under the burst are
+  unexplained); the device keyboard's own handling of
   its touch is not in that number and cannot be measured here. So "not
   slower" holds for what the app does and is not shown end to end: a
   matter for a device.
