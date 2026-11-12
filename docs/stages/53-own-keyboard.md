@@ -497,6 +497,36 @@ moves the caret), script pane fields, key sound.
   desktop or tablet is gated or intended. Not checked: devices, real
   fullscreen, forced colours.
 
+- **53i review fixes** (merged): one window size per turn (the height
+  is applied at once when the width is new); one when the keyboard
+  closes for lack of room; the test race; the device state after a
+  failed layer mount. Unit 4047, phone e2e without failures, three
+  projects 1286 of 1291 (all pass alone).
+
+- **53j** (branch `stage-53j`, merged; ADR 0137 and 0138 addenda; the
+  owner's four items after 53i):
+  1. The hot key box takes panes out of the layout while it needs the
+     room (Comm first, then the strip's pane), in the same layout that
+     opens the keyboard, and they return when the box closes or the
+     keyboard folds. A held K key does the same, so the box now opens
+     with panes open (refused only under 180 px of box). The box
+     shrinks to end under the fight card instead of closing for it.
+  2. The kept line: on blur the whole-line selection is collapsed and
+     remembered, the line shown dimmed; Enter resends, a key or paste
+     replaces, Backspace clears; a caret key, a second tap or a long
+     press makes it ordinary text. Desktop unchanged.
+  3. 16 px text in the command field, Comm's reply line and search on
+     a phone, whatever the font size setting.
+  4. **No hood rows on a phone.** The names stand on plates fused to
+     the drag frames (9 px Cinzel capitals): in portrait in the band's
+     middle, hanging 3 px below it; in landscape written vertically
+     along the column's band, one per pane's stretch. An alternative
+     for landscape (horizontal flags) is kept as a screenshot only.
+  Unit 4064, phone e2e 409 of 414 in the full run (five in
+  `phone-game-menu.spec.ts`, all pass alone and as a file), desktop 889
+  of 891 (pass alone). Android's selection pop-up cannot be seen in
+  emulation. Screenshots `docs/stages/img/53-j-*`.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
@@ -681,6 +711,23 @@ The ordinary address; there is no `?kbd=0` any more.
    anything broken there?
 
 Wanted: release or not.
+
+## Test guide 53j (for the owner, S21)
+
+1. Portrait with the strip's pane and Comm open: hold a K key (the box
+   opens, the panes step aside), tap Custom, type, Save: the panes
+   come back as they were. Again, but fold the keyboard, then Cancel.
+2. Send a command, fold the keyboard, tap the field: no pop-up, the
+   text is there, dimmed. Enter sends it again; a letter replaces it;
+   a second tap edits it; a long press still selects and pastes.
+3. The smallest and a large font size: the command field, Comm's reply
+   line and search read the same.
+4. The name plates on the drag frames, portrait and landscape, dark and
+   Paper, with the keyboard up: legible, part of the frame, does a
+   drag from the plate work? Compare landscape with
+   `docs/stages/img/53-j-plates-land-alternative-not-built.png`.
+
+Wanted: the look of the plates above all; then release or not.
 
 ## Owner feedback
 

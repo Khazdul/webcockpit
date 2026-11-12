@@ -4029,6 +4029,11 @@ Newest first.
   its hood in portrait. **Next:** the 53i review, the owner's test
   (test guide 53i) and his release decision; then merge to main and
   release. Open: three window sizes on turning back to portrait.
+- **53i review fixes and round 53j merged** (owner's items after 53i:
+  the hot key box takes panes out when it needs the room; the kept
+  line without a native selection; 16 px field text; pane names on
+  plates on the drag frames, no hood rows on a phone). **Next:** the
+  53j review, the owner's verdict on the plates, the release decision.
 - **Commits:** 1336f54…(this commit).
 
 ### 2026-09-27 — Intent and spec
