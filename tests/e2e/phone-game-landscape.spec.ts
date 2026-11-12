@@ -671,7 +671,10 @@ for (const viewport of [
       expect(g.strip.h).toBeGreaterThanOrEqual(4);
       expect(g.comm.h).toBeGreaterThanOrEqual(6);
       expect(g.strip.h + g.comm.h).toBe(g.rows);
-      // Comm's rail and its last entry are on screen under its hood.
+      // Comm's rail and its last entry are on screen under its hood. (The rail is drawn a frame
+      // after Comm opens: waited for before it is measured.)
+      await expect.poll(() => page.locator('.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-ent').count()).toBeGreaterThanOrEqual(2);
+      await frames(page);
       const ents = await boxes(page, { ent: '.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-ent' });
       expect(ents.length).toBeGreaterThanOrEqual(2);
       const hood = (await page.locator('.wc-ph-comm-hood').boundingBox())!;
@@ -737,6 +740,48 @@ test.describe('turning the phone', () => {
   const PORTRAIT = { width: 390, height: 844 };
   const LANDSCAPE = { width: 844, height: 390 };
   test.use({ viewport: PORTRAIT });
+
+  // Round 53i review (F1): the visible area's height used to be published 150 ms after a turn while
+  // the width followed at once, so the page was first laid out at the new width and the old height
+  // and MUME was told window sizes that never were. A new width is now published at once.
+  for (const [name, setup] of [
+    ['nothing open', async (): Promise<void> => {}],
+    ['the strip and Comm open', async (page: Page): Promise<void> => {
+      await sat(page, 'panes').tap();
+      await sat(page, 'comm').tap();
+      await expect(comm(page)).toBeVisible();
+    }],
+    ['our keyboard up', async (page: Page): Promise<void> => {
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      await expect(page.locator('html')).toHaveClass(/\bwc-okb\b/);
+    }],
+  ] as const) {
+    test(`a turn is one window size for MUME, both ways (${name})`, async ({ page }) => {
+      const errors = watchErrors(page);
+      await enterMock(page);
+      await setup(page);
+      await page.waitForTimeout(400);
+      await page.evaluate(() => {
+        const w = window as unknown as { __naws: string[] };
+        w.__naws = [];
+        const s = window.__wc!.app.session;
+        const set = s.setWindowSize.bind(s);
+        s.setWindowSize = (c: number, r: number) => {
+          w.__naws.push(`${c}x${r}`);
+          set(c, r);
+        };
+      });
+      const sizes = () => page.evaluate(() => (window as unknown as { __naws: string[] }).__naws.splice(0));
+      for (const [size, land] of [[LANDSCAPE, true], [PORTRAIT, false], [LANDSCAPE, true], [PORTRAIT, false]] as const) {
+        await page.setViewportSize(size);
+        await expect.poll(async () => (await layout(page)).landscape).toBe(land);
+        // Well past the viewport's settling and its fullscreen recheck.
+        await page.waitForTimeout(900);
+        expect(await sizes(), `turned to ${land ? 'landscape' : 'portrait'}`).toHaveLength(1);
+      }
+      expect(errors).toEqual([]);
+    });
+  }
 
   test('what is open stays open between portrait and landscape; the sizes are each orientation\'s own; the keys are 36 px and 44 px', async ({ page }) => {
     const errors = watchErrors(page);

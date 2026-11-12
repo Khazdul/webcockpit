@@ -568,6 +568,10 @@ export class Cockpit {
   private pgLandscape = false;
   /** Phone game layout: what a keyboard of our own takes from the bottom edge, px, for a shape (`setPhoneBottom`); null: none. */
   private pgBottom: ((landscape: boolean, height: number) => number) | null = null;
+  /** Phone game layout: whether the px the reserve comes to are enough for the keyboard (`setPhoneBottom`); null: any. */
+  private pgBottomFits: ((lift: number) => boolean) | null = null;
+  /** Phone game layout: the last layout left the wanted reserve out (no rows, or `pgBottomFits` said no). */
+  private pgBottomRefused = false;
   /** Phone game layout: a band is being dragged (`holdPhoneSize`): the game's size is not reported until it ends. */
   private pgHold = false;
   /** Phone game layout: counts the calls of `holdPhoneSize`, so a late end knows it was overtaken. */
@@ -1202,11 +1206,21 @@ export class Cockpit {
    * bottom right stand on the keyboard's top edge, and the limit of
    * `setPhoneLimit` and the lens's `clearBottom` are counted from there; in
    * landscape they stand beside the keyboard and neither applies.
+   *
+   * `fits(lift)` says whether the px the reserve comes to on this screen
+   * are enough; where not, the layout leaves the reserve out at once
+   * (`phoneBottomRefused`).
    */
-  setPhoneBottom(px: ((landscape: boolean, height: number) => number) | null): void {
+  setPhoneBottom(px: ((landscape: boolean, height: number) => number) | null, fits: ((lift: number) => boolean) | null = null): void {
     if (!this.phoneGame || px === this.pgBottom) return;
     this.pgBottom = px;
+    this.pgBottomFits = px ? fits : null;
     this.scheduleRelayout();
+  }
+
+  /** Phone game layout: the last layout could not give the keyboard its rows (`setPhoneBottom`): the phone layer closes it. */
+  get phoneBottomRefused(): boolean {
+    return this.pgBottomRefused;
   }
 
   /**
@@ -1403,7 +1417,7 @@ export class Cockpit {
     // `PHONE_COMM_HOOD_KEEP_PX` under the hood and above its band (a line of chat and the whole
     // reply line): on a short screen, typing above the keyboard, the rows are the conversation's,
     // and the hood gives way.
-    const headRows = phoneCommHeadRows(cell.h, g.landscape && g.strip.h > 0);
+    const headRows = phoneCommHeadRows(cell.h, g.landscape && g.strip.h > 0, g.landscape ? 0 : PHONE_COMM_HOOD_SLACK_PX);
     const hooded = g.landscape || (g.comm.h - headRows - PHONE_COMM_BAND_ROWS) * cell.h >= PHONE_COMM_HOOD_KEEP_PX;
     this.pgCommHead = g.comm.h > 0 && !g.tooSmall && hooded ? headRows : 0;
     for (const [id, shell] of this.shells) {
@@ -1439,7 +1453,15 @@ export class Cockpit {
     // top edge (the phone layer lifts them), so the limit and the lens's clearance are counted from
     // there. Landscape: they stand beside the keyboard in its band, and the lens only stays off the
     // command field.
-    const { bottom, lift } = ownKeyboardReserve(H, cell.h, own && this.pgBottom ? this.pgBottom(land, H) : 0, inputRows);
+    const want = own && this.pgBottom ? this.pgBottom(land, H) : 0;
+    let { bottom, lift } = ownKeyboardReserve(H, cell.h, want, inputRows);
+    if (own) {
+      // A screen too low for the keyboard (`fits`: its rows would be under their least height): the
+      // reserve is left out in this same layout, so the keyboard's closing is one window size, not
+      // one with the rows it cannot use and one without.
+      this.pgBottomRefused = want > 0 && (bottom === 0 || (this.pgBottomFits !== null && !this.pgBottomFits(lift)));
+      if (this.pgBottomRefused) bottom = lift = 0;
+    }
     const limit = typeof this.pgLimit === 'function' ? this.pgLimit(lift, H) : this.pgLimit;
     return allocatePhoneGame({
       cols: Math.floor(W / cell.w + 1e-6),
@@ -2489,10 +2511,15 @@ export const PHONE_SIDE_DIVIDER_PX = 6;
  */
 export const PHONE_COMM_HOOD_KEEP_PX = 104;
 /** The rows of Comm the phone layer's hood takes: the hood, and in landscape the divider above it when the strip is open too. */
-export function phoneCommHeadRows(cellH: number, divided: boolean): number {
-  const px = PHONE_STRIP_CHROME_PX + (divided ? PHONE_SIDE_DIVIDER_PX : 0);
+export function phoneCommHeadRows(cellH: number, divided: boolean, slack = 0): number {
+  const px = PHONE_STRIP_CHROME_PX + (divided ? PHONE_SIDE_DIVIDER_PX : 0) - slack;
   return cellH > 0 ? Math.max(1, Math.ceil(px / cellH - 1e-6)) : 1;
 }
+/**
+ * Portrait: the px the 16 px hood may reach into Comm's content (its own top air) rather than take
+ * a second row: at a new phone's text size (14, a 15.24 px cell) the hood is one row, not two.
+ */
+export const PHONE_COMM_HOOD_SLACK_PX = 1;
 /** Phone game layout, landscape: the least width in px of the left column's resize band (a row's height in portrait). */
 export const PHONE_SIDE_BAND_PX = 14;
 /** The columns the left column's band takes at a cell `cellW` px wide. */

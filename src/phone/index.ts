@@ -834,7 +834,11 @@ export class PhoneLayer {
   /** Asks the cockpit for the keyboard's rows as it stands now (a new function is a new height: one layout). */
   private reserveOwnKeyboard(): void {
     const digits = this.deps.settings.get().phone.keyboard.digits;
-    this.deps.cockpit.setPhoneBottom((landscape, height) => okbHeightPx(landscape, height, digits));
+    this.deps.cockpit.setPhoneBottom(
+      (landscape, height) => okbHeightPx(landscape, height, digits),
+      // (The same sum as `ownKeyboardFits`: the cockpit leaves the rows out in the layout that finds them too low.)
+      (lift) => (lift - 2 * OKB_PAD_Y) / okbRowCount(digits) >= OKB_ROW_LEAST,
+    );
   }
 
   /** The digit row was folded up or down (its key; the stored setting): the keys, and one new height for the cockpit. */
@@ -1410,7 +1414,7 @@ export class PhoneLayer {
     const land = g.landscape;
     // Our own keyboard stands on the rows the allocator kept for it (not laid out yet right after
     // it opened: `bottom` is 0 until the cockpit's next layout).
-    if (this.okb && this.okbOpen && (g.bottom > 0 || g.tooSmall)) this.placeOwnKeyboard(g, h);
+    if (this.okb && this.okbOpen && (g.bottom > 0 || g.tooSmall || this.deps.cockpit.phoneBottomRefused)) this.placeOwnKeyboard(g, h);
     // The left column's width: the hot key box stays right of it (phone.css). On the layer, not
     // the cockpit: a drag changes it at every column, and nothing but the layer's parts reads it.
     const sideW = land && g.side.w > 0 ? `${g.side.w * w}px` : '';
