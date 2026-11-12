@@ -53,8 +53,15 @@ export interface HotkeysDeps {
   toggle(): void;
   /** The current hit points for the box's "Sends now" line; null: unknown. */
   hp(): number | null;
-  /** The box opened or closed (the layer makes room: the lens). */
-  onBox(open: boolean): void;
+  /**
+   * The box opened or closed (the layer makes room: the lens). `by`: the
+   * press outside it that closed it, when one did.
+   */
+  onBox(open: boolean, by?: Event | null): void;
+  /** A pointer went down on a hot key (the layer's vibration). */
+  onPress?(): void;
+  /** A press outside the box that still leaves it open: on what belongs to it (our own keyboard while it types in the box). */
+  keepsBox?(target: Node): boolean;
 }
 
 export class HotkeysView {
@@ -222,6 +229,7 @@ export class HotkeysView {
     if (i === null || (e.pointerType === 'mouse' && e.button !== 0)) return;
     // No mouse press follows: the focus (and the keyboard) stays as it is.
     e.preventDefault();
+    this.deps.onPress?.();
     this.dropPress();
     // The press that closed the box did its work already; with the box open (another pointer) a key waits.
     if (e === this.closedBy || this.boxIndex !== null) return;
@@ -312,7 +320,7 @@ export class HotkeysView {
   }
 
   /** Closes the box without saving (Cancel; the layer, when another surface takes its place). */
-  closeBox(): void {
+  closeBox(by: Event | null = null): void {
     if (this.boxIndex === null) return;
     this.boxIndex = null;
     this.doc.removeEventListener('pointerdown', this.onOutside, true);
@@ -322,7 +330,7 @@ export class HotkeysView {
     if (active instanceof HTMLElement && this.boxEl.contains(active)) active.blur();
     this.boxEl.hidden = true;
     this.markHeld();
-    this.deps.onBox(false);
+    this.deps.onBox(false, by);
   }
 
   /** Where the box stands: px from the layer's bottom edge, and the tallest it may be. */
@@ -333,9 +341,9 @@ export class HotkeysView {
 
   private readonly onOutside = (e: Event): void => {
     const t = e.target as Node | null;
-    if (t && (this.boxEl.contains(t) || this.kEl.contains(t))) return;
+    if (t && (this.boxEl.contains(t) || this.kEl.contains(t) || this.deps.keepsBox?.(t))) return;
     this.closedBy = e;
-    this.closeBox();
+    this.closeBox(e);
   };
 
   /** Esc with the box open, wherever the focus is: Cancel. */
@@ -345,6 +353,16 @@ export class HotkeysView {
     e.stopPropagation();
     this.closeBox();
   };
+
+  /** The box's Save (its key; Enter in a field, also from a keyboard that makes no key events). */
+  saveBox(): void {
+    this.save();
+  }
+
+  /** Whether `el` is one of the box's two text fields. */
+  ownsField(el: Element): boolean {
+    return this.box !== null && (el === this.box.label || el === this.box.command);
+  }
 
   private save(): void {
     const index = this.boxIndex;

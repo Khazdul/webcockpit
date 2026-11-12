@@ -726,6 +726,14 @@ export class CommPane extends PaneShell {
     this.markDirty();
   }
 
+  /**
+   * Enter in the reply line, for a keyboard that makes no key events (the
+   * phone's own, ADR 0138 §3): what the Enter key does there.
+   */
+  submitReply(): void {
+    this.sendReply();
+  }
+
   /** Sends the reply line's text (Enter). */
   private sendReply(): void {
     // One line: a line break that got into the field (a paste) is a space.

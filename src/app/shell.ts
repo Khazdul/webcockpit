@@ -873,7 +873,7 @@ export class Shell {
               onMenuClose: () => {
                 if (this.inCockpit) app.input.focus();
               },
-              // Stage 53 (ADR 0138): a keyboard of our own for the command field, only with `?kbd=1`
+              // Stage 53 (ADR 0138): a keyboard of our own for the game layout's fields, only with `?kbd=1`
               // (the layout of the browser's language), `?kbd=sv` or `?kbd=en`. The phone layer reads
               // the value; here it only decides whether the command line is handed over.
               ...(['1', 'sv', 'en'].includes(new URLSearchParams(root.ownerDocument.defaultView?.location.search ?? '').get('kbd') ?? '')
@@ -883,9 +883,12 @@ export class Shell {
                       insert: (text: string) => app.input.insertText(text),
                       deleteBack: () => app.input.deleteBackward(),
                       submit: () => app.input.submitLine(),
-                      // (Nothing in password mode: the input pane's own rule.)
+                      // (Nothing in password mode: the input pane's own rule, and the arrows are dimmed.)
                       historyUp: () => app.input.historyStep('up'),
                       historyDown: () => app.input.historyStep('down'),
+                      hasHistory: () => !app.input.isPasswordMode(),
+                      // (The input pane heard the same event first: it was made before this.)
+                      onChange: (fn: () => void) => app.bus.on('telnet.echo', () => fn()),
                       focus: () => app.input.input.focus({ preventScroll: true }),
                       blur: () => app.input.input.blur(),
                     },

@@ -1,6 +1,5 @@
 // A keyboard of our own for the phone's game layout (ADR 0138): the view.
-// Behind `?kbd=` until the stage is released, and for the command field
-// only until round 53d. What the keys are, how shift works and every size
+// Behind `?kbd=` until the stage is released. What the keys are, how shift works and every size
 // are the model's (keyboard-model.ts); this file draws them and takes the
 // presses.
 //
@@ -12,7 +11,8 @@
 //   towards the middle, with the hot keys and the compass beside it in the
 //   band (the layer places those; `okbBand`).
 // - A key never pretends to be a physical key (ADR 0138 §3): it calls the
-//   target's editing interface (`OkbTarget`; the command line now). No
+//   target's editing interface (`OkbTarget`: the command line, or another
+//   field of the game layout, keyboard-fields.ts). No
 //   keyboard event is made up: macros match on a physical key's code, and
 //   the input pane follows every Enter keydown.
 // - A key acts on the press (pointerdown), as the compass's keys do, and
@@ -29,7 +29,13 @@
 //   lifts, is cancelled or leaves the key, and when the page is hidden or
 //   the window loses the focus. Nothing runs per frame.
 // - A key's element is its whole cell (the touch target has no gaps); the
-//   cap drawn in it stands 2 px in from the cell's edges (phone.css).
+//   cap drawn in it stands 2 px in from the cell's edges (phone.css). The
+//   block has no dead zone: a row that stands in from the edges (English
+//   `a` to `l`) gives that room to its first and last key, and a press on
+//   the block's rim or on an empty place goes to the nearest key of that
+//   row (`nearest`).
+// - `onPress` (the layer's vibration) is told of a pointer's press on a
+//   key, never of a repeat.
 
 import {
   type OkbAct,
@@ -55,6 +61,10 @@ export type { OkbTarget } from './keyboard-model';
 export interface PhoneCommandLine extends OkbTarget {
   /** Marks the line's fields so the device's keyboard stays down (`inputmode="none"`), or unmarks them. */
   setOwnKeyboard(on: boolean): void;
+  /** The line has a history now (not at a password prompt: the arrows are then dimmed). */
+  hasHistory(): boolean;
+  /** Calls `fn` when that changes (the password prompt came or went); returns the unsubscriber. */
+  onChange(fn: () => void): () => void;
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -81,6 +91,8 @@ export interface OwnKeyboardDeps {
   fold(): void;
   /** The digit row's toggle: the layer stores it and tells the keyboard and the cockpit (`setDigits`). */
   toggleDigits(): void;
+  /** A pointer went down on a key (the layer: a short vibration, when that is on). */
+  onPress?(): void;
   /** The clock for shift's double tap, ms (tests). Default `performance.now()`. */
   now?(): number;
 }
@@ -137,8 +149,9 @@ export class OwnKeyboard {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       // No mouse press follows, on a key or between two: the focus stays in the field.
       e.preventDefault();
-      const key = keyOf(e);
+      const key = keyOf(e) ?? this.nearest(e);
       if (!key) return;
+      this.deps.onPress?.();
       this.release(e.pointerId);
       const d: Down = { key, delay: null, repeat: null };
       this.downs.set(e.pointerId, d);
@@ -166,7 +179,8 @@ export class OwnKeyboard {
     this.el.addEventListener('mousedown', (e) => e.preventDefault());
     this.el.addEventListener('click', (e) => {
       e.stopPropagation();
-      const key = keyOf(e);
+      // (A pointer's click on the rim or an empty place: the key its press went to.)
+      const key = keyOf(e) ?? (e.detail === 0 ? null : this.nearest(e));
       if (!key) return;
       // The keys of `ON_CLICK` act here; the others acted on the press, and `detail` 0 is an
       // activation without a pointer.
@@ -202,7 +216,44 @@ export class OwnKeyboard {
     if (!this.el.hidden) this.draw();
   }
 
-  /** Another layout (round 53d's setting). */
+  /** The target changed (another field; a password prompt): the arrows are dimmed for one without a history. */
+  sync(): void {
+    if (!this.el.hidden) this.mark();
+  }
+
+  /**
+   * The key a press that hit none goes to: inside the block (its rim, an
+   * empty place of the symbols' page), the nearest key of the row at that
+   * height. Outside the block (the band beside it in landscape): none.
+   */
+  private nearest(e: MouseEvent): HTMLElement | null {
+    const t = e.target as Node | null;
+    if (!t || !this.blockEl.contains(t)) return null;
+    let row: Element | null = null;
+    let rowD = Infinity;
+    for (const r of this.blockEl.children) {
+      const b = r.getBoundingClientRect();
+      const d = e.clientY < b.top ? b.top - e.clientY : e.clientY > b.bottom ? e.clientY - b.bottom : 0;
+      if (d < rowD) {
+        rowD = d;
+        row = r;
+      }
+    }
+    let key: HTMLElement | null = null;
+    let keyD = Infinity;
+    for (const k of row?.children ?? []) {
+      if (!this.specs.has(k as HTMLElement)) continue;
+      const b = k.getBoundingClientRect();
+      const d = e.clientX < b.left ? b.left - e.clientX : e.clientX > b.right ? e.clientX - b.right : 0;
+      if (d < keyD) {
+        keyD = d;
+        key = k as HTMLElement;
+      }
+    }
+    return key;
+  }
+
+  /** Another layout (the setting). */
   setLayout(layout: OkbLayout): void {
     if (layout === this.layout) return;
     this.layout = layout;
@@ -262,10 +313,16 @@ export class OwnKeyboard {
         ...rows.map((row) => {
           const r = this.doc.createElement('div');
           r.className = `wc-ph-okb-row is-${row.kind}`;
-          // A row with fewer keys than its units stands in from both edges.
+          const els = row.keys.map((k) => this.key(k));
+          // A row with fewer keys than its units stands in from both edges: its caps do, and the
+          // room outside them belongs to the first and the last key (no dead zone at the edges).
           const used = row.keys.reduce((n, k) => n + k.w, 0);
-          if (used < row.units) r.style.padding = `0 ${((row.units - used) / 2 / row.units) * 100}%`;
-          r.append(...row.keys.map((k) => this.key(k)));
+          if (used < row.units && els.length > 0) {
+            const side = `calc(2px + ${((row.units - used) / 2 / row.units) * 100}%)`;
+            els[0]!.style.paddingLeft = side;
+            els[els.length - 1]!.style.paddingRight = side;
+          }
+          r.append(...els);
           return r;
         }),
       );

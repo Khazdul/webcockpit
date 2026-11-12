@@ -158,7 +158,7 @@ describe('InputPane editing API for the own keyboard (ADR 0138)', () => {
     expect(t.i.value).toBe('a b');
   });
 
-  it("setOwnKeyboard marks the field, and the phone's password field when it comes", () => {
+  it('setOwnKeyboard marks the field; the password prompt then keeps the textarea, masked, and no password field is made', () => {
     const t = setup({ phone: true });
     const text = t.pane.input;
     expect(text.tagName).toBe('TEXTAREA');
@@ -167,19 +167,62 @@ describe('InputPane editing API for the own keyboard (ADR 0138)', () => {
     t.pane.setOwnKeyboard(true);
     expect(text.getAttribute('inputmode')).toBe('none');
     expect(text.getAttribute('virtualkeyboardpolicy')).toBe('manual');
+    t.pane.insertText('half a comm');
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    // The same field, emptied and masked (the desktop's way), not an <input type="password">.
+    expect(t.pane.input).toBe(text);
+    expect(text.value).toBe('');
+    expect(text.classList.contains('wc-masked')).toBe(true);
+    expect(t.pane.el.querySelector('input[type="password"]')).toBeNull();
+    const mask = t.pane.el.querySelector<HTMLElement>('.wc-input-mask')!;
+    expect(mask.hidden).toBe(false);
+    t.pane.insertText('pwx');
+    t.pane.deleteBackward();
+    expect(text.value).toBe('pw');
+    expect(mask.textContent).toBe('••');
+    // No history at the prompt.
+    t.pane.historyStep('up');
+    expect(text.value).toBe('pw');
+    // A range is never left selected in the masked line (a phone's selection toolbar would be offered it).
+    text.setSelectionRange(0, 2);
+    document.dispatchEvent(new Event('selectionchange'));
+    expect([text.selectionStart, text.selectionEnd]).toEqual([2, 2]);
+    // The prompt goes while a password is half typed: it does not stay in the line, now shown.
+    t.bus.emit('telnet.echo', { serverEchoes: false });
+    expect(t.pane.input).toBe(text);
+    expect(text.value).toBe('');
+    expect(text.classList.contains('wc-masked')).toBe(false);
+    expect(mask.hidden).toBe(true);
+    expect(t.sent).toEqual([]);
+    t.pane.dispose();
+  });
+  it('without it the phone swaps in the password field, as before; turned on or off at the prompt, the field in use changes and keeps what was typed', () => {
+    const t = setup({ phone: true });
+    const text = t.pane.input;
     t.bus.emit('telnet.echo', { serverEchoes: true });
     const pass = t.pane.input as HTMLInputElement;
     expect(pass).not.toBe(text);
     expect(pass.type).toBe('password');
-    expect(pass.getAttribute('inputmode')).toBe('none');
-    expect(pass.getAttribute('virtualkeyboardpolicy')).toBe('manual');
-    // Typed through the API into the swapped field.
     t.pane.insertText('pw');
-    expect(pass.value).toBe('pw');
+    // Our keyboard comes (the phone layer mounts at the prompt): the textarea, masked, with the text.
+    t.pane.setOwnKeyboard(true);
+    expect(t.pane.input).toBe(text);
+    expect(text.value).toBe('pw');
+    expect(pass.value).toBe('');
+    expect(text.classList.contains('wc-masked')).toBe(true);
+    expect(text.getAttribute('inputmode')).toBe('none');
+    expect(t.pane.el.querySelector('.wc-input-mask')!.textContent).toBe('••');
+    expect(pass.isConnected).toBe(false);
+    // And goes again: the password field is back.
     t.pane.setOwnKeyboard(false);
+    expect(t.pane.input).toBe(pass);
+    expect(pass.value).toBe('pw');
+    expect(text.value).toBe('');
     expect(pass.hasAttribute('inputmode')).toBe(false);
     expect(text.hasAttribute('inputmode')).toBe(false);
     expect(text.hasAttribute('virtualkeyboardpolicy')).toBe(false);
+    t.bus.emit('telnet.echo', { serverEchoes: false });
+    expect(t.pane.input).toBe(text);
     t.pane.dispose();
   });
   it('graphemeStartBefore steps over a whole cluster, and over a code point without Intl.Segmenter', () => {

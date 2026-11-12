@@ -76,7 +76,14 @@
 //   `historyStep` (the Up and Down keys' `historyUp` / `historyDown`;
 //   nothing in password mode). No keyboard event is made up for it.
 //   `setOwnKeyboard` marks the fields (`inputmode="none"`, `virtualkeyboardpolicy="manual"`)
-//   so the device's keyboard stays down.
+//   so the device's keyboard stays down. While they are marked the phone
+//   masks a password as the desktop does (the textarea with the bullets
+//   over it), not with the swapped-in `type="password"` field: that swap
+//   was made for the device keyboard's behaviour, and a password field
+//   brings the browser's password manager and the device's secure input
+//   with it. A range selected in the masked line is collapsed at once, so
+//   a phone's selection toolbar (share, translate, search) is never
+//   offered the password; the caret and paste stay.
 
 import { device, touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
@@ -419,6 +426,7 @@ export class InputPane {
     ev.addEventListener('focus', this.scheduleCaret);
     ev.addEventListener('blur', this.scheduleCaret);
     ev.addEventListener('scroll', this.scheduleCaret);
+    ev.addEventListener('select', this.collapseMasked);
     ev.addEventListener('select', this.scheduleCaret);
     return f;
   }
@@ -473,9 +481,13 @@ export class InputPane {
   setPasswordMode(on: boolean): void {
     if (on === this.password) return;
     this.password = on;
-    if (this.phone) {
+    if (this.phone && !this.ownKeyboard) {
       if (on) this.passField ??= this.makeField('password') as HTMLInputElement;
       this.swapField(on ? this.passField! : this.textField!);
+    } else if (this.phone && !on) {
+      // A keyboard of our own (no swapped field): as the swap does, a half-typed password
+      // never stays in the line once it is shown again.
+      this.input.value = '';
     }
     this.input.classList.toggle('wc-masked', on);
     this.mask.hidden = !on;
@@ -528,6 +540,21 @@ export class InputPane {
     if (on === this.ownKeyboard) return;
     this.ownKeyboard = on;
     for (const f of new Set([this.field, this.textField, this.passField])) if (f) markOwnKeyboard(f, on);
+    // At a password prompt already: the masked line is the textarea with our keyboard (see the
+    // file header), the swapped-in password field without. What was typed so far goes along.
+    if (this.phone && this.password && this.textField) {
+      const typed = this.input.value;
+      if (!on) this.passField ??= this.makeField('password') as HTMLInputElement;
+      const next = on ? this.textField : this.passField!;
+      if (next !== this.field) {
+        this.input.classList.remove('wc-masked');
+        this.swapField(next);
+        next.value = typed;
+        next.classList.add('wc-masked');
+        this.updateMask();
+        this.scheduleCaret();
+      }
+    }
   }
 
   /** Types `text` at the caret, over the selection if there is one (one line: as a paste). */
@@ -1113,7 +1140,16 @@ export class InputPane {
 
   // ------------------------------------------------------------------ caret
 
+  /** A password typed from our own keyboard on a phone: no range is ever selected (file header). */
+  private readonly collapseMasked = (): void => {
+    if (!this.password || !this.ownKeyboard || !this.phone) return;
+    const i = this.input;
+    const end = i.selectionEnd ?? i.value.length;
+    if (i.selectionStart !== end) i.setSelectionRange(end, end);
+  };
+
   private readonly onSelectionChange = (): void => {
+    this.collapseMasked();
     if (this.doc.activeElement === this.input) this.scheduleCaret();
   };
 

@@ -6,7 +6,9 @@
 // of a few kinds (stepper, segmented, switch, pick from a list). A stage
 // adds its group to the list when what it sets works (stage 51 rule 3: no
 // row before its feature): Text (51b), Map lens (51c), Panes and Comm
-// (51d); Quick buttons (the compass and the hot keys) and Connection (51f).
+// (51d); Quick buttons (the compass and the hot keys) and Connection (51f);
+// Keyboard (53d: our own keyboard's layout; a group has `available`, and
+// this one is there only while that keyboard is, behind `?kbd=`).
 // Stage 52: a `link` row opens a sub-page of the same kind of groups
 // (`SETTINGS_PAGES`): "Timers and Group", the settings of those two panes
 // that show in the pane strip. They are the desktop gear popups' keys and
@@ -29,10 +31,13 @@ import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { SettingsStore } from '../settings';
 import { canWakeLock } from './wake-lock';
+import { canVibrate } from './haptics';
+import { okbFromQuery, okbLayout } from './keyboard-model';
 import type {
   FontId,
   GroupAwayMode,
   GroupNpcMode,
+  PhoneKeyboardLayout,
   PhoneLensLevel,
   PhoneUnread,
   Settings,
@@ -121,6 +126,8 @@ export interface SettingsGroup {
   rows: SettingsRow[];
   /** A line under the group's card. */
   caption?: string;
+  /** False where the group's feature is not there: the group is then absent. Absent: always there. */
+  available?(): boolean;
 }
 
 /** Text: size, theme, font (the desktop's Appearance keys). */
@@ -260,8 +267,49 @@ export const COMPASS_GROUP: SettingsGroup = {
       less: { text: '−', label: 'Fewer K keys' },
       more: { text: '+', label: 'More K keys' },
     },
+    {
+      // One switch for every key that is pressed: the compass, the hot keys and our own keyboard
+      // (ADR 0138 §7). Only where the browser can vibrate (not on an iPhone).
+      kind: 'toggle',
+      id: 'vibrate',
+      label: 'Vibrate on key press',
+      get: (s) => s.phone.vibrate,
+      set: (vibrate) => ({ phone: { vibrate } }),
+      available: () => canVibrate(globalThis.navigator),
+    },
   ],
   caption: 'More than three stand in a second column. Hold a K key to change it.',
+};
+
+/** The browser's languages, for the layout that `auto` stands for. */
+const browserLanguages = (): readonly string[] | string | undefined => {
+  const nav = globalThis.navigator as Navigator | undefined;
+  return nav?.languages?.length ? nav.languages : nav?.language;
+};
+
+/**
+ * Keyboard: the layout of our own keyboard (`phone.keyboard.layout`; ADR
+ * 0138 §4). Stored as `auto` until one is chosen: the row then shows the
+ * layout of the browser's language, which is the one in use. Only while
+ * that keyboard is there (`?kbd=`, until stage 53 is released).
+ */
+export const KEYBOARD_GROUP: SettingsGroup = {
+  id: 'keyboard',
+  title: 'Keyboard',
+  rows: [
+    {
+      kind: 'seg',
+      id: 'keyboard-layout',
+      label: 'Layout',
+      options: [
+        { value: 'sv', label: 'Swedish' },
+        { value: 'en', label: 'English' },
+      ],
+      get: (s) => okbLayout(s.phone.keyboard.layout === 'auto' ? null : s.phone.keyboard.layout, browserLanguages()),
+      set: (layout) => ({ phone: { keyboard: { layout: layout as PhoneKeyboardLayout } } }),
+    },
+  ],
+  available: () => okbFromQuery(new URLSearchParams(globalThis.location?.search ?? '').get('kbd')) !== null,
 };
 
 /**
@@ -300,7 +348,12 @@ export const CONNECTION_GROUP: SettingsGroup = {
 };
 
 /** The page's groups, top to bottom (ADR 0136 §10). */
-export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, COMPASS_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP, CONNECTION_GROUP];
+export const SETTINGS_GROUPS: readonly SettingsGroup[] = [TEXT_GROUP, COMPASS_GROUP, KEYBOARD_GROUP, LENS_GROUP, PANES_GROUP, COMM_GROUP, CONNECTION_GROUP];
+
+/** The groups that are there on this device. */
+export function groupsShown(groups: readonly SettingsGroup[]): SettingsGroup[] {
+  return groups.filter((g) => g.available?.() ?? true);
+}
 
 // ------------------------------------------------- Timers and Group (stage 52)
 
@@ -797,7 +850,7 @@ export function SettingsPage(p: SettingsPageProps): VNode {
               }}
             />
           ) : (
-            (top?.at === 'sub' ? top.page.groups : groups).map(section)
+            groupsShown(top?.at === 'sub' ? top.page.groups : groups).map(section)
           )}
         </div>
       </div>

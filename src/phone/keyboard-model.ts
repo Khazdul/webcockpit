@@ -374,7 +374,9 @@ export interface OkbBand {
  * Landscape: the keyboard's band, left to right: the column of K1 to K3,
  * the block, the column of K4 to K6, the compass. The block and its
  * columns stand as one group in the middle of what the compass leaves; an
- * absent column takes no width.
+ * absent column takes no width. (With a column on each side the block
+ * stands exactly where it does without them: the K key, which hides and
+ * shows them, does not move it.)
  *
  * A letter key is as wide as fits, at most `OKB_UNIT_MAX_LAND`. When
  * everything together would leave it under `OKB_UNIT_MIN_LAND`, the parts
@@ -396,7 +398,11 @@ export function okbBand(input: OkbBandInput): OkbBand {
     const room = width - left - right - (kl ? col : 0) - (kr ? col : 0);
     const unit = Math.max(0, Math.min(OKB_UNIT_MAX_LAND, (room - 2 * OKB_PAD_X) / cols));
     const w = Math.min(Math.max(0, room), unit * cols + 2 * OKB_PAD_X);
-    const x = left + (kl ? col : 0) + Math.max(0, room - w) / 2;
+    // The block and its columns stand as one group in the middle of what the compass leaves (the
+    // left margin only keeps the group off the edge: it does not move the middle, so with a
+    // column on each side the block stands where it does without them).
+    const groupW = (kl ? col : 0) + w + (kr ? col : 0);
+    const x = Math.max(left, (width - right - groupW) / 2) + (kl ? col : 0);
     return { x, w, unit, kLeftX: kl ? x - col : null, kRightX: kr ? x + w + OKB_BAND_GAP : null, pad, droppedK: wantK && !k };
   };
   const all = fit(true, true);
@@ -422,11 +428,11 @@ export function okbPortraitSide(top: number, compassH: number, hotTop3: number):
 
 /**
  * What the keys type into (ADR 0138 §3): the small editing interface every
- * field of the game layout gets. The command line implements it now (the
- * input pane's public editing API); Comm's reply and search, the hot key
- * box and the script pane fields follow in round 53d as adapters over their
- * element and their own Enter action. A key calls these and nothing else:
- * no keyboard event is made up.
+ * field of the game layout gets. The command line implements it over the
+ * input pane's public editing API; Comm's reply and search, the hot key
+ * box and the script pane fields are adapters over their element and their
+ * own Enter action (keyboard-fields.ts). A key calls these and nothing
+ * else: no keyboard event is made up.
  */
 export interface OkbTarget {
   /** Types `text` at the caret, over the selection if there is one. */
