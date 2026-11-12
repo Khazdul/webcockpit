@@ -46,6 +46,7 @@ import {
   runScopeHandlers,
 } from '@codemirror/view';
 import { lookCodeTheme } from './look-code';
+import { ownKeyboardExtension } from './own-keyboard-cm';
 import { searchExtension } from './search';
 import { type BraceScan, braceMatchAt, scanBraces, tokenizeLine } from './syntax';
 
@@ -272,6 +273,8 @@ export function createBufferState(opts: BufferOptions): EditorState {
         'aria-label': 'Profile text',
         'data-wc-native-mouse': '',
       }),
+      // A phone: the content is typed in from our own keyboard (own-keyboard-cm.ts); nothing elsewhere.
+      ownKeyboardExtension(),
       EditorView.domEventObservers({
         copy: () => opts.onClipboard('copy'),
         cut: () => opts.onClipboard('cut'),

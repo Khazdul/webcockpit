@@ -67,8 +67,8 @@ export function isMarked(f: Element): boolean {
 }
 
 /** The field is in the page and shown (a field hidden with its box or its search is no target). */
-export function fieldUsable(f: TextField): boolean {
-  if (!f.isConnected || f.disabled || f.readOnly) return false;
+export function fieldUsable(f: HTMLElement): boolean {
+  if (!f.isConnected || (f as TextField).disabled === true || (f as TextField).readOnly === true) return false;
   const r = f.getClientRects()[0];
   if (!r || r.width <= 0 || r.height <= 0) return false;
   // (Hidden by `visibility` it still has a box: asked where the browser can tell.)

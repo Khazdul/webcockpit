@@ -21,9 +21,23 @@
 //   (`data-okb-kind="lines"`: Enter is a line break, the caret goes up and
 //   down, and the caret's line is kept above the keyboard after every edit)
 //   and the export comment (one paragraph: Enter saves, as before). A field
-//   that is not marked (the CodeMirror buffers, until round 53h) keeps the
-//   device's keyboard, and ours closes when one of them takes the focus:
-//   the two never stand together.
+//   that is not marked keeps the device's keyboard, and ours closes when
+//   one of them takes the focus: the two never stand together.
+// - The code editors (round 53h, ADR 0139 §6): a CodeMirror buffer's content
+//   element (`data-okb-kind="editor"`, registered by the editor chunk and
+//   found through `deps.editorOf`) is a field too. Text goes in through the
+//   editor's own input path; Enter, Backspace, Tab, Esc and the four caret
+//   keys are marked key events at the content element, which the frame
+//   stack hands to the editor's key bindings as it does a physical key
+//   (completion, indent, bracket pairs, snippet fields, the search keys).
+//   Enter is a line break there and none of these is held back as a double
+//   tap, but Esc. The editor scrolls its own caret into view; this file
+//   only asks it to when the room changed (the keyboard came up, a
+//   rotation). An editor opens the keyboard on a tap in its text, or when
+//   the focus comes to it from another field of ours with the keyboard up
+//   (Esc in Find); never because a frame gave it the focus after a tap
+//   elsewhere (opening the editor, Save), so the code can be read first. A
+//   read-only buffer is marked (no device keyboard) and opens nothing.
 // - The page keys (53g): Esc, Tab and the caret keys, in a row at the top
 //   of the block in portrait and in a column at each side of it in
 //   landscape (`pageKeyboardPlan`), where the page has no height to give.
@@ -58,6 +72,7 @@
 // driven by events of the user; nothing runs per frame or per incoming
 // line.
 
+import type { OwnEditor, OwnKey } from '../core/own-keyboard';
 import type { SettingsStore } from '../settings';
 import { OwnKeyboard } from './keyboard';
 import { type TextField, caretLineBox, fieldTarget, fieldUsable, isMarked, isOwnableField, isTextField } from './keyboard-fields';
@@ -97,6 +112,12 @@ export const PAGE_AFTER_POINTER_MS = 60;
 
 /** The air kept between a revealed field and the edges of what scrolls it, px. */
 const REVEAL_MARGIN_PX = 8;
+
+/** A code editor's content element (src/core/own-keyboard.ts `ownFieldAttrs('editor')`). */
+const EDITOR_SEL = '[data-okb-kind="editor"]';
+
+/** What the keyboard types in on a page: a text field, or a code editor's content element. */
+type PageField = TextField | HTMLElement;
 
 /** Where a page's fields live: the start page and the menu's overlay (not the cockpit, whose keyboard is the layer's). */
 const PAGE_SCOPE = '.wc-chrome, .wc-overlay';
@@ -162,7 +183,9 @@ export interface PageKeyboardDeps {
   root: HTMLElement;
   settings: SettingsStore;
   /** Sends a marked key to a field (src/core/own-keyboard.ts `sendOwnKey`). */
-  sendKey(target: Element, key: 'Enter' | 'Escape' | 'Tab', mods?: { shift?: boolean }): boolean;
+  sendKey(target: Element, key: OwnKey, mods?: { shift?: boolean }): boolean;
+  /** The code editor whose content element this is (src/core/own-keyboard.ts `ownEditorOf`), or null. */
+  editorOf?(content: Element): OwnEditor | null;
   /** The keyboard came up on a page, or went (the shell: the too-small guards, and the game's own keyboard closes). */
   onUp?(up: boolean): void;
 }
@@ -190,7 +213,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   };
 
   let open = false;
-  let field: TextField | null = null;
+  let field: PageField | null = null;
   let target: OkbTarget | null = null;
   let watch: MutationObserver | null = null;
   /** A numeric field shows the digit row whatever the stored state, until its key folds it away. */
@@ -200,12 +223,14 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   let down = false;
   let at = -Infinity;
   /** A field that took the focus while a pointer was down: opened for when the pointer is done (`flush`). */
-  let pending: TextField | null = null;
+  let pending: PageField | null = null;
+  /** The field of ours the pointer that is down went down on, or null. */
+  let downOn: PageField | null = null;
   let pendingTimer: number | null = null;
   /** When our Tab key was last sent: the focus the page then gives another field of ours is that key's. */
   let tabAt = -Infinity;
   /** The last Enter or Esc sent: to which field, and when (`PAGE_KEY_AGAIN_MS`). */
-  let sentTo: TextField | null = null;
+  let sentTo: PageField | null = null;
   let sentAt = -Infinity;
   // The app box changed size while the keyboard is up (a rotation, fullscreen, the address bar):
   // placed anew, and the field brought back above it. Only the box is watched, and only while
@@ -254,10 +279,28 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   inner.append(okb.el);
   // (The host is in the page only while the keyboard is up: `place`, `close`.)
 
-  const pageField = (el: Element | null | undefined): TextField | null => {
-    if (!el || !isOwnableField(el) || !isMarked(el)) return null;
-    return root.contains(el) && el.closest(PAGE_SCOPE) ? el : null;
+  /** The editor of a content element that can be typed in now, or null. */
+  const editorOf = (el: Element): OwnEditor | null => {
+    if (!el.matches(EDITOR_SEL) || !isMarked(el)) return null;
+    const ed = deps.editorOf?.(el) ?? null;
+    return ed?.editable() ? ed : null;
   };
+  const isEditor = (f: PageField): boolean => f.matches(EDITOR_SEL);
+
+  /** The field of ours `el` is, or is in (a press in an editor lands on a line of its text). */
+  const pageField = (el: Element | null | undefined): PageField | null => {
+    if (!el) return null;
+    let f: PageField | null = null;
+    if (isOwnableField(el)) f = isMarked(el) ? el : null;
+    else {
+      const content = el.closest<HTMLElement>(EDITOR_SEL);
+      if (content && editorOf(content)) f = content;
+    }
+    return f && root.contains(f) && f.closest(PAGE_SCOPE) ? f : null;
+  };
+
+  /** The field can be typed in now: shown, and an editor still an editable one of ours. */
+  const usable = (f: PageField): boolean => fieldUsable(f) && (!isEditor(f) || editorOf(f) !== null);
 
   /** Places the open keyboard for the app box as it is now; closes it where the page has no room for it. */
   function place(): void {
@@ -286,10 +329,10 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   }
 
   /** A multi-line field: Enter is a line break there (`data-okb-kind="lines"`, the shared `TextArea`). */
-  const isLines = (f: TextField): boolean => f.tagName === 'TEXTAREA' && f.getAttribute('data-okb-kind') === 'lines';
+  const isLines = (f: PageField): boolean => f.tagName === 'TEXTAREA' && f.getAttribute('data-okb-kind') === 'lines';
 
   /** What of the field must show: the field; of a multi-line field that is higher than a few lines, the caret's line. */
-  function wantedBox(f: TextField): { top: number; bottom: number } {
+  function wantedBox(f: PageField): { top: number; bottom: number } {
     const r = f.getBoundingClientRect();
     if (!isLines(f)) return { top: r.top, bottom: r.bottom };
     const line = caretLineBox(f as HTMLTextAreaElement);
@@ -312,7 +355,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
    * around it (the page itself), and the whole page would slide away under
    * the keyboard.
    */
-  function reveal(f: TextField): void {
+  function reveal(f: PageField): void {
     if (!win || revealing) return;
     revealing = true;
     win.requestAnimationFrame(() =>
@@ -320,6 +363,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
         revealing = false;
         f = field ?? f;
         if (!open || field !== f || !f.isConnected) return;
+        // A code editor scrolls its own caret into view, in its own scroller (which ends at the
+        // keyboard with the page); its content element is as high as the text, and is not moved here.
+        if (isEditor(f)) return void editorOf(f)?.reveal();
         const limit = host.getBoundingClientRect().top;
         let { top, bottom } = wantedBox(f);
         for (let el = f.parentElement; el && el !== root; el = el.parentElement) {
@@ -353,53 +399,51 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
    */
   function gone(): void {
     const f = field;
-    if (f === null || fieldUsable(f)) return;
-    if (!win || !f.isConnected || f.disabled || f.readOnly || doc.activeElement !== f) return close(false);
+    if (f === null || usable(f)) return;
+    const off = (f as TextField).disabled === true || (f as TextField).readOnly === true || (isEditor(f) && editorOf(f) === null);
+    if (!win || !f.isConnected || off || doc.activeElement !== f) return close(false);
     if (looking) return;
     looking = true;
     win.requestAnimationFrame(() =>
       win.setTimeout(() => {
         looking = false;
         if (!open || field !== f) return;
-        if (!fieldUsable(f)) close(false);
+        if (!usable(f)) close(false);
         else reveal(f);
       }, 0),
     );
   }
 
   /** Follows the field typed in, so one that goes away closes the keyboard at once (as the layer does for the game's fields). */
-  function follow(f: TextField | null): void {
+  function follow(f: PageField | null): void {
     watch?.disconnect();
     watch = null;
     const MO = win?.MutationObserver;
     if (!f || !MO) return;
     const mo = new MO(gone);
-    mo.observe(f, { attributes: true, attributeFilter: ['hidden', 'disabled', 'readonly', 'style', 'class', 'inputmode'] });
+    mo.observe(f, { attributes: true, attributeFilter: ['hidden', 'disabled', 'readonly', 'style', 'class', 'inputmode', 'contenteditable'] });
     for (let el = f.parentElement; el && el !== root; el = el.parentElement) mo.observe(el, { attributes: true, childList: true });
     mo.observe(root, { childList: true });
     watch = mo;
   }
 
-  function setField(f: TextField): void {
+  function setField(f: PageField): void {
     if (f === field) return;
     field = f;
     forceDigits = f.getAttribute('data-okb-kind') === 'digits';
     follow(f);
-    // Enter and Esc may close what the field is in: never sent twice in a row to the same field (a
-    // double tap), nor to a field that is gone or has lost the focus.
-    const once = (key: 'Enter' | 'Escape'): void => {
-      if (!f.isConnected || doc.activeElement !== f) return;
-      const now = clock();
-      if (sentTo === f && now - sentAt < PAGE_KEY_AGAIN_MS) return;
-      sentTo = f;
-      sentAt = now;
-      deps.sendKey(f, key);
-    };
+    const ed = isEditor(f) ? editorOf(f) : null;
+    if (ed) {
+      target = editorTarget(f, ed);
+      okb.sync();
+      return;
+    }
+    if (!isOwnableField(f)) return;
     target = fieldTarget(f, {
-      submit: () => once('Enter'),
+      submit: () => once(f, 'Enter'),
       lines: isLines(f),
       pageKey: (key, shift) => {
-        if (key === 'Escape') return once('Escape');
+        if (key === 'Escape') return once(f, 'Escape');
         if (!f.isConnected || doc.activeElement !== f) return;
         tabAt = clock();
         deps.sendKey(f, 'Tab', { shift });
@@ -411,7 +455,51 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     okb.sync();
   }
 
-  function openFor(f: TextField): void {
+  // Enter and Esc may close what the field is in: never sent twice in a row to the same field (a
+  // double tap), nor to a field that is gone or has lost the focus.
+  function once(f: PageField, key: 'Enter' | 'Escape'): void {
+    if (!f.isConnected || doc.activeElement !== f) return;
+    const now = clock();
+    if (sentTo === f && now - sentAt < PAGE_KEY_AGAIN_MS) return;
+    sentTo = f;
+    sentAt = now;
+    deps.sendKey(f, key);
+  }
+
+  /**
+   * A code editor as the keys' target: text through the editor, every
+   * other key as a marked key event at its content element (see the file
+   * header). Enter is a line break (or whatever the editor's Enter does: a
+   * completion taken, a block closed), so its key is the newline's.
+   */
+  function editorTarget(f: HTMLElement, ed: OwnEditor): OkbTarget {
+    const key = (k: OwnKey, shift = false): void => {
+      if (!f.isConnected || doc.activeElement !== f) return;
+      deps.sendKey(f, k, { shift });
+    };
+    return {
+      insert: (text) => ed.insert(text),
+      deleteBack: () => key('Backspace'),
+      submit: () => key('Enter'),
+      newline: () => key('Enter'),
+      caretLeft: () => key('ArrowLeft'),
+      caretRight: () => key('ArrowRight'),
+      caretUp: () => key('ArrowUp'),
+      caretDown: () => key('ArrowDown'),
+      pageKey: (k, shift) => {
+        // (Esc may close the editor: a double tap is one Esc.)
+        if (k === 'Escape') return once(f, 'Escape');
+        tabAt = clock();
+        key('Tab', shift);
+      },
+      focus: () => {
+        if (doc.activeElement !== f) f.focus({ preventScroll: true });
+      },
+      blur: () => f.blur(),
+    };
+  }
+
+  function openFor(f: PageField): void {
     const was = field;
     setField(f);
     if (doc.activeElement !== f) f.focus({ preventScroll: true });
@@ -468,12 +556,14 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     // (A press on our own keys is no press on the page.)
     if (e.target instanceof Node && host.contains(e.target)) return;
     down = true;
+    downOn = e.target instanceof Element ? pageField(e.target) : null;
     at = clock();
   };
   const onUp = (e: Event): void => {
     if (e.target instanceof Node && host.contains(e.target)) return;
     if (down) at = clock();
     down = false;
+    downOn = null;
     // A finger lifted on a field of ours: the keyboard is for it, whenever its focus comes (a phone
     // gives the focus after the finger lifts, with the mouse press it makes up; some give no click).
     const on = e.target instanceof Element ? pageField(e.target) : null;
@@ -487,9 +577,14 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     const f = pageField(t);
     if (f) {
       const now = clock();
+      // A code editor: only a press in its own text opens the keyboard, or a focus that comes from
+      // another field of ours (the keyboard is up) or from our Tab key; not a focus its frame gives
+      // it after a tap elsewhere (see the file header).
+      const ed = isEditor(f);
       // The finger is still down: nothing moves under it (see the file header).
-      if (down) pending = f;
-      else if (open || now - at < PAGE_POINTER_FOCUS_MS || now - tabAt < PAGE_POINTER_FOCUS_MS) openFor(f);
+      if (down) {
+        if (!ed || downOn === f) pending = f;
+      } else if (open || now - tabAt < PAGE_POINTER_FOCUS_MS || (!ed && now - at < PAGE_POINTER_FOCUS_MS)) openFor(f);
       return;
     }
     // A text field that is not ours (a multi-line field, an editor's buffer, the game's command
@@ -534,7 +629,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   // A field of ours has the focus already (a dialog opened while this chunk was on its way, by the
   // tap that would have opened the keyboard): the keyboard comes up for it now.
   const first = pageField(doc.activeElement);
-  if (first && fieldUsable(first)) openFor(first);
+  if (first && !isEditor(first) && fieldUsable(first)) openFor(first);
 
   return {
     el: host,

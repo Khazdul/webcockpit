@@ -140,7 +140,7 @@ import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
 import { PHONE_MAX_SHORT_SIDE } from '../core/device';
 import { device } from '../core/device';
-import { sendOwnKey, setPageKeyboard, setPageKeyboardUp } from '../core/own-keyboard';
+import { ownEditorOf, sendOwnKey, setPageKeyboard, setPageKeyboardUp } from '../core/own-keyboard';
 import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from './auto-reconnect';
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
@@ -787,6 +787,7 @@ export class Shell {
             root,
             settings,
             sendKey: (target, key, mods) => sendOwnKey(target, key, mods),
+            editorOf: ownEditorOf,
             onUp: (up) => {
               setPageKeyboardUp(up);
               if (up) this.phoneLayer?.foldOwnKeyboard();
