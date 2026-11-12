@@ -540,7 +540,8 @@ test('the Map lens settings: show and opens at, from the settings page (no size 
 });
 
 test('the keyboard up: the lens stays; a very short screen hides it and it returns', async ({ page }) => {
-  await openCockpit(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  await openCockpit(page, '&kbd=0');
   await expect(lens(page)).toBeVisible();
   const size = page.viewportSize()!;
   await field(page).tap();
@@ -575,7 +576,8 @@ for (const [width, height, want, size] of [
     test.use({ viewport: { width, height } });
 
     test(`is ${want} px: 150 px at 360 px of short side, in proportion, within 130 to 190`, async ({ page }) => {
-      await openCockpit(page);
+      // (`?kbd=0`: the second half is the device's keyboard, the old path; the lens's size itself is the same on both.)
+      await openCockpit(page, '&kbd=0');
       if (size) await page.evaluate((size) => window.__wc!.settings.update({ appearance: { size } }), size);
       await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
       await expect(lens(page)).toBeVisible();

@@ -454,7 +454,7 @@ for (const theme of THEMES) {
       await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
       await expect(page.locator('.wc-ph-page')).toBeVisible();
       const groups = await page.locator('.wc-ph-page [data-group]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.group!));
-      expect(groups).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
+      expect(groups).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
       let total = 0;
       for (const g of groups) {
         await page.locator(`.wc-ph-page [data-group="${g}"]`).evaluate((el) => el.scrollIntoView({ block: 'center' }));

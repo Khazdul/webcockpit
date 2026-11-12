@@ -1,5 +1,5 @@
 // A keyboard of our own for the phone's game layout (ADR 0138): the view.
-// Behind `?kbd=` until the stage is released. What the keys are, how shift works and every size
+// The layout's keyboard unless the address says `?kbd=0`. What the keys are, how shift works and every size
 // are the model's (keyboard-model.ts); this file draws them and takes the
 // presses.
 //
@@ -206,6 +206,11 @@ export class OwnKeyboard {
   /** Shift now: off, once (the next letter is a capital) or locked. */
   get shiftMode(): OkbShiftState['mode'] {
     return this.shift.mode;
+  }
+
+  /** A pointer is down on a key now (its release, and the click that follows, are still to come). */
+  get held(): boolean {
+    return this.downs.size > 0;
   }
 
   /** The digit row is shown or folded away (the caller's stored state). */

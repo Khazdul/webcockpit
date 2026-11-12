@@ -194,7 +194,9 @@ test('the command line is a textarea: Enter sends, no newline; the password prom
     ws.send(bytes([IAC, WILL, GMCP], '\r\nBy what name do you wish to be known? '));
   });
   const sentText = () => Buffer.concat(received).toString('latin1');
-  await page.goto('/?phone=1');
+  // `?kbd=0`: the device's keyboard, where the password prompt swaps in a real password field
+  // (with our own keyboard the line is masked in place: phone-own-keyboard.spec.ts).
+  await page.goto('/?phone=1&kbd=0');
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await tapRow(page, 'enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);

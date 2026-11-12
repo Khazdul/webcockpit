@@ -20,8 +20,8 @@ type Box = { x: number; y: number; width: number; height: number };
 const box = async (page: Page, sel: string): Promise<Box> => (await page.locator(sel).first().boundingBox())!;
 
 /** The offline cockpit on a phone, the phone layer mounted. */
-async function openPhone(page: Page): Promise<void> {
-  await page.goto('/?replay&phone=1');
+async function openPhone(page: Page, query = ''): Promise<void> {
+  await page.goto(`/?replay&phone=1${query}`);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(cockpit(page)).toBeVisible();
   await expect(pad(page)).toBeVisible();
@@ -356,7 +356,8 @@ test('the fight card shows with the fight and goes with it: two names, two bars,
 });
 
 test('the keyboard up: the compass steps aside and the field takes the full width', async ({ page }) => {
-  await openPhone(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  await openPhone(page, '&kbd=0');
   await play(page, YOU_TANK);
   const size = page.viewportSize()!;
   const narrow = await box(page, '.wc-input-slot > .wc-input');
@@ -398,7 +399,8 @@ test('the keyboard up: the compass steps aside and the field takes the full widt
 const cellGap = (width: number): number => 8 + (width % 20) + 20;
 
 test('a very short visible area (a landscape keyboard) never shows too small; the row stays visible', async ({ page }) => {
-  await openPhone(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  await openPhone(page, '&kbd=0');
   const size = page.viewportSize()!;
   await page.setViewportSize({ width: size.width, height: 120 });
   await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);

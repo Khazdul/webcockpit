@@ -47,8 +47,8 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
-async function openPhone(page: Page): Promise<void> {
-  await page.goto('/?replay&phone=1');
+async function openPhone(page: Page, query = ''): Promise<void> {
+  await page.goto(`/?replay&phone=1${query}`);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(pad(page)).toBeVisible();
 }
@@ -104,7 +104,7 @@ interface Mock {
 }
 
 /** Enters MUME on `?phone=1` against a mock, up to the login prompt. No `Char.Vitals` yet. */
-async function enterMock(page: Page): Promise<Mock> {
+async function enterMock(page: Page, query = ''): Promise<Mock> {
   let server: WebSocketRoute | null = null;
   let opened = 0;
   const sent: string[] = [];
@@ -117,7 +117,7 @@ async function enterMock(page: Page): Promise<Mock> {
     });
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
-  await page.goto('/?phone=1');
+  await page.goto(`/?phone=1${query}`);
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
@@ -223,7 +223,8 @@ test('the K key hides and shows the column, and the choice is kept over a reload
 });
 
 test('the keyboard up: the column and the K key step aside, and come back', async ({ page }) => {
-  await openPhone(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  await openPhone(page, '&kbd=0');
   const size = page.viewportSize()!;
   await field(page).tap();
   await page.setViewportSize({ width: size.width, height: size.height - 320 });
@@ -419,7 +420,7 @@ test('six keys: a key of the second column sends its command; held, its box stan
 
 // ------------------------------------- the on-screen keyboard and the focus (stage 52)
 
-/** The simulated keyboard: the visible area shrinks (up) or is whole again (down); settled when `wc-kbd` follows. */
+/** The simulated device keyboard (the old path, `?kbd=0`): the visible area shrinks (up) or is whole again (down); settled when `wc-kbd` follows. */
 async function keyboard(page: Page, up: boolean, size: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(up ? { width: size.width, height: size.height - 320 } : size);
   if (up) await expect(page.locator('html')).toHaveClass(/\bwc-kbd\b/);
@@ -428,7 +429,8 @@ async function keyboard(page: Page, up: boolean, size: { width: number; height: 
 
 test('the keyboard folded down while the command field has the focus: the field lets go, and a hot key tap sends without taking the focus back', async ({ page }) => {
   const errors = watchErrors(page);
-  const m = await enterMock(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  const m = await enterMock(page, '&kbd=0');
   await m.login();
   const size = page.viewportSize()!;
   // Type and send a command with the keyboard up.
@@ -477,7 +479,8 @@ test('the keyboard folded down while the command field has the focus: the field 
 });
 
 test('a rotation with the keyboard up is not the keyboard folding: the field keeps the focus (stage 52)', async ({ page }) => {
-  const m = await enterMock(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  const m = await enterMock(page, '&kbd=0');
   await m.login();
   const size = page.viewportSize()!;
   await field(page).tap();
@@ -514,7 +517,8 @@ test('fullscreen entered or left with the keyboard up: folding the keyboard afte
       document.dispatchEvent(new Event('fullscreenchange'));
     };
   });
-  const m = await enterMock(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  const m = await enterMock(page, '&kbd=0');
   await m.login();
   const size = page.viewportSize()!;
   for (const on of [true, false]) {
@@ -537,7 +541,8 @@ test('fullscreen entered or left with the keyboard up: folding the keyboard afte
 });
 
 test('the keyboard going down blurs whichever field of the phone layout has the focus: Comm\'s reply, the hot key box', async ({ page }) => {
-  const m = await enterMock(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  const m = await enterMock(page, '&kbd=0');
   await m.login();
   const size = page.viewportSize()!;
   const active = () => page.evaluate(() => `${document.activeElement?.tagName}.${document.activeElement?.className ?? ''}#${document.activeElement?.id ?? ''}`);
@@ -737,7 +742,8 @@ test('a pick and Save change the key, and it is kept over a reload; Cancel disca
 
 test('Custom puts the cursor in Command; what is typed in the box never reaches the command line', async ({ page }) => {
   const errors = watchErrors(page);
-  await openPhone(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  await openPhone(page, '&kbd=0');
   await hold(page, hk(page, 3));
   // A special shows as a token; Custom gives the field back, focused.
   await expect(rb(page).locator('.wc-ph-rb-tok')).toBeVisible();
@@ -871,7 +877,8 @@ test('the box gives way to the menu: a dropped link opens the sheet over it, and
 
 test('the lens hides while the box would collide with it, and returns when the box closes', async ({ page }) => {
   const errors = watchErrors(page);
-  await openPhone(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  await openPhone(page, '&kbd=0');
   await expect(lens(page)).toBeVisible();
   const l = await box(lens(page));
   // On the tall screen the box stands below the lens: both show.

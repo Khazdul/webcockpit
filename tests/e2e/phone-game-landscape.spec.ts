@@ -120,13 +120,13 @@ const tell = (who: string, what: string): Buffer =>
   gmcp('Comm.Channel.Text', { channel: 'tells', talker: who, 'talker-type': 'player', text: `${who} tells you '${what}'` });
 
 /** Enters MUME on `?phone=1` against a mock: logged in as Rasta, grouped with Gibur. */
-async function enterMock(page: Page): Promise<() => WebSocketRoute> {
+async function enterMock(page: Page, query = ''): Promise<() => WebSocketRoute> {
   let server: WebSocketRoute | null = null;
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
     server = ws;
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
-  await page.goto('/?phone=1');
+  await page.goto(`/?phone=1${query}`);
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
@@ -585,7 +585,8 @@ for (const viewport of SCREENS) {
     });
 
     test('the keyboard up: the command field and the game text stay; Comm keeps its column while its reply is typed in', async ({ page }) => {
-      const server = await enterMock(page);
+      // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+      const server = await enterMock(page, '&kbd=0');
       server().send(tell('Gibur', 'you at the ford?'));
       await sat(page, 'panes').tap();
       await expect(stripPane(page)).toHaveCount(1);

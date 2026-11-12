@@ -873,10 +873,11 @@ export class Shell {
               onMenuClose: () => {
                 if (this.inCockpit) app.input.focus();
               },
-              // Stage 53 (ADR 0138): a keyboard of our own for the game layout's fields, only with `?kbd=1`
-              // (the layout of the browser's language), `?kbd=sv` or `?kbd=en`. The phone layer reads
-              // the value; here it only decides whether the command line is handed over.
-              ...(['1', 'sv', 'en'].includes(new URLSearchParams(root.ownerDocument.defaultView?.location.search ?? '').get('kbd') ?? '')
+              // Stage 53 (ADR 0138): a keyboard of our own for the game layout's fields. It is the
+              // layout's keyboard by default; `?kbd=0` keeps the device's (the old path, until the
+              // owner's release decision). The phone layer reads the rest of the value
+              // (`okbFromQuery`); here it only decides whether the command line is handed over.
+              ...(new URLSearchParams(root.ownerDocument.defaultView?.location.search ?? '').get('kbd') !== '0'
                 ? {
                     ownKeyboard: {
                       setOwnKeyboard: (on: boolean) => app.input.setOwnKeyboard(on),

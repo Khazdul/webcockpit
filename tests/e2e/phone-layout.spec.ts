@@ -13,8 +13,8 @@ const DEMO = '/?fixture=gmcp-demo.log&speed=0&phone=1';
 
 const tooSmall = (page: Page) => page.locator('.wc-too-small:not([hidden]), .wc-start-too-small');
 
-async function openDemo(page: Page): Promise<void> {
-  await page.goto(DEMO);
+async function openDemo(page: Page, query = ''): Promise<void> {
+  await page.goto(DEMO + query);
   await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
 }
@@ -77,7 +77,8 @@ test('the menu key opens the menu sheet from the bottom edge, over the whole wid
 });
 
 test('a shorter visible area (keyboard) keeps the input visible and never shows too small', async ({ page }) => {
-  await openDemo(page);
+  // The device's keyboard (the old path, `?kbd=0`; ADR 0138 §9: it stays until the release decision).
+  await openDemo(page, '&kbd=0');
   const size = page.viewportSize()!;
   await page.setViewportSize({ width: size.width, height: 400 });
   await page.waitForTimeout(400);
