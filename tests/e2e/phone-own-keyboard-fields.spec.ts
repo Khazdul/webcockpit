@@ -113,10 +113,10 @@ async function hold(page: Page, l: Locator): Promise<void> {
   }
 }
 
-/** A slow tap on `l` through CDP (a real finger): down, `ms` later up at the same place; the browser then makes its click where the finger was. */
-async function slowTap(page: Page, l: Locator, ms = 150): Promise<void> {
+/** A slow tap on `l` through CDP (a real finger): down at `fy` of its height, `ms` later up at the same place; the browser then makes its click on what lies there by then. */
+async function slowTap(page: Page, l: Locator, ms = 150, fy = 0.5): Promise<void> {
   const b = await box(l);
-  const pt = { x: b.x + b.width / 2, y: b.y + b.height / 2, id: 0 };
+  const pt = { x: b.x + b.width / 2, y: b.y + b.height * fy, id: 0 };
   const cdp = await page.context().newCDPSession(page);
   try {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
@@ -455,7 +455,10 @@ for (const size of [S21, S21_LAND]) {
     const sizes = await watchSizes(page);
     // The finger rests on Enter: the box is saved and closes with the keyboard at the press,
     // the rows move, and the finger lifts over whatever stands there now.
-    await slowTap(page, key(page, 'enter'));
+    // (On the key's upper part: in landscape the command field's line lies there once the
+    // keyboard is gone, and without the swallow the click opened the keyboard again. In portrait
+    // the compass lies there, which acts on a press only.)
+    await slowTap(page, key(page, 'enter'), 150, 0.2);
     await expect(rb(page)).toBeHidden();
     await expect(okb(page)).toBeHidden();
     // Nothing comes back: no keyboard, no focus in the command field, no menu, one window size.
