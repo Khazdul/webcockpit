@@ -494,6 +494,40 @@ describe('InputPane kept line (stage 53, round 53j)', () => {
     expect(t.pane.isKept()).toBe(false);
   });
 
+  it('the history\'s Down past the newest entry ends the kept state: the draft and the empty line are ordinary text', () => {
+    const t = setup({ phone: true });
+    t.pane.setOwnKeyboard(true);
+    const i = t.pane.input;
+    i.focus();
+    t.pane.insertText('north');
+    t.pane.submitLine();
+    t.pane.insertText('dra');
+    // Browsed with the field blurred: the entry shown is kept.
+    i.blur();
+    t.pane.historyStep('up');
+    expect(i.value).toBe('north');
+    expect(t.pane.isKept()).toBe(true);
+    // Down: the draft is back, and it is not a kept line.
+    t.pane.historyStep('down');
+    expect(i.value).toBe('dra');
+    expect(t.pane.isKept()).toBe(false);
+    expect(i.classList.contains('wc-input-kept')).toBe(false);
+    // The restored draft, selected whole and blurred, is kept; one more Down empties the line.
+    i.focus();
+    i.setSelectionRange(0, 3);
+    i.blur();
+    expect(t.pane.isKept()).toBe(true);
+    t.pane.historyStep('down');
+    expect(i.value).toBe('');
+    expect(t.pane.isKept()).toBe(false);
+    expect(i.classList.contains('wc-input-kept')).toBe(false);
+    // Not browsing, Down does nothing: the sent line stays kept (as the selected one stays selected).
+    const u = sentAndFolded();
+    u.pane.historyStep('down');
+    expect(u.pane.input.value).toBe('look');
+    expect(u.pane.isKept()).toBe(true);
+  });
+
   it('nothing is kept at a password prompt, with auto-clear, on a desktop, or without our keyboard', () => {
     const t = sentAndFolded();
     t.bus.emit('telnet.echo', { serverEchoes: true });

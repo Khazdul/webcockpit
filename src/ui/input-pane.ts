@@ -874,7 +874,11 @@ export class InputPane {
   /** Down: one newer entry, then the draft, then an empty line. */
   historyDown(): void {
     if (this.password) return;
+    // What Down writes is never the kept line (an entry goes through `show`; the empty line and
+    // the draft are written here). Not browsing, Down does nothing and a kept line stays kept,
+    // as the selected sent line stays selected.
     if (this.draftRestored) {
+      this.setKept(false);
       this.input.value = '';
       this.endBrowsing();
       return;
@@ -887,6 +891,7 @@ export class InputPane {
     }
     const draft = this.draft;
     this.endBrowsing();
+    this.setKept(false);
     this.input.value = draft;
     this.input.setSelectionRange(draft.length, draft.length);
     this.draftRestored = true;
