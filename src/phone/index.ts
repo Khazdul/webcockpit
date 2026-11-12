@@ -1443,7 +1443,9 @@ export class PhoneLayer {
         ? { bandTop: (g.comm.y + g.comm.h - 1) * h, rowH: h, rows: g.comm.h, min: g.commRange.min, max: g.commRange.max }
         : null,
     );
-    this.commHead.place(land && commShown ? { top: g.comm.y * h, width: (g.comm.w - g.sideBand) * w, divided: g.strip.h > 0 } : null);
+    // (Portrait: Comm is the full width and has no divider; the hood alone, as the strip's, and
+    // none while Comm is at its least rows: `Cockpit.phoneCommHead`.)
+    this.commHead.place(commShown && this.deps.cockpit.phoneCommHead > 0 ? { top: g.comm.y * h, width: (land ? g.comm.w - g.sideBand : g.comm.w) * w, divided: land && g.strip.h > 0 } : null);
     // Landscape: the one band, the column's last columns, from top to bottom.
     this.sideBand.place(
       land && (stripShown || commShown) && g.sideRange

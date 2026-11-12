@@ -978,6 +978,37 @@ const STATES: State[] = [
   // The profile editor's Editor view, over the game: a line typed in the tt++ text.
   { name: 'profile-editor', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, run: (page) => pageProfileEditor(page) },
   { name: 'profile-editor-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, darkOnly: true, run: (page) => pageProfileEditor(page) },
+  // Round 53i: Comm's hood in portrait (alone, typed in with our keyboard, the search open, a small phone).
+  {
+    name: 'comm-portrait',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.waitForTimeout(500);
+    },
+  },
+  { name: 'comm-portrait-keyboard', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: S21, run: (page) => ownReply(page) },
+  {
+    name: 'comm-portrait-search',
+    stage: 53,
+    step: 'i',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    darkOnly: true,
+    run: async (page) => {
+      await openChat(page, 'Gibur');
+      await page.locator('.wc-pane[data-pane="comm"] .wc-cm-sbtn').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      for (const k of ['o', 'r', 'c']) await okbKey(page, k).tap();
+      await settle(page);
+    },
+  },
+  { name: 'comm-portrait-narrow', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => ownReply(page) },
   {
     name: 'keys-six',
     stage: 52,
@@ -1322,7 +1353,7 @@ async function warmUp(browser: Browser): Promise<void> {
 }
 
 const [stepArg, ...wanted] = process.argv.slice(2);
-const arg = /^(5[123])?([a-h])$/.exec(stepArg ?? '');
+const arg = /^(5[123])?([a-i])$/.exec(stepArg ?? '');
 if (!arg) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a or 52a> [state …]');
 const stage = Number(arg[1] ?? 51);
 const step = arg[2]!;

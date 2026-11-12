@@ -201,7 +201,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
 import { type PhoneGameLens, type PhoneGameResult, allocatePhoneGame, commandRows, ownKeyboardReserve } from './phone-game';
-import { keyboardUp, landscapeLayout, screenLandscape } from './phone-viewport';
+import { holdDeviceKeyboard, keyboardUp, landscapeLayout, screenLandscape } from './phone-viewport';
 import {
   type DockId,
   defaultDockSize,
@@ -562,6 +562,8 @@ export class Cockpit {
   private pgSideCols: number | null = null;
   /** Phone game layout, landscape: the width from the right edge the left column never reaches, px (`setPhoneSideClear`). */
   private pgSideClear = 0;
+  /** Phone game layout: the rows at Comm's top left to its hood in the last layout (0: no hood). */
+  private pgCommHead = 0;
   /** Phone game layout: the window is wider than tall, as of the last layout (without the phone layer: the last with the device's keyboard down). */
   private pgLandscape = false;
   /** Phone game layout: what a keyboard of our own takes from the bottom edge, px, for a shape (`setPhoneBottom`); null: none. */
@@ -611,6 +613,8 @@ export class Cockpit {
     // The scope of the phone layer's CSS (src/phone/phone.css).
     if (this.phoneGame) this.el.dataset.phoneGame = '';
     if (this.phone && !this.phoneGame) {
+      // The old phone layout: its fields have the device's keyboard (phone-viewport.ts).
+      this.unsubs.push(holdDeviceKeyboard(doc));
       this.stripEl = div('wc-phone-tabs');
       this.stripEl.setAttribute('role', 'tablist');
       this.stripEl.addEventListener('mousedown', (e) => e.preventDefault());
@@ -1222,6 +1226,11 @@ export class Cockpit {
     return ownKeyboardReserve(H, cellH, px(landscapeLayout(W, H, win ? screenLandscape(win) : null), H), commandRows(cellH)).lift;
   }
 
+  /** Phone game layout: the rows at Comm's top that are its hood's, as last laid out (0: Comm has no hood now). */
+  get phoneCommHead(): number {
+    return this.pgCommHead;
+  }
+
   /**
    * Phone game layout: Comm holds the target of a keyboard of our own (its
    * reply line or its search field is typed in). While the keyboard is
@@ -1390,6 +1399,13 @@ export class Cockpit {
     placeEl(this.gameEl, g.game, cell);
     placeEl(this.inputEl, g.input, cell);
     const boxes = new Map(panes.map((p) => [p.id, p]));
+    // Comm's hood: in landscape always (stage 52e). In portrait (round 53i) while Comm keeps
+    // `PHONE_COMM_HOOD_KEEP_PX` under the hood and above its band (a line of chat and the whole
+    // reply line): on a short screen, typing above the keyboard, the rows are the conversation's,
+    // and the hood gives way.
+    const headRows = phoneCommHeadRows(cell.h, g.landscape && g.strip.h > 0);
+    const hooded = g.landscape || (g.comm.h - headRows - PHONE_COMM_BAND_ROWS) * cell.h >= PHONE_COMM_HOOD_KEEP_PX;
+    this.pgCommHead = g.comm.h > 0 && !g.tooSmall && hooded ? headRows : 0;
     for (const [id, shell] of this.shells) {
       shell.applyTheme(s);
       const b = boxes.get(id);
@@ -1402,9 +1418,9 @@ export class Cockpit {
       if (id === 'map' && g.lens && !g.tooSmall) shell.place({ rect: g.lens, content: g.lens, framed: false }, cell);
       // (Landscape: the band is the column's last columns instead of a part's last row.)
       else if (strip) shell.place({ rect: g.strip, content: inset(g.strip, phoneStripChromeRows(cell.h), g.landscape ? 0 : PHONE_STRIP_FOOT_ROWS, g.sideBand), framed: false }, cell);
-      // (Landscape: Comm has a hood of its own, under a divider when the strip is above it.)
+      // (Comm has a hood of its own, as the strip has; in landscape under a divider when the strip is above it.)
       else if (id === 'comm' && g.comm.h > 0 && !g.tooSmall)
-        shell.place({ rect: g.comm, content: inset(g.comm, g.landscape ? phoneCommHeadRows(cell.h, g.strip.h > 0) : 0, g.landscape ? 0 : PHONE_COMM_BAND_ROWS, g.sideBand), framed: false }, cell);
+        shell.place({ rect: g.comm, content: inset(g.comm, this.pgCommHead, g.landscape ? 0 : PHONE_COMM_BAND_ROWS, g.sideBand), framed: false }, cell);
       else shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.index } : null, cell);
     }
     this.holes.sync();
@@ -2467,7 +2483,12 @@ export const PHONE_COMM_BAND_ROWS = 1;
  * in the left column, px (phone.css). Comm's hood hangs from it.
  */
 export const PHONE_SIDE_DIVIDER_PX = 6;
-/** The rows of Comm the phone layer's hood takes in landscape: the hood, and the divider above it when the strip is open too. */
+/**
+ * Portrait: what Comm's content keeps under its hood, px, or the hood is left out. Measured: the
+ * rail's head, one line of chat and the reply line whole need about 100 px (phone.css, comm.css).
+ */
+export const PHONE_COMM_HOOD_KEEP_PX = 104;
+/** The rows of Comm the phone layer's hood takes: the hood, and in landscape the divider above it when the strip is open too. */
 export function phoneCommHeadRows(cellH: number, divided: boolean): number {
   const px = PHONE_STRIP_CHROME_PX + (divided ? PHONE_SIDE_DIVIDER_PX : 0);
   return cellH > 0 ? Math.max(1, Math.ceil(px / cellH - 1e-6)) : 1;

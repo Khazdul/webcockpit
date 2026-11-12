@@ -732,8 +732,8 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip.wc-ph-side-grip {
   cursor: ew-resize;
 }
 
-/* Landscape (stage 52e): Comm's head in the left column (src/phone/comm-chrome.ts; JS sets top and
- * width). Its hood is the strip's, reading COMM. With the strip open above it an iron divider in
+/* Comm's head (src/phone/comm-chrome.ts; JS sets top and width; landscape since stage 52e, portrait
+ * since round 53i). Its hood is the strip's, reading COMM. In landscape, with the strip open above it in the left column, an iron divider in
  * the bands' look lies along Comm's top edge (6 px, cockpit.ts `PHONE_SIDE_DIVIDER_PX`; no lit
  * bar: it is not dragged) and the hood hangs from it, as the strip's hangs from the top edge. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head {

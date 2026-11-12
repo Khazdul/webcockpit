@@ -232,6 +232,73 @@ test('Comm\'s reply line: a tap opens our keyboard for it, a tell is typed with 
   expect(errors).toEqual([]);
 });
 
+// Round 53i (the owner, on the S21): Comm had no header text in portrait (ADR 0137 §1 gave it
+// a hood in landscape only). It has the strip's kind of hood there now, on a row of its own.
+test('portrait: Comm has its hood (COMM), alone, while its reply is typed in and with the search open; at its least rows the hood gives way to the reply line', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await play(page);
+  await setScreen(page, S21);
+  await openTell(page, m);
+  const head = page.locator('.wc-ph-comm-head');
+  const hood = head.locator('.wc-ph-comm-hood');
+  const band = page.locator('.wc-ph-comm-band');
+  const headRows = () => page.evaluate(() => window.__wc!.app.cockpit.phoneCommHead);
+  const whole = async (): Promise<void> => {
+    await frames(page);
+    await expect(hood).toBeVisible();
+    await expect(hood).toHaveText('Comm');
+    const g = await layout(page);
+    const cell = await page.evaluate(() => window.__wc!.cells.get());
+    const h = await box(hood);
+    // It hangs from Comm's top edge, in the middle of the full width, without the landscape divider.
+    expect(Math.abs(h.y - g.comm.y * cell.h)).toBeLessThanOrEqual(1);
+    expect(Math.abs(h.x + h.width / 2 - (g.comm.w * cell.w) / 2)).toBeLessThanOrEqual(1.5);
+    await expect(head).not.toHaveAttribute('data-divided');
+    // On rows of its own: the pane's content starts under it, and the reply line is whole above the band.
+    expect(await headRows()).toBeGreaterThan(0);
+    const c = await box(comm(page).locator('.wc-pane-content'));
+    expect(c.y).toBeGreaterThanOrEqual(h.y + h.height - 0.5);
+    const r = await box(comm(page).locator('.wc-cm-reply'));
+    expect(r.y + r.height).toBeLessThanOrEqual((await box(band)).y + 0.5);
+  };
+  // The strip's hood is the same thing: one look.
+  await whole();
+  // While the reply line is typed in.
+  await reply(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await whole();
+  // With the search open.
+  await comm(page).locator('.wc-cm-sbtn').tap();
+  await expect(search(page)).toBeFocused();
+  await type(page, 'o', 'r');
+  await whole();
+  await key(page, 'fold').tap();
+  // A small phone, the reply typed in: Comm is at its least rows above the keyboard. The hood
+  // gives way there, and the reply line is whole above the band, as before the hood came.
+  await setScreen(page, { width: 320, height: 568 });
+  await reply(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await frames(page);
+  // (Six rows: under the hood less than a reply line and a line of chat need, so no hood, and the
+  // content has every row but the band's.)
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 6 } }));
+  await frames(page);
+  expect((await layout(page)).comm.h).toBe(6);
+  expect(await headRows()).toBe(0);
+  await expect(head).toBeHidden();
+  const c = await box(comm(page).locator('.wc-pane-content'));
+  expect(Math.abs(c.y - (await layout(page)).comm.y * (await page.evaluate(() => window.__wc!.cells.get().h)))).toBeLessThanOrEqual(1);
+  // With more rows it is back.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 9 } }));
+  await frames(page);
+  expect((await layout(page)).comm.h).toBeGreaterThanOrEqual(8);
+  await expect(hood).toBeVisible();
+  const r = await box(comm(page).locator('.wc-cm-reply'));
+  expect(r.y + r.height).toBeLessThanOrEqual((await box(band)).y + 0.5);
+  await expect(comm(page)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('Comm\'s search: its key opens our keyboard for the field, typing filters as when typed, Enter does nothing', async ({ page }) => {
   const m = await play(page);
   await setScreen(page, S21);
