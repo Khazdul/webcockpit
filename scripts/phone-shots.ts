@@ -8,6 +8,8 @@
 //   node scripts/phone-shots.ts 52c land-plain keys-three …   states of round 52c
 //   node scripts/phone-shots.ts 53a              the own keyboard of round 53a (`?kbd=1`)
 //   node scripts/phone-shots.ts 53c sv land-six  states of round 53c (the keyboard in the phone's look)
+//   node scripts/phone-shots.ts 53d comm box password settings …   states of round 53d (name them:
+//                                                the other fields, the password prompt, the settings)
 //
 // Writes docs/stages/img/<stage>-<step>-<state>.png (dark) and
 // docs/stages/img/<stage>-<step>-<state>-paper.png (Paper), where <step> is
@@ -69,7 +71,7 @@ interface State {
   stage?: number;
   /** Another screen than 390 × 844 (landscape, a narrow phone). */
   viewport?: { width: number; height: number };
-  /** More of the page's query (`kbd=1`: the own keyboard of stage 53a). Not with `live`. */
+  /** More of the page's query (`kbd=1`: the own keyboard of stage 53a). */
   query?: string;
   /** Brings the opened cockpit to the state. */
   run(page: Page): Promise<void>;
@@ -121,7 +123,7 @@ async function lensDrawn(page: Page): Promise<void> {
  * (the demo's own ends before its tells), so Comm has chats and the fight
  * card shows. Returns once the last line is on screen.
  */
-async function live(page: Page): Promise<void> {
+async function live(page: Page, query = ''): Promise<void> {
   const feed = Buffer.concat([
     ...toSteps(fixture(WALK)).flatMap((st) => ('out' in st ? [st.out] : [])),
     ...toSteps(fixture(FIXTURE)).flatMap((st) => ('out' in st ? [st.out] : [])),
@@ -134,7 +136,7 @@ async function live(page: Page): Promise<void> {
     ws.send(Buffer.from([IAC, WILL, GMCP]));
     ws.send(feed);
   });
-  await page.goto('/?phone=1');
+  await page.goto(`/?phone=1${query ? `&${query}` : ''}`);
   await page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label').waitFor();
   await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
   await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
@@ -884,6 +886,45 @@ const STATES: State[] = [
         await p.locator('.wc-pane[data-pane="comm"]').waitFor();
       }),
   },
+  // Stage 53d: the other fields typed in from our keyboard. Comm's reply line, portrait and landscape.
+  { name: 'comm', stage: 53, step: 'd', live: true, query: 'kbd=sv', viewport: S21, run: (page) => ownReply(page) },
+  { name: 'land-comm', stage: 53, step: 'd', live: true, query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownReply(page) },
+  // The hot key box with the keyboard typing in its Command field.
+  { name: 'box', stage: 53, step: 'd', query: 'kbd=sv', viewport: S21, run: (page) => ownBox(page) },
+  { name: 'land-box', stage: 53, step: 'd', query: 'kbd=sv', viewport: S21_LAND, run: (page) => ownBox(page) },
+  {
+    // The password prompt: the line masked with bullets, the arrows dimmed.
+    name: 'password',
+    stage: 53,
+    step: 'd',
+    live: true,
+    query: 'kbd=sv',
+    viewport: S21,
+    run: async (page) => {
+      await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: true }));
+      await page.locator('.wc-input-slot .wc-input-field').tap();
+      await page.locator('.wc-ph-okb').waitFor();
+      for (const k of ['h', 'e', 'm', 'l', 'i', 'g']) await okbKey(page, k).tap();
+      await settle(page);
+    },
+  },
+  {
+    // The settings page: Quick buttons with the vibration row, and the Keyboard group.
+    name: 'settings',
+    stage: 53,
+    step: 'd',
+    query: 'kbd=sv',
+    viewport: S21,
+    run: async (page) => {
+      await busy(page);
+      await page.locator('.wc-ph-menu').tap();
+      await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
+      await page.locator('.wc-ph-page [data-group="keyboard"]').waitFor();
+      await page.locator('.wc-ph-page [data-row="vibrate"]').waitFor();
+      await page.locator('.wc-ph-page [data-group="compass"]').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await settle(page);
+    },
+  },
   {
     name: 'keys-six',
     stage: 52,
@@ -908,6 +949,34 @@ async function ownKeyboard(page: Page, before?: (page: Page) => Promise<void>, a
   const key = (k: string) => page.locator(k.length === 1 ? `.wc-ph-okb-k[data-ch="${k}"]` : `.wc-ph-okb-k[data-act="${k}"]`);
   for (const k of ['shift', 'k', 'i', 'l', 'l', 'space', 'o', 'r', 'c']) await key(k).tap();
   await after?.(key);
+  await settle(page);
+}
+
+/** A key of our own keyboard. */
+const okbKey = (page: Page, k: string) => page.locator(k.length === 1 ? `.wc-ph-okb-k[data-ch="${k}"]` : `.wc-ph-okb-k[data-act="${k}"]`);
+
+/** Stage 53d: Comm on Gibur's chat, a tap on its reply line opens our keyboard for it, and a tell is typed. */
+async function ownReply(page: Page): Promise<void> {
+  await openChat(page, 'Gibur');
+  await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/** Stage 53d: a hold on K2 opens its box, a tap in the Command field opens our keyboard for it, and a command is typed. */
+async function ownBox(page: Page): Promise<void> {
+  await busy(page);
+  const key = page.locator('.wc-ph-hk[data-hk="1"]');
+  await key.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  await page.locator('.wc-ph-rb').waitFor();
+  await key.dispatchEvent('pointerup', { pointerId: 1, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, bubbles: true });
+  const command = page.locator('#wc-ph-rb-command');
+  await command.tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  await command.evaluate((el: HTMLInputElement) => el.setSelectionRange(el.value.length, el.value.length));
+  for (const k of [';', 'k', 'i', 'c', 'k']) await okbKey(page, k).tap();
   await settle(page);
 }
 
@@ -937,7 +1006,7 @@ async function shoot(browser: Browser, state: State, file: string, light: boolea
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.warn(`  page error: ${e.message}`));
   try {
-    if (state.live) await live(page);
+    if (state.live) await live(page, state.query);
     else {
       await page.goto(`/?replay&phone=1${state.query ? `&${state.query}` : ''}`);
       await page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad').waitFor();
