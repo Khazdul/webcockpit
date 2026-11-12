@@ -226,6 +226,9 @@ test.describe('portrait 360 × 800', () => {
 
     await tapEnd(page, ed);
     await expectUp(page);
+    // The digit row is up for code (portrait), whatever the stored state.
+    await expect(okb(page).locator('.wc-ph-okb-row.is-digits')).toBeVisible();
+    expect(await page.evaluate(() => window.__wc!.settings.get().phone.keyboard.digits)).toBe(false);
     // Enter's key is a line break here, and the caret keys are lit.
     await expect(key(page, 'enter')).toHaveAttribute('data-enter', 'newline');
     for (const k of ['up', 'down', 'left', 'right', 'esc', 'tab']) await expect(key(page, k)).not.toHaveAttribute('aria-disabled', 'true');
@@ -298,4 +301,429 @@ test.describe('portrait 360 × 800', () => {
     await expectUp(page);
     expect(errors).toEqual([]);
   });
+
+  test('thirty lines: the caret\'s line stays above the keyboard, and the page does not slide away', async ({ page }) => {
+    const errors = watchErrors(page);
+    const ed = await openScript(page);
+    await tapEnd(page, ed);
+    await expectUp(page);
+    const win = ed.locator('.wc-lk-win').first();
+    const winTop = (await box(win)).y;
+    for (let i = 1; i <= 30; i++) {
+      await typeOn(page, `x${i % 10}`);
+      await press(page, 'enter');
+      if (i % 5 === 0) await expectCaretLineShown(page, ed);
+    }
+    await expect(sed(page).locator('.wc-sed-pos')).toContainText('Ln 34,');
+    await expectCaretLineShown(page, ed);
+    // Up through the text and down again, held as a finger holds the key: the line follows.
+    for (let i = 0; i < 25; i++) await key(page, 'up').tap();
+    await expect(sed(page).locator('.wc-sed-pos')).toContainText('Ln 9,');
+    await expectCaretLineShown(page, ed);
+    for (let i = 0; i < 25; i++) await key(page, 'down').tap();
+    await expectCaretLineShown(page, ed);
+    // Nothing but the buffer's own scroller moved: the box stands where it stood, whole above the keys.
+    expect((await box(win)).y).toBe(winTop);
+    await expectAbove(page, win);
+    expect(await page.evaluate(() => [document.scrollingElement!.scrollTop, document.querySelector('#app')!.scrollTop])).toEqual([0, 0]);
+    expect(errors).toEqual([]);
+  });
+
+  test('Find and Replace and back: our keyboard stays up all the way, and Esc in Find returns to the buffer', async ({ page }) => {
+    const errors = watchErrors(page);
+    const ed = await openScript(page, '&kbd=en', `${HEADER}local orc = 1\nlocal orcs = orc + orc\n`);
+    const content = ed.locator('.cm-content');
+    await tapEnd(page, ed);
+    await expectUp(page);
+    await watchUps(page);
+    // The Find tool: the find row opens with the focus in its field, a field of ours.
+    await tool(page, 'FIND').tap();
+    const panel = ed.locator('.wc-lk-search');
+    const find = panel.locator('[data-field="find"] input');
+    const replace = panel.locator('[data-field="replace"] input');
+    await expect(find).toBeFocused();
+    await expectMarked(find);
+    await expectMarked(replace);
+    await expectUp(page);
+    await expectAbove(page, panel);
+    // Enter is the field's there (next match), not a line break.
+    await expect(key(page, 'enter')).toHaveAttribute('data-enter', 'submit');
+    await typeOn(page, 'orc');
+    await expect(find).toHaveValue('orc');
+    await expect(panel.locator('.wc-search-count')).toHaveText('1 of 4');
+    await press(page, 'enter');
+    await expect(panel.locator('.wc-search-count')).toHaveText('2 of 4');
+    // Tab goes to Replace; Enter there replaces the match.
+    await press(page, 'tab');
+    await expect(replace).toBeFocused();
+    await typeOn(page, 'elf');
+    await press(page, 'enter');
+    await expect.poll(() => text(ed)).toBe(`${HEADER}local orc = 1\nlocal elfs = orc + orc\n`);
+    await expect(panel.locator('.wc-search-count')).toContainText('of 3');
+    // Some code shows under the find row, above the keys.
+    await expectAbove(page, ed.locator('.cm-scroller'));
+    expect((await box(ed.locator('.cm-scroller'))).height).toBeGreaterThan(60);
+    // Esc: the row closes, the buffer has the focus, and the keyboard never went.
+    await press(page, 'esc');
+    await expect(panel).toHaveCount(0);
+    await expect(content).toBeFocused();
+    await expectUp(page);
+    await expect(key(page, 'enter')).toHaveAttribute('data-enter', 'newline');
+    await typeOn(page, 'z');
+    await expect.poll(() => text(ed)).toContain('z');
+    // A tap in the Find field from the buffer, and the row's Close: the same.
+    await tool(page, 'FIND').tap();
+    await expect(find).toBeFocused();
+    await content.locator('.cm-line').first().tap();
+    await expect(content).toBeFocused();
+    await find.tap();
+    await expect(find).toBeFocused();
+    await panel.locator('[data-btn="close"]').tap();
+    await expect(panel).toHaveCount(0);
+    await expect(content).toBeFocused();
+    await expectUp(page);
+    // Not one flicker: the keyboard's class on the page never changed.
+    expect(await ups(page)).toEqual([]);
+    // And no field met on the way was one the device's keyboard would rise for.
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('inputmode'))).toBe('none');
+    expect(errors).toEqual([]);
+  });
+
+  test('the profile editor\'s Editor view: an alias typed on our keys, braces close once, Find and back', async ({ page }) => {
+    const errors = watchErrors(page);
+    const p = await openProfile(page);
+    const content = p.locator('.cm-content');
+    await expectMarked(content);
+    await expect(content).toHaveAttribute('data-okb-kind', 'editor');
+    // The view's tab gave the buffer the focus: no keyboard until a tap in the text.
+    await expectDown(page);
+    await tapEnd(page, p);
+    await expectUp(page);
+    await expect(key(page, 'enter')).toHaveAttribute('data-enter', 'newline');
+    // The digit row is up for code, and the symbols stand in the code order.
+    await expect(okb(page).locator('.wc-ph-okb-row.is-digits')).toBeVisible();
+    await typeOn(page, '#alias {dr');
+    expect((await lines(p)).at(-1)).toBe('#alias {dr}');
+    // The closer typed steps over the one put in.
+    await typeOn(page, '} {');
+    expect((await lines(p)).at(-1)).toBe('#alias {dr} {}');
+    // Backspace right after the pair deletes both (`pairDelete`).
+    await press(page, 'back');
+    expect((await lines(p)).at(-1)).toBe('#alias {dr} ');
+    await typeOn(page, '{drink %1}');
+    expect((await lines(p)).at(-1)).toBe('#alias {dr} {drink %1}');
+    await press(page, 'enter');
+    await typeOn(page, 'x');
+    await press(page, 'left', 'back', 'up', 'right');
+    await expect(p.locator('.wc-pe-pos')).toContainText('Ln 2, Col 2');
+    expect(await text(p)).toBe('#alias {k} {kill %1}\n#alias {dr} {drink %1}\nx');
+    // Find (the foot's button) and back with Esc: the keyboard stays.
+    await watchUps(page);
+    await p.locator('.wc-pe-foot [data-btn="FIND"]').tap();
+    const find = p.locator('.wc-lk-search [data-field="find"] input');
+    await expect(find).toBeFocused();
+    await typeOn(page, 'dr');
+    await expect(p.locator('.wc-lk-search .wc-search-count')).toContainText('of 2');
+    await press(page, 'esc');
+    await expect(p.locator('.wc-lk-search')).toHaveCount(0);
+    await expect(content).toBeFocused();
+    await expectUp(page);
+    expect(await ups(page)).toEqual([]);
+    // Save's tap keeps the keyboard; the text is stored.
+    await p.locator('.wc-pe-foot [data-btn="SAVE"]').tap();
+    await expect.poll(() => page.evaluate(() => window.__wc!.shell.profiles.get('default').then((r) => r?.text ?? ''))).toContain('#alias {dr} {drink %1}');
+    // Tab leaves the buffer for the editor's other zones, as a physical Tab does there: the keyboard goes with the focus.
+    await press(page, 'tab');
+    await expectDown(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('a drag in the code scrolls it and opens or closes nothing; a tap opens', async ({ page }) => {
+    const errors = watchErrors(page);
+    const long = Array.from({ length: 80 }, (_, i) => `local v${i} = ${i}`).join('\n');
+    const ed = await openScript(page, '&kbd=en', `${HEADER}${long}\n`);
+    const sc = ed.locator('.cm-scroller');
+    const b = await box(sc);
+    const cdp = await page.context().newCDPSession(page);
+    const drag = (dy: number) =>
+      cdp.send('Input.synthesizeScrollGesture', { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2), yDistance: dy, gestureSourceType: 'touch', speed: 1200 });
+    // Keyboard down: a drag scrolls the code and brings no keyboard.
+    await drag(-300);
+    await expect.poll(() => sc.evaluate((el) => el.scrollTop)).toBeGreaterThan(200);
+    await page.waitForTimeout(200);
+    await expectDown(page);
+    // A tap on a line: the keyboard, and the caret where the finger was.
+    const mid = await box(sc);
+    await page.touchscreen.tap(mid.x + mid.width / 2, mid.y + 100);
+    await expectUp(page);
+    await expect(ed.locator('.cm-content')).toBeFocused();
+    await expectCaretLineShown(page, ed);
+    // Keyboard up: a drag scrolls and the keyboard stays, the focus too.
+    await watchUps(page);
+    const before = await sc.evaluate((el) => el.scrollTop);
+    const now = await box(sc);
+    await cdp.send('Input.synthesizeScrollGesture', { x: Math.round(now.x + now.width / 2), y: Math.round(now.y + now.height / 2), yDistance: -150, gestureSourceType: 'touch', speed: 1200 });
+    await expect.poll(() => sc.evaluate((el) => el.scrollTop)).toBeGreaterThan(before + 80);
+    await page.waitForTimeout(200);
+    await expectUp(page);
+    await expect(ed.locator('.cm-content')).toBeFocused();
+    expect(await ups(page)).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('a bundled script (read-only): marked, and a tap opens nothing; its Find row is ours', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('/?phone=1&kbd=en');
+    await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+    const name = await page.evaluate(async () => {
+      const l = window.__wc!.shell.scripts!;
+      await l.init();
+      return l.list().find((s) => s.readonly)?.name ?? null;
+    });
+    test.skip(name === null, 'no bundled script in this build');
+    const f = startFrame(page);
+    await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+    await row(f, name!).locator('.wc-scr-name').tap();
+    await f.locator('[data-btn="VIEW"]:visible, [data-btn="EDIT"]:visible').first().tap();
+    const ed = sed(page);
+    await expect(ed).toHaveAttribute('data-readonly', 'true');
+    await morphDone(page);
+    const content = ed.locator('.cm-content');
+    await expectMarked(content);
+    const line = await box(content.locator('.cm-line').nth(2));
+    await page.touchscreen.tap(line.x + 40, line.y + line.height / 2);
+    await frames(page);
+    await page.waitForTimeout(150);
+    await expectDown(page);
+    await tool(page, 'FIND').tap();
+    const find = ed.locator('.wc-lk-search [data-field="find"] input');
+    await expect(find).toBeFocused();
+    await expectUp(page);
+    await press(page, 'esc');
+    await expect(ed.locator('.wc-lk-search')).toHaveCount(0);
+    await expectDown(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('a rotation with the keyboard up: it stays up, the buffer keeps the focus and the caret\'s line shows, both ways', async ({ page }) => {
+    const errors = watchErrors(page);
+    const long = Array.from({ length: 40 }, (_, i) => `local v${i} = ${i}`).join('\n');
+    const ed = await openScript(page, '&kbd=en', `${HEADER}${long}\n`);
+    const content = ed.locator('.cm-content');
+    await tapEnd(page, ed);
+    await expectUp(page);
+    await page.keyboard.press('ControlOrMeta+End');
+    await typeOn(page, 'x');
+    for (const size of [S21_LAND, S21, S21_LAND, S21]) {
+      await page.setViewportSize(size);
+      await frames(page);
+      await expect(content).toBeFocused();
+      await expectUp(page);
+      await expectCaretLineShown(page, ed);
+      // The digit row is the editors' in portrait only.
+      await expect(okb(page).locator('.wc-ph-okb-row.is-digits')).toHaveCount(size.width > size.height ? 0 : 1);
+    }
+    await typeOn(page, 'y');
+    expect((await lines(ed)).at(-1)).toBe('xy');
+    expect(errors).toEqual([]);
+  });
+
+  test('`?kbd=0`: the buffers are not marked and ours never opens', async ({ page }) => {
+    const ed = await openScript(page, '&kbd=0');
+    const content = ed.locator('.cm-content');
+    expect(await content.getAttribute('inputmode')).toBeNull();
+    expect(await content.getAttribute('virtualkeyboardpolicy')).toBeNull();
+    expect(await content.getAttribute('data-okb-kind')).toBeNull();
+    await tapEnd(page, ed);
+    await frames(page);
+    await expect(page.locator('.wc-okb-page')).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('x = (');
+    expect((await lines(ed)).at(-1)).toBe('x = ()');
+  });
 });
+
+// ------------------------------------------------------------ a narrow phone
+
+test.describe('a narrow phone 320 × 568', () => {
+  test.use({ viewport: { width: 320, height: 568 } });
+
+  test('the script editor: code above the keys, the list on screen, the find row leaves code in view', async ({ page }) => {
+    const errors = watchErrors(page);
+    const ed = await openScript(page);
+    await tapEnd(page, ed);
+    await expectUp(page);
+    await expectCaretLineShown(page, ed);
+    await typeOn(page, '\nse');
+    const list = page.locator('.cm-tooltip-autocomplete');
+    await expect(list).toBeVisible();
+    await expectAbove(page, list);
+    await press(page, 'tab');
+    expect((await lines(ed)).at(-1)).toBe('send');
+    await expectCaretLineShown(page, ed);
+    await tool(page, 'FIND').tap();
+    const panel = ed.locator('.wc-lk-search');
+    await expect(panel.locator('[data-field="find"] input')).toBeFocused();
+    await expectUp(page);
+    await expectAbove(page, panel);
+    for (const f of ['find', 'replace']) expect(await hittable(panel.locator(`[data-field="${f}"] input`))).toBe(true);
+    for (const b of ['prev', 'next', 'close', 'replace', 'all']) expect(await hittable(panel.locator(`[data-btn="${b}"]`))).toBe(true);
+    // A line of code or more still shows under it.
+    expect((await box(ed.locator('.cm-scroller'))).height).toBeGreaterThanOrEqual(20);
+    expect(errors).toEqual([]);
+  });
+});
+
+// ------------------------------------------------------------------ landscape
+
+for (const [name, viewport] of [
+  ['landscape 800 × 360', S21_LAND],
+  ['landscape 640 × 360', { width: 640, height: 360 }],
+] as const) {
+  test.describe(name, () => {
+    test.use({ viewport });
+
+    test('the script editor: head and status step aside, several code lines show and can be hit, the pop-ups fit', async ({ page }) => {
+      const errors = watchErrors(page);
+      const long = Array.from({ length: 12 }, (_, i) => `local v${i} = ${i}`).join('\n');
+      const ed = await openScript(page, '&kbd=en', `${HEADER}${long}\n`);
+      const hood = ed.locator('.wc-lk-box > .wc-lk-hood');
+      await expect(hood).toBeVisible();
+      await expect(ed.locator('.wc-sed-line')).toBeVisible();
+      const sc = ed.locator('.cm-scroller');
+      const b = await box(sc);
+      await page.touchscreen.tap(b.x + b.width / 2, b.y + 30);
+      const k = await expectUp(page);
+      // No row was added for the page keys or the digits: the keyboard is as high as in the game.
+      await expect(okb(page).locator('.wc-ph-okb-row.is-digits')).toHaveCount(0);
+      await expect(okb(page).locator('.wc-ph-okb-side')).toHaveCount(2);
+      await expect(hood).toBeHidden();
+      await expect(ed.locator('.wc-lk-box > .wc-lk-back')).toBeHidden();
+      await expect(ed.locator('.wc-sed-line')).toBeHidden();
+      // Several lines of code above the keys, each one under nothing.
+      await expectAbove(page, sc);
+      const shown = await ed.locator('.cm-content .cm-line').evaluateAll(
+        (ls, kTop) =>
+          ls.filter((l) => {
+            const r = l.getBoundingClientRect();
+            if (r.top < 0 || r.bottom > kTop) return false;
+            const at = document.elementFromPoint(r.left + 6, (r.top + r.bottom) / 2);
+            return !!at && (at === l || l.contains(at) || !!at.closest('.cm-content'));
+          }).length,
+        k.y,
+      );
+      expect(shown).toBeGreaterThanOrEqual(6);
+      await expectCaretLineShown(page, ed);
+      // Typing: the list fits on screen above the keys wherever the caret's line is.
+      await page.keyboard.press('ControlOrMeta+End');
+      await typeOn(page, 'se');
+      const list = page.locator('.cm-tooltip-autocomplete');
+      await expect(list).toBeVisible();
+      await expectAbove(page, list);
+      await expect(page.locator('.cm-completionInfo')).toBeHidden();
+      await press(page, 'esc');
+      await expect(list).toHaveCount(0);
+      await press(page, 'back', 'back');
+      for (let i = 0; i < 6; i++) await key(page, 'up').tap();
+      await typeOn(page, 'se');
+      await expect(list).toBeVisible();
+      await expectAbove(page, list);
+      await press(page, 'tab');
+      await expect(list).toHaveCount(0);
+      await expectCaretLineShown(page, ed);
+      // The find row: its fields and buttons above the keys and hittable, code under it; Esc returns.
+      await watchUps(page);
+      await tool(page, 'FIND').tap();
+      const panel = ed.locator('.wc-lk-search');
+      await expect(panel.locator('[data-field="find"] input')).toBeFocused();
+      await expectUp(page);
+      await expectAbove(page, panel);
+      for (const f of ['find', 'replace']) expect(await hittable(panel.locator(`[data-field="${f}"] input`))).toBe(true);
+      for (const btn of ['prev', 'next', 'close', 'replace', 'all']) expect(await hittable(panel.locator(`[data-btn="${btn}"]`))).toBe(true);
+      expect((await box(sc)).height).toBeGreaterThanOrEqual(36);
+      await typeOn(page, 'v1');
+      await expect(panel.locator('.wc-search-count')).toContainText('of 3');
+      await press(page, 'esc');
+      await expect(panel).toHaveCount(0);
+      await expect(ed.locator('.cm-content')).toBeFocused();
+      await expectUp(page);
+      expect(await ups(page)).toEqual([]);
+      // The fold key: the head and the status line are back.
+      await press(page, 'fold');
+      await expectDown(page);
+      await expect(hood).toBeVisible();
+      await expect(ed.locator('.wc-sed-line')).toBeVisible();
+      expect(errors).toEqual([]);
+    });
+
+    test('the profile editor\'s Editor view: the views and the foot step aside, the code shows and types', async ({ page }) => {
+      const errors = watchErrors(page);
+      const long = Array.from({ length: 12 }, (_, i) => `#alias {a${i}} {b${i}}`).join('\n');
+      const p = await openProfile(page, '&kbd=en', `${long}\n`);
+      const sc = p.locator('.cm-scroller');
+      const b = await box(sc);
+      await page.touchscreen.tap(b.x + b.width / 2, b.y + Math.min(20, b.height / 2));
+      const k = await expectUp(page);
+      await expect(p.locator('.wc-pe-head')).toBeHidden();
+      await expect(p.locator('.wc-pe-foot')).toBeHidden();
+      await expectAbove(page, sc);
+      expect((await box(sc)).height).toBeGreaterThanOrEqual(120);
+      expect((await box(sc)).y + (await box(sc)).height).toBeLessThanOrEqual(k.y);
+      await expectCaretLineShown(page, p);
+      await page.keyboard.press('ControlOrMeta+End');
+      await typeOn(page, '#alias {x');
+      expect((await lines(p)).at(-1)).toBe('#alias {x}');
+      await expectCaretLineShown(page, p);
+      await press(page, 'fold');
+      await expectDown(page);
+      await expect(p.locator('.wc-pe-head')).toBeVisible();
+      await expect(p.locator('.wc-pe-foot')).toBeVisible();
+      expect(errors).toEqual([]);
+    });
+  });
+}
+
+// ------------------------------------------------------- desktop and tablet
+
+for (const [name, viewport, url] of [
+  ['a desktop-size window with the phone flag forced', { width: 1280, height: 800 }, '/?phone=1&kbd=en'],
+  ['a tablet-size window (touch, no phone flag)', { width: 820, height: 1180 }, '/?touch=1'],
+] as const) {
+  test.describe(name, () => {
+    test.use({ viewport });
+
+    test('gets nothing of this: the buffers are not marked and type as before', async ({ page }) => {
+      await page.goto(url);
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+      await page.evaluate(async (src) => {
+        const l = window.__wc!.shell.scripts!;
+        await l.init();
+        await l.create('phoneed', src);
+        await window.__wc!.shell.profiles.init();
+        await window.__wc!.shell.profiles.save('default', '#alias {k} {kill}\n');
+      }, HEADER);
+      const f = startFrame(page);
+      await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+      await row(f, 'phoneed').locator('.wc-scr-name').tap();
+      await f.locator('[data-btn="EDIT"]:visible').first().tap();
+      const ed = sed(page);
+      await expect(ed).toHaveAttribute('data-script', 'phoneed');
+      const content = ed.locator('.cm-content');
+      for (const a of ['inputmode', 'virtualkeyboardpolicy', 'data-okb-kind']) expect(await content.getAttribute(a)).toBeNull();
+      await content.tap();
+      await frames(page);
+      await expect(page.locator('.wc-okb-page')).toHaveCount(0);
+      await expect(html(page)).not.toHaveClass(/\bwc-okb-pg\b/);
+      await page.keyboard.press('ControlOrMeta+End');
+      await page.keyboard.type('x = (');
+      expect((await lines(ed)).at(-1)).toBe('x = ()');
+      // The find row's fields are plain too.
+      await page.keyboard.press('ControlOrMeta+f');
+      const find = ed.locator('.wc-lk-search [data-field="find"] input');
+      await expect(find).toBeFocused();
+      expect(await find.getAttribute('inputmode')).toBeNull();
+      await page.keyboard.press('Escape');
+      await expect(content).toBeFocused();
+    });
+  });
+}
