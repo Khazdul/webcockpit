@@ -601,7 +601,8 @@ export class PhoneLayer {
         else if (anyDown || clock() - anyAt < OKB_POINTER_FOCUS_MS) this.openOwnKeyboard(f);
         return;
       }
-      // Not ours: the field keeps its focus (and gets the device's keyboard); ours gives way.
+      // Not ours (none is known in the game layout; a guard for a field added later without its
+      // mark, which would get the device's keyboard): the field keeps its focus, ours gives way.
       if (this.okbOpen && isTextField(t) && !isMarked(t)) this.closeOwnKeyboard(false);
     };
     // A tap on a field of ours that has the focus already (in the capture phase: the box keeps its clicks).

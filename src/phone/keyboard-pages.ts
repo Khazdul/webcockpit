@@ -20,9 +20,10 @@
 //   setting's value; and since round 53g the multi-line ones: Lite's body
 //   (`data-okb-kind="lines"`: Enter is a line break, the caret goes up and
 //   down, and the caret's line is kept above the keyboard after every edit)
-//   and the export comment (one paragraph: Enter saves, as before). A field
-//   that is not marked keeps the device's keyboard, and ours closes when
-//   one of them takes the focus: the two never stand together.
+//   and the export comment (one paragraph: Enter saves, as before). Every
+//   text field a phone reaches is marked (ADR 0139, round 53h); should one
+//   that is not take the focus, ours closes, so it never stands together
+//   with the device's.
 // - The code editors (round 53h, ADR 0139 §6): a CodeMirror buffer's content
 //   element (`data-okb-kind="editor"`, registered by the editor chunk and
 //   found through `deps.editorOf`) is a field too. Text goes in through the
@@ -43,7 +44,9 @@
 //   (`OKB_SYMBOLS_CODE`), and in portrait the digit row is up for an editor
 //   whatever the stored state (digits are code, and with the row up one
 //   symbols page holds everything Lua and the profile syntax need, two taps
-//   away); its key folds it for the editors until the page is left. In
+//   away). Its key then folds the row and brings it back for that editor
+//   (its buffer and its find row) and never writes the stored state; an
+//   editor opened anew starts with the row up again. In
 //   landscape, and on a phone too short to keep `PAGE_CODE_DIGITS_KEEP_PX`
 //   of page above it, the row follows the stored state.
 // - The page keys (53g): Esc, Tab and the caret keys, in a row at the top
@@ -239,9 +242,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   let watch: MutationObserver | null = null;
   /** A numeric field shows the digit row whatever the stored state, until its key folds it away. */
   let forceDigits = false;
-  /** A code editor is typed in: the digit row is up in portrait, until its key folds it (`codeFolded`, kept while the mount lives). */
+  /** A code editor is typed in: the digit row is up in portrait, unless its key folded it for that editor (`codeFoldedFor`: the editor's element, so the fold ends when the editor is left). */
   let code = false;
-  let codeFolded = false;
+  let codeFoldedFor: Element | null = null;
   /** The page as last placed: wider than high; high enough for an editor's digit row (`PAGE_CODE_DIGITS_KEEP_PX`). */
   let landscape = false;
   let roomy = true;
@@ -277,8 +280,10 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   inner.className = 'wc-okb-page-in';
   host.append(inner);
 
-  /** The editors' digit row is up now (not stored: `toggleDigits` folds it). */
-  const codeDigits = (): boolean => code && !codeFolded && !landscape && roomy;
+  /** The digit row is the editor's to show now, whatever the stored state (portrait, with the room). */
+  const codeForced = (): boolean => code && !landscape && roomy;
+  /** The editors' digit row is up now (not stored: `toggleDigits` folds it and brings it back). */
+  const codeDigits = (): boolean => codeForced() && !(codeFoldedFor !== null && codeFoldedFor === home);
   const digitsWanted = (): boolean => settings.get().phone.keyboard.digits || forceDigits || codeDigits();
 
   const okb = new OwnKeyboard(
@@ -298,9 +303,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
         if (forceDigits && !settings.get().phone.keyboard.digits) {
           forceDigits = false;
           place();
-        } else if (codeDigits() && !settings.get().phone.keyboard.digits) {
-          // (The editors' row likewise: folded for them, the stored state as it was.)
-          codeFolded = true;
+        } else if (codeForced() && !settings.get().phone.keyboard.digits) {
+          // (The editors' row likewise: folded for this editor or back up, the stored state as it was.)
+          codeFoldedFor = codeDigits() ? home : null;
           place();
         } else settings.update({ phone: { keyboard: { digits: !settings.get().phone.keyboard.digits } } });
       },
@@ -470,6 +475,8 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     if (f === field) return;
     field = f;
     home = f.closest('.cm-editor');
+    // (An editor that was left is gone from the page: its fold with it.)
+    if (codeFoldedFor && !codeFoldedFor.isConnected) codeFoldedFor = null;
     forceDigits = f.getAttribute('data-okb-kind') === 'digits';
     follow(f);
     const ed = isEditor(f) ? editorOf(f) : null;
@@ -639,8 +646,8 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
       else if (open) close(false);
       return;
     }
-    // A text field that is not ours (a multi-line field, an editor's buffer, the game's command
-    // line): it has the device's keyboard or the game's, and ours gives way.
+    // A text field that is not ours to type in (a read-only code buffer, the game's command line
+    // with the game layout's keyboard, a field some later page forgot to mark): ours gives way.
     if (open && isTextField(t)) close(false);
   };
   // The field lost the focus and no field of ours took it (a tap beside it, Esc): the keyboard
