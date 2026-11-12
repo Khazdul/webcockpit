@@ -175,12 +175,21 @@ interface LensDragState {
   H: number;
   x: number;
   y: number;
-  /** The orientation whose wanted values the drop writes, and those values at the start. */
+  /** The orientation whose wanted values the drop writes. */
   orient: 'portrait' | 'landscape';
-  stored: { x: number | null; y: number | null; size: number | null };
+  /**
+   * The centre a resize keeps, as shares of the screen: the stored wanted
+   * place, or (`placed` false: none is stored) the place the lens is shown
+   * at, which the resize's drop then stores with the size.
+   */
+  placed: boolean;
+  centre: { x: number; y: number };
   /** The map pane's shift at the start (`shiftMap`). */
   shift: { dx: number; dy: number };
 }
+
+/** A place as stored: a share of the screen, four decimals (under a tenth of a px). */
+const lensShare = (v: number): number => Math.round(Math.max(0, Math.min(1, v)) * 10000) / 10000;
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
@@ -301,7 +310,8 @@ export class PhoneLayer {
     this.fight = new FightCardView(doc);
     this.fightOn = deps.settings.get().phone.fightCard;
     // A press on a key (ADR 0138 §7): one short vibration while the setting is on. Called in the
-    // pointer's own handler only.
+    // pointer's own handler by the keys, and from the hold's timer by the lens (`arm`, while the
+    // finger is still down).
     const buzz = (): void => {
       if (deps.settings.get().phone.vibrate) pulse(doc.defaultView?.navigator);
     };
@@ -1239,10 +1249,12 @@ export class PhoneLayer {
    * layout the drag began on.
    *
    * - A move carries the box with the finger, inside the room's rectangle.
-   * - A resize keeps the wanted centre and changes the diameter by twice
-   *   what the finger moved away from (or towards) the lens's centre; the
-   *   box is fitted as the layout will fit it, so what shows while the
-   *   finger is down is what the drop gives.
+   * - A resize keeps the wanted centre (of a lens never moved: the centre
+   *   it is shown at, so it does not jump as the resize begins) and changes
+   *   the diameter by twice what the finger moved away from (or towards)
+   *   the lens's centre; the box is fitted as the layout will fit it, so
+   *   what shows while the finger is down is what the drop gives. More
+   *   than fits there gives the largest size that does.
    */
   private dragLens(kind: 'move' | 'size', x0: number, y0: number, x: number, y: number): void {
     const d = this.lensDrag ?? this.grabLens();
@@ -1253,8 +1265,9 @@ export class PhoneLayer {
       const cx = d.x + d.spot.left + d.spot.size / 2;
       const cy = d.y + d.spot.top + d.spot.size / 2;
       const size = resizeLens(d.spot.size, Math.hypot(x0 - cx, y0 - cy), Math.hypot(x - cx, y - cy), LENS_MIN_PX, lensMax(d.room));
-      to = fitLens(lensWant({ ...d.stored, size }, this.lensFull, d.room, d.W, d.H), d.room, LENS_MIN_PX);
-      if (to) d.size = size;
+      to = fitLens({ cx: d.centre.x * d.W, cy: d.centre.y * d.H, size }, d.room, LENS_MIN_PX);
+      // Asked for more than fits there: the largest that does is what is shown, and what is stored.
+      if (to) d.size = to.size;
     }
     if (!to) return;
     d.now = to;
@@ -1280,7 +1293,11 @@ export class PhoneLayer {
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;
     const orient = g.landscape ? 'landscape' : 'portrait';
+    const stored = this.deps.settings.get().phone.lens[orient];
+    const placed = stored.x !== null && stored.y !== null;
     this.lensDrag = {
+      placed,
+      centre: placed ? { x: stored.x!, y: stored.y! } : { x: lensShare((spot.left + spot.size / 2) / W), y: lensShare((spot.top + spot.size / 2) / H) },
       spot,
       now: spot,
       size: null,
@@ -1290,7 +1307,6 @@ export class PhoneLayer {
       x: box.left,
       y: box.top,
       orient,
-      stored: this.deps.settings.get().phone.lens[orient],
       shift: { dx: spot.left + spot.size / 2 - (g.lens.x + g.lens.w / 2) * cell.w, dy: spot.top + spot.size / 2 - (g.lens.y + g.lens.h / 2) * cell.h },
     };
     return this.lensDrag;
@@ -1302,7 +1318,10 @@ export class PhoneLayer {
    * stored for this orientation, and the cockpit lays out once, which puts
    * the lens and the map pane there for real and draws the map at its new
    * size. A move leaves the wanted size alone and a resize the wanted
-   * place, also when the lens was shown pushed or shrunk. Cancelled, or an
+   * place, also when the lens was shown pushed or shrunk; only the resize
+   * of a lens with no wanted place stores the place it was shown at with
+   * the size (the allocator's whole cells are not the room's corner, and
+   * the lens would jump there at the drop). Cancelled, or an
    * armed hold released in place: nothing is stored.
    */
   private dropLens(kind: 'move' | 'size' | null, cancelled: boolean): void {
@@ -1314,11 +1333,20 @@ export class PhoneLayer {
       this.place();
       return;
     }
-    const share = (v: number): number => Math.round(Math.max(0, Math.min(1, v)) * 10000) / 10000;
-    const want = kind === 'move' ? { x: share((d.now.left + d.now.size / 2) / d.W), y: share((d.now.top + d.now.size / 2) / d.H) } : d.size === null ? null : { size: d.size };
+    const want =
+      kind === 'move'
+        ? { x: lensShare((d.now.left + d.now.size / 2) / d.W), y: lensShare((d.now.top + d.now.size / 2) / d.H) }
+        : d.size === null
+          ? null
+          : d.placed
+            ? { size: d.size }
+            : { ...d.centre, size: d.size };
     if (want) this.deps.settings.update({ phone: { lens: { [d.orient]: want } } });
     // One layout in any case (also where the stored values did not change): `place` then takes
-    // the drag's transforms off.
+    // the drag's transforms off. The map pane's shift is written anew whatever it comes to: the
+    // drag wrote its own over it, and a lens pushed back to where it stood has the same shift
+    // as before the drag.
+    this.mapShift = '-';
     this.lensFitSig = '-';
     this.askLens();
   }
