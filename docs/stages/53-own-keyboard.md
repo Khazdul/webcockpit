@@ -188,7 +188,8 @@ moves the caret), script pane fields, key sound.
   screenshots, spec §2.12, README, About
 - [x] 53f page mount, one-line fields (built; owner test open)
 - [x] 53g multi-line fields and the new keys (built; owner test open)
-- [ ] 53h CodeMirror editors (owner: go / no-go)
+- [x] 53h CodeMirror editors built
+- [ ] 53h the owner's go / no-go on the editors
 - [ ] 53i device keyboard code removed; release decision
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
@@ -418,6 +419,29 @@ moves the caret), script pane fields, key sound.
   line touches the buttons on a landscape phone with the keyboard up
   (handed to 53h). Screenshots `docs/stages/img/53-p-*`.
 
+- **53h** (branch `stage-53h`, merged; ADR 0139 "as built in round
+  53h"): the two CodeMirror buffers (profile Editor, script editor) are
+  typed in with our keyboard on a phone. `src/editor/own-keyboard-cm.ts`
+  registers the view through `src/core/own-keyboard.ts` (the phone
+  chunk imports no CodeMirror): text through the input handlers or an
+  `input.type` transaction; Enter, Backspace, Tab, Esc and the carets
+  as marked keydowns to the editor's own bindings. Find and the buffer
+  share the keyboard. In landscape the page's hood, Back and status
+  step aside (8 code lines at 800 × 360). A code order of the symbols
+  for editors; in portrait the digit row is up there. The keyboard
+  opens on a tap in the code only. The 53g review findings and the
+  dialog error line fixed. After this round no text field on a phone
+  raises the device's keyboard with the gate on. Unit 4047, phone e2e
+  421 of 423 (`phone-game-landscape.spec.ts:672` twice), Chromium 443
+  of 444, Firefox 442 of 443 (pass alone). Phone chunk 99.9 → 101.9 kB,
+  editor chunk +0.7 kB. Open: no undo / redo key; Paper under the
+  always-dark start page gives low contrast in the script editor's
+  pop-ups (older than this stage); touch handles, the paste bubble and
+  an app switch untried on a device. Screenshots
+  `docs/stages/img/53-h-*`. Its list of what is dead for 53i is in
+  the round's report (device keyboard class and `wc-kbd` CSS, the
+  inset hooks, the textarea swaps, the gate, the "not ours" close).
+
 ## After the release decision (not deleted yet)
 
 Dead when `?kbd=0` goes:
@@ -589,6 +613,23 @@ the wrong keyboard.
 Wanted: any field that still raises the device's keyboard (the two
 code editors do until 53h), anything covered by the keys, a tap that
 lands on the wrong thing.
+
+## Test guide 53h (for the owner, S21): go / no-go on the editors
+
+1. Scripts → a script → Edit: tap in the code, type a small function
+   (brackets close, Enter after `then`, Tab takes a completion, Esc
+   closes the list).
+2. Long press to select, paste, drag to scroll: does the keyboard
+   behave?
+3. Find → type → Enter → Tab → Replace → Esc (back in the code, the
+   keyboard still up).
+4. Landscape, and rotate with the keyboard up.
+5. Profile → Editor.
+6. Switch to another app and back: does Samsung's keyboard stay down?
+
+Wanted: are the editors usable this way (go), or should the two
+editors keep the device's keyboard (no-go)? Which symbols are too far
+away?
 
 ## Owner feedback
 

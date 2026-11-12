@@ -4017,6 +4017,12 @@ Newest first.
   **53f built and merged** (page mount, one-line fields). Next: 53f
   review, 53g (multi-line, new keys), 53h (CodeMirror, go / no-go),
   53i (device keyboard code removed), then the release decision.
+- **53g and 53h built and merged** (multi-line fields, Esc / Tab /
+  caret keys; the CodeMirror editors), and the four profile prompts
+  moved to the look kit (owner's wish). Owner: 53g feels OK. **Next:**
+  the owner's go / no-go on the editors (test guide 53h), the 53h
+  review, then 53i (remove the device keyboard code and `?kbd=0`) and
+  the release decision.
 - **Commits:** 1336f54…(this commit).
 
 ### 2026-09-27 — Intent and spec
