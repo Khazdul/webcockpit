@@ -156,6 +156,21 @@ Not in 53a: the look, layouts, digits and symbols, other fields.
   (`watchKeyboard`'s blur and the like). Spec §2.12, README, About.
 - Test guide; the owner's verdict on the S21 and one test on an iPhone.
 
+### 53f–53i The menu pages too (ADR 0139; added 2026-11-12)
+
+The owner after 53e: our keyboard everywhere on the phone, and before
+the release.
+
+- **53f** the page mount and bottom reserve; the one-line fields
+  (profile and script names, export title, Lite pattern, manual find,
+  script settings, the editors' search fields); Enter and Esc on a
+  page.
+- **53g** multi-line fields (Lite body, export comment); newline, Tab,
+  Esc and caret keys, the backtick.
+- **53h** the two CodeMirror editors (go / no-go by the owner).
+- **53i** the device keyboard code on the phone removed, `?kbd=0`
+  gone; docs; release decision.
+
 ### Can be cut
 
 Long-press alternatives (not planned), caret keys (a tap in the field
@@ -171,6 +186,10 @@ moves the caret), script pane fields, key sound.
 - [x] 53e built: the gate flipped (`?kbd=0` keeps the old path), the 53d
   review findings, key to echo and text speed measured, tests,
   screenshots, spec §2.12, README, About
+- [ ] 53f page mount, one-line fields
+- [ ] 53g multi-line fields and the new keys
+- [ ] 53h CodeMirror editors (owner: go / no-go)
+- [ ] 53i device keyboard code removed; release decision
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
 
