@@ -66,3 +66,69 @@ one keyboard on the phone.
 If the CodeMirror round (53h) does not give an editor the owner finds
 usable on the S21, the two editors keep the device's keyboard and the
 rest stands; decided by the owner after that round.
+
+## Addendum: as built in round 53f (2026-11-12)
+
+Points 1–4 for the **one-line fields**. The multi-line fields (Lite's
+body, the export comment) and the CodeMirror buffers keep the device's
+keyboard until 53g and 53h.
+
+**§2 The page mount** (`src/phone/keyboard-pages.ts`, mounted by the
+shell at boot once the phone chunk is there; deps `PageKeyboardDeps`)
+
+- Same view and model. Its host (`.wc-okb-page`) is in the app box
+  only while the keyboard is up, above the start page and the menu's
+  overlay. The reserve is `--wc-okb-page-h` on the app box with
+  `html.wc-okb-pg`: `.wc-chrome` and `.wc-overlay` end at the keyboard's
+  top edge and lay themselves out once in what is left, as for a
+  smaller window. The cockpit under a page is not touched: **no window
+  size is sent for this keyboard.** The game's own keyboard is closed
+  by the menu as before (and by the mount when it comes up).
+- Size (`pageKeyboardPlan`, pure): the game layout's row heights; the
+  block centred, a key at most as wide as in the game. Under 150 px of
+  page left the digit row gives way, then the keyboard does not open.
+  One `ResizeObserver` on the app box while open (rotation).
+- The start page's too-small guards are off while it is up
+  (`pageKeyboardUp()`), as the cockpit's is under the game's keyboard.
+  The almanac is hidden, as under the device's keyboard. On a low page
+  (a phone on its side, `max-height: 480px`) the look kit's dialog is
+  drawn tighter and its hint line gives way, so the field and both
+  buttons stand above the keys.
+- The focused field is brought into view once, by moving only real
+  scrolling boxes (`overflow-y: auto | scroll`); `scrollIntoView` is
+  not used (it scrolls the clipped page boxes too).
+
+**§3 Marking** (`src/core/own-keyboard.ts`: `pageKeyboard()`,
+`ownFieldAttrs()`): `Field` (so also the manual's find and the editors'
+Find / Replace row, which are `Field`s), the phone branch of
+`TextField`, and the script setting's raw input. The flag is set once by
+the shell: the phone's game layout decision (`device().phone` and a
+phone-size window) and not `?kbd=0`. `TextArea` is not marked yet.
+
+**Opening and closing.** A tap on a marked field, or a focus within
+700 ms of a pointer (a dialog a tap opened focuses its field), opens
+it; a focus without a pointer opens nothing. The target follows the
+focus between marked fields. It closes: on the fold key (and blurs);
+when the field goes away (one `MutationObserver` on its ancestors while
+open); when the field loses the focus to anything that is not a marked
+field; when a text field that is not ours takes the focus (so ours and
+the device's never stand together). After a close, a focus the page
+gives back by itself opens nothing until the next press.
+
+**§4 Enter** is `sendOwnKey(field, 'Enter')`: a marked `keydown` +
+`keyup` (a `WeakSet` of the events; `isOwnKey`). `keyNameFromEvent`
+returns null and `learnKeyLabel` false for a marked event, and the input
+pane's key handlers return at once (no `enterDown`). No emulation of the
+browser's default action (`change`) was needed: every field's Enter
+goes through the frame stack or its own `keydown` handler. On a page
+**Enter acts on the click, not on the press** (`enterOnClick`): it may
+close the dialog and the keyboard under the finger. `TextField`'s own
+line-break path is not reached by our Enter (no `beforeinput`), so
+nothing fires twice. Esc is not a key yet (53g).
+
+**Numeric fields** (`data-okb-kind="digits"`, the script setting's
+number): the digit row is up for that field whatever the stored state;
+its key folds it for that field only.
+
+**History arrows** are dimmed (no history). Layout setting and
+vibration as in the game. No readout on the pages.
