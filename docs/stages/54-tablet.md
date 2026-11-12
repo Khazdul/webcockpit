@@ -54,7 +54,7 @@ has been hard to control on an iPad.
 
 - [x] Owner's answers recorded; `intent.md` reworded
 - [x] Mockup round 1 published and its sources kept
-- [ ] Trial flag, screenshots and notes (subagent, in progress)
+- [x] Trial flag `?tablet=phone`, screenshots and notes (branch `stage-54-tablet`; unit 4126 passed, phone e2e 118, desktop gating e2e 34; full e2e not run)
 - [ ] Owner: verdict on round 1
 - [ ] Owner: the trial on the iPad
 - [ ] ADR 0140 and the build rounds
@@ -65,7 +65,22 @@ has been hard to control on an iPad.
   (best on the iPad itself, to judge sizes by hand). Wanted: A or B or
   a mix; the pane set; where the keyboard goes; size and place of the
   compass and hot keys.
-- **Trial:** filled in when the trial branch is ready.
+- **Trial** (branch `stage-54-tablet`, not on main, not released): the
+  dev server runs from the branch's worktree with `npm run dev:tailnet`
+  (ADR 0096). On the iPad, in a **private tab** (stored desktop
+  settings otherwise win over the phone's defaults), open
+  `https://<machine>.<tailnet>.ts.net:5173/` with one of:
+  - `?tablet=phone` — the live game in the phone's layout.
+  - `?fixture=gmcp-demo.log&speed=0&tablet=phone` — the same, filled
+    from a log, no login.
+  - no flag — today's tablet (the desktop cockpit), to compare.
+  The flag must be in the URL on every load. Try both orientations:
+  typing with our keyboard, the compass and hot keys, the lens, the
+  pane strip, Comm, the menu, a start-menu page with a text field.
+  Wanted: what works as it is, what is too small or in the wrong
+  place, and anything iPadOS does on its own (its keyboard coming up,
+  bars, rotation). What the agent saw in emulation (Chromium only) is
+  in `notes/research/tablet/trial.md` with screenshots beside it.
 
 ## Owner feedback
 
