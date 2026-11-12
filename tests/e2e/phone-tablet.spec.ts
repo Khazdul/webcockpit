@@ -19,6 +19,7 @@
 // screen too). The offline cockpit and the start page; nothing reaches MUME.
 // What a phone gets is every other phone-*.spec.ts, unchanged.
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { morphDone } from './look';
 
 const html = (page: Page) => page.locator('html');
 const pad = (page: Page) => page.locator('.wc-ph-pad');
@@ -170,6 +171,64 @@ for (const [name, viewport] of [
       // The dialog's field is above the keyboard.
       const nb = await box(name);
       expect(nb.y + nb.height).toBeLessThanOrEqual((await box(pg)).y + 0.5);
+      expect(errors).toEqual([]);
+    });
+
+    test('the code editors: a tap in the script editor\'s buffer, and in the profile editor\'s, opens the page keyboard, also after its fold key', async ({ page }) => {
+      const errors = watchErrors(page);
+      await page.goto('/?kbd=en');
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+      await page.evaluate(async () => {
+        const l = window.__wc!.shell.scripts!;
+        await l.init();
+        await l.create('tableted', '-- @name     tableted\n-- @version  1\n-- @api      1\n');
+        await window.__wc!.shell.profiles.init();
+        await window.__wc!.shell.profiles.save('default', '#alias {k} {kill %1}\n');
+      });
+      const pg = page.locator('.wc-okb-page .wc-ph-okb');
+      const up = () => expect(page.locator('html')).toHaveClass(/\bwc-okb-pg\b/);
+      const down = () => expect(page.locator('html')).not.toHaveClass(/\bwc-okb-pg\b/);
+      /** A tap in the buffer of `scope`: in its second line's text, then (folded) in the empty room under its last line. */
+      const taps = async (scope: Locator): Promise<void> => {
+        const content = scope.locator('.cm-content');
+        await expect(content).toHaveAttribute('inputmode', 'none');
+        await down();
+        const line = await box(scope.locator('.cm-content .cm-line').first());
+        await page.touchscreen.tap(line.x + 30, line.y + line.height / 2);
+        await up();
+        await expect(pg).toHaveAttribute('data-tablet', '');
+        await expect(content).toBeFocused();
+        await key(pg, 'x').tap();
+        await expect(scope.locator('.cm-content')).toContainText('x');
+        await key(pg, 'back').tap();
+        await key(pg, 'fold').tap();
+        await down();
+        const sc = await box(scope.locator('.cm-scroller'));
+        const last = await box(scope.locator('.cm-content .cm-line').last());
+        await page.touchscreen.tap(sc.x + sc.width / 2, Math.min(sc.y + sc.height - 20, last.y + last.height + 80));
+        await up();
+        await key(pg, 'fold').tap();
+        await down();
+      };
+      const f = page.locator('.wc-start .wc-frame:not([hidden])');
+      await f.locator('.wc-sm-item[data-key="scripts"]').tap();
+      await f.locator('.wc-scr-row[data-name="tableted"] .wc-scr-name').tap();
+      await f.locator('[data-btn="EDIT"]:visible').first().tap();
+      const sed = page.locator('.wc-frame:not([hidden]) > .wc-sed');
+      await expect(sed).toHaveAttribute('data-script', 'tableted');
+      await morphDone(page);
+      await taps(sed);
+
+      await page.goto('/?kbd=en');
+      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+      await f.locator('.wc-sm-item[data-key="profile"]').tap();
+      await f.locator('[data-btn="EDIT"]').tap();
+      const pe = page.locator('.wc-frame:not([hidden]) .wc-pe');
+      await expect(pe).toHaveAttribute('data-view', 'lite');
+      await morphDone(page);
+      await pe.locator('.wc-pe-views [data-opt="editor"]').tap();
+      await expect(pe).toHaveAttribute('data-view', 'editor');
+      await taps(pe);
       expect(errors).toEqual([]);
     });
 
