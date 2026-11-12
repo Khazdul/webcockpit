@@ -442,6 +442,18 @@ moves the caret), script pane fields, key sound.
   the round's report (device keyboard class and `wc-kbd` CSS, the
   inset hooks, the textarea swaps, the gate, the "not ours" close).
 
+- **Review of 53h** (fresh subagent; desktop and tablet editors
+  compared with the round before on Chromium and Firefox: identical;
+  data safety, marked keys, touch timing, layout and rules probed):
+  nothing blocking. For 53i: in an editor the digit-row key writes the
+  stored `phone.keyboard.digits` from its second tap on, and the fold
+  lasts for the session (`keyboard-pages.ts:296-306`); two wordings
+  (the fold's lifetime; the 300 ms rule in the ADR addendum). Test
+  gaps: a double Esc with unsaved changes, snippet fields, a long
+  press, an editor opened from the game's menu. Not checked: devices
+  (handles, paste, app switch), a chunk that fails to load with an
+  editor already marked.
+
 ## After the release decision (not deleted yet)
 
 Dead when `?kbd=0` goes:
