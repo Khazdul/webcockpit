@@ -399,7 +399,9 @@ blurs the field, and opens again only at a tap). A field with
 - A selection in the masked password line has no text colour
   (`.wc-input-field.wc-masked::selection`), on the desktop too, where a
   selected password could be read before; its ground is a tint the
-  bullets stay readable on.
+  bullets stay readable on. In forced colours (a high contrast
+  mode) the masked line keeps its own colours (`forced-color-adjust:
+  none`): the mode would otherwise paint the text, selected or not.
 - Enter as Save in the hot key box: the box and the keyboard close at
   the press, so the click that follows that finger's release is dropped
   (`swallowClick`, only when a pointer is down on a key).

@@ -613,6 +613,32 @@ test('Enter sends the line as the Enter key does, with history, and the keyboard
   expect(errors).toEqual([]);
 });
 
+test.describe('forced colours (a high contrast mode)', () => {
+  test.use({ forcedColors: 'active' });
+
+  test('the password prompt: the masked line paints no password', async ({ page }) => {
+    const m = await enterMock(page);
+    await setScreen(page, S21);
+    await openKeyboard(page);
+    m.server().send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, ECHO])]));
+    await expect(field(page)).toHaveClass(/\bwc-masked\b/);
+    expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true);
+    // Without the bullets' overlay and our caret only the field's own text is left: two
+    // passwords of one length must give the same picture. (A range cannot be selected in the
+    // masked line here: it is collapsed at once.)
+    await page.addStyleTag({ content: '.wc-input-mask, .wc-caret { visibility: hidden !important; }' });
+    const shot = () => slot(page).locator('.wc-input-wrap').screenshot({ animations: 'disabled', caret: 'hide' });
+    await type(page, 's', 'e', 'c', 'r', 'e', 't');
+    await expect(field(page)).toHaveValue('secret');
+    const first = await shot();
+    for (let i = 0; i < 6; i++) await type(page, 'back');
+    await type(page, 'm', 'm', 'm', 'm', 'm', 'm');
+    await expect(field(page)).toHaveValue('mmmmmm');
+    const second = await shot();
+    expect(first.equals(second)).toBe(true);
+  });
+});
+
 test('the password prompt: the same field, masked with bullets and no password field; our keys type it, nothing is recorded, the arrows are dimmed', async ({ page }) => {
   const m = await enterMock(page);
   await setScreen(page, S21);
