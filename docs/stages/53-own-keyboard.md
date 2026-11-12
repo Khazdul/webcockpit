@@ -187,7 +187,7 @@ moves the caret), script pane fields, key sound.
   review findings, key to echo and text speed measured, tests,
   screenshots, spec §2.12, README, About
 - [x] 53f page mount, one-line fields (built; owner test open)
-- [ ] 53g multi-line fields and the new keys
+- [x] 53g multi-line fields and the new keys (built; owner test open)
 - [ ] 53h CodeMirror editors (owner: go / no-go)
 - [ ] 53i device keyboard code removed; release decision
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
@@ -371,6 +371,28 @@ moves the caret), script pane fields, key sound.
   `player/view.ts`) do not check the mark; the 150 px rule is dead.
   Not checked: devices, fullscreen, the browser's back.
 
+- **53g** (branch `stage-53g`, merged; ADR 0139 "as built in round
+  53g"): the Lite body (real lines) and the export comment (Enter
+  saves) use our keyboard. New keys on pages: Esc, Tab (shift then Tab
+  is Shift+Tab) and four caret keys, repeating; a row above the
+  letters in portrait, a column on each side of the block in landscape
+  (no added height). Enter is a newline key in a multi-line field. The
+  backtick is on the symbols page. The game layout's keyboard is
+  unchanged but for the backtick. The 53f review findings fixed. Two
+  faults of 53f found and fixed: look pages over the game did not end
+  at the keyboard (lower fields lay under the keys); the keyboard
+  opened on focus under a finger still down, so the tap's click could
+  land on another control (a tap on Lite's body pressed Delete): it now
+  opens on the click. The owner's Pattern report was not reproduced
+  (flows in `phone-own-keyboard-lite-game.spec.ts`); the two faults
+  above may be what he saw. Unit 4007, phone e2e 390 of 392
+  (`phone-game-landscape.spec.ts:672` twice), Chromium 435 of 436,
+  Firefox 433 of 435 (`look-kit-box.spec.ts:182` fails about 1 in 6
+  alone, new to the flaky list). Open: caret up / down moves by
+  logical lines; Esc in an editor's Find row returns the focus to
+  CodeMirror (device keyboard until 53h). Screenshots
+  `docs/stages/img/53-g-*`.
+
 ## After the release decision (not deleted yet)
 
 Dead when `?kbd=0` goes:
@@ -525,6 +547,23 @@ device's until the next rounds.
 
 Wanted: anything that jumps or is covered, and any field that raises
 the wrong keyboard.
+
+## Test guide 53g (for the owner, S21)
+
+1. Game → menu → Profile → an alias: Pattern and Commands both with
+   our keyboard. In Commands: three lines, backspace across a line
+   break, the arrow keys, a long text (the caret's line stays in
+   view).
+2. Tab and shift + Tab between the fields; Esc.
+3. Landscape: the keys at the sides (esc, tab, arrows); Lite and the
+   export comment.
+4. History → Export: the comment; Enter saves, Esc cancels.
+5. Rotate with the keyboard up.
+6. The backtick on the symbols page.
+
+Wanted: any field that still raises the device's keyboard (the two
+code editors do until 53h), anything covered by the keys, a tap that
+lands on the wrong thing.
 
 ## Owner feedback
 
