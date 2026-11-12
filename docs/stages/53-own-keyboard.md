@@ -568,6 +568,22 @@ moves the caret), script pane fields, key sound.
     layouts, no window sizes. Not exercised: fullscreen; the gesture
     reader has e2e tests only. Screenshots `img/53-k-*`.
 
+- **Gold for existing installs** (main session's decision; ADR 0035
+  addendum): settings version 6; a stored Steel older than that
+  becomes Amber once, a Steel picked afterwards stays. Recordings and
+  the replay page are not switched. The phone's settings page has an
+  "Input colour" row (Text). vitest 4112.
+- **Review of 53k** (fresh subagent): two reproduced faults, both in
+  the lens. After a drop that the fit pushes back to the spot the
+  lens already had, the map picture stays where the finger left it
+  (`mapShift` not invalidated). `fitLens` shrinks far more than
+  needed and hides a lens that fits, and a fast resize past the limit
+  is ignored. Nits: a click swallowed for 700 ms after a drag, a few
+  px jump at a never-moved lens's first resize, a needless cast, a
+  time-bound test. Held: the gesture reader's edge cases, no work per
+  move, placement at five screen sizes, A, B, E, the chunk rule. The
+  swipe test's failure is load, not 53k. Fixes are being built.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
@@ -784,7 +800,8 @@ Wanted: the look of the plates above all; then release or not.
 5. Tap through the four zooms, with a small and a large lens.
 6. Settings → Map lens → "Reset place and size".
 7. Type a long password: the bullets stay in the field.
-8. The command text is gold.
+8. The command text is gold (also on a device that had the blue);
+   Settings → Text → "Input colour" changes it.
 
 Wanted: the feel of moving and resizing, the four zoom steps, then
 release or not.
