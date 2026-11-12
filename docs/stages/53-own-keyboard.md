@@ -624,5 +624,6 @@ lands on the wrong thing.
   device's: ours wanted everywhere (53h). Also seen: some pages are
   still in the old TUI look, for example creating a new profile; they
   are to be moved to the new graphical look (surveyed; its own work).
+- 2026-11-12, 53g on the S21: feels OK (tested in outline only).
 
 (After each round.)
