@@ -69,6 +69,9 @@ import {
   PHONE_UNREAD_MODES,
   type PhoneHotkey,
   type PhoneLensLevel,
+  type PhoneLensWant,
+  PHONE_LENS_SIZE_MAX,
+  PHONE_LENS_SIZE_MIN,
   type PhoneSettings,
   type PhoneStripEntry,
   type PhoneStripPane,
@@ -534,6 +537,9 @@ export function migratePhone(raw: unknown): PhoneSettings {
       show: bool(l.show, d.lens.show),
       // A stored `size` (0.5.0's S/M/L) is dropped: the size follows the screen (stage 52).
       opensAt: migrateLensLevel(l.opensAt, d.lens.opensAt),
+      // Additive (round 53k): absent (settings from 0.6.1) is a lens never moved or resized.
+      portrait: migrateLensWant(l.portrait),
+      landscape: migrateLensWant(l.landscape),
     },
     strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined, d.strip.panes) },
     commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
@@ -571,6 +577,24 @@ export function migrateLensLevel(raw: unknown, dflt: PhoneLensLevel): PhoneLensL
   if (raw === 'near' || raw === 'middle') return 'z1';
   if (raw === 'far') return 'z2';
   return oneOf(raw, PHONE_LENS_LEVELS, dflt);
+}
+
+/**
+ * The lens's wanted place and size in one orientation from anything (round
+ * 53k): the centre's two shares within 0 to 1, both or neither; the
+ * diameter a whole number of px within its limits; anything else is unset.
+ */
+export function migrateLensWant(raw: unknown): PhoneLensWant {
+  const w = isObj(raw) ? raw : {};
+  const share = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : null);
+  const x = share(w.x);
+  const y = share(w.y);
+  const at = x !== null && y !== null;
+  return {
+    x: at ? x : null,
+    y: at ? y : null,
+    size: typeof w.size === 'number' && Number.isFinite(w.size) ? int(w.size, PHONE_LENS_SIZE_MIN, PHONE_LENS_SIZE_MAX, PHONE_LENS_SIZE_MIN) : null,
+  };
 }
 
 /**

@@ -111,6 +111,17 @@ export type SettingsRow =
       set(value: string, s: S): SettingsPatch;
     }
   | {
+      /** A row that does one thing when tapped (a reset). Dimmed while there is nothing to do. */
+      kind: 'action';
+      id: string;
+      label: string;
+      /** The state shown at the row's end. */
+      value(s: S): string;
+      /** Whether a tap would change anything. */
+      enabled(s: S): boolean;
+      run(s: S): SettingsPatch;
+    }
+  | {
       /** A row that opens a sub-page (`SETTINGS_PAGES`). */
       kind: 'link';
       id: string;
@@ -169,10 +180,17 @@ export const TEXT_GROUP: SettingsGroup = {
 };
 
 /**
- * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13).
- * No size row since stage 52: the lens is sized from the screen
- * (lens-zoom.ts `lensFullPx`) and shrinks with its room.
+ * Map lens: show, the zoom it opens at (`phone.lens`, ADR 0136 §4, §13),
+ * and the way back to its default place and size (round 53k: it is moved
+ * and resized by dragging it, not here). No size row since stage 52: the
+ * default size follows the screen (lens-zoom.ts `lensFullPx`).
  */
+/** Whether the lens was moved or resized in either orientation (`phone.lens.portrait`, `.landscape`). */
+function lensMoved(s: S): boolean {
+  const l = s.phone.lens;
+  return [l.portrait, l.landscape].some((w) => w.x !== null || w.y !== null || w.size !== null);
+}
+
 export const LENS_LEVEL_OPTIONS: readonly { value: PhoneLensLevel; label: string }[] = [
   { value: 'z1', label: 'Near' },
   { value: 'z2', label: 'Mid' },
@@ -200,7 +218,17 @@ export const LENS_GROUP: SettingsGroup = {
       get: (s) => s.phone.lens.opensAt,
       set: (opensAt) => ({ phone: { lens: { opensAt: opensAt as PhoneLensLevel } } }),
     },
+    {
+      // The way back from a lens dragged somewhere or resized (round 53k), in both orientations.
+      kind: 'action',
+      id: 'lens-reset',
+      label: 'Reset place and size',
+      value: (s) => (lensMoved(s) ? 'Moved' : 'Default'),
+      enabled: lensMoved,
+      run: () => ({ phone: { lens: { portrait: { x: null, y: null, size: null }, landscape: { x: null, y: null, size: null } } } }),
+    },
   ],
+  caption: 'Drag the lens to move it. Hold it still, then drag, to resize it.',
 };
 
 /** The names of the strip's built-in panes (the panes' own labels). */
@@ -671,6 +699,26 @@ function Row(p: {
             </div>
           ))}
         </>
+      );
+    }
+    case 'action': {
+      const on = row.enabled(s);
+      return (
+        <button
+          type="button"
+          class="wc-ph-srow is-pick is-action"
+          data-row={row.id}
+          tabIndex={-1}
+          aria-disabled={on ? undefined : 'true'}
+          onMouseDown={keepFocus}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (on) p.update(row.run(s));
+          }}
+        >
+          <span class="wc-ph-srow-t">{row.label}</span>
+          <span class="wc-ph-srow-v">{row.value(s)}</span>
+        </button>
       );
     }
     case 'link':

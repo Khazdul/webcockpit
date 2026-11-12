@@ -3,10 +3,10 @@
 // (and without effect on) the rest of the settings.
 import { describe, expect, it } from 'vitest';
 import { SettingsStore } from '../../src/settings';
-import { migrateLensLevel, migratePhone, migrateSettings } from '../../src/settings/migrate';
-import { PHONE_DEFAULTS_MARK, PHONE_LENS_LEVELS, SETTINGS_VERSION, defaultPhoneSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings/types';
+import { migrateLensLevel, migrateLensWant, migratePhone, migrateSettings } from '../../src/settings/migrate';
+import { PHONE_DEFAULTS_MARK, PHONE_LENS_LEVELS, PHONE_LENS_SIZE_MAX, PHONE_LENS_SIZE_MIN, SETTINGS_VERSION, defaultPhoneSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings/types';
 import { DEFAULTS_MARK, phoneDefaultsAtStart, phoneDefaultsPatch } from '../../src/phone/phone-defaults';
-import { PANES_GROUP } from '../../src/phone/settings-page';
+import { LENS_GROUP, PANES_GROUP } from '../../src/phone/settings-page';
 
 /** What 0.6.1 stored under `phone` (its keys, no later ones). */
 function stored061(): Record<string, unknown> {
@@ -46,7 +46,7 @@ describe('phone settings of round 53k: the fight card\'s switch', () => {
 
 describe('phone settings', () => {
   it('defaults: the lens shown, opening at its nearest zoom (0.6.1\'s middle), on a computer and on a phone', () => {
-    expect(defaultPhoneSettings().lens).toEqual({ show: true, opensAt: 'z1' });
+    expect(defaultPhoneSettings().lens).toMatchObject({ show: true, opensAt: 'z1' });
     expect(defaultSettings().phone).toEqual(defaultPhoneSettings());
     // A new phone has had the one-time defaults (the mark); nothing else differs.
     expect(phoneDefaultSettings().phone).toEqual({ ...defaultPhoneSettings(), defaults: PHONE_DEFAULTS_MARK });
@@ -65,20 +65,20 @@ describe('phone settings', () => {
 
   it('stored values are kept', () => {
     const lens = { show: false, opensAt: 'z3' };
-    expect(migratePhone({ lens }).lens).toEqual(lens);
-    expect(migrateSettings({ ...defaultSettings(), phone: { lens } }).phone.lens).toEqual(lens);
+    expect(migratePhone({ lens }).lens).toMatchObject(lens);
+    expect(migrateSettings({ ...defaultSettings(), phone: { lens } }).phone.lens).toMatchObject(lens);
   });
 
   it('broken values fall back one by one', () => {
     expect(migratePhone(null)).toEqual(defaultPhoneSettings());
     expect(migratePhone('x')).toEqual(defaultPhoneSettings());
     expect(migratePhone({ lens: 7 })).toEqual(defaultPhoneSettings());
-    expect(migratePhone({ lens: { show: 'no', opensAt: 'z4' } }).lens).toEqual({ show: true, opensAt: 'z4' });
-    expect(migratePhone({ lens: { show: false, opensAt: 3 } }).lens).toEqual({ show: false, opensAt: 'z1' });
+    expect(migratePhone({ lens: { show: 'no', opensAt: 'z4' } }).lens).toMatchObject({ show: true, opensAt: 'z4' });
+    expect(migratePhone({ lens: { show: false, opensAt: 3 } }).lens).toMatchObject({ show: false, opensAt: 'z1' });
   });
 
   it('a stored lens size (0.5.0) is dropped: the size follows the screen (stage 52)', () => {
-    expect(migratePhone({ lens: { show: false, size: 's', opensAt: 'far' } }).lens).toEqual({ show: false, opensAt: 'z2' });
+    expect(migratePhone({ lens: { show: false, size: 's', opensAt: 'far' } }).lens).toMatchObject({ show: false, opensAt: 'z2' });
     expect('size' in migratePhone({ lens: { size: 'l' } }).lens).toBe(false);
   });
 
@@ -101,7 +101,7 @@ describe('phone settings', () => {
     const before = store.get();
     store.update({ phone: { lens: { opensAt: 'z2' } } });
     const after = store.get();
-    expect(after.phone.lens).toEqual({ show: true, opensAt: 'z2' });
+    expect(after.phone.lens).toMatchObject({ show: true, opensAt: 'z2' });
     expect(after.mapper).toEqual(before.mapper);
     expect(after.panes).toEqual(before.panes);
     expect({ ...after, phone: null }).toEqual({ ...before, phone: null });
@@ -123,7 +123,7 @@ describe('phone settings of stage 51d: the strip, Comm, unread', () => {
 
   it('settings stored in stage 51c (the lens only) get the new defaults and keep the lens', () => {
     const p = migratePhone({ lens: { show: false, size: 's', opensAt: 'near' } });
-    expect(p.lens).toEqual({ show: false, opensAt: 'z1' });
+    expect(p.lens).toMatchObject({ show: false, opensAt: 'z1' });
     expect({ ...p, lens: null }).toEqual({ ...defaultPhoneSettings(), lens: null });
   });
 
@@ -355,5 +355,53 @@ describe('phone settings of round 53k: the lens\'s four zoom levels', () => {
     expect(migrateLensLevel(2, 'z1')).toBe('z1');
     expect(migrateLensLevel('z9', 'z1')).toBe('z1');
     expect(migrateLensLevel(undefined, 'z1')).toBe('z1');
+  });
+});
+
+describe('phone settings of round 53k: the lens\'s wanted place and size', () => {
+  const unset = { x: null, y: null, size: null };
+
+  it('not set by default, in either orientation', () => {
+    expect(defaultPhoneSettings().lens.portrait).toEqual(unset);
+    expect(defaultPhoneSettings().lens.landscape).toEqual(unset);
+  });
+
+  it('additive: an object stored by 0.6.1 reads as never moved, with no version bump', () => {
+    const s = migrateSettings({ ...(JSON.parse(JSON.stringify(defaultSettings())) as Record<string, unknown>), phone: stored061() });
+    expect(s.phone.lens).toMatchObject({ show: true, opensAt: 'z1', portrait: unset, landscape: unset });
+    expect(s.version).toBe(SETTINGS_VERSION);
+  });
+
+  it('stored values are kept, each orientation its own', () => {
+    const lens = { portrait: { x: 0.25, y: 0.6, size: 220 }, landscape: { x: null, y: null, size: 130 } };
+    const m = migratePhone({ lens }).lens;
+    expect(m.portrait).toEqual(lens.portrait);
+    expect(m.landscape).toEqual(lens.landscape);
+  });
+
+  it('junk is unset: the place needs both shares, within 0 to 1; the size is whole px within its limits', () => {
+    expect(migrateLensWant(null)).toEqual(unset);
+    expect(migrateLensWant({ x: 0.5 })).toEqual(unset);
+    expect(migrateLensWant({ x: 'left', y: 0.5, size: 'big' })).toEqual(unset);
+    expect(migrateLensWant({ x: -3, y: 7, size: 150.6 })).toEqual({ x: 0, y: 1, size: 151 });
+    expect(migrateLensWant({ size: 5 }).size).toBe(PHONE_LENS_SIZE_MIN);
+    expect(migrateLensWant({ size: 1e9 }).size).toBe(PHONE_LENS_SIZE_MAX);
+    expect(migrateLensWant({ x: Number.NaN, y: 0.5, size: Number.POSITIVE_INFINITY })).toEqual(unset);
+  });
+
+  it('a drop writes one orientation and one of place and size; the reset row clears both orientations', () => {
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update({ phone: { lens: { portrait: { x: 0.3, y: 0.4 } } } });
+    store.update({ phone: { lens: { portrait: { size: 200 } } } });
+    store.update({ phone: { lens: { landscape: { size: 120 } } } });
+    expect(store.get().phone.lens).toMatchObject({ show: true, opensAt: 'z1', portrait: { x: 0.3, y: 0.4, size: 200 }, landscape: { x: null, y: null, size: 120 } });
+    const row = LENS_GROUP.rows.find((r) => r.id === 'lens-reset')!;
+    if (row.kind !== 'action') throw new Error('the reset is an action row');
+    expect(row.enabled(store.get())).toBe(true);
+    expect(row.value(store.get())).toBe('Moved');
+    store.update(row.run(store.get()));
+    expect(store.get().phone.lens).toEqual(defaultPhoneSettings().lens);
+    expect(row.enabled(store.get())).toBe(false);
+    expect(row.value(store.get())).toBe('Default');
   });
 });

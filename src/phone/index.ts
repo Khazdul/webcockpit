@@ -51,7 +51,7 @@
 
 import './phone.css';
 import type { GameState } from '../gmcp/state';
-import type { Cockpit, PhoneLimit } from '../layout/cockpit';
+import type { Cockpit, PhoneLensFit, PhoneLimit } from '../layout/cockpit';
 import type { PhoneGameHide } from '../layout/phone-game';
 import { Compass } from './compass';
 import { FightCardView } from './fight-card';
@@ -62,6 +62,7 @@ import { sizeFits } from './text-settings';
 import { sectionChanged } from './changed';
 import { LensView } from './lens';
 import { type LensLevel, LENS_MIN_PX, lensFullPx, lensLevel, lensZoom } from './lens-zoom';
+import { type LensRoom, type LensSpot, fitLens, lensIsSet, lensMax, lensRoom, lensWant, moveLens, resizeLens } from './lens-place';
 import type { MapPane } from '../panes/map';
 import type { CommPane } from '../panes/comm';
 import type { PaneId } from '../layout/types';
@@ -161,6 +162,26 @@ export interface PhoneLayerDeps {
   ownKeyboard: PhoneCommandLine;
 }
 
+/** A drag of the lens while the finger is down (`PhoneLayer.dragLens`). */
+interface LensDragState {
+  /** The lens's box when the drag began, and where it is shown now. */
+  spot: LensSpot;
+  now: LensSpot;
+  /** A resize: the diameter the finger last asked for (null: none yet, or a move). */
+  size: number | null;
+  /** The room and the layer's size on the layout the drag began on, and the layer's place in the window. */
+  room: LensRoom;
+  W: number;
+  H: number;
+  x: number;
+  y: number;
+  /** The orientation whose wanted values the drop writes, and those values at the start. */
+  orient: 'portrait' | 'landscape';
+  stored: { x: number | null; y: number | null; size: number | null };
+  /** The map pane's shift at the start (`shiftMap`). */
+  shift: { dx: number; dy: number };
+}
+
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 export class PhoneLayer {
@@ -186,6 +207,16 @@ export class PhoneLayer {
   private readonly mapEl: HTMLElement;
   /** The zoom last sent to the map, as `size:level` (nothing is sent again for the same). */
   private lensZoomKey = '';
+  /** The lens's box on screen as of the last layout (null: hidden). */
+  private lensSpot: LensSpot | null = null;
+  /** What the answer of `lensFit` depends on besides the layout, as last told to the cockpit ('': no one to ask). */
+  private lensFitSig = '';
+  /** What an open hot key box takes from the bottom edge, as of the last `askLens` (the lens's room ends above it). */
+  private lensBoxClear = 0;
+  /** The map pane's shift from its cells to the lens's centre, as last written (`shiftMap`). */
+  private mapShift = '';
+  /** A finger is dragging the lens (round 53k): where it started from and where the lens is shown meanwhile. */
+  private lensDrag: LensDragState | null = null;
   private readonly strip: StripView;
   private readonly stripBand: ResizeBand;
   /** The strip's pages now, whether it is open, and its page (kept in memory while it is closed). */
@@ -279,6 +310,12 @@ export class PhoneLayer {
     this.mapEl = cockpit.pane('map').el;
     this.lens = new LensView(doc, {
       onLevel: () => this.zoomLens(),
+      drag: {
+        // The resize is armed: one short vibration, while the setting is on.
+        arm: buzz,
+        drag: (kind, x0, y0, x, y) => this.dragLens(kind, x0, y0, x, y),
+        drop: (kind, cancelled) => this.dropLens(kind, cancelled),
+      },
       fullscreen: kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : null,
       panes: () => this.toggleStrip(),
       comm: () => this.toggleComm(),
@@ -1116,8 +1153,171 @@ export class PhoneLayer {
       gapRight: this.landscape ? leftOfHot(this.keyPx, this.hot.cols, LENS_GAP_RIGHT) : LENS_GAP_RIGHT,
       ...(this.landscape ? { gapLeft: LENS_GAP_LEFT } : {}),
       clearBottom: this.lensClear,
-      clearAlways: this.boxClear(),
+      clearAlways: (this.lensBoxClear = this.boxClear()),
     });
+    // A lens the user moved or resized is placed by `lensFit`: the cockpit asks it at every layout,
+    // and is told (one layout) when something else its answer depends on changed.
+    const l = this.deps.settings.get().phone.lens;
+    const sig = lensIsSet(l.portrait) || lensIsSet(l.landscape) ? JSON.stringify([l.portrait, l.landscape, this.lensFull, this.keyPx, this.hot.cols, this.hot.rows, this.deps.settings.get().phone.hotkeysOpen, this.lensBoxClear]) : '';
+    if (sig === this.lensFitSig) return;
+    this.lensFitSig = sig;
+    this.deps.cockpit.setPhoneLensFit(sig ? this.lensFit : null);
+  }
+
+  /**
+   * The room of a moved or resized lens on the layout `g` (lens-place.ts
+   * `lensRoom`): under what is above the game text, right of the landscape
+   * column, above the command row and an open hot key box, clear of the
+   * compass and the hot key columns where they stand now (lifted by our
+   * keyboard in portrait, or gone where they have no room above it: the
+   * same sum as `placeOwnKeyboard`).
+   */
+  private roomOn(g: NonNullable<Cockpit['phoneGameLayout']>, cell: { w: number; h: number }, W: number, H: number): LensRoom {
+    const px = this.keyPx;
+    const foot = (g.input.y + g.input.h) * cell.h;
+    const lift = g.bottom > 0 ? H - foot : 0;
+    const side = lift > 0 && !g.landscape ? okbPortraitSide(foot, compassHeight(px), hotTop(px, 3)) : { pad: true, k: true };
+    return lensRoom({
+      W,
+      H,
+      landscape: g.landscape,
+      gameTop: g.game.y * cell.h,
+      gameLeft: g.game.x * cell.w,
+      inputTop: g.input.y * cell.h,
+      lift,
+      keyPx: px,
+      hotCols: this.hot.cols,
+      hotRows: this.deps.settings.get().phone.hotkeysOpen ? this.hot.rows : 0,
+      pad: side.pad,
+      k: side.k && !g.overLimit,
+      boxClear: this.lensBoxClear,
+    });
+  }
+
+  /**
+   * The cockpit's question at every layout (`Cockpit.setPhoneLensFit`):
+   * where a lens the user moved or resized in this orientation is shown.
+   * Derived from the stored wanted place and size and the room on this
+   * layout, never written back: pushed by the panes it moves and shrinks,
+   * with no room it hides, and with the room back it is where it was
+   * dropped at the size it was given. Undefined: never moved or resized
+   * here, the allocator's place stands.
+   */
+  private readonly lensFit: PhoneLensFit = (g, cell, W, H) => {
+    const st = this.deps.settings.get().phone.lens[g.landscape ? 'landscape' : 'portrait'];
+    if (!lensIsSet(st) || this.lensFull === 0) return undefined;
+    const room = this.roomOn(g, cell, W, H);
+    return fitLens(lensWant(st, this.lensFull, room, W, H), room, LENS_MIN_PX);
+  };
+
+  /**
+   * The finger drags the lens (lens.ts `LensDrag`; once per frame). Nothing
+   * here asks the cockpit for a layout, and no window size goes out: the
+   * lens's dressing and the map pane follow by `translate` (a move) and the
+   * map pane by `scale` (a resize: the map's picture is scaled, and drawn
+   * anew at the new size once, after the drop). The room is the one of the
+   * layout the drag began on.
+   *
+   * - A move carries the box with the finger, inside the room's rectangle.
+   * - A resize keeps the wanted centre and changes the diameter by twice
+   *   what the finger moved away from (or towards) the lens's centre; the
+   *   box is fitted as the layout will fit it, so what shows while the
+   *   finger is down is what the drop gives.
+   */
+  private dragLens(kind: 'move' | 'size', x0: number, y0: number, x: number, y: number): void {
+    const d = this.lensDrag ?? this.grabLens();
+    if (!d) return;
+    let to: LensSpot | null;
+    if (kind === 'move') to = moveLens(d.spot, x - x0, y - y0, d.room);
+    else {
+      const cx = d.x + d.spot.left + d.spot.size / 2;
+      const cy = d.y + d.spot.top + d.spot.size / 2;
+      const size = resizeLens(d.spot.size, Math.hypot(x0 - cx, y0 - cy), Math.hypot(x - cx, y - cy), LENS_MIN_PX, lensMax(d.room));
+      to = fitLens(lensWant({ ...d.stored, size }, this.lensFull, d.room, d.W, d.H), d.room, LENS_MIN_PX);
+      if (to) d.size = size;
+    }
+    if (!to) return;
+    d.now = to;
+    const dx = to.left + to.size / 2 - (d.spot.left + d.spot.size / 2);
+    const dy = to.top + to.size / 2 - (d.spot.top + d.spot.size / 2);
+    if (kind === 'move') this.lens.el.style.translate = `${dx}px ${dy}px`;
+    else {
+      // The dressing at its real size (a small box of its own); the map's picture scaled under it.
+      this.lens.place(to, null);
+      this.lens.el.style.setProperty('--ph-lens-size', `${to.size}px`);
+      this.mapEl.style.scale = `${to.size / d.spot.size}`;
+    }
+    this.mapEl.style.translate = `${d.shift.dx + dx}px ${d.shift.dy + dy}px`;
+  }
+
+  /** The drag's start: the lens's box and room on the layout on screen, and the layer's place in the window. Null: no lens to drag. */
+  private grabLens(): LensDragState | null {
+    const g = this.deps.cockpit.phoneGameLayout;
+    const spot = this.lensSpot;
+    if (!g || !spot || g.tooSmall || !g.lens) return null;
+    const cell = this.deps.cells.get();
+    const box = this.el.getBoundingClientRect();
+    const W = this.el.clientWidth;
+    const H = this.el.clientHeight;
+    const orient = g.landscape ? 'landscape' : 'portrait';
+    this.lensDrag = {
+      spot,
+      now: spot,
+      size: null,
+      room: this.roomOn(g, cell, W, H),
+      W,
+      H,
+      x: box.left,
+      y: box.top,
+      orient,
+      stored: this.deps.settings.get().phone.lens[orient],
+      shift: { dx: spot.left + spot.size / 2 - (g.lens.x + g.lens.w / 2) * cell.w, dy: spot.top + spot.size / 2 - (g.lens.y + g.lens.h / 2) * cell.h },
+    };
+    return this.lensDrag;
+  }
+
+  /**
+   * The finger lifted: the place it dropped the lens at (a move: the
+   * centre, as shares of the screen) or the size it gave it (a resize) is
+   * stored for this orientation, and the cockpit lays out once, which puts
+   * the lens and the map pane there for real and draws the map at its new
+   * size. A move leaves the wanted size alone and a resize the wanted
+   * place, also when the lens was shown pushed or shrunk. Cancelled, or an
+   * armed hold released in place: nothing is stored.
+   */
+  private dropLens(kind: 'move' | 'size' | null, cancelled: boolean): void {
+    const d = this.lensDrag;
+    if (!d) return;
+    this.lensDrag = null;
+    if (cancelled || kind === null) {
+      this.undragLens(d);
+      this.place();
+      return;
+    }
+    const share = (v: number): number => Math.round(Math.max(0, Math.min(1, v)) * 10000) / 10000;
+    const want = kind === 'move' ? { x: share((d.now.left + d.now.size / 2) / d.W), y: share((d.now.top + d.now.size / 2) / d.H) } : d.size === null ? null : { size: d.size };
+    if (want) this.deps.settings.update({ phone: { lens: { [d.orient]: want } } });
+    // One layout in any case (also where the stored values did not change): `place` then takes
+    // the drag's transforms off.
+    this.lensFitSig = '-';
+    this.askLens();
+  }
+
+  /** Takes a drag's styles off the lens and the map pane (the layout's own are written by `place`). */
+  private undragLens(d: LensDragState): void {
+    this.lens.el.style.translate = '';
+    this.mapEl.style.scale = '';
+    this.lens.el.style.setProperty('--ph-lens-size', `${d.spot.size}px`);
+    this.lens.place(d.spot, null);
+    this.mapShift = '-';
+  }
+
+  /** Shifts the map pane from the middle of its cells to the lens's centre (a moved lens; '' for the default place). Written on a change only. */
+  private shiftMap(dx: number, dy: number): void {
+    const v = Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01 ? '' : `${Math.round(dx * 100) / 100}px ${Math.round(dy * 100) / 100}px`;
+    if (v === this.mapShift) return;
+    this.mapShift = v;
+    this.mapEl.style.translate = v;
   }
 
   // --------------------------------------------------------------- hot keys
@@ -1632,6 +1832,19 @@ export class PhoneLayer {
     }
     const r = g.tooSmall ? null : g.lens;
     const size = r ? g.lensPx : 0;
+    // A layout under a finger that drags the lens: the drag ends, with nothing stored.
+    if (this.lensDrag) {
+      const d = this.lensDrag;
+      this.lensDrag = null;
+      this.lens.cancelDrag();
+      this.undragLens(d);
+    }
+    // (After a drop: the drag's transforms go as the layout's own place is written.)
+    if (this.lens.el.style.translate) this.lens.el.style.translate = '';
+    if (this.mapEl.style.scale) {
+      this.mapEl.style.scale = '';
+      this.mapShift = '-';
+    }
     this.sizeLens(size);
     // The keys' row stands in for a lens that is off or has no room; not for one the cockpit has
     // not laid out yet (asked for, the relayout pending).
@@ -1646,15 +1859,20 @@ export class PhoneLayer {
     const rowRight = land
       ? leftOfHot(this.keyPx, this.hot.cols, SATROW_GAP)
       : keyRowRight(rowTop + SAT_PX + SATROW_GAP, this.el.clientHeight - this.okbLift, this.keyPx, cols ? [this.hot.rowsIn(0), this.hot.rowsIn(1)] : [0, 0], SATROW_GAP);
-    this.lens.place(
-      r && size > 0 ? { left: (r.x + r.w / 2) * w - size / 2, top: (r.y + r.h / 2) * h - size / 2, size } : null,
-      pending || g.tooSmall || (land && this.hot.boxOpen) ? null : rowTop,
-      rowRight,
-    );
+    // The lens's circle: centred on the map pane's whole cells (the default place), or where a
+    // moved or resized lens is shown (`lensAt`), the map pane shifted by the part of a cell between.
+    const spot: LensSpot | null =
+      r && size > 0 ? { left: g.lensAt ? g.lensAt.left : (r.x + r.w / 2) * w - size / 2, top: g.lensAt ? g.lensAt.top : (r.y + r.h / 2) * h - size / 2, size } : null;
+    this.lensSpot = spot;
+    if (spot && r) this.shiftMap(spot.left + size / 2 - (r.x + r.w / 2) * w, spot.top + size / 2 - (r.y + r.h / 2) * h);
+    this.lens.place(spot, pending || g.tooSmall || (land && this.hot.boxOpen) ? null : rowTop, rowRight);
   }
 
   dispose(): void {
     this.disposed = true;
+    this.lens.cancelDrag();
+    this.mapEl.style.translate = '';
+    this.mapEl.style.scale = '';
     for (const u of this.unsubs.splice(0)) u();
     this.flingOff?.();
     this.menu.dispose();

@@ -422,6 +422,36 @@ export interface PhoneLensSettings {
   show: boolean;
   /** The zoom level the lens starts at. */
   opensAt: PhoneLensLevel;
+  /**
+   * Where the user dragged the lens and how large he made it (round 53k),
+   * in portrait and in landscape, each with its own. Only a drag writes
+   * them: what the layout shows is derived from them and the room there is
+   * (src/phone/lens-place.ts).
+   */
+  portrait: PhoneLensWant;
+  landscape: PhoneLensWant;
+}
+
+/**
+ * The wanted place and size of the lens in one orientation: its centre as
+ * shares of the screen's width and height (0 to 1), its diameter in CSS px.
+ * Null: not set (the place: top right under what is above the game text;
+ * the size: a share of the screen's short side). `x` and `y` are set
+ * together.
+ */
+export interface PhoneLensWant {
+  x: number | null;
+  y: number | null;
+  size: number | null;
+}
+
+/** The limits of a stored lens diameter, px (the layout fits it to the screen; the least is the least size the lens is shown at). */
+export const PHONE_LENS_SIZE_MIN = 96;
+export const PHONE_LENS_SIZE_MAX = 2000;
+
+/** A lens that was never moved or resized. */
+export function defaultPhoneLensWant(): PhoneLensWant {
+  return { x: null, y: null, size: null };
 }
 
 /**
@@ -555,7 +585,7 @@ export const PHONE_COMM_ROWS_MAX = 200;
  */
 export function defaultPhoneSettings(): PhoneSettings {
   return {
-    lens: { show: true, opensAt: 'z1' },
+    lens: { show: true, opensAt: 'z1', portrait: defaultPhoneLensWant(), landscape: defaultPhoneLensWant() },
     strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: id !== 'character' })) },
     commRows: null,
     stripRows: null,

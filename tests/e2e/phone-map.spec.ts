@@ -497,14 +497,14 @@ test('the Map lens settings: show and opens at, from the settings page (no size 
   await openSettings();
   await expect(page.locator('.wc-ph-page [data-group="lens"] .wc-ph-grp-t')).toHaveText('Map lens');
   const rows = await page.locator('.wc-ph-page [data-group="lens"] [data-row]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.row));
-  expect(rows).toEqual(['lens-show', 'lens-opens']);
+  expect(rows).toEqual(['lens-show', 'lens-opens', 'lens-reset']);
   await expect(page.locator('.wc-ph-page [data-group="lens"]').getByText('Size', { exact: true })).toHaveCount(0);
   await expect(srow('lens-show').getByRole('switch', { name: 'Show map' })).toHaveAttribute('aria-checked', 'true');
   await expect(srow('lens-opens').getByRole('radio', { name: 'Near' })).toHaveAttribute('aria-checked', 'true');
   // Opens at Far.
   await srow('lens-opens').getByRole('radio', { name: 'Far' }).tap();
   const lensSet = () => page.evaluate(() => window.__wc!.settings.get().phone.lens);
-  expect(await lensSet()).toEqual({ show: true, opensAt: 'z3' });
+  expect(await lensSet()).toMatchObject({ show: true, opensAt: 'z3' });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-ph-sheet')).toBeHidden();
@@ -519,7 +519,7 @@ test('the Map lens settings: show and opens at, from the settings page (no size 
   await page.reload();
   await expect(page.locator('.wc-ph-pad')).toBeVisible();
   await expect(lens(page)).toBeVisible();
-  expect(await lensSet()).toEqual({ show: true, opensAt: 'z3' });
+  expect(await lensSet()).toMatchObject({ show: true, opensAt: 'z3' });
   await expect.poll(async () => (await lens(page).boundingBox())!.width).toBeCloseTo(FULL, 0);
   await expect(lens(page)).toHaveAttribute('data-level', 'z3');
   // Show map off: no lens, no map pane.

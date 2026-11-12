@@ -292,6 +292,13 @@ export interface PhoneGameResult {
   lensPx: number;
   /** The lens was wanted but has no room: its keys stay as a row (ADR 0136 §4). */
   lensHidden: boolean;
+  /**
+   * A lens the user moved or resized (round 53k): its circle's top left
+   * corner in px, anywhere inside `lens` (the whole cells that hold it).
+   * Null: the circle is centred in `lens` (the default place). Set by the
+   * cockpit from the phone layer's answer, not by the allocator.
+   */
+  lensAt: { left: number; top: number } | null;
   /** While the strip shows: the heights a resize may give it (Comm keeping its height). */
   stripRange: { min: number; max: number } | null;
   /** While Comm shows: the heights a resize may give it (the strip keeping its height). */
@@ -355,6 +362,7 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
     lens: null,
     lensPx: 0,
     lensHidden: false,
+    lensAt: null,
     stripRange: null,
     commRange: null,
     landscape: false,
