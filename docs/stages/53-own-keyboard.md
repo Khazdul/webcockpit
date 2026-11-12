@@ -193,7 +193,9 @@ moves the caret), script pane fields, key sound.
 - [x] 53i device keyboard code removed (built)
 - [x] 53i review and its fixes; 53j built and reviewed
 - [x] 53k built (fight card, movable lens, four zooms, gold, 53j review)
-- [ ] 53k review; the owner's test and release decision
+- [x] 53k review and its fixes; the owner's test: all feels good
+- [x] Release decision: yes (0.7.0)
+- [ ] Later: iPhone and iPad look-over (next session)
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
 
@@ -584,6 +586,13 @@ moves the caret), script pane fields, key sound.
   move, placement at five screen sizes, A, B, E, the chunk rule. The
   swipe test's failure is load, not 53k. Fixes are being built.
 
+- **53k review fixes:** the drop invalidates the map's shift, so the
+  picture comes back with the lens; `fitLens` finds the largest size
+  that fits at the centre; a resize past the limit lands on it; the
+  first resize of a never-moved lens keeps the shown centre and
+  stores it (ADR 0137); assistive clicks are not swallowed; the zoom
+  test has no time bound. vitest 4119.
+
 ## Test guide 53a (for the owner, S21)
 
 Open the dev server's address with `?kbd=1` (the session runs
@@ -891,3 +900,9 @@ release or not.
   everywhere (desktop and tablet too).
 
 (After each round.)
+
+### 53k and the release (2026-11-12)
+
+"All feels good." Release the new version once the review fixes are
+in. Next session: the iPhone test, then the iPad / tablet version (like
+the phone's, fitted to a larger screen).

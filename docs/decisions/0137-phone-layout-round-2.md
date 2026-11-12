@@ -305,3 +305,16 @@ Added under `phone`: `fightCard`, `lens.portrait`, `lens.landscape`.
 - Whether a hold is told from a slow move by 8 px and 400 ms under a
   real thumb, and whether the resize's direction feels right.
 - The lens in fullscreen (the shares are of the screen as it is then).
+
+### After the 53k review (2026-11-12)
+
+- `fitLens` gives the largest size up to the wanted one that fits at
+  the clamped centre (a search by halving) and hides only when 96 px
+  does not fit. It does not slide the lens sideways off a block to
+  gain size.
+- A resize past the limit shows and stores the largest size that fits.
+- One exception to "a resize never writes the place": the first resize
+  of a never-moved lens stores the shown centre with the size, so the
+  lens does not jump from the allocator's place to the stored one.
+- A click with `detail === 0` (assistive or scripted) is never
+  swallowed after a lens gesture.
