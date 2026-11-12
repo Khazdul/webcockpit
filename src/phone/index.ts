@@ -114,6 +114,8 @@ const LENS_GAP_TOP_LAND = 12;
 const LENS_CLEAR_LAND = 12;
 /** The box's air to the command row (the keyboard up) and to the top edge. */
 const BOX_GAP = 8;
+/** Portrait: the least height the box is opened at, px (its name, its two fields and what they would send); with less room it does not open. */
+const BOX_LEAST = 180;
 /** After a pointer on the command field: how long a focus of the field is taken for that pointer's (a long press focuses late), ms. */
 const OKB_POINTER_FOCUS_MS = 700;
 /** A lens key's side, px (phone.css). */
@@ -1301,7 +1303,9 @@ export class PhoneLayer {
   private boxHasRoom(g: NonNullable<Cockpit['phoneGameLayout']>, bottom: number): boolean {
     const { w, h } = this.deps.cells.get();
     if (g.landscape) return g.side.w * w <= this.hot.boxEl.offsetLeft;
-    return g.game.y * h <= this.el.clientHeight - bottom - this.hot.boxEl.offsetHeight;
+    // (Portrait: it ends under the fight card, `placeBoxOn`; a box lower than its fields is none.)
+    const room = this.el.clientHeight - bottom - BOX_GAP - g.fight.h * h;
+    return room >= BOX_LEAST && g.game.y * h <= this.el.clientHeight - bottom - this.hot.boxEl.offsetHeight;
   }
 
   /** Places the box (laid out, shown or not) with its foot at `bottom` and says whether it has room there. */
