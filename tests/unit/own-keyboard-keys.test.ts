@@ -153,7 +153,7 @@ describe('the input pane ignores a marked key', () => {
 });
 
 describe('the pages\' keyboard flag and the fields\' mark', () => {
-  it('is off by default: a field gets no attribute (desktop, tablet, `?kbd=0`)', () => {
+  it('is off by default: a field gets no attribute (desktop, tablet)', () => {
     expect(pageKeyboard()).toBe(false);
     expect(ownFieldAttrs()).toEqual({});
     expect(ownFieldAttrs('digits')).toEqual({});

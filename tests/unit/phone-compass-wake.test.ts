@@ -250,15 +250,7 @@ describe('phone settings of stage 51f', () => {
 describe('the settings page\'s Quick buttons and Connection groups', () => {
   it('the groups in the ADR\'s order', () => {
     expect(SETTINGS_GROUPS.map((g) => g.id)).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
-    // Keyboard is there with our own keyboard, which is the default; not with `?kbd=0` (the
-    // device's keyboard, until the old path is removed).
     expect(groupsShown(SETTINGS_GROUPS).map((g) => g.id)).toEqual(['text', 'compass', 'keyboard', 'lens', 'panes', 'comm', 'connection']);
-    vi.stubGlobal('location', { search: '?phone=1&kbd=0' });
-    try {
-      expect(groupsShown(SETTINGS_GROUPS).map((g) => g.id)).toEqual(['text', 'compass', 'lens', 'panes', 'comm', 'connection']);
-    } finally {
-      vi.unstubAllGlobals();
-    }
   });
 
   it('rows whose browser API is missing are absent, not dimmed', () => {

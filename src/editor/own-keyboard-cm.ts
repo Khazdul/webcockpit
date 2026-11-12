@@ -4,7 +4,7 @@
 // imports it. What the two share is src/core/own-keyboard.ts.
 //
 // - `ownKeyboardExtension()` is empty unless our keyboard is the pages'
-//   (`pageKeyboard()`: a phone, and not `?kbd=0`), so a desktop and a tablet
+//   (`pageKeyboard()`: a phone), so a desktop and a tablet
 //   get nothing of this: no attribute, no plugin.
 // - On a phone it marks the content element (`inputmode="none"`,
 //   `virtualkeyboardpolicy="manual"`, `data-okb-kind="editor"`), so the

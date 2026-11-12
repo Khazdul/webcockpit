@@ -224,7 +224,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   const doc = root.ownerDocument;
   const win = doc.defaultView;
   const html = doc.documentElement;
-  const asked = okbFromQuery(new URLSearchParams(win?.location?.search ?? '').get('kbd'))?.layout ?? null;
+  const asked = okbFromQuery(new URLSearchParams(win?.location?.search ?? '').get('kbd')).layout;
   const wanted = (): OkbLayout => {
     const set = settings.get().phone.keyboard.layout;
     const nav = win?.navigator;

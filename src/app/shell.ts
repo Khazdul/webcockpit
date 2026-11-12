@@ -216,12 +216,6 @@ export class Shell {
    * Decided once, when the shell is built.
    */
   private readonly phoneGame: boolean;
-  /**
-   * Our own keyboard is the phone's (ADR 0138, ADR 0139): the phone's game
-   * layout is used and the address does not say `?kbd=0` (the device's
-   * keyboard, kept until the owner's release decision).
-   */
-  private readonly ownKeyboard: boolean;
   /** Phone only: our keyboard on the pages outside the game layout (ADR 0139; src/phone/keyboard-pages.ts). */
   private pageKeyboard: import('../phone').PageKeyboardHandle | null = null;
   /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
@@ -264,9 +258,9 @@ export class Shell {
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
     this.phoneGame = device().phone && phoneSizeWindow(doc.defaultView);
-    this.ownKeyboard = this.phoneGame && new URLSearchParams(doc.defaultView?.location.search ?? '').get('kbd') !== '0';
-    // Before any page is drawn: the shared field components mark their fields by it.
-    setPageKeyboard(this.ownKeyboard);
+    // Our own keyboard is the phone's (ADR 0138, ADR 0139). Before any page is drawn: the shared
+    // field components mark their fields by it.
+    setPageKeyboard(this.phoneGame);
     // index.html's first paint draws the banner in a start page host of its
     // own (ADR 0083): the start page is mounted beside it, in the same box.
     const first = doc.getElementById('wc-start-host');
@@ -311,7 +305,7 @@ export class Shell {
     void this.newUserScripts();
     // Phone only (ADR 0136): fetch the phone layer now, so it is there when the game opens.
     if (this.phoneGame) void this.loadPhone().catch(() => {});
-    if (this.ownKeyboard) this.mountPageKeyboard();
+    if (this.phoneGame) this.mountPageKeyboard();
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
       if (!this.opts.probe) this.prefetchChrome();
@@ -884,7 +878,7 @@ export class Shell {
       Promise.all([this.loadPhone(), this.loadChrome()]).then(
         ([phone, chrome]) => {
           // The chunk is here (perhaps on a second try): the pages' keyboard too, if it is not yet.
-          if (this.ownKeyboard) this.mountPageKeyboard();
+          this.mountPageKeyboard();
           try {
             this.phoneLayer = phone.mountPhoneLayer({
               kit: PHONE_KIT,
@@ -921,28 +915,21 @@ export class Shell {
               onMenuClose: () => {
                 if (this.inCockpit) app.input.focus();
               },
-              // Stage 53 (ADR 0138): a keyboard of our own for the game layout's fields. It is the
-              // layout's keyboard by default; `?kbd=0` keeps the device's (the old path, until the
-              // owner's release decision). The phone layer reads the rest of the value
-              // (`okbFromQuery`); here it only decides whether the command line is handed over.
-              ...(this.ownKeyboard
-                ? {
-                    ownKeyboard: {
-                      setOwnKeyboard: (on: boolean) => app.input.setOwnKeyboard(on),
-                      insert: (text: string) => app.input.insertText(text),
-                      deleteBack: () => app.input.deleteBackward(),
-                      submit: () => app.input.submitLine(),
-                      // (Nothing in password mode: the input pane's own rule, and the arrows are dimmed.)
-                      historyUp: () => app.input.historyStep('up'),
-                      historyDown: () => app.input.historyStep('down'),
-                      hasHistory: () => !app.input.isPasswordMode(),
-                      // (The input pane heard the same event first: it was made before this.)
-                      onChange: (fn: () => void) => app.bus.on('telnet.echo', () => fn()),
-                      focus: () => app.input.input.focus({ preventScroll: true }),
-                      blur: () => app.input.input.blur(),
-                    },
-                  }
-                : {}),
+              // Stage 53 (ADR 0138): the command line, as the layout's own keyboard types in it.
+              ownKeyboard: {
+                setOwnKeyboard: (on: boolean) => app.input.setOwnKeyboard(on),
+                insert: (text: string) => app.input.insertText(text),
+                deleteBack: () => app.input.deleteBackward(),
+                submit: () => app.input.submitLine(),
+                // (Nothing in password mode: the input pane's own rule, and the arrows are dimmed.)
+                historyUp: () => app.input.historyStep('up'),
+                historyDown: () => app.input.historyStep('down'),
+                hasHistory: () => !app.input.isPasswordMode(),
+                // (The input pane heard the same event first: it was made before this.)
+                onChange: (fn: () => void) => app.bus.on('telnet.echo', () => fn()),
+                focus: () => app.input.input.focus({ preventScroll: true }),
+                blur: () => app.input.input.blur(),
+              },
             });
             old.remove();
           } catch (err) {

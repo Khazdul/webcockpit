@@ -28,8 +28,7 @@
 //   hotkeys.ts      the hot key column, the K key in the compass's free
 //                   cell, and the box a held key opens (hotkey-model.ts)
 //   keyboard.ts     a keyboard of our own for the game layout's text fields
-//                   (ADR 0138; not with `?kbd=0` until the stage is
-//                   released; model: keyboard-model.ts; the fields other
+//                   (ADR 0138; model: keyboard-model.ts; the fields other
 //                   than the command line: keyboard-fields.ts), and its
 //                   readout (keyboard-readout.ts)
 //   haptics.ts      the keys' vibration (`phone.vibrate`)
@@ -154,12 +153,10 @@ export interface PhoneLayerDeps {
   /** The menu closed back to the game. */
   onMenuClose?(): void;
   /**
-   * Stage 53 (ADR 0138): the command line as a keyboard of our own types
-   * in it. The shell passes it unless the address says `?kbd=0`; absent,
-   * there is no such keyboard and nothing of it runs (the device's
-   * keyboard, as before stage 53).
+   * Stage 53 (ADR 0138): the command line as the keyboard of our own
+   * types in it. That keyboard is the layout's only one.
    */
-  ownKeyboard?: PhoneCommandLine | undefined;
+  ownKeyboard: PhoneCommandLine;
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -232,7 +229,7 @@ export class PhoneLayer {
   /** The card on screen (null: no fight) and its signature. */
   private card: FightCard | null = null;
   private sig = '';
-  /** The keyboard of our own (ADR 0138; null with `?kbd=0`), whether it is open, and its readout's redraw. */
+  /** The keyboard of our own (ADR 0138; null once disposed), whether it is open, and its readout's redraw. */
   private okb: OwnKeyboard | null = null;
   private okbOpen = false;
   private okbReadout: (() => void) | null = null;
@@ -474,7 +471,7 @@ export class PhoneLayer {
     this.wakeConn = this.connected();
     this.wake.sync();
     this.watchKeyboard(doc);
-    if (deps.ownKeyboard) this.mountOwnKeyboard(doc, deps.ownKeyboard);
+    this.mountOwnKeyboard(doc, deps.ownKeyboard);
     // The lens's full size follows the screen's short side: a rotation (or a resized window) asks again.
     const onResize = (): void => this.syncLens();
     win?.addEventListener('resize', onResize);
@@ -605,7 +602,7 @@ export class PhoneLayer {
   }
 
   /**
-   * The keyboard of our own for the game layout's text fields (not with `?kbd=0`).
+   * The keyboard of our own for the game layout's text fields, the only one there.
    * The fields ask the device for no keyboard; a pointer on one opens ours
    * for it:
    *
@@ -631,7 +628,7 @@ export class PhoneLayer {
     const { cockpit, settings } = this.deps;
     const win = doc.defaultView;
     const asked = okbFromQuery(new URLSearchParams(win?.location?.search ?? '').get('kbd'));
-    this.okbAsked = asked?.layout ?? null;
+    this.okbAsked = asked.layout;
     this.okbLayout = this.wantedLayout();
     this.okbLineBare = { insert: (t) => line.insert(t), deleteBack: () => line.deleteBack(), submit: () => line.submit(), focus: () => line.focus(), blur: () => line.blur() };
     const okb = new OwnKeyboard(
@@ -711,7 +708,7 @@ export class PhoneLayer {
     // The password prompt came or went: the arrows are dimmed there.
     const offMode = line.onChange(() => this.okb?.sync());
     // The readout is a diagnostic: only with `?kbd=1` or `?kbd=debug`.
-    const readout = win && asked?.readout ? installKeyboardReadout(win, () => this.okbOpen) : null;
+    const readout = win && asked.readout ? installKeyboardReadout(win, () => this.okbOpen) : null;
     this.okbReadout = readout?.draw ?? null;
     this.unsubs.push(() => {
       wrap?.removeEventListener('click', onTap);
@@ -785,7 +782,6 @@ export class PhoneLayer {
   /** What the keys type into now: the field it was opened for while that is still on screen, else the command line (without a history at a password prompt). */
   private okbTarget(): OkbTarget | null {
     const line = this.deps.ownKeyboard;
-    if (!line) return null;
     if (this.okbField !== null) this.dropGoneField();
     if (this.okbFieldTarget) return this.okbFieldTarget;
     return line.hasHistory() ? line : this.okbLineBare;
@@ -846,7 +842,7 @@ export class PhoneLayer {
     // field of ours has the focus: the keys then follow that one (`onFocus`).
     const active = this.el.ownerDocument.activeElement;
     if (active && active !== field && this.ownField(active) !== null && fieldUsable(active as TextField)) return;
-    this.deps.ownKeyboard?.focus();
+    this.deps.ownKeyboard.focus();
   }
 
   /**
@@ -878,7 +874,7 @@ export class PhoneLayer {
           }
           if (this.okbField !== field) return;
           this.setOkbField(null);
-          this.deps.ownKeyboard?.focus();
+          this.deps.ownKeyboard.focus();
         },
       };
     }
@@ -896,7 +892,7 @@ export class PhoneLayer {
    */
   private openOwnKeyboard(field: TextField | null = null): void {
     const line = this.deps.ownKeyboard;
-    if (!this.okb || !line || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
+    if (!this.okb || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
     this.setOkbField(field);
     // The hot key box stays while one of its fields is typed in; for any other field it gives
     // way, unsaved. (After the target: its closing then asks nothing of the keyboard.)

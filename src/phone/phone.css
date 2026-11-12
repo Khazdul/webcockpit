@@ -1288,13 +1288,12 @@ html.wc-phone.wc-kbd .wc-cockpit[data-phone-game] > .wc-input-slot {
 
 /* ------------------------------------------------ own keyboard (ADR 0138) */
 
-/* A keyboard of our own (keyboard.ts; the layout's keyboard unless the
- * address says `?kbd=0`). A solid band over the full width from under the command row to
+/* A keyboard of our own (keyboard.ts; the layout's only keyboard). A solid band over the full width from under the command row to
  * the bottom edge (the layer sets `top` after each layout; the allocator
  * kept the rows free), and in it one block of keys (the layer sets its
  * `left` and `width`: the full width in portrait, compressed towards the
  * middle in landscape). The rows share the block's height. Its state is
- * `html.wc-okb`, never `wc-kbd` (the device's keyboard).
+ * `html.wc-okb`.
  *
  * The look is Lykta's: an iron ground, character keys of lighter iron with
  * the candle's ink, the keys that are not characters darker, Enter lit.
