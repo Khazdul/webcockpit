@@ -721,5 +721,26 @@ Wanted: release or not.
   the editors.**
 - 2026-11-12: the Comm pane has no header text in portrait on the
   phone (it has one in landscape): to be fixed too (handed to 53i).
+- 2026-11-12, on the S21 after 53i (round 53j):
+  1. Custom in a K key's settings box, portrait, with panes open at
+     the top: the keyboard cannot open and the box closes. Wrong:
+     instead the panes at the top that take too much room should be
+     hidden so the keyboard can open.
+  2. After a command is sent the text stays, selected, in the command
+     field (wanted). Side effect: fold the keyboard, tap the field
+     again, and the selection's pop-up (cut, copy ...) comes. Wanted:
+     no pop-up when the keyboard opens, and the text still there to
+     send again quickly.
+  3. With a very small font size the text in the command field is
+     tiny. The field does not change size with the font, so its text
+     should perhaps always have the same size.
+  4. The headers of Comm and of the other pane (the strip) take a
+     whole row each: there is no room for that. In portrait, work the
+     name into the frame one drags: a very small font in a small plate
+     that hangs together with the swipe frame in the theme's style,
+     sticking out a little (up or down), the overhang floating over
+     the content. In landscape something alike so headers take no row
+     (perhaps the text written vertically in the swipe frame), done so
+     it fits the theme and shows which header belongs to which pane.
 
 (After each round.)
