@@ -311,6 +311,30 @@ test('fullscreen left in landscape right after the field tap (800x360 to 800x280
   expect(errors).toEqual([]);
 });
 
+// Round 53i review (F2): the close for lack of room is decided in the layout that finds the rows
+// too low, so MUME gets the one window size of the lower window, not one with the keyboard's
+// useless rows first (100x3, then 100x8).
+test('a window made too low for the open keyboard (800 × 280 to 800 × 200): it closes with one window size', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openPhone(page, '');
+  await setScreen(page, { width: 800, height: 280 });
+  await openKeyboard(page);
+  await frames(page);
+  const sizes = await watchSizes(page);
+  await page.setViewportSize({ width: 800, height: 200 });
+  await expect(okb(page)).toBeHidden();
+  await expect(html(page)).not.toHaveClass(/\bwc-okb\b/);
+  await page.waitForTimeout(900);
+  const sent = await sizes();
+  expect(sent).toHaveLength(1);
+  // And that one is the lower window's own, without a reserve.
+  const g = await layout(page);
+  expect(g.bottom).toBe(0);
+  expect(sent[0]!.endsWith(`x${await page.evaluate(() => window.__wc!.app.output.measureCells().rows)}`)).toBe(true);
+  expect(await inputFocused(page)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
 test('a window too low for our keyboard: it closes once, the field lets go, and nothing opens it again by itself', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page, '');
