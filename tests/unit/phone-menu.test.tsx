@@ -7,6 +7,8 @@ import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppStatusState, AppStatusView } from '../../src/app/status';
 import { PHONE_KIT } from '../../src/app/phone-kit';
+import { inputColor } from '../../src/theme/apply';
+import { INPUT_COLORS, INPUT_COLOR_IDS } from '../../src/theme/presets';
 import { Seg, Toggle } from '../../src/chrome/kit/look-controls';
 import { setPhoneControls, setPhoneKit } from '../../src/phone/kit';
 import { PhoneMenu, statusText } from '../../src/phone/menu-sheet';
@@ -537,7 +539,7 @@ describe('the settings page as data', () => {
     expect(SETTINGS_GROUPS.map((g) => g.title)).toEqual(['Text', 'Quick buttons', 'Keyboard', 'Map lens', 'Panes', 'Comm', 'Connection']);
     expect(LENS_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['toggle:lens-show', 'seg:lens-opens', 'action:lens-reset']);
     expect(PANES_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['order:strip-panes', 'toggle:fight-card', 'link:timers-group']);
-    expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font']);
+    expect(TEXT_GROUP.rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['stepper:size', 'seg:theme', 'pick:font', 'pick:input-color']);
   });
 
   it('its rows read and patch the appearance keys the desktop uses', () => {
@@ -550,8 +552,40 @@ describe('the settings page as data', () => {
     expect(theme.set('paper', s)).toMatchObject({ appearance: { bg: '#f4ecd8', fg: '#000000' } });
     expect(theme.get({ ...s, appearance: { ...s.appearance, bg: '#0e141c' } })).toBe('');
     expect(font.set('hack', s)).toEqual({ appearance: { font: 'hack' } });
-    expect(font.options().some((o) => o.value === 'hack' && o.label === 'Hack')).toBe(true);
-    expect(font.options().map((o) => o.value)).toContain(font.get(s));
+    expect(font.options(s).some((o) => o.value === 'hack' && o.label === 'Hack')).toBe(true);
+    expect(font.options(s).map((o) => o.value)).toContain(font.get(s));
+  });
+
+  it('Input colour: the desktop dropdown\'s options with their colours, and the key it sets (ADR 0035)', () => {
+    const s = defaultSettings();
+    const row = TEXT_GROUP.rows.find((r) => r.id === 'input-color');
+    if (row?.kind !== 'pick') throw new Error('row kind');
+    expect(row.label).toBe('Input colour');
+    // The same list, order and names as src/chrome/popups/settings-popup.tsx, the swatch on the current background.
+    expect(row.options(s)).toEqual(INPUT_COLOR_IDS.map((id) => ({ value: id, label: INPUT_COLORS[id].label, swatch: inputColor(id, s.appearance.bg) })));
+    const paper = { ...s, appearance: { ...s.appearance, bg: '#f4ecd8' } };
+    expect(row.options(paper).find((o) => o.value === 'amber')?.swatch).toBe('color-mix(in oklab, var(--term-fg) 15%, #9a5a00)');
+    expect(row.get(s)).toBe('amber');
+    expect(row.set('steel', s)).toEqual({ appearance: { inputColor: 'steel' } });
+  });
+
+  it('Input colour on the page: the row shows the choice with its chip; the list sets it and goes back', () => {
+    const { menu, settings } = setup();
+    act(() => menu.openSettings('sheet'));
+    const row = () => menu.host.querySelector('[data-row="input-color"]');
+    expect(row()?.querySelector('.wc-ph-srow-v')?.textContent).toBe('Amber');
+    expect((row()?.querySelector('.wc-ph-tint') as HTMLElement | null)?.style.getPropertyValue('--ph-tint')).toBe(inputColor('amber', '#000000'));
+    // The font's row has no chip.
+    expect(menu.host.querySelector('[data-row="font"] .wc-ph-tint')).toBeNull();
+    tap(row());
+    const list = menu.host.querySelector('[data-pick="input-color"]')!;
+    expect([...list.querySelectorAll('[role="radio"]')].map((o) => o.getAttribute('data-opt'))).toEqual([...INPUT_COLOR_IDS]);
+    expect(list.querySelectorAll('.wc-ph-tint').length).toBe(INPUT_COLOR_IDS.length);
+    expect(list.querySelector('[aria-checked="true"]')?.getAttribute('data-opt')).toBe('amber');
+    tap(list.querySelector('[data-opt="steel"]'));
+    expect(settings.get().appearance.inputColor).toBe('steel');
+    expect(menu.host.querySelector('[data-pick="input-color"]')).toBeNull();
+    expect(row()?.querySelector('.wc-ph-srow-v')?.textContent).toBe('Steel');
   });
 });
 

@@ -996,3 +996,58 @@ test('F2. the one-time switch: an install stored before version 6 with Steel typ
   const blue = await rgbOf(field(page));
   expect(blue[2]).toBeGreaterThan(blue[0]);
 });
+
+test('F3. Settings → Text → Input colour: the desktop\'s options with their colour chips; a pick changes the typed colour at once and is kept', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await play(page);
+  await setScreen(page, S21);
+  chatter(m);
+  await page.locator('.wc-ph-menu').tap();
+  await page.locator('.wc-ph-sheet [data-row="settings"]').tap();
+  const row = page.locator('.wc-ph-page [data-row="input-color"]');
+  await row.scrollIntoViewIfNeeded();
+  await expect(row.locator('.wc-ph-srow-t')).toHaveText('Input colour');
+  await expect(row.locator('.wc-ph-srow-v')).toHaveText('Steel');
+  // A thumb's row, with the chosen colour's chip.
+  expect((await box(row)).height).toBeGreaterThanOrEqual(44);
+  const chip = async (l: Locator): Promise<[number, number, number]> => {
+    const c = await l.evaluate((el) => getComputedStyle(el).backgroundColor);
+    return page.evaluate((color) => {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      const g = cv.getContext('2d')!;
+      g.fillStyle = color;
+      g.fillRect(0, 0, 1, 1);
+      const d = g.getImageData(0, 0, 1, 1).data;
+      return [d[0]!, d[1]!, d[2]!] as [number, number, number];
+    }, c);
+  };
+  const steelChip = await chip(row.locator('.wc-ph-tint'));
+  expect(steelChip[2]).toBeGreaterThan(steelChip[0]);
+
+  await row.tap();
+  const list = page.locator('.wc-ph-page[data-page="pick:input-color"]');
+  await expect(list).toBeVisible();
+  const opts = list.locator('[role="radio"]');
+  await expect(opts.locator('.wc-ph-srow-t')).toHaveText(['None', 'Steel', 'Bright', 'Sand', 'Sage', 'Cyan', 'Amber']);
+  await expect(opts.locator('.wc-ph-tint')).toHaveCount(7);
+  await expect(list.locator('[aria-checked="true"]')).toHaveAttribute('data-opt', 'steel');
+  const goldChip = await chip(list.locator('[data-opt="amber"] .wc-ph-tint'));
+  expect(goldChip[0]).toBeGreaterThan(goldChip[2]);
+  await shot(page, 'input-colour-list');
+  await list.locator('[data-opt="amber"]').tap();
+
+  // Back on the page, the row names it; the setting is the desktop's key.
+  await expect(page.locator('.wc-ph-page[data-page="settings"]')).toBeVisible();
+  await expect(row.locator('.wc-ph-srow-v')).toHaveText('Amber');
+  expect(await page.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('amber');
+  await shot(page, 'input-colour-row');
+  // The command field has it, and it is kept over a reload.
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await play(page);
+  await setScreen(page, S21);
+  expect(await page.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('amber');
+  const gold = await rgbOf(field(page));
+  expect(gold[0]).toBeGreaterThan(gold[2]);
+  expect(errors).toEqual([]);
+});

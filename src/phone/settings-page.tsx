@@ -17,8 +17,8 @@
 // equal.
 //
 // The Text group changes the same keys the desktop does (`appearance.size`,
-// the background with its ink and palette, `appearance.font`). The theme
-// and font helpers come through the phone kit (kit.ts), not by import.
+// the background with its ink and palette, `appearance.font`,
+// `appearance.inputColor`). The theme, font and input colour helpers come through the phone kit (kit.ts), not by import.
 //
 // Controls: the segmented control and the switch are the look kit's (`Seg`,
 // `Toggle`, src/chrome/kit/look-controls.tsx, handed in with the phone
@@ -46,6 +46,7 @@ import type {
   TimerStyle,
   TimerWarnAt,
 } from '../settings/types';
+import type { InputColor } from '../theme/presets';
 import type { TimerGroup } from '../timers/entry';
 import { hotkeyCount, stepHotkeyCount } from './hotkey-model';
 import { moveEntry, setEntry } from './strip-model';
@@ -106,7 +107,8 @@ export type SettingsRow =
       kind: 'pick';
       id: string;
       label: string;
-      options(): { value: string; label: string }[];
+      /** The choices; `swatch` (a CSS colour) puts a colour chip by the option's name. */
+      options(s: S): { value: string; label: string; swatch?: string }[];
       get(s: S): string;
       set(value: string, s: S): SettingsPatch;
     }
@@ -140,7 +142,7 @@ export interface SettingsGroup {
   available?(): boolean;
 }
 
-/** Text: size, theme, font (the desktop's Appearance keys). */
+/** Text: size, theme, font, input colour (the desktop's Appearance keys). */
 export const TEXT_GROUP: SettingsGroup = {
   id: 'text',
   title: 'Text',
@@ -175,6 +177,19 @@ export const TEXT_GROUP: SettingsGroup = {
       // A stored font that is not installed here shows (and renders) as its stand-in (ADR 0049).
       get: (s) => phoneKit().effectiveFont(s.appearance.font),
       set: (font) => ({ appearance: { font: font as FontId } }),
+    },
+    {
+      // The desktop's Appearance → Input colour (ADR 0035): the same options, each with its colour
+      // on the current background.
+      kind: 'pick',
+      id: 'input-color',
+      label: 'Input colour',
+      options: (s) =>
+        phoneKit()
+          .inputColors()
+          .map((c) => ({ value: c.id, label: c.label, swatch: phoneKit().inputColor(c.id, s.appearance.bg) })),
+      get: (s) => s.appearance.inputColor,
+      set: (inputColor) => ({ appearance: { inputColor: inputColor as InputColor } }),
     },
   ],
 };
@@ -740,6 +755,7 @@ function Row(p: {
       );
     case 'pick': {
       const cur = row.get(s);
+      const chosen = row.options(s).find((o) => o.value === cur);
       return (
         <button
           type="button"
@@ -753,12 +769,18 @@ function Row(p: {
           }}
         >
           <span class="wc-ph-srow-t">{row.label}</span>
-          <span class="wc-ph-srow-v">{row.options().find((o) => o.value === cur)?.label ?? cur}</span>
+          {chosen?.swatch !== undefined && <Swatch color={chosen.swatch} />}
+          <span class="wc-ph-srow-v">{chosen?.label ?? cur}</span>
           <PhIcon d={ICON_CHEVRON} small class="wc-ph-chev" />
         </button>
       );
     }
   }
+}
+
+/** A pick option's colour chip (the input colour's options). */
+function Swatch(p: { color: string }): VNode {
+  return <span class="wc-ph-tint" style={{ '--ph-tint': p.color }} aria-hidden="true" />;
 }
 
 /** The list a `pick` row opens: one option per row, the chosen one checked. */
@@ -768,7 +790,7 @@ function PickList(p: { row: Extract<SettingsRow, { kind: 'pick' }>; s: S; choose
     <section class="wc-ph-grp" data-pick={p.row.id}>
       <span class="wc-ph-grp-t">{p.row.label}</span>
       <div class="wc-ph-card" role="radiogroup" aria-label={p.row.label}>
-        {p.row.options().map((o) => (
+        {p.row.options(p.s).map((o) => (
           <button
             key={o.value}
             type="button"
@@ -783,6 +805,7 @@ function PickList(p: { row: Extract<SettingsRow, { kind: 'pick' }>; s: S; choose
               p.choose(o.value);
             }}
           >
+            {o.swatch !== undefined && <Swatch color={o.swatch} />}
             <span class="wc-ph-srow-t">{o.label}</span>
             {o.value === cur && <PhIcon d={ICON_CHECK} small class="wc-ph-check" />}
           </button>
