@@ -473,5 +473,14 @@ the iPhone.
   all OK (typing, digit row, symbols, history, compass and K keys with
   the keyboard up in portrait, the landscape band, hold on a K key,
   long press, the look). No changes asked for.
+- 2026-11-12, 53d on the S21: everything works. One flaw: holding a K
+  key with an upper panel open does not open the settings box (fine,
+  there is no room), but the map lens goes out and comes back quickly,
+  which looks bad.
+- 2026-11-12, 53e on the S21: all OK. **The iPhone test waits** (iPhone
+  and iPad are looked at together later; ADR 0138 §9's iPhone
+  condition is lifted by the owner). Goal 12 in `intent.md` reworded as
+  proposed. New wish: our keyboard everywhere on the phone, the start
+  menu's pages included.
 
 (After each round.)

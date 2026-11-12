@@ -97,11 +97,13 @@ reference only.
       the report names WebCockpit's built-in replacement where there is
       one.
 
-12. **Phone access** (owner decision 2026-10-04, widened 2026-11-10).
+12. **Phone access** (owner decision 2026-10-04, widened 2026-11-10;
+    wording 2026-11-12).
     WebCockpit can be opened on a phone to log in, read, chat and play
-    lightly: walk in every direction, look, flee, and send up to three
-    commands of the player's choice from on-screen keys, without the
-    keyboard. The phone is mostly for communication; full play (real
+    lightly: walk in every direction, look, flee, and send up to six
+    commands of the player's choice from on-screen keys, without a
+    keyboard up. Typing uses a keyboard of the client's own, not the
+    device's. The phone is mostly for communication; full play (real
     fights, PvP) on a phone is still not a goal. A phone gets its own
     layout in the game, made for the thumb, in the same look as the
     desktop.
