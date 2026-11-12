@@ -632,6 +632,12 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply {
   padding: 0 12px;
 }
 
+/* The reply line's and the search's text: the command field's size (below), not the font size setting's. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] :is(.wc-cm-rinput, .wc-cm-sinput) {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
 /* The placeholder at the command field's strength (the pane's own is a faint mix, under 4.5:1). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput::placeholder {
   color: var(--ph-dim);
@@ -1919,6 +1925,19 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input {
   border: 1px solid var(--ph-field-edge);
   border-radius: 10px;
   background: var(--ph-field);
+}
+
+/* The field's text (round 53j): 16 px whatever the font size setting, as the field is 44 px high
+ * whatever it is (and never under 16 px: iOS zooms the page for a smaller field). The same size as
+ * the hot key box's fields and Comm's reply line and search (below): one family of fields. The
+ * input pane places its caret, its suggestion and the password's bullets by this font
+ * (`InputPane.setOwnFont` marks the pane and measures `--cell-w` on it). */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input.wc-input-own-font {
+  --font-size: 16px;
+  --cell-h: 20px;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: 0;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input:focus-within {

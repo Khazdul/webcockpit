@@ -556,6 +556,8 @@ export class PhoneLayer {
     this.okb = okb;
     this.el.append(okb.el);
     line.setOwnKeyboard(true);
+    // The field is 44 px high whatever the font size setting: its text has a size of its own (phone.css).
+    line.setOwnFont(true);
     this.markOwnFields();
     const wrap = cockpit.inputEl.querySelector<HTMLElement>('.wc-input-wrap');
     const clock = (): number => win?.performance.now() ?? Date.now();
@@ -636,6 +638,7 @@ export class PhoneLayer {
       this.swallowOff?.();
       this.closeOwnKeyboard(false);
       line.setOwnKeyboard(false);
+      line.setOwnFont(false);
       for (const f of cockpit.el.querySelectorAll<HTMLElement>('.wc-pane [inputmode="none"], .wc-ph-rb [inputmode="none"]')) {
         f.removeAttribute('inputmode');
         f.removeAttribute('virtualkeyboardpolicy');

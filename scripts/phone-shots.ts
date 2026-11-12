@@ -1024,6 +1024,10 @@ const STATES: State[] = [
     },
   },
   { name: 'comm-portrait-narrow', stage: 53, step: 'i', live: true, query: 'kbd=sv', viewport: { width: 320, height: 568 }, darkOnly: true, run: (page) => ownReply(page) },
+  // Round 53j. The fields' text at the smallest and at a large font size setting: the command
+  // field, Comm's reply line and its search keep 16 px.
+  { name: 'field-small', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, run: (page) => fieldsAt(page, 6) },
+  { name: 'field-large', stage: 53, step: 'j', live: true, query: 'kbd=sv', viewport: S21, darkOnly: true, run: (page) => fieldsAt(page, 20) },
   {
     name: 'keys-six',
     stage: 52,
@@ -1060,6 +1064,20 @@ async function ownReply(page: Page): Promise<void> {
   await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
   await page.locator('.wc-ph-okb').waitFor();
   for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  await page.waitForTimeout(400);
+  await settle(page);
+}
+
+/** Round 53j: text size `size`, Comm open with a reply half typed, and a command typed in the command field with our keyboard. */
+async function fieldsAt(page: Page, size: number): Promise<void> {
+  await page.evaluate((n) => window.__wc!.settings.update({ appearance: { size: n } }), size);
+  await settle(page);
+  await openChat(page, 'Gibur');
+  await page.locator('.wc-pane[data-pane="comm"] .wc-cm-rinput').tap();
+  await page.locator('.wc-ph-okb').waitFor();
+  for (const k of ['p', 'å', 'space', 'v', 'ä', 'g']) await okbKey(page, k).tap();
+  await page.locator('.wc-input-slot .wc-input-field').tap();
+  for (const k of ['k', 'i', 'l', 'l', 'space', 'o', 'r', 'c']) await okbKey(page, k).tap();
   await page.waitForTimeout(400);
   await settle(page);
 }
@@ -1368,7 +1386,7 @@ async function warmUp(browser: Browser): Promise<void> {
 }
 
 const [stepArg, ...wanted] = process.argv.slice(2);
-const arg = /^(5[123])?([a-i])$/.exec(stepArg ?? '');
+const arg = /^(5[123])?([a-j])$/.exec(stepArg ?? '');
 if (!arg) throw new Error('usage: node scripts/phone-shots.ts <step, e.g. 51a or 52a> [state …]');
 const stage = Number(arg[1] ?? 51);
 const step = arg[2]!;

@@ -84,6 +84,10 @@
 //   with it. A range selected in the masked line is collapsed at once, so
 //   a phone's selection toolbar (share, translate, search) is never
 //   offered the password; the caret and paste stay.
+// - Own font (stage 53, round 53j): `setOwnFont` gives the line a text
+//   size of its own (the phone's game layout: a fixed size in a field of
+//   fixed height). The caret, the suggestion and the bullets then use the
+//   cell width measured in that font, not the cockpit's.
 
 import { device, touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
@@ -168,6 +172,8 @@ export const MAX_HISTORY = 1000;
 
 /** Half a blink cycle: the caret is on 500 ms, off 500 ms. */
 export const BLINK_MS = 500;
+/** Characters in the run `setOwnFont` measures the line's own cell width with. */
+const OWN_FONT_RUN = 40;
 
 /** Start of the alphanumeric word before `pos` (readline backward-word). */
 export function wordStartBefore(s: string, pos: number): number {
@@ -307,6 +313,11 @@ export class InputPane {
   /** Watches <html data-cursor-blink> so a setting change applies at once. */
   private readonly blinkObserver: MutationObserver | null;
   private measurer: HTMLSpanElement | null = null;
+  /** The line has a text size of its own (`setOwnFont`): its measured cell width (0: not yet), and what follows its font. */
+  private ownFont = false;
+  private ownCellW = 0;
+  private ownFontProbe: HTMLSpanElement | null = null;
+  private ownFontWatch: ResizeObserver | null = null;
   private readonly opts: InputPaneOptions;
 
   /** History, oldest first. In memory only (Inv §1.2). */
@@ -558,6 +569,51 @@ export class InputPane {
     }
   }
 
+  /**
+   * The line has a text size of its own, not the cockpit's (the phone's
+   * game layout, stage 53 round 53j: the field is a fixed 44 px high, so its
+   * text does not follow the font size setting). The pane is marked
+   * `wc-input-own-font` (the owner's CSS sets the size on it), and the
+   * caret, the suggestion and the password's bullets are placed with the
+   * cell width measured in that font, published as `--cell-w` on the pane.
+   * A hidden run of text in the pane is observed for its size, so a font
+   * that loads late or a changed font family is followed without polling.
+   */
+  setOwnFont(on: boolean): void {
+    if (on === this.ownFont) return;
+    this.ownFont = on;
+    this.el.classList.toggle('wc-input-own-font', on);
+    this.ownFontWatch?.disconnect();
+    this.ownFontWatch = null;
+    this.ownFontProbe?.remove();
+    this.ownFontProbe = null;
+    this.ownCellW = 0;
+    this.el.style.removeProperty('--cell-w');
+    if (on) {
+      const probe = this.doc.createElement('span');
+      probe.setAttribute('aria-hidden', 'true');
+      probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;white-space:pre;left:0;top:0';
+      probe.textContent = 'M'.repeat(OWN_FONT_RUN);
+      this.el.appendChild(probe);
+      this.ownFontProbe = probe;
+      const read = (): void => {
+        const w = probe.getBoundingClientRect().width / OWN_FONT_RUN;
+        // (No size while the row is not shown: the last one stands.)
+        if (!(w > 0) || w === this.ownCellW) return;
+        this.ownCellW = w;
+        this.el.style.setProperty('--cell-w', `${w}px`);
+        this.scheduleCaret();
+      };
+      const RO = this.doc.defaultView?.ResizeObserver;
+      if (RO) {
+        this.ownFontWatch = new RO(read);
+        this.ownFontWatch.observe(probe);
+      }
+      read();
+    }
+    this.scheduleCaret();
+  }
+
   /** Types `text` at the caret, over the selection if there is one (one line: as a paste). */
   insertText(text: string): void {
     const i = this.input;
@@ -621,6 +677,7 @@ export class InputPane {
 
   dispose(): void {
     this.blinkObserver?.disconnect();
+    this.ownFontWatch?.disconnect();
     this.stopBlink();
     for (const u of this.unsubs) u();
     this.setLeaveGuard(false);
@@ -1168,6 +1225,7 @@ export class InputPane {
   };
 
   private cellWidth(): number {
+    if (this.ownFont && this.ownCellW > 0) return this.ownCellW;
     const w = this.opts.cellWidth?.();
     if (w && w > 0) return w;
     // Fallback: measure the pane's own font once per call site.
