@@ -1464,7 +1464,7 @@ export class PhoneLayer {
 
   // ------------------------------------------------------------------- Comm
 
-  /** The Comm key: opens Comm under the fight card at its stored height, or closes it. */
+  /** The Comm key: opens Comm (under the strip, above the fight card) at its stored height, or closes it. */
   private toggleComm(): void {
     const { cockpit, settings } = this.deps;
     this.commOpen = !this.commOpen;

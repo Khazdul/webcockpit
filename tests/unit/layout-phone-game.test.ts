@@ -22,10 +22,10 @@ import {
 
 const run = (o: Partial<PhoneGameInput> = {}): PhoneGameResult => allocatePhoneGame({ cols: 43, rows: 44, inputRows: 3, ...o });
 
-/** Strip, fight, Comm, game and the command row stack without gaps or overlap and fill the screen. */
+/** Strip, Comm, fight card, game and the command row stack without gaps or overlap and fill the screen (the card under the panes: round 53k). */
 function expectStacked(r: PhoneGameResult): void {
   let y = 0;
-  for (const part of [r.strip, r.fight, r.comm, r.game, r.input]) {
+  for (const part of [r.strip, r.comm, r.fight, r.game, r.input]) {
     if (part.h === 0 && part.w === 0) continue;
     expect(part.x).toBe(0);
     expect(part.w).toBe(r.cols);
@@ -105,10 +105,11 @@ describe('allocatePhoneGame', () => {
     expectStacked(r);
   });
 
-  it('Comm opens under the fight card at its default share', () => {
+  it('Comm opens above the fight card at its default share', () => {
     const r = run({ fight: true, comm: { rows: null } });
-    // 40 % of 44 rows.
-    expect(r.comm).toEqual({ x: 0, y: 2, w: 43, h: 18 });
+    // 40 % of 44 rows; the card lies under it (round 53k).
+    expect(r.comm).toEqual({ x: 0, y: 0, w: 43, h: 18 });
+    expect(r.fight).toEqual({ x: 0, y: 18, w: 43, h: 2 });
     expect(r.game).toEqual({ x: 0, y: 20, w: 43, h: 21 });
     expect(r.commRange).toEqual({ min: COMM_MIN_ROWS, max: 44 - 3 - 2 - GAME_KEEP_ROWS });
     expectStacked(r);
@@ -134,13 +135,20 @@ describe('allocatePhoneGame', () => {
     }
   });
 
-  it('strip, fight card and Comm together stack in that order', () => {
+  it('the strip, Comm and the fight card stack in that order: the card always under the panes (round 53k)', () => {
     const r = run({ strip: true, fight: true, comm: { rows: 10 } });
     expect(r.strip.h).toBe(9);
-    expect(r.fight.y).toBe(9);
-    expect(r.comm).toEqual({ x: 0, y: 11, w: 43, h: 10 });
+    expect(r.comm).toEqual({ x: 0, y: 9, w: 43, h: 10 });
+    expect(r.fight).toEqual({ x: 0, y: 19, w: 43, h: 2 });
     expect(r.game).toEqual({ x: 0, y: 21, w: 43, h: 20 });
     expectStacked(r);
+    // One of the two open: under that one. Neither: at the very top.
+    expect(run({ strip: true, fight: true }).fight.y).toBe(9);
+    expect(run({ fight: true, comm: { rows: 10 } }).fight.y).toBe(10);
+    expect(run({ fight: true }).fight.y).toBe(0);
+    // A part that gave way or is left out for now counts as closed: the card moves up under what is left.
+    expect(run({ strip: true, fight: true, comm: { rows: 10 }, hide: { strip: false, comm: true } }).fight.y).toBe(9);
+    expect(run({ strip: true, fight: true, comm: { rows: 10 }, hide: { strip: true, comm: true } }).fight.y).toBe(0);
   });
 
   describe('short screens (the keyboard is up)', () => {
@@ -827,7 +835,8 @@ describe('hide: open parts left out of a layout for now (round 53j)', () => {
     expect(r.comm.h).toBe(0);
     expect(r.commRange).toBeNull();
     expect(r.strip).toEqual(base.strip);
-    expect(r.fight).toEqual(base.fight);
+    // The card moves up under the strip (round 53k: it lies under the panes that are there).
+    expect(r.fight).toEqual({ ...base.fight, y: base.strip.h });
     expect(r.game.y).toBe(base.game.y - base.comm.h);
     expect(r.game.h).toBe(base.game.h + base.comm.h);
     expectStacked(r);

@@ -43,7 +43,7 @@
 // elsewhere).
 //
 // Phone (ADR 0136 §6, `setPhoneMode`): the phone's layout in the live game
-// shows this pane full width under the fight card. In that mode the chat
+// shows this pane full width above the fight card. In that mode the chat
 // column is always the rail and the pane never writes `comm.folded` or
 // `comm.listWidth` (they are the desktop's); the reply line says "Type a
 // message". While the phone has Comm closed (`setPhoneOpen(false)`) no

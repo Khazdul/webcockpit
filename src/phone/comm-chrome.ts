@@ -3,7 +3,7 @@
 // dragged to resize its part in whole rows.
 //
 // Comm itself is the cockpit's Comm pane (`setPhoneComm` places it full
-// width under the fight card, leaving its last row to this band); the
+// width above the fight card, leaving its last row to this band); the
 // strip's pane likewise (`setPhoneStrip`). A band is one row high; its grip
 // reaches above and below it for a thumb-size target. The strip's band
 // also carries the page dots, at its right end (strip.ts puts them there).

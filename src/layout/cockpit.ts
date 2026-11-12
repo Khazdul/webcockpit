@@ -1341,7 +1341,7 @@ export class Cockpit {
   }
 
   /**
-   * Phone game layout: opens Comm full width under the fight card at `rows`
+   * Phone game layout: opens Comm full width above the fight card at `rows`
    * (null: the default share of the screen), or closes it (null; ADR 0136
    * §6). The allocator fits the height to the screen (`phoneGameLayout`
    * `comm`, `commRange`).

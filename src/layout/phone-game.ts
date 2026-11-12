@@ -8,9 +8,9 @@
 //   +--------------------------------------------+
 //   | pane strip (one pane)                      |  0, or its stored rows (~20 % of R)
 //   +--------------------------------------------+
-//   | fight card                                 |  0, or 2 while fighting
-//   +--------------------------------------------+
 //   | Comm                                       |  0, or its stored rows
+//   +--------------------------------------------+
+//   | fight card                                 |  0, or 2 while fighting
 //   +--------------------------------------------+  <- never below `maxTop`
 //   |                                 +-------+  |
 //   |   game text                     | lens  |  |  what is left
@@ -19,6 +19,10 @@
 //   | command row                                |  `inputRows`
 //   +--------------------------------------------+
 //
+// - The fight card always lies under the panes at the top (round 53k, the
+//   owner's rule): under Comm, or under the strip when Comm is closed, and
+//   at the very top when neither is open. (Before that round it lay between
+//   the two.) A setting takes it away altogether (`fight` false).
 // - The command row is as many whole rows as the thumb-size field needs
 //   (`commandRows`): the cockpit places in whole cells, and the phone
 //   layer's CSS draws the 44 px field centred in them.
@@ -459,8 +463,9 @@ function layoutStack(input: PhoneGameInput, res: PhoneGameResult, rows: number, 
 
   const top = stripH + fightH + commH;
   res.strip = { x: 0, y: 0, w: cols, h: stripH };
-  res.fight = { x: 0, y: stripH, w: cols, h: fightH };
-  res.comm = { x: 0, y: stripH + fightH, w: cols, h: commH };
+  // The fight card under the panes, whichever are open (round 53k).
+  res.comm = { x: 0, y: stripH, w: cols, h: commH };
+  res.fight = { x: 0, y: stripH + commH, w: cols, h: fightH };
   res.game = { x: 0, y: top, w: cols, h: avail - top };
   if (stripH > 0) res.stripRange = { min: STRIP_MIN_ROWS, max: budget - commH };
   if (commH > 0) res.commRange = { min: COMM_MIN_ROWS, max: budget - stripH };
