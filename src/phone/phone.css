@@ -1954,6 +1954,14 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::pla
   opacity: 1;
 }
 
+/* The sent line, kept to be sent again or replaced by the next key (round 53j; `InputPane`, "Kept
+ * line"): dimmed as the placeholder is, which is what it does (the first key takes its place). No
+ * native selection stands for it while the keyboard is folded: a tap on a field that holds one
+ * brings Android's selection pop-up. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field.wc-input-kept {
+  color: var(--ph-dim);
+}
+
 /* The old `☰` (src/app/shell.ts keeps it when the phone layer could not be mounted): it sits at
  * the field's end, inside its edge. A key of its own there, not a glyph over the text. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input > .wc-menu-btn:not(.wc-ph-menu) {

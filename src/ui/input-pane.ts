@@ -84,6 +84,19 @@
 //   with it. A range selected in the masked line is collapsed at once, so
 //   a phone's selection toolbar (share, translate, search) is never
 //   offered the password; the caret and paste stay.
+// - Kept line (stage 53, round 53j; a phone with our own keyboard only):
+//   the sent line that stays to be sent again or replaced is a native
+//   selection of the whole line only while the field has the focus. When
+//   the field loses it (the keyboard folds) the selection is collapsed and
+//   the state is remembered instead (`kept`, the field marked
+//   `wc-input-kept`: the owner's CSS dims it): a field tapped while it holds
+//   a range makes Android show its selection pop-up (cut, copy, ...). Kept,
+//   Enter sends the line again, an inserted character or a paste replaces
+//   it, Backspace or Delete clears it; a caret key, a tap in the focused
+//   field or a selection the user makes (a long press) turns it into
+//   ordinary text. The tap that brings the focus back leaves it kept, with
+//   the caret at the end. Never at a password prompt. Desktop and tablet
+//   keep the native selection as ever.
 // - Own font (stage 53, round 53j): `setOwnFont` gives the line a text
 //   size of its own (the phone's game layout: a fixed size in a field of
 //   fixed height). The caret, the suggestion and the bullets then use the
@@ -172,6 +185,8 @@ export const MAX_HISTORY = 1000;
 
 /** Half a blink cycle: the caret is on 500 ms, off 500 ms. */
 export const BLINK_MS = 500;
+/** The keys that turn a kept line into ordinary text (file header: "Kept line"). */
+const KEPT_CARET_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 /** Characters in the run `setOwnFont` measures the line's own cell width with. */
 const OWN_FONT_RUN = 40;
 
@@ -332,6 +347,8 @@ export class InputPane {
   private password = false;
   /** The fields are marked for a keyboard of our own (`setOwnKeyboard`). */
   private ownKeyboard = false;
+  /** The whole line is kept to be sent again or replaced, with no native selection (see the header: "Kept line"). */
+  private kept = false;
   /** An edit through the editing API: the next caret update scrolls the caret into view first. */
   private revealCaret = false;
   /** Options → Auto-clear input (ADR 0063). */
@@ -436,6 +453,10 @@ export class InputPane {
     ev.addEventListener('copy', this.onCopyCut);
     ev.addEventListener('cut', this.onCopyCut);
     ev.addEventListener('focus', this.scheduleCaret);
+    ev.addEventListener('blur', this.keepOnBlur);
+    ev.addEventListener('pointerdown', this.onFieldPointerDown);
+    ev.addEventListener('click', this.onFieldClick);
+    ev.addEventListener('select', this.onFieldSelect);
     ev.addEventListener('blur', this.scheduleCaret);
     ev.addEventListener('scroll', this.scheduleCaret);
     ev.addEventListener('select', this.collapseMasked);
@@ -483,16 +504,75 @@ export class InputPane {
     return this.history.slice();
   }
 
-  /** True while the whole non-empty buffer is selected (recall state). */
+  /** True while the whole non-empty buffer is selected (recall state), or kept as such without a selection (`isKept`). */
   isRecallState(): boolean {
     const i = this.input;
-    return i.value.length > 0 && i.selectionStart === 0 && i.selectionEnd === i.value.length;
+    return i.value.length > 0 && (this.kept || (i.selectionStart === 0 && i.selectionEnd === i.value.length));
   }
+
+  /** True while the line is kept without a native selection (a phone with our own keyboard; see the header). */
+  isKept(): boolean {
+    return this.kept;
+  }
+
+  /** Marks the line kept, or ordinary text again. */
+  private setKept(on: boolean): void {
+    if (on === this.kept) return;
+    this.kept = on;
+    this.input.classList.toggle('wc-input-kept', on);
+    this.scheduleCaret();
+  }
+
+  /**
+   * The kept line is about to be edited: it is selected whole (natively,
+   * for the edit that follows at once), so the edit replaces it. Returns
+   * true when it was kept.
+   */
+  private takeKept(): boolean {
+    if (!this.kept) return false;
+    this.setKept(false);
+    this.input.setSelectionRange(0, this.input.value.length);
+    return true;
+  }
+
+  /** The recall state without a native selection, where the field has no focus (a phone with our own keyboard). */
+  private keepIfBlurred(): void {
+    if (!this.phone || !this.ownKeyboard || this.password) return;
+    const i = this.input;
+    const n = i.value.length;
+    if (n === 0 || this.doc.activeElement === i || i.selectionStart !== 0 || i.selectionEnd !== n) return;
+    i.setSelectionRange(n, n);
+    this.setKept(true);
+  }
+
+  /** The field lost the focus with the whole line selected: kept, the selection collapsed (after the blur: the active element is another by then). */
+  private readonly keepOnBlur = (): void => {
+    if (!this.cancellingComposition) this.keepIfBlurred();
+  };
+
+  /** A press in the focused field: the kept line is ordinary text from here (the caret goes where the tap puts it). */
+  private readonly onFieldPointerDown = (e: Event): void => {
+    if (this.kept && this.doc.activeElement === e.currentTarget) this.setKept(false);
+  };
+
+  /** The tap that brought the focus back to a kept line: the caret at its end. */
+  private readonly onFieldClick = (): void => {
+    if (!this.kept) return;
+    const n = this.input.value.length;
+    this.input.setSelectionRange(n, n);
+  };
+
+  /** A range selected in a kept line (a long press): the user's own selection, ordinary text. */
+  private readonly onFieldSelect = (): void => {
+    const i = this.input;
+    if (this.kept && i.selectionStart !== i.selectionEnd) this.setKept(false);
+  };
 
   /** Masks the input and sends without history (server echo = password). */
   setPasswordMode(on: boolean): void {
     if (on === this.password) return;
     this.password = on;
+    this.setKept(false);
     if (this.phone && !this.ownKeyboard) {
       if (on) this.passField ??= this.makeField('password') as HTMLInputElement;
       this.swapField(on ? this.passField! : this.textField!);
@@ -529,7 +609,7 @@ export class InputPane {
    * on, not masked, not browsing, caret at the end with nothing selected.
    */
   suggestion(): string {
-    if (!this.autosuggest || this.password || this.browseIndex >= 0) return '';
+    if (!this.autosuggest || this.password || this.kept || this.browseIndex >= 0) return '';
     const i = this.input;
     const n = i.value.length;
     if (i.selectionStart !== n || i.selectionEnd !== n) return '';
@@ -551,6 +631,7 @@ export class InputPane {
   setOwnKeyboard(on: boolean): void {
     if (on === this.ownKeyboard) return;
     this.ownKeyboard = on;
+    if (!on) this.setKept(false);
     for (const f of new Set([this.field, this.textField, this.passField])) if (f) markOwnKeyboard(f, on);
     // At a password prompt already: the masked line is the textarea with our keyboard (see the
     // file header), the swapped-in password field without. What was typed so far goes along.
@@ -619,12 +700,14 @@ export class InputPane {
     const i = this.input;
     const n = i.value.length;
     this.revealCaret = true;
+    this.takeKept();
     this.edit(i.selectionStart ?? n, i.selectionEnd ?? n, normalizePaste(text));
   }
 
   /** Backspace: deletes the selection, or the character before the caret (a whole grapheme cluster: `graphemeStartBefore`). */
   deleteBackward(): void {
     this.revealCaret = true;
+    this.takeKept();
     this.deleteBack(graphemeStartBefore);
     this.scheduleCaret();
   }
@@ -694,6 +777,7 @@ export class InputPane {
   /** Enter: sends the buffer (Inv §1.2 Enter semantics). */
   submit(): void {
     const text = this.input.value;
+    this.setKept(false);
 
     if (this.password) {
       this.opts.sender.sendCommand(text, { secret: true });
@@ -720,6 +804,7 @@ export class InputPane {
       } else {
         this.input.value = text;
         this.input.setSelectionRange(0, text.length);
+        this.keepIfBlurred();
       }
     }
     this.endBrowsing();
@@ -746,8 +831,10 @@ export class InputPane {
   }
 
   private show(text: string): void {
+    this.setKept(false);
     this.input.value = text;
     this.input.setSelectionRange(0, text.length);
+    this.keepIfBlurred();
     this.scheduleCaret();
   }
 
@@ -930,6 +1017,8 @@ export class InputPane {
    * drops it.
    */
   private readonly onBeforeInput = (e: InputEvent): void => {
+    // A kept line: what is typed or pasted replaces it, a deletion clears it (Enter sends it as it is).
+    if (this.kept && e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph' && /^(insert|delete)/.test(e.inputType)) this.takeKept();
     if (e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph') return;
     e.preventDefault();
     if (this.enterDown) {
@@ -1002,6 +1091,8 @@ export class InputPane {
     const alt = e.altKey && !e.ctrlKey && !e.metaKey;
     const plain = !e.ctrlKey && !e.altKey && !e.metaKey;
     const out = this.opts.output;
+    // A caret key in a kept line (a physical keyboard): ordinary text from here.
+    if (this.kept && KEPT_CARET_KEYS.has(e.key)) this.setKept(false);
 
     switch (e.key) {
       case 'Enter':
@@ -1168,6 +1259,7 @@ export class InputPane {
     if (data === undefined) return;
     e.preventDefault();
     const i = this.input;
+    this.takeKept();
     this.edit(i.selectionStart ?? 0, i.selectionEnd ?? 0, normalizePaste(data));
   };
 
