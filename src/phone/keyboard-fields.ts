@@ -67,8 +67,8 @@ export function isMarked(f: Element): boolean {
 }
 
 /** The field is in the page and shown (a field hidden with its box or its search is no target). */
-export function fieldUsable(f: TextField): boolean {
-  if (!f.isConnected || f.disabled || f.readOnly) return false;
+export function fieldUsable(f: HTMLElement): boolean {
+  if (!f.isConnected || (f as TextField).disabled === true || (f as TextField).readOnly === true) return false;
   const r = f.getClientRects()[0];
   if (!r || r.width <= 0 || r.height <= 0) return false;
   // (Hidden by `visibility` it still has a box: asked where the browser can tell.)
@@ -145,9 +145,13 @@ export function caretLineMove(text: string, pos: number, dir: -1 | 1, col?: numb
  * The scroll position that shows a line from `top` to `bottom` (content
  * px) in a box `view` px high scrolled to `scroll`: as it is when the line
  * shows already, else moved as little as possible, with `margin` px of air.
+ * `lead` is the content's own air above its first line (a field's top
+ * padding): a line that starts less than half its height under it is the
+ * first (an inline box stands a little into its line), and shows with all
+ * of that air, at 0.
  */
-export function scrollToShow(scroll: number, view: number, top: number, bottom: number, margin = 0): number {
-  if (top - margin < scroll) return Math.max(0, top - margin);
+export function scrollToShow(scroll: number, view: number, top: number, bottom: number, margin = 0, lead = 0): number {
+  if (top - margin < scroll) return top - lead < (bottom - top) / 2 ? 0 : Math.max(0, top - margin);
   if (bottom + margin > scroll + view) return Math.max(0, bottom + margin - view);
   return scroll;
 }
@@ -211,7 +215,8 @@ export function caretLineBox(el: HTMLTextAreaElement): { top: number; bottom: nu
   m.append(mark);
   m.append(doc.createTextNode(el.value.slice(pos) || ' '));
   doc.body.append(m);
-  const top = mark.offsetTop;
+  // (From the padding box: the copy stands at the top of the page, so its own border is taken off.)
+  const top = mark.offsetTop - m.clientTop;
   const h = mark.offsetHeight;
   m.remove();
   if (!(h > 0)) return null;
@@ -249,7 +254,8 @@ export function fieldTarget(el: TextField, opts: FieldTargetOptions = {}): OkbTa
       if (el.scrollHeight > el.clientHeight) {
         const box = caretLineBox(el as HTMLTextAreaElement);
         if (box) {
-          const to = scrollToShow(el.scrollTop, el.clientHeight, box.top, box.bottom, 2);
+          const lead = parseFloat(doc.defaultView?.getComputedStyle(el).paddingTop ?? '') || 0;
+          const to = scrollToShow(el.scrollTop, el.clientHeight, box.top, box.bottom, 2, lead);
           if (to !== el.scrollTop) el.scrollTop = to;
         }
       }

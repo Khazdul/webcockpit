@@ -36,6 +36,10 @@
 //   esc, tab, ← left of it; ↑, ↓, → right of it), so the keyboard is no
 //   higher. A page has no history: its arrows are left out
 //   (`history: false`). The game layout has none of these keys.
+// - A code editor (round 53h) gets the same symbols in another order
+//   (`OKB_SYMBOLS_CODE`, `symbols: 'code'`): brackets, `=`, quotes and what
+//   Lua and the profile syntax use most nearest the thumbs and on the first
+//   page. The game layout and every other field keep `OKB_SYMBOLS`.
 // - Sizes come from the screen: a key's width is the block's width shared
 //   by the row's keys, with a cap per key (a tablet or a landscape screen
 //   gets no huge keys); the rows' height is a share of the screen's height
@@ -110,6 +114,16 @@ export const OKB_DIGITS = '1234567890';
  * `.` and `;` are on the bottom row of every page.
  */
 export const OKB_SYMBOLS = '\'",-!?:#@$%&*()/_\\{}[]+=<>~^|`';
+/**
+ * The same symbols in a code editor's order (round 53h): what Lua and the
+ * profile syntax use most first. The third row is `( ) { } = " ,`, the
+ * second `[ ] # % : - _ < > +`; with the digit row up the first row holds
+ * the rest of what code needs, and only `@ ! ?` (English) wait on a second
+ * page.
+ */
+export const OKB_SYMBOLS_CODE = '(){}=",[]#%:-_<>+\'*/\\~^$&|`@!?';
+/** Which order the symbols' pages are in: `text` (the game, every plain field) or `code` (an editor). */
+export type OkbSymbolSet = 'text' | 'code';
 /** Character keys of the third row, between shift and backspace. */
 export const OKB_THIRD_ROW_KEYS = 7;
 
@@ -253,6 +267,8 @@ export interface OkbRowsInput {
   history?: boolean;
   /** `'row'`: the page keys are the block's first row. Default none (`'sides'` is drawn beside the block: `okbNavSides`). */
   nav?: OkbNav;
+  /** The symbols' order (default `text`; `code` in an editor). */
+  symbols?: OkbSymbolSet;
 }
 
 const NAV = {
@@ -316,7 +332,7 @@ export function okbRows(input: OkbRowsInput): OkbRow[] {
     const per = symbolsPerPage(layout, digits);
     const pages = okbSymbolPages(layout, digits);
     const at = Math.max(0, Math.min(pages - 1, Math.floor(input.symbolPage ?? 0)));
-    const all = [...OKB_SYMBOLS];
+    const all = [...(input.symbols === 'code' ? OKB_SYMBOLS_CODE : OKB_SYMBOLS)];
     const list = all.slice(at * per, (at + 1) * per);
     // One page that is a key or two short: the last symbols stand in shift's place.
     const extra = pages === 1 ? all.slice(per) : [];

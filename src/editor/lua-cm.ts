@@ -96,6 +96,7 @@ import { luaIndent } from './lua-indent';
 import { REOPEN_EVENT, reopensAfter } from './lua-reopen';
 import { type ScriptLintOptions, scriptLint } from './lua-lint';
 import { lookCodeTheme } from './look-code';
+import { ownKeyboardExtension } from './own-keyboard-cm';
 import { searchExtension } from './search';
 
 export interface LuaBufferOptions {
@@ -799,6 +800,8 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
         'aria-label': 'Script source',
         'data-wc-native-mouse': '',
       }),
+      // A phone: the content is typed in from our own keyboard (own-keyboard-cm.ts); nothing elsewhere.
+      ownKeyboardExtension(),
       EditorView.domEventObservers({ focus: () => opts.onFocus() }),
       status,
       lookCodeTheme(),

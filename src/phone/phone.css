@@ -1672,11 +1672,11 @@ html.wc-phone.wc-okb-pg .wc-start-almanac {
  * the keys. The hint under the field gives way; an error still shows. */
 @media (max-height: 480px) {
   html.wc-phone.wc-okb-pg .wc-lk-dslot {
-    padding: 4px 16px;
+    padding: 2px 16px;
   }
 
   html.wc-phone.wc-okb-pg .wc-lk-dwin {
-    padding: 20px 16px 6px;
+    padding: 20px 16px 4px;
   }
 
   html.wc-phone.wc-okb-pg .wc-lk-dialog-b .wc-lk-q {
@@ -1692,13 +1692,23 @@ html.wc-phone.wc-okb-pg .wc-start-almanac {
     display: none;
   }
 
+  /* The error line keeps its own height (the window is a column that would
+   * squeeze it under the buttons: round 53h); with no error it takes none.
+   * Lower buttons make its room, and a message of two lines scrolls the
+   * window instead of lying over them. */
   html.wc-phone.wc-okb-pg .wc-lk-dialog-err {
+    flex: none;
     min-height: 0;
     margin: 2px 0 0;
   }
 
   html.wc-phone.wc-okb-pg .wc-lk-dialog-btns {
-    margin: 6px 0 0;
+    flex: none;
+    margin: 5px 0 0;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-dialog-btns .wc-lk-btn {
+    min-height: 34px;
   }
 
   /* The export editor's comment: the composer whole above the keys (its
@@ -1740,6 +1750,94 @@ html.wc-phone.wc-okb-pg .wc-start-almanac {
   html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-head,
   html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-rail,
   html.wc-phone.wc-okb-pg .wc-pe[data-view="lite"] .wc-pe-foot {
+    display: none;
+  }
+}
+
+/* ---- The two code editors under our keyboard (round 53h, ADR 0139 §6) ---- */
+
+/* The completion list stands alone while our keyboard is up: beside the list
+ * a phone has no room for the info box, and CodeMirror then lays it over the
+ * list's other rows (its "narrow" place) or lets a sliver of it show at the
+ * page's edge. The manual's tool opens the same text at the name under the
+ * caret. */
+html.wc-phone.wc-okb-pg .cm-tooltip.cm-completionInfo {
+  display: none;
+}
+
+/* A doc plate (a name pressed) is never higher than the page above the keys. */
+html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-hover {
+  box-sizing: border-box;
+  max-height: calc(100dvh - var(--wc-okb-page-h, 0px) - 44px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A low page above the keyboard (a phone on its side, about 212 px): what
+ * is not the code steps aside, as Lite's head and foot do: the box's hood
+ * and Back, the script editor's status line, the profile editor's views
+ * and foot. The fold key brings them back; Esc is on the keyboard. */
+@media (max-height: 480px) {
+  html.wc-phone.wc-okb-pg .wc-sed .wc-lk-box > .wc-lk-hood,
+  html.wc-phone.wc-okb-pg .wc-sed .wc-lk-box > .wc-lk-back,
+  html.wc-phone.wc-okb-pg .wc-sed .wc-sed-line,
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="editor"] .wc-pe-head,
+  html.wc-phone.wc-okb-pg .wc-pe[data-view="editor"] .wc-pe-foot {
+    display: none;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-sed .wc-lk-win.wc-sed-win {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  /* (The profile editor is inside its box's window: its hood is found from the box.) */
+  html.wc-phone.wc-okb-pg .wc-lk-box:has(.wc-pe[data-view="editor"]) > .wc-lk-hood,
+  html.wc-phone.wc-okb-pg .wc-lk-box:has(.wc-pe[data-view="editor"]) > .wc-lk-back {
+    display: none;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-win.wc-pe-win:has(.wc-pe[data-view="editor"]) {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  /* The completion list: two rows at a time (it scrolls), so it fits above
+   * or below the caret's line wherever that is in the few lines shown. */
+  html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-autocomplete > ul {
+    max-height: 76px;
+  }
+
+  html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+    height: 36px;
+    line-height: 36px;
+  }
+
+  /* The find row: lower fields and buttons, less air, so code lines show under it. */
+  html.wc-phone.wc-okb-pg .wc-search.wc-lk-search {
+    padding: 4px 6px 0 4px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-sin {
+    gap: 4px;
+    padding: 4px 8px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-srow > .wc-lk-field input {
+    height: 34px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-btn {
+    min-height: 34px;
+  }
+
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-search-count {
+    min-width: 0;
+  }
+
+  /* (No "Find" and "Replace" beside the fields: their hints say it, and a
+   * 640 px page then keeps each row on one line.) */
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-slbl {
     display: none;
   }
 }

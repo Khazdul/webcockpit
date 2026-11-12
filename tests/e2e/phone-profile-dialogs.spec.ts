@@ -77,6 +77,22 @@ async function expectInRoom(page: Page, l: Locator, minH = 0): Promise<void> {
     .toBe(true);
 }
 
+/** The dialog's error line is whole (not squeezed or cut), under the field and clear of the buttons. */
+async function expectErrorClear(page: Page, dlg: Locator): Promise<void> {
+  const err = dlg.locator('.wc-lk-dialog-err');
+  await expectInRoom(page, err, 18);
+  await expect
+    .poll(async () => {
+      const e = (await err.boundingBox())!;
+      const f = (await dlg.locator('input').boundingBox())!;
+      const whole = await err.evaluate((el) => el.scrollHeight <= el.clientHeight + 0.5);
+      const boxes = await Promise.all(['CANCEL', 'OK'].map(async (b) => (await dlg.locator(`[data-btn="${b}"]`).boundingBox())!));
+      const clear = boxes.every((b) => b.y >= e.y + e.height + 3);
+      return whole && clear && e.y >= f.y + f.height ? 'clear' : `error ${e.y}..${e.y + e.height}, field ends ${f.y + f.height}, buttons at ${boxes.map((b) => b.y).join(', ')}, whole ${whole}`;
+    })
+    .toBe('clear');
+}
+
 async function expectKeyboard(page: Page, up: boolean): Promise<void> {
   if (up) {
     await expect(okbHost(page)).toBeVisible();
@@ -123,6 +139,9 @@ for (const size of SIZES) {
       await expectKeyboard(page, true);
       await expectInRoom(page, name);
       for (const b of ['CANCEL', 'OK']) await expectInRoom(page, name.locator(`[data-btn="${b}"]`), 32);
+      // The message stands whole between the field and the buttons, with air above them (round 53h:
+      // on a phone on its side it was squeezed under Cancel and Next).
+      await expectErrorClear(page, name);
       await shot(page, `53-p-new-error-keyboard-${tag}`);
       for (let i = 0; i < 7; i++) await okbKey(page, 'back').tap();
       await type(page, 'o', 'r', 'c');

@@ -300,3 +300,30 @@
     height: 40px;
   }
 }
+
+/* A phone's narrow find row (round 53h: the code under it shares the page
+ * with a keyboard): three rows, not five. The arrows and Close stand beside
+ * the Find field, the count and the toggles under it, and Replace's two
+ * buttons beside its field. */
+@container wc-lk-find (max-width: 420px) {
+  html.wc-phone .wc-lk-srow > .wc-lk-field {
+    order: 1;
+    flex: 1 1 90px;
+    min-width: 90px;
+  }
+
+  html.wc-phone .wc-lk-srow > .wc-lk-sbtns {
+    order: 2;
+  }
+
+  html.wc-phone .wc-lk-srow > .wc-search-count {
+    order: 3;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  html.wc-phone .wc-lk-srow > .wc-lk-seg {
+    order: 4;
+  }
+}
+
