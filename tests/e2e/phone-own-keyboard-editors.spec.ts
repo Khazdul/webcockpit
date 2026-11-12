@@ -117,7 +117,8 @@ async function expectCaretLineShown(page: Page, scope: Locator): Promise<void> {
         const s = sc.getBoundingClientRect();
         if (r.top < s.top - 0.5 || r.bottom > s.bottom + 0.5) return `line ${r.top}..${r.bottom} outside the scroller ${s.top}..${s.bottom}`;
         if (r.bottom > kTop + 0.5 || r.top < 0) return `line ${r.top}..${r.bottom} under the keyboard at ${kTop}`;
-        const at = document.elementFromPoint(r.left + r.width / 2, (r.top + r.bottom) / 2);
+        // (Asked at the line's start: the editor's tools lie over the far end of its first lines.)
+        const at = document.elementFromPoint(r.left + 8, (r.top + r.bottom) / 2);
         return at && (at === line || line.contains(at) || at.closest('.cm-content')) ? 'shown' : `covered by ${at?.tagName}.${at?.className}`;
       }, k.y);
     })
@@ -334,7 +335,7 @@ test.describe('portrait 360 × 800', () => {
     const ed = await openScript(page, '&kbd=en', `${HEADER}local orc = 1\nlocal orcs = orc + orc\n`);
     const content = ed.locator('.cm-content');
     await tapEnd(page, ed);
-    await expectUp(page);
+    const kbd = await expectUp(page);
     await watchUps(page);
     // The Find tool: the find row opens with the focus in its field, a field of ours.
     await tool(page, 'FIND').tap();
@@ -344,7 +345,8 @@ test.describe('portrait 360 × 800', () => {
     await expect(find).toBeFocused();
     await expectMarked(find);
     await expectMarked(replace);
-    await expectUp(page);
+    // The same keyboard, as high as it was (the editor's digit row stays for its find row).
+    expect((await expectUp(page)).height).toBe(kbd.height);
     await expectAbove(page, panel);
     // Enter is the field's there (next match), not a line break.
     await expect(key(page, 'enter')).toHaveAttribute('data-enter', 'submit');
@@ -363,7 +365,9 @@ test.describe('portrait 360 × 800', () => {
     // Some code shows under the find row, above the keys.
     await expectAbove(page, ed.locator('.cm-scroller'));
     expect((await box(ed.locator('.cm-scroller'))).height).toBeGreaterThan(60);
-    // Esc: the row closes, the buffer has the focus, and the keyboard never went.
+    // Esc: the row closes, the buffer has the focus, and the keyboard never went. (A moment after
+    // the Enter: an Esc right on its heels is taken for the same tap and dropped.)
+    await page.waitForTimeout(350);
     await press(page, 'esc');
     await expect(panel).toHaveCount(0);
     await expect(content).toBeFocused();
@@ -414,8 +418,11 @@ test.describe('portrait 360 × 800', () => {
     expect((await lines(p)).at(-1)).toBe('#alias {dr} {drink %1}');
     await press(page, 'enter');
     await typeOn(page, 'x');
-    await press(page, 'left', 'back', 'up', 'right');
-    await expect(p.locator('.wc-pe-pos')).toContainText('Ln 2, Col 2');
+    await expect(p.locator('.wc-pe-pos')).toContainText('Ln 3, Col 2');
+    await press(page, 'up', 'left');
+    await expect(p.locator('.wc-pe-pos')).toContainText('Ln 2, Col 1');
+    await press(page, 'right', 'down');
+    await expect(p.locator('.wc-pe-pos')).toContainText('Ln 3, Col 2');
     expect(await text(p)).toBe('#alias {k} {kill %1}\n#alias {dr} {drink %1}\nx');
     // Find (the foot's button) and back with Esc: the keyboard stays.
     await watchUps(page);
@@ -443,10 +450,20 @@ test.describe('portrait 360 × 800', () => {
     const long = Array.from({ length: 80 }, (_, i) => `local v${i} = ${i}`).join('\n');
     const ed = await openScript(page, '&kbd=en', `${HEADER}${long}\n`);
     const sc = ed.locator('.cm-scroller');
-    const b = await box(sc);
     const cdp = await page.context().newCDPSession(page);
-    const drag = (dy: number) =>
-      cdp.send('Input.synthesizeScrollGesture', { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2), yDistance: dy, gestureSourceType: 'touch', speed: 1200 });
+    /** A finger put down in the middle of the code, moved `dy` px and lifted (the browser scrolls, and cancels the pointer). */
+    const drag = async (dy: number): Promise<void> => {
+      const b = await box(sc);
+      const x = Math.round(b.x + b.width / 2);
+      let y = Math.round(b.y + b.height / 2);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      for (let i = 0; i < 10; i++) {
+        y += dy / 10;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: Math.round(y) }] });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    };
     // Keyboard down: a drag scrolls the code and brings no keyboard.
     await drag(-300);
     await expect.poll(() => sc.evaluate((el) => el.scrollTop)).toBeGreaterThan(200);
@@ -461,8 +478,7 @@ test.describe('portrait 360 × 800', () => {
     // Keyboard up: a drag scrolls and the keyboard stays, the focus too.
     await watchUps(page);
     const before = await sc.evaluate((el) => el.scrollTop);
-    const now = await box(sc);
-    await cdp.send('Input.synthesizeScrollGesture', { x: Math.round(now.x + now.width / 2), y: Math.round(now.y + now.height / 2), yDistance: -150, gestureSourceType: 'touch', speed: 1200 });
+    await drag(-150);
     await expect.poll(() => sc.evaluate((el) => el.scrollTop)).toBeGreaterThan(before + 80);
     await page.waitForTimeout(200);
     await expectUp(page);
@@ -510,7 +526,8 @@ test.describe('portrait 360 × 800', () => {
     const long = Array.from({ length: 40 }, (_, i) => `local v${i} = ${i}`).join('\n');
     const ed = await openScript(page, '&kbd=en', `${HEADER}${long}\n`);
     const content = ed.locator('.cm-content');
-    await tapEnd(page, ed);
+    const sc0 = await box(ed.locator('.cm-scroller'));
+    await page.touchscreen.tap(sc0.x + sc0.width / 2, sc0.y + 60);
     await expectUp(page);
     await page.keyboard.press('ControlOrMeta+End');
     await typeOn(page, 'x');

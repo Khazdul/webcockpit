@@ -1839,6 +1839,12 @@ html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-hover {
   html.wc-phone.wc-okb-pg .wc-lk-search .wc-search-count {
     min-width: 0;
   }
+
+  /* (No "Find" and "Replace" beside the fields: their hints say it, and a
+   * 640 px page then keeps each row on one line.) */
+  html.wc-phone.wc-okb-pg .wc-lk-search .wc-lk-slbl {
+    display: none;
+  }
 }
 
 /* The reserve: the start page and the menu's overlay end at the keyboard's top edge. */

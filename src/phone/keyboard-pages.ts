@@ -43,7 +43,8 @@
 //   whatever the stored state (digits are code, and with the row up one
 //   symbols page holds everything Lua and the profile syntax need, two taps
 //   away); its key folds it for the editors until the page is left. In
-//   landscape the row follows the stored state: the page has no height.
+//   landscape, and on a phone too short to keep `PAGE_CODE_DIGITS_KEEP_PX`
+//   of page above it, the row follows the stored state.
 // - The page keys (53g): Esc, Tab and the caret keys, in a row at the top
 //   of the block in portrait and in a column at each side of it in
 //   landscape (`pageKeyboardPlan`), where the page has no height to give.
@@ -116,6 +117,8 @@ export const PAGE_POINTER_FOCUS_MS = 700;
  * keyboard is up, so this is the only floor there.)
  */
 export const PAGE_KEEP_PX = 150;
+/** An editor's digit row is up in portrait only where the page keeps this much above the keyboard with it, px (not on a short phone). */
+export const PAGE_CODE_DIGITS_KEEP_PX = 360;
 /** Landscape: a column of page keys' width, and its gap to the block, px. */
 export const PAGE_SIDE_W = 52;
 export const PAGE_SIDE_GAP = 6;
@@ -236,8 +239,9 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   /** A code editor is typed in: the digit row is up in portrait, until its key folds it (`codeFolded`, kept while the mount lives). */
   let code = false;
   let codeFolded = false;
-  /** The page is wider than high, as last placed. */
+  /** The page as last placed: wider than high; high enough for an editor's digit row (`PAGE_CODE_DIGITS_KEEP_PX`). */
   let landscape = false;
+  let roomy = true;
   let reserve = -1;
   /** A pointer is down anywhere now, and when one was last seen (a focus that follows it is that pointer's). */
   let down = false;
@@ -271,7 +275,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   host.append(inner);
 
   /** The editors' digit row is up now (not stored: `toggleDigits` folds it). */
-  const codeDigits = (): boolean => code && !codeFolded && !landscape;
+  const codeDigits = (): boolean => code && !codeFolded && !landscape && roomy;
   const digitsWanted = (): boolean => settings.get().phone.keyboard.digits || forceDigits || codeDigits();
 
   const okb = new OwnKeyboard(
@@ -281,7 +285,11 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
         gone();
         return target;
       },
-      fold: () => close(true),
+      fold: () => {
+        close(true);
+        // (Our Tab key's claim on the next focus ends here: the fold is the later wish.)
+        tabAt = -Infinity;
+      },
       toggleDigits: () => {
         // A numeric field's forced row: its key folds it away for this field; the stored state is not touched.
         if (forceDigits && !settings.get().phone.keyboard.digits) {
@@ -339,6 +347,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     const sideL = parseFloat(st?.marginLeft ?? '') || 0;
     const sideR = parseFloat(st?.marginRight ?? '') || 0;
     landscape = box.width - sideL - sideR > box.height;
+    roomy = box.height - okbHeightPx(landscape, box.height, true, true) >= PAGE_CODE_DIGITS_KEEP_PX;
     const layout = wanted();
     const plan = pageKeyboardPlan(box.width - sideL - sideR, box.height, layout, digitsWanted());
     if (!plan) {

@@ -948,6 +948,26 @@ describe('a code editor (round 53h)', () => {
     expect(root.style.getPropertyValue('--wc-okb-page-h')).toBe(`${okbHeightPx(true, 360, false)}px`);
   });
 
+  it('a short phone (320 × 568): no row is forced either, the page would keep too little', () => {
+    root.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 320, bottom: 568, width: 320, height: 568, toJSON: () => ({}) });
+    const { content, line } = mkEditor();
+    tapIn(content, line);
+    expect(kb.open).toBe(true);
+    expect(kb.el.querySelector('.wc-ph-okb-row.is-digits')).toBeNull();
+  });
+
+  it('our Tab key\'s claim on the next focus ends when the keyboard closes (a fold right after a Tab opens nothing)', () => {
+    const { content, line } = mkEditor();
+    tapIn(content, line);
+    press('tab');
+    press('fold');
+    expect(kb.open).toBe(false);
+    // The frame gives the buffer its focus back on its next drawing.
+    content.focus();
+    vi.advanceTimersByTime(100);
+    expect(kb.open).toBe(false);
+  });
+
   it('a read-only buffer opens nothing, and ours closes when it takes the focus', () => {
     const { content, line } = mkEditor(false);
     tapIn(content, line);

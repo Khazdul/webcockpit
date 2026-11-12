@@ -1005,6 +1005,8 @@ const STATES: State[] = [
   { name: 'script-land-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 640, height: 360 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'code') },
   { name: 'script-find', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, run: (page) => pageScript(page, 'find') },
   { name: 'script-find-land', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21_LAND, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-find-land-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 640, height: 360 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
+  { name: 'script-find-narrow', stage: 53, step: 'h', query: 'kbd=sv', viewport: { width: 320, height: 568 }, start: true, darkOnly: true, run: (page) => pageScript(page, 'find') },
   { name: 'script-symbols', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, start: true, darkOnly: true, run: (page) => pageScript(page, 'symbols') },
   // The profile editor's Editor view, over the game: a line typed in the tt++ text.
   { name: 'profile-editor', stage: 53, step: 'h', query: 'kbd=sv', viewport: S21, run: (page) => pageProfileEditor(page) },
@@ -1237,8 +1239,8 @@ async function pageScript(page: Page, what: 'list' | 'code' | 'find' | 'symbols'
   await page.waitForTimeout(1800);
   await tapCode(page, ed);
   await pageTypeText(page, '\nlocal function warn(n)\nif n > 3 then\nse');
-  if (what === 'list') await page.locator('.cm-tooltip-autocomplete').waitFor();
-  else {
+  await page.locator('.cm-tooltip-autocomplete').waitFor();
+  if (what !== 'list') {
     await pageKey(page, 'tab').tap();
     await pageTypeText(page, '("flee")');
     if (what === 'find') {
