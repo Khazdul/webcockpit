@@ -554,5 +554,11 @@ the wrong keyboard.
     nothing. Left: with our keyboard and Comm both open in portrait a
     refused hold still folds the keyboard (room is only known on the
     layout without it).
+- 2026-11-12, 53f on the S21: the Pattern field (game → menu →
+  Profile) did not give our keyboard: wanted there too (looked into in
+  53g). Find in the script editor gives ours; the editor itself the
+  device's: ours wanted everywhere (53h). Also seen: some pages are
+  still in the old TUI look, for example creating a new profile; they
+  are to be moved to the new graphical look (surveyed; its own work).
 
 (After each round.)
