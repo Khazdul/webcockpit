@@ -360,6 +360,17 @@ moves the caret), script pane fields, key sound.
   yet; a Paper keyboard under the always-dark start page; nothing
   tried on a device. Screenshots `docs/stages/img/53-f-*`.
 
+- **Review of 53f** (fresh subagent, Playwright probes): no double
+  keyboard, stuck reserve, ghost tap or command sent to MUME found;
+  rules hold. Handed to 53g to fix: Lite's Pattern field is hidden
+  under the page's foot in landscape with the keyboard up; after a
+  rotation the field can lie under the keyboard, and back to portrait
+  the keyboard closes; a field focused before the phone chunk arrives
+  has no keyboard until a second tap; a fast double tap on Enter sends
+  two; capture-phase Esc listeners (`hotkeys.ts`, `timers.ts`,
+  `player/view.ts`) do not check the mark; the 150 px rule is dead.
+  Not checked: devices, fullscreen, the browser's back.
+
 ## After the release decision (not deleted yet)
 
 Dead when `?kbd=0` goes:
