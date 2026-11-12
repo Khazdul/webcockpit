@@ -55,7 +55,11 @@ export function isMarked(f: Element): boolean {
 
 /** The field is in the page and shown (a field hidden with its box or its search is no target). */
 export function fieldUsable(f: TextField): boolean {
-  return f.isConnected && !f.disabled && !f.readOnly && f.getClientRects().length > 0;
+  if (!f.isConnected || f.disabled || f.readOnly) return false;
+  const r = f.getClientRects()[0];
+  if (!r || r.width <= 0 || r.height <= 0) return false;
+  // (Hidden by `visibility` it still has a box: asked where the browser can tell.)
+  return f.checkVisibility?.({ visibilityProperty: true }) ?? true;
 }
 
 type SegmenterCtor = new (locale?: string, opts?: { granularity: 'grapheme' }) => { segment(s: string): Iterable<{ index: number }> };
