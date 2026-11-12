@@ -16,6 +16,8 @@ import {
   GAME_MIN_ROWS,
   OWN_KBD_GIVE,
   ownKeyboardReserve,
+  BAND_ROWS,
+  phonePaneRect,
 } from '../../src/layout/phone-game';
 
 const run = (o: Partial<PhoneGameInput> = {}): PhoneGameResult => allocatePhoneGame({ cols: 43, rows: 44, inputRows: 3, ...o });
@@ -172,7 +174,7 @@ describe('allocatePhoneGame', () => {
       const r = run({ rows: 13, strip: true, guard: false });
       expect(r.strip.h).toBe(0);
       expect(r.game.h).toBe(10);
-      // Under four rows (its hood, its dots, two rows of pane) the strip is not shown at all.
+      // Under four rows (three rows of pane and its band) the strip is not shown at all.
       expect(run({ rows: 14, strip: true, guard: false }).strip.h).toBe(0);
       expect(run({ rows: 20, strip: true, guard: false }).strip.h).toBe(4);
     });
@@ -773,5 +775,95 @@ describe('ownKeyboardReserve: the rows a keyboard of our own gets (stage 53d: th
       const g = allocatePhoneGame({ cols: 43, rows: Math.floor(h / cell), inputRows: 3, bottom: r.bottom, guard: false });
       expect(h - (g.input.y + g.input.h) * cell).toBe(r.lift);
     }
+  });
+});
+
+// Round 53j: a pane's header takes no row on a phone (its name is on its band).
+describe('phonePaneRect: the pane has every row of its part but the band\'s (round 53j)', () => {
+  it('portrait: the strip and Comm each lose only their last row, the band', () => {
+    const r = run({ strip: true, stripRows: 9, comm: { rows: 12 } });
+    expect(r.strip).toEqual({ x: 0, y: 0, w: 43, h: 9 });
+    expect(phonePaneRect(r.strip, r)).toEqual({ x: 0, y: 0, w: 43, h: 9 - BAND_ROWS });
+    expect(r.comm).toEqual({ x: 0, y: 9, w: 43, h: 12 });
+    expect(phonePaneRect(r.comm, r)).toEqual({ x: 0, y: 9, w: 43, h: 12 - BAND_ROWS });
+    expect(BAND_ROWS).toBe(1);
+  });
+
+  it('at the least heights the panes keep three and five rows', () => {
+    const r = run({ strip: true, stripRows: STRIP_MIN_ROWS, comm: { rows: COMM_MIN_ROWS } });
+    expect(phonePaneRect(r.strip, r).h).toBe(STRIP_MIN_ROWS - 1);
+    expect(phonePaneRect(r.comm, r).h).toBe(COMM_MIN_ROWS - 1);
+  });
+
+  it('landscape: every row, without the band\'s columns at the column\'s right edge', () => {
+    const r = allocatePhoneGame({ cols: 95, rows: 21, inputRows: 3, strip: true, comm: { rows: null }, side: { cols: null, band: 2 } });
+    expect(r.landscape).toBe(true);
+    expect(phonePaneRect(r.strip, r)).toEqual({ x: 0, y: 0, w: r.side.w - 2, h: r.strip.h });
+    expect(phonePaneRect(r.comm, r)).toEqual({ x: 0, y: r.strip.h, w: r.side.w - 2, h: r.comm.h });
+    expect(r.strip.h + r.comm.h).toBe(21);
+  });
+
+  it('a part of one row or one column keeps it', () => {
+    expect(phonePaneRect({ x: 0, y: 0, w: 10, h: 1 }, { landscape: false, sideBand: 0 }).h).toBe(1);
+    expect(phonePaneRect({ x: 0, y: 0, w: 1, h: 5 }, { landscape: true, sideBand: 2 }).w).toBe(1);
+  });
+});
+
+// Round 53j: the hot key box, with our keyboard typing in it, needs the rows of what is above the game text.
+describe('hide: open parts left out of a layout for now (round 53j)', () => {
+  const open = { strip: true, stripRows: 9, comm: { rows: 12 }, fight: true } as const;
+
+  it('nothing hidden is the layout as ever', () => {
+    const r = run(open);
+    expect(r.hidden).toEqual({ strip: false, comm: false });
+    expect(run({ ...open, hide: null })).toEqual(r);
+    expect(run({ ...open, hide: { strip: false, comm: false } })).toEqual(r);
+  });
+
+  it('Comm hidden: its rows are the game text\'s; the strip and the fight card stay', () => {
+    const base = run(open);
+    const r = run({ ...open, hide: { strip: false, comm: true } });
+    expect(r.hidden).toEqual({ strip: false, comm: true });
+    expect(r.comm.h).toBe(0);
+    expect(r.commRange).toBeNull();
+    expect(r.strip).toEqual(base.strip);
+    expect(r.fight).toEqual(base.fight);
+    expect(r.game.y).toBe(base.game.y - base.comm.h);
+    expect(r.game.h).toBe(base.game.h + base.comm.h);
+    expectStacked(r);
+  });
+
+  it('both hidden: only the fight card is above the game text', () => {
+    const r = run({ ...open, hide: { strip: true, comm: true } });
+    expect(r.hidden).toEqual({ strip: true, comm: true });
+    expect([r.strip.h, r.comm.h, r.fight.h]).toEqual([0, 0, FIGHT_ROWS]);
+    expect(r.game.y).toBe(FIGHT_ROWS);
+    expect(r).toEqual({ ...run({ fight: true }), hidden: { strip: true, comm: true } });
+    expectStacked(r);
+  });
+
+  it('with the keyboard\'s rows in the same layout: one layout for both', () => {
+    const r = run({ ...open, bottom: 14, hide: { strip: true, comm: true } });
+    expect(r.bottom).toBe(14);
+    expect([r.strip.h, r.comm.h]).toEqual([0, 0]);
+    expect(r.game).toEqual({ x: 0, y: FIGHT_ROWS, w: 43, h: 44 - 14 - 3 - FIGHT_ROWS });
+  });
+
+  it('a part that is not open is not "hidden", and laying out without `hide` brings everything back', () => {
+    const r = run({ strip: true, stripRows: 9, hide: { strip: false, comm: true } });
+    expect(r.hidden).toEqual({ strip: false, comm: false });
+    expect(r.strip.h).toBe(9);
+    expect(run(open).strip.h + run(open).comm.h).toBe(21);
+  });
+
+  it('landscape: the column without Comm is the strip\'s alone; without both there is no column', () => {
+    const land = { cols: 95, rows: 21, inputRows: 3, strip: true, comm: { rows: null }, side: { cols: null } } as const;
+    const one = allocatePhoneGame({ ...land, hide: { strip: false, comm: true } });
+    expect([one.strip.h, one.comm.h]).toEqual([21, 0]);
+    expect(one.side.w).toBeGreaterThan(0);
+    const none = allocatePhoneGame({ ...land, hide: { strip: true, comm: true } });
+    expect(none.side.w).toBe(0);
+    expect(none.game.x).toBe(0);
+    expect(none.game.w).toBe(95);
   });
 });

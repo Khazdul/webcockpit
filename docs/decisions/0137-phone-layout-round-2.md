@@ -148,3 +148,51 @@ S21). Comm now has the same hood there, on rows of its own as the
 strip's; on a screen where its content would keep less than 104 px
 under it, the hood is left out. No divider in portrait. Details: ADR
 0139, "as built in round 53i".
+
+## Addendum: hoods take no row on a phone (stage 53, round 53j, 2026-11-12)
+
+The owner, on his S21 after 53i: "the headers of Comm and of the other
+pane take a whole row each: there is no room for that." This replaces
+§1's "In landscape Comm has a hood reading COMM, and an iron divider
+lies between the strip and Comm" and the addendum above ("Comm's hood
+in portrait too").
+
+- **No pane has a hood on a row of its own**, in either orientation.
+  The strip's pane and Comm have every row of their parts but the resize
+  band's (`phonePaneRect`, `BAND_ROWS`); `phoneCommHead`, the hood's
+  constants and the 6 px divider's rows are gone.
+- **The names live on the drag frames**, on a small plate cast in one
+  piece with the band (`ResizeBand.plates`): the band's iron and its lit
+  edge run on over the plate, a dark hairline outlines the rest, a
+  recessed rivet sits each side of the name (the desktop hood of ADR
+  0123, scaled down), and the band's lit grip marks stand on both sides
+  of it. Cinzel Bold capitals in the lamp's colour (brass on pewter in
+  Paper), 9 px, at least 4.5 : 1. The strip's plate shows its open
+  page's name and changes with the page.
+- **Portrait:** the plate is in the band's middle, from the band's top
+  edge to 3 px under its lower one (at least 15 px high, so a little
+  more under a band lower than that, at a very small text size). The
+  3 px float over what is under the band: the fight card's free middle,
+  Comm's top air, or the top of a game line's cell, which the letters do
+  not reach. The middle, not an end: the page dots keep the right end,
+  and under the right end stand the lens's keys. The plate takes no
+  press: the grip under it does, so the band is dragged from its name.
+- **Landscape:** both names are on the column's one band, written along
+  it (read from below, the letters' heads towards the pane), each plate
+  centred on its own pane's stretch of the band and reaching 4 px out of
+  the band into that pane. Where the strip ends and Comm begins the band
+  has a lit joint, and an iron hairline runs from it across the column
+  (the divider, on no row). The strip's page dots follow its name on the
+  band, in the place of the second grip mark; a stretch under 120 px
+  (the column above our keyboard) shows the name only, cut with an
+  ellipsis if it must be.
+- **The variant not built**, kept as a picture for the owner
+  (`53-j-plates-land-alternative-not-built.png`): the names level, on
+  flags that stick out of the band over each pane's upper right corner.
+  Easier to read, but it lies on content (Comm's search key, a timer's
+  time), which the built one never does.
+- `STRIP_MIN_ROWS` stays 4: now three rows of pane and the band.
+
+Details of the same round's other three points (the hot key box hiding
+panes for the keyboard, the kept line, the fields' text size): ADR 0138,
+"as built in round 53j".

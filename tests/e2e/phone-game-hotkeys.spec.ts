@@ -818,79 +818,110 @@ async function watchScreen(page: Page): Promise<() => Promise<string[]>> {
 /** A press that stays down well past the hold's time (a fixed wait: the box may not come). */
 const longPress = (page: Page, l: Locator) => finger(page, l, () => page.waitForTimeout(900));
 
-test.describe('a hold with no room for the box', () => {
+// Round 53j: what is above the game text and would lie under the box is taken out of the layout
+// for the box (Comm first, then the strip's pane) and comes back when the box closes. Before
+// that round such a hold was refused (stage 53d, 53e, 53i). A hold is still refused, with nothing
+// changed, where the box has no room whatever is taken out.
+const pgLayout = (page: Page) => page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!);
+
+test.describe('a hold with panes above the game text: they give way to the box', () => {
   test.use({ viewport: { width: 360, height: 800 } });
 
-  for (const [what, open] of [
-    ['Comm', async (page: Page) => page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap()],
+  for (const [what, open, part] of [
+    ['Comm', async (page: Page) => page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap(), 'comm'],
     [
       'a tall strip pane',
       async (page: Page) => {
         await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
         await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 16 } }));
       },
+      'strip',
     ],
   ] as const) {
-    test(`portrait, ${what} open: no box, and nothing on screen changes (the lens does not blink); nothing is sent`, async ({ page }) => {
+    test(`portrait, ${what} open: the box opens and ${what} is out of the layout meanwhile; one window size out and one back`, async ({ page }) => {
       const errors = watchErrors(page);
       await openPhone(page);
       await expect(lens(page)).toBeVisible();
       await open(page);
       await expect(page.locator('.wc-ph-comm-band, .wc-ph-strip').locator('visible=true').first()).toBeVisible();
-      await expect(lens(page)).toBeVisible();
-      // No room: what is open reaches below where the box's top would be.
-      const sent = await page.evaluate(() => window.__wc!.app.output.measureCells().rows);
+      await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+      const was = await pgLayout(page);
+      expect(was[part].h).toBeGreaterThan(0);
+      expect(was.hidden).toEqual({ strip: false, comm: false });
       const seen = await watchScreen(page);
-      await longPress(page, hk(page, 1));
+      await hold(page, hk(page, 1));
+      await expect(rb(page)).toBeVisible();
+      await expect(hk(page, 1)).toHaveClass(/\bis-held\b/);
+      const g = await pgLayout(page);
+      expect(g.hidden[part]).toBe(true);
+      expect(g[part].h).toBe(0);
+      expect(g.game.h).toBe(was.game.h + was[part].h);
+      // The box is whole on screen, clear of what is above the game text.
+      const b = await box(rb(page));
+      expect(b.y).toBeGreaterThanOrEqual(0);
+      expect((await seen()).filter((e) => e.startsWith('naws'))).toHaveLength(1);
+      // Cancel: everything back as it was, in one layout.
+      await bt(page, 'Cancel').tap();
       await expect(rb(page)).toBeHidden();
-      expect(await seen()).toEqual([]);
-      await expect(lens(page)).toBeVisible();
-      await expect(satrow(page)).toBeHidden();
-      expect(await page.evaluate(() => window.__wc!.app.output.measureCells().rows)).toBe(sent);
-      // The key is as it was: a tap still works on it, and the K key still folds the column.
-      await expect(hk(page, 1)).not.toHaveClass(/\bis-held\b/);
-      await kKey(page).tap();
-      await expect(hot(page)).toBeHidden();
+      await expect.poll(async () => (await pgLayout(page)).hidden).toEqual({ strip: false, comm: false });
+      const back = await pgLayout(page);
+      expect([back.strip, back.comm, back.game]).toEqual([was.strip, was.comm, was.game]);
+      expect((await seen()).filter((e) => e.startsWith('naws'))).toHaveLength(2);
+      await expect(page.locator(part === 'comm' ? '.wc-ph-sat[data-sat="comm"]:visible' : '.wc-ph-sat[data-sat="panes"]:visible')).toHaveAttribute('aria-pressed', 'true');
       expect(errors).toEqual([]);
     });
   }
 
-  test('portrait, the panel closed again: the hold opens the box as ever', async ({ page }) => {
-    await openPhone(page);
-    const comm = page.locator('.wc-ph-sat[data-sat="comm"]:visible');
-    await comm.tap();
-    await longPress(page, hk(page, 2));
-    await expect(rb(page)).toBeHidden();
-    await comm.tap();
-    await hold(page, hk(page, 2));
-    await expect(rb(page)).toBeVisible();
-    await expect(rb(page)).toHaveCSS('visibility', 'visible');
-    await expect(hk(page, 2)).toHaveClass(/\bis-held\b/);
-    await bt(page, 'Cancel').tap();
-    await expect(rb(page)).toBeHidden();
-  });
-
-  // Our keyboard would fold for a box. Whether the box then has room is asked of the layout as it
-  // would be without the keyboard (Comm takes its rows back there), before anything moves: a
-  // refused hold changes nothing, and the keyboard stays up (round 53i).
-  test('portrait, Comm and our keyboard open: the hold is refused and nothing changes: the keyboard stays, no box, no key lights, no window size', async ({ page }) => {
+  test('portrait, Comm and our keyboard open: the hold folds the keyboard and opens the box, Comm out of the layout; one window size', async ({ page }) => {
     const errors = watchErrors(page);
     await openPhone(page);
     await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
     await field(page).tap();
     await expect(page.locator('.wc-ph-okb')).toBeVisible();
     await expect(hk(page, 1)).toBeVisible();
-    const lensWas = await lens(page).isVisible();
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    const seen = await watchScreen(page);
+    await hold(page, hk(page, 1));
+    await expect(rb(page)).toBeVisible();
+    await expect(page.locator('.wc-ph-okb')).toBeHidden();
+    await expect(page.locator('html')).not.toHaveClass(/\bwc-okb\b/);
+    const g = await pgLayout(page);
+    expect([g.bottom, g.hidden.comm, g.comm.h]).toEqual([0, true, 0]);
+    expect((await seen()).filter((e) => e.startsWith('naws'))).toHaveLength(1);
+    // The finger's release did not open the keyboard again, and Cancel brings Comm back.
+    await page.waitForTimeout(300);
+    await expect(page.locator('.wc-ph-okb')).toBeHidden();
+    await bt(page, 'Cancel').tap();
+    await expect.poll(async () => (await pgLayout(page)).comm.h).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('a hold with no room for the box', () => {
+  // A screen so low that the box would be under its least height beside the columns, though the
+  // layout itself still fits (a split screen): nothing above the game text to take out helps.
+  test.use({ viewport: { width: 300, height: 310 } });
+
+  test('portrait, a low screen: no box, and nothing on screen changes (the lens does not blink); nothing is sent', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openPhone(page);
+    await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 10 } }));
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    expect((await pgLayout(page)).tooSmall).toBe(false);
+    await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    const was = await pgLayout(page);
+    const sent = await page.evaluate(() => window.__wc!.app.output.measureCells().rows);
     const seen = await watchScreen(page);
     await longPress(page, hk(page, 1));
     await expect(rb(page)).toBeHidden();
-    await expect(page.locator('.wc-ph-okb')).toBeVisible();
-    await expect(page.locator('html')).toHaveClass(/\bwc-okb\b/);
-    expect(await lens(page).isVisible()).toBe(lensWas);
     expect(await seen()).toEqual([]);
-    // The keyboard still types in the command field.
-    await page.locator('.wc-ph-okb-k[data-ch="l"]').tap();
-    await expect(field(page)).toHaveValue('l');
+    expect(await pgLayout(page)).toEqual(was);
+    expect(await page.evaluate(() => window.__wc!.app.output.measureCells().rows)).toBe(sent);
+    // The key is as it was: the K key still folds the column.
+    await expect(hk(page, 1)).not.toHaveClass(/\bis-held\b/);
+    await kKey(page).tap();
+    await expect(hot(page)).toBeHidden();
     expect(errors).toEqual([]);
   });
 });

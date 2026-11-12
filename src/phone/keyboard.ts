@@ -72,6 +72,8 @@ export type { OkbTarget } from './keyboard-model';
 export interface PhoneCommandLine extends OkbTarget {
   /** Marks the line's fields so the device's keyboard stays down (`inputmode="none"`), or unmarks them. */
   setOwnKeyboard(on: boolean): void;
+  /** The line has a text size of its own (phone.css), not the font size setting's: the pane places its caret by that font (`InputPane.setOwnFont`). */
+  setOwnFont(on: boolean): void;
   /** The line has a history now (not at a password prompt: the arrows are then dimmed). */
   hasHistory(): boolean;
   /** Calls `fn` when that changes (the password prompt came or went); returns the unsubscriber. */

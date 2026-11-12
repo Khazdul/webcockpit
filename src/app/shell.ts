@@ -933,6 +933,7 @@ export class Shell {
               // Stage 53 (ADR 0138): the command line, as the layout's own keyboard types in it.
               ownKeyboard: {
                 setOwnKeyboard: (on: boolean) => app.input.setOwnKeyboard(on),
+                setOwnFont: (on: boolean) => app.input.setOwnFont(on),
                 insert: (text: string) => app.input.insertText(text),
                 deleteBack: () => app.input.deleteBackward(),
                 submit: () => app.input.submitLine(),

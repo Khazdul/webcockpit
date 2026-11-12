@@ -1,10 +1,12 @@
-// The pane strip's chrome (ADR 0136 §5): what the phone layer draws over
-// the strip's rows. The pane itself is the cockpit's (`setPhoneStrip`
-// places it borderless in the strip's rows, leaving the first row and the
-// last to this chrome): here are the pane's name in a small Cinzel hood at
-// the top and the page dots. The strip's last row is its resize band
-// (comm-chrome.ts, stage 52); the phone layer puts the dots (`dots`) on
-// the band's right end. No tabs.
+// The pane strip's chrome (ADR 0136 §5): what the phone layer draws for
+// the strip. The pane itself is the cockpit's (`setPhoneStrip` places it
+// borderless in the strip's rows, leaving the last row to the strip's
+// resize band: comm-chrome.ts, stage 52). Here are the strip's region
+// (its name for a screen reader), the open page's name (`label`) and the
+// page dots (`dots`). Since round 53j the strip has no hood: the phone
+// layer puts the name on the band's plate, and the dots on the band (its
+// right end in portrait; in landscape the start of the strip's stretch of
+// the column's band). No tabs.
 //
 // A sideways swipe anywhere on the strip changes the page (swipe.ts); a
 // vertical drag is the pane's own scrolling and a tap its own tap. The
@@ -16,11 +18,12 @@ import { stripLabel } from './strip-model';
 import { swipeStep } from './swipe';
 
 export class StripView {
-  /** The hood, over the strip's rows. */
+  /** The strip's region, over its rows (it draws nothing and takes no press). */
   readonly el: HTMLDivElement;
+  /** The open page's name ('' while there is none): the phone layer writes it on the band's plate. */
+  label = '';
   /** The page dots: the phone layer puts them on the strip's resize band. */
   readonly dots: HTMLDivElement;
-  private readonly hood: HTMLSpanElement;
   private key = '';
   private placeKey = '';
 
@@ -29,21 +32,18 @@ export class StripView {
     this.el.className = 'wc-ph-strip';
     this.el.hidden = true;
     this.el.setAttribute('role', 'region');
-    this.hood = doc.createElement('span');
-    this.hood.className = 'wc-ph-hood wc-ph-strip-hood';
     this.dots = doc.createElement('div');
     this.dots.className = 'wc-ph-strip-dots';
     this.dots.setAttribute('aria-hidden', 'true');
-    this.el.append(this.hood);
   }
 
-  /** The pages and the open one: the hood's name and the dots (written only when they change). */
+  /** The pages and the open one: the name and the dots (written only when they change). */
   set(pages: readonly StripPage[], current: string | null): void {
     const key = `${pages.map((p) => `${p.id}=${p.label}`).join('|')}#${current}`;
     if (key === this.key) return;
     this.key = key;
     const page = pages.find((p) => p.id === current);
-    this.hood.textContent = page?.label ?? '';
+    this.label = page?.label ?? '';
     this.el.setAttribute('aria-label', stripLabel(pages, current));
     const doc = this.el.ownerDocument;
     this.dots.replaceChildren(

@@ -558,15 +558,15 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-satrow > .wc-ph-sat {
 /* ------------------------------------------------------------- pane strip */
 
 /* The strip's pane is the cockpit's (borderless, in the strip's rows, its
- * first and last row left to the chrome below). A sideways drag on it is
+ * last row left to the band below). A sideways drag on it is
  * the strip's swipe; a vertical one scrolls its content. Nothing of the
  * pane's own look is changed. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-pane[data-phone-strip] {
   touch-action: pan-y;
 }
 
-/* The chrome over the strip's rows (src/phone/strip.ts; JS sets top and
- * height): it takes no taps itself, the pane under it does. */
+/* The strip's region over its rows (src/phone/strip.ts; JS sets top and
+ * height): it draws nothing and takes no taps, the pane under it does. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip {
   position: absolute;
   left: 0;
@@ -578,16 +578,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip[hidden],
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-dots[hidden],
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband[hidden] {
   display: none;
-}
-
-/* The pane's name: the hood of the menu sheet, smaller: 16 px high in all, the room the cockpit
- * leaves it above the pane's first line (cockpit.ts `PHONE_STRIP_CHROME_PX`). */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip-hood {
-  box-sizing: border-box;
-  height: 16px;
-  padding: 0 16px 1px;
-  font-size: 10px;
-  line-height: 14px;
 }
 
 /* The page dots: on the strip's resize band (below), at its right end, so the grip keeps the
@@ -632,6 +622,12 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply {
   padding: 0 12px;
 }
 
+/* The reply line's and the search's text: the command field's size (below), not the font size setting's. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] :is(.wc-cm-rinput, .wc-cm-sinput) {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
 /* The placeholder at the command field's strength (the pane's own is a faint mix, under 4.5:1). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput::placeholder {
   color: var(--ph-dim);
@@ -665,14 +661,6 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband {
   border-top: 1px solid var(--ph-iron-hi);
   border-bottom: 1px solid var(--ph-iron-lo);
   pointer-events: auto;
-}
-
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband > i {
-  display: block;
-  width: 44px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--ph-grip);
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband[data-dragging] {
@@ -715,11 +703,6 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-rband.wc-ph-side-b
   background: linear-gradient(90deg, #f1eee6, #c9c5ba);
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > i {
-  width: 3px;
-  height: 44px;
-}
-
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band[data-dragging] {
   box-shadow: 2px 0 10px rgb(0 0 0 / 0.6);
 }
@@ -732,47 +715,228 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rgrip.wc-ph-side-grip {
   cursor: ew-resize;
 }
 
-/* Comm's head (src/phone/comm-chrome.ts; JS sets top and width; landscape since stage 52e, portrait
- * since round 53i). Its hood is the strip's, reading COMM. In landscape, with the strip open above it in the left column, an iron divider in
- * the bands' look lies along Comm's top edge (6 px, cockpit.ts `PHONE_SIDE_DIVIDER_PX`; no lit
- * bar: it is not dragged) and the hood hangs from it, as the strip's hangs from the top edge. */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head {
-  position: absolute;
-  left: 0;
-  height: 22px;
+/* The panes' names (round 53j; src/phone/comm-chrome.ts `plates`): no pane has a hood on a row
+ * of its own on a phone. The name stands on the pane's band, on a plate cast in one piece with
+ * it: the band's iron and its lit top edge run on over the plate, a dark hairline outlines the
+ * rest, a recessed rivet sits each side of the name (the desktop hood, ADR 0123, scaled down),
+ * and the band's lit grip marks stand on both sides of it. Cinzel in the lamp's colour, 9 px.
+ *
+ * Portrait: in the band's middle, from the band's top edge to 3 px under its lower one. Those
+ * 3 px float over what is under the band (the fight card's free middle, Comm's top air, the
+ * top of a game line's cell, which the letters do not reach). It takes no press: the grip under
+ * it does. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-run {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  max-width: calc(100% - 150px);
   pointer-events: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head[hidden],
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head:not([data-divided]) > .wc-ph-side-rule {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-run[hidden],
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-joint[hidden] {
   display: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-rule {
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  /* The run is the band inside its two 1 px edges. */
+  height: calc(100% + 5px);
+  min-height: 15px;
+  margin-top: -1px;
+  padding: 0 5px 2px;
+  border: 1px solid var(--ph-iron-lo);
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  background: var(--ph-hood);
+  box-shadow:
+    inset 0 1px 0 var(--ph-iron-hi),
+    0 2px 4px rgb(0 0 0 / 0.5);
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ph-hood-text);
+  text-shadow: var(--ph-hood-glow);
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-plate {
+  box-shadow:
+    inset 0 1px 0 var(--ph-iron-hi),
+    0 1px 3px rgb(60 40 10 / 0.3);
+}
+
+/* The name: its box trimmed to the capitals, so they sit in the plate's middle; a long one (a
+ * script's pane) is cut with an ellipsis. (The tracking after the last letter would push it off centre.) */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: -0.14em;
+  text-box: trim-both cap alphabetic;
+}
+
+/* The rivets: recessed, a dark well with a lit rim. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-rv {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, var(--ph-iron-lo) 0 50%, var(--ph-iron-hi) 72%, transparent 98%);
+}
+
+/* The grip marks: the band's lit bar, one each side of the plate, at the band's middle. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate::before,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate::after {
+  content: "";
+  position: absolute;
+  top: calc((100% - 3px) / 2 - 1.5px);
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ph-grip);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate::before {
+  right: calc(100% + 7px);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate::after {
+  left: calc(100% + 7px);
+}
+
+/* Landscape: the names on the column's one band, written along it (read from below, the letters'
+ * heads towards the pane they name), each plate centred on its pane's stretch of the band (JS
+ * sets a stretch's top and height). The plate reaches 4 px out of the band into its pane. Where
+ * the strip ends and Comm begins the band has a lit joint, and an iron hairline runs from it
+ * across the column: the divider between the two panes, on no row of its own. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band > .wc-ph-plate-run {
   position: absolute;
   left: 0;
   right: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  max-width: none;
+  /* A plate ends where its stretch does (a long name in a low strip), its 4 px out of the band kept. */
+  clip-path: inset(2px 0 2px -6px);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate {
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-self: center;
+  width: calc(100% + 4px);
+  min-width: 15px;
+  height: auto;
+  min-height: 0;
+  max-height: calc(100% - 8px);
+  margin: 0 0 0 -4px;
+  padding: 4px 0 4px 1px;
+  border: 1px solid var(--ph-iron-lo);
+  border-right: 0;
+  border-radius: 7px 0 0 7px;
+  background: linear-gradient(90deg, #3a342d, #1d1915);
+  box-shadow:
+    inset -1px 0 0 var(--ph-iron-lo),
+    -2px 0 4px rgb(0 0 0 / 0.5);
+}
+
+html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate {
+  background: linear-gradient(90deg, #f1eee6, #d8d2c4);
+  box-shadow:
+    inset -1px 0 0 var(--ph-iron-lo),
+    -1px 0 3px rgb(60 40 10 / 0.3);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-t {
+  flex: 0 1 auto;
+  min-height: 0;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  /* (Turned: the tracking after the last letter is at the top.) */
+  margin: 0 0 -0.14em;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate::before,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate::after {
+  top: auto;
+  left: calc(50% + 0.5px);
+  right: auto;
+  width: 3px;
+  height: 22px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate::before {
+  bottom: calc(100% + 7px);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate::after {
+  top: calc(100% + 7px);
+}
+
+/* The joint (JS sets its top: Comm's first row): a lit tick across the band, and the hairline
+ * from it over the column's width (`--ph-side-w`, on the layer). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-joint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--ph-grip);
+  pointer-events: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-joint::before {
+  content: "";
+  position: absolute;
   top: 0;
+  right: 100%;
   box-sizing: border-box;
-  height: 6px;
-  background: var(--ph-iron);
+  /* (From the screen's left edge to the band: the joint lies inside the band's two 1 px edges.) */
+  width: calc(var(--ph-side-w, 0px) - 100% - 1px);
+  height: 2px;
   border-top: 1px solid var(--ph-iron-hi);
-  border-bottom: 1px solid var(--ph-iron-lo);
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+  background: var(--ph-iron-lo);
 }
 
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-side-rule {
-  box-shadow: 0 1px 3px rgb(60 40 10 / 0.25);
+/* Landscape: the strip's page dots stand on the column's band too, one under the other, after
+ * the strip's name, in the place of its second grip mark (portrait has them at its band's right
+ * end). Not in a stretch too low for them and the name (`data-tight`): the mark stays there. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-run > .wc-ph-strip-dots {
+  position: static;
+  flex: none;
+  flex-direction: column;
+  align-self: center;
+  gap: 5px;
+  margin: 8px 0 0 1px;
+  transform: none;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-comm-head[data-divided] > .wc-ph-hood {
-  top: 5px;
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-run[data-tight] > .wc-ph-strip-dots {
+  display: none;
 }
 
-/* Landscape: the strip's page dots at the right end of the hood's row (no band under the strip there). */
-html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-strip > .wc-ph-strip-dots {
-  top: 8px;
-  right: 12px;
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate-run:not([data-tight]):has(> .wc-ph-strip-dots:not([hidden])) .wc-ph-plate::after {
+  display: none;
+}
+
+/* (The first mark's room, so the mark, the name and the dots are centred together.) */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate-run:not([data-tight]):has(> .wc-ph-strip-dots:not([hidden])) .wc-ph-plate {
+  margin-top: 29px;
 }
 
 /* ----------------------------------------------------------------- compass */
@@ -1921,6 +2085,19 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input {
   background: var(--ph-field);
 }
 
+/* The field's text (round 53j): 16 px whatever the font size setting, as the field is 44 px high
+ * whatever it is (and never under 16 px: iOS zooms the page for a smaller field). The same size as
+ * the hot key box's fields and Comm's reply line and search (below): one family of fields. The
+ * input pane places its caret, its suggestion and the password's bullets by this font
+ * (`InputPane.setOwnFont` marks the pane and measures `--cell-w` on it). */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input.wc-input-own-font {
+  --font-size: 16px;
+  --cell-h: 20px;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: 0;
+}
+
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input:focus-within {
   border-color: var(--ph-field-edge-on);
 }
@@ -1933,6 +2110,14 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-clock {
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::placeholder {
   color: var(--ph-dim);
   opacity: 1;
+}
+
+/* The sent line, kept to be sent again or replaced by the next key (round 53j; `InputPane`, "Kept
+ * line"): dimmed as the placeholder is, which is what it does (the first key takes its place). No
+ * native selection stands for it while the keyboard is folded: a tap on a field that holds one
+ * brings Android's selection pop-up. */
+html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field.wc-input-kept {
+  color: var(--ph-dim);
 }
 
 /* The old `☰` (src/app/shell.ts keeps it when the phone layer could not be mounted): it sits at

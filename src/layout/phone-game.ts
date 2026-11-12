@@ -96,6 +96,17 @@
 // the fight card gives way. Only a screen with no room even then closes
 // Comm.
 //
+// Hidden for now (round 53j, `hide`): the strip and/or Comm, though open,
+// are left out of this layout as if they were closed, and their rows are
+// the game text's. The caller takes them out while something else needs
+// the room (the hot key box with our keyboard typing in it) and brings
+// them back by laying out without `hide`; nothing of what they show is
+// touched here. `hidden` in the result says which open part was left out.
+//
+// Neither the strip nor Comm has a hood on a row of its own (round 53j, ADR
+// 0137's addendum of that round): the pane has every row of its part but
+// the band's (`phonePaneRect`), and its name is written on the band.
+//
 // The chrome over these rectangles (fight card, lens ring, keys, compass)
 // is the phone layer's (src/phone/), laid out in pixels.
 
@@ -108,8 +119,14 @@ export const FIGHT_ROWS = 2;
 export const STRIP_SHARE = 0.2;
 export const STRIP_MIN_SHARE = 0.15;
 export const STRIP_MAX_SHARE = 0.25;
-/** The least rows of an open strip: its hood, its dots and two rows of pane. Lower, it closes. */
+/** The least rows of an open strip: three rows of pane and its band. Lower, it closes. */
 export const STRIP_MIN_ROWS = 4;
+/**
+ * Portrait: the last row of the strip and of Comm is the phone layer's
+ * resize band, which also carries the pane's name (round 53j). It is the
+ * only row of a part that is not its pane's: no row is a hood's.
+ */
+export const BAND_ROWS = 1;
 /** Comm's default share of the rows and its least height (ADR 0136 §2). */
 export const COMM_DEFAULT_SHARE = 0.4;
 export const COMM_MIN_ROWS = 6;
@@ -219,11 +236,19 @@ export interface PhoneGameInput {
   bottom?: number;
   /** Comm holds the keyboard's target: it keeps its minimum while anything else can give way (see the file header). */
   commKeep?: boolean;
+  /** Open parts left out of this layout for now (see the file header). Absent: none. */
+  hide?: PhoneGameHide | null;
   /**
    * Landscape (stage 52c): the strip and Comm open from the left as one
    * column (see the file header). Absent or null: portrait, as above.
    */
   side?: PhoneGameSide | null;
+}
+
+/** The open parts a layout leaves out for now (`PhoneGameInput.hide`). */
+export interface PhoneGameHide {
+  strip: boolean;
+  comm: boolean;
 }
 
 /** The landscape column as the caller wants it. */
@@ -255,6 +280,8 @@ export interface PhoneGameResult {
   bottom: number;
   /** Portrait, `commKeep`: Comm ends below `maxTop` (the hot key columns' place is under it). */
   overLimit: boolean;
+  /** The parts that are open but were left out of this layout (`hide`). */
+  hidden: PhoneGameHide;
   /** The lens's rectangle of whole cells, or null (not wanted, or hidden). */
   lens: Rect | null;
   /** The lens's diameter in px inside `lens` (full, or shrunk to the room); 0 without a lens. */
@@ -280,8 +307,25 @@ const EMPTY: Rect = { x: 0, y: 0, w: 0, h: 0 };
 /** `n` floored, or `fallback` when it is not a finite number. */
 const whole = (n: number, fallback: number): number => (Number.isFinite(n) ? Math.floor(n) : fallback);
 
+/**
+ * The pane's rectangle inside its part `part` (the result's `strip` or
+ * `comm`): the part without the resize band, which is its last row in
+ * portrait and the column's last columns in landscape. Every other row and
+ * column is the pane's (at least one of each).
+ */
+export function phonePaneRect(part: Rect, g: Pick<PhoneGameResult, 'landscape' | 'sideBand'>): Rect {
+  if (g.landscape) return { ...part, w: Math.max(1, part.w - g.sideBand) };
+  return { ...part, h: Math.max(1, part.h - BAND_ROWS) };
+}
+
 /** Lays out the phone's game screen (see the file header). */
 export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
+  // Parts hidden for now are laid out as closed ones; the result remembers which were open.
+  const hidden: PhoneGameHide = {
+    strip: input.strip === true && input.hide?.strip === true,
+    comm: (input.comm ?? null) !== null && input.hide?.comm === true,
+  };
+  if (hidden.strip || hidden.comm) input = { ...input, strip: input.strip === true && !hidden.strip, comm: hidden.comm ? null : input.comm };
   const cols = Math.max(0, Math.floor(input.cols));
   /** The whole screen's rows, and the ones above the bottom reserve: all that follows is laid out in those. */
   const screenRows = Math.max(0, Math.floor(input.rows));
@@ -303,6 +347,7 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
     game: { x: 0, y: 0, w: cols, h: avail },
     input: inputRect,
     overLimit: false,
+    hidden,
     lens: null,
     lensPx: 0,
     lensHidden: false,

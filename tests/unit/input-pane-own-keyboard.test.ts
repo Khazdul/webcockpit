@@ -305,3 +305,143 @@ describe('InputPane editing API for the own keyboard (ADR 0138)', () => {
     expect(t.i.value).toBe('pw');
   });
 });
+
+// Round 53j: on a phone with our own keyboard the sent line is kept without a native selection
+// once the field loses the focus (Android shows its selection pop-up for a tapped field that
+// holds a range).
+describe('InputPane kept line (stage 53, round 53j)', () => {
+  function sentAndFolded() {
+    const t = setup({ phone: true });
+    t.pane.setOwnKeyboard(true);
+    t.pane.input.focus();
+    t.pane.insertText('look');
+    t.pane.submitLine();
+    // Focused: the native selection, as ever.
+    expect(t.selected()).toEqual([0, 4]);
+    expect(t.pane.isKept()).toBe(false);
+    t.pane.input.blur();
+    return t;
+  }
+
+  it('the blur collapses the selection and keeps the line, dimmed', () => {
+    const t = sentAndFolded();
+    expect(t.pane.input.value).toBe('look');
+    expect(t.selected()).toEqual([4, 4]);
+    expect(t.pane.isKept()).toBe(true);
+    expect(t.pane.isRecallState()).toBe(true);
+    expect(t.pane.input.classList.contains('wc-input-kept')).toBe(true);
+  });
+
+  it('the tap that brings the focus back leaves it kept, the caret at the end and nothing selected', () => {
+    const t = sentAndFolded();
+    const i = t.pane.input;
+    i.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    i.focus();
+    i.setSelectionRange(2, 2);
+    i.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(t.pane.isKept()).toBe(true);
+    expect(t.selected()).toEqual([4, 4]);
+  });
+
+  it('Enter sends the kept line again', () => {
+    const t = sentAndFolded();
+    t.pane.input.focus();
+    t.pane.submitLine();
+    expect(t.sent.map((s) => s.text)).toEqual(['look', 'look']);
+    expect(t.pane.input.value).toBe('look');
+    // Focused again: the native selection.
+    expect(t.pane.isKept()).toBe(false);
+    expect(t.selected()).toEqual([0, 4]);
+  });
+
+  it('a typed key replaces the kept line; Backspace clears it', () => {
+    const t = sentAndFolded();
+    t.pane.input.focus();
+    t.pane.insertText('n');
+    expect(t.pane.input.value).toBe('n');
+    expect(t.pane.isKept()).toBe(false);
+    expect(t.pane.input.classList.contains('wc-input-kept')).toBe(false);
+
+    const u = sentAndFolded();
+    u.pane.input.focus();
+    u.pane.deleteBackward();
+    expect(u.pane.input.value).toBe('');
+    expect(u.pane.isKept()).toBe(false);
+  });
+
+  it('a tap in the focused field, a caret key or a selection of the user makes it ordinary text', () => {
+    const t = sentAndFolded();
+    const i = t.pane.input;
+    i.focus();
+    i.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(t.pane.isKept()).toBe(false);
+    t.pane.insertText('!');
+    expect(i.value).toBe('look!');
+
+    const u = sentAndFolded();
+    u.pane.input.focus();
+    u.key('ArrowLeft');
+    expect(u.pane.isKept()).toBe(false);
+
+    const v = sentAndFolded();
+    v.pane.input.focus();
+    v.pane.input.setSelectionRange(0, 2);
+    v.pane.input.dispatchEvent(new Event('select', { bubbles: true }));
+    expect(v.pane.isKept()).toBe(false);
+    expect(v.selected()).toEqual([0, 2]);
+  });
+
+  it('the history from a kept line goes one further back, as from the selected one', () => {
+    const t = setup({ phone: true });
+    t.pane.setOwnKeyboard(true);
+    t.pane.input.focus();
+    t.pane.insertText('north');
+    t.pane.submitLine();
+    t.pane.insertText('look');
+    t.pane.submitLine();
+    t.pane.input.blur();
+    t.pane.input.focus();
+    t.pane.historyStep('up');
+    expect(t.pane.input.value).toBe('north');
+    expect(t.pane.isKept()).toBe(false);
+  });
+
+  it('nothing is kept at a password prompt, with auto-clear, on a desktop, or without our keyboard', () => {
+    const t = sentAndFolded();
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    expect(t.pane.isKept()).toBe(false);
+    expect(t.pane.input.value).toBe('');
+    t.pane.input.focus();
+    t.pane.insertText('secret');
+    t.pane.submitLine();
+    t.pane.input.blur();
+    expect(t.pane.input.value).toBe('');
+    expect(t.pane.isKept()).toBe(false);
+
+    const a = setup({ phone: true });
+    a.pane.setOwnKeyboard(true);
+    a.pane.setAutoClear(true);
+    a.pane.input.focus();
+    a.pane.insertText('look');
+    a.pane.submitLine();
+    a.pane.input.blur();
+    expect(a.pane.isKept()).toBe(false);
+
+    // Desktop: the native selection stays through a blur.
+    const d = setup();
+    d.pane.insertText('look');
+    d.pane.submitLine();
+    d.pane.input.blur();
+    expect(d.pane.isKept()).toBe(false);
+    expect(d.selected()).toEqual([0, 4]);
+
+    // A phone whose field has the device's keyboard (the old phone layout): as before.
+    const p = setup({ phone: true });
+    p.pane.input.focus();
+    p.pane.insertText('look');
+    p.pane.submitLine();
+    p.pane.input.blur();
+    expect(p.pane.isKept()).toBe(false);
+    expect(p.selected()).toEqual([0, 4]);
+  });
+});

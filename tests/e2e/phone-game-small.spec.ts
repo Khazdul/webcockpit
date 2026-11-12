@@ -144,17 +144,24 @@ for (const sc of SCREENS) {
         await expect(strip).toHaveCount(1);
         await expect(panes).toHaveAttribute('aria-pressed', 'true');
         await checkMain(page, 'strip open');
-        // The strip's chrome does not cover its pane's lines: the hood ends above them, the dots start below.
+        // The strip's chrome does not cover its pane's lines (round 53j: no hood; the name and the
+        // dots are on the band): in portrait the band under the pane, in landscape the column's
+        // band right of it, the name's plate reaching at most 4 px into the pane.
         const g = await page.evaluate(() => {
-          const r = (sel: string): DOMRect => document.querySelector(sel)!.getBoundingClientRect();
+          const r = (sel: string): DOMRect => [...document.querySelectorAll(sel)].map((e) => e.getBoundingClientRect()).find((b) => b.width > 0)!;
           const c = r('.wc-pane[data-phone-strip] .wc-pane-content');
           const d = r('.wc-ph-strip-dots');
-          return { top: c.top, bottom: c.bottom, hood: r('.wc-ph-strip-hood').bottom, dotsTop: d.top, dotsBottom: d.bottom };
+          const p = r('.wc-ph-plate-run[data-plate="strip"] .wc-ph-plate');
+          return { top: c.top, bottom: c.bottom, right: c.right, hoods: document.querySelectorAll('.wc-ph-strip-hood, .wc-ph-comm-hood').length, dotsTop: d.top, dotsLeft: d.left, plateTop: p.top, plateLeft: p.left };
         });
-        expect(g.hood).toBeLessThanOrEqual(g.top + 0.5);
-        // (Portrait: on the band under the pane. Landscape: in the hood's row above it.)
-        if (vw > vh) expect(g.dotsBottom).toBeLessThanOrEqual(g.top + 0.5);
-        else expect(g.dotsTop).toBeGreaterThanOrEqual(g.bottom - 0.5);
+        expect(g.hoods).toBe(0);
+        if (vw > vh) {
+          expect(g.dotsLeft).toBeGreaterThanOrEqual(g.right - 0.5);
+          expect(g.plateLeft).toBeGreaterThanOrEqual(g.right - 4.5);
+        } else {
+          expect(g.dotsTop).toBeGreaterThanOrEqual(g.bottom - 0.5);
+          expect(g.plateTop).toBeGreaterThanOrEqual(g.bottom - 0.5);
+        }
       } else {
         await expect(strip).toHaveCount(0);
         await expect(panes).toHaveAttribute('aria-pressed', 'false');

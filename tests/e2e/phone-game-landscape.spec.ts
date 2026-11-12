@@ -260,16 +260,27 @@ for (const viewport of SCREENS) {
       expect((await page.locator('.wc-ph-side-grip').boundingBox())!.width).toBeGreaterThanOrEqual(36);
       await expect(page.locator('.wc-ph-strip-band')).toBeHidden();
       await expect(page.locator('.wc-ph-comm-band')).toBeHidden();
-      // The hood and the page dots, over the strip's first row; the pane's lines begin under them and end left of the band.
-      const hood = (await page.locator('.wc-ph-strip > .wc-ph-strip-hood').boundingBox())!;
-      await expect(page.locator('.wc-ph-strip > .wc-ph-strip-hood')).toHaveText('Timers');
+      // No hood (round 53j): the pane has the strip's rows from the first one, and ends left of
+      // the band. Its name is on the band, written along it, with the page dots after it.
+      await expect(page.locator('.wc-ph-strip-hood')).toHaveCount(0);
       const content = (await stripPane(page).locator('.wc-pane-content').boundingBox())!;
-      expect(hood.y + hood.height).toBeLessThanOrEqual(content.y + 0.5);
+      expect(content.y).toBeLessThan(1);
+      expect(content.height).toBeCloseTo(p.height, 0);
       expect(content.x + content.width).toBeLessThanOrEqual(b.x + 0.5);
-      await expect(page.locator('.wc-ph-strip > .wc-ph-strip-dots > i')).toHaveCount(await page.evaluate(() => window.__wc!.settings.get().phone.strip.panes.filter((e) => e.on).length));
-      const dots = (await page.locator('.wc-ph-strip > .wc-ph-strip-dots').boundingBox())!;
-      expect(dots.y + dots.height).toBeLessThanOrEqual(content.y + 0.5);
-      expect(dots.x + dots.width).toBeLessThanOrEqual(b.x);
+      const plate = sideBand(page).locator('.wc-ph-plate-run[data-plate="strip"] .wc-ph-plate');
+      await expect(plate).toHaveText('Timers');
+      expect(await plate.locator('.wc-ph-plate-t').evaluate((e) => getComputedStyle(e).writingMode)).toBe('vertical-rl');
+      const pl = (await plate.boundingBox())!;
+      // In the band but for the few px it reaches into its pane, and within the strip's stretch of it.
+      expect(pl.x).toBeGreaterThanOrEqual(b.x - 4.5);
+      expect(pl.x + pl.width).toBeLessThanOrEqual(b.x + b.width + 0.5);
+      expect(pl.y).toBeGreaterThanOrEqual(p.y - 0.5);
+      expect(pl.y + pl.height).toBeLessThanOrEqual(p.y + p.height + 0.5);
+      await expect(sideBand(page).locator('.wc-ph-strip-dots > i')).toHaveCount(await page.evaluate(() => window.__wc!.settings.get().phone.strip.panes.filter((e) => e.on).length));
+      const dots = (await sideBand(page).locator('.wc-ph-strip-dots').boundingBox())!;
+      expect(dots.x).toBeGreaterThanOrEqual(b.x - 0.5);
+      expect(dots.x + dots.width).toBeLessThanOrEqual(b.x + b.width + 0.5);
+      expect(dots.y).toBeGreaterThanOrEqual(pl.y + pl.height);
       await expectClear(page, 'strip open');
       // A swipe changes the page, as in portrait.
       const cdp = await page.context().newCDPSession(page);
@@ -280,7 +291,7 @@ for (const viewport of SCREENS) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await cdp.detach();
       await expect(stripPane(page)).toHaveAttribute('data-pane', 'group');
-      await expect(page.locator('.wc-ph-strip > .wc-ph-strip-hood')).toHaveText('Group');
+      await expect(plate).toHaveText('Group');
       // Closed again: everything back at the left edge.
       await page.waitForTimeout(450);
       await sat(page, 'panes').tap();
@@ -312,24 +323,22 @@ for (const viewport of SCREENS) {
       expect(cb.x).toBeLessThan(1);
       expect(cb.y).toBeLessThan(1);
       expect(cb.height).toBeCloseTo(g.rows * c.h, 0);
-      // Its hood, as the strip has one: COMM over its first row; the rail and the search key begin under it.
-      const head = page.locator('.wc-ph-comm-head');
-      await expect(head).toBeVisible();
-      await expect(head.locator('.wc-ph-comm-hood')).toHaveText('Comm');
-      expect(await head.locator('.wc-ph-comm-hood').evaluate((e) => getComputedStyle(e).textTransform)).toBe(await page.evaluate(() => getComputedStyle(document.querySelector('.wc-ph-strip > .wc-ph-strip-hood')!).textTransform));
-      // Alone in the column: no divider, the hood hangs from the top edge.
-      await expect(head.locator('.wc-ph-side-rule')).toBeHidden();
-      const hb = (await head.locator('.wc-ph-comm-hood').boundingBox())!;
-      expect(hb.y).toBeLessThan(1);
-      const under = async (): Promise<void> => {
-        const foot = (await head.locator('.wc-ph-comm-hood').boundingBox())!;
-        const cc = (await comm(page).locator('.wc-pane-content').boundingBox())!;
-        expect(foot.y + foot.height, 'the hood ends above Comm\'s content').toBeLessThanOrEqual(cc.y + 0.5);
-        for (const sel of ['.wc-cm-ent', '.wc-cm-search']) {
-          for (const b of await boxes(page, { part: `.wc-cockpit > .wc-pane[data-pane="comm"] ${sel}` })) expect(b.y, `${sel} under the hood`).toBeGreaterThanOrEqual(foot.y + foot.height - 0.5);
-        }
+      // No hood (round 53j): Comm's content has its rows from the first one. Its name is on the
+      // band, as the strip's is, centred on Comm's stretch of it (alone: the whole band).
+      await expect(page.locator('.wc-ph-comm-head, .wc-ph-comm-hood')).toHaveCount(0);
+      const commPlate = sideBand(page).locator('.wc-ph-plate-run[data-plate="comm"] .wc-ph-plate');
+      await expect(commPlate).toHaveText('Comm');
+      expect(await commPlate.evaluate((e) => getComputedStyle(e).textTransform)).toBe('uppercase');
+      const cc = (await comm(page).locator('.wc-pane-content').boundingBox())!;
+      expect(cc.y).toBeLessThan(1);
+      expect(cc.height).toBeCloseTo(cb.height, 0);
+      // Alone in the column: no joint in the band.
+      await expect(sideBand(page).locator('.wc-ph-plate-joint')).toBeHidden();
+      const mid = async (l: ReturnType<typeof comm>): Promise<number> => {
+        const r = (await l.boundingBox())!;
+        return r.y + r.height / 2;
       };
-      await under();
+      expect(Math.abs((await mid(commPlate)) - (await mid(comm(page))))).toBeLessThanOrEqual(1.5);
       // Rail mode, the reply line as in portrait.
       await expect(comm(page).locator('.wc-comm')).toHaveAttribute('data-mode', 'rail');
       await comm(page).locator('.wc-cm-ent[aria-label^="Gibur"]').tap();
@@ -353,23 +362,30 @@ for (const viewport of SCREENS) {
       expect(cp.y + cp.height).toBeCloseTo(g.rows * c.h, 0);
       await expect(sat(page, 'panes')).toHaveAttribute('aria-pressed', 'true');
       await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'true');
-      // Two panes: an iron divider along Comm's top edge, from the left edge to the band, and
-      // Comm's hood hanging from it, centred like the strip's.
-      const rule = head.locator('.wc-ph-side-rule');
-      await expect(rule).toBeVisible();
-      const rr = (await rule.boundingBox())!;
-      expect(rr.y).toBeCloseTo(cp.y, 0);
-      expect(rr.x).toBeLessThan(1);
-      expect(rr.x + rr.width).toBeCloseTo((await sideBand(page).boundingBox())!.x, 0);
-      expect(rr.height).toBeGreaterThanOrEqual(5);
-      expect(await rule.evaluate((e) => getComputedStyle(e).backgroundImage)).toBe(await sideBand(page).evaluate((e) => getComputedStyle(e).backgroundImage.replace('90deg, ', '')));
-      const ch = (await head.locator('.wc-ph-comm-hood').boundingBox())!;
-      const sh = (await page.locator('.wc-ph-strip > .wc-ph-strip-hood').boundingBox())!;
-      expect(ch.y).toBeGreaterThanOrEqual(rr.y + rr.height - 1.5);
-      expect(ch.y).toBeLessThanOrEqual(rr.y + rr.height + 0.5);
-      expect(ch.x + ch.width / 2).toBeCloseTo(sh.x + sh.width / 2, 0);
-      expect(ch.height).toBeCloseTo(sh.height, 0);
-      await under();
+      // Two panes: a joint in the band where the strip ends and Comm begins, a hairline from it
+      // across the column (on no row: Comm's content begins at Comm's first row), and each name
+      // on its own pane's stretch of the band.
+      const joint = sideBand(page).locator('.wc-ph-plate-joint');
+      await expect(joint).toBeVisible();
+      const jb = (await joint.boundingBox())!;
+      expect(jb.y + jb.height / 2).toBeCloseTo(cp.y, 0);
+      const rule = await joint.evaluate((e) => {
+        const st = getComputedStyle(e, '::before');
+        return { w: parseFloat(st.width), h: parseFloat(st.height) };
+      });
+      // (From the screen's left edge to the band's lit edge.)
+      expect(Math.abs(rule.w - (await sideBand(page).boundingBox())!.x)).toBeLessThanOrEqual(1.5);
+      expect(rule.h).toBeLessThanOrEqual(2);
+      expect((await comm(page).locator('.wc-pane-content').boundingBox())!.y).toBeCloseTo(cp.y, 0);
+      const stripPlate = sideBand(page).locator('.wc-ph-plate-run[data-plate="strip"]');
+      const sr = (await stripPlate.boundingBox())!;
+      const cr = (await sideBand(page).locator('.wc-ph-plate-run[data-plate="comm"]').boundingBox())!;
+      expect([Math.round(sr.y), Math.round(sr.height)]).toEqual([Math.round(sp.y), Math.round(sp.height)]);
+      expect([Math.round(cr.y), Math.round(cr.height)]).toEqual([Math.round(cp.y), Math.round(cp.height)]);
+      const spl = (await stripPlate.locator('.wc-ph-plate').boundingBox())!;
+      const cpl = (await commPlate.boundingBox())!;
+      expect(spl.y + spl.height).toBeLessThanOrEqual(jb.y + 0.5);
+      expect(cpl.y).toBeGreaterThanOrEqual(jb.y + jb.height - 0.5);
       await expectClear(page, 'both open');
       // A fight: the card over the game's part only; the column keeps its rows.
       server().send(gmcp('Char.Vitals', { hp: 150, maxhp: 172, opponent: 'an orc scout', buffer: 'Rasta', 'opponent-hits': 'hurt' }));
@@ -662,7 +678,7 @@ for (const viewport of [
       await expect(page.locator('.wc-ph-hk')).toHaveCount(6);
       await expectClear(page, 'six keys');
       expect((await layout(page)).lensPx).toBeGreaterThanOrEqual(96);
-      // The column: the strip and Comm, each with its hood and its rows; Comm's reply line on screen.
+      // The column: the strip and Comm, each with its rows and its name on the band; Comm's reply line on screen.
       await sat(page, 'panes').tap();
       await expect(stripPane(page)).toHaveCount(1);
       await sat(page, 'comm').tap();
@@ -671,18 +687,19 @@ for (const viewport of [
       expect(g.strip.h).toBeGreaterThanOrEqual(4);
       expect(g.comm.h).toBeGreaterThanOrEqual(6);
       expect(g.strip.h + g.comm.h).toBe(g.rows);
-      // Comm's rail and its last entry are on screen under its hood. (The rail is drawn a frame
+      // Comm's rail and its last entry are on screen. (The rail is drawn a frame
       // after Comm opens: waited for before it is measured.)
       await expect.poll(() => page.locator('.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-ent').count()).toBeGreaterThanOrEqual(2);
       await frames(page);
       const ents = await boxes(page, { ent: '.wc-cockpit > .wc-pane[data-pane="comm"] .wc-cm-ent' });
       expect(ents.length).toBeGreaterThanOrEqual(2);
-      const hood = (await page.locator('.wc-ph-comm-hood').boundingBox())!;
+      const commTop = (await comm(page).boundingBox())!.y;
       for (const e of ents) {
-        expect(e.y).toBeGreaterThanOrEqual(hood.y + hood.height - 0.5);
+        expect(e.y).toBeGreaterThanOrEqual(commTop - 0.5);
         expect(e.y + e.h).toBeLessThanOrEqual(viewport.height + 0.5);
       }
-      await expect(page.locator('.wc-ph-comm-head .wc-ph-side-rule')).toBeVisible();
+      await expect(sideBand(page).locator('.wc-ph-plate-joint')).toBeVisible();
+      await expect(sideBand(page).locator('.wc-ph-plate:visible')).toHaveText(['Timers', 'Comm']);
       await expectClear(page, 'both open');
       // A fight: the card and the hot keys do not lie on each other (the card ends left of the
       // columns where they reach up into its rows); the lens or its key row is clear of both.
@@ -799,9 +816,9 @@ test.describe('turning the phone', () => {
     // The dots sit on the strip's band in portrait.
     await expect(page.locator('.wc-ph-strip-band .wc-ph-strip-dots')).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip-band')).toBeVisible();
-    // Comm's hood in portrait too (round 53i), without the landscape divider.
-    await expect(page.locator('.wc-ph-comm-head')).toBeVisible();
-    await expect(page.locator('.wc-ph-comm-head')).not.toHaveAttribute('data-divided');
+    // The names on the two bands in portrait (round 53j), none on the column's.
+    await expect(page.locator('.wc-ph-strip-band .wc-ph-plate')).toHaveText('Timers');
+    await expect(page.locator('.wc-ph-comm-band .wc-ph-plate')).toHaveText('Comm');
     // Turned: both still open, now the column at its own stored width.
     await page.setViewportSize(LANDSCAPE);
     await expect.poll(async () => (await layout(page)).landscape).toBe(true);
@@ -813,9 +830,10 @@ test.describe('turning the phone', () => {
     expect(g.side.w).toBe(33);
     expect(g.strip.h + g.comm.h).toBe(g.rows);
     await expect.poll(keySize).toBe(44);
-    await expect(page.locator('.wc-ph-strip > .wc-ph-strip-dots')).toHaveCount(1);
+    await expect(sideBand(page).locator('.wc-ph-plate-run[data-plate="strip"] > .wc-ph-strip-dots')).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip-band')).toBeHidden();
     await expect(sideBand(page)).toBeVisible();
+    await expect(sideBand(page).locator('.wc-ph-plate:visible')).toHaveText(['Timers', 'Comm']);
     await expectClear(page, 'turned to landscape');
     // Close the strip there; turned back, it is closed in portrait too and Comm has its portrait height.
     await sat(page, 'panes').tap();
@@ -832,8 +850,7 @@ test.describe('turning the phone', () => {
     await expect.poll(keySize).toBe(36);
     await expect(sideBand(page)).toBeHidden();
     await expect(page.locator('.wc-ph-comm-band')).toBeVisible();
-    await expect(page.locator('.wc-ph-comm-head')).toBeVisible();
-    await expect(page.locator('.wc-ph-comm-head .wc-ph-side-rule')).toBeHidden();
+    await expect(page.locator('.wc-ph-comm-band .wc-ph-plate')).toHaveText('Comm');
     const p = await phone(page);
     expect([p.commRows, p.stripRows, p.sideCols]).toEqual([9, 7, 33]);
     expect(errors).toEqual([]);
