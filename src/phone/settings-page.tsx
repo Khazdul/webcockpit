@@ -173,6 +173,13 @@ export const TEXT_GROUP: SettingsGroup = {
  * No size row since stage 52: the lens is sized from the screen
  * (lens-zoom.ts `lensFullPx`) and shrinks with its room.
  */
+export const LENS_LEVEL_OPTIONS: readonly { value: PhoneLensLevel; label: string }[] = [
+  { value: 'z1', label: 'Near' },
+  { value: 'z2', label: 'Mid' },
+  { value: 'z3', label: 'Far' },
+  { value: 'z4', label: 'Area' },
+];
+
 export const LENS_GROUP: SettingsGroup = {
   id: 'lens',
   title: 'Map lens',
@@ -188,11 +195,8 @@ export const LENS_GROUP: SettingsGroup = {
       kind: 'seg',
       id: 'lens-opens',
       label: 'Opens at',
-      options: [
-        { value: 'near', label: 'Near' },
-        { value: 'middle', label: 'Middle' },
-        { value: 'far', label: 'Far' },
-      ],
+      // Four levels since round 53k: 0.6.1's middle is the nearest.
+      options: LENS_LEVEL_OPTIONS,
       get: (s) => s.phone.lens.opensAt,
       set: (opensAt) => ({ phone: { lens: { opensAt: opensAt as PhoneLensLevel } } }),
     },

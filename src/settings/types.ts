@@ -406,8 +406,14 @@ export interface WindowRect {
   h: number;
 }
 
-/** The lens's three fixed zoom levels (ADR 0136 §4). */
-export const PHONE_LENS_LEVELS = ['near', 'middle', 'far'] as const;
+/**
+ * The lens's four fixed zoom levels, from the nearest out (round 53k; ADR
+ * 0137's addendum of that round). 0.6.1 had three, `near`, `middle` and
+ * `far`: its nearest is gone, and `z1` is its middle, `z2` its far. The new
+ * names share none with the old ones, so a stored old level is told from a
+ * new one without a settings version (`migrateLensLevel`).
+ */
+export const PHONE_LENS_LEVELS = ['z1', 'z2', 'z3', 'z4'] as const;
 export type PhoneLensLevel = (typeof PHONE_LENS_LEVELS)[number];
 
 /** The map lens of the phone's game layout (ADR 0136 §4, §13). */
@@ -536,7 +542,7 @@ export const PHONE_COMM_ROWS_MIN = 1;
 export const PHONE_COMM_ROWS_MAX = 200;
 
 /**
- * Phone defaults: the lens shown, at the middle zoom (ADR 0136 §4; its
+ * Phone defaults: the lens shown, at its nearest zoom (0.6.1's middle; ADR 0136 §4; its
  * size follows the screen, stage 52); the strip's four panes in their
  * order, all on but Character (§5, stage 52), at its default height; Comm
  * at its default height, the badge counting private chats (§6);
@@ -549,7 +555,7 @@ export const PHONE_COMM_ROWS_MAX = 200;
  */
 export function defaultPhoneSettings(): PhoneSettings {
   return {
-    lens: { show: true, opensAt: 'middle' },
+    lens: { show: true, opensAt: 'z1' },
     strip: { panes: PHONE_STRIP_PANES.map((id) => ({ id, on: id !== 'character' })) },
     commRows: null,
     stripRows: null,

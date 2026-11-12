@@ -68,6 +68,7 @@ import {
   PHONE_STRIP_PANES,
   PHONE_UNREAD_MODES,
   type PhoneHotkey,
+  type PhoneLensLevel,
   type PhoneSettings,
   type PhoneStripEntry,
   type PhoneStripPane,
@@ -532,7 +533,7 @@ export function migratePhone(raw: unknown): PhoneSettings {
     lens: {
       show: bool(l.show, d.lens.show),
       // A stored `size` (0.5.0's S/M/L) is dropped: the size follows the screen (stage 52).
-      opensAt: oneOf(l.opensAt, PHONE_LENS_LEVELS, d.lens.opensAt),
+      opensAt: migrateLensLevel(l.opensAt, d.lens.opensAt),
     },
     strip: { panes: migrateStripPanes(isObj(p.strip) ? p.strip.panes : undefined, d.strip.panes) },
     commRows: typeof p.commRows === 'number' && Number.isFinite(p.commRows) ? int(p.commRows, PHONE_COMM_ROWS_MIN, PHONE_COMM_ROWS_MAX, PHONE_COMM_ROWS_MIN) : null,
@@ -558,6 +559,18 @@ export function migratePhone(raw: unknown): PhoneSettings {
     // Additive (round 53k): absent (settings from 0.6.1) is the card shown, as it always was.
     fightCard: bool(p.fightCard, d.fightCard),
   };
+}
+
+/**
+ * The lens's zoom level from anything (round 53k). 0.6.1 stored `near`,
+ * `middle` or `far`; its nearest level is gone and the others moved up one
+ * place: `near` and `middle` are the new nearest (`z1`, the same scale as
+ * the old middle), `far` is `z2` (the same scale as the old far).
+ */
+export function migrateLensLevel(raw: unknown, dflt: PhoneLensLevel): PhoneLensLevel {
+  if (raw === 'near' || raw === 'middle') return 'z1';
+  if (raw === 'far') return 'z2';
+  return oneOf(raw, PHONE_LENS_LEVELS, dflt);
 }
 
 /**

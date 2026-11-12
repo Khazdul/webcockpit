@@ -26,9 +26,9 @@ describe('sectionChanged', () => {
       seen.push(sectionChanged(next.phone.lens, prev.phone.lens));
     });
     store.update({ appearance: { size: store.get().appearance.size + 1 } });
-    store.update({ phone: { lens: { opensAt: 'far' } } });
+    store.update({ phone: { lens: { opensAt: 'z3' } } });
     // (The same value again is no update at all: the store tells no one.)
-    store.update({ phone: { lens: { opensAt: 'far' } } });
+    store.update({ phone: { lens: { opensAt: 'z3' } } });
     store.update({ input: { autoClear: !store.get().input.autoClear } });
     // By identity every update looks like a change (the reason for the helper).
     expect(identity).toEqual([true, true, true]);

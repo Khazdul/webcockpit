@@ -3,8 +3,8 @@
 // (and without effect on) the rest of the settings.
 import { describe, expect, it } from 'vitest';
 import { SettingsStore } from '../../src/settings';
-import { migratePhone, migrateSettings } from '../../src/settings/migrate';
-import { PHONE_DEFAULTS_MARK, SETTINGS_VERSION, defaultPhoneSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings/types';
+import { migrateLensLevel, migratePhone, migrateSettings } from '../../src/settings/migrate';
+import { PHONE_DEFAULTS_MARK, PHONE_LENS_LEVELS, SETTINGS_VERSION, defaultPhoneSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings/types';
 import { DEFAULTS_MARK, phoneDefaultsAtStart, phoneDefaultsPatch } from '../../src/phone/phone-defaults';
 import { PANES_GROUP } from '../../src/phone/settings-page';
 
@@ -45,8 +45,8 @@ describe('phone settings of round 53k: the fight card\'s switch', () => {
 });
 
 describe('phone settings', () => {
-  it('defaults: the lens shown, opening at the middle zoom, on a computer and on a phone', () => {
-    expect(defaultPhoneSettings().lens).toEqual({ show: true, opensAt: 'middle' });
+  it('defaults: the lens shown, opening at its nearest zoom (0.6.1\'s middle), on a computer and on a phone', () => {
+    expect(defaultPhoneSettings().lens).toEqual({ show: true, opensAt: 'z1' });
     expect(defaultSettings().phone).toEqual(defaultPhoneSettings());
     // A new phone has had the one-time defaults (the mark); nothing else differs.
     expect(phoneDefaultSettings().phone).toEqual({ ...defaultPhoneSettings(), defaults: PHONE_DEFAULTS_MARK });
@@ -64,7 +64,7 @@ describe('phone settings', () => {
   });
 
   it('stored values are kept', () => {
-    const lens = { show: false, opensAt: 'far' };
+    const lens = { show: false, opensAt: 'z3' };
     expect(migratePhone({ lens }).lens).toEqual(lens);
     expect(migrateSettings({ ...defaultSettings(), phone: { lens } }).phone.lens).toEqual(lens);
   });
@@ -73,12 +73,12 @@ describe('phone settings', () => {
     expect(migratePhone(null)).toEqual(defaultPhoneSettings());
     expect(migratePhone('x')).toEqual(defaultPhoneSettings());
     expect(migratePhone({ lens: 7 })).toEqual(defaultPhoneSettings());
-    expect(migratePhone({ lens: { show: 'no', opensAt: 'near' } }).lens).toEqual({ show: true, opensAt: 'near' });
-    expect(migratePhone({ lens: { show: false, opensAt: 3 } }).lens).toEqual({ show: false, opensAt: 'middle' });
+    expect(migratePhone({ lens: { show: 'no', opensAt: 'z4' } }).lens).toEqual({ show: true, opensAt: 'z4' });
+    expect(migratePhone({ lens: { show: false, opensAt: 3 } }).lens).toEqual({ show: false, opensAt: 'z1' });
   });
 
   it('a stored lens size (0.5.0) is dropped: the size follows the screen (stage 52)', () => {
-    expect(migratePhone({ lens: { show: false, size: 's', opensAt: 'far' } }).lens).toEqual({ show: false, opensAt: 'far' });
+    expect(migratePhone({ lens: { show: false, size: 's', opensAt: 'far' } }).lens).toEqual({ show: false, opensAt: 'z2' });
     expect('size' in migratePhone({ lens: { size: 'l' } }).lens).toBe(false);
   });
 
@@ -99,9 +99,9 @@ describe('phone settings', () => {
   it('a patch of the lens changes nothing else, least of all the desktop\'s Mapper settings', () => {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     const before = store.get();
-    store.update({ phone: { lens: { opensAt: 'near' } } });
+    store.update({ phone: { lens: { opensAt: 'z2' } } });
     const after = store.get();
-    expect(after.phone.lens).toEqual({ show: true, opensAt: 'near' });
+    expect(after.phone.lens).toEqual({ show: true, opensAt: 'z2' });
     expect(after.mapper).toEqual(before.mapper);
     expect(after.panes).toEqual(before.panes);
     expect({ ...after, phone: null }).toEqual({ ...before, phone: null });
@@ -123,7 +123,7 @@ describe('phone settings of stage 51d: the strip, Comm, unread', () => {
 
   it('settings stored in stage 51c (the lens only) get the new defaults and keep the lens', () => {
     const p = migratePhone({ lens: { show: false, size: 's', opensAt: 'near' } });
-    expect(p.lens).toEqual({ show: false, opensAt: 'near' });
+    expect(p.lens).toEqual({ show: false, opensAt: 'z1' });
     expect({ ...p, lens: null }).toEqual({ ...defaultPhoneSettings(), lens: null });
   });
 
@@ -326,5 +326,34 @@ describe('phone settings of stage 53: the own keyboard (ADR 0138)', () => {
     expect(store.get().phone.keyboard).toEqual({ digits: true, layout: 'sv' });
     expect({ ...after.phone, keyboard: null }).toEqual({ ...before.phone, keyboard: null });
     expect({ ...after, phone: null }).toEqual({ ...before, phone: null });
+  });
+});
+
+describe('phone settings of round 53k: the lens\'s four zoom levels', () => {
+  it('a level stored by 0.6.1 maps to the same scale or the nearest there is: near and middle are z1, far is z2', () => {
+    expect(migrateLensLevel('near', 'z1')).toBe('z1');
+    expect(migrateLensLevel('middle', 'z3')).toBe('z1');
+    expect(migrateLensLevel('far', 'z1')).toBe('z2');
+    for (const [old, now] of [['near', 'z1'], ['middle', 'z1'], ['far', 'z2']] as const) {
+      const phone = { ...stored061(), lens: { show: true, opensAt: old } };
+      const s = migrateSettings({ ...(JSON.parse(JSON.stringify(defaultSettings())) as Record<string, unknown>), phone });
+      expect(s.phone.lens.opensAt).toBe(now);
+      expect(s.version).toBe(SETTINGS_VERSION);
+    }
+  });
+
+  it('the new levels are kept, and migrating twice changes nothing', () => {
+    for (const level of PHONE_LENS_LEVELS) {
+      const once = migratePhone({ lens: { opensAt: level } });
+      expect(once.lens.opensAt).toBe(level);
+      expect(migratePhone(once).lens.opensAt).toBe(level);
+    }
+    expect([...PHONE_LENS_LEVELS]).toEqual(['z1', 'z2', 'z3', 'z4']);
+  });
+
+  it('junk is the default (the nearest)', () => {
+    expect(migrateLensLevel(2, 'z1')).toBe('z1');
+    expect(migrateLensLevel('z9', 'z1')).toBe('z1');
+    expect(migrateLensLevel(undefined, 'z1')).toBe('z1');
   });
 });

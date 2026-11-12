@@ -464,9 +464,9 @@ describe('the Map lens group', () => {
     if (show?.kind !== 'toggle' || opens?.kind !== 'seg') throw new Error('row kinds');
     expect(show.get(s)).toBe(true);
     expect(show.set(false, s)).toEqual({ phone: { lens: { show: false } } });
-    expect(opens.get(s)).toBe('middle');
-    expect(opens.options.map((o) => o.value)).toEqual(['near', 'middle', 'far']);
-    expect(opens.set('far', s)).toEqual({ phone: { lens: { opensAt: 'far' } } });
+    expect(opens.get(s)).toBe('z1');
+    expect(opens.options.map((o) => o.value)).toEqual(['z1', 'z2', 'z3', 'z4']);
+    expect(opens.set('z3', s)).toEqual({ phone: { lens: { opensAt: 'z3' } } });
   });
 
   it('its switch and segments change the stored settings from the page', () => {
@@ -475,8 +475,8 @@ describe('the Map lens group', () => {
     const row = (id: string): Element => menu.host.querySelector(`[data-row="${id}"]`)!;
     // No size row since stage 52: the lens is sized from the screen.
     expect(menu.host.querySelector('[data-row="lens-size"]')).toBeNull();
-    tap(row('lens-opens').querySelector('[data-opt="far"]'));
-    expect(settings.get().phone.lens.opensAt).toBe('far');
+    tap(row('lens-opens').querySelector('[data-opt="z3"]'));
+    expect(settings.get().phone.lens.opensAt).toBe('z3');
     tap(row('lens-show').querySelector('[role="switch"]'));
     expect(settings.get().phone.lens.show).toBe(false);
     expect(row('lens-show').querySelector('[role="switch"]')!.getAttribute('aria-checked')).toBe('false');

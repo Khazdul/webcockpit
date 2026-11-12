@@ -5,13 +5,14 @@
 // cells (`Cockpit.setPhoneLens`) and phone.css clips it to a circle
 // (`clip-path` on the pane; no second canvas). This module draws what lies
 // over it, as static DOM painted once: the cast-iron ring, the glass with
-// its window reflection and edge darkening, the outer shadow, and three
-// pips for the zoom level. No filter, no backdrop filter, no animation:
+// its window reflection and edge darkening, the outer shadow, and a pip
+// for each zoom level. No filter, no backdrop filter, no animation:
 // the game text scrolling under it repaints nothing here.
 //
-// - A tap on the lens steps the zoom (near → middle → far → near); the
-//   level is kept in memory and starts at the setting's "Opens at". The
-//   lens button covers the map, so the map takes no pan or pinch.
+// - A tap on the lens steps the zoom one level out, and from the furthest
+//   back to the nearest (four levels, lens-zoom.ts); the level is kept in
+//   memory and starts at the setting's "Opens at". The lens button covers
+//   the map, so the map takes no pan or pinch.
 // - Three round keys sit on the lens's corners: top left **panes** (opens
 //   and closes the pane strip; only while the strip has a page), top right
 //   **fullscreen** (only where the browser can put the page in fullscreen;
@@ -72,7 +73,7 @@ export class LensView {
   readonly rowEl: HTMLDivElement;
   private readonly button: HTMLButtonElement;
   private readonly pips: HTMLElement[] = [];
-  private level: LensLevel = 'middle';
+  private level: LensLevel = 'z1';
   private placeKey = '';
   private rowKey = '';
   /** Each key twice: on the lens's corner, and in the row. Only one of the two hosts shows. */
