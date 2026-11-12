@@ -11,8 +11,8 @@
 // - `pageKeyboardUp()`: it stands on a page now (the phone chunk's mount
 //   tells the shell, which sets it). The start page's too-small guard is
 //   off meanwhile, as the cockpit's is under the game layout's keyboard.
-// - Marked key events (ADR 0139 §4): on a page, Enter (and later Esc, Tab
-//   and the caret keys) is sent as a synthetic `keydown` + `keyup` aimed at
+// - Marked key events (ADR 0139 §4): on a page, Enter, Esc and Tab are
+//   sent as a synthetic `keydown` + `keyup` aimed at
 //   the focused field, because the frame stack and the fields' own handlers
 //   take them that way. Such an event is remembered here; the script
 //   engine's key handling (macro matching, key label learning,
@@ -22,11 +22,12 @@
 
 let pages = false;
 let up = false;
+const upSubs = new Set<(up: boolean) => void>();
 
 /** Sets whether our keyboard is the pages' (the shell, once at start; tests). */
 export function setPageKeyboard(on: boolean): void {
   pages = on;
-  if (!on) up = false;
+  if (!on) setPageKeyboardUp(false);
 }
 
 /** True where the pages' text fields use our keyboard (a phone, `?kbd=0` not asked). */
@@ -36,7 +37,15 @@ export function pageKeyboard(): boolean {
 
 /** Sets whether our keyboard stands on a page now (the shell, told by the mount). */
 export function setPageKeyboardUp(on: boolean): void {
+  if (on === up) return;
   up = on;
+  for (const fn of [...upSubs]) fn(on);
+}
+
+/** Calls `fn` when our keyboard comes up on a page or goes; returns the unsubscriber. */
+export function onPageKeyboardUp(fn: (up: boolean) => void): () => void {
+  upSubs.add(fn);
+  return () => void upSubs.delete(fn);
 }
 
 /** True while our keyboard stands on a page. */
@@ -44,7 +53,12 @@ export function pageKeyboardUp(): boolean {
   return up;
 }
 
-/** What a one-line field's keyboard starts as: the digit row is up for `digits`. */
+/**
+ * What kind of field our keyboard types in: `digits` (a one-line numeric
+ * field: the digit row is up), `lines` (a multi-line field: Enter is a line
+ * break, and the caret goes up and down). Absent: a one-line text field,
+ * or a text area whose Enter is its owner's.
+ */
 export const OWN_FIELD_KIND_ATTR = 'data-okb-kind';
 
 /**
@@ -53,7 +67,7 @@ export const OWN_FIELD_KIND_ATTR = 'data-okb-kind';
  * (`inputmode` wins over a field's own, so a numeric field passes `digits`
  * and gets our digit row instead).
  */
-export function ownFieldAttrs(kind?: 'digits'): Record<string, string> {
+export function ownFieldAttrs(kind?: 'digits' | 'lines'): Record<string, string> {
   if (!pages) return {};
   return { inputmode: 'none', virtualkeyboardpolicy: 'manual', ...(kind ? { [OWN_FIELD_KIND_ATTR]: kind } : {}) };
 }
@@ -65,7 +79,7 @@ export function isOwnKey(e: object): boolean {
   return marked.has(e);
 }
 
-export type OwnKey = 'Enter' | 'Escape';
+export type OwnKey = 'Enter' | 'Escape' | 'Tab';
 
 /**
  * Sends `key` to `target` as a marked `keydown` and `keyup`, bubbling, as
@@ -73,10 +87,10 @@ export type OwnKey = 'Enter' | 'Escape';
  * first). Returns false when a handler prevented the keydown's default
  * (the key was taken), true when nothing did.
  */
-export function sendOwnKey(target: Element, key: OwnKey): boolean {
+export function sendOwnKey(target: Element, key: OwnKey, mods: { shift?: boolean } = {}): boolean {
   const win = target.ownerDocument.defaultView;
   if (!win) return true;
-  const init: KeyboardEventInit = { key, code: key, bubbles: true, cancelable: true, composed: true };
+  const init: KeyboardEventInit = { key, code: key, bubbles: true, cancelable: true, composed: true, shiftKey: mods.shift === true };
   const down = new win.KeyboardEvent('keydown', init);
   const upEv = new win.KeyboardEvent('keyup', init);
   marked.add(down);

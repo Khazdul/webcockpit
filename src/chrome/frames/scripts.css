@@ -814,11 +814,15 @@ html.wc-phone .wc-scr-helptext {
     padding: 0 4px 10px 2px;
   }
 
-  .wc-scr-main.is-drill > .wc-scr-idx {
+  /* (`is-keys`: the keys are on the panel, whatever width the script has
+   * measured so far. The container query is narrow one frame before the
+   * script knows, and a panel hidden for that frame would drop the focus of
+   * a field being typed in: a phone turned upright with a setting open.) */
+  .wc-scr-main:is(.is-drill, .is-keys) > .wc-scr-idx {
     display: none;
   }
 
-  .wc-scr-main.is-drill > .wc-scr-panel {
+  .wc-scr-main:is(.is-drill, .is-keys) > .wc-scr-panel {
     display: block;
   }
 

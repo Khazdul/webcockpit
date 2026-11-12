@@ -13,17 +13,31 @@
 //   left, once, as it does when the window changes; nothing is measured in
 //   a loop and nothing animates. The cockpit under a page is not touched:
 //   MUME is told no window size for this keyboard.
-// - The fields are the pages' one-line text fields, marked by the shared
+// - The fields are the pages' text fields, marked by the shared
 //   components (`inputmode="none"`, src/core/own-keyboard.ts): new and
 //   rename profile, new and rename script, the export title, Lite's
 //   pattern, the manual's and the editors' Find and Replace, a script
-//   setting's value. A field that is not marked (a multi-line field and the
-//   CodeMirror buffers, until rounds 53g and 53h) keeps the device's
-//   keyboard, and ours closes when one of them takes the focus: the two
-//   never stand together.
+//   setting's value; and since round 53g the multi-line ones: Lite's body
+//   (`data-okb-kind="lines"`: Enter is a line break, the caret goes up and
+//   down, and the caret's line is kept above the keyboard after every edit)
+//   and the export comment (one paragraph: Enter saves, as before). A field
+//   that is not marked (the CodeMirror buffers, until round 53h) keeps the
+//   device's keyboard, and ours closes when one of them takes the focus:
+//   the two never stand together.
+// - The page keys (53g): Esc, Tab and the caret keys, in a row at the top
+//   of the block in portrait and in a column at each side of it in
+//   landscape (`pageKeyboardPlan`), where the page has no height to give.
+//   Esc and Tab are sent as marked key events like Enter (Shift and Tab:
+//   Shift+Tab); the caret keys set the field's selection. A second Enter or
+//   Esc for the same field within `PAGE_KEY_AGAIN_MS` is dropped (a double
+//   tap must not act on what the first one opened or closed).
 // - A tap on a field opens the keyboard for it; so does a focus that comes
 //   with a pointer or just after one (a dialog opened by a tap focuses its
-//   field). A focus without a pointer (a physical keyboard) opens nothing.
+//   field). While the finger is still down nothing is opened or scrolled:
+//   the page would move under it, and the tap's click would land on what
+//   then lies there (found in round 53g: a tap on Lite's body pressed the
+//   page's Delete). The keyboard comes with the click, or just after the
+//   finger lifts. A focus without a pointer (a physical keyboard) opens nothing.
 //   The target follows the focus between fields. The fold key closes and
 //   blurs. A field that goes away (the page closed, the dialog dismissed)
 //   or loses the focus to something that is no field of ours closes the
@@ -46,14 +60,40 @@
 
 import type { SettingsStore } from '../settings';
 import { OwnKeyboard } from './keyboard';
-import { type TextField, fieldTarget, fieldUsable, isMarked, isOwnableField, isTextField } from './keyboard-fields';
-import { type OkbLayout, type OkbTarget, OKB_UNIT_MAX, OKB_UNIT_MAX_LAND, okbBlockWidth, okbFromQuery, okbHeightPx, okbLayout } from './keyboard-model';
+import { type TextField, caretLineBox, fieldTarget, fieldUsable, isMarked, isOwnableField, isTextField } from './keyboard-fields';
+import {
+  type OkbLayout,
+  type OkbNav,
+  type OkbTarget,
+  OKB_PAD_X,
+  OKB_UNIT_MAX,
+  OKB_UNIT_MAX_LAND,
+  OKB_UNIT_MIN_LAND,
+  okbBlockWidth,
+  okbCols,
+  okbFromQuery,
+  okbHeightPx,
+  okbLayout,
+} from './keyboard-model';
 import { pulse } from './haptics';
 
 /** A focus this long after a pointer was last down still counts as that pointer's (a dialog a tap opened). */
 export const PAGE_POINTER_FOCUS_MS = 700;
-/** What the page must keep above the keyboard, px: under it the digit row gives way, and then the keyboard does not open. */
+/**
+ * What the page must keep above the keyboard, px: under it the digit row
+ * gives way, then the row of page keys, and then the keyboard does not
+ * open. (On the start page its own too-small guard is off while the
+ * keyboard is up, so this is the only floor there.)
+ */
 export const PAGE_KEEP_PX = 150;
+/** Landscape: a column of page keys' width, and its gap to the block, px. */
+export const PAGE_SIDE_W = 52;
+export const PAGE_SIDE_GAP = 6;
+/** A second Enter or Esc for the same field within this of the first is dropped, ms. */
+export const PAGE_KEY_AGAIN_MS = 300;
+
+/** A press that ends without a click: the keyboard opens this long after the finger lifted, ms. */
+export const PAGE_AFTER_POINTER_MS = 60;
 
 /** The air kept between a revealed field and the edges of what scrolls it, px. */
 const REVEAL_MARGIN_PX = 8;
@@ -70,21 +110,49 @@ export interface PageKeyboardPlan {
   /** The block of keys: its left edge and width. */
   left: number;
   width: number;
+  /** Where Esc, Tab and the caret keys stand. */
+  nav: OkbNav;
+  /** `nav` is `sides`: the two columns' left edges and their width. */
+  sides?: { left: number; right: number; width: number };
 }
 
 /**
  * The keyboard's place on a page `width` × `height` px, or null when the
  * page would keep less than `PAGE_KEEP_PX` above it. The block is centred;
- * a key is at most as wide as in the game layout. The digit row gives way
- * before the keyboard does.
+ * a key is at most as wide as in the game layout.
+ *
+ * The page keys: in landscape a column at each side of the block, which
+ * costs no height (the block gets narrower for them, its letter keys never
+ * under `OKB_UNIT_MIN_LAND`); in portrait, and in a landscape too narrow
+ * for the columns, a row at the top of the block. What gives way on a low
+ * page, in order: the digit row, the row of page keys, the keyboard.
  */
 export function pageKeyboardPlan(width: number, height: number, layout: OkbLayout, digits: boolean): PageKeyboardPlan | null {
   if (!(width > 0) || !(height > 0)) return null;
   const landscape = width > height;
-  const w = okbBlockWidth(width, layout, landscape ? OKB_UNIT_MAX_LAND : OKB_UNIT_MAX);
-  for (const d of digits ? [true, false] : [false]) {
-    const h = okbHeightPx(landscape, height, d);
-    if (height - h >= PAGE_KEEP_PX) return { landscape, digits: d, height: h, left: (width - w) / 2, width: w };
+  const cap = landscape ? OKB_UNIT_MAX_LAND : OKB_UNIT_MAX;
+  const full = okbBlockWidth(width, layout, cap);
+  const column = PAGE_SIDE_W + PAGE_SIDE_GAP;
+  const narrow = okbBlockWidth(width - 2 * column, layout, cap);
+  const sides = landscape && (narrow - 2 * OKB_PAD_X) / okbCols(layout) >= OKB_UNIT_MIN_LAND;
+  const ds = digits ? [true, false] : [false];
+  const tries: Array<[boolean, boolean]> = sides ? ds.map((d) => [d, false]) : [...ds.map((d): [boolean, boolean] => [d, true]), [false, false]];
+  for (const [d, row] of tries) {
+    const h = okbHeightPx(landscape, height, d, row);
+    if (height - h < PAGE_KEEP_PX) continue;
+    if (sides) {
+      const left = (width - narrow) / 2;
+      return {
+        landscape,
+        digits: d,
+        height: h,
+        left,
+        width: narrow,
+        nav: 'sides',
+        sides: { left: left - column, right: left + narrow + PAGE_SIDE_GAP, width: PAGE_SIDE_W },
+      };
+    }
+    return { landscape, digits: d, height: h, left: (width - full) / 2, width: full, nav: row ? 'row' : 'none' };
   }
   return null;
 }
@@ -94,7 +162,7 @@ export interface PageKeyboardDeps {
   root: HTMLElement;
   settings: SettingsStore;
   /** Sends a marked key to a field (src/core/own-keyboard.ts `sendOwnKey`). */
-  sendKey(target: Element, key: 'Enter'): boolean;
+  sendKey(target: Element, key: 'Enter' | 'Escape' | 'Tab', mods?: { shift?: boolean }): boolean;
   /** The keyboard came up on a page, or went (the shell: the too-small guards, and the game's own keyboard closes). */
   onUp?(up: boolean): void;
 }
@@ -131,10 +199,24 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   /** A pointer is down anywhere now, and when one was last seen (a focus that follows it is that pointer's). */
   let down = false;
   let at = -Infinity;
-  // The app box changed size while the keyboard is up (a rotation, the address bar): placed anew.
-  // Only the box is watched, and only while open; the reserve does not change its size.
+  /** A field that took the focus while a pointer was down: opened for when the pointer is done (`flush`). */
+  let pending: TextField | null = null;
+  let pendingTimer: number | null = null;
+  /** When our Tab key was last sent: the focus the page then gives another field of ours is that key's. */
+  let tabAt = -Infinity;
+  /** The last Enter or Esc sent: to which field, and when (`PAGE_KEY_AGAIN_MS`). */
+  let sentTo: TextField | null = null;
+  let sentAt = -Infinity;
+  // The app box changed size while the keyboard is up (a rotation, fullscreen, the address bar):
+  // placed anew, and the field brought back above it. Only the box is watched, and only while
+  // open; the reserve does not change its size.
   const RO = win?.ResizeObserver;
-  const sized = RO ? new RO(() => place()) : null;
+  const sized = RO
+    ? new RO(() => {
+        place();
+        if (open && field) reveal(field);
+      })
+    : null;
 
   const host = doc.createElement('div');
   host.className = 'wc-okb-page';
@@ -149,7 +231,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     doc,
     {
       target: () => {
-        if (field !== null && !fieldUsable(field)) close(false);
+        gone();
         return target;
       },
       fold: () => close(true),
@@ -164,6 +246,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
         if (settings.get().phone.vibrate) pulse(win?.navigator);
       },
       enterOnClick: true,
+      history: false,
     },
     wanted(),
     digitsWanted(),
@@ -193,31 +276,52 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
       return;
     }
     okb.setLayout(layout);
+    okb.setNav(plan.nav);
     okb.setDigits(plan.digits);
     if (plan.height !== reserve) {
       reserve = plan.height;
       root.style.setProperty('--wc-okb-page-h', `${plan.height}px`);
     }
-    okb.place({ top: 0, left: plan.left, width: plan.width });
+    okb.place({ top: 0, left: plan.left, width: plan.width, sides: plan.sides });
   }
 
+  /** A multi-line field: Enter is a line break there (`data-okb-kind="lines"`, the shared `TextArea`). */
+  const isLines = (f: TextField): boolean => f.tagName === 'TEXTAREA' && f.getAttribute('data-okb-kind') === 'lines';
+
+  /** What of the field must show: the field; of a multi-line field that is higher than a few lines, the caret's line. */
+  function wantedBox(f: TextField): { top: number; bottom: number } {
+    const r = f.getBoundingClientRect();
+    if (!isLines(f)) return { top: r.top, bottom: r.bottom };
+    const line = caretLineBox(f as HTMLTextAreaElement);
+    if (!line) return { top: r.top, bottom: r.bottom };
+    const y = r.top + f.clientTop - f.scrollTop;
+    // (Within the field's own box: what its scroll hides is not asked for.)
+    const top = Math.max(r.top, Math.min(r.bottom, y + line.top));
+    const bottom = Math.max(top, Math.min(r.bottom, y + line.bottom));
+    return { top, bottom };
+  }
+
+  /** One reveal is waiting (a held key asks many times). */
+  let revealing = false;
+
   /**
-   * The field is brought into view above the keyboard, once, after the page
-   * has laid itself out in what is left. Only a scrolling box the page made
-   * (`overflow-y: auto | scroll`) is moved: `scrollIntoView` would also
-   * scroll the clipped boxes around it (the page itself), and the whole
-   * page would slide away under the keyboard.
+   * The field (of a multi-line field: its caret's line) is brought into
+   * view above the keyboard, once, after the page has laid itself out in
+   * what is left. Only a scrolling box the page made (`overflow-y: auto |
+   * scroll`) is moved: `scrollIntoView` would also scroll the clipped boxes
+   * around it (the page itself), and the whole page would slide away under
+   * the keyboard.
    */
   function reveal(f: TextField): void {
-    if (!win) return;
+    if (!win || revealing) return;
+    revealing = true;
     win.requestAnimationFrame(() =>
       win.setTimeout(() => {
+        revealing = false;
+        f = field ?? f;
         if (!open || field !== f || !f.isConnected) return;
         const limit = host.getBoundingClientRect().top;
-        const r = f.getBoundingClientRect();
-        let top = r.top;
-        let bottom = r.bottom;
-        if (bottom <= limit - REVEAL_MARGIN_PX && top >= 0) return;
+        let { top, bottom } = wantedBox(f);
         for (let el = f.parentElement; el && el !== root; el = el.parentElement) {
           if (el.scrollHeight <= el.clientHeight) continue;
           const oy = win.getComputedStyle(el).overflowY;
@@ -237,15 +341,39 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     );
   }
 
+  /** One look at a hidden field is waiting (`gone`). */
+  let looking = false;
+
+  /**
+   * The field typed in may have gone away: the keyboard closes with it. A
+   * field that is still in the page with the focus but not shown is given
+   * until the page has settled: a page between two layouts (a rotation:
+   * the profile editor's columns become a sheet) hides its field for a
+   * moment, and the keyboard must stay up through that.
+   */
+  function gone(): void {
+    const f = field;
+    if (f === null || fieldUsable(f)) return;
+    if (!win || !f.isConnected || f.disabled || f.readOnly || doc.activeElement !== f) return close(false);
+    if (looking) return;
+    looking = true;
+    win.requestAnimationFrame(() =>
+      win.setTimeout(() => {
+        looking = false;
+        if (!open || field !== f) return;
+        if (!fieldUsable(f)) close(false);
+        else reveal(f);
+      }, 0),
+    );
+  }
+
   /** Follows the field typed in, so one that goes away closes the keyboard at once (as the layer does for the game's fields). */
   function follow(f: TextField | null): void {
     watch?.disconnect();
     watch = null;
     const MO = win?.MutationObserver;
     if (!f || !MO) return;
-    const mo = new MO(() => {
-      if (field !== null && !fieldUsable(field)) close(false);
-    });
+    const mo = new MO(gone);
     mo.observe(f, { attributes: true, attributeFilter: ['hidden', 'disabled', 'readonly', 'style', 'class', 'inputmode'] });
     for (let el = f.parentElement; el && el !== root; el = el.parentElement) mo.observe(el, { attributes: true, childList: true });
     mo.observe(root, { childList: true });
@@ -257,7 +385,29 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     field = f;
     forceDigits = f.getAttribute('data-okb-kind') === 'digits';
     follow(f);
-    target = fieldTarget(f, { submit: () => void deps.sendKey(f, 'Enter') });
+    // Enter and Esc may close what the field is in: never sent twice in a row to the same field (a
+    // double tap), nor to a field that is gone or has lost the focus.
+    const once = (key: 'Enter' | 'Escape'): void => {
+      if (!f.isConnected || doc.activeElement !== f) return;
+      const now = clock();
+      if (sentTo === f && now - sentAt < PAGE_KEY_AGAIN_MS) return;
+      sentTo = f;
+      sentAt = now;
+      deps.sendKey(f, key);
+    };
+    target = fieldTarget(f, {
+      submit: () => once('Enter'),
+      lines: isLines(f),
+      pageKey: (key, shift) => {
+        if (key === 'Escape') return once('Escape');
+        if (!f.isConnected || doc.activeElement !== f) return;
+        tabAt = clock();
+        deps.sendKey(f, 'Tab', { shift });
+      },
+      onCaret: () => {
+        if (open && field === f) reveal(f);
+      },
+    });
     okb.sync();
   }
 
@@ -292,6 +442,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     follow(null);
     sized?.disconnect();
     okb.place(null);
+    pending = null;
     host.hidden = true;
     host.remove();
     html.classList.remove('wc-okb-pg');
@@ -305,20 +456,40 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
   }
 
   const clock = (): number => win?.performance.now() ?? Date.now();
-  const onDown = (): void => {
+  /** The pointer is done: the keyboard opens for the field that took the focus under it, if it still has it. */
+  const flush = (): void => {
+    if (pendingTimer !== null) win?.clearTimeout(pendingTimer);
+    pendingTimer = null;
+    const f = pending;
+    pending = null;
+    if (f && doc.activeElement === f && pageField(f)) openFor(f);
+  };
+  const onDown = (e: Event): void => {
+    // (A press on our own keys is no press on the page.)
+    if (e.target instanceof Node && host.contains(e.target)) return;
     down = true;
     at = clock();
   };
-  const onUp = (): void => {
+  const onUp = (e: Event): void => {
+    if (e.target instanceof Node && host.contains(e.target)) return;
     if (down) at = clock();
     down = false;
+    // A finger lifted on a field of ours: the keyboard is for it, whenever its focus comes (a phone
+    // gives the focus after the finger lifts, with the mouse press it makes up; some give no click).
+    const on = e.target instanceof Element ? pageField(e.target) : null;
+    if (on && e.type === 'pointerup') pending = on;
+    // The click, if one follows, comes first (`onClick`); a press that ends without one opens here.
+    if (pending && pendingTimer === null && win) pendingTimer = win.setTimeout(flush, PAGE_AFTER_POINTER_MS);
   };
   const onFocus = (e: FocusEvent): void => {
     const t = e.target as HTMLElement | null;
     if (!t) return;
     const f = pageField(t);
     if (f) {
-      if (open || down || clock() - at < PAGE_POINTER_FOCUS_MS) openFor(f);
+      const now = clock();
+      // The finger is still down: nothing moves under it (see the file header).
+      if (down) pending = f;
+      else if (open || now - at < PAGE_POINTER_FOCUS_MS || now - tabAt < PAGE_POINTER_FOCUS_MS) openFor(f);
       return;
     }
     // A text field that is not ours (a multi-line field, an editor's buffer, the game's command
@@ -334,13 +505,18 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     const f = field;
     win?.setTimeout(() => {
       if (!open || field !== f) return;
+      // (Another field of ours has it, waiting for the finger to lift: the keyboard stays for it.)
+      if (pending && doc.activeElement === pending) return;
       if (doc.activeElement !== f) close(false);
     }, 0);
   };
   // A tap on a field of ours that has the focus already (after the fold key).
   const onClick = (e: Event): void => {
     const f = e.target instanceof Element ? pageField(e.target) : null;
-    if (f) openFor(f);
+    if (f) {
+      pending = null;
+      openFor(f);
+    } else flush();
   };
   doc.addEventListener('pointerdown', onDown, true);
   doc.addEventListener('pointerup', onUp, true);
@@ -355,6 +531,11 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     }
   });
 
+  // A field of ours has the focus already (a dialog opened while this chunk was on its way, by the
+  // tap that would have opened the keyboard): the keyboard comes up for it now.
+  const first = pageField(doc.activeElement);
+  if (first && fieldUsable(first)) openFor(first);
+
   return {
     el: host,
     get open() {
@@ -363,6 +544,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     close,
     dispose() {
       close(false);
+      if (pendingTimer !== null) win?.clearTimeout(pendingTimer);
       doc.removeEventListener('pointerdown', onDown, true);
       doc.removeEventListener('pointerup', onUp, true);
       doc.removeEventListener('pointercancel', onUp, true);

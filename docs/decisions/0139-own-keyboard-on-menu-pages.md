@@ -132,3 +132,98 @@ its key folds it for that field only.
 
 **History arrows** are dimmed (no history). Layout setting and
 vibration as in the game. No readout on the pages.
+
+## Addendum: as built in round 53g (2026-11-12)
+
+Points 4–5 and the multi-line part of point 1. After this round only the
+two CodeMirror buffers take the device's keyboard (53h).
+
+**The multi-line fields.** The look kit's `TextArea` is marked on a
+phone. Lite's body is `data-okb-kind="lines"`: text goes in with its line
+breaks, Enter is a line break, backspace deletes back across one, the
+caret goes up and down by the text's own lines (a long line that wraps is
+one line; the column is kept through a run of up and down). The export
+comment is one paragraph (`enterSubmits`): no kind, Enter saves as
+before. After every edit and caret move the field's own scroll follows
+the caret's line (measured once in a hidden copy of the text, per edit),
+and the page's real scrolling boxes are moved so that line stands above
+the keyboard. `useKeyboardInset` is 0 under our keyboard, since the page
+already ends at its top edge; the export editor asks `useOwnKeyboardUp()`
+as well, so it steps aside for ours as for the device's and adds no
+padding.
+
+**Where the keys sit, and why.**
+
+- **Portrait:** one more row at the top of the block:
+  `esc · tab · ← · → · ↑ · ↓`, six keys of 59 px at 360 px (a letter key
+  is 32 px). The bottom row was full and its keys are the narrow ones; a
+  row of its own keeps every existing key where it was and puts the two
+  keys that can close things farthest from the thumbs. Portrait has the
+  height (566 px of page left on the S21, 354 px on a 320 × 568 phone).
+- **Landscape:** no row is added (the page keeps its 212 px). The keys
+  stand in a column at each side of the block, in the room the centred
+  block leaves: `esc, tab, ←` left of it and `↑, ↓, →` right of it,
+  52 px wide and a third of the keyboard high. The block gets narrower
+  for them where it must, its letter keys never under the game layout's
+  36 px; a landscape too narrow even for that gets the row if the page
+  keeps 150 px, else no page keys.
+- **A page has no history arrows** (it has no history); the bottom row is
+  the wide one there. ↑ and ↓ are dimmed in a one-line field.
+- **The game layout is unchanged:** no Esc, no Tab, and no caret keys
+  either. Its bottom row is full at 360 px and a tap in the field moves
+  the caret; adding two keys would have shrunk the others (the stage plan
+  listed them as cuttable).
+- **The backtick** is the last symbol. In the Swedish layout with the
+  digit row up the list is one longer than the one page it had: the
+  backtick stands in shift's (empty) place there instead of bringing a
+  page key for a single symbol. Elsewhere it is on the last page.
+
+**What the keys do.**
+
+- **Enter:** in a multi-line field a line break (the key is drawn unlit,
+  `data-enter="newline"`, and acts on the press, in step with the
+  letters); elsewhere the marked `Enter` key event of round 53f, on the
+  click.
+- **Esc:** a marked `Escape` key event at the field, on the click. It
+  does what a real Esc does there: one press closes the look kit's dialog
+  and the old-look prompt, cancels the export title and comment and a
+  script setting's edit; in the manual's find it leaves the field (the
+  frame stack's rule; a second Esc would go back), and in Lite's fields
+  it goes back to the list. The keyboard goes with the field (it was
+  removed, or lost the focus) and leaves no reserve.
+- **Tab:** a marked `Tab` key event (`shiftKey` when shift is on, which
+  is then used up). The profile editor cycles its zones: pattern to body
+  keeps the keyboard up for the body; out of the last field it closes.
+- **Caret keys:** set the field's selection through the adapter, never a
+  key event; all four repeat while held, as backspace does.
+- A second Enter or Esc for the same field within 300 ms is dropped, and
+  none is sent to a field that is gone or has lost the focus.
+- The hot key box, the Timers pane's herb menu and the log player, which
+  listen for Esc in the capture phase, leave a marked key (or a key aimed
+  at a page's field) to the page.
+
+**Found and changed on the way.**
+
+- A look page opened from the game's menu is `position: fixed` over the
+  whole screen and did not end at the keyboard (53f's reserve only moved
+  the overlay's box): it does now.
+- **The keyboard no longer opens while the finger is down.** It opened on
+  the focus, the page shrank under the finger, and the tap's click landed
+  on what then lay there (a tap on Lite's body could press Delete). It
+  opens with the click, or 60 ms after the finger lifts.
+- On a low page (`max-height: 640px` for Lite, `480px` for the export
+  composer) what is not the entry typed in steps aside: Lite's head,
+  kinds and foot; the export page's bar, counter and preview.
+- A rotation: the keyboard is placed anew and the field brought back into
+  view. A field hidden for a moment with the focus in it (a page between
+  two layouts) keeps the keyboard; the Scripts panel and the profile
+  editor's sheet no longer hide for the frame before the script has
+  measured the new width (`is-keys`, `has-sheet`).
+- A field focused before the phone chunk came gets the keyboard when the
+  mount comes. A chunk that failed and loads on a later try (the game
+  opening) mounts the pages' keyboard and marks fields again.
+- `PAGE_KEEP_PX` (150 px) stays: the start page's own too-small guard is
+  off while the keyboard is up, so this is the floor there, and it decides
+  when the digit row and the row of page keys give way.
+- `.wc-ck-hex` (the settings popup's colour field) is not marked: the
+  popup hangs on the menu bar, which a phone does not have.

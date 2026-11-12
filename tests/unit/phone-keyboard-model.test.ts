@@ -29,6 +29,8 @@ import {
   okbFromQuery,
   okbHeightPx,
   okbLayout,
+  okbNavRow,
+  okbNavSides,
   okbPortraitSide,
   okbRowCount,
   okbRowPx,
@@ -172,7 +174,7 @@ describe('own keyboard: the symbols', () => {
     expect(okbSymbolPages('sv', false)).toBe(2);
     const more = okbRows({ layout: 'sv', page: 'symbols', symbolPage: 1, digits: false, arrowsOnDigitRow: false });
     expect(text(more[0]!)).toBe('1234567890');
-    expect(text(more[1]!)).toBe('>~^|');
+    expect(text(more[1]!)).toBe('>~^|`');
     expect(text(more[2]!)).toBe('<alt>{}[]+=<<back>');
   });
 
@@ -182,14 +184,15 @@ describe('own keyboard: the symbols', () => {
     expect(text(rows[0]!)).toBe('1234567890<older><newer>');
     expect(text(rows[1]!)).toBe('{}[]+=<>~^|');
     expect(text(rows[2]!)).toBe('#@$%&*()/_\\');
-    // One page: nothing in shift's place, and backspace where it always is.
-    expect(text(rows[3]!)).toBe('_\'",-!?:<back>');
+    // One page: no page key. The backtick (the list is one longer than the page) stands in shift's
+    // place, with the rest of that place empty; backspace where it always is.
+    expect(text(rows[3]!)).toBe('`_\'",-!?:<back>');
     expect(okbSymbolPages('sv', true)).toBe(1);
     expect(weight(rows[3]!)).toBe(11);
     // English is two short: a second page.
     expect(okbSymbolPages('en', true)).toBe(2);
     const en = okbRows({ layout: 'en', page: 'symbols', symbolPage: 1, digits: true, arrowsOnDigitRow: true });
-    expect(text(en[3]!)).toBe('<alt>^|_<back>');
+    expect(text(en[3]!)).toBe('<alt>^|`_<back>');
     expect(weight(en[3]!)).toBe(10);
   });
 
@@ -413,5 +416,87 @@ describe('own keyboard: portrait, what stands above it', () => {
     expect(okbPortraitSide(244 + OKB_SIDE_TOP_MIN - 1, 122, 244)).toEqual({ pad: true, k: false });
     expect(okbPortraitSide(122 + OKB_SIDE_TOP_MIN, 122, 244)).toEqual({ pad: true, k: false });
     expect(okbPortraitSide(122 + OKB_SIDE_TOP_MIN - 1, 122, 244)).toEqual({ pad: false, k: false });
+  });
+});
+
+// Round 53g (ADR 0139 §5): the keys a page's keyboard adds, and the backtick.
+describe('own keyboard: the page keys', () => {
+  const NAV_ACTS = ['esc', 'tab', 'left', 'right', 'up', 'down'];
+  const acts = (rows: OkbRow[]): string[] => rows.flatMap((r) => r.keys.map((k) => k.act ?? ''));
+
+  it('the game layout has none of them, whatever else is asked', () => {
+    for (const layout of ['sv', 'en'] as const)
+      for (const page of ['letters', 'symbols'] as const)
+        for (const digits of [true, false])
+          for (const arrowsOnDigitRow of [true, false]) {
+            const rows = okbRows({ layout, page, digits, arrowsOnDigitRow });
+            for (const a of NAV_ACTS) expect(acts(rows)).not.toContain(a);
+            expect(rows.some((r) => r.kind === 'nav')).toBe(false);
+            expect(rows).toHaveLength(okbRowCount(digits));
+          }
+  });
+
+  it('`nav: row`: one more row at the top: Esc, Tab, then the carets, six keys of one width', () => {
+    for (const digits of [true, false]) {
+      const rows = okbRows({ layout: 'sv', page: 'letters', digits, arrowsOnDigitRow: false, history: false, nav: 'row' });
+      expect(rows).toHaveLength(okbRowCount(digits, true));
+      expect(rows[0]!.kind).toBe('nav');
+      expect(text(rows[0]!)).toBe('<esc><tab><left><right><up><down>');
+      expect(new Set(rows[0]!.keys.map((k) => k.w)).size).toBe(1);
+      expect(rows[0]!.units).toBe(6);
+      // The rows under it are the ones without it.
+      expect(rows.slice(1)).toEqual(okbRows({ layout: 'sv', page: 'letters', digits, arrowsOnDigitRow: false, history: false }));
+    }
+    expect(okbNavRow().keys.map((k) => k.label)).toEqual(['Escape', 'Tab', 'Caret left', 'Caret right', 'Caret up', 'Caret down']);
+  });
+
+  it('at 360 px a page key is wider than a letter key (59 px against 32)', () => {
+    const inner = 360 - 2 * OKB_PAD_X;
+    expect(inner / okbNavRow().units).toBeGreaterThan(inner / okbCols('sv'));
+    expect(inner / okbNavRow().units).toBeGreaterThanOrEqual(44);
+  });
+
+  it('the columns beside the block (landscape): three keys each, caret left at the left foot and caret right at the right', () => {
+    const { left, right } = okbNavSides();
+    expect(left.map((k) => k.act)).toEqual(['esc', 'tab', 'left']);
+    expect(right.map((k) => k.act)).toEqual(['up', 'down', 'right']);
+    // `nav: sides` adds no row: the columns are drawn beside the block.
+    expect(okbRows({ layout: 'en', page: 'letters', digits: false, arrowsOnDigitRow: true, history: false, nav: 'sides' })).toHaveLength(4);
+  });
+
+  it('`history: false` (a page): no history arrows anywhere, and the bottom row is the wide one', () => {
+    for (const arrowsOnDigitRow of [true, false])
+      for (const digits of [true, false])
+        for (const page of ['letters', 'symbols'] as const) {
+          const rows = okbRows({ layout: 'en', page, digits, arrowsOnDigitRow, history: false });
+          expect(acts(rows)).not.toContain('older');
+          expect(acts(rows)).not.toContain('newer');
+          expect(text(rows.at(-1)!)).toBe('<fold><sym><digits>;<space>.<enter>');
+          expect(rows.at(-1)).toEqual(okbRows({ layout: 'en', page, digits, arrowsOnDigitRow: true }).at(-1));
+        }
+  });
+
+  it('the heights count the row of page keys', () => {
+    expect(okbRowCount(false, true)).toBe(5);
+    expect(okbRowCount(true, true)).toBe(6);
+    expect(okbHeightPx(false, 800, false, true) - okbHeightPx(false, 800, false)).toBe(okbRowPx(false, 800));
+    expect(okbHeightPx(true, 360, true, true) - okbHeightPx(true, 360, true)).toBe(okbRowPx(true, 360));
+  });
+
+  it('the backtick is a symbol: last in the list, on the last page in English, in shift\'s place in Swedish with the digit row up', () => {
+    expect(OKB_SYMBOLS.at(-1)).toBe('`');
+    const sv = okbRows({ layout: 'sv', page: 'symbols', digits: true, arrowsOnDigitRow: true });
+    expect(sv[3]!.keys[0]).toMatchObject({ ch: '`', label: 'Backtick', w: 1 });
+    expect(sv[3]!.keys[1]).toMatchObject({ label: '', w: 1 });
+    expect(weight(sv[3]!)).toBe(11);
+    for (const digits of [true, false]) {
+      const pages = okbSymbolPages('en', digits);
+      const last = okbRows({ layout: 'en', page: 'symbols', symbolPage: pages - 1, digits, arrowsOnDigitRow: true });
+      expect(last.flatMap((r) => r.keys.map((k) => k.ch))).toContain('`');
+      // A row keeps its full weight on a short page.
+      for (const r of last) if (r.kind === 'chars' && r.keys.some((k) => k.act === 'back')) expect(weight(r)).toBe(10);
+    }
+    // The number of pages did not grow with it.
+    expect([okbSymbolPages('sv', true), okbSymbolPages('sv', false), okbSymbolPages('en', true), okbSymbolPages('en', false)]).toEqual([1, 2, 2, 2]);
   });
 });

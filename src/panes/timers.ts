@@ -45,6 +45,7 @@
 //   while inactive; a disconnect resets the view.
 
 import './timers.css';
+import { isOwnKey } from '../core/own-keyboard';
 import type { TimersSettings } from '../settings/types';
 import type { HerbEntry } from '../timers/entry';
 import { forwardWheel } from './anchored-list';
@@ -359,6 +360,8 @@ export class HerbMenu {
 
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.key !== 'Escape') return;
+    // The Esc our keyboard sends on a page (ADR 0139 §4) acts on that page only.
+    if (isOwnKey(e)) return;
     e.preventDefault();
     e.stopPropagation();
     this.hide();

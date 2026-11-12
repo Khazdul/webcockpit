@@ -368,6 +368,9 @@ export class HotkeysView {
   /** Esc with the box open, wherever the focus is: Cancel. */
   private readonly onEsc = (e: KeyboardEvent): void => {
     if (e.key !== 'Escape') return;
+    // A key aimed at a field of a page over the game (the start menu's pages, the menu's overlay) is
+    // the page's: so is the Esc our keyboard sends there (ADR 0139 §4).
+    if ((e.target as Element | null)?.closest?.('.wc-chrome, .wc-overlay')) return;
     e.preventDefault();
     e.stopPropagation();
     this.closeBox();

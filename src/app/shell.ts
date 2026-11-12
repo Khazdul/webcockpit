@@ -779,18 +779,21 @@ export class Shell {
    */
   private mountPageKeyboard(): void {
     const { root, settings } = this.opts;
+    if (this.pageKeyboard) return;
     this.loadPhone().then(
       (phone) => {
         try {
           this.pageKeyboard ??= phone.mountPageKeyboard({
             root,
             settings,
-            sendKey: (target, key) => sendOwnKey(target, key),
+            sendKey: (target, key, mods) => sendOwnKey(target, key, mods),
             onUp: (up) => {
               setPageKeyboardUp(up);
               if (up) this.phoneLayer?.foldOwnKeyboard();
             },
           });
+          // (A load that failed first and came later: the fields drawn from now on are ours again.)
+          setPageKeyboard(true);
         } catch (err) {
           console.error('WebCockpit: the pages\' keyboard could not be mounted', err);
           // No keyboard of ours: fields drawn from now on ask the device for its own again.
@@ -879,6 +882,8 @@ export class Shell {
       // With the chrome chunk: the settings page's controls are the look kit's.
       Promise.all([this.loadPhone(), this.loadChrome()]).then(
         ([phone, chrome]) => {
+          // The chunk is here (perhaps on a second try): the pages' keyboard too, if it is not yet.
+          if (this.ownKeyboard) this.mountPageKeyboard();
           try {
             this.phoneLayer = phone.mountPhoneLayer({
               kit: PHONE_KIT,
