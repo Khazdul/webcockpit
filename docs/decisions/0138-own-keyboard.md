@@ -406,10 +406,12 @@ blurs the field, and opens again only at a tap). A field with
 - A target that goes away is dropped at once, not at the next key: one
   `MutationObserver` while a field other than the command line is typed
   in (its place in its parent, and its ancestors' own attributes up to
-  the cockpit), and a check after each layout. Comm closed with its key
-  hands the keys back first, so Comm's rows and what it kept for the
-  reply go in one layout and one window size. The caret goes to the
-  command line with the keys.
+  the cockpit); the keys also ask whenever they are drawn or pressed
+  (`okbTarget`). Comm closed with its key, or left with no rows on a
+  short screen, is one window size. The caret goes to the command line
+  with the keys. (A check after each layout and a hand-back at the Comm
+  key were also built; the tests passed without either, so they were
+  taken out.)
 
 **§8 Performance** (`bench/phone-keyboard-bench.ts`,
 `bench/results/phone-53-keyboard.md`; Chromium as a phone, CPU 4×).

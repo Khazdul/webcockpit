@@ -605,6 +605,34 @@ test('Comm closed with its key while the reply is typed in, on a short portrait 
   expect(errors).toEqual([]);
 });
 
+test('Comm left with no rows on a screen made short while its reply is typed in: the keys are the command line\'s at once, and the keyboard stays', async ({ page }) => {
+  const errors = watchErrors(page);
+  const m = await play(page);
+  await setScreen(page, { width: 360, height: 640 });
+  await openTell(page, m);
+  await reply(page).tap();
+  await expect(okb(page)).toBeVisible();
+  await type(page, 'o', 'n');
+  await expect(reply(page)).toHaveValue('on');
+  await expect(key(page, 'older')).toHaveAttribute('aria-disabled', 'true');
+  expect(await commKeep(page)).toBe(true);
+  // The window is made much lower (a split screen): the keyboard still has its rows, Comm none.
+  await page.setViewportSize({ width: 360, height: 320 });
+  await expect.poll(async () => (await layout(page)).comm.h).toBe(0);
+  await expect(comm(page)).toBeHidden();
+  expect((await layout(page)).tooSmall).toBe(false);
+  // With no key pressed: the arrows are lit, Comm keeps nothing, the caret is in the command line.
+  await expect(key(page, 'older')).not.toHaveAttribute('aria-disabled');
+  await expect(key(page, 'newer')).not.toHaveAttribute('aria-disabled');
+  expect(await commKeep(page)).toBe(false);
+  await expect(field(page)).toBeFocused();
+  await expect(okb(page)).toBeVisible();
+  await type(page, 'l');
+  await expect(field(page)).toHaveValue('l');
+  expect(m.sent).not.toContain('tell Gibur on');
+  expect(errors).toEqual([]);
+});
+
 for (const size of [S21, { width: 360, height: 520 }]) {
   test(`Comm's search closed while it is typed in (${size.width} × ${size.height}): the keys are the command line's at once, at most one window size`, async ({ page }) => {
     const m = await play(page);

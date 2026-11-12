@@ -794,19 +794,13 @@ export class PhoneLayer {
     this.okbReadout?.();
   }
 
-  /** The surface of the field the keys type in is about to close: the keys, and the focus, go back to the command line now. */
-  private leaveOkbField(): void {
-    const field = this.okbField;
-    if (field === null) return;
-    this.setOkbField(null);
-    if (!this.okbOpen) return;
-    if (this.el.ownerDocument.activeElement === field) this.deps.ownKeyboard?.focus();
-  }
-
   /**
    * Follows the field the keys type in, so one that goes away is dropped at
    * once (`dropGoneField`), not at the next key press: Comm or its search
-   * closed, the strip's page changed, a script pane's field taken away.
+   * closed, Comm left with no rows on a short screen, the strip's page
+   * changed, a script pane's field taken away. (`okbTarget` asks too,
+   * whenever the keys are drawn or pressed; a field hidden with no layout
+   * and no key, as Comm's search is, is told only here.)
    * One observer while such a field is the target, on its ancestors up to
    * the cockpit: their own attributes (`hidden`, a pane's placing, Comm's
    * `data-search`) and their own children (the field, or the part it is
@@ -1344,9 +1338,6 @@ export class PhoneLayer {
   private toggleComm(): void {
     const { cockpit, settings } = this.deps;
     this.commOpen = !this.commOpen;
-    // Comm closes while one of its fields is typed in: the keys go back to the command line
-    // first, so the rows Comm kept for it and Comm's own go in the same one layout.
-    if (!this.commOpen && this.okbField !== null && cockpit.pane('comm').el.contains(this.okbField)) this.leaveOkbField();
     cockpit.setPhoneComm(this.commOpen ? { rows: settings.get().phone.commRows } : null);
     // Closing reads nothing more at once; opening is told to the pane when its rows are laid out (`place`).
     if (!this.commOpen) this.comm.setPhoneOpen(false);
@@ -1441,8 +1432,6 @@ export class PhoneLayer {
     // Our own keyboard stands on the rows the allocator kept for it (not laid out yet right after
     // it opened: `bottom` is 0 until the cockpit's next layout).
     if (this.okb && this.okbOpen && (g.bottom > 0 || g.tooSmall)) this.placeOwnKeyboard(g, h);
-    // This layout left the typed-in field's surface out (Comm on a screen with no rows for it).
-    if (this.okbField !== null) this.dropGoneField();
     // The left column's width: the hot key box stays right of it (phone.css). On the layer, not
     // the cockpit: a drag changes it at every column, and nothing but the layer's parts reads it.
     const sideW = land && g.side.w > 0 ? `${g.side.w * w}px` : '';
