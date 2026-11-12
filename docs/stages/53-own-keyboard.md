@@ -796,5 +796,15 @@ Wanted: the look of the plates above all; then release or not.
   the fight card always lies under the panes at the top in portrait.
   And showing the fight card like this must be possible to turn off
   somewhere in the settings.
+- 2026-11-12, for round 53k too, the map lens:
+  - One can drag the lens to move it: touch + drag moves; hold still,
+    then drag, resizes. It can be made larger than today (as large as
+    fits). Moved or resized, it works as today otherwise. Pushed down
+    by the panes it shrinks when it must and at last hides if it has
+    to; when the pane is pulled up again it goes back towards where it
+    was last dropped, and to the size last set.
+  - The most zoomed-in level is too zoomed in for the lens: the middle
+    level becomes the most zoomed-in one (the steps move up), and a
+    new fourth level is extremely zoomed out.
 
 (After each round.)
