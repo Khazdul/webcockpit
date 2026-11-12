@@ -347,3 +347,119 @@ high there.
 - Not tried on a device: the touch handles and the paste bubble over a
   marked CodeMirror, and whether the device's keyboard stays down on a
   marked `contenteditable` after an app switch.
+
+## Addendum: as built in round 53i (2026-11-12)
+
+Point 7, the leftovers of the 53h review, and one addition from the
+owner's phone. Line numbers are those of the round's last commit.
+
+**Removed** (the device keyboard on a phone with the phone layer)
+
+- The gate: `?kbd=0` in the shell, `okbFromQuery`'s null, the Keyboard
+  group's `available`, `ownKeyboard` being optional in `PhoneLayerDeps`.
+- The phone layer: `watchKeyboard` and `SHAPE_SETTLE_MS` (the blur when
+  the device's keyboard folded), `PhoneKit.keyboardUp`, the box's place
+  over the command row, the key size and lens row branches, the
+  readout's `wc-kbd` and its class observer.
+- The cockpit and the allocator: `PHONE_KBD_GAME_ROWS` and `gameKeep`,
+  the `kbd` argument of `lensCells`, `side.keyboard` and
+  `SIDE_COMM_KBD_ROWS` / `SIDE_COMM_KBD_BESIDE_ROWS`, the "keyboard
+  down" condition of the portrait limit.
+- CSS: the four `wc-kbd` rules of `phone.css` (compass, hot keys, the
+  box's notch, the field's width).
+- Tests and tools: every `?kbd=0` e2e case, the shots states `keyboard`
+  and `comm-keyboard` (their pictures of stage 51 stay), the bench's
+  device path rows.
+
+**The device keyboard state is switched, not deleted.**
+`src/layout/phone-viewport.ts` still computes `keyboardUp()` and sets
+`html.wc-kbd`, but only while someone needs it: the shell turns it off
+when the pages' keyboard is mounted (`watchDeviceKeyboard(false)`,
+`src/app/shell.ts:794`) and on again if the phone layer cannot be
+mounted (`:941`); a cockpit in the old phone layout holds it on while
+it lives (`holdDeviceKeyboard`, `src/layout/cockpit.ts:617`). So with
+the phone layer and no old-layout cockpit on the page, a shrunken
+visible area never sets it. `--wc-vv-h`, the viewport meta and the
+fullscreen re-measure are untouched.
+
+**Kept for the old phone layout** (a phone flag forced in a wide
+window; a phone whose phone chunk failed; the run log player and
+Spotlights on a phone, which are the old tab layout and whose pane
+fields, such as Comm's search, still get the device's keyboard). To be
+removed with that layout (stage 52 file, section C):
+
+- `src/layout/phone-viewport.ts`: `KEYBOARD_SHARE` (:62),
+  `watchDeviceKeyboard` (:87), `holdDeviceKeyboard` (:99),
+  `keyboardUp` (:118), `isKeyboardUp` (:159), the class toggle (:248);
+  `phone-viewport-debug.ts:32` (`kbd` in the `?vv=1` readout).
+- `src/layout/cockpit.ts`: the hold (:617); `guard: !keyboardUp()` in
+  `relayoutPhone` (:1077); in `relayoutPhoneGame` the `kbd` that turns
+  the guard off and pins the shape (:1368, a phone without the layer);
+  `phoneGameLayoutClosed` passes it on (:1476). The allocators' `guard`
+  option.
+- `src/ui/ui.css:568` and `:590` (`#app` padding, `.wc-chrome` /
+  `.wc-overlay` bottom), `src/chrome/start.css:542` (the almanac
+  hidden).
+- `src/ui/input-pane.ts`: `passField` (:284), `swapField` (:436) and
+  their uses (:485, :548): the `type="password"` field at the password
+  prompt where the command line is not ours.
+- `src/chrome/kit/widgets.tsx:648`: `TextField`'s one-row textarea on a
+  phone. Its only user is the old-look Options frames
+  (`src/chrome/frames/options.tsx`), reached only in the old layout.
+
+**Kept, though listed as candidates**
+
+- `keyboardInset` / `useKeyboardInset` and the resize effect of
+  `useFieldEl` (`src/chrome/kit/look-controls.tsx:807`, `:829`, `:307`)
+  and their users (the export editor, the kit gallery): they follow
+  `visualViewport` on any device, so a tablet's own keyboard uses them.
+  Not phone code; removing them would change the tablet.
+- Comm's one-row textarea in the phone mode (`src/panes/comm.ts:581`,
+  `:607`). Its reason (the device keyboard's autofill bar) is gone,
+  but an `<input>` there has not been seen on a device (Chrome's own
+  suggestions on a focused input), and the owner approved the field as
+  it is. Left for a device test.
+- "A text field that is not ours closes ours"
+  (`src/phone/index.ts:606`, `src/phone/keyboard-pages.ts:653`): no
+  such field is known in the game layout; on a page a read-only code
+  buffer is one. Three lines each, kept as the guard that the two
+  keyboards never stand together if a later field forgets its mark.
+
+**Decision C: a shrunken visible area** (a split screen, a window made
+lower). Nothing special: the layout uses the smaller area as any small
+screen (the too-small guard is on), our keyboard stays while the
+allocator has rows for it and closes once when it has not.
+
+- A tap on a screen too low for the keyboard opens nothing: the layer
+  asks the cockpit for the room first (`Cockpit.phoneBottomLift`, the
+  same sum the layout closes it by), and the field does not keep the
+  focus. Before: opened, then closed by the next layout, two window
+  sizes per tap.
+- A held K key with our keyboard and Comm open in portrait: the box's
+  room is judged on the layout as it would be with the keyboard closed
+  (`Cockpit.phoneGameLayoutClosed`, the allocator run without the
+  reserve; nothing is laid out). A refused hold changes nothing, and
+  the keyboard stays. Landscape still folds first and judges after.
+
+**The 53h review's leftovers.** In an editor, while the digit row is
+forced for code and the stored `phone.keyboard.digits` is off, the
+row's key folds the row and brings it back for that editor (its buffer
+and find row) and never writes the setting; an editor opened anew has
+the row up again. The 300 ms sentence of the 53h addendum is corrected
+in place. New e2e: a double tap on Esc with unsaved changes (four
+intervals) never discards; a snippet taken with Tab and its fields; a
+long press in the code; a script edited from the game's menu.
+
+**Comm's hood in portrait** (the owner's S21; amends ADR 0137 §1, "In
+landscape Comm has a hood reading COMM … Portrait has neither"). The
+missing title was that decision, not a fault. Comm now has the same
+hood in portrait, on rows of its own as the strip's hood
+(`phoneCommHeadRows`: one row at the default text size). Where Comm's
+content would keep less than 104 px under it (a small phone, typing
+above the keyboard) the hood is left out and the rows are the
+conversation's (`PHONE_COMM_HOOD_KEEP_PX`, `Cockpit.phoneCommHead`).
+Landscape is unchanged.
+
+**Not verified on a device:** everything of this round. In emulation
+only: the split screen, the low window, the player's Comm search with
+the device's keyboard.

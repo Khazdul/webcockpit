@@ -139,3 +139,12 @@ keyboard's top row may cover the command field by about 44 px, as in
 keyboard in the game layout. Also found in that test and left for stage
 53: in landscape, after something was sent with the keyboard up, every
 hot key raises the keyboard again.
+
+## Addendum: Comm's hood in portrait too (stage 53, round 53i, 2026-11-12)
+
+§1 said "In landscape Comm has a hood reading COMM … Portrait has
+neither." The owner asked for the header text in portrait as well (his
+S21). Comm now has the same hood there, on rows of its own as the
+strip's; on a screen where its content would keep less than 104 px
+under it, the hood is left out. No divider in portrait. Details: ADR
+0139, "as built in round 53i".
