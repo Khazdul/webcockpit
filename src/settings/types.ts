@@ -460,12 +460,24 @@ export interface PhoneSettings {
   defaults: number;
   /** The phone's own keyboard (ADR 0138). */
   keyboard: PhoneKeyboardSettings;
+  /**
+   * A short vibration on the press of a key of the phone's own keyboard, of
+   * the compass and of a hot key (ADR 0138 §7; where the browser has
+   * `navigator.vibrate`). Off by default.
+   */
+  vibrate: boolean;
 }
 
-/** The phone's own on-screen keyboard (ADR 0138 "Settings keys"; the layout's key comes with its setting in round 53d). */
+/** The layouts of the phone's own keyboard: by the browser's language, Swedish, English. */
+export const PHONE_KEYBOARD_LAYOUTS = ['auto', 'sv', 'en'] as const;
+export type PhoneKeyboardLayout = (typeof PHONE_KEYBOARD_LAYOUTS)[number];
+
+/** The phone's own on-screen keyboard (ADR 0138 "Settings keys"). */
 export interface PhoneKeyboardSettings {
   /** The digit row is shown (its toggle key folds it up and down). */
   digits: boolean;
+  /** The layout: `auto` follows the browser's language (Swedish for `sv`, else English). */
+  layout: PhoneKeyboardLayout;
 }
 
 /** The newest set of one-time phone defaults (`PhoneSettings.defaults`): 1 is Herblores off, the Timers pane's time text off with the Pulse signal, and Character out of the strip. */
@@ -550,7 +562,8 @@ export function defaultPhoneSettings(): PhoneSettings {
     wakeLock: true,
     autoReconnect: false,
     defaults: 0,
-    keyboard: { digits: false },
+    keyboard: { digits: false, layout: 'auto' },
+    vibrate: false,
   };
 }
 

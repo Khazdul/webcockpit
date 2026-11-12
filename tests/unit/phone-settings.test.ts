@@ -253,22 +253,30 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
 
 describe('phone settings of stage 53: the own keyboard (ADR 0138)', () => {
   it('the digit row is folded away by default, on a computer and on a new phone', () => {
-    expect(defaultPhoneSettings().keyboard).toEqual({ digits: false });
-    expect(phoneDefaultSettings().phone.keyboard).toEqual({ digits: false });
+    expect(defaultPhoneSettings().keyboard).toEqual({ digits: false, layout: 'auto' });
+    expect(phoneDefaultSettings().phone.keyboard).toEqual({ digits: false, layout: 'auto' });
   });
 
   it('additive: settings stored before it read as the default, with no version bump', () => {
     const old = JSON.parse(JSON.stringify(defaultSettings())) as { phone: Record<string, unknown>; version: number };
     delete old.phone.keyboard;
     const s = migrateSettings(old);
-    expect(s.phone.keyboard).toEqual({ digits: false });
+    expect(s.phone.keyboard).toEqual({ digits: false, layout: 'auto' });
     expect(s.version).toBe(SETTINGS_VERSION);
+    // The layout's key came a round after the digit row's (53d): a stored file with the one and not the other.
+    const mid = JSON.parse(JSON.stringify(defaultSettings())) as { phone: { keyboard: Record<string, unknown> } };
+    mid.phone.keyboard = { digits: true };
+    expect(migrateSettings(mid).phone.keyboard).toEqual({ digits: true, layout: 'auto' });
+    mid.phone.keyboard = { digits: true, layout: 'sv' };
+    expect(migrateSettings(mid).phone.keyboard).toEqual({ digits: true, layout: 'sv' });
   });
 
   it('a stored value is kept; anything broken is the default; unknown keys are dropped', () => {
-    expect(migratePhone({ keyboard: { digits: true } }).keyboard).toEqual({ digits: true });
-    expect(migratePhone({ keyboard: { digits: true, layout: 'sv', extra: 1 } }).keyboard).toEqual({ digits: true });
-    for (const bad of [null, 1, 'yes', [], { digits: 'yes' }, { digits: 1 }]) expect(migratePhone({ keyboard: bad }).keyboard).toEqual({ digits: false });
+    expect(migratePhone({ keyboard: { digits: true } }).keyboard).toEqual({ digits: true, layout: 'auto' });
+    expect(migratePhone({ keyboard: { digits: true, layout: 'sv', extra: 1 } }).keyboard).toEqual({ digits: true, layout: 'sv' });
+    expect(migratePhone({ keyboard: { layout: 'en' } }).keyboard).toEqual({ digits: false, layout: 'en' });
+    for (const bad of [null, 1, 'yes', [], { digits: 'yes' }, { digits: 1 }, { layout: 'de' }, { layout: 1 }, { layout: null }])
+      expect(migratePhone({ keyboard: bad }).keyboard).toEqual({ digits: false, layout: 'auto' });
   });
 
   it('the toggle\'s patch changes nothing else', () => {
@@ -276,7 +284,9 @@ describe('phone settings of stage 53: the own keyboard (ADR 0138)', () => {
     const before = store.get();
     store.update({ phone: { keyboard: { digits: true } } });
     const after = store.get();
-    expect(after.phone.keyboard).toEqual({ digits: true });
+    expect(after.phone.keyboard).toEqual({ digits: true, layout: 'auto' });
+    store.update({ phone: { keyboard: { layout: 'sv' } } });
+    expect(store.get().phone.keyboard).toEqual({ digits: true, layout: 'sv' });
     expect({ ...after.phone, keyboard: null }).toEqual({ ...before.phone, keyboard: null });
     expect({ ...after, phone: null }).toEqual({ ...before, phone: null });
   });
