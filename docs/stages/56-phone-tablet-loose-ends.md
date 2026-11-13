@@ -177,7 +177,7 @@ phone's too. Pictures `docs/stages/img/56-tablet-t1…t6-*.png`.
   under the caret's line; near the bottom it still flips above.
 - **T4** The player's header chip ends left of the hood plate, with an
   ellipsis. On a 360 px phone that leaves "Rasta (…": little of the
-  chip. To look at.
+  chip. The owner (2026-11-13): nothing needs doing about it.
 - **T5** The sheet, Exit session, the settings pages and pick lists
   are a centred 720 px column; the grounds stay full width.
 - **T6** With the page keyboard up a kit dialog stands in the middle
@@ -248,8 +248,6 @@ older open device tests.
     History, Spotlights, About. Buttons are the desktop's with icons,
     thumb-size.
 12. In the game on its side: the menu and Settings as a centred column.
-13. On the phone, History → a run: the header now reads only
-    "Rasta (…" left of the plate. Enough, or drop the header there?
 
 Not possible here, only on your devices: all of it in Safari, the
 home indicator's edge, the window's real height on its side.
