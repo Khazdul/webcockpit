@@ -1016,6 +1016,32 @@ html.wc-phone .wc-lk-opt {
   }
 }
 
+/* A tablet-size window with the phone flag (ADR 0140; stage 56): 44 px. */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-lk-opt,
+  html.wc-phone .wc-lk-tab,
+  html.wc-phone .wc-lk-check,
+  html.wc-phone .wc-lk-toggle,
+  html.wc-phone .wc-lk-fold-h,
+  html.wc-phone .wc-lk-row,
+  html.wc-phone .wc-lk-rows.is-flat > .wc-lk-row,
+  html.wc-phone .wc-lk-tr {
+    min-height: 44px;
+  }
+
+  html.wc-phone .wc-lk-input {
+    height: 44px;
+  }
+
+  html.wc-phone textarea.wc-lk-input {
+    height: auto;
+  }
+
+  html.wc-phone .wc-lk-select::after {
+    bottom: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* No slide or turn: the knob and the chevron jump. */
   .wc-lk-knob,
