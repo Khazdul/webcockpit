@@ -377,15 +377,26 @@ live game must confirm; this is the short version.
 - **Desktop does not change:** the phone's chunk holds all of it. The
   session got one nullable property (`loginTap`) and the shell passes
   the session and the bus to the phone layer.
-- **Tests.** Unit: 4196 passed, 2 skipped (55 new in
+- **Tests.** Unit: 4199 passed, 2 skipped (58 new in
   `phone-login-rule.test.ts` and `phone-auto-login.test.ts`: the rule,
   each stop, never-the-password-outside-the-prompt, the vault, the
   controller on a real session and telnet parser). `tsc --noEmit`
-  clean. E2e: `tests/e2e/phone-auto-login.spec.ts` (15 cases, at 412 ×
-  915, 800 × 360, 820 × 1180 and 1180 × 820) and
-  `tests/e2e/auto-login-desktop.spec.ts` (Chromium and Firefox); the
-  runs' numbers are in the session log. MUME is mocked
-  (`tests/e2e/mume-login-mock.ts`); nothing connected to the live game.
+  clean. Phone e2e project: 464 passed, 0 failed in the last full run
+  (16 new in `tests/e2e/phone-auto-login.spec.ts`, at 412 × 915, 800 ×
+  360, 820 × 1180 and 1180 × 820). An earlier full run had 4 failures
+  in `phone-game-panes.spec.ts` (:290, :529, :679, :826), a file this
+  round does not touch; it passed 30 of 30 alone and in the last full
+  run, and their error text was not kept: taken as load-flaky, cause
+  not found. Desktop (Chromium and Firefox): `auto-login-desktop`
+  (new), `live-mock`, `input-password-long`, `chrome`, `replay`,
+  `menubar`, `smoke`: 96 passed. The full e2e suite was not run. MUME
+  is mocked (`tests/e2e/mume-login-mock.ts`); nothing connected to the
+  live game.
+- **Bundle.** A production build before and after: the same 98 files.
+  The desktop's first load is 237 bytes larger, unminified-size-on-disk
+  of the minified files (the session's chunk +72, the entry chunk with
+  the shell +165): more than "a few bytes", for the tap and the wiring.
+  The phone chunk +10.9 kB, its CSS +2.2 kB.
 - **Screenshots** (`node scripts/login-shots.ts`):
   `docs/stages/img/54-c-<size>-<state>.png`, sizes `phone`,
   `phone-land`, `tablet`, `tablet-land`; states `ask`, `ask-keyboard`,
