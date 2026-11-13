@@ -93,8 +93,16 @@ test('the pop-ups on a phone: completion rows a finger can hit, the signature in
   await page.keyboard.type('echo(string.format(');
   const sig = page.locator('.cm-tooltip.wc-lua-sig');
   await expect(sig).toBeVisible();
+  // CodeMirror adds a new tooltip parked off screen (`top: -10000px; left: 0`,
+  // which counts as visible) and places it in the measure pass it requests in
+  // the same update: one write sets `top`, the clamped `left` and then the
+  // side class. So the side class means the place is the settled one.
+  await expect(sig).toHaveClass(/cm-tooltip-(above|below)/);
   const win = (await page.locator('.wc-frame:not([hidden]) .wc-lk-win').first().boundingBox())!;
   const b = (await sig.boundingBox())!;
+  // Placed, not parked: inside the frame from top to bottom too.
+  expect(b.y).toBeGreaterThanOrEqual(win.y);
+  expect(b.y + b.height).toBeLessThanOrEqual(win.y + win.height);
   expect(b.x).toBeGreaterThanOrEqual(win.x - 0.5);
   // (Clear of its 1 px border on the right.)
   expect(b.x + b.width).toBeLessThanOrEqual(win.x + win.width - 1);
