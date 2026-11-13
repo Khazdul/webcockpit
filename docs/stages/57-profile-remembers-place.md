@@ -1,6 +1,6 @@
 # Stage 57 — The profile editor and the manuals remember the place
 
-Status: **Owner testing** (2026-11-13). Merged to main, not released.
+Status: **Done** (2026-11-13). Released in 0.9.1.
 
 ## Goal
 
@@ -143,3 +143,6 @@ Feedback wanted:
 
 ## Owner feedback
 
+2026-11-13: "Det här blir bra. Publicera." Approved and released in
+0.9.1. The four questions in the test guide were not answered one by
+one; the behaviour stands as built.
