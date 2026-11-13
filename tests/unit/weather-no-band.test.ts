@@ -64,7 +64,7 @@ describe('the layout tells the worker', () => {
     return { root, game };
   }
 
-  it('noBand on the phone\'s game layout only; absent elsewhere (desktop, tablet, the old phone layout)', () => {
+  it('noBand on the phone\'s game layout only; absent elsewhere (desktop, a tablet in the desktop layout)', () => {
     expect(measureGeometry(host(true), 1).noBand).toBe(true);
     const desk = measureGeometry(host(false), 1);
     expect(desk.noBand).toBeUndefined();

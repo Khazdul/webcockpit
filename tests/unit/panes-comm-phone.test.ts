@@ -244,7 +244,7 @@ describe('CommPane phone mode', () => {
     expect(phone.reply().getAttribute('rows')).toBe('1');
     expect(phone.reply().parentElement!.querySelectorAll('.wc-cm-rinput')).toHaveLength(1);
     phone.pane.dispose();
-    // The phone flag is on here too (beforeEach): the old phone layout, "Desktop site", the player.
+    // The phone flag is on here too (beforeEach), the mode is not: the player, a pane before the layer.
     const old = setup();
     old.tell('Gibur', 'one');
     old.show();

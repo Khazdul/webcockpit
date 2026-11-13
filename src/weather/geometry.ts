@@ -165,7 +165,7 @@ export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
     panes,
     protect: protectFor(W, out.y + out.h, cell.h, cell.size),
     cell,
-    // The phone's layout in the live game (the cockpit's `phoneGame`): no left band there (ADR 0136 §11).
+    // The phone's layout (the cockpit's `data-phone-game`): no left band there (ADR 0136 §11).
     ...(root.hasAttribute('data-phone-game') ? { noBand: true } : {}),
   };
 }
