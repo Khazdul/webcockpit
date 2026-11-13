@@ -148,12 +148,6 @@
   inset: 0;
 }
 
-/* The phone's pane tab strip holds only GAME here (every pane is off): a
- * label with nothing to switch to. Its row stays (the player's layout). */
-.wc-spv-slot .wc-phone-tabs {
-  visibility: hidden;
-}
-
 /* The end card: a veil over the game text with a small plate. */
 .wc-spv-end {
   position: absolute;

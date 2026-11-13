@@ -156,22 +156,14 @@
   background: var(--term-bg);
 }
 
-/* A finger: a 40 px target (look-glass.css). On a phone it sits under the
- * pane tab strip (row 0), so a tap on GAME or CHAR never meets it. */
+/* A finger (a touch device with the desktop cockpit; a phone or tablet in
+ * the phone's layout has no Back here, stage 55): a 40 px target
+ * (look-glass.css). */
 @media (pointer: coarse) {
   .wc-player-chrome .wc-pv-back {
     min-height: 40px;
     font-size: 10.5px;
   }
-}
-
-.wc-player:has(.wc-phone-tabs:not([hidden]) > .wc-phone-sep) .wc-pv-back {
-  top: calc(var(--cell-h) + 2px);
-}
-
-/* A strip of one tab (every pane off: only GAME) switches nothing: not shown. */
-.wc-player .wc-phone-tabs:not(:has(> .wc-phone-sep)) {
-  display: none;
 }
 
 .wc-player-chrome button:focus-visible {
@@ -529,7 +521,8 @@
   background: var(--pc-line);
 }
 
-/* A narrow player (a phone): no time, smaller buttons, next to the rail. */
+/* A narrow player (a small window; on a phone the box is the docked bar,
+ * src/phone/phone.css): no time, smaller buttons, next to the rail. */
 .wc-player-box[data-compact] {
   padding: 4px;
 }
