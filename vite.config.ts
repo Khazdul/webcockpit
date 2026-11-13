@@ -8,7 +8,9 @@ import type { OutputBundle } from 'rolldown';
 import { type Plugin, defineConfig } from 'vite';
 
 // Cross-origin isolation (spec §1.5) stays possible from day one: `vite`
-// and `vite preview` send these headers (GitHub Pages cannot, ADR 0028).
+// and `vite preview` send these headers. Production does not: GitHub Pages
+// (ADR 0028, the live host until the switch of stage 58) cannot, and the
+// Cloudflare Worker that takes over (ADR 0144) could but sends no COEP.
 // COEP does not apply to WebSocket connections, so the direct
 // wss://mume.org/ws-play/ socket (ADR 0002) is unaffected.
 const isolationHeaders = {
@@ -394,7 +396,8 @@ function firstPaintPlugin(): Plugin {
 /**
  * `release.json` at the site root (ADR 0025): `{ version, commit }` of the
  * build, what the running app's update check compares itself with.
- * `npm run build:pages` rewrites it with the full manifest (ADR 0028).
+ * `npm run build:site` rewrites it with the full manifest (ADR 0028), and
+ * the Worker's `/api/health` reads it (worker/router.ts).
  */
 function releaseManifestPlugin(): Plugin {
   return {
@@ -419,7 +422,7 @@ function releaseManifestPlugin(): Plugin {
 function licencePlugin(): Plugin {
   const files = [
     { name: LICENCE_FILE, file: resolve(ROOT, 'LICENSE'), type: 'text/plain; charset=utf-8' },
-    // The type GitHub Pages gives `.md` (as `public/fonts/README.md`).
+    // The type GitHub Pages and Cloudflare give `.md` (as `public/fonts/README.md`).
     { name: 'THIRD_PARTY_NOTICES.md', file: resolve(ROOT, 'THIRD_PARTY_NOTICES.md'), type: 'text/markdown; charset=utf-8' },
   ];
   return {
@@ -446,8 +449,9 @@ function licencePlugin(): Plugin {
 
 /**
  * The public path the app is served under: `$WEBCOCKPIT_BASE`, default `/`
- * (GitHub Pages at mumecockpit.com, ADR 0029). A subpath works too
- * (ADR 0028). Always with a leading and a trailing slash.
+ * (mumecockpit.com, ADR 0029: GitHub Pages until the switch of stage 58,
+ * then the Cloudflare Worker, ADR 0144). A subpath works too (ADR 0028).
+ * Always with a leading and a trailing slash.
  */
 export function siteBase(raw = process.env.WEBCOCKPIT_BASE): string {
   const trimmed = (raw ?? '').trim().replace(/^\/+|\/+$/g, '');
@@ -472,11 +476,34 @@ export function devHosts(raw = process.env.WEBCOCKPIT_DEV_HOSTS): string[] {
  * only on exactly 5173 (the proxy's target), so a busy port fails
  * instead of moving. HMR needs nothing more: the client connects back to
  * the page's own host and port, which the proxy also forwards.
+ *
+ * `/api` is proxied to the local Worker only when `npm run dev:cloud`
+ * started one and named it in `$WEBCOCKPIT_API_PROXY` (apiProxy); plain
+ * `npm run dev` has no proxy, and `/api` is as when the service is down.
  */
-function devServer(): { headers: Record<string, string>; host?: string; port?: number; strictPort?: boolean; allowedHosts?: string[] } {
+function devServer(): {
+  headers: Record<string, string>;
+  host?: string;
+  port?: number;
+  strictPort?: boolean;
+  allowedHosts?: string[];
+  proxy?: Record<string, string>;
+} {
   const hosts = devHosts();
-  if (!hosts.length) return { headers: isolationHeaders };
-  return { headers: isolationHeaders, host: '127.0.0.1', port: 5173, strictPort: true, allowedHosts: hosts };
+  const api = apiProxy();
+  const proxy = api ? { proxy: { '/api': api } } : {};
+  if (!hosts.length) return { headers: isolationHeaders, ...proxy };
+  return { headers: isolationHeaders, host: '127.0.0.1', port: 5173, strictPort: true, allowedHosts: hosts, ...proxy };
+}
+
+/**
+ * The origin of the local Worker (`wrangler dev`) that the dev server
+ * proxies `/api` to (spec §7.1): `$WEBCOCKPIT_API_PROXY`, set by
+ * scripts/dev-cloud.ts. Null (the default) when unset or not an http URL.
+ */
+export function apiProxy(raw = process.env.WEBCOCKPIT_API_PROXY): string | null {
+  const value = (raw ?? '').trim();
+  return /^https?:\/\/[^/]+$/.test(value) ? value : null;
 }
 
 export default defineConfig(({ command }) => {
