@@ -23,13 +23,6 @@ export type PaneId = BuiltinPaneId | ScriptPaneId;
 export const PANE_IDS: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui', 'map', 'statistics'];
 
 /**
- * Built-in panes that have no place on a phone (ADR 0109): its tab layout
- * and its Options → Panes grid leave them out; the phone keeps ESC →
- * Statistics.
- */
-export const NOT_ON_PHONE: ReadonlySet<PaneId> = new Set<PaneId>(['statistics']);
-
-/**
  * Built-in panes that show a live session only (ADR 0109): the log player
  * and the HTML replay keep them off and leave them out of the viewer's
  * pane toggles, whatever a VIEW record says.

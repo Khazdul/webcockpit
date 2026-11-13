@@ -15,7 +15,7 @@ import { STATS_FEED_MS, STATS_REFRESH_MS, StatsFeed, type StatsFeedOptions } fro
 import { barScale, extendsKills, fmtAge, fmtRunClock, killEntries, raterOf, scaleBands, scalePos, tilesOf } from '../../src/chrome/stats-pane-model';
 import type { AppStatusView } from '../../src/app/status';
 import { type AllocateInput, allocate, defaultFloatSize, statsAutoFloatRect } from '../../src/layout/allocate';
-import { LIVE_ONLY, NOT_ON_PHONE, PANE_IDS, PANE_LABELS, PANE_SHORT, STATS_FLOAT, defaultLayout, type PaneId } from '../../src/layout/types';
+import { LIVE_ONLY, PANE_IDS, PANE_LABELS, PANE_SHORT, STATS_FLOAT, defaultLayout, type PaneId } from '../../src/layout/types';
 import { createPaneContext, type StatsPaneView } from '../../src/panes/context';
 import { PANE_FACTORIES } from '../../src/panes/factories';
 import { StatsPane } from '../../src/panes/statistics';
@@ -100,12 +100,11 @@ describe('Statistics pane model (pure)', () => {
 // ------------------------------------------------------- pane and layout
 
 describe('Statistics pane id', () => {
-  it('is the last built-in, labelled Statistics (STAT), off by default, live only and not on the phone', () => {
+  it('is the last built-in, labelled Statistics (STAT), off by default and live only', () => {
     expect(PANE_IDS.at(-1)).toBe('statistics');
     expect(PANE_LABELS.statistics).toBe('Statistics');
     expect(PANE_SHORT.statistics).toBe('STAT');
     expect(defaultSettings().panes.statistics.on).toBe(false);
-    expect(NOT_ON_PHONE.has('statistics')).toBe(true);
     expect(LIVE_ONLY.has('statistics')).toBe(true);
     expect(defaultLayout().floating.find((f) => f.id === 'statistics')).toEqual({ id: 'statistics', x: 0, y: 0, w: 82, h: 26, auto: true });
     expect(defaultFloatSize('statistics')).toEqual({ ...STATS_FLOAT });
