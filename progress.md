@@ -91,14 +91,16 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   admin); `docs/stages/58-cloudflare-move.md`; research in
   `notes/research/cloud-data-inventory.md` and
   `cloudflare-platform.md`; CLAUDE.md's opening lines.
-- **Next:** stage 58. Part B of its file is the owner's (an API token
-  and two repository secrets); part A can be built before that.
+- **Next:** stage 58, part A (the build). Part B is done: the owner
+  made the API token and both repository secrets the same evening.
+  The owner approved the intent changes. Storage limit lowered to
+  50 MB per account; the gallery notice has a switch in Settings.
 - **Open:** the Cloudflare facts marked "Not verified" in the research
   note are tried in the stage that needs them; the owner tells the
   Valar before stages 60, 61 and 64 open in production; the gallery's
   name and letter, and whether "N online" stays on the start page,
   are decided in their stages.
-- **Commits:** this one.
+- **Commits:** 32a7064e…a95389cf and this one, pushed.
 
 ### 2026-11-13 — Stage 57: the editors and the manuals remember the place
 

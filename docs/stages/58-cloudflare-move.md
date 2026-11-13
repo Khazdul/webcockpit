@@ -75,15 +75,20 @@ Goals 13–15). This stage is only the move.
 
 ### B. Owner's part before the switch (about 15 minutes)
 
-- [ ] Cloudflare dashboard → My Profile → API Tokens → Create Token →
+Done 2026-11-13: token `webcockpit-deploy` (Workers Routes on the zone
+`mumecockpit.com`; Workers Scripts, R2 and D1 edit on the account; no
+expiry), and both repository secrets are in place (`gh secret list`).
+The token itself has not been used yet.
+
+- [x] Cloudflare dashboard → My Profile → API Tokens → Create Token →
       template "Edit Cloudflare Workers", limited to the account and
       the zone `mumecockpit.com`; add permission **D1: Edit** (used
       from stage 59).
-- [ ] GitHub → the repository → Settings → Secrets and variables →
+- [x] GitHub → the repository → Settings → Secrets and variables →
       Actions: `CLOUDFLARE_API_TOKEN` (the token) and
       `CLOUDFLARE_ACCOUNT_ID` (dashboard, Workers & Pages, right
       column).
-- [ ] Say when it is done. The session then runs the workflow by hand
+- [ ] After part A: the session runs the workflow by hand
       against `staging` and reports the `workers.dev` address.
 
 ### C. The switch (session and owner together, a quiet hour)
