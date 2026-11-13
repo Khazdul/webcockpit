@@ -2229,6 +2229,15 @@ html.wc-phone.wc-okb-pg .wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look {
   }
 }
 
+/* The same tablet on its side: the completion list is four rows (it
+ * scrolls), so it fits under the caret's line in the few lines above the
+ * keys instead of turning up over the code already written. */
+@media (min-width: 600px) and (min-height: 600px) and (orientation: landscape) {
+  html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-autocomplete > ul {
+    max-height: 164px;
+  }
+}
+
 /* The safe area (an iPhone's home indicator; a notch at the side in
  * landscape): the cockpit, and so the keys, end inside it (ui.css pads
  * `#app`). The keyboard's ground goes on to the screen's edges, under the

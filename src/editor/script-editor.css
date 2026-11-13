@@ -146,6 +146,44 @@
   display: none;
 }
 
+/* A tablet (script-frame.tsx `useTabletSize`; stage 56c): a row of named
+ * buttons in the box's head, level with Back, instead of icon keys over the
+ * code's corner. Nothing lies under them, so no pill and no dimming. */
+.wc-sed-tools.is-row {
+  top: auto;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 6px;
+  gap: 8px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.wc-sed.is-typing .wc-sed-tools.is-row {
+  opacity: 1;
+}
+
+/* (The head has 45 px inside the window's edge: 8 more make room for a 44 px row with air under it.) */
+.wc-sed-well:has(> .wc-sed-tools.is-row) {
+  margin-top: 8px;
+}
+
+.wc-sed-tools.is-row .wc-lk-btn.is-small {
+  padding: 0 14px 0 12px;
+  font-size: 11.5px;
+}
+
+/* A box under 1000 px (the tablet held upright): beside the hood plate a
+ * long script name would lie over the row, so the row takes a strip of its
+ * own under the head. On its side the longest name (32 letters) clears it. */
+@container wc-page (max-width: 1000px) {
+  .wc-sed-well:has(> .wc-sed-tools.is-row) {
+    margin-top: 54px;
+  }
+}
+
 /* The read-only plate at the top left, past the gutter. */
 .wc-sed-ro {
   position: absolute;
