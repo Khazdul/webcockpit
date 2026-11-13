@@ -133,7 +133,7 @@ describe('the question', () => {
     expect(card.el.querySelector('.wc-ph-ask-n')!.textContent).toContain('account password');
   });
 
-  it('Yes arms; No does not, and does not ask again; unanswered it goes away', () => {
+  it('Yes arms; No does not, and the next login by hand asks again; unanswered it goes away', () => {
     const yes = make();
     yes.byHand();
     yes.tap('yes');
@@ -149,7 +149,8 @@ describe('the question', () => {
     expect(no.auto.vaultEmpty).toBe(true);
     no.sock().drop(LOST);
     no.byHand();
-    expect(no.asked()).toBe(false);
+    expect(no.asked()).toBe(true);
+    expect(no.auto.armed).toBe(false);
 
     const late = make();
     late.byHand();

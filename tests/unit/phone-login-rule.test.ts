@@ -112,7 +112,7 @@ describe('the capture and the question', () => {
     expect(count(p.does, 'keepPending')).toBe(1);
   });
 
-  it('Yes arms; No drops the password at once and is not asked again this page load', () => {
+  it('Yes arms; No drops the password at once; no answer is remembered: the next login by hand asks again', () => {
     const yes = run([...byHand(), { type: 'answer', yes: true }]);
     expect(yes.actions).toContainEqual({ do: 'arm', name: 'Rasta' });
     expect(yes.does).toContain('closeAsk');
@@ -123,11 +123,13 @@ describe('the capture and the question', () => {
     expect(no.does).not.toContain('arm');
     expect(no.state.armed).toBeNull();
     const again = run([down(), ...byHand()], no.state);
-    expect(again.does).not.toContain('ask');
+    expect(again.state.asking).toBe('Rasta');
     expect(again.does).not.toContain('arm');
-    expect(again.does.at(-1)).toBe('dropPending');
-    // Another character is asked about.
-    expect(run([down(), ...byHand('Gibur')], no.state).state.asking).toBe('Gibur');
+    // After a Yes that was wiped (Exit session), the same character is asked about again, not armed.
+    const back = run([{ type: 'exit' }, ...byHand()], yes.state);
+    expect(back.state.asking).toBe('Rasta');
+    expect(back.state.armed).toBeNull();
+    expect(back.does).not.toContain('arm');
   });
 
   it('unanswered: the password is dropped and the next login by hand asks again', () => {
@@ -147,12 +149,12 @@ describe('the capture and the question', () => {
     expect(run([...byHand(), { type: 'askTimeout' }, { type: 'answer', yes: true }]).state.armed).toBeNull();
   });
 
-  it('answered Yes before, wiped by Disconnect: the next login by hand arms again without a question', () => {
+  it('answered Yes before, wiped by Disconnect: the next login by hand asks again and arms nothing by itself', () => {
     const r = run([down('ended'), ...byHand()], armed());
     expect(r.does).toContain('wipe');
-    expect(r.does).not.toContain('ask');
-    expect(r.actions).toContainEqual({ do: 'arm', name: 'Rasta' });
-    expect(r.state.armed).toBe('Rasta');
+    expect(r.does).not.toContain('arm');
+    expect(r.state.asking).toBe('Rasta');
+    expect(r.state.armed).toBeNull();
   });
 });
 
@@ -327,19 +329,16 @@ describe('the wipes', () => {
     expect(run([char('rasta')], armed()).state.armed).toBe('Rasta');
   });
 
-  it('Exit session wipes with the link up or down, and keeps the answers', () => {
+  it('Exit session wipes with the link up or down', () => {
     for (const before of [[], [down()]] as LoginEvent[][]) {
       const r = run([...before, { type: 'exit' }], armed());
       expect(r.does).toContain('wipe');
       expect(r.state.armed).toBeNull();
-      expect(r.state.yes).toEqual(['rasta']);
       expect(run([connecting, login, { type: 'namePrompt' }], r.state).does).not.toContain('sendName');
     }
-    const no = run([...byHand(), { type: 'answer', yes: false }, { type: 'exit' }]);
-    expect(no.state.no).toEqual(['rasta']);
   });
 
-  it('a page restored from the back/forward cache forgets everything, the answers too', () => {
+  it('a page restored from the back/forward cache forgets everything', () => {
     const r = run([{ type: 'restored' }], armed());
     expect(r.does).toContain('wipe');
     expect(r.state).toEqual(LOGIN_RULE_IDLE);

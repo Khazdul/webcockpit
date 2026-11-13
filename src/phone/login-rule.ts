@@ -28,12 +28,11 @@
 //    a name) and a failed login (play is never reached) therefore never
 //    lead to a question.
 //
-// 2. THE QUESTION. Asked once per character per page load. Yes arms the
-//    session, No drops the captured password at once and is remembered. A
-//    question left unanswered (`ASK_MS`, or the connection ends) drops the
-//    password too and is not an answer: the next login by hand asks again.
-//    A character answered Yes before is armed again without a question at
-//    its next login by hand (after a wipe).
+// 2. THE QUESTION. Asked after every login by hand that counts (the
+//    owner, 2026-11-13): no answer is remembered, a Yes or a No holds for
+//    this login only. Yes arms the session, No drops the captured password
+//    at once. A question left unanswered (`ASK_MS`, or the connection
+//    ends) drops the password too.
 //
 // 3. THE ATTEMPT. With the session armed, every new real connection is
 //    logged in once: the name at MUME's name prompt, the password when the
@@ -101,9 +100,6 @@ export interface LoginRuleState {
   armed: string | null;
   /** The attempt on this connection: what it waits for. Null: none. */
   auto: null | 'name' | 'password' | 'play';
-  /** Characters answered Yes and No this page load, in lower case. */
-  yes: readonly string[];
-  no: readonly string[];
 }
 
 export const LOGIN_RULE_IDLE: LoginRuleState = {
@@ -114,8 +110,6 @@ export const LOGIN_RULE_IDLE: LoginRuleState = {
   asking: null,
   armed: null,
   auto: null,
-  yes: [],
-  no: [],
 };
 
 export type LoginEvent =
@@ -238,14 +232,6 @@ export function loginStep(s: LoginRuleState, ev: LoginEvent): LoginStep {
       const base: LoginStep = s.armed !== null ? wiped(stay(state), 'Automatic login is off: the saved login is forgotten.') : stay(state);
       const name = s.charName;
       if (name === null || !same(s.capName, name)) return { state: base.state, actions: [...base.actions, { do: 'dropPending' }] };
-      const key = name.toLowerCase();
-      if (s.no.includes(key)) return { state: base.state, actions: [...base.actions, { do: 'dropPending' }] };
-      if (s.yes.includes(key)) {
-        return {
-          state: { ...base.state, armed: name },
-          actions: [...base.actions, { do: 'arm', name }, { do: 'notice', text: `Automatic login is on for ${name}, as chosen before.` }],
-        };
-      }
       return {
         state: { ...base.state, asking: name },
         actions: [...base.actions, { do: 'ask', name }, { do: 'timer', which: 'ask', ms: ASK_MS }],
@@ -310,11 +296,10 @@ export function loginStep(s: LoginRuleState, ev: LoginEvent): LoginStep {
     case 'answer': {
       if (s.asking === null) return stay(s);
       const name = s.asking;
-      const key = name.toLowerCase();
       const closed: LoginAction[] = [{ do: 'closeAsk' }, { do: 'timer', which: 'ask', ms: null }];
-      if (!ev.yes) return { state: { ...s, asking: null, no: [...s.no, key] }, actions: [...closed, { do: 'dropPending' }] };
+      if (!ev.yes) return { state: { ...s, asking: null }, actions: [...closed, { do: 'dropPending' }] };
       return {
-        state: { ...s, asking: null, armed: name, yes: [...s.yes, key] },
+        state: { ...s, asking: null, armed: name },
         actions: [...closed, { do: 'arm', name }, { do: 'notice', text: `Automatic login is on for ${name} until this page is closed or reloaded. Exit session or #disconnect turns it off.` }],
       };
     }
@@ -331,10 +316,7 @@ export function loginStep(s: LoginRuleState, ev: LoginEvent): LoginStep {
       // Only between connections: a session that is up is not timed.
       if (s.conn !== 'down' || s.armed === null) return stay(s);
       return wiped(stay(s), 'Automatic login is off: not connected for three hours. The saved login is forgotten.');
-    case 'restored': {
-      const c = cleared(s);
-      const w = wiped(c, null);
-      return { state: { ...w.state, yes: [], no: [] }, actions: w.actions };
-    }
+    case 'restored':
+      return wiped(cleared(s), null);
   }
 }

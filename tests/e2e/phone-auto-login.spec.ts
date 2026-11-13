@@ -6,7 +6,7 @@
 // - Yes: a dead link found on resume reconnects and logs in with nothing
 //   typed, whatever "Reconnect automatically" says; the menu's Reconnect
 //   uses it too.
-// - No: nothing is kept and the question does not come back.
+// - No: nothing is kept; the question comes again at the next login by hand.
 // - A password MUME no longer takes, and the player's own Disconnect, wipe
 //   the stored login.
 // - The password is in no storage, not in the page, not in the history and
@@ -220,7 +220,7 @@ test('Yes: a drop in view opens the sheet, and its Reconnect logs in', async ({ 
   expect(await armed(page)).toBe(true);
 });
 
-test('No: nothing is kept, nothing reconnects by itself, and the question does not come back', async ({ page }) => {
+test('No: nothing is kept, nothing reconnects by itself, and the next login by hand asks again', async ({ page }) => {
   const m = await enter(page, '/?phone=1');
   await loginByHand(page);
   await ask(page).locator('[data-act="no"]').tap();
@@ -234,7 +234,7 @@ test('No: nothing is kept, nothing reconnects by itself, and the question does n
   await visibility(page, 'visible');
   await page.waitForTimeout(500);
   expect(m.opened()).toBe(1);
-  // Reconnect: MUME's own prompt, nothing sent; a login by hand as the same character asks nothing.
+  // Reconnect: MUME's own prompt, nothing sent; a login by hand as the same character asks again.
   await page.evaluate(() => window.__wc!.app.onCommand('#reconnect'));
   await expect(status(page)).toHaveAttribute('data-status', /^login/);
   await page.waitForTimeout(300);
@@ -242,9 +242,8 @@ test('No: nothing is kept, nothing reconnects by itself, and the question does n
   await page.evaluate(() => (window.__wc!.shell as unknown as { phoneLayer: Layer }).phoneLayer.menu.close(true));
   await loginByHand(page);
   await expect(status(page)).toHaveAttribute('data-status', /^playing/);
-  await page.waitForTimeout(300);
-  await expect.poll(() => armed(page)).toBe(false);
-  await expect(ask(page)).toBeHidden();
+  await expect(ask(page)).toBeVisible();
+  expect(await armed(page)).toBe(false);
 });
 
 test('a wrong password by hand asks nothing; the right one after it does', async ({ page }) => {

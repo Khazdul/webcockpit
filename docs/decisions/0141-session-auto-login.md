@@ -398,3 +398,12 @@ new connection.
 This replaces the claim in §6 that a character that quit is never
 logged back in: on the live game it is, for up to three hours, by the
 player's own Reconnect or by coming back to the page.
+
+### Same day: the question every time
+
+The owner: the question is asked after every login by hand, also for a
+character answered Yes (or No) before. No answer is remembered any
+more; the rule's `yes` and `no` lists are gone, and with them the
+notice "…, as chosen before". `exit` and `restored` now do the same
+(both wipe). This replaces what §2 says about answers kept for the
+page load.
