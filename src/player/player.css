@@ -215,6 +215,12 @@
   overflow: hidden;
 }
 
+/* A phone or tablet: the chip ends left of the lens's key or a hood plate
+ * over the row (src/app/player-host.ts `dockRect`); what is cut ends in "…". */
+html.wc-phone .wc-player-head-left {
+  text-overflow: ellipsis;
+}
+
 .wc-player-hints {
   flex: 0 0 auto;
   margin-left: calc(var(--cell-w) * 2);

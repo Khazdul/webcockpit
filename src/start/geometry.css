@@ -16,6 +16,9 @@
   --wc-brand-top: clamp(18px, 5.2vh, 70px);
   --wc-brand-pad: clamp(0px, (100vh - 680px) * 0.4, 0.148 * clamp(250px, 32vw, 520px));
   --wc-brand-gap: clamp(14px, 2.6vh, 30px);
+  /* How far the menu's group (wordmark, panel, quote) stands below that
+   * top: nothing, but a tablet centres the group in its window (below). */
+  --wc-start-drop: 0px;
 }
 
 /* The sky fills the surface. */
@@ -71,4 +74,33 @@ html.wc-phone .wcf-sky {
 html.wc-phone .wc-start,
 html.wc-phone #wc-first {
   --wc-panel-h: 357px;
+}
+
+/* A tablet-size window with the phone flag (ADR 0140; stage 56c, the scope
+ * of kit/look-glass.css): the panel has the desktop's rows (42 px), and the
+ * group stands in the middle of the window instead of under its top edge.
+ * What is centred is what is seen: the mark (0.283 of its width high, under
+ * its box's headroom), the gap, the panel and about 130 px of quote. The
+ * same value places the first paint, so the hand-over still moves nothing.
+ * (A tablet on its side has no room to spare: the drop is nothing there.) */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-start,
+  html.wc-phone #wc-first {
+    --wc-panel-h: 399px;
+    --wc-start-drop: max(
+      0px,
+      (100vh - 0.283 * clamp(250px, 32vw, 520px) - var(--wc-brand-gap) - var(--wc-panel-h) - 130px) / 2 - var(--wc-brand-top) - var(--wc-brand-pad)
+    );
+  }
+
+  /* The drop of the menu's wordmark: the first paint's, and the surface's
+   * while the menu is the page (`is-main`). Over a sub-page it stands at
+   * its top again, where the page boxes are laid out from. `translate`, so
+   * the surface's own transforms of the wordmark (start.css) are untouched;
+   * the panel's drop is in its `top` (the first paint) and the stage's
+   * padding (start.css). */
+  html.wc-phone #wc-first .wc-start-brand,
+  html.wc-phone .wc-start.is-main .wc-start-brand {
+    translate: 0 var(--wc-start-drop);
+  }
 }

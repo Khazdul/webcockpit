@@ -676,8 +676,31 @@ export class PlayerHost {
     // The header's row ends left of the lens's corner key (or its key row) where that stands in the row.
     const at = this.phoneTopRight;
     const cock = app.cockpit.el;
-    const headRight = at && at.top < this.cells.get().h ? Math.max(0, cock.offsetLeft + at.left - PHONE_HEAD_GAP) : null;
+    const lens = at && at.top < this.cells.get().h ? Math.max(0, cock.offsetLeft + at.left - PHONE_HEAD_GAP) : null;
+    // And left of the hood plate of a box the player stands in (History's Run log), which hangs over the row's middle.
+    const plate = this.hoodLeft();
+    const headRight = lens !== null && plate !== null ? Math.min(lens, plate) : (lens ?? plate);
     return { left, top, width, height, ...(headRight !== null ? { headRight } : {}) };
+  }
+
+  /** The hood plate of the box the player stands in, if any. */
+  private hood(): HTMLElement | null {
+    return this.el.closest('.wc-lk-box')?.querySelector<HTMLElement>(':scope > .wc-lk-hood') ?? null;
+  }
+
+  /**
+   * Where the header's row must end to stay clear of that hood plate, in
+   * the player's px; null with no plate, or one that does not reach into
+   * the row (or begins at the player's left edge: no room left of it).
+   */
+  private hoodLeft(): number | null {
+    const hood = this.hood();
+    if (!hood) return null;
+    const h = hood.getBoundingClientRect();
+    const p = this.el.getBoundingClientRect();
+    if (!(h.width > 0) || h.bottom <= p.top || h.top >= p.top + this.cells.get().h) return null;
+    const left = Math.floor(h.left - p.left - PHONE_HEAD_GAP);
+    return left > 0 ? left : null;
   }
 
   /**
@@ -686,7 +709,7 @@ export class PlayerHost {
    * stands in (History's Run log), which hangs over the player's top edge.
    */
   private clearOf(app: App): PhoneReplayClear {
-    const hood = this.el.closest('.wc-lk-box')?.querySelector<HTMLElement>(':scope > .wc-lk-hood') ?? null;
+    const hood = this.hood();
     if (!hood) return { right: PHONE_CLEAR_RIGHT, plate: null };
     const h = hood.getBoundingClientRect();
     const c = app.cockpit.el.getBoundingClientRect();

@@ -35,7 +35,7 @@ describe('firstAppearance', () => {
 
 describe('panelTop', () => {
   it("is the start menu stage's top padding: under the measured wordmark and the gap, or 18 px without it", () => {
-    expect(panelTop(147)).toBe('calc(var(--wc-brand-top) + 147px + var(--wc-brand-gap))');
+    expect(panelTop(147)).toBe('calc(var(--wc-brand-top) + 147px + var(--wc-brand-gap) + var(--wc-start-drop))');
     expect(panelTop(null)).toBe('18px');
   });
 });

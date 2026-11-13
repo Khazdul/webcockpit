@@ -49,8 +49,10 @@ export function firstAppearance(raw: string | null, phone: boolean): FirstAppear
  * The CSS `top` of the start menu's panel (src/chrome/start.css
  * `.wc-sm-stage`): under the wordmark (`brandH`, its box's height in CSS
  * px, as the surface measures it for `--wc-brand-h`) and the gap, or 18 px
- * from the top when the wordmark is hidden (a short window).
+ * from the top when the wordmark is hidden (a short window). Under the
+ * wordmark it stands `--wc-start-drop` lower (src/start/geometry.css: a
+ * tablet centres the group; a window that short is no tablet's).
  */
 export function panelTop(brandH: number | null): string {
-  return brandH === null ? '18px' : `calc(var(--wc-brand-top) + ${brandH}px + var(--wc-brand-gap))`;
+  return brandH === null ? '18px' : `calc(var(--wc-brand-top) + ${brandH}px + var(--wc-brand-gap) + var(--wc-start-drop))`;
 }

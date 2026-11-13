@@ -1020,4 +1020,34 @@
   html.wc-phone .wc-lk-rows.is-flat > .wc-pe-new {
     min-height: 44px;
   }
+
+  /* Stage 56c: Help keeps its contents in a rail beside the text where the
+   * editor is 641–940 px wide (a tablet held upright) instead of the
+   * dropdown a narrow window gets: there is room for both. Undoes the
+   * "rail as a row" rules above, for Help only. */
+  @container pe (min-width: 640.02px) and (max-width: 940px) {
+    html.wc-phone .wc-pe[data-view="help"] .wc-pe-cols {
+      grid-template-columns: 228px minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    html.wc-phone .wc-pe[data-view="help"] .wc-pe-rail {
+      grid-column: auto;
+      flex-direction: column;
+      gap: 0;
+      margin: 0 22px 0 0;
+      padding: 2px 18px 0 0;
+      border: 0;
+      border-right: 1px solid var(--lk-rule);
+      overflow: hidden;
+    }
+
+    html.wc-phone .wc-pe[data-view="help"] .wc-pe-hcont {
+      display: flex;
+    }
+
+    html.wc-phone .wc-pe[data-view="help"] .wc-pe-hsel {
+      display: none;
+    }
+  }
 }

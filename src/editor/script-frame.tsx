@@ -124,6 +124,29 @@ function useCell<T>(c: Cell<T>): T {
   return c.get();
 }
 
+/** The CSS test of a tablet-size window (ADR 0140; kit/look-glass.css): neither side under 600 px. */
+const TABLET_QUERY = '(min-width: 600px) and (min-height: 600px)';
+
+/**
+ * A tablet-size window with the phone flag (`html.wc-phone`, set before the
+ * app starts): the scope of the kit's tablet rules. Follows a rotation or a
+ * resize. Always false on a desktop and on a phone.
+ */
+function useTabletSize(): boolean {
+  const mq = (): MediaQueryList | null =>
+    typeof matchMedia === 'function' && typeof document !== 'undefined' && document.documentElement.classList.contains('wc-phone') ? matchMedia(TABLET_QUERY) : null;
+  const [on, setOn] = useState(() => mq()?.matches ?? false);
+  useEffect(() => {
+    const q = mq();
+    if (!q) return;
+    const put = (): void => setOn(q.matches);
+    put();
+    q.addEventListener('change', put);
+    return () => q.removeEventListener('change', put);
+  }, []);
+  return on;
+}
+
 // ------------------------------------------------------------ the frame
 
 export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditorHost; flash?: string }): VNode {
@@ -389,8 +412,10 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
   // -------------------------------------------------------------- render
 
   const inWindow = place === 'window' && nav.depth() > 1;
+  // A tablet: the tools are a row of named buttons beside Back, not icon keys over the code.
+  const row = useTabletSize();
   const tools = (
-    <div class="wc-sed-tools" role="toolbar" aria-label="Editor">
+    <div class={'wc-sed-tools' + (row ? ' is-row' : '')} role="toolbar" aria-label="Editor">
       {readOnly ? (
         <GlassButton
           id="DUPLICATE"
@@ -404,10 +429,17 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
           onClick={() => void duplicate()}
         />
       ) : (
-        <GlassButton id="SAVE" icon="save" primary small disabled={!dirty} title="Save (Ctrl+S)" onClick={() => void save()} />
+        <GlassButton id="SAVE" label={row ? 'Save' : undefined} icon="save" primary small disabled={!dirty} title="Save (Ctrl+S)" onClick={() => void save()} />
       )}
-      <GlassButton id="FIND" icon="find" small title="Find and replace (Ctrl+F, Ctrl+H)" onClick={find} />
-      <GlassButton id="MANUAL" icon="book" small title="The manual at the name under the cursor (F1)" onClick={() => manual(true)} />
+      <GlassButton id="FIND" label={row ? 'Find' : undefined} icon="find" small title="Find and replace (Ctrl+F, Ctrl+H)" onClick={find} />
+      <GlassButton
+        id="MANUAL"
+        label={row ? 'Manual' : undefined}
+        icon="book"
+        small
+        title="The manual at the name under the cursor (F1)"
+        onClick={() => manual(true)}
+      />
     </div>
   );
 

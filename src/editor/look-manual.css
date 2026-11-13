@@ -579,4 +579,11 @@
   html.wc-phone .wc-lk-mfind-f input {
     height: 44px;
   }
+
+  /* Stage 56c: the text column stands in the middle of its room instead of
+   * at its left edge with the rest empty at the right. The paragraphs keep
+   * their measure (76ch); a wide code block may still use the room. */
+  html.wc-phone .wc-lk-msec {
+    margin-left: max(0px, calc((100% - 76ch) / 2));
+  }
 }

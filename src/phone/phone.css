@@ -2215,6 +2215,29 @@ html.wc-phone.wc-okb-pg .wc-overlay > .wc-overlay-box .wc-frame.wc-menu-look {
   padding-bottom: 0;
 }
 
+/* A tablet-size window (ADR 0140; stage 56c, the scope of
+ * kit/look-glass.css) with the keyboard up. */
+@media (min-width: 600px) and (min-height: 600px) {
+  /* The kit's dialog stands in the middle of the room above the keys, not
+   * over its page's box (which sits near the top of a tall screen and left
+   * the dialog far from the hands). Not an inline one: that is inside its box. */
+  html.wc-phone.wc-okb-pg .wc-lk-veil:not(.is-inline) > .wc-lk-dslot {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* The same tablet on its side: the completion list is four rows (it
+ * scrolls), so it fits under the caret's line in the few lines above the
+ * keys instead of turning up over the code already written. */
+@media (min-width: 600px) and (min-height: 600px) and (orientation: landscape) {
+  html.wc-phone.wc-okb-pg .cm-tooltip.cm-tooltip-autocomplete > ul {
+    max-height: 164px;
+  }
+}
+
 /* The safe area (an iPhone's home indicator; a notch at the side in
  * landscape): the cockpit, and so the keys, end inside it (ui.css pads
  * `#app`). The keyboard's ground goes on to the screen's edges, under the
@@ -3017,6 +3040,19 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-col {
   padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* A tablet-size window (ADR 0140; stage 56c, the scope of
+ * kit/look-glass.css): the menu sheet's and the settings pages' content is a
+ * column of 720 px in the middle, so a row's name and its control are not a
+ * whole screen apart. The grounds keep the full width (the sheet is still
+ * the screen's bottom edge, and a page scrolls from anywhere on it). */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-body,
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-col {
+    padding-left: max(16px, calc((100% - 720px) / 2));
+    padding-right: max(16px, calc((100% - 720px) / 2));
+  }
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-grp {

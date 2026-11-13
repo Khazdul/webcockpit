@@ -9,11 +9,13 @@
 //   are drawn as a desktop draws them (12 px type, their icons) and every
 //   target of the kit is 44 px; a phone-size window keeps the phone's
 //   compact buttons (10 px type, no icons, 40 px targets).
+// - Round 56c (at the end of the file): six layout fixes, one group each.
 //
 // `phone` project (Pixel 7: a touch browser; the viewport set here is its
 // screen too, so it is a tablet with no flag). Nothing reaches MUME.
 import { type Locator, type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
+import { checkHandOver } from './first-paint';
 
 const PORTRAIT = { width: 820, height: 1180 };
 const LANDSCAPE = { width: 1180, height: 820 };
@@ -472,4 +474,301 @@ test.describe('a tablet\'s buttons', () => {
     await expect(b.locator('.wc-lk-ic')).toBeVisible();
     expect((await hist.locator('.wc-lk-back').boundingBox())!.height).toBe(TARGET);
   });
+});
+
+// ------------------------------------------------------------ round 56c
+//
+// Six layout fixes of a tablet-size window (stage 56c): the start menu in
+// the middle of a tall window with the desktop's rows (T1), Help's rail and
+// the manual's text column in the middle of its room (T2), the script
+// editor's named tools row and its completion list under the caret's line
+// (T3), the run log's header left of the hood plate (T4, a phone too), the
+// game's menu sheet and settings in a 720 px column (T5), and a dialog in
+// the middle of the room above our keyboard (T6).
+
+const box = async (l: Locator) => (await l.boundingBox())!;
+const COLUMN = 720;
+
+/**
+ * The text column of a manual reader stands in the middle of its room: as
+ * much room left of its widest paragraph in view as right of it (within the
+ * reader's own padding and scrollbar), and the paragraph keeps its measure.
+ */
+async function centred(text: Locator): Promise<void> {
+  await expect(text.locator('p').first()).toBeVisible();
+  const m = await text.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const p = [...el.querySelectorAll('p')].map((e) => e.getBoundingClientRect()).filter((b) => b.width > 0 && b.bottom > r.top && b.top < r.bottom);
+    const widest = p.reduce((a, b) => (b.width > a.width ? b : a), p[0]!);
+    return { left: widest.left - r.left, right: r.right - widest.right, width: widest.width };
+  });
+  expect(m.width).toBeLessThanOrEqual(COLUMN);
+  expect(Math.abs(m.left - m.right), `left ${m.left}, right ${m.right}`).toBeLessThanOrEqual(40);
+}
+
+/** History's run log in its box: the header's chip ends left of the box's hood plate, cut with an ellipsis. */
+async function headerClearOfHood(page: Page): Promise<void> {
+  const f = start(page);
+  await menu(page, 'history');
+  const hist = f.locator('.wc-hist');
+  await hist.locator('.wc-lk-tr').nth(1).tap();
+  await btn(hist.locator('.wc-hist-card'), 'RUN LOG').tap();
+  const player = page.locator('.wc-player');
+  await expect(player.locator('.wc-ph-layer')).toBeVisible();
+  const chip = player.locator('.wc-player-head-left');
+  await expect(chip).toBeVisible();
+  const hood = page.locator('.wc-lk-box:has(.wc-player) > .wc-lk-hood');
+  await expect(hood).toBeVisible();
+  await expect
+    .poll(async () => {
+      const c = await box(chip);
+      const h = await box(hood);
+      return c.x + c.width <= h.x && c.width > 40;
+    })
+    .toBe(true);
+  expect(await chip.evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis');
+  await expect(chip.locator('.wc-player-name')).toBeVisible();
+}
+
+for (const [name, viewport] of [
+  ['portrait 820 × 1180', PORTRAIT],
+  ['landscape 1180 × 820', LANDSCAPE],
+] as const) {
+  const upright = viewport.height > viewport.width;
+  test.describe(`round 56c on a tablet, ${name}`, () => {
+    test.use({ viewport });
+
+    test('T1: the start menu stands in the middle, with the desktop\'s rows, where the first paint drew it', async ({ page }) => {
+      await pinDemoClock(page);
+      // The first paint's wordmark and panel are where the start page's are (within 1 px).
+      await checkHandOver(page, '?kbd=en');
+      await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
+      const f = start(page);
+      await expect(f.locator('.wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+      // The desktop's rows and panel.
+      expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(42);
+      expect((await box(f.locator('.wc-sm-item[data-key="enter"]'))).height).toBe(56);
+      expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(399, 0);
+      // What is seen (the mark, the panel, the quote) is inside the window, and upright it is
+      // in the middle: the sky above and below differ by 80 px at most (a quote is two or three lines).
+      const mark = page.locator('.wc-start .wc-start-brand [data-wcw="iron"]');
+      const m = await box(mark);
+      const quote = await box(f.locator('.wc-sm-quote'));
+      const above = m.y;
+      const below = viewport.height - (quote.y + quote.height);
+      expect(above).toBeGreaterThan(0);
+      expect(below).toBeGreaterThan(0);
+      if (upright) expect(Math.abs(above - below), `above ${above}, below ${below}`).toBeLessThanOrEqual(80);
+      // A page opens from the menu, and the menu and the wordmark come back to the same place.
+      const panel = await box(f.locator('.wc-sm-panel'));
+      await menu(page, 'about');
+      await expect(f.locator('.wc-about-rail .wc-about-row').first()).toBeVisible();
+      await f.locator('.wc-lk-back').tap();
+      await expect(f.locator('.wc-sm-item.is-sel .wc-sm-label')).toHaveText('About');
+      await expect.poll(async () => Math.abs((await box(f.locator('.wc-sm-panel'))).y - panel.y)).toBeLessThanOrEqual(0.5);
+      await expect.poll(async () => Math.abs((await box(mark)).y - m.y)).toBeLessThanOrEqual(0.5);
+    });
+
+    test('T2: Help has its contents rail beside the text, and the text column stands in the middle of its room', async ({ page }) => {
+      const errors = watchErrors(page);
+      await openStart(page);
+      await seed(page);
+      const f = start(page);
+      await menu(page, 'profile');
+      const row = f.locator('.wc-pl-row[data-name="gimli"]');
+      await row.tap();
+      await btn(row, 'EDIT').tap();
+      const pe = page.locator('.wc-frame:not([hidden]) .wc-pe').first();
+      await pe.locator('.wc-pe-views [data-opt="help"]').tap();
+      await expect(pe).toHaveAttribute('data-view', 'help');
+      const text = pe.locator('.wc-lk-mtext');
+      // The rail with the headings, not the dropdown.
+      const items = pe.locator('.wc-pe-hcont .wc-lk-mtoc li');
+      await expect(items.first()).toBeVisible();
+      await expect(pe.locator('.wc-pe-hsel')).toBeHidden();
+      const it = await box(items.first());
+      expect(it.height).toBeGreaterThanOrEqual(TARGET);
+      expect((await box(text)).x).toBeGreaterThan(it.x + 100);
+      await centred(text);
+      // A heading of the rail takes the text there.
+      await items.nth(3).tap();
+      await expect(items.nth(3)).toHaveClass(/\bis-on\b/);
+      await centred(text);
+      expect(errors).toEqual([]);
+    });
+
+    test('T2: the script manual\'s text column stands in the middle of its room', async ({ page }) => {
+      await openStart(page);
+      const f = start(page);
+      await menu(page, 'scripts');
+      await btn(f, 'MANUAL').tap();
+      const man = page.locator('.wc-frame:not([hidden]) .wc-sman').first();
+      await expect(man.locator('.wc-lk-mtoc li').first()).toBeVisible();
+      await centred(man.locator('.wc-lk-mtext'));
+    });
+
+    test('T3: the script editor has a row of named tools above the code; the completion list does not cover the line typed', async ({ page }) => {
+      const errors = watchErrors(page);
+      await openStart(page);
+      await seed(page);
+      const f = start(page);
+      await menu(page, 'scripts');
+      await f.locator('.wc-scr-row[data-name="varning"] .wc-scr-name').tap();
+      await btn(f.locator('.wc-scr-panel'), 'EDIT').tap();
+      const ed = page.locator('.wc-frame:not([hidden]) > .wc-sed');
+      await expect(ed.locator('.cm-content')).toBeVisible();
+      const tools = ed.locator('.wc-sed-tools');
+      await expect(tools).toHaveClass(/\bis-row\b/);
+      for (const [id, label] of [
+        ['SAVE', 'Save'],
+        ['FIND', 'Find'],
+        ['MANUAL', 'Manual'],
+      ] as const) {
+        await expect(btn(tools, id)).toHaveText(label);
+        await expect(btn(tools, id).locator('.wc-lk-ic')).toBeVisible();
+        expect((await box(btn(tools, id))).height).toBeGreaterThanOrEqual(TARGET);
+      }
+      // The row is above the code, inside the box's window, clear of the hood plate.
+      const buf = ed.locator('.wc-sed-buf');
+      const t = await box(tools);
+      const well = await box(buf);
+      expect(t.y + t.height).toBeLessThanOrEqual(well.y + 0.5);
+      expect(t.x + t.width).toBeLessThanOrEqual(well.x + well.width + 0.5);
+      const hood = await box(ed.locator('.wc-lk-box > .wc-lk-hood'));
+      // (Upright it has a strip of its own under the head: a long name on the plate would reach it.)
+      expect(t.x > hood.x + hood.width || t.y >= hood.y + hood.height).toBe(true);
+      if (!upright) expect(t.x).toBeGreaterThan(hood.x + hood.width);
+      expect(t.y).toBeGreaterThanOrEqual((await box(ed.locator('.wc-sed-win'))).y);
+
+      // Typed on our keyboard at the end of the script: the list opens under the caret's line, above the keys.
+      const sc = await box(ed.locator('.cm-scroller'));
+      await page.touchscreen.tap(sc.x + sc.width / 2, sc.y + 40);
+      await expect(okb(page)).toBeVisible();
+      await page.keyboard.press('ControlOrMeta+End');
+      for (const k of ['enter', 's', 'e']) await okbKey(page, k).tap();
+      const list = page.locator('.cm-tooltip-autocomplete');
+      await expect(list).toBeVisible();
+      await frames(page);
+      const line = await box(ed.locator('.cm-activeLine').first());
+      const l = await box(list);
+      const kb = await box(okb(page));
+      expect(l.y + l.height).toBeLessThanOrEqual(kb.y + 0.5);
+      // (It hangs from the glyphs, a few px inside the line box's leading.)
+      expect(l.y).toBeGreaterThanOrEqual(line.y + line.height - 4);
+      // The tools are still whole above the code, and Save is lit.
+      await expect(btn(tools, 'SAVE')).not.toHaveClass(/\bis-disabled\b/);
+      const t2 = await box(tools);
+      expect(t2.y + t2.height).toBeLessThanOrEqual((await box(buf)).y + 0.5);
+      expect(errors).toEqual([]);
+    });
+
+    test('T4: the run log\'s header ends left of the hood plate', async ({ page }) => {
+      await openStart(page);
+      await seed(page);
+      await headerClearOfHood(page);
+    });
+
+    test('T5: the game\'s menu sheet, Exit session and the settings pages are a centred column of 720 px', async ({ page }) => {
+      const errors = watchErrors(page);
+      await page.goto('/?replay&kbd=en');
+      await expect(page.locator('.wc-cockpit[data-phone-game] .wc-ph-pad')).toBeVisible();
+      const column = async (l: Locator): Promise<void> => {
+        await expect(l).toBeVisible();
+        const b = await box(l);
+        expect(b.width).toBeLessThanOrEqual(COLUMN + 0.5);
+        expect(b.width).toBeGreaterThanOrEqual(COLUMN - 40);
+        expect(Math.abs(b.x - (viewport.width - (b.x + b.width)))).toBeLessThanOrEqual(1);
+      };
+      await page.locator('.wc-ph-menu').tap();
+      const sheet = page.locator('.wc-ph-sheet:not(.wc-ph-exitsheet)');
+      await column(sheet.locator('.wc-ph-rows'));
+      await column(sheet.locator('.wc-ph-status'));
+      // The sheet's ground is still the screen's whole bottom edge.
+      expect((await box(sheet)).width).toBe(viewport.width);
+      const exitRow = await box(sheet.locator('[data-row="exit"]'));
+      const closeRow = await box(sheet.locator('[data-row="close"]'));
+      expect(Math.max(exitRow.x + exitRow.width, closeRow.x + closeRow.width) - Math.min(exitRow.x, closeRow.x)).toBeLessThanOrEqual(COLUMN + 0.5);
+
+      await sheet.locator('[data-row="exit"]').tap();
+      const exit = page.locator('.wc-ph-exitsheet');
+      await column(exit.locator('.wc-ph-exit-card'));
+      await exit.getByRole('button', { name: 'Cancel' }).tap();
+      await expect(exit).toHaveCount(0);
+
+      if (!(await sheet.isVisible())) await page.locator('.wc-ph-menu').tap();
+      await sheet.locator('[data-row="settings"]').tap();
+      const sp = page.locator('.wc-ph-page');
+      await expect(sp).toHaveAttribute('data-page', 'settings');
+      await column(sp.locator('.wc-ph-grp').first());
+      await sp.locator('[data-row="font"]').tap();
+      await expect(sp).toHaveAttribute('data-page', 'pick:font');
+      await column(sp.locator('.wc-ph-col > *').first());
+      await page.keyboard.press('Escape');
+      await expect(sp).toHaveAttribute('data-page', 'settings');
+      await sp.locator('[data-row="timers-group"]').scrollIntoViewIfNeeded();
+      await sp.locator('[data-row="timers-group"]').tap();
+      await expect(sp).toHaveAttribute('data-page', 'sub:timers-group');
+      await column(sp.locator('.wc-ph-grp').first());
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+      expect(errors).toEqual([]);
+    });
+
+    test('T6: a dialog with our keyboard up stands in the middle of the room above it; without it, over its page', async ({ page }) => {
+      const errors = watchErrors(page);
+      await openStart(page);
+      await seed(page);
+      const f = start(page);
+      await menu(page, 'profile');
+      const row = f.locator('.wc-pl-row[data-name="gimli"]');
+      await row.tap();
+      await btn(f, 'NEW').tap();
+      const dlg = page.locator('.wc-lk-dialog').first();
+      await expect(dlg.locator('input')).toBeFocused();
+      await expect(okb(page)).toBeVisible();
+      for (const k of ['f', 'r', 'o']) await okbKey(page, k).tap();
+      await expect(dlg.locator('input')).toHaveValue('fro');
+      const kb = await box(okb(page));
+      const middle = async (l: Locator): Promise<number> => {
+        const b = await box(l);
+        return b.y + b.height / 2;
+      };
+      // (Polled: the dialog comes in a little smaller.)
+      await expect.poll(async () => Math.abs((await middle(dlg)) - kb.y / 2)).toBeLessThanOrEqual(4);
+      const d = await box(dlg);
+      expect(Math.abs(d.x + d.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(4);
+      const field = await box(dlg.locator('input'));
+      expect(field.y + field.height).toBeLessThanOrEqual(kb.y);
+      const ok = await box(btn(dlg, 'OK'));
+      expect(ok.y + ok.height).toBeLessThanOrEqual(kb.y + 0.5);
+      await btn(dlg, 'CANCEL').tap();
+      await expect(page.locator('.wc-lk-dialog')).toHaveCount(0);
+
+      // Delete has no field: no keyboard, and the dialog is centred over its page's box as before.
+      if (!(await btn(row, 'DELETE').isVisible())) await row.tap();
+      await btn(row, 'DELETE').tap();
+      const del = page.locator('.wc-lk-dialog').first();
+      await expect(btn(del, 'YES')).toBeVisible();
+      await expect(okb(page)).toBeHidden();
+      const under = await middle(page.locator(".wc-start .wc-lk-box:has(.wc-pl-row)").first());
+      await expect.poll(async () => Math.abs((await middle(del)) - under)).toBeLessThanOrEqual(4);
+      expect(errors).toEqual([]);
+    });
+  });
+}
+
+test('T4 on a phone: the run log\'s header ends left of the hood plate there too', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openStart(page);
+  await seed(page);
+  await headerClearOfHood(page);
+});
+
+test('round 56c leaves a phone-size window\'s start menu as it was: at the top, 38 px rows', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await pinDemoClock(page);
+  await checkHandOver(page, '?kbd=en');
+  const f = start(page);
+  expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(38);
+  expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(357, 0);
+  expect(await page.locator('.wc-start').evaluate((el) => getComputedStyle(el).getPropertyValue('--wc-start-drop').trim())).toBe('0px');
 });
