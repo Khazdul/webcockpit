@@ -10,6 +10,8 @@ import { GameState } from '../../src/gmcp/state';
 import { Cockpit } from '../../src/layout/cockpit';
 import { GAME_KEEP_ROWS } from '../../src/layout/phone-game';
 import { type PhoneControls, type PhoneReplay, type PhoneReplayLayer, type PhoneReplayState, mountPhoneLayer } from '../../src/phone';
+import { phoneReplaySettings } from '../../src/app/player-host';
+import { LENS_MIN_PX } from '../../src/phone/lens-zoom';
 import { SettingsStore } from '../../src/settings';
 
 const CELL = { w: 9, h: 17 };
@@ -137,8 +139,9 @@ describe('the phone layer over a replay: what is not mounted', () => {
     const g = h.cockpit.phoneGameLayout!;
     expect(g.landscape).toBe(true);
     expect(g.lens).not.toBeNull();
-    // 12 px of air: two columns of 9 px cells.
-    expect(g.lens!.x + g.lens!.w).toBe(g.cols - 2);
+    // 12 px of air to the edge (the corner key's overhang and a little more), to the px.
+    expect(g.lensAt!.left + g.lensPx).toBe(800 - 12);
+    expect(g.lensAt!.top).toBe(12);
   });
 });
 
@@ -289,15 +292,124 @@ describe('the phone layer over a replay: the store it was handed', () => {
   });
 });
 
-describe('the phone layer over a replay: the host\'s chrome (stage 55c, `clear`)', () => {
-  it('the lens stands lower and further left by what the host\'s header row and markers take', () => {
-    const plain = mount();
-    const a = plain.cockpit.phoneGameLayout!.lens!;
-    const clear = mount({ replay: { clear: { top: 40, right: 60 } } });
-    const b = clear.cockpit.phoneGameLayout!.lens!;
-    // 60 px of 9 px cells: at least six columns to the left; (40 + the corner keys' 10) − 16 px of 17 px rows: two rows down.
-    expect(a.x - b.x).toBeGreaterThanOrEqual(6);
-    expect(b.y - a.y).toBeGreaterThanOrEqual(2);
-    expect(b.w).toBe(a.w);
+/** The lens's box on the layout, px. */
+const spot = (h: ReturnType<typeof mount>): { left: number; top: number; size: number } => {
+  const g = h.cockpit.phoneGameLayout!;
+  return { left: g.lensAt!.left, top: g.lensAt!.top, size: g.lensPx };
+};
+
+describe('the phone layer over a replay: the lens\'s own size and corner (owner feedback 2026-11-13)', () => {
+  it('upright: the outer measure (the glass and its 8 px ring twice) is at most 33 % of the player\'s width, rounded down', () => {
+    // 390 px: 128.7 → 128 px of outer measure, 112 px of glass.
+    expect(spot(mount()).size).toBe(112);
+    // 360 px: 118.8 → 118 → 102.
+    expect(spot(mount({ size: { width: 360, height: 800 } })).size).toBe(102);
+    // A tablet: the game's largest lens, far under the share.
+    expect(spot(mount({ size: { width: 820, height: 1180 } })).size).toBe(190);
+  });
+
+  it('on its side: at most 50 % of the player\'s height', () => {
+    expect(spot(mount({ size: { width: 800, height: 360 } })).size).toBe(164);
+    expect(spot(mount({ size: { width: 780, height: 331 } })).size).toBe(149);
+    expect(spot(mount({ size: { width: 1180, height: 820 } })).size).toBe(190);
+  });
+
+  it('a narrow player: never under the least size the lens is shown at', () => {
+    // 320 px: 105 px of outer measure would be 89 px of glass.
+    expect(spot(mount({ size: { width: 320, height: 568 } })).size).toBe(LENS_MIN_PX);
+  });
+
+  it('the size follows the player\'s box, not the window', () => {
+    const size = { width: 390, height: 760 };
+    const h = mount({ size });
+    expect(spot(h).size).toBe(112);
+    size.width = 332;
+    h.cockpit.relayoutNow();
+    h.flush();
+    expect(spot(h).size).toBe(LENS_MIN_PX);
+    expect(spot(h).left + LENS_MIN_PX).toBe(332 - 12);
+  });
+
+  it('stands in the top right corner to the px: 12 px of air for its corner keys, with nothing of the host\'s there', () => {
+    expect(spot(mount())).toEqual({ left: W - 12 - 112, top: 12, size: 112 });
+  });
+
+  it('with the strip open it stands directly under it, as in the game', () => {
+    const h = mount();
+    h.tap('panes');
+    const g = h.cockpit.phoneGameLayout!;
+    expect(g.game.y).toBeGreaterThan(0);
+    expect(spot(h).top).toBe(g.game.y * CELL.h + 16);
+    expect(spot(h).left).toBe(W - 12 - 112);
+  });
+
+  it('a lens the viewer moved or resized in the game is not the player\'s: the host\'s copy of the settings has none', () => {
+    const viewer = new SettingsStore({ factory: null, storage: null, win: null });
+    viewer.update({ phone: { commRows: 11, lens: { opensAt: 'z3', portrait: { x: 0.3, y: 0.6, size: 180 }, landscape: { x: null, y: null, size: 170 } } } });
+    const mine = phoneReplaySettings(viewer.get());
+    expect(mine.phone.lens.portrait).toEqual({ x: null, y: null, size: null });
+    expect(mine.phone.lens.landscape).toEqual({ x: null, y: null, size: null });
+    // The rest is the viewer's, and the viewer's own is not touched.
+    expect(mine.phone.lens.opensAt).toBe('z3');
+    expect(mine.phone.commRows).toBe(11);
+    expect(viewer.get().phone.lens.portrait).toEqual({ x: 0.3, y: 0.6, size: 180 });
+    // The layer on that copy: the player's own size, in the corner.
+    const settings = new SettingsStore({ factory: null, storage: null, win: null });
+    settings.update((d) => {
+      Object.assign(d, mine);
+    });
+    expect(spot(mount({ settings }))).toEqual({ left: W - 12 - 112, top: 12, size: 112 });
+  });
+});
+
+describe('the phone layer over a replay: the host\'s chrome (`clear`, `setClear`, `onTopRight`)', () => {
+  it('the lens stands left of the rail and its markers by what the host says they take', () => {
+    expect(spot(mount({ replay: { clear: { right: 36, plate: null } } }))).toEqual({ left: W - 12 - 36 - 112, top: 12, size: 112 });
+  });
+
+  it('a plate over the top edge: the lens stands below it where its corner key would be under it, and at the top where it is right of it', () => {
+    // The key's left edge: 390 − 12 − 36 − 112 − 10 = 220.
+    expect(spot(mount({ replay: { clear: { right: 36, plate: { right: 260, bottom: 26 } } } })).top).toBe(12 + 26);
+    expect(spot(mount({ replay: { clear: { right: 36, plate: { right: 220, bottom: 26 } } } })).top).toBe(12);
+  });
+
+  it('setClear: the host\'s chrome changed (the player was moved into History\'s box); the lens follows in one layout', () => {
+    const h = mount({ replay: { clear: { right: 36, plate: null } } });
+    expect(spot(h).top).toBe(12);
+    h.layer.setClear({ right: 36, plate: { right: 260, bottom: 26 } });
+    h.flush();
+    expect(spot(h)).toEqual({ left: W - 12 - 36 - 112, top: 38, size: 112 });
+    h.layer.setClear({ right: 36, plate: null });
+    h.flush();
+    expect(spot(h).top).toBe(12);
+  });
+
+  it('a lens the viewer moved in the player stays out from under the plate and the rail wherever it is dropped', () => {
+    const h = mount({ replay: { clear: { right: 36, plate: { right: 260, bottom: 26 } } } });
+    const l = h.layer as unknown as {
+      dragLens(kind: 'move' | 'size', x0: number, y0: number, x: number, y: number): void;
+      dropLens(kind: 'move' | 'size' | null, cancelled: boolean): void;
+    };
+    Object.defineProperty(h.layer.el, 'clientWidth', { get: () => W, configurable: true });
+    Object.defineProperty(h.layer.el, 'clientHeight', { get: () => H, configurable: true });
+    l.dragLens('move', 0, 0, 2000, -2000);
+    l.dropLens('move', false);
+    h.flush();
+    expect(spot(h)).toEqual({ left: W - 12 - 36 - 112, top: 38, size: 112 });
+    l.dragLens('move', 0, 0, -2000, -2000);
+    l.dropLens('move', false);
+    h.flush();
+    expect(spot(h)).toEqual({ left: 12, top: 38, size: 112 });
+  });
+
+  it('onTopRight: the corner of the lens with its keys, for the host\'s header row; the key row\'s when the lens is off', () => {
+    const at: ({ left: number; top: number } | null)[] = [];
+    const h = mount({ replay: { clear: { right: 36, plate: null }, onTopRight: (a) => at.push(a) } });
+    expect(at[at.length - 1]).toEqual({ left: W - 12 - 36 - 112 - 10, top: 2 });
+    h.settings.update({ phone: { lens: { show: false } } });
+    h.flush();
+    const row = at[at.length - 1]!;
+    expect(row.top).toBe(8);
+    expect(row.left).toBeLessThan(W - 36 - 86);
   });
 });

@@ -53,6 +53,23 @@ for (const width of [390, 360]) {
     const hood = (await page.locator('.wc-start .wc-frame:not([hidden]) .wc-rl-box .wc-lk-hood').first().boundingBox())!;
     const panes = (await page.locator('.wc-player .wc-ph-sat[data-sat="panes"]:visible').boundingBox())!;
     expect(panes.y).toBeGreaterThanOrEqual(hood.y + hood.height - 0.5);
+    // The lens (owner feedback 2026-11-13): its outer measure, the glass and its ring, is at most 33 % of the
+    // box's player; in the 360 px phone's box (330 px) it has its least size, 96 px of glass, a few px over that.
+    const lens = page.locator('.wc-player .wc-ph-lens');
+    await expect(lens).toBeVisible();
+    const glass = (await lens.boundingBox())!;
+    const ring = (await lens.locator('.wc-ph-lens-ring').boundingBox())!;
+    if (width >= 390) expect(ring.width).toBeLessThanOrEqual(pl.width * 0.33);
+    else {
+      expect(glass.width).toBeCloseTo(96, 0);
+      expect(ring.width).toBeLessThanOrEqual(pl.width * 0.34);
+    }
+    // In the top right corner: directly under the hood plate, and left of the rail and a marker of one kind.
+    const commKey = (await page.locator('.wc-player .wc-ph-sat[data-sat="comm"]:visible').boundingBox())!;
+    expect(panes.y - (hood.y + hood.height)).toBeLessThanOrEqual(4);
+    expect(pl.x + pl.width - (commKey.x + commKey.width)).toBeGreaterThanOrEqual(34);
+    expect(pl.x + pl.width - (ring.x + ring.width)).toBeLessThanOrEqual(42);
+    expect(commKey.x - (panes.x + panes.width)).toBeGreaterThanOrEqual(30);
 
     // The bar: at the box's bottom over its whole width, the way out first, the time shown.
     const b = (await bar(page).boundingBox())!;

@@ -1,10 +1,50 @@
 import { describe, expect, it } from 'vitest';
 import { ZOOM_MAX, ZOOM_MIN, pxPerRoom } from '../../src/map/view';
-import { LENS_FULL_MAX_PX, LENS_FULL_MIN_PX, LENS_LEVELS, LENS_MIN_PX, LENS_ROOMS, PX_PER_ROOM, lensFullPx, lensLabel, lensLevel, lensZoom, nextLevel } from '../../src/phone/lens-zoom';
+import { LENS_FULL_MAX_PX, LENS_FULL_MIN_PX, LENS_LEVELS, LENS_MIN_PX, LENS_RING_PX, LENS_ROOMS, PX_PER_ROOM, lensFullPx, lensLabel, lensLevel, lensReplayPx, lensZoom, nextLevel } from '../../src/phone/lens-zoom';
 import { PHONE_LENS_LEVELS } from '../../src/settings/types';
 
 /** Diameters the lens can have: from its least, shrunk, to the largest full size, and sizes a user sets (round 53k). */
 const SIZES = [LENS_MIN_PX, 102, 119, 136, 150, 163, LENS_FULL_MAX_PX, 336, 700];
+
+describe('the lens over a replay: a share of the player\'s own box (owner feedback 2026-11-13)', () => {
+  const outer = (w: number, h: number, land: boolean): number => lensReplayPx(w, h, land) + 2 * LENS_RING_PX;
+
+  it('upright: the outer measure is at most 33 % of the player\'s width, rounded down', () => {
+    expect(lensReplayPx(360, 800, false)).toBe(102);
+    expect(lensReplayPx(390, 844, false)).toBe(112);
+    for (let w = 340; w <= 600; w++) {
+      const o = outer(w, 2 * w, false);
+      expect(o).toBeLessThanOrEqual(w * 0.33);
+      // Rounded down to whole px and no further, up to the largest lens.
+      if (o < LENS_FULL_MAX_PX + 2 * LENS_RING_PX) expect(o).toBeGreaterThan(w * 0.33 - 1);
+    }
+  });
+
+  it('on its side: at most 50 % of the player\'s height', () => {
+    expect(lensReplayPx(800, 360, true)).toBe(164);
+    expect(lensReplayPx(780, 331, true)).toBe(149);
+    for (let h = 224; h <= 412; h++) {
+      const o = outer(900, h, true);
+      expect(o).toBeLessThanOrEqual(h * 0.5);
+      expect(o).toBeGreaterThan(h * 0.5 - 1);
+    }
+  });
+
+  it('never under the least size the lens is shown at: a player under 340 px wide (or 224 px high on its side) has that', () => {
+    expect(lensReplayPx(339, 700, false)).toBe(LENS_MIN_PX);
+    expect(lensReplayPx(320, 568, false)).toBe(LENS_MIN_PX);
+    expect(lensReplayPx(340, 700, false)).toBe(LENS_MIN_PX);
+    expect(lensReplayPx(343, 700, false)).toBe(LENS_MIN_PX + 1);
+    expect(lensReplayPx(700, 200, true)).toBe(LENS_MIN_PX);
+  });
+
+  it('never over the game\'s largest lens (a tablet), and the least without a usable size', () => {
+    expect(lensReplayPx(820, 1180, false)).toBe(LENS_FULL_MAX_PX);
+    expect(lensReplayPx(1180, 820, true)).toBe(LENS_FULL_MAX_PX);
+    expect(lensReplayPx(0, 0, false)).toBe(LENS_MIN_PX);
+    expect(lensReplayPx(Number.NaN, 300, false)).toBe(LENS_MIN_PX);
+  });
+});
 
 describe('the lens zoom levels', () => {
   it('are the settings\' levels', () => {

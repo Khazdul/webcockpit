@@ -142,6 +142,8 @@ export interface DockRect {
   top: number;
   width: number;
   height: number;
+  /** The header's row ends here (px from the root's left edge): something of the host's stands in the row right of it. Absent: the row has the width. */
+  headRight?: number;
 }
 
 /** What the in-app log player's header shows (`runHeader`). */
@@ -863,8 +865,11 @@ export class PlayerView {
     // Comm column open: the game text begins there too) the header ends there, cut if it must be:
     // it lies over the column, not over the game text's first line.
     if (this.o.dock && !this.o.bare) {
-      const edge = this.o.dock()?.left ?? 0;
+      const r = this.o.dock();
+      const edge = r?.left ?? 0;
       hc = edge > 0 ? Math.max(1, Math.min(cols, Math.floor(edge / w))) : cols;
+      // (And left of the lens's corner key where the host says that stands in the row.)
+      if (r?.headRight !== undefined) hc = Math.max(1, Math.min(hc, Math.floor(r.headRight / w)));
       left = 0;
     }
     // Back's place is measured once (its size never changes after that).
