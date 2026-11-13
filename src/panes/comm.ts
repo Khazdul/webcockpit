@@ -52,6 +52,9 @@
 // unread counts are told through `onUnread` (the Comm key's badge). On a
 // phone mode the reply line is a one-row <textarea> (no autofill bar above
 // the keyboard), as the command line is; outside it, the <input> as ever.
+// Read-only (stage 55, `readOnly`: the phone's layout over a replay, where
+// no keyboard exists and a focused field would raise the device's): no
+// reply line and no search key, and the search does not open.
 
 import './panes.css';
 import './comm.css';
@@ -185,7 +188,7 @@ export class CommPane extends PaneShell {
   /** The reply line: an <input>; a one-row <textarea> while the phone mode is on (`setPhoneMode`). */
   private replyInput: HTMLInputElement | HTMLTextAreaElement;
   /** The phone's layout (ADR 0136 §6): whether Comm is open there, and the view to open it at. Null elsewhere. */
-  private phone: { open: boolean; last: string; live: () => boolean; off: () => void } | null = null;
+  private phone: { open: boolean; last: string; live: () => boolean; readOnly: boolean; off: () => void } | null = null;
   private readonly list: AnchoredList<ThreadItem>;
   private readonly tip: PaneTooltip;
   private readonly writeClipboard: (text: string) => Promise<void>;
@@ -618,10 +621,14 @@ export class CommPane extends PaneShell {
 
   /**
    * The phone's layout in the live game (ADR 0136 §6; see the file header).
-   * Comm starts closed there. Never set on a desktop or a tablet, nor in
-   * the player.
+   * Comm starts closed there. Never set on a desktop.
+   *
+   * `readOnly` (the phone's layout over a replay): the pane has no text
+   * field to focus. The reply line and the search key are hidden and the
+   * search does not open (`data-readonly` on the root), whatever `live`
+   * says. Fixed for as long as the mode is on.
    */
-  setPhoneMode(on: boolean, opts: { live?: () => boolean } = {}): void {
+  setPhoneMode(on: boolean, opts: { live?: () => boolean; readOnly?: boolean } = {}): void {
     if (on === (this.phone !== null)) return;
     if (on) {
       // The reply line follows the play gate (`live`): it is told again when the link or the password prompt changes.
@@ -631,16 +638,23 @@ export class CommPane extends PaneShell {
         open: false,
         last: this.chats.open ?? PUBLIC,
         live: opts.live ?? (() => true),
+        readOnly: opts.readOnly === true,
         off: () => {
           for (const off of offs) off();
         },
       };
       this.chats.setOpen(null);
       this.swapReply(this.phoneReply());
+      if (this.phone.readOnly) {
+        if (this.searchOpen) this.closeSearch();
+        this.searchBtn.hidden = true;
+        this.reply.hidden = true;
+      }
     } else {
       const { last, off } = this.phone!;
       off();
       this.phone = null;
+      this.searchBtn.hidden = false;
       // The <input> again, as it is everywhere but in the phone's game layout.
       const input = this.root.ownerDocument.createElement('input');
       input.type = 'text';
@@ -650,6 +664,7 @@ export class CommPane extends PaneShell {
       if (this.chats.open === null) this.chats.setOpen(last);
     }
     toggle(this.root, 'data-phone', on);
+    toggle(this.root, 'data-readonly', this.phone?.readOnly === true);
     this.markDirty();
   }
 
@@ -706,6 +721,8 @@ export class CommPane extends PaneShell {
   }
 
   openSearch(): void {
+    // Read-only (a replay on a phone): no field is ever focused.
+    if (this.phone?.readOnly) return;
     if (this.searchOpen) {
       this.searchInput.focus({ preventScroll: true });
       this.searchInput.select();
@@ -749,7 +766,7 @@ export class CommPane extends PaneShell {
     const text = flatLine(this.replyInput.value).trim();
     if (!text) return;
     // The phone's reply line sends only in play: never into a login or password prompt, never on a dead link.
-    if (this.phone && !this.phone.live()) return;
+    if (this.phone && (this.phone.readOnly || !this.phone.live())) return;
     const open = this.chats.open ?? PUBLIC;
     let cmd: string;
     // Public has no reply line (owner's first test).
@@ -1379,7 +1396,11 @@ export class CommPane extends PaneShell {
     // Public has none (owner's first test): only chats and Group.
     const chat = open === PUBLIC || open === GROUP ? null : this.chats.chat(open);
     const hide =
-      open === PUBLIC || this.replay || this.ctx.player === true || (chat !== null && chat !== undefined && !tellable(chat.name));
+      open === PUBLIC ||
+      this.replay ||
+      this.ctx.player === true ||
+      this.phone?.readOnly === true ||
+      (chat !== null && chat !== undefined && !tellable(chat.name));
     this.reply.hidden = hide;
     if (hide) return;
     // The phone's reply line follows the play gate: no typing into a prompt or a dead link.

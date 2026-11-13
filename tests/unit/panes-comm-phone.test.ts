@@ -391,4 +391,63 @@ describe('CommPane phone mode', () => {
     expect(h.pane.unreadCounts().private).toBe(0);
     h.pane.dispose();
   });
+
+  it('read-only (stage 55, a replay): no reply line, no search key, and the search never opens', () => {
+    const h = setup();
+    h.pane.setPhoneMode(true, { live: () => true, readOnly: true });
+    h.tell('Gibur', 'one');
+    h.pane.setPhoneOpen(true);
+    h.show();
+    h.flush();
+    h.open('Gibur');
+    expect(h.root().hasAttribute('data-readonly')).toBe(true);
+    const replyBox = h.pane.content.querySelector<HTMLElement>('.wc-cm-reply')!;
+    const key = h.pane.content.querySelector<HTMLElement>('.wc-cm-sbtn')!;
+    expect(replyBox.hidden).toBe(true);
+    expect(key.hidden).toBe(true);
+    // The chat is still shown and read.
+    expect(h.pane.content.textContent).toContain('one');
+    expect(h.pane.unreadCounts().private).toBe(0);
+    // Neither the key's click nor the pane's own call opens the search or takes the focus.
+    key.click();
+    h.pane.openSearch();
+    expect(h.root().hasAttribute('data-search')).toBe(false);
+    expect(document.activeElement).not.toBe(h.pane.content.querySelector('.wc-cm-sinput'));
+    // A line that got into the hidden field is not sent.
+    const r = h.reply();
+    r.value = 'hello';
+    h.pane.submitReply();
+    expect(h.sent).toEqual([]);
+    // It stays hidden over redraws and in Group, which has a reply line elsewhere.
+    h.say('group', 'Gibur', "Gibur tells the group 'here'");
+    h.flush();
+    h.open('group');
+    expect(replyBox.hidden).toBe(true);
+    // Out of the mode both are back.
+    h.pane.setPhoneMode(false);
+    h.flush();
+    expect(h.root().hasAttribute('data-readonly')).toBe(false);
+    expect(key.hidden).toBe(false);
+    expect(replyBox.hidden).toBe(false);
+    h.pane.dispose();
+  });
+
+  it('read-only ends an open search when it is turned on; without it the phone mode is as before', () => {
+    const h = setup();
+    h.pane.setPhoneMode(true);
+    h.tell('Gibur', 'one');
+    h.pane.setPhoneOpen(true);
+    h.show();
+    h.flush();
+    h.open('Gibur');
+    expect(h.root().hasAttribute('data-readonly')).toBe(false);
+    expect(h.pane.content.querySelector<HTMLElement>('.wc-cm-reply')!.hidden).toBe(false);
+    expect(h.pane.content.querySelector<HTMLElement>('.wc-cm-sbtn')!.hidden).toBe(false);
+    h.pane.setPhoneMode(false);
+    h.pane.openSearch();
+    expect(h.root().hasAttribute('data-search')).toBe(true);
+    h.pane.setPhoneMode(true, { readOnly: true });
+    expect(h.root().hasAttribute('data-search')).toBe(false);
+    h.pane.dispose();
+  });
 });
