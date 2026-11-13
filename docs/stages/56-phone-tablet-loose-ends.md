@@ -48,7 +48,7 @@ stage 55).
 - [x] 56b tablet-width review of the menu pages: 4
 - [x] 5 `opponent-hits` words (not confirmable from logs; see Built)
 - [x] 6 and 7 looked at (both built)
-- [ ] 56c the questions of taste, T1–T6
+- [x] 56c the questions of taste, T1–T6
 - [x] Closing test guide for phone and iPad, session log
 - [ ] The owner's test and answers to T1–T8; then the release of stages 55 and 56
 
@@ -154,6 +154,50 @@ healthy). That has worked in the owner's own play in Cockpit. So the
 list is very likely right, but no raw packet was seen. Left as it is;
 a wrong word would show as a fight card bar that does not move.
 
+### 56c (merged d3128ebc): the questions of taste, as built
+
+All scoped to a tablet-size window (as 56b), but T4, which is a
+phone's too. Pictures `docs/stages/img/56-tablet-t1…t6-*.png`.
+
+- **T1** The start menu is centred in portrait (about 275 px of sky
+  above the mark and below the quote at 820 × 1180) and has the
+  desktop's rows (42 px, Enter 56 px). One variable,
+  `--wc-start-drop` in `src/start/geometry.css`, feeds the first paint
+  and the page, so they agree. In landscape the group nearly fills the
+  height and is not centred (118 px above, 80 px below). Over a
+  sub-page the wordmark goes back to its old top.
+- **T2** Help in portrait has its rail (228 px) beside the text. The
+  manual's text column is centred in its room, not widened: its cap
+  already gives 85 to 95 characters a line.
+- **T3** The script editor has Save, Find and Manual as named 44 px
+  buttons: in the box head in landscape, in a strip of their own under
+  the head in portrait (54 px of height; beside the plate a long
+  script name ran over Save). Desktop keeps its icon pill. With our
+  keyboard up in landscape the completion list is four rows and opens
+  under the caret's line; near the bottom it still flips above.
+- **T4** The player's header chip ends left of the hood plate, with an
+  ellipsis. On a 360 px phone that leaves "Rasta (…": little of the
+  chip. To look at.
+- **T5** The sheet, Exit session, the settings pages and pick lists
+  are a centred 720 px column; the grounds stay full width.
+- **T6** With the page keyboard up a kit dialog stands in the middle
+  of the room above the keys.
+- T7 and T8: no change.
+- Unverified: a real iPad (the centring uses `100vh`; a tall safe area
+  shifts it); the wordmark's slide between menu and sub-page seen as
+  one still only; T3 in Paper and for a read-only script.
+
+### The whole stage on `main`
+
+Typecheck clean, unit 4229. Full e2e: see the session log in
+`progress.md`. Bundle against 0.8.3: `chrome` JS 280.0 → 235.0 kB,
+`app` 228.6 → 224.9 kB, phone JS 125.1 → 130.2 kB, phone CSS 59.1 →
+68.0 kB, `chrome` CSS 117.0 → 118.0 kB.
+
+Flaky, not from these stages: `phone-script-editor.spec.ts:76` (the
+signature pop-up's place) failed 6 of 30 on an untouched `main` at
+3 workers. Open.
+
 **The owner, 2026-11-13: do as recommended** on the questions of
 taste. Read as: T1 centre the start menu on a tablet (the desktop's
 row size too if the first paint allows it); T2 the rail beside Help in
@@ -195,9 +239,17 @@ older open device tests.
 8. Opens in the phone's layout with no flag in the address.
 9. The same round as 1, 2 and 5 (the bar has To start, the speed
    arrows and the length).
-10. The start menu's pages: Profile, Scripts, History, Spotlights,
-    About. Buttons are the desktop's with icons now, thumb-size.
-    Anything that looks wrong; and your answers to T1–T8 above.
+10. The start page upright: the menu centred, larger rows. Does the
+    page come up without a jump?
+11. The start menu's pages: Profile (New: the dialog above the
+    keyboard), Help (the rail beside the text), Scripts and its editor
+    (Save, Find, Manual as named buttons; type with the keyboard up on
+    its side: is the typed line in view under the suggestions?),
+    History, Spotlights, About. Buttons are the desktop's with icons,
+    thumb-size.
+12. In the game on its side: the menu and Settings as a centred column.
+13. On the phone, History → a run: the header now reads only
+    "Rasta (…" left of the plate. Enough, or drop the header there?
 
 Not possible here, only on your devices: all of it in Safari, the
 home indicator's edge, the window's real height on its side.
