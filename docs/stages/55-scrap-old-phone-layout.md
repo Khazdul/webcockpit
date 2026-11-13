@@ -416,5 +416,5 @@ Both built the same day and merged; the owner said go on both
 - New spec `phone-hotkey-box.spec.ts` (12 tests).
 
 After both on `main` (b042375f): typecheck clean, unit 4227. Phone JS
-128.0 → about 129.5 kB, phone CSS 66.4 kB.
+129.5 kB, phone CSS 66.4 kB, `player-host` 34.7 kB.
 
