@@ -463,11 +463,11 @@ on the iPad, or on the phone, and Enter MUME.
    again, or the notice did not come, say so at once: MUME then ends a
    quit in a way the client takes for a lost link (ADR 0141, to verify
    9), and the round must not be released as it is.
-4b. **No.** Reload, log in, answer No. Lose the link as in 2: MUME's own
+5. **No.** Reload, log in, answer No. Lose the link as in 2: MUME's own
    name prompt (or the sheet with Reconnect), nothing typed for you.
    Log in again by hand: no question.
-5. **Exit session** while armed, then Enter MUME: MUME's own prompt.
-6. **Reload** while armed: the login is gone, and the question comes
+6. **Exit session** while armed, then Enter MUME: MUME's own prompt.
+7. **Reload** while armed: the login is gone, and the question comes
    again after the next login.
 
 **What only the live game shows** (please note what you see; ADR 0141
