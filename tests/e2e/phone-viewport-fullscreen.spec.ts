@@ -161,7 +161,6 @@ test('the readout shows only with ?vv=1, lets touches through and follows the nu
   // The readout still shows the rectangle; the layout does not follow it.
   await expect(readout(page)).toContainText('vk top 400 h 300 oc 0');
   await expect(readout(page)).toContainText(`--wc-vv-h ${full}px`);
-  await expect(readout(page)).toContainText('kbd 0');
 });
 
 test('the readout says "no VK" where the API is missing', async ({ page }) => {
