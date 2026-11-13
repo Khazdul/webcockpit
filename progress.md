@@ -59,6 +59,7 @@
 | 53 | An on-screen keyboard of our own | Owner testing | `docs/stages/53-own-keyboard.md` |
 | 54 | The tablet's layout | Done, released 0.8.3 | `docs/stages/54-tablet.md` |
 | 55 | Scrap the old phone layout | Owner testing | `docs/stages/55-scrap-old-phone-layout.md` |
+| 56 | Phone and tablet: loose ends | In progress | `docs/stages/56-phone-tablet-loose-ends.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
