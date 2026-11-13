@@ -1,6 +1,7 @@
 # Stage 58 — Move to Cloudflare
 
-Status: **Next** (planned 2026-11-13; not started).
+Status: **In progress** (planned 2026-11-13; part A built 2026-11-14,
+not deployed; parts B (the staging run), C and D remain).
 
 ## Goal
 
@@ -33,43 +34,43 @@ Goals 13–15). This stage is only the move.
 
 ### A. In the repository (building agent, in a worktree)
 
-- [ ] `wrangler.jsonc`: Worker `webcockpit`, `main: worker/index.ts`,
+- [x] `wrangler.jsonc`: Worker `webcockpit`, `main: worker/index.ts`,
       assets directory = the site build, `run_worker_first:
       ["/api/*"]`, `not_found_handling` as Pages behaves today (a 404
       page; `/r/<id>` comes in stage 64), `compatibility_date` of the
       day, environment `staging` (`webcockpit-staging`). No custom
       domain route yet (task C adds it).
-- [ ] `worker/`: `index.ts` with a small router, `GET /api/health`
+- [x] `worker/`: `index.ts` with a small router, `GET /api/health`
       (`{ok, version, commit}`) and `GET /api/config` (`{flags: {}}`),
       JSON 404 for other `/api/*`; its own `tsconfig`; `typecheck`
       covers it.
-- [ ] Worker tests as a second Vitest project in the Workers runtime
+- [x] Worker tests as a second Vitest project in the Workers runtime
       (check the current package name and Vitest 5 support first;
       `notes/research/cloudflare-platform.md`, "Not verified"). If it
       does not run under Vitest 5, test the router as plain functions
       and record it in ADR 0144.
-- [ ] `public/_headers`: `/assets/*` immutable for a year; `/` and
+- [x] `public/_headers`: `/assets/*` immutable for a year; `/` and
       `/index.html` and `/release.json` `no-cache`;
       `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors
       'none'` on everything. No CSP and no COOP/COEP yet (ADR 0144).
       Check that the HTML replay export, the map worker and the fonts
       still load under these headers.
-- [ ] `scripts/pages-build.ts` → `scripts/site-build.ts`,
+- [x] `scripts/pages-build.ts` → `scripts/site-build.ts`,
       `npm run build:site`, output `dist-site/`; `build:pages` stays
       as an alias until Pages is retired. The carried assets of the
       live release stay. The live URL stays `https://mumecockpit.com/`.
-- [ ] `scripts/static-server.ts`: profile `cloudflare` (the headers
+- [x] `scripts/static-server.ts`: profile `cloudflare` (the headers
       above, ETag, `max-age=0, must-revalidate` by default);
       `playwright.prod.config.ts` takes it; `tests/e2e-prod` expects
       the new cache headers and `/api/health` under that profile.
-- [ ] `npm run dev:cloud`: Vite plus `wrangler dev` on a second port
+- [x] `npm run dev:cloud`: Vite plus `wrangler dev` on a second port
       (`WC_API_PORT`, a worktree picks its own), `/api` proxied.
       `npm run dev` alone is unchanged.
-- [ ] `.github/workflows/deploy.yml`: on `v*` tags and by hand:
+- [x] `.github/workflows/deploy.yml`: on `v*` tags and by hand:
       `npm ci`, Chromium, `build:site`, `wrangler deploy`
       (`cloudflare/wrangler-action`, pinned). An input chooses
       `staging` or `production`. `pages.yml` is left as it is.
-- [ ] Docs: spec §1.5; ADR 0144 "As built"; README's hosting line;
+- [x] Docs: spec §1.5; ADR 0144 "As built"; README's hosting line;
       comments that name GitHub Pages (`vite.config.ts`,
       `update-check.ts`, `playwright.prod.config.ts`).
 

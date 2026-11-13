@@ -2,7 +2,10 @@
 
 - Status: Accepted (owner, 2026-11-13: move from GitHub Pages to
   Cloudflare; accounts, sync, statistics and public sharing are wanted).
-  Not built.
+  The hosting part is built in the repository (stage 58 part A, "As
+  built" below); nothing is deployed and the domain is not switched:
+  GitHub Pages is still the live host. The backend beyond `/api/health`
+  and `/api/config` is not built.
 - Date: 2026-11-13
 - Supersedes: ADR 0028 (GitHub Pages) once stage 58 has switched the
   domain. Amends: ADR 0029 (DNS records), ADR 0006 (storage).
@@ -134,3 +137,142 @@ dark.
   (7 days on Free) is the server-side undo.
 - Cloudflare is our processor (its DPA applies on the free plan). Data
   rests in the EU; requests are handled where the visitor is.
+
+## As built (stage 58 part A, 2026-11-14)
+
+In the repository only: nothing is deployed, the domain is not
+switched, GitHub Pages is still the live host and `pages.yml` is
+untouched. Versions: `wrangler` 4.162.0, `@cloudflare/workers-types`
+5.20261113.1, `@cloudflare/vitest-plugin` 1.8.2 (dev dependencies,
+pinned). What was checked was checked against `wrangler dev` (workerd
+1.20261113), not against a deployed Worker.
+
+### `wrangler.jsonc`
+
+- The top level is production (`webcockpit`); `env.staging` is
+  `webcockpit-staging`. Both `workers_dev: true`, no routes. `assets`,
+  `main` and `compatibility_date` are inherited by the environment
+  (`wrangler deploy --dry-run --env staging` shows the binding).
+- `compatibility_date` is `2026-11-13`: the newest the installed
+  workerd accepts ("2026-11-14 is in the future and unsupported").
+- `run_worker_first: ["/api/*"]`. `/api` without a slash is not the
+  Worker's and gets the 404 page.
+- `not_found_handling: "404-page"` with a small `public/404.html`: an
+  unknown path answers 404 with that page, as Pages answers with its
+  own. Without a `404.html` the answer would be an empty 404. The file
+  is also in the Pages build, where GitHub Pages uses a root `404.html`
+  as its 404 page too, so Pages shows ours from the next release. Spec
+  §7.1's "unknown paths get `index.html`" comes with `/r/<id>` in
+  stage 64.
+- `html_handling: "auto-trailing-slash"` (the default, written out).
+  `"none"` was tried: `/` then answers 404, because only exact file
+  paths are served. With the default, `/index.html` is a 307 to `/`
+  (Pages answers 200) and `/404.html` a 307 to `/404`. Nothing in the
+  app or the tests fetches an `.html` path: the page is opened as `./`,
+  and the HTML replay export is a file the browser builds from
+  `replay/replay.js`, not a page of the site.
+
+### The Worker
+
+- `worker/router.ts` is the router and uses nothing from the Workers
+  runtime but the assets binding (typed by a small interface of its
+  own), so `scripts/static-server.ts` imports the same code under Node.
+  `worker/index.ts` is the entry. `worker/tsconfig.json` has the
+  Workers types and no DOM; `npm run typecheck` runs both projects, and
+  `build` and the site build call it. The root project type-checks
+  `router.ts` once more through the static server's import, which is
+  why that file keeps to what both type sets share.
+- `GET /api/health` → `{ok: true, version, commit}`; `GET /api/config`
+  → `{flags: {}}`; other `/api/*` → 404 `{error: "not_found"}`; a wrong
+  method → 405 `{error: "method_not_allowed"}` with `Allow`; `HEAD` is
+  `GET` without a body. Every API answer: `Cache-Control: no-store`,
+  `X-Content-Type-Options: nosniff` (`_headers` does not apply to what
+  a Worker answers).
+- **Version and commit come from `release.json`, read through the
+  assets binding** on each health request; `dev`/`dev` when it is
+  missing. One source with the client's update check, nothing for the
+  workflow to pass, and the same code path locally. `--var`/`--define`
+  at deploy was the alternative; it would need the workflow, `wrangler
+  dev`, the tests and the static server to pass the same values.
+- A request that matches no file and is not a navigation reaches the
+  Worker (Cloudflare's routing); the router hands it to the assets
+  binding, which answers with the 404 page.
+
+### Tests
+
+- `npm test` runs two Vitest projects (`vitest.config.ts`): `unit` (as
+  before) and `worker`, which runs `worker/test/` in workerd through
+  `@cloudflare/vitest-plugin` (`cloudflareTest()` as a Vite plugin).
+  It works under Vitest 5.0.2. The tests import `exports` and `env`
+  from `cloudflare:workers`; `SELF` and `env` of `cloudflare:test` are
+  deprecated. The test Worker has its own `worker/test/wrangler.jsonc`
+  (the same entry and asset settings, assets from `worker/test/assets`)
+  so the unit tests need no site build. `worker/env.d.ts` is written by
+  hand in place of `wrangler types`.
+- npm did not run the install scripts of `workerd` and `esbuild`
+  ("not covered by allowScripts"); both work without them here (the
+  platform packages carry the binaries).
+
+### `public/_headers`
+
+As decided above. A rule that replaces `Cache-Control` first detaches
+it (`! Cache-Control`): two rules setting one header are joined with a
+comma, also onto the default. Observed under `wrangler dev`, which does
+apply the file:
+
+- The rules also apply to 404s and redirects. A missing file under
+  `/assets/` is therefore a 404 that says `immutable` for a year.
+  Hashed names never come back, and the carried assets keep the
+  previous release's files in place, so this is accepted; `_headers`
+  cannot tell a status.
+- Cloudflare sends **no Content-Type for `.mm2`** (Pages:
+  `application/octet-stream`); the map is read as bytes either way.
+  `.md` is `text/markdown`, `.js` `text/javascript`.
+
+### Site build and release
+
+- `scripts/site-build.ts` (was `pages-build.ts`): `npm run build:site`
+  → `dist-site/`, smoke-tested in the `cloudflare` profile.
+  `npm run build:pages` is `site-build.ts --pages` → `dist-pages/`,
+  smoke-tested in the `pages` profile: what `pages.yml` runs.
+  `WEBCOCKPIT_SITE_URL` / `WEBCOCKPIT_SITE_DIR`; the `WEBCOCKPIT_PAGES_*`
+  names still work.
+- **The version rule changed** (`versionGuard`, ADR 0025): a build is
+  refused when the live version is the same **and the live commit is
+  another**. The same version and commit is the live release again.
+  Both workflows run on one tag and read the same live site, so the
+  slower one would otherwise be refused; a failed deploy can also be
+  run again. `--target staging` skips the rule (staging is not the live
+  site) and still carries the live assets.
+- `.github/workflows/deploy.yml`: `v*` tags deploy production, a run by
+  hand deploys `staging` (default) or `production`.
+  `cloudflare/wrangler-action` is pinned to the commit of v4.1.3 and
+  given the `wrangler` version of `package.json`, which `npm ci` has
+  already installed, so the action installs nothing. D1 migrations
+  come with stage 59.
+
+### Local stand-ins
+
+- `scripts/static-server.ts --profile cloudflare` answers as `wrangler
+  dev` does for this configuration (compared header by header: default
+  cache header, ETag and 304, the real `_headers` file of the served
+  directory, the redirects, the 404 page, 405 for other methods, no
+  type for `.mm2`) and runs the real router for `/api/*`. Not emulated:
+  compression, `CF-Cache-Status`. `--profile pages` is the earlier
+  behaviour, unchanged, and stays the default of the script;
+  `playwright.prod.config.ts` defaults to `cloudflare`
+  (`WC_PROD_PROFILE`).
+- `npm run dev:cloud` (`scripts/dev-cloud.ts`): `wrangler dev` on
+  `WC_API_PORT` (default 8787) and Vite with `WEBCOCKPIT_API_PROXY`
+  set, which is the only thing that adds the `/api` proxy. The Worker's
+  assets there are a directory of the script's own
+  (`node_modules/.cache/webcockpit-dev-cloud`) holding only a
+  `release.json` with the package version and commit `dev`, so no
+  `dist-site/` is needed and health says what the dev client says.
+
+### Still to be seen on a deployed Worker
+
+Whether the edge sends the same headers as `wrangler dev` (the
+`_headers` rules on 404s, the missing type for `.mm2`, ETag form under
+compression), and the account's `workers.dev` subdomain. `test:prod`
+against the staging address answers the first.

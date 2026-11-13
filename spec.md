@@ -142,12 +142,20 @@ ADR 0006.
   the root, released by a version tag (ADR 0028, ADR 0029). The earlier
   Tailscale/Caddy site (ADR 0022) is retired. **From stage 58** the same
   address is served by a Cloudflare Worker (§7.1, ADR 0144), which can
-  set headers; the release flow stays a version tag.
+  set headers; the release flow stays a version tag. The Worker is built
+  (`wrangler.jsonc`, `worker/`, `npm run build:site`,
+  `.github/workflows/deploy.yml`) and goes to its `workers.dev` address
+  first; **Pages stays the live host until the domain is switched**
+  (stage 58 part C), and `pages.yml` deploys it from the same tag until
+  then.
 - **Headers:** cross-origin isolation stays possible (COOP/COEP), and
   WebAssembly is allowed by the CSP. This keeps the MMapper iframe route
   open (ADR 0003). `vite dev` and `vite preview` send COOP/COEP; Pages
   cannot, so production is not cross-origin isolated
-  (`coi-serviceworker` if it is ever needed).
+  (`coi-serviceworker` if it is ever needed). On Cloudflare the static
+  files' headers are `public/_headers`: hashed assets immutable for a
+  year, the page and `release.json` `no-cache`, `nosniff`, a referrer
+  policy and `frame-ancestors 'none'`; still no COOP/COEP (ADR 0144).
 - **Self-hosted assets only.** Fonts and scripts are served by us; there
   are no third-party embeds. One exception from stage 60: Cloudflare
   Turnstile, loaded only on the account pages (ADR 0145).

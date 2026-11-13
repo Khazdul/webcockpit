@@ -163,4 +163,6 @@ script (spec §1.5, self-hosted assets only).
 - Attaching a custom domain over existing A/AAAA records.
 - EU jurisdiction on the Free plan (try at creation in stage 59).
 - Access free seats.
-- The current name and API of the Workers Vitest integration.
+- ~~The current name and API of the Workers Vitest integration.~~
+  Verified in stage 58: `@cloudflare/vitest-plugin` 1.8.2 runs under
+  Vitest 5.0.2 (ADR 0144, "As built").
