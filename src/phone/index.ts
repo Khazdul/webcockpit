@@ -1855,7 +1855,12 @@ class Layer {
    * with Comm, or Comm and the strip's pane, taken out where the box would
    * else have none (`boxPlan`, round 53j: they come back when the box
    * closes). Only a screen with no room even then refuses the hold, and a
-   * refused hold changes nothing: an open keyboard stays up.
+   * refused hold changes nothing: an open keyboard stays up. The whole
+   * answer is the plan's (stage 56): it is worked out on layouts that
+   * would be (`phoneGameLayoutIf`), before the keyboard folds or anything
+   * is taken out, and once it says yes nothing is judged again on the
+   * layout that follows (the same sums on the same asks), so no hold is
+   * refused with the keyboard already folded.
    *
    * Landscape: the keyboard folds, as it does for the box, and the room is
    * judged on the new layout (at once, not in the next frame: the box must
@@ -1878,11 +1883,8 @@ class Layer {
       // (At once: the box shows on the layout it was judged on.)
       if (moved) cockpit.relayoutNow();
       g = cockpit.phoneGameLayout;
-      if (!g) return true;
-      if (g.tooSmall || !this.boxFitsAt(g, this.boxBottom())) {
-        cockpit.setPhoneHide(null);
-        return false;
-      }
+      // The box at its place on the layout that came (the plan's last try, now on screen).
+      if (g) this.placeBoxOn(g, this.boxBottom());
       return true;
     }
     if (this.okbOpen) {

@@ -919,6 +919,71 @@ test.describe('a hold with panes above the game text: they give way to the box',
   });
 });
 
+test.describe('a refused hold with our keyboard and Comm open (portrait)', () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  // Stage 56 (left by 53e): the hold's answer is worked out on the layouts that would be, before
+  // the keyboard folds. No real screen was found where a K key shows over our keyboard and the box
+  // has no room without it (360 and 412 wide, 280 to 800 high, a fight, six keys), so the layout
+  // that would be is made to have none here: the fight card is reported 40 rows taller.
+  test('the box has no room on the layout without the keyboard: nothing changes, the keyboard stays up; with room again the same hold opens the box', async ({ page }) => {
+    const errors = watchErrors(page);
+    await openPhone(page);
+    await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+    await field(page).tap();
+    const okb = page.locator('.wc-ph-okb');
+    await expect(okb).toBeVisible();
+    await expect(hk(page, 1)).toBeVisible();
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    await page.evaluate(() => {
+      const c = window.__wc!.app.cockpit;
+      const w = window as unknown as { __asked: number; __real: typeof c.phoneGameLayoutIf; __okb: string[] };
+      w.__asked = 0;
+      w.__real = c.phoneGameLayoutIf.bind(c);
+      c.phoneGameLayoutIf = (ask) => {
+        w.__asked++;
+        const g = w.__real(ask);
+        return g && { ...g, fight: { ...g.fight, h: g.fight.h + 40 }, game: { ...g.game, y: g.game.y + 40 } };
+      };
+      // Every change of the keyboard, the page's keyboard class and Comm's pane.
+      w.__okb = [];
+      const mo = new MutationObserver((ms) => {
+        for (const m of ms) w.__okb.push(`${(m.target as HTMLElement).classList[0] ?? (m.target as HTMLElement).tagName} ${m.attributeName}`);
+      });
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+      mo.observe(document.querySelector('.wc-ph-okb')!, { attributes: true });
+      mo.observe(document.querySelector('.wc-cockpit > .wc-pane[data-pane="comm"]')!, { attributes: true });
+    });
+    const was = await pgLayout(page);
+    expect(was.bottom).toBeGreaterThan(0);
+    expect(was.comm.h).toBeGreaterThan(0);
+    const at = await box(okb);
+    const seen = await watchScreen(page);
+    await longPress(page, hk(page, 1));
+    expect(await page.evaluate(() => (window as unknown as { __asked: number }).__asked)).toBeGreaterThan(0);
+    await expect(rb(page)).toBeHidden();
+    // Nothing at all: no layout, no window size, nothing shown or hidden, the keyboard where it was.
+    expect(await seen()).toEqual([]);
+    expect(await page.evaluate(() => (window as unknown as { __okb: string[] }).__okb)).toEqual([]);
+    expect(await pgLayout(page)).toEqual(was);
+    await expect(okb).toBeVisible();
+    expect(await box(okb)).toEqual(at);
+    await expect(page.locator('html')).toHaveClass(/\bwc-okb\b/);
+    await expect(hk(page, 1)).not.toHaveClass(/\bis-held\b/);
+    // The keyboard still types.
+    await okb.locator('.wc-ph-okb-k[data-ch="q"]').tap();
+    await expect(field(page)).toHaveValue('q');
+    // With room (the real layouts): the same hold folds the keyboard and opens the box.
+    await page.evaluate(() => {
+      window.__wc!.app.cockpit.phoneGameLayoutIf = (window as unknown as { __real: never }).__real;
+    });
+    await hold(page, hk(page, 1));
+    await expect(rb(page)).toBeVisible();
+    await expect(okb).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('a hold with no room for the box', () => {
   // A screen so low that the box would be under its least height beside the columns, though the
   // layout itself still fits (a split screen): nothing above the game text to take out helps.
