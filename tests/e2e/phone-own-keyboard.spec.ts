@@ -413,12 +413,34 @@ test('a visible area that shrinks with no field tapped (a split screen) is nothi
   expect(errors).toEqual([]);
 });
 
-test('?kbd=1 on a desktop does nothing: no keyboard, no inputmode', async ({ page }) => {
-  await page.goto('/?replay&phone=0&kbd=1');
-  await expect(page.locator('.wc-cockpit')).toBeVisible();
-  await expect(page.locator('.wc-input-field')).not.toHaveAttribute('inputmode');
-  await expect(okb(page)).toHaveCount(0);
-  await expect(readout(page)).toHaveCount(0);
+// (Until stage 56 this ran as `?phone=0` on the phone project's own screen, which is a phone
+// whatever the query says, and passed only while the layer had not yet marked the field.)
+test.describe('the desktop cockpit on a touch device (`?tablet=desktop`)', () => {
+  test.use({ viewport: { width: 1000, height: 700 } });
+
+  test('?kbd=1 does nothing: no keyboard of ours, no inputmode; the device\'s keyboard is kept, also at a password prompt', async ({ page }) => {
+    await page.goto('/?replay&tablet=desktop&kbd=1');
+    await expect(page.locator('.wc-cockpit')).toBeVisible();
+    expect(await page.evaluate(() => [document.documentElement.classList.contains('wc-touch'), document.documentElement.classList.contains('wc-phone')])).toEqual([true, false]);
+    const line = page.locator('.wc-input-field');
+    // (Past the time the phone's chunks would have come.)
+    await page.waitForTimeout(500);
+    expect(await line.evaluate((el) => [el.tagName, (el as HTMLInputElement).type])).toEqual(['INPUT', 'text']);
+    await expect(line).not.toHaveAttribute('inputmode');
+    await expect(line).not.toHaveAttribute('virtualkeyboardpolicy');
+    await expect(okb(page)).toHaveCount(0);
+    await expect(readout(page)).toHaveCount(0);
+    // A password prompt: the desktop's masked line, the same field, still the device's keyboard.
+    await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: true }));
+    await expect(line).toHaveClass(/\bwc-masked\b/);
+    expect(await line.evaluate((el) => [el.tagName, (el as HTMLInputElement).type])).toEqual(['INPUT', 'text']);
+    await expect(line).not.toHaveAttribute('inputmode');
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+    await line.tap();
+    await page.keyboard.type('pw');
+    await expect(page.locator('.wc-input-mask')).toHaveText('••');
+    expect(await line.evaluate((el) => getComputedStyle(el).color)).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  });
 });
 
 // ------------------------------------------------------- opening and typing
