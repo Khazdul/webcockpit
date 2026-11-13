@@ -1,7 +1,6 @@
 # Stage 57 — The profile editor and the manuals remember the place
 
-Status: **Built, owner test pending** (2026-11-13). On the branch
-`stage-57-profile-place`; not merged, not released.
+Status: **Owner testing** (2026-11-13). Merged to main, not released.
 
 ## Goal
 
@@ -87,8 +86,7 @@ Lite is not remembered.
 
 ## Test guide
 
-Dev server (`npm run dev`, http://localhost:5173/) on the branch
-`stage-57-profile-place`. Use a profile with more macros (or aliases)
+Dev server (`npm run dev`, http://localhost:5173/) on `main`. Use a profile with more macros (or aliases)
 than the list shows at once.
 
 1. **In the game:** enter MUME, open the Profile window from the menu
