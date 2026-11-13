@@ -32,7 +32,6 @@ function mount(o: { replay?: Partial<PhoneReplay>; bar?: boolean; settings?: Set
     settings: cockpitSettings,
     cells: { get: () => CELL, subscribe: () => () => {} },
     requestFrame: (cb) => frames.push(cb),
-    phoneGame: true,
     phoneReplay: { bar: o.bar ?? true },
   });
   Object.defineProperty(cockpit.el, 'clientWidth', { get: () => size.width, configurable: true });
@@ -161,7 +160,7 @@ describe('the phone layer over a replay: the strip\'s pages', () => {
     }
     expect(seen).toEqual(['timers', 'group', 'character']);
     // Ctrl/Alt+4 would be Statistics in the game: there is no fourth page.
-    expect(h.cockpit.selectTabAt(3)).toBe(false);
+    expect(h.cockpit.phonePageKey(3)).toBe(false);
   });
 
   it('with every page omitted there is no panes key to tap', () => {

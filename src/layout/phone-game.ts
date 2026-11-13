@@ -1,7 +1,8 @@
-// The phone's layout in the live game (ADR 0136 §2): a pure allocator
-// beside `allocatePhone`. The cockpit uses it only with its `phoneGame`
-// option, which only the live game's shell passes; the run log player and
-// Spotlights keep `allocatePhone` and the tab strip.
+// The phone's layout (ADR 0136 §2): a pure allocator beside `allocate()`,
+// for the *phone* device flag. `Cockpit.relayoutNow` picks it by the flag,
+// in the live game and over a replay (the run log player and Spotlights,
+// stage 55); the desktop allocator and the stored layout model are
+// untouched, and the phone never writes layout changes back.
 //
 // Screen (C × R cells), top to bottom, every part full width:
 //
@@ -49,9 +50,8 @@
 // - `stripRange` and `commRange` are what a drag of that part's band may
 //   give it while the other keeps the height it has now: the dragged one
 //   stops at the budget, the other does not shrink.
-// - Below PHONE_MIN_COLS × PHONE_MIN_ROWS the result is `tooSmall`, unless
-//   `guard` is false (the device's keyboard is up, on a phone without the
-//   phone layer), as in `allocatePhone`.
+// - Below PHONE_MIN_COLS × PHONE_MIN_ROWS the result is `tooSmall`: only
+//   the game text and the command row are laid out.
 //
 // Landscape (stage 52c, `side` given): the strip and Comm open from the
 // left as one column instead, the strip above and Comm below, one width:
@@ -118,7 +118,23 @@
 // is the phone layer's (src/phone/), laid out in pixels.
 
 import type { Rect } from './allocate';
-import { PHONE_MIN_COLS, PHONE_MIN_ROWS } from './phone';
+
+/** The phone's "Window too small" limit (ADR 0075 §3; desktop keeps 60 × 18). */
+export const PHONE_MIN_COLS = 30;
+export const PHONE_MIN_ROWS = 8;
+
+/**
+ * Narrowest width a phone reports to MUME (NAWS). MUME formats tables
+ * (`change width table terminal`), e.g. locate life rows, to this width;
+ * a phone's ~40 columns would split rows that triggers expect on one line.
+ * The output pane wraps the wider lines itself.
+ */
+export const PHONE_MIN_NAWS_COLS = 80;
+
+/** The width sent to MUME for a game pane `cols` wide (phone only). */
+export function phoneNawsCols(cols: number): number {
+  return Math.max(cols, PHONE_MIN_NAWS_COLS);
+}
 
 /** Rows of the fight card while fighting (ADR 0136 §3). */
 export const FIGHT_ROWS = 2;
@@ -244,8 +260,6 @@ export interface PhoneGameInput {
   rows: number;
   /** Rows of the command row (`commandRows`). Default 1. 0: no command row (a replay without a bar docked there). */
   inputRows?: number;
-  /** Apply the too-small guard (default true; false while the device's keyboard is up). */
-  guard?: boolean;
   /** The pane strip is open. */
   strip?: boolean;
   /** The strip's stored rows; absent or null: the default share (`stripRows`). */
@@ -296,7 +310,7 @@ export interface PhoneGameSide {
 export interface PhoneGameResult {
   cols: number;
   rows: number;
-  /** Below the phone's limit (with the guard on): only the game and the command row are laid out. */
+  /** Below the phone's limit: only the game and the command row are laid out. */
   tooSmall: boolean;
   /** The pane strip (h = 0: closed, or it gave way). */
   strip: Rect;
@@ -398,7 +412,7 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
     sideBand: 0,
     sideRange: null,
   };
-  if ((input.guard ?? true) && (cols < PHONE_MIN_COLS || screenRows < PHONE_MIN_ROWS)) {
+  if (cols < PHONE_MIN_COLS || screenRows < PHONE_MIN_ROWS) {
     res.tooSmall = true;
     return res;
   }

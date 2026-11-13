@@ -32,7 +32,7 @@
 //
 // Menu bar (ADR 0099): desktop and tablet (a phone has no bar; a tablet
 // uses the bar by touch, ADR 0112). On a phone the live game has its own
-// layout (ADR 0136, stage 51): the App is built with `phoneGame`, the
+// layout (ADR 0136, stage 51): the cockpit takes it by the phone flag, the
 // phone layer (src/phone/, a chunk fetched only on a phone) is mounted
 // over its cockpit with the menu key in the command row, and `<html>` is
 // marked `wc-phone-game` while the cockpit is the visible view. Should the
@@ -858,8 +858,6 @@ export class Shell {
             }),
       },
       weather: installWeather,
-      // Phone only (ADR 0136): the phone's layout in the live game.
-      ...(this.phoneGame ? { phoneGame: true } : {}),
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
     });
     // Keep the menu host last, so the overlay is above the cockpit in DOM order too.

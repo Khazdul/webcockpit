@@ -15,7 +15,6 @@ import { STATS_FEED_MS, STATS_REFRESH_MS, StatsFeed, type StatsFeedOptions } fro
 import { barScale, extendsKills, fmtAge, fmtRunClock, killEntries, raterOf, scaleBands, scalePos, tilesOf } from '../../src/chrome/stats-pane-model';
 import type { AppStatusView } from '../../src/app/status';
 import { type AllocateInput, allocate, defaultFloatSize, statsAutoFloatRect } from '../../src/layout/allocate';
-import { GAME_TAB, allocatePhone } from '../../src/layout/phone';
 import { LIVE_ONLY, NOT_ON_PHONE, PANE_IDS, PANE_LABELS, PANE_SHORT, STATS_FLOAT, defaultLayout, type PaneId } from '../../src/layout/types';
 import { createPaneContext, type StatsPaneView } from '../../src/panes/context';
 import { PANE_FACTORIES } from '../../src/panes/factories';
@@ -159,12 +158,6 @@ describe('Statistics pane id', () => {
     const off = allocate({ layout: legacyLayout(), panes: toggles(false), cols: 200, rows: 60, barCells: 26 });
     expect(off.panes.some((b) => b.id === 'statistics')).toBe(false);
     expect(off.hidden).not.toContain('statistics');
-  });
-
-  it('never gets a phone tab, even when on', () => {
-    const r = allocatePhone({ layout: legacyLayout(), panes: toggles(true), cols: 43, rows: 40, tab: 'statistics' as PaneId });
-    expect(r.tabs).not.toContain('statistics');
-    expect(r.tab).toBe(GAME_TAB);
   });
 
   it('the log player keeps it off whatever the VIEW records say', () => {

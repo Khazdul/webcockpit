@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { PHONE_MIN_COLS, PHONE_MIN_ROWS } from '../../src/layout/phone';
 import {
+  PHONE_MIN_COLS,
+  PHONE_MIN_NAWS_COLS,
+  PHONE_MIN_ROWS,
+  phoneNawsCols,
   COMMAND_ROW_PX,
   COMM_MIN_ROWS,
   FIGHT_ROWS,
@@ -152,9 +155,9 @@ describe('allocatePhoneGame', () => {
     expect(run({ strip: true, fight: true, comm: { rows: 10 }, hide: { strip: true, comm: true } }).fight.y).toBe(0);
   });
 
-  describe('short screens (the keyboard is up)', () => {
+  describe('short screens', () => {
     it('Comm shrinks before anything closes', () => {
-      const r = run({ rows: 28, strip: true, fight: true, comm: { rows: 12 }, guard: false });
+      const r = run({ rows: 28, strip: true, fight: true, comm: { rows: 12 } });
       // 28 − 3 input − 2 fight − 6 strip − 8 game = 9 for Comm.
       expect(r.strip.h).toBe(6);
       expect(r.comm.h).toBe(9);
@@ -163,7 +166,7 @@ describe('allocatePhoneGame', () => {
     });
 
     it('the strip closes when Comm does not fit under it', () => {
-      const r = run({ rows: 22, strip: true, fight: true, comm: { rows: 12 }, guard: false });
+      const r = run({ rows: 22, strip: true, fight: true, comm: { rows: 12 } });
       expect(r.strip.h).toBe(0);
       expect(r.comm.h).toBe(9);
       expect(r.game.h).toBe(GAME_KEEP_ROWS);
@@ -171,7 +174,7 @@ describe('allocatePhoneGame', () => {
     });
 
     it('Comm closes when it does not fit at all', () => {
-      const r = run({ rows: 16, fight: true, comm: { rows: 12 }, guard: false });
+      const r = run({ rows: 16, fight: true, comm: { rows: 12 } });
       expect(r.comm.h).toBe(0);
       expect(r.commRange).toBeNull();
       expect(r.fight.h).toBe(2);
@@ -180,32 +183,19 @@ describe('allocatePhoneGame', () => {
     });
 
     it('the strip alone closes when the game would lose its rows', () => {
-      const r = run({ rows: 13, strip: true, guard: false });
+      const r = run({ rows: 13, strip: true });
       expect(r.strip.h).toBe(0);
       expect(r.game.h).toBe(10);
       // Under four rows (three rows of pane and its band) the strip is not shown at all.
-      expect(run({ rows: 14, strip: true, guard: false }).strip.h).toBe(0);
-      expect(run({ rows: 20, strip: true, guard: false }).strip.h).toBe(4);
+      expect(run({ rows: 14, strip: true }).strip.h).toBe(0);
+      expect(run({ rows: 20, strip: true }).strip.h).toBe(4);
     });
 
     it('the fight card is the last to give way', () => {
-      expect(run({ rows: 8, fight: true, guard: false }).fight.h).toBe(2);
-      const r = run({ rows: 7, fight: true, guard: false });
-      expect(r.fight.h).toBe(0);
-      expect(r.game.h).toBe(4);
+      // At the least screen the card still has its rows.
+      const r = run({ rows: PHONE_MIN_ROWS, fight: true });
+      expect(r.fight.h).toBe(2);
       expectStacked(r);
-    });
-
-    it('the command row leaves the game text one row', () => {
-      const r = run({ rows: 3, guard: false });
-      expect(r.input).toEqual({ x: 0, y: 1, w: 43, h: 2 });
-      expect(r.game).toEqual({ x: 0, y: 0, w: 43, h: 1 });
-      const one = run({ rows: 1, guard: false });
-      expect(one.input.h).toBe(1);
-      expect(one.game.h).toBe(0);
-      const none = run({ rows: 0, guard: false });
-      expect(none.input.h).toBe(0);
-      expect(none.game.h).toBe(0);
     });
   });
 
@@ -221,9 +211,7 @@ describe('allocatePhoneGame', () => {
       expect(run({ rows: PHONE_MIN_ROWS - 1 }).tooSmall).toBe(true);
     });
 
-    it('the guard is off while the keyboard is up', () => {
-      const r = run({ rows: PHONE_MIN_ROWS - 1, guard: false });
-      expect(r.tooSmall).toBe(false);
+    it('at the limit it is laid out', () => {
       expect(run({ cols: PHONE_MIN_COLS, rows: PHONE_MIN_ROWS }).tooSmall).toBe(false);
     });
   });
@@ -253,11 +241,11 @@ describe('allocatePhoneGame', () => {
     });
 
     it('a stored strip too tall for a short screen shrinks to its minimum before it closes', () => {
-      const r = run({ rows: 20, strip: true, stripRows: 12, guard: false });
+      const r = run({ rows: 20, strip: true, stripRows: 12 });
       // 20 − 3 input − 8 game = 9.
       expect(r.strip.h).toBe(9);
-      expect(run({ rows: 15, strip: true, stripRows: 12, guard: false }).strip.h).toBe(4);
-      expect(run({ rows: 14, strip: true, stripRows: 12, guard: false }).strip.h).toBe(0);
+      expect(run({ rows: 15, strip: true, stripRows: 12 }).strip.h).toBe(4);
+      expect(run({ rows: 14, strip: true, stripRows: 12 }).strip.h).toBe(0);
     });
   });
 
@@ -389,7 +377,7 @@ describe('allocatePhoneGame', () => {
     });
 
     it('hides on a screen narrower than the lens', () => {
-      const r = run({ cols: 12, lens, guard: false });
+      const r = run({ cols: PHONE_MIN_COLS, lens: { ...lens, fullPx: 400, minPx: 400 } });
       expect(r.lens).toBeNull();
       expect(r.lensHidden).toBe(true);
     });
@@ -493,10 +481,8 @@ describe('landscape: the strip and Comm as one column from the left (stage 52c)'
   });
 
   it('neither fits: no column', () => {
-    const r = land({ rows: 5, guard: false, comm: { rows: null } });
+    const r = land({ rows: PHONE_MIN_ROWS, comm: { rows: null }, commMin: 9 });
     expect([r.comm.h, r.side.w, r.game.x, r.game.w]).toEqual([0, 0, 0, 100]);
-    const s = land({ rows: 3, guard: false, strip: true });
-    expect([s.strip.h, s.side.w]).toEqual([0, 0]);
   });
 
   it('the width: a stored one within the least and what leaves the game text 40 columns', () => {
@@ -781,7 +767,7 @@ describe('ownKeyboardReserve: the rows a keyboard of our own gets (stage 53d: th
   it('the lift is where the allocator puts the command row\'s foot', () => {
     for (const [h, cell, px] of [[800, 17, 188], [520, 17, 156], [360, 17, 148], [280, 17, 132], [640, 19, 234]] as const) {
       const r = ownKeyboardReserve(h, cell, px, 3);
-      const g = allocatePhoneGame({ cols: 43, rows: Math.floor(h / cell), inputRows: 3, bottom: r.bottom, guard: false });
+      const g = allocatePhoneGame({ cols: 43, rows: Math.floor(h / cell), inputRows: 3, bottom: r.bottom });
       expect(h - (g.input.y + g.input.h) * cell).toBe(r.lift);
     }
   });
@@ -907,8 +893,8 @@ describe('Comm\'s least height is a floor in px (round 53k)', () => {
     const r = run({ strip: true, stripRows: 12, fight: true, comm: { rows: 14 }, maxTop: 22, commMin: 9 });
     expect([r.strip.h, r.comm.h, r.fight.h]).toEqual([11, 9, 2]);
     // No room for the floor: Comm closes rather than show a cut reply line.
-    expect(run({ rows: 18, comm: { rows: 12 }, commMin: 9, guard: false }).comm.h).toBe(0);
-    expect(run({ rows: 18, comm: { rows: 12 }, guard: false }).comm.h).toBeGreaterThan(0);
+    expect(run({ rows: 18, comm: { rows: 12 }, commMin: 9 }).comm.h).toBe(0);
+    expect(run({ rows: 18, comm: { rows: 12 } }).comm.h).toBeGreaterThan(0);
     // Landscape: both parts need their minimums, or the strip closes.
     const land = allocatePhoneGame({ cols: 90, rows: 12, inputRows: 3, strip: true, comm: { rows: null }, commMin: 9, side: { cols: null } });
     expect([land.strip.h, land.comm.h]).toEqual([0, 12]);
@@ -956,5 +942,13 @@ describe('no command row (stage 55: a replay, `inputRows: 0`)', () => {
     expect(run({ inputRows: 0, rows: PHONE_MIN_ROWS - 1 }).tooSmall).toBe(true);
     expect(run({ inputRows: 0, rows: PHONE_MIN_ROWS }).tooSmall).toBe(false);
     expect(run({ inputRows: 0, cols: PHONE_MIN_COLS - 1 }).tooSmall).toBe(true);
+  });
+});
+
+describe('phoneNawsCols', () => {
+  it('reports at least 80 columns so MUME tables keep their rows whole', () => {
+    expect(PHONE_MIN_NAWS_COLS).toBe(80);
+    expect(phoneNawsCols(41)).toBe(80);
+    expect(phoneNawsCols(93)).toBe(93);
   });
 });

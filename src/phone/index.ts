@@ -1,7 +1,7 @@
 // The phone layer (ADR 0136 §2): the chrome of the phone's layout in the
 // live game, plain DOM over the cockpit, laid out in pixels. The cockpit
 // keeps owning and placing the game text, the command row and every pane
-// (`allocatePhoneGame`, the `phoneGame` option); this layer reads its
+// (`allocatePhoneGame`, by the device's phone flag); this layer reads its
 // rectangles after each layout and never re-parents a pane.
 //
 // Loaded only on a phone: the shell imports this module (and phone.css)
@@ -148,7 +148,7 @@ export interface PhoneLayerBaseDeps {
   kit: PhoneKit;
   /** The look kit's controls, from the chrome chunk (kit.ts). */
   controls: PhoneControls;
-  /** The cockpit, built with `phoneGame` (over a replay: also with `phoneReplay`). */
+  /** The cockpit, on a device with the phone flag (over a replay: built with `phoneReplay`). */
   cockpit: Cockpit;
   game: GameState;
   /** The cell size in px (the cockpit's rectangles are in cells). */

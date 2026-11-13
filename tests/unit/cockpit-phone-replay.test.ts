@@ -18,7 +18,7 @@ const ROWS = Math.floor(H / CELL.h);
 
 const cleanup: (() => void)[] = [];
 
-function make(o: Partial<Pick<CockpitOptions, 'phoneGame' | 'phoneReplay'>>, size = { width: W, height: H }) {
+function make(o: Pick<CockpitOptions, 'phoneReplay'>, size = { width: W, height: H }) {
   const root = document.createElement('div');
   document.body.append(root);
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
@@ -51,8 +51,8 @@ afterEach(() => {
 
 describe('Cockpit phoneReplay (stage 55)', () => {
   it('the live game keeps the command row; a replay with a bar keeps the same rows for it', () => {
-    const live = make({ phoneGame: true });
-    const bar = make({ phoneGame: true, phoneReplay: { bar: true } });
+    const live = make({});
+    const bar = make({ phoneReplay: { bar: true } });
     const n = commandRows(CELL.h);
     expect(n).toBe(3);
     for (const h of [live, bar]) {
@@ -67,7 +67,7 @@ describe('Cockpit phoneReplay (stage 55)', () => {
   });
 
   it('a replay without a bar lays out no command row: the game text reaches the bottom edge', () => {
-    const { c } = make({ phoneGame: true, phoneReplay: { bar: false } });
+    const { c } = make({ phoneReplay: { bar: false } });
     const g = c.phoneGameLayout!;
     expect(g.tooSmall).toBe(false);
     expect(g.input).toEqual({ x: 0, y: ROWS, w: COLS, h: 0 });
@@ -78,7 +78,7 @@ describe('Cockpit phoneReplay (stage 55)', () => {
   });
 
   it('the strip, Comm and the lens are laid out over a replay as in the game', () => {
-    const { c, flush } = make({ phoneGame: true, phoneReplay: { bar: false } });
+    const { c, flush } = make({ phoneReplay: { bar: false } });
     c.setPhoneStrip('timers');
     c.setPhoneComm({ rows: 10 });
     c.setPhoneLens({ size: 160, min: 96, gapTop: 16, gapRight: 12, clearBottom: 0 });
@@ -93,27 +93,20 @@ describe('Cockpit phoneReplay (stage 55)', () => {
     expect(c.phoneGameLayoutIf({ bottom: null })!.input.h).toBe(0);
   });
 
-  it('without phoneGame the option does nothing', () => {
-    const { c } = make({ phoneReplay: { bar: false } });
+  it('not on a phone: the option does nothing', () => {
+    setDeviceForTest({ touch: false, phone: false });
+    const { c } = make({ phoneReplay: { bar: true } }, { width: 1200, height: 800 });
     expect(c.isPhoneGame).toBe(false);
     expect(c.phoneReplayMode).toBeNull();
     expect(c.phoneGameLayout).toBeNull();
     expect(c.el.hasAttribute('data-phone-game')).toBe(false);
     expect(c.el.hasAttribute('data-ph-light')).toBe(false);
   });
-
-  it('not on a phone: neither option does anything', () => {
-    setDeviceForTest({ touch: false, phone: false });
-    const { c } = make({ phoneGame: true, phoneReplay: { bar: true } }, { width: 1200, height: 800 });
-    expect(c.isPhoneGame).toBe(false);
-    expect(c.phoneReplayMode).toBeNull();
-    expect(c.el.hasAttribute('data-ph-light')).toBe(false);
-  });
 });
 
 describe("Cockpit data-ph-light (stage 55): the phone layout follows the cockpit's own theme", () => {
   it("is set from the cockpit's settings at construction and at once when the background changes", () => {
-    const { c, settings } = make({ phoneGame: true });
+    const { c, settings } = make({});
     expect(c.el.hasAttribute('data-ph-light')).toBe(false);
     // No frame is flushed: the mark changes in the turn of the settings change, as the page's does.
     settings.update({ appearance: { bg: '#f4ecd8' } });
@@ -128,13 +121,14 @@ describe("Cockpit data-ph-light (stage 55): the phone layout follows the cockpit
     const settings = new SettingsStore({ factory: null, storage: null, win: null });
     settings.update({ appearance: { bg: '#f4ecd8' } });
     document.documentElement.removeAttribute('data-light');
-    const c = new Cockpit({ root, settings, cells: { get: () => CELL, subscribe: () => () => {} }, requestFrame: () => {}, phoneGame: true, phoneReplay: { bar: true } });
+    const c = new Cockpit({ root, settings, cells: { get: () => CELL, subscribe: () => () => {} }, requestFrame: () => {}, phoneReplay: { bar: true } });
     cleanup.push(() => c.dispose());
     expect(c.el.hasAttribute('data-ph-light')).toBe(true);
   });
 
   it('a cockpit that is not in the phone game layout is never marked', () => {
-    const { c, settings } = make({});
+    setDeviceForTest({ touch: false, phone: false });
+    const { c, settings } = make({}, { width: 1200, height: 800 });
     settings.update({ appearance: { bg: '#f4ecd8' } });
     expect(c.el.hasAttribute('data-ph-light')).toBe(false);
   });
@@ -142,7 +136,7 @@ describe("Cockpit data-ph-light (stage 55): the phone layout follows the cockpit
 
 describe('phone game layout and panes switched off in the settings (stage 55, a recorded VIEW)', () => {
   it('the lens places the map pane though panes.map.on is false', () => {
-    const { c, settings, flush } = make({ phoneGame: true, phoneReplay: { bar: false } });
+    const { c, settings, flush } = make({ phoneReplay: { bar: false } });
     settings.update((d) => {
       d.panes.map = { ...d.panes.map, on: false };
     });
@@ -157,7 +151,7 @@ describe('phone game layout and panes switched off in the settings (stage 55, a 
   });
 
   it('the strip and Comm place their panes though they are switched off', () => {
-    const { c, settings, flush } = make({ phoneGame: true, phoneReplay: { bar: false } });
+    const { c, settings, flush } = make({ phoneReplay: { bar: false } });
     settings.update((d) => {
       for (const id of ['timers', 'group', 'character', 'comm'] as const) d.panes[id] = { ...d.panes[id], on: false };
     });
@@ -181,7 +175,7 @@ describe('phone game layout and panes switched off in the settings (stage 55, a 
 });
 
 describe('a player App passes the phone layout through (stage 55)', () => {
-  function playerApp(o: { phoneGame?: boolean; phoneReplay?: { bar: boolean } }): App {
+  function playerApp(o: { phoneReplay?: { bar: boolean } }): App {
     const root = document.createElement('div');
     document.body.append(root);
     const clock = new ReplayClock(1_000_000);
@@ -200,25 +194,22 @@ describe('a player App passes the phone layout through (stage 55)', () => {
     return app;
   }
 
-  it('without the options a player App has the cockpit it had before', () => {
-    const app = playerApp({});
-    expect(app.cockpit.isPhoneGame).toBe(false);
-    expect(app.cockpit.phoneReplayMode).toBeNull();
-    expect(app.cockpit.el.hasAttribute('data-phone-game')).toBe(false);
+  it('not on a phone a player App has the desktop cockpit, whatever the option says', () => {
+    setDeviceForTest({ touch: false, phone: false });
+    for (const o of [{}, { phoneReplay: { bar: false } }]) {
+      const app = playerApp(o);
+      expect(app.cockpit.isPhoneGame).toBe(false);
+      expect(app.cockpit.phoneReplayMode).toBeNull();
+      expect(app.cockpit.el.hasAttribute('data-phone-game')).toBe(false);
+    }
   });
 
-  it('phoneGame with phoneReplay reaches the cockpit, bar or not', () => {
+  it('phoneReplay reaches the cockpit, bar or not', () => {
     for (const bar of [true, false]) {
-      const app = playerApp({ phoneGame: true, phoneReplay: { bar } });
+      const app = playerApp({ phoneReplay: { bar } });
       expect(app.cockpit.isPhoneGame).toBe(true);
       expect(app.cockpit.phoneReplayMode).toEqual({ bar });
       expect(app.cockpit.el.hasAttribute('data-phone-game')).toBe(true);
     }
-  });
-
-  it('phoneReplay alone does nothing', () => {
-    const app = playerApp({ phoneReplay: { bar: false } });
-    expect(app.cockpit.isPhoneGame).toBe(false);
-    expect(app.cockpit.phoneReplayMode).toBeNull();
   });
 });

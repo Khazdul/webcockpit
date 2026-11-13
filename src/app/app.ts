@@ -128,7 +128,7 @@ import type { ScriptLibrary } from '../scripts';
 import type { ScriptHost } from '../scripts/host';
 import { GmcpCache } from '../scripts/gmcp-cache';
 import { device } from '../core/device';
-import { phoneNawsCols } from '../layout/phone';
+import { phoneNawsCols } from '../layout/phone-game';
 import type { PaneId } from '../layout/types';
 
 /** sessionStorage key: the `#perf` overlay is on in this tab (ADR 0135). */
@@ -244,17 +244,12 @@ export interface AppOptions {
    */
   ui?: AppUi;
   /**
-   * The phone's layout (ADR 0136): the cockpit's `phoneGame` option. The
-   * live game's shell passes it, on a phone; the phone layer (src/phone/)
-   * is mounted by the shell. A player App may pass it too, together with
-   * `phoneReplay` (stage 55); whoever builds that App mounts the layer in
-   * its replay mode.
-   */
-  phoneGame?: boolean;
-  /**
-   * With `phoneGame`, in a player App: the cockpit's `phoneReplay` option
+   * On a phone (the device's phone flag: the cockpit then has the phone's
+   * layout, ADR 0136), in a player App: the cockpit's `phoneReplay` option
    * (no command line; `bar` keeps the command row's rows for the player's
-   * transport bar). Without `phoneGame` it does nothing.
+   * transport bar). Whoever builds the App mounts the phone layer
+   * (src/phone/): the shell over the live game, the player host in its
+   * replay mode (stage 55). Without the phone flag it does nothing.
    */
   phoneReplay?: { bar: boolean };
   /** Hang-guard storage for the script host (tests; default `localStorage`). */
@@ -492,9 +487,8 @@ export class App {
       onFocusInput: () => this.input.focus(),
       paneContext,
       ...(this.appUi?.bar && this.appUi.togglePaneSettings ? { onGear: (id: PaneId) => this.appUi?.togglePaneSettings?.(id) } : {}),
-      ...(opts.phoneGame ? { phoneGame: true } : {}),
-      // Over a replay (stage 55): a player App's cockpit, without a command line.
-      ...(opts.phoneGame && opts.phoneReplay ? { phoneReplay: opts.phoneReplay } : {}),
+      // The phone's layout over a replay (stage 55): a player App's cockpit, without a command line.
+      ...(opts.phoneReplay ? { phoneReplay: opts.phoneReplay } : {}),
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,
@@ -1050,7 +1044,7 @@ export class App {
 
   /** Macro hook: runs the macro for a key; false when none is bound. */
   onMacroKey(key: string): boolean {
-    if (!this.script.hasMacro(key)) return this.phoneTabKey(key);
+    if (!this.script.hasMacro(key)) return this.phonePageKey(key);
     this.userAction = true;
     this.userActionHandled = false;
     this.perf?.keyStart(KEY_MACRO);
@@ -1063,10 +1057,10 @@ export class App {
     return true;
   }
 
-  /** Phone only: Ctrl+1…9 or Alt+1…9 selects the strip's tab by position (ADR 0098). */
-  private phoneTabKey(key: string): boolean {
+  /** Phone only: Ctrl+1…9 or Alt+1…9 shows the pane strip's page at that position (ADR 0136 §5). */
+  private phonePageKey(key: string): boolean {
     const m = /^(?:Ctrl|Alt)\+([1-9])$/.exec(key);
-    return m !== null && this.cockpit.selectTabAt(Number(m[1]) - 1);
+    return m !== null && this.cockpit.phonePageKey(Number(m[1]) - 1);
   }
 
   /** The engine's sender: to the game when connected. */
