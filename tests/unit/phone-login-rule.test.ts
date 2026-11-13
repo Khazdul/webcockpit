@@ -348,6 +348,24 @@ describe('the wipes', () => {
   });
 });
 
+describe('three hours without a connection', () => {
+  it('wipes an armed session that is down, with a notice', () => {
+    const r = run([down('lost'), { type: 'expired' }], armed());
+    expect(r.state.armed).toBeNull();
+    expect(r.does).toContain('wipe');
+    expect(notices(r.actions)).toContain('Automatic login is off: not connected for three hours. The saved login is forgotten.');
+    // The next connection is the player's own.
+    const next = run([connecting, login, { type: 'namePrompt' }, { type: 'passwordPrompt' }], r.state);
+    expect(next.does).not.toContain('sendName');
+    expect(next.does).not.toContain('sendPassword');
+  });
+
+  it('does nothing to a session that is up, or to one that is not armed', () => {
+    expect(run([{ type: 'expired' }], armed()).state.armed).toBe('Rasta');
+    expect(run([down('lost'), { type: 'expired' }]).actions.filter((a) => a.do === 'notice')).toEqual([]);
+  });
+});
+
 describe('the vault', () => {
   it('hands the stored password to one call and nothing else shows it', () => {
     const v = new LoginVault();

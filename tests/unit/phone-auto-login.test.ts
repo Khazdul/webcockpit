@@ -8,6 +8,7 @@ import type { BusEvents } from '../../src/core/types';
 import { REASON_BACKGROUND_LOST, REASON_USER_RECONNECT, Session, isLinkLoss } from '../../src/net/session';
 import { OPT_ECHO, OPT_GMCP, WILL, WONT } from '../../src/net/telnet';
 import { AutoLogin, NAME_WAIT_MS } from '../../src/phone/auto-login';
+import { EXPIRE_MS } from '../../src/phone/login-rule';
 import { LoginAsk, placeAsk } from '../../src/phone/login-ask';
 import { ASK_MS, ATTEMPT_MS } from '../../src/phone/login-rule';
 import { LineAssembler } from '../../src/text/assembler';
@@ -438,6 +439,68 @@ describe('the automatic login', () => {
     r.sock().data(PASSWORD_PROMPT);
     await tick();
     expect(r.lines()).toEqual(['Rasta', PASSWORD]);
+  });
+
+  describe('three hours without a connection', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    });
+
+    it('the stored login is wiped while the page runs, and the next connection is the player\'s own', async () => {
+      const m = make();
+      m.byHand();
+      m.tap('yes');
+      m.sock().drop(LOST);
+      vi.advanceTimersByTime(EXPIRE_MS - 1000);
+      expect(m.auto.vaultEmpty).toBe(false);
+      vi.advanceTimersByTime(1000);
+      expect(m.auto.vaultEmpty).toBe(true);
+      expect(m.notices).toContain('Automatic login is off: not connected for three hours. The saved login is forgotten.');
+      await m.nothingSentNext();
+    });
+
+    it('a page that was suspended (its timer never ran): wiped when asked, and when the player reconnects', async () => {
+      for (const how of ['asked', 'reconnect'] as const) {
+        const m = make();
+        m.byHand();
+        m.tap('yes');
+        m.sock().drop(LOST);
+        // The clock moves, the timers do not.
+        vi.setSystemTime(Date.now() + EXPIRE_MS + 1);
+        if (how === 'asked') expect(m.auto.armed).toBe(false);
+        await m.nothingSentNext();
+        expect(m.auto.armed).toBe(false);
+        document.body.replaceChildren();
+      }
+    });
+
+    it('a shorter time away keeps it: the reconnect logs in; failed connects in between do not start the time again', async () => {
+      const m = make();
+      m.byHand();
+      m.tap('yes');
+      m.sock().drop(LOST);
+      vi.advanceTimersByTime(EXPIRE_MS - 60_000);
+      m.session.connect();
+      m.sock().drop(LOST); // never came up
+      expect(m.auto.armed).toBe(true);
+      vi.advanceTimersByTime(60_000);
+      expect(m.auto.armed).toBe(false);
+
+      const k = make();
+      k.byHand();
+      k.tap('yes');
+      k.sock().drop(LOST);
+      vi.advanceTimersByTime(EXPIRE_MS - 60_000);
+      k.up();
+      await tick();
+      k.sock().data(PASSWORD_PROMPT);
+      await tick();
+      expect(k.lines()).toEqual(['Rasta', PASSWORD]);
+      k.letIn();
+      // Up again: the time is not counted any more.
+      vi.advanceTimersByTime(EXPIRE_MS * 2);
+      expect(k.auto.armed).toBe(true);
+    });
   });
 
   it('a page restored from the back/forward cache forgets it', async () => {

@@ -27,7 +27,7 @@
 import type { Bus } from '../core/bus';
 import type { ConnState } from '../core/types';
 import { LoginAsk, type AskRect } from './login-ask';
-import { LOGIN_RULE_IDLE, type LoginAction, type LoginEvent, loginStep } from './login-rule';
+import { EXPIRE_MS, LOGIN_RULE_IDLE, type LoginAction, type LoginEvent, loginStep } from './login-rule';
 import { LoginVault } from './login-vault';
 
 /** MUME's name prompt (to be confirmed against the live game, ADR 0141). */
@@ -67,6 +67,8 @@ export interface AutoLoginHost {
   /** The card was shown: place it. */
   placed(): void;
   win: Pick<Window, 'setTimeout' | 'clearTimeout'>;
+  /** The wall clock, ms (`Date.now`): a suspended page's timers stand still, the clock does not. */
+  now?: () => number;
 }
 
 export class AutoLogin {
@@ -82,6 +84,10 @@ export class AutoLogin {
   /** The name prompt was acted on as an unfinished line: its finished line is the same prompt. */
   private promptOpen = false;
   private readonly timers: { attempt: number | null; ask: number | null } = { attempt: null, ask: null };
+  /** Since when there is no connection (wall clock, ms), or null while one is up. */
+  private downSince: number | null = null;
+  private expireTimer: number | null = null;
+  private readonly now: () => number;
   private readonly unsubs: (() => void)[] = [];
 
   constructor(
@@ -89,6 +95,7 @@ export class AutoLogin {
     private readonly host: AutoLoginHost,
   ) {
     // The card first: should making it throw, nothing is attached to the session or the bus yet.
+    this.now = host.now ?? (() => Date.now());
     this.ask = new LoginAsk(host.el.ownerDocument);
     host.el.append(this.ask.el);
     const { bus, session } = deps;
@@ -99,14 +106,21 @@ export class AutoLogin {
       },
       bus.on('conn.state', (e) => {
         if (e.state === 'connecting') {
+          // Before anything of the new connection: a stored login that ran out is not used.
+          this.expire();
           this.replay = e.replay === true;
           this.gen++;
           this.promptOpen = false;
           this.feed({ type: 'connecting', replay: this.replay });
         } else if (this.replay) return;
-        else if (e.state === 'login') this.feed({ type: 'login' });
-        else if (e.state === 'playing') this.feed({ type: 'playing' });
-        else if (e.state === 'disconnected') this.feed({ type: 'down', why: this.why(e.reason ?? '') });
+        else if (e.state === 'login') {
+          this.clock(false);
+          this.feed({ type: 'login' });
+        } else if (e.state === 'playing') this.feed({ type: 'playing' });
+        else if (e.state === 'disconnected') {
+          this.feed({ type: 'down', why: this.why(e.reason ?? '') });
+          this.clock(true);
+        }
       }),
       bus.on('gmcp', (m) => {
         if (this.replay || (m.key ?? m.pkg.toLowerCase()) !== 'char.name') return;
@@ -138,6 +152,7 @@ export class AutoLogin {
 
   /** The session is armed (the shell: a dead link found on resume then reconnects, whatever the setting). */
   get armed(): boolean {
+    this.expire();
     return this.state.armed !== null;
   }
 
@@ -149,6 +164,34 @@ export class AutoLogin {
    */
   armedAfter(reason: string): boolean {
     return this.armed && this.state.auto === null && this.why(reason) !== 'ended';
+  }
+
+  /**
+   * The time without a connection: started when a connection that was up
+   * ends (a connection that never came up does not start it again), stopped
+   * when one is up. The timer wipes while the page runs; `expire` is also
+   * asked wherever the stored login would be used, since a suspended page's
+   * timer does not run.
+   */
+  private clock(down: boolean): void {
+    if (this.expireTimer !== null) this.host.win.clearTimeout(this.expireTimer);
+    this.expireTimer = null;
+    if (!down) {
+      this.downSince = null;
+      return;
+    }
+    if (this.downSince === null) this.downSince = this.now();
+    if (this.state.armed === null) return;
+    this.expireTimer = this.host.win.setTimeout(() => {
+      this.expireTimer = null;
+      this.expire();
+    }, Math.max(0, this.downSince + EXPIRE_MS - this.now()));
+  }
+
+  /** Wipes the stored login if there has been no connection for `EXPIRE_MS`. */
+  private expire(): void {
+    if (this.downSince === null || this.state.armed === null || this.now() - this.downSince < EXPIRE_MS) return;
+    this.feed({ type: 'expired' });
   }
 
   /** Nothing is held: no stored and no pending password (tests; never the password). */
@@ -180,6 +223,7 @@ export class AutoLogin {
     this.gen++;
     for (const u of this.unsubs.splice(0)) u();
     for (const which of ['attempt', 'ask'] as const) this.timer(which, null);
+    this.clock(false);
     this.vault.wipe();
     this.state = LOGIN_RULE_IDLE;
     this.ask.el.remove();

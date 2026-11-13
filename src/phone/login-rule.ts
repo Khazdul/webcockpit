@@ -67,12 +67,20 @@
 // A connection that never came up (refused, no network yet) ends nothing:
 // the session stays as it was.
 //
+// NOT CONNECTED FOR `EXPIRE_MS` (three hours) while armed: wiped
+// (`expired`). The live game ends a `rent` as a lost link (no
+// `Core.Goodbye`, no closing handshake), so the session stays armed after
+// it; the owner's choice (2026-11-13) is to keep that and to let the
+// stored login run out instead.
+//
 // Wiped also by: Exit session with the link already down (`exit`), a
 // replay starting, another character's `Char.Name`, and a page restored
 // from the back/forward cache (`restored`, which also forgets the answers).
 
 /** How long one attempt may take from the connection coming up to play, ms. */
 export const ATTEMPT_MS = 20_000;
+/** How long an armed session may be without a connection before the stored login is wiped, ms. */
+export const EXPIRE_MS = 3 * 60 * 60 * 1000;
 /** How long the question stays up unanswered, ms. */
 export const ASK_MS = 60_000;
 /** What a name candidate looks like: letters only. Nothing else typed at the login prompts is kept. */
@@ -139,7 +147,9 @@ export type LoginEvent =
   /** Exit session (the shell), whether or not a connection was open: the stored login goes, the answers stay. */
   | { type: 'exit' }
   /** The page came back from the back/forward cache. */
-  | { type: 'restored' };
+  | { type: 'restored' }
+  /** No connection for `EXPIRE_MS` while armed (the controller keeps the time). */
+  | { type: 'expired' };
 
 export type LoginAction =
   /** Keep the secret just sent as the pending password (the controller has it in hand). */
@@ -317,6 +327,10 @@ export function loginStep(s: LoginRuleState, ev: LoginEvent): LoginStep {
       return s.auto === null ? stay(s) : aborted(s, 'the prompt changed before it was answered');
     case 'exit':
       return wiped(cleared(s), null);
+    case 'expired':
+      // Only between connections: a session that is up is not timed.
+      if (s.conn !== 'down' || s.armed === null) return stay(s);
+      return wiped(stay(s), 'Automatic login is off: not connected for three hours. The saved login is forgotten.');
     case 'restored': {
       const c = cleared(s);
       const w = wiped(c, null);

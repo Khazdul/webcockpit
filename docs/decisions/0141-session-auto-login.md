@@ -369,3 +369,32 @@ prompt, not in the same frame. A line of the player's in that second
 stops the attempt as before. The rule's tolerance from 0.8.1 stays, for
 a MUME that repeats the prompt anyway. Whether the second removes the
 repeat is for the owner to see on the live game.
+
+### Same day: a rent ends as a lost link ("to verify" 9, answered); three hours
+
+The owner rented at an inn while armed: the connection closed, the
+sheet with Reconnect came, and Reconnect logged the character in again.
+So the live game ends a `rent` with no `Core.Goodbye` and no closing
+handshake (the browser reports 1006), which the client cannot tell from
+a lost link.
+
+Tried and rejected by the owner: noting the player's own `rent` or
+`quit` and treating a connection that vanishes right after it as a
+session ended (built, never released). He does not want the client to
+guess from what was typed.
+
+Decision (owner): the session stays armed after such an end. To play
+another character, Exit session to the start menu wipes the stored
+login, as before. And a stored login runs out: **after three hours
+(`EXPIRE_MS`) without a connection, it is wiped** ("Automatic login is
+off: not connected for three hours."). The time starts when a
+connection that was up ends and stops when one is up again; a failed
+connect in between does not start it again. A timer wipes while the
+page runs. A suspended page's timer stands still, so the wall clock is
+also asked wherever the stored login would be used: when the shell asks
+whether the session is armed (the reconnect on resume) and before every
+new connection.
+
+This replaces the claim in §6 that a character that quit is never
+logged back in: on the live game it is, for up to three hours, by the
+player's own Reconnect or by coming back to the page.

@@ -456,13 +456,12 @@ on the iPad, or on the phone, and Enter MUME.
    you were.
 3. **The menu's Reconnect** (menu key → Reconnect) while armed: the
    same.
-4. **Quit while armed.** Answer Yes, then type `quit` (or rent). Wanted:
-   the notice "Automatic login is off: the session ended. The saved
-   login is forgotten." Put the browser away and come back later:
-   **nothing must connect or log in.** If the character is logged in
-   again, or the notice did not come, say so at once: MUME then ends a
-   quit in a way the client takes for a lost link (ADR 0141, to verify
-   9), and the round must not be released as it is.
+4. **Rent or quit while armed** (changed 2026-11-13, ADR 0141
+   addendum). The live game ends a rent as a lost link, so the session
+   stays armed: Reconnect logs the character in again. Wanted now: after
+   three hours without a connection, "Automatic login is off: not
+   connected for three hours." and Reconnect is MUME's own prompt. To
+   change character before that: Exit session, then Enter MUME.
 5. **No.** Reload, log in, answer No. Lose the link as in 2: MUME's own
    name prompt (or the sheet with Reconnect), nothing typed for you.
    Log in again by hand: no question.
