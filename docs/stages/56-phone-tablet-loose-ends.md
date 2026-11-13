@@ -46,11 +46,24 @@ stage 55).
 
 - [ ] 56a small fixes: 1, 2, 3
 - [ ] 56b tablet-width review of the menu pages: 4
-- [ ] 5 `opponent-hits` words
+- [x] 5 `opponent-hits` words (not confirmable from logs; see Built)
 - [ ] 6 and 7 looked at
 - [ ] Closing test guide for phone and iPad, session log
 
 ## Built
+
+### 5. `opponent-hits` words (2026-11-13): not confirmed from logs
+
+`/home/ole/MUME` holds no session log with GMCP payloads (`logs/` has
+only `debug.log` and `ui.log`; no file but docs and Lua mentions the
+field). What it does show: Cockpit's `lua/core/group_collector.lua`
+applies `opponent-hits` and `buffer-hits` straight onto a group
+member's `hp_string`, and `docs/gmcp.md` gives them as `"healthy"`,
+`"fine"`, …: the same words as `hp-string`, which is what
+`src/gmcp/bands.ts` has (dying, awful, bad, wounded, hurt, fine,
+healthy). That has worked in the owner's own play in Cockpit. So the
+list is very likely right, but no raw packet was seen. Left as it is;
+a wrong word would show as a fight card bar that does not move.
 
 ## Test guide (for the owner)
 
