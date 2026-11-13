@@ -396,26 +396,39 @@ live game must confirm; this is the short version.
 - **Desktop does not change:** the phone's chunk holds all of it. The
   session got one nullable property (`loginTap`) and the shell passes
   the session and the bus to the phone layer.
-- **Tests.** Unit: 4199 passed, 2 skipped (58 new in
-  `phone-login-rule.test.ts` and `phone-auto-login.test.ts`: the rule,
-  each stop, never-the-password-outside-the-prompt, the vault, the
-  controller on a real session and telnet parser). `tsc --noEmit`
-  clean. Phone e2e project: 464 passed, 0 failed in the last full run
-  (16 new in `tests/e2e/phone-auto-login.spec.ts`, at 412 × 915, 800 ×
-  360, 820 × 1180 and 1180 × 820). An earlier full run had 4 failures
-  in `phone-game-panes.spec.ts` (:290, :529, :679, :826), a file this
-  round does not touch; it passed 30 of 30 alone and in the last full
-  run, and their error text was not kept: taken as load-flaky, cause
-  not found. Desktop (Chromium and Firefox): `auto-login-desktop`
-  (new), `live-mock`, `input-password-long`, `chrome`, `replay`,
-  `menubar`, `smoke`: 96 passed. The full e2e suite was not run. MUME
+- **Tests** (after the review fixes). Unit: 4214 passed, 2 skipped
+  (the rule, each stop, never-the-password-outside-the-prompt, the
+  vault, and the controller on a real session and telnet parser, in
+  `phone-login-rule.test.ts` and `phone-auto-login.test.ts`; every wipe
+  is checked on the vault and on what a following connection is sent).
+  `tsc --noEmit` clean. Phone e2e project: **469 passed, 0 failed with
+  5 workers** (21 in `tests/e2e/phone-auto-login.spec.ts`, at 412 ×
+  915, 800 × 360, 820 × 1180 and 1180 × 820). With the default 10
+  workers three of five full runs had failures, 4 to 8 tests, all in
+  one file per run (`phone-game-panes.spec.ts` twice,
+  `phone-own-keyboard.spec.ts` once), never in the new spec: pages that
+  reload did not come up within 5 s, "Page crashed" and
+  `ERR_INSUFFICIENT_RESOURCES` in Chromium. The same files pass alone
+  and in the 5-worker run; the temp filesystem (RAM) was 84 to 87 %
+  full at the time. Taken as the machine, not the code; **not proven**.
+  Desktop (Chromium and Firefox): `auto-login-desktop` (new),
+  `live-mock`, `input-password-long`, `chrome`, `replay`, `menubar`,
+  `smoke`, `weather`: 102 passed. The full e2e suite was not run. MUME
   is mocked (`tests/e2e/mume-login-mock.ts`); nothing connected to the
   live game.
+- **Not covered by a test:** a phone layer whose mount throws (the
+  controller is the last statement of the layer's constructor, and its
+  own constructor is tested to attach nothing when it throws; there is
+  no unit harness that builds a `PhoneLayer`). `placeLoginAsk` is
+  covered in the browser only (the card clear of the lens and the keys
+  at the four sizes), its arithmetic (`placeAsk`) in unit tests.
 - **Bundle.** A production build before and after: the same 98 files.
   The desktop's first load is 237 bytes larger, as the size on disk
   of the minified files (the session's chunk +72, the entry chunk with
   the shell +165): more than "a few bytes", for the tap and the wiring.
-  The phone chunk +10.9 kB, its CSS +2.2 kB.
+  The phone chunk +10.9 kB, its CSS +2.2 kB. (Measured before the review
+  fixes, which add `isLinkLoss` to the session's chunk and a little to
+  the shell; not measured again.)
 - **Screenshots** (`node scripts/login-shots.ts`):
   `docs/stages/img/54-c-<size>-<state>.png`, sizes `phone`,
   `phone-land`, `tablet`, `tablet-land`; states `ask`, `ask-keyboard`,
