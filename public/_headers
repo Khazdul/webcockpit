@@ -1,0 +1,30 @@
+# Response headers of the static files on Cloudflare (ADR 0144; Workers
+# static assets read this file from the build's root and do not serve it).
+# GitHub Pages ignores it. Not applied to what the Worker answers (/api/*).
+# Every rule that matches a path applies; a header set by two rules would
+# be joined with a comma, hence `! Cache-Control` first where the default
+# (`public, max-age=0, must-revalidate`) is replaced.
+# scripts/static-server.ts reads this file for its `cloudflare` profile.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors 'none'
+
+# Hashed files (and the carried ones of the previous release): never change.
+/assets/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+# The page and the update check's manifest (ADR 0025): always revalidated.
+/
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/index.html
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/release.json
+  ! Cache-Control
+  Cache-Control: no-cache
