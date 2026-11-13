@@ -914,3 +914,47 @@ describe('Comm\'s least height is a floor in px (round 53k)', () => {
     expect([land.strip.h, land.comm.h]).toEqual([0, 12]);
   });
 });
+
+describe('no command row (stage 55: a replay, `inputRows: 0`)', () => {
+  it('portrait: the game text has every row, and the empty command row lies at its foot', () => {
+    const r = run({ inputRows: 0 });
+    expect(r.input).toEqual({ x: 0, y: 44, w: 43, h: 0 });
+    expect(r.game).toEqual({ x: 0, y: 0, w: 43, h: 44 });
+    expect(r.tooSmall).toBe(false);
+    expectStacked(r);
+    // Three rows more than with the command row, for the game text.
+    expect(r.game.h - run().game.h).toBe(3);
+  });
+
+  it('the strip, Comm and the fight card are laid out as ever, in the rows the command row left', () => {
+    const r = run({ inputRows: 0, strip: true, fight: true, comm: { rows: 10 } });
+    expect([r.strip.h, r.comm.h, r.fight.h]).toEqual([9, 10, FIGHT_ROWS]);
+    expect(r.game).toEqual({ x: 0, y: 21, w: 43, h: 23 });
+    expectStacked(r);
+    // Comm's budget counts the rows too.
+    expect(run({ inputRows: 0, comm: { rows: 99 } }).comm.h).toBe(44 - GAME_KEEP_ROWS);
+  });
+
+  it('landscape: the column has every row and the game text reaches the bottom edge', () => {
+    const r = allocatePhoneGame({ cols: 100, rows: 22, inputRows: 0, strip: true, comm: { rows: null }, fight: true, side: { cols: null, band: 2 } });
+    expect(r.side.h).toBe(22);
+    expect(r.game).toEqual({ x: r.side.w, y: FIGHT_ROWS, w: 100 - r.side.w, h: 22 - FIGHT_ROWS });
+    expect(r.input).toEqual({ x: r.side.w, y: 22, w: 100 - r.side.w, h: 0 });
+  });
+
+  it('the lens has the rows down to the bottom edge', () => {
+    const lens = { fullPx: 160, minPx: 96, cellW: 9, cellH: 17 };
+    const r = allocatePhoneGame({ cols: 43, rows: 12, inputRows: 0, lens });
+    expect(r.lens).toEqual({ x: 43 - 18, y: 0, w: 18, h: 10 });
+    expect(r.lensPx).toBe(160);
+    // With the command row the same screen shrinks it.
+    expect(allocatePhoneGame({ cols: 43, rows: 12, inputRows: 3, lens }).lensPx).toBeLessThan(160);
+  });
+
+  it('a count below zero is none; the too-small guard is the same', () => {
+    expect(run({ inputRows: -2 }).input.h).toBe(0);
+    expect(run({ inputRows: 0, rows: PHONE_MIN_ROWS - 1 }).tooSmall).toBe(true);
+    expect(run({ inputRows: 0, rows: PHONE_MIN_ROWS }).tooSmall).toBe(false);
+    expect(run({ inputRows: 0, cols: PHONE_MIN_COLS - 1 }).tooSmall).toBe(true);
+  });
+});
