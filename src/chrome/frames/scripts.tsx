@@ -426,13 +426,20 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     setDbtn(id);
   };
 
+  // The state each switch was last asked for, until the library has it. A second click that comes
+  // before the first one's render flips what was asked for, not the row's stale `enabled`.
+  const asked = useRef(new Map<string, boolean>());
   const toggle = async (s: ScriptInfo): Promise<void> => {
+    const on = !(asked.current.get(s.name) ?? s.enabled);
+    asked.current.set(s.name, on);
     try {
-      await lib.setEnabled(s.name, !s.enabled);
-      if (s.enabled) nav.flash(`${s.name} is off.`);
+      await lib.setEnabled(s.name, on);
+      if (!on) nav.flash(`${s.name} is off.`);
       else nav.flash(running(s.name) === null ? `${s.name} is on. It runs when you enter MUME.` : `${s.name} is on.`);
     } catch (e) {
       nav.flash(errText(e), 'fail');
+    } finally {
+      if (asked.current.get(s.name) === on) asked.current.delete(s.name);
     }
   };
 
