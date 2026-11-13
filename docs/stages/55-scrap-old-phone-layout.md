@@ -154,14 +154,72 @@ to about 980 px; iPhone Safari's desktop request; page zoom below
 - [x] Owner decisions taken in; stage file
 - [x] Test baseline: full e2e, flaky cases
 - [x] Investigation and plan
-- [ ] 55a replay plumbing
-- [ ] 55b device and shell switch-over
+- [x] 55a replay plumbing
+- [x] 55b device and shell switch-over
 - [ ] 55c the player switched over
 - [ ] 55d deletion, eager side
 - [ ] 55e deletion, chrome side
 - [ ] ADR, test guide, session log
 
 ## Built
+
+### 55a — replay plumbing (merged 4885d374; nothing uses it yet)
+
+- `allocatePhoneGame({ inputRows: 0 })`: no command row.
+- `CockpitOptions.phoneReplay?: { bar: boolean }` with `phoneGame`:
+  `bar` keeps the command row's rows for the player's transport bar.
+  The cockpit marks its own theme (`data-ph-light`) and `phone.css`
+  reads that, so a Paper recording is Paper inside the player.
+- `AppOptions.phoneReplay`; a player App passes `phoneGame` through.
+- `mountPhoneLayer(deps)` takes `PhoneLiveDeps` or `PhoneReplayDeps`
+  (`replay: { omitPages, state?, onState? }`; `settings` is the host's
+  in-memory store, where band heights and the lens place go). A replay
+  layer has no compass, hot keys, keyboard, menu, wake lock, defaults
+  patch or automatic login.
+- `CommPane.setPhoneMode(on, { readOnly })`: no reply line, no search.
+- `playerFontSize(…, min)`: the minimum grid as a parameter.
+- Found: the lens and the strip's panes draw whatever `panes[id].on`
+  says in this layout; the host forces nothing.
+- Unit 4258 (+37). Phone chunk 126.6 kB (+1.5), `app` 229.5 kB (+0.9).
+  Not seen in a browser: no caller yet (55c).
+
+### 55b — device and shell (merged)
+
+- `DeviceFlags.desktopSite`: a touch device found on a phone's screen
+  in a window that is not a phone's is `touch` only and gets the
+  desktop cockpit. `phoneSizeWindow` is in `src/core/device.ts`;
+  `phoneGameWanted` is gone, `Shell.phoneGame` is `device().phone`.
+- `?phone=1` forces `phone` and `touch` at any window size, never
+  `tablet`.
+- New-user defaults (settings, first paint, bundled scripts) follow
+  the device: `phone || desktopSite`.
+- `src/app/phone-failed.ts`: the cover with Reload when the phone chunk
+  does not load or its mount throws. The `☰` fallback is gone.
+  `Shell.openMenu` on a phone waits for the layer.
+- Specs: `esc-options.ts` and the nine desktop tests on the old Options
+  frames deleted; Paper palette, cursor blink, Reset appearance and the
+  preview ported to `settings-popup.spec.ts`. Seven phone tests of
+  "`?phone=1&tablet=desktop` in a wide window keeps the old layout"
+  converted to `?tablet=desktop` or deleted (each had such a sibling).
+  New: Desktop-site cases in `phone-tablet.spec.ts` and
+  `phone-new-user.spec.ts`, `tests/e2e/phone-screen.ts`.
+- `index` chunk 29.2 kB (+0.9).
+- Left for 55d: `syncDeviceKeyboard`, `openMenu`'s `preselect`. Left
+  for 55f: ADR 0075 and 0140 still describe the old rules.
+
+### After 55a + 55b on `main`
+
+Unit 4261. Full e2e at 5 workers: 1347 passed, 6 failed; five passed
+alone, `phone-own-keyboard.spec.ts:191` crashed the page every time.
+
+**The crash is the machine, not the code** (found 2026-11-13): it
+crashes the same on the commit before both merges, and passes with
+`TMPDIR` moved off `/tmp`. `/tmp` is a 16 GB tmpfs that stood at 87 %
+(old session scratch directories); Playwright's Chromium keeps its
+shared memory there, and the renderer's compositor thread dies
+(`coredumpctl`: 57 `chrome-headless-shell` SIGTRAPs that day). Much of
+the "Target crashed under load" of this and earlier sessions is likely
+this. **Run e2e with `TMPDIR=/var/tmp/wc-pw`** until `/tmp` is cleared.
 
 ## Test guide (for the owner)
 
