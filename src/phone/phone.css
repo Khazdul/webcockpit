@@ -2668,7 +2668,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask {
   gap: 8px;
   padding: 30px 14px 14px;
   overflow-y: auto;
-  border: 1px solid var(--ph-iron-hi);
+  border: 1px solid var(--ph-frost-edge);
   border-top: 6px solid var(--ph-iron-hi);
   border-radius: 10px;
   background: var(--ph-window);
@@ -2680,8 +2680,9 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* (Also over the low layout's `display`, which is the more specific rule.) */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask[hidden] {
-  display: none;
+  display: none !important;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-q,
@@ -2733,6 +2734,32 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > .wc-ph-ask-yes {
   border-color: var(--ph-lamp);
   color: var(--ph-lamp);
   font-weight: 700;
+}
+
+/* A low room (a phone on its side with the keyboard up): the keys beside the text. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 26px 12px 10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-q,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-n {
+  grid-column: 1;
+  text-align: left;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-foot {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-top: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-foot > button {
+  flex: none;
+  width: 72px;
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > button:active {

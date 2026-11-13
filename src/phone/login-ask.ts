@@ -33,6 +33,8 @@ export interface AskSpot {
 
 /** The card's widest and narrowest width, the air round it, and the height asked for when judging a place. */
 export const ASK_MAX_W = 420;
+/** Its widest in a low room (a phone on its side with the keyboard up), where the keys stand beside the text. */
+export const ASK_LOW_MAX_W = 640;
 export const ASK_MIN_W = 250;
 export const ASK_AIR = 8;
 
@@ -40,17 +42,17 @@ export const ASK_AIR = 8;
  * The card's place in the game text's rectangle `room`, clear of `lens`
  * (null: no lens shown) when a place of the card's height `h` is free.
  */
-export function placeAsk(room: AskRect, lens: AskRect | null, h: number): AskSpot {
+export function placeAsk(room: AskRect, lens: AskRect | null, h: number, maxW: number = ASK_MAX_W): AskSpot {
   const full = Math.max(0, room.right - room.left - 2 * ASK_AIR);
-  const width = Math.min(ASK_MAX_W, full);
+  const width = Math.min(maxW, full);
   const centred = room.left + ASK_AIR + (full - width) / 2;
   const top = room.top + ASK_AIR;
   const atTop: AskSpot = { left: centred, top, width };
   if (!lens || lens.bottom <= room.top || lens.top >= room.bottom || lens.right <= room.left || lens.left >= room.right) return atTop;
   // Beside the lens, at the top: the oldest text.
-  const leftW = Math.min(ASK_MAX_W, lens.left - ASK_AIR - (room.left + ASK_AIR));
+  const leftW = Math.min(maxW, lens.left - ASK_AIR - (room.left + ASK_AIR));
   if (leftW >= ASK_MIN_W) return { left: room.left + ASK_AIR, top, width: leftW };
-  const rightW = Math.min(ASK_MAX_W, room.right - ASK_AIR - (lens.right + ASK_AIR));
+  const rightW = Math.min(maxW, room.right - ASK_AIR - (lens.right + ASK_AIR));
   if (rightW >= ASK_MIN_W) return { left: room.right - ASK_AIR - rightW, top, width: rightW };
   // Over it, or under it.
   if (lens.top - ASK_AIR - top >= h) return atTop;
@@ -118,19 +120,35 @@ export class LoginAsk {
   hide(): void {
     this.onAnswer = null;
     this.el.hidden = true;
+    this.el.classList.remove('is-low');
     this.nameEl.textContent = '';
   }
 
-  /** Places the shown card (`placeAsk`). */
+  /**
+   * Places the shown card (`placeAsk`). Where the room is lower than the
+   * card (a phone on its side with the keyboard up) it is laid out low
+   * (`is-low`: wider, Yes and No beside the text), so both keys stay in
+   * view.
+   */
   place(room: AskRect, lens: AskRect | null): void {
     if (this.el.hidden) return;
-    // Its height at the widest it can be here (a narrower place only makes it taller).
-    const s0 = placeAsk(room, null, 0);
-    this.el.style.width = `${s0.width}px`;
-    const spot = placeAsk(room, lens, this.el.offsetHeight);
-    this.el.style.left = `${spot.left}px`;
-    this.el.style.top = `${spot.top}px`;
-    this.el.style.width = `${spot.width}px`;
-    this.el.style.maxHeight = `${Math.max(0, room.bottom - spot.top - ASK_AIR)}px`;
+    const el = this.el;
+    const fit = (maxW: number): AskSpot => {
+      // Its height at the widest it can be here, then at the place that height gives.
+      el.style.width = `${placeAsk(room, null, 0, maxW).width}px`;
+      const spot = placeAsk(room, lens, el.offsetHeight, maxW);
+      el.style.width = `${spot.width}px`;
+      return spot;
+    };
+    el.style.maxHeight = '';
+    el.classList.remove('is-low');
+    let spot = fit(ASK_MAX_W);
+    if (el.offsetHeight > room.bottom - spot.top - ASK_AIR) {
+      el.classList.add('is-low');
+      spot = fit(ASK_LOW_MAX_W);
+    }
+    el.style.left = `${spot.left}px`;
+    el.style.top = `${spot.top}px`;
+    el.style.maxHeight = `${Math.max(0, room.bottom - spot.top - ASK_AIR)}px`;
   }
 }

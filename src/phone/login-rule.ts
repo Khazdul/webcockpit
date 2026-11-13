@@ -256,7 +256,7 @@ export function loginStep(s: LoginRuleState, ev: LoginEvent): LoginStep {
       if (!ev.yes) return { state: { ...s, asking: null, no: [...s.no, key] }, actions: [...closed, { do: 'dropPending' }] };
       return {
         state: { ...s, asking: null, armed: name, yes: [...s.yes, key] },
-        actions: [...closed, { do: 'arm', name }, { do: 'notice', text: `Automatic login is on for ${name} until this page is closed or reloaded. Disconnect turns it off.` }],
+        actions: [...closed, { do: 'arm', name }, { do: 'notice', text: `Automatic login is on for ${name} until this page is closed or reloaded. Exit session or #disconnect turns it off.` }],
       };
     }
     case 'askTimeout':
