@@ -1,0 +1,17 @@
+// The Worker of the root wrangler.jsonc for the unit tests (the `worker`
+// project of vitest.config.ts): the same entry and asset settings, with
+// the assets taken from worker/test/assets instead of a site build, so
+// `npm test` needs no dist-site/.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "webcockpit-test",
+  "main": "../index.ts",
+  "compatibility_date": "2026-11-13",
+  "assets": {
+    "directory": "assets",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  }
+}

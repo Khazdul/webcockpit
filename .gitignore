@@ -20,3 +20,8 @@ video/public/recordings/
 video/public/music/
 video/private/
 video/out/
+
+# Cloudflare (ADR 0144): the site build, wrangler's local state and local secrets.
+dist-site/
+.wrangler/
+.dev.vars*
