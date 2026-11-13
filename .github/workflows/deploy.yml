@@ -6,6 +6,10 @@
 #     `webcockpit-staging`) or production
 # `npm run build:site` does the checks, the build, the smoke test and the
 # carried assets; this workflow only runs `wrangler deploy` on the result.
+# By hand there is also `triggers`: no build and no upload, only the
+# routes and domains of wrangler.jsonc applied to the Worker that is
+# already deployed (`wrangler triggers deploy`). The switch of stage 58
+# attaches mumecockpit.com that way, without waiting for a build.
 # Until the switch of stage 58 both Workers answer on workers.dev only, and
 # pages.yml still deploys the live site from the same tag.
 # Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (the stage file).
@@ -21,6 +25,11 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      action:
+        description: deploy = build and upload; triggers = only apply routes and domains
+        type: choice
+        options: [deploy, triggers]
+        default: deploy
 
 permissions:
   contents: read
@@ -34,6 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TARGET: ${{ github.event_name == 'push' && 'production' || inputs.environment }}
+      ACTION: ${{ github.event_name == 'push' && 'deploy' || inputs.action }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -41,13 +51,19 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - if: env.ACTION == 'deploy'
+        run: npx playwright install --with-deps chromium
       # No GPU on the runner: Firefox's map worker gets no WebGL, so the
       # smoke test runs in Chromium here; Firefox is checked against the
       # deployed site afterwards (ADR 0028).
-      - run: npm run build:site -- --target "$TARGET"
+      - if: env.ACTION == 'deploy'
+        run: npm run build:site -- --target "$TARGET"
         env:
           WC_PROD_BROWSERS: chromium
+      # wrangler wants the assets directory of its configuration to exist,
+      # also when nothing is uploaded.
+      - if: env.ACTION == 'triggers'
+        run: mkdir -p dist-site
       # The wrangler of package.json (already installed by `npm ci`), not
       # the action's default.
       - id: wrangler
@@ -60,14 +76,16 @@ jobs:
           wranglerVersion: ${{ steps.wrangler.outputs.version }}
           # Production is the top level of wrangler.jsonc: no `--env` (wrangler
           # then warns that environments exist; that is expected).
-          command: ${{ env.TARGET == 'staging' && 'deploy --env staging' || 'deploy' }}
+          command: ${{ env.ACTION == 'triggers' && 'triggers deploy' || 'deploy' }}${{ env.TARGET == 'staging' && ' --env staging' || '' }}
       - name: Summary
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
           {
-            echo "### Deployed: $TARGET"
+            echo "### $ACTION: $TARGET"
             echo
-            echo "- Release: \`$(node -p "const r = require('./dist-site/release.json'); r.version + ' ' + r.commit")\`"
+            if [ "$ACTION" = deploy ]; then
+              echo "- Release: \`$(node -p "const r = require('./dist-site/release.json'); r.version + ' ' + r.commit")\`"
+            fi
             echo "- URL: ${DEPLOYMENT_URL:-(not reported by wrangler)}"
           } >> "$GITHUB_STEP_SUMMARY"
