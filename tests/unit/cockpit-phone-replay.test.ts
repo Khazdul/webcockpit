@@ -3,9 +3,11 @@
 // the cockpit's own theme mark (`data-ph-light`), and what the layout does
 // with panes that are switched off in the settings (a recorded VIEW).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { App } from '../../src/app/app';
 import { setDeviceForTest } from '../../src/core/device';
 import { Cockpit, type CockpitOptions } from '../../src/layout/cockpit';
 import { commandRows } from '../../src/layout/phone-game';
+import { ReplayClock } from '../../src/player/clock';
 import { SettingsStore } from '../../src/settings';
 
 const CELL = { w: 9, h: 17 };
@@ -175,5 +177,48 @@ describe('phone game layout and panes switched off in the settings (stage 55, a 
     c.setPhoneStrip('timers');
     flush();
     expect(c.pane('group').visible).toBe(false);
+  });
+});
+
+describe('a player App passes the phone layout through (stage 55)', () => {
+  function playerApp(o: { phoneGame?: boolean; phoneReplay?: { bar: boolean } }): App {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const clock = new ReplayClock(1_000_000);
+    const app = new App({
+      root,
+      player: true,
+      offline: true,
+      scheduler: clock,
+      now: () => clock.now(),
+      clockUs: () => clock.nowUs(),
+      requestFrame: () => {},
+      paneRequestFrame: () => {},
+      ...o,
+    });
+    cleanup.push(() => app.dispose());
+    return app;
+  }
+
+  it('without the options a player App has the cockpit it had before', () => {
+    const app = playerApp({});
+    expect(app.cockpit.isPhoneGame).toBe(false);
+    expect(app.cockpit.phoneReplayMode).toBeNull();
+    expect(app.cockpit.el.hasAttribute('data-phone-game')).toBe(false);
+  });
+
+  it('phoneGame with phoneReplay reaches the cockpit, bar or not', () => {
+    for (const bar of [true, false]) {
+      const app = playerApp({ phoneGame: true, phoneReplay: { bar } });
+      expect(app.cockpit.isPhoneGame).toBe(true);
+      expect(app.cockpit.phoneReplayMode).toEqual({ bar });
+      expect(app.cockpit.el.hasAttribute('data-phone-game')).toBe(true);
+    }
+  });
+
+  it('phoneReplay alone does nothing', () => {
+    const app = playerApp({ phoneReplay: { bar: false } });
+    expect(app.cockpit.isPhoneGame).toBe(false);
+    expect(app.cockpit.phoneReplayMode).toBeNull();
   });
 });
