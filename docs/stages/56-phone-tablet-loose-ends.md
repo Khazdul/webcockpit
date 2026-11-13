@@ -189,6 +189,19 @@ phone's too. Pictures `docs/stages/img/56-tablet-t1…t6-*.png`.
 
 ### The whole stage on `main`
 
+**The K key hold in landscape** (after 56a, item 3; branch
+`fix-k-hold-landscape`): with our keyboard up the answer is now worked
+out before the keyboard folds, on the layout as it would be without it
+and from the layout's own sums (the column's width against the hot key
+columns), not from the laid-out box. A refused hold changes nothing
+there either. On a real screen the hold is never refused in landscape:
+the left column always ends at least 140 px left of the hot keys, so
+the box has its width (tried at 667 to 1180 px wide, Comm open or not,
+three and six keys). `phone-game-hotkeys.spec.ts` has both, at
+844 × 390 and 1180 × 820; the refusal is forced through the layout, as
+in portrait. Not judged in landscape, as before: the box's height (on
+a very low screen it is short and scrolls).
+
 Typecheck clean, unit 4229. Full e2e: see the session log in
 `progress.md`. Bundle against 0.8.3: `chrome` JS 280.0 → 235.0 kB,
 `app` 228.6 → 224.9 kB, phone JS 125.1 → 130.2 kB, phone CSS 59.1 →

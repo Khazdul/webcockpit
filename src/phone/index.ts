@@ -133,6 +133,8 @@ const LENS_CLEAR_LAND = 12;
 const BOX_GAP = 8;
 /** Portrait: the least height the box is opened at, px (its name, its two fields and what they would send); with less room it does not open. */
 const BOX_LEAST = 180;
+/** Landscape: what the box's width leaves free beside it, px (phone.css: 8 px to the left column, 16 px to the hot key columns). */
+const BOX_SIDES = 24;
 /** After a pointer on the command field: how long a focus of the field is taken for that pointer's (a long press focuses late), ms. */
 const OKB_POINTER_FOCUS_MS = 700;
 /** A lens key's side, px (phone.css). */
@@ -1831,11 +1833,17 @@ class Layer {
    * Whether the box, laid out with its foot `bottom` px above the layer's
    * bottom edge, is clear of what is above the game text (portrait: the
    * strip, the fight card, Comm) or beside it (landscape: the left column).
-   * Reads the box's laid-out size.
+   * Portrait reads the box's laid-out height. Landscape reads nothing laid
+   * out: the box has room while any width is left for it between the
+   * column of `g` and the hot key columns (phone.css's own sum for its
+   * width), so the answer is the same for a layout that would be as for
+   * the one on screen, and with the keyboard up or folded (on the band the
+   * box is wider still). The cockpit keeps the column well left of the hot
+   * keys (`setPhoneSideClear`), so no real screen says no there.
    */
   private boxHasRoom(g: NonNullable<Cockpit['phoneGameLayout']>, bottom: number): boolean {
     const { w, h } = this.deps.cells.get();
-    if (g.landscape) return g.side.w * w <= this.hot.boxEl.offsetLeft;
+    if (g.landscape) return this.el.clientWidth - g.side.w * w - hotWidth(this.keyPx, this.hot.cols) - BOX_SIDES > 0;
     // (Portrait: it ends under the fight card, `placeBoxOn`; a box lower than its fields is none.)
     const room = this.el.clientHeight - bottom - BOX_GAP - g.fight.h * h;
     return room >= BOX_LEAST && g.game.y * h <= this.el.clientHeight - bottom - this.hot.boxEl.offsetHeight;
@@ -1864,9 +1872,11 @@ class Layer {
    * layout that follows (the same sums on the same asks), so no hold is
    * refused with the keyboard already folded.
    *
-   * Landscape: the keyboard folds, as it does for the box, and the room is
-   * judged on the new layout (at once, not in the next frame: the box must
-   * not show first).
+   * Landscape: nothing is taken out (the box stands right of the column),
+   * and the same holds. With our keyboard up the room is judged on the
+   * layout as it would be without it, before it folds; then it folds and
+   * the box is placed on the layout that came (at once, not in the next
+   * frame: the box must not show first), with nothing judged again.
    */
   private boxFits(): boolean {
     const { cockpit } = this.deps;
@@ -1889,15 +1899,15 @@ class Layer {
       if (g) this.placeBoxOn(g, this.boxBottom());
       return true;
     }
-    if (this.okbOpen) {
-      this.closeOwnKeyboard();
-      this.swallowClick();
-      cockpit.relayoutNow();
-      g = cockpit.phoneGameLayout;
-      if (!g) return true;
-      if (g.tooSmall) return false;
-    }
-    return this.boxFitsAt(g, this.boxBottom());
+    if (!this.okbOpen) return this.boxFitsAt(g, this.boxBottom());
+    const to = cockpit.phoneGameLayoutIf({ bottom: null });
+    if (!to || to.tooSmall || !this.boxHasRoom(to, this.boxBottomOn(to, false))) return false;
+    this.closeOwnKeyboard();
+    this.swallowClick();
+    cockpit.relayoutNow();
+    g = cockpit.phoneGameLayout;
+    if (g) this.placeBoxOn(g, this.boxBottom());
+    return true;
   }
 
   // ------------------------------------------------------------------ strip
