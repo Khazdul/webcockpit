@@ -157,6 +157,12 @@ Mapped to Inv §9.
   `Disconnected — Reconnect` notice in the input row, and Enter
   reconnects (ADR 0100). On the phone the ESC menu opens automatically on
   disconnect with Reconnect selected (ADR 0058 behaviour).
+  On the phone's game layout (phones and tablets) the player can let the
+  session log in again by itself: asked once after a login, the name and
+  password are then kept in the page's memory only, and every new
+  connection is logged in at MUME's own prompts until the page is closed
+  or reloaded, the player disconnects, or anything unexpected happens
+  (ADR 0141; not yet verified against the live game).
 - **Keep-alive.** GMCP `Core.Ping` goes out every 10 s (ADR 0007, amended).
   - The `Link:` readout is an HTTPS round trip to mume.org, with the
     `Core.Ping` round trip as the fallback (ADR 0030).
@@ -805,6 +811,14 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
       keeps its keyboard state for them only.
   - *Menu:* a bottom sheet with Reconnect, Profile, Scripts, Settings (a
     small phone page), text size, Black / Paper and Exit session.
+  - *Automatic login for the session* (ADR 0141): after a login typed by
+    hand a card in the game text asks "Log in automatically as <Name>
+    for the rest of this session?" (no veil, no key: play goes on under
+    it). With Yes a dead link found on resume reconnects, whatever
+    "Reconnect automatically" says, and the client sends the name at the
+    name prompt and the password when the server has turned ECHO off;
+    the menu's Reconnect does the same. Memory only, never stored; one
+    attempt, and any surprise wipes it.
   - *Weather* (off by default on a phone) fills the whole width when on.
 - **Desktop-only on a phone:** arranging panes and macro key capture
   (the export editor works on a phone since stages 43 and 45).
