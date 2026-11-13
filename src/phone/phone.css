@@ -3019,6 +3019,19 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-col {
   overscroll-behavior: contain;
 }
 
+/* A tablet-size window (ADR 0140; stage 56c, the scope of
+ * kit/look-glass.css): the menu sheet's and the settings pages' content is a
+ * column of 720 px in the middle, so a row's name and its control are not a
+ * whole screen apart. The grounds keep the full width (the sheet is still
+ * the screen's bottom edge, and a page scrolls from anywhere on it). */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-sheet-body,
+  html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-col {
+    padding-left: max(16px, calc((100% - 720px) / 2));
+    padding-right: max(16px, calc((100% - 720px) / 2));
+  }
+}
+
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-grp {
   margin-bottom: 24px;
 }
