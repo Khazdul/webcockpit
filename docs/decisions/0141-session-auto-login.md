@@ -150,8 +150,9 @@ With Yes the session is armed for that character.
 ### 6. Wipes
 
 The stored login (and any pending password) is wiped by: every stop
-above; the player's own Disconnect (`#disconnect`) and Exit session;
-a replay starting; `Char.Name` naming another character; the phone
+above; the player's own Disconnect (`#disconnect`); Exit session (also
+when the link was down already; the answers given stay); a replay
+starting; `Char.Name` naming another character; the phone
 layer's disposal; and a page restored from the back/forward cache.
 
 **Back/forward cache.** A restored page comes back with the memory it
@@ -162,6 +163,10 @@ therefore treated as a new page load: the shell's resume watch
 before it looks at the link. Nothing is done on `pagehide` (memory dies
 with the page, and a wipe there would cost the feature on any browser
 that fires it when the app is only put in the background).
+
+**A layer mounted late.** The phone's chunk is loaded after the page;
+a login already at MUME's prompts when the controller is made is
+followed from there. One already in play is not asked about.
 
 ### 7. Not in this round
 

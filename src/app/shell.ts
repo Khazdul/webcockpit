@@ -445,6 +445,8 @@ export class Shell {
     }
     this.menu?.close();
     this.phoneLayer?.menu.close(true);
+    // A login kept for the session goes with it (ADR 0141), also when the link was down already.
+    this.phoneLayer?.forgetLogin();
     this.showStart();
   }
 
@@ -982,7 +984,7 @@ export class Shell {
       const doc = root.ownerDocument;
       watchResume(doc, doc.defaultView ?? window, (restored) => {
         // Back from the back/forward cache: the page had been left, and a login kept for the session is forgotten (ADR 0141).
-        if (restored) this.phoneLayer?.forgetLogin();
+        if (restored) this.phoneLayer?.forgetLogin(true);
         // First what the rule remembers (a link that dropped out of view), then the check of a link still held.
         const st = app.session.state;
         const up = (st === 'login' || st === 'playing') && !app.status.get().replay;

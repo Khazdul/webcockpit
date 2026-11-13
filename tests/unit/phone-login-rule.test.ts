@@ -250,6 +250,18 @@ describe('the wipes', () => {
     expect(run([char('rasta')], armed()).state.armed).toBe('Rasta');
   });
 
+  it('Exit session wipes with the link up or down, and keeps the answers', () => {
+    for (const before of [[], [down()]] as LoginEvent[][]) {
+      const r = run([...before, { type: 'exit' }], armed());
+      expect(r.does).toContain('wipe');
+      expect(r.state.armed).toBeNull();
+      expect(r.state.yes).toEqual(['rasta']);
+      expect(run([connecting, login, { type: 'namePrompt' }], r.state).does).not.toContain('sendName');
+    }
+    const no = run([...byHand(), { type: 'answer', yes: false }, { type: 'exit' }]);
+    expect(no.state.no).toEqual(['rasta']);
+  });
+
   it('a page restored from the back/forward cache forgets everything, the answers too', () => {
     const r = run([{ type: 'restored' }], armed());
     expect(r.does).toContain('wipe');

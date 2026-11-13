@@ -1960,9 +1960,13 @@ export class PhoneLayer {
     return this.autoLogin?.armed === true;
   }
 
-  /** The page came back from the back/forward cache: a login kept for the session is forgotten (ADR 0141). */
-  forgetLogin(): void {
-    this.autoLogin?.forget();
+  /**
+   * A login kept for the session is forgotten (ADR 0141): at Exit session,
+   * and (`answers`: with the answers given this page load) when the page
+   * came back from the back/forward cache.
+   */
+  forgetLogin(answers = false): void {
+    this.autoLogin?.forget(answers);
   }
 
   /**

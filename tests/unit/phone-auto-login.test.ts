@@ -309,12 +309,45 @@ describe('the automatic login', () => {
     const m = make();
     m.byHand();
     m.tap('yes');
-    m.auto.forget();
+    m.auto.forget(true);
     expect(m.auto.armed).toBe(false);
     expect(m.session.loginTap).not.toBeNull();
     m.auto.dispose();
     expect(m.session.loginTap).toBeNull();
     expect(m.el.querySelector('.wc-ph-ask')).toBeNull();
+  });
+});
+
+describe('late and at exit', () => {
+  it('Exit session with the link already down forgets the login; the answers stay', async () => {
+    const m = make();
+    m.byHand();
+    m.tap('yes');
+    m.sock().drop();
+    expect(m.auto.armed).toBe(true);
+    m.auto.forget(false);
+    expect(m.auto.armed).toBe(false);
+    m.up();
+    await tick();
+    expect(m.lines()).toEqual([]);
+  });
+
+  it('made while a connection is already at the login prompts: that login is followed', () => {
+    const bus = new Bus();
+    const sock = new FakeSocket();
+    const session = new Session({ bus, sink: new LineAssembler(bus), socketFactory: () => sock });
+    session.connect();
+    sock.open();
+    sock.data([IAC, WILL, OPT_GMCP]);
+    sock.data(NAME_PROMPT);
+    const el = document.createElement('div');
+    const auto = new AutoLogin({ session, bus, userDisconnect: REASON_USER_DISCONNECT }, { el, notice: () => {}, placed: () => {}, win: window });
+    session.sendCommand('rasta');
+    sock.data(PASSWORD_PROMPT);
+    session.sendCommand(PASSWORD, { secret: true });
+    sock.data([IAC, WONT, OPT_ECHO, ...gmcp('Char.Name {"name":"Rasta"}')]);
+    expect(el.querySelector<HTMLElement>('.wc-ph-ask')!.hidden).toBe(false);
+    auto.dispose();
   });
 });
 

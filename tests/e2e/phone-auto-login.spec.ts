@@ -318,6 +318,22 @@ test('Exit session wipes it', async ({ page }) => {
   expect(await armed(page)).toBe(false);
 });
 
+test('Exit session with the link already down wipes it too: Enter MUME again is MUME\'s own prompt', async ({ page }) => {
+  const m = await enter(page, '/?phone=1');
+  await loginByHand(page);
+  await ask(page).locator('[data-act="yes"]').tap();
+  void m.server().close();
+  await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
+  expect(await armed(page)).toBe(true);
+  await page.evaluate(() => window.__wc!.shell.exitSession());
+  await expect(page.locator('.wc-start')).toBeVisible();
+  expect(await armed(page)).toBe(false);
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+  await expect(status(page)).toHaveAttribute('data-status', /^login/);
+  await page.waitForTimeout(500);
+  expect(m.sent[1]).toEqual([]);
+});
+
 test('a replay asks nothing and uses nothing', async ({ page }) => {
   await page.goto('/?fixture=gmcp-demo.log&speed=0&phone=1');
   await expect(rows(page).filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);

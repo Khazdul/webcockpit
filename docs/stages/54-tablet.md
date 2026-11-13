@@ -151,10 +151,10 @@ fullscreen is a little buggy. The mockups of rounds 1 and 2
 
 - [x] 54a: tablet gate (the phone's layout by default on a tablet), ADR 0140
 - [x] 54a: keyboard width on a tablet
-- [ ] 54a: "a tap in the script editor's text does not bring up our keyboard" (owner, phone and iPad): not reproduced in emulation, not fixed; see "54a as built"
+- [x] 54a: "a tap in the script editor's text does not bring up our keyboard" (owner, phone and iPad): not a bug (locked scripts; see below)
 - [x] 54b: fullscreen on the iPad: investigated (`notes/research/tablet/ipad-fullscreen.md`); owner: left as it is
-- [ ] 54c: automatic login for the session (ADR 0141)
-- [ ] Script editor: a tap in the text does not open our keyboard (owner, phone and iPad; not reproduced in emulation)
+- [x] 54c: automatic login for the session (ADR 0141); built against a mocked MUME, the owner's live test is open (see "Test guide, 54c")
+- [x] Script editor: a tap in the text does not open our keyboard: **not a bug**. The owner's scripts were locked (a read-only bundled script opens no keyboard, by design); he verified on the phone and the iPad that the keyboard comes up in a new script (2026-11-13).
 - [ ] Review, owner test, release
 
 ## 54a as built (2026-11-12)
@@ -329,4 +329,116 @@ the compass right of it in landscape). Fullscreen is a separate round
   or tablet) it connects and types the name and then the password.
   Agreed way to start, to be judged over time: kept in the page's
   memory only, never written to storage.
+
+### Owner report, 2026-11-13
+
+- **The script editor and our keyboard: not a bug.** The scripts he had
+  tapped in were locked (read-only bundled scripts open no keyboard, by
+  design). In a new script the keyboard comes up, on the phone and on
+  the iPad.
+
+## 54c as built (2026-11-13)
+
+ADR 0141 has the decision, the threat notes and the list of what the
+live game must confirm; this is the short version.
+
+- **What it does.** On the phone's game layout (phones and tablets),
+  when a login typed by hand reaches the game, a card asks "Log in
+  automatically as <Name> for the rest of this session?". With Yes the
+  session is armed: a dead link found on resume reconnects (whatever
+  "Reconnect automatically" says) and the client sends the name at
+  MUME's name prompt and the password when the server has turned ECHO
+  off. The menu's Reconnect, Enter on a dropped connection and
+  `#connect` log in the same way. Notices in the game text: "Logging in
+  as <Name>…", "Logged in as <Name>.".
+- **Where the login is.** In the page's memory only: one object
+  (`src/phone/login-vault.ts`), private fields, no getter. Written from
+  one place and read from one, both in `src/phone/auto-login.ts`. Never
+  in storage, the run log, the history, the page or a notice. Gone with
+  a reload or a closed tab.
+- **The question is not a dialog.** No veil, no focus, no key: only a
+  tap on Yes or No answers it, and everything typed goes to the game.
+  It stands at the top of the game text, clear of the lens (beside it
+  on a wide screen, under it on a narrow one); on a phone on its side
+  with the keyboard up it is laid out low, the keys beside the text.
+  The kit's `Dialog` (asked for) is modal by construction and was not
+  used; the card is drawn with the sheet's band, hood and ground.
+  Unanswered for 60 s it goes away, the password is dropped, and the
+  next login by hand asks again. No is remembered for the page load;
+  Yes too (after a wipe the next login by hand as that character arms
+  again, with a notice, without a question).
+- **One attempt, and any surprise wipes it:** a second name prompt, a
+  password prompt before the name or a second time (MUME did not take
+  the password), no game within 20 s, the connection ending, anything
+  else sent to the prompts meanwhile, another character in the game.
+  The player is then at MUME's own prompt, with a notice saying why.
+- **Other wipes:** `#disconnect`, Exit session (also with the link
+  already down), a replay, a page restored from the back/forward cache.
+- **Desktop does not change:** the phone's chunk holds all of it. The
+  session got one nullable property (`loginTap`) and the shell passes
+  the session and the bus to the phone layer.
+- **Tests.** Unit: 4196 passed, 2 skipped (55 new in
+  `phone-login-rule.test.ts` and `phone-auto-login.test.ts`: the rule,
+  each stop, never-the-password-outside-the-prompt, the vault, the
+  controller on a real session and telnet parser). `tsc --noEmit`
+  clean. E2e: `tests/e2e/phone-auto-login.spec.ts` (15 cases, at 412 ×
+  915, 800 × 360, 820 × 1180 and 1180 × 820) and
+  `tests/e2e/auto-login-desktop.spec.ts` (Chromium and Firefox); the
+  runs' numbers are in the session log. MUME is mocked
+  (`tests/e2e/mume-login-mock.ts`); nothing connected to the live game.
+- **Screenshots** (`node scripts/login-shots.ts`):
+  `docs/stages/img/54-c-<size>-<state>.png`, sizes `phone`,
+  `phone-land`, `tablet`, `tablet-land`; states `ask`, `ask-keyboard`,
+  `armed`, `logged-in`, and `ask-paper`, `ask-keyboard-paper` for the
+  two portrait sizes.
+- **Not done.** No text in Settings about it (the rows have no second
+  line). No switch to turn an armed session off other than
+  `#disconnect`, Exit session or a reload. Not seen on a device or
+  against the live game.
+
+## Test guide, 54c (phone and iPad, live MUME)
+
+The dev server runs from this branch's worktree. Open it with no flag
+on the iPad, or on the phone, and Enter MUME.
+
+1. **The question.** Log in as usual. When the game begins, a card
+   asks whether to log in automatically. Before answering, type a
+   command: it goes to the game, and the card stays. Is the card in the
+   way of anything? Is 60 s right before it goes by itself?
+2. **Yes, then lose the link.** Answer Yes. Put the browser in the
+   background (another app, or lock the screen) for a minute or more,
+   and come back. Wanted: "Connection closed…", "Reconnecting…/
+   Connecting", "Logging in as <Name>…", MUME's prompts answered by
+   themselves, "Logged in as <Name>.", and you are in the game where
+   you were.
+3. **The menu's Reconnect** (menu key → Reconnect) while armed: the
+   same.
+4. **No.** Reload, log in, answer No. Lose the link as in 2: MUME's own
+   name prompt (or the sheet with Reconnect), nothing typed for you.
+   Log in again by hand: no question.
+5. **Exit session** while armed, then Enter MUME: MUME's own prompt.
+6. **Reload** while armed: the login is gone, and the question comes
+   again after the next login.
+
+**What only the live game shows** (please note what you see; ADR 0141
+"To verify on the live game" has the full list):
+
+- Does the automatic login work at all? If "Automatic login stopped:
+  MUME did not ask as expected in time" comes after 20 s with the name
+  prompt on screen, MUME's name prompt reads otherwise than the client
+  expects: copy the prompt's exact text.
+- Any "Automatic login stopped: …" notice: its exact reason, and what
+  MUME had on screen above it.
+- After a linkdead reconnect, is there anything between the password
+  and the game (a "press return", a menu, a message about another
+  connection)?
+- Does the question come after a login where the name was typed in
+  another case than MUME's (`rasta` for Rasta)?
+- A new character's creation must not be asked about (if you ever make
+  one on a phone).
+- How often the browser has thrown the tab away while in the background
+  (the page reloads on return and the login is gone): if often, the
+  next step is ADR 0141's `sessionStorage` option.
+- The password must never be readable on screen: not at the prompt, not
+  in the game text, not in the history (arrow up).
 

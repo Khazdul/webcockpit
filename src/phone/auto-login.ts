@@ -118,6 +118,11 @@ export class AutoLogin {
         this.feed({ type: 'namePrompt' });
       }),
     );
+    // Mounted while a connection is already at the login prompts (the chunk came late): followed from here.
+    if (session.state === 'login' && !session.isReplay) {
+      this.feed({ type: 'connecting', replay: false });
+      this.feed({ type: 'login' });
+    } else this.replay = session.isReplay;
   }
 
   /** The session is armed (the shell: a dead link found on resume then reconnects, whatever the setting). */
@@ -125,9 +130,13 @@ export class AutoLogin {
     return this.state.armed !== null;
   }
 
-  /** The page came back from the back/forward cache: everything is forgotten (the shell's resume watch). */
-  forget(): void {
-    this.feed({ type: 'restored' });
+  /**
+   * The stored login is wiped (the shell). `answers`: the answers given
+   * this page load are forgotten too (a page restored from the
+   * back/forward cache); without, they stay (Exit session).
+   */
+  forget(answers: boolean): void {
+    this.feed({ type: answers ? 'restored' : 'exit' });
   }
 
   /** Places the question's card on the layer (the layer's own layout). */
