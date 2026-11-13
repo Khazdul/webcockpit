@@ -103,9 +103,12 @@ async function drag(page: Page, x0: number, y0: number, dx: number, dy: number):
   const cdp = await page.context().newCDPSession(page);
   const at = (type: 'touchStart' | 'touchMove' | 'touchEnd', x?: number, y?: number) =>
     cdp.send('Input.dispatchTouchEvent', { type, touchPoints: x === undefined ? [] : [{ x, y: y!, id: 0 }] });
-  await at('touchStart', x0, y0);
-  for (let i = 1; i <= 4; i++) await at('touchMove', x0 + (dx * i) / 4, y0 + (dy * i) / 4);
-  await at('touchEnd');
+  // Sent without waiting for each answer (the session keeps their order): a swipe has to end within
+  // SWIPE_MAX_MS, and six round trips took longer than that on a loaded machine.
+  const sent = [at('touchStart', x0, y0)];
+  for (let i = 1; i <= 4; i++) sent.push(at('touchMove', x0 + (dx * i) / 4, y0 + (dy * i) / 4));
+  sent.push(at('touchEnd'));
+  await Promise.all(sent);
   await cdp.detach();
 }
 
