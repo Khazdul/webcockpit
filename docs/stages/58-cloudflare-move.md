@@ -1,7 +1,7 @@
 # Stage 58 — Move to Cloudflare
 
-Status: **In progress** (planned 2026-11-13; part A built 2026-11-14,
-not deployed; parts B (the staging run), C and D remain).
+Status: **In progress** (planned 2026-11-13; part A built, merged and
+deployed to staging 2026-11-14; part C, the switch, and D remain).
 
 ## Goal
 
@@ -89,13 +89,22 @@ The token itself has not been used yet.
       Actions: `CLOUDFLARE_API_TOKEN` (the token) and
       `CLOUDFLARE_ACCOUNT_ID` (dashboard, Workers & Pages, right
       column).
-- [ ] After part A: the session runs the workflow by hand
+- [x] After part A: the session runs the workflow by hand
       against `staging` and reports the `workers.dev` address.
+      Done 2026-11-14 (run 43526498453):
+      <https://webcockpit-staging.olevong.workers.dev>, 0.9.1 f9925fd;
+      `test:prod` there 12/12 (Chromium and Firefox); the live Pages
+      site untouched (`WC_PROD_PROFILE=pages`, 10 passed, 2 skipped).
 
 ### C. The switch (session and owner together, a quiet hour)
 
 - [ ] `test:prod` green against the staging and the production
-      Worker's `workers.dev` addresses.
+      Worker's `workers.dev` addresses. Staging: green 2026-11-14.
+      The production Worker `webcockpit` is not deployed yet: a build
+      by hand of 0.9.1 from `main` is refused by the version rule
+      (0.9.1 is live from another commit), so its first deploy comes
+      with the next `v*` tag (which also releases to Pages as usual),
+      before the switch.
 - [ ] Owner: note the current DNS records (they are in ADR 0029),
       then delete the four A and four AAAA records of
       `mumecockpit.com`.
