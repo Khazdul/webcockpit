@@ -1,6 +1,6 @@
 # Stage 55 — Scrap the old phone layout
 
-Status: **Owner testing** (built 2026-11-13; on `main`, not released).
+Status: **Done** (built 2026-11-13; the owner's closing test 2026-11-13; released 0.9.0).
 
 ## Goal
 

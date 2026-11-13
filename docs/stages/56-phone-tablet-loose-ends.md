@@ -1,6 +1,6 @@
 # Stage 56 — Phone and tablet: loose ends
 
-Status: **Owner testing** (built 2026-11-13; on `main`, not released).
+Status: **Done** (built 2026-11-13; the owner's closing test 2026-11-13; released 0.9.0).
 
 ## Goal
 
@@ -209,7 +209,8 @@ Typecheck clean, unit 4229. Full e2e: see the session log in
 
 Flaky, not from these stages: `phone-script-editor.spec.ts:76` (the
 signature pop-up's place) failed 6 of 30 on an untouched `main` at
-3 workers. Open.
+3 workers. Fixed before the release: a test race (the box was read
+before CodeMirror had placed the tooltip), not a defect.
 
 **The owner, 2026-11-13: do as recommended** on the questions of
 taste. Read as: T1 centre the start menu on a tablet (the desktop's
