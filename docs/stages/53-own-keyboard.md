@@ -195,7 +195,7 @@ moves the caret), script pane fields, key sound.
 - [x] 53k built (fight card, movable lens, four zooms, gold, 53j review)
 - [x] 53k review and its fixes; the owner's test: all feels good
 - [x] Release decision: yes (0.7.0)
-- [ ] Later: iPhone and iPad look-over (next session)
+- [x] Later: iPhone and iPad look-over: done by the owner (iPhone 2026-11-12: most works, no fullscreen on iOS, left; iPad in stage 54)
 - [ ] 53e test guide, the owner's verdict on the S21, one test on an
   iPhone, release decision (then the old path is removed)
 

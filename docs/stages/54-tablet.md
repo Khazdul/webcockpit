@@ -59,8 +59,8 @@ has been hard to control on an iPad.
 - [x] Owner: the trial on the iPad (keyboard stays down; fullscreen flaky)
 - [x] Mockup round 2 published (A refined: switches, swipe, keys above the compass)
 - [x] Owner: verdict on round 2; canvas revised (one frame, draggable dividers)
-- [ ] Owner: verdict on the revision; which dividers lock while the keys are on
-- [ ] ADR 0140 and the build rounds
+- [x] Owner: verdict on the revision: the mockup direction is shelved, the tablet keeps the phone's layout (see "Direction")
+- [x] ADR 0140 and the build rounds (54a to 54c)
 
 ## Test guide (for now)
 
@@ -155,7 +155,7 @@ fullscreen is a little buggy. The mockups of rounds 1 and 2
 - [x] 54b: fullscreen on the iPad: investigated (`notes/research/tablet/ipad-fullscreen.md`); owner: left as it is
 - [x] 54c: automatic login for the session (ADR 0141); built against a mocked MUME, the owner's live test is open (see "Test guide, 54c")
 - [x] Script editor: a tap in the text does not open our keyboard: **not a bug**. The owner's scripts were locked (a read-only bundled script opens no keyboard, by design); he verified on the phone and the iPad that the keyboard comes up in a new script (2026-11-13).
-- [ ] Review, owner test, release
+- [x] Review, owner test, release: released 0.8.0 to 0.8.3 (2026-11-13); the owner on the live site: works well
 
 ## 54a as built (2026-11-12)
 
@@ -495,3 +495,15 @@ on the iPad, or on the phone, and Enter MUME.
 - The password must never be readable on screen: not at the prompt, not
   in the game text, not in the history (arrow up).
 
+
+## Owner feedback, live site (2026-11-13) and the handoff
+
+- 0.8.0: the first automatic login stopped at a second name prompt
+  from MUME. 0.8.1: not taken as a refusal. 0.8.2: the name waits a
+  second, the prompt stands once: "works well now".
+- A `rent` ends as a lost link on the live game; the owner keeps the
+  session armed then, with a three hour limit and the question after
+  every login by hand (0.8.3). ADR 0141 addenda.
+- **Stage 54 is closed.** The owner's goal for the coming sessions: to
+  be done with phone and tablet, starting with what was put off. The
+  list is in `progress.md` (handoff, 2026-11-13).
