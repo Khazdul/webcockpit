@@ -28,15 +28,27 @@ describe('release manifest (ADR 0025, ADR 0028)', () => {
   });
 });
 
-describe('release version guard (ADR 0025)', () => {
+describe('release version guard (ADR 0025, ADR 0144)', () => {
+  const live = { version: '0.1.0', commit: 'abc1234' };
+
   it('allows a first release and a new version', () => {
-    expect(versionGuard(null, '0.1.0')).toBeNull();
-    expect(versionGuard('0.1.0', '0.1.1')).toBeNull();
+    expect(versionGuard(null, { version: '0.1.0', commit: 'abc1234' })).toBeNull();
+    expect(versionGuard(live, { version: '0.1.1', commit: 'def5678' })).toBeNull();
+    expect(versionGuard(live, { version: '0.1.1', commit: 'abc1234' })).toBeNull();
   });
 
-  it('refuses the version that is already live, saying how to bump', () => {
-    const msg = versionGuard('0.1.0', '0.1.0');
+  it('refuses the live version from another commit, saying how to bump', () => {
+    const msg = versionGuard(live, { version: '0.1.0', commit: 'def5678' });
     expect(msg).toContain('0.1.0 is already live');
+    expect(msg).toContain('abc1234');
     expect(msg).toContain('npm version patch --no-git-tag-version');
+  });
+
+  it('allows the live release again: the same version and commit', () => {
+    expect(versionGuard(live, { version: '0.1.0', commit: 'abc1234' })).toBeNull();
+    // Abbreviated to different lengths in two checkouts.
+    expect(versionGuard(live, { version: '0.1.0', commit: 'abc12345f' })).toBeNull();
+    expect(versionGuard({ version: '0.1.0', commit: 'abc12345f' }, live)).toBeNull();
+    expect(versionGuard({ version: '0.1.0', commit: '' }, live)).toContain('already live');
   });
 });

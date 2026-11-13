@@ -14,7 +14,8 @@
     "test:prod": "playwright test -c playwright.prod.config.ts",
     "bench": "node bench/text-bench.ts && node bench/script-bench.ts && node bench/lua-bench.ts && node bench/browser-bench.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker",
-    "build:pages": "node scripts/pages-build.ts",
+    "build:site": "node scripts/site-build.ts",
+    "build:pages": "node scripts/site-build.ts --pages",
     "screenshots": "node scripts/screenshots.ts"
   },
   "devDependencies": {

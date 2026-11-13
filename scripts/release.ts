@@ -1,5 +1,5 @@
 // The release manifest (ADR 0025, ADR 0028): `release.json` at the root of
-// the published site. `npm run build:pages` writes it; the next build reads
+// the published site. `npm run build:site` writes it; the next build reads
 // the live one to know what to carry over, and the running app's update
 // check compares `version` and `commit` with its own.
 
@@ -41,13 +41,22 @@ export function isAssetName(name: string): boolean {
 /**
  * The version rule of a release (ADR 0025): every release carries a new
  * package.json version, so a running tab can tell that the live site
- * changed. Why `version` may not go out over the live release
- * `liveVersion` (null = no live release), or null when it may.
+ * changed. Why the build `next` may not go out over the live release
+ * `live` (null = no live release), or null when it may.
+ *
+ * The live commit under the live version is that release again and is
+ * allowed: while GitHub Pages and Cloudflare are both deployed from one
+ * tag (ADR 0144), the slower workflow finds the release already live, and
+ * a failed deploy can be run again. Commits are abbreviated hashes whose
+ * length git chooses per checkout, so one being the start of the other
+ * is the same commit.
  */
-export function versionGuard(liveVersion: string | null, version: string): string | null {
-  if (liveVersion === null || liveVersion !== version) return null;
+export function versionGuard(live: Pick<Release, 'version' | 'commit'> | null, next: Pick<Release, 'version' | 'commit'>): string | null {
+  if (live === null || live.version !== next.version) return null;
+  const [a, b] = [live.commit, next.commit];
+  if (a !== '' && b !== '' && (a.startsWith(b) || b.startsWith(a))) return null;
   return (
-    `version ${version} is already live. Bump it and commit first, e.g.\n` +
+    `version ${next.version} is already live (commit ${live.commit}, this is ${next.commit}). Bump it and commit first, e.g.\n` +
     `  npm version patch --no-git-tag-version && git commit -am "chore: version <new version>"`
   );
 }
