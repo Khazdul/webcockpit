@@ -70,7 +70,8 @@
 // bar has the player's whole width. The bar's look is the phone's (src/phone/phone.css);
 // this file and player.css carry only the placement. While the host names
 // no rectangle (the cockpit says "Window too small") the box floats as
-// elsewhere.
+// elsewhere. The header shows no key hints with `dock` (a touch device has
+// no such keys): only its left part, from the left edge.
 //
 // Viewer settings (ADR 0021, as 0114): with `settings`, Display (font size
 // and colours) and, when it has panes, Panes (pane toggles and Reset
@@ -850,12 +851,22 @@ export class PlayerView {
    * it would meet it, and as much narrower as it has to be.
    */
   private renderHeader(W: number, w: number, cols: number): void {
-    const hd = this.o.header(this.o.engine.run);
+    const given = this.o.header(this.o.engine.run);
+    // Docked (a phone or tablet): no key hints, a touch device has no such keys; the left part has the room.
+    const hd = this.o.dock && !this.o.bare ? { left: given.left, hints: [] } : given;
     const leftLen = hd.left.reduce((n, p) => n + p.text.length, 0) + 3 * Math.max(0, hd.left.length - 1);
     const full = hintsWidth(hd.hints.map((x) => x.text));
     const extra = HEADER_GAP + 2 * CHIP_PAD;
     let hc = Math.max(1, Math.min(Math.max(HEADER_COLS, leftLen + extra + full), cols));
     let left = Math.max(0, Math.floor((W - RAIL_W - hc * w) / 2));
+    // Docked: from the left edge. Where the bar begins right of it (landscape with the strip and
+    // Comm column open: the game text begins there too) the header ends there, cut if it must be:
+    // it lies over the column, not over the game text's first line.
+    if (this.o.dock && !this.o.bare) {
+      const edge = this.o.dock()?.left ?? 0;
+      hc = edge > 0 ? Math.max(1, Math.min(cols, Math.floor(edge / w))) : cols;
+      left = 0;
+    }
     // Back's place is measured once (its size never changes after that).
     const back = this.backEl;
     if (back && this.backRight === 0 && back.offsetWidth > 0) this.backRight = back.offsetLeft + back.offsetWidth + BACK_GAP;

@@ -109,6 +109,15 @@ async function drag(page: Page, x0: number, y0: number, dx: number, dy: number):
   await cdp.detach();
 }
 
+/** The header: who and which run, and no key hints (a touch device has no such keys). */
+async function headerPlain(page: Page): Promise<void> {
+  await expect(chrome(page).locator('.wc-player-hints')).toBeHidden();
+  await expect(chrome(page).locator('.wc-player-header')).not.toContainText('ESC');
+  await expect(chrome(page).locator('.wc-player-header')).not.toContainText('Space');
+  await expect(chrome(page).locator('.wc-player-head-left')).toContainText('Rasta');
+  await expect(chrome(page).locator('.wc-player-head-left')).toContainText('Run 1 of');
+}
+
 /** Every shown key of the bar lies inside it and the window and is a finger's target; none lies on another. */
 async function keysFit(page: Page): Promise<void> {
   const b = await box(bar(page));
@@ -146,6 +155,7 @@ test('the phone layout over the recording: no tab strip, no keys of the live gam
   await expect(sat(page, 'fullscreen')).toHaveCount(0);
   // No fullscreen corner button over the lens.
   await expect(page.locator('.wc-fs-btn')).toBeHidden();
+  await headerPlain(page);
 
   // The lens follows the replayed walk to its last room.
   await seek(page, Infinity);
@@ -402,6 +412,12 @@ test('landscape: the bar is the row right of the strip and Comm column; its keys
   await openLogs(page, ['map-demo.log', 'gmcp-demo.log']);
   await seek(page, Infinity);
   const pl = await box(player(page));
+  await seek(page, 0);
+  await headerPlain(page);
+  await seek(page, Infinity);
+  // The header's one chip ends left of the lens's keys.
+  const head = await box(chrome(page).locator('.wc-player-head-left'));
+  expect(head.x + head.width).toBeLessThanOrEqual((await box(sat(page, 'panes'))).x);
   // Closed: the bar over the whole width.
   const wide = await box(bar(page));
   expect(wide.x - pl.x).toBeLessThan(1);
@@ -413,6 +429,10 @@ test('landscape: the bar is the row right of the strip and Comm column; its keys
   await expect(comm(page)).toBeVisible();
   const input = await box(player(page).locator('.wc-input-slot'));
   await expect.poll(async () => Math.abs((await box(bar(page))).x - input.x)).toBeLessThan(1);
+  // The header lies over the column, not over the game text's first line.
+  const over = await box(chrome(page).locator('.wc-player-head-left'));
+  expect(over.x - pl.x).toBeLessThan(1);
+  expect(over.x + over.width).toBeLessThanOrEqual((await box(player(page).locator('.wc-game'))).x + 0.5);
   const b = await box(bar(page));
   const c = await box(comm(page));
   expect(b.x).toBeGreaterThanOrEqual(c.x + c.width - 0.5);
@@ -445,6 +465,9 @@ test('a tablet (820 × 1180, ?tablet=phone): the same layout; the bar has room f
   await start(page, 'tablet=phone');
   const before = await stored(page);
   await openLogs(page, ['map-demo.log', 'gmcp-demo.log']);
+  await seek(page, Infinity);
+  await seek(page, 0);
+  await headerPlain(page);
   await seek(page, Infinity);
   await expect(cockpit(page)).toHaveAttribute('data-phone-game', '');
   await expect(player(page).locator('.wc-ph-pad, .wc-ph-menu, .wc-okb')).toHaveCount(0);
