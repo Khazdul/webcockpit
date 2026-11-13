@@ -488,7 +488,10 @@ export default defineConfig(({ command }) => {
     plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
-    server: devServer(),
+    // Agent worktrees live under `.claude/` in this checkout: an edit there
+    // must not reload the pages of this server (anchored to this directory,
+    // so a worktree's own server still watches its own files).
+    server: { ...devServer(), watch: { ignored: [`${import.meta.dirname}/.claude/**`] } },
     preview: { headers: isolationHeaders },
     build: {
       target: 'es2022',
