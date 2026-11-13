@@ -864,6 +864,8 @@ test.describe('E. review findings on round 53j', () => {
     const errors = watchErrors(page);
     const m = await play(page);
     await setScreen(page, S21);
+    // (A strip taller than it opens: the hot key box is low since stage 55, and above our keyboard it clears the strip as it comes.)
+    await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 16 } }));
     await openBoth(page, m);
     await expect(sat(page, 'comm')).toHaveAttribute('aria-pressed', 'true');
     await hold(page, hk(page, 2));

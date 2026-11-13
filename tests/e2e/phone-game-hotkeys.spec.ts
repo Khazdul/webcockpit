@@ -498,7 +498,9 @@ test('a hold opens the box left of the column and sends nothing; a press that sl
   await expect(command(page)).toHaveValue('assist');
   await expect(rb(page).locator('.wc-ph-chips .wc-ph-chip')).toHaveText(['assist', 'bash', 'rescue', 'shoot', 'recover', 'Custom']);
   await expect(rb(page).locator('.wc-ph-chip', { hasText: /look/i })).toHaveCount(0);
-  await expect(rb(page).locator('.wc-ph-spec .wc-ph-chip')).toHaveText([/wimpy 50\s% of current\sHP/, /wimpy 25\s% of current\sHP/]);
+  // (Short on the chip, which has little width; said in full to a screen reader.)
+  await expect(rb(page).locator('.wc-ph-spec .wc-ph-chip')).toHaveText([/wimpy 50\s% HP/, /wimpy 25\s% HP/]);
+  await expect(special(page, 'wimpy50')).toHaveAttribute('aria-label', /wimpy 50\s% of current\sHP/);
   await expect(chip(page, 'assist')).toHaveAttribute('aria-pressed', 'true');
   await expect(bt(page, 'Cancel')).toBeVisible();
   await expect(bt(page, 'Save')).toBeVisible();
@@ -565,24 +567,33 @@ test('a pick and Save change the key, and it is kept over a reload; Cancel disca
   expect((await hotkeys(page))[1]).toEqual({ label: 'resc', command: 'rescue', special: null, shown: true });
 });
 
-test('Custom puts the cursor in Command; what is typed in the box never reaches the command line', async ({ page }) => {
+test('Custom empties both fields and puts the cursor in Label; what is typed in the box never reaches the command line', async ({ page }) => {
   const errors = watchErrors(page);
   await openPhone(page);
   await hold(page, hk(page, 3));
-  // A special shows as a token; Custom gives the field back, focused.
+  // A special shows as a token; Custom gives the field back, and the cursor is in the Label (stage 55).
   await expect(rb(page).locator('.wc-ph-rb-tok')).toBeVisible();
   await expect(command(page)).toBeHidden();
   await expect(special(page, 'wimpy50')).toHaveAttribute('aria-pressed', 'true');
   await chip(page, 'Custom'.toLowerCase()).tap();
   await expect(command(page)).toBeVisible();
-  await expect(command(page)).toBeFocused();
+  await expect(label(page)).toBeFocused();
+  await expect(label(page)).toHaveValue('');
+  await expect(command(page)).toHaveValue('');
   await expect(rb(page).locator('.wc-ph-rb-tok')).toBeHidden();
   await expect(special(page, 'wimpy50')).toHaveAttribute('aria-pressed', 'false');
   await expect(chip(page, 'custom')).toHaveAttribute('aria-pressed', 'true');
   // (Our keyboard comes up for the field, the box staying whole above it: phone-own-keyboard-fields.spec.ts.)
   await expect(rb(page)).toBeVisible();
-  await expect(command(page)).toBeFocused();
+  await expect(label(page)).toBeFocused();
   // Typing goes to the box's field: not to the command line, and no macro or page key runs.
+  await page.keyboard.type('ko');
+  await expect(label(page)).toHaveValue('ko');
+  // Enter in the Label while the Command is still to be written: on to the Command, nothing saved.
+  await page.keyboard.press('Enter');
+  await expect(rb(page)).toBeVisible();
+  await expect(command(page)).toBeFocused();
+  expect((await hotkeys(page))[2]!.special).toBe('wimpy50');
   await page.keyboard.type('kill orc');
   await expect(command(page)).toHaveValue('kill orc');
   await expect(field(page)).toHaveValue('');
@@ -599,7 +610,7 @@ test('Custom puts the cursor in Command; what is typed in the box never reaches 
   await label(page).fill('killer');
   await expect(label(page)).toHaveValue('kill');
   await expect(field(page)).toHaveValue('');
-  // Enter in a field saves.
+  // Enter in a field saves (the Label too, now that the key has its command).
   await page.keyboard.press('Enter');
   await expect(rb(page)).toBeHidden();
   await expect(hot(page)).toBeVisible();
@@ -825,15 +836,25 @@ const longPress = (page: Page, l: Locator) => finger(page, l, () => page.waitFor
 const pgLayout = (page: Page) => page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!);
 
 test.describe('a hold with panes above the game text: they give way to the box', () => {
+  /** Rows of a pane that the box cannot clear at 360 × 800. */
+  const TALL = 26;
   test.use({ viewport: { width: 360, height: 800 } });
 
   for (const [what, open, part] of [
-    ['Comm', async (page: Page) => page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap(), 'comm'],
+    // (Taller than they open: the box is low since stage 55, and clears them as they come.)
+    [
+      'a tall Comm',
+      async (page: Page) => {
+        await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+        await page.evaluate((rows) => window.__wc!.settings.update({ phone: { commRows: rows } }), TALL);
+      },
+      'comm',
+    ],
     [
       'a tall strip pane',
       async (page: Page) => {
         await page.locator('.wc-ph-sat[data-sat="panes"]:visible').tap();
-        await page.evaluate(() => window.__wc!.settings.update({ phone: { stripRows: 16 } }));
+        await page.evaluate((rows) => window.__wc!.settings.update({ phone: { stripRows: rows } }), TALL);
       },
       'strip',
     ],
@@ -872,10 +893,11 @@ test.describe('a hold with panes above the game text: they give way to the box',
     });
   }
 
-  test('portrait, Comm and our keyboard open: the hold folds the keyboard and opens the box, Comm out of the layout; one window size', async ({ page }) => {
+  test('portrait, a tall Comm and our keyboard open: the hold folds the keyboard and opens the box, Comm out of the layout; one window size', async ({ page }) => {
     const errors = watchErrors(page);
     await openPhone(page);
     await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+    await page.evaluate((rows) => window.__wc!.settings.update({ phone: { commRows: rows } }), TALL);
     await field(page).tap();
     await expect(page.locator('.wc-ph-okb')).toBeVisible();
     await expect(hk(page, 1)).toBeVisible();

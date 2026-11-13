@@ -35,6 +35,8 @@ const sat = (page: Page, name: 'panes' | 'comm') => page.locator(`.wc-ph-sat[dat
 const NONE = { strip: false, comm: false };
 
 const S21 = { width: 360, height: 800 };
+/** Rows of a strip that the hot key box clears beside the columns, and not above our keyboard (360 × 800). */
+const TALL_STRIP = 16;
 const S21_LAND = { width: 800, height: 360 };
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -124,8 +126,14 @@ async function play(page: Page, query = '&kbd=en'): Promise<Mock> {
   return { sent, server: () => server! };
 }
 
-/** The strip on its second page (Group) and Comm on Gibur's chat, both open. */
-async function openBoth(page: Page, m: Mock): Promise<void> {
+/**
+ * The strip on its second page (Group) and Comm on Gibur's chat, both open.
+ * `stripRows`: a strip taller than it opens (the box is low since stage 55:
+ * above our keyboard it clears the strip as it comes, and these cases are
+ * about a strip it does not clear).
+ */
+async function openBoth(page: Page, m: Mock, stripRows: number | null = null): Promise<void> {
+  if (stripRows !== null) await page.evaluate((rows) => window.__wc!.settings.update({ phone: { stripRows: rows } }), stripRows);
   await sat(page, 'panes').tap();
   await expect(stripPane(page)).toHaveAttribute('data-pane', 'timers');
   await page.keyboard.press('Control+2');
@@ -144,7 +152,7 @@ test('portrait, the strip and Comm open: Custom in the hot key box opens our key
   const errors = watchErrors(page);
   const m = await play(page);
   await setScreen(page, S21);
-  await openBoth(page, m);
+  await openBoth(page, m, TALL_STRIP);
   const was = await layout(page);
   expect(was.strip.h).toBeGreaterThan(0);
   expect(was.comm.h).toBeGreaterThan(0);
@@ -153,12 +161,12 @@ test('portrait, the strip and Comm open: Custom in the hot key box opens our key
   await expect(rb(page)).toBeVisible();
   await frames(page);
   expect((await layout(page)).hidden.comm).toBe(true);
-  // Custom: the keyboard opens for the Command field, the box stays, and both panes are out, in
-  // the one layout that opens the keyboard.
+  // Custom: the keyboard opens for the Label field (both fields emptied, stage 55), the box
+  // stays, and both panes are out, in the one layout that opens the keyboard.
   const sizes = await watchSizes(page);
   await rb(page).locator('.wc-ph-chip[data-pick="custom"]').tap();
   await expect(okb(page)).toBeVisible();
-  await expect(command(page)).toBeFocused();
+  await expect(label(page)).toBeFocused();
   await frames(page);
   await frames(page);
   await expect(rb(page)).toBeVisible();
@@ -173,10 +181,15 @@ test('portrait, the strip and Comm open: Custom in the hot key box opens our key
   const b = await box(rb(page));
   expect(b.y).toBeGreaterThanOrEqual(0);
   expect(b.y + b.height).toBeLessThanOrEqual((await box(okb(page))).y + 0.5);
-  await command(page).evaluate((el: HTMLInputElement) => el.setSelectionRange(el.value.length, el.value.length));
-  await type(page, ';', 'k', 'i', 'c', 'k');
-  await expect(command(page)).toHaveValue('bash;kick');
-  // The Label field too: the keyboard stays, nothing is laid out again.
+  await type(page, 'k', 'k');
+  await expect(label(page)).toHaveValue('kk');
+  // Enter goes on to the Command field: the keyboard stays, nothing is laid out again.
+  await key(page, 'enter').tap();
+  await expect(command(page)).toBeFocused();
+  await type(page, 'b', ';', 'k', 'i', 'c', 'k');
+  await expect(command(page)).toHaveValue('b;kick');
+  expect(await sizes()).toHaveLength(1);
+  // Back to the Label field by a tap: the same.
   await label(page).tap();
   await expect(label(page)).toBeFocused();
   await frames(page);
@@ -213,7 +226,7 @@ test('portrait: Enter in the box saves; the box, the keyboard and the hiding end
   const errors = watchErrors(page);
   const m = await play(page);
   await setScreen(page, S21);
-  await openBoth(page, m);
+  await openBoth(page, m, TALL_STRIP);
   const was = await layout(page);
   await hold(page, hk(page, 2));
   await command(page).tap();
@@ -247,7 +260,7 @@ test('portrait in a fight: the fight card and the game text stay while the box i
   const errors = watchErrors(page);
   const m = await play(page);
   await setScreen(page, S21);
-  await openBoth(page, m);
+  await openBoth(page, m, TALL_STRIP);
   m.server().send(gmcp('Char.Vitals', { hp: 150, maxhp: 172, opponent: 'an orc scout', buffer: 'Rasta', 'opponent-hits': 'hurt' }));
   await expect(page.locator('.wc-ph-fight')).toBeVisible();
   await frames(page);
@@ -287,8 +300,10 @@ test('landscape: the box stands right of the column, so nothing is taken out for
   expect(g.hidden).toEqual(NONE);
   expect(g.side.w).toBe(was.side.w);
   expect((await box(rb(page))).x).toBeGreaterThanOrEqual(g.side.w * (await page.evaluate(() => window.__wc!.cells.get().w)) - 0.5);
+  // (Custom starts the key from nothing, the cursor in its Label: stage 55.)
   await type(page, 'x');
-  await expect(command(page)).toHaveValue(/x/);
+  await expect(label(page)).toHaveValue('x');
+  await expect(command(page)).toHaveValue('');
   expect(errors).toEqual([]);
 });
 

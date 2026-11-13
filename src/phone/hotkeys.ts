@@ -17,8 +17,15 @@
 // - The box is a small form left of the columns. It owns its keys
 //   (`data-wc-own-keys`, the input pane's rule): what is typed in its
 //   fields never reaches the command line or a macro. Esc cancels, Enter
-//   in a field saves. A press outside it closes it without saving, and
-//   that press still does what it would have done (the compass stays live).
+//   in a field saves (from the Label on to a Command still unwritten). A
+//   press outside it closes it without saving, and that press still does
+//   what it would have done (the compass stays live).
+// - The box is low (stage 55: it must stand above our keyboard with its
+//   Save in sight). Its name is a plate on its top edge; the two fields
+//   stand side by side, named on their frames; the picks and the specials
+//   are chips that wrap. What it would send, Shown, Cancel and Save are a
+//   foot that never scrolls: only the part above it does, and that part
+//   shows a fading edge with a mark where it has more (`markMore`).
 // - With the on-screen keyboard up the column and the K key are hidden
 //   (phone.css); an open box stays, above the command row.
 
@@ -32,9 +39,11 @@ import {
   HOTKEY_SPECIALS,
   checkHotkey,
   cleanCommand,
+  enterGoesToCommand,
   hotkeyColumns,
   hotkeyName,
   pickHotkey,
+  scrollMore,
   sendsNow,
   typedLabel,
 } from './hotkey-model';
@@ -331,6 +340,7 @@ export class HotkeysView {
     this.boxIndex = index;
     this.boxEl.hidden = false;
     b.body.scrollTop = 0;
+    this.markMore();
     this.markHeld();
     this.doc.addEventListener('pointerdown', this.onOutside, true);
     // On the window, ahead of the input pane's listener on the document: Esc closes the box, not opens the menu.
@@ -356,6 +366,20 @@ export class HotkeysView {
   placeBox(bottom: number, maxHeight: number): void {
     this.boxEl.style.bottom = `${bottom}px`;
     this.boxEl.style.maxHeight = `${Math.max(0, maxHeight)}px`;
+    this.markMore();
+  }
+
+  /**
+   * The scrolling part says where it has more than it shows (phone.css: a
+   * fading edge with a mark, on that side only). Asked when the box is
+   * placed, scrolled or changes its content's height; never per frame.
+   */
+  private markMore(): void {
+    const b = this.box;
+    if (!b || this.boxEl.hidden) return;
+    const more = scrollMore(b.body.scrollTop, b.body.clientHeight, b.body.scrollHeight);
+    b.scroll.toggleAttribute('data-more-up', more.up);
+    b.scroll.toggleAttribute('data-more-down', more.down);
   }
 
   private readonly onOutside = (e: Event): void => {
@@ -376,8 +400,18 @@ export class HotkeysView {
     this.closeBox();
   };
 
-  /** The box's Save (its key; Enter in a field, also from a keyboard that makes no key events). */
-  saveBox(): void {
+  /**
+   * Enter in `field`, one of the box's two (also from a keyboard that makes
+   * no key events): Save, or from the Label on to a Command that is still
+   * to be written (hotkey-model.ts `enterGoesToCommand`).
+   */
+  enterIn(field: Element): void {
+    const b = this.box;
+    if (!b || this.boxIndex === null) return;
+    if (enterGoesToCommand(field === b.label ? 'label' : 'command', { command: b.command.value, special: this.draft.special })) {
+      b.command.focus();
+      return;
+    }
     this.save();
   }
 
@@ -408,7 +442,8 @@ export class HotkeysView {
     b.shown.setAttribute('aria-checked', d.shown ? 'true' : 'false');
     const sp = HOTKEY_SPECIALS.find((s) => s.id === d.special) ?? null;
     b.token.hidden = sp === null;
-    b.tokenText.textContent = sp?.text ?? '';
+    b.tokenText.textContent = sp?.short ?? '';
+    b.token.setAttribute('aria-label', `Special: ${sp?.text ?? ''}; tap to write a command instead`);
     b.command.hidden = sp !== null;
     const cmd = cleanCommand(b.command.value);
     b.says.textContent = sendsNow({ command: b.command.value, special: d.special }, this.deps.hp());
@@ -436,13 +471,21 @@ export class HotkeysView {
     this.syncBox();
   }
 
-  /** Custom: the Command field as it is (a special gives way), with the cursor in it. */
+  /**
+   * Custom: a key written from nothing (the owner, stage 55). Both fields
+   * are emptied (a special gives way), and the cursor stands in the Label:
+   * its Enter goes on to the Command, and the Command's saves.
+   */
   private custom(): void {
     const b = this.box!;
-    this.draft = { ...this.draft, special: null };
+    this.draft = { ...this.draft, label: '', command: '', special: null };
+    b.label.value = '';
+    b.command.value = '';
+    b.error.hidden = true;
     this.syncBox();
-    b.command.focus();
-    b.command.setSelectionRange(b.command.value.length, b.command.value.length);
+    // (The fields are the first thing in the scrolling part: it stays at its top, whatever room it has.)
+    b.label.focus({ preventScroll: true });
+    b.body.scrollTop = 0;
   }
 
   private buildBox(): BoxParts {
@@ -465,17 +508,18 @@ export class HotkeysView {
     root.setAttribute('role', 'dialog');
     root.setAttribute(OWN_KEYS, '');
 
+    // The box's name: a plate on its top edge (no row of its own).
     const title = el('span', 'wc-ph-rb-k');
-    const shown = button('wc-ph-sw', 'Shown', () => {
+    const shown = button('wc-ph-sw', '', () => {
       this.draft = { ...this.draft, shown: !this.draft.shown };
       this.syncBox();
     });
     shown.setAttribute('role', 'switch');
-    shown.append(el('i', ''));
-    const head = el('div', 'wc-ph-rb-t');
-    head.append(title, shown);
+    shown.setAttribute('aria-label', 'Shown');
+    shown.append(el('span', '', 'Shown'), el('i', ''));
 
-    const field = (cls: string, id: string, name: string, max: number | null): { wrap: HTMLDivElement; input: HTMLInputElement } => {
+    // A field with its name on its frame (a caption cut into the top edge: no row of its own).
+    const field = (cls: string, id: string, name: string, max: number | null, enter: 'next' | 'done'): { wrap: HTMLDivElement; input: HTMLInputElement } => {
       const wrap = el('div', cls);
       const lab = el('label', 'wc-ph-rb-h', name);
       lab.htmlFor = id;
@@ -487,29 +531,28 @@ export class HotkeysView {
       input.autocapitalize = 'off';
       input.spellcheck = false;
       input.setAttribute('autocorrect', 'off');
-      input.enterKeyHint = 'done';
-      wrap.append(lab, input);
+      input.enterKeyHint = enter;
+      wrap.append(input, lab);
       return { wrap, input };
     };
     // No `maxlength` on the label: it counts UTF-16 units, the model counts characters (an emoji is
     // one). The field is cleaned as it is typed in, with the model's own rule.
-    const label = field('wc-ph-rb-fl', 'wc-ph-rb-label', 'Label', null);
+    const label = field('wc-ph-rb-fl', 'wc-ph-rb-label', 'Label', null, 'next');
+    label.input.title = `At most ${HOTKEY_LABEL_MAX} characters`;
     label.input.addEventListener('input', (e) => {
       // Not in the middle of a composition (an IME): its text is not final yet.
       if ((e as InputEvent).isComposing) return;
       const clean = typedLabel(label.input.value);
       if (clean !== label.input.value) label.input.value = clean;
     });
-    label.wrap.append(el('span', 'wc-ph-rb-hint', `${HOTKEY_LABEL_MAX} max`));
-    const command = field('wc-ph-rb-fc', 'wc-ph-rb-command', 'Command', HOTKEY_COMMAND_MAX);
+    const command = field('wc-ph-rb-fc', 'wc-ph-rb-command', 'Command', HOTKEY_COMMAND_MAX, 'done');
     // A special shows as a token in the field's place; a tap on it is Custom.
     const token = button('wc-ph-fin wc-ph-rb-tok', '', () => this.custom());
     const tok = el('span', 'wc-ph-tok');
     const tokenText = el('span', '');
     tok.append(braces(doc), tokenText);
     token.append(tok);
-    token.setAttribute('aria-label', 'Special; tap to write a command instead');
-    command.wrap.append(token);
+    command.wrap.insertBefore(token, command.input.nextSibling);
     const fields = el('div', 'wc-ph-rb-f');
     fields.append(label.wrap, command.wrap);
     command.input.addEventListener('input', () => {
@@ -523,6 +566,8 @@ export class HotkeysView {
     error.hidden = true;
 
     const chips = el('div', 'wc-ph-chips');
+    chips.setAttribute('role', 'group');
+    chips.setAttribute('aria-label', 'Commands');
     const picks: HTMLButtonElement[] = [];
     for (const p of HOTKEY_PICKS) {
       const c = button('wc-ph-chip', p, () => this.pick({ command: p }));
@@ -535,33 +580,51 @@ export class HotkeysView {
     chips.append(...picks);
 
     const spec = el('div', 'wc-ph-spec');
+    spec.setAttribute('role', 'group');
+    spec.setAttribute('aria-label', 'Specials');
     const specials: HTMLButtonElement[] = [];
     for (const s of HOTKEY_SPECIALS) {
       const c = button('wc-ph-chip is-wide', '', () => this.pick({ special: s.id }));
       c.dataset.special = s.id;
-      c.append(braces(doc), doc.createTextNode(s.text));
+      c.setAttribute('aria-label', s.text);
+      c.append(braces(doc), doc.createTextNode(s.short));
       specials.push(c);
     }
     spec.append(...specials);
 
+    // The foot never scrolls: what the key would send (or why it cannot be saved), Shown, and the two actions.
     const acts = el('div', 'wc-ph-rb-a');
     acts.append(
+      error,
+      says,
+      shown,
       button('wc-ph-bt', 'Cancel', () => this.closeBox()),
       button('wc-ph-bt is-go', 'Save', () => this.save()),
     );
 
-    // The notch lies outside the box's edge, so the scrolling part (a short screen) is a child of its own.
+    // The notch and the name's plate lie outside the box's edge, so the scrolling part (a low
+    // screen) is a child of its own, in a frame that carries the marks of more above and below it.
     const notch = el('span', 'wc-ph-rb-n');
     const body = el('div', 'wc-ph-rb-in');
-    body.append(head, fields, says, error, el('span', 'wc-ph-rb-h', 'Commands'), chips, el('span', 'wc-ph-rb-h', 'Specials'), spec, acts);
-    root.append(notch, body);
+    body.append(fields, chips, spec);
+    const scroll = el('div', 'wc-ph-rb-sc');
+    const moreUp = el('span', 'wc-ph-rb-mo is-up');
+    const moreDown = el('span', 'wc-ph-rb-mo is-down');
+    moreUp.setAttribute('aria-hidden', 'true');
+    moreDown.setAttribute('aria-hidden', 'true');
+    scroll.append(body, moreUp, moreDown);
+    root.append(notch, title, scroll, acts);
+    body.addEventListener('scroll', () => this.markMore(), { passive: true });
+    // The content's height changes (the chips wrap at another width; a rotation).
+    const RO = doc.defaultView?.ResizeObserver;
+    if (RO) new RO(() => this.markMore()).observe(body);
 
-    // The box's own keys: Enter in a field saves (Esc: `onEsc`); none of them leaves the box.
+    // The box's own keys: Enter in a field saves or goes on (`enterIn`; Esc: `onEsc`); none of them leaves the box.
     root.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
         e.preventDefault();
-        this.save();
+        this.enterIn(e.target);
       }
     });
     // A click in the box is not a click on the game (which gives the command line the focus).
@@ -570,7 +633,7 @@ export class HotkeysView {
       if (!(e.target instanceof HTMLInputElement)) e.preventDefault();
     });
 
-    return { notch, body, title, shown, label: label.input, command: command.input, token, tokenText, says, error, picks, specials };
+    return { notch, scroll, body, title, shown, label: label.input, command: command.input, token, tokenText, says, error, picks, specials };
   }
 
   dispose(): void {
@@ -585,6 +648,8 @@ export class HotkeysView {
 
 interface BoxParts {
   notch: HTMLElement;
+  /** The scrolling part's frame (the marks of more above and below). */
+  scroll: HTMLElement;
   body: HTMLElement;
   title: HTMLElement;
   shown: HTMLButtonElement;

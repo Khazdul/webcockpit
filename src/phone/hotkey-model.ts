@@ -43,15 +43,17 @@ export interface HotkeySpecial {
   id: PhoneHotkeySpecial;
   /** The share of the current hit points. */
   share: number;
-  /** The box's chip and the token in its Command field. */
+  /** What it is, in full (the accessible name of the box's chip and of the token in its Command field). */
   text: string;
+  /** The same on the chip and the token themselves, which have little width. */
+  short: string;
   /** For the key's accessible name. */
   spoken: string;
 }
 
 export const HOTKEY_SPECIALS: readonly HotkeySpecial[] = [
-  { id: 'wimpy50', share: 0.5, text: 'wimpy 50 % of current HP', spoken: 'wimpy at half of current HP' },
-  { id: 'wimpy25', share: 0.25, text: 'wimpy 25 % of current HP', spoken: 'wimpy at a quarter of current HP' },
+  { id: 'wimpy50', share: 0.5, text: 'wimpy 50 % of current HP', short: 'wimpy 50 % HP', spoken: 'wimpy at half of current HP' },
+  { id: 'wimpy25', share: 0.25, text: 'wimpy 25 % of current HP', short: 'wimpy 25 % HP', spoken: 'wimpy at a quarter of current HP' },
 ];
 
 export const NOTICE_HP_UNKNOWN = 'Hot key: your hit points are not known yet, so no wimpy was set.';
@@ -185,6 +187,20 @@ export function pickHotkey(draft: PhoneHotkey, pick: { command: string } | { spe
   const follows = cleanLabel(draft.label) === '' || cleanLabel(draft.label) === autoLabel(draft.command, draft.special);
   const next: PhoneHotkey = 'special' in pick ? { ...draft, command: '', special: pick.special } : { ...draft, command: pick.command, special: null };
   return follows ? { ...next, label: autoLabel(next.command, next.special) } : next;
+}
+
+/**
+ * Enter in one of the box's two fields: from the Label on to the Command
+ * field while that one is still to be written (Custom starts there);
+ * anywhere else Enter saves. A special has no Command field.
+ */
+export function enterGoesToCommand(field: 'label' | 'command', draft: Pick<PhoneHotkey, 'command' | 'special'>): boolean {
+  return field === 'label' && draft.special === null && cleanCommand(draft.command) === '';
+}
+
+/** Where a scrolling part has more than it shows: above, below (a pixel of rounding is no more). */
+export function scrollMore(top: number, shown: number, all: number): { up: boolean; down: boolean } {
+  return { up: top > 1, down: all - shown - top > 1 };
 }
 
 /** The keys with slot `index` replaced (always a full list, for the settings). */
