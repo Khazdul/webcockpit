@@ -1,7 +1,7 @@
 // The in-game hosts of the profile editor (stage 30 S8, ADR 0103; stage
 // 43b, ADR 0128): the Profile window's root frame (`ProfileRoot`) and the
-// page the phone's ESC menu opens at for `#profile` (`ProfileEntry` in
-// esc-main.tsx) share `ProfileHome`, and both pass `profileEditOptions`
+// page the phone's ESC overlay opens at for `#profile` (`ProfileEntry`)
+// share `ProfileHome`, and both pass `profileEditOptions`
 // (live apply while connected, the head line following the connection).
 //
 //   ( Profile · default )            ← the window's hood (or the menu box's)
@@ -30,6 +30,20 @@ import { type EditOptions, editProfile } from './profile-edit';
 import { useServices, useSettings } from '../kit/hooks';
 import { Box, BoxBody, GlassButton, LookFlash, letterAction, lookFrame } from '../kit/look';
 import { type Flash, useFlash, useIsTopFrame, useKeys, useNav } from '../kit/stack';
+
+/**
+ * What the shell gives the phone's ESC overlay (`mountEscMenu`,
+ * src/chrome/index.tsx): the pages it opens at are Profile and Scripts.
+ */
+export interface EscActions {
+  status: AppStatusView;
+  /** Close the overlay (leaving its root page). */
+  close: () => void;
+  /** The profile editor's apply (`App.commitProfile`, ADR 0105). Absent: the editor saves to the store only. */
+  commitProfile?: CommitProfile;
+  /** Saves pending runtime variable values before the editor reads the profile. */
+  flushWriteBack?: () => Promise<void>;
+}
 
 /** What the in-game hosts know of the session (`EscActions` and `WindowsOptions` both carry it). */
 export interface LiveHost {
@@ -147,4 +161,16 @@ export function ProfileHome(p: { host: LiveHost; close: () => void }): VNode {
  */
 export const ProfileRoot = lookFrame(function ProfileRoot(p: { opts: WindowsOptions; close: () => void }): VNode {
   return <ProfileHome host={p.opts} close={p.close} />;
+});
+
+/**
+ * The phone's ESC overlay opened at the profile editor (the menu sheet's
+ * Profile and `#profile`, ADR 0099; the menu bar has the Profile window,
+ * ADR 0103): a look frame (the full-screen box, place `menu`) that loads
+ * the active profile's editor over itself and closes the overlay once the
+ * editor is left. A failure stays on it with Edit (stage 43b); Esc or Back
+ * closes.
+ */
+export const ProfileEntry = lookFrame(function ProfileEntry(p: EscActions): VNode {
+  return <ProfileHome host={p} close={p.close} />;
 });

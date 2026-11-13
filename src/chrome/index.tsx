@@ -1,7 +1,8 @@
 // The chrome chunk (ADR 0010 "Chrome", ADR 0013): the start page (free
-// DOM over the sky with old-look frames on the cell grid, ADR 0125) and the
-// phone's ESC menu (ADR 0112) as Preact surfaces, and the
-// cockpit's windows, popups and Statistics pane where the menu bar exists. Loaded with a dynamic
+// DOM over the sky, ADR 0125) and the phone's ESC overlay (Profile and
+// Scripts, opened from the phone's menu sheet; ADR 0112, stage 55) as
+// Preact surfaces, and the cockpit's windows and popups where the menu bar
+// exists, and the Statistics pane. Loaded with a dynamic
 // import from src/app/shell.ts, so Preact never sits on the game's hot
 // path (the output and input panes are plain TypeScript).
 //
@@ -9,9 +10,8 @@
 //   const start = chrome.mountStartPage(host, services, { onEnter });
 //   start.hide(); …; start.show({ keep: true });   // back where it was
 //   const run = start.leave();   // Enter MUME's transition, over the cockpit
-//   const menu = chrome.mountEscMenu(host, services, { status, close, reconnect, exit });
-//   menu.open({ preselect: 'reconnect' });
-//   menu.open({ target: 'scripts' });   // straight at a frame (ADR 0099)
+//   const menu = chrome.mountEscMenu(host, services, { status, close });
+//   menu.open({ target: 'scripts' });   // at a page (ADR 0099)
 //   const wins = chrome.mountWindows(host, services, { … });        // ADR 0103
 //   const pops = chrome.mountSettingsPopups(host, services, { … }); // ADR 0107
 //   const stats = chrome.mountStatsPane(host, services, { runs, status }); // ADR 0109
@@ -20,9 +20,7 @@ import './kit/kit.css';
 import './kit/look.css';
 import { type ComponentChildren, type VNode, render } from 'preact';
 import { useRef } from 'preact/hooks';
-import { isLive } from '../app/status';
-import { EscMain, type EscActions, ExitConfirm, ProfileEntry } from './frames/esc-main';
-import { OptionsHub, PanesFrame } from './frames/options';
+import { type EscActions, ProfileEntry } from './frames/profile-window';
 import { ScriptsFrame } from './frames/scripts';
 import { StartMain } from './frames/start-main';
 import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useSettings } from './kit/hooks';
@@ -168,25 +166,23 @@ function reducedMotion(): boolean {
 
 // --------------------------------------------------------------- ESC menu
 // The phone's only since stage 30f (ADR 0112): where the menu bar exists the
-// shell never mounts it.
+// shell never mounts it. Since stage 55 it has no main frame, Options or
+// Exit page (the phone's menu sheet, settings page and Exit confirmation
+// are the phone layer's, ADR 0136 §10): it is the overlay the sheet's
+// Profile and Scripts open in.
 
 export type EscMenuOptions = EscActions;
 
 /**
- * A frame the menu can open at instead of its main frame (the menu bar
- * and `#profile` …, ADR 0099): the profile editor, Options → Scripts,
- * Options, Options → Panes → Appearance, Exit session. Leaving that frame
- * (Esc or Back on it) closes the menu. The phone's way to them since the
- * bar has windows (ADR 0103) and the Settings popup (ADR 0107).
+ * The page the overlay opens at (the menu sheet's rows, `#profile` and
+ * `#scripts`, ADR 0099): the profile editor or Scripts. Leaving that page
+ * (Esc or Back on it) closes the overlay.
  */
-export type EscMenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
+export type EscMenuTarget = 'profile' | 'scripts';
 
 export interface EscMenuHandle {
-  /**
-   * Opens the menu (no-op when open). `preselect` defaults by connection
-   * state; `target` opens it at that frame.
-   */
-  open(opts?: { preselect?: 'continue' | 'reconnect'; target?: EscMenuTarget }): void;
+  /** Opens the overlay at `target` (no-op when open). */
+  open(opts: { target: EscMenuTarget }): void;
   close(): void;
   readonly isOpen: boolean;
   dispose(): void;
@@ -195,26 +191,12 @@ export interface EscMenuHandle {
 interface MenuSurfaceProps extends EscActions {
   open: boolean;
   epoch: number;
-  preselect: 'continue' | 'reconnect';
-  target: EscMenuTarget | null;
+  target: EscMenuTarget;
 }
 
-/** The menu's root frame: the main frame, or the frame it was opened at. */
+/** The overlay's root frame: the page it was opened at. */
 function menuRoot(p: MenuSurfaceProps): VNode {
-  switch (p.target) {
-    case 'profile':
-      return <ProfileEntry {...p} />;
-    case 'scripts':
-      return <ScriptsFrame />;
-    case 'settings':
-      return <OptionsHub />;
-    case 'panes':
-      return <PanesFrame />;
-    case 'exit':
-      return <ExitConfirm exit={p.exit} runs={p.runs} />;
-    default:
-      return <EscMain {...p} />;
-  }
+  return p.target === 'profile' ? <ProfileEntry {...p} /> : <ScriptsFrame />;
 }
 
 /** Share of the window the menu covers (Inv §4.1); the whole screen on a phone (ADR 0075 §3). */
@@ -297,22 +279,19 @@ function MenuSurface(p: MenuSurfaceProps): VNode {
 export function mountEscMenu(host: HTMLElement, services: ChromeServices, opts: EscMenuOptions): EscMenuHandle {
   let open = false;
   let epoch = 0;
-  let preselect: 'continue' | 'reconnect' = 'continue';
-  let target: EscMenuTarget | null = null;
+  let target: EscMenuTarget = 'profile';
   const draw = (): void =>
     render(
       <ServicesCtx.Provider value={services}>
-        <MenuSurface {...opts} open={open} epoch={epoch} preselect={preselect} target={target} />
+        <MenuSurface {...opts} open={open} epoch={epoch} target={target} />
       </ServicesCtx.Provider>,
       host,
     );
   draw();
   return {
-    open(o = {}) {
+    open(o) {
       if (open) return;
-      const live = isLive(opts.status.get());
-      preselect = o.preselect ?? (live ? 'continue' : 'reconnect');
-      target = o.target ?? null;
+      target = o.target;
       open = true;
       epoch++;
       draw();

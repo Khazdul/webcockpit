@@ -27,7 +27,7 @@ import {
   tilesetPreviewPath,
 } from '../../src/map/tilesets';
 import { MapWorkerCore } from '../../src/map/worker/core';
-import { tilesetCredit } from '../../src/chrome/frames/options-mapper';
+import { tilesetCredit } from '../../src/chrome/mapper-model';
 import { isNamedMapBg } from '../../src/map/backgrounds';
 import { defaultSettings, migrateMapper, migrateSettings } from '../../src/settings';
 

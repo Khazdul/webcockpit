@@ -1,6 +1,6 @@
 // Opens the profile editor (src/editor, a separate lazy chunk) for a stored
-// profile. Shared by the start page's Profile → EDIT, the ESC menu's
-// Profile row and the Profile window (Inv §4.5, §5.1, ADR 0103). The chunk
+// profile. Shared by the start page's Profile → EDIT, the phone's ESC
+// overlay (Profile) and the Profile window (Inv §4.5, §5.1, ADR 0103). The chunk
 // is imported here, on demand, so the chrome chunk never carries CodeMirror.
 //
 // The editor applies while it stays open (ADR 0105): `commit` reads the

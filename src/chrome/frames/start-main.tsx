@@ -12,8 +12,7 @@
 //
 // Scripts needs the script library, which the shell always has; only
 // tests mount the page without it, and then the row is not there. Options
-// left the start page in stage 32 (its settings are changed in the game);
-// the phone's ESC menu keeps it.
+// left the start page in stage 32 (its settings are changed in the game).
 
 import { Fragment, type VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';

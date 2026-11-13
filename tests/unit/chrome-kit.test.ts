@@ -1,18 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   centreLeft,
-  cycle,
-  dragScrollTop,
-  firstEnabled,
-  footerRows,
   footerText,
-  jumpScrollTop,
   navKey,
-  packRows,
-  scrollToShow,
-  scrollbar,
   step,
-  stepValue,
   tooSmall,
   truncate,
   wrapText,
@@ -64,32 +55,6 @@ describe('step', () => {
     expect(step(30, 3, -10)).toBe(0);
     expect(step(30, 25, 10, { enabled: en([29]) })).toBe(28);
   });
-
-  it('finds the first enabled', () => {
-    expect(firstEnabled(4, en([0, 1]))).toBe(2);
-    expect(firstEnabled(4, en([3]), 3)).toBe(0);
-    expect(firstEnabled(2, () => false)).toBe(-1);
-  });
-});
-
-describe('cyclers and steppers', () => {
-  it('cycles with wrap; an unknown value starts at the ends', () => {
-    const l = ['auto', 'quadrant', 'block'];
-    expect(cycle(l, 'auto', 1)).toBe('quadrant');
-    expect(cycle(l, 'block', 1)).toBe('auto');
-    expect(cycle(l, 'auto', -1)).toBe('block');
-    expect(cycle(l, 'nope', 1)).toBe('auto');
-    expect(cycle(l, 'nope', -1)).toBe('block');
-  });
-
-  it('steps numbers within bounds on the step grid', () => {
-    expect(stepValue(15, 1, 6, 32)).toBe(16);
-    expect(stepValue(32, 1, 6, 32)).toBe(32);
-    expect(stepValue(6, -1, 6, 32)).toBe(6);
-    expect(stepValue(0, 1, 0, 40, 2)).toBe(2);
-    expect(stepValue(3, 1, 0, 40, 2)).toBe(6);
-    expect(stepValue(40, 1, 0, 40, 2)).toBe(40);
-  });
 });
 
 describe('layout helpers', () => {
@@ -115,67 +80,9 @@ describe('layout helpers', () => {
     expect(wrapText('a\n\nb', 10)).toEqual(['a', '', 'b']);
   });
 
-  it('keeps the cursor inside the visible window', () => {
-    expect(scrollToShow(0, 3, 5, 20)).toBe(0);
-    expect(scrollToShow(0, 7, 5, 20)).toBe(3);
-    expect(scrollToShow(10, 4, 5, 20)).toBe(4);
-    expect(scrollToShow(18, 19, 5, 20)).toBe(15);
-    expect(scrollToShow(3, 1, 5, 3)).toBe(0);
-  });
-
-  it('draws a scrollbar only when the list overflows', () => {
-    expect(scrollbar(5, 10, 0)).toEqual([]);
-    const top = scrollbar(20, 10, 0);
-    expect(top).toHaveLength(10);
-    expect(top.filter(Boolean)).toHaveLength(5);
-    expect(top[0]).toBe(true);
-    const end = scrollbar(20, 10, 10);
-    expect(end[9]).toBe(true);
-    expect(end[0]).toBe(false);
-  });
-
-  it('maps a thumb drag to a proportional scroll position (ADR 0106)', () => {
-    // 10 cells of 16 px, a 5-cell thumb: 80 px of travel for 400 px of content.
-    expect(dragScrollTop(0, 0, 10, 5, 16, 400)).toBe(0);
-    expect(dragScrollTop(0, 40, 10, 5, 16, 400)).toBe(200);
-    expect(dragScrollTop(0, 80, 10, 5, 16, 400)).toBe(400);
-    expect(dragScrollTop(200, -20, 10, 5, 16, 400)).toBe(100);
-    // Clamped at both ends.
-    expect(dragScrollTop(0, 500, 10, 5, 16, 400)).toBe(400);
-    expect(dragScrollTop(100, -500, 10, 5, 16, 400)).toBe(0);
-    // Nothing to scroll, or no room for the thumb to travel.
-    expect(dragScrollTop(50, 40, 10, 5, 16, 0)).toBe(0);
-    expect(dragScrollTop(50, 40, 10, 10, 16, 400)).toBe(50);
-  });
-
-  it('maps a track press to a proportional jump on a whole row', () => {
-    expect(jumpScrollTop(0, 10, 400, 16)).toBe(0);
-    expect(jumpScrollTop(9, 10, 400, 16)).toBe(400);
-    expect(jumpScrollTop(4, 10, 400, 16)).toBe(176);
-    expect(jumpScrollTop(4, 10, 0, 16)).toBe(0);
-  });
-
   it('flags windows below 60×18 cells', () => {
     expect(tooSmall(60, 18)).toBe(false);
     expect(tooSmall(59, 40)).toBe(true);
     expect(tooSmall(100, 17)).toBe(true);
-  });
-});
-
-describe('packRows / footerRows (phone wrapping, ADR 0075 §3.2)', () => {
-  it('packs in order and starts a new row when the next item does not fit', () => {
-    expect(packRows([5, 8, 8, 8, 8, 8], 30, 1)).toEqual([[0, 1, 2], [3, 4, 5]]);
-    expect(packRows([5, 8], 14, 1)).toEqual([[0, 1]]);
-    expect(packRows([5, 8], 13, 1)).toEqual([[0], [1]]);
-  });
-  it('gives an over-wide item a row of its own', () => {
-    expect(packRows([3, 20, 3], 10, 1)).toEqual([[0], [1], [2]]);
-    expect(packRows([], 10, 1)).toEqual([]);
-  });
-  it('wraps footer tokens at the ` · ` joints', () => {
-    const t = ['↑↓ Navigate', '←→ Toggle/Edit', 'Enter Select', 'ESC Back'];
-    const rows = footerRows(t, 30);
-    expect(rows).toEqual([['↑↓ Navigate', '←→ Toggle/Edit'], ['Enter Select', 'ESC Back']]);
-    expect(rows.flat()).toEqual(t);
   });
 });

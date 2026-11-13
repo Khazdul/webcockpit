@@ -1,9 +1,9 @@
-// The Mapper settings' shared logic (ADR 0020, ADR 0107): what Options →
-// Mapper (the TUI page, frames/options-mapper.tsx) and the modern Mapper
-// component (popups/mapper-settings.tsx, in Settings → Mapper and, from 30c
-// part 2, the map pane's gear popup) both show and do. No UI here.
+// The Mapper settings' logic (ADR 0020, ADR 0107): what the Mapper
+// component (popups/mapper-settings.tsx, in Settings → Mapper and the map
+// pane's gear popup) shows and does. No UI here. (The old Options → Mapper
+// page shared it until stage 55.)
 //
-// - The current map's info rows (name, rooms, size, imported date).
+// - The formats of the current map's facts (rooms, size, imported date).
 // - The tileset's credit line, with the season an alternating set draws
 //   now (the saved game clock, as the Map pane resolves it).
 // - The background colour as the list knows it (migration keeps only named
@@ -12,11 +12,11 @@
 //   and go back to the bundled map, reporting through a flash callback.
 
 import { type Season, seasonOf } from '../gmcp/gametime';
-import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, isNamedMapBg } from '../map/backgrounds';
+import { MAP_BG_DEFAULT, isNamedMapBg } from '../map/backgrounds';
 import type { CurrentMap, MapStore } from '../map/store';
 import { localStorageOrNull, mumeMonth, storedClockEpoch, tilesetChoice } from '../map/tilesets';
 
-/** How a result is reported (the TUI's flash row, the popup's note line). */
+/** How a result is reported (the popup's note line). */
 export type MapFlash = (text: string, kind?: 'ok' | 'fail') => void;
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -38,18 +38,6 @@ export function fmtDate(ms: number): string {
   const d = new Date(ms);
   const p = (x: number): string => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-/** The info rows for the current map: [label, value]. */
-export function mapInfoRows(m: CurrentMap | null): Array<[string, string]> {
-  if (!m) return [['Map', '…']];
-  if (m.kind === 'bundled') return [['Map', `${m.name} (bundled)`]];
-  return [
-    ['Map', m.name],
-    ...(m.rooms !== undefined ? [['Rooms', fmtCount(m.rooms)] as [string, string]] : []),
-    ['Size', fmtBytes(m.size)],
-    ['Imported', fmtDate(m.date)],
-  ];
 }
 
 /** The map shown when there is no map store (or it failed): the bundled one. */
@@ -77,9 +65,6 @@ export function seasonNow(now: number = Date.now()): Season {
 export function tilesetCreditNow(id: string, now: number = Date.now()): string {
   return tilesetCredit(id, mumeMonthNow(now));
 }
-
-/** The background choices, Default first (ADR 0085). */
-export const MAP_BG_HEXES: readonly string[] = MAP_BACKGROUNDS.map((c) => c.hex);
 
 /** The stored background as a list entry: a named colour, else Default. */
 export function mapBgChoice(stored: string): string {

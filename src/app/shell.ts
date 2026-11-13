@@ -472,7 +472,8 @@ export class Shell {
     sheet.close(true);
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
-    menu.open({ target });
+    // The overlay has two pages (stage 55); every other target was the sheet's, above.
+    if (target === 'profile' || target === 'scripts') menu.open({ target });
   }
 
   /** Closes the ESC menu and gives the input its focus back. */
@@ -1085,14 +1086,8 @@ export class Shell {
     this.menu ??= chrome.mountEscMenu(this.menuHost, this.services(), {
       status: app.status,
       close: () => this.closeMenu(),
-      reconnect: () => {
-        this.closeMenu();
-        app.onCommand('#reconnect');
-      },
-      exit: () => void this.exitSession(),
       commitProfile: (name, build, opts) => app.commitProfile(name, build, opts),
       flushWriteBack: () => app.flushWriteBack(),
-      runs: app.runs,
     });
     return this.menu;
   }

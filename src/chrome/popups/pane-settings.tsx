@@ -1,7 +1,6 @@
 // The Comm, Timers and Group gear popups' content (stage 30 S6, ADR 0107):
-// what Options → Panes → Communication, Timers and Group hold, as modern
-// controls in the ghost look. The semantics are shared with those TUI
-// pages (../pane-options-model.ts); every change goes to the settings
+// the Communication, Timers and Group settings as modern controls in the
+// ghost look. The logic is in ../pane-options-model.ts; every change goes to the settings
 // store at once and the pane follows live (ADR 0010).
 //
 //   Comm                         Timers                                   Group

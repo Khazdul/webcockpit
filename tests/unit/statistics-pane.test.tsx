@@ -9,7 +9,7 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { legacyLayout } from './legacy-defaults';
 import { mountStatsPane } from '../../src/chrome';
-import { fitHeader, fmtK, statsFit } from '../../src/chrome/frames/stats-layout';
+import { fmtK } from '../../src/chrome/frames/stats-layout';
 import { xpToNextLevel } from '../../src/gmcp/levels';
 import { STATS_FEED_MS, STATS_REFRESH_MS, StatsFeed, type StatsFeedOptions } from '../../src/chrome/stats-feed';
 import { barScale, extendsKills, fmtAge, fmtRunClock, killEntries, raterOf, scaleBands, scalePos, tilesOf } from '../../src/chrome/stats-pane-model';
@@ -29,24 +29,6 @@ import { defaultSettings } from '../../src/settings/types';
 const T0 = 1_700_000_000_000_000;
 const startEv = (us = T0): RunEvent => ({ type: 'run_start', us, character: 'Rasta', level: 26, xp: 5_770_000, tp: 100, schema: 1 });
 const killEv = (us: number, name = 'An orc scout'): RunEvent => ({ type: 'kill', us, logUs: us, mobName: name, xpDelta: 90_000 });
-
-// ---------------------------------------------------------------- layout
-
-describe('Statistics pane layout (pure)', () => {
-  it('statsFit gives two data rows first, then the sparklines, then the ruler, then the rest to KILLS / PvPs', () => {
-    expect(statsFit(12, 10)).toEqual({ showSpark: false, showRuler: false, fitRows: 2 });
-    expect(statsFit(16, 10)).toEqual({ showSpark: false, showRuler: true, fitRows: 2 });
-    expect(statsFit(20, 10)).toEqual({ showSpark: true, showRuler: false, fitRows: 2 });
-    expect(statsFit(24, 10)).toEqual({ showSpark: true, showRuler: true, fitRows: 2 });
-    expect(statsFit(30, 10)).toEqual({ showSpark: true, showRuler: true, fitRows: 8 });
-    // Too short even for the fixed rows: still two data rows.
-    expect(statsFit(5, 10).fitRows).toBe(2);
-  });
-
-  it('fitHeader takes the first candidate that fits', () => {
-    expect(fitHeader(['long one', 'short'], 6)).toBe('short');
-  });
-});
 
 describe('Statistics pane model (pure)', () => {
   const pk = (us: number): RunEvent => ({ type: 'pkill', us, logUs: us, name: 'Ugluk', race: 'Orc', xpDelta: 40_000 });

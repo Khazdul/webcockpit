@@ -1,7 +1,6 @@
 // The Mapper settings as modern controls (stage 30 S5/S6, ADR 0107): one
 // component for Settings → Mapper and the map pane's gear popup (30c part
-// 2). The same settings and logic as Options → Mapper (the TUI page,
-// frames/options-mapper.tsx; shared helpers in ../mapper-model.ts):
+// 2). The logic is in ../mapper-model.ts:
 //
 //   Show map pane            [toggle]     panes.map.on
 //   Room notes               [toggle]     mapper.notes (ADR 0077)
