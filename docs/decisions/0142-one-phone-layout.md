@@ -132,3 +132,27 @@ itself stays: the phone's menu sheet opens Profile and Scripts in it.
    600 px.
 4. The player's bar at the bottom edge on a phone with a home
    indicator; the browser's back gesture from the player.
+
+## Addendum, 2026-11-13 (stage 56, round 56a): §5 is shorter
+
+Two of the three things §5 kept are gone:
+
+- **The password field swap.** A phone's command line is now marked
+  for our own keyboard (`inputmode="none"`,
+  `virtualkeyboardpolicy="manual"`) from its construction and for
+  good, so the device's keyboard is never asked for there, also before
+  the phone layer mounts. With that the swap had no case left:
+  `passField`, `swapField` and `textField` are removed, and a password
+  prompt is always the masked textarea. The price: until the phone
+  chunk has loaded only a physical keyboard types (before, the device's
+  keyboard did, in a cockpit without compass or menu key). A chunk that
+  fails still gets the Reload cover.
+- **`MapPane.forwardHidden`** was dead: a phone's map is placed only as
+  the lens, and its worker starts when the pane is first shown.
+
+Unchanged, and now written down: a `?tablet=desktop` tablet and a
+Desktop-site phone are not phones to the code. Their line is the
+desktop's `<input type="text">`, masked with bullets, with
+autocomplete, autocorrect and spellcheck off, and the device's
+keyboard. Nothing there keeps that keyboard from learning a password;
+that was so before stage 55 too.
