@@ -31,7 +31,7 @@
 // $WEBCOCKPIT_SITE_DIR overrides the output directory.
 // The earlier names $WEBCOCKPIT_PAGES_URL and $WEBCOCKPIT_PAGES_DIR still work.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { MANIFEST, type Release, isAssetName, parseRelease, releaseJson, versionGuard } from './release.ts';
 
@@ -116,6 +116,10 @@ run('npx', ['vitest', 'run']);
 step(`build (base ${BASE})`);
 run('npx', ['vite', 'build', '--outDir', OUT, '--emptyOutDir'], { WEBCOCKPIT_BASE: BASE });
 const own = readdirSync(join(OUT, 'assets')).sort();
+// Cloudflare's own files stay out of the Pages build: GitHub Pages would
+// serve `_headers` as a file and use a root `404.html` as its 404 page,
+// and the Pages site is to stay as it is until it is retired (ADR 0144).
+if (pages) for (const name of ['_headers', '404.html']) rmSync(join(OUT, name), { force: true });
 
 step(`smoke test (${pages ? 'pages' : 'cloudflare'} profile)`);
 run('npx', ['playwright', 'test', '-c', 'playwright.prod.config.ts'], {

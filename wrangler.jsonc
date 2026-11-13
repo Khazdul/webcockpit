@@ -8,6 +8,8 @@
   "name": "webcockpit",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-13",
+  // No usage metrics to Cloudflare from wrangler, here or in CI.
+  "send_metrics": false,
   "workers_dev": true,
   "assets": {
     "directory": "dist-site",

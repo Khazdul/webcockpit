@@ -159,9 +159,10 @@ pinned). What was checked was checked against `wrangler dev` (workerd
   Worker's and gets the 404 page.
 - `not_found_handling: "404-page"` with a small `public/404.html`: an
   unknown path answers 404 with that page, as Pages answers with its
-  own. Without a `404.html` the answer would be an empty 404. The file
-  is also in the Pages build, where GitHub Pages uses a root `404.html`
-  as its 404 page too, so Pages shows ours from the next release. Spec
+  own. Without a `404.html` the answer would be an empty 404. The
+  Pages build (`--pages`) removes `404.html` and `_headers` from its
+  output, so the Pages site stays exactly as it was. `wrangler.jsonc`
+  sets `send_metrics: false`. Spec
   §7.1's "unknown paths get `index.html`" comes with `/r/<id>` in
   stage 64.
 - `html_handling: "auto-trailing-slash"` (the default, written out).
