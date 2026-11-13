@@ -208,6 +208,17 @@ describe('lensRoom: the room on a screen', () => {
     expect(lensRoom({ ...base, hotCols: 2 }).blocks[1]!.left).toBe(360 - 8 - hotWidth(36, 2) - 12);
   });
 
+  it('bare (stage 55, a replay): no keys at the bottom right, so no blocks, and landscape reaches the right edge', () => {
+    const p = lensRoom({ ...base, gameTop: 200, bare: true });
+    expect([p.left, p.top, p.right, p.bottom]).toEqual([12, 216, 348, 738]);
+    expect(p.blocks).toEqual([]);
+    const l = lensRoom({ ...base, W: 800, H: 360, landscape: true, gameLeft: 300, gameTop: 34, inputTop: 309, hotCols: 2, bare: true });
+    expect([l.left, l.top, l.right, l.bottom]).toEqual([320, 46, 788, 297]);
+    expect(l.blocks).toEqual([]);
+    // Without a command row the room ends at the bottom edge's air.
+    expect(lensRoom({ ...base, inputTop: 800, bare: true }).bottom).toBe(788);
+  });
+
   it('portrait with our keyboard: the keys stand on its top edge, or are gone where they have no room', () => {
     const up = lensRoom({ ...base, inputTop: 470, lift: 280 });
     expect(up.bottom).toBe(458);

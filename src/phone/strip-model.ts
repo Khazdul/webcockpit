@@ -18,10 +18,15 @@ export interface StripPage {
   label: string;
 }
 
-/** The pages for the setting's `entries` and the script panes present; `label` names a built-in pane. */
-export function stripPages(entries: readonly StripEntry[], scripts: readonly StripPage[], label: (id: string) => string): StripPage[] {
+/**
+ * The pages for the setting's `entries` and the script panes present;
+ * `label` names a built-in pane. `omit` (stage 55: a replay) lists panes
+ * that are never a page here, whatever the setting says (Statistics, which
+ * shows the live session's numbers).
+ */
+export function stripPages(entries: readonly StripEntry[], scripts: readonly StripPage[], label: (id: string) => string, omit: readonly string[] = []): StripPage[] {
   const out: StripPage[] = [];
-  const seen = new Set<string>();
+  const seen = new Set<string>(omit);
   for (const e of entries) {
     if (!e.on || seen.has(e.id)) continue;
     seen.add(e.id);

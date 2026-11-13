@@ -11,7 +11,12 @@
  * Laid out in CSS px, not cells: thumb-size targets whatever the text
  * size. The look is Lykta (ADR 0123): dark iron wells, the candle's light
  * for edges and ink, frosted keys. Paper (the terminal background is
- * light: `<html data-light>`) is pewter and brass on paper-white.
+ * light) is pewter and brass on paper-white. The rules inside the cockpit
+ * key it on the cockpit's own mark, `data-ph-light` (set by the cockpit
+ * from its own settings, stage 55): over a replay the recorded theme is
+ * the cockpit's, on `.wc-player`, and not the page's. Only the page-level
+ * rules (the pages' keyboard, the ground under the safe area) read
+ * `<html data-light>`.
  * Nothing animates (ADR 0044). */
 
 /* ------------------------------------------------------------------ tokens */
@@ -150,7 +155,7 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-okb-down-text: #170f03;
 }
 
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] {
   --ph-lamp: #3a3428;
   --ph-ink: #fffaf0;
   --ph-lamp-hi: #5e3d08;
@@ -246,9 +251,9 @@ html.wc-phone[data-light] .wc-cockpit[data-phone-game] {
 }
 
 /* On Paper a lit key is brass with pale ink. */
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-key:active,
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-menu:active,
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] .wc-ph-key:active,
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] .wc-ph-menu:active,
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] > .wc-ph-menu-rescue:active {
   background: #8a5a0e;
   border-color: #5e3d08;
   color: #fffaf0;
@@ -717,7 +722,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rband.wc-ph-side-band {
   border-right: 1px solid var(--ph-iron-lo);
 }
 
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-rband.wc-ph-side-band {
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] .wc-ph-rband.wc-ph-side-band {
   background: linear-gradient(90deg, #f1eee6, #c9c5ba);
 }
 
@@ -791,7 +796,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-plate {
   text-shadow: var(--ph-hood-glow);
 }
 
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-plate {
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] .wc-ph-plate {
   box-shadow:
     inset 0 1px 0 var(--ph-iron-hi),
     0 1px 3px rgb(60 40 10 / 0.3);
@@ -873,7 +878,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate {
     -2px 0 4px rgb(0 0 0 / 0.5);
 }
 
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-side-band .wc-ph-plate {
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] .wc-ph-side-band .wc-ph-plate {
   background: linear-gradient(90deg, #f1eee6, #d8d2c4);
   box-shadow:
     inset -1px 0 0 var(--ph-iron-lo),
@@ -1035,7 +1040,7 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-ph-menu-rescue:active {
  * is lit while the column shows. The cell is the 40 px target. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog,
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-key.is-tog:active,
-html.wc-phone[data-light] .wc-cockpit[data-phone-game] .wc-ph-key.is-tog:active {
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] .wc-ph-key.is-tog:active {
   border-color: transparent;
   background: none;
   box-shadow: none;

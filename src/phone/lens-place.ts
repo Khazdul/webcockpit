@@ -183,6 +183,12 @@ export interface LensRoomInput {
   k: boolean;
   /** What an open hot key box takes from the bottom edge (0: closed). */
   boxClear: number;
+  /**
+   * No keys stand at the bottom right (stage 55: the layout over a replay
+   * has no compass and no hot keys): no blocks, and in landscape the room
+   * reaches the right edge. Absent: the keys are there.
+   */
+  bare?: boolean;
 }
 
 /**
@@ -191,13 +197,17 @@ export interface LensRoomInput {
  * on the keyboard's top edge while ours is open. Landscape: the room ends
  * left of the hot key columns, shown or not (as the default lens does), the
  * compass is a block, and with our keyboard open the keys are in its band,
- * so nothing stands in the room.
+ * so nothing stands in the room. Bare (a replay): no blocks at all.
  */
 export function lensRoom(i: LensRoomInput): LensRoom {
   const padW = 3 * i.keyPx + 2 * KEY_GAP;
   let bottom = i.inputTop - LENS_AIR;
   if (i.boxClear > 0) bottom = Math.min(bottom, i.H - i.boxClear);
   const blocks: LensBlock[] = [];
+  if (i.bare) {
+    if (!i.landscape) return { left: LENS_AIR, top: i.gameTop + LENS_AIR_TOP, right: i.W - LENS_AIR, bottom, blocks };
+    return { left: i.gameLeft + (i.gameLeft > 0 ? LENS_AIR_SIDE_LAND : LENS_AIR), top: i.gameTop + LENS_AIR_TOP_LAND, right: i.W - LENS_AIR, bottom, blocks };
+  }
   if (i.landscape) {
     if (i.lift === 0) blocks.push({ left: i.W - PAD_MARGIN - padW - LENS_AIR, right: i.W, top: i.H - compassHeight(i.keyPx) - LENS_AIR });
     return {

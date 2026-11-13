@@ -25,7 +25,10 @@
 //   the two.) A setting takes it away altogether (`fight` false).
 // - The command row is as many whole rows as the thumb-size field needs
 //   (`commandRows`): the cockpit places in whole cells, and the phone
-//   layer's CSS draws the 44 px field centred in them.
+//   layer's CSS draws the 44 px field centred in them. A replay has no
+//   command line (stage 55): `inputRows: 0` lays out no command row (an
+//   empty `input` at the foot of the game text), and the game text has
+//   those rows.
 // - The lens is a square of whole cells over the game text's top right
 //   corner, directly under the strip, the fight card and Comm. It floats
 //   (the game pane keeps its full width). Its room is from there down to
@@ -239,7 +242,7 @@ export interface PhoneGameLens {
 export interface PhoneGameInput {
   cols: number;
   rows: number;
-  /** Rows of the command row (`commandRows`). Default 1. */
+  /** Rows of the command row (`commandRows`). Default 1. 0: no command row (a replay without a bar docked there). */
   inputRows?: number;
   /** Apply the too-small guard (default true; false while the device's keyboard is up). */
   guard?: boolean;
@@ -303,7 +306,7 @@ export interface PhoneGameResult {
   comm: Rect;
   /** The game text. */
   game: Rect;
-  /** The command row. */
+  /** The command row (h = 0: none was asked for, `inputRows: 0`). */
   input: Rect;
   /** The rows kept free under the command row (`bottom` as given, or less on a screen too low for it). */
   bottom: number;
@@ -365,11 +368,11 @@ export function allocatePhoneGame(input: PhoneGameInput): PhoneGameResult {
   const cols = Math.max(0, Math.floor(input.cols));
   /** The whole screen's rows, and the ones above the bottom reserve: all that follows is laid out in those. */
   const screenRows = Math.max(0, Math.floor(input.rows));
-  const wantIn = Math.max(1, whole(input.inputRows ?? 1, 1));
+  const wantIn = Math.max(0, whole(input.inputRows ?? 1, 1));
   const bottom = Math.max(0, Math.min(whole(input.bottom ?? 0, 0), screenRows - wantIn - GAME_MIN_ROWS));
   const rows = screenRows - bottom;
-  // The command row never takes the last row from the game text.
-  const inH = Math.min(rows, Math.max(1, Math.min(wantIn, rows - 1)));
+  // The command row never takes the last row from the game text. None asked for: none.
+  const inH = wantIn === 0 ? 0 : Math.min(rows, Math.max(1, Math.min(wantIn, rows - 1)));
   const inputRect: Rect = { x: 0, y: rows - inH, w: cols, h: inH };
   const avail = rows - inH;
   const res: PhoneGameResult = {

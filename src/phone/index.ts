@@ -48,6 +48,20 @@
 // command row are what is right of it; the lens and its key row stand left
 // of the hot key columns. The keys are 36 px in portrait and 44 px in
 // landscape (compass-size.ts).
+//
+// Over a replay (stage 55, `PhoneLayerDeps.replay`): the same layer for the
+// run log player on a phone or tablet, read-only. It mounts no compass, no
+// hot keys, no keyboard of our own, no menu (sheet, menu key, rescue key),
+// no wake lock and no automatic login; it never sends, never writes the
+// one-time phone defaults, and puts Comm in its read-only mode. What is
+// left is what replayed GMCP drives: the fight card, the lens (without a
+// fullscreen key), the strip, Comm, the bands and the unread badge. With
+// no keys at the bottom right the lens and the left column have that room.
+// The settings store handed in is the player host's own, in memory: a
+// band's height and a moved lens are written there and nowhere else. The
+// player builds a new App, and so a new layer, on every backward seek:
+// what is open and the lens's zoom level are taken from `replay.state` and
+// told through `replay.onState`.
 
 import './phone.css';
 import type { GameState } from '../gmcp/state';
@@ -128,16 +142,61 @@ const SATROW_GAP = 8;
 /** What the lens fixes on the map pane (ADR 0136 §4): Shimrod, alternating with MUME's season, on black. */
 const LENS_LOOK = { tileset: 'shimrod', background: '#000000' } as const;
 
-export interface PhoneLayerDeps {
+/** What every layer needs, over the live game or a replay. */
+export interface PhoneLayerBaseDeps {
   /** What the layer uses of the app, handed in so this chunk imports none of it (kit.ts). */
   kit: PhoneKit;
   /** The look kit's controls, from the chrome chunk (kit.ts). */
   controls: PhoneControls;
-  /** The live game's cockpit, built with `phoneGame`. */
+  /** The cockpit, built with `phoneGame` (over a replay: also with `phoneReplay`). */
   cockpit: Cockpit;
   game: GameState;
   /** The cell size in px (the cockpit's rectangles are in cells). */
   cells: { get(): { w: number; h: number } };
+  /**
+   * The settings the layer reads (`phone.*`) and writes. Live: the user's
+   * store, which the menu sheet shows and changes too. Over a replay: a
+   * store of the player host's own, in memory, seeded from the viewer's;
+   * the layer writes a dragged band's size (`phone.stripRows`, `commRows`,
+   * `sideCols`) and a moved or resized lens (`phone.lens.portrait` /
+   * `landscape`) to it and nothing else, and never loads or saves it.
+   */
+  settings: SettingsStore;
+}
+
+/** What the layer keeps over a rebuild of the player's App (`PhoneReplay.state`, `onState`). */
+export interface PhoneReplayState {
+  /** The pane strip is open, and its page (kept while it is closed; null: none yet). */
+  stripOpen: boolean;
+  stripPage: string | null;
+  /** Comm is open. */
+  commOpen: boolean;
+  /** The lens's zoom level (a tap steps it; it is no setting). */
+  lensLevel: LensLevel;
+}
+
+/** The layer over a replay (see the file header). */
+export interface PhoneReplay {
+  /**
+   * Panes that are never a page of the strip here, whatever
+   * `phone.strip.panes` says: the ones that show the live session, not the
+   * recording (the app's `LIVE_ONLY`; this chunk cannot import the value).
+   */
+  omitPages: readonly string[];
+  /** What was open in the layer this one replaces (a backward seek rebuilt the App). Absent: all closed, the lens at "Opens at". */
+  state?: PhoneReplayState | undefined;
+  /** Told when any of it changes, with the whole state. */
+  onState?(state: PhoneReplayState): void;
+}
+
+/** The layer over a replay: the base and `replay`, and nothing of a live session. */
+export interface PhoneReplayDeps extends PhoneLayerBaseDeps {
+  replay: PhoneReplay;
+}
+
+/** The layer over the live game. */
+export interface PhoneLiveDeps extends PhoneLayerBaseDeps {
+  replay?: undefined;
   /** A key's command, as if typed (`App.onCommand`: aliases, the echo). Called only in play (`send`). */
   command(text: string): void;
   /** A client notice in the game text (`[SYSTEM] …`), as the app's own. */
@@ -146,8 +205,7 @@ export interface PhoneLayerDeps {
   playState(): PlayState;
   /** The menu key: the shell opens the menu (`PhoneLayer.menu`), as Esc and `#menu` do. */
   openMenu(): void;
-  /** What the menu sheet shows and does (menu-sheet.tsx). */
-  settings: SettingsStore;
+  /** What the menu sheet shows and does (menu-sheet.tsx), with `settings`. */
   status: AppStatusView;
   scriptsOn(): number;
   reconnect(): void;
@@ -174,6 +232,9 @@ export interface PhoneLayerDeps {
    */
   tablet?: boolean;
 }
+
+/** What `mountPhoneLayer` takes: the live game's, or (with `replay`) a replay's. */
+export type PhoneLayerDeps = PhoneLiveDeps | PhoneReplayDeps;
 
 /** A drag of the lens while the finger is down (`PhoneLayer.dragLens`). */
 interface LensDragState {
@@ -206,16 +267,24 @@ const lensShare = (v: number): number => Math.round(Math.max(0, Math.min(1, v)) 
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-export class PhoneLayer {
+class Layer {
   /** The layer over the cockpit (fight card, compass). */
   readonly el: HTMLDivElement;
-  /** The menu key, first in the command row. */
-  readonly menuKey: HTMLButtonElement;
-  /** The menu sheet and the settings page (closed until the shell opens it). */
-  readonly menu: PhoneMenu;
-  /** A second menu key, shown only over the too-small notice. */
-  readonly rescueKey: HTMLButtonElement;
-  private readonly deps: PhoneLayerDeps;
+  /** The menu key, first in the command row. Null over a replay. */
+  readonly menuKey: HTMLButtonElement | null = null;
+  /** The menu sheet and the settings page (closed until the shell opens it). Null over a replay. */
+  readonly menu: PhoneMenu | null = null;
+  /** A second menu key, shown only over the too-small notice. Null over a replay. */
+  readonly rescueKey: HTMLButtonElement | null = null;
+  private readonly deps: PhoneLayerBaseDeps;
+  /** The live session's part of the deps; null over a replay. */
+  private readonly live: PhoneLiveDeps | null;
+  /** Over a replay (see the file header); null in the live game. */
+  private readonly replay: PhoneReplay | null;
+  /** Over a replay: the state last told (or taken over at the mount), as JSON. */
+  private stateSig = '';
+  /** The command line our keyboard types in; null over a replay (no keyboard). */
+  private readonly line: PhoneCommandLine | null;
   /** Automatic login for the session (ADR 0141), where the shell gave the session for it. */
   private autoLogin: AutoLogin | null = null;
   private readonly fight: FightCardView;
@@ -276,7 +345,8 @@ export class PhoneLayer {
   /** `--ph-hot-w` as last set: the hot key columns' width. */
   private hotW = '';
   private disposed = false;
-  private readonly wake: WakeLock;
+  /** Null over a replay: the screen is the viewer's own business there. */
+  private wake: WakeLock | null = null;
   /** Connected to MUME, as the wake lock last saw it. */
   private wakeConn = false;
   private unread: Unread = { private: 0, group: 0, public: 0, all: 0 };
@@ -318,6 +388,9 @@ export class PhoneLayer {
 
   constructor(deps: PhoneLayerDeps) {
     this.deps = deps;
+    const live = (this.live = deps.replay ? null : deps);
+    const replay = (this.replay = deps.replay ?? null);
+    this.line = live?.ownKeyboard ?? null;
     const cockpit = deps.cockpit;
     const doc = cockpit.el.ownerDocument;
     this.el = doc.createElement('div');
@@ -331,23 +404,28 @@ export class PhoneLayer {
       if (deps.settings.get().phone.vibrate) pulse(doc.defaultView?.navigator);
     };
     this.buzz = buzz;
-    const compass = new Compass(doc, (cmd) => this.send(cmd), buzz);
+    // No keys over a replay: nothing is sent there.
+    const compass = live ? new Compass(doc, (cmd) => this.send(cmd), buzz) : null;
     const kit = phoneKit();
     this.map = cockpit.pane('map') as unknown as MapPane;
     this.mapEl = cockpit.pane('map').el;
     this.lens = new LensView(doc, {
-      onLevel: () => this.zoomLens(),
+      onLevel: () => {
+        this.zoomLens();
+        this.tellState();
+      },
       drag: {
         // The resize is armed: one short vibration, while the setting is on.
         arm: buzz,
         drag: (kind, x0, y0, x, y) => this.dragLens(kind, x0, y0, x, y),
         drop: (kind, cancelled) => this.dropLens(kind, cancelled),
       },
-      fullscreen: kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : null,
+      // Over a replay the player has its own way to fullscreen: no key here.
+      fullscreen: live && kit.canFullscreen(doc) ? () => kit.toggleFullscreen(doc) : null,
       panes: () => this.toggleStrip(),
       comm: () => this.toggleComm(),
     });
-    this.unsubs.push(kit.onFullscreenRefused(() => this.lens.dropFullscreen()));
+    if (live) this.unsubs.push(kit.onFullscreenRefused(() => this.lens.dropFullscreen()));
     this.strip = new StripView(doc);
     // A band's drag (comm-chrome.ts): the cockpit lays out at each new row and keeps the window
     // size for MUME back until the release; the height is stored once, on the release.
@@ -379,8 +457,9 @@ export class PhoneLayer {
     });
     this.stripBand.el.append(this.strip.dots);
     this.comm = cockpit.pane('comm') as unknown as CommPane;
-    // The reply line sends only in play, as the keys do (play-gate.ts).
-    this.comm.setPhoneMode(true, { live: () => keysLive(deps.playState()) });
+    // The reply line sends only in play, as the keys do (play-gate.ts). Over a replay Comm is
+    // read-only: no reply line and no search (no keyboard exists there).
+    this.comm.setPhoneMode(true, live ? { live: () => keysLive(live.playState()) } : { live: () => false, readOnly: true });
     this.unread = this.comm.unreadCounts();
     // The model tells when a count changes; nothing is polled or counted per line.
     this.comm.onUnread((u) => {
@@ -449,38 +528,44 @@ export class PhoneLayer {
         if (this.landscape) this.place();
       },
     });
-    // The K key takes the compass's free cell, left of N.
-    compass.el.prepend(this.hot.kEl);
-    this.el.append(this.strip.el, this.stripBand.el, this.fight.el, this.commBand.el, this.sideBand.el, this.lens.el, this.lens.rowEl, this.hot.el, this.hot.boxEl, compass.el);
+    this.el.append(this.strip.el, this.stripBand.el, this.fight.el, this.commBand.el, this.sideBand.el, this.lens.el, this.lens.rowEl);
+    if (compass) {
+      // The K key takes the compass's free cell, left of N.
+      compass.el.prepend(this.hot.kEl);
+      // (Over a replay the hot keys' view is kept, with no key and outside the page: `syncHotkeys`.)
+      this.el.append(this.hot.el, this.hot.boxEl, compass.el);
+    }
     cockpit.el.append(this.el);
-    this.menu = new PhoneMenu({
-      parent: cockpit.el,
-      settings: deps.settings,
-      status: deps.status,
-      scriptsOn: () => deps.scriptsOn(),
-      reconnect: () => deps.reconnect(),
-      openFrame: (f) => deps.openFrame(f),
-      exit: () => deps.exit(),
-      runs: deps.runs,
-      onClose: () => deps.onMenuClose?.(),
-      // The menu lies over the box (also when a dropped link opens it): the box gives way, unsaved.
-      // So does a keyboard of our own (the sheet would lie over it).
-      onOpen: () => {
-        this.hot.closeBox();
-        this.closeOwnKeyboard();
-      },
-      fits: (size) => this.sizeFits(size),
-    });
-    // The way to the menu while the cockpit shows "Window too small" (the
-    // command row with the menu key is hidden and inert then): shown by
-    // phone.css only in that state.
-    this.rescueKey = menuKey(doc, () => deps.openMenu());
-    this.rescueKey.className = 'wc-ph-menu-rescue';
-    cockpit.el.append(this.rescueKey);
+    if (live) {
+      this.menu = new PhoneMenu({
+        parent: cockpit.el,
+        settings: deps.settings,
+        status: live.status,
+        scriptsOn: () => live.scriptsOn(),
+        reconnect: () => live.reconnect(),
+        openFrame: (f) => live.openFrame(f),
+        exit: () => live.exit(),
+        runs: live.runs,
+        onClose: () => live.onMenuClose?.(),
+        // The menu lies over the box (also when a dropped link opens it): the box gives way, unsaved.
+        // So does a keyboard of our own (the sheet would lie over it).
+        onOpen: () => {
+          this.hot.closeBox();
+          this.closeOwnKeyboard();
+        },
+        fits: (size) => this.sizeFits(size),
+      });
+      // The way to the menu while the cockpit shows "Window too small" (the
+      // command row with the menu key is hidden and inert then): shown by
+      // phone.css only in that state.
+      this.rescueKey = menuKey(doc, () => live.openMenu());
+      this.rescueKey.className = 'wc-ph-menu-rescue';
+      cockpit.el.append(this.rescueKey);
 
-    this.menuKey = menuKey(doc, () => deps.openMenu());
-    cockpit.inputEl.prepend(this.menuKey);
-    this.placeholder();
+      this.menuKey = menuKey(doc, () => live.openMenu());
+      cockpit.inputEl.prepend(this.menuKey);
+      this.placeholder();
+    }
 
     this.unsubs.push(
       deps.game.subscribe((part) => {
@@ -504,7 +589,7 @@ export class PhoneLayer {
           next.phone.hotkeysOpen !== prev.phone.hotkeysOpen
         )
           this.syncHotkeys();
-        if (next.phone.wakeLock !== prev.phone.wakeLock) this.wake.sync();
+        if (next.phone.wakeLock !== prev.phone.wakeLock) this.wake?.sync();
         if (next.phone.fightCard !== prev.phone.fightCard) {
           this.fightOn = next.phone.fightCard;
           this.syncFight();
@@ -535,25 +620,27 @@ export class PhoneLayer {
     // Keep the screen on (ADR 0136 §10): while the setting is on, the session is connected and
     // the page is visible. Settled on a change of any of the three, never polled.
     const win = doc.defaultView;
-    this.wake = new WakeLock(win?.navigator, () =>
-      wakeWanted({ setting: deps.settings.get().phone.wakeLock, connected: this.connected(), visible: doc.visibilityState === 'visible' }),
-    );
-    const onVisible = (): void => this.wake.sync();
-    doc.addEventListener('visibilitychange', onVisible);
-    this.unsubs.push(
-      () => doc.removeEventListener('visibilitychange', onVisible),
-      // The status also changes with every link sample: only a change of "connected" reaches the lock.
-      deps.status.subscribe(() => {
-        const c = this.connected();
-        if (c === this.wakeConn) return;
-        this.wakeConn = c;
-        this.wake.sync();
-      }),
-      () => this.wake.dispose(),
-    );
-    this.wakeConn = this.connected();
-    this.wake.sync();
-    this.mountOwnKeyboard(doc, deps.ownKeyboard);
+    if (live) {
+      const wake = (this.wake = new WakeLock(win?.navigator, () =>
+        wakeWanted({ setting: deps.settings.get().phone.wakeLock, connected: this.connected(), visible: doc.visibilityState === 'visible' }),
+      ));
+      const onVisible = (): void => wake.sync();
+      doc.addEventListener('visibilitychange', onVisible);
+      this.unsubs.push(
+        () => doc.removeEventListener('visibilitychange', onVisible),
+        // The status also changes with every link sample: only a change of "connected" reaches the lock.
+        live.status.subscribe(() => {
+          const c = this.connected();
+          if (c === this.wakeConn) return;
+          this.wakeConn = c;
+          wake.sync();
+        }),
+        () => wake.dispose(),
+      );
+      this.wakeConn = this.connected();
+      wake.sync();
+      this.mountOwnKeyboard(doc, live.ownKeyboard);
+    }
     // The lens's full size follows the screen's short side: a rotation (or a resized window) asks again.
     const onResize = (): void => this.syncLens();
     win?.addEventListener('resize', onResize);
@@ -566,23 +653,27 @@ export class PhoneLayer {
     // settings (before the load the store holds a new phone's defaults, which carry the mark).
     // `load()` is the store's one load, long done here as a rule. The subscriber above follows
     // the change like any other.
-    void deps.settings.load().then(() => {
-      if (this.disposed) return;
-      // Never in safe mode (`?safe`): this automatic write would save the default appearance.
-      // Never on a tablet (ADR 0140): what it has stored is kept as it is.
-      const once = phoneDefaultsAtStart(deps.settings.get(), deps.settings.isSafe, deps.tablet === true);
-      if (once) deps.settings.update(once);
-    });
+    // Never over a replay: the store there is the player's own, and nothing is loaded or patched.
+    if (live) {
+      void deps.settings.load().then(() => {
+        if (this.disposed) return;
+        // Never in safe mode (`?safe`): this automatic write would save the default appearance.
+        // Never on a tablet (ADR 0140): what it has stored is kept as it is.
+        const once = phoneDefaultsAtStart(deps.settings.get(), deps.settings.isSafe, live.tablet === true);
+        if (once) deps.settings.update(once);
+      });
+    }
     this.syncPages();
     this.syncHotkeys();
     this.syncLens();
+    if (replay) this.restore(replay.state);
     this.syncFight();
     this.place();
     // Automatic login for the session (ADR 0141): the question's card is the layer's, the rest is
     // the controller's. LAST in the constructor: a layer whose mount throws (the shell then has no
     // layer to dispose) must not leave a listener on the session's login prompts or on the bus.
-    if (deps.autoLogin && win) {
-      const auto = new AutoLogin(deps.autoLogin, { el: this.el, notice: deps.notice, placed: () => this.placeLoginAsk(), win });
+    if (live?.autoLogin && win) {
+      const auto = new AutoLogin(live.autoLogin, { el: this.el, notice: live.notice, placed: () => this.placeLoginAsk(), win });
       this.autoLogin = auto;
       this.unsubs.push(() => auto.dispose());
     }
@@ -595,8 +686,54 @@ export class PhoneLayer {
    * connection.
    */
   send(cmd: string): void {
-    if (!keysLive(this.deps.playState())) return;
-    this.deps.command(cmd);
+    const live = this.live;
+    if (!live || !keysLive(live.playState())) return;
+    live.command(cmd);
+  }
+
+  // ------------------------------------------------- over a replay (stage 55)
+
+  /** What is open now, and the lens's level (`PhoneReplay.onState`). */
+  get state(): PhoneReplayState {
+    return { stripOpen: this.stripOpen, stripPage: this.stripPage, commOpen: this.commOpen, lensLevel: this.lens.zoomLevel };
+  }
+
+  /**
+   * Over a replay, at the mount: takes over what the layer before this one
+   * had open (`PhoneReplay.state`). A page that is no longer one of the
+   * strip's is passed over (the strip then stays closed). The host hears
+   * of it only where what could be taken over differs from what it gave.
+   */
+  private restore(state: PhoneReplayState | undefined): void {
+    if (state) {
+      const level = lensLevel(state.lensLevel);
+      if (level !== this.lens.zoomLevel) {
+        this.lens.setLevel(level);
+        this.zoomLens();
+      }
+      if (state.stripPage !== null && this.pages.some((p) => p.id === state.stripPage)) {
+        if (state.stripOpen) this.showStrip(state.stripPage);
+        else {
+          this.stripPage = state.stripPage;
+          this.strip.set(this.pages, this.stripPage);
+        }
+      }
+      if (state.commOpen && !this.commOpen) this.toggleComm();
+      this.stateSig = JSON.stringify({ stripOpen: state.stripOpen, stripPage: state.stripPage, commOpen: state.commOpen, lensLevel: state.lensLevel });
+    } else this.stateSig = JSON.stringify(this.state);
+    this.tellState();
+  }
+
+  /** Over a replay: tells the host the state when it changed (`PhoneReplay.onState`). Nothing in the live game. */
+  private tellState(): void {
+    const replay = this.replay;
+    // (Not before `restore` has run: the mount's own steps are not the user's.)
+    if (!replay || this.stateSig === '') return;
+    const state = this.state;
+    const sig = JSON.stringify(state);
+    if (sig === this.stateSig) return;
+    this.stateSig = sig;
+    replay.onState?.(state);
   }
 
   // ---------------------------------------------- own keyboard (ADR 0138, 53a)
@@ -790,7 +927,8 @@ export class PhoneLayer {
 
   /** What the keys type into now: the field it was opened for while that is still on screen, else the command line (without a history at a password prompt). */
   private okbTarget(): OkbTarget | null {
-    const line = this.deps.ownKeyboard;
+    const line = this.line;
+    if (!line) return null;
     if (this.okbField !== null) this.dropGoneField();
     if (this.okbFieldTarget) return this.okbFieldTarget;
     return line.hasHistory() ? line : this.okbLineBare;
@@ -851,7 +989,7 @@ export class PhoneLayer {
     // field of ours has the focus: the keys then follow that one (`onFocus`).
     const active = this.el.ownerDocument.activeElement;
     if (active && active !== field && this.ownField(active) !== null && fieldUsable(active as TextField)) return;
-    this.deps.ownKeyboard.focus();
+    this.line?.focus();
   }
 
   /**
@@ -883,7 +1021,7 @@ export class PhoneLayer {
           }
           if (this.okbField !== field) return;
           this.setOkbField(null);
-          this.deps.ownKeyboard.focus();
+          this.line?.focus();
         },
       };
     }
@@ -900,8 +1038,8 @@ export class PhoneLayer {
    * (`placeOwnKeyboard`). Open already, only the target changes.
    */
   private openOwnKeyboard(field: TextField | null = null): void {
-    const line = this.deps.ownKeyboard;
-    if (!this.okb || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
+    const line = this.line;
+    if (!line || !this.okb || this.deps.cockpit.phoneGameLayout?.tooSmall) return;
     // A screen too low for it (a split screen, a window made lower): the tap opens nothing. The
     // same sum the layout would close it by (`placeOwnKeyboard`), asked before anything moves.
     if (!this.okbOpen && !this.ownKeyboardFits()) {
@@ -981,7 +1119,7 @@ export class PhoneLayer {
     this.okb?.place(null);
     this.arrangeOwnKeyboard(null);
     this.deps.cockpit.setPhoneBottom(null);
-    const typed = this.okbFieldTarget ?? this.deps.ownKeyboard;
+    const typed = this.okbFieldTarget ?? this.line;
     // The next opening starts from the field that is tapped then.
     this.setOkbField(null);
     if (blur) typed?.blur();
@@ -1127,8 +1265,8 @@ export class PhoneLayer {
 
   /** Connected to MUME (not a replay): what the wake lock and nothing else asks. */
   private connected(): boolean {
-    const s = this.deps.playState();
-    return !s.replay && (s.conn === 'login' || s.conn === 'playing');
+    const s = this.live?.playState();
+    return s !== undefined && !s.replay && (s.conn === 'login' || s.conn === 'playing');
   }
 
   /**
@@ -1216,7 +1354,8 @@ export class PhoneLayer {
       min: LENS_MIN_PX,
       gapTop: this.landscape ? LENS_GAP_TOP_LAND : LENS_GAP_TOP,
       // Landscape: left of the hot key columns there are, shown or not (it does not jump when K is tapped).
-      gapRight: this.landscape ? leftOfHot(this.keyPx, this.hot.cols, LENS_GAP_RIGHT) : LENS_GAP_RIGHT,
+      // (Over a replay no keys stand there: at the right edge, as in portrait.)
+      gapRight: this.landscape && !this.replay ? leftOfHot(this.keyPx, this.hot.cols, LENS_GAP_RIGHT) : LENS_GAP_RIGHT,
       ...(this.landscape ? { gapLeft: LENS_GAP_LEFT } : {}),
       clearBottom: this.lensClear,
       clearAlways: (this.lensBoxClear = this.boxClear()),
@@ -1257,6 +1396,8 @@ export class PhoneLayer {
       pad: side.pad,
       k: side.k && !g.overLimit,
       boxClear: this.lensBoxClear,
+      // Over a replay: no compass and no hot keys to stay clear of.
+      ...(this.replay ? { bare: true } : {}),
     });
   }
 
@@ -1413,6 +1554,8 @@ export class PhoneLayer {
    * says so in the game text, also only in play.
    */
   private pressHotkey(index: number): void {
+    const live = this.live;
+    if (!live) return;
     const { settings, game } = this.deps;
     const ph = settings.get().phone;
     const key = ph.hotkeys[index];
@@ -1420,7 +1563,7 @@ export class PhoneLayer {
     if (!key || index >= ph.hotkeyCount) return;
     const p = hotkeyPress(key, knownHp(game.char.vitals.get('hp')));
     if (p.kind === 'send') this.send(p.command);
-    else if (p.kind === 'notice' && keysLive(this.deps.playState())) this.deps.notice(p.text);
+    else if (p.kind === 'notice' && keysLive(live.playState())) live.notice(p.text);
   }
 
   /** The column follows the settings; the lens keeps clear of it (ADR 0136 §4). */
@@ -1432,6 +1575,18 @@ export class PhoneLayer {
     if (px !== this.keyPx || !this.deps.cockpit.el.style.getPropertyValue('--ph-ck')) {
       this.keyPx = px;
       this.deps.cockpit.el.style.setProperty('--ph-ck', `${px}px`);
+    }
+    if (this.replay) {
+      // Over a replay there are no keys at the bottom right: the view holds none (and is not on
+      // the page), the lens keeps clear of nothing there, the strip and Comm have no limit from
+      // the keys' place (`setPhoneLimit` is never called), and the left column ends left of the
+      // lens's least place (or its key row) only.
+      this.hot.set(p.hotkeys, 0, false, hotStep(px));
+      this.lensClear = 0;
+      this.deps.cockpit.setPhoneSideClear(Math.max(LENS_MIN_PX + SAT_OVER, SATROW_W) + 2 * LENS_GAP_RIGHT);
+      this.askLens();
+      this.place();
+      return;
     }
     this.hot.set(p.hotkeys, p.hotkeyCount, p.hotkeysOpen, hotStep(px));
     // The box stands left of the columns there are (phone.css).
@@ -1672,6 +1827,7 @@ export class PhoneLayer {
       settings.get().phone.strip.panes,
       cockpit.scriptPanes().map((p) => ({ id: p.id, label: p.title })),
       (id) => cockpit.pane(id as PaneId).label,
+      this.replay?.omitPages,
     );
     if (this.stripPage !== null && !this.pages.some((p) => p.id === this.stripPage)) {
       this.stripPage = keepPage(this.pages, this.stripPage, was);
@@ -1685,6 +1841,7 @@ export class PhoneLayer {
     this.syncKeys();
     // (A script pane renamed: the name on the band follows without a layout.)
     this.placePlates();
+    this.tellState();
   }
 
   /**
@@ -1733,6 +1890,7 @@ export class PhoneLayer {
     this.strip.set(this.pages, id);
     this.guardStrip();
     this.syncKeys();
+    this.tellState();
   }
 
   /** The panes key: opens the strip on the page it had (the first, the first time), or closes it. */
@@ -1742,6 +1900,7 @@ export class PhoneLayer {
       this.deps.cockpit.setPhoneStrip(null);
       this.guardStrip();
       this.syncKeys();
+      this.tellState();
       return;
     }
     const page = stepPage(this.pages, this.stripPage, 0);
@@ -1765,6 +1924,7 @@ export class PhoneLayer {
     // Closing reads nothing more at once; opening is told to the pane when its rows are laid out (`place`).
     if (!this.commOpen) this.comm.setPhoneOpen(false);
     this.syncKeys();
+    this.tellState();
   }
 
   /** The lens's keys: lit while their feature is open, the Comm key's badge and name. */
@@ -1871,7 +2031,9 @@ export class PhoneLayer {
     }
     // Landscape on a low screen: the hot key columns (shown or not) reach up into the fight
     // card's rows, and the card then ends left of them.
-    const fightRight = land && g.fight.h > 0 && g.fight.h * h > H - hotTop(this.keyPx, 3) - HOT_TOP_MARGIN / 2 ? leftOfHot(this.keyPx, this.hot.cols, SATROW_GAP) : 0;
+    // (Over a replay there are no columns.)
+    const fightRight =
+      !this.replay && land && g.fight.h > 0 && g.fight.h * h > H - hotTop(this.keyPx, 3) - HOT_TOP_MARGIN / 2 ? leftOfHot(this.keyPx, this.hot.cols, SATROW_GAP) : 0;
     this.fight.place(g.fight.y * h, g.fight.h * h, this.card !== null && !g.tooSmall, g.fight.x * w, fightRight);
     // The lens's circle is centred on the map pane's rectangle (whole cells, a little larger).
     // The strip's chrome over its rows; Comm's band on its last row. Comm is "open" for the
@@ -1941,10 +2103,12 @@ export class PhoneLayer {
     // The keys' row is at the right edge, where the hot key column is: on a low screen (landscape
     // with the strip or a fight card) the row would reach into a column, and then stands left of it.
     // (Above our own keyboard the columns stand lifted by its height, or not at all on a low screen.)
-    const cols = this.deps.settings.get().phone.hotkeysOpen && !(this.okbOpen && this.okbNoK);
+    const cols = !this.replay && this.deps.settings.get().phone.hotkeysOpen && !(this.okbOpen && this.okbNoK);
     // Landscape: the row takes the lens's place, left of the columns there are, shown or not. Not
     // while the box is open: the box reaches up to the top there, and the row would lie on it.
-    const rowRight = land
+    // (Over a replay there are none in either shape: the row stands at the right margin.)
+    const rowRight =
+      land && !this.replay
       ? leftOfHot(this.keyPx, this.hot.cols, SATROW_GAP)
       : keyRowRight(rowTop + SAT_PX + SATROW_GAP, this.el.clientHeight - this.okbLift, this.keyPx, cols ? [this.hot.rowsIn(0), this.hot.rowsIn(1)] : [0, 0], SATROW_GAP);
     // The lens's circle: centred on the map pane's whole cells (the default place), or where a
@@ -2005,12 +2169,18 @@ export class PhoneLayer {
     this.mapEl.style.scale = '';
     for (const u of this.unsubs.splice(0)) u();
     this.flingOff?.();
-    this.menu.dispose();
-    this.rescueKey.remove();
+    this.menu?.dispose();
+    this.rescueKey?.remove();
     this.el.remove();
-    this.menuKey.remove();
+    this.menuKey?.remove();
   }
 }
+
+/** The layer over the live game: it has the menu and its keys. */
+export type PhoneLayer = Layer & { readonly menu: PhoneMenu; readonly menuKey: HTMLButtonElement; readonly rescueKey: HTMLButtonElement };
+
+/** The layer over a replay (`PhoneLayerDeps.replay`): no menu, no menu key, no rescue key. */
+export type PhoneReplayLayer = Layer & { readonly menu: null; readonly menuKey: null; readonly rescueKey: null };
 
 /** The menu key: three bars, 44 px, at the far left of the command row. */
 function menuKey(doc: Document, open: () => void): HTMLButtonElement {
@@ -2039,9 +2209,16 @@ function menuKey(doc: Document, open: () => void): HTMLButtonElement {
   return b;
 }
 
-/** Mounts the phone layer over `deps.cockpit` (the live game on a phone). */
-export function mountPhoneLayer(deps: PhoneLayerDeps): PhoneLayer {
+/**
+ * Mounts the phone layer over `deps.cockpit`: the live game on a phone,
+ * or (with `deps.replay`) a replay in the run log player (see the file
+ * header).
+ */
+export function mountPhoneLayer(deps: PhoneLiveDeps): PhoneLayer;
+export function mountPhoneLayer(deps: PhoneReplayDeps): PhoneReplayLayer;
+export function mountPhoneLayer(deps: PhoneLayerDeps): PhoneLayer | PhoneReplayLayer {
   setPhoneKit(deps.kit);
   setPhoneControls(deps.controls);
-  return new PhoneLayer(deps);
+  // (The constructor leaves the three null exactly when `deps.replay` is given.)
+  return new Layer(deps) as PhoneLayer | PhoneReplayLayer;
 }
