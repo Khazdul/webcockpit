@@ -77,16 +77,23 @@ Statuses: Next, In progress, Owner testing, Done.
   kind, each kind's marked row, the list's scroll, the view (Lite or
   Editor), the Editor buffer's scroll and cursor. Profile Help and the
   script manual: section and scroll. Script editor: scroll and cursor
-  per script name. Merged to main, **not released**.
+  per script name. Merged to main.
+- **Released 0.9.1** on the owner's word ("Det här blir bra.
+  Publicera."): tagged `v0.9.1`, Pages deploy green, `test:prod` 10/10
+  against mumecockpit.com.
 - **Tests:** typecheck clean; unit 4240 passed; full e2e at 5 workers
   1428 passed, 4 failed under load (credits:103, message:37,
   popup-focus:78, script-code-editor:312, all firefox), all pass alone.
-- **Next:** the owner's test (test guide in the stage file) and his
-  answers to its four questions; then the release decision.
-- **Open:** nothing tried by hand in a browser; the game's Scripts
+- **Next:** nothing owed for this stage; the player can be told that
+  0.9.1 remembers the place and that the profile search is not planned.
+  Otherwise unchanged from the entries below.
+- **Open:** the test guide's four questions (reopen in Editor, Help by
+  itself, the entry open for typing, surviving a reload) were not
+  answered one by one; nothing tried by hand by an agent; the game's Scripts
   window and the phone's hosts of the script editor and manual have no
   e2e of their own for this; a renamed script is not tested.
-- **Commits:** a8f46e06…the merge and this one.
+- **Commits:** a8f46e06…c796593b (merge), the release `v0.9.1`, and
+  this one.
 
 ### 2026-11-13 — News post for 0.9.0 (no stage)
 
