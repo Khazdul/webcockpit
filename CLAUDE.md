@@ -50,6 +50,22 @@ learned (`docs/decisions/`), and real session logs as test material.
 - Every stage ends with a short test guide for the owner: what to open,
   what to try, what feedback is wanted.
 
+## Tests and worktrees (lessons of 2026-11-13)
+
+- Full e2e at 5 workers, alone on the machine: building agents that
+  run their own e2e at the same time make it fail under load. Rerun a
+  failing file alone before calling it a regression.
+- No source edits under a running dev server while an e2e run uses it
+  (the pages reload and tests fail in a clump).
+- A worktree agent gets its own dev server port (`WC_E2E_PORT`), never
+  5173 (the owner's test server), and links `node_modules` from the
+  main checkout. It must never `git add` that link: a committed link
+  once replaced the real directory at the merge.
+- A worktree may start at an old commit: branch from `main` by name.
+- `/tmp` is a tmpfs. If Chromium starts crashing in tests ("Page
+  crashed", "Target crashed"), look at `df -h /tmp` first
+  (`tests/setup/clean-tmp.ts`).
+
 ## Language
 
 - Conversation with the owner: Swedish.
