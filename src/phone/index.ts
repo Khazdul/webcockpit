@@ -843,6 +843,8 @@ class Layer {
     );
     this.okb = okb;
     this.el.append(okb.el);
+    // (The app's line on a phone is marked for our keyboard from its construction, stage 56: this
+    // call and the one that undoes it change nothing there; a line that is not a phone's follows.)
     line.setOwnKeyboard(true);
     // The field is 44 px high whatever the font size setting: its text has a size of its own (phone.css).
     line.setOwnFont(true);

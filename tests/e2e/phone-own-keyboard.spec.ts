@@ -642,6 +642,64 @@ test.describe('forced colours (a high contrast mode)', () => {
   });
 });
 
+test('a password prompt before the phone chunk came: the field never asks for the device\'s keyboard, is masked, and is no password field; our keyboard types on when it comes', async ({ page }) => {
+  // Stage 56: the line is marked from its construction (until then the layer marked it when it
+  // mounted, and a password prompt before that swapped in an <input type="password">).
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  await page.route(/\/src\/phone\/index\.ts/, async (route) => {
+    await held;
+    await route.continue();
+  });
+  let server: WebSocketRoute | null = null;
+  const sent: string[] = [];
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.onMessage((m) => {
+      const t = (typeof m === 'string' ? Buffer.from(m) : m).toString('latin1');
+      if (!t.startsWith('\xff')) sent.push(...t.split(/\r?\n/).filter((l) => l !== '' && !l.startsWith('change width')));
+    });
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+  });
+  await page.goto('/?phone=1&kbd=1');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  // No layer yet: no compass, no keyboard of ours. The line is marked all the same.
+  await expect(pad(page)).toHaveCount(0);
+  await expect(field(page)).toHaveAttribute('inputmode', 'none');
+  await expect(field(page)).toHaveAttribute('virtualkeyboardpolicy', 'manual');
+  server!.send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, ECHO])]));
+  await expect(field(page)).toHaveClass(/\bwc-masked\b/);
+  expect(await field(page).evaluate((el) => el.tagName)).toBe('TEXTAREA');
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.locator('.wc-input-slot .wc-input-field')).toHaveCount(1);
+  await expect(field(page)).toHaveAttribute('inputmode', 'none');
+  // A tap focuses it (a physical keyboard types); it stays marked, so no device keyboard is asked for.
+  await field(page).tap();
+  expect(await inputFocused(page)).toBe(true);
+  await expect(field(page)).toHaveAttribute('inputmode', 'none');
+  await page.keyboard.type('se');
+  await expect(page.locator('.wc-input-mask')).toHaveText('••');
+  expect(await field(page).evaluate((el) => getComputedStyle(el).color)).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  // The chunk comes: the layer mounts over the same field, still masked, with what was typed.
+  const el = await field(page).elementHandle();
+  release();
+  await expect(pad(page)).toBeVisible();
+  expect(await field(page).evaluate((f, was) => f === was, el)).toBe(true);
+  await expect(field(page)).toHaveValue('se');
+  await expect(field(page)).toHaveClass(/\bwc-masked\b/);
+  await expect(field(page)).toHaveAttribute('inputmode', 'none');
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await openKeyboard(page);
+  await type(page, 'c', 'r', 'e', 't', 'enter');
+  await expect.poll(() => sent).toEqual(['secret']);
+  // Never on screen, never in the history.
+  await expect(field(page)).toHaveValue('');
+  expect(await history(page)).toEqual([]);
+  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'secret' })).toHaveCount(0);
+});
+
 test('the password prompt: the same field, masked with bullets and no password field; our keys type it, nothing is recorded, the arrows are dimmed', async ({ page }) => {
   const m = await enterMock(page);
   await setScreen(page, S21);
