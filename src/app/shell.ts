@@ -960,6 +960,8 @@ export class Shell {
                 focus: () => app.input.input.focus({ preventScroll: true }),
                 blur: () => app.input.input.blur(),
               },
+              // Automatic login for the session (ADR 0141): all of it is in the phone's chunk.
+              autoLogin: { session: app.session, bus: app.bus, userDisconnect: REASON_USER_DISCONNECT },
             });
             old.remove();
             this.phoneLayerFailed = false;
@@ -978,7 +980,9 @@ export class Shell {
     // with Reconnect selected. Desktop installs nothing.
     if (device().phone) {
       const doc = root.ownerDocument;
-      watchResume(doc, doc.defaultView ?? window, () => {
+      watchResume(doc, doc.defaultView ?? window, (restored) => {
+        // Back from the back/forward cache: the page had been left, and a login kept for the session is forgotten (ADR 0141).
+        if (restored) this.phoneLayer?.forgetLogin();
         // First what the rule remembers (a link that dropped out of view), then the check of a link still held.
         const st = app.session.state;
         const up = (st === 'login' || st === 'playing') && !app.status.get().replay;
@@ -1039,7 +1043,9 @@ export class Shell {
    */
   private autoReconnect(app: App, ev: AutoReconnectEvent): 'reconnect' | 'sheet' | null {
     if (!this.phoneGame) return null;
-    const step = autoReconnectStep(this.autoState, ev, this.opts.settings.get().phone.autoReconnect && this.inCockpit);
+    // A session armed for automatic login (ADR 0141) reconnects whatever the setting says.
+    const on = this.opts.settings.get().phone.autoReconnect || this.phoneLayer?.loginArmed === true;
+    const step = autoReconnectStep(this.autoState, ev, on && this.inCockpit);
     this.autoState = step.state;
     if (step.sheet) return 'sheet';
     if (!step.reconnect) return null;

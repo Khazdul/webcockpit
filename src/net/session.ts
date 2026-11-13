@@ -134,6 +134,13 @@ export class Session implements Sender {
   private replayConn = false;
   private readonly clockUs: () => number;
   private readonly onSend: ((bytes: number, buffered: number) => void) | null;
+  /**
+   * Automatic login for the session (ADR 0141; phones and tablets only, set
+   * by src/phone/auto-login.ts): each line sent at the login prompts of a
+   * real connection, as sent. `text` may be a password: the listener keeps
+   * it in memory only. Null: nobody listens.
+   */
+  loginTap: ((text: string, secret: boolean) => void) | null = null;
 
   constructor(opts: SessionOptions) {
     this.bus = opts.bus;
@@ -378,6 +385,7 @@ export class Session implements Sender {
       this.bus.emit('sys.message', { text: NOT_SENT });
       return;
     }
+    if (this.st === 'login' && !this.replayConn) this.loginTap?.(text, secret);
     const ts = this.frameTs ?? this.clockUs();
     const ev: { text: string; ts: number; secret?: boolean; echo?: boolean } = {
       text: secret ? '' : text,

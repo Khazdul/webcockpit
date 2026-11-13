@@ -2653,6 +2653,92 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear
   background: var(--ph-row-rule);
 }
 
+/* ------------------------------------------------- automatic login's question */
+
+/* The question of ADR 0141 (login-ask.ts): a small window of the sheet's
+ * make (the iron band, the hood, the lit ground) standing in the game text.
+ * Not a dialog: no veil, and only the card itself takes taps (the layer
+ * takes none). JS sets left, top, width and the greatest height. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 30px 14px 14px;
+  overflow-y: auto;
+  border: 1px solid var(--ph-iron-hi);
+  border-top: 6px solid var(--ph-iron-hi);
+  border-radius: 10px;
+  background: var(--ph-window);
+  box-shadow: var(--ph-window-in), 0 6px 18px rgb(0 0 0 / 0.6);
+  pointer-events: auto;
+  letter-spacing: normal;
+  white-space: normal;
+  color: var(--ph-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask[hidden] {
+  display: none;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-q,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-n {
+  margin: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-q {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-q > b {
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-n {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  height: 44px;
+  margin-top: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > .wc-ph-ask-yes {
+  border-color: var(--ph-lamp);
+  color: var(--ph-lamp);
+  font-weight: 700;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > button:active {
+  background: var(--ph-row-rule);
+}
+
 /* ----------------------------------------------------------- settings page */
 
 /* A full-height page over the game: an iron band with Back, the hood, and

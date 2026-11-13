@@ -68,6 +68,8 @@ import type { CommPane } from '../panes/comm';
 import type { PaneId } from '../layout/types';
 import { ResizeBand } from './comm-chrome';
 import { StripView, holdFling, watchSwipes } from './strip';
+import { AutoLogin, type AutoLoginDeps } from './auto-login';
+import type { AskRect } from './login-ask';
 import { type StripPage, keepPage, stepPage, stripPages } from './strip-model';
 import { type Unread, badgeText, commKeyLabel, unreadCount } from './unread';
 import { HOT_TOP_MARGIN, KEY_GAP, KEY_PX_PORTRAIT, compassHeight, compassPx, hotBottom, hotStep, hotTop, hotWidth, keyRowRight, leftOfHot, sideClear, topLimit } from './compass-size';
@@ -161,6 +163,11 @@ export interface PhoneLayerDeps {
    */
   ownKeyboard: PhoneCommandLine;
   /**
+   * Automatic login for the session (ADR 0141; auto-login.ts): the session
+   * and the bus it follows. Absent: none (unit tests of the layer).
+   */
+  autoLogin?: AutoLoginDeps | undefined;
+  /**
    * The device is a tablet (ADR 0140; `device().tablet`, handed in as the
    * rest of the app is): its stored settings are never given the phone's
    * one-time defaults. Absent: a phone.
@@ -209,6 +216,8 @@ export class PhoneLayer {
   /** A second menu key, shown only over the too-small notice. */
   readonly rescueKey: HTMLButtonElement;
   private readonly deps: PhoneLayerDeps;
+  /** Automatic login for the session (ADR 0141), where the shell gave the session for it. */
+  private autoLogin: AutoLogin | null = null;
   private readonly fight: FightCardView;
   private readonly lens: LensView;
   /** The cockpit's map pane: the lens's map (the one worker and canvas). */
@@ -545,6 +554,12 @@ export class PhoneLayer {
     this.wakeConn = this.connected();
     this.wake.sync();
     this.mountOwnKeyboard(doc, deps.ownKeyboard);
+    // Automatic login for the session (ADR 0141): the question's card is the layer's, the rest is the controller's.
+    if (deps.autoLogin && win) {
+      const auto = new AutoLogin(deps.autoLogin, { el: this.el, notice: deps.notice, placed: () => this.placeLoginAsk(), win });
+      this.autoLogin = auto;
+      this.unsubs.push(() => auto.dispose());
+    }
     // The lens's full size follows the screen's short side: a rotation (or a resized window) asks again.
     const onResize = (): void => this.syncLens();
     win?.addEventListener('resize', onResize);
@@ -1937,6 +1952,39 @@ export class PhoneLayer {
     this.lensSpot = spot;
     if (spot && r) this.shiftMap(spot.left + size / 2 - (r.x + r.w / 2) * w, spot.top + size / 2 - (r.y + r.h / 2) * h);
     this.lens.place(spot, pending || g.tooSmall || (land && this.hot.boxOpen) ? null : rowTop, rowRight);
+    this.placeLoginAsk();
+  }
+
+  /** The session is armed for automatic login (ADR 0141): the shell then reconnects a dead link found on resume. */
+  get loginArmed(): boolean {
+    return this.autoLogin?.armed === true;
+  }
+
+  /** The page came back from the back/forward cache: a login kept for the session is forgotten (ADR 0141). */
+  forgetLogin(): void {
+    this.autoLogin?.forget();
+  }
+
+  /**
+   * The automatic login's question (login-ask.ts), while it is up: in the
+   * game text's rectangle, clear of the lens and its keys (or the keys' row
+   * that stands in for a lens) where there is room.
+   */
+  private placeLoginAsk(): void {
+    const auto = this.autoLogin;
+    const g = this.deps.cockpit.phoneGameLayout;
+    if (!auto || !auto.ask.shown || !g) return;
+    const { w, h } = this.deps.cells.get();
+    const base = this.el.getBoundingClientRect();
+    const room: AskRect = { left: g.game.x * w, top: g.game.y * h, right: (g.game.x + g.game.w) * w, bottom: g.input.y * h };
+    let lens: AskRect | null = null;
+    for (const el of [this.lens.el, this.lens.rowEl]) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      const b: AskRect = { left: r.left - base.left, top: r.top - base.top, right: r.right - base.left, bottom: r.bottom - base.top };
+      lens = lens ? { left: Math.min(lens.left, b.left), top: Math.min(lens.top, b.top), right: Math.max(lens.right, b.right), bottom: Math.max(lens.bottom, b.bottom) } : b;
+    }
+    auto.place(room, lens);
   }
 
   dispose(): void {
