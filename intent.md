@@ -7,7 +7,8 @@
 > automatic login for the session on phone and tablet added 2026-11-13.
 > Goals 13–15 (accounts and sync, usage statistics, public sharing)
 > added 2026-11-13; with them the "no application server" constraint
-> and the "no accounts" non-goal were replaced.
+> and the "no accounts" non-goal were replaced. Approved by the owner
+> the same day.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
