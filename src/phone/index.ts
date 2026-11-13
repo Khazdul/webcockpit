@@ -2199,8 +2199,7 @@ export type PhoneReplayLayer = Layer & { readonly menu: null; readonly menuKey: 
 function menuKey(doc: Document, open: () => void): HTMLButtonElement {
   const b = doc.createElement('button');
   b.type = 'button';
-  // `wc-menu-btn`: the phone's menu button, as the old `☰` was.
-  b.className = 'wc-menu-btn wc-ph-menu';
+  b.className = 'wc-ph-menu';
   b.title = 'Menu';
   b.setAttribute('aria-label', 'Menu');
   // Not in the Tab order (ADR 0108).

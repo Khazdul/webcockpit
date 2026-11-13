@@ -2120,6 +2120,8 @@ html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-rescue 
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -2169,21 +2171,6 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::pla
  * brings Android's selection pop-up. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field.wc-input-kept {
   color: var(--ph-dim);
-}
-
-/* The old `☰` (src/app/shell.ts keeps it when the phone layer could not be mounted): it sits at
- * the field's end, inside its edge. A key of its own there, not a glyph over the text. */
-html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input > .wc-menu-btn:not(.wc-ph-menu) {
-  flex: 0 0 44px;
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  margin: 0 -12px 0 8px;
-  border-left: 1px solid var(--ph-field-edge);
-  color: var(--ph-lamp);
-  text-align: center;
 }
 
 /* Not typing: no hollow caret over the placeholder. */
