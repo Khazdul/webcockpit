@@ -705,3 +705,27 @@
     height: 40px;
   }
 }
+
+/* A tablet-size window with the phone flag (ADR 0140; stage 56, look-glass.css): 44 px targets. */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-spv-cb {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  html.wc-phone .wc-spv-spd,
+  html.wc-phone .wc-spv-sw {
+    height: 44px;
+  }
+
+  html.wc-phone .wc-spv-spd .wc-spv-cb {
+    min-width: 30px;
+    min-height: 0;
+    height: 42px;
+  }
+
+  html.wc-phone .wc-spv-play {
+    width: 44px;
+    height: 44px;
+  }
+}

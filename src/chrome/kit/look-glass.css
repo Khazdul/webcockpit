@@ -245,26 +245,31 @@ u.wc-sk {
 
 /* ------------------------------------------------------------ phone and touch */
 
-html.wc-phone .wc-lk-btns {
-  gap: 6px;
-}
+/* The phone's compact buttons, on a phone-size window only (its short side
+ * under 600 px). A tablet has the phone flag too (ADR 0140), and room for
+ * the buttons as a desktop draws them: type, padding and icons. */
+@media (max-width: 599.98px), (max-height: 599.98px) {
+  html.wc-phone .wc-lk-btns {
+    gap: 6px;
+  }
 
-html.wc-phone .wc-lk-btn {
-  padding: 0 8px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  height: 32px;
-  gap: 5px;
-}
+  html.wc-phone .wc-lk-btn {
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    height: 32px;
+    gap: 5px;
+  }
 
-html.wc-phone .wc-lk-btn.is-icon {
-  padding: 0;
-  width: 34px;
-}
+  html.wc-phone .wc-lk-btn.is-icon {
+    padding: 0;
+    width: 34px;
+  }
 
-/* Glass buttons drop their icons on the phone, unless `keepIcon` (or icon-only). */
-html.wc-phone .wc-lk-btn:not(.keep-ic):not(.is-icon) .wc-lk-ic {
-  display: none;
+  /* Glass buttons drop their icons on the phone, unless `keepIcon` (or icon-only). */
+  html.wc-phone .wc-lk-btn:not(.keep-ic):not(.is-icon) .wc-lk-ic {
+    display: none;
+  }
 }
 
 /* Coarse pointers: every target at least 40 px high (and icon-only ones as
@@ -283,6 +288,23 @@ html.wc-phone .wc-lk-btn:not(.keep-ic):not(.is-icon) .wc-lk-ic {
 
   .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
     top: 3px;
+  }
+}
+
+/* A tablet-size window with the phone flag (ADR 0140; stage 56): the
+ * targets are 44 px. Back grows up from the 40 px one, 1 px down. */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-lk-btn,
+  html.wc-phone .wc-lk-back {
+    min-height: 44px;
+  }
+
+  html.wc-phone .wc-lk-btn.is-icon {
+    min-width: 44px;
+  }
+
+  html.wc-phone .wc-lk-box > .wc-lk-back:not(.wc-lk-iback) {
+    top: 0;
   }
 }
 
