@@ -203,13 +203,13 @@ test('the readout is a diagnostic: only with ?kbd=1 or ?kbd=debug', async ({ pag
   }
 });
 
-test.describe('a tablet-size window with the phone flag forced', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
-  test('gets neither the game layout nor our keyboard (the gating by size is unchanged)', async ({ page }) => {
+  test('gets neither the game layout nor our keyboard', async ({ page }) => {
     const errors = watchErrors(page);
-    await page.goto('/?replay&phone=1&tablet=desktop');
-    await expect(html(page)).toHaveClass(/\bwc-phone\b/);
+    await page.goto('/?replay&tablet=desktop');
+    await expect(html(page)).not.toHaveClass(/\bwc-phone\b/);
     await expect(page.locator('.wc-cockpit')).toBeVisible();
     await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
     await expect(html(page)).not.toHaveClass(/\bwc-phone-game\b/);
