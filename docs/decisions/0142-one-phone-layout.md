@@ -156,3 +156,17 @@ desktop's `<input type="text">`, masked with bullets, with
 autocomplete, autocorrect and spellcheck off, and the device's
 keyboard. Nothing there keeps that keyboard from learning a password;
 that was so before stage 55 too.
+
+## Addendum, 2026-11-13 (stage 56): the device's keyboard and a password
+
+Closed on the owner's word the same day. A touch device on the desktop
+cockpit (a `?tablet=desktop` tablet, a phone in Desktop-site mode)
+types with the device's keyboard. There the command line, the same
+`<input>`, is `type="password"` while a password is asked for, and
+`type="text"` again (and emptied) after, so the device's keyboard
+treats the text as a password: no suggestions, no learning. The
+bullets and the caret are drawn as everywhere. A desktop with a mouse
+keeps `type="text"` (a password field makes the browser offer to save
+the password; `src/ui/input-pane.ts`, header). On these touch devices
+the browser may make that offer; taken as the lesser evil, as it was
+on a phone before stage 53.

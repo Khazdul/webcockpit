@@ -430,16 +430,20 @@ test.describe('the desktop cockpit on a touch device (`?tablet=desktop`)', () =>
     await expect(line).not.toHaveAttribute('virtualkeyboardpolicy');
     await expect(okb(page)).toHaveCount(0);
     await expect(readout(page)).toHaveCount(0);
-    // A password prompt: the desktop's masked line, the same field, still the device's keyboard.
+    // A password prompt: the desktop's masked line, the same field, still the device's keyboard. It is a
+    // password field while masked (stage 56), so that keyboard learns nothing; the bullets are ours.
     await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: true }));
     await expect(line).toHaveClass(/\bwc-masked\b/);
-    expect(await line.evaluate((el) => [el.tagName, (el as HTMLInputElement).type])).toEqual(['INPUT', 'text']);
+    expect(await line.evaluate((el) => [el.tagName, (el as HTMLInputElement).type])).toEqual(['INPUT', 'password']);
     await expect(line).not.toHaveAttribute('inputmode');
-    await expect(page.locator('input[type="password"]')).toHaveCount(0);
     await line.tap();
     await page.keyboard.type('pw');
     await expect(page.locator('.wc-input-mask')).toHaveText('••');
     expect(await line.evaluate((el) => getComputedStyle(el).color)).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+    // After the prompt: a text field again, and nothing of the password left in it.
+    await page.evaluate(() => window.__wc!.app.bus.emit('telnet.echo', { serverEchoes: false }));
+    expect(await line.evaluate((el) => [(el as HTMLInputElement).type, (el as HTMLInputElement).value])).toEqual(['text', '']);
+    await expect(line).not.toHaveClass(/\bwc-masked\b/);
   });
 });
 

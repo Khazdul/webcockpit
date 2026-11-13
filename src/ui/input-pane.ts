@@ -6,7 +6,12 @@
 //   arrows-deselect. We add Enter, history, word keys and focus handling.
 // - Password mode keeps type="text" (a type="password" field makes Firefox
 //   and Chrome offer to save the password) and masks by making the text
-//   transparent and drawing one bullet per character over it. Copy and cut
+//   transparent and drawing one bullet per character over it. The one
+//   exception (stage 56): a touch device on the desktop cockpit (a
+//   `?tablet=desktop` tablet, a phone in Desktop-site mode) types with
+//   the device's keyboard, and there the same field is type="password"
+//   while masked, so that keyboard treats the text as a password (no
+//   suggestions, no learning). The bullets are drawn as everywhere. Copy and cut
 //   are blocked while masked. The bullets' element (`.wc-input-mask`) lies
 //   on the field and clips to it; a line longer than the field scrolls the
 //   bullets inside it (a text indent of −scrollLeft, as the suggestion's).
@@ -152,6 +157,8 @@ export interface InputPaneOptions {
   requestFrame?: (cb: () => void) => void;
   /** Phone command line (a one-row <textarea>); default: the device flag. */
   phone?: boolean;
+  /** The device's on-screen keyboard types in the line (tests). Default: a touch device that is not a phone. */
+  deviceKeyboard?: boolean;
   /**
    * Where a stray focus is given back to the line by Tab (ADR 0108): the
    * App's element while it is shown (the page's body counts then too),
@@ -361,6 +368,8 @@ export class InputPane {
   private draftRestored = false;
 
   private password = false;
+  /** A touch device that is not a phone: the device's own keyboard types in the line. */
+  private readonly deviceKeyboard: boolean;
   /** The field is marked for a keyboard of our own: always on a phone; elsewhere by `setOwnKeyboard`. */
   private ownKeyboard = false;
   /** The whole line is kept to be sent again or replaced, with no native selection (see the header: "Kept line"). */
@@ -403,6 +412,8 @@ export class InputPane {
     this.phone = opts.phone ?? device().phone;
     // A phone's line never asks for the device's keyboard, from the first paint (see the header).
     this.ownKeyboard = this.phone;
+    // A touch device on the desktop cockpit: the device's keyboard types here (see the header: password mode).
+    this.deviceKeyboard = opts.deviceKeyboard ?? (!this.phone && device().touch);
     this.field = this.makeField(this.phone ? 'textarea' : 'text');
     this.mask = doc.createElement('span');
     this.mask.className = 'wc-input-mask';
@@ -606,6 +617,11 @@ export class InputPane {
     // A phone (the line is kept there): a half-typed password never stays in the line once it is shown again.
     if (this.phone && !on) this.input.value = '';
     this.input.classList.toggle('wc-masked', on);
+    // The device's keyboard must not learn a password: a password field while masked (see the header).
+    if (this.deviceKeyboard && this.field instanceof this.doc.defaultView!.HTMLInputElement) {
+      if (!on) this.field.value = '';
+      this.field.type = on ? 'password' : 'text';
+    }
     this.mask.hidden = !on;
     if (on) {
       // Never let a recalled command sit in a password field.
