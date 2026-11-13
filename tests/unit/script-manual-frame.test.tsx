@@ -15,6 +15,7 @@ import { FrameStack, type Nav, useNav } from '../../src/chrome/kit/stack';
 import { WindowFrame, WindowStack } from '../../src/chrome/kit/window';
 import { type WindowChromeStore, useWindowChromeOf, windowChromeStore } from '../../src/chrome/kit/window-chrome';
 import { windowBody } from '../../src/chrome/kit/window-geom';
+import { forgetManualPlaces } from '../../src/editor/look-manual';
 import { ScriptManual, openScriptManual, scriptManualSection } from '../../src/editor/script-manual-frame';
 import { LUA_INDEX, SCRIPT_MANUAL_GROUPS, scriptManualCounts, scriptManualSections } from '../../src/editor/script-reference';
 
@@ -22,6 +23,8 @@ let nav: Nav | null = null;
 let cleanup: Array<() => void> = [];
 afterEach(() => {
   for (const c of cleanup.splice(0)) c();
+  // The manual remembers where it was left (ADR 0143): each test starts fresh.
+  forgetManualPlaces();
   nav = null;
   document.body.innerHTML = '';
 });

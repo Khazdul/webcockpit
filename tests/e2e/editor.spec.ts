@@ -528,8 +528,10 @@ test('the Profile window while connected: Lite applies in place, Editor asks: Ke
   await expect(win).toHaveCount(0);
   expect(await stored(page)).toBe('#alias {a} {b}\n#alias {y} {}\n');
 
+  // Left in Editor, the window opens in Editor, the keyboard in the buffer (ADR 0143).
   await reopen();
-  await page.keyboard.press('e');
+  await expect(pe(page)).toHaveAttribute('data-view', 'editor');
+  await expect(content(page)).toBeFocused();
   await page.keyboard.press('Control+End');
   await page.keyboard.type('#alias {z} {}');
   await page.keyboard.press('Escape');

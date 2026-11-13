@@ -4,7 +4,8 @@
 // kinds are a row of tabs, every target is a tap away, key capture says it
 // is desktop only, Editor's buffer has the whole width (no rail) and
 // Help's sections are a dropdown. The in-game hosts
-// (the ESC menu's Profile row, #profile) are 43b's specs.
+// (the ESC menu's Profile row, #profile) are 43b's specs. Opened again, the
+// list is back at the kind and the row it was left on (stage 57, ADR 0143).
 import { type Page, expect, test } from '@playwright/test';
 import { morphDone } from './look';
 
@@ -94,5 +95,42 @@ test('the editor on a phone: one column, a tap opens the entry as a sheet, typin
   await startFrame(page).locator('.wc-lk-back').first().tap();
   await expect(startFrame(page).locator('.wc-lk-box > .wc-lk-hood .wc-lk-hood-t')).toHaveText('Profiles');
   await expect(startFrame(page).locator('.wc-lk-flash')).toHaveText('Saved default.');
+  expect(errors).toEqual([]);
+});
+
+test('opened again: the list comes back with the kind and the row marked, the sheet closed (ADR 0143)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const text = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map((c, i) => `#macro {Alt+${c}} {say alt ${i}}\n#macro {Ctrl+Alt+${c}} {say both ${i}}\n`).join('');
+  await openEditor(page, '#alias {k} {kill}\n' + text);
+  const list = pe(page).locator('.wc-pe-list');
+  await pe(page).locator('[data-rail="macro"]').tap();
+  await expect(pe(page)).toHaveAttribute('data-kind', 'macro');
+  await list.evaluate((el) => (el.scrollTop = 1200));
+  const row = list.locator('.wc-pe-row[data-i="24"]');
+  const key = (await row.locator('.wc-pe-kc').textContent())!;
+  await row.tap();
+  await expect(pe(page)).toHaveClass(/is-sheet/);
+  await pe(page).locator('[data-btn="SHEET"]').tap();
+  await expect(pe(page)).not.toHaveClass(/is-sheet/);
+  await startFrame(page).locator('.wc-lk-back').first().tap();
+  await expect(startFrame(page).locator('.wc-lk-box > .wc-lk-hood .wc-lk-hood-t')).toHaveText('Profiles');
+
+  await startFrame(page).locator('[data-btn="EDIT"]').tap();
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  await morphDone(page);
+  await expect(pe(page)).toHaveAttribute('data-kind', 'macro');
+  await expect(pe(page)).not.toHaveClass(/is-sheet/);
+  await expect(list).toBeVisible();
+  const cur = list.locator('.wc-pe-row.is-on');
+  await expect(cur).toHaveAttribute('data-i', '24');
+  await expect(cur.locator('.wc-pe-kc')).toHaveText(key);
+  await expect
+    .poll(async () => {
+      const l = (await list.boundingBox())!;
+      const r = (await cur.boundingBox())!;
+      return r.y >= l.y - 1 && r.y + r.height <= l.y + l.height + 1;
+    })
+    .toBe(true);
   expect(errors).toEqual([]);
 });

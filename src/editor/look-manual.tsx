@@ -32,6 +32,12 @@
 // with `<mark class="wc-lk-mark">` drawn into the blocks where the API is
 // missing.
 //
+// The place (`place`, stage 57, ADR 0143): a host that hands in a
+// `ManualPlace` (`manualPlace(id)`, one per manual for the page's lifetime)
+// gets the reader back where it was left: the section and the text's offset
+// from that section's top, so the same lines are at the top whatever the
+// sections above have been laid out to. Kept on every scroll.
+//
 // Hooks: `.wc-lk-manual`, `.wc-lk-mtoc li[data-i]` (`.is-on`),
 // `.wc-lk-mtext section[data-i]` (blocks `[data-b]`), `.wc-lk-mfind
 // input`, `.wc-search-count`, `[data-btn=contents|prev|next|close]`.
@@ -72,6 +78,26 @@ export interface ManualCtl {
   closeFind(): boolean;
 }
 
+/** Where a manual's text was left: a section, and the px scrolled past that section's top. */
+export interface ManualPlace {
+  section: number;
+  offset: number;
+}
+
+const manualPlaces = new Map<string, ManualPlace>();
+
+/** Forgets every manual's place (tests). */
+export function forgetManualPlaces(): void {
+  manualPlaces.clear();
+}
+
+/** The place of the manual `id` ("profile", "script"), kept in memory while the page lives. */
+export function manualPlace(id: string): ManualPlace {
+  let p = manualPlaces.get(id);
+  if (!p) manualPlaces.set(id, (p = { section: 0, offset: 0 }));
+  return p;
+}
+
 export interface LookManualProps {
   sections: readonly HelpSection[];
   /** own: the contents list at the left (an overlay under 700 px). */
@@ -81,6 +107,8 @@ export interface LookManualProps {
   /** Group id → label ("API reference"); default: the manuals' own names. */
   groups?: Readonly<Record<string, string>>;
   initial?: number;
+  /** Where the reader starts (instead of `initial`) and where it writes its place as it is scrolled. */
+  place?: ManualPlace;
   onSection?(i: number): void;
   ctl?(c: ManualCtl | null): void;
   /**
@@ -598,7 +626,7 @@ export function LookManual(p: LookManualProps): VNode {
   const root = useRef<HTMLDivElement>(null);
   const text = useRef<HTMLElement>(null);
   const input = useRef<HTMLInputElement | null>(null);
-  const [cur, setCur] = useState(() => clamp(p.initial ?? 0, n));
+  const [cur, setCur] = useState(() => clamp(p.place?.section ?? p.initial ?? 0, n));
   // Sections are drawn in chunks: the first screen at once, the rest when the main thread is idle.
   const [upto, setUpto] = useState(() => Math.min(n, Math.max(FIRST_DRAWN, cur + AHEAD)));
   const uptoRef = useRef(upto);
@@ -665,7 +693,8 @@ export function LookManual(p: LookManualProps): VNode {
   // (content-visibility, fonts) do not move it.
   /** A jump to a section that was not drawn yet: done once it is. */
   const pendingGoto = useRef(-1);
-  const goto = (i: number): void => {
+  /** `past`: px below the section's top (a remembered place). */
+  const goto = (i: number, past = 0): void => {
     const k = clamp(i, n);
     if (!drawThrough(k)) {
       pendingGoto.current = k;
@@ -675,9 +704,9 @@ export function LookManual(p: LookManualProps): VNode {
     }
     settle((t) => {
       const s = secEl(k);
-      if (s) t.scrollTop = s.offsetTop;
+      if (s) t.scrollTop = s.offsetTop + past;
     });
-    landed.current = k;
+    landed.current = past ? -1 : k;
     setCur(k);
   };
 
@@ -914,9 +943,45 @@ export function LookManual(p: LookManualProps): VNode {
     goto(k);
   }, [upto]);
 
-  // The first section (the host's `initial`).
+  // The first section (the host's `initial`), or the place the manual was left at.
   useLayoutEffect(() => {
-    if (cur > 0) goto(cur);
+    const past = p.place && Number.isFinite(p.place.offset) ? p.place.offset : 0;
+    if (cur > 0 || past) goto(cur, past);
+  }, []);
+
+  // The place follows the scroll and the spy: the current section and the
+  // text's offset from its top, read on the frame after a scroll and when
+  // the current section changes (the offset must be from the section at the
+  // top: sections in between are not laid out at the next open). Never read
+  // while hidden.
+  const keepPlace = (): void => {
+    const t = text.current;
+    const place = p.place;
+    if (!t || !place || t.clientHeight === 0) return;
+    const c = st.current.cur;
+    const s = secEl(c);
+    if (!s) return;
+    place.section = c;
+    place.offset = Math.round(t.scrollTop - s.offsetTop);
+  };
+  const keepRef = useRef(keepPlace);
+  keepRef.current = keepPlace;
+  useEffect(() => {
+    const t = text.current;
+    if (!t || !p.place) return;
+    let raf = 0;
+    const frames = typeof requestAnimationFrame === 'function';
+    const onScroll = (): void => {
+      if (!frames) return keepRef.current();
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => keepRef.current());
+    };
+    t.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      // Not read here: at an unmount the layout around the text is already the next view's.
+      t.removeEventListener('scroll', onScroll);
+      if (frames) cancelAnimationFrame(raf);
+    };
   }, []);
 
   // The current section follows the scroll: a 1 px band SPY_AT below the top.
@@ -962,6 +1027,7 @@ export function LookManual(p: LookManualProps): VNode {
   useEffect(() => {
     if (told.current === cur) return;
     told.current = cur;
+    keepPlace();
     p.onSection?.(cur);
   }, [cur]);
 

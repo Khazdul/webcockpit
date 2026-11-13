@@ -81,8 +81,13 @@ test('a typed alias is in the Profile window at once, #unalias removes it, and i
   // Nothing was edited, so nothing was applied or re-saved.
   expect(await stored(page)).toBe('#nop mine\n#alias {a} {b}\n#alias {zz} {say hi}\n');
 
+  // Left in Editor, the window opens in Editor (ADR 0143): back to Lite for the list.
   await type(page, '#unalias zz');
-  await openProfile(page);
+  await page.locator('.wc-mb[data-mb="profile"]').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'editor');
+  await pe(page).locator('.wc-pe-views [data-opt="lite"]').click();
+  await expect(pe(page)).toHaveAttribute('data-view', 'lite');
+  await pe(page).locator('[data-rail="alias"]').click();
   await expect(listRow(page, 'a')).toHaveCount(1);
   await expect(listRow(page, 'zz')).toHaveCount(0);
   await backToGame(page);

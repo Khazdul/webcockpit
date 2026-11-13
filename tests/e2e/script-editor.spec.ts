@@ -309,8 +309,9 @@ test('the unsaved prompt: Keep editing stays, Y saves and leaves, N discards; Ba
   await backOnPage(page);
   expect(await lib<{ source: string }>(page, 'get', 'finder').then((s) => s.source)).toBe(SOURCE);
 
-  // Y saves and leaves, with the page's flash.
+  // Y saves and leaves, with the page's flash. The cursor is where the editor was left (ADR 0143).
   await openEditor(page, f);
+  await page.keyboard.press('ControlOrMeta+Home');
   await page.keyboard.type('-- two\n');
   await page.keyboard.press('Escape');
   await expect(unsaved(page)).toBeVisible();
@@ -345,7 +346,7 @@ const manualTop = (page: Page) =>
       return s?.getAttribute('aria-label') ?? '';
     });
 
-test('MANUAL: from the editor (F1 at the name under the cursor, else at the start) and from the Scripts page', async ({ page }, info) => {
+test('MANUAL: from the editor (F1 at the name under the cursor, else where it was left) and from the Scripts page', async ({ page }, info) => {
   const errors = watchErrors(page);
   const f = await scriptsPage(page);
   await openEditor(page, f);
@@ -392,12 +393,12 @@ test('MANUAL: from the editor (F1 at the name under the cursor, else at the star
   await expect(editor(page).locator('.wc-search input').first()).toHaveValue('goblin');
   await expect(editor(page)).toContainText('Ln 5,');
 
-  // F1 away from any name: the start of the guide.
+  // F1 away from any name: where the manual was left (ADR 0143).
   await editor(page).locator('.cm-content').click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.press('F1');
-  await expect.poll(() => manualTop(page)).toBe('Getting started');
-  await expect(manual(page).locator('.wc-lk-mtoc li.is-on')).toHaveText('Getting started');
+  await expect.poll(() => manualTop(page)).toBe('tempTimer');
+  await expect(manual(page).locator('.wc-lk-mtoc li.is-on')).toHaveText('tempTimer');
   // Back at the top left goes back too.
   await f.locator('.wc-sman > .wc-lk-back').click();
   await expect(manual(page)).toHaveCount(0);
@@ -410,10 +411,10 @@ test('MANUAL: from the editor (F1 at the name under the cursor, else at the star
   }
   await expect(pageManual).toBeVisible();
 
-  // The Scripts page has Manual among its page buttons: the guide's start.
+  // The Scripts page has Manual among its page buttons: where the manual was left (ADR 0143).
   await pageManual.click();
   await expect(manual(page)).toBeVisible();
-  await expect.poll(() => manualTop(page)).toBe('Getting started');
+  await expect.poll(() => manualTop(page)).toBe('tempTimer');
   await page.keyboard.press('Escape');
   await expect(manual(page)).toHaveCount(0);
   await expect(pageManual).toBeVisible();
