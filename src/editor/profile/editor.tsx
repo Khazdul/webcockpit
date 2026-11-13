@@ -20,9 +20,18 @@
 //
 // The profile text is the source of truth. Lite edits a ProfileDoc
 // (src/script/doc), Editor edits text; a flip serialises or parses, so it
-// never reorders or drops anything (ADR 0015). Each open starts in Lite.
-// Help lies over whichever of the two is open: `mode` stays, the lite
-// state is kept and the buffer stays mounted (hidden).
+// never reorders or drops anything (ADR 0015). Each open starts in Lite,
+// with the keyboard in the list. Help lies over whichever of the two is
+// open: `mode` stays, the lite state is kept and the buffer stays mounted
+// (hidden).
+//
+// The place is remembered (place.ts, ADR 0143): the chosen kind, each
+// kind's marked row and the list's scroll offset are kept per profile name
+// while the page lives, and an open comes back there (in one column the
+// list, not the sheet). Kept as Lite shows it, on every change, so it is
+// right however the editor is left; from Editor or Help the last Lite place
+// stands. A flip back from Editor resets the cursors, and the place with
+// them. Not remembered: the view, the buffer's cursor, the detail's field.
 //
 // Apply in place (ADR 0105, model.ts): Lite applies where an edit is
 // finished (leaving a field, also when the window loses the focus, another
@@ -100,6 +109,7 @@ import type { GridPos, HlDim } from './detail-highlight';
 import { HelpRail, HelpView } from './help-view';
 import { Detail, type DetailField, EntryList, KindRail, revealRow } from './lite';
 import { type CommitWhy, type EditorHost, type Mode, type Outcome, ProfileModel } from './model';
+import { type RowMarks, keepPlace, keepScroll, markOf, placeOf, recallPlace } from './place';
 import '../profile.css';
 
 export type { EditorHost } from './model';
@@ -156,7 +166,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const inGame = place !== 'start';
   // Read so the editor renders again once the box has landed: a field the
   // keyboard went to during the morph (hidden, so unfocusable) gets the focus then.
-  useBoxSettled();
+  const settled = useBoxSettled();
   useWindowChrome({ title: 'Profile', note: host.name });
   // The head's line follows the connection (43b's hosts tell; else read at render).
   const [, setLiveTick] = useState(0);
@@ -172,12 +182,14 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const helpFind = useRef<FindMemory>({ query: EMPTY_QUERY });
   const manual = useMemo(() => helpSections(), []);
   const [zone, setZone] = useState<Zone>('list');
-  const [field, setField] = useState<DetailField>('pattern');
   const initial = useMemo(() => parseProfile(host.text), []);
+  // Where this profile's editor was left (place.ts): the kind and the marked rows, found again in this parse.
+  const recalled = useMemo(() => recallPlace(host.name, initial), []);
   const [doc, setDoc] = useState(initial);
   const [base, setBase] = useState(initial);
-  const [kind, setKind] = useState<LiteKind>('action');
-  const [cursorIds, setCursorIds] = useState<Partial<Record<LiteKind, number>>>({});
+  const [kind, setKind] = useState<LiteKind>(recalled?.kind ?? 'action');
+  const [field, setField] = useState<DetailField>(FIELDS[kind][0]!);
+  const [cursorIds, setCursorIds] = useState<Partial<Record<LiteKind, number>>>(recalled?.cursorIds ?? {});
   const [pinned, setPinned] = useState<number[]>([]);
   const [visited, setVisited] = useState<ReadonlySet<number>>(new Set());
   const [bodyDraft, setBodyDraft] = useState<{ id: number; text: string } | null>(null);
@@ -331,6 +343,51 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     revealRow(listRef.current, idx);
   }, [idx, kind]);
 
+  // The remembered place (place.ts, ADR 0143). The marks of the kinds whose
+  // cursor was moved; the current kind's follows the cursor, the others stand.
+  const marks = useRef<RowMarks>(recalled?.rows ?? {});
+  useLayoutEffect(() => {
+    if (mode !== 'lite') return;
+    const mark = cur && wantId !== undefined && wantId !== SENTINEL ? markOf(entries, cur.id, idx) : null;
+    const rows = { ...marks.current };
+    if (mark) rows[kind] = mark;
+    else delete rows[kind];
+    marks.current = rows;
+    const was = placeOf(host.name);
+    keepPlace(host.name, { kind, rows, scroll: was && was.kind === kind ? was.scroll : 0 });
+  }, [mode, kind, wantId, cur, idx, entries]);
+  // The list's scroll offset follows its scrolling (the list is a new element per kind and per view).
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = (): void => keepScroll(host.name, kind, el.scrollTop);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [kind, mode, help]);
+  // At the open the list is put back as it was left, then the marked row is
+  // made sure to be in view. Once, when the list has a size (after the start
+  // page's morph); dropped when the kind or the view changed first.
+  const putBack = useRef(recalled ? { kind: recalled.kind, top: recalled.scroll } : null);
+  useLayoutEffect(() => {
+    const b = putBack.current;
+    if (!b) return;
+    if (mode !== 'lite' || kind !== b.kind) {
+      putBack.current = null;
+      return;
+    }
+    const el = listRef.current;
+    if (!settled || !el || el.clientHeight === 0) return;
+    putBack.current = null;
+    el.scrollTop = b.top;
+    // Only the list scrolls here (`scrollIntoView` would also move the box or the window body).
+    const row = el.querySelector<HTMLElement>(`[data-i="${idx}"]`);
+    if (!row) return revealRow(el, idx);
+    const r = row.getBoundingClientRect();
+    const l = el.getBoundingClientRect();
+    if (r.top < l.top) el.scrollTop -= l.top - r.top;
+    else if (r.bottom > l.bottom) el.scrollTop += r.bottom - l.bottom;
+  });
+
   // ------------------------------------------------------------- editing
 
   const setPattern = (v: string): void => {
@@ -426,6 +483,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     } else {
       setDoc(alignDoc(model.base, parseProfile(bufferNow())));
       setCursorIds({});
+      marks.current = {};
       // Back in Lite, the text is applied (ADR 0105).
       requestCommit();
     }
