@@ -1,8 +1,10 @@
 # WebCockpit — Notes for Claude
 
 A MUD client for MUME that runs entirely in the user's browser. Loaded from
-a link, no application server. Target: hundreds of users, tt++-level
-feature parity, minimal latency, TUI look and feel.
+a link. The game connection goes straight to MUME; a small Cloudflare
+backend beside it (spec §7, being built from stage 58) keeps optional
+accounts in sync, counts use and hosts shared runs. Target: hundreds of
+users, tt++-level feature parity, minimal latency, TUI look and feel.
 
 ## Project phase
 

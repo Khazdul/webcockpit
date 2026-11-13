@@ -1,6 +1,8 @@
 # WebCockpit — Spec
 
 > Status: APPROVED by owner 2026-09-27.
+> §7 (cloud: accounts, sync, statistics, sharing) added 2026-11-13 from
+> the owner's decisions of that day; stages 58–66.
 > Derived from `intent.md` (approved 2026-09-27). Where this document and
 > `intent.md` disagree, `intent.md` wins.
 
@@ -19,7 +21,9 @@
 
 ### 1.1 Shape
 
-- **Static web app.** No backend.
+- **Static web app** for everything the game needs. A small backend
+  beside it (§7, ADR 0144) keeps accounts, counts use and hosts shared
+  runs; it is never in the game's path.
 - **Connection:** the browser connects directly to
   `wss://mume.org/ws-play/` (subprotocol `binary`, binary frames),
   ADR 0002.
@@ -126,6 +130,8 @@ ADR 0006.
 - **Export and import:**
   - A profile goes to and from a single file (intent Goal 7).
   - All runs can be exported and imported as a backup archive.
+- **With an account** (§7.4), IndexedDB is still what the client plays
+  from; sync copies between it and the server in the background.
 
 ### 1.5 Hosting and headers
 
@@ -134,14 +140,17 @@ ADR 0006.
 - **Before anyone else tests:** a private deployment is decided in an ADR.
 - **Production:** GitHub Pages at <https://mumecockpit.com/>, the app at
   the root, released by a version tag (ADR 0028, ADR 0029). The earlier
-  Tailscale/Caddy site (ADR 0022) is retired.
+  Tailscale/Caddy site (ADR 0022) is retired. **From stage 58** the same
+  address is served by a Cloudflare Worker (§7.1, ADR 0144), which can
+  set headers; the release flow stays a version tag.
 - **Headers:** cross-origin isolation stays possible (COOP/COEP), and
   WebAssembly is allowed by the CSP. This keeps the MMapper iframe route
   open (ADR 0003). `vite dev` and `vite preview` send COOP/COEP; Pages
   cannot, so production is not cross-origin isolated
   (`coi-serviceworker` if it is ever needed).
 - **Self-hosted assets only.** Fonts and scripts are served by us; there
-  are no third-party embeds.
+  are no third-party embeds. One exception from stage 60: Cloudflare
+  Turnstile, loaded only on the account pages (ADR 0145).
 
 ## 2. Features
 
@@ -914,7 +923,480 @@ what feedback is wanted.
 | 51 | **The phone's layout in the game.** Fight card, map lens with its three keys, pane strip, Comm under the fight card, compass and hot keys, the menu sheet and the phone settings page, weather in full width, Paper (§2.12, ADR 0136, `docs/stages/51-phone-layout.md`, steps 51a–g). | Play lightly on your phone: walk, flee, chat, read the panes. |
 | 52 | **The phone's layout, round 2.** Landscape with its own arrangement (the strip and Comm as a left column), resizable strip and Comm, a lens that shrinks before it hides, up to six hot keys in two columns, see-through keys, the menu and settings reworked (§2.12, ADR 0137, `docs/stages/52-phone-round-2.md`). | Play in portrait and landscape on your phone; resize the panes and Comm. |
 | 53 | **An on-screen keyboard of our own.** The phone's game layout types with a keyboard that is part of the client: Swedish and English, a digit row, symbols, the compass and K keys beside it, vibration as a setting; the device's keyboard stays down. It is the phone's only keyboard, on the menu's pages and in both code editors too (Esc, Tab and caret keys there); no device keyboard and no switch for one (§2.12, ADR 0138, ADR 0139, `docs/stages/53-own-keyboard.md`, rounds 53a–i). | Type commands, tells, the password, profiles and scripts on your phone without the device's keyboard. |
+| 58 | **Move to Cloudflare.** The same site from a Cloudflare Worker with static assets, an empty API, cache and security headers, the release workflow, the domain switch with a rollback (§7.1, §7.12, ADR 0144). | Open mumecockpit.com after the switch: your profiles and runs are there, play as usual. |
+| 59 | **Usage statistics.** The heartbeat, presence and daily figures in D1, "N online" on the start page, the admin page behind Cloudflare Access with plain numbers, the privacy text (§7.6, ADR 0147). | Open `/admin` and see yourself online; judge the start page's counter. |
+| 60 | **Accounts.** Register, log in, recovery code, change password, sessions, delete account; keys and encryption in the browser; Turnstile, limits, the CSP; no sync yet (§7.2–7.3, ADR 0145). | On the staging site: create an account, log in on a second device, lose the password and come back with the code. |
+| 61 | **Sync of profiles and scripts.** The sync engine, IndexedDB 9, first sync with a safety copy, keep-both conflicts, the state mark (§7.4, ADR 0146). | Edit a profile on the desktop, find it on the phone; edit the same one on both while offline. |
+| 62 | **Sync of settings.** Settings per device type, the first-sync choice, script data, logging out with or without the local data (§7.4). | Two desktops share the layout; the phone keeps its own. |
+| 63 | **Runs in the cloud.** Saved runs upload, the storage limit and the "does not fit" dialog with download, runs listed from the account and fetched when opened, export docs (§7.5). | Save a run on the desktop, play it on the tablet; fill the limit and see the offer to download. |
+| 64 | **Share links.** Link in the export editor, the watch page with the sandboxed replay, My shared runs, Report, the moderation tools in the admin page (§7.7, §7.9, ADR 0148). | Cut a fight, send the link to a friend without an account. |
+| 65 | **The gallery.** Publish, the public list, stars, comments, the top list, the notice of new runs, reports that hide (§7.8). | Publish a run, rate and comment from a second account, get the notice. |
+| 66 | **The admin panel.** Accounts with clean-up and limits, graphs of use, storage and sharing, the audit log (§7.9). | Look at a month of use; remove a test account. |
 
 ## 6. Open questions for the owner
 
 None. New questions are raised in the stage files (`docs/stages/`).
+
+## 7. Cloud: accounts, sync, statistics and sharing
+
+Intent Goals 13–15. Decisions and their reasons: ADR 0144 (platform),
+0145 (accounts and encryption), 0146 (sync), 0147 (statistics), 0148
+(sharing, gallery, admin). Facts: `notes/research/cloudflare-platform.md`
+and `notes/research/cloud-data-inventory.md`. Built in stages 58–66
+(§7.12).
+
+### 7.0 Rules that hold for all of it
+
+1. **The game path is untouched.** No cloud call is awaited between a
+   key press and `ws.send`, or between a socket frame and its paint
+   (§1.3). Encryption, compression and uploads run in a Web Worker or
+   on idle time. The benchmarks of §1.3 must not move.
+2. **Logged out is today's client.** Every feature that exists at
+   0.9.1 works without an account and with the service down.
+3. **The server cannot read private data** (§7.3). Only what a player
+   chose to share is readable.
+4. **Nothing a player wrote is dropped without a notice.**
+5. **Dark until opened.** A cloud feature appears in production when
+   its flag in `GET /api/config` is on. The owner tests on staging
+   first.
+6. **Desktop is not disturbed.** New entries on the start page and in
+   the game are put to the owner in each stage's mockup or test (as
+   intent Goal 12 asks for phone changes).
+
+### 7.1 Shape
+
+```
+ Browser ──── wss://mume.org/ws-play/ ───────────────► MUME   (unchanged)
+    │
+    └─ https://mumecockpit.com
+          ├─ /, /assets/*, /map/*, /replay/* …  static files (free, no Worker)
+          ├─ /r/<id>                            the app, on its watch page
+          ├─ /admin                             the admin page (Cloudflare Access)
+          └─ /api/*  ─► Worker `webcockpit` ─┬─ D1 `webcockpit` (eu)
+                                             └─ R2 `webcockpit` (eu)
+```
+
+- One Worker, one origin. `run_worker_first` for `/api/*` and
+  `/admin*`; unknown paths get `index.html`.
+- Code: `worker/` (Worker, migrations), `src/cloud/` (client),
+  `shared/cloud/` (API types), `wrangler.jsonc`.
+- Environments: `production` (the domain) and `staging`
+  (`webcockpit-staging.<account>.workers.dev`, its own D1 and R2).
+- Development: `npm run dev` starts Vite as today; `npm run dev:cloud`
+  also starts `wrangler dev` with local D1 and R2, and Vite proxies
+  `/api` to it. Without it, the client behaves as when the service is
+  down.
+- API conventions: JSON, errors as `{error: "<code>"}` with a fitting
+  status; encrypted blobs as `application/octet-stream`. Everything
+  that needs a login is under `/api/u/`; the session cookie's path is
+  `/api/u`. State-changing requests carry `X-WC: 1` and a matching
+  `Origin`.
+
+### 7.2 Accounts
+
+ADR 0145.
+
+- **Where.** A new start menu entry, Account (shows "Log in" or the
+  user name). Its pages are in the look kit of stage 42: Log in,
+  Create account, Recovery, and the Account page.
+- **Create account:** user name (3–20 of `a-z 0-9 _ -`, unique without
+  regard to case, fixed), password twice (≥ 10 characters, strength
+  hint, a warning against the MUME password), the six-point "what
+  happens to your data" text, Turnstile. Then the recovery code is
+  shown once (24 characters in groups, Copy, Download as a text file)
+  and the player confirms having kept it by typing its last group.
+- **Log in:** name and password; Turnstile after three failures; ten
+  failures per name in 15 minutes give a 15-minute wait. The same
+  message for "no such name" and "wrong password".
+- **Recovery:** name, recovery code, new password. Ends every session.
+- **Account page:** storage in use against the limits; sync state and
+  "Sync now"; sessions with "End" and "End all others"; change
+  password; new recovery code; the gallery notice switch; the local
+  safety copy as files; the existing exports ("Download everything":
+  profiles, scripts backup, runs backup); Log out (keep or remove the
+  data on this device); Delete account (password, typed confirmation,
+  everything removed at once).
+- **Phone and tablet** get the same pages in the phone menu, typed
+  with our own keyboard (§2.12).
+- **Suspended account** (§7.9): sync works; sharing, voting and
+  commenting answer `suspended`.
+
+| Endpoint | Does |
+|---|---|
+| `GET /api/config` | flags, limits, Turnstile site key, server time |
+| `GET /api/auth/params?name=` | salt and KDF parameters (a stable fake for unknown names) |
+| `POST /api/auth/register` | name, salt, KDF, `authKey`, `recoveryAuth`, both wrapped data keys, Turnstile token → session |
+| `POST /api/auth/login` | name, `authKey` → session, wrapped data key |
+| `POST /api/auth/recover` | name, `recoveryAuth`, Turnstile → wrapped data key; then new `authKey` and wrap |
+| `POST /api/u/auth/logout` | ends this session |
+| `GET /api/u/account` | name, created, usage, limits, state, sessions, prefs |
+| `POST /api/u/account/password` | old and new `authKey`, new wrap |
+| `POST /api/u/account/recovery` | new `recoveryAuth` and wrap |
+| `DELETE /api/u/account/sessions/<id>` | ends a session |
+| `PATCH /api/u/account/prefs` | the gallery notice switch |
+| `DELETE /api/u/account` | deletes the account and all it owns |
+
+### 7.3 Keys and encryption
+
+ADR 0145, "Keys". Requirements on the build:
+
+- WebCrypto only. PBKDF2-HMAC-SHA-256 with 600 000 rounds runs in a
+  Web Worker with a "Working…" state; the parameters come from the
+  server per account.
+- The data key is a non-extractable `CryptoKey`, stored in IndexedDB
+  beside the sync state. Removing the data from a device removes it.
+- Blob format: `version (1 byte) | nonce (12) | AES-256-GCM
+  ciphertext`, associated data `kind | id`. Run bodies are encrypted
+  in 1 MB segments, each with the segment number in the associated
+  data, so a body can be streamed and a cut-off one is detected.
+- Opaque ids: `HMAC-SHA-256(idKey, kind | localKey)`, 128 bits,
+  base64url; `idKey` is derived from the data key.
+- Test vectors for every step are checked in, so a later rewrite
+  cannot quietly change the format.
+- A review by a second agent with only the code and ADR 0145 is part
+  of stage 60, before the stage is released.
+
+### 7.4 Sync
+
+ADR 0146. What follows the account: profiles, user scripts, script
+data, settings per device type, saved runs (§7.5), export docs.
+
+**Engine** (`src/cloud/sync/`), pure where it can be:
+
+1. Take the sync lock (Web Lock `webcockpit-sync`).
+2. Pull `changes?since=<cursor>`; decrypt.
+3. Scan local stores, hash, compare with the `sync` store: find local
+   changes, deletes and new items.
+4. Resolve per the table in ADR 0146 (keep both, or last writer).
+5. Apply remote changes to IndexedDB **unless a session is playing**
+   and the item is in use (the active profile, enabled scripts, the
+   settings): those wait for the start page. Other items apply at
+   once.
+6. Push local changes with their base `rev`; on `409` go to 2 (at most
+   three rounds, then back off).
+7. Store the cursor.
+
+- **Triggers:** login, page load, start page shown, tab visible, 5 s
+  after a local change, every 5 minutes on the start page.
+- **State mark** on the start page beside the Account entry, and on
+  the Account page: in step, syncing, offline, needs attention (with
+  what: "cloud storage full", "update the client to read newer
+  data"). Keep-both conflicts raise a notice naming both copies.
+- **IndexedDB 9:** `profiles` records get `id`; new stores `sync`
+  (per item: kind, local key, server id, rev, hash, state) and
+  `syncMeta` (account, cursor, device label, the data key, the
+  safety copy).
+- **Renames** keep the item (profile `id`, script `id`).
+- **Bundled content.** Bundled scripts are not items; their
+  `scriptData` is. The seeded `default` and `khazdul` profiles are
+  items like any other once changed; untouched seeds give way to the
+  account's at the first sync.
+- **Settings** sync as the whole record under the device type's item.
+  The `settings.version` migration runs on what was pulled; a record
+  from a newer client is left alone and raises "update the client".
+  `webcockpit.appearance` in `localStorage` is rewritten after a pull
+  so first paint follows.
+- **First sync** on a device with data: ADR 0146's six steps, shown as
+  one short page ("This device has 4 profiles and 2 scripts; your
+  account has 6 and 3. Here is what will happen…") with the settings
+  choice on it.
+- **Tests:** the engine against an in-memory server model with
+  generated sequences of edits, renames, deletes, offline periods and
+  two or three devices: after everybody has synced, all devices are
+  equal and no edit is missing. Plus e2e with two browser contexts.
+
+| Endpoint | Does |
+|---|---|
+| `GET /api/u/sync/changes?since=` | changed items (blobs inline for small kinds), new cursor, usage |
+| `PUT /api/u/sync/items/<kind>/<id>` | body = blob; `If-Match: <rev>`; `409` returns the current item |
+| `DELETE /api/u/sync/items/<kind>/<id>` | tombstone, `If-Match` |
+
+Limits: 1 MB per item, 5 MB of small items per account, 2 000 items.
+
+### 7.5 Runs in the cloud
+
+ADR 0146, "Runs".
+
+- **Upload on save.** `RunLibrary.save` (Exit popup, phone exit sheet,
+  History) queues the chain's runs. Each sealed run becomes one body:
+  the backup's JSONL lines for that run, gzip, encrypted, `PUT` to
+  `/api/u/runs/<id>`; then its `run` item (meta, summary, rating,
+  body size) is pushed. Uploads happen on the start page or in the
+  background, never during a fight's frames.
+- **The limit.** 250 MB per account for run bodies and shared
+  payloads, 50 MB per body. The server refuses over-limit uploads
+  with `quota` and the numbers.
+- **"Does not fit" dialog** (look kit): "Your cloud storage is full
+  (248 of 250 MB). The run is saved on this device." with Download the
+  run, Open History, Keep on this device. It is shown where the save
+  was asked for; after an Exit it is shown on the start page.
+- **History** lists runs from the account that are not on the device,
+  with a cloud mark and their size; opening one fetches and stores it,
+  with a progress bar (§2.5, stage 24's bar). Device-only runs carry
+  their own mark. The storage line shows cloud use beside the
+  device's.
+- **Unsave or delete** removes the body and tombstones the item, after
+  a confirmation that says "on all your devices".
+- **Retention** is unchanged for unsaved runs. A saved run is never
+  swept, on the device or in the cloud.
+- **Export docs** sync as items, so a cut begun on one device
+  continues on another.
+- **Statistics, Spotlights, Credits** use what is on the device and
+  say how many cloud-only sessions are not counted, with "Fetch all"
+  on desktop.
+
+| Endpoint | Does |
+|---|---|
+| `PUT /api/u/runs/<id>` | stores a body (stream to R2); `quota` when it does not fit |
+| `GET /api/u/runs/<id>` | the body |
+| `DELETE /api/u/runs/<id>` | removes it |
+
+### 7.6 Usage statistics
+
+ADR 0147.
+
+- **Client:** `src/cloud/beat.ts`. Device id in `localStorage`
+  (`wc.device`). `POST /api/beat` with `credentials: 'omit'` and
+  `keepalive`: at load, every 5 minutes while visible, and on a change
+  between `menu`, `playing` and `replay`. Off in dev and in e2e.
+- **Server:** tables `presence`, `device_day`, `stat_sample`,
+  `stat_daily`; a Cron every 5 minutes samples, and at 00:10 UTC rolls
+  up and prunes.
+- `GET /api/stats/public` → `{online, playing}`, cached 60 s.
+- **Start page:** one quiet line, "N online", by the almanac; hidden
+  when the request fails. The owner keeps or removes it after stage
+  59.
+- **About:** a "What the site knows" section. A `/privacy` leaf in the
+  About look with the full text: the heartbeat, the account, shared
+  runs, Cloudflare as processor, the abuse address, how to delete.
+
+### 7.7 Share links
+
+ADR 0148, "Sharing" and "Watching".
+
+- **Export editor:** the format toggle gets Link beside HTML and Text.
+  EXPORT then opens the share dialog: title, description, size, the
+  "this will be readable by anyone with the link" line, Published
+  on/off (from stage 65), Create link. The result shows the link with
+  Copy.
+- **Server:** the payload goes to R2 under `pub/<id>`, a row to
+  `publication`.
+- **Watch page** `/r/<id>`: the app boots straight to it (no start
+  page animation). The replay runs in a sandboxed frame fed by
+  `postMessage`; the frame's document is the replay runtime of
+  ADR 0019 with a CSP of its own (`default-src 'none'`, inline script
+  and style by hash, `img-src data:`, `font-src data:`, `worker-src
+  blob:`). Around it: title, sender, character and level, length,
+  date, Report, Download as HTML, and from stage 65 stars and
+  comments. Back goes to the gallery (stage 65) or the start page.
+- **My shared runs** on the Account page and from History's row for a
+  shared session: link, views, stars, listed, Remove.
+- **Payloads are hostile input.** The replay runtime is reviewed for
+  that in stage 64: sizes and counts bounded, no HTML from the
+  payload, the embedded map and settings validated, fuzz tests over
+  mutated payloads.
+
+| Endpoint | Does |
+|---|---|
+| `POST /api/u/pub` | meta + payload → id; `quota`, `suspended` |
+| `PATCH /api/u/pub/<id>` | title, description, listed |
+| `DELETE /api/u/pub/<id>` | removes it |
+| `GET /api/u/pub` | my shared runs |
+| `GET /api/pub/<id>` | meta (public); `gone`, `hidden` |
+| `GET /api/pub/<id>/payload` | the payload, long cache |
+| `POST /api/pub/<id>/view` | counts a view (device id, once a day) |
+| `POST /api/u/report` | item kind and id, reason |
+
+### 7.8 The gallery
+
+ADR 0148, "The gallery" and "A notice of new runs".
+
+- **Start menu:** a new entry (working name Gallery). Mockups first,
+  in the look of History and Spotlights (stage 45, 46); the owner
+  picks the direction, the word and the letter.
+- **List:** title, sender, character and level, length, date, stars
+  and votes, comments, views. Top (weighted mean, default), New, Most
+  watched; week, month, all. Pages of 30.
+- **Stars** on the watch page: 1–5, the client's star control; one's
+  own vote is shown and can be changed; not on one's own run.
+- **Comments** under the replay: plain text ≤ 1000 characters, newest
+  last, Remove for the writer and the run's owner, Report.
+- **Rules** shown once per account before the first publication, with
+  a tick.
+- **The notice:** logged-in players are told of newly published runs
+  through the client's notices (ADR 0025's mechanism); see ADR 0148.
+  In the game it is a quiet notice like the update notice, never over
+  the output.
+- **Reports** hide an item at five from different accounts.
+
+| Endpoint | Does |
+|---|---|
+| `GET /api/gallery?sort=&period=&page=` | the list (public, cached 60 s) |
+| `GET /api/pub/<id>/comments?page=` | comments (public) |
+| `PUT /api/u/pub/<id>/vote` | 1–5 |
+| `POST /api/u/pub/<id>/comments` | a comment |
+| `DELETE /api/u/comments/<id>` | writer or run owner |
+| `GET /api/u/gallery/news` | published since `gallery_seen`; `POST` moves it |
+
+### 7.9 Admin and moderation
+
+ADR 0148, "The admin page".
+
+- `/admin` is its own small page (`worker/admin/`), served by the
+  Worker only after the Access token is verified (issuer, audience,
+  the owner's identity). `/api/admin/*` checks the same. It is not in
+  the client bundle and loads nothing from the app.
+- **Stage 59:** online now, today and the last 30 days as a table, the
+  day's Worker requests and D1 writes against the plan's limits.
+- **Stage 64:** the report queue (item, reasons, reporters' count),
+  Hide, Restore, Delete for runs and comments; Suspend, Restore and
+  Delete for accounts. Every action lands in `admin_log`.
+- **Stage 66:** accounts (name, created, last seen, item count, bytes,
+  shared runs, state) with search and sort; limits per account;
+  graphs: online over 24 h and 30 days, daily/weekly/monthly devices,
+  new devices and new accounts, device types, browsers, client
+  versions, storage in total and the largest accounts, shares, votes
+  and comments per day; the audit log.
+- Graphs are drawn by the page itself (SVG), in a plain, readable
+  look; this page is a tool, not part of the TUI.
+
+### 7.10 Abuse and limits
+
+| What | Limit |
+|---|---|
+| Registration | Turnstile; 3 an hour and 10 a day per address (hashed, daily pepper) |
+| Login | 10 failures per name in 15 min → 15 min wait; Turnstile after 3 |
+| API in general | the rate limiting binding, 120 requests a minute per session or address |
+| Small items | 1 MB each, 5 MB and 2 000 items per account |
+| Runs and shared payloads | 250 MB per account; 50 MB per run body; 10 MB per shared payload; 50 shared runs |
+| Comments, votes | 20 and 60 an hour per account |
+| Reports | 30 a day per account |
+
+Limits live in `/api/config` and per account (`limits` column), so
+the owner changes them without a release.
+
+### 7.11 Data model (D1)
+
+```
+account(id, name, name_key UNIQUE, created, last_seen, state,
+        salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc,
+        limits, prefs, gallery_seen, seq)
+reserved_name(name_key)                      -- deleted accounts' names
+session(id_hash, account, label, created, last_used, expires)
+item(account, kind, id, rev, seq, deleted, size, updated, blob)
+     PRIMARY KEY (account, kind, id); INDEX (account, seq)
+run_body(account, id, size, created)         -- body in R2 u/<account>/<id>
+publication(id, account, title, description, character, level,
+            length_s, size, listed, state, created, views,
+            vote_sum, vote_count, comment_count)
+vote(publication, account, stars)            PRIMARY KEY (publication, account)
+comment(id, publication, account, text, created, state)
+report(id, kind, target, account, reason, created, handled)
+presence(device, first_seen, last_seen, state, type, browser, version)
+device_day(device, day)
+stat_sample(ts, online, playing)
+stat_daily(day, metric, key, value)
+attempt(key, window, count)                  -- login and registration limits
+admin_log(ts, who, action, target, note)
+```
+
+Small item blobs (≤ 1 MB) are in D1; run bodies and payloads in R2.
+Migrations are numbered SQL files, applied by the release workflow
+before the Worker is deployed, and always backward compatible with
+the Worker version still running.
+
+### 7.12 The stages, step by step
+
+Each stage has its own file when it starts (`docs/stages/`), with the
+tasks, the test guide and the owner's feedback. Order and content:
+
+**58 — Move to Cloudflare** (`docs/stages/58-cloudflare-move.md`).
+1. `wrangler.jsonc`, `worker/` with `GET /api/config` and
+   `GET /api/health`; `public/_headers`; `npm run dev:cloud`.
+2. `build:pages` → `build:site`; a `cloudflare` profile in
+   `scripts/static-server.ts` and `playwright.prod.config.ts`.
+3. Owner: an API token and two repository secrets (the stage file
+   says exactly where to click).
+4. Workflow `deploy.yml` on `v*` tags: build, `wrangler deploy`.
+   First to `workers.dev`; `test:prod` there.
+5. The switch: delete the apex A/AAAA records, attach the domain,
+   `www` redirect; `test:prod` live; the owner checks his data.
+6. Pages stays deployable for two releases, then `pages.yml` goes.
+
+**59 — Usage statistics.**
+1. D1 and R2 created with jurisdiction `eu` (production and staging);
+   migrations in the workflow.
+2. The heartbeat, presence, Cron samples and roll-up.
+3. Owner: Cloudflare Access application for `/admin`; e-mail routing
+   for `abuse@`.
+4. The admin page with numbers; "N online" on the start page; About's
+   "What the site knows" and `/privacy`.
+
+**60 — Accounts.**
+1. `src/cloud/crypto` with test vectors; the Web Worker for the KDF.
+2. Worker: auth endpoints, sessions, attempts, Turnstile check.
+3. Mockups of the account pages; the owner picks; build for desktop,
+   tablet and phone.
+4. The CSP, enforced (first report-only on staging).
+5. Review of crypto and auth by a second agent; fixes.
+6. Owner test on staging; flag `accounts` on in production.
+
+**61 — Sync of profiles and scripts.**
+1. IndexedDB 9, profile ids, the `sync` stores.
+2. The engine against the model, with generated tests.
+3. Worker: item endpoints; limits.
+4. First sync page, safety copy, keep-both notices, state mark.
+5. Two-context e2e; a review of the engine by a second agent.
+6. Owner test with two devices on staging; flag `sync` on.
+
+**62 — Sync of settings.**
+1. Settings items per device type; pull while playing deferred;
+   first-paint copy.
+2. Script data items.
+3. Log out with or without local data; "Download everything".
+4. Owner test: two desktops and a phone.
+
+**63 — Runs in the cloud.**
+1. Body format, segmented encryption, upload queue.
+2. Worker: R2 endpoints, usage accounting, `quota`.
+3. History: cloud and device marks, fetch on open, storage line; the
+   "does not fit" dialog.
+4. Export docs; Statistics, Spotlights and Credits with cloud-only
+   runs.
+5. Owner test; flag `runs` on.
+
+**64 — Share links.**
+1. Worker: publications, payload storage, views, reports.
+2. Export editor: Link and the share dialog; My shared runs.
+3. The watch page and the sandboxed frame; Download as HTML.
+4. Hardening of the replay runtime against hostile payloads; fuzzing.
+5. Admin: report queue, hide, delete, suspend; `admin_log`.
+6. Owner test; flag `share` on.
+
+**65 — The gallery.**
+1. Mockups of the gallery and the watch page with stars and comments;
+   the owner picks.
+2. Worker: list with the weighted mean, votes, comments, news.
+3. The gallery page, stars, comments, rules tick, Published switch.
+4. The notice of new runs and its switch.
+5. Reports that hide; owner test with two accounts; flag `gallery` on.
+
+**66 — The admin panel.**
+1. Accounts list, limits, delete; the audit log view.
+2. Graphs.
+3. Owner test.
+
+Before 60, 61 and 64 are opened in production the owner tells the
+Valar what the client now does (intent Constraints); the text of the
+registration page is a good thing to show them.
+
+### 7.13 Later, perhaps
+
+Not planned; listed so they are not forgotten (intent Non-goals):
+
+- Version history of profiles and scripts in the cloud.
+- A shared library of scripts and tilesets.
+- Voluntary error reports from the client.
+- Test versions per branch (Cloudflare previews).
+- Passkeys as a second way in.
+- Sync of the imported map and of comm history.

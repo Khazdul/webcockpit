@@ -5,12 +5,17 @@
 > Goal 12 (phone access) approved 2026-10-04. Mudlet added to Goal 11
 > 2026-10-05. Goal 12 widened to light play on a phone 2026-11-10;
 > automatic login for the session on phone and tablet added 2026-11-13.
+> Goals 13–15 (accounts and sync, usage statistics, public sharing)
+> added 2026-11-13; with them the "no application server" constraint
+> and the "no accounts" non-goal were replaced.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
 
 A MUME client that runs entirely in a desktop browser, opened from a link,
-with no installation and no application server. It should feel as fast
+with no installation. The game connection goes straight from the browser
+to MUME; a small service of our own beside it only keeps accounts in
+step, counts use and hosts shared runs (Goals 13–15). It should feel as fast
 as TinTin++ in a terminal and look and behave nearly identically to
 Cockpit (`/home/ole/MUME`): the same start page, panes, menus, design and
 TUI feel. It is a new codebase; Cockpit is a knowledge and visual
@@ -125,6 +130,35 @@ reference only.
       connection and the login typed by the client. The owner
       evaluates this over time.
 
+13. **Accounts and sync** (owner decision 2026-11-13). A player can
+    create an account and get the same profiles, scripts, settings and
+    saved runs on every device, kept in step, with no export and
+    import between them.
+    - **An account is optional.** Playing without one stays possible
+      and loses nothing it has today.
+    - **User name and password, no e-mail.** No personal data is asked
+      for. MUME names and passwords are never stored.
+    - **The data is encrypted in the browser** before it is sent; the
+      service cannot read it. Registration says plainly how it works
+      and what the risks are, and the player chooses.
+    - Settings follow per device type (desktop, tablet, phone).
+    - Saved runs follow too, within a storage limit per account. When
+      a run does not fit, the player is offered to download it.
+    - Accounts are not deleted for inactivity: what a player made
+      stays. The owner can remove accounts by hand.
+14. **Usage statistics** (owner decision 2026-11-13). The owner can see
+    how many use the client, how many are online now, and how that
+    develops, on an admin page with graphs. Counting is anonymous, per
+    device, for every user. Who is online is never shown.
+15. **Public sharing of cut runs** (owner decision 2026-11-13). A run
+    cut in the export editor can be shared as a link instead of a
+    file, and published to a public page reached from the start page,
+    where others watch it, rate it with 1–5 stars and comment, and
+    where the best rated runs form a top list. A logged-in player gets
+    a notice when a new run has been published. Content shows at once;
+    it can be reported, and the owner removes content and blocks
+    accounts.
+
 ## Non-goals
 
 - Generic MUD client: MUME only.
@@ -143,14 +177,28 @@ reference only.
   scripts (Goal 10) are new code with a new API.
 - Automation limits enforced by the client: following MUME's rules is
   the player's responsibility.
-- Cross-device sync or user accounts (not in the first version).
+- Showing who is online, or any character or account name in the
+  statistics.
+- Version history of profiles and scripts in the cloud, a shared
+  library of scripts and tilesets, error reports from the client,
+  test versions per branch. Possible later, not planned.
+- Storing e-mail addresses or other personal data.
 - Pixel-identical copy of Cockpit: the target is "very close".
 
 ## Constraints
 
-- **No application server.** Static files only; the browser connects
-  directly to MUME's WebSocket endpoint. Verified 2026-09-27 (ADR 0002).
-  If MUME later blocks us, the fallback is to contact MUME.
+- **The game connection never passes through us.** The browser
+  connects directly to MUME's WebSocket endpoint. Verified 2026-09-27
+  (ADR 0002). If MUME later blocks us, the fallback is to contact MUME.
+- **A small service of our own, only beside the game** (2026-11-13,
+  replaces "No application server"; ADR 0144). It serves the files,
+  keeps accounts and their encrypted data, counts use and hosts shared
+  runs. Nothing it does may be in the path of a key press or a line of
+  game text (Goal 1), and the client must work in full when the
+  service is down or the player is logged out.
+- **Privacy by construction.** As little as possible is collected; the
+  GDPR is handled as well as a hobby project can: no e-mail, a plain
+  privacy text, deletion by the player.
 - **Private hobby project.** MUME management is not involved during
   development. The repository and deployment stay private until the
   owner judges the client mature. The Valar are contacted before
@@ -169,6 +217,8 @@ reference only.
   difference in output or command send speed.
 - **Look and feel:** Cockpit users recognise the start page, panes and
   menus immediately.
+- **Sync:** the owner edits a profile on the desktop, opens the phone,
+  and it is there; nothing is ever lost without a notice.
 - **Profile round-trip:** a profile can be exported to a file and
   re-imported with nothing lost, in both lite view and editor view.
 
