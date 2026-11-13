@@ -73,6 +73,9 @@ const demoRuns = (page: Page): Promise<void> =>
     await (await w.__wc.runs()).restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
   });
 
+/** The player at rest: the header, the rail and the markers have hidden after their delay; the bar stays. */
+const rest = (page: Page): Promise<void> => page.locator('.wc-player-chrome[data-hidden]').waitFor({ timeout: 12_000 });
+
 const sat = (page: Page, key: string) => page.locator(`.wc-player .wc-ph-sat[data-sat="${key}"]:visible`);
 
 const STATES: State[] = [
@@ -84,7 +87,7 @@ const STATES: State[] = [
       await player(page);
       await sat(page, 'panes').tap();
       await page.locator('.wc-player .wc-pane[data-phone-strip]').first().waitFor();
-      await page.waitForTimeout(600);
+      await rest(page);
     },
   },
   {
@@ -94,7 +97,7 @@ const STATES: State[] = [
       await player(page);
       await sat(page, 'comm').tap();
       await page.locator('.wc-player .wc-pane[data-pane="comm"]').waitFor();
-      await page.waitForTimeout(600);
+      await rest(page);
     },
   },
   {
@@ -137,7 +140,7 @@ const STATES: State[] = [
       await player(page);
       await sat(page, 'panes').tap();
       await page.locator('.wc-player .wc-pane[data-phone-strip]').first().waitFor();
-      await page.waitForTimeout(600);
+      await rest(page);
     },
   },
   {
