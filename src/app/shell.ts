@@ -19,8 +19,8 @@
 // is opened and prefetched when idle once the start page is up.
 //
 // ESC menu (Inv §4): the phone only since stage 30f (ADR 0112). Esc in the
-// input, `#menu` and the `☰` open it there; where the menu bar exists the
-// shell never mounts it, and nothing opens it.
+// input, `#menu` and the phone layer's menu key open it there; where the
+// menu bar exists the shell never mounts it, and nothing opens it.
 //
 // ESC menu auto-open (Inv §4.7), phone only since stage 30 (ADR 0100): on
 // a transition from login/playing to disconnected on a live connection,
@@ -35,7 +35,11 @@
 // layout (ADR 0136, stage 51): the App is built with `phoneGame`, the
 // phone layer (src/phone/, a chunk fetched only on a phone) is mounted
 // over its cockpit with the menu key in the command row, and `<html>` is
-// marked `wc-phone-game` while the cockpit is the visible view. The
+// marked `wc-phone-game` while the cockpit is the visible view. Should the
+// chunk not load, or the mount throw, a plain cover with a Reload button
+// takes the page (src/app/phone-failed.ts, stage 55): a phone has no other
+// layout. A phone in the browser's "Desktop site" mode is not a phone here
+// (src/core/device.ts `desktopSite`): it gets the desktop cockpit. The
 // cockpit's `ui` hands it `exitSession`; its popups close when the cockpit
 // is hidden. On the phone `ui.openMenuAt` opens the ESC menu straight at
 // the profile editor, Options → Scripts, Options, Panes or Exit (leaving
@@ -139,7 +143,7 @@ import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
-import { PHONE_MAX_SHORT_SIDE } from '../core/device';
+import { showPhoneFailed } from './phone-failed';
 import { device } from '../core/device';
 import { ownEditorOf, sendOwnKey, setPageKeyboard, setPageKeyboardUp } from '../core/own-keyboard';
 import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from './auto-reconnect';
@@ -187,30 +191,6 @@ export interface ShellOptions {
   fontsReady?: Promise<void>;
 }
 
-/**
- * True when `win` is as small as a phone's screen: its short side is under
- * `PHONE_MAX_SHORT_SIDE` CSS px. An unknown size (no window, a 0 × 0 one)
- * counts as a phone's.
- */
-export function phoneSizeWindow(win: Pick<Window, 'innerWidth' | 'innerHeight'> | null | undefined): boolean {
-  const w = win?.innerWidth ?? 0;
-  const h = win?.innerHeight ?? 0;
-  if (!(w > 0 && h > 0)) return true;
-  return Math.min(w, h) < PHONE_MAX_SHORT_SIDE;
-}
-
-/**
- * The phone's game layout is used (ADR 0136 §1, ADR 0140): on a tablet
- * (`device().tablet`, which `?tablet=phone` forces) whatever the window's
- * size; else with the phone flag on a window that is a phone's.
- */
-export function phoneGameWanted(
-  flags: { phone: boolean; tablet?: boolean },
-  win: Pick<Window, 'innerWidth' | 'innerHeight'> | null | undefined,
-): boolean {
-  return flags.phone && (flags.tablet === true || phoneSizeWindow(win));
-}
-
 export class Shell {
   private readonly opts: ShellOptions;
   readonly profiles: ProfileStore;
@@ -221,21 +201,20 @@ export class Shell {
   private phoneP: Promise<typeof import('../phone')> | null = null;
   /**
    * The phone's layout in the live game is used (ADR 0136 §1): the phone
-   * flag is on and the window is a phone's (its short side under 600 CSS
-   * px, as the flag's own rule). A phone flag forced with `?phone=1` on a
-   * desktop-size window keeps the old phone layout (the tab strip, `☰` and
-   * the ESC menu, ADR 0075): that is what the desktop projects' specs of
-   * the Options frames open, and a phone's layout is not made for it.
-   * Decided once, when the shell is built. A tablet (ADR 0140,
-   * src/core/device.ts) uses it whatever the window's size.
+   * flag (src/core/device.ts), which a tablet has too (ADR 0140) and a
+   * phone in "Desktop site" mode has not (stage 55). Read once, when the
+   * shell is built.
    */
   private readonly phoneGame: boolean;
   /** Phone only: our keyboard on the pages outside the game layout (ADR 0139; src/phone/keyboard-pages.ts). */
   private pageKeyboard: import('../phone').PageKeyboardHandle | null = null;
   /** Phone only: the mounted phone layer; its menu sheet replaces the ESC menu's main frame (ADR 0136 §10). */
   private phoneLayer: import('../phone').PhoneLayer | null = null;
-  /** Phone only: the phone layer's mount threw (the old `☰` and the device's keyboard on the command line stay). */
-  private phoneLayerFailed = false;
+  /**
+   * Phone only: settles when the phone layer is mounted over the cockpit, with null when it could
+   * not be (the cover is up then). Made with the App; `openMenu` waits for it.
+   */
+  private phoneLayerP: Promise<import('../phone').PhoneLayer | null> | null = null;
   /** Phone game layout: the automatic reconnect's memory (auto-reconnect.ts). */
   private autoState = AUTO_RECONNECT_IDLE;
   private startHost: HTMLDivElement;
@@ -273,7 +252,7 @@ export class Shell {
     this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
-    this.phoneGame = phoneGameWanted(device(), doc.defaultView);
+    this.phoneGame = device().phone;
     // Our own keyboard is the phone's (ADR 0138, ADR 0139). Before any page is drawn: the shared
     // field components mark their fields by it.
     setPageKeyboard(this.phoneGame);
@@ -320,7 +299,8 @@ export class Shell {
     void this.initProfiles();
     void this.newUserScripts();
     // Phone only (ADR 0136): fetch the phone layer now, so it is there when the game opens.
-    if (this.phoneGame) void this.loadPhone().catch(() => {});
+    // (A chunk that cannot be loaded: the cover with Reload, at boot already.)
+    if (this.phoneGame) void this.loadPhone().catch(() => this.phoneFailed());
     if (this.phoneGame) this.mountPageKeyboard();
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
@@ -461,13 +441,16 @@ export class Shell {
    * settings page (`panes` at its Panes group), `exit` the phone's own
    * Exit session confirmation (stage 52), and `profile` and `scripts` open
    * the existing pages straight at their frame in the ESC menu's overlay,
-   * as before. Without the layer (its chunk could not be loaded)
-   * everything is the ESC menu, as before stage 51.
+   * as before. Called before the layer is up (Esc or a dropped link in
+   * the moment the chunk loads), it waits for the layer; without one (the
+   * chunk could not be loaded: the cover is up) nothing opens.
    */
   async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
     if (!this.inCockpit || !this.appRef || this.appRef.menuBar) return;
-    const sheet = this.phoneLayer?.menu;
-    if (sheet) {
+    if (this.phoneGame) {
+      const layer = this.phoneLayer ?? (await this.phoneLayerP);
+      if (!layer || !this.inCockpit) return;
+      const sheet = layer.menu;
       // A page of the overlay is up: it has the screen (and its own Esc).
       if (this.menu?.isOpen) return;
       if (!target) {
@@ -489,27 +472,6 @@ export class Shell {
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
     menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
-  }
-
-  /**
-   * The phone's old menu button (`☰`) at the end of the input row; a tap
-   * opens the ESC menu without focusing the input. Since stage 51 (ADR
-   * 0136) the phone layer has its own menu key: this one is only the way
-   * into the menu when the phone layer's chunk could not be loaded.
-   */
-  private menuButton(doc: Document): HTMLSpanElement {
-    const b = doc.createElement('span');
-    b.className = 'wc-menu-btn';
-    b.textContent = '☰';
-    b.title = 'Menu';
-    b.setAttribute('role', 'button');
-    b.setAttribute('aria-label', 'Menu');
-    b.addEventListener('mousedown', (e) => e.preventDefault());
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      void this.openMenu();
-    });
-    return b;
   }
 
   /** Closes the ESC menu and gives the input its focus back. */
@@ -814,19 +776,29 @@ export class Shell {
           setPageKeyboard(false);
         }
       },
-      () => setPageKeyboard(false),
+      () => {
+        setPageKeyboard(false);
+        this.phoneFailed();
+      },
     );
+  }
+
+  /**
+   * Phone only (stage 55): the phone layout could not be loaded or mounted.
+   * A plain cover over the app with a Reload button; a phone has no other
+   * layout, so nothing behind it is offered.
+   */
+  private phoneFailed(): void {
+    showPhoneFailed(this.opts.root);
   }
 
   /**
    * Phone only: whether a shrunken visible area is taken for the device's
    * keyboard (phone-viewport.ts). Not where our keyboard is the phone's
-   * only one: the pages' keyboard is mounted and the phone layer did not
-   * fail to mount. Where the layer failed the command line has the
-   * device's keyboard, whatever order the two mounts finished in.
+   * only one: once the pages' keyboard is mounted.
    */
   private syncDeviceKeyboard(): void {
-    watchDeviceKeyboard(this.pageKeyboard === null || this.phoneLayerFailed, this.opts.root.ownerDocument);
+    watchDeviceKeyboard(this.pageKeyboard === null, this.opts.root.ownerDocument);
   }
 
   /** Phone only: the phone layer's chunk (ADR 0136); a failed load may be tried again. */
@@ -859,12 +831,8 @@ export class Shell {
           ? {
               openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target),
               // The Statistics pane is a page of the phone's pane strip (ADR 0136 §5): its view, as on the desktop.
-              ...(this.phoneGame
-                ? {
-                    mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
-                      this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
-                  }
-                : {}),
+              mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
+                this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
             }
           : {
               toggleWindow: (id: WindowId) => void this.toggleWindow(id),
@@ -892,20 +860,13 @@ export class Shell {
     }
     // Phone only (ADR 0136): the phone layer over the cockpit (fight card,
     // compass, the menu key in the command row; its chunk is not loaded
-    // elsewhere). The menu key opens the ESC menu, as Esc does (ADR 0112).
-    // Should the chunk be gone, the old `☰` is the way into the menu.
-    // Desktop and tablet have the bar. A phone flag forced on a
-    // desktop-size window (`phoneGame` false) keeps the old layout: its `☰`
-    // and the ESC menu, as before stage 51.
-    if (device().phone && !this.phoneGame) rowEnd.after(this.menuButton(root.ownerDocument));
+    // elsewhere). The menu key opens the menu, as Esc does (ADR 0112).
+    // Until it is up there is no menu key, and `openMenu` waits for it.
+    // Should the chunk be gone or the mount throw, the cover with Reload
+    // takes the page (stage 55). Desktop and tablet have the bar.
     if (this.phoneGame) {
-      // The old `☰` at once, so there is never a moment without a menu key;
-      // it goes when the layer is up, and stays if the chunk cannot be
-      // loaded or the mount throws.
-      const old = this.menuButton(root.ownerDocument);
-      rowEnd.after(old);
       // With the chrome chunk: the settings page's controls are the look kit's.
-      Promise.all([this.loadPhone(), this.loadChrome()]).then(
+      this.phoneLayerP = Promise.all([this.loadPhone(), this.loadChrome()]).then(
         ([phone, chrome]) => {
           // The chunk is here (perhaps on a second try): the pages' keyboard too, if it is not yet.
           this.mountPageKeyboard();
@@ -965,16 +926,18 @@ export class Shell {
               // Automatic login for the session (ADR 0141): all of it is in the phone's chunk.
               autoLogin: { session: app.session, bus: app.bus, userReconnect: REASON_USER_RECONNECT, linkLost: isLinkLoss },
             });
-            old.remove();
-            this.phoneLayerFailed = false;
-            this.syncDeviceKeyboard();
+            return this.phoneLayer;
           } catch (err) {
             console.error('WebCockpit: the phone layer could not be mounted', err);
-            this.phoneLayerFailed = true;
-            this.syncDeviceKeyboard();
+            this.phoneFailed();
+            return null;
           }
         },
-        () => {},
+        (err) => {
+          console.error('WebCockpit: the phone layout could not be loaded', err);
+          this.phoneFailed();
+          return null;
+        },
       );
     }
     // Phone only (ADR 0075 §3.4): back from the background, check the link
@@ -1143,7 +1106,8 @@ export class Shell {
     if (this.opts.probe) return;
     try {
       await this.opts.settings.load();
-      if (this.opts.settings.fresh && !device().phone) await this.scripts.enableForNewUser(NEW_USER_SCRIPTS);
+      // (The device, not the mode: a phone in "Desktop site" mode is a phone here, stage 55.)
+      if (this.opts.settings.fresh && !device().phone && !device().desktopSite) await this.scripts.enableForNewUser(NEW_USER_SCRIPTS);
     } catch {
       /* the Scripts page reports storage errors */
     }
