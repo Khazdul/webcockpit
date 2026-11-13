@@ -17,16 +17,21 @@
 // contents overlay, then a non-empty find), and the editor below keeps
 // its buffer, cursor, undo history and search.
 //
+// The manual comes back where it was left (stage 57, ADR 0143): its place
+// (the section and the scroll inside it) is kept while the page lives, one
+// place for every way in. F1 on a name the manual has an entry for goes to
+// that entry instead, and that is then the place.
+//
 // Hooks: `.wc-sman` (the frame's root, the box), `.wc-sman-iback` (the
 // head's Back in a window); the reader's are the kit's (`.wc-lk-manual`,
 // `.wc-lk-mtoc li[data-i]`, `.wc-lk-mtext section[data-i]`,
 // `.wc-lk-mfind input`, `.wc-search-count`).
 
 import type { ComponentChildren, VNode } from 'preact';
-import { useRef } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { Box, InlineBack, lookFrame, useLookPlace, useWindowChrome } from '../chrome/kit/look';
 import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
-import { type ManualCtl, LookManual, codeLine } from './look-manual';
+import { type ManualCtl, LookManual, codeLine, manualPlace } from './look-manual';
 import type { FindMemory } from './look-manual-find';
 import { apiDoc } from './lua-api';
 import { EMPTY_QUERY } from './manual-search';
@@ -67,11 +72,21 @@ export function scriptManualSection(name?: string): number {
 
 /** Pushes the manual, at the reference entry or section of `name` when there is one. */
 export function openScriptManual(nav: Nav, name?: string): void {
-  nav.push(<ScriptManual section={scriptManualSection(name)} />);
+  const i = name ? manualSectionOf(name) : -1;
+  nav.push(i >= 0 ? <ScriptManual section={i} /> : <ScriptManual />);
 }
 
-export const ScriptManual = lookFrame(function ScriptManual({ section = 0 }: { section?: number }): VNode {
+/** `section`: opens at that section's top; without it, where the manual was left. */
+export const ScriptManual = lookFrame(function ScriptManual({ section }: { section?: number }): VNode {
   const nav = useNav();
+  const [at] = useState(() => {
+    const p = manualPlace('script');
+    if (section !== undefined) {
+      p.section = section;
+      p.offset = 0;
+    }
+    return p;
+  });
   const place = useLookPlace();
   const ctl = useRef<ManualCtl | null>(null);
   useWindowChrome({ title: 'Scripts', note: 'Manual' });
@@ -96,7 +111,7 @@ export const ScriptManual = lookFrame(function ScriptManual({ section = 0 }: { s
         contents="own"
         find="head"
         groups={SCRIPT_MANUAL_GROUPS}
-        initial={section}
+        place={at}
         link={link}
         example={example}
         memory={memory}

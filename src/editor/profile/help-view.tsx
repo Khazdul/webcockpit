@@ -8,7 +8,7 @@
 import type { VNode } from 'preact';
 import { Select } from '../../chrome/kit/look';
 import type { HelpSection } from '../help';
-import { type ManualCtl, LookManual, ManualContents, codeLine } from '../look-manual';
+import { type ManualCtl, type ManualPlace, LookManual, ManualContents, codeLine } from '../look-manual';
 import type { FindMemory } from '../look-manual-find';
 
 /** The manual's groups as the rail labels them (the intro gets a label too). */
@@ -48,6 +48,8 @@ export function HelpRail(p: {
 export function HelpView(p: {
   sections: readonly HelpSection[];
   initial: number;
+  /** Where the manual was left (kept while the page lives, ADR 0143). */
+  place: ManualPlace;
   memory: FindMemory;
   onSection(i: number): void;
   ctl(c: ManualCtl | null): void;
@@ -58,6 +60,7 @@ export function HelpView(p: {
       contents="none"
       find="bar"
       initial={p.initial}
+      place={p.place}
       memory={p.memory}
       onSection={p.onSection}
       ctl={p.ctl}
