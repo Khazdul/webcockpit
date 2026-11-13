@@ -984,6 +984,113 @@ test.describe('a refused hold with our keyboard and Comm open (portrait)', () =>
   });
 });
 
+// Stage 56, after 56a: landscape too. There the box stands right of the left column, and the
+// column always ends well left of the hot keys (the cockpit's `setPhoneSideClear`), so on a real
+// screen the hold is never refused for room: the first test of each pair. The answer is still
+// worked out before the keyboard folds, on the layout that would be without it; no real screen
+// makes that one refuse, so the second test gives the layout without the keyboard a column that
+// reaches the right edge (both as the layout that would be and as the one laid out).
+for (const [name, viewport, query] of [
+  ['a phone on its side (844 × 390)', { width: 844, height: 390 }, 'phone=1&kbd=en'],
+  ['a tablet on its side (1180 × 820)', { width: 1180, height: 820 }, 'tablet=phone&kbd=en'],
+] as const) {
+  test.describe(`a hold with our keyboard up in landscape, ${name}`, () => {
+    test.use({ viewport });
+
+    for (const comm of [false, true]) {
+      const what = comm ? 'the keyboard and Comm' : 'the keyboard alone';
+
+      /** The cockpit in landscape with our keyboard up (and Comm in the left column), settled. */
+      const open = async (page: Page): Promise<Locator> => {
+        await page.goto(`/?replay&${query}`);
+        await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
+        await expect(pad(page)).toBeVisible();
+        if (comm) await page.locator('.wc-ph-sat[data-sat="comm"]:visible').tap();
+        await field(page).tap();
+        const okb = page.locator('.wc-ph-okb');
+        await expect(okb).toBeVisible();
+        await expect(hk(page, 1)).toBeVisible();
+        await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+        const g = await pgLayout(page);
+        expect([g.landscape, g.bottom > 0, g.side.w > 0]).toEqual([true, true, comm]);
+        return okb;
+      };
+
+      test(`${what}: the hold folds the keyboard and opens the box right of the column; one window size; Comm stays`, async ({ page }) => {
+        const errors = watchErrors(page);
+        const okb = await open(page);
+        const was = await pgLayout(page);
+        const seen = await watchScreen(page);
+        await hold(page, hk(page, 1));
+        await expect(rb(page)).toBeVisible();
+        await expect(okb).toBeHidden();
+        await expect(page.locator('html')).not.toHaveClass(/\bwc-okb\b/);
+        const g = await pgLayout(page);
+        expect([g.bottom, g.hidden, g.side.w, g.comm.h > 0]).toEqual([0, { strip: false, comm: false }, was.side.w, comm]);
+        const b = await box(rb(page));
+        expect(b.x).toBeGreaterThanOrEqual(g.side.w * (await page.evaluate(() => window.__wc!.cells.get().w)) - 0.5);
+        expect(b.width).toBeGreaterThanOrEqual(200);
+        expect(b.y).toBeGreaterThanOrEqual(0);
+        expect((await seen()).filter((e) => e.startsWith('naws'))).toHaveLength(1);
+        // The finger's release did not open the keyboard again.
+        await page.waitForTimeout(300);
+        await expect(okb).toBeHidden();
+        expect(errors).toEqual([]);
+      });
+
+      test(`${what}, no room on the layout without the keyboard: nothing changes, the keyboard stays up and types`, async ({ page }) => {
+        const errors = watchErrors(page);
+        const okb = await open(page);
+        await page.evaluate(() => {
+          const c = window.__wc!.app.cockpit;
+          type G = NonNullable<typeof c.phoneGameLayout>;
+          const w = window as unknown as { __asked: number; __okb: string[] };
+          // A layout without the keyboard has a left column over the whole width.
+          const full = <T extends G | null>(g: T): T => (g && g.bottom === 0 ? { ...g, side: { ...g.side, w: g.game.x + g.game.w } } : g);
+          const realIf = c.phoneGameLayoutIf.bind(c);
+          w.__asked = 0;
+          c.phoneGameLayoutIf = (ask) => {
+            w.__asked++;
+            return full(realIf(ask));
+          };
+          const real = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(c), 'phoneGameLayout')!.get!;
+          Object.defineProperty(c, 'phoneGameLayout', { configurable: true, get: () => full(real.call(c) as G | null) });
+          // Every change of the keyboard, the page's keyboard class, the box and Comm's pane.
+          w.__okb = [];
+          const mo = new MutationObserver((ms) => {
+            for (const m of ms) w.__okb.push(`${(m.target as HTMLElement).classList[0] ?? (m.target as HTMLElement).tagName} ${m.attributeName}`);
+          });
+          mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+          mo.observe(document.querySelector('.wc-ph-okb')!, { attributes: true });
+          mo.observe(document.querySelector('.wc-cockpit > .wc-pane[data-pane="comm"]')!, { attributes: true });
+        });
+        const was = await pgLayout(page);
+        expect(was.bottom).toBeGreaterThan(0);
+        const at = await box(okb);
+        const focused = await inputFocused(page);
+        const seen = await watchScreen(page);
+        await longPress(page, hk(page, 1));
+        await expect(rb(page)).toBeHidden();
+        // Nothing at all: no layout, no window size, nothing shown or hidden, the keyboard where it was.
+        await expect(okb).toBeVisible();
+        expect(await seen()).toEqual([]);
+        expect(await page.evaluate(() => (window as unknown as { __okb: string[] }).__okb)).toEqual([]);
+        expect(await pgLayout(page)).toEqual(was);
+        expect(await box(okb)).toEqual(at);
+        await expect(page.locator('html')).toHaveClass(/\bwc-okb\b/);
+        await expect(hk(page, 1)).not.toHaveClass(/\bis-held\b/);
+        expect(await inputFocused(page)).toBe(focused);
+        // (And the answer came from the layout that would be.)
+        expect(await page.evaluate(() => (window as unknown as { __asked: number }).__asked)).toBeGreaterThan(0);
+        // The keyboard still types.
+        await okb.locator('.wc-ph-okb-k[data-ch="q"]').tap();
+        await expect(field(page)).toHaveValue('q');
+        expect(errors).toEqual([]);
+      });
+    }
+  });
+}
+
 test.describe('a hold with no room for the box', () => {
   // A screen so low that the box would be under its least height beside the columns, though the
   // layout itself still fits (a split screen): nothing above the game text to take out helps.
