@@ -324,7 +324,7 @@ test('a size stored too large: the notice shows, a menu key over it opens the sh
   await page.touchscreen.tap(100, 60);
   await expect(rescue).toBeHidden();
   await expect(page.locator('.wc-ph-menu')).toBeVisible();
-  await expect(page.locator('.wc-menu-btn')).toHaveCount(1);
+  await expect(page.locator('.wc-ph-menu')).toHaveCount(1);
 });
 
 test('Black / Paper: a tap sets the background with its ink and palette; the sheet turns Paper too', async ({ page }) => {

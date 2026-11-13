@@ -11,7 +11,7 @@
 // events and after every published update, nothing per frame.
 
 import { isFullscreen } from '../core/fullscreen';
-import { keyboardUp, onPhoneViewportApplied, virtualKeyboardOf } from './phone-viewport';
+import { onPhoneViewportApplied, virtualKeyboardOf } from './phone-viewport';
 
 /** A number for the readout: one decimal at most. */
 const n = (v: number | undefined): string => (typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v * 10) / 10) : '?');
@@ -29,7 +29,6 @@ export function viewportReadoutText(win: Window): string {
     `fs ${isFullscreen(win.document) ? 1 : 0}`,
     vk && rect ? `vk top ${n(rect.top)} h ${n(rect.height)} oc ${vk.overlaysContent ? 1 : 0}` : 'no VK',
     `--wc-vv-h ${root.style.getPropertyValue('--wc-vv-h') || '-'}`,
-    `kbd ${keyboardUp() ? 1 : 0}`,
   ].join(' | ');
 }
 

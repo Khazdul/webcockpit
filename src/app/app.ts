@@ -20,8 +20,8 @@
 // panes in the docks, laid out from the settings (ADR 0010, ADR 0012).
 //
 // `app.status` is the read-only status observable (connection, character,
-// Link, capture, XML) for the menu bar's tooltips and the phone's ESC menu
-// header. Its text form is also kept
+// Link, capture, XML) for the menu bar's tooltips and the phone's menu
+// sheet. Its text form is also kept
 // in `data-status` on the app element for the browser tests.
 //
 // Live vs replay
@@ -63,8 +63,8 @@
 // clock strip becomes the menu bar (src/menubar/menubar.ts), and there is
 // no ESC menu (ADR 0112). The client commands `#profile`, `#scripts`,
 // `#settings`, `#panes`, `#exit` and `#fullscreen` open or toggle the same
-// things; without the bar (the phone) they open the ESC menu at the
-// matching frame (`ui.openMenuAt`). Profile and Scripts toggle the shell's
+// things; without the bar (the phone) they open the phone's menu at the
+// matching page (`ui.openMenuAt`). Profile and Scripts toggle the shell's
 // windows (`ui.toggleWindow`, ADR 0103); Settings and `#settings` toggle
 // the shell's Settings popup (`ui.toggleSettings`, ADR 0107), which the
 // bar holds as its open popup while it is open. The Map, Comm, Timers and
@@ -77,7 +77,7 @@
 // popup opens, as the bar's Exit icon does (ADR 0112 addendum; in the
 // cockpit's fullscreen Esc reaches the page only with the bar's Keyboard
 // Lock). Without the bar (the
-// phone): the ESC menu opens (`onEscape`). `#menu` opens the ESC menu on
+// phone): the phone's menu opens (`onEscape`). `#menu` opens it on
 // the phone and prints a hint naming the bar and its commands where the
 // bar exists. The popups take the focus when they open (ADR 0108); Tab in
 // the input never moves the focus, and Tab from a stray focus in the shown
@@ -128,7 +128,7 @@ import type { ScriptLibrary } from '../scripts';
 import type { ScriptHost } from '../scripts/host';
 import { GmcpCache } from '../scripts/gmcp-cache';
 import { device } from '../core/device';
-import { phoneNawsCols } from '../layout/phone';
+import { phoneNawsCols } from '../layout/phone-game';
 import type { PaneId } from '../layout/types';
 
 /** sessionStorage key: the `#perf` overlay is on in this tab (ADR 0135). */
@@ -188,7 +188,7 @@ export interface AppOptions {
   settings?: SettingsStore;
   /**
    * Without the bar (the phone): ESC in the input when the output is not
-   * scrolled, and `#menu`, open the ESC menu (src/app/shell.ts). Never
+   * scrolled, and `#menu`, open the phone's menu (src/app/shell.ts). Never
    * called where the bar exists (ADR 0112).
    */
   onEscape?: () => void;
@@ -244,17 +244,12 @@ export interface AppOptions {
    */
   ui?: AppUi;
   /**
-   * The phone's layout (ADR 0136): the cockpit's `phoneGame` option. The
-   * live game's shell passes it, on a phone; the phone layer (src/phone/)
-   * is mounted by the shell. A player App may pass it too, together with
-   * `phoneReplay` (stage 55); whoever builds that App mounts the layer in
-   * its replay mode.
-   */
-  phoneGame?: boolean;
-  /**
-   * With `phoneGame`, in a player App: the cockpit's `phoneReplay` option
+   * On a phone (the device's phone flag: the cockpit then has the phone's
+   * layout, ADR 0136), in a player App: the cockpit's `phoneReplay` option
    * (no command line; `bar` keeps the command row's rows for the player's
-   * transport bar). Without `phoneGame` it does nothing.
+   * transport bar). Whoever builds the App mounts the phone layer
+   * (src/phone/): the shell over the live game, the player host in its
+   * replay mode (stage 55). Without the phone flag it does nothing.
    */
   phoneReplay?: { bar: boolean };
   /** Hang-guard storage for the script host (tests; default `localStorage`). */
@@ -263,7 +258,7 @@ export interface AppOptions {
   loadLua?: () => Promise<import('../lua').LuaRuntime>;
 }
 
-/** An ESC menu frame the shell can open straight away (ADR 0099; the phone). */
+/** A page of the phone's menu the shell can open straight away (ADR 0099; `profile` and `scripts` in the ESC menu's overlay). */
 export type MenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
 
 /** What the Statistics pane's view reads (ADR 0109). */
@@ -277,7 +272,7 @@ export interface AppUi {
   /** Build the menu bar (desktop and tablet). */
   bar: boolean;
   /**
-   * Without the bar (the phone): opens the ESC menu at `target`'s frame;
+   * Without the bar (the phone): opens the phone's menu at `target`'s page;
    * leaving it closes the menu. Absent (where the bar exists, ADR 0112):
    * the commands without a bar target say they are not available.
    */
@@ -286,12 +281,12 @@ export interface AppUi {
   exit(): void;
   /**
    * With the bar: toggles the Profile or Scripts window (ADR 0103). Without
-   * the bar: they open the ESC menu at their frame.
+   * the bar: they open the phone's menu at their page.
    */
   toggleWindow?(id: 'profile' | 'scripts'): void;
   /**
    * With the bar: toggles the Settings popup (ADR 0107). Without the bar:
-   * `#settings` opens the ESC menu at Options.
+   * `#settings` opens the phone's settings page.
    */
   toggleSettings?(): void;
   /**
@@ -492,9 +487,8 @@ export class App {
       onFocusInput: () => this.input.focus(),
       paneContext,
       ...(this.appUi?.bar && this.appUi.togglePaneSettings ? { onGear: (id: PaneId) => this.appUi?.togglePaneSettings?.(id) } : {}),
-      ...(opts.phoneGame ? { phoneGame: true } : {}),
-      // Over a replay (stage 55): a player App's cockpit, without a command line.
-      ...(opts.phoneGame && opts.phoneReplay ? { phoneReplay: opts.phoneReplay } : {}),
+      // The phone's layout over a replay (stage 55): a player App's cockpit, without a command line.
+      ...(opts.phoneReplay ? { phoneReplay: opts.phoneReplay } : {}),
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,
@@ -1050,7 +1044,7 @@ export class App {
 
   /** Macro hook: runs the macro for a key; false when none is bound. */
   onMacroKey(key: string): boolean {
-    if (!this.script.hasMacro(key)) return this.phoneTabKey(key);
+    if (!this.script.hasMacro(key)) return this.phonePageKey(key);
     this.userAction = true;
     this.userActionHandled = false;
     this.perf?.keyStart(KEY_MACRO);
@@ -1063,10 +1057,10 @@ export class App {
     return true;
   }
 
-  /** Phone only: Ctrl+1…9 or Alt+1…9 selects the strip's tab by position (ADR 0098). */
-  private phoneTabKey(key: string): boolean {
+  /** Phone only: Ctrl+1…9 or Alt+1…9 shows the pane strip's page at that position (ADR 0136 §5). */
+  private phonePageKey(key: string): boolean {
     const m = /^(?:Ctrl|Alt)\+([1-9])$/.exec(key);
-    return m !== null && this.cockpit.selectTabAt(Number(m[1]) - 1);
+    return m !== null && this.cockpit.phonePageKey(Number(m[1]) - 1);
   }
 
   /** The engine's sender: to the game when connected. */

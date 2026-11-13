@@ -1,7 +1,7 @@
 // Exit session on the phone's game layout (stage 52): the confirmation, in
 // the menu sheet's look. Before, the sheet's Exit session opened the ESC
-// menu's old-look frame (`ExitConfirm`, src/chrome/frames/esc-main.tsx),
-// which the old phone layout and the fallback still use.
+// menu's old-look frame (`ExitConfirm`), which went with the old phone
+// layout (stage 55).
 //
 // Same behaviour and choices as that frame (Inv §4.6, ADR 0018):
 // - `Rate & save this run (optional)` with five stars when there is a run

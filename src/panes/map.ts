@@ -34,12 +34,14 @@
 //   search, ADR 0077 §B) go to the
 //   worker; the answers back to the hub) and detaches on dispose.
 //   `mapMarks` (dataset) counts the live marks.
-// - Phone (ADR 0075 §3.3, `device().phone`): the MAP tab is hidden while
-//   another tab is selected, so forwarding stays on while hidden (once the
-//   map is loaded; the worker tracks but draws nothing), and the last
-//   Room.Info and Char.StatusVars are kept from construction and replayed
-//   after the first `resync`, so a map first opened mid-session finds the
-//   player at once. Desktop keeps "shown and loaded".
+// - Phone (ADR 0075 §3.3, `device().phone`): while the pane has no lens
+//   (below; before the phone layer sets one, or a replay without the
+//   layer) forwarding stays on while it is hidden (once the map is loaded;
+//   the worker tracks but draws nothing). The rule is from the old phone
+//   layout's MAP tab, which went with stage 55. The last Room.Info and
+//   Char.StatusVars are kept from construction and replayed after the
+//   first `resync`, so a map first shown mid-session finds the player at
+//   once. Desktop keeps "shown and loaded".
 // - Room notes (ADR 0077): with a `PaneContext.mapNotes` that wants them,
 //   Room.Info goes to the worker with a sequence number; the worker's
 //   `roomNotes` answer is handed back with that Room.Info's bus payload.
@@ -388,7 +390,7 @@ export class MapPane extends PaneShell {
 
   /**
    * Whether game events go to the worker while the pane is hidden: on a
-   * phone's tab strip (the MAP tab keeps tracking, ADR 0075 §3.3), not for
+   * phone while no lens is set (see the file header), not for
    * the lens (ADR 0136 §4: a lens that is off or has no room costs nothing
    * per line; shown again, the last room is replayed and it finds the
    * player).
@@ -397,7 +399,7 @@ export class MapPane extends PaneShell {
     return this.forwardHidden && this.lens === null;
   }
 
-  /** Forwarding follows "shown and loaded" (phone tab strip: "loaded"). */
+  /** Forwarding follows "shown and loaded" (a phone without a lens: "loaded"). */
   private syncForward(): void {
     this.forward((this.visible || this.keepsForwarding()) && this.loaded && this.client !== null);
   }

@@ -6,7 +6,7 @@
 import { STATUS as CAPTURE_STATUS } from '../capture/recorder';
 import { canFullscreen, onFullscreenRefused, toggleFullscreen } from '../core/fullscreen';
 import { vitalPct } from '../gmcp/group';
-import { PHONE_MIN_COLS, PHONE_MIN_ROWS } from '../layout/phone';
+import { PHONE_MIN_COLS, PHONE_MIN_ROWS } from '../layout/phone-game';
 import { fightView } from '../panes/group-model';
 import { GROUP_DARK } from '../panes/palette';
 import type { PhoneKit } from '../phone/kit';

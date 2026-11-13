@@ -67,7 +67,7 @@
 // On a phone or tablet (stage 55): the shell hands in the phone layer's
 // module (`PlayerHostOptions.phone`; this file is also bundled into the
 // HTML replay and imports nothing of src/phone but types). The player App
-// is then built with the phone's game layout (`phoneGame`, `phoneReplay`),
+// is then built with the phone's game layout over a replay (`phoneReplay`),
 // and the font is kept at the recorded size down to the phone layout's
 // least grid. The run log player gets the phone layer over each App it
 // builds, in its replay mode (lens, strip, Comm read-only, bands; no keys):
@@ -449,7 +449,7 @@ export class PlayerHost {
       requestFrame: gate.request,
       paneRequestFrame: gate.request,
       ...(this.opts.map ? { map: this.opts.map } : {}),
-      ...(this.opts.phone ? { phoneGame: true, phoneReplay: { bar: this.phoneBar } } : {}),
+      ...(this.opts.phone ? { phoneReplay: { bar: this.phoneBar } } : {}),
     });
     this.appRef = app;
     const unsub = store.subscribe((next, prev) => {

@@ -1,11 +1,11 @@
 /* The phone layer (src/phone/, ADR 0136): the chrome of the phone's layout
  * in the live game. Every rule is scoped under `html.wc-phone` AND the
- * cockpit's `data-phone-game` (set by the cockpit only with its `phoneGame`
- * option and the phone flag), so nothing here matches on a desktop, on a
- * tablet or in the run log player. The one exception names the page-level
- * fullscreen button and is scoped under `html.wc-phone.wc-phone-game`,
- * the class the shell sets while the phone's game layout is up. The
- * keyboard's own rules also match in the pages' mount (`.wc-okb-page`,
+ * cockpit's `data-phone-game` (set by the cockpit with the phone flag, in
+ * the live game and in the run log player), so nothing here matches on a
+ * desktop or on a tablet in the desktop layout. The one exception names
+ * the page-level fullscreen button and is scoped under
+ * `html.wc-phone.wc-phone-game`, the class the shell sets while the
+ * phone's game layout is up. The keyboard's own rules also match in the pages' mount (`.wc-okb-page`,
  * ADR 0139), which exists only on a phone with our keyboard.
  *
  * Laid out in CSS px, not cells: thumb-size targets whatever the text
@@ -2120,6 +2120,8 @@ html.wc-phone .wc-cockpit[data-phone-game][data-too-small] > .wc-ph-menu-rescue 
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -2169,21 +2171,6 @@ html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field::pla
  * brings Android's selection pop-up. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot .wc-input-field.wc-input-kept {
   color: var(--ph-dim);
-}
-
-/* The old `☰` (src/app/shell.ts keeps it when the phone layer could not be mounted): it sits at
- * the field's end, inside its edge. A key of its own there, not a glyph over the text. */
-html.wc-phone .wc-cockpit[data-phone-game] > .wc-input-slot > .wc-input > .wc-menu-btn:not(.wc-ph-menu) {
-  flex: 0 0 44px;
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  margin: 0 -12px 0 8px;
-  border-left: 1px solid var(--ph-field-edge);
-  color: var(--ph-lamp);
-  text-align: center;
 }
 
 /* Not typing: no hollow caret over the placeholder. */

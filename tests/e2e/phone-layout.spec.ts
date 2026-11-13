@@ -5,8 +5,8 @@
 // Since stage 51a (ADR 0136) the live game on a phone has no tab strip:
 // what is left here is what still holds there (the guard, the visible
 // area, the menu, landscape, the start page). The new shell has its own
-// spec (phone-game-shell.spec.ts); the tab strip cases moved to the run
-// log player, which keeps the strip (phone-player-tabs.spec.ts).
+// spec (phone-game-shell.spec.ts). The tab strip itself went with stage 55
+// (the run log player has the phone's layout too).
 import { type Page, expect, test } from '@playwright/test';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0&phone=1';
@@ -54,7 +54,7 @@ test('the phone has the menu key and no menu bar (ADR 0099, ADR 0136 §9)', asyn
   await openDemo(page);
   await expect(page.locator('.wc-menubar')).toHaveCount(0);
   await expect(page.locator('.wc-ph-menu')).toBeVisible();
-  await expect(page.locator('.wc-menu-btn')).toHaveCount(1);
+  await expect(page.locator('.wc-ph-menu')).toHaveCount(1);
   // #panes opens the phone's settings page (its Panes group comes in stage 51d).
   const field = page.locator('.wc-input-slot textarea, .wc-input-slot input').first();
   await field.fill('#panes');

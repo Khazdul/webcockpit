@@ -48,7 +48,7 @@ test('the bar sits at the end of the input row on the cell grid, with no touch c
   await expect(page.locator('.wc-mb-sep')).toHaveCount(2);
   const ids = await page.locator('.wc-mb').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.mb));
   expect(ids).toEqual(['profile', 'scripts', 'panes', 'settings', 'fullscreen', 'exit']);
-  await expect(page.locator('.wc-menu-btn')).toHaveCount(0);
+  await expect(page.locator('.wc-ph-menu')).toHaveCount(0);
   await expect(page.locator('.wc-fs-btn')).toHaveCount(0);
   const geo = await page.evaluate(() => {
     const cw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-w'));

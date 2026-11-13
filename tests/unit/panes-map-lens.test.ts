@@ -4,7 +4,7 @@
 // pan, pinch and wheel zoom, and `zoomTo` sends an absolute zoom (again
 // when the worker starts and after a map load); `setLens(null)` gives all
 // of it back. The stored settings are never written. A hidden lens stops
-// forwarding game events (a phone's tab strip keeps it).
+// forwarding game events (a phone's pane without a lens keeps it).
 //
 // The worker is a recorder (`spawnMapWorker` mocked): nothing draws.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -275,7 +275,7 @@ describe('MapPane as the lens', () => {
     expect(JSON.stringify(after)).toContain('"id":3');
     h.pane.dispose();
 
-    // Without a lens (the player's tab strip on a phone) a hidden map keeps tracking.
+    // Without a lens (a phone before the layer sets one) a hidden map keeps tracking.
     const t = setup({ touch: true });
     t.show();
     await settle();

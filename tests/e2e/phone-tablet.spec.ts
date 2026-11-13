@@ -67,7 +67,6 @@ for (const [name, viewport] of [
       await expect(html(page)).toHaveClass(/\bwc-phone-game\b/);
       await expect(page.locator('.wc-ph-menu')).toBeVisible();
       await expect(page.locator('.wc-mb-bar')).toHaveCount(0);
-      await expect(page.locator('.wc-phone-tabs')).toHaveCount(0);
       expect(await page.evaluate(() => window.__wc!.app.cockpit.phoneGameLayout!.landscape)).toBe(land);
       // The compass and the hot keys keep the phone's sizes (ADR 0137): 36 px upright, 44 px on the side.
       expect(Math.round((await box(pad(page).locator('.wc-ph-key').first())).width)).toBe(land ? 44 : 36);
@@ -320,7 +319,7 @@ test.describe('a phone in Desktop-site mode: its screen, a window that is not a 
     await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
     await frames(page);
     await page.waitForTimeout(300);
-    await expect(page.locator('.wc-ph-layer, .wc-ph-pad, .wc-ph-okb, .wc-ph-menu, .wc-menu-btn, .wc-phone-tabs, .wc-phone-failed')).toHaveCount(0);
+    await expect(page.locator('.wc-ph-layer, .wc-ph-pad, .wc-ph-okb, .wc-ph-menu, .wc-phone-failed')).toHaveCount(0);
     // The device's keyboard: the command line is an ordinary field.
     await expect(field(page)).not.toHaveAttribute('inputmode', 'none');
     // The bar works by touch, as on a `?tablet=desktop` tablet.
@@ -345,7 +344,7 @@ test.describe('a phone in Desktop-site mode: its screen, a window that is not a 
     await expect(page.locator('.wc-ph-menu')).toBeVisible();
     expect((await flags(page)).cls).toBe('wc-phone wc-touch');
     await expect(html(page)).toHaveClass(/\bwc-phone-game\b/);
-    await expect(page.locator('.wc-mb-bar, .wc-phone-tabs, .wc-menu-btn:not(.wc-ph-menu)')).toHaveCount(0);
+    await expect(page.locator('.wc-mb-bar')).toHaveCount(0);
     // A phone, not a tablet: the phone's one-time defaults are applied.
     await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(1);
     expect(errors).toEqual([]);

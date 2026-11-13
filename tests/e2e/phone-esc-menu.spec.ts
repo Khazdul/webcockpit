@@ -174,8 +174,7 @@ test('the phone layer cannot be loaded: a cover with Reload, and no old menu (st
   const view = page.viewportSize()!;
   expect([box.x, box.y, box.width, box.height]).toEqual([0, 0, view.width, view.height]);
   expect(await page.evaluate(() => document.elementFromPoint(40, 40)?.closest('.wc-phone-failed') !== null)).toBe(true);
-  // Nothing of the old layout: no `☰`, no ESC menu, no phone layer.
-  await expect(page.locator('.wc-menu-btn')).toHaveCount(0);
+  // Nothing behind it: no ESC menu, no phone layer.
   await expect(page.locator('.wc-ph-menu, .wc-ph-pad, .wc-ph-menu-host')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.evaluate(() => window.__wc!.shell.openMenu());

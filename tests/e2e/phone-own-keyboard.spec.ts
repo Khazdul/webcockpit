@@ -22,8 +22,7 @@
 //   left of it, K4 to K6 right of it, the compass at the far right.
 // - A visible area that shrinks (a split screen, a lower window, fullscreen
 //   left) is nothing special: the layout uses the smaller area as on any
-//   small screen (`wc-kbd`, the old phone layout's device keyboard state,
-//   is never set here), and ours stays, and opens, while it has room.
+//   small screen, and ours stays, and opens, while it has room.
 //
 // `phone` project (Pixel 7; the owner's S21 sizes are set where the numbers
 // matter). The sending cases play against a `page.routeWebSocket` mock; the
@@ -226,9 +225,9 @@ test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', (
 
 // The visible area can shrink for reasons that are no keyboard (a split screen, a window made
 // lower, fullscreen left). Round 53e took a shrink right after a field tap for the device's
-// keyboard and locked ours out; that guess is gone (ADR 0138, addendum 53e), and since round 53i
-// the device keyboard state (`wc-kbd`) is not set at all on a phone with the phone layer. What
-// decides is the allocator's room (`tooSmall`), nothing else.
+// keyboard and locked ours out; that guess is gone (ADR 0138, addendum 53e), and the device
+// keyboard state itself went with the old phone layout (stage 55). What decides is the
+// allocator's room (`tooSmall`), nothing else.
 
 test('a split screen within a second of the field tap: our keyboard stays, the next tap finds it, and typing works', async ({ page }) => {
   const errors = watchErrors(page);
@@ -240,7 +239,6 @@ test('a split screen within a second of the field tap: our keyboard stays, the n
   expect(Date.now() - t0).toBeLessThan(1000);
   await expect.poll(async () => (await box(page.locator('#app'))).height).toBe(560);
   await page.waitForTimeout(400);
-  await expect(html(page)).not.toHaveClass(/\bwc-kbd\b/);
   await frames(page);
   // Ours is still the keyboard, and the field kept the focus.
   await expect(html(page)).toHaveClass(/\bwc-okb\b/);
