@@ -75,7 +75,7 @@ import { type PlayState, keysLive } from './play-gate';
 import { sizeFits } from './text-settings';
 import { sectionChanged } from './changed';
 import { LensView } from './lens';
-import { type LensLevel, LENS_MIN_PX, lensFullPx, lensLevel, lensZoom } from './lens-zoom';
+import { type LensLevel, LENS_MIN_PX, LENS_RING_PX, lensFullPx, lensLevel, lensReplayPx, lensZoom } from './lens-zoom';
 import { type LensRoom, type LensSpot, fitLens, lensIsSet, lensMax, lensRoom, lensWant, moveLens, resizeLens } from './lens-place';
 import type { MapPane } from '../panes/map';
 import type { CommPane } from '../panes/comm';
@@ -175,6 +175,23 @@ export interface PhoneReplayState {
   lensLevel: LensLevel;
 }
 
+/**
+ * What the host's own chrome lies over at the layer's edges, px of the
+ * layer (`PhoneReplay.clear`, `setClear`): the lens, its keys and its key
+ * row stand clear of it.
+ */
+export interface PhoneReplayClear {
+  /** From the right edge: the rail's touch area and the markers beside it. */
+  right: number;
+  /**
+   * A plate over the top edge (History's hood): it ends `right` px from
+   * the layer's left edge and `bottom` px under its top edge. What would
+   * stand under it stands below it; what stands right of it goes to the
+   * top. Null: none.
+   */
+  plate: { right: number; bottom: number } | null;
+}
+
 /** The layer over a replay (see the file header). */
 export interface PhoneReplay {
   /**
@@ -183,12 +200,15 @@ export interface PhoneReplay {
    * recording (the app's `LIVE_ONLY`; this chunk cannot import the value).
    */
   omitPages: readonly string[];
+  /** What the host's chrome lies over as the layer mounts (`setClear` changes it). Absent: nothing. */
+  clear?: PhoneReplayClear | undefined;
   /**
-   * Px of the layer's top and right edges that the host's own chrome lies
-   * over (the player's header row; the markers beside its rail): the lens
-   * in its default place, and its key row, stand clear of them. Absent: none.
+   * Told after every layout: the top left corner of what the layer has
+   * highest up at the right (the lens with its ring and corner keys, or
+   * the key row that stands in for it), px of the layer; null: nothing.
+   * The host's header row ends left of it where they would meet.
    */
-  clear?: { top: number; right: number } | undefined;
+  onTopRight?(at: { left: number; top: number } | null): void;
   /** What was open in the layer this one replaces (a backward seek rebuilt the App). Absent: all closed, the lens at "Opens at". */
   state?: PhoneReplayState | undefined;
   /** Told when any of it changes, with the whole state. */
@@ -287,9 +307,11 @@ class Layer {
   private readonly live: PhoneLiveDeps | null;
   /** Over a replay (see the file header); null in the live game. */
   private readonly replay: PhoneReplay | null;
-  /** Over a replay: what the host's chrome lies over at the top and the right, px (`PhoneReplay.clear`); 0 in the live game. */
-  private readonly clearTop: number;
-  private readonly clearRight: number;
+  /** Over a replay: what the host's chrome lies over at the right, px, and the plate over the top edge (`PhoneReplay.clear`); 0 and null in the live game. */
+  private clearRight: number;
+  private clearPlate: { right: number; bottom: number } | null;
+  /** Over a replay: what was last told of the top right corner (`PhoneReplay.onTopRight`), as text. */
+  private topRightSig = '-';
   /** Over a replay: the state last told (or taken over at the mount), as JSON. */
   private stateSig = '';
   /** The command line our keyboard types in; null over a replay (no keyboard). */
@@ -399,8 +421,8 @@ class Layer {
     this.deps = deps;
     const live = (this.live = deps.replay ? null : deps);
     const replay = (this.replay = deps.replay ?? null);
-    this.clearTop = Math.max(0, replay?.clear?.top ?? 0);
     this.clearRight = Math.max(0, replay?.clear?.right ?? 0);
+    this.clearPlate = replay?.clear?.plate ?? null;
     this.line = live?.ownKeyboard ?? null;
     const cockpit = deps.cockpit;
     const doc = cockpit.el.ownerDocument;
@@ -733,6 +755,27 @@ class Layer {
       this.stateSig = JSON.stringify({ stripOpen: state.stripOpen, stripPage: state.stripPage, commOpen: state.commOpen, lensLevel: state.lensLevel });
     } else this.stateSig = JSON.stringify(this.state);
     this.tellState();
+  }
+
+  /**
+   * Over a replay: the host's chrome lies over something else now (the
+   * player was moved into History's box, the box changed size). The lens
+   * and its key row are placed again, in one layout. Nothing in the live game.
+   */
+  setClear(clear: PhoneReplayClear): void {
+    if (!this.replay || this.disposed) return;
+    const right = Math.max(0, clear.right);
+    const plate = clear.plate && clear.plate.bottom > 0 ? { right: clear.plate.right, bottom: clear.plate.bottom } : null;
+    if (right === this.clearRight && JSON.stringify(plate) === JSON.stringify(this.clearPlate)) return;
+    this.clearRight = right;
+    this.clearPlate = plate;
+    this.syncHotkeys();
+  }
+
+  /** Over a replay: how far down the host's plate reaches over a thing whose left edge is `left` px from the layer's (0: it stands right of the plate, or there is none). */
+  private plateOver(left: number): number {
+    const p = this.clearPlate;
+    return p && left < p.right ? p.bottom : 0;
   }
 
   /** Over a replay: tells the host the state when it changed (`PhoneReplay.onState`). Nothing in the live game. */
@@ -1333,8 +1376,9 @@ class Layer {
     const l = settings.get().phone.lens;
     // The layout viewport's short side: the on-screen keyboard shrinks the visual viewport (and
     // the cockpit with it), not this, so the lens keeps its size while typing.
+    // (Over a replay: a share of the player's own box, which in History is not the screen; lens-zoom.ts.)
     const win = cockpit.el.ownerDocument.defaultView;
-    const size = l.show ? lensFullPx(Math.min(win?.innerWidth ?? 0, win?.innerHeight ?? 0)) : 0;
+    const size = !l.show ? 0 : this.replay ? this.replayLensPx() : lensFullPx(Math.min(win?.innerWidth ?? 0, win?.innerHeight ?? 0));
     const opensAt = lensLevel(l.opensAt);
     if (opensAt !== this.lensOpensAt) {
       this.lensOpensAt = opensAt;
@@ -1352,6 +1396,14 @@ class Layer {
     this.askLens();
   }
 
+  /** Over a replay: the lens's full diameter in the player's box as it is now (the cockpit's own shape decides upright or on its side). */
+  private replayLensPx(): number {
+    const { cockpit } = this.deps;
+    const W = cockpit.el.clientWidth;
+    const H = cockpit.el.clientHeight;
+    return lensReplayPx(W, H, cockpit.phoneGameLayout?.landscape ?? W > H);
+  }
+
   /**
    * Asks the cockpit for the lens's place with what it must keep clear of
    * now: the compass and the hot key column (not with the keyboard up, when
@@ -1363,8 +1415,8 @@ class Layer {
     this.deps.cockpit.setPhoneLens({
       size: this.lensFull,
       min: LENS_MIN_PX,
-      // (Over a replay: under the host's header row, the corner keys' overhang with it.)
-      gapTop: Math.max(this.landscape ? LENS_GAP_TOP_LAND : LENS_GAP_TOP, this.clearTop > 0 ? this.clearTop + SAT_OVER : 0),
+      // (Over a replay these two gaps only say whether there is room at all: the place is `lensFit`'s, to the px.)
+      gapTop: this.landscape ? LENS_GAP_TOP_LAND : LENS_GAP_TOP,
       // Landscape: left of the hot key columns there are, shown or not (it does not jump when K is tapped).
       // (Over a replay no keys stand there: at the right edge, as in portrait, left of the host's markers.)
       gapRight: this.landscape && !this.replay ? leftOfHot(this.keyPx, this.hot.cols, LENS_GAP_RIGHT) : LENS_GAP_RIGHT + this.clearRight,
@@ -1374,8 +1426,11 @@ class Layer {
     });
     // A lens the user moved or resized is placed by `lensFit`: the cockpit asks it at every layout,
     // and is told (one layout) when something else its answer depends on changed.
+    // (Over a replay every lens is: its default place is the room's top right corner to the px.)
     const l = this.deps.settings.get().phone.lens;
-    const sig = lensIsSet(l.portrait) || lensIsSet(l.landscape) ? JSON.stringify([l.portrait, l.landscape, this.lensFull, this.keyPx, this.hot.cols, this.hot.rows, this.deps.settings.get().phone.hotkeysOpen, this.lensBoxClear]) : '';
+    const sig = this.replay
+      ? JSON.stringify([l.portrait, l.landscape, this.lensFull, this.clearRight, this.clearPlate])
+      : lensIsSet(l.portrait) || lensIsSet(l.landscape) ? JSON.stringify([l.portrait, l.landscape, this.lensFull, this.keyPx, this.hot.cols, this.hot.rows, this.deps.settings.get().phone.hotkeysOpen, this.lensBoxClear]) : '';
     if (sig === this.lensFitSig) return;
     this.lensFitSig = sig;
     this.deps.cockpit.setPhoneLensFit(sig ? this.lensFit : null);
@@ -1408,9 +1463,21 @@ class Layer {
       pad: side.pad,
       k: side.k && !g.overLimit,
       boxClear: this.lensBoxClear,
-      // Over a replay: no compass and no hot keys to stay clear of.
-      ...(this.replay ? { bare: true } : {}),
+      // Over a replay: no compass and no hot keys to stay clear of, but the host's rail, markers and plate.
+      ...(this.replay ? { bare: true, clear: { top: this.lensPlate(g.landscape, W), right: this.clearRight } } : {}),
     });
+  }
+
+  /**
+   * Over a replay: how far down the host's plate reaches over the lens in
+   * this orientation. A lens in its default place, the room's top right
+   * corner, is under the plate only where its corner key reaches that far
+   * left; one the user moved stays below the plate wherever it is.
+   */
+  private lensPlate(landscape: boolean, W: number): number {
+    const st = this.deps.settings.get().phone.lens[landscape ? 'landscape' : 'portrait'];
+    if (st.x !== null && st.y !== null) return this.clearPlate?.bottom ?? 0;
+    return this.plateOver(W - LENS_GAP_RIGHT - this.clearRight - (st.size ?? this.lensFull) - SAT_OVER);
   }
 
   /**
@@ -1424,7 +1491,8 @@ class Layer {
    */
   private readonly lensFit: PhoneLensFit = (g, cell, W, H) => {
     const st = this.deps.settings.get().phone.lens[g.landscape ? 'landscape' : 'portrait'];
-    if (!lensIsSet(st) || this.lensFull === 0) return undefined;
+    // (Over a replay also a lens never moved: `lensWant` puts it in the room's top right corner.)
+    if ((!lensIsSet(st) && !this.replay) || this.lensFull === 0) return undefined;
     const room = this.roomOn(g, cell, W, H);
     return fitLens(lensWant(st, this.lensFull, room, W, H), room, LENS_MIN_PX);
   };
@@ -2028,6 +2096,8 @@ class Layer {
       this.setShape(g.landscape, H);
       return;
     }
+    // (Over a replay the lens's size follows the player's box: asked again when it changed.)
+    if (this.replay && this.lensFull > 0 && this.replayLensPx() !== this.lensFull) this.syncLens();
     const { w, h } = this.deps.cells.get();
     const land = g.landscape;
     // Our own keyboard stands on the rows the allocator kept for it (not laid out yet right after
@@ -2111,8 +2181,8 @@ class Layer {
     // The keys' row stands in for a lens that is off or has no room; not for one the cockpit has
     // not laid out yet (asked for, the relayout pending).
     const pending = this.lensFull > 0 && !g.tooSmall && g.lens === null && !g.lensHidden;
-    // (Over a replay, at the top edge: under the host's header row.)
-    const rowTop = Math.max(g.game.y * h + SATROW_GAP, g.game.y === 0 ? this.clearTop : 0);
+    // (Over a replay, at the top edge: below the host's plate where the row reaches under it.)
+    const rowTop = Math.max(g.game.y * h + SATROW_GAP, this.replay ? this.plateOver(this.el.clientWidth - SATROW_GAP - this.clearRight - SATROW_W) + 2 : 0);
     // The keys' row is at the right edge, where the hot key column is: on a low screen (landscape
     // with the strip or a fight card) the row would reach into a column, and then stands left of it.
     // (Above our own keyboard the columns stand lifted by its height, or not at all on a low screen.)
@@ -2130,7 +2200,20 @@ class Layer {
       r && size > 0 ? { left: g.lensAt ? g.lensAt.left : (r.x + r.w / 2) * w - size / 2, top: g.lensAt ? g.lensAt.top : (r.y + r.h / 2) * h - size / 2, size } : null;
     this.lensSpot = spot;
     if (spot && r) this.shiftMap(spot.left + size / 2 - (r.x + r.w / 2) * w, spot.top + size / 2 - (r.y + r.h / 2) * h);
-    this.lens.place(spot, pending || g.tooSmall || (land && this.hot.boxOpen) ? null : rowTop, rowRight);
+    const row = pending || g.tooSmall || (land && this.hot.boxOpen) ? null : rowTop;
+    this.lens.place(spot, row, rowRight);
+    if (this.replay?.onTopRight) {
+      const at = spot
+        ? { left: Math.floor(spot.left - Math.max(SAT_OVER, LENS_RING_PX)), top: Math.floor(spot.top - Math.max(SAT_OVER, LENS_RING_PX)) }
+        : row !== null && !this.lens.rowEl.hidden
+          ? { left: this.el.clientWidth - rowRight - SATROW_W, top: row }
+          : null;
+      const sig = JSON.stringify(at);
+      if (sig !== this.topRightSig) {
+        this.topRightSig = sig;
+        this.replay.onTopRight(at);
+      }
+    }
     this.placeLoginAsk();
   }
 

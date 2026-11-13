@@ -189,6 +189,12 @@ export interface LensRoomInput {
    * reaches the right edge. Absent: the keys are there.
    */
   bare?: boolean;
+  /**
+   * With `bare`: px of the top and the right edge that something of the
+   * host's lies over (a plate over the top edge; the rail and its markers):
+   * the room ends `LENS_AIR` short of them. Absent: nothing.
+   */
+  clear?: { top: number; right: number };
 }
 
 /**
@@ -197,7 +203,10 @@ export interface LensRoomInput {
  * on the keyboard's top edge while ours is open. Landscape: the room ends
  * left of the hot key columns, shown or not (as the default lens does), the
  * compass is a block, and with our keyboard open the keys are in its band,
- * so nothing stands in the room. Bare (a replay): no blocks at all.
+ * so nothing stands in the room. Bare (a replay): no blocks at all, and
+ * the room keeps its air to what the host has over the top and right edges
+ * (`clear`), so the lens stands in the top right corner as near to them as
+ * its corner keys allow.
  */
 export function lensRoom(i: LensRoomInput): LensRoom {
   const padW = 3 * i.keyPx + 2 * KEY_GAP;
@@ -205,8 +214,11 @@ export function lensRoom(i: LensRoomInput): LensRoom {
   if (i.boxClear > 0) bottom = Math.min(bottom, i.H - i.boxClear);
   const blocks: LensBlock[] = [];
   if (i.bare) {
-    if (!i.landscape) return { left: LENS_AIR, top: i.gameTop + LENS_AIR_TOP, right: i.W - LENS_AIR, bottom, blocks };
-    return { left: i.gameLeft + (i.gameLeft > 0 ? LENS_AIR_SIDE_LAND : LENS_AIR), top: i.gameTop + LENS_AIR_TOP_LAND, right: i.W - LENS_AIR, bottom, blocks };
+    const right = i.W - LENS_AIR - Math.max(0, i.clear?.right ?? 0);
+    // Under what is above the game text as in the game; at the top edge, as high as the keys go.
+    const top = (air: number): number => Math.max(i.gameTop > 0 ? i.gameTop + air : 0, LENS_AIR + Math.max(0, i.clear?.top ?? 0));
+    if (!i.landscape) return { left: LENS_AIR, top: top(LENS_AIR_TOP), right, bottom, blocks };
+    return { left: i.gameLeft + (i.gameLeft > 0 ? LENS_AIR_SIDE_LAND : LENS_AIR), top: top(LENS_AIR_TOP_LAND), right, bottom, blocks };
   }
   if (i.landscape) {
     if (i.lift === 0) blocks.push({ left: i.W - PAD_MARGIN - padW - LENS_AIR, right: i.W, top: i.H - compassHeight(i.keyPx) - LENS_AIR });

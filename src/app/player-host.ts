@@ -83,7 +83,7 @@
 import type { RunLibrary } from '../runs/library';
 import type { RunEvent } from '../runs/events';
 import type { Session } from '../runs/stitch';
-import { type Settings, SettingsStore, type ViewSnapshot } from '../settings';
+import { type Settings, SettingsStore, type ViewSnapshot, defaultPhoneLensWant } from '../settings';
 import { paneSettingsOf } from '../settings/types';
 import { LIVE_ONLY, PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
 import { PaneContent, type PaneSnapshot } from '../panes/script-content';
@@ -98,7 +98,7 @@ import { overlayView, parseView, playerFontSize } from '../player/fit';
 import { type PlacedMark, RAIL_W, markersOf } from '../player/strip';
 import { type PlayedRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
 import { type DockRect, PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
-import type { PhoneControls, PhoneKit, PhoneReplayDeps, PhoneReplayState } from '../phone';
+import type { PhoneControls, PhoneKit, PhoneReplayClear, PhoneReplayDeps, PhoneReplayState } from '../phone';
 import {
   type ViewerOverrides,
   applyViewer,
@@ -121,7 +121,7 @@ import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } fro
  * takes.
  */
 export interface PlayerPhone {
-  mount(deps: PhoneReplayDeps): { dispose(): void };
+  mount(deps: PhoneReplayDeps): { dispose(): void; setClear(clear: PhoneReplayClear): void };
   kit: PhoneKit;
   controls: PhoneControls;
 }
@@ -174,12 +174,30 @@ export interface PlayerOpenOptions {
 }
 
 /**
- * Phone: what the player's chrome lies over at the layer's top and right
- * edges, px (`PhoneReplay.clear`): the header row (and, in History's box,
- * the hood plate over the top edge), and a marker of two kinds left of the
- * rail. The lens and its keys stand clear of both.
+ * Phone: what the player's chrome lies over at the layer's right edge, px
+ * (`PhoneReplayClear.right`; the stage ends where the rail begins): the
+ * rail's target for a finger (10 px, player.css) and a marker of one kind
+ * left of the rail (to 24 px). The lens's corner key ends there, so the
+ * lens stands as far right as it can with its keys free of both. (A marker
+ * of two kinds reaches some 15 px further and lies over the edge of the
+ * Comm key while the chrome is shown, where the two meet.)
  */
-const PHONE_CLEAR = { top: 24, right: 32 } as const;
+const PHONE_CLEAR_RIGHT = 24;
+/** Phone: the air between the header's chip and the lens's corner key, px. */
+const PHONE_HEAD_GAP = 4;
+
+/**
+ * The phone layer's settings in a player: the viewer's own, but the lens
+ * as it comes, never where the viewer dragged it or the size they gave it
+ * in the game (the player's lens has its own default size and corner, and
+ * what is moved in a player lasts as long as that player).
+ */
+export function phoneReplaySettings(viewer: Settings): Settings {
+  const mine = JSON.parse(JSON.stringify(viewer)) as Settings;
+  mine.phone.lens.portrait = defaultPhoneLensWant();
+  mine.phone.lens.landscape = defaultPhoneLensWant();
+  return mine;
+}
 
 /** Paint gate: frame callbacks wait while it is closed. */
 class FrameGate {
@@ -247,6 +265,10 @@ export class PlayerHost {
   private phoneState: PhoneReplayState | undefined;
   /** Phone: the docked bar's rectangle in the player's px (the command row's place), or null. */
   private dock: DockRect | null = null;
+  /** Phone: what the chrome lies over at the layer's edges, as last told to the layer. */
+  private phoneClear: PhoneReplayClear = { right: PHONE_CLEAR_RIGHT, plate: null };
+  /** Phone: the top left corner of the lens with its keys (or of its key row), px of the cockpit; null: neither. */
+  private phoneTopRight: { left: number; top: number } | null = null;
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -584,15 +606,25 @@ export class PlayerHost {
       replay: {
         // The pages that show the live session, not the recording (Statistics).
         omitPages: [...LIVE_ONLY],
-        clear: PHONE_CLEAR,
+        clear: this.phoneClear,
         state: this.phoneState,
         onState: (s) => {
           this.phoneState = s;
+        },
+        // (The layer places before `measure` below runs, at every layout.)
+        onTopRight: (at) => {
+          this.phoneTopRight = at;
         },
       },
     });
     const measure = (): void => {
       if (this.appRef !== app) return;
+      // A plate over the player's top edge (it was moved into History's box): the lens goes under it, in one more layout.
+      const clear = this.clearOf(app);
+      if (JSON.stringify(clear) !== JSON.stringify(this.phoneClear)) {
+        this.phoneClear = clear;
+        layer.setClear(clear);
+      }
       const next = this.dockRect(app);
       if (JSON.stringify(next) === JSON.stringify(this.dock)) return;
       this.dock = next;
@@ -606,12 +638,16 @@ export class PlayerHost {
     };
   }
 
-  /** The layer's settings: a copy of the viewer's, in memory; a band's height and a moved lens last while the host does. */
+  /**
+   * The layer's settings: a copy of the viewer's, in memory, without the
+   * lens's place and size from the game (`phoneReplaySettings`); a band's
+   * height and a lens moved in the player last while the host does.
+   */
   private phoneSettings(): SettingsStore {
     if (this.phoneStore) return this.phoneStore;
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     void store.load();
-    const mine = JSON.parse(JSON.stringify(this.opts.settings.get())) as Settings;
+    const mine = phoneReplaySettings(this.opts.settings.get());
     store.update((draft) => {
       Object.assign(draft, mine);
     });
@@ -636,7 +672,27 @@ export class PlayerHost {
     }
     const width = this.el.clientWidth - left;
     const height = this.el.clientHeight - top;
-    return width > 0 && height > 0 ? { left, top, width, height } : null;
+    if (!(width > 0 && height > 0)) return null;
+    // The header's row ends left of the lens's corner key (or its key row) where that stands in the row.
+    const at = this.phoneTopRight;
+    const cock = app.cockpit.el;
+    const headRight = at && at.top < this.cells.get().h ? Math.max(0, cock.offsetLeft + at.left - PHONE_HEAD_GAP) : null;
+    return { left, top, width, height, ...(headRight !== null ? { headRight } : {}) };
+  }
+
+  /**
+   * Phone: what lies over `app`'s cockpit at its edges (`PhoneReplayClear`):
+   * the rail and its markers, and the hood plate of a box the player
+   * stands in (History's Run log), which hangs over the player's top edge.
+   */
+  private clearOf(app: App): PhoneReplayClear {
+    const hood = this.el.closest('.wc-lk-box')?.querySelector<HTMLElement>(':scope > .wc-lk-hood') ?? null;
+    if (!hood) return { right: PHONE_CLEAR_RIGHT, plate: null };
+    const h = hood.getBoundingClientRect();
+    const c = app.cockpit.el.getBoundingClientRect();
+    const bottom = Math.ceil(h.bottom - c.top);
+    const right = Math.ceil(h.right - c.left);
+    return { right: PHONE_CLEAR_RIGHT, plate: h.width > 0 && bottom > 0 && right > 0 ? { right, bottom } : null };
   }
 
   // --------------------------------------------------------------- viewer

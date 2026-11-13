@@ -217,6 +217,22 @@ describe('lensRoom: the room on a screen', () => {
     expect(l.blocks).toEqual([]);
     // Without a command row the room ends at the bottom edge's air.
     expect(lensRoom({ ...base, inputTop: 800, bare: true }).bottom).toBe(788);
+    // At the top edge: as high as the corner keys go (their 10 px and a little air).
+    expect(lensRoom({ ...base, gameTop: 0, bare: true }).top).toBe(12);
+    expect(lensRoom({ ...base, W: 800, H: 360, landscape: true, gameTop: 0, inputTop: 309, bare: true }).top).toBe(12);
+  });
+
+  it('bare, with what the host has over the edges (`clear`): the room ends that much further in', () => {
+    const p = lensRoom({ ...base, gameTop: 0, bare: true, clear: { top: 26, right: 36 } });
+    expect(p.top).toBe(38);
+    expect(p.right).toBe(base.W - 12 - 36);
+    // What is above the game text reaches further down than the plate: under it, as in the game.
+    expect(lensRoom({ ...base, gameTop: 200, bare: true, clear: { top: 26, right: 36 } }).top).toBe(216);
+    const l = lensRoom({ ...base, W: 800, H: 360, landscape: true, gameTop: 0, inputTop: 309, bare: true, clear: { top: 26, right: 36 } });
+    expect(l.top).toBe(38);
+    expect(l.right).toBe(800 - 12 - 36);
+    // Not in the game: `clear` is the replay's.
+    expect(lensRoom({ ...base, gameTop: 0, clear: { top: 26, right: 36 } }).top).toBe(16);
   });
 
   it('portrait with our keyboard: the keys stand on its top edge, or are gone where they have no room', () => {

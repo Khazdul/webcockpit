@@ -51,6 +51,28 @@ export function lensFullPx(shortSide: number): number {
   return Math.min(LENS_FULL_MAX_PX, Math.max(LENS_FULL_MIN_PX, Math.round((shortSide * 150) / 360)));
 }
 
+/** The iron ring round the glass, px (phone.css `.wc-ph-lens-ring`): the lens's outer measure is its diameter and two of these. */
+export const LENS_RING_PX = 8;
+/** Over a replay: the most of the player's width (upright) and of its height (on its side) the lens takes, ring and all. */
+export const LENS_REPLAY_SHARE_PORTRAIT = 0.33;
+export const LENS_REPLAY_SHARE_LANDSCAPE = 0.5;
+
+/**
+ * The lens's full diameter over a replay (the run log player), in a player
+ * `w` × `h` CSS px: its outer measure, the ring with it, is a share of the
+ * player's own box and never more: 33 % of the width upright, 50 % of the
+ * height on its side (`landscape`), rounded down to whole px. Within the
+ * limits of the lens everywhere: never under the least diameter it is
+ * shown at (so in a player under 340 px wide the share is passed: 112 px
+ * of outer measure), never over the game's largest (a tablet). Without a
+ * usable number: the least.
+ */
+export function lensReplayPx(w: number, h: number, landscape: boolean): number {
+  const side = landscape ? h * LENS_REPLAY_SHARE_LANDSCAPE : w * LENS_REPLAY_SHARE_PORTRAIT;
+  if (!(side > 0) || !Number.isFinite(side)) return LENS_MIN_PX;
+  return Math.min(LENS_FULL_MAX_PX, Math.max(LENS_MIN_PX, Math.floor(side + 1e-6) - 2 * LENS_RING_PX));
+}
+
 /** The worker's zoom that shows `LENS_ROOMS[level]` rooms across a lens `px` wide. */
 export function lensZoom(level: LensLevel, px: number): number {
   return px / (LENS_ROOMS[level] * PX_PER_ROOM);

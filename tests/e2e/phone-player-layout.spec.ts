@@ -497,3 +497,160 @@ test('a tablet (820 × 1180, ?tablet=phone): the same layout; the bar has room f
   expect(await stored(page)).toBe(before);
   expect(errors).toEqual([]);
 });
+
+// ------------------------------------------------ the lens's own size and corner (owner feedback 2026-11-13)
+
+interface LensAt {
+  /** The player's box. */
+  pl: Box;
+  /** The glass (the lens's own box) and the lens's outer measure: the glass and its iron ring. */
+  glass: Box;
+  outer: Box;
+  panes: Box;
+  comm: Box;
+}
+
+/** The player on the two fixtures at the end of the walk, the lens placed; its boxes. */
+async function lensAt(page: Page): Promise<LensAt> {
+  await openLogs(page, ['map-demo.log', 'gmcp-demo.log']);
+  await seek(page, Infinity);
+  await expect(lens(page)).toBeVisible();
+  return {
+    pl: await box(player(page)),
+    glass: await box(lens(page)),
+    outer: await box(lens(page).locator('.wc-ph-lens-ring')),
+    panes: await box(sat(page, 'panes')),
+    comm: await box(sat(page, 'comm')),
+  };
+}
+
+/** The lens stands in the player's top right corner: its ring just left of the rail's markers, its corner key at the top edge; both keys whole inside the player. */
+function inCorner(a: LensAt): void {
+  const right = a.pl.x + a.pl.width;
+  expect(a.outer.width).toBeCloseTo(a.glass.width + 16, 0);
+  // Right: the Comm key ends left of the rail's target for a finger (22 px) and of a marker of one kind (to 34 px).
+  expect(right - (a.comm.x + a.comm.width)).toBeGreaterThanOrEqual(34);
+  expect(right - (a.outer.x + a.outer.width)).toBeLessThanOrEqual(42);
+  // Top: the panes key 2 px under the edge, the ring 4 px.
+  expect(a.panes.y - a.pl.y).toBeGreaterThanOrEqual(0);
+  expect(a.outer.y - a.pl.y).toBeLessThanOrEqual(6);
+  // The keys: 40 px each, apart from each other, the glass between them.
+  expect(a.panes.width).toBeGreaterThanOrEqual(39.5);
+  expect(a.comm.width).toBeGreaterThanOrEqual(39.5);
+  expect(a.comm.x - (a.panes.x + a.panes.width)).toBeGreaterThanOrEqual(30);
+  expect(a.comm.y - (a.panes.y + a.panes.height)).toBeGreaterThanOrEqual(30);
+}
+
+for (const v of [
+  { width: 360, height: 800, glass: 98 },
+  { width: 390, height: 844, glass: 108 },
+]) {
+  test(`${v.width} × ${v.height}: the lens's outer measure is at most 33 % of the player's width, and it stands in the top right corner with the header's chip ending left of it`, async ({ page }) => {
+    test.setTimeout(60_000);
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width: v.width, height: v.height });
+    await start(page);
+    const a = await lensAt(page);
+    expect(a.outer.width).toBeLessThanOrEqual(a.pl.width * 0.33);
+    expect(a.glass.width).toBeCloseTo(v.glass, 0);
+    inCorner(a);
+    // The header's chip, shown again by a seek: in the top row, cut left of the lens's corner key.
+    await seek(page, 0);
+    await seek(page, Infinity);
+    const head = await box(chrome(page).locator('.wc-player-head-left'));
+    expect(head.x + head.width).toBeLessThanOrEqual((await box(sat(page, 'panes'))).x);
+    await expect(chrome(page).locator('.wc-player-head-left')).toContainText('Rasta');
+    // Both keys take their taps where they stand.
+    await sat(page, 'comm').tap();
+    await expect(comm(page)).toBeVisible();
+    // Comm open at the top: the lens directly under it, at the same distance from the right edge.
+    await expect.poll(async () => (await box(lens(page))).y).toBeGreaterThan((await box(comm(page))).y + (await box(comm(page))).height);
+    const under = await box(lens(page));
+    const c = await box(comm(page));
+    expect(under.y - (c.y + c.height)).toBeLessThanOrEqual(34);
+    expect(Math.abs(under.x + under.width - (a.glass.x + a.glass.width))).toBeLessThan(1);
+    await sat(page, 'comm').tap();
+    await expect(comm(page)).toBeHidden();
+    await sat(page, 'panes').tap();
+    await expect(stripPane(page)).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}
+
+test('320 × 568: the lens has its least size (96 px of glass), the one place the share is passed; still in the corner, its keys whole', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await start(page);
+  const a = await lensAt(page);
+  expect(a.glass.width).toBeCloseTo(96, 0);
+  expect(a.outer.width).toBeLessThanOrEqual(a.pl.width * 0.36);
+  inCorner(a);
+});
+
+test('landscape (800 × 360): the lens\'s outer measure is at most 50 % of the player\'s height; top right of the text area, also with the column open', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 800, height: 360 });
+  await start(page);
+  const a = await lensAt(page);
+  expect(a.outer.width).toBeLessThanOrEqual(a.pl.height * 0.5);
+  expect(a.outer.width).toBeGreaterThan(a.pl.height * 0.5 - 1.5);
+  inCorner(a);
+  await sat(page, 'panes').tap();
+  await sat(page, 'comm').tap();
+  await expect(comm(page)).toBeVisible();
+  const b = await box(lens(page));
+  expect(Math.abs(b.x - a.glass.x)).toBeLessThan(1);
+  expect(Math.abs(b.y - a.glass.y)).toBeLessThan(1);
+  expect(b.x).toBeGreaterThan((await box(comm(page))).x + (await box(comm(page))).width);
+});
+
+for (const v of [
+  { width: 820, height: 1180 },
+  { width: 1180, height: 820 },
+]) {
+  test(`a tablet (${v.width} × ${v.height}): the game's largest lens (190 px of glass), far under the share, in the corner`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize(v);
+    await start(page, 'tablet=phone');
+    const a = await lensAt(page);
+    expect(a.glass.width).toBeCloseTo(190, 0);
+    expect(a.outer.width).toBeLessThanOrEqual(v.width > v.height ? a.pl.height * 0.5 : a.pl.width * 0.33);
+    inCorner(a);
+  });
+}
+
+test('a lens moved and enlarged in the game is not the player\'s: it opens at its own size in the corner, every time; one moved in the player stays over a backward seek and is never saved', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await start(page);
+  // As the game stores a dragged and enlarged lens.
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { lens: { portrait: { x: 0.4, y: 0.6, size: 180 }, landscape: { x: 0.3, y: 0.5, size: 170 } } } }));
+  const before = await stored(page);
+  const a = await lensAt(page);
+  expect(a.glass.width).toBeCloseTo(98, 0);
+  inCorner(a);
+  // Dragged down and to the left in the player.
+  await drag(page, a.glass.x + a.glass.width / 2, a.glass.y + a.glass.height / 2, -120, 260);
+  await expect.poll(async () => (await box(lens(page))).y).toBeGreaterThan(a.glass.y + 200);
+  const moved = await box(lens(page));
+  expect(moved.x).toBeLessThan(a.glass.x - 100);
+  // A backward seek builds a new App and layer: the lens is where it was dropped.
+  await seek(page, 0);
+  await seek(page, Infinity);
+  await expect(lens(page)).toBeVisible();
+  const after = await box(lens(page));
+  expect(Math.abs(after.x - moved.x)).toBeLessThan(1.5);
+  expect(Math.abs(after.y - moved.y)).toBeLessThan(1.5);
+  // Nothing of it reached the stored settings: the game's own lens is as it was.
+  expect(await stored(page)).toBe(before);
+  // Closed and opened again: the player's default, not the place it was dragged to, not the game's.
+  await key(page, 'close').tap();
+  await expect(player(page)).toHaveCount(0);
+  const again = await lensAt(page);
+  expect(Math.abs(again.glass.x - a.glass.x)).toBeLessThan(1);
+  expect(Math.abs(again.glass.y - a.glass.y)).toBeLessThan(1);
+  expect(again.glass.width).toBeCloseTo(98, 0);
+  expect(await stored(page)).toBe(before);
+  expect(errors).toEqual([]);
+});
