@@ -245,6 +245,7 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   expect(Math.round(((await temp.boundingBox())!.x - box.x) / cell.w)).toBe(-10);
   expect(await page.evaluate(() => localStorage.getItem('webcockpit.tempPanes'))).toContain('temps/~pick');
   expect(await inSettings()).toBe(false);
+  await expect(temp.locator('.wc-pane-content .wc-prow').nth(0)).toHaveText(/^\[a\] \[b\]\s*$/);
   const content = (await temp.locator('.wc-pane-content').boundingBox())!;
   await page.mouse.click(content.x + 1.5 * cell.w, content.y + 0.5 * cell.h);
   await expect.poll(sentText).toContain('chose a\r\n');
