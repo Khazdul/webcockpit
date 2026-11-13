@@ -247,31 +247,3 @@ test('the Scripts name dialog: its field has the focus; Enter confirms', async (
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-frame:not([hidden]) .wc-sed')).toHaveAttribute('data-script', 'phonenew');
 });
-
-for (const [width, dpr] of [
-  [412, 3.5],
-  [384, 2.625],
-  [360, 3],
-] as const) {
-  test.describe(`banner at ${width} wide, DPR ${dpr}`, () => {
-    test.use({ viewport: { width, height: 900 }, deviceScaleFactor: dpr });
-
-    test('is whole and centred, or not shown', async ({ page }) => {
-      await page.goto('/?phone=1');
-      await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-      const spans = page.locator('.wc-banner .wc-banner-word, .wc-banner .wc-banner-word-dim');
-      if ((await spans.count()) === 0) return;
-      let left = Infinity;
-      let right = 0;
-      for (const s of await spans.all()) {
-        const b = (await s.boundingBox())!;
-        left = Math.min(left, b.x);
-        right = Math.max(right, b.x + b.width);
-      }
-      expect(left).toBeGreaterThanOrEqual(0);
-      expect(right).toBeLessThanOrEqual(width + 0.5);
-      // The wordmark sits in the middle (within a cell or so).
-      expect(Math.abs(left - (width - right))).toBeLessThan(16);
-    });
-  });
-}

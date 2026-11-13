@@ -92,29 +92,6 @@ export function step(count: number, cur: number, delta: number, opts: StepOption
   return cur;
 }
 
-/** The first selectable index at or after `from` (wrapping), or -1. */
-export function firstEnabled(count: number, enabled: (i: number) => boolean, from = 0): number {
-  for (let n = 0; n < count; n++) {
-    const i = (from + n) % count;
-    if (enabled(i)) return i;
-  }
-  return -1;
-}
-
-/** The value `delta` steps from `cur` in `list`, wrapping. An unknown `cur` starts at 0. */
-export function cycle<T>(list: readonly T[], cur: T, delta: number): T {
-  const n = list.length;
-  const i = list.indexOf(cur);
-  const from = i < 0 ? (delta > 0 ? -1 : 0) : i;
-  return list[(((from + delta) % n) + n) % n]!;
-}
-
-/** A stepper value: `v + delta·stepSize` clamped to [min, max], snapped to the step grid. */
-export function stepValue(v: number, delta: number, min: number, max: number, stepSize = 1): number {
-  const snapped = Math.round((v - min) / stepSize) * stepSize + min;
-  return Math.max(min, Math.min(max, snapped + delta * stepSize));
-}
-
 /** The left offset in cells that centres `width` in `total` (never negative). */
 export function centreLeft(total: number, width: number): number {
   return Math.max(0, Math.floor((total - width) / 2));
@@ -172,51 +149,6 @@ export function wrapText(text: string, width: number): string[] {
   return out;
 }
 
-/** Keeps `cursor` inside a window of `visible` rows starting at `top`; returns the new top. */
-export function scrollToShow(top: number, cursor: number, visible: number, count: number): number {
-  if (visible <= 0) return 0;
-  let t = top;
-  if (cursor < t) t = cursor;
-  if (cursor >= t + visible) t = cursor - visible + 1;
-  return Math.max(0, Math.min(t, Math.max(0, count - visible)));
-}
-
-/**
- * Scrollbar cells for a list: `count` rows shown `visible` at a time from
- * `top`, drawn in `visible` cells. Returns per cell true = thumb. Empty
- * when everything fits.
- */
-export function scrollbar(count: number, visible: number, top: number): boolean[] {
-  if (count <= visible || visible <= 0) return [];
-  const size = Math.max(1, Math.round((visible * visible) / count));
-  const maxTop = count - visible;
-  const pos = Math.round((top / maxTop) * (visible - size));
-  return Array.from({ length: visible }, (_, i) => i >= pos && i < pos + size);
-}
-
-/**
- * The scroll position a thumb drag gives (ADR 0106). The press started at
- * `startTop` px and the pointer has moved `dy` px since. The thumb, `thumb`
- * cells of a `cells`-cell bar whose cells are `cellPx` tall, travels the
- * free `cells - thumb` cells while the content travels `maxTop` px, so the
- * content follows in proportion. Clamped to 0..maxTop.
- */
-export function dragScrollTop(startTop: number, dy: number, cells: number, thumb: number, cellPx: number, maxTop: number): number {
-  if (maxTop <= 0) return 0;
-  const travel = (cells - thumb) * cellPx;
-  const top = travel > 0 ? startTop + (dy * maxTop) / travel : startTop;
-  return Math.max(0, Math.min(maxTop, top));
-}
-
-/**
- * The scroll position a press on track cell `i` of a `cells`-cell bar jumps
- * to (the `jump` bars): proportional, on a whole row of `rowPx`.
- */
-export function jumpScrollTop(i: number, cells: number, maxTop: number, rowPx: number): number {
-  if (maxTop <= 0 || rowPx <= 0) return 0;
-  return Math.round((i / Math.max(1, cells - 1)) * (maxTop / rowPx)) * rowPx;
-}
-
 /** Minimum window for any chrome or the cockpit (Inv §3.1). */
 export const MIN_COLS = 60;
 export const MIN_ROWS = 18;
@@ -233,33 +165,4 @@ export function minView(): { cols: number; rows: number } {
 export function tooSmall(cols: number, rows: number): boolean {
   const m = minView();
   return cols < m.cols || rows < m.rows;
-}
-
-/**
- * Packs items of the given widths (cells) into rows of at most `width`
- * cells, `gap` cells between neighbours, in order. Returns the item indices
- * per row. An item wider than `width` gets a row of its own. Used on a
- * phone to wrap button bars and footers instead of cutting them (ADR 0075
- * §3.2).
- */
-export function packRows(widths: readonly number[], width: number, gap: number): number[][] {
-  const out: number[][] = [];
-  let row: number[] = [];
-  let used = 0;
-  widths.forEach((w, i) => {
-    if (row.length > 0 && used + gap + w > width) {
-      out.push(row);
-      row = [];
-      used = 0;
-    }
-    used += (row.length > 0 ? gap : 0) + w;
-    row.push(i);
-  });
-  if (row.length > 0) out.push(row);
-  return out;
-}
-
-/** Footer tokens packed into rows of at most `width` cells (joined by ` · `). */
-export function footerRows(tokens: readonly string[], width: number): string[][] {
-  return packRows(tokens.map(cellLen), width, 3).map((r) => r.map((i) => tokens[i]!));
 }

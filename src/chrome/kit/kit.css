@@ -1,6 +1,10 @@
 /* TUI kit (src/chrome/kit, Inv §3.3, §10.6). Every size is whole cells
  * (--cell-w × --cell-h from src/theme/cells.ts); every colour is a
- * --c-* / --banner-* / --star-* token or the terminal colours. */
+ * --c-* token or the terminal colours. What is left since the old ESC
+ * menu, its Options pages and the old Statistics page went (stage 55): the
+ * cell grid and its lines, the colour roles still used, the page of an
+ * old-look frame (the kit gallery shows one), the bits the editor's search
+ * bar borrows (`.wc-btn`, `.wc-check`, `.wc-field`), and the ESC overlay. */
 
 .wc-chrome {
   position: absolute;
@@ -51,8 +55,8 @@
   overflow: hidden;
 }
 
-/* Touch only (ADR 0075): pages scroll by swipe as well as by the cursor
- * (ensureVisible). No scrollbar of the browser's: it would take cells. */
+/* Touch only (ADR 0075): pages scroll by swipe. No scrollbar of the
+ * browser's: it would take cells. */
 .wc-touch .wc-body {
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -73,9 +77,8 @@
  * is placed in its cell with the browser's rounding: `█` or `│` can stop
  * a device pixel short of one cell edge while it overlaps the other. In
  * the output pane the next row's overlap covers that pixel; a row that
- * clipped itself vertically cut the overlap off, so stacked blocks (the
- * scrollbar thumb, the banner) showed a seam between rows at some sizes
- * and pixel ratios. */
+ * clipped itself vertically cut the overlap off, so stacked blocks
+ * showed a seam between rows at some sizes and pixel ratios. */
 @supports (overflow: clip) {
   .wc-line {
     overflow-x: clip;
@@ -88,105 +91,15 @@
 }
 
 /* Colour roles (Inv §10.3). Weight/style belong to the role. */
-.wc-c-title { color: var(--c-title); font-weight: bold; }
 .wc-c-section { color: var(--c-section); font-weight: bold; }
-.wc-c-active { color: var(--c-active); font-weight: bold; }
 .wc-c-item { color: var(--c-item); }
 .wc-c-body { color: var(--c-body); }
 .wc-c-hint { color: var(--c-hint); }
-.wc-c-off { color: var(--c-off); }
 .wc-c-accent { color: var(--c-accent); font-weight: bold; }
 .wc-c-yellow { color: var(--c-yellow); font-weight: bold; }
 .wc-c-err { color: var(--c-err); font-weight: bold; }
-.wc-c-danger { color: var(--c-danger); }
-.wc-c-ok { color: var(--c-ok); font-weight: bold; }
-.wc-c-quote { color: var(--c-quote); font-style: italic; }
-.wc-c-quote-attr { color: var(--c-quote-attr); }
-.wc-c-header { color: var(--c-header); font-weight: bold; }
 
-/* Statistics / History data colours (Inv §7.3, presets.ts STATS_COLORS). */
-.wc-st-value { color: var(--st-value); }
-.wc-st-label { color: var(--st-label); }
-.wc-st-gained { color: var(--st-gained); }
-.wc-st-loss { color: var(--st-loss); }
-.wc-st-tp { color: var(--st-tp); }
-.wc-st-track { color: var(--st-track); }
-.wc-st-thumb { color: var(--st-thumb); }
-.wc-st-total { color: var(--st-total); font-weight: bold; }
-.wc-st-arrow { color: var(--st-arrow); }
-.wc-st-hint { color: var(--st-hint); }
-.wc-st-pvp { color: var(--st-pvp); }
-.wc-st-ally { color: var(--st-ally); }
-.wc-st-star { color: var(--st-star); }
-
-/* Statistics tables: the title labels sort, the scrollbar cells jump. */
-.wc-stat-sort,
-.wc-stat-bar {
-  cursor: pointer;
-}
-
-.wc-stat-sort:hover {
-  color: var(--c-hover);
-}
-
-/* Star pickers (Rate, Exit). */
-.wc-star-btn {
-  cursor: pointer;
-}
-
-/* History filter pill arrows. */
-.wc-pill-arrow {
-  color: var(--c-body);
-  cursor: pointer;
-}
-
-/* Menu rows: `<< label >>`. */
-.wc-mrow {
-  cursor: pointer;
-}
-
-.wc-mrow .wc-arrow {
-  color: var(--c-cursor);
-  font-weight: bold;
-}
-
-.wc-mrow .wc-label {
-  color: var(--c-item);
-}
-
-.wc-mrow:hover .wc-label {
-  color: var(--c-hover);
-}
-
-.wc-mrow.is-dim .wc-label {
-  color: var(--c-hint);
-}
-
-.wc-mrow.is-dim:hover .wc-label {
-  color: var(--c-body);
-}
-
-.wc-mrow.is-disabled {
-  cursor: default;
-}
-
-.wc-mrow.is-disabled .wc-label,
-.wc-mrow.is-disabled:hover .wc-label {
-  color: var(--c-off);
-}
-
-/* Selection wins over hover. */
-.wc-mrow.is-sel .wc-label,
-.wc-mrow.is-sel:hover .wc-label {
-  color: var(--c-active);
-  font-weight: bold;
-}
-
-.wc-mrow.is-sel.is-dim .wc-label {
-  color: var(--c-body);
-}
-
-/* Filled buttons. */
+/* Buttons (the editor's search bar, src/editor/search.ts). */
 .wc-btn {
   display: inline-block;
   color: var(--c-item);
@@ -197,34 +110,7 @@
   color: var(--c-hover);
 }
 
-.wc-btn.is-sel,
-.wc-btn.is-sel:hover {
-  color: var(--c-sel-fg);
-  background: var(--c-sel-bg);
-}
-
-.wc-btn.is-sel-focus,
-.wc-btn.is-sel-focus:hover {
-  color: var(--c-sel-fg);
-  background: var(--c-focus-bg);
-}
-
-.wc-btn.is-dim:not(.is-sel):not(.is-sel-focus) {
-  color: var(--c-hint);
-}
-
-.wc-btn.is-dim:not(.is-sel):not(.is-sel-focus):hover {
-  color: var(--c-body);
-}
-
-.wc-btn.is-disabled,
-.wc-btn.is-disabled:hover {
-  color: var(--c-hint);
-  background: none;
-  cursor: default;
-}
-
-/* Check / swatch cells. */
+/* Check cells (the editor's search bar). */
 .wc-check {
   cursor: pointer;
 }
@@ -237,59 +123,6 @@
   color: var(--c-active);
 }
 
-.wc-check.is-off .wc-check-box,
-.wc-check.is-off .wc-swatch {
-  color: var(--c-off);
-}
-
-.wc-check.is-cursor .wc-check-box {
-  color: var(--c-cursor);
-  font-weight: bold;
-}
-
-/* Tables. */
-.wc-th.is-sortable {
-  cursor: pointer;
-}
-
-.wc-th.is-sortable:hover {
-  color: var(--c-hover);
-}
-
-.wc-tr {
-  color: var(--c-item);
-  cursor: pointer;
-}
-
-.wc-tr.is-empty {
-  cursor: default;
-}
-
-.wc-tr:not(.is-empty):hover {
-  color: var(--c-hover);
-}
-
-.wc-tr.is-cur,
-.wc-tr.is-cur:hover {
-  color: var(--c-sel-fg);
-  background: var(--c-sel-bg);
-}
-
-.wc-tr.is-cur-focus,
-.wc-tr.is-cur-focus:hover {
-  color: var(--c-sel-fg);
-  background: var(--c-focus-bg);
-}
-
-.wc-scroll-thumb {
-  color: var(--c-scroll-thumb);
-  font-weight: bold;
-}
-
-.wc-scroll-track {
-  color: var(--c-scroll-track);
-}
-
 /* Footer tokens that can be clicked. */
 .wc-footer-btn {
   cursor: pointer;
@@ -299,7 +132,7 @@
   color: var(--c-hover);
 }
 
-/* Text fields. */
+/* Text fields (the editor's search bar). */
 .wc-field {
   box-sizing: border-box;
   height: var(--cell-h);
@@ -317,28 +150,8 @@
   vertical-align: top;
 }
 
-/* Phone (ADR 0075 §3.2): the field is a one-row <textarea>. */
-textarea.wc-field {
-  resize: none;
-  overflow: hidden;
-  white-space: pre;
-  overflow-wrap: normal;
-  scrollbar-width: none;
-}
-
-/* Thin box (preview, Inv §10.6 "Boxes"). */
-.wc-box {
-  color: var(--c-hint);
-}
-
-/* Banner (Inv §10.7). Star tiers are classes so a tick only swaps a class. */
-.wc-banner-word { color: var(--banner-word); }
-.wc-banner-word-dim { color: var(--banner-word-dim); }
-.wc-star-0 { color: var(--star-dim); }
-.wc-star-1 { color: var(--star-mid); }
-.wc-star-2 { color: var(--star-bright); }
-
-/* ESC menu overlay (Inv §4.1): a modal layer over the running cockpit. */
+/* The phone's ESC overlay (Inv §4.1; Profile and Scripts since stage 55): a
+ * modal layer over the running cockpit. */
 .wc-overlay {
   position: fixed;
   inset: 0;
@@ -377,16 +190,6 @@ textarea.wc-field {
   overflow: hidden;
 }
 
-/* ANSI palette swatches: gold brackets on the cursor cell. */
-.wc-pal {
-  cursor: pointer;
-}
-
-.wc-pal-br {
-  color: var(--c-cursor);
-  font-weight: bold;
-}
-
 /* The start surface's client notices over an old-look frame
  * (src/chrome/start-surface.tsx StartNotices): right-aligned on the top
  * row of the grid. Over the sky they are pills (start.css). */
@@ -402,80 +205,4 @@ textarea.wc-field {
 
 .wc-start-notice-btn:hover {
   text-decoration: underline;
-}
-
-/* Native scrolling with the TUI scrollbar (scroll.tsx): the browser's bar
- * is hidden, the wheel and the touchpad scroll by pixels. */
-.wc-scrollbox {
-  position: relative;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scroll-behavior: auto;
-  scrollbar-width: none;
-}
-
-.wc-scrollbox::-webkit-scrollbar {
-  display: none;
-}
-
-/* A press drags the thumb or pages (ADR 0106): no panning or selection on it. */
-.wc-tui-bar {
-  flex: 0 0 auto;
-  width: var(--cell-w);
-  touch-action: none;
-  user-select: none;
-}
-
-.wc-tui-bar > .wc-line:not(:empty) {
-  cursor: pointer;
-}
-
-/* A scroll box and its TUI scrollbar side by side (About, tables, lists). */
-.wc-scrollrow {
-  display: flex;
-  overflow: hidden;
-}
-
-.wc-scrollrow > .wc-scrollbox {
-  flex: 0 0 auto;
-}
-
-/* One blank cell between a scroll box and its scrollbar. */
-.wc-cell-gap {
-  flex: 0 0 auto;
-  width: var(--cell-w);
-}
-
-.wc-stat-col {
-  display: flex;
-  flex: 0 0 auto;
-}
-
-/* Phone only (ADR 0075 §3.2): nothing in a page body is cut at the right
- * edge. Content wider than the grid (a colour grid, a wide table, the
- * appearance preview) makes the body swipe sideways; the rows and the
- * scroll rows inside it do not clip sideways themselves. */
-.wc-phone .wc-body {
-  overflow-x: auto;
-}
-
-.wc-phone .wc-body .wc-line,
-.wc-phone .wc-body .wc-scrollrow {
-  overflow-x: visible;
-}
-
-@supports (overflow: clip) {
-  .wc-phone .wc-body .wc-line {
-    overflow-x: visible;
-  }
-}
-
-/* A scroll box (vertical) hands a sideways swipe on to the body. */
-.wc-phone .wc-scrollbox {
-  overscroll-behavior-x: auto;
-}
-
-.wc-phone .wc-footer-wrap {
-  flex: 0 0 auto;
 }

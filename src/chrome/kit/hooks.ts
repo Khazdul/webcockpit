@@ -2,7 +2,6 @@
 
 import { createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useState } from 'preact/hooks';
-import type { AppStatusState, AppStatusView } from '../../app/status';
 import type { ProfileStore } from '../../profiles';
 import type { RunLibrary } from '../../runs/library';
 import type { Session } from '../../runs/stitch';
@@ -28,7 +27,7 @@ export type PlayerOpenResult = { ok: true } | { ok: false; error: string };
  */
 export type RunLogOpenResult = { ok: true; host: PlayerHost } | { ok: false; error: string };
 
-/** The script panes on screen (ADR 0053), for Options → Panes. */
+/** The script panes on screen (ADR 0053). */
 export interface ScriptPaneList {
   list(): ScriptPaneInfo[];
   /** Calls `fn` when a pane is added, removed or retitled. */
@@ -75,7 +74,7 @@ export interface ChromeServices {
    */
   embedPlayer?: (slot: HTMLElement) => Promise<PlayerHost | null>;
   /**
-   * The current map (ADR 0020; Options → Mapper, the HTML replay
+   * The current map (ADR 0020; Settings → Mapper, the HTML replay
    * export). Absent: the Mapper page says the map store is not available
    * and exports use the bundled map.
    */
@@ -90,7 +89,7 @@ export interface ChromeServices {
    * null: no host in this tab yet (nothing runs before Enter MUME).
    */
   scriptRunning?: (name: string) => boolean | null;
-  /** The running script panes (Options → Panes lists them under the built-ins). Absent: none. */
+  /** The running script panes. Absent: none. No page of the chrome reads them since the old Panes page went (stage 55). */
   scriptPanes?: ScriptPaneList;
   /** Client notices (ADR 0025): the ESC header and the start page show them. */
   notices?: Notices;
@@ -124,16 +123,6 @@ export function useCells(): CellSize {
     return cells.subscribe((next) => set(next));
   }, [cells]);
   return c;
-}
-
-/** The live app status (ESC menu header). */
-export function useStatus(view: AppStatusView): Readonly<AppStatusState> {
-  const [s, set] = useState(view.get());
-  useEffect(() => {
-    set(view.get());
-    return view.subscribe((next) => set(next));
-  }, [view]);
-  return s;
 }
 
 const NO_NOTICES: Readonly<NoticeState> = Object.freeze({ update: null, storageSuperseded: false });
@@ -182,7 +171,7 @@ export function useElementSize(ref: { current: HTMLElement | null }): { w: numbe
 export interface Grid {
   cols: number;
   rows: number;
-  /** `start`: the start page (2 blank rows above titles); `menu`: the ESC menu (1). */
+  /** `start`: the start page (2 blank rows above an old-look page's title); `menu`: the ESC overlay (1). */
   surface: 'start' | 'menu';
 }
 
