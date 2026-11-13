@@ -64,6 +64,13 @@ describe('the strip\'s pages', () => {
     expect(stripPages([...all, ...all], [{ id: 'timers', label: 'x' }], label)).toHaveLength(4);
   });
 
+  it('omitted panes are never a page (stage 55, a replay), built-in or a script\'s', () => {
+    expect(stripPages(all, [], label, ['statistics']).map((p) => p.id)).toEqual(['timers', 'group', 'character']);
+    expect(stripPages(all, [{ id: 'kills/main', label: 'Kills' }], label, ['timers', 'kills/main']).map((p) => p.id)).toEqual(['group', 'character', 'statistics']);
+    expect(stripPages(all, [], label, [])).toHaveLength(4);
+    expect(stripPages(all, [], label, ['timers', 'group', 'character', 'statistics'])).toEqual([]);
+  });
+
   it('a step does not wrap; an unknown page is the first', () => {
     const pages = stripPages(all, [], label);
     expect(stepPage(pages, 'timers', 1)).toBe('group');
