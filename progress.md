@@ -96,8 +96,7 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   The owner approved the intent changes. Storage limit lowered to
   50 MB per account; the gallery notice has a switch in Settings.
 - **Open:** the Cloudflare facts marked "Not verified" in the research
-  note are tried in the stage that needs them; the owner tells the
-  Valar before stages 60, 61 and 64 open in production; the gallery's
+  note are tried in the stage that needs them; the gallery's
   name and letter, and whether "N online" stays on the start page,
   are decided in their stages.
 - **Commits:** 32a7064e…a95389cf and this one, pushed.

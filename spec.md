@@ -1393,10 +1393,6 @@ tasks, the test guide and the owner's feedback. Order and content:
 2. Graphs.
 3. Owner test.
 
-Before 60, 61 and 64 are opened in production the owner tells the
-Valar what the client now does (intent Constraints); the text of the
-registration page is a good thing to show them.
-
 ### 7.13 Later, perhaps
 
 Not planned; listed so they are not forgotten (intent Non-goals):

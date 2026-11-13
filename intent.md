@@ -202,9 +202,8 @@ reference only.
   privacy text, deletion by the player.
 - **Private hobby project.** MUME management is not involved during
   development. The repository and deployment stay private until the
-  owner judges the client mature. The Valar are contacted before
-  WebCockpit is shared with other players (password-phishing concern
-  raised in Play MUME's README).
+  owner judges the client mature. (The earlier line about contacting
+  the Valar before sharing was dropped by the owner 2026-11-13.)
 - **Licence:** GPL when shared (ADR 0001).
 - **New code only.** Nothing is copied or ported from Cockpit.
 - **Build process:** Claude Code with subagents, in stages. Each stage
