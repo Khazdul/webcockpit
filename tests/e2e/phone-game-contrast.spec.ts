@@ -443,6 +443,16 @@ for (const theme of THEMES) {
       await page.locator('.wc-ph-menu').tap();
       await expect(page.locator('.wc-ph-sheet')).toBeVisible();
       judge(await audit(page, ['.wc-ph-menu-host']), 'sheet', theme, info, 8);
+      // The client notices in the status line (stage 56): the update notice (a key: the link is down) and the storage one.
+      await page.evaluate(() => {
+        const n = (window.__wc!.shell as unknown as { opts: { notices: { newVersion(r: { version: string; commit: string }): void; storageSuperseded(): void } } }).opts.notices;
+        n.newVersion({ version: '9.9.9', commit: 'abc1234' });
+        n.storageSuperseded();
+      });
+      await expect(page.locator('.wc-ph-note')).toHaveCount(2);
+      const noted = await audit(page, ['.wc-ph-menu-host']);
+      expect(noted.filter((f) => f.where.includes('wc-ph-note')).length).toBeGreaterThanOrEqual(2);
+      judge(noted, 'sheet (notices)', theme, info, 10);
       // The stepper at the smallest size: A− is disabled (reported, not failed); the rest still holds.
       await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 6 } }));
       judge(await audit(page, ['.wc-ph-menu-host']), 'sheet (smallest text)', theme, info, 8);

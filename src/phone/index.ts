@@ -70,7 +70,7 @@ import type { PhoneGameHide } from '../layout/phone-game';
 import { Compass } from './compass';
 import { FightCardView } from './fight-card';
 import { type FightCard, type SelfVitals, fightCard, fightSig } from './fight-model';
-import { type MenuFrame, PhoneMenu } from './menu-sheet';
+import { type MenuFrame, PhoneMenu, type PhoneNoticesView } from './menu-sheet';
 import { type PlayState, keysLive } from './play-gate';
 import { sizeFits } from './text-settings';
 import { sectionChanged } from './changed';
@@ -241,6 +241,8 @@ export interface PhoneLiveDeps extends PhoneLayerBaseDeps {
   runs?: Pick<LiveRuns, 'anchor' | 'chain' | 'saveChain'> | undefined;
   /** The menu closed back to the game. */
   onMenuClose?(): void;
+  /** The client notices (ADR 0025) for the menu sheet's status line. Absent: none. */
+  notices?: PhoneNoticesView | undefined;
   /**
    * Stage 53 (ADR 0138): the command line as the keyboard of our own
    * types in it. That keyboard is the layout's only one.
@@ -587,6 +589,7 @@ class Layer {
           this.closeOwnKeyboard();
         },
         fits: (size) => this.sizeFits(size),
+        notices: live.notices,
       });
       // The way to the menu while the cockpit shows "Window too small" (the
       // command row with the menu key is hidden and inert then): shown by

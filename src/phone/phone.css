@@ -88,6 +88,8 @@ html.wc-phone .wc-player-chrome[data-docked] {
   --ph-body: #c6c6c6;
   --ph-danger: #e26d6d;
   --ph-rec: #d75f5f;
+  /* The update notice in the menu's status line (the storage notice is `--ph-danger`). */
+  --ph-note: #f0d264;
   --ph-key-off: #6d6252;
   /* The map lens (ADR 0136 §4): the cast-iron ring with a fine grain, the lamp's glow round it, the
    * glass's rim and edge darkening, the pips, the keys on its corners. */
@@ -206,6 +208,7 @@ html.wc-phone .wc-player[data-light] .wc-player-chrome[data-docked] {
   --ph-body: #2b2b2b;
   --ph-danger: #b3261e;
   --ph-rec: #b3261e;
+  --ph-note: #7a5200;
   --ph-key-off: #a39c8c;
   /* Paper: a pewter ring, a brass hairline at the glass, a warm drop shadow and no glow; the map stays dark. */
   --ph-lens-outer: 0 0 0 8px #a9a59b, 0 6px 16px 4px rgb(60 40 10 / 0.35);
@@ -2474,6 +2477,45 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-rec > i {
   height: 8px;
   border-radius: 50%;
   background: var(--ph-rec);
+}
+
+/* The client notices at the line's end (ADR 0025; stage 56). They stand in the line, at its
+ * height, so the rows under it never move; the status text gives way (an ellipsis). */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-notes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-note {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--ph-note);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-note.is-storage {
+  color: var(--ph-danger);
+}
+
+/* The update notice as a key (the link is down: a reload costs nothing): underlined, and a
+ * thumb's reach round the one line of text. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-note.is-act {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-note.is-act::after {
+  content: "";
+  position: absolute;
+  inset: -14px -8px;
 }
 
 /* A frosted card of rows. */

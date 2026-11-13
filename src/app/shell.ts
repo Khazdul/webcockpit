@@ -143,7 +143,7 @@ import { uiValue } from './ui-messages';
 import { MapStore } from '../map/store';
 import { NEW_USER_SCRIPTS, ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
-import type { Notices } from './notices';
+import { type Notices, noticeIndicators } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
 import { showPhoneFailed } from './phone-failed';
@@ -907,6 +907,8 @@ export class Shell {
               // Exit session, confirmed in the phone's own sheet (stage 52), with the run's rating.
               exit: () => void this.exitSession(),
               runs: app.runs,
+              // The client notices (ADR 0025) in the sheet's status line, as the command row's.
+              ...(notices ? { notices: { get: () => noticeIndicators(notices.get(), CLIENT_VERSION), subscribe: (fn: () => void) => notices.subscribe(fn) } } : {}),
               onMenuClose: () => {
                 if (this.inCockpit) app.input.focus();
               },
