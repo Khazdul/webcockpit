@@ -1009,3 +1009,15 @@
     animation: none;
   }
 }
+
+/* A tablet-size window with the phone flag (ADR 0140; stage 56, look-glass.css): 44 px targets. */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-pe-rit,
+  html.wc-phone .wc-pe-keycap {
+    height: 44px;
+  }
+
+  html.wc-phone .wc-lk-rows.is-flat > .wc-pe-new {
+    min-height: 44px;
+  }
+}
