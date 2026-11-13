@@ -850,3 +850,12 @@ html.wc-phone .wc-scr-helptext {
     flex-basis: 100%;
   }
 }
+
+/* A tablet-size window with the phone flag (ADR 0140; stage 56, look-glass.css): 44 px targets. */
+@media (min-width: 600px) and (min-height: 600px) {
+  html.wc-phone .wc-scr-val,
+  html.wc-phone .wc-scr-str,
+  html.wc-phone .wc-scr-tog .wc-lk-toggle {
+    min-height: 44px;
+  }
+}
