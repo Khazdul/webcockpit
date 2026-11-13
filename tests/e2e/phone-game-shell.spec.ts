@@ -397,11 +397,11 @@ test('the fullscreen corner button is hidden in the game layout and stays on the
   await expect(fs).toBeHidden();
 });
 
-test.describe('a tablet', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
   test('keeps the menu bar and its panes: no phone layer, no phone game marker', async ({ page }) => {
-    await page.goto('/?fixture=gmcp-demo.log&speed=0&touch=1');
+    await page.goto('/?fixture=gmcp-demo.log&speed=0&tablet=desktop');
     await expect(page.locator('html')).toHaveClass(/\bwc-touch\b/);
     await expect(page.locator('html')).not.toHaveClass(/\bwc-phone\b/);
     await expect(rows(page).filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);

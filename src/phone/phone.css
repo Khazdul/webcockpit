@@ -1569,6 +1569,26 @@ html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k[data-
   background: var(--ph-okb-mod);
 }
 
+/* A tablet-size window (ADR 0140; keyboard.ts sets `data-tablet` from the
+ * model's `okbTabletSize`): the keys are larger (72 × 56 px at most), and
+ * their faces grow with them. A phone-size window never has the mark. */
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-k {
+  font-size: 25px;
+}
+
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-k[data-act] {
+  font-size: 15px;
+}
+
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-k .wc-ph-ico {
+  width: 26px;
+  height: 26px;
+}
+
+html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb[data-tablet] .wc-ph-okb-cap {
+  border-radius: 8px;
+}
+
 /* Space is a character: a key of the letters' iron with a quiet mark. */
 html.wc-phone :is(.wc-cockpit[data-phone-game], .wc-okb-page) .wc-ph-okb-k.is-space {
   color: var(--ph-okb-space-mark);
@@ -2630,6 +2650,119 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-fold:activ
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-cancel:active,
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-star:active,
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-rate-clear:active {
+  background: var(--ph-row-rule);
+}
+
+/* ------------------------------------------------- automatic login's question */
+
+/* The question of ADR 0141 (login-ask.ts): a small window of the sheet's
+ * make (the iron band, the hood, the lit ground) standing in the game text.
+ * Not a dialog: no veil, and only the card itself takes taps (the layer
+ * takes none). JS sets left, top, width and the greatest height. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 30px 14px 14px;
+  overflow-y: auto;
+  border: 1px solid var(--ph-frost-edge);
+  border-top: 6px solid var(--ph-iron-hi);
+  border-radius: 10px;
+  background: var(--ph-window);
+  box-shadow: var(--ph-window-in), 0 6px 18px rgb(0 0 0 / 0.6);
+  pointer-events: auto;
+  letter-spacing: normal;
+  white-space: normal;
+  color: var(--ph-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* (Also over the low layout's `display`, which is the more specific rule.) */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask[hidden] {
+  display: none !important;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-q,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-n {
+  margin: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-q {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-q > b {
+  color: var(--ph-lamp);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-n {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ph-body);
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  height: 44px;
+  margin-top: 4px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > .wc-ph-ask-yes {
+  border-color: var(--ph-lamp);
+  color: var(--ph-lamp);
+  font-weight: 700;
+}
+
+/* A low room (a phone on its side with the keyboard up): the keys beside the text. */
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 26px 12px 10px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-q,
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-n {
+  grid-column: 1;
+  text-align: left;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-foot {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-top: 0;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask.is-low > .wc-ph-ask-foot > button {
+  flex: none;
+  width: 72px;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-ask-foot > button:active {
   background: var(--ph-row-rule);
 }
 

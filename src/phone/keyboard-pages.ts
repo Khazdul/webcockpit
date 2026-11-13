@@ -101,14 +101,16 @@ import {
   type OkbNav,
   type OkbTarget,
   OKB_PAD_X,
-  OKB_UNIT_MAX,
-  OKB_UNIT_MAX_LAND,
+  OKB_SIDE_MARGIN_TABLET,
+  OKB_UNIT_MAX_TABLET,
   OKB_UNIT_MIN_LAND,
   okbBlockWidth,
   okbCols,
   okbFromQuery,
   okbHeightPx,
   okbLayout,
+  okbTabletSize,
+  okbUnitMax,
 } from './keyboard-model';
 import { pulse } from './haptics';
 
@@ -146,6 +148,8 @@ const PAGE_SCOPE = '.wc-chrome, .wc-overlay';
 
 export interface PageKeyboardPlan {
   landscape: boolean;
+  /** The page is a tablet's size (`okbTabletSize`): the larger keys (ADR 0140). */
+  tablet: boolean;
   /** The digit row is shown. */
   digits: boolean;
   /** The keyboard's height, px: the page's bottom reserve. */
@@ -162,7 +166,9 @@ export interface PageKeyboardPlan {
 /**
  * The keyboard's place on a page `width` × `height` px, or null when the
  * page would keep less than `PAGE_KEEP_PX` above it. The block is centred;
- * a key is at most as wide as in the game layout.
+ * a key is at most as wide as in the game layout (a tablet-size page
+ * gets the tablet's sizes there too, and its columns of page keys are as
+ * wide as a letter key).
  *
  * The page keys: in landscape a column at each side of the block, which
  * costs no height (the block gets narrower for them, its letter keys never
@@ -173,29 +179,33 @@ export interface PageKeyboardPlan {
 export function pageKeyboardPlan(width: number, height: number, layout: OkbLayout, digits: boolean): PageKeyboardPlan | null {
   if (!(width > 0) || !(height > 0)) return null;
   const landscape = width > height;
-  const cap = landscape ? OKB_UNIT_MAX_LAND : OKB_UNIT_MAX;
-  const full = okbBlockWidth(width, layout, cap);
-  const column = PAGE_SIDE_W + PAGE_SIDE_GAP;
+  // A tablet-size page (ADR 0140): the game layout's larger keys, and the columns as wide as a letter key.
+  const tablet = okbTabletSize(width, height);
+  const cap = okbUnitMax(landscape, tablet);
+  const full = okbBlockWidth(width, layout, cap, tablet ? OKB_SIDE_MARGIN_TABLET : 0);
+  const sideW = tablet ? OKB_UNIT_MAX_TABLET : PAGE_SIDE_W;
+  const column = sideW + PAGE_SIDE_GAP;
   const narrow = okbBlockWidth(width - 2 * column, layout, cap);
   const sides = landscape && (narrow - 2 * OKB_PAD_X) / okbCols(layout) >= OKB_UNIT_MIN_LAND;
   const ds = digits ? [true, false] : [false];
   const tries: Array<[boolean, boolean]> = sides ? ds.map((d) => [d, false]) : [...ds.map((d): [boolean, boolean] => [d, true]), [false, false]];
   for (const [d, row] of tries) {
-    const h = okbHeightPx(landscape, height, d, row);
+    const h = okbHeightPx(landscape, height, d, row, tablet);
     if (height - h < PAGE_KEEP_PX) continue;
     if (sides) {
       const left = (width - narrow) / 2;
       return {
         landscape,
+        tablet,
         digits: d,
         height: h,
         left,
         width: narrow,
         nav: 'sides',
-        sides: { left: left - column, right: left + narrow + PAGE_SIDE_GAP, width: PAGE_SIDE_W },
+        sides: { left: left - column, right: left + narrow + PAGE_SIDE_GAP, width: sideW },
       };
     }
-    return { landscape, digits: d, height: h, left: (width - full) / 2, width: full, nav: row ? 'row' : 'none' };
+    return { landscape, tablet, digits: d, height: h, left: (width - full) / 2, width: full, nav: row ? 'row' : 'none' };
   }
   return null;
 }
@@ -357,7 +367,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
     const sideL = parseFloat(st?.marginLeft ?? '') || 0;
     const sideR = parseFloat(st?.marginRight ?? '') || 0;
     landscape = box.width - sideL - sideR > box.height;
-    roomy = box.height - okbHeightPx(landscape, box.height, true, true) >= PAGE_CODE_DIGITS_KEEP_PX;
+    roomy = box.height - okbHeightPx(landscape, box.height, true, true, okbTabletSize(box.width - sideL - sideR, box.height)) >= PAGE_CODE_DIGITS_KEEP_PX;
     const layout = wanted();
     const plan = pageKeyboardPlan(box.width - sideL - sideR, box.height, layout, digitsWanted());
     if (!plan) {
@@ -371,7 +381,7 @@ export function mountPageKeyboard(deps: PageKeyboardDeps): PageKeyboardHandle {
       reserve = plan.height;
       root.style.setProperty('--wc-okb-page-h', `${plan.height}px`);
     }
-    okb.place({ top: 0, left: plan.left, width: plan.width, sides: plan.sides });
+    okb.place({ top: 0, left: plan.left, width: plan.width, sides: plan.sides, tablet: plan.tablet });
   }
 
   /** A multi-line field: Enter is a line break there (`data-okb-kind="lines"`, the shared `TextArea`). */

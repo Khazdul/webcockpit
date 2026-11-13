@@ -204,6 +204,14 @@ describe('the phone\'s one-time defaults (stage 52)', () => {
     expect(phoneDefaultsAtStart(s, false)).not.toBeNull();
   });
 
+  it('a tablet (ADR 0140): stored settings below the mark are the desktop cockpit\'s and are never patched', () => {
+    const s = defaultSettings();
+    expect(phoneDefaultsAtStart(s, false, true)).toBeNull();
+    expect(phoneDefaultsAtStart(s, true, true)).toBeNull();
+    // A phone, as before.
+    expect(phoneDefaultsAtStart(s, false, false)).toEqual(phoneDefaultsPatch(s));
+  });
+
   it('a new phone starts with them and is marked: Herblores off, the time text off, Character out of the strip; nothing to apply', () => {
     const s = phoneDefaultSettings();
     expect(s.timers.groups.herb.enabled).toBe(false);

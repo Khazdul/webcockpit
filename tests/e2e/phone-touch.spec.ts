@@ -44,11 +44,11 @@ test('a tap on a whole sheet row opens it; a tap on Back returns to the sheet', 
   expect(await inputFocused(page)).toBe(false);
 });
 
-test.describe('a tablet', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
   async function openTablet(page: Page): Promise<void> {
-    await page.goto('/?replay&touch=1');
+    await page.goto('/?replay&tablet=desktop');
     await expect(page.locator('.wc-app')).toBeVisible();
     await expect(page.locator('html')).toHaveClass(/\bwc-touch\b/);
     await expect(page.locator('html')).not.toHaveClass(/\bwc-phone\b/);

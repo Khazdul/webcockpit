@@ -1,23 +1,50 @@
-// Device flags (ADR 0075 §1): `touch` and `phone`, decided once at
-// startup and never changed at runtime (rotating keeps them).
+// Device flags (ADR 0075 §1, ADR 0140): `touch`, `phone` and `tablet`,
+// decided once at startup and never changed at runtime (rotating keeps
+// them).
 //
-//   touch  the primary pointer is coarse and cannot hover
-//          (`(pointer: coarse) and (hover: none)`); a laptop with a touch
-//          screen and a touchpad stays desktop. Fallback for browsers
-//          that misreport the primary pointer (Samsung Internet answers
-//          `hover: hover`, ADR 0086): a touch screen
-//          (`navigator.maxTouchPoints > 0`) on a screen whose short side
-//          is under 600 CSS px, or on Android.
-//   phone  touch, and the short side of the screen is under 600 CSS px.
+//   touch   the primary pointer is coarse and cannot hover
+//           (`(pointer: coarse) and (hover: none)`); a laptop with a touch
+//           screen and a touchpad stays desktop. Fallback for browsers
+//           that misreport the primary pointer (Samsung Internet answers
+//           `hover: hover`, ADR 0086): a touch screen
+//           (`navigator.maxTouchPoints > 0`) on a screen whose short side
+//           is under 600 CSS px, or on Android.
+//   tablet  a touch device (found as above, not forced with `?touch=1`)
+//           whose screen's short side is 600 CSS px or more (ADR 0140).
+//   phone   touch, and the short side of the screen is under 600 CSS px;
+//           or a tablet. "Phone" is the phone's code paths, layout and
+//           keyboard: a tablet uses them all (ADR 0140), so `phone` is on
+//           whenever `tablet` is.
 //
-// `?touch=1` and `?phone=1` force them on (phone implies touch), for
-// development on a desktop and for the e2e tests. With both flags off no
-// phone code path runs: every touch/phone branch reads these flags, and
-// all touch/phone CSS is scoped under `html.wc-touch` / `html.wc-phone`.
+// What `tablet` adds to `phone`: the shell uses the phone's game layout
+// and our own keyboard whatever the window's size (src/app/shell.ts
+// `phoneGameWanted`), and stored settings are left exactly as they are
+// (src/phone/phone-defaults.ts). Nothing else reads it.
+//
+// Query flags:
+//
+//   ?touch=1, ?phone=1  force those flags on (phone implies touch), for
+//                       development on a desktop and for the e2e tests.
+//                       Neither makes a tablet: `?touch=1` on a desktop is
+//                       the desktop cockpit with touch behaviours, and
+//                       `?phone=1` on a desktop-size window is the OLD
+//                       phone layout (ADR 0075), as before ADR 0140.
+//   ?tablet=phone       forces `tablet` (and so `phone` and `touch`) on any
+//                       device: the phone's game layout on a window of any
+//                       size (tests and development on a desktop).
+//   ?tablet=desktop     a tablet is not one: touch only, the desktop
+//                       cockpit and the device's keyboard, as before
+//                       ADR 0140. No effect on a phone or a desktop.
+//
+// With all flags off no phone code path runs: every touch/phone branch
+// reads these flags, and all touch/phone CSS is scoped under
+// `html.wc-touch` / `html.wc-phone`.
 
 export interface DeviceFlags {
   readonly touch: boolean;
   readonly phone: boolean;
+  /** A tablet (ADR 0140): the phone's layout on a window of any size. Implies `phone`. */
+  readonly tablet: boolean;
 }
 
 export interface DeviceInputs {
@@ -33,7 +60,7 @@ export interface DeviceInputs {
   search: string;
 }
 
-/** Short side (CSS px) below which a touch device counts as a phone. */
+/** Short side (CSS px) below which a touch device counts as a phone; from it up, as a tablet. */
 export const PHONE_MAX_SHORT_SIDE = 600;
 
 const forced = (params: URLSearchParams, name: string): boolean => {
@@ -44,17 +71,21 @@ const forced = (params: URLSearchParams, name: string): boolean => {
 /** The flags for these inputs (pure). */
 export function decideDevice(i: DeviceInputs): DeviceFlags {
   const params = new URLSearchParams(i.search);
+  const asked = params.get('tablet');
   const forcePhone = forced(params, 'phone');
   const small = Math.min(i.screenWidth, i.screenHeight) < PHONE_MAX_SHORT_SIDE;
   const touchScreen = i.touchPoints > 0 && (small || /Android/i.test(i.userAgent));
-  const touch = forcePhone || forced(params, 'touch') || i.coarse || touchScreen;
-  const phone = forcePhone || (touch && small);
-  return { touch, phone };
+  // A touch device by what the browser says: the query's forced flags do not make a tablet.
+  const found = i.coarse || touchScreen;
+  const tablet = asked === 'phone' || (found && !small && asked !== 'desktop');
+  const touch = tablet || forcePhone || forced(params, 'touch') || found;
+  const phone = tablet || forcePhone || (touch && small);
+  return { touch, phone, tablet };
 }
 
-let flags: DeviceFlags = { touch: false, phone: false };
+let flags: DeviceFlags = { touch: false, phone: false, tablet: false };
 
-/** The flags in force (both off until `initDevice` runs, e.g. in unit tests). */
+/** The flags in force (all off until `initDevice` runs, e.g. in unit tests). */
 export function device(): DeviceFlags {
   return flags;
 }
@@ -80,9 +111,9 @@ export function initDevice(win: Window = window): DeviceFlags {
   return flags;
 }
 
-/** Test hook: sets the flags directly (unit tests of touch branches). */
-export function setDeviceForTest(next: DeviceFlags): void {
-  flags = next;
+/** Test hook: sets the flags directly (unit tests of touch branches); `tablet` is off unless given. */
+export function setDeviceForTest(next: Pick<DeviceFlags, 'touch' | 'phone'> & Partial<DeviceFlags>): void {
+  flags = { tablet: false, ...next };
 }
 
 let lastPointerType = '';

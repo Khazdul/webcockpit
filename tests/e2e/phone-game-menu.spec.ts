@@ -517,7 +517,7 @@ test.describe('a phone flag forced in a wide window (the old phone layout)', () 
   test.use({ viewport: { width: 1000, height: 700 } });
 
   test('keeps the old Exit session frame: #exit opens the ESC menu\'s confirm, not the phone\'s sheet', async ({ page }) => {
-    await page.goto('/?replay&phone=1');
+    await page.goto('/?replay&phone=1&tablet=desktop');
     await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
     await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
     await page.locator('.wc-input-field').fill('#exit');
@@ -527,11 +527,11 @@ test.describe('a phone flag forced in a wide window (the old phone layout)', () 
   });
 });
 
-test.describe('a tablet', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
   test('has no menu sheet: #settings opens the Settings popup, Esc the Exit popup', async ({ page }) => {
-    await page.goto('/?replay&touch=1');
+    await page.goto('/?replay&tablet=desktop');
     await expect(page.locator('.wc-mb-bar')).toBeVisible();
     await expect(page.locator('.wc-ph-menu-host')).toHaveCount(0);
     await page.locator('.wc-input-field').fill('#settings');

@@ -13,6 +13,11 @@ import {
   OKB_ROW_MAX_LAND,
   OKB_ROW_MIN,
   OKB_ROW_MIN_LAND,
+  OKB_ROW_MAX_TABLET,
+  OKB_ROW_MIN_TABLET,
+  OKB_SIDE_MARGIN_TABLET,
+  OKB_TABLET_MIN_SHORT,
+  OKB_UNIT_MAX_TABLET,
   OKB_SHIFT_DOUBLE_MS,
   OKB_SHIFT_OFF,
   OKB_SIDE_TOP_MIN,
@@ -33,6 +38,9 @@ import {
   okbNavRow,
   okbNavSides,
   okbPortraitSide,
+  okbPortraitWidth,
+  okbTabletSize,
+  okbUnitMax,
   okbRowCount,
   okbRowPx,
   okbRows,
@@ -40,6 +48,7 @@ import {
   shiftTap,
   shiftUsed,
 } from '../../src/phone/keyboard-model';
+import { PHONE_MAX_SHORT_SIDE } from '../../src/core/device';
 
 const text = (row: OkbRow): string => row.keys.map((k) => k.ch ?? (k.act ? `<${k.act}>` : '_')).join('');
 const weight = (row: OkbRow): number => row.keys.reduce((n, k) => n + k.w, 0);
@@ -542,5 +551,117 @@ describe('own keyboard: the symbols in a code editor (round 53h)', () => {
     const text = okbRows({ layout: 'en', page: 'symbols', digits: false, arrowsOnDigitRow: true, symbols: 'text' });
     expect(plain).toEqual(text);
     expect(plain.find((r) => r.kind === 'chars' && r.keys.some((k) => k.act === 'alt'))!.keys.filter((k) => k.ch).map((k) => k.ch).join('')).toBe([...OKB_SYMBOLS].slice(0, 7).join(''));
+  });
+});
+
+// ADR 0140: a tablet-size window (short side 600 px or more) gets larger keys. The phone's sizes
+// (every test above, all with `tablet` left out) do not change.
+describe('own keyboard: a tablet-size window', () => {
+  it('a tablet-size window is one whose short side is 600 px or more; an unknown size is not', () => {
+    expect(OKB_TABLET_MIN_SHORT).toBe(PHONE_MAX_SHORT_SIDE);
+    expect(okbTabletSize(820, 1180)).toBe(true);
+    expect(okbTabletSize(1180, 820)).toBe(true);
+    expect(okbTabletSize(600, 600)).toBe(true);
+    expect(okbTabletSize(599, 1180)).toBe(false);
+    expect(okbTabletSize(1180, 599)).toBe(false);
+    // Phones, upright and on their side.
+    for (const [w, h] of [[360, 800], [412, 915], [430, 932], [932, 430], [800, 360], [568, 320]] as const) expect(okbTabletSize(w, h)).toBe(false);
+    expect(okbTabletSize(0, 820)).toBe(false);
+    expect(okbTabletSize(NaN, 820)).toBe(false);
+    expect(okbTabletSize(820, Infinity)).toBe(false);
+  });
+
+  it('the cap of a letter key: 72 px in both shapes; the phone\'s without the flag', () => {
+    expect(okbUnitMax(false, true)).toBe(72);
+    expect(okbUnitMax(true, true)).toBe(72);
+    expect(okbUnitMax(false)).toBe(OKB_UNIT_MAX);
+    expect(okbUnitMax(true)).toBe(OKB_UNIT_MAX_LAND);
+    expect(okbUnitMax(false, false)).toBe(48);
+    expect(okbUnitMax(true, false)).toBe(46);
+  });
+
+  it('a row is 56 px at 820 × 1180 and at 1180 × 820: landscape has no low rows on a tablet', () => {
+    expect(okbRowPx(false, 1180, true)).toBe(56);
+    expect(okbRowPx(true, 820, true)).toBe(56);
+    // The same rule in both shapes.
+    for (const h of [600, 640, 700, 744, 820, 1024, 1180, 1366]) expect(okbRowPx(true, h, true)).toBe(okbRowPx(false, h, true));
+    // A lower window (Safari's bars; a small tablet on its side): a share of the height, never under 48.
+    expect(okbRowPx(true, 730, true)).toBe(54);
+    expect(okbRowPx(true, 700, true)).toBe(52);
+    expect(okbRowPx(true, 600, true)).toBe(OKB_ROW_MIN_TABLET);
+    expect(okbRowPx(false, Infinity, true)).toBe(OKB_ROW_MAX_TABLET);
+    expect(okbRowPx(true, Infinity, true)).toBe(OKB_ROW_MAX_TABLET);
+    // Without the flag: the phone's, whatever the height.
+    expect(okbRowPx(true, 820)).toBe(OKB_ROW_MAX_LAND);
+    expect(okbRowPx(false, 1180)).toBe(OKB_ROW_MAX);
+    expect(okbRowPx(true, 820, false)).toBe(36);
+  });
+
+  it('the block\'s height: 228 px (284 with the digit row) at both of the iPad\'s shapes', () => {
+    expect(okbHeightPx(false, 1180, false, false, true)).toBe(4 * 56 + 4);
+    expect(okbHeightPx(false, 1180, true, false, true)).toBe(5 * 56 + 4);
+    expect(okbHeightPx(true, 820, false, false, true)).toBe(228);
+    expect(okbHeightPx(true, 820, true, false, true)).toBe(284);
+    expect(okbHeightPx(true, 820, false)).toBe(4 * 36 + 4);
+  });
+
+  it('portrait: the block across the screen with a margin at each side, its keys at most 72 px', () => {
+    // 820 px, Swedish: eleven keys of exactly 72 px between two 12 px margins.
+    const sv = okbPortraitWidth(820, 'sv', true);
+    expect(sv).toBe(820 - 2 * OKB_SIDE_MARGIN_TABLET);
+    expect((sv - 2 * OKB_PAD_X) / 11).toBe(72);
+    // English: ten keys at the cap.
+    expect(okbPortraitWidth(820, 'en', true)).toBe(10 * 72 + 2 * OKB_PAD_X);
+    // A narrower tablet: the margins stay and the keys share what is left.
+    expect(okbPortraitWidth(744, 'sv', true)).toBe(720);
+    expect(okbPortraitWidth(600, 'sv', true)).toBe(576);
+    // The arrows stand on the digit row there.
+    expect(okbArrowsOnDigitRow(sv)).toBe(true);
+    // A phone-size window: exactly `okbBlockWidth`, no margin.
+    for (const w of [320, 360, 412, 430, 599]) {
+      for (const l of ['sv', 'en'] as const) {
+        expect(okbPortraitWidth(w, l)).toBe(okbBlockWidth(w, l));
+        expect(okbPortraitWidth(w, l, false)).toBe(Math.min(w, okbCols(l) * OKB_UNIT_MAX + 2 * OKB_PAD_X));
+      }
+    }
+  });
+
+  it('landscape 1180 px: the block between the hot key column(s) and the compass, 72 px keys', () => {
+    const band = (kLeft: number, kRight: number, layout: 'sv' | 'en' = 'sv') => okbBand({ width: 1180, layout, keyPx: 44, keyGap: 3, kLeft, kRight, tablet: true });
+    const padLeft = 1180 - OKB_BAND_MARGIN - (3 * 44 + 6);
+    for (const [kl, kr] of [[3, 3], [3, 0], [0, 0]] as const) {
+      const b = band(kl, kr);
+      expect(b.unit).toBe(OKB_UNIT_MAX_TABLET);
+      expect(b.w).toBe(11 * 72 + 2 * OKB_PAD_X);
+      expect(b.pad).toBe(true);
+      expect(b.droppedK).toBe(false);
+      // Left to right on screen: the first column, the block, the second column, the compass.
+      expect(b.kLeftX === null).toBe(kl === 0);
+      expect(b.kRightX === null).toBe(kr === 0);
+      if (b.kLeftX !== null) {
+        expect(b.kLeftX).toBeGreaterThanOrEqual(OKB_BAND_MARGIN);
+        expect(b.kLeftX + 44 + OKB_BAND_GAP).toBe(b.x);
+      }
+      const right = b.kRightX !== null ? b.kRightX + 44 : b.x + b.w;
+      expect(right + OKB_BAND_GAP).toBeLessThanOrEqual(padLeft);
+    }
+    // With a column on each side the block stands where it does without them (the K key does not move it).
+    expect(band(3, 3).x).toBe(band(0, 0).x);
+    expect(band(3, 3, 'en').w).toBe(10 * 72 + 2 * OKB_PAD_X);
+    // A narrower tablet on its side: the keys share what the columns and the compass leave.
+    const mini = okbBand({ width: 960, layout: 'sv', keyPx: 44, keyGap: 3, kLeft: 3, kRight: 3, tablet: true });
+    expect(mini.unit).toBeLessThan(72);
+    expect(mini.unit).toBeGreaterThan(OKB_UNIT_MAX_LAND);
+    expect(mini.droppedK).toBe(false);
+  });
+
+  it('without the flag the band is the phone\'s at every width, a tablet\'s included', () => {
+    for (const width of [568, 640, 800, 932, 1180]) {
+      for (const [kl, kr] of [[3, 3], [3, 0], [0, 0]] as const) {
+        const ask = { width, layout: 'sv' as const, keyPx: 44, keyGap: 3, kLeft: kl, kRight: kr };
+        expect(okbBand({ ...ask, tablet: false })).toEqual(okbBand(ask));
+        expect(okbBand(ask).unit).toBeLessThanOrEqual(OKB_UNIT_MAX_LAND);
+      }
+    }
   });
 });

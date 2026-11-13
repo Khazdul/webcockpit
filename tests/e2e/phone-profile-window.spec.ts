@@ -91,12 +91,12 @@ test('a phone: a profile that cannot be opened leaves the failure and Edit on th
   expect(errors).toEqual([]);
 });
 
-test.describe('a tablet', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
   test('the Profile window by taps: a kind, a row, its field with the soft keyboard; a tap in the game applies', async ({ page }) => {
     const errors = watchErrors(page);
-    await enterMume(page, '/?touch=1', '#alias {a} {b}\n#alias {k} {kill}\n');
+    await enterMume(page, '/?tablet=desktop', '#alias {a} {b}\n#alias {k} {kill}\n');
     await expect(page.locator('html')).not.toHaveClass(/\bwc-phone\b/);
     await page.locator('.wc-mb[data-mb="profile"]').tap();
     const win = page.locator('.wc-win[data-win="profile"]');

@@ -1503,11 +1503,11 @@ test.describe('landscape', () => {
   });
 });
 
-test.describe('a tablet', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
   test('has none of it: its panes are docked, Comm is the desktop\'s with an input reply line', async ({ page }) => {
-    await page.goto('/?fixture=gmcp-demo.log&speed=0&touch=1');
+    await page.goto('/?fixture=gmcp-demo.log&speed=0&tablet=desktop');
     await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Replay finished.' })).toHaveCount(1);
     await expect(page.locator('.wc-ph-strip, .wc-ph-comm-band, .wc-ph-sat, [data-phone-strip]')).toHaveCount(0);
     await expect(page.locator('.wc-comm[data-phone]')).toHaveCount(0);

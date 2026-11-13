@@ -125,7 +125,7 @@ import type { ChainRun } from '../player/timeline';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
-import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, RESUME_PING_TIMEOUT_MS } from '../net/session';
+import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, RESUME_PING_TIMEOUT_MS, isLinkLoss } from '../net/session';
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
 import type { CellMetrics } from '../theme/cells';
@@ -199,6 +199,18 @@ export function phoneSizeWindow(win: Pick<Window, 'innerWidth' | 'innerHeight'> 
   return Math.min(w, h) < PHONE_MAX_SHORT_SIDE;
 }
 
+/**
+ * The phone's game layout is used (ADR 0136 §1, ADR 0140): on a tablet
+ * (`device().tablet`, which `?tablet=phone` forces) whatever the window's
+ * size; else with the phone flag on a window that is a phone's.
+ */
+export function phoneGameWanted(
+  flags: { phone: boolean; tablet?: boolean },
+  win: Pick<Window, 'innerWidth' | 'innerHeight'> | null | undefined,
+): boolean {
+  return flags.phone && (flags.tablet === true || phoneSizeWindow(win));
+}
+
 export class Shell {
   private readonly opts: ShellOptions;
   readonly profiles: ProfileStore;
@@ -214,7 +226,8 @@ export class Shell {
    * desktop-size window keeps the old phone layout (the tab strip, `☰` and
    * the ESC menu, ADR 0075): that is what the desktop projects' specs of
    * the Options frames open, and a phone's layout is not made for it.
-   * Decided once, when the shell is built.
+   * Decided once, when the shell is built. A tablet (ADR 0140,
+   * src/core/device.ts) uses it whatever the window's size.
    */
   private readonly phoneGame: boolean;
   /** Phone only: our keyboard on the pages outside the game layout (ADR 0139; src/phone/keyboard-pages.ts). */
@@ -260,7 +273,7 @@ export class Shell {
     this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
-    this.phoneGame = device().phone && phoneSizeWindow(doc.defaultView);
+    this.phoneGame = phoneGameWanted(device(), doc.defaultView);
     // Our own keyboard is the phone's (ADR 0138, ADR 0139). Before any page is drawn: the shared
     // field components mark their fields by it.
     setPageKeyboard(this.phoneGame);
@@ -432,6 +445,8 @@ export class Shell {
     }
     this.menu?.close();
     this.phoneLayer?.menu.close(true);
+    // A login kept for the session goes with it (ADR 0141), also when the link was down already.
+    this.phoneLayer?.forgetLogin();
     this.showStart();
   }
 
@@ -898,6 +913,7 @@ export class Shell {
             this.phoneLayer = phone.mountPhoneLayer({
               kit: PHONE_KIT,
               controls: { Seg: chrome.Seg, Toggle: chrome.Toggle },
+              tablet: device().tablet,
               cockpit: app.cockpit,
               game: app.game,
               cells,
@@ -946,6 +962,8 @@ export class Shell {
                 focus: () => app.input.input.focus({ preventScroll: true }),
                 blur: () => app.input.input.blur(),
               },
+              // Automatic login for the session (ADR 0141): all of it is in the phone's chunk.
+              autoLogin: { session: app.session, bus: app.bus, userReconnect: REASON_USER_RECONNECT, linkLost: isLinkLoss },
             });
             old.remove();
             this.phoneLayerFailed = false;
@@ -964,7 +982,9 @@ export class Shell {
     // with Reconnect selected. Desktop installs nothing.
     if (device().phone) {
       const doc = root.ownerDocument;
-      watchResume(doc, doc.defaultView ?? window, () => {
+      watchResume(doc, doc.defaultView ?? window, (restored) => {
+        // Back from the back/forward cache: the page had been left, and a login kept for the session is forgotten (ADR 0141).
+        if (restored) this.phoneLayer?.forgetLogin(true);
         // First what the rule remembers (a link that dropped out of view), then the check of a link still held.
         const st = app.session.state;
         const up = (st === 'login' || st === 'playing') && !app.status.get().replay;
@@ -992,14 +1012,18 @@ export class Shell {
     const quiet = this.connIsReplay || QUIET_REASONS.has(reason);
     // Phone game layout, "Reconnect automatically" on (ADR 0136 §10): a dead link found on resume
     // reconnects once instead of opening the sheet. Off (and everywhere else) nothing changes here.
-    const auto = this.autoReconnect(app, {
-      type: 'drop',
-      wasUp: wasUp && this.everUp,
-      quiet,
-      foundOnResume: reason === REASON_BACKGROUND_LOST,
-      hidden: this.opts.root.ownerDocument.visibilityState === 'hidden',
-      now: Date.now(),
-    });
+    const auto = this.autoReconnect(
+      app,
+      {
+        type: 'drop',
+        wasUp: wasUp && this.everUp,
+        quiet,
+        foundOnResume: reason === REASON_BACKGROUND_LOST,
+        hidden: this.opts.root.ownerDocument.visibilityState === 'hidden',
+        now: Date.now(),
+      },
+      reason,
+    );
     if (auto === 'reconnect') return;
     // The automatic connection never came up: the sheet with Reconnect, as for any drop (below).
     if (auto !== 'sheet' && (!wasUp || !this.everUp || quiet)) return;
@@ -1023,9 +1047,15 @@ export class Shell {
    * reconnect was started (the sheet is then not opened for the drop);
    * `sheet`: the automatic connection failed, the drop opens the sheet.
    */
-  private autoReconnect(app: App, ev: AutoReconnectEvent): 'reconnect' | 'sheet' | null {
+  private autoReconnect(app: App, ev: AutoReconnectEvent, dropReason?: string): 'reconnect' | 'sheet' | null {
     if (!this.phoneGame) return null;
-    const step = autoReconnectStep(this.autoState, ev, this.opts.settings.get().phone.autoReconnect && this.inCockpit);
+    // A session armed for automatic login (ADR 0141) reconnects whatever the setting says. At a
+    // drop: only if it is still armed once that connection is gone (a lost link; never a session
+    // that ended on purpose: a quit must not bring the character back).
+    const layer = this.phoneLayer;
+    const armed = dropReason === undefined ? layer?.loginArmed === true : layer?.loginArmedAfter(dropReason) === true;
+    const on = this.opts.settings.get().phone.autoReconnect || armed;
+    const step = autoReconnectStep(this.autoState, ev, on && this.inCockpit);
     this.autoState = step.state;
     if (step.sheet) return 'sheet';
     if (!step.reconnect) return null;

@@ -208,7 +208,7 @@ test.describe('a tablet-size window with the phone flag forced', () => {
 
   test('gets neither the game layout nor our keyboard (the gating by size is unchanged)', async ({ page }) => {
     const errors = watchErrors(page);
-    await page.goto('/?replay&phone=1');
+    await page.goto('/?replay&phone=1&tablet=desktop');
     await expect(html(page)).toHaveClass(/\bwc-phone\b/);
     await expect(page.locator('.wc-cockpit')).toBeVisible();
     await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);

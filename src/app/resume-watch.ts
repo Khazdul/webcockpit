@@ -18,13 +18,17 @@ export interface PageShowSource {
   removeEventListener(type: 'pageshow', fn: (e: PageTransitionEvent) => void): void;
 }
 
-/** Calls `onResume` each time the page comes back. Returns the uninstaller. */
-export function watchResume(doc: VisibilitySource, win: PageShowSource, onResume: () => void): () => void {
+/**
+ * Calls `onResume` each time the page comes back. `restored`: it came back
+ * from the back/forward cache (the page had been left). Returns the
+ * uninstaller.
+ */
+export function watchResume(doc: VisibilitySource, win: PageShowSource, onResume: (restored: boolean) => void): () => void {
   const onVisibility = (): void => {
-    if (doc.visibilityState === 'visible') onResume();
+    if (doc.visibilityState === 'visible') onResume(false);
   };
   const onPageShow = (e: PageTransitionEvent): void => {
-    if (e.persisted) onResume();
+    if (e.persisted) onResume(true);
   };
   doc.addEventListener('visibilitychange', onVisibility);
   win.addEventListener('pageshow', onPageShow);

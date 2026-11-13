@@ -157,6 +157,15 @@ Mapped to Inv §9.
   `Disconnected — Reconnect` notice in the input row, and Enter
   reconnects (ADR 0100). On the phone the ESC menu opens automatically on
   disconnect with Reconnect selected (ADR 0058 behaviour).
+  On the phone's game layout (phones and tablets) the player can let the
+  session log in again by itself: asked once after a login, the name and
+  password are then kept in the page's memory only, and every new
+  connection after a LOST link is logged in at MUME's own prompts, until
+  the page is closed or reloaded, the session ends on purpose (the
+  player disconnects or exits, MUME says goodbye or closes the
+  connection itself: a quit is never logged back in), or anything
+  unexpected happens (ADR 0141; not yet verified against the live
+  game).
 - **Keep-alive.** GMCP `Core.Ping` goes out every 10 s (ADR 0007, amended).
   - The `Link:` readout is an HTTPS round trip to mume.org, with the
     `Core.Ping` round trip as the fallback (ADR 0030).
@@ -685,11 +694,23 @@ Research: `notes/research/import/`. Design: ADR 0073.
 
 Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
 
-- **Gating.** Two flags, decided once at startup: *touch*
-  (`(pointer: coarse) and (hover: none)`) and *phone* (touch and the
-  short screen side under 600 CSS px). `?touch=1` / `?phone=1` force them
-  for development and tests. With both off, no phone code runs and no
+- **Gating.** Three flags, decided once at startup: *touch*
+  (`(pointer: coarse) and (hover: none)`), *phone* (touch and the
+  short screen side under 600 CSS px) and *tablet* (touch and the short
+  side 600 px or more). `?touch=1` / `?phone=1` force the first two
+  for development and tests. With all off, no phone code runs and no
   phone CSS matches: desktop is unchanged.
+- **A tablet uses the phone's layout** (stage 54, ADR 0140): the
+  tablet flag turns the phone flag on, and the phone's game layout and
+  keyboard are used whatever the window's size. Everything this
+  section says of "the phone" holds for a tablet; what this spec says
+  of "desktop and tablet" holds for a tablet only behind
+  `?tablet=desktop` (the desktop cockpit and the device's keyboard, as
+  before). `?tablet=phone` forces the tablet flag on any device.
+  Settings already stored on a tablet are kept as they are. On a
+  window whose short side is 600 px or more the keyboard's keys are
+  larger (letter keys up to 72 px, rows up to 56 px) and its block
+  spans the width.
 - **Touch (part A):** an on-screen menu button replaces Esc (on the phone
   only since stage 30f: a tablet has the menu bar, ADR 0112); every Back /
   Esc footer becomes tappable; taps do not pull focus to the input (no
@@ -793,6 +814,15 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
       keeps its keyboard state for them only.
   - *Menu:* a bottom sheet with Reconnect, Profile, Scripts, Settings (a
     small phone page), text size, Black / Paper and Exit session.
+  - *Automatic login for the session* (ADR 0141): after a login typed by
+    hand a card in the game text asks "Log in automatically as <Name>
+    for the rest of this session?" (no veil, no key: play goes on under
+    it). With Yes a dead link found on resume reconnects, whatever
+    "Reconnect automatically" says, and the client sends the name at the
+    name prompt and the password when the server has turned ECHO off;
+    the menu's Reconnect does the same. It is the account password that
+    is held: memory only, never stored; one attempt, and any surprise,
+    or a session that ended on purpose, wipes it.
   - *Weather* (off by default on a phone) fills the whole width when on.
 - **Desktop-only on a phone:** arranging panes and macro key capture
   (the export editor works on a phone since stages 43 and 45).

@@ -1,0 +1,129 @@
+/* Shared kit for the tablet mockups, round 2: direction A in the desktop's Lykta look. */
+.tb{overflow:hidden;position:relative;box-sizing:border-box;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:16px;line-height:20px;display:flex}
+.tb.land{width:1180px;height:820px;flex-direction:row}
+.tb.port{width:820px;height:1180px;flex-direction:column}
+.tb *{box-sizing:border-box}
+:where(.tb) button{font:inherit;color:inherit;margin:0;padding:0;cursor:pointer;background:none;border:0}
+.col{display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+.rowx{display:flex;flex-direction:row;min-width:0;min-height:0;position:relative}
+.gt{position:relative;margin:0;padding:8px 12px;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.gt pre{margin:0;font:inherit;white-space:pre}
+.room{color:#5fd7d7;font-weight:700}.ex{color:#5f87d7}.cmd{color:#e8c48a}.hit{color:#d75f5f}.tell{color:#5faf5f}.yell{color:#d7d75f}.dim{color:#8a8a8a}.wh{color:#e8e8e8}
+.cz{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#f0d6a6;text-shadow:0 0 9px rgba(232,196,138,.6)}
+.ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico.s{width:20px;height:20px}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f0b84f;color:#170f03;font-size:11px;font-weight:700;line-height:1}
+.bar{height:6px;border-radius:3px;background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 1px rgba(232,196,138,.10);overflow:hidden;flex:1;display:block}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:linear-gradient(#5fd07c,#2f9a4c)}.mn{background:linear-gradient(#6a9cf5,#3566cf)}.mv{background:linear-gradient(#ecb467,#bd7f2e)}.foe{background:linear-gradient(#ea7a7a,#bd4343)}
+
+/* the pane column (landscape) and band (portrait): panes stand in a dark gap that carries their glow */
+/* ONE floating frame holds all the panes: an iron ring with corner rivets round one lamp-lit window, a glow outside it */
+.pcol,.pband{flex:none;display:flex;gap:0;padding:6px;border-radius:10px;
+  background-image:
+    radial-gradient(circle at 6px 6px,#a89880 0 1.3px,rgba(0,0,0,.6) 1.7px,rgba(0,0,0,0) 2.6px),
+    radial-gradient(circle at calc(100% - 6px) 6px,#a89880 0 1.3px,rgba(0,0,0,.6) 1.7px,rgba(0,0,0,0) 2.6px),
+    radial-gradient(circle at 6px calc(100% - 6px),#7d705d 0 1.3px,rgba(0,0,0,.6) 1.7px,rgba(0,0,0,0) 2.6px),
+    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px),#7d705d 0 1.3px,rgba(0,0,0,.6) 1.7px,rgba(0,0,0,0) 2.6px),
+    radial-gradient(80% 34% at 50% 0,rgba(240,206,150,.17),rgba(240,206,150,0) 74%),
+    linear-gradient(#0d0a07,#0d0a07),
+    linear-gradient(#4f463b,#2b2620 28%,#1c1814);
+  background-clip:border-box,border-box,border-box,border-box,content-box,content-box,border-box;
+  background-origin:border-box,border-box,border-box,border-box,content-box,content-box,border-box;
+  box-shadow:0 0 0 1px #0a0806,inset 0 1px 0 rgba(255,236,200,.20),0 0 16px 2px rgba(232,196,138,.22),0 8px 20px rgba(0,0,0,.85)}
+.pcol{width:382px;margin:6px 6px 6px 0;flex-direction:column}
+.pband{height:288px;margin:6px 6px 0;flex-direction:row}
+.brow{position:relative;flex:none;height:306px;display:flex;flex-direction:row;gap:0;align-items:stretch}
+
+/* panes inside the frame have no frame of their own: a hairline divides them */
+.pane{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0}
+.win{position:relative;flex:1;min-height:0;overflow:hidden}
+.pcol>*+*{border-top:1px solid rgba(240,214,166,.17)}
+.pband>*+*,.brow>*+*{border-left:1px solid rgba(240,214,166,.17)}
+/* a divider that can be dragged carries a small grip; the one above the keys' row is fixed and has none */
+.pcol>.pane+.pane::before,.pband>.pane+.pane::before{content:"";position:absolute;z-index:4;border-radius:4px;background:linear-gradient(#4f463b,#231f1a);border:1px solid rgba(240,214,166,.42);box-shadow:0 1px 4px rgba(0,0,0,.8)}
+.pcol>.pane+.pane::before{left:50%;top:-5px;width:40px;height:8px;margin-left:-20px}
+.pband>.pane+.pane::before{top:50%;left:-5px;width:8px;height:40px;margin-top:-20px}
+.brow>.keys{width:184px;padding:6px 7px;align-items:center;background:rgba(0,0,0,.42)}
+/* pane names: a quiet label in the corner, no plate */
+.hood{position:absolute;left:10px;top:5px;z-index:3;font-size:10.5px;line-height:14px;letter-spacing:.16em;white-space:nowrap;color:#d9c39a;text-shadow:0 1px 3px #000,0 0 6px #000}
+.inner{position:absolute;inset:0;padding:24px 8px 8px;display:flex;flex-direction:column;gap:6px}
+.dots{position:absolute;left:0;right:0;bottom:5px;display:flex;justify-content:center;gap:6px;z-index:2}
+.dots i{width:6px;height:6px;border-radius:50%;background:rgba(232,196,138,.30)}
+.dots i.on{background:#f0d6a6;box-shadow:0 0 6px #e8c48a}
+
+/* map window */
+.mapfill{position:absolute;inset:0;background:#000 url(/_blob/9b1a7ef038ba108734429ea535569ff7) center/540px 540px no-repeat}
+.mapshade{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 45%,rgba(0,0,0,.55) 100%);box-shadow:inset 0 0 0 1px #0a0806}
+.here{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border:2px solid #f5e342;box-shadow:0 0 6px #000}
+.maplabel{position:absolute;left:8px;bottom:6px;font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.06em;color:#f0d6a6;text-shadow:0 1px 3px #000,0 0 6px #000}
+
+/* frosted cards */
+.card{background:linear-gradient(rgba(240,214,166,.11),rgba(240,214,166,.05));border:1px solid rgba(240,214,166,.22);border-radius:8px;box-shadow:inset 0 1px 0 rgba(255,240,210,.20),0 1px 3px rgba(0,0,0,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.gc{display:flex;flex-direction:column;gap:5px;padding:5px 9px 7px}
+.gc .top{display:flex;align-items:center;gap:7px;font-size:14px;line-height:17px;color:#f2ead9;font-weight:700;white-space:nowrap;overflow:hidden}
+.gc .top .ico{width:15px;height:15px;color:#7fb0ff;flex:none}
+.gc .top .tag{margin-left:auto;font-size:10px;font-weight:400;letter-spacing:.06em;color:#c9b48e;border:1px solid rgba(240,214,166,.3);border-radius:4px;padding:0 4px;line-height:14px}
+.gc .bars{display:flex;gap:6px}
+.tm{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;column-gap:8px;padding:5px 9px;font-size:13px;line-height:16px;color:#f2ead9}
+.tm .bar{grid-column:1 / -1;margin-top:4px;flex:none}
+.tm .t{text-align:right;color:#c9b48e;font-size:12px}
+
+/* Comm: conversation rail and messages */
+.comm{position:absolute;inset:0;padding:22px 6px 6px;display:flex;flex-direction:row;gap:6px}
+.rail{flex:none;width:122px;display:flex;flex-direction:column;gap:4px}
+.rail.slim{width:46px}
+.cv{display:flex;align-items:center;gap:7px;height:44px;padding:0 5px;border-radius:8px;font-size:12px;line-height:15px;color:#c9b48e;position:relative;white-space:nowrap;overflow:hidden}
+.cv.on{background:linear-gradient(rgba(240,214,166,.16),rgba(240,214,166,.07));box-shadow:inset 0 0 0 1px rgba(240,214,166,.28);color:#f2ead9}
+.av{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid rgba(240,214,166,.4);background:rgba(0,0,0,.4);color:#f0d6a6;font-weight:700;font-size:13px}
+.cv .badge{position:absolute;right:3px;top:3px}
+.thread{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.msgs{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;font-size:13px;line-height:17px}
+.msgs p{margin:0;padding:1px 6px;border-radius:5px}
+.msgs p.me{background:rgba(240,214,166,.08)}
+.msgs b{color:#f0d6a6;font-weight:700}
+.reply{flex:none;height:44px;border-radius:9px;border:1px solid rgba(240,214,166,.26);background:rgba(0,0,0,.5);display:flex;align-items:center;padding:0 10px;color:#9a8f7d;font-size:13px;white-space:nowrap;overflow:hidden}
+
+/* fight card */
+.fight{position:relative;flex:none;display:grid;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);align-items:end;column-gap:10px;padding:6px 12px 8px;background:linear-gradient(#14100b,#0b0907);box-shadow:inset 0 -1px 0 rgba(232,196,138,.26)}
+.fight .n{display:flex;justify-content:space-between;font-size:13px;line-height:16px;white-space:nowrap;overflow:hidden}
+.fight .vs{font-family:'Cinzel',serif;font-weight:700;font-size:11px;line-height:14px;color:#e8c48a;text-align:center}
+.fight .r .bar i{margin-left:auto}
+
+/* command row and the five switches */
+.inrow{position:relative;flex:none;display:flex;align-items:center;gap:8px;padding:8px 8px;background:linear-gradient(#0f0c09,#080605);box-shadow:inset 0 1px 0 rgba(232,196,138,.16)}
+.field{flex:1;min-width:0;height:48px;border-radius:10px;border:1px solid rgba(232,196,138,.34);background:#050403;display:flex;align-items:center;padding:0 14px;color:#8a8a8a;white-space:nowrap;overflow:hidden;box-shadow:inset 0 2px 6px rgba(0,0,0,.8)}
+.field.live{color:#e8c48a;border-color:rgba(240,214,166,.65);box-shadow:inset 0 2px 6px rgba(0,0,0,.8),0 0 10px rgba(232,196,138,.18)}
+.caret{display:inline-block;width:1px;height:20px;background:#e8c48a;margin-left:1px}
+.ib{flex:none;width:48px;height:48px;border-radius:10px;border:1px solid #0a0806;background:linear-gradient(#3d372f,#1f1b16);box-shadow:inset 0 1px 0 rgba(255,236,200,.16);color:#f0d6a6;display:flex;align-items:center;justify-content:center;position:relative}
+.tg{flex:none;display:flex;align-items:center;gap:1px;height:48px;padding:0 3px;border-radius:10px;border:1px solid #0a0806;background:linear-gradient(#3d372f,#1f1b16);box-shadow:inset 0 1px 0 rgba(255,236,200,.16)}
+.tgb{position:relative;width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#857862}
+.tgb.on{color:#f6dfb4;background:radial-gradient(circle at 50% 60%,rgba(240,206,150,.22),rgba(240,206,150,0) 70%)}
+.tgb.on::after{content:"";position:absolute;left:50%;bottom:4px;width:12px;height:2px;margin-left:-6px;border-radius:1px;background:#f0d6a6;box-shadow:0 0 6px #e8c48a}
+.tgb .ico{filter:drop-shadow(0 0 0 rgba(0,0,0,0))}
+.tgb.on .ico{filter:drop-shadow(0 0 4px rgba(240,206,150,.7))}
+.tgb .badge{position:absolute;right:0;top:0}
+.tgsep{width:1px;height:26px;margin:0 3px;background:rgba(240,214,166,.2)}
+
+/* keys: hot keys above the compass, 54 px */
+.keys{flex:none;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;width:170px}
+.hot{display:grid;grid-template-columns:repeat(3,54px);grid-auto-rows:54px;gap:4px}
+.hk{display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(22,19,15,.5);border:1px solid rgba(240,214,166,.55);color:#f3d9ac;font-size:12px;line-height:14px;font-weight:700;text-shadow:0 1px 2px #000;box-shadow:inset 0 1px 0 rgba(255,236,200,.14),0 2px 6px rgba(0,0,0,.6)}
+.pad{display:grid;grid-template-columns:repeat(3,54px);grid-auto-rows:54px;gap:4px}
+.key{display:flex;align-items:center;justify-content:center;border-radius:10px;background:linear-gradient(rgba(46,40,33,.92),rgba(22,19,15,.92));border:1px solid rgba(240,214,166,.36);color:#f0d6a6;font-weight:700;font-size:18px;box-shadow:inset 0 1px 0 rgba(255,236,200,.16),0 2px 6px rgba(0,0,0,.6)}
+.key.flee{border-color:#d75f5f;color:#ff9a8f;background:linear-gradient(rgba(70,22,18,.92),rgba(40,12,10,.92))}
+.key.none{background:none;border-color:transparent;box-shadow:none}
+.float{position:absolute;right:10px;bottom:10px}
+
+/* our keyboard */
+.kb{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px;background:linear-gradient(#1a1612,#100d0a);box-shadow:inset 0 1px 0 #3a342d}
+.kr{display:flex;gap:6px;height:52px}
+.k{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:linear-gradient(#3f3931,#2a2621);border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.09);color:#ece6da;font-size:22px}
+.k.fn{background:linear-gradient(#241f1a,#171411);color:#f0d6a6;font-size:15px;font-weight:700}
+.k.w15{flex-grow:1.6}.k.sp{flex-grow:4.2}
+.k.ent{flex-grow:1.8;background:linear-gradient(#f3d9ac,#dcb777);color:#170f03;border-color:#fff1cf}
+
+/* X1: the top bar */
+.topbar{flex:none;height:50px;display:flex;align-items:center;gap:10px;padding:0 8px;background:linear-gradient(#3d372f,#1f1b16);box-shadow:inset 0 1px 0 rgba(255,236,200,.16),inset 0 -1px 0 #0a0806}
+.topbar .tg{height:44px;border:0;background:none;box-shadow:none}
+.clock{display:flex;align-items:center;gap:8px;color:#f0d6a6;font-size:13px}

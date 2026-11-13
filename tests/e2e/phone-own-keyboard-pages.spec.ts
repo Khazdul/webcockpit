@@ -706,7 +706,7 @@ test.describe('a desktop-size window with the phone flag forced', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test('gets nothing of this: no mount, no mark, no reserve', async ({ page }) => {
-    await page.goto('/?phone=1&kbd=en');
+    await page.goto('/?phone=1&kbd=en&tablet=desktop');
     await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
     await page.evaluate(() => window.__wc!.shell.scripts!.init());
     const f = startFrame(page);
@@ -724,11 +724,11 @@ test.describe('a desktop-size window with the phone flag forced', () => {
   });
 });
 
-test.describe('a tablet-size window (touch, no phone flag)', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`: touch, no phone flag)', () => {
   test.use({ viewport: { width: 820, height: 1180 } });
 
   test('gets nothing of this: no mount, no mark, no reserve', async ({ page }) => {
-    await page.goto('/?touch=1');
+    await page.goto('/?tablet=desktop');
     await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
     await expect(html(page)).not.toHaveClass(/\bwc-phone\b/);
     await page.evaluate(() => window.__wc!.shell.scripts!.init());

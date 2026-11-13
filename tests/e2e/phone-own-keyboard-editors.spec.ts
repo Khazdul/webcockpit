@@ -795,8 +795,8 @@ for (const [name, viewport] of [
 // ------------------------------------------------------- desktop and tablet
 
 for (const [name, viewport, url] of [
-  ['a desktop-size window with the phone flag forced', { width: 1280, height: 800 }, '/?phone=1&kbd=en'],
-  ['a tablet-size window (touch, no phone flag)', { width: 820, height: 1180 }, '/?touch=1'],
+  ['a desktop-size window with the phone flag forced', { width: 1280, height: 800 }, '/?phone=1&kbd=en&tablet=desktop'],
+  ['a tablet sent back to the desktop cockpit (`?tablet=desktop`: touch, no phone flag)', { width: 820, height: 1180 }, '/?tablet=desktop'],
 ] as const) {
   test.describe(name, () => {
     test.use({ viewport });
