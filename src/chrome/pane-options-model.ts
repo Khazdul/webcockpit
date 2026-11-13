@@ -1,7 +1,6 @@
-// The pane settings' shared logic (Inv §2.7.6, §2.6.3, §2.3; ADR 0107):
-// what the TUI pages Options → Panes → Communication, Timers and Group
-// (frames/comm-options.tsx, options-timers.tsx, options-group.tsx) and the
-// panes' gear popups (popups/pane-settings.tsx) both show and do. No UI
+// The pane settings' logic (Inv §2.7.6, §2.6.3, §2.3; ADR 0107): what the
+// panes' gear popups (popups/pane-settings.tsx) show and do. (The old
+// Options → Panes pages shared it until stage 55.) No UI
 // here; every change goes to the settings store at once (ADR 0010).
 //
 // - Comm: the ten fixed channels with their label and colour, and the
@@ -12,8 +11,7 @@
 //   and the per-group patch.
 // - Group: the NPC visibility and away labels, the vital colours, and
 //   `setGroup` for every other Group setting.
-// - Colours (ADR 0122): a colour setting's name, and the TUI pages' step
-//   through Auto and the twelve picker colours.
+// - Colours (ADR 0122): a colour setting's name.
 
 import { COMM_CHANNEL_ORDER, DEFAULT_CAPTIONS, channelColor, channelEnabled, channelLabel } from '../gmcp/comm';
 import {
@@ -73,11 +71,6 @@ export function setCommChannel(settings: SettingsStore, name: string, on: boolea
   });
 }
 
-/** Flips channel `name`. */
-export function toggleCommChannel(settings: SettingsStore, name: string): void {
-  setCommChannel(settings, name, !channelEnabled(settings.get().comm.filters, name));
-}
-
 /** Public shows NPCs' talk (`on`) or not. */
 export function setCommNpcs(settings: SettingsStore, on: boolean): void {
   settings.update({ comm: { npcs: on } });
@@ -97,12 +90,6 @@ export function chatWindowOf(v: string): CommChatWindow {
 /** Sets the chat window. */
 export function setChatWindow(settings: SettingsStore, w: CommChatWindow): void {
   settings.update({ comm: { chatWindow: w } });
-}
-
-/** The next chat window (the TUI page's Enter). */
-export function nextChatWindow(w: CommChatWindow): CommChatWindow {
-  const i = COMM_CHAT_WINDOWS.indexOf(w);
-  return COMM_CHAT_WINDOWS[(i + 1) % COMM_CHAT_WINDOWS.length]!;
 }
 
 // ---------------------------------------------------------------- timers
@@ -194,18 +181,4 @@ export function setVitalColor(settings: SettingsStore, key: 'hp' | 'mana' | 'mp'
 export function colorName(c: ColorSetting): string {
   if (c === 'auto') return 'Auto';
   return PICKER_COLORS.find((p) => p.hex.toLowerCase() === c.toLowerCase())?.label ?? c.toLowerCase();
-}
-
-/** Auto, then the picker colours; a free colour (not in the list) after Auto. */
-export function colorCycle(current: ColorSetting): ColorSetting[] {
-  const list: ColorSetting[] = ['auto', ...PICKER_COLORS.map((c) => c.hex)];
-  if (current !== 'auto' && !list.some((c) => c.toLowerCase() === current.toLowerCase())) list.splice(1, 0, current);
-  return list;
-}
-
-/** The colour `d` steps from `current` in `colorCycle` (the TUI pages' ←→). */
-export function stepColor(current: ColorSetting, d: number): ColorSetting {
-  const list = colorCycle(current);
-  const at = list.findIndex((c) => c.toLowerCase() === current.toLowerCase());
-  return list[(at + d + list.length) % list.length]!;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colorCycle, colorName, stepColor } from '../../src/chrome/pane-options-model';
+import { colorName } from '../../src/chrome/pane-options-model';
 import { AWAY_MODE_CHOICES, VITAL_COLOR_ROWS, setVitalColor } from '../../src/chrome/pane-options-model';
 import { PICKER_COLORS } from '../../src/panes/palette';
 import { SettingsStore } from '../../src/settings';
@@ -21,15 +21,9 @@ describe('Group options model (ADR 0122)', () => {
     expect(s.get().group.colors.mana).toBe('auto');
   });
 
-  it('the TUI colour cycle: Auto, the picker colours, a free colour kept after Auto', () => {
-    expect(colorCycle('auto')).toEqual(['auto', ...PICKER_COLORS.map((c) => c.hex)]);
-    expect(colorCycle('#123456').slice(0, 2)).toEqual(['auto', '#123456']);
-    expect(colorCycle(PICKER_COLORS[3]!.hex)).toHaveLength(13);
+  it('a colour setting is named: Auto, a picker colour, or its hex', () => {
     expect(colorName('auto')).toBe('Auto');
     expect(colorName(PICKER_COLORS[0]!.hex.toUpperCase())).toBe(PICKER_COLORS[0]!.label);
     expect(colorName('#ABCDEF')).toBe('#abcdef');
-    expect(stepColor('auto', 1)).toBe(PICKER_COLORS[0]!.hex);
-    expect(stepColor('auto', -1)).toBe(PICKER_COLORS[11]!.hex);
-    expect(stepColor('#123456', 1)).toBe(PICKER_COLORS[0]!.hex);
   });
 });

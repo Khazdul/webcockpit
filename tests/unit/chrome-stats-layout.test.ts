@@ -1,29 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_KILL_SORT,
-  allyPairs,
-  fitNum,
-  fmtClock,
-  fmtK,
-  fmtRunDur,
-  killCells,
-  killCols,
-  nextStatSort,
-  pvpCells,
-  pvpCols,
-  pvpLabel,
-  rulerRows,
-  segText,
-  sortKills,
-  sortPvps,
-  sparkBuckets,
-  sparkLabels,
-  sparkRows,
-  statsWidths,
-  titleSegs,
-} from '../../src/chrome/frames/stats-layout';
-import { xpForLevel } from '../../src/gmcp/levels';
-import { xpRuler } from '../../src/runs/stats';
+import { DEFAULT_KILL_SORT, fmtClock, fmtK, nextStatSort, sortKills, sortPvps } from '../../src/chrome/frames/stats-layout';
 
 describe('statistics formatting', () => {
   it('k-formats numbers', () => {
@@ -37,25 +13,10 @@ describe('statistics formatting', () => {
     expect(fmtK(0)).toBe('0');
   });
 
-  it('formats durations and clocks', () => {
-    expect(fmtRunDur(134 * 60e6)).toBe('2h 14m');
-    expect(fmtRunDur(14 * 60e6 + 59e6)).toBe('14m');
+  it('formats clocks', () => {
     expect(fmtClock(0)).toBe('00:00');
     expect(fmtClock(34 * 60e6 + 12e6)).toBe('34:12');
     expect(fmtClock(8040e6)).toBe('2:14:00');
-  });
-
-  it('fits numbers and PvP labels', () => {
-    expect(fitNum(5424, 7)).toBe('   5424');
-    expect(fitNum(12_345_678, 7)).toBe('    12M');
-    expect(pvpLabel('*Ibuki the Half-Elf*', 30)).toBe('*Ibuki the Half-Elf*');
-    expect(pvpLabel('*Melker the black numenorean*', 22)).toBe('*Melker the black nu…*');
-  });
-
-  it('sizes the two sides to the grid (max 84 wide)', () => {
-    expect(statsWidths(128)).toEqual({ T: 38, total: 84 });
-    expect(statsWidths(80)).toEqual({ T: 36, total: 80 });
-    expect(statsWidths(61)).toEqual({ T: 26, total: 60 });
   });
 });
 
@@ -86,65 +47,5 @@ describe('statistics tables', () => {
     ];
     expect(sortPvps(pv, { key: 'xp', dir: -1 }).map((p) => p.name)).toEqual(['B', 'A']);
     expect(sortPvps(pv, { key: 'name', dir: 1 }).map((p) => p.name)).toEqual(['A', 'B']);
-  });
-
-  it('lays out title rows with the sort arrow and data rows to the table width', () => {
-    const cols = killCols(38);
-    const title = segText(titleSegs(cols, DEFAULT_KILL_SORT));
-    expect(title).toBe('KILLS' + ' '.repeat(18 - 5) + '   N' + '   XP/N' + ' XP tot ▼');
-    expect(title).toHaveLength(38);
-    expect(
-      titleSegs(cols, DEFAULT_KILL_SORT)
-        .filter((s) => s.key)
-        .map((s) => s.key),
-    ).toEqual(['name', 'n', 'xpPer', 'xpTotal']);
-    const row = killCells(kills[1]!, cols).join('');
-    expect(row).toBe('Thrakghash of th… ' + '   1' + '   5424' + '     5424');
-    expect(row).toHaveLength(38);
-    const pc = pvpCols(38);
-    const pv = pvpCells({ name: 'Ibuki', race: 'the Half-Elf', label: '*Ibuki the Half-Elf*', n: 1, xp: 775 }, pc);
-    expect(('⚔ ' + pv.join('')).length).toBe(38);
-    expect(segText(titleSegs(pc, { key: 'xp', dir: -1 }))).toMatch(/^PvPs {2,}N {2,}XP ▼$/);
-  });
-
-  it('packs allies two per row', () => {
-    expect(allyPairs(['A', 'B', 'C'])).toEqual([
-      ['A', 'B'],
-      ['C', undefined],
-    ]);
-  });
-});
-
-describe('sparklines', () => {
-  it('scales values to 3 rows × 8 levels, top row first', () => {
-    expect(sparkRows([0, 24, 12, 1])).toEqual([' █  ', ' █▄ ', ' ██▁']);
-    expect(sparkRows([0, 0])).toEqual(['  ', '  ', '  ']);
-    expect(sparkLabels(9200)).toEqual([' 9.2k', ' 4.6k', '    0']);
-    expect(sparkBuckets(38)).toBe(31);
-  });
-});
-
-describe('XP ruler', () => {
-  it('draws the gained band, the arrow label and the level marks', () => {
-    const start = xpForLevel(73) + 1_000_000;
-    const r = rulerRows(xpRuler(start, start + 48_200), 84);
-    expect(segText(r.bar)).toHaveLength(84);
-    expect(segText(r.label)).toHaveLength(84);
-    expect(segText(r.marks)).toHaveLength(84);
-    const band = r.bar.find((s) => s.cls === 'wc-st-gained')!;
-    expect(band.text.length).toBeGreaterThan(0);
-    expect(segText(r.marks)).toMatch(/^▌73 +74▐$/);
-    // Wide band: bracketed label; narrow: plain `N XP`.
-    const wide = rulerRows(xpRuler(xpForLevel(73), xpForLevel(73) + 2_000_000), 84);
-    expect(segText(wide.label).trim()).toMatch(/^▌◄▬+ 2\.0M XP ▬+►▐$/);
-    expect(segText(r.label).trim()).toBe('48.2k XP');
-  });
-
-  it('shows a net loss in red with a minus', () => {
-    const start = xpForLevel(42) + 50_000;
-    const r = rulerRows(xpRuler(start, start - 100_000), 84);
-    expect(r.bar.some((s) => s.cls === 'wc-st-loss')).toBe(true);
-    expect(segText(r.label)).toContain('-100k XP');
-    expect(segText(r.marks)).toMatch(/^▌41 +▌42 +43▐$/);
   });
 });

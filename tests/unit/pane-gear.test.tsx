@@ -10,7 +10,7 @@ import { legacySettings } from './legacy-defaults';
 import { type ChromeServices, mountSettingsPopups } from '../../src/chrome';
 import { CommSettings, GroupSettings, TimersSettings } from '../../src/chrome/popups/pane-settings';
 import { ServicesCtx } from '../../src/chrome/kit/hooks';
-import { TIMER_COLS_CHOICES, TIMER_WARN_OPTIONS, commChannelRows, toggleCommChannel, warnAtOf } from '../../src/chrome/pane-options-model';
+import { TIMER_COLS_CHOICES, TIMER_WARN_OPTIONS, commChannelRows, setCommChannel, warnAtOf } from '../../src/chrome/pane-options-model';
 import { COMM_CHANNEL_ORDER } from '../../src/gmcp/comm';
 import { Cockpit } from '../../src/layout/cockpit';
 import { moveToNewLane } from '../../src/layout/model';
@@ -374,12 +374,12 @@ describe('gear popup contents', () => {
 
   it('a change made elsewhere shows', () => {
     const t = mountWith(<CommSettings />);
-    act(() => toggleCommChannel(t.settings, 'yells'));
+    act(() => setCommChannel(t.settings, 'yells', false));
     expect(t.host.querySelector('[data-channel="yells"]')!.classList.contains('is-off')).toBe(true);
   });
 });
 
-describe('pane options model (shared with the TUI pages)', () => {
+describe('pane options model', () => {
   it('channel rows and the timers choices', () => {
     const rows = commChannelRows({ tells: false });
     expect(rows).toHaveLength(10);
