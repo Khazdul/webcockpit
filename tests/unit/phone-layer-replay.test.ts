@@ -289,3 +289,16 @@ describe('the phone layer over a replay: the store it was handed', () => {
     expect(g.lensAt!.top + size).toBe(g.input.y * CELL.h - 12);
   });
 });
+
+describe('the phone layer over a replay: the host\'s chrome (stage 55c, `clear`)', () => {
+  it('the lens stands lower and further left by what the host\'s header row and markers take', () => {
+    const plain = mount();
+    const a = plain.cockpit.phoneGameLayout!.lens!;
+    const clear = mount({ replay: { clear: { top: 40, right: 60 } } });
+    const b = clear.cockpit.phoneGameLayout!.lens!;
+    // 60 px of 9 px cells: at least six columns to the left; (40 + the corner keys' 10) − 16 px of 17 px rows: two rows down.
+    expect(a.x - b.x).toBeGreaterThanOrEqual(6);
+    expect(b.y - a.y).toBeGreaterThanOrEqual(2);
+    expect(b.w).toBe(a.w);
+  });
+});

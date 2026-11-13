@@ -17,11 +17,18 @@
  * the cockpit's, on `.wc-player`, and not the page's. Only the page-level
  * rules (the pages' keyboard, the ground under the safe area) read
  * `<html data-light>`.
+ *
+ * The run log player's bar (stage 55, the last section): the player's
+ * control box docked where the command row is (src/player/view.ts
+ * `data-docked`). It is the player's chrome, outside the cockpit, so the
+ * tokens are declared for it too, and its Paper follows the player's own
+ * `data-light`.
  * Nothing animates (ADR 0044). */
 
 /* ------------------------------------------------------------------ tokens */
 
-html.wc-phone .wc-cockpit[data-phone-game] {
+html.wc-phone .wc-cockpit[data-phone-game],
+html.wc-phone .wc-player-chrome[data-docked] {
   /* The candle (the lamp of a Plain pane, layout.css `--lamp`). */
   --ph-lamp: #e8c48a;
   /* Ink on a lit key. */
@@ -155,7 +162,8 @@ html.wc-phone .wc-cockpit[data-phone-game] {
   --ph-okb-down-text: #170f03;
 }
 
-html.wc-phone .wc-cockpit[data-phone-game][data-ph-light] {
+html.wc-phone .wc-cockpit[data-phone-game][data-ph-light],
+html.wc-phone .wc-player[data-light] .wc-player-chrome[data-docked] {
   --ph-lamp: #3a3428;
   --ph-ink: #fffaf0;
   --ph-lamp-hi: #5e3d08;
@@ -2938,4 +2946,250 @@ html.wc-phone.wc-phone-game .wc-fs-btn {
  * keys, the strip's hood and the menu (the layer, z 8). ADR 0136 §11. */
 html.wc-phone .wc-cockpit[data-phone-game] > .wc-weather-front {
   z-index: 5;
+}
+
+/* ------------------------------------ the run log player's bar (stage 55)
+ * On a phone or tablet the run log player has the phone's layout over the
+ * recording (index.ts, "Over a replay"), and its control box is a bar in
+ * the command row's rectangle (view.ts sets the place and `data-docked`,
+ * `data-narrow`, `data-tight`): the way out first, where the menu key is
+ * in the game, then back 10 s, play or pause, forward 10 s, the speed, the
+ * time, and Display at the right end. The keys are the menu key's: 44 px,
+ * frosted, lit while pressed. Like the command row the bar has no ground
+ * of its own: no game text lies under it.
+ *
+ * The rest of the player's chrome (header, rail, markers) hides after a
+ * while as elsewhere (player.css `[data-hidden]`); the bar does not, and
+ * keeps the pointer. */
+
+html.wc-phone .wc-player-chrome[data-docked][data-hidden] {
+  opacity: 1;
+}
+
+html.wc-phone .wc-player-chrome[data-docked][data-hidden] > :not(.wc-player-box) {
+  opacity: 0;
+}
+
+html.wc-phone .wc-player-chrome[data-docked][data-hidden] > .wc-player-box,
+html.wc-phone .wc-player-chrome[data-docked][data-hidden] > .wc-player-box * {
+  pointer-events: auto !important;
+}
+
+html.wc-phone .wc-player-box[data-docked] {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ph-text);
+  font-size: 13px;
+}
+
+html.wc-phone .wc-player-box[data-docked] > .wc-pc-row {
+  flex: 1 1 auto;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+}
+
+/* Narrow: the gap of the compass's keys, and a key gives up to 4 px of its width
+ * (the lens's keys are 40 px) before the time goes. */
+html.wc-phone .wc-player-box[data-docked][data-narrow] > .wc-pc-row {
+  gap: 3px;
+}
+
+/* A key: the menu key's face. */
+html.wc-phone .wc-player-box[data-docked] .wc-pc-ib,
+html.wc-phone .wc-player-box[data-docked] .wc-pc-play,
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-player-speed {
+  flex: 0 1 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  min-width: 40px;
+  height: 44px;
+  max-height: 100%;
+  margin: 0;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+  color: var(--ph-lamp);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Play or pause: the one key with the lamp's edge. */
+html.wc-phone .wc-player-box[data-docked] .wc-pc-play {
+  border-color: var(--ph-field-edge-on);
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-ib:active,
+html.wc-phone .wc-player-box[data-docked] .wc-pc-play:active,
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-player-speed:active,
+html.wc-phone .wc-player-box[data-docked] .wc-pc-ib.is-on {
+  border-color: var(--ph-lamp-hi);
+  background: var(--ph-lamp);
+  color: var(--ph-ink);
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-ib:disabled {
+  border-color: var(--ph-frost-edge);
+  background: none;
+  color: var(--ph-key-off);
+  opacity: 1;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-ic {
+  width: 20px;
+  height: 20px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-ic10 {
+  width: 26px;
+  height: 26px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-play .wc-pc-ic {
+  width: 18px;
+  height: 18px;
+}
+
+/* The speed: a well with its two steps and the speed between them. */
+html.wc-phone .wc-player-box[data-docked] .wc-pc-speed {
+  flex: none;
+  box-sizing: border-box;
+  height: 44px;
+  max-height: 100%;
+  margin: 0;
+  border: 1px solid var(--ph-frost-edge);
+  border-radius: 10px;
+  background: var(--ph-frost);
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-speed .wc-pc-sm {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 42px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-speed .wc-pc-sm:active {
+  background: var(--ph-lamp);
+  color: var(--ph-ink);
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-sm .wc-pc-ic {
+  width: 14px;
+  height: 14px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-player-speed {
+  min-width: 40px;
+  color: var(--ph-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Narrow (a phone upright): the speed is one key, a press takes the next speed. */
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-pc-speed {
+  height: auto;
+  border: 0;
+  background: none;
+}
+
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-pc-sm,
+html.wc-phone .wc-player-box[data-docked][data-narrow] [data-act="start"],
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-pc-dur,
+html.wc-phone .wc-player-box[data-docked][data-tight] .wc-player-clock,
+html.wc-phone .wc-player-box[data-docked] .wc-pc-vs {
+  display: none;
+}
+
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-player-speed {
+  font-size: 13px;
+}
+
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-pc-speed {
+  flex: 0 1 44px;
+  min-width: 40px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-player-clock {
+  flex: none;
+  box-sizing: content-box;
+  margin-left: 6px;
+  text-align: center;
+  color: var(--ph-dim);
+  font-size: 13px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-player-clock b {
+  color: var(--ph-text);
+}
+
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-player-clock {
+  margin-left: 2px;
+  font-size: 12px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-grow {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+}
+
+/* Narrow: no spacer (it would be one more gap); Display stands at the right end by its margin. */
+html.wc-phone .wc-player-box[data-docked][data-narrow] .wc-pc-grow {
+  display: none;
+}
+
+html.wc-phone .wc-player-box[data-docked][data-narrow] [data-act="display"] {
+  margin-left: auto;
+}
+
+/* Display, above the bar's right end: the player's own popup, with rows a finger fits. */
+html.wc-phone .wc-player-box[data-docked] .wc-pc-pop {
+  right: 8px;
+  bottom: calc(100% + 6px);
+  width: 320px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-pop-head {
+  height: 44px;
+  padding: 0 2px 0 14px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pop-x {
+  width: 40px;
+  height: 40px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pop-x-svg {
+  width: 13px;
+  height: 13px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-sg {
+  height: 40px;
+  font-size: 13px;
+  line-height: 40px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-sws {
+  gap: 8px;
+}
+
+html.wc-phone .wc-player-box[data-docked] .wc-pc-sw {
+  height: 40px;
+  font-size: 13px;
 }

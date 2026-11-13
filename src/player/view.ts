@@ -55,6 +55,23 @@
 // hidden element (`hidden`, or an inline `display: none`, e.g. an
 // embedded player parked under its page) lets every key pass.
 //
+// Docked (stage 55, the run log player on a phone or tablet): with `dock`
+// the control box is no floating box but a bar in the rectangle the host
+// names (the command row's place in the phone's layout), marked
+// `data-docked` on the chrome and the box. The bar never hides with the
+// chrome and its keys are pressed at once, also while the rest is hidden;
+// the rest (header, rail, markers) then hides after the delay in pause too,
+// since it lies over the phone layer's strip, Comm and lens.
+// Close stands first, at the left, as a Back chevron. Narrower than
+// DOCK_FULL_W the bar is `data-narrow`: no To the start, the time without
+// the length, and the speed as one key that steps to the next speed (and
+// from the fastest to the slowest); where its keys still do not fit it
+// shows no time (`data-tight`). The rail and the markers end above the bar, so the
+// bar has the player's whole width. The bar's look is the phone's (src/phone/phone.css);
+// this file and player.css carry only the placement. While the host names
+// no rectangle (the cockpit says "Window too small") the box floats as
+// elsewhere.
+//
 // Viewer settings (ADR 0021, as 0114): with `settings`, Display (font size
 // and colours) and, when it has panes, Panes (pane toggles and Reset
 // layout) open popups above the box. The box takes the pointer (clicks and
@@ -114,6 +131,17 @@ const BOX_MARGIN = 8;
 /** A popup's gap above the box, and its least margin to the player's top, px. */
 const POP_GAP = 8;
 const POP_TOP = 6;
+
+/** The docked bar (option `dock`): the least width that holds every key, the stepper and the whole time, px. */
+const DOCK_FULL_W = 600;
+
+/** A rectangle in the player root's px (`PlayerViewOptions.dock`). */
+export interface DockRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
 /** What the in-app log player's header shows (`runHeader`). */
 export interface PlayerHeader {
@@ -195,6 +223,12 @@ export interface PlayerViewOptions {
   back?: { title: string };
   /** No chrome (header, rail, markers, box, popups, hint, tip, auto-hide); the keys, cursor, wheel and clicks stay. */
   bare?: boolean;
+  /**
+   * The control box as a docked bar (see the file header): the bar's
+   * rectangle now, or null while there is none (the box then floats).
+   * Read on every render; the host calls `refresh()` when it changes.
+   */
+  dock?: () => DockRect | null;
 }
 
 /** The pane part of the viewer settings (the Panes popup). */
@@ -267,6 +301,7 @@ export class PlayerView {
   private readonly railDone: HTMLDivElement;
   private readonly railHead: HTMLDivElement;
   private readonly boxEl: HTMLDivElement;
+  private readonly rowEl: HTMLDivElement;
   private readonly btnPlay: HTMLButtonElement;
   private readonly btnSlower: HTMLButtonElement;
   private readonly btnFaster: HTMLButtonElement;
@@ -297,6 +332,11 @@ export class PlayerView {
   /** The compact box's width, px, once measured (before `data-tight` hides anything). */
   private compactBoxW = 0;
   private fullBoxW = 0;
+  /** The box is a docked bar now (option `dock` gave a rectangle); its signature. */
+  private docked = false;
+  private dockSig = '';
+  /** Docked: the bar's top edge, px (the rail and the markers end there). */
+  private dockTop = 0;
   /** Rail drag: pointer id and the previewed offset. */
   private drag: { id: number; offset: number } | null = null;
   private cursor: HTMLElement | null = null;
@@ -336,7 +376,7 @@ export class PlayerView {
 
     // The control box.
     this.boxEl = div('wc-player-box');
-    const row = div('wc-pc-row');
+    const row = (this.rowEl = div('wc-pc-row'));
     const seekKey = (dir: string): string => (opts.shiftSeek ? `Shift+${dir}` : dir);
     const start = this.button('start', 'To the start (Home)', playerIcon(doc, 'start'));
     const back = this.button('back', `Back 10 s (${seekKey('←')})`, tenIcon(doc, 'back'));
@@ -347,6 +387,19 @@ export class PlayerView {
     this.speedEl = doc.createElement('span');
     this.speedEl.className = 'wc-player-speed';
     this.speedEl.title = 'Speed (1–6)';
+    const dock = !opts.bare && opts.dock !== undefined;
+    if (dock) {
+      // The narrow bar's speed key (the stepper's arrows are not shown there): the next speed, round.
+      this.speedEl.setAttribute('role', 'button');
+      this.speedEl.setAttribute('aria-label', 'Speed: the next');
+      this.speedEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.touch();
+        const eng = this.o.engine;
+        eng.setSpeed(SPEEDS[(SPEEDS.indexOf(eng.speed) + 1) % SPEEDS.length]!);
+        this.schedule();
+      });
+    }
     const speed = doc.createElement('span');
     speed.className = 'wc-pc-speed';
     speed.append(this.btnSlower, this.speedEl, this.btnFaster);
@@ -372,7 +425,9 @@ export class PlayerView {
       this.extraBtns.push(btn);
       tail.push(btn);
     }
-    if (opts.closeTitle) tail.push(this.button('close', opts.closeTitle, playerIcon(doc, 'close')));
+    // Docked: the way out stands first, where the phone's menu key is in the game.
+    if (opts.closeTitle && dock) row.prepend(this.button('close', opts.closeTitle, this.backIcon('wc-pc-ic'), 'wc-pc-ib wc-pc-exit'));
+    else if (opts.closeTitle) tail.push(this.button('close', opts.closeTitle, playerIcon(doc, 'close')));
     if (tail.length > 0) {
       const vs = doc.createElement('span');
       vs.className = 'wc-pc-vs';
@@ -453,14 +508,7 @@ export class PlayerView {
     b.tabIndex = -1;
     b.title = title;
     b.setAttribute('aria-label', title);
-    const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('class', 'wc-lk-ic');
-    svg.setAttribute('viewBox', '0 0 16 16');
-    svg.setAttribute('aria-hidden', 'true');
-    const path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', BACK_PATH);
-    svg.append(path);
-    b.append(svg, 'Back');
+    b.append(this.backIcon('wc-lk-ic'), 'Back');
     b.addEventListener('mousedown', (e) => e.preventDefault());
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -468,6 +516,19 @@ export class PlayerView {
       this.o.onEsc();
     });
     return b;
+  }
+
+  /** The kit's Back chevron as `<svg class=cls>`. */
+  private backIcon(cls: string): SVGSVGElement {
+    const doc = this.doc;
+    const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', cls);
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', BACK_PATH);
+    svg.append(path);
+    return svg;
   }
 
   private iconButton(cls: string, label: string, icon: SVGSVGElement): HTMLButtonElement {
@@ -652,6 +713,8 @@ export class PlayerView {
         this.clearCursor();
         this.o.output()?.toTail();
         if (!this.quiet) this.touch();
+      } else if (this.docked) {
+        this.touch();
       } else {
         this.show();
       }
@@ -719,10 +782,14 @@ export class PlayerView {
 
     this.renderHeader(W, w, cols);
 
+    // The control box first: docked, the rail and the markers end at its top edge.
+    this.fitBox(W, H);
+    const railH = this.docked ? Math.min(H, this.dockTop) : H;
+
     // Rail: the played part and the playhead, at whole px.
-    const span = Math.max(0, H - 2 * RAIL_PAD);
+    const span = Math.max(0, railH - 2 * RAIL_PAD);
     const y = Math.round(railFraction(pos, dur) * span);
-    const railSig = `${H}|${y}`;
+    const railSig = `${railH}|${y}`;
     if (railSig !== this.railSig) {
       this.railSig = railSig;
       this.railDone.style.height = `${y}px`;
@@ -731,7 +798,7 @@ export class PlayerView {
 
     // Markers: one per slot, at the earliest event's place.
     const slots = Math.max(1, Math.floor(span / MARK_SLOT));
-    const marksSig = `${H}|${slots}`;
+    const marksSig = `${railH}|${slots}`;
     if (marksSig !== this.marksSig) {
       this.marksSig = marksSig;
       this.tipEl.hidden = true;
@@ -756,7 +823,10 @@ export class PlayerView {
       this.btnFaster.disabled = i < 0 || i >= SPEEDS.length - 1;
       const cur = this.doc.createElement('b');
       cur.textContent = this.clock(pos);
-      this.clockEl.replaceChildren(cur, ` / ${this.clock(dur)}`);
+      const len = this.doc.createElement('span');
+      len.className = 'wc-pc-dur';
+      len.textContent = ` / ${this.clock(dur)}`;
+      this.clockEl.replaceChildren(cur, len);
       this.o.boxButtons?.forEach((b, k) => {
         const btn = this.extraBtns[k]!;
         const label = b.label();
@@ -766,7 +836,6 @@ export class PlayerView {
         btn.replaceChildren(playerIcon(this.doc, b.icon()));
       });
     }
-    this.fitBox(W);
     if (this.openPop) {
       this.renderPopup(this.openPop);
       this.placePopup(this.popups.get(this.openPop)!);
@@ -835,7 +904,8 @@ export class PlayerView {
    * its full width it goes compact: next to the rail, without the time,
    * with smaller buttons.
    */
-  private fitBox(W: number): void {
+  private fitBox(W: number, H: number): void {
+    if (this.fitDock(W, H)) return;
     if (!this.compact) {
       const bw = this.boxEl.offsetWidth;
       if (bw > 0) this.fullBoxW = bw;
@@ -860,6 +930,57 @@ export class PlayerView {
     this.boxEl.style.bottom = `${BOX_BOTTOM}px`;
     // The popups hang from the box's right edge: never wider than the room left of it.
     this.boxEl.style.setProperty('--pc-pop-max', `${Math.max(160, W - right - BOX_MARGIN)}px`);
+  }
+
+  /**
+   * The docked bar (option `dock`): placed in the host's rectangle, narrow
+   * or tight by its width. False while there is no rectangle: the box
+   * floats (`fitBox`).
+   */
+  private fitDock(W: number, H: number): boolean {
+    const r = this.o.bare ? null : (this.o.dock?.() ?? null);
+    const on = r !== null && r.width > 0 && r.height > 0;
+    if (on !== this.docked) {
+      this.docked = on;
+      this.dockSig = '';
+      this.el.toggleAttribute('data-docked', on);
+      this.boxEl.toggleAttribute('data-docked', on);
+      const st = this.boxEl.style;
+      if (on) {
+        this.compact = false;
+        this.boxEl.removeAttribute('data-compact');
+        this.boxEl.removeAttribute('data-tight');
+        st.right = st.bottom = '';
+      } else {
+        this.boxEl.removeAttribute('data-narrow');
+        this.boxEl.removeAttribute('data-tight');
+        st.left = st.top = st.width = st.height = '';
+        this.clockEl.style.minWidth = '';
+        this.railEl.style.bottom = this.marksEl.style.bottom = '';
+      }
+    }
+    if (!on || !r) return false;
+    // The time's width is kept for the longest it shows, so the keys never move as it runs.
+    const len = this.clock(this.o.engine.duration).length;
+    const sig = `${r.left}|${r.top}|${r.width}|${r.height}|${W}|${H}|${len}`;
+    if (sig === this.dockSig) return true;
+    this.dockSig = sig;
+    this.dockTop = r.top;
+    const st = this.boxEl.style;
+    st.left = `${r.left}px`;
+    st.top = `${r.top}px`;
+    st.width = `${r.width}px`;
+    st.height = `${r.height}px`;
+    this.railEl.style.bottom = this.marksEl.style.bottom = `${Math.max(0, H - r.top)}px`;
+    const narrow = r.width < DOCK_FULL_W;
+    this.boxEl.toggleAttribute('data-narrow', narrow);
+    this.clockEl.style.minWidth = `${narrow ? len : 2 * len + 3}ch`;
+    // Tight: the narrow bar's keys and the time are wider than the bar.
+    this.boxEl.removeAttribute('data-tight');
+    this.boxEl.toggleAttribute('data-tight', narrow && this.rowEl.scrollWidth > this.rowEl.clientWidth);
+    // The popup hangs from the bar's right end: never wider than the player.
+    this.boxEl.style.setProperty('--pc-pop-max', `${Math.max(160, r.left + r.width - 2 * BOX_MARGIN)}px`);
+    return true;
   }
 
   /** Fills or updates popup `name` from the settings. */
@@ -1034,6 +1155,8 @@ export class PlayerView {
    * Such a click, within `REVEAL_MS` of the press, presses nothing.
    */
   private readonly onRevealClick = (e: MouseEvent): void => {
+    // The docked bar never hid: its keys are pressed at once.
+    if (this.docked && this.boxEl.contains(e.target as Node | null)) return;
     if (performance.now() - this.revealedAt > REVEAL_MS) return;
     this.revealedAt = -Infinity;
     e.preventDefault();
@@ -1045,10 +1168,11 @@ export class PlayerView {
     this.show();
     if (this.hideTimer !== null) clearTimeout(this.hideTimer);
     this.hideTimer = null;
-    if (this.o.bare || !this.o.engine.playing || this.openPop) return;
+    // Docked: the bar stays, so the rest (it lies on the phone layer's strip, Comm and lens) hides in pause too.
+    if (this.o.bare || !(this.o.engine.playing || this.docked) || this.openPop) return;
     this.hideTimer = setTimeout(() => {
       this.hideTimer = null;
-      if (this.o.engine.playing && !this.drag && !this.openPop) this.setShown(false);
+      if ((this.o.engine.playing || this.docked) && !this.drag && !this.openPop) this.setShown(false);
     }, this.o.hideMs ?? HIDE_MS);
   }
 
@@ -1217,6 +1341,8 @@ export class PlayerView {
   private readonly onStageClick = (e: MouseEvent): void => {
     if (this.o.engine.playing) return;
     const t = e.target as Element | null;
+    // The phone layer's keys, lens and bands (stage 55) are theirs: never a click on a line.
+    if (t?.closest?.('.wc-ph-layer')) return;
     const rows = this.rowsEl();
     const row = t?.closest?.('.wc-row') as HTMLElement | null;
     if (row && rows?.contains(row) && !isBlank(row)) this.setCursor(row, true);
