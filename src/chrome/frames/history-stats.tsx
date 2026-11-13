@@ -13,9 +13,8 @@
 //   XP PER HOUR (sparkline)         TP PER HOUR (sparkline)
 //   EXPERIENCE  ├──── 95.3k XP ────┤ the ruler across both columns
 //
-// A new component, not a restyle of statistics.tsx: that renderer also
-// serves the in-game Statistics pane (ADR 0109) and the phone's ESC menu,
-// which stay as they are. The data model is the same (`buildStats`,
+// A component of its own, not a restyle of the old cell-grid Statistics
+// page (statistics.tsx, gone in stage 55). The data model is the same (`buildStats`,
 // `rateSeries`) and so are the pure helpers (`sortKills`, `sortPvps`,
 // `nextStatSort`, `fmtK`, `fmtClock`).
 //

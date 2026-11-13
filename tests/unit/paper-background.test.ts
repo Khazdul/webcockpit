@@ -1,8 +1,7 @@
-// Choosing a background preset in Options → Appearance also sets its font
+// Choosing a background preset in Settings → Appearance also sets its font
 // colour and palette (ADR 0058, 0061); leaving paper for an off-palette
 // colour puts the defaults back.
 import { describe, expect, it } from 'vitest';
-import { backgroundPatch } from '../../src/chrome/frames/options';
 import { contrast } from '../../src/theme/color';
 import {
   BACKGROUND_THEMES,
@@ -10,6 +9,7 @@ import {
   DOS_PALETTE,
   PAPER_PALETTE,
   TERMINAL_BG_PRESETS,
+  backgroundPatch,
   TERMINAL_FG_PRESETS,
   backgroundTheme,
   presetName,

@@ -1,9 +1,9 @@
 // The Settings popup (stage 30 S5, mockup 30a-3, ADR 0107): above the
 // menu bar's Settings icon, four tabs of modern controls. Every change goes
-// straight to the settings store and applies live (ADR 0010); the same
-// settings as the TUI pages Options → Appearance, Text input, Mapper and
-// Weather effects (frames/options*.tsx), which stay in the phone's ESC menu
-// (the start page lost Options in stage 32).
+// straight to the settings store and applies live (ADR 0010). The start
+// page lost Options in stage 32 and the phone's ESC menu its Options pages
+// in stage 55; the phone has its own settings page (src/phone). The pure
+// helpers are in ../appearance-model.ts and ../weather-model.ts.
 //
 //   SETTINGS                                                   ×
 //   Appearance  Text input  Mapper  Weather effects
@@ -21,7 +21,7 @@
 //   its font colour and palette), input colour, bold brightens, scrollback,
 //   the 16-colour ANSI palette (a click on a swatch chooses it and puts
 //   the keys in its hex field; its Picker button opens the browser's
-//   colour picker), Reset palette, Reset appearance and a small live preview (the TUI page's sample lines). A colour that
+//   colour picker), Reset palette, Reset appearance and a small live preview. A colour that
 //   is not in a list is shown by its hex and kept (`colorChoices`).
 // - Text input: auto-clear, autosuggest, cursor style, cursor blink.
 // - Mapper: popups/mapper-settings.tsx (also the map pane's gear popup).
@@ -53,6 +53,7 @@ import {
   type NamedColor,
   TERMINAL_BG_PRESETS,
   TERMINAL_FG_PRESETS,
+  backgroundPatch,
   backgroundTheme,
   presetName,
 } from '../../theme/presets';
@@ -63,12 +64,11 @@ import {
   PREVIEW_ECHO,
   PREVIEW_PROMPT,
   type PreviewLine,
-  backgroundPatch,
   colorChoices,
   groupDigits,
   parseHex,
-} from '../frames/options';
-import { DAY_SKY_HELP, MASTER_HELP, WEATHER_ROWS, WEATHER_UNSUPPORTED } from '../frames/options-weather';
+} from '../appearance-model';
+import { DAY_SKY_HELP, MASTER_HELP, WEATHER_ROWS, WEATHER_UNSUPPORTED } from '../weather-model';
 import { useServices, useSettings } from '../kit/hooks';
 import { type Choice, type DropdownOption, Dropdown, GhostButton, Row, Segmented, Slider, SwatchGrid, Tabs, Toggle } from './controls';
 import { MapperSettings } from './mapper-settings';
@@ -393,7 +393,7 @@ function HexField(p: {
   );
 }
 
-/** The TUI page's sample lines in the terminal's colours, font and background. */
+/** The sample lines in the terminal's colours, font and background. */
 function Preview(): VNode {
   const line = ([text, ansi, bold = 0]: PreviewLine): VNode => {
     const color = ansi === null ? 'var(--term-fg)' : `var(--ansi-${ansi})`;

@@ -2,7 +2,7 @@
 // lantern look, round 7 C "Instrumentbrädan"): the script library beside
 // the profile, from the start menu (a large box, layout B), in the
 // in-game Scripts window (ADR 0103; the window's root, no Back) and from
-// the phone's ESC → Options (a full-screen box).
+// the phone's ESC overlay (the menu sheet's Scripts; a full-screen box).
 //
 //   ┌ index ─────┐┌ panel ─────────────────────┐┌ help ────────────┐
 //   │ ◉ almanac 🔒●││ MERCENARIES 🔒               ││ ▾ HELP ───────── │

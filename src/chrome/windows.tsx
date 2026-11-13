@@ -38,7 +38,7 @@ import { useRef } from 'preact/hooks';
 import type { WindowId, WindowRect } from '../settings';
 import { isLight } from '../theme/color';
 import { OWN_KEYS_ATTR, WINDOW_BTN_ATTR } from '../ui/input-pane';
-import type { EscActions } from './frames/esc-main';
+import type { EscActions } from './frames/profile-window';
 import { ProfileRoot } from './frames/profile-window';
 import { ScriptsFrame } from './frames/scripts';
 import { type ChromeServices, ServicesCtx, useCells, useElementSize, useSettings } from './kit/hooks';

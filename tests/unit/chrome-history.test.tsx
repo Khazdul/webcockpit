@@ -1,13 +1,12 @@
 // @vitest-environment happy-dom
 // Stage 6 P1 chrome, stage 45 (WP 45-A, 45-E): History in the new look (pills, table, card, sort, buttons, Rate, Delete,
-// the player seam), Statistics (both surfaces) and Exit with rating.
+// the player seam) and History → Stats.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { AppStatusState, AppStatusView } from '../../src/app/status';
 import type { RunMeta } from '../../src/capture/store';
-import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
+import { type ChromeServices, mountStartPage } from '../../src/chrome';
 import {
   DEFAULT_HISTORY_SORT,
   HISTORY_SORT_OPTIONS,
@@ -34,7 +33,6 @@ import type { PlayerHost } from '../../src/app/player-host';
 import { ProfileStore } from '../../src/profiles';
 import type { RunEvent } from '../../src/runs/events';
 import { BadBackupError, RunLibrary } from '../../src/runs/library';
-import type { LiveRuns } from '../../src/runs/live';
 import { DAY_US, type Session } from '../../src/runs/stitch';
 import { ScriptLibrary } from '../../src/scripts';
 import { SettingsStore } from '../../src/settings';
@@ -684,124 +682,5 @@ describe('History frame', () => {
     expect(text).toContain('*Ibuki the Half-Elf*');
     await key('Escape');
     await until(() => hood(host) === 'History', 'History again');
-  });
-});
-
-// --------------------------------------------------------------- ESC menu
-
-function view(s: Partial<AppStatusState> = {}): AppStatusView {
-  const cur: AppStatusState = {
-    conn: 'playing',
-    replay: false,
-    character: 'Rasta',
-    linkMs: 38,
-    linkSuspect: false,
-    capture: 'capture: recording',
-    xml: true,
-    ...s,
-  };
-  return { get: () => cur, subscribe: () => () => {} };
-}
-
-function liveRuns(events: RunEvent[] | null, chain: Partial<Session> | null) {
-  const fns = new Set<() => void>();
-  const state = { events };
-  const runs = {
-    current: () => (state.events ? { runId: 'Rasta/1', events: state.events } : null),
-    subscribe: (fn: () => void) => (fns.add(fn), () => fns.delete(fn)),
-    anchor: () => (chain ? 'Rasta/1' : null),
-    chain: async () => (chain ? session({ id: 'Rasta/1', ...chain }) : null),
-    chainEvents: async () => [...(state.events ?? [])],
-    library: async () => null,
-    saveChain: vi.fn(async () => {}),
-  };
-  return {
-    runs: runs as unknown as LiveRuns & { saveChain: ReturnType<typeof vi.fn> },
-    end() {
-      state.events = null;
-      fns.forEach((f) => f());
-    },
-  };
-}
-
-describe('ESC menu: Statistics and Exit with rating', () => {
-  const events: RunEvent[] = [
-    { type: 'run_start', us: T0, character: 'Rasta', level: 41, xp: 22_200_000, schema: 1 },
-    { type: 'kill', us: T0 + 10e6, logUs: T0 + 9e6, mobName: 'An orc scout', xpDelta: 900 },
-  ];
-
-  async function menu(runs: LiveRuns, exit = vi.fn()) {
-    const host = document.createElement('div');
-    document.body.append(host);
-    const lib = await library();
-    const m = mountEscMenu(host, services(lib), { status: view(), close: vi.fn(), reconnect: vi.fn(), exit, runs });
-    cleanup.push(() => m.dispose());
-    await act(() => m.open());
-    return { host, m, exit };
-  }
-
-  const keys = (host: HTMLElement) =>
-    [...frame(host).querySelectorAll('.wc-mrow')].map((r) => r.getAttribute('data-key'));
-
-  it('offers Statistics only while a run is on; it ticks and marks the end of the run', async () => {
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-    try {
-      const live = liveRuns(events, null);
-      const { host } = await menu(live.runs);
-      expect(keys(host)).toEqual(['continue', 'reconnect', 'stats', 'profile', 'options', 'exit']);
-      await act(() => frame(host).querySelector<HTMLElement>('.wc-mrow[data-key="stats"] .wc-label')!.click());
-      await until(() => (frame(host).textContent ?? '').includes('An orc scout'), 'the live kills');
-      expect(frame(host).querySelector('.wc-stats-header')?.textContent).toMatch(
-        /^◆ STATISTICS — Rasta · Lvl 41 · Run \d+/,
-      );
-      expect(frame(host).textContent).toContain('R Refresh');
-      // A new kill shows on the next tick.
-      events.push({ type: 'kill', us: T0 + 20e6, logUs: T0 + 19e6, mobName: 'A large bat', xpDelta: 66 });
-      await act(() => void vi.advanceTimersByTime(1000));
-      await until(() => (frame(host).textContent ?? '').includes('A large bat'), 'the tick');
-      // The run ends: the data stays and the header says so.
-      live.end();
-      await act(() => void vi.advanceTimersByTime(1000));
-      await until(() => (frame(host).textContent ?? '').includes('Run ended'), 'Run ended');
-      expect(frame(host).textContent).toContain('A large bat');
-      await key('Escape');
-      await until(() => !keys(host).includes('stats'), 'the row gone');
-    } finally {
-      vi.useRealTimers();
-      events.pop();
-    }
-  });
-
-  it('Exit prefills the chain rating, rates with keys and clicks, and saves before exiting', async () => {
-    const live = liveRuns(events, { saved: true, rating: 2 });
-    const { host, exit } = await menu(live.runs);
-    await key('End');
-    await key('Enter');
-    expect(title(host)).toBe('─── Exit session ───');
-    expect(frame(host).textContent).toContain('Rate & save this run (optional)');
-    await until(() => frame(host).querySelectorAll('.wc-stars .wc-st-star').length === 2, 'the prefill');
-    await key('5');
-    await key('ArrowLeft');
-    expect(frame(host).querySelectorAll('.wc-stars .wc-st-star')).toHaveLength(4);
-    await act(() => frame(host).querySelector<HTMLElement>('[data-star="3"]')!.click());
-    await key('x'); // no catch-all cancel
-    expect(title(host)).toBe('─── Exit session ───');
-    await key('y');
-    await until(() => exit.mock.calls.length === 1, 'the exit');
-    expect(live.runs.saveChain).toHaveBeenCalledWith(3);
-  });
-
-  it('Exit without a run to rate has no star row', async () => {
-    const live = liveRuns(null, null);
-    const { host, exit } = await menu(live.runs);
-    expect(keys(host)).not.toContain('stats');
-    await key('End');
-    await key('Enter');
-    expect(frame(host).textContent).not.toContain('Rate & save');
-    expect(frame(host).querySelector('.wc-stars')).toBeNull();
-    expect(frame(host).querySelector('.wc-footer')?.textContent).toBe('Y Exit · ESC Cancel');
-    await key('Y');
-    await until(() => exit.mock.calls.length === 1, 'the exit');
-    expect(live.runs.saveChain).not.toHaveBeenCalled();
   });
 });

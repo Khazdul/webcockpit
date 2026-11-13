@@ -190,32 +190,8 @@ async function openScripts(lib: ScriptLibrary): Promise<HTMLElement> {
   return host;
 }
 
-/** The phone's ESC menu opened at Options (the hub's only home since stage 32): its row keys. */
-async function escOptionsHub(lib?: ScriptLibrary): Promise<(string | null)[]> {
-  const host = document.createElement('div');
-  document.body.append(host);
-  const state: AppStatusState = {
-    conn: 'playing',
-    replay: false,
-    character: '',
-    linkMs: 38,
-    linkSuspect: false,
-    capture: '',
-    xml: true,
-  };
-  const status: AppStatusView = { get: () => state, subscribe: () => () => {} };
-  const menu = mountEscMenu(host, services(lib), { status, close: () => {}, reconnect: () => {}, exit: () => {} });
-  await act(() => menu.open({ target: 'settings' }));
-  await flush();
-  const keys = [...frame(host).querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
-  // One surface at a time (each holds the focus).
-  await act(() => menu.dispose());
-  host.remove();
-  return keys;
-}
-
 describe('Scripts page', () => {
-  it('is on the start page and in the ESC menu\'s Options only with a library', async () => {
+  it('is on the start page only with a library', async () => {
     const host = document.createElement('div');
     document.body.append(host);
     const page = mountStartPage(host, services(), { onEnter: () => {} });
@@ -224,8 +200,10 @@ describe('Scripts page', () => {
     expect(host.querySelector('.wc-sm-item[data-key="profile"]')).not.toBeNull();
     expect(host.querySelector('.wc-sm-item[data-key="scripts"]')).toBeNull();
     await act(() => page.dispose());
-    expect(await escOptionsHub()).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'weather', 'back']);
-    expect(await escOptionsHub(await library())).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'scripts', 'weather', 'back']);
+    const withLib = mountStartPage(host, services(await library()), { onEnter: () => {} });
+    cleanup.push(() => withLib.dispose());
+    await act(() => withLib.show());
+    expect(host.querySelector('.wc-sm-item[data-key="scripts"]')).not.toBeNull();
   });
 
   it('lists the scripts with a lock on bundled ones and shows the help', async () => {
@@ -385,7 +363,7 @@ describe('Scripts page', () => {
     document.body.append(host);
     const state: AppStatusState = { conn: 'playing', replay: false, character: '', linkMs: 38, linkSuspect: false, capture: '', xml: true };
     const status: AppStatusView = { get: () => state, subscribe: () => () => {} };
-    const menu = mountEscMenu(host, services(), { status, close: () => {}, reconnect: () => {}, exit: () => {} });
+    const menu = mountEscMenu(host, services(), { status, close: () => {} });
     cleanup.push(() => menu.dispose());
     await act(() => menu.open({ target: 'scripts' }));
     await flush();

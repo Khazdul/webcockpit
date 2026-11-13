@@ -1,20 +1,14 @@
-// @vitest-environment happy-dom
+// The Mapper settings' shared logic (src/chrome/mapper-model.ts; its controls are the Settings popup's
+// Mapper tab, chrome-popups.test.tsx): the map's formats, and importing a map file and going back to
+// the bundled one against a real store.
 import { IDBFactory } from 'fake-indexeddb';
 import { deflateSync, inflateSync } from 'node:zlib';
-import { act } from 'preact/test-utils';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import type { AppStatusState, AppStatusView } from '../../src/app/status';
-import { type ChromeServices, mountEscMenu } from '../../src/chrome';
-import { setDeviceForTest } from '../../src/core/device';
-import { fmtBytes, fmtCount, mapInfoRows } from '../../src/chrome/frames/options-mapper';
+import { describe, expect, it } from 'vitest';
+import { currentMap, fmtBytes, fmtCount, fmtDate, importMapFile, useBundledMap } from '../../src/chrome/mapper-model';
 import { writeMm2 } from '../../src/map/mm2-write';
 import { MapStore } from '../../src/map/store';
 import { runMapToolRequest } from '../../src/map/tools';
 import { lazyDb } from '../../src/panes/context';
-import { ProfileStore } from '../../src/profiles';
-import { RunLibrary } from '../../src/runs/library';
-import { LEGACY_MAPPER, SettingsStore } from '../../src/settings';
-import { CellMetrics } from '../../src/theme/cells';
 import { gridMap } from './map-grid';
 
 const inflate = async (z: Uint8Array): Promise<Uint8Array> => new Uint8Array(inflateSync(z));
@@ -25,109 +19,15 @@ describe('Mapper helpers', () => {
     expect(fmtBytes(81_200)).toBe('81 kB');
     expect(fmtBytes(12)).toBe('12 B');
     expect(fmtCount(30074)).toBe('30 074');
-    expect(mapInfoRows({ kind: 'bundled', name: 'arda.mm2' })).toEqual([['Map', 'arda.mm2 (bundled)']]);
-    const rows = mapInfoRows({ kind: 'imported', name: 'x.mm2', size: 2048, date: 0, hash: 'h', rooms: 1234 });
-    expect(rows.map((r) => r[0])).toEqual(['Map', 'Rooms', 'Size', 'Imported']);
-    expect(rows[1]![1]).toBe('1 234');
+    expect(fmtCount(1234)).toBe('1 234');
+    expect(fmtDate(0)).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d$/);
   });
 });
 
-beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1000 });
-  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 });
-});
-
-let cleanup: Array<() => void> = [];
-afterEach(() => {
-  for (const c of cleanup.splice(0)) c();
-  document.body.innerHTML = '';
-});
-
-function services(maps: MapStore): ChromeServices {
-  const settings = new SettingsStore({ factory: null, storage: null, win: null });
-  // The mapper these tests were written for: MMapper tiles on the default grey (before ADR 0092).
-  settings.update({ mapper: { ...LEGACY_MAPPER } });
-  const cells = new CellMetrics({ measure: () => ({ w: 10, h: 20, px: 15, ls: 0 }), loadFont: async () => {} });
-  void cells.update(settings.get().appearance);
-  return {
-    settings,
-    cells,
-    profiles: new ProfileStore({ factory: null }),
-    version: '9.9.9',
-    runs: () => RunLibrary.open(new IDBFactory()),
-    maps,
-  };
-}
-
-const key = (k: string) =>
-  act(() => {
-    (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
-  });
-const frame = (host: HTMLElement) => host.querySelector('.wc-frame:not([hidden])')!;
-const labels = (host: HTMLElement) => [...frame(host).querySelectorAll('.wc-mrow .wc-label')].map((e) => e.textContent);
-const info = (host: HTMLElement) => [...frame(host).querySelectorAll('.wc-mapper-info')].map((e) => e.textContent!.replace(/\s+/g, ' ').trim());
-const click = (host: HTMLElement, k: string) =>
-  act(() => frame(host).querySelector<HTMLElement>(`.wc-mrow[data-key="${k}"] .wc-label`)!.click());
-/** Options, in the phone's ESC menu (its only home since the start page lost it in stage 32). */
-async function openOptions(host: HTMLElement, svc: ChromeServices): Promise<void> {
-  const state: AppStatusState = {
-    conn: 'playing',
-    replay: false,
-    character: '',
-    linkMs: 38,
-    linkSuspect: false,
-    capture: '',
-    xml: true,
-  };
-  const status: AppStatusView = { get: () => state, subscribe: () => () => {} };
-  const menu = mountEscMenu(host, svc, { status, close: () => {}, reconnect: () => {}, exit: () => {} });
-  cleanup.push(() => menu.dispose());
-  await act(() => menu.open({ target: 'settings' }));
-  expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Options ───');
-}
-const settle = () => act(async () => {
-  for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
-});
-
-async function pickFile(host: HTMLElement, name: string, bytes: Uint8Array): Promise<void> {
-  const input = frame(host).querySelector<HTMLInputElement>('.wc-mapper-file')!;
-  expect(input.accept).toBe('.mm2');
-  const file = new File([bytes as BlobPart], name);
-  Object.defineProperty(input, 'files', { configurable: true, value: [file] });
-  await act(() => {
-    input.dispatchEvent(new Event('change'));
-  });
-  await settle();
-}
-
-describe('Panes grid swatches', () => {
-  it('show a tint by its fill on a dark page, by its frame colour on a light one (ADR 0123 "Paper")', async () => {
-    const svc = services(new MapStore({ openDb: lazyDb(new IDBFactory()), validate: async () => ({}) as never }));
-    const host = document.createElement('div');
-    document.body.append(host);
-    const status: AppStatusView = {
-      get: () => ({ conn: 'playing', replay: false, character: '', linkMs: 0, linkSuspect: false, capture: '', xml: true }),
-      subscribe: () => () => {},
-    };
-    const menu = mountEscMenu(host, svc, { status, close: () => {}, reconnect: () => {}, exit: () => {} });
-    cleanup.push(() => menu.dispose());
-    await act(() => menu.open({ target: 'panes' }));
-    const swatches = () =>
-      [...frame(host).querySelector('[data-pane-row="timers"]')!.closest('.wc-grid-row')!.querySelectorAll<HTMLElement>('.wc-swatch')].map(
-        (e) => e.style.color,
-      );
-    expect(swatches()).toContain('var(--pane-bg-red)');
-    await act(() => svc.settings.update({ appearance: { bg: '#f4ecd8' } }));
-    expect(swatches()).toContain('var(--pane-border-red)');
-    expect(swatches().some((c) => c.includes('--pane-bg-'))).toBe(false);
-  });
-});
-
-describe('Options → Mapper', () => {
-  it('shows the map, toggles the pane, imports a map and goes back to the bundled one', async () => {
-    const factory = new IDBFactory();
+describe('Mapper model: the map file', () => {
+  it('a bad file is refused and nothing is stored; a good one is imported; the bundled map comes back', async () => {
     const maps = new MapStore({
-      openDb: lazyDb(factory),
+      openDb: lazyDb(new IDBFactory()),
       validate: async (bytes) => {
         const r = await runMapToolRequest({ t: 'validate', bytes }, { fetch, inflate });
         if (!r.ok) throw new Error(r.message);
@@ -135,211 +35,35 @@ describe('Options → Mapper', () => {
         return r.info;
       },
     });
-    const svc = services(maps);
-    const host = document.createElement('div');
-    document.body.append(host);
-    await openOptions(host, svc);
-    // Desktop and tablet: no pane Appearance page (the Panes popup and the pane buttons hold it, ADR 0107).
-    await click(host, 'panes');
-    expect(labels(host)).toEqual(['Timers', 'Communication', 'Group', 'Back']);
-    await key('Escape');
-    // The phone keeps it; it lists the map pane like the others.
-    setDeviceForTest({ touch: true, phone: true });
-    cleanup.push(() => setDeviceForTest({ touch: false, phone: false }));
-    await click(host, 'panes');
-    expect(labels(host)).toEqual(['Appearance', 'Timers', 'Communication', 'Group', 'Back']);
-    await click(host, 'appearance');
-    expect([...frame(host).querySelectorAll('.wc-grid-row')].map((r) => r.textContent!.slice(0, 12).trim())).toContain('Map');
-    await key('Escape');
-    await key('Escape');
-    expect(labels(host)).toEqual(['Panes', 'Mapper', 'Appearance', 'Text input', 'Weather effects', 'Back']);
-    // Text input: the input line toggles and the cursor rows write the store at once (ADR 0063, 0066).
-    await click(host, 'textinput');
-    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Text input ───');
-    expect(labels(host)).toEqual([
-      '[ ] Auto-clear input',
-      '[ ] Input autosuggest',
-      'Cursor style: beam',
-      'Cursor blink: On',
-      'Back',
-    ]);
-    await click(host, 'autoclear');
-    expect(svc.settings.get().input).toEqual({ autoClear: true, autosuggest: false });
-    await key('ArrowDown');
-    await key('ArrowRight');
-    expect(svc.settings.get().input).toEqual({ autoClear: true, autosuggest: true });
-    expect(labels(host)).toContain('[X] Input autosuggest');
-    await key(' ');
-    expect(svc.settings.get().input.autosuggest).toBe(false);
-    await click(host, 'autoclear');
-    expect(svc.settings.get().input.autoClear).toBe(false);
-    await key('ArrowDown');
-    await key('ArrowDown');
-    await key('ArrowLeft');
-    expect(svc.settings.get().appearance.cursorStyle).toBe('block');
-    await key('ArrowDown');
-    await key('Enter');
-    expect(svc.settings.get().appearance.cursorBlink).toBe(false);
-    expect(labels(host)).toContain('Cursor style: block');
-    expect(labels(host)).toContain('Cursor blink: Off');
-    await key('Escape');
-    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Options ───');
+    const said: Array<[string, string | undefined]> = [];
+    const flash = (text: string, kind?: 'ok' | 'fail'): void => void said.push([text, kind]);
+    const file = (name: string, bytes: Uint8Array): File => new File([bytes as BlobPart], name);
 
-    await click(host, 'mapper');
-    await settle();
-    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
-    expect(info(host)).toEqual(['Map arda.mm2 (bundled)']);
-    expect(labels(host)).toEqual([
-      '[X] Show map pane',
-      'Room notes: On',
-      'Room info on hover: Full',
-      'Hover text size: Medium',
-      'Tileset: MMapper',
-      'Background colour: Default',
-      'Import map file…',
-      'Use bundled map',
-      'Back',
-    ]);
-    expect(frame(host).querySelector('.wc-mrow[data-key="bundled"]')!.classList.contains('is-disabled')).toBe(true);
+    // Without a store.
+    await importMapFile(undefined, file('x.mm2', new Uint8Array([1])), flash);
+    expect(said.pop()).toEqual(['Import failed: no map storage here.', 'fail']);
 
-    // Enter on the first row turns the map pane off (the Panes → Appearance grid's setting).
-    await key('Enter');
-    expect(svc.settings.get().panes.map.on).toBe(false);
-    expect(labels(host)[0]).toBe('[ ] Show map pane');
-
-    // Room notes and hover mode (ADR 0077): cyclers, written at once.
-    await key('ArrowDown');
-    await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
-    expect(labels(host)[1]).toBe('Room notes: Off');
-    await key('ArrowDown');
-    expect(labels(host)[2]).toBe('Room info on hover: Full');
-    await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
-    expect(labels(host)[2]).toBe('Room info on hover: Off');
-    await key('Enter');
-    expect(svc.settings.get().mapper.hover).toBe('minimal');
-    expect(labels(host)[2]).toBe('Room info on hover: Minimal');
-    await key('Enter');
-    expect(svc.settings.get().mapper.hover).toBe('full');
-    // Hover text size (round 1): Small / Medium / Large.
-    await key('ArrowDown');
-    await key('ArrowRight');
-    expect(svc.settings.get().mapper.hoverSize).toBe('large');
-    expect(labels(host)[3]).toBe('Hover text size: Large');
-    await key('ArrowLeft');
-    await key('ArrowLeft');
-    expect(svc.settings.get().mapper.hoverSize).toBe('small');
-    expect(labels(host)[3]).toBe('Hover text size: Small');
-    // Tileset (ADR 0082): ←→ cycles the catalogue, the credit line follows.
-    const credit = (): string | null | undefined => frame(host).querySelector('.wc-mapper-credit')?.textContent;
-    expect(credit()).toBe("MMapper's default tiles");
-    await key('ArrowDown');
-    // ← from Default: the community sets (last), drawn for white (ADR 0088).
-    await key('ArrowLeft');
-    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'grays-map', background: '#ffffff', backgroundBefore: '#2e3436' });
-    expect(labels(host)[4]).toBe("Tileset: Gray's Map");
-    expect(labels(host)[5]).toBe('Background colour: White');
-    expect(credit()).toBe("Tiles by Sunnyl75, after Gray's Mapeditor");
-    await key('ArrowLeft');
-    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'gefe-rik', background: '#ffffff', backgroundBefore: '#2e3436' });
-    expect(labels(host)[4]).toBe('Tileset: Gefe & Rik');
-    expect(credit()).toBe("Tiles by Octavia, after Gefe & Rik's maps");
-    // Leaving them restores the user's colour.
-    await key('ArrowLeft');
-    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'desert', background: '#2e3436', backgroundBefore: '' });
-    expect(labels(host)[4]).toBe('Tileset: Desert');
-    expect(credit()).toBe("By Khazdul, from Shimrod's tiles");
-    for (let i = 0; i < 4; i++) await key('ArrowRight');
-    expect(svc.settings.get().mapper.tileset).toBe('shimrod');
-    expect(svc.settings.get().mapper.background).toBe('#2e3436');
-    expect(labels(host)[4]).toBe('Tileset: Shimrod (alternating)');
-    expect(credit()).toMatch(/^Tiles by Shimrod \(v0\.92\) · now (Spring|Summer|Autumn|Winter)$/);
-    // ← from Shimrod (alternating) passes Default, the community sets and Desert to Winter.
-    for (let i = 0; i < 5; i++) await key('ArrowLeft');
-    expect(svc.settings.get().mapper.tileset).toBe('shimrod-winter');
-    expect(labels(host)[4]).toBe('Tileset: Shimrod Winter');
-    expect(credit()).toBe('Tiles by Shimrod (v0.92)');
-    await key('ArrowRight');
-    expect(svc.settings.get().mapper.tileset).toBe('desert');
-    for (let i = 0; i < 3; i++) await key('ArrowRight');
-    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'default', background: '#2e3436', backgroundBefore: '' });
-    await key('ArrowUp');
-    await key('ArrowUp');
-    await key('ArrowUp');
-    await key('Enter');
-    expect(svc.settings.get().mapper.notes).toBe(true);
-
-    // A bad file: flash, nothing stored.
-    await pickFile(host, 'junk.mm2', new Uint8Array([1, 2, 3]));
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toMatch(/^Import failed: Not an MMapper map/);
-    expect(info(host)).toEqual(['Map arda.mm2 (bundled)']);
+    // A bad file: the reason, nothing stored.
+    await importMapFile(maps, file('junk.mm2', new Uint8Array([1, 2, 3])), flash);
+    expect(said[0]).toEqual(['Checking junk.mm2…', undefined]);
+    expect(said.at(-1)![0]).toMatch(/^Import failed: Not an MMapper map/);
+    expect(said.at(-1)![1]).toBe('fail');
+    expect(await currentMap(maps)).toEqual({ kind: 'bundled', name: 'arda.mm2' });
+    // The bundled map is current: nothing to go back to.
+    said.length = 0;
+    await useBundledMap(maps, await currentMap(maps), flash);
+    expect(said).toEqual([]);
 
     // A good file.
     const bytes = await writeMm2(gridMap(7, 3), async (b) => new Uint8Array(deflateSync(b)));
-    await pickFile(host, 'mine.mm2', bytes);
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Imported mine.mm2 (21 rooms).');
-    const rows = info(host);
-    expect(rows[0]).toBe('Map mine.mm2');
-    expect(rows[1]).toBe('Rooms 21');
-    expect(rows[2]).toMatch(/^Size \d+ B$/);
-    expect(rows[3]).toMatch(/^Imported \d{4}-\d\d-\d\d \d\d:\d\d$/);
-    expect((await maps.current()).kind).toBe('imported');
+    await importMapFile(maps, file('mine.mm2', bytes), flash);
+    expect(said.at(-1)).toEqual(['Imported mine.mm2 (21 rooms).', undefined]);
+    const cur = await currentMap(maps);
+    expect(cur).toMatchObject({ kind: 'imported', name: 'mine.mm2', rooms: 21, size: bytes.byteLength });
 
     // Use bundled map.
-    await click(host, 'bundled');
-    await settle();
-    expect(info(host)).toEqual(['Map arda.mm2 (bundled)']);
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Using the bundled map.');
+    await useBundledMap(maps, cur, flash);
+    expect(said.at(-1)).toEqual(['Using the bundled map.', undefined]);
     expect((await maps.current()).kind).toBe('bundled');
-  });
-});
-
-describe('Options → Mapper → Background colour (ADR 0085 and addenda)', () => {
-  it('one cycler row over the named colours; no code row', async () => {
-    const maps = new MapStore({
-      openDb: lazyDb(new IDBFactory()),
-      validate: async () => {
-        throw new Error('unused');
-      },
-    });
-    const svc = services(maps);
-    const host = document.createElement('div');
-    document.body.append(host);
-    await openOptions(host, svc);
-    await click(host, 'mapper');
-    await settle();
-    const bg = () => svc.settings.get().mapper.background;
-    const row = () => frame(host).querySelector('.wc-mrow[data-key="background"] .wc-label')?.textContent;
-    expect(row()).toBe('Background colour: Default');
-    expect(frame(host).querySelector('.wc-mrow[data-key="backgroundCode"]')).toBeNull();
-
-    // ←→ cycle the named list (Default first, Black next, wrapping, Transparent last).
-    await click(host, 'notes'); // the cursor to a row above (notes toggles; put it back)
-    await key('Enter');
-    for (let i = 0; i < 4; i++) await key('ArrowDown');
-    expect(frame(host).querySelector('.wc-mrow.is-sel')?.getAttribute('data-key')).toBe('background');
-    await key('ArrowRight');
-    expect(bg()).toBe('#000000');
-    expect(row()).toBe('Background colour: Black');
-    await key('ArrowLeft');
-    await key('ArrowLeft');
-    expect(bg()).toBe('transparent');
-    expect(row()).toBe('Background colour: Transparent');
-    await key('ArrowLeft');
-    expect(bg()).toBe('#ffffff');
-    expect(row()).toBe('Background colour: White');
-    await key('ArrowLeft');
-    expect(bg()).toBe('#e8dfc8');
-    expect(row()).toBe('Background colour: Dark paper');
-    // Enter steps forward like the other cyclers; no separate page.
-    await key('Enter');
-    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
-    expect(bg()).toBe('#ffffff');
-    await key('Enter');
-    expect(bg()).toBe('transparent');
-    await key('Enter');
-    expect(bg()).toBe('#2e3436');
-    expect(row()).toBe('Background colour: Default');
   });
 });

@@ -109,7 +109,6 @@ import type { BenchProbe } from './bench-hook';
 import type {
   ChromeServices,
   EscMenuHandle,
-  EscMenuTarget,
   PopupPlace,
   SettingsPopupTarget,
   SettingsPopupsHandle,
@@ -133,7 +132,7 @@ import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, 
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
 import type { CellMetrics } from '../theme/cells';
-import { App, REASON_REPLAY_START, type StatsPaneDeps } from './app';
+import { App, type MenuTarget, REASON_REPLAY_START, type StatsPaneDeps } from './app';
 import { nowUs } from '../core/types';
 import { RunLibrary } from '../runs/library';
 import { uiValue } from './ui-messages';
@@ -445,7 +444,7 @@ export class Shell {
    * the moment the chunk loads), it waits for the layer; without one (the
    * chunk could not be loaded: the cover is up) nothing opens.
    */
-  async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
+  async openMenu(preselect?: 'continue' | 'reconnect', target?: MenuTarget): Promise<void> {
     if (!this.inCockpit || !this.appRef || this.appRef.menuBar) return;
     if (this.phoneGame) {
       const layer = this.phoneLayer ?? (await this.phoneLayerP);
@@ -471,7 +470,8 @@ export class Shell {
     }
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
-    menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
+    // The overlay has two pages (stage 55); every other target was the sheet's, above.
+    if (target === 'profile' || target === 'scripts') menu.open({ target });
   }
 
   /** Closes the ESC menu and gives the input its focus back. */
@@ -842,7 +842,7 @@ export class Shell {
         // The windows (ADR 0103) and popups where the bar exists.
         ...(device().phone
           ? {
-              openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target),
+              openMenuAt: (target: MenuTarget) => void this.openMenu(undefined, target),
               // The Statistics pane is a page of the phone's pane strip (ADR 0136 §5): its view, as on the desktop.
               mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
                 this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
@@ -1096,14 +1096,8 @@ export class Shell {
     this.menu ??= chrome.mountEscMenu(this.menuHost, this.services(), {
       status: app.status,
       close: () => this.closeMenu(),
-      reconnect: () => {
-        this.closeMenu();
-        app.onCommand('#reconnect');
-      },
-      exit: () => void this.exitSession(),
       commitProfile: (name, build, opts) => app.commitProfile(name, build, opts),
       flushWriteBack: () => app.flushWriteBack(),
-      runs: app.runs,
     });
     return this.menu;
   }

@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Notices, noticeIndicators } from '../../src/app/notices';
 import { installNotices, isChunkLoadError } from '../../src/app/notices-wiring';
 import { type FetchLike, UpdateChecker, isOtherRelease, parseRelease } from '../../src/app/update-check';
-import { headerParts } from '../../src/chrome/frames/esc-main';
 import { startNoticeTokens } from '../../src/chrome';
 import { Bus } from '../../src/core/bus';
 import { DB_NAME, DB_VERSION, isDbSuperseded, onDbSuperseded, openWebcockpitDb, resetDbSupersededForTests } from '../../src/core/db';
@@ -152,13 +151,7 @@ describe('Notices', () => {
     ind.dispose();
   });
 
-  it('the ESC header and the start surface show them', () => {
-    const st = { conn: 'playing', replay: false, character: '', linkMs: 40, linkSuspect: false, capture: '', xml: false } as const;
-    const parts = headerParts('default', st, { update: { version: '0.1.3', commit: 'x' }, storageSuperseded: true }, '0.1.0');
-    expect(parts.slice(2).map((p) => [p.text, p.cls])).toEqual([
-      ['Update: 0.1.3', 'wc-c-yellow'],
-      ['Storage: not saved', 'wc-c-err'],
-    ]);
+  it('the start surface shows them', () => {
     expect(startNoticeTokens({ update: null, storageSuperseded: false })).toEqual([]);
     const t = startNoticeTokens({ update: { version: '0.1.3', commit: 'x' }, storageSuperseded: true });
     expect(t.map((x) => [x.text, x.cls, typeof x.onClick])).toEqual([
