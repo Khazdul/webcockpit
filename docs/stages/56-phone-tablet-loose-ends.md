@@ -71,9 +71,9 @@ stage 55).
    reported.
 3. **The refused K key hold.** Not reproduced any more; since 53j the
    answer is worked out before anything changes. A second judgement
-   after the keyboard had folded was still there and is removed. In
-   landscape a refused hold can still fold the keyboard (its room is
-   read from the laid-out box).
+   after the keyboard had folded was still there and is removed. (In
+   landscape a refused hold could still fold the keyboard; fixed
+   afterwards, see "The K key hold in landscape" below.)
 6. **The password field swap is gone**: a phone's line is marked for
    our keyboard from its construction (ADR 0142, first addendum).
    Until the phone chunk has loaded only a physical keyboard types.
@@ -189,8 +189,8 @@ phone's too. Pictures `docs/stages/img/56-tablet-t1…t6-*.png`.
 
 ### The whole stage on `main`
 
-**The K key hold in landscape** (after 56a, item 3; branch
-`fix-k-hold-landscape`): with our keyboard up the answer is now worked
+**The K key hold in landscape** (after 56a, item 3; merged 17cd40e1):
+with our keyboard up the answer is now worked
 out before the keyboard folds, on the layout as it would be without it
 and from the layout's own sums (the column's width against the hot key
 columns), not from the laid-out box. A refused hold changes nothing
