@@ -1,6 +1,6 @@
 # Stage 55 — Scrap the old phone layout
 
-Status: **In progress** (started 2026-11-13).
+Status: **Owner testing** (built 2026-11-13; on `main`, not released).
 
 ## Goal
 
@@ -157,9 +157,10 @@ to about 980 px; iPhone Safari's desktop request; page zoom below
 - [x] 55a replay plumbing
 - [x] 55b device and shell switch-over
 - [x] 55c the player switched over
-- [ ] 55d deletion, eager side
-- [ ] 55e deletion, chrome side
-- [ ] ADR, test guide, session log
+- [x] 55d deletion, eager side
+- [x] 55e deletion, chrome side
+- [x] ADR 0142, test guide, session log
+- [ ] The owner's test; then the release
 
 ## Built
 
@@ -252,6 +253,50 @@ the merge replaced the ignored directory with it. Untracked again,
 `.gitignore` now says `node_modules`, `npm ci` restored the directory.
 Worktree agents must never `git add` the link.
 
+### 55d — deletion, eager side (merged 854b328b)
+
+- Gone: `src/layout/phone.ts` (its three constants and `phoneNawsCols`
+  moved to `phone-game.ts`); the cockpit's tab strip path and device
+  keyboard handling; the allocator's `guard` input; the device keyboard
+  state in `phone-viewport.ts` (`wc-kbd`, `keyboardUp`, the baseline
+  logic; the `?vv=1` readout lost `kbd`); `Shell.syncDeviceKeyboard`
+  and `openMenu`'s `preselect`; the old CSS in `layout.css`, `ui.css`
+  and `phone.css`.
+- **The `phoneGame` option is gone** from the cockpit and the App: with
+  the phone flag on, the cockpit is the phone layout.
+- `Cockpit.selectTabAt` / `App.phoneTabKey` are `phonePageKey`. The
+  phone's menu key no longer carries the class `wc-menu-btn`.
+- Left on purpose: the password field swap in `src/ui/input-pane.ts`
+  (not dead: it covers a password prompt reached before the phone layer
+  is up; ADR 0142 §5); `MapPane.forwardHidden`.
+- 19 unit tests went with the code.
+
+### 55e — deletion, chrome side (merged fa7e331d)
+
+- Gone: `esc-main.tsx` (`EscMain`, `ExitConfirm`), `options.tsx` and
+  the five `options-*.tsx` / `comm-options.tsx` frames, the old
+  Statistics page (`frames/statistics.tsx`), `banner.tsx`,
+  `kit/scroll.tsx`, most of `kit/widgets.tsx`, `kit/nav.ts` and
+  `kit/kit.css`. What the Settings popup and the windows still use
+  moved to the model files (`pane-options-model.ts`, `mapper-model.ts`,
+  `weather-model.ts`). The overlay opens only Profile and Scripts.
+- The building agent was cut off in its test phase and gave no report;
+  the round was verified on `main` after the merge instead.
+- Merge conflict in `Shell.openMenu` (both rounds changed it): 55d's
+  signature with 55e's narrowing. After both: `NOT_ON_PHONE` and the
+  start page's `wc-kbd` rule removed (6f8f3d5c).
+
+### The whole stage on `main` (6f8f3d5c)
+
+- Typecheck clean. Unit 4205.
+- **Full e2e at 5 workers, `TMPDIR` moved, a quiet machine: 1354
+  passed, none failed.**
+- Bundle against 0.8.3: `chrome` 280.0 → 235.0 kB, `app` 228.6 →
+  224.9 kB, phone JS 125.1 → 126.9 kB, phone CSS 59.1 → 63.7 kB,
+  `player-host` 30.2 → 33.8 kB, `index` 28.3 → 29.2 kB.
+- 7 400 lines removed and 3 700 added in source, tests and scripts.
+- ADR 0142.
+
 ### After 55a + 55b on `main`
 
 Unit 4261. Full e2e at 5 workers: 1347 passed, 6 failed; five passed
@@ -267,5 +312,40 @@ the "Target crashed under load" of this and earlier sessions is likely
 this. **Run e2e with `TMPDIR=/var/tmp/wc-pw`** until `/tmp` is cleared.
 
 ## Test guide (for the owner)
+
+On `main`, not released. The dev server over the tailnet (ADR 0096):
+`https://<machine>.<tailnet>.ts.net:5173/` on the phone and the iPad.
+The game itself should be exactly as in 0.8.3; what is new is the
+player, Spotlights and the edges.
+
+1. **Nothing changed in the game.** Enter MUME on the phone: layout,
+   keyboard, menu sheet, Profile and Scripts from the menu, Exit
+   session. One quick round is enough.
+2. **Run log player** (start page → History → a run → play), phone,
+   upright. Wanted: is the bar right (Back, −10 s, Play/Pause, +10 s,
+   speed, time, Display)? The speed key steps 1× → 2× → … → 8× → 0.25×
+   on each tap: good enough, or do you miss the two arrows? Are the
+   keys large enough in History's box? Open the strip and Comm from the
+   lens while it plays; drag the rail at the right edge to seek.
+3. **The same on its side**, and on the iPad in both orientations (the
+   iPad has To start, the speed arrows and the length too).
+4. **Seek backwards** with the strip and Comm open: they should stay
+   open on the same page.
+5. **Display** (the last key): text size and theme. A run recorded in
+   Paper should be Paper inside the dark page, and the reverse.
+6. **The way out:** the Back key at the bar's left. Does it feel right
+   there, with no Back at the top left? The browser's back gesture: say
+   what it does.
+7. **Spotlights** on the phone: a card plays as text only, at the
+   recorded text size, lines wrapping. Better or worse than the small
+   text of before?
+8. **"Desktop site"** in the phone's browser menu (Android Chrome, and
+   the iPhone if at hand): the page should reload as the desktop
+   cockpit. Say what you get. Switch it off again: the phone layout,
+   your settings as they were.
+9. The pictures of what was built: `docs/stages/img/55-player-*.png`.
+
+Not for you to test: the cover with Reload when the phone layout cannot
+be loaded (it needs a broken connection at the right moment).
 
 ## Owner feedback
