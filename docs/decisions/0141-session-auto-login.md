@@ -61,9 +61,26 @@ session's `sendCommand`). It is never written to settings, localStorage,
 sessionStorage, IndexedDB, the run log, the raw capture, the command
 history, the DOM, a notice, an error or the console.
 
-The rule never holds the password: it is told that a secret was sent,
-and answers `keepPending`, `arm`, `sendPassword`, `wipe`. Names are not
-secret and are held by the rule.
+The rule is never given the password: it is told that a secret was
+sent, and answers `keepPending`, `arm`, `sendPassword`, `wipe`.
+
+What the rule does hold of what was typed is one **name candidate**: a
+plain (not secret) line sent at the login prompts, and only if it has
+the shape of a name (letters only, 2 to 20). It is dropped when the
+login prompts are left (play, the connection ending, a new connection,
+Exit, a restore) and is only ever compared with the name MUME gives;
+the name asked about, shown and sent is MUME's own (`Char.Name`). One
+case to know: a password of that shape typed *before* the server has
+turned ECHO off is such a plain line. The client then shows it in the
+game text and keeps it in the command history as any command (as it
+did before this round, and on desktop); in the rule it sits as the
+candidate until the login prompts are left. It is never kept as the
+password and never leads to a question.
+
+**The bus.** `net.bytesOut` carries every byte written to the socket,
+so the password's bytes too, for a hand-typed and an automatic password
+alike. It has no subscriber today. A future capture of the raw outbound
+stream must leave secret sends out.
 
 ### 3. Capture
 
@@ -73,15 +90,17 @@ at the login prompts (`login`) of a real connection: the text, and
 whether it was secret (the server had ECHO off). Nothing is tapped in
 play, before a connection, or on a replay.
 
-The rule keeps, per connection: the last non-empty plain line (the name
-candidate) and, at each non-empty secret line, that candidate as the
-name and the secret as the pending password. When the connection
+The rule keeps, per connection: the last name-shaped plain line (the
+name candidate; a line of another shape forgets it) and, at each
+non-empty secret line, that candidate as the name and the secret as the
+pending password. Once a secret is kept, plain lines are not looked at
+any more. When the connection
 reaches play (`playing`: GMCP `Char.Name`, the client's existing
 notion), the capture counts only if the captured name is the character
 MUME named, compared without case. So:
 
 - a new character (the line before the password is the answer to "did I
-  get that right?") is never asked about;
+  get that right?", which is not a name) is never asked about;
 - a failed login never reaches play; its pending password is dropped
   when the connection ends;
 - a wrong password followed by the right one keeps the right one.
@@ -89,7 +108,7 @@ MUME named, compared without case. So:
 ### 4. The question
 
 "Log in automatically as <Name> for the rest of this session?", with
-"Your name and password are kept in this page's memory only. They are
+"Your name and account password are kept in this page's memory only. They are
 gone when the page is closed or reloaded." and No / Yes.
 
 - **Not a dialog.** The owner asked for the look dialog of stage 53 (the
@@ -143,17 +162,52 @@ With Yes the session is armed for that character.
   and the player is left at MUME's own prompt: a second name prompt; a
   password prompt before the name was sent; a second password prompt
   (MUME did not take the password); play reached without a password
-  prompt, or as another character; no progress within 20 s; the
-  connection ending; anything else being sent to the prompts meanwhile.
-  There is no second attempt and no timer that starts one.
+  prompt, or as another character; no play within 20 s of the
+  connection; the connection ending. There is no second attempt and no
+  timer that starts one.
+- **The player's own lines during the attempt.** Until the password has
+  been sent, a non-empty line sent by anything else stops the attempt
+  and wipes (MUME would take it as the name or the password). Once the
+  password has been sent, the attempt only waits for the game: what the
+  player sends then is their own answer to whatever MUME asks first (a
+  "press return", a menu), and stops nothing. An empty line never stops
+  it, in either phase. It is still sent: the controller only listens to
+  what the session sends and never stands between the command line and
+  the session, and an empty line at the name prompt does at worst make
+  MUME ask for the name again, which stops the attempt by itself.
 
-### 6. Wipes
+### 6. Wipes, and what keeps the session armed
 
-The stored login (and any pending password) is wiped by: every stop
-above; the player's own Disconnect (`#disconnect`); Exit session (also
-when the link was down already; the answers given stay); a replay
-starting; `Char.Name` naming another character; the phone
-layer's disposal; and a page restored from the back/forward cache.
+**A session that ends on purpose is never logged back in.** When a
+connection that was up ends, the session stays armed only if the LINK
+WAS LOST:
+
+- the resume check's verdict (`REASON_BACKGROUND_LOST`), or
+- the socket closed with WebSocket code 1006 ("abnormal closure": the
+  code a browser makes up when the connection went away with no closing
+  handshake from the server),
+
+or if it is the player's own Reconnect. `isLinkLoss`
+(`src/net/session.ts`) is the one test of it. **Every other end wipes:**
+the player's `#disconnect`, MUME's GMCP `Core.Goodbye` (the session
+drops with that reason before the socket closes), and any close the
+server made itself, whatever its code: a quit, a rent, an idle kick, a
+reboot. Where it cannot be told, it wipes. The shell asks the same
+question before it reconnects by itself (`loginArmedAfter`), so a quit
+with the page in the background does not open a connection either.
+
+A connection that never came up (refused, no network yet after the
+phone woke) ends nothing: the session stays as it was.
+
+The stored login (and any pending password) is also wiped by: every
+stop above; Exit session (also when the link was down already; the
+answers given stay); a replay starting; `Char.Name` naming another
+character; the phone layer's disposal; and a page restored from the
+back/forward cache.
+
+The controller is the last thing the phone layer makes, and it attaches
+to the session and the bus last in its own constructor: a layer whose
+mount fails leaves no listener behind.
 
 **Back/forward cache.** A restored page comes back with the memory it
 left with, so a wiped login stays wiped; but an armed one would come
@@ -196,8 +250,12 @@ followed from there. One already in play is not asked about.
 
 - Someone holding the unlocked device while the tab is open and armed:
   they can play the character (as they can any logged-in session), and
-  after a drop the client logs in again for them. The password itself
-  is not shown to them.
+  after a lost link the client logs in again for them. The password
+  itself is not shown to them.
+- **It is the account password.** MUME asks for the *account* password,
+  which most likely opens every character on the account, not only the
+  one named. What is held is therefore worth more than one character.
+  The client only ever sends it after the armed character's name.
 - Code running in the page's own origin (a malicious browser extension,
   a compromised build, devtools on an unlocked device): it can replace
   `Session.sendCommand` or the WebSocket and read what is typed, with or
@@ -231,21 +289,32 @@ followed from there. One already in play is not asked about.
 
 ## To verify on the live game
 
-Everything about MUME below comes from the repository's existing tests
-and fixtures, not from recorded login traffic:
+One real login was found in the reference client's text logs (no telnet
+negotiation in it). It shows, in order: the banner, ending "If you have
+never played MUME before, type NEW to create a new character, / or ?
+for help."; `By what name do you wish to be known? `; a blank line;
+`Account password: `; two blank lines; `Reconnecting.`; the room. The
+name had been sent before the banner arrived (typed ahead) and was
+taken. One more short line was sent after the password and before
+"Reconnecting."; what it answered is not in the log. The mock
+(`tests/e2e/mume-login-mock.ts`) uses these texts. Everything else
+below is from the repository's own tests and fixtures:
 
 1. The name prompt's text is `By what name do you wish to be known?`
-   (the only text the feature matches). If it differs, the attempt
-   times out after 20 s and wipes.
+   (the only text the feature matches; **seen in the real log**). If it
+   differs, the attempt times out after 20 s and wipes.
 2. MUME sends `IAC WILL ECHO` for the password prompt, after the name
    was sent, and not before the name prompt.
 3. MUME sends `IAC WILL ECHO` only once per password prompt, and a
    refused password leads to a new password prompt (a second
    `WILL ECHO`) or a closed connection, both of which stop the attempt.
-4. A login as a linkdead character goes name → password → play with no
-   question in between (the fixtures show "Reconnecting."). An extra
-   question ("press return", a menu) stops nothing by itself, but play
-   must come within 20 s of the connection.
+4. A login as a linkdead character goes name → account password → play
+   ("Reconnecting." in the real log). If MUME asks something more after
+   the password, the client does not answer it: the player does, and
+   that stops nothing, but play must come within 20 s of the connection
+   or the attempt stops and wipes. Whether 20 s is enough for a player
+   to notice and answer is for the live test (the real log has one
+   unexplained line sent after the password).
 5. GMCP `Char.Name` carries `name` as the character's name, equal
    without case to what is typed at the name prompt.
 6. A new character's creation asks at least one plain question between
@@ -256,3 +325,16 @@ and fixtures, not from recorded login traffic:
 8. On iPadOS and Android: a tab put in the background and brought back
    fires `visibilitychange` (not a `pageshow` from the back/forward
    cache, which would wipe).
+9. **How MUME ends a session.** After `quit`, a rent or an idle kick the
+   server must either send GMCP `Core.Goodbye` or close the socket
+   itself (any code but 1006). If it instead just drops the connection
+   (the browser then reports 1006), the client takes it for a lost link
+   and stays armed, and coming back to the page would log the character
+   in again: **type `quit` while armed and watch for the notice
+   "Automatic login is off: the session ended."**
+10. The other way round: a link lost in the background must show as
+    1006 or be found by the resume check. A phone OS that closes the
+    socket cleanly when it suspends the tab would wipe every time (the
+    feature would then never log in; safe, but useless).
+11. A character's name is letters only, 2 to 20 (the shape a name
+    candidate must have to be kept).

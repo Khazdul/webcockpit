@@ -554,12 +554,6 @@ export class PhoneLayer {
     this.wakeConn = this.connected();
     this.wake.sync();
     this.mountOwnKeyboard(doc, deps.ownKeyboard);
-    // Automatic login for the session (ADR 0141): the question's card is the layer's, the rest is the controller's.
-    if (deps.autoLogin && win) {
-      const auto = new AutoLogin(deps.autoLogin, { el: this.el, notice: deps.notice, placed: () => this.placeLoginAsk(), win });
-      this.autoLogin = auto;
-      this.unsubs.push(() => auto.dispose());
-    }
     // The lens's full size follows the screen's short side: a rotation (or a resized window) asks again.
     const onResize = (): void => this.syncLens();
     win?.addEventListener('resize', onResize);
@@ -584,6 +578,14 @@ export class PhoneLayer {
     this.syncLens();
     this.syncFight();
     this.place();
+    // Automatic login for the session (ADR 0141): the question's card is the layer's, the rest is
+    // the controller's. LAST in the constructor: a layer whose mount throws (the shell then has no
+    // layer to dispose) must not leave a listener on the session's login prompts or on the bus.
+    if (deps.autoLogin && win) {
+      const auto = new AutoLogin(deps.autoLogin, { el: this.el, notice: deps.notice, placed: () => this.placeLoginAsk(), win });
+      this.autoLogin = auto;
+      this.unsubs.push(() => auto.dispose());
+    }
   }
 
   /**
@@ -1958,6 +1960,11 @@ export class PhoneLayer {
   /** The session is armed for automatic login (ADR 0141): the shell then reconnects a dead link found on resume. */
   get loginArmed(): boolean {
     return this.autoLogin?.armed === true;
+  }
+
+  /** Whether it is still armed once the connection ending with `reason` is gone (a session that ended on purpose is not). */
+  loginArmedAfter(reason: string): boolean {
+    return this.autoLogin?.armedAfter(reason) === true;
   }
 
   /**

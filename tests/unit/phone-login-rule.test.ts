@@ -11,7 +11,7 @@ const connecting: LoginEvent = { type: 'connecting', replay: false };
 const login: LoginEvent = { type: 'login' };
 const playing: LoginEvent = { type: 'playing' };
 const char = (name: string): LoginEvent => ({ type: 'charName', name });
-const down = (byUser = false): LoginEvent => ({ type: 'down', byUser });
+const down = (why: 'lost' | 'reconnect' | 'ended' = 'lost'): LoginEvent => ({ type: 'down', why });
 
 function run(events: LoginEvent[], from: LoginRuleState = LOGIN_RULE_IDLE): { state: LoginRuleState; actions: LoginAction[]; does: string[] } {
   let state = from;
@@ -79,6 +79,32 @@ describe('the capture and the question', () => {
     expect(r.does).not.toContain('ask');
   });
 
+  it('holds nothing of what is typed but one name-shaped line, and nothing once the login prompts are left', () => {
+    // Not the shape of a name: never held.
+    for (const typed of ['correct-horse-9', 'p4ssword', 'two words', 'x', 'a'.repeat(21), 'né']) {
+      expect(run([connecting, login, plain(typed)]).state.lastPlain).toBeNull();
+    }
+    // A line that is not a name forgets the candidate before it.
+    expect(run([connecting, login, plain('rasta'), plain('1')]).state.lastPlain).toBeNull();
+    // After a secret was kept, plain lines are not looked at.
+    const kept = run([connecting, login, plain('rasta'), secret, plain('hunter')]).state;
+    expect(kept.lastPlain).toBeNull();
+    expect(kept.capName).toBe('rasta');
+    // A password of a name's shape typed before ECHO was off is held as a candidate only until the prompts are left.
+    const early = run([connecting, login, plain('rasta'), plain('hunter')]).state;
+    expect(early.lastPlain).toBe('hunter');
+    for (const leave of [[char('Rasta'), playing], [down('lost')], [down('ended')], [connecting], [{ type: 'exit' }], [{ type: 'restored' }]] as LoginEvent[][]) {
+      const st = run(leave, early).state;
+      expect(st.lastPlain).toBeNull();
+      expect(st.capName).toBeNull();
+      expect(JSON.stringify(st)).not.toContain('hunter');
+    }
+    // And it is never the name asked about or sent: only MUME's own spelling of the character is.
+    const r = run([connecting, login, plain('rasta'), plain('hunter'), secret, char('Rasta'), playing]);
+    expect(r.does).not.toContain('ask');
+    expect(JSON.stringify(r.actions)).not.toContain('hunter');
+  });
+
   it('what is sent outside the login prompts is never looked at', () => {
     const r = run([plain('rasta'), secret, connecting, plain('rasta'), secret]);
     expect(r.does).not.toContain('keepPending');
@@ -110,7 +136,7 @@ describe('the capture and the question', () => {
     expect(t.state.asking).toBeNull();
     expect(run([down(), ...byHand()], t.state).state.asking).toBe('Rasta');
     // The connection ends under the question: the same.
-    const d = run([...byHand(), down()]);
+    const d = run([...byHand(), down('lost')]);
     expect(d.does).toContain('closeAsk');
     expect(d.state.asking).toBeNull();
     expect(d.state.armed).toBeNull();
@@ -122,7 +148,7 @@ describe('the capture and the question', () => {
   });
 
   it('answered Yes before, wiped by Disconnect: the next login by hand arms again without a question', () => {
-    const r = run([down(true), ...byHand()], armed());
+    const r = run([down('ended'), ...byHand()], armed());
     expect(r.does).toContain('wipe');
     expect(r.does).not.toContain('ask');
     expect(r.actions).toContainEqual({ do: 'arm', name: 'Rasta' });
@@ -194,10 +220,12 @@ describe('the attempt', () => {
     ['the time is out before the name prompt', [{ type: 'timeout' }]],
     ['the time is out waiting for the password prompt', [{ type: 'namePrompt' }, { type: 'timeout' }]],
     ['the time is out waiting for play', [{ type: 'namePrompt' }, { type: 'passwordPrompt' }, { type: 'timeout' }]],
-    ['the connection ends during the login', [{ type: 'namePrompt' }, down()]],
-    ['the player reconnects during the login', [{ type: 'namePrompt' }, { type: 'passwordPrompt' }, down()]],
-    ['something else is sent during the login', [{ type: 'namePrompt' }, plain('look')]],
-    ['a secret is typed by hand during the login', [{ type: 'namePrompt' }, secret]],
+    ['the link is lost during the login', [{ type: 'namePrompt' }, down('lost')]],
+    ['the server closes during the login', [{ type: 'namePrompt' }, { type: 'passwordPrompt' }, down('ended')]],
+    ['the player reconnects during the login', [{ type: 'namePrompt' }, { type: 'passwordPrompt' }, down('reconnect')]],
+    ['a line is sent before the name prompt', [plain('look')]],
+    ['a line is sent before the password was sent', [{ type: 'namePrompt' }, plain('look')]],
+    ['a secret is typed by hand before the password was sent', [{ type: 'namePrompt' }, secret]],
     ['the send could not be made', [{ type: 'namePrompt' }, { type: 'sendFailed' }]],
     ['another character is in play', [{ type: 'namePrompt' }, { type: 'passwordPrompt' }, char('Gibur'), playing]],
     ['play begins before the password was asked for', [{ type: 'namePrompt' }, char('Rasta'), playing]],
@@ -214,21 +242,56 @@ describe('the attempt', () => {
     expect(next.does).not.toContain('sendPassword');
   });
 
+  it('an empty line never stops it, before or after the password', () => {
+    const empty: LoginEvent[] = [plain(''), plain('   '), { type: 'sent', secret: true, empty: true }];
+    const r = run([...attempt, ...empty, { type: 'namePrompt' }, ...empty, { type: 'passwordPrompt' }, ...empty, char('Rasta'), playing], armed());
+    expect(r.does).not.toContain('wipe');
+    expect(count(r.does, 'sendPassword')).toBe(1);
+    expect(r.state.armed).toBe('Rasta');
+    expect(notices(r.actions).at(-1)).toBe('Logged in as Rasta.');
+  });
+
+  it("after the password was sent the player's own lines are their answers to MUME: nothing stops, nothing is kept", () => {
+    const r = run([...attempt, { type: 'namePrompt' }, { type: 'passwordPrompt' }, plain('y'), plain('look'), secret, char('Rasta'), playing], armed());
+    expect(r.does).not.toContain('wipe');
+    expect(r.does).not.toContain('keepPending');
+    expect(count(r.does, 'sendPassword')).toBe(1);
+    expect(r.state.armed).toBe('Rasta');
+    expect(r.state.lastPlain).toBeNull();
+    expect(r.state.capName).toBeNull();
+    // The stops of that phase still stop it.
+    const again = run([...attempt, { type: 'namePrompt' }, { type: 'passwordPrompt' }, plain('y'), { type: 'passwordPrompt' }], armed());
+    expect(again.does).toContain('wipe');
+    const name = run([...attempt, { type: 'namePrompt' }, { type: 'passwordPrompt' }, plain('y'), { type: 'namePrompt' }], armed());
+    expect(name.does).toContain('wipe');
+  });
+
   it('a timeout with no attempt on does nothing', () => {
     expect(run([{ type: 'timeout' }, { type: 'sendFailed' }], armed()).actions).toEqual([]);
   });
 });
 
 describe('the wipes', () => {
-  it("the player's own Disconnect or Exit wipes and nothing is sent at the next connection", () => {
-    const r = run([down(true)], armed());
+  it('a session that ends on purpose wipes: Disconnect, Core.Goodbye, a close the server made (quit, rent, idle)', () => {
+    const r = run([down('ended')], armed());
     expect(r.does).toContain('wipe');
     expect(r.state.armed).toBeNull();
-    expect(run([connecting, login, { type: 'namePrompt' }], r.state).does).not.toContain('sendName');
+    expect(notices(r.actions)).toEqual(['Automatic login is off: the session ended. The saved login is forgotten.']);
+    const next = run([connecting, login, { type: 'namePrompt' }, { type: 'passwordPrompt' }], r.state);
+    expect(next.does).not.toContain('sendName');
+    expect(next.does).not.toContain('sendPassword');
   });
 
-  it('a drop that is not the player\'s keeps the session armed', () => {
-    const r = run([down()], armed());
+  it("a lost link and the player's own Reconnect keep the session armed", () => {
+    for (const why of ['lost', 'reconnect'] as const) {
+      const r = run([down(why)], armed());
+      expect(r.does).not.toContain('wipe');
+      expect(r.state.armed).toBe('Rasta');
+    }
+  });
+
+  it('a connection that never came up ends nothing, whatever its reason', () => {
+    const r = run([down('lost'), connecting, down('ended'), connecting, down('ended')], armed());
     expect(r.does).not.toContain('wipe');
     expect(r.state.armed).toBe('Rasta');
   });

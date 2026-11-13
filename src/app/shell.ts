@@ -125,7 +125,7 @@ import type { ChainRun } from '../player/timeline';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
-import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, RESUME_PING_TIMEOUT_MS } from '../net/session';
+import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, RESUME_PING_TIMEOUT_MS, isLinkLoss } from '../net/session';
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
 import type { CellMetrics } from '../theme/cells';
@@ -963,7 +963,7 @@ export class Shell {
                 blur: () => app.input.input.blur(),
               },
               // Automatic login for the session (ADR 0141): all of it is in the phone's chunk.
-              autoLogin: { session: app.session, bus: app.bus, userDisconnect: REASON_USER_DISCONNECT },
+              autoLogin: { session: app.session, bus: app.bus, userReconnect: REASON_USER_RECONNECT, linkLost: isLinkLoss },
             });
             old.remove();
             this.phoneLayerFailed = false;
@@ -1012,14 +1012,18 @@ export class Shell {
     const quiet = this.connIsReplay || QUIET_REASONS.has(reason);
     // Phone game layout, "Reconnect automatically" on (ADR 0136 §10): a dead link found on resume
     // reconnects once instead of opening the sheet. Off (and everywhere else) nothing changes here.
-    const auto = this.autoReconnect(app, {
-      type: 'drop',
-      wasUp: wasUp && this.everUp,
-      quiet,
-      foundOnResume: reason === REASON_BACKGROUND_LOST,
-      hidden: this.opts.root.ownerDocument.visibilityState === 'hidden',
-      now: Date.now(),
-    });
+    const auto = this.autoReconnect(
+      app,
+      {
+        type: 'drop',
+        wasUp: wasUp && this.everUp,
+        quiet,
+        foundOnResume: reason === REASON_BACKGROUND_LOST,
+        hidden: this.opts.root.ownerDocument.visibilityState === 'hidden',
+        now: Date.now(),
+      },
+      reason,
+    );
     if (auto === 'reconnect') return;
     // The automatic connection never came up: the sheet with Reconnect, as for any drop (below).
     if (auto !== 'sheet' && (!wasUp || !this.everUp || quiet)) return;
@@ -1043,10 +1047,14 @@ export class Shell {
    * reconnect was started (the sheet is then not opened for the drop);
    * `sheet`: the automatic connection failed, the drop opens the sheet.
    */
-  private autoReconnect(app: App, ev: AutoReconnectEvent): 'reconnect' | 'sheet' | null {
+  private autoReconnect(app: App, ev: AutoReconnectEvent, dropReason?: string): 'reconnect' | 'sheet' | null {
     if (!this.phoneGame) return null;
-    // A session armed for automatic login (ADR 0141) reconnects whatever the setting says.
-    const on = this.opts.settings.get().phone.autoReconnect || this.phoneLayer?.loginArmed === true;
+    // A session armed for automatic login (ADR 0141) reconnects whatever the setting says. At a
+    // drop: only if it is still armed once that connection is gone (a lost link; never a session
+    // that ended on purpose: a quit must not bring the character back).
+    const layer = this.phoneLayer;
+    const armed = dropReason === undefined ? layer?.loginArmed === true : layer?.loginArmedAfter(dropReason) === true;
+    const on = this.opts.settings.get().phone.autoReconnect || armed;
     const step = autoReconnectStep(this.autoState, ev, on && this.inCockpit);
     this.autoState = step.state;
     if (step.sheet) return 'sheet';

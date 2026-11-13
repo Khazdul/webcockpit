@@ -130,7 +130,7 @@ for (const [size, viewport, url] of [
       await expect(status(page)).toHaveAttribute('data-status', /^playing/);
       await expect(ask(page)).toBeVisible();
       await expect(ask(page).locator('.wc-ph-ask-q')).toHaveText('Log in automatically as Rasta for the rest of this session?');
-      await expect(ask(page).locator('.wc-ph-ask-n')).toHaveText("Your name and password are kept in this page's memory only. They are gone when the page is closed or reloaded.");
+      await expect(ask(page).locator('.wc-ph-ask-n')).toHaveText("Your name and account password are kept in this page's memory only. They are gone when the page is closed or reloaded.");
       expect(await armed(page)).toBe(false);
       // The command line kept the focus, and what is typed goes to the game: Y and N are not answers.
       await expect(field(page)).toBeFocused();
@@ -196,7 +196,7 @@ for (const [size, viewport, url] of [
       expect(await leaks(page, PASSWORD)).toEqual([]);
       // A link that drops while hidden: again, once.
       await visibility(page, 'hidden');
-      void m.server().close();
+      m.lose();
       await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
       await visibility(page, 'visible');
       await expect(status(page)).toHaveAttribute('data-status', /^playing/);
@@ -211,7 +211,7 @@ test('Yes: a drop in view opens the sheet, and its Reconnect logs in', async ({ 
   const m = await enter(page, '/?phone=1');
   await loginByHand(page);
   await ask(page).locator('[data-act="yes"]').tap();
-  void m.server().close();
+  m.lose();
   await expect(sheet(page)).toBeVisible();
   expect(m.opened()).toBe(1);
   await sheet(page).locator('[data-row="reconnect"]').tap();
@@ -229,7 +229,7 @@ test('No: nothing is kept, nothing reconnects by itself, and the question does n
   expect(await leaks(page, PASSWORD)).toEqual([]);
   // A link that dropped while hidden: the sheet with Reconnect, as before this round.
   await visibility(page, 'hidden');
-  void m.server().close();
+  m.lose();
   await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
   await visibility(page, 'visible');
   await page.waitForTimeout(500);
@@ -258,7 +258,7 @@ test('a wrong password by hand asks nothing; the right one after it does', async
   await expect(ask(page)).toBeVisible();
   await ask(page).locator('[data-act="yes"]').tap();
   // The one kept is the one MUME took.
-  void m.server().close();
+  m.lose();
   await sheet(page).locator('[data-row="reconnect"]').tap();
   await expect(status(page)).toHaveAttribute('data-status', /^playing/);
   expect(m.sent[1]).toEqual(['Rasta', PASSWORD]);
@@ -270,7 +270,7 @@ test('MUME no longer takes the stored password: one try, then it is forgotten an
   await ask(page).locator('[data-act="yes"]').tap();
   m.password = 'changed-elsewhere';
   await visibility(page, 'hidden');
-  void m.server().close();
+  m.lose();
   await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
   await visibility(page, 'visible');
   await expect(rows(page).filter({ hasText: '[SYSTEM] Automatic login stopped: MUME asked for the password again. The saved login is forgotten.' })).toHaveCount(1);
@@ -284,7 +284,7 @@ test('MUME no longer takes the stored password: one try, then it is forgotten an
   expect(m.opened()).toBe(2);
   // The next drop found on resume does not reconnect (the setting is off, nothing is armed).
   await visibility(page, 'hidden');
-  void m.server().close();
+  m.lose();
   await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
   await visibility(page, 'visible');
   await page.waitForTimeout(500);
@@ -309,6 +309,82 @@ test('the player\'s own Disconnect wipes it: nothing reconnects, and the next co
   expect(m.sent[1]).toEqual([]);
 });
 
+for (const how of ['quit', 'goodbye'] as const) {
+  test(`the character leaves the game (${how === 'quit' ? 'the server closes the connection itself' : 'Core.Goodbye'}): wiped; nothing reconnects and nothing logs in`, async ({ page }) => {
+    const m = await enter(page, '/?phone=1');
+    await loginByHand(page);
+    await ask(page).locator('[data-act="yes"]').tap();
+    expect(await armed(page)).toBe(true);
+    // The page is in the background when the server ends the session (a quit, then the phone put away).
+    await visibility(page, 'hidden');
+    m[how]();
+    await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
+    expect(await armed(page)).toBe(false);
+    await visibility(page, 'visible');
+    await page.waitForTimeout(700);
+    expect(m.opened()).toBe(1);
+    await expect(rows(page).filter({ hasText: '[SYSTEM] Automatic login is off: the session ended. The saved login is forgotten.' })).toHaveCount(1);
+    // The player's own reconnect: MUME's prompt, nothing typed for them.
+    await page.evaluate(() => window.__wc!.app.onCommand('#reconnect'));
+    await expect(status(page)).toHaveAttribute('data-status', /^login/);
+    await page.waitForTimeout(500);
+    expect(m.sent[1]).toEqual([]);
+    expect(await leaks(page, PASSWORD)).toEqual([]);
+  });
+}
+
+test('the server closes the connection itself in view: wiped, the sheet with Reconnect, and its Reconnect is MUME\'s own prompt', async ({ page }) => {
+  const m = await enter(page, '/?phone=1');
+  await loginByHand(page);
+  await ask(page).locator('[data-act="yes"]').tap();
+  m.quit();
+  await expect(sheet(page)).toBeVisible();
+  expect(await armed(page)).toBe(false);
+  await sheet(page).locator('[data-row="reconnect"]').tap();
+  await expect(status(page)).toHaveAttribute('data-status', /^login/);
+  await page.waitForTimeout(500);
+  expect(m.opened()).toBe(2);
+  expect(m.sent[1]).toEqual([]);
+});
+
+test('MUME asks something more after the password: the player answers it themselves, and the login stands', async ({ page }) => {
+  const m = await enter(page, '/?phone=1');
+  await loginByHand(page);
+  await ask(page).locator('[data-act="yes"]').tap();
+  m.question = true;
+  m.lose();
+  await sheet(page).locator('[data-row="reconnect"]').tap();
+  await expect(rows(page).filter({ hasText: 'Press return to go on:' })).toHaveCount(1);
+  await expect(status(page)).toHaveAttribute('data-status', /^login/);
+  expect(m.sent[1]).toEqual(['Rasta', PASSWORD]);
+  // The player's own line (not an empty one) after the password stops nothing.
+  await send(page, 'ok');
+  await expect(status(page)).toHaveAttribute('data-status', /^playing/);
+  expect(m.sent[1]).toEqual(['Rasta', PASSWORD, 'ok']);
+  await expect(rows(page).filter({ hasText: '[SYSTEM] Logged in as Rasta.' })).toHaveCount(1);
+  expect(await armed(page)).toBe(true);
+});
+
+test('a line of the player\'s before the password was sent stops the login and wipes it', async ({ page }) => {
+  const m = await enter(page, '/?phone=1');
+  await loginByHand(page);
+  await ask(page).locator('[data-act="yes"]').tap();
+  m.lose();
+  await expect(sheet(page)).toBeVisible();
+  // A mock that says nothing: the attempt waits for the name prompt while the player types.
+  await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
+  await sheet(page).locator('[data-row="reconnect"]').tap();
+  await expect(status(page)).toHaveAttribute('data-status', /^login/);
+  await expect(rows(page).filter({ hasText: '[SYSTEM] Logging in as Rasta…' })).toHaveCount(1);
+  await field(page).tap();
+  await page.keyboard.press('Enter');
+  expect(await armed(page)).toBe(true);
+  await page.keyboard.type('look');
+  await page.keyboard.press('Enter');
+  await expect(rows(page).filter({ hasText: 'Automatic login stopped: something else was sent during the login.' })).toHaveCount(1);
+  expect(await armed(page)).toBe(false);
+});
+
 test('Exit session wipes it', async ({ page }) => {
   await enter(page, '/?phone=1');
   await loginByHand(page);
@@ -322,7 +398,7 @@ test('Exit session with the link already down wipes it too: Enter MUME again is 
   const m = await enter(page, '/?phone=1');
   await loginByHand(page);
   await ask(page).locator('[data-act="yes"]').tap();
-  void m.server().close();
+  m.lose();
   await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
   expect(await armed(page)).toBe(true);
   await page.evaluate(() => window.__wc!.shell.exitSession());

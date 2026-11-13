@@ -349,7 +349,8 @@ live game must confirm; this is the short version.
   "Reconnect automatically" says) and the client sends the name at
   MUME's name prompt and the password when the server has turned ECHO
   off. The menu's Reconnect, Enter on a dropped connection and
-  `#connect` log in the same way. Notices in the game text: "Logging in
+  `#connect` log in the same way. It is the **account** password that
+  is held (the card says so). Notices in the game text: "Logging in
   as <Name>…", "Logged in as <Name>.".
 - **Where the login is.** In the page's memory only: one object
   (`src/phone/login-vault.ts`), private fields, no getter. Written from
@@ -369,11 +370,29 @@ live game must confirm; this is the short version.
   again, with a notice, without a question).
 - **One attempt, and any surprise wipes it:** a second name prompt, a
   password prompt before the name or a second time (MUME did not take
-  the password), no game within 20 s, the connection ending, anything
-  else sent to the prompts meanwhile, another character in the game.
-  The player is then at MUME's own prompt, with a notice saying why.
-- **Other wipes:** `#disconnect`, Exit session (also with the link
-  already down), a replay, a page restored from the back/forward cache.
+  the password), no game within 20 s, the connection ending, another
+  character in the game, and, until the password has been sent, any
+  non-empty line the player sends. After the password the player's
+  lines are their own answers to MUME and stop nothing; an empty line
+  never does. The player is then at MUME's own prompt, with a notice
+  saying why.
+- **A session that ends on purpose is never logged back in** (review,
+  2026-11-13). The session stays armed only when the link was LOST:
+  the resume check's verdict, or a socket closed with code 1006 (no
+  close from the server); and over the player's own Reconnect. Every
+  other end wipes and does not reconnect: `#disconnect`, MUME's
+  `Core.Goodbye`, and any close the server made itself (quit, rent, an
+  idle kick). `isLinkLoss`, `src/net/session.ts`.
+- **Other wipes:** Exit session (also with the link already down), a
+  replay, a page restored from the back/forward cache.
+- **Review fixes, 2026-11-13.** Besides the above: the rule keeps of
+  what is typed only one name-shaped line (letters, 2 to 20), dropped
+  when the login prompts are left; the controller attaches last, so a
+  failed mount of the phone layer leaves no listener; the mock and the
+  texts follow the one real login in the reference logs (`Account
+  password: `); a tablet's stored settings are read as a desktop's (a
+  record with no weather choice no longer loses the weather, ADR 0140
+  §3).
 - **Desktop does not change:** the phone's chunk holds all of it. The
   session got one nullable property (`loginTap`) and the shell passes
   the session and the bus to the phone layer.
@@ -424,7 +443,14 @@ on the iPad, or on the phone, and Enter MUME.
    you were.
 3. **The menu's Reconnect** (menu key → Reconnect) while armed: the
    same.
-4. **No.** Reload, log in, answer No. Lose the link as in 2: MUME's own
+4. **Quit while armed.** Answer Yes, then type `quit` (or rent). Wanted:
+   the notice "Automatic login is off: the session ended. The saved
+   login is forgotten." Put the browser away and come back later:
+   **nothing must connect or log in.** If the character is logged in
+   again, or the notice did not come, say so at once: MUME then ends a
+   quit in a way the client takes for a lost link (ADR 0141, to verify
+   9), and the round must not be released as it is.
+4b. **No.** Reload, log in, answer No. Lose the link as in 2: MUME's own
    name prompt (or the sheet with Reconnect), nothing typed for you.
    Log in again by hand: no question.
 5. **Exit session** while armed, then Enter MUME: MUME's own prompt.
@@ -442,7 +468,11 @@ on the iPad, or on the phone, and Enter MUME.
   MUME had on screen above it.
 - After a linkdead reconnect, is there anything between the password
   and the game (a "press return", a menu, a message about another
-  connection)?
+  connection)? The client does not answer it; you can, and the login
+  stands if the game comes within 20 s of the connection.
+- The opposite of step 4: does a link lost in the background always
+  log in again, or does "the session ended" come there too (the phone
+  closing the socket cleanly when it suspends the tab)?
 - Does the question come after a login where the name was typed in
   another case than MUME's (`rasta` for Rasta)?
 - A new character's creation must not be asked about (if you ever make

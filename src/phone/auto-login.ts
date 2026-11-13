@@ -45,8 +45,10 @@ export interface LoginSession {
 export interface AutoLoginDeps {
   session: LoginSession;
   bus: Bus;
-  /** The reason of the player's own Disconnect and Exit session (`REASON_USER_DISCONNECT`). */
-  userDisconnect: string;
+  /** The reason of the player's own Reconnect (`REASON_USER_RECONNECT`). */
+  userReconnect: string;
+  /** Whether a connection's end is a lost link, not a session ended on purpose (`isLinkLoss`, session.ts). */
+  linkLost(reason: string): boolean;
 }
 
 export interface AutoLoginHost {
@@ -78,6 +80,7 @@ export class AutoLogin {
     private readonly deps: AutoLoginDeps,
     private readonly host: AutoLoginHost,
   ) {
+    // The card first: should making it throw, nothing is attached to the session or the bus yet.
     this.ask = new LoginAsk(host.el.ownerDocument);
     host.el.append(this.ask.el);
     const { bus, session } = deps;
@@ -95,7 +98,7 @@ export class AutoLogin {
         } else if (this.replay) return;
         else if (e.state === 'login') this.feed({ type: 'login' });
         else if (e.state === 'playing') this.feed({ type: 'playing' });
-        else if (e.state === 'disconnected') this.feed({ type: 'down', byUser: e.reason === deps.userDisconnect });
+        else if (e.state === 'disconnected') this.feed({ type: 'down', why: this.why(e.reason ?? '') });
       }),
       bus.on('gmcp', (m) => {
         if (this.replay || (m.key ?? m.pkg.toLowerCase()) !== 'char.name') return;
@@ -131,6 +134,27 @@ export class AutoLogin {
   }
 
   /**
+   * Whether the session is still armed once the connection that ends with
+   * `reason` is gone (the shell asks while the end is being told, before or
+   * after this controller heard of it): armed, not in the middle of an
+   * attempt, and the end is one that keeps it.
+   */
+  armedAfter(reason: string): boolean {
+    return this.armed && this.state.auto === null && this.why(reason) !== 'ended';
+  }
+
+  /** Nothing is held: no stored and no pending password (tests; never the password). */
+  get vaultEmpty(): boolean {
+    return this.vault.empty;
+  }
+
+  /** How a connection ended, for the rule. */
+  private why(reason: string): 'lost' | 'reconnect' | 'ended' {
+    if (reason === this.deps.userReconnect) return 'reconnect';
+    return this.deps.linkLost(reason) ? 'lost' : 'ended';
+  }
+
+  /**
    * The stored login is wiped (the shell). `answers`: the answers given
    * this page load are forgotten too (a page restored from the
    * back/forward cache); without, they stay (Exit session).
@@ -145,6 +169,7 @@ export class AutoLogin {
   }
 
   dispose(): void {
+    this.gen++;
     for (const u of this.unsubs.splice(0)) u();
     for (const which of ['attempt', 'ask'] as const) this.timer(which, null);
     this.vault.wipe();

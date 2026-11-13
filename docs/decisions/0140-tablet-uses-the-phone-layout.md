@@ -111,6 +111,13 @@ stored. So:
   would also change what `?tablet=desktop` shows. The phone layer is
   told through a `tablet` dep, since its chunk imports nothing of the
   app.
+- **Stored settings are read as a desktop's** (fixed 2026-11-13, review
+  of round 54c). As first built, a stored record with no weather choice
+  in it (written before the weather effects existed and never saved
+  since) was read with the phone's rule (ADR 0092: weather off), so the
+  weather went off on such a tablet. The settings store now gets the
+  tablet flag and reads what is stored as a desktop does; only its
+  defaults for a device with nothing stored are the phone's.
 - To get the phone's defaults on such a tablet: clear the site's data
   (or use a private tab to look). There is no "reset everything" in
   the phone's settings page; the text size has its own control in the

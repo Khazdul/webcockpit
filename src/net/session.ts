@@ -47,6 +47,19 @@ export const REASON_USER_RECONNECT = 'reconnect by user';
  */
 export const REASON_BACKGROUND_LOST = 'connection lost while in the background';
 
+/**
+ * True when a connection's end (`conn.state` `reason`) is a LOST LINK and
+ * not a session ended on purpose (ADR 0141): the resume check's verdict,
+ * or a socket that closed with no close from the server (WebSocket code
+ * 1006, "abnormal closure": the browser makes it up when the connection
+ * went away without a closing handshake). Every other end is somebody's
+ * intent: the player's, MUME's `Core.Goodbye`, or a close the server sent
+ * itself (any other code: quit, rent, an idle kick, a reboot).
+ */
+export function isLinkLoss(reason: string): boolean {
+  return reason === REASON_BACKGROUND_LOST || reason.startsWith('closed by server (code 1006)');
+}
+
 /** How long the resume check waits for its Core.Ping reply. */
 export const RESUME_PING_TIMEOUT_MS = 5_000;
 

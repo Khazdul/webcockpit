@@ -68,6 +68,8 @@ export class WebSocketTransport implements Socketish {
     ws.onerror = () => {
       // A close event always follows; the reason is reported there.
     };
+    // The code tells a lost link from an ended session (`isLinkLoss`, session.ts): 1006 is the
+    // browser's own code for a connection that went away with no closing handshake.
     ws.onclose = (ev: CloseEvent) => {
       if (this.byClient) finish('closed by client');
       else if (!opened) finish(`connection failed (code ${ev.code})`);

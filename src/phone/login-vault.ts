@@ -47,6 +47,11 @@ export class LoginVault {
     return this.#stored !== null;
   }
 
+  /** True while neither slot holds anything (never what they hold). */
+  get empty(): boolean {
+    return this.#pending === null && this.#stored === null;
+  }
+
   /** Calls `send` once with the stored password. False (and no call) when none is stored. */
   use(send: (password: string) => void): boolean {
     if (this.#stored === null) return false;

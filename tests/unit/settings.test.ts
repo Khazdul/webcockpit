@@ -58,13 +58,14 @@ class MemStorage implements Storage {
 class FakeWin extends EventTarget {}
 
 const stores: SettingsStore[] = [];
-function make(opts: { factory: IDBFactory; storage?: Storage; safe?: boolean; phone?: boolean; win?: FakeWin }) {
+function make(opts: { factory: IDBFactory; storage?: Storage; safe?: boolean; phone?: boolean; tablet?: boolean; win?: FakeWin }) {
   const s = new SettingsStore({
     factory: opts.factory,
     storage: opts.storage ?? new MemStorage(),
     win: (opts.win ?? null) as unknown as Window | null,
     safe: opts.safe ?? false,
     phone: opts.phone ?? false,
+    tablet: opts.tablet ?? false,
     debounceMs: 20,
   });
   stores.push(s);
@@ -826,10 +827,14 @@ describe('SettingsStore', () => {
     expect(make({ factory: new IDBFactory() }).defaults()).toEqual(defaultSettings());
   });
 
-  it('a stored record without a weather section loads with the weather on a desktop, off on a phone (ADR 0092)', async () => {
-    for (const phone of [false, true]) {
+  it('a stored record without a weather section loads with the weather on a desktop, off on a phone (ADR 0092), on on a tablet (ADR 0140: what it stored is the desktop cockpit\'s, kept as it is)', async () => {
+    for (const [phone, tablet] of [
+      [false, false],
+      [true, false],
+      [true, true],
+    ] as const) {
       const factory = new IDBFactory();
-      const a = make({ factory, phone });
+      const a = make({ factory, phone: false });
       await a.load();
       a.update({ profile: 'pvp' });
       await a.dispose();
@@ -844,14 +849,20 @@ describe('SettingsStore', () => {
         tx.onerror = () => rej(tx.error);
       });
       db.close();
-      const b = make({ factory, phone });
+      const b = make({ factory, phone, tablet });
       await b.load();
       expect(b.get().profile).toBe('pvp');
-      expect(b.get().weather.enabled).toBe(!phone);
+      const on = !phone || tablet;
+      expect(b.get().weather.enabled).toBe(on);
       // An update keeps it (the draft path migrates for the same device).
       b.update({ appearance: { size: 20 } });
-      expect(b.get().weather.enabled).toBe(!phone);
+      expect(b.get().weather.enabled).toBe(on);
     }
+    // A tablet with nothing stored starts from the phone's defaults (weather off).
+    const fresh = make({ factory: new IDBFactory(), phone: true, tablet: true });
+    await fresh.load();
+    expect(fresh.get()).toEqual(phoneDefaultSettings());
+    expect(fresh.get().weather.enabled).toBe(false);
   });
 
   it('arrays in a patch replace the whole array', async () => {

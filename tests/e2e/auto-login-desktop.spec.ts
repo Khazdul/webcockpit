@@ -22,7 +22,7 @@ test('desktop: a login shows no question and nothing listens to what is sent at 
   await expect(page.locator('.wc-ph-ask')).toHaveCount(0);
   expect(await page.evaluate(() => window.__wc!.app.session.loginTap)).toBeNull();
   // A dropped link: no reconnect by itself, and Enter's reconnect is MUME's own prompt.
-  void m.server().close();
+  m.lose();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
   await page.waitForTimeout(500);
   expect(m.opened()).toBe(1);

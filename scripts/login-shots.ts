@@ -70,7 +70,7 @@ try {
         await page.locator('.wc-ph-ask [data-act="yes"]').tap();
         await shot('armed');
         await visibility(page, 'hidden');
-        void m.server().close();
+        m.lose();
         await status(page, 'disconnected');
         await visibility(page, 'visible');
         await status(page, 'playing');

@@ -54,6 +54,14 @@ export interface SettingsStoreOptions {
   safe?: boolean;
   /** A phone (ADR 0081): the defaults are `phoneDefaultSettings()`. */
   phone?: boolean;
+  /**
+   * A tablet (ADR 0140; it is a `phone` too): what it has STORED was made
+   * by the desktop cockpit and is read as a desktop's, so nothing in it
+   * changes (a record with no weather choice keeps the weather on, where a
+   * phone's would turn it off, ADR 0092). The defaults of a tablet with
+   * nothing stored are the phone's.
+   */
+  tablet?: boolean;
   /** Longest delay from a change to the IndexedDB write, ms (default 200). */
   debounceMs?: number;
 }
@@ -112,6 +120,7 @@ export class SettingsStore {
   private readonly debounceMs: number;
   private readonly safe: boolean;
   private readonly phone: boolean;
+  private readonly tablet: boolean;
 
   private db: IDBDatabase | null = null;
   private loadPromise: Promise<void> | null = null;
@@ -133,6 +142,7 @@ export class SettingsStore {
     this.debounceMs = Math.min(250, Math.max(0, opts.debounceMs ?? 200));
     this.safe = opts.safe ?? false;
     this.phone = opts.phone ?? false;
+    this.tablet = opts.tablet ?? false;
     this.holdWrites = this.safe;
 
     const s = this.defaults();
@@ -214,7 +224,7 @@ export class SettingsStore {
     const prev = this.current;
     let next: Settings;
     if (stored !== undefined) {
-      next = migrateSettings(stored, { phone: this.phone });
+      next = migrateSettings(stored, { phone: this.phone && !this.tablet });
       if (this.safe) next.appearance = this.defaults().appearance;
     } else {
       next = clone(prev) as Settings;

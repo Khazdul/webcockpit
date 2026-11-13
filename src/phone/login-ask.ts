@@ -82,7 +82,7 @@ export class LoginAsk {
     q.append('Log in automatically as ', this.nameEl, ' for the rest of this session?');
     const note = doc.createElement('p');
     note.className = 'wc-ph-ask-n';
-    note.textContent = "Your name and password are kept in this page's memory only. They are gone when the page is closed or reloaded.";
+    note.textContent = "Your name and account password are kept in this page's memory only. They are gone when the page is closed or reloaded.";
     const foot = doc.createElement('div');
     foot.className = 'wc-ph-ask-foot';
     foot.append(this.button(doc, 'No', false), this.button(doc, 'Yes', true));
