@@ -91,6 +91,12 @@ html.wc-phone .wc-player-chrome[data-docked] {
   /* The update notice in the menu's status line (the storage notice is `--ph-danger`). */
   --ph-note: #f0d264;
   --ph-key-off: #6d6252;
+  /* The text of a control that is off (stage 56): dimmer than a live one, still 4.5:1 on the
+   * lightest ground it stands on (a card in the lamp's glow). `--ph-key-off` stays for icons. */
+  --ph-off-text: #9d917d;
+  /* The same on the page's own ground (Comm's reply line outside play): 4.5:1 there, and dimmer
+   * than the live placeholder. */
+  --ph-off-page: #857b6a;
   /* The map lens (ADR 0136 §4): the cast-iron ring with a fine grain, the lamp's glow round it, the
    * glass's rim and edge darkening, the pips, the keys on its corners. */
   --ph-lens-outer: 0 0 0 8px #0e0c0a, 0 0 20px 10px rgb(232 196 138 / 0.14), 0 8px 16px 6px rgb(0 0 0 / 0.8);
@@ -210,6 +216,8 @@ html.wc-phone .wc-player[data-light] .wc-player-chrome[data-docked] {
   --ph-rec: #b3261e;
   --ph-note: #7a5200;
   --ph-key-off: #a39c8c;
+  --ph-off-text: #6f6759;
+  --ph-off-page: #6f6759;
   /* Paper: a pewter ring, a brass hairline at the glass, a warm drop shadow and no glow; the map stays dark. */
   --ph-lens-outer: 0 0 0 8px #a9a59b, 0 6px 16px 4px rgb(60 40 10 / 0.35);
   --ph-lens-ring:
@@ -668,9 +676,14 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput::p
   opacity: 1;
 }
 
-/* Not in play (a password prompt): plainly off. The row loses its ground and its lit edge for a dashed one. */
+/* Not in play (a password prompt): plainly off. The row loses its ground and its lit edge for a
+ * dashed one; its text ("Not connected") is dimmed by colour, not by opacity, and keeps 4.5:1. */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput:disabled {
-  opacity: 0.6;
+  opacity: 1;
+}
+
+html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-rinput:disabled::placeholder {
+  color: var(--ph-off-page);
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-comm[data-phone] .wc-cm-reply:has(.wc-cm-rinput:disabled) {
@@ -2656,8 +2669,13 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key.i
   font-size: 17px;
 }
 
+/* Off (the end of the range): the text dimmed but readable, and the key itself plainly off:
+ * no ground, a dashed edge (as Comm's reply line outside play). */
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-step-key[aria-disabled="true"] {
-  color: var(--ph-key-off);
+  border-style: dashed;
+  background: none;
+  color: var(--ph-off-text);
+  font-weight: 400;
   cursor: default;
 }
 
@@ -2667,7 +2685,7 @@ html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-ac
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-menu-surface .wc-ph-srow.is-action[aria-disabled="true"] > .wc-ph-srow-t {
-  color: var(--ph-key-off);
+  color: var(--ph-off-text);
 }
 
 html.wc-phone .wc-cockpit[data-phone-game] .wc-ph-step-val {

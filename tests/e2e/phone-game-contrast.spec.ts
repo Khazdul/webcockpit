@@ -31,8 +31,12 @@
 //   colour must be the page's. What a letter of game text does beyond the
 //   outline cannot be bounded (it can be any colour) and is not measured.
 //
-// Disabled controls are reported (the test's annotations) and not failed.
-// There is no other exemption.
+// Disabled text is held to the same ratio (stage 56: "A−" at the smallest
+// size, "Not connected" in Comm's reply, a settings action with nothing to
+// do); it reads as off by being dimmer than its live neighbour and by its
+// frame (a dashed edge, no ground), not by falling under 4.5:1. Its ratio
+// goes to the report too. Only a dimmed ICON key (no text: the keyboard's
+// history arrows) is reported and not failed.
 //
 // `phone` project (Pixel 7). Offline cockpit and a `page.routeWebSocket`
 // mock for Comm; nothing reaches MUME.
@@ -266,15 +270,14 @@ async function setTheme(page: Page, theme: Theme): Promise<void> {
 /** The phone's chrome on the main screen. */
 const MAIN = ['.wc-ph-layer', '.wc-cockpit > .wc-input-slot'];
 
-/** Fails on any enabled text under its ratio; the lowest ratios and the disabled ones go to the report. */
+/** Fails on any text under its ratio, disabled text included; the lowest ratio and the disabled ones go to the report. */
 function judge(found: Finding[], surface: string, theme: Theme, info: TestInfo, least = 1): void {
   expect(found.length, `${surface} (${theme}): text was measured`).toBeGreaterThanOrEqual(least);
-  const enabled = found.filter((f) => !f.disabled);
-  const lowest = [...enabled].sort((a, b) => a.ratio / a.need - b.ratio / b.need)[0];
+  const lowest = [...found].sort((a, b) => a.ratio / a.need - b.ratio / b.need)[0];
   if (lowest) info.annotations.push({ type: 'contrast', description: `${surface} (${theme}): ${found.length} texts, lowest ${lowest.ratio} ("${lowest.text}", ${lowest.fg} on ${lowest.bg})` });
-  for (const f of found.filter((x) => x.disabled && x.ratio < x.need))
-    info.annotations.push({ type: 'contrast-disabled', description: `${surface} (${theme}): disabled "${f.text}" ${f.ratio} (${f.fg} on ${f.bg}), not failed` });
-  const bad = enabled.filter((f) => f.ratio < f.need).map((f) => `${f.ratio} < ${f.need}  "${f.text}"  ${f.fg} on ${f.bg}  ${f.where}`);
+  for (const f of found.filter((x) => x.disabled))
+    info.annotations.push({ type: 'contrast-disabled', description: `${surface} (${theme}): disabled "${f.text}" ${f.ratio} (${f.fg} on ${f.bg})` });
+  const bad = found.filter((f) => f.ratio < f.need).map((f) => `${f.ratio} < ${f.need}  "${f.text}"${f.disabled ? ' (disabled)' : ''}  ${f.fg} on ${f.bg}  ${f.where}`);
   expect(bad, `${surface} (${theme}): text under its contrast`).toEqual([]);
 }
 
@@ -453,9 +456,23 @@ for (const theme of THEMES) {
       const noted = await audit(page, ['.wc-ph-menu-host']);
       expect(noted.filter((f) => f.where.includes('wc-ph-note')).length).toBeGreaterThanOrEqual(2);
       judge(noted, 'sheet (notices)', theme, info, 10);
-      // The stepper at the smallest size: A− is disabled (reported, not failed); the rest still holds.
+      // The stepper at the smallest size: A− is off. It holds 4.5:1 as all text does, and reads as
+      // off: dimmer than A+ beside it, a dashed edge and no ground.
       await page.evaluate(() => window.__wc!.settings.update({ appearance: { size: 6 } }));
-      judge(await audit(page, ['.wc-ph-menu-host']), 'sheet (smallest text)', theme, info, 8);
+      const small = await audit(page, ['.wc-ph-menu-host']);
+      judge(small, 'sheet (smallest text)', theme, info, 8);
+      const less = small.find((f) => f.text === 'A−')!;
+      const more = small.find((f) => f.text === 'A+')!;
+      expect(less.disabled).toBe(true);
+      expect(more.disabled).toBe(false);
+      expect(less.ratio).toBeGreaterThanOrEqual(4.5);
+      expect(less.ratio, 'A− is dimmer than A+').toBeLessThan(more.ratio * 0.75);
+      const off = await page.locator('.wc-ph-step-key.is-less').evaluate((e) => {
+        const cs = getComputedStyle(e);
+        return { edge: cs.borderTopStyle, ground: cs.backgroundColor };
+      });
+      expect(off.edge).toBe('dashed');
+      expect(off.ground).toMatch(/^rgba\(0, 0, 0, 0\)$|^transparent$/);
     });
 
     test('the Exit session confirmation: the hood, the warning, the rating, Cancel and Exit', async ({ page }, info) => {
@@ -584,11 +601,17 @@ for (const theme of THEMES) {
       await page.keyboard.type('on my way');
       judge(await audit(page, parts), 'Comm, typed reply', theme, info, 3);
       await reply.fill('');
-      // A password prompt: the reply line is disabled (reported, not failed).
+      const live = (await audit(page, parts)).find((f) => f.where.includes('wc-cm-rinput'))!;
+      // A password prompt: the reply line is off. "Not connected" holds 4.5:1 as all text does, and
+      // reads as off: dimmer than the live placeholder, the row dashed and without its ground.
       server!.send(Buffer.concat([Buffer.from('Password: '), Buffer.from([IAC, WILL, 1])]));
       await expect(reply).toBeDisabled();
       const found = await audit(page, parts);
-      expect(found.some((f) => f.disabled && f.text === 'Not connected')).toBe(true);
+      const offText = found.find((f) => f.disabled && f.text === 'Not connected');
+      expect(offText).toBeDefined();
+      expect(offText!.ratio).toBeGreaterThanOrEqual(4.5);
+      expect(offText!.ratio, 'dimmer than the live placeholder').toBeLessThan(live.ratio);
+      expect(await comm.locator('.wc-cm-reply').evaluate((e) => getComputedStyle(e).outlineStyle)).toBe('dashed');
       judge(found, 'Comm, reply disabled', theme, info, 3);
     });
     test('the own keyboard (?kbd=sv): letters, the digit row, symbols, shift once and locked, a pressed key, the icon keys lit and dimmed; solid keys', async ({ page }, info) => {
