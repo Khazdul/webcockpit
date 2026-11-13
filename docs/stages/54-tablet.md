@@ -393,7 +393,7 @@ live game must confirm; this is the short version.
   is mocked (`tests/e2e/mume-login-mock.ts`); nothing connected to the
   live game.
 - **Bundle.** A production build before and after: the same 98 files.
-  The desktop's first load is 237 bytes larger, unminified-size-on-disk
+  The desktop's first load is 237 bytes larger, as the size on disk
   of the minified files (the session's chunk +72, the entry chunk with
   the shell +165): more than "a few bytes", for the tap and the wiring.
   The phone chunk +10.9 kB, its CSS +2.2 kB.
