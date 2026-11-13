@@ -40,9 +40,8 @@ To open the dev server from another device on your
 
 To host it yourself, run `npm run build` and serve `dist/` from any
 static file server that sends `.js` as JavaScript and `.woff2` as
-`font/woff2`; no special headers are needed (the public site is plain
-GitHub Pages, [ADR 0029](docs/decisions/0029-custom-domain-and-tailscale-retired.md),
-and is moving to a Cloudflare Worker with static assets,
+`font/woff2`; no special headers are needed (the public site is a
+Cloudflare Worker with static assets,
 [ADR 0144](docs/decisions/0144-cloudflare-and-a-backend.md): `wrangler.jsonc`,
 `worker/`, `npm run build:site`).
 To serve it under a subpath, build with `WEBCOCKPIT_BASE=/path/ npm run build`

@@ -2,10 +2,9 @@
 
 - Status: Accepted (owner, 2026-11-13: move from GitHub Pages to
   Cloudflare; accounts, sync, statistics and public sharing are wanted).
-  The hosting part is built in the repository (stage 58 part A, "As
-  built" below); nothing is deployed and the domain is not switched:
-  GitHub Pages is still the live host. The backend beyond `/api/health`
-  and `/api/config` is not built.
+  The hosting part is built and live: the domain was switched to the
+  Worker on 2026-11-14 ("As built" and "The switch as done" below). The
+  backend beyond `/api/health` and `/api/config` is not built.
 - Date: 2026-11-13
 - Supersedes: ADR 0028 (GitHub Pages) once stage 58 has switched the
   domain. Amends: ADR 0029 (DNS records), ADR 0006 (storage).
@@ -140,9 +139,8 @@ dark.
 
 ## As built (stage 58 part A, 2026-11-14)
 
-In the repository only: nothing is deployed, the domain is not
-switched, GitHub Pages is still the live host and `pages.yml` is
-untouched. Versions: `wrangler` 4.162.0, `@cloudflare/workers-types`
+Written before the switch (see "The switch as done" at the end);
+`pages.yml` is untouched. Versions: `wrangler` 4.162.0, `@cloudflare/workers-types`
 5.20261113.1, `@cloudflare/vitest-plugin` 1.8.2 (dev dependencies,
 pinned). What was checked was checked against `wrangler dev` (workerd
 1.20261113), not against a deployed Worker.
@@ -277,3 +275,32 @@ Whether the edge sends the same headers as `wrangler dev` (the
 `_headers` rules on 404s, the missing type for `.mm2`, ETag form under
 compression), and the account's `workers.dev` subdomain. `test:prod`
 against the staging address answers the first.
+
+## The switch as done (stage 58 part C, 2026-11-14)
+
+- Staging: `https://webcockpit-staging.olevong.workers.dev`.
+  Production also answers at `https://webcockpit.olevong.workers.dev`.
+- **0.9.2 was released by tag first,** to Pages and to the production
+  Worker from one commit (3ec8788), so both hosts served the same
+  files and an open tab saw no new release at the switch.
+- **The domain was attached without a build:** `deploy.yml` has a
+  by-hand action `triggers` (`wrangler triggers deploy`: only the
+  routes and domains of `wrangler.jsonc`, about half a minute). The
+  owner deleted the four A and four AAAA records, the run attached
+  `mumecockpit.com`, and the site answered with a valid certificate
+  on the first check afterwards. The research note's unverified point
+  was not put to the test: nobody tried attaching with the records in
+  place.
+- `env.staging` sets `"routes": []`: environments inherit `routes`,
+  and a staging deploy would otherwise have taken the domain.
+- **In the dashboard, not in the repository** (the deploy token cannot
+  set them): *Always Use HTTPS* on (a Worker's custom domain answers
+  plain http with 200 otherwise; Pages redirected by itself); `www` is
+  a proxied AAAA `100::` plus the redirect rule "Redirect from WWW to
+  root" (`https://www.*` → `https://${1}`, 301, query string kept).
+- The edge sends what `wrangler dev` sent: `test:prod` 12/12 in
+  Chromium and Firefox against both `workers.dev` addresses and
+  against `https://mumecockpit.com`.
+- Way back: remove the custom domain from the Worker, put back the
+  apex records of ADR 0029 and the `www` CNAME. Pages holds 0.9.2 and
+  is deployed from every tag until `pages.yml` is removed.

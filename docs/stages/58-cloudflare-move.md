@@ -1,7 +1,9 @@
 # Stage 58 — Move to Cloudflare
 
 Status: **In progress** (planned 2026-11-13; part A built, merged and
-deployed to staging 2026-11-14; part C, the switch, and D remain).
+deployed to staging 2026-11-14; **the domain switched to the Worker
+2026-11-14**; left of part C: the owner's check and a release through
+the new workflow; then D).
 
 ## Goal
 
@@ -98,22 +100,20 @@ The token itself has not been used yet.
 
 ### C. The switch (session and owner together, a quiet hour)
 
-- [ ] `test:prod` green against the staging and the production
-      Worker's `workers.dev` addresses. Staging: green 2026-11-14.
-      The production Worker `webcockpit` is not deployed yet: a build
-      by hand of 0.9.1 from `main` is refused by the version rule
-      (0.9.1 is live from another commit), so its first deploy comes
-      with the next `v*` tag (which also releases to Pages as usual),
-      before the switch.
-- [ ] Owner: note the current DNS records (they are in ADR 0029),
-      then delete the four A and four AAAA records of
-      `mumecockpit.com`.
-- [ ] At once: deploy with the custom domain route
-      (`{pattern: "mumecockpit.com", custom_domain: true}`); wait for
-      the certificate.
-- [ ] `www`: a proxied placeholder record and a redirect rule to the
-      apex.
-- [ ] `WC_PROD_URL=https://mumecockpit.com npm run test:prod`.
+- [x] `test:prod` green against the staging and the production
+      Worker's `workers.dev` addresses (12/12 each). The production
+      Worker got its first deploy with the tag `v0.9.2`, which also
+      went to Pages: one commit (3ec8788) on both hosts.
+- [x] Owner: deleted the four A and four AAAA records of
+      `mumecockpit.com` (they are in ADR 0029).
+- [x] At once: the custom domain route applied with the workflow's
+      `triggers` action (run 43528948315); certificate valid at the
+      first check.
+- [x] `www`: a proxied AAAA `100::` and the redirect rule to the
+      apex; *Always Use HTTPS* on (owner, in the dashboard).
+- [x] `WC_PROD_URL=https://mumecockpit.com npm run test:prod`: 12/12.
+      `http://` and `www` (both schemes, path and query kept) answer
+      301 to `https://mumecockpit.com/`.
 - [ ] Owner: open the site, see the profiles and History as before,
       log in to MUME and play a minute.
 - [ ] Release a patch version through the new workflow; an old tab

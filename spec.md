@@ -138,16 +138,14 @@ ADR 0006.
 - **During development:** the owner runs `npm run dev`, a local Vite
   server. The test guide for each stage gives the exact command.
 - **Before anyone else tests:** a private deployment is decided in an ADR.
-- **Production:** GitHub Pages at <https://mumecockpit.com/>, the app at
-  the root, released by a version tag (ADR 0028, ADR 0029). The earlier
-  Tailscale/Caddy site (ADR 0022) is retired. **From stage 58** the same
-  address is served by a Cloudflare Worker (§7.1, ADR 0144), which can
-  set headers; the release flow stays a version tag. The Worker is built
+- **Production:** a Cloudflare Worker with static assets at
+  <https://mumecockpit.com/> (§7.1, ADR 0144; switched 2026-11-14,
+  stage 58), the app at the root, released by a version tag
   (`wrangler.jsonc`, `worker/`, `npm run build:site`,
-  `.github/workflows/deploy.yml`) and goes to its `workers.dev` address
-  first; **Pages stays the live host until the domain is switched**
-  (stage 58 part C), and `pages.yml` deploys it from the same tag until
-  then.
+  `.github/workflows/deploy.yml`). Before that the site was GitHub
+  Pages (ADR 0028, ADR 0029); `pages.yml` still deploys there from the
+  same tag for two releases, as the way back. The earlier
+  Tailscale/Caddy site (ADR 0022) is retired.
 - **Headers:** cross-origin isolation stays possible (COOP/COEP), and
   WebAssembly is allowed by the CSP. This keeps the MMapper iframe route
   open (ADR 0003). `vite dev` and `vite preview` send COOP/COEP; Pages
