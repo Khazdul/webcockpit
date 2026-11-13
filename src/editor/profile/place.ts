@@ -15,6 +15,10 @@
 // import the mark lands near where it was). An empty kind marks nothing.
 // The `+ New` row and a kind whose cursor was never moved are not
 // remembered: they open as they always did.
+//
+// Also kept per profile name, with the same lifetime: the view the editor
+// was left in (Lite or Editor; the next open is in that view). The Editor
+// buffer's own place is buffer-place.ts's.
 
 import { type EntryNode, type ProfileDoc, listEntries } from '../../script/doc';
 import { KINDS, type LiteKind, listRows } from '../logic';
@@ -45,7 +49,11 @@ export interface Recalled extends Place {
   cursorIds: Partial<Record<LiteKind, number>>;
 }
 
+/** The views an open can start in (Help lies over one of them and is not reopened). */
+export type PlaceView = 'lite' | 'editor';
+
 const places = new Map<string, Place>();
+const views = new Map<string, PlaceView>();
 
 /** Remembers `place` for the profile `name`. */
 export function keepPlace(name: string, place: Place): void {
@@ -66,8 +74,18 @@ export function placeOf(name: string): Place | undefined {
 /** Forgets every place (tests). */
 export function forgetPlaces(): void {
   places.clear();
+  views.clear();
 }
 
+/** The profile `name` is shown in `view`. */
+export function keepView(name: string, view: PlaceView): void {
+  views.set(name, view);
+}
+
+/** The view the next open of `name` starts in: the one it was left in, Lite the first time. */
+export function viewOf(name: string): PlaceView {
+  return views.get(name) ?? 'lite';
+}
 /** The mark of entry `id`, on display row `row`, among its kind's `entries` (document order). */
 export function markOf(entries: readonly EntryNode[], id: number, row: number): RowMark | null {
   const at = entries.findIndex((e) => e.id === id);

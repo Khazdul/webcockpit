@@ -28,6 +28,10 @@
 // which opens an editable copy in its place. No key hints anywhere: the
 // tools' tooltips name their keys.
 //
+// The place (stage 57, ADR 0143): the buffer's selection and scroll are
+// kept per script name while the page lives (buffer-place.ts) and put back
+// at the next open of that script, clamped to its text.
+//
 // Speed (stage 44 performance notes): CodeMirror owns the buffer; the
 // frame never re-creates the view and re-renders only when the dirty
 // state, the problems, the flash or the find row change. The position is a
@@ -65,6 +69,7 @@ import { type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../chrome/kit/s
 import type { ScriptInfo, ScriptLibrary } from '../scripts';
 import { checkScript } from '../scripts/check';
 import { useSkyPause } from '../chrome/start-surface';
+import { BufferKeeper } from './buffer-place';
 import { type BufferStatus, handleKey, onFirstLine } from './cm';
 import { nameAt } from './lua-api';
 import { completing, createLuaBuffer, dismissPopups, snippetTab } from './lua-cm';
@@ -156,7 +161,7 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
   // Firefox drops the focus of an element its box's morph hides (layout B's
   // `visibility` animation, stage 42); settling re-renders, and the focus
   // effect below takes the buffer's focus back.
-  useBoxSettled();
+  const settled = useBoxSettled();
   const lib = host.library;
 
   const [name, setName] = useState(host.name);
@@ -172,6 +177,8 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
   const rootRef = useRef<HTMLDivElement>(null);
   const bufRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  /** The buffer's remembered place (buffer-place.ts). */
+  const keeper = useRef<BufferKeeper | null>(null);
   const nameRef = useRef(name);
   nameRef.current = name;
   /** The saved text, and the buffer's (kept out of state: no render per keystroke). */
@@ -216,7 +223,10 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
     const view = createLuaBuffer(bufRef.current, {
       text: savedRef.current,
       readOnly,
-      onStatus: (s) => pos.set(s),
+      onStatus: (s) => {
+        pos.set(s);
+        keeper.current?.selected();
+      },
       onChange: (text) => {
         setDirty(!readOnlyRef.current && text !== savedRef.current);
         typed();
@@ -235,11 +245,17 @@ export const ScriptEditor = lookFrame(function ScriptEditor({ host, flash: initi
       },
     });
     viewRef.current = view;
+    keeper.current = new BufferKeeper(view, () => `script:${nameRef.current}`);
     return () => {
+      keeper.current = null;
       view.destroy();
       viewRef.current = null;
     };
   }, []);
+  // The remembered scroll is put back once the buffer has a size (after the start page's morph).
+  useLayoutEffect(() => {
+    if (settled) keeper.current?.settle();
+  });
 
   // The running script's last error, marked on its line (lua-lint.ts).
   const lastError = info?.lastError ?? null;

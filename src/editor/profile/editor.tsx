@@ -20,18 +20,23 @@
 //
 // The profile text is the source of truth. Lite edits a ProfileDoc
 // (src/script/doc), Editor edits text; a flip serialises or parses, so it
-// never reorders or drops anything (ADR 0015). Each open starts in Lite,
-// with the keyboard in the list. Help lies over whichever of the two is
-// open: `mode` stays, the lite state is kept and the buffer stays mounted
-// (hidden).
+// never reorders or drops anything (ADR 0015). The first open of a profile
+// starts in Lite, with the keyboard in the list; a later one in the view it
+// was left in, Lite or Editor (the keyboard in the buffer). Help lies over
+// whichever of the two is open: `mode` stays, the lite state is kept and
+// the buffer stays mounted (hidden); Help is never opened by itself.
 //
-// The place is remembered (place.ts, ADR 0143): the chosen kind, each
-// kind's marked row and the list's scroll offset are kept per profile name
-// while the page lives, and an open comes back there (in one column the
-// list, not the sheet). Kept as Lite shows it, on every change, so it is
-// right however the editor is left; from Editor or Help the last Lite place
-// stands. A flip back from Editor resets the cursors, and the place with
-// them. Not remembered: the view, the buffer's cursor, the detail's field.
+// The place is remembered (place.ts, ADR 0143), per profile name while the
+// page lives. Lite: the chosen kind, each kind's marked row and the list's
+// scroll offset; an open comes back there (in one column the list, not the
+// sheet). Kept as Lite shows it, on every change, so it is right however
+// the editor is left; from Editor or Help the last Lite place stands. A
+// flip back from Editor resets the cursors, and the place with them.
+// Editor: the buffer's selection and scroll (buffer-place.ts), put back in
+// every new buffer (an open, a flip from Lite), clamped to the text. Help:
+// the manual's section and scroll (look-manual.tsx, one place for all
+// profiles). Not remembered: the detail's field, the highlight grids, the
+// find queries.
 //
 // Apply in place (ADR 0105, model.ts): Lite applies where an edit is
 // finished (leaving a field, also when the window loses the focus, another
@@ -74,9 +79,10 @@ import { type FlashKind, type Nav, useIsTop, useKeys, useNav, useUnsaved } from 
 import { device } from '../../core/device';
 import { type EntryNode, addEntry, alignDoc, displayBody, editEntry, listEntries, parseProfile, removeEntry, serialize, storeBody } from '../../script/doc';
 import { displayKey } from '../../script/keys';
+import { BufferKeeper } from '../buffer-place';
 import { type BufferStatus, bufferText, createBuffer, handleKey, replaceText } from '../cm';
 import { helpSections } from '../help';
-import type { ManualCtl } from '../look-manual';
+import { type ManualCtl, manualPlace } from '../look-manual';
 import type { FindMemory } from '../look-manual-find';
 import { EMPTY_QUERY } from '../manual-search';
 import { openSearch, searchFocused, searchFrameKey } from '../search';
@@ -109,7 +115,7 @@ import type { GridPos, HlDim } from './detail-highlight';
 import { HelpRail, HelpView } from './help-view';
 import { Detail, type DetailField, EntryList, KindRail, revealRow } from './lite';
 import { type CommitWhy, type EditorHost, type Mode, type Outcome, ProfileModel } from './model';
-import { type RowMarks, keepPlace, keepScroll, markOf, placeOf, recallPlace } from './place';
+import { type RowMarks, keepPlace, keepScroll, keepView, markOf, placeOf, recallPlace, viewOf } from './place';
 import '../profile.css';
 
 export type { EditorHost } from './model';
@@ -173,15 +179,18 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   useEffect(() => host.onLiveChange?.(() => setLiveTick((n) => n + 1)), []);
   const live = host.isLive();
 
-  const [mode, setMode] = useState<Mode>('lite');
+  // The view this profile's editor was left in (place.ts); Lite the first time.
+  const [mode, setMode] = useState<Mode>(() => viewOf(host.name));
   const [help, setHelp] = useState(false);
+  // Where the manual was left (its section and scroll), kept while the page lives.
+  const helpPlace = useMemo(() => manualPlace('profile'), []);
   // The section Help shows, kept while another view is up.
-  const [helpSection, setHelpSection] = useState(0);
+  const [helpSection, setHelpSection] = useState(helpPlace.section);
   const manualCtl = useRef<ManualCtl | null>(null);
   // The manual's last find query, kept while Help is closed.
   const helpFind = useRef<FindMemory>({ query: EMPTY_QUERY });
   const manual = useMemo(() => helpSections(), []);
-  const [zone, setZone] = useState<Zone>('list');
+  const [zone, setZone] = useState<Zone>(mode === 'editor' ? 'buffer' : 'list');
   const initial = useMemo(() => parseProfile(host.text), []);
   // Where this profile's editor was left (place.ts): the kind and the marked rows, found again in this parse.
   const recalled = useMemo(() => recallPlace(host.name, initial), []);
@@ -217,7 +226,11 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
   const listRef = useRef<HTMLDivElement>(null);
   const bufRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  // An open straight into Editor: the buffer starts as the stored text (nothing is unapplied).
   const bufferInit = useRef('');
+  useMemo(() => {
+    if (mode === 'editor') bufferInit.current = serialize(initial);
+  }, []);
   const docRef = useRef(doc);
   docRef.current = doc;
   const modeRef = useRef(mode);
@@ -515,6 +528,9 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
     focusZone(stay ? 'views' : v === 'lite' ? 'list' : v === 'editor' ? 'buffer' : 'help');
   };
 
+  // The buffer's place (buffer-place.ts): put back in every new buffer, then followed.
+  const keeper = useRef<BufferKeeper | null>(null);
+
   // The buffer was hidden while Help was up: let CodeMirror measure again.
   useLayoutEffect(() => {
     if (!help && mode === 'editor') viewRef.current?.requestMeasure();
@@ -527,18 +543,30 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
       text: bufferInit.current,
       eol: doc.eol,
       look: 'lantern',
-      onStatus: setStatus,
+      onStatus: (st) => {
+        setStatus(st);
+        keeper.current?.selected();
+      },
       onScroll: () => {},
       onClipboard: (k) => flash.show(k === 'copy' ? 'Copied' : 'Cut'),
       onFocus: () => setZone('buffer'),
     });
     viewRef.current = v;
+    keeper.current = new BufferKeeper(v, () => `profile:${host.name}`);
     return () => {
+      keeper.current = null;
       bufferInit.current = bufferText(v);
       v.destroy();
       viewRef.current = null;
     };
   }, [mode]);
+
+  // The buffer's scroll is put back once it has a size (after the start page's morph, not under Help).
+  useLayoutEffect(() => {
+    if (!help && settled) keeper.current?.settle();
+  });
+  // The view the next open starts in.
+  useLayoutEffect(() => keepView(host.name, mode), [mode]);
 
   // The keyboard's zone owns the DOM focus: a text field or the buffer; elsewhere the stack host.
   useLayoutEffect(() => {
@@ -1223,6 +1251,7 @@ export const ProfileEditor = lookFrame(function ProfileEditor({ host }: { host: 
               <HelpView
                 sections={manual}
                 initial={helpSection}
+                place={helpPlace}
                 memory={helpFind.current}
                 onSection={setHelpSection}
                 ctl={(c) => (manualCtl.current = c)}

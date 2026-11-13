@@ -1,9 +1,22 @@
 // The profile editor's remembered place (stage 57, ADR 0143): the mark of a
 // row survives a re-parse (document position + pattern), falls back to the
-// pattern, then to the display row, and never names a missing entry.
+// pattern, then to the display row, and never names a missing entry; the
+// view and the Editor buffer's place, clamped to the text.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { listRows } from '../../src/editor/logic';
-import { type RowMark, findMark, forgetPlaces, keepPlace, keepScroll, markOf, placeOf, recallPlace } from '../../src/editor/profile/place';
+import { bufferOf, clampBuffer, forgetBuffers, keepBuffer } from '../../src/editor/buffer-place';
+import {
+  type RowMark,
+  findMark,
+  forgetPlaces,
+  keepPlace,
+  keepScroll,
+  keepView,
+  markOf,
+  placeOf,
+  recallPlace,
+  viewOf,
+} from '../../src/editor/profile/place';
 import { addEntry, editEntry, listEntries, parseProfile, serialize } from '../../src/script/doc';
 
 const ALIASES = '#alias {d} {4}\n#alias {b} {2}\n#action {x} {y}\n#alias {a} {1}\n#alias {c} {3}\n';
@@ -23,7 +36,10 @@ function found(text: string, m: RowMark): string | undefined {
   return findMark(listEntries(doc, 'alias'), listRows(doc, 'alias'), m)?.body;
 }
 
-beforeEach(() => forgetPlaces());
+beforeEach(() => {
+  forgetPlaces();
+  forgetBuffers();
+});
 
 describe('a row mark', () => {
   it('holds the document position, the display row and the pattern', () => {
@@ -109,5 +125,68 @@ describe('the remembered place', () => {
     keepScroll('default', 'alias', 50);
     keepScroll('default', 'macro', 900);
     expect(placeOf('default')!.scroll).toBe(50);
+  });
+});
+
+describe('the view and the Editor buffer', () => {
+  it('the first open is Lite, a later one the view it was left in, per profile', () => {
+    expect(viewOf('default')).toBe('lite');
+    keepView('default', 'editor');
+    expect(viewOf('default')).toBe('editor');
+    expect(viewOf('other')).toBe('lite');
+    keepView('default', 'lite');
+    expect(viewOf('default')).toBe('lite');
+  });
+
+  it('keeps the selection and the scroll, each part on its own', () => {
+    expect(bufferOf('default', 100)).toBeNull();
+    keepBuffer('default', { anchor: 12, head: 20 });
+    expect(bufferOf('default', 100)).toEqual({
+      anchor: 12,
+      head: 20,
+      top: 0,
+      off: 0,
+    });
+    keepBuffer('default', { anchor: 30, head: 30, top: 24, off: 7 });
+    keepBuffer('default', { anchor: 31, head: 31 });
+    expect(bufferOf('default', 100)).toEqual({
+      anchor: 31,
+      head: 31,
+      top: 24,
+      off: 7,
+    });
+    expect(bufferOf('other', 100)).toBeNull();
+    forgetBuffers();
+    expect(bufferOf('default', 100)).toBeNull();
+  });
+
+  it('is clamped to a text that got shorter', () => {
+    expect(clampBuffer({ anchor: 5, head: 90, top: 40, off: 9 }, 50)).toEqual({
+      anchor: 5,
+      head: 50,
+      top: 40,
+      off: 9,
+    });
+    // The top line is gone: the end of the text, unscrolled.
+    expect(clampBuffer({ anchor: 80, head: 90, top: 70, off: 9 }, 50)).toEqual({
+      anchor: 50,
+      head: 50,
+      top: 50,
+      off: 0,
+    });
+    expect(clampBuffer({ anchor: 3, head: 3, top: 2, off: 1 }, 0)).toEqual({
+      anchor: 0,
+      head: 0,
+      top: 0,
+      off: 0,
+    });
+    expect(clampBuffer({ anchor: -4, head: Number.NaN, top: Number.NaN, off: -3 }, 10)).toEqual({ anchor: 0, head: 0, top: 0, off: 0 });
+    expect(clampBuffer({ anchor: 4, head: 4, top: 4, off: -2.4 }, 10)).toEqual({
+      anchor: 4,
+      head: 4,
+      top: 4,
+      off: -2,
+    });
+    expect(clampBuffer({ anchor: 1.7, head: 2, top: 0, off: Number.POSITIVE_INFINITY }, 10)).toEqual({ anchor: 1, head: 2, top: 0, off: 0 });
   });
 });
