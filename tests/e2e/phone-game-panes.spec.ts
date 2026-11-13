@@ -143,7 +143,6 @@ test('the panes key opens the strip from the top edge: one pane, its name on the
   await expect(strip(page)).toHaveAttribute('aria-label', 'Panes: Timers, 1 of 4');
   await expect(dots(page)).toHaveCount(4);
   await expect(page.locator('.wc-ph-strip-dots > i.is-on')).toHaveAttribute('data-page', 'timers');
-  await expect(page.locator('.wc-phone-tabs, .wc-phone-tab')).toHaveCount(0);
   const s = await box(strip(page));
   expect(s.y).toBeCloseTo(p.y, 0);
   expect(s.height).toBeCloseTo(p.height, 0);

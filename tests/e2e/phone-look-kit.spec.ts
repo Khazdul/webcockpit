@@ -136,7 +136,6 @@ test('History: Stats heads are a finger high; the run log player\'s way out is t
   const out = page.locator('.wc-player-box[data-docked] .wc-pc-row [data-act="close"]');
   await expect(out).toBeVisible();
   await expect(playerBack(page)).toHaveCount(0);
-  await expect(page.locator('.wc-player .wc-phone-tab:visible')).toHaveCount(0);
   const pl = (await page.locator('.wc-player').boundingBox())!;
   const b = (await out.boundingBox())!;
   expect(b.height).toBeGreaterThanOrEqual(43.5);

@@ -44,10 +44,9 @@ for (const width of [390, 360]) {
     await expect(page.locator('.wc-start')).toBeVisible();
     const pl = (await page.locator('.wc-player').boundingBox())!;
     expect(pl.width).toBeGreaterThan(width * 0.9);
-    // The phone's layout: the lens's keys, no tab strip; no Back at the top left, and none of the box's own.
+    // The phone's layout: the lens's keys; no Back at the top left, and none of the box's own.
     await expect(page.locator('.wc-player .wc-cockpit')).toHaveAttribute('data-phone-game', '');
     await expect(page.locator('.wc-player .wc-ph-sat[data-sat="panes"]:visible')).toHaveCount(1);
-    await expect(page.locator('.wc-player .wc-phone-tab:visible')).toHaveCount(0);
     await expect(playerBack(page)).toHaveCount(0);
     await expect(page.locator('.wc-rl-box > .wc-lk-back')).toBeHidden();
     // The lens's keys are clear of the hood plate over the box's top edge.

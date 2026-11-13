@@ -24,10 +24,9 @@ test('new install on a phone: Hack 14, no UI pane, Character on, no weather, no 
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.__wc!.shell.scripts.enabledNames())).toEqual([]);
 
-  // The live game has no tab strip since stage 51a (ADR 0136); what the strip showed is in the
-  // settings checked above (Comm on, UI off) and in the scripts (no pane bar, no Map search).
+  // What the old tab strip showed is in the settings checked above (Comm on, UI off) and in
+  // the scripts (no pane bar, no Map search).
   expect(s.panes.comm.on).toBe(true);
-  await expect(page.locator('.wc-phone-tab')).toHaveCount(0);
   expect(await page.evaluate(() => window.__wc!.app.cockpit.scriptPanes())).toEqual([]);
   expect(errors).toEqual([]);
 });

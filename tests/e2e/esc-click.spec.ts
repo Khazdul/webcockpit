@@ -56,7 +56,7 @@ test('Esc with nothing open opens the Exit popup, not a menu; #menu prints the h
   await expect(page.locator('.wc-output .wc-row', { hasText: HINT })).toHaveCount(1);
   await expect(overlay(page)).toHaveCount(0);
   // No touch control on desktop.
-  await expect(page.locator('.wc-menu-btn')).toHaveCount(0);
+  await expect(page.locator('.wc-ph-menu')).toHaveCount(0);
   await expect(page.locator('html')).not.toHaveClass(/wc-touch/);
   expect(errors).toEqual([]);
 });

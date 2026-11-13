@@ -144,9 +144,8 @@ test('the phone layout over the recording: no tab strip, no keys of the live gam
   await page.setViewportSize({ width: 360, height: 800 });
   await start(page);
   await openLogs(page, ['map-demo.log']);
-  // The phone's game layout, not the tab strip.
+  // The phone's game layout.
   await expect(cockpit(page)).toHaveAttribute('data-phone-game', '');
-  await expect(player(page).locator('.wc-phone-tab:visible')).toHaveCount(0);
   // Nothing of the live game: no compass, hot keys, keyboard, menu key, command field; no Back at the top left.
   await expect(player(page).locator('.wc-ph-pad, .wc-ph-hk, .wc-ph-kk, .wc-okb, .wc-ph-menu, .wc-ph-menu-rescue, .wc-ph-menu-host')).toHaveCount(0);
   await expect(page.locator('.wc-okb')).toHaveCount(0);

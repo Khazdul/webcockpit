@@ -59,7 +59,6 @@ test('the live game on a phone: the game text and the command row; no tab strip,
   await openPhone(page);
   await play(page);
   await expect(page.locator('.wc-too-small:not([hidden])')).toHaveCount(0);
-  await expect(page.locator('.wc-phone-tabs')).toHaveCount(0);
   // The one pane shown is the map, as the lens (stage 51c).
   await expect(page.locator('.wc-pane:not([hidden])')).toHaveCount(1);
   await expect(page.locator('.wc-pane-map')).toBeVisible();
@@ -76,8 +75,8 @@ test('the live game on a phone: the game text and the command row; no tab strip,
   // The command row lies right under it.
   const slot = await box(page, '.wc-input-slot');
   expect(Math.abs(slot.y - (g.y + g.height))).toBeLessThan(1);
-  // The old `☰` at the row's end is gone; the menu key is the one menu button.
-  await expect(page.locator('.wc-menu-btn')).toHaveCount(1);
+  // The menu key is the row's one menu button.
+  await expect(page.locator('.wc-input-slot .wc-ph-menu')).toHaveCount(1);
   // Ctrl+1…9 select no tab and are not typed.
   await page.keyboard.press('Control+2');
   await expect(page.locator('.wc-game')).toBeVisible();

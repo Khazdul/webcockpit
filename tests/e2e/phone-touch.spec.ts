@@ -59,7 +59,7 @@ test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', (
     page.on('pageerror', (e) => errors.push(e.message));
     await openTablet(page);
     await expect(page.locator('.wc-mb-bar')).toBeVisible();
-    await expect(page.locator('.wc-menu-btn')).toHaveCount(0);
+    await expect(page.locator('.wc-ph-menu')).toHaveCount(0);
     await page.locator('.wc-mb[data-mb="panes"]').tap();
     await expect(page.locator('.wc-pop')).toHaveCount(1);
     await page.locator('.wc-mb[data-mb="panes"]').tap();
