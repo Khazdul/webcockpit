@@ -365,6 +365,56 @@ be loaded (it needs a broken connection at the right moment).
    player's width upright and about 50 % of the height on its side; a
    default size relative to the player, not fixed in pixels.
 
-Both handed to building agents the same day (branches
-`stage-55-kbox`, `stage-55-lens`).
+Both built the same day and merged; the owner said go on both
+("kör på detta") after reading what was built.
+
+**The lens in the player** (merged 32c9fa0f):
+
+- `lensReplayPx` (`src/phone/lens-zoom.ts`): the outer measure (glass
+  and the 8 px ring) is 33 % of the player's box width upright and
+  50 % of its height on its side, rounded down; the glass never under
+  96 px nor over 190 px. Measured: 114 px at 360 × 800 (31.7 %), 180 px
+  at 800 × 360, 206 px on the tablet.
+- In History's box on a 360 px phone the box is 330 px wide and the
+  minimum wins: 112 px, 33.9 %. Under 96 px the Comm key reaches the
+  zoom pips.
+- Place: the ring 40 px from the player's right edge (the Comm key
+  clear of the rail's touch area and a marker icon) and 4 px from the
+  top; the header chip is cut left of the lens. In History's box on a
+  phone it stands under the hood plate, as before, because its panes
+  key would lie under the plate. Accepted by the owner as built; 14 px
+  further right is one constant (`PHONE_CLEAR_RIGHT`) if wanted.
+- The player no longer takes over a lens moved or resized in the game
+  (`phoneReplaySettings` in `player-host.ts`). The game's lens is
+  untouched.
+- `PhoneReplay.clear` is `{ right, plate }` now; the host finds the
+  hood through `.wc-lk-box > .wc-lk-hood` (a class-name coupling).
+
+**The hot key box** (merged b042375f):
+
+- Cause: the box was 416 px tall and scrolled as one piece with Save
+  last and no scrollbar; in a window under about 746 px high with our
+  keyboard up Save was out of sight. Not reproduced at exactly
+  360 × 800; taken to be the S21 with the browser's bars showing.
+- Now 268 px at 360 × 800 (312 px with six keys): Label and Command
+  side by side with captions cut into their frames, the picks and
+  Custom as chips, the two specials side by side, the key's name a
+  plate on the top edge. The foot (would-send line, Shown, Cancel,
+  Save) is pinned and never scrolls. In landscape the box is up to
+  420 px wide and the foot one row.
+- Overflow: a fading edge with a small arrow on the side that has
+  more, and a thin scrollbar, only when it overflows.
+- Custom empties both fields and puts the caret in Label; Enter in
+  Label goes to Command while that is empty, Enter in Command saves.
+- Side effect: the lower box hides fewer panes on a hold (neither the
+  strip nor Comm when only one is open at its default height).
+- Known: at about 780 × 290 the chip row is half cut under the arrow;
+  the would-send line is cut with an ellipsis in the landscape foot;
+  "wimpy 50 % HP" for "wimpy 50 % of current HP"; the headings
+  "Commands" and "Specials" are gone. Pictures
+  `docs/stages/img/55-kbox-*.png`.
+- New spec `phone-hotkey-box.spec.ts` (12 tests).
+
+After both on `main` (b042375f): typecheck clean, unit 4227. Phone JS
+128.0 → about 129.5 kB, phone CSS 66.4 kB.
 
