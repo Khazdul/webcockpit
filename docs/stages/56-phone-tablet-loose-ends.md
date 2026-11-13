@@ -50,7 +50,7 @@ stage 55).
 - [x] 6 and 7 looked at (both built)
 - [x] 56c the questions of taste, T1–T6
 - [x] Closing test guide for phone and iPad, session log
-- [ ] The owner's test and answers to T1–T8; then the release of stages 55 and 56
+- [x] The owner's test and answers to T1–T8; then the release of stages 55 and 56
 
 ## Built
 
@@ -253,3 +253,9 @@ Not possible here, only on your devices: all of it in Safari, the
 home indicator's edge, the window's real height on its side.
 
 ## Owner feedback
+
+**2026-11-13, the closing test on phone and iPad** (stages 55 and 56
+together, the dev server over the tailnet): the owner went through the
+guide in broad strokes and has no comments. Go for the release of both
+stages as one version. Nothing was asked to be changed; T1–T8 stand as
+built in 56c.

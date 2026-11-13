@@ -160,7 +160,7 @@ to about 980 px; iPhone Safari's desktop request; page zoom below
 - [x] 55d deletion, eager side
 - [x] 55e deletion, chrome side
 - [x] ADR 0142, test guide, session log
-- [ ] The owner's test; then the release
+- [x] The owner's test; then the release
 
 ## Built
 
@@ -418,3 +418,9 @@ Both built the same day and merged; the owner said go on both
 After both on `main` (b042375f): typecheck clean, unit 4227. Phone JS
 129.5 kB, phone CSS 66.4 kB, `player-host` 34.7 kB.
 
+
+## Owner feedback, closing test (2026-11-13)
+
+Tested together with stage 56 on phone and iPad, in broad strokes
+(guide in `docs/stages/56-phone-tablet-loose-ends.md`): no comments.
+Go for the release.
