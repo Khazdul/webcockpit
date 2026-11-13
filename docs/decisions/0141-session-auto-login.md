@@ -407,3 +407,12 @@ more; the rule's `yes` and `no` lists are gone, and with them the
 notice "…, as chosen before". `exit` and `restored` now do the same
 (both wipe). This replaces what §2 says about answers kept for the
 page load.
+
+### 2026-11-13: closed by the owner
+
+`intent.md` Goal 12 now carries the feature. The owner closes what was
+still open: the endings never seen on the live game (`quit`, an idle
+kick, a reboot, death), the three hour limit run only with a fake
+clock, and no off switch besides Exit session, `#disconnect` and a
+reload are taken as no problem; he raises them if they show in use.
+Nothing of "To verify on the live game" is waited for any more.

@@ -3,7 +3,8 @@
 > Status: APPROVED by owner 2026-09-27. Goal 10 (user scripts) approved
 > 2026-10-01. Goal 11 (foreign profile import) approved 2026-10-04.
 > Goal 12 (phone access) approved 2026-10-04. Mudlet added to Goal 11
-> 2026-10-05. Goal 12 widened to light play on a phone 2026-11-10.
+> 2026-10-05. Goal 12 widened to light play on a phone 2026-11-10;
+> automatic login for the session on phone and tablet added 2026-11-13.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
@@ -113,6 +114,16 @@ reference only.
       owner first.
     - A session dies when the phone locks or switches app (the browser
       suspends it). This is accepted.
+    - **Automatic login for the session** (owner decision 2026-11-13;
+      phone and tablet only). Because the link dies so often, the
+      client asks after every login by hand whether to log the
+      character in again by itself. On Yes, the name and the account
+      password are kept in the page's memory only, never in storage,
+      and are gone when the page is closed or reloaded, when the
+      player leaves to the start menu, or after three hours without a
+      connection. Until then a lost link is followed by a new
+      connection and the login typed by the client. The owner
+      evaluates this over time.
 
 ## Non-goals
 

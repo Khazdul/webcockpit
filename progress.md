@@ -80,19 +80,19 @@ Statuses: Next, In progress, Owner testing, Done.
   (`notes/research/tablet/ipad-fullscreen.md`), both left by the owner,
   not a priority; (6) the old owner device tests still open (30e, 30f
   items 5, 9, 10; stage 52 and 53 guides) — ask which still matter.
-- **Automatic login, open:** `quit`, an idle kick, a reboot and death
-  never seen on the live game (a rent ends as 1006); the three hour
-  limit only run with a fake clock; no off switch but Exit session,
-  `#disconnect` and reload; `intent.md` says nothing of it (the owner's
-  document).
+- **Automatic login: closed by the owner** (same day). `intent.md`
+  Goal 12 carries it; the unseen endings (`quit`, idle kick, reboot,
+  death), the three hour limit under a real clock and the missing off
+  switch are taken as no problem until he reports one (ADR 0141, last
+  addendum). Nothing is open.
 - **Untested:** a real Android tablet (the owner has none); iPadOS
   taking the tablet path with no flag (emulated only; the owner used
   the iPad, not reported against 0.8.x).
 - **Tests and tooling:** full e2e last run at 0.8.0 (1364 passed, 4
   flaky under load); stage 52 E list; one auto-login e2e case failed
   once at 0.8.3 (12/12 on repeat); bundle size not measured since the
-  54c fixes. Branch `stage-54-tablet` and its worktree
-  (`.claude/worktrees/agent-a181b494ad8e681c7`) are merged and can go.
+  54c fixes. Branch `stage-54-tablet` and its worktree were merged and
+  are removed.
 - **Owner's own:** a possible clear-text password in an old Cockpit run
   log (told 2026-11-13).
 
