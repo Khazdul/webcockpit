@@ -15,6 +15,8 @@ import {
   typedLabel,
   checkHotkey,
   cleanCommand,
+  enterGoesToCommand,
+  scrollMore,
   cleanLabel,
   hotkeyColumns,
   hotkeyCount,
@@ -331,5 +333,35 @@ describe('hot key settings', () => {
     expect(after.phone.hotkeysOpen).toBe(false);
     expect({ ...after, phone: null }).toEqual({ ...before, phone: null });
     expect({ ...after.phone, hotkeys: null, hotkeysOpen: null }).toEqual({ ...before.phone, hotkeys: null, hotkeysOpen: null });
+  });
+});
+
+describe('the box: Enter in its fields, and the marks of more (stage 55)', () => {
+  it('Enter in the Label goes on to the Command only while that is still to be written; everywhere else it saves', () => {
+    expect(enterGoesToCommand('label', { command: '', special: null })).toBe(true);
+    expect(enterGoesToCommand('label', { command: '   ', special: null })).toBe(true);
+    expect(enterGoesToCommand('label', { command: 'bash', special: null })).toBe(false);
+    // A special has no Command field.
+    expect(enterGoesToCommand('label', { command: '', special: 'wimpy50' })).toBe(false);
+    expect(enterGoesToCommand('command', { command: '', special: null })).toBe(false);
+    expect(enterGoesToCommand('command', { command: 'bash', special: null })).toBe(false);
+  });
+
+  it('the specials have a short text for the chip and the full one for the name', () => {
+    for (const s of HOTKEY_SPECIALS) {
+      expect(s.short.length).toBeLessThan(s.text.length);
+      expect(s.short).toMatch(/^wimpy \d+\u00a0% HP$/);
+    }
+  });
+
+  it('more above and below: only where something is out of sight, a pixel of rounding aside', () => {
+    expect(scrollMore(0, 200, 200)).toEqual({ up: false, down: false });
+    expect(scrollMore(0, 200, 201)).toEqual({ up: false, down: false });
+    expect(scrollMore(0, 150, 200)).toEqual({ up: false, down: true });
+    expect(scrollMore(20, 150, 200)).toEqual({ up: true, down: true });
+    expect(scrollMore(50, 150, 200)).toEqual({ up: true, down: false });
+    expect(scrollMore(49.5, 150, 200)).toEqual({ up: true, down: false });
+    // Nothing laid out (a hidden box).
+    expect(scrollMore(0, 0, 0)).toEqual({ up: false, down: false });
   });
 });

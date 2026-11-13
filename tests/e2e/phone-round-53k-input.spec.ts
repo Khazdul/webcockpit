@@ -165,6 +165,8 @@ test('Comm\'s search is open with its query when Comm comes back from the hot ke
   const errors = watchErrors(page);
   const m = await play(page);
   await setScreen(page, S21);
+  // (A Comm taller than it opens: the hot key box is low since stage 55, and clears Comm as it comes.)
+  await page.evaluate(() => window.__wc!.settings.update({ phone: { commRows: 26 } }));
   m.server().send(gmcp('Comm.Channel.Text', { channel: 'tells', talker: 'Gibur', 'talker-type': 'player', text: "Gibur tells you 'you at the ford?'" }));
   await sat(page, 'comm').tap();
   await expect(comm(page)).toBeVisible();

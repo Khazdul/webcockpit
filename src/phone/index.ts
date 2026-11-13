@@ -1048,7 +1048,7 @@ class Layer {
 
   /**
    * Enter in a field, as its owner has it: Comm's reply line sends; the hot
-   * key box saves; a script pane's field is submitted to its script, and
+   * key box saves (or goes from its Label on to its Command: `enterIn`); a script pane's field is submitted to its script, and
    * the keys go back to the command line (as the focus does on a computer).
    * Comm's search has no Enter action, nor has a field we do not know.
    */
@@ -1061,7 +1061,7 @@ class Layer {
           // that is still down. Its release must not end as a tap on what then lies there (in
           // landscape the command field, which would open the keyboard again).
           const held = this.okb?.held ?? false;
-          this.hot.saveBox();
+          this.hot.enterIn(field);
           if (held && !this.okbOpen) this.swallowClick();
         },
       };

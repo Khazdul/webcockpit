@@ -209,7 +209,7 @@ describe('the hot key box typed in from our keyboard', () => {
 
   it('the label is cleaned as it is typed, by the field\'s own rule', () => {
     const b = box();
-    const t = fieldTarget(b.label, { submit: () => b.view.saveBox() });
+    const t = fieldTarget(b.label, { submit: () => b.view.enterIn(b.label) });
     b.label.value = '';
     for (const ch of 'Bash it') t.insert(ch);
     // The model's rule (`typedLabel`): at most HOTKEY_LABEL_MAX characters.
@@ -221,7 +221,7 @@ describe('the hot key box typed in from our keyboard', () => {
 
   it('the command field: its "Sends now" line follows, its maxLength holds, Enter saves and closes', () => {
     const b = box();
-    const t = fieldTarget(b.command, { submit: () => b.view.saveBox() });
+    const t = fieldTarget(b.command, { submit: () => b.view.enterIn(b.command) });
     b.command.value = '';
     b.command.setSelectionRange(0, 0);
     for (const ch of 'kick orc') t.insert(ch);
@@ -237,6 +237,71 @@ describe('the hot key box typed in from our keyboard', () => {
     expect(b.saved[0]!.key.command).toBe('kick orc');
     expect(b.view.boxOpen).toBe(false);
     expect(b.boxes.map((x) => x.open)).toEqual([true, false]);
+  });
+
+  it('Custom (stage 55): both fields are emptied, a special gives way, and the cursor is in the Label', () => {
+    const b = box();
+    expect(b.label.value).not.toBe('');
+    expect(b.command.value).not.toBe('');
+    const custom = b.view.boxEl.querySelector<HTMLButtonElement>('.wc-ph-chip[data-pick="custom"]')!;
+    custom.click();
+    expect(b.label.value).toBe('');
+    expect(b.command.value).toBe('');
+    expect(document.activeElement).toBe(b.label);
+    expect(custom.getAttribute('aria-pressed')).toBe('true');
+    expect(b.view.boxEl.querySelector('.wc-ph-rb-say')!.textContent).toBe('Would send nothing: no command yet');
+    expect(b.view.boxOpen).toBe(true);
+    expect(b.saved).toEqual([]);
+    // From a special: the token gives way to the empty Command field.
+    b.view.closeBox();
+    b.view.openBox(2);
+    const token = b.view.boxEl.querySelector<HTMLElement>('.wc-ph-rb-tok')!;
+    expect(token.hidden).toBe(false);
+    expect(b.command.hidden).toBe(true);
+    custom.click();
+    expect(token.hidden).toBe(true);
+    expect(b.command.hidden).toBe(false);
+    expect([b.label.value, b.command.value]).toEqual(['', '']);
+    expect(document.activeElement).toBe(b.label);
+  });
+
+  it('Enter after Custom: from the Label on to the Command, and the Command\'s Enter saves; Enter in the Label of a key that has its command saves', () => {
+    const b = box();
+    b.view.boxEl.querySelector<HTMLButtonElement>('.wc-ph-chip[data-pick="custom"]')!.click();
+    const onLabel = fieldTarget(b.label, { submit: () => b.view.enterIn(b.label) });
+    for (const ch of 'ko') onLabel.insert(ch);
+    onLabel.submit();
+    expect(b.view.boxOpen).toBe(true);
+    expect(b.saved).toEqual([]);
+    expect(document.activeElement).toBe(b.command);
+    const onCommand = fieldTarget(b.command, { submit: () => b.view.enterIn(b.command) });
+    for (const ch of 'kick;flee') onCommand.insert(ch);
+    onCommand.submit();
+    expect(b.view.boxOpen).toBe(false);
+    expect(b.saved).toEqual([{ index: 0, key: { label: 'ko', command: 'kick;flee', special: null, shown: true } }]);
+    // A key with a command: the Label's Enter saves. So does it for a special (there is no Command field to go to).
+    b.view.openBox(1);
+    b.view.enterIn(b.label);
+    expect(b.view.boxOpen).toBe(false);
+    expect(b.saved).toHaveLength(2);
+    b.view.openBox(2);
+    b.view.enterIn(b.label);
+    expect(b.view.boxOpen).toBe(false);
+    expect(b.saved).toHaveLength(3);
+    expect(b.saved[2]!.key.special).toBe('wimpy50');
+  });
+
+  it('the foot is no part of what scrolls: what it would send, Shown, Cancel and Save stand outside the scrolling part', () => {
+    const b = box();
+    const scroller = b.view.boxEl.querySelector('.wc-ph-rb-in')!;
+    const foot = b.view.boxEl.querySelector('.wc-ph-rb-a')!;
+    expect(scroller.contains(foot)).toBe(false);
+    for (const sel of ['.wc-ph-rb-say', '.wc-ph-rb-err', '.wc-ph-sw', '.wc-ph-bt', '.wc-ph-bt.is-go']) expect(foot.querySelector(sel), sel).not.toBeNull();
+    for (const sel of ['#wc-ph-rb-label', '#wc-ph-rb-command', '.wc-ph-chips', '.wc-ph-spec']) expect(scroller.querySelector(sel), sel).not.toBeNull();
+    // Nothing overflows where nothing is laid out: no mark of more.
+    const frame = b.view.boxEl.querySelector('.wc-ph-rb-sc')!;
+    expect(frame.hasAttribute('data-more-up')).toBe(false);
+    expect(frame.hasAttribute('data-more-down')).toBe(false);
   });
 
   it('ownsField: the box\'s two fields and no other', () => {
