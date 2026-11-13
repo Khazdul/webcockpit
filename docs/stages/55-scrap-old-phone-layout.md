@@ -156,7 +156,7 @@ to about 980 px; iPhone Safari's desktop request; page zoom below
 - [x] Investigation and plan
 - [x] 55a replay plumbing
 - [x] 55b device and shell switch-over
-- [ ] 55c the player switched over
+- [x] 55c the player switched over
 - [ ] 55d deletion, eager side
 - [ ] 55e deletion, chrome side
 - [ ] ADR, test guide, session log
@@ -206,6 +206,51 @@ to about 980 px; iPhone Safari's desktop request; page zoom below
 - `index` chunk 29.2 kB (+0.9).
 - Left for 55d: `syncDeviceKeyboard`, `openMenu`'s `preselect`. Left
   for 55f: ADR 0075 and 0140 still describe the old rules.
+
+### 55c — the player switched over (merged d67480a6)
+
+The run log player on a phone or tablet is the game's phone layout
+over the recording (lens, strip, read-only Comm, bands, unread badge);
+pictures `docs/stages/img/55-player-*.png`, made by
+`scripts/player-shots.ts`.
+
+- **Bar**, docked where the command row is, never hidden. Under
+  600 px: Exit · −10 s · Play/Pause · +10 s · Speed · position ·
+  Display. From 600 px (tablet): also To start, the `‹ 1× ›` stepper
+  and `position / length`.
+- Choices made in the build, the owner's to turn: speed on a narrow
+  bar is one key that steps and wraps (8× → 0.25×); the keys go from
+  44 to 40 px wide in History's box at 360 px; the header (identity
+  chip only, no key hints, left-aligned) hides after 6 s in pause too;
+  the lens stands 24 px lower and 32 px further left than in the game;
+  no Fullscreen and no Panes popup; Exit is a Back chevron.
+- Spotlights' viewer: `phoneReplay: { bar: false }`, no layer, text at
+  the recorded size (it wraps instead of shrinking to 60 columns).
+- The host owns an in-memory settings store and the layer's state over
+  rebuilds; `PhoneReplay.clear` (what the host's chrome covers) was
+  added to 55a's API. A phone chunk that fails makes `makeHost` return
+  an error under the Reload cover. Nothing reaches the old layout on a
+  phone any more.
+- Specs: `phone-player-tabs` and `phone-player-map` deleted; new
+  `phone-player-layout.spec.ts`; `phone-player.spec.ts` rewritten.
+- Unit 4262. Phone 476/476, Chromium 440/441 (`appearance.spec.ts:34`,
+  4/4 alone), Firefox player and Spotlights specs 35/35, all with
+  `TMPDIR` moved.
+- Bundle: phone JS 126.9 kB, phone CSS 63.9 kB (+4.8), `player-host`
+  33.7 kB (+3.5), `replay.js` +3.4 kB with no phone code in it.
+- Open: the header chip lies over the first text line while shown
+  (as on desktop); a moved lens can be dragged under the rail's touch
+  area; script panes open in the strip are not restored over a
+  backward seek if their record has not replayed yet; the browser's
+  back gesture and a recording over an hour are not tested; nothing
+  seen on a device.
+
+**A committed `node_modules` link destroyed the main checkout's
+`node_modules`** at this merge: `.gitignore` had `node_modules/`, which
+does not cover a symbolic link, the worktree's link was committed, and
+the merge replaced the ignored directory with it. Untracked again,
+`.gitignore` now says `node_modules`, `npm ci` restored the directory.
+Worktree agents must never `git add` the link.
 
 ### After 55a + 55b on `main`
 
