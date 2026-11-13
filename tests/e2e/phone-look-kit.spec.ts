@@ -2,8 +2,8 @@
 // A dialog in the ESC menu lies over its page, which stays drawn; a box's
 // Back (40 px high for a finger) never reaches the page's first line; the
 // fullscreen button steps aside while a large box is up; the run log
-// player's Back sits under the pane tab strip; a sortable table head is a
-// finger's height.
+// player has no Back at the top left (stage 55: the first key of its docked
+// bar is the way out); a sortable table head is a finger's height.
 import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
 import { menuLook, playerBack } from './look';
@@ -104,7 +104,7 @@ test('the start page: a large box hides the fullscreen button; Back clears the S
   expect(errors).toEqual([]);
 });
 
-test('History: Stats heads are a finger high; the run log player\'s Back is clear of the pane tabs', async ({ page }) => {
+test('History: Stats heads are a finger high; the run log player\'s way out is the first key of its bar', async ({ page }) => {
   test.setTimeout(60_000);
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -130,29 +130,27 @@ test('History: Stats heads are a finger high; the run log player\'s Back is clea
   await startTop(page).locator('.wc-lk-back').first().tap();
   await expect(rows).toHaveCount(3);
 
-  // The run log player: Back under the tab strip; a tap on a tab is the tab's.
+  // The run log player has the phone's layout (stage 55): no Back at the top left (it would lie on
+  // an open strip or Comm); the way out is the first key of its docked bar, a finger high.
   await hist.locator('.wc-hist-card [data-btn="RUN LOG"]').tap();
-  const back = playerBack(page);
-  await expect(back).toBeVisible();
-  const tabs = page.locator('.wc-player .wc-phone-tabs');
-  await expect(tabs).toBeVisible();
-  const t = (await tabs.boundingBox())!;
-  const b = (await back.boundingBox())!;
-  expect(b.y).toBeGreaterThanOrEqual(t.y + t.height - 0.5);
-  for (const tab of await tabs.locator('.wc-phone-tab').all()) {
-    const r = (await tab.boundingBox())!;
-    const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.wc-pv-back') !== null, [r.x + r.width / 2, r.y + r.height / 2]);
-    expect(hit).toBe(false);
-  }
-  // Playing, the chrome hides; a tap where Back was shows it and presses nothing.
+  const out = page.locator('.wc-player-box[data-docked] .wc-pc-row [data-act="close"]');
+  await expect(out).toBeVisible();
+  await expect(playerBack(page)).toHaveCount(0);
+  await expect(page.locator('.wc-player .wc-phone-tab:visible')).toHaveCount(0);
+  const pl = (await page.locator('.wc-player').boundingBox())!;
+  const b = (await out.boundingBox())!;
+  expect(b.height).toBeGreaterThanOrEqual(43.5);
+  expect(b.width).toBeGreaterThanOrEqual(39.5);
+  expect(b.x - pl.x).toBeLessThan(12);
+  // Playing, the rest of the chrome hides; a tap at the top left shows it and leaves nothing.
   const chrome = page.locator('.wc-player-chrome');
   await expect(chrome).toHaveAttribute('data-hidden', '', { timeout: 9000 });
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  await page.touchscreen.tap(pl.x + 30, pl.y + 60);
   await expect(chrome).not.toHaveAttribute('data-hidden', '');
   await page.waitForTimeout(500);
   await expect(page.locator('.wc-player')).toHaveCount(1);
-  // Shown, Back is Back.
-  await back.tap();
+  // The way out by tap.
+  await out.tap();
   await expect(page.locator('.wc-player')).toHaveCount(0);
   await expect(rows).toHaveCount(3);
   expect(errors).toEqual([]);

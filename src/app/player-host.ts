@@ -63,6 +63,22 @@
 // theme is Default (the Spotlights viewer's brighter red). A host can
 // live in any element (`Shell.embedPlayer`): it fills it and follows its
 // size.
+//
+// On a phone or tablet (stage 55): the shell hands in the phone layer's
+// module (`PlayerHostOptions.phone`; this file is also bundled into the
+// HTML replay and imports nothing of src/phone but types). The player App
+// is then built with the phone's game layout (`phoneGame`, `phoneReplay`),
+// and the font is kept at the recorded size down to the phone layout's
+// least grid. The run log player gets the phone layer over each App it
+// builds, in its replay mode (lens, strip, Comm read-only, bands; no keys):
+// the layer's `phone.*` settings are a store of the host's own, in memory,
+// seeded from the viewer's and never written back (the ADR 0021 invariant),
+// and what is open in the layer is kept here across the rebuild of a
+// backward seek. The control box is docked as a bar where the phone's
+// command row is (`PlayerViewOptions.dock`), with Close first as the way
+// out: no Back at the top left, no Panes popup. A bare view (the Spotlights
+// viewer) gets the layout without a bar and without a layer: the game text
+// alone.
 
 import type { RunLibrary } from '../runs/library';
 import type { RunEvent } from '../runs/events';
@@ -81,7 +97,8 @@ import { kindTokens } from '../player/icons';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
 import { type PlacedMark, RAIL_W, markersOf } from '../player/strip';
 import { type PlayedRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
-import { PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
+import { type DockRect, PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
+import type { PhoneControls, PhoneKit, PhoneReplayDeps, PhoneReplayState } from '../phone';
 import {
   type ViewerOverrides,
   applyViewer,
@@ -96,8 +113,18 @@ import { commentLines } from '../share/edits';
 import type { ReplayClock } from '../player/clock';
 import type { MapPaneHost } from '../map/protocol';
 import { App } from './app';
-import { device } from '../core/device';
 import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
+
+/**
+ * The phone layer's module, handed in by the shell on a phone or tablet
+ * (see the file header): its mount, and the kit and controls every mount
+ * takes.
+ */
+export interface PlayerPhone {
+  mount(deps: PhoneReplayDeps): { dispose(): void };
+  kit: PhoneKit;
+  controls: PhoneControls;
+}
 
 export interface PlayerHostOptions {
   /** Parent element (the page root); the player fills it. */
@@ -116,6 +143,8 @@ export interface PlayerHostOptions {
    * replay's embedded subset. Default: the bundled map.
    */
   map?: MapPaneHost;
+  /** A phone or tablet: the player is laid out as the phone's game (stage 55). Absent: the desktop cockpit. */
+  phone?: PlayerPhone;
 }
 
 /** What the header shows besides the runs (from the History session). */
@@ -143,6 +172,14 @@ export interface PlayerOpenOptions {
   /** The viewer settings (ADR 0021): Panes and Display (default true), Display only, or none. */
   viewerSettings?: boolean | 'display';
 }
+
+/**
+ * Phone: what the player's chrome lies over at the layer's top and right
+ * edges, px (`PhoneReplay.clear`): the header row (and, in History's box,
+ * the hood plate over the top edge), and a marker of two kinds left of the
+ * rail. The lens and its keys stand clear of both.
+ */
+const PHONE_CLEAR = { top: 24, right: 32 } as const;
 
 /** Paint gate: frame callbacks wait while it is closed. */
 class FrameGate {
@@ -202,6 +239,14 @@ export class PlayerHost {
   private tweak: Readonly<Record<number, string>> | null = null;
   /** Px kept free at the right for the rail (none for a bare view). */
   private railW = RAIL_W;
+  /** Phone (`opts.phone`): the open chain has the docked bar and the phone layer (not a bare view). */
+  private phoneBar = false;
+  /** Phone: the layer's own settings (`phone.*`), in memory, kept across App rebuilds; made at the first mount. */
+  private phoneStore: SettingsStore | null = null;
+  /** Phone: what is open in the layer, kept across App rebuilds. */
+  private phoneState: PhoneReplayState | undefined;
+  /** Phone: the docked bar's rectangle in the player's px (the command row's place), or null. */
+  private dock: DockRect | null = null;
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -274,6 +319,8 @@ export class PlayerHost {
       this.railW = railW;
       this.fitKey = '';
     }
+    this.phoneBar = this.opts.phone !== undefined && !opts.view?.bare;
+    this.dock = null;
     const tl = buildTimeline(chain, opts.edits);
     this.scriptIds = scriptPaneIdsOf(tl).filter(isScriptPaneId);
     this.hiddenSys = new Set(opts.hiddenSys ?? []);
@@ -289,15 +336,15 @@ export class PlayerHost {
     const onEsc = (): void => this.close();
     // Fullscreen in the control box (the run log player) where the page has
     // it; the HTML replay passes its own (with its F key) in `opts.view`. Not
-    // on a phone: it has the corner button (ADR 0097), and the compact box
-    // has no room for one more icon at 360 px. It puts the player's own
+    // on a phone or tablet: it has the corner button (ADR 0097), and the bar
+    // has no room for one more key at 360 px. It puts the player's own
     // element in fullscreen (stage 45 owner feedback, ADR 0130): the player
     // in History's box then fills the screen, and any way out of the
     // browser's fullscreen (the button, Esc, F11) puts it back in the box;
     // closing the player removes the element, which leaves fullscreen.
     const doc = this.el.ownerDocument;
     const fsEl = this.el;
-    const fullscreen = canFullscreen(doc) && !device().phone
+    const fullscreen = canFullscreen(doc) && !this.opts.phone
       ? [
           {
             label: () => (isFullscreen(doc, fsEl) ? 'Exit fullscreen' : 'Fullscreen'),
@@ -306,6 +353,9 @@ export class PlayerHost {
           },
         ]
       : [];
+    // The docked bar's first key is the way out: a Back at the top left would lie on an open strip or Comm.
+    const modeView = { ...opts.view };
+    if (this.phoneBar) delete modeView.back;
     this.view = new PlayerView({
       root: this.el,
       engine,
@@ -328,9 +378,11 @@ export class PlayerHost {
       onEsc,
       closeTitle: 'Back to History (Esc)',
       ...(this.opts.hideMs !== undefined ? { hideMs: this.opts.hideMs } : {}),
-      ...(opts.viewerSettings !== false ? { settings: this.viewerControls(opts.viewerSettings === 'display') } : {}),
+      // The docked bar has Display only: pane toggles and Reset layout mean nothing in the phone's layout.
+      ...(opts.viewerSettings !== false ? { settings: this.viewerControls(opts.viewerSettings === 'display' || this.phoneBar) } : {}),
       boxButtons: fullscreen,
-      ...opts.view,
+      ...modeView,
+      ...(this.phoneBar ? { dock: () => this.dock } : {}),
     });
     if (opts.autoplay !== false) engine.play();
   }
@@ -397,6 +449,7 @@ export class PlayerHost {
       requestFrame: gate.request,
       paneRequestFrame: gate.request,
       ...(this.opts.map ? { map: this.opts.map } : {}),
+      ...(this.opts.phone ? { phoneGame: true, phoneReplay: { bar: this.phoneBar } } : {}),
     });
     this.appRef = app;
     const unsub = store.subscribe((next, prev) => {
@@ -417,6 +470,7 @@ export class PlayerHost {
       this.relayout();
     });
     this.relayout();
+    const dropPhone = this.phoneBar ? this.mountPhone(app) : () => {};
     // Script panes (ADR 0053 P1): the recorded content, drawn without Lua.
     const spanes = new Map<ScriptPaneId, { snap: PaneSnapshot; pane: ScriptPane; closed?: boolean }>();
     const dropPane = (id: ScriptPaneId): void => {
@@ -501,6 +555,7 @@ export class PlayerHost {
       blank: (lines) => app.output.pushRows('blank', new Array<string>(Math.max(0, lines)).fill('')),
       dispose: () => {
         unsub();
+        dropPhone();
         gate.dispose();
         app.dispose();
         if (this.appRef === app) this.appRef = null;
@@ -508,6 +563,80 @@ export class PlayerHost {
         if (this.store === store) this.store = null;
       },
     };
+  }
+
+  // ---------------------------------------------------------------- phone
+
+  /**
+   * The phone layer over `app`'s cockpit, in its replay mode (see the file
+   * header), and the docked bar's rectangle after each of the cockpit's
+   * layouts. Returns what takes both away again.
+   */
+  private mountPhone(app: App): () => void {
+    const phone = this.opts.phone!;
+    const layer = phone.mount({
+      kit: phone.kit,
+      controls: phone.controls,
+      cockpit: app.cockpit,
+      game: app.game,
+      cells: this.cells,
+      settings: this.phoneSettings(),
+      replay: {
+        // The pages that show the live session, not the recording (Statistics).
+        omitPages: [...LIVE_ONLY],
+        clear: PHONE_CLEAR,
+        state: this.phoneState,
+        onState: (s) => {
+          this.phoneState = s;
+        },
+      },
+    });
+    const measure = (): void => {
+      if (this.appRef !== app) return;
+      const next = this.dockRect(app);
+      if (JSON.stringify(next) === JSON.stringify(this.dock)) return;
+      this.dock = next;
+      this.view?.refresh();
+    };
+    const off = app.cockpit.onLayout(measure);
+    measure();
+    return () => {
+      off();
+      layer.dispose();
+    };
+  }
+
+  /** The layer's settings: a copy of the viewer's, in memory; a band's height and a moved lens last while the host does. */
+  private phoneSettings(): SettingsStore {
+    if (this.phoneStore) return this.phoneStore;
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    void store.load();
+    const mine = JSON.parse(JSON.stringify(this.opts.settings.get())) as Settings;
+    store.update((draft) => {
+      Object.assign(draft, mine);
+    });
+    return (this.phoneStore = store);
+  }
+
+  /**
+   * The command row's place in `app`'s cockpit, in the player's px: from
+   * its left edge to the player's right and bottom edges (the rail ends
+   * above the bar, so the bar has its width too; the cockpit's whole cells
+   * end a little short of the bottom edge).
+   * Null while the cockpit lays out no command row (too small, not shown).
+   */
+  private dockRect(app: App): DockRect | null {
+    const input = app.cockpit.inputEl;
+    if (app.cockpit.el.hasAttribute('data-too-small') || input.offsetHeight < 1 || input.offsetWidth < 1) return null;
+    let left = 0;
+    let top = 0;
+    for (let el: HTMLElement | null = input; el && el !== this.el; el = el.offsetParent as HTMLElement | null) {
+      left += el.offsetLeft;
+      top += el.offsetTop;
+    }
+    const width = this.el.clientWidth - left;
+    const height = this.el.clientHeight - top;
+    return width > 0 && height > 0 ? { left, top, width, height } : null;
   }
 
   // --------------------------------------------------------------- viewer
@@ -616,7 +745,10 @@ export class PlayerHost {
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;
     // The rail's width is kept free, so it never covers a pane.
-    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, this.railW, devicePixelRatioOf(this.el.ownerDocument), textGridOf(this.el.ownerDocument)) };
+    // On a phone the layout's least grid is the phone's: the recorded size is kept far longer.
+    const phone = this.opts.phone;
+    const min = phone ? { cols: phone.kit.minCols, rows: phone.kit.minRows } : undefined;
+    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, this.railW, devicePixelRatioOf(this.el.ownerDocument), textGridOf(this.el.ownerDocument), min) };
     const key = JSON.stringify(a);
     if (key !== this.fitKey) {
       this.fitKey = key;

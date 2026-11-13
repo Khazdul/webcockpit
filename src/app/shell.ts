@@ -121,7 +121,7 @@ import type {
 import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
 import { watchDeviceKeyboard } from '../layout/phone-viewport';
 import type { PaneId } from '../layout/types';
-import type { PlayerHost, PlayerInfo, PlayerOpenOptions } from './player-host';
+import type { PlayerHost, PlayerInfo, PlayerOpenOptions, PlayerPhone } from './player-host';
 import type { PlayerOpenResult, RunLogOpenResult } from '../chrome/kit/hooks';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
@@ -666,15 +666,24 @@ export class Shell {
     if (this.player || this.playerOpening) return 'Another player is open.';
     this.playerOpening = true;
     try {
-      const { PlayerHost } = await import('./player-host');
+      // On a phone or tablet the player is laid out as the phone's game (stage 55): the phone
+      // layer's module goes in with the host, which imports none of it (it is also the HTML
+      // replay's). A phone chunk that does not load has the cover with Reload already.
+      const [{ PlayerHost }, phone] = await Promise.all([import('./player-host'), this.phoneGame ? this.playerPhone() : undefined]);
       if (this.inCockpit || !root.isConnected) return ONLY_START;
-      return (this.player = new PlayerHost({ root, settings: this.opts.settings, onClose, map: this.maps.host() }));
+      return (this.player = new PlayerHost({ root, settings: this.opts.settings, onClose, map: this.maps.host(), ...(phone ? { phone } : {}) }));
     } catch (err) {
       console.error('WebCockpit: the player could not load', err);
       return errText(err);
     } finally {
       this.playerOpening = false;
     }
+  }
+
+  /** Phone only: what a player host mounts the phone layer with (the phone chunk, and the look kit's controls from the chrome chunk). */
+  private async playerPhone(): Promise<PlayerPhone> {
+    const [phone, chrome] = await Promise.all([this.loadPhone(), this.loadChrome()]);
+    return { mount: (deps) => phone.mountPhoneLayer(deps), kit: PHONE_KIT, controls: { Seg: chrome.Seg, Toggle: chrome.Toggle } };
   }
 
   private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<PlayerOpenResult> {
@@ -687,6 +696,8 @@ export class Shell {
       this.start?.hide();
       this.startHost.style.display = 'none';
       host.el.style.display = '';
+      // Phone: the player over the whole window has the phone's layout, the lens at the top right: no corner button on it.
+      this.markPhoneGame(true);
       return { ok: true };
     } catch (err) {
       console.error('WebCockpit: the log player could not open', err);
@@ -698,6 +709,7 @@ export class Shell {
 
   private closePlayer(): void {
     this.player = null;
+    this.markPhoneGame(false);
     this.startHost.style.display = '';
     this.start?.show({ keep: true });
   }
@@ -737,7 +749,8 @@ export class Shell {
 
   /**
    * Phone only (ADR 0136 §4): marks `<html>` `wc-phone-game` while the
-   * phone's game layout is the visible view, so the fixed fullscreen
+   * phone's game layout is the visible view (the cockpit, or the run log
+   * player over the whole window, stage 55), so the fixed fullscreen
    * corner button (ADR 0097) is hidden there and stays on the start page
    * (src/phone/phone.css). Nothing on a desktop or a tablet.
    */

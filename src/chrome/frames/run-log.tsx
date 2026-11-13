@@ -18,7 +18,9 @@
 // host's element moves into the box's window and fills it; the player
 // keeps everything it has (Back, header, rail, control box, popups, keys).
 // The box's own Back is not drawn: the player's Back (which hides with its
-// chrome) is the way back, with Esc and the control box's Close.
+// chrome) is the way back, with Esc and the control box's Close. On a phone
+// or tablet (stage 55) the player has the phone's layout and no Back at the
+// top left: the way back is the first key of its docked bar (Close), and Esc.
 //
 // Fullscreen (the control box's button) puts the player's own element in
 // the browser's fullscreen (player-host.ts): it fills the screen without

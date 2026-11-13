@@ -590,6 +590,11 @@
   width: 100%;
 }
 
+/* Read-only (the phone's layout over a replay, stage 55): no search, so no well for its key either. */
+.wc-comm[data-readonly] .wc-cm-search {
+  display: none;
+}
+
 .wc-cm-sinput,
 .wc-cm-rinput {
   flex: 1 1 auto;

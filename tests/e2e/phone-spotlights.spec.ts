@@ -1,5 +1,5 @@
-// Stage 30e (ADR 0110), 32c (ADR 0114) on a phone: the run log's box fits
-// and works by tap. Stage 46 (ADR 0131, B "Galleriet"): the Spotlights
+// Stage 30e (ADR 0110), 32c (ADR 0114), 55 on a phone: the run log
+// player's docked bar fits and works by tap. Stage 46 (ADR 0131, B "Galleriet"): the Spotlights
 // page on a phone: the wall in the box at its phone margins, the filter
 // row's chips scroll sideways and toggle by tap, a tap on a card plays it
 // in the viewer, whose control row fits (no time), and the track seeks by
@@ -174,26 +174,32 @@ for (const width of [390, 360]) {
 }
 
 for (const width of [412, 360, 320]) {
-  test(`${width} wide: the run log's box fits, its buttons work by tap`, async ({ page }) => {
+  test(`${width} wide: the run log player's bar fits, its keys work by tap`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/?phone=1&player=runs-demo.jsonl.gz');
     await expect(page.locator('.wc-player .wc-output')).toContainText('Rivendell Stables');
-    await page.locator('.wc-player-stage').tap({ position: { x: 40, y: 300 } });
+    // Stage 55: the control box is a bar docked at the bottom (no compact box, no tap needed to show it).
     const box = page.locator('.wc-player-box');
-    await expect(box).toBeVisible();
+    await expect(box).toHaveAttribute('data-docked', '');
+    await expect(box).toHaveAttribute('data-narrow', '');
+    await expect(box).not.toHaveAttribute('data-compact', '');
     await inView(page, box);
-    // Every button inside the box (Firefox once let Close stick out).
+    // Every key inside the bar, a finger's target.
     const bb = (await box.boundingBox())!;
     for (const b of await box.locator(':scope > .wc-pc-row button').all()) {
       if (!(await b.isVisible())) continue;
       const r = (await b.boundingBox())!;
       expect(r.x).toBeGreaterThanOrEqual(bb.x - 0.5);
       expect(r.x + r.width).toBeLessThanOrEqual(bb.x + bb.width + 0.5);
+      expect(r.width).toBeGreaterThanOrEqual(39.5);
+      expect(r.height).toBeGreaterThanOrEqual(43.5);
     }
-    // Too narrow for the time: the compact box.
-    await expect(box).toHaveAttribute('data-compact', '');
+    // The time is shown, down to 320 px (there the keys are 40 px wide).
+    await expect(box).not.toHaveAttribute('data-tight', '');
+    const clock = (await box.locator('.wc-player-clock').boundingBox())!;
+    expect(clock.x + clock.width).toBeLessThanOrEqual((await box.locator('[data-act="display"]').boundingBox())!.x + 0.5);
     await box.locator('[data-act="play"]').tap();
     await expect(box.locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');
     const pos = () =>
@@ -204,20 +210,15 @@ for (const width of [412, 360, 320]) {
     await box.locator('[data-act="fwd"]').tap();
     await expect.poll(async () => (await pos()).seeking).toBe(false);
     expect((await pos()).position).toBeGreaterThanOrEqual(10_000);
-    if (width > 320) {
-      await box.locator('[data-act="start"]').tap();
-      await expect.poll(async () => (await pos()).position).toBe(0);
-    } else {
-      // 320 px: tight, no To the start (the rail seeks there).
-      await expect(box).toHaveAttribute('data-tight', '');
-      await expect(box.locator('[data-act="start"]')).toBeHidden();
-    }
-    await box.locator('[data-act="panes"]').tap();
-    const panes = box.locator('.wc-pc-pop[data-pop="panes"]');
-    await expect(panes).toBeVisible();
-    await inView(page, panes);
-    await panes.locator('.wc-pop-x').tap();
-    await expect(panes).toBeHidden();
+    // A phone's bar has no To the start (the rail seeks there) and no Panes; Display opens above it.
+    await expect(box.locator('[data-act="start"]')).toBeHidden();
+    await expect(box.locator('[data-act="panes"]')).toHaveCount(0);
+    await box.locator('[data-act="display"]').tap();
+    const display = box.locator('.wc-pc-pop[data-pop="display"]');
+    await expect(display).toBeVisible();
+    await inView(page, display);
+    await display.locator('.wc-pop-x').tap();
+    await expect(display).toBeHidden();
     expect(errors).toEqual([]);
   });
 }

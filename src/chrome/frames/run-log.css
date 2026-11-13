@@ -3,7 +3,8 @@
  * every side (owner feedback round 2); the hood plate "Run log" floats
  * over the player's top edge (it is above the window, z-index 5, and
  * takes the clicks on its own plate only). The box's own Back is not
- * drawn (the player has its Back, top left, hiding with its chrome). */
+ * drawn (the player has its Back, top left, hiding with its chrome; on a
+ * phone or tablet the first key of its docked bar). */
 
 .wc-rl-box > .wc-lk-back {
   display: none;
