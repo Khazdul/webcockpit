@@ -251,7 +251,7 @@ describe('MapPane as the lens', () => {
     h.pane.dispose();
   });
 
-  it('a hidden lens stops forwarding game events and finds the player when shown again; a phone\'s MAP tab keeps forwarding', async () => {
+  it('a hidden lens stops forwarding game events and finds the player when shown again; so does a phone\'s map without a lens', async () => {
     const room = (id: number) => ({ pkg: 'Room.Info', data: { id, name: 'A room' } }) as never;
     const h = setup({ touch: true });
     h.pane.setLens(LENS);
@@ -275,7 +275,8 @@ describe('MapPane as the lens', () => {
     expect(JSON.stringify(after)).toContain('"id":3');
     h.pane.dispose();
 
-    // Without a lens (a phone before the layer sets one) a hidden map keeps tracking.
+    // Without a lens (stage 56: the old MAP tab's "keep tracking while hidden" is gone) the same:
+    // nothing while hidden, the last room when shown again.
     const t = setup({ touch: true });
     t.show();
     await settle();
@@ -285,7 +286,10 @@ describe('MapPane as the lens', () => {
     t.hide();
     t.bus.emit('gmcp', room(5));
     await settle();
-    expect(t.of('events').length).toBeGreaterThan(base);
+    expect(t.of('events')).toHaveLength(base);
+    t.show();
+    await settle();
+    expect(JSON.stringify(t.of('events').slice(base))).toContain('"id":5');
     t.pane.dispose();
   });
 

@@ -70,7 +70,7 @@ import type { PhoneGameHide } from '../layout/phone-game';
 import { Compass } from './compass';
 import { FightCardView } from './fight-card';
 import { type FightCard, type SelfVitals, fightCard, fightSig } from './fight-model';
-import { type MenuFrame, PhoneMenu } from './menu-sheet';
+import { type MenuFrame, PhoneMenu, type PhoneNoticesView } from './menu-sheet';
 import { type PlayState, keysLive } from './play-gate';
 import { sizeFits } from './text-settings';
 import { sectionChanged } from './changed';
@@ -241,6 +241,8 @@ export interface PhoneLiveDeps extends PhoneLayerBaseDeps {
   runs?: Pick<LiveRuns, 'anchor' | 'chain' | 'saveChain'> | undefined;
   /** The menu closed back to the game. */
   onMenuClose?(): void;
+  /** The client notices (ADR 0025) for the menu sheet's status line. Absent: none. */
+  notices?: PhoneNoticesView | undefined;
   /**
    * Stage 53 (ADR 0138): the command line as the keyboard of our own
    * types in it. That keyboard is the layout's only one.
@@ -587,6 +589,7 @@ class Layer {
           this.closeOwnKeyboard();
         },
         fits: (size) => this.sizeFits(size),
+        notices: live.notices,
       });
       // The way to the menu while the cockpit shows "Window too small" (the
       // command row with the menu key is hidden and inert then): shown by
@@ -840,6 +843,8 @@ class Layer {
     );
     this.okb = okb;
     this.el.append(okb.el);
+    // (The app's line on a phone is marked for our keyboard from its construction, stage 56: this
+    // call and the one that undoes it change nothing there; a line that is not a phone's follows.)
     line.setOwnKeyboard(true);
     // The field is 44 px high whatever the font size setting: its text has a size of its own (phone.css).
     line.setOwnFont(true);
@@ -1852,7 +1857,12 @@ class Layer {
    * with Comm, or Comm and the strip's pane, taken out where the box would
    * else have none (`boxPlan`, round 53j: they come back when the box
    * closes). Only a screen with no room even then refuses the hold, and a
-   * refused hold changes nothing: an open keyboard stays up.
+   * refused hold changes nothing: an open keyboard stays up. The whole
+   * answer is the plan's (stage 56): it is worked out on layouts that
+   * would be (`phoneGameLayoutIf`), before the keyboard folds or anything
+   * is taken out, and once it says yes nothing is judged again on the
+   * layout that follows (the same sums on the same asks), so no hold is
+   * refused with the keyboard already folded.
    *
    * Landscape: the keyboard folds, as it does for the box, and the room is
    * judged on the new layout (at once, not in the next frame: the box must
@@ -1875,11 +1885,8 @@ class Layer {
       // (At once: the box shows on the layout it was judged on.)
       if (moved) cockpit.relayoutNow();
       g = cockpit.phoneGameLayout;
-      if (!g) return true;
-      if (g.tooSmall || !this.boxFitsAt(g, this.boxBottom())) {
-        cockpit.setPhoneHide(null);
-        return false;
-      }
+      // The box at its place on the layout that came (the plan's last try, now on screen).
+      if (g) this.placeBoxOn(g, this.boxBottom());
       return true;
     }
     if (this.okbOpen) {

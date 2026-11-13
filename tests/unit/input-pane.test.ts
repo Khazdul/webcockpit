@@ -1183,22 +1183,31 @@ describe('InputPane on a phone (ADR 0075 §3.2)', () => {
     expect(i.value).toBe('say a b');
   });
 
-  it('a password prompt swaps in a masked <input type=password>, and back', () => {
+  it('a password prompt keeps the one textarea, masked, never asking for the device\'s keyboard (stage 56: no swapped-in password field)', () => {
     const { bus, pane, sent, root } = phone();
+    const ta = pane.input;
+    // From construction: no device keyboard for this field.
+    expect(ta.getAttribute('inputmode')).toBe('none');
+    expect(ta.getAttribute('virtualkeyboardpolicy')).toBe('manual');
     bus.emit('telnet.echo', { serverEchoes: true });
-    const pw = pane.input as HTMLInputElement;
-    expect(pw.tagName).toBe('INPUT');
-    expect(pw.type).toBe('password');
-    expect(pw.classList.contains('wc-masked')).toBe(true);
+    expect(pane.input).toBe(ta);
+    expect(ta.tagName).toBe('TEXTAREA');
+    expect(ta.classList.contains('wc-masked')).toBe(true);
+    expect(ta.getAttribute('inputmode')).toBe('none');
     expect(root.querySelectorAll('.wc-input-field')).toHaveLength(1);
-    expect(document.activeElement).toBe(pw);
-    pw.value = 'secret';
-    pw.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(root.querySelector('input')).toBeNull();
+    expect(document.activeElement).toBe(ta);
+    // A physical keyboard types it; it is sent as a secret and not recorded.
+    ta.value = 'secret';
+    ta.dispatchEvent(new Event('input'));
+    expect(root.querySelector('.wc-input-mask')!.textContent).toBe('••••••');
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     expect(sent.at(-1)).toEqual({ text: 'secret', opts: { secret: true } });
+    expect(pane.getHistory()).toEqual([]);
     bus.emit('telnet.echo', { serverEchoes: false });
-    expect(pane.input.tagName).toBe('TEXTAREA');
-    expect(pane.input.value).toBe('');
-    expect(pw.value).toBe('');
+    expect(pane.input).toBe(ta);
+    expect(ta.value).toBe('');
+    expect(ta.classList.contains('wc-masked')).toBe(false);
     expect(root.querySelectorAll('.wc-input-field')).toHaveLength(1);
   });
 

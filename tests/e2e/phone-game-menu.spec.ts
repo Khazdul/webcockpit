@@ -486,6 +486,75 @@ test('the settings page: text size, theme and font change the settings the deskt
   await expect(pageEl(page)).toBeVisible();
 });
 
+test('the status line carries the update and the storage notice; the rows do not move; the update notice reloads while the link is down', async ({ page }) => {
+  // Stage 56 (ADR 0025): offline replay, so the link is down.
+  await openSheet(page);
+  const notices = (fn: 'update' | 'storage') =>
+    page.evaluate((fn) => {
+      const n = (window.__wc!.shell as unknown as { opts: { notices: { newVersion(r: { version: string; commit: string }): void; storageSuperseded(): void } } }).opts.notices;
+      if (fn === 'update') n.newVersion({ version: '9.9.9', commit: 'abc1234' });
+      else n.storageSuperseded();
+    }, fn);
+  const geometry = async () => ({
+    status: (await sheet(page).locator('.wc-ph-status').boundingBox())!.height,
+    rows: (await sheet(page).locator('.wc-ph-rows').boundingBox())!.y,
+    sheet: (await sheet(page).boundingBox())!.y,
+  });
+  const before = await geometry();
+  await expect(sheet(page).locator('.wc-ph-note')).toHaveCount(0);
+  await notices('update');
+  const update = sheet(page).locator('.wc-ph-note[data-note="update"]');
+  await expect(update).toHaveText('Update: 9.9.9 · reload');
+  expect(await geometry()).toEqual(before);
+  await notices('storage');
+  await expect(sheet(page).locator('.wc-ph-note[data-note="storage"]')).toHaveText('Not saved');
+  expect(await geometry()).toEqual(before);
+  // Everything in the line is inside the sheet's width, on one row.
+  const line = (await sheet(page).locator('.wc-ph-status').boundingBox())!;
+  for (const b of await sheet(page).locator('.wc-ph-note').all()) {
+    const r = (await b.boundingBox())!;
+    expect(r.x).toBeGreaterThanOrEqual(line.x);
+    expect(r.x + r.width).toBeLessThanOrEqual(line.x + line.width + 0.5);
+    expect(r.height).toBeLessThanOrEqual(line.height);
+  }
+  // The link is down: a tap on the update notice reloads the page.
+  const loaded = page.waitForEvent('load');
+  await update.tap();
+  await loaded;
+  await expect(page.locator('.wc-ph-pad')).toBeVisible();
+  await expect(sheet(page)).toBeHidden();
+});
+
+test('in a live session the update notice is text: a tap on it reloads nothing', async ({ page }) => {
+  const IAC = 255, WILL = 251, SB = 250, SE = 240, GMCP = 201;
+  const gmcp = (payload: string): Buffer => Buffer.concat([Buffer.from([IAC, SB, GMCP]), Buffer.from(payload, 'utf8'), Buffer.from([IAC, SE])]);
+  let server: WebSocketRoute | null = null;
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+  });
+  await page.goto('/?phone=1');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
+  await page.locator('.wc-start .wc-sm-item[data-key="enter"]').tap();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  server!.send(gmcp('Char.Name {"name":"Noticer","fullname":"Noticer the Mock"}'));
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);
+  await expect(page.locator('.wc-start')).toBeHidden({ timeout: 15_000 });
+  await page.evaluate(() => {
+    (window.__wc!.shell as unknown as { opts: { notices: { newVersion(r: { version: string; commit: string }): void } } }).opts.notices.newVersion({ version: '9.9.9', commit: 'abc1234' });
+    (window as unknown as { __kept: boolean }).__kept = true;
+  });
+  await tapMenu(page);
+  const update = sheet(page).locator('.wc-ph-note[data-note="update"]');
+  await expect(update).toHaveText('Update: 9.9.9');
+  expect(await update.evaluate((e) => e.tagName)).toBe('SPAN');
+  await expect(sheet(page).locator('.wc-ph-status-t')).toHaveText(/^Noticer · Link: /);
+  await update.tap();
+  await expect(sheet(page)).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true);
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^playing/);
+});
+
 test.describe('landscape', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 

@@ -77,15 +77,21 @@
 //   `afterEdit` path as the pane's own keys, and browses the history with
 //   `historyStep` (the Up and Down keys' `historyUp` / `historyDown`;
 //   nothing in password mode). No keyboard event is made up for it.
-//   `setOwnKeyboard` marks the fields (`inputmode="none"`, `virtualkeyboardpolicy="manual"`)
-//   so the device's keyboard stays down. While they are marked the phone
+//   A marked field (`inputmode="none"`, `virtualkeyboardpolicy="manual"`)
+//   keeps the device's keyboard down. A phone's line is marked from its
+//   construction and for good (stage 56): the device's keyboard is never
+//   asked for there, also before the phone layer and its keyboard are
+//   mounted (until then only a physical keyboard types), so no device
+//   keyboard can learn what is typed, a password least of all. The phone
 //   masks a password as the desktop does (the textarea with the bullets
-//   over it), not with the swapped-in `type="password"` field: that swap
-//   was made for the device keyboard's behaviour, and a password field
-//   brings the browser's password manager and the device's secure input
-//   with it. A range selected in the masked line is collapsed at once, so
-//   a phone's selection toolbar (share, translate, search) is never
-//   offered the password; the caret and paste stay.
+//   over it). (Until stage 56 the line was marked when the layer mounted,
+//   and a password prompt before that swapped in a `type="password"`
+//   field for the device keyboard's sake; a password field brings the
+//   browser's password manager and the device's secure input with it.)
+//   A range selected in the masked line is collapsed at once, so a
+//   phone's selection toolbar (share, translate, search) is never offered
+//   the password; the caret and paste stay. `setOwnKeyboard` marks a line
+//   that is not a phone's (nothing in the app does; the unit tests).
 // - Kept line (stage 53, round 53j; a phone with our own keyboard only):
 //   the sent line that stays to be sent again or replaced is a native
 //   selection of the whole line only while the field has the focus. When
@@ -303,17 +309,14 @@ export function normalizePaste(text: string): string {
 export class InputPane {
   readonly el: HTMLDivElement;
   /**
-   * The field in use. Desktop: always the one <input type="text">. Phone
-   * (ADR 0075 §3.2): a one-row <textarea>, because Chrome on Android shows
-   * its autofill bar over the keyboard for every <input>; while masked an
-   * <input type="password"> takes its place, so the on-screen keyboard
-   * treats the text as a password (no suggestions, no learning).
+   * The one field. Desktop: an <input type="text">. Phone (ADR 0075 §3.2):
+   * a one-row <textarea> (Chrome on Android shows its autofill bar over
+   * the keyboard for every <input>), marked for our own keyboard from the
+   * start (see the header: "Own keyboard").
    */
-  private field: CommandField;
-  /** Phone: the textarea and the lazily made password field. */
+  private readonly field: CommandField;
+  /** A phone's line: the textarea, typed in from our own keyboard only. */
   private readonly phone: boolean;
-  private textField: CommandField | null = null;
-  private passField: HTMLInputElement | null = null;
   /** Phone: a keydown Enter was seen, so its line break must not send again. */
   private enterDown = false;
   private readonly mask: HTMLSpanElement;
@@ -358,7 +361,7 @@ export class InputPane {
   private draftRestored = false;
 
   private password = false;
-  /** The fields are marked for a keyboard of our own (`setOwnKeyboard`). */
+  /** The field is marked for a keyboard of our own: always on a phone; elsewhere by `setOwnKeyboard`. */
   private ownKeyboard = false;
   /** The whole line is kept to be sent again or replaced, with no native selection (see the header: "Kept line"). */
   private kept = false;
@@ -398,8 +401,9 @@ export class InputPane {
     const wrap = doc.createElement('span');
     wrap.className = 'wc-input-wrap';
     this.phone = opts.phone ?? device().phone;
+    // A phone's line never asks for the device's keyboard, from the first paint (see the header).
+    this.ownKeyboard = this.phone;
     this.field = this.makeField(this.phone ? 'textarea' : 'text');
-    this.textField = this.field;
     this.mask = doc.createElement('span');
     this.mask.className = 'wc-input-mask';
     this.mask.hidden = true;
@@ -436,8 +440,8 @@ export class InputPane {
     this.blinkObserver?.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-cursor-blink'] });
   }
 
-  /** Makes a command field and wires its events. */
-  private makeField(kind: 'text' | 'textarea' | 'password'): CommandField {
+  /** Makes the command field and wires its events. */
+  private makeField(kind: 'text' | 'textarea'): CommandField {
     const doc = this.doc;
     let f: CommandField;
     if (kind === 'textarea') {
@@ -450,7 +454,6 @@ export class InputPane {
     } else {
       const inp = doc.createElement('input');
       inp.type = kind;
-      if (this.phone) inp.setAttribute('enterkeyhint', 'send');
       f = inp;
     }
     f.className = 'wc-input-field';
@@ -458,7 +461,7 @@ export class InputPane {
     f.spellcheck = false;
     f.setAttribute('autocapitalize', 'off');
     f.setAttribute('autocorrect', 'off');
-    f.setAttribute('aria-label', kind === 'password' ? 'Password' : 'Command');
+    f.setAttribute('aria-label', 'Command');
     // A random name keeps form-history/autofill heuristics from matching.
     f.name = 'wc-cmd-' + Math.random().toString(36).slice(2);
     if (this.ownKeyboard) markOwnKeyboard(f, true);
@@ -480,18 +483,6 @@ export class InputPane {
     ev.addEventListener('select', this.collapseMasked);
     ev.addEventListener('select', this.scheduleCaret);
     return f;
-  }
-
-  /** Phone: puts `next` in the current field's place, keeping the focus. */
-  private swapField(next: CommandField): void {
-    const cur = this.field;
-    if (next === cur) return;
-    const focused = this.doc.activeElement === cur;
-    next.value = '';
-    cur.replaceWith(next);
-    cur.value = '';
-    this.field = next;
-    if (focused) next.focus({ preventScroll: true });
   }
 
   // ----------------------------------------------------------------- public
@@ -612,14 +603,8 @@ export class InputPane {
     if (on === this.password) return;
     this.password = on;
     this.setKept(false);
-    if (this.phone && !this.ownKeyboard) {
-      if (on) this.passField ??= this.makeField('password') as HTMLInputElement;
-      this.swapField(on ? this.passField! : this.textField!);
-    } else if (this.phone && !on) {
-      // A keyboard of our own (no swapped field): as the swap does, a half-typed password
-      // never stays in the line once it is shown again.
-      this.input.value = '';
-    }
+    // A phone (the line is kept there): a half-typed password never stays in the line once it is shown again.
+    if (this.phone && !on) this.input.value = '';
     this.input.classList.toggle('wc-masked', on);
     this.mask.hidden = !on;
     if (on) {
@@ -662,31 +647,17 @@ export class InputPane {
   // ------------------------------------------- own keyboard (ADR 0138 §2, §3)
 
   /**
-   * The line is typed in from an on-screen keyboard of our own: its fields
-   * (the one in place, the phone's other one, and any made later) ask the
-   * device for no keyboard. Caret, selection, paste and a physical
-   * keyboard work as before.
+   * The line is typed in from an on-screen keyboard of our own: its field
+   * asks the device for no keyboard. Caret, selection, paste and a
+   * physical keyboard work as before. A phone's line is so from its
+   * construction and cannot be turned back (see the header): the call
+   * changes nothing there.
    */
   setOwnKeyboard(on: boolean): void {
-    if (on === this.ownKeyboard) return;
+    if (this.phone || on === this.ownKeyboard) return;
     this.ownKeyboard = on;
     if (!on) this.setKept(false);
-    for (const f of new Set([this.field, this.textField, this.passField])) if (f) markOwnKeyboard(f, on);
-    // At a password prompt already: the masked line is the textarea with our keyboard (see the
-    // file header), the swapped-in password field without. What was typed so far goes along.
-    if (this.phone && this.password && this.textField) {
-      const typed = this.input.value;
-      if (!on) this.passField ??= this.makeField('password') as HTMLInputElement;
-      const next = on ? this.textField : this.passField!;
-      if (next !== this.field) {
-        this.input.classList.remove('wc-masked');
-        this.swapField(next);
-        next.value = typed;
-        next.classList.add('wc-masked');
-        this.updateMask();
-        this.scheduleCaret();
-      }
-    }
+    markOwnKeyboard(this.field, on);
   }
 
   /**

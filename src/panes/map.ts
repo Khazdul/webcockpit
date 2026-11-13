@@ -34,14 +34,14 @@
 //   search, ADR 0077 §B) go to the
 //   worker; the answers back to the hub) and detaches on dispose.
 //   `mapMarks` (dataset) counts the live marks.
-// - Phone (ADR 0075 §3.3, `device().phone`): while the pane has no lens
-//   (below; before the phone layer sets one, or a replay without the
-//   layer) forwarding stays on while it is hidden (once the map is loaded;
-//   the worker tracks but draws nothing). The rule is from the old phone
-//   layout's MAP tab, which went with stage 55. The last Room.Info and
-//   Char.StatusVars are kept from construction and replayed after the
-//   first `resync`, so a map first shown mid-session finds the player at
-//   once. Desktop keeps "shown and loaded".
+// - Phone (`device().phone`): the last Room.Info and Char.StatusVars are
+//   kept from construction and replayed whenever forwarding starts, so a
+//   map first shown mid-session, or shown again, finds the player at once.
+//   Forwarding itself is "shown and loaded" everywhere. (Until stage 56 a
+//   phone's pane without a lens kept forwarding while hidden, ADR 0075
+//   §3.3: the rule of the old MAP tab. A phone's layout places the map
+//   only as the lens, which the phone layer sets before it asks for the
+//   place, so no such pane was ever started.)
 // - Room notes (ADR 0077): with a `PaneContext.mapNotes` that wants them,
 //   Room.Info goes to the worker with a sequence number; the worker's
 //   `roomNotes` answer is handed back with that Room.Info's bus payload.
@@ -166,8 +166,6 @@ export class MapPane extends PaneShell {
   private readonly touches = new Map<number, PinchPoint>();
   /** The lens's pending season swap (`onClock`), or null. */
   private seasonTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Phone only: keep forwarding while hidden (ADR 0075 §3.3). */
-  private readonly forwardHidden: boolean;
   /** Phone only: the last map-relevant state messages, replayed when forwarding starts. */
   private readonly lastState = new Map<string, BusEvents['gmcp']>();
   private acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0 };
@@ -223,7 +221,6 @@ export class MapPane extends PaneShell {
     });
 
     const flags = device();
-    this.forwardHidden = flags.phone;
     if (flags.phone) {
       this.own(
         ctx.bus.on('gmcp', (m) => {
@@ -389,19 +386,12 @@ export class MapPane extends PaneShell {
   }
 
   /**
-   * Whether game events go to the worker while the pane is hidden: on a
-   * phone while no lens is set (see the file header), not for
-   * the lens (ADR 0136 §4: a lens that is off or has no room costs nothing
-   * per line; shown again, the last room is replayed and it finds the
-   * player).
+   * Forwarding follows "shown and loaded". A hidden pane costs nothing per
+   * line (ADR 0136 §4: the lens off, or without room); shown again, a
+   * phone's last room is replayed and it finds the player.
    */
-  private keepsForwarding(): boolean {
-    return this.forwardHidden && this.lens === null;
-  }
-
-  /** Forwarding follows "shown and loaded" (a phone without a lens: "loaded"). */
   private syncForward(): void {
-    this.forward((this.visible || this.keepsForwarding()) && this.loaded && this.client !== null);
+    this.forward(this.visible && this.loaded && this.client !== null);
   }
 
   private win(): (Window & typeof globalThis) | null {
@@ -434,7 +424,7 @@ export class MapPane extends PaneShell {
         this.hover.cancel();
         this.client?.visible(false);
         this.watchDpr(false);
-        if (!this.keepsForwarding()) this.forward(false);
+        this.forward(false);
       }
       return;
     }

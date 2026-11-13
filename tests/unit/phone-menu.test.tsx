@@ -11,7 +11,8 @@ import { inputColor } from '../../src/theme/apply';
 import { INPUT_COLORS, INPUT_COLOR_IDS } from '../../src/theme/presets';
 import { Seg, Toggle } from '../../src/chrome/kit/look-controls';
 import { setPhoneControls, setPhoneKit } from '../../src/phone/kit';
-import { PhoneMenu, statusText } from '../../src/phone/menu-sheet';
+import { Notices, noticeIndicators } from '../../src/app/notices';
+import { PhoneMenu, type PhoneMenuDeps, statusText } from '../../src/phone/menu-sheet';
 import {
   GROUP_AWAY_OPTIONS,
   GROUP_GROUP,
@@ -69,7 +70,7 @@ function statusView(s: AppStatusState): AppStatusView & { set(next: AppStatusSta
 /** Every menu of a test, disposed after it (an open menu holds the window's keys). */
 const menus: PhoneMenu[] = [];
 
-function setup(status = STATUS, runs?: { anchor: string | null; chain: { saved: boolean; rating: number } | null }) {
+function setup(status = STATUS, runs?: { anchor: string | null; chain: { saved: boolean; rating: number } | null }, extra: Partial<PhoneMenuDeps> = {}) {
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
   const view = statusView(status);
   const calls = { reconnect: 0, frames: [] as string[], closed: 0, exits: 0, saved: [] as number[] };
@@ -83,6 +84,7 @@ function setup(status = STATUS, runs?: { anchor: string | null; chain: { saved: 
     exit: () => calls.exits++,
     ...(runs ? { runs: { anchor: () => runs.anchor, chain: async () => runs.chain as never, saveChain: async (r: number) => void calls.saved.push(r) } } : {}),
     onClose: () => calls.closed++,
+    ...extra,
   });
   menus.push(menu);
   return { menu, settings, view, calls };
@@ -219,6 +221,48 @@ describe('PhoneMenu', () => {
     expect(menu.host.querySelector('.wc-ph-rec')).toBeNull();
     act(() => view.set({ ...STATUS, capture: 'capture: recording' }));
     expect(menu.host.querySelector('.wc-ph-rec')?.textContent).toBe('Recording');
+  });
+
+  it('the status line carries the client notices; the update one reloads only while the link is down', () => {
+    const notices = new Notices();
+    let reloads = 0;
+    const { menu, view } = setup(STATUS, undefined, {
+      notices: { get: () => noticeIndicators(notices.get(), '0.8.3'), subscribe: (fn) => notices.subscribe(fn) },
+      reload: () => reloads++,
+    });
+    act(() => menu.open());
+    const notes = (): string[] => [...menu.host.querySelectorAll('.wc-ph-note')].map((e) => `${e.tagName}:${e.textContent}`);
+    expect(menu.host.querySelector('.wc-ph-notes')).toBeNull();
+    expect(menu.host.querySelector('.wc-ph-status-t')?.textContent).toBe('Rasta · default · Link: 38ms');
+    // In a live session: text, as in the command row (a reload would disconnect).
+    act(() => notices.newVersion({ version: '0.8.4', commit: 'abc1234' }));
+    expect(notes()).toEqual(['SPAN:Update: 0.8.4']);
+    expect(menu.host.querySelector('.wc-ph-note')?.getAttribute('title')).toContain('this tab runs 0.8.3');
+    // The line shares its width: the profile (named by the row under it) is left out.
+    expect(menu.host.querySelector('.wc-ph-status-t')?.textContent).toBe('Rasta · Link: 38ms');
+    tap(menu.host.querySelector('.wc-ph-note'));
+    expect(reloads).toBe(0);
+    expect(menu.isOpen).toBe(true);
+    // Beside the update notice the storage one is short.
+    act(() => notices.storageSuperseded());
+    expect(notes()).toEqual(['SPAN:Update: 0.8.4', 'SPAN:Not saved']);
+    // The link down: the update notice is a key that reloads.
+    act(() => view.set({ ...STATUS, conn: 'idle', linkMs: null }));
+    expect(notes()).toEqual(['BUTTON:Update: 0.8.4 · reload', 'SPAN:Not saved']);
+    tap(menu.host.querySelector('.wc-ph-note.is-act'));
+    expect(reloads).toBe(1);
+    // Closed, nothing follows the notices.
+    act(() => menu.close());
+    act(() => notices.newVersion({ version: '0.8.5', commit: 'def5678' }));
+    expect(menu.host.childElementCount).toBe(0);
+  });
+
+  it('the storage notice alone keeps its full text', () => {
+    const notices = new Notices();
+    const { menu } = setup(STATUS, undefined, { notices: { get: () => noticeIndicators(notices.get(), '0.8.3'), subscribe: (fn) => notices.subscribe(fn) } });
+    notices.storageSuperseded();
+    act(() => menu.open());
+    expect(menu.host.querySelector('.wc-ph-note.is-storage')?.textContent).toBe('Storage: not saved');
   });
 
   it('has the keys while open: Esc steps back, plain keys are swallowed, shortcuts pass; none when closed', () => {

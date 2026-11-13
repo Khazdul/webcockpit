@@ -4,7 +4,9 @@
 // open the sheet (the shell routes them here, src/app/shell.ts); the run
 // log player keeps the ESC menu.
 //
-//   status line     character · profile · Link, and Recording while a run is captured
+//   status line     character · profile · Link, and Recording while a run is captured;
+//                   the client notices (ADR 0025: `Update: 0.8.4`, `Storage: not
+//                   saved`) at its right end while there are any (stage 56)
 //   Reconnect       first; lit when the link is down
 //   Profile         what `#profile` opens on a phone: the profile editor
 //   Scripts         the Scripts page
@@ -35,6 +37,7 @@
 
 import { type VNode, render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
+import type { NoticeIndicator } from '../app/notices';
 import type { AppStatusState, AppStatusView } from '../app/status';
 import type { LiveRuns } from '../runs/live';
 import { ExitSheet } from './exit-sheet';
@@ -72,6 +75,19 @@ export interface PhoneMenuDeps {
    * Absent: every size fits.
    */
   fits?(size: number): boolean;
+  /**
+   * The client notices (ADR 0025; `noticeIndicators`, handed in by the
+   * shell): shown at the end of the status line. Absent: none.
+   */
+  notices?: PhoneNoticesView | undefined;
+  /** Reloads the page (the update notice while the link is down). Absent: `location.reload()`. */
+  reload?(): void;
+}
+
+/** The client notices as the status line shows them, and a call on every change. */
+export interface PhoneNoticesView {
+  get(): readonly NoticeIndicator[];
+  subscribe(fn: () => void): () => void;
 }
 
 type View =
@@ -92,6 +108,8 @@ const ICONS = {
   down: 'M6 9l6 6 6-6',
 } as const;
 
+const NO_NOTES: readonly NoticeIndicator[] = [];
+
 /** Re-renders on every change of a store. */
 function useStore<T>(get: () => T, subscribe: (fn: () => void) => () => void): T {
   const [v, set] = useState(get);
@@ -102,14 +120,59 @@ function useStore<T>(get: () => T, subscribe: (fn: () => void) => () => void): T
   return v;
 }
 
-/** The status line's text: `Rasta · default · Link: 38ms` (the character once MUME has named it). */
-export function statusText(st: Readonly<AppStatusState>, profile: string): string {
-  return [st.character, profile, phoneKit().formatLink(st.linkMs, st.linkSuspect)].filter(Boolean).join(' · ');
+/**
+ * The status line's text: `Rasta · default · Link: 38ms` (the character once
+ * MUME has named it). `brief`: without the profile, which the Profile row
+ * under it names anyway (the line shares its width with a notice).
+ */
+export function statusText(st: Readonly<AppStatusState>, profile: string, brief = false): string {
+  return [st.character, brief ? '' : profile, phoneKit().formatLink(st.linkMs, st.linkSuspect)].filter(Boolean).join(' · ');
+}
+
+/**
+ * The client notices at the end of the status line (ADR 0025). They stand
+ * in the line, at its height: the rows under it never move. The update
+ * notice is a key that reloads only while the link is down (`reload`
+ * given): a reload disconnects from the game, so in a live session it is
+ * text, as in the command row. Beside the update notice the storage one is
+ * cut to `Not saved` (the line is one row of a phone's width).
+ */
+function StatusNotices(p: { items: readonly NoticeIndicator[]; reload: (() => void) | null }): VNode | null {
+  if (p.items.length === 0) return null;
+  return (
+    <span class="wc-ph-notes" role="status">
+      {p.items.map((n) =>
+        n.key === 'update' && p.reload ? (
+          <button
+            key={n.key}
+            type="button"
+            class="wc-ph-note is-update is-act"
+            data-note={n.key}
+            tabIndex={-1}
+            aria-label={`${n.text}. Reload to update`}
+            title={n.title}
+            onMouseDown={keepFocus}
+            onClick={(e) => {
+              e.stopPropagation();
+              p.reload?.();
+            }}
+          >
+            {`${n.text} · reload`}
+          </button>
+        ) : (
+          <span key={n.key} class={`wc-ph-note is-${n.key}`} data-note={n.key} title={n.title}>
+            {n.key === 'storage' && p.items.length > 1 ? 'Not saved' : n.text}
+          </span>
+        ),
+      )}
+    </span>
+  );
 }
 
 interface SheetProps {
   s: Readonly<Settings>;
   st: Readonly<AppStatusState>;
+  notes: readonly NoticeIndicator[];
   deps: PhoneMenuDeps;
   close(): void;
   openSettings(): void;
@@ -151,7 +214,8 @@ function MenuSheet(p: SheetProps): VNode {
         <div class="wc-ph-sheet-body">
           <span class="wc-ph-hood">Menu</span>
           <div class="wc-ph-status">
-            <span class="wc-ph-status-t">{statusText(st, s.profile)}</span>
+            <span class="wc-ph-status-t">{statusText(st, s.profile, p.notes.length > 0)}</span>
+            <StatusNotices items={p.notes} reload={down ? (deps.reload ?? (() => globalThis.location?.reload())) : null} />
             {st.capture === kit.captureRecording && (
               <span class="wc-ph-rec">
                 <i />
@@ -269,12 +333,16 @@ function Surface(p: {
     () => deps.status.get(),
     (fn) => deps.status.subscribe(fn),
   );
+  const notes = useStore(
+    () => deps.notices?.get() ?? NO_NOTES,
+    (fn) => deps.notices?.subscribe(fn) ?? (() => {}),
+  );
   if (view.at === 'closed') return null;
   return (
     // `wc-look`: the kit's tokens for its controls; Paper on a light game background.
     <div class="wc-look wc-ph-menu-surface" data-light={phoneKit().isLight(s.appearance.bg) ? '' : undefined} data-view={view.at}>
       {view.at === 'sheet' ? (
-        <MenuSheet s={s} st={st} deps={deps} close={() => p.menu.close()} openSettings={() => p.menu.openSettings('sheet')} openExit={() => p.menu.openExit('sheet')} />
+        <MenuSheet s={s} st={st} notes={notes} deps={deps} close={() => p.menu.close()} openSettings={() => p.menu.openSettings('sheet')} openExit={() => p.menu.openExit('sheet')} />
       ) : view.at === 'exit' ? (
         <ExitSheet runs={deps.runs} exit={() => deps.exit()} cancel={() => p.menu.back()} keysRef={p.keysRef} />
       ) : (

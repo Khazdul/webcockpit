@@ -8,7 +8,8 @@
 // Each notice is shown twice:
 //
 // - a persistent indicator: the cockpit's input row, left of the clock
-//   (src/ui/notice-indicator.ts), the phone's ESC menu status header and the
+//   (src/ui/notice-indicator.ts), the phone's menu sheet status line
+//   (src/phone/menu-sheet.tsx) and the
 //   start page (src/chrome/start-surface.tsx: small pills at the top right
 //   over the sky, the top row of an old-look frame), from `get()` /
 //   `subscribe()`;
