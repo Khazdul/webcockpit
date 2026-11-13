@@ -368,6 +368,24 @@ describe('recorded layout', () => {
     expect(playerFontSize(a, 100, 100, 12)).toBe(6);
   });
 
+  it('takes another minimum grid from the caller (stage 55: the phone layout keeps recorded text sizes)', () => {
+    const a = { ...defaultSettings().appearance, size: 14 };
+    // A phone's window: under 60 columns at size 14, so the default minimum shrinks the text.
+    const W = 390;
+    const H = 760;
+    expect(playerFontSize(a, W, H, 12)).toBeLessThan(14);
+    expect(playerFontSize(a, W, H, 12, 1, 'css', { cols: MIN_VIEW_COLS, rows: MIN_VIEW_ROWS })).toBe(playerFontSize(a, W, H, 12));
+    // The phone's own minimum keeps it.
+    expect(playerFontSize(a, W, H, 12, 1, 'css', { cols: 30, rows: 8 })).toBe(14);
+    // And still shrinks a size that does not hold it.
+    const big = playerFontSize({ ...a, size: 28 }, W, H, 12, 1, 'css', { cols: 30, rows: 8 });
+    expect(big).toBeLessThan(28);
+    const c = nominalCell({ ...a, size: big });
+    expect(Math.floor((W - 12) / c.w)).toBeGreaterThanOrEqual(30);
+    const c1 = nominalCell({ ...a, size: big + 1 });
+    expect(Math.floor((W - 12) / c1.w)).toBeLessThan(30);
+  });
+
   it('parses a VIEW and replaces its parts whole', () => {
     expect(parseView('nope')).toBeNull();
     expect(parseView('[1]')).toBeNull();

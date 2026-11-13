@@ -12,9 +12,10 @@ import { type AppearanceSettings, FONT_SIZE_MIN, type Settings, type ViewSnapsho
 /**
  * The player's font size in a `w` × `h` px window with `reservePx` px
  * kept free on the right (the rail): the appearance's own size, or, when
- * its grid would be below the cockpit's minimum (MIN_VIEW_COLS ×
- * MIN_VIEW_ROWS), the largest smaller size that meets it (FONT_SIZE_MIN
- * when none does).
+ * its grid would be below the minimum `min`, the largest smaller size
+ * that meets it (FONT_SIZE_MIN when none does). The minimum is the
+ * cockpit's (MIN_VIEW_COLS × MIN_VIEW_ROWS) unless the caller's layout
+ * has another (the phone's game layout: PHONE_MIN_COLS × PHONE_MIN_ROWS).
  */
 export function playerFontSize(
   a: Readonly<AppearanceSettings>,
@@ -23,10 +24,11 @@ export function playerFontSize(
   reservePx: number,
   dpr = 1,
   grid: TextGrid = 'css',
+  min: { cols: number; rows: number } = { cols: MIN_VIEW_COLS, rows: MIN_VIEW_ROWS },
 ): number {
   for (let size = a.size; size > FONT_SIZE_MIN; size--) {
     const c = nominalCell({ ...a, size }, dpr, grid);
-    if (Math.floor((w - reservePx) / c.w + 1e-6) >= MIN_VIEW_COLS && Math.floor(h / c.h + 1e-6) >= MIN_VIEW_ROWS) return size;
+    if (Math.floor((w - reservePx) / c.w + 1e-6) >= min.cols && Math.floor(h / c.h + 1e-6) >= min.rows) return size;
   }
   return FONT_SIZE_MIN;
 }
