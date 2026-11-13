@@ -67,8 +67,12 @@ Lite is not remembered.
 - [x] Unit: `tests/unit/editor-place.test.ts`
 - [x] Existing tests changed: `editor.spec.ts` (the Profile window left
       in Editor now opens in Editor: no `e` before typing),
-      `script-editor.spec.ts` (F1 away from any name opens the manual
-      where it was left, not at Getting started),
+      `script-editor.spec.ts` (F1 away from any name, and the Scripts
+      page's Manual after it, open the manual where it was left, not at
+      Getting started; a script opened again has its cursor where it
+      was left, so the test goes to the top before typing),
+      `typed-settings.spec.ts` (the Profile window left in Editor opens
+      in Editor: the test clicks Lite),
       `script-manual-frame.test.tsx` (the manual's place is forgotten
       between tests)
 - [x] e2e: `profile-place.spec.ts` (the Profile window: kind, row and

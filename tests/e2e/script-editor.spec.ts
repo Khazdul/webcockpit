@@ -309,8 +309,9 @@ test('the unsaved prompt: Keep editing stays, Y saves and leaves, N discards; Ba
   await backOnPage(page);
   expect(await lib<{ source: string }>(page, 'get', 'finder').then((s) => s.source)).toBe(SOURCE);
 
-  // Y saves and leaves, with the page's flash.
+  // Y saves and leaves, with the page's flash. The cursor is where the editor was left (ADR 0143).
   await openEditor(page, f);
+  await page.keyboard.press('ControlOrMeta+Home');
   await page.keyboard.type('-- two\n');
   await page.keyboard.press('Escape');
   await expect(unsaved(page)).toBeVisible();
@@ -410,10 +411,10 @@ test('MANUAL: from the editor (F1 at the name under the cursor, else where it wa
   }
   await expect(pageManual).toBeVisible();
 
-  // The Scripts page has Manual among its page buttons: the guide's start.
+  // The Scripts page has Manual among its page buttons: where the manual was left (ADR 0143).
   await pageManual.click();
   await expect(manual(page)).toBeVisible();
-  await expect.poll(() => manualTop(page)).toBe('Getting started');
+  await expect.poll(() => manualTop(page)).toBe('tempTimer');
   await page.keyboard.press('Escape');
   await expect(manual(page)).toHaveCount(0);
   await expect(pageManual).toBeVisible();
