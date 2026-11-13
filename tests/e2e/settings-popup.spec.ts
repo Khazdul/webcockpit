@@ -2,8 +2,7 @@
 // icon: open, close and toggle (icon, `#settings`, X, Esc); one popup at a
 // time with Panes; the Esc order in the input; the focus on open (ADR
 // 0108) and the keys in it; live changes through its controls; one size
-// for every tab. The pane Appearance page gone from Options → Panes on
-// desktop: chrome.spec.ts.
+// for every tab; the Appearance page's preview.
 import { type Page, expect, test } from '@playwright/test';
 
 const field = (page: Page) => page.locator('.wc-input-field');
@@ -252,6 +251,10 @@ test('changes go to the settings store at once', async ({ page }) => {
   await page.locator('.wc-ck-list .wc-ck-opt', { hasText: 'Paper' }).click();
   await expect.poll(async () => (await settings(page)).appearance.bg).toBe('#f4ecd8');
   expect((await settings(page)).appearance.fg).toBe('#000000');
+  // And the paper palette; the page takes the colour live.
+  expect((await settings(page)).appearance.ansi[7]).toBe('#4a4538');
+  const termBg = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--term-bg'));
+  await expect.poll(termBg).toBe('#f4ecd8');
   // By keyboard: Enter opens, ↑ moves, Enter picks; Esc closes the list only.
   await page.locator('.wc-ck-dd[aria-label="Background"]').focus();
   await page.keyboard.press('Enter');
@@ -263,6 +266,10 @@ test('changes go to the settings store at once', async ({ page }) => {
   await page.keyboard.press('Home');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).appearance.bg).toBe('#000000');
+  // Leaving Paper puts the default font colour and palette back.
+  expect((await settings(page)).appearance.fg).toBe('#c0c0c0');
+  expect((await settings(page)).appearance.ansi[7]).toBe('#c0c0c0');
+  await expect.poll(termBg).toBe('#000000');
   // A palette colour: a click chooses it and puts the keys in its hex field;
   // the browser's picker opens only from the Picker button (its input applies live).
   await page.locator('.wc-ck-pc[data-index="1"]').click();
@@ -291,6 +298,9 @@ test('changes go to the settings store at once', async ({ page }) => {
   await tab(page, 'input').click();
   await page.locator('.wc-ck-sg[data-value="underline"]').click();
   expect((await settings(page)).appearance.cursorStyle).toBe('underline');
+  const blink0 = (await settings(page)).appearance.cursorBlink;
+  await page.locator('.wc-ck-tg[aria-label="Cursor blink"]').click();
+  expect((await settings(page)).appearance.cursorBlink).toBe(!blink0);
   // Mapper: room notes.
   await tab(page, 'mapper').click();
   const notes0 = (await settings(page)).mapper.notes;
@@ -303,5 +313,58 @@ test('changes go to the settings store at once', async ({ page }) => {
   await page.locator('.wc-ck-tg[aria-label="Weather effects"]').click();
   expect((await settings(page)).weather.enabled).toBe(!on0);
   await expect(page.locator('.wc-sp-wx-fog')).toHaveClass(on0 ? /is-dim/ : /^(?!.*is-dim)/);
+  // Reset appearance: the defaults of a new install, live.
+  await tab(page, 'appearance').click();
+  await size.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.locator('.wc-ck-pc[data-index="9"]').click();
+  await page.locator('.wc-ck-hex').fill('#aabbcc');
+  await expect.poll(async () => (await settings(page)).appearance.ansi[9]).toBe('#aabbcc');
+  await page.locator('.wc-sp-reset').click();
+  const defaults = await page.evaluate(() => window.__wc!.settings.defaults().appearance);
+  await expect.poll(async () => (await settings(page)).appearance).toEqual(defaults);
   expect(errors).toEqual([]);
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
+// Ported from the old TUI Appearance frame's tests (chrome.spec.ts, deleted in stage 55).
+test('the preview: the bold orc follows "Bold brightens colours", Elrond the palette\'s yellow', async ({ page }) => {
+  await offline(page);
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { boldBright: false } }));
+  await icon(page, 'settings').click();
+  await tab(page, 'appearance').click();
+  const preview = page.locator('.wc-sp-preview');
+  const ansi = (i: number) =>
+    page.evaluate((n) => {
+      const probe = document.createElement('span');
+      probe.style.color = `var(--ansi-${n})`;
+      document.body.append(probe);
+      const c = getComputedStyle(probe).color;
+      probe.remove();
+      return c;
+    }, i);
+  // An enemy as MUME shows one: the name bold red, the rest of the line in the font colour.
+  const orc = preview.locator('.wc-bold.wc-f1');
+  await expect(orc).toHaveText('*an Orc*');
+  await expect(orc.locator('xpath=..')).toHaveText('*an Orc*, wielding a scimitar, is standing here.');
+  const orcColour = () => orc.evaluate((el) => getComputedStyle(el).color);
+  expect(await orc.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700');
+  expect(await orcColour()).toBe(await ansi(1));
+  await page.locator('.wc-ck-tg[aria-label="Bold brightens colours"]').click();
+  await expect.poll(async () => (await settings(page)).appearance.boldBright).toBe(true);
+  await expect.poll(orcColour).toBe(await ansi(9));
+  // The last line is Elrond's narrate, in the palette's yellow; it follows the palette.
+  const elrond = preview.locator('.wc-sp-pl').last().locator('span');
+  await expect(elrond).toHaveText("Elrond narrates 'The road goes ever on and on.'");
+  const elrondColour = () => elrond.evaluate((el) => getComputedStyle(el).color);
+  expect(await elrondColour()).toBe(await ansi(3));
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.appearance.ansi[3] = '#aabb00';
+    }),
+  );
+  await expect.poll(elrondColour).toBe('rgb(170, 187, 0)');
+  // The whole preview is inside the popup.
+  await expect(preview).toBeInViewport({ ratio: 1 });
+  await page.evaluate(() => window.__wc!.settings.reset());
 });

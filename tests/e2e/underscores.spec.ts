@@ -10,7 +10,6 @@
 // Pixel ratios come from tests/e2e/dpr.ts (Firefox needs a pref for them).
 import { type Locator, type Page, expect, test } from '@playwright/test';
 import { dprTest, expectDpr } from './dpr';
-import { menuFrame, menuTitle, openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 /** Underscores in cells 1 and 3; cell 2 (`h`, no descender) is the background sample. */
@@ -127,33 +126,8 @@ for (const dpr of [1, 1.5]) {
 
     // The start menu's pages are new-look DOM (the Profile list since stage
     // 41, ADR 0125; its name prompt since ADR 0128's addendum of 2026-11-12),
-    // not cell-grid rows. The old-look text field that is left is the ANSI
-    // colour prompt of the ESC menu's Options (a phone's): the name is typed
-    // into it (it is no colour; only how the field draws it is tested).
-    it('the old-look text field keeps its underscores', async ({ dprPage: page }) => {
-      await page.routeWebSocket('wss://mume.org/ws-play/', () => {});
-      await openEscOptions(page);
-      await expectDpr(page, dpr);
-      await menuFrame(page).locator('.wc-mrow[data-key="appearance"] .wc-label').click();
-      const swatch = menuFrame(page).locator('.wc-pal[data-ansi="9"]');
-      await swatch.click();
-      await expect(swatch).toHaveClass(/is-cursor/);
-      await swatch.click();
-      await expect(menuTitle(page)).toHaveText('─── ANSI 9: bright red ───');
-      const field = menuFrame(page).locator('.wc-field');
-      await field.fill(NAME);
-      await expect(field).toHaveValue(NAME);
-      // (The caret would light pixels of its own.)
-      await page.addStyleTag({ content: '.wc-field { caret-color: transparent !important; }' });
-      for (const [font, size] of LOOKS) {
-        await look(page, font, size);
-        await expectInk(page, [['text field', field]], `${font} ${size}`);
-      }
-      expect(await field.evaluate((el) => el.getBoundingClientRect().height)).toBe(
-        await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h'))),
-      );
-    });
-
+    // not cell-grid rows, and the last old-look text field (the ANSI colour
+    // prompt of the phone's old Options) went in stage 55.
     // The ESC menu header was checked here until 30f; the desktop has none now (ADR 0112).
     it('the cockpit keeps underscores: last output row, input line, pane rows', async ({ dprPage: page }) => {
       await page.goto(DEMO);

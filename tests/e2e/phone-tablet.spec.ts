@@ -18,8 +18,9 @@
 // `phone` project (Pixel 7: a touch browser; the viewport set here is its
 // screen too). The offline cockpit and the start page; nothing reaches MUME.
 // What a phone gets is every other phone-*.spec.ts, unchanged.
-import { type Locator, type Page, expect, test } from '@playwright/test';
+import { type BrowserContext, type Locator, type Page, expect, test } from '@playwright/test';
 import { morphDone } from './look';
+import { DESKTOP_SITE_WINDOW, PHONE_SCREEN, phoneScreenPage } from './phone-screen';
 
 const html = (page: Page) => page.locator('html');
 const pad = (page: Page) => page.locator('.wc-ph-pad');
@@ -294,4 +295,68 @@ test.describe('a phone (the control: the same checks at a phone\'s size)', () =>
     await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(1);
     expect(await page.evaluate(() => window.__wc!.settings.get().timers.groups.herb.enabled)).toBe(false);
   });
+});
+
+// Stage 55: the browser's "Desktop site" mode on a phone. The screen stays
+// the phone's while the window grows (Android Chrome lays the page out about
+// 980 px wide): the player asked for the desktop version and gets the desktop
+// cockpit, with touch behaviours and the device's keyboard. (The context is
+// made by hand: the screen apart from the window, tests/e2e/phone-screen.ts.)
+test.describe('a phone in Desktop-site mode: its screen, a window that is not a phone\'s', () => {
+  let context: BrowserContext;
+  let page: Page;
+  test.beforeEach(async ({ browser }) => {
+    ({ context, page } = await phoneScreenPage(browser, { viewport: DESKTOP_SITE_WINDOW }));
+  });
+  test.afterEach(() => context.close());
+
+  test('no flag: the desktop cockpit with touch, no phone class, no phone layer', async () => {
+    const errors = watchErrors(page);
+    await page.goto('/?replay');
+    await expect(page.locator('.wc-mb-bar')).toBeVisible();
+    expect(await flags(page)).toEqual({ cls: 'wc-touch', w: PHONE_SCREEN.width, h: PHONE_SCREEN.height });
+    expect(await page.evaluate(() => [innerWidth, innerHeight])).toEqual([DESKTOP_SITE_WINDOW.width, DESKTOP_SITE_WINDOW.height]);
+    await expect(html(page)).not.toHaveClass(/\bwc-phone(-game)?\b/);
+    await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
+    await frames(page);
+    await page.waitForTimeout(300);
+    await expect(page.locator('.wc-ph-layer, .wc-ph-pad, .wc-ph-okb, .wc-ph-menu, .wc-menu-btn, .wc-phone-tabs, .wc-phone-failed')).toHaveCount(0);
+    // The device's keyboard: the command line is an ordinary field.
+    await expect(field(page)).not.toHaveAttribute('inputmode', 'none');
+    // The bar works by touch, as on a `?tablet=desktop` tablet.
+    await page.locator('.wc-mb[data-mb="settings"]').tap();
+    await expect(page.locator('.wc-sp-settings')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('the start page is the desktop\'s too: no page keyboard of ours', async () => {
+    await page.goto('/');
+    await expect(page.locator('.wc-start .wc-sm-item[data-key="enter"]')).toBeVisible();
+    await expect(html(page)).not.toHaveClass(/\bwc-phone\b/);
+    await expect(html(page)).toHaveClass(/\bwc-touch\b/);
+    await expect(page.locator('.wc-ph-okb, .wc-phone-failed')).toHaveCount(0);
+  });
+
+  test('?phone=1 is a phone at any window size: the phone\'s game layout, not the old tab strip', async () => {
+    const errors = watchErrors(page);
+    await page.goto('/?replay&phone=1');
+    await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(1);
+    await expect(pad(page)).toBeVisible();
+    await expect(page.locator('.wc-ph-menu')).toBeVisible();
+    expect((await flags(page)).cls).toBe('wc-phone wc-touch');
+    await expect(html(page)).toHaveClass(/\bwc-phone-game\b/);
+    await expect(page.locator('.wc-mb-bar, .wc-phone-tabs, .wc-menu-btn:not(.wc-ph-menu)')).toHaveCount(0);
+    // A phone, not a tablet: the phone's one-time defaults are applied.
+    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().phone.defaults)).toBe(1);
+    expect(errors).toEqual([]);
+  });
+});
+
+test('a phone\'s screen with a phone\'s window (the control for Desktop-site mode): the phone\'s game layout', async ({ browser }) => {
+  const { context, page } = await phoneScreenPage(browser, { viewport: { width: 412, height: 839 } });
+  await page.goto('/?replay');
+  await expect(pad(page)).toBeVisible();
+  expect(await flags(page)).toEqual({ cls: 'wc-phone wc-touch', w: PHONE_SCREEN.width, h: PHONE_SCREEN.height });
+  await expect(page.locator('.wc-mb-bar')).toHaveCount(0);
+  await context.close();
 });
