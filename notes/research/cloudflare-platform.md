@@ -98,7 +98,9 @@ serve. <https://developers.cloudflare.com/workers/platform/limits/>
 - Jurisdiction `eu` at creation, immutable.
 - Lifecycle rules can expire objects by prefix and abort unfinished
   multipart uploads.
-- Scale: 300 accounts at 250 MB each is 75 GB, about $1 a month.
+- Scale: 100 accounts at the 50 MB limit (ADR 0146) are 5 GB, inside
+  the free 10 GB. 300 accounts at 250 MB would be 75 GB, about $1 a
+  month.
 
 ## Presence and statistics
 

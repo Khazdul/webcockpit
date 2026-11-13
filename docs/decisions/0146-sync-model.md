@@ -122,11 +122,16 @@ item(account, kind, id, rev, seq, deleted, size, updated, blob)
   swept after 14 days as today.
 - A run body is the run's meta, events and chunks in the backup's
   JSONL form, gzip, encrypted in segments, one R2 object, uploaded
-  through the Worker. Limit 50 MB per run body.
-- **Limit:** 250 MB per account for run bodies and publications
+  through the Worker. Limit 20 MB per run body.
+- **Limit:** 50 MB per account to begin with (owner, 2026-11-13: keep
+  it low at first, with margin), for run bodies and publications
   together, counted as stored (compressed, encrypted). A played hour
-  is about 0.2 MB, so this is over a thousand hours. The owner can
-  raise one account's limit.
+  is estimated at about 0.2 MB compressed (not measured; stage 63
+  measures it on real runs before the limit is fixed), which would
+  make 50 MB some 250 hours of saved runs. 100 accounts filled to the
+  limit are 5 GB, half of R2's free 10 GB. The limit is a server
+  setting: the owner raises it for everybody or for one account
+  without a release.
 - **When a save does not fit** (in the Exit popup's save, or Save in
   History): the run is saved on the device as always, and a dialog
   says the cloud is full (`used / limit`) with three choices: Download

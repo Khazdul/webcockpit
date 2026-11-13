@@ -102,7 +102,7 @@ recovery code ─ HKDF ─► recoveryAuth, recoveryKek
   stored.
 - Login: 10 failures per name in 15 minutes, then a 15-minute wait.
 - The Workers rate limiting binding as a coarse net over `/api/*`.
-- Per account: 5 MB of small items, 1 MB per item, 250 MB of run
+- Per account: 2 MB of small items, 1 MB per item, 50 MB of run
   bodies and publications (ADR 0146); the owner can change an
   account's limits.
 

@@ -38,7 +38,7 @@ players' accounts.
   without the phone section, the optional map subset. It is **not**
   encrypted: it is meant to be read. The dialog says so, shows the
   size, and has a title and a description (≤ 500 characters).
-- At most 10 MB per payload; it counts against the account's 250 MB
+- At most 5 MB per payload; it counts against the account's 50 MB
   (ADR 0146). 50 shared runs per account to begin with.
 - The link is `https://mumecockpit.com/r/<id>` (a random 12-character
   id). **Unlisted** by default: whoever has the link can watch.

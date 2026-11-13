@@ -1111,7 +1111,8 @@ data, settings per device type, saved runs (§7.5), export docs.
 | `PUT /api/u/sync/items/<kind>/<id>` | body = blob; `If-Match: <rev>`; `409` returns the current item |
 | `DELETE /api/u/sync/items/<kind>/<id>` | tombstone, `If-Match` |
 
-Limits: 1 MB per item, 5 MB of small items per account, 2 000 items.
+Limits: 1 MB per item, 2 MB of small items per account, 2 000 items
+(100 accounts at the limit are 200 MB of D1's free 500 MB).
 
 ### 7.5 Runs in the cloud
 
@@ -1123,11 +1124,13 @@ ADR 0146, "Runs".
   `/api/u/runs/<id>`; then its `run` item (meta, summary, rating,
   body size) is pushed. Uploads happen on the start page or in the
   background, never during a fight's frames.
-- **The limit.** 250 MB per account for run bodies and shared
-  payloads, 50 MB per body. The server refuses over-limit uploads
+- **The limit.** 50 MB per account to begin with, for run bodies and
+  shared payloads, 20 MB per body. Stage 63 measures the stored size
+  of real saved runs first; the owner then confirms or changes the
+  number. The server refuses over-limit uploads
   with `quota` and the numbers.
 - **"Does not fit" dialog** (look kit): "Your cloud storage is full
-  (248 of 250 MB). The run is saved on this device." with Download the
+  (49 of 50 MB). The run is saved on this device." with Download the
   run, Open History, Keep on this device. It is shown where the save
   was asked for; after an Exit it is shown on the start page.
 - **History** lists runs from the account that are not on the device,
@@ -1270,8 +1273,8 @@ ADR 0148, "The admin page".
 | Registration | Turnstile; 3 an hour and 10 a day per address (hashed, daily pepper) |
 | Login | 10 failures per name in 15 min → 15 min wait; Turnstile after 3 |
 | API in general | the rate limiting binding, 120 requests a minute per session or address |
-| Small items | 1 MB each, 5 MB and 2 000 items per account |
-| Runs and shared payloads | 250 MB per account; 50 MB per run body; 10 MB per shared payload; 50 shared runs |
+| Small items | 1 MB each, 2 MB and 2 000 items per account |
+| Runs and shared payloads | 50 MB per account; 20 MB per run body; 5 MB per shared payload; 50 shared runs |
 | Comments, votes | 20 and 60 an hour per account |
 | Reports | 30 a day per account |
 
