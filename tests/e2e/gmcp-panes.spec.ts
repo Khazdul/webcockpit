@@ -3,7 +3,6 @@
 // (tests/fixtures/gmcp-demo.log) and, for the live disconnect, a mocked
 // MUME WebSocket.
 import { type Page, expect, test } from '@playwright/test';
-import { menuSel, menuTitle, openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 
@@ -84,34 +83,6 @@ test('the Group gear applies live (ADR 0107)', async ({ page }) => {
   await expect.poll(() => groupNames(page)).toEqual(['a citizen mercenary (MERC)', 'a large dog (DOG)', 'a sturdy pony']);
   await npc('off').click();
   await expect.poll(() => groupNames(page)).toEqual([]);
-  const s = await page.evaluate(() => window.__wc!.settings.get().group);
-  expect(s).toMatchObject({ showPlayers: false, npcMode: 'off' });
-  await page.evaluate(() => window.__wc!.settings.reset());
-});
-
-test('Options → Panes → Group in the phone\'s ESC menu writes the settings', async ({ page }) => {
-  // The start page's Options went in stage 32; the phone's ESC menu keeps it.
-  await openEscOptions(page);
-  const sel = menuSel(page);
-  const title = menuTitle(page);
-  await page.keyboard.press('Enter'); // Panes
-  await expect(title).toHaveText('─── Panes ───');
-  // The phone's pane Appearance page first, then Timers (ADR 0107).
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await expect(sel).toHaveText('<< Group >>');
-  await page.keyboard.press('Enter');
-  await expect(title).toHaveText('─── Group ───');
-  await expect(sel).toContainText('[X] Show players');
-  await page.keyboard.press('Enter');
-  await expect(sel).toContainText('[ ] Show players');
-  await page.keyboard.press('ArrowDown');
-  await expect(sel).toHaveText('<< NPC visibility: Labeled >>');
-  await page.keyboard.press('ArrowRight');
-  await expect(sel).toHaveText('<< NPC visibility: All >>');
-  await page.keyboard.press('ArrowRight');
-  await expect(sel).toHaveText('<< NPC visibility: Off >>');
   const s = await page.evaluate(() => window.__wc!.settings.get().group);
   expect(s).toMatchObject({ showPlayers: false, npcMode: 'off' });
   await page.evaluate(() => window.__wc!.settings.reset());

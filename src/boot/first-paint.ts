@@ -90,7 +90,7 @@ function start(win: Window): void {
   const flags = initDevice(win);
   if (flags.phone) phoneViewportMeta(doc);
   const offline = params.has('replay') || params.has('bench') || params.has('fixture');
-  const a = firstAppearance(params.has('safe') ? null : readMirror(), flags.phone);
+  const a = firstAppearance(params.has('safe') ? null : readMirror(), flags.phone || flags.desktopSite);
 
   // The page colours (src/theme/apply.ts sets the same and the rest).
   const st = root.style;

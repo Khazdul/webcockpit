@@ -3,7 +3,6 @@
 // Most tests use the offline GMCP demo (tests/fixtures/gmcp-demo.log) at
 // max speed; the archive test uses a mocked MUME WebSocket.
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
-import { openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 const IAC = 255;
@@ -201,35 +200,6 @@ test('the Comm gear sets the Public channels and the chat window live (ADR 0107,
   await expect.poll(async () => (await settings(page)).comm.npcs).toBe(true);
   await pop.locator('[aria-label="Show chats active in the last"] [data-value="all"]').click();
   await expect.poll(async () => (await settings(page)).comm.chatWindow).toBe('all');
-  await page.evaluate(() => window.__wc!.settings.reset());
-});
-
-test('Options → Panes → Communication in the phone\'s ESC menu sets the Public channels and the chat window', async ({ page }) => {
-  // The start page's Options went in stage 32; the phone's ESC menu keeps it.
-  const frame = await openEscOptions(page);
-  await frame.locator('.wc-mrow[data-key="panes"]').click();
-  await frame.locator('.wc-mrow[data-key="comm"]').click();
-  await expect(frame.locator('.wc-title-row')).toContainText('Communication');
-  await expect(frame.locator('[data-channel]')).toHaveText([
-    'Narrates', 'Tells', 'Says', 'Yells', 'Prayers', 'Emotes', 'Whispers', 'Questions', 'Songs', 'Socials',
-  ]);
-  // Enter on the first row turns Narrates off (the mouse moved away:
-  // hovering a row moves the cursor).
-  await page.mouse.move(0, 0);
-  await page.keyboard.press('Home');
-  await page.keyboard.press('Enter');
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false, tells: false, questions: false, socials: false });
-  await frame.locator('[data-channel="tales"]').click();
-  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tells: false, questions: false, socials: false });
-  // NPCs: off by default; a click shows them in Public.
-  expect((await settings(page)).comm.npcs).toBe(false);
-  await frame.locator('[data-key="npcs"]').click();
-  await expect.poll(async () => (await settings(page)).comm.npcs).toBe(true);
-  const win = frame.locator('[data-key="chat-window"]');
-  await expect(win).toHaveText('Chats: active in the last 30 min');
-  await win.click();
-  await expect.poll(async () => (await settings(page)).comm.chatWindow).toBe(60);
-  await expect(win).toHaveText('Chats: active in the last 60 min');
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 

@@ -160,25 +160,49 @@ test('the link drops while the sheet is open: it stays, and Reconnect lights up'
   await expect(row(page, 'reconnect')).toHaveClass(/\bis-lit\b/);
 });
 
-test('the phone layer cannot be loaded: the old ☰ opens the old ESC menu', async ({ page }) => {
+test('the phone layer cannot be loaded: a cover with Reload, and no old menu (stage 55)', async ({ page }) => {
   // The dev server serves the phone layer's chunk as this module.
+  let fail = true;
+  await page.route(/\/src\/phone\/index\.ts/, (route) => (fail ? route.abort() : route.continue()));
+  await page.goto('/?replay&phone=1');
+  const cover = page.locator('.wc-phone-failed');
+  await expect(cover).toBeVisible();
+  await expect(cover).toHaveCount(1);
+  await expect(cover.locator('p')).toHaveText('The phone layout could not be loaded. Check the connection and reload.');
+  // It covers the whole page, over the cockpit.
+  const box = (await cover.boundingBox())!;
+  const view = page.viewportSize()!;
+  expect([box.x, box.y, box.width, box.height]).toEqual([0, 0, view.width, view.height]);
+  expect(await page.evaluate(() => document.elementFromPoint(40, 40)?.closest('.wc-phone-failed') !== null)).toBe(true);
+  // Nothing of the old layout: no `☰`, no ESC menu, no phone layer.
+  await expect(page.locator('.wc-menu-btn')).toHaveCount(0);
+  await expect(page.locator('.wc-ph-menu, .wc-ph-pad, .wc-ph-menu-host')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => window.__wc!.shell.openMenu());
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toBeHidden();
+  // A touch-size Reload button reloads the page: with the chunk back, the layout is there.
+  const reload = cover.locator('button');
+  await expect(reload).toHaveText('Reload');
+  const rb = (await reload.boundingBox())!;
+  expect(rb.height).toBeGreaterThanOrEqual(44);
+  expect(rb.width).toBeGreaterThanOrEqual(44);
+  fail = false;
+  await reload.tap();
+  await expect(menuKey(page)).toBeVisible();
+  await expect(page.locator('.wc-phone-failed')).toHaveCount(0);
+});
+
+test('the cover follows the theme: dark, and light on Paper (stage 55)', async ({ page }) => {
   await page.route(/\/src\/phone\/index\.ts/, (route) => route.abort());
   await page.goto('/?replay&phone=1');
-  await expect(page.locator('.wc-app')).toBeVisible();
-  const old = page.locator('.wc-menu-btn');
-  await expect(old).toHaveCount(1);
-  await expect(old).toHaveText('☰');
-  await page.waitForTimeout(500);
-  await expect(page.locator('.wc-ph-menu, .wc-ph-pad, .wc-ph-menu-host')).toHaveCount(0);
-  await old.tap();
-  await expect(overlay(page)).toBeVisible();
-  await expect(frame(page).locator('.wc-mrow[data-key="options"]')).toBeVisible();
-  await expect(frame(page).locator('.wc-mrow.is-sel')).toHaveText('<< Reconnect >>');
-  // Esc opens and closes it too, as before stage 51.
-  await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeHidden();
-  await field(page).press('Escape');
-  await expect(overlay(page)).toBeVisible();
+  const cover = page.locator('.wc-phone-failed');
+  await expect(cover).toBeVisible();
+  const colours = () => cover.evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+  expect(await colours()).toEqual(['rgb(0, 0, 0)', 'rgb(192, 192, 192)']);
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
+  await expect.poll(colours).toEqual(['rgb(244, 236, 216)', 'rgb(0, 0, 0)']);
+  await page.evaluate(() => window.__wc!.settings.reset());
 });
 
 test('the selected profile shows in the status line and on the Profile row', async ({ page }) => {

@@ -513,20 +513,6 @@ test.describe('landscape', () => {
   });
 });
 
-test.describe('a phone flag forced in a wide window (the old phone layout)', () => {
-  test.use({ viewport: { width: 1000, height: 700 } });
-
-  test('keeps the old Exit session frame: #exit opens the ESC menu\'s confirm, not the phone\'s sheet', async ({ page }) => {
-    await page.goto('/?replay&phone=1&tablet=desktop');
-    await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
-    await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
-    await page.locator('.wc-input-field').fill('#exit');
-    await page.locator('.wc-input-field').press('Enter');
-    await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Exit session ───');
-    await expect(page.locator('.wc-ph-exitsheet, .wc-ph-sheet')).toHaveCount(0);
-  });
-});
-
 test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 

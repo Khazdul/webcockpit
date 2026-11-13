@@ -225,22 +225,22 @@ test('rain is drawn at the left edge on the phone\'s game layout (the left band 
   expect(await rainAtLeft(page)).toBe(true);
 });
 
-test.describe('a tablet-size window with the phone flag', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
   test('no rain in the left 30 %: the band is applied there as before', async ({ page }) => {
-    await page.goto('/?replay&phone=1&tablet=desktop');
+    await page.goto('/?replay&tablet=desktop');
     await expect(page.locator('.wc-cockpit')).toBeVisible();
     await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
     expect(await rainAtLeft(page)).toBe(false);
   });
 });
 
-test.describe('a tablet-size window with the phone flag', () => {
+test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`)', () => {
   test.use({ viewport: { width: 1000, height: 700 } });
 
   test('keeps the left band: the phone game layout\'s whole-width weather is not applied', async ({ page }) => {
-    await page.goto('/?replay&phone=1&tablet=desktop');
+    await page.goto('/?replay&tablet=desktop');
     await expect(page.locator('.wc-cockpit')).toBeVisible();
     await expect(page.locator('.wc-cockpit[data-phone-game]')).toHaveCount(0);
     await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));

@@ -3,7 +3,6 @@
 // active (they keep their picture after the replay); the debug hooks on
 // `game.timers` put the cells in.
 import { type Page, expect, test } from '@playwright/test';
-import { menuFrame, openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 
@@ -219,29 +218,4 @@ test('sanctuary on another group member shows in the Sanctuary group (untimed wi
   // The flag off: gone.
   await page.evaluate(() => window.__wc!.app.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 7, sanctuary: false } } as never));
   await expect(sanct.locator('.wc-tm-chip', { hasText: 'Gibur' })).toHaveCount(0);
-});
-
-test('Options → Panes → Timers works in the phone\'s ESC menu', async ({ page }) => {
-  // The start page's Options went in stage 32; the phone's ESC menu keeps it.
-  await openEscOptions(page);
-  await menuFrame(page).locator('.wc-mrow[data-key="panes"] .wc-label').click();
-  await menuFrame(page).locator('.wc-mrow[data-key="timers"] .wc-label').click();
-  const frame = menuFrame(page);
-  await expect(frame.locator('.wc-title-row')).toHaveText('─── Timers ───');
-  const s = () => page.evaluate(() => window.__wc!.settings.get().timers);
-  // Style: Bars → Circles with →.
-  await frame.locator('.wc-mrow[data-key="style"] .wc-label').click();
-  await expect(frame.locator('.wc-mrow[data-key="style"]')).toContainText('Style: Circles');
-  expect((await s()).style).toBe('circles');
-  // A group: Enter hides it; → steps its colour from Auto to the first picker colour.
-  await frame.locator('.wc-mrow[data-key="g-blind"] .wc-label').click();
-  expect((await s()).groups.blind.enabled).toBe(false);
-  await page.keyboard.press('ArrowRight');
-  expect((await s()).groups.blind.color).toBe('#e0566a');
-  await expect(frame.locator('.wc-mrow[data-key="g-blind"]')).toContainText('colour: Rose');
-  // Time text.
-  const was = (await s()).timeText;
-  await frame.locator('.wc-mrow[data-key="timetext"] .wc-label').click();
-  expect((await s()).timeText).toBe(!was);
-  await page.evaluate(() => window.__wc!.settings.reset());
 });

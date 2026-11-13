@@ -657,7 +657,6 @@ test.describe('the game layout 360 × 800', () => {
 // ------------------------------------------------------- desktop and tablet
 
 for (const [name, viewport, url] of [
-  ['a desktop-size window with the phone flag forced', { width: 1280, height: 800 }, '/?phone=1&kbd=en&tablet=desktop'],
   ['a tablet sent back to the desktop cockpit (`?tablet=desktop`: touch, no phone flag)', { width: 820, height: 1180 }, '/?tablet=desktop'],
 ] as const) {
   test.describe(name, () => {

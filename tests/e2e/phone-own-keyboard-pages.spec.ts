@@ -702,28 +702,6 @@ test.describe('portrait 360 × 800, a page over the game', () => {
 
 // ------------------------------------------------------- desktop and tablet
 
-test.describe('a desktop-size window with the phone flag forced', () => {
-  test.use({ viewport: { width: 1280, height: 800 } });
-
-  test('gets nothing of this: no mount, no mark, no reserve', async ({ page }) => {
-    await page.goto('/?phone=1&kbd=en&tablet=desktop');
-    await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-    await page.evaluate(() => window.__wc!.shell.scripts!.init());
-    const f = startFrame(page);
-    await f.locator('.wc-sm-item[data-key="scripts"]').tap();
-    await f.locator('[data-btn="NEW"]').tap();
-    const field = page.locator('.wc-lk-dialog[data-dlg="new"] input');
-    await expect(field).toBeFocused();
-    expect(await field.getAttribute('inputmode')).toBeNull();
-    await field.tap();
-    await frames(page);
-    await expect(page.locator('.wc-okb-page')).toHaveCount(0);
-    await expect(html(page)).not.toHaveClass(/\bwc-okb-pg\b/);
-    await page.keyboard.type('desk');
-    await expect(field).toHaveValue('desk');
-  });
-});
-
 test.describe('a tablet sent back to the desktop cockpit (`?tablet=desktop`: touch, no phone flag)', () => {
   test.use({ viewport: { width: 820, height: 1180 } });
 
