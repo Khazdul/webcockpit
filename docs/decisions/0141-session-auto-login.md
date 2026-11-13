@@ -174,7 +174,8 @@ With Yes the session is armed for that character.
   it, in either phase. It is still sent: the controller only listens to
   what the session sends and never stands between the command line and
   the session, and an empty line at the name prompt does at worst make
-  MUME ask for the name again, which stops the attempt by itself.
+  MUME ask for the name again, which is not answered (see the addendum
+  of 2026-11-13); the attempt then runs out of time.
 
 ### 6. Wipes, and what keeps the session armed
 
@@ -338,3 +339,21 @@ below is from the repository's own tests and fixtures:
     feature would then never log in; safe, but useless).
 11. A character's name is letters only, 2 to 20 (the shape a name
     candidate must have to be kept).
+
+## Addendum 2026-11-13: the name prompt comes twice on the live game
+
+The owner's first automatic login on the live site (0.8.0, phone)
+stopped with "MUME asked for the name again": the name prompt stood
+twice in the text, the first with the name after it, and MUME went on to
+`Account password:`. So MUME took the name, and the second prompt was
+MUME's own (the client sent one line, the name). Why MUME shows it
+again is not known; the likely cause is that the name is answered at
+once, before MUME is done with the connection's telnet negotiation, and
+MUME writes its prompt again after it. A login by hand never shows it,
+which fits: nobody types that fast.
+
+Decision: a name prompt while the attempt waits for the password prompt
+is not answered and stops nothing. The name is still sent once only.
+If MUME did not take the name, nothing more is sent and the attempt
+ends at `ATTEMPT_MS`. A name prompt after the password was sent still
+stops the attempt and wipes. Released as 0.8.1.

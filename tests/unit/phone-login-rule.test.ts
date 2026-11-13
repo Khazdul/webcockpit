@@ -196,10 +196,24 @@ describe('the attempt', () => {
     expect(after.actions).toEqual([]);
   });
 
-  it('never sends the name twice: a second name prompt stops it', () => {
-    const r = run([...attempt, { type: 'namePrompt' }, { type: 'namePrompt' }, { type: 'passwordPrompt' }], armed());
+  it('never sends the name twice: a second name prompt before the password prompt is not answered, and the login goes on', () => {
+    const r = run([...attempt, { type: 'namePrompt' }, { type: 'namePrompt' }, { type: 'namePrompt' }, { type: 'passwordPrompt' }, char('Rasta'), playing], armed());
+    expect(count(r.does, 'sendName')).toBe(1);
+    expect(count(r.does, 'sendPassword')).toBe(1);
+    expect(r.does).not.toContain('wipe');
+    expect(r.state.armed).toBe('Rasta');
+  });
+
+  it('a name prompt that only repeats runs into the time limit', () => {
+    const r = run([...attempt, { type: 'namePrompt' }, { type: 'namePrompt' }, { type: 'timeout' }], armed());
     expect(count(r.does, 'sendName')).toBe(1);
     expect(r.does).not.toContain('sendPassword');
+    expect(r.does).toContain('wipe');
+  });
+
+  it('the name prompt after the password was sent stops it', () => {
+    const r = run([...attempt, { type: 'namePrompt' }, { type: 'passwordPrompt' }, { type: 'namePrompt' }], armed());
+    expect(count(r.does, 'sendPassword')).toBe(1);
     expect(r.does).toContain('wipe');
   });
 

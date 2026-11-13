@@ -38,9 +38,14 @@
 // 3. THE ATTEMPT. With the session armed, every new real connection is
 //    logged in once: the name at MUME's name prompt, the password when the
 //    server turns ECHO off for it afterwards, then play as that character.
-//    Stopped, and the stored login wiped, by: the name prompt twice, a
-//    password prompt before the name was sent or a second time (MUME did
-//    not take the password), no play within `ATTEMPT_MS`, the connection
+//    The name is sent once, at the first name prompt. The live game shows
+//    the name prompt a second time right after the first, and still takes
+//    the name (seen 2026-11-13): a name prompt while the password prompt
+//    is waited for is therefore not answered and stops nothing; if MUME
+//    did not take the name, the time runs out. Stopped, and the stored
+//    login wiped, by: the name prompt after the password was sent (MUME
+//    did not take it), a password prompt before the name was sent or a
+//    second time, no play within `ATTEMPT_MS`, the connection
 //    ending, another character than the armed one in play, and, UNTIL THE
 //    PASSWORD HAS BEEN SENT, any non-empty line sent to the prompts by
 //    anything else (it would be taken as the name or the password). An
@@ -281,6 +286,8 @@ export function loginStep(s: LoginRuleState, ev: LoginEvent): LoginStep {
     }
     case 'namePrompt': {
       if (s.conn !== 'login' || s.auto === null || s.armed === null) return stay(s);
+      // Shown again while the password prompt is waited for: not answered, the name is never sent twice.
+      if (s.auto === 'password') return stay(s);
       if (s.auto !== 'name') return aborted(s, 'MUME asked for the name again');
       return { state: { ...s, auto: 'password' }, actions: [{ do: 'sendName', name: s.armed }] };
     }

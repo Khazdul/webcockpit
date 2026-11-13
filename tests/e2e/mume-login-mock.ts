@@ -42,6 +42,8 @@ export interface LoginMock {
   password: string;
   /** While true, MUME asks one more thing after the password and lets the character in at the next line (an invented question, for a login that is not name, password, game). */
   question: boolean;
+  /** While true, a new connection shows the name prompt twice, as the live game was seen to (2026-11-13). */
+  promptTwice: boolean;
   /** The link is lost: the newest socket closes as a browser reports a connection that went away (code 1006). */
   lose(): void;
   /** The session ends on the server's side (quit, rent, an idle kick): a close of its own (code 1000). */
@@ -67,6 +69,7 @@ export async function loginMock(page: Page, opts: LoginMockOptions = {}): Promis
     answer: true,
     password: opts.password ?? 'correct-horse-9',
     question: false,
+    promptTwice: false,
     lose: () => void server!.close({ code: 1006 }),
     quit: () => void server!.close({ code: 1000 }),
     goodbye: () => {
@@ -115,6 +118,7 @@ export async function loginMock(page: Page, opts: LoginMockOptions = {}): Promis
     ws.send(Buffer.concat([Buffer.from([IAC, WILL, GMCP]), Buffer.from(
           '\r\n                               ***  MUME IX  ***\r\n\r\nIf you have never played MUME before, type NEW to create a new character,\r\nor ? for help.\r\n\r\nBy what name do you wish to be known? ',
         ), Buffer.from([IAC, GA])]));
+    if (m.promptTwice) ws.send(Buffer.concat([Buffer.from('\r\nBy what name do you wish to be known? '), Buffer.from([IAC, GA])]));
   });
   return m;
 }

@@ -264,6 +264,21 @@ test('a wrong password by hand asks nothing; the right one after it does', async
   expect(m.sent[1]).toEqual(['Rasta', PASSWORD]);
 });
 
+test('MUME shows the name prompt twice: the name is sent once and the login goes through', async ({ page }) => {
+  const m = await enter(page, '/?phone=1');
+  await loginByHand(page);
+  await ask(page).locator('[data-act="yes"]').tap();
+  m.promptTwice = true;
+  await visibility(page, 'hidden');
+  m.lose();
+  await expect(status(page)).toHaveAttribute('data-status', /^disconnected/);
+  await visibility(page, 'visible');
+  await expect(rows(page).filter({ hasText: '[SYSTEM] Logged in as Rasta.' })).toHaveCount(1);
+  expect(m.sent[1]).toEqual(['Rasta', PASSWORD]);
+  expect(await armed(page)).toBe(true);
+  await expect(rows(page).filter({ hasText: 'Automatic login stopped' })).toHaveCount(0);
+});
+
 test('MUME no longer takes the stored password: one try, then it is forgotten and MUME\'s own prompt is left', async ({ page }) => {
   const m = await enter(page, '/?phone=1');
   await loginByHand(page);
