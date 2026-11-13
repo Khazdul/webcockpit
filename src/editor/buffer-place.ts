@@ -33,14 +33,7 @@ const buffers = new Map<string, BufferPlace>();
 
 /** Remembers the place of the buffer `key`; `part` changes only what it names. */
 export function keepBuffer(key: string, part: Partial<BufferPlace>): void {
-  buffers.set(key, {
-    anchor: 0,
-    head: 0,
-    top: 0,
-    off: 0,
-    ...buffers.get(key),
-    ...part,
-  });
+  buffers.set(key, { anchor: 0, head: 0, top: 0, off: 0, ...buffers.get(key), ...part });
 }
 
 /** The place of the buffer `key`, fitted to a text of `length`; null when none is remembered. */
@@ -86,9 +79,7 @@ export class BufferKeeper {
     this.back = was;
     if (was) view.dispatch({ selection: { anchor: was.anchor, head: was.head } });
     // Gone with the view's DOM.
-    view.scrollDOM.addEventListener('scroll', () => this.scrolled(), {
-      passive: true,
-    });
+    view.scrollDOM.addEventListener('scroll', () => this.scrolled(), { passive: true });
   }
 
   /** Call when the buffer may be shown with a size (after a render): puts the scroll back, once. */
@@ -97,12 +88,7 @@ export class BufferKeeper {
     if (b === undefined || this.view.scrollDOM.clientHeight === 0) return;
     this.back = undefined;
     if (b && (b.top > 0 || b.off > 0))
-      this.view.dispatch({
-        effects: EditorView.scrollIntoView(b.top, {
-          y: 'start',
-          yMargin: -b.off,
-        }),
-      });
+      this.view.dispatch({ effects: EditorView.scrollIntoView(b.top, { y: 'start', yMargin: -b.off }) });
   }
 
   /** The selection changed (the host's status callback). */
@@ -121,11 +107,6 @@ export class BufferKeeper {
     const at = v.coordsAtPos(line.from);
     if (!at) return;
     const sel = v.state.selection.main;
-    keepBuffer(this.key(), {
-      anchor: sel.anchor,
-      head: sel.head,
-      top: line.from,
-      off: Math.round(top - at.top),
-    });
+    keepBuffer(this.key(), { anchor: sel.anchor, head: sel.head, top: line.from, off: Math.round(top - at.top) });
   }
 }

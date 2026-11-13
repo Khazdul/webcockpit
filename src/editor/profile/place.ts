@@ -86,6 +86,7 @@ export function keepView(name: string, view: PlaceView): void {
 export function viewOf(name: string): PlaceView {
   return views.get(name) ?? 'lite';
 }
+
 /** The mark of entry `id`, on display row `row`, among its kind's `entries` (document order). */
 export function markOf(entries: readonly EntryNode[], id: number, row: number): RowMark | null {
   const at = entries.findIndex((e) => e.id === id);
