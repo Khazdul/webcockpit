@@ -1226,7 +1226,10 @@ ADR 0148, "The gallery" and "A notice of new runs".
 - **The notice:** logged-in players are told of newly published runs
   through the client's notices (ADR 0025's mechanism); see ADR 0148.
   In the game it is a quiet notice like the update notice, never over
-  the output.
+  the output. A switch in the game's Settings popup (§2.6; the phone's
+  settings page too), "Notices of new gallery runs", on by default,
+  turns it off; it is shown when logged in, is the same switch as on
+  the Account page, and holds for the account on every device.
 - **Reports** hide an item at five from different accounts.
 
 | Endpoint | Does |
@@ -1378,7 +1381,8 @@ tasks, the test guide and the owner's feedback. Order and content:
    the owner picks.
 2. Worker: list with the weighted mean, votes, comments, news.
 3. The gallery page, stars, comments, rules tick, Published switch.
-4. The notice of new runs and its switch.
+4. The notice of new runs; its switch in the game's Settings and on
+   the Account page.
 5. Reports that hide; owner test with two accounts; flag `gallery` on.
 
 **66 — The admin panel.**

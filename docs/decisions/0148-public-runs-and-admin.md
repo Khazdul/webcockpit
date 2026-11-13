@@ -98,7 +98,11 @@ players' accounts.
   so a notice can be up to 5 minutes late. The account remembers how
   far it has been told (`gallery_seen`), so a notice read on the
   desktop does not come again on the phone.
-- A switch on the Account page turns it off. It is on by default.
+- **A switch in the game's Settings turns it off** (owner,
+  2026-11-13); it is on by default. The same switch is on the Account
+  page. It is one choice for the account, kept on the server
+  (`prefs`), so it holds on every device. In Settings it is shown
+  only when logged in.
 - Not logged in: no notice; the gallery's own "New" sorting shows
   what is new.
 
