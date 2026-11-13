@@ -65,6 +65,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-13 — News post for 0.9.0 (no stage)
+
+- News post 0.4.1 → 0.9.0 written and posted by the owner, with five
+  screenshots (phone, own keyboard, Paper, tablet, hot key box). The
+  shots were made outside the repository: game content from the film's
+  Bree session (`video/record/lib/run-feed.ts`), a pinned moonlit night.
+  Nothing in the code changed.
+- **Next:** unchanged from the entry below.
+
 ### 2026-11-13 — Release 0.9.0 (stages 55 and 56)
 
 - **Owner, closing test on phone and iPad** (dev server over the
