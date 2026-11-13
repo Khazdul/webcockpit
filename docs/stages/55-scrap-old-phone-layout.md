@@ -349,3 +349,22 @@ Not for you to test: the cover with Reload when the phone layout cannot
 be loaded (it needs a broken connection at the right moment).
 
 ## Owner feedback
+
+### 2026-11-13, the phone, on the dev server
+
+"Otherwise it works well." Two things:
+
+1. **The K key's settings box** (not from this stage, found now): after
+   Custom the Save row is sometimes hidden, because the keyboard comes
+   up and the box no longer fits. Wanted: the box reworked to take much
+   less room, above all in height; clearer that it scrolls when not
+   everything fits; and Custom clears the label and the command fields
+   and puts the caret in the label field.
+2. **The lens in the run log player:** smaller, and as high up to the
+   right as it goes. Its outer width no more than about 33 % of the
+   player's width upright and about 50 % of the height on its side; a
+   default size relative to the player, not fixed in pixels.
+
+Both handed to building agents the same day (branches
+`stage-55-kbox`, `stage-55-lens`).
+
