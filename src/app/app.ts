@@ -244,11 +244,19 @@ export interface AppOptions {
    */
   ui?: AppUi;
   /**
-   * The phone's layout in the live game (ADR 0136): the cockpit's
-   * `phoneGame` option. Only the live game's shell passes it, on a phone;
-   * the phone layer (src/phone/) is mounted by the shell.
+   * The phone's layout (ADR 0136): the cockpit's `phoneGame` option. The
+   * live game's shell passes it, on a phone; the phone layer (src/phone/)
+   * is mounted by the shell. A player App may pass it too, together with
+   * `phoneReplay` (stage 55); whoever builds that App mounts the layer in
+   * its replay mode.
    */
   phoneGame?: boolean;
+  /**
+   * With `phoneGame`, in a player App: the cockpit's `phoneReplay` option
+   * (no command line; `bar` keeps the command row's rows for the player's
+   * transport bar). Without `phoneGame` it does nothing.
+   */
+  phoneReplay?: { bar: boolean };
   /** Hang-guard storage for the script host (tests; default `localStorage`). */
   scriptStorage?: Storage | null;
   /** The Lua runtime loader for the script host (tests). */
@@ -484,7 +492,9 @@ export class App {
       onFocusInput: () => this.input.focus(),
       paneContext,
       ...(this.appUi?.bar && this.appUi.togglePaneSettings ? { onGear: (id: PaneId) => this.appUi?.togglePaneSettings?.(id) } : {}),
-      ...(opts.phoneGame && !player ? { phoneGame: true } : {}),
+      ...(opts.phoneGame ? { phoneGame: true } : {}),
+      // Over a replay (stage 55): a player App's cockpit, without a command line.
+      ...(opts.phoneGame && opts.phoneReplay ? { phoneReplay: opts.phoneReplay } : {}),
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,

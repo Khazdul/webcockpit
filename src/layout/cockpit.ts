@@ -126,7 +126,15 @@
 // open pane strip (`setPhoneStrip`, §5) and Comm when it is open
 // (`setPhoneComm`, §6), both borderless in the allocator's rows; temporary
 // script panes still show over the game text. Ctrl/Alt+1…9 go to the
-// strip (`setPhonePageKey`).
+// strip (`setPhonePageKey`). The cockpit carries its own theme mark there
+// (`data-ph-light` while its settings' background is light): phone.css
+// keys its Paper rules on it, not on `<html data-light>`, because a
+// cockpit in the run log player has the recorded theme, not the page's.
+//
+// The same layout over a replay (stage 55, the `phoneReplay` option with
+// `phoneGame`): there is no command line. The command row's rows are kept
+// only when the player docks its transport bar there (`bar`), else the
+// game text has them; the device's keyboard state is never looked at.
 
 import { onTitleFont } from '../panes/title-font';
 import './layout.css';
@@ -199,6 +207,7 @@ import {
 } from './pane-buttons';
 import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
+import { isLight } from '../theme/color';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
 import { type PhoneGameHide, type PhoneGameLens, type PhoneGameResult, allocatePhoneGame, commMinRows, commandRows, ownKeyboardReserve, phonePaneRect } from './phone-game';
 import { holdDeviceKeyboard, keyboardUp, landscapeLayout, screenLandscape } from './phone-viewport';
@@ -351,6 +360,15 @@ export interface CockpitOptions {
    * shell passes it. Without the phone flag it does nothing.
    */
   phoneGame?: boolean;
+  /**
+   * With `phoneGame`: the layout is mounted over a replay (the run log
+   * player and Spotlights on a phone or tablet, stage 55). No command line
+   * exists there. `bar` true keeps the command row's rows (`commandRows`)
+   * free for the player's transport bar; false lays out no command row,
+   * and the game text reaches the bottom edge. Without `phoneGame` it does
+   * nothing.
+   */
+  phoneReplay?: { bar: boolean };
 }
 
 /**
@@ -557,6 +575,8 @@ export class Cockpit {
   private stripKey = '';
   /** Phone only: the live game's layout (ADR 0136), fixed at construction. */
   private readonly phoneGame: boolean;
+  /** Phone game layout over a replay (`phoneReplay`), fixed at construction; null: the live game. */
+  private readonly phoneReplay: { bar: boolean } | null;
   /** Phone game layout: a fight is on, the fight card has its rows (`setPhoneFight`). */
   private pgFight = false;
   /** Phone game layout: the last allocation. */
@@ -633,6 +653,8 @@ export class Cockpit {
     this.phoneGame = this.phone && opts.phoneGame === true;
     // The scope of the phone layer's CSS (src/phone/phone.css).
     if (this.phoneGame) this.el.dataset.phoneGame = '';
+    this.phoneReplay = this.phoneGame && opts.phoneReplay ? { bar: opts.phoneReplay.bar === true } : null;
+    this.markPhoneLight();
     if (this.phone && !this.phoneGame) {
       // The old phone layout: its fields have the device's keyboard (phone-viewport.ts).
       this.unsubs.push(holdDeviceKeyboard(doc));
@@ -666,7 +688,11 @@ export class Cockpit {
     this.el.addEventListener('mouseup', this.onMouseUp);
 
     this.unsubs.push(
-      this.settings.subscribe(() => this.scheduleRelayout()),
+      this.settings.subscribe((next, prev) => {
+        // At once, not with the layout a frame later: the page's own mark changes in this turn too.
+        if (next.appearance.bg !== prev.appearance.bg) this.markPhoneLight();
+        this.scheduleRelayout();
+      }),
       onTempPlacesForgotten(this.onPlacesForgotten),
       this.cells.subscribe(() => this.scheduleRelayout()),
       // The title face loaded: the hoods take the measured label widths (ADR 0123).
@@ -1140,6 +1166,31 @@ export class Cockpit {
     return this.phoneGame;
   }
 
+  /** Phone game layout over a replay (`phoneReplay`): whether the command row's rows are kept for a bar; null in the live game and elsewhere. */
+  get phoneReplayMode(): { bar: boolean } | null {
+    return this.phoneReplay;
+  }
+
+  /**
+   * Phone game layout: `data-ph-light` on the cockpit while its own
+   * settings' background is light (the scope of phone.css's Paper rules;
+   * see the file header). Elsewhere nothing is marked.
+   */
+  private markPhoneLight(): void {
+    if (!this.phoneGame) return;
+    this.el.toggleAttribute('data-ph-light', isLight(this.settings.get().appearance.bg));
+  }
+
+  /** Phone game layout: the command row's rows at a cell `cellH` px high (a replay: the bar's, or none). */
+  private pgInputRows(cellH: number): number {
+    return this.phoneReplay && !this.phoneReplay.bar ? 0 : commandRows(cellH);
+  }
+
+  /** Phone game layout: the device's keyboard is up (see `relayoutPhoneGame`). Never over a replay: no field takes the focus there. */
+  private pgDeviceKeyboard(): boolean {
+    return !this.phoneReplay && keyboardUp();
+  }
+
   /** Phone game layout: the last allocation (cells), or null before the first layout and elsewhere. */
   get phoneGameLayout(): PhoneGameResult | null {
     return this.pgLast;
@@ -1271,7 +1322,7 @@ export class Cockpit {
     const H = this.el.clientHeight;
     if (!(W > 0 && H > 0 && cellH > 0)) return 0;
     const win = this.el.ownerDocument.defaultView;
-    return ownKeyboardReserve(H, cellH, px(landscapeLayout(W, H, win ? screenLandscape(win) : null), H), commandRows(cellH)).lift;
+    return ownKeyboardReserve(H, cellH, px(landscapeLayout(W, H, win ? screenLandscape(win) : null), H), this.pgInputRows(cellH)).lift;
   }
 
   /**
@@ -1419,13 +1470,12 @@ export class Cockpit {
   /** Phone game layout: the relayout (allocatePhoneGame, ADR 0136 §2); see the file header. */
   private relayoutPhoneGame(cell: PaneCell, W: number, H: number): void {
     const s = this.settings.get();
-    const inputRows = commandRows(cell.h);
     // The device's keyboard is up. Only on a phone whose phone layer could not be loaded (the
     // command line then has the device's keyboard, as in the old phone layout; with the layer
     // the state is never set, phone-viewport.ts `watchDeviceKeyboard`): the too-small guard is
     // off, and the shape is the last one seen with the keyboard down. Goes with the old phone
     // layout (stage 52 file, section C).
-    const kbd = keyboardUp();
+    const kbd = this.pgDeviceKeyboard();
     // Landscape (stage 52c) is the window's shape (a visible area made lower, as by a split
     // screen, can make a portrait screen wider than tall, and that is still portrait), unless
     // the screen itself says portrait.
@@ -1486,7 +1536,7 @@ export class Cockpit {
    * nothing: `refused` says that the keyboard was wanted and left out.
    */
   private allocPhoneGame(cell: { w: number; h: number }, W: number, H: number, land: boolean, kbd: boolean, ask: PhoneAsk): { g: PhoneGameResult; refused: boolean } {
-    const inputRows = commandRows(cell.h);
+    const inputRows = this.pgInputRows(cell.h);
     // A keyboard of our own (`setPhoneBottom`): whole rows from the bottom edge, and what they are
     // on screen (`ownKeyboardReserve`). Portrait: the compass and the hot keys stand on the keyboard's
     // top edge (the phone layer lifts them), so the limit and the lens's clearance are counted from
@@ -1558,7 +1608,7 @@ export class Cockpit {
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;
     if (!(W > 0 && H > 0 && cell.w > 0 && cell.h > 0)) return null;
-    return this.allocPhoneGame(cell, W, H, this.pgLandscape, keyboardUp(), { bottom: ask.bottom, fits: ask.fits ?? null, commKeep: false, hide: ask.hide ?? null }).g;
+    return this.allocPhoneGame(cell, W, H, this.pgLandscape, this.pgDeviceKeyboard(), { bottom: ask.bottom, fits: ask.fits ?? null, commKeep: false, hide: ask.hide ?? null }).g;
   }
 
   /** Phone only: the tab strip's label for `tab`. */
