@@ -7,7 +7,7 @@ import { Bus } from '../../src/core/bus';
 import type { BusEvents } from '../../src/core/types';
 import { REASON_BACKGROUND_LOST, REASON_USER_RECONNECT, Session, isLinkLoss } from '../../src/net/session';
 import { OPT_ECHO, OPT_GMCP, WILL, WONT } from '../../src/net/telnet';
-import { AutoLogin } from '../../src/phone/auto-login';
+import { AutoLogin, NAME_WAIT_MS } from '../../src/phone/auto-login';
 import { LoginAsk, placeAsk } from '../../src/phone/login-ask';
 import { ASK_MS, ATTEMPT_MS } from '../../src/phone/login-rule';
 import { LineAssembler } from '../../src/text/assembler';
@@ -19,7 +19,11 @@ const GA = 249;
 const NAME_PROMPT = [...ascii('By what name do you wish to be known? '), IAC, GA];
 const PASSWORD_PROMPT = [IAC, WILL, OPT_ECHO, ...ascii('Password: '), IAC, GA];
 const gmcp = (payload: string): number[] => sb(OPT_GMCP, utf8(payload));
-const tick = (): Promise<void> => new Promise<void>((r) => queueMicrotask(r));
+/** Past the name's wait after the prompt (`NAME_WAIT_MS`) and the frame's microtasks. */
+const tick = (): Promise<void> => {
+  vi.advanceTimersByTime(NAME_WAIT_MS);
+  return new Promise<void>((r) => queueMicrotask(r));
+};
 /** The reason of a socket that went away with no close from the server (a lost link). */
 const LOST = 'closed by server (code 1006)';
 /** The reason of a close the server made itself (quit, rent, an idle kick). */
@@ -201,6 +205,10 @@ describe('the automatic login', () => {
     m.sock().drop(LOST);
     m.cmds.length = 0;
     m.up();
+    // The name waits after the prompt (answered at once, the live game shows the prompt again).
+    vi.advanceTimersByTime(NAME_WAIT_MS - 1);
+    await new Promise<void>((r) => queueMicrotask(r));
+    expect(m.lines()).toEqual([]);
     await tick();
     expect(m.lines()).toEqual(['Rasta']);
     // Text alone is not a password prompt: nothing is sent until the server turns ECHO off.

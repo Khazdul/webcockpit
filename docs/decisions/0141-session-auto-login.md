@@ -357,3 +357,15 @@ is not answered and stops nothing. The name is still sent once only.
 If MUME did not take the name, nothing more is sent and the attempt
 ends at `ATTEMPT_MS`. A name prompt after the password was sent still
 stops the attempt and wipes. Released as 0.8.1.
+
+### Same day, 0.8.2: the name waits a second
+
+With 0.8.1 the login went through, and the prompt still stood twice in
+the text, which is ugly. The output pane was checked: it shows a prompt
+once however the echo and the line's end arrive, so MUME sent it twice.
+A login by hand never shows it, so the early answer is the likely
+trigger. Decision: the name is sent `NAME_WAIT_MS` (1 s) after the name
+prompt, not in the same frame. A line of the player's in that second
+stops the attempt as before. The rule's tolerance from 0.8.1 stays, for
+a MUME that repeats the prompt anyway. Whether the second removes the
+repeat is for the owner to see on the live game.

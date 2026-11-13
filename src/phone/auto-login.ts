@@ -33,6 +33,14 @@ import { LoginVault } from './login-vault';
 /** MUME's name prompt (to be confirmed against the live game, ADR 0141). */
 export const NAME_PROMPT = /By what name do you wish to be known\?/i;
 
+/**
+ * How long the name waits after MUME's name prompt, ms. Answered at once,
+ * the live game shows the name prompt a second time (seen 2026-11-13; the
+ * likely cause is input arriving before MUME is done with the connection's
+ * telnet negotiation). A login by hand never shows it.
+ */
+export const NAME_WAIT_MS = 1000;
+
 /** What the controller uses of the session (src/net/session.ts). */
 export interface LoginSession {
   readonly state: ConnState;
@@ -217,7 +225,7 @@ export class AutoLogin {
           if (this.state.auto !== 'password' || s.state !== 'login' || s.isReplay || s.passwordMode) return false;
           this.sendOwn(() => s.sendCommand(a.name));
           return true;
-        });
+        }, NAME_WAIT_MS);
         break;
       case 'sendPassword':
         this.later(() => {
@@ -236,12 +244,14 @@ export class AutoLogin {
   }
 
   /** Runs `send` after the frame being read, on the same connection only; a send that could not be made stops the attempt. */
-  private later(send: () => boolean): void {
+  private later(send: () => boolean, ms = 0): void {
     const gen = this.gen;
-    queueMicrotask(() => {
+    const run = (): void => {
       if (gen !== this.gen || this.state.auto === null) return;
       if (!send()) this.feed({ type: 'sendFailed' });
-    });
+    };
+    if (ms > 0) this.host.win.setTimeout(run, ms);
+    else queueMicrotask(run);
   }
 
   private sendOwn(send: () => void): void {
