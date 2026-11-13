@@ -2,17 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   FS_RECHECK_MS,
-  NO_BASELINE,
   VV_SETTLE_MS,
   installPhoneViewport,
-  holdDeviceKeyboard,
-  keyboardUp,
-  watchDeviceKeyboard,
   landscapeLayout,
-  nextBaseline,
   screenLandscape,
   onPhoneViewportApplied,
-  visibleArea,
 } from '../../src/layout/phone-viewport';
 
 describe('the screen\'s orientation and the landscape layout (stage 52e)', () => {
@@ -32,42 +26,11 @@ describe('the screen\'s orientation and the landscape layout (stage 52e)', () =>
   it('landscape is a window wider than tall whose screen does not say portrait', () => {
     expect(landscapeLayout(844, 390, true)).toBe(true);
     expect(landscapeLayout(844, 390, null)).toBe(true);
-    // The keyboard up on an upright phone, not yet known to be up (a start or a rotation with it up).
+    // An upright phone whose visible area was made lower (a split screen).
     expect(landscapeLayout(360, 300, false)).toBe(false);
     // A phone flag in a computer's narrow window: the monitor lies on its side, the window does not.
     expect(landscapeLayout(390, 844, true)).toBe(false);
     expect(landscapeLayout(400, 400, true)).toBe(false);
-  });
-});
-
-describe('visibleArea (pure)', () => {
-  it('the visual viewport alone decides; the keyboard is up well below the tallest height', () => {
-    expect(visibleArea({ height: 800, top: 0, tallest: 800 })).toEqual({ height: 800, top: 0, keyboardUp: false });
-    expect(visibleArea({ height: 480, top: 0, tallest: 800 })).toEqual({ height: 480, top: 0, keyboardUp: true });
-    expect(visibleArea({ height: 480, top: 12, tallest: 800 })).toEqual({ height: 480, top: 12, keyboardUp: true });
-    expect(visibleArea({ height: 480, top: 0, tallest: 0 })).toEqual({ height: 480, top: 0, keyboardUp: false });
-  });
-});
-
-describe('nextBaseline (pure)', () => {
-  it('keeps the tallest per mode; the plain height is a floor for fullscreen', () => {
-    let b = nextBaseline(NO_BASELINE, 360, 686, false);
-    expect(b).toEqual({ width: 360, plain: 686, full: 0 });
-    b = nextBaseline(b, 360, 372, false); // keyboard up
-    expect(b.plain).toBe(686);
-    b = nextBaseline(b, 360, 372, true); // fullscreen entered, keyboard still up
-    expect(b).toEqual({ width: 360, plain: 686, full: 686 });
-    b = nextBaseline(b, 360, 800, true);
-    expect(b).toEqual({ width: 360, plain: 686, full: 800 });
-    // Back out: the fullscreen height does not leak into the plain baseline.
-    b = nextBaseline(b, 360, 686, false);
-    expect(b).toEqual({ width: 360, plain: 686, full: 800 });
-  });
-
-  it('a new width (a rotation) starts both over', () => {
-    const b = nextBaseline({ width: 360, plain: 686, full: 800 }, 800.4, 300, false);
-    expect(b).toEqual({ width: 800, plain: 300, full: 0 });
-    expect(nextBaseline({ width: 360, plain: 686, full: 800 }, 800, 360, true)).toEqual({ width: 800, plain: 0, full: 360 });
   });
 });
 
@@ -100,7 +63,7 @@ function fakeWindow(opts: { vk?: boolean; search?: string } = {}) {
     vk,
     doc,
     height: () => props.get('--wc-vv-h'),
-    kbd: () => classes.has('wc-kbd'),
+    classes: () => [...classes],
     resize: (h: number, w = vv.width) => {
       vv.height = h;
       vv.width = w;
@@ -126,17 +89,16 @@ describe('installPhoneViewport', () => {
   });
   const settle = (): void => void vi.advanceTimersByTime(VV_SETTLE_MS);
 
-  it('outside fullscreen follows the visual viewport, never turns overlaysContent on, ignores the rectangle', () => {
+  it('outside fullscreen follows the visual viewport, never turns overlaysContent on, ignores the rectangle; a shrink is no keyboard state', () => {
     const f = fakeWindow();
     stop = installPhoneViewport(f.win);
     expect(f.height()).toBe('686px');
-    expect(f.kbd()).toBe(false);
     f.resize(372);
     expect(f.height()).toBe('686px'); // not before the events are quiet
     settle();
     expect(f.height()).toBe('372px');
-    expect(f.kbd()).toBe(true);
-    expect(keyboardUp()).toBe(true);
+    // The device's keyboard is not followed (stage 55): no `wc-kbd`, nothing but the height.
+    expect(f.classes()).toEqual([]);
     f.keyboard(300, 386);
     settle();
     expect(f.height()).toBe('372px');
@@ -144,65 +106,26 @@ describe('installPhoneViewport', () => {
     f.resize(686);
     settle();
     expect(f.height()).toBe('686px');
-    expect(f.kbd()).toBe(false);
   });
 
-  it('with the device keyboard state off (a phone with our own keyboard) a shrink is no keyboard; the height is still published', () => {
-    const f = fakeWindow();
-    stop = installPhoneViewport(f.win);
-    f.resize(372);
-    settle();
-    expect(f.kbd()).toBe(true);
-    try {
-      // Turned off while it is set: dropped at once.
-      watchDeviceKeyboard(false, f.doc as unknown as Document);
-      expect(f.kbd()).toBe(false);
-      expect(keyboardUp()).toBe(false);
-      f.resize(300);
-      settle();
-      expect(f.height()).toBe('300px');
-      expect(f.kbd()).toBe(false);
-      expect(keyboardUp()).toBe(false);
-      // An old-layout cockpit on the page (the log player on a phone) holds the state on.
-      const release = holdDeviceKeyboard(f.doc as unknown as Document);
-      f.resize(299);
-      settle();
-      expect(f.kbd()).toBe(true);
-      release();
-      release();
-      expect(f.kbd()).toBe(false);
-      expect(keyboardUp()).toBe(false);
-    } finally {
-      watchDeviceKeyboard(true);
-    }
-    // On again (the phone layer could not be mounted): the next measurement says so.
-    f.resize(301);
-    settle();
-    expect(f.kbd()).toBe(true);
-  });
-
-  it('a new width (a turn) is published at once, and is no keyboard; the same width still waits for the events to be quiet', () => {
+  it('a new width (a turn) is published at once; the same width still waits for the events to be quiet', () => {
     const f = fakeWindow();
     stop = installPhoneViewport(f.win);
     // Turned to landscape: lower, but at a new width.
     f.resize(360, 800);
     expect(f.height()).toBe('360px');
-    expect(f.kbd()).toBe(false);
     // A height that comes after the width, with no event of its own, is taken by the trailing measurement.
     f.vv.height = 340;
     settle();
     expect(f.height()).toBe('340px');
-    expect(f.kbd()).toBe(false);
-    // At the same width a shrink waits (the device keyboard's animation), and is the keyboard.
+    // At the same width a shrink waits.
     f.resize(150);
     expect(f.height()).toBe('340px');
     settle();
     expect(f.height()).toBe('150px');
-    expect(f.kbd()).toBe(true);
-    // Turned back with it "up": the new width starts over at once.
+    // Turned back: the new width is published at once.
     f.resize(686, 360);
     expect(f.height()).toBe('686px');
-    expect(f.kbd()).toBe(false);
   });
 
   it('without the VirtualKeyboard API fullscreen still follows the visual viewport', () => {
@@ -214,7 +137,6 @@ describe('installPhoneViewport', () => {
     f.resize(500);
     settle();
     expect(f.height()).toBe('500px');
-    expect(f.kbd()).toBe(true);
   });
 
   it('a fullscreen change measures at once, at the settle time and at the recheck; overlaysContent stays off', () => {
@@ -222,12 +144,10 @@ describe('installPhoneViewport', () => {
     stop = installPhoneViewport(f.win);
     f.resize(372);
     settle();
-    expect(f.kbd()).toBe(true);
     // The fullscreen change arrives; the viewport has not followed yet.
     f.fullscreen(true);
     expect(f.vk.overlaysContent).toBe(false);
     expect(f.height()).toBe('372px');
-    expect(f.kbd()).toBe(true); // the plain baseline is the floor
     // The viewport changes without any event reaching us.
     f.vv.height = 430;
     settle();
@@ -235,7 +155,6 @@ describe('installPhoneViewport', () => {
     f.vv.height = 456;
     vi.advanceTimersByTime(FS_RECHECK_MS - VV_SETTLE_MS);
     expect(f.height()).toBe('456px');
-    expect(f.kbd()).toBe(true);
     expect(f.vk.overlaysContent).toBe(false);
   });
 
@@ -248,43 +167,27 @@ describe('installPhoneViewport', () => {
     f.fullscreen(true, 'webkitfullscreenchange');
     vi.advanceTimersByTime(FS_RECHECK_MS);
     expect(f.height()).toBe('800px');
-    expect(f.kbd()).toBe(false);
     // The rectangle the owner's S21 collapsed on: near the top of the screen.
     f.keyboard(80, 720);
     vi.advanceTimersByTime(FS_RECHECK_MS);
     expect(f.height()).toBe('800px');
-    expect(f.kbd()).toBe(false);
     expect(f.vk.overlaysContent).toBe(false);
     // A geometry change alone publishes nothing.
     applied.mockClear();
     f.keyboard(456, 344);
     vi.advanceTimersByTime(FS_RECHECK_MS);
     expect(applied).not.toHaveBeenCalled();
-    // The viewport shrinks for the keyboard: that is what counts.
+    // The viewport shrinks: that is what counts.
     f.resize(500);
     settle();
     expect(f.height()).toBe('500px');
-    expect(f.kbd()).toBe(true);
     // Out of fullscreen with the rectangle still there: the plain viewport.
     f.vv.height = 686;
     f.fullscreen(false);
     expect(f.vk.overlaysContent).toBe(false);
     expect(f.height()).toBe('686px');
-    expect(f.kbd()).toBe(false);
     expect(applied).toHaveBeenCalled();
     off();
-  });
-
-  it('a rotation starts the baseline over', () => {
-    const f = fakeWindow({ vk: false });
-    stop = installPhoneViewport(f.win);
-    f.resize(340, 800); // landscape: short, but the tallest at this width
-    settle();
-    expect(f.height()).toBe('340px');
-    expect(f.kbd()).toBe(false);
-    f.resize(150);
-    settle();
-    expect(f.kbd()).toBe(true);
   });
 
   it('stopping removes the listeners and the pending measurements', () => {

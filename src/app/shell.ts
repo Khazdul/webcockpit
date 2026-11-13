@@ -1,5 +1,5 @@
 // Page flow (ADR 0010 "Page flow", ADR 0013): start page ↔ cockpit, the
-// phone's ESC menu and its auto-open on disconnect.
+// phone's menu and its auto-open on disconnect.
 //
 //   /                      start page; Enter MUME builds the cockpit (once)
 //                          and connects
@@ -14,21 +14,25 @@
 // The chrome (Preact) is a separate chunk. On `/` it is loaded at once
 // (the start page is chrome); in the offline modes it is prefetched after
 // start-up (not in `?bench`, where it loads on the first window, popup or
-// Statistics pane, or the phone's first ESC). The profile
+// Statistics pane, or with the phone layer). The profile
 // editor (CodeMirror) is a chunk of its own, imported by the chrome when it
 // is opened and prefetched when idle once the start page is up.
 //
-// ESC menu (Inv §4): the phone only since stage 30f (ADR 0112). Esc in the
-// input, `#menu` and the phone layer's menu key open it there; where the
-// menu bar exists the shell never mounts it, and nothing opens it.
+// The menu (Inv §4): the phone only since stage 30f (ADR 0112), and since
+// stage 55 only the phone layer's bottom sheet (ADR 0136 §10; the old ESC
+// menu's main frame went with the old phone layout). Esc in the input,
+// `#menu` and the phone layer's menu key open it (`openMenu`). The ESC
+// menu's overlay (src/chrome/index.tsx) is still what the sheet's Profile
+// and Scripts open their pages in. Where the menu bar exists the shell
+// never mounts either, and nothing opens them.
 //
-// ESC menu auto-open (Inv §4.7), phone only since stage 30 (ADR 0100): on
-// a transition from login/playing to disconnected on a live connection,
+// Menu auto-open (Inv §4.7), phone only since stage 30 (ADR 0100): on a
+// transition from login/playing to disconnected on a live connection,
 // unless the user caused it (#reconnect, #disconnect, Exit session, a
 // replay starting), unless the menu is already open, and never before the
-// first connection reached login. Reconnect is pre-selected then. On
-// desktop and tablet the menu bar's Disconnected notice takes its place
-// (src/menubar/menubar.ts), and Enter still reconnects.
+// first connection reached login. The sheet lights its Reconnect from the
+// status. On desktop and tablet the menu bar's Disconnected notice takes
+// its place (src/menubar/menubar.ts), and Enter still reconnects.
 //
 // Menu bar (ADR 0099): desktop and tablet (a phone has no bar; a tablet
 // uses the bar by touch, ADR 0112). On a phone the live game has its own
@@ -41,9 +45,10 @@
 // layout. A phone in the browser's "Desktop site" mode is not a phone here
 // (src/core/device.ts `desktopSite`): it gets the desktop cockpit. The
 // cockpit's `ui` hands it `exitSession`; its popups close when the cockpit
-// is hidden. On the phone `ui.openMenuAt` opens the ESC menu straight at
-// the profile editor, Options → Scripts, Options, Panes or Exit (leaving
-// that frame closes the menu): the phone's way to `#profile` and the rest.
+// is hidden. On the phone `ui.openMenuAt` opens the phone's menu straight
+// at the profile editor or Scripts (pages of the ESC menu's overlay), or at
+// its settings page, its Panes group or its Exit confirmation: the phone's
+// way to `#profile` and the rest.
 //
 // Windows (ADR 0103): where the bar exists, Profile and Scripts are
 // movable windows (src/chrome/windows.tsx), mounted on first use in a
@@ -100,7 +105,7 @@
 // Notices (ADR 0025): the shell's `Notices` (a newer version, a lost chunk,
 // superseded storage) are shown in the cockpit's input row and sent to the
 // cockpit App's output once; the chrome shows them on the start page and
-// in the phone's ESC menu header (`services.notices`).
+// through `services.notices`.
 //
 // Spotlights (ADR 0019, 0131): the start page's Spotlights page loads the
 // reel itself and plays it in an embedded host (`embedPlayer`).
@@ -109,7 +114,6 @@ import type { BenchProbe } from './bench-hook';
 import type {
   ChromeServices,
   EscMenuHandle,
-  EscMenuTarget,
   PopupPlace,
   SettingsPopupTarget,
   SettingsPopupsHandle,
@@ -119,7 +123,6 @@ import type {
   WindowsHandle,
 } from '../chrome';
 import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
-import { watchDeviceKeyboard } from '../layout/phone-viewport';
 import type { PaneId } from '../layout/types';
 import type { PlayerHost, PlayerInfo, PlayerOpenOptions, PlayerPhone } from './player-host';
 import type { PlayerOpenResult, RunLogOpenResult } from '../chrome/kit/hooks';
@@ -133,7 +136,7 @@ import { REASON_BACKGROUND_LOST, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, 
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
 import type { CellMetrics } from '../theme/cells';
-import { App, REASON_REPLAY_START, type StatsPaneDeps } from './app';
+import { App, type MenuTarget, REASON_REPLAY_START, type StatsPaneDeps } from './app';
 import { nowUs } from '../core/types';
 import { RunLibrary } from '../runs/library';
 import { uiValue } from './ui-messages';
@@ -431,47 +434,45 @@ export class Shell {
   }
 
   /**
-   * Opens the menu over the cockpit (no-op elsewhere), at `target` when
-   * given. The phone only: where the menu bar exists there is no menu
+   * Opens the phone's menu over the cockpit (no-op elsewhere), at `target`
+   * when given. The phone only: where the menu bar exists there is no menu
    * (ADR 0112).
    *
-   * With the phone layer up (ADR 0136 §10) the menu is its bottom sheet:
-   * no target opens the sheet (a dropped link lights its Reconnect by
-   * itself, from the status), `settings` and `panes` open the phone's
-   * settings page (`panes` at its Panes group), `exit` the phone's own
-   * Exit session confirmation (stage 52), and `profile` and `scripts` open
-   * the existing pages straight at their frame in the ESC menu's overlay,
-   * as before. Called before the layer is up (Esc or a dropped link in
-   * the moment the chunk loads), it waits for the layer; without one (the
-   * chunk could not be loaded: the cover is up) nothing opens.
+   * The menu is the phone layer's bottom sheet (ADR 0136 §10): no target
+   * opens the sheet (a dropped link lights its Reconnect by itself, from
+   * the status), `settings` and `panes` open the phone's settings page
+   * (`panes` at its Panes group), `exit` the phone's own Exit session
+   * confirmation (stage 52), and `profile` and `scripts` open the existing
+   * pages straight at their frame in the ESC menu's overlay. Called before
+   * the layer is up (Esc or a dropped link in the moment the chunk loads),
+   * it waits for the layer; without one (the chunk could not be loaded:
+   * the cover is up) nothing opens.
    */
-  async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
-    if (!this.inCockpit || !this.appRef || this.appRef.menuBar) return;
-    if (this.phoneGame) {
-      const layer = this.phoneLayer ?? (await this.phoneLayerP);
-      if (!layer || !this.inCockpit) return;
-      const sheet = layer.menu;
-      // A page of the overlay is up: it has the screen (and its own Esc).
-      if (this.menu?.isOpen) return;
-      if (!target) {
-        sheet.open();
-        return;
-      }
-      if (target === 'settings' || target === 'panes') {
-        // `#panes`: the page at its Panes group (the strip's panes and their order).
-        sheet.openSettings(sheet.showing === 'sheet' ? 'sheet' : 'game', target === 'panes' ? 'panes' : undefined);
-        return;
-      }
-      if (target === 'exit') {
-        // The sheet's Exit session, and `#exit`: Cancel goes back to where it came from.
-        sheet.openExit(sheet.showing === 'sheet' ? 'sheet' : 'game');
-        return;
-      }
-      sheet.close(true);
+  async openMenu(target?: MenuTarget): Promise<void> {
+    if (!this.phoneGame || !this.inCockpit || !this.appRef) return;
+    const layer = this.phoneLayer ?? (await this.phoneLayerP);
+    if (!layer || !this.inCockpit) return;
+    const sheet = layer.menu;
+    // A page of the overlay is up: it has the screen (and its own Esc).
+    if (this.menu?.isOpen) return;
+    if (!target) {
+      sheet.open();
+      return;
     }
+    if (target === 'settings' || target === 'panes') {
+      // `#panes`: the page at its Panes group (the strip's panes and their order).
+      sheet.openSettings(sheet.showing === 'sheet' ? 'sheet' : 'game', target === 'panes' ? 'panes' : undefined);
+      return;
+    }
+    if (target === 'exit') {
+      // The sheet's Exit session, and `#exit`: Cancel goes back to where it came from.
+      sheet.openExit(sheet.showing === 'sheet' ? 'sheet' : 'game');
+      return;
+    }
+    sheet.close(true);
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
-    menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
+    menu.open({ target });
   }
 
   /** Closes the ESC menu and gives the input its focus back. */
@@ -782,7 +783,6 @@ export class Shell {
           });
           // (A load that failed first and came later: the fields drawn from now on are ours again.)
           setPageKeyboard(true);
-          this.syncDeviceKeyboard();
         } catch (err) {
           console.error('WebCockpit: the pages\' keyboard could not be mounted', err);
           // No keyboard of ours: fields drawn from now on ask the device for its own again.
@@ -805,15 +805,6 @@ export class Shell {
     showPhoneFailed(this.opts.root);
   }
 
-  /**
-   * Phone only: whether a shrunken visible area is taken for the device's
-   * keyboard (phone-viewport.ts). Not where our keyboard is the phone's
-   * only one: once the pages' keyboard is mounted.
-   */
-  private syncDeviceKeyboard(): void {
-    watchDeviceKeyboard(this.pageKeyboard === null, this.opts.root.ownerDocument);
-  }
-
   /** Phone only: the phone layer's chunk (ADR 0136); a failed load may be tried again. */
   private loadPhone(): Promise<typeof import('../phone')> {
     this.phoneP ??= import('../phone');
@@ -834,7 +825,7 @@ export class Shell {
       profiles: this.profiles,
       scripts: this.scripts,
       map: this.maps.host({ persistIds: true }),
-      // The ESC menu is the phone's only (ADR 0112): Esc, `#menu` and the menu targets.
+      // The menu is the phone's only (ADR 0112): Esc, `#menu` and the menu targets.
       ...(device().phone ? { onEscape: () => this.escapeMenu() } : {}),
       ui: {
         bar: !device().phone,
@@ -842,7 +833,7 @@ export class Shell {
         // The windows (ADR 0103) and popups where the bar exists.
         ...(device().phone
           ? {
-              openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target),
+              openMenuAt: (target: MenuTarget) => void this.openMenu(target),
               // The Statistics pane is a page of the phone's pane strip (ADR 0136 §5): its view, as on the desktop.
               mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
                 this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
@@ -911,7 +902,7 @@ export class Shell {
                 app.onCommand('#reconnect');
               },
               // Profile and Scripts: the existing pages, at their frame.
-              openFrame: (frame) => void this.openMenu(undefined, frame),
+              openFrame: (frame) => void this.openMenu(frame),
               // Exit session, confirmed in the phone's own sheet (stage 52), with the run's rating.
               exit: () => void this.exitSession(),
               runs: app.runs,
@@ -1010,7 +1001,7 @@ export class Shell {
     if (!this.inCockpit || this.menuOpen) return;
     // Desktop and tablet: the menu bar's Disconnected notice instead (ADR 0100).
     if (!device().phone) return;
-    void this.openMenu('reconnect');
+    void this.openMenu();
   }
 
   /**

@@ -20,8 +20,8 @@
 // panes in the docks, laid out from the settings (ADR 0010, ADR 0012).
 //
 // `app.status` is the read-only status observable (connection, character,
-// Link, capture, XML) for the menu bar's tooltips and the phone's ESC menu
-// header. Its text form is also kept
+// Link, capture, XML) for the menu bar's tooltips and the phone's menu
+// sheet. Its text form is also kept
 // in `data-status` on the app element for the browser tests.
 //
 // Live vs replay
@@ -63,8 +63,8 @@
 // clock strip becomes the menu bar (src/menubar/menubar.ts), and there is
 // no ESC menu (ADR 0112). The client commands `#profile`, `#scripts`,
 // `#settings`, `#panes`, `#exit` and `#fullscreen` open or toggle the same
-// things; without the bar (the phone) they open the ESC menu at the
-// matching frame (`ui.openMenuAt`). Profile and Scripts toggle the shell's
+// things; without the bar (the phone) they open the phone's menu at the
+// matching page (`ui.openMenuAt`). Profile and Scripts toggle the shell's
 // windows (`ui.toggleWindow`, ADR 0103); Settings and `#settings` toggle
 // the shell's Settings popup (`ui.toggleSettings`, ADR 0107), which the
 // bar holds as its open popup while it is open. The Map, Comm, Timers and
@@ -77,7 +77,7 @@
 // popup opens, as the bar's Exit icon does (ADR 0112 addendum; in the
 // cockpit's fullscreen Esc reaches the page only with the bar's Keyboard
 // Lock). Without the bar (the
-// phone): the ESC menu opens (`onEscape`). `#menu` opens the ESC menu on
+// phone): the phone's menu opens (`onEscape`). `#menu` opens it on
 // the phone and prints a hint naming the bar and its commands where the
 // bar exists. The popups take the focus when they open (ADR 0108); Tab in
 // the input never moves the focus, and Tab from a stray focus in the shown
@@ -188,7 +188,7 @@ export interface AppOptions {
   settings?: SettingsStore;
   /**
    * Without the bar (the phone): ESC in the input when the output is not
-   * scrolled, and `#menu`, open the ESC menu (src/app/shell.ts). Never
+   * scrolled, and `#menu`, open the phone's menu (src/app/shell.ts). Never
    * called where the bar exists (ADR 0112).
    */
   onEscape?: () => void;
@@ -258,7 +258,7 @@ export interface AppOptions {
   loadLua?: () => Promise<import('../lua').LuaRuntime>;
 }
 
-/** An ESC menu frame the shell can open straight away (ADR 0099; the phone). */
+/** A page of the phone's menu the shell can open straight away (ADR 0099; `profile` and `scripts` in the ESC menu's overlay). */
 export type MenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
 
 /** What the Statistics pane's view reads (ADR 0109). */
@@ -272,7 +272,7 @@ export interface AppUi {
   /** Build the menu bar (desktop and tablet). */
   bar: boolean;
   /**
-   * Without the bar (the phone): opens the ESC menu at `target`'s frame;
+   * Without the bar (the phone): opens the phone's menu at `target`'s page;
    * leaving it closes the menu. Absent (where the bar exists, ADR 0112):
    * the commands without a bar target say they are not available.
    */
@@ -281,12 +281,12 @@ export interface AppUi {
   exit(): void;
   /**
    * With the bar: toggles the Profile or Scripts window (ADR 0103). Without
-   * the bar: they open the ESC menu at their frame.
+   * the bar: they open the phone's menu at their page.
    */
   toggleWindow?(id: 'profile' | 'scripts'): void;
   /**
    * With the bar: toggles the Settings popup (ADR 0107). Without the bar:
-   * `#settings` opens the ESC menu at Options.
+   * `#settings` opens the phone's settings page.
    */
   toggleSettings?(): void;
   /**
