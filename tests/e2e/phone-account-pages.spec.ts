@@ -13,41 +13,38 @@
 // - Landscape, and a tablet-size window (the desktop's arrangement).
 //
 // `phone` project (Pixel 7: a touch browser). Nothing reaches MUME.
-import { type Locator, type Page, expect, test } from '@playwright/test';
-import { NAME, PASSWORD, PHONE, accountRow, btn, field, fillCreate, frame, link, openStart, pageOf, shot, shownCode, watchErrors } from './account-pages';
+import { type Page, expect, test } from '@playwright/test';
+import {
+  LANDSCAPE,
+  NAME,
+  PASSWORD,
+  PHONE,
+  PHONE_Q as Q,
+  TABLET,
+  accountRow,
+  box,
+  btn,
+  expectAbove,
+  field,
+  fillCreate,
+  frame,
+  frames,
+  link,
+  okb,
+  okbHost as host,
+  okbKey as key,
+  okbType as type,
+  openStart,
+  pageOf,
+  shot,
+  shownCode,
+  watchErrors,
+} from './account-pages';
 import { FakeAccountServer, fakeAccountApi, seedAccount } from './cloud-account-fake';
 import { passTurnstile, stubTurnstile } from './turnstile-stub';
 
 test.use({ viewport: PHONE });
 
-const LANDSCAPE = { width: 844, height: 390 };
-const TABLET = { width: 820, height: 1180 };
-const Q = '&phone=1&kbd=en';
-
-const host = (page: Page) => page.locator('.wc-okb-page');
-const okb = (page: Page) => host(page).locator('.wc-ph-okb');
-const key = (page: Page, k: string) => okb(page).locator([...k].length === 1 ? `.wc-ph-okb-k[data-ch=${JSON.stringify(k)}]` : `.wc-ph-okb-k[data-act="${k}"]`);
-const frames = (page: Page) => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0)))));
-
-type Box = { x: number; y: number; width: number; height: number };
-const box = async (l: Locator): Promise<Box> => (await l.boundingBox())!;
-
-/** Types `text` on our keyboard (lower-case letters, digits where the row is up, and spaces). */
-async function type(page: Page, text: string): Promise<void> {
-  for (const ch of text) await key(page, ch === ' ' ? 'space' : ch).tap();
-}
-
-/** `l` lies whole above our keyboard and inside the screen. */
-async function expectAbove(page: Page, l: Locator): Promise<void> {
-  await expect(l).toBeVisible();
-  await expect
-    .poll(async () => {
-      const k = await box(host(page));
-      const b = await box(l);
-      return b.y >= 0 && b.y + b.height <= k.y + 0.5;
-    })
-    .toBe(true);
-}
 
 async function openLogin(page: Page, query = Q): Promise<void> {
   await openStart(page, query);
@@ -109,7 +106,6 @@ test('phone: the start menu has the Account row; our keyboard types a login', as
   await expect(frame(page).locator('[data-account-name]')).toHaveText(NAME);
   await expect(host(page)).toBeHidden();
   expect(ts.loads()).toBe(0);
-  await shot(page, 'acct-placeholder', 'phone');
 
   // Back: the row carries the name.
   await frame(page).locator('.wc-lk-back').tap();

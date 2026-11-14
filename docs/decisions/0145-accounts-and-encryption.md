@@ -795,3 +795,72 @@ was decided while building:
   `http://127.0.0.1` is accepted and sent back by Chromium and Firefox
   (loopback counts as secure); any other plain-http host will refuse
   it.
+
+## As built (stage 60 part B, the pages, second half: the Account page, 2026-11-14)
+
+- **The dialogs are overlay frames; the page is their host.** Each
+  dialog (`account-dialogs.tsx`) gets `host()` from the page
+  (`AccountHost` in `account-page.tsx`) and runs every flow through
+  `host().track(…)`. The page remembers its depth in the frame stack,
+  so "the session is gone" from anywhere closes whatever lies over it
+  and puts Log in in its place (`toLogin`), and a log out or a delete
+  pops page and dialogs to the start menu (`toMenu`). A page that has
+  left ignores every later answer.
+- **Two tabs.** The page listens to `onAccountState`. While one of its
+  own flows is in flight it does not act on "nobody is logged in":
+  the flow's answer does, a task later (a flow that ends in
+  `unauthorized` has logged the device out itself, and must lead to
+  Log in with its own words, not to "logged out in another tab").
+  With no flow in flight the page leaves for the start menu and says
+  "Logged out in another tab."; another account's name starts the page
+  over. A log out or a delete on its way silences the page's own
+  `loadAccount()` answer (`setLeaving`).
+- **Keys of a dialog with several fields.** The kit's `Dialog` walks
+  its buttons only. Rather than a second dialog, the account forms'
+  ring (`useFormKeys`) can run as a key layer of the dialog's frame
+  (`layer: true`), and `Dialog` takes the cursor from its owner
+  (`at`: a button id or null) and then leaves Tab, Enter, Space and
+  the arrows alone. Enter is the cursor's button, else the lit one. In
+  Delete account the "lit one" is Cancel (`submit: cancel`, the cursor
+  drawn on Cancel while a field has the focus), so Enter never
+  deletes; Delete is reached with Tab or a press.
+- **Where a dialog's error goes.** On the kit dialog's own error line
+  (over the buttons, outside the scrolling text), not in the form: it
+  stays in sight on a phone on its side with our keyboard up. For the
+  same reason the account dialogs' text scrolls and their buttons do
+  not (`[data-dlg^="ac-"]` in `account.css`).
+- **The account dialogs centre in the page, not in the page's box**
+  (`.wc-lk-dslot:has(> [data-dlg^="ac-"])`). The Account page's box is
+  small (a fresh account has one device), and Change password or the
+  new code would have had to scroll inside it. Without `:has` a dialog
+  falls back to the box and scrolls.
+- **The times of a session.** `lastUsed` is written at most once a day,
+  so the true last use lies between it and a day later. The page says
+  it by the day with "about" ("in the last day", "about 3 days ago",
+  weeks, months) and never finer (`account-model.ts`); `created` is a
+  date. This device's row has no "last used".
+- **The lost answer of a new recovery code.** The dialog follows the
+  flow's steps: `timeout`, `offline` or `bad_answer` *after* `sending`
+  means the server may hold a code nobody saw, and the dialog says so
+  in a plate and keeps the password in its field so that one press
+  makes a new code again. The same codes before `sending` are a plain
+  failure (the old code is untouched).
+- **What stage 60 leaves out of the page:** sync state and Sync now,
+  the storage bars, the gallery notice switch (`setPrefs` is still
+  unused), the safety copy and the downloads, and the keep / remove
+  choice at log out (nothing of the account's is on the device but its
+  keys). The server's `usage`, `limits` and `prefs` are read and not
+  shown.
+
+### Known limits (the Account page)
+
+- The browser's password manager was not seen offering to update a
+  changed password (the dialog is a real `<form>` with `current-` and
+  `new-password` fields and a hidden `username`).
+- A change-password `timeout` cannot tell which password holds; the
+  dialog says to try the new one first. The session on this device
+  stays in either case.
+- The device list is read when the page opens and after each change of
+  the page's own; it does not poll. A session ended elsewhere shows at
+  the next visit, or as "the session is gone" when it is this one.
+- `stored: false`, WebKit and iOS: as before, not covered.

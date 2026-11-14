@@ -9,7 +9,7 @@
 .wc-ac-create.wc-lk-box-normal { width: min(860px, 100%); }
 .wc-ac-codepage.wc-lk-box-normal { width: min(640px, 100%); }
 .wc-ac-recover.wc-lk-box-normal { width: min(480px, 100%); }
-.wc-ac-account.wc-lk-box-normal { width: min(520px, 100%); }
+.wc-ac-account.wc-lk-box-normal { width: min(600px, 100%); }
 
 .wc-ac-win {
   padding: 46px 26px 18px;
@@ -421,10 +421,12 @@ html.wc-phone .wc-ac-win {
   gap: 0 14px;
 }
 
-/* ------------------------------------------------------------ the Account page (placeholder) */
+/* ------------------------------------------------------------ the Account page */
 
+/* One column of four groups; the box is as high as its content (a phone:
+ * it fills the screen and the body scrolls). */
 .wc-ac-head {
-  margin: 0 0 12px;
+  margin: 0;
   padding: 0 0 14px;
   border-bottom: 1px solid var(--lk-rule);
 }
@@ -434,6 +436,7 @@ html.wc-phone .wc-ac-win {
   font: 700 22px/1.2 var(--lk-display);
   letter-spacing: 0.1em;
   color: var(--lk-on);
+  overflow-wrap: anywhere;
 }
 
 .wc-ac-head-since {
@@ -441,6 +444,225 @@ html.wc-phone .wc-ac-win {
   min-height: 20px;
   font: italic 500 15px/1.3 var(--lk-serif);
   color: var(--lk-dim);
+}
+
+.wc-ac-suspended {
+  margin: 12px 0 0;
+  font: 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-ac-suspended b {
+  font-weight: 500;
+  color: var(--lk-soon);
+}
+
+.wc-ac-acct > .wc-lk-rule {
+  margin: 22px 0 8px;
+  min-height: 28px;
+}
+
+/* The devices: a name over a quiet line, the mark or End at the right. A
+ * long list scrolls on its own where the box does not (a desktop). */
+.wc-ac-devs {
+  max-height: min(312px, 34vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.wc-ac-body.wc-lk-scroll .wc-ac-devs {
+  max-height: none;
+  overflow: visible;
+}
+
+.wc-ac-devs.wc-lk-rows.is-flat > .wc-ac-dev {
+  min-height: 52px;
+  padding: 6px 4px 6px 14px;
+  cursor: default;
+  flex: none;
+}
+
+.wc-ac-dev-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wc-ac-dev-n {
+  font: 500 16.5px/1.3 var(--lk-serif);
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-ac-dev-t {
+  font: italic 500 14px/1.3 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-ac-dev-this {
+  flex: none;
+  padding-right: 8px;
+  font: 600 9.5px/1 var(--lk-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--lk-ok);
+}
+
+.wc-ac-devs-wait {
+  min-height: 52px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-ac-noload {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.wc-ac-noload .wc-ac-err {
+  flex: 1 1 auto;
+  margin: 2px 0 0;
+}
+
+.wc-ac-noload .wc-lk-btn {
+  flex: none;
+}
+
+.wc-ac-row.wc-lk-btns {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+/* Log out at the left, Delete account as far from it as the box allows. */
+.wc-ac-leave {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wc-ac-flash.wc-lk-flash {
+  margin-top: 10px;
+}
+
+/* ------------------------------------------------------------ the Account page's dialogs */
+
+.wc-ac-dlg {
+  text-align: left;
+}
+
+.wc-ac-dform {
+  display: block;
+  margin: 0;
+}
+
+.wc-ac-dlg .wc-lk-q {
+  margin: 0 0 8px;
+  text-wrap: wrap;
+}
+
+.wc-ac-who {
+  font-weight: 600;
+  color: var(--lk-on);
+  overflow-wrap: anywhere;
+}
+
+.wc-ac-dtxt {
+  margin: 0 0 8px;
+  font: 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-lk-dialog-b .wc-ac-dtxt b {
+  font-weight: 500;
+  color: var(--lk-text);
+}
+
+.wc-lk-dialog-b .wc-ac-dform .wc-lk-field {
+  margin: 12px 0 0;
+}
+
+.wc-ac-dform .wc-ac-err {
+  margin: 10px 0 0;
+}
+
+.wc-ac-dform .wc-ac-small {
+  margin: 12px 0 0;
+}
+
+.wc-ac-dform .wc-ac-wait {
+  margin-top: 14px;
+}
+
+.wc-ac-dform .wc-ac-work {
+  margin: 16px 0 4px;
+}
+
+.wc-ac-dform .wc-ac-twice {
+  text-align: center;
+}
+
+.wc-ac-lost.wc-lk-plate {
+  margin: 0 0 4px;
+}
+
+/* For the password manager only: whose password the dialog asks. */
+.wc-ac-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  clip-path: inset(50%);
+}
+
+/* The new code in its dialog: the view is the code page's. */
+.wc-ac-dcode .wc-ac-codeview {
+  container: wc-page / inline-size;
+}
+
+/* The account's dialogs centre in the whole page, not in the Account
+ * page's box as the kit's do: the box is small (a fresh account has one
+ * device) and Change password or the new code would not fit in it. */
+.wc-lk-dslot:has(> .wc-lk-dialog[data-dlg^="ac-"]) {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* The account's dialogs keep their buttons in sight: the text scrolls
+ * above them when the room is low (a phone on its side, our keyboard up). */
+.wc-lk-dialog[data-dlg^="ac-"] > .wc-lk-dwin {
+  overflow: hidden;
+}
+
+.wc-lk-dialog[data-dlg^="ac-"] .wc-lk-dialog-b {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 214, 160, 0.22) transparent;
+  /* Room for a field's focus ring at the scroller's edges. */
+  margin: 0 -6px;
+  padding: 2px 6px;
+}
+
+.wc-lk-dialog[data-dlg^="ac-"] :is(.wc-lk-dialog-err, .wc-lk-dialog-btns) {
+  flex: none;
 }
 
 /* ------------------------------------------------------------ a narrow box (a phone) */

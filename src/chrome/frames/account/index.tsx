@@ -8,7 +8,9 @@
 //   create.tsx         Create account (one page, the six points)
 //   recovery-code.tsx  the recovery code, shown once (page and reusable view)
 //   recover.tsx        Recovery ("Forgot password")
-//   account-page.tsx   the Account page (a placeholder until its own part)
+//   account-page.tsx   the Account page (devices, password and recovery, leaving)
+//   account-dialogs.tsx   its dialogs (log out, end session, change password, new recovery code, delete)
+//   account-model.ts   the device list's order and the words of its times (pure)
 //
 //   form.tsx           the keys of a form, the pages' way to each other (`go`), small pieces
 //   words.ts           every error code's words and the shared sentences
