@@ -1,6 +1,5 @@
-// Spotlights on the start page (ADR 0019, Inv §7.6). History's
-// Spotlights tab (`SpotlightsTab`, stage 67, ADR 0149) loads the reel and
-// shows the Spotlights page, B "Galleriet" (stage 46): a wall of cards in the large box with
+// Spotlights (ADR 0019, Inv §7.6): History's second tab since stage 67
+// (`SpotlightsTab`, ADR 0149). It loads the reel and shows the Spotlights page, B "Galleriet" (stage 46): a wall of cards in the large box with
 // the filter row above it (src/chrome/frames/spotlights-wall.tsx); a card
 // plays in the viewer over the box (spotlights-viewer.tsx). No data and
 // nothing passing are states of the wall, not pages of their own (the
@@ -11,10 +10,9 @@ import type { VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Reel } from '../../player/spotlight-reel';
 import type { RunLibrary } from '../../runs/library';
-import { type ChromeServices, useServices } from '../kit/hooks';
+import { useServices } from '../kit/hooks';
 import { Box, BoxBody } from '../kit/look';
-import { type Nav, useKeys, useNav } from '../kit/stack';
-import { HistoryFrame } from './history';
+import { useKeys, useNav } from '../kit/stack';
 import { useHistoryTabs } from './history-tabs';
 import { SpotlightsWall, type WallReel, type WallSource, type WallState } from './spotlights-wall';
 
@@ -102,13 +100,4 @@ function SpotlightsWait(p: { text: string; kind: string }): VNode {
       </BoxBody>
     </Box>
   );
-}
-
-/**
- * The old Spotlights row of the start menu (until the menu of stage 67 is
- * in, ADR 0149): History opened on its Spotlights tab. `services` is no
- * longer used (the tab loads its reel itself).
- */
-export function startSpotlights(nav: Nav, _services?: ChromeServices): void {
-  nav.push(<HistoryFrame tab="spotlights" />);
 }

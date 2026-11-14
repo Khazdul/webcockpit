@@ -107,7 +107,7 @@
 // cockpit App's output once; the chrome shows them on the start page and
 // through `services.notices`.
 //
-// Spotlights (ADR 0019, 0131): the start page's Spotlights page loads the
+// Spotlights (ADR 0019, 0131): History's Spotlights tab loads the
 // reel itself and plays it in an embedded host (`embedPlayer`).
 
 import type { BenchProbe } from './bench-hook';

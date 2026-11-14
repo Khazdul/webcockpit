@@ -52,13 +52,11 @@ import {
   OrnRule,
   Seg,
   letterAction,
-  lookFrame,
   useBoxSettled,
   useReducedMotion,
   useSwipe,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
-import { HistoryFrame } from './history';
 import { useHistoryTabs } from './history-tabs';
 
 /** The Diary's own texts (the states as pages of the book). */
@@ -170,14 +168,6 @@ function measure(book: HTMLElement, pages: HTMLElement): BookLayout {
   }
   return { per, pages: Math.max(1, at), starts };
 }
-
-/**
- * The old Credits row of the start menu (until the menu of stage 67 is in,
- * ADR 0149): History opened on its Diary tab.
- */
-export const CreditsFrame = lookFrame(function CreditsFrame(): VNode {
-  return <HistoryFrame tab="diary" />;
-});
 
 /** The Diary tab: the book, under History's tab strip. */
 export function DiaryPage(): VNode {
