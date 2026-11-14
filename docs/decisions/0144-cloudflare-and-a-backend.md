@@ -304,3 +304,17 @@ against the staging address answers the first.
 - Way back: remove the custom domain from the Worker, put back the
   apex records of ADR 0029 and the `www` CNAME. Pages holds 0.9.2 and
   is deployed from every tag until `pages.yml` is removed.
+
+## Addendum (2026-11-14, plan of stage 59; not built)
+
+- **Staging gets a host on our zone, `staging.mumecockpit.com`** (a
+  custom domain of `webcockpit-staging`), beside its `workers.dev`
+  address. Cloudflare Access can guard a single path only on a zone
+  of ours; on `workers.dev` it is the whole site or nothing, which
+  would shut `test:prod` out. Staging answers carry
+  `X-Robots-Tag: noindex`. To be verified against Cloudflare's
+  documentation when it is built.
+- **D1 and R2 are made by a by-hand workflow** (`provision.yml`) with
+  the deploy token, jurisdiction `eu`; the ids go into
+  `wrangler.jsonc`. **Migrations** (`worker/migrations/`) are applied
+  by `deploy.yml` before `wrangler deploy`.

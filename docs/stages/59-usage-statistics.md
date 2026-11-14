@@ -26,7 +26,7 @@ read what the site knows about him.
   the Worker).
 - An ordinary beat writes at most one D1 row (ADR 0147's budget).
 
-## Decisions taken at the start (to ADR 0147 / 0144 "As built")
+## Decisions taken at the start (ADR 0144, 0147 and 0148, addenda of 2026-11-14)
 
 - **Flags:** `GET /api/config` gives `{flags: {stats}}`. The default
   per environment is a `vars` entry in `wrangler.jsonc` (staging on,
@@ -59,6 +59,41 @@ read what the site knows about him.
   the exact figures. No analytics token.
 - **Rate limit:** the Workers rate limiting binding on `/api/beat`,
   keyed by address (used in passing, not stored).
+
+## The night pass (owner, 2026-11-14)
+
+The owner starts the next session and goes to bed. It works as far as
+it can alone, and in the morning the owner meets a short list of what
+is his to decide or do.
+
+**The session may, without asking:** build parts A and B with agents
+in worktrees; review and merge to `main`; push `main`; run
+`provision.yml`; deploy to **staging** with `deploy.yml` (deploy and
+triggers), which includes attaching `staging.mumecockpit.com`; run
+`test:prod` against staging and against the live site (read-only);
+run the full e2e alone on the machine.
+
+**The session must not:** push a `v*` tag or release; deploy or run
+anything against **production** (the Worker `webcockpit`, its D1, its
+flags); change DNS records by hand or anything in the dashboard;
+change `intent.md`; remove `pages.yml`. If a step is refused by a
+permission check, it is written down for the morning and the work
+goes on with what does not depend on it.
+
+**Where it stops by itself:** part C is the owner's (Access, the
+secret, Email Routing, perhaps R2). Until then `/admin` answers 503 on
+staging; the admin page and the Access check are tested in workerd
+with a test key, and the numbers are checked with `wrangler d1
+execute` against staging.
+
+**In the morning** the section "For the owner" below holds: what is
+on staging and how to look at it, the decisions that are his (each
+with the session's recommendation), part C step by step, and anything
+that was refused or failed.
+
+## For the owner (written by the night pass)
+
+(empty)
 
 ## API (contract; types in `shared/cloud/api.ts`)
 

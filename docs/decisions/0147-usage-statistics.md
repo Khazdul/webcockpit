@@ -79,3 +79,28 @@ The owner wants to see how many are online and how use develops.
 - The random device id is still an online identifier in the eyes of
   the GDPR. It is described in the privacy text and dropped after 35
   idle days.
+
+## Addendum (2026-11-14, plan of stage 59; not built)
+
+Taken by the session when the stage was planned
+(`docs/stages/59-usage-statistics.md`); the owner may change them.
+
+- **The flag `stats`** opens the beat and "N online" (spec §7.0 rule
+  5). Its default per environment is a `vars` entry in
+  `wrangler.jsonc` (staging on, production off); a row in the D1 table
+  `flag(name, value)` overrides it and is set from the admin page, so
+  production opens without a release.
+- **Use against the plan's limits** on the admin page is our own
+  estimate: beats are counted in the presence upsert itself (no extra
+  row), plus the cron samples and the roll-up rows. It is marked as an
+  estimate and links to the Cloudflare dashboard. No analytics token
+  is kept.
+- **An ordinary beat writes at most one row.** `device_day` is written
+  only on a device's first beat of a day, and the tables carry only
+  the indexes the queries need (index rows count as writes).
+- **Automated browsers send no beat** (`navigator.webdriver`), so our
+  own tests against the live site are not counted. Nor does the dev
+  server.
+- **`/api/beat` is rate limited** by the Workers rate limiting
+  binding, keyed by address. The address is used in passing and never
+  stored.

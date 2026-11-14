@@ -160,3 +160,16 @@ players' accounts.
   responsibility under the rules; the owner removes on request.
 - Old links must keep working, which ties the site to reading every
   payload schema it ever accepted.
+
+## Addendum (2026-11-14, plan of stage 59; not built): the admin's identity
+
+- The Worker verifies the Access token itself: signature against the
+  team's certificates, issuer, audience, and that the token's e-mail
+  is in the Worker secret `ADMIN_EMAILS`. The team domain and the
+  audience tag are `vars` in `wrangler.jsonc` (they are not secret);
+  the e-mail address is set in the Cloudflare dashboard and is never
+  in the repository. Until all three exist `/admin` and `/api/admin/*`
+  answer 503 `admin_not_configured`.
+- One Access application covers `/admin*` and `/api/admin/*` on
+  `mumecockpit.com` and on `staging.mumecockpit.com` (ADR 0144,
+  addendum).
