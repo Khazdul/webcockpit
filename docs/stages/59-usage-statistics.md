@@ -278,7 +278,7 @@ Online = seen in the last 6 minutes.
       e-mail, one-time PIN. Give the session the team domain and the
       application's audience tag.
 - [x] The secret `ADMIN_EMAILS` on both Workers (dashboard).
-- [ ] (later, owner) Email Routing: `abuse@mumecockpit.com` forwarded to the owner.
+- [x] (owner, 2026-11-14) Email Routing: `abuse@mumecockpit.com` forwarded to the owner.
 - [ ] If asked: enable R2.
 
 ### D. Release
@@ -323,3 +323,8 @@ Feedback wanted: decisions 1–5 above, and anything that looks off.
   asked; `ADMIN_EMAILS` on both Workers). `/admin` on staging seen and
   fine (test guide 5). The flag switch not tried and Email Routing
   later. "Run on": released 0.10.0.
+- **2026-11-14, after the release:** `stats` on in production and
+  counting; Turn off / Turn on tried and working; Email Routing rule
+  `abuse@mumecockpit.com` → the owner (not test-mailed); both D1
+  databases confirmed in the dashboard as jurisdiction "The European
+  Union", region Eastern Europe. Left: R2 (before stage 63).
