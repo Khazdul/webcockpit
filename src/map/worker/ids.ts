@@ -1,10 +1,11 @@
 // Learned server ids in IndexedDB (ADR 0020 "Locating the player"): the
 // map worker reads and writes the `mapIds` store itself, so persistence
 // costs the main thread nothing. Records: { mapHash, serverId, room }.
-// IndexedDB works in workers; `openWebcockpitDb` is worker-safe (its
-// persistence request is guarded and a no-op there).
+// IndexedDB works in workers; `openDeviceDb` is worker-safe (its
+// persistence request is guarded and a no-op there). The ids are the
+// device's whoever is logged in (ADR 0150): always `webcockpit`.
 
-import { STORE, type StoredMapId, idbDone, idbRequest, openWebcockpitDb } from '../../core/db';
+import { STORE, type StoredMapId, idbDone, idbRequest, openDeviceDb } from '../../core/db';
 
 export interface LearnedIdStore {
   /** Every stored id of map `hash`: [serverId, room]. */
@@ -19,7 +20,7 @@ export function idbLearnedIds(factory: IDBFactory | undefined = globalThis.index
   const db = (): Promise<IDBDatabase> => {
     if (!factory) return Promise.reject(new Error('IndexedDB unavailable'));
     if (!dbp) {
-      const p = openWebcockpitDb(factory).then((d) => {
+      const p = openDeviceDb(factory).then((d) => {
         d.addEventListener('close', () => {
           if (dbp === p) dbp = null;
         });
