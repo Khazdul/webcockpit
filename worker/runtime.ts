@@ -65,8 +65,10 @@ export interface Env {
   NOINDEX?: boolean | string;
   /** The default of the flag `accounts`. Off: `/api/auth/*` and `/api/u/*` answer 404. */
   FLAG_ACCOUNTS?: boolean | string;
-  /** The limit on `/api/auth/*` and `/api/u/*`, keyed by session or address. Without it: no limit. */
+  /** The limit on `/api/auth/*` and `/api/u/*`, keyed by address and by session. Without it: no limit. */
   API_LIMITER?: RateLimiter;
+  /** The tight limit on `POST /api/auth/login`, `/recover` and `/register`, keyed by address. Without it: no limit. */
+  AUTH_LIMITER?: RateLimiter;
   /**
    * A secret (at least 16 characters): the fake salts, the attempt
    * counters' keys and the day's address pepper are derived from it.

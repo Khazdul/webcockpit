@@ -21,6 +21,7 @@ declare namespace Cloudflare {
     NOINDEX?: boolean;
     FLAG_ACCOUNTS: boolean;
     API_LIMITER: RateLimit;
+    AUTH_LIMITER: RateLimit;
     TURNSTILE_SITE_KEY: string;
     TURNSTILE_HOSTNAMES?: string;
     /** Secrets, set outside the repository (`wrangler secret put`, or the dashboard). */

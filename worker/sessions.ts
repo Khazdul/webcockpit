@@ -43,6 +43,11 @@ export function sessionToken(request: Request): string | null {
   return null;
 }
 
+/** True when the request carries a cookie of our name, whatever its value. */
+export function hasSessionCookie(request: Request): boolean {
+  return (request.headers.get('cookie') ?? '').split(';').some((part) => part.split('=')[0]?.trim() === SESSION_COOKIE);
+}
+
 /** What the database knows a token by. */
 export async function tokenHash(token: string): Promise<string> {
   return toB64url(await sha256(utf8(token)));
