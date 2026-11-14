@@ -43,6 +43,8 @@ export const WRONG_LOGIN = 'Wrong user name or password.';
 export const WRONG_RECOVERY = 'Wrong user name or recovery code.';
 export const NAME_HINT = '3–20 of a–z 0–9 _ - · public · cannot be changed later';
 export const PASSWORD_HINT = 'At least 10 characters. Long beats odd: a few words do well.';
+/** Under a new password where the page has no plate for it (Recovery, Change password). */
+export const NEW_PASSWORD_HINT = 'At least 10 characters. Not your MUME password.';
 export const CODE_HINT = 'Six groups of four. Dashes and capitals do not matter.';
 export const CODE_PLACEHOLDER = 'XXXX-XXXX-XXXX-XXXX-XXXX-XXXX';
 
@@ -209,13 +211,14 @@ export function recoveryFile(o: { name: string; code: string; site: string; date
   return { name: `webcockpit-recovery-code-${o.name}.txt`, text };
 }
 
+/** A time from the server as milliseconds: it counts seconds; a value that large is already milliseconds. */
+export const serverMs = (t: number): number => (t < 1e11 ? t * 1000 : t);
+
 /** "Account since …": a date as the player's own locale writes it (a day, no time). */
 export function sinceWords(created: number, locale?: string): string {
   if (!Number.isFinite(created) || created <= 0) return 'Account';
-  // The server counts seconds; a value that large is already milliseconds.
-  const ms = created < 1e11 ? created * 1000 : created;
   try {
-    return `Account since ${new Date(ms).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}`;
+    return `Account since ${new Date(serverMs(created)).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}`;
   } catch {
     return 'Account';
   }

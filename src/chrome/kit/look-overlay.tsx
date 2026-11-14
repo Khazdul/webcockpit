@@ -36,6 +36,13 @@
 // An overlay dialog's keys are its frame's handler (`useKeys`, latest
 // wins); a dialog frame that wants keys of its own adds a key layer
 // (`useKeyLayer`), which comes first.
+//
+// A dialog with several text fields (stage 60: Change password) has a ring
+// of its own over the fields and the buttons, as a key layer of its frame
+// (the account pages' `useFormKeys` with `layer`). It hands the dialog the
+// keyboard's button as `at` (an id, or null while a field has the focus);
+// the dialog then draws that cursor and leaves Tab, Enter, Space and the
+// arrows to the owner: only Esc and the hold are its own.
 
 import type { ComponentChildren, FunctionComponent, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
@@ -70,6 +77,12 @@ export interface DialogProps {
   inline?: boolean;
   /** CSS px (default 460; never wider than the room). */
   width?: number;
+  /**
+   * The keyboard's button by id, or null for none: the owner walks and
+   * presses (a ring of its own over the dialog's fields and buttons, in a
+   * key layer). Left out: the dialog walks its buttons itself.
+   */
+  at?: string | null;
   children?: ComponentChildren;
 }
 
@@ -114,6 +127,8 @@ export function Dialog(p: DialogProps): VNode {
       q.onCancel();
       return true;
     }
+    // The owner's ring took Tab, Enter and Space before this; what is left is the field's, or held.
+    if (q.at !== undefined) return field ? false : nk !== null || (plain(e) && e.key.length === 1);
     if (e.key === 'Enter' && plain(e) && !(textarea && e.shiftKey)) {
       press();
       return true;
@@ -157,7 +172,7 @@ export function Dialog(p: DialogProps): VNode {
     return () => releaseFocus(el);
   }, []);
 
-  const cur = walked === null ? -1 : current();
+  const cur = p.at !== undefined ? p.buttons.findIndex((b) => b.id === p.at && !b.disabled) : walked === null ? -1 : current();
   return (
     <div
       class={'wc-lk-veil' + (p.inline ? ' is-inline' : '')}

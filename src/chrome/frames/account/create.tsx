@@ -20,21 +20,12 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import {
-  type FlowHandle,
-  type RegisterDone,
-  checkName,
-  checkPassword,
-  passwordLength,
-  passwordStrength,
-  passwordsMatch,
-  startRegister,
-} from '../../../cloud/account';
+import { type FlowHandle, type RegisterDone, checkName, startRegister } from '../../../cloud/account';
 import { Box, BoxBody, Field, GlassButton, Plate, Rule, TextLink, lookFrame } from '../../kit/look';
 import { useNav } from '../../kit/stack';
-import { FormError, type PageProps, Strength, go, useFormKeys, useTallPage } from './form';
+import { FormError, type PageProps, checkNewPassword, go, newPasswordHint, useFormKeys, useTallPage } from './form';
 import { useTurnstile } from './turnstile-box';
-import { NAME_HINT, PASSWORD_HINT, POINTS, charactersWords, failureWords, nameWords, takenWords } from './words';
+import { NAME_HINT, PASSWORD_HINT, POINTS, failureWords, nameWords, takenWords } from './words';
 import { Working, useWorking } from './working';
 
 export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create']): VNode {
@@ -81,12 +72,8 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
       : nameProblem === 'bad_characters' || nameProblem === 'too_long' || (nameProblem === 'too_short' && left.name)
         ? nameWords(nameProblem)
         : null;
-  const pwProblem = checkPassword(pw);
-  const count = passwordLength(pw);
-  const pwError = pwProblem === 'too_short' && (left.pw || pw2.length > 0) ? `${charactersWords(count)}: at least 10.` : null;
-  const same = passwordsMatch(pw, pw2);
-  const pw2Error = pw2.length > 0 && !same && (left.pw2 || passwordLength(pw2) >= count) ? 'The two passwords differ.' : null;
-  const valid = nameProblem === null && taken !== name && pwProblem === null && pw2.length > 0 && same;
+  const { pwError, pw2Error, valid: pwValid } = checkNewPassword(pw, pw2, left);
+  const valid = nameProblem === null && taken !== name && pwValid;
   const canSubmit = valid && ts.ready && !work.on;
 
   const submit = async (): Promise<void> => {
@@ -168,7 +155,7 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
                 value={pw}
                 disabled={off}
                 inputRef={pwRef}
-                hint={pw.length === 0 ? PASSWORD_HINT : <Strength strength={passwordStrength(pw, name)} length={count} />}
+                hint={newPasswordHint(pw, name, PASSWORD_HINT)}
                 error={pwError}
                 onInput={(v) => {
                   setPw(v);

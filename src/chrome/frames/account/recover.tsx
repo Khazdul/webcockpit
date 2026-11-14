@@ -14,22 +14,12 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import {
-  type Account,
-  type FlowHandle,
-  checkName,
-  checkPassword,
-  checkRecoveryCode,
-  passwordLength,
-  passwordStrength,
-  passwordsMatch,
-  startRecover,
-} from '../../../cloud/account';
+import { type Account, type FlowHandle, checkName, checkRecoveryCode, startRecover } from '../../../cloud/account';
 import { Box, BoxBody, Field, GlassButton, lookFrame } from '../../kit/look';
 import { useNav } from '../../kit/stack';
-import { FormError, type PageProps, SmallNote, Strength, WaitPlate, go, useFormKeys, useTallPage } from './form';
+import { FormError, type PageProps, SmallNote, WaitPlate, checkNewPassword, go, newPasswordHint, useFormKeys, useTallPage } from './form';
 import { useTurnstile } from './turnstile-box';
-import { CODE_HINT, CODE_PLACEHOLDER, WRONG_RECOVERY, charactersWords, failureWords } from './words';
+import { CODE_HINT, CODE_PLACEHOLDER, NEW_PASSWORD_HINT, WRONG_RECOVERY, failureWords } from './words';
 import { Working, useWorking } from './working';
 
 export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recover']): VNode {
@@ -79,12 +69,8 @@ export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recove
   const n = name.trim();
   const canonical = checkRecoveryCode(code);
   const codeError = code.trim().length > 0 && canonical === null && left.code ? 'A recovery code is six groups of four letters and digits.' : null;
-  const pwProblem = checkPassword(pw);
-  const count = passwordLength(pw);
-  const pwError = pwProblem === 'too_short' && (left.pw || pw2.length > 0) ? `${charactersWords(count)}: at least 10.` : null;
-  const same = passwordsMatch(pw, pw2);
-  const pw2Error = pw2.length > 0 && !same && (left.pw2 || passwordLength(pw2) >= count) ? 'The two passwords differ.' : null;
-  const valid = checkName(n) === null && canonical !== null && pwProblem === null && pw2.length > 0 && same;
+  const { pwError, pw2Error, valid: pwValid } = checkNewPassword(pw, pw2, left);
+  const valid = checkName(n) === null && canonical !== null && pwValid;
   const canSubmit = valid && !work.on && !waiting && (second || ts.ready);
 
   const submit = async (): Promise<void> => {
@@ -202,7 +188,7 @@ export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recove
               value={pw}
               disabled={off}
               inputRef={pwRef}
-              hint={pw.length === 0 ? 'At least 10 characters. Not your MUME password.' : <Strength strength={passwordStrength(pw, n)} length={count} />}
+              hint={newPasswordHint(pw, n, NEW_PASSWORD_HINT)}
               error={pwError}
               onInput={(v) => {
                 setPw(v);

@@ -25,6 +25,10 @@
 //   const keys = useFormKeys({ stops, submit, canSubmit, back, busy });
 //   <form class="wc-ac-form" {...keys.form}> … <GlassButton selected={keys.at === 'GO'} … /> </form>
 //
+// In a dialog (the Account page's, with several fields) the same ring is a
+// key layer over the kit `Dialog`'s own keys: `layer: true`, and the
+// dialog draws the cursor (`<Dialog at={keys.at} …>`).
+//
 // `keys.form` carries `onSubmit` (prevented: the CSP's `form-action
 // 'none'`; a real `<form>` is there for the browsers' password managers)
 // and `onFocusIn` (a field that takes the focus takes the cursor back).
@@ -40,10 +44,10 @@
 import type { ComponentChildren, FunctionComponent, VNode } from 'preact';
 import { h } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { PasswordStrength } from '../../../cloud/account';
+import { type PasswordStrength, checkPassword, passwordLength, passwordStrength, passwordsMatch } from '../../../cloud/account';
 import { pageKeyboard } from '../../../core/own-keyboard';
 import { inTextField } from '../../kit/look';
-import { type Nav, useKeys } from '../../kit/stack';
+import { type KeyHandler, type Nav, useKeyLayer, useKeys } from '../../kit/stack';
 import { charactersWords, strengthMark, waitClock } from './words';
 
 // ------------------------------------------------------------ the pages
@@ -103,12 +107,14 @@ export function useFormKeys(o: {
   /** Working: the keys are held; Esc is `cancel`. */
   busy?: boolean;
   cancel?(): void;
+  /** In a dialog: a key layer over the dialog's own keys, not the frame's handler. Never changes in a component's life. */
+  layer?: boolean;
 }): FormKeys {
   const [at, setAt] = useState<string | null>(null);
   const latest = useRef(o);
   latest.current = o;
 
-  useKeys((e, nk) => {
+  const handler: KeyHandler = (e, nk) => {
     const q = latest.current;
     if (q.busy) {
       if (nk === 'back') q.cancel?.();
@@ -163,7 +169,9 @@ export function useFormKeys(o: {
       return true;
     }
     return false;
-  });
+  };
+  useKeyLayer(handler, o.layer === true);
+  if (!o.layer) useKeys(handler);
 
   // A stop that went away or was disabled gives the cursor up.
   const gone = at !== null && !o.stops.some((s) => s.id === at && !s.disabled);
@@ -264,6 +272,39 @@ export function WaitPlate(p: { seconds: number; onDone(): void; children?: Compo
       <SmallNote>{p.children ?? 'Nobody can log in to this name until the time is up, from any device. Nothing is wrong with the account.'}</SmallNote>
     </div>
   );
+}
+
+/** A new password typed twice, as the pages judge it (Create account, Recovery, Change password). */
+export interface NewPassword {
+  /** The length that counts. */
+  count: number;
+  /** Under the first field, or null. */
+  pwError: string | null;
+  /** Under the second field, or null. */
+  pw2Error: string | null;
+  /** Both fields can be used. */
+  valid: boolean;
+}
+
+/**
+ * The checks of a new password and its repeat. `left`: the field was left
+ * once, so its error may show (never while the first characters are typed).
+ */
+export function checkNewPassword(pw: string, pw2: string, left: { pw?: boolean; pw2?: boolean }): NewPassword {
+  const problem = checkPassword(pw);
+  const count = passwordLength(pw);
+  const same = passwordsMatch(pw, pw2);
+  return {
+    count,
+    pwError: problem === 'too_short' && (left.pw || pw2.length > 0) ? `${charactersWords(count)}: at least 10.` : null,
+    pw2Error: pw2.length > 0 && !same && (left.pw2 || passwordLength(pw2) >= count) ? 'The two passwords differ.' : null,
+    valid: problem === null && pw2.length > 0 && same,
+  };
+}
+
+/** The line under a new password: `empty` until something is typed, then the strength hint. */
+export function newPasswordHint(pw: string, name: string, empty: string): ComponentChildren {
+  return pw.length === 0 ? empty : <Strength strength={passwordStrength(pw, name)} length={passwordLength(pw)} />;
 }
 
 /** The password's strength hint: a four-part meter, its word and the count. A hint, never a gate. */
