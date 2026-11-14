@@ -1,7 +1,10 @@
 // The Worker of the root wrangler.jsonc for the unit tests (the `worker`
 // project of vitest.config.ts): the same entry and asset settings, with
 // the assets taken from worker/test/assets instead of a site build, so
-// `npm test` needs no dist-site/.
+// `npm test` needs no dist-site/. A local D1 (the migrations are applied by
+// worker/test/setup.ts), a local rate limiter with a small limit, and the
+// stats flag on by default as on staging. No Access vars: the admin tests
+// pass their own env to handle().
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "webcockpit-test",
@@ -12,8 +15,15 @@
   "assets": {
     "directory": "assets",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"],
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
-  }
+  },
+  "vars": {
+    "FLAG_STATS": true,
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  },
+  "d1_databases": [{ "binding": "DB", "database_name": "webcockpit-test", "database_id": "00000000-0000-0000-0000-00000000test" }],
+  "ratelimits": [{ "name": "BEAT_LIMITER", "namespace_id": "1", "simple": { "limit": 5, "period": 60 } }]
 }

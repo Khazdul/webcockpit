@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { cloudflareTest } from '@cloudflare/vitest-plugin';
+import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-plugin';
 import { defineConfig } from 'vitest/config';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
@@ -24,10 +24,17 @@ export default defineConfig({
         },
       },
       {
-        plugins: [cloudflareTest({ wrangler: { configPath: './worker/test/wrangler.jsonc' } })],
+        plugins: [
+          cloudflareTest(async () => ({
+            wrangler: { configPath: './worker/test/wrangler.jsonc' },
+            // The D1 migrations, applied to the test database by worker/test/setup.ts.
+            miniflare: { bindings: { TEST_MIGRATIONS: await readD1Migrations('./worker/migrations') } },
+          })),
+        ],
         test: {
           name: 'worker',
           include: ['worker/test/**/*.test.ts'],
+          setupFiles: ['worker/test/setup.ts'],
         },
       },
     ],

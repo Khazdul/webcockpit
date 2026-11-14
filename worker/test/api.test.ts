@@ -18,11 +18,12 @@ describe('the Worker API (spec §7.1, ADR 0144)', () => {
     expect(await res.json()).toEqual({ ok: true, version: '9.9.9', commit: 'abc1234' });
   });
 
-  it('GET /api/config answers with no flags', async () => {
+  it('GET /api/config answers with the flags, cached a minute', async () => {
     const res = await get('/api/config');
     expect(res.status).toBe(200);
-    expect(res.headers.get('cache-control')).toBe('no-store');
-    expect(await res.json()).toEqual({ flags: {} });
+    expect(res.headers.get('cache-control')).toBe('max-age=60');
+    // The test Worker's default (FLAG_STATS = true, as on staging); stats.test.ts has the rest.
+    expect(await res.json()).toEqual({ flags: { stats: true } });
   });
 
   it('HEAD is GET without a body', async () => {
