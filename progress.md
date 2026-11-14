@@ -75,22 +75,28 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
 
-### 2026-11-14 — Stage 59 planned (handoff)
+### 2026-11-14 — Stage 59 planned (handoff to the night pass)
 
-- **Done:** `docs/stages/59-usage-statistics.md` (goal, the decisions
-  taken at the start, the API contract, tasks A server, B client,
-  C owner, D release) and `shared/cloud/api.ts` (the contract's
-  types; not yet in any tsconfig, and `worker/router.ts` still has
-  its own `Health` and `Config`). Nothing built, no agents started.
-- **Next:** read the stage file, spec §7.6 and §7.9, ADR 0147 and
-  0148 "The admin page"; start the two building agents (server and
-  client, separate worktrees); the owner's part C when `/admin` is on
-  staging.
-- **Open:** the decisions in the stage file are the session's own and
-  not yet in an ADR (staging on `staging.mumecockpit.com`, flags from
-  a var with a D1 override, the estimate of use, `ADMIN_EMAILS` as a
-  secret); whether R2 is enabled on the account is unknown.
-- **Commits:** this one.
+- **Done:** `docs/stages/59-usage-statistics.md` (goal, decisions,
+  the API contract, tasks A server, B client, C owner, D release, and
+  **"The night pass"**: what the session may and must not do alone);
+  the decisions as addenda to ADR 0144, 0147 and 0148;
+  `shared/cloud/api.ts` wired into both tsconfigs and the router.
+  Nothing of stage 59 is built.
+- **Closing checks of this session:** full e2e on 0.9.3, alone, 5
+  workers: 1430 passed, 2 failed (`profile-apply.spec.ts:185` firefox,
+  `look-kit-box.spec.ts:182` chromium), both pass alone; unit 4259;
+  typecheck clean. The stage-58a worktree and branch are removed.
+- **Next (the owner starts it and sleeps):** read the stage file
+  first, then spec §7.0, §7.6, §7.9, §7.11, ADR 0147 and 0148 "The
+  admin page" with the addenda; two building agents (server, client)
+  in worktrees from `main`; review, merge, staging; fill in "For the
+  owner" in the stage file. No release, nothing against production.
+- **Open:** whether R2 is enabled on the account; whether a custom
+  domain for staging and Access on a path work as the addendum says
+  (check the documentation first); `worktree`s `fix-sig-popup` and
+  `fix-k-hold-landscape` are old and not this session's.
+- **Commits:** 29f93476, 7a0efebd and this one.
 
 ### 2026-11-14 — Stage 58 part C: the switch
 

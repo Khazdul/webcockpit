@@ -14,6 +14,8 @@
 // fitting status, never cached. `_headers` does not apply to what a Worker
 // answers, so the API sets its own headers here.
 
+import type { Config, Health } from '../shared/cloud/api.ts';
+
 /** The static assets binding (`assets.binding` in wrangler.jsonc), as far as the router uses it. */
 export interface AssetsBinding {
   fetch(input: Request | URL | string): Promise<Response>;
@@ -21,18 +23,6 @@ export interface AssetsBinding {
 
 export interface Env {
   ASSETS: AssetsBinding;
-}
-
-/** The body of `GET /api/health`. */
-export interface Health {
-  ok: true;
-  version: string;
-  commit: string;
-}
-
-/** The body of `GET /api/config`: the server flags (spec §7.0 rule 5). None yet. */
-export interface Config {
-  flags: Record<string, boolean>;
 }
 
 export const API_HEADERS: Record<string, string> = {
