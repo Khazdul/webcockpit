@@ -258,5 +258,10 @@ The owner took the recommendation on all seven points:
 7. **The Account page's sync section:** as drawn; the page scrolls on
    a 1440 × 900 screen (Leaving below the fold).
 
+**Keep-both name** (owner, 2026-11-14, during part B): the copy is
+named `warrior_from_phone_14Nov` (names cannot hold spaces or
+parentheses; the own name is shortened, never the device or the
+date). The notice may say "from phone, 14 Nov" in words.
+
 Follows from 1–3: the start menu's message line wraps to two or three
 lines and About moves down while it shows (round 9 README).
