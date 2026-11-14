@@ -220,8 +220,39 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
       the Account page; desktop and phone
       (`notes/research/account-mockups/`, 56 states). **The owner
       picks** ("For the owner" below).
-- [ ] `src/cloud/account`: the API client, the stored account and
+- [x] `src/cloud/account`: the API client, the stored account and
       keys, log in / out / register / recover flows.
+
+      Built 2026-11-14 on branch `stage60-account-core` (ADR 0145 "As
+      built (stage 60 part B, the client core)"; the guide for the
+      pages is the header of `src/cloud/account/index.ts`). No page
+      imports it yet: the entry chunk is byte for byte the size it was
+      (30 005 bytes). When the start menu imports `state.ts` it costs
+      about 1.2 kB; the flows are a chunk of about 18 kB and the crypto
+      9 kB more, both loaded on demand. Tests: 75 unit tests in three
+      files, 5 e2e (desktop twice in two browsers, the phone once),
+      and `tests/e2e/cloud-account-fake.ts`, the account API in memory
+      for the page specs. Differences from the brief:
+
+      - The start page's state is a hint in localStorage (`wc.account`,
+        `wc.account.last`), written by the flows after the keys are
+        stored or removed; the keys and the record are in the database
+        `webcockpit-account`. Tabs keep in step through the `storage`
+        event (no BroadcastChannel).
+      - Register, log in and recover are objects (`startRegister`,
+        `startLogin`, `startRecover`) with `submit({ turnstile })`, so
+        any of them can be submitted again without a second derivation.
+      - A failed KDF worker is followed by one derivation on the
+        page's thread; the page is told (`inline`).
+      - A wrong old password in change password and new recovery code
+        is found on the device and reported as `invalid_login`.
+      - Added: a check before the slow step that the device can keep
+        keys (`storage_failed`); a register flow whose answer was lost
+        finds its own account again; ending a session that is already
+        gone counts as ended.
+      - Not verified: the real `__Secure-` cookie on plain
+        `http://localhost` (the fake simulates the cookie), anything
+        against a real Worker, and WebKit (not installed).
 - [ ] The pages in the look kit; phone and tablet with our keyboard.
 - [ ] The CSP: report-only on staging, then enforced (Turnstile's
       script and frame included).
