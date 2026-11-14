@@ -24,7 +24,6 @@
 // flags (`/api/config`, fetched once per page load and shared with the
 // rest of the cloud client), and only when the page may call the API.
 
-import { NAME_PATTERN } from '../../../shared/cloud/api.ts';
 import { apiAllowed, flagOn } from '../config';
 
 export const ACCOUNT_HINT_KEY = 'wc.account';
@@ -57,7 +56,14 @@ function storage(): Storage | null {
   }
 }
 
-const nameOf = (v: unknown): string | null => (typeof v === 'string' && NAME_PATTERN.test(v) ? v : null);
+/**
+ * A user name: `NAME_PATTERN` of shared/cloud/api.ts, written out so that
+ * the start page does not load that file for one expression (a unit test
+ * holds the two together).
+ */
+export const HINT_NAME_PATTERN = /^[A-Za-z0-9_-]{3,20}$/;
+
+const nameOf = (v: unknown): string | null => (typeof v === 'string' && HINT_NAME_PATTERN.test(v) ? v : null);
 
 function readHint(): string | null {
   try {

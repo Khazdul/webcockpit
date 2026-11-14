@@ -294,7 +294,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
         return keys;
       } catch (e) {
         if (cryptoCode(e) !== 'worker_failed') throw e;
-        o.onStep?.('deriving', { estimateMs: estimateKdfMs(kdf.rounds), inline: true });
+        step(o, 'deriving', { estimateMs: estimateKdfMs(kdf.rounds), inline: true });
         try {
           return await base(name, password, salt, kdf, { ...ko, inline: true });
         } catch (again) {
@@ -313,6 +313,15 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
       throw new Stop('offline');
     }
   }
+
+  /** Tells the page where the flow is. A page's handler that throws does not end the flow. */
+  const step = (o: RunOptions, at: FlowStep, info: StepInfo = {}): void => {
+    try {
+      o.onStep?.(at, info);
+    } catch {
+      /* the page's problem */
+    }
+  };
 
   const cancelledIf = (o: RunOptions): void => {
     if (o.signal?.aborted) throw new Stop('cancelled');
@@ -418,21 +427,23 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
           if (pw === null || checkName(name) !== null || checkPassword(pw) !== null) throw new Stop('bad_input');
           await ready();
           cancelledIf(o);
-          o.onStep?.('deriving', { estimateMs: estimateKdfMs(DEFAULT_KDF.rounds) });
+          step(o, 'deriving', { estimateMs: estimateKdfMs(DEFAULT_KDF.rounds) });
           const c = await cryptoModule();
           prepared = await c.prepareRegistration(name, pw, { derive: deriver(o), signal: o.signal });
           pw = null;
         }
+        // A local: `dispose()` during a submit must not pull the ground from under it.
+        const made = prepared;
         cancelledIf(o);
-        o.onStep?.('sending', {});
+        step(o, 'sending');
         const label = deps.label();
         let account: Account | null = null;
-        const r = await api.register({ name, ...prepared.request, label, turnstile: o.turnstile });
+        const r = await api.register({ name, ...made.request, label, turnstile: o.turnstile });
         if (r.ok) account = r.value.account;
         else if (r.code === 'name_taken' && unsure) {
           // The name may be taken by this very flow's earlier try. Its
           // password key tells: it opens a session only if the account is ours.
-          const mine = await api.login({ name, authKey: prepared.request.authKey, label });
+          const mine = await api.login({ name, authKey: made.request.authKey, label });
           if (mine.ok) account = mine.value.account;
         }
         if (!account) {
@@ -442,12 +453,11 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
           throw stopOf(failure);
         }
         account = await checkedAccount(account, name);
-        o.onStep?.('saving', {});
-        const stored = await keep(account, prepared.keys);
+        step(o, 'saving');
+        const stored = await keep(account, made.keys);
         if (!stored) await api.logout();
-        const recoveryCode = prepared.recoveryCode;
         end();
-        return { account, recoveryCode, stored };
+        return { account, recoveryCode: made.recoveryCode, stored };
       },
       () => {
         pw = null;
@@ -469,16 +479,17 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
         if (!derived) {
           if (pw === null || checkName(name) !== null || pw.length === 0) throw new Stop('bad_input');
           await ready();
-          o.onStep?.('checking', {});
+          step(o, 'checking');
           const params: AuthParams = need(await api.params(name, { signal: o.signal }));
-          o.onStep?.('deriving', { estimateMs: estimateKdfMs(params.kdf.rounds) });
+          step(o, 'deriving', { estimateMs: estimateKdfMs(params.kdf.rounds) });
           const c = await cryptoModule();
           derived = await c.derivePasswordLogin(name, pw, params, { derive: deriver(o), signal: o.signal });
           pw = null;
         }
+        const { authKey, kek } = derived;
         cancelledIf(o);
-        o.onStep?.('sending', {});
-        const r = await api.login({ name, authKey: derived.authKey, label: deps.label(), ...(o.turnstile ? { turnstile: o.turnstile } : {}) });
+        step(o, 'sending');
+        const r = await api.login({ name, authKey, label: deps.label(), ...(o.turnstile ? { turnstile: o.turnstile } : {}) });
         if (!r.ok) {
           // From now on the server wants a token with every try (a token works once: a new one each time).
           if (r.code === 'turnstile_required') wantsTurnstile = true;
@@ -486,12 +497,12 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
           else if (r.code === 'invalid_login') end();
           throw stopOf(r);
         }
-        o.onStep?.('saving', {});
+        step(o, 'saving');
         let keys: AccountKeys;
         try {
           const account = await checkedAccount(r.value.account, name);
           const c = await cryptoModule();
-          keys = await c.unlockWithPassword(account.name, derived.kek, r.value.wrapPw);
+          keys = await c.unlockWithPassword(account.name, kek, r.value.wrapPw);
         } catch (e) {
           end();
           if (e instanceof Stop) throw e;
@@ -533,13 +544,13 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
           const c = await cryptoModule();
           const rk = await c.deriveRecoveryLogin(name, code);
           recoveryAuth = rk.recoveryAuth;
-          o.onStep?.('checking', {});
+          step(o, 'checking');
           const first = await api.recover({ name, recoveryAuth, turnstile: o.turnstile });
           if (!first.ok) {
             if (first.code === 'invalid_recovery') end();
             throw stopOf(first);
           }
-          o.onStep?.('deriving', { estimateMs: estimateKdfMs(DEFAULT_KDF.rounds) });
+          step(o, 'deriving', { estimateMs: estimateKdfMs(DEFAULT_KDF.rounds) });
           try {
             const { set, keys } = await c.recoverAccount(name, rk.recoveryKek, first.value.wrapRc, pw, { derive: deriver(o), signal: o.signal });
             second = { ticket: first.value.ticket, set, keys };
@@ -554,21 +565,21 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
           code = null;
         }
         if (recoveryAuth === null) throw new Stop('failed');
-        o.onStep?.('sending', {});
-        const r = await api.recoverSet({ name, recoveryAuth, ticket: second.ticket, set: second.set, label: deps.label() });
+        const { ticket, set, keys } = second;
+        step(o, 'sending');
+        const r = await api.recoverSet({ name, recoveryAuth, ticket, set, label: deps.label() });
         if (!r.ok) {
           // The ticket ran out (15 minutes) or the code was replaced meanwhile: the flow cannot go on.
           if (r.code === 'invalid_recovery') end();
           throw stopOf(r);
         }
-        const keys = second.keys;
         let account: Account;
         try {
           account = await checkedAccount(r.value.account, name);
         } finally {
           end();
         }
-        o.onStep?.('saving', {});
+        step(o, 'saving');
         if (!(await keep(account, keys))) {
           await api.logout();
           throw new Stop('storage_failed');
@@ -595,11 +606,11 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
   ): Promise<{ me: StoredAccount; authKey: string; kek: CryptoKey; wrapPw: string | null; c: CryptoModule }> {
     if (password.length === 0) throw new Stop('bad_input');
     const me = await signedIn();
-    o.onStep?.('checking', {});
+    step(o, 'checking');
     const params = need(await api.params(me.name, { signal: o.signal }));
     // The current password wrap, where the root is needed (it is not kept on the device).
     const wrapPw = wrap ? need(await authed(api.account({ signal: o.signal }))).wrapPw : null;
-    o.onStep?.('deriving', { estimateMs: estimateKdfMs(params.kdf.rounds) + extraMs });
+    step(o, 'deriving', { estimateMs: estimateKdfMs(params.kdf.rounds) + extraMs });
     const c = await cryptoModule();
     const { authKey, kek } = await c.derivePasswordLogin(me.name, password, params, { derive: deriver(o), signal: o.signal });
     return { me, authKey, kek, wrapPw, c };
@@ -616,7 +627,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
 
   const logout = (o: RunOptions = {}): Promise<FlowResult<LogoutDone>> =>
     run(async () => {
-      o.onStep?.('sending', {});
+      step(o, 'sending');
       const r = await api.logout();
       const keysRemoved = await forget();
       // `unauthorized`: the server no longer knew the session, which is what was asked for.
@@ -627,7 +638,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
   const loadAccount = (o: RunOptions = {}): Promise<FlowResult<Account>> =>
     run(async () => {
       await signedIn();
-      o.onStep?.('checking', {});
+      step(o, 'checking');
       return need(await authed(api.account({ signal: o.signal }))).account;
     });
 
@@ -642,7 +653,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
         throw wrongPassword(e);
       }
       cancelledIf(o);
-      o.onStep?.('sending', {});
+      step(o, 'sending');
       need(await authed(api.password({ authKey, set })));
       return null;
     });
@@ -657,7 +668,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
         throw wrongPassword(e);
       }
       cancelledIf(o);
-      o.onStep?.('sending', {});
+      step(o, 'sending');
       need(await authed(api.recovery({ authKey, recoveryAuth: made.recoveryAuth, wrapRc: made.wrapRc })));
       return { recoveryCode: made.recoveryCode };
     });
@@ -665,7 +676,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
   const endSessionOf = (id: string, o: RunOptions): Promise<FlowResult<null>> =>
     run(async () => {
       await signedIn();
-      o.onStep?.('sending', {});
+      step(o, 'sending');
       const r = await authed(api.endSession(id));
       // No such session: it was ended meanwhile, which is what was asked for.
       if (!r.ok && r.code !== 'not_found') throw stopOf(r);
@@ -676,7 +687,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
     run(async () => {
       const { authKey } = await passwordKeys(password, o, 0, false);
       cancelledIf(o);
-      o.onStep?.('sending', {});
+      step(o, 'sending');
       need(await authed(api.remove({ authKey })));
       // The name is reserved for good: nothing to prefill.
       await forget({ forgetName: true });
@@ -686,7 +697,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
   const setPrefs = (prefs: PrefsRequest, o: RunOptions = {}): Promise<FlowResult<AccountPrefs>> =>
     run(async () => {
       await signedIn();
-      o.onStep?.('sending', {});
+      step(o, 'sending');
       return need(await authed(api.setPrefs({ galleryNotice: prefs.galleryNotice }))).prefs;
     });
 

@@ -366,6 +366,28 @@ describe('log in', () => {
   });
 });
 
+describe('a page that misbehaves', () => {
+  it('dispose during a submit: the submit still ends properly; a step handler that throws does not end the flow', async () => {
+    const d = device();
+    const flow = d.flows.startRegister('Olev', PASSWORD);
+    const r = await flow.submit({
+      turnstile: 'a',
+      onStep: (s) => {
+        if (s === 'sending') flow.dispose();
+        throw new Error('the page');
+      },
+    });
+    expect(r.ok && r.value.stored).toBe(true);
+    expect(r.ok && r.value.recoveryCode).toMatch(/-/);
+    expect((await d.flows.storedAccount())!.name).toBe('Olev');
+    await d.flows.logout();
+    const login = d.flows.startLogin('Olev', PASSWORD);
+    const l = await login.submit({ onStep: (s) => s === 'sending' && login.dispose() });
+    expect(l.ok).toBe(true);
+    expect(accountState().name).toBe('Olev');
+  });
+});
+
 describe('log out', () => {
   it('ends the session on the server and removes the keys; the name stays for the prefill', async () => {
     const d = device();

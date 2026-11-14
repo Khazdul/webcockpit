@@ -3,6 +3,7 @@
 // its own, with fake-indexeddb), the start page's state (state.ts), the
 // checks (checks.ts), the device label and the remembered KDF time.
 import { IDBFactory } from 'fake-indexeddb';
+import { NAME_PATTERN } from '../../shared/cloud/api';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PASSWORD_MIN_LENGTH,
@@ -17,6 +18,7 @@ import { KDF_GUESS_MS, KDF_TIME_KEY, estimateKdfMs, noteKdfMs } from '../../src/
 import {
   ACCOUNT_HINT_KEY,
   ACCOUNT_LAST_KEY,
+  HINT_NAME_PATTERN,
   accountState,
   accountsEnabled,
   noteLoggedIn,
@@ -176,6 +178,11 @@ describe('the start page\'s state', () => {
     }
     storage.setItem(ACCOUNT_LAST_KEY, 'not a name!');
     expect(accountState().lastName).toBeNull();
+  });
+
+  it('reads a name as the API does', () => {
+    expect(HINT_NAME_PATTERN.source).toBe(NAME_PATTERN.source);
+    expect(HINT_NAME_PATTERN.flags).toBe(NAME_PATTERN.flags);
   });
 
   it('logged out keeps the last name, unless it is to be forgotten', () => {
