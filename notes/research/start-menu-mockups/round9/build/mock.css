@@ -1,0 +1,93 @@
+/* The mockups' own additions (mk-*), over the real look's CSS (stage 61,
+ * round 9). The values follow the kit's tokens (--lk-*), so a later build
+ * can take them over. */
+
+/* No entrance motion in a still mockup. */
+.wc-lk-veil, .wc-lk-dialog, .wc-alm-o, .wc-lk-flash > span { animation: none !important; }
+html, body { overflow: hidden; }
+
+/* A state mark outside the owner row (the row's own classes, set in the flow). */
+.wc-so-mark.mk-m { position: static; flex: none; display: inline-flex; width: 14px; height: 1em; vertical-align: middle; }
+
+/* ------------------------------------------------ the message line, grown */
+/* Today the line is one line (nowrap, ellipsis); these messages need two or three. */
+.wc-sm-flash.mk-wrap, .wc-lk-flash.mk-wrap { white-space: normal; height: auto; min-height: 18px; padding: 0 10px; text-wrap: balance; line-height: 19px; }
+.wc-sm-win:has(.mk-wrap) .wc-sm-item.is-foot { margin-top: calc(var(--wc-sm-flash-h) + 8px); }
+.wc-sm-flash.mk-wrap { bottom: calc(var(--wc-sm-pad-b) + var(--wc-sm-foot-h) + 2px); }
+
+/* 3b: in the owner row's language: its mark, the name in the small caps, plain italic. */
+.mk-fl-own { display: inline; color: var(--lk-text); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); }
+.mk-fl-own .wc-so-mark.mk-m { margin-right: 7px; vertical-align: -1px; }
+.mk-fl-name { font: 700 12px/1 var(--lk-display); letter-spacing: 0.13em; color: var(--lk-head); }
+.mk-fl-sep { font-style: normal; color: var(--lk-faint); margin: 0 2px 0 3px; }
+.mk-fl-t { font: italic 500 15px/19px var(--lk-serif); color: var(--lk-text); }
+
+/* 2c: Log in and Remove in the message line. */
+.wc-sm-flash.mk-wrap:has(.mk-fl-acts) { pointer-events: auto; }
+.mk-fl-acts { white-space: nowrap; margin-left: 4px; }
+.mk-fl-link.wc-lk-link { font: italic 600 15px/19px var(--lk-serif); color: var(--lk-on); text-shadow: 0 1px 2px #000; text-decoration: none; }
+.mk-fl-link.is-danger { color: var(--lk-danger); }
+.mk-fl-dot { margin: 0 6px; color: var(--lk-faint); font-style: normal; }
+
+/* ------------------------------------------------ 2a: the notice under the owner row */
+.mk-lock { grid-column: 2 / -1; list-style: none; margin: -2px 0 6px; padding: 0 14px 9px 0; border-bottom: 1px solid var(--lk-rule); }
+.mk-lock-t { margin: 0; font: italic 500 15px/1.32 var(--lk-serif); color: var(--lk-dim); text-wrap: pretty; }
+.mk-lock-t b { font-weight: 600; font-style: normal; font-family: var(--lk-display); font-size: 11px; letter-spacing: 0.12em; color: var(--lk-head); }
+.mk-lock-b { display: flex; gap: 8px; margin-top: 7px; }
+.mk-lock-b .wc-lk-btn { min-width: 0; }
+
+/* 2b: a card of its own where the quote stands. */
+.mk-lockcard { flex: none; box-sizing: border-box; width: var(--wc-panel-w, 360px); max-width: calc(100% - 16px); margin-top: clamp(14px, 2.6vh, 28px); padding: 12px 16px 13px; border: 1px solid var(--lk-glass-edge); border-radius: 4px; background: var(--lk-win-fill); box-shadow: inset 0 1px 0 rgba(255, 236, 206, 0.12), 0 4px 18px rgba(0, 0, 0, 0.5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.mk-lockcard-h { display: flex; align-items: baseline; gap: 7px; margin-bottom: 5px; }
+.mk-lockcard-h .wc-lk-ic { width: 13px; height: 13px; align-self: center; color: var(--lk-dim); }
+.mk-lockcard-h > span:first-of-type { font: 700 12px/1.3 var(--lk-display); letter-spacing: 0.13em; color: var(--lk-head); }
+.mk-lockcard-s { font: italic 500 15px/1 var(--lk-serif); color: var(--lk-dim); }
+.mk-lockcard .mk-lock-b { justify-content: flex-end; }
+
+/* ------------------------------------------------ dialogs */
+.mk-dlist { list-style: none; margin: 6px 0 4px; padding: 0; }
+.mk-dlist li { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; font: 500 16.5px/1.35 var(--lk-serif); color: var(--lk-text); }
+.mk-dlist li > .wc-lk-ic, .mk-dlist li > .wc-so-mark { flex: none; width: 14px; height: 14px; color: var(--lk-dim); align-self: center; }
+.mk-dlist li b { font-weight: 600; color: var(--lk-on); }
+.mk-dlist li i { color: var(--lk-dim); }
+.mk-dlist.is-rows li { padding: 7px 10px; margin: 0 0 4px; border-radius: 3px; background: var(--lk-row); box-shadow: var(--lk-row-sh); }
+.mk-inlink.wc-lk-link { font: italic 600 16.5px/1.35 var(--lk-serif); vertical-align: baseline; }
+.mk-dnote { margin: 8px 0 0; font: italic 500 15px/1.35 var(--lk-serif); color: var(--lk-faint); }
+.mk-dwork { display: flex; align-items: center; gap: 9px; margin: 8px 0 4px; font: italic 500 16px/1.4 var(--lk-serif); color: var(--lk-dim); }
+.mk-dlg .wc-lk-dialog-btns { flex-wrap: wrap; }
+.wc-ac-dtxt.mk-new { outline: 1px dashed rgba(233, 196, 124, 0.35); outline-offset: 3px; border-radius: 2px; margin-bottom: 12px; }
+
+/* ------------------------------------------------ the Account page: sync section */
+.mk-rule { margin-top: 14px; }
+.mk-sync { margin: 4px 0 2px; }
+.mk-sync-st { display: flex; align-items: center; gap: 9px; min-height: 32px; }
+.mk-sync-w { flex: 1 1 auto; min-width: 0; font: italic 500 16.5px/1.3 var(--lk-serif); color: var(--lk-dim); }
+.mk-sync-w b { font-weight: 600; font-style: normal; color: var(--lk-text); }
+.mk-sync-st .wc-lk-btn { flex: none; }
+.mk-sync-n { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0 4px; font: 400 12px/1.4 var(--lk-mono); color: var(--lk-dim); }
+.mk-sync-kb { color: var(--lk-faint); }
+.mk-bar { height: 4px; border-radius: 2px; background: var(--lk-well); box-shadow: var(--lk-well-in); overflow: hidden; }
+.mk-bar i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, rgba(233, 196, 124, 0.55), rgba(233, 196, 124, 0.85)); }
+.mk-sync.is-full .mk-bar i { background: linear-gradient(90deg, rgba(232, 166, 94, 0.7), var(--lk-soon)); box-shadow: 0 0 8px rgba(255, 150, 60, 0.6); }
+.mk-sync.is-full .mk-sync-kb { color: var(--lk-soon); }
+.mk-sync-note { margin-top: 7px; }
+.mk-sync-move { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 0; font: italic 500 15px/1.35 var(--lk-serif); color: var(--lk-dim); }
+.mk-sync-move .wc-lk-ic { flex: none; width: 13px; height: 13px; align-self: center; color: var(--lk-ok); }
+.mk-sync-move b { font-weight: 600; color: var(--lk-text); font-style: normal; }
+
+/* 1b: the receipt (as the Import page's: a heading with the check, a short list, OK). */
+.mk-rcpt { margin: 14px 0 4px; padding: 10px 14px 10px; border: 1px solid var(--lk-well-edge); border-radius: 4px; background: var(--lk-well); box-shadow: var(--lk-well-in), 0 1px 0 var(--lk-well-lip); }
+.mk-rcpt-h { display: flex; align-items: center; gap: 8px; font: 700 12.5px/1.4 var(--lk-display); letter-spacing: 0.12em; color: var(--lk-head); }
+.mk-rcpt-ic { width: 15px; height: 15px; color: var(--lk-ok); }
+.mk-rcpt.is-wait .mk-rcpt-ic { color: var(--lk-gold); }
+.mk-rcpt-l { list-style: none; margin: 6px 0 2px 23px; padding: 0; }
+.mk-rcpt-l li { display: grid; grid-template-columns: 1.6em auto 1fr; gap: 8px; align-items: baseline; padding: 1px 0; }
+.mk-rcpt-n { font: 400 13px/1.4 var(--lk-mono); color: var(--lk-on); text-align: right; }
+.mk-rcpt-k { font: 500 16px/1.35 var(--lk-serif); color: var(--lk-text); }
+.mk-rcpt-w { min-width: 0; font: italic 500 15px/1.35 var(--lk-serif); color: var(--lk-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-rcpt-f { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-left: 23px; }
+.mk-rcpt-f .wc-ac-small { margin: 2px 0 0; }
+
+/* ------------------------------------------------ the Profile page: keep both */
+.wc-pl-tag.mk-both-tag { color: var(--lk-gold); border-color: rgba(233, 196, 124, 0.45); }
+.wc-pl-tag.mk-both-tag::before { content: "◆ "; font-size: 0.8em; }
