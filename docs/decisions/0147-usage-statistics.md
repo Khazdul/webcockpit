@@ -291,3 +291,11 @@ Pruning and the admin page's own reads are not counted.
   the dev server was the stage file's suggestion; the stubs let each
   test choose its answer (flag off, 404, 500, a refused connection)
   and see every request, with no second server per worktree.
+- **Benchmarks (spec §1.3)**, `npm run bench -- --quick` before and
+  after on the same machine (load 1–4 from a parallel build): key →
+  send p99 0.120 / 0.085 ms → 0.080 / 0.080 ms (Firefox / Chromium),
+  frame → paint 0 of 100 late in both, 500 rules 4.31 / 5.71 → 4.31 /
+  5.42 µs per line, scrollback unchanged. The Firefox burst check
+  failed before and after alike (longest rAF gap 183 → 185 ms, a
+  known quick-run result under load); nothing moved. `?bench` starts no
+  cloud code at all.
