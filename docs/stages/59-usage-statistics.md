@@ -145,20 +145,22 @@ Online = seen in the last 6 minutes.
 
 ### B. Client (building agent, worktree)
 
-- [ ] `src/cloud/`: config fetch (flags), `beat.ts` per spec §7.6
+- [x] `src/cloud/`: config fetch (flags), `beat.ts` per spec §7.6
       (load, every 5 minutes while visible, on a state change; never
       awaited; off in dev, under `navigator.webdriver`, and when the
       flag is off).
-- [ ] Start page: one quiet line "N online" by the almanac; absent
+- [x] Start page: one quiet line "N online" by the almanac; absent
       when the flag is off or the request fails. Desktop, tablet and
       phone.
-- [ ] About: a "What the site knows" section; the `/privacy` leaf in
+- [x] About: a "What the site knows" section; the `/privacy` leaf in
       the About look with the full text (the heartbeat; later the
       account and shared runs, named as not existing yet; Cloudflare
       as processor; `abuse@mumecockpit.com`; how to clear the device
       id); `https://mumecockpit.com/privacy` opens it.
-- [ ] Unit and e2e tests (a test Worker stub behind the dev server's
-      `/api`); the benchmarks of spec §1.3 not moved.
+- [x] Unit and e2e tests (a test Worker stub behind the dev server's
+      `/api`); the benchmarks of spec §1.3 not moved. (Built with
+      Playwright route stubs and the dev-only `?cloudtest` instead of
+      a test Worker: ADR 0147 "As built (stage 59 part B)".)
 
 ### C. Owner's part (guided by the session, about 15 minutes)
 
