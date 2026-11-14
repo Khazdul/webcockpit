@@ -1,6 +1,16 @@
-// The one IndexedDB database of the app (ADR 0006, ADR 0008, ADR 0010).
+// The IndexedDB databases of the app (ADR 0006, ADR 0008, ADR 0010, ADR 0150).
 //
-// Database `webcockpit`:
+// One database per space (src/core/space.ts): the device's `webcockpit`,
+// and a logged-in account's `webcockpit-u-<nameKey>`. One schema for both:
+// the upgrade chain below builds every space's database.
+// `openWebcockpitDb()` opens the current space's; `openDeviceDb()` always
+// opens `webcockpit` (the map, the tilesets and the locator's ids are the
+// device's whoever is logged in: in an account's database `maps` and
+// `mapIds` stay empty). This file and src/core/space.ts (deleteDatabase)
+// are the only ones in src/ that open or delete a space's database (a
+// unit test holds that).
+//
+// Schema:
 //
 //   version 1 (stage 1, capture — see src/capture/store.ts)
 //     runs       keyPath 'runId'   indexes 'character', 'startedUs'
@@ -36,6 +46,14 @@
 //                created, updated } (src/scripts/library.ts, ADR 0051)
 //     scriptData keyPath 'name'; per script name, bundled or user:
 //                { name, enabled?, settings, store } (ADR 0051)
+//   version 9 (stage 61, ADR 0150)
+//     profiles   records gain `id` (random; filled for existing records
+//                here, given to new ones, kept on rename)
+//     sync       keyPath ['kind', 'key']; per synced item: { kind, key
+//                (the local key), id (server id), rev, hash, state }
+//                (src/cloud/sync; empty in the device's database)
+//     syncMeta   out-of-line keys; account, cursor, device label
+//                (empty in the device's database)
 //
 // The upgrade handler is a chain of `if (oldVersion < N)` steps, so every
 // older database upgrades in order. Add a step (and bump DB_VERSION) for
@@ -51,8 +69,11 @@
 // fall back to memory. `onDbSuperseded` tells the app so it can say so. Other
 // open failures (private mode, no IndexedDB) are not reported here.
 
-export const DB_NAME = 'webcockpit';
-export const DB_VERSION = 8;
+import { DEVICE_DB_NAME, currentSpace, spaceDbName } from './space';
+
+/** The device's database (the space of a guest). */
+export const DB_NAME = DEVICE_DB_NAME;
+export const DB_VERSION = 9;
 
 /** Object store names, for callers outside this module. */
 export const STORE = {
@@ -68,7 +89,16 @@ export const STORE = {
   mapIds: 'mapIds',
   scripts: 'scripts',
   scriptData: 'scriptData',
+  sync: 'sync',
+  syncMeta: 'syncMeta',
 } as const;
+
+/** A random id (profile ids, ADR 0150). */
+export function randomId(): string {
+  const c = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
 
 let persistAsked = false;
 
@@ -126,12 +156,17 @@ export function requestPersistence(): void {
   }
 }
 
-/** Opens (and creates or upgrades) the `webcockpit` database. */
-export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB): Promise<IDBDatabase> {
+/**
+ * Opens (and creates or upgrades) the current space's database
+ * (`webcockpit`, or `webcockpit-u-<nameKey>` while an account is logged
+ * in; src/core/space.ts). `name` overrides the space (tests,
+ * `openDeviceDb`).
+ */
+export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB, name: string = spaceDbName(currentSpace())): Promise<IDBDatabase> {
   if (!factory) return Promise.reject(new Error('IndexedDB unavailable'));
   requestPersistence();
   return new Promise((resolve, reject) => {
-    const r = factory.open(DB_NAME, DB_VERSION);
+    const r = factory.open(name, DB_VERSION);
     r.onupgradeneeded = (ev) => {
       const db = r.result;
       if (ev.oldVersion < 1) {
@@ -166,6 +201,19 @@ export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB): Pr
         db.createObjectStore(STORE.scripts, { keyPath: 'id' });
         db.createObjectStore(STORE.scriptData, { keyPath: 'name' });
       }
+      if (ev.oldVersion < 9) {
+        // Every profile gets an id that a rename keeps (the sync's item, ADR 0150).
+        const profiles = r.transaction!.objectStore(STORE.profiles);
+        profiles.openCursor().onsuccess = (e) => {
+          const cur = (e.target as IDBRequest<IDBCursorWithValue | null>).result;
+          if (!cur) return;
+          const rec = cur.value as { id?: unknown };
+          if (typeof rec.id !== 'string' || !rec.id) cur.update({ ...rec, id: randomId() });
+          cur.continue();
+        };
+        db.createObjectStore(STORE.sync, { keyPath: ['kind', 'key'] });
+        db.createObjectStore(STORE.syncMeta);
+      }
     };
     r.onsuccess = () => {
       const db = r.result;
@@ -182,6 +230,14 @@ export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB): Pr
     };
     r.onblocked = () => reject(new Error('database upgrade blocked by another tab'));
   });
+}
+
+/**
+ * Opens the device's database `webcockpit` whatever the current space:
+ * the imported map, the tilesets and the locator's ids (ADR 0150).
+ */
+export function openDeviceDb(factory: IDBFactory = globalThis.indexedDB): Promise<IDBDatabase> {
+  return openWebcockpitDb(factory, DB_NAME);
 }
 
 /** The one `maps` record (key `current`): an imported `.mm2` (ADR 0020). */
