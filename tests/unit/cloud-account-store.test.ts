@@ -115,6 +115,36 @@ describe('the store', () => {
     expect(await names(factory)).toEqual([]);
   });
 
+  it('a read racing a write in another tab does not take the write away (the review, 9c)', async () => {
+    const factory = new IDBFactory();
+    const tabA = createAccountStore(factory);
+    const tabB = createAccountStore(factory);
+    const rec = await record();
+    // Tab A reads where there is no database yet while tab B stores a login.
+    const [seen] = await Promise.all([tabA.read(), tabB.write(rec)]);
+    expect(seen).toBeNull();
+    expect(await tabA.read()).toMatchObject({ name: rec.name, savedAt: rec.savedAt });
+    // And the other order.
+    await tabA.remove();
+    await Promise.all([tabB.write(rec), tabA.read(), tabA.read()]);
+    expect(await tabB.read()).not.toBeNull();
+  });
+
+  it('a database that cannot be read rejects: it is not "no account" (the review, finding 8)', async () => {
+    const factory = new IDBFactory();
+    const store = createAccountStore(factory);
+    await store.write(await record());
+    const broken = {
+      open: () => {
+        const r = {} as IDBOpenDBRequest;
+        queueMicrotask(() => (r as { onerror: ((e: Event) => void) | null }).onerror?.(new Event('error')));
+        return r;
+      },
+    } as unknown as IDBFactory;
+    await expect(createAccountStore(broken).read()).rejects.toThrow();
+    expect(await store.read()).not.toBeNull();
+  });
+
   it('never touches the main database, and the main database never sees the account', async () => {
     const factory = new IDBFactory();
     const main = await openWebcockpitDb(factory);

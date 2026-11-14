@@ -22,7 +22,10 @@
 //
 // No connection is kept: every operation opens, does its one transaction
 // and closes, so a delete (here or in another tab) is never blocked for
-// long. A read never leaves a database behind where there was none.
+// long. A read never makes a database where there was none: its open
+// aborts the upgrade that would create one, which is one atomic step for
+// the browser (nothing is created and then deleted, so a read cannot take
+// away what another tab is writing; stage 60 review).
 
 import { NAME_PATTERN } from '../../../shared/cloud/api.ts';
 import { DB_NAME } from '../../core/db';
@@ -50,7 +53,11 @@ export interface StoredAccount {
 
 /** The store as the flows use it (tests pass their own). */
 export interface AccountStore {
-  /** The stored account, or null: none, unreadable, or not what this file writes. Never rejects. */
+  /**
+   * The stored account, or null: there is none (no database, no record, or
+   * a record this file did not write). REJECTS when the database could not
+   * be read (blocked, a browser error): that is not "nobody is logged in".
+   */
   read(): Promise<StoredAccount | null>;
   /** Stores the account, replacing any other. Rejects when the device cannot keep it. */
   write(account: StoredAccount): Promise<void>;
@@ -80,28 +87,42 @@ export function isStoredAccount(v: unknown): v is StoredAccount {
   );
 }
 
-interface Opened {
-  db: IDBDatabase;
-  /** The database did not exist before this open. */
-  fresh: boolean;
-}
-
-function open(factory: IDBFactory): Promise<Opened> {
+/**
+ * Opens the database. `create` false (a read): where there is no database
+ * the upgrade is aborted, so none is made, and the answer is null.
+ */
+function open(factory: IDBFactory, create: boolean): Promise<IDBDatabase | null> {
   return new Promise((resolve, reject) => {
-    let fresh = false;
+    let absent = false;
     const r = factory.open(ACCOUNT_DB_NAME, ACCOUNT_DB_VERSION);
     r.onupgradeneeded = (ev) => {
-      if (ev.oldVersion < 1) {
-        fresh = true;
+      if (ev.oldVersion >= 1) return;
+      if (create) {
         r.result.createObjectStore(STORE);
+        return;
+      }
+      absent = true;
+      try {
+        r.transaction?.abort();
+      } catch {
+        /* the open fails all the same */
       }
     };
     r.onsuccess = () => {
       const db = r.result;
       db.onversionchange = () => db.close();
-      resolve({ db, fresh });
+      if (absent) {
+        // (Not reached in a browser that follows the standard: an aborted upgrade fails the open.)
+        db.close();
+        resolve(null);
+      } else resolve(db);
     };
-    r.onerror = () => reject(r.error ?? new Error('the account database could not be opened'));
+    r.onerror = (ev) => {
+      if (absent) {
+        ev.preventDefault();
+        resolve(null);
+      } else reject(r.error ?? new Error('the account database could not be opened'));
+    };
     r.onblocked = () => reject(new Error('the account database is blocked by another tab'));
   });
 }
@@ -131,35 +152,28 @@ function drop(factory: IDBFactory): Promise<boolean> {
 export function createAccountStore(factory: IDBFactory | undefined = globalThis.indexedDB): AccountStore {
   async function read(): Promise<StoredAccount | null> {
     if (!factory) return null;
-    let opened: Opened | null = null;
+    const db = await open(factory, false);
+    if (!db) return null;
     try {
-      opened = await open(factory);
-      const { db, fresh } = opened;
-      if (fresh) {
-        // There was no database: leave none behind.
-        db.close();
-        opened = null;
-        await drop(factory);
-        return null;
-      }
+      // A database without the store is not one this file made.
+      if (!db.objectStoreNames.contains(STORE)) return null;
       const tx = db.transaction(STORE, 'readonly');
       const record = await new Promise<unknown>((resolve, reject) => {
         const r = tx.objectStore(STORE).get(KEY);
         r.onsuccess = () => resolve(r.result);
-        r.onerror = () => reject(r.error);
+        r.onerror = () => reject(r.error ?? new Error('the account could not be read'));
       });
       return isStoredAccount(record) ? record : null;
-    } catch {
-      return null;
     } finally {
-      opened?.db.close();
+      db.close();
     }
   }
 
   async function write(account: StoredAccount): Promise<void> {
     if (!factory) throw new Error('IndexedDB unavailable');
     if (!isStoredAccount(account)) throw new Error('not an account record');
-    const { db } = await open(factory);
+    const db = await open(factory, true);
+    if (!db) throw new Error('the account database could not be made');
     try {
       const tx = db.transaction(STORE, 'readwrite');
       const { name, created, label, savedAt, dataKey, idKey } = account;
