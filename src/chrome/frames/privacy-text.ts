@@ -29,9 +29,10 @@ WHY
 To know how many people use WebCockpit: how many are online now, how many each day, and how that changes over time. The start page may show how many are online. Who is online is never shown, to anyone. Counting this way is in the site's legitimate interest, and it is kept so small that it says nothing about you.
 
 WHAT IS KEPT
-  Each device     Its latest heartbeat (the five things above, and when the device was first and last seen), and the days it was seen, for counting use per week and month. Deleted after 35 days without a heartbeat; a device that comes back after that counts as new.
+  Each device     Its latest heartbeat (the five things above), when it was first and last seen, and how many heartbeats it sent today and the day before. Deleted after 35 days without a heartbeat; a device that comes back after that counts as new.
+  Days seen       Which days each device was seen, for counting use per week and month. Kept for 35 days.
   Samples         How many were online and playing, every five minutes. Kept for 90 days.
-  Daily figures   Totals for each day: devices, new devices, the most online at once, minutes played, and the split by device type, browser and version. Kept for good. They hold no device numbers.
+  Daily figures   Totals for each day: devices, new devices, the most online and playing at once, heartbeats, minutes played, and the split by device type, browser and version. Kept for good. They hold no device numbers.
 
 YOUR ADDRESS
 No IP address is stored. To stop abuse, the site limits how many heartbeats one address may send; the address is used for that check in passing and then forgotten.
