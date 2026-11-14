@@ -274,13 +274,14 @@ describe('startBeat', () => {
     // Storage blocked: the page's own id, the same for every beat of the page.
     const last = calls.at(-1)!;
     expect(last.body.device).toMatch(/^[0-9a-f-]{36}$/);
-    const h = start({
-      state: () => {
-        throw new Error('no view');
-      },
+    const noView = vi.fn((): BeatState => {
+      throw new Error('no view');
     });
+    const h = start({ state: noView });
     expect(() => h.stateChanged()).not.toThrow();
+    // A throwing state does not spin the timer: about one try per period.
     expect(() => vi.advanceTimersByTime(BEAT_MS * 2)).not.toThrow();
+    expect(noView.mock.calls.length).toBeLessThan(10);
     await Promise.resolve();
   });
 });

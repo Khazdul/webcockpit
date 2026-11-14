@@ -236,7 +236,10 @@ export function startBeat(o: BeatOptions): BeatHandle {
         writeNote(storage, { tab, at: t, state });
       }
     } catch {
-      // Never let a beat break the page.
+      // Never let a beat break the page. A failed try counts as a beat for
+      // the timer: without this a throw before `covered` is set would make
+      // the next delay 0 and spin the timer.
+      covered = now();
     }
     schedule();
   };
