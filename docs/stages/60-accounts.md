@@ -228,11 +228,12 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
 
 ### C. Owner's part (guided by the session)
 
-- [ ] A Turnstile widget for `mumecockpit.com` and
-      `staging.mumecockpit.com`; the site key to the session, the
-      secret as `TURNSTILE_SECRET` on both Workers.
-- [ ] The secret `AUTH_PEPPER` on both Workers (a value of its own on
-      each). Steps under "For the owner".
+- [x] (owner, 2026-11-14) The Turnstile widget `WebCockpit`
+      (`mumecockpit.com`, `staging.mumecockpit.com`, Managed); the site
+      key and `TURNSTILE_HOSTNAMES` in `wrangler.jsonc` for both
+      environments; `TURNSTILE_SECRET` on both Workers.
+- [x] (owner, 2026-11-14) `AUTH_PEPPER` on both Workers, a value of
+      its own on each (`wrangler secret put`, the value seen by nobody).
 
 ### D. Review and release
 
@@ -349,3 +350,10 @@ Two things that are as the spec says, for you to know:
   Account page's grouping as mocked; the recovery code stays after a
   recovery; device labels as they are; the words and texts look good.
   Part C begun (the Turnstile widget).
+- **2026-11-14, later:** part C done. On staging `/api/auth/params`
+  answers (a stable fake salt for an unknown name, the same in any
+  case), `/api/u/account` 401 without a session, a POST without `X-WC`
+  403. Registration, login, recovery and deletion are not yet run
+  against the deployed Worker: with the real widget they need a
+  Turnstile token from a real browser, so they are checked with part
+  B's pages.
