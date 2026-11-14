@@ -16,7 +16,7 @@ export const PRIVACY_UPDATED = 'Last changed 14 November 2026';
 export const PRIVACY_TEXT = `WebCockpit runs in your browser. Your game goes straight from the browser to MUME, and what you set up here (settings, profiles, scripts, maps and recorded runs) is kept in this browser only. This page says what the site itself learns, and what it does with it.
 
 WHAT IS SENT
-While the page is open and on screen, it sends the site a small heartbeat: when it loads, every five minutes after that, and when you move between the start page, the game and a replay. A tab in the background sends none. Each heartbeat holds these five things and nothing else:
+While the page is open and on screen, or in the game, it sends the site a small heartbeat: when it loads, every five minutes after that, and when you move between the start page, the game and a replay. A tab in the background sends none, unless it is in the game. Each heartbeat holds these five things and nothing else:
   Device          A random number made for this browser the first time it sends a heartbeat, kept in the browser's local storage as wc.device. It says nothing about who you are, and it is not tied to your characters or to any account.
   Version         The WebCockpit version, such as 0.9.3.
   Device type     Desktop, tablet or phone.

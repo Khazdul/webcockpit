@@ -299,3 +299,16 @@ Pruning and the admin page's own reads are not counted.
   failed before and after alike (longest rAF gap 183 → 185 ms, a
   known quick-run result under load); nothing moved. `?bench` starts no
   cloud code at all.
+
+## Addendum 2026-11-14, owner decision: a playing tab beats while hidden
+
+Stage 59 decision 2. While the view is `playing`, the beat goes on every
+5 minutes also while the tab is hidden (a `setTimeout`; browsers throttle
+hidden timers to about once a minute, which does not matter here), so a
+player with the game in a background tab stays online. Hidden in `menu`
+or `replay` the tab stays silent as before. While hidden, a settled change
+to `playing` is sent at once and starts the timer; a change away from
+`playing` stops it and is sent when the tab shows again (a timer that
+fires after the view left `playing`, before the settle, sends nothing).
+A tab loaded hidden still waits until it is first shown. The multi-tab
+note is unchanged. The privacy text and spec §7.6 say so.

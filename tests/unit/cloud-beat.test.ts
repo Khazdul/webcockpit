@@ -1,6 +1,7 @@
 // Stage 59 (spec §7.6, ADR 0147): the usage heartbeat. At start when
-// visible, every BEAT_MINUTES while visible, paused while hidden (a due
-// beat at once when shown again), on a settled change of state; the body
+// visible, every BEAT_MINUTES while visible or hidden in the game, paused
+// while hidden otherwise (a due beat at once when shown again), on a
+// settled change of state; the body
 // is exactly the five fields of `Beat`; the device id is kept; another
 // tab's recent beat stands in; nothing ever throws.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -182,6 +183,65 @@ describe('startBeat', () => {
     expect(calls).toHaveLength(1);
     doc.set('visible');
     expect(calls.map((c) => c.body.state)).toEqual(['menu', 'replay']);
+  });
+
+  it('a hidden page in the game keeps beating every period', () => {
+    state = 'playing';
+    start();
+    doc.set('hidden');
+    vi.advanceTimersByTime(BEAT_MS - 1);
+    expect(calls).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(calls).toHaveLength(2);
+    vi.advanceTimersByTime(BEAT_MS * 3);
+    expect(calls.map((c) => c.body.state)).toEqual(['playing', 'playing', 'playing', 'playing', 'playing']);
+    // Shown again before the period is over: no extra beat.
+    vi.advanceTimersByTime(60_000);
+    doc.set('visible');
+    expect(calls).toHaveLength(5);
+  });
+
+  it('a hidden page in menu or replay stays silent', () => {
+    for (const s of ['menu', 'replay'] as const) {
+      calls = [];
+      state = s;
+      const b = start();
+      doc.set('hidden');
+      vi.advanceTimersByTime(BEAT_MS * 3);
+      expect(calls).toHaveLength(1);
+      b.stop();
+      doc.visibilityState = 'visible';
+    }
+  });
+
+  it('while hidden, a change to playing goes and starts the timer; a change away stops it', () => {
+    const b = start();
+    doc.set('hidden');
+    vi.advanceTimersByTime(60_000);
+    state = 'playing';
+    b.stateChanged();
+    vi.advanceTimersByTime(BEAT_SETTLE_MS);
+    expect(calls.map((c) => c.body.state)).toEqual(['menu', 'playing']);
+    vi.advanceTimersByTime(BEAT_MS);
+    expect(calls).toHaveLength(3);
+    // Away from the game while hidden: nothing more until shown, then the change.
+    state = 'menu';
+    b.stateChanged();
+    vi.advanceTimersByTime(BEAT_SETTLE_MS + BEAT_MS * 3);
+    expect(calls).toHaveLength(3);
+    doc.set('visible');
+    expect(calls.map((c) => c.body.state)).toEqual(['menu', 'playing', 'playing', 'menu']);
+  });
+
+  it('a hidden game tab that leaves the game before the settle sends nothing at its timer', () => {
+    state = 'playing';
+    const b = start();
+    doc.set('hidden');
+    vi.advanceTimersByTime(BEAT_MS - 500);
+    state = 'menu';
+    b.stateChanged();
+    vi.advanceTimersByTime(BEAT_SETTLE_MS + BEAT_MS * 2);
+    expect(calls.map((c) => c.body.state)).toEqual(['playing']);
   });
 
   it('stop ends the timers and the listener', () => {
