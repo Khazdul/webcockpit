@@ -15,17 +15,25 @@
 //   no way back to this form. `stored: false` (the account was made, this
 //   browser could not keep its keys) still shows the code, and then sends
 //   the player to Log in.
-// - After a `timeout` or `offline` the same flow object is kept, so
-//   pressing Create again finds the account it may already have made.
+// - After a lost answer (`work.doubtful`: the request left, no answer
+//   came) the same flow object is kept while the name and the password
+//   stay as they were, so pressing Create again finds the account it may
+//   already have made. The page remembers the name (`maybe`): "taken"
+//   for that name is then said as "perhaps by your own earlier try", and
+//   another name gets a line about the first.
+// - While working the page cannot be left (Back and Esc are Cancel, and
+//   from `sending` on nothing). Should it be gone when the answer comes
+//   all the same, the recovery code is held and shown by the next account
+//   page (form.tsx `holdCode`).
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { type FlowHandle, type RegisterDone, checkName, startRegister } from '../../../cloud/account';
 import { Box, BoxBody, Field, GlassButton, Plate, Rule, TextLink, lookFrame } from '../../kit/look';
 import { useNav } from '../../kit/stack';
-import { FormError, type PageProps, checkNewPassword, go, newPasswordHint, useFormKeys, useTallPage } from './form';
+import { FormError, type PageProps, SmallNote, checkNewPassword, go, holdCode, newPasswordHint, useFormKeys, useHeldCode, useTallPage } from './form';
 import { useTurnstile } from './turnstile-box';
-import { NAME_HINT, PASSWORD_HINT, POINTS, failureWords, nameWords, takenWords } from './words';
+import { NAME_HINT, PASSWORD_HINT, POINTS, failureWords, lostWords, maybeMadeWords, maybeTakenWords, nameWords, takenWords } from './words';
 import { Working, useWorking } from './working';
 
 export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create']): VNode {
@@ -37,7 +45,10 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
   const [left, setLeft] = useState<{ name?: boolean; pw?: boolean; pw2?: boolean }>({});
   const [taken, setTaken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const handle = useRef<FlowHandle<RegisterDone> | null>(null);
+  /** The name of a try whose answer was lost: that account may exist. */
+  const [maybe, setMaybe] = useState<string | null>(null);
+  /** The flow, and the name and password it was started for (kept across edits that end where they began). */
+  const handle = useRef<{ flow: FlowHandle<RegisterDone>; name: string; pw: string } | null>(null);
   const alive = useRef(true);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const pwRef = useRef<HTMLInputElement | null>(null);
@@ -46,11 +57,13 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
   const work = useWorking();
   const ts = useTurnstile(true);
   const tall = useTallPage();
+  useHeldCode(nav, work.busy);
 
   const drop = (): void => {
-    handle.current?.dispose();
+    handle.current?.flow.dispose();
     handle.current = null;
   };
+  const sameName = (a: string, b: string): boolean => a.toLowerCase() === b.toLowerCase();
   useEffect(
     () => () => {
       alive.current = false;
@@ -68,7 +81,9 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
   const nameProblem = checkName(name);
   const nameError =
     taken !== null && taken === name
-      ? takenWords(name)
+      ? maybe !== null && sameName(maybe, name)
+        ? maybeTakenWords(name)
+        : takenWords(name)
       : nameProblem === 'bad_characters' || nameProblem === 'too_long' || (nameProblem === 'too_short' && left.name)
         ? nameWords(nameProblem)
         : null;
@@ -81,28 +96,40 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
     const token = ts.take();
     if (!token) return setError(failureWords('turnstile_required', 'register'));
     setError(null);
-    handle.current ??= startRegister(name, pw);
-    const hd = handle.current;
+    // Another name or password than the kept flow's: a new flow (its keys are for those two).
+    if (handle.current && (handle.current.name !== name || handle.current.pw !== pw)) drop();
+    handle.current ??= { flow: startRegister(name, pw), name, pw };
+    const kept = handle.current;
+    const hd = kept.flow;
     const signal = work.start();
     const r = await hd.submit({ turnstile: token, onStep: work.onStep, signal });
-    if (!alive.current) return;
     if (r.ok) {
-      // The passwords leave the page's state with the page; the code is handed on once.
-      go(nav, 'code', { name: r.value.account.name, code: r.value.recoveryCode, next: r.value.stored ? 'account' : 'login' });
+      // The passwords leave the page's state with the page. The code is held until the player has confirmed
+      // it, whatever became of this page meanwhile: an account page that is up shows it.
+      const code: PageProps['code'] = { name: r.value.account.name, code: r.value.recoveryCode, next: r.value.stored ? 'account' : 'login' };
+      holdCode(code);
+      if (alive.current) go(nav, 'code', code);
       return;
     }
+    if (!alive.current) return;
+    const doubt = work.doubtful(r.code);
     work.stop();
-    if (hd.finished && handle.current === hd) handle.current = null;
+    if (hd.finished && handle.current === kept) handle.current = null;
     if (r.code === 'cancelled') return;
     if (r.code === 'name_taken') {
       setTaken(name);
       focusNext.current = 'name';
       return;
     }
+    if (doubt) {
+      setMaybe(name);
+      setError(lostWords('register'));
+      return;
+    }
     setError(failureWords(r.code, 'register'));
   };
 
-  const back = (): void => go(nav, 'login');
+  const back = work.orCancel(() => go(nav, 'login'));
   const keys = useFormKeys({
     stops: [
       { id: 'name', field: nameRef },
@@ -142,10 +169,14 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
                 onInput={(v) => {
                   setName(v);
                   setError(null);
-                  drop();
                 }}
                 onCommit={() => setLeft((l) => ({ ...l, name: true }))}
               />
+              {maybe !== null && !sameName(maybe, name) && (
+                <SmallNote class="wc-ac-maybe">
+                  <span data-maybe="">{maybeMadeWords(maybe)}</span>
+                </SmallNote>
+              )}
               <Field
                 id="password"
                 label="Password"
@@ -160,7 +191,6 @@ export const CreateFrame = lookFrame(function CreateFrame(_p: PageProps['create'
                 onInput={(v) => {
                   setPw(v);
                   setError(null);
-                  drop();
                 }}
                 onCommit={() => setLeft((l) => ({ ...l, pw: true }))}
               />

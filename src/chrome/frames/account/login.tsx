@@ -17,10 +17,10 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { type Account, type FlowHandle, accountState, checkName, startLogin } from '../../../cloud/account';
+import { type Account, type FlowHandle, accountState, checkName, startLogin, storedAccount } from '../../../cloud/account';
 import { Box, Field, GlassButton, TextLink, lookFrame } from '../../kit/look';
 import { useNav } from '../../kit/stack';
-import { FormError, type PageProps, SmallNote, WaitPlate, go, useFormKeys } from './form';
+import { FormError, type PageProps, SmallNote, WaitPlate, go, useFormKeys, useHeldCode } from './form';
 import { useTurnstile } from './turnstile-box';
 import { failureWords, WRONG_LOGIN } from './words';
 import { Working, useWorking } from './working';
@@ -42,6 +42,14 @@ export const LoginFrame = lookFrame(function LoginFrame(p: PageProps['login']): 
   const [startAt] = useState<'name' | 'password'>(() => (name ? 'password' : 'name'));
   const work = useWorking();
   const ts = useTurnstile(check);
+  useHeldCode(nav, work.busy);
+  // The start page's hint said "nobody", but the device's keys are the truth (localStorage was cleared, or
+  // cannot be written): somebody is logged in here, so the Account page takes this page's place.
+  useEffect(() => {
+    void storedAccount().then((me) => {
+      if (me && alive.current && !work.busy()) go(nav, 'account');
+    });
+  }, []);
 
   const drop = (): void => {
     handle.current?.dispose();
@@ -112,7 +120,7 @@ export const LoginFrame = lookFrame(function LoginFrame(p: PageProps['login']): 
     }
   };
 
-  const back = (): void => nav.pop();
+  const back = work.orCancel(() => nav.pop());
   const toCreate = (): void => go(nav, 'create');
   const toRecover = (): void => go(nav, 'recover', name.trim() ? { name: name.trim() } : {});
   const keys = useFormKeys({

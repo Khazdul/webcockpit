@@ -40,6 +40,16 @@
 // Back and Esc never walk through a stale form and nothing can pop its way
 // back to the recovery code. `go(nav, 'login', { notice })` and so on; the
 // components are registered by index.tsx (no import cycles).
+//
+// ── The recovery code of a new account is never dropped (`holdCode`) ─────
+//
+// From the moment a registration answers until the player has typed the
+// code's last group and gone on, the code is held here, in memory only.
+// The recovery code page shows it; should that page (or the Create page,
+// before the answer came) be gone, every other account page shows it in
+// its own place the moment it can (`useHeldCode`), and the Account row
+// opens on it (`accountEntry`). While a code is held the browser asks
+// before a reload or a closed tab.
 
 import type { ComponentChildren, FunctionComponent, VNode } from 'preact';
 import { h } from 'preact';
@@ -74,6 +84,55 @@ export function registerPages(all: { [K in PageName]: FunctionComponent<PageProp
 export function go<K extends PageName>(nav: Nav, page: K, props?: PageProps[K]): void {
   const c = pages[page] as FunctionComponent<PageProps[K]> | undefined;
   if (c) nav.replace(h(c, (props ?? {}) as PageProps[K] & Record<string, unknown>) as VNode);
+}
+
+// ------------------------------------------------------------ the held code
+
+let held: PageProps['code'] | null = null;
+const heldWatch = new Set<() => void>();
+
+const askFirst = (e: BeforeUnloadEvent): void => {
+  e.preventDefault();
+  e.returnValue = '';
+};
+
+/** A new account's recovery code that the player has not confirmed yet. Held until `releaseCode`. */
+export function holdCode(p: PageProps['code']): void {
+  const first = held === null;
+  held = p;
+  if (first && typeof window !== 'undefined') window.addEventListener('beforeunload', askFirst);
+  for (const fn of [...heldWatch]) fn();
+}
+
+export function heldCode(): PageProps['code'] | null {
+  return held;
+}
+
+/** The player typed the last group and went on: the code is forgotten. */
+export function releaseCode(): void {
+  if (held === null) return;
+  held = null;
+  if (typeof window !== 'undefined') window.removeEventListener('beforeunload', askFirst);
+}
+
+/**
+ * In every account page but the recovery code page: a held code takes
+ * this page's place, now or when it arrives (a registration that answered
+ * after its page had gone). `busy`: not while this page's own flow runs.
+ */
+export function useHeldCode(nav: Nav, busy?: () => boolean): void {
+  useEffect(() => {
+    let alive = true;
+    const show = (): void => {
+      if (alive && held !== null && !busy?.()) go(nav, 'code', held);
+    };
+    show();
+    heldWatch.add(show);
+    return () => {
+      alive = false;
+      heldWatch.delete(show);
+    };
+  }, []);
 }
 
 // ------------------------------------------------------------ keys
@@ -159,13 +218,15 @@ export function useFormKeys(o: {
       return true;
     }
     const cur = at === null ? undefined : usable.find((s) => s.id === at && s.run);
+    // (Never on key repeat: a held Enter or Space acts once.)
     if (e.key === 'Enter' && plain(e)) {
+      if (e.repeat) return true;
       if (cur) cur.run!();
       else if (q.canSubmit) q.submit();
       return true;
     }
     if (nk === 'activate' && !field) {
-      cur?.run?.();
+      if (!e.repeat) cur?.run?.();
       return true;
     }
     return false;

@@ -713,3 +713,159 @@ test('a session that is gone: the Account page sends the player to Log in and sa
   await page.keyboard.press('Escape');
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
 });
+
+// ------------------------------------------------------------ after the review of the client (ADR 0145)
+
+test('review 1: while the registration is on its way Back and Esc do not leave Create account, and the recovery code is shown', async ({ page }) => {
+  const errors = watchErrors(page);
+  const api = await fakeAccountApi(page);
+  await stubTurnstile(page, { auto: true });
+  await openAccount(page);
+  await link(page, 'create').click();
+  await fillCreate(page);
+  await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+  // The server makes the account and its answer is held back: the page stands in "Almost done."
+  const hold = api.holdNext('/api/auth/register');
+  await btn(page, 'CREATE').click();
+  await hold.arrived;
+  const work = frame(page).locator('.wc-ac-work');
+  await expect(work).toHaveAttribute('data-step', 'sending');
+  await expect(work.locator('[data-link="cancel"]')).toHaveCount(0);
+  expect(api.server.hasAccount(NAME)).toBe(true);
+  // The box's back arrow, and Esc: neither leaves, neither cancels.
+  await frame(page).locator('.wc-lk-back').click();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  await expect(pageOf(page, 'create')).toBeVisible();
+  await expect(pageOf(page, 'login')).toHaveCount(0);
+  hold.release();
+  await expect(pageOf(page, 'code')).toBeVisible();
+  const code = await shownCode(page);
+  expect(code).toMatch(/^([0-9A-HJKMNP-TV-Z]{4}-){5}[0-9A-HJKMNP-TV-Z]{4}$/);
+  // The code page has no way out but the last group.
+  await page.keyboard.press('Escape');
+  await expect(pageOf(page, 'code')).toBeVisible();
+  await field(page, 'last').fill(code.slice(-4));
+  await btn(page, 'CONTINUE').click();
+  await expect(pageOf(page, 'account')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('review 1: Back while the key is still being made is Cancel: the page stays and nothing was sent', async ({ page }) => {
+  const api = await fakeAccountApi(page);
+  await stubTurnstile(page, { auto: true });
+  await openAccount(page);
+  await link(page, 'create').click();
+  await fillCreate(page);
+  await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+  await btn(page, 'CREATE').click();
+  await expect(frame(page).locator('.wc-ac-work')).toBeVisible();
+  await frame(page).locator('.wc-lk-back').click();
+  // Cancelled (when the click came before the request left) or made: never the Log in page with a lost code.
+  await expect(frame(page).locator('[data-page="create"] [data-btn="CREATE"], [data-page="code"]')).toBeVisible();
+  if ((await pageOf(page, 'create').count()) > 0) expect(api.server.hasAccount(NAME)).toBe(false);
+});
+
+test('review 3: a registration whose answer is lost says "may or may not"; Create again finds the account and shows its code', async ({ page }) => {
+  const server = new FakeAccountServer();
+  await fakeAccountApi(page, { server });
+  await stubTurnstile(page, { auto: true });
+  await openAccount(page);
+  // The connection drops after the request left; then: the status arrives and the body does not.
+  for (const [lose, name] of [
+    ['connection', 'Olev'],
+    ['body', 'Bera'],
+  ] as const) {
+    await link(page, 'create').click();
+    await fillCreate(page, name);
+    await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+    let once = true;
+    await page.route('**/api/auth/register', async (route) => {
+      if (once) server.loseNextAnswer = lose;
+      once = false;
+      await route.fallback();
+    });
+    await btn(page, 'CREATE').click();
+    await expect(formError(page), lose).toHaveText('The server’s answer did not arrive. The account may or may not have been made: press Create account again and it will be found.');
+    expect(server.hasAccount(name)).toBe(true);
+    // The password touched and put back as it was: still the same try.
+    await field(page, 'password').fill(PASSWORD + 'x');
+    await field(page, 'password').fill(PASSWORD);
+    await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+    await btn(page, 'CREATE').click();
+    await expect(pageOf(page, 'code'), lose).toBeVisible();
+    const code = await shownCode(page);
+    await field(page, 'last').fill(code.slice(-4));
+    await btn(page, 'CONTINUE').click();
+    await expect(pageOf(page, 'account')).toBeVisible();
+    await expect(frame(page).locator('[data-account-name]')).toHaveText(name);
+    await page.unroute('**/api/auth/register');
+    // Out again for the next round.
+    await logOut(page);
+    await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+    await accountRow(page).click();
+    await expect(pageOf(page, 'login')).toBeVisible();
+  }
+});
+
+test('review 3b: after a lost answer another password or another name does not forget that the account may exist', async ({ page }) => {
+  const server = new FakeAccountServer();
+  await fakeAccountApi(page, { server });
+  await stubTurnstile(page, { auto: true });
+  await openAccount(page);
+  await link(page, 'create').click();
+  await fillCreate(page);
+  await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+  server.loseNextAnswer = 'connection';
+  // (The config and the Turnstile are in: the next account request is the registration.)
+  await btn(page, 'CREATE').click();
+  await expect(formError(page)).toContainText('may or may not have been made');
+  // Another password: a new try that cannot prove the account is its own. Not a bare "taken".
+  await field(page, 'password').fill(PASSWORD_2);
+  await field(page, 'again').fill(PASSWORD_2);
+  await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+  await btn(page, 'CREATE').click();
+  await expect(fieldNote(page, 'name')).toContainText(`The name ${NAME} is taken, perhaps by your own earlier try`);
+  await expect(fieldNote(page, 'name')).toContainText(`Try logging in as ${NAME} with the password you typed then`);
+  // Another name: the first one is not forgotten.
+  await field(page, 'name').fill('Olev2');
+  await expect(frame(page).locator('[data-maybe]')).toContainText(`The earlier try may have made the account ${NAME}`);
+  // And it is true: the first password logs in.
+  await link(page, 'login').click();
+  await field(page, 'name').fill(NAME);
+  await field(page, 'password').fill(PASSWORD);
+  await btn(page, 'LOGIN').click();
+  await expect(pageOf(page, 'account')).toBeVisible();
+});
+
+test('review 4: localStorage takes no hint (full or blocked): the login holds, the Account page opens, the row follows, and a reload finds the keys', async ({ page }) => {
+  const server = new FakeAccountServer();
+  await seedAccount(server, NAME, PASSWORD);
+  await fakeAccountApi(page, { server });
+  await page.addInitScript(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k: string, v: string) {
+      if (k.startsWith('wc.account')) throw new DOMException('full', 'QuotaExceededError');
+      return set.call(this, k, v);
+    };
+  });
+  await openAccount(page);
+  await field(page, 'name').fill(NAME);
+  await field(page, 'password').fill(PASSWORD);
+  await btn(page, 'LOGIN').click();
+  await expect(pageOf(page, 'account')).toBeVisible();
+  await expect(frame(page).locator('[data-account-name]')).toHaveText(NAME);
+  expect(await page.evaluate(() => localStorage.getItem('wc.account'))).toBeNull();
+  await page.keyboard.press('Escape');
+  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  expect(server.sessionLabels(NAME)).toHaveLength(1);
+  // A reload: the row cannot know, and the account pages find the keys.
+  await openAccount(page);
+  await expect(pageOf(page, 'account')).toBeVisible();
+  await expect(frame(page).locator('.wc-ac-head-since')).toContainText('Account since');
+  expect(server.sessionLabels(NAME)).toHaveLength(1);
+  // Log out is offered and works.
+  await logOut(page);
+  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  expect(server.sessionLabels(NAME)).toHaveLength(0);
+});

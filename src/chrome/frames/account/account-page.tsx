@@ -38,7 +38,16 @@
 // - Two tabs: the page follows `onAccountState`. Logged out in another
 //   tab: the page leaves for the start menu and says so. While one of the
 //   page's own flows is in flight the flow's answer decides instead (a
-//   flow that ends in `unauthorized` has logged the device out too).
+//   flow that ends in `unauthorized` has logged the device out too). A
+//   hint that is gone while the device's keys are there (localStorage was
+//   cleared) is not a log out: the flows put the hint back.
+// - A new recovery code on its way or on screen pins the page
+//   (`host.pin`): nothing closes that dialog before the last group is
+//   typed, not another tab's log out and not the page's own question
+//   coming back 401. What wanted to move the page does so afterwards.
+// - A held key never acts twice: the letters, Enter and Space ignore key
+//   repeat here, and the kit's `Dialog` does not let the key that opened
+//   it confirm it (look-overlay.tsx).
 // - It draws the stack's flash (`LookFlash`): Recovery says "The new
 //   password is set…" on it, and the dialogs say what they did.
 // - `data-page="account"` on its content, `data-account-name` on the
@@ -48,12 +57,12 @@
 import type { VNode } from 'preact';
 import { h } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { type Account, type AccountSession, type FlowResult, accountState, loadAccount, onAccountState } from '../../../cloud/account';
+import { type Account, type AccountSession, type FlowResult, accountState, loadAccount, onAccountState, storedAccount } from '../../../cloud/account';
 import { Box, BoxBody, GlassButton, LookFlash, Rule, letterOf, lookFrame } from '../../kit/look';
 import { useKeys, useNav } from '../../kit/stack';
 import { DeleteDialog, EndDialog, LogoutDialog, NewCodeDialog, PasswordDialog } from './account-dialogs';
 import { labelWords, orderSessions, sessionWords } from './account-model';
-import { FormError, type PageProps, SmallNote, go, useTallPage } from './form';
+import { FormError, type PageProps, SmallNote, go, useHeldCode, useTallPage } from './form';
 import { failureWords, sinceWords } from './words';
 
 /** What a dialog needs of the page under it. */
@@ -74,6 +83,13 @@ export interface AccountHost {
   toMenu(flash: string): void;
   /** Asks the server for the account again (after a change). */
   reload(): void;
+  /**
+   * A new recovery code is on its way or on screen, unconfirmed (true):
+   * the page and its dialogs stay where they are. What would have moved
+   * the page meanwhile (`toLogin`, `toMenu`, another tab's log out) is
+   * done when the pin is let go (false).
+   */
+  pin(on: boolean): void;
 }
 
 interface Stop {
@@ -98,6 +114,11 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   const leaving = useRef(false);
   const flights = useRef(0);
   const asked = useRef(0);
+  /** `host.pin`, and what waits for it to be let go. */
+  const pinned = useRef(false);
+  const later = useRef<(() => void) | null>(null);
+  /** `follow` is asking the device's store whether the missing hint is a log out. */
+  const checking = useRef(false);
   const rows = useRef<HTMLUListElement | null>(null);
   const tall = useTallPage();
 
@@ -110,9 +131,21 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   };
   /** Nobody is logged in here any more and no flow of the page's is about to say why: another tab did it. */
   const follow = (): void => {
-    if (!alive.current || left.current || flights.current > 0) return;
+    if (!alive.current || left.current || flights.current > 0 || pinned.current) return;
     const s = accountState();
-    if (s.name === null) return host.current.toMenu('Logged out in another tab.');
+    if (s.name === null) {
+      // The hint is not the truth: a cleared localStorage with the keys still here is no log out (the
+      // flows' `storedAccount` then puts the hint back). A log out removes the keys before the hint.
+      if (checking.current) return;
+      checking.current = true;
+      void storedAccount().then((me) => {
+        checking.current = false;
+        if (me) return;
+        if (!alive.current || left.current || flights.current > 0 || accountState().name !== null) return;
+        host.current.toMenu('Logged out in another tab.');
+      });
+      return;
+    }
     // (`host.current`: this runs from the listener of the first render.)
     if (host.current.name && s.name !== host.current.name) {
       // Another account was logged in from another tab: this page starts over for it.
@@ -133,7 +166,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
         setAccount(r.value);
         return;
       }
-      if (r.code === 'unauthorized' || r.code === 'not_logged_in') return host.current.toLogin(failureWords(r.code, 'account'));
+      if (r.code === 'unauthorized' || r.code === 'not_logged_in' || r.code === 'wrong_account') return host.current.toLogin(failureWords(r.code, 'account'));
       setError(failureWords(r.code, 'account'));
     });
   };
@@ -157,12 +190,20 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
     },
     toLogin: (notice) => {
       if (!alive.current || left.current) return;
+      if (pinned.current) {
+        later.current = () => host.current.toLogin(notice);
+        return;
+      }
       left.current = true;
       closeDialogs();
       go(nav, 'login', { notice });
     },
     toMenu: (flash) => {
       if (!alive.current || left.current) return;
+      if (pinned.current) {
+        later.current = () => host.current.toMenu(flash);
+        return;
+      }
       left.current = true;
       nav.pop(nav.depth() - depth + 1);
       nav.flash(flash);
@@ -170,7 +211,17 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
     reload: () => {
       if (alive.current && !left.current) load();
     },
+    pin: (on) => {
+      if (pinned.current === on) return;
+      pinned.current = on;
+      if (on) return;
+      const run = later.current;
+      later.current = null;
+      // After the dialog that let go has closed itself.
+      setTimeout(run ?? follow, 0);
+    },
   };
+  useHeldCode(nav);
 
   useEffect(() => {
     load();
@@ -222,7 +273,8 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
       return true;
     }
     if (nk === 'activate' || e.key === 'Enter') {
-      cur?.run();
+      // (Not on key repeat: a held key opens a dialog once and does not go on to answer it.)
+      if (!e.repeat) cur?.run();
       return true;
     }
     const press: Record<string, (() => void) | undefined> = {
@@ -236,7 +288,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
     const l = letterOf(e);
     const run = l ? press[l] : undefined;
     if (!run) return false;
-    run();
+    if (!e.repeat) run();
     return true;
   });
 

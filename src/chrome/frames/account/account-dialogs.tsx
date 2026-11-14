@@ -19,9 +19,19 @@
 // the cursor rests on Cancel, and Delete is reached with Tab or a press.
 //
 // Every flow goes through the page's host (`host().track`), and one answer
-// is the same everywhere: `unauthorized` or `not_logged_in` means the
-// session is gone and the device is already logged out, so the dialogs
-// close and Log in says why (`gone`).
+// is the same everywhere: `unauthorized`, `not_logged_in` or
+// `wrong_account` means the session is gone and the device is already
+// logged out, so the dialogs close and Log in says why (`gone`).
+//
+// A change whose answer was lost (`work.doubtful`: the request left, the
+// answer did not come, whatever the code) is said as "may or may not have
+// been made" in all three dialogs with a password, never as "the server
+// was not reached".
+//
+// While a dialog works its Cancel and Esc are the Working state's Cancel
+// (nothing from `sending` on). The new recovery code pins the page from
+// the moment it is asked for until its last group is typed (`host.pin`):
+// nothing from outside closes that dialog.
 //
 // What went wrong is said on the dialog's own error line, over the
 // buttons: it stays in sight when the text above scrolls (a phone on its
@@ -48,7 +58,7 @@ import { endOthersWords, namesAccount } from './account-model';
 import type { AccountHost } from './account-page';
 import { SmallNote, WaitPlate, checkNewPassword, newPasswordHint, useFormKeys } from './form';
 import { RecoveryCodeView, useRecoveryCode } from './recovery-code';
-import { NEW_PASSWORD_HINT, failureWords } from './words';
+import { NEW_PASSWORD_HINT, failureWords, lostWords } from './words';
 import { Working, useWorking } from './working';
 
 type Host = () => AccountHost;
@@ -65,7 +75,7 @@ export const LOGOUT_UNREACHED =
 function gone(host: AccountHost, r: FlowResult<unknown>): boolean {
   if (r.ok) return false;
   if (r.code === 'cancelled') return true;
-  if (r.code !== 'unauthorized' && r.code !== 'not_logged_in') return false;
+  if (r.code !== 'unauthorized' && r.code !== 'not_logged_in' && r.code !== 'wrong_account') return false;
   host.toLogin(failureWords(r.code, 'account'));
   return true;
 }
@@ -229,7 +239,7 @@ export const PasswordDialog = lookFrame(function PasswordDialog(p: { host: Host 
   const check = checkNewPassword(pw, pw2, left);
   const canSubmit = cur.length > 0 && check.valid && !work.on && !waiting;
 
-  const cancel = (): void => nav.pop();
+  const cancel = work.orCancel(() => nav.pop());
   const submit = async (): Promise<void> => {
     if (!canSubmit) return;
     setError(null);
@@ -237,6 +247,7 @@ export const PasswordDialog = lookFrame(function PasswordDialog(p: { host: Host 
     const signal = work.start();
     const r = await host.track(changePassword(cur, pw, { onStep: work.onStep, signal }));
     if (!alive.current) return;
+    const doubt = !r.ok && work.doubtful(r.code);
     work.stop();
     if (r.ok) {
       setCur('');
@@ -249,6 +260,12 @@ export const PasswordDialog = lookFrame(function PasswordDialog(p: { host: Host 
     }
     focusNext.current = true;
     if (gone(host, r)) return;
+    if (doubt) {
+      // The other devices may be logged out already: the list shows it.
+      host.reload();
+      setError(`${lostWords('account')} The next time you log in, try the new password first; if it is refused, the old one still holds.`);
+      return;
+    }
     switch (r.code) {
       case 'invalid_login':
         setCur('');
@@ -256,11 +273,6 @@ export const PasswordDialog = lookFrame(function PasswordDialog(p: { host: Host 
         return;
       case 'locked':
         setWait(r.retryAfter ?? 15 * 60);
-        return;
-      case 'timeout':
-        // The other devices may be logged out already: the list shows it.
-        host.reload();
-        setError(`${failureWords(r.code, 'account')} The next time you log in, try the new password first; if it is refused, the old one still holds.`);
         return;
       default:
         setError(failureWords(r.code, 'account'));
@@ -291,7 +303,7 @@ export const PasswordDialog = lookFrame(function PasswordDialog(p: { host: Host 
       width={460}
       error={waiting ? null : error}
       at={keys.at}
-      onCancel={work.on ? work.cancel : cancel}
+      onCancel={cancel}
       buttons={
         work.on
           ? []
@@ -374,6 +386,8 @@ export const PasswordDialog = lookFrame(function PasswordDialog(p: { host: Host 
 export const NewCodeDialog = lookFrame(function NewCodeDialog(p: { host: Host }): VNode {
   /** The new code, once the server has taken it. In this state only. */
   const [code, setCode] = useState<string | null>(null);
+  // Whatever becomes of this dialog, the page's pin does not outlive it.
+  useEffect(() => () => p.host().pin(false), []);
   return code === null ? <AskCode host={p.host} made={setCode} /> : <ShownCode host={p.host} code={code} />;
 });
 
@@ -398,33 +412,29 @@ function AskCode(p: { host: Host; made(code: string): void }): VNode {
   });
 
   const canSubmit = password.length > 0 && !work.on && !waiting;
-  const cancel = (): void => nav.pop();
+  const cancel = work.orCancel(() => nav.pop());
   const submit = async (): Promise<void> => {
     if (!canSubmit) return;
     setError(null);
     const host = p.host();
     const signal = work.start();
-    /** The new code was on its way to the server: from here on an answer that is lost leaves the old code in doubt. */
-    let sent = false;
-    const r = await host.track(
-      newRecoveryCode(password, {
-        signal,
-        onStep: (step, info) => {
-          if (step === 'sending') sent = true;
-          work.onStep(step, info);
-        },
-      }),
-    );
-    if (!alive.current) return;
+    // From here until the code's last group is typed nothing moves the page: a code the server has taken is shown.
+    host.pin(true);
+    const r = await host.track(newRecoveryCode(password, { signal, onStep: work.onStep }));
     if (r.ok) {
+      // (Pinned: this dialog is still here.)
       setPassword('');
       p.made(r.value.recoveryCode);
       return;
     }
+    host.pin(false);
+    if (!alive.current) return;
+    /** The new code was on its way to the server: an answer that is lost leaves the old code in doubt. */
+    const doubt = work.doubtful(r.code);
     work.stop();
     focusNext.current = true;
     if (gone(host, r)) return;
-    if (sent && (r.code === 'timeout' || r.code === 'offline' || r.code === 'bad_answer')) {
+    if (doubt) {
       // The password stays in the field: one press makes a new code again.
       setLost(true);
       return;
@@ -465,7 +475,7 @@ function AskCode(p: { host: Host; made(code: string): void }): VNode {
       width={460}
       error={waiting ? null : error}
       at={keys.at}
-      onCancel={work.on ? work.cancel : cancel}
+      onCancel={cancel}
       buttons={
         work.on
           ? []
@@ -520,8 +530,10 @@ function ShownCode(p: { host: Host; code: string }): VNode {
   };
 
   // A reload or a closed tab loses the code: the browser asks first, until the last group is typed.
+  // And nothing moves the page under the code until then (another tab's log out waits: `host.pin`).
   const confirmed = rc.confirmed;
   useEffect(() => {
+    p.host().pin(!confirmed);
     if (confirmed) return;
     const ask = (e: BeforeUnloadEvent): void => {
       e.preventDefault();
@@ -591,7 +603,7 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
 
   const named = namesAccount(typed, name);
   const ready = password.length > 0 && named && !work.on && !waiting;
-  const cancel = (): void => nav.pop();
+  const cancel = work.orCancel(() => nav.pop());
   const remove = async (): Promise<void> => {
     if (!ready) return;
     setError(null);
@@ -605,9 +617,14 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
     }
     host.setLeaving(false);
     if (!alive.current) return;
+    const doubt = work.doubtful(r.code);
     work.stop();
     focusNext.current = true;
     if (gone(host, r)) return;
+    if (doubt) {
+      setError('The server’s answer did not arrive. The account may or may not have been deleted: try again, and if it is gone you will be sent to Log in.');
+      return;
+    }
     switch (r.code) {
       case 'invalid_login':
         setPassword('');
@@ -615,9 +632,6 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
         return;
       case 'locked':
         setWait(r.retryAfter ?? 15 * 60);
-        return;
-      case 'timeout':
-        setError('No answer from the server. The account may or may not have been deleted: try again, and if it is gone you will be sent to Log in.');
         return;
       default:
         setError(failureWords(r.code, 'account'));
@@ -648,7 +662,7 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
       width={520}
       error={waiting ? null : error}
       at={keys.at ?? 'CANCEL'}
-      onCancel={work.on ? work.cancel : cancel}
+      onCancel={cancel}
       buttons={
         work.on
           ? []

@@ -17,9 +17,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { type Account, type FlowHandle, checkName, checkRecoveryCode, startRecover } from '../../../cloud/account';
 import { Box, BoxBody, Field, GlassButton, lookFrame } from '../../kit/look';
 import { useNav } from '../../kit/stack';
-import { FormError, type PageProps, SmallNote, WaitPlate, checkNewPassword, go, newPasswordHint, useFormKeys, useTallPage } from './form';
+import { FormError, type PageProps, SmallNote, WaitPlate, checkNewPassword, go, newPasswordHint, useFormKeys, useHeldCode, useTallPage } from './form';
 import { useTurnstile } from './turnstile-box';
-import { CODE_HINT, CODE_PLACEHOLDER, NEW_PASSWORD_HINT, WRONG_RECOVERY, failureWords } from './words';
+import { CODE_HINT, CODE_PLACEHOLDER, NEW_PASSWORD_HINT, WRONG_RECOVERY, failureWords, lostWords } from './words';
 import { Working, useWorking } from './working';
 
 export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recover']): VNode {
@@ -44,6 +44,7 @@ export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recove
   const work = useWorking();
   const ts = useTurnstile(true);
   const tall = useTallPage();
+  useHeldCode(nav, work.busy);
 
   const drop = (): void => {
     handle.current?.dispose();
@@ -92,6 +93,7 @@ export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recove
       nav.flash('The new password is set. Every other device was logged out.');
       return;
     }
+    const doubt = work.doubtful(r.code);
     work.stop();
     if (hd.finished) {
       if (handle.current === hd) handle.current = null;
@@ -109,11 +111,11 @@ export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recove
         setWait(r.retryAfter ?? 15 * 60);
         return;
       default:
-        setError(failureWords(r.code, 'recover'));
+        setError(doubt ? lostWords('recover') : failureWords(r.code, 'recover'));
     }
   };
 
-  const back = (): void => go(nav, 'login', n ? { name: n } : {});
+  const back = work.orCancel(() => go(nav, 'login', n ? { name: n } : {}));
   const keys = useFormKeys({
     stops: [
       { id: 'name', field: nameRef },
