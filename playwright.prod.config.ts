@@ -17,6 +17,10 @@ import { defineConfig, devices } from '@playwright/test';
 //   WC_PROD_URL      test a deployed site instead (no local server), e.g.
 //                    https://mumecockpit.com
 //                    (its path is the base; WC_PROD_BASE is then ignored)
+//   WC_PROD_CSP      `enforce`: the local server sends the build's report-only
+//                    Content-Security-Policy as the enforced one (the rehearsal
+//                    of the switch in scripts/csp.ts; tests/e2e-prod/csp.spec.ts).
+//                    Nothing to do with a deployed site, which sends what it sends.
 //   WC_PROD_BROWSERS comma-separated projects to run (default chromium,firefox);
 //                    CI runs chromium only: its runners have no GPU, so
 //                    Firefox's worker gets no WebGL and the map is unsupported
@@ -30,6 +34,8 @@ const profile = process.env.WC_PROD_PROFILE || 'cloudflare';
 if (profile !== 'cloudflare' && profile !== 'pages') throw new Error(`WC_PROD_PROFILE is cloudflare or pages, not ${profile}`);
 // The tests read it (tests/e2e-prod/profile.ts); the workers inherit the environment.
 process.env.WC_PROD_PROFILE = profile;
+const csp = process.env.WC_PROD_CSP ?? '';
+if (csp !== '' && csp !== 'enforce') throw new Error(`WC_PROD_CSP is enforce or unset, not ${csp}`);
 const remote = process.env.WC_PROD_URL ? `${process.env.WC_PROD_URL.replace(/\/+$/, '')}/` : undefined;
 
 export default defineConfig({
@@ -40,7 +46,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `node scripts/static-server.ts ${JSON.stringify(dir)} --port ${port} --base ${base} --profile ${profile}`,
+          command: `node scripts/static-server.ts ${JSON.stringify(dir)} --port ${port} --base ${base} --profile ${profile}${csp ? ' --csp enforce' : ''}`,
           url: `http://127.0.0.1:${port}${base}`,
           reuseExistingServer: false,
         },

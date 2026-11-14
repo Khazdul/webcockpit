@@ -154,6 +154,12 @@ ADR 0006.
   files' headers are `public/_headers`: hashed assets immutable for a
   year, the page and `release.json` `no-cache`, `nosniff`, a referrer
   policy and `frame-ancestors 'none'`; still no COOP/COEP (ADR 0144).
+  From stage 60 the full Content-Security-Policy is there too
+  (`default-src 'none'`, scripts from our origin and by hash, no
+  `eval`, WebAssembly, Turnstile's origin, connections to our origin
+  and mume.org): report-only until `CSP_ENFORCED` in `scripts/csp.ts`
+  enforces it, staging first (ADR 0144, "As built (stage 60):
+  the CSP").
 - **Self-hosted assets only.** Fonts and scripts are served by us; there
   are no third-party embeds. One exception from stage 60: Cloudflare
   Turnstile, loaded only on the account pages (ADR 0145).

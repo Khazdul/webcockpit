@@ -427,3 +427,204 @@ session's (stage file, "The night pass").
 - The Worker tests apply the migrations to their D1 through
   `readD1Migrations` (vitest.config.ts) and `applyD1Migrations`
   (`worker/test/setup.ts`).
+
+## As built (stage 60): the CSP
+
+Stage 60 part B, 2026-11-14. The policy of "Headers" above is written
+and sent, **report-only**: it
+blocks nothing yet. `frame-ancestors 'none'` stays enforced as before.
+
+### The policy
+
+One line of `public/_headers`, on every static file (`/*`):
+
+```
+Content-Security-Policy-Report-Only: default-src 'none';
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-…' 'sha256-…' https://challenges.cloudflare.com 'report-sample';
+  style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';
+  connect-src 'self' wss://mume.org https://mume.org; worker-src 'self';
+  frame-src https://challenges.cloudflare.com;
+  object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+```
+
+Made from an inventory of the code and the built site, then checked in
+browsers (below). Source by source:
+
+- **`default-src 'none'`**: nothing that is not named. No `media-src`,
+  `manifest-src` or `child-src`: the app has no audio or video, no web
+  manifest, and `worker-src` and `frame-src` are both set.
+- **`script-src`**
+  - `'self'`: our files, the workers' included.
+  - `'wasm-unsafe-eval'`: Lua is WebAssembly (wasmoon, ADR 0051).
+    Without it both browsers refuse to compile the module (seen).
+    Nothing uses `eval` or `new Function` (the built files were
+    searched; CodeMirror does not), so no `'unsafe-eval'`.
+  - Two hashes: the inline scripts of `index.html` (the first paint
+    and its call, ADR 0083). The first changes with every build (it
+    carries the hashed file names), so `_headers` holds a placeholder,
+    `'sha256-INLINE-SCRIPTS'`, and `vite build` writes the hashes into
+    the built `_headers` (`cspHashesPlugin` in `vite.config.ts`,
+    `scripts/csp.ts`). `privacy.html` is a copy of the page with the
+    same scripts. No `'unsafe-inline'` for scripts.
+  - `https://challenges.cloudflare.com`: Turnstile's `api.js`, loaded
+    only on the account pages (ADR 0145). Cloudflare's documentation
+    (read 2026-11-14) asks for this host in `script-src` and
+    `frame-src` and nothing more; its nonce alternative needs a header
+    made per answer, which static files do not have. `connect-src
+    'self'` is needed only for pre-clearance, which is not used.
+  - `'report-sample'`: a violation's event carries its first 40
+    characters, which the walk prints.
+- **`style-src 'self' 'unsafe-inline'`**, the one loose source. It is
+  needed three ways: the first paint and the wordmark write markup
+  with computed `style=""` attributes; three `<style>` elements exist
+  at run time (the one in `index.html`, the first paint's geometry,
+  the `@font-face` rules of `src/theme/fonts.ts`); and CodeMirror
+  mounts its themes in a `<style>` whose text is made at run time
+  (style-mod uses a constructable stylesheet only inside a shadow
+  root; its other way is a nonce). Hashing the three fixed ones would
+  still leave CodeMirror and the attributes. What is given up is
+  small: what the accounts need is that no foreign script runs
+  (ADR 0145, Consequences), and a style can load nothing from outside
+  the origin (`img-src`, `font-src`).
+- **`img-src 'self' data:`**: `data:` for the SVG grain and masks in
+  the stylesheets. No `blob:`: object URLs are only used for downloads
+  (a link's `href`, which no directive governs), and tiles are decoded
+  from fetched bytes, not `<img>`.
+- **`font-src 'self'`**: `public/fonts`.
+- **`connect-src`**: `'self'` (`/api`, `release.json`, the map and its
+  tiles, the replay bundle and fonts the export reads, the `.wasm`
+  file), `wss://mume.org` (the game, `wss://mume.org/ws-play/`; there
+  is no fallback address) and `https://mume.org` (the link probe's
+  `HEAD` of `favicon.ico`, `src/net/link-probe.ts`). No address is
+  taken from the user.
+- **`worker-src 'self'`**: the map, map tools, weather and KDF workers
+  are module workers by URL. Only the exported HTML replay starts a
+  worker from `blob:`, and that file is not served by us.
+- **`frame-src https://challenges.cloudflare.com`**: Turnstile's
+  frame. The app has no other frame today. The watch page's sandboxed
+  replay frame (ADR 0148, stage 64) and an MMapper frame (ADR 0003)
+  will each need a source added here when they are built; the replay
+  frame's own document has its own policy (spec §7.7).
+- **`object-src 'none'`, `base-uri 'none'`, `form-action 'none'`**: no
+  plugins, no `<base>`, and no form is sent anywhere. A `<form>` on
+  the account pages must be handled in script (`preventDefault`), or
+  this becomes `'self'`.
+- **`frame-ancestors 'none'`**: as before.
+
+The line is about 520 characters with its hashes; Cloudflare's limit
+is 2,000 a line.
+
+### Report-only, and the switch
+
+`scripts/csp.ts` holds the switch:
+
+```ts
+export const CSP_ENFORCED: Record<CspTarget, boolean> = { staging: false, production: false };
+```
+
+`npm run build:site` reads it for its `--target`. `false`: `_headers`
+goes out as written (report-only beside the enforced
+`frame-ancestors`). `true`: the report-only line becomes the one
+`Content-Security-Policy` of the rule and the old `frame-ancestors`
+line goes (the policy has that directive; two lines of one name would
+be joined with a comma). Enforcing is therefore a one-word change per
+target, reviewed like any other, and the build's smoke test then runs
+with the policy enforced. Order: staging, the walk and the account
+pages there, then production.
+
+There is no `report-uri` or `report-to`: an endpoint would cost a
+Worker request for every violation of every visitor (browser
+extensions cause most of them). Violations are found by a test
+instead.
+
+### The walk (`tests/e2e-prod/csp.spec.ts`)
+
+Part of the prod-profile tests, so it runs in every build's smoke
+test and with `test:prod` against a deployed site (read-only: the
+game's socket, the link probe and the usage beat are answered by the
+test). A collector (`tests/e2e-prod/csp.ts`) records every
+`securitypolicyviolation` event and every console message of the
+browser about the policy, and each test fails on any. It walks: the
+policy's header and hashes on the page, the privacy page, a script
+and the 404 page; the start page with Profiles and its editor,
+Credits, About; the privacy and 404 pages; Scripts with the code
+editor and the manual; History with a restored backup, the log
+player, the export editor with both downloads and a backup download;
+Spotlights' viewer; the game against a mocked MUME (login, the map,
+two Lua scripts, `#help`, the weather demo, the menu bar's windows,
+Settings → Mapper with a map file through the map tools worker); the
+phone profile (start page, game, a key, the menu). One test checks
+the collector itself (another host, an inline script) and, offline,
+that a real `WebSocket` to `wss://mume.org/ws-play/` and the link
+probe's request raise nothing.
+
+Result, 2026-11-14, Playwright 1.63's Chromium and Firefox, local
+build in the `cloudflare` profile: no violation, report-only and
+enforced.
+
+Two things about it that are not obvious:
+
+- **Workers are only tried when the policy is enforced.** A worker
+  takes its policy from its own script's answer (the same rule). In
+  report-only mode a violation inside a worker reached neither the
+  page's events nor any console message, in either browser (tried
+  with a policy without `connect-src 'self'`: silent in report-only;
+  enforced, the map failed to load). So `WC_PROD_CSP=enforce` makes
+  the local server send the built policy enforced, whatever the
+  switch says, and the walk's own assertions (the map draws, Lua
+  runs) are the check. Run it before each flip:
+  `WC_PROD_CSP=enforce WC_PROD_DIR=dist-site npx playwright test -c playwright.prod.config.ts`.
+- **The page test hashes what is served.** It computes the hashes of
+  the inline scripts in the answer and looks for them in the header,
+  so a deployed site whose HTML is changed on the way (a Cloudflare
+  feature that injects a script) fails it.
+
+Not covered: the account pages, which did not exist; Safari and iOS;
+a real Turnstile widget (below); the KDF worker (a module worker by
+URL like the others, but no page starts it yet).
+
+### The Worker's own answers
+
+`_headers` does not apply to them.
+
+- `/admin` (the Worker's page) already sends its own, stricter policy
+  (`worker/admin/page.ts`: `default-src 'none'`, scripts, styles,
+  images and connections from `'self'`, no inline, `frame-ancestors
+  'none'`). Nothing to add.
+- `/api/*` answers are JSON with `nosniff`, never a document, so a
+  policy has nothing to govern there. A `default-src 'none';
+  frame-ancestors 'none'` on them would be harmless tidiness and is
+  left out.
+
+### The dev server, COEP and Turnstile
+
+`vite` and `vite preview` send no policy: `_headers` is Cloudflare's
+file, and HMR needs inline scripts and styles. They do send COOP and
+COEP `require-corp`, as before.
+
+"Headers" above says `require-corp` would block Turnstile's frame.
+Measured 2026-11-14 with Cloudflare's test site key
+(`1x00000000000000000000AA`, the one `npm run dev:cloud` uses), a
+page on `localhost`, Chromium and Firefox: **it does not.** `api.js`
+is answered with `Cross-Origin-Resource-Policy: cross-origin` and the
+frame's document with that and `Cross-Origin-Embedder-Policy:
+require-corp`, so the widget loads and gives its token on a
+cross-origin isolated page, with `require-corp` and with
+`credentialless` alike, and also under this policy enforced. The dev
+server is therefore left as it is. Dropping COEP there would also
+have switched the link probe on (it is off on an isolated page), and
+with it requests to mume.org from every e2e run.
+
+Production still sends no COEP: nothing needs it. That it would break
+Turnstile is no longer the reason. A widget with the real site key
+(a Managed challenge, on the real host names) has not been seen under
+either header; staging will show it under this policy.
+
+### Still to be seen on the deployed site
+
+- Whether anything Cloudflare adds to the page violates the policy
+  (the walk against staging: `WC_PROD_URL=https://staging.mumecockpit.com
+  npm run test:prod -- csp`).
+- The real Turnstile widget on the account pages, in report-only
+  first.
+- Safari and iOS, by hand, before production is enforced.

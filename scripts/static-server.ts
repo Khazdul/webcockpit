@@ -1,7 +1,7 @@
 // A plain static file server that stands in for the production host:
 // files from one directory under a base path, no dev middleware.
 //
-//   node scripts/static-server.ts [dir] [--port n] [--base path] [--profile pages|cloudflare]
+//   node scripts/static-server.ts [dir] [--port n] [--base path] [--profile pages|cloudflare] [--csp enforce]
 //                                  (defaults: dist, 4180, /, pages)
 //
 // Two profiles, one per host:
@@ -30,6 +30,10 @@
 //   - `not_found_handling: 404-page`: the nearest `404.html` with status
 //     404, an empty 404 without one
 //   - no Content-Type for an extension Cloudflare does not know (`.mm2`)
+//   - `--csp enforce`: the directory's `_headers` is read as the switch of
+//     scripts/csp.ts leaves it (the report-only policy enforced), whatever
+//     the build was made with: the rehearsal of that switch
+//     (tests/e2e-prod/csp.spec.ts)
 // Not emulated: compression, `CF-Cache-Status`, `_redirects`, the 100-rule
 // and line-length limits of `_headers` (wrangler checks those at deploy).
 //
@@ -40,6 +44,7 @@ import { createReadStream, existsSync, readFileSync, realpathSync, statSync } fr
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { type Env, handle } from '../worker/router.ts';
+import { enforceCsp, reportOnlyPolicy } from './csp.ts';
 
 export type Profile = 'pages' | 'cloudflare';
 
@@ -163,6 +168,8 @@ export interface ServeOptions {
   base?: string;
   /** Which host to stand in for (default `pages`). */
   profile?: Profile;
+  /** `cloudflare` only: serve the report-only Content-Security-Policy of `_headers` as the enforced one. */
+  enforceCsp?: boolean;
 }
 
 /** What the `cloudflare` profile answers for a path: a file, a redirect, or nothing. */
@@ -177,9 +184,11 @@ interface AssetAnswer {
 const CLOUDFLARE_PRIVATE = new Set(['/_headers', '/_redirects']);
 
 /** The `cloudflare` profile's static assets over `root`. */
-function cloudflareAssets(root: string): (method: string, path: string, search: string, ifNoneMatch: string | undefined) => AssetAnswer {
+function cloudflareAssets(root: string, enforce = false): (method: string, path: string, search: string, ifNoneMatch: string | undefined) => AssetAnswer {
   const headersFile = join(root, '_headers');
-  const rules = existsSync(headersFile) ? parseHeadersFile(readFileSync(headersFile, 'utf8')) : [];
+  const text = existsSync(headersFile) ? readFileSync(headersFile, 'utf8') : '';
+  // A build that is already enforced has no report-only line left: served as it is.
+  const rules = parseHeadersFile(enforce && reportOnlyPolicy(text) ? enforceCsp(text) : text);
   const etags = new Map<string, { stamp: string; etag: string }>();
   const etag = (file: string): string => {
     const st = statSync(file);
@@ -236,8 +245,8 @@ function body(req: IncomingMessage): Promise<Buffer> {
 }
 
 /** The `cloudflare` profile: the Worker's router for /api/*, the assets for the rest. */
-function cloudflareHandler(root: string): (req: IncomingMessage, res: ServerResponse, path: string, search: string) => Promise<void> {
-  const assets = cloudflareAssets(root);
+function cloudflareHandler(root: string, enforce = false): (req: IncomingMessage, res: ServerResponse, path: string, search: string) => Promise<void> {
+  const assets = cloudflareAssets(root, enforce);
   const env: Env = {
     ASSETS: {
       async fetch(input) {
@@ -275,7 +284,7 @@ function cloudflareHandler(root: string): (req: IncomingMessage, res: ServerResp
 export function serve(dir: string, port: number, opts: ServeOptions = {}): ReturnType<typeof createServer> {
   const root = realpathSync(dir);
   const base = normaliseBase(opts.base ?? '/');
-  const cloudflare = opts.profile === 'cloudflare' ? cloudflareHandler(root) : null;
+  const cloudflare = opts.profile === 'cloudflare' ? cloudflareHandler(root, opts.enforceCsp === true) : null;
   const server = createServer((req, res) => {
     const notFound = (code = 404): void => {
       res.writeHead(code, { ...(cloudflare ? {} : PAGES_HEADERS), 'Content-Type': 'text/plain' });
@@ -337,12 +346,17 @@ if (import.meta.main) {
   const port = Number(option('--port') ?? 4180);
   const base = normaliseBase(option('--base') ?? '/');
   const profile = option('--profile') ?? 'pages';
+  const csp = option('--csp');
+  if (csp !== undefined && csp !== 'enforce') {
+    console.error(`static: --csp is enforce, not ${csp}`);
+    process.exit(1);
+  }
   if (profile !== 'pages' && profile !== 'cloudflare') {
     console.error(`static: --profile is pages or cloudflare, not ${profile}`);
     process.exit(1);
   }
   const dir = resolve(args[0] ?? 'dist');
-  serve(dir, port, { base, profile }).on('listening', () =>
-    console.log(`static: ${dir} at http://127.0.0.1:${port}${base} (${profile})`),
+  serve(dir, port, { base, profile, enforceCsp: csp === 'enforce' }).on('listening', () =>
+    console.log(`static: ${dir} at http://127.0.0.1:${port}${base} (${profile}${csp ? ', CSP enforced' : ''})`),
   );
 }

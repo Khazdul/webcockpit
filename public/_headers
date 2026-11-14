@@ -1,15 +1,60 @@
 # Response headers of the static files on Cloudflare (ADR 0144; Workers
 # static assets read this file from the build's root and do not serve it).
-# GitHub Pages ignores it. Not applied to what the Worker answers (/api/*).
+# GitHub Pages ignores it. Not applied to what the Worker answers (/api/*,
+# /admin: worker/router.ts sets those; the admin page has a policy of its own).
 # Every rule that matches a path applies; a header set by two rules would
 # be joined with a comma, hence `! Cache-Control` first where the default
 # (`public, max-age=0, must-revalidate`) is replaced.
 # scripts/static-server.ts reads this file for its `cloudflare` profile.
+#
+# The Content-Security-Policy (ADR 0144, "As built (stage 60): the CSP").
+# Enforced today: `frame-ancestors 'none'` alone. The full policy is the
+# report-only line: it blocks nothing yet. THE SWITCH to enforced is
+# `CSP_ENFORCED` in scripts/csp.ts (per target; `npm run build:site` then
+# writes the report-only line as the one `Content-Security-Policy`), not an
+# edit here. `'sha256-INLINE-SCRIPTS'` is replaced by `vite build` with the
+# hashes of index.html's inline scripts (vite.config.ts `cspHashesPlugin`).
+# One line, under Cloudflare's 2,000 characters a line. Source by source:
+#   default-src 'none'      nothing that is not named below
+#   script-src  'self'      our own files (the workers' too)
+#               'wasm-unsafe-eval'  Lua is WebAssembly (wasmoon); nothing
+#                           uses eval or new Function, so no 'unsafe-eval'
+#               the hashes  the first paint's two inline scripts (ADR 0083)
+#               https://challenges.cloudflare.com  Turnstile's api.js on the
+#                           account pages (ADR 0145), as Cloudflare documents
+#               'report-sample'  a violation's event carries its first 40
+#                           characters (what the CSP walk prints)
+#   style-src   'self' 'unsafe-inline'  the one loose source: the first
+#                           paint and the wordmark write markup with
+#                           computed style="" attributes, three <style>
+#                           elements are made at run time (index.html's own,
+#                           the first paint's geometry, the @font-face rules)
+#                           and CodeMirror mounts its themes in a <style>
+#                           whose text is made at run time (a nonce is its
+#                           only other way, and static files have none).
+#                           Scripts, not styles, are what the accounts'
+#                           keys need kept out, and nothing a style could
+#                           load leaves the origin (img-src, font-src)
+#   img-src     'self' data:  our files; data: for the SVG grain and masks
+#                           in the stylesheets
+#   font-src    'self'      public/fonts
+#   connect-src 'self'      /api, release.json, the map, the replay bundle
+#               wss://mume.org    the game (src/net/ws-transport.ts)
+#               https://mume.org  the link probe (src/net/link-probe.ts)
+#   worker-src  'self'      the map, map tools, weather and KDF workers are
+#                           module workers by URL; none starts from blob:
+#   frame-src   https://challenges.cloudflare.com  Turnstile's frame; the
+#                           app has no other frame today
+#   object-src, base-uri, form-action 'none'  no plugins, no <base>, no
+#                           form that is sent anywhere (the pages' forms
+#                           are handled in script)
+#   frame-ancestors 'none'  nobody frames the app (ADR 0144)
 
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Content-Security-Policy: frame-ancestors 'none'
+  Content-Security-Policy-Report-Only: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-INLINE-SCRIPTS' https://challenges.cloudflare.com 'report-sample'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' wss://mume.org https://mume.org; worker-src 'self'; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
 
 # Hashed files (and the carried ones of the previous release): never change.
 /assets/*

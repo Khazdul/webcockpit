@@ -225,6 +225,24 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
 - [ ] The pages in the look kit; phone and tablet with our keyboard.
 - [ ] The CSP: report-only on staging, then enforced (Turnstile's
       script and frame included).
+      - Done 2026-11-14 (ADR 0144, "As built (stage 60): the
+        CSP"): the policy in `public/_headers`, sent **report-only** by
+        both targets; the inline scripts by hash, written by `vite
+        build`; the CSP walk (`tests/e2e-prod/csp.spec.ts`) in the
+        build's smoke test, clean in Chromium and Firefox on the local
+        build, report-only and enforced (`WC_PROD_CSP=enforce`).
+      - Left, in this order: (1) the account pages get their steps in
+        the walk (Turnstile's script and frame); (2) the walk against
+        staging, `WC_PROD_URL=https://staging.mumecockpit.com npm run
+        test:prod -- csp`, and the pages by hand there; (3) the switch:
+        `staging: true` in `CSP_ENFORCED` (`scripts/csp.ts`), deploy
+        staging, the same checks, Safari and iOS by hand; (4)
+        `production: true`.
+      - For the pages: a `<form>` must be handled in script
+        (`form-action 'none'`); no inline `<script>`, no `eval`; inline
+        styles are allowed. Turnstile works on the dev server as it is
+        (COEP `require-corp` does not block it; measured, same ADR
+        section), so `npm run dev:cloud` needs no change.
 
 ### C. Owner's part (guided by the session)
 
