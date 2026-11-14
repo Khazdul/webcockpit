@@ -230,6 +230,10 @@ const fail = (code: ApiErrorCode, status?: number): ApiFailure => (status === un
 /** What an answer that is not 2xx means. */
 export function failureOf(status: number, data: unknown): ApiFailure {
   const code = isObject(data) && typeof data.error === 'string' ? data.error : null;
+  // The server says why a session ended (stage 61): until the flows read
+  // the reason (stage 61 part C), an ended session is what `unauthorized`
+  // always meant.
+  if (code === 'session_ended' && status === 401) return fail('unauthorized', status);
   if (code !== null && (ACCOUNT_ERRORS as readonly string[]).includes(code)) {
     if (code === 'locked') {
       const after = (data as Record<string, unknown>).retryAfter;

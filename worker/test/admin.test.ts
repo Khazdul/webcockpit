@@ -193,7 +193,11 @@ describe('the admin page', () => {
     expect(s.usage.limits).toEqual({ requests: 100_000, rowsWritten: 100_000, rowsRead: 5_000_000 });
     expect(s.usage.requests).toBeGreaterThan(0);
     expect(s.usage.rowsWritten).toBeGreaterThan(0);
-    expect(s.flags).toEqual({ stats: { value: true, default: true, override: null }, accounts: { value: true, default: true, override: null } });
+    expect(s.flags).toEqual({
+      stats: { value: true, default: true, override: null },
+      accounts: { value: true, default: true, override: null },
+      sync: { value: true, default: true, override: null },
+    });
   });
 
   it('PUT /api/admin/flags/<name> sets the override, with X-WC and the same Origin', async () => {

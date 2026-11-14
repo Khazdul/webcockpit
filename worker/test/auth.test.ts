@@ -146,7 +146,7 @@ describe('the flag, the secrets and GET /api/config', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('max-age=60');
     expect(await res.json()).toEqual({
-      flags: { stats: true, accounts: true },
+      flags: { stats: true, accounts: true, sync: true },
       turnstileSiteKey: '1x00000000000000000000AA',
       limits: DEFAULT_ACCOUNT_LIMITS,
       time: NOW,
@@ -728,7 +728,8 @@ describe('sessions', () => {
       ] as const) {
         const res = await call(method, path, {}, o);
         expect(res.status, `${what} ${path}`).toBe(401);
-        expect(await res.json()).toEqual({ error: 'unauthorized' });
+        // An expired session says so (sync.test.ts has every reason); the rest the server never knew.
+        expect(await res.json()).toEqual(what === 'expired' ? { error: 'session_ended', reason: 'expired' } : { error: 'unauthorized' });
         expect(res.headers.get('set-cookie'), `${what} ${path}`).toBe(set);
       }
     }

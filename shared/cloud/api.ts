@@ -8,7 +8,7 @@ export interface ApiError {
 }
 
 /** Server flags that open cloud features (spec §7.0 rule 5). A missing flag is off. */
-export type FlagName = 'stats' | 'accounts';
+export type FlagName = 'stats' | 'accounts' | 'sync';
 
 /**
  * `GET /api/config` (cached 60 s). The Worker always sends every field;
@@ -69,7 +69,7 @@ export interface PublicStats {
 // --- Flags and the admin page (spec §7.9, ADR 0147 and 0148) ---
 
 /** Every server flag, in the order the admin page lists them. */
-export const FLAG_NAMES = ['stats', 'accounts'] as const satisfies readonly FlagName[];
+export const FLAG_NAMES = ['stats', 'accounts', 'sync'] as const satisfies readonly FlagName[];
 
 /** How long a device counts as online after its last beat (ADR 0147). */
 export const ONLINE_MINUTES = 6;
@@ -436,7 +436,18 @@ export interface SyncChanges {
  * "item_too_large" | "storage_full" | "too_many_items"}`.
  *
  * `DELETE /api/u/sync/items/<kind>/<id>`, `If-Match: <rev>`: writes a
- * tombstone; `200` → `SyncWritten`, `409` → `SyncConflict`.
+ * tombstone; `200` → `SyncWritten`, `409` → `SyncConflict`. A delete on a
+ * tombstone's own rev writes nothing and answers its rev and seq.
+ *
+ * Both (as built, stage 61 B2): no `If-Match` → `428 if_match_required`;
+ * a base rev > 0 for an item the account does not have, or a delete of
+ * one it never had → `404 not_found`; a kind not open yet → `403
+ * kind_closed`; an unknown kind, an id not of `SYNC_ID_PATTERN`, an
+ * If-Match that is not a whole number, a PUT body that is empty or not
+ * `application/octet-stream` → `400 bad_request`. The flag `sync` off →
+ * `404 not_found`. Tombstones count against neither `items` nor
+ * `itemBytes`; a write that does not grow the usage is never refused.
+ * `changes` also stops before its blobs pass 4 MB (at least one item).
  */
 export interface SyncWritten {
   rev: number;
@@ -453,7 +464,8 @@ export interface SyncConflict {
 /**
  * Why a session ended, sent with `401 {error: "session_ended", reason}`
  * on any `/api/u/` request on that session (ADR 0145 addendum, stage 61).
- * A cookie the server never knew answers `401 {error: "not_logged_in"}`.
+ * A cookie the server never knew (or none) answers `401 {error: "unauthorized"}`,
+ * as every `/api/u/` request without a live session did before.
  */
 export const SESSION_END_REASONS = ['logout', 'password', 'recovered', 'ended', 'expired', 'deleted'] as const;
 export type SessionEndReason = (typeof SESSION_END_REASONS)[number];

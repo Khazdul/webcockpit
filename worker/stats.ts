@@ -61,9 +61,23 @@ export function parseBeat(body: unknown): Beat | null {
  * `max` + one chunk.
  */
 export async function readCapped(request: Request, max: number): Promise<string | null> {
+  const all = await readBytesCapped(request, max);
+  if (all === null) return null;
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(all);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The body's bytes, or null when it is longer than `max` bytes (by its
+ * Content-Length or by what arrives). Reads no more than `max` + one chunk.
+ */
+export async function readBytesCapped(request: Request, max: number): Promise<Uint8Array<ArrayBuffer> | null> {
   const declared = request.headers.get('content-length');
   if (declared !== null && !(Number(declared) <= max)) return null;
-  if (!request.body) return '';
+  if (!request.body) return new Uint8Array(0);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -83,11 +97,7 @@ export async function readCapped(request: Request, max: number): Promise<string 
     all.set(c, at);
     at += c.byteLength;
   }
-  try {
-    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(all);
-  } catch {
-    return null;
-  }
+  return all;
 }
 
 /**
