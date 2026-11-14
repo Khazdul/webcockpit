@@ -62,6 +62,7 @@ import {
   type LoginAnswer,
   OTHER_SESSIONS,
   type PrefsRequest,
+  type SessionEndReason,
 } from '../../../shared/cloud/api.ts';
 import type { AccountKeys, PasswordKdf, PasswordSet, RegisterKeys } from '../crypto';
 import { deviceLabel } from '../device-info';
@@ -209,6 +210,8 @@ export interface FlowDeps {
   /** This device's session label. */
   label: () => string;
   now: () => number;
+  /** The session was lost (stage 61): the account's copy on this device is removed or kept locked. */
+  lost?: (reason: SessionEndReason | null) => void;
 }
 
 export interface AccountFlows {
@@ -305,6 +308,7 @@ export function defaultFlowDeps(): FlowDeps {
     enabled: accountsEnabled,
     label: () => deviceLabel(globalThis.navigator?.userAgent ?? ''),
     now: () => Date.now(),
+    lost: (reason) => void import('../space/flows').then((m) => m.sessionLost(reason)).catch(() => {}),
   };
 }
 
@@ -438,11 +442,24 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
     return true;
   }
 
-  /** An answer from `/api/u/*` for `me`: `unauthorized` logs the device out locally, while its login is still that one. */
+  /**
+   * An answer from `/api/u/*` for `me`: `unauthorized` or `session_ended`
+   * logs the device out locally, while its login is still that one, and
+   * hands the account's copy to `deps.lost` (stage 61: removed or kept
+   * locked). The pages get `unauthorized` for both.
+   */
   async function authed<T>(me: StoredAccount, answer: Promise<ApiResult<T>>): Promise<ApiResult<T>> {
     const r = await answer;
-    if (!r.ok && r.code === 'unauthorized' && (await stillMine(me))) await forget();
-    return r;
+    if (r.ok || (r.code !== 'unauthorized' && r.code !== 'session_ended')) return r;
+    if (await stillMine(me)) {
+      await forget();
+      try {
+        deps.lost?.(r.code === 'session_ended' ? (r.reason ?? null) : null);
+      } catch {
+        /* the copy is decided on at the next load */
+      }
+    }
+    return r.code === 'session_ended' ? { ...r, code: 'unauthorized' } : r;
   }
 
   /**
@@ -744,7 +761,7 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
       const r = await api.logout();
       const keysRemoved = await forget();
       // `unauthorized`: the server no longer knew the session, which is what was asked for.
-      const server = r.ok || r.code === 'unauthorized' ? 'ended' : 'unreached';
+      const server = r.ok || r.code === 'unauthorized' || r.code === 'session_ended' ? 'ended' : 'unreached';
       return { server, keysRemoved };
     });
 

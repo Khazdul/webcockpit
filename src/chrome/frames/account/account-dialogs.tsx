@@ -2,8 +2,9 @@
 // each an overlay frame over the page (`nav.push(…, { overlay: true })`)
 // drawing the kit's `Dialog`:
 //
-//   LogoutDialog     ac-logout     a plain confirm (nothing is synced yet,
-//                                  so there is no keep / remove choice)
+//   LogoutDialog     ac-logout     in an account's space (stage 61): refused,
+//                                  syncing first, all in the account, or
+//                                  the rows of what is not; else a plain confirm
 //   EndDialog        ac-end        one session, or every other one
 //                    ac-endall
 //   PasswordDialog   ac-password   current password, the new one twice
@@ -52,8 +53,21 @@ import {
   logout,
   newRecoveryCode,
 } from '../../../cloud/account';
-import { Dialog, Field, GlassButton, Plate, lookFrame } from '../../kit/look';
+import { deleteHandBack, leaveAccount, setLeaving as setLeavingSpace } from '../../../cloud/space/flows';
+import { idbLocalItems, idbSyncRecords } from '../../../cloud/space/local';
+import { pendingChanges, runCounts, spaceDb } from '../../../cloud/space/spaces';
+import { loggedOutAnywayWords, loggedOutWords } from '../../../cloud/space/words';
+import type { Unsynced } from '../../../cloud/sync/types';
+import { syncNow, syncView, unsyncedNow } from '../../../cloud/sync-view';
+import { currentSpace, gameRunningElsewhere } from '../../../core/space';
+import { downloadProfile } from '../../../profiles/download';
+import { backupFileName } from '../../../runs/library';
+import { formatScriptBackup, scriptBackupFileName } from '../../../scripts/backup';
+import { downloadBlob } from '../../kit/download';
+import { useServices } from '../../kit/hooks';
+import { Dialog, Field, GlassButton, Icon, KeyLabel, Plate, letterOf, lookFrame } from '../../kit/look';
 import { useKeyLayer, useNav } from '../../kit/stack';
+import { openHistory } from '../history';
 import { endOthersWords, namesAccount } from './account-model';
 import type { AccountHost } from './account-page';
 import { SmallNote, WaitPlate, checkNewPassword, newPasswordHint, useFormKeys } from './form';
@@ -99,52 +113,249 @@ function Body(p: { children?: ComponentChildren }): VNode {
 
 // ------------------------------------------------------------ Log out
 
+/** What Log out would remove that is not in the account (spec §7.4, Log out 3–4). */
+interface Left {
+  changes: Unsynced[];
+  saved: number;
+  unsaved: number;
+}
+
+type LogoutPhase = 'plain' | 'checking' | 'refused' | 'syncing' | 'ask';
+
+/**
+ * Log out. In an account's space (stage 61, the owner's pick 4): refused
+ * while a game runs on it in another tab; what waits is synced first
+ * (Cancel only); then the question alone when everything is in the
+ * account (Enter logs out), or a row for each thing that is not (Stay
+ * logged in is Enter, Download, Log out anyway; only unsaved runs left:
+ * Enter logs out). Logged out, the account's copy goes and the start
+ * menu says so. Outside a space (the flag `sync` off) stage 60's plain
+ * question.
+ */
 export const LogoutDialog = lookFrame(function LogoutDialog(p: { host: Host }): VNode {
   const nav = useNav();
   const alive = useAlive();
+  const services = useServices();
   const busy = useRef(false);
+  const [space] = useState(currentSpace);
+  const [phase, setPhase] = useState<LogoutPhase>(space.kind === 'account' ? 'checking' : 'plain');
+  const [left, setLeft] = useState<Left | null>(null);
+  const [waiting, setWaiting] = useState(0);
+  const [offline, setOffline] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const name = p.host().name;
+
+  useEffect(() => {
+    if (space.kind !== 'account') return;
+    const open = spaceDb(space.nameKey);
+    void (async () => {
+      if (await gameRunningElsewhere(space)) {
+        if (alive.current) setPhase('refused');
+        return;
+      }
+      const st = syncView().status;
+      if (st) {
+        setWaiting(st.waiting);
+        setPhase('syncing');
+        const outcome = await syncNow();
+        if (!alive.current) return;
+        setOffline(!!outcome && outcome.type !== 'synced');
+      }
+      const changes = (await unsyncedNow().catch(() => null)) ?? (await pendingChanges(idbLocalItems(open), idbSyncRecords(open, () => 'device')));
+      const runs = await runCounts(open).catch(() => ({ saved: 0, unsaved: 0 }));
+      if (!alive.current) return;
+      setLeft({ changes, ...runs });
+      setPhase('ask');
+    })().catch(() => {
+      if (alive.current) setPhase('plain');
+    });
+  }, []);
+
   const cancel = (): void => {
     if (!busy.current) nav.pop();
   };
-  const out = async (): Promise<void> => {
+  const out = async (anyway: boolean): Promise<void> => {
     if (busy.current) return;
     busy.current = true;
     setWorking(true);
     const host = p.host();
     host.setLeaving(true);
+    const inSpace = space.kind === 'account';
+    if (inSpace) setLeavingSpace(true);
     const r = await host.track(logout());
     if (!r.ok) {
       // (It does not fail; if it ever does, the player is still logged in and is told.)
       busy.current = false;
       host.setLeaving(false);
+      if (inSpace) setLeavingSpace(false);
       if (alive.current) {
         setWorking(false);
         setError(failureWords(r.code, 'account'));
       }
       return;
     }
+    if (inSpace) {
+      const said = anyway ? loggedOutAnywayWords(name) : loggedOutWords(name);
+      const unreached = r.value.server === 'unreached' ? ' The server was not reached: this session may still be listed on your other devices for a while.' : '';
+      if (await leaveAccount(said + unreached)) return;
+    }
     if (r.value.server === 'unreached') host.toLogin(LOGOUT_UNREACHED);
     else host.toMenu('Logged out.');
   };
-  // Once the log out has started every key is held.
-  useKeyLayer(() => busy.current);
+  const download = async (): Promise<void> => {
+    const l = left;
+    if (!l) return;
+    const day = new Date();
+    const recs = services.scripts?.backupRecords();
+    if (recs && recs.scripts.length > 0) downloadBlob(new Blob([formatScriptBackup(recs)], { type: 'application/json;charset=utf-8' }), scriptBackupFileName(day));
+    for (const u of l.changes) {
+      if (u.kind !== 'profile' || u.change === 'delete' || !u.name) continue;
+      const rec = await services.profiles.get(u.name).catch(() => null);
+      if (rec) downloadProfile(rec.name, rec.text);
+    }
+    if (l.saved + l.unsaved > 0) {
+      try {
+        downloadBlob(await (await services.runs()).backup(), backupFileName(day));
+      } catch {
+        /* History's own backup says why */
+      }
+    }
+  };
+  const history = (): void => {
+    if (busy.current) return;
+    nav.pop(nav.depth() - 1);
+    openHistory(nav);
+  };
+  // Once the log out has started every key is held; H opens History from the unsaved runs' row.
+  useKeyLayer((e) => {
+    if (busy.current) return true;
+    if (phase === 'ask' && left && left.unsaved > 0 && letterOf(e) === 'h') {
+      if (!e.repeat) history();
+      return true;
+    }
+    return false;
+  });
+
+  const question = (
+    <p class="wc-lk-q">
+      Log out of <b class="wc-ac-who">{name}</b> on this device?
+    </p>
+  );
+  if (phase === 'refused') {
+    return (
+      <Dialog title="Log out" dlg="ac-logout" width={420} onCancel={cancel} buttons={[{ id: 'OK', label: 'OK', letter: 'o', primary: true, run: cancel }]}>
+        <p class="wc-lk-q" data-logout="refused">
+          A game is running in another tab.
+        </p>
+        <p class="wc-lk-qn">Log out when it has ended.</p>
+      </Dialog>
+    );
+  }
+  if (phase === 'checking' || phase === 'syncing') {
+    return (
+      <Dialog title="Log out" dlg="ac-logout" width={480} onCancel={cancel} buttons={[{ id: 'CANCEL', label: 'Cancel', letter: 'c', run: cancel }]}>
+        {question}
+        <p class="wc-ac-dwork" data-logout="syncing">
+          <span class="wc-so-mark is-pulse" aria-hidden="true" />
+          <span>
+            {phase === 'syncing'
+              ? `Syncing before you log out…${waiting > 0 ? ` ${waiting} change${waiting === 1 ? '' : 's'}` : ''}`
+              : 'Looking at what is on this device…'}
+          </span>
+        </p>
+      </Dialog>
+    );
+  }
+  if (phase === 'ask' && left && (left.changes.length > 0 || left.saved > 0 || left.unsaved > 0)) {
+    const onlyUnsaved = left.changes.length === 0 && left.saved === 0;
+    const n = left.changes.length;
+    return (
+      <Dialog
+        title="Log out"
+        dlg="ac-logout"
+        width={560}
+        error={error}
+        onCancel={cancel}
+        buttons={[
+          { id: 'STAY', label: 'Stay logged in', letter: 's', primary: !onlyUnsaved, disabled: working, run: cancel },
+          { id: 'DOWNLOAD', label: 'Download', letter: 'd', disabled: working, run: () => void download() },
+          onlyUnsaved
+            ? { id: 'OUT', label: 'Log out', letter: 'l', primary: true, disabled: working, run: () => void out(false) }
+            : { id: 'OUT', label: 'Log out anyway', letter: 'l', danger: true, disabled: working, run: () => void out(true) },
+        ]}
+      >
+        <div class="wc-ac-dlg" data-logout="some">
+          {question}
+          <p class="wc-lk-qn">
+            {onlyUnsaved
+              ? 'Everything else is in your account. Logging out removes these from this device:'
+              : 'Not everything is in your account yet. Logging out removes these from this device:'}
+          </p>
+          <ul class="wc-ac-dlist is-rows">
+            {n > 0 && (
+              <li data-row="changes">
+                <span class="wc-so-mark is-ring" aria-hidden="true" />
+                <span>
+                  <b>
+                    {n} change{n === 1 ? '' : 's'}
+                  </b>{' '}
+                  not synced{offline && <i> (the server could not be reached)</i>}
+                </span>
+              </li>
+            )}
+            {left.saved > 0 && (
+              <li data-row="saved">
+                <Icon name="save" />
+                <span>
+                  <b>
+                    {left.saved} saved run{left.saved === 1 ? '' : 's'}
+                  </b>{' '}
+                  on this device only
+                </span>
+              </li>
+            )}
+            {left.unsaved > 0 && (
+              <li data-row="unsaved">
+                <Icon name="hourglass" />
+                <span>
+                  <b>
+                    {left.unsaved} unsaved run{left.unsaved === 1 ? '' : 's'}
+                  </b>{' '}
+                  of the last 14 days —{' '}
+                  <button type="button" class="wc-lk-link wc-ac-inlink" tabIndex={-1} onClick={history}>
+                    open <KeyLabel text="History" letter="h" />
+                  </button>{' '}
+                  to save them
+                </span>
+              </li>
+            )}
+          </ul>
+        </div>
+      </Dialog>
+    );
+  }
+  const all = phase === 'ask';
   return (
     <Dialog
       title="Log out"
       dlg="ac-logout"
+      width={all ? 480 : undefined}
       error={error}
       onCancel={cancel}
       buttons={[
         { id: 'CANCEL', label: 'Cancel', letter: 'c', disabled: working, run: cancel },
-        { id: 'OUT', label: 'Log out', letter: 'l', primary: true, disabled: working, run: () => void out() },
+        { id: 'OUT', label: 'Log out', letter: 'l', primary: true, disabled: working, run: () => void out(false) },
       ]}
     >
-      <p class="wc-lk-q">
-        Log out of <b class="wc-ac-who">{p.host().name}</b> on this device?
-      </p>
-      <p class="wc-lk-qn">Your profiles, scripts and runs on this device stay as they are.</p>
+      {question}
+      {all ? (
+        <p class="wc-lk-qn" data-logout="all">
+          Everything is in your account. It is removed from this device, and you are back on this device’s own profiles, scripts and runs.
+        </p>
+      ) : (
+        <p class="wc-lk-qn">Your profiles, scripts and runs on this device stay as they are.</p>
+      )}
     </Dialog>
   );
 });
@@ -593,6 +804,7 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
   const focusNext = useRef(false);
   const work = useWorking();
   const name = p.host().name;
+  const [inSpace] = useState(() => currentSpace().kind === 'account');
 
   const waiting = wait !== null;
   useEffect(() => {
@@ -609,13 +821,17 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
     setError(null);
     const host = p.host();
     host.setLeaving(true);
+    if (inSpace) setLeavingSpace(true);
     const signal = work.start();
     const r = await host.track(deleteAccount(password, { onStep: work.onStep, signal }));
     if (r.ok) {
+      // In the account's space (stage 61): its profiles and scripts become this device's, and the page reloads.
+      if (inSpace && (await deleteHandBack(name))) return;
       host.toMenu(`The account ${name} is deleted. What is on this device is untouched.`);
       return;
     }
     host.setLeaving(false);
+    if (inSpace) setLeavingSpace(false);
     if (!alive.current) return;
     const doubt = work.doubtful(r.code);
     work.stop();
@@ -681,9 +897,16 @@ export const DeleteDialog = lookFrame(function DeleteDialog(p: { host: Host }): 
             <b>What goes:</b> the account and everything stored in it, at once and for good, and the login on every device. The name <b>{name}</b> can never be
             registered again, by you or anyone.
           </p>
-          <p class="wc-ac-dtxt">
-            <b>What stays:</b> what is on this device. Your profiles, scripts and runs here are not touched.
-          </p>
+          {inSpace ? (
+            <p class="wc-ac-dtxt" data-delete="handback">
+              <b>What happens on this device:</b> your profiles and scripts in <b>{name}</b> come back to this device as its own. A name that exists on both
+              sides keeps both.
+            </p>
+          ) : (
+            <p class="wc-ac-dtxt">
+              <b>What stays:</b> what is on this device. Your profiles, scripts and runs here are not touched.
+            </p>
+          )}
           <Field
             id="password"
             label="Password"

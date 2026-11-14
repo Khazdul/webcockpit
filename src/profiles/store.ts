@@ -18,6 +18,7 @@
 // records in memory for the page's lifetime; `persistent` is false.
 
 import { STORE, idbDone, idbRequest, openWebcockpitDb, randomId } from '../core/db';
+import { noteStored } from '../core/store-events';
 import { stripSend } from './migrate';
 import { DEFAULT_PROFILE, nameError, nameFromFileName, uniqueName } from './names';
 import KHAZDUL from './khazdul.tin?raw';
@@ -49,6 +50,42 @@ export const PROFILE_TEMPLATE: string = TEMPLATE;
 export const BUNDLED_PROFILES: readonly { name: string; text: string }[] = [
   { name: 'khazdul', text: KHAZDUL },
 ];
+
+/**
+ * The seeds (`default` and the bundled profiles) have fixed ids and times
+ * (stage 61, ADR 0151 "Seeds"): every device and every account's space
+ * seeds the same records, so the sync sees one item per seed, not one per
+ * device. An *untouched* seed (its seed text, under its name) is not an
+ * item at all: it never moves at Create account and is not synced until
+ * it is changed.
+ */
+export const SEED_TIME = Date.UTC(2026, 8, 27);
+
+/** A seed's fixed id (`seed-default`, `seed-khazdul`). */
+export const seedId = (name: string): string => `seed-${name}`;
+
+/** The seed's text by name. */
+export function seedText(name: string): string | null {
+  if (name === DEFAULT_PROFILE) return PROFILE_TEMPLATE;
+  return BUNDLED_PROFILES.find((b) => b.name === name)?.text ?? null;
+}
+
+/** The seed records, as a new device (or a new account's space) gets them. */
+export function seedProfiles(): ProfileRecord[] {
+  return [{ name: DEFAULT_PROFILE, text: PROFILE_TEMPLATE }, ...BUNDLED_PROFILES].map((b) => ({
+    id: seedId(b.name),
+    name: b.name,
+    text: stripSend(b.text),
+    created: SEED_TIME,
+    modified: SEED_TIME,
+  }));
+}
+
+/** True for a seed as it was seeded: a seed's name and its text (whatever its id and times). */
+export function isUntouchedSeed(rec: Pick<ProfileRecord, 'name' | 'text'>): boolean {
+  const t = seedText(rec.name);
+  return t !== null && stripSend(t) === rec.text;
+}
 
 export interface ProfileStoreOptions {
   /** IndexedDB factory; null = memory only. Default: `globalThis.indexedDB`. */
@@ -92,9 +129,8 @@ export class ProfileStore {
         }
         return;
       }
-      await st.put(this.record(DEFAULT_PROFILE, PROFILE_TEMPLATE));
-      for (const b of BUNDLED_PROFILES) {
-        if (!(await st.get(b.name))) await st.put(this.record(b.name, b.text));
+      for (const seed of seedProfiles()) {
+        if (seed.name === DEFAULT_PROFILE || !(await st.get(seed.name))) await st.put(seed);
       }
     });
   }
@@ -228,6 +264,7 @@ export class ProfileStore {
           throw err;
         }
         await done;
+        if (mode === 'readwrite') noteStored('profile');
         return result;
       }
     }

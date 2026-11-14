@@ -363,3 +363,13 @@ html.wc-phone .wc-pl-list {
 .wc-pd-copy > .wc-lk-row {
   flex: none;
 }
+
+/* A keep-both copy (stage 61, the owner's pick 5b): gold, until it is opened or renamed. */
+.wc-pl-tag.is-both {
+  color: var(--lk-gold);
+}
+
+.wc-pl-tag.is-both::before {
+  content: "◆ ";
+  font-size: 0.8em;
+}

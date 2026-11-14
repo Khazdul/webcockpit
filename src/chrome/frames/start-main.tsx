@@ -44,8 +44,10 @@ import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type AccountState, accountState, onAccountState, watchAccountState } from '../../cloud/account/state';
 import { whenIdle } from '../../cloud/config';
+import { type LockedNotice, type SyncView, onSyncMessage, onSyncView, startSync, syncView, takeSyncMessage } from '../../cloud/sync-view';
+import { currentSpace, lockedCopies, takeSpaceMessage } from '../../core/space';
 import { useServices, useSettings } from '../kit/hooks';
-import { Box, Icon, type IconName, KeyLabel, LookFlash, letterOf, lookFrame, useScenery } from '../kit/look';
+import { Box, GlassButton, Icon, type IconName, KeyLabel, LookFlash, letterOf, lookFrame, useScenery } from '../kit/look';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import { type MenuItem, menuKey, useMenuCursor } from '../kit/widgets';
 import type { Quote } from '../quotes';
@@ -54,7 +56,7 @@ import { AboutFrame, PrivacyFrame, atPrivacyPath } from './about';
 import { openHistory } from './history';
 import { ProfileFrame } from './profiles';
 import { ScriptsFrame } from './scripts';
-import { START_LETTERS, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
+import { START_LETTERS, type OwnerSync, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
 
 export const LATER = 'Coming in a later stage.';
 
@@ -109,12 +111,18 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   useScenery('main');
   const menu = useRef<HTMLUListElement>(null);
   const accountRow = useAccountRow(menu, isTop);
+  useFlashRoom(menu);
   const account = accountRow.row;
   const openAccount = useAccountPages(nav);
   // Community: the flag `gallery` and the page come in stage 65 (dev: `?community=<n>`).
   const community = devCommunity();
   const entries = startMenu({ owner: account !== null, scripts: !!services.scripts, community });
-  const owner = account ? ownerRow({ name: account.name }) : null;
+  const sync = useSyncView(services, nav, isTop);
+  const lockedKey = account && account.name === null ? (sync.locked?.nameKey ?? lockedCopies()[0] ?? null) : null;
+  const lockedName = lockedKey ? (sync.locked?.nameKey === lockedKey ? sync.locked.name : lockedKey) : null;
+  const notice = lockedKey && sync.locked?.nameKey === lockedKey ? sync.locked : null;
+  const owner = account ? ownerRow({ name: account.name, sync: account.name ? ownerSyncOf(sync) : null, locked: lockedName }) : null;
+  const openLocked = useLockedActions(nav);
   const does: Record<StartRowKey, Partial<StartItem>> = {
     enter: { activate: p.onEnter },
     // What a press opens is the model's (`opens`): Log in for a guest, the Account page logged in.
@@ -142,6 +150,10 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
         return true;
       }
     }
+    if (notice && (l === 'l' || l === 'r')) {
+      if (!e.repeat) openLocked(notice, l === 'l' ? 'login' : 'remove');
+      return true;
+    }
     const i = l ? items.findIndex((it) => it.letter === l) : -1;
     if (i >= 0) {
       setCursor(i);
@@ -163,7 +175,9 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
               if (e.kind === 'rule') return <li key={`rule${k}`} class="wc-sm-sep" role="separator" aria-hidden="true" />;
               const i = n++;
               const it = items[i]!;
-              return <MenuRow key={it.key} item={it} selected={i === cursor} active={isTop} onSelect={() => setCursor(i)} />;
+              const row = <MenuRow key={it.key} item={it} selected={i === cursor} active={isTop} onSelect={() => setCursor(i)} />;
+              if (it.key !== 'owner' || !notice) return row;
+              return [row, <LockedLine key="locked" notice={notice} onAct={(what) => openLocked(notice, what)} />];
             })}
           </ul>
           <LookFlash class="wc-sm-flash" />
@@ -177,6 +191,109 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     </div>
   );
 });
+
+// ------------------------------------------------------------ the sync (stage 61)
+
+/** The owner row's word for the engine's state; null without a sync in this page. */
+function ownerSyncOf(v: SyncView): OwnerSync | null {
+  return v.status ? v.status.state : null;
+}
+
+/**
+ * The sync's view for the menu (src/cloud/sync-view.ts), and its messages
+ * on the menu's line: the change of space's (`takeSpaceMessage`), the
+ * move's, keep both. Starts the page's sync once the account state is
+ * known (the sync's code is a lazy chunk). The message line wraps, and
+ * About moves down while it shows (`useFlashRoom`).
+ */
+function useSyncView(services: ReturnType<typeof useServices>, nav: ReturnType<typeof useNav>, isTop: boolean): SyncView {
+  const [v, setV] = useState<SyncView>(syncView);
+  useEffect(() => {
+    const off = onSyncView(setV);
+    setV(syncView());
+    const space = takeSpaceMessage();
+    if (space) nav.flash(space, 'ok', SPACE_MESSAGE_MS);
+    void watchAccountState().then((st) => {
+      // Only where there is something to do: somebody logged in, an account's space, a locked copy.
+      if (st.enabled && (st.name !== null || currentSpace().kind === 'account' || lockedCopies().length > 0)) {
+        startSync(services as unknown as Parameters<typeof startSync>[0]);
+      }
+    });
+    return off;
+  }, []);
+  useEffect(() => {
+    if (!isTop) return;
+    const drain = (): void => {
+      const m = takeSyncMessage();
+      if (m) nav.flash(m.text, 'ok', m.ms);
+    };
+    drain();
+    return onSyncMessage(drain);
+  }, [isTop]);
+  return v;
+}
+
+/**
+ * The message line wraps (stage 61: the sync's messages take two or three
+ * lines in the panel): its height is measured and About's place follows
+ * it (`--wc-sm-flash-h` on the panel's window).
+ */
+function useFlashRoom(menu: { current: HTMLUListElement | null }): void {
+  useLayoutEffect(() => {
+    const win = menu.current?.parentElement;
+    const line = win?.querySelector<HTMLElement>('.wc-sm-flash');
+    if (!win || !line) return;
+    const put = (): void => {
+      const h = Math.max(18, Math.ceil(line.offsetHeight));
+      win.style.setProperty('--wc-sm-flash-h', `${h}px`);
+    };
+    put();
+    if (typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(put);
+    ro.observe(line);
+    return () => ro.disconnect();
+  }, []);
+}
+
+/** How long a message from a change of space stays on the menu's line. */
+const SPACE_MESSAGE_MS = 12_000;
+
+/** The locked copy's notice under the owner row (the owner's pick 2a): what is kept, Log in (L) and Remove (R). */
+function LockedLine(p: { notice: LockedNotice; onAct: (what: 'login' | 'remove') => void }): VNode {
+  const n = p.notice;
+  const one = /^1 /.test(n.what) && !n.what.includes(' and ');
+  return (
+    <li class="wc-sm-lock" role="note" data-locked={n.nameKey}>
+      <p class="wc-sm-lock-t">
+        {n.what} {one ? 'is' : 'are'} not in the account <b>{n.name}</b> yet. {one ? 'It is' : 'They are'} kept on this device until you log in.
+      </p>
+      <div class="wc-sm-lock-b">
+        <GlassButton id="LOCKED-LOGIN" label="Log in" letter="l" small onClick={() => p.onAct('login')} />
+        <GlassButton id="LOCKED-REMOVE" label="Remove" letter="r" small danger onClick={() => p.onAct('remove')} />
+      </div>
+    </li>
+  );
+}
+
+/** Log in (the Log in page, the name filled in) and Remove (its question) of the locked copy: the account chunk. */
+function useLockedActions(nav: ReturnType<typeof useNav>): (n: LockedNotice, what: 'login' | 'remove') => void {
+  const loading = useRef(false);
+  return (n, what) => {
+    if (loading.current) return;
+    loading.current = true;
+    const depth = nav.depth();
+    void import('./account')
+      .then((m) => {
+        if (nav.depth() !== depth) return;
+        if (what === 'login') nav.push(m.loginFor(n.name));
+        else nav.push(m.removeCopyDialog(n), { overlay: true });
+      })
+      .catch(() => nav.flash('The account pages could not be loaded. Check the connection and try again.', 'fail'))
+      .finally(() => {
+        loading.current = false;
+      });
+  };
+}
 
 // ------------------------------------------------------------ the owner row coming in
 

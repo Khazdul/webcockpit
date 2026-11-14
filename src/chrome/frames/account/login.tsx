@@ -17,6 +17,7 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { intoAccount } from './sync-ui';
 import { type Account, type FlowHandle, accountState, checkName, startLogin, storedAccount } from '../../../cloud/account';
 import { Box, Field, GlassButton, TextLink, lookFrame } from '../../kit/look';
 import { useNav } from '../../kit/stack';
@@ -97,7 +98,8 @@ export const LoginFrame = lookFrame(function LoginFrame(p: PageProps['login']): 
     work.stop();
     if (r.ok) {
       setPassword('');
-      go(nav, 'account');
+      // Into the account's space (stage 61: the page reloads to the start menu), or the Account page.
+      await intoAccount(nav, r.value.name);
       return;
     }
     if (hd.finished && handle.current === hd) handle.current = null;

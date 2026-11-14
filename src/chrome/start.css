@@ -897,3 +897,51 @@ html.wc-phone .wc-alm-o {
 .wc-start.is-leaving * {
   pointer-events: none !important;
 }
+
+/* ------------------------------------------------------------ stage 61: the sync */
+
+/* The message line wraps to two or three lines (the sync's messages); its
+ * height is measured (start-main.tsx `useFlashRoom`) and About moves down
+ * by it. */
+.wc-sm-flash.wc-lk-flash {
+  height: auto;
+  min-height: 18px;
+  padding: 0 6px;
+  white-space: normal;
+  overflow: visible;
+  line-height: 19px;
+  text-wrap: balance;
+}
+
+/* The locked copy's notice under the owner row (the owner's pick 2a). */
+.wc-sm-lock {
+  grid-column: 2 / -1;
+  list-style: none;
+  margin: -2px 0 6px;
+  padding: 0 14px 9px 0;
+  border-bottom: 1px solid var(--lk-rule);
+}
+
+.wc-sm-lock-t {
+  margin: 0;
+  font: italic 500 15px/1.32 var(--lk-serif);
+  color: var(--lk-dim);
+  text-wrap: pretty;
+}
+
+.wc-sm-lock-t b {
+  font: 600 11px/1 var(--lk-display);
+  letter-spacing: 0.12em;
+  font-variant: small-caps;
+  color: var(--lk-head);
+}
+
+.wc-sm-lock-b {
+  display: flex;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.wc-sm-lock-b .wc-lk-btn {
+  min-width: 0;
+}

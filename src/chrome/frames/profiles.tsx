@@ -38,6 +38,7 @@
 // display face's small caps: each of them gets its real spelling on a
 // second line, in the plain mono face (ADR 0125 addendum).
 
+import { clearKeptBoth, keptBothIds } from '../../cloud/sync-view';
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { DEFAULT_PROFILE, type ProfileRecord, caseTwins, downloadProfile } from '../../profiles';
@@ -121,6 +122,8 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
   const [cursorName, setCursorName] = useState<string>(s.profile);
   const [stop, setStop] = useState<Stop>('ROW');
   const listRef = useRef<HTMLUListElement>(null);
+  // The gold "kept both" mark on a keep-both copy until it is opened or renamed (stage 61, the owner's pick 5b).
+  const keptBoth = new Set(keptBothIds());
   /** Scroll the highlight into view after this move (keys, not the pointer: the list must not move under it). */
   const reveal = useRef(true);
 
@@ -198,6 +201,9 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
   };
 
   const edit = (name: string): void => {
+    // Opened: a "kept both" mark has done its work (stage 61).
+    const id = list?.find((r) => r.name === name)?.id;
+    if (id) clearKeptBoth(id);
     void editProfile(nav, profiles, name, { isLive: () => false, onSaved: onProfileSaved });
   };
 
@@ -232,6 +238,7 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
         if (cur) edit(cur.name);
         return;
       case 'RENAME':
+        if (cur) clearKeptBoth(cur.id);
         return nav.push(<ProfileNameDialog mode="rename" from={curName} done={done} />, { overlay: true });
       case 'DELETE': {
         // Afterwards the highlight goes to the row below (above at the end), in the order shown.
@@ -335,10 +342,11 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
         </button>
         <span class="wc-pl-head-time">Changed</span>
       </div>
-      <ul class={'wc-pl-list' + (atRow ? ' is-focus' : '')} ref={listRef} aria-label="Profiles">
+      <ul class={'wc-pl-list' + (atRow ? ' is-focus' : '')} ref={listRef} aria-label="Profiles" data-kept={keptBoth.size}>
         {rows.map((r, i) => {
           const on = i === cursor;
           const sel = r.name === s.profile;
+          const both = keptBoth.has(r.id);
           return (
             <li
               key={r.name}
@@ -360,9 +368,14 @@ export const ProfileFrame = lookFrame(function ProfileFrame(): VNode {
             >
               <span class="wc-pl-name">
                 <span class="wc-pl-n">{r.name}</span>
-                {(sel || twins.has(r.name)) && (
+                {(sel || both || twins.has(r.name)) && (
                   <span class="wc-pl-sub">
                     {twins.has(r.name) && <span class="wc-pl-case">{r.name}</span>}
+                    {both && (
+                      <small class="wc-pl-tag is-both" data-kept-both="">
+                        kept both
+                      </small>
+                    )}
                     {sel && <small class="wc-pl-tag">Selected</small>}
                   </span>
                 )}

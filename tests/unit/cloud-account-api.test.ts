@@ -156,8 +156,9 @@ describe('errors', () => {
     expect(failureOf(502, undefined)).toEqual({ ok: false, code: 'unavailable', status: 502 });
     expect(failureOf(401, undefined)).toEqual({ ok: false, code: 'bad_answer', status: 401 });
     expect(failureOf(401, { error: 'nope' })).toEqual({ ok: false, code: 'bad_answer', status: 401 });
-    // An ended session (stage 61) is `unauthorized`, whatever the reason; only on a 401.
-    expect(failureOf(401, { error: 'session_ended', reason: 'password' })).toEqual({ ok: false, code: 'unauthorized', status: 401 });
+    // Stage 61: the reason is read (the flows decide on the account's copy and hand the pages `unauthorized`).
+    expect(failureOf(401, { error: 'session_ended', reason: 'password' })).toEqual({ ok: false, code: 'session_ended', reason: 'password', status: 401 });
+    expect(failureOf(401, { error: 'session_ended', reason: 'nonsense' })).toEqual({ ok: false, code: 'session_ended', status: 401 });
     expect(failureOf(400, { error: 'session_ended' })).toEqual({ ok: false, code: 'bad_answer', status: 400 });
     expect(failureOf(302, undefined)).toEqual({ ok: false, code: 'bad_answer', status: 302 });
     expect(failureOf(400, { error: ['bad_request'] })).toEqual({ ok: false, code: 'bad_answer', status: 400 });

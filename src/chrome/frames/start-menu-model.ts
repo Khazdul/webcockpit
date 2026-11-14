@@ -75,10 +75,11 @@ export function communityCount(count: number): string | null {
 
 /**
  * The account's sync as the owner row says it (ADR 0146 and its
- * addendum). No source until stage 61: the start page passes none, and
- * the row then says the name alone.
+ * addendum; the engine's `SyncState`, stage 61). Without a sync (the flag
+ * `sync` off) the start page passes none, and the row says the name alone.
+ * `full` and `update` are "needs attention".
  */
-export type OwnerSync = 'synced' | 'syncing' | 'offline' | 'full';
+export type OwnerSync = 'synced' | 'syncing' | 'offline' | 'full' | 'update';
 
 export interface OwnerInput {
   /** The account logged in on this device (`AccountState.name`); null: nobody. */
@@ -118,6 +119,7 @@ const SYNC: Record<OwnerSync, { kind: OwnerKind; state: string; mark: OwnerMark 
   syncing: { kind: 'syncing', state: 'syncing', mark: 'pulse' },
   offline: { kind: 'offline', state: 'offline', mark: 'ring' },
   full: { kind: 'attention', state: 'storage full', mark: 'diamond' },
+  update: { kind: 'attention', state: 'update the client', mark: 'diamond' },
 };
 
 /** What the owner row shows for the account's state. */

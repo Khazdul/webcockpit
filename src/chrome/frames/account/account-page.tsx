@@ -63,6 +63,8 @@ import { useKeys, useNav } from '../../kit/stack';
 import { DeleteDialog, EndDialog, LogoutDialog, NewCodeDialog, PasswordDialog } from './account-dialogs';
 import { labelWords, orderSessions, sessionWords } from './account-model';
 import { FormError, type PageProps, SmallNote, go, useHeldCode, useTallPage } from './form';
+import { SyncSection, useSyncView } from './sync-ui';
+import { syncNow } from '../../../cloud/sync-view';
 import { failureWords, sinceWords } from './words';
 
 /** What a dialog needs of the page under it. */
@@ -120,7 +122,9 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   /** `follow` is asking the device's store whether the missing hint is a log out. */
   const checking = useRef(false);
   const rows = useRef<HTMLUListElement | null>(null);
-  const tall = useTallPage();
+  // With the sync section (stage 61) the page no longer fits a desktop: it takes the tall, scrolling form.
+  const syncing = useSyncView().status !== null;
+  const tall = useTallPage() || syncing;
 
   const name = account?.name ?? hint ?? '';
 
@@ -246,7 +250,9 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
   const remove = (): void => open(h(DeleteDialog, { host: hostOf() }) as VNode);
 
   const endId = (s: AccountSession): string => `END:${s.id}`;
+  const sync = (): void => void syncNow();
   const stops: Stop[] = [
+    ...(syncing ? [{ id: 'SYNCNOW', run: sync }] : []),
     ...(error ? [{ id: 'RETRY', run: load }] : []),
     ...(others.length > 0 ? [{ id: 'ENDALL', run: endAll }] : []),
     ...others.map((s) => ({ id: endId(s), run: () => endOne(s) })),
@@ -284,6 +290,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
       o: others.length > 0 ? endAll : undefined,
       e: eRow ? () => endOne(eRow) : undefined,
       t: error ? load : undefined,
+      s: syncing ? sync : undefined,
     };
     const l = letterOf(e);
     const run = l ? press[l] : undefined;
@@ -307,6 +314,7 @@ export const AccountFrame = lookFrame(function AccountFrame(_p: PageProps['accou
             </span>
             <span class="wc-ac-head-since">{account ? sinceWords(account.created) : error ? '' : 'Asking the server…'}</span>
           </div>
+          <SyncSection at={at} />
           {account?.state === 'suspended' && (
             <p class="wc-ac-suspended" role="status" data-suspended="">
               <b>This account is suspended.</b> It cannot publish runs or comment. Everything else works as before.
