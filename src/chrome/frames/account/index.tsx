@@ -1,5 +1,5 @@
 // The account pages (stage 60, spec §7.2): one lazy chunk, loaded when the
-// start menu's Account row is activated (src/chrome/frames/start-main.tsx)
+// start menu's owner row is activated (src/chrome/frames/start-main.tsx)
 // and never before. It is the only place that imports the account's
 // client (src/cloud/account) statically; the heavy crypto is loaded by
 // the flows themselves.
@@ -36,7 +36,7 @@ registerPages({ login: LoginFrame, create: CreateFrame, recover: RecoverFrame, c
 export { AccountFrame, CreateFrame, LoginFrame, RecoverFrame, RecoveryCodeFrame };
 
 /**
- * The page the Account row opens: the Account page when somebody is
+ * The page the owner row opens: the Account page when somebody is
  * logged in here, else Log in. First of all a new account's recovery code
  * that was not confirmed yet (form.tsx `holdCode`).
  */

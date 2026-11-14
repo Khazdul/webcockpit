@@ -549,10 +549,11 @@ for (const [name, viewport] of [
       await expect(page.locator('html')).toHaveClass(/\bwc-phone\b/);
       const f = start(page);
       await expect(f.locator('.wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
-      // The desktop's rows and panel.
-      expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(42);
+      // The desktop's rows and panel (stage 67: About is the quiet foot row).
+      expect((await box(f.locator('.wc-sm-item[data-key="history"]'))).height).toBe(42);
+      expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(32);
       expect((await box(f.locator('.wc-sm-item[data-key="enter"]'))).height).toBe(56);
-      expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(399, 0);
+      expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(301, 0);
       // What is seen (the mark, the panel, the quote) is inside the window, and upright it is
       // in the middle: the sky above and below differ by 80 px at most (a quote is two or three lines).
       const mark = page.locator('.wc-start .wc-start-brand [data-wcw="iron"]');
@@ -772,7 +773,8 @@ test('round 56c leaves a phone-size window\'s start menu as it was: at the top, 
   await pinDemoClock(page);
   await checkHandOver(page, '?kbd=en');
   const f = start(page);
-  expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(38);
-  expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(357, 0);
+  expect((await box(f.locator('.wc-sm-item[data-key="history"]'))).height).toBe(38);
+  expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(34);
+  expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(283, 0);
   expect(await page.locator('.wc-start').evaluate((el) => getComputedStyle(el).getPropertyValue('--wc-start-drop').trim())).toBe('0px');
 });

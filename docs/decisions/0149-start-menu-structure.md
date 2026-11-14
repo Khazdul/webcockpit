@@ -152,9 +152,9 @@ The owner picked from the mockups of round 8
   allows a change: not while a run log opens, the Spotlights viewer
   plays (the player owns the digits) or a select has the focus. A
   modifier makes a digit no tab key. Sessions' `?` lists `1 2 3`.
-- **The old rows.** Until the new menu is in, the Spotlights and Credits
-  rows of `start-main.tsx` open History on those tabs (`startSpotlights`
-  and `CreditsFrame` are now two-line shims); they go with the rows.
+- **The old rows.** Until the new menu was in, the Spotlights and
+  Credits rows of `start-main.tsx` opened History on those tabs through
+  two-line shims; the rows went with B2 and the shims in B3.
 - **Touch.** On a touch device (`html.wc-phone`) the tabs have no key
   caps and are 44 px high (ADR 0140's targets), also on a phone, where
   the row under Back costs 4 px more than the mockup's 40 px tabs.
@@ -165,3 +165,47 @@ The owner picked from the mockups of round 8
   word Credits in its own sense, thanks to: About's section CREDITS
   (MMapper, the tilesets, Cockpit, MUME, the fonts) and the readability
   script's attribution.
+
+## Addendum 2026-11-14 — as built (stage 67, part B2: the menu)
+
+- **The model is pure** (`src/chrome/frames/start-menu-model.ts`):
+  `startMenu({ owner, scripts, community })` gives the rows and rules
+  in order with their letters, `ownerRow({ name, sync, locked, news })`
+  what the owner row says (kind, name, state, news, mark, what a press
+  opens). The start page passes only `name` (`AccountState.name`); the
+  sync state (stage 61), the locked copy (stage 61) and the reactions
+  (stage 65) have no source yet and are drawn by the kit gallery
+  (`?kit=menu`) and the unit tests. Logged in before sync, the row says
+  the name alone (kind `name`), never "synced".
+- **The flag `gallery` does not exist in the client yet** (`FlagName`
+  is `stats | accounts`; the flag, the page and the counter's source
+  come in stage 65). The start page therefore never shows Community,
+  and C does nothing. On the dev server `?community=<n>` shows the row
+  with `<n>` new (for the e2e specs and the screenshots; a press says
+  "Coming in a later stage."); a production build folds it away.
+- **The second rule** is only drawn with Community: without it there is
+  nothing to part, and About as the quiet last row ends the panel.
+- **The owner row** is `data-key="owner"` (stage 60's row was
+  `account`). It spans from the rows' icon column to the panel's right
+  edge with `contain: inline-size`, so its text never widens the rows'
+  column and a long name never moves the rows. Sizes (the owner:
+  larger than the mockup's 32 px): 38 px high against the rows' 42 on a
+  desktop and a tablet, 36 against 38 on a phone; the name in the
+  display caps at 13.5 px (12.5 on a phone), the state in the serif
+  italic at 16.5 px (15.5). Under the cursor, besides the brighter text
+  every row has: a lit hairline under the whole line and the chevron
+  stepping 3 px forward (the owner asked for a clearer cursor; the
+  other rows have their letter's underline for that, this row has no
+  letter shown). The 20-letter name alone just fits (Firefox) or loses
+  its last letter (Chromium); with a state it gives way as drawn.
+- **The row comes in late** as stage 60's did. Only Enter MUME stands
+  above it now, so a pointer resting anywhere on the rows below holds it
+  back until the pointer moves (stage 60's row was low in the menu and
+  seldom waited).
+- **The panel's heights** in the first form (no owner row, no
+  Community): 301 px on a desktop and a tablet (was 399), 283 px on a
+  phone (was 357). `--wc-panel-h` (the first paint's loading panel and
+  the tablet's centring) follows the first form; with accounts on, the
+  panel grows by the owner row when it comes in, as in stage 60.
+- **Spotlights and the Diary** have no menu row and no letter; they are
+  reached through History's tabs (H, then 2 or 3).

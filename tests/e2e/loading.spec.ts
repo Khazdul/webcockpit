@@ -69,7 +69,7 @@ test('the loader shows the boot steps and is removed once the start page is up',
   await expect.poll(async () => Number(await loader.getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(40);
   await expect(loader.locator('.l')).toContainText('%');
   await revealed(page);
-  await expect(rows(page)).toHaveCount(7);
+  await expect(rows(page)).toHaveCount(5);
 });
 
 test('the first paint shows the sky and the wordmark before the app loads; the hand-over moves nothing', async ({ page }) => {
@@ -78,7 +78,7 @@ test('the first paint shows the sky and the wordmark before the app loads; the h
   // The pixel banner is gone from the start page.
   await expect(page.locator('.wc-start .wc-banner')).toHaveCount(0);
   await expect(page.locator('.wc-start .wc-start-skyhost')).toHaveCount(1);
-  await expect(rows(page)).toHaveCount(7);
+  await expect(rows(page)).toHaveCount(5);
 });
 
 test('on a short window the first paint leaves the wordmark out, as the start page does', async ({ page }) => {
@@ -136,7 +136,7 @@ test('the start page fades in as one block over about 1.35 s', async ({ page }) 
 test('after the reveal every menu row is shown in full', async ({ page }) => {
   await page.goto('/');
   await revealed(page);
-  await expect(rows(page)).toHaveCount(7);
+  await expect(rows(page)).toHaveCount(5);
   for (const el of await rows(page).all()) {
     await expect(el).toBeVisible();
     expect(await el.evaluate((e) => getComputedStyle(e).opacity)).toBe('1');
@@ -231,7 +231,7 @@ test.describe('reduced motion', () => {
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
     expect(await page.evaluate(`${PAGE_ANIMS}.filter((a) => a.playState === 'running').length`)).toBe(0);
-    await expect(rows(page)).toHaveCount(7);
+    await expect(rows(page)).toHaveCount(5);
   });
 });
 
@@ -248,7 +248,7 @@ test('returning to the start page from the game does not fade again', async ({ p
   // Enter MUME's own short fade of the cockpit.
   await page.waitForFunction(`${PAGE_ANIMS}.length === 0`);
   await page.evaluate(() => window.__wc!.shell.exitSession());
-  await expect(rows(page)).toHaveCount(7);
+  await expect(rows(page)).toHaveCount(5);
   await expect(page.locator('.wc-start-sky')).toHaveCount(1);
   expect(await page.evaluate(`${PAGE_ANIMS}.filter((a) => a.playState === 'running').length`)).toBe(0);
 });

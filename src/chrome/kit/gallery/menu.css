@@ -1,0 +1,36 @@
+/* The kit gallery's "Menu" section (dev only, stage 67): each sample in a
+ * strip of the start menu panel's width, the menu's own rows in it. */
+
+.wc-km-bar {
+  margin: 4px 0 10px;
+}
+
+.wc-km-h {
+  margin: 18px 0 8px;
+  font: 700 12px/1.4 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-head);
+}
+
+.wc-km-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 6px 20px;
+}
+
+.wc-km-sample {
+  margin: 0;
+}
+
+.wc-km-sample figcaption {
+  font: 400 11px/1.6 var(--lk-mono);
+  color: var(--lk-faint);
+}
+
+/* The panel's inner width: 360 px less the window's 12 px each side. */
+.wc-km-panel {
+  width: 336px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--lk-rule);
+}

@@ -165,35 +165,55 @@ Owns `src/chrome/frames/start-main.tsx`, the menu's model, the owner
 row and their specs. Reaches History's tabs only through what B1
 exposes (H opens Sessions).
 
-- [ ] The menu's model and view: three zones parted by the rule with
+- [x] The menu's model and view: three zones parted by the rule with
       the diamond, About as the last quiet row in the panel, the
       panel 360 px wide in its place. Three forms by the flags
       (`accounts`, `gallery`), each finished. The Spotlights, Credits
       and Account rows go. Community quiet: a row like the others,
       the counter in gold italic (the row and the counter are drawn
       for the kit gallery and tests; no source until stage 65).
-- [ ] The owner row in place of the Account row (flag `accounts`):
+- [x] The owner row in place of the Account row (flag `accounts`):
       direction A's heading line (mark in the left margin, the name
       in small capitals, the state in italic, a chevron at the right),
       **larger on a desktop than in the mockups** and with a clearer
       cursor; no visible U; the name gives way with an ellipsis, the
       state never. Guest: "Guest · log in". The row comes in as stage
       60's did (no jump under a resting pointer).
-- [ ] The owner row's states as a pure function of the account state
+- [x] The owner row's states as a pure function of the account state
       (`src/cloud/account/state.ts`): guest, name only, synced,
       syncing, offline, needs attention, a locked copy, the reactions
       mark. Those that need sync are drawn in the kit gallery and by
       tests but have no source until stages 61 and 65.
-- [ ] The letters: E, U, P, S, H, A (C reserved for Community, live
+- [x] The letters: E, U, P, S, H, A (C reserved for Community, live
       only with `gallery`). L and the old C do nothing.
-- [ ] The phone's start menu, portrait and landscape, the same
+- [x] The phone's start menu, portrait and landscape, the same
       structure. The in-game menu sheet unchanged.
-- [ ] The first paint and the morph into the big box (ADR 0126) with
+- [x] The first paint and the morph into the big box (ADR 0126) with
       the new rows; the entry chunk's size noted (30 201 bytes
       today).
-- [ ] Tests: unit for the menu model in every flag combination and
+- [x] Tests: unit for the menu model in every flag combination and
       for the owner row's states; e2e for the keys and the phone; the
       account specs that used the Account row moved to the owner row.
+
+As built (2026-11-14, branch `stage67-menu`; ADR 0149, addendum "as
+built (stage 67, part B2)"): the model in
+`src/chrome/frames/start-menu-model.ts`, the view in `start-main.tsx`
+and `start.css`, the kit gallery's section `?kit=menu` (every owner row
+state, Community with and without its counter). The client has no flag
+`gallery` yet (stage 65), so the start page never shows Community and C
+does nothing; `?community=<n>` shows it on the dev server. The panel is
+301 px high in the first form (was 399), 283 on a phone (was 357). The
+entry chunk: 30 201 → 29 917 bytes. Tests: `tests/unit/start-menu-model.test.ts`,
+`tests/e2e/start-menu.spec.ts`, `tests/e2e/phone-start-menu.spec.ts`;
+the account specs use the owner row. On this branch alone (without
+B1) the specs that open Spotlights or Credits through their old rows
+fail. On `main` after B1 (1dece409) these still reach the old rows and
+must move to History's tabs at the merge (B3): `phone-spotlights.spec.ts`
+(lines 71, 74), `phone-tablet-pages.spec.ts` ("Spotlights, Credits and
+About", lines 330, 358), `tests/unit/chrome-frames.test.tsx` ("Spotlights
+opens its wall", line 280) and `tests/unit/spotlights-settings.test.tsx`
+(three tests, lines 128, 156, 169). `chrome.spec.ts` conflicts at the
+merge: this branch's version of its menu tests is the one to keep.
 
 #### B3. After both are merged (main session)
 

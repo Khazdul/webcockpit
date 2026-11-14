@@ -20,6 +20,7 @@ import { type Page, expect, test } from '@playwright/test';
 import {
   DESKTOP,
   NAME,
+  OWNER_GUEST,
   PASSWORD,
   PASSWORD_2,
   accountRow,
@@ -65,7 +66,7 @@ async function logIn(page: Page, password = PASSWORD): Promise<void> {
 /** The Account page again from the start menu (it asks the server anew). */
 async function reopen(page: Page): Promise<void> {
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(page)).toHaveText(NAME);
   await page.keyboard.press('u');
   await expect(pageOf(page, 'account')).toBeVisible();
   await expect(frame(page).locator('.wc-ac-head-since')).toContainText('Account since');
@@ -285,7 +286,7 @@ test('change password: a wrong current one, then the change; the other device is
 
   // Log out; the old password is refused, the new one logs in.
   await logOut(page);
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await page.keyboard.press('u');
   await expect(pageOf(page, 'login')).toBeVisible();
   await page.keyboard.type(PASSWORD);
@@ -389,7 +390,7 @@ test('new recovery code: the password, the code behind the last-group gate; Reco
 
   // Recovery: the old code is refused, the new one sets a password.
   await logOut(page);
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await page.keyboard.press('u');
   await link(page, 'recover').click();
   await expect(pageOf(page, 'recover')).toBeVisible();
@@ -505,7 +506,7 @@ test('delete account: the name typed wrong, a wrong password, then gone; the nam
 
   await page.keyboard.type(PASSWORD);
   await btn(page, 'DELETE').click();
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await expect(menuFlash(page)).toHaveText(`The account ${NAME} is deleted. What is on this device is untouched.`);
   expect(server.hasAccount(NAME)).toBe(false);
   expect(server.saw(PASSWORD)).toBe(false);
@@ -556,7 +557,7 @@ test('log out: a plain confirm; with the server down the device is logged out an
   // The server still has the session.
   expect(server.sessionLabels(NAME)).toHaveLength(1);
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   expect(errors).toEqual([]);
 });
 
@@ -578,7 +579,7 @@ test('the session gone while the page is open: a dialog\'s try sends the player 
   await expect(page.locator('.wc-start [data-dlg]')).toHaveCount(0);
   await expect(accountUnder(page)).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
 });
 
 test('the session gone while Change password is filled in: Log in, and no password is left on the page', async ({ page }) => {
@@ -614,13 +615,13 @@ test('two tabs: logged out in the other one, this page leaves and says so', asyn
   const api2 = await fakeAccountApi(other, { server });
   api2.browser.cookie = api.browser.cookie;
   await other.goto(page.url());
-  await expect(accountRow(other).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(other)).toHaveText(NAME);
   await accountRow(other).click();
   await expect(pageOf(other, 'account')).toBeVisible();
   await logOut(other);
-  await expect(accountRow(other).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(other)).toHaveText(OWNER_GUEST);
 
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await expect(menuFlash(page)).toHaveText('Logged out in another tab.');
   await expect(page.locator('.wc-start [data-dlg]')).toHaveCount(0);
   await expect(accountUnder(page)).toHaveCount(0);
@@ -633,7 +634,7 @@ test('a log out wins over the page\'s own question to the server', async ({ page
   await fakeAccountApi(page, { server });
   await logIn(page);
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(page)).toHaveText(NAME);
   // The session is gone on the server, and the page's question about it is slow.
   server.endSessions(NAME);
   await page.route('**/api/u/account', async (route) => {
@@ -647,7 +648,7 @@ test('a log out wins over the page\'s own question to the server', async ({ page
   // (Enter: the opening letter pressed again at once is not an answer.)
   await page.keyboard.press('Enter');
   // The menu and "Logged out.", not Log in with "you were logged out".
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await expect(menuFlash(page)).toHaveText('Logged out.');
   await page.waitForTimeout(900);
   await expect(page.locator('.wc-start [data-page="login"]')).toHaveCount(0);
@@ -770,7 +771,7 @@ test('the keyboard alone: the page\'s buttons, a dialog with fields, and Enter n
   await expect(pageOf(page, 'account')).toBeVisible();
   await page.keyboard.press('l');
   await page.keyboard.press('Enter');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await expect(menuFlash(page)).toHaveText('Logged out.');
   expect(errors).toEqual([]);
 });
@@ -850,7 +851,7 @@ test('review 4: the hint is gone and the keys are here (localStorage cleared): n
   await openAccount(page);
   await expect(pageOf(page, 'account')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(page)).toHaveText(NAME);
 });
 
 test('review 5: the session is another account\'s than the keys on this device: logged out, and Log in says why', async ({ page }) => {
@@ -877,7 +878,7 @@ test('review 5: the session is another account\'s than the keys on this device: 
   await expect(pageOf(page, 'login')).toBeVisible();
   await expect(frame(page).locator('.wc-ac-notice, [data-notice]').first()).toContainText('another account');
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   // That session was ended too: nothing of Bera's is left open from here.
   expect(server.sessionLabels('Bera')).toEqual([]);
 });
@@ -976,7 +977,7 @@ test('review 9: a new recovery code on screen is not closed by a log out in anot
   await accountRow(other).click();
   await expect(pageOf(other, 'account')).toBeVisible();
   await logOut(other);
-  await expect(accountRow(other).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(other)).toHaveText(OWNER_GUEST);
 
   // This tab heard of it (the hint is gone here too) and the code is still up.
   await expect.poll(() => page.evaluate(() => localStorage.getItem('wc.account'))).toBeNull();

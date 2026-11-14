@@ -113,7 +113,7 @@ describe('About text', () => {
   });
 
   it('states the facts the new pages changed (stage 47)', () => {
-    expect(ABOUT_TEXT).toContain('History on the start page looks back at your runs (Sessions, Spotlights and the Diary)');
+    expect(ABOUT_TEXT).toContain('History, Spotlights and Credits on the start page look back at your runs');
     expect(ABOUT_TEXT).toContain('Third-party notices: THIRD_PARTY_NOTICES.md');
     expect(ABOUT_TEXT).not.toMatch(/Spotlights reel picks/);
   });
@@ -183,22 +183,23 @@ describe('start page', () => {
     expect(host.querySelector('.wc-footer')).toBeNull();
     expect(host.querySelector('.wc-sm-quote cite')?.textContent).not.toBe('');
     expect(startSel(host)).toBe('Enter MUME');
-    // Stage 32: no Options; Scripts under Profile, with the profile's name; as long as the first paint's menu.
-    const labels = ['Enter MUME', 'Profile', 'Scripts', 'History', 'Spotlights', 'Credits', 'About'];
+    // Stage 67 (ADR 0149): Enter MUME, a rule, Profile, Scripts, History, About (no owner row without the
+    // flag `accounts`, no Community without `gallery`); no Options, Spotlights, Credits or Account rows.
+    const labels = ['Enter MUME', 'Profile', 'Scripts', 'History', 'About'];
     expect(menuLabels(host)).toEqual(labels);
-    expect(labels).toHaveLength(7);
+    expect([...host.querySelectorAll('.wc-sm > li')].map((li) => (li.classList.contains('wc-sm-sep') ? '──' : (li as HTMLElement).dataset.key))).toEqual([
+      'enter',
+      '──',
+      'profile',
+      'scripts',
+      'history',
+      'about',
+    ]);
     expect(host.querySelector('.wc-sm-item[data-key="options"]')).toBeNull();
     expect(host.querySelector('.wc-sm-item[data-key="profile"] .wc-sm-note')?.textContent).toBe('(default)');
+    expect(host.querySelector('.wc-sm-item[data-key="about"]')?.classList.contains('is-foot')).toBe(true);
     // The shortcut letters, marked in the labels.
-    expect([...host.querySelectorAll('.wc-sm-item u.wc-sk')].map((u) => u.textContent)).toEqual([
-      'E',
-      'P',
-      'S',
-      'H',
-      'l',
-      'C',
-      'A',
-    ]);
+    expect([...host.querySelectorAll('.wc-sm-item u.wc-sk')].map((u) => u.textContent)).toEqual(['E', 'P', 'S', 'H', 'A']);
 
     await key('ArrowUp');
     expect(startSel(host)).toBe('About');
@@ -207,20 +208,16 @@ describe('start page', () => {
     expect(startSel(host)).toBe('Profile');
     expect(docKeys).not.toHaveBeenCalled();
 
-    // Spotlights (History's Spotlights tab since stage 67) without the player service says so; Esc comes back.
-    await key('ArrowDown');
-    await key('ArrowDown');
-    await key('ArrowDown');
-    expect(startSel(host)).toBe('Spotlights');
-    await key('Enter');
-    expect(host.querySelector('.wc-frame:not([hidden]) .wc-spw-wait .wc-spw-grid[data-state="unavailable"]')?.textContent).toMatch(/not available/);
-    await key('Escape');
-    for (let i = 0; i < 40 && !startSel(host); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
-    expect(startSel(host)).toBe('Spotlights');
+    // L, C and U do nothing (Spotlights and Credits are History's tabs; no Community, no accounts).
+    for (const k of ['l', 'c', 'u']) {
+      await key(k);
+      expect(startSel(host)).toBe('Profile');
+      expect(title(host)).toBeUndefined();
+      expect(host.querySelector('.wc-start')?.classList.contains('is-main')).toBe(true);
+    }
 
+    await key('ArrowDown');
     // Scripts opens (a large look box since stage 44a) and ESC comes back with the cursor kept.
-    await key('ArrowUp');
-    await key('ArrowUp');
     await key('Enter');
     expect(host.querySelector('.wc-frame:not([hidden]) .wc-lk-hood-t')?.textContent).toBe('Scripts');
     expect(host.querySelector('.wc-frame:not([hidden]) .wc-scr')).not.toBeNull();
@@ -281,8 +278,7 @@ describe('start page', () => {
     const wall = () => host.querySelector('.wc-frame:not([hidden]) .wc-spw');
     for (let i = 0; i < 20 && !wall(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
     expect(embedPlayer).not.toHaveBeenCalled();
-    expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('History');
-    expect(wall()?.querySelector('.wc-htab.is-on')?.getAttribute('data-tab')).toBe('spotlights');
+    expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('Spotlights');
     expect(wall()?.querySelector('.wc-spw-empty')?.textContent).toContain('No spotlights yet.');
     // No data: no filter row; Play all disabled.
     expect(wall()?.querySelector('.wc-spw-head')).toBeNull();
@@ -301,7 +297,7 @@ describe('start page', () => {
     const page = mountStartPage(host, services(), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    expect(menuLabels(host)).toEqual(['Enter MUME', 'Profile', 'History', 'Spotlights', 'Credits', 'About']);
+    expect(menuLabels(host)).toEqual(['Enter MUME', 'Profile', 'History', 'About']);
   });
 
   it('client notices: glass pills over the sky, the TUI row over an old-look frame', async () => {
