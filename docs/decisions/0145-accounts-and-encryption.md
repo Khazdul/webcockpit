@@ -758,3 +758,40 @@ guide for the pages' author is the header of `index.ts`.
   shared `/api/config`.
 - `tests/e2e/cloud-account-fake.ts` against `worker/auth.ts`: the fake
   is the contract the page specs will be written against.
+
+## As built (stage 60 part B, the pages, first half, 2026-11-14)
+
+The Account row on the start menu, Log in, Create account, the
+recovery code page and Recovery (`src/chrome/frames/account/`, one lazy
+chunk; `docs/stages/60-accounts.md` has the list of differences). What
+was decided while building:
+
+- **The account pages replace each other** on the frame stack instead
+  of stacking (`go` in `form.tsx`). The recovery code is then never
+  under another frame and never reachable by Back; it lives in the
+  props of the one frame that shows it and nowhere else.
+- **A password stays in a field's state while the form shows it**, so
+  that a try that failed on the network or was asked for Turnstile can
+  be sent again without typing; it is cleared on `invalid_login` and
+  goes with the page. The flow object is dropped when the name or the
+  password is edited and when the page leaves.
+- **Turnstile** is loaded by one `<script src>` element made when a
+  form needs a check (never at start, never for Log in before
+  `turnstile_required`), rendered explicitly, and removed with its
+  page. A token is taken out of the widget once and the widget reset
+  at once. Cloudflare draws it in a closed shadow tree: the page
+  cannot focus it, so the Tab ring stops at an element before it and
+  the browser's own Tab goes in; when it passes, the page takes the
+  keyboard back.
+- **The forms are real `<form>` elements handled in script**
+  (`form-action 'none'` holds), with `name` and `autocomplete` on the
+  fields for the browsers' password managers. Not seen working with
+  one.
+- **Corrections to what was written above.** "Part A": the CSRF rule
+  did *not* hold through Vite's proxy: its string form sends the
+  Worker's own `Host`, so every POST from the dev page was 403. The
+  proxy now keeps the page's `Host`. "Known limits (client)": the
+  `__Secure-` cookie on plain `http://localhost` and
+  `http://127.0.0.1` is accepted and sent back by Chromium and Firefox
+  (loopback counts as secure); any other plain-http host will refuse
+  it.

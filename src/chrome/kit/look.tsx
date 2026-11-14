@@ -157,6 +157,13 @@ export interface BoxProps {
   maxWidth?: number;
   /** Shows Back at the top left (a sub-page; start and menu). Esc does the same through the frame stack. */
   onBack?: () => void;
+  /**
+   * A sub-page without Back (stage 60: the recovery code page, which is
+   * left only by its own button): laid out as a sub-page under the smaller
+   * wordmark, no Back button drawn. The page must also take Esc itself
+   * (`useKeys`: return true for `back`), or the frame stack pops it.
+   */
+  noBack?: boolean;
   /** The accessible name (default: the title). */
   label?: string;
   class?: string;
@@ -167,7 +174,7 @@ export interface BoxProps {
 
 /** The box's kind for the start surface's morph. */
 function kindOf(p: BoxProps): BoxKind {
-  if (!p.onBack) return 'menu';
+  if (!p.onBack && !p.noBack) return 'menu';
   if (p.size === 'large') return 'large';
   return p.tall ? 'tall' : 'normal';
 }
@@ -195,7 +202,7 @@ function kindOf(p: BoxProps): BoxKind {
 export function Box(p: BoxProps): VNode {
   const size = p.size ?? 'normal';
   const place = useLookPlace();
-  const sub = !!p.onBack;
+  const sub = !!p.onBack || !!p.noBack;
   const tall = size === 'normal' && !!p.tall;
   useScenery(sub ? (size === 'large' ? 'large' : 'sub') : 'main');
   const report = useContext(BoxHostCtx);
@@ -257,7 +264,7 @@ export function Box(p: BoxProps): VNode {
           <i class="wc-lk-eng" />
         </div>
       )}
-      {p.onBack && <BackButton onClick={p.onBack} />}
+      {p.onBack && !p.noBack && <BackButton onClick={p.onBack} />}
       {win}
     </section>
   );

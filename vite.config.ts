@@ -558,6 +558,11 @@ export function devHosts(raw = process.env.WEBCOCKPIT_DEV_HOSTS): string[] {
  * `/api` is proxied to the local Worker only when `npm run dev:cloud`
  * started one and named it in `$WEBCOCKPIT_API_PROXY` (apiProxy); plain
  * `npm run dev` has no proxy, and `/api` is as when the service is down.
+ * The proxy keeps the page's own `Host` (`changeOrigin: false`; Vite's
+ * string shorthand would send the Worker's): the Worker builds its URL
+ * from `Host`, and its rule for state-changing account requests is
+ * `Origin` equal to that (worker/auth.ts). With the Worker's own host
+ * every POST from the dev page was 403 `forbidden` (stage 60).
  */
 function devServer(): {
   headers: Record<string, string>;
@@ -565,11 +570,11 @@ function devServer(): {
   port?: number;
   strictPort?: boolean;
   allowedHosts?: string[];
-  proxy?: Record<string, string>;
+  proxy?: Record<string, { target: string; changeOrigin: boolean }>;
 } {
   const hosts = devHosts();
   const api = apiProxy();
-  const proxy = api ? { proxy: { '/api': api } } : {};
+  const proxy = api ? { proxy: { '/api': { target: api, changeOrigin: false } } } : {};
   if (!hosts.length) return { headers: isolationHeaders, ...proxy };
   return { headers: isolationHeaders, host: '127.0.0.1', port: 5173, strictPort: true, allowedHosts: hosts, ...proxy };
 }

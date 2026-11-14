@@ -542,7 +542,7 @@ describe('icons', () => {
     'door person scroll hourglass star quill info back check plus pencil rename import export trash ' +
     'book save find duplicate reset lock fold up down prev next close play pause start back10 fwd10 display ' +
     'fullscreen filter stats backup restore help action alias highlight macro substitute exclude include comment ' +
-    'title html text folder drop'
+    'title html text folder drop key'
   ).split(' ');
 
   it('draws every name of the API', () => {

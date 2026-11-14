@@ -253,12 +253,30 @@ export interface FieldProps {
   id?: string;
   mono?: boolean;
   error?: string | null;
-  hint?: string;
+  /** The line under the field: text, or a small piece of the page's own (a strength meter and a count). */
+  hint?: ComponentChildren;
   placeholder?: string;
   maxLength?: number;
   autoFocus?: boolean;
   selectAll?: boolean;
   inputRef?: Ref<HTMLInputElement>;
+  /**
+   * `password`: the browser masks what is typed (our own keyboard on a
+   * phone types into it as into any field, and shows nothing of it). A
+   * `Field` only, never a `TextArea`.
+   */
+  type?: 'text' | 'password';
+  /**
+   * The input's `autocomplete` (default `off`): `username`,
+   * `current-password` or `new-password` on an account form, so a
+   * browser's password manager can fill and offer to save. Give `name`
+   * too, and put the fields in one `<form>` (handled in script).
+   */
+  autocomplete?: string;
+  /** The input's `name` (password managers read it). */
+  name?: string;
+  /** Not typed in now (the page is working): dimmed, out of the Tab order. */
+  disabled?: boolean;
 }
 
 export interface TextAreaProps extends Omit<FieldProps, 'inputRef'> {
@@ -276,7 +294,7 @@ function FieldShell(p: {
   label?: string | undefined;
   id?: string | undefined;
   error?: string | null | undefined;
-  hint?: string | undefined;
+  hint?: ComponentChildren;
   mono?: boolean | undefined;
   noteId: string;
   area?: boolean;
@@ -345,12 +363,14 @@ export function Field(p: FieldProps): VNode {
           setRef(p.inputRef, el);
         }}
         class="wc-lk-input"
-        type="text"
+        type={p.type ?? 'text'}
+        name={p.name}
         value={p.value}
         placeholder={p.placeholder}
         maxLength={p.maxLength}
+        disabled={p.disabled}
         spellcheck={false}
-        autocomplete="off"
+        autocomplete={p.autocomplete ?? 'off'}
         autocapitalize="off"
         {...ownFieldAttrs()}
         aria-invalid={p.error ? 'true' : undefined}
@@ -644,6 +664,61 @@ export function Rule(p: { title: ComponentChildren; id?: string; class?: string;
       {typeof p.title === 'string' ? <h3 class="wc-lk-sec">{p.title}</h3> : p.title}
       <i class="wc-lk-hair" aria-hidden="true" />
       {p.children}
+    </div>
+  );
+}
+
+/**
+ * A plate: a few lines the page must not let pass unread, in a faint
+ * amber frame (stage 60: "Not your MUME password", the recovery code's
+ * "only way back"). One per page at most, or it stops meaning anything.
+ * `<b>` in it is the amber lead-in.
+ */
+export function Plate(p: { id?: string; class?: string; children?: ComponentChildren }): VNode {
+  return (
+    <p class={cx('wc-lk-plate', p.class)} data-plate={p.id}>
+      {p.children}
+    </p>
+  );
+}
+
+/**
+ * A link in running text or in a row of links (`.wc-lk-links`, centred
+ * under a rule, an `<i aria-hidden="true">·</i>` between two): it goes to
+ * another page of the client, never to an address. A button underneath
+ * (it never takes the focus, as the glass buttons); `selected` is the
+ * keyboard's cursor on it.
+ */
+export function TextLink(p: { label: string; id?: string; selected?: boolean; onClick: () => void }): VNode {
+  return (
+    <button
+      type="button"
+      class={cx('wc-lk-link', p.selected && 'is-sel')}
+      data-link={p.id}
+      tabIndex={-1}
+      onMouseDown={keepFocus}
+      onClick={(e) => {
+        e.stopPropagation();
+        p.onClick();
+      }}
+    >
+      {p.label}
+    </button>
+  );
+}
+
+/**
+ * A bar that runs on time, for work that reports no progress (stage 60:
+ * the password's slow step): slow and even over `ms`, coming to rest near
+ * its end, where it waits if the work takes longer. A new `ms` (or `run`,
+ * any value that changes) starts it again. Decorative: the words beside it
+ * say what is happening (`role="status"` belongs to them).
+ */
+export function TimeBar(p: { ms: number; run?: string | number; class?: string }): VNode {
+  const ms = Math.max(200, Math.round(p.ms));
+  return (
+    <div class={cx('wc-lk-timebar', p.class)} aria-hidden="true">
+      <i key={`${ms}:${p.run ?? ''}`} style={{ animationDuration: `${ms}ms` }} />
     </div>
   );
 }

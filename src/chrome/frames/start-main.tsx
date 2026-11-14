@@ -10,12 +10,26 @@
 // label (E P S H L C A). The mouse selects on hover and activates on a
 // click; a tap activates. No key-hint row (the owner's rule).
 //
+// Account (stage 60, spec §7.2, the owner's entry A): a row between
+// Spotlights and Credits, key U, built as the Profile row: `ACCOUNT (log
+// in)` when nobody is logged in on this device, `ACCOUNT (<name>)` when
+// somebody is. It exists only while accounts are on for this page
+// (`accountState().enabled`: the server's flag `accounts`, asked on idle
+// time); otherwise the menu is exactly what it was and U does nothing.
+// The flag arrives after the menu is drawn, so the row comes in late
+// (`useAccountRow`): never while a pointer rests on what would move under
+// it (the rows below, the panel's foot) and never while a finger is down;
+// the cursor is kept by key, so it stays where it was. The pages are a
+// lazy chunk (./account), loaded when the row is activated.
+//
 // Scripts needs the script library, which the shell always has; only
 // tests mount the page without it, and then the row is not there. Options
 // left the start page in stage 32 (its settings are changed in the game).
 
 import { Fragment, type VNode } from 'preact';
-import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { type AccountState, accountState, onAccountState, watchAccountState } from '../../cloud/account/state';
+import { whenIdle } from '../../cloud/config';
 import { useServices, useSettings } from '../kit/hooks';
 import { Box, Icon, type IconName, KeyLabel, LookFlash, letterOf, lookFrame, useScenery } from '../kit/look';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
@@ -51,6 +65,9 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   const services = useServices();
   const { profile } = useSettings();
   useScenery('main');
+  const menu = useRef<HTMLUListElement>(null);
+  const account = useAccountRow(menu);
+  const openAccount = useAccountPages(nav);
   const items: StartItem[] = [
     { key: 'enter', label: 'Enter MUME', letter: 'e', icon: 'door', activate: p.onEnter },
     {
@@ -80,6 +97,18 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
       icon: 'star',
       activate: () => void startSpotlights(nav, services),
     },
+    ...(account
+      ? [
+          {
+            key: 'account',
+            label: 'Account',
+            letter: 'u',
+            icon: 'key' as const,
+            note: account.name ?? 'log in',
+            activate: openAccount,
+          },
+        ]
+      : []),
     { key: 'credits', label: 'Credits', letter: 'c', icon: 'quill', activate: () => nav.push(<CreditsFrame />) },
     { key: 'about', label: 'About', letter: 'a', icon: 'info', activate: () => nav.push(<AboutFrame />) },
   ];
@@ -105,7 +134,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     <div class="wc-start-main wc-lk-page">
       <div class="wc-sm-stage">
         <Box label="Start menu" class="wc-sm-panel" winClass="wc-sm-win">
-          <ul class="wc-sm" role="menu" aria-label="Start menu">
+          <ul class="wc-sm" role="menu" aria-label="Start menu" ref={menu}>
             {items.map((it, i) => (
               <Fragment key={it.key}>
                 <MenuRow item={it} selected={i === cursor} active={isTop} onSelect={() => setCursor(i)} />
@@ -124,6 +153,120 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     </div>
   );
 });
+
+// ------------------------------------------------------------ the Account row
+
+/** The rows above the Account row: they do not move when it comes in. */
+const ABOVE_ACCOUNT = new Set(['enter', 'profile', 'scripts', 'history', 'spotlights']);
+/** A finger's click follows its lift by up to about this (ms): the row waits it out. */
+const AFTER_TOUCH_MS = 350;
+
+/**
+ * The Account row's state, or null while the row is not shown: accounts
+ * are off or not known yet, or the row waits for the pointer (below).
+ *
+ * The flag is asked on idle time (`watchAccountState`: the shared
+ * `/api/config`, and no request at all where the page may not call the
+ * API). When it turns on, the row comes in at once unless that would move
+ * something under a pointer: a mouse resting on the rows below it or on
+ * the panel's foot (a click there would land on another row than the one
+ * it was aimed at), or a finger that is down (its click comes after the
+ * lift). Then it waits until the pointer has left that part, or the
+ * finger's click is over.
+ */
+function useAccountRow(menu: { current: HTMLUListElement | null }): AccountState | null {
+  const [state, setState] = useState<AccountState>(accountState);
+  const [shown, setShown] = useState(() => accountState().enabled === true);
+  useEffect(() => {
+    const off = onAccountState(setState);
+    setState(accountState());
+    whenIdle(() => void watchAccountState());
+    return off;
+  }, []);
+  const on = state.enabled === true;
+  useEffect(() => {
+    if (!on) {
+      setShown(false);
+      return;
+    }
+    if (shown) return;
+    const ul = menu.current;
+    const doc = ul?.ownerDocument;
+    const win = doc?.defaultView;
+    if (!ul || !doc || !win) {
+      setShown(true);
+      return;
+    }
+    let down = false;
+    let timer = 0;
+    const hovers = (): boolean => win.matchMedia?.('(hover: hover)').matches !== false;
+    /** `under`: what a pointer event says the pointer is on (`:hover` may still be the element it just left). */
+    const safe = (under?: Element | null): boolean => {
+      if (down) return false;
+      // A touch screen keeps `:hover` on what was last tapped: only a finger that is down counts there.
+      if (!hovers()) return true;
+      const panel = ul.closest('.wc-sm-panel') ?? ul;
+      if (under === undefined ? !panel.matches(':hover') : !under || !panel.contains(under)) return true;
+      const row = under ? under.closest<HTMLElement>('.wc-sm-item') : ul.querySelector<HTMLElement>('.wc-sm-item:hover');
+      return !!row && ABOVE_ACCOUNT.has(row.dataset.key ?? '');
+    };
+    const tryIn = (): void => {
+      if (safe()) setShown(true);
+    };
+    const onMove = (e: PointerEvent): void => {
+      if (e.pointerType !== 'touch' && safe(e.target as Element | null)) setShown(true);
+    };
+    const onLeave = (): void => {
+      if (safe(null)) setShown(true);
+    };
+    const onDown = (): void => {
+      down = true;
+      win.clearTimeout(timer);
+    };
+    const onUp = (e: PointerEvent): void => {
+      down = false;
+      win.clearTimeout(timer);
+      timer = win.setTimeout(tryIn, e.pointerType === 'touch' ? AFTER_TOUCH_MS : 0);
+    };
+    doc.addEventListener('pointerdown', onDown, true);
+    doc.addEventListener('pointerup', onUp, true);
+    doc.addEventListener('pointercancel', onUp, true);
+    doc.addEventListener('pointermove', onMove, true);
+    doc.documentElement.addEventListener('pointerleave', onLeave);
+    tryIn();
+    return () => {
+      win.clearTimeout(timer);
+      doc.removeEventListener('pointerdown', onDown, true);
+      doc.removeEventListener('pointerup', onUp, true);
+      doc.removeEventListener('pointercancel', onUp, true);
+      doc.removeEventListener('pointermove', onMove, true);
+      doc.documentElement.removeEventListener('pointerleave', onLeave);
+    };
+  }, [on, shown]);
+  return on && shown ? state : null;
+}
+
+/**
+ * Opens the account pages: the lazy chunk (./account), then the Account
+ * page when somebody is logged in here, else Log in. One load at a time;
+ * a page opened meanwhile (another key) keeps the menu as it is.
+ */
+function useAccountPages(nav: ReturnType<typeof useNav>): () => void {
+  const loading = useRef(false);
+  return () => {
+    if (loading.current) return;
+    loading.current = true;
+    const depth = nav.depth();
+    void import('./account')
+      .then((m) => {
+        if (nav.depth() === depth) nav.push(m.accountEntry(accountState().name !== null));
+      })
+      .catch(() => nav.flash('The account pages could not be loaded. Check the connection and try again.', 'fail'))
+      .finally(() => {
+        loading.current = false;
+      });
+  };
+}
 
 // The privacy page's address (stage 59): a page opened at `<base>privacy`
 // (privacy.html, a copy of the app's page) opens the privacy leaf over the
