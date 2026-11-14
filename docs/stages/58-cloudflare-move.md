@@ -161,5 +161,5 @@ Feedback wanted: anything at all that differs from yesterday.
 
 - **2026-11-14, after the switch and 0.9.3:** the update notice came
   in an open tab; History is still there; logged in to MUME and
-  rented. Not reported yet: Profile and Scripts, the HTML export, the
-  phone (test guide 2, 4, 5).
+  rented. Profile and Scripts, the HTML export and the phone tried
+  too: all look fine.
