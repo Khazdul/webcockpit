@@ -93,6 +93,7 @@ describe('the owner row: a pure function of the account state', () => {
     expect(row({ name: 'ole', sync: 'syncing' })).toMatchObject({ kind: 'syncing', state: 'syncing', mark: 'pulse' });
     expect(row({ name: 'ole', sync: 'offline' })).toMatchObject({ kind: 'offline', state: 'offline', mark: 'ring' });
     expect(row({ name: 'ole', sync: 'full' })).toMatchObject({ kind: 'attention', state: 'storage full', mark: 'diamond' });
+    expect(row({ name: 'ole', sync: 'update' })).toMatchObject({ kind: 'attention', state: 'update the client', mark: 'diamond' });
     for (const sync of ['synced', 'syncing', 'offline', 'full'] as const) expect(ownerRow({ name: 'ole', sync }).stateIsAction).toBe(false);
   });
 
