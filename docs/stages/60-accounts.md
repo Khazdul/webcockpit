@@ -1,7 +1,9 @@
 # Stage 60 — Accounts
 
-Status: **In progress.** Part A (server) and the crypto module are being
-built; the pages a player sees wait for the owner's choice of mockup.
+Status: **In progress.** Part A (server) and the crypto module are
+built, reviewed and on staging (2026-11-14). The pages a player sees
+wait for the owner's choice of mockup; the account endpoints on staging
+wait for the two secrets of part C.
 
 ## Goal
 
@@ -27,7 +29,7 @@ sessions that stages 61–65 stand on.
   pepper that changes daily.
 - Every format the crypto module writes has a checked-in test vector.
 
-## Decisions taken at the start (ADR 0145, addendum of 2026-11-14)
+## Decisions taken at the start (ADR 0145, the "As built" addenda of 2026-11-14)
 
 - **Flag:** `accounts` (`FLAG_ACCOUNTS`: staging on, production off).
   Off: `/api/auth/*` and `/api/u/*` answer 404 `not_found`.
@@ -45,18 +47,18 @@ sessions that stages 61–65 stand on.
   `AUTH_PEPPER` (random; the fake salts and the daily address pepper
   are derived from it) and `TURNSTILE_SECRET`. The site key is a var
   (`TURNSTILE_SITE_KEY`). Without them the account endpoints answer 503
-  `accounts_not_configured`. Staging runs on Cloudflare's published
-  Turnstile test keys until the owner has made the widget (part C).
+  `accounts_not_configured`. Staging has Cloudflare's published
+  Turnstile test site key until the owner has made the widget (part C).
 - **Session cookie:** `__Secure-wc_s`, `HttpOnly`, `Secure`,
   `SameSite=Strict`, `Path=/api/u`, 180 days, renewed at most once a
   day (one D1 write). The server keeps the token's SHA-256.
 - **State-changing requests** under `/api/auth/` and `/api/u/` need
   `X-WC: 1` and an `Origin` equal to the site's, else 403 `forbidden`.
 - **Recovery is one endpoint in two calls:** the first proves
-  `recoveryAuth` with Turnstile and gets the wrap; the second proves it
-  again and sets the new password (a Turnstile token works once, and
-  the code's 120 bits cannot be guessed; failures count toward the
-  name's lock).
+  `recoveryAuth` with Turnstile and gets the wrap and a ticket good for
+  15 minutes; the second shows the ticket, proves `recoveryAuth` again
+  and sets the new password (a Turnstile token works once; without the
+  ticket the second call is refused before anything is counted).
 - **Password again** for: change password, new recovery code, delete
   account. (A new recovery code needs the root's bytes, which the
   device does not keep, so the password is needed anyway.)
@@ -213,9 +215,11 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
 
 ### B. Client pages (after the owner's choice of mockup)
 
-- [ ] Mockups: the Account entry on the start page, Log in, Create
+- [x] Mockups: the Account entry on the start page, Log in, Create
       account with the six points, the recovery code page, Recovery,
-      the Account page; desktop and phone. **The owner picks.**
+      the Account page; desktop and phone
+      (`notes/research/account-mockups/`, 56 states). **The owner
+      picks** ("For the owner" below).
 - [ ] `src/cloud/account`: the API client, the stored account and
       keys, log in / out / register / recover flows.
 - [ ] The pages in the look kit; phone and tablet with our keyboard.
@@ -227,13 +231,22 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
 - [ ] A Turnstile widget for `mumecockpit.com` and
       `staging.mumecockpit.com`; the site key to the session, the
       secret as `TURNSTILE_SECRET` on both Workers.
-- [ ] The secret `AUTH_PEPPER` on the production Worker.
+- [ ] The secret `AUTH_PEPPER` on both Workers (a value of its own on
+      each). Steps under "For the owner".
 
 ### D. Review and release
 
-- [ ] Review of crypto and auth by a second agent with only the code
-      and ADR 0145; fixes.
-- [ ] Full e2e alone; staging; owner test; release; the flag on.
+- [x] Review of crypto and auth by a second agent with only the code
+      and ADR 0145 (2026-11-14): nothing critical or high; eleven
+      findings of medium and lower weight, all fixed or written down
+      (ADR 0145, "After the review", "Changed after the review" and
+      "Known limits"). The review is repeated on part B's client code
+      before the release.
+- [x] Full e2e alone; staging deployed; `test:prod` 14/14 on
+      staging (2026-11-14: unit 4496; e2e 1459 passed, 3 failed under
+      load and pass alone; the live site 12/14, the two being the new
+      `/api/config` check that waits for the release).
+- [ ] Owner test of the pages on staging; release; the flag on.
 
 ## Test guide (owner)
 
@@ -242,6 +255,90 @@ owner" below); the test guide of the pages is written with part B.
 
 ## For the owner
 
-(Written at the end of the session.)
+### What is on staging (2026-11-14)
+
+Part A and the crypto module are built, reviewed, merged to `main` and
+deployed to staging (migration 0002 applied there). Nothing was
+released and nothing ran against production. Nothing new shows in the
+browser: no page uses the account yet, and the crypto module is not in
+the bundle.
+
+- `https://staging.mumecockpit.com/api/config` shows the flag
+  `accounts` on, the Turnstile test site key and the limits.
+- The account endpoints answer 503 `accounts_not_configured` there
+  until the two secrets of part C are set. (The session tried to set
+  them on staging with `wrangler secret put`; the permission check
+  refused it, so they are yours.)
+
+### Your decisions (with my recommendation)
+
+The mockups: <https://claude.ai/artifact/F135H6tVZcX9zkdnxt3ZDL> (tabs
+per page and state, Desktop / Phone), or
+`notes/research/account-mockups/index.html` with every state as a
+picture. With the flag off nothing shows in any variant.
+
+1. **The entry on the start page:** A, a menu row `ACCOUNT (log in)` /
+   `ACCOUNT (olev) ●` between Spotlights and Credits, key U (the box
+   grows one row); B, a quiet line in the corner opposite the almanac,
+   no menu row; C, nothing on the start page, a strip at the foot of
+   Profiles. *Recommendation: A.* It is what spec §7.2 says, it is
+   found by key, mouse and finger alike, and the sync mark of stage 61
+   has a home. B if the menu must not grow.
+2. **An Account row in the phone's in-game menu sheet too?**
+   *Recommendation: no;* the start page is enough until sync shows
+   that it is missed.
+3. **Create account as one page** (form and the six points side by
+   side on desktop) **or two steps?** *Recommendation: one page.*
+4. **The Account page's grouping:** head with sync state; storage;
+   devices; password and recovery; notices; your data on this device;
+   leaving (Log out, then Delete account, last and quiet).
+   *Recommendation: as mocked.*
+5. **After a recovery the code stays the same** (a new one can be made
+   on the Account page). *Recommendation: keep it so.*
+6. **Device labels** are "Firefox on Linux", not nameable.
+   *Recommendation: enough.*
+7. **The words:** Account, Log in / Log out, user name. And anything in
+   the texts, above all the six points on Create account and the "this
+   is the only way back" line on the recovery code page.
+
+Two things that are as the spec says, for you to know:
+
+- Anybody can lock a known user name's login for 15 minutes by ten
+  wrong passwords (and repeat it). Sessions already open keep working.
+  It is the price of the lock; the alternative is no lock.
+- A user name's existence can be learnt by trying to register it (one
+  Turnstile pass each). Names are public anyway once a player
+  publishes.
+
+### Part C, step by step (about 10 minutes)
+
+1. **The Turnstile widget.** Cloudflare dashboard → **Turnstile** (in
+   the account's left menu; under "Application security" in the newer
+   menu) → **Add widget**. Name `WebCockpit`. Hostnames:
+   `mumecockpit.com` and `staging.mumecockpit.com`. Widget mode
+   **Managed**. Pre-clearance: no. Create. The page then shows a **Site
+   Key** and a **Secret Key**.
+2. Send the session the **site key** (it is public; it goes into
+   `wrangler.jsonc` for both environments together with
+   `TURNSTILE_HOSTNAMES`).
+3. **`TURNSTILE_SECRET`**: Workers & Pages → `webcockpit-staging` →
+   Settings → Variables and Secrets → Add → type **Secret**, name
+   `TURNSTILE_SECRET`, value the widget's secret key. The same on
+   `webcockpit`. (Until the real site key is deployed, staging shows
+   the test widget and a real secret refuses its tokens; that is
+   expected.)
+4. **`AUTH_PEPPER`**: on both Workers a Secret named `AUTH_PEPPER`
+   with a random value, a different one on each. Make a value with
+   `openssl rand -base64 32` in a terminal and paste it; it need not be
+   kept anywhere else. (Or, in the session: `! openssl rand -base64 32
+   | npx wrangler secret put AUTH_PEPPER --env staging`, and without
+   `--env staging` for production.)
+5. Tell the session; it deploys staging with the real site key and
+   checks registration, login, recovery and deletion there.
+
+### Refused or failed
+
+- `wrangler secret put` against staging was refused by the permission
+  check (above). Nothing else.
 
 ## Owner feedback
