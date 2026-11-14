@@ -217,7 +217,13 @@ merge: this branch's version of its menu tests is the one to keep.
 
 #### B3. After both are merged (main session)
 
-- [ ] A review of the merged diff (`/code-review`), findings fixed.
+- [x] A review of the merged diff (`/code-review` high over
+      `965d6b6c..HEAD`): nine findings, all real, all fixed (68eacc28…
+      461d1b14): the screenshot scripts, the tab click's gate, the
+      menu's message line above About, the owner row coming in on the
+      next key or under a page (ADR 0149), the rule's selector (first
+      form now 313 px, 295 on a phone), one source for History, the
+      owner press and the letters.
 - [x] Spec §2.5 "Look": the letters line; the inventory reference if
       it names the rows. (§2.5's stage-32 menu marked as history, the
       list "History, Statistics, …" names the tabs; Inv §3.2's note on
@@ -230,7 +236,7 @@ merge: this branch's version of its menu tests is the one to keep.
       the tab without the player says "not available" and Esc returns).
 - [x] The shims `startSpotlights` and `CreditsFrame` removed (nothing
       used them); `openHistory(nav, tab)` stays.
-- [ ] The test guide below completed.
+- [x] The test guide below completed.
 
 ### C. Check and release
 
@@ -238,31 +244,53 @@ merge: this branch's version of its menu tests is the one to keep.
       size.
 - [ ] Staging: `test:prod`; the menu with the flag on (staging) and
       off (a local production build).
-- [ ] Owner test on staging (test guide below), with stage 60's step
-      13 if not done.
+- [ ] Owner test on staging (test guide below). Stage 60's step 13
+      done 2026-11-14.
 - [ ] Release to everybody: the new menu, `production: true` in
       `scripts/csp.ts`. The flag `accounts` stays off.
 
-## Test guide (owner; to be completed when the stage is built)
+## Test guide (owner)
 
-On <https://staging.mumecockpit.com> (the owner row shows there) and,
-after the release, on the live site (no owner row).
+On staging (<https://staging.mumecockpit.com>, where the flag
+`accounts` is on, so the owner row shows) on a desktop, a phone and a
+tablet; after the release the same on the live site, without the
+owner row.
 
-1. The start page: do the zones read at a glance? Is it clear that the
-   owner row is whose things these are, and that it can be pressed?
-2. E, U, P, S, H, A by key; the arrows; the mouse. L and C do nothing.
-3. U as a guest: Log in. Log in: the row shows the name; U opens the
-   Account page. Log out: the row is back.
-4. H: Sessions as History was. Change to Spotlights and to Diary by
-   key and by mouse; play a spotlight and come Back to the same tab.
-5. The phone and the tablet: the menu, the tabs, portrait and
-   landscape.
-6. Live after the release: the same without the owner row; the page
-   loads and plays as before (the CSP is enforced now).
+1. **The start page at a glance.** Enter MUME; a rule with a diamond;
+   the owner row, Profile, Scripts, History; About as the panel's last
+   quiet row. Do the zones read? Does the owner row read as "whose
+   things these are" and as something to press (hover it: the text
+   lights, a thin line runs under it, the chevron steps forward)?
+2. **The owner row's size.** It was made larger than in the mockups,
+   as you asked (38 px against the other rows' 42). Right, too much,
+   too little?
+3. **Keys.** E, U, P, S, H, A; the arrows; the mouse. L and C do
+   nothing now (Community comes in stage 65).
+4. **As a guest:** the row says "Guest · log in"; U or a click opens
+   Log in. **Logged in:** the row shows your name alone (not "synced":
+   nothing syncs before stage 61); U opens the Account page. Log out:
+   "Guest · log in" is back.
+5. **The row coming in.** Reload with the mouse resting on History:
+   the row does not jump in under the pointer; it comes in when you
+   move the mouse off the rows or press a key. Does that feel right?
+6. **History.** H opens Sessions as History was. The tab strip under
+   the hood: change to Spotlights and Diary with 1 2 3, by mouse and
+   by touch. Play a spotlight and press Back: you are on the
+   Spotlights tab again. Open a run log from Sessions and Back: on
+   Sessions. Is the active tab plain enough?
+7. **The word Diary.** The page and About say Diary; About's CREDITS
+   section (thanks to MMapper, the tilesets, the fonts) keeps its word,
+   because there it means "thanks to". Agree?
+8. **The phone and the tablet.** The menu in portrait and landscape;
+   three tabs in a row under Back on the phone; the Diary book fits.
+9. **Live, after the release:** the menu without the owner row; the
+   page loads and plays as before (the CSP is enforced now; stage 60's
+   step 13 on staging was done 2026-11-14).
 
-**Feedback wanted:** the zones' weight, the owner row's wording, the
-tab strip's place, anything that was a habit and is now a step longer
-(L and C).
+**Feedback wanted:** the zones' weight, the owner row's size and
+wording, the tab strip's place and its active mark, anything that was a
+habit and is now a step longer (L and C; Spotlights and the Diary are
+now H then 2 or 3).
 
 ## Owner feedback
 
