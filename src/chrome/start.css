@@ -283,8 +283,9 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   width: min(var(--wc-panel-w), 100%);
 }
 
+/* (The foot: About's quiet row stands in the panel's lower margin.) */
 .wc-sm-win {
-  padding: 32px 12px 22px;
+  padding: 32px 12px 12px;
 }
 
 /* The rows form one left-aligned group, centred in the panel: the middle
@@ -405,6 +406,222 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   transform: rotate(45deg);
   background: linear-gradient(135deg, #7a6a58, #2a2420);
   box-shadow: 0 0 0 1px #000, 0 0 6px rgba(255, 160, 70, 0.3);
+}
+
+/* The second rule (stage 67) parts "mine" from Community. */
+.wc-sm-item + .wc-sm-sep {
+  margin-top: 4px;
+}
+
+/* Community's counter ("3 new"), its only weight: gold italic after the
+ * label, taking no width of the rows' column (the group does not shift
+ * when it comes and goes). */
+.wc-sm-count {
+  flex: none;
+  width: 0;
+  overflow: visible;
+  white-space: nowrap;
+  margin-left: -2px;
+  font: italic 500 15px/1 var(--lk-serif);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--lk-gold);
+  opacity: 0.9;
+}
+
+/* About, the panel's last and quiet row: small, no icon, centred across
+ * the panel. */
+.wc-sm-item.is-foot {
+  grid-column: 1 / -1;
+  justify-content: center;
+  height: 32px;
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  color: var(--lk-faint);
+}
+
+/* The owner row (stage 67, direction A): a heading line over "mine" that
+ * is a button. It reaches from the rows' icons to the panel's right edge;
+ * the state mark hangs in the margin left of the icons; the name in the
+ * display caps gives way with an ellipsis, the state in the serif italic
+ * and the news in gold never do; a chevron at the right end. `contain`
+ * keeps its text out of the rows' column width, so a long name never
+ * moves the rows. */
+.wc-sm-item.wc-sm-owner {
+  position: relative;
+  grid-column: 2 / -1;
+  contain: inline-size;
+  height: 38px;
+  gap: 0;
+  padding-right: 22px;
+  font: 700 13.5px/1.5 var(--lk-display);
+  letter-spacing: 0.13em;
+  color: var(--lk-head);
+}
+
+.wc-so-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wc-so-mark::before {
+  content: "";
+  display: block;
+  box-sizing: border-box;
+}
+
+.wc-so-mark.is-dot::before,
+.wc-so-mark.is-pulse::before,
+.wc-so-mark.is-ring::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.wc-so-mark.is-dot::before {
+  background: var(--lk-ok);
+  opacity: 0.85;
+}
+
+.wc-so-mark.is-pulse::before {
+  background: var(--lk-gold);
+  animation: wc-so-breathe 2.4s ease-in-out infinite;
+}
+
+.wc-so-mark.is-ring::before {
+  border: 1.5px solid var(--lk-dim);
+}
+
+.wc-so-mark.is-diamond::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  background: var(--lk-soon);
+  box-shadow: 0 0 8px rgba(255, 150, 60, 0.6);
+}
+
+.wc-so-mark .wc-lk-ic {
+  width: 14px;
+  height: 14px;
+  color: var(--lk-dim);
+  opacity: 0.75;
+  transition: color 0.45s, opacity 0.45s;
+}
+
+@keyframes wc-so-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.wc-so-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.wc-so-name {
+  flex: 0 1 auto;
+  min-width: 2.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.45s;
+}
+
+.wc-so-state,
+.wc-so-news {
+  flex: none;
+  font: italic 500 16.5px/1.2 var(--lk-serif);
+  letter-spacing: 0.01em;
+  color: var(--lk-dim);
+  transition: color 0.45s;
+}
+
+.wc-so-news {
+  color: var(--lk-gold);
+}
+
+/* " · ": the leading space falls away at the item's start; the margin stands for it. */
+.wc-so-sep {
+  margin-left: 6px;
+  font-style: normal;
+  color: var(--lk-faint);
+}
+
+/* For a guest the state is what a press does: "log in", underlined. */
+.wc-so-state.is-act .wc-so-word {
+  color: var(--lk-glass-text);
+  text-decoration: underline;
+  text-decoration-color: var(--lk-sk);
+  text-underline-offset: 3px;
+}
+
+.wc-so-chev {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: 10px;
+  color: var(--lk-dim);
+  opacity: 0.7;
+  transition: color 0.3s, opacity 0.3s, transform 0.3s;
+}
+
+/* The cursor on the owner row: as any row the text comes up to full
+ * brightness, and more clearly (the owner, 2026-11-14): a lit rule under
+ * the whole line and the chevron stepping forward. */
+.wc-sm-owner::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 22px;
+  bottom: 5px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--lk-sk-on) 0, var(--lk-sk-on) 60%, transparent);
+  opacity: 0;
+  transition: opacity 0.45s;
+}
+
+.wc-sm-owner.is-sel::after {
+  opacity: 0.75;
+  transition-duration: 0.3s;
+}
+
+.wc-sm-owner.is-sel .wc-so-name {
+  color: var(--lk-on);
+}
+
+.wc-sm-owner.is-sel .wc-so-state {
+  color: var(--lk-text);
+}
+
+.wc-sm-owner.is-sel .wc-so-state.is-act .wc-so-word {
+  color: var(--lk-on);
+  text-decoration-color: var(--lk-sk-on);
+}
+
+.wc-sm-owner.is-sel .wc-so-mark .wc-lk-ic {
+  color: var(--lk-ic-on);
+  opacity: 1;
+}
+
+.wc-sm-owner.is-sel .wc-so-chev {
+  color: var(--lk-ic-on);
+  opacity: 1;
+  transform: translateX(3px);
 }
 
 /* Messages ("Loading spotlights…", errors) at the foot of the panel. */
@@ -538,6 +755,21 @@ html.wc-phone .wc-sm-win {
   padding-top: 30px;
 }
 
+html.wc-phone .wc-sm-item.wc-sm-owner {
+  height: 36px;
+  font-size: 12.5px;
+}
+
+html.wc-phone .wc-so-state,
+html.wc-phone .wc-so-news {
+  font-size: 15.5px;
+}
+
+html.wc-phone .wc-sm-item.is-foot {
+  height: 34px;
+  font-size: 10.5px;
+}
+
 html.wc-phone .wc-sm-quote {
   max-width: 360px;
 }
@@ -583,7 +815,22 @@ html.wc-phone .wc-alm-o {
   }
 
   html.wc-phone .wc-sm-win {
-    padding: 32px 12px 22px;
+    padding: 32px 12px 12px;
+  }
+
+  html.wc-phone .wc-sm-item.wc-sm-owner {
+    height: 38px;
+    font-size: 13.5px;
+  }
+
+  html.wc-phone .wc-so-state,
+  html.wc-phone .wc-so-news {
+    font-size: 16.5px;
+  }
+
+  html.wc-phone .wc-sm-item.is-foot {
+    height: 32px;
+    font-size: 11px;
   }
 }
 
@@ -593,8 +840,14 @@ html.wc-phone .wc-alm-o {
   .wc-sm-item .wc-sm-ic,
   .wc-sm-quote,
   .wc-sm-quote p,
-  .wc-sm-quote cite {
+  .wc-sm-quote cite,
+  .wc-so-chev,
+  .wc-sm-owner::after {
     transition: none;
+  }
+
+  .wc-so-mark.is-pulse::before {
+    animation: none;
   }
 
   /* Layout B with reduced motion: the wordmark and the almanac fade, nothing lifts. */

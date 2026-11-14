@@ -47,7 +47,7 @@
 // code's last group and gone on, the code is held here, in memory only.
 // The recovery code page shows it; should that page (or the Create page,
 // before the answer came) be gone, every other account page shows it in
-// its own place the moment it can (`useHeldCode`), and the Account row
+// its own place the moment it can (`useHeldCode`), and the owner row
 // opens on it (`accountEntry`). While a code is held the browser asks
 // before a reload or a closed tab.
 

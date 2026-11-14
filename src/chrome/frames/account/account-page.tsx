@@ -27,7 +27,7 @@
 // The contract with the other pages and the specs:
 //
 // - Registered as `account` in index.tsx; reached with `go(nav,
-//   'account')` or pushed by the start menu's Account row. Back and Esc
+//   'account')` or pushed by the start menu's owner row. Back and Esc
 //   pop to the start menu.
 // - It asks `loadAccount()` when it opens and again after every change.
 //   `unauthorized` (the session is gone; the device is then already

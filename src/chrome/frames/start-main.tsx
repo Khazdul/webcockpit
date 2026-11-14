@@ -3,30 +3,42 @@
 // The wordmark, the almanac and the client notices belong to the start
 // surface (src/chrome/start-surface.tsx), which also draws the sky.
 //
-// Items: Enter MUME (primary, set apart by a rule), Profile (with the
-// selected profile's name, small, dim, italic), Scripts, History,
-// Spotlights, Credits, About; each with a small line icon. Keys: ↑↓ (and
-// Tab), Home / End, Enter / Space, and the shortcut letter marked in each
-// label (E P S H L C A). The mouse selects on hover and activates on a
-// click; a tap activates. No key-hint row (the owner's rule).
+// The menu (stage 67, ADR 0149 and its addendum; the rows and their order:
+// start-menu-model.ts): three zones parted by the rule with the diamond,
+// *play* (Enter MUME), *mine* (the owner row, Profile with the selected
+// profile's name, Scripts, History) and *everybody's* (Community), and
+// About as the panel's last, quiet row. Each row has a small line icon
+// (About none). Keys: ↑↓ (and Tab), Home / End, Enter / Space, and the
+// shortcut letter marked in each label (E P S H C A); the owner row's U
+// works unseen (its texts hold no u). L and the old C (Spotlights,
+// Credits) are gone: Spotlights and the Diary are tabs of History. The
+// mouse selects on hover and activates on a click; a tap activates. No
+// key-hint row (the owner's rule).
 //
-// Account (stage 60, spec §7.2, the owner's entry A): a row between
-// Spotlights and Credits, key U, built as the Profile row: `ACCOUNT (log
-// in)` when nobody is logged in on this device, `ACCOUNT (<name>)` when
-// somebody is. It exists only while accounts are on for this page
+// The owner row (stage 67; it replaces stage 60's Account row, key U): a
+// heading line over "mine" that is also a button. "Guest · log in" for a
+// guest (opens Log in), the account's name logged in (opens the Account
+// page). What it says is `ownerRow` of the model, a pure function of the
+// account state; until stage 61 nothing syncs, so it says the name alone.
+// It exists only while accounts are on for this page
 // (`accountState().enabled`: the server's flag `accounts`, asked on idle
-// time); otherwise the menu is exactly what it was and U does nothing.
-// The flag arrives after the menu is drawn, so the row comes in late
-// (`useAccountRow`): never while a pointer rests on what would move under
-// it (the rows below, the panel's foot) and never while a finger is down;
-// the cursor is kept by key, so it stays where it was. The pages are a
-// lazy chunk (./account), loaded when the row is activated.
+// time); otherwise U does nothing. The flag arrives after the menu is
+// drawn, so the row comes in late (`useAccountRow`): never while a pointer
+// rests on what would move under it (everything under Enter MUME) and
+// never while a finger is down; the cursor is kept by key, so it stays
+// where it was. The pages are a lazy chunk (./account), loaded when the
+// row is activated.
+//
+// Community (flag `gallery`, stage 65) has no page and no flag in the
+// client yet: the start page never shows it, and C does nothing. The row
+// and its counter are drawn by the kit gallery (`?kit=menu`), and on the
+// dev server by `?community=<n>` (a press says it comes later).
 //
 // Scripts needs the script library, which the shell always has; only
 // tests mount the page without it, and then the row is not there. Options
 // left the start page in stage 32 (its settings are changed in the game).
 
-import { Fragment, type VNode } from 'preact';
+import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type AccountState, accountState, onAccountState, watchAccountState } from '../../cloud/account/state';
 import { whenIdle } from '../../cloud/config';
@@ -37,11 +49,10 @@ import { type MenuItem, menuKey, useMenuCursor } from '../kit/widgets';
 import type { Quote } from '../quotes';
 import { useBrightBack, useDarkInk } from '../start-surface';
 import { AboutFrame, PrivacyFrame, atPrivacyPath } from './about';
-import { CreditsFrame } from './credits';
 import { HistoryFrame } from './history';
 import { ProfileFrame } from './profiles';
 import { ScriptsFrame } from './scripts';
-import { startSpotlights } from './spotlights';
+import { type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
 
 export const LATER = 'Coming in a later stage.';
 
@@ -50,13 +61,42 @@ export interface StartMainProps {
   quote: Quote;
 }
 
-interface StartItem extends MenuItem {
+export interface StartItem extends MenuItem {
+  key: StartRowKey;
   label: string;
-  /** The shortcut letter, marked in the label. */
+  /** The shortcut letter, marked in the label (the owner row's is not shown). */
   letter: string;
-  icon: IconName;
+  icon?: IconName;
   /** After the label, small and dim (Profile: the selected profile's name). */
   note?: string;
+  /** After the label in gold italic (Community: "3 new"). */
+  count?: string | null;
+  /** The owner row's text. */
+  owner?: OwnerView;
+}
+
+const ICONS: Partial<Record<StartRowKey, IconName>> = {
+  enter: 'door',
+  profile: 'person',
+  scripts: 'scroll',
+  history: 'hourglass',
+  community: 'star',
+};
+
+const LABELS: Record<StartRowKey, string> = {
+  enter: 'Enter MUME',
+  owner: 'Account',
+  profile: 'Profile',
+  scripts: 'Scripts',
+  history: 'History',
+  community: 'Community',
+  about: 'About',
+};
+
+/** A row of the menu from its key: label, icon, letter; the caller adds what it does. */
+export function startItem(key: StartRowKey, letter: string, more: Partial<StartItem> = {}): StartItem {
+  const icon = ICONS[key];
+  return { key, label: LABELS[key], letter, ...(icon ? { icon } : {}), ...more };
 }
 
 export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode {
@@ -68,50 +108,19 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   const menu = useRef<HTMLUListElement>(null);
   const account = useAccountRow(menu);
   const openAccount = useAccountPages(nav);
-  const items: StartItem[] = [
-    { key: 'enter', label: 'Enter MUME', letter: 'e', icon: 'door', activate: p.onEnter },
-    {
-      key: 'profile',
-      label: 'Profile',
-      letter: 'p',
-      icon: 'person',
-      note: profile,
-      activate: () => nav.push(<ProfileFrame />),
-    },
-    ...(services.scripts
-      ? [
-          {
-            key: 'scripts',
-            label: 'Scripts',
-            letter: 's',
-            icon: 'scroll' as const,
-            activate: () => nav.push(<ScriptsFrame />),
-          },
-        ]
-      : []),
-    { key: 'history', label: 'History', letter: 'h', icon: 'hourglass', activate: () => nav.push(<HistoryFrame />) },
-    {
-      key: 'spotlights',
-      label: 'Spotlights',
-      letter: 'l',
-      icon: 'star',
-      activate: () => void startSpotlights(nav, services),
-    },
-    ...(account
-      ? [
-          {
-            key: 'account',
-            label: 'Account',
-            letter: 'u',
-            icon: 'key' as const,
-            note: account.name ?? 'log in',
-            activate: openAccount,
-          },
-        ]
-      : []),
-    { key: 'credits', label: 'Credits', letter: 'c', icon: 'quill', activate: () => nav.push(<CreditsFrame />) },
-    { key: 'about', label: 'About', letter: 'a', icon: 'info', activate: () => nav.push(<AboutFrame />) },
-  ];
+  // Community: the flag `gallery` and the page come in stage 65 (dev: `?community=<n>`).
+  const community = devCommunity();
+  const entries = startMenu({ owner: account !== null, scripts: !!services.scripts, community });
+  const does: Record<StartRowKey, Partial<StartItem>> = {
+    enter: { activate: p.onEnter },
+    owner: { ...(account ? { owner: ownerRow({ name: account.name }) } : {}), activate: openAccount },
+    profile: { note: profile, activate: () => nav.push(<ProfileFrame />) },
+    scripts: { activate: () => nav.push(<ScriptsFrame />) },
+    history: { activate: () => nav.push(<HistoryFrame />) },
+    community: { count: community ? communityCount(community.count) : null, activate: () => nav.flash(LATER) },
+    about: { activate: () => nav.push(<AboutFrame />) },
+  };
+  const items: StartItem[] = entries.flatMap((e) => (e.kind === 'row' ? [startItem(e.key, e.letter, does[e.key])] : []));
   const [cursor, setCursor] = useMenuCursor(items, 'enter');
   const kit = useKitGallery(nav);
   usePrivacyAddress(nav);
@@ -122,7 +131,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     const i = l ? items.findIndex((it) => it.letter === l) : -1;
     if (i >= 0) {
       setCursor(i);
-      items[i]!.activate!();
+      items[i]!.activate?.();
       return true;
     }
     return menuKey(items, cursor, setCursor, nk);
@@ -130,17 +139,18 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
 
   const ink = useDarkInk('quote');
   const bright = useBrightBack('quote');
+  let n = 0;
   return (
     <div class="wc-start-main wc-lk-page">
       <div class="wc-sm-stage">
         <Box label="Start menu" class="wc-sm-panel" winClass="wc-sm-win">
           <ul class="wc-sm" role="menu" aria-label="Start menu" ref={menu}>
-            {items.map((it, i) => (
-              <Fragment key={it.key}>
-                <MenuRow item={it} selected={i === cursor} active={isTop} onSelect={() => setCursor(i)} />
-                {i === 0 && <li class="wc-sm-sep" role="separator" aria-hidden="true" />}
-              </Fragment>
-            ))}
+            {entries.map((e, k) => {
+              if (e.kind === 'rule') return <li key={`rule${k}`} class="wc-sm-sep" role="separator" aria-hidden="true" />;
+              const i = n++;
+              const it = items[i]!;
+              return <MenuRow key={it.key} item={it} selected={i === cursor} active={isTop} onSelect={() => setCursor(i)} />;
+            })}
           </ul>
           <LookFlash class="wc-sm-flash" />
         </Box>
@@ -154,15 +164,15 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   );
 });
 
-// ------------------------------------------------------------ the Account row
+// ------------------------------------------------------------ the owner row coming in
 
-/** The rows above the Account row: they do not move when it comes in. */
-const ABOVE_ACCOUNT = new Set(['enter', 'profile', 'scripts', 'history', 'spotlights']);
+/** The rows above the owner row: they do not move when it comes in. */
+const ABOVE_ACCOUNT = new Set(['enter']);
 /** A finger's click follows its lift by up to about this (ms): the row waits it out. */
 const AFTER_TOUCH_MS = 350;
 
 /**
- * The Account row's state, or null while the row is not shown: accounts
+ * The owner row's account state, or null while the row is not shown: accounts
  * are off or not known yet, or the row waits for the pointer (below).
  *
  * The flag is asked on idle time (`watchAccountState`: the shared
@@ -281,6 +291,16 @@ function usePrivacyAddress(nav: ReturnType<typeof useNav>): void {
   }, []);
 }
 
+// Dev only (stage 67): `?community=<n>` shows the Community row with <n>
+// new runs, for the e2e specs and the screenshots, until the flag
+// `gallery` and the page exist (stage 65). A normal build folds it to
+// null.
+function devCommunity(): { count: number } | null {
+  if (!import.meta.env.DEV) return null;
+  const n = new URLSearchParams(globalThis.location?.search ?? '').get('community');
+  return n === null ? null : { count: Number(n) || 0 };
+}
+
 // Dev only (stage 42, ADR 0127): `?kit` (or `?kit=<section>`) opens the kit
 // gallery over the menu after the first render, once per page load; with
 // `?kit` in the address, `k` on the menu opens it again (the benches and
@@ -309,19 +329,23 @@ function useKitGallery(nav: ReturnType<typeof useNav>): (e: KeyboardEvent) => bo
   };
 }
 
-function MenuRow(p: { item: StartItem; selected: boolean; active: boolean; onSelect: () => void }): VNode {
+/** A row of the menu: the kinds differ in look only (Enter MUME is prime, About quiet, the owner row a heading line). */
+export function MenuRow(p: { item: StartItem; selected: boolean; active: boolean; onSelect: () => void }): VNode {
   const ref = useRef<HTMLLIElement>(null);
   const it = p.item;
   useLayoutEffect(() => {
     const el = ref.current;
     if (p.selected && p.active && el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
   }, [p.selected, p.active]);
+  const kind = it.key === 'enter' ? ' is-prime' : it.key === 'about' ? ' is-foot' : it.owner ? ' wc-sm-owner is-' + it.owner.kind : '';
   return (
     <li
       ref={ref}
-      class={'wc-sm-item' + (it.key === 'enter' ? ' is-prime' : '') + (p.selected ? ' is-sel' : '')}
+      class={'wc-sm-item' + kind + (p.selected ? ' is-sel' : '')}
       role="menuitem"
       data-key={it.key}
+      data-state={it.owner?.kind}
+      aria-label={it.owner?.label}
       aria-current={p.selected ? 'true' : undefined}
       aria-keyshortcuts={it.letter.toUpperCase()}
       onMouseDown={(e) => e.preventDefault()}
@@ -335,9 +359,49 @@ function MenuRow(p: { item: StartItem; selected: boolean; active: boolean; onSel
         it.activate?.();
       }}
     >
-      <Icon name={it.icon} class="wc-sm-ic" />
-      <KeyLabel class="wc-sm-label" text={it.label} letter={it.letter} />
-      {it.note && <span class="wc-sm-note">({it.note})</span>}
+      {it.owner ? (
+        <OwnerLine view={it.owner} />
+      ) : (
+        <>
+          {it.icon && <Icon name={it.icon} class="wc-sm-ic" />}
+          <KeyLabel class="wc-sm-label" text={it.label} letter={it.letter} />
+          {it.note && <span class="wc-sm-note">({it.note})</span>}
+          {it.count && <span class="wc-sm-count">{it.count}</span>}
+        </>
+      )}
     </li>
+  );
+}
+
+/**
+ * The owner row's content: the state mark in the left margin, the name in
+ * small capitals (it gives way with an ellipsis), the state in italic and
+ * the reactions mark in gold (never cut), a chevron at the right end.
+ */
+export function OwnerLine(p: { view: OwnerView }): VNode {
+  const v = p.view;
+  return (
+    <>
+      <span class={'wc-so-mark' + (v.mark ? ' is-' + v.mark : '')} aria-hidden="true">
+        {v.mark === 'key' && <Icon name="key" />}
+        {v.mark === 'lock' && <Icon name="lock" />}
+      </span>
+      <span class="wc-so-text" aria-hidden="true">
+        <span class="wc-so-name">{v.name}</span>
+        {v.state && (
+          <span class={'wc-so-state' + (v.stateIsAction ? ' is-act' : '')}>
+            <span class="wc-so-sep"> · </span>
+            <span class="wc-so-word">{v.state}</span>
+          </span>
+        )}
+        {v.news && (
+          <span class="wc-so-news">
+            <span class="wc-so-sep"> · </span>
+            {v.news}
+          </span>
+        )}
+      </span>
+      <Icon name="next" class="wc-so-chev" />
+    </>
   );
 }
