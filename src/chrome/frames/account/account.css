@@ -144,6 +144,23 @@ html.wc-phone .wc-ac-win {
   box-shadow: var(--lk-well-in);
 }
 
+/* The door: where the page's Tab ring stops before the widget (turnstile-box.tsx). */
+.wc-ac-ts-frame {
+  position: relative;
+}
+
+.wc-ac-ts-door {
+  position: absolute;
+  inset: -4px;
+  border-radius: 5px;
+  outline: none;
+  pointer-events: none;
+}
+
+.wc-ac-ts-door:focus {
+  box-shadow: 0 0 0 1px var(--lk-glass-edge-on), 0 0 0 4px color-mix(in srgb, var(--lk-accent) 14%, transparent);
+}
+
 .wc-ac-ts-slot {
   display: block;
   min-height: 65px;

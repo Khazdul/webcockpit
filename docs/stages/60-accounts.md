@@ -254,6 +254,87 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
         `http://localhost` (the fake simulates the cookie), anything
         against a real Worker, and WebKit (not installed).
 - [ ] The pages in the look kit; phone and tablet with our keyboard.
+
+      First half built 2026-11-14 on branch `stage60-account-pages`:
+      the Account row on the start menu, Turnstile, Log in, Create
+      account, the recovery code page and Recovery
+      (`src/chrome/frames/account/`, a lazy chunk; its `index.tsx`
+      lists the files, and each shared module's header says how the
+      Account page uses it). The Account page is a placeholder
+      (`account-page.tsx`: the name, "Account since", Log out); it and
+      its dialogs are the second half, so the box stays open. Tests: 14
+      unit tests in `tests/unit/account-words.test.ts` (words, the
+      Turnstile mount), `tests/e2e/account-pages.spec.ts` (14 cases,
+      two browsers) and `phone-account-pages.spec.ts` (6 cases), on
+      `cloud-account-fake.ts` and the new `turnstile-stub.ts`. Pictures
+      of every state: `notes/research/account-mockups/built/`
+      (`WC_ACCOUNT_SHOTS=1`). Differences from the brief and the
+      mockups:
+
+      - **The pages are siblings.** One account page stands on the
+        start menu at a time, and going from one to another replaces
+        it (`go` in `form.tsx`). So Back on Create account and Recovery
+        is Log in, Back on Log in is the menu, and nothing in the frame
+        stack leads back to the recovery code. The code page has no
+        Back (`Box noBack`, new in the kit) and takes Esc itself; a
+        reload asks first while the last group is not typed.
+      - **How the row comes in.** The flag is asked on idle time. The
+        row is inserted at once unless a mouse rests on what would
+        move (the rows below it, the panel's foot) or a finger is
+        down; then it waits for the pointer to leave. The cursor is
+        kept by key. No animation.
+      - **Keys on a page with fields.** The frame stack swallows Tab,
+        so the pages have a ring of their own (`useFormKeys`): the
+        fields, then the buttons and links (a drawn cursor, Enter or
+        Space presses). With our own keyboard the ring is the fields
+        only, so the keyboard stays up. Copy and Download on the code
+        page have no key letters (the mockup drew C and D; the page
+        has a field).
+      - **Turnstile and the keyboard.** Cloudflare draws the widget in
+        a closed shadow tree, so the page cannot focus it. The Tab
+        ring stops at a "door" before it; the next Tab is the
+        browser's own and goes in. Size `normal` (300 × 65), `compact`
+        where the box is under 300 px wide.
+      - **Kit additions** (gallery, Controls): `Field` takes `type`
+        (`password`), `autocomplete`, `name`, `disabled` and a hint
+        that is not only text; `Plate`, `TextLink`, `TimeBar`; the
+        icon `key`; `Box noBack`.
+      - **Texts.** As approved, but: the name's format error is "Only
+        a–z, 0–9, _ and -. No spaces." (the mockup's "or capitals" was
+        wrong: capitals are allowed); the lock's sentence on Recovery
+        speaks of the recovery code; during the wait the name field
+        stays open (the lock is the name's).
+      - **`stored: false`** shows the code with a line that this
+        browser is not logged in, then goes to Log in. Not covered by
+        a test (the fake cannot make the store fail after its check).
+      - **The dev server and the local Worker** (`npm run dev:cloud`)
+        could not take a single account POST before this part: Vite's
+        string form of `proxy` sends the Worker's `Host`, so the CSRF
+        rule answered 403 `forbidden`; and since part C
+        `TURNSTILE_HOSTNAMES` names the real hosts, which the test
+        keys (`example.com`) fail. Fixed in `vite.config.ts`
+        (`changeOrigin: false`) and `scripts/dev-cloud.ts`.
+      - **The cookie on plain http** (the owner's question). Walked by
+        a hand-driven Playwright against the real local Worker
+        (`dev:cloud`, Cloudflare's Turnstile test keys, the real
+        script from the network): register, reload, log out, log in,
+        recover. `__Secure-wc_s` (`Secure`, `HttpOnly`,
+        `SameSite=Strict`, `Path=/api/u`) is **accepted and sent
+        back** from `http://localhost:5321` in Chromium and in Firefox,
+        and from `http://127.0.0.1:5321` in both (the dev server must
+        be started with `--host 127.0.0.1` to answer there at all; on
+        that host Firefox was seen logging in and reloading, not
+        registering: the address had used its three registrations).
+        Both are loopback hosts, which the browsers treat as secure.
+        Not tried: a LAN address or a host name over plain http (a
+        phone against the dev machine), where a `Secure` cookie is
+        refused by rule; those need https (the Tailscale name).
+        Playwright's builds, headless; not Safari.
+      - Not done: password managers were not seen saving or filling
+        (the fields have `name` and `autocomplete` in one `<form>`
+        that is handled in script); the real Managed widget and the
+        enforced CSP are staging's; WebKit and iOS are not installed
+        here.
 - [ ] The CSP: report-only on staging, then enforced (Turnstile's
       script and frame included).
       - Done 2026-11-14 (ADR 0144, "As built (stage 60): the

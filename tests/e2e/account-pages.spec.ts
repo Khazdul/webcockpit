@@ -531,6 +531,28 @@ test('Turnstile: not loadable (with a retry), an error, a token that ran out', a
   await link(page, 'ts-retry').click();
   await passTurnstile(page);
   await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+  // By keys: Tab from the last field stops at the widget's door; the browser's own Tab goes in, Space passes it.
+  await ts.expire(page);
+  await field(page, 'again').focus();
+  await page.keyboard.press('Tab');
+  await expect(frame(page).locator('.wc-ac-ts-door')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(frame(page).locator('.wc-fake-turnstile')).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
+  // Passed: the keyboard is the page's again (Enter would press Create, Esc leaves).
+  await expect(frame(page).locator('.wc-fake-turnstile')).not.toBeFocused();
+  // Shift+Tab from the door is the last field; Esc on the door gives the keys back to the page.
+  await ts.expire(page);
+  await field(page, 'again').focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(field(page, 'again')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Escape');
+  await expect(frame(page).locator('.wc-ac-ts-door')).not.toBeFocused();
+  await expect(pageOf(page, 'create')).toBeVisible();
+  await passTurnstile(page);
   // Leaving the page removes the widget.
   const before = await ts.state(page);
   await page.keyboard.press('Escape');

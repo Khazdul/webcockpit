@@ -65,6 +65,8 @@ function script(auto: boolean): string {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'wc-fake-turnstile';
+      // The real widget is a frame of another origin: its keys never reach the page. The same here.
+      b.setAttribute('data-wc-own-keys', '');
       b.style.cssText = 'display:block;box-sizing:border-box;width:' + (o.size === 'compact' ? '150px;height:140px' : '300px;height:65px') + ';margin:0;border:1px solid #5a5a5a;border-radius:3px;background:#232323;color:#d9d9d9;font:14px/1.2 system-ui,sans-serif;text-align:left;padding:0 12px';
       const w = { el, o, b, pass() {
         if (!st.widgets[id]) return;

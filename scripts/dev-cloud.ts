@@ -24,8 +24,8 @@
 // What the accounts need of secrets (stage 60, ADR 0145) is passed as
 // `--var`, so no `.dev.vars` file is needed: Cloudflare's published
 // Turnstile test keys (the widget always passes and siteverify accepts
-// only its dummy token) and a fixed pepper that is no secret. They exist
-// in this local Worker only.
+// only its dummy token), the host name those keys answer for, and a fixed
+// pepper that is no secret. They exist in this local Worker only.
 //
 // Either process ending ends the other; Ctrl-C ends both.
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
@@ -49,6 +49,8 @@ const DEV_VARS = [
   'AUTH_PEPPER:dev-cloud-pepper-not-a-secret-0123456789',
   'TURNSTILE_SECRET:1x0000000000000000000000000000000AA',
   'TURNSTILE_SITE_KEY:1x00000000000000000000AA',
+  // The test keys' siteverify answers for `example.com`; wrangler.jsonc names the real site's hosts (stage 60 part C).
+  'TURNSTILE_HOSTNAMES:example.com',
 ];
 
 const origin = `http://127.0.0.1:${port}`;
