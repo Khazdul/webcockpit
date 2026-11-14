@@ -70,12 +70,12 @@ html.wc-phone .wcf-sky {
 .wc-start,
 #wc-first {
   --wc-panel-w: 360px;
-  --wc-panel-h: 301px;
+  --wc-panel-h: 313px;
 }
 
 html.wc-phone .wc-start,
 html.wc-phone #wc-first {
-  --wc-panel-h: 283px;
+  --wc-panel-h: 295px;
 }
 
 /* A tablet-size window with the phone flag (ADR 0140; stage 56c, the scope
@@ -88,7 +88,7 @@ html.wc-phone #wc-first {
 @media (min-width: 600px) and (min-height: 600px) {
   html.wc-phone .wc-start,
   html.wc-phone #wc-first {
-    --wc-panel-h: 301px;
+    --wc-panel-h: 313px;
     --wc-start-drop: max(
       0px,
       (100vh - 0.283 * clamp(250px, 32vw, 520px) - var(--wc-brand-gap) - var(--wc-panel-h) - 130px) / 2 - var(--wc-brand-top) - var(--wc-brand-pad)

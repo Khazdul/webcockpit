@@ -68,7 +68,7 @@ test('the menu grows into the large box and shrinks back; the wordmark lifts awa
   // `k` on the menu opens the gallery again: the box has its final size from its first frame.
   const open = await watch(page, () => page.keyboard.press('k'));
   expect(open.flew).toBe(true);
-  const sizes = [...new Set(open.frames.map((f) => f.box).filter((b) => b && b !== '360x301'))];
+  const sizes = [...new Set(open.frames.map((f) => f.box).filter((b) => b && b !== '360x313'))];
   expect(sizes).toHaveLength(1);
   // The wordmark lifts away while the box grows.
   expect(open.frames.at(-1)!.brand).toBe(0);

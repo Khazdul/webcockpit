@@ -555,7 +555,7 @@ for (const [name, viewport] of [
       expect((await box(f.locator('.wc-sm-item[data-key="history"]'))).height).toBe(42);
       expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(32);
       expect((await box(f.locator('.wc-sm-item[data-key="enter"]'))).height).toBe(56);
-      expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(301, 0);
+      expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(313, 0);
       // What is seen (the mark, the panel, the quote) is inside the window, and upright it is
       // in the middle: the sky above and below differ by 80 px at most (a quote is two or three lines).
       const mark = page.locator('.wc-start .wc-start-brand [data-wcw="iron"]');
@@ -777,6 +777,6 @@ test('round 56c leaves a phone-size window\'s start menu as it was: at the top, 
   const f = start(page);
   expect((await box(f.locator('.wc-sm-item[data-key="history"]'))).height).toBe(38);
   expect((await box(f.locator('.wc-sm-item[data-key="about"]'))).height).toBe(34);
-  expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(283, 0);
+  expect((await box(f.locator('.wc-sm-panel'))).height).toBeCloseTo(295, 0);
   expect(await page.locator('.wc-start').evaluate((el) => getComputedStyle(el).getPropertyValue('--wc-start-drop').trim())).toBe('0px');
 });

@@ -187,7 +187,14 @@ The owner picked from the mockups of round 8
   with `<n>` new (for the e2e specs and the screenshots; a press says
   "Coming in a later stage."); a production build folds it away.
 - **The second rule** is only drawn with Community: without it there is
-  nothing to part, and About as the quiet last row ends the panel.
+  nothing to part, and About as the quiet last row ends the panel. Its
+  4 px over it are `.wc-sm-sep ~ .wc-sm-sep` (the first rule keeps 2 px;
+  a review found `.wc-sm-item + .wc-sm-sep` matched both).
+- **The menu's messages** ("Logged out.", "Coming in a later stage.",
+  errors) have a line of their own, 18 px between the last row and
+  About, which they never cover: About stays readable and clickable
+  while a message shows (review fix; at first the message sat at the
+  panel's foot, over About).
 - **The owner row** is `data-key="owner"` (stage 60's row was
   `account`). It spans from the rows' icon column to the panel's right
   edge with `contain: inline-size`, so its text never widens the rows'
@@ -206,8 +213,9 @@ The owner picked from the mockups of round 8
   back until the pointer moves (stage 60's row was low in the menu and
   seldom waited).
 - **The panel's heights** in the first form (no owner row, no
-  Community): 301 px on a desktop and a tablet (was 399), 283 px on a
-  phone (was 357). `--wc-panel-h` (the first paint's loading panel and
+  Community): 313 px on a desktop and a tablet (was 399), 295 px on a
+  phone (was 357); first built as 301 and 283, then −2 px for the first
+  rule's margin and +14 px for the message line (review fixes). `--wc-panel-h` (the first paint's loading panel and
   the tablet's centring) follows the first form; with accounts on, the
   panel grows by the owner row when it comes in, as in stage 60.
 - **Spotlights and the Diary** have no menu row and no letter; they are

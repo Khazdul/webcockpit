@@ -283,9 +283,13 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   width: min(var(--wc-panel-w), 100%);
 }
 
-/* (The foot: About's quiet row stands in the panel's lower margin.) */
+/* (The foot: About's quiet row stands in the panel's lower margin.
+ * `--wc-sm-foot-h` is its height and `--wc-sm-pad-b` the padding under
+ * it: the menu's messages stand on the two.) */
 .wc-sm-win {
-  padding: 32px 12px 12px;
+  --wc-sm-foot-h: 32px;
+  --wc-sm-pad-b: 12px;
+  padding: 32px 12px var(--wc-sm-pad-b);
 }
 
 /* The rows form one left-aligned group, centred in the panel: the middle
@@ -409,7 +413,7 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
 }
 
 /* The second rule (stage 67) parts "mine" from Community. */
-.wc-sm-item + .wc-sm-sep {
+.wc-sm-sep ~ .wc-sm-sep {
   margin-top: 4px;
 }
 
@@ -430,12 +434,12 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
 }
 
 /* About, the panel's last and quiet row: small, no icon, centred across
- * the panel. */
+ * the panel. The space over it is the menu's message line (.wc-sm-flash). */
 .wc-sm-item.is-foot {
   grid-column: 1 / -1;
   justify-content: center;
-  height: 32px;
-  margin-top: 4px;
+  height: var(--wc-sm-foot-h);
+  margin-top: var(--wc-sm-flash-h);
   font-size: 11px;
   letter-spacing: 0.28em;
   color: var(--lk-faint);
@@ -624,12 +628,18 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   transform: translateX(3px);
 }
 
-/* Messages ("Loading spotlights…", errors) at the foot of the panel. */
+/* Messages ("Logged out.", errors, "Coming in a later stage.") in their
+ * own line between the last row and About, which they never cover. */
+.wc-sm-win {
+  --wc-sm-flash-h: 18px;
+}
+
 .wc-sm-flash {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: 3px;
+  bottom: calc(var(--wc-sm-pad-b) + var(--wc-sm-foot-h));
+  height: var(--wc-sm-flash-h);
 }
 
 /* ------------------------------------------------------------ the quote (style A) */
@@ -752,7 +762,10 @@ html.wc-phone .wc-sm-item.is-prime {
 }
 
 html.wc-phone .wc-sm-win {
+  --wc-sm-foot-h: 34px;
+  --wc-sm-pad-b: 10px;
   padding-top: 30px;
+  padding-bottom: var(--wc-sm-pad-b);
 }
 
 html.wc-phone .wc-sm-item.wc-sm-owner {
@@ -766,7 +779,7 @@ html.wc-phone .wc-so-news {
 }
 
 html.wc-phone .wc-sm-item.is-foot {
-  height: 34px;
+  height: var(--wc-sm-foot-h);
   font-size: 10.5px;
 }
 
@@ -815,7 +828,9 @@ html.wc-phone .wc-alm-o {
   }
 
   html.wc-phone .wc-sm-win {
-    padding: 32px 12px 12px;
+    --wc-sm-foot-h: 32px;
+    --wc-sm-pad-b: 12px;
+    padding: 32px 12px var(--wc-sm-pad-b);
   }
 
   html.wc-phone .wc-sm-item.wc-sm-owner {
@@ -829,7 +844,7 @@ html.wc-phone .wc-alm-o {
   }
 
   html.wc-phone .wc-sm-item.is-foot {
-    height: 32px;
+    height: var(--wc-sm-foot-h);
     font-size: 11px;
   }
 }
