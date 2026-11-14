@@ -83,8 +83,14 @@ export function accountState(): AccountState {
   return { enabled, name: readHint(), lastName: readLast() };
 }
 
+/** What the listeners were last told, so that a change of nothing (two storage events of one login) is not told twice. */
+let told: string | null = null;
+
 function emit(): void {
   const state = accountState();
+  const now = JSON.stringify(state);
+  if (now === told) return;
+  told = now;
   for (const fn of [...listeners]) {
     try {
       fn(state);
@@ -97,8 +103,9 @@ function emit(): void {
 /**
  * Calls `fn` with the new state whenever it changes: a flow of this tab
  * logged in or out, another tab did, or the flags arrived. Not called at
- * once: read `accountState()` for the first value. Returns the
- * unsubscribe function.
+ * once: read `accountState()` for the first value. One change can come
+ * as two calls (another tab's login sets `lastName`, then `name`).
+ * Returns the unsubscribe function.
  */
 export function onAccountState(fn: Listener): () => void {
   listeners.add(fn);
@@ -142,8 +149,9 @@ export function watchAccountState(): Promise<AccountState> {
 export function noteLoggedIn(name: string): void {
   try {
     const s = storage();
-    s?.setItem(ACCOUNT_HINT_KEY, JSON.stringify({ name }));
+    // The prefill first: another tab hears of each write by itself.
     s?.setItem(ACCOUNT_LAST_KEY, name);
+    s?.setItem(ACCOUNT_HINT_KEY, JSON.stringify({ name }));
   } catch {
     /* storage full or blocked: the start page will say "log in" */
   }
@@ -168,6 +176,7 @@ export function noteLoggedOut(o: { forgetName?: boolean } = {}): void {
 /** Tests: forget the flag and the listeners. */
 export function resetAccountStateForTest(): void {
   listeners.clear();
+  told = null;
   enabled = null;
   watching = null;
 }
