@@ -1,9 +1,8 @@
 # Stage 67 — The start menu and History with tabs
 
-Status: **In progress.** Part A done 2026-11-14: the mockups of round
-8 and the owner's seven picks (Owner feedback below; ADR 0149,
-addendum). Part B is laid out as agent tasks and **waits for the
-owner's word** before it starts.
+Status: **Done.** Released 0.11.0 (2026-11-14) with the enforced CSP
+in production, after the owner's test on staging. The flag `accounts`
+stays off in production.
 
 Done before stage 61 though it has a higher number (spec §7.12: the
 order is 67, 61, 62, 63, then accounts open, then 64–66).
@@ -259,10 +258,14 @@ merge: this branch's version of its menu tests is the one to keep.
       automated browser makes no API request and so never gets the
       flag. Flag off: the local production build's `test:prod` CSP
       spec, 8/8, and the e2e specs of the first form.)
-- [ ] Owner test on staging (test guide below). Stage 60's step 13
-      done 2026-11-14.
-- [ ] Release to everybody: the new menu, `production: true` in
-      `scripts/csp.ts`. The flag `accounts` stays off.
+- [x] Owner test on staging (test guide below): "Ser bra ut". Stage
+      60's step 13 done 2026-11-14.
+- [x] Release to everybody: the new menu, `production: true` in
+      `scripts/csp.ts`. The flag `accounts` stays off. (0.11.0, tag
+      `v0.11.0`: deploy and Pages green; D1 migration 0002 (the account
+      tables) applied to production; the live site sends
+      `Content-Security-Policy`, enforced; `test:prod` 30/30 on
+      mumecockpit.com; `/api/config` there: `accounts` off.)
 
 ## Test guide (owner)
 
@@ -336,3 +339,7 @@ Mockups: `notes/research/start-menu-mockups/round8/` (README,
 
 Said to the owner about the pictures: Spotlights has only five cards;
 the Diary on the phone is not laid out again for the lower height.
+
+### 2026-11-14 — after the test on staging
+
+"Ser bra ut. Kör på": released as 0.11.0 the same evening.
