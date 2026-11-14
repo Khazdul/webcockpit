@@ -189,6 +189,11 @@ class PageSync implements Runtime {
       void sessionLost(out.reason);
       return out;
     }
+    if (out && out.type !== 'synced') {
+      // The engine stopped before it counted: what waits on this device, for the Account page and Log out.
+      const waiting = (await this.engine.unsynced().catch(() => null))?.length;
+      if (waiting !== undefined && !this.stopped) patchSyncView({ status: { ...this.engine.status.get(), waiting } });
+    }
     await this.lines().catch(() => {});
     return out;
   }

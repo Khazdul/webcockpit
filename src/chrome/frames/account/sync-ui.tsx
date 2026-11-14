@@ -117,7 +117,7 @@ export function SyncSection(p: { at: string | null }): VNode | null {
   return (
     <>
       <Rule title="Sync" id="sync" />
-      <div class={'wc-ac-sync' + (s.state === 'full' ? ' is-full' : '')} data-sync={s.state}>
+      <div class={'wc-ac-sync' + (s.state === 'full' ? ' is-full' : '')} data-sync={s.state} data-synced-at={s.lastSynced ?? undefined}>
         <div class="wc-ac-sync-st">
           <span class={`wc-so-mark is-${MARK[s.state]}`} aria-hidden="true" />
           <span class="wc-ac-sync-w">{words}</span>

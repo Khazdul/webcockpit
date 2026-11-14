@@ -249,9 +249,17 @@ function useFlashRoom(menu: { current: HTMLUListElement | null }): void {
     };
     put();
     if (typeof ResizeObserver !== 'function') return;
-    const ro = new ResizeObserver(put);
+    // The change of layout waits for the next frame (inside the observer's call it would loop).
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(put);
+    });
     ro.observe(line);
-    return () => ro.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+    };
   }, []);
 }
 

@@ -63,9 +63,11 @@ import {
   SALT_MIN_BYTES,
   SESSION_SECONDS,
   TURNSTILE_MAX_LENGTH,
+  type SessionEndReason,
   WRAP_MAX_BYTES,
   WRAP_MIN_BYTES,
 } from '../../shared/cloud/api';
+import { ServerModel } from '../unit/cloud-sync-model';
 
 /** Cloudflare's published test site key (always passes). */
 export const FAKE_SITE_KEY = '1x00000000000000000000AA';
@@ -257,6 +259,12 @@ export class FakeAccountServer {
   private reserved = new Set<string>(RESERVED);
   private tickets = new Map<string, { key: string; recoveryAuth: string; expires: number }>();
   private usedTokens = new Set<string>();
+  /** Ended sessions' tokens and why (stage 61). */
+  private ended = new Map<string, SessionEndReason>();
+  /** The accounts' items (stage 61). */
+  private models = new Map<string, ServerModel>();
+  /** The sync's requests fail as if the network were down (the other account requests answer). */
+  syncOffline = false;
 
   // --- For the tests ---
 
@@ -313,8 +321,62 @@ export class FakeAccountServer {
   }
 
   /** Ends every session of an account, as another device's "End all others" or a password change would. */
-  endSessions(name: string): void {
-    for (const s of this.sessionsOf(name.toLowerCase())) this.sessions.delete(s.token);
+  endSessions(name: string, reason: SessionEndReason = 'ended'): void {
+    for (const s of this.sessionsOf(name.toLowerCase())) this.drop(s.token, reason);
+  }
+
+  /** Ends one session and keeps why (stage 61: `401 session_ended` with the reason, as worker/sessions.ts). */
+  private drop(token: string, reason: SessionEndReason): void {
+    this.sessions.delete(token);
+    this.ended.set(token, reason);
+  }
+
+  /** The 401 for a cookie without a live session: why it ended when the server knows (stage 61), else `unauthorized`. */
+  private gone(cookie: string | null): FakeResponse {
+    const reason = cookie !== null ? this.ended.get(cookie) : undefined;
+    return reason ? { status: 401, body: { error: 'session_ended', reason } } : err('unauthorized', 401);
+  }
+
+  /** The account's items (stage 61): the in-memory model of the sync API (tests/unit/cloud-sync-model.ts). */
+  items(name: string): ServerModel {
+    const key = name.toLowerCase();
+    let m = this.models.get(key);
+    if (!m) {
+      m = new ServerModel();
+      this.models.set(key, m);
+    }
+    return m;
+  }
+
+  /**
+   * A sync request (`/api/u/sync/…`, stage 61): the flags `accounts` and
+   * `sync`, the CSRF rule, the session, then the account's model. `bytes`
+   * is a PUT's body.
+   */
+  sync(req: FakeRequest, cookie: string | null, bytes: Uint8Array | null): FakeResponse | 'offline' {
+    if (this.syncOffline) return 'offline';
+    if (this.flags.accounts !== true || this.flags.sync !== true) return err('not_found', 404);
+    if (req.method !== 'GET' && !(req.headers['x-wc'] === '1' && req.headers.origin === req.origin)) return err('forbidden', 403);
+    let session = cookie !== null ? (this.sessions.get(cookie) ?? null) : null;
+    if (session && session.expires <= this.clock) {
+      this.drop(session.token, 'expired');
+      session = null;
+    }
+    if (!session) return this.gone(cookie);
+    const model = this.items(session.account);
+    model.ended = null;
+    let a: { status: number; body: unknown };
+    if (req.path === '/api/u/sync/changes' && req.method === 'GET') {
+      const q = new URLSearchParams(req.search ?? '');
+      const limit = q.get('limit');
+      a = model.changes(Number(q.get('since') ?? 0), limit === null ? undefined : Number(limit));
+    } else if (req.path.startsWith('/api/u/sync/items/') && (req.method === 'PUT' || req.method === 'DELETE')) {
+      const [kind, id] = req.path.slice('/api/u/sync/items/'.length).split('/');
+      const ifMatch = req.headers['if-match'];
+      if (ifMatch === undefined) return err('if_match_required', 428);
+      a = req.method === 'PUT' ? model.put(kind ?? '', id ?? '', Number(ifMatch), bytes ?? new Uint8Array(0)) : model.remove(kind ?? '', id ?? '', Number(ifMatch));
+    } else return err('not_found', 404);
+    return { status: a.status, body: a.body };
   }
 
   /** Damages the stored password wrap (what `corrupt_wrap` is for): the same wrap with its last byte changed. */
@@ -403,10 +465,14 @@ export class FakeAccountServer {
     let session: SessionRow | null = null;
     if (path.startsWith('/api/u/')) {
       session = cookie !== null ? (this.sessions.get(cookie) ?? null) : null;
-      if (session && session.expires <= this.clock) session = null;
+      if (session && session.expires <= this.clock) {
+        this.drop(session.token, 'expired');
+        session = null;
+      }
       if (!session) {
+        const answer = this.gone(cookie);
         if (cookie !== null) setCookie(null);
-        return err('unauthorized', 401);
+        return answer;
       }
     }
     const account = session ? this.accounts.get(session.account) : undefined;
@@ -422,7 +488,7 @@ export class FakeAccountServer {
       case 'POST /api/auth/recover':
         return this.recover(req, setCookie);
       case 'POST /api/u/auth/logout':
-        this.sessions.delete(session!.token);
+        this.drop(session!.token, 'logout');
         setCookie(null);
         return { status: 204 };
       case 'GET /api/u/account':
@@ -626,7 +692,7 @@ export class FakeAccountServer {
     }
     // The new password, every older session ended, a new one made.
     Object.assign(row, password);
-    this.endSessions(key);
+    this.endSessions(key, 'recovered');
     const session = this.newSession(key, label);
     this.takeBack(counter, n);
     setCookie(session.token);
@@ -668,7 +734,7 @@ export class FakeAccountServer {
     if (typeof proven !== 'function') return proven;
     if (!this.stillProven(account, b.authKey)) return err('invalid_login', 401);
     Object.assign(account, next);
-    for (const s of this.sessionsOf(account.key)) if (s.token !== session.token) this.sessions.delete(s.token);
+    for (const s of this.sessionsOf(account.key)) if (s.token !== session.token) this.drop(s.token, 'password');
     proven();
     return { status: 204 };
   }
@@ -688,13 +754,13 @@ export class FakeAccountServer {
 
   private endSession(id: string, account: AccountRow, session: SessionRow, setCookie: (t: string | null) => void): FakeResponse {
     if (id === OTHER_SESSIONS) {
-      for (const s of this.sessionsOf(account.key)) if (s.token !== session.token) this.sessions.delete(s.token);
+      for (const s of this.sessionsOf(account.key)) if (s.token !== session.token) this.drop(s.token, 'ended');
       return { status: 204 };
     }
     if (!/^[A-Za-z0-9_-]{16}$/.test(id)) return err('not_found', 404);
     const gone = this.sessionsOf(account.key).find((s) => s.id === id);
     if (!gone) return err('not_found', 404);
-    this.sessions.delete(gone.token);
+    this.drop(gone.token, 'ended');
     if (gone.token === session.token) setCookie(null);
     return { status: 204 };
   }
@@ -713,8 +779,9 @@ export class FakeAccountServer {
     if (typeof proven !== 'function') return proven;
     if (!this.stillProven(account, b.authKey)) return err('invalid_login', 401);
     this.reserved.add(account.key);
-    this.endSessions(account.key);
+    this.endSessions(account.key, 'deleted');
     this.accounts.delete(account.key);
+    this.models.delete(account.key);
     proven();
     setCookie(null);
     return { status: 204 };
@@ -729,6 +796,13 @@ export class FakeBrowser {
 
   constructor(server: FakeAccountServer) {
     this.server = server;
+  }
+
+  /** A sync request from this browser (stage 61). */
+  syncRequest(req: FakeRequest, bytes: Uint8Array | null): FakeResponse | 'offline' {
+    const res = this.server.sync(req, this.cookie, bytes);
+    if (res !== 'offline' && res.status === 401) this.cookie = null;
+    return res;
   }
 
   /** One request from this browser. `offline`: the connection failed. `hang`: no answer ever comes. */
@@ -794,6 +868,15 @@ export async function fakeAccountApi(page: Page, o: { server?: FakeAccountServer
     if (url.pathname === '/api/config') return json(200, server.config());
     if (url.pathname === '/api/beat') return route.fulfill({ status: 204 });
     if (!url.pathname.startsWith('/api/auth/') && !url.pathname.startsWith('/api/u/')) return json(404, { error: 'not_found' });
+    if (url.pathname.startsWith('/api/u/sync/')) {
+      const buf = req.postDataBuffer();
+      const r = browser.syncRequest(
+        { method: req.method(), path: url.pathname, search: url.search, headers: await req.allHeaders(), body: null, origin: url.origin },
+        buf ? new Uint8Array(buf) : null,
+      );
+      if (r === 'offline') return route.abort('connectionrefused');
+      return json(r.status, r.body);
+    }
     const res = browser.request({
       method: req.method(),
       path: url.pathname,
