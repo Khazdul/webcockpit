@@ -69,6 +69,15 @@ export function noteCreated(name: string): void {
   }
 }
 
+/** The account made here went to its Account page without a move (the flag `sync` off): nothing to move later. */
+export function forgetCreated(): void {
+  try {
+    globalThis.localStorage?.removeItem(CREATED_KEY);
+  } catch {
+    /* nothing kept */
+  }
+}
+
 function takeCreated(nameKey: string): boolean {
   try {
     const s = globalThis.localStorage;

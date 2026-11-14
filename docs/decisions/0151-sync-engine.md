@@ -265,3 +265,45 @@ delete beating an edit, no keep-both copy) fails them at once.
   rev brings the item back, whether tombstones count against the
   2 000 items (here: no), and which of `409` and `413` comes first
   (here: `409`). Part B2 and the contract agree on these before part C.
+
+## As built (stage 61 C)
+
+Branch `stage61-flows`. Part C's code is `src/cloud/space/` (loaded with
+`import()`), `src/cloud/sync-view.ts` (what the start menu and the
+Account page read; in the chrome chunk) and `src/core/store-events.ts`.
+
+- **The `sync` store's rows** are `{kind, key: serverId, rec}`: the
+  store's keyPath `['kind', 'key']` (B1) is filled with the server id,
+  since the engine keys its records by server id and a record's local key
+  may be null.
+- **Seeds:** `default` and `khazdul` are seeded with fixed ids
+  (`seed-default`, `seed-khazdul`) and a fixed time (`SEED_TIME`) on every
+  device and in every account's space; the version 9 upgrade gives the
+  existing seeds those ids (unreleased, so no device has random ones but
+  dev and staging). An *untouched* seed (a seed's name and its text,
+  `src/profiles/seeds.ts`) is no item until it has a sync record:
+  `LocalItems.list` leaves it out, the move leaves it on the device, and a
+  pulled item of its name replaces it (the profile store is keyed by
+  name). An edited seed is one item for the whole account.
+- **Script names:** when the sync gives a script another name (keep both,
+  a collision), the adapter rewrites the header's `@name` too, so a later
+  save does not rename it back; the rewrite is pushed by the next sync as
+  an edit (one extra write).
+- **Keep both's mark** ("kept both", profiles only) is a list of profile
+  ids in localStorage per space (`wc.keptBoth`), cleared when the copy is
+  opened or renamed. The notice's text uses `keepBothName` as it is.
+- **In use** during play: the selected profile's id (by its name in the
+  settings) and the enabled user scripts' ids; "playing" is the start
+  page hidden (`setPlaying`, src/chrome/index.tsx).
+- **Triggers** as the decision says; the 5 s after a change come from
+  `noteStored` (the profile store after a write, the script library after
+  a write of the `scripts` store); the runtime's own writes do not note.
+  After a failed sync the runtime counts what waits (`unsynced()`) for the
+  Account page and Log out, since the engine stops before it counts.
+- **`session_ended`** (sync or any account call): the account client's
+  `ApiFailure` carries the reason; the flows log the device out and hand
+  the reason to the space flows (`sessionLost`), and the pages still get
+  `unauthorized`. A lost session during play waits for the start page.
+- **The Remote over fetch** gives up after 20 s (`offline`).
+- **The contract's missing item** is now the Worker's too: `409` with a
+  tombstone of rev 0, a conflict before a `413` (ADR 0146 as built C).

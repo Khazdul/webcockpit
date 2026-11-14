@@ -15,7 +15,7 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { createAccountSpace, enterAccount, removeLocked, spacesOn } from '../../../cloud/space/flows';
+import { createAccountSpace, enterAccount, forgetCreated, removeLocked, spacesOn } from '../../../cloud/space/flows';
 import { type LockedNotice, type SyncView, onSyncView, syncNow, syncView } from '../../../cloud/sync-view';
 import { currentSpace } from '../../../core/space';
 import { Dialog, GlassButton, Icon, Rule, lookFrame } from '../../kit/look';
@@ -37,7 +37,9 @@ export async function intoAccount(nav: Nav, name: string, message?: string): Pro
 /** After Create account's recovery code: the move into the account's space, or to the Account page (flag `sync` off). */
 export async function intoNewAccount(nav: Nav, name: string): Promise<void> {
   try {
-    if (currentSpace().kind === 'device' && (await spacesOn()) && (await createAccountSpace(name))) return;
+    if (currentSpace().kind === 'device' && (await spacesOn())) {
+      if (await createAccountSpace(name)) return;
+    } else forgetCreated();
   } catch {
     /* the move could not start: the next load tries again (`reconcile`) */
   }
