@@ -96,8 +96,48 @@ function releaseFocus(el: HTMLElement | null): void {
   el.closest<HTMLElement>('.wc-stack')?.focus({ preventScroll: true });
 }
 
+/**
+ * The key that opened a dialog must not answer it (stage 60 review: `L`
+ * opens Log out and `L` confirms it, so a held or doubled key did both).
+ * The last key pressed on the page is remembered here, and a dialog reads
+ * it when it mounts. Two rules:
+ *
+ * - key repeat never presses a button (a letter, Enter, Space): a held
+ *   key acts once, and cannot answer before it has been let go;
+ * - the opening LETTER pressed again within `DOUBLE_MS` of the dialog's
+ *   mount does not press either (a doubled key). Any other key, and the
+ *   same letter after that, work at once. Enter and Space are left out
+ *   of this rule on purpose: "Enter, Enter" typed ahead through a row
+ *   and its question is how a keyboard user works, and no dialog that
+ *   Enter opens destroys anything on its primary button without asking.
+ */
+export const DOUBLE_MS = 350;
+const KEY_IS_OPENER_MS = 1000;
+const lastKey = { code: '', at: 0 };
+const clock = (): number => globalThis.performance?.now?.() ?? Date.now();
+const codeOf = (e: KeyboardEvent): string => e.code || e.key;
+if (typeof window !== 'undefined') {
+  // Capture phase, registered before any frame stack's listener: it has seen the key when the dialog mounts.
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.repeat) return;
+      lastKey.code = codeOf(e);
+      lastKey.at = clock();
+    },
+    true,
+  );
+}
+
 /** A dialog: a small Lykta box with a hood title, its content, an error line and a row of buttons. */
 export function Dialog(p: DialogProps): VNode {
+  /** The key that opened this dialog (pressed just before it mounted), and when it mounted. */
+  const [opener] = useState(() => {
+    const at = clock();
+    return { code: at - lastKey.at < KEY_IS_OPENER_MS ? lastKey.code : '', at };
+  });
+  /** The opening letter, doubled. */
+  const doubled = (e: KeyboardEvent): boolean => opener.code !== '' && codeOf(e) === opener.code && clock() - opener.at < DOUBLE_MS;
   const [walked, setWalked] = useState<number | null>(null);
   const pr = useRef(p);
   pr.current = p;
@@ -130,7 +170,7 @@ export function Dialog(p: DialogProps): VNode {
     // The owner's ring took Tab, Enter and Space before this; what is left is the field's, or held.
     if (q.at !== undefined) return field ? false : nk !== null || (plain(e) && e.key.length === 1);
     if (e.key === 'Enter' && plain(e) && !(textarea && e.shiftKey)) {
-      press();
+      if (!e.repeat) press();
       return true;
     }
     if (nk === 'tab' || nk === 'backtab') {
@@ -143,11 +183,11 @@ export function Dialog(p: DialogProps): VNode {
       const l = letterOf(e);
       const byLetter = l ? q.buttons.find((b) => b.letter?.toLowerCase() === l && !b.disabled) : undefined;
       if (byLetter) {
-        byLetter.run();
+        if (!e.repeat && !doubled(e)) byLetter.run();
         return true;
       }
       if (nk === 'activate') {
-        press();
+        if (!e.repeat) press();
         return true;
       }
       if ((nk === 'left' || nk === 'right') && enabled().length > 1) {
