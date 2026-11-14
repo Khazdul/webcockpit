@@ -93,6 +93,8 @@ const startSel = (host: HTMLElement) => frameEl(host).querySelector('.wc-sm-item
 describe('filtered empty pages (start page)', () => {
   // Stage 46 (ADR 0131): Spotlights has no pages of its own for these any
   // more; no data and nothing passing are states of its wall. The
+  // specs below reach the wall as a player does since stage 67: History,
+  // then its Spotlights tab.
 
   /** A run of Rasta's with a level-up and a death, its log, and the library over it. */
   function rastaLib(): RunLibrary {
