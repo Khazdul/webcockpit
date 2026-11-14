@@ -5,7 +5,9 @@
 // no database there, so the beat answers 503 and the flags are off.
 //
 //   GET  /api/health          { ok, version, commit } of the deployed build
-//   GET  /api/config          { flags }: the server flags (max-age 60)
+//   GET  /api/config          { flags, turnstileSiteKey, limits, time }
+//                             (max-age 60)
+//   /api/auth/*, /api/u/*     the accounts (worker/auth.ts; flag `accounts`)
 //   POST /api/beat            a usage beat (ADR 0147); 204
 //   GET  /api/stats/public    { online, playing } (public, max-age 60)
 //   GET  /api/admin/stats     the admin page's numbers (Access)
@@ -24,9 +26,10 @@
 // here; on staging (`NOINDEX`) every answer of the Worker gets
 // `X-Robots-Tag: noindex`.
 
-import { type AdminFlag, type Config, type Health, type PublicStats } from '../shared/cloud/api.ts';
+import { type AdminFlag, type Config, DEFAULT_ACCOUNT_LIMITS, type Health, type PublicStats } from '../shared/cloud/api.ts';
 import { verifyAccess } from './access.ts';
 import { ADMIN_CSP, ADMIN_CSS, ADMIN_HTML, ADMIN_JS } from './admin/page.ts';
+import { accountApi, isAccountPath, sameSite } from './auth.ts';
 import { adminFlags, flags, isFlagName, setFlag } from './flags.ts';
 import { DEFAULT_DEPS, type Deps, type Env, error, json, truthy } from './runtime.ts';
 import { MAX_BEAT_BYTES, adminStats, parseBeat, publicStats, readCapped, recordBeat } from './stats.ts';
@@ -97,13 +100,29 @@ async function statsPublic(_request: Request, env: Env, _url: URL, deps: Deps): 
   }
 }
 
+/**
+ * `GET /api/config`: the flags, and what the account pages need before a
+ * login: the Turnstile site key (public by its nature), the default
+ * limits and the server's time (as old as the cache lets it be).
+ */
+async function config(_request: Request, env: Env, _url: URL, deps: Deps): Promise<Response> {
+  const now = deps.now();
+  const answer: Required<Config> = {
+    flags: await flags(env, now),
+    turnstileSiteKey: typeof env.TURNSTILE_SITE_KEY === 'string' ? env.TURNSTILE_SITE_KEY : '',
+    limits: DEFAULT_ACCOUNT_LIMITS,
+    time: now,
+  };
+  return json(answer, 200, MINUTE_CACHE);
+}
+
 /** The API's routes: path → method → handler. */
 const ROUTES: Record<string, Record<string, Handler>> = {
   '/api/health': {
     GET: async (_request, env, url) => json({ ok: true, ...(await release(env, url.origin)) } satisfies Health),
   },
   '/api/config': {
-    GET: async (_request, env, _url, deps) => json({ flags: await flags(env, deps.now()) } satisfies Config, 200, MINUTE_CACHE),
+    GET: config,
   },
   '/api/beat': { POST: beat },
   '/api/stats/public': { GET: statsPublic },
@@ -133,11 +152,6 @@ function adminFile(_request: Request, _env: Env, url: URL): Response {
 async function adminStatsRoute(_request: Request, env: Env, _url: URL, deps: Deps): Promise<Response> {
   if (!env.DB) return error('unavailable', 503);
   return json(await adminStats(env, env.DB, deps.now()));
-}
-
-/** State-changing admin requests: `X-WC: 1` and an Origin that is this site's (spec §7.1). */
-function sameSite(request: Request, url: URL): boolean {
-  return request.headers.get('x-wc') === '1' && request.headers.get('origin') === url.origin;
 }
 
 async function adminFlagRoute(request: Request, env: Env, url: URL, deps: Deps): Promise<Response> {
@@ -200,6 +214,7 @@ async function route(request: Request, env: Env, deps: Deps): Promise<Response> 
     return dispatch(request, env, url, deps, adminRoute(path));
   }
   if (path !== '/api' && !path.startsWith('/api/')) return env.ASSETS.fetch(request);
+  if (isAccountPath(path)) return accountApi(request, env, url, deps);
   return dispatch(request, env, url, deps, Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined);
 }
 
