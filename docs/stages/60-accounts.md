@@ -1,10 +1,45 @@
 # Stage 60 — Accounts
 
-Status: **Built, on staging, waits for the owner's test** (2026-11-14).
+Status: **Built, on staging, waits for the owner's test; not to be
+released on its own** (2026-11-14, see "After the session" below).
 Server, crypto, the client core, the pages and the CSP are built,
 reviewed and deployed to staging with the flag `accounts` on and the
 policy enforced there. Not released; production is untouched (flag off,
 policy report-only from the next release). The test guide is below.
+
+## After the session of 2026-11-14 (the start menu, the account, the community)
+
+The owner's decisions (`notes/start-menu-decisions.md`; ADR 0146
+addendum, ADR 0149) change the plan around this stage. The server, the
+crypto, the flows and the pages Log in, Create account, recovery code,
+Recovery and Account stand as built.
+
+**The release:** the flag `accounts` stays **off in production until
+stage 63 is done**; accounts then open together with sync and runs.
+Stage 60 stays on staging. The enforced CSP goes to production with
+the release of stage 67, after the owner's step 13 below.
+
+**What of the built stage changes, and where:**
+
+| What | Becomes | Stage |
+|---|---|---|
+| The row `ACCOUNT (log in)`, key U | The owner row ("On this device · log in" / "<name> · synced"), key U | 67 |
+| The menu's letters L (Spotlights) and C (Credits) | History's tabs; C is the Community | 67 |
+| The Log out dialog ("Your profiles, scripts and runs on this device stay as they are.") | Log out removes the account's copy; the dialog lists what is not in the account | 61 (first form), 62 (in full), 63 (runs) |
+| A lost session logs the device out at once | The copy is kept locked when it holds unsynced things; the server says why the session ended | 61 |
+| Delete account: "What stays: what is on this device" | The account's things are handed back to this device; the text says so | 61 |
+| After Create account: straight to the Account page | The device's things move into the account; a line says what moved | 61 (63 for runs) |
+| The registration's six points | Point 1 names Comm history, point 4 the notice board | 62, 65 |
+| The `galleryNotice` pref (server, unseen) | Removed; the menu's counter replaces the notice | 65 |
+| The Account page | Gets Published runs (64); never gets the safety copy or the notice switch | 64 |
+
+Until stage 61 is built the Log out dialog's text on staging is true
+(nothing syncs).
+
+**The owner's test below is still wanted,** when it suits: the flows,
+the texts, the phone and tablet, a password manager, and step 13 (the
+CSP). Skip judging step 1 (the row) and the Log out dialog's wording:
+both are replaced.
 
 ## Goal
 
@@ -508,8 +543,10 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
       is accepted and sent back on `http://localhost` and
       `http://127.0.0.1` in Chromium and Firefox. Not tried: Firefox
       and Safari against staging, a real phone, a password manager.
-- [ ] Owner test of the pages on staging; release (with
-      `production: true` in `scripts/csp.ts`); the flag on.
+- [ ] Owner test of the pages on staging. (Changed 2026-11-14: no
+      release of accounts from this stage. The CSP's `production:
+      true` goes with stage 67's release; the flag goes on after
+      stage 63.)
 
 ## Test guide (owner)
 
@@ -578,8 +615,8 @@ address may register three accounts an hour.
 - iPhone and Safari, if you have them at hand: nothing of this has run
   in WebKit.
 
-**Then:** your word for the release; with it the policy is enforced in
-production and the flag `accounts` is turned on (admin page).
+**Then** (changed 2026-11-14): your feedback goes into stages 67 and
+61. Nothing is released from this stage alone.
 
 Left on staging by the session: one test account, `wctestq7z7cg`,
 logged out (the first walk stopped after its log out). It does no

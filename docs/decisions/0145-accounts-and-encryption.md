@@ -1004,3 +1004,24 @@ timeout still runs and only defines the global.
   browser's own navigation; `beforeunload` is the only guard, and
   mobile browsers do not always honour it. The code can be made anew
   on the Account page.
+
+## Addendum (owner, 2026-11-14): what the two spaces change here
+
+ADR 0146's addendum of the same day replaces three things in this
+record; nothing in the keys, the server or the flows changes.
+
+- "Log out asks whether the data stays on this device (default) or is
+  removed from it" (under "Sessions and the device"): log out always
+  removes the account's copy from the device.
+- A session that ends without a log out no longer simply logs the
+  device out: the account's copy is kept locked when it holds
+  something that is not in the account. The server says why a session
+  ended (stage 61).
+- "Deleting an account": on the device where it is done, the
+  account's things are handed back to the device.
+- "What the player is told at registration": point 1 also names Comm
+  history (other players' tells among it); point 4 also names notes
+  on the community's board.
+- The Account row that stage 60 built becomes the start menu's owner
+  row (ADR 0149), and the flag `accounts` stays off in production
+  until stage 63 is done.

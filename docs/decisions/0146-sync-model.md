@@ -178,3 +178,114 @@ large for their worth.
 - The riskiest code of the whole plan is here. Stage 61 ships behind
   the server flag, with property tests of the sync engine against a
   model, and the owner's two-device test before it is opened.
+
+## Addendum (owner, 2026-11-14; not built): two spaces, the move, log out
+
+Decided in the session on the start menu, the account and the
+community (`notes/start-menu-decisions.md`, points 1–5 and 12), after
+the owner had seen stage 60 on staging. It replaces parts of the
+decision above; spec §7.4 and §7.5 carry the full text.
+
+### What changes
+
+The model above was *one set of things on the device, which the
+account keeps in step*: a first sync merged, and log out asked whether
+the data stayed. The owner's rule is instead:
+
+> Logged out you see the device's things, logged in the account's,
+> never a mixture.
+
+- **Two spaces on a device:** the device's space (what a guest has,
+  today's data) and, while logged in, the account's space (the
+  account's copy). Everything that reads profiles, scripts, script
+  data, settings, runs, export docs, Comm history and timers reads the
+  current space.
+- **The move happens at Create account and only there.** The device's
+  own things move into the new, empty account, automatically and
+  without a question. Untouched seeds and bundled scripts do not
+  move. The device's copy of a thing is removed when the server has
+  taken it.
+- **A login to an existing account moves nothing and asks nothing.**
+  The exception: settings for a device type the account has none for
+  start as a copy of the device's.
+- **Log out always removes the account's copy.** It syncs first; what
+  is not in the account is listed, with Stay logged in, Download and
+  Log out anyway; it is refused while a game runs in another tab.
+- **A lost session** keeps the account's copy *locked* when it holds
+  something that is not in the account, and removes it otherwise. A
+  login to the same account unlocks it.
+- **Delete account** hands the account's things back to the device it
+  is done on.
+- **A third, small category is the device's whoever is logged in:**
+  the imported map and tilesets, the locator's ids, the statistics
+  device id, the update state, the last used account name.
+- **Comm history and timers state sync** (they were under "Not
+  synced"). Kinds `comm` (pieces per day, merged by record) and
+  `timers` (one item per character, last writer), pushed also when
+  the game is left, when the tab is hidden and every 5 minutes of
+  play. The automatic MUME login and unsaved runs still never leave
+  the device; they belong to the space and go at log out.
+- **Runs.** Logged in, all runs are in the account's space on the
+  device. At Create account all the device's runs move there and the
+  saved ones upload newest first. A saved run that does not fit keeps
+  a mark "not in the cloud" and is listed at log out. No shelf of
+  runs survives a log out. Published runs no longer count against the
+  50 MB (ADR 0148, addendum).
+
+### What goes from the decision above
+
+- "The first sync on a device that already has data": all six steps.
+  No safety copy (`preSync`), no linking by name, no "<name> (this
+  device)", no settings choice, no first-sync page.
+- Log out's "keep (default) or remove".
+- "Logged out, the client is exactly today's client" still holds, and
+  now also in the sense that an account never touches a guest's data.
+
+### What stays
+
+The items, `rev` and `seq`, pull and push, tombstones, hashes, the
+sync lock, "pushed but not applied during play", keep both for
+profiles and scripts changed on two devices *of one account*, last
+writer for the small kinds, settings per device type, only saved runs
+in the cloud, the limits.
+
+### Why
+
+- It answers "whose things am I looking at?", which the merge model
+  could not, and the start menu's owner row shows the answer (ADR
+  0149).
+- A shared or borrowed computer is clean by construction: nothing of
+  the account is left behind, and nothing of the device's owner is
+  taken along.
+- Moving only into an empty account removes every merge case of a
+  first sync: no name can exist on both sides.
+
+### Alternatives turned down
+
+- **A question at login** ("move this device's things to <name>?")
+  when the device has own things. The session's proposal; the owner
+  chose no move at all at login. Simpler, and a borrowed computer
+  cannot go wrong.
+- **A "this device" shelf** for runs that are not in the cloud,
+  surviving log out. It is the mixture the rule forbids.
+- **Opening accounts after stage 61.** With only profiles and scripts
+  synced, runs and settings would be a mixture or be lost at log out.
+
+### Consequences
+
+- Stage 61 grows: the spaces come before the engine. The intended
+  form is a database per space in the browser (the device's is
+  today's; an account's is made at login and deleted at log out), so
+  log out is a database delete and a guest's data is never opened by
+  account code. Stage 61 confirms it in an ADR of its own.
+- A player with things on two devices brings the second device's into
+  the account by hand (export logged out, import logged in). A "move
+  this device's things" row on the Account page can be added later
+  without changing the model (spec §7.13).
+- An account holds less than a device does (50 MB of runs). A
+  long-time player can hit the limit at Create account; nothing is
+  lost, the runs stay on the device with the mark, and the owner sets
+  the limit after stage 63's measurement.
+- Other players' tells are stored in the cloud, encrypted. The
+  registration's points and `/privacy` say so.
+- Accounts open in production after stage 63, in one step.

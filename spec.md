@@ -278,6 +278,34 @@ Mapped to Inv §3.
 - **Main menu** (stage 32): Enter MUME, Profile, Scripts, History,
   Spotlights, Credits, About. No Options: settings are changed in the
   game (§2.3, §2.6).
+- **Main menu from stage 67** (owner, 2026-11-14; ADR 0149): three
+  zones and a foot row, the same form logged in and logged out.
+  1. *Play:* Enter MUME (E).
+  2. *Mine:* the **owner row** (U), which is a heading and a button:
+     "On this device · log in" for a guest, "<name> · synced" logged
+     in, with the sync state in words (syncing, offline, needs
+     attention, a locked copy; §7.4) and a mark for new reactions
+     (§7.8). A press opens Log in for a guest and the Account page
+     logged in. Under it **Profile** with the selected profile's name
+     (P), **Scripts** (S) and **History** (H).
+  3. *Everybody's:* **Community** (C) with the count of new runs
+     (§7.8).
+  4. *Foot row:* About (A), quiet.
+  The owner row shows only when the flag `accounts` is on and
+  Community only when `gallery` is on (§7.0 rule 5), so the menu has
+  three forms for a time; the form itself goes to every player. The
+  phone's start menu has the same structure; the phone's in-game menu
+  sheet has no account row.
+- **History from stage 67:** one page with a tab strip over three
+  pages that keep their looks (stages 45–47): **Sessions** (the
+  History page: log, Statistics, replay, export), **Spotlights** and
+  **Diary** (the page called Credits until then; the word Credits goes
+  everywhere). H opens Sessions. Spotlights and Credits are no longer
+  menu rows. Guests have all three, built on the device's runs; logged
+  in they are built on the account's (intent Goal 13).
+- **The word Profile stays** (owner, 2026-11-14). Nothing in the
+  community is called a profile: there it is an account, a player, a
+  name.
 - **Profile picker:** create, copy, delete, **import and export** (new).
   Import also takes foreign settings files (§2.11).
 - **Scripts:** the Scripts page (§2.10), under Profile.
@@ -938,12 +966,13 @@ what feedback is wanted.
 | 58 | **Move to Cloudflare.** The same site from a Cloudflare Worker with static assets, an empty API, cache and security headers, the release workflow, the domain switch with a rollback (§7.1, §7.12, ADR 0144). | Open mumecockpit.com after the switch: your profiles and runs are there, play as usual. |
 | 59 | **Usage statistics.** The heartbeat, presence and daily figures in D1, "N online" on the start page, the admin page behind Cloudflare Access with plain numbers, the privacy text (§7.6, ADR 0147). | Open `/admin` and see yourself online; judge the start page's counter. |
 | 60 | **Accounts.** Register, log in, recovery code, change password, sessions, delete account; keys and encryption in the browser; Turnstile, limits, the CSP; no sync yet (§7.2–7.3, ADR 0145). | On the staging site: create an account, log in on a second device, lose the password and come back with the code. |
-| 61 | **Sync of profiles and scripts.** The sync engine, IndexedDB 9, first sync with a safety copy, keep-both conflicts, the state mark (§7.4, ADR 0146). | Edit a profile on the desktop, find it on the phone; edit the same one on both while offline. |
-| 62 | **Sync of settings.** Settings per device type, the first-sync choice, script data, logging out with or without the local data (§7.4). | Two desktops share the layout; the phone keeps its own. |
-| 63 | **Runs in the cloud.** Saved runs upload, the storage limit and the "does not fit" dialog with download, runs listed from the account and fetched when opened, export docs (§7.5). | Save a run on the desktop, play it on the tablet; fill the limit and see the offer to download. |
-| 64 | **Share links.** Link in the export editor, the watch page with the sandboxed replay, My shared runs, Report, the moderation tools in the admin page (§7.7, §7.9, ADR 0148). | Cut a fight, send the link to a friend without an account. |
-| 65 | **The gallery.** Publish, the public list, stars, comments, the top list, the notice of new runs, reports that hide (§7.8). | Publish a run, rate and comment from a second account, get the notice. |
+| 61 | **Sync of profiles and scripts, on the two spaces.** The device's space and the account's, the move at Create account, log out that removes, a lost session, the sync engine, keep-both conflicts, the owner row's states (§7.4, ADR 0146 and its addendum). On staging. | Create an account with things on the device and see them in it; log out and see the device's own; edit a profile on the desktop, find it on the phone. |
+| 62 | **Sync of settings, script data, Comm history and timers.** Settings per device type, script data, Comm and timers that follow a session to the next device, the full Log out dialog (§7.4). On staging. | Two desktops share the layout; the phone keeps its own; go on with a session on the phone. |
+| 63 | **Runs in the cloud.** Saved runs upload, the storage limit and the "does not fit" dialog with download, runs listed from the account and fetched when opened, export docs (§7.5). Then accounts open in production. | Save a run on the desktop, play it on the tablet; fill the limit and see the offer to download. |
+| 64 | **Share links.** Link in the export editor, the watch page with the sandboxed replay, Published runs on the Account page, Report, the moderation tools in the admin page (§7.7, §7.9, ADR 0148). | Cut a fight, send the link to a friend without an account. |
+| 65 | **The community.** Publish to the Hall of Fame, the public list, stars, comments, the menu's counter, reactions on the owner row, Random Runes, reports that hide (§7.8). | Publish a run, rate and comment from a second account, write a note on the board. |
 | 66 | **The admin panel.** Accounts with clean-up and limits, graphs of use, storage and sharing, the audit log (§7.9). | Look at a month of use; remove a test account. |
+| 67 | **The start menu and History with tabs** (done before 61). Three zones and a foot row, the owner row, History with the tabs Sessions, Spotlights and Diary; mockups first (§2.5, ADR 0149). | Find your way in the new menu on desktop and phone; open Spotlights and Diary from History. |
 
 ## 6. Open questions for the owner
 
@@ -954,8 +983,10 @@ None. New questions are raised in the stage files (`docs/stages/`).
 Intent Goals 13–15. Decisions and their reasons: ADR 0144 (platform),
 0145 (accounts and encryption), 0146 (sync), 0147 (statistics), 0148
 (sharing, gallery, admin). Facts: `notes/research/cloudflare-platform.md`
-and `notes/research/cloud-data-inventory.md`. Built in stages 58–66
-(§7.12).
+and `notes/research/cloud-data-inventory.md`. Built in stages 58–67
+(§7.12). The owner's decisions of 2026-11-14 on the start menu, the
+two spaces and the community are in ADR 0146 and 0148 (addenda) and
+ADR 0149; the session's record is `notes/start-menu-decisions.md`.
 
 ### 7.0 Rules that hold for all of it
 
@@ -974,6 +1005,9 @@ and `notes/research/cloud-data-inventory.md`. Built in stages 58–66
 6. **Desktop is not disturbed.** New entries on the start page and in
    the game are put to the owner in each stage's mockup or test (as
    intent Goal 12 asks for phone changes).
+7. **Never a mixture** (owner, 2026-11-14). Logged out, the player
+   sees the device's things; logged in, the account's (§7.4, "The two
+   spaces").
 
 ### 7.1 Shape
 
@@ -1009,26 +1043,36 @@ and `notes/research/cloud-data-inventory.md`. Built in stages 58–66
 
 ADR 0145.
 
-- **Where.** A new start menu entry, Account (shows "Log in" or the
-  user name). Its pages are in the look kit of stage 42: Log in,
-  Create account, Recovery, and the Account page.
+- **Where.** The start menu's owner row (§2.5; until stage 67 the row
+  `ACCOUNT (log in)` that stage 60 built). Its pages are in the look
+  kit of stage 42: Log in, Create account, Recovery, and the Account
+  page.
+- **Opened in production** when stages 61–63 are done, in one step
+  (owner, 2026-11-14): an account without everything that follows it
+  would show a mixture or lose things at log out (§7.12).
 - **Create account:** user name (3–20 of `a-z 0-9 _ -`, unique without
   regard to case, fixed), password twice (≥ 10 characters, strength
   hint, a warning against the MUME password), the six-point "what
   happens to your data" text, Turnstile. Then the recovery code is
   shown once (24 characters in groups, Copy, Download as a text file)
   and the player confirms having kept it by typing its last group.
+  Then the device's things move into the account (§7.4, "Create
+  account: the move"). The six points also say that Comm history
+  (other players' tells among it) is stored, encrypted, and that
+  notes on the community's board show with the user name.
 - **Log in:** name and password; Turnstile after three failures; ten
   failures per name in 15 minutes give a 15-minute wait. The same
   message for "no such name" and "wrong password".
 - **Recovery:** name, recovery code, new password. Ends every session.
 - **Account page:** storage in use against the limits; sync state and
   "Sync now"; sessions with "End" and "End all others"; change
-  password; new recovery code; the gallery notice switch; the local
-  safety copy as files; the existing exports ("Download everything":
-  profiles, scripts backup, runs backup); Log out (keep or remove the
-  data on this device); Delete account (password, typed confirmation,
-  everything removed at once).
+  password; new recovery code; **Published runs**, a view of its own
+  (§7.7); the existing exports ("Download everything": profiles,
+  scripts backup, runs backup); Log out (§7.4, "Log out"); Delete
+  account (password, typed confirmation, everything removed from the
+  account at once; on this device the account's things are handed
+  back to the device, §7.4). No gallery notice switch and no safety
+  copy (both dropped 2026-11-14).
 - **Phone and tablet** get the same pages in the phone menu, typed
   with our own keyboard (§2.12).
 - **Suspended account** (§7.9): sync works; sharing, voting and
@@ -1046,7 +1090,7 @@ ADR 0145.
 | `POST /api/u/account/password` | old and new `authKey`, new wrap |
 | `POST /api/u/account/recovery` | new `recoveryAuth` and wrap |
 | `DELETE /api/u/account/sessions/<id>` | ends a session |
-| `PATCH /api/u/account/prefs` | the gallery notice switch |
+| `PATCH /api/u/account/prefs` | the gallery notice switch (built in stage 60; unused since 2026-11-14, removed in stage 65) |
 | `DELETE /api/u/account` | deletes the account and all it owns |
 
 ### 7.3 Keys and encryption
@@ -1071,8 +1115,68 @@ ADR 0145, "Keys". Requirements on the build:
 
 ### 7.4 Sync
 
-ADR 0146. What follows the account: profiles, user scripts, script
-data, settings per device type, saved runs (§7.5), export docs.
+ADR 0146 with its addendum of 2026-11-14. What follows the account:
+profiles, user scripts, script data, settings per device type, saved
+runs (§7.5), export docs, Comm history and timers state.
+
+**The two spaces** (owner, 2026-11-14; §7.0 rule 7). A device has the
+*device's space* (what a guest sees: today's data) and, while an
+account is logged in, the *account's space* (the account's copy).
+Every reader of the stores below (the game, the editors, History,
+exports, backups) reads the current space, never both.
+
+| Belongs to | What | At log out |
+|---|---|---|
+| The space, synced | profiles, scripts, script data, settings, saved runs, export docs, Comm history, timers state | the account's copy is removed; it is in the account |
+| The space, never leaves the device | unsaved runs (14 days, §7.5), the automatic MUME login (§2.12) | removed |
+| This device, always | the imported map and uploaded tilesets, the locator's learned ids, the statistics device id (§7.6), the update state, the last used account name | stays |
+
+- **Create account: the move.** The device's own things move into the
+  new, empty account, without a question; a line afterwards says what
+  moved. Untouched seeds and bundled scripts are not own things. The
+  device's copy of a thing is removed only when the server has taken
+  it, so an interrupted move goes on later and loses nothing. Runs:
+  §7.5. The device's space is then back at the starting set.
+- **Log in** to an existing account (Recovery too) moves nothing and
+  asks nothing: the player gets what is in the account. One
+  exception: when the account has no settings for this device type,
+  they start as a copy of this device's settings.
+- **Several accounts** on one device work by the rule: one account's
+  copy goes at log out, the next login fetches another's.
+- **Log out** always removes the account's copy.
+  1. What is waiting is synced first.
+  2. Everything in the account: "Log out of <name> on this device?
+     Everything is in your account. It is removed from this device,
+     and you are back on this device's own profiles, scripts and
+     runs." Enter logs out.
+  3. Something not in the account: the dialog lists it, a row each
+     (unsynced changes; saved runs "not in the cloud"; unsaved runs of
+     the last 14 days, with a link to History). Choices: Stay logged
+     in (Enter), Download (the existing exports), Log out anyway.
+  4. Only unsaved runs left: their row shows; Enter logs out.
+  5. A game running in another tab: refused, with the reason.
+  6. Offline: possible; with unsynced changes, 3 holds.
+  7. Afterwards: the start menu with the device's things and "Logged
+     out. Everything is in your account <name>."
+- **A lost session** (password changed or account recovered
+  elsewhere, ended from another device, 180 days, account deleted;
+  the server says which). A game in progress goes on, on the account's
+  copy; the rest happens on the start menu.
+  - Everything in the account: the copy is removed, "You were logged
+    out of <name> on this device."
+  - Something not in the account (unsynced changes, saved runs "not
+    in the cloud"; unsaved runs do not count): the copy is kept
+    **locked**, not shown and not usable, and the device behaves as
+    logged out. A notice names what is kept, with Log in and Remove.
+    A login to the same account unlocks and syncs (conflicts keep
+    both); a login to another account leaves it alone. Remove asks
+    first and names what is lost; there is no download in the locked
+    state. No time limit. Locked is not encrypted on the disk.
+  - Account deleted: the copy is removed, "The account <name> was
+    deleted."
+- **Delete account** on a device hands the account's things back to
+  that device's space (the move in reverse; a name on both sides keeps
+  both).
 
 **Engine** (`src/cloud/sync/`), pure where it can be:
 
@@ -1090,29 +1194,41 @@ data, settings per device type, saved runs (§7.5), export docs.
 7. Store the cursor.
 
 - **Triggers:** login, page load, start page shown, tab visible, 5 s
-  after a local change, every 5 minutes on the start page.
-- **State mark** on the start page beside the Account entry, and on
-  the Account page: in step, syncing, offline, needs attention (with
-  what: "cloud storage full", "update the client to read newer
-  data"). Keep-both conflicts raise a notice naming both copies.
-- **IndexedDB 9:** `profiles` records get `id`; new stores `sync`
-  (per item: kind, local key, server id, rev, hash, state) and
-  `syncMeta` (account, cursor, device label, the data key, the
-  safety copy).
+  after a local change, every 5 minutes on the start page. Comm
+  history and timers state are also pushed when the game is left,
+  when the tab is hidden and every 5 minutes during play.
+- **State** in words on the start menu's owner row (§2.5) and on the
+  Account page: synced, syncing, offline, needs attention (with what:
+  "cloud storage full", "update the client to read newer data").
+  Keep-both conflicts raise a notice naming both copies.
+- **The database.** A space is a database of its own in the browser
+  (the device's is today's `webcockpit`; an account's is made at
+  login and deleted at log out), so a guest's data is never touched
+  by an account. Stage 61 confirms the layout in an ADR. In an
+  account's database `profiles` records get `id`, and there are the
+  stores `sync` (per item: kind, local key, server id, rev, hash,
+  state) and `syncMeta` (account, cursor, device label). The keys
+  stay where stage 60 put them (`webcockpit-account`).
+- **Comm history** syncs in pieces per day; pieces from two devices
+  are merged by record, not last writer. **Timers state** is one item
+  per character, last writer.
 - **Renames** keep the item (profile `id`, script `id`).
 - **Bundled content.** Bundled scripts are not items; their
   `scriptData` is. The seeded `default` and `khazdul` profiles are
-  items like any other once changed; untouched seeds give way to the
-  account's at the first sync.
+  items like any other once changed; untouched seeds do not move at
+  Create account.
 - **Settings** sync as the whole record under the device type's item.
   The `settings.version` migration runs on what was pulled; a record
   from a newer client is left alone and raises "update the client".
   `webcockpit.appearance` in `localStorage` is rewritten after a pull
   so first paint follows.
-- **First sync** on a device with data: ADR 0146's six steps, shown as
-  one short page ("This device has 4 profiles and 2 scripts; your
-  account has 6 and 3. Here is what will happen…") with the settings
-  choice on it.
+- **No first-sync page** (dropped 2026-11-14): the move happens only
+  into a new, empty account, and a login moves nothing, so there is
+  nothing to choose and no safety copy.
+- **Tests** also cover the spaces: create account with things on the
+  device (the move, interrupted and resumed), log out and the device's
+  things back, two accounts in turn on one device, a lost session with
+  and without unsynced changes, delete account.
 - **Tests:** the engine against an in-memory server model with
   generated sequences of edits, renames, deletes, offline periods and
   two or three devices: after everybody has synced, all devices are
@@ -1137,15 +1253,25 @@ ADR 0146, "Runs".
   `/api/u/runs/<id>`; then its `run` item (meta, summary, rating,
   body size) is pushed. Uploads happen on the start page or in the
   background, never during a fight's frames.
-- **The limit.** 50 MB per account to begin with, for run bodies and
-  shared payloads, 20 MB per body. Stage 63 measures the stored size
+- **Where runs live** (owner, 2026-11-14). Logged in, every run is in
+  the account's space on the device (§7.4). Unsaved runs stay on the
+  device they were played on, 14 days as today, and go at log out
+  (the dialog says so). At Create account all the device's runs move
+  into the account's space, so History looks the same before and
+  after; the saved ones are then uploaded in the background, newest
+  first, and those that do not fit keep the mark "not in the cloud".
+  There is no shelf of runs that survives a log out.
+- **The limit.** 50 MB per account to begin with, for run bodies
+  (published runs have limits of their own, §7.7), 20 MB per body. Stage 63 measures the stored size
   of real saved runs first; the owner then confirms or changes the
   number. The server refuses over-limit uploads
   with `quota` and the numbers.
 - **"Does not fit" dialog** (look kit): "Your cloud storage is full
   (49 of 50 MB). The run is saved on this device." with Download the
   run, Open History, Keep on this device. It is shown where the save
-  was asked for; after an Exit it is shown on the start page.
+  was asked for; after an Exit it is shown on the start page. Such a
+  run carries the mark "not in the cloud", is retried when there is
+  room, and is listed by the Log out dialog (§7.4).
 - **History** lists runs from the account that are not on the device,
   with a cloud mark and their size; opening one fetches and stores it,
   with a progress bar (§2.5, stage 24's bar). Device-only runs carry
@@ -1157,7 +1283,7 @@ ADR 0146, "Runs".
   swept, on the device or in the cloud.
 - **Export docs** sync as items, so a cut begun on one device
   continues on another.
-- **Statistics, Spotlights, Credits** use what is on the device and
+- **Statistics, Spotlights, Diary** use what is on the device and
   say how many cloud-only sessions are not counted, with "Fetch all"
   on desktop.
 
@@ -1190,11 +1316,23 @@ ADR 0147.
 
 ADR 0148, "Sharing" and "Watching".
 
-- **Export editor:** the format toggle gets Link beside HTML and Text.
-  EXPORT then opens the share dialog: title, description, size, the
-  "this will be readable by anyone with the link" line, Published
-  on/off (from stage 65), Create link. The result shows the link with
-  Copy.
+- **A published run is a copy of its own** (owner, 2026-11-14). It
+  lives in the community, not in the session it was cut from: History
+  shows no mark for it, deleting the session does not touch it, and
+  the same session can be published many times as different cuts. The
+  cut is frozen; title and description can be changed. Its sender can
+  always remove it. Deleting the account removes the account's
+  published runs.
+- **Export editor:** the format toggle gets Link beside HTML and Text
+  (stage 64: unlisted, for whoever has the link) and, from stage 65,
+  Hall of Fame (listed in the community). EXPORT then opens the share
+  dialog: title, description, size, the "this will be readable by
+  anyone" line, Create link or Publish. The result shows the link
+  with Copy.
+- **Limits:** 150 published runs per account (links and listed ones
+  together; a safety ceiling), 5 MB each. They do not count against
+  the account's 50 MB. Stage 64 measures real payloads; the total
+  shows on the admin page.
 - **Server:** the payload goes to R2 under `pub/<id>`, a row to
   `publication`.
 - **Watch page** `/r/<id>`: the app boots straight to it (no start
@@ -1205,8 +1343,10 @@ ADR 0148, "Sharing" and "Watching".
   blob:`). Around it: title, sender, character and level, length,
   date, Report, Download as HTML, and from stage 65 stars and
   comments. Back goes to the gallery (stage 65) or the start page.
-- **My shared runs** on the Account page and from History's row for a
-  shared session: link, views, stars, listed, Remove.
+- **Published runs**, a view of its own on the Account page: per run
+  the title, link, views, stars, comments, listed or link only, Edit
+  (title, description, listed) and Remove. The Community page links
+  to it. Not reached from History.
 - **Payloads are hostile input.** The replay runtime is reviewed for
   that in stage 64: sizes and counts bounded, no HTML from the
   payload, the embedded map and settings validated, fuzz tests over
@@ -1223,13 +1363,42 @@ ADR 0148, "Sharing" and "Watching".
 | `POST /api/pub/<id>/view` | counts a view (device id, once a day) |
 | `POST /api/u/report` | item kind and id, reason |
 
-### 7.8 The gallery
+### 7.8 The community
 
-ADR 0148, "The gallery" and "A notice of new runs".
+ADR 0148, "The gallery", with its addendum of 2026-11-14 (the word,
+the counter, Random Runes). The flag keeps the name `gallery`.
 
-- **Start menu:** a new entry (working name Gallery). Mockups first,
-  in the look of History and Spotlights (stage 45, 46); the owner
-  picks the direction, the word and the letter.
+- **Start menu:** the Community row (C), a zone of its own (§2.5).
+  Mockups first, in the look of History and Spotlights (stage 45, 46);
+  the owner picks the direction. The owner's reference is the old log
+  site's front page (`notes/community-reference.md`): by function, in
+  our look, with some recognition.
+- **The counter** on the menu row ("3 new"): runs published since the
+  player's last visit to the Community page, for guests too. Own
+  runs, link-only runs, hidden runs and notes are not counted;
+  opening the page clears it. "Last seen" is the account's when
+  logged in (`gallery_seen`) and the device's for a guest. The figures
+  ride on `GET /api/stats/public` (the times of the latest listed
+  runs), so the start page makes no extra request.
+- **No notice in the game** (owner, 2026-11-14: the counter replaces
+  the notice and its switch).
+- **Reactions to one's own runs:** a mark on the owner row ("<name> ·
+  synced · 2 new") for new stars and comments; it leads to Published
+  runs (§7.7) and is cleared there (`reactions_seen` on the account).
+- **Hall of Fame** is the top list. Beside the lists below the page
+  has: who has published most, a random run of the day, and, if the
+  investigation of stage 65 allows it, MUME's war point lists (white
+  lords, saurons minions) and the number of players on MUME. Not
+  wanted: "profile updates", "most occurring".
+- **Random Runes,** the notice board (flag `runes`, so it can be
+  closed alone). Any logged-in, not suspended account writes; guests
+  read. Plain text ≤ 500 characters with the account name; no answers
+  or threads. The board shows the latest 50 notes; a note is removed
+  after 30 days. The writer removes their own; Report as for
+  comments; 5 notes a day per account. Desktop: a box beside the
+  list; phone: a tab or a section (the mockups decide).
+- **Guests** on the watch page see "Log in to comment" and "Log in to
+  rate" where the field and the stars sit.
 - **List:** title, sender, character and level, length, date, stars
   and votes, comments, views. Top (weighted mean, default), New, Most
   watched; week, month, all. Pages of 30.
@@ -1239,14 +1408,8 @@ ADR 0148, "The gallery" and "A notice of new runs".
   last, Remove for the writer and the run's owner, Report.
 - **Rules** shown once per account before the first publication, with
   a tick.
-- **The notice:** logged-in players are told of newly published runs
-  through the client's notices (ADR 0025's mechanism); see ADR 0148.
-  In the game it is a quiet notice like the update notice, never over
-  the output. A switch in the game's Settings popup (§2.6; the phone's
-  settings page too), "Notices of new gallery runs", on by default,
-  turns it off; it is shown when logged in, is the same switch as on
-  the Account page, and holds for the account on every device.
-- **Reports** hide an item at five from different accounts.
+- **Reports** hide an item (a run, a comment, a note) at five from
+  different accounts.
 
 | Endpoint | Does |
 |---|---|
@@ -1255,7 +1418,13 @@ ADR 0148, "The gallery" and "A notice of new runs".
 | `PUT /api/u/pub/<id>/vote` | 1–5 |
 | `POST /api/u/pub/<id>/comments` | a comment |
 | `DELETE /api/u/comments/<id>` | writer or run owner |
-| `GET /api/u/gallery/news` | published since `gallery_seen`; `POST` moves it |
+| `POST /api/u/community/seen` | moves `gallery_seen` or `reactions_seen` |
+| `GET /api/u/community/news` | the counts for a logged-in player (new runs, new reactions) |
+| `GET /api/runes` | the board (public, cached 60 s) |
+| `POST /api/u/runes` | a note |
+| `DELETE /api/u/runes/<id>` | the writer |
+
+The last five are a shape; stage 65 fixes the contract.
 
 ### 7.9 Admin and moderation
 
@@ -1288,8 +1457,10 @@ ADR 0148, "The admin page".
 | Recovery | Turnstile on the first call, whose ticket the second call needs; 10 failures per name in 15 min → 15 min wait (a counter of its own) |
 | API in general | the rate limiting binding, 120 requests a minute per address (an IPv6 /64 is one) and per session; 10 a minute per address on login, recovery and registration |
 | Small items | 1 MB each, 2 MB and 2 000 items per account |
-| Runs and shared payloads | 50 MB per account; 20 MB per run body; 5 MB per shared payload; 50 shared runs |
+| Runs | 50 MB per account; 20 MB per run body |
+| Published runs | 150 per account, 5 MB each; not counted against the 50 MB |
 | Comments, votes | 20 and 60 an hour per account |
+| Notes on the board | 5 a day per account, 500 characters |
 | Reports | 30 a day per account |
 
 Limits live in `/api/config` and per account (`limits` column), so
@@ -1300,7 +1471,7 @@ the owner changes them without a release.
 ```
 account(id, name, name_key UNIQUE, created, last_seen, state,
         salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc,
-        limits, prefs, gallery_seen, seq)
+        limits, prefs, gallery_seen, reactions_seen, seq)
 reserved_name(name_key)                      -- deleted accounts' names
 session(id_hash, id, account, label, created, last_used, expires)
      INDEX (account)                         -- id: the public id of the Account page
@@ -1312,6 +1483,7 @@ publication(id, account, title, description, character, level,
             vote_sum, vote_count, comment_count)
 vote(publication, account, stars)            PRIMARY KEY (publication, account)
 comment(id, publication, account, text, created, state)
+note(id, account, text, created, state)      -- Random Runes; pruned at 30 days
 report(id, kind, target, account, reason, created, handled)
 presence(device, first_seen, last_seen, state, type, browser, version,
          day, beats, play_beats, prev_day, prev_beats, prev_play_beats)
@@ -1363,48 +1535,95 @@ tasks, the test guide and the owner's feedback. Order and content:
    tablet and phone.
 4. The CSP, enforced (first report-only on staging).
 5. Review of crypto and auth by a second agent; fixes.
-6. Owner test on staging; flag `accounts` on in production.
+6. Owner test on staging. The flag `accounts` stays **off** in
+   production until stage 63 is done (owner, 2026-11-14).
 
-**61 — Sync of profiles and scripts.**
-1. IndexedDB 9, profile ids, the `sync` stores.
-2. The engine against the model, with generated tests.
-3. Worker: item endpoints; limits.
-4. First sync page, safety copy, keep-both notices, state mark.
-5. Two-context e2e; a review of the engine by a second agent.
-6. Owner test with two devices on staging; flag `sync` on.
+The order after stage 60 (owner, 2026-11-14): **67, 61, 62, 63**,
+then accounts open, then **64, 65, 66**. Stage 67 has the highest
+number and is done first, so 61–66 keep the numbers the ADRs use.
+Stages 61–63 are tested on staging one by one and opened in
+production together: the flags `accounts`, `sync` and `runs` in one
+step.
 
-**62 — Sync of settings.**
-1. Settings items per device type; pull while playing deferred;
+**67 — The start menu and History with tabs**
+(`docs/stages/67-start-menu.md`, ADR 0149).
+1. Mockups, desktop and phone: the menu in its three forms (before
+   accounts, with accounts, with the community), every state of the
+   owner row, History with its tab strip; the owner picks.
+2. The menu, the owner row in place of the Account row, the letters.
+3. History's tab strip over Sessions, Spotlights and Diary; Credits →
+   Diary in every text.
+4. Owner test; release to everybody, with the CSP enforced in
+   production (`production: true` in `scripts/csp.ts`).
+
+**61 — Sync of profiles and scripts, on the two spaces.**
+1. An ADR for the spaces in the browser (a database per space), then
+   the spaces: every reader of the stores asks for the current one.
+2. Profile ids, the `sync` stores; the engine against the model, with
+   generated tests.
+3. Worker: item endpoints; limits; the reason a session ended.
+4. Create account: the move. Log in: the account's copy fetched. Log
+   out: the copy removed (the dialog in its first form). A lost
+   session and the locked copy. Delete account hands back. The owner
+   row's states.
+5. Two-context e2e; a review of the engine and of the spaces by a
+   second agent.
+6. Owner test with two devices on staging; flag `sync` on there.
+
+**62 — Sync of settings, script data, Comm history and timers.**
+1. Settings items per device type; a copy of the device's when the
+   account has none for the type; pull while playing deferred;
    first-paint copy.
 2. Script data items.
-3. Log out with or without local data; "Download everything".
-4. Owner test: two desktops and a phone.
+3. Comm history in pieces per day, merged; timers state per
+   character; pushed on leaving the game, on a hidden tab and every 5
+   minutes of play.
+4. The Log out dialog in full (what is not in the account, Download,
+   the other tab); the new lines in the registration's points and on
+   `/privacy`.
+5. Owner test: two desktops and a phone; a session begun on one and
+   taken up on the other.
 
 **63 — Runs in the cloud.**
-1. Body format, segmented encryption, upload queue.
+1. Body format, segmented encryption, upload queue; the move of runs
+   at Create account.
 2. Worker: R2 endpoints, usage accounting, `quota`.
-3. History: cloud and device marks, fetch on open, storage line; the
-   "does not fit" dialog.
-4. Export docs; Statistics, Spotlights and Credits with cloud-only
+3. History: cloud and "not in the cloud" marks, fetch on open,
+   storage line; the "does not fit" dialog; the runs in the Log out
+   dialog.
+4. Export docs; Statistics, Spotlights and Diary with cloud-only
    runs.
-5. Owner test; flag `runs` on.
+5. Measure real saved runs; the owner sets the limit.
+6. Owner test. Then the release that opens accounts: `accounts`,
+   `sync` and `runs` on in production.
 
 **64 — Share links.**
-1. Worker: publications, payload storage, views, reports.
-2. Export editor: Link and the share dialog; My shared runs.
+1. Worker: publications, payload storage, views, reports; the limits
+   of published runs (150, 5 MB, outside the 50 MB).
+2. Export editor: Link and the share dialog; the Published runs view
+   on the Account page.
 3. The watch page and the sandboxed frame; Download as HTML.
 4. Hardening of the replay runtime against hostile payloads; fuzzing.
-5. Admin: report queue, hide, delete, suspend; `admin_log`.
+5. Admin: report queue, hide, delete, suspend; `admin_log`; the total
+   of published bytes.
 6. Owner test; flag `share` on.
 
-**65 — The gallery.**
-1. Mockups of the gallery and the watch page with stars and comments;
-   the owner picks.
-2. Worker: list with the weighted mean, votes, comments, news.
-3. The gallery page, stars, comments, rules tick, Published switch.
-4. The notice of new runs; its switch in the game's Settings and on
-   the Account page.
-5. Reports that hide; owner test with two accounts; flag `gallery` on.
+**65 — The community.**
+1. The investigation: where MUME publishes the war point lists and
+   its player count, in what form, and whether MUME's management
+   agrees to the Worker fetching them.
+2. Mockups of the Community page (with Random Runes, the lists of the
+   reference) and of the watch page with stars and comments; the
+   owner picks.
+3. Worker: list with the weighted mean, votes, comments, the counts
+   for the menu, notes.
+4. The Community page, Hall of Fame, stars, comments, rules tick,
+   Hall of Fame in the export editor.
+5. The counter on the menu row (guests too) and the reactions mark on
+   the owner row; the `galleryNotice` pref removed.
+6. Random Runes behind `runes`.
+7. Reports that hide; owner test with two accounts; flags `gallery`
+   and `runes` on.
 
 **66 — The admin panel.**
 1. Accounts list, limits, delete; the audit log view.
@@ -1420,4 +1639,8 @@ Not planned; listed so they are not forgotten (intent Non-goals):
 - Voluntary error reports from the client.
 - Test versions per branch (Cloudflare previews).
 - Passkeys as a second way in.
-- Sync of the imported map and of comm history.
+- Sync of the imported map. (Comm history moved into the plan
+  2026-11-14, §7.4.)
+- A "move this device's things to the account" row on the Account
+  page, for a player with things on a second device (today: export
+  logged out, import logged in).

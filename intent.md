@@ -134,9 +134,16 @@ reference only.
 13. **Accounts and sync** (owner decision 2026-11-13). A player can
     create an account and get the same profiles, scripts, settings and
     saved runs on every device, kept in step, with no export and
-    import between them.
+    import between them. Comm history and timers follow too, so a
+    session begun on one device can be taken up on another (owner,
+    2026-11-14).
     - **An account is optional.** Playing without one stays possible
       and loses nothing it has today.
+    - **Never a mixture** (owner, 2026-11-14). Logged out, the player
+      sees the device's things; logged in, the account's. Creating an
+      account moves the device's things into it. Logging in to an
+      existing account moves nothing; logging out takes the account's
+      things off the device, and the device's own are there again.
     - **User name and password, no e-mail.** No personal data is asked
       for. MUME names and passwords are never stored.
     - **The data is encrypted in the browser** before it is sent; the
@@ -155,10 +162,19 @@ reference only.
     cut in the export editor can be shared as a link instead of a
     file, and published to a public page reached from the start page,
     where others watch it, rate it with 1–5 stars and comment, and
-    where the best rated runs form a top list. A logged-in player gets
-    a notice when a new run has been published. Content shows at once;
+    where the best rated runs form a top list. Content shows at once;
     it can be reported, and the owner removes content and blocks
     accounts.
+    - The page is the **Community** (owner, 2026-11-14). The start
+      menu shows how many runs have been published since the player's
+      last visit, to everybody, guests too. (This replaces the notice
+      to logged-in players of 2026-11-13.)
+    - A published run is a copy of its own that lives in the
+      community. Its sender can always take it down, and manages it
+      from the account.
+    - The Community has a notice board, **Random Runes**, where any
+      logged-in player writes short notes under the account name;
+      everybody reads. It is reported and moderated as comments are.
 
 ## Non-goals
 

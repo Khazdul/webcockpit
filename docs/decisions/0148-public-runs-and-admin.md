@@ -214,3 +214,49 @@ players' accounts.
   `X-WC: 1` and an `Origin` equal to the request's own (403 otherwise),
   and an unknown flag is 404. There is no way back to "no override"
   from the page yet; setting the default value is the same in effect.
+
+## Addendum (owner, 2026-11-14; not built): the community
+
+Decided in the session on the start menu, the account and the
+community (`notes/start-menu-decisions.md`, points 10 and 11). Spec
+§7.7 and §7.8 carry the full text.
+
+- **The word is Community** (letter C); the top list is the **Hall of
+  Fame**. "Gallery" above is the same page. The flag keeps the name
+  `gallery`.
+- **"A notice of new runs" above is replaced.** The start menu's
+  Community row shows a count of runs published since the player's
+  last visit to the page, to everybody, guests too. No notice in the
+  game and no switch. The built `galleryNotice` pref is unused and is
+  removed in stage 65. `gallery_seen` stays, as the logged-in
+  player's "last visit"; a guest's is kept on the device. Intent Goal
+  15 was changed to say this.
+- **Reactions:** new stars and comments on one's own runs show as a
+  mark on the start menu's owner row and lead to Published runs.
+- **A published run is a copy of its own** that lives in the
+  community. History shows no mark for it. "My shared runs" above
+  becomes **Published runs**, a view of its own on the Account page;
+  the Community page links to it. The sender can always remove a run;
+  title and description can be changed, the cut cannot. Deleting the
+  account removes its published runs, as above.
+- **Limits:** 150 published runs per account, 5 MB each, **not**
+  counted against the account's 50 MB (above: 50 runs, counted). The
+  ceiling is for safety; at its worst it is 750 MB for one account,
+  so stage 64 measures real payloads and the admin page shows the
+  total.
+- **Two ways out of the export editor:** Link (unlisted) and Hall of
+  Fame (listed). The "Published" switch above is that choice.
+- **Random Runes,** a notice board on the Community page (new; the
+  owner's wish, after the old log site's): any logged-in, not
+  suspended account writes plain text of at most 500 characters under
+  its name; no answers; the latest 50 show, a note is removed after
+  30 days; 5 notes a day; Report and the five-report rule as for
+  comments; a flag of its own, `runes`, so the owner can close the
+  board alone. Free public text is the heaviest thing to moderate;
+  the machinery is the comments', which is why it comes with stage 65
+  and not before.
+- **The owner's reference** for the page is the old log site's front
+  page (`notes/community-reference.md`): top posters, top rated runs,
+  a random run, the war point lists if MUME's data can be fetched
+  with leave. Not "profile updates", not "most occurring".
+- **Guests** see "Log in to comment" and "Log in to rate" in place.
