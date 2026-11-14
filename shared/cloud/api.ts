@@ -375,3 +375,89 @@ export interface PrefsAnswer {
 
 /** `DELETE /api/u/account/sessions/<id>`: this id ends every session but the asking one. */
 export const OTHER_SESSIONS = 'others';
+
+// --- Sync (spec §7.4, ADR 0146 and its addendum; stage 61) ---
+//
+// The contract between the Worker (stage 61 part B2) and the client's
+// sync engine (B3). Bodies are encrypted blobs (`application/octet-stream`,
+// ADR 0145's blob format); the server never reads them.
+
+/** The kinds of item. Stage 61 accepts `profile` and `script`; the others are refused (`kind_closed`) until their stage. */
+export const SYNC_KINDS = ['profile', 'script', 'scriptData', 'settings', 'run', 'exportDoc', 'comm', 'timers'] as const;
+export type SyncKind = (typeof SYNC_KINDS)[number];
+/** The kinds the server accepts now. */
+export const SYNC_KINDS_OPEN: readonly SyncKind[] = ['profile', 'script'];
+
+/** An item id: the opaque id of ADR 0145 (base64url of 16 bytes, 22 characters). */
+export const SYNC_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
+
+/** One item in `GET /api/u/sync/changes`. */
+export interface SyncItem {
+  kind: SyncKind;
+  id: string;
+  /** The item's version: 1 for the first write, +1 on every write and on the delete. */
+  rev: number;
+  /** The account's change counter at this write (the cursor's unit). */
+  seq: number;
+  /** A tombstone: no blob. */
+  deleted: boolean;
+  /** The blob's size in bytes (0 for a tombstone). */
+  size: number;
+  /** Server time of the write, ms. */
+  updated: number;
+  /** The blob, base64url; absent for a tombstone. */
+  blob?: string;
+}
+
+/** Storage in use, as the server counts it. */
+export interface SyncUsage {
+  items: number;
+  itemBytes: number;
+}
+
+/**
+ * `GET /api/u/sync/changes?since=<seq>&limit=<n>`: the items written after
+ * `since`, oldest first, at most `limit` (default and max 500). `more`:
+ * call again with `since = cursor`.
+ */
+export interface SyncChanges {
+  items: SyncItem[];
+  /** The highest `seq` in `items`, or `since` when there are none. */
+  cursor: number;
+  more: boolean;
+  usage: SyncUsage;
+  limits: AccountLimits;
+}
+
+/**
+ * `PUT /api/u/sync/items/<kind>/<id>`: body = the blob. Header
+ * `If-Match: <rev>`, the rev the change is based on; `0` for a new item.
+ * `200` → `SyncWritten`. `409` → `SyncConflict`. `413` → `{error:
+ * "item_too_large" | "storage_full" | "too_many_items"}`.
+ *
+ * `DELETE /api/u/sync/items/<kind>/<id>`, `If-Match: <rev>`: writes a
+ * tombstone; `200` → `SyncWritten`, `409` → `SyncConflict`.
+ */
+export interface SyncWritten {
+  rev: number;
+  seq: number;
+  usage: SyncUsage;
+}
+
+/** `409`: the current item (a tombstone too), so the client can resolve without a pull. */
+export interface SyncConflict {
+  error: 'conflict';
+  current: SyncItem;
+}
+
+/**
+ * Why a session ended, sent with `401 {error: "session_ended", reason}`
+ * on any `/api/u/` request on that session (ADR 0145 addendum, stage 61).
+ * A cookie the server never knew answers `401 {error: "not_logged_in"}`.
+ */
+export const SESSION_END_REASONS = ['logout', 'password', 'recovered', 'ended', 'expired', 'deleted'] as const;
+export type SessionEndReason = (typeof SESSION_END_REASONS)[number];
+export interface SessionEnded {
+  error: 'session_ended';
+  reason: SessionEndReason;
+}
