@@ -1,6 +1,6 @@
 # 0150 — The two spaces in the browser
 
-- Status: Accepted (technical; stage 61). Not built.
+- Status: Accepted (technical; stage 61). Part B1 built (see "As built (stage 61 B1)").
 - Date: 2026-11-14
 - Related: ADR 0146 and its addendum (the two spaces, the owner's
   rule), ADR 0145 (keys, `webcockpit-account`), ADR 0006 (IndexedDB),
@@ -130,3 +130,62 @@ does on `webcockpit` today.
   stores. Upgrade tests cover a version 8 database with profiles.
 - The account name appears in a database name on the device, as it
   already does in `localStorage`.
+
+## As built (stage 61 B1)
+
+Branch `stage61-spaces`. What differs from, or adds to, the decision:
+
+- **`src/core/space.ts`** decides the space from `wc.space` alone
+  (`{nameKey, state}`; absent, unreadable or `locked`: the device's).
+  The account hint `wc.account` is not read: part C writes both and
+  reconciles a hint without a record. `nameKey` must match
+  `^[a-z0-9_-]{3,20}$`, so a record can never name the device's
+  database. The record may carry `locked: [nameKey…]`, the further
+  locked copies kept (`lockedCopies()` lists all of them).
+- **`openDeviceDb` lives in `src/core/db.ts`**, beside
+  `openWebcockpitDb(factory, name = the current space's)`, not in
+  `space.ts`: `db.ts` imports `space.ts`, and the other way round would
+  be a cycle. `space.ts` imports nothing; `deleteSpaceDb(nameKey)`
+  refuses anything that is not a name key.
+- **Version 9** fills `id` (`crypto.randomUUID`) with a cursor in the
+  upgrade; `profiles` keeps its keyPath `name`. A rename was already a
+  put of the same record under the new name and a delete of the old,
+  so the id moves with it; it now says so and gives an id to a record
+  that somehow has none. `sync` has keyPath `['kind', 'key']`,
+  `syncMeta` out-of-line keys.
+- **The map** (`maps` through the shell's `MapStore`, `lazyDb(_, {
+  device: true })`) and the worker's `mapIds` open `webcockpit`. There
+  are no uploaded tilesets today (the tileset choice is a setting;
+  `map-tile-upload` is the GPU upload), so nothing else moved.
+- **The automatic MUME login** (ADR 0141) is held in the page's memory
+  only, never in storage, so there is nothing to key per space: a
+  change of space reloads the page and wipes it. `spaceStorageKey(key)`
+  (`key@u-<nameKey>` in an account's space) is there for the first key
+  that needs it.
+- **The game lock** is `webcockpit-game@device` or
+  `webcockpit-game@u-<nameKey>`, requested in `shared` mode (two game
+  tabs of one space both hold it) from the live cockpit becoming the
+  view until the start page shows again (`Shell.showCockpit` /
+  `showStart`; not in the offline modes). `gameRunningElsewhere(space)`
+  counts the holders minus this page's own; false without Web Locks.
+- **Other tabs:** the shell listens (`followSpace`) and reloads to the
+  start menu (`location.replace(pathname)`) when the record now puts
+  the page in another space; a write that keeps the space (a copy
+  locked) is ignored. In the cockpit it waits and reloads when the
+  start page would show. A log player or History page over the start
+  page counts as the start page (it reloads).
+- **The opening skipped:** `switchSpace(record, message)` puts the
+  message in `sessionStorage` `wc.space.message`; on a load that
+  carries one, the first boot's reveal runs without its fade
+  (`revealStart(…, { instant })`). `takeSpaceMessage()` reads it once;
+  showing it on the start menu's message line is part C.
+- **Tests:** `tests/unit/spaces.test.ts` (the record, the switch and
+  the message, following another tab, the lock, a database per space,
+  the version 8 → 9 upgrade with profiles, ids kept by a rename, and a
+  scan of `src/` that only `src/core/db.ts` opens and only
+  `src/core/space.ts` deletes a database; `src/cloud/account/store.ts`
+  is allowed both for the keys' own database `webcockpit-account`, ADR
+  0145, which is not a space). e2e `tests/e2e/spaces.spec.ts`; the test
+  hook is `wc.space` set before the load.
+- Entry chunk 30 201 → 30 513 bytes (the shell's follow, lock and
+  instant reveal; `space.ts` itself lands in the shared `db` chunk).
