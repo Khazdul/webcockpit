@@ -20,6 +20,7 @@ declare namespace Cloudflare {
     ADMIN_EMAILS?: string;
     NOINDEX?: boolean;
     FLAG_ACCOUNTS: boolean;
+    FLAG_SYNC: boolean;
     API_LIMITER: RateLimit;
     AUTH_LIMITER: RateLimit;
     TURNSTILE_SITE_KEY: string;

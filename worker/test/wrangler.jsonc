@@ -22,6 +22,7 @@
   "vars": {
     "FLAG_STATS": true,
     "FLAG_ACCOUNTS": true,
+    "FLAG_SYNC": true,
     // Test values of what are secrets on a real Worker; the Turnstile pair
     // is Cloudflare's published test keys (the tests stub siteverify).
     "AUTH_PEPPER": "test-pepper-not-a-secret-0123456789",

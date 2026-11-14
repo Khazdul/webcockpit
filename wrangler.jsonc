@@ -39,6 +39,8 @@
     // in the D1 table `flag`, set from /admin, overrides it.
     "FLAG_STATS": false,
     "FLAG_ACCOUNTS": false,
+    // Sync of profiles and scripts (stage 61): staging only for now.
+    "FLAG_SYNC": false,
     // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
     // (the owner, 2026-11-14; hostnames mumecockpit.com and
     // staging.mumecockpit.com): its site key, public by nature, and the
@@ -93,6 +95,7 @@
       "vars": {
         "FLAG_STATS": true,
         "FLAG_ACCOUNTS": true,
+        "FLAG_SYNC": true,
         // The same widget as production (see the top level); the secrets
         // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
         "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",
