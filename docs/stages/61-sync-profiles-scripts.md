@@ -1,6 +1,6 @@
 # Stage 61 — Sync of profiles and scripts, on the two spaces
 
-Status: **Planned.** Part A (mockups) next; nothing built.
+Status: **In progress.** Part A done (mockups, owner's picks 2026-11-14); part B waits for the owner's word.
 
 Done after stage 67 (spec §7.12: the order is 67, 61, 62, 63, then
 accounts open in production, then 64–66). On staging only: the flag
@@ -114,15 +114,15 @@ touches staging or production.
 
 ### A. Mockups (one agent; the owner picks)
 
-- [ ] `notes/research/start-menu-mockups/round9/` in the manner of
+- [x] `notes/research/start-menu-mockups/round9/` in the manner of
       round 8 (its README: the real DOM and styles captured from a dev
       server on its own port, never 5173; the new content in classes
       of its own; every state as a picture; a review page; one
       self-contained file published as an artifact).
-- [ ] The seven points above, desktop and phone, two or three ways
+- [x] The seven points above, desktop and phone, two or three ways
       where the place is open (points 1–3, 5), one where only the
       wording is (4, 6, 7).
-- [ ] The owner picks; the picks go under "Owner feedback" and, where
+- [x] The owner picks; the picks go under "Owner feedback" and, where
       they settle wording, into spec §7.4.
 
 ### B. Foundations (three agents in worktrees side by side; **waits for the owner's word**)
@@ -236,4 +236,27 @@ out is noticed; anything that looked like a mixture.
 
 ## Owner feedback
 
-(Nothing yet.)
+### Part A: the picks (2026-11-14)
+
+Mockups: `notes/research/start-menu-mockups/round9/` (README, 58
+pictures), published as <https://claude.ai/artifact/JhBtNxsewN6KZ26EiFahWh>.
+The owner took the recommendation on all seven points:
+
+1. **After Create account:** a + c. The line on the start menu's
+   message line (also while the move runs and when it waits for the
+   network: round 9's wording), and a quiet lasting line in the
+   Account page's sync section.
+2. **The locked copy:** a, the notice under the owner row inside the
+   panel, Log in (L) and Remove (R); Remove's question "Remove copy"
+   names what is lost, Keep the default.
+3. **The start menu's messages:** a, today's message line.
+4. **The Log out dialog:** as drawn, four states.
+5. **Keep both:** a + b, the start menu's message naming both copies
+   and the gold "kept both" mark on the new copy in the Profile list
+   until it is opened or renamed.
+6. **Delete account:** as drawn.
+7. **The Account page's sync section:** as drawn; the page scrolls on
+   a 1440 × 900 screen (Leaving below the fold).
+
+Follows from 1–3: the start menu's message line wraps to two or three
+lines and About moves down while it shows (round 9 README).
