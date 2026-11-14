@@ -11,7 +11,9 @@
 //   POST   /api/u/account/recovery         a new recovery code
 //   DELETE /api/u/account/sessions/<id>    ends a session; `others`: all but this one
 //   PATCH  /api/u/account/prefs            the gallery notice switch
-//   DELETE /api/u/account                  removes the account; its name stays reserved
+//   DELETE /api/u/account                  removes the account and its items; its name stays reserved
+//   GET    /api/u/sync/changes, PUT and DELETE /api/u/sync/items/<kind>/<id>
+//                                          the sync (worker/sync.ts; flag `sync` as well)
 //
 // The server never sees a password or a key that opens data. The browser
 // sends `authKey` (and `recoveryAuth`), derived from the password (the
@@ -22,7 +24,9 @@
 // that is not a GET (`X-WC: 1` and the site's own `Origin`), the tight
 // limit on login, recover and register, the secrets
 // (503 `accounts_not_configured`), the database, and under `/api/u/` the
-// session. Nothing here logs: no body, name, token or address.
+// session (401 `unauthorized`, or `session_ended` with the reason when the
+// server removed the session: sessions.ts). Nothing here logs: no body,
+// name, token or address.
 //
 // "No such name" and "wrong password" are one answer: both run the same
 // statements, count on the same per-name counter (keyed by an HMAC of the
@@ -41,6 +45,7 @@ import {
   REGISTER_PER_HOUR,
   RECOVER_TICKET_SECONDS,
   type RecoverAnswer,
+  type SessionEnded,
 } from '../shared/cloud/api.ts';
 import {
   type AccountRow,
@@ -62,8 +67,9 @@ import { GUESS_WINDOW_MS, type GuessKind, HOUR_MS, addressCounters, countRegistr
 import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
 import { DAY_MS, type D1, type Deps, type Env, error, json } from './runtime.ts';
-import { type Authed, SESSION_ID, authenticate, clearedCookie, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
+import { type Authed, SESSION_ID, authenticate, clearedCookie, ended, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
 import { readCapped } from './stats.ts';
+import { isSyncPath, syncRoute } from './sync.ts';
 import { isToken, verifyTurnstile } from './turnstile.ts';
 
 /** The largest body accepted: a registration with a full-length Turnstile token is about 2.6 kB. */
@@ -329,7 +335,7 @@ async function recover(c: Ctx): Promise<Response> {
     c.db
       .prepare('UPDATE account SET salt = ?2, kdf = ?3, auth_hash = ?4, wrap_pw = ?5, last_seen = ?6 WHERE id = ?1')
       .bind(row.id, password.salt, password.kdf, password.authHash, password.wrapPw, c.now),
-    c.db.prepare('DELETE FROM session WHERE account = ?1').bind(row.id),
+    ...ended(c.db, 'account = ?1', [row.id], 'recovered', c.now),
     session.insert,
     takeBack(c.db, key, n),
   ]);
@@ -370,7 +376,7 @@ async function passwordAgain(c: Ctx, account: AccountRow, authKey: unknown): Pro
 
 async function logout(c: Ctx): Promise<Response> {
   const { idHash } = c.auth as Authed;
-  await c.db.prepare('DELETE FROM session WHERE id_hash = ?1').bind(idHash).run();
+  await c.db.batch(ended(c.db, 'id_hash = ?1', [idHash], 'logout', c.now));
   return empty({ 'Set-Cookie': clearedCookie() });
 }
 
@@ -394,11 +400,13 @@ async function password(c: Ctx): Promise<Response> {
     c.db
       .prepare('UPDATE account SET salt = ?2, kdf = ?3, auth_hash = ?4, wrap_pw = ?5 WHERE id = ?1 AND auth_hash = ?6')
       .bind(row.id, next.salt, next.kdf, next.authHash, next.wrapPw, proven.hash),
-    c.db
-      .prepare(
-        'DELETE FROM session WHERE account = ?1 AND id_hash <> ?2 AND EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?3 AND wrap_pw = ?4)',
-      )
-      .bind(row.id, idHash, next.authHash, next.wrapPw),
+    ...ended(
+      c.db,
+      'account = ?1 AND id_hash <> ?2 AND EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?3 AND wrap_pw = ?4)',
+      [row.id, idHash, next.authHash, next.wrapPw],
+      'password',
+      c.now,
+    ),
   ]);
   if (updated?.meta.changes !== 1) return error('invalid_login', 401);
   await proven.done();
@@ -427,15 +435,16 @@ async function endSession(c: Ctx): Promise<Response> {
   const { account: row, idHash } = c.auth as Authed;
   const id = c.url.pathname.slice(SESSIONS_PREFIX.length);
   if (id === OTHER_SESSIONS) {
-    await c.db.prepare('DELETE FROM session WHERE account = ?1 AND id_hash <> ?2').bind(row.id, idHash).run();
+    await c.db.batch(ended(c.db, 'account = ?1 AND id_hash <> ?2', [row.id, idHash], 'ended', c.now));
     return empty();
   }
   if (!SESSION_ID.test(id)) return error('not_found', 404);
   // Only a session of this account: another account's id is as unknown as a made-up one.
-  const gone = await c.db
-    .prepare('DELETE FROM session WHERE account = ?1 AND id = ?2 RETURNING id_hash')
-    .bind(row.id, id)
-    .first<{ id_hash: string }>();
+  const results = await c.db.batch<{ id_hash: string }>([
+    c.db.prepare('SELECT id_hash FROM session WHERE account = ?1 AND id = ?2').bind(row.id, id),
+    ...ended(c.db, 'account = ?1 AND id = ?2', [row.id, id], 'ended', c.now),
+  ]);
+  const gone = results[0]?.results[0];
   if (!gone) return error('not_found', 404);
   return empty(gone.id_hash === idHash ? { 'Set-Cookie': clearedCookie() } : {});
 }
@@ -462,9 +471,9 @@ async function remove(c: Ctx): Promise<Response> {
   const still = 'EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?2)';
   const results = await c.db.batch([
     c.db.prepare(`INSERT OR IGNORE INTO reserved_name (name_key) SELECT ?3 WHERE ${still}`).bind(row.id, proven.hash, row.name_key),
-    c.db.prepare(`DELETE FROM session WHERE account = ?1 AND ${still}`).bind(row.id, proven.hash),
+    ...ended(c.db, `account = ?1 AND ${still}`, [row.id, proven.hash], 'deleted', c.now),
+    c.db.prepare(`DELETE FROM item WHERE account = ?1 AND ${still}`).bind(row.id, proven.hash),
     // Later stages add theirs here:
-    //   stage 61: DELETE FROM item WHERE account = ?1
     //   stage 63: DELETE FROM run_body WHERE account = ?1, and the R2
     //             objects under u/<account>/ (after the batch; a failure
     //             there must be picked up by a sweep, as R2 is not in the
@@ -500,6 +509,7 @@ const ROUTES: Record<string, Record<string, Handler>> = {
 };
 
 function routeOf(path: string): Record<string, Handler> | undefined {
+  if (isSyncPath(path)) return syncRoute(path);
   if (path.startsWith(SESSIONS_PREFIX)) return path.length > SESSIONS_PREFIX.length ? ROUTES[SESSIONS_PREFIX] : undefined;
   return Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined;
 }
@@ -542,6 +552,8 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
 
   const route = routeOf(path);
   if (!route) return error('not_found', 404);
+  // The flag `sync` closes its paths as `accounts` closes them all.
+  if (isSyncPath(path) && !(await flags(env, now)).sync) return error('not_found', 404);
   const head = request.method === 'HEAD';
   const method = head ? 'GET' : request.method;
   const handler = Object.hasOwn(route, method) ? route[method] : undefined;
@@ -557,9 +569,12 @@ async function answer(request: Request, env: Env, url: URL, deps: Deps, now: num
 
   let auth: Authed | null = null;
   if (user) {
-    auth = token ? await authenticate(db, token, now) : null;
+    const found = token ? await authenticate(db, token, now) : null;
     // The cookie is cleared only for a browser that sent one.
-    if (!auth) return error('unauthorized', 401, hasSessionCookie(request) ? { 'Set-Cookie': clearedCookie() } : {});
+    const clear: Record<string, string> = hasSessionCookie(request) ? { 'Set-Cookie': clearedCookie() } : {};
+    if (found && 'ended' in found) return json({ error: 'session_ended', reason: found.ended } satisfies SessionEnded, 401, clear);
+    if (!found) return error('unauthorized', 401, clear);
+    auth = found;
   }
   const res = await handler({ request, env, url, deps, db, now, pepper: utf8(pepper), address, auth });
   if (auth?.renewed && !res.headers.has('set-cookie')) res.headers.set('Set-Cookie', auth.renewed);

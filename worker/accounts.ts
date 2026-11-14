@@ -37,9 +37,15 @@ export interface AccountRow {
   wrap_rc: string;
   limits: string | null;
   prefs: string;
+  /** The change counter of the account's items (stage 61). */
+  seq: number;
+  /** Live items and their bytes (worker/sync.ts keeps them; migration 0003). */
+  item_count: number;
+  item_bytes: number;
 }
 
-export const ACCOUNT_COLUMNS = 'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs';
+export const ACCOUNT_COLUMNS =
+  'id, name, name_key, created, state, salt, kdf, auth_hash, recovery_hash, wrap_pw, wrap_rc, limits, prefs, seq, item_count, item_bytes';
 
 /**
  * Names nobody can register, besides those of deleted accounts
@@ -189,8 +195,8 @@ export async function accountView(db: D1, row: AccountRow, idHash: string, now: 
     name: row.name,
     created: row.created,
     state: row.state === 'suspended' ? 'suspended' : 'active',
-    // The tables these count come with their stages (61: items, 63: run bodies).
-    usage: { items: 0, itemBytes: 0, runBytes: 0 },
+    // Run bodies come with stage 63.
+    usage: { items: row.item_count, itemBytes: row.item_bytes, runBytes: 0 },
     limits: limitsOf(row),
     sessions,
     prefs: prefsOf(row),
