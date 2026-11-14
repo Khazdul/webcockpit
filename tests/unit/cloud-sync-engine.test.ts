@@ -164,18 +164,51 @@ describe('conflicts', () => {
   });
 
   it('two new items with one name: the pulled one keeps it, the local one is renamed', async () => {
-    const { devices: [a, b] } = await account();
-    a!.local.set('profile', prof('warrior', 'a'));
-    b!.local.set('profile', prof('warrior', 'b'));
-    await a!.sync();
-    await b!.sync();
-    expect(b!.list().map((x) => [x.name, x.text])).toEqual([
-      ['warrior', 'a'],
-      ['warrior_2', 'b'],
-    ]);
-    expect(b!.events).toMatchObject([{ type: 'renamed', from: 'warrior', to: 'warrior_2' }]);
-    await a!.sync();
-    expect(a!.list()).toEqual(b!.list());
+    // Several pairs, so the server ids' order cannot decide it by chance.
+    for (let i = 0; i < 8; i++) {
+      const { devices: [a, b] } = await account();
+      a!.local.set('profile', prof('warrior', 'a'));
+      b!.local.set('profile', prof('warrior', 'b'));
+      await a!.sync();
+      await b!.sync();
+      expect(b!.list().map((x) => [x.name, x.text])).toEqual([
+        ['warrior', 'a'],
+        ['warrior_2', 'b'],
+      ]);
+      expect(b!.events).toMatchObject([{ type: 'renamed', from: 'warrior', to: 'warrior_2' }]);
+      await a!.sync();
+      expect(a!.list()).toEqual(b!.list());
+    }
+  });
+
+  it("the names pass's own rename gives way to an edit and a delete from elsewhere (no copy, no revival)", async () => {
+    for (const there of ['edit', 'delete'] as const) {
+      const { devices: [a, b] } = await account();
+      const wa = prof('warrior', 'a');
+      a!.local.set('profile', wa);
+      await a!.sync();
+      // b plays its own new warrior; the pulled one is renamed, and the rename does not get out.
+      const wb = prof('warrior', 'b');
+      b!.local.set('profile', wb);
+      b!.using.set('profile', new Set([wb.id as string]));
+      b!.link.beforeWrite = async () => {
+        b!.link.online = false;
+      };
+      expect((await b!.sync()).type).toBe('offline');
+      expect(b!.byName('warrior_2')!.id).toBe(wa.id);
+      if (there === 'edit') a!.local.set('profile', { ...wa, text: 'edited', modified: 9 });
+      else a!.local.del('profile', wa.id as string);
+      await a!.sync();
+      b!.link.beforeWrite = undefined;
+      b!.link.online = true;
+      b!.using.clear();
+      await b!.sync();
+      await a!.sync();
+      const want = there === 'edit' ? [['warrior', 'b'], ['warrior_2', 'edited']] : [['warrior', 'b']];
+      expect(b!.list().map((x) => [x.name, x.text])).toEqual(want);
+      expect(a!.list()).toEqual(b!.list());
+      expect(b!.events.filter((e) => e.type === 'keptBoth' || e.type === 'restored')).toEqual([]);
+    }
   });
 
   it('names swapped elsewhere arrive in one batch', async () => {
