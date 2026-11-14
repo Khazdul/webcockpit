@@ -30,7 +30,7 @@ export type CspTarget = 'production' | 'staging';
  * account pages by hand there, then production.
  */
 export const CSP_ENFORCED: Record<CspTarget, boolean> = {
-  staging: false,
+  staging: true,
   production: false,
 };
 
