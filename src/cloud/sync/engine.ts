@@ -26,7 +26,7 @@
 
 import type { AccountLimits, SyncItem, SyncKind, SyncUsage } from '../../../shared/cloud/api.ts';
 import { ItemCodec } from './codec';
-import { ITEM_SPECS, type KindSpec, contentHash, copyKey, freeName, keepBothName } from './items';
+import { ITEM_SPECS, type KindSpec, copyKey, freeName, itemHashes, keepBothName } from './items';
 import { noLock } from './lock';
 import { INITIAL_STATUS, Observable, backoffMs } from './status';
 import {
@@ -74,6 +74,7 @@ export interface SyncEngineOptions {
 interface Base {
   rev: number;
   hash: string | null;
+  bare: string | null;
   deleted: boolean;
   name: string | null;
 }
@@ -83,7 +84,7 @@ interface Entry {
   spec: KindSpec;
   sid: string;
   key: string | null;
-  local: { body: Body; hash: string } | null;
+  local: { body: Body; hash: string; bare: string } | null;
   rec: SyncRecord | null;
   /** Left alone this round: in use (`held`) or unreadable (`newer`, `unreadable`). */
   fixed: boolean;
@@ -92,6 +93,7 @@ interface Entry {
   /** The planned local record; null = absent. */
   target: Body | null;
   targetHash: string | null;
+  targetBare: string | null;
   /** The server version the local copy is based on once the round's local batch is written. */
   base: Base;
   /** A keep-both copy made this round, and the item it was copied from. */
@@ -101,7 +103,7 @@ interface Entry {
   restored?: boolean;
 }
 
-const NO_BASE: Base = { rev: 0, hash: null, deleted: false, name: null };
+const NO_BASE: Base = { rev: 0, hash: null, bare: null, deleted: false, name: null };
 const recId = (kind: SyncKind, serverId: string): string => `${kind}\n${serverId}`;
 
 export class SyncEngine {
@@ -185,7 +187,7 @@ export class SyncEngine {
         const rec = byId.get(sid);
         const name = spec.names?.get(li.body) ?? null;
         if (!rec || rec.rev === 0) out.push({ kind: spec.kind, key: li.key, name, change: 'new' });
-        else if ((await contentHash(spec.kind, li.body)) !== rec.hash) out.push({ kind: spec.kind, key: li.key, name, change: 'edit' });
+        else if ((await itemHashes(spec, li.body)).hash !== rec.hash) out.push({ kind: spec.kind, key: li.key, name, change: 'edit' });
       }
       for (const rec of mine) {
         if (!seen.has(rec.serverId) && rec.rev > 0 && rec.hash !== null && rec.key !== null) {
@@ -268,7 +270,7 @@ export class SyncEngine {
         ...rec,
         key: spec.key(d.body),
         state: 'held',
-        remote: { rev: rec.remote.rev, deleted: false, body: d.body, hash: await contentHash(spec.kind, d.body) },
+        remote: { rev: rec.remote.rev, deleted: false, body: d.body, ...(await itemHashes(spec, d.body)) },
       };
       recs.set(recId(rec.kind, rec.serverId), next);
       retried.push(next);
@@ -308,7 +310,7 @@ export class SyncEngine {
     const { remote, state } = await this.readRemote(item);
     const key = remote.body ? this.specByKind.get(item.kind)!.key(remote.body) : (rec?.key ?? null);
     if (state !== 'held') this.events.emit({ type: state, kind: item.kind, serverId: item.id });
-    const base = rec ?? { kind: item.kind, serverId: item.id, key, name: null, rev: 0, hash: null, state };
+    const base = rec ?? { kind: item.kind, serverId: item.id, key, name: null, rev: 0, hash: null, bare: null, state };
     return { ...base, key, state, remote };
   }
 
@@ -320,7 +322,7 @@ export class SyncEngine {
     if (!spec) return { remote: { rev: item.rev, deleted: false, blob }, state: 'newer' };
     const d = await this.codec.open(spec, item.id, blob);
     if (!d.ok) return { remote: { rev: item.rev, deleted: false, blob }, state: d.why };
-    return { remote: { rev: item.rev, deleted: false, body: d.body, hash: await contentHash(spec.kind, d.body) }, state: 'held' };
+    return { remote: { rev: item.rev, deleted: false, body: d.body, ...(await itemHashes(spec, d.body)) }, state: 'held' };
   }
 
   // --- A round (steps 3–6) ---
@@ -345,7 +347,7 @@ export class SyncEngine {
     const entries = new Map<string, Entry>();
     for (const li of await this.local.list(kind)) {
       const sid = await this.codec.serverId(kind, li.key);
-      entries.set(sid, this.entry(spec, sid, li.key, { body: li.body, hash: await contentHash(kind, li.body) }, null));
+      entries.set(sid, this.entry(spec, sid, li.key, { body: li.body, ...(await itemHashes(spec, li.body)) }, null));
     }
     for (const rec of recs) {
       const e = entries.get(rec.serverId);
@@ -363,7 +365,7 @@ export class SyncEngine {
         copies.push(copy);
       }
     }
-    for (const e of entries.values()) e.targetHash = e.target ? await contentHash(kind, e.target) : null;
+    for (const e of entries.values()) await this.hashTarget(e);
     if (spec.names) await this.uniqueNames(spec, [...entries.values()]);
 
     // Apply: the local batch, then the records.
@@ -421,8 +423,14 @@ export class SyncEngine {
     return { conflicts, waiting, held, full, newer };
   }
 
+  private async hashTarget(e: Entry): Promise<void> {
+    const h = e.target ? await itemHashes(e.spec, e.target) : null;
+    e.targetHash = h?.hash ?? null;
+    e.targetBare = h?.bare ?? null;
+  }
+
   private entry(spec: KindSpec, sid: string, key: string | null, local: Entry['local'], rec: SyncRecord | null): Entry {
-    return { spec, sid, key, local, rec, fixed: false, used: false, target: local?.body ?? null, targetHash: null, base: NO_BASE };
+    return { spec, sid, key, local, rec, fixed: false, used: false, target: local?.body ?? null, targetHash: null, targetBare: null, base: NO_BASE };
   }
 
   /** Step 4 for one item. Returns a keep-both copy to add. */
@@ -430,49 +438,56 @@ export class SyncEngine {
     const { rec, local: L, spec } = e;
     const R = rec?.remote;
     e.target = L?.body ?? null;
-    e.base = rec ? { rev: rec.rev, hash: rec.hash, deleted: false, name: rec.name } : NO_BASE;
+    e.base = rec ? { rev: rec.rev, hash: rec.hash, bare: rec.bare, deleted: false, name: rec.name } : NO_BASE;
     if (rec && (rec.state === 'newer' || rec.state === 'unreadable')) {
       e.fixed = true;
       return null;
     }
     if (!R) return null;
-    const theirs: Base = { rev: R.rev, hash: R.hash ?? null, deleted: R.deleted, name: R.body && spec.names ? spec.names.get(R.body) : null };
+    const recBase = e.base;
+    const names = spec.names;
+    const theirs: Base = { rev: R.rev, hash: R.hash ?? null, bare: R.bare ?? null, deleted: R.deleted, name: R.body && names ? names.get(R.body) : null };
     const dirty = L !== null && L.hash !== (rec?.hash ?? null);
-
-    if (R.deleted) {
-      if (L && !dirty && used) e.fixed = true;
-      else {
-        // Deleted on both, deleted there and unchanged here, or (dirty) an edit beats a delete.
-        e.target = dirty ? L!.body : null;
-        e.base = theirs;
+    // An edit changes more than the name. A player's rename moves the
+    // times too (the stores set `modified`/`updated`); a rename of the
+    // names pass does not, so it never counts as an edit: it gives way to
+    // a pulled edit or delete instead of making a copy or a revival.
+    const sameBare = (bare: string | null | undefined): boolean => rec?.bare != null && bare === rec.bare;
+    const edited = dirty && !sameBare(L!.bare);
+    const theirEdit = !R.deleted && !sameBare(R.bare);
+    const take = (target: Body | null): null => {
+      e.target = target;
+      e.base = theirs;
+      return null;
+    };
+    const decided = ((): 'copy' | null => {
+      if (R.deleted) return take(edited ? L!.body : null); // an edit beats a delete
+      const body = R.body!;
+      if (!L) {
+        // Deleted here: an edit there brings it back; a rename there does not.
+        if (rec && rec.rev > 0 && rec.hash !== null && !theirEdit) return take(null);
+        e.restored = !!rec && rec.rev > 0 && rec.hash !== null;
+        return take(body);
       }
-      return null;
-    }
-    const body = R.body!;
-    if (!L) {
-      e.target = body;
-      e.base = theirs;
-      e.restored = !!rec && rec.rev > 0 && rec.hash !== null;
-      return null;
-    }
-    if (!dirty || L.hash === R.hash) {
-      if (dirty || !used) {
-        e.target = dirty ? L.body : body;
-        e.base = theirs;
-      } else e.fixed = true;
-      return null;
-    }
-    // Changed on both sides.
-    if (spec.policy === 'lastWriter') {
-      e.target = L.body;
-      e.base = theirs;
-      return null;
-    }
-    if (used || !spec.copy) {
+      if (!dirty) return take(body);
+      if (L.hash === R.hash) return take(L.body);
+      if (!edited) return take(theirEdit && names && theirs.name === rec?.name ? names.set(body, names.get(L.body)) : body);
+      if (!theirEdit) return take(names && theirs.name !== rec?.name ? names.set(L.body, theirs.name!) : L.body);
+      if (spec.policy === 'lastWriter' || !spec.copy) return take(L.body);
+      return 'copy';
+    })();
+    // Nothing is written into an item in use: the whole decision waits.
+    if (used && (decided === 'copy' || e.target !== L?.body)) {
       e.fixed = true;
+      e.target = L?.body ?? null;
+      e.base = recBase;
+      e.restored = false;
       return null;
     }
-    e.target = body;
+    if (decided !== 'copy') return null;
+    // Edited on both sides: keep both.
+    if (!L || !spec.copy) return null;
+    e.target = R.body!;
     e.base = theirs;
     const key = await copyKey(spec.kind, e.key!, R.rev, L.hash);
     const name = spec.names ? spec.names.get(L.body) : '';
@@ -515,7 +530,7 @@ export class SyncEngine {
         taken.add(to);
         e.renamedFrom ??= name;
         e.target = names.set(e.target!, to);
-        e.targetHash = await contentHash(spec.kind, e.target);
+        await this.hashTarget(e);
       }
     }
   }
@@ -531,6 +546,7 @@ export class SyncEngine {
       name: e.base.name,
       rev: e.base.rev,
       hash: e.base.hash,
+      bare: e.base.bare,
       state: e.rec?.state === 'full' ? 'full' : 'synced',
       ...(e.rec?.state === 'full' && e.rec.full ? { full: e.rec.full } : {}),
     };
@@ -565,17 +581,19 @@ export class SyncEngine {
     const name = e.target && spec.names ? spec.names.get(e.target) : null;
     if (res.status === 'ok') {
       this.usage = res.written.usage;
-      e.rec = e.target ? { kind: spec.kind, serverId: e.sid, key: e.key, name, rev: res.written.rev, hash: e.targetHash, state: 'synced' } : null;
+      e.rec = e.target
+        ? { kind: spec.kind, serverId: e.sid, key: e.key, name, rev: res.written.rev, hash: e.targetHash, bare: e.targetBare, state: 'synced' }
+        : null;
       return 'ok';
     }
     if (res.status === 'full') {
       if (e.rec?.state !== 'full') this.events.emit({ type: 'full', kind: spec.kind, key: e.key!, name, error: res.error });
-      e.rec = { ...(e.rec ?? { kind: spec.kind, serverId: e.sid, key: e.key, name: null, rev: 0, hash: null }), state: 'full', full: res.error };
+      e.rec = { ...(e.rec ?? { kind: spec.kind, serverId: e.sid, key: e.key, name: null, rev: 0, hash: null, bare: null }), state: 'full', full: res.error };
       return 'full';
     }
     // 409: the current item becomes the remote version; the next round resolves it.
     const current = res.current;
-    const rec = e.rec ?? { kind: spec.kind, serverId: e.sid, key: e.key, name: null, rev: 0, hash: null, state: 'synced' as const };
+    const rec = e.rec ?? { kind: spec.kind, serverId: e.sid, key: e.key, name: null, rev: 0, hash: null, bare: null, state: 'synced' as const };
     e.rec = (await this.take(current, rec, true)) ?? rec;
     return 'conflict';
   }

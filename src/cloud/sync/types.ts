@@ -89,8 +89,9 @@ export interface RemoteVersion {
   deleted: boolean;
   /** The decoded record (absent for a tombstone and for `newer`/`unreadable`). */
   body?: Body;
-  /** Its content hash. */
+  /** Its content hash, and the hash without the name (`itemHashes`). */
   hash?: string;
+  bare?: string;
   /** The blob as pulled (base64url), kept for `newer`/`unreadable` so a later client can read it. */
   blob?: string;
 }
@@ -111,6 +112,8 @@ export interface SyncRecord {
   rev: number;
   /** The content hash at `rev`; null for none (or a tombstone). */
   hash: string | null;
+  /** The hash without the name at `rev` (`itemHashes`), or null. */
+  bare: string | null;
   state: SyncRecordState;
   /** A pulled version waiting to be taken in (`held`, `newer`, `unreadable`). */
   remote?: RemoteVersion;

@@ -80,6 +80,18 @@ export async function contentHash(kind: SyncKind, body: Body): Promise<string> {
   return toBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)));
 }
 
+/**
+ * A record's two hashes: `hash` over all of it, `bare` over all but the
+ * name (equal to `hash` for a kind without names). `bare` tells a rename
+ * that moved nothing else (the engine's own, to keep names unique) from
+ * an edit.
+ */
+export async function itemHashes(spec: KindSpec, body: Body): Promise<{ hash: string; bare: string }> {
+  const hash = await contentHash(spec.kind, body);
+  if (!spec.names) return { hash, bare: hash };
+  return { hash, bare: await contentHash(spec.kind, { ...body, name: undefined }) };
+}
+
 /** The plaintext of a blob: the record with its format version. */
 export function encodeBody(spec: KindSpec, body: Body): Uint8Array<ArrayBuffer> {
   return encoder.encode(canonicalJson({ ...body, v: spec.version })) as Uint8Array<ArrayBuffer>;
