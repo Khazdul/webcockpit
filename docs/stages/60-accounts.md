@@ -335,6 +335,98 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
         that is handled in script); the real Managed widget and the
         enforced CSP are staging's; WebKit and iOS are not installed
         here.
+
+      Second half built 2026-11-14 on branch `stage60-account-page`:
+      the Account page and its dialogs (`account-page.tsx`,
+      `account-dialogs.tsx`, `account-model.ts`; ADR 0145 "As built
+      (stage 60 part B, the pages, second half)"). Tests: 8 unit
+      tests in `tests/unit/account-model.test.ts`,
+      `tests/e2e/account-page.spec.ts` (17 cases, two browsers) and
+      `phone-account-page.spec.ts` (6 cases: phone upright and on its
+      side, a tablet-size window). Pictures of the page and each
+      dialog in `built/` (`acct*`, `d-*`; the placeholder's are
+      removed). Walked once by hand-driven Playwright against the real
+      local Worker (`dev:cloud`, Chromium, two browser contexts):
+      register, a second device logs in (two sessions listed), end the
+      other (it is sent to Log in at its next question), a wrong then
+      the right current password, a new recovery code, log out,
+      Recovery refused with the old code and done with the new,
+      delete, and the log in after it refused. Differences from the
+      brief and the mockup:
+
+      - **One column, 600 px, on a desktop too.** With storage,
+        notices and "your data" gone, two columns were half empty. The
+        box is as high as its content (a fresh account: about 490 px);
+        a long device list scrolls on its own there. On a phone the
+        box fills the screen and the body scrolls.
+      - **A device row has two lines:** the label, and under it
+        "Logged in 14 Nov 2026 · last used about 3 days ago". The
+        last use is said by the day with "about" (the server writes
+        it once a day); this device has no "last used".
+      - **Keys on the page.** P, R, L, O as in the mockup; E ends the
+        cursor's row, else the first other one (its End carries the
+        letter). Tab, Shift+Tab and the arrows walk every button in
+        order, which is the only way to Delete account by keyboard.
+        New recovery code has the `key` icon (the mockup's `reset` was
+        Sync now's).
+      - **The dialogs centre in the page, not in the Account box**
+        (the box is too small for Change password and the code).
+      - **Log out** asks "Log out of Olev on this device?" and says
+        "Your profiles, scripts and runs on this device stay as they
+        are." (no keep / remove choice). Letters: L logs out, C
+        cancels, Enter is Log out. **So the existing specs log out in
+        two steps** (`logOut` in `account-pages.ts`). Server not
+        reached: Log in with "Logged out on this device. The server
+        was not reached, so this session may still be listed on your
+        other devices until it is ended there or runs out." (reworded
+        from the placeholder's).
+      - **End session / End all others:** the mockup's texts; flashes
+        "The session is ended." / "The other sessions are ended.".
+      - **Change password:** the mockup's texts; while working, a line
+        "Two keys are made, one from the old password and one from
+        the new: about twice as long as logging in." A `timeout` adds
+        "The next time you log in, try the new password first; if it
+        is refused, the old one still holds."
+      - **New recovery code is a dialog in two steps**, not a page
+        (the mockup showed the code page again): the question with
+        the password, then the code in the same view as after Create
+        account, with **Done** in place of Continue. Esc and Enter do
+        nothing until the last group is typed. The lost answer: a
+        plate "Your old recovery code may no longer work, and the new
+        one was not shown. The server did not answer, so it may or
+        may not have taken the new code. Make a new code again now:
+        only a code you have seen can be used.", the password kept,
+        the button "Make a new code again".
+      - **Delete account's text is new** (the mockup listed synced
+        data, published runs and comments, which do not exist yet):
+        "What goes: the account and everything stored in it, at once
+        and for good, and the login on every device. The name Olev
+        can never be registered again, by you or anyone." / "What
+        stays: what is on this device. Your profiles, scripts and
+        runs here are not touched." The typed name is taken in any
+        case. The cursor rests on Cancel, and **Enter in a field
+        cancels**; Delete is reached with Tab or a press. After it:
+        the start menu with "The account Olev is deleted. What is on
+        this device is untouched."
+      - **Suspended:** "This account is suspended. It cannot publish
+        runs or comment. Everything else works as before." (no word
+        of sync, which does not exist yet).
+      - **Added:** when the page cannot ask the server it says why and
+        offers Try again (T); logged out in another tab leaves for
+        the start menu with "Logged out in another tab."; a session
+        without a label is "Unnamed device".
+      - **Kit:** `Dialog` takes `at` (its owner's cursor); nothing
+        else changed. The key letters show on a phone as elsewhere in
+        the kit (the mockup dropped them).
+      - **The fake** (`cloud-account-fake.ts`): `addSession` takes
+        `madeAgo` / `usedAgo`. A label is 40 characters at most.
+      - Not done or not verified: ending a session that is already
+        gone is not driven through the page (the fake cannot end one
+        other session from outside; the flow's unit tests cover it);
+        `rate_limited` and `locked` are seen in one dialog each, not
+        in every one; a password manager was not seen updating; the
+        Working state has a picture on the desktop only; WebKit and
+        iOS are not installed; nothing ran against staging.
 - [ ] The CSP: report-only on staging, then enforced (Turnstile's
       script and frame included).
       - Done 2026-11-14 (ADR 0144, "As built (stage 60): the
