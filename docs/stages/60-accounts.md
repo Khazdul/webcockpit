@@ -342,3 +342,10 @@ Two things that are as the spec says, for you to know:
   check (above). Nothing else.
 
 ## Owner feedback
+
+- **2026-11-14:** decisions 1–7 as recommended: entry A (a menu row,
+  key U, between Spotlights and Credits); no Account row in the
+  phone's in-game sheet ("I think"); Create account as one page; the
+  Account page's grouping as mocked; the recovery code stays after a
+  recovery; device labels as they are; the words and texts look good.
+  Part C begun (the Turnstile widget).
