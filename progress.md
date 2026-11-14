@@ -75,6 +75,23 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-14 — Prep: the start menu, the account and the community
+
+- **Owner, after a first look at staging:** the structure does not
+  feel right yet (where things sit, what log in and log out do). His
+  brainstorm is `notes/start-menu-brainstorm.md`.
+- **Done:** `notes/start-menu-sync-prep.md`: the brainstorm against
+  intent, spec, ADR 0145, 0146, 0148 and the built stage 60; what
+  differs, what it costs, the nine questions answered, ten more, and
+  an agenda of twelve decisions with recommendations.
+- **The main point:** "logged out the device's things, logged in the
+  account's, never a mixture" replaces ADR 0146's merge model and
+  shapes stage 61's database; decide it first.
+- **Next:** the sync session with the owner along the agenda; then
+  the changes to intent, spec and ADRs, and the next stage's file.
+  Stage 60 stays on staging, not released, until then.
+- **Commits:** this one (not pushed).
+
 ### 2026-11-14 — Stage 60 part B: the client, the pages, the CSP
 
 - **Done:** `src/cloud/account` (API client, flows, the keys in a
