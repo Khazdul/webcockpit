@@ -105,11 +105,13 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   Android and desktop, they look good. The test account
   `wctestq7z7cg` removed from staging's D1 on his word (name
   reserved; his own two accounts untouched).
-- **Open:** the owner's play under the enforced CSP on staging (stage
-  60's step 13), before stage 67's release; how MUME's war point
-  lists can be fetched (stage 65); the run limit (stage 63).
-- **Commits:** 4dcc41b3 and this one. Nothing released, nothing run
-  against production, nothing pushed (682644b7 neither).
+  He also played a while on staging under the enforced CSP: nothing
+  odd (stage 60's step 13 done).
+- **Open:** how MUME's war point lists can be fetched (stage 65); the
+  run limit (stage 63).
+- **Commits:** 4dcc41b3, 85215278 and the one after; pushed with
+  682644b7 on the owner's word. Nothing released, nothing run against
+  production.
 
 ### 2026-11-14 — Prep: the start menu, the account and the community
 

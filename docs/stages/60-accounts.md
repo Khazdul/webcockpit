@@ -730,8 +730,8 @@ Two things that are as the spec says, for you to know:
   Turnstile token from a real browser, so they are checked with part
   B's pages.
 - **2026-11-14, evening:** the account pages tested in overview on
-  Android and on the desktop: they look good. No remarks. (Not said:
-  step 13, playing under the enforced CSP; it is asked for again
-  before stage 67's release.) The decisions of the same evening on the
+  Android and on the desktop: they look good. No remarks. Step 13 too: he played a
+  while on staging under the enforced CSP and saw nothing odd, so the
+  policy can be enforced in production with stage 67's release. The decisions of the same evening on the
   menu, the two spaces and the community are in "After the session"
   at the top.
