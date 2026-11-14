@@ -279,7 +279,8 @@ Online = seen in the last 6 minutes.
       application's audience tag.
 - [x] The secret `ADMIN_EMAILS` on both Workers (dashboard).
 - [x] (owner, 2026-11-14) Email Routing: `abuse@mumecockpit.com` forwarded to the owner.
-- [ ] If asked: enable R2.
+- [x] Enable R2 (owner, 2026-11-14); `provision.yml` made the buckets
+      (run 43574189364), bindings back in `wrangler.jsonc`.
 
 ### D. Release
 
@@ -327,4 +328,5 @@ Feedback wanted: decisions 1–5 above, and anything that looks off.
   counting; Turn off / Turn on tried and working; Email Routing rule
   `abuse@mumecockpit.com` → the owner (not test-mailed); both D1
   databases confirmed in the dashboard as jurisdiction "The European
-  Union", region Eastern Europe. Left: R2 (before stage 63).
+  Union", region Eastern Europe. R2 enabled afterwards; buckets made, bindings back, staging deployed
+  with `FILES` (eu). Production gets the binding with the next release.
