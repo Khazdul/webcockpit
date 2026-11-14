@@ -31,7 +31,7 @@ export type CspTarget = 'production' | 'staging';
  */
 export const CSP_ENFORCED: Record<CspTarget, boolean> = {
   staging: true,
-  production: false,
+  production: true,
 };
 
 /** `'sha256-…'` of every inline `<script>` (no `src`) in `html`, in document order, without repeats. */
