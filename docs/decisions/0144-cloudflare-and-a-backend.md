@@ -628,3 +628,18 @@ either header; staging will show it under this policy.
 - The real Turnstile widget on the account pages, in report-only
   first.
 - Safari and iOS, by hand, before production is enforced.
+
+### Enforced on staging (2026-11-14)
+
+`CSP_ENFORCED.staging` is true. Before the switch the account flows
+were walked on staging under the report-only policy, in a headed
+browser with the real Turnstile widget (Managed): no violation of our
+policy (Turnstile's own frame logs violations of Cloudflare's policy
+in the console; they are not ours). After it: `test:prod` with the CSP
+walk, 30/30, and the account walk again, which runs the KDF worker
+(invisible to a report-only policy) and Turnstile's script and frame
+under the enforced policy. Production stays report-only until the
+owner has tested staging; `production: true` goes with the release
+that turns the flag `accounts` on, never after it (ADR 0145, "After
+the review of the client").
+

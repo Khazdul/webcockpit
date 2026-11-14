@@ -1,9 +1,10 @@
 # Stage 60 — Accounts
 
-Status: **In progress.** Part A (server) and the crypto module are
-built, reviewed and on staging (2026-11-14). The pages a player sees
-wait for the owner's choice of mockup; the account endpoints on staging
-wait for the two secrets of part C.
+Status: **Built, on staging, waits for the owner's test** (2026-11-14).
+Server, crypto, the client core, the pages and the CSP are built,
+reviewed and deployed to staging with the flag `accounts` on and the
+policy enforced there. Not released; production is untouched (flag off,
+policy report-only from the next release). The test guide is below.
 
 ## Goal
 
@@ -253,7 +254,7 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
       - Not verified: the real `__Secure-` cookie on plain
         `http://localhost` (the fake simulates the cookie), anything
         against a real Worker, and WebKit (not installed).
-- [ ] The pages in the look kit; phone and tablet with our keyboard.
+- [x] The pages in the look kit; phone and tablet with our keyboard.
 
       First half built 2026-11-14 on branch `stage60-account-pages`:
       the Account row on the start menu, Turnstile, Log in, Create
@@ -427,8 +428,21 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
         in every one; a password manager was not seen updating; the
         Working state has a picture on the desktop only; WebKit and
         iOS are not installed; nothing ran against staging.
-- [ ] The CSP: report-only on staging, then enforced (Turnstile's
-      script and frame included).
+- [x] The CSP: report-only on staging, then enforced (Turnstile's
+      script and frame included). Enforced **on staging** 2026-11-14;
+      production stays report-only until the owner has tested (the
+      switch is `production: true` in `scripts/csp.ts`, with the
+      release that turns the flag on, never after it).
+      - 2026-11-14, later: staging ran report-only first (the account
+        flows walked in a headed browser with the real widget, no
+        violation of our policy), then `staging: true`, deployed:
+        `test:prod` 30/30 there with the CSP walk, and the account
+        walk again under the enforced policy (the KDF worker,
+        Turnstile's script and frame), no violation. The CSP walk
+        itself ran on staging only after the switch. The account pages
+        have no steps in the walk: an automated browser makes no API
+        call on a built site, so they are walked by a script outside
+        the suite (below, part D) and by hand.
       - Done 2026-11-14 (ADR 0144, "As built (stage 60): the
         CSP"): the policy in `public/_headers`, sent **report-only** by
         both targets; the inline scripts by hash, written by `vite
@@ -469,16 +483,111 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
       staging (2026-11-14: unit 4496; e2e 1459 passed, 3 failed under
       load and pass alone; the live site 12/14, the two being the new
       `/api/config` check that waits for the release).
-- [ ] Owner test of the pages on staging; release; the flag on.
+- [x] Review of the account client by a second agent with only the
+      code and ADR 0145 (2026-11-14, spec §7.3): nothing critical or
+      high; nine findings (two medium: a recovery code lost when
+      Create account was left by Back while the request was on its
+      way; the CSP not yet enforced), all fixed, with 24 new tests
+      that fail on the old code (ADR 0145, "After the review of the
+      client"; its known limits are listed there).
+- [x] Part B checked (2026-11-14): unit 4624; full e2e alone 1562
+      passed, 3 failed (two under load, passing alone; one a race in a
+      new test, fixed); the benchmark of spec §1.3 does not move
+      (Chromium as before; Firefox fails the same three budgets on the
+      commit before the session and on `main`, run back to back, so it
+      is today's machine, and `bench/results/latest.md` is left as it
+      was); the entry chunk 30 005 → 30 201 bytes. Staging: `test:prod`
+      30/30; the live site 30/30.
+- [x] The flows against the deployed Worker (2026-11-14), in a headed
+      Chromium with the real Managed widget, report-only and again
+      enforced: register, the cookie (`__Secure-wc_s`, Secure,
+      HttpOnly, SameSite=Strict, `/api/u`), reload, log out, a wrong
+      password, log in, change password, new recovery code, recovery
+      with the new code, delete, a login to the deleted account (the
+      same words as a wrong password). From the dev server the cookie
+      is accepted and sent back on `http://localhost` and
+      `http://127.0.0.1` in Chromium and Firefox. Not tried: Firefox
+      and Safari against staging, a real phone, a password manager.
+- [ ] Owner test of the pages on staging; release (with
+      `production: true` in `scripts/csp.ts`); the flag on.
 
 ## Test guide (owner)
 
-Nothing to see in the browser yet. The mockups come first ("For the
-owner" below); the test guide of the pages is written with part B.
+Everything is on <https://staging.mumecockpit.com> (the flag is on
+there only). Your profiles and logs on staging are staging's own: the
+site has its own storage in the browser. Use made-up accounts; a
+deleted name can never be registered again, also on staging, and one
+address may register three accounts an hour.
+
+**Desktop**
+
+1. The start page: a new row `ACCOUNT (log in)` between Spotlights and
+   Credits, key U. Does it sit right? Does it come in without a jump?
+2. U, then "Create account". Read the six points. Try a short name, a
+   short password, two passwords that differ. Then create the account.
+   The Cloudflare box should pass by itself or with one click.
+3. The recovery code page: Copy, Download, type the last group,
+   Continue. Keep the code for step 6. (Esc and Back do nothing here on
+   purpose.)
+4. The Account page: the name, the devices, the buttons. Log out (L,
+   then Enter), log in again. Try a wrong password once.
+5. Change password; then New recovery code (the old one stops working).
+6. Log out, "Forgot password", and come back with the newest code and a
+   new password.
+7. Reload the page: still logged in. Does your password manager offer
+   to save and fill? (Not tested by the session.)
+
+**Phone and tablet** (the second device)
+
+8. Log in with the same account on the phone, with our keyboard. Does
+   the keyboard cover a field or a button? Portrait and landscape.
+9. On the desktop's Account page (open it again): two devices listed.
+   End the phone's session; on the phone the next visit to Account
+   says you were logged out.
+10. Create account on the phone: one column, the Cloudflare box fits
+    the width, the code in two rows of three.
+11. The same on the tablet; there the pages should look like the
+    phone's with more room.
+
+**Last**
+
+12. Delete account (password and the name typed; Enter cancels on
+    purpose). The row says `(log in)` again.
+13. Play a little on staging, desktop and phone, with the map and a
+    Lua script: the Content-Security-Policy is enforced there now, and
+    anything that stopped working (a missing picture, the map, the
+    editor, a download) is what I want to hear about before it reaches
+    production.
+
+**Feedback wanted**
+
+- The words: the six points, the "only way back" line, the dialogs'
+  texts (the table of new texts is under part B above), "Log out of …
+  on this device?".
+- The Account page as one column (the later stages' groups are not
+  there yet: storage, sync, notices, safety copy). Log out without the
+  "keep / remove the data" choice until sync exists.
+- The Cloudflare box: its look in our page, and that Create account is
+  lit while it still says "Verifying…" (the page waits for it after
+  the press).
+- Key letters shown in the dialogs on the phone (the kit shows them
+  everywhere; the mockup did not).
+- The 350 ms in which the letter that opened a dialog does not answer
+  it (so `L`, `L` cannot log out by accident). It holds for every
+  dialog in the app now: tell me if any dialog feels slow to answer.
+- iPhone and Safari, if you have them at hand: nothing of this has run
+  in WebKit.
+
+**Then:** your word for the release; with it the policy is enforced in
+production and the flag `accounts` is turned on (admin page).
+
+Left on staging by the session: one test account, `wctestq7z7cg`,
+logged out (the first walk stopped after its log out). It does no
+harm; the others were deleted by the walk.
 
 ## For the owner
 
-### What is on staging (2026-11-14)
+### What is on staging (2026-11-14, evening: see the status at the top and the test guide; the text below is the morning's)
 
 Part A and the crypto module are built, reviewed, merged to `main` and
 deployed to staging (migration 0002 applied there). Nothing was

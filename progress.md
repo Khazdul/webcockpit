@@ -63,7 +63,7 @@
 | 57 | The profile editor and the manuals remember the place | Done, released 0.9.1 | `docs/stages/57-profile-remembers-place.md` |
 | 58 | Move to Cloudflare | Switched 2026-11-14, owner check fine; part D (retire Pages) two releases later | `docs/stages/58-cloudflare-move.md` |
 | 59 | Usage statistics | Done, released 0.10.0, `stats` on in production |  `docs/stages/59-usage-statistics.md` |
-| 60 | Accounts | In progress: server and crypto on staging, mockup chosen, part C done; next part B (the pages) | `docs/stages/60-accounts.md` |
+| 60 | Accounts | Built and on staging (flag on, CSP enforced there); waits for the owner's test, then the release | `docs/stages/60-accounts.md` |
 | 61 | Sync of profiles and scripts | Planned (spec §7.12) | |
 | 62 | Sync of settings | Planned (spec §7.12) | |
 | 63 | Runs in the cloud | Planned (spec §7.12) | |
@@ -74,6 +74,36 @@
 Statuses: Planned, Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-14 — Stage 60 part B: the client, the pages, the CSP
+
+- **Done:** `src/cloud/account` (API client, flows, the keys in a
+  database of their own, `webcockpit-account`: ADR 0145 addenda); the
+  Account row (key U) and the pages Log in, Create account, recovery
+  code, Recovery, Account and its dialogs, desktop, tablet and phone,
+  with the real Turnstile widget, all behind the flag `accounts`; the
+  CSP (ADR 0144 addendum), report-only then enforced on staging;
+  `dev:cloud` fixed for account requests (proxy `Host`, Turnstile host
+  names).
+- **Not shown until their stages:** sync state and Sync now, storage,
+  safety copy, the gallery notice, the keep / remove choice at log out.
+- **Review** of the client by a second agent (code and ADR 0145 only):
+  nothing critical or high, nine findings, all fixed.
+- **Checked:** unit 4624; full e2e alone 1562 passed (3 failed: two
+  under load, one a test race, fixed); the benchmark does not move
+  (Firefox fails the same budgets on the old commit today); staging
+  `test:prod` 30/30, live 30/30; the account flows walked on staging in
+  a headed browser with the real widget, report-only and enforced; the
+  Secure cookie works from `http://localhost` in Chromium and Firefox.
+- **Next:** the owner's test (test guide in the stage file), then the
+  release with `production: true` in `scripts/csp.ts` and the flag on;
+  after that stage 61.
+- **Open:** WebKit / iOS and a real phone untested; password managers
+  not seen; Firefox not walked against staging; one test account left
+  on staging (`wctestq7z7cg`); the Firefox benchmark fails three
+  budgets on this machine today, old code and new alike.
+- **Commits:** 82814f3c…02680aed and this one. Nothing released;
+  production untouched.
 
 ### 2026-11-14 — Stage 60: server, crypto and mockups
 
