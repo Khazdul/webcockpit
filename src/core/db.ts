@@ -207,8 +207,10 @@ export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB, nam
         profiles.openCursor().onsuccess = (e) => {
           const cur = (e.target as IDBRequest<IDBCursorWithValue | null>).result;
           if (!cur) return;
-          const rec = cur.value as { id?: unknown };
-          if (typeof rec.id !== 'string' || !rec.id) cur.update({ ...rec, id: randomId() });
+          const rec = cur.value as { id?: unknown; name?: unknown };
+          // The seeds get their fixed ids (`seed-<name>`, src/profiles/store.ts): one item per seed on every device.
+          const seed = rec.name === 'default' || rec.name === 'khazdul' ? `seed-${rec.name}` : null;
+          if (typeof rec.id !== 'string' || !rec.id) cur.update({ ...rec, id: seed ?? randomId() });
           cur.continue();
         };
         db.createObjectStore(STORE.sync, { keyPath: ['kind', 'key'] });

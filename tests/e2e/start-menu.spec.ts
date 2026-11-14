@@ -189,7 +189,7 @@ test('the kit gallery draws every owner row state; a long name with a state give
   const section = page.locator('.wc-kit-section[data-section="menu"]');
   await expect(section).toBeVisible();
   const owners = section.locator('.wc-sm-owner');
-  await expect(owners).toHaveCount(10);
+  await expect(owners).toHaveCount(11);
   expect(await owners.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.state))).toEqual([
     'guest',
     'name',
@@ -197,12 +197,13 @@ test('the kit gallery draws every owner row state; a long name with a state give
     'syncing',
     'offline',
     'attention',
+    'attention',
     'locked',
     'synced',
     'attention',
     'synced',
   ]);
-  const longest = owners.nth(8);
+  const longest = owners.nth(9);
   await expect(longest).toHaveAttribute('aria-label', 'olevongertten · storage full · 2 new');
   const cut = (sel: string) => longest.locator(sel).evaluate((e) => e.scrollWidth > e.clientWidth + 0.5);
   expect(await cut('.wc-so-name')).toBe(true);
@@ -211,7 +212,7 @@ test('the kit gallery draws every owner row state; a long name with a state give
   await expect(longest.locator('.wc-so-state')).toHaveText(' · storage full');
   await shot(page, 'kit-owner-states.desktop');
   await page.keyboard.press('c');
-  await expect(section.locator('.wc-sm-owner.is-sel')).toHaveCount(10);
+  await expect(section.locator('.wc-sm-owner.is-sel')).toHaveCount(11);
   await shot(page, 'kit-owner-states-cursor.desktop');
 });
 

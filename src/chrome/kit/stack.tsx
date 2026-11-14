@@ -88,8 +88,8 @@ export interface Nav {
   pop(n?: number): void;
   /** Replaces the top frame (an overlay stays an overlay). */
   replace(node: VNode): void;
-  /** A transient message on the flash row (success in C_ACCENT, failure in C_HINT). */
-  flash(text: string, kind?: FlashKind): void;
+  /** A transient message on the flash row (success in C_ACCENT, failure in C_HINT), for `ms` (default `FLASH_MS`). */
+  flash(text: string, kind?: FlashKind, ms?: number): void;
   /** Number of frames on the stack. */
   depth(): number;
 }
@@ -449,10 +449,10 @@ export function FrameStack(props: FrameStackProps): VNode {
         if (held.current?.entry === old) endHold();
         commit([...s.slice(0, -1), mk(node, old.overlay)]);
       },
-      flash: (text, kind = 'ok') => {
+      flash: (text, kind = 'ok', ms = FLASH_MS) => {
         if (flashTimer.current) clearTimeout(flashTimer.current);
         setFlash({ text, kind, seq: ++flashSeq.current });
-        flashTimer.current = setTimeout(() => setFlash(null), FLASH_MS);
+        flashTimer.current = setTimeout(() => setFlash(null), ms);
       },
       depth: () => stackRef.current!.length,
     }),

@@ -189,3 +189,38 @@ Branch `stage61-spaces`. What differs from, or adds to, the decision:
   hook is `wc.space` set before the load.
 - Entry chunk 30 201 → 30 513 bytes (the shell's follow, lock and
   instant reveal; `space.ts` itself lands in the shared `db` chunk).
+
+## As built (stage 61 C)
+
+Branch `stage61-flows`. The flows that change space are
+`src/cloud/space/flows.ts`; what differs from, or adds to, the decision:
+
+- **The spaces follow the flag `sync`.** With it on, Log in, Recovery and
+  Create account change space; with it off the account pages are stage
+  60's (nothing moves, nobody changes space), except that a page already
+  in an account's space still leaves it at Log out and Delete account.
+- **A login never reuses a database it did not lock.** Log in to an
+  account whose copy is not in the record's locked list deletes any
+  `webcockpit-u-<nameKey>` left over (a log out whose delete was blocked)
+  before it makes the space: stale sync records over an empty space would
+  push deletes. A locked copy of the same account is opened as it is.
+- **Making the space** seeds it as a new device (the seeds' fixed ids,
+  ADR 0151 as built C), copies the device's `settings` store when the
+  space has none, and writes `syncMeta.account` (`{name, nameKey}`: the
+  name as the server spells it, for the messages after the keys are
+  gone) and `syncMeta.deviceLabel`.
+- **Reconcile (B1's note):** at load, keys stored while the page is in
+  the device's space (a login whose change of space did not happen, or an
+  account made here and reloaded before its recovery code was confirmed:
+  `wc.space.created` in localStorage) are put in their space then.
+- **The locked copy** is decided from the stores without the keys (they
+  go with the session): a local item by local key against its sync
+  record (the engine's `unsynced()` rules), plus every saved run (no run
+  is in the cloud before stage 63). The notice's counts are read from the
+  locked database when the start menu shows. Remove deletes it and
+  writes the record without it; the page stays where it is.
+- **`reloadToStart`** keeps `?cloudtest` on the dev server, so the e2e
+  specs' pages may still call the API after a change of space.
+- Dropping a space closes this page's connection first and gives up
+  waiting for `deleteDatabase` after 4 s (a connection that never closes;
+  the next login deletes the leftover).

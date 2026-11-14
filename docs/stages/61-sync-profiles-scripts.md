@@ -173,19 +173,31 @@ touches staging or production.
 
 ### C. The flows (one agent, after B is merged; worktree `stage61-flows`, port 5424)
 
-- [ ] The local ports on IndexedDB for profiles and scripts; the
+- [x] The local ports on IndexedDB for profiles and scripts; the
       triggers (login, load, start page, tab visible, 5 s after a
       change, every 5 minutes on the start page); the Web Lock
       `webcockpit-sync`; nothing applied in use during play.
-- [ ] Create account: the move, interrupted and resumed; the line
+- [x] Create account: the move, interrupted and resumed; the line
       (owner's pick).
-- [ ] Log in and Recovery: the account's space made and filled.
-- [ ] Log out: sync, the dialog's first form, the database deleted,
+- [x] Log in and Recovery: the account's space made and filled.
+- [x] Log out: sync, the dialog's first form, the database deleted,
       the message.
-- [ ] A lost session: remove or lock; the notice, Log in and Remove.
-- [ ] Delete account: the hand-back; the new text.
-- [ ] The owner row's state and the Account page's sync section;
+- [x] A lost session: remove or lock; the notice, Log in and Remove.
+- [x] Delete account: the hand-back; the new text.
+- [x] The owner row's state and the Account page's sync section;
       the keep-both notice.
+
+  As built (branch `stage61-flows`, ADR 0150 and 0151 "As built
+  (stage 61 C)"): `src/cloud/space/` (ports, runtime, move, flows,
+  words), `src/cloud/sync-view.ts`, the account pages' `sync-ui.tsx` and
+  the new Log out and Delete dialogs. The Worker answers a missing item
+  with `409` and a tombstone of rev 0 (ADR 0146 as built C). The spaces
+  follow the flag `sync`. Tests: `tests/unit/cloud-space.test.ts`;
+  e2e `tests/e2e/sync-flows.spec.ts` (the fake account API, two
+  contexts, Chromium and Firefox) and `npm run test:sync-worker` (two
+  contexts against a real local Worker and D1, ports 5424/8794,
+  `playwright.sync-worker.config.ts`; part D's two-context check is this
+  spec, to be run again there).
 
 ### D. Checks and staging
 

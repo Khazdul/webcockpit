@@ -76,6 +76,7 @@ export function failureWords(code: FlowErrorCode, where: FlowPlace): string {
     case 'name_taken':
       return 'That name is taken. Try another.';
     case 'unauthorized':
+    case 'session_ended':
       return 'You were logged out here: the session was ended from another device, or the password was changed. Log in again.';
     case 'not_found':
     case 'disabled':

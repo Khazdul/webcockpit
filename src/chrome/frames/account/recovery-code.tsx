@@ -42,6 +42,8 @@
 // reload loses the code (the browser asks first, while it is held); a new
 // code can be made on the Account page.
 
+import { noteCreated } from '../../../cloud/space/flows';
+import { intoNewAccount } from './sync-ui';
 import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { lastGroupMatches } from '../../../cloud/account';
@@ -189,13 +191,17 @@ export const RecoveryCodeFrame = lookFrame(function RecoveryCodeFrame(p: PagePro
   const toLogin = p.next === 'login';
 
   // Held from here (too) until the player goes on: a page that is taken down early loses nothing.
-  useEffect(() => holdCode({ name: p.name, code: p.code, next: p.next }), []);
+  useEffect(() => {
+    holdCode({ name: p.name, code: p.code, next: p.next });
+    // A reload before the code is confirmed still moves the device's things (stage 61, `reconcile`).
+    if (!toLogin) noteCreated(p.name);
+  }, []);
 
   const on = (): void => {
     if (!rc.confirmed) return;
     releaseCode();
     if (toLogin) go(nav, 'login', { name: p.name, notice: 'The account is made. Log in to use it on this device.' });
-    else go(nav, 'account');
+    else void intoNewAccount(nav, p.name);
   };
 
   // (A reload or a closed tab loses the code: the browser asks first while it is held, form.tsx.)

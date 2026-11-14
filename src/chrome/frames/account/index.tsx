@@ -29,6 +29,8 @@ import { heldCode, registerPages } from './form';
 import { LoginFrame } from './login';
 import { RecoverFrame } from './recover';
 import { RecoveryCodeFrame } from './recovery-code';
+import { RemoveCopyDialog } from './sync-ui';
+import type { LockedNotice } from '../../../cloud/sync-view';
 import './account.css';
 
 registerPages({ login: LoginFrame, create: CreateFrame, recover: RecoverFrame, code: RecoveryCodeFrame, account: AccountFrame });
@@ -44,4 +46,14 @@ export function accountEntry(loggedIn: boolean): VNode {
   const code = heldCode();
   if (code) return h(RecoveryCodeFrame, code) as VNode;
   return loggedIn ? (h(AccountFrame, {}) as VNode) : (h(LoginFrame, {}) as VNode);
+}
+
+/** Log in with the name filled in (the locked copy's notice, stage 61). */
+export function loginFor(name: string): VNode {
+  return h(LoginFrame, { name }) as VNode;
+}
+
+/** The locked copy's Remove question (stage 61). */
+export function removeCopyDialog(notice: LockedNotice): VNode {
+  return h(RemoveCopyDialog, { notice }) as VNode;
 }

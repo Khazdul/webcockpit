@@ -33,6 +33,7 @@ const CODES: Record<FlowErrorCode, true> = {
   rate_limited: true,
   name_taken: true,
   unauthorized: true,
+  session_ended: true,
   not_found: true,
   unavailable: true,
   accounts_not_configured: true,

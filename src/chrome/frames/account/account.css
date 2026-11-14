@@ -709,3 +709,161 @@ html.wc-phone .wc-ac-win {
     grid-template-columns: 1fr;
   }
 }
+
+/* ------------------------------------------------------------ stage 61: the sync */
+
+/* The owner row's marks, standing in a line here instead of in the row's margin. */
+.wc-ac-sync .wc-so-mark,
+.wc-ac-dlist .wc-so-mark,
+.wc-ac-dwork .wc-so-mark {
+  position: static;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+/* The Account page's sync section (the owner's pick 7). */
+.wc-ac-sync {
+  margin: 4px 0 2px;
+}
+
+.wc-ac-sync-st {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+}
+
+.wc-ac-sync-w {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: italic 500 16.5px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-ac-sync-w b {
+  font-weight: 600;
+  font-style: normal;
+  color: var(--lk-text);
+}
+
+.wc-ac-sync-st .wc-lk-btn {
+  flex: none;
+}
+
+.wc-ac-sync-n {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 6px 0 4px;
+  font: 400 12px/1.4 var(--lk-mono);
+  color: var(--lk-dim);
+}
+
+.wc-ac-sync-kb {
+  color: var(--lk-faint);
+}
+
+.wc-ac-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--lk-well);
+  overflow: hidden;
+}
+
+.wc-ac-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(233, 196, 124, 0.55), rgba(233, 196, 124, 0.85));
+}
+
+.wc-ac-sync.is-full .wc-ac-bar i {
+  background: linear-gradient(90deg, rgba(232, 166, 94, 0.7), var(--lk-soon));
+}
+
+.wc-ac-sync.is-full .wc-ac-sync-kb {
+  color: var(--lk-soon);
+}
+
+.wc-ac-sync-note {
+  margin-top: 7px;
+}
+
+.wc-ac-sync-move {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0;
+  font: italic 500 15px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-ac-sync-move .wc-lk-ic {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  align-self: center;
+  color: var(--lk-ok);
+}
+
+/* The dialogs' lists: Log out's rows, Remove copy's names. */
+.wc-ac-dlist {
+  list-style: none;
+  margin: 6px 0 4px;
+  padding: 0;
+}
+
+.wc-ac-dlist li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 0;
+  font: 500 16.5px/1.35 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-ac-dlist li > .wc-lk-ic,
+.wc-ac-dlist li > .wc-so-mark {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--lk-dim);
+  align-self: center;
+}
+
+.wc-ac-dlist li b {
+  font-weight: 600;
+  color: var(--lk-on);
+}
+
+.wc-ac-dlist li i {
+  color: var(--lk-dim);
+}
+
+.wc-ac-dlist.is-rows li {
+  padding: 7px 10px;
+  margin: 0 0 4px;
+  border-radius: 3px;
+  background: var(--lk-row);
+}
+
+.wc-ac-inlink.wc-lk-link {
+  font: italic 600 16.5px/1.35 var(--lk-serif);
+  vertical-align: baseline;
+}
+
+.wc-ac-dnote {
+  margin: 8px 0 0;
+  font: italic 500 15px/1.35 var(--lk-serif);
+  color: var(--lk-faint);
+}
+
+.wc-ac-dwork {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 8px 0 4px;
+  font: italic 500 16px/1.4 var(--lk-serif);
+  color: var(--lk-dim);
+}

@@ -56,6 +56,8 @@ import {
   type RegisterRequest,
   SALT_MAX_BYTES,
   SALT_MIN_BYTES,
+  SESSION_END_REASONS,
+  type SessionEndReason,
   WRAP_MAX_BYTES,
   WRAP_MIN_BYTES,
 } from '../../../shared/cloud/api.ts';
@@ -78,11 +80,19 @@ export const ACCOUNT_TIMEOUT_MS = 15_000;
  *   cancelled   the caller's signal fired
  *   bad_answer  the server answered something that is not the contract's
  */
-export type ApiErrorCode = AccountError | 'disabled' | 'offline' | 'timeout' | 'cancelled' | 'bad_answer';
+export type ApiErrorCode = AccountError | 'session_ended' | 'disabled' | 'offline' | 'timeout' | 'cancelled' | 'bad_answer';
 
 export interface ApiFailure {
   ok: false;
+  /**
+   * `session_ended` (stage 61): the server ended this session and says why
+   * (`reason`). The flows log the device out on it, decide on the
+   * account's copy (src/cloud/space/flows.ts `sessionLost`) and hand the
+   * pages `unauthorized`, which they already have words for.
+   */
   code: ApiErrorCode;
+  /** With `session_ended`: why the session ended. */
+  reason?: SessionEndReason;
   /** With `locked`: seconds until the name can be tried again. */
   retryAfter?: number;
   /** The HTTP status, when there was an answer. */
@@ -230,10 +240,13 @@ const fail = (code: ApiErrorCode, status?: number): ApiFailure => (status === un
 /** What an answer that is not 2xx means. */
 export function failureOf(status: number, data: unknown): ApiFailure {
   const code = isObject(data) && typeof data.error === 'string' ? data.error : null;
-  // The server says why a session ended (stage 61): until the flows read
-  // the reason (stage 61 part C), an ended session is what `unauthorized`
-  // always meant.
-  if (code === 'session_ended' && status === 401) return fail('unauthorized', status);
+  // The server says why a session ended (stage 61): the flows read the reason.
+  if (code === 'session_ended' && status === 401) {
+    const reason = (data as Record<string, unknown>).reason;
+    return (SESSION_END_REASONS as readonly unknown[]).includes(reason)
+      ? { ok: false, code: 'session_ended', reason: reason as SessionEndReason, status }
+      : fail('session_ended', status);
+  }
   if (code !== null && (ACCOUNT_ERRORS as readonly string[]).includes(code)) {
     if (code === 'locked') {
       const after = (data as Record<string, unknown>).retryAfter;

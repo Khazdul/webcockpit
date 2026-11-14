@@ -219,12 +219,29 @@ describe('PUT and DELETE /api/u/sync/items/<kind>/<id>', () => {
     expect(await count('item')).toBe(0);
   });
 
-  it('a base rev for an item that does not exist is 404', async () => {
+  it('a base rev for an item that does not exist, or a delete of one, is 409 with a tombstone of rev 0', async () => {
     const cookie = await signUp('alice');
-    expect(await errorOf(await put(cookie, 'profile', idOf(1), 3, blob(10)))).toBe('not_found');
-    expect(await errorOf(await del(cookie, 'profile', idOf(1), 0))).toBe('not_found');
-    expect(await errorOf(await del(cookie, 'profile', idOf(1), 1))).toBe('not_found');
+    const tomb0: SyncItem = { kind: 'profile', id: idOf(1), rev: 0, seq: 0, deleted: true, size: 0, updated: 0 };
+    for (const res of [await put(cookie, 'profile', idOf(1), 3, blob(10)), await del(cookie, 'profile', idOf(1), 0), await del(cookie, 'profile', idOf(1), 1)]) {
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'conflict', current: tomb0 } satisfies SyncConflict);
+    }
     expect(await count('item')).toBe(0);
+  });
+
+  it('a conflict is answered before a 413', async () => {
+    const cookie = await signUp('alice');
+    const max = DEFAULT_ACCOUNT_LIMITS.itemMaxBytes;
+    const tooBig = await put(cookie, 'profile', idOf(1), 2, blob(max + 1));
+    expect(tooBig.status).toBe(409);
+    expect(await tooBig.json()).toMatchObject({ error: 'conflict', current: { rev: 0, deleted: true } });
+    await written(await put(cookie, 'profile', idOf(1), 0, blob(10)));
+    const stale = await put(cookie, 'profile', idOf(1), 0, blob(max + 1));
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ error: 'conflict', current: { rev: 1 } });
+    await setLimits({ items: 1 });
+    const many = await put(cookie, 'profile', idOf(2), 5, blob(10));
+    expect(many.status).toBe(409);
   });
 
   it('a delete is a tombstone: rev + 1, no blob, kept; a second delete writes nothing; a write over it brings it back', async () => {
@@ -443,8 +460,10 @@ describe('accounts are apart', () => {
     await written(await put(alice, 'profile', id, 0, blob(10, 1)));
     expect(await changes(bob)).toMatchObject({ items: [], cursor: 0, usage: { items: 0, itemBytes: 0 } });
     // Bob's rev 1 is not Alice's: his item of the same kind and id is his own.
-    expect(await errorOf(await put(bob, 'profile', id, 1, blob(10, 2)))).toBe('not_found');
-    expect(await errorOf(await del(bob, 'profile', id, 1))).toBe('not_found');
+    for (const res of [await put(bob, 'profile', id, 1, blob(10, 2)), await del(bob, 'profile', id, 1)]) {
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({ current: { rev: 0, deleted: true } });
+    }
     expect(await written(await put(bob, 'profile', id, 0, blob(4, 3)))).toEqual({ rev: 1, seq: 1, usage: { items: 1, itemBytes: 4 } });
     expect((await changes(alice)).items).toEqual([expect.objectContaining({ rev: 1, size: 10, blob: toB64url(blob(10, 1)) })]);
     expect((await changes(bob)).items).toEqual([expect.objectContaining({ rev: 1, size: 4, blob: toB64url(blob(4, 3)) })]);

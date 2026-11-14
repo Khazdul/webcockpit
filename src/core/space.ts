@@ -148,10 +148,15 @@ export function writeSpaceRecord(rec: SpaceRecord | null, storage: Storage | nul
   }
 }
 
-/** Loads the start menu afresh (the page's path, no query or hash). */
+/**
+ * Loads the start menu afresh (the page's path, no query or hash; on the
+ * dev server the e2e hook `?cloudtest` is kept, so the account API stays
+ * allowed after a change of space).
+ */
 export function reloadToStart(loc: Location | undefined = globalThis.location): void {
   try {
-    loc?.replace(loc.pathname);
+    const keep = import.meta.env?.DEV === true && new URLSearchParams(loc?.search ?? '').has('cloudtest') ? '?cloudtest' : '';
+    loc?.replace(loc.pathname + keep);
   } catch {
     /* no location */
   }

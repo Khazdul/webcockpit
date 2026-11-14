@@ -12,6 +12,7 @@
 // - `invalid_recovery`: one message for a wrong name or a wrong code;
 //   `locked`: the countdown.
 
+import { intoAccount } from './sync-ui';
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { type Account, type FlowHandle, checkName, checkRecoveryCode, startRecover } from '../../../cloud/account';
@@ -89,8 +90,7 @@ export const RecoverFrame = lookFrame(function RecoverFrame(p: PageProps['recove
     const r = await hd.submit({ ...(token ? { turnstile: token } : {}), onStep: work.onStep, signal });
     if (!alive.current) return;
     if (r.ok) {
-      go(nav, 'account');
-      nav.flash('The new password is set. Every other device was logged out.');
+      await intoAccount(nav, r.value.name, 'The new password is set. Every other device was logged out.');
       return;
     }
     const doubt = work.doubtful(r.code);

@@ -193,7 +193,11 @@ async function put(c: SyncCtx): Promise<Response> {
   if (type !== 'application/octet-stream') return error('bad_request', 400);
   const limits = limitsOf((c.auth as Authed).account);
   const blob = await readBytesCapped(c.request, limits.itemMaxBytes);
-  if (blob === null) return error('item_too_large', 413);
+  if (blob === null) {
+    // A conflict is answered before a 413 (the client resolves it first).
+    const conflict = await conflictOf(c, target, base);
+    return conflict ?? error('item_too_large', 413);
+  }
   if (blob.length === 0) return error('bad_request', 400);
   return write(c, target, base, blob, limits);
 }
@@ -206,14 +210,28 @@ async function remove(c: SyncCtx): Promise<Response> {
   return write(c, target, base, null, limitsOf((c.auth as Authed).account));
 }
 
+/** A tombstone of rev 0: what a 409 carries as the current item for an item the account never had. */
+export function tombstone0(kind: SyncKind, id: string): SyncItem {
+  return { kind, id, rev: 0, seq: 0, deleted: true, size: 0, updated: 0 };
+}
+
+/** The 409 for a write at `base` when the item is not at `base`, or null. */
+async function conflictOf(c: SyncCtx, t: Target, base: number): Promise<Response | null> {
+  const accountId = (c.auth as Authed).account.id;
+  const cur = await c.db.prepare(`SELECT ${ITEM_COLUMNS} FROM item WHERE account = ?1 AND kind = ?2 AND id = ?3`).bind(accountId, t.kind, t.id).first<ItemRow>();
+  if ((cur?.rev ?? 0) === base) return null;
+  return json({ error: 'conflict', current: cur ? itemOf(cur) : tombstone0(t.kind, t.id) } satisfies SyncConflict, 409);
+}
+
 /**
  * Writes `blob` (null: a tombstone) over the item at rev `base`.
  *
  *   200 SyncWritten          written
- *   409 SyncConflict         the item is not at `base`
- *   404 not_found            `base` names an item that does not exist, or a
- *                            delete of an item that never was
- *   413 too_many_items, storage_full
+ *   409 SyncConflict         the item is not at `base`; for an item the
+ *                            account does not have (a base rev > 0, or any
+ *                            delete) the current item is a tombstone of
+ *                            rev 0 (as built, stage 61 C)
+ *   413 too_many_items, storage_full (after a conflict)
  *
  * A delete of an item that is already a tombstone at `base` writes
  * nothing and answers its rev and seq as they are.
@@ -229,10 +247,9 @@ async function write(c: SyncCtx, t: Target, base: number, blob: Uint8Array<Array
     const acc = (accRes?.results[0] ?? null) as UsageRow | null;
     // The account was deleted while this request ran.
     if (!acc) return error('unauthorized', 401);
-    if (!cur && base !== 0) return error('not_found', 404);
+    if (!cur && (base !== 0 || blob === null)) return json({ error: 'conflict', current: tombstone0(t.kind, t.id) } satisfies SyncConflict, 409);
     if (cur && cur.rev !== base) return json({ error: 'conflict', current: itemOf(cur) } satisfies SyncConflict, 409);
-    if (blob === null) {
-      if (!cur) return error('not_found', 404);
+    if (blob === null && cur) {
       if (cur.deleted !== 0) return json({ rev: cur.rev, seq: cur.seq, usage: usageOf(acc) } satisfies SyncWritten);
     }
 

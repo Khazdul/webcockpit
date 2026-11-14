@@ -38,6 +38,7 @@
 // (`flush` on page hide).
 
 import { STORE, idbDone, idbRequest, openWebcockpitDb } from '../core/db';
+import { noteStored } from '../core/store-events';
 import { normalizeKey } from '../script/keys';
 import { setDeclaredScriptKeys } from '../script/script-keys';
 import type { ScriptBackup } from './backup';
@@ -236,6 +237,19 @@ export class ScriptLibrary {
       }
     }
     for (const d of datas) this.data.set(d.name, d);
+    await this.addUserScripts(recs);
+    // A removed bundled script (ADR 0111): its data record goes too, unless
+    // a script of that name (a user script made after the removal) owns it.
+    const orphans = this.retired.filter((n) => this.data.has(n) && !this.entries.has(n));
+    if (orphans.length > 0) {
+      await this.write(orphans.map((n) => ({ store: STORE.scriptData, del: n }))).catch(() => {});
+      for (const n of orphans) this.data.delete(n);
+    }
+    this.changed();
+  }
+
+  /** Adds the stored user scripts to the bundled ones (oldest first: a later one gives way on a name). */
+  private async addUserScripts(recs: ScriptRecord[]): Promise<void> {
     for (const rec of recs.sort((a, b) => a.created - b.created)) {
       let r = rec;
       if (this.entries.has(r.name)) {
@@ -246,14 +260,36 @@ export class ScriptLibrary {
       }
       this.entries.set(r.name, this.entry(r.name, r.source, false, r));
     }
-    // A removed bundled script (ADR 0111): its data record goes too, unless
-    // a script of that name (a user script made after the removal) owns it.
-    const orphans = this.retired.filter((n) => this.data.has(n) && !this.entries.has(n));
-    if (orphans.length > 0) {
-      await this.write(orphans.map((n) => ({ store: STORE.scriptData, del: n }))).catch(() => {});
-      for (const n of orphans) this.data.delete(n);
-    }
-    this.changed();
+  }
+
+  /**
+   * Reads the user scripts and the data records again from the database:
+   * the sync wrote them there (stage 61, ADR 0151). Bundled scripts and
+   * `store` values not flushed yet are kept.
+   */
+  reload(): Promise<void> {
+    return this.serial(async () => {
+      await this.init();
+      if (this.memory) return;
+      let recs: ScriptRecord[];
+      let datas: ScriptDataRecord[];
+      try {
+        const db = await this.open();
+        const tx = db.transaction([STORE.scripts, STORE.scriptData], 'readonly');
+        const done = idbDone(tx);
+        [recs, datas] = await Promise.all([
+          idbRequest(tx.objectStore(STORE.scripts).getAll() as IDBRequest<ScriptRecord[]>),
+          idbRequest(tx.objectStore(STORE.scriptData).getAll() as IDBRequest<ScriptDataRecord[]>),
+        ]);
+        await done;
+      } catch {
+        return;
+      }
+      for (const [name, e] of [...this.entries]) if (!e.bundled) this.entries.delete(name);
+      for (const d of datas) if (!this.dirtyData.has(d.name)) this.data.set(d.name, d);
+      await this.addUserScripts(recs);
+      this.changed();
+    });
   }
 
   // ------------------------------------------------------------------ read
@@ -764,6 +800,7 @@ export class ScriptLibrary {
       else os.delete(op.del);
     }
     await idbDone(tx);
+    if (ops.some((op) => op.store === STORE.scripts)) noteStored('script');
   }
 
   private open(): Promise<IDBDatabase> {
