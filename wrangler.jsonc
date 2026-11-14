@@ -39,17 +39,18 @@
     // in the D1 table `flag`, set from /admin, overrides it.
     "FLAG_STATS": false,
     "FLAG_ACCOUNTS": false,
-    // Accounts (ADR 0145, "As built"). The Turnstile widget's site key:
-    // empty until the owner has made the widget (stage 60 part C). When it
-    // is set, also set "TURNSTILE_HOSTNAMES": "mumecockpit.com" here (the
-    // host a passed challenge must come from).
-    // Two secrets are set outside the repository (`wrangler secret put`,
-    // or the dashboard), never here: AUTH_PEPPER (random, at least 16
+    // Accounts (ADR 0145, "As built"). The Turnstile widget `WebCockpit`
+    // (the owner, 2026-11-14; hostnames mumecockpit.com and
+    // staging.mumecockpit.com): its site key, public by nature, and the
+    // host a passed challenge must come from.
+    // Two secrets are set outside the repository (the dashboard, or
+    // `wrangler secret put`), never here: AUTH_PEPPER (random, at least 16
     // characters; e.g. `openssl rand -base64 32`; changing it later only
     // resets the attempt counters and the fake salts) and
     // TURNSTILE_SECRET (the widget's secret key). Without either, the
     // account endpoints answer 503 accounts_not_configured.
-    "TURNSTILE_SITE_KEY": "",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",
+    "TURNSTILE_HOSTNAMES": "mumecockpit.com",
     // Cloudflare Access (ADR 0148, addendum): the team domain
     // (`<team>.cloudflareaccess.com`) and the application's audience tag,
     // filled in after the owner has made the Access application. Empty:
@@ -92,14 +93,10 @@
       "vars": {
         "FLAG_STATS": true,
         "FLAG_ACCOUNTS": true,
-        // Cloudflare's published test site key (always passes, visible
-        // widget) until the owner has made the widget; its partner, the
-        // test secret 1x0000000000000000000000000000000AA, is set as the
-        // secret TURNSTILE_SECRET of this Worker, with AUTH_PEPPER (see
-        // the top level). The test keys answer with the host name
-        // example.com, so no TURNSTILE_HOSTNAMES while they are in use;
-        // with the real widget: "staging.mumecockpit.com".
-        "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+        // The same widget as production (see the top level); the secrets
+        // TURNSTILE_SECRET and AUTH_PEPPER are set on this Worker too.
+        "TURNSTILE_SITE_KEY": "0x4AAAAAAGAnAvI_uOP5cZND",
+        "TURNSTILE_HOSTNAMES": "staging.mumecockpit.com",
         "ACCESS_TEAM_DOMAIN": "flat-unit-c1f3.cloudflareaccess.com",
         "ACCESS_AUD": "8171e8c6972c3e28805fa694a0c2597b5e05ce9a2788da35bcc0bd4da7ebec34",
         // Every answer of the Worker carries X-Robots-Tag: noindex; the
