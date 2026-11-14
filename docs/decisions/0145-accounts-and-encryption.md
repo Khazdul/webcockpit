@@ -491,3 +491,75 @@ HMAC are done for every name.
   off), `TURNSTILE_SITE_KEY` (production empty until the widget
   exists), later `TURNSTILE_HOSTNAMES`.
 - The rate limiting binding `API_LIMITER` (namespaces 5903 and 5904).
+
+### After the review (2026-11-14)
+
+Changes made after the independent review of the server. Where they
+differ from the text above, this list holds.
+
+- **An address as a key is its IPv4 address or the /64 of its IPv6
+  address** (`worker/address.ts`; IPv4-mapped addresses count as the
+  IPv4 address, anything unparsable as the one key `unknown`). Used by
+  both limiters and, hashed, by the registration counters. One IPv6
+  customer can no longer walk through 2^64 keys.
+- **A second, tight limiter `AUTH_LIMITER`**: 10 a minute per address
+  on `POST /api/auth/login`, `/recover` and `/register`, checked after
+  the method and the CSRF rule and before any database work or
+  Turnstile call. It bounds what one address can cost in D1 writes
+  (failed tries for made-up names) to 10 a minute instead of 120.
+- **The general limiter counts the address first, always, and the
+  session as well** when a request under `/api/u/` carries a token;
+  both before the session is looked up. A made-up cookie therefore
+  costs no database read once its address is over the limit. (Players
+  behind one address now share its 120 a minute.)
+- **The recovery ticket.** The first recover call answers `{wrapRc,
+  ticket}`; the second must carry the ticket. It is stateless: 8 bytes
+  of expiry and `HMAC-SHA-256(AUTH_PEPPER, "wc-recover-ticket|" +
+  name_key + "|" + expiry + "|" + recovery_hash)`, base64url, good for
+  15 minutes, compared in constant time. A second call without a valid
+  ticket for that name is 401 `invalid_recovery` and neither counts
+  nor writes, for a real and an unknown name alike; so the call that
+  needs no Turnstile can no longer be used to lock a name's recovery
+  or to guess. With a valid ticket the call is as before: counted, and
+  `recoveryAuth` is checked again. A ticket dies when the recovery
+  code is replaced; it is not single-use within its 15 minutes (it is
+  only ever given to somebody who proved the code).
+- **A success takes back only its own try.** Before, a success removed
+  the name's counter, so an outsider who had made three failures could
+  see the owner's next login as `turnstile_required` going away. Now a
+  success lowers the count by the one it added (and undoes the lock
+  only if that very try had set it); failures stay until their window
+  ends, and the cron removes the rows. This holds for login, the
+  password questions and recovery. The second recover call no longer
+  clears the login counter: after a recovery, a login lock made by
+  somebody else's failures runs its 15 minutes (the session the
+  recovery made works meanwhile). A lock is also set by any try that
+  finds the count at ten or more with no lock running.
+- **The password questions change nothing when the password changed
+  meanwhile.** `password`, `recovery` and delete compare `authKey` with
+  the row read at the start of the request; their statements now also
+  require `auth_hash` to be that same value still (the other sessions
+  end only when the row holds the new password; the delete's statements
+  are each guarded, the account row last). Otherwise 401
+  `invalid_login`, with nothing changed and no session ended.
+- **A 401 under `/api/u/` clears the cookie only when the request
+  carried a cookie of our name** (of any value).
+- **Everything after the flag check is inside the catch-all**: a
+  limiter binding that throws is 503 `unavailable`, as a failing
+  database is. (`flags()` itself falls back to the defaults.)
+- **`tests/unit/cloud-contract.test.ts`** ties the KDF name, default
+  rounds, bounds, salt size and key size of `shared/cloud/api.ts` to
+  those of `src/cloud/crypto/kdf.ts`.
+
+Two notes:
+
+- **`state = 'suspended'` does not affect login or sessions.** A
+  suspended account logs in, keeps its sessions and syncs (spec §7.2);
+  sharing, voting and commenting will check the state where they are
+  built. The Account page is told the state.
+- **A session's label is untrusted text.** The server cuts it to 40
+  printable ASCII characters and nothing more (`<`, `&` and quotes are
+  printable): the Account page must write it as text, never as markup.
+
+A deploy now also needs the rate limiting binding `AUTH_LIMITER`
+(namespaces 5905 production, 5906 staging; in `wrangler.jsonc`).
