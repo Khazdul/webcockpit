@@ -153,3 +153,181 @@ by the account). Only the reserved name remains.
   shows it).
 - No account can be handed back to a player who lost both password
   and code. The registration page says this plainly.
+
+## As built (stage 60 part A, server, 2026-11-14)
+
+Checked in workerd (`worker/test/auth.test.ts`) and once by hand under
+`wrangler dev` 4.162.0 with Cloudflare's Turnstile test keys (a real
+siteverify call); not yet against a deployed Worker. The browser's
+crypto and the pages are other parts of the stage. Code:
+`worker/auth.ts` (routes and handlers), `accounts.ts` (the row, the
+checks on input), `sessions.ts`, `attempts.ts`, `turnstile.ts`,
+`bytes.ts`; tables: `worker/migrations/0002_accounts.sql`; types and
+constants: `shared/cloud/api.ts`. The API table is in
+`docs/stages/60-accounts.md`.
+
+### What a request passes
+
+In this order: the flag `accounts` (off: 404 `not_found` for every path
+under `/api/auth/` and `/api/u/`); the general rate limit; route and
+method; for anything but GET and HEAD, `X-WC: 1` and an `Origin` equal
+to the request URL's origin (403 `forbidden`); the secrets (503
+`accounts_not_configured`); the database (503 `unavailable`, also when
+a statement fails); under `/api/u/`, the session (401 `unauthorized`
+with the cookie cleared). Nothing is logged: no body, name, token or
+address.
+
+### What is stored
+
+- `account.id` is 128 random bits (it will name R2 objects, and a
+  deleted account's id must not come back). `name` is as typed,
+  `name_key` its lowercase with the UNIQUE index.
+- Binary values are stored as they travel, base64url text without
+  padding, and are accepted only in their one canonical spelling. Sizes:
+  salt 16–32 bytes, `authKey` and `recoveryAuth` 32, a wrap 40–200; KDF
+  `pbkdf2-sha256` with 600 000 to 10 000 000 rounds. A body is at most
+  4096 bytes and may hold no unknown field.
+- `auth_hash` and `recovery_hash` are SHA-256 of the 32 bytes, compared
+  in constant time. No salt of the server's own: the keys are 256 bits
+  from a KDF, not passwords.
+- A session row is keyed by SHA-256 of the cookie's token and has a
+  public random `id` (96 bits) for the Account page. A label is cut to
+  what is printable ASCII, 40 characters.
+- Names nobody can register: those of deleted accounts
+  (`reserved_name`) and a built-in list (`BUILTIN_RESERVED` in
+  `accounts.ts`: admin, moderator, webcockpit, mume, …).
+
+### Sessions
+
+- `__Secure-wc_s=<43 characters>; HttpOnly; Secure; SameSite=Strict;
+  Path=/api/u; Max-Age=15552000`. It is not sent to `/api/auth/*`, so a
+  login from a logged-in browser makes one more session and leaves the
+  old one to the Account page or its expiry.
+- Renewal: when the last renewal is 24 hours old, one batch moves
+  `last_used` and `expires` and the account's `last_seen`, and the
+  cookie is sent again. Every other authenticated request reads and
+  writes nothing but what it is for. `lastUsed` on the Account page is
+  therefore up to a day old.
+- Expired sessions answer 401 at once and are removed by the daily
+  cron.
+
+### Counters and limits
+
+`attempt(key, start, count, until)`: a fixed window that starts with
+its first try.
+
+- **Per name** (`login|…` and `recover|…`): the key is
+  `HMAC-SHA-256(AUTH_PEPPER, "wc-name|" + name_key)`, never the name
+  (people type passwords into name fields; a login with a name that is
+  not of the allowed form is 400 and counts nowhere). A try is counted
+  in one atomic statement *before* it is looked at, and a success
+  removes the row; tries that race each other are therefore all
+  counted. With three in the window, a login asks for Turnstile first
+  (missing: 403 `turnstile_required`; failed: 403 `turnstile`; neither
+  counts). The tenth try sets `until` = now + 15 minutes and is itself
+  still looked at; after it everything for that name answers 429
+  `locked` with `retryAfter`, the right password included, without a
+  write or a Turnstile call.
+- **An unknown name and a wrong key are the same code path**: the same
+  statements, the same counter, a compare against a constant when there
+  is no row. A test compares status, body and headers of the two
+  through every stage.
+- **Recovery** has its own counter with the same lock. The first call
+  always needs Turnstile; the second none. A success clears it; the
+  second call also clears the login counter.
+- **The password asked again** (`password`, `recovery`, delete) counts
+  on the login counter and honours its lock, without Turnstile.
+- **Per address** (`reg-h|…`, `reg-d|…`): the key is
+  `HMAC-SHA-256(dailyPepper, address)` with `dailyPepper =
+  HMAC-SHA-256(AUTH_PEPPER, "wc-addr|" + UTC day)`. Only a registration
+  that made an account counts (in the same transaction). Over the
+  limit is 429 `rate_limited` before Turnstile is asked.
+- **The general limit** (`API_LIMITER`, 120 a minute): keyed by the
+  hash of the session token when a request under `/api/u/` carries a
+  well-formed one, else by the address. The address is a key in passing
+  and stored nowhere.
+- **Pruning** at 00:10 UTC: counters whose window began more than a day
+  ago and that hold no running lock; sessions past their end.
+
+### Turnstile
+
+`POST https://challenges.cloudflare.com/turnstile/v0/siteverify` with
+`{secret, response}` as JSON and a 5 s timeout, no retry, no `remoteip`
+(the address is not sent on). `success: true` passes. `success: false`
+is 403 `turnstile`, except with an error code that says our request or
+secret is wrong (`invalid-input-secret`, `missing-input-secret`,
+`bad-request`, `internal-error`): those, a status that is not 200, a
+body that is not JSON and a network failure are 503 `unavailable`,
+never a pass. `TURNSTILE_HOSTNAMES` (optional, comma separated) is
+checked against the answer's `hostname`; Cloudflare's test keys answer
+`example.com`, so it stays unset while they are in use.
+
+### Fake parameters
+
+For a name without an account, possible or not, `params` answers the
+first 16 bytes of `HMAC-SHA-256(AUTH_PEPPER, "wc-fake-salt|" +
+lowercase name)` and the default KDF, with the same keys in the same
+order and the same headers as a real answer. Both the lookup and the
+HMAC are done for every name.
+
+### Trade-offs and what is not covered
+
+- **Anybody can lock a known name out for 15 minutes** with ten wrong
+  logins, again and again, and the lock also stops that account's
+  password change, new recovery code and deletion (its sessions and,
+  later, its sync go on working). The alternative, counting per name
+  and address, lets a spread-out attacker guess without limit. Recovery
+  can be locked the same way, on its own counter.
+- **Counting unknown names costs writes**: each failed login or
+  recovery is one row written (a locked name none). One address can
+  cause at most 120 a minute through the general limit; many addresses
+  could eat into D1's daily write budget. The admin page's estimate
+  does not count these writes yet.
+- **Names can be listed anyway**, through registration (409
+  `name_taken`), at the price of a Turnstile pass per name. Names are
+  public by design (they sign published runs); the fake parameters
+  only keep the cheap, unauthenticated way closed.
+- **The fakes are not perfect over time.** When the default KDF is
+  raised, fakes say the new default and old real accounts their old
+  rounds, until those accounts are moved at a login. A real salt
+  changes with the password and a fake never does. A deleted account's
+  name answers a fake that is not its old salt.
+- **Changing `AUTH_PEPPER`** changes every fake salt (so names made
+  after and before can be told apart by somebody who kept old answers)
+  and forgets the running counters and locks. Nothing else depends on
+  it: no account is lost.
+- **The registration limit is per address as Cloudflare reports it**: a
+  whole IPv6 address, not its /64, and the hour and the day both start
+  afresh at midnight UTC with the new pepper (so six in a row are
+  possible across midnight). Turnstile is the real gate. Registrations
+  racing each other from one address can pass the count by the number
+  that race.
+- **Timing.** The known and the unknown name run the same statements,
+  but a successful login does more (a batch, the session list); only
+  the holder of the right key sees that.
+- **The cookie is `__Secure-`, not `__Host-`**, because its path is
+  `/api/u`. A page on another host under `mumecockpit.com` (staging is
+  one) could therefore set a cookie of the same name for the whole
+  domain, and so put a visitor into a session of the attacker's own
+  account on production. Staging is ours; no other subdomain should
+  ever serve untrusted pages. When two cookies of the name arrive, the
+  first is used.
+- **`Origin` is compared with the request URL's origin**, so the rule
+  holds on every host the Worker answers on (the domain, staging,
+  workers.dev) without a list.
+- **Deleting an account** leaves its attempt counters to the cron and
+  removes everything else in one transaction; later stages add their
+  tables there (the places are marked in `auth.ts`), and R2 objects,
+  which are outside the transaction, will need a sweep.
+
+### What a deploy needs
+
+- Migration `0002_accounts.sql` (adds tables only).
+- Secrets on each Worker: `AUTH_PEPPER` (random, at least 16
+  characters) and `TURNSTILE_SECRET`. Staging uses Cloudflare's test
+  secret `1x0000000000000000000000000000000AA` with the test site key
+  until the owner has made the widget.
+- Vars (in `wrangler.jsonc`): `FLAG_ACCOUNTS` (staging on, production
+  off), `TURNSTILE_SITE_KEY` (production empty until the widget
+  exists), later `TURNSTILE_HOSTNAMES`.
+- The rate limiting binding `API_LIMITER` (namespaces 5903 and 5904).
