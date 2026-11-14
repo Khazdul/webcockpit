@@ -96,8 +96,9 @@ describe('base64url', () => {
       expect(t).toMatch(/^[A-Za-z0-9_-]*$/);
       expect(fromBase64Url(t)).toEqual(b);
     }
-    const big = bytes(200_000);
-    expect(fromBase64Url(toBase64Url(big))).toEqual(big);
+    const big = random(65536); // the most getRandomValues gives at once
+    const huge = concat(big, big, big, big);
+    expect(Buffer.from(fromBase64Url(toBase64Url(huge))).equals(Buffer.from(huge))).toBe(true);
   });
 
   it('refuses padding, other alphabets, impossible lengths and stray bits', () => {
@@ -568,12 +569,14 @@ describe('segmented bodies', () => {
 
   it('the default segment is 1 MB; a body of two and a bit round trips', async () => {
     const { dataKey } = await keys();
-    const plain = bytes(2 * 1048576 + 100);
+    const plain = new Uint8Array(2 * 1048576 + 100);
+    for (let i = 0; i < plain.length; i++) plain[i] = (i * 7) & 0xff;
     const body = await sealBody(dataKey, 'run', 'r1', plain);
     expect(body).toHaveLength(5 + plain.length + 3 * 28);
     expect(new DataView(body.buffer).getUint32(1)).toBe(1048576);
     expect(sealedBodySize(plain.length)).toBe(body.length);
-    expect(await openBody(dataKey, 'run', 'r1', body)).toEqual(plain);
+    // Compared as buffers: a deep comparison of two megabytes takes seconds.
+    expect(Buffer.from(await openBody(dataKey, 'run', 'r1', body)).equals(Buffer.from(plain))).toBe(true);
   });
 
   it('a body cut anywhere does not open: at every byte, and at every segment boundary', async () => {
