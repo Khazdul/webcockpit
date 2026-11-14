@@ -2,8 +2,8 @@
 
 Status: **In progress** (planned 2026-11-13; part A built, merged and
 deployed to staging 2026-11-14; **the domain switched to the Worker
-2026-11-14**; left of part C: the owner's check and a release through
-the new workflow; then D).
+2026-11-14**; part C done, the owner's first check fine (see Owner feedback); D
+remains, two releases later).
 
 ## Goal
 
@@ -114,13 +114,14 @@ The token itself has not been used yet.
 - [x] `WC_PROD_URL=https://mumecockpit.com npm run test:prod`: 12/12.
       `http://` and `www` (both schemes, path and query kept) answer
       301 to `https://mumecockpit.com/`.
-- [ ] Owner: open the site, see the profiles and History as before,
-      log in to MUME and play a minute.
-- [ ] Release a patch version through the new workflow; an old tab
+- [x] Owner: open the site, see the profiles and History as before,
+      log in to MUME and play a minute. (2026-11-14: History is
+      there; logged in and rented.)
+- [x] Release a patch version through the new workflow; an old tab
       shows the update notice within a minute. Released 0.9.3
       (f89ca9f) 2026-11-14 by tag through `deploy.yml`: live at once,
       `test:prod` 12/12, all 99 files of 0.9.2 still served. The
-      notice in an old tab is the owner's to see.
+      owner saw the notice in an open tab.
 
 ### D. Afterwards
 
@@ -158,4 +159,7 @@ Feedback wanted: anything at all that differs from yesterday.
 
 ## Owner feedback
 
-(none yet)
+- **2026-11-14, after the switch and 0.9.3:** the update notice came
+  in an open tab; History is still there; logged in to MUME and
+  rented. Not reported yet: Profile and Scripts, the HTML export, the
+  phone (test guide 2, 4, 5).
