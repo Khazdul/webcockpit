@@ -1,0 +1,472 @@
+/* The account pages (stage 60; src/chrome/frames/account/). Derived from
+ * the owner's choice of mockup (notes/research/account-mockups) in the
+ * kit's tokens. Every layout change follows the box's own width (the
+ * `wc-page` container of `.wc-lk-win`), never the device. */
+
+/* ------------------------------------------------------------ the boxes */
+
+.wc-ac-login.wc-lk-box-normal { width: min(440px, 100%); }
+.wc-ac-create.wc-lk-box-normal { width: min(860px, 100%); }
+.wc-ac-codepage.wc-lk-box-normal { width: min(640px, 100%); }
+.wc-ac-recover.wc-lk-box-normal { width: min(480px, 100%); }
+.wc-ac-account.wc-lk-box-normal { width: min(520px, 100%); }
+
+.wc-ac-win {
+  padding: 46px 26px 18px;
+}
+
+html.wc-phone .wc-ac-win {
+  padding: 44px 14px 14px;
+}
+
+/* A tall box (a phone-size window): the body scrolls, its last line clear of the frame. */
+.wc-ac-body.wc-lk-scroll {
+  padding-right: 2px;
+  padding-bottom: 4px;
+}
+
+.wc-ac-form {
+  display: block;
+  margin: 0;
+}
+
+.wc-ac-form .wc-lk-field {
+  display: block;
+  margin: 0 0 14px;
+}
+
+.wc-ac-lead {
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.wc-ac-lead b {
+  font-weight: 500;
+  font-style: normal;
+  color: var(--lk-text);
+}
+
+.wc-ac-small {
+  margin: 6px 0 0;
+  font: italic 500 14.5px/1.35 var(--lk-serif);
+  color: var(--lk-faint);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-ac-small b {
+  font-weight: 500;
+  color: var(--lk-dim);
+}
+
+.wc-ac-err {
+  margin: 0 0 12px;
+  font: italic 500 16px/1.3 var(--lk-serif);
+  color: var(--lk-danger);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-ac-notice {
+  margin: 0 0 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--lk-rule);
+  font: italic 500 16px/1.35 var(--lk-serif);
+  color: var(--lk-head);
+}
+
+.wc-ac-ask {
+  margin: 0 0 2px;
+}
+
+.wc-ac-btns {
+  justify-content: center;
+  margin: 18px 0 0;
+}
+
+.wc-ac-btns .wc-lk-btn.is-primary {
+  min-width: 150px;
+  justify-content: center;
+}
+
+.wc-ac-foot-note {
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------ Working… */
+
+.wc-ac-work {
+  margin: 18px 0 0;
+  text-align: center;
+}
+
+.wc-ac-work-t {
+  margin: 0 0 12px;
+  font: 700 13px/1 var(--lk-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lk-glass-text-primary);
+}
+
+.wc-ac-work-s {
+  margin: 10px 0 0;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+/* Always a line high, so the box does not move when Cancel goes. */
+.wc-ac-work-c {
+  min-height: 21px;
+  margin: 6px 0 0;
+}
+
+.wc-ac-work-c .wc-lk-link {
+  font-size: 15px;
+}
+
+/* ------------------------------------------------------------ Turnstile */
+
+.wc-ac-ts {
+  margin: 14px 0 0;
+}
+
+/* Cloudflare's own box: 300 × 65 (compact: 150 × 140, where the page is
+ * narrower). The room is kept from the start, so nothing moves when the
+ * widget arrives. */
+.wc-ac-ts-frame {
+  width: 300px;
+  max-width: 100%;
+  min-height: 65px;
+  margin: 0 auto;
+  border-radius: 3px;
+  background: var(--lk-well);
+  box-shadow: var(--lk-well-in);
+}
+
+.wc-ac-ts-slot {
+  display: block;
+  min-height: 65px;
+  line-height: 0;
+}
+
+.wc-ac-ts-note {
+  margin: 8px 0 0;
+  text-align: center;
+  font: italic 500 14.5px/1.35 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-ac-ts:is([data-ts="blocked"], [data-ts="error"], [data-ts="unsupported"], [data-ts="nokey"]) .wc-ac-ts-note {
+  color: var(--lk-danger);
+}
+
+.wc-ac-ts-note .wc-lk-link {
+  font-size: 15px;
+}
+
+/* ------------------------------------------------------------ the wait */
+
+.wc-ac-wait {
+  margin: 2px 0 0;
+  padding: 12px 14px;
+  border-radius: 5px;
+  border: 1px solid var(--lk-well-edge);
+  background: var(--lk-well);
+  text-align: center;
+}
+
+.wc-ac-wait-t {
+  font: 700 12px/1.4 var(--lk-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lk-soon);
+}
+
+.wc-ac-wait-c {
+  margin: 4px 0 2px;
+}
+
+.wc-ac-wait-l {
+  font: italic 500 16px/1 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+.wc-ac-wait-n {
+  font: 400 26px/1.2 var(--lk-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--lk-text);
+}
+
+/* ------------------------------------------------------------ Create account */
+
+.wc-ac-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 34px;
+  align-items: start;
+}
+
+.wc-ac-points-col {
+  padding-left: 30px;
+  border-left: 1px solid var(--lk-rule);
+}
+
+.wc-ac-points-col > .wc-lk-rule:first-child {
+  margin-top: 0;
+}
+
+.wc-ac-points {
+  margin: 0;
+  padding: 0 0 0 22px;
+  font: 500 16.5px/1.38 var(--lk-serif);
+  color: var(--lk-dim);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.wc-ac-points li {
+  margin: 0 0 9px;
+  padding-left: 4px;
+}
+
+.wc-ac-points li::marker {
+  font: 700 11px/1 var(--lk-display);
+  color: var(--lk-faint);
+}
+
+.wc-ac-points b {
+  font-weight: 500;
+  color: var(--lk-text);
+}
+
+.wc-ac-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 34px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--lk-rule);
+}
+
+.wc-ac-foot.is-working {
+  display: block;
+}
+
+.wc-ac-foot.is-working .wc-ac-work {
+  margin-top: 0;
+}
+
+.wc-ac-foot .wc-ac-ts,
+.wc-ac-foot .wc-ac-btns {
+  margin: 0;
+}
+
+.wc-ac-foot .wc-ac-ts-frame {
+  margin: 0;
+}
+
+.wc-ac-foot .wc-ac-ts-note {
+  text-align: left;
+}
+
+.wc-ac-foot .wc-ac-err {
+  text-align: center;
+}
+
+.wc-ac-alt {
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* The strength hint: four small bars, a word, the count. */
+.wc-ac-strength-line {
+  font-style: italic;
+}
+
+.wc-ac-strength {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 8px;
+  font-style: normal;
+  vertical-align: 1px;
+}
+
+.wc-ac-strength i {
+  width: 14px;
+  height: 4px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--lk-head) 16%, transparent);
+}
+
+.wc-ac-strength em {
+  margin-left: 5px;
+  font: 600 9.5px/1 var(--lk-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-style: normal;
+}
+
+.wc-ac-strength.is-1 i:nth-child(-n + 1) { background: var(--lk-danger); }
+.wc-ac-strength.is-1 em { color: var(--lk-danger); }
+.wc-ac-strength.is-2 i:nth-child(-n + 2) { background: var(--lk-soon); }
+.wc-ac-strength.is-2 em { color: var(--lk-soon); }
+.wc-ac-strength.is-3 i:nth-child(-n + 3) { background: var(--lk-gold); }
+.wc-ac-strength.is-3 em { color: var(--lk-gold); }
+.wc-ac-strength.is-4 i:nth-child(-n + 4) { background: var(--lk-ok); }
+.wc-ac-strength.is-4 em { color: var(--lk-ok); }
+
+/* ------------------------------------------------------------ the recovery code */
+
+.wc-ac-code {
+  padding: 16px 10px;
+  text-align: center;
+}
+
+.wc-ac-code-g {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  font: 400 21px/1.3 var(--lk-mono);
+  letter-spacing: 0.08em;
+  color: var(--lk-on);
+}
+
+.wc-ac-code-p {
+  white-space: nowrap;
+}
+
+.wc-ac-code-d {
+  margin: 0 5px;
+  font-style: normal;
+  color: var(--lk-faint);
+}
+
+.wc-ac-code-btns {
+  margin-top: 12px;
+}
+
+.wc-ac-code-flash.wc-lk-flash {
+  margin-top: 4px;
+}
+
+.wc-ac-only.wc-lk-plate {
+  margin-top: 4px;
+  padding: 10px 14px;
+  font-size: 16.5px;
+  line-height: 1.38;
+  color: var(--lk-text);
+}
+
+.wc-ac-nokeys {
+  margin-top: 10px;
+  color: var(--lk-dim);
+}
+
+.wc-ac-nokeys b {
+  color: var(--lk-soon);
+}
+
+.wc-ac-confirm-t {
+  margin: 16px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lk-rule);
+  font: 500 17px/1.35 var(--lk-serif);
+  color: var(--lk-text);
+}
+
+.wc-ac-confirm {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.wc-ac-confirm .wc-lk-field {
+  margin: 0;
+}
+
+.wc-ac-confirm .wc-lk-input {
+  width: 110px;
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------ Recovery */
+
+.wc-ac-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+/* ------------------------------------------------------------ the Account page (placeholder) */
+
+.wc-ac-head {
+  margin: 0 0 12px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--lk-rule);
+}
+
+.wc-ac-head-name {
+  display: block;
+  font: 700 22px/1.2 var(--lk-display);
+  letter-spacing: 0.1em;
+  color: var(--lk-on);
+}
+
+.wc-ac-head-since {
+  display: block;
+  min-height: 20px;
+  font: italic 500 15px/1.3 var(--lk-serif);
+  color: var(--lk-dim);
+}
+
+/* ------------------------------------------------------------ a narrow box (a phone) */
+
+@container wc-page (max-width: 560px) {
+  .wc-ac-cols,
+  .wc-ac-foot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wc-ac-points-col {
+    margin-top: 16px;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .wc-ac-foot {
+    gap: 16px;
+  }
+
+  .wc-ac-foot .wc-ac-ts-frame {
+    margin: 0 auto;
+  }
+
+  .wc-ac-foot .wc-ac-ts-note {
+    text-align: center;
+  }
+
+  /* Two rows of three, no dashes. */
+  .wc-ac-code-g {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 8px 22px;
+    font-size: 20px;
+  }
+
+  .wc-ac-code-d {
+    display: none;
+  }
+}
+
+@container wc-page (max-width: 400px) {
+  .wc-ac-pair {
+    grid-template-columns: 1fr;
+  }
+}

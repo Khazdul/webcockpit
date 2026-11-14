@@ -372,7 +372,6 @@ export function Field(p: FieldProps): VNode {
         spellcheck={false}
         autocomplete={p.autocomplete ?? 'off'}
         autocapitalize="off"
-        autocorrect="off"
         {...ownFieldAttrs()}
         aria-invalid={p.error ? 'true' : undefined}
         aria-describedby={p.error || p.hint ? noteId : undefined}
@@ -684,7 +683,8 @@ export function Plate(p: { id?: string; class?: string; children?: ComponentChil
 }
 
 /**
- * A link in running text or in a row of links (`.wc-lk-links`): it goes to
+ * A link in running text or in a row of links (`.wc-lk-links`, centred
+ * under a rule, an `<i aria-hidden="true">·</i>` between two): it goes to
  * another page of the client, never to an address. A button underneath
  * (it never takes the focus, as the glass buttons); `selected` is the
  * keyboard's cursor on it.

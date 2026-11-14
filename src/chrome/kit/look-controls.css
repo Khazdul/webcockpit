@@ -872,12 +872,11 @@ html.wc-phone .wc-lk-tbl.is-scroll > .wc-lk-throw {
   border-top: 1px solid var(--lk-rule);
 }
 
-.wc-lk-links > .wc-lk-link + .wc-lk-link::before {
-  content: "·";
-  display: inline-block;
+/* The dot between two links (`<i aria-hidden="true">·</i>`). */
+.wc-lk-links > i {
   margin: 0 12px;
+  font-style: normal;
   color: var(--lk-faint);
-  text-decoration: none;
 }
 
 /* A bar that runs on time (work without progress to report): slow and

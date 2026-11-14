@@ -289,6 +289,7 @@ function Controls(): VNode {
             </Plate>
             <div class="wc-lk-links">
               <TextLink id="one" label="Create account" onClick={() => show('Create account.')} />
+              <i aria-hidden="true">·</i>
               <TextLink id="two" label="Forgot password" selected onClick={() => show('Forgot password.')} />
             </div>
             <p class="wc-lk-lead">A bar that runs on time, for work that reports no progress:</p>
