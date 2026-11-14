@@ -1465,6 +1465,10 @@ page you land on when opening the link.
 > bottom right shows the game date, time and the version. The banner
 > table below now describes Cockpit and the phone's ESC menu (Inv §4),
 > which kept the pixel banner when stage 41 began.
+>
+> WebCockpit (2026-11-14, stage 67, WebCockpit ADR 0149): the menu
+> changed again (E U P S H A; Spotlights and Credits, now Diary, are
+> tabs of History). Spec §2.5 has the current menu.
 
 **Menu entries** (order, `_rebuild_main_items`):
 

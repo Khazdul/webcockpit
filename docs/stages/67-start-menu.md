@@ -218,8 +218,18 @@ merge: this branch's version of its menu tests is the one to keep.
 #### B3. After both are merged (main session)
 
 - [ ] A review of the merged diff (`/code-review`), findings fixed.
-- [ ] Spec §2.5 "Look": the letters line; the inventory reference if
-      it names the rows.
+- [x] Spec §2.5 "Look": the letters line; the inventory reference if
+      it names the rows. (§2.5's stage-32 menu marked as history, the
+      list "History, Statistics, …" names the tabs; Inv §3.2's note on
+      stage 41 gets a line pointing at §2.5.)
+- [x] The specs that reached Spotlights or Credits through the old rows
+      moved to History's tabs: `phone-spotlights.spec.ts`,
+      `phone-tablet-pages.spec.ts`, `tests/e2e-prod/csp.spec.ts`,
+      `tests/unit/chrome-frames.test.tsx` (also About's Runs line),
+      `tests/unit/spotlights-settings.test.tsx` (it keeps the check that
+      the tab without the player says "not available" and Esc returns).
+- [x] The shims `startSpotlights` and `CreditsFrame` removed (nothing
+      used them); `openHistory(nav, tab)` stays.
 - [ ] The test guide below completed.
 
 ### C. Check and release

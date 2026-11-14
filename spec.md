@@ -275,9 +275,9 @@ Mapped to Inv §2.1 and §10.
 
 Mapped to Inv §3.
 
-- **Main menu** (stage 32): Enter MUME, Profile, Scripts, History,
-  Spotlights, Credits, About. No Options: settings are changed in the
-  game (§2.3, §2.6).
+- **Main menu** (stages 32–66; replaced by stage 67's below): Enter
+  MUME, Profile, Scripts, History, Spotlights, Credits, About. No
+  Options: settings are changed in the game (§2.3, §2.6); that stays.
 - **Main menu from stage 67** (owner, 2026-11-14; ADR 0149): three
   zones and a foot row, the same form logged in and logged out.
   1. *Play:* Enter MUME (E).
@@ -309,8 +309,8 @@ Mapped to Inv §3.
 - **Profile picker:** create, copy, delete, **import and export** (new).
   Import also takes foreign settings files (§2.11).
 - **Scripts:** the Scripts page (§2.10), under Profile.
-- **History, Statistics, Spotlights, Credits, About.** The Spotlights
-  settings (kinds, characters, period) are in the reel's card at the top
+- **History (Sessions, Statistics, Spotlights, Diary), About.** The
+  Spotlights settings (kinds, characters, period) are in the reel's card at the top
   right (stage 30e, ADR 0110; stage 32c, ADR 0114).
 - **Removed:** connection modes and the update flow. Updating means
   reloading the page.
@@ -319,7 +319,8 @@ Mapped to Inv §3.
   banner, `<< >>` menu, key-hint footer) is replaced by a sky driven by
   the offline game clock, a forged-iron "MUME" wordmark with a cyan metal
   inlay, a menu panel whose shortcut letters are marked in the labels
-  (E P S H L C A; no key-hint rows), the quote in book type and an
+  (E U P S H A since stage 67, C reserved for Community; U unmarked on
+  the owner row; no key-hint rows), the quote in book type and an
   almanac at the bottom right. Sub-pages move to the same box, with Back
   and glass buttons, one stage at a time; the Profile list was first
   (ADR 0125).
