@@ -22,7 +22,7 @@ import { useIsTop, useKeys, useNav } from '../kit/stack';
 import { type MenuItem, menuKey, useMenuCursor } from '../kit/widgets';
 import type { Quote } from '../quotes';
 import { useBrightBack, useDarkInk } from '../start-surface';
-import { AboutFrame } from './about';
+import { AboutFrame, PrivacyFrame, atPrivacyPath } from './about';
 import { CreditsFrame } from './credits';
 import { HistoryFrame } from './history';
 import { ProfileFrame } from './profiles';
@@ -85,6 +85,7 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   ];
   const [cursor, setCursor] = useMenuCursor(items, 'enter');
   const kit = useKitGallery(nav);
+  usePrivacyAddress(nav);
   useKeys((e, nk) => {
     if (nk === 'back') return true;
     if (kit(e)) return true;
@@ -123,6 +124,19 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     </div>
   );
 });
+
+// The privacy page's address (stage 59): a page opened at `<base>privacy`
+// (privacy.html, a copy of the app's page) opens the privacy leaf over the
+// menu after the first render, once per page load; Back leaves it for the
+// menu (and puts the address back to the base, about.tsx).
+let privacyOpened = false;
+function usePrivacyAddress(nav: ReturnType<typeof useNav>): void {
+  useEffect(() => {
+    if (privacyOpened || !atPrivacyPath()) return;
+    privacyOpened = true;
+    nav.push(<PrivacyFrame />);
+  }, []);
+}
 
 // Dev only (stage 42, ADR 0127): `?kit` (or `?kit=<section>`) opens the kit
 // gallery over the menu after the first render, once per page load; with

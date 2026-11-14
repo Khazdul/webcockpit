@@ -411,6 +411,38 @@ function releaseManifestPlugin(): Plugin {
   };
 }
 
+/** The privacy page's file at the site root (src/chrome/frames/about.tsx `PrivacyFrame`). */
+export const PRIVACY_PAGE = 'privacy.html';
+
+/**
+ * `privacy.html` (stage 59): the built `index.html` once more, with its own
+ * title, so `<base>privacy` answers 200 on both hosts. Cloudflare's
+ * `html_handling: auto-trailing-slash` and GitHub Pages serve `/privacy`
+ * from `privacy.html` (and redirect `/privacy.html` to `/privacy`); the
+ * page's asset URLs are absolute, so the copy loads the same files. The app
+ * sees the path and opens the privacy leaf over the start menu
+ * (start-main.tsx). The dev server needs nothing: it answers any path with
+ * `index.html`.
+ */
+export function privacyPageHtml(index: string): string {
+  return index.replace(/<title>[^<]*<\/title>/, '<title>Privacy – WebCockpit</title>');
+}
+
+function privacyPagePlugin(): Plugin {
+  return {
+    name: 'webcockpit-privacy-page',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      if (this.environment?.config.consumer !== undefined && this.environment.config.consumer !== 'client') return;
+      const index = bundle['index.html'];
+      if (index?.type !== 'asset') return this.error('privacy page: no index.html in the bundle');
+      const html = typeof index.source === 'string' ? index.source : new TextDecoder().decode(index.source);
+      this.emitFile({ type: 'asset', fileName: PRIVACY_PAGE, source: privacyPageHtml(html) });
+    },
+  };
+}
+
 /**
  * `LICENSE.txt` at the site root: the repository's GPL-2 `LICENSE`
  * (ADR 0027), linked from About, so every copy of the app carries the
@@ -512,7 +544,7 @@ export default defineConfig(({ command }) => {
     base: siteBase(),
     define: defines(),
     oxc,
-    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin()],
+    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin(), privacyPagePlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
     // Agent worktrees live under `.claude/` in this checkout: an edit there

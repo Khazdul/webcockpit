@@ -15,14 +15,17 @@ import {
   AboutFrame,
   aboutSections,
   aboutTokens,
+  atPrivacyPath,
 } from '../../src/chrome/frames/about';
+import { PRIVACY_NAV, PRIVACY_TEXT } from '../../src/chrome/frames/privacy-text';
+import { BEAT_MINUTES, BEAT_STATES } from '../../shared/cloud/api';
 import { type ChromeServices, ServicesCtx } from '../../src/chrome/kit/hooks';
 import { FrameStack } from '../../src/chrome/kit/stack';
 
 describe('aboutSections', () => {
   const secs = aboutSections(ABOUT_TEXT);
 
-  it('finds the nine sections in order, the intro untitled', () => {
+  it('finds the ten sections in order, the intro untitled', () => {
     expect(secs.map((s) => s.id)).toEqual(ABOUT_NAV.map((n) => n.id));
     expect(secs[0]!.title).toBe('');
     expect(secs[1]!.title).toBe('MUME — MULTI-USERS IN MIDDLE-EARTH');
@@ -31,6 +34,7 @@ describe('aboutSections', () => {
       'BUILT FOR PVP',
       'WHAT IS INSIDE',
       'SETTINGS',
+      'WHAT THE SITE KNOWS',
       'LUA SCRIPTS',
       'CREDITS',
       'LICENCE',
@@ -113,7 +117,7 @@ describe('aboutTokens', () => {
 
 const SEC = 1000; // px between section heads
 const VIEW = 600; // the scroller's height
-const FULL = 8 * SEC + 500; // the leaf's height: Licence lies within the last view
+const FULL = 9 * SEC + 500; // the leaf's height: Licence lies within the last view
 
 let saved: (PropertyDescriptor | undefined)[] = [];
 let savedScrollTo: unknown;
@@ -205,10 +209,14 @@ describe('About: the leaf', () => {
     expect(q('.wc-about-head .wc-wordmark')).not.toBeNull();
     expect(q('.wc-about-ver')?.textContent).toBe('WebCockpit 9.9.9 (abc1234)');
     expect(q('.wc-about-lead')?.textContent).toMatch(/^WebCockpit is a MUD client for MUME/);
-    expect([...document.querySelectorAll('.wc-about-h')].map((h) => h.textContent)).toHaveLength(8);
+    expect([...document.querySelectorAll('.wc-about-h')].map((h) => h.textContent)).toHaveLength(9);
     expect(document.querySelectorAll('.wc-about-kv')).toHaveLength(4);
     expect(q('.wc-about-kv dt')?.textContent).toBe('Website');
-    const links = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a')];
+    // The privacy page opens in the stack (its own test below); every other link in a new tab.
+    const privacy = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a[href="/privacy"]')];
+    expect(privacy.map((a) => a.textContent)).toEqual(['privacy page']);
+    expect(privacy[0]!.target).toBe('');
+    const links = [...document.querySelectorAll<HTMLAnchorElement>('.wc-about-leaf a:not([href="/privacy"])')];
     expect(links).toHaveLength(12);
     for (const a of links) {
       expect(a.target).toBe('_blank');
@@ -298,7 +306,7 @@ describe('About: the leaf', () => {
     await mountAbout();
     await key('c');
     expect(lit()).toBe('Credits');
-    expect(top()).toBe(7 * SEC + 30 - 18);
+    expect(top()).toBe(8 * SEC + 30 - 18);
     await settle();
     expect(lit()).toBe('Credits');
     await key('l');
@@ -313,7 +321,7 @@ describe('About: the leaf', () => {
     await act(async () => q('.wc-about-rail .wc-lk-row[data-sec-link="lua"]')!.click());
     await settle();
     expect(lit()).toBe('Lua scripts');
-    expect(top()).toBe(6 * SEC + 30 - 18);
+    expect(top()).toBe(7 * SEC + 30 - 18);
     await act(async () => q('.wc-about-strip .wc-lk-opt[data-opt="mume"]')!.click());
     await settle();
     expect(pill()).toBe('MUME');
@@ -335,5 +343,65 @@ describe('About: the leaf', () => {
     expect(popped).toBe(0);
     await key('Escape');
     expect(popped).toBe(1);
+  });
+});
+
+// ------------------------------------------------------------ the privacy page (stage 59)
+
+describe('the privacy page', () => {
+  const secs = aboutSections(PRIVACY_TEXT, PRIVACY_NAV);
+
+  it('parses into the sections of its rail; letters unique and inside their labels', () => {
+    expect(secs.map((x) => x.id)).toEqual(PRIVACY_NAV.map((n) => n.id));
+    const letters = PRIVACY_NAV.map((n) => n.letter);
+    expect(new Set(letters).size).toBe(letters.length);
+    for (const n of PRIVACY_NAV) expect(n.nav.toLowerCase()).toContain(n.letter);
+  });
+
+  it('names the five fields of a beat, its period, the retention, the processor and the contact', () => {
+    const sent = secs.find((x) => x.id === 'sent')!.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
+    expect(sent).toEqual(['Device', 'Version', 'Device type', 'Browser', 'State']);
+    expect(BEAT_STATES).toHaveLength(3);
+    expect(BEAT_MINUTES).toBe(5);
+    expect(PRIVACY_TEXT).toContain('every five minutes');
+    expect(PRIVACY_TEXT).toContain('wc.device');
+    expect(PRIVACY_TEXT).toContain('35 days');
+    expect(PRIVACY_TEXT).toContain('90 days');
+    expect(PRIVACY_TEXT).toContain('No IP address is stored');
+    expect(PRIVACY_TEXT).toContain('Cloudflare');
+    expect(PRIVACY_TEXT).toContain('abuse@mumecockpit.com');
+  });
+
+  it('the address and the device key are tokens: a mailto link and the terminal font', () => {
+    expect(aboutTokens('Write to abuse@mumecockpit.com.')).toEqual([
+      { text: 'Write to ' },
+      { link: 'abuse@mumecockpit.com', href: 'mailto:abuse@mumecockpit.com' },
+      { text: '.' },
+    ]);
+    expect(aboutTokens('remove wc.device from')).toEqual([{ text: 'remove ' }, { cmd: 'wc.device' }, { text: ' from' }]);
+    expect(aboutTokens('The privacy page has it.')).toEqual([{ text: 'The ' }, { page: 'privacy', text: 'privacy page' }, { text: ' has it.' }]);
+  });
+
+  it('knows its address under the base', () => {
+    expect(atPrivacyPath('/privacy', '/')).toBe(true);
+    expect(atPrivacyPath('/privacy/', '/')).toBe(true);
+    expect(atPrivacyPath('/privacy.html', '/')).toBe(true);
+    expect(atPrivacyPath('/', '/')).toBe(false);
+    expect(atPrivacyPath('/privacyx', '/')).toBe(false);
+    expect(atPrivacyPath('/wc/privacy', '/wc/')).toBe(true);
+    expect(atPrivacyPath('/privacy', '/wc/')).toBe(false);
+  });
+
+  it("About's link opens the leaf in the stack: its head, sections and mail link; Esc goes back to About", async () => {
+    await mountAbout();
+    await act(async () => q('.wc-about-leaf a[href="/privacy"]')!.click());
+    expect(q('.wc-frame:not([hidden]) .wc-lk-box')?.getAttribute('aria-label')).toBe('Privacy');
+    const top = (sel: string) => [...document.querySelectorAll<HTMLElement>(`.wc-frame:not([hidden]) ${sel}`)];
+    expect(top('.wc-about-ver')[0]?.textContent).toMatch(/^Last changed /);
+    expect(top('.wc-about-h').map((h) => h.textContent)).toEqual(secs.slice(1).map((x) => x.title));
+    expect(top('a[href^="mailto:"]').length).toBeGreaterThan(0);
+    await key('Escape');
+    expect(q('.wc-frame:not([hidden]) .wc-lk-box')?.getAttribute('aria-label')).toBe('About');
+    expect(popped).toBe(0);
   });
 });
