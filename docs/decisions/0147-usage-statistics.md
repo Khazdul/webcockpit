@@ -211,3 +211,91 @@ dashboard:
 - rows read ≈ 2 × beats + samples × presence rows (the sample's scan).
 
 Pruning and the admin page's own reads are not counted.
+
+## As built (stage 59 part B, the client, 2026-11-14)
+
+- **Modules.** `src/cloud/config.ts` (the flags: `GET /api/config`
+  once per page load, 4 s timeout, any failure is all flags off; when
+  the client may call the API at all), `beat.ts` (the heartbeat),
+  `device-info.ts` (type and browser family), `online.ts` (`GET
+  /api/stats/public`), `start.ts` (starts the beat). Types and
+  constants come from `shared/cloud/api.ts`.
+- **Nothing on the cold start or the game path.** `src/main.ts`
+  imports `cloud/start` in a `requestIdleCallback` (3 s timeout) after
+  the shell has booted; only then are the flags asked. "N online"
+  loads `cloud/online` the same way from the almanac. The beat is a
+  timer of its own and `fetch` without `await`; a change of view only
+  re-arms a timer. The shell's `view` (`menu`, `playing`, `replay`)
+  and `onView` are a getter and a set of listeners called where the
+  view already changes. The cloud chunks are about 4 kB together.
+- **When no request is made at all:** in an automated browser
+  (`navigator.webdriver`), on the plain dev server (`__WC_DEV_API__`
+  is true only when `npm run dev:cloud` proxies `/api`), in `?bench`.
+  The beat is also off on any dev server, as the stage file says; it
+  can be seen against `dev:cloud` only with the test hook below.
+- **The beat.** At load if visible (a tab opened in the background
+  waits until it is shown), every 5 minutes while visible, paused
+  while hidden (a due beat goes at once when shown again), and on a
+  change of view once it has held 1.5 s. A hidden page sends nothing;
+  a change while hidden goes when it shows. `playing` is the cockpit
+  being the view (connected or not), `replay` the offline cockpit or
+  any open log player (History's run log, Spotlights, the whole-window
+  player), `menu` the rest.
+- **Several tabs.** One device is one row on the server anyway; to
+  spare beats, the tabs share a note in `localStorage` `wc.beat`
+  (`{tab, at, state}`): a tab skips its beat when another tab has sent
+  one since this tab's last, less than 4.5 minutes ago, with a state
+  that ranks at least as high (playing > replay > menu). A menu tab
+  thus never overwrites a game tab, and two game tabs send about one
+  beat per period between them.
+- **The device id** is `crypto.randomUUID()` (a `getRandomValues` v4
+  where there is none: plain-http hosts), kept in `wc.device`; a value
+  that is not a UUID is replaced. With storage blocked the page uses
+  an id of its own for its life.
+- **Device type** is the device, not its mode: `tablet` for the tablet
+  flag (ADR 0140), `phone` for the phone flag or a phone in "Desktop
+  site" mode, else `desktop`. **Browser family** from the user agent,
+  in this order: Samsung Internet, Edge (`Edg`, `EdgA`, `EdgiOS`),
+  Opera / Yandex / UC as `other`, Firefox (`FxiOS` too), Chrome
+  (`CriOS` too), Safari (with `Version/` or `Mobile/`), else `other`.
+  Brave and Vivaldi send Chrome's agent and count as `chrome`.
+- **"N online"** sits above the almanac's date, in its top padding
+  (absolutely placed, so the date, time and version never move when it
+  comes or goes), in the version line's quiet mono face; it fades in.
+  Same rule on desktop, tablet and phone (smaller padding and type on
+  the phone layout). Shown only when the flag is on, the request
+  succeeds and `online` is at least 1; refreshed every minute while the
+  almanac is shown. `playing` is not shown.
+- **About** has a new section, "What the site knows" (letter K), and
+  its intro no longer says "nothing kept anywhere but this browser".
+  Its "privacy page" opens the privacy leaf in the stack.
+- **The privacy page** is About's leaf with its own text
+  (`src/chrome/frames/privacy-text.ts`, letters P E Y K A C W R). The
+  build emits `privacy.html`, the built `index.html` with its own
+  title (`privacyPagePlugin`, vite.config.ts). Workers static assets
+  with `html_handling: auto-trailing-slash` and GitHub Pages both
+  answer `/privacy` with it (200), so no Worker route and no
+  `not_found_handling` change were needed; the page's asset URLs are
+  absolute. The app sees the path and pushes the leaf over the start
+  menu; Back goes to the menu and puts the address back to the base.
+  `public/_headers` gives `/privacy` `no-cache` like the page. The
+  static server's `pages` profile now serves `/x` from `x.html` as
+  Pages does; `tests/e2e-prod` checks `/privacy` in both profiles.
+- **Tests.** Unit: `tests/unit/cloud-beat.test.ts` (fake timers),
+  `cloud-config.test.ts`, the privacy page in `about-leaf.test.tsx`.
+  E2E: `tests/e2e/cloud-stats.spec.ts`, `phone-cloud-stats.spec.ts`.
+  The e2e use Playwright's `page.route('**/api/**')` stubs
+  (`tests/e2e/cloud-stats.ts`) and `?cloudtest`, a query honoured only
+  when `import.meta.env.DEV` (a production build folds it away), which
+  lets the client call the API under webdriver. A test Worker behind
+  the dev server was the stage file's suggestion; the stubs let each
+  test choose its answer (flag off, 404, 500, a refused connection)
+  and see every request, with no second server per worktree.
+- **Benchmarks (spec §1.3)**, `npm run bench -- --quick` before and
+  after on the same machine (load 1–4 from a parallel build): key →
+  send p99 0.120 / 0.085 ms → 0.080 / 0.080 ms (Firefox / Chromium),
+  frame → paint 0 of 100 late in both, 500 rules 4.31 / 5.71 → 4.31 /
+  5.42 µs per line, scrollback unchanged. The Firefox burst check
+  failed before and after alike (longest rAF gap 183 → 185 ms, a
+  known quick-run result under load); nothing moved. `?bench` starts no
+  cloud code at all.

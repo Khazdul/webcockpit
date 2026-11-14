@@ -25,6 +25,11 @@
   ! Cache-Control
   Cache-Control: no-cache
 
+# The privacy page (privacy.html, a copy of the page; stage 59), served at /privacy.
+/privacy
+  ! Cache-Control
+  Cache-Control: no-cache
+
 /release.json
   ! Cache-Control
   Cache-Control: no-cache

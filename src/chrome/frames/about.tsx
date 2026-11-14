@@ -25,7 +25,12 @@
 // jumped-to section stays lit.
 //
 // Keys: ↑ / ↓ about 40 px, PgUp / PgDn / Space / Enter 85 % of the view
-// (Shift+Space back), Home / End, the letters W M G B I S U C L, Esc / Back.
+// (Shift+Space back), Home / End, the letters W M G B I S K U C L, Esc / Back.
+//
+// The privacy page (stage 59, ADR 0147) is the same leaf with its own text
+// (privacy-text.ts, letters P E Y K A C W R): `PrivacyFrame`, opened from
+// About's "privacy page" and at the address `<base>privacy`. About's
+// "What the site knows" is its short form.
 
 import './about.css';
 import type { VNode } from 'preact';
@@ -46,8 +51,9 @@ import {
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
 import { LookWordmark } from '../start-surface';
+import { PRIVACY_NAV, PRIVACY_TEXT, PRIVACY_UPDATED } from './privacy-text';
 
-export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, no server in between, and nothing kept anywhere but this browser. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
+export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, no server between you and the game, and your settings, profiles and runs kept only in this browser. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
 
 MUME — MULTI-USERS IN MIDDLE-EARTH
 MUME is a free, text-based multiplayer game set in Tolkien's Middle-earth in the late Third Age, the years before the War of the Ring. It has run continuously since 1991, is kept alive by a volunteer community, and is one of the oldest active DikuMUDs.
@@ -89,6 +95,9 @@ WHAT IS INSIDE
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → Export to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
+WHAT THE SITE KNOWS
+Your game goes straight from this browser to MUME. Nothing you type, no character or account name and no password passes through this site. To count how many use WebCockpit, the page sends the site a small heartbeat while it is open: a random number made for this browser, the version, the kind of device, the browser family, and whether you are on the start page, playing or watching a replay. That is all. No IP address is kept, and who is online is never shown. The privacy page has the details: what is kept, for how long, and how to remove it.
+
 LUA SCRIPTS
 Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Scripts on the start page or in the game's menu bar, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. A script's settings are tiles on its panel, and take effect at once. A bundled script opens read-only; Duplicate makes an editable copy. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. Manual on the Scripts page, or F1 in the editor, opens the full manual with examples.
 
@@ -122,13 +131,14 @@ export interface AboutSection {
 }
 
 /** The rail: each section's id, its label in the contents and its letter (`head`: how its heading starts). */
-export const ABOUT_NAV: readonly { id: string; head: string; nav: string; letter: string }[] = [
+export const ABOUT_NAV: LeafNav = [
   { id: 'intro', head: '', nav: 'WebCockpit', letter: 'w' },
   { id: 'mume', head: 'MUME', nav: 'MUME', letter: 'm' },
   { id: 'start', head: 'GETTING STARTED', nav: 'Getting started', letter: 'g' },
   { id: 'pvp', head: 'BUILT FOR PVP', nav: 'Built for PvP', letter: 'b' },
   { id: 'inside', head: 'WHAT IS INSIDE', nav: 'What is inside', letter: 'i' },
   { id: 'settings', head: 'SETTINGS', nav: 'Settings', letter: 's' },
+  { id: 'knows', head: 'WHAT THE SITE KNOWS', nav: 'What the site knows', letter: 'k' },
   { id: 'lua', head: 'LUA SCRIPTS', nav: 'Lua scripts', letter: 'u' },
   { id: 'credits', head: 'CREDITS', nav: 'Credits', letter: 'c' },
   { id: 'licence', head: 'LICENCE', nav: 'Licence', letter: 'l' },
@@ -137,11 +147,14 @@ export const ABOUT_NAV: readonly { id: string; head: string; nav: string; letter
 const HEADING = /^[A-Z][A-Z —-]+$/;
 const KV = /^ {2}(\S+(?: \S+)*?) {2,}(.*)$/;
 
-const navOf = (title: string): (typeof ABOUT_NAV)[number] | undefined =>
-  ABOUT_NAV.find((n) => (title === '' ? n.head === '' : n.head !== '' && title.startsWith(n.head)));
+/** A leaf's contents rail: each section's id, label and letter, found by how its heading starts. */
+export type LeafNav = readonly { id: string; head: string; nav: string; letter: string }[];
 
-/** `ABOUT_TEXT` (or any text in its format) as sections. Pure. */
-export function aboutSections(text: string): AboutSection[] {
+const navOf = (title: string, nav: LeafNav): LeafNav[number] | undefined =>
+  nav.find((n) => (title === '' ? n.head === '' : n.head !== '' && title.startsWith(n.head)));
+
+/** `ABOUT_TEXT` (or any text in its format, with its rail `nav`) as sections. Pure. */
+export function aboutSections(text: string, nav: LeafNav = ABOUT_NAV): AboutSection[] {
   const out: { title: string; blocks: AboutBlock[] }[] = [{ title: '', blocks: [] }];
   for (const raw of text.split('\n')) {
     if (raw.trim() === '') continue;
@@ -161,17 +174,22 @@ export function aboutSections(text: string): AboutSection[] {
   return out
     .filter((s, i) => i > 0 || s.blocks.length > 0)
     .map((s) => ({
-      id: navOf(s.title)?.id ?? s.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      id: navOf(s.title, nav)?.id ?? s.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       title: s.title,
       blocks: s.blocks,
     }));
 }
 
-/** A piece of text: plain, a link (`href`; the site's own files under the base), or a game command. */
-export type AboutToken = { text: string } | { link: string; href: string } | { cmd: string };
+/**
+ * A piece of text: plain, a link (`href`; the site's own files under the
+ * base; an e-mail address), a game command (or a name set in the terminal
+ * font), or a leaf of the site's own (`page`: the privacy page, opened in
+ * the stack).
+ */
+export type AboutToken = { text: string } | { link: string; href: string } | { cmd: string } | { page: 'privacy'; text: string };
 
 const LINK_RE =
-  /\b((?:docs\.mume\.org|mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt|THIRD_PARTY_NOTICES\.md|fonts\/README\.md)|(#help|#weather demo|\?safe|\bpray to the tower hills|\bhelp newbie|\bwho ranger|\bconsider|\bflee)(?!\w)/g;
+  /\b((?:docs\.mume\.org|mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt|THIRD_PARTY_NOTICES\.md|fonts\/README\.md)|(#help|#weather demo|\?safe|\bpray to the tower hills|\bhelp newbie|\bwho ranger|\bconsider|\bflee|\bwc\.device)(?!\w)|\b([\w.+-]+@mumecockpit\.com)\b|\b(privacy page)\b/g;
 /** The site's own files (served from `public/` or by vite.config.ts). */
 const LOCAL_FILES = new Set(['LICENSE.txt', 'THIRD_PARTY_NOTICES.md', 'fonts/README.md']);
 
@@ -183,6 +201,8 @@ export function aboutTokens(text: string, base = '/'): AboutToken[] {
     const i = m.index ?? 0;
     if (i > at) out.push({ text: text.slice(at, i) });
     if (m[1]) out.push({ link: m[1], href: LOCAL_FILES.has(m[1]) ? `${base}${m[1]}` : `https://${m[1]}` });
+    else if (m[3]) out.push({ link: m[3], href: `mailto:${m[3]}` });
+    else if (m[4]) out.push({ page: 'privacy', text: m[4] });
     else out.push({ cmd: m[2]! });
     at = i + m[0].length;
   }
@@ -190,14 +210,31 @@ export function aboutTokens(text: string, base = '/'): AboutToken[] {
   return out;
 }
 
-/** Text with its links (a new tab) and game commands (the terminal font). */
+/** The site's base path (Vite's `base`). */
+const siteBase = (): string => (import.meta.env?.BASE_URL as string | undefined) ?? '/';
+
+/** Text with its links (a new tab; the privacy page in the stack) and game commands (the terminal font). */
 function Linked(p: { text: string }): VNode {
-  const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
+  const nav = useNav();
+  const base = siteBase();
   return (
     <>
       {aboutTokens(p.text, base).map((t) =>
-        'link' in t ? (
-          <a class="wc-about-a" href={t.href} target="_blank" rel="noopener noreferrer">
+        'page' in t ? (
+          <a
+            class="wc-about-a"
+            href={`${base}privacy`}
+            onClick={(e) => {
+              // A plain click opens the leaf here; with a modifier the browser opens /privacy as it would.
+              if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              e.preventDefault();
+              nav.push(<PrivacyFrame />);
+            }}
+          >
+            {t.text}
+          </a>
+        ) : 'link' in t ? (
+          <a class="wc-about-a" href={t.href} target={t.href.startsWith('mailto:') ? undefined : '_blank'} rel="noopener noreferrer">
             {t.link}
           </a>
         ) : 'cmd' in t ? (
@@ -223,13 +260,17 @@ const JUMP_GAP = 18;
 /** A smooth scroll has ended when no scroll event came for this long (ms; `scrollend` where it exists). */
 const SCROLL_IDLE = 160;
 
-/** The sections, parsed once (the text is a constant). */
-let parsed: AboutSection[] | null = null;
-const sections = (): AboutSection[] => (parsed ??= aboutSections(ABOUT_TEXT));
+/** Each leaf's sections, parsed once (the texts are constants). */
+const parsed = new Map<string, AboutSection[]>();
+const sectionsOf = (text: string, nav: LeafNav): AboutSection[] => {
+  let s = parsed.get(text);
+  if (!s) parsed.set(text, (s = aboutSections(text, nav)));
+  return s;
+};
 
 /** A section's label in the rail and its letter. */
-function railOf(s: AboutSection): { nav: string; letter: string | undefined } {
-  const n = ABOUT_NAV.find((x) => x.id === s.id);
+function railOf(s: AboutSection, nav: LeafNav): { nav: string; letter: string | undefined } {
+  const n = nav.find((x) => x.id === s.id);
   return n ? { nav: n.nav, letter: n.letter } : { nav: s.title, letter: undefined };
 }
 
@@ -260,11 +301,53 @@ function Blocks(p: { blocks: AboutBlock[] }): VNode {
 
 export const AboutFrame = lookFrame(function AboutFrame(): VNode {
   const { version, commit } = useServices();
+  return (
+    <Leaf
+      title="About"
+      text={ABOUT_TEXT}
+      nav={ABOUT_NAV}
+      sub={commit ? `WebCockpit ${version} (${commit})` : `WebCockpit ${version}`}
+    />
+  );
+});
+
+/**
+ * The privacy page (stage 59, spec §7.6, ADR 0147): a leaf in About's look
+ * with the text of privacy-text.ts. Opened from About's "privacy page", and
+ * at `<base>privacy` (the build emits `privacy.html`, a copy of the app's
+ * page: vite.config.ts), where the start menu pushes it at once
+ * (start-main.tsx). Leaving it there puts the address back to the base, so
+ * a reload is the start page.
+ */
+export const PrivacyFrame = lookFrame(function PrivacyFrame(): VNode {
+  useEffect(
+    () => () => {
+      if (!atPrivacyPath()) return;
+      try {
+        history.replaceState(history.state, '', `${siteBase()}${location.search}${location.hash}`);
+        document.title = 'WebCockpit';
+      } catch {
+        // The address stays: harmless.
+      }
+    },
+    [],
+  );
+  return <Leaf title="Privacy" text={PRIVACY_TEXT} nav={PRIVACY_NAV} sub={PRIVACY_UPDATED} />;
+});
+
+/** True when the page was opened at the privacy page's address (`<base>privacy`). */
+export function atPrivacyPath(path: string = globalThis.location?.pathname ?? '', base: string = siteBase()): boolean {
+  const rest = path.startsWith(base) ? path.slice(base.length) : null;
+  return rest === 'privacy' || rest === 'privacy/' || rest === 'privacy.html';
+}
+
+/** One long leaf (About, Privacy): the head, the rail and the sections of `text`. */
+function Leaf(p: { title: string; text: string; nav: LeafNav; sub: string }): VNode {
   const nav = useNav();
   const settled = useBoxSettled();
   const reduced = useReducedMotion();
-  const secs = sections();
-  const rail = useMemo(() => secs.map(railOf), [secs]);
+  const secs = sectionsOf(p.text, p.nav);
+  const rail = useMemo(() => secs.map((s) => railOf(s, p.nav)), [secs, p.nav]);
   const bodyRef = useRef<HTMLDivElement>(null);
   const leafRef = useRef<HTMLElement>(null);
   const [cur, setCur] = useState(0);
@@ -419,7 +502,7 @@ export const AboutFrame = lookFrame(function AboutFrame(): VNode {
   const intro = secs[0]?.title === '' ? secs[0] : undefined;
   const rest = intro ? secs.slice(1) : secs;
   return (
-    <Box title="About" size="large" onBack={() => nav.pop()} class="wc-about" winClass="wc-about-win">
+    <Box title={p.title} size="large" onBack={() => nav.pop()} class="wc-about" winClass="wc-about-win">
       <BoxHead class="wc-about-strip">
         <div class="wc-about-pills">
           <Seg
@@ -453,7 +536,7 @@ export const AboutFrame = lookFrame(function AboutFrame(): VNode {
           <article ref={leafRef} class="wc-about-leaf">
             <header class="wc-about-head" data-sec={intro?.id ?? 'intro'}>
               <LookWordmark size="small" class="wc-about-mark" />
-              <div class="wc-about-ver">{commit ? `WebCockpit ${version} (${commit})` : `WebCockpit ${version}`}</div>
+              <div class="wc-about-ver">{p.sub}</div>
             </header>
             <OrnRule />
             {intro?.blocks.map((b, i) =>
@@ -482,4 +565,4 @@ export const AboutFrame = lookFrame(function AboutFrame(): VNode {
       </div>
     </Box>
   );
-});
+}

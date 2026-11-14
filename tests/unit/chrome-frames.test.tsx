@@ -52,9 +52,9 @@ describe('About text', () => {
     secs.find((x) => x.id === id)!.blocks.flatMap((b) => ('kv' in b ? b.kv.map(([k]) => k) : []));
   const texts = secs.flatMap((x) => [x.title, ...x.blocks.flatMap((b) => ('p' in b ? [b.p] : b.kv.flat()))]);
 
-  it('parses ABOUT_TEXT into the nine sections of the rail, in order', () => {
+  it('parses ABOUT_TEXT into the ten sections of the rail, in order', () => {
     expect(secs.map((x) => x.id)).toEqual(ABOUT_NAV.map((n) => n.id));
-    expect(secs).toHaveLength(9);
+    expect(secs).toHaveLength(10);
     expect(secs[0]!.title).toBe('');
     expect(secs[1]!.title).toBe('MUME — MULTI-USERS IN MIDDLE-EARTH');
     expect(secs.slice(1).every((x) => x.title === x.title.toUpperCase() && x.blocks.length > 0)).toBe(true);
@@ -107,7 +107,7 @@ describe('About text', () => {
 
   it('gives each section a unique letter, marked in its rail label', () => {
     const letters = ABOUT_NAV.map((n) => n.letter);
-    expect(letters).toEqual(['w', 'm', 'g', 'b', 'i', 's', 'u', 'c', 'l']);
+    expect(letters).toEqual(['w', 'm', 'g', 'b', 'i', 's', 'k', 'u', 'c', 'l']);
     expect(new Set(letters).size).toBe(letters.length);
     for (const n of ABOUT_NAV) expect(n.nav.toLowerCase()).toContain(n.letter);
   });

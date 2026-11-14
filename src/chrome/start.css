@@ -125,6 +125,24 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
   color: var(--lk-faint);
 }
 
+/* "N online" (stage 59, ADR 0147): in the box's top padding, above the
+ * date, so nothing moves when it comes; as quiet as the version. */
+.wc-alm-o {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  white-space: nowrap;
+  font: 400 11px/1.65 var(--lk-mono);
+  letter-spacing: 0;
+  color: var(--lk-faint);
+  transition: color 2.5s;
+  animation: wc-alm-o-in 0.8s ease-out;
+}
+
+@keyframes wc-alm-o-in {
+  from { opacity: 0; }
+}
+
 /* On a bright sky the quote's dark ink, with a faint light lip (pale text
  * with a dark shadow does not read on a day sky). */
 .wc-start-almanac.is-ink {
@@ -135,6 +153,7 @@ html.wc-phone .wc-start[data-lk-box="tall"] .wc-start-almanac {
 .wc-start-almanac.is-ink .wc-alm-d { color: #3a2614; }
 .wc-start-almanac.is-ink .wc-alm-m { color: #4a3a2a; }
 .wc-start-almanac.is-ink .wc-alm-v { color: #5a4a38; }
+.wc-start-almanac.is-ink .wc-alm-o { color: #5a4a38; }
 
 .wc-start-almanac,
 .wc-alm-d,
@@ -543,6 +562,13 @@ html.wc-phone .wc-alm-v {
   line-height: 1.5;
 }
 
+html.wc-phone .wc-alm-o {
+  top: 6px;
+  right: 12px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 /* A tablet-size window (ADR 0140; stage 56c, src/start/geometry.css): the
  * desktop's rows, a thumb's height, in the desktop's panel. */
 @media (min-width: 600px) and (min-height: 600px) {
@@ -588,6 +614,10 @@ html.wc-phone .wc-alm-v {
   .wc-start-almanac,
   .wc-start.is-from-large .wc-start-almanac {
     transition: opacity 0.24s;
+  }
+
+  .wc-alm-o {
+    animation: none;
   }
 }
 

@@ -36,8 +36,8 @@ async function openAbout(page: Page): Promise<void> {
   await morphDone(page);
 }
 
-const LETTERS = ['W', 'M', 'G', 'B', 'I', 'S', 'U', 'C', 'L'];
-const SECTIONS = ['intro', 'mume', 'start', 'pvp', 'inside', 'settings', 'lua', 'credits', 'licence'];
+const LETTERS = ['W', 'M', 'G', 'B', 'I', 'S', 'K', 'U', 'C', 'L'];
+const SECTIONS = ['intro', 'mume', 'start', 'pvp', 'inside', 'settings', 'knows', 'lua', 'credits', 'licence'];
 
 test('the leaf: small wordmark and version, sections, rail with letters, seal; Esc leaves', async ({ page }) => {
   const errors = watchErrors(page);
@@ -56,13 +56,14 @@ test('the leaf: small wordmark and version, sections, rail with letters, seal; E
   await expect(head.locator('.wc-about-ver')).toContainText(`WebCockpit ${version}`);
   // The intro as the lead-in, then the eight titled sections, key/value tables, the seal.
   await expect(lookBox(page).locator('.wc-about-lead').first()).toContainText('WebCockpit is a MUD client for MUME');
-  await expect(lookBox(page).locator('.wc-about-sec')).toHaveCount(8);
+  await expect(lookBox(page).locator('.wc-about-sec')).toHaveCount(9);
   await expect(lookBox(page).locator('.wc-about-h')).toHaveText([
     /^MUME — MULTI-USERS IN MIDDLE-EARTH$/,
     'GETTING STARTED',
     'BUILT FOR PVP',
     'WHAT IS INSIDE',
     'SETTINGS',
+    'WHAT THE SITE KNOWS',
     'LUA SCRIPTS',
     'CREDITS',
     'LICENCE',
@@ -70,9 +71,9 @@ test('the leaf: small wordmark and version, sections, rail with letters, seal; E
   await expect(lookBox(page).locator('[data-sec="inside"] .wc-lk-kv dt')).toHaveText(['Panes', 'Profile', 'Map', 'Weather', 'Runs', 'Phone']);
   await expect(lookBox(page).locator('[data-sec="credits"] .wc-lk-kv dt').first()).toHaveText('MMapper');
   await expect(lookBox(page).locator('.wc-about-colophon img')).toHaveCount(1);
-  // The rail: nine rows, each with its letter; the intro lit at the top.
+  // The rail: ten rows, each with its letter; the intro lit at the top.
   await expect(rail(page)).toBeVisible();
-  await expect(rail(page).locator('.wc-about-row')).toHaveCount(9);
+  await expect(rail(page).locator('.wc-about-row')).toHaveCount(10);
   expect(await rail(page).locator('.wc-about-row u.wc-sk').allTextContents()).toEqual(LETTERS.map((l) => expect.stringMatching(new RegExp(`^${l}$`, 'i'))));
   expect(await rail(page).locator('.wc-about-row').evaluateAll((r) => r.map((e) => e.getAttribute('data-sec-link')))).toEqual(SECTIONS);
   await expect(railOn(page)).toHaveAttribute('data-sec-link', 'intro');
@@ -162,7 +163,8 @@ test('links open in a new tab; the licence and the third-party notices are serve
   await page.setViewportSize({ width: 1440, height: 900 });
   await openStart(page);
   await openAbout(page);
-  const links = lookBox(page).locator('.wc-about-leaf a');
+  // (The privacy page opens in the stack: cloud-stats.spec.ts.)
+  const links = lookBox(page).locator('.wc-about-leaf a:not([href="/privacy"])');
   expect(await links.count()).toBeGreaterThanOrEqual(8);
   for (const a of await links.all()) {
     await expect(a).toHaveAttribute('target', '_blank');
