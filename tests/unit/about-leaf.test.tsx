@@ -70,7 +70,7 @@ describe('aboutSections', () => {
   });
 
   it('states the facts of the new pages', () => {
-    expect(ABOUT_TEXT).toContain('History, Spotlights and Credits on the start page look back at your runs');
+    expect(ABOUT_TEXT).toContain('History on the start page looks back at your runs (Sessions, Spotlights and the Diary)');
     expect(ABOUT_TEXT).toContain('Third-party notices: THIRD_PARTY_NOTICES.md');
     expect(ABOUT_TEXT).not.toContain('card at the top right');
     // Cut for newcomers (ADR 0132 addendum, 2026-11-08).

@@ -157,14 +157,15 @@ drawing runs in a worker, so text and keys are never slowed.
 <img width="400" alt="Fog" src="docs/img/weather-fog.png" />
 </div>
 
-**Runs.** Every login starts a run, recorded in the browser. The
-start page offers History, a table of sessions with a card for the
-chosen one (its Statistics, a log player that replays the whole screen,
-rating, saving, export, deletion), and Spotlights, a wall of cards of
-your kills, deaths, level-ups and achievements that play in a viewer
-growing out of the card. Credits tells your characters' deeds as a
-book, filtered as Spotlights is. Runs older than 14 days are pruned
-unless you save them.
+**Runs.** Every login starts a run, recorded in the browser. History
+on the start page has three tabs (1, 2 and 3 change between them):
+Sessions, a table of sessions with a card for the chosen one (its
+Statistics, a log player that replays the whole screen, rating, saving,
+export, deletion); Spotlights, a wall of cards of your kills, deaths,
+level-ups and achievements that play in a viewer growing out of the
+card; and the Diary, which tells your characters' deeds as a book,
+filtered as Spotlights is. Runs older than 14 days are pruned unless
+you save them.
 
 **Export editor.** Cut spans from a run, write comments at their place
 in the log to narrate it, and export plain text or a self-contained
