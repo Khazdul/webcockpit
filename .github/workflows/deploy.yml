@@ -10,8 +10,11 @@
 # routes and domains of wrangler.jsonc applied to the Worker that is
 # already deployed (`wrangler triggers deploy`). The switch of stage 58
 # attaches mumecockpit.com that way, without waiting for a build.
-# Until the switch of stage 58 both Workers answer on workers.dev only, and
-# pages.yml still deploys the live site from the same tag.
+# A deploy applies the target's D1 migrations first (stage 59). `triggers`
+# also applies the cron triggers, and attaches staging.mumecockpit.com to
+# the staging Worker.
+# pages.yml still deploys the old Pages site from the same tag until it is
+# retired.
 # Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (the stage file).
 name: deploy
 
@@ -68,6 +71,18 @@ jobs:
       # the action's default.
       - id: wrangler
         run: echo "version=$(node -p "require('./package.json').devDependencies.wrangler")" >> "$GITHUB_OUTPUT"
+      # D1 migrations (worker/migrations, ADR 0144) before the Worker that
+      # needs them; a migration is always backward compatible with the
+      # Worker still running (spec §7.11). Applied ones are skipped; in CI
+      # wrangler does not ask for confirmation. `DB` is the binding of the
+      # target's database in wrangler.jsonc.
+      - if: env.ACTION == 'deploy'
+        name: D1 migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: npx wrangler d1 migrations apply DB --remote $([ "$TARGET" = staging ] && echo --env staging)
       - id: deploy
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:

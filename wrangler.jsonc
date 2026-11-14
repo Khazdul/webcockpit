@@ -1,9 +1,18 @@
 // The Cloudflare Worker that serves WebCockpit (ADR 0144, spec §7.1):
-// the static build (`npm run build:site` → dist-site/) and the API under
-// /api/*. The top level is production; `--env staging` is the staging
-// Worker. Production answers at mumecockpit.com (a custom domain:
-// Cloudflare makes the DNS record and the certificate); both also answer
-// on workers.dev.
+// the static build (`npm run build:site` → dist-site/), the API under
+// /api/*, the admin page under /admin (ADR 0148) and the usage statistics'
+// cron (ADR 0147). The top level is production; `--env staging` is the
+// staging Worker. Production answers at mumecockpit.com, staging at
+// staging.mumecockpit.com (custom domains: Cloudflare makes the DNS record
+// and the certificate); both also answer on workers.dev.
+//
+// Bindings, vars and ratelimits are not inherited by an environment, so
+// env.staging repeats them with its own names. `routes` and `triggers` are
+// inherited, so staging sets its own.
+//
+// The D1 ids come from the by-hand workflow provision.yml (stage 59).
+// Local development and the tests do not need real ids (wrangler dev keys
+// its local database by the id, whatever it is).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "webcockpit",
@@ -16,19 +25,71 @@
   "assets": {
     "directory": "dist-site",
     "binding": "ASSETS",
-    // Only the API runs Worker code; every file is served without it.
-    "run_worker_first": ["/api/*"],
+    // Only the API and the admin page run Worker code; every file is
+    // served without it. `/admin` and `/admin/*` both, as the docs do not
+    // promise that `/admin*` matches `/admin`.
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"],
     // Unknown paths answer 404 with 404.html, as on GitHub Pages
     // (`/r/<id>` comes in stage 64).
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
   },
+  "vars": {
+    // Server flags' defaults (ADR 0147, addendum): production dark; a row
+    // in the D1 table `flag`, set from /admin, overrides it.
+    "FLAG_STATS": false,
+    // Cloudflare Access (ADR 0148, addendum): the team domain
+    // (`<team>.cloudflareaccess.com`) and the application's audience tag,
+    // filled in after the owner has made the Access application. Empty:
+    // /admin answers 503 admin_not_configured. The secret ADMIN_EMAILS is
+    // set in the dashboard.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "webcockpit",
+      // PROVISION: the id of D1 `webcockpit` from provision.yml's summary.
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "worker/migrations"
+    }
+  ],
+  // R2 is made now and used from stage 63 (run bodies, shared payloads).
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit", "jurisdiction": "eu" }],
+  // POST /api/beat, keyed by address (ADR 0147). A page beats every 5
+  // minutes and on a state change; 30 a minute leaves room for a
+  // household or a school behind one address.
+  "ratelimits": [{ "name": "BEAT_LIMITER", "namespace_id": "5901", "simple": { "limit": 30, "period": 60 } }],
+  // The usage statistics (worker/stats.ts): a sample every 5 minutes; the
+  // roll-up of the previous day and pruning at 00:10 UTC.
+  "triggers": { "crons": ["*/5 * * * *", "10 0 * * *"] },
   "env": {
     "staging": {
       "name": "webcockpit-staging",
-      // Not inherited: the domain belongs to production alone.
-      "routes": [],
-      "workers_dev": true
+      "routes": [{ "pattern": "staging.mumecockpit.com", "custom_domain": true }],
+      "workers_dev": true,
+      "vars": {
+        "FLAG_STATS": true,
+        "ACCESS_TEAM_DOMAIN": "",
+        "ACCESS_AUD": "",
+        // Every answer of the Worker carries X-Robots-Tag: noindex; the
+        // static files get it from the `_headers` rule that
+        // `build:site --target staging` adds.
+        "NOINDEX": true
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "webcockpit-staging",
+          // PROVISION: the id of D1 `webcockpit-staging` from provision.yml's summary.
+          "database_id": "00000000-0000-0000-0000-000000000002",
+          "migrations_dir": "worker/migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit-staging", "jurisdiction": "eu" }],
+      "ratelimits": [{ "name": "BEAT_LIMITER", "namespace_id": "5902", "simple": { "limit": 30, "period": 60 } }],
+      "triggers": { "crons": ["*/5 * * * *", "10 0 * * *"] }
     }
   }
 }
