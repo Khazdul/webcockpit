@@ -64,7 +64,9 @@ export type IconName =
   | 'html'
   | 'text'
   | 'folder'
-  | 'drop';
+  | 'drop'
+  // Stage 60 (the start menu's Account row), 18 × 18.
+  | 'key';
 
 /** A page's own line icon: its drawing (paths, stroke: currentColor) and its viewBox side (default 16). */
 export type IconDraw = { draw: ComponentChildren; box?: number };
@@ -215,6 +217,13 @@ export const ICONS: Record<IconName, ComponentChildren> = {
   text: <path d="M4 2.5h5.5L12 5v8.5H4zM9.5 2.5V5H12M6 8h4M6 10.5h4" />,
   folder: <path d="M2 4h4.2l1.5 1.5H14v7H2z" />,
   drop: <path d="M8 2v7M5.2 6.4 8 9.2l2.8-2.8M2.5 9.5v4h11v-4" />,
+  // Stage 60, 18 × 18: a key, its bow at the lower left.
+  key: (
+    <>
+      <circle cx="5.8" cy="12.2" r="3.3" />
+      <path d="M8.2 9.8 15.6 2.4M12.4 5.6l2.2 2.2M14.4 3.6l1.6 1.6" />
+    </>
+  ),
 };
 
 /** The size of each icon's drawing (its viewBox side): the start menu's are 18 (door 22), the skip buttons 24, the rest 16. */
@@ -226,6 +235,7 @@ const ICON_BOX: Partial<Record<IconName, number>> = {
   star: 18,
   quill: 18,
   info: 18,
+  key: 18,
   back10: 24,
   fwd10: 24,
 };

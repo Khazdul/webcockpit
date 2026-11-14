@@ -22,6 +22,7 @@ import {
   type IconName,
   LookFlash,
   OrnRule,
+  Plate,
   Rule,
   Seal,
   Seg,
@@ -31,6 +32,8 @@ import {
   TableRow,
   Tabs,
   TextArea,
+  TextLink,
+  TimeBar,
   Toggle,
   Well,
   letterAction,
@@ -94,6 +97,8 @@ function Controls(): VNode {
   const [bad, setBad] = useState('gibur/');
   const [note, setNote] = useState('A short note about this run.');
   const [font, setFont] = useState('dejavu');
+  const [secret, setSecret] = useState('a long password');
+  const [barRun, setBarRun] = useState(0);
   const [autoLogin, setAutoLogin] = useState(true);
   const [record, setRecord] = useState(false);
   const [weather, setWeather] = useState(true);
@@ -273,6 +278,24 @@ function Controls(): VNode {
               />
             </div>
             <TextArea id="note" label="Comment" value={note} onInput={setNote} rows={3} maxLength={600} hint={`${note.length} of 600`} />
+            <div class="wc-kitc-form">
+              <Field id="secret" label="Password" type="password" value={secret} onInput={setSecret} hint="Masked; our own keyboard types in it on a phone." />
+              <Field id="off" label="Disabled" value="working" onInput={() => {}} disabled />
+            </div>
+
+            <Rule title="Plate, links, time bar" />
+            <Plate id="plate">
+              <b>A plate.</b> A few lines that must not pass unread. One on a page at most.
+            </Plate>
+            <div class="wc-lk-links">
+              <TextLink id="one" label="Create account" onClick={() => show('Create account.')} />
+              <TextLink id="two" label="Forgot password" selected onClick={() => show('Forgot password.')} />
+            </div>
+            <p class="wc-lk-lead">A bar that runs on time, for work that reports no progress:</p>
+            <TimeBar ms={2200} run={barRun} />
+            <div class="wc-lk-btns">
+              <GlassButton small id="BAR" label="Run the bar again" onClick={() => setBarRun((n) => n + 1)} />
+            </div>
 
             <Rule title="Checks and toggles" />
             <div class="wc-kitc-checks">
