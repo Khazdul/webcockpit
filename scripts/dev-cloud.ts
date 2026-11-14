@@ -18,7 +18,14 @@
 // first (`wrangler d1 migrations apply DB --local`; what is applied is
 // skipped). The Worker runs as production is configured: the flag `stats`
 // is off unless a `flag` row says otherwise
-// (`wrangler d1 execute DB --local --command "INSERT INTO flag VALUES ('stats', 1)"`).
+// (`wrangler d1 execute DB --local --command "INSERT INTO flag VALUES ('stats', 1)"`;
+// the same with 'accounts' opens the account endpoints).
+//
+// What the accounts need of secrets (stage 60, ADR 0145) is passed as
+// `--var`, so no `.dev.vars` file is needed: Cloudflare's published
+// Turnstile test keys (the widget always passes and siteverify accepts
+// only its dummy token) and a fixed pepper that is no secret. They exist
+// in this local Worker only.
 //
 // Either process ending ends the other; Ctrl-C ends both.
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
@@ -36,6 +43,13 @@ const assets = join(ROOT, 'node_modules', '.cache', 'webcockpit-dev-cloud');
 const version = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string }).version;
 mkdirSync(assets, { recursive: true });
 writeFileSync(join(assets, 'release.json'), `${JSON.stringify({ version, commit: 'dev' }, null, 2)}\n`);
+
+/** Local stand-ins for the account secrets and the site key (see the top). */
+const DEV_VARS = [
+  'AUTH_PEPPER:dev-cloud-pepper-not-a-secret-0123456789',
+  'TURNSTILE_SECRET:1x0000000000000000000000000000000AA',
+  'TURNSTILE_SITE_KEY:1x00000000000000000000AA',
+];
 
 const origin = `http://127.0.0.1:${port}`;
 console.log(`dev:cloud: Worker at ${origin}, /api proxied to it`);
@@ -75,5 +89,15 @@ if (migrated.status !== 0) {
   process.exit(1);
 }
 
-start('wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(port), '--assets', assets, '--show-interactive-dev-session=false']);
+start('wrangler', [
+  'dev',
+  '--ip',
+  '127.0.0.1',
+  '--port',
+  String(port),
+  '--assets',
+  assets,
+  '--show-interactive-dev-session=false',
+  ...DEV_VARS.flatMap((v) => ['--var', v]),
+]);
 start('vite', process.argv.slice(2), { WEBCOCKPIT_API_PROXY: origin });

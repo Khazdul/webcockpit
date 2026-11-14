@@ -38,6 +38,18 @@
     // Server flags' defaults (ADR 0147, addendum): production dark; a row
     // in the D1 table `flag`, set from /admin, overrides it.
     "FLAG_STATS": false,
+    "FLAG_ACCOUNTS": false,
+    // Accounts (ADR 0145, "As built"). The Turnstile widget's site key:
+    // empty until the owner has made the widget (stage 60 part C). When it
+    // is set, also set "TURNSTILE_HOSTNAMES": "mumecockpit.com" here (the
+    // host a passed challenge must come from).
+    // Two secrets are set outside the repository (`wrangler secret put`,
+    // or the dashboard), never here: AUTH_PEPPER (random, at least 16
+    // characters; e.g. `openssl rand -base64 32`; changing it later only
+    // resets the attempt counters and the fake salts) and
+    // TURNSTILE_SECRET (the widget's secret key). Without either, the
+    // account endpoints answer 503 accounts_not_configured.
+    "TURNSTILE_SITE_KEY": "",
     // Cloudflare Access (ADR 0148, addendum): the team domain
     // (`<team>.cloudflareaccess.com`) and the application's audience tag,
     // filled in after the owner has made the Access application. Empty:
@@ -60,7 +72,12 @@
   // POST /api/beat, keyed by address (ADR 0147). A page beats every 5
   // minutes and on a state change; 30 a minute leaves room for a
   // household or a school behind one address.
-  "ratelimits": [{ "name": "BEAT_LIMITER", "namespace_id": "5901", "simple": { "limit": 30, "period": 60 } }],
+  // /api/auth/* and /api/u/*, keyed by session or address (spec §7.10):
+  // 120 a minute.
+  "ratelimits": [
+    { "name": "BEAT_LIMITER", "namespace_id": "5901", "simple": { "limit": 30, "period": 60 } },
+    { "name": "API_LIMITER", "namespace_id": "5903", "simple": { "limit": 120, "period": 60 } }
+  ],
   // The usage statistics (worker/stats.ts): a sample every 5 minutes; the
   // roll-up of the previous day and pruning at 00:10 UTC.
   "triggers": { "crons": ["*/5 * * * *", "10 0 * * *"] },
@@ -71,6 +88,15 @@
       "workers_dev": true,
       "vars": {
         "FLAG_STATS": true,
+        "FLAG_ACCOUNTS": true,
+        // Cloudflare's published test site key (always passes, visible
+        // widget) until the owner has made the widget; its partner, the
+        // test secret 1x0000000000000000000000000000000AA, is set as the
+        // secret TURNSTILE_SECRET of this Worker, with AUTH_PEPPER (see
+        // the top level). The test keys answer with the host name
+        // example.com, so no TURNSTILE_HOSTNAMES while they are in use;
+        // with the real widget: "staging.mumecockpit.com".
+        "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
         "ACCESS_TEAM_DOMAIN": "flat-unit-c1f3.cloudflareaccess.com",
         "ACCESS_AUD": "8171e8c6972c3e28805fa694a0c2597b5e05ce9a2788da35bcc0bd4da7ebec34",
         // Every answer of the Worker carries X-Robots-Tag: noindex; the
@@ -88,7 +114,10 @@
         }
       ],
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit-staging", "jurisdiction": "eu" }],
-      "ratelimits": [{ "name": "BEAT_LIMITER", "namespace_id": "5902", "simple": { "limit": 30, "period": 60 } }],
+      "ratelimits": [
+        { "name": "BEAT_LIMITER", "namespace_id": "5902", "simple": { "limit": 30, "period": 60 } },
+        { "name": "API_LIMITER", "namespace_id": "5904", "simple": { "limit": 120, "period": 60 } }
+      ],
       "triggers": { "crons": ["*/5 * * * *", "10 0 * * *"] }
     }
   }
