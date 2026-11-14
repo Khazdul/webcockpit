@@ -240,8 +240,17 @@ merge: this branch's version of its menu tests is the one to keep.
 
 ### C. Check and release
 
-- [ ] Full e2e alone at 5 workers; the benchmark; the entry chunk's
-      size.
+- [x] Full e2e alone at 5 workers; the benchmark; the entry chunk's
+      size (2026-11-14, on 57f34bc0): unit 4639; full e2e 1597 passed,
+      2 failed under load (Firefox `group-pane` and `pane-buttons`, not
+      touched by the stage; 15/15 alone), 1 skipped. The benchmark of
+      §1.3: Chromium passes every budget. Firefox fails the burst
+      budget (longest frame gap 172 ms, 7 of 61 over 50 ms), and fails
+      it the same on 965d6b6c, the commit before the stage, run back to
+      back on a quiet machine (179 ms, 6 of 60): today's machine, as
+      stage 60 found; outside the start page and History the stage
+      changed only comments. `bench/results/latest.md` left as it was.
+      The entry chunk: 30 201 bytes, unchanged.
 - [ ] Staging: `test:prod`; the menu with the flag on (staging) and
       off (a local production build).
 - [ ] Owner test on staging (test guide below). Stage 60's step 13
