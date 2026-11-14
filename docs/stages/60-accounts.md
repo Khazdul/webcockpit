@@ -543,7 +543,9 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
       is accepted and sent back on `http://localhost` and
       `http://127.0.0.1` in Chromium and Firefox. Not tried: Firefox
       and Safari against staging, a real phone, a password manager.
-- [ ] Owner test of the pages on staging. (Changed 2026-11-14: no
+- [x] Owner test of the pages on staging (2026-11-14, an overview on
+      Android and desktop: looks good; "Owner feedback" below).
+      (Changed 2026-11-14: no
       release of accounts from this stage. The CSP's `production:
       true` goes with stage 67's release; the flag goes on after
       stage 63.)
@@ -618,9 +620,11 @@ address may register three accounts an hour.
 **Then** (changed 2026-11-14): your feedback goes into stages 67 and
 61. Nothing is released from this stage alone.
 
-Left on staging by the session: one test account, `wctestq7z7cg`,
-logged out (the first walk stopped after its log out). It does no
-harm; the others were deleted by the walk.
+The test account `wctestq7z7cg` that the session left on staging was
+removed 2026-11-14 on the owner's word, straight in staging's D1 (its
+password was not kept): the account row deleted, the name reserved as
+the server's own delete does. The owner's two accounts there were not
+touched.
 
 ## For the owner
 
@@ -725,3 +729,9 @@ Two things that are as the spec says, for you to know:
   against the deployed Worker: with the real widget they need a
   Turnstile token from a real browser, so they are checked with part
   B's pages.
+- **2026-11-14, evening:** the account pages tested in overview on
+  Android and on the desktop: they look good. No remarks. (Not said:
+  step 13, playing under the enforced CSP; it is asked for again
+  before stage 67's release.) The decisions of the same evening on the
+  menu, the two spaces and the community are in "After the session"
+  at the top.

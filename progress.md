@@ -63,7 +63,7 @@
 | 57 | The profile editor and the manuals remember the place | Done, released 0.9.1 | `docs/stages/57-profile-remembers-place.md` |
 | 58 | Move to Cloudflare | Switched 2026-11-14, owner check fine; part D (retire Pages) two releases later | `docs/stages/58-cloudflare-move.md` |
 | 59 | Usage statistics | Done, released 0.10.0, `stats` on in production |  `docs/stages/59-usage-statistics.md` |
-| 60 | Accounts | Built and on staging (flag on, CSP enforced there); owner test wanted; not released on its own: accounts open after stage 63 | `docs/stages/60-accounts.md` |
+| 60 | Accounts | Built and on staging (flag on, CSP enforced there); owner's overview test fine; not released on its own: accounts open after stage 63 | `docs/stages/60-accounts.md` |
 | 61 | Sync of profiles and scripts, on the two spaces | Planned (spec §7.12; after 67) | |
 | 62 | Sync of settings, script data, Comm history and timers | Planned (spec §7.12) | |
 | 63 | Runs in the cloud; then accounts open | Planned (spec §7.12) | |
@@ -101,12 +101,15 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   in production in one step, then 64–66. The enforced CSP goes to
   production with stage 67's release.
 - **Next:** stage 67 part A, the mockups, for the owner's choice.
-- **Open:** the owner's test of stage 60 on staging (still wanted,
-  but for the row and the Log out dialog); how MUME's war point lists
-  can be fetched (stage 65); the run limit (stage 63); the test
-  account `wctestq7z7cg` on staging.
-- **Commits:** this one. Nothing released, nothing run against
-  production, nothing pushed.
+- **Owner, at the end:** the account pages tested in overview on
+  Android and desktop, they look good. The test account
+  `wctestq7z7cg` removed from staging's D1 on his word (name
+  reserved; his own two accounts untouched).
+- **Open:** the owner's play under the enforced CSP on staging (stage
+  60's step 13), before stage 67's release; how MUME's war point
+  lists can be fetched (stage 65); the run limit (stage 63).
+- **Commits:** 4dcc41b3 and this one. Nothing released, nothing run
+  against production, nothing pushed (682644b7 neither).
 
 ### 2026-11-14 — Prep: the start menu, the account and the community
 
