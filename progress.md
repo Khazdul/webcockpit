@@ -97,6 +97,10 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   worktree of the client agent.
 - **Commits:** b350a47d (part A merge), 8c036ec9, 1d9ed905 (part B
   merge) and this one.
+- **Later the same day:** the owner approved decisions 1–5 and passed
+  test guide 1–4 on staging. Decision 2 built (a playing tab beats
+  while hidden), merged (4969be4), on staging; unit 4337. Waiting for
+  the owner's part C (team domain and AUD tag to the session).
 
 ### 2026-11-14 — Stage 59 planned (handoff to the night pass)
 
