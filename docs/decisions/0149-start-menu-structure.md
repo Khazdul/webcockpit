@@ -131,3 +131,37 @@ The owner picked from the mockups of round 8
   and `]` need AltGr on a Nordic keyboard.
 - **The phone** has the same menu in portrait and landscape, and the
   strip as three equal tabs under Back.
+
+## Addendum 2026-11-14 — History's tabs as built (stage 67, B1)
+
+- **One frame, a box per tab.** `HistoryFrame` (`src/chrome/frames/history.tsx`)
+  holds the active tab and renders that page; each page keeps its own
+  large box (History capped at its width, the other two not), so a tab
+  change swaps the box at once, without a morph, and the hood says
+  History on all three. A page's state (cursor, filter zone, book page)
+  is not kept across a tab change; the Spotlights tab reads its reel
+  anew each time it is shown (as the old menu row did), so a session
+  deleted on Sessions is gone there. Keeping three pages mounted was
+  turned down: three live pages, the Spotlights player host among them,
+  for a state nobody asked to keep.
+- **How to open it.** `nav.push(<HistoryFrame />)` (Sessions; what H
+  does) or `openHistory(nav, tab)` with `tab` one of `sessions`,
+  `spotlights`, `diary`. The strip, its keys and `useHistoryTabs` live
+  in `history-tabs.tsx`, a leaf the three pages share.
+- **Keys.** Each page asks the tab keys itself, where its own state
+  allows a change: not while a run log opens, the Spotlights viewer
+  plays (the player owns the digits) or a select has the focus. A
+  modifier makes a digit no tab key. Sessions' `?` lists `1 2 3`.
+- **The old rows.** Until the new menu is in, the Spotlights and Credits
+  rows of `start-main.tsx` open History on those tabs (`startSpotlights`
+  and `CreditsFrame` are now two-line shims); they go with the rows.
+- **Touch.** On a touch device (`html.wc-phone`) the tabs have no key
+  caps and are 44 px high (ADR 0140's targets), also on a phone, where
+  the row under Back costs 4 px more than the mockup's 40 px tabs.
+- **The names keep `credits`.** The file names (`credits.tsx`,
+  `credits.css`, `credits.spec.ts`, …), the symbols (`CreditsFrame`,
+  `CREDITS_TEXT`, `CreditsState`) and the CSS prefix `wc-cred-` keep the
+  old word; only what a player reads says Diary. Two texts keep the
+  word Credits in its own sense, thanks to: About's section CREDITS
+  (MMapper, the tilesets, Cockpit, MUME, the fonts) and the readability
+  script's attribution.
