@@ -110,7 +110,7 @@ test('files the export and the map fetch have the right types and headers', asyn
   expect((await request.get('__fixtures/list')).status()).toBe(404);
 });
 
-test('the API: health says the release, config has no flags, the rest is a JSON 404', async ({ request }) => {
+test('the API: health says the release, config has the flags, admin is closed, the rest is a JSON 404', async ({ request }) => {
   test.skip(!cloudflare, 'GitHub Pages has no API');
   const release = (await (await request.get('release.json')).json()) as { version: string; commit: string };
 
@@ -122,8 +122,17 @@ test('the API: health says the release, config has no flags, the rest is a JSON 
 
   const config = await request.get('api/config');
   expect(config.status()).toBe(200);
-  expect(config.headers()['cache-control']).toBe('no-store');
-  expect(await config.json()).toEqual({ flags: {} });
+  expect(config.headers()['cache-control']).toBe('max-age=60');
+  // On by default on staging, off in production and in the local stand-in
+  // (no database): the value is the server's, only its shape is checked.
+  const { flags } = (await config.json()) as { flags: Record<string, unknown> };
+  expect(Object.keys(flags)).toEqual(['stats']);
+  expect(typeof flags.stats).toBe('boolean');
+
+  // The admin's numbers are never answered without Access (503 before it
+  // is set up, 403 or Access's own answer after).
+  const admin = await request.get('api/admin/stats', { maxRedirects: 0 });
+  expect(admin.status()).not.toBe(200);
 
   const unknown = await request.get('api/x');
   expect(unknown.status()).toBe(404);

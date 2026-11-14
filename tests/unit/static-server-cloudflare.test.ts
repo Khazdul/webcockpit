@@ -139,7 +139,18 @@ describe('static-server, cloudflare profile (ADR 0144)', () => {
     expect(await health.json()).toEqual({ ok: true, version: '1.2.3', commit: 'abc1234' });
     expect(health.headers.get('cache-control')).toBe('no-store');
     expect(health.headers.get('referrer-policy')).toBeNull();
-    expect(await (await fetch(`${url}/api/config`)).json()).toEqual({ flags: {} });
+    expect(await (await fetch(`${url}/api/config`)).json()).toEqual({ flags: { stats: false } });
+    // No database here: the beat answers 503, the public numbers 404 (the flag is off).
+    const beat = await fetch(`${url}/api/beat`, { method: 'POST', body: '{}' });
+    expect(beat.status).toBe(503);
+    expect(await beat.json()).toEqual({ error: 'unavailable' });
+    expect((await fetch(`${url}/api/stats/public`)).status).toBe(404);
+    // run_worker_first covers /admin too; without Access settings it is not configured.
+    for (const path of ['/admin', '/admin/admin.js', '/api/admin/stats']) {
+      const admin = await fetch(`${url}${path}`);
+      expect(admin.status, path).toBe(503);
+      expect(await admin.json(), path).toEqual({ error: 'admin_not_configured' });
+    }
     const unknown = await fetch(`${url}/api/x`);
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toEqual({ error: 'not_found' });

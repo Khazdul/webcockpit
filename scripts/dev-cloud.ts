@@ -14,8 +14,14 @@
 // commit `dev`), so no `dist-site/` is needed and an old build in it
 // cannot answer for the running code.
 //
+// The local D1 (in .wrangler/) gets the migrations of worker/migrations
+// first (`wrangler d1 migrations apply DB --local`; what is applied is
+// skipped). The Worker runs as production is configured: the flag `stats`
+// is off unless a `flag` row says otherwise
+// (`wrangler d1 execute DB --local --command "INSERT INTO flag VALUES ('stats', 1)"`).
+//
 // Either process ending ends the other; Ctrl-C ends both.
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -58,6 +64,16 @@ function start(cmd: string, args: string[], env: Record<string, string> = {}): v
 }
 
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.on(signal, () => end(0));
+
+const migrated = spawnSync('wrangler', ['d1', 'migrations', 'apply', 'DB', '--local'], {
+  cwd: ROOT,
+  stdio: ['ignore', 'inherit', 'inherit'],
+  shell: process.platform === 'win32',
+});
+if (migrated.status !== 0) {
+  console.error('dev:cloud: the local D1 migrations failed');
+  process.exit(1);
+}
 
 start('wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(port), '--assets', assets, '--show-interactive-dev-session=false']);
 start('vite', process.argv.slice(2), { WEBCOCKPIT_API_PROXY: origin });

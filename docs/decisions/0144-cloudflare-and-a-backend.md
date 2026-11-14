@@ -318,3 +318,112 @@ against the staging address answers the first.
   the deploy token, jurisdiction `eu`; the ids go into
   `wrangler.jsonc`. **Migrations** (`worker/migrations/`) are applied
   by `deploy.yml` before `wrangler deploy`.
+
+## As built (stage 59 part A, 2026-11-14)
+
+The plan of the addendum above, as built. Not yet run against
+Cloudflare: `provision.yml` and the first staging deploy are the main
+session's (stage file, "The night pass").
+
+### Checked against Cloudflare's documentation (2026-11-14)
+
+- **A custom domain for the staging Worker on a subdomain of our zone
+  holds.** Custom domains are matched exactly per host name, so the apex
+  on `webcockpit` and `staging.mumecockpit.com` on `webcockpit-staging`
+  do not conflict; Cloudflare makes the DNS record and the certificate.
+  It refuses a host name that already has a **CNAME** record, so none
+  may exist for `staging` before the deploy. `routes` is inherited by
+  environments, so `env.staging` sets its own.
+  <https://developers.cloudflare.com/workers/configuration/routing/custom-domains/>,
+  <https://developers.cloudflare.com/workers/wrangler/configuration/>
+- **Access can guard a path of a Worker on our zone**: a self-hosted
+  application on `host/path`; one application can hold several
+  host/path destinations. A wildcard in a path does not cover the
+  parent path (`/admin/*` does not cover `/admin`), and nothing says
+  `/admin*` covers `/admin`, so the application should list `/admin`,
+  `/admin/*` and `/api/admin/*` on both hosts (six destinations; a
+  bare `/admin` is also inherited by its subpaths per the docs, but the
+  explicit list costs nothing).
+  <https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/>,
+  <https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/>
+- **`workers.dev` is not covered by a path application on our zone**
+  (Access protects a `workers.dev` address only as a whole, per
+  Worker). Both Workers keep `workers_dev: true` for `test:prod`; there
+  `/admin` gets no Access token and the Worker's own check answers 403.
+  <https://developers.cloudflare.com/workers/configuration/routing/workers-dev/>
+- The Access token: header `Cf-Access-Jwt-Assertion`, RS256, keys at
+  `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs` (a JWK
+  `keys` array, found by `kid`; rotated every 6 weeks, the old key valid
+  7 days more), `iss` = `https://<team>.cloudflareaccess.com`, `aud` an
+  array.
+  <https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/>
+- `run_worker_first` takes globs and `!` exclusions; `/admin` and
+  `/admin/*` are listed separately for the same reason as in Access.
+  `_headers` never applies to what the Worker answers.
+  <https://developers.cloudflare.com/workers/static-assets/binding/>,
+  <https://developers.cloudflare.com/workers/static-assets/headers/>
+- D1 and R2 jurisdiction: `wrangler d1 create <name> --jurisdiction eu`,
+  `wrangler r2 bucket create <name> --jurisdiction eu`; fixed at
+  creation; an R2 binding must name the jurisdiction
+  (`"jurisdiction": "eu"`). `wrangler d1 migrations apply` skips its
+  confirmation in CI.
+  <https://developers.cloudflare.com/d1/configuration/data-location/>,
+  <https://developers.cloudflare.com/r2/reference/data-location/>,
+  <https://developers.cloudflare.com/workers/wrangler/commands/d1/>
+
+### `wrangler.jsonc`
+
+- Bindings for both Workers (bindings, `vars` and `ratelimits` are not
+  inherited, so `env.staging` repeats them): D1 `DB` (`webcockpit` /
+  `webcockpit-staging`, `migrations_dir: worker/migrations`), R2 `FILES`
+  (same names, `jurisdiction: eu`; unused until stage 63), the rate
+  limiter `BEAT_LIMITER` (30 a minute; namespaces 5901 and 5902), the
+  crons, and the vars `FLAG_STATS` (staging `true`, production `false`),
+  `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` (empty until part C) and on staging
+  `NOINDEX: true`. The secret `ADMIN_EMAILS` is set in the dashboard.
+- **The D1 ids are placeholders** (`00000000-…-0001` and `…-0002`,
+  marked `// PROVISION:`) until `provision.yml` has run. Local
+  development and the tests do not need real ids: `wrangler dev` keys
+  its local database by whatever id is written.
+- `run_worker_first: ["/api/*", "/admin", "/admin/*"]`.
+- Staging: `routes: [{pattern: "staging.mumecockpit.com", custom_domain:
+  true}]`; `wrangler deploy --env staging` (and `triggers deploy`)
+  attaches it.
+
+### `X-Robots-Tag: noindex` on staging
+
+- The Worker adds it to every answer it gives when the var `NOINDEX` is
+  set (staging only), including what it passes on from the assets
+  binding (404s).
+- The static files never reach the Worker, so `build:site --target
+  staging` appends a rule `/*  X-Robots-Tag: noindex` to the build's
+  `_headers`. Chosen over making staging Worker-first for everything,
+  which would put every static request of staging through the Worker
+  and count it against the account's 100 000 requests a day that
+  production shares; the `_headers` rule costs nothing and production's
+  file is untouched.
+
+### Workflows
+
+- `provision.yml` (by hand): creates D1 `webcockpit` and
+  `webcockpit-staging` (`--jurisdiction eu`) unless they exist (found by
+  name in `wrangler d1 list --json`) and writes their ids to the step
+  summary; then the R2 buckets the same way. The R2 step never fails
+  the run: if R2 is not enabled on the account it says so in the
+  summary (and a warning) and the D1 part stands. It uses the wrangler
+  of `package.json` after `npm ci`, as `deploy.yml` does.
+- `deploy.yml`: a `deploy` applies `wrangler d1 migrations apply DB
+  --remote [--env staging]` before `wrangler deploy`. `triggers` is
+  unchanged (it now also applies the crons and the staging domain).
+
+### Locally
+
+- The static server's `cloudflare` profile runs the router for
+  `/api/*`, `/admin` and `/admin/*` with no database and no Access
+  settings: config `{flags: {stats: false}}`, the beat 503, the public
+  numbers 404, admin 503 `admin_not_configured`.
+- `npm run dev:cloud` applies the migrations to the local D1 before it
+  starts `wrangler dev`.
+- The Worker tests apply the migrations to their D1 through
+  `readD1Migrations` (vitest.config.ts) and `applyD1Migrations`
+  (`worker/test/setup.ts`).

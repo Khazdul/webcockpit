@@ -1,0 +1,120 @@
+# Makes the Cloudflare resources of the backend, once, by hand (stage 59,
+# ADR 0144 addendum): Actions → provision → Run workflow.
+#   - D1 databases `webcockpit` and `webcockpit-staging`
+#   - R2 buckets `webcockpit` and `webcockpit-staging` (used from stage 63)
+# all with jurisdiction `eu` (the data rests in the EU; it cannot be
+# changed after creation). Idempotent: what exists is left alone and only
+# reported. The step summary lists the D1 ids to put into wrangler.jsonc
+# (the `PROVISION:` lines). If R2 is not enabled on the account, the R2
+# step says so in the summary and the D1 part still counts: R2 is enabled
+# in the dashboard (R2 → Purchase/Enable, needs a payment method on file;
+# the free tier costs nothing), then this workflow is run again.
+# Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (the deploy token;
+# it needs D1 Edit and Workers R2 Storage Edit).
+name: provision
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provision
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+      # The wrangler of package.json, as deploy.yml uses it.
+      - run: npm ci
+
+      - name: D1
+        run: |
+          set -euo pipefail
+          {
+            echo "### D1 (jurisdiction eu)"
+            echo
+            echo "| Database | State | database_id |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          id_of() {
+            npx wrangler d1 list --json | node -e '
+              let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+                const list = JSON.parse(s.slice(Math.max(0, s.indexOf("["))));
+                const db = (Array.isArray(list) ? list : list.result ?? []).find((d) => d.name === process.argv[1]);
+                process.stdout.write(db ? String(db.uuid ?? db.id ?? "") : "");
+              });' "$1"
+          }
+          for name in webcockpit webcockpit-staging; do
+            id="$(id_of "$name")"
+            if [ -n "$id" ]; then
+              state="existed"
+            else
+              npx wrangler d1 create "$name" --jurisdiction eu
+              id="$(id_of "$name")"
+              state="created"
+            fi
+            if [ -z "$id" ]; then
+              echo "| \`$name\` | **not found after create** | |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::D1 $name: no id"
+              exit 1
+            fi
+            echo "| \`$name\` | $state | \`$id\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          {
+            echo
+            echo "Put the ids into \`wrangler.jsonc\` at the two \`PROVISION:\` lines"
+            echo "(top level: \`webcockpit\`; \`env.staging\`: \`webcockpit-staging\`)."
+            echo "A database that existed before keeps the jurisdiction it was made with."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: R2
+        # Never fails the run: without R2 the D1 part still holds.
+        run: |
+          set -uo pipefail
+          {
+            echo "### R2 (jurisdiction eu)"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          if ! list="$(npx wrangler r2 bucket list --jurisdiction eu 2>&1)"; then
+            if grep -qiE '10042|enable R2|R2 (is )?not enabled|purchase' <<< "$list"; then
+              {
+                echo "**R2 is not enabled on this account.** Enable it in the Cloudflare dashboard"
+                echo "(R2 Object Storage → enable; it asks for a payment method, the free tier costs nothing),"
+                echo "then run this workflow again. The D1 part above is done."
+                echo
+                echo "Until then a deploy fails on the R2 binding (\`FILES\` in \`wrangler.jsonc\`)."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::R2 is not enabled on this account (see the summary)"
+            else
+              { echo "R2: listing the buckets failed:"; echo; echo '```'; echo "$list" | tail -20; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::R2: listing the buckets failed (see the summary)"
+            fi
+            exit 0
+          fi
+          echo "| Bucket | State |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for name in webcockpit webcockpit-staging; do
+            if grep -qE "^name:[[:space:]]+$name\$" <<< "$list"; then
+              echo "| \`$name\` | existed |" >> "$GITHUB_STEP_SUMMARY"
+            elif out="$(npx wrangler r2 bucket create "$name" --jurisdiction eu 2>&1)"; then
+              echo "| \`$name\` | created |" >> "$GITHUB_STEP_SUMMARY"
+            elif grep -qi 'already exists' <<< "$out"; then
+              echo "| \`$name\` | existed |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| \`$name\` | **failed**: $(echo "$out" | grep -iE 'error|✘' | head -1) |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::R2 $name: create failed"
+            fi
+          done

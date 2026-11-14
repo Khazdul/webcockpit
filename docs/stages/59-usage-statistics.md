@@ -113,27 +113,35 @@ Online = seen in the last 6 minutes.
 
 ### A. Server (building agent, worktree)
 
-- [ ] `provision.yml`; D1 and R2 bindings in `wrangler.jsonc` for
+- [x] `provision.yml`; D1 and R2 bindings in `wrangler.jsonc` for
       both environments; `staging.mumecockpit.com`; flags default var.
-- [ ] Migration 0001: `presence`, `device_day`, `stat_sample`,
+- [x] Migration 0001: `presence`, `device_day`, `stat_sample`,
       `stat_daily`, `flag` (spec §7.11), with the indexes the queries
       need and no others (index rows count as writes).
-- [ ] `POST /api/beat`, `GET /api/stats/public`, `/api/config` with
+- [x] `POST /api/beat`, `GET /api/stats/public`, `/api/config` with
       flags; validation; the rate limit.
-- [ ] Cron: every 5 minutes a sample; 00:10 UTC roll-up (devices of
+- [x] Cron: every 5 minutes a sample; 00:10 UTC roll-up (devices of
       the day, new devices, peak, play minutes, split by type, browser
       and version) and pruning (samples 90 days, `device_day` and idle
       `presence` 35 days).
-- [ ] Access verification; `/admin` (its own small page in
+- [x] Access verification; `/admin` (its own small page in
       `worker/admin/`, plain and readable, nothing from the app) with
       online now, today, the last 30 days as a table, weekly and
       monthly devices, the estimate against the plan's limits, and the
       flag switch; `GET /api/admin/stats`, `PUT /api/admin/flags/…`.
-- [ ] Tests in workerd (beat, validation, dedupe per device, online
+- [x] Tests in workerd (beat, validation, dedupe per device, online
       window, roll-up, pruning, flags, Access checks with a test key);
       `deploy.yml` applies migrations; the static server's `cloudflare`
       profile keeps working without a database (503 `unavailable`).
-- [ ] Docs: ADR 0147 and 0144 "As built", spec where it differs.
+- [x] Docs: ADR 0147 and 0144 "As built", spec where it differs.
+
+  Built 2026-11-14 on branch `stage59-server` (ADR 0144, 0147, 0148 "As
+  built"). Differences from the plan: `run_worker_first` and the Access
+  application list `/admin` and `/admin/*` separately (the docs do not
+  promise that `/admin*` matches `/admin`); `/api/stats/public` answers
+  from the newest 5-minute sample (one row read) and counts live only
+  when there is none; the D1 ids in `wrangler.jsonc` are placeholders
+  (`PROVISION:`) until `provision.yml` has run.
 
 ### B. Client (building agent, worktree)
 
@@ -155,8 +163,10 @@ Online = seen in the last 6 minutes.
 ### C. Owner's part (guided by the session, about 15 minutes)
 
 - [ ] Cloudflare Zero Trust: an Access application for
-      `mumecockpit.com/admin*`, `mumecockpit.com/api/admin/*` and the
-      same two on `staging.mumecockpit.com`; policy: the owner's
+      `mumecockpit.com/admin`, `mumecockpit.com/admin/*`,
+      `mumecockpit.com/api/admin/*` and the same three on
+      `staging.mumecockpit.com` (part A: a path wildcard does not cover
+      its parent); policy: the owner's
       e-mail, one-time PIN. Give the session the team domain and the
       application's audience tag.
 - [ ] The secret `ADMIN_EMAILS` on both Workers (dashboard).

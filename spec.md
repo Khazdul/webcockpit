@@ -982,12 +982,13 @@ and `notes/research/cloud-data-inventory.md`. Built in stages 58–66
                                              └─ R2 `webcockpit` (eu)
 ```
 
-- One Worker, one origin. `run_worker_first` for `/api/*` and
-  `/admin*`; unknown paths get `index.html`.
+- One Worker, one origin. `run_worker_first` for `/api/*`, `/admin`
+  and `/admin/*`; unknown paths get `index.html`.
 - Code: `worker/` (Worker, migrations), `src/cloud/` (client),
   `shared/cloud/` (API types), `wrangler.jsonc`.
 - Environments: `production` (the domain) and `staging`
-  (`webcockpit-staging.<account>.workers.dev`, its own D1 and R2).
+  (`staging.mumecockpit.com` and its `workers.dev` address, its own D1
+  and R2; every answer `X-Robots-Tag: noindex`).
 - Development: `npm run dev` starts Vite as today; `npm run dev:cloud`
   also starts `wrangler dev` with local D1 and R2, and Vite proxies
   `/api` to it. Without it, the client behaves as when the service is
@@ -1304,10 +1305,12 @@ publication(id, account, title, description, character, level,
 vote(publication, account, stars)            PRIMARY KEY (publication, account)
 comment(id, publication, account, text, created, state)
 report(id, kind, target, account, reason, created, handled)
-presence(device, first_seen, last_seen, state, type, browser, version)
-device_day(device, day)
+presence(device, first_seen, last_seen, state, type, browser, version,
+         day, beats, play_beats, prev_day, prev_beats, prev_play_beats)
+device_day(day, device)                      PRIMARY KEY (day, device)
 stat_sample(ts, online, playing)
-stat_daily(day, metric, key, value)
+stat_daily(day, metric, key, value)          PRIMARY KEY (day, metric, key)
+flag(name, value)                            -- server flags set from /admin
 attempt(key, window, count)                  -- login and registration limits
 admin_log(ts, who, action, target, note)
 ```
