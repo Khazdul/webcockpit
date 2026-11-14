@@ -144,3 +144,28 @@ test('the API: health says the release, config has the flags, admin is closed, t
   expect(wrong.status()).toBe(405);
   expect(await wrong.json()).toEqual({ error: 'method_not_allowed' });
 });
+
+test('the privacy page: /privacy answers 200 with the page, which opens the privacy leaf (stage 59)', async ({ page, request }) => {
+  const res = await request.get('privacy');
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toMatch(/^text\/html/);
+  if (cloudflare) {
+    expect(res.headers()).toMatchObject(SECURITY);
+    // Revalidated as the page itself, so a release is seen at once.
+    expect(res.headers()['cache-control']).toBe('no-cache');
+  }
+  expect(await res.text()).toContain('<title>Privacy – WebCockpit</title>');
+
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  // The start page under the leaf never connects; should anything try, it reaches no game.
+  await page.routeWebSocket(/.*/, (ws) => ws.close());
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('privacy');
+  const box = page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-box').first();
+  await expect(box.locator('.wc-lk-hood-t').first()).toHaveText('Privacy', { timeout: 20_000 });
+  await expect(box.locator('.wc-about-leaf')).toContainText('No IP address is stored');
+  await expect(box.locator('.wc-about-leaf')).toContainText('abuse@mumecockpit.com');
+  await expect(page).toHaveTitle('Privacy – WebCockpit');
+  expect(errors).toEqual([]);
+});

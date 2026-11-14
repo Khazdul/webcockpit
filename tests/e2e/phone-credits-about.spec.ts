@@ -83,7 +83,7 @@ for (const width of [390, 360]) {
     const strip = lookBox(page).locator('.wc-lk-seg[aria-label="Contents"]');
     await expect(lookBox(page).locator('.wc-about-rail')).toBeHidden();
     await expect(strip).toBeVisible();
-    await expect(strip.locator('.wc-lk-opt')).toHaveCount(9);
+    await expect(strip.locator('.wc-lk-opt')).toHaveCount(10);
     await expect(strip.locator('.wc-lk-opt[aria-checked="true"]')).toHaveAttribute('data-opt', 'intro');
     await expect(lookBox(page).locator('.wc-about-ver')).toBeVisible();
     expect(await fitsWidth(page)).toBe(true);

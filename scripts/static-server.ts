@@ -9,8 +9,9 @@
 // `pages`: GitHub Pages (ADR 0028, ADR 0029), the live host until the
 // switch of stage 58. No COOP/COEP (so not cross-origin isolated) and
 // `Cache-Control: max-age=600` on everything, MIME types by extension, no
-// fallback. Only paths under the base are served; the base without its
-// trailing slash redirects to it (as Pages does), everything else is 404.
+// fallback but `/x` → `x.html`. Only paths under the base are served; the
+// base without its trailing slash redirects to it (as Pages does),
+// everything else is 404.
 //
 // `cloudflare`: the Worker with static assets of wrangler.jsonc (ADR 0144),
 // as `wrangler dev` 4.162 answers (compared header by header):
@@ -304,13 +305,17 @@ export function serve(dir: string, port: number, opts: ServeOptions = {}): Retur
       return;
     }
     if (path.endsWith('/')) path += 'index.html';
-    let file: string;
-    try {
-      file = realpathSync(resolve(root, `.${path}`));
-      if (!file.startsWith(root + sep) || !statSync(file).isFile()) return notFound();
-    } catch {
-      return notFound();
-    }
+    const inside = (p: string): string | null => {
+      try {
+        const f = realpathSync(resolve(root, `.${p}`));
+        return f.startsWith(root + sep) && statSync(f).isFile() ? f : null;
+      } catch {
+        return null;
+      }
+    };
+    // As Pages: `/x` is `x.html` when there is no file `x` (the privacy page, stage 59).
+    const file = inside(path) ?? (path.endsWith('.html') ? null : inside(`${path}.html`));
+    if (!file) return notFound();
     res.writeHead(200, {
       ...PAGES_HEADERS,
       'Content-Type': mimeType(file),
