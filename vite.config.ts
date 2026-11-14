@@ -156,6 +156,8 @@ function defines(): Record<string, string> {
     __WC_VERSION__: JSON.stringify(pkg.version),
     __WC_COMMIT__: JSON.stringify(buildCommit),
     __WC_MAP_BYTES__: JSON.stringify(bundledMapBytes()),
+    // The dev server proxies /api to a local Worker (`npm run dev:cloud`): the cloud client may call it (src/cloud/config.ts).
+    __WC_DEV_API__: JSON.stringify(apiProxy() !== null),
   };
 }
 // Preact JSX for the chrome (src/chrome, ADR 0013).

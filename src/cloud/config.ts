@@ -8,10 +8,11 @@
 // service down; a timeout; an answer that is not the contract's) is
 // "all flags off", silently.
 //
-// Automated browsers (`navigator.webdriver`: our e2e, `test:prod`) make no
-// API request at all, so the tests neither count nor depend on the
-// service. The one way past that is `?cloudtest`, honoured only on the dev
-// server (`import.meta.env.DEV`; a production build folds it to false):
+// Plain `npm run dev` (no Worker behind `/api`) and automated browsers
+// (`navigator.webdriver`: our e2e, `test:prod`) make no API request at
+// all, so the tests neither count nor depend on the service. The one way
+// past that is `?cloudtest`, honoured only on the dev server
+// (`import.meta.env.DEV`; a production build folds it to false):
 // the e2e specs of the cloud client set it and stub `/api/*` with
 // Playwright's `page.route` (tests/e2e/cloud-stats.spec.ts).
 
@@ -33,9 +34,19 @@ export function automated(nav: { webdriver?: boolean } | undefined = globalThis.
   return nav?.webdriver === true;
 }
 
-/** True when this page may call the API at all (not under webdriver, unless the dev test hook). */
+declare const __WC_DEV_API__: boolean | undefined;
+
+/** The dev server has a Worker behind `/api` (`npm run dev:cloud`; vite.config.ts). */
+const devApi = typeof __WC_DEV_API__ === 'boolean' && __WC_DEV_API__;
+
+/**
+ * True when this page may call the API at all: not under webdriver, and on
+ * the dev server only with `dev:cloud` (plain `npm run dev` has no API and
+ * makes no request); always with the dev test hook.
+ */
 export function apiAllowed(): boolean {
-  return cloudTest() || !automated();
+  if (cloudTest()) return true;
+  return !automated() && (import.meta.env.DEV !== true || devApi);
 }
 
 /** `GET /api/config`'s body as a `Config`: only boolean flags are kept; anything else is no flags. */
