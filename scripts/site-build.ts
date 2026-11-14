@@ -7,6 +7,9 @@
 //   npm run build:site -- --target staging   for the staging Worker: no version
 //                                            rule (staging is not the live site),
 //                                            X-Robots-Tag: noindex on every file
+//                                            The Content-Security-Policy is
+//                                            report-only or enforced per target:
+//                                            `CSP_ENFORCED` in scripts/csp.ts
 //   npm run build:site -- --skip-live        no request to the live site (offline):
 //                                            no version check against it, nothing carried
 //   npm run build:pages                      the same build for GitHub Pages
@@ -34,6 +37,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { CSP_ENFORCED, CSP_SCRIPT_HASHES, enforceCsp } from './csp.ts';
 import { MANIFEST, type Release, isAssetName, parseRelease, releaseJson, versionGuard } from './release.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -128,6 +132,18 @@ if (pages) for (const name of ['_headers', '404.html']) rmSync(join(OUT, name), 
 if (target === 'staging') {
   const headers = join(OUT, '_headers');
   writeFileSync(headers, `${readFileSync(headers, 'utf8').trimEnd()}\n\n# Staging only (build:site --target staging).\n/*\n  X-Robots-Tag: noindex\n`);
+}
+// The Content-Security-Policy (ADR 0144, "As built (stage 60): the CSP"):
+// `vite build` has written the inline scripts' hashes into `_headers`
+// (vite.config.ts `cspHashesPlugin`); the policy stays report-only or is
+// enforced, as scripts/csp.ts `CSP_ENFORCED` says for this target. The
+// smoke test below (csp.spec.ts in it) runs on the result.
+if (!pages) {
+  const headers = join(OUT, '_headers');
+  const text = readFileSync(headers, 'utf8');
+  if (text.includes(CSP_SCRIPT_HASHES)) fail('_headers still has the placeholder of the inline scripts\' hashes');
+  if (CSP_ENFORCED[target]) writeFileSync(headers, enforceCsp(text));
+  console.log(`Content-Security-Policy: ${CSP_ENFORCED[target] ? 'enforced' : 'report-only'} (${target})`);
 }
 
 step(`smoke test (${pages ? 'pages' : 'cloudflare'} profile)`);

@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import type { OutputBundle } from 'rolldown';
 import { type Plugin, defineConfig } from 'vite';
+import { fillCspHashes } from './scripts/csp.ts';
 
 // Cross-origin isolation (spec §1.5) stays possible from day one: `vite`
 // and `vite preview` send these headers. Production does not: GitHub Pages
@@ -446,6 +447,43 @@ function privacyPagePlugin(): Plugin {
 }
 
 /**
+ * The Content-Security-Policy's script hashes (ADR 0144, "As built (stage
+ * 60): the CSP"): `public/_headers` names the pages' inline scripts with a
+ * placeholder, because the first paint's script changes with every build
+ * (it carries the hashed file names). Once the build is written, the
+ * placeholder in the output's `_headers` becomes the SHA-256 hashes of the
+ * inline scripts of every HTML file at the output's root (scripts/csp.ts).
+ *
+ * `vite` (dev) and `vite preview` send no policy at all: `_headers` is
+ * Cloudflare's file, and the dev server's HMR client needs inline scripts
+ * and styles that a policy this tight would refuse. The policy is tested
+ * on the built site (tests/e2e-prod/csp.spec.ts).
+ */
+function cspHashesPlugin(): Plugin {
+  let out = '';
+  return {
+    name: 'webcockpit-csp-hashes',
+    apply: 'build',
+    configResolved(config) {
+      out = resolve(config.root, config.build.outDir);
+    },
+    writeBundle() {
+      if (this.environment?.config.consumer !== undefined && this.environment.config.consumer !== 'client') return;
+      const headers = join(out, '_headers');
+      if (!existsSync(headers)) return;
+      const pages = readdirSync(out)
+        .filter((name) => name.endsWith('.html'))
+        .map((name) => readFileSync(join(out, name), 'utf8'));
+      try {
+        writeFileSync(headers, fillCspHashes(readFileSync(headers, 'utf8'), pages));
+      } catch (err) {
+        this.error(err instanceof Error ? err.message : String(err));
+      }
+    },
+  };
+}
+
+/**
  * `LICENSE.txt` at the site root: the repository's GPL-2 `LICENSE`
  * (ADR 0027), linked from About, so every copy of the app carries the
  * licence text (GPL-2 §1). `THIRD_PARTY_NOTICES.md` beside it (stage 47,
@@ -546,7 +584,7 @@ export default defineConfig(({ command }) => {
     base: siteBase(),
     define: defines(),
     oxc,
-    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin(), privacyPagePlugin()],
+    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin(), privacyPagePlugin(), cspHashesPlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
     // Agent worktrees live under `.claude/` in this checkout: an edit there
