@@ -51,9 +51,11 @@ export const dialog = (page: Page, dlg: string): Locator => frame(page).locator(
 export const dialogError = (page: Page): Locator => frame(page).locator('.wc-lk-dialog-err');
 /** The Account page's content whether or not a dialog lies over it. */
 export const accountUnder = (page: Page): Locator => page.locator('.wc-start [data-page="account"]');
-/** The start menu's rows, and the Account row. */
+/** The start menu's rows, and the owner row (stage 67; stage 60's Account row before). */
 export const menuRows = (page: Page): Locator => page.locator('.wc-start .wc-sm-item');
-export const accountRow = (page: Page): Locator => page.locator('.wc-start .wc-sm-item[data-key="account"]');
+export const accountRow = (page: Page): Locator => page.locator('.wc-start .wc-sm-item[data-key="owner"]');
+/** The owner row's text for a guest. */
+export const OWNER_GUEST = 'Guest · log in';
 export const selectedRow = (page: Page): Locator => page.locator('.wc-start .wc-sm-item.is-sel');
 
 export function watchErrors(page: Page): string[] {
@@ -68,9 +70,12 @@ export async function openStart(page: Page, query = ''): Promise<void> {
   await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Enter MUME');
 }
 
-/** The start page, then the Account row (which opens Log in, or the Account page when somebody is logged in). */
+/** The start page, then the owner row (which opens Log in, or the Account page when somebody is logged in). */
 export async function openAccount(page: Page, query = ''): Promise<void> {
   await openStart(page, query);
+  // The owner row heads the menu (stage 67): a pointer resting on the rows below it (where the
+  // last click left it) holds it back until it moves (start-main.tsx `useAccountRow`).
+  await page.mouse.move(1, 1);
   await expect(accountRow(page)).toBeVisible();
   await accountRow(page).click();
   await expect(frame(page).locator('[data-page]')).toBeVisible();

@@ -17,6 +17,7 @@ import { type Page, expect, test } from '@playwright/test';
 import {
   LANDSCAPE,
   NAME,
+  OWNER_GUEST,
   PASSWORD,
   PHONE,
   PHONE_Q as Q,
@@ -53,7 +54,7 @@ async function openLogin(page: Page, query = Q): Promise<void> {
   await expect(pageOf(page, 'login')).toBeVisible();
 }
 
-test('phone: the start menu has the Account row; our keyboard types a login', async ({ page }) => {
+test('phone: the start menu has the owner row; our keyboard types a login', async ({ page }) => {
   const errors = watchErrors(page);
   const server = new FakeAccountServer();
   // A password our keyboard's first page can type.
@@ -63,7 +64,7 @@ test('phone: the start menu has the Account row; our keyboard types a login', as
   const ts = await stubTurnstile(page);
   await openStart(page, Q);
   await expect(accountRow(page)).toBeVisible();
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await shot(page, 'a-out', 'phone');
   await accountRow(page).tap();
   await expect(pageOf(page, 'login')).toBeVisible();
@@ -109,7 +110,7 @@ test('phone: the start menu has the Account row; our keyboard types a login', as
 
   // Back: the row carries the name.
   await frame(page).locator('.wc-lk-back').tap();
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(page)).toHaveText(NAME);
   await shot(page, 'a-in', 'phone');
   expect(errors).toEqual([]);
 });
@@ -252,8 +253,8 @@ test('tablet size: the row, and Create account in the desktop\'s two columns', a
   await page.setViewportSize(TABLET);
   await openStart(page, '&kbd=en');
   await expect(accountRow(page)).toBeVisible();
-  // A thumb's height.
-  expect((await box(accountRow(page))).height).toBeGreaterThanOrEqual(42);
+  // The owner row is a heading line, a little lower than the rows (stage 67): still a thumb's height.
+  expect((await box(accountRow(page))).height).toBeGreaterThanOrEqual(38);
   await accountRow(page).tap();
   await expect(pageOf(page, 'login')).toBeVisible();
   await link(page, 'create').tap();

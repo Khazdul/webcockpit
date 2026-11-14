@@ -67,10 +67,10 @@ test('start page: wordmark, menu, quote and almanac over the sky; no connection 
   await expect(page.locator('.wc-start .wc-banner')).toHaveCount(0);
   await expect(page.locator('.wc-start .wc-footer')).toHaveCount(0);
   const rows = page.locator('.wc-start .wc-frame:not([hidden]) .wc-sm-item .wc-sm-label');
-  // Stage 32: no Options; Scripts under Profile; Profile carries the profile's name.
-  await expect(rows).toHaveText(['Enter MUME', 'Profile', 'Scripts', 'History', 'Spotlights', 'Credits', 'About']);
+  // Stage 67 (ADR 0149): Enter MUME, then Profile, Scripts and History, About last; Profile carries the profile's name.
+  await expect(rows).toHaveText(['Enter MUME', 'Profile', 'Scripts', 'History', 'About']);
   await expect(startRow(page, 'profile').locator('.wc-sm-note')).toHaveText('(default)');
-  await expect(page.locator('.wc-start .wc-sm-item u.wc-sk')).toHaveText(['E', 'P', 'S', 'H', 'l', 'C', 'A']);
+  await expect(page.locator('.wc-start .wc-sm-item u.wc-sk')).toHaveText(['E', 'P', 'S', 'H', 'A']);
   await expect(page.locator('.wc-start .wc-sm-quote cite')).not.toBeEmpty();
   await expect(page.locator('.wc-start .wc-start-almanac')).toContainText(/, the \d+(st|nd|rd|th) of /);
   await expect(page.locator('.wc-start .wc-start-almanac')).toContainText(/\d+:\d\d(am|pm) · (dawn|day|dusk|night) · T\.A\. \d+/);
@@ -120,19 +120,16 @@ test('a sheen pass running on Enter MUME stops with the leaving page', async ({ 
   await expect.poll(() => sheenAnims(page), { timeout: 1000, intervals: [100] }).toEqual([]);
 });
 
-test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
+test('keyboard navigation, History, About and ESC', async ({ page }) => {
   await openStart(page);
   await page.keyboard.press('ArrowUp');
   await expect(startSel(page)).toHaveText('About');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
-  // No runs stored: the Credits book's no-data page (stage 47); other keys stay, Esc returns.
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
-  await expect(lookBox(page).locator('.wc-cred-book')).toHaveAttribute('data-state', 'no_data');
-  await page.keyboard.press('Enter');
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  // History opens; Esc returns with the cursor kept.
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await page.keyboard.press('Escape');
-  await expect(startSel(page)).toHaveText('Credits');
+  await expect(startSel(page)).toHaveText('History');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Space');
   // About: the leaf with the version at its head (stage 47).
@@ -144,10 +141,10 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(startSel(page)).toHaveText('About');
   // A letter goes straight to its row.
-  await page.keyboard.press('c');
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await page.keyboard.press('h');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await page.keyboard.press('Escape');
-  await expect(startSel(page)).toHaveText('Credits');
+  await expect(startSel(page)).toHaveText('History');
   // Hover selects; clicking selects and activates.
   await startRow(page, 'history').hover();
   await expect(startSel(page)).toHaveText('History');

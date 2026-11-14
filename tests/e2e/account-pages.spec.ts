@@ -19,6 +19,7 @@ import { type Page, expect, test } from '@playwright/test';
 import {
   DESKTOP,
   NAME,
+  OWNER_GUEST,
   PASSWORD,
   PASSWORD_2,
   accountRow,
@@ -47,8 +48,8 @@ import { passTurnstile, stubTurnstile } from './turnstile-stub';
 
 test.use({ viewport: DESKTOP });
 
-const ROWS = ['enter', 'profile', 'scripts', 'history', 'spotlights', 'credits', 'about'];
-const ROWS_ON = ['enter', 'profile', 'scripts', 'history', 'spotlights', 'account', 'credits', 'about'];
+const ROWS = ['enter', 'profile', 'scripts', 'history', 'about'];
+const ROWS_ON = ['enter', 'owner', 'profile', 'scripts', 'history', 'about'];
 const keysOf = (page: Page) => menuRows(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.key));
 const origin = (page: Page): string => new URL(page.url()).origin;
 
@@ -99,7 +100,7 @@ test('no cloud test hook (an automated browser): no request to the API at all, a
   expect(ts.loads()).toBe(0);
 });
 
-test('the row comes in late: nothing moves under a resting pointer, the cursor stays, the box grows by one row', async ({ page }) => {
+test('the owner row comes in late: nothing moves under a resting pointer, the cursor stays, the box grows by one row', async ({ page }) => {
   const errors = watchErrors(page);
   await fakeAccountApi(page);
   // The flags' answer is held back until the test lets it go.
@@ -113,35 +114,35 @@ test('the row comes in late: nothing moves under a resting pointer, the cursor s
   const panel = page.locator('.wc-start .wc-sm-panel');
   const before = (await panel.boundingBox())!;
   const rowBox = async (key: string) => (await page.locator(`.wc-start .wc-sm-item[data-key="${key}"]`).boundingBox())!;
-  const creditsAt = await rowBox('credits');
-  const spotAt = await rowBox('spotlights');
+  const profileAt = await rowBox('profile');
+  const enterAt = await rowBox('enter');
 
-  // The pointer rests on Credits, which would move: the row waits.
-  await page.mouse.move(creditsAt.x + 60, creditsAt.y + creditsAt.height / 2);
-  await expect(selectedRow(page)).toHaveAttribute('data-key', 'credits');
+  // The pointer rests on Profile, which would move: the row waits.
+  await page.mouse.move(profileAt.x + 60, profileAt.y + profileAt.height / 2);
+  await expect(selectedRow(page)).toHaveAttribute('data-key', 'profile');
   release();
   await page.waitForTimeout(700);
   expect(await keysOf(page)).toEqual(ROWS);
-  expect((await rowBox('credits')).y).toBe(creditsAt.y);
+  expect((await rowBox('profile')).y).toBe(profileAt.y);
 
-  // The pointer leaves for a row that does not move: the row comes in, the cursor is where the pointer put it.
-  await page.mouse.move(spotAt.x + 60, spotAt.y + spotAt.height / 2);
+  // The pointer leaves for the one row that does not move: the row comes in, the cursor is where the pointer put it.
+  await page.mouse.move(enterAt.x + 60, enterAt.y + enterAt.height / 2);
   await expect(accountRow(page)).toBeVisible();
   expect(await keysOf(page)).toEqual(ROWS_ON);
-  await expect(selectedRow(page)).toHaveAttribute('data-key', 'spotlights');
-  await expect(accountRow(page).locator('.wc-sm-label')).toHaveText('Account');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(selectedRow(page)).toHaveAttribute('data-key', 'enter');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await expect(accountRow(page)).toHaveAttribute('aria-keyshortcuts', 'U');
-  await expect(accountRow(page).locator('u.wc-sk')).toHaveText('u');
+  // No visible U (the owner, 2026-11-14): the key works unseen.
+  await expect(accountRow(page).locator('u.wc-sk')).toHaveCount(0);
 
   // One row more: the rows above stand still, the box is one row higher.
   const after = (await panel.boundingBox())!;
-  const rowH = spotAt.height;
+  const rowH = (await rowBox('owner')).height;
   expect(after.y).toBe(before.y);
   expect(after.height).toBeCloseTo(before.height + rowH, 0);
-  expect((await rowBox('spotlights')).y).toBe(spotAt.y);
-  expect((await rowBox('account')).y).toBeCloseTo(spotAt.y + rowH, 0);
-  expect((await rowBox('credits')).y).toBeCloseTo(creditsAt.y + rowH, 0);
+  expect((await rowBox('enter')).y).toBe(enterAt.y);
+  expect((await rowBox('owner')).y).toBeCloseTo(profileAt.y, 0);
+  expect((await rowBox('profile')).y).toBeCloseTo(profileAt.y + rowH, 0);
   expect(errors).toEqual([]);
 });
 
@@ -157,13 +158,15 @@ test('the row comes in at once with no pointer on the menu, and a keyboard curso
   await page.mouse.move(5, 5);
   await page.keyboard.press('End');
   await page.keyboard.press('ArrowUp');
-  await expect(selectedRow(page)).toHaveAttribute('data-key', 'credits');
+  await expect(selectedRow(page)).toHaveAttribute('data-key', 'history');
   release();
   await expect(accountRow(page)).toBeVisible();
-  await expect(selectedRow(page)).toHaveAttribute('data-key', 'credits');
+  await expect(selectedRow(page)).toHaveAttribute('data-key', 'history');
   // The arrows walk through it; U opens Log in.
   await page.keyboard.press('ArrowUp');
-  await expect(selectedRow(page)).toHaveAttribute('data-key', 'account');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect(selectedRow(page)).toHaveAttribute('data-key', 'owner');
   await shot(page, 'a-sel', 'desktop');
   await page.keyboard.press('ArrowUp');
   await shot(page, 'a-out', 'desktop');
@@ -270,7 +273,7 @@ test('a life: create account, the recovery code (copy, download, the last group)
   
   // Back: the row carries the name. The code page is gone for good.
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(page)).toHaveText(NAME);
   await settled(page);
   await shot(page, 'a-in', 'desktop');
   await page.keyboard.press('u');
@@ -278,7 +281,7 @@ test('a life: create account, the recovery code (copy, download, the last group)
 
   // Log out: back on the menu, the row says "log in" again.
   await logOut(page);
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await expect(page.locator('.wc-start .wc-sm-flash')).toHaveText('Logged out.');
   expect(api.server.sessionLabels(NAME)).toEqual([]);
 
@@ -346,7 +349,7 @@ test('log in: one message for a wrong name or password; Turnstile after three fa
 
   // Log out; another device makes ten wrong tries: the name is locked.
   await logOut(page);
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   wrongLogins(server, NAME, 10, origin(page));
   await page.keyboard.press('u');
   await expect(pageOf(page, 'login')).toBeVisible();
@@ -448,7 +451,7 @@ test('recovery: a wrong code, then the right one sets a new password, logs every
 
   // The new password logs in, and the code is still the account's.
   await logOut(page);
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await page.keyboard.press('u');
   await expect(pageOf(page, 'login')).toBeVisible();
   await page.keyboard.type(PASSWORD_2);
@@ -687,12 +690,12 @@ test('keyboard only: Tab walks the fields, the button and the links; Enter press
   await page.keyboard.press('l');
   await expect(dialog(page, 'ac-logout')).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
-  // Esc from Log in is the start menu, the cursor on the Account row.
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
+  // Esc from Log in is the start menu, the cursor on the owner row.
   await page.keyboard.press('u');
   await expect(pageOf(page, 'login')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(selectedRow(page)).toHaveAttribute('data-key', 'account');
+  await expect(selectedRow(page)).toHaveAttribute('data-key', 'owner');
   expect(errors).toEqual([]);
 });
 
@@ -704,7 +707,7 @@ test('a session that is gone: the Account page sends the player to Log in and sa
   await logIn(page);
   await expect(pageOf(page, 'account')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(page)).toHaveText(NAME);
   // Ended from another device.
   server.endSessions(NAME);
   await page.keyboard.press('u');
@@ -712,7 +715,7 @@ test('a session that is gone: the Account page sends the player to Log in and sa
   await expect(frame(page).locator('.wc-ac-notice')).toContainText('You were logged out here');
   await expect(field(page, 'name')).toHaveValue(NAME);
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
 });
 
 // ------------------------------------------------------------ after the review of the client (ADR 0145)
@@ -807,7 +810,7 @@ test('review 3: a registration whose answer is lost says "may or may not"; Creat
     await page.unroute('**/api/auth/register');
     // Out again for the next round.
     await logOut(page);
-    await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+    await expect(accountRow(page)).toHaveText(OWNER_GUEST);
     await accountRow(page).click();
     await expect(pageOf(page, 'login')).toBeVisible();
   }
@@ -862,7 +865,7 @@ test('review 4: localStorage takes no hint (full or blocked): the login holds, t
   await expect(frame(page).locator('[data-account-name]')).toHaveText(NAME);
   expect(await page.evaluate(() => localStorage.getItem('wc.account'))).toBeNull();
   await page.keyboard.press('Escape');
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText(`(${NAME})`);
+  await expect(accountRow(page)).toHaveText(NAME);
   expect(server.sessionLabels(NAME)).toHaveLength(1);
   // A reload: the row cannot know, and the account pages find the keys.
   await openAccount(page);
@@ -871,6 +874,6 @@ test('review 4: localStorage takes no hint (full or blocked): the login holds, t
   expect(server.sessionLabels(NAME)).toHaveLength(1);
   // Log out is offered and works.
   await logOut(page);
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   expect(server.sessionLabels(NAME)).toHaveLength(0);
 });

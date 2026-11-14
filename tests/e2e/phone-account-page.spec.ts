@@ -14,6 +14,7 @@ import { type Page, expect, test } from '@playwright/test';
 import {
   LANDSCAPE,
   NAME,
+  OWNER_GUEST,
   PASSWORD,
   PASSWORD_2,
   PHONE,
@@ -131,7 +132,7 @@ test('phone: the Account page is one column that fills the screen and scrolls, L
   await expect(dialog(page, 'ac-logout')).toBeVisible();
   await shot(page, 'd-logout', 'phone');
   await btn(page, 'OUT').tap();
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   expect(errors).toEqual([]);
 });
 
@@ -284,7 +285,7 @@ test('phone: delete account; Enter on our keyboard cancels, the red button delet
   if (await okb(page).isVisible()) await expectAbove(page, dialogError(page));
   await field(page, 'password').fill(PASSWORD);
   await btn(page, 'DELETE').tap();
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   await expect(page.locator('.wc-start .wc-sm-flash')).toHaveText(`The account ${NAME} is deleted. What is on this device is untouched.`);
   expect(server.hasAccount(NAME)).toBe(false);
   expect(errors).toEqual([]);
@@ -355,6 +356,6 @@ test('tablet size: the desktop\'s box under the wordmark; a dialog with fields i
   await field(page, 'password').fill(PASSWORD);
   await field(page, 'confirm').fill(NAME);
   await btn(page, 'DELETE').tap();
-  await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
+  await expect(accountRow(page)).toHaveText(OWNER_GUEST);
   expect(errors).toEqual([]);
 });
