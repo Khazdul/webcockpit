@@ -161,14 +161,14 @@ touches staging or production.
 
 #### B3. The engine (worktree `stage61-engine`, port 5423)
 
-- [ ] `src/cloud/sync/`: pure engine steps 2–7 of spec §7.4 against
+- [x] `src/cloud/sync/`: pure engine steps 2–7 of spec §7.4 against
       two ports (local items, remote API), the encryption of item
       bodies with `src/cloud/crypto` (blob format, opaque ids), keep
       both and last writer per ADR 0146, an edit beats a delete.
-- [ ] An in-memory server model; generated sequences of edits,
+- [x] An in-memory server model; generated sequences of edits,
       renames, deletes, offline periods on two and three devices:
       after everybody has synced, all are equal and no edit is lost.
-- [ ] ADR 0151: the items' bodies, the hash, the device label, the
+- [x] ADR 0151: the items' bodies, the hash, the device label, the
       keep-both name, the back-off.
 
 ### C. The flows (one agent, after B is merged; worktree `stage61-flows`, port 5424)
