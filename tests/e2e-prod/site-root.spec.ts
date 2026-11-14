@@ -17,11 +17,17 @@ import { cloudflare } from './profile.ts';
 /** GitHub Pages serves `.js` as `application/javascript`, Cloudflare as `text/javascript`; both work for modules. */
 const JS = /^(text|application)\/javascript/;
 
-/** The headers `public/_headers` puts on every static file on Cloudflare (ADR 0144). */
-const SECURITY: Record<string, string> = {
+/**
+ * The headers `public/_headers` puts on every static file on Cloudflare
+ * (ADR 0144). The enforced policy is `frame-ancestors 'none'` alone while
+ * the full policy is report-only, and the full policy (which has that
+ * directive) once it is enforced (scripts/csp.ts; the policy itself is
+ * csp.spec.ts's).
+ */
+const SECURITY: Record<string, unknown> = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'strict-origin-when-cross-origin',
-  'content-security-policy': "frame-ancestors 'none'",
+  'content-security-policy': expect.stringContaining("frame-ancestors 'none'"),
 };
 
 test('app at the base: assets, worker, map, fonts, not isolated', async ({ page }) => {
