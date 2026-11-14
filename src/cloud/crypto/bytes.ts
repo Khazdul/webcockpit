@@ -66,10 +66,11 @@ export function kindId(kind: string, id: string): Bytes {
 /**
  * The account name as it is bound into derivations and wraps: lowercased.
  * Refuses anything that is not a user name of ADR 0145 (3–20 of
- * `a-z 0-9 _ -`), so no two spellings of one account can give two keys.
+ * `a-z 0-9 _ -`, in either case), so no two spellings of one account can
+ * give two keys. The typed name is tested before it is lowercased: some
+ * characters outside ASCII lowercase into it (U+212A KELVIN SIGN to "k").
  */
 export function accountLabel(name: string): string {
-  const label = typeof name === 'string' ? name.toLowerCase() : '';
-  if (!/^[a-z0-9_-]{3,20}$/.test(label)) throw new CloudCryptoError('bad_input', 'not an account name');
-  return label;
+  if (typeof name !== 'string' || !/^[A-Za-z0-9_-]{3,20}$/.test(name)) throw new CloudCryptoError('bad_input', 'not an account name');
+  return name.toLowerCase();
 }

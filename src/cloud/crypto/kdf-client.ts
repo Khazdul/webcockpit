@@ -1,19 +1,23 @@
-// Password → `authKey` and `kek` in the KDF worker (kdf.worker.ts), as a
+// Name and password → `authKey` and `kek` in the KDF worker (kdf.worker.ts), as a
 // promise. The worker is started by the first request, shared by requests
 // that overlap, and ended a while after the last answer. A request can be
 // cancelled with an AbortSignal: PBKDF2 cannot be interrupted, so the
-// worker is terminated (when nothing else waits on it).
+// worker is terminated (when nothing else waits on it). A worker that has
+// not answered a request after two minutes is taken for dead: it is
+// terminated and what waited on it rejects with `worker_failed`, so the
+// page never waits for ever.
 //
 // Where there are no workers (unit tests in Node), or with `inline`, the
 // derivation runs on the calling thread (`crypto.subtle` is asynchronous
 // there too; it is the worker that guarantees the page's thread is free).
 
-import type { Bytes } from './bytes';
+import { type Bytes, accountLabel } from './bytes';
 import { CloudCryptoError, type CryptoErrorCode } from './errors';
 import { type KdfParams, type PasswordKeys, checkKdf, derivePasswordKeysChecked } from './kdf';
 
 export interface KdfRequest {
   id: number;
+  name: string;
   password: string;
   salt: Bytes;
   kdf: KdfParams;
@@ -31,10 +35,16 @@ export interface KdfOptions {
 }
 
 /** The shape of `derivePasswordKeys`: what the flows of account.ts take (tests pass their own). */
-export type PasswordKdf = (password: string, salt: Bytes, kdf: KdfParams, opts?: KdfOptions) => Promise<PasswordKeys>;
+export type PasswordKdf = (name: string, password: string, salt: Bytes, kdf: KdfParams, opts?: KdfOptions) => Promise<PasswordKeys>;
 
 /** The worker is ended this long after its last answer (ms). */
 export const KDF_IDLE_MS = 30_000;
+
+/**
+ * A request the worker has not answered after this long (ms) fails. The
+ * most rounds the client accepts take well under this on a slow phone.
+ */
+export const KDF_TIMEOUT_MS = 120_000;
 
 interface Pending {
   resolve(keys: PasswordKeys): void;
@@ -86,12 +96,15 @@ function startWorker(): Worker | null {
 }
 
 /**
- * Password, salt and the account's KDF parameters → `authKey` (32 bytes,
- * for the server) and `kek` (non-extractable AES-256-GCM key). Rejects with
- * a `CloudCryptoError`: `bad_kdf` (parameters this client refuses; checked
- * before any work), `cancelled`, `worker_failed`.
+ * Account name, password, the server's salt and the account's KDF
+ * parameters → `authKey` (32 bytes, for the server) and `kek`
+ * (non-extractable AES-256-GCM key). Rejects with a `CloudCryptoError`:
+ * `bad_input` (not an account name) and `bad_kdf` (parameters this client
+ * refuses), both checked before any work; `cancelled`; `worker_failed`
+ * (the worker could not start, died, or did not answer in two minutes).
  */
-export const derivePasswordKeys: PasswordKdf = async (password, salt, kdf, opts = {}) => {
+export const derivePasswordKeys: PasswordKdf = async (name, password, salt, kdf, opts = {}) => {
+  accountLabel(name);
   const checked = checkKdf(kdf, salt);
   const { signal } = opts;
   if (signal?.aborted) throw new CloudCryptoError('cancelled');
@@ -104,7 +117,7 @@ export const derivePasswordKeys: PasswordKdf = async (password, salt, kdf, opts 
     }
   }
   if (!w) {
-    const keys = await derivePasswordKeysChecked(password, salt, checked);
+    const keys = await derivePasswordKeysChecked(name, password, salt, checked);
     if (signal?.aborted) throw new CloudCryptoError('cancelled');
     return keys;
   }
@@ -114,11 +127,19 @@ export const derivePasswordKeys: PasswordKdf = async (password, salt, kdf, opts 
   return new Promise<PasswordKeys>((resolve, reject) => {
     const onAbort = (): void => {
       if (!pending.delete(id)) return;
+      done();
       // Nothing else waits: stop the work. Otherwise the answer is dropped when it comes.
       if (pending.size === 0) endWorker();
       reject(new CloudCryptoError('cancelled'));
     };
-    const done = (): void => signal?.removeEventListener('abort', onAbort);
+    // No answer in time: the worker is taken for dead, and everything that waits on it fails.
+    const timeout = setTimeout(() => {
+      if (pending.has(id)) failAll('the KDF worker did not answer');
+    }, KDF_TIMEOUT_MS);
+    const done = (): void => {
+      clearTimeout(timeout);
+      signal?.removeEventListener('abort', onAbort);
+    };
     pending.set(id, {
       resolve: (keys) => {
         done();
@@ -130,7 +151,7 @@ export const derivePasswordKeys: PasswordKdf = async (password, salt, kdf, opts 
       },
     });
     signal?.addEventListener('abort', onAbort, { once: true });
-    const req: KdfRequest = { id, password, salt, kdf: checked };
+    const req: KdfRequest = { id, name, password, salt, kdf: checked };
     w.postMessage(req);
   });
 };

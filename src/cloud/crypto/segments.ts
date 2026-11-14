@@ -3,11 +3,15 @@
 // was cut off, reordered or spliced does not open.
 //
 //   body    = header | segment 0 | segment 1 | … | segment n-1
-//   header  = version (1 byte, 0x01) | segment size S (32 bits big-endian)
+//   header  = version (1 byte, 0x01) | segment size S (32 bits big-endian) | body id (16 random bytes)
 //   segment = nonce (12 random bytes) | AES-256-GCM ciphertext | tag (16)
 //
 //   associated data of segment i =
-//     version (0x01) | 0x53 ("S") | field(kind) | field(id) | S (32 bits BE) | i (32 bits BE) | final (0x00 or 0x01)
+//     version (0x01) | 0x53 ("S") | field(kind) | field(id) | S (32 bits BE) | body id (16) | i (32 bits BE) | final (0x00 or 0x01)
+//
+// The body id is made anew every time a body is written. It ties the
+// segments of one writing together: a run saved twice under the same kind
+// and id gives two bodies whose segments cannot be mixed.
 //
 // The plaintext is cut into pieces of exactly S bytes; the last piece has
 // 1..S bytes and is the only one sealed with final = 1. An empty body is
@@ -21,9 +25,10 @@
 //   final = 0 and is opened with final = 1;
 // - a body cut inside a segment, or changed bytes: the tag;
 // - segments reordered, duplicated or dropped: the index;
-// - a segment of another body, or the same body under another id: kind
-//   and id; a changed header: the version and S are in every segment's
-//   associated data.
+// - a segment of another body: the body id, and kind and id; the same
+//   body under another kind or id: kind and id;
+// - a changed header: the version, S and the body id are in every
+//   segment's associated data.
 //
 // A reader that streams gets the earlier segments before a cut is seen:
 // every piece handed out is authentic and in its place, but only the end
@@ -42,7 +47,8 @@ export const BODY_VERSION = 1;
 export const SEGMENT_SIZE = 1 << 20;
 /** The largest segment size a reader accepts (it must hold one segment in memory). */
 export const MAX_SEGMENT_SIZE = 1 << 24;
-export const BODY_HEADER_BYTES = 5;
+export const BODY_ID_BYTES = 16;
+export const BODY_HEADER_BYTES = 1 + 4 + BODY_ID_BYTES;
 const SEGMENT_OVERHEAD = NONCE_BYTES + TAG_BYTES;
 
 /** Bytes as they come: a stream or anything iterable in chunks. */
@@ -58,9 +64,10 @@ function checkSegmentSize(size: number, code: 'bad_input' | 'malformed'): void {
   if (!Number.isInteger(size) || size < 1 || size > MAX_SEGMENT_SIZE) throw new CloudCryptoError(code, 'a segment size out of range');
 }
 
-/** The associated data of segment `index`. */
-export function segmentAad(kind: string, id: string, segmentSize: number, index: number, final: boolean): Bytes {
-  return concat(Uint8Array.of(BODY_VERSION, 0x53), kindId(kind, id), u32(segmentSize), u32(index), Uint8Array.of(final ? 1 : 0));
+/** The associated data of segment `index` of the body `bodyId`. */
+export function segmentAad(kind: string, id: string, segmentSize: number, bodyId: Bytes, index: number, final: boolean): Bytes {
+  if (bodyId.length !== BODY_ID_BYTES) throw new CloudCryptoError('bad_input', 'a body id is 16 bytes');
+  return concat(Uint8Array.of(BODY_VERSION, 0x53), kindId(kind, id), u32(segmentSize), bodyId, u32(index), Uint8Array.of(final ? 1 : 0));
 }
 
 /** The source's chunks, whatever it is (a stream is read with a reader: not every browser iterates streams). */
@@ -134,19 +141,21 @@ class ByteQueue {
 
 /**
  * Encrypts a body: yields the header, then one chunk per segment. Holds at
- * most one segment (and the source's current chunk) in memory.
+ * most one segment (and the source's current chunk) in memory. Random
+ * draws: the body id (16), then a nonce (12) per segment.
  */
 export async function* encryptBody(dataKey: CryptoKey, kind: string, id: string, source: ByteSource, opts: BodyOptions = {}): AsyncGenerator<Bytes> {
   const size = opts.segmentSize ?? SEGMENT_SIZE;
   const random = opts.random ?? systemRandom;
   checkSegmentSize(size, 'bad_input');
   kindId(kind, id); // refuses a bad kind or id before anything is written
-  yield concat(Uint8Array.of(BODY_VERSION), u32(size));
+  const bodyId = random(BODY_ID_BYTES);
+  yield concat(Uint8Array.of(BODY_VERSION), u32(size), bodyId);
   const queue = new ByteQueue();
   let index = 0;
   const sealSegment = async (plain: Bytes, final: boolean): Promise<Bytes> => {
     const nonce = random(NONCE_BYTES);
-    return concat(nonce, await gcmEncrypt(dataKey, nonce, segmentAad(kind, id, size, index++, final), plain));
+    return concat(nonce, await gcmEncrypt(dataKey, nonce, segmentAad(kind, id, size, bodyId, index++, final), plain));
   };
   for await (const chunk of chunksOf(source)) {
     queue.push(chunk);
@@ -170,8 +179,9 @@ export async function* decryptBody(dataKey: CryptoKey, kind: string, id: string,
   let size = 0;
   let frame = 0;
   let index = 0;
+  let bodyId: Bytes = new Uint8Array(BODY_ID_BYTES);
   const openSegment = async (sealed: Bytes, final: boolean): Promise<Bytes> =>
-    gcmDecrypt(dataKey, sealed.slice(0, NONCE_BYTES), segmentAad(kind, id, size, index++, final), sealed.slice(NONCE_BYTES));
+    gcmDecrypt(dataKey, sealed.slice(0, NONCE_BYTES), segmentAad(kind, id, size, bodyId, index++, final), sealed.slice(NONCE_BYTES));
   for await (const chunk of chunksOf(source)) {
     queue.push(chunk);
     if (frame === 0) {
@@ -183,6 +193,7 @@ export async function* decryptBody(dataKey: CryptoKey, kind: string, id: string,
       if (header[0] !== BODY_VERSION) throw new CloudCryptoError('unknown_version', `body version ${header[0]}`);
       size = new DataView(header.buffer).getUint32(1);
       checkSegmentSize(size, 'malformed');
+      bodyId = header.slice(5);
       frame = size + SEGMENT_OVERHEAD;
     }
     // A full frame is only opened as "not final" when more follows.

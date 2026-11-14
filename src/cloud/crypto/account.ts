@@ -67,7 +67,7 @@ async function setPassword(root: Bytes, name: string, password: string, opts: Fl
   const random = opts.random ?? systemRandom;
   const kdf = opts.kdf ?? DEFAULT_KDF;
   const salt = random(SALT_BYTES);
-  const { authKey, kek } = await (opts.derive ?? derivePasswordKeys)(password, salt, kdf, { signal: opts.signal });
+  const { authKey, kek } = await (opts.derive ?? derivePasswordKeys)(name, password, salt, kdf, { signal: opts.signal });
   const wrapPw = await wrapRoot(root, kek, 'wrap-pw', name, random);
   return { salt: toBase64Url(salt), kdf, authKey: toBase64Url(authKey), wrapPw: toBase64Url(wrapPw) };
 }
@@ -109,13 +109,20 @@ export async function prepareRegistration(
 }
 
 /**
- * Login, first half: password and the server's parameters → the `authKey`
- * to send and the `kek` to open the answer's `wrapPw` with. Rejects with
- * `bad_kdf` when the parameters are not acceptable, `malformed` when the
- * salt is not base64url.
+ * Login, first half: name, password and the server's parameters → the
+ * `authKey` to send and the `kek` to open the answer's `wrapPw` with.
+ * Rejects with `bad_kdf` when the parameters are not acceptable,
+ * `malformed` when the salt is not base64url, `bad_input` when the name is
+ * not an account name.
  */
-export async function derivePasswordLogin(password: string, params: LoginParams, opts: FlowOptions = {}): Promise<{ authKey: string; kek: CryptoKey }> {
-  const { authKey, kek } = await (opts.derive ?? derivePasswordKeys)(password, fromBase64Url(params.salt), params.kdf, { signal: opts.signal });
+export async function derivePasswordLogin(
+  name: string,
+  password: string,
+  params: LoginParams,
+  opts: FlowOptions = {},
+): Promise<{ authKey: string; kek: CryptoKey }> {
+  accountLabel(name);
+  const { authKey, kek } = await (opts.derive ?? derivePasswordKeys)(name, password, fromBase64Url(params.salt), params.kdf, { signal: opts.signal });
   return { authKey: toBase64Url(authKey), kek };
 }
 
@@ -123,7 +130,9 @@ export async function derivePasswordLogin(password: string, params: LoginParams,
  * Login, second half: the password's `kek` and the server's `wrapPw` → the
  * account's keys. `wrong_password` when the kek does not open the wrap;
  * `malformed` or `unknown_version` when the wrap is not one this client
- * reads.
+ * reads. When the server has just accepted the `authKey` of the same
+ * password, `wrong_password` here means a corrupt or foreign wrap, not a
+ * typing mistake, and the page should say so.
  */
 export async function unlockWithPassword(name: string, kek: CryptoKey, wrapPw: string): Promise<AccountKeys> {
   const root = await unwrapAs(wrapPw, kek, 'wrap-pw', name);

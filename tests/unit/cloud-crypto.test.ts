@@ -49,12 +49,12 @@ import {
 } from '../../src/cloud/crypto';
 import { NONCE_BYTES, gcmEncrypt } from '../../src/cloud/crypto/blob';
 import { type Bytes, concat, field, u32, utf8 } from '../../src/cloud/crypto/bytes';
-import { derivePasswordKeysUnchecked, hkdfAesKey } from '../../src/cloud/crypto/kdf';
+import { derivePasswordKeysUnchecked, hkdfAesKey, pbkdf2Salt } from '../../src/cloud/crypto/kdf';
 import { encodeRecoveryCode, recoveryCodeBytes } from '../../src/cloud/crypto/recovery';
 import { segmentAad } from '../../src/cloud/crypto/segments';
 
 /** The password KDF at 1000 rounds: these tests are about everything but its cost. */
-const fast: PasswordKdf = (password, salt) => derivePasswordKeysUnchecked(password, salt, 1000);
+const fast: PasswordKdf = (name, password, salt) => derivePasswordKeysUnchecked(name, password, salt, 1000);
 
 const bytes = (n: number, start = 0): Bytes => Uint8Array.from({ length: n }, (_, i) => (start + i * 7) & 0xff);
 const random = (n: number): Bytes => crypto.getRandomValues(new Uint8Array(n));
@@ -124,7 +124,8 @@ describe('field encoding', () => {
 
   it('the account name is lowercased and must be a user name', () => {
     expect(accountLabel('Gandalf_the-Grey')).toBe('gandalf_the-grey');
-    for (const bad of ['', 'ab', 'x'.repeat(21), 'with space', 'åke', 'a/b', 'İstanbul']) expect(codeOf(() => accountLabel(bad)), bad).toBe('bad_input');
+    // U+212A KELVIN SIGN and U+0130 lowercase into or towards ASCII: the typed name is what is tested.
+    for (const bad of ['', 'ab', 'x'.repeat(21), 'with space', 'åke', 'a/b', 'İstanbul', '\u212aing', 'fran\u212a', 'ｆｒｏｄｏ']) expect(codeOf(() => accountLabel(bad)), bad).toBe('bad_input');
   });
 });
 
@@ -237,7 +238,7 @@ describe('root key and wraps', () => {
 
   it('no key can be exported', async () => {
     const { dataKey, idKey } = await keys();
-    const { kek } = await derivePasswordKeysUnchecked('password', bytes(16), 1000);
+    const { kek } = await derivePasswordKeysUnchecked('frodo', 'password', bytes(16), 1000);
     const { recoveryKek } = await deriveRecoveryKeys(makeRecoveryCode(), 'frodo');
     for (const key of [dataKey, idKey, kek, recoveryKek]) {
       expect(key.extractable).toBe(false);
@@ -385,19 +386,35 @@ describe('KDF parameters', () => {
 
   it('the derivation refuses them before doing any work, on every path', async () => {
     const weak = { name: 'pbkdf2-sha256', rounds: 1 } as const;
-    expect(await code(derivePasswordKeys('password', salt, weak))).toBe('bad_kdf');
-    expect(await code(derivePasswordKeys('password', salt, weak, { inline: true }))).toBe('bad_kdf');
-    expect(await code(derivePasswordKeys('password', bytes(8), DEFAULT_KDF))).toBe('bad_kdf');
-    expect(await code(derivePasswordLogin('password', { salt: toBase64Url(salt), kdf: weak }))).toBe('bad_kdf');
-    expect(await code(derivePasswordLogin('password', { salt: toBase64Url(salt), kdf: { name: 'pbkdf2-sha256', rounds: 1e9 } }))).toBe('bad_kdf');
-    expect(await code(derivePasswordLogin('password', { salt: 'not base64!', kdf: DEFAULT_KDF }))).toBe('malformed');
+    expect(await code(derivePasswordKeys('frodo', 'password', salt, weak))).toBe('bad_kdf');
+    expect(await code(derivePasswordKeys('frodo', 'password', salt, weak, { inline: true }))).toBe('bad_kdf');
+    expect(await code(derivePasswordKeys('frodo', 'password', bytes(8), DEFAULT_KDF))).toBe('bad_kdf');
+    expect(await code(derivePasswordLogin('frodo', 'password', { salt: toBase64Url(salt), kdf: weak }))).toBe('bad_kdf');
+    expect(await code(derivePasswordLogin('frodo', 'password', { salt: toBase64Url(salt), kdf: { name: 'pbkdf2-sha256', rounds: 1e9 } }))).toBe('bad_kdf');
+    expect(await code(derivePasswordLogin('frodo', 'password', { salt: 'not base64!', kdf: DEFAULT_KDF }))).toBe('malformed');
     expect(await code(prepareRegistration('frodo', 'password', { kdf: weak }))).toBe('bad_kdf');
+  });
+
+  it('the account name is part of the PBKDF2 salt: one server salt gives every account its own keys', async () => {
+    expect([...pbkdf2Salt('Frodo', salt)]).toEqual([...salt, 0, 5, ...utf8('frodo')]);
+    const a = await derivePasswordKeysUnchecked('frodo', 'password', salt, 1000);
+    const same = await derivePasswordKeysUnchecked('FRODO', 'password', salt, 1000);
+    const other = await derivePasswordKeysUnchecked('samwise', 'password', salt, 1000);
+    expect(same.authKey).toEqual(a.authKey);
+    expect(other.authKey).not.toEqual(a.authKey);
+    // The name is a field, so a name's tail cannot pass for salt bytes of another.
+    expect(pbkdf2Salt('frodo', salt)).not.toEqual(pbkdf2Salt('frod', concat(salt, utf8('o'))));
+    expect(await code(derivePasswordKeysUnchecked('\u212aing', 'password', salt, 1000))).toBe('bad_input');
+    expect(await code(derivePasswordKeys('no', 'password', salt, DEFAULT_KDF))).toBe('bad_input');
+    expect(await code(derivePasswordLogin('a b c', 'password', { salt: toBase64Url(salt), kdf: DEFAULT_KDF }))).toBe('bad_input');
+    // The server's part is still exactly 16 bytes.
+    expect(codeOf(() => checkKdf(DEFAULT_KDF, pbkdf2Salt('frodo', salt)))).toBe('bad_kdf');
   });
 
   it('a request cancelled beforehand does no work; without workers nothing is started', async () => {
     const gone = new AbortController();
     gone.abort();
-    expect(await code(derivePasswordKeys('password', salt, DEFAULT_KDF, { signal: gone.signal }))).toBe('cancelled');
+    expect(await code(derivePasswordKeys('frodo', 'password', salt, DEFAULT_KDF, { signal: gone.signal }))).toBe('cancelled');
     expect(kdfWorkerAlive()).toBe(false);
   });
 });
@@ -410,20 +427,20 @@ describe('account flows', () => {
     expect(reg.request.kdf).toEqual(DEFAULT_KDF);
     expect(parseRecoveryCode(reg.recoveryCode)).toBe(reg.recoveryCode);
     const params = { salt: reg.request.salt, kdf: reg.request.kdf };
-    const login = await derivePasswordLogin('the first password', params, opts);
+    const login = await derivePasswordLogin('frodo', 'the first password', params, opts);
     expect(login.authKey).toBe(reg.request.authKey);
     const k = await unlockWithPassword('frodo', login.kek, reg.request.wrapPw);
     expect(await opaqueId(k.idKey, 'profile', 'default')).toBe(await opaqueId(reg.keys.idKey, 'profile', 'default'));
     expect(await open(k.dataKey, 'k', 'i', await seal(reg.keys.dataKey, 'k', 'i', bytes(9)))).toEqual(bytes(9));
 
-    const wrong = await derivePasswordLogin('the first passwore', params, opts);
+    const wrong = await derivePasswordLogin('frodo', 'the first passwore', params, opts);
     expect(wrong.authKey).not.toBe(reg.request.authKey);
     expect(await code(unlockWithPassword('frodo', wrong.kek, reg.request.wrapPw))).toBe('wrong_password');
   });
 
   it('tells a wrong password from a wrap that is malformed or from a newer client', async () => {
     const reg = await prepareRegistration('frodo', 'the first password', opts);
-    const { kek } = await derivePasswordLogin('the first password', reg.request, opts);
+    const { kek } = await derivePasswordLogin('frodo', 'the first password', reg.request, opts);
     const wrap = fromBase64Url(reg.request.wrapPw);
     expect(await code(unlockWithPassword('frodo', kek, 'not base64!'))).toBe('malformed');
     expect(await code(unlockWithPassword('frodo', kek, toBase64Url(wrap.slice(0, 20))))).toBe('malformed');
@@ -445,17 +462,17 @@ describe('account flows', () => {
 
   it('change password: a new salt and wrap, the same account keys; the old password no longer opens it', async () => {
     const reg = await prepareRegistration('frodo', 'old password', opts);
-    const old = await derivePasswordLogin('old password', reg.request, opts);
+    const old = await derivePasswordLogin('frodo', 'old password', reg.request, opts);
     const { set } = await changePassword('frodo', old.kek, reg.request.wrapPw, 'new password', opts);
     expect(set.salt).not.toBe(reg.request.salt);
     expect(set.authKey).not.toBe(reg.request.authKey);
     expect(fromBase64Url(set.wrapPw)).toHaveLength(61);
-    const next = await derivePasswordLogin('new password', set, opts);
+    const next = await derivePasswordLogin('frodo', 'new password', set, opts);
     expect(next.authKey).toBe(set.authKey);
     const k = await unlockWithPassword('frodo', next.kek, set.wrapPw);
     expect(await opaqueId(k.idKey, 'k', 'x')).toBe(await opaqueId(reg.keys.idKey, 'k', 'x'));
     expect(await code(unlockWithPassword('frodo', old.kek, set.wrapPw))).toBe('wrong_password');
-    const wrong = await derivePasswordLogin('not the old password', reg.request, opts);
+    const wrong = await derivePasswordLogin('frodo', 'not the old password', reg.request, opts);
     expect(await code(changePassword('frodo', wrong.kek, reg.request.wrapPw, 'new password', opts))).toBe('wrong_password');
   });
 
@@ -465,7 +482,7 @@ describe('account flows', () => {
     expect(rec.recoveryAuth).toBe(reg.request.recoveryAuth);
     const { set, keys: k } = await recoverAccount('frodo', rec.recoveryKek, reg.request.wrapRc, 'a better password', opts);
     expect(await opaqueId(k.idKey, 'k', 'x')).toBe(await opaqueId(reg.keys.idKey, 'k', 'x'));
-    const login = await derivePasswordLogin('a better password', set, opts);
+    const login = await derivePasswordLogin('frodo', 'a better password', set, opts);
     expect(login.authKey).toBe(set.authKey);
     const again = await unlockWithPassword('frodo', login.kek, set.wrapPw);
     expect(await opaqueId(again.idKey, 'k', 'x')).toBe(await opaqueId(reg.keys.idKey, 'k', 'x'));
@@ -481,7 +498,7 @@ describe('account flows', () => {
 
   it('a new recovery code replaces the old one for the same account keys', async () => {
     const reg = await prepareRegistration('frodo', 'the password', opts);
-    const { kek } = await derivePasswordLogin('the password', reg.request, opts);
+    const { kek } = await derivePasswordLogin('frodo', 'the password', reg.request, opts);
     const fresh = await newRecoveryCode('frodo', kek, reg.request.wrapPw);
     expect(fresh.recoveryCode).not.toBe(reg.recoveryCode);
     expect(fresh.recoveryAuth).not.toBe(reg.request.recoveryAuth);
@@ -491,15 +508,15 @@ describe('account flows', () => {
     expect(await opaqueId(k.idKey, 'k', 'x')).toBe(await opaqueId(reg.keys.idKey, 'k', 'x'));
     const old = await deriveRecoveryLogin('frodo', reg.recoveryCode);
     expect(await code(recoverAccount('frodo', old.recoveryKek, fresh.wrapRc, 'p', opts))).toBe('wrong_code');
-    const wrong = await derivePasswordLogin('not the password', reg.request, opts);
+    const wrong = await derivePasswordLogin('frodo', 'not the password', reg.request, opts);
     expect(await code(newRecoveryCode('frodo', wrong.kek, reg.request.wrapPw))).toBe('wrong_password');
   });
 
   it('a bad account name fails before the KDF runs', async () => {
     let ran = 0;
-    const counted: PasswordKdf = (p, s, k, o) => {
+    const counted: PasswordKdf = (n, p, s, k, o) => {
       ran++;
-      return fast(p, s, k, o);
+      return fast(n, p, s, k, o);
     };
     expect(await code(prepareRegistration('no', 'password', { derive: counted }))).toBe('bad_input');
     expect(ran).toBe(0);
@@ -518,13 +535,15 @@ describe('account flows', () => {
 describe('segmented bodies', () => {
   const S = 8;
   const FRAME = S + 28;
+  /** The header: version, segment size, body id. */
+  const H = 21;
   const o = { segmentSize: S };
 
   /** The body's parts: header and segments. */
   function parts(body: Bytes): { header: Bytes; segments: Bytes[] } {
     const segments: Bytes[] = [];
-    for (let at = 5; at < body.length; at += FRAME) segments.push(body.slice(at, at + FRAME));
-    return { header: body.slice(0, 5), segments };
+    for (let at = H; at < body.length; at += FRAME) segments.push(body.slice(at, at + FRAME));
+    return { header: body.slice(0, H), segments };
   }
 
   async function drain(chunks: AsyncIterable<Uint8Array>): Promise<Bytes> {
@@ -572,7 +591,7 @@ describe('segmented bodies', () => {
     const plain = new Uint8Array(2 * 1048576 + 100);
     for (let i = 0; i < plain.length; i++) plain[i] = (i * 7) & 0xff;
     const body = await sealBody(dataKey, 'run', 'r1', plain);
-    expect(body).toHaveLength(5 + plain.length + 3 * 28);
+    expect(body).toHaveLength(H + plain.length + 3 * 28);
     expect(new DataView(body.buffer).getUint32(1)).toBe(1048576);
     expect(sealedBodySize(plain.length)).toBe(body.length);
     // Compared as buffers: a deep comparison of two megabytes takes seconds.
@@ -590,9 +609,9 @@ describe('segmented bodies', () => {
       // At a boundary the last frame is whole and authentic, but it was not sealed as the final one.
       const { segments } = parts(body);
       for (let keep = 1; keep < segments.length; keep++) {
-        expect(await code(openBody(dataKey, 'run', 'r1', body.slice(0, 5 + keep * FRAME))), `${keep} of ${segments.length}`).toBe('auth');
+        expect(await code(openBody(dataKey, 'run', 'r1', body.slice(0, H + keep * FRAME))), `${keep} of ${segments.length}`).toBe('auth');
       }
-      expect(await code(openBody(dataKey, 'run', 'r1', body.slice(0, 5)))).toBe('malformed');
+      expect(await code(openBody(dataKey, 'run', 'r1', body.slice(0, H)))).toBe('malformed');
     }
   });
 
@@ -619,10 +638,53 @@ describe('segmented bodies', () => {
     expect(await tryBody(s0, other[1]!, s2, s3, s4)).toBe('auth');
     expect(await code(openBody(dataKey, 'run', 'r2', concat(header, ...segments)))).toBe('auth');
     expect(await code(openBody(dataKey, 'export', 'r1', concat(header, ...segments)))).toBe('auth');
-    // A shorter body's final segment cannot end a longer one early.
-    const short = parts(await sealBody(dataKey, 'run', 'r1', bytes(S + 2), o)).segments;
-    expect(await tryBody(s0, short[1]!)).toBe('no error'); // that IS the shorter body: same id, a whole body
-    expect(await tryBody(s0, s1, short[1]!)).toBe('auth');
+  });
+
+  it('two bodies under the same kind and id do not mix: no segment of one opens in the other', async () => {
+    const { dataKey } = await keys();
+    // The same run saved twice (an edit, a retry): same kind, id and segment size, the same or other content.
+    const first = bytes(3 * S + 2, 1);
+    for (const second of [first, bytes(3 * S + 2, 50), bytes(S + 2, 1)]) {
+      const a = parts(await sealBody(dataKey, 'run', 'r1', first, o));
+      const b = parts(await sealBody(dataKey, 'run', 'r1', second, o));
+      expect(a.header).not.toEqual(b.header); // each writing has its own body id
+      const tryMix = (header: Bytes, ...segs: Bytes[]) => code(openBody(dataKey, 'run', 'r1', concat(header, ...segs)));
+      expect(await tryMix(a.header, ...a.segments)).toBe('no error');
+      expect(await tryMix(b.header, ...b.segments)).toBe('no error');
+      // Every segment of the one at its own position in the other, under either header.
+      for (let i = 0; i < b.segments.length; i++) {
+        for (const header of [a.header, b.header]) {
+          const mixed = a.segments.slice();
+          mixed[i] = b.segments[i]!;
+          expect(await tryMix(header, ...mixed), `segment ${i}`).toBe('auth');
+        }
+      }
+      // A newer beginning with an older end, and the reverse; one body under the other's header.
+      expect(await tryMix(a.header, a.segments[0]!, ...b.segments.slice(1))).toBe('auth');
+      expect(await tryMix(b.header, b.segments[0]!, ...a.segments.slice(1))).toBe('auth');
+      expect(await tryMix(a.header, ...b.segments)).toBe('auth');
+      expect(await tryMix(b.header, ...a.segments)).toBe('auth');
+      // A shorter body's final segment cannot end a longer one early.
+      expect(await tryMix(a.header, a.segments[0]!, b.segments[b.segments.length - 1]!)).toBe('auth');
+    }
+    // A changed body id in the header fails every segment.
+    const body = await sealBody(dataKey, 'run', 'r1', first, o);
+    for (let at = 5; at < H; at++) expect(await code(openBody(dataKey, 'run', 'r1', flip(body, at))), `header byte ${at}`).toBe('auth');
+  });
+
+  it('the body id is the first random draw, 16 bytes, and stands in the header', async () => {
+    const { dataKey } = await keys();
+    const asked: number[] = [];
+    const body = await sealBody(dataKey, 'run', 'r1', bytes(S + 1), {
+      segmentSize: S,
+      random: (n) => {
+        asked.push(n);
+        return new Uint8Array(n).fill(0xa0 + asked.length);
+      },
+    });
+    expect(asked).toEqual([16, 12, 12]);
+    expect([...body.slice(0, H)]).toEqual([1, 0, 0, 0, S, ...new Array<number>(16).fill(0xa1)]);
+    expect(codeOf(() => segmentAad('run', 'r1', S, new Uint8Array(15), 0, true))).toBe('bad_input');
   });
 
   it('a changed header or a changed bit in any segment does not open', async () => {
@@ -660,13 +722,15 @@ describe('segmented bodies', () => {
     const { dataKey } = await keys();
     const n0 = random(NONCE_BYTES);
     const n1 = random(NONCE_BYTES);
+    const bodyId = random(16);
     const forged = concat(
       Uint8Array.of(1),
       u32(S),
+      bodyId,
       n0,
-      await gcmEncrypt(dataKey, n0, segmentAad('run', 'r1', S, 0, false), bytes(S)),
+      await gcmEncrypt(dataKey, n0, segmentAad('run', 'r1', S, bodyId, 0, false), bytes(S)),
       n1,
-      await gcmEncrypt(dataKey, n1, segmentAad('run', 'r1', S, 1, true), new Uint8Array(0)),
+      await gcmEncrypt(dataKey, n1, segmentAad('run', 'r1', S, bodyId, 1, true), new Uint8Array(0)),
     );
     expect(await code(openBody(dataKey, 'run', 'r1', forged))).toBe('malformed');
   });
@@ -678,13 +742,13 @@ describe('segmented bodies', () => {
     const got: Uint8Array[] = [];
     let failed = '';
     try {
-      for await (const c of decryptBody(dataKey, 'run', 'r1', [body.slice(0, 5 + 2 * FRAME + 30)])) got.push(c);
+      for await (const c of decryptBody(dataKey, 'run', 'r1', [body.slice(0, H + 2 * FRAME + 30)])) got.push(c);
     } catch (e) {
       failed = (e as CloudCryptoError).code;
     }
     expect(failed).toBe('auth');
     expect(concat(...got)).toEqual(plain.slice(0, 2 * S));
-    const reader = decryptBodyStream(dataKey, 'run', 'r1', streamOf(body.slice(0, 5 + FRAME), 11)).getReader();
+    const reader = decryptBodyStream(dataKey, 'run', 'r1', streamOf(body.slice(0, H + FRAME), 11)).getReader();
     await expect(reader.read()).rejects.toMatchObject({ code: 'auth' });
   });
 

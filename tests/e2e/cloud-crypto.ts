@@ -64,7 +64,7 @@ export async function kdfThroughWorker(page: Page): Promise<KdfRun> {
       }, 5);
       const aliveBefore = m.kdfWorkerAlive();
       const t0 = performance.now();
-      const { authKey, kek } = await m.derivePasswordKeys(R.password, salt, R.request.kdf);
+      const { authKey, kek } = await m.derivePasswordKeys(R.account, R.password, salt, R.request.kdf);
       const coldMs = performance.now() - t0;
       clearInterval(timer);
       const aliveAfter = m.kdfWorkerAlive();
@@ -82,7 +82,7 @@ export async function kdfThroughWorker(page: Page): Promise<KdfRun> {
       // Once more with the worker running. Another password: Firefox's NSS remembers its last PBKDF2
       // answer, and the same input again would time the cache.
       const t1 = performance.now();
-      await m.derivePasswordKeys(R.password + '!', salt, R.request.kdf);
+      await m.derivePasswordKeys(R.account, R.password + '!', salt, R.request.kdf);
       const warmMs = performance.now() - t1;
 
       // A whole registration with the vector's random values.
@@ -113,7 +113,7 @@ export async function kdfThroughWorker(page: Page): Promise<KdfRun> {
 
       // Cancel: the most rounds the client accepts would take many seconds; the worker is terminated instead.
       const abort = new AbortController();
-      const slow = m.derivePasswordKeys('x', salt, { name: 'pbkdf2-sha256', rounds: m.MAX_ROUNDS }, { signal: abort.signal });
+      const slow = m.derivePasswordKeys(R.account, 'x', salt, { name: 'pbkdf2-sha256', rounds: m.MAX_ROUNDS }, { signal: abort.signal });
       setTimeout(() => abort.abort(), 50);
       const t2 = performance.now();
       let cancelled = '';
@@ -128,7 +128,7 @@ export async function kdfThroughWorker(page: Page): Promise<KdfRun> {
       // A refused parameter set comes back as its error.
       let weak = '';
       try {
-        await m.derivePasswordKeys('x', salt, { name: 'pbkdf2-sha256', rounds: 1000 });
+        await m.derivePasswordKeys(R.account, 'x', salt, { name: 'pbkdf2-sha256', rounds: 1000 });
       } catch (e) {
         weak = (e as { code?: string }).code ?? String(e);
       }

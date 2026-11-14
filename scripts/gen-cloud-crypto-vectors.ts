@@ -60,18 +60,19 @@ const blobAad = (kind: string, id: string): Buffer => Buffer.concat([Buffer.from
 const blob = (key: Uint8Array, kind: string, id: string, nonce: Uint8Array, plain: Uint8Array): Buffer =>
   Buffer.concat([Buffer.from([0x01]), nonce, gcm(key, nonce, blobAad(kind, id), plain)]);
 
-const segmentAad = (kind: string, id: string, size: number, index: number, final: boolean): Buffer =>
-  Buffer.concat([Buffer.from([0x01, 0x53]), field(kind), field(id), u32(size), u32(index), Buffer.from([final ? 1 : 0])]);
+const segmentAad = (kind: string, id: string, size: number, bodyId: Uint8Array, index: number, final: boolean): Buffer =>
+  Buffer.concat([Buffer.from([0x01, 0x53]), field(kind), field(id), u32(size), bodyId, u32(index), Buffer.from([final ? 1 : 0])]);
 
-/** header | segments; the last piece (1..size bytes, or none for an empty body) is the final one. */
-function body(key: Uint8Array, kind: string, id: string, size: number, nonces: Uint8Array[], plain: Uint8Array): Buffer {
+/** header (version | size | body id) | segments; the last piece (1..size bytes, or none for an empty body) is the final one. */
+function body(key: Uint8Array, kind: string, id: string, size: number, bodyId: Uint8Array, nonces: Uint8Array[], plain: Uint8Array): Buffer {
+  if (bodyId.length !== 16) throw new Error('a body id is 16 bytes');
   const pieces: Uint8Array[] = [];
   for (let at = 0; at < plain.length; at += size) pieces.push(plain.subarray(at, at + size));
   if (pieces.length === 0) pieces.push(EMPTY);
   if (nonces.length !== pieces.length) throw new Error(`body needs ${pieces.length} nonces`);
-  const out: Buffer[] = [Buffer.from([0x01]), u32(size)];
+  const out: Buffer[] = [Buffer.from([0x01]), u32(size), Buffer.from(bodyId)];
   pieces.forEach((piece, i) => {
-    out.push(Buffer.from(nonces[i]!), gcm(key, nonces[i]!, segmentAad(kind, id, size, i, i === pieces.length - 1), piece));
+    out.push(Buffer.from(nonces[i]!), gcm(key, nonces[i]!, segmentAad(kind, id, size, bodyId, i, i === pieces.length - 1), piece));
   });
   return Buffer.concat(out);
 }
@@ -93,10 +94,17 @@ const opaqueId = (idKey: Uint8Array, kind: string, localKey: string): { mac: Buf
   return { mac, id: b64u(mac.subarray(0, 16)) };
 };
 
-function passwordKeys(password: string, salt: Uint8Array, rounds: number): { normalised: Buffer; master: Buffer; authKey: Buffer; kek: Buffer } {
+/** The PBKDF2 salt is the server's salt followed by the lowercased account name as a field. */
+function passwordKeys(
+  account: string,
+  password: string,
+  salt: Uint8Array,
+  rounds: number,
+): { normalised: Buffer; pbkdf2Salt: Buffer; master: Buffer; authKey: Buffer; kek: Buffer } {
   const normalised = text(password.normalize('NFKC'));
-  const master = pbkdf2Sync(normalised, salt, rounds, 32, 'sha256');
-  return { normalised, master, authKey: hkdf(master, EMPTY, 'wc-auth'), kek: hkdf(master, EMPTY, 'wc-kek') };
+  const pbkdf2Salt = Buffer.concat([salt, field(account.toLowerCase())]);
+  const master = pbkdf2Sync(normalised, pbkdf2Salt, rounds, 32, 'sha256');
+  return { normalised, pbkdf2Salt, master, authKey: hkdf(master, EMPTY, 'wc-auth'), kek: hkdf(master, EMPTY, 'wc-kek') };
 }
 
 function recoveryKeys(bytes: Uint8Array, account: string): { recoveryAuth: Buffer; recoveryKek: Buffer } {
@@ -188,18 +196,19 @@ const passwords: { name: string; password: string; rounds: number }[] = [
 const passwordVectors = passwords.map((p, i) => {
   // The pairs that must agree share a salt; the others get their own.
   const salt = seq(16, p.name.startsWith('the same password') ? 0x10 * i : 0x10 * (i + 1), 7);
-  const k = passwordKeys(p.password, salt, p.rounds);
+  const k = passwordKeys(ACCOUNT, p.password, salt, p.rounds);
   const nonce = seq(12, 0x30 + i);
   return {
     name: p.name,
     password: p.password,
     normalisedUtf8: hex(k.normalised),
+    account: ACCOUNT,
     salt: hex(salt),
+    pbkdf2Salt: hex(k.pbkdf2Salt),
     rounds: p.rounds,
     master: hex(k.master),
     authKey: hex(k.authKey),
     kek: hex(k.kek),
-    account: ACCOUNT,
     root: hex(ROOT),
     nonce: hex(nonce),
     wrapPw: hex(blob(k.kek, 'wrap-pw', ACCOUNT.toLowerCase(), nonce, ROOT)),
@@ -268,15 +277,17 @@ const bodyVectors = [
 ].map((c, i) => {
   const plain = seq(c.bytes, i, 13);
   const count = Math.max(1, Math.ceil(c.bytes / c.size));
+  const bodyId = seq(16, 0x08 + i * 0x10, 9);
   const nonces = Array.from({ length: count }, (_, j) => seq(12, 0x90 + i * 8 + j, 3));
   return {
     name: c.name,
     kind: 'run',
     id: RUN_ID,
     segmentSize: c.size,
+    bodyId: hex(bodyId),
     nonces: nonces.map(hex),
     plaintext: hex(plain),
-    body: hex(body(dataKey, 'run', RUN_ID, c.size, nonces, plain)),
+    body: hex(body(dataKey, 'run', RUN_ID, c.size, bodyId, nonces, plain)),
   };
 });
 
@@ -287,7 +298,7 @@ const registration = (() => {
   const codeBytes = unhex('0f1e2d3c4b5a69788796a5b4c3d2e1');
   const noncePw = seq(12, 0xd0);
   const nonceRc = seq(12, 0xe0);
-  const pw = passwordKeys(password, salt, 600000);
+  const pw = passwordKeys(ACCOUNT, password, salt, 600000);
   const rc = recoveryKeys(codeBytes, ACCOUNT);
   return {
     account: ACCOUNT,
