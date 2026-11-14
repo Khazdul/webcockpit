@@ -117,7 +117,10 @@ The token itself has not been used yet.
 - [ ] Owner: open the site, see the profiles and History as before,
       log in to MUME and play a minute.
 - [ ] Release a patch version through the new workflow; an old tab
-      shows the update notice within a minute.
+      shows the update notice within a minute. Released 0.9.3
+      (f89ca9f) 2026-11-14 by tag through `deploy.yml`: live at once,
+      `test:prod` 12/12, all 99 files of 0.9.2 still served. The
+      notice in an old tab is the owner's to see.
 
 ### D. Afterwards
 
