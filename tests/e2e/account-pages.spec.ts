@@ -682,10 +682,11 @@ test('keyboard only: Tab walks the fields, the button and the links; Enter press
   await page.keyboard.type(code.slice(-4));
   await page.keyboard.press('Enter');
   await expect(pageOf(page, 'account')).toBeVisible();
-  // The Account page has no fields: its letter works. L asks, L (or Enter) logs out.
+  // The Account page has no fields: its letter works. L asks, Enter (or L, after a moment: a doubled
+  // L is not an answer, account-page.spec.ts "review 7") logs out.
   await page.keyboard.press('l');
   await expect(dialog(page, 'ac-logout')).toBeVisible();
-  await page.keyboard.press('l');
+  await page.keyboard.press('Enter');
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   // Esc from Log in is the start menu, the cursor on the Account row.
   await page.keyboard.press('u');

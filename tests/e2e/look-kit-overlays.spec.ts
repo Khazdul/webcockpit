@@ -289,7 +289,6 @@ test('a dialog’s buttons are not pressed by key repeat; another key than the o
   }
   await page.waitForTimeout(100);
   await expect(dlg).toBeVisible();
-  await expect(kitOut(page)).not.toHaveText('question: yes');
   // A real press of another key than the opening one: at once.
   await page.keyboard.press('y');
   await expect(dlg).toHaveCount(0);

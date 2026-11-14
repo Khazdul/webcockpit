@@ -98,6 +98,8 @@ const askFirst = (e: BeforeUnloadEvent): void => {
 
 /** A new account's recovery code that the player has not confirmed yet. Held until `releaseCode`. */
 export function holdCode(p: PageProps['code']): void {
+  // (The recovery code page holds what it shows: the same code again is no news to anybody.)
+  if (held !== null && held.code === p.code && held.name === p.name && held.next === p.next) return;
   const first = held === null;
   held = p;
   if (first && typeof window !== 'undefined') window.addEventListener('beforeunload', askFirst);

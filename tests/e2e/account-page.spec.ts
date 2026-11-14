@@ -644,7 +644,8 @@ test('a log out wins over the page\'s own question to the server', async ({ page
   await expect(pageOf(page, 'account')).toBeVisible();
   await page.keyboard.press('l');
   await expect(dialog(page, 'ac-logout')).toBeVisible();
-  await page.keyboard.press('l');
+  // (Enter: the opening letter pressed again at once is not an answer.)
+  await page.keyboard.press('Enter');
   // The menu and "Logged out.", not Log in with "you were logged out".
   await expect(accountRow(page).locator('.wc-sm-note')).toHaveText('(log in)');
   await expect(menuFlash(page)).toHaveText('Logged out.');
