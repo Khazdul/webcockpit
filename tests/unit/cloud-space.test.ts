@@ -42,7 +42,8 @@ import { RemoteError, type SyncKeys } from '../../src/cloud/sync/types';
 import { resetSyncViewForTests, setPlaying, syncView } from '../../src/cloud/sync-view';
 import { STORE, idbDone, idbRequest, openDeviceDb, openWebcockpitDb } from '../../src/core/db';
 import { SPACE_KEY, SPACE_MESSAGE_KEY, readSpaceRecord, resetSpaceForTests, writeSpaceRecord } from '../../src/core/space';
-import { PROFILE_TEMPLATE, ProfileStore, SEED_TIME, isUntouchedSeed, seedId } from '../../src/profiles';
+import { PROFILE_TEMPLATE, ProfileStore, SEED_TIME, seedId } from '../../src/profiles';
+import { isUntouchedSeed } from '../../src/profiles/seeds';
 import { type Answer, ServerModel } from './cloud-sync-model';
 
 /** A Storage over a Map. */

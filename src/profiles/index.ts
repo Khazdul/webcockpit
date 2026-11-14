@@ -8,10 +8,8 @@ export {
   ProfileStore,
   SEED_TIME,
   compareNames,
-  isUntouchedSeed,
   seedId,
   seedProfiles,
-  seedText,
 } from './store';
 export { downloadProfile } from './download';
 export { type CommitOptions, type CommitProfile, type CommitResult, commitStored } from './commit';

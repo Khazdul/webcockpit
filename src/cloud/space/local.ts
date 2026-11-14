@@ -19,7 +19,7 @@
 
 import type { SyncKind } from '../../../shared/cloud/api.ts';
 import { STORE, idbDone, idbRequest } from '../../core/db';
-import { isUntouchedSeed } from '../../profiles/store';
+import { isUntouchedSeed } from '../../profiles/seeds';
 import { parseHeader, withHeaderName } from '../../scripts/header';
 import type { Body, LocalItem, LocalItems, SyncMeta, SyncRecord, SyncRecords } from '../sync/types';
 

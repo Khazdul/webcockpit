@@ -24,6 +24,7 @@ const STATES: { title: string; input: OwnerInput }[] = [
   { title: 'syncing', input: { name: 'ole', sync: 'syncing' } },
   { title: 'offline', input: { name: 'ole', sync: 'offline' } },
   { title: 'needs attention', input: { name: 'ole', sync: 'full' } },
+  { title: 'needs attention (update)', input: { name: 'ole', sync: 'update' } },
   { title: 'a locked copy, logged out here', input: { name: null, locked: 'ole' } },
   { title: 'with a reactions mark', input: { name: 'ole', sync: 'synced', news: 2 } },
   { title: 'the longest text', input: { name: 'olevongertten', sync: 'full', news: 2 } },

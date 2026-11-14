@@ -11,7 +11,7 @@
 // selected lives in the settings (`settings.profile`), not here: callers
 // update it after a create, rename or import.
 //
-// Every record has an `id` (ADR 0150): random at create, import and seed,
+// Every record has an `id` (ADR 0150): random at create and import, fixed for the seeds (stage 61),
 // kept by a rename (the record moves to its new name with its id).
 //
 // Without IndexedDB (private mode, blocked upgrade) the store keeps the
@@ -64,12 +64,6 @@ export const SEED_TIME = Date.UTC(2026, 8, 27);
 /** A seed's fixed id (`seed-default`, `seed-khazdul`). */
 export const seedId = (name: string): string => `seed-${name}`;
 
-/** The seed's text by name. */
-export function seedText(name: string): string | null {
-  if (name === DEFAULT_PROFILE) return PROFILE_TEMPLATE;
-  return BUNDLED_PROFILES.find((b) => b.name === name)?.text ?? null;
-}
-
 /** The seed records, as a new device (or a new account's space) gets them. */
 export function seedProfiles(): ProfileRecord[] {
   return [{ name: DEFAULT_PROFILE, text: PROFILE_TEMPLATE }, ...BUNDLED_PROFILES].map((b) => ({
@@ -81,11 +75,6 @@ export function seedProfiles(): ProfileRecord[] {
   }));
 }
 
-/** True for a seed as it was seeded: a seed's name and its text (whatever its id and times). */
-export function isUntouchedSeed(rec: Pick<ProfileRecord, 'name' | 'text'>): boolean {
-  const t = seedText(rec.name);
-  return t !== null && stripSend(t) === rec.text;
-}
 
 export interface ProfileStoreOptions {
   /** IndexedDB factory; null = memory only. Default: `globalThis.indexedDB`. */

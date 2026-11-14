@@ -14,7 +14,8 @@ import {
   lockedCopies,
   readSpaceRecord,
 } from '../../core/space';
-import { isUntouchedSeed, seedProfiles } from '../../profiles/store';
+import { isUntouchedSeed } from '../../profiles/seeds';
+import { seedProfiles } from '../../profiles/store';
 import { parseHeader, withHeaderName } from '../../scripts/header';
 import { PROFILE_NAMES, SCRIPT_NAMES, freeName, itemHashes, ITEM_SPECS } from '../sync/items';
 import type { LocalItems, SyncRecords, Unsynced } from '../sync/types';

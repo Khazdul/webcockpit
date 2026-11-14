@@ -213,12 +213,16 @@ function useSyncView(services: ReturnType<typeof useServices>, nav: ReturnType<t
     setV(syncView());
     const space = takeSpaceMessage();
     if (space) nav.flash(space, 'ok', SPACE_MESSAGE_MS);
-    void watchAccountState().then((st) => {
-      // Only where there is something to do: somebody logged in, an account's space, a locked copy.
-      if (st.enabled && (st.name !== null || currentSpace().kind === 'account' || lockedCopies().length > 0)) {
-        startSync(services as unknown as Parameters<typeof startSync>[0]);
-      }
-    });
+    // On idle time, as the owner row's own flag (spec §7.0 rule 1: nothing of the cloud competes with the cold start).
+    whenIdle(
+      () =>
+        void watchAccountState().then((st) => {
+          // Only where there is something to do: somebody logged in, an account's space, a locked copy.
+          if (st.enabled && (st.name !== null || currentSpace().kind === 'account' || lockedCopies().length > 0)) {
+            startSync(services as unknown as Parameters<typeof startSync>[0]);
+          }
+        }),
+    );
     return off;
   }, []);
   useEffect(() => {
