@@ -18,8 +18,8 @@ interface KdfScope {
 const scope = self as unknown as KdfScope;
 
 scope.addEventListener('message', (e) => {
-  const { id, password, salt, kdf } = e.data;
-  derivePasswordKeysChecked(password, salt, kdf).then(
+  const { id, name, password, salt, kdf } = e.data;
+  derivePasswordKeysChecked(name, password, salt, kdf).then(
     ({ authKey, kek }) => scope.postMessage({ id, ok: true, authKey, kek }),
     (err: unknown) =>
       scope.postMessage({

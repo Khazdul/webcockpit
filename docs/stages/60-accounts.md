@@ -170,9 +170,10 @@ from the fourth try; 120 requests a minute per session or address on
 Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
 0145, "As built (stage 60, crypto)". Differences from the plan:
 
-- The account name (lowercased) is bound into both wraps and into the
-  recovery code's keys, so every flow takes the name, and the module
-  refuses a name that is not 3–20 of `a-z 0-9 _ -`.
+- The account name (lowercased) is bound into the PBKDF2 salt, both
+  wraps and the recovery code's keys, so every flow takes the name,
+  and the module refuses a name that is not 3–20 of
+  `A-Z a-z 0-9 _ -`.
 - Passwords are normalised with NFKC. Rounds are accepted from
   600 000 to 10 000 000 only.
 - The recovery code uses Crockford's base32 (no I, L, O, U); the
@@ -189,7 +190,12 @@ Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
   The e2e loads it from the dev server's module URL (desktop and
   phone specs). WebKit is not among the installed browsers and was
   not tested.
-- Tests: 98 unit tests in three files (49 on the vectors), 3 e2e.
+- Tests: 104 unit tests in three files (50 on the vectors), 3 e2e.
+- After the review (ADR 0145, "Changed after the review"): a body id
+  in segmented bodies; the account name in the PBKDF2 salt, so
+  `derivePasswordKeys` and `derivePasswordLogin` take the name first;
+  the name is tested before lowercasing; a 120 s timeout on the KDF
+  worker; a unit test runs the vector generator's `--check`.
 
 ### B. Client pages (after the owner's choice of mockup)
 

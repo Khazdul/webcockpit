@@ -4,7 +4,7 @@
 // worker in real browsers: tests/e2e/cloud-crypto.spec.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudCryptoError, DEFAULT_KDF, derivePasswordKeys, kdfWorkerAlive, stopKdfWorker } from '../../src/cloud/crypto';
-import { KDF_IDLE_MS, type KdfRequest, type KdfResponse } from '../../src/cloud/crypto/kdf-client';
+import { KDF_IDLE_MS, KDF_TIMEOUT_MS, type KdfRequest, type KdfResponse } from '../../src/cloud/crypto/kdf-client';
 
 type Listener = (e: { data?: KdfResponse; message?: string }) => void;
 
@@ -74,15 +74,15 @@ describe('the KDF worker client', () => {
   it('starts a module worker on the first request, shares it, and ends it when idle', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     expect(kdfWorkerAlive()).toBe(false);
-    const a = derivePasswordKeys('one', salt, DEFAULT_KDF);
-    const b = derivePasswordKeys('two', salt, DEFAULT_KDF);
+    const a = derivePasswordKeys('frodo', 'one', salt, DEFAULT_KDF);
+    const b = derivePasswordKeys('frodo', 'two', salt, DEFAULT_KDF);
     await tick();
     expect(FakeWorker.made).toHaveLength(1);
     const w = FakeWorker.made[0]!;
     expect(w.options).toMatchObject({ type: 'module' });
     expect(String(w.url)).toMatch(/kdf\.worker\.ts$/);
     expect(w.requests.map((r) => r.password)).toEqual(['one', 'two']);
-    expect(w.requests[0]).toMatchObject({ kdf: DEFAULT_KDF });
+    expect(w.requests[0]).toMatchObject({ name: 'frodo', kdf: DEFAULT_KDF });
     expect(w.requests[0]!.salt).toEqual(salt);
 
     // Answers are matched by id, in any order.
@@ -98,7 +98,7 @@ describe('the KDF worker client', () => {
     vi.advanceTimersByTime(KDF_IDLE_MS - 1);
     expect(w.terminated).toBe(false);
     // A new request in the idle time keeps the same worker.
-    const c = derivePasswordKeys('three', salt, DEFAULT_KDF);
+    const c = derivePasswordKeys('frodo', 'three', salt, DEFAULT_KDF);
     await tick();
     vi.advanceTimersByTime(KDF_IDLE_MS * 2);
     expect(w.terminated).toBe(false);
@@ -110,7 +110,7 @@ describe('the KDF worker client', () => {
     expect(kdfWorkerAlive()).toBe(false);
 
     // And the next request starts a new one.
-    const d = derivePasswordKeys('four', salt, DEFAULT_KDF);
+    const d = derivePasswordKeys('frodo', 'four', salt, DEFAULT_KDF);
     await tick();
     expect(FakeWorker.made).toHaveLength(2);
     await FakeWorker.made[1]!.answer(0);
@@ -119,7 +119,7 @@ describe('the KDF worker client', () => {
 
   it('cancel: the request rejects and the worker is terminated, unless another request waits on it', async () => {
     const one = new AbortController();
-    const a = derivePasswordKeys('one', salt, DEFAULT_KDF, { signal: one.signal });
+    const a = derivePasswordKeys('frodo', 'one', salt, DEFAULT_KDF, { signal: one.signal });
     await tick();
     const w = FakeWorker.made[0]!;
     one.abort();
@@ -128,8 +128,8 @@ describe('the KDF worker client', () => {
     expect(kdfWorkerAlive()).toBe(false);
 
     const two = new AbortController();
-    const b = derivePasswordKeys('two', salt, DEFAULT_KDF, { signal: two.signal });
-    const c = derivePasswordKeys('three', salt, DEFAULT_KDF);
+    const b = derivePasswordKeys('frodo', 'two', salt, DEFAULT_KDF, { signal: two.signal });
+    const c = derivePasswordKeys('frodo', 'three', salt, DEFAULT_KDF);
     await tick();
     const w2 = FakeWorker.made[1]!;
     two.abort();
@@ -141,14 +141,14 @@ describe('the KDF worker client', () => {
   });
 
   it('reports the worker\'s errors: its own answer, a crash, a worker that cannot start', async () => {
-    const a = derivePasswordKeys('one', salt, DEFAULT_KDF);
+    const a = derivePasswordKeys('frodo', 'one', salt, DEFAULT_KDF);
     await tick();
     const w = FakeWorker.made[0]!;
     w.emit('message', { data: { id: w.requests[0]!.id, ok: false, code: 'bad_kdf', message: 'KDF rounds out of range' } });
     expect(await code(a)).toBe('bad_kdf');
 
-    const b = derivePasswordKeys('two', salt, DEFAULT_KDF);
-    const c = derivePasswordKeys('three', salt, DEFAULT_KDF);
+    const b = derivePasswordKeys('frodo', 'two', salt, DEFAULT_KDF);
+    const c = derivePasswordKeys('frodo', 'three', salt, DEFAULT_KDF);
     await tick();
     w.emit('error', { message: 'out of memory' });
     await expect(b).rejects.toMatchObject({ code: 'worker_failed', message: 'out of memory' });
@@ -157,15 +157,67 @@ describe('the KDF worker client', () => {
     expect(kdfWorkerAlive()).toBe(false);
 
     FakeWorker.failOnStart = true;
-    expect(await code(derivePasswordKeys('four', salt, DEFAULT_KDF))).toBe('worker_failed');
+    expect(await code(derivePasswordKeys('frodo', 'four', salt, DEFAULT_KDF))).toBe('worker_failed');
     // The caller's way out: the same derivation on its own thread.
-    const keys = await derivePasswordKeys('four', salt, DEFAULT_KDF, { inline: true });
+    const keys = await derivePasswordKeys('frodo', 'four', salt, DEFAULT_KDF, { inline: true });
     expect(keys.authKey).toHaveLength(32);
     expect(FakeWorker.made).toHaveLength(1);
   });
 
+  it('a worker that never answers: after the timeout it is terminated and what waited fails', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    expect(KDF_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000);
+    const a = derivePasswordKeys('frodo', 'one', salt, DEFAULT_KDF);
+    await tick();
+    const w = FakeWorker.made[0]!;
+    vi.advanceTimersByTime(KDF_TIMEOUT_MS / 2);
+    const b = derivePasswordKeys('frodo', 'two', salt, DEFAULT_KDF);
+    await tick();
+    const failedA = code(a);
+    const failedB = code(b);
+    vi.advanceTimersByTime(KDF_TIMEOUT_MS / 2 - 1);
+    expect(w.terminated).toBe(false);
+    vi.advanceTimersByTime(1);
+    await expect(a).rejects.toMatchObject({ code: 'worker_failed', message: 'the KDF worker did not answer' });
+    expect(await failedA).toBe('worker_failed');
+    expect(await failedB).toBe('worker_failed'); // it waited on the same dead worker
+    expect(w.terminated).toBe(true);
+    expect(kdfWorkerAlive()).toBe(false);
+
+    // An answered request leaves no timeout behind: the next worker lives through the old deadline.
+    const c = derivePasswordKeys('frodo', 'three', salt, DEFAULT_KDF);
+    await tick();
+    const w2 = FakeWorker.made[1]!;
+    await w2.answer(0);
+    await c;
+    const d = derivePasswordKeys('frodo', 'four', salt, DEFAULT_KDF);
+    await tick();
+    vi.advanceTimersByTime(KDF_TIMEOUT_MS - 1);
+    expect(w2.terminated).toBe(false);
+    await w2.answer(1);
+    expect((await d).authKey[0]).toBe(2);
+    // A cancelled request's timeout is cleared too.
+    const gone = new AbortController();
+    const e = derivePasswordKeys('frodo', 'five', salt, DEFAULT_KDF, { signal: gone.signal });
+    const f = derivePasswordKeys('frodo', 'six', salt, DEFAULT_KDF);
+    await tick();
+    vi.advanceTimersByTime(KDF_TIMEOUT_MS - 10);
+    gone.abort();
+    expect(await code(e)).toBe('cancelled');
+    await w2.answer(3);
+    await f;
+    vi.advanceTimersByTime(20);
+    expect(w2.terminated).toBe(false);
+  });
+
+  it('a name that is not an account name is refused before a worker is started', async () => {
+    expect(await code(derivePasswordKeys('\u212aing', 'one', salt, DEFAULT_KDF))).toBe('bad_input');
+    expect(await code(derivePasswordKeys('', 'one', salt, DEFAULT_KDF))).toBe('bad_input');
+    expect(FakeWorker.made).toHaveLength(0);
+  });
+
   it('stopKdfWorker ends it and what waited is cancelled', async () => {
-    const a = derivePasswordKeys('one', salt, DEFAULT_KDF);
+    const a = derivePasswordKeys('frodo', 'one', salt, DEFAULT_KDF);
     await tick();
     stopKdfWorker();
     expect(await code(a)).toBe('cancelled');

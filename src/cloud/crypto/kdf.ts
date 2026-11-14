@@ -1,8 +1,13 @@
 // Password → keys (ADR 0145 "Keys"; "As built (stage 60, crypto)").
 //
-//   master  = PBKDF2-HMAC-SHA-256(UTF-8(NFKC(password)), salt, rounds, 256 bit)
+//   master  = PBKDF2-HMAC-SHA-256(UTF-8(NFKC(password)), salt | field(lowercased name), rounds, 256 bit)
 //   authKey = HKDF-SHA-256(master, salt = empty, info = "wc-auth", 32 bytes)   sent to the server
 //   kek     = HKDF-SHA-256(master, salt = empty, info = "wc-kek", 32 bytes)    AES-256-GCM, non-extractable
+//
+// `salt` is the server's 16 bytes. The account name follows it (bytes.ts's
+// `field`), so the PBKDF2 salt is the account's own whatever the server
+// answers: a hostile server that hands every account one salt still cannot
+// test one guess against all of them.
 //
 // The password is normalised with NFKC, so the same password typed as
 // composed or decomposed characters (a phone's and a desktop's keyboards
@@ -12,7 +17,7 @@
 // The slow step runs in a Web Worker in the app (kdf-client.ts); this file
 // is what the worker and the unit tests run.
 
-import { type Bytes, utf8 } from './bytes';
+import { type Bytes, accountLabel, concat, field, utf8 } from './bytes';
 import { CloudCryptoError } from './errors';
 
 export const KDF_NAME = 'pbkdf2-sha256';
@@ -58,6 +63,11 @@ export function passwordBytes(password: string): Bytes {
   return utf8(password.normalize('NFKC'));
 }
 
+/** The salt PBKDF2 gets: the server's salt, then the lowercased account name as a field. */
+export function pbkdf2Salt(name: string, salt: Uint8Array): Bytes {
+  return concat(salt, field(accountLabel(name)));
+}
+
 /** PBKDF2-HMAC-SHA-256. No bounds: `checkKdf` is the caller's. */
 export async function pbkdf2(password: Bytes, salt: Bytes, rounds: number, bytes = KEY_BYTES): Promise<Bytes> {
   const key = await crypto.subtle.importKey('raw', password, 'PBKDF2', false, ['deriveBits']);
@@ -95,16 +105,17 @@ export async function hkdfHmacKey(ikm: Bytes, info: string, salt: Bytes = NO_SAL
 }
 
 /**
- * Password → `authKey` and `kek`, with no check of the rounds or the salt:
+ * Name and password → `authKey` and `kek`, with no check of the rounds or the salt:
  * for the test vectors (reduced rounds). The app goes through
  * `derivePasswordKeysChecked` (kdf-client.ts, kdf.worker.ts).
  * The master's bytes are wiped before this returns.
  */
-export async function derivePasswordKeysUnchecked(password: string, salt: Bytes, rounds: number): Promise<PasswordKeys> {
+export async function derivePasswordKeysUnchecked(name: string, password: string, salt: Bytes, rounds: number): Promise<PasswordKeys> {
+  const fullSalt = pbkdf2Salt(name, salt);
   const pw = passwordBytes(password);
   let master: Bytes | null = null;
   try {
-    master = await pbkdf2(pw, salt, rounds);
+    master = await pbkdf2(pw, fullSalt, rounds);
     const [authKey, kek] = await Promise.all([hkdfAuth(master, 'wc-auth'), hkdfAesKey(master, 'wc-kek')]);
     return { authKey, kek };
   } finally {
@@ -113,8 +124,8 @@ export async function derivePasswordKeysUnchecked(password: string, salt: Bytes,
   }
 }
 
-/** Password → `authKey` and `kek` on the calling thread, parameters checked (`bad_kdf`). */
-export async function derivePasswordKeysChecked(password: string, salt: Bytes, kdf: unknown): Promise<PasswordKeys> {
+/** Name and password → `authKey` and `kek` on the calling thread, parameters checked (`bad_kdf`, `bad_input`). */
+export async function derivePasswordKeysChecked(name: string, password: string, salt: Bytes, kdf: unknown): Promise<PasswordKeys> {
   const { rounds } = checkKdf(kdf, salt);
-  return derivePasswordKeysUnchecked(password, salt, rounds);
+  return derivePasswordKeysUnchecked(name, password, salt, rounds);
 }

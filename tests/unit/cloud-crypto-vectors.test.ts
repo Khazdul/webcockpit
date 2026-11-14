@@ -6,7 +6,9 @@
 // means the format changed: what players have stored no longer opens and
 // their devices no longer agree. Never make it pass by regenerating the
 // file; find what changed in src/cloud/crypto.
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   derivePasswordKeys,
@@ -24,7 +26,7 @@ import {
 import { fromBase64Url, toBase64Url } from '../../src/cloud/crypto/base64url';
 import { blobAad } from '../../src/cloud/crypto/blob';
 import { type Bytes, type RandomSource, utf8 } from '../../src/cloud/crypto/bytes';
-import { derivePasswordKeysUnchecked, hkdf, passwordBytes, pbkdf2 } from '../../src/cloud/crypto/kdf';
+import { derivePasswordKeysUnchecked, hkdf, passwordBytes, pbkdf2, pbkdf2Salt } from '../../src/cloud/crypto/kdf';
 import { deriveRecoveryKeys, encodeRecoveryCode, recoveryCodeBytes } from '../../src/cloud/crypto/recovery';
 import { deriveKeys, unwrapRoot, wrapRoot } from '../../src/cloud/crypto/root';
 import { decryptBody, encryptBody } from '../../src/cloud/crypto/segments';
@@ -40,6 +42,7 @@ interface Vectors {
     password: string;
     normalisedUtf8: string;
     salt: string;
+    pbkdf2Salt: string;
     rounds: number;
     master: string;
     authKey: string;
@@ -54,7 +57,7 @@ interface Vectors {
   root: { root: string };
   blobs: { kind: string; id: string; nonce: string; plaintext: string; aad: string; blob: string }[];
   ids: { kind: string; localKey: string; id: string }[];
-  bodies: { name: string; kind: string; id: string; segmentSize: number; nonces: string[]; plaintext: string; body: string }[];
+  bodies: { name: string; kind: string; id: string; segmentSize: number; bodyId: string; nonces: string[]; plaintext: string; body: string }[];
   registration: {
     account: string;
     password: string;
@@ -83,6 +86,16 @@ function fixed(...values: string[]): RandomSource {
 
 const keys = () => deriveKeys(unhex(V.root.root));
 
+describe('the vectors file', () => {
+  it('is exactly what the generator makes (scripts/gen-cloud-crypto-vectors.ts --check)', () => {
+    // The generator is the second implementation (node:crypto). If it and the file drift apart, one of
+    // them was edited alone: the file by hand, or the generator without the format's owner noticing.
+    const script = fileURLToPath(new URL('../../scripts/gen-cloud-crypto-vectors.ts', import.meta.url));
+    const out = execFileSync(process.execPath, [script, '--check'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    expect(out).toContain('The vectors are what this script makes.');
+  }, 30_000);
+});
+
 describe('public known-answer vectors', () => {
   it.each(V.public.hkdf)('HKDF-SHA-256: $name', async (v) => {
     expect(hex(await hkdf(unhex(v.ikm), unhex(v.salt), unhex(v.info), v.length))).toBe(v.okm);
@@ -103,8 +116,9 @@ describe('base64url', () => {
 describe('password → master, authKey, kek', () => {
   it.each(V.password)('$name', async (v) => {
     expect(hex(passwordBytes(v.password))).toBe(v.normalisedUtf8);
-    expect(hex(await pbkdf2(passwordBytes(v.password), unhex(v.salt), v.rounds))).toBe(v.master);
-    const { authKey, kek } = await derivePasswordKeysUnchecked(v.password, unhex(v.salt), v.rounds);
+    expect(hex(pbkdf2Salt(v.account, unhex(v.salt)))).toBe(v.pbkdf2Salt);
+    expect(hex(await pbkdf2(passwordBytes(v.password), unhex(v.pbkdf2Salt), v.rounds))).toBe(v.master);
+    const { authKey, kek } = await derivePasswordKeysUnchecked(v.account, v.password, unhex(v.salt), v.rounds);
     expect(hex(authKey)).toBe(v.authKey);
     // The kek cannot be exported: it is checked through the wrap it makes.
     const wrap = await wrapRoot(unhex(v.root), kek, 'wrap-pw', v.account, fixed(v.nonce));
@@ -126,7 +140,7 @@ describe('password → master, authKey, kek', () => {
 
   it('the checked path (the one the app takes) at 600 000 rounds', async () => {
     const v = V.password.find((p) => p.rounds === 600000)!;
-    const { authKey, kek } = await derivePasswordKeys(v.password, unhex(v.salt), { name: 'pbkdf2-sha256', rounds: v.rounds });
+    const { authKey, kek } = await derivePasswordKeys(v.account, v.password, unhex(v.salt), { name: 'pbkdf2-sha256', rounds: v.rounds });
     expect(hex(authKey)).toBe(v.authKey);
     expect(hex(await wrapRoot(unhex(v.root), kek, 'wrap-pw', v.account, fixed(v.nonce)))).toBe(v.wrapPw);
   });
@@ -162,7 +176,7 @@ describe('root → dataKey, idKey', () => {
   it.each(V.bodies)('segmented body: $name', async (v) => {
     const { dataKey } = await keys();
     const plain = unhex(v.plaintext);
-    const opts = () => ({ segmentSize: v.segmentSize, random: fixed(...v.nonces) });
+    const opts = () => ({ segmentSize: v.segmentSize, random: fixed(v.bodyId, ...v.nonces) });
     expect(hex(await sealBody(dataKey, v.kind, v.id, plain, opts()))).toBe(v.body);
     expect(hex(await openBody(dataKey, v.kind, v.id, unhex(v.body)))).toBe(v.plaintext);
     // The same bytes whatever the chunking of the source.
@@ -199,7 +213,7 @@ describe('a whole registration at 600 000 rounds', () => {
   });
 
   it('a login with the password opens the account', async () => {
-    const { authKey, kek } = await derivePasswordLogin(R.password, { salt: R.request.salt, kdf: R.request.kdf });
+    const { authKey, kek } = await derivePasswordLogin(R.account, R.password, { salt: R.request.salt, kdf: R.request.kdf });
     expect(authKey).toBe(R.request.authKey);
     const k = await unlockWithPassword(R.account.toUpperCase(), kek, R.request.wrapPw);
     expect(await opaqueId(k.idKey, V.ids[2]!.kind, V.ids[2]!.localKey)).toBe(V.ids[2]!.id);
@@ -209,7 +223,7 @@ describe('a whole registration at 600 000 rounds', () => {
     const { recoveryAuth, recoveryKek } = await deriveRecoveryLogin(R.account, R.recoveryCode.toLowerCase().replace(/-/g, ' '));
     expect(recoveryAuth).toBe(R.request.recoveryAuth);
     const { keys: k } = await recoverAccount(R.account, recoveryKek, R.request.wrapRc, 'a new password', {
-      derive: (p, s) => derivePasswordKeysUnchecked(p, s, 1000),
+      derive: (n, p, s) => derivePasswordKeysUnchecked(n, p, s, 1000),
     });
     expect(hex(await open(k.dataKey, V.blobs[1]!.kind, V.blobs[1]!.id, unhex(V.blobs[1]!.blob)))).toBe(V.blobs[1]!.plaintext);
   });

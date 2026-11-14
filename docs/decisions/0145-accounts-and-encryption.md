@@ -173,12 +173,13 @@ to make a test pass.
   something above both has to be wrapped. The root's bytes exist in
   script only between unwrap and derive and are then overwritten; no
   function of the module returns them to a flow's caller.
-- **The account name is bound in.** Lowercased, it is the id in the
-  wraps' associated data and the HKDF salt of the recovery code's
-  keys. A wrap or a code of one account is worth nothing on another.
-  The name can never change (decided above), and the module refuses a
-  name that is not 3–20 of `a-z 0-9 _ -` after lowercasing, so there
-  is one spelling.
+- **The account name is bound in.** Lowercased, it is part of the
+  PBKDF2 salt, the id in the wraps' associated data and the HKDF salt
+  of the recovery code's keys. A password guess, a wrap or a code of
+  one account is worth nothing on another. The name can never change
+  (decided above). The module refuses a typed name that is not 3–20
+  of `A-Z a-z 0-9 _ -` and tests it before lowercasing (U+212A KELVIN
+  SIGN lowercases to `k`), so there is one spelling.
 
 ### Derivations
 
@@ -187,7 +188,7 @@ bytes. HKDF is HKDF-SHA-256 (RFC 5869) with 32 bytes out. Every `info`
 is the ASCII label shown.
 
 ```
-master       = PBKDF2-HMAC-SHA-256(UTF-8(NFKC(password)), salt (16 random bytes), rounds, 32 bytes)
+master       = PBKDF2-HMAC-SHA-256(UTF-8(NFKC(password)), salt (16 random bytes) | field(name), rounds, 32 bytes)
 authKey      = HKDF(master, salt = empty, info = "wc-auth")            → the server
 kek          = HKDF(master, salt = empty, info = "wc-kek")             AES-256-GCM
 code bytes   = the 15 bytes the recovery code spells
@@ -209,6 +210,12 @@ opaque id    = base64url(first 16 bytes of HMAC-SHA-256(idKey, field(kind) | fie
   else is done: no trimming, no case folding. (NFKC of characters a
   browser's Unicode tables do not know yet can differ between browser
   versions; that touches only passwords with brand-new characters.)
+- **The PBKDF2 salt is the server's 16 bytes followed by
+  `field(name)`.** The salt comes from the server (`/api/auth/params`),
+  and a hostile or broken server could answer every name with one
+  salt, so that one guessed password is tested against all accounts
+  at the price of one. With the name in the salt, each account's
+  derivation is its own whatever the server says.
 - **KDF parameters are checked in the browser:** the name must be
   `pbkdf2-sha256`, the rounds a whole number from 600 000 to
   10 000 000, the salt 16 bytes. Anything else is refused before any
@@ -247,25 +254,32 @@ recovery flows a failed authentication of a wrap is reported as
 ### Segmented body (run bodies)
 
 ```
-body    = 0x01 | S (segment size, 32 bits big-endian) | segment 0 | … | segment n-1
+body    = 0x01 | S (segment size, 32 bits big-endian) | body id (16 random bytes) | segment 0 | … | segment n-1
 segment = nonce (12 random bytes) | AES-256-GCM ciphertext | tag (16)
 associated data of segment i =
-          0x01 | 0x53 "S" | field(kind) | field(id) | S (32 bits) | i (32 bits) | final (0x00 or 0x01)
+          0x01 | 0x53 "S" | field(kind) | field(id) | S (32 bits) | body id (16) | i (32 bits) | final (0x00 or 0x01)
 ```
+
+The body id is drawn anew every time a body is written and is in every
+segment's associated data. Kind and id name the run; the body id names
+one writing of it. Without it, two bodies stored under the same kind
+and id (a run saved again, an upload retried) could be spliced: segment
+i of the one opened at position i of the other.
 
 The plaintext is cut into pieces of exactly S bytes (1 048 576 by
 default); the last has 1 to S bytes and is the only one with
 `final = 1`; an empty body is one final segment of no bytes. Every
 segment but the last is therefore exactly `S + 28` bytes and there are
 no length fields: a full frame followed by more bytes is not final,
-what is left at the end is. A body costs `5 + 28 × segments` bytes
+what is left at the end is. A body costs `21 + 28 × segments` bytes
 over its plaintext.
 
 A body cut at a segment boundary fails because its last frame was
 sealed with `final = 0`; a cut inside a segment or a changed byte
 fails on the tag; reordered, duplicated and dropped segments fail on
-the index; a segment of another body on kind and id; a changed header
-because the version and S are in every segment's associated data. The
+the index; a segment of another body on the body id (and on kind and
+id when those differ); a changed header because the version, S and
+the body id are in every segment's associated data. The
 writer and the reader are async generators (and `ReadableStream`
 wrappers) that hold one segment at a time. A streaming reader hands
 out earlier segments before a cut is seen: each is authentic and in
@@ -277,7 +291,7 @@ The reader accepts S up to 16 MiB.
 
 Random, 96 bits, one per blob and one per segment, all under the data
 key (wraps: under their kek, twice in an account's life per password
-or code). NIST SP 800-38D asks for at most 2^32 encryptions under one
+or code). A body's 16-byte id is random too. NIST SP 800-38D asks for at most 2^32 encryptions under one
 key with random nonces, for a collision chance under 2^-32. An item
 written every second reaches that in 136 years; a full 20 MB body is
 20 encryptions. A counter-based scheme was not taken because several
@@ -290,8 +304,10 @@ devices write under the same key without knowing of each other.
 (structured clone). The master never reaches the page's thread and is
 overwritten in the worker. `kdf-client.ts` starts the worker on the
 first request, shares it, ends it 30 s after the last answer, and
-cancels by terminating it (PBKDF2 cannot be interrupted). A worker
-that fails is reported (`worker_failed`), not silently replaced; the
+cancels by terminating it (PBKDF2 cannot be interrupted). A request
+the worker has not answered after 120 s fails with `worker_failed`
+and the worker is terminated, so the page never waits for ever. A
+worker that fails is reported (`worker_failed`), not silently replaced; the
 caller may ask for the same derivation on its own thread (`inline`).
 Measured by `tests/e2e/cloud-crypto.spec.ts` on the development
 machine at 600 000 rounds: about 85 ms in Firefox, 60 ms in Chromium
@@ -306,13 +322,56 @@ several times longer; the pages show "Working…" (spec §7.3).
 - `account.ts`: every flow wipes the root in a `finally`; the wrong
   password and wrong code mapping; the order of random draws.
 - `segments.ts`: the two "only when more follows" loops, which are
-  what makes the final marker sound, and the empty final segment rule.
+  what makes the final marker sound, the empty final segment rule,
+  and the body id in every segment's associated data.
 - `bytes.ts`: `field` (lengths, ill-formed text) and `accountLabel`.
 - JavaScript cannot promise that wiped bytes were never copied by the
   engine, and strings (the password, the recovery code) cannot be
   wiped at all. The wipes shorten exposure; they are not a guarantee.
 - The vectors' generator against this section: it is the independent
   reading of the format.
+
+### Changed after the review (2026-11-14)
+
+The independent review of stage 60 found the following; all are fixed
+and the text above describes the result. Nothing was stored anywhere
+yet, so the formats changed without a new version byte and the vectors
+were regenerated this once.
+
+- **Segments of two bodies under one kind and id could be mixed.** A
+  random 16-byte body id is now in the header and in every segment's
+  associated data.
+- **The PBKDF2 salt was whatever the server said.** It is now the
+  server's salt followed by `field(lowercased name)`. The name is an
+  argument of `derivePasswordKeys(name, password, salt, kdf)`, of the
+  worker's message and of `derivePasswordLogin(name, password,
+  params)`.
+- **`accountLabel` tested the name after lowercasing**, which let
+  U+212A through as `k`. It tests the typed name first.
+- **A worker that never answered left the page waiting.** A 120 s
+  timeout per request.
+- **Generator and fixture could drift apart unseen.** A unit test runs
+  the generator's `--check`.
+
+### Known limits
+
+- **Changing the password or recovering re-wraps the same root.**
+  Whoever once held an old password (or code) and an old wrap can
+  still open what is written later. Rotating the root would mean
+  encrypting every item and body again from a device; it is not built.
+- **Item blobs carry no freshness.** A hostile server can hand back an
+  older blob of the same kind and id and it opens. Whether the client
+  guards against that (the item's `rev` inside the blob, for one) is
+  stage 61's decision.
+- **The version byte is not authenticated on the `unknown_version`
+  path.** Anyone who can change a blob can make it read as "written
+  by a newer client". The item is kept untouched and nothing is
+  decrypted, so the cost is an update notice that is not true; stage
+  61 decides what the client shows and how often.
+- **`wrong_password` from `unlockWithPassword` after the server
+  accepted the `authKey`** is not a typing mistake: the wrap is
+  corrupt or belongs to something else. The page should say so
+  instead of asking for the password again.
 
 ## As built (stage 60 part A, server, 2026-11-14)
 
