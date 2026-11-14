@@ -56,8 +56,8 @@ weather (snow all winter, now and then rain in spring and autumn). Over
 it sit the forged-iron MUME wordmark with its mithril inlay, the
 menu, a Tolkien quote and, at the bottom right, the date and time in
 Middle-earth. The keyboard drives it: ↑↓ and Enter, or the underlined
-letter of each entry (E Enter MUME, P Profile, S Scripts, H History,
-L Spotlights, C Credits, A About); Esc goes back. The mouse and a tap
+letter of each entry (E Enter MUME, P Profile, S Scripts, H History
+with its tabs Sessions, Spotlights and Diary, A About); Esc goes back. The mouse and a tap
 work too. Each entry opens its page in a large box that grows out of
 the menu, with Back at the top left; the letters marked in a page's
 buttons are its shortcuts. The browser tab's icon is the same iron "M".
