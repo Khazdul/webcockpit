@@ -271,14 +271,14 @@ export interface TimersSettings {
   soonestFirst: boolean;
 }
 
-/** How far back the Spotlights reel and Credits reach (ADR 0110): a rolling window back from now. */
+/** How far back the Spotlights reel and the Diary (Credits until stage 67) reach (ADR 0110): a rolling window back from now. */
 export type SpotlightPeriod = 'all' | 'year' | '3months' | 'month' | 'week';
 
 /** The periods, in the popup's order. */
 export const SPOTLIGHT_PERIODS: readonly SpotlightPeriod[] = ['all', 'year', '3months', 'month', 'week'];
 
 /**
- * What the Spotlights reel and Credits show (Inv §3.8, ADR 0019, ADR 0110):
+ * What the Spotlights reel and the Diary (Credits until stage 67) show (Inv §3.8, ADR 0019, ADR 0110):
  * the event kinds, the characters and the period. Global; set from the
  * reel's gear.
  */

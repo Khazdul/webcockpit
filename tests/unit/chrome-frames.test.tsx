@@ -113,7 +113,7 @@ describe('About text', () => {
   });
 
   it('states the facts the new pages changed (stage 47)', () => {
-    expect(ABOUT_TEXT).toContain('History, Spotlights and Credits on the start page look back at your runs');
+    expect(ABOUT_TEXT).toContain('History on the start page looks back at your runs (Sessions, Spotlights and the Diary)');
     expect(ABOUT_TEXT).toContain('Third-party notices: THIRD_PARTY_NOTICES.md');
     expect(ABOUT_TEXT).not.toMatch(/Spotlights reel picks/);
   });
@@ -207,13 +207,16 @@ describe('start page', () => {
     expect(startSel(host)).toBe('Profile');
     expect(docKeys).not.toHaveBeenCalled();
 
-    // Spotlights without the player service says so.
+    // Spotlights (History's Spotlights tab since stage 67) without the player service says so; Esc comes back.
     await key('ArrowDown');
     await key('ArrowDown');
     await key('ArrowDown');
     expect(startSel(host)).toBe('Spotlights');
     await key('Enter');
-    expect(host.querySelector('.wc-lk-flash')?.textContent).toMatch(/not available/);
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-spw-wait .wc-spw-grid[data-state="unavailable"]')?.textContent).toMatch(/not available/);
+    await key('Escape');
+    for (let i = 0; i < 40 && !startSel(host); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
+    expect(startSel(host)).toBe('Spotlights');
 
     // Scripts opens (a large look box since stage 44a) and ESC comes back with the cursor kept.
     await key('ArrowUp');
@@ -278,7 +281,8 @@ describe('start page', () => {
     const wall = () => host.querySelector('.wc-frame:not([hidden]) .wc-spw');
     for (let i = 0; i < 20 && !wall(); i++) await act(() => new Promise((r) => setTimeout(r, 10)));
     expect(embedPlayer).not.toHaveBeenCalled();
-    expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('Spotlights');
+    expect(wall()?.querySelector('.wc-lk-hood-t')?.textContent).toBe('History');
+    expect(wall()?.querySelector('.wc-htab.is-on')?.getAttribute('data-tab')).toBe('spotlights');
     expect(wall()?.querySelector('.wc-spw-empty')?.textContent).toContain('No spotlights yet.');
     // No data: no filter row; Play all disabled.
     expect(wall()?.querySelector('.wc-spw-head')).toBeNull();

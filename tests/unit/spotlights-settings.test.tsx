@@ -160,7 +160,7 @@ describe('filtered empty pages (start page)', () => {
     expect(frameEl(host).querySelector('.wc-footer')).toBeNull();
   });
 
-  it('Spotlights: without an embedded player the menu flashes and stays', async () => {
+  it('Spotlights: without an embedded player the tab says so, and Esc returns to the menu', async () => {
     const host = document.createElement('div');
     document.body.append(host);
     const page = mountStartPage(host, services(fakeLib([])), { onEnter: () => {} });
@@ -168,8 +168,10 @@ describe('filtered empty pages (start page)', () => {
     await act(() => page.show());
     await click(host.querySelector('.wc-sm-item[data-key="spotlights"]'));
     await flush();
-    expect(wall(host)).toBeNull();
-    expect(startSel(host)).toBe('Spotlights');
+    expect(wall(host)?.querySelector('.wc-spw-card')).toBeFalsy();
     expect(host.textContent).toContain('Spotlights are not available here.');
+    await keydown(document.activeElement, 'Escape');
+    await until(() => startSel(host) !== undefined);
+    expect(startSel(host)).toBe('Spotlights');
   });
 });

@@ -1,10 +1,12 @@
-// Credits (ADR 0019 "Credits", Inv §7.6; stage 47, ADR 0132): the
+// The Diary (ADR 0019 "Credits", Inv §7.6; stage 47, ADR 0132; called
+// Credits until stage 67, ADR 0149, and since then History's third tab,
+// history-tabs.tsx; the file and its symbols keep the old name): the
 // chronicle of every character's deeds as a book, round 7's B
 // "Krönikeboken" in layout B's large box. The chronicle
 // (src/share/chronicle.ts `chronicleBook`) is built once from every stored
 // run's events (no log needed), filtered by the Spotlights settings
 // (kinds × characters × period, ADR 0110) as they are when the page opens;
-// the filter is set on the Spotlights page (no Settings… here).
+// the filter is set on the Spotlights tab (no Settings… here).
 //
 // The book: two pages with a shaded gutter (one page when the book is
 // narrower than 640 px), a folio at the foot of each page. Page 1 opens
@@ -29,8 +31,8 @@
 //
 // Keys: → / PgDn / Space the next spread, ← / PgUp the previous, ↓ / ↑ the
 // next / previous chapter (↓ in the last chapter stays; ↑ in the first goes
-// to page 1), Home / End, N / P; Esc and Back leave (there is
-// no roll and no automatic return). Touch: a sideways swipe over 40 px
+// to page 1), Home / End, N / P, 1 2 3 History's tabs; Esc and Back leave
+// (there is no roll and no automatic return). Touch: a sideways swipe over 40 px
 // turns. Loading, the storage error, no data and the filtered state are
 // pages of the book with today's texts.
 
@@ -56,15 +58,17 @@ import {
   useSwipe,
 } from '../kit/look';
 import { useKeys, useNav } from '../kit/stack';
+import { HistoryFrame } from './history';
+import { useHistoryTabs } from './history-tabs';
 
-/** Credits' own texts (the states as pages of the book). */
+/** The Diary's own texts (the states as pages of the book). */
 export const CREDITS_TEXT = {
   loading: 'Loading…',
   error: "The chronicle could not be read from this browser's storage.",
   no_data:
     'No chronicle yet. Your tale is written as you play: kills, deaths, level-ups and achievements each earn a line. Come back once you have made some history.',
   filtered: 'No chronicle entries match your settings.',
-  filteredHint: 'The filter on the Spotlights page chooses what the chronicle tells.',
+  filteredHint: 'The filter on the Spotlights tab chooses what the chronicle tells.',
 } as const;
 
 /** A book narrower than this shows one page at a time (px). */
@@ -167,8 +171,18 @@ function measure(book: HTMLElement, pages: HTMLElement): BookLayout {
   return { per, pages: Math.max(1, at), starts };
 }
 
+/**
+ * The old Credits row of the start menu (until the menu of stage 67 is in,
+ * ADR 0149): History opened on its Diary tab.
+ */
 export const CreditsFrame = lookFrame(function CreditsFrame(): VNode {
+  return <HistoryFrame tab="diary" />;
+});
+
+/** The Diary tab: the book, under History's tab strip. */
+export function DiaryPage(): VNode {
   const { runs } = useServices();
+  const tabs = useHistoryTabs('Diary');
   const settings = useSettings();
   const nav = useNav();
   // The filters and the period's clock as the page opened (see the header).
@@ -181,7 +195,7 @@ export const CreditsFrame = lookFrame(function CreditsFrame(): VNode {
       .then(chronicleRuns)
       .then((r) => live && setData(r))
       .catch((err: unknown) => {
-        console.error('WebCockpit: Credits could not load the runs', err);
+        console.error('WebCockpit: the Diary could not load the runs', err);
         if (live) setFailed(true);
       });
     return () => {
@@ -198,17 +212,19 @@ export const CreditsFrame = lookFrame(function CreditsFrame(): VNode {
     return { kind: emptyState(view.filters, any) };
   }, [failed, data, view]);
   return (
-    <Box title="Credits" size="large" onBack={() => nav.pop()} class="wc-cred" winClass="wc-cred-win">
+    <Box title={tabs.title} size="large" onBack={() => nav.pop()} class="wc-cred" winClass={'wc-cred-win' + tabs.winClass}>
+      {tabs.strip}
       {state.kind === 'book' ? <Book book={state.book} /> : <NotePage state={state} />}
     </Box>
   );
-});
+}
 
 /** A state of the page as one page of the book (loading, error, no data, filtered). */
 function NotePage(p: { state: Exclude<CreditsState, { kind: 'book' }> }): VNode {
   const kind = p.state.kind;
+  const tabs = useHistoryTabs('Diary');
   // Esc leaves (the stack); the nav keys do nothing.
-  useKeys((_e, nk) => nk !== null && nk !== 'back');
+  useKeys((e, nk) => tabs.key(e) || (nk !== null && nk !== 'back'));
   return (
     <>
       <BoxHead class="wc-cred-head" />
@@ -429,7 +445,9 @@ function Book(p: { book: ChronicleBook }): VNode {
   const next = (): void => goSpread(here() + 1);
   const prev = (): void => goSpread(here() - 1);
 
+  const tabs = useHistoryTabs('Diary');
   useKeys((e, nk) => {
+    if (tabs.key(e)) return true;
     if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.metaKey) {
       next();
       return true;

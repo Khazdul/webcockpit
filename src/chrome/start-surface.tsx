@@ -4,7 +4,7 @@
 // Two kinds of frame share the one stack:
 // - new-look frames (`lookFrame`, src/chrome/kit/look.tsx: the start menu,
 //   the Profile list) are free DOM straight over the sky;
-// - every other frame (Scripts, History, Credits, About, the editors, …)
+// - every other frame (Scripts, History, About, the editors, …)
 //   is drawn exactly as before on the cell grid, over an opaque
 //   terminal-coloured layer (`GridLayer`) that covers the sky.
 // Keys, focus, Esc / Back and `show({ keep: true })` are the stack's, as
@@ -208,7 +208,7 @@ export function useSkyPause(on: boolean): void {
 }
 
 /**
- * The wordmark inside a page's content (About, Credits): it follows the
+ * The wordmark inside a page's content (About, the Diary): it follows the
  * sky's light as the start page's does. No sheen by default: the masked
  * sweeping band costs frames over a page of text (stage 42 wave 3, ADR
  * 0127: 7–12 frames over 20 ms per pass in Chromium, more in Firefox);
