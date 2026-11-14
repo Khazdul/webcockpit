@@ -1,6 +1,6 @@
 # Stage 59 — Usage statistics
 
-Status: **In progress** (started 2026-11-14).
+Status: **Released 0.10.0** (2026-11-14), dark in production until the owner turns `stats` on at `/admin`.
 
 ## Goal
 
@@ -270,25 +270,25 @@ Online = seen in the last 6 minutes.
 
 ### C. Owner's part (guided by the session, about 15 minutes)
 
-- [ ] Cloudflare Zero Trust: an Access application for
+- [x] Cloudflare Zero Trust: an Access application for
       `mumecockpit.com/admin`, `mumecockpit.com/admin/*`,
       `mumecockpit.com/api/admin/*` and the same three on
       `staging.mumecockpit.com` (part A: a path wildcard does not cover
       its parent); policy: the owner's
       e-mail, one-time PIN. Give the session the team domain and the
       application's audience tag.
-- [ ] The secret `ADMIN_EMAILS` on both Workers (dashboard).
-- [ ] Email Routing: `abuse@mumecockpit.com` forwarded to the owner.
+- [x] The secret `ADMIN_EMAILS` on both Workers (dashboard).
+- [ ] (later, owner) Email Routing: `abuse@mumecockpit.com` forwarded to the owner.
 - [ ] If asked: enable R2.
 
 ### D. Release
 
 - [x] Review of both parts; merge; full e2e alone on the machine.
-- [ ] Staging: deploy, `test:prod`, a real browser sends beats, the
+- [x] Staging: deploy, `test:prod`, a real browser sends beats, the
       admin page shows them. (Done but the admin page: it waits for
       part C.)
-- [ ] Owner test on staging (test guide), then release and the flag
-      on in production from `/admin`.
+- [x] Owner test on staging (test guide 1–5), release 0.10.0.
+- [ ] The flag on in production from `/admin` (the owner).
 
 ## Test guide (owner)
 
@@ -317,3 +317,9 @@ Feedback wanted: decisions 1–5 above, and anything that looks off.
   text is fine; no "playing" on the start page; part C, release, then
   the flag). Test guide 1–4 done on staging: looks good. Next: part C,
   then test guide step 5.
+- **2026-11-14, later:** part C done (Zero Trust Free, one Access
+  application with the six destinations, policy `Owner`, login with
+  the Cloudflare identity and instant authentication, so no PIN is
+  asked; `ADMIN_EMAILS` on both Workers). `/admin` on staging seen and
+  fine (test guide 5). The flag switch not tried and Email Routing
+  later. "Run on": released 0.10.0.
