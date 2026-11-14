@@ -312,4 +312,8 @@ Feedback wanted: decisions 1–5 above, and anything that looks off.
 
 ## Owner feedback
 
-(none yet)
+- **2026-11-14:** decisions 1–5 approved as recommended ("N online"
+  stays above the date; a playing tab beats while hidden; the privacy
+  text is fine; no "playing" on the start page; part C, release, then
+  the flag). Test guide 1–4 done on staging: looks good. Next: part C,
+  then test guide step 5.
