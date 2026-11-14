@@ -113,14 +113,38 @@ from the fourth try; 120 requests a minute per session or address on
 
 ### Crypto (building agent, worktree `stage60-crypto`)
 
-- [ ] `src/cloud/crypto/`: KDF (PBKDF2 → master → `authKey`, `kek`),
+- [x] `src/cloud/crypto/`: KDF (PBKDF2 → master → `authKey`, `kek`),
       recovery code (make, format, parse, derive), root key (make,
       wrap, unwrap, derive data and id keys), blob seal and open with
       associated data, segmented bodies, opaque ids, base64url.
-- [ ] The KDF in a Web Worker with a promise API.
-- [ ] Test vectors for every step, made with an independent
+- [x] The KDF in a Web Worker with a promise API.
+- [x] Test vectors for every step, made with an independent
       implementation (`node:crypto`), checked in; an e2e that runs the
       Worker KDF in the real browsers.
+
+Built 2026-11-14 (branch `stage60-crypto`); the formats are in ADR
+0145, "As built (stage 60, crypto)". Differences from the plan:
+
+- The account name (lowercased) is bound into both wraps and into the
+  recovery code's keys, so every flow takes the name, and the module
+  refuses a name that is not 3–20 of `a-z 0-9 _ -`.
+- Passwords are normalised with NFKC. Rounds are accepted from
+  600 000 to 10 000 000 only.
+- The recovery code uses Crockford's base32 (no I, L, O, U); the
+  parser reads O as 0 and I or L as 1. No check character.
+- The flows (`account.ts`) are split where the server answers in
+  between: `derivePasswordLogin` then `unlockWithPassword`;
+  `deriveRecoveryLogin` then `recoverAccount`. Change password and a
+  new recovery code need the account's `wrapPw` (the login answer has
+  it; part B keeps it or the server hands it out again).
+- The worker returns `authKey` and the `kek` itself; the master stays
+  in the worker. A failed worker is reported, with an `inline` option
+  for the caller, not silently replaced.
+- Nothing imports the module yet: the production bundle is unchanged.
+  The e2e loads it from the dev server's module URL (desktop and
+  phone specs). WebKit is not among the installed browsers and was
+  not tested.
+- Tests: 98 unit tests in three files (49 on the vectors), 3 e2e.
 
 ### B. Client pages (after the owner's choice of mockup)
 

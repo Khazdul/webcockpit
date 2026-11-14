@@ -153,3 +153,163 @@ by the account). Only the reserved name remains.
   shows it).
 - No account can be handed back to a player who lost both password
   and code. The registration page says this plainly.
+
+## As built (stage 60, crypto)
+
+2026-11-14. The module is `src/cloud/crypto/` (WebCrypto only). This
+section is the format's description; its contract is
+`tests/fixtures/cloud-crypto-vectors.json`, made with `node:crypto` by
+`scripts/gen-cloud-crypto-vectors.ts`, a second implementation that
+imports nothing from the module. A failing vector means the format
+changed and stored data no longer opens: the file is never regenerated
+to make a test pass.
+
+### What differs from "Keys" above
+
+- **A root key, not a wrapped data key.** What the two wraps hold is a
+  random 32-byte *root*. The data key and the id key are both derived
+  from it. A non-extractable AES key cannot be the input of a
+  derivation, and the id key must be the same on every device, so
+  something above both has to be wrapped. The root's bytes exist in
+  script only between unwrap and derive and are then overwritten; no
+  function of the module returns them to a flow's caller.
+- **The account name is bound in.** Lowercased, it is the id in the
+  wraps' associated data and the HKDF salt of the recovery code's
+  keys. A wrap or a code of one account is worth nothing on another.
+  The name can never change (decided above), and the module refuses a
+  name that is not 3–20 of `a-z 0-9 _ -` after lowercasing, so there
+  is one spelling.
+
+### Derivations
+
+`field(x)` = the length of `UTF-8(x)` as 16 bits big-endian, then the
+bytes. HKDF is HKDF-SHA-256 (RFC 5869) with 32 bytes out. Every `info`
+is the ASCII label shown.
+
+```
+master       = PBKDF2-HMAC-SHA-256(UTF-8(NFKC(password)), salt (16 random bytes), rounds, 32 bytes)
+authKey      = HKDF(master, salt = empty, info = "wc-auth")            → the server
+kek          = HKDF(master, salt = empty, info = "wc-kek")             AES-256-GCM
+code bytes   = the 15 bytes the recovery code spells
+recoveryAuth = HKDF(code bytes, salt = UTF-8(name), info = "wc-recovery-auth")   → the server
+recoveryKek  = HKDF(code bytes, salt = UTF-8(name), info = "wc-recovery-kek")    AES-256-GCM
+root         = 32 random bytes
+dataKey      = HKDF(root, salt = empty, info = "wc-data")              AES-256-GCM
+idKey        = HKDF(root, salt = empty, info = "wc-id")                HMAC-SHA-256, sign only
+wrapPw       = blob(kek,         kind = "wrap-pw", id = name, root)    61 bytes
+wrapRc       = blob(recoveryKek, kind = "wrap-rc", id = name, root)    61 bytes
+opaque id    = base64url(first 16 bytes of HMAC-SHA-256(idKey, field(kind) | field(localKey)))   22 characters
+```
+
+- `kek`, `recoveryKek`, `dataKey` and `idKey` are made with
+  `deriveKey`, non-extractable: their bytes never exist in script.
+- **Password normalisation: NFKC**, then UTF-8. A password typed with
+  composed characters on one device and decomposed ones on another
+  gives the same key, and so do full-width and ligature forms. Nothing
+  else is done: no trimming, no case folding. (NFKC of characters a
+  browser's Unicode tables do not know yet can differ between browser
+  versions; that touches only passwords with brand-new characters.)
+- **KDF parameters are checked in the browser:** the name must be
+  `pbkdf2-sha256`, the rounds a whole number from 600 000 to
+  10 000 000, the salt 16 bytes. Anything else is refused before any
+  work (`bad_kdf`), in the client and again in the worker, so a
+  hostile answer can neither weaken the key nor hang the device.
+  Moving to another KDF later means a new name that newer clients
+  accept.
+
+### Recovery code
+
+15 bytes from `getRandomValues` (120 bits) as 24 characters of
+Crockford's base32, `0123456789ABCDEFGHJKMNPQRSTVWXYZ` (no I, L, O,
+U), five bits a character from the most significant end: a one-to-one
+mapping with no modulo, so no bias. Canonical form: upper case in six
+groups of four with hyphens. The parser ignores case, spaces, hyphens,
+dashes, dots and underscores and reads O as 0 and I or L as 1;
+anything else gives no code. There is no check character: a mistyped
+code is a failed recovery attempt at the server.
+
+### Blob (items and wraps)
+
+```
+blob            = 0x01 | nonce (12 random bytes) | AES-256-GCM ciphertext | tag (16)
+associated data = 0x01 | 0x42 "B" | field(kind) | field(id)
+```
+
+The length prefixes make `kind | id` unambiguous; the version byte is
+authenticated with them. Opening reports three different failures: an
+unknown version byte (a newer client wrote it: the caller keeps the
+item untouched and asks for an update; checked before the length), a
+malformed blob (empty or under 29 bytes), and a failed authentication
+(the wrong key, kind or id, or changed bytes). In the login and
+recovery flows a failed authentication of a wrap is reported as
+`wrong_password` or `wrong_code`.
+
+### Segmented body (run bodies)
+
+```
+body    = 0x01 | S (segment size, 32 bits big-endian) | segment 0 | … | segment n-1
+segment = nonce (12 random bytes) | AES-256-GCM ciphertext | tag (16)
+associated data of segment i =
+          0x01 | 0x53 "S" | field(kind) | field(id) | S (32 bits) | i (32 bits) | final (0x00 or 0x01)
+```
+
+The plaintext is cut into pieces of exactly S bytes (1 048 576 by
+default); the last has 1 to S bytes and is the only one with
+`final = 1`; an empty body is one final segment of no bytes. Every
+segment but the last is therefore exactly `S + 28` bytes and there are
+no length fields: a full frame followed by more bytes is not final,
+what is left at the end is. A body costs `5 + 28 × segments` bytes
+over its plaintext.
+
+A body cut at a segment boundary fails because its last frame was
+sealed with `final = 0`; a cut inside a segment or a changed byte
+fails on the tag; reordered, duplicated and dropped segments fail on
+the index; a segment of another body on kind and id; a changed header
+because the version and S are in every segment's associated data. The
+writer and the reader are async generators (and `ReadableStream`
+wrappers) that hold one segment at a time. A streaming reader hands
+out earlier segments before a cut is seen: each is authentic and in
+its place, but only the stream's end without an error says the body
+is whole, so a caller that writes as it reads must discard on error.
+The reader accepts S up to 16 MiB.
+
+### Nonces
+
+Random, 96 bits, one per blob and one per segment, all under the data
+key (wraps: under their kek, twice in an account's life per password
+or code). NIST SP 800-38D asks for at most 2^32 encryptions under one
+key with random nonces, for a collision chance under 2^-32. An item
+written every second reaches that in 136 years; a full 20 MB body is
+20 encryptions. A counter-based scheme was not taken because several
+devices write under the same key without knowing of each other.
+
+### The KDF worker
+
+`kdf.worker.ts` runs PBKDF2 and the two HKDF steps and posts back the
+`authKey` bytes and the `kek` as a non-extractable `CryptoKey`
+(structured clone). The master never reaches the page's thread and is
+overwritten in the worker. `kdf-client.ts` starts the worker on the
+first request, shares it, ends it 30 s after the last answer, and
+cancels by terminating it (PBKDF2 cannot be interrupted). A worker
+that fails is reported (`worker_failed`), not silently replaced; the
+caller may ask for the same derivation on its own thread (`inline`).
+Measured by `tests/e2e/cloud-crypto.spec.ts` on the development
+machine at 600 000 rounds: about 85 ms in Firefox, 60 ms in Chromium
+and in the phone profile, 110–180 ms with the worker's start; the
+page's 5 ms timer never waited more than 50 ms. A phone will take
+several times longer; the pages show "Working…" (spec §7.3).
+
+### What a reviewer should look at
+
+- `kdf.ts`: the bounds (`checkKdf`), and that the unchecked derivation
+  is reachable only from tests (it is not exported by `index.ts`).
+- `account.ts`: every flow wipes the root in a `finally`; the wrong
+  password and wrong code mapping; the order of random draws.
+- `segments.ts`: the two "only when more follows" loops, which are
+  what makes the final marker sound, and the empty final segment rule.
+- `bytes.ts`: `field` (lengths, ill-formed text) and `accountLabel`.
+- JavaScript cannot promise that wiped bytes were never copied by the
+  engine, and strings (the password, the recovery code) cannot be
+  wiped at all. The wipes shorten exposure; they are not a guarantee.
+- The vectors' generator against this section: it is the independent
+  reading of the format.
