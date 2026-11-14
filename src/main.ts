@@ -158,6 +158,13 @@ try {
 }
 // Phone only (ADR 0097, ADR 0099): the fullscreen button in the top right corner.
 if (!benchMode) installFullscreenButton();
+// The usage beat (spec §7.6, ADR 0147): its chunk on idle time once the first view is up,
+// and only then the flags' request; it decides itself whether it runs (src/cloud/start.ts).
+if (!benchMode) {
+  const cloud = (): void => void import('./cloud/start').then((m) => m.startCloud(shell)).catch(() => undefined);
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(cloud, { timeout: 3000 });
+  else setTimeout(cloud, 1000);
+}
 const playerFixture = import.meta.env.DEV ? params.get('player') : null;
 if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('session'));
 const replayFixture = import.meta.env.DEV ? params.get('replayhtml') : null;

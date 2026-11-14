@@ -153,6 +153,7 @@ import { AUTO_RECONNECT_IDLE, type AutoReconnectEvent, autoReconnectStep } from 
 import { watchResume } from './resume-watch';
 import { installWeather } from '../weather/hook';
 import { REVEAL_FADE_MS, bootDone, bootStep, revealStart } from './boot-progress';
+import type { BeatState } from '../../shared/cloud/api.ts';
 
 type ChromeModule = typeof import('../chrome');
 
@@ -248,6 +249,8 @@ export class Shell {
   readonly maps: MapStore;
   /** The script library (ADR 0051): the cockpit's script host and the Scripts page. */
   readonly scripts: ScriptLibrary;
+  /** Told when `view` may have changed (the usage beat, src/cloud/start.ts). */
+  private readonly viewFns = new Set<() => void>();
 
   constructor(opts: ShellOptions) {
     this.opts = opts;
@@ -295,6 +298,34 @@ export class Shell {
   onApp(fn: (app: App) => void): void {
     if (this.appRef) fn(this.appRef);
     else this.appWaiters.push(fn);
+  }
+
+  /**
+   * What the page shows, for the usage beat (spec §7.6, ADR 0147):
+   * `playing` while the cockpit is the view (connected or not), `replay`
+   * in the offline cockpit (`?replay`, `?bench`) and while a log player is
+   * open (over the whole window, or in History's run log or Spotlights),
+   * `menu` otherwise.
+   */
+  get view(): BeatState {
+    if (this.inCockpit) return this.opts.offline ? 'replay' : 'playing';
+    return this.player ? 'replay' : 'menu';
+  }
+
+  /** Calls `fn` after anything that may change `view`; returns the unsubscribe. */
+  onView(fn: () => void): () => void {
+    this.viewFns.add(fn);
+    return () => this.viewFns.delete(fn);
+  }
+
+  private viewChanged(): void {
+    for (const fn of this.viewFns) {
+      try {
+        fn();
+      } catch {
+        // A listener never breaks a view change.
+      }
+    }
   }
 
   /** Shows the first view: the start page, or the cockpit in the offline modes. */
@@ -619,7 +650,9 @@ export class Shell {
     host.onDispose(() => {
       park.remove();
       if (this.player === host) this.player = null;
+      this.viewChanged();
     });
+    this.viewChanged();
     try {
       await host.open(session, await this.runLibrary(), RUN_LOG_VIEW);
       if (host.isClosed) return { ok: false, error: 'The player was closed while it opened.' };
@@ -654,7 +687,9 @@ export class Shell {
     if (typeof host === 'string') return null;
     host.onDispose(() => {
       if (this.player === host) this.player = null;
+      this.viewChanged();
     });
+    this.viewChanged();
     return host;
   }
 
@@ -700,11 +735,13 @@ export class Shell {
       host.el.style.display = '';
       // Phone: the player over the whole window has the phone's layout, the lens at the top right: no corner button on it.
       this.markPhoneGame(true);
+      this.viewChanged();
       return { ok: true };
     } catch (err) {
       console.error('WebCockpit: the log player could not open', err);
       host.dispose();
       if (this.player === host) this.player = null;
+      this.viewChanged();
       return { ok: false, error: errText(err) };
     }
   }
@@ -714,6 +751,7 @@ export class Shell {
     this.markPhoneGame(false);
     this.startHost.style.display = '';
     this.start?.show({ keep: true });
+    this.viewChanged();
   }
 
   // ------------------------------------------------------------------ views
@@ -735,6 +773,7 @@ export class Shell {
         .then((lib) => lib.sweep(nowUs()))
         .catch(() => {});
     }
+    this.viewChanged();
   }
 
   private showCockpit(app: App, o: { keepStart?: boolean } = {}): void {
@@ -747,6 +786,7 @@ export class Shell {
     this.markPhoneGame(true);
     app.menuBar?.setShown(true);
     app.input.focus();
+    this.viewChanged();
   }
 
   /**
