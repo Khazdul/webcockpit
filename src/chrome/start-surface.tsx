@@ -57,6 +57,7 @@ import { MOTION, type Scenery, SceneryCtx, isLookFrame, reducedMotion, useScener
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
 import { FrameStack, useIsTopFrame } from './kit/stack';
 import { almanacLines } from './start-layout';
+import { useOnline } from './start-online';
 import { LookHost, MorphCtx, MorphStage } from './start-morph';
 import './start.css';
 
@@ -639,7 +640,10 @@ function LookTooSmall(p: { w: number; h: number }): VNode {
 /**
  * The almanac at the bottom right (owner, 2026-11-07): the date, the time
  * with the period and the year, and the version. It follows the start
- * page's game clock, a new line each game minute (one real second).
+ * page's game clock, a new line each game minute (one real second). Above
+ * the date, when the server says so, "N online" (stage 59,
+ * src/chrome/start-online.ts), set in the box's top padding so the other
+ * lines never move when it comes or goes.
  */
 function Almanac(p: { run: boolean }): VNode {
   const { version } = useServices();
@@ -652,8 +656,10 @@ function Almanac(p: { run: boolean }): VNode {
   }, [p.run]);
   const a = almanacLines(gameTimeAt(Math.floor(g)));
   const ink = useDarkInk('almanac');
+  const online = useOnline(p.run);
   return (
     <aside class={'wc-start-almanac' + (ink ? ' is-ink' : '')} aria-label="Game time">
+      {online !== null && <div class="wc-alm-o">{online} online</div>}
       <div class="wc-alm-d">{a.date}</div>
       <div class="wc-alm-m">{a.time}</div>
       <div class="wc-alm-v">WebCockpit {version || CLIENT_VERSION}</div>
