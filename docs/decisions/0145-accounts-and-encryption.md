@@ -622,3 +622,139 @@ Two notes:
 
 A deploy now also needs the rate limiting binding `AUTH_LIMITER`
 (namespaces 5905 production, 5906 staging; in `wrangler.jsonc`).
+
+## As built (stage 60 part B, the client core, 2026-11-14)
+
+`src/cloud/account/`: the API client, the device's store, the flows the
+pages drive, the checks, and the start page's state. No page yet;
+nothing imports the module, so the production bundle is unchanged. The
+guide for the pages' author is the header of `index.ts`.
+
+| File | Holds |
+|---|---|
+| `state.ts` | is the feature on, who is logged in here; the one file the start page imports |
+| `api.ts` | one function per endpoint, typed results, the answers checked |
+| `store.ts` | the account record and the two keys in IndexedDB |
+| `flows.ts` | register, log in, recover, log out and the logged-in flows |
+| `checks.ts` | name, password, strength hint, recovery code |
+| `kdf-time.ts` | the remembered time of the slow step, for the Working bar |
+
+### Where the account lives on the device
+
+- **A database of its own, `webcockpit-account` (version 1)**, one
+  record: the name as the server spells it, `created`, this device's
+  label, when it logged in, and the two non-extractable `CryptoKey`s
+  (`dataKey`, `idKey`) stored as objects. Not version 9 of the main
+  database, where spec §7.4 puts the sync state: that version is stage
+  61's, stage 60 must not migrate anybody's main database, and with the
+  flag off nothing on a device may change. "Remove the account from
+  this device" is one operation: the database is deleted. No connection
+  is kept open (open, one transaction, close), and a read where there
+  is no account leaves no database behind.
+- **Nothing else secret is stored.** No password, recovery code, root
+  or wrap. `wrapPw` is fetched with `GET /api/u/account` when a
+  password question needs it (change password, new recovery code). The
+  session is the HttpOnly cookie; the page never sees it.
+- **A hint in localStorage** for the start page: `wc.account`
+  (`{"name":"Olev"}` while logged in) and `wc.account.last` (the last
+  name, the Log in page's prefill). Read synchronously, so the start
+  page needs neither IndexedDB nor a request to draw its entry, and the
+  `storage` event keeps other tabs in step. The name is public; the
+  hint is not the truth. A hint without stored keys, or a session the
+  server no longer knows, ends as logged out when a flow notices.
+  `wc.kdfMs` remembers the last derivation's time (per 600 000 rounds).
+- **What enumerates storage:** nothing in `src/` lists IndexedDB
+  databases or localStorage keys; the exports ("Download everything",
+  the script and run backups) read named stores of the main database
+  only, so no export can meet the keys (which could not be serialised
+  anyway). `tests/e2e/phone-auto-login.spec.ts` walks every database,
+  and is unaffected (the account database does not exist there).
+
+### The rules of the flows
+
+- **Gate.** No account request unless the page may call the API and
+  the flag `accounts` is on (`accountsEnabled`); otherwise `disabled`,
+  and nothing is sent or stored.
+- **Results, not exceptions.** Every call resolves to `ok` or a code.
+  An answer is checked against the contract before it is used
+  (`bad_answer` otherwise); a bare 401 without the server's
+  `unauthorized` is not taken for one.
+- **A 401 `unauthorized` from `/api/u/*`** means the session is gone
+  (ended elsewhere, the password changed, the account deleted): the
+  device is logged out locally (the database deleted, the hint cleared,
+  the last name kept) and the flow answers `unauthorized`. Nothing of
+  the player's own data is touched by anything in stage 60.
+- **Log out** asks the server and then always removes the keys. When
+  the server cannot be reached the device is logged out all the same
+  and the result says `unreached`: the session stays valid on the
+  server until it is ended from another device or runs out, and the
+  page says so. No keep-or-remove choice for local data yet (stage 61).
+- **The KDF worker failing** (`worker_failed`: it could not start,
+  died, or was silent for two minutes): the flow runs the same
+  derivation once on the page's thread (`inline`) and tells the page.
+  A player must not be locked out of an account because a worker could
+  not start, and WebCrypto's PBKDF2 is asynchronous on the page's
+  thread too; it is the guarantee of a free thread that is lost, not
+  correctness. If that fails too, `worker_failed`. (The CSP of part B
+  must allow the worker: `worker-src 'self'`.)
+- **A wrap that does not open after the server accepted the key**
+  (login, recovery) is `corrupt_wrap`, not a wrong password ("Known
+  limits"). The session the server made for a login is ended again: no
+  keys, no login.
+- **A wrong old password in change password and new recovery code** is
+  found on the device (the key does not open the wrap) before the
+  server is asked, and is reported as `invalid_login`, the server's
+  own word for it. Such a miss is not counted by the server; it is not
+  an online guess either (whoever holds the session already holds the
+  wrap).
+- **Turnstile retries do not derive again.** Register, log in and
+  recover are objects that keep what was derived (never the password)
+  between submits, so a submit with a token after
+  `turnstile_required`, or after a network failure, costs no second
+  run of the KDF. Recovery keeps the ticket and resends only its
+  second call.
+- **Cancel** reaches as far as the derivation. From the request that
+  changes the account on, a flow is not cancelled.
+- **Before the slow step** the flows check that the device can keep a
+  non-extractable key in IndexedDB (a throwaway key in a throwaway
+  database), so an account is not made on a device that cannot hold
+  it. If the store fails after registration all the same, the result
+  still carries the recovery code and says the device is not logged
+  in.
+- **A lost answer at registration.** When a register request may have
+  reached the server (`timeout`, `offline`, `bad_answer`) and the next
+  submit of the same flow is told `name_taken`, the flow tries a login
+  with its own `authKey`: only its own account opens, and the code it
+  returns is then the one the server holds.
+
+### Known limits (client)
+
+- **A lost answer elsewhere is not repaired.** After a `timeout` on a
+  password change the password may or may not be changed; on a new
+  recovery code the old code may already be dead and the new one was
+  not shown. The pages must say so (the guide lists it); the player
+  can always make another code with the password.
+- **Logging in over another account** on the same device replaces the
+  stored keys and the cookie; the old session stays on the server
+  until it runs out. The pages do not offer Log in while logged in.
+- **The `Secure`, `__Secure-` cookie on the dev server's plain
+  `http://localhost`** was not tried: the e2e fake simulates the
+  cookie. The real cookie is first exercised on staging.
+- **The strength hint** knows length and variety only (its rule is in
+  `checks.ts`); it is a hint, and says so.
+
+### What a reviewer should look at
+
+- `flows.ts`: that no password, code or key outlives its flow (the
+  closures of `startRegister`, `startLogin`, `startRecover` and their
+  `drop`), the mapping of crypto errors (`failureOf`, `unwrapFailure`,
+  `wrongPassword`), `deriver` (the inline rule), `authed` (the 401
+  rule), and the register flow's login-with-its-own-key.
+- `api.ts`: `failureOf` and the parsers (what is passed on from an
+  answer), `credentials: 'same-origin'`, `X-WC`.
+- `store.ts`: `isStoredAccount` (only non-extractable keys of the right
+  kinds are written or read back), and that nothing else is written.
+- `state.ts`: that it imports no crypto and makes no request beyond the
+  shared `/api/config`.
+- `tests/e2e/cloud-account-fake.ts` against `worker/auth.ts`: the fake
+  is the contract the page specs will be written against.
