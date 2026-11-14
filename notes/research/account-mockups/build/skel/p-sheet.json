@@ -1,0 +1,55 @@
+{
+ "html": "<div class=\"wc-ph-sheet\" role=\"dialog\" aria-label=\"Menu\" data-link=\"up\"><div class=\"wc-ph-sheet-top\"></div><div class=\"wc-ph-sheet-body\"><span class=\"wc-ph-hood\">Menu</span><div class=\"wc-ph-status\"><span class=\"wc-ph-status-t\">default · Link: —</span></div><div class=\"wc-ph-card wc-ph-rows\"><button type=\"button\" class=\"wc-ph-row\" data-row=\"reconnect\" tabindex=\"-1\"><svg class=\"wc-ph-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4\"></path></svg><span class=\"wc-ph-row-t\">Reconnect</span></button><button type=\"button\" class=\"wc-ph-row\" data-row=\"profile\" tabindex=\"-1\"><svg class=\"wc-ph-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 20c1-4 4-6 8-6s7 2 8 6\"></path><circle cx=\"12\" cy=\"8\" r=\"4\"></circle></svg><span class=\"wc-ph-row-t\">Profile</span><span class=\"wc-ph-row-v\">default</span><svg class=\"wc-ph-ico is-small wc-ph-chev\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 6l6 6-6 6\"></path></svg></button><button type=\"button\" class=\"wc-ph-row\" data-row=\"scripts\" tabindex=\"-1\"><svg class=\"wc-ph-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 4C7 4 6 5 6 7v2c0 1.5-1 3-2.5 3C5 12 6 13.5 6 15v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1.5 1 3 2.5 3-1.5 0-2.5 1.5-2.5 3v2c0 2-1 3-3 3\"></path></svg><span class=\"wc-ph-row-t\">Scripts</span><svg class=\"wc-ph-ico is-small wc-ph-chev\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 6l6 6-6 6\"></path></svg></button><button type=\"button\" class=\"wc-ph-row\" data-row=\"settings\" tabindex=\"-1\"><svg class=\"wc-ph-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1\"></path><circle cx=\"15\" cy=\"7\" r=\"2\"></circle><circle cx=\"9\" cy=\"12\" r=\"2\"></circle><circle cx=\"17\" cy=\"17\" r=\"2\"></circle></svg><span class=\"wc-ph-row-t\">Settings</span><svg class=\"wc-ph-ico is-small wc-ph-chev\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 6l6 6-6 6\"></path></svg></button></div><div class=\"wc-ph-quick\"><div class=\"wc-ph-quick-size\"><div class=\"wc-ph-step\" role=\"group\" aria-label=\"Text size\"><button type=\"button\" class=\"wc-ph-step-key is-less\" tabindex=\"-1\" aria-label=\"Smaller text\">A−</button><span class=\"wc-ph-step-val\" aria-live=\"polite\">14</span><button type=\"button\" class=\"wc-ph-step-key is-more\" tabindex=\"-1\" aria-label=\"Larger text\">A+</button></div><span class=\"wc-ph-tiny\">Text size</span></div><div class=\"wc-ph-themes\" role=\"group\" aria-label=\"Theme\"><div><button type=\"button\" class=\"wc-ph-swatch is-black is-on\" data-theme=\"black\" tabindex=\"-1\" aria-label=\"Black theme\" aria-pressed=\"true\"></button><span class=\"wc-ph-tiny is-on\">Black</span></div><div><button type=\"button\" class=\"wc-ph-swatch is-paper\" data-theme=\"paper\" tabindex=\"-1\" aria-label=\"Paper theme\" aria-pressed=\"false\"></button><span class=\"wc-ph-tiny\">Paper</span></div></div></div><div class=\"wc-ph-foot\"><button type=\"button\" class=\"wc-ph-fold\" data-row=\"close\" tabindex=\"-1\" aria-label=\"Close menu\"><svg class=\"wc-ph-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"></path></svg></button><button type=\"button\" class=\"wc-ph-exit\" data-row=\"exit\" tabindex=\"-1\"><svg class=\"wc-ph-ico is-small\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M10 4H5v16h5M14 8l4 4-4 4M18 12H9\"></path></svg>Exit session</button></div></div></div>",
+ "chain": [
+  {
+   "tag": "body",
+   "attrs": {}
+  },
+  {
+   "tag": "div",
+   "attrs": {
+    "id": "app"
+   }
+  },
+  {
+   "tag": "div",
+   "attrs": {
+    "class": "wc-app",
+    "data-status": "login · Link: — · XML: off · capture: idle"
+   }
+  },
+  {
+   "tag": "div",
+   "attrs": {
+    "class": "wc-cockpit",
+    "data-phone-game": "",
+    "data-cells": "48x60",
+    "data-collapsed": "",
+    "style": "--ph-ck: 36px; --ph-hot-w: 36px;"
+   }
+  },
+  {
+   "tag": "div",
+   "attrs": {
+    "class": "wc-ph-menu-host"
+   }
+  },
+  {
+   "tag": "div",
+   "attrs": {
+    "class": "wc-look wc-ph-menu-surface",
+    "data-view": "sheet"
+   }
+  }
+ ],
+ "sibs": [
+  "<button type=\"button\" class=\"wc-ph-scrim\" tabindex=\"-1\" aria-label=\"Close menu\"></button>"
+ ],
+ "pos": {
+  "position": "absolute",
+  "bottom": "0px",
+  "left": "0px",
+  "width": "390px",
+  "height": "458px"
+ }
+}

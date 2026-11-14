@@ -1,0 +1,28 @@
+/* The review shell around the mockups: a tab bar and a stage. Not part of the look. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0c0b0a; color: #c9c1b4; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { display: flex; flex-direction: column; }
+.sh-bar { flex: 0 0 auto; padding: 8px 12px 6px; border-bottom: 1px solid #2a2622; background: #141210; }
+.sh-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sh-row + .sh-row { margin-top: 6px; }
+.sh-title { font-weight: 600; color: #e8dcc6; white-space: nowrap; }
+.sh-groups, .sh-states { display: flex; gap: 4px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }
+.sh-bar button { font: inherit; color: #b8ae9e; background: #1d1a17; border: 1px solid #332e28; border-radius: 4px; padding: 3px 9px; cursor: pointer; white-space: nowrap; }
+.sh-bar button:hover { color: #f0e6d2; border-color: #5a5044; }
+.sh-bar button:focus-visible { outline: 2px solid #c9a260; outline-offset: 1px; }
+.sh-bar button[aria-pressed="true"], .sh-bar button[aria-checked="true"] { color: #1a1206; background: #d9b87a; border-color: #d9b87a; }
+.sh-states button { padding: 2px 8px; font-size: 12px; }
+.sh-view { display: flex; margin-left: auto; }
+.sh-view button:first-child { border-radius: 4px 0 0 4px; }
+.sh-view button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+.sh-note { margin: 6px 0 0; min-height: 1.4em; color: #948a7b; max-width: 150ch; }
+.sh-note b { color: #cfc4b0; font-weight: 600; }
+.sh-stage { flex: 1 1 auto; min-height: 0; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #060505; }
+#sh-frame { border: 0; display: block; width: 100%; height: 100%; background: #000; }
+.sh-stage.is-phone #sh-frame { flex: none; width: 390px; height: 844px; border-radius: 22px; outline: 1px solid #3a342c; box-shadow: 0 0 0 7px #17140f, 0 0 0 8px #3a342c, 0 20px 60px #000; transform-origin: center; }
+body.is-bare .sh-bar { display: none; }
+body.is-bare .sh-stage.is-phone #sh-frame { width: 100%; height: 100%; border-radius: 0; outline: 0; box-shadow: none; transform: none !important; }
+@media (max-width: 700px) {
+  .sh-title { display: none; }
+  .sh-stage.is-phone #sh-frame { box-shadow: none; outline: 0; border-radius: 0; }
+}
