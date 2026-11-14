@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:prod": "playwright test -c playwright.prod.config.ts",
+    "test:sync-worker": "playwright test -c playwright.sync-worker.config.ts",
     "bench": "node bench/text-bench.ts && node bench/script-bench.ts && node bench/lua-bench.ts && node bench/browser-bench.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker",
     "build:site": "node scripts/site-build.ts",

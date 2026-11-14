@@ -6,64 +6,16 @@
 // flows against a real local Worker (`npm run test:sync-worker`).
 
 import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
-import { NAME, PASSWORD, accountRow, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from './account-pages';
+import { NAME, PASSWORD, btn, dialog, field, fillCreate, frame, link, openAccount, openStart, pageOf, shownCode, watchErrors } from './account-pages';
 import { FakeAccountServer, fakeAccountApi, seedAccount } from './cloud-account-fake';
+import { account, awayFromMenu, logIn, menuFlash, names, owner, profile, putIdb, spaceDbOf, submitLogin, syncNow } from './sync-pages';
 import { stubTurnstile } from './turnstile-stub';
 
 test.use({ viewport: { width: 1440, height: 900 } });
+// Each test lives through several reloads and logins (a password's slow step each): Firefox under a full run needs the time.
+test.setTimeout(120_000);
 
-const DB = `webcockpit-u-${NAME.toLowerCase()}`;
-const menuFlash = (page: Page) => page.locator('.wc-start .wc-sm-flash');
-
-type Row = Record<string, unknown>;
-
-/** Puts records into a store of a database the page has already made. */
-async function putIdb(page: Page, db: string, store: string, recs: Row[]): Promise<void> {
-  await page.evaluate(
-    async ({ db, store, recs }) => {
-      const conn = await new Promise<IDBDatabase>((res, rej) => {
-        const r = indexedDB.open(db);
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
-      });
-      await new Promise<void>((res, rej) => {
-        const t = conn.transaction(store, 'readwrite');
-        for (const r of recs) t.objectStore(store).put(r);
-        t.oncomplete = () => res();
-        t.onerror = () => rej(t.error);
-      });
-      conn.close();
-    },
-    { db, store, recs },
-  );
-}
-
-async function getIdb(page: Page, db: string, store: string): Promise<Row[]> {
-  return page.evaluate(
-    async ({ db, store }) => {
-      const conn = await new Promise<IDBDatabase>((res, rej) => {
-        const r = indexedDB.open(db);
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
-      });
-      if (!conn.objectStoreNames.contains(store)) {
-        conn.close();
-        return [];
-      }
-      const rows = await new Promise<Row[]>((res, rej) => {
-        const r = conn.transaction(store, 'readonly').objectStore(store).getAll();
-        r.onsuccess = () => res(r.result as Row[]);
-        r.onerror = () => rej(r.error);
-      });
-      conn.close();
-      return rows;
-    },
-    { db, store },
-  );
-}
-
-const names = async (page: Page, db: string, store = 'profiles'): Promise<string[]> => (await getIdb(page, db, store)).map((r) => r.name as string).sort();
-const profile = (id: string, name: string, text = `#nop ${name}`, t = 1000): Row => ({ id, name, text, created: t, modified: t });
+const DB = spaceDbOf(NAME);
 
 /** A device: its own context and page on the fake server. */
 async function device(browser: Browser, server: FakeAccountServer): Promise<{ ctx: BrowserContext; page: Page }> {
@@ -72,40 +24,6 @@ async function device(browser: Browser, server: FakeAccountServer): Promise<{ ct
   await fakeAccountApi(page, { server });
   await stubTurnstile(page, { auto: true });
   return { ctx, page };
-}
-
-/** The owner row once the start menu is there again after a change of space. */
-async function owner(page: Page): Promise<string> {
-  await page.mouse.move(1, 1);
-  await expect(accountRow(page)).toBeVisible();
-  return (await accountRow(page).textContent()) ?? '';
-}
-
-/** Log in from the start menu: the page reloads into the account's space and syncs. */
-async function logIn(page: Page): Promise<void> {
-  await openAccount(page);
-  await field(page, 'name').fill(NAME);
-  await field(page, 'password').fill(PASSWORD);
-  await btn(page, 'LOGIN').click();
-  await expect.poll(() => owner(page), { timeout: 15_000 }).toMatch(new RegExp(`${NAME}.*synced`, 'i'));
-}
-
-/** The Account page from the start menu (logged in). */
-async function account(page: Page): Promise<void> {
-  await page.mouse.move(1, 1);
-  await accountRow(page).click();
-  await expect(pageOf(page, 'account')).toBeVisible();
-}
-
-/** Sync now on the Account page, and wait until that sync has ended (its time is a new one). */
-async function syncNow(page: Page): Promise<void> {
-  const section = frame(page).locator('[data-sync]');
-  await expect(section).toBeVisible();
-  await expect(section).not.toHaveAttribute('data-sync', 'syncing', { timeout: 10_000 });
-  const before = await section.getAttribute('data-synced-at');
-  await btn(page, 'SYNCNOW').click();
-  await expect.poll(() => section.getAttribute('data-synced-at'), { timeout: 10_000 }).not.toBe(before);
-  await expect(frame(page).locator('[data-sync="synced"]')).toBeVisible({ timeout: 10_000 });
 }
 
 function syncServer(): FakeAccountServer {
@@ -131,10 +49,11 @@ test('Create account moves the device’s things; a second device gets them; log
   await expect(pageOf(a.page, 'code')).toBeVisible();
   const code = await shownCode(a.page);
   await field(a.page, 'last').fill(code.slice(-4));
-  await btn(a.page, 'CONTINUE').click();
+  await awayFromMenu(a.page);
+  await field(a.page, 'last').press('Enter');
 
   // The page reloads to the start menu in the account's space; the move's line, then the owner row synced.
-  await expect(menuFlash(a.page)).toHaveText(`Moved into ${NAME}: 1 profile, 1 script. This device is back at its starting set.`, { timeout: 15_000 });
+  await expect(menuFlash(a.page)).toHaveText(`Moved into ${NAME}: 1 profile, 1 script. This device is back at its starting set.`, { timeout: 30_000 });
   expect(await owner(a.page)).toMatch(/synced/);
   expect(server.items(NAME).all()).toHaveLength(2);
   expect(await names(a.page, 'webcockpit')).toEqual(['default', 'khazdul']);
@@ -165,8 +84,9 @@ test('Create account moves the device’s things; a second device gets them; log
   await account(a.page);
   await btn(a.page, 'LOGOUT').click();
   await expect(dialog(a.page, 'ac-logout').locator('[data-logout="all"]')).toBeVisible({ timeout: 10_000 });
+  await awayFromMenu(a.page);
   await a.page.keyboard.press('Enter');
-  await expect(menuFlash(a.page)).toHaveText(`Logged out. Everything is in your account ${NAME}.`, { timeout: 15_000 });
+  await expect(menuFlash(a.page)).toHaveText(`Logged out. Everything is in your account ${NAME}.`, { timeout: 30_000 });
   expect(await owner(a.page)).toBe('Guest · log in');
   expect(await a.page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name))).not.toContain(DB);
 
@@ -174,8 +94,9 @@ test('Create account moves the device’s things; a second device gets them; log
   await account(b.page);
   await btn(b.page, 'LOGOUT').click();
   await expect(dialog(b.page, 'ac-logout').locator('[data-logout="all"]')).toBeVisible({ timeout: 10_000 });
+  await awayFromMenu(b.page);
   await b.page.keyboard.press('Enter');
-  await expect(menuFlash(b.page)).toContainText('Logged out.', { timeout: 15_000 });
+  await expect(menuFlash(b.page)).toContainText('Logged out.', { timeout: 30_000 });
   expect(await names(b.page, 'webcockpit')).toEqual(['default', 'khazdul', 'phoneonly']);
   expect(errors).toEqual([]);
   await a.ctx.close();
@@ -230,7 +151,7 @@ test('a lost session: kept locked with a change (Remove asks), removed without o
   // The password is changed elsewhere before the change reaches the server.
   server.endSessions(NAME, 'password');
   await a.page.reload();
-  await expect.poll(() => owner(a.page), { timeout: 15_000 }).toMatch(/logged out here/);
+  await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/logged out here/);
   const notice = a.page.locator('.wc-start .wc-sm-lock');
   await expect(notice).toContainText(`1 change is not in the account ${NAME} yet. It is kept on this device until you log in.`);
   // Remove asks first, Keep is the default.
@@ -244,15 +165,13 @@ test('a lost session: kept locked with a change (Remove asks), removed without o
   await a.page.keyboard.press('l');
   await expect(pageOf(a.page, 'login')).toBeVisible();
   await expect(field(a.page, 'name')).toHaveValue(NAME);
-  await field(a.page, 'password').fill(PASSWORD);
-  await btn(a.page, 'LOGIN').click();
-  await expect.poll(() => owner(a.page), { timeout: 15_000 }).toMatch(/synced/);
+  await submitLogin(a.page);
   await expect.poll(() => server.items(NAME).all().length).toBe(1);
 
   // Lost again, with everything in the account: removed, and said.
   server.endSessions(NAME, 'ended');
   await a.page.reload();
-  await expect(menuFlash(a.page)).toHaveText(`You were logged out of ${NAME} on this device.`, { timeout: 15_000 });
+  await expect(menuFlash(a.page)).toHaveText(`You were logged out of ${NAME} on this device.`, { timeout: 30_000 });
   expect(await owner(a.page)).toBe('Guest · log in');
 
   // Lost with a change, then Remove.
@@ -260,7 +179,7 @@ test('a lost session: kept locked with a change (Remove asks), removed without o
   await putIdb(a.page, DB, 'profiles', [profile('m1', 'mage')]);
   server.endSessions(NAME, 'recovered');
   await a.page.reload();
-  await expect(notice).toBeVisible({ timeout: 15_000 });
+  await expect(notice).toBeVisible({ timeout: 30_000 });
   await a.page.keyboard.press('r');
   await dialog(a.page, 'remove-copy').locator('[data-btn="REMOVE"]').click();
   await expect(notice).toHaveCount(0);
@@ -286,14 +205,14 @@ test('log out with a change the server has not got: the rows, Stay logged in; re
   await a.page.keyboard.press('Enter');
   await expect(dialog(a.page, 'ac-logout')).toHaveCount(0);
   await a.page.reload();
-  await expect.poll(() => owner(a.page), { timeout: 15_000 }).toMatch(/synced/);
+  await expect.poll(() => owner(a.page), { timeout: 30_000 }).toMatch(/synced/);
 
   server.syncOffline = true;
   await putIdb(a.page, DB, 'profiles', [profile('w1', 'warrior')]);
   await account(a.page);
   await btn(a.page, 'LOGOUT').click();
   const rows = dialog(a.page, 'ac-logout').locator('[data-logout="some"]');
-  await expect(rows).toBeVisible({ timeout: 15_000 });
+  await expect(rows).toBeVisible({ timeout: 30_000 });
   await expect(rows.locator('[data-row="changes"]')).toHaveText('1 change not synced (the server could not be reached)');
   await a.page.keyboard.press('Enter');
   await expect(dialog(a.page, 'ac-logout')).toHaveCount(0);

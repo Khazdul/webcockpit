@@ -27,6 +27,12 @@
 // only its dummy token), the host name those keys answer for, and a fixed
 // pepper that is no secret. They exist in this local Worker only.
 //
+// Two settings for test runs (stage 61, `npm run test:sync-worker`):
+// `$WC_DEV_FLAGS` (comma separated, e.g. `accounts,sync`) turns those flags'
+// defaults on with `--var FLAG_<NAME>:true`, and `$WC_DEV_PERSIST` keeps the
+// local D1 in a directory of its own (`--persist-to`), so a run can start
+// from an empty database without touching the one in .wrangler/.
+//
 // Either process ending ends the other; Ctrl-C ends both.
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -52,6 +58,15 @@ const DEV_VARS = [
   // The test keys' siteverify answers for `example.com`; wrangler.jsonc names the real site's hosts (stage 60 part C).
   'TURNSTILE_HOSTNAMES:example.com',
 ];
+
+for (const flag of (process.env.WC_DEV_FLAGS ?? '').split(',').map((f) => f.trim()).filter(Boolean)) {
+  if (!/^[a-z]+$/.test(flag)) {
+    console.error(`dev:cloud: WC_DEV_FLAGS: not a flag name: ${flag}`);
+    process.exit(1);
+  }
+  DEV_VARS.push(`FLAG_${flag.toUpperCase()}:true`);
+}
+const persist = process.env.WC_DEV_PERSIST ? ['--persist-to', resolve(process.env.WC_DEV_PERSIST)] : [];
 
 const origin = `http://127.0.0.1:${port}`;
 console.log(`dev:cloud: Worker at ${origin}, /api proxied to it`);
@@ -81,7 +96,7 @@ function start(cmd: string, args: string[], env: Record<string, string> = {}): v
 
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.on(signal, () => end(0));
 
-const migrated = spawnSync('wrangler', ['d1', 'migrations', 'apply', 'DB', '--local'], {
+const migrated = spawnSync('wrangler', ['d1', 'migrations', 'apply', 'DB', '--local', ...persist], {
   cwd: ROOT,
   stdio: ['ignore', 'inherit', 'inherit'],
   shell: process.platform === 'win32',
@@ -100,6 +115,7 @@ start('wrangler', [
   '--assets',
   assets,
   '--show-interactive-dev-session=false',
+  ...persist,
   ...DEV_VARS.flatMap((v) => ['--var', v]),
 ]);
 start('vite', process.argv.slice(2), { WEBCOCKPIT_API_PROXY: origin });
