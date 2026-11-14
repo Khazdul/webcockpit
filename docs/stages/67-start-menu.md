@@ -132,24 +132,32 @@ their specs. Does not touch `src/chrome/frames/start-main.tsx` (the
 old Spotlights and Credits rows stay until B2 is merged, and then
 open the new tabs).
 
-- [ ] History's frame with the tab strip in placement P1: a row of
+- [x] History's frame with the tab strip in placement P1: a row of
       its own under the hood, in Back's band, a rule under it; the
       three pages' own heads untouched. The active tab marked more
       clearly than in the mockups (owner told so).
-- [ ] Spotlights and Diary moved under it (their frames as they are);
+- [x] Spotlights and Diary moved under it (their frames as they are);
       H opens Sessions; Back from the Spotlights viewer and the run
       log player returns to the tab it left.
-- [ ] Keys `1 2 3` change tab, shown as small digits in the tabs on a
+- [x] Keys `1 2 3` change tab, shown as small digits in the tabs on a
       desktop; the mouse and touch; no digits on a phone.
-- [ ] The strip on a phone (three equal tabs in a row under Back) and
+- [x] The strip on a phone (three equal tabs in a row under Back) and
       on a tablet. The Diary book lays itself out for the lower
       height.
-- [ ] Credits → Diary in every text: the page, About, both manuals,
+- [x] Credits → Diary in every text: the page, About, both manuals,
       help texts, tests. (File and symbol names may keep `credits`;
       an ADR 0149 addendum says so if they do.)
-- [ ] Tests: e2e for the tabs by key, mouse and touch, desktop and
+- [x] Tests: e2e for the tabs by key, mouse and touch, desktop and
       phone; the existing History, Spotlights and Credits specs moved
       to the new paths.
+- B1 done 2026-11-14 on branch `stage67-tabs` (ADR 0149, addendum
+  "History's tabs as built"). For B2: H stays `nav.push(<HistoryFrame />)`;
+  `openHistory(nav, tab)` opens another tab. The old Spotlights and
+  Credits rows open History on those tabs through the shims
+  `startSpotlights` and `CreditsFrame`, which go with the rows. The
+  menu's own texts (the rows, README's letters line, `chrome.spec.ts`'s
+  row lists) still say Credits until B2. The Diary's demo e2e runs at
+  1440 × 960: at 900 the strip's 18 px send `The End.` to a third page.
 
 #### B2. The menu (worktree `stage67-menu`, port 5412)
 
