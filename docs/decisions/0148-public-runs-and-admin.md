@@ -4,7 +4,8 @@
   it to a public page with ratings of 1–5 stars, comments and a top
   list; content shows at once and is removed afterwards; the sender is
   the account name; an admin page at `/admin` with account clean-up and
-  graphs). Not built.
+  graphs). The admin page of stage 59 is built (server, "As built" at
+  the end); the rest is not.
 - Date: 2026-11-13
 - Related: intent Goal 15, spec §7.7–7.9, ADR 0019 (export editor, HTML
   replay), ADR 0144–0147.
@@ -173,3 +174,43 @@ players' accounts.
 - One Access application covers `/admin*` and `/api/admin/*` on
   `mumecockpit.com` and on `staging.mumecockpit.com` (ADR 0144,
   addendum).
+
+## As built (stage 59 part A, 2026-11-14): the admin page
+
+- `worker/access.ts` checks every request to `/admin`, `/admin/*`,
+  `/api/admin` and `/api/admin/*` (known path or not) before routing:
+  503 `admin_not_configured` while `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` or
+  `ADMIN_EMAILS` is empty; 403 `forbidden` without the
+  `Cf-Access-Jwt-Assertion` header or for any fault: not three parts,
+  `alg` not RS256, an unknown `kid`, a bad signature, `iss` not
+  `https://<team>`, the audience not in `aud`, `exp` passed or `nbf` to
+  come (30 s leeway), no `email` (a service token) or an e-mail not in
+  `ADMIN_EMAILS` (comma list, case-insensitive). The team domain may be
+  written with or without `https://`.
+- The keys come from `https://<team>/cdn-cgi/access/certs` (WebCrypto,
+  RSASSA-PKCS1-v1_5 / SHA-256), kept an hour per isolate; a token with
+  an unknown `kid` fetches them again, at most once a minute (Access
+  rotates every 6 weeks). The fetch and the clock come through the
+  router's `deps`, so the tests use a key pair made in the test.
+- The check also covers `workers.dev`, which a path application on our
+  zone does not guard (ADR 0144, as built for stage 59).
+- **The page** is three small files from `worker/admin/page.ts`:
+  `/admin` (HTML), `/admin/admin.css`, `/admin/admin.js`, so the CSP is
+  `default-src 'none'; script-src 'self'; style-src 'self'; connect-src
+  'self'; img-src 'self'; base-uri 'none'; form-action 'none';
+  frame-ancestors 'none'` with nothing inline. They are strings in a
+  module because the router also runs under Node (the static server),
+  where an `.html` text import does not exist. The script builds
+  everything with `textContent`; it reloads the numbers every minute.
+- It shows online now by state; today (devices, new, peaks, play
+  minutes, beats); unique devices of 7 and 30 days; the use estimate
+  against 100 000 requests, 100 000 rows written and 5 M rows read a day
+  (marked as an estimate, with a link to the dashboard; how it is
+  counted: ADR 0147, as built); the last 30 rolled-up days as a table;
+  the newest day's split by type, browser and version; and the flags
+  with their default, override and a switch.
+- `GET /api/admin/stats` → `AdminStats`; `PUT /api/admin/flags/<name>`
+  `{value: boolean}` (exactly that key) → the `AdminFlag`; it needs
+  `X-WC: 1` and an `Origin` equal to the request's own (403 otherwise),
+  and an unknown flag is 404. There is no way back to "no override"
+  from the page yet; setting the default value is the same in effect.
