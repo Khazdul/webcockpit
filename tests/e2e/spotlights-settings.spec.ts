@@ -1,5 +1,5 @@
 // Stage 30e (ADR 0110): the Spotlights settings (kinds, characters,
-// period), saved at once, and Credits following them. Stage 46 (ADR 0131,
+// period), saved at once, and the Diary (Credits until stage 67) following them. Stage 46 (ADR 0131,
 // B "Galleriet"): the settings are the filter row above the Spotlights
 // wall: kind chips, `All` and one chip per character (a name while All is
 // on shows only that name; the last name off turns All back on), the
@@ -35,6 +35,11 @@ async function setSpot(page: Page, patch: Partial<Spot>): Promise<void> {
 const frame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const menuRow = (page: Page, key: string) => page.locator(`.wc-start .wc-sm-item[data-key="${key}"]`);
 const menuSel = (page: Page) => page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label');
+/** Start page → History → a click on its Spotlights tab (stage 67). */
+async function openSpotlights(page: Page): Promise<void> {
+  await menuRow(page, 'history').click();
+  await page.locator('.wc-start .wc-frame:not([hidden]) .wc-htab[data-tab="spotlights"]').click();
+}
 // The Spotlights page (stage 46).
 const wall = (page: Page) => frame(page).locator('.wc-spw');
 const head = (page: Page) => wall(page).locator('.wc-spw-head');
@@ -62,7 +67,7 @@ test('the filter row: kind chips, character chips and the period rebuild the wal
   await pinDemoClock(page);
   await page.goto('/');
   await restoreDemo(page);
-  await menuRow(page, 'spotlights').click();
+  await openSpotlights(page);
   await expect(labels(page)).toHaveText(ALL5);
 
   // The row: a kind chip each (with its icon), All and a chip per character, the period.
@@ -135,9 +140,9 @@ test('the filter row: kind chips, character chips and the period rebuild the wal
   await expect(chosen(page)).toHaveClass(/is-on/);
   // Esc again: the menu.
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('Spotlights');
+  await expect(menuSel(page)).toHaveText('History');
   // Saved: the next open starts from the same filter.
-  await menuRow(page, 'spotlights').click();
+  await openSpotlights(page);
   await expect(cards(page)).toHaveCount(4);
   await expect(kindChip(page, 'death')).toHaveAttribute('aria-checked', 'false');
   expect(errors).toEqual([]);
@@ -151,7 +156,7 @@ test('nothing passes: the filter row stays and the wall says so; a change there 
   await page.clock.setSystemTime(new Date(2026, 9, 5, 12, 0, 0));
   await page.goto('/');
   await restoreDemo(page);
-  await menuRow(page, 'spotlights').click();
+  await openSpotlights(page);
   await expect(cards(page)).toHaveCount(5);
   await period(page).selectOption('week');
   await expect(empty(page)).toContainText('No spotlights match your settings.');
@@ -187,7 +192,7 @@ test('nothing passes: the filter row stays and the wall says so; a change there 
   await setSpot(page, { allCharacters: false, characters: [] });
   await expect(empty(page)).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('Spotlights');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });
 
@@ -201,11 +206,11 @@ test('a filter that lets nothing through opens on the nothing-passes wall; no Op
 
   // Options left the start page in stage 32 (Options → Spotlights went in
   // stage 30e; the ESC menu's hub: tests/unit/chrome-frames.test.tsx).
-  await expect(menuRow(page, 'spotlights')).toBeVisible();
+  await expect(menuRow(page, 'history')).toBeVisible();
   await expect(menuRow(page, 'options')).toHaveCount(0);
 
   await setSpot(page, { allCharacters: false, characters: [] });
-  await menuRow(page, 'spotlights').click();
+  await openSpotlights(page);
   await expect(empty(page)).toContainText('No spotlights match your settings.');
   await expect(wall(page)).not.toContainText('Options');
   await expect(wall(page)).not.toContainText('Settings…');
@@ -216,7 +221,7 @@ test('a filter that lets nothing through opens on the nothing-passes wall; no Op
   await expect(cards(page).locator('.wc-spw-meta b')).toHaveText(['Rasta', 'Rasta', 'Rasta', 'Rasta']);
   expect(await spotSettings(page)).toMatchObject({ allCharacters: false, characters: ['Rasta'] });
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('Spotlights');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });
 
@@ -227,7 +232,7 @@ test('no recorded spotlights: the wall says how they are made, without the filte
   await pinDemoClock(page);
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
-  await menuRow(page, 'spotlights').click();
+  await openSpotlights(page);
   await expect(empty(page)).toContainText('No spotlights yet.');
   await expect(head(page)).toHaveCount(0);
   // The foot keeps Play all, disabled (as the mockup's empty state).
@@ -238,6 +243,6 @@ test('no recorded spotlights: the wall says how they are made, without the filte
   await expect(head(page)).toHaveCount(0);
   await expect(page.locator('.wc-spv')).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('Spotlights');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });

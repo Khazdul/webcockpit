@@ -1,4 +1,5 @@
-// Stage 47 (ADR 0132) on a phone (touch): Credits one page at a time,
+// Stage 47 (ADR 0132) on a phone (touch): the Diary (Credits until stage
+// 67, History's third tab) one page at a time,
 // turned by a touch swipe (real touch events through CDP), the pills and
 // the buttons by tap; About's contents rail as a strip of section pills;
 // both fit at 390 and 360 wide (no sideways page scroll), Back by tap.
@@ -26,15 +27,17 @@ async function swipe(page: Page, dx: number): Promise<void> {
 }
 
 for (const width of [390, 360]) {
-  test(`Credits on a phone, ${width} wide: one page, a swipe turns, taps on the pills and buttons, Back`, async ({ page }) => {
+  test(`the Diary on a phone, ${width} wide: one page, a swipe turns, taps on the pills and buttons, Back`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await pinDemoClock(page);
     await page.goto('/');
-    await expect(menuRow(page, 'credits')).toBeVisible();
+    await expect(menuRow(page, 'history')).toBeVisible();
     await restoreChronicle(page, ['Aragorn', 'Boromir', 'Celeborn'], 12);
-    await menuRow(page, 'credits').tap();
-    await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+    // History, then a tap on its Diary tab (stage 67).
+    await menuRow(page, 'history').tap();
+    await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
     await morphDone(page);
+    await lookBox(page).locator('.wc-htab[data-tab="diary"]').tap();
     await expect(book(page)).toHaveAttribute('data-ready', 'true');
     await expect(book(page)).toHaveClass(/is-one/);
     await expect(book(page).locator('.wc-cred-folio')).toHaveText(['— 1 —']);
@@ -71,7 +74,7 @@ for (const width of [390, 360]) {
 
     // Back by tap.
     await lookBox(page).locator('.wc-lk-back').tap();
-    await expect(menuRow(page, 'credits')).toBeVisible();
+    await expect(menuRow(page, 'history')).toBeVisible();
   });
 
   test(`About on a phone, ${width} wide: the strip of section pills, a tap jumps, Back`, async ({ page }) => {

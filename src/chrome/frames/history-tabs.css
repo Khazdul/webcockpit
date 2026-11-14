@@ -13,7 +13,7 @@
 }
 
 html.wc-phone .wc-lk-box > .wc-lk-win.wc-htabs-win {
-  padding-top: 24px;
+  padding-top: 16px;
 }
 
 .wc-htabs {
@@ -104,9 +104,14 @@ html.wc-phone .wc-lk-box > .wc-lk-win.wc-htabs-win {
   border-color: color-mix(in srgb, var(--lk-gold) 60%, transparent);
 }
 
-/* No key caps on a touch device. */
+/* A touch device: no key caps; the tabs are touch targets (44 px, as a
+ * tablet's buttons; ADR 0140). */
 html.wc-phone .wc-htab-k {
   display: none;
+}
+
+html.wc-phone .wc-htabs {
+  height: 45px;
 }
 
 /* A narrow page (a phone): three equal tabs in a row under Back. */
@@ -115,6 +120,12 @@ html.wc-phone .wc-htab-k {
     gap: 0;
     height: 41px;
     margin: 14px 0 6px;
+  }
+
+  /* Under the phone's taller Back. */
+  html.wc-phone .wc-htabs {
+    height: 45px;
+    margin-top: 20px;
   }
 
   .wc-htab {
