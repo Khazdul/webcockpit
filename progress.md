@@ -108,6 +108,10 @@ Statuses: Planned, Next, In progress, Owner testing, Done.
   Turnstile widget (site key in `wrangler.jsonc`, 1a0d0e8e), both
   secrets on both Workers. Staging answers `params`; the flows that
   need a Turnstile token wait for part B's pages. **Next: part B.**
+- **Closing:** staging runs 1a0d0e8 with the real site key,
+  `test:prod` 14/14 there. Every worktree and merged branch is removed
+  (the three of this session, and the old `fix-sig-popup` and
+  `fix-k-hold-landscape`): only `main` is left.
 
 ### 2026-11-14 — Stage 59: part C, release 0.10.0
 
