@@ -31,10 +31,11 @@
     "ACCESS_AUD": ""
   },
   "d1_databases": [{ "binding": "DB", "database_name": "webcockpit-test", "database_id": "00000000-0000-0000-0000-00000000test" }],
-  // The API limiter is high enough never to trip here: its 429 is tested
+  // The API and auth limiters are high enough never to trip here: a 429 is tested
   // with a stub limiter (auth.test.ts).
   "ratelimits": [
     { "name": "BEAT_LIMITER", "namespace_id": "1", "simple": { "limit": 5, "period": 60 } },
-    { "name": "API_LIMITER", "namespace_id": "2", "simple": { "limit": 100000, "period": 60 } }
+    { "name": "API_LIMITER", "namespace_id": "2", "simple": { "limit": 100000, "period": 60 } },
+    { "name": "AUTH_LIMITER", "namespace_id": "3", "simple": { "limit": 100000, "period": 60 } }
   ]
 }

@@ -1279,8 +1279,8 @@ ADR 0148, "The admin page".
 |---|---|
 | Registration | Turnstile; 3 an hour and 10 a day per address (hashed, daily pepper) |
 | Login | 10 failures per name in 15 min → 15 min wait; Turnstile after 3 |
-| Recovery | Turnstile on the first call; 10 failures per name in 15 min → 15 min wait (a counter of its own) |
-| API in general | the rate limiting binding, 120 requests a minute per session or address |
+| Recovery | Turnstile on the first call, whose ticket the second call needs; 10 failures per name in 15 min → 15 min wait (a counter of its own) |
+| API in general | the rate limiting binding, 120 requests a minute per address (an IPv6 /64 is one) and per session; 10 a minute per address on login, recovery and registration |
 | Small items | 1 MB each, 2 MB and 2 000 items per account |
 | Runs and shared payloads | 50 MB per account; 20 MB per run body; 5 MB per shared payload; 50 shared runs |
 | Comments, votes | 20 and 60 an hour per account |

@@ -19,7 +19,8 @@
 //
 // Every request passes, in this order: the flag `accounts` (off: 404), the
 // general rate limit, the route and method, the CSRF rule for anything
-// that is not a GET (`X-WC: 1` and the site's own `Origin`), the secrets
+// that is not a GET (`X-WC: 1` and the site's own `Origin`), the tight
+// limit on login, recover and register, the secrets
 // (503 `accounts_not_configured`), the database, and under `/api/u/` the
 // session. Nothing here logs: no body, name, token or address.
 //
@@ -38,6 +39,7 @@ import {
   type PrefsAnswer,
   REGISTER_PER_DAY,
   REGISTER_PER_HOUR,
+  RECOVER_TICKET_SECONDS,
   type RecoverAnswer,
 } from '../shared/cloud/api.ts';
 import {
@@ -55,11 +57,12 @@ import {
   storedKdf,
   wrapOf,
 } from './accounts.ts';
-import { GUESS_WINDOW_MS, type GuessKind, HOUR_MS, addressCounters, clear, countRegistration, nameCounter, peek, reserveGuess } from './attempts.ts';
-import { hmac, randomBytes, sameText, toB64url, utf8 } from './bytes.ts';
+import { addressKey } from './address.ts';
+import { GUESS_WINDOW_MS, type GuessKind, HOUR_MS, addressCounters, countRegistration, nameCounter, peek, reserveGuess, takeBack } from './attempts.ts';
+import { fromB64url, hmac, randomBytes, sameText, toB64url, utf8 } from './bytes.ts';
 import { flags } from './flags.ts';
-import { DAY_MS, type D1, type D1Statement, type Deps, type Env, error, json } from './runtime.ts';
-import { type Authed, SESSION_ID, authenticate, clearedCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
+import { DAY_MS, type D1, type Deps, type Env, error, json } from './runtime.ts';
+import { type Authed, SESSION_ID, authenticate, clearedCookie, hasSessionCookie, newSession, sessionToken, tokenHash } from './sessions.ts';
 import { readCapped } from './stats.ts';
 import { isToken, verifyTurnstile } from './turnstile.ts';
 
@@ -87,7 +90,7 @@ interface Ctx {
   now: number;
   /** AUTH_PEPPER's bytes. */
   pepper: Uint8Array<ArrayBuffer>;
-  /** The caller's address: a key of counters (hashed) and of the rate limit, never stored. */
+  /** The caller's address as a key (address.ts) of counters (hashed) and of the rate limits; never stored. */
   address: string;
   /** Under `/api/u/`: the session and its account. */
   auth: Authed | null;
@@ -140,6 +143,38 @@ async function guess(c: Ctx, key: string): Promise<Response | number> {
 
 async function counterKey(c: Ctx, kind: GuessKind, nameKey: string): Promise<string> {
   return nameCounter(c.pepper, kind, nameKey);
+}
+
+// --- The recovery ticket ---
+//
+// What the first recover call hands to the second: proof that this name's
+// recovery code was shown, with Turnstile, within the last 15 minutes.
+// Stateless: 8 bytes of expiry (ms, big-endian) and
+// HMAC-SHA-256(AUTH_PEPPER, "wc-recover-ticket|name_key|expiry|recovery_hash"),
+// together base64url. It dies with the recovery code it was made for.
+
+const TICKET_BYTES = 8 + 32;
+
+async function ticketMac(c: Ctx, nameKey: string, recoveryHash: string, expires: number): Promise<Uint8Array<ArrayBuffer>> {
+  return hmac(c.pepper, `wc-recover-ticket|${nameKey}|${expires}|${recoveryHash}`);
+}
+
+async function ticketFor(c: Ctx, nameKey: string, recoveryHash: string, expires: number): Promise<string> {
+  const out = new Uint8Array(TICKET_BYTES);
+  new DataView(out.buffer).setBigUint64(0, BigInt(expires));
+  out.set(await ticketMac(c, nameKey, recoveryHash, expires), 8);
+  return toB64url(out);
+}
+
+/** True for an unexpired ticket of this name and recovery hash. The MAC is compared in constant time, whatever the rest says. */
+async function ticketHolds(c: Ctx, ticket: string, nameKey: string, recoveryHash: string): Promise<boolean> {
+  const bytes = fromB64url(ticket);
+  const shaped = bytes !== null && bytes.length === TICKET_BYTES;
+  const raw = shaped ? bytes : new Uint8Array(TICKET_BYTES);
+  const expires = Number(new DataView(raw.buffer).getBigUint64(0));
+  const safe = Number.isSafeInteger(expires) ? expires : 0;
+  const same = sameText(toB64url(await ticketMac(c, nameKey, recoveryHash, safe)), toB64url(raw.slice(8)));
+  return shaped && same && safe > c.now && safe <= c.now + RECOVER_TICKET_SECONDS * 1000;
 }
 
 // --- /api/auth/* ---
@@ -232,9 +267,10 @@ async function login(c: Ctx): Promise<Response> {
   if (!row || !same) return error('invalid_login', 401);
 
   const session = await newSession(c.db, row.id, label, c.now);
+  // The success takes its own try back; the failures before it stay counted.
   const [inserted] = await c.db.batch([
     session.insert,
-    clear(c.db, key),
+    takeBack(c.db, key, n),
     c.db.prepare('UPDATE account SET last_seen = ?2 WHERE id = ?1').bind(row.id, c.now),
   ]);
   // The account was deleted between the two statements.
@@ -244,21 +280,28 @@ async function login(c: Ctx): Promise<Response> {
 }
 
 async function recover(c: Ctx): Promise<Response> {
-  const b = await body(c.request, ['name', 'recoveryAuth'], ['turnstile', 'set', 'label']);
+  const b = await body(c.request, ['name', 'recoveryAuth'], ['turnstile', 'set', 'label', 'ticket']);
   if (!b) return badRequest();
   const name = nameOf(b.name);
   const hash = await keyHashOf(b.recoveryAuth);
   if (!name || !hash) return badRequest();
-  // Two calls: the first has a Turnstile token and nothing else, the second `set` and `label`.
+  // Two calls: the first has a Turnstile token and nothing else; the
+  // second has `set`, `label` and the ticket the first one answered.
   const first = b.turnstile !== undefined;
   let password = null;
   let label: string | null = null;
   if (first) {
-    if (b.set !== undefined || b.label !== undefined || !isToken(b.turnstile)) return badRequest();
+    if (b.set !== undefined || b.label !== undefined || b.ticket !== undefined || !isToken(b.turnstile)) return badRequest();
   } else {
     password = hasKeys(b.set, PASSWORD_KEYS) ? await passwordOf(b.set) : null;
     label = labelOf(b.label);
-    if (!password || label === null) return badRequest();
+    if (!password || label === null || typeof b.ticket !== 'string' || b.ticket.length > 100) return badRequest();
+    // Without the ticket of a first call (which passed Turnstile) for
+    // this name, the second call is not a try at all: nothing is counted
+    // or written, so it cannot be used to lock a name or to guess.
+    const known = await accountByKey(c.db, name.key);
+    const holds = await ticketHolds(c, b.ticket, name.key, known?.recovery_hash ?? NO_HASH);
+    if (!holds || !known) return error('invalid_recovery', 401);
   }
 
   const key = await counterKey(c, 'recover', name.key);
@@ -276,12 +319,11 @@ async function recover(c: Ctx): Promise<Response> {
   if (!row || !same) return error('invalid_recovery', 401);
 
   if (!password || label === null) {
-    await clear(c.db, key).run();
-    return json({ wrapRc: row.wrap_rc } satisfies RecoverAnswer);
+    await takeBack(c.db, key, n).run();
+    const ticket = await ticketFor(c, name.key, row.recovery_hash, c.now + RECOVER_TICKET_SECONDS * 1000);
+    return json({ wrapRc: row.wrap_rc, ticket } satisfies RecoverAnswer);
   }
-  // The new password, every older session ended, a new one made, and both
-  // of the name's counters cleared (a lock on the login goes with the old
-  // password).
+  // The new password, every older session ended, a new one made.
   const session = await newSession(c.db, row.id, label, c.now);
   const [updated] = await c.db.batch([
     c.db
@@ -289,8 +331,7 @@ async function recover(c: Ctx): Promise<Response> {
       .bind(row.id, password.salt, password.kdf, password.authHash, password.wrapPw, c.now),
     c.db.prepare('DELETE FROM session WHERE account = ?1').bind(row.id),
     session.insert,
-    clear(c.db, key),
-    clear(c.db, await counterKey(c, 'login', name.key)),
+    takeBack(c.db, key, n),
   ]);
   // The account was deleted between the two statements.
   if (updated?.meta.changes !== 1) return error('invalid_recovery', 401);
@@ -305,10 +346,12 @@ async function recover(c: Ctx): Promise<Response> {
  * The password asked for again (change password, new recovery code,
  * delete): a wrong `authKey` counts on the name's login counter, and a
  * locked name answers `locked` here too. Returns the answer when the
- * request may not go on, else the statement that clears the counter, for
- * the caller's batch.
+ * request may not go on, else the hash that was proven (the callers'
+ * statements change the account only while it still holds: the row was
+ * read before the counting) and `done`, which takes the try back once
+ * the change is made.
  */
-async function passwordAgain(c: Ctx, account: AccountRow, authKey: unknown): Promise<Response | D1Statement> {
+async function passwordAgain(c: Ctx, account: AccountRow, authKey: unknown): Promise<Response | { hash: string; done: () => Promise<void> }> {
   const hash = await keyHashOf(authKey);
   if (!hash) return badRequest();
   const key = await counterKey(c, 'login', account.name_key);
@@ -317,7 +360,12 @@ async function passwordAgain(c: Ctx, account: AccountRow, authKey: unknown): Pro
   const n = await guess(c, key);
   if (typeof n !== 'number') return n;
   if (!sameText(account.auth_hash, hash)) return error('invalid_login', 401);
-  return clear(c.db, key);
+  return {
+    hash,
+    done: async () => {
+      await takeBack(c.db, key, n).run();
+    },
+  };
 }
 
 async function logout(c: Ctx): Promise<Response> {
@@ -337,16 +385,23 @@ async function password(c: Ctx): Promise<Response> {
   if (!b) return badRequest();
   const next = hasKeys(b.set, PASSWORD_KEYS) ? await passwordOf(b.set) : null;
   if (!next) return badRequest();
-  const cleared = await passwordAgain(c, row, b.authKey);
-  if (cleared instanceof Response) return cleared;
-  // The other sessions end with the old password.
-  await c.db.batch([
+  const proven = await passwordAgain(c, row, b.authKey);
+  if (proven instanceof Response) return proven;
+  // Only while the password is still the one that was proven (another
+  // session may have changed it meanwhile). The other sessions end with
+  // the old password: only when the row now holds the new one.
+  const [updated] = await c.db.batch([
     c.db
-      .prepare('UPDATE account SET salt = ?2, kdf = ?3, auth_hash = ?4, wrap_pw = ?5 WHERE id = ?1')
-      .bind(row.id, next.salt, next.kdf, next.authHash, next.wrapPw),
-    c.db.prepare('DELETE FROM session WHERE account = ?1 AND id_hash <> ?2').bind(row.id, idHash),
-    cleared,
+      .prepare('UPDATE account SET salt = ?2, kdf = ?3, auth_hash = ?4, wrap_pw = ?5 WHERE id = ?1 AND auth_hash = ?6')
+      .bind(row.id, next.salt, next.kdf, next.authHash, next.wrapPw, proven.hash),
+    c.db
+      .prepare(
+        'DELETE FROM session WHERE account = ?1 AND id_hash <> ?2 AND EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?3 AND wrap_pw = ?4)',
+      )
+      .bind(row.id, idHash, next.authHash, next.wrapPw),
   ]);
+  if (updated?.meta.changes !== 1) return error('invalid_login', 401);
+  await proven.done();
   return empty();
 }
 
@@ -357,13 +412,14 @@ async function recovery(c: Ctx): Promise<Response> {
   const recoveryHash = await keyHashOf(b.recoveryAuth);
   const wrapRc = wrapOf(b.wrapRc);
   if (!recoveryHash || !wrapRc) return badRequest();
-  const cleared = await passwordAgain(c, row, b.authKey);
-  if (cleared instanceof Response) return cleared;
-  await c.db.batch([
-    c.db.prepare('UPDATE account SET recovery_hash = ?2, wrap_rc = ?3 WHERE id = ?1').bind(row.id, recoveryHash, wrapRc),
-    cleared,
-    clear(c.db, await counterKey(c, 'recover', row.name_key)),
-  ]);
+  const proven = await passwordAgain(c, row, b.authKey);
+  if (proven instanceof Response) return proven;
+  const updated = await c.db
+    .prepare('UPDATE account SET recovery_hash = ?2, wrap_rc = ?3 WHERE id = ?1 AND auth_hash = ?4')
+    .bind(row.id, recoveryHash, wrapRc, proven.hash)
+    .run();
+  if (updated.meta.changes !== 1) return error('invalid_login', 401);
+  await proven.done();
   return empty();
 }
 
@@ -397,13 +453,16 @@ async function remove(c: Ctx): Promise<Response> {
   const { account: row } = c.auth as Authed;
   const b = await body(c.request, ['authKey']);
   if (!b) return badRequest();
-  const cleared = await passwordAgain(c, row, b.authKey);
-  if (cleared instanceof Response) return cleared;
+  const proven = await passwordAgain(c, row, b.authKey);
+  if (proven instanceof Response) return proven;
   // Everything the account owns goes in one transaction, and its name is
-  // reserved in the same one, so it is never free in between.
-  await c.db.batch([
-    c.db.prepare('INSERT OR IGNORE INTO reserved_name (name_key) VALUES (?1)').bind(row.name_key),
-    c.db.prepare('DELETE FROM session WHERE account = ?1').bind(row.id),
+  // reserved in the same one, so it is never free in between. Every
+  // statement holds only while the password is still the one that was
+  // proven; the account row goes last, so the guard sees it until then.
+  const still = 'EXISTS (SELECT 1 FROM account WHERE id = ?1 AND auth_hash = ?2)';
+  const results = await c.db.batch([
+    c.db.prepare(`INSERT OR IGNORE INTO reserved_name (name_key) SELECT ?3 WHERE ${still}`).bind(row.id, proven.hash, row.name_key),
+    c.db.prepare(`DELETE FROM session WHERE account = ?1 AND ${still}`).bind(row.id, proven.hash),
     // Later stages add theirs here:
     //   stage 61: DELETE FROM item WHERE account = ?1
     //   stage 63: DELETE FROM run_body WHERE account = ?1, and the R2
@@ -414,10 +473,11 @@ async function remove(c: Ctx): Promise<Response> {
     //             the votes and comments on them
     //   stage 65: the votes and comments the account made (and the
     //             publications' vote_sum, vote_count, comment_count)
-    c.db.prepare('DELETE FROM account WHERE id = ?1').bind(row.id),
-    cleared,
-    clear(c.db, await counterKey(c, 'recover', row.name_key)),
+    //   (each with the same guard)
+    c.db.prepare('DELETE FROM account WHERE id = ?1 AND auth_hash = ?2').bind(row.id, proven.hash),
   ]);
+  if (results.at(-1)?.meta.changes !== 1) return error('invalid_login', 401);
+  await proven.done();
   return empty({ 'Set-Cookie': clearedCookie() });
 }
 
@@ -449,21 +509,35 @@ export function sameSite(request: Request, url: URL): boolean {
   return request.headers.get('x-wc') === '1' && request.headers.get('origin') === url.origin;
 }
 
+/** The paths behind the tight limit as well: each can cost the database a write or Turnstile a call. */
+const TIGHT = new Set(['/api/auth/login', '/api/auth/recover', '/api/auth/register']);
+
 /** Every request under `/api/auth/` and `/api/u/`. */
 export async function accountApi(request: Request, env: Env, url: URL, deps: Deps): Promise<Response> {
   const now = deps.now();
-  const path = url.pathname;
+  // (`flags` does not throw: a failing database is the defaults.)
   if (!(await flags(env, now)).accounts) return error('not_found', 404);
+  try {
+    return await answer(request, env, url, deps, now);
+  } catch {
+    // A failing database or binding. Nothing of the request is logged.
+    return error('unavailable', 503);
+  }
+}
 
-  // The general limit: per session where a request carries one, else per
-  // address. A key is used in passing; nothing is stored.
-  const address = request.headers.get('cf-connecting-ip') ?? 'unknown';
+async function answer(request: Request, env: Env, url: URL, deps: Deps, now: number): Promise<Response> {
+  const path = url.pathname;
+  // The general limit: per address (address.ts: an IPv6 /64 is one), and
+  // per session as well where a request carries a token; both before any
+  // database work, so made-up cookies are bounded by their address. A key
+  // is used in passing; nothing is stored.
+  const address = addressKey(request.headers.get('cf-connecting-ip'));
   const user = path.startsWith('/api/u/');
   const token = user ? sessionToken(request) : null;
   const limiter = env.API_LIMITER;
   if (limiter) {
-    const key = token ? `s|${await tokenHash(token)}` : `a|${address}`;
-    if (!(await limiter.limit({ key })).success) return error('rate_limited', 429);
+    if (!(await limiter.limit({ key: `a|${address}` })).success) return error('rate_limited', 429);
+    if (token && !(await limiter.limit({ key: `s|${await tokenHash(token)}` })).success) return error('rate_limited', 429);
   }
 
   const route = routeOf(path);
@@ -473,28 +547,21 @@ export async function accountApi(request: Request, env: Env, url: URL, deps: Dep
   const handler = Object.hasOwn(route, method) ? route[method] : undefined;
   if (!handler) return error('method_not_allowed', 405, { Allow: Object.keys(route).join(', ') });
   if (method !== 'GET' && !sameSite(request, url)) return error('forbidden', 403);
+  // The tight limit on what can count a try or make an account.
+  if (TIGHT.has(path) && env.AUTH_LIMITER && !(await env.AUTH_LIMITER.limit({ key: `a|${address}` })).success) return error('rate_limited', 429);
 
   const pepper = env.AUTH_PEPPER ?? '';
   if (pepper.length < MIN_PEPPER_LENGTH || !env.TURNSTILE_SECRET) return error('accounts_not_configured', 503);
   const db = env.DB;
   if (!db) return error('unavailable', 503);
 
-  let res: Response;
-  try {
-    let auth: Authed | null = null;
-    if (user) {
-      auth = token ? await authenticate(db, token, now) : null;
-      if (!auth) {
-        // A made-up cookie got a limiter key of its own above: count the address as well.
-        if (token && limiter && !(await limiter.limit({ key: `a|${address}` })).success) return error('rate_limited', 429);
-        return error('unauthorized', 401, { 'Set-Cookie': clearedCookie() });
-      }
-    }
-    res = await handler({ request, env, url, deps, db, now, pepper: utf8(pepper), address, auth });
-    if (auth?.renewed && !res.headers.has('set-cookie')) res.headers.set('Set-Cookie', auth.renewed);
-  } catch {
-    // A failing database. Nothing of the request is logged.
-    return error('unavailable', 503);
+  let auth: Authed | null = null;
+  if (user) {
+    auth = token ? await authenticate(db, token, now) : null;
+    // The cookie is cleared only for a browser that sent one.
+    if (!auth) return error('unauthorized', 401, hasSessionCookie(request) ? { 'Set-Cookie': clearedCookie() } : {});
   }
+  const res = await handler({ request, env, url, deps, db, now, pepper: utf8(pepper), address, auth });
+  if (auth?.renewed && !res.headers.has('set-cookie')) res.headers.set('Set-Cookie', auth.renewed);
   return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
 }

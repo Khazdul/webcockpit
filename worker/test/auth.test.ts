@@ -14,9 +14,10 @@ import {
   SESSION_SECONDS,
 } from '../../shared/cloud/api.ts';
 import { BUILTIN_RESERVED } from '../accounts.ts';
+import { addressKey } from '../address.ts';
 import { fromB64url, toB64url } from '../bytes.ts';
 import { handle } from '../router.ts';
-import type { Deps, Env, RateLimiter } from '../runtime.ts';
+import type { D1, Deps, Env, RateLimiter } from '../runtime.ts';
 import { DAILY_CRON, runCron } from '../stats.ts';
 import { SITEVERIFY_URL } from '../turnstile.ts';
 import { T, at, count, db, emptyTables, envWith, realEnv } from './helpers.ts';
@@ -28,8 +29,8 @@ const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 const IP = '203.0.113.7';
 
-/** The test Worker's env without the general limiter (its own tests pass a stub). */
-const ENV = envWith({ API_LIMITER: undefined });
+/** The test Worker's env without the limiters (their own tests pass stubs). */
+const ENV = envWith({ API_LIMITER: undefined, AUTH_LIMITER: undefined });
 
 /** `n` bytes made from `fill`, base64url: a stand-in for a key, a salt or a wrap. */
 const bytes = (n: number, fill: number): string => toB64url(Uint8Array.from({ length: n }, (_, i) => (fill * 31 + i * 7) & 255));
@@ -618,21 +619,50 @@ describe('POST /api/auth/login', () => {
     // When it ends, the right password logs in, with no Turnstile.
     const after = await login('alice', 1, { now: t10 + 15 * MIN });
     expect(after.status).toBe(200);
-    expect(await count('attempt')).toBe(2);
+    // The counter is not removed by a success: it only runs out.
+    expect(await db.prepare("SELECT start, count, until FROM attempt WHERE key LIKE 'login|%'").first()).toEqual({ start: t10 + 15 * MIN, count: 0, until: 0 });
   });
 
-  it('the tenth try is still looked at; a success clears the counter; a window ends after 15 minutes', async () => {
+  it('the tenth try is still looked at; a success takes back only its own try; a window ends after 15 minutes', async () => {
     await signUp('alice');
+    const counter = (): Promise<unknown> => db.prepare("SELECT start, count, until FROM attempt WHERE key LIKE 'login|%'").first();
     for (let i = 0; i < 9; i++) await login('alice', 7, {}, 'ok');
+    // The tenth try sets the lock, is right, and takes the lock and itself back.
     expect((await login('alice', 1, {}, 'ok')).status).toBe(200);
-    expect(await db.prepare("SELECT 1 FROM attempt WHERE key LIKE 'login|%'").first()).toBeNull();
-    // Three fresh failures before Turnstile is asked for again.
-    for (let i = 0; i < 3; i++) expect((await login('alice', 7)).status).toBe(401);
+    expect(await counter()).toEqual({ start: NOW, count: 9, until: 0 });
+    // The nine failures still stand: Turnstile is asked for, and one more failure locks.
     expect(await errorOf(await login('alice', 1))).toBe('turnstile_required');
+    expect((await login('alice', 7, {}, 'ok')).status).toBe(401);
+    expect(await counter()).toEqual({ start: NOW, count: 10, until: NOW + 15 * MIN });
+    expect((await login('alice', 1, {}, 'ok')).status).toBe(429);
     // The window is over 15 minutes after its first failure.
     expect((await login('alice', 7, { now: NOW + 15 * MIN })).status).toBe(401);
-    expect(await db.prepare("SELECT start, count, until FROM attempt WHERE key LIKE 'login|%'").first()).toEqual({ start: NOW + 15 * MIN, count: 1, until: 0 });
+    expect(await counter()).toEqual({ start: NOW + 15 * MIN, count: 1, until: 0 });
     expect((await login('alice', 1, { now: NOW + 16 * MIN })).status).toBe(200);
+    expect(await counter()).toEqual({ start: NOW + 15 * MIN, count: 1, until: 0 });
+  });
+
+  it("the owner's login does not show in what an outsider sees of the counter", async () => {
+    await signUp('alice');
+    // Three wrong logins by somebody else: from now on a login asks for Turnstile.
+    for (let i = 0; i < 3; i++) expect((await login('alice', 7, { ip: '198.51.100.20' })).status).toBe(401);
+    const probe = async (): Promise<unknown> => seen(await login('alice', 7, { ip: '198.51.100.20', now: NOW + MIN }));
+    const before = await probe();
+    expect(JSON.parse((before as { body: string }).body)).toEqual({ error: 'turnstile_required' });
+    // The owner logs in (with the token that is asked for).
+    expect(await errorOf(await login('alice', 1, { now: NOW + MIN }))).toBe('turnstile_required');
+    expect((await login('alice', 1, { now: NOW + MIN }, 'ok')).status).toBe(200);
+    // The probe without a token sees what it saw.
+    expect(await probe()).toEqual(before);
+    expect(await db.prepare("SELECT count, until FROM attempt WHERE key LIKE 'login|%'").first()).toEqual({ count: 3, until: 0 });
+  });
+
+  it('ten right logins in a row never lock and never need Turnstile', async () => {
+    await signUp('alice');
+    for (let i = 0; i < 12; i++) expect((await login('alice', 1, { now: NOW + i * 1000 })).status, `login ${i + 1}`).toBe(200);
+    expect(await db.prepare("SELECT count, until FROM attempt WHERE key LIKE 'login|%'").first()).toEqual({ count: 0, until: 0 });
+    expect(verifies).toHaveLength(1);
+    expect(await count('session')).toBe(13);
   });
 
   it('guesses that race each other are all counted', async () => {
@@ -675,19 +705,21 @@ describe('sessions', () => {
     expect(await session()).toEqual({ last_used: t, expires: t + SESSION_SECONDS * 1000 });
   });
 
-  it('an expired, unknown, malformed or missing session is 401 with the cookie cleared', async () => {
+  it('an expired, unknown, malformed or missing session is 401; the cookie is cleared only when one was sent', async () => {
     const cookie = await signUp('alice');
     const cleared = `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/api/u; Max-Age=0`;
     const end = NOW + SESSION_SECONDS * 1000;
     expect((await get('/api/u/account', { cookie, now: NOW + DAY - 1 })).status).toBe(200);
-    const cases: [string, Opts][] = [
-      ['expired', { cookie, now: end }],
-      ['unknown', { cookie: `${SESSION_COOKIE}=${bytes(32, 5)}` }],
-      ['malformed', { cookie: `${SESSION_COOKIE}=abc` }],
-      ['another cookie', { cookie: `wc_s=${cookie.split('=')[1]}` }],
-      ['none', {}],
+    const cases: [string, Opts, string | null][] = [
+      ['expired', { cookie, now: end }, cleared],
+      ['unknown', { cookie: `${SESSION_COOKIE}=${bytes(32, 5)}` }, cleared],
+      ['malformed', { cookie: `${SESSION_COOKIE}=abc` }, cleared],
+      ['empty', { cookie: `a=1; ${SESSION_COOKIE}=` }, cleared],
+      // A request without our cookie gets no Set-Cookie at all.
+      ['another cookie', { cookie: `wc_s=${cookie.split('=')[1]}` }, null],
+      ['none', {}, null],
     ];
-    for (const [what, o] of cases) {
+    for (const [what, o, set] of cases) {
       for (const [method, path] of [
         ['GET', '/api/u/account'],
         ['POST', '/api/u/auth/logout'],
@@ -697,7 +729,7 @@ describe('sessions', () => {
         const res = await call(method, path, {}, o);
         expect(res.status, `${what} ${path}`).toBe(401);
         expect(await res.json()).toEqual({ error: 'unauthorized' });
-        expect(res.headers.get('set-cookie')).toBe(cleared);
+        expect(res.headers.get('set-cookie'), `${what} ${path}`).toBe(set);
       }
     }
     // Just before its end it still works (and is found among other cookies).
@@ -799,7 +831,8 @@ describe('the account', () => {
 
     const res = await post('/api/u/account/password', { authKey: key(1), set }, { cookie: here });
     expect(res.status).toBe(204);
-    expect(await db.prepare("SELECT count FROM attempt WHERE key LIKE 'login|%'").first()).toBeNull();
+    // The right key took back its own try; the wrong one stays counted.
+    expect(await db.prepare("SELECT count FROM attempt WHERE key LIKE 'login|%'").first()).toEqual({ count: 1 });
     expect((await get('/api/u/account', { cookie: there })).status).toBe(401);
     expect((await accountOf(here)).sessions).toHaveLength(1);
     expect(((await (await get('/api/u/account', { cookie: here })).json()) as { wrapPw: string }).wrapPw).toBe(bytes(61, 23));
@@ -808,6 +841,78 @@ describe('the account', () => {
     const ok = await login('alice', 22);
     expect(ok.status).toBe(200);
     expect(((await ok.json()) as { wrapPw: string }).wrapPw).toBe(bytes(61, 23));
+  });
+
+  it('a password that changed since the session was read changes nothing (password, recovery, delete)', async () => {
+    const here = await signUp('alice');
+    const there = cookieOf(await login('alice', 1)) as string;
+    // A database whose next batch or UPDATE of the account finds the
+    // password already changed by somebody else: what a request racing a
+    // password change from another session meets.
+    const changed = "UPDATE account SET auth_hash = 'changed-meanwhile'";
+    let armed = true;
+    const strike = async (): Promise<void> => {
+      if (!armed) return;
+      armed = false;
+      await db.prepare(changed).run();
+    };
+    const racing: D1 = {
+      prepare: (sql) => {
+        const st = db.prepare(sql);
+        if (!sql.startsWith('UPDATE account SET recovery_hash')) return st;
+        return {
+          bind: (...values: unknown[]) => {
+            const bound = st.bind(...values);
+            return {
+              bind: bound.bind.bind(bound),
+              first: bound.first.bind(bound),
+              all: bound.all.bind(bound),
+              run: async () => {
+                await strike();
+                return bound.run();
+              },
+            } as ReturnType<D1['prepare']>;
+          },
+          first: st.first.bind(st),
+          all: st.all.bind(st),
+          run: st.run.bind(st),
+        } as ReturnType<D1['prepare']>;
+      },
+      batch: async (statements) => {
+        await strike();
+        return db.batch(statements);
+      },
+    };
+    const env = envWith({ DB: racing, FLAG_ACCOUNTS: true, API_LIMITER: undefined, AUTH_LIMITER: undefined });
+    const restore = async (): Promise<void> => {
+      const sha = toB64url(new Uint8Array(await crypto.subtle.digest('SHA-256', fromB64url(key(1)) as Uint8Array<ArrayBuffer>)));
+      await db.prepare('UPDATE account SET auth_hash = ?1').bind(sha).run();
+      armed = true;
+    };
+    const set = { salt: bytes(16, 21), kdf: { ...DEFAULT_KDF }, authKey: key(22), wrapPw: bytes(61, 23) };
+    for (const [method, path, body] of [
+      ['POST', '/api/u/account/password', { authKey: key(1), set }],
+      ['POST', '/api/u/account/recovery', { authKey: key(1), recoveryAuth: key(42), wrapRc: bytes(61, 43) }],
+      ['DELETE', '/api/u/account', { authKey: key(1) }],
+    ] as const) {
+      const res = await call(method, path, body, { cookie: here, env });
+      expect(res.status, path).toBe(401);
+      expect(await res.json(), path).toEqual({ error: 'invalid_login' });
+      expect(res.headers.get('set-cookie'), path).toBeNull();
+      // Nothing of the request happened: the row is as the other change left it, every session lives, no name is reserved.
+      expect(await db.prepare('SELECT auth_hash, salt, wrap_pw, wrap_rc FROM account').first(), path).toEqual({
+        auth_hash: 'changed-meanwhile',
+        salt: bytes(16, 9),
+        wrap_pw: bytes(61, 3),
+        wrap_rc: bytes(61, 4),
+      });
+      expect(await count('session'), path).toBe(2);
+      expect(await count('reserved_name'), path).toBe(0);
+      await restore();
+    }
+    expect((await get('/api/u/account', { cookie: there })).status).toBe(200);
+    // The tries that came to nothing stay counted.
+    expect(await db.prepare("SELECT count FROM attempt WHERE key LIKE 'login|%'").first()).toEqual({ count: 3 });
   });
 
   it('a locked name waits on the password questions too', async () => {
@@ -831,7 +936,14 @@ describe('the account', () => {
 describe('POST /api/auth/recover', () => {
   const set = { salt: bytes(16, 31), kdf: { ...DEFAULT_KDF }, authKey: key(32), wrapPw: bytes(61, 33) };
 
-  it('first the wrap for the code, then the new password: every session ended, the old password dead, the code alive', async () => {
+  /** The first call with the right code: the ticket for the second. */
+  async function ticketOf(name: string, o: Opts = {}, seed = 2): Promise<string> {
+    const res = await post('/api/auth/recover', { name, recoveryAuth: key(seed), turnstile: 'ok' }, o);
+    expect(res.status).toBe(200);
+    return ((await res.json()) as { ticket: string }).ticket;
+  }
+
+  it('first the wrap and a ticket for the code, then the new password: every session ended, the old password dead, the code alive', async () => {
     const old1 = await signUp('Alice');
     const old2 = cookieOf(await login('alice', 1)) as string;
     // A lock on the login does not stand in the way of the code.
@@ -840,12 +952,14 @@ describe('POST /api/auth/recover', () => {
 
     const first = await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), turnstile: 'ok' });
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({ wrapRc: bytes(61, 4) });
+    const { wrapRc, ticket } = (await first.json()) as { wrapRc: string; ticket: string };
+    expect(wrapRc).toBe(bytes(61, 4));
+    expect(ticket).toMatch(/^[A-Za-z0-9_-]{54}$/);
     expect(first.headers.get('set-cookie')).toBeNull();
     expect(verifies).toHaveLength(1);
     expect(await count('session')).toBe(2);
 
-    const second = await post('/api/auth/recover', { name: 'ALICE', recoveryAuth: key(2), set, label: 'Safari on iPhone' }, { now: NOW + MIN });
+    const second = await post('/api/auth/recover', { name: 'ALICE', recoveryAuth: key(2), set, label: 'Safari on iPhone', ticket }, { now: NOW + MIN });
     expect(second.status).toBe(200);
     expect(verifies).toHaveLength(1); // no Turnstile on the second call
     const cookie = cookieOf(second) as string;
@@ -856,27 +970,87 @@ describe('POST /api/auth/recover', () => {
     for (const c of [old1, old2]) expect((await get('/api/u/account', { cookie: c })).status).toBe(401);
     expect(await accountOf(cookie)).toEqual(account);
 
-    // The login lock went with the old password; the old key is dead, the new works.
-    expect(await db.prepare("SELECT 1 FROM attempt WHERE key LIKE 'login|%' OR key LIKE 'recover|%'").first()).toBeNull();
-    expect((await login('alice', 1, { now: NOW + 2 * MIN })).status).toBe(401);
-    const ok = await login('alice', 32, { now: NOW + 2 * MIN });
+    // Both successes took their own tries back; the login's counter and
+    // its lock are untouched (counters only run out).
+    expect(await db.prepare("SELECT count, until FROM attempt WHERE key LIKE 'recover|%'").first()).toEqual({ count: 0, until: 0 });
+    expect(await db.prepare("SELECT count, until FROM attempt WHERE key LIKE 'login|%'").first()).toEqual({ count: 10, until: NOW + 15 * MIN });
+    expect((await login('alice', 32, { now: NOW + 2 * MIN }, 'ok')).status).toBe(429);
+    // After the lock: the old key is dead, the new works.
+    expect((await login('alice', 1, { now: NOW + 16 * MIN })).status).toBe(401);
+    const ok = await login('alice', 32, { now: NOW + 16 * MIN });
     expect(ok.status).toBe(200);
     expect(((await ok.json()) as { wrapPw: string }).wrapPw).toBe(bytes(61, 33));
-    // The recovery code still works.
+    // The recovery code still works, and so does the ticket until it is 15 minutes old.
     const again = await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), turnstile: 'ok' }, { now: NOW + 3 * MIN });
-    expect(await again.json()).toEqual({ wrapRc: bytes(61, 4) });
+    expect(await again.json()).toMatchObject({ wrapRc: bytes(61, 4) });
+    expect((await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), set, label: 'x', ticket }, { now: NOW + 15 * MIN - 1 })).status).toBe(200);
+  });
+
+  it('the second call without a valid ticket is 401 and counts nothing', async () => {
+    await signUp('alice');
+    await signUp('bob', { ip: '198.51.100.7' });
+    const ticket = await ticketOf('alice');
+    const bobs = await ticketOf('bob');
+    const raw = fromB64url(ticket) as Uint8Array<ArrayBuffer>;
+    const flipped = (i: number): string => {
+      const b = raw.slice();
+      b[i] = (b[i] as number) ^ 1;
+      return toB64url(b);
+    };
+    const rows = async (): Promise<unknown> => (await db.prepare('SELECT key, start, count, until FROM attempt ORDER BY key').all()).results;
+    const before = await rows();
+    const second = (name: string, t: unknown, o: Opts = {}, seed = 2): Promise<Response> =>
+      post('/api/auth/recover', { name, recoveryAuth: key(seed), set, label: 'x', ticket: t }, o);
+
+    const bad: [string, string, Opts][] = [
+      ['made up', toB64url(new Uint8Array(40).fill(7)), {}],
+      ['empty', '', {}],
+      ['not base64url', 'a+b/c=', {}],
+      ['too short', toB64url(raw.slice(0, 39)), {}],
+      ["another name's", bobs, {}],
+      ['a later expiry', flipped(7), {}],
+      ['a changed mac', flipped(20), {}],
+      ['expired', ticket, { now: NOW + 15 * MIN }],
+      ['from the future', ticket, { now: NOW - 1 }],
+    ];
+    for (const [what, t, o] of bad) {
+      // The right code and a wrong one, a real name and nobody's: one answer.
+      const answers = [await seen(await second('alice', t, o)), await seen(await second('alice', t, o, 66)), await seen(await second('nobody', t, o))];
+      expect(answers[0], what).toMatchObject({ status: 401, body: '{"error":"invalid_recovery"}' });
+      expect(answers[1], what).toEqual(answers[0]);
+      expect(answers[2], what).toEqual(answers[0]);
+    }
+    for (const t of [undefined, 5, null, 'x'.repeat(101)]) expect((await second('alice', t)).status).toBe(400);
+    // Nothing was counted or written by any of it: hundreds of these cannot lock the name.
+    for (let i = 0; i < 30; i++) await second('alice', flipped(20));
+    expect(await rows()).toEqual(before);
+    expect(await count('session')).toBe(2);
+
+    // A valid ticket still needs the right code (and that try is counted).
+    const wrong = await second('alice', ticket, {}, 66);
+    expect(wrong.status).toBe(401);
+    expect(await db.prepare("SELECT count FROM attempt WHERE key LIKE 'recover|%' AND count > 0").first()).toEqual({ count: 1 });
+    // A new recovery code ends the tickets of the old one.
+    const cookie = cookieOf(await login('alice', 1)) as string;
+    expect((await post('/api/u/account/recovery', { authKey: key(1), recoveryAuth: key(42), wrapRc: bytes(61, 43) }, { cookie })).status).toBe(204);
+    expect((await second('alice', ticket, {}, 42)).status).toBe(401);
+    expect((await second('alice', await ticketOf('alice', {}, 42), {}, 42)).status).toBe(200);
   });
 
   it('needs one of the two forms exactly', async () => {
     await signUp('alice');
+    const ticket = await ticketOf('alice');
     for (const b of [
       { name: 'alice', recoveryAuth: key(2) },
       { name: 'alice', recoveryAuth: key(2), turnstile: 'ok', set, label: 'x' },
+      { name: 'alice', recoveryAuth: key(2), turnstile: 'ok', set, label: 'x', ticket },
+      { name: 'alice', recoveryAuth: key(2), turnstile: 'ok', ticket },
       { name: 'alice', recoveryAuth: key(2), turnstile: 'ok', label: 'x' },
-      { name: 'alice', recoveryAuth: key(2), set },
-      { name: 'alice', recoveryAuth: key(2), label: 'x' },
-      { name: 'alice', recoveryAuth: key(2), set: { ...set, authKey: 'x' }, label: 'x' },
-      { name: 'alice', recoveryAuth: key(2), set: { ...set, name: 'bob' }, label: 'x' },
+      { name: 'alice', recoveryAuth: key(2), set, label: 'x' },
+      { name: 'alice', recoveryAuth: key(2), set, ticket },
+      { name: 'alice', recoveryAuth: key(2), label: 'x', ticket },
+      { name: 'alice', recoveryAuth: key(2), set: { ...set, authKey: 'x' }, label: 'x', ticket },
+      { name: 'alice', recoveryAuth: key(2), set: { ...set, name: 'bob' }, label: 'x', ticket },
       { name: 'alice', recoveryAuth: bytes(31, 2), turnstile: 'ok' },
       { name: 'a', recoveryAuth: key(2), turnstile: 'ok' },
       { name: 'alice', recoveryAuth: key(2), turnstile: '' },
@@ -896,11 +1070,11 @@ describe('POST /api/auth/recover', () => {
 
   it('a wrong code and an unknown name are one answer, counted per name on a counter of their own, with the same lock', async () => {
     await signUp('alice');
+    const ticket = await ticketOf('alice', { now: NOW - 1000 });
     const real: unknown[] = [];
     const fake: unknown[] = [];
     for (let i = 0; i < 12; i++) {
-      // Both calls count: odd tries are the second call.
-      const body = (name: string): unknown => (i % 2 ? { name, recoveryAuth: key(66), set, label: 'x' } : { name, recoveryAuth: key(66), turnstile: 'ok' });
+      const body = (name: string): unknown => ({ name, recoveryAuth: key(66), turnstile: 'ok' });
       real.push(await seen(await post('/api/auth/recover', body('alice'), { now: NOW + i * 1000 })));
       fake.push(await seen(await post('/api/auth/recover', body('nobody'), { now: NOW + i * 1000 })));
     }
@@ -909,9 +1083,9 @@ describe('POST /api/auth/recover', () => {
     expect(statuses).toEqual([401, 401, 401, 401, 401, 401, 401, 401, 401, 401, 429, 429]);
     expect(JSON.parse((real[0] as { body: string }).body)).toEqual({ error: 'invalid_recovery' });
     expect(JSON.parse((real[10] as { body: string }).body)).toEqual({ error: 'locked', retryAfter: 899 });
-    // The right code waits too, in both calls; the login is not locked by it.
+    // The right code waits too, in both calls (the second with its ticket); the login is not locked by it.
     expect((await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), turnstile: 'ok' }, { now: NOW + MIN })).status).toBe(429);
-    expect((await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), set, label: 'x' }, { now: NOW + MIN })).status).toBe(429);
+    expect((await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), set, label: 'x', ticket }, { now: NOW + MIN })).status).toBe(429);
     expect((await login('alice', 1, { now: NOW + MIN })).status).toBe(200);
     expect((await login('alice', 32, { now: NOW + MIN })).status).toBe(401);
     // After the wait the code works.
@@ -930,7 +1104,7 @@ describe('POST /api/auth/recover', () => {
     expect(res.status).toBe(204);
     expect(await errorOf(await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), turnstile: 'ok' }))).toBe('invalid_recovery');
     const ok = await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(42), turnstile: 'ok' });
-    expect(await ok.json()).toEqual({ wrapRc: bytes(61, 43) });
+    expect(await ok.json()).toMatchObject({ wrapRc: bytes(61, 43) });
     // The session and the password are as they were.
     expect((await get('/api/u/account', { cookie })).status).toBe(200);
     expect((await login('alice', 1)).status).toBe(200);
@@ -985,11 +1159,11 @@ describe('the general limiter', () => {
     };
   }
 
-  it('is keyed by the address without a session, by the hash of the token with one', async () => {
+  it('is keyed by the address, and by the hash of the token as well where there is a session', async () => {
     const cookie = await signUp('alice');
     const token = cookie.split('=')[1] as string;
     const l = limiter();
-    const env = envWith({ API_LIMITER: l });
+    const env = envWith({ API_LIMITER: l, AUTH_LIMITER: undefined });
     await get('/api/auth/params?name=alice', { env });
     // The cookie is not sent to /api/auth by a browser; if it is, it is not looked at.
     await login('alice', 1, { env, cookie });
@@ -997,21 +1171,19 @@ describe('the general limiter', () => {
     await get('/api/u/account', { env, cookie });
     await get('/api/u/account', { env, cookie: `${SESSION_COOKIE}=${bytes(32, 6)}` });
     await get('/api/auth/params?name=alice', { env, ip: null });
-    expect(l.keys).toHaveLength(7);
-    expect(l.keys.slice(0, 3)).toEqual([`a|${IP}`, `a|${IP}`, `a|${IP}`]);
-    expect(l.keys[3]).toMatch(/^s\|[A-Za-z0-9_-]{43}$/);
-    expect(l.keys[3]).not.toContain(token);
-    // A made-up session has a key of its own, so the address is counted as well.
-    expect(l.keys[4]).toMatch(/^s\|/);
-    expect(l.keys[4]).not.toBe(l.keys[3]);
-    expect(l.keys[5]).toBe(`a|${IP}`);
-    expect(l.keys[6]).toBe('a|unknown');
+    await get('/api/auth/params?name=alice', { env, ip: '2001:db8:1:2:aaaa:bbbb:cccc:dddd' });
+    await get('/api/auth/params?name=alice', { env, ip: '2001:db8:1:2::1' });
+    const a = `a|${IP}`;
+    expect(l.keys).toEqual([a, a, a, a, expect.stringMatching(/^s\|[A-Za-z0-9_-]{43}$/), a, expect.stringMatching(/^s\|/), 'a|unknown', 'a|2001:db8:1:2::/64', 'a|2001:db8:1:2::/64']);
+    expect(l.keys[4]).not.toContain(token);
+    // A made-up session has a key of its own, but its address was counted first.
+    expect(l.keys[6]).not.toBe(l.keys[4]);
   });
 
   it('over the limit: 429 rate_limited, before anything else', async () => {
     const cookie = await signUp('alice');
-    const env = envWith({ API_LIMITER: limiter() });
-    const full = envWith({ API_LIMITER: limiter(() => true) });
+    const env = envWith({ API_LIMITER: limiter(), AUTH_LIMITER: undefined });
+    const full = envWith({ API_LIMITER: limiter(() => true), AUTH_LIMITER: undefined });
     expect((await get('/api/u/account', { env, cookie })).status).toBe(200);
     for (const res of [
       await get('/api/auth/params?name=alice', { env: full }),
@@ -1024,12 +1196,139 @@ describe('the general limiter', () => {
       expect(await res.json()).toEqual({ error: 'rate_limited' });
     }
     expect(await db.prepare("SELECT 1 FROM attempt WHERE key LIKE 'login|%'").first()).toBeNull();
-    // A made-up session from an address over its limit.
-    const byAddress = envWith({ API_LIMITER: limiter((k) => k.startsWith('a|')) });
+    // An address over its limit is stopped before the database is asked about its cookie, real or made up.
+    const reads: string[] = [];
+    const watched: D1 = { prepare: (sql) => (reads.push(sql), db.prepare(sql)), batch: (st) => db.batch(st) };
+    const byAddress = envWith({ API_LIMITER: limiter((k) => k.startsWith('a|')), AUTH_LIMITER: undefined, DB: watched, FLAG_ACCOUNTS: true });
     expect((await get('/api/u/account', { env: byAddress, cookie: `${SESSION_COOKIE}=${bytes(32, 6)}` })).status).toBe(429);
-    expect((await get('/api/u/account', { env: byAddress, cookie })).status).toBe(200);
+    expect((await get('/api/u/account', { env: byAddress, cookie })).status).toBe(429);
+    expect(reads.filter((sql) => !sql.includes('FROM flag'))).toEqual([]);
+    // A session over its own limit, from an address that is not.
+    const bySession = envWith({ API_LIMITER: limiter((k) => k.startsWith('s|')), AUTH_LIMITER: undefined });
+    expect((await get('/api/u/account', { env: bySession, cookie })).status).toBe(429);
+    expect((await get('/api/auth/params?name=alice', { env: bySession })).status).toBe(200);
     // The rest of the API is not behind it.
     expect((await get('/api/config', { env: full })).status).toBe(200);
+  });
+
+  it('the tight limit: login, recover and register per address, before any database work', async () => {
+    const cookie = await signUp('alice');
+    const tight = limiter(() => true);
+    const reads: string[] = [];
+    const watched: D1 = { prepare: (sql) => (reads.push(sql), db.prepare(sql)), batch: (st) => db.batch(st) };
+    const env = envWith({ API_LIMITER: undefined, AUTH_LIMITER: tight, DB: watched, FLAG_ACCOUNTS: true });
+    verifies = [];
+    for (const res of [
+      await login('alice', 7, { env }),
+      await login('alice', 1, { env, ip: '2001:db8:1:2:3:4:5:6' }),
+      await post('/api/auth/register', registration('bob'), { env }),
+      await post('/api/auth/recover', { name: 'alice', recoveryAuth: key(2), turnstile: 'ok' }, { env }),
+    ]) {
+      expect(res.status).toBe(429);
+      expect(await res.json()).toEqual({ error: 'rate_limited' });
+    }
+    expect(tight.keys).toEqual([`a|${IP}`, 'a|2001:db8:1:2::/64', `a|${IP}`, `a|${IP}`]);
+    expect(reads.filter((sql) => !sql.includes('FROM flag'))).toEqual([]);
+    expect(verifies).toEqual([]);
+    // The CSRF rule and the method come first (they cost nothing), and nothing else is behind it.
+    expect((await login('alice', 7, { env, csrf: false })).status).toBe(403);
+    expect((await get('/api/auth/login', { env })).status).toBe(405);
+    expect((await get('/api/auth/params?name=alice', { env })).status).toBe(200);
+    expect((await get('/api/u/account', { env, cookie })).status).toBe(200);
+    expect((await post('/api/u/auth/logout', undefined, { env, cookie })).status).toBe(204);
+    expect(tight.keys).toHaveLength(4);
+    // Under the limit it lets through.
+    const open = limiter();
+    expect((await login('alice', 1, { env: envWith({ API_LIMITER: undefined, AUTH_LIMITER: open }) })).status).toBe(200);
+    expect(open.keys).toEqual([`a|${IP}`]);
+  });
+
+  it('a limiter or a database that throws is 503 unavailable, never an uncaught error', async () => {
+    const cookie = await signUp('alice');
+    const broken: RateLimiter = {
+      limit: async () => {
+        throw new Error('limiter down');
+      },
+    };
+    for (const env of [envWith({ API_LIMITER: broken, AUTH_LIMITER: undefined }), envWith({ API_LIMITER: undefined, AUTH_LIMITER: broken })]) {
+      const res = await login('alice', 1, { env });
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: 'unavailable' });
+    }
+    const general = envWith({ API_LIMITER: broken, AUTH_LIMITER: undefined });
+    expect((await get('/api/auth/params?name=alice', { env: general })).status).toBe(503);
+    expect((await get('/api/u/account', { env: general, cookie })).status).toBe(503);
+    const failing: D1 = {
+      prepare: (sql) => {
+        if (sql.includes('FROM flag')) return db.prepare(sql);
+        throw new Error('database down');
+      },
+      batch: async () => {
+        throw new Error('database down');
+      },
+    };
+    const down = envWith({ DB: failing, FLAG_ACCOUNTS: true, API_LIMITER: undefined, AUTH_LIMITER: undefined });
+    for (const res of [await get('/api/auth/params?name=alice', { env: down }), await get('/api/u/account', { env: down, cookie }), await login('alice', 1, { env: down })]) {
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: 'unavailable' });
+    }
+  });
+});
+
+describe('the address as a key', () => {
+  it('an IPv4 address is itself, an IPv6 address its /64, anything else unknown', () => {
+    const cases: [string | null | undefined, string][] = [
+      ['203.0.113.7', '203.0.113.7'],
+      [' 203.0.113.7 ', '203.0.113.7'],
+      ['0.0.0.0', '0.0.0.0'],
+      ['255.255.255.255', '255.255.255.255'],
+      ['2001:db8:1:2:3:4:5:6', '2001:db8:1:2::/64'],
+      ['2001:0DB8:0001:0002:ffff:ffff:ffff:ffff', '2001:db8:1:2::/64'],
+      ['2001:db8:1:2::', '2001:db8:1:2::/64'],
+      ['2001:db8:1:2::1', '2001:db8:1:2::/64'],
+      ['2001:db8::1', '2001:db8:0:0::/64'],
+      ['2001:db8:0:0:1::', '2001:db8:0:0::/64'],
+      ['2001:db8::', '2001:db8:0:0::/64'],
+      ['::1', '0:0:0:0::/64'],
+      ['::', '0:0:0:0::/64'],
+      ['fe80::1%eth0', 'fe80:0:0:0::/64'],
+      ['[2001:db8:1:2::9]', '2001:db8:1:2::/64'],
+      ['2001:db8:1:2:3:4:192.0.2.1', '2001:db8:1:2::/64'],
+      // IPv4-mapped: the IPv4 address it stands for.
+      ['::ffff:203.0.113.7', '203.0.113.7'],
+      ['::FFFF:cb00:7107', '203.0.113.7'],
+      ['0:0:0:0:0:ffff:203.0.113.7', '203.0.113.7'],
+      // Not addresses.
+      [null, 'unknown'],
+      [undefined, 'unknown'],
+      ['', 'unknown'],
+      ['unknown', 'unknown'],
+      ['203.0.113', 'unknown'],
+      ['203.0.113.256', 'unknown'],
+      ['203.0.113.07', 'unknown'],
+      ['1.2.3.4.5', 'unknown'],
+      ['2001:db8:1:2:3:4:5', 'unknown'],
+      ['2001:db8:1:2:3:4:5:6:7', 'unknown'],
+      ['2001:db8::1::2', 'unknown'],
+      ['2001:db8:1:2:3:4:5:6::', 'unknown'],
+      ['2001:db8:g::1', 'unknown'],
+      ['2001:db8:12345::1', 'unknown'],
+      [':::', 'unknown'],
+      ['::ffff:1.2.3', 'unknown'],
+      ['a|b', 'unknown'],
+      ['x'.repeat(200), 'unknown'],
+    ];
+    for (const [input, key] of cases) expect(addressKey(input), String(input)).toBe(key);
+  });
+
+  it('registrations are counted per /64', async () => {
+    const reg = (name: string, ip: string): Promise<Response> => post('/api/auth/register', registration(name), { ip });
+    expect((await reg('one', '2001:db8:1:2::1')).status).toBe(201);
+    expect((await reg('two', '2001:db8:1:2:ffff::2')).status).toBe(201);
+    expect((await reg('three', '2001:db8:1:2:0:0:0:3')).status).toBe(201);
+    expect((await reg('four', '2001:db8:1:2:abcd::4')).status).toBe(429);
+    expect((await reg('four', '2001:db8:1:3::4')).status).toBe(201);
+    expect(await count('attempt')).toBe(4);
   });
 });
 

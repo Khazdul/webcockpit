@@ -78,7 +78,7 @@ answer 404 `not_found` (flag off), 429 `rate_limited`, 503
 | `GET /api/auth/params?name=` | `{salt, kdf: {name: "pbkdf2-sha256", rounds}}`; a stable fake for an unknown name |
 | `POST /api/auth/register` | `{name, salt, kdf, authKey, recoveryAuth, wrapPw, wrapRc, label, turnstile}` → 201 `{account}` and the cookie. 409 `name_taken`, 403 `turnstile`, 429 `rate_limited` |
 | `POST /api/auth/login` | `{name, authKey, label, turnstile?}` → `{account, wrapPw}` and the cookie. 401 `invalid_login`, 403 `turnstile_required`, 429 `locked` with `retryAfter` (s) |
-| `POST /api/auth/recover` | `{name, recoveryAuth, turnstile}` → `{wrapRc}`; with `set: {salt, kdf, authKey, wrapPw}` and `label` (no Turnstile) → `{account}`, the cookie, every older session ended. 401 `invalid_recovery`, 429 `locked` |
+| `POST /api/auth/recover` | `{name, recoveryAuth, turnstile}` → `{wrapRc, ticket}`; then `{name, recoveryAuth, ticket, set: {salt, kdf, authKey, wrapPw}, label}` (no Turnstile; the ticket of the first call, good for 15 minutes) → `{account}`, the cookie, every older session ended. 401 `invalid_recovery` (also for an invalid, expired or foreign ticket, which counts nothing; a missing one is 400), 429 `locked` |
 | `POST /api/u/auth/logout` | 204, the cookie cleared |
 | `GET /api/u/account` | `{account, wrapPw}` (the current password wrap, for a password change or a new recovery code): name, created, state, usage, limits, sessions (id, label, created, lastUsed, current), prefs |
 | `POST /api/u/account/password` | `{authKey, set: {salt, kdf, authKey, wrapPw}}` → 204; other sessions ended. 401 `invalid_login` |
@@ -89,8 +89,11 @@ answer 404 `not_found` (flag off), 429 `rate_limited`, 503
 
 Limits (spec §7.10): registration 3 an hour and 10 a day per address;
 login 10 failures per name in 15 minutes → 15 minutes' wait, Turnstile
-from the fourth try; 120 requests a minute per session or address on
-`/api/auth/*` and `/api/u/*`.
+from the fourth try; 120 requests a minute per address, and per session
+as well, on `/api/auth/*` and `/api/u/*` (`API_LIMITER`); 10 a minute
+per address on `POST /api/auth/login`, `/recover` and `/register`
+(`AUTH_LIMITER`). An address is an IPv4 address or the /64 of an IPv6
+address.
 
 ## Tasks
 
@@ -135,8 +138,8 @@ from the fourth try; 120 requests a minute per session or address on
     id that is not a session of the account. Ending the session one is
     in clears the cookie.
   - `PATCH /api/u/account/prefs` takes exactly `{galleryNotice}`.
-  - The second recover call also clears the name's login counter (a
-    lock on the login goes with the old password).
+  - (Changed by the review, below: the second recover call no longer
+    clears the login counter.)
   - `params` answers 400 only for a missing or over-long (> 64) `name`;
     every other name, possible or not, gets an answer.
   - A new optional var `TURNSTILE_HOSTNAMES` (the host names a passed
@@ -155,6 +158,17 @@ from the fourth try; 120 requests a minute per session or address on
     (its default; checked with curl, not through Vite). Not checked:
     whether each browser accepts the `Secure`, `__Secure-` cookie from
     the dev server's plain `http://localhost`.
+
+  After the independent review (same branch; ADR 0145 "After the
+  review" has the list): addresses are keyed by IPv4 address or IPv6
+  /64; a second, tight limiter `AUTH_LIMITER` on login, recover and
+  register; the recover ticket; a success takes back only its own try
+  (counters are never cleared, they run out); the password questions
+  change nothing when the password changed meanwhile; a 401 clears the
+  cookie only for a request that sent one; a failing limiter is 503;
+  a made-up cookie is bounded by its address before any database read;
+  `tests/unit/cloud-contract.test.ts` ties the server's KDF and size
+  constants to the crypto module's.
 
 ### Crypto (building agent, worktree `stage60-crypto`)
 

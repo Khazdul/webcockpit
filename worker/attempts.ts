@@ -29,7 +29,7 @@ export async function nameCounter(pepper: Bytes, kind: GuessKind, nameKey: strin
   return `${kind}|${toB64url(await hmac(pepper, `wc-name|${nameKey}`))}`;
 }
 
-/** The counter keys (hour, day) of an address's registrations on the UTC day of `now`. */
+/** The counter keys (hour, day) of an address's (address.ts: its key's) registrations on the UTC day of `now`. */
 export async function addressCounters(pepper: Bytes, address: string, now: number): Promise<{ hour: string; day: string }> {
   const daily = await hmac(pepper, `wc-addr|${utcDay(now)}`);
   const who = toB64url(await hmac(daily, address));
@@ -65,8 +65,10 @@ export async function peek(db: D1, keys: string[], now: number, windowMs: number
  * Counts one guess (a login or a recovery try) before it is looked at, in
  * one statement, so guesses racing each other cannot all slip under the
  * limit: the caller evaluates the guess only when the count it gets back
- * is within LOGIN_LOCK_AFTER. The try that makes the count reach it sets
- * the lock. A success removes the row (`clear`).
+ * is within LOGIN_LOCK_AFTER. The try that makes the count reach it (or
+ * finds it past it with no lock running) sets the lock. A success takes
+ * its own try back (`takeBack`); nothing else lowers a counter, so what an
+ * outsider sees of it does not tell when the owner logged in.
  */
 export async function reserveGuess(db: D1, key: string, now: number): Promise<Counter> {
   const row = await db
@@ -74,7 +76,7 @@ export async function reserveGuess(db: D1, key: string, now: number): Promise<Co
       `INSERT INTO attempt (key, start, count, until) VALUES (?1, ?2, 1, 0)
        ON CONFLICT (key) DO UPDATE SET
          count = CASE WHEN ?2 - start >= ?3 THEN 1 ELSE count + 1 END,
-         until = CASE WHEN ?2 - start >= ?3 THEN 0 WHEN count + 1 = ?4 THEN ?2 + ?5 ELSE until END,
+         until = CASE WHEN ?2 - start >= ?3 THEN 0 WHEN count + 1 >= ?4 AND until <= ?2 THEN ?2 + ?5 ELSE until END,
          start = CASE WHEN ?2 - start >= ?3 THEN ?2 ELSE start END
        RETURNING start, count, until`,
     )
@@ -83,9 +85,16 @@ export async function reserveGuess(db: D1, key: string, now: number): Promise<Co
   return counterOf(row, now, GUESS_WINDOW_MS);
 }
 
-/** Removes a counter (after a success). */
-export function clear(db: D1, key: string): D1Statement {
-  return db.prepare('DELETE FROM attempt WHERE key = ?1').bind(key);
+/**
+ * After a success: takes back the try that `reserveGuess` counted for it,
+ * `count` being what that call returned. The lock is undone only when this
+ * very try had set it (it was the one that reached LOGIN_LOCK_AFTER).
+ * Failures stay counted until their window ends; the cron removes the row.
+ */
+export function takeBack(db: D1, key: string, count: number): D1Statement {
+  return db
+    .prepare('UPDATE attempt SET count = count - 1, until = CASE WHEN ?2 = 1 THEN 0 ELSE until END WHERE key = ?1 AND count > 0')
+    .bind(key, count === LOGIN_LOCK_AFTER ? 1 : 0);
 }
 
 /**

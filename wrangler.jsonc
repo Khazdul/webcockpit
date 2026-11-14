@@ -72,11 +72,14 @@
   // POST /api/beat, keyed by address (ADR 0147). A page beats every 5
   // minutes and on a state change; 30 a minute leaves room for a
   // household or a school behind one address.
-  // /api/auth/* and /api/u/*, keyed by session or address (spec §7.10):
+  // /api/auth/* and /api/u/*, keyed by address and by session (spec §7.10):
   // 120 a minute.
   "ratelimits": [
     { "name": "BEAT_LIMITER", "namespace_id": "5901", "simple": { "limit": 30, "period": 60 } },
-    { "name": "API_LIMITER", "namespace_id": "5903", "simple": { "limit": 120, "period": 60 } }
+    { "name": "API_LIMITER", "namespace_id": "5903", "simple": { "limit": 120, "period": 60 } },
+    // POST /api/auth/login, /recover and /register, keyed by address (an
+    // IPv6 /64 is one): each can cost a database write or a Turnstile call.
+    { "name": "AUTH_LIMITER", "namespace_id": "5905", "simple": { "limit": 10, "period": 60 } }
   ],
   // The usage statistics (worker/stats.ts): a sample every 5 minutes; the
   // roll-up of the previous day and pruning at 00:10 UTC.
@@ -116,7 +119,8 @@
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "webcockpit-staging", "jurisdiction": "eu" }],
       "ratelimits": [
         { "name": "BEAT_LIMITER", "namespace_id": "5902", "simple": { "limit": 30, "period": 60 } },
-        { "name": "API_LIMITER", "namespace_id": "5904", "simple": { "limit": 120, "period": 60 } }
+        { "name": "API_LIMITER", "namespace_id": "5904", "simple": { "limit": 120, "period": 60 } },
+        { "name": "AUTH_LIMITER", "namespace_id": "5906", "simple": { "limit": 10, "period": 60 } }
       ],
       "triggers": { "crons": ["*/5 * * * *", "10 0 * * *"] }
     }

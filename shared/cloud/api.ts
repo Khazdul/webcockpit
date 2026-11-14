@@ -176,6 +176,8 @@ export const LOGIN_TURNSTILE_AFTER = 3;
 export const LOGIN_LOCK_AFTER = 10;
 /** The window the failures are counted in, and the wait after the tenth (15 minutes). */
 export const LOGIN_WINDOW_SECONDS = 900;
+/** How long the first recover call's ticket lets the second one through (15 minutes). */
+export const RECOVER_TICKET_SECONDS = 900;
 /** Registrations per address. */
 export const REGISTER_PER_HOUR = 3;
 export const REGISTER_PER_DAY = 10;
@@ -316,6 +318,8 @@ export interface RecoverRequest {
 export interface RecoverSetRequest {
   name: string;
   recoveryAuth: string;
+  /** What the first call answered. Without a valid one: 401 `invalid_recovery`, and nothing is counted. */
+  ticket: string;
   set: PasswordSet;
   label: string;
 }
@@ -361,6 +365,8 @@ export interface LoginAnswer extends AccountAnswer {
 
 export interface RecoverAnswer {
   wrapRc: string;
+  /** Opaque; lets the second call through for `RECOVER_TICKET_SECONDS`. */
+  ticket: string;
 }
 
 export interface PrefsAnswer {
