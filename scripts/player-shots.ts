@@ -164,7 +164,9 @@ const STATES: State[] = [
     viewport: S21,
     run: async (page) => {
       await demoRuns(page);
-      await page.locator('.wc-start .wc-sm-item[data-key="spotlights"]').tap();
+      // Spotlights is a tab of History since stage 67.
+      await page.locator('.wc-start .wc-sm-item[data-key="history"]').tap();
+      await page.locator('.wc-start .wc-frame:not([hidden]) .wc-htab[data-tab="spotlights"]').tap();
       await page.locator('.wc-start .wc-frame:not([hidden]) .wc-spw .wc-spw-card').nth(1).tap();
       await page.locator('.wc-spv .wc-output').filter({ hasText: 'Achievement unlocked' }).waitFor({ timeout: 20_000 });
       await page.locator('.wc-spv .wc-spv-ctl [data-act="play"]').tap();

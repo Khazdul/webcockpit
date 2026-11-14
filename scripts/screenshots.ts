@@ -492,11 +492,12 @@ const SHOTS: Record<string, Shot> = {
       await sleep(6000);
     }, { fight: 'mid', clock: AFTER_RASTA, prepare: restoreDemo }),
 
-  // Start page → Spotlights (stage 46, ADR 0131): the wall's first card, Rasta's death, plays in the
-  // viewer; the shot when the death line is in.
+  // Start page → History → the Spotlights tab (stage 46, ADR 0131; a tab since stage 67): the
+  // wall's first card, Rasta's death, plays in the viewer; the shot when the death line is in.
   async 'discord-spotlights'(browser) {
     const { ctx, page } = await demoStart(browser);
-    await menuRow(page, 'spotlights');
+    await menuRow(page, 'history');
+    await startTop(page).locator('.wc-htab[data-tab="spotlights"]').click();
     await startTop(page).locator('.wc-spw .wc-spw-card.is-on').waitFor();
     await page.keyboard.press('Enter');
     await page.locator('.wc-spv .wc-output', { hasText: 'You are dead!' }).waitFor({ timeout: 30_000 });
