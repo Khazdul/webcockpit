@@ -2,7 +2,14 @@
 // in the new look, round 7 direction A "Tabell och kort" (table and card)
 // in the large box of layout B, capped at its content width.
 //
+// From stage 67 (ADR 0149) History is one frame (`HistoryFrame`, below)
+// with a tab strip over three pages: Sessions (this page,
+// `SessionsPage`), Spotlights and Diary (history-tabs.tsx). 1 2 3 change
+// tab. `openHistory(nav, tab)` opens it on a tab.
+//
 //   [Back]                     ( History )
+//            [1] Sessions  [2] Spotlights  [3] Diary
+//   ─────────────────────────────────────────────────────────────────
 //            ( All | Gibur | Gittan | Rasta )                       [?]
 //    CHAR    DATE ▾      TIME   DUR.   EXPIRES   RATING  │ ┌ GIBUR ─────────┐
 //    Gibur   2026-11-06  21:12  3h41m  14 days           │ │ LEVEL 41       │
@@ -74,7 +81,7 @@ import {
   useButtonZone,
   useListCursor,
 } from '../kit/look';
-import { useIsTop, useKeys, useNav } from '../kit/stack';
+import { type Nav, useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   DEFAULT_HISTORY_SORT,
   HISTORY_MAX_W,
@@ -103,6 +110,9 @@ import { ExportEditorFrame } from './export-editor';
 import { DeleteDialog, HistoryKeysButton, RateDialog, RunLogErrorDialog, openHistoryKeys } from './history-dialogs';
 import { HistoryStatsFrame } from './history-stats';
 import { RunLogFrame } from './run-log';
+import { DiaryPage } from './credits';
+import { type HistoryTab, HistoryTabsCtx, type HistoryTabsValue, useHistoryTabs } from './history-tabs';
+import { SpotlightsTab } from './spotlights';
 import './history.css';
 
 export const NO_PLAYER = 'Log player not available.';
@@ -142,7 +152,33 @@ const COLS = 'var(--wc-hist-cols)';
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
+/**
+ * History (stage 67, ADR 0149): one frame with the tab strip over three
+ * pages, Sessions (the page below), Spotlights (spotlights.tsx) and Diary
+ * (credits.tsx). `tab` is the one it opens on (default Sessions: H on the
+ * start menu). A tab change renders the other page in its own box, at
+ * once (no morph: the hood says History on every tab); a page's state is
+ * not kept across a change. The run log and the Spotlights viewer stand
+ * over the tab they were opened from, so Back returns to it.
+ */
+export const HistoryFrame = lookFrame(function HistoryFrame(p: { tab?: HistoryTab }): VNode {
+  const [tab, setTab] = useState<HistoryTab>(p.tab ?? 'sessions');
+  const value = useMemo((): HistoryTabsValue => ({ tab, go: setTab }), [tab]);
+  return (
+    <HistoryTabsCtx.Provider value={value}>
+      {tab === 'sessions' ? <SessionsPage key="sessions" /> : tab === 'spotlights' ? <SpotlightsTab key="spotlights" /> : <DiaryPage key="diary" />}
+    </HistoryTabsCtx.Provider>
+  );
+});
+
+/** Opens History on `tab` (default Sessions) over the current frame. */
+export function openHistory(nav: Nav, tab: HistoryTab = 'sessions'): void {
+  nav.push(<HistoryFrame tab={tab} />);
+}
+
+/** The Sessions tab: the History page of stage 45, under History's tab strip. */
+export function SessionsPage(): VNode {
+  const tabs = useHistoryTabs('History');
   const { runs, openRunLog } = useServices();
   const nav = useNav();
   const isTop = useIsTop();
@@ -384,6 +420,7 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
     if (opening.current) return true;
     // The sort list (a native select) keeps its own keys.
     if (inTextField(e.target) && nk !== 'back') return false;
+    if (tabs.key(e)) return true;
     if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) {
       openHistoryKeys(nav);
       return true;
@@ -468,9 +505,10 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
   const note = all === null ? 'Loading…' : readFailed ? READ_FAILED : empty ? EMPTY : list.length === 0 ? EMPTY : null;
 
   return (
-    <Box title="History" size="large" maxWidth={HISTORY_MAX_W} onBack={() => {
+    <Box title={tabs.title} size="large" maxWidth={HISTORY_MAX_W} onBack={() => {
         if (!opening.current) nav.pop();
-      }} class="wc-hist" winClass={'wc-hist-win' + (narrow ? ' is-narrow' : '')}>
+      }} class="wc-hist" winClass={'wc-hist-win' + (narrow ? ' is-narrow' : '') + tabs.winClass}>
+      {tabs.strip}
       <BoxHead class="wc-hist-head">
         <div class="wc-hist-pills">
           <Seg
@@ -540,7 +578,7 @@ export const HistoryFrame = lookFrame(function HistoryFrame(): VNode {
       />
     </Box>
   );
-});
+}
 
 /** `stackBelow` that always stacks (the page decides its narrow form by its own width, not the table's). */
 const STACK_ALWAYS = 1e6;

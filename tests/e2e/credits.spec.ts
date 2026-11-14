@@ -1,4 +1,5 @@
-// Stage 47 (ADR 0132, Inv §7.6): Credits as a book, round 7's B
+// Stage 47 (ADR 0132, Inv §7.6): the Diary (Credits until stage 67, now
+// History's third tab, opened here by H then 3) as a book, round 7's B
 // "Krönikeboken". The demo backup (two characters, one spread) and a
 // synthetic chronicle of several characters (many spreads): the epigraph
 // and the first chapter, the turns (→ ← PgDn PgUp Space, P / N, the
@@ -40,18 +41,22 @@ async function setSpot(page: Page, patch: Record<string, unknown>): Promise<void
   );
 }
 
-/** Opens Credits from the menu and waits for the book (or a state page) to be laid out. */
+/** Opens History from the menu, then its Diary tab (key 3), and waits for the book (or a state page) to be laid out. */
 async function openCredits(page: Page): Promise<void> {
-  await openFromMenu(page, 'credits');
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await openFromMenu(page, 'history');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await morphDone(page);
+  await page.keyboard.press('3');
+  await expect(lookBox(page).locator('.wc-htab.is-on')).toHaveAttribute('data-tab', 'diary');
 }
 
 const CHARS = ['Aragorn', 'Boromir', 'Celeborn', 'Denethor', 'Elrond'];
 
 test('the demo book: epigraph, first chapter, title pages, drop cap, The End.; no Opening pill, no Settings…', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
+  // 960 high: the demo on one spread. (History's tab strip, stage 67, takes 18 px from the page:
+  // at 900 the book lays itself out again and `The End.` goes to a third page.)
+  await page.setViewportSize({ width: 1440, height: 960 });
   await pinDemoClock(page);
   await openStart(page);
   await restoreDemo(page);
@@ -90,13 +95,13 @@ test('the demo book: epigraph, first chapter, title pages, drop cap, The End.; n
 
   // It waits for the reader: no roll, no automatic return.
   await page.waitForTimeout(1500);
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await page.keyboard.press('Enter');
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
 
   // Esc leaves, with the menu's cursor kept.
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('Credits');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });
 
@@ -195,7 +200,7 @@ test('turning the pages: → ← PgDn PgUp Space, P / N and the buttons, ↓ ↑
 
   // Back leaves.
   await backTo(page);
-  await expect(menuSel(page)).toHaveText('Credits');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });
 
@@ -248,7 +253,7 @@ test('a resize keeps the chapter; a narrow book shows one page at a time', async
     .toBe(true);
 
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('Credits');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });
 
@@ -264,14 +269,14 @@ test('the filter on the Spotlights page chooses what the book tells; nothing pas
   await expect(pills(page)).toHaveText(['Gittan']);
   await expect(book(page)).not.toContainText('Rasta');
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('Credits');
+  await expect(menuSel(page)).toHaveText('History');
 
   // Every kind off: the filtered page, with its Spotlights line; Back and Previous / Next stay.
   await setSpot(page, { allCharacters: true, characters: [], achievements: false, deaths: false, levelUps: false, pvp: false });
   await openCredits(page);
   await expect(book(page)).toHaveAttribute('data-state', 'filtered');
   await expect(book(page)).toContainText('No chronicle entries match your settings.');
-  await expect(book(page)).toContainText('The filter on the Spotlights page chooses what the chronicle tells.');
+  await expect(book(page)).toContainText('The filter on the Spotlights tab chooses what the chronicle tells.');
   await expect(pills(page)).toHaveCount(0);
   await expect(btn(page, 'prev')).toHaveAttribute('aria-disabled', 'true');
   await expect(btn(page, 'next')).toHaveAttribute('aria-disabled', 'true');
@@ -281,7 +286,7 @@ test('the filter on the Spotlights page chooses what the book tells; nothing pas
   await page.keyboard.press('ArrowRight');
   await expect(book(page)).toHaveAttribute('data-state', 'filtered');
   await backTo(page);
-  await expect(menuSel(page)).toHaveText('Credits');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });
 
@@ -291,11 +296,11 @@ test('with no runs the no-data page; Esc leaves', async ({ page }) => {
   await openCredits(page);
   await expect(book(page)).toHaveAttribute('data-state', 'no_data');
   await expect(book(page)).toContainText('No chronicle yet. Your tale is written as you play');
-  await expect(book(page)).not.toContainText('The filter on the Spotlights page');
+  await expect(book(page)).not.toContainText('The filter on the Spotlights tab');
   await expect(pills(page)).toHaveCount(0);
   await page.keyboard.press('Space');
   await expect(book(page)).toHaveAttribute('data-state', 'no_data');
   await backTo(page, { key: true });
-  await expect(menuSel(page)).toHaveText('Credits');
+  await expect(menuSel(page)).toHaveText('History');
   expect(errors).toEqual([]);
 });

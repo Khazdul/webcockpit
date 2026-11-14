@@ -1,6 +1,8 @@
 // The Spotlights page (stage 46, B "Galleriet"; ADR 0019, 0110, 0131): a
 // wall of cards in the large box of layout B, one card per spotlight in
 // reel order, with the Spotlights settings as the filter row above it.
+// From stage 67 (ADR 0149) History's second tab (history-tabs.tsx): the
+// hood says History and the strip stands over the filter row.
 //
 //   [Back]                      ( Spotlights )
 //      FILTER  [☆ Achievements][☠ Deaths][» Level-ups][⚔ PvP kills]  [All][Gittan][Rasta]  [All time ▾]
@@ -21,7 +23,7 @@
 // chosen card (`.is-on`) brightens; with the keyboard in the filter row it
 // stays chosen but dimmer (`.is-idle`).
 //
-// Filter row (the settings, saved at once, `settings.spotlights`; Credits
+// Filter row (the settings, saved at once, `settings.spotlights`; the Diary
 // follows them, ADR 0110): one chip per kind with its icon, `All` and one
 // chip per recorded character (`chipPatch`: a name while All is on shows
 // only that name, the last name off turns All back on), the period as a
@@ -37,7 +39,8 @@
 // Keys. On the wall: arrows move in 2D (the columns from the layout),
 // PgUp / PgDn, Home / End, Enter or Space plays the chosen card, P plays
 // all, F (or Tab, or ↑ from the top row) moves the keyboard into the
-// filter row, Esc / Back to the menu. In the filter row: ← → walk the
+// filter row, 1 2 3 History's tabs (not while the viewer plays or the
+// period's select has the focus), Esc / Back to the menu. In the filter row: ← → walk the
 // chips and the period, Tab / Shift+Tab the groups (kinds, characters,
 // period), Space / Enter toggles a chip or steps the period, ↓ or Esc back
 // to the wall. Mouse: a click chooses a card, a double click plays; touch:
@@ -89,6 +92,7 @@ import {
   useGridCursor,
 } from '../kit/look';
 import { isBrowserShortcut, useKeys, useNav } from '../kit/stack';
+import { useHistoryTabs } from './history-tabs';
 import { KIND_ICON } from './spotlights-icons';
 import { SpotlightsViewer, keptSpotlightsHost } from './spotlights-viewer';
 import './spotlights.css';
@@ -300,6 +304,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
   const { settings: store } = useServices();
   const filters = useSettings().spotlights;
   const settled = useBoxSettled();
+  const tabs = useHistoryTabs('Spotlights');
   const now = p.now ?? (() => Date.now() * 1000);
 
   const [state, setState] = useState<WallState>(p.reel);
@@ -479,6 +484,7 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
     // The viewer's keys are the player view's own (a window listener after the stack's); the browser's shortcuts pass.
     if (view) return !isBrowserShortcut(e);
     const inSelect = (e.target as HTMLElement | null)?.tagName === 'SELECT';
+    if (tabs.key(e)) return true;
     if (zone === 'filter') {
       if (nk === 'back' || nk === 'down') {
         blurPeriod();
@@ -534,13 +540,14 @@ export const SpotlightsWall = lookFrame(function SpotlightsWall(p: SpotlightsWal
 
   return (
     <Box
-      title="Spotlights"
+      title={tabs.title}
       size="large"
       onBack={back}
       class="wc-spw"
-      winClass={'wc-spw-win' + (view ? ' is-viewing' : '')}
+      winClass={'wc-spw-win' + (view ? ' is-viewing' : '') + tabs.winClass}
     >
       <div class="wc-spw-wall" style={stillPalette(stillTheme)} data-still-theme={stillTheme} inert={view ? true : undefined}>
+        {tabs.strip}
         {!noData && (
           <BoxHead class={'wc-spw-head' + (zone === 'filter' ? ' is-cur' : '')}>
             <span class="wc-spw-cap" aria-hidden="true">

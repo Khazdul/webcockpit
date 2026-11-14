@@ -1,4 +1,4 @@
-// Credits (ADR 0019 "Credits", ADR 0132, Inv §7.6): the chronicle of every
+// The Diary (Credits until stage 67, ADR 0149; ADR 0019 "Credits", ADR 0132, Inv §7.6): the chronicle of every
 // character's deeds, told as a book (`chronicleBook`, Credits' pages). Pure
 // and deterministic: the same event always reads the same, because its
 // sentence template is picked by a stable hash of (character, run, time,

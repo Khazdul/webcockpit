@@ -8,7 +8,9 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { RunMeta } from '../../src/capture/store';
-import { CREDITS_TEXT, CreditsFrame } from '../../src/chrome/frames/credits';
+import { CREDITS_TEXT } from '../../src/chrome/frames/credits';
+import { HistoryFrame } from '../../src/chrome/frames/history';
+import { tabOfKey } from '../../src/chrome/frames/history-tabs';
 import { type ChromeServices, ServicesCtx } from '../../src/chrome/kit/hooks';
 import { FrameStack } from '../../src/chrome/kit/stack';
 import type { RunEvent } from '../../src/runs/events';
@@ -90,13 +92,13 @@ const library = (runs = RUNS) => ({
 
 let popped = 0;
 
-/** Mounts Credits as the stack's root frame, its back counted. */
+/** Mounts History on its Diary tab as the stack's root frame, its back counted. */
 async function mountCredits(svc: ChromeServices): Promise<void> {
   popped = 0;
   await act(async () => {
     render(
       <ServicesCtx.Provider value={svc}>
-        <FrameStack root={<CreditsFrame />} active onRootBack={() => popped++} />
+        <FrameStack root={<HistoryFrame tab="diary" />} active onRootBack={() => popped++} />
       </ServicesCtx.Provider>,
       document.body,
     );
@@ -115,10 +117,11 @@ const spread = () => Number(q('.wc-cred-book')!.dataset.spread);
 const lit = () => q('.wc-cred-pills .wc-lk-opt[aria-checked="true"]')?.textContent;
 const folios = () => [...document.querySelectorAll('.wc-cred-folio')].map((f) => f.textContent);
 
-describe('Credits: the book', () => {
+describe('The Diary (Credits until stage 67): the book', () => {
   it('shows the pills (characters only), the epigraph, title pages and drop-cap paragraphs', async () => {
     await mountCredits(services(async () => library()));
-    expect(q('.wc-lk-box.wc-lk-box-large')?.getAttribute('aria-label')).toBe('Credits');
+    expect(q('.wc-lk-box.wc-lk-box-large')?.getAttribute('aria-label')).toBe('History');
+    expect(q('.wc-htab.is-on')?.dataset.tab).toBe('diary');
     expect([...document.querySelectorAll('.wc-cred-pills .wc-lk-opt')].map((o) => o.textContent)).toEqual(['Alda', 'Bram', 'Cira', 'Dunn']);
     expect(document.querySelectorAll('.wc-cred-ch')).toHaveLength(4);
     expect(q('.wc-cred-ch:first-child .wc-cred-open')?.textContent).toMatch(/^Here the scribes/);
@@ -243,7 +246,7 @@ describe('Credits: the book', () => {
   });
 });
 
-describe('Credits: the states are pages of the book', () => {
+describe('The Diary: the states are pages of the book', () => {
   it('loading: a faint line; nav keys do nothing, Esc leaves', async () => {
     await mountCredits(services(() => new Promise(() => {})));
     expect(q('.wc-cred-book.is-note')?.dataset.state).toBe('loading');
@@ -278,10 +281,64 @@ describe('Credits: the states are pages of the book', () => {
     expect(q('.wc-cred-book.is-note')?.dataset.state).toBe('filtered');
     expect([...document.querySelectorAll('.wc-cred-none')].map((p) => p.textContent)).toEqual([
       'No chronicle entries match your settings.',
-      'The filter on the Spotlights page chooses what the chronicle tells.',
+      'The filter on the Spotlights tab chooses what the chronicle tells.',
     ]);
     expect(document.body.textContent).not.toContain('Settings…');
     expect(q('.wc-lk-btn[data-btn="next"]')?.getAttribute('aria-disabled')).toBe('true');
+    await key('Escape');
+    expect(popped).toBe(1);
+  });
+});
+
+describe("History's tabs (stage 67, ADR 0149)", () => {
+  const on = () => q('.wc-htab.is-on')?.dataset.tab;
+  const tabs = () => [...document.querySelectorAll<HTMLElement>('.wc-htab')].map((t) => t.textContent);
+
+  it('tabOfKey: 1 2 3 without a modifier', () => {
+    expect(tabOfKey({ key: '1' })).toBe('sessions');
+    expect(tabOfKey({ key: '2' })).toBe('spotlights');
+    expect(tabOfKey({ key: '3' })).toBe('diary');
+    expect(tabOfKey({ key: '4' })).toBeNull();
+    expect(tabOfKey({ key: '1', ctrlKey: true })).toBeNull();
+    expect(tabOfKey({ key: '2', altKey: true })).toBeNull();
+    expect(tabOfKey({ key: 's' })).toBeNull();
+  });
+
+  it('the strip on every tab; 1 2 3 and a click change tab, the hood stays History; Esc leaves', async () => {
+    await mountCredits(services(async () => library()));
+    expect(tabs()).toEqual(['1Sessions', '2Spotlights', '3Diary']);
+    expect(on()).toBe('diary');
+    expect(q('.wc-htab.is-on')?.getAttribute('aria-selected')).toBe('true');
+    expect(q('.wc-lk-win.wc-cred-win.wc-htabs-win > .wc-htabs')).not.toBeNull();
+
+    await key('1');
+    expect(on()).toBe('sessions');
+    expect(q('.wc-hist')).not.toBeNull();
+    expect(q('.wc-cred-book')).toBeNull();
+    expect(q('.wc-lk-hood-t')?.textContent).toBe('History');
+    expect(q('.wc-lk-win.wc-hist-win.wc-htabs-win > .wc-htabs')).not.toBeNull();
+
+    // Spotlights without an embedded player: the tab says so (the strip stays).
+    await key('2');
+    expect(on()).toBe('spotlights');
+    expect(q('.wc-spw-grid[data-state="unavailable"]')?.textContent).toBe('Spotlights are not available here.');
+
+    // A modifier makes it no tab key.
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '3', ctrlKey: true, bubbles: true, cancelable: true }));
+    });
+    expect(on()).toBe('spotlights');
+
+    // A click on a tab.
+    await act(async () => q('.wc-htab[data-tab="diary"]')!.click());
+    for (let i = 0; i < 5; i++) await act(async () => await Promise.resolve());
+    expect(on()).toBe('diary');
+    expect(q('.wc-cred-book')).not.toBeNull();
+    // The active tab again: nothing.
+    await key('3');
+    expect(on()).toBe('diary');
+
+    expect(popped).toBe(0);
     await key('Escape');
     expect(popped).toBe(1);
   });

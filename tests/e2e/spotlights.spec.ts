@@ -52,9 +52,11 @@ const navBtn = (page: Page, id: 'prev' | 'next') => viewer(page).locator(`.wc-sp
 const ctl = (page: Page, act: string) => viewer(page).locator(`.wc-spv-ctl [data-act="${act}"]`);
 const endCard = (page: Page) => viewer(page).locator('.wc-spv-end');
 
-/** Start page → Spotlights: the wall with its five cards. */
+/** Start page → History → its Spotlights tab (key 2): the wall with its five cards. */
 async function openWall(page: Page): Promise<void> {
-  await menuRow(page, 'spotlights').click();
+  await menuRow(page, 'history').click();
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-htab.is-on')).toHaveAttribute('data-tab', 'sessions');
+  await page.keyboard.press('2');
   await expect(cards(page)).toHaveCount(5);
 }
 
@@ -68,7 +70,7 @@ test('Spotlights opens on the wall; a card plays in the viewer: ←/→, Shift+�
   await openWall(page);
 
   // The wall in the large box: newest first, Rasta's death, then Gittan (not the same character twice in a row).
-  await expect(wall(page).locator('.wc-lk-hood-t')).toHaveText('Spotlights');
+  await expect(wall(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await expect(cards(page).locator('.wc-spw-label')).toHaveText([
     'Death (level 42)',
     'Achievement: Put a barrow-wight to rest.',
@@ -206,7 +208,7 @@ test('Spotlights opens on the wall; a card plays in the viewer: ←/→, Shift+�
 
   // Esc again: the start page's menu; the host goes with the page.
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('History');
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { __wc: { shell: { playerHost: unknown } } }).__wc.shell.playerHost))
     .toBeNull();
@@ -235,7 +237,7 @@ test('the Spotlights viewer has Fullscreen; Back leaves the viewer, then the pag
   await expect(viewer(page)).toHaveCount(0);
   await expect(chosen(page)).toHaveAttribute('data-kind', 'death');
   await frame(page).locator('.wc-lk-back').first().click();
-  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
+  await expect(page.locator('.wc-start .wc-sm-item.is-sel .wc-sm-label')).toHaveText('History');
   expect(errors).toEqual([]);
 });
 

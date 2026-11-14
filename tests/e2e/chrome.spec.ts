@@ -126,11 +126,11 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await expect(startSel(page)).toHaveText('About');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
-  // No runs stored: the Credits book's no-data page (stage 47); other keys stay, Esc returns.
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  // No runs stored: History on its Diary tab (the Credits row until the menu of stage 67), the book's no-data page; other keys stay, Esc returns.
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await expect(lookBox(page).locator('.wc-cred-book')).toHaveAttribute('data-state', 'no_data');
   await page.keyboard.press('Enter');
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await page.keyboard.press('Escape');
   await expect(startSel(page)).toHaveText('Credits');
   await page.keyboard.press('ArrowDown');
@@ -145,7 +145,7 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await expect(startSel(page)).toHaveText('About');
   // A letter goes straight to its row.
   await page.keyboard.press('c');
-  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('Credits');
+  await expect(lookBox(page).locator('.wc-lk-hood-t')).toHaveText('History');
   await page.keyboard.press('Escape');
   await expect(startSel(page)).toHaveText('Credits');
   // Hover selects; clicking selects and activates.

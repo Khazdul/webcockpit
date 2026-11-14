@@ -1,0 +1,163 @@
+/* History's tab strip (src/chrome/frames/history-tabs.tsx; stage 67,
+ * ADR 0149 addendum, placement P1 of the round 8 mockups). Prefix
+ * `wc-htab`. The strip is the window's first child: the window's top
+ * padding shrinks so the strip stands in the band Back stands in, centred
+ * under the hood, with a rule under it across the window; the page's own
+ * head follows as before. On a narrow page (a phone) it is a row of three
+ * equal tabs under Back. The active tab is marked more clearly than the
+ * kit's tabs: the lit text, a 2 px gold underline with a glow, a pool of
+ * light under it and its key cap lit. */
+
+.wc-lk-box > .wc-lk-win.wc-htabs-win {
+  padding-top: 20px;
+}
+
+html.wc-phone .wc-lk-box > .wc-lk-win.wc-htabs-win {
+  padding-top: 16px;
+}
+
+.wc-htabs {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  height: 33px;
+  box-sizing: border-box;
+  margin: 0 0 9px;
+  border-bottom: 1px solid var(--lk-rule);
+  white-space: normal;
+  letter-spacing: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wc-htab {
+  all: unset;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 1px;
+  cursor: pointer;
+  white-space: nowrap;
+  font: 600 12px/1 var(--lk-display);
+  letter-spacing: 0.18em;
+  color: var(--lk-dim);
+  -webkit-tap-highlight-color: transparent;
+  transition: color calc(0.3s * var(--lk-ts, 1)), text-shadow calc(0.3s * var(--lk-ts, 1));
+}
+
+.wc-htab:hover {
+  color: var(--lk-text);
+}
+
+.wc-htab.is-on {
+  color: var(--lk-on);
+  text-shadow: 0 0 9px var(--lk-on-glow);
+  cursor: default;
+}
+
+/* A pool of light under the active tab. */
+.wc-htab.is-on::before {
+  content: "";
+  position: absolute;
+  inset: 0 -10px -1px;
+  pointer-events: none;
+  background: radial-gradient(60% 90% at 50% 100%, color-mix(in srgb, var(--lk-gold) 16%, transparent), transparent);
+}
+
+/* The underline: on the rule, 2 px, gold, with a glow. */
+.wc-htab.is-on::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--lk-gold) 14%, var(--lk-gold) 86%, transparent);
+  box-shadow: 0 0 8px var(--lk-on-glow);
+}
+
+/* The key cap (1, 2, 3): small, quiet; lit on the active tab. */
+.wc-htab-k {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  padding: 1px 3px 0;
+  border: 1px solid color-mix(in srgb, var(--lk-dim) 45%, transparent);
+  border-radius: 3px;
+  font: 600 9px/1 var(--lk-display);
+  letter-spacing: 0;
+  color: var(--lk-faint);
+  text-shadow: none;
+}
+
+.wc-htab:hover .wc-htab-k {
+  color: var(--lk-dim);
+}
+
+.wc-htab.is-on .wc-htab-k {
+  color: var(--lk-gold);
+  border-color: color-mix(in srgb, var(--lk-gold) 60%, transparent);
+}
+
+/* A touch device: no key caps; the tabs are touch targets (44 px, as a
+ * tablet's buttons; ADR 0140). */
+html.wc-phone .wc-htab-k {
+  display: none;
+}
+
+html.wc-phone .wc-htabs {
+  height: 45px;
+}
+
+/* A narrow page (a phone): three equal tabs in a row under Back. */
+@container wc-page (max-width: 560px) {
+  .wc-htabs {
+    gap: 0;
+    height: 41px;
+    margin: 14px 0 6px;
+  }
+
+  /* Under the phone's taller Back. */
+  html.wc-phone .wc-htabs {
+    height: 45px;
+    margin-top: 20px;
+  }
+
+  .wc-htab {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 0;
+    letter-spacing: 0.16em;
+  }
+
+  .wc-htab.is-on::before {
+    inset: 0 0 -1px;
+  }
+
+  .wc-htab.is-on::after {
+    left: 8%;
+    right: 8%;
+  }
+}
+
+/* The Spotlights tab while its reel loads (shown only if it takes a moment). */
+.wc-htab-wait {
+  animation: wc-htab-wait calc(0.3s * var(--lk-ts, 1)) ease-out 0.35s both;
+}
+
+@keyframes wc-htab-wait {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-htab-wait {
+    animation: none;
+  }
+}

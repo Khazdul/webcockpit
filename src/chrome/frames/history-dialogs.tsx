@@ -264,6 +264,7 @@ export const HISTORY_KEYS_MOVE: KeyHelpRows = [
   ['← →', 'Character'],
   ['Enter', 'Run log'],
   ['Tab', 'Buttons'],
+  ['1 2 3', 'Sessions, Spotlights, Diary'],
   ['?', 'This list'],
   ['Esc', 'Back'],
 ];

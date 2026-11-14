@@ -336,6 +336,9 @@ for (const [name, viewport] of [
       const c1 = (await cards.nth(1).boundingBox())!;
       expect(c1.x).toBeGreaterThan(c0.x + c0.width - 1);
       await guard(page, f, [f.locator('.wc-lk-back'), cards.nth(0), cards.nth(4), wall.locator('.wc-spw-kinds [data-opt="pkill"]'), btn(f, 'PLAY')]);
+      // History's tab strip (stage 67): three touch targets, no key caps.
+      await guard(page, f, ['sessions', 'spotlights', 'diary'].map((t) => f.locator(`.wc-htab[data-tab="${t}"]`)));
+      await expect(f.locator('.wc-htab-k').first()).toBeHidden();
 
       await cards.nth(1).tap();
       const viewer = page.locator('.wc-spv');
@@ -350,6 +353,7 @@ for (const [name, viewport] of [
       await expect(viewer).toHaveCount(0);
       await page.locator('.wc-start .wc-frame:not([hidden]) .wc-lk-back').first().tap();
       await expect(f.locator('.wc-sm-item.is-sel .wc-sm-label')).toHaveText('Spotlights');
+      // (The Spotlights and Credits rows open History on those tabs until the menu of stage 67 is in.)
 
       await menu(page, 'credits');
       const cred = f.locator('.wc-cred');
