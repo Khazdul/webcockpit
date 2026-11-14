@@ -11,6 +11,9 @@ import {
   charactersWords,
   failureWords,
   howLong,
+  lostWords,
+  maybeMadeWords,
+  maybeTakenWords,
   nameWords,
   recoveryFile,
   sinceWords,
@@ -46,6 +49,9 @@ const CODES: Record<FlowErrorCode, true> = {
   update_needed: true,
   storage_failed: true,
   not_logged_in: true,
+  storage_unreadable: true,
+  wrong_account: true,
+  login_changed: true,
   bad_input: true,
   busy: true,
   finished: true,
@@ -81,6 +87,26 @@ describe('failureWords', () => {
     expect(failureWords('timeout', 'account')).toMatch(/may or may not have been made/);
     expect(failureWords('unavailable', 'login')).toBe(failureWords('accounts_not_configured', 'login'));
     expect(failureWords('storage_failed', 'register')).toMatch(/No account was made/);
+  });
+});
+
+describe('a lost answer and the honest codes of the review', () => {
+  it('a lost answer says "may or may not" in every place that changes something', () => {
+    expect(lostWords('register')).toMatch(/may or may not have been made.*Create account again/);
+    expect(lostWords('recover')).toMatch(/may or may not have been set/);
+    expect(lostWords('account')).toMatch(/may or may not have been made/);
+    for (const place of PLACES) expect(lostWords(place)).not.toMatch(/was not reached/);
+  });
+
+  it('a name taken after a lost answer is not a bare "taken"', () => {
+    expect(maybeTakenWords('Olev')).toMatch(/Olev is taken, perhaps by your own earlier try.*logging in as Olev/);
+    expect(maybeMadeWords('Olev')).toMatch(/may have made the account Olev.*log in as Olev/);
+  });
+
+  it('the device was logged out, or was not: said as it is', () => {
+    expect(failureWords('wrong_account', 'account')).toMatch(/logged out here.*another account.*Log in again/);
+    expect(failureWords('storage_unreadable', 'account')).toMatch(/could not be read.*Nobody was logged out/);
+    expect(failureWords('login_changed', 'account')).toMatch(/changed in another tab.*Nothing was changed/);
   });
 });
 
@@ -219,6 +245,21 @@ describe('the Turnstile widget', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(m.states).toEqual(['loading', 'blocked', 'loading', 'waiting']);
     expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('disposed before the script arrives (a page left early, a script that came after the timeout): nothing is ever rendered', async () => {
+    const f = fake();
+    let arrive: (api: TurnstileApi) => void = () => {};
+    const states: TurnstileState[] = [];
+    const slot = document.createElement('div');
+    const w = mountTurnstile(slot, { siteKey: 'site-key', onState: (s) => states.push(s), load: () => new Promise((r) => (arrive = r)) });
+    w.dispose();
+    arrive(f.api);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(f.calls).toEqual([]);
+    expect(slot.childNodes.length).toBe(0);
+    expect(states).toEqual(['loading']);
+    expect(w.take()).toBeNull();
   });
 
   it('dispose removes the widget and silences its callbacks', async () => {

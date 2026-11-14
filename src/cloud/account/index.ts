@@ -31,7 +31,13 @@
 //   accountsEnabled(): Promise<boolean>
 //
 //   `name` is a hint (localStorage): the session may be gone on the
-//   server. The Account page finds out with `loadAccount()`.
+//   server. The Account page finds out with `loadAccount()`. Inside this
+//   chunk the device's record (IndexedDB) is the truth, not the hint:
+//   `storedAccount()` and every logged-in flow read the record and put a
+//   missing hint back (localStorage cleared) or clear a hint without keys.
+//   Where localStorage cannot be written the name is kept in memory, so
+//   the start page's row still follows; after a reload the row says "Log
+//   in", and the Log in page finds the keys and goes to the Account page.
 //
 // ── Results ──────────────────────────────────────────────────────────────
 //
@@ -47,6 +53,15 @@
 //       signal               an AbortSignal: cancels up to and including
 //                            'deriving' (→ `cancelled`). From 'sending' on
 //                            nothing is cancelled.
+//
+//   A LOST ANSWER: `lostAnswer(code)` is true for `timeout`, `offline` and
+//   `bad_answer`. When the flow had reached 'sending', the request left
+//   and its answer did not come: the change MAY have been made. Say "may
+//   or may not", never "the server was not reached" (the pages:
+//   `work.doubtful(code)`, working.tsx).
+//
+//   A PAGE MUST NOT LEAVE WHILE ITS FLOW WORKS: Back and Esc are Cancel
+//   then, and from 'sending' on nothing (`work.orCancel(back)`).
 //
 // ── Before logging in: three flow objects ────────────────────────────────
 //
@@ -71,6 +86,15 @@
 //       Codes: name_taken (the handle is finished), turnstile, rate_limited
 //       (3 registrations an hour, 10 a day per address, or too many
 //       requests), storage_failed, plus the general ones below.
+//       After a lost answer KEEP THE HANDLE and submit again: the retry
+//       finds the account its first try made (it asks with its own
+//       password key) and returns the same recovery code. While it cannot
+//       tell yet whose the name is, it answers the failure of that
+//       question (`offline`, `timeout`, `locked`, `turnstile_required`:
+//       submit again with a new token) and stays usable; `name_taken`
+//       only when the name is somebody else's. A new handle (the player
+//       changed the name or the password) cannot find it: say then that
+//       the account may have been made and to try logging in.
 //   startLogin(name, password): FlowHandle<Account>
 //       First submit without a token. `turnstile_required` → show the
 //       widget, submit again with the token (no second derivation), and
@@ -96,7 +120,9 @@
 //       `GET /api/u/account`: name, created, state, usage, limits,
 //       sessions (id, label, created, lastUsed, current), prefs. Call it
 //       when the Account page opens. A session's `label` is untrusted
-//       text: write it with textContent, never as markup.
+//       text: write it with textContent, never as markup. The account
+//       must be the stored one (`wrong_account` otherwise, below); the
+//       password questions ask this first, too.
 //   logout(o?): FlowResult<LogoutDone>      { server, keysRemoved }
 //       Always logs this device out (keys and record removed, whatever the
 //       server says; it does not fail). `server: 'unreached'` = the server
@@ -109,13 +135,14 @@
 //       sessions; this one stays. Codes: invalid_login (the old password
 //       is wrong), locked.
 //   newRecoveryCode(password, o?): FlowResult<{ recoveryCode }>
-//       SHOW THE CODE ONCE. The old code stops working. On `timeout`,
-//       `offline` or `bad_answer` here the server may or may not have
-//       taken the new code: tell the player the old one may no longer
-//       work and to make a new one again. Codes: invalid_login, locked.
+//       SHOW THE CODE ONCE. The old code stops working. On a lost
+//       answer here the server may or may not have taken the new code:
+//       tell the player the old one may no longer work and to make a new
+//       one again. Codes: invalid_login, locked.
 //   endSession(id, o?), endOtherSessions(o?): FlowResult<null>
-//       For the session marked `current`, use `logout()` instead. A
-//       session that is already gone counts as ended.
+//       For the session marked `current`, use `logout()` instead. One
+//       session that is already gone counts as ended; `endOtherSessions`
+//       answers `not_found` as a failure (accounts were switched off).
 //   deleteAccount(password, o?): FlowResult<null>
 //       Removes the account on the server (its name stays reserved for
 //       good) and logs this device out; `lastName` is forgotten. Codes:
@@ -123,7 +150,8 @@
 //   setPrefs({ galleryNotice }, o?): FlowResult<AccountPrefs>
 //       (No page uses it before stage 65.)
 //   storedAccount(): StoredAccount | null   the device's record (name,
-//       created, label, savedAt), without a request.
+//       created, label, savedAt), without a request; repairs the hint.
+//       Null also when the store could not be read just now.
 //   accountKeys(): AccountKeys | null       the two non-extractable keys
 //       (stage 61's sync engine).
 //   accountConfig(): { turnstileSiteKey, limits }   from `/api/config`.
@@ -148,6 +176,8 @@
 //                          device IS ALREADY logged out locally when a
 //                          page sees this: show "you were logged out" and
 //                          go to Log in (the name is in `lastName`)
+//                          (A 401 that arrives after another tab has
+//                          logged in again is `login_changed` instead.)
 //     not_found            accounts were switched off on the server
 //     unavailable          the service has a problem; try again later
 //     accounts_not_configured   as `unavailable` (the server lacks its
@@ -172,6 +202,17 @@
 //     storage_failed       this browser cannot keep the keys (a private
 //                          window, storage blocked)
 //     not_logged_in        nobody is logged in on this device
+//     storage_unreadable   the device's key store could not be read just
+//                          now. NOBODY was logged out: say so, "reload"
+//     wrong_account        the server knows this browser as ANOTHER account
+//                          than the one stored here (two tabs logged in to
+//                          different accounts at once, a cookie from
+//                          elsewhere). That session was ended and the
+//                          device IS ALREADY logged out: as `unauthorized`,
+//                          with its own words
+//     login_changed        another tab logged in (again) while the flow
+//                          ran; its last request changed nothing and the
+//                          device is still logged in: "try again"
 //     bad_input            the checks below were skipped
 //     busy, finished       the page called a handle wrongly
 //     failed               unexpected
@@ -250,6 +291,7 @@ export {
   type SubmitOptions,
   createAccountFlows,
   defaultFlowDeps,
+  lostAnswer,
 } from './flows';
 export { estimateKdfMs } from './kdf-time';
 export { type AccountState, accountState, accountsEnabled, onAccountState, watchAccountState } from './state';

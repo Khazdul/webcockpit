@@ -35,7 +35,22 @@
 //   (ended from another device, the password changed, the account
 //   deleted): the device is logged out locally (the keys and the record
 //   removed, the name kept for the Log in page) and the flow answers
-//   `unauthorized`.
+//   `unauthorized`. Only while the device's record is still the one the
+//   request started with: a 401 that comes back after another tab has
+//   logged in again answers `login_changed` and removes nothing.
+// - **The device's record is the truth, the hint is not.** Every logged-in
+//   flow reads the record in IndexedDB. Keys without a hint (localStorage
+//   was cleared, or cannot be written) put the hint back; a hint without
+//   keys is cleared; a store that cannot be read ends the flow with
+//   `storage_unreadable` and logs nobody out.
+// - **The session must be the stored account's.** `GET /api/u/account`
+//   is asked before anything that changes the account, and its name is
+//   compared with the record's (as the server compares names). Another
+//   account's session is ended, the device logged out, and the flow
+//   answers `wrong_account`.
+// - **A lost answer** (`lostAnswer`): `timeout`, `offline` or `bad_answer`
+//   after `sending` means the request left and its answer did not come.
+//   The change may have been made; a page says so.
 // - **Nothing of the player's own data** (profiles, scripts, runs,
 //   settings) is read or touched by anything here.
 
@@ -44,6 +59,7 @@ import {
   type AccountPrefs,
   type AuthParams,
   DEFAULT_KDF,
+  type LoginAnswer,
   OTHER_SESSIONS,
   type PrefsRequest,
 } from '../../../shared/cloud/api.ts';
@@ -74,6 +90,13 @@ type CryptoModule = typeof import('../crypto');
  *                  private window that refuses them)
  *   not_logged_in  the flow needs an account on this device and there is
  *                  none
+ *   storage_unreadable  the device's key store could not be read just now;
+ *                  nobody was logged out
+ *   wrong_account  the session the server knows this browser by is another
+ *                  account's than the one stored here; that session was
+ *                  ended and the device logged out
+ *   login_changed  another tab logged in (again) on this device while the
+ *                  flow ran; this flow's last request changed nothing
  *   bad_input      an argument is not usable (a name that is not a user
  *                  name, a new password under the minimum, a recovery
  *                  code that is not one); the page's checks (checks.ts)
@@ -90,6 +113,9 @@ export type FlowErrorCode =
   | 'update_needed'
   | 'storage_failed'
   | 'not_logged_in'
+  | 'storage_unreadable'
+  | 'wrong_account'
+  | 'login_changed'
   | 'bad_input'
   | 'busy'
   | 'finished'
@@ -103,6 +129,16 @@ export interface FlowFailure {
 }
 
 export type FlowResult<T> = { ok: true; value: T } | FlowFailure;
+
+/**
+ * The one rule for "the request left, the answer did not come": a flow
+ * that had reached `sending` and ended with one of these may have made its
+ * change on the server all the same (the connection dropped after the
+ * request, no answer in time, an answer that could not be read).
+ */
+export function lostAnswer(code: FlowErrorCode): boolean {
+  return code === 'timeout' || code === 'offline' || code === 'bad_answer';
+}
 
 export type FlowStep = 'checking' | 'deriving' | 'sending' | 'saving';
 
@@ -333,7 +369,11 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
     if (!(await store.works())) throw new Stop('storage_failed');
   }
 
-  /** Stores the account and its keys and tells the start page. False when the device could not keep them. */
+  /**
+   * Stores the account and its keys and tells the start page. False when
+   * the device could not keep them. (Where localStorage takes no hint the
+   * state keeps the name in memory: the keys are what counts.)
+   */
   async function keep(account: Account, keys: AccountKeys): Promise<boolean> {
     try {
       await store.write({ name: account.name, created: account.created, label: deps.label(), savedAt: deps.now(), dataKey: keys.dataKey, idKey: keys.idKey });
@@ -351,16 +391,29 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
     return removed;
   }
 
-  /** The account of this device, or null. A hint without stored keys ends as logged out. */
+  /** The device's record. A store that cannot be read ends the flow: it is not "nobody is logged in". */
+  async function record(): Promise<StoredAccount | null> {
+    try {
+      return await store.read();
+    } catch {
+      throw new Stop('storage_unreadable');
+    }
+  }
+
+  /**
+   * The account of this device, or null. The record is the truth: keys
+   * without a hint put the hint back, a hint without keys is cleared.
+   * (Nothing is deleted here: another tab may be storing a login right now.)
+   */
   async function storedAccount(): Promise<StoredAccount | null> {
-    if (accountState().name === null) return null;
-    const record = await store.read();
-    if (!record) {
-      await forget();
+    const me = await record();
+    const hint = accountState().name;
+    if (!me) {
+      if (hint !== null) noteLoggedOut();
       return null;
     }
-    if (record.name !== accountState().name) noteLoggedIn(record.name);
-    return record;
+    if (me.name !== hint) noteLoggedIn(me.name);
+    return me;
   }
 
   async function signedIn(): Promise<StoredAccount> {
@@ -369,11 +422,43 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
     return me;
   }
 
-  /** An answer from `/api/u/*`: `unauthorized` logs the device out locally. */
-  async function authed<T>(answer: Promise<ApiResult<T>>): Promise<ApiResult<T>> {
+  /**
+   * Before the local login is removed on the server's word: is the
+   * device's record still `me`, the one the request was made for? False:
+   * it is gone already. Another login in its place ends the flow with
+   * `login_changed` (the answer in hand is about a login that is no more).
+   */
+  async function stillMine(me: StoredAccount): Promise<boolean> {
+    const now = await record();
+    if (!now) {
+      if (accountState().name !== null) noteLoggedOut();
+      return false;
+    }
+    if (now.savedAt !== me.savedAt || now.name !== me.name) throw new Stop('login_changed');
+    return true;
+  }
+
+  /** An answer from `/api/u/*` for `me`: `unauthorized` logs the device out locally, while its login is still that one. */
+  async function authed<T>(me: StoredAccount, answer: Promise<ApiResult<T>>): Promise<ApiResult<T>> {
     const r = await answer;
-    if (!r.ok && r.code === 'unauthorized') await forget();
+    if (!r.ok && r.code === 'unauthorized' && (await stillMine(me))) await forget();
     return r;
+  }
+
+  /**
+   * `GET /api/u/account` for `me`. The session must be the stored
+   * account's: when the cookie is another account's (two tabs that logged
+   * in to different accounts at once, a cookie set from elsewhere) that
+   * session is ended and the device logged out.
+   */
+  async function myAccount(me: StoredAccount, o: RunOptions): Promise<LoginAnswer> {
+    const a = need(await authed(me, api.account({ signal: o.signal })));
+    if (sameName(a.account.name, me.name)) return a;
+    if (await stillMine(me)) {
+      await api.logout();
+      await forget();
+    }
+    throw new Stop('wrong_account');
   }
 
   /** A sign-in answer's account must be the one that was asked for. Ends the new session otherwise. */
@@ -419,6 +504,8 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
     let prepared: { request: RegisterKeys; recoveryCode: string; keys: AccountKeys } | null = null;
     // An earlier submit may have reached the server without its answer reaching us.
     let unsure = false;
+    // The login that asks "is the taken name ours" was told `turnstile_required`.
+    let loginWantsToken = false;
     return handle(
       () => true,
       async (o, end) => {
@@ -438,21 +525,45 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
         step(o, 'sending');
         const label = deps.label();
         let account: Account | null = null;
-        const r = await api.register({ name, ...made.request, label, turnstile: o.turnstile });
-        if (r.ok) account = r.value.account;
-        else if (r.code === 'name_taken' && unsure) {
-          // The name may be taken by this very flow's earlier try. Its
-          // password key tells: it opens a session only if the account is ours.
-          const mine = await api.login({ name, authKey: made.request.authKey, label });
-          if (mine.ok) account = mine.value.account;
+        // The earlier try may have made the account. Its password key
+        // tells: it opens a session only if the account is this flow's.
+        const mine = (turnstile?: string): Promise<ApiResult<LoginAnswer>> =>
+          api.login({ name, authKey: made.request.authKey, label, ...(turnstile ? { turnstile } : {}) });
+        let failure: ApiFailure | null = null;
+        if (unsure && loginWantsToken) {
+          // The server wants a check before any login to this name: this submit's token goes to the question "is it ours".
+          const l = await mine(o.turnstile);
+          if (l.ok) account = l.value.account;
+          else failure = l.code === 'invalid_login' ? { ok: false, code: 'name_taken' } : l;
+        } else {
+          const r = await api.register({ name, ...made.request, label, turnstile: o.turnstile });
+          if (r.ok) account = r.value.account;
+          else if (r.code === 'name_taken' && unsure) {
+            const l = await mine();
+            if (l.ok) account = l.value.account;
+            else if (l.code !== 'invalid_login') {
+              // Not known yet whose the name is: the flow stays, and the login's own failure is the answer.
+              if (l.code === 'turnstile_required') loginWantsToken = true;
+              failure = l;
+            } else failure = r;
+          } else {
+            unsure = unsure || lostAnswer(r.code);
+            failure = r;
+          }
         }
         if (!account) {
-          const failure = r as ApiFailure;
-          unsure = unsure || failure.code === 'timeout' || failure.code === 'offline' || failure.code === 'bad_answer';
-          if (failure.code === 'name_taken') end();
-          throw stopOf(failure);
+          const f = failure as ApiFailure;
+          // Somebody else's (or a reserved) name: this flow's keys are of no more use.
+          if (f.code === 'name_taken') end();
+          throw stopOf(f);
         }
-        account = await checkedAccount(account, name);
+        try {
+          account = await checkedAccount(account, name);
+        } catch (e) {
+          // A 2xx came: the account may well exist, whatever was wrong with the answer.
+          unsure = true;
+          throw e;
+        }
         step(o, 'saving');
         const stored = await keep(account, made.keys);
         if (!stored) await api.logout();
@@ -597,19 +708,21 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
 
   // --- Logged in ---
 
-  /** The password asked for again: the account of this device, its parameters and the password's keys. */
+  /**
+   * The password asked for again: the account of this device (checked
+   * against the session's), its parameters, its current password wrap
+   * (the root is not kept on the device) and the password's keys.
+   */
   async function passwordKeys(
     password: string,
     o: RunOptions,
     extraMs: number,
-    wrap: boolean,
-  ): Promise<{ me: StoredAccount; authKey: string; kek: CryptoKey; wrapPw: string | null; c: CryptoModule }> {
+  ): Promise<{ me: StoredAccount; authKey: string; kek: CryptoKey; wrapPw: string; c: CryptoModule }> {
     if (password.length === 0) throw new Stop('bad_input');
     const me = await signedIn();
     step(o, 'checking');
+    const { wrapPw } = await myAccount(me, o);
     const params = need(await api.params(me.name, { signal: o.signal }));
-    // The current password wrap, where the root is needed (it is not kept on the device).
-    const wrapPw = wrap ? need(await authed(api.account({ signal: o.signal }))).wrapPw : null;
     step(o, 'deriving', { estimateMs: estimateKdfMs(params.kdf.rounds) + extraMs });
     const c = await cryptoModule();
     const { authKey, kek } = await c.derivePasswordLogin(me.name, password, params, { derive: deriver(o), signal: o.signal });
@@ -637,58 +750,59 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
 
   const loadAccount = (o: RunOptions = {}): Promise<FlowResult<Account>> =>
     run(async () => {
-      await signedIn();
+      const me = await signedIn();
       step(o, 'checking');
-      return need(await authed(api.account({ signal: o.signal }))).account;
+      return (await myAccount(me, o)).account;
     });
 
   const changePassword = (oldPassword: string, newPassword: string, o: RunOptions = {}): Promise<FlowResult<null>> =>
     run(async () => {
       if (checkPassword(newPassword) !== null) throw new Stop('bad_input');
-      const { me, authKey, kek, wrapPw, c } = await passwordKeys(oldPassword, o, estimateKdfMs(DEFAULT_KDF.rounds), true);
+      const { me, authKey, kek, wrapPw, c } = await passwordKeys(oldPassword, o, estimateKdfMs(DEFAULT_KDF.rounds));
       let set: PasswordSet;
       try {
-        ({ set } = await c.changePassword(me.name, kek, wrapPw as string, newPassword, { derive: deriver(o), signal: o.signal }));
+        ({ set } = await c.changePassword(me.name, kek, wrapPw, newPassword, { derive: deriver(o), signal: o.signal }));
       } catch (e) {
         throw wrongPassword(e);
       }
       cancelledIf(o);
       step(o, 'sending');
-      need(await authed(api.password({ authKey, set })));
+      need(await authed(me, api.password({ authKey, set })));
       return null;
     });
 
   const newRecoveryCode = (password: string, o: RunOptions = {}): Promise<FlowResult<{ recoveryCode: string }>> =>
     run(async () => {
-      const { me, authKey, kek, wrapPw, c } = await passwordKeys(password, o, 0, true);
+      const { me, authKey, kek, wrapPw, c } = await passwordKeys(password, o, 0);
       let made: { recoveryCode: string; recoveryAuth: string; wrapRc: string };
       try {
-        made = await c.newRecoveryCode(me.name, kek, wrapPw as string);
+        made = await c.newRecoveryCode(me.name, kek, wrapPw);
       } catch (e) {
         throw wrongPassword(e);
       }
       cancelledIf(o);
       step(o, 'sending');
-      need(await authed(api.recovery({ authKey, recoveryAuth: made.recoveryAuth, wrapRc: made.wrapRc })));
+      need(await authed(me, api.recovery({ authKey, recoveryAuth: made.recoveryAuth, wrapRc: made.wrapRc })));
       return { recoveryCode: made.recoveryCode };
     });
 
   const endSessionOf = (id: string, o: RunOptions): Promise<FlowResult<null>> =>
     run(async () => {
-      await signedIn();
+      const me = await signedIn();
       step(o, 'sending');
-      const r = await authed(api.endSession(id));
-      // No such session: it was ended meanwhile, which is what was asked for.
-      if (!r.ok && r.code !== 'not_found') throw stopOf(r);
+      const r = await authed(me, api.endSession(id));
+      // No such session: it was ended meanwhile, which is what was asked for. Only for one session's id:
+      // "all others" has no id that can be gone, so a 404 there is the service saying no (accounts switched off).
+      if (!r.ok && !(r.code === 'not_found' && id !== OTHER_SESSIONS)) throw stopOf(r);
       return null;
     });
 
   const deleteAccount = (password: string, o: RunOptions = {}): Promise<FlowResult<null>> =>
     run(async () => {
-      const { authKey } = await passwordKeys(password, o, 0, false);
+      const { me, authKey } = await passwordKeys(password, o, 0);
       cancelledIf(o);
       step(o, 'sending');
-      need(await authed(api.remove({ authKey })));
+      need(await authed(me, api.remove({ authKey })));
       // The name is reserved for good: nothing to prefill.
       await forget({ forgetName: true });
       return null;
@@ -696,9 +810,9 @@ export function createAccountFlows(deps: FlowDeps = defaultFlowDeps()): AccountF
 
   const setPrefs = (prefs: PrefsRequest, o: RunOptions = {}): Promise<FlowResult<AccountPrefs>> =>
     run(async () => {
-      await signedIn();
+      const me = await signedIn();
       step(o, 'sending');
-      return need(await authed(api.setPrefs({ galleryNotice: prefs.galleryNotice }))).prefs;
+      return need(await authed(me, api.setPrefs({ galleryNotice: prefs.galleryNotice }))).prefs;
     });
 
   return {
