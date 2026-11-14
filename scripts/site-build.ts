@@ -5,7 +5,8 @@
 //
 //   npm run build:site                       for the production Worker → dist-site/
 //   npm run build:site -- --target staging   for the staging Worker: no version
-//                                            rule (staging is not the live site)
+//                                            rule (staging is not the live site),
+//                                            X-Robots-Tag: noindex on every file
 //   npm run build:site -- --skip-live        no request to the live site (offline):
 //                                            no version check against it, nothing carried
 //   npm run build:pages                      the same build for GitHub Pages
@@ -120,6 +121,14 @@ const own = readdirSync(join(OUT, 'assets')).sort();
 // serve `_headers` as a file and use a root `404.html` as its 404 page,
 // and the Pages site is to stay as it is until it is retired (ADR 0144).
 if (pages) for (const name of ['_headers', '404.html']) rmSync(join(OUT, name), { force: true });
+// Staging is not for search engines (ADR 0144, addendum): the Worker sets
+// X-Robots-Tag on its own answers (the NOINDEX var), and this rule sets it
+// on the static files, which the Worker never sees. A rule of the staging
+// build alone, so production's `_headers` stays as it is.
+if (target === 'staging') {
+  const headers = join(OUT, '_headers');
+  writeFileSync(headers, `${readFileSync(headers, 'utf8').trimEnd()}\n\n# Staging only (build:site --target staging).\n/*\n  X-Robots-Tag: noindex\n`);
+}
 
 step(`smoke test (${pages ? 'pages' : 'cloudflare'} profile)`);
 run('npx', ['playwright', 'test', '-c', 'playwright.prod.config.ts'], {

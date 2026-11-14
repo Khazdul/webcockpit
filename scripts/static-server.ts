@@ -14,8 +14,11 @@
 //
 // `cloudflare`: the Worker with static assets of wrangler.jsonc (ADR 0144),
 // as `wrangler dev` 4.162 answers (compared header by header):
-//   - /api/* is answered by the real router (worker/router.ts), with an
-//     assets binding that reads from the directory
+//   - /api/*, /admin and /admin/* are answered by the real router
+//     (worker/router.ts), with an assets binding that reads from the
+//     directory and no other binding: no database (the beat answers 503
+//     `unavailable`, the flags are off) and no Access settings (/admin
+//     answers 503 `admin_not_configured`)
 //   - `Cache-Control: public, max-age=0, must-revalidate` and an ETag by
 //     default; `If-None-Match` gives 304; Range is ignored
 //   - the rules of the directory's own `_headers` file, on every answer
@@ -246,8 +249,8 @@ function cloudflareHandler(root: string): (req: IncomingMessage, res: ServerResp
   };
   return async (req, res, path, search) => {
     const method = req.method ?? 'GET';
-    // run_worker_first: ["/api/*"].
-    if (path.startsWith('/api/')) {
+    // run_worker_first: ["/api/*", "/admin", "/admin/*"].
+    if (path.startsWith('/api/') || path === '/admin' || path.startsWith('/admin/')) {
       const init: RequestInit = { method, headers: req.headers as Record<string, string> };
       if (method !== 'GET' && method !== 'HEAD') init.body = new Uint8Array(await body(req));
       const answer = await handle(new Request(`http://${req.headers.host ?? 'localhost'}${encodeURI(path)}${search}`, init), env);
