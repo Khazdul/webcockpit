@@ -200,17 +200,24 @@ function useAccountRow(menu: { current: HTMLUListElement | null }): AccountState
     let down = false;
     let timer = 0;
     const hovers = (): boolean => win.matchMedia?.('(hover: hover)').matches !== false;
-    const safe = (): boolean => {
+    /** `under`: what a pointer event says the pointer is on (`:hover` may still be the element it just left). */
+    const safe = (under?: Element | null): boolean => {
       if (down) return false;
       // A touch screen keeps `:hover` on what was last tapped: only a finger that is down counts there.
       if (!hovers()) return true;
       const panel = ul.closest('.wc-sm-panel') ?? ul;
-      if (!panel.matches(':hover')) return true;
-      const row = ul.querySelector<HTMLElement>('.wc-sm-item:hover');
+      if (under === undefined ? !panel.matches(':hover') : !under || !panel.contains(under)) return true;
+      const row = under ? under.closest<HTMLElement>('.wc-sm-item') : ul.querySelector<HTMLElement>('.wc-sm-item:hover');
       return !!row && ABOVE_ACCOUNT.has(row.dataset.key ?? '');
     };
     const tryIn = (): void => {
       if (safe()) setShown(true);
+    };
+    const onMove = (e: PointerEvent): void => {
+      if (e.pointerType !== 'touch' && safe(e.target as Element | null)) setShown(true);
+    };
+    const onLeave = (): void => {
+      if (safe(null)) setShown(true);
     };
     const onDown = (): void => {
       down = true;
@@ -224,16 +231,16 @@ function useAccountRow(menu: { current: HTMLUListElement | null }): AccountState
     doc.addEventListener('pointerdown', onDown, true);
     doc.addEventListener('pointerup', onUp, true);
     doc.addEventListener('pointercancel', onUp, true);
-    doc.addEventListener('pointermove', tryIn, true);
-    doc.documentElement.addEventListener('pointerleave', tryIn);
+    doc.addEventListener('pointermove', onMove, true);
+    doc.documentElement.addEventListener('pointerleave', onLeave);
     tryIn();
     return () => {
       win.clearTimeout(timer);
       doc.removeEventListener('pointerdown', onDown, true);
       doc.removeEventListener('pointerup', onUp, true);
       doc.removeEventListener('pointercancel', onUp, true);
-      doc.removeEventListener('pointermove', tryIn, true);
-      doc.documentElement.removeEventListener('pointerleave', tryIn);
+      doc.removeEventListener('pointermove', onMove, true);
+      doc.documentElement.removeEventListener('pointerleave', onLeave);
     };
   }, [on, shown]);
   return on && shown ? state : null;

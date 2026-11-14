@@ -78,7 +78,8 @@ export async function shot(page: Page, state: string, view: 'desktop' | 'phone')
   if (process.env.WC_ACCOUNT_SHOTS !== '1') return;
   await settled(page);
   mkdirSync(BUILT, { recursive: true });
-  await page.screenshot({ path: join(BUILT, `${state}.${view}.jpg`), type: 'jpeg', quality: 70 });
+  // (`css`: a phone's picture at 390 px wide, not at its screen's 2.6×: small files.)
+  await page.screenshot({ path: join(BUILT, `${state}.${view}.jpg`), type: 'jpeg', quality: 70, scale: 'css' });
 }
 
 /** `n` wrong tries for `name`, straight at the fake server (another device), each with a token of its own. */
