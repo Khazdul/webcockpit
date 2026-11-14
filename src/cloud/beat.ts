@@ -3,11 +3,16 @@
 //
 // When: once the page is shown (at load, or when a tab opened in the
 // background is first looked at), then every BEAT_MINUTES while the page
-// is visible (the timer stops while it is hidden; when it shows again a
-// beat that is due goes at once), and when what the page shows changes
-// between `menu`, `playing` and `replay` (a short settle first, so a
-// passing state is not sent). A hidden page sends nothing; a change of
-// state while hidden goes when it shows again.
+// is visible, or while it is hidden in the game (`playing`: a player with
+// the game in a background tab is still online; browsers throttle hidden
+// timers to about once a minute, which a 5-minute timer does not mind),
+// and when what the page shows changes between `menu`, `playing` and
+// `replay` (a short settle first, so a passing state is not sent). A
+// hidden page in `menu` or `replay` sends nothing: its timer stops, and
+// when it shows again a beat that is due goes at once. While hidden, a
+// change to `playing` is sent (after the settle) and starts the timer; a
+// change away from `playing` stops the timer and is sent when the page
+// shows again. A page loaded hidden waits until it is first shown.
 //
 // How: `fetch` with `credentials: 'omit'` (the session cookie is never
 // sent, so the device id cannot be tied to an account) and `keepalive`,
@@ -171,16 +176,26 @@ export function startBeat(o: BeatOptions): BeatHandle {
   let stopped = false;
 
   const visible = (): boolean => !doc || doc.visibilityState !== 'hidden';
+  /** The timer runs: visible, or hidden in the game. */
+  const active = (): boolean => {
+    if (visible()) return true;
+    try {
+      return o.state() === 'playing';
+    } catch {
+      return false;
+    }
+  };
   const clear = (): void => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
   };
   const schedule = (): void => {
     clear();
-    if (stopped || !visible()) return;
+    if (stopped || !active()) return;
     timer = setTimeout(() => {
       timer = null;
-      beat();
+      // Hidden and no longer in the game: silent until shown (onVisibility).
+      if (active()) beat();
     }, Math.max(0, covered + BEAT_MS - now()));
   };
 
@@ -228,7 +243,8 @@ export function startBeat(o: BeatOptions): BeatHandle {
 
   const onVisibility = (): void => {
     if (stopped) return;
-    if (!visible()) return clear();
+    // Hidden: the timer goes on only in the game.
+    if (!visible()) return started ? schedule() : undefined;
     let due = !started || now() - covered >= BEAT_MS;
     try {
       // A change of state while hidden goes now.
@@ -259,8 +275,10 @@ export function startBeat(o: BeatOptions): BeatHandle {
       settle = setTimeout(() => {
         settle = null;
         try {
-          // Hidden: sent when the page shows again (onVisibility).
-          if (visible() && o.state() !== sentState) beat();
+          // Hidden: a change to `playing` goes now; any other stops the
+          // timer and is sent when the page shows again (onVisibility).
+          if (!active()) clear();
+          else if (o.state() !== sentState) beat();
         } catch {
           // As above.
         }

@@ -1167,7 +1167,7 @@ ADR 0147.
 
 - **Client:** `src/cloud/beat.ts`. Device id in `localStorage`
   (`wc.device`). `POST /api/beat` with `credentials: 'omit'` and
-  `keepalive`: at load, every 5 minutes while visible, and on a change
+  `keepalive`: at load, every 5 minutes while visible, or while playing, and on a change
   between `menu`, `playing` and `replay`. Off in dev and in e2e.
 - **Server:** tables `presence`, `device_day`, `stat_sample`,
   `stat_daily`; a Cron every 5 minutes samples, and at 00:10 UTC rolls
