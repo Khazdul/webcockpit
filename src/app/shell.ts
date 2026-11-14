@@ -143,6 +143,7 @@ import { uiValue } from './ui-messages';
 import { MapStore } from '../map/store';
 import { NEW_USER_SCRIPTS, ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
+import { followSpace, holdGameLock, reloadToStart, spaceMessagePending } from '../core/space';
 import { type Notices, noticeIndicators } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { PHONE_KIT } from './phone-kit';
@@ -251,11 +252,15 @@ export class Shell {
   readonly scripts: ScriptLibrary;
   /** Told when `view` may have changed (the usage beat, src/cloud/start.ts). */
   private readonly viewFns = new Set<() => void>();
+  /** Releases the game's Web Lock on the space (ADR 0150) while the live cockpit is the view. */
+  private releaseGame: (() => void) | null = null;
+  /** Another tab changed the space during a game: reload when the start page is back (ADR 0150). */
+  private spaceChanged = false;
 
   constructor(opts: ShellOptions) {
     this.opts = opts;
     this.profiles = opts.profiles ?? new ProfileStore();
-    this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
+    this.maps = opts.maps ?? new MapStore({ openDb: lazyDb(undefined, { device: true }) });
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
     this.phoneGame = device().phone;
@@ -280,6 +285,14 @@ export class Shell {
     this.menuHost.className = 'wc-menu-host';
     if (this.startHost.parentNode !== opts.root) opts.root.append(this.startHost);
     opts.root.append(this.menuHost);
+    // Another tab logged in or out (ADR 0150): this page's stores are the old space's. Off the
+    // game it reloads at once; a game plays on and the page reloads when it is back on the start page.
+    if (!opts.offline) {
+      followSpace(() => {
+        if (this.inCockpit) this.spaceChanged = true;
+        else reloadToStart();
+      });
+    }
   }
 
   /** The run library (History, backups, the sweep); opened on first use. */
@@ -348,6 +361,8 @@ export class Shell {
       this.showStart();
     } else {
       // The chrome chunk and the fonts load side by side (ADR 0083).
+      // After a change of space (log in, log out) the start menu is there at once, without its opening (ADR 0150).
+      const instant = spaceMessagePending();
       let chromeDone = false;
       let fontsDone = false;
       let reveal!: () => void;
@@ -375,11 +390,11 @@ export class Shell {
         this.startMount.style.opacity = '0';
         this.showStart();
         bootStep(100, 'Ready');
-        await revealStart(this.startMount);
+        await revealStart(this.startMount, undefined, { instant });
       } finally {
         this.startMount.style.opacity = '';
         bootDone();
-        const still = this.opts.root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const still = instant || this.opts.root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         setTimeout(reveal, still ? 0 : REVEAL_FADE_MS);
       }
     }
@@ -757,9 +772,16 @@ export class Shell {
   // ------------------------------------------------------------------ views
 
   private showStart(): void {
+    if (this.spaceChanged) {
+      // Another tab changed the space while this one played (ADR 0150).
+      reloadToStart();
+      return;
+    }
     // Back before the transition was over: the page shows as it was (start.show() cancels it).
     this.endEnter();
     this.inCockpit = false;
+    this.releaseGame?.();
+    this.releaseGame = null;
     // The windows close with the cockpit; their unsaved changes are discarded (ADR 0103).
     this.windows?.closeAll();
     this.appRef?.menuBar?.setShown(false);
@@ -783,6 +805,8 @@ export class Shell {
     }
     app.el.style.display = '';
     this.inCockpit = true;
+    // A game runs on this space (ADR 0150): a log out in another tab is refused meanwhile.
+    if (!this.opts.offline) this.releaseGame ??= holdGameLock();
     this.markPhoneGame(true);
     app.menuBar?.setShown(true);
     app.input.focus();
