@@ -761,7 +761,11 @@ test('review 1: Back while the key is still being made is Cancel: the page stays
   await expect(btn(page, 'CREATE')).not.toHaveAttribute('aria-disabled', 'true');
   await btn(page, 'CREATE').click();
   await expect(frame(page).locator('.wc-ac-work')).toBeVisible();
-  await frame(page).locator('.wc-lk-back').click();
+  // (The key may be made and the account with it before the click lands: then the code page is up and has no Back.)
+  await frame(page)
+    .locator('.wc-lk-back')
+    .click({ timeout: 2000 })
+    .catch(() => {});
   // Cancelled (when the click came before the request left) or made: never the Log in page with a lost code.
   await expect(frame(page).locator('[data-page="create"] [data-btn="CREATE"], [data-page="code"]')).toBeVisible();
   if ((await pageOf(page, 'create').count()) > 0) expect(api.server.hasAccount(NAME)).toBe(false);
