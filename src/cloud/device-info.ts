@@ -1,7 +1,8 @@
 // The device type and browser family of a beat (ADR 0147), as the
-// constants of shared/cloud/api.ts. Pure.
+// constants of shared/cloud/api.ts, and the label of an account's session
+// ("Firefox on Linux", stage 60). Pure.
 
-import type { Browser, DeviceType } from '../../shared/cloud/api.ts';
+import { type Browser, type DeviceType, LABEL_MAX_LENGTH } from '../../shared/cloud/api.ts';
 import type { DeviceFlags } from '../core/device';
 
 /**
@@ -32,4 +33,49 @@ export function browserFamily(ua: string): Browser {
   if (/\b(?:Chrome|Chromium|CriOS)\//.test(ua)) return 'chrome';
   if (/\bSafari\//.test(ua) && /\b(?:Version|Mobile)\//.test(ua)) return 'safari';
   return 'other';
+}
+
+const BROWSER_NAMES: Record<Browser, string> = {
+  firefox: 'Firefox',
+  chrome: 'Chrome',
+  safari: 'Safari',
+  edge: 'Edge',
+  samsung: 'Samsung Internet',
+  other: 'Browser',
+};
+
+/**
+ * The operating system from the user agent, or null. Android before Linux
+ * (its agents say both); an iPad that asks for the desktop site says it is
+ * a Mac and is taken for one.
+ */
+export function osName(ua: string): string | null {
+  if (/\bAndroid\b/.test(ua)) return 'Android';
+  if (/\b(?:iPhone|iPad|iPod)\b/.test(ua)) return 'iOS';
+  if (/\bWindows\b/.test(ua)) return 'Windows';
+  if (/\bCrOS\b/.test(ua)) return 'ChromeOS';
+  if (/\bMac OS X\b|\bMacintosh\b/.test(ua)) return 'macOS';
+  if (/\bLinux\b|\bX11\b/.test(ua)) return 'Linux';
+  return null;
+}
+
+/**
+ * A session's label as the server keeps it (worker/accounts.ts `labelOf`):
+ * what is printable ASCII of `text`, trimmed and cut to
+ * `LABEL_MAX_LENGTH`. Also what the client does to a label that came from
+ * the server before a page gets it (it is still text, never markup).
+ */
+export function cleanLabel(text: string): string {
+  return text
+    .replace(/[^\x20-\x7e]/g, '')
+    .trim()
+    .slice(0, LABEL_MAX_LENGTH)
+    .trim();
+}
+
+/** What this device is called in the account's list of sessions: "Firefox on Linux", or the browser alone. */
+export function deviceLabel(ua: string): string {
+  const browser = BROWSER_NAMES[browserFamily(ua)];
+  const os = osName(ua);
+  return cleanLabel(os ? `${browser} on ${os}` : browser);
 }

@@ -49,7 +49,19 @@ export function apiAllowed(): boolean {
   return !automated() && (import.meta.env.DEV !== true || devApi);
 }
 
-/** `GET /api/config`'s body as a `Config`: only boolean flags are kept; anything else is no flags. */
+const LIMIT_KEYS = ['items', 'itemBytes', 'itemMaxBytes', 'runBytes', 'runMaxBytes', 'payloadMaxBytes', 'sharedRuns'] as const;
+
+/** The longest site key kept (Cloudflare's are about 24 characters). */
+const SITE_KEY_MAX = 100;
+
+/**
+ * `GET /api/config`'s body as a `Config`, read tolerantly: only boolean
+ * flags are kept, and anything that is not the contract's is no flags.
+ * Beside the flags (stage 60): the Turnstile site key when it is a
+ * non-empty string of a site key's characters, the default limits when
+ * every one of them is a whole number ≥ 0, and the server's time when it
+ * is a number. A field that does not hold is left out, never an error.
+ */
 export function parseConfig(data: unknown): Config {
   const flags: Config['flags'] = {};
   if (!data || typeof data !== 'object') return { flags };
@@ -58,7 +70,20 @@ export function parseConfig(data: unknown): Config {
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof v === 'boolean') (flags as Record<string, boolean>)[k] = v;
   }
-  return { flags };
+  const out: Config = { flags };
+  const { turnstileSiteKey, limits, time } = data as { turnstileSiteKey?: unknown; limits?: unknown; time?: unknown };
+  if (typeof turnstileSiteKey === 'string' && turnstileSiteKey.length <= SITE_KEY_MAX && /^[A-Za-z0-9_-]+$/.test(turnstileSiteKey)) {
+    out.turnstileSiteKey = turnstileSiteKey;
+  }
+  if (limits && typeof limits === 'object') {
+    const l = limits as Record<string, unknown>;
+    const whole = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+    if (LIMIT_KEYS.every((k) => whole(l[k]))) {
+      out.limits = Object.fromEntries(LIMIT_KEYS.map((k) => [k, l[k]])) as unknown as NonNullable<Config['limits']>;
+    }
+  }
+  if (typeof time === 'number' && Number.isFinite(time) && time > 0) out.time = time;
+  return out;
 }
 
 /** A JSON GET of the API: the parsed body, or null on any failure (never rejects). */
