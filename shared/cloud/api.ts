@@ -140,9 +140,9 @@ export const NAME_PATTERN = /^[A-Za-z0-9_-]{3,20}$/;
 export const NAME_MIN_LENGTH = 3;
 export const NAME_MAX_LENGTH = 20;
 
-/** Bytes of a salt (the client makes 16). */
+/** Bytes of a salt: exactly 16 (the client refuses any other length too). */
 export const SALT_MIN_BYTES = 16;
-export const SALT_MAX_BYTES = 32;
+export const SALT_MAX_BYTES = 16;
 /** Bytes of `authKey` and of `recoveryAuth`. */
 export const AUTH_KEY_BYTES = 32;
 /** Bytes of a wrapped root key (61 today: version, nonce, ciphertext and tag). */
@@ -344,11 +344,17 @@ export interface PrefsRequest {
   galleryNotice: boolean;
 }
 
-/** `GET /api/u/account`, and what register and the second recover call answer. */
+/** What register and the second recover call answer. */
 export interface AccountAnswer {
   account: Account;
 }
 
+/**
+ * What login and `GET /api/u/account` answer: the account and its current
+ * password wrap (useless without the password; the device keeps only keys
+ * it cannot export, so a password change or a new recovery code needs it
+ * again).
+ */
 export interface LoginAnswer extends AccountAnswer {
   wrapPw: string;
 }

@@ -184,7 +184,7 @@ address.
   `name_key` its lowercase with the UNIQUE index.
 - Binary values are stored as they travel, base64url text without
   padding, and are accepted only in their one canonical spelling. Sizes:
-  salt 16–32 bytes, `authKey` and `recoveryAuth` 32, a wrap 40–200; KDF
+  salt exactly 16 bytes, `authKey` and `recoveryAuth` 32, a wrap 40–200; KDF
   `pbkdf2-sha256` with 600 000 to 10 000 000 rounds. A body is at most
   4096 bytes and may hold no unknown field.
 - `auth_hash` and `recovery_hash` are SHA-256 of the 32 bytes, compared

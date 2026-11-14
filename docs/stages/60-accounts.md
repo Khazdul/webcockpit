@@ -80,7 +80,7 @@ answer 404 `not_found` (flag off), 429 `rate_limited`, 503
 | `POST /api/auth/login` | `{name, authKey, label, turnstile?}` → `{account, wrapPw}` and the cookie. 401 `invalid_login`, 403 `turnstile_required`, 429 `locked` with `retryAfter` (s) |
 | `POST /api/auth/recover` | `{name, recoveryAuth, turnstile}` → `{wrapRc}`; with `set: {salt, kdf, authKey, wrapPw}` and `label` (no Turnstile) → `{account}`, the cookie, every older session ended. 401 `invalid_recovery`, 429 `locked` |
 | `POST /api/u/auth/logout` | 204, the cookie cleared |
-| `GET /api/u/account` | `{account}`: name, created, state, usage, limits, sessions (id, label, created, lastUsed, current), prefs |
+| `GET /api/u/account` | `{account, wrapPw}` (the current password wrap, for a password change or a new recovery code): name, created, state, usage, limits, sessions (id, label, created, lastUsed, current), prefs |
 | `POST /api/u/account/password` | `{authKey, set: {salt, kdf, authKey, wrapPw}}` → 204; other sessions ended. 401 `invalid_login` |
 | `POST /api/u/account/recovery` | `{authKey, recoveryAuth, wrapRc}` → 204 |
 | `DELETE /api/u/account/sessions/<id>` | 204; `<id>` = `others` ends all but this one |

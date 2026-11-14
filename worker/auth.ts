@@ -6,7 +6,7 @@
 //   POST   /api/auth/login                 a session and the wrapped root key
 //   POST   /api/auth/recover               with the recovery code: the wrap, then a new password
 //   POST   /api/u/auth/logout              ends this session
-//   GET    /api/u/account                  the account as its owner sees it
+//   GET    /api/u/account                  the account as its owner sees it, and the password wrap
 //   POST   /api/u/account/password         a new password (the old one proves it)
 //   POST   /api/u/account/recovery         a new recovery code
 //   DELETE /api/u/account/sessions/<id>    ends a session; `others`: all but this one
@@ -328,7 +328,7 @@ async function logout(c: Ctx): Promise<Response> {
 
 async function account(c: Ctx): Promise<Response> {
   const { account: row, idHash } = c.auth as Authed;
-  return json({ account: await accountView(c.db, row, idHash, c.now) } satisfies AccountAnswer);
+  return json({ account: await accountView(c.db, row, idHash, c.now), wrapPw: row.wrap_pw } satisfies LoginAnswer);
 }
 
 async function password(c: Ctx): Promise<Response> {

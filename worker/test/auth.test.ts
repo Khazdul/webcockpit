@@ -259,12 +259,12 @@ describe('the CSRF rule', () => {
 
 describe('GET /api/auth/params', () => {
   it('answers a real account with its salt and KDF, whatever the case of the name', async () => {
-    await signUp('Alice_1', {}, { salt: bytes(24, 7), kdf: { name: 'pbkdf2-sha256', rounds: 750_000 } });
+    await signUp('Alice_1', {}, { salt: bytes(16, 7), kdf: { name: 'pbkdf2-sha256', rounds: 750_000 } });
     for (const name of ['Alice_1', 'alice_1', 'ALICE_1']) {
       const res = await get(`/api/auth/params?name=${name}`);
       expect(res.status).toBe(200);
       expect(res.headers.get('cache-control')).toBe('no-store');
-      expect(await res.json()).toEqual({ salt: bytes(24, 7), kdf: { name: 'pbkdf2-sha256', rounds: 750_000 } });
+      expect(await res.json()).toEqual({ salt: bytes(16, 7), kdf: { name: 'pbkdf2-sha256', rounds: 750_000 } });
     }
   });
 
@@ -329,6 +329,9 @@ describe('POST /api/auth/register', () => {
       prefs: { galleryNotice: true },
     });
     expect(await accountOf(cookieOf(res) as string)).toEqual(account);
+    // GET /api/u/account also hands back the current password wrap.
+    const own = await get('/api/u/account', { cookie: cookieOf(res) as string });
+    expect(await own.json()).toEqual({ account, wrapPw: bytes(61, 3) });
 
     // What is stored: hashes of the two keys, never the keys; the token's hash, never the token.
     const row = (await db.prepare('SELECT * FROM account').first()) as Record<string, unknown>;
@@ -386,7 +389,8 @@ describe('POST /api/auth/register', () => {
       ['unicode name', { name: 'ålice' }],
       ['name not a string', { name: 12345 }],
       ['short salt', { salt: bytes(15, 1) }],
-      ['long salt', { salt: bytes(33, 1) }],
+      ['long salt', { salt: bytes(17, 1) }],
+      ['a 32-byte salt', { salt: bytes(32, 1) }],
       ['padded salt', { salt: `${bytes(16, 1)}==` }],
       ['base64 not url', { salt: 'ab+/ab+/ab+/ab+/ab+/aQ' }],
       ['non-canonical base64url', { salt: `${bytes(16, 1).slice(0, -1)}B` }],
@@ -427,7 +431,7 @@ describe('POST /api/auth/register', () => {
     expect(verifies).toEqual([]);
 
     // The edges that are fine.
-    await signUp('a-_', {}, { salt: bytes(32, 1), wrapPw: bytes(40, 1), wrapRc: bytes(200, 1), kdf: { name: 'pbkdf2-sha256', rounds: 10_000_000 } });
+    await signUp('a-_', {}, { wrapPw: bytes(40, 1), wrapRc: bytes(200, 1), kdf: { name: 'pbkdf2-sha256', rounds: 10_000_000 } });
     await signUp('A'.repeat(20), { ip: '198.51.100.3' });
   });
 
@@ -798,6 +802,7 @@ describe('the account', () => {
     expect(await db.prepare("SELECT count FROM attempt WHERE key LIKE 'login|%'").first()).toBeNull();
     expect((await get('/api/u/account', { cookie: there })).status).toBe(401);
     expect((await accountOf(here)).sessions).toHaveLength(1);
+    expect(((await (await get('/api/u/account', { cookie: here })).json()) as { wrapPw: string }).wrapPw).toBe(bytes(61, 23));
     expect(await (await get('/api/auth/params?name=alice')).json()).toEqual({ salt: bytes(16, 21), kdf: { name: 'pbkdf2-sha256', rounds: 700_000 } });
     expect((await login('alice', 1)).status).toBe(401);
     const ok = await login('alice', 22);
