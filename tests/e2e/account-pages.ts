@@ -74,7 +74,8 @@ export async function openStart(page: Page, query = ''): Promise<void> {
 export async function openAccount(page: Page, query = ''): Promise<void> {
   await openStart(page, query);
   // The owner row heads the menu (stage 67): a pointer resting on the rows below it (where the
-  // last click left it) holds it back until it moves (start-main.tsx `useAccountRow`).
+  // last click left it) holds it back until it moves or a key is pressed (start-main.tsx
+  // `useAccountRow`). The helper moves it away, as a player reaching for the row would.
   await page.mouse.move(1, 1);
   await expect(accountRow(page)).toBeVisible();
   await accountRow(page).click();

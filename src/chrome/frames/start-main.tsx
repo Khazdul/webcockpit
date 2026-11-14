@@ -23,9 +23,11 @@
 // It exists only while accounts are on for this page
 // (`accountState().enabled`: the server's flag `accounts`, asked on idle
 // time); otherwise U does nothing. The flag arrives after the menu is
-// drawn, so the row comes in late (`useAccountRow`): never while a pointer
+// drawn, so the row comes in late (`useAccountRow`): never while a mouse
 // rests on what would move under it (everything under Enter MUME) and
-// never while a finger is down; the cursor is kept by key, so it stays
+// never while a finger is down; a row held back that way comes in when
+// the mouse leaves that part, on the menu's next key (U then opens it),
+// or while a page hides the menu. The cursor is kept by key, so it stays
 // where it was. The pages are a lazy chunk (./account), loaded when the
 // row is activated.
 //
@@ -106,7 +108,8 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   const { profile } = useSettings();
   useScenery('main');
   const menu = useRef<HTMLUListElement>(null);
-  const account = useAccountRow(menu);
+  const accountRow = useAccountRow(menu, isTop);
+  const account = accountRow.row;
   const openAccount = useAccountPages(nav);
   // Community: the flag `gallery` and the page come in stage 65 (dev: `?community=<n>`).
   const community = devCommunity();
@@ -130,6 +133,15 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
     if (nk === 'back') return true;
     if (kit(e)) return true;
     const l = letterOf(e);
+    // A waiting owner row comes in on the menu's next key (useAccountRow); U opens it at once.
+    const waiting = accountRow.waiting;
+    if (waiting) {
+      accountRow.show();
+      if (l === START_LETTERS.owner) {
+        openAccount(ownerRow({ name: waiting.name }).opens);
+        return true;
+      }
+    }
     const i = l ? items.findIndex((it) => it.letter === l) : -1;
     if (i >= 0) {
       setCursor(i);
@@ -173,20 +185,36 @@ const ABOVE_ACCOUNT = new Set(['enter']);
 /** A finger's click follows its lift by up to about this (ms): the row waits it out. */
 const AFTER_TOUCH_MS = 350;
 
+interface AccountRow {
+  /** The owner row's account state; null while the row is not shown (accounts off or not known yet, or it waits). */
+  row: AccountState | null;
+  /** The state of a row that waits to come in (below); null: none waits. */
+  waiting: AccountState | null;
+  /** Brings a waiting row in now (the menu's keys: the hands are on the keyboard). */
+  show(): void;
+}
+
 /**
- * The owner row's account state, or null while the row is not shown: accounts
- * are off or not known yet, or the row waits for the pointer (below).
+ * The owner row: whether it is shown, and with which account state.
  *
- * The flag is asked on idle time (`watchAccountState`: the shared
- * `/api/config`, and no request at all where the page may not call the
- * API). When it turns on, the row comes in at once unless that would move
+ * When the menu learns of the row: only after its first paint. The flag
+ * `accounts` comes from the server (`watchAccountState` on idle time: the
+ * shared `/api/config`, and no request at all where the page may not call
+ * the API), so the row's height cannot be kept free from the start (a
+ * production page, flag off, would show a hole); the account's name is
+ * known at once (a localStorage hint), but without the flag it is no row.
+ *
+ * When the flag turns on, the row comes in at once unless that would move
  * something under a pointer: a mouse resting on the rows below it or on
  * the panel's foot (a click there would land on another row than the one
  * it was aimed at), or a finger that is down (its click comes after the
- * lift). Then it waits until the pointer has left that part, or the
- * finger's click is over.
+ * lift). Then it waits, and comes in at the first of: the mouse leaves
+ * that part (onto Enter MUME, off the panel, out of the window), the
+ * finger's click is over, the menu's next key (`show`: the hands are on
+ * the keyboard, and the cursor is kept by key), or the menu is no longer
+ * the top frame (a page over it hides it; Back finds the row there).
  */
-function useAccountRow(menu: { current: HTMLUListElement | null }): AccountState | null {
+function useAccountRow(menu: { current: HTMLUListElement | null }, isTop: boolean): AccountRow {
   const [state, setState] = useState<AccountState>(accountState);
   const [shown, setShown] = useState(() => accountState().enabled === true);
   useEffect(() => {
@@ -245,7 +273,8 @@ function useAccountRow(menu: { current: HTMLUListElement | null }): AccountState
     doc.addEventListener('pointercancel', onUp, true);
     doc.addEventListener('pointermove', onMove, true);
     doc.documentElement.addEventListener('pointerleave', onLeave);
-    tryIn();
+    if (!isTop) setShown(true);
+    else tryIn();
     return () => {
       win.clearTimeout(timer);
       doc.removeEventListener('pointerdown', onDown, true);
@@ -254,8 +283,12 @@ function useAccountRow(menu: { current: HTMLUListElement | null }): AccountState
       doc.removeEventListener('pointermove', onMove, true);
       doc.documentElement.removeEventListener('pointerleave', onLeave);
     };
-  }, [on, shown]);
-  return on && shown ? state : null;
+  }, [on, shown, isTop]);
+  return {
+    row: on && shown ? state : null,
+    waiting: on && !shown ? state : null,
+    show: () => setShown(true),
+  };
 }
 
 /**

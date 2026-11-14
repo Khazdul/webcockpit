@@ -210,8 +210,22 @@ The owner picked from the mockups of round 8
   its last letter (Chromium); with a state it gives way as drawn.
 - **The row comes in late** as stage 60's did. Only Enter MUME stands
   above it now, so a pointer resting anywhere on the rows below holds it
-  back until the pointer moves (stage 60's row was low in the menu and
-  seldom waited).
+  back (stage 60's row was low in the menu and seldom waited). Its height
+  cannot be kept free from the first paint: the menu learns that the row
+  exists only from the server's flag `accounts` (`/api/config`, asked on
+  idle time after the first paint), while what it says (the name) is a
+  localStorage hint known at once; a placeholder would be a hole in every
+  production menu, where the flag is off. So the rule (review fix; at
+  first a mouse moving among the lower rows could hold the row back for
+  as long as it stayed there): the row never comes in under a resting
+  mouse or a finger that is down, and a row held back comes in at the
+  first of these: the mouse leaves the rows under Enter MUME (onto Enter
+  MUME, off the panel, out of the window); the finger's click is over;
+  the menu's next key (the hands are on the keyboard and the cursor is
+  kept by key; U opens the row's page at once); a page is pushed over
+  the menu (the row is there when Back shows it again). The e2e helper
+  that opens the account pages still moves the mouse away first, as a
+  player reaching for the row would.
 - **The panel's heights** in the first form (no owner row, no
   Community): 313 px on a desktop and a tablet (was 399), 295 px on a
   phone (was 357); first built as 301 and 283, then −2 px for the first

@@ -146,6 +146,40 @@ test('the owner row comes in late: nothing moves under a resting pointer, the cu
   expect(errors).toEqual([]);
 });
 
+for (const how of ['a key', 'U'] as const) {
+  test(`a row held back by a resting pointer comes in on the menu's next key (${how})`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await fakeAccountApi(page);
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => (release = r));
+    await page.route('**/api/config', async (route) => {
+      await held;
+      await route.fallback();
+    });
+    await openStart(page);
+    const profileAt = (await page.locator('.wc-start .wc-sm-item[data-key="profile"]').boundingBox())!;
+    await page.mouse.move(profileAt.x + 60, profileAt.y + profileAt.height / 2);
+    await expect(selectedRow(page)).toHaveAttribute('data-key', 'profile');
+    release();
+    await page.waitForTimeout(700);
+    expect(await keysOf(page)).toEqual(ROWS);
+    if (how === 'U') {
+      // U opens the waiting row's page at once; Back finds the row in the menu.
+      await page.keyboard.press('u');
+      await expect(pageOf(page, 'login')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(accountRow(page)).toBeVisible();
+    } else {
+      // The hands are on the keys: the row comes in, the cursor stays on its row and the key does its own work.
+      await page.keyboard.press('ArrowDown');
+      await expect(accountRow(page)).toBeVisible();
+      await expect(selectedRow(page)).toHaveAttribute('data-key', 'scripts');
+    }
+    expect(await keysOf(page)).toEqual(ROWS_ON);
+    expect(errors).toEqual([]);
+  });
+}
+
 test('the row comes in at once with no pointer on the menu, and a keyboard cursor below it stays on its row', async ({ page }) => {
   await fakeAccountApi(page);
   let release: () => void = () => {};
