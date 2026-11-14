@@ -144,9 +144,9 @@ The owner picked from the mockups of round 8
   deleted on Sessions is gone there. Keeping three pages mounted was
   turned down: three live pages, the Spotlights player host among them,
   for a state nobody asked to keep.
-- **How to open it.** `nav.push(<HistoryFrame />)` (Sessions; what H
-  does) or `openHistory(nav, tab)` with `tab` one of `sessions`,
-  `spotlights`, `diary`. The strip, its keys and `useHistoryTabs` live
+- **How to open it.** `openHistory(nav, tab)` with `tab` one of
+  `sessions` (the default; what H does), `spotlights`, `diary`; the
+  start menu calls it too, so there is one way. The strip, its keys and `useHistoryTabs` live
   in `history-tabs.tsx`, a leaf the three pages share.
 - **Keys.** Each page asks the tab keys itself, where its own state
   allows a change: not while a run log opens, the Spotlights viewer

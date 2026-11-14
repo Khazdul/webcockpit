@@ -49,10 +49,10 @@ import { type MenuItem, menuKey, useMenuCursor } from '../kit/widgets';
 import type { Quote } from '../quotes';
 import { useBrightBack, useDarkInk } from '../start-surface';
 import { AboutFrame, PrivacyFrame, atPrivacyPath } from './about';
-import { HistoryFrame } from './history';
+import { openHistory } from './history';
 import { ProfileFrame } from './profiles';
 import { ScriptsFrame } from './scripts';
-import { type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
+import { START_LETTERS, type OwnerView, type StartRowKey, communityCount, ownerRow, startMenu } from './start-menu-model';
 
 export const LATER = 'Coming in a later stage.';
 
@@ -93,10 +93,10 @@ const LABELS: Record<StartRowKey, string> = {
   about: 'About',
 };
 
-/** A row of the menu from its key: label, icon, letter; the caller adds what it does. */
-export function startItem(key: StartRowKey, letter: string, more: Partial<StartItem> = {}): StartItem {
+/** A row of the menu from its key: label, icon, letter (`START_LETTERS`); the caller adds what it does. */
+export function startItem(key: StartRowKey, more: Partial<StartItem> = {}): StartItem {
   const icon = ICONS[key];
-  return { key, label: LABELS[key], letter, ...(icon ? { icon } : {}), ...more };
+  return { key, label: LABELS[key], letter: START_LETTERS[key], ...(icon ? { icon } : {}), ...more };
 }
 
 export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode {
@@ -111,16 +111,18 @@ export const StartMain = lookFrame(function StartMain(p: StartMainProps): VNode 
   // Community: the flag `gallery` and the page come in stage 65 (dev: `?community=<n>`).
   const community = devCommunity();
   const entries = startMenu({ owner: account !== null, scripts: !!services.scripts, community });
+  const owner = account ? ownerRow({ name: account.name }) : null;
   const does: Record<StartRowKey, Partial<StartItem>> = {
     enter: { activate: p.onEnter },
-    owner: { ...(account ? { owner: ownerRow({ name: account.name }) } : {}), activate: openAccount },
+    // What a press opens is the model's (`opens`): Log in for a guest, the Account page logged in.
+    owner: owner ? { owner, activate: () => openAccount(owner.opens) } : {},
     profile: { note: profile, activate: () => nav.push(<ProfileFrame />) },
     scripts: { activate: () => nav.push(<ScriptsFrame />) },
-    history: { activate: () => nav.push(<HistoryFrame />) },
+    history: { activate: () => openHistory(nav) },
     community: { count: community ? communityCount(community.count) : null, activate: () => nav.flash(LATER) },
     about: { activate: () => nav.push(<AboutFrame />) },
   };
-  const items: StartItem[] = entries.flatMap((e) => (e.kind === 'row' ? [startItem(e.key, e.letter, does[e.key])] : []));
+  const items: StartItem[] = entries.flatMap((e) => (e.kind === 'row' ? [startItem(e.key, does[e.key])] : []));
   const [cursor, setCursor] = useMenuCursor(items, 'enter');
   const kit = useKitGallery(nav);
   usePrivacyAddress(nav);
@@ -257,19 +259,20 @@ function useAccountRow(menu: { current: HTMLUListElement | null }): AccountState
 }
 
 /**
- * Opens the account pages: the lazy chunk (./account), then the Account
- * page when somebody is logged in here, else Log in. One load at a time;
- * a page opened meanwhile (another key) keeps the menu as it is.
+ * Opens the account pages: the lazy chunk (./account), then the page the
+ * owner row's model names (`OwnerView.opens`: the Account page, or Log
+ * in). One load at a time; a page opened meanwhile (another key) keeps
+ * the menu as it is.
  */
-function useAccountPages(nav: ReturnType<typeof useNav>): () => void {
+function useAccountPages(nav: ReturnType<typeof useNav>): (opens: OwnerView['opens']) => void {
   const loading = useRef(false);
-  return () => {
+  return (opens) => {
     if (loading.current) return;
     loading.current = true;
     const depth = nav.depth();
     void import('./account')
       .then((m) => {
-        if (nav.depth() === depth) nav.push(m.accountEntry(accountState().name !== null));
+        if (nav.depth() === depth) nav.push(m.accountEntry(opens === 'account'));
       })
       .catch(() => nav.flash('The account pages could not be loaded. Check the connection and try again.', 'fail'))
       .finally(() => {

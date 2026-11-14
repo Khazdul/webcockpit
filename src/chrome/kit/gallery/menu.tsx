@@ -54,7 +54,7 @@ export default {
       setCursor((c) => !c);
       return true;
     });
-    const profile = startItem('profile', 'p', { note: 'default' });
+    const profile = startItem('profile', { note: 'default' });
     return (
       <div class="wc-km">
         <div class="wc-km-bar">
@@ -64,7 +64,7 @@ export default {
         <div class="wc-km-grid">
           {STATES.map((s) => (
             <Sample key={s.title} title={s.title}>
-              <MenuRow item={startItem('owner', 'u', { owner: ownerRow(s.input) })} selected={cursor} active={false} onSelect={noop} />
+              <MenuRow item={startItem('owner', { owner: ownerRow(s.input) })} selected={cursor} active={false} onSelect={noop} />
               <MenuRow item={profile} selected={false} active={false} onSelect={noop} />
             </Sample>
           ))}
@@ -74,8 +74,8 @@ export default {
           {[3, 0].map((n) => (
             <Sample key={n} title={n ? `${n} new` : 'no news'}>
               <li class="wc-sm-sep" role="separator" aria-hidden="true" />
-              <MenuRow item={startItem('community', 'c', { count: communityCount(n) })} selected={false} active={false} onSelect={noop} />
-              <MenuRow item={startItem('about', 'a')} selected={false} active={false} onSelect={noop} />
+              <MenuRow item={startItem('community', { count: communityCount(n) })} selected={false} active={false} onSelect={noop} />
+              <MenuRow item={startItem('about')} selected={false} active={false} onSelect={noop} />
             </Sample>
           ))}
         </div>
